@@ -14747,6 +14747,217 @@ alone, a gerund cleft, a copula with nobody before it and a clause of `che`, and
 a comparison whose second term is a clause are new shapes a program reaches; the
 owner decides. The full suite was not run on 1.8.31.
 
+### The functor and the predicate tables are hashed, and the controls take 47 % less time (1.8.32)
+
+**1.8.31 FOUND THE COST AND LEFT IT FOR A VERSION OF ITS OWN, AND THIS IS THAT
+VERSION.** `coco_functor_id` (lib/term.cicili) walked the machine's functor
+table for every structure the engine built, and `coco_pred_find`
+(lib/kb.cicili) walked the store's predicates for every call. callgrind over
+the Spanish article's first five sentences put the two at 27 % and 15 % of
+every instruction the translator ran, because the reasoning library has 2 069
+functors once it is loaded and every one a library adds is paid for by every
+lookup after it. Both are the atom table's shape now -- open addressing, an
+entry its id plus one, kept under half full -- over the arrays they were, so an
+id is the id it was, in the order of first use: a frozen machine writes the
+functor table out in that order and reads it back the same way, and the
+first-argument index and every term that holds an id are untouched.
+`coco_name_arity_hash` is the one hash both use: the FNV prime the index
+already multiplies by, because FNV's offset basis is above 2^63 and a Cicili
+number cannot carry the suffix it would need, and a fold of the high bits down
+into the ones a mask keeps.
+
+**THE COMMENT THAT DEFENDED THE SCAN WAS A GUESS ABOUT SIZE.** It read: a
+program has tens of functors and not thousands, and a hash table over two
+integers would cost more to maintain than the scan costs to run. A program has
+tens. A program with the reasoning library loaded has two thousand, and the
+predicate table had no comment at all. The comments say what was measured now.
+
+**THE TABLE IS KEPT UNDER HALF FULL BEFORE THE PROBE, NOT AFTER THE INSERT**,
+which is the one place it differs from the atom table it copies. The atom table
+rehashes after an insert and ignores a failure; a table that then filled would
+leave the next probe no empty slot to stop at, and it would spin. Checked
+first, a rehash that fails for want of memory answers 0 and sets `oom`, which
+is what a failed grow always did.
+
+**ONE ENGINE AGAINST THE OTHER, ONE LIBRARY, ONE STORE, AND NOTHING ELSE
+MOVED.** Round r79 ran the 1.8.32 engine and the 1.8.31 engine over the same
+library -- 1.8.31's translator, which this version does not touch -- and the
+same store, alternating new, old, new, old on each of the 35 controls. The old
+engine is the 1.8.31 binary kept beside links to `lib/` and `library/`, so that
+it reads the same SWI libraries from beside itself:
+
+| control | the 1.8.31 engine | **the 1.8.32 engine** |
+|---|---|---|
+| the twelve Italian sentences | 12 of 12, 13.3 and 13.2 s | **12 of 12, 7.1 and 6.8 s** |
+| the Spanish article | 11 of 11, 10.9 and 10.9 s | **11 of 11, 7.0 and 6.9 s** |
+| Livata, 29 sentences | 29 of 29, 63.0 and 64.8 s | **29 of 29, 32.1 and 32.1 s** |
+| Fiat, 20 sentences | 20 of 20, 16.4 and 16.3 s | **20 of 20, 9.0 and 9.1 s** |
+| Valencia, 16 sentences | 16 of 16, 18.8 and 19.3 s | **16 of 16, 10.2 and 10.3 s** |
+| the bioethics article, 15 sentences | 15 of 15, 9.7 and 9.7 s | **15 of 15, 5.8 and 5.8 s** |
+| the football article, 20 sentences | 20 of 20, 24.4 and 24.9 s | **20 of 20, 13.7 and 14.0 s** |
+| Monreale, 6 sentences | 6 of 6, 3.6 and 3.5 s | **6 of 6, 2.2 and 2.2 s** |
+| the record report, 15 sentences | 15 of 15, 10.4 and 10.0 s | **15 of 15, 6.2 and 6.2 s** |
+| Tatoeba's 400, exact / translated / refused | 61 / 294 / 106, 19.8 and 21.0 s | **61 / 294 / 106, 11.6 and 12.0 s** |
+| the islands report, 13 sentences | 13 of 13, 18.7 and 18.7 s | **13 of 13, 10.5 and 11.2 s** |
+| the opera review, 12 sentences | 12 of 12, 11.2 and 11.8 s | **12 of 12, 6.5 and 6.8 s** |
+| the Ferlaino interview, 27 sentences | 27 of 27, 27.9 and 27.3 s | **27 of 27, 14.8 and 14.8 s** |
+| the Georgia report, 8 sentences | 8 of 8, 10.4 and 11.2 s | **8 of 8, 6.4 and 6.2 s** |
+| the Washington Post extract, 13 sentences | 13 of 13, 14.9 and 14.5 s | **13 of 13, 8.0 and 8.5 s** |
+| the Clinton report, 12 sentences | 12 of 12, 15.0 and 15.1 s | **12 of 12, 8.9 and 8.8 s** |
+| the Bosnian letter, 12 sentences | 12 of 12, 36.6 and 37.3 s | **12 of 12, 18.0 and 18.1 s** |
+| the Solana report, 10 sentences | 10 of 10, 17.6 and 20.6 s | **10 of 10, 9.6 and 11.4 s** |
+| the pacifist letter, 6 sentences | 6 of 6, 8.2 and 8.0 s | **6 of 6, 4.2 and 3.9 s** |
+| the mobile column, 11 sentences | 11 of 11, 21.9 and 23.8 s | **11 of 11, 12.5 and 12.1 s** |
+| the Bastille letter, 11 sentences | 11 of 11, 20.0 and 19.8 s | **11 of 11, 10.0 and 9.8 s** |
+| the Basque report, 9 sentences | 9 of 9, 31.1 and 31.4 s | **9 of 9, 16.5 and 16.2 s** |
+| the Giglio letter, 8 sentences | 8 of 8, 11.4 and 11.1 s | **8 of 8, 6.2 and 6.0 s** |
+| the England column, 9 sentences | 9 of 9, 11.7 and 11.6 s | **9 of 9, 6.6 and 6.4 s** |
+| the Bovalino letter, 15 sentences | 15 of 15, 33.9 and 33.2 s | **15 of 15, 18.9 and 17.5 s** |
+| the Puigbó report, 8 sentences | 8 of 8, 19.4 and 18.8 s | **8 of 8, 10.3 and 10.8 s** |
+| the Salvini interview, 35 sentences | 35 of 35, 84.1 and 84.6 s | **35 of 35, 40.5 and 40.8 s** |
+| the Radio Nacional report, 9 sentences | 9 of 9, 20.1 and 20.4 s | **9 of 9, 11.3 and 11.4 s** |
+| the Fregene report, 75 sentences | 75 of 75, 131.5 and 132.2 s | **75 of 75, 67.3 and 67.6 s** |
+| the Lord of the Rings report, 13 sentences | 13 of 13, 78.8 and 79.6 s | **13 of 13, 41.8 and 42.0 s** |
+| the Ciampi report, 21 sentences | 21 of 21, 67.2 and 70.0 s | **21 of 21, 35.0 and 35.7 s** |
+| the Òmnium report, 13 sentences | 13 of 13, 51.8 and 48.7 s | **13 of 13, 27.1 and 28.0 s** |
+| the astronautics report, 20 sentences | 20 of 20, 30.5 and 30.4 s | **20 of 20, 16.0 and 16.7 s** |
+| the Senegal report, 28 sentences | 28 of 28, 140.2 and 140.7 s | **28 of 28, 72.4 and 73.8 s** |
+| the Eco column, 32 sentences | 32 of 32, 152.2 and 153.6 s | **32 of 32, 78.4 and 77.8 s** |
+
+-- every text the same in all four passes, Tatoeba's to the byte, and every
+control faster with the ranges apart: from 36.4 % (the Spanish article) to
+51.8 % (the Salvini interview), and the sum of the 35 from 1 262 s to 665 s,
+**47.3 % less**. The texts cannot move, and a count says why: the inferences
+are the same sentence by sentence, measured on the twelve, the Spanish article
+and the pacifist letter, because a table that finds an entry finds the entry
+the scan found and gives it the id the scan gave.
+
+**CALLGRIND, ON THE FIVE SENTENCES 1.8.31 PROFILED**: 114.36 G instructions to
+64.55 G, 43.6 % fewer, and 641.6 s under callgrind to 340.1 s. The four
+functions that held the two scans -- `coco_open_struct`, `coco_k_push`,
+`coco_pred_of` and `coco_assert_from`, into which the compiler had inlined them
+-- spent 53.6 G; the functions that hold the two tables now spend 3.2 G.
+`coco_assert_from` held 3.7 G of it because a predicate fetched from the store
+comes in clause by clause through the assert path, and every clause looked its
+predicate up again.
+
+**THE TIME FELL FURTHER THAN THE INSTRUCTIONS**, 47.3 % against 43.6 %, which is
+the other half of 1.8.31's finding, where the time rose 2.7 % and the
+instructions 1.64 %: a scan is a walk over memory, and an instruction that loads
+costs more than one that adds. **AND THE START-UP DID NOT MOVE**: 0.40 s against
+0.41 s, five alternating runs of a control over an empty file, so the whole gain
+is in the translating.
+
+**WHAT IS LEFT, IN THE NEW PROFILE'S ORDER.** Copying a clause from the store to
+the heap at each call, `coco_store_get_node` and `coco_store_get`, is 27 % of
+the instructions. `strcmp` is 9.4 %: a module's predicates are dispatched by
+comparing a goal's name as a string, among the predicates of its arity
+(`coco-emit-module-dispatch`, lib/module.cicili), so a goal that belongs to the
+knowledge base is compared against the module predicates of its arity before it
+reaches the store -- `coco_b_dispatch`, `coco_f_dispatch` and `coco_l_dispatch`
+together 3.5 G of the 6.1 -- and the operator table compares names the same way,
+1.8 G. `coco_unify` is 9.5 %, and `malloc`, `free` and `realloc` nearly 14 %.
+The first two are the next levers; they are recorded here and not done, because
+each is a change to how every call is made and wants a version of its own.
+
+**THE NEW CHECKS ARE GUARDS, AND AN ARM SAYS WHAT THEY GUARD.** `test/term.cicili`
+drives the functor table and `test/solve.cicili` the predicate table through four
+rehashes each -- 3 000 entries, 300 names at ten arities -- and asks every entry
+back at the id it was given. Both pass on 1.8.31's scan as well, because a scan
+answers that too; what they pin is the table. Built in a scratch copy with each
+rehash dropping every second entry, the functor arm gives 1 024 of the 3 000
+functors a new id the second time they are asked for, so the table holds 4 024
+entries where it made 3 000, and the predicate arm cannot find 1 009 of its
+3 000. The functor arm is red on both of its new checks, the predicate arm on the
+one that asks for the 3 000, and each is green on every other check in its file.
+
+**THE FULL SUITE, SERVER UP, ON THE COMMIT AS IT WAS: 58 case lines, 50 GREEN,
+7 SKIP, `red: 1`.** The seven SKIPs are the machine's -- no CUDA for `tensors`
+and the three torch cases, no `tensorflow.so`, `ray.so` or `numpy.so` -- and the
+database cases were green with a server that answered, `groups` 2 s and `ruler`
+14 s. The red line was `lint`, at 225 s, for two reasons, and only the first is
+this version's.
+
+**THE CARD'S CITES MOVED WITH THE ENGINE.** The hash tables moved the lines nine
+cites of `tools/cocolint/traps.jsonl` name, by 4 to 52 lines in `lib/kb.cicili`
+and `lib/term.cicili`. Five have an anchor that is unique in its file, and the
+checker took them as moved; four -- I1 twice, A2 and O1 -- have an anchor that
+appears three or four times, so the range is the only thing that says which site
+a row means, and the checker refused them. That is 1.6.12's hazard again, met
+exactly as it said it would be met. The ranges follow the code now, and `card
+--check` says `33 rows, 43 cites all anchored`.
+
+**AND THE CORPUS LINT HAD BEEN RUNNING PAST ITS TWO MINUTES FOR A STRETCH OF
+VERSIONS, AND A TIME-OUT READ AS EVERY FINDING GONE.** `test/lint.pl` lints every
+tutorial and every library, 79 files, through `shell/3` -- two minutes, and what
+the child printed. Past the two minutes that is nothing, and the case read
+nothing as all 22 of its pinned findings missing, beside a line saying that all
+19 rules still fire. The same lint took **243 s on the 1.8.31 binary** and 160 s
+on this one, with the same 12 HARD and 10 WARN, so it is older than this version,
+and 1.8.32 had brought it closer to the line, not under it. The last full suite
+before this one was 1.8.0's; `library/reasoning/translate.pl` has grown by every
+sample since, to 18 168 lines and 1.1 MB, and it was 114 s of the 160 on its own.
+
+**TWO FIXES IN THE LINTER, AND THE SECOND IS THE ONE TO CARRY.** Timed step by
+step over that one file:
+
+| `translate.pl`, one step | inferences | as it was | both fixes |
+|---|---|---|---|
+| the reader, `cc_clauses_of/2` | 36.4 million | 8.2 s | 8.9 s |
+| the regions, `cc_regions/2` | 13.3 million | 2.9 s | 2.7 s |
+| the clause texts | 5.3 million | 2.2 s | 1.4 s |
+| N1 to N3, the collisions | 6.0 million | 6.7 s | 3.1 s |
+| S1, the banned forms | 55.0 million | 35.2 s | 14.6 s |
+| A1, the wrapping integers | 10.1 million | 9.0 s | 1.8 s |
+| Z1, the clause too long for a page | **233.4 million**, then 9.9 | **50.1 s** | 2.1 s |
+| the heap after the last step | | **8.9 GB** | **58 MB** |
+
+* **Z1 shifted the whole region list once for every clause**, which is clauses
+  times regions: 3 042 clauses and 9 988 regions in that file. The clauses come
+  in source order and so do the regions, so a region that ends before one clause
+  begins ends before every later one; it is dropped once now, and a clause shifts
+  only the regions that begin inside it. 233 million inferences to 9.9.
+* **EVERY PHASE IS A DETERMINISTIC WALK, AND A DETERMINISTIC PROOF NEVER GIVES ITS
+  HEAP BACK.** cocolog reclaims the heap on backtracking only, so each phase left
+  every frame it made behind it -- 50 to 120 bytes an inference, measured phase
+  by phase -- and one 1.1 MB file took the process to 9.6 GB. Each phase is
+  copied out through a `findall/3` now (`cl_kept/2`), which keeps the answer and
+  winds the heap back: the heap stays at 58 MB over the same file, and **the same
+  inferences take a third of the time** -- S1's 55.0 million in 35.2 s and then
+  in 14.6, A1's 10.1 million in 9.0 s and then in 1.8. The time was not the
+  work; it was the kernel handing the walk fresh pages.
+
+Over the whole corpus, one process each:
+
+| the linter | real | user | system | peak resident |
+|---|---|---|---|---|
+| on the 1.8.31 binary | 243 s | | | 9.6 GB at 153 s |
+| on 1.8.32, as it was | 160 s | 129 s | 29 s | |
+| Z1 in step | 114 s | 79 s | 34 s | 10.8 GB |
+| **and each phase copied out** | **75 s** | **72 s** | **1.8 s** | **3.5 GB** |
+
+-- the findings the same in all four. Z1 alone took the user time down by 50 s
+and the system time went UP, 29 s to 34; copying out took the system time from
+34 s to 2. What is left of the peak is the reader, which is one goal over the
+whole file. And `test/lint.pl` gives that one step five minutes now, through a
+`shell/4` in `test/prelude.pl`, because the corpus grows with every sample the
+translator takes. The lint case is GREEN in 145 s.
+
+**A LINT AT TEN GIGABYTES WAS A NEIGHBOUR NOTHING COULD STAND BESIDE.** The first
+attempt to time one file beside the 1.8.31 corpus lint was killed at 60 s for
+want of memory -- the old lint already past 8 GB and the second process growing
+toward the same -- which is 1.8.30's teach finding seen from the linter's side.
+At 3.5 GB it is an ordinary neighbour.
+
+**AND THE WHOLE SUITE AGAIN ON THE FIXES, SERVER UP: 58 case lines, 51 GREEN,
+7 SKIP, `red: 0`, in 978 s** -- the same seven SKIPs, `lint` GREEN in 157 s,
+`groups` 2 s and `ruler` 13 s, `tagger` 224 s, `tutorials` 265 s and
+`translate` 106 s. Nothing ran beside it.
+
+**THE VERSION STAYS 1.8.32.** The linter, the card and the case are tooling and
+change no binary, so they are this version's; the engine's change is the version's
+number.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
