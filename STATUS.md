@@ -4024,6 +4024,61 @@ section is red on 1.8.35. The price is the float's: a predicate keyed by
 strings is walked rather than indexed, and leaves a choice point (the
 dialect card's I1 says so now).
 
+## The walk stacks are kept (1.8.38)
+
+**cocolog had lost a third of its speed on search since August, and one
+commit had done it.** The language benchmark's Run J read queens at 17.2x
+CPython where Run I, a month earlier on the same box, had read 11.3x.
+Paired in one sitting, built by the same Cicili, Run I's source (`ad3660d`)
+against 1.8.37: queens 57% longer, nrev 31%, loop and sortnums 13%. The
+inference counts were the same on both sides to within 1.5% -- 129 453
+against 129 431 for one queens search -- so each inference had grown dearer
+and the work had not grown.
+
+The bisection ran over master's first-parent line, the 58 commits since
+`ad3660d` that touch `lib/`, `cocolog.cicili`, `embed/`, `Makefile` or
+`tools/cc`, each built from `git archive` into a scratch directory and timed
+interleaved with both ends. It is a single step, at `dd0895f` (2026-09-01,
+"a list's depth is its length: five term walks off the C stack"): queens
+x64 1.645 s on the commit before, 2.644 s on it, and every later point flat
+at that level.
+
+That commit fixed a real crash -- copy, store-put, store-get, unify and
+compare recursed on the C stack and died on a list 200 000 long -- by
+walking on a stack of their own. But each walk allocated its stack on
+every call and freed it on the way out, and nearly every inference copies a
+clause and unifies: a malloc and a free per call. `sample` on queens shows
+it: after the commit the profile carries macOS's allocator for blocks of
+that size -- `tiny_malloc_should_clear`, `free_tiny`,
+`tiny_free_list_add_ptr`, `tiny_free_no_lock`, some 500 samples of a
+four-second run -- and before it, none of them.
+
+**The machine keeps the two stacks now** (`wframes`, `wpairs`). A walk
+borrows them with `coco_wframes_take` or `coco_wpairs_take` and gives them
+back at its end, so a walk nested inside another finds none and makes its
+own, and one grown past a megabyte or so is freed rather than kept. In
+steady state no walk allocates. A long list still grows its stack on the
+heap: two 200 000-element lists copied, collected by `findall/3`, unified,
+compared, asserted and called back, a term nested 200 000 deep copied and
+stored, and two nested 100 000 deep unified and compared, answer the same
+on 1.8.37 and 1.8.38.
+
+Five interleaved passes, whole process, in one sitting:
+
+| program | `ad3660d` (August) | 1.8.37 | 1.8.38 |
+|---|---:|---:|---:|
+| `queens` x64 | 1.710 s | 2.662 s | **1.769 s** |
+| `nrev` x32 | 1.416 s | 1.858 s | **1.237 s** |
+| `loop` x32 | 3.139 s | 3.336 s | **2.554 s** |
+| `lookup` x1024 | 2.324 s | 2.121 s | **1.662 s** |
+| `sortnums` x256 | 3.381 s | 3.591 s | **2.896 s** |
+
+The search is back where August had it, within 3%; the other four are
+13-28% faster than August, the heap collector of 1.8.36 and this together.
+**The crash fix was right; what went unmeasured was its price.** The
+benchmark that would have caught it lived in another repository then, and
+it runs here now.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

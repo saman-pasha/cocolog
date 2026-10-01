@@ -808,6 +808,7 @@
         (let ((coco_varmap vm . '{ nil nil 0 0 })
               (coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
               (size_t r . 0))
+          (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
           (set r (coco_store_put_node st m t (aof vm) (aof fs) (aof flen) (aof fcap)))
           (while (> flen 0)
             (let ((size_t fi . #'(- flen 1)))
@@ -822,7 +823,7 @@
                 (let ((size_t a . #'(coco_store_put_node st m src (aof vm)
                                                          (aof fs) (aof flen) (aof fcap))))
                   (set (nth slot (-> st cells)) (coco-cell REF a))))))
-          (free fs)
+          (coco_wframes_give m (cast (void *) fs) fcap)
           (coco_varmap_free (aof vm))
           (return r)))
 
@@ -859,6 +860,7 @@
         (let ((coco_varmap vm . '{ nil nil 0 0 })
               (coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
               (size_t r . 0))
+          (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
           (set r (coco_store_get_node m st t (aof vm) (aof fs) (aof flen) (aof fcap)))
           (while (> flen 0)
             (let ((size_t fi . #'(- flen 1)))
@@ -873,7 +875,7 @@
                 (let ((size_t a . #'(coco_store_get_node m st src (aof vm)
                                                          (aof fs) (aof flen) (aof fcap))))
                   (coco_set_arg m slot a)))))
-          (free fs)
+          (coco_wframes_give m (cast (void *) fs) fcap)
           (coco_varmap_free (aof vm))
           (return r)))
 

@@ -488,6 +488,13 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
 * **A global is found by a scan from the first one made and COPIED on every
   read** (`nb_getval/2`, `b_getval/2`): keep a table small per global, and
   make a global you read often once rather than catching its absence.
+* **The five term walks borrow the machine's stacks** (copy, store-put,
+  store-get, unify, compare: `coco_wframes_take`/`_give`,
+  `coco_wpairs_take`/`_give` in `lib/term.cicili`). They are iterative so a
+  200 000-element list cannot overflow the C stack, and when each walk
+  allocated its stack per call, queens took 61% longer (1.8.38's bisection,
+  STATUS.md). A walk must not `malloc` per call; anything new on that path
+  is measured with `sh bench/langs.sh` or a same-sitting pair.
 * **`coco_make` dereferences every argument it stores**, which is what keeps
   the continuation from becoming a REF chain and the engine from going
   quadratic; `test/engine.pl` guards it with a hundred-fold-margin timeout.

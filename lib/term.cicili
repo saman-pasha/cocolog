@@ -370,7 +370,17 @@
     ;; the root arrays hosts hold, a stack -- see `coco_heap_root_push'
     (member coco_hroot * hroots)
     (member size_t     nhroots)
-    (member size_t     hroot_cap))
+    (member size_t     hroot_cap)
+    ;; THE WALK STACKS, KEPT. Copy, store-put and store-get each walk a term
+    ;; on a stack of frames, unify and compare on a stack of pairs, and a
+    ;; stack allocated per walk is a malloc and a free per CALL: queens took
+    ;; 61 % longer for it (dd0895f, found by bisection). A walk borrows the
+    ;; machine's -- so one nested inside it finds none and makes its own --
+    ;; and gives it back when it ends. void *: the frame type comes later.
+    (member void *     wframes)
+    (member size_t     wframes_cap)
+    (member size_t *   wpairs)
+    (member size_t     wpairs_cap))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -496,6 +506,13 @@
   (decl) (func coco_frames_push ((coco_copyframe ** fs) (size_t * len) (size_t * cap)
                                  (size_t src) (size_t dst) (u32 n)) (out int))
 
+  ;; the machine's walk stacks, borrowed for one walk and given back -- see
+  ;; the `wframes' and `wpairs' members
+  (decl) (func coco_wframes_take ((coco_machine * m) (size_t * cap)) (out void *))
+  (decl) (func coco_wframes_give ((coco_machine * m) (void * p) (size_t cap)))
+  (decl) (func coco_wpairs_take ((coco_machine * m) (size_t * cap)) (out size_t *))
+  (decl) (func coco_wpairs_give ((coco_machine * m) (size_t * p) (size_t cap)))
+
   ;; a fresh copy of T with fresh variables, pushed on the heap
   (decl) (func coco_copy ((coco_machine * m) (size_t t)) (out size_t))
   ;; structural comparison: <0, 0, >0 in the standard order of terms
@@ -572,6 +589,8 @@
         (free (-> m trail))
         (free (-> m heap))
         (free (-> m hroots))
+        (free (-> m wframes))
+        (free (-> m wpairs))
         (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------
@@ -965,6 +984,34 @@
   (func coco_heap_root_pop ((coco_machine * m))
         (if (> (-> m nhroots) 0) (set (-> m nhroots) (- (-> m nhroots) 1))))
 
+  ;;; The walk stacks: a walk takes the machine's and gives it back. One
+  ;;; given back while the machine holds another -- a nested walk's,
+  ;;; returned first -- is freed, and so is one grown past a megabyte or so,
+  ;;; which a term that deep needs once and a machine should not keep.
+  (func coco_wframes_take ((coco_machine * m) (size_t * cap)) (out void *)
+        (let ((void * p . #'(-> m wframes)))
+          (set (cof cap) (-> m wframes_cap))
+          (set (-> m wframes) nil)
+          (set (-> m wframes_cap) 0)
+          (return p)))
+
+  (func coco_wframes_give ((coco_machine * m) (void * p) (size_t cap))
+        (if (and (== (-> m wframes) nil) (<= cap 65536))
+            (block (set (-> m wframes) p) (set (-> m wframes_cap) cap))
+            (free p)))
+
+  (func coco_wpairs_take ((coco_machine * m) (size_t * cap)) (out size_t *)
+        (let ((size_t * p . #'(-> m wpairs)))
+          (set (cof cap) (-> m wpairs_cap))
+          (set (-> m wpairs) nil)
+          (set (-> m wpairs_cap) 0)
+          (return p)))
+
+  (func coco_wpairs_give ((coco_machine * m) (size_t * p) (size_t cap))
+        (if (and (== (-> m wpairs) nil) (<= cap 131072))
+            (block (set (-> m wpairs) p) (set (-> m wpairs_cap) cap))
+            (free p)))
+
   ;;; The pending pairs of an iterative unify or compare: one flat array,
   ;;; a and b side by side, popped two at a time.
   (static)
@@ -993,6 +1040,7 @@
   (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int)
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
               (int ok . 1) (int running . 1))
+          (set wl (coco_wpairs_take m (aof wcap)))
           (while (== running 1)
             (set a (coco_deref m a))
             (set b (coco_deref m b))
@@ -1037,7 +1085,7 @@
                   (set b (nth (- wlen 1) wl))
                   (set a (nth (- wlen 2) wl))
                   (set wlen (- wlen 2)))))
-          (free wl)
+          (coco_wpairs_give m wl wcap)
           (return ok)))
 
   ;;; ---- copying -------------------------------------------------------
@@ -1132,6 +1180,7 @@
   (func coco_copy_walk ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out size_t)
         (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
               (size_t r . 0))
+          (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
           (set r (coco_copy_node m t vm (aof fs) (aof flen) (aof fcap)))
           (while (> flen 0)
             (let ((size_t fi . #'(- flen 1)))
@@ -1145,7 +1194,7 @@
                 (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
                 (let ((size_t a . #'(coco_copy_node m src vm (aof fs) (aof flen) (aof fcap))))
                   (set (nth slot (-> m heap)) (coco-cell REF a))))))
-          (free fs)
+          (coco_wframes_give m (cast (void *) fs) fcap)
           (return r)))
 
   (func coco_varmap_free ((coco_varmap * vm))
@@ -1220,6 +1269,7 @@
   (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int)
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
               (int r . 0) (int running . 1))
+          (set wl (coco_wpairs_take m (aof wcap)))
           (while (== running 1)
             (set a (coco_deref m a))
             (set b (coco_deref m b))
@@ -1270,7 +1320,7 @@
                   (set b (nth (- wlen 1) wl))
                   (set a (nth (- wlen 2) wl))
                   (set wlen (- wlen 2)))))
-          (free wl)
+          (coco_wpairs_give m wl wcap)
           (return r)))
 
   ) ; impl-term
