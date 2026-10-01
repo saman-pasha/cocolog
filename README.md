@@ -167,7 +167,61 @@ art/                   the banners, hand-drawn SVG with PNG renders: the
 `sh install/install-linux.sh` (Debian, Ubuntu, Fedora) or `sh install/install-macos.sh`
 does everything below on one machine — packages, the two sibling checkouts,
 ZiguratIP, cocolog, its schema and modules — and ends by printing the exports;
-[install/README.md](install/README.md) has the knobs. By hand, it is this:
+[install/README.md](install/README.md) has the knobs.
+
+### Or in Docker
+
+It works on any machine that runs Docker — a Mac included, where the image
+runs in Docker's Linux VM. `docker build -t cocolog .` runs that same
+`install/install-linux.sh` on Ubuntu 24.04; the [Dockerfile](Dockerfile)
+says what it adds to the script, what it checks, and what its first build
+measured. Then:
+
+```sh
+docker run --rm cocolog --version
+docker run --rm cocolog query 'X is 6*7, write(X), nl'
+docker run --rm -it cocolog                                  # the REPL
+docker run --rm -v "$PWD":/work cocolog --embed KB -s program.pl
+```
+
+The last runs `program.pl` from the current directory with its knowledge
+base in `./KB` beside it, no server needed; a second run finds what the
+first left there.
+
+**The image moves to another machine as a file**, so it is built once and
+used anywhere Docker runs Linux x86-64 images — a Windows PC included:
+
+```sh
+docker save cocolog | gzip > cocolog.tar.gz     # where it was built
+docker load -i cocolog.tar.gz                   # on the other machine, once
+```
+
+On Windows, in PowerShell, the commands above are the same but for the
+mount, which names the current folder as `${PWD}`:
+
+```powershell
+docker run --rm cocolog query 'X is 6*7, write(X), nl'
+docker run --rm -v "${PWD}:/work" cocolog --embed KB -s program.pl
+```
+
+and in `cmd.exe` the mount is `-v "%cd%:/work"` and a query takes double
+quotes. A program saved with Windows line endings reads as it would on
+Linux. **The image has been run on macOS only.** The embedded store maps its
+files into memory, which on a mounted Windows folder goes through Docker
+Desktop's file sharing; if a store there misbehaves, keep it in a Docker
+volume instead and only the program in the folder:
+
+```powershell
+docker run --rm -v "${PWD}:/work" -v cocolog-kb:/kb cocolog --embed /kb -s program.pl
+```
+
+An ARM machine — a Windows laptop on Snapdragon, a Mac on Apple silicon —
+should build its own image from the Dockerfile rather than load an x86-64
+one. And a checkout made on Windows must keep Unix line endings in its
+shell scripts for `docker build` to work there: clone it with `git clone -c
+core.autocrlf=false`.
+
+### By hand
 
 What the build needs on the machine:
 
@@ -609,6 +663,23 @@ code.
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
 | `library(xml)` | `.pl` | the same for XML |
 | `library(html)` | `.pl` | the same for HTML |
+| `library(stream)` | `.so` | files as streams — bytes, text and terms — and ISO's stream predicates (`open/4`, `read_term/3`, `set_output/1`, …) over them |
+| `library(ray)` | `.so` | raylib: a window, 2D and 3D drawing, text, textures, the keyboard and mouse — the game loop is a Prolog predicate |
+| `library(clay)` | `.so` | Clay's flex-box layout: a user interface as a term, laid out into render commands |
+| `library(clay_ray)` | `.pl` | Clay's render commands drawn through `library(ray)` |
+| `library(opencv)` | `.so` | OpenCV 4: images, filters, contours, the DNN module |
+| `library(numpy)` | `.so` | numpy arrays over numpy's C API |
+| `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
+| `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
+| `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
+| `library(hex)` | `.pl` | hexagonal-grid arithmetic |
+| `library(cowork)` | `.pl` | a crew of worker threads that outlives a turn |
+| `library(llm)` | `.pl` | a language model as a goal: a chat completion over `library(curl)` and `library(json)` |
+| `library(reasoning/...)` | `.pl` | controlled English read into predicates and explained (`reason`); the generator and the tagger that turn typed prose into it (`normalise`, `tagger`); a translator whose lessons are knowledge bases (`translate`, with the `teach.pl` and `page.pl` programs) |
+
+The cryptography libraries have a table of their own below, and
+`library(process)`, `library(text)`, `library(os)` and `library(kbs)` are in
+the test-suite section above.
 
 **A thing belongs in tier 2 when its dependency should not be everybody's**,
 and that argument moved three modules out of the binary. `tcp` was swept
@@ -707,6 +778,18 @@ first. Measured, before the fix: three sequential POSTs through a pool of
 three left **two** facts in the database. So a request runs as an isolated
 proof — fresh machine, fresh store, fresh database connection, one commit at
 the end, a rollback if it broke.
+
+**THE ATOM TABLE IS NEVER RECLAIMED, and a server that runs for a long time
+should be set up knowing it.** An atom's id is written into every cell that
+names it and into every frozen machine, so an atom lives as long as its
+machine does. `library(http)` makes atoms of a request's path, its query keys
+and values and its header values — measured, **five new atoms a request**
+whose path, query and headers have not been seen before. Under `workers(N)`
+each connection is parsed and answered on a fresh machine, and its atoms go
+when it does. Under `workers(0)`, the default, every request is parsed on the
+serving machine, so a server that clients can send ever-new paths to grows by
+those atoms for as long as it runs (`statistics(atoms, N)` shows it). **A
+long-running public server should use a pool**, even a pool of one.
 
 ## Cryptography and a CA, imported rather than rewritten
 
@@ -1217,9 +1300,13 @@ ZiguratIP branch's "walk-length ager, solved" commit is the account):
 The persistent embedded arrangement is now the fastest way to run the
 choreography — faster than the wire, faster than a fresh store every run —
 because the vacuum in its setup now actually returns the store to the same
-state every time. The one stream guard still serialises every reader
-(STATUS.md's one-core section), but nothing behind it accumulates any
+state every time. Nothing behind the engine's stream guard accumulates any
 more: the guard protects work proportional to live data, not to history.
+(When this was measured the guard was one mutex and serialised every
+reader. It has since become a read-write lock whose shared side readers take
+by default, which took the twelve-worker run from 5.3 s to 1.6 s on more than
+one core — STATUS.md, "The one-core ceiling is lifted, and parallel reads are
+the default". A write still takes the guard alone.)
 And a worker killed mid-write no longer bricks the store: the recovery
 walk salvages a torn tail — what a kill catches in flight never reached
 its commit sync, so by shadow paging's own rule it never happened — keeps
@@ -1645,6 +1732,23 @@ happened just as happily as over a real one.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
+**Where cocolog differs from SWI-Prolog and from ISO is one table:
+[COMPAT.md](COMPAT.md)** — every row checked by running the same goal on both,
+the ones that can give a silently different answer first (integers are 61
+bits and wrap, `retract/1` is deterministic, text lengths count UTF-8 bytes),
+and for each what to write instead.
+
+**The heap is collected since 1.8.36.** It used to be given back by
+backtracking alone, so a deterministic recursion held everything it had ever
+built: `count(2000000)`, three lines of Prolog, finished holding 560 MB of
+heap, and a failure-driven `between/3` loop of the same length peaked near a
+gigabyte. Both now peak between 43 and 55 MB; of fifteen timed pairs of the
+old binary and the new, the new was faster in thirteen. The collector
+slides what is reachable down in order between two steps of the engine, so
+the choice points' marks stay true — `coco_heap_gc` in `lib/solve.cicili`,
+and STATUS.md, "The heap is collected", for the measurements and for what
+it does not reach yet.
+
 **How cocolog compares to Python and to SWI-Prolog** — across the
 language aspects, the backend work, and the four separate senses of
 "AI-friendly" — is written down once, honestly, in The Coco's
@@ -1665,7 +1769,8 @@ worse one to read EXECUTION in), and that misapplied Prolog is MORE
 code than Python, not less.
 
 It is honest in both directions throughout, which means cocolog loses
-often — strings, GC, tabling, tooling, ecosystem — and the rows where it
+often — strings, GC (the heap collector arrived in 1.8.36, after that page
+was written), tabling, tooling, ecosystem — and the rows where it
 genuinely differs compare positions rather than languages: a clause is a
 row other processes read, a turn is a transaction, and a suspended proof
 is data any process can finish.
@@ -1677,44 +1782,53 @@ gap, the gap was closed, and the same script re-measured it.
 ### How fast it is, measured rather than asserted
 
 Five small programs, the same task in each language, every lane's answer
-checked against every other's before a number may print. `--local` is the
-in-memory arrangement, `--embed` the MVCCS engine linked into the process,
-and `cpython + sqlite3` is there because a dict is not a database and
-timing one against a store measures the guarantees rather than the engine:
+checked against every other's before a number may print — `sh
+bench/langs.sh`, with every run it has printed in
+[bench/README.md](bench/README.md). `--local` is the in-memory
+arrangement, `--embed` the MVCCS engine linked into the process, and
+`cpython + sqlite3` is there because a dict is not a database and timing
+one against a store measures the guarantees rather than the engine:
 
 | task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog server | cpython + sqlite3 |
 |---|---|---|---|---|---|
-| naive reverse, 400 elements | 0.034682 s (8.3x) | 0.004186 s | 0.035370 s (8.4x) | 0.034849 s (8.3x) | 0.004852 s (1.2x) |
-| 8-queens, all 92 solutions | 0.022249 s (11.3x) | 0.001973 s | 0.021706 s (11.0x) | 0.021999 s (11.2x) | 0.001957 s (1.0x) |
-| 100 000 additions, one at a time | 0.080093 s (19.1x) | 0.004188 s | 0.081349 s (19.4x) | 0.079177 s (18.9x) | 0.028561 s (6.8x) |
-| 1000 keyed lookups over 200 facts | 0.001773 s (18.5x) | 0.000096 s | 0.001886 s (19.6x) | 0.001820 s (19.0x) | 0.012229 s (127.4x) |
-| generate-and-sort 5000 integers | 0.010062 s (5.8x) | 0.001744 s | 0.010205 s (5.9x) | 0.010286 s (5.9x) | 0.002480 s (1.4x) |
+| naive reverse, 400 elements | 0.030175 s (6.5x) | 0.004641 s | 0.029254 s (6.3x) | 0.030046 s (6.5x) | 0.004787 s (1.0x) |
+| 8-queens, all 92 solutions | 0.023113 s (12.0x) | 0.001926 s | 0.022298 s (11.6x) | 0.022841 s (11.9x) | 0.001983 s (1.0x) |
+| 100 000 additions, one at a time | 0.063794 s (15.2x) | 0.004208 s | 0.065996 s (15.7x) | 0.066508 s (15.8x) | 0.027011 s (6.4x) |
+| 1000 keyed lookups over 200 facts | 0.001292 s (13.6x) | 0.000095 s | 0.001326 s (14.0x) | 0.001347 s (14.2x) | 0.012299 s (129.5x) |
+| generate-and-sort 5000 integers | 0.008771 s (5.2x) | 0.001680 s | 0.008802 s (5.2x) | 0.009123 s (5.4x) | 0.002421 s (1.4x) |
 
-(macOS, i9-9880H, Python 3.11.13; three runs on this box with the
-shared lanes agreeing within a few percent; the sqlite column pairs
-every task with a durable Python -- the data as committed rows, read
-back through the database per rep. The earlier Linux box read 6-34x
-with the same shape -- search best, the tight loop worst -- and the
-two boxes do not compare across without naming both.)
+(Run K: cocolog 1.8.38, macOS, i9-9880H, Python 3.11.13; the sqlite
+column pairs every task with a durable Python -- the data as committed
+rows, read back through the database per rep. Runs on other boxes and
+other versions are in bench/README.md, and none of them compares across
+without naming both.)
 
-**So cocolog is 6-19x CPython as a language**, and the spread is the
-interesting part: backtracking search is its best showing, which is the
-thing a Prolog engine is for, and a tight counting loop its worst, which
-is the per-inference cost of a continuation-passing interpreter with no
-compilation step. Start-up is not the reason and the guess that it was is
-dead — every arrangement boots in about a tenth of a second here, the
-same as Python.
+**So cocolog is 5-15x CPython as a language**, and the spread is the
+interesting part: sorting and list work are its best showings (5.2x,
+6.5x), and a tight counting loop its worst (15.2x), which is the
+per-inference cost of a continuation-passing interpreter with no
+compilation step. Start-up is not the reason — every arrangement boots in
+0.11-0.16 s here, the same as Python.
 
-**And the server column is new.** Over a socket, with a turn committed
-against a store the harness empties per run, every task sits within a
-few percent of the in-memory lane: the pipelined client, the turn-wide
-write batch and the mapped store left the wire's per-rep cost too small
-for the two-point method to see. And the sqlite column, written for
-every task now, splits by where the work is: computation over durable rows costs Python 1.0-1.4x over its
-own dict -- the same near-nothing cocolog's store lanes pay over
-`--local` -- while per-row store traffic trades sides: the cursor's
-addends cost sqlite 6.8x on the counting loop, and the thousand keyed
-probes cost python + sqlite3 6.5x what they cost `--embed`.
+**It is the best this box has read, and it was nearly the worst.** A
+month earlier (Run I) it read 6-19x; 1.8.36 read 7-22x, the search at
+17.2x where it had been 11.3x. A bisection found one commit: the engine's
+five term walks had been given a stack each, allocated and freed on every
+call, to fix a crash on long lists. 1.8.38 keeps the stacks on the machine
+(STATUS.md, "The walk stacks are kept"), and paired with August's own
+source in one sitting it is level on the search and 13-28% faster on the
+rest — the heap collector of 1.8.36 and this together.
+
+**Over a socket costs nothing the two-point method can see.** With a turn
+committed against a store the harness empties per run, every task sits
+within a few percent of the in-memory lane: the pipelined client, the
+turn-wide write batch and the mapped store left the wire's per-rep cost
+too small to measure. And the sqlite column splits by where the work is:
+computation over durable rows costs Python 1.0-1.4x over its own dict —
+the same near-nothing cocolog's store lanes pay over `--local` — while
+per-row store traffic trades sides: the cursor's addends cost sqlite 6.4x
+on the counting loop, and the thousand keyed probes cost python + sqlite3
+9.3x what they cost `--embed`.
 
 **Two of those readings used to be defects rather than a design, and the
 benchmark is what found them.**

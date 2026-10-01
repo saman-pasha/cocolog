@@ -35,7 +35,13 @@
 %%   them, and the fixes only made the numbers smaller -- which is exactly
 %%   what they were written for;
 %% * `statistics/2' answers the keys a program can act on and refuses the
-%%   rest by name.
+%%   rest by name;
+%% * and since 1.8.36 the HEAP is collected too: a deterministic recursion
+%%   and a failure-driven loop each stay under twice the collector's floor
+%%   where they used to hold everything they ever built, `garbage_collect/0'
+%%   collects at the next step, and a proof goes on exactly as it was -- the
+%%   same program, collected every thousand cells and never, answers the
+%%   same (`coco_heap_gc' in lib/solve.cicili; test/gc-program.pl).
 
 :- use_module('test/prelude.pl').
 
@@ -49,6 +55,7 @@ main :-
     wire,
     writes,
     keys,
+    heap,
     checks_done.
 
 %% ---- the store stays the size of what it holds ------------------------
@@ -346,7 +353,11 @@ keys :-
     answer(( statistics(inferences, I0), numlist(1, 500, Ns0), msort(Ns0, _),
              statistics(inferences, I1), ( I1 > I0 -> Up = counts_up ; Up = stuck(I0, I1) ) ), Up, X2),
     check('inferences count up', X2, counts_up),
-    answer(( statistics(globalused, G0), numlist(1, 5000, _), statistics(globalused, G1),
+    %% COLLECTED FIRST AND THE LIST KEPT, because a heap collection between
+    %% the two readings is free to take a list nobody holds -- and does, with
+    %% `COCOLOG_GC_CELLS' small: 4.9 MB of garbage, then 3 KB
+    answer(( garbage_collect, statistics(globalused, G0), numlist(1, 5000, L3),
+             statistics(globalused, G1), length(L3, _),
              ( G1 > G0 -> Grew = grew ; Grew = did_not(G0, G1) ) ), Grew, X3),
     check('globalused grows with the heap', X3, grew),
     %% THE CAPS, which are the keys the lengths could not stand in for: CivV
@@ -370,3 +381,71 @@ keys :-
     answer(( catch(statistics(_, _), error(E5, _), true),
              ( E5 = type_error(atom, V5), var(V5) -> Shape5 = type_error_atom ; Shape5 = E5 ) ), Shape5, X5),
     check('and an unbound key is a type_error', X5, type_error_atom).
+
+%% ---- the heap is collected (1.8.36) -------------------------------------
+%%
+%% THE HEAP WAS GIVEN BACK BY BACKTRACKING AND BY NOTHING ELSE: three lines
+%% of deterministic recursion, two million times round, held 560 MB at the
+%% end, and a failure-driven `between/3' loop peaked at a gigabyte, because
+%% each level's choice point is pushed above the leftovers of the level
+%% before it and no backtrack ever reaches below them. The collector
+%% (`coco_heap_gc' in lib/solve.cicili) slides what is reachable down IN
+%% ORDER, which is what keeps every choice point's heap mark true. Its
+%% floor is four million cells, 32 MB, and each bound here is pinned at a
+%% small multiple of that.
+
+gc_count(0) :- !.
+gc_count(N) :- N1 is N - 1, gc_count(N1).
+
+gc_program_lines(['t1(4)', 't1(5)', 't2(f(3))', 't2(unbound)', 't2(shared)',
+                  't3(2000)', 't4(2)', 't4(b)', 't5(1250025000)', 't5(4.75)',
+                  't5(hello world,11)', 't6(45150)', 't7(3000,3000)',
+                  't8(big(1,2,3))', 't9(2000)', 't10(negation)', 't10(2)',
+                  't11([1-1,2-2,3-3])', 't12(instantiation_error)']).
+
+heap :-
+    section('the heap is collected, and a proof goes on as it was'),
+    %% three hundred thousand turns of the recursion build ten million cells
+    answer(( statistics(heap_collections, C0), gc_count(300000),
+             statistics(heap_collections, C1), statistics(globalused, U),
+             ( C1 > C0, U < 67108864 -> Shape1 = bounded ; Shape1 = grew(C0, C1, U) ) ),
+           Shape1, H1),
+    check('a deterministic recursion is collected, and stays under twice the floor', H1, bounded),
+    answer(( numlist(1, 20000, _), statistics(globalused, U0), statistics(heap_collections, K0),
+             garbage_collect, statistics(heap_collections, K1), statistics(globalused, U1),
+             ( K1 > K0, U1 < U0 -> Shape2 = collected ; Shape2 = wrong(K0, K1, U0, U1) ) ),
+           Shape2, H2),
+    check('garbage_collect/0 collects the heap at the next step, and it shrinks', H2, collected),
+    %% THE PEAK, which only the cap remembers -- so a fresh process
+    cocolog_out('query "( between(1, 300000, _), fail ; true ), statistics(globalcap, Cap), write(cap(Cap)), nl"', O3),
+    (   re_first_atom('cap\\([0-9]+\\)', O3, A3), sub_atom(A3, 4, _, 1, N3), atom_number(N3, Cap3)
+    ->  ( Cap3 < 100663296 -> H3 = bounded ; H3 = grew(Cap3) )
+    ;   atom_codes(T3, O3), H3 = no_answer(T3)
+    ),
+    check('a failure-driven between/3 loop peaks under three times the floor', H3, bounded),
+    %% THE SAME PROGRAM, COLLECTED EVERY THOUSAND CELLS AND NEVER: every
+    %% root moved many times over, and every answer the same
+    cocolog(C),
+    gc_program_lines(Lines),
+    sh_join(['COCOLOG_GC_CELLS=1000 ', C, ' -s test/gc-program.pl 2>&1'], Cmd4),
+    proc_run(Cmd4, 120000, O4, _), chomp(O4, B4), atom_codes(T4, B4),
+    append(Lines, ['collected(yes)'], L4), atomic_list_concat(L4, '\n', Want4),
+    check('a program collected every thousand cells answers as it always did', T4, Want4),
+    sh_join([C, ' -s test/gc-program.pl 2>&1'], Cmd5),
+    proc_run(Cmd5, 120000, O5, _), chomp(O5, B5), atom_codes(T5, B5),
+    append(Lines, ['collected(no)'], L5), atomic_list_concat(L5, '\n', Want5),
+    check('and never collected, the same', T5, Want5),
+    %% THE TOPLEVEL KEEPS THE QUERY'S VARIABLES, and registers them so a
+    %% collection moves them: the bindings it prints are read through them.
+    %% THE FIRST QUERY IS THE ARM. A sliding collector moves no cell with
+    %% nothing dead below it, and a query read onto a clean heap has
+    %% nothing -- so with one query this passed with the registration taken
+    %% out. The first query's list is dead by the second, and without the
+    %% registration the second printed `X = 0.'
+    sh_join(['printf ''numlist(1, 30000, _), N = done.\\nnumlist(1, 30000, L0), sum_list(L0, S), X = f(S, done).\\n'' | COCOLOG_GC_CELLS=1000 ',
+             C, ' 2>&1'], Cmd6),
+    proc_run(Cmd6, 120000, O6, _),
+    (   re_match('X = f\\(450015000,done\\)', O6) -> H6 = printed
+    ;   atom_codes(T6, O6), H6 = wrong(T6)
+    ),
+    check('the toplevel prints the bindings of a query collected under it', H6, printed).

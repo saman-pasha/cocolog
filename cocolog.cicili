@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.8.36"))
+  (func coco_version_text () (out const char *) (return "1.8.39"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -792,6 +792,9 @@
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
+          ;; the heap collector may run: this host reads only the engine's own
+          ;; `query' after a run, which a collection keeps up to date
+          (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
           (set batched (batch_open (aof z)))
           (if (not (coco_engine_ask_text (aof e) goal))
@@ -824,6 +827,9 @@
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
+          ;; the heap collector may run: this host reads only the engine's own
+          ;; `query' after a run, which a collection keeps up to date
+          (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
           (set batched (batch_open (aof z)))
 
@@ -1306,6 +1312,10 @@
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
+          ;; the heap collector may run: the session keeps no cell index of
+          ;; its own across a run but the query's variables, and those are
+          ;; registered with the machine while the query runs -- below
+          (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
           ;; ONE GOAL IS ONE TRANSACTION HERE, so the batch is opened and
           ;; closed per goal rather than once for the session: what a goal
@@ -1377,6 +1387,11 @@
                          ((== consulted 0) (set grc -1))
                          (#t
                           (coco_engine_ask (aof e) g)
+                          ;; THE VARIABLES ARE CELL INDICES the reader holds,
+                          ;; read back after every answer to print the
+                          ;; bindings -- so the collector is told where they
+                          ;; are, and moves them with the cells
+                          (coco_heap_root_push (aof m) (aof ($ r var_cells)) (aof ($ r nvars)))
                           (let ((int stop . 0))
                             (while (not stop)
                               (set grc (coco_engine_next (aof e)))
@@ -1409,7 +1424,8 @@
                                                 (set more 1))))
                                       (if more
                                           (block (if (not tty) (printf ";\n")))
-                                        (block (printf ".\n") (set stop 1))))))))))))
+                                        (block (printf ".\n") (set stop 1))))))))))
+                          (coco_heap_root_pop (aof m))))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)
                            (block
@@ -1528,6 +1544,10 @@
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
+          ;; the heap collector may run, and a thaw keeps the switch: a turn
+          ;; reads only the engine's own `query', and the machine it saves
+          ;; afterwards is the smaller for it
+          (set ($ e gc) 1)
           (coco_sb_init (aof out))
           (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb))
           (gate_vacuum (aof st))
@@ -2252,6 +2272,9 @@
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
           (set ($ e max_steps) 0)
+          ;; the heap collector may run: this host reads only the engine's own
+          ;; `query' after a run, which a collection keeps up to date
+          (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
 
           ;; BATCHED FOR THE WHOLE TURN -- the consult AND the goal. One sync

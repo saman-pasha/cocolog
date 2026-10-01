@@ -1,0 +1,93 @@
+# .dockerignore -- what `docker build' must not copy out of this checkout.
+#
+# The build output of THIS machine above all: a cocolog binary, objects and
+# modules compiled for the host, and the embed/ symlinks that point into the
+# host's own ZiguratIP checkout. Copied into the image they would be found
+# by `make' as up to date, or dangle. The image builds its own.
+#
+# Every line below `.git' is .gitignore's, translated: a pattern without a
+# slash matches at any depth in .gitignore and only at the root here, so it
+# gains `**/'. Regenerate it the same way when .gitignore changes; none of
+# them matches a tracked file (checked with `git ls-files ':(glob)PATTERN'').
+.git
+**/.DS_Store
+**/build
+**/cocolog
+**/*.o
+**/*.o.tmp
+**/*.lo
+**/*.a
+**/.libs
+**/cocolog.c
+test/*.c
+test/cocolog_*_test
+test/.*.build
+parsi/.build.log
+**/cocolog-embed
+embed/embed.cpp
+embed/ce_smoke
+embed/Core
+embed/StreamIO
+embed/mvccs-lib.cicili
+embed/generated
+embed/ziglib
+**/cocolog-torch
+**/cocolog-full
+**/*.elc
+KB
+test/hoot.c
+test/hoot.so
+library/*.so
+modules/tcp/tcp.c
+modules/tcp/sdk.cicili
+modules/thread/thread.c
+modules/thread/sdk.cicili
+modules/curl/curl.c
+modules/curl/sdk.cicili
+modules/process/process.c
+modules/process/sdk.cicili
+modules/text/text.c
+modules/text/sdk.cicili
+modules/ray/ray.c
+modules/ray/sdk.cicili
+modules/clay/clay.c
+modules/clay/sdk.cicili
+modules/stream/stream.c
+modules/stream/sdk.cicili
+modules/os/os.c
+modules/os/sdk.cicili
+modules/numpy/numpy.c
+modules/numpy/sdk.cicili
+modules/opencv/coco-opencv.cpp
+modules/opencv/sdk.cicili
+modules/opencv/pil/*.o
+modules/bigint/coco-bigint.cpp
+modules/bigint/zigheaders
+modules/torch/coco-torch.cpp
+modules/tensorflow/coco-tensorflow.c
+modules/sha/coco-sha.cpp
+modules/sha/sdk.cicili
+modules/sha/zigheaders
+modules/aes/coco-aes.cpp
+modules/aes/sdk.cicili
+modules/aes/zigheaders
+modules/der/coco-der.cpp
+modules/der/sdk.cicili
+modules/der/zigheaders
+modules/x509/coco-x509.cpp
+modules/x509/sdk.cicili
+modules/x509/zigheaders
+modules/tls/coco-tls.cpp
+modules/tls/sdk.cicili
+modules/tls/zigheaders
+tools/cocolint/blocklist.json
+tools/cocolint/blocklist.pl
+tools/cocolint/traps.pl
+tools/cocolint/surface.jsonl
+tools/cocolint/exemplars.jsonl
+tools/cocolint/capabilities.json
+**/__pycache__
+**/*.pyc
+tutorials/tensor/data
+tutorials/opencv/models
+library/reasoning/corpus/raw

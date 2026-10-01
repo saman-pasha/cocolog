@@ -3529,16 +3529,24 @@ is 14000), which is how it has always read and is worth a look.
   program can with `op/3` and a module's Coco half can carry a `:- op(...)`.
   The remaining seam limits — no choice points, no per-session state — are the
   price of being suspendable and are not going to change.
-* **No garbage collection**, and the rule is narrower than this line used to
-  say. It read "reclaimed on backtracking and on a new query", and the second
-  half is false: `coco_engine_ask` (`lib/solve.cicili:1097`) resets
-  `nchoices`, `steps`, `resume`, `halted` and the ball, and does not touch
-  `heap_len`. Backtracking is the only thing that reclaims. Measured: one
-  `count(400000)` peaks at 120 MB and five of them in one goal at 571 MB —
-  linear in total work, with nothing given back between them — and
-  `count(2000000)` costs 572 MB. `free_list/2` in `library(lists)` is the
-  idiom for working inside that rule — a scope failed out of, below — not an
-  exception to it.
+* **The heap is collected since 1.8.36, but not everywhere.** It used to be
+  reclaimed by backtracking and by nothing else — `count(2000000)` held 572 MB
+  (section "The heap is collected", above). The collector runs between two
+  steps of the OUTERMOST engine on a machine, under a host that turned it on:
+  `-s`, `run`, `query`, the REPL, `step` and every `run_isolated/2` proof
+  (threads, the httpd pool) do; a test binary or an embedder that has not
+  looked does not. So a long deterministic computation INSIDE a `findall/3`,
+  a `forall/2` or a directive's goal still grows until that goal ends — the
+  outer engine's builtin is part way through a step there, holding cell
+  indices the collector cannot be told about. The float and string tables
+  are still never reclaimed (the store shares them by index), nor is the atom
+  table (a frozen machine names atoms by id). `free_list/2` in
+  `library(lists)` remains the idiom for a scope failed out of.
+* **The atom table is never reclaimed**, which matters for a long-lived
+  server: `library(http)` interns about five atoms a request whose path,
+  query and headers are new. Under `httpd_serve`'s `workers(N)` each
+  connection is a fresh machine and its atoms go with it; under
+  `workers(0)`, the default, they stay in the serving machine for its life.
 
 ### Two reds from one morning's pull, on the Mac
 
@@ -3927,14 +3935,158 @@ to twice its contents. All of them are about the CALLING THREAD -- a worker,
 a crew member and every `run_isolated/2` proof have a machine and a store of
 their own -- which is how a window can report 28 MB while holding 13.2 GB.
 
+## The heap is collected (1.8.36)
+
+The store had its collector; the HEAP still had none. Backtracking was the
+only thing that gave cells back, so a deterministic recursion kept every
+cell it had ever built -- 50 to 120 bytes an inference -- and a
+failure-driven loop over `between/3` kept one frame's worth per solution,
+because each retry builds above the last frame's mark. `count(2000000)`,
+three lines of Prolog, finished holding 560 MB of heap and 32 MB of trail.
+
+`coco_heap_gc` (`lib/solve.cicili`) is a sliding mark-compact. It marks what
+the roots reach into a bitmap, gives each kept cell its RANK -- the number
+of kept cells below it, from a prefix count per 64-bit word and a popcount
+-- and slides the kept cells down in order, rewriting every reference to
+its target's rank. Order is the point. A choice frame's `heap_mark` becomes
+the rank of the first cell above it, so backtracking still truncates to the
+right place and nothing about choice points had to change; and a frozen
+machine is still six arrays of indices.
+
+* **The roots** are the continuation, the query and the tracer's goal; each
+  choice frame's call and goals, and each tracer shadow frame's goal; the
+  integer heap indices inside `'$trace_exit'/3` markers; and whatever a
+  host registered with `coco_heap_root_push` -- the REPL registers its
+  variable table, which is how `X = f(450015000,done)` still prints after a
+  collection in the middle of the query. Marking follows the bindings as
+  they stand, so a binding a later backtrack would undo keeps its target:
+  conservative, never wrong.
+* **The trail is compacted in the same pass.** An entry survives when its
+  cell is live and lies below the heap mark of the newest frame older than
+  the entry; a binding of a cell made after that frame needs no undoing,
+  because backtracking truncates the cell itself.
+* **It runs only at a step boundary**, at the top of the engine loop where
+  no builtin is part way through, and only on the OUTERMOST engine on the
+  machine (`running == 1`): a nested engine -- `findall/3`,
+  `call_metered/4`, `with_output_to/2`, a consult's directives -- is
+  called from a builtin whose C frame holds cell indices the collector
+  cannot be told about, so neither it nor its caller collects until the
+  nested goal is done. **It is opt-in per host** (`e->gc`), because an
+  embedder may hold indices across a step: `-s`, `run`, `query`, the REPL,
+  `step` and `run_isolated/2` (every thread and every httpd pool request)
+  turn it on; the test binaries and any embedder that has not looked do
+  not.
+* **When**: once the heap reaches `gc_next`, which starts at 4 194 304
+  cells (32 MB) and is `live + max(live, floor)` after each collection, so
+  the heap a collection scans is never more than twice what was allocated
+  since the one before: the cost per allocated cell is bounded. `COCOLOG_GC_CELLS=N` sets
+  the floor; at 2 000 it collects as often as every 16 KB, which is how the
+  suite was tortured. `garbage_collect/0` asks for one at the next permitted step,
+  and `statistics(heap_collections, N)` counts them.
+* **Not reclaimed**: the float and string tables (the store refers to their
+  entries by index) and the atom table (a frozen machine names atoms by
+  id).
+
+Measured on the Mac, five alternating pairs of 1.8.35 and 1.8.36 for each
+program, the answers identical in every run. The peak is Darwin's `peak
+memory footprint`, which reads low after a large `realloc` move (the old
+binary's spread is that, not the program):
+
+| program | heap at the end | peak footprint | median time |
+|---|---|---|---|
+| `count(2000000)`, a deterministic recursion | 560 MB → 23 MB | 292-563 MB → 43-55 MB | 2.10 s → 1.76 s |
+| `fcount(1000000, 0.0, A)`, the same with a float accumulator | 504 MB → 0.7 MB | 270-462 MB → 52 MB | 1.40 s → 1.13 s |
+| `( between(1, 2000000, _), fail ; true )` | (given back at the end) | 946-970 MB → 44 MB | 5.51 s → 4.92 s |
+
+1.8.36 was faster in thirteen of the fifteen pairs and slower in one
+`count` pair and one `between` pair. Under `COCOLOG_GC_CELLS=2000`,
+which children inherit, thirty-five cases ran GREEN -- among them `trace`,
+`repl`, `thread`, `httpd`, `cowork`, `tunnel`, `reason` and `normalise` --
+and `translate` and `reason` are GREEN at the default floor with the
+library's md5 the same before and after. One case needed changing: `gc`
+measured `globalused` growing across an unreferenced `numlist/3` that a
+collection, rightly, threw away. `test/gc.pl`'s heap section runs a
+fixture of twelve probes -- choice points, a binding a backtrack undoes, a
+cut's barrier, catch and throw, live floats and strings, assert and
+retract mid-loop, globals, a deep recursion leaving a choice point per
+level, findall, `\+` and `*->` -- with collections forced and with none,
+and requires the same nineteen lines from both. 1.8.35 fails five of its
+six checks; the sixth, the REPL's, it passes only because it never
+collects.
+
+**A string first argument was never found**, which turned up along the
+way. The first-argument index keyed a string by its slot in the
+string table, and every string -- even one read from the same literal --
+has a slot of its own, so `p("ab", X)` failed against `p("ab", one)` in the
+same file, where SWI answers `one`. A string keys as 0 now, as a float
+does, and unification decides by bytes; `test/string.pl`'s `indexed`
+section is red on 1.8.35. The price is the float's: a predicate keyed by
+strings is walked rather than indexed, and leaves a choice point (the
+dialect card's I1 says so now).
+
+## The walk stacks are kept (1.8.38)
+
+**cocolog had lost a third of its speed on search since August, and one
+commit had done it.** The language benchmark's Run J read queens at 17.2x
+CPython where Run I, a month earlier on the same box, had read 11.3x.
+Paired in one sitting, built by the same Cicili, Run I's source (`ad3660d`)
+against 1.8.37: queens 57% longer, nrev 31%, loop and sortnums 13%. The
+inference counts were the same on both sides to within 1.5% -- 129 453
+against 129 431 for one queens search -- so each inference had grown dearer
+and the work had not grown.
+
+The bisection ran over master's first-parent line, the 58 commits since
+`ad3660d` that touch `lib/`, `cocolog.cicili`, `embed/`, `Makefile` or
+`tools/cc`, each built from `git archive` into a scratch directory and timed
+interleaved with both ends. It is a single step, at `dd0895f` (2026-09-01,
+"a list's depth is its length: five term walks off the C stack"): queens
+x64 1.645 s on the commit before, 2.644 s on it, and every later point flat
+at that level.
+
+That commit fixed a real crash -- copy, store-put, store-get, unify and
+compare recursed on the C stack and died on a list 200 000 long -- by
+walking on a stack of their own. But each walk allocated its stack on
+every call and freed it on the way out, and nearly every inference copies a
+clause and unifies: a malloc and a free per call. `sample` on queens shows
+it: after the commit the profile carries macOS's allocator for blocks of
+that size -- `tiny_malloc_should_clear`, `free_tiny`,
+`tiny_free_list_add_ptr`, `tiny_free_no_lock`, some 500 samples of a
+four-second run -- and before it, none of them.
+
+**The machine keeps the two stacks now** (`wframes`, `wpairs`). A walk
+borrows them with `coco_wframes_take` or `coco_wpairs_take` and gives them
+back at its end, so a walk nested inside another finds none and makes its
+own, and one grown past a megabyte or so is freed rather than kept. In
+steady state no walk allocates. A long list still grows its stack on the
+heap: two 200 000-element lists copied, collected by `findall/3`, unified,
+compared, asserted and called back, a term nested 200 000 deep copied and
+stored, and two nested 100 000 deep unified and compared, answer the same
+on 1.8.37 and 1.8.38.
+
+Five interleaved passes, whole process, in one sitting:
+
+| program | `ad3660d` (August) | 1.8.37 | 1.8.38 |
+|---|---:|---:|---:|
+| `queens` x64 | 1.710 s | 2.662 s | **1.769 s** |
+| `nrev` x32 | 1.416 s | 1.858 s | **1.237 s** |
+| `loop` x32 | 3.139 s | 3.336 s | **2.554 s** |
+| `lookup` x1024 | 2.324 s | 2.121 s | **1.662 s** |
+| `sortnums` x256 | 3.381 s | 3.591 s | **2.896 s** |
+
+The search is back where August had it, within 3%; the other four are
+13-28% faster than August, the heap collector of 1.8.36 and this together.
+**The crash fix was right; what went unmeasured was its price.** The
+benchmark that would have caught it lived in another repository then, and
+it runs here now.
+
 ## Not started
 
-* A garbage collector for the HEAP. The heap is reclaimed by backtracking
-  and by nothing else, which is the binding constraint on how long a
-  deterministic program can run. Measured and argued in `DESIGN-compiling.md`
-  §1 and §8. The STORE has had its collector since 1.2.13 (the section
-  above), and it was the larger half of the one process measured -- but not
-  the half this bullet is about.
+* The heap collector's remaining reach (it landed in 1.8.36, section "The
+  heap is collected"): collecting inside a nested engine, which needs every
+  builtin that starts one -- `findall/3`, `call_metered/4`,
+  `with_output_to/2`, a consult's directives -- to register the cell indices
+  and the heap and trail marks its C frame holds; and compacting the float
+  and string tables, which needs the store's cells rewritten with them.
 * Compiling a program to an object file. Studied, not begun:
   `DESIGN-compiling.md` is the feasibility report and its §8 says what to do
   first, which is the collector above rather than a code generator.
