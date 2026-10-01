@@ -609,6 +609,23 @@ code.
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
 | `library(xml)` | `.pl` | the same for XML |
 | `library(html)` | `.pl` | the same for HTML |
+| `library(stream)` | `.so` | files as streams — bytes, text and terms — and ISO's stream predicates (`open/4`, `read_term/3`, `set_output/1`, …) over them |
+| `library(ray)` | `.so` | raylib: a window, 2D and 3D drawing, text, textures, the keyboard and mouse — the game loop is a Prolog predicate |
+| `library(clay)` | `.so` | Clay's flex-box layout: a user interface as a term, laid out into render commands |
+| `library(clay_ray)` | `.pl` | Clay's render commands drawn through `library(ray)` |
+| `library(opencv)` | `.so` | OpenCV 4: images, filters, contours, the DNN module |
+| `library(numpy)` | `.so` | numpy arrays over numpy's C API |
+| `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
+| `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
+| `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
+| `library(hex)` | `.pl` | hexagonal-grid arithmetic |
+| `library(cowork)` | `.pl` | a crew of worker threads that outlives a turn |
+| `library(llm)` | `.pl` | a language model as a goal: a chat completion over `library(curl)` and `library(json)` |
+| `library(reasoning/...)` | `.pl` | controlled English read into predicates and explained (`reason`); the generator and the tagger that turn typed prose into it (`normalise`, `tagger`); a translator whose lessons are knowledge bases (`translate`, with the `teach.pl` and `page.pl` programs) |
+
+The cryptography libraries have a table of their own below, and
+`library(process)`, `library(text)`, `library(os)` and `library(kbs)` are in
+the test-suite section above.
 
 **A thing belongs in tier 2 when its dependency should not be everybody's**,
 and that argument moved three modules out of the binary. `tcp` was swept
@@ -707,6 +724,18 @@ first. Measured, before the fix: three sequential POSTs through a pool of
 three left **two** facts in the database. So a request runs as an isolated
 proof — fresh machine, fresh store, fresh database connection, one commit at
 the end, a rollback if it broke.
+
+**THE ATOM TABLE IS NEVER RECLAIMED, and a server that runs for a long time
+should be set up knowing it.** An atom's id is written into every cell that
+names it and into every frozen machine, so an atom lives as long as its
+machine does. `library(http)` makes atoms of a request's path, its query keys
+and values and its header values — measured, **five new atoms a request**
+whose path, query and headers have not been seen before. Under `workers(N)`
+each connection is parsed and answered on a fresh machine, and its atoms go
+when it does. Under `workers(0)`, the default, every request is parsed on the
+serving machine, so a server that clients can send ever-new paths to grows by
+those atoms for as long as it runs (`statistics(atoms, N)` shows it). **A
+long-running public server should use a pool**, even a pool of one.
 
 ## Cryptography and a CA, imported rather than rewritten
 
@@ -1217,9 +1246,13 @@ ZiguratIP branch's "walk-length ager, solved" commit is the account):
 The persistent embedded arrangement is now the fastest way to run the
 choreography — faster than the wire, faster than a fresh store every run —
 because the vacuum in its setup now actually returns the store to the same
-state every time. The one stream guard still serialises every reader
-(STATUS.md's one-core section), but nothing behind it accumulates any
+state every time. Nothing behind the engine's stream guard accumulates any
 more: the guard protects work proportional to live data, not to history.
+(When this was measured the guard was one mutex and serialised every
+reader. It has since become a read-write lock whose shared side readers take
+by default, which took the twelve-worker run from 5.3 s to 1.6 s on more than
+one core — STATUS.md, "The one-core ceiling is lifted, and parallel reads are
+the default". A write still takes the guard alone.)
 And a worker killed mid-write no longer bricks the store: the recovery
 walk salvages a torn tail — what a kill catches in flight never reached
 its commit sync, so by shadow paging's own rule it never happened — keeps
@@ -1645,6 +1678,23 @@ happened just as happily as over a real one.
 See [STATUS.md](STATUS.md) for what is finished, what it cost to get there, and
 what is known to be missing.
 
+**Where cocolog differs from SWI-Prolog and from ISO is one table:
+[COMPAT.md](COMPAT.md)** — every row checked by running the same goal on both,
+the ones that can give a silently different answer first (integers are 61
+bits and wrap, `retract/1` is deterministic, text lengths count UTF-8 bytes),
+and for each what to write instead.
+
+**The heap is collected since 1.8.36.** It used to be given back by
+backtracking alone, so a deterministic recursion held everything it had ever
+built: `count(2000000)`, three lines of Prolog, finished holding 560 MB of
+heap, and a failure-driven `between/3` loop of the same length peaked near a
+gigabyte. Both now peak between 43 and 55 MB; of fifteen timed pairs of the
+old binary and the new, the new was faster in thirteen. The collector
+slides what is reachable down in order between two steps of the engine, so
+the choice points' marks stay true — `coco_heap_gc` in `lib/solve.cicili`,
+and STATUS.md, "The heap is collected", for the measurements and for what
+it does not reach yet.
+
 **How cocolog compares to Python and to SWI-Prolog** — across the
 language aspects, the backend work, and the four separate senses of
 "AI-friendly" — is written down once, honestly, in The Coco's
@@ -1665,7 +1715,8 @@ worse one to read EXECUTION in), and that misapplied Prolog is MORE
 code than Python, not less.
 
 It is honest in both directions throughout, which means cocolog loses
-often — strings, GC, tabling, tooling, ecosystem — and the rows where it
+often — strings, GC (the heap collector arrived in 1.8.36, after that page
+was written), tabling, tooling, ecosystem — and the rows where it
 genuinely differs compare positions rather than languages: a clause is a
 row other processes read, a turn is a transaction, and a suspended proof
 is data any process can finish.

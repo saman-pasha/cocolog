@@ -139,7 +139,10 @@
           (if (> n 0) (set (nth (cast size_t n) lb_exe_path) (cast char 0)))
           (@endif)
           (if (<= n 0) (block (set (nth 0 lb_exe_path) (cast char 0)) (return)))
-          (strcpy lb_exe_dir lb_exe_path)
+          ;; BOUNDED, though it cannot overflow today: both arrays are 1024
+          ;; and the path is at most 1023 bytes on either branch above. The
+          ;; bound is what keeps that true if one of them ever changes size.
+          (snprintf lb_exe_dir (sizeof lb_exe_dir) "%s" lb_exe_path)
           ;; back to the last `/', which is where the directory ends
           (for ((size_t j . 0)) (< j (cast size_t n)) ((++ j))
                (if (== (nth j lb_exe_dir) (cast char 47)) (set cut j)))

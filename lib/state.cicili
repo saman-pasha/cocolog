@@ -301,8 +301,12 @@
           ;; holding its choice points and then proved nothing.
           (coco_store_reset st)
 
-          (coco_engine_free e)
-          (coco_engine_init e m st)
+          ;; the engine is rebuilt too, keeping what its HOST decided: whether
+          ;; the heap collector may run under it (see `gc' on the engine)
+          (let ((int gc . #'(-> e gc)))
+            (coco_engine_free e)
+            (coco_engine_init e m st)
+            (set (-> e gc) gc))
 
           (if (not (coco_scan_word (aof z) "cocolog")) (set ok 0))
           (if (!= 1 (cast int (coco_scan_u64 (aof z) 10))) (set ok 0))

@@ -143,8 +143,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `library(main)`'s `main/0` first where `run` puts the file's.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
-  line; `executable` is the binary's path. Those are the only three SWI flags
-  answered. `library(main)` parses the tail.
+  line; `executable` is the binary's path. Those three and `double_quotes` are
+  the only flags answered. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **Raise the server detached**, with its libraries on the path:
@@ -307,9 +307,10 @@ module, state, zigurat, shared) and runs the 53 `.pl` cases in `pl_names/1`
   compiles the engine's trace points in (`guard HELD`, `draw STALLED`).
 * **`statistics/2` is about the calling thread** (`store_used`, `store_cap`,
   `globalused`, `globalcap`, `trailused`, `trailcap`, `choicepoints`,
-  `strings`, `compactions`, `cputime`, `inferences`, `atoms`, `functors`).
-  Worker threads are invisible to it: count the threads first. On macOS
-  `maximum resident set size` undercounts after a large realloc moves.
+  `strings`, `compactions`, `heap_collections`, `cputime`, `inferences`,
+  `atoms`, `functors`). Worker threads are invisible to it: count the
+  threads first. On macOS `maximum resident set size` undercounts after a
+  large realloc moves.
 * `perf` is not installed on the Linux box; `/usr/bin/time` is not either
   (use bash's `time`).
 
@@ -492,12 +493,24 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
 * **The store compacts itself** at safe points (four million dead cells
   outnumbering the live, or doubling growth); `garbage_collect/0` forces
   one; a caller holding cell indices registers them
-  (`coco_store_root_push`). **The heap is reclaimed only by backtracking, so
-  a deterministic walk never gives its heap back** (50-120 bytes an
-  inference): copy a phase out through `findall/3` -- `cl_kept/2` in
-  `tools/cocolint/lint.pl` is `findall(X, once(Goal), [X])` -- or wrap a
-  phase whose results go to the store in `\+ \+`. The linter went from
-  9.7 GB to 58 MB of heap and a third of the time that way.
+  (`coco_store_root_push`).
+* **The heap is collected since 1.8.36** (`coco_heap_gc`, a sliding
+  mark-compact that keeps cell order, so heap marks stay true): at a step
+  boundary, on the OUTERMOST engine of a machine, under a host that set
+  `e->gc` -- `-s`, `run`, `query`, the REPL, `step`, `run_isolated/2`. A
+  host holding cell indices across a step registers them with
+  `coco_heap_root_push` (the REPL's variable table) or leaves `gc` off.
+  **Nothing collects inside a nested engine** -- `findall/3`, `forall/2`,
+  `aggregate_all/3`, `call_metered/4`, `with_output_to/2`, a directive's
+  goal -- so a long deterministic phase in one still keeps its heap
+  (50-120 bytes an inference) until it ends: copy such a phase out through
+  `findall/3` (`cl_kept/2` in `tools/cocolint/lint.pl` is
+  `findall(X, once(Goal), [X])`) or wrap it in `\+ \+`; the linter went
+  from 9.7 GB to 58 MB of heap that way. `COCOLOG_GC_CELLS=N` sets the
+  threshold (2000 tortures it, and children inherit it),
+  `statistics(heap_collections, N)` counts them, and a `_G` name is a heap
+  position, so it changes across a collection. The float, string and atom
+  tables are never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
   a failed rehash still leaves an empty slot). Ids stay in order of first

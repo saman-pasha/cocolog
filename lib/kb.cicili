@@ -130,11 +130,14 @@
     ;; this kind answers -- and two with different non-zero cells CANNOT
     ;; unify, which is what makes skipping them sound.
     ;;
-    ;; ZERO IS "MATCHES ANYTHING", and three things take it: an unbound
+    ;; ZERO IS "MATCHES ANYTHING", and four things take it: an unbound
     ;; first argument, a FLOAT (two equal floats may sit at two indices of
     ;; the float table, so a cell comparison would answer no to 1.0 against
-    ;; 1.0), and a predicate of arity zero. No real cell is zero: every tag
-    ;; but REF is non-zero in the low bits and a REF is never stored here.
+    ;; 1.0), a STRING for the same reason -- its table is not interned
+    ;; either, and until this was written `p("ab")' as a head could not be
+    ;; found by `p("ab")' as a call -- and a predicate of arity zero. No real
+    ;; cell is zero: every tag but REF is non-zero in the low bits and a REF
+    ;; is never stored here.
     ;;
     ;; CHAIN is parallel too and threads the clauses of one key together in
     ;; ascending position, so selection walks only the candidates and
@@ -1557,10 +1560,11 @@
         (if (not (coco_is_callable m t)) (return 0))
         (if (== (coco_arity m t) 0) (return 0))
         (let ((u64 c . #'(nth (coco_deref m (coco_arg m t 0)) (-> m heap))))
-          ;; an unbound argument constrains nothing, and a float cannot be
-          ;; compared as a cell -- see the struct
+          ;; an unbound argument constrains nothing, and a float or a string
+          ;; cannot be compared as a cell -- see the struct
           (if (coco-tag-is REF c) (return 0))
           (if (coco-tag-is FLT c) (return 0))
+          (if (coco-tag-is STR c) (return 0))
           (return c)))
 
   ;;; A PREDICATE SMALLER THAN THIS IS NOT WORTH A TABLE. Below it the scan

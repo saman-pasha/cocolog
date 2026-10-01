@@ -20,7 +20,7 @@ The short answer is in three parts:
 
 And one finding that reframes the question: **there is no garbage collector.**
 Measured below. A compiler makes the interpreter's inference rate better and
-does nothing whatever about the heap.
+does nothing whatever about the heap. (There is one since 1.8.36 — §8, item 1.)
 
 ## 1. The measurement, first
 
@@ -243,6 +243,11 @@ is a guess.
    grow.** 572 MB for two million iterations is the binding constraint on
    program size today, and no amount of compilation touches it. This is the
    highest-value work in the study and it is not a compiler.
+   **Done in 1.8.36** (STATUS.md, "The heap is collected"): a sliding
+   mark-compact between engine steps. `count(2000000)` now finishes holding
+   23 MB of heap where it held 560 MB, the `between/3` loop peaks at 44 MB
+   where it peaked near a gigabyte, and neither got slower. What it does not
+   reach yet is a phase inside a nested engine — `findall/3` and its family.
 2. **The static-fraction count** of section 7 — a day's work, and it decides
    whether 3B is worth weeks.
 3. **Packaging (3A)**, if a single-file deliverable is what is wanted. It is

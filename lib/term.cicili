@@ -272,6 +272,15 @@
     (member u64      name)
     (member u32      arity))
 
+  ;;; A ROOT ARRAY A HOST OWNS, registered with the machine for as long as it
+  ;;; holds heap cell indices across a run of the engine: where the array
+  ;;; pointer lives, because its owner may grow it, and where its length
+  ;;; lives. The heap collector rewrites every entry in place. The store's
+  ;;; `coco_rootset' (lib/kb.cicili) is the same thing for the store's cells.
+  (struct coco_hroot
+    (member size_t ** cells)
+    (member size_t *  len))
+
   ;;; The machine. Everything in it is either a plain array of words or a
   ;;; length -- which is the whole point, and what `state.cicili' relies on.
   (struct coco_machine
@@ -338,7 +347,30 @@
 
     ;; set when the machine runs out of memory, so callers may check once at
     ;; the end rather than after every push
-    (member int        oom))
+    (member int        oom)
+
+    ;; THE HEAP COLLECTOR'S BOOKKEEPING -- see `coco_heap_gc' in
+    ;; lib/solve.cicili. None of it is frozen with the machine: a thawed
+    ;; machine starts from the defaults and collects when it next grows.
+    ;;
+    ;; RUNNING counts the engines inside `coco_engine_next' on this machine
+    ;; right now. A collection moves cells, so it may only happen when the one
+    ;; running engine is the only thing holding cell indices -- which is what
+    ;; a count of one says. An outer engine whose builtin started a nested
+    ;; one (findall, call_metered, with_output_to) is part way through a step,
+    ;; and its C frame holds indices nobody could tell the collector about.
+    (member int        running)
+    ;; the heap length that triggers the next collection; 0 until the first
+    ;; run on this machine sets it
+    (member size_t     gc_next)
+    ;; set by `garbage_collect/0': collect at the next step boundary
+    (member int        gc_request)
+    ;; collections so far, for `statistics/2'
+    (member u64        gc_count)
+    ;; the root arrays hosts hold, a stack -- see `coco_heap_root_push'
+    (member coco_hroot * hroots)
+    (member size_t     nhroots)
+    (member size_t     hroot_cap))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -418,6 +450,14 @@
   ;; back is the record of which ones to undo.
   (decl) (func coco_trail_push ((coco_machine * m) (size_t var)) (out int))
   (decl) (func coco_undo_to ((coco_machine * m) (size_t mark)))
+
+  ;; ---- the heap collector's host roots ----
+  ;;; A host that keeps heap cell indices of its own across
+  ;;; `coco_engine_next' -- the REPL keeps the query's variables, to print
+  ;;; their bindings -- registers the array they live in, so a collection
+  ;;; moves them with the cells they name. A stack: pop in reverse order.
+  (decl) (func coco_heap_root_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int))
+  (decl) (func coco_heap_root_pop ((coco_machine * m)))
   (decl) (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ;; ---- copying ----
@@ -531,6 +571,7 @@
         (free (-> m strings))
         (free (-> m trail))
         (free (-> m heap))
+        (free (-> m hroots))
         (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------
@@ -908,6 +949,21 @@
           (set (-> m trail_len) (- (-> m trail_len) 1))
           (let ((size_t v . #'(nth (-> m trail_len) (-> m trail))))
             (set (nth v (-> m heap)) (coco-cell REF v)))))
+
+  ;;; ---- the heap collector's host roots -------------------------------
+
+  (func coco_heap_root_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int)
+        (if (not (coco_grow m (cast (void **) (aof (-> m hroots)))
+                          (aof (-> m hroot_cap)) (+ (-> m nhroots) 1)
+                          (sizeof coco_hroot)))
+            (return 0))
+        (set ($ (nth (-> m nhroots) (-> m hroots)) cells) cells)
+        (set ($ (nth (-> m nhroots) (-> m hroots)) len) len)
+        (set (-> m nhroots) (+ (-> m nhroots) 1))
+        (return 1))
+
+  (func coco_heap_root_pop ((coco_machine * m))
+        (if (> (-> m nhroots) 0) (set (-> m nhroots) (- (-> m nhroots) 1))))
 
   ;;; The pending pairs of an iterative unify or compare: one flat array,
   ;;; a and b side by side, popped two at a time.

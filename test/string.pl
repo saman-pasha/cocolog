@@ -9,7 +9,7 @@
 %%
 %%     cocolog -s test/string.pl        from the checkout root
 %%
-%% ONE PROCESS FOR THIRTY-NINE CHECKS. This was test/string.sh, forty
+%% ONE PROCESS FOR FORTY-TWO CHECKS. This was test/string.sh, forty
 %% cocolog invocations at ~120 ms each, 4.9 s for the case; it is under a
 %% second now. The questions are the same and the answers are read as
 %% terms rather than grepped out of a pipe. The double_quotes checks that
@@ -23,7 +23,7 @@
 main :-
     scratch(D),
     types, nul, order, conversions, splitting, substrings, code_lists,
-    writer, flag_files(D), flag_modules(D), char_lists, refused(D),
+    writer, indexed, flag_files(D), flag_modules(D), char_lists, refused(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -112,6 +112,24 @@ writer :-
     check('quoted, it writes in quotes', G1, '"ell"'),
     answer((sub_string("hello", 1, 3, _, S2), format(atom(A2), "~w", [S2])), A2, G2),
     check('unquoted, it writes its text', G2, ell).
+
+%% ---- a clause is found by a string first argument (1.8.36) ---------------
+%%
+%% THE INDEX KEYED A STRING BY ITS TABLE SLOT, and every string -- even one
+%% read from the same literal -- has a slot of its own, so a clause whose
+%% first argument was a string was found by nothing: `p("ab", X)' failed
+%% against `p("ab", one)' written in the same file, where SWI finds it. A
+%% string keys as 0 now, as a float does, and unification decides by bytes.
+%% 1.8.35 fails the first two.
+indexed :-
+    answer((atom_string(ab, S1), assertz(str_key(S1, one)),
+            atom_string(ab, T1), str_key(T1, X1)), X1, G1),
+    check('a clause is found by an equal string', G1, one),
+    answer((atom_string(cd, S2), assertz(str_key(S2, two)),
+            atom_string(cd, T2), findall(X2, str_key(T2, X2), L2)), L2, G2),
+    check('and only by an equal one', G2, [two]),
+    yes_no(str_key(ab, _), A3),
+    check('an atom of the same text is not one', A3, no).
 
 %% ---- double_quotes, all four of SWI's values -------------------------------
 %%

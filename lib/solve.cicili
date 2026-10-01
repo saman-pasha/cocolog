@@ -361,6 +361,15 @@
     (member size_t      ball_cell)
     (member size_t      ball_size)    ; cells it occupies, for the store's count of the dead
 
+    ;; MAY THE HEAP COLLECTOR RUN UNDER THIS ENGINE? Off unless the host
+    ;; that made the engine turns it on, because a collection moves cells and
+    ;; only the host knows whether it keeps cell indices of its own across
+    ;; `coco_engine_next'. The CLI's commands, the REPL (which registers its
+    ;; variables) and `coco_m_run_isolated' say yes; a test binary or an
+    ;; embedder that has not looked says nothing, and keeps the behaviour it
+    ;; had. See `coco_heap_gc'.
+    (member int         gc)
+
     (member char        err [192]))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
@@ -1114,6 +1123,305 @@
             (set (-> e goals) (coco_k_push e c (-> e nchoices) (coco_k_push e sc b k1))))
           (return 1)))
 
+  ;;; ---- the heap collector ---------------------------------------------------
+  ;;;
+  ;;; THE HEAP WAS RECLAIMED BY BACKTRACKING AND BY NOTHING ELSE, which is
+  ;;; exactly right for a failure-driven loop and does nothing for a
+  ;;; recursion that succeeds: `count(2000000)' -- three lines of Prolog --
+  ;;; held 560 MB at the end, every continuation it had ever built still on
+  ;;; the heap. A binarized machine allocates a continuation per inference
+  ;;; (DESIGN-compiling.md section 10.1), so this was the binding limit on
+  ;;; how long a deterministic program could run.
+  ;;;
+  ;;; A SLIDING COMPACTOR, MARK THEN SLIDE, AND IT KEEPS ORDER. Order is the
+  ;;; property everything else stands on: a choice point's `heap_mark' says
+  ;;; "every cell made after me is above here", backtracking truncates to it,
+  ;;; and the binding rule (younger to older) says no cell points forward
+  ;;; past a mark without a trail entry to undo it. A collector that kept
+  ;;; the cells in order keeps all three true: a cell's new index is the
+  ;;; number of kept cells below it, so everything below a mark stays below
+  ;;; the mark's new value and everything above stays above. A copying
+  ;;; collector would have to be taught the marks; this one gets them free.
+  ;;;
+  ;;; THE ROOTS are everything that names a cell from outside the heap: the
+  ;;; continuation, the query (the CLI prints it), the tracer's current goal,
+  ;;; and for every choice frame its goal and its continuation and the
+  ;;; tracer's shadow goal -- plus the arrays a host registered with
+  ;;; `coco_heap_root_push'. Marking follows the CURRENT bindings, which
+  ;;; keeps a little more than strictly needed (a variable a choice point
+  ;;; would unbind keeps its present value alive) and never less.
+  ;;;
+  ;;; THE TRAIL IS COMPACTED WITH IT, and needs to be: every binding is
+  ;;; trailed, so a deterministic loop grew the trail as surely as the heap
+  ;;; (32 MB beside the 560). An entry is kept only if some choice point
+  ;;; could undo it -- one made before the entry, with the bound cell below
+  ;;; that choice point's heap mark -- and only if the cell is kept at all.
+  ;;; With no choice points the trail empties.
+  ;;;
+  ;;; ONE THING HIDES AN INDEX IN AN INTEGER: the tracer's `$trace_exit'
+  ;;; marker carries the goal it closes and the call it returns to as INT
+  ;;; arguments, so a frozen machine stays a row of numbers. Those two are
+  ;;; treated as roots and rewritten like any other index.
+  ;;;
+  ;;; WHEN: at the top of the engine's loop, between two steps, which is the
+  ;;; one place no C frame of the engine holds an index -- and only when
+  ;;; this is the only engine running on the machine (`running', see the
+  ;;; machine) and its host said yes (`gc' on the engine). After a
+  ;;; collection the next one waits until the heap has grown by as much
+  ;;; again as survived, and by at least `coco_gc_floor' cells: amortised,
+  ;;; the work is a constant per cell allocated.
+  ;;;
+  ;;; NOT COMPACTED HERE: the float and string tables (the store shares
+  ;;; them by index -- see `coco_store_put_node'), and the atom table (a
+  ;;; frozen machine's cells name atoms by id).
+
+  ;;; Cells per collection at the least: 4M, 32 MB. A program whose heap
+  ;;; never reaches it never collects, so everything small behaves exactly
+  ;;; as it did. `COCOLOG_GC_CELLS' sets it -- small values make every run a
+  ;;; stress test of the roots, which is what it is there for.
+  (static)
+  (func coco_gc_floor () (out size_t)
+        (let ((const char * s . #'(getenv "COCOLOG_GC_CELLS"))
+              (size_t v . 0))
+          (if (and (!= s nil) (!= (nth 0 s) (cast char 0)))
+              (set v (cast size_t (strtoull s nil 10))))
+          (return (? (> v 0) v 4194304))))
+
+  ;;; A population count, written out as the usual SWAR sum: the compiler's
+  ;;; builtin is not something Cicili declares. Each mask is below 2^63, so
+  ;;; each is a plain literal.
+  (static)
+  (func coco_gc_popcount ((u64 x)) (out u64)
+        (set x (- x (bitand (>> x 1) 6148914691236517205)))
+        (set x (+ (bitand x 3689348814741910323) (bitand (>> x 2) 3689348814741910323)))
+        (set x (bitand (+ x (>> x 4)) 1085102592571150095))
+        (return (>> (* x 72340172838076673) 56)))
+
+  (static)
+  (func coco_gc_marked ((u64 * bits) (size_t i)) (out int)
+        (return (? (== 0 (bitand (nth (>> i 6) bits) (<< (cast u64 1) (bitand i 63)))) 0 1)))
+
+  ;;; Where cell I lands: the number of kept cells below it. PRE holds the
+  ;;; count before each word, so this is a load and a popcount. Defined for
+  ;;; every I up to and including the old heap length -- a choice point's
+  ;;; mark is often exactly that -- which is why PRE is one longer than BITS.
+  (static)
+  (func coco_gc_rank ((u64 * bits) (size_t * pre) (size_t i)) (out size_t)
+        (let ((size_t w . #'(>> i 6))
+              (size_t b . #'(bitand i 63)))
+          (if (== b 0) (return (nth w pre)))
+          (return (+ (nth w pre)
+                     (cast size_t (coco_gc_popcount
+                                   (bitand (nth w bits) (- (<< (cast u64 1) b) 1))))))))
+
+  (static)
+  (func coco_gc_push ((size_t ** s) (size_t * len) (size_t * cap) (size_t v)) (out int)
+        (if (>= (cof len) (cof cap))
+            (let ((size_t ncap . #'(? (== (cof cap) 0) 1024 (* (cof cap) 2)))
+                  (void * nb))
+              (set nb (realloc (cast (void *) (cof s)) (* ncap (sizeof size_t))))
+              (if (== nb nil) (return 0))
+              (set (cof s) (cast (size_t *) nb))
+              (set (cof cap) ncap)))
+        (set (nth (cof len) (cof s)) v)
+        (set (cof len) (+ (cof len) 1))
+        (return 1))
+
+  ;;; Marks everything reachable from ROOT. Iterative, like every other walk
+  ;;; over terms here: a list is a chain of compounds as long as the list.
+  ;;; A compound's header marks all its arguments, so a kept compound stays
+  ;;; contiguous; an argument cell reached on its own (a variable inside a
+  ;;; structure nobody else keeps) is kept on its own, which is sound
+  ;;; because every cell describes itself. Answers 0 only when the mark stack
+  ;;; could not grow -- and then the collection is abandoned, because acting
+  ;;; on an incomplete mark is the one thing a collector must never do.
+  ;;; TEXIT is `$trace_exit'/3's functor id; NMARKERS counts them.
+  (static)
+  (func coco_gc_mark ((coco_machine * m) (u64 * bits) (size_t ** s) (size_t * len)
+                      (size_t * cap) (u64 texit) (size_t * nmarkers) (size_t root)) (out int)
+        (let ((size_t n . #'(-> m heap_len)))
+          (if (or (>= root n) (coco_gc_marked bits root)) (return 1))
+          (if (not (coco_gc_push s len cap root)) (return 0))
+          (while (> (cof len) 0)
+            (set (cof len) (- (cof len) 1))
+            (let ((size_t t . #'(nth (cof len) (cof s))))
+              (if (or (>= t n) (coco_gc_marked bits t)) continue)
+              (set (nth (>> t 6) bits)
+                   (bitor (nth (>> t 6) bits) (<< (cast u64 1) (bitand t 63))))
+              (let ((u64 c . #'(nth t (-> m heap))))
+                (cond
+                  ((coco-tag-is REF c)
+                   (let ((size_t p . #'(cast size_t (coco-payload c))))
+                     (if (and (!= p t) (< p n) (not (coco_gc_marked bits p)))
+                         (if (not (coco_gc_push s len cap p)) (return 0)))))
+                  ((coco-tag-is FUN c)
+                   (let ((u64 f . #'(coco-payload c))
+                         (u32 a . #'($ (nth (cast size_t f) (-> m functors)) arity)))
+                     (for ((u32 k . 0)) (< k a) ((++ k))
+                       (let ((size_t q . #'(+ t (+ (cast size_t k) 1))))
+                         (if (and (< q n) (not (coco_gc_marked bits q)))
+                             (if (not (coco_gc_push s len cap q)) (return 0)))))
+                     ;; the tracer's marker: its first and third arguments are
+                     ;; goal indices written as integers, and they are roots
+                     (if (== f texit)
+                         (block
+                          (set (cof nmarkers) (+ (cof nmarkers) 1))
+                          (for ((u32 k . 0)) (< k 3) ((set k (+ k 2)))
+                            (let ((size_t j . #'(coco_deref m (+ t (+ (cast size_t k) 1)))))
+                              (if (coco-tag-is INT (nth j (-> m heap)))
+                                  (let ((i64 q . #'(coco-signed-payload (nth j (-> m heap)))))
+                                    (if (and (>= q 0) (< (cast size_t q) n)
+                                             (not (coco_gc_marked bits (cast size_t q))))
+                                        (if (not (coco_gc_push s len cap (cast size_t q)))
+                                            (return 0)))))))))))))))
+          (return 1)))
+
+  ;;; A root's new value: its rank if it named a cell, unchanged if it did
+  ;;; not -- a stale index (a thawed machine's shadow frames are not zeroed
+  ;;; by the realloc that makes them) is left to mean what it meant, nothing.
+  ;;; LIMIT is N for a cell and N+1 for a mark, which may equal the length.
+  (static)
+  (func coco_gc_moved ((u64 * bits) (size_t * pre) (size_t limit) (size_t i)) (out size_t)
+        (return (? (< i limit) (coco_gc_rank bits pre i) i)))
+
+  (static)
+  (func coco_heap_gc ((coco_engine * e))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t n . #'(-> m heap_len))
+              (size_t nw . #'(>> (+ n 63) 6))
+              (u64 * bits . nil) (size_t * pre . nil)
+              (size_t * stk . nil) (size_t slen . 0) (size_t scap . 0)
+              (u64 * fixed . nil) (size_t nmarkers . 0)
+              (u64 texit . 0) (int ok . 1))
+          (set (-> m gc_request) 0)
+          (set texit (coco_functor_id m (coco-id m "$trace_exit") 3))
+          (set bits (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
+          (set pre (cast (size_t *) (malloc (* (+ nw 1) (sizeof size_t)))))
+          (if (or (== bits nil) (== pre nil)) (set ok 0))
+
+          ;; ---- mark ----
+          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                       (aof nmarkers) (-> e goals))))
+          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                       (aof nmarkers) (-> e query))))
+          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                       (aof nmarkers) (-> e trace_goal))))
+          (for ((size_t k . 0)) (and ok (< k (-> e nchoices))) ((++ k))
+            (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                  (aof nmarkers) ($ (nth k (-> e choices)) call)))
+            (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                         (aof nmarkers) ($ (nth k (-> e choices)) goals))))
+            (if (and ok (!= (-> e tchoices) nil))
+                (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                      (aof nmarkers) ($ (nth k (-> e tchoices)) goal)))))
+          (for ((size_t r . 0)) (and ok (< r (-> m nhroots))) ((++ r))
+            (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
+                  (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
+              (for ((size_t i . 0)) (and ok (< i alen)) ((++ i))
+                (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                      (aof nmarkers) (nth i arr))))))
+          (if (and ok (> nmarkers 0))
+              (block (set fixed (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
+                     (if (== fixed nil) (set ok 0))))
+
+          (if (not ok)
+              ;; NOTHING HAS MOVED YET, so giving up is free: only memory ran
+              ;; out, and the next try waits until the heap has doubled
+              (block (free bits) (free pre) (free stk) (free fixed)
+                     (set (-> m gc_next) (* (-> m heap_len) 2))
+                     (return)))
+
+          ;; ---- where everything goes ----
+          (set (nth 0 pre) 0)
+          (for ((size_t w . 0)) (< w nw) ((++ w))
+            (set (nth (+ w 1) pre) (+ (nth w pre) (cast size_t (coco_gc_popcount (nth w bits))))))
+
+          ;; ---- the tracer's integer indices, while the old ones can still
+          ;; be followed: every marker's two INT cells, each rewritten once
+          (if (> nmarkers 0)
+              (for ((size_t w . 0)) (< w nw) ((++ w))
+                (if (!= (nth w bits) 0)
+                    (for ((size_t b . 0)) (< b 64) ((++ b))
+                      (let ((size_t t . #'(+ (<< w 6) b)))
+                        (if (and (< t n) (coco_gc_marked bits t)
+                                 (coco-tag-is FUN (nth t (-> m heap)))
+                                 (== (coco-payload (nth t (-> m heap))) texit))
+                            (for ((u32 k . 0)) (< k 3) ((set k (+ k 2)))
+                              (let ((size_t j . #'(coco_deref m (+ t (+ (cast size_t k) 1)))))
+                                (if (and (coco-tag-is INT (nth j (-> m heap)))
+                                         (not (coco_gc_marked fixed j)))
+                                    (let ((i64 q . #'(coco-signed-payload (nth j (-> m heap)))))
+                                      (set (nth (>> j 6) fixed)
+                                           (bitor (nth (>> j 6) fixed) (<< (cast u64 1) (bitand j 63))))
+                                      (if (and (>= q 0) (< (cast size_t q) n))
+                                          (set (nth j (-> m heap))
+                                               (coco-int-cell (cast i64 (coco_gc_rank bits pre (cast size_t q))))))))))))))))
+
+          ;; ---- the trail, against the OLD heap marks ----
+          (let ((size_t tl . #'(-> m trail_len))
+                (size_t kept . 0) (size_t f . 0)
+                (size_t nc . #'(-> e nchoices)))
+            (for ((size_t p . 0)) (< p tl) ((++ p))
+              ;; every frame made at or before this entry: its new trail mark
+              ;; is the number of entries kept before it
+              (while (and (< f nc) (<= ($ (nth f (-> e choices)) trail_mark) p))
+                (set ($ (nth f (-> e choices)) trail_mark) kept)
+                (set f (+ f 1)))
+              (if (> f 0)
+                  (let ((size_t v . #'(nth p (-> m trail))))
+                    (if (and (< v n) (< v ($ (nth (- f 1) (-> e choices)) heap_mark))
+                             (coco_gc_marked bits v))
+                        (block (set (nth kept (-> m trail)) (coco_gc_rank bits pre v))
+                               (set kept (+ kept 1)))))))
+            (while (< f nc)
+              (set ($ (nth f (-> e choices)) trail_mark) kept)
+              (set f (+ f 1)))
+            (set (-> m trail_len) kept))
+
+          ;; ---- the roots ----
+          (set (-> e goals) (coco_gc_moved bits pre n (-> e goals)))
+          (set (-> e query) (coco_gc_moved bits pre n (-> e query)))
+          (set (-> e trace_goal) (coco_gc_moved bits pre n (-> e trace_goal)))
+          (for ((size_t k . 0)) (< k (-> e nchoices)) ((++ k))
+            (let ((coco_choice * c . #'(aof (nth k (-> e choices)))))
+              (set (-> c call) (coco_gc_moved bits pre n (-> c call)))
+              (set (-> c goals) (coco_gc_moved bits pre n (-> c goals)))
+              (set (-> c heap_mark) (coco_gc_moved bits pre (+ n 1) (-> c heap_mark))))
+            (if (!= (-> e tchoices) nil)
+                (set ($ (nth k (-> e tchoices)) goal)
+                     (coco_gc_moved bits pre n ($ (nth k (-> e tchoices)) goal)))))
+          (for ((size_t r . 0)) (< r (-> m nhroots)) ((++ r))
+            (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
+                  (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
+              (for ((size_t i . 0)) (< i alen) ((++ i))
+                (set (nth i arr) (coco_gc_moved bits pre n (nth i arr))))))
+
+          ;; ---- slide: every kept cell down to its rank, references
+          ;; rewritten on the way. A cell's rank is never above its index, so
+          ;; one pass upward never overwrites a cell it has yet to read.
+          (let ((size_t dst . 0))
+            (for ((size_t w . 0)) (< w nw) ((++ w))
+              (if (!= (nth w bits) 0)
+                  (for ((size_t b . 0)) (< b 64) ((++ b))
+                    (let ((size_t i . #'(+ (<< w 6) b)))
+                      (if (and (< i n) (coco_gc_marked bits i))
+                          (let ((u64 c . #'(nth i (-> m heap))))
+                            (if (coco-tag-is REF c)
+                                (let ((size_t p . #'(cast size_t (coco-payload c))))
+                                  (if (< p n)
+                                      (set c (coco-cell REF (coco_gc_rank bits pre p))))))
+                            (set (nth dst (-> m heap)) c)
+                            (set dst (+ dst 1))))))))
+            (set (-> m heap_len) dst))
+
+          ;; the next collection waits for as much growth again as survived,
+          ;; and for at least the floor
+          (let ((size_t floor . #'(coco_gc_floor)))
+            (set (-> m gc_next) (+ (-> m heap_len)
+                                   (? (> (-> m heap_len) floor) (-> m heap_len) floor))))
+          (set (-> m gc_count) (+ (-> m gc_count) 1))
+          (free bits) (free pre) (free stk) (free fixed)))
+
   ;;; ---- the loop -----------------------------------------------------------
 
   (func coco_engine_init ((coco_engine * e) (coco_machine * m) (coco_store * st))
@@ -1335,7 +1643,8 @@
           (coco_engine_ask e g)
           (return 1)))
 
-  (func coco_engine_next ((coco_engine * e)) (out int)
+  (static)
+  (func coco_engine_run ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st)))
 
@@ -1372,6 +1681,15 @@
             (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
                 (return (coco_fail_err e "inference limit reached")))
             (if (-> e halted) (return 0))
+
+            ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
+            ;; whole state of the proof in the continuation and the frames,
+            ;; when no other engine on this machine is part way through one --
+            ;; see `coco_heap_gc'. Three loads and two compares when it does
+            ;; not run.
+            (if (and (-> e gc) (== (-> m running) 1)
+                     (or (-> m gc_request) (>= (-> m heap_len) (-> m gc_next))))
+                (coco_heap_gc e))
 
             ;; nothing left to prove: that is a solution
             (if (coco_k_is_empty e (-> e goals))
@@ -1778,6 +2096,19 @@
               (if (not ok)
                   (if (not (coco_backtrack e)) (return 0)))))
           (return 0)))
+
+  ;;; THE PUBLIC ENTRY COUNTS ITSELF IN AND OUT, so the collector can tell
+  ;;; whether this engine is the only one part way through a run on the
+  ;;; machine (see `running' on the machine). Every return path of the loop
+  ;;; comes back through here, which is the reason it is a wrapper and not a
+  ;;; counter bumped at each `return' -- there are forty of those.
+  (func coco_engine_next ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0))
+          (if (== (-> m gc_next) 0) (set (-> m gc_next) (coco_gc_floor)))
+          (set (-> m running) (+ (-> m running) 1))
+          (set rc (coco_engine_run e))
+          (set (-> m running) (- (-> m running) 1))
+          (return rc)))
 
   ;;;; ----------------------------------------------------------------
   ;;;; Builtins
@@ -2964,6 +3295,10 @@
                            (size_t clause_ix) (size_t barrier)
                            (const char * pred_name) (u32 pred_arity)) (out int)
         (if (not (coco_eng_grow e (+ (-> e nchoices) 1))) (return 0))
+        ;; the shadow frame ZEROED, which is what the tracer's comment has
+        ;; always said a thawed frame gets -- the realloc that makes room for
+        ;; it does not zero, and the heap collector reads its goal as a root
+        (memset (aof (nth (-> e nchoices) (-> e tchoices))) 0 (sizeof coco_tchoice))
         (let ((coco_choice * c . #'(aof (nth (-> e nchoices) (-> e choices)))))
           (memset c 0 (sizeof coco_choice))
           (set (-> c kind) kind)

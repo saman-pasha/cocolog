@@ -834,6 +834,9 @@
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
+          ;; the heap collector may run: nothing here touches the machine's
+          ;; cells once the goal is asked
+          (set ($ e gc) 1)
           ;; THE CONNECTION BEFORE THE GOAL, so the store's hooks are in
           ;; place before the first clause is looked for -- a fetch that
           ;; happened before the attach would cache "no such predicate"

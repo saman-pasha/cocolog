@@ -2127,8 +2127,15 @@
   ;;; lib/kb.cicili for what that reclaims and when it happens unasked. It
   ;;; always succeeds, and it is allowed anywhere a goal is: inside a
   ;;; findall's goal or a directive the roots those hold move with the rest.
+  ;;;
+  ;;; AND IT ASKS FOR A HEAP COLLECTION at the next step boundary, because a
+  ;;; builtin is the one place a collection cannot run -- this call's own
+  ;;; frame holds the goal. Where the collector may not run at all (a
+  ;;; nested engine, a host that did not turn it on) the request waits for a
+  ;;; step where it may. See `coco_heap_gc' in lib/solve.cicili.
   (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
         (coco_store_compact (-> e st) (coco_m_machine e))
+        (set ($ (cof (coco_m_machine e)) gc_request) 1)
         (return 1))
 
   ;;; `statistics/2', the keys a program can act on. SWI's names where SWI
@@ -2146,6 +2153,10 @@
   ;;; looking at the wrong number: CivV read `store_used' at 28 MB inside a
   ;;; window whose footprint was 13.2 GB. An array that doubles sits at up to
   ;;; twice its contents, and only the cap says so.
+  ;;;
+  ;;; AND `heap_collections' (1.8.36): how many times `coco_heap_gc' has run
+  ;;; on this machine -- `compactions' is the store's count, this the heap's.
+  ;;; Zero is the honest answer under a host that never turned it on.
   (func coco_b_statistics ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
@@ -2177,6 +2188,8 @@
               ((== 0 (strcmp key "trailcap"))   (set v (cast i64 (* (-> m trail_cap) 8))))
               ((== 0 (strcmp key "choicepoints")) (set v (cast i64 (-> e nchoices))))
               ((== 0 (strcmp key "compactions")) (set v (cast i64 (-> st ncompacts))))
+              ;; the HEAP's collections, where `compactions' is the store's
+              ((== 0 (strcmp key "heap_collections")) (set v (cast i64 (-> m gc_count))))
               ((== 0 (strcmp key "strings"))    (set v (cast i64 (-> m strings_len))))
               (#t (return (coco_m_domain_error e "statistics_key" k))))
             (return (coco_m_unify e out (coco_m_new_int e v))))))
