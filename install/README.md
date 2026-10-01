@@ -57,3 +57,12 @@ to end on an Ubuntu 22.04 Colab VM through its `apt-get` branch in 7 min
 10 s, every module but `ray` (no raylib there, and it says so) -- a VM whose
 packages the same commands had installed earlier that day, so the apt step
 was exercised but not from empty. The `dnf` branch has not been run.
+
+And from empty, inside `docker build` (the `Dockerfile` at the root), on
+Ubuntu 24.04 on 2026-10-01: every package the apt branch names, the Lisp
+side, ZiguratIP, cocolog, its schema and every module but torch, tensorflow
+and ray, in 27 minutes over a slow connection -- 21 of them packages -- and
+in 8 with the packages cached. The Dockerfile installs Ubuntu's own clang
+18 first, so the apt.llvm.org branch was not taken. That run is what found
+`library(numpy)` needing NumPy 2's headers (24.04 ships 1.26) and then not
+starting on Linux; both fixed in 1.8.37.

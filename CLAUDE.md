@@ -36,7 +36,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `b5fafd0` |
+| `../cicili` | the language cocolog is written in; BUILD time | `541ba5d` |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -69,6 +69,7 @@ make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
 make modules      # every loadable module buildable here; SKIPPED, by name, for the rest
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
+docker build -t cocolog .       # the stack on Ubuntu 24.04, by install/install-linux.sh
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0 (committed)
 sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committed)
 ```
