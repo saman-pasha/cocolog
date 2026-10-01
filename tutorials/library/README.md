@@ -68,6 +68,12 @@ written anywhere in this repository.
 | 40-numpy | `library/numpy.so` | numpy arrays as clauses: the C API behind integer handles, `.npy` files in C, and `np_store`/`np_fetch` into the knowledge base beside `np_save`/`np_load` to a file | a python3 with numpy |
 | 42-cowork | `library/cowork.pl` | a crew of workers that outlives the turn | `sh modules/thread/build.sh` |
 | 41-opencv | `opencv` | images as handles, a pipeline as a conjunction, an error in OpenCV's words; the doorway to `../opencv/`, twenty-three lessons |
+| 43-reason | `library/reasoning/reason.pl` | a paragraph of controlled English as predicates, questions as goals, an explanation as the whole proof | nothing |
+| 44-normalise | `library/reasoning/normalise.pl` | the training data for the tagger: shapes with gold tags, the noise transforms, the round trip | nothing |
+| 45-tagger | `library/reasoning/tagger.pl` | prose in, `reason.pl`'s terms out: the network, trained and measured | `sh modules/torch/build.sh` |
+| 46-translate | `library/reasoning/translate.pl` | a sentence read on one language's side and written on another's, through an IR that is English | nothing |
+| 47-clay | `library/clay.so`, `library/clay_ray.pl` | a user interface as a term: a tree of boxes laid out by Clay into render commands, hover as a rule, a scroll as a clip that moves; `clay_ray` draws it with raylib | `sh modules/clay/build.sh` (nothing else) |
+| 48-stream | `library/stream.so` | files as streams: bytes, UTF-8 characters, lines, terms a clause at a time, formatted text through the engine's own formatter; stdin, stdout, stderr | `sh modules/stream/build.sh` (nothing else) |
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
@@ -80,7 +86,7 @@ path instead.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-forty-two above found something while being written — a predicate that
+forty-nine above found something while being written — a predicate that
 did not exist, an arity that was wrong, a return value documented as
 `-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
 claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the

@@ -1846,7 +1846,7 @@ have measured it in the arrangement where a predicate is a page.**
 
 | | |
 |---|---|
-| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
+| `library/*.pl` | clauses only — `http.pl`, HTTP/1.1 as a grammar; `httpd.pl`, a server whose pages are clauses; `json.pl`, `xml.pl`, `html.pl`, a term as a document; `ca.pl`, a certificate authority as rules; `kbs.pl`, many knowledge bases from one script -- every kb_* goal a process-proof over the wire, goals as terms; `cowork.pl`, a crew of workers that outlives the turn -- one process doing several things where a thread costs what the PROGRAM costs to start; `main.pl`, a command line as terms -- SWI's library(main) INTERFACE, written here because its own file draws 31 HARD findings from cocolint; `astar.pl`, A* whose graph is two caller goals; `hex.pl`, hexagonal-grid arithmetic; `clay_ray.pl` (1.8.31), Clay's render commands walked into library(ray) -- the font registered from raylib, the pointer and the wheel handed to Clay before the frame, one goal for the frame; `tensor_expr.pl`, a network as an expression; `llm.pl`, a chat completion as a goal; and, under `library/reasoning/`, loaded as `library(reasoning/NAME)`: `reason.pl`, a paragraph as predicates -- a controlled English read by a DCG whose semantic argument is the term; `normalise.pl`, the training data for the network that will feed it -- the grammar's shapes as a generator with gold tags, noise transforms that carry them, and the assembler the round trip holds them to, over `library/reasoning/lexicon/`, files of census names and WordNet words read as needed and NEVER written into the code (`library/reasoning/lexicon/build.pl` regenerates them from a WordNet 3.0 dict), over `library/reasoning/corpus/`, the lessons whose words the lesson shapes draw, one sentence a line, and written out to `library/reasoning/generated/` by `generate.pl` so the pairs a model trained on are in the tree; `tagger.pl`, that network -- a tagger over `tensor_expr`, two embeddings, a GRU each way and a head, trained on the pairs and saved into the knowledge base, so prose goes in and `reason.pl`'s terms come out, and measured on sentences it never saw |
 | `library/*.so` | a Cicili module against `lib/sdk.cicili`, dlopen'd — built from `modules/` |
 
 **THE REASONING LEXICON IS FILES, NOT SOURCE, AND THE GRAMMAR FILTERS
@@ -15304,6 +15304,8 @@ the same shape: a `.cicili`, a `build.sh`, and output nobody commits.
 | `modules/ray` | raylib | `sh modules/ray/build.sh` |
 | `modules/numpy` | a python3 with numpy and a shared libpython | `sh modules/numpy/build.sh` |
 | `modules/opencv` | an OpenCV 4 with dnn (pkg-config `opencv4`) | `sh modules/opencv/build.sh` |
+| `modules/clay` | nothing (Clay is vendored, one header) | `sh modules/clay/build.sh` |
+| `modules/stream` | nothing | `sh modules/stream/build.sh` |
 
 `make modules` builds every one that can be built here and says SKIPPED,
 by name, for the rest. **None of them is part of `make`** — which is the
@@ -15382,6 +15384,279 @@ licensed, compiled as C beside the module and reached through one declared
 entry -- a back end that is somebody else's, kept whole so it stays
 byte-exact.) `doc/DOC-CPP.md` in the Cicili checkout is the C++ half of the
 language, and `modules/README.md` lists what bites when writing one.
+
+**AND A C LIBRARY IS DECLARED THE SAME WAY -- THE SHIMS IN `modules/ray`
+WERE WRONG FOR A YEAR AND THE OWNER SAID SO (1.8.31).** `ray.cicili`
+carried forty-three one-line C wrappers in `(code "…")`, one per raylib
+call that takes a struct BY VALUE, under a header that said describing
+`Color` or `Camera3D` to Cicili "would EMIT a second definition beside
+raylib.h's". It would not: a `(decl) (struct Color (member uchar r) …)`
+inside a binding's `init-macro` emits NOTHING and only teaches inference
+the shape -- which is exactly how `lib/std/c/posix` declares `sockaddr_in`
+and `lib/net/curl.cicili` declares libcurl, and what CLAUDE.md's own
+Cicili section already said about POSIX structs. The first draft of
+`modules/clay` copied ray's shims, and the correction ("you shouldn't use
+cicili `code` everywhere, read cicili lib folder to know how to code
+cicili") applies to C as much as to C++: **a library is declared in a
+binding and called as Cicili, and `(code …)` is for the one form the
+language cannot say.** `modules/ray/binding.cicili` and
+`modules/clay/binding.cicili` are the two bindings, each written as the
+`lib/c/<lib>.cicili` it would be in the Cicili tree and kept beside the
+module because that tree is frozen from this side. What the rewrite
+looks like: a Color is `(ray_color c)` building the struct field by field
+from a `'{ 0 }` initialiser, a camera is a `Camera3D` local with
+`CAMERA_PERSPECTIVE` as a `(typedef int …)` of the binding, a texture
+table is `(static) (var Texture2D ray_tex [256])`, raylib's `bool` answers
+go through `(ray_yes (WindowShouldClose))`, and the emitted `ray.c` has no
+`rw_` anywhere in it. Four forms worth knowing, all probed in a scratch
+target before the file was touched: `(let ((Image img . #'(LoadImageFromScreen))) …)`
+binds a by-value result, `(set (nth s ray_tex) t)` assigns a struct into an
+array, `($ (nth s ray_tex) width)` reads through it, and `(cast u8 x)` is
+the byte cast (`uchar` is two words after expansion and a cast takes one
+token). `cocolint`'s index picks `modules/NAME/NAME.cicili` by name now,
+because `binding` sorts before `clay` and the first `.cicili` used to be
+the module.
+
+### library(clay): a user interface as a term (1.8.31)
+
+**A SCREEN IS A TREE OF BOXES AND THE TREE IS A TERM.** Clay (nicbarker's
+`clay.h`, v0.14, zlib, vendored as `modules/clay/clay.h`) is a flex-box
+layout engine and nothing else: it takes elements with sizing rules and
+answers a flat list of render commands -- draw this rectangle here, this
+text there, clip to this box until further notice. It opens no window,
+draws no pixel and calls back into nobody, which is the shape the module
+seam carries: the caller owns the loop, the caller owns the renderer, and
+what crosses is scalars and lists. `clay_layout(W, H, Tree, Commands)` is
+one frame; `box(Id, Opts, Kids)` and `text(T, Opts)` are the tree; a
+command is `rect(Id, box(X,Y,W,H), rgba(...), corners(...))`, `border`,
+`text(Id, box, Codes, font(F, Size, Spacing, LH), rgba)`, `image`,
+`custom`, `scissor_start`, `scissor_end`, in draw order. It was chosen over
+SDL3+LVGL and the rest because its shape is this project's: no callbacks,
+a hover is a rule (`hover(Opts)` in the tree, `clay_over/1` after a frame),
+and a button's press is a clause the loop runs when `ray_mouse_pressed`
+and `clay_over` hold together.
+
+**THE DIVISION IS library(ray)'s.** The C half is FLAT -- open, a dozen
+setters, configure, the children, close, each scalar an argument -- and
+the Coco half is the tree walker, the options by name and the flat rows
+back into terms. Three things the C half owns, each a Clay property met
+the hard way: an id's NAME is interned for the process, because Clay
+keeps the pointer for the life of the layout and the debug view; a
+TEXT is copied into a per-frame arena of blocks (never a realloc, which
+would move what Clay points at) that `clay_begin` resets; and an image's
+or custom element's DATA is any term, carried as canonical text through
+the same arena and read back in the command, so a texture handle rides
+through Clay untouched. Errors Clay reports through its callback are
+kept and RAISED at `clay_end`, so a duplicate id or a capacity exceeded
+is a ball and not a frame with things missing; a throw inside the tree
+goes through `'$clay_abort'` so the next frame starts clean.
+
+**TEXT IS MEASURED HERE, WITH METRICS A RENDERER REGISTERS, so a layout
+is deterministic and needs no window.** With no font a glyph is 0.6 of
+the size wide, which is what `test/clay.pl` and lesson 47 pin on every
+machine; `clay_font(Id, Base, Advances)` gives per-glyph advances from
+code 32, and `clay_ray_font/0` reads raylib's default font through
+`ray_text_width(Ch, 10, A)` one character at a time -- the two then agree
+to the pixel, checked on glass, because Clay's sum of advances scaled by
+S/Base plus N spacings minus one is DrawTextEx's arithmetic exactly.
+(Measured: Clay subtracts one letter spacing per line, so the first
+expectation of 44 for a 43 was the comment's error, not the engine's.)
+
+**THE POINTER IS JUDGED BY THE FRAME LAID OUT BEFORE IT WAS TOLD.**
+`clay_pointer/3` computes what is under the pointer against the LAST
+layout, so the loop's order is layout, pointer, layout: `hover` lights an
+element in the frame after the pointer moved onto it, and lesson 47 was
+first written the other way round and read `none`. `clay_pointer` and
+`clay_scroll` before any layout at all initialise Clay lazily now
+(`cw_ensure`), because a renderer hands the input over BEFORE its first
+frame -- the first windowed probe of `clay_ray_frame/1` raised `no layout
+yet` on exactly that. A wheel notch moves a scroll container ten pixels
+(Clay's own factor), and `clay_over` on an ANONYMOUS box asked about the
+previous element until `cw_last_id` was reset from the zeroed
+declaration at open.
+
+**library(ray) GREW WHAT THE RENDERER ASKED FOR AND NO MORE**:
+`ray_text_ex/6` (floats, and the spacing chosen by the caller, which is
+what lets a text be drawn to the width it was measured at),
+`ray_text_width/3`, `ray_rect_rounded/7`, `ray_scissor_begin/4`,
+`ray_scissor_end/0`, `ray_mouse_wheel/2` and `ray_screen_size/2`. A
+rounded rectangle is raylib's, all four corners alike from Clay's largest
+radius as a fraction of the short side; a border is four side rectangles
+(the between-children borders arrive from Clay as rectangles already); an
+image is a texture handle stretched into its box with `ray_sprite_ex`,
+white when the tint is `rgba(0,0,0,0)`.
+
+`test/clay.pl` is the case: fifty checks over the layout with no window
+-- a frame, sizing, text, ids and the pointer, scrolling, floating
+elements and data, what goes wrong -- and one windowed section on
+`library(clay_ray)` that draws a frame twice and reads four pixels back,
+SKIPping by name where there is no glass exactly as `test/ray.pl` does.
+`tutorials/library/47-clay.pl` is the lesson.
+
+### library(stream): files as streams -- bytes, text and formatted (1.8.33)
+
+**THE INTERPRETER HAD NO STREAM LAYER, AND THIS IS THE ONE IT GETS.** The
+engine writes to the literal stdout in seventy places and reads a program
+only by consulting it; what a program could do with a file of its own was
+`read_file_to_codes/2` and the shell. `modules/stream` is a tier-2 module
+whose handle is `'$stream'(N)`, a slot in its own table -- library(tcp)'s
+shape -- opened `read`, `write`, `append` or `update` and `text` or
+`binary`, with stdin, stdout and stderr in slots 0-2 as `user_input`,
+`user_output` and `user_error` by name. The predicates are sorted as ISO
+sorts them: BYTES on a binary stream (`stream_get_byte`, `stream_peek_byte`,
+`stream_put_byte`, `stream_read_bytes`, `stream_write_bytes`), CHARACTERS,
+LINES and TERMS on a text one (`stream_get_char`, `stream_read_line`,
+`stream_read_lines`, `stream_write_text`, `stream_read_term`,
+`stream_read_terms`), and the wrong kind is `permission_error(input,
+binary_stream, S)` rather than a quiet read of the wrong thing.
+FORMATTED output is the ENGINE's formatter into codes and the codes into
+the file -- `stream_format/3`, `stream_write/2`, `stream_writeq/2`,
+`stream_print/2`, `stream_write_canonical/2`, `stream_write_term/3`, and
+`stream_with_output/2`, which is `with_output_to(codes(C), G)` with the
+stream as the sink -- so a file and the terminal never disagree about a
+spelling; formatted INPUT is the engine's own reader (`coco_m_read_term`
+then, `coco_m_read_clause` since 1.8.34 -- it honours the machine's
+operators, as the REPL does) over one clause
+of text the module scans for: a `.` outside quotes, strings, `0'c` and
+both comments, not part of a symbol atom, followed by layout, `%` or the
+end. `stream_seek/2,3`, `stream_position/2`, `stream_size/2`,
+`stream_eof/1`, `stream_flush/1` and `stream_property/2` (enumerable)
+round it out.
+
+**A CHARACTER IS A UTF-8 CHARACTER.** cocolog's text is bytes, so
+`stream_get_char` reads one code point's bytes (1 to 4, from the first
+byte) and answers the one-character atom they spell; a peek pushes them
+back onto a per-slot stack of eight, which is what makes a multi-byte
+peek work on a pipe with no seek, and `stream_position` is `ftell` minus
+what is pushed back.
+
+**THE HANDLE RIDES INTO EVERY C CALL BESIDE ITS SLOT**, because the C half
+cannot build a `'$stream'(N)` of its own and an error must name what the
+program wrote: `'$stream_get_byte'(S, N, B)`, the slot to index the table
+and the handle to be the culprit -- which the lesson found when its first
+pin read `permission_error(input, binary_stream, 3)`. The Coco half's
+`stream_slot/2` turns a handle into its slot and is where a closed stream,
+a non-stream and an unbound one become `existence_error(stream, S)`,
+`domain_error(stream, S)` and `instantiation_error` (1.8.34 moved the
+second, below).
+
+**WHAT 1.8.33 LEFT OUT, AND 1.8.34 TOOK**: `open/4` and `get_char/2` under
+their ISO names, a current input and output, and a stream `format/3` could
+write to. The reason given then was that the engine's `write/1`, `nl/0` and
+`format/3` could not be handed a stream this module made, and a half of
+ISO's surface would be worse than a whole one; the road was one engine
+change, written down and not taken. `test/stream.pl` was 43 checks then.
+Two things bit: `numlist(0, 99, Ns)` beside a check that read the bytes
+back needed its own variable names (the one-scope rule, again), and macOS
+answers `EEXIST` for `fopen("/", "wb")`, which the permission branch now
+lists beside `EACCES`, `EISDIR`, `EROFS`, `EPERM` and `ENOTDIR`.
+
+### And ISO's names over the same table, through one engine seam (1.8.34)
+
+**`open/3,4`, `close/1,2`, `current_input/1`, `current_output/1`,
+`set_input/1`, `set_output/1`, `get_char`/`peek_char`/`put_char`,
+`get_code`/`peek_code`/`put_code`, `get_byte`/`peek_byte`/`put_byte` at
+arities one and two, `read/1,2`, `read_term/2,3`, `write/2`, `writeq/2`,
+`print/2`, `write_canonical/2`, `write_term/3`, `nl/1`, `tab/2`,
+`flush_output/1`, `at_end_of_stream/0,1`, `set_stream_position/2`, and
+SWI's `read_line_to_codes/2`, `read_line_to_string/2` and
+`read_stream_to_codes/2`** -- all of them library(stream)'s, loaded with it
+and not before, over the same slot table. `open/4` takes `alias(A)` and the
+atom is the stream from then on. None of the names collides with the
+engine: every C builtin of the same name is another arity (`write/1`,
+`nl/0`, `tab/1`), and dispatch is by name AND arity, which was checked
+against the builtin tables and every compiled-in Prolog half before the
+clauses were written.
+
+**THE ENGINE MET IT IN ONE SEAM AND THREE SDK ENTRIES, ABI UNCHANGED.**
+`coco_sink_deliver` (`lib/builtins.cicili`), which serves `format/3` and
+`with_output_to/2`, asks an installed SINK HOOK before its own cases; the
+module installs one (`coco_m_sink_install`) and answers for
+`'$stream'(N)`, for an alias it holds, and for `user_output` while a file
+is the current output -- anything else answers 0 and the engine does what
+it always did. `coco_m_functor` lets the hook read a sink's name and
+arity, and `coco_m_read_clause` is the engine's reader handing back the
+VARIABLE NAMES it met, which is what `read_term/3`'s `variable_names/1`,
+`variables/1` and `singletons/1` are made of (`_Z` is named but never a
+singleton, SWI's rule). A clause that will not read is
+`error(syntax_error(Message), read_term/3)`, ISO's shape, where 1.8.33
+threw `cocolog_error`.
+
+**`set_output/1` POINTS FILE DESCRIPTOR 1 AT THE FILE**, because `write/1`,
+`nl/0` and `format/2` write to the literal stdout and nothing else -- the
+mechanism `with_output_to/2` already uses, and the two nest (measured: a
+`with_output_to(atom(A), ...)` inside a `set_output/1` captures, and the
+file keeps its own lines around it). The real stdout is kept aside as a
+`dup`, and a FILE on a second `dup` is where `user_output` named outright
+goes, so it still reaches the terminal as ISO says. One file with two
+buffers keeps the order a program wrote because stdout is emptied before
+the stream writes and the stream after (`st_out_begin`, `st_out_end`), and
+the stream's position is re-read from the descriptor before it is asked. A
+binary stream is refused as the current output, since the engine writes
+text; closing the current output makes `user_output` current again; a
+program that halts while redirected still flushes into its file. The
+current INPUT needs no seam at all: the engine reads no terminal of its
+own, so `read/1` and `get_char/1` read the module's `current_input/1`.
+
+**A CODE IS A BYTE, as `atom_codes/2` counts one**: `get_code/2` reads one
+byte of a text stream, and `put_code/2` of a code past 255 writes that code
+point's UTF-8 -- `put_code(S, 8364)` is the euro sign, three bytes -- the
+one reading that loses nothing. A negative code is
+`representation_error(character_code)`.
+
+**THREE PINS MOVED WITH ISO**: an atom that names no stream is
+`existence_error(stream, A)` (ISO's shape for an alias) where it was
+`domain_error(stream, A)`, and a term that could be neither is
+`domain_error(stream_or_alias, T)`; closing a standard stream does nothing,
+where 1.8.33 refused it; and `stream_property/2` answers ISO's
+`file_name/1`, `end_of_stream/1`, `eof_action/1` and `reposition/1`, where
+it answered `file/1`.
+
+**AND FORMAT/2'S STDOUT WAS SINK 0, WHICH IS A HEAP CELL.** Older than any
+of this, and found by the first probe of the hook: `format(nosuch_sink, x,
+[])` at the top level PRINTED `x` and succeeded, while `X = nosuch_sink,
+format(X, y, [])` raised `domain_error(output_sink, nosuch_sink)` as it
+should. `coco_b_format1/2` passed 0 to mean "plain stdout", and 0 is the
+first cell the reader built for the query -- here the sink atom itself --
+so the sink took the stdout path, the hook was never asked, and an alias in
+that place would have printed to the terminal. The sentinel is `(cast
+size_t -1)` now, which no cell index reaches. **It hid because cell 0 is
+the query's first term**: in a program, whatever sits at cell 0 is almost
+never a `format/3` sink, so only a one-goal query met it. It is the sixth
+defect family in reverse: not an error nothing caused but a success nothing
+earned, and `test/stream.pl`'s last section pins both halves.
+
+**COCOLINT'S X2 IS LIFTED BY THE IMPORT.** "The engine has no streams" is
+false of a file that loads library(stream), so `cl_trap_lifted/2`
+(`tools/cocolint/lint.pl`) drops X2 when the file's own `use_module`
+directives name `stream` -- directives only: `test/stream.pl` loads the
+library as a GOAL, so that it can SKIP when the `.so` is missing, and lints
+65 HARD for it. The lint case does not lint `test/`, and nothing pins those.
+
+**FOUR THINGS BIT**, each cheap once seen:
+
+* **A REWRITE BY SPLICING LEFT THE OLD TABLE AND PROLOG HALF IN THE FILE**,
+  after the new ones. The module built and loaded, and `open/3` was unknown:
+  the Lisp reader kept the LATER `DEFPARAMETER`, which was the old one.
+  After a splice, count the defining forms (`grep -c DEFPARAMETER`) before
+  reading any error the module gives.
+* **A PARAMETER THAT IS A FUNCTION POINTER CLOSES ONE LEVEL SOONER IN A
+  DEFINITION THAN IN A DECLARATION**: the declaration is `(decl) (func NAME
+  ((func hook (ARGS) (out int))))`, four closers, and the definition's
+  parameter list is `((func hook (ARGS) (out int)))` with the body after it.
+  Copying the declaration's closers into the definition was `unmatched
+  close parenthesis`, from a reader that names no line; counting depth per
+  file named it.
+* **`~q` WRITES A VARIABLE AS THE NAME IT HAS HERE**, `_G123`, so a lesson
+  that wrote a clause with `format/3` to test `variable_names/1` read back
+  generated names; the clause goes to the file as text.
+* **A `for` INITIALISER THAT IS AN EXPRESSION TAKES `#'`**, in the engine as
+  in a module -- `(for ((size_t i . #'($ r nvars))) ...)` -- the rule this
+  file already carries, met again.
+
+`test/stream.pl` is the case, **72 checks**, and
+`tutorials/library/48-stream.pl` the lesson, which shows `read_term/3`'s
+names, an alias with `set_output/1`, and a code past 255.
 
 **WHAT A `coco_m_*_error` RETURNS IS THE PREDICATE'S ANSWER, NOT A STATUS,
 and a helper that raises must hand it back rather than swallow it.** The
@@ -16657,7 +16932,7 @@ time on four cores. Eight senders put 800 terms through one channel and all
 | `lib/swipl/` | EIGHT of SWI's libraries — `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg/basics`, `dcg/high_order` — copied unmodified under their own BSD-2 headers and read at start-up. Do not edit them — see the README there |
 | `lib/library.cicili` | `use_module`: run-time loading of `.pl` and dlopen'd `.so` libraries |
 | `lib/sdk.cicili` | the module API over opaque types, for out-of-tree Cicili modules |
-| `modules/` | the seventeen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `numpy`, `opencv`, `ray`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
+| `modules/` | the nineteen loadable modules: `tcp`, `thread`, `process`, `text`, `os`, `curl`, `bigint`, `torch`, `tensorflow`, `numpy`, `opencv`, `ray`, `clay`, `stream`, and ZiguratIP's cryptography — `sha`, `aes`, `der`, `x509`, `tls`. One directory each — a `.cicili`, a `build.sh`, output nobody commits — and none of them part of `make`. `embed/` is the same shape and is NOT here, because the embedded store really is part of the binary |
 | `lib/state.cicili` | freeze and thaw of a machine |
 | `lib/zigurat-kb.cicili` | the binary-protocol backend (reads and writes) |
 | `lib/zeytun-kb.cicili` | the HTTP backend (reads only) |
@@ -16675,13 +16950,15 @@ transaction and a machine is many rows).
 ## The tutorials are documentation that RUNS
 
 `tutorials/` has four categories and `test/tutorials.pl` runs all
-**123** files as one suite case (counted from the tree, not remembered; this said 122,
+**125** files as one suite case (counted from the tree, not remembered; this said 124,
+this said 123,
+this said 122,
 this said 121, this said 120, before that 118, ninety-three, and sixty-eight):
 
 | | | needs |
 |---|---|---|
 | `tutorials/basics/` | eleven lessons, the language itself | nothing |
-| `tutorials/library/` | forty-seven lessons, numbered 00 to 46: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
+| `tutorials/library/` | forty-nine lessons, numbered 00 to 48: one per library that ships, one for cocolint, one for the library path | `$COCOLOG_LIBRARY` for tier 2 |
 | `tutorials/opencv/` | twenty-three lessons of image processing | `library/opencv.so` |
 | `tutorials/tensor/` | forty-two networks, each running on either tensor library | libtorch |
 
@@ -16768,10 +17045,10 @@ else.
 
 ## Before saying something works
 
-Run `make test` with a server up, and read all **58** case lines (counted
-from `test/run.pl`'s list, not remembered; this said 39, then 42, then 43, then 48, then
+Run `make test` with a server up, and read all **60** case lines (counted
+from `test/run.pl`'s list, not remembered; this said 59, then 58, then 39, then 42, then 43, then 48, then
 51, then 52, then 53, then 54, then 57, and the suite keeps moving -- seven `.cicili` binaries and
-fifty-one `.pl` cases, each line with its seconds). A change to
+fifty-three `.pl` cases, each line with its seconds). A change to
 the knowledge base also wants proving **across processes** — one `cocolog`
 invocation writing and a second, which consulted nothing, reading — because
 that is the claim the project exists to make and an in-process test cannot make

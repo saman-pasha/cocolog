@@ -1,0 +1,1245 @@
+;;;; cocolog -- library(stream): files as streams -- bytes, characters,
+;;;; lines, terms and formatted text, in and out.
+;;;
+;;; THE INTERPRETER HAS NO STREAM LAYER, AND THIS IS THE ONE IT GETS. The
+;;; engine writes to the literal stdout in seventy places and reads a
+;;; program from a file it consults; what a program could do with a file
+;;; of its own was `read_file_to_codes/2' and nothing else -- no byte at
+;;; a time, no line at a time, no term at a time, nothing written but
+;;; whole files through the shell. A stream here is a HANDLE in this
+;;; module's table, the shape library(tcp) gives a socket: `'$stream'(N)'
+;;; names a slot that holds the FILE, its path, its mode and whether it
+;;; is TEXT or BINARY, and the three standard streams sit in slots 0, 1
+;;; and 2 from the first call, as `user_input', `user_output' and
+;;; `user_error' by name.
+;;;
+;;; THREE KINDS OF I/O, AND THE KIND IS THE STREAM'S. A stream is opened
+;;; `text' (the default) or `binary', and the predicates are sorted the
+;;; same way, as ISO sorts them: the BYTE predicates work on a binary
+;;; stream, the CHARACTER, LINE and TERM predicates on a text one, and
+;;; asking the wrong kind is `permission_error(input, binary_stream, S)'
+;;; rather than a quiet read of the wrong thing. FORMATTED output --
+;;; `format/2''s directives, `write/1''s spelling, `print/1''s and
+;;; `writeq/1''s -- goes through the engine's own formatter into codes
+;;; and from there into the stream, so a `~t~20|' column in a file is
+;;; exactly the column it is on the terminal; formatted INPUT is the
+;;; engine's own reader over one clause of text, so `stream_read_term/2'
+;;; reads what `consult' would, operators and all, and answers
+;;; `end_of_file' at the end.
+;;;
+;;; A CHARACTER IS A UTF-8 CHARACTER. cocolog's text is bytes, and a
+;;; byte past 127 alone is not a character; `stream_get_char/2' reads
+;;; one code point's bytes and answers the one-character atom they spell,
+;;; and `stream_put_char/2' writes an atom's bytes back. A line and a
+;;; whole file come back as CODES, one per byte, which is what every
+;;; text predicate in this family takes (`atom_codes/2' is the way to an
+;;; atom) -- a line has its newline taken off, and a CR before it too.
+;;;
+;;; THE DIVISION IS THE USUAL ONE. The C half is FLAT -- a slot number
+;;; and one plain value per call -- and the Coco half is the surface: the
+;;; handle term, the names of the modes and the kinds, the aliases,
+;;; `stream_property/2' as clauses over the table, and every error that
+;;; names a TERM rather than a slot.
+;;;
+;;; ISO'S NAMES ARE HERE TOO, SINCE 1.8.34, AND THE ENGINE HAD TO MEET THEM
+;;; HALF WAY. `open/4', `get_char/2', `read_term/3', `write/2' and the rest
+;;; are the same table under the standard's spelling -- loaded with this
+;;; module and not before, so a program that never asks pays nothing. Two
+;;; things could not be done from here alone, and each is ONE seam:
+;;;
+;;;   * `format/3' and `with_output_to/2' are the engine's, and a stream is
+;;;     this module's. The engine asks an installed SINK HOOK about a sink
+;;;     before its own (`coco_m_sink_install', lib/sdk.cicili), and this
+;;;     module answers for `'$stream'(N)', for an alias it holds, and for
+;;;     `user_output' while a file is the current output; anything else
+;;;     answers 0 and the engine carries on as it always has.
+;;;   * `write/1', `nl/0' and `format/2' write to the literal stdout, so
+;;;     `set_output(S)' points FILE DESCRIPTOR 1 at the stream's file --
+;;;     the mechanism `with_output_to/2' already uses -- and keeps the real
+;;;     stdout aside, so that `user_output' named outright still reaches
+;;;     the terminal. The two buffers on the one file are kept in the order
+;;;     a program wrote: stdout emptied before the stream writes, the
+;;;     stream after (`st_out_begin', `st_out_end').
+;;;
+;;; `read_term/3' reads through `coco_m_read_clause', the engine's reader
+;;; with the variable names it met, so `variable_names/1', `variables/1'
+;;; and `singletons/1' are what the file said; a clause that will not read
+;;; is `error(syntax_error(Message), read_term/3)', ISO's shape.
+;;;
+;;; A CODE IS A BYTE, as `atom_codes/2' counts one: `get_code/2' reads one
+;;; byte of a text stream and `put_code/2' writes one, and a code past 255
+;;; is written as the UTF-8 of that code point, the one reading that loses
+;;; nothing.
+;;;
+;;; THE CURRENT INPUT IS THIS MODULE'S ALONE, and needs no seam: the engine
+;;; reads no terminal of its own, so `read/1', `get_char/1' and the rest
+;;; here read `current_input/1' and nothing else has to follow it.
+;;;
+;;; WHAT IS NOT HERE, deliberately: `eof_action/1' other than `eof_code'
+;;; and `reposition/1' as OPTIONS of open/4 (both are answered as
+;;; properties); encodings other than UTF-8; and pipes and sockets, which
+;;; library(process) and library(tcp) own.
+;;;
+;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit;
+;;; modules/tcp/tcp.cicili says why at its top.
+;;;
+;;; ---- the surface -------------------------------------------------------
+;;;
+;;; A Stream is `'$stream'(N)' from stream_open, or user_input, user_output,
+;;; user_error. A Mode is read, write, append or update (read and write,
+;;; the file kept). Text is an atom, a string, a code list or a char list.
+;;;
+;;;   stream_open(+Path, +Mode, -Stream)               a TEXT stream; no such file is existence_error(source_sink, Path)
+;;;   stream_open(+Path, +Mode, +Options, -Stream)     type(text) or type(binary)
+;;;   stream_close(+Stream)                            flushed and forgotten; the standard three: nothing, as ISO says
+;;;   stream_flush(+Stream)
+;;;   stream_eof(+Stream)                              nothing left to read
+;;;   stream_position(+Stream, -Bytes)                 where the next byte lands, from the start
+;;;   stream_seek(+Stream, +Bytes)                     from the start
+;;;   stream_seek(+Stream, +Offset, +Whence)           bof, current or eof
+;;;   stream_size(+Stream, -Bytes)                     the file's, whatever the position
+;;;   stream_property(?Stream, ?Property)              file_name mode type input output alias position end_of_stream eof_action reposition
+;;;   stream_input(-Stream)  stream_output(-Stream)  stream_error(-Stream)   the standard three
+;;;   -- binary --
+;;;   stream_get_byte(+Stream, -Byte)                  0..255, or -1 at the end
+;;;   stream_peek_byte(+Stream, -Byte)                 the same, and the byte stays
+;;;   stream_put_byte(+Stream, +Byte)
+;;;   stream_read_bytes(+Stream, +N, -Bytes)           up to N, as codes; [] at the end
+;;;   stream_write_bytes(+Stream, +Bytes)              a code list, 0..255 each
+;;;   -- text --
+;;;   stream_get_char(+Stream, -Char)                  one UTF-8 character as an atom, or end_of_file
+;;;   stream_peek_char(+Stream, -Char)
+;;;   stream_put_char(+Stream, +Char)
+;;;   stream_read_line(+Stream, -Codes)                the newline (and a CR before it) off; end_of_file at the end
+;;;   stream_read_lines(+Stream, -Lines)               the rest, one code list a line
+;;;   stream_write_text(+Stream, +Text)                as its characters
+;;;   stream_nl(+Stream)
+;;;   -- either kind --
+;;;   stream_read_all(+Stream, -Codes)                 the rest of the stream
+;;;   -- formatted --
+;;;   stream_format(+Stream, +Format, +Args)           format/2's directives, into a text stream
+;;;   stream_write(+Stream, +Term)                     as write/1 spells it
+;;;   stream_writeq(+Stream, +Term)                    as writeq/1
+;;;   stream_print(+Stream, +Term)                     as print/1
+;;;   stream_write_canonical(+Stream, +Term)           as write_canonical/1
+;;;   stream_write_term(+Stream, +Term, +Options)      as write_term/2
+;;;   stream_with_output(+Stream, :Goal)               what Goal writes to stdout goes to the stream instead
+;;;   stream_read_term(+Stream, -Term)                 one clause, up to its `. '; end_of_file at the end
+;;;   stream_read_terms(+Stream, -Terms)               the rest, as a list
+;;;   -- ISO's names over the same table; Stream is also an alias --
+;;;   open(+Path, +Mode, -Stream)                      stream_open/3
+;;;   open(+Path, +Mode, -Stream, +Options)            type(Kind) and alias(Name)
+;;;   close(+Stream)                                   stream_close/1
+;;;   close(+Stream, +Options)                         options ignored
+;;;   current_input(-Stream)                           what read/1 and get_char/1 read
+;;;   current_output(-Stream)                          what write/1 and format/2 write
+;;;   set_input(+Stream)
+;;;   set_output(+Stream)                              a text stream; fd 1 follows it
+;;;   flush_output(+Stream)
+;;;   at_end_of_stream(+Stream)
+;;;   at_end_of_stream                                 of the current input
+;;;   set_stream_position(+Stream, +Bytes)
+;;;   get_char(+Stream, -Char)
+;;;   get_char(-Char)
+;;;   peek_char(+Stream, -Char)
+;;;   peek_char(-Char)
+;;;   put_char(+Stream, +Char)
+;;;   put_char(+Char)
+;;;   get_code(+Stream, -Code)                         a byte, as atom_codes/2 counts; -1 at the end
+;;;   get_code(-Code)
+;;;   peek_code(+Stream, -Code)
+;;;   peek_code(-Code)
+;;;   put_code(+Stream, +Code)                         past 255, the code point's UTF-8
+;;;   put_code(+Code)
+;;;   get_byte(+Stream, -Byte)
+;;;   get_byte(-Byte)
+;;;   peek_byte(+Stream, -Byte)
+;;;   peek_byte(-Byte)
+;;;   put_byte(+Stream, +Byte)
+;;;   put_byte(+Byte)
+;;;   read(+Stream, -Term)
+;;;   read(-Term)
+;;;   read_term(+Stream, -Term, +Options)              variable_names variables singletons
+;;;   read_term(-Term, +Options)
+;;;   write(+Stream, +Term)
+;;;   writeq(+Stream, +Term)
+;;;   print(+Stream, +Term)
+;;;   write_canonical(+Stream, +Term)
+;;;   write_term(+Stream, +Term, +Options)
+;;;   nl(+Stream)
+;;;   tab(+Stream, +N)
+;;;   read_line_to_codes(+Stream, -Codes)              SWI's; end_of_file at the end
+;;;   read_line_to_string(+Stream, -String)
+;;;   read_stream_to_codes(+Stream, -Codes)
+;;;   -- and the engine's own, given a stream or an alias as the sink --
+;;;   format(+Stream, +Format, +Args)                  the engine's format/3
+;;;   with_output_to(+Stream, :Goal)                   the engine's with_output_to/2
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *stream-predicates*
+  '(("$stream_open"          4 st_p_open)
+    ("$stream_close"         2 st_p_close)
+    ("$stream_open_p"        1 st_p_open_p)
+    ("$stream_slots"         1 st_p_slots)
+    ("$stream_info"          5 st_p_info)
+    ("$stream_set_alias"     2 st_p_set_alias)
+    ("$stream_by_alias"      2 st_p_by_alias)
+    ("$stream_alias_of"      2 st_p_alias_of)
+    ("$stream_cur"           2 st_p_cur)
+    ("$stream_set_input"     2 st_p_set_input)
+    ("$stream_set_output"    2 st_p_set_output)
+    ("$stream_flush"         2 st_p_flush)
+    ("$stream_eof"           2 st_p_eof)
+    ("$stream_position"      3 st_p_position)
+    ("$stream_seek"          4 st_p_seek)
+    ("$stream_size"          3 st_p_size)
+    ("$stream_get_byte"      3 st_p_get_byte)
+    ("$stream_peek_byte"     3 st_p_peek_byte)
+    ("$stream_put_byte"      3 st_p_put_byte)
+    ("$stream_read_bytes"    4 st_p_read_bytes)
+    ("$stream_write_bytes"   3 st_p_write_bytes)
+    ("$stream_write_codes"   3 st_p_write_codes)
+    ("$stream_read_all"      3 st_p_read_all)
+    ("$stream_get_char"      3 st_p_get_char)
+    ("$stream_peek_char"     3 st_p_peek_char)
+    ("$stream_put_char"      3 st_p_put_char)
+    ("$stream_get_code"      3 st_p_get_code)
+    ("$stream_peek_code"     3 st_p_peek_code)
+    ("$stream_put_code"      3 st_p_put_code)
+    ("$stream_read_line"     3 st_p_read_line)
+    ("$stream_write_text"    3 st_p_write_text)
+    ("$stream_read_term"     6 st_p_read_term)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: the handle, the names, the formatted writers
+;;;; ------------------------------------------------------------------
+;;; A Cicili string literal cannot carry a newline, so clauses are joined
+;;; with spaces; commentary lives out here.
+;;;
+;;; EVERY ERROR NAMES THE TERM THE PROGRAM WROTE. `stream_slot/2' turns a
+;;; handle into its slot and is where a closed stream, a stream that
+;;; never was and a non-stream are told apart -- existence_error(stream,
+;;; S), domain_error(stream, S), instantiation_error -- so the C half is
+;;; only ever asked about a slot it handed out. The kind checks (bytes on
+;;; a text stream, characters on a binary one) are the C half's, because
+;;; it holds the table; they raise `permission_error' with the handle.
+;;;
+;;; THE FORMATTED WRITERS ARE THE ENGINE'S FORMATTER INTO CODES, then the
+;;; codes into the stream: one spelling of `~w', `~q', `~p' and every
+;;; column directive, shared with the terminal, and no second writer to
+;;; drift from the first. `stream_with_output/2' is `with_output_to/2'
+;;; with the stream as the sink, which makes any goal that prints a goal
+;;; that writes a file.
+(DEFPARAMETER *stream-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; ---- the handle, an alias, or a standard name ----
+           "stream_input('$stream'(0))."
+           "stream_output('$stream'(1))."
+           "stream_error('$stream'(2))."
+           "stream_slot(S, _) :- var(S), !, throw(error(instantiation_error, stream_slot/2))."
+           "stream_slot('$stream'(N), N) :- integer(N), !, ( '$stream_open_p'(N) -> true ; throw(error(existence_error(stream, '$stream'(N)), stream_slot/2)) )."
+           "stream_slot(user_input, 0) :- !."
+           "stream_slot(user_output, 1) :- !."
+           "stream_slot(user_error, 2) :- !."
+           "stream_slot(A, N) :- atom(A), !, ( '$stream_by_alias'(A, N) -> true ; throw(error(existence_error(stream, A), stream_slot/2)) )."
+           "stream_slot(S, _) :- throw(error(domain_error(stream_or_alias, S), stream_slot/2))."
+
+           ;; ---- open and close ----
+           "stream_open(Path, Mode, S) :- stream_open(Path, Mode, [], S)."
+           "stream_open(Path, Mode, Opts, S) :- ( var(S) -> true ; throw(error(uninstantiation_error(S), open/4)) ), must_be(list, Opts), stream_mode(Mode, M), stream_kind(Opts, K), ( memberchk(alias(A), Opts) -> stream_alias_free(A) ; true ), '$stream_open'(Path, M, K, N), ( nonvar(A) -> '$stream_set_alias'(N, A) ; true ), S = '$stream'(N)."
+           "stream_mode(M, _) :- var(M), !, throw(error(instantiation_error, open/4))."
+           "stream_mode(read, 1) :- !."
+           "stream_mode(write, 2) :- !."
+           "stream_mode(append, 3) :- !."
+           "stream_mode(update, 4) :- !."
+           "stream_mode(M, _) :- atom(M), !, throw(error(domain_error(io_mode, M), open/4))."
+           "stream_mode(M, _) :- throw(error(type_error(atom, M), open/4))."
+           "stream_kind(Opts, K) :- ( memberchk(type(T), Opts) -> true ; T = text ), stream_type(T, K)."
+           "stream_type(text, 1) :- !."
+           "stream_type(binary, 2) :- !."
+           "stream_type(T, _) :- throw(error(domain_error(stream_option, type(T)), open/4))."
+           "stream_alias_free(A) :- ( atom(A) -> true ; throw(error(type_error(atom, A), open/4)) ), ( ( memberchk(A, [user_input, user_output, user_error]) ; '$stream_by_alias'(A, _) ) -> throw(error(permission_error(open, source_sink, alias(A)), open/4)) ; true )."
+           ;; closing a standard stream does nothing, which is ISO's rule
+           "stream_close(S) :- stream_slot(S, N), ( N < 3 -> true ; '$stream_close'(S, N) )."
+           "stream_flush(S) :- stream_slot(S, N), '$stream_flush'(S, N)."
+           "stream_eof(S) :- stream_slot(S, N), '$stream_eof'(S, N)."
+           "stream_position(S, P) :- stream_slot(S, N), '$stream_position'(S, N, P)."
+           "stream_seek(S, P) :- stream_seek(S, P, bof)."
+           "stream_seek(S, Off, Whence) :- stream_slot(S, N), stream_whence(Whence, W), '$stream_seek'(S, N, Off, W)."
+           "stream_whence(bof, 0) :- !."
+           "stream_whence(current, 1) :- !."
+           "stream_whence(eof, 2) :- !."
+           "stream_whence(W, _) :- throw(error(domain_error(stream_whence, W), stream_seek/3))."
+           "stream_size(S, B) :- stream_slot(S, N), '$stream_size'(S, N, B)."
+
+           ;; ---- the properties, ISO's, enumerable over the table ----
+           "stream_property(S, P) :- nonvar(S), !, stream_slot(S, N), stream_prop('$stream'(N), N, P)."
+           "stream_property(S, P) :- '$stream_slots'(Ns), member(N, Ns), S = '$stream'(N), stream_prop(S, N, P)."
+           "stream_prop(S, N, file_name(Path)) :- N >= 3, '$stream_info'(S, N, Path, _, _)."
+           ;; the names read the other way round, by tables: stream_mode/2 checks its
+           ;; argument first, which is right for open/4 and wrong for a property
+           "stream_prop(S, N, mode(Mode)) :- '$stream_info'(S, N, _, M, _), stream_mode_name(M, Mode)."
+           "stream_prop(S, N, type(Type)) :- '$stream_info'(S, N, _, _, K), stream_type_name(K, Type)."
+           "stream_prop(S, N, input) :- '$stream_info'(S, N, _, M, _), ( M =:= 1 ; M =:= 4 )."
+           "stream_prop(S, N, output) :- '$stream_info'(S, N, _, M, _), M >= 2."
+           "stream_prop(_, N, alias(A)) :- stream_std_alias(N, A)."
+           "stream_prop(_, N, alias(A)) :- '$stream_alias_of'(N, A)."
+           "stream_prop(S, N, position(P)) :- N >= 3, '$stream_position'(S, N, P)."
+           "stream_prop(S, N, end_of_stream(E)) :- N >= 3, '$stream_info'(S, N, _, M, _), ( M =:= 1 ; M =:= 4 ), ( '$stream_eof'(S, N) -> E = at ; E = not )."
+           "stream_prop(_, _, eof_action(eof_code))."
+           "stream_prop(_, N, reposition(B)) :- ( N >= 3 -> B = true ; B = false )."
+           "stream_mode_name(1, read). stream_mode_name(2, write). stream_mode_name(3, append). stream_mode_name(4, update)."
+           "stream_type_name(1, text). stream_type_name(2, binary)."
+           "stream_std_alias(0, user_input)."
+           "stream_std_alias(1, user_output)."
+           "stream_std_alias(2, user_error)."
+
+           ;; ---- bytes ----
+           "stream_get_byte(S, B) :- stream_slot(S, N), '$stream_get_byte'(S, N, B)."
+           "stream_peek_byte(S, B) :- stream_slot(S, N), '$stream_peek_byte'(S, N, B)."
+           "stream_put_byte(S, B) :- stream_slot(S, N), '$stream_put_byte'(S, N, B)."
+           "stream_read_bytes(S, Count, Bs) :- stream_slot(S, N), '$stream_read_bytes'(S, N, Count, Bs)."
+           "stream_write_bytes(S, Bs) :- stream_slot(S, N), '$stream_write_bytes'(S, N, Bs)."
+           "stream_read_all(S, Cs) :- stream_slot(S, N), '$stream_read_all'(S, N, Cs)."
+
+           ;; ---- characters and lines ----
+           "stream_get_char(S, C) :- stream_slot(S, N), '$stream_get_char'(S, N, C)."
+           "stream_peek_char(S, C) :- stream_slot(S, N), '$stream_peek_char'(S, N, C)."
+           "stream_put_char(S, C) :- stream_slot(S, N), '$stream_put_char'(S, N, C)."
+           "stream_read_line(S, L) :- stream_slot(S, N), '$stream_read_line'(S, N, L)."
+           "stream_read_lines(S, Ls) :- stream_slot(S, N), stream_lines_(S, N, Ls)."
+           "stream_lines_(S, N, Ls) :- '$stream_read_line'(S, N, L), ( L == end_of_file -> Ls = [] ; Ls = [L|Rest], stream_lines_(S, N, Rest) )."
+           "stream_write_text(S, T) :- stream_slot(S, N), '$stream_write_text'(S, N, T)."
+           "stream_nl(S) :- stream_slot(S, N), '$stream_write_codes'(S, N, [10])."
+
+           ;; ---- formatted: the engine's formatter, into the stream through the sink hook ----
+           "stream_format(S, F, A) :- stream_slot(S, _), format(S, F, A)."
+           "stream_write(S, T) :- stream_slot(S, _), format(S, '~w', [T])."
+           "stream_writeq(S, T) :- stream_slot(S, _), format(S, '~q', [T])."
+           "stream_print(S, T) :- stream_slot(S, _), format(S, '~p', [T])."
+           "stream_write_canonical(S, T) :- stream_slot(S, _), with_output_to(S, write_canonical(T))."
+           "stream_write_term(S, T, O) :- stream_slot(S, _), with_output_to(S, write_term(T, O))."
+           "stream_with_output(S, G) :- stream_slot(S, _), with_output_to(S, G)."
+           "stream_read_term(S, T) :- read_term(S, T, [])."
+           "stream_read_terms(S, Ts) :- read_term(S, T, []), ( T == end_of_file -> Ts = [] ; Ts = [T|Rest], stream_read_terms(S, Rest) )."
+
+           ;; ---- ISO's names, over the same table ----
+           "open(F, M, S) :- stream_open(F, M, [], S)."
+           "open(F, M, S, O) :- stream_open(F, M, O, S)."
+           "close(S) :- stream_close(S)."
+           "close(S, _) :- stream_close(S)."
+           "current_input(S) :- '$stream_cur'(0, N), S = '$stream'(N)."
+           "current_output(S) :- '$stream_cur'(1, N), S = '$stream'(N)."
+           "set_input(S) :- stream_slot(S, N), '$stream_set_input'(S, N)."
+           "set_output(S) :- stream_slot(S, N), '$stream_set_output'(S, N)."
+           "flush_output(S) :- stream_flush(S)."
+           "at_end_of_stream :- current_input(S), stream_eof(S)."
+           "at_end_of_stream(S) :- stream_eof(S)."
+           "set_stream_position(S, P) :- stream_seek(S, P)."
+           "get_char(C) :- current_input(S), stream_get_char(S, C)."
+           "get_char(S, C) :- stream_get_char(S, C)."
+           "peek_char(C) :- current_input(S), stream_peek_char(S, C)."
+           "peek_char(S, C) :- stream_peek_char(S, C)."
+           "put_char(C) :- current_output(S), stream_put_char(S, C)."
+           "put_char(S, C) :- stream_put_char(S, C)."
+           "get_code(C) :- current_input(S), get_code(S, C)."
+           "get_code(S, C) :- stream_slot(S, N), '$stream_get_code'(S, N, C)."
+           "peek_code(C) :- current_input(S), peek_code(S, C)."
+           "peek_code(S, C) :- stream_slot(S, N), '$stream_peek_code'(S, N, C)."
+           "put_code(C) :- current_output(S), put_code(S, C)."
+           "put_code(S, C) :- stream_slot(S, N), ( var(C) -> throw(error(instantiation_error, put_code/2)) ; integer(C) -> true ; throw(error(type_error(integer, C), put_code/2)) ), ( C >= 0, C =< 1114111 -> true ; throw(error(representation_error(character_code), put_code/2)) ), '$stream_put_code'(S, N, C)."
+           "get_byte(B) :- current_input(S), stream_get_byte(S, B)."
+           "get_byte(S, B) :- stream_get_byte(S, B)."
+           "peek_byte(B) :- current_input(S), stream_peek_byte(S, B)."
+           "peek_byte(S, B) :- stream_peek_byte(S, B)."
+           "put_byte(B) :- current_output(S), stream_put_byte(S, B)."
+           "put_byte(S, B) :- stream_put_byte(S, B)."
+           "read(T) :- current_input(S), read_term(S, T, [])."
+           "read(S, T) :- read_term(S, T, [])."
+           "read_term(T, O) :- current_input(S), read_term(S, T, O)."
+           "read_term(S, T, O) :- stream_slot(S, N), '$stream_read_term'(S, N, K, T0, Ns0, Msg), stream_read_result(K, T0, Ns0, Msg, T1, Ns), stream_read_options(O, T1, Ns), T = T1."
+           "stream_read_result(term, T, Ns, _, T, Ns) :- !."
+           "stream_read_result(end_of_file, _, _, _, end_of_file, []) :- !."
+           "stream_read_result(syntax_error, _, _, Msg, _, _) :- throw(error(syntax_error(Msg), read_term/3))."
+           "stream_read_options(Os, _, _) :- var(Os), !, throw(error(instantiation_error, read_term/3))."
+           "stream_read_options([], _, _) :- !."
+           "stream_read_options([O|Os], T, Ns) :- !, stream_read_option(O, T, Ns), stream_read_options(Os, T, Ns)."
+           "stream_read_options(Os, _, _) :- throw(error(type_error(list, Os), read_term/3))."
+           "stream_read_option(O, _, _) :- var(O), !, throw(error(instantiation_error, read_term/3))."
+           "stream_read_option(variable_names(V), _, Ns) :- !, V = Ns."
+           "stream_read_option(variables(V), T, _) :- !, term_variables(T, V)."
+           "stream_read_option(singletons(V), T, Ns) :- !, stream_singletons(Ns, T, V)."
+           ;; an option SWI or a later ISO revision knows and this reader does
+           ;; not (syntax_errors, term_position, ...) is accepted and has no
+           ;; effect, so a program written for SWI reads the same terms
+           "stream_read_option(_, _, _)."
+           "stream_singletons([], _, [])."
+           "stream_singletons([Name = V|Ns], T, Out) :- stream_occurs(T, V, 0, K), atom_codes(Name, [C0|_]), ( K =:= 1, ( C0 < 95 ; C0 > 95 ) -> Out = [Name = V|Rest] ; Out = Rest ), stream_singletons(Ns, T, Rest)."
+           "stream_occurs(X, V, K0, K) :- var(X), !, ( X == V -> K is K0 + 1 ; K = K0 )."
+           "stream_occurs(X, V, K0, K) :- compound(X), !, X =.. [_|As], stream_occurs_list(As, V, K0, K)."
+           "stream_occurs(_, _, K, K)."
+           "stream_occurs_list([], _, K, K)."
+           "stream_occurs_list([A|As], V, K0, K) :- stream_occurs(A, V, K0, K1), stream_occurs_list(As, V, K1, K)."
+           "write(S, T) :- stream_write(S, T)."
+           "writeq(S, T) :- stream_writeq(S, T)."
+           "print(S, T) :- stream_print(S, T)."
+           "write_canonical(S, T) :- stream_write_canonical(S, T)."
+           "write_term(S, T, O) :- stream_write_term(S, T, O)."
+           "nl(S) :- stream_nl(S)."
+           "tab(S, N) :- stream_slot(S, _), with_output_to(S, tab(N))."
+
+           ;; ---- SWI's library(readutil), which ported programs call constantly ----
+           "read_line_to_codes(S, L) :- stream_read_line(S, L)."
+           "read_line_to_string(S, Str) :- stream_read_line(S, L), ( L == end_of_file -> Str = end_of_file ; string_codes(Str, L) )."
+           "read_stream_to_codes(S, Cs) :- stream_read_all(S, Cs).")))
+
+;;;; ------------------------------------------------------------------
+;;;; The C half
+;;;; ------------------------------------------------------------------
+(source "stream.c"
+  (make :std #t :compile #f)
+
+  (include <stdio.h>)
+  (include <stdlib.h>)
+  (include <string.h>)
+  (include <errno.h>)
+  (include <unistd.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; ---- the table: a handle is a slot, and the slot knows its kind ----
+  ;;;
+  ;;; Slots 0, 1 and 2 are stdin, stdout and stderr, filled the first time
+  ;;; anything asks, and never closed. A slot's PUSHBACK holds the bytes a
+  ;;; peek gave back -- up to a whole UTF-8 character -- as a stack, so
+  ;;; that a peek needs no seek and works on a pipe as well as a file.
+  (static) (var FILE * st_file [256])
+  (static) (var int st_kind [256])          ; 0 free, 1 text, 2 binary
+  (static) (var int st_mode [256])          ; 1 read, 2 write, 3 append, 4 update
+  (static) (var char * st_path [256])
+  (static) (var u8 st_push [256][8])
+  (static) (var int st_npush [256])
+  (static) (var char * st_alias [256])      ; open(..., [alias(A)]), or null
+  (static) (var int st_ready . 0)
+
+  ;;; THE CURRENT INPUT AND OUTPUT. Input is only the module's: get_char/1,
+  ;;; read/1 and the rest read slot `st_cur_in'. Output is not only the
+  ;;; module's, because write/1, format/2 and nl/0 are the ENGINE's and write
+  ;;; to the literal stdout -- so `set_output(S)' points FILE DESCRIPTOR 1 at
+  ;;; the stream's file, which is the mechanism with_output_to/2 already uses
+  ;;; for the same reason. `st_saved_fd' keeps the real stdout while that
+  ;;; lasts, and `st_term' is a FILE on a copy of it, so that user_output
+  ;;; named explicitly still reaches the terminal, as ISO says it does.
+  (static) (var int st_cur_in . 0)
+  (static) (var int st_cur_out . 1)
+  (static) (var int st_saved_fd . -1)
+  (static) (var FILE * st_term . nil)
+
+  (static)
+  (func st_setup () (out void)
+        (if st_ready (return))
+        (set (nth 0 st_file) stdin)  (set (nth 0 st_kind) 1) (set (nth 0 st_mode) 1)
+        (set (nth 1 st_file) stdout) (set (nth 1 st_kind) 1) (set (nth 1 st_mode) 2)
+        (set (nth 2 st_file) stderr) (set (nth 2 st_kind) 1) (set (nth 2 st_mode) 2)
+        (set st_ready 1))
+
+  ;;; The FILE a write to slot S goes to: the real terminal for user_output
+  ;;; while a file is the current output, the slot's own FILE otherwise.
+  (static)
+  (func st_fp ((int s)) (out FILE *)
+        (if (and (== s 1) (and (>= st_saved_fd 0) (!= st_term nil))) (return st_term))
+        (return (nth s st_file)))
+
+  ;;; Is S the file descriptor 1 points at just now, besides its own FILE?
+  (static)
+  (func st_is_redirect ((int s)) (out int)
+        (return (? (and (>= st_saved_fd 0) (and (== s st_cur_out) (!= s 1))) 1 0)))
+
+  ;;; TWO BUFFERS, ONE FILE. While S is the current output the engine's
+  ;;; stdout and the stream's FILE both write to one open file, each through
+  ;;; a buffer of its own; the order a program wrote in is kept by emptying
+  ;;; stdout before the stream writes and the stream after, and a stream's
+  ;;; idea of its position is set from the file's before it is asked.
+  (static)
+  (func st_out_begin ((int s)) (out void)
+        (if (not (st_is_redirect s)) (return))
+        (fflush stdout)
+        (if (>= s 3)
+            (let ((long k . 0))
+              (fflush (nth s st_file))
+              (set k (cast long (lseek (fileno (nth s st_file)) 0 SEEK_CUR)))
+              (if (>= k 0) (fseek (nth s st_file) k SEEK_SET)))))
+
+  (static)
+  (func st_out_end ((int s)) (out void)
+        (if (st_is_redirect s) (fflush (nth s st_file))))
+
+  ;;; Back to the terminal: stdout's buffer goes where it was headed, fd 1
+  ;;; is the real stdout again, and the copy is closed.
+  (static)
+  (func st_restore_output () (out void)
+        (fflush stdout)
+        (if (>= st_cur_out 2) (fflush (nth st_cur_out st_file)))
+        (if (>= st_saved_fd 0)
+            (block (dup2 st_saved_fd 1) (close st_saved_fd) (set st_saved_fd -1)))
+        (if (!= st_term nil) (block (fclose st_term) (set st_term nil)))
+        (set st_cur_out 1))
+
+  ;;; ---- argument helpers; a raise is passed straight through (answers 2) ----
+  (static)
+  (func st_iarg ((coco_engine * e) (size_t g) (int i) (i64 * v)) (out int)
+        (if (coco_m_int e (coco_m_arg e g (cast size_t i)) v) (return 1))
+        (return (coco_m_type_error e "integer" (coco_m_arg e g (cast size_t i)))))
+
+  ;;; Argument I as an open slot, with the HANDLE the program wrote at
+  ;;; I-1 -- every stream predicate takes both, the slot to index the table
+  ;;; and the handle to name in an error, since the C half cannot build a
+  ;;; '$stream'(N) of its own. The Coco half has already refused a closed
+  ;;; stream by name; this is the guard that keeps a bare integer from
+  ;;; reaching the table anyway.
+  (static)
+  (func st_slot ((coco_engine * e) (size_t g) (int i) (int * s)) (out int)
+        (let ((i64 v . 0))
+          (st_setup)
+          (let ((int rc1 . #'(st_iarg e g i (aof v))))
+            (if (!= rc1 1) (return rc1)))
+          (if (< v 0) (return (coco_m_existence_error e "stream" (coco_m_arg e g (cast size_t (- i 1))))))
+          (if (>= v 256) (return (coco_m_existence_error e "stream" (coco_m_arg e g (cast size_t (- i 1))))))
+          (if (== (nth v st_kind) 0) (return (coco_m_existence_error e "stream" (coco_m_arg e g (cast size_t (- i 1))))))
+          (set (cof s) (cast int v))
+          (return 1)))
+
+  ;;; The kind check: KIND is 1 for a text predicate, 2 for a byte one;
+  ;;; ACTION is "input" or "output". ISO's permission_error, with the
+  ;;; stream's number as the culprit -- the Coco half wraps nothing here,
+  ;;; because a wrong-kind read is a defect of the program, not of a term.
+  (static)
+  (func st_need ((coco_engine * e) (size_t g) (int i) (int s) (int kind) (const char * action)) (out int)
+        (if (== (nth s st_kind) kind) (return 1))
+        (if (== kind 1)
+            (return (coco_m_permission_error e action "binary_stream" (coco_m_arg e g (cast size_t i)))))
+        (return (coco_m_permission_error e action "text_stream" (coco_m_arg e g (cast size_t i)))))
+
+  (static)
+  (func st_readable ((coco_engine * e) (size_t g) (int i) (int s)) (out int)
+        (if (or (== (nth s st_mode) 1) (== (nth s st_mode) 4)) (return 1))
+        (return (coco_m_permission_error e "input" "stream" (coco_m_arg e g (cast size_t i)))))
+
+  (static)
+  (func st_writable ((coco_engine * e) (size_t g) (int i) (int s)) (out int)
+        (if (>= (nth s st_mode) 2) (return 1))
+        (return (coco_m_permission_error e "output" "stream" (coco_m_arg e g (cast size_t i)))))
+
+  ;;; ---- bytes in, through the pushback ----
+  (static)
+  (func st_getc ((int s)) (out int)
+        (if (> (nth s st_npush) 0)
+            (block
+              (set (nth s st_npush) (- (nth s st_npush) 1))
+              (return (cast int (nth (nth s st_npush) (nth s st_push))))))
+        (return (fgetc (nth s st_file))))
+
+  (static)
+  (func st_ungetc ((int s) (int c)) (out void)
+        (if (< c 0) (return))
+        (if (>= (nth s st_npush) 8) (return))
+        (set (nth (nth s st_npush) (nth s st_push)) (cast u8 c))
+        (set (nth s st_npush) (+ (nth s st_npush) 1)))
+
+  ;;; How many bytes a UTF-8 character has, from its first byte.
+  (static)
+  (func st_utf8_len ((int c)) (out int)
+        (if (< c 128) (return 1))
+        (if (< c 192) (return 1))     ; a stray continuation byte stands alone
+        (if (< c 224) (return 2))
+        (if (< c 240) (return 3))
+        (return 4))
+
+  ;;; A code list of N bytes, built from the end.
+  (static)
+  (func st_codes ((coco_engine * e) (const u8 * buf) (size_t n)) (out size_t)
+        (let ((size_t acc . #'(coco_m_nil e)))
+          (while (> n 0)
+            (set n (- n 1))
+            (set acc (coco_m_cons e (coco_m_new_int e (cast i64 (nth n buf))) acc)))
+          (return acc)))
+
+  ;;; A growing byte buffer, for a line, a clause, the rest of a file.
+  (static)
+  (func st_grow ((u8 ** buf) (size_t * cap) (size_t need)) (out int)
+        (if (< need (cof cap)) (return 1))
+        (let ((size_t ncap . #'(* (cof cap) 2)))
+          (if (< ncap 256) (set ncap 256))
+          (while (<= ncap need) (set ncap (* ncap 2)))
+          (let ((u8 * nb . #'(cast (u8 *) (realloc (cof buf) ncap))))
+            (if (== nb nil) (return 0))
+            (set (cof buf) nb)
+            (set (cof cap) ncap)
+            (return 1))))
+
+  ;;; ---- open, close, the table ----
+  ;;;
+  ;;; No such file is existence_error(source_sink, Path), ISO's shape and
+  ;;; the common mistake; a file that may not be opened is a
+  ;;; permission_error naming the path; anything else carries strerror's
+  ;;; words. Every file is opened with `b', which is a no-op on POSIX and
+  ;;; keeps Windows honest: the text/binary distinction is the module's.
+  (func st_p_open ((coco_engine * e) (size_t g)) (out int)
+        (let ((char path [4096]) (i64 mode . 0) (i64 kind . 0) (int s . -1)
+              (const char * how . "rb") (FILE * f . nil))
+          (st_setup)
+          (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
+              (return (coco_m_type_error e "text" (coco_m_arg e g 0))))
+          (let ((int rc2 . #'(st_iarg e g 1 (aof mode)))) (if (!= rc2 1) (return rc2)))
+          (let ((int rc3 . #'(st_iarg e g 2 (aof kind)))) (if (!= rc3 1) (return rc3)))
+          (if (== mode 2) (set how "wb"))
+          (if (== mode 3) (set how "ab"))
+          (if (== mode 4) (set how "r+b"))
+          (for ((int i . 3)) (< i 256) ((++ i))
+               (if (== (nth i st_kind) 0) (block (set s i) break)))
+          (if (< s 0) (return (coco_m_error e "stream_open" "no free stream slot: 253 are open")))
+          (set f (fopen path how))
+          (if (== f nil)
+              (block
+                (if (== errno ENOENT)
+                    (return (coco_m_existence_error e "source_sink" (coco_m_arg e g 0))))
+                ;; may not: no permission, a directory, a read-only file system,
+                ;; and macOS's EEXIST for a write to `/'
+                (if (or (or (== errno EACCES) (== errno EISDIR))
+                        (or (or (== errno EROFS) (== errno EPERM))
+                            (or (== errno EEXIST) (== errno ENOTDIR))))
+                    (return (coco_m_permission_error e "open" "source_sink" (coco_m_arg e g 0))))
+                (return (coco_m_error e "stream_open" (strerror errno)))))
+          (set (nth s st_file) f)
+          (set (nth s st_kind) (cast int kind))
+          (set (nth s st_mode) (cast int mode))
+          (set (nth s st_path) (strdup path))
+          (set (nth s st_npush) 0)
+          (return (coco_m_unify_int e (coco_m_arg e g 3) (cast i64 s)))))
+
+  (func st_p_close ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc4 . #'(st_slot e g 1 (aof s)))) (if (!= rc4 1) (return rc4)))
+          (if (< s 3) (return 1))
+          ;; ISO: closing the current output or input makes the standard one current
+          (if (== s st_cur_out) (st_restore_output))
+          (if (== s st_cur_in) (set st_cur_in 0))
+          (if (!= (nth s st_alias) nil) (block (free (nth s st_alias)) (set (nth s st_alias) nil)))
+          (fclose (nth s st_file))
+          (set (nth s st_file) nil)
+          (set (nth s st_kind) 0)
+          (set (nth s st_mode) 0)
+          (set (nth s st_npush) 0)
+          (if (!= (nth s st_path) nil) (block (free (nth s st_path)) (set (nth s st_path) nil)))
+          (return 1)))
+
+  ;;; Is this slot open? Answers by failing, which is what the Coco half
+  ;;; turns into the existence_error that names the handle.
+  (func st_p_open_p ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v . 0))
+          (st_setup)
+          (let ((int rc5 . #'(st_iarg e g 0 (aof v)))) (if (!= rc5 1) (return rc5)))
+          (if (< v 0) (return 0))
+          (if (>= v 256) (return 0))
+          (return (? (== (nth v st_kind) 0) 0 1))))
+
+  (func st_p_slots ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t acc . #'(coco_m_nil e)))
+          (st_setup)
+          (for ((int i . 255)) (>= i 0) ((-- i))
+               (if (!= (nth i st_kind) 0)
+                   (set acc (coco_m_cons e (coco_m_new_int e (cast i64 i)) acc))))
+          (return (coco_m_unify e (coco_m_arg e g 0) acc))))
+
+  (func st_p_info ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc6 . #'(st_slot e g 1 (aof s)))) (if (!= rc6 1) (return rc6)))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 2) (? (== (nth s st_path) nil) "" (nth s st_path))))
+              (return 0))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 3) (cast i64 (nth s st_mode)))) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 4) (cast i64 (nth s st_kind))))))
+
+  (func st_p_flush ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc7 . #'(st_slot e g 1 (aof s)))) (if (!= rc7 1) (return rc7)))
+          (if (st_is_redirect s) (fflush stdout))
+          (fflush (st_fp s))
+          (return 1)))
+
+  ;;; At the end when nothing is pushed back and the next byte is EOF --
+  ;;; read and given back, so asking costs the stream nothing.
+  (func st_p_eof ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (int c . 0))
+          (let ((int rc8 . #'(st_slot e g 1 (aof s)))) (if (!= rc8 1) (return rc8)))
+          (if (> (nth s st_npush) 0) (return 0))
+          (set c (fgetc (nth s st_file)))
+          (if (< c 0) (return 1))
+          (ungetc c (nth s st_file))
+          (return 0)))
+
+  ;;; The position is ftell's, minus what a peek gave back.
+  (func st_p_position ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (long p . 0))
+          (let ((int rc9 . #'(st_slot e g 1 (aof s)))) (if (!= rc9 1) (return rc9)))
+          (st_out_begin s)
+          (set p (ftell (nth s st_file)))
+          (if (< p 0) (return (coco_m_permission_error e "reposition" "stream" (coco_m_arg e g 0))))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (- (cast i64 p) (cast i64 (nth s st_npush)))))))
+
+  ;;; A seek forgets the pushback: what was peeked is behind the new
+  ;;; position or ahead of it, and either way the file knows better.
+  (func st_p_seek ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 off . 0) (i64 whence . 0) (int w . SEEK_SET))
+          (let ((int rc10 . #'(st_slot e g 1 (aof s)))) (if (!= rc10 1) (return rc10)))
+          (let ((int rc11 . #'(st_iarg e g 2 (aof off)))) (if (!= rc11 1) (return rc11)))
+          (let ((int rc12 . #'(st_iarg e g 3 (aof whence)))) (if (!= rc12 1) (return rc12)))
+          (st_out_begin s)
+          (if (== whence 1) (set w SEEK_CUR))
+          (if (== whence 2) (set w SEEK_END))
+          (if (and (== whence 1) (> (nth s st_npush) 0))
+              (set off (- off (cast i64 (nth s st_npush)))))
+          (set (nth s st_npush) 0)
+          (if (!= (fseek (nth s st_file) (cast long off) w) 0)
+              (return (coco_m_permission_error e "reposition" "stream" (coco_m_arg e g 0))))
+          (return 1)))
+
+  (func st_p_size ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (long here . 0) (long end . 0))
+          (let ((int rc13 . #'(st_slot e g 1 (aof s)))) (if (!= rc13 1) (return rc13)))
+          (st_out_begin s)
+          (set here (ftell (nth s st_file)))
+          (if (< here 0) (return (coco_m_permission_error e "reposition" "stream" (coco_m_arg e g 0))))
+          (fseek (nth s st_file) 0 SEEK_END)
+          (set end (ftell (nth s st_file)))
+          (fseek (nth s st_file) here SEEK_SET)
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 end)))))
+
+  ;;; ---- bytes ----
+  (func st_p_get_byte ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (int c . 0))
+          (let ((int rc14 . #'(st_slot e g 1 (aof s)))) (if (!= rc14 1) (return rc14)))
+          (let ((int rc15 . #'(st_need e g 0 s 2 "input"))) (if (!= rc15 1) (return rc15)))
+          (let ((int rc16 . #'(st_readable e g 0 s))) (if (!= rc16 1) (return rc16)))
+          (set c (st_getc s))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
+
+  (func st_p_peek_byte ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (int c . 0))
+          (let ((int rc17 . #'(st_slot e g 1 (aof s)))) (if (!= rc17 1) (return rc17)))
+          (let ((int rc18 . #'(st_need e g 0 s 2 "input"))) (if (!= rc18 1) (return rc18)))
+          (let ((int rc19 . #'(st_readable e g 0 s))) (if (!= rc19 1) (return rc19)))
+          (set c (st_getc s))
+          (st_ungetc s c)
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
+
+  (func st_p_put_byte ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 b . 0))
+          (let ((int rc20 . #'(st_slot e g 1 (aof s)))) (if (!= rc20 1) (return rc20)))
+          (let ((int rc21 . #'(st_need e g 0 s 2 "output"))) (if (!= rc21 1) (return rc21)))
+          (let ((int rc22 . #'(st_writable e g 0 s))) (if (!= rc22 1) (return rc22)))
+          (let ((int rc23 . #'(st_iarg e g 2 (aof b)))) (if (!= rc23 1) (return rc23)))
+          (if (or (< b 0) (> b 255)) (return (coco_m_type_error e "byte" (coco_m_arg e g 2))))
+          (st_out_begin s)
+          (let ((int w . #'(fputc (cast int b) (st_fp s))))
+            (st_out_end s)
+            (if (< w 0) (return (coco_m_error e "stream_put_byte" (strerror errno)))))
+          (return 1)))
+
+  ;;; Up to N bytes, fewer at the end, [] when there is nothing: the shape
+  ;;; a reading loop wants, since a short read at the end is not an error.
+  (func st_p_read_bytes ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 n . 0) (u8 * buf . nil) (size_t got . 0))
+          (let ((int rc24 . #'(st_slot e g 1 (aof s)))) (if (!= rc24 1) (return rc24)))
+          (let ((int rc25 . #'(st_need e g 0 s 2 "input"))) (if (!= rc25 1) (return rc25)))
+          (let ((int rc26 . #'(st_readable e g 0 s))) (if (!= rc26 1) (return rc26)))
+          (let ((int rc27 . #'(st_iarg e g 2 (aof n)))) (if (!= rc27 1) (return rc27)))
+          (if (< n 0) (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 2))))
+          (set buf (cast (u8 *) (malloc (cast size_t (+ n 1)))))
+          (if (== buf nil) (return (coco_m_error e "stream_read_bytes" "no memory")))
+          (while (< (cast i64 got) n)
+            (let ((int c . #'(st_getc s)))
+              (if (< c 0) break)
+              (set (nth got buf) (cast u8 c))
+              (set got (+ got 1))))
+          (let ((size_t lst . #'(st_codes e buf got)))
+            (free buf)
+            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
+
+  ;;; The writer both byte and formatted output go through: a code list
+  ;;; into the file, checked to be bytes. KIND says which kind of stream
+  ;;; may take it -- 2 for the byte predicate, 1 for the text ones.
+  (static)
+  (func st_write_list ((coco_engine * e) (size_t g) (int kind)) (out int)
+        (let ((int s . -1) (size_t * items . nil) (size_t n . 0) (u8 * buf . nil))
+          (let ((int rc28 . #'(st_slot e g 1 (aof s)))) (if (!= rc28 1) (return rc28)))
+          (let ((int rc29 . #'(st_need e g 0 s kind "output"))) (if (!= rc29 1) (return rc29)))
+          (let ((int rc30 . #'(st_writable e g 0 s))) (if (!= rc30 1) (return rc30)))
+          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof items) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 2))))
+          (if (== n 0) (block (free items) (return 1)))
+          (set buf (cast (u8 *) (malloc n)))
+          (if (== buf nil) (block (free items) (return (coco_m_error e "stream_write" "no memory"))))
+          (for ((size_t j . 0)) (< j n) ((++ j))
+               (let ((i64 b . 0))
+                 (if (or (not (coco_m_int e (nth j items) (aof b))) (or (< b 0) (> b 255)))
+                     (let ((size_t bad . #'(nth j items)))
+                       (free buf) (free items)
+                       (return (coco_m_type_error e "byte" bad))))
+                 (set (nth j buf) (cast u8 b))))
+          (free items)
+          (st_out_begin s)
+          (let ((size_t w . #'(fwrite buf 1 n (st_fp s))))
+            (st_out_end s)
+            (free buf)
+            (if (!= w n) (return (coco_m_error e "stream_write" (strerror errno)))))
+          (return 1)))
+
+  (func st_p_write_bytes ((coco_engine * e) (size_t g)) (out int)
+        (return (st_write_list e g 2)))
+
+  (func st_p_write_codes ((coco_engine * e) (size_t g)) (out int)
+        (return (st_write_list e g 1)))
+
+  ;;; The rest of the stream, whatever its kind: a file as codes is what
+  ;;; every text predicate here already takes.
+  (func st_p_read_all ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0))
+          (let ((int rc31 . #'(st_slot e g 1 (aof s)))) (if (!= rc31 1) (return rc31)))
+          (let ((int rc32 . #'(st_readable e g 0 s))) (if (!= rc32 1) (return rc32)))
+          (while (> (nth s st_npush) 0)
+            (if (not (st_grow (aof buf) (aof cap) (+ n 1)))
+                (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
+            (set (nth n buf) (cast u8 (st_getc s)))
+            (set n (+ n 1)))
+          (while 1
+            (if (not (st_grow (aof buf) (aof cap) (+ n 65536)))
+                (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
+            (let ((size_t got . #'(fread (+ buf n) 1 65536 (nth s st_file))))
+              (set n (+ n got))
+              (if (< got 65536) break)))
+          (let ((size_t lst . #'(st_codes e buf n)))
+            (free buf)
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; ---- characters ----
+  ;;;
+  ;;; One UTF-8 character: the first byte says how many follow, and a
+  ;;; sequence cut short by the end of the file is answered as far as it
+  ;;; went rather than lost.
+  (static)
+  (func st_read_char ((int s) (u8 * out)) (out int)
+        (let ((int c . #'(st_getc s)) (int n . 1))
+          (if (< c 0) (return 0))
+          (set (nth 0 out) (cast u8 c))
+          (set n (st_utf8_len c))
+          (for ((int i . 1)) (< i n) ((++ i))
+               (let ((int d . #'(st_getc s)))
+                 (if (< d 0) (return i))
+                 (if (!= (bitand d 192) 128)
+                     (block (st_ungetc s d) (return i)))
+                 (set (nth i out) (cast u8 d))))
+          (return n)))
+
+  (func st_p_get_char ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (u8 ch [8]) (char name [8]) (int n . 0))
+          (let ((int rc33 . #'(st_slot e g 1 (aof s)))) (if (!= rc33 1) (return rc33)))
+          (let ((int rc34 . #'(st_need e g 0 s 1 "input"))) (if (!= rc34 1) (return rc34)))
+          (let ((int rc35 . #'(st_readable e g 0 s))) (if (!= rc35 1) (return rc35)))
+          (set n (st_read_char s ch))
+          (if (== n 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          (memcpy name ch (cast size_t n))
+          (set (nth n name) (cast char 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 2) name))))
+
+  (func st_p_peek_char ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (u8 ch [8]) (char name [8]) (int n . 0))
+          (let ((int rc36 . #'(st_slot e g 1 (aof s)))) (if (!= rc36 1) (return rc36)))
+          (let ((int rc37 . #'(st_need e g 0 s 1 "input"))) (if (!= rc37 1) (return rc37)))
+          (let ((int rc38 . #'(st_readable e g 0 s))) (if (!= rc38 1) (return rc38)))
+          (set n (st_read_char s ch))
+          ;; back they go, last byte first, so the next read sees them in order
+          (for ((int i . #'(- n 1))) (>= i 0) ((-- i)) (st_ungetc s (cast int (nth i ch))))
+          (if (== n 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          (memcpy name ch (cast size_t n))
+          (set (nth n name) (cast char 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 2) name))))
+
+  (func st_p_put_char ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (char ch [16]) (size_t n . 0))
+          (let ((int rc39 . #'(st_slot e g 1 (aof s)))) (if (!= rc39 1) (return rc39)))
+          (let ((int rc40 . #'(st_need e g 0 s 1 "output"))) (if (!= rc40 1) (return rc40)))
+          (let ((int rc41 . #'(st_writable e g 0 s))) (if (!= rc41 1) (return rc41)))
+          (if (not (coco_m_text e (coco_m_arg e g 2) ch (sizeof ch)))
+              (return (coco_m_type_error e "character" (coco_m_arg e g 2))))
+          (set n (strlen ch))
+          (if (== n 0) (return (coco_m_type_error e "character" (coco_m_arg e g 2))))
+          (if (!= (cast int (st_utf8_len (cast int (cast u8 (nth 0 ch))))) (cast int n))
+              (return (coco_m_type_error e "character" (coco_m_arg e g 2))))
+          (st_out_begin s)
+          (let ((size_t w . #'(fwrite ch 1 n (st_fp s))))
+            (st_out_end s)
+            (if (!= w n) (return (coco_m_error e "stream_put_char" (strerror errno)))))
+          (return 1)))
+
+  ;;; A line: up to and not including the newline, a CR before it taken
+  ;;; off too. `end_of_file' only when NOTHING was read -- a last line
+  ;;; with no newline is still a line.
+  (func st_p_read_line ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (u8 * buf . nil) (size_t cap . 0) (size_t n . 0) (int c . 0) (int any . 0))
+          (let ((int rc42 . #'(st_slot e g 1 (aof s)))) (if (!= rc42 1) (return rc42)))
+          (let ((int rc43 . #'(st_need e g 0 s 1 "input"))) (if (!= rc43 1) (return rc43)))
+          (let ((int rc44 . #'(st_readable e g 0 s))) (if (!= rc44 1) (return rc44)))
+          (while 1
+            (set c (st_getc s))
+            (if (< c 0) break)
+            (set any 1)
+            (if (== c 10) break)
+            (if (not (st_grow (aof buf) (aof cap) (+ n 1)))
+                (block (free buf) (return (coco_m_error e "stream_read_line" "no memory"))))
+            (set (nth n buf) (cast u8 c))
+            (set n (+ n 1)))
+          (if (not any) (block (free buf) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file"))))
+          (if (and (> n 0) (== (nth (- n 1) buf) 13)) (set n (- n 1)))
+          (let ((size_t lst . #'(st_codes e buf n)))
+            (free buf)
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; Text as its characters: an atom, an integer, a string, a code or a
+  ;;; char list, which is what `coco_m_text' already turns into bytes. A
+  ;;; text with a NUL in it is refused there and is a type error here.
+  (func st_p_write_text ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (char * buf . nil) (size_t cap . 65536))
+          (let ((int rc45 . #'(st_slot e g 1 (aof s)))) (if (!= rc45 1) (return rc45)))
+          (let ((int rc46 . #'(st_need e g 0 s 1 "output"))) (if (!= rc46 1) (return rc46)))
+          (let ((int rc47 . #'(st_writable e g 0 s))) (if (!= rc47 1) (return rc47)))
+          ;; a text longer than the buffer doubles it until it fits, up to 64 MB
+          (while 1
+            (set buf (cast (char *) (malloc cap)))
+            (if (== buf nil) (return (coco_m_error e "stream_write_text" "no memory")))
+            (if (coco_m_text e (coco_m_arg e g 2) buf cap) break)
+            (free buf)
+            (set buf nil)
+            (set cap (* cap 2))
+            (if (> cap 67108864) (return (coco_m_type_error e "text" (coco_m_arg e g 2)))))
+          (let ((size_t n . #'(strlen buf)) (size_t w . 0))
+            (st_out_begin s)
+            (set w (fwrite buf 1 n (st_fp s)))
+            (st_out_end s)
+            (free buf)
+            (if (!= w n) (return (coco_m_error e "stream_write_text" (strerror errno)))))
+          (return 1)))
+
+  ;;; ---- a term: one clause of text, then the engine's reader ----
+  ;;;
+  ;;; THE SCANNER KNOWS WHERE A CLAUSE ENDS AND NOTHING ELSE: a `.' that
+  ;;; is not part of a symbol atom (`=..'), outside a quoted atom, a
+  ;;; string, a back-quoted text, a `0'c' code and both kinds of comment,
+  ;;; and followed by layout, a `%' or the end of the file. What it
+  ;;; collects goes to `coco_m_read_term', which is the reader `consult'
+  ;;; uses, operators and all -- so a file this reads is a file cocolog
+  ;;; would consult. Answers 1 with the text, 0 at a clean end (layout and
+  ;;; comments only), -1 for a clause the end of the file cut short.
+  (static)
+  (func st_is_symbol ((int c)) (out int)
+        (return (? (!= (strchr "+-*/\\\\^<>=~:.?@#&$" c) nil) 1 0)))
+
+  ;;; Does a `0' at buf[n-2] begin a number? Not when a name character
+  ;;; stands right before it: `a0'b' is a quoted atom after an atom.
+  (static)
+  (func st_number_start ((const u8 * buf) (size_t n)) (out int)
+        (if (< n 3) (return 1))
+        (let ((int b . #'(cast int (nth (- n 3) buf))))
+          (if (== b 95) (return 0))
+          (if (and (>= b 48) (<= b 57)) (return 0))
+          (if (and (>= b 65) (<= b 90)) (return 0))
+          (if (and (>= b 97) (<= b 122)) (return 0))
+          (return 1)))
+
+  (static)
+  (func st_read_clause ((int s) (u8 ** out) (size_t * len)) (out int)
+        (let ((u8 * buf . nil) (size_t cap . 0) (size_t n . 0)
+              (int c . 0) (int prev . 32) (int state . 0))
+          ;; state: 0 code, 1 in '...', 2 in "...", 3 in `...`, 4 in % comment,
+          ;; 5 in /* comment, 6 after 0' (one character to take literally)
+          (while 1
+            (set c (st_getc s))
+            (if (< c 0) break)
+            (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
+            (set (nth n buf) (cast u8 c))
+            (set n (+ n 1))
+            (cond
+              ((== state 4)
+               (if (== c 10) (set state 0)))
+              ((== state 5)
+               (if (and (== c 47) (== prev 42)) (set state 0)))
+              ((== state 6)
+               (set state 0)
+               (if (== c 92)                ; a backslash escape takes one more
+                   (let ((int d . #'(st_getc s)))
+                     (if (>= d 0)
+                         (block (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
+                                (set (nth n buf) (cast u8 d)) (set n (+ n 1)))))))
+              ((== state 1) (if (== c 39) (set state 0)))
+              ((== state 2) (if (== c 34) (set state 0)))
+              ((== state 3) (if (== c 96) (set state 0)))
+              (#t
+               (cond
+                 ((== c 37) (set state 4))
+                 ((and (== c 42) (== prev 47)) (set state 5))
+                 ;; 0'c takes the next character literally, when the 0 begins a number
+                 ((and (== c 39) (and (== prev 48) (st_number_start buf n))) (set state 6))
+                 ((== c 39) (set state 1))
+                 ((== c 34) (set state 2))
+                 ((== c 96) (set state 3))
+                 ((and (== c 46) (not (st_is_symbol prev)))
+                  ;; the end token: a `.' followed by layout, `%' or the end
+                  (let ((int d . #'(st_getc s)))
+                    (if (or (< d 0) (or (== d 32) (or (== d 10) (or (== d 9) (or (== d 13) (== d 37))))))
+                        (block (if (>= d 0) (st_ungetc s d))
+                               (set (cof out) buf) (set (cof len) n)
+                               (return 1)))
+                    (st_ungetc s d))))))
+            (if (and (== state 0) (or (== c 32) (or (== c 10) (or (== c 9) (== c 13)))))
+                (set prev 32)
+              (set prev c)))
+          ;; the end of the file: nothing but layout and comments is a clean end
+          (if (or (== state 4) (== state 0))
+              (let ((int clean . 1))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                     (let ((int b . #'(cast int (nth i buf))))
+                       (if (and (!= b 32) (and (!= b 10) (and (!= b 9) (!= b 13))))
+                           (block (set clean 0) break))))
+                ;; a comment-only tail is clean too: strip comments by rescanning
+                (if (not clean)
+                    (let ((int st . 0) (int pv . 32))
+                      (set clean 1)
+                      (for ((size_t i . 0)) (< i n) ((++ i))
+                           (let ((int b . #'(cast int (nth i buf))))
+                             (cond
+                               ((== st 4) (if (== b 10) (set st 0)))
+                               ((== st 5) (if (and (== b 47) (== pv 42)) (set st 0)))
+                               ((== b 37) (set st 4))
+                               ((and (== b 42) (== pv 47)) (set st 5))
+                               ((and (!= b 32) (and (!= b 10) (and (!= b 9) (and (!= b 13) (!= b 47)))))
+                                (set clean 0)))
+                             (set pv b)))))
+                (if clean (block (free buf) (return 0)))))
+          (set (cof out) buf)
+          (set (cof len) n)
+          (return -1)))
+
+  ;;; One clause: '$stream_read_term'(S, N, Kind, T, Names, Message), Kind
+  ;;; term, end_of_file or syntax_error -- flat, because a module builds no
+  ;;; compound; the Coco half throws syntax_error(Message) in ISO's shape.
+  (func st_p_read_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (u8 * buf . nil) (size_t n . 0) (int rc . 0)
+              (size_t t . 0) (size_t names . 0) (char err [192]))
+          (let ((int rc48 . #'(st_slot e g 1 (aof s)))) (if (!= rc48 1) (return rc48)))
+          (let ((int rc49 . #'(st_need e g 0 s 1 "input"))) (if (!= rc49 1) (return rc49)))
+          (let ((int rc50 . #'(st_readable e g 0 s))) (if (!= rc50 1) (return rc50)))
+          (set rc (st_read_clause s (aof buf) (aof n)))
+          (if (== rc 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          ;; the scanner grows its buffer to two past every byte it keeps, so
+          ;; the NUL that makes it a C string always has its slot
+          (set (nth n buf) (cast u8 0))
+          (if (== rc -1)
+              (block
+                (free buf)
+                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
+                (return (coco_m_unify_atom e (coco_m_arg e g 5) "end of file in clause"))))
+          (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err)))
+          (free buf)
+          (if (== rc 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          (if (== rc -1)
+              (block
+                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
+                (return (coco_m_unify_atom e (coco_m_arg e g 5) err))))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "term")) (return 0))
+          (if (not (coco_m_unify e (coco_m_arg e g 3) t)) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 4) names))))
+
+  ;;; ---- codes, as cocolog counts them: one per byte ----
+  ;;;
+  ;;; A code here is what `atom_codes/2' answers, which is a BYTE: `é' is
+  ;;; [195,169] to every text predicate in this family, so get_code reads
+  ;;; one byte of a text stream and put_code writes one. A code past 255 is
+  ;;; nothing a byte can be, and is written as the UTF-8 of that code point
+  ;;; -- put_code(S, 8364) writes the euro sign -- which is the one reading
+  ;;; of it that loses nothing.
+  (func st_p_get_code ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (int c . 0))
+          (let ((int rc51 . #'(st_slot e g 1 (aof s)))) (if (!= rc51 1) (return rc51)))
+          (let ((int rc52 . #'(st_need e g 0 s 1 "input"))) (if (!= rc52 1) (return rc52)))
+          (let ((int rc53 . #'(st_readable e g 0 s))) (if (!= rc53 1) (return rc53)))
+          (set c (st_getc s))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
+
+  (func st_p_peek_code ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (int c . 0))
+          (let ((int rc54 . #'(st_slot e g 1 (aof s)))) (if (!= rc54 1) (return rc54)))
+          (let ((int rc55 . #'(st_need e g 0 s 1 "input"))) (if (!= rc55 1) (return rc55)))
+          (let ((int rc56 . #'(st_readable e g 0 s))) (if (!= rc56 1) (return rc56)))
+          (set c (st_getc s))
+          (st_ungetc s c)
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
+
+  (func st_p_put_code ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 c . 0) (u8 b [4]) (size_t k . 0))
+          (let ((int rc57 . #'(st_slot e g 1 (aof s)))) (if (!= rc57 1) (return rc57)))
+          (let ((int rc58 . #'(st_need e g 0 s 1 "output"))) (if (!= rc58 1) (return rc58)))
+          (let ((int rc59 . #'(st_writable e g 0 s))) (if (!= rc59 1) (return rc59)))
+          (let ((int rc60 . #'(st_iarg e g 2 (aof c)))) (if (!= rc60 1) (return rc60)))
+          (cond
+            ((< c 256) (set (nth 0 b) (cast u8 c)) (set k 1))
+            ((< c 2048)
+             (set (nth 0 b) (cast u8 (bitor 192 (>> c 6))))
+             (set (nth 1 b) (cast u8 (bitor 128 (bitand c 63))))
+             (set k 2))
+            ((< c 65536)
+             (set (nth 0 b) (cast u8 (bitor 224 (>> c 12))))
+             (set (nth 1 b) (cast u8 (bitor 128 (bitand (>> c 6) 63))))
+             (set (nth 2 b) (cast u8 (bitor 128 (bitand c 63))))
+             (set k 3))
+            (#t
+             (set (nth 0 b) (cast u8 (bitor 240 (>> c 18))))
+             (set (nth 1 b) (cast u8 (bitor 128 (bitand (>> c 12) 63))))
+             (set (nth 2 b) (cast u8 (bitor 128 (bitand (>> c 6) 63))))
+             (set (nth 3 b) (cast u8 (bitor 128 (bitand c 63))))
+             (set k 4)))
+          (st_out_begin s)
+          (let ((size_t w . #'(fwrite b 1 k (st_fp s))))
+            (st_out_end s)
+            (if (!= w k) (return (coco_m_error e "put_code" (strerror errno)))))
+          (return 1)))
+
+  ;;; ---- aliases, and the current input and output ----
+  ;;;
+  ;;; Argument I as an open slot, with no handle beside it: these are asked
+  ;;; by the Coco half about slots it already holds, so a free one FAILS.
+  (static)
+  (func st_nslot ((coco_engine * e) (size_t g) (int i) (int * s)) (out int)
+        (let ((i64 v . 0))
+          (st_setup)
+          (let ((int rc61 . #'(st_iarg e g i (aof v)))) (if (!= rc61 1) (return rc61)))
+          (if (< v 0) (return 0))
+          (if (>= v 256) (return 0))
+          (if (== (nth v st_kind) 0) (return 0))
+          (set (cof s) (cast int v))
+          (return 1)))
+
+  (func st_p_set_alias ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (const char * a . nil))
+          (let ((int rc62 . #'(st_nslot e g 0 (aof s)))) (if (!= rc62 1) (return rc62)))
+          (set a (coco_m_atom e (coco_m_arg e g 1)))
+          (if (== a nil) (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
+          (if (!= (nth s st_alias) nil) (free (nth s st_alias)))
+          (set (nth s st_alias) (strdup a))
+          (return 1)))
+
+  (func st_p_by_alias ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * a . nil))
+          (st_setup)
+          (set a (coco_m_atom e (coco_m_arg e g 0)))
+          (if (== a nil) (return 0))
+          (for ((int i . 3)) (< i 256) ((++ i))
+               (if (and (!= (nth i st_alias) nil) (== 0 (strcmp (nth i st_alias) a)))
+                   (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 i)))))
+          (return 0)))
+
+  (func st_p_alias_of ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc63 . #'(st_nslot e g 0 (aof s)))) (if (!= rc63 1) (return rc63)))
+          (if (== (nth s st_alias) nil) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) (nth s st_alias)))))
+
+  ;;; '$stream_cur'(0, N) is the current input, (1, N) the current output.
+  (func st_p_cur ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 which . 0))
+          (st_setup)
+          (let ((int rc64 . #'(st_iarg e g 0 (aof which)))) (if (!= rc64 1) (return rc64)))
+          (return (coco_m_unify_int e (coco_m_arg e g 1)
+                                    (cast i64 (? (== which 0) st_cur_in st_cur_out))))))
+
+  (func st_p_set_input ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc65 . #'(st_slot e g 1 (aof s)))) (if (!= rc65 1) (return rc65)))
+          (let ((int rc66 . #'(st_readable e g 0 s))) (if (!= rc66 1) (return rc66)))
+          (set st_cur_in s)
+          (return 1)))
+
+  ;;; FD 1 AT THE STREAM'S FILE, the real stdout kept aside. A binary stream
+  ;;; is refused, because the engine's writers write text; user_output puts
+  ;;; the terminal back, and user_error points fd 1 at fd 2.
+  (func st_p_set_output ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1))
+          (let ((int rc67 . #'(st_slot e g 1 (aof s)))) (if (!= rc67 1) (return rc67)))
+          (let ((int rc68 . #'(st_need e g 0 s 1 "output"))) (if (!= rc68 1) (return rc68)))
+          (let ((int rc69 . #'(st_writable e g 0 s))) (if (!= rc69 1) (return rc69)))
+          (if (== s st_cur_out) (return 1))
+          (if (== s 1) (block (st_restore_output) (return 1)))
+          (fflush stdout)
+          (if (>= st_cur_out 2) (fflush (nth st_cur_out st_file)))
+          (if (< st_saved_fd 0)
+              (block
+                (set st_saved_fd (dup 1))
+                (if (< st_saved_fd 0) (return (coco_m_error e "set_output" (strerror errno))))
+                (let ((int t . #'(dup st_saved_fd)))
+                  (if (>= t 0) (set st_term (fdopen t "w"))))))
+          (fflush (nth s st_file))
+          (if (< (dup2 (fileno (nth s st_file)) 1) 0)
+              (return (coco_m_error e "set_output" (strerror errno))))
+          (set st_cur_out s)
+          (return 1)))
+
+  ;;; ---- the sink hook: format/3 and with_output_to/2 into a stream ----
+  ;;;
+  ;;; The engine asks this about every sink before its own: '$stream'(N),
+  ;;; an alias this table holds, and user_output while a file is the current
+  ;;; output (so that it still means the terminal). Anything else answers 0
+  ;;; and the engine carries on as it always has.
+  (static)
+  (func st_sink ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int)
+        (let ((u32 ar . 0) (const char * nm . nil) (int s . -1))
+          (st_setup)
+          (set nm (coco_m_functor e sink (aof ar)))
+          (if (== nm nil) (return 0))
+          (if (and (== ar 1) (== 0 (strcmp nm "$stream")))
+              (let ((i64 v . 0))
+                (if (not (coco_m_int e (coco_m_arg e sink 0) (aof v))) (return 0))
+                (if (< v 0) (return (coco_m_existence_error e "stream" sink)))
+                (if (>= v 256) (return (coco_m_existence_error e "stream" sink)))
+                (if (== (nth v st_kind) 0) (return (coco_m_existence_error e "stream" sink)))
+                (set s (cast int v))))
+          (if (== ar 0)
+              (block
+                (if (== 0 (strcmp nm "user_output"))
+                    (block (if (< st_saved_fd 0) (return 0)) (set s 1)))
+                (if (< s 0)
+                    (for ((int i . 3)) (< i 256) ((++ i))
+                         (if (and (!= (nth i st_alias) nil) (== 0 (strcmp (nth i st_alias) nm)))
+                             (block (set s i) break))))))
+          (if (< s 0) (return 0))
+          (if (!= (nth s st_kind) 1) (return (coco_m_permission_error e "output" "binary_stream" sink)))
+          (if (< (nth s st_mode) 2) (return (coco_m_permission_error e "output" "stream" sink)))
+          (st_out_begin s)
+          (let ((size_t w . #'(fwrite text 1 len (st_fp s))))
+            (st_out_end s)
+            (if (!= w len) (return (coco_m_error e "format" (strerror errno)))))
+          (return 1)))
+
+  ;;; Loaded: the standard slots, and the hook installed. Idempotent, since a
+  ;;; module's init runs once for every store that loads it.
+  (static)
+  (func st_init ((coco_engine * e)) (out int)
+        (st_setup)
+        (coco_m_sink_install st_sink)
+        (return 1))
+
+  (static) (coco-emit-module-dispatch st_dispatch *stream-predicates*)
+  (coco-deflibrary "stream" st_dispatch *stream-prolog* st_init)
+
+  ) ; source

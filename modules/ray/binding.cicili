@@ -1,0 +1,133 @@
+;;;; Cicili declarations for <raylib.h> (raylib 5 and 6)
+;;;; Import in target: (import "./binding.cicili")   -- or with a prefix, yours
+;;;; Requires in target: (include <raylib.h>) and raylib on the link line.
+;;;;
+;;;; THE DECLARATIONS EMIT NOTHING. They exist so Cicili's type inference
+;;;; knows what a Color and a Camera3D are and what each entry point takes
+;;;; and answers -- the real declarations still come from raylib.h, which
+;;;; stays the only definition. That is the shape lib/net/curl.cicili and
+;;;; lib/std/c have, and it is what lets library(ray) build a Color as a
+;;;; Cicili value and hand it to DrawRectangle, where it used to go through
+;;;; a line of pasted C per call.
+;;;;
+;;;; WRITTEN AS A lib/c/raylib.cicili FOR CICILI'S OWN TREE, and kept here
+;;;; because that tree is frozen from this side: it is offered to the
+;;;; owner as it stands, and moves by one import path.
+;;;;
+;;;; Only what cocolog's module reaches is declared; raylib has hundreds
+;;;; more, and each is one line here when a program wants it. A constant
+;;;; the header defines by enum or macro is declared the way lib/std/c
+;;;; declares EOF: as (typedef int NAME).
+(DEFPACKAGE :raylib
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :raylib)
+
+(DEFMACRO init-macro ()
+  `($$$
+     ;;; ---- the value types, all passed BY VALUE ----
+     (decl) (struct Vector2 (member float x) (member float y))
+     (decl) (struct Vector3 (member float x) (member float y) (member float z))
+     (decl) (struct Color (member uchar r) (member uchar g) (member uchar b) (member uchar a))
+     (decl) (struct Rectangle
+              (member float x) (member float y) (member float width) (member float height))
+     (decl) (struct Image
+              (member void * data)
+              (member int width) (member int height) (member int mipmaps) (member int format))
+     ;;; raylib spells the texture `Texture' and typedefs `Texture2D' over
+     ;;; it; the module uses the second name, as raylib's own examples do.
+     (decl) (struct Texture2D
+              (member uint id)
+              (member int width) (member int height) (member int mipmaps) (member int format))
+     (decl) (struct RenderTexture2D
+              (member uint id)
+              (member Texture2D texture)
+              (member Texture2D depth))
+     (decl) (struct GlyphInfo
+              (member int value) (member int offsetX) (member int offsetY) (member int advanceX)
+              (member Image image))
+     (decl) (struct Font
+              (member int baseSize) (member int glyphCount) (member int glyphPadding)
+              (member Texture2D texture)
+              (member Rectangle * recs)
+              (member GlyphInfo * glyphs))
+     (decl) (struct Camera3D
+              (member Vector3 position)
+              (member Vector3 target)
+              (member Vector3 up)
+              (member float fovy)
+              (member int projection))
+     (typedef int CAMERA_PERSPECTIVE)
+     (typedef int CAMERA_ORTHOGRAPHIC)
+
+     ;;; ---- the window and the frame ----
+     (decl) (func InitWindow ((int width) (int height) (const char * title)))
+     (decl) (func CloseWindow ())
+     (decl) (func WindowShouldClose () (out bool))
+     (decl) (func IsWindowReady () (out bool))
+     (decl) (func GetScreenWidth () (out int))
+     (decl) (func GetScreenHeight () (out int))
+     (decl) (func SetTargetFPS ((int fps)))
+     (decl) (func SetTraceLogLevel ((int logLevel)))
+     (decl) (func BeginDrawing ())
+     (decl) (func EndDrawing ())
+     (decl) (func ClearBackground ((Color color)))
+     (decl) (func BeginMode3D ((Camera3D camera)))
+     (decl) (func EndMode3D ())
+     (decl) (func BeginTextureMode ((RenderTexture2D target)))
+     (decl) (func EndTextureMode ())
+     (decl) (func BeginScissorMode ((int x) (int y) (int width) (int height)))
+     (decl) (func EndScissorMode ())
+     (decl) (func GetFrameTime () (out float))
+     (decl) (func GetTime () (out double))
+
+     ;;; ---- input, polled ----
+     (decl) (func IsKeyPressed ((int key)) (out bool))
+     (decl) (func IsKeyDown ((int key)) (out bool))
+     (decl) (func IsMouseButtonPressed ((int button)) (out bool))
+     (decl) (func IsMouseButtonDown ((int button)) (out bool))
+     (decl) (func GetMouseX () (out int))
+     (decl) (func GetMouseY () (out int))
+     (decl) (func GetMouseWheelMoveV () (out Vector2))
+
+     ;;; ---- 2D ----
+     (decl) (func DrawPixel ((int posX) (int posY) (Color color)))
+     (decl) (func DrawLine ((int startPosX) (int startPosY) (int endPosX) (int endPosY) (Color color)))
+     (decl) (func DrawCircle ((int centerX) (int centerY) (float radius) (Color color)))
+     (decl) (func DrawRectangle ((int posX) (int posY) (int width) (int height) (Color color)))
+     (decl) (func DrawRectangleRounded ((Rectangle rec) (float roundness) (int segments) (Color color)))
+     (decl) (func DrawPoly ((Vector2 center) (int sides) (float radius) (float rotation) (Color color)))
+     (decl) (func DrawPolyLines ((Vector2 center) (int sides) (float radius) (float rotation) (Color color)))
+     (decl) (func DrawFPS ((int posX) (int posY)))
+     (decl) (func DrawText ((const char * text) (int posX) (int posY) (int fontSize) (Color color)))
+     (decl) (func DrawTextEx ((Font font) (const char * text) (Vector2 position) (float fontSize)
+                              (float spacing) (Color tint)))
+     (decl) (func MeasureText ((const char * text) (int fontSize)) (out int))
+     (decl) (func GetFontDefault () (out Font))
+
+     ;;; ---- 3D ----
+     (decl) (func DrawCube ((Vector3 position) (float width) (float height) (float length) (Color color)))
+     (decl) (func DrawCubeWires ((Vector3 position) (float width) (float height) (float length) (Color color)))
+     (decl) (func DrawSphere ((Vector3 centerPos) (float radius) (Color color)))
+     (decl) (func DrawGrid ((int slices) (float spacing)))
+
+     ;;; ---- images, textures, a canvas ----
+     (decl) (func FileExists ((const char * fileName)) (out bool))
+     (decl) (func LoadImageFromScreen () (out Image))
+     (decl) (func ExportImage ((Image image) (const char * fileName)) (out bool))
+     (decl) (func UnloadImage ((Image image)))
+     (decl) (func GetImageColor ((Image image) (int x) (int y)) (out Color))
+     (decl) (func LoadTexture ((const char * fileName)) (out Texture2D))
+     (decl) (func UnloadTexture ((Texture2D texture)))
+     (decl) (func LoadRenderTexture ((int width) (int height)) (out RenderTexture2D))
+     (decl) (func UnloadRenderTexture ((RenderTexture2D target)))
+     (decl) (func SetTextureFilter ((Texture2D texture) (int filter)))
+     (decl) (func SetTextureWrap ((Texture2D texture) (int wrap)))
+     (decl) (func DrawTexture ((Texture2D texture) (int posX) (int posY) (Color tint)))
+     (decl) (func DrawTextureEx ((Texture2D texture) (Vector2 position) (float rotation) (float scale)
+                                 (Color tint)))
+     (decl) (func DrawTextureRec ((Texture2D texture) (Rectangle source) (Vector2 position) (Color tint)))
+     (decl) (func DrawTexturePro ((Texture2D texture) (Rectangle source) (Rectangle dest) (Vector2 origin)
+                                  (float rotation) (Color tint)))
+     ))

@@ -1,0 +1,1122 @@
+;;;; cocolog -- library(clay): a user interface as a TERM, laid out by Clay.
+;;;;
+;;;; A SCREEN IS A TREE OF BOXES, AND THE TREE IS A TERM. Clay (Nic
+;;;; Barker's clay.h, zlib) is a flex-box layout engine and nothing
+;;;; else: it takes a tree of elements with sizing rules, computes where
+;;;; every one of them lands, and hands back a flat list of RENDER
+;;;; COMMANDS -- draw this rectangle here, this text there, clip to this
+;;;; box until further notice. It opens no window, draws no pixel and
+;;;; calls back into nobody, which is exactly the shape the module seam
+;;;; can carry: the caller owns the loop, the caller owns the renderer,
+;;;; and what crosses in both directions is scalars and lists.
+;;;;
+;;;;   clay_layout(640, 360,
+;;;;       box(root, [size(grow), direction(column), padding(16), gap(8), bg(raywhite)],
+;;;;           [ box(header, [height(48), width(grow), bg(darkblue)],
+;;;;                 [ text('cocolog', [size(24), color(white)]) ]),
+;;;;             box(body, [size(grow), bg(lightgray)], [])
+;;;;           ]),
+;;;;       Commands)
+;;;;
+;;;; and Commands is `[rect(...), rect(...), text(...), rect(...)]', each
+;;;; carrying its `box(X, Y, W, H)'. What a program does with them is its
+;;;; own affair -- library(clay_ray) draws them with library(ray), a test
+;;;; holds their coordinates to `check/3', and a renderer for any other
+;;;; surface is a walk over one list.
+;;;;
+;;;; THE DIVISION IS library(ray)'s, exactly. The C half is FLAT -- one
+;;;; scalar per argument, an element is opened, configured by a dozen
+;;;; setters and closed -- because that is what the seam passes well. The
+;;;; Coco half is the friendly surface: the tree above, options by name,
+;;;; colors as names or rgb/3 or rgba/4, and the render commands read back
+;;;; from the flat rows the C half answers into terms a renderer can
+;;;; dispatch on.
+;;;;
+;;;; CLAY IS DECLARED, NOT PASTED. Clay passes every struct BY VALUE -- an
+;;;; element declaration, a string, a point -- and answers one from
+;;;; EndLayout, and the way to say that in Cicili is a DECLARATION
+;;;; BINDING: binding.cicili beside this file declares every struct,
+;;;; enum and entry point the module reaches, emits nothing, and lets
+;;;; the calls below be written as Cicili -- a Clay_Vector2 built as a
+;;;; value and handed to Clay_SetPointerState, a render command's fields
+;;;; read through `$'. That is the shape lib/net/curl.cicili and
+;;;; lib/std/c have, and nothing in this file is raw C: the one
+;;;; preprocessor line Clay needs is a preprocessor form.
+;;;;
+;;;; TEXT IS MEASURED HERE, WITH METRICS A RENDERER REGISTERS, so that a
+;;;; layout is deterministic and needs no window: `clay_font(Id, Base,
+;;;; Advances)' gives a font's advance width per glyph at a base size,
+;;;; and a text of size S is measured as the sum of its advances scaled
+;;;; by S/Base with one letter spacing between glyphs -- which is what
+;;;; raylib's DrawTextEx draws, so library(clay_ray) registers raylib's
+;;;; default font once and the two agree to the pixel. With no font
+;;;; registered a glyph is 0.6 of the size wide, so a layout in a test or
+;;;; a lesson computes the same numbers on every machine.
+;;;;
+;;;; THE STRINGS CLAY KEEPS ARE THIS MODULE'S. Clay copies nothing: an
+;;;; element id keeps a pointer to its name for the life of the layout
+;;;; and a text keeps one until its render command is read. So an id's
+;;;; name is INTERNED, once, for the life of the process (a user
+;;;; interface has dozens of ids, and they are the same every frame), and
+;;;; a text is copied into a per-frame arena that `clay_begin' resets --
+;;;; blocks, never a realloc, because a moved block would leave Clay
+;;;; pointing at the old one. An image's or a custom element's DATA is
+;;;; any term: it goes across as canonical text into the same arena and
+;;;; comes back through the reader in the command, so a texture handle,
+;;;; a name or a whole term rides through Clay untouched.
+;;;;
+;;;; ---- the surface -------------------------------------------------------
+;;;;
+;;;; A Color is a palette name (raylib's palette, name for name), rgb(R,G,B)
+;;;; or rgba(R,G,B,A). An Id is an atom, Name/Index for the Nth of a kind,
+;;;; or local(Name) hashed under the parent's id.
+;;;;
+;;;;   clay_layout(+W, +H, +Tree, -Commands)         one frame: begin, the tree, end
+;;;;   clay_begin(+W, +H)                             ... or by hand: the frame's size
+;;;;   clay_tree(+Tree)                               the tree, as elements
+;;;;   clay_end(-Commands)                            the render commands
+;;;;   clay_box(+Id, -X, -Y, -W, -H)                  where an element landed, last frame
+;;;;   clay_over(+Id)                                 the pointer, as last told, is over it -- judged by the frame laid out BEFORE it was told
+;;;;   clay_hovered/0                                 ... over the element being opened
+;;;;   clay_pointer(+X, +Y, +Down)                    where the pointer is, before begin
+;;;;   clay_scroll(+Drag, +DX, +DY, +Dt)              a wheel or a drag, before begin
+;;;;   clay_scroll_data(+Id, -SX, -SY, -W, -H, -CW, -CH)  a scroll container's offset and sizes
+;;;;   clay_font(+FontId, +BaseSize, +Advances)      metrics: advance per glyph from code 32
+;;;;   clay_capacity(+Elements, +Words)               more room; takes effect at the next begin
+;;;;   clay_debug(+Bool)                              Clay's own debug view, as commands
+;;;;   clay_color(?Name, ?R, ?G, ?B)                  the palette
+;;;;   clay_rgba(+Color, -R, -G, -B, -A)              a color spec resolved
+;;;;
+;;;; A TREE is one of
+;;;;
+;;;;   box(+Opts, +Children)       box(+Id, +Opts, +Children)
+;;;;   text(+Text)                 text(+Text, +Opts)
+;;;;   a list of trees
+;;;;
+;;;; a box's Opts among
+;;;;
+;;;;   width(S) height(S) size(S) size(W, H)      S: fit grow fixed(N) N percent(P)
+;;;;                                              fit(Min, Max) grow(Min, Max)
+;;;;   padding(N) padding(X, Y) padding(L, R, T, B)   gap(N)
+;;;;   direction(row | column)                   align(X, Y) align(center)
+;;;;   bg(Color)  radius(N)  radius(TL, TR, BL, BR)
+;;;;   border(Color, N)  border(Color, L, R, T, B)  border(Color, L, R, T, B, Between)
+;;;;   clip  clip(H, V)  scroll  scroll(H, V)    clip cuts; scroll cuts and moves
+;;;;   aspect(Ratio)  image(Data)  custom(Data)
+;;;;   floating(FOpts)    offset(X, Y) expand(W, H) z(N) parent(Id)
+;;;;                      attach(Element, Parent) capture(passthrough) to(parent | element | root)
+;;;;   hover(Opts)        applied on top when the pointer was over this Id last frame
+;;;;
+;;;; a text's Opts among
+;;;;
+;;;;   size(N) color(Color) font(Id) spacing(N) line_height(N)
+;;;;   wrap(words | newlines | none)  align(left | center | right)
+;;;;
+;;;; and a COMMAND is one of
+;;;;
+;;;;   rect(Id, box(X, Y, W, H), rgba(R, G, B, A), corners(TL, TR, BL, BR))
+;;;;   border(Id, box(...), rgba(...), corners(...), widths(L, R, T, B, Between))
+;;;;   text(Id, box(...), Codes, font(FontId, Size, Spacing, LineHeight), rgba(...))
+;;;;   image(Id, box(...), Data, rgba(...), corners(...))
+;;;;   custom(Id, box(...), Data, rgba(...), corners(...))
+;;;;   scissor_start(Id, box(...), clip(H, V))
+;;;;   scissor_end(Id, box(...))
+;;;;
+;;;; in draw order, a text's content as a CODE LIST (a frame of dynamic
+;;;; text would otherwise grow the atom table for ever), coordinates as
+;;;; floats and colors as integers.
+
+(DEFPARAMETER *clay-predicates*
+  '(("$clay_begin"       2 clay_p_begin)
+    ("$clay_open"        3 clay_p_open)
+    ("$clay_id"          3 clay_p_id)
+    ("$clay_sizing"      4 clay_p_sizing)
+    ("$clay_padding"     4 clay_p_padding)
+    ("$clay_gap"         1 clay_p_gap)
+    ("$clay_direction"   1 clay_p_direction)
+    ("$clay_align"       2 clay_p_align)
+    ("$clay_bg"          4 clay_p_bg)
+    ("$clay_radius"      4 clay_p_radius)
+    ("$clay_border"      9 clay_p_border)
+    ("$clay_clip"        3 clay_p_clip)
+    ("$clay_aspect"      1 clay_p_aspect)
+    ("$clay_image"       1 clay_p_image)
+    ("$clay_custom"      1 clay_p_custom)
+    ("$clay_floating"   11 clay_p_floating)
+    ("$clay_configure"   0 clay_p_configure)
+    ("$clay_text"       11 clay_p_text)
+    ("$clay_close"       0 clay_p_close)
+    ("$clay_end"         1 clay_p_end)
+    ("$clay_abort"       0 clay_p_abort)
+    ("$clay_pointer"     3 clay_p_pointer)
+    ("$clay_scroll"      4 clay_p_scroll)
+    ("$clay_over"        3 clay_p_over)
+    ("clay_hovered"      0 clay_p_hovered)
+    ("$clay_box"         7 clay_p_box)
+    ("$clay_scroll_data" 9 clay_p_scroll_data)
+    ("$clay_font"        3 clay_p_font)
+    ("clay_capacity"     2 clay_p_capacity)
+    ("$clay_debug"       1 clay_p_debug)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: the tree, the options, the commands
+;;;; ------------------------------------------------------------------
+;;; A Cicili string literal cannot carry a newline, so clauses are joined
+;;; with spaces; commentary lives out here.
+;;;
+;;; THE PALETTE IS raylib's, name for name and byte for byte, so a program
+;;; that lays out with clay and draws with ray names one color once. It
+;;; is repeated here rather than borrowed because the two libraries are
+;;; independent: a layout in a test loads no window library.
+;;;
+;;; THE WALK IS THE PROTOCOL: open, the options as setters, configure,
+;;; the children, close. Clay wants an element configured BEFORE its
+;;; children are opened, and the static declaration the setters fill is
+;;; consumed by configure, so a child's setters cannot disturb it.
+;;; `hover(Opts)' asks, after the box is opened and before it is
+;;; configured, whether the pointer was over this id LAST frame, and lays
+;;; Opts over the base ones when it was -- which is how a button changes
+;;; color with no callback anywhere.
+;;;
+;;; A SIZING is fit, grow, fixed(N) (or a bare number), percent(P) with
+;;; P in 0..1, fit(Min, Max) or grow(Min, Max); the C half's types are
+;;; Clay's own enum, 0 fit 1 grow 2 percent 3 fixed.
+(DEFPARAMETER *clay-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; ---- the palette, raylib.h byte for byte ----
+           "clay_color(lightgray, 200, 200, 200)."
+           "clay_color(gray, 130, 130, 130)."
+           "clay_color(darkgray, 80, 80, 80)."
+           "clay_color(yellow, 253, 249, 0)."
+           "clay_color(gold, 255, 203, 0)."
+           "clay_color(orange, 255, 161, 0)."
+           "clay_color(pink, 255, 109, 194)."
+           "clay_color(red, 230, 41, 55)."
+           "clay_color(maroon, 190, 33, 55)."
+           "clay_color(green, 0, 228, 48)."
+           "clay_color(lime, 0, 158, 47)."
+           "clay_color(darkgreen, 0, 117, 44)."
+           "clay_color(skyblue, 102, 191, 255)."
+           "clay_color(blue, 0, 121, 241)."
+           "clay_color(darkblue, 0, 82, 172)."
+           "clay_color(purple, 200, 122, 255)."
+           "clay_color(violet, 135, 60, 190)."
+           "clay_color(darkpurple, 112, 31, 126)."
+           "clay_color(beige, 211, 176, 131)."
+           "clay_color(brown, 127, 106, 79)."
+           "clay_color(darkbrown, 76, 63, 47)."
+           "clay_color(white, 255, 255, 255)."
+           "clay_color(black, 0, 0, 0)."
+           "clay_color(magenta, 255, 0, 255)."
+           "clay_color(raywhite, 245, 245, 245)."
+           "clay_rgba(rgba(R, G, B, A), R, G, B, A) :- !."
+           "clay_rgba(rgb(R, G, B), R, G, B, 255) :- !."
+           "clay_rgba(Name, R, G, B, 255) :- clay_color(Name, R, G, B), !."
+           "clay_rgba(C, _, _, _, _) :- throw(error(domain_error(clay_color, C), clay_rgba/5))."
+
+           ;; ---- a frame ----
+           "clay_layout(W, H, Tree, Cmds) :- clay_begin(W, H), catch(clay_tree(Tree), Ball, ('$clay_abort', throw(Ball))), clay_end(Cmds)."
+           "clay_begin(W, H) :- '$clay_begin'(W, H)."
+           "clay_end(Cmds) :- '$clay_end'(Rows), clay_commands(Rows, Cmds)."
+           "clay_debug(true) :- !, '$clay_debug'(1)."
+           "clay_debug(false) :- !, '$clay_debug'(0)."
+           "clay_debug(B) :- throw(error(type_error(boolean, B), clay_debug/1))."
+           "clay_pointer(X, Y, Down) :- clay_bool(Down, D), '$clay_pointer'(X, Y, D)."
+           "clay_scroll(Drag, DX, DY, Dt) :- clay_bool(Drag, D), '$clay_scroll'(D, DX, DY, Dt)."
+           "clay_bool(true, 1) :- !."
+           "clay_bool(false, 0) :- !."
+           "clay_bool(B, _) :- throw(error(type_error(boolean, B), clay_bool/2))."
+           "clay_font(Id, Base, Advances) :- '$clay_font'(Id, Base, Advances)."
+
+           ;; ---- an id is a name, Name/Index, or local(...) ----
+           "clay_id(local(Id), N, I, 1) :- !, clay_id(Id, N, I, _)."
+           ;; the checks BEFORE the cut: an index that is no integer (`row/'Italy'')
+           ;; is a type error naming the id, never a silent failure of the frame
+           "clay_id(N/I, N, I, 0) :- atom(N), integer(I), !."
+           "clay_id(N, N, 0, 0) :- atom(N), !."
+           "clay_id(Id, _, _, _) :- throw(error(type_error(clay_id, Id), clay_id/4))."
+           "clay_box(Id, X, Y, W, H) :- clay_id(Id, N, I, L), '$clay_box'(N, I, L, X, Y, W, H)."
+           "clay_over(Id) :- clay_id(Id, N, I, L), '$clay_over'(N, I, L)."
+           "clay_scroll_data(Id, SX, SY, W, H, CW, CH) :- clay_id(Id, N, I, L), '$clay_scroll_data'(N, I, L, SX, SY, W, H, CW, CH)."
+
+           ;; ---- the tree ----
+           "clay_tree([]) :- !."
+           "clay_tree([T|Ts]) :- !, clay_tree(T), clay_tree(Ts)."
+           "clay_tree(text(T)) :- !, clay_tree(text(T, []))."
+           "clay_tree(text(T, Opts)) :- !, clay_text_opts(Opts, 16, white, 0, 0, 0, 0, 0, Size, Color, Font, Sp, LH, Wrap, Al), clay_rgba(Color, R, G, B, A), '$clay_text'(T, Font, Size, R, G, B, A, Sp, LH, Wrap, Al)."
+           "clay_tree(box(Opts, Kids)) :- !, clay_tree(box(none, Opts, Kids))."
+           "clay_tree(box(Id, Opts, Kids)) :- !, clay_open(Id), clay_opts(Opts), clay_hover(Opts), '$clay_configure', clay_tree(Kids), '$clay_close'."
+           "clay_tree(T) :- throw(error(type_error(clay_tree, T), clay_tree/1))."
+           "clay_open(none) :- !, '$clay_open'('', 0, 0)."
+           "clay_open(Id) :- clay_id(Id, N, I, L), '$clay_open'(N, I, L)."
+           "clay_hover(Opts) :- memberchk(hover(H), Opts), clay_hovered, !, clay_opts(H)."
+           "clay_hover(_)."
+           "clay_opts([]) :- !."
+           "clay_opts([O|Os]) :- !, clay_opt(O), clay_opts(Os)."
+           "clay_opts(Os) :- throw(error(type_error(list, Os), clay_opts/1))."
+
+           ;; ---- a box's options ----
+           "clay_opt(width(S)) :- !, clay_sizing(S, T, Mn, Mx), '$clay_sizing'(0, T, Mn, Mx)."
+           "clay_opt(height(S)) :- !, clay_sizing(S, T, Mn, Mx), '$clay_sizing'(1, T, Mn, Mx)."
+           "clay_opt(size(S)) :- !, clay_opt(width(S)), clay_opt(height(S))."
+           "clay_opt(size(W, H)) :- !, clay_opt(width(W)), clay_opt(height(H))."
+           "clay_opt(padding(N)) :- !, '$clay_padding'(N, N, N, N)."
+           "clay_opt(padding(X, Y)) :- !, '$clay_padding'(X, X, Y, Y)."
+           "clay_opt(padding(L, R, T, B)) :- !, '$clay_padding'(L, R, T, B)."
+           "clay_opt(gap(N)) :- !, '$clay_gap'(N)."
+           "clay_opt(direction(row)) :- !, '$clay_direction'(0)."
+           "clay_opt(direction(column)) :- !, '$clay_direction'(1)."
+           "clay_opt(align(center)) :- !, '$clay_align'(2, 2)."
+           "clay_opt(align(X, Y)) :- !, clay_align_x(X, XC), clay_align_y(Y, YC), '$clay_align'(XC, YC)."
+           "clay_opt(bg(C)) :- !, clay_rgba(C, R, G, B, A), '$clay_bg'(R, G, B, A)."
+           "clay_opt(radius(N)) :- !, '$clay_radius'(N, N, N, N)."
+           "clay_opt(radius(TL, TR, BL, BR)) :- !, '$clay_radius'(TL, TR, BL, BR)."
+           "clay_opt(border(C, N)) :- !, clay_rgba(C, R, G, B, A), '$clay_border'(R, G, B, A, N, N, N, N, 0)."
+           "clay_opt(border(C, L, Rt, T, Bt)) :- !, clay_rgba(C, R, G, B, A), '$clay_border'(R, G, B, A, L, Rt, T, Bt, 0)."
+           "clay_opt(border(C, L, Rt, T, Bt, Bw)) :- !, clay_rgba(C, R, G, B, A), '$clay_border'(R, G, B, A, L, Rt, T, Bt, Bw)."
+           "clay_opt(clip) :- !, '$clay_clip'(1, 1, 0)."
+           "clay_opt(clip(H, V)) :- !, clay_bool(H, HC), clay_bool(V, VC), '$clay_clip'(HC, VC, 0)."
+           "clay_opt(scroll) :- !, '$clay_clip'(1, 1, 1)."
+           "clay_opt(scroll(H, V)) :- !, clay_bool(H, HC), clay_bool(V, VC), '$clay_clip'(HC, VC, 1)."
+           "clay_opt(aspect(F)) :- !, '$clay_aspect'(F)."
+           "clay_opt(image(D)) :- !, '$clay_image'(D)."
+           "clay_opt(custom(D)) :- !, '$clay_custom'(D)."
+           "clay_opt(floating(Fs)) :- !, clay_floating(Fs, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl), '$clay_floating'(To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl)."
+           "clay_opt(hover(_)) :- !."
+           "clay_opt(O) :- throw(error(domain_error(clay_option, O), clay_opt/1))."
+           "clay_sizing(fit, 0, 0, 0) :- !."
+           "clay_sizing(grow, 1, 0, 0) :- !."
+           "clay_sizing(fit(Mn, Mx), 0, Mn, Mx) :- !."
+           "clay_sizing(grow(Mn, Mx), 1, Mn, Mx) :- !."
+           "clay_sizing(fixed(N), 3, N, N) :- !."
+           "clay_sizing(percent(P), 2, P, 0) :- !."
+           "clay_sizing(N, 3, N, N) :- number(N), !."
+           "clay_sizing(S, _, _, _) :- throw(error(domain_error(clay_sizing, S), clay_sizing/4))."
+           "clay_align_x(left, 0). clay_align_x(right, 1). clay_align_x(center, 2)."
+           "clay_align_y(top, 0). clay_align_y(bottom, 1). clay_align_y(center, 2)."
+
+           ;; ---- floating: eleven scalars folded from a list of options ----
+           "clay_floating([], To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl, To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl) :- !."
+           "clay_floating([F|Fs], To0, P0, OX0, OY0, EW0, EH0, Z0, AE0, AP0, Cap0, Cl0, To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl) :- clay_float_opt(F, To0, P0, OX0, OY0, EW0, EH0, Z0, AE0, AP0, Cap0, Cl0, To1, P1, OX1, OY1, EW1, EH1, Z1, AE1, AP1, Cap1, Cl1), clay_floating(Fs, To1, P1, OX1, OY1, EW1, EH1, Z1, AE1, AP1, Cap1, Cl1, To, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl)."
+           "clay_float_opt(offset(X, Y), To, P, _, _, EW, EH, Z, AE, AP, Cap, Cl, To, P, X, Y, EW, EH, Z, AE, AP, Cap, Cl) :- !."
+           "clay_float_opt(expand(W, H), To, P, OX, OY, _, _, Z, AE, AP, Cap, Cl, To, P, OX, OY, W, H, Z, AE, AP, Cap, Cl) :- !."
+           "clay_float_opt(z(N), To, P, OX, OY, EW, EH, _, AE, AP, Cap, Cl, To, P, OX, OY, EW, EH, N, AE, AP, Cap, Cl) :- !."
+           "clay_float_opt(parent(Id), _, _, OX, OY, EW, EH, Z, AE, AP, Cap, Cl, 2, PId, OX, OY, EW, EH, Z, AE, AP, Cap, Cl) :- !, clay_id(Id, N, I, _), '$clay_id'(N, I, PId)."
+           "clay_float_opt(attach(E, Pt), To, P, OX, OY, EW, EH, Z, _, _, Cap, Cl, To, P, OX, OY, EW, EH, Z, EC, PC, Cap, Cl) :- !, clay_attach(E, EC), clay_attach(Pt, PC)."
+           "clay_float_opt(capture(passthrough), To, P, OX, OY, EW, EH, Z, AE, AP, _, Cl, To, P, OX, OY, EW, EH, Z, AE, AP, 1, Cl) :- !."
+           "clay_float_opt(capture(capture), To, P, OX, OY, EW, EH, Z, AE, AP, _, Cl, To, P, OX, OY, EW, EH, Z, AE, AP, 0, Cl) :- !."
+           "clay_float_opt(to(parent), _, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl, 1, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl) :- !."
+           "clay_float_opt(to(root), _, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl, 3, P, OX, OY, EW, EH, Z, AE, AP, Cap, Cl) :- !."
+           "clay_float_opt(clip_to(parent), To, P, OX, OY, EW, EH, Z, AE, AP, Cap, _, To, P, OX, OY, EW, EH, Z, AE, AP, Cap, 1) :- !."
+           "clay_float_opt(F, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) :- throw(error(domain_error(clay_floating_option, F), clay_float_opt/23))."
+           "clay_attach(left_top, 0). clay_attach(left_center, 1). clay_attach(left_bottom, 2)."
+           "clay_attach(center_top, 3). clay_attach(center_center, 4). clay_attach(center_bottom, 5)."
+           "clay_attach(right_top, 6). clay_attach(right_center, 7). clay_attach(right_bottom, 8)."
+
+           ;; ---- a text's options: defaults, then each one overrides ----
+           "clay_text_opts([], S, C, F, Sp, LH, W, A, S, C, F, Sp, LH, W, A) :- !."
+           "clay_text_opts([O|Os], S0, C0, F0, Sp0, LH0, W0, A0, S, C, F, Sp, LH, W, A) :- !, clay_text_opt(O, S0, C0, F0, Sp0, LH0, W0, A0, S1, C1, F1, Sp1, LH1, W1, A1), clay_text_opts(Os, S1, C1, F1, Sp1, LH1, W1, A1, S, C, F, Sp, LH, W, A)."
+           "clay_text_opts(Os, _, _, _, _, _, _, _, _, _, _, _, _, _, _) :- throw(error(type_error(list, Os), clay_text_opts/15))."
+           "clay_text_opt(size(N), _, C, F, Sp, LH, W, A, N, C, F, Sp, LH, W, A) :- !."
+           "clay_text_opt(color(X), S, _, F, Sp, LH, W, A, S, X, F, Sp, LH, W, A) :- !."
+           "clay_text_opt(font(N), S, C, _, Sp, LH, W, A, S, C, N, Sp, LH, W, A) :- !."
+           "clay_text_opt(spacing(N), S, C, F, _, LH, W, A, S, C, F, N, LH, W, A) :- !."
+           "clay_text_opt(line_height(N), S, C, F, Sp, _, W, A, S, C, F, Sp, N, W, A) :- !."
+           "clay_text_opt(wrap(M), S, C, F, Sp, LH, _, A, S, C, F, Sp, LH, N, A) :- !, clay_wrap(M, N)."
+           "clay_text_opt(align(M), S, C, F, Sp, LH, W, _, S, C, F, Sp, LH, W, N) :- !, clay_text_align(M, N)."
+           "clay_text_opt(O, _, _, _, _, _, _, _, _, _, _, _, _, _, _) :- throw(error(domain_error(clay_text_option, O), clay_text_opt/15))."
+           "clay_wrap(words, 0). clay_wrap(newlines, 1). clay_wrap(none, 2)."
+           "clay_text_align(left, 0). clay_text_align(center, 1). clay_text_align(right, 2)."
+
+           ;; ---- the commands: flat rows back into terms ----
+           "clay_commands([], []) :- !."
+           "clay_commands([R|Rs], [C|Cs]) :- clay_command(R, C), clay_commands(Rs, Cs)."
+           "clay_command([rect, Id, X, Y, W, H, R, G, B, A, TL, TR, BL, BR], rect(Id, box(X, Y, W, H), rgba(R, G, B, A), corners(TL, TR, BL, BR))) :- !."
+           "clay_command([border, Id, X, Y, W, H, R, G, B, A, TL, TR, BL, BR, L, Rt, T, Bt, Bw], border(Id, box(X, Y, W, H), rgba(R, G, B, A), corners(TL, TR, BL, BR), widths(L, Rt, T, Bt, Bw))) :- !."
+           "clay_command([text, Id, X, Y, W, H, R, G, B, A, F, S, Sp, LH, Codes], text(Id, box(X, Y, W, H), Codes, font(F, S, Sp, LH), rgba(R, G, B, A))) :- !."
+           "clay_command([image, Id, X, Y, W, H, R, G, B, A, TL, TR, BL, BR, D], image(Id, box(X, Y, W, H), D, rgba(R, G, B, A), corners(TL, TR, BL, BR))) :- !."
+           "clay_command([custom, Id, X, Y, W, H, R, G, B, A, TL, TR, BL, BR, D], custom(Id, box(X, Y, W, H), D, rgba(R, G, B, A), corners(TL, TR, BL, BR))) :- !."
+           "clay_command([scissor_start, Id, X, Y, W, H, Hc, Vc], scissor_start(Id, box(X, Y, W, H), clip(HB, VB))) :- !, clay_bool(HB, Hc), clay_bool(VB, Vc)."
+           "clay_command([scissor_end, Id, X, Y, W, H], scissor_end(Id, box(X, Y, W, H))) :- !."
+           "clay_command(R, R).")))
+
+;;;; ------------------------------------------------------------------
+;;;; The C half
+;;;; ------------------------------------------------------------------
+(source "clay.c"
+  (make :std #t :compile #f)
+
+  ;;; Clay is ONE header, and its implementation is compiled into this
+  ;;; file: the define must come before the include, and both must come
+  ;;; after the std prelude. Every Clay function is then a plain symbol of
+  ;;; this object and nothing is linked.
+  (include <math.h>)
+  (@define (code "CLAY_IMPLEMENTATION"))
+  (include "clay.h")
+
+  (import "./binding.cicili")
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;;; ---- argument helpers, library(ray)'s, and the same rule about the
+  ;;; raise: a caller passes what these answer STRAIGHT THROUGH, because
+  ;;; a raise answers 2 and `(not 2)' is false. ----
+  (static)
+  (func cw_iarg ((coco_engine * e) (size_t g) (int i) (i64 * v)) (out int)
+        (if (coco_m_int e (coco_m_arg e g (cast size_t i)) v) (return 1))
+        (return (coco_m_type_error e "integer" (coco_m_arg e g (cast size_t i)))))
+
+  (static)
+  (func cw_farg ((coco_engine * e) (size_t g) (int i) (double * v)) (out int)
+        (let ((i64 n . 0))
+          (if (coco_m_int e (coco_m_arg e g (cast size_t i)) (aof n))
+              (block (set (cof v) (cast double n)) (return 1)))
+          (if (coco_m_float e (coco_m_arg e g (cast size_t i)) v) (return 1))
+          (return (coco_m_type_error e "number" (coco_m_arg e g (cast size_t i))))))
+
+  ;;; Four numbers, integers or floats, for a color or the corner radii.
+  (static)
+  (func cw_four ((coco_engine * e) (size_t g) (int from) (double * v)) (out int)
+        (for ((int j . 0)) (< j 4) ((++ j))
+             (let ((int rc1 . #'(cw_farg e g (+ from j) (+ v j)))) (if (!= rc1 1) (return rc1))))
+        (return 1))
+
+  ;;; ---- Clay's value types, built as values ----
+  ;;;
+  ;;; A Clay string is a pointer and a length and a promise about the
+  ;;; pointer's lifetime; the promise is `false' for everything here,
+  ;;; which makes Clay hash a text by its CONTENT rather than its address.
+  (static)
+  (func cw_str ((const char * s) (long n)) (out Clay_String)
+        (let ((Clay_String r . '{ 0 }))
+          (set ($ r isStaticallyAllocated) 0)
+          (set ($ r length) (cast i32 n))
+          (set ($ r chars) s)
+          (return r)))
+
+  (static)
+  (func cw_color ((double * c)) (out Clay_Color)
+        (let ((Clay_Color r . '{ 0 }))
+          (set ($ r r) (cast float (nth 0 c)))
+          (set ($ r g) (cast float (nth 1 c)))
+          (set ($ r b) (cast float (nth 2 c)))
+          (set ($ r a) (cast float (nth 3 c)))
+          (return r)))
+
+  (static)
+  (func cw_corners ((double * c)) (out Clay_CornerRadius)
+        (let ((Clay_CornerRadius r . '{ 0 }))
+          (set ($ r topLeft) (cast float (nth 0 c)))
+          (set ($ r topRight) (cast float (nth 1 c)))
+          (set ($ r bottomLeft) (cast float (nth 2 c)))
+          (set ($ r bottomRight) (cast float (nth 3 c)))
+          (return r)))
+
+  (static)
+  (func cw_vec ((double x) (double y)) (out Clay_Vector2)
+        (let ((Clay_Vector2 r . '{ 0 }))
+          (set ($ r x) (cast float x))
+          (set ($ r y) (cast float y))
+          (return r)))
+
+  ;;; ---- the id table: a name is interned once, for the process ----
+  ;;;
+  ;;; Clay keeps the POINTER to an id's name (in the element's id, and in
+  ;;; the debug view that prints it), so the name has to outlive every
+  ;;; frame that uses it. A user interface names a few dozen elements and
+  ;;; names them the same every frame, so the table is small and the walk
+  ;;; is linear; the empty name is no id at all.
+  (static) (var char * cw_names [4096])
+  (static) (var int cw_name_len [4096])
+  (static) (var int cw_nnames . 0)
+
+  (static)
+  (func cw_intern ((const char * s) (long * len)) (out const char *)
+        (let ((size_t n . #'(strlen s)))
+          (set (cof len) (cast long n))
+          (for ((int i . 0)) (< i cw_nnames) ((++ i))
+               (if (and (== (nth i cw_name_len) (cast int n))
+                        (== 0 (memcmp (nth i cw_names) s n)))
+                   (return (nth i cw_names))))
+          (if (>= cw_nnames 4096) (return nil))
+          (let ((char * copy . #'(cast (char *) (malloc (+ n 1)))))
+            (if (== copy nil) (return nil))
+            (memcpy copy s (+ n 1))
+            (set (nth cw_nnames cw_names) copy)
+            (set (nth cw_nnames cw_name_len) (cast int n))
+            (set cw_nnames (+ cw_nnames 1))
+            (return copy))))
+
+  ;;; An id from its three parts: the interned name, an index for the Nth
+  ;;; of a kind, and whether it hashes under the parent's id.
+  (static)
+  (func cw_id ((const char * s) (long n) (long index) (long local)) (out Clay_ElementId)
+        (let ((u32 seed . 0))
+          (if local (set seed (Clay__GetParentElementId)))
+          (return (Clay__HashString (cw_str s n) (cast u32 index) seed))))
+
+  ;;; ---- the text arena: blocks a frame, never moved ----
+  ;;;
+  ;;; A text lives from the element that declares it to the render command
+  ;;; that carries it, which is one frame; a block is 64 KB and a text
+  ;;; longer than that gets a block of its own. The first block is kept
+  ;;; across frames and the rest are freed at `clay_begin', so a steady
+  ;;; frame allocates nothing after its first. Blocks rather than one
+  ;;; growing buffer because Clay holds pointers into it, and a realloc
+  ;;; that moved would leave every one of them behind.
+  (static) (var char * cw_blocks [256])
+  (static) (var size_t cw_block_cap [256])
+  (static) (var int cw_nblocks . 0)
+  (static) (var size_t cw_block_used . 0)
+
+  (static)
+  (func cw_arena_reset () (out void)
+        (for ((int i . 1)) (< i cw_nblocks) ((++ i))
+             (free (nth i cw_blocks))
+             (set (nth i cw_blocks) nil))
+        (if (> cw_nblocks 1) (set cw_nblocks 1))
+        (set cw_block_used 0))
+
+  (static)
+  (func cw_arena_alloc ((size_t n)) (out char *)
+        (if (or (== cw_nblocks 0)
+                (> (+ cw_block_used n) (nth (- cw_nblocks 1) cw_block_cap)))
+            (let ((size_t cap . 65536))
+              (if (> n cap) (set cap n))
+              (if (>= cw_nblocks 256) (return nil))
+              (let ((char * b . #'(cast (char *) (malloc cap))))
+                (if (== b nil) (return nil))
+                (set (nth cw_nblocks cw_blocks) b)
+                (set (nth cw_nblocks cw_block_cap) cap)
+                (set cw_nblocks (+ cw_nblocks 1))
+                (set cw_block_used 0))))
+        (let ((char * p . #'(+ (nth (- cw_nblocks 1) cw_blocks) cw_block_used)))
+          (set cw_block_used (+ cw_block_used n))
+          (return p)))
+
+  ;;; A copy of S in the arena, NUL-terminated so a term's text can be read
+  ;;; back by the reader.
+  (static)
+  (func cw_arena_text ((const char * s) (size_t n)) (out char *)
+        (let ((char * p . #'(cw_arena_alloc (+ n 1))))
+          (if (== p nil) (return nil))
+          (memcpy p s n)
+          (set (nth n p) (cast char 0))
+          (return p)))
+
+  ;;; ---- fonts: an advance per glyph, from code 32, at a base size ----
+  ;;;
+  ;;; Sixteen fonts, 224 glyphs each (the codes 32..255, so a UTF-8 byte
+  ;;; past 127 measures as the mean advance rather than nothing). A font
+  ;;; nobody registered is 0.6 of the size a glyph, which is what makes a
+  ;;; windowless layout the same on every machine.
+  (static) (var double cw_font_adv [16][224])
+  (static) (var double cw_font_mean [16])
+  (static) (var double cw_font_base [16])
+  (static) (var int cw_font_set [16])
+
+  ;;; The measuring rule, Clay's callback, once a word: the advances scaled
+  ;;; to the size, plus one letter spacing a glyph -- Clay takes the
+  ;;; trailing one off a line itself, so a line of N glyphs carries N-1
+  ;;; spacings, which is what DrawTextEx draws -- and the height is the
+  ;;; size. Cached by Clay per word and size, so this runs on a text's
+  ;;; first frame and not again.
+  (static)
+  (func cw_measure ((Clay_StringSlice s) (Clay_TextElementConfig * c) (void * u)) (out Clay_Dimensions)
+        (let ((Clay_Dimensions d . '{ 0 })
+              (double width . 0.0) (int f . #'(cast int (-> c fontId)))
+              (long n . #'(cast long ($ s length)))
+              (double size . #'(cast double (-> c fontSize)))
+              (double spacing . #'(cast double (-> c letterSpacing))))
+          (if (or (< f 0) (>= f 16)) (set f 0))
+          (if (nth f cw_font_set)
+              (let ((double scale . #'(/ size (nth f cw_font_base))))
+                (for ((long i . 0)) (< i n) ((++ i))
+                     (let ((int ch . #'(- (bitand (cast int (nth i ($ s chars))) 255) 32)))
+                       (if (or (< ch 0) (>= ch 224))
+                           (set width (+ width (* (nth f cw_font_mean) scale)))
+                         (set width (+ width (* (nth ch (nth f cw_font_adv)) scale)))))))
+            (set width (* (cast double n) (* 0.6 size))))
+          (set width (+ width (* (cast double n) spacing)))
+          (set ($ d width) (cast float width))
+          (set ($ d height) (cast float size))
+          (return d)))
+
+  ;;; ---- what Clay says went wrong, kept until the frame is read back ----
+  ;;;
+  ;;; Clay's error handler is a callback with nothing to return into: a
+  ;;; capacity exceeded, a duplicate id, a percent over one. The text is
+  ;;; kept and `clay_end' raises it, so a layout that went wrong is an
+  ;;; error the program can catch and not a frame with things missing.
+  (static) (var char cw_err [512])
+  (static) (var int cw_err_set . 0)
+
+  (static)
+  (func cw_on_error ((Clay_ErrorData d)) (out void)
+        (let ((long n . #'(cast long ($ d errorText length))))
+          (if cw_err_set (return))
+          (if (>= n 511) (set n 511))
+          (memcpy cw_err ($ d errorText chars) (cast size_t n))
+          (set (nth n cw_err) (cast char 0))
+          (set cw_err_set 1)))
+
+  ;;; ---- Clay's memory: one arena, sized once, resized on request ----
+  ;;;
+  ;;; The declaration under construction is a static Clay declares the
+  ;;; shape of; the setters below write one field of it each and
+  ;;; `$clay_configure' hands it to Clay. The render command array Clay
+  ;;; answers is kept beside it for `$clay_end' to read.
+  (static) (var Clay_ElementDeclaration cw_decl)
+  (static) (var Clay_RenderCommandArray cw_cmds)
+  (static) (var Clay_ElementId cw_last_id)
+  (static) (var char * cw_memory . nil)
+  (static) (var long cw_max_elements . 8192)
+  (static) (var long cw_max_words . 16384)
+  (static) (var int cw_reinit . 1)
+  (static) (var int cw_in_frame . 0)
+  (static) (var double cw_w . 0.0)
+  (static) (var double cw_h . 0.0)
+
+  (static)
+  (func cw_initialize ((char * memory) (long size) (double w) (double h)) (out void)
+        (let ((Clay_Dimensions d . '{ 0 })
+              (Clay_ErrorHandler eh . '{ 0 })
+              (Clay_Arena arena . '{ 0 }))
+          (set ($ d width) (cast float w))
+          (set ($ d height) (cast float h))
+          (set ($ eh errorHandlerFunction) cw_on_error)
+          (set ($ eh userData) nil)
+          (set arena (Clay_CreateArenaWithCapacityAndMemory (cast size_t size) memory))
+          (Clay_Initialize arena d eh)
+          (Clay_SetMeasureTextFunction cw_measure nil)))
+
+  ;;; Clay is set up the first time anything needs it, and again after
+  ;;; `clay_capacity' -- from `clay_begin', which knows the frame's size,
+  ;;; or from the input a renderer hands over BEFORE its first frame
+  ;;; (`clay_pointer', `clay_scroll'), which takes the last size seen: 0
+  ;;; by 0 until a frame has been laid out, and that is right, because
+  ;;; the pointer is remembered and the size comes with the layout.
+  ;;; Answers 1, or the raise.
+  (static)
+  (func cw_ensure ((coco_engine * e) (const char * who)) (out int)
+        (if (not cw_reinit) (return 1))
+        (let ((long size . 0) (char * mem . nil))
+          (Clay_SetMaxElementCount (cast i32 cw_max_elements))
+          (Clay_SetMaxMeasureTextCacheWordCount (cast i32 cw_max_words))
+          (set size (cast long (Clay_MinMemorySize)))
+          (set mem (cast (char *) (malloc (cast size_t size))))
+          (if (== mem nil)
+              (return (coco_m_error e who "no memory for the layout arena")))
+          (cw_initialize mem size cw_w cw_h)
+          (if (!= cw_memory nil) (free cw_memory))
+          (set cw_memory mem)
+          (set cw_reinit 0)
+          (return 1)))
+
+  ;;; ---- a frame ----
+  (func clay_p_begin ((coco_engine * e) (size_t g)) (out int)
+        (let ((double w . 0.0) (double h . 0.0) (Clay_Dimensions d . '{ 0 }))
+          (let ((int rc2 . #'(cw_farg e g 0 (aof w)))) (if (!= rc2 1) (return rc2)))
+          (let ((int rc3 . #'(cw_farg e g 1 (aof h)))) (if (!= rc3 1) (return rc3)))
+          (set cw_w w)
+          (set cw_h h)
+          (let ((int rc3e . #'(cw_ensure e "clay_begin"))) (if (!= rc3e 1) (return rc3e)))
+          (cw_arena_reset)
+          (set cw_err_set 0)
+          (set ($ d width) (cast float w))
+          (set ($ d height) (cast float h))
+          (Clay_SetLayoutDimensions d)
+          (Clay_BeginLayout)
+          (set cw_in_frame 1)
+          (return 1)))
+
+  (func clay_p_capacity ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 el . 0) (i64 words . 0))
+          (let ((int rc4 . #'(cw_iarg e g 0 (aof el)))) (if (!= rc4 1) (return rc4)))
+          (let ((int rc5 . #'(cw_iarg e g 1 (aof words)))) (if (!= rc5 1) (return rc5)))
+          (if (or (< el 16) (< words 32))
+              (return (coco_m_domain_error e "clay_capacity" (coco_m_arg e g 0))))
+          (set cw_max_elements (cast long el))
+          (set cw_max_words (cast long words))
+          (set cw_reinit 1)
+          (return 1)))
+
+  (func clay_p_debug ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 on . 0))
+          (let ((int rc6 . #'(cw_iarg e g 0 (aof on)))) (if (!= rc6 1) (return rc6)))
+          (let ((int rce . #'(cw_ensure e "clay_debug"))) (if (!= rce 1) (return rce)))
+          (Clay_SetDebugModeEnabled (!= on 0))
+          (return 1)))
+
+  ;;; A predicate that touches the open element outside a frame would walk
+  ;;; Clay's stacks with nothing on them; this is the guard every one of
+  ;;; them takes first.
+  (static)
+  (func cw_need_frame ((coco_engine * e) (const char * who)) (out int)
+        (if cw_in_frame (return 1))
+        (return (coco_m_error e who "outside a frame: clay_begin first")))
+
+  ;;; ---- an element: open, the setters, configure, close ----
+  (func clay_p_open ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (i64 index . 0) (i64 local . 0) (long n . 0)
+              (const char * interned . nil))
+          (let ((int rc7 . #'(cw_need_frame e "clay_open"))) (if (!= rc7 1) (return rc7)))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (let ((int rc8 . #'(cw_iarg e g 1 (aof index)))) (if (!= rc8 1) (return rc8)))
+          (let ((int rc9 . #'(cw_iarg e g 2 (aof local)))) (if (!= rc9 1) (return rc9)))
+          (Clay__OpenElement)
+          (memset (aof cw_decl) 0 (sizeof cw_decl))
+          (if (!= (nth 0 name) (cast char 0))
+              (block
+               (set interned (cw_intern name (aof n)))
+               (if (== interned nil)
+                   (return (coco_m_error e "clay_open" "too many distinct element ids (4096)")))
+               (set ($ cw_decl id) (cw_id interned n (cast long index) (cast long local)))))
+          (set cw_last_id ($ cw_decl id))
+          (return 1)))
+
+  ;;; `$clay_id'(Name, Index, -Hash): the id Clay would give, for a floating
+  ;;; element that names the one it attaches to.
+  (func clay_p_id ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (i64 index . 0) (Clay_ElementId id . '{ 0 }))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (let ((int rc10 . #'(cw_iarg e g 1 (aof index)))) (if (!= rc10 1) (return rc10)))
+          (set id (Clay__HashString (cw_str name (cast long (strlen name))) (cast u32 index) 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 ($ id id))))))
+
+  ;;; `$clay_sizing'(Axis, Type, A, B): the axis 0 width 1 height, the type
+  ;;; Clay's own enum, and A is the percent for that type or the minimum
+  ;;; otherwise, B the maximum -- 0 meaning none, which is Clay's reading.
+  (func clay_p_sizing ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 axis . 0) (i64 type . 0) (double a . 0.0) (double b . 0.0)
+              (Clay_SizingAxis * x . nil))
+          (let ((int rc11 . #'(cw_iarg e g 0 (aof axis)))) (if (!= rc11 1) (return rc11)))
+          (let ((int rc12 . #'(cw_iarg e g 1 (aof type)))) (if (!= rc12 1) (return rc12)))
+          (let ((int rc13 . #'(cw_farg e g 2 (aof a)))) (if (!= rc13 1) (return rc13)))
+          (let ((int rc14 . #'(cw_farg e g 3 (aof b)))) (if (!= rc14 1) (return rc14)))
+          (if (or (< type 0) (> type 3))
+              (return (coco_m_domain_error e "clay_sizing" (coco_m_arg e g 1))))
+          (if axis
+              (set x (aof ($ cw_decl layout sizing height)))
+            (set x (aof ($ cw_decl layout sizing width))))
+          (set (-> x type) (cast Clay__SizingType type))
+          (if (== type CLAY__SIZING_TYPE_PERCENT)
+              (set ($ (cof x) size percent) (cast float a))
+            (block
+             (set ($ (cof x) size minMax min) (cast float a))
+             (set ($ (cof x) size minMax max) (cast float b))))
+          (return 1)))
+
+  (func clay_p_padding ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [4]))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (let ((int rc15 . #'(cw_iarg e g j (+ v j)))) (if (!= rc15 1) (return rc15))))
+          (set ($ cw_decl layout padding left) (cast u16 (nth 0 v)))
+          (set ($ cw_decl layout padding right) (cast u16 (nth 1 v)))
+          (set ($ cw_decl layout padding top) (cast u16 (nth 2 v)))
+          (set ($ cw_decl layout padding bottom) (cast u16 (nth 3 v)))
+          (return 1)))
+
+  (func clay_p_gap ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (let ((int rc16 . #'(cw_iarg e g 0 (aof n)))) (if (!= rc16 1) (return rc16)))
+          (set ($ cw_decl layout childGap) (cast u16 n))
+          (return 1)))
+
+  (func clay_p_direction ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 d . 0))
+          (let ((int rc17 . #'(cw_iarg e g 0 (aof d)))) (if (!= rc17 1) (return rc17)))
+          (set ($ cw_decl layout layoutDirection) (cast Clay_LayoutDirection d))
+          (return 1)))
+
+  (func clay_p_align ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 x . 0) (i64 y . 0))
+          (let ((int rc18 . #'(cw_iarg e g 0 (aof x)))) (if (!= rc18 1) (return rc18)))
+          (let ((int rc19 . #'(cw_iarg e g 1 (aof y)))) (if (!= rc19 1) (return rc19)))
+          (set ($ cw_decl layout childAlignment x) (cast Clay_LayoutAlignmentX x))
+          (set ($ cw_decl layout childAlignment y) (cast Clay_LayoutAlignmentY y))
+          (return 1)))
+
+  (func clay_p_bg ((coco_engine * e) (size_t g)) (out int)
+        (let ((double c [4]))
+          (let ((int rc20 . #'(cw_four e g 0 c))) (if (!= rc20 1) (return rc20)))
+          (set ($ cw_decl backgroundColor) (cw_color c))
+          (return 1)))
+
+  (func clay_p_radius ((coco_engine * e) (size_t g)) (out int)
+        (let ((double c [4]))
+          (let ((int rc21 . #'(cw_four e g 0 c))) (if (!= rc21 1) (return rc21)))
+          (set ($ cw_decl cornerRadius) (cw_corners c))
+          (return 1)))
+
+  (func clay_p_border ((coco_engine * e) (size_t g)) (out int)
+        (let ((double c [4]) (i64 w [5]))
+          (let ((int rc22 . #'(cw_four e g 0 c))) (if (!= rc22 1) (return rc22)))
+          (for ((int j . 0)) (< j 5) ((++ j))
+               (let ((int rc23 . #'(cw_iarg e g (+ j 4) (+ w j)))) (if (!= rc23 1) (return rc23))))
+          (set ($ cw_decl border color) (cw_color c))
+          (set ($ cw_decl border width left) (cast u16 (nth 0 w)))
+          (set ($ cw_decl border width right) (cast u16 (nth 1 w)))
+          (set ($ cw_decl border width top) (cast u16 (nth 2 w)))
+          (set ($ cw_decl border width bottom) (cast u16 (nth 3 w)))
+          (set ($ cw_decl border width betweenChildren) (cast u16 (nth 4 w)))
+          (return 1)))
+
+  ;;; `$clay_clip'(H, V, Scroll): a clip cuts what overflows; a SCROLL cuts
+  ;;; and moves the children by the offset the wheel has accumulated for
+  ;;; this element, which Clay answers for the element being configured.
+  (func clay_p_clip ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [3]))
+          (for ((int j . 0)) (< j 3) ((++ j))
+               (let ((int rc24 . #'(cw_iarg e g j (+ v j)))) (if (!= rc24 1) (return rc24))))
+          (set ($ cw_decl clip horizontal) (!= (nth 0 v) 0))
+          (set ($ cw_decl clip vertical) (!= (nth 1 v) 0))
+          (if (nth 2 v) (set ($ cw_decl clip childOffset) (Clay_GetScrollOffset)))
+          (return 1)))
+
+  (func clay_p_aspect ((coco_engine * e) (size_t g)) (out int)
+        (let ((double f . 0.0))
+          (let ((int rc25 . #'(cw_farg e g 0 (aof f)))) (if (!= rc25 1) (return rc25)))
+          (set ($ cw_decl aspectRatio aspectRatio) (cast float f))
+          (return 1)))
+
+  ;;; A term to ride through Clay: its canonical text into the arena, and
+  ;;; the pointer is what the render command carries back.
+  (static)
+  (func cw_term_data ((coco_engine * e) (size_t g) (const char * who) (char ** out)) (out int)
+        (let ((char * text . #'(coco_m_term_text e (coco_m_arg e g 0))))
+          (if (== text nil)
+              (return (coco_m_error e who "the data term would not write")))
+          (let ((char * p . #'(cw_arena_text text (strlen text))))
+            (free text)
+            (if (== p nil) (return (coco_m_error e who "no memory for the data term")))
+            (set (cof out) p)
+            (return 1))))
+
+  (func clay_p_image ((coco_engine * e) (size_t g)) (out int)
+        (let ((char * p . nil))
+          (let ((int rc26 . #'(cw_term_data e g "clay_image" (aof p)))) (if (!= rc26 1) (return rc26)))
+          (set ($ cw_decl image imageData) p)
+          (return 1)))
+
+  (func clay_p_custom ((coco_engine * e) (size_t g)) (out int)
+        (let ((char * p . nil))
+          (let ((int rc27 . #'(cw_term_data e g "clay_custom" (aof p)))) (if (!= rc27 1) (return rc27)))
+          (set ($ cw_decl custom customData) p)
+          (return 1)))
+
+  (func clay_p_floating ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 to . 0) (i64 parent . 0) (double f [4]) (i64 z . 0) (i64 ae . 0) (i64 ap . 0)
+              (i64 cap . 0) (i64 cl . 0))
+          (let ((int rc28 . #'(cw_iarg e g 0 (aof to)))) (if (!= rc28 1) (return rc28)))
+          (let ((int rc29 . #'(cw_iarg e g 1 (aof parent)))) (if (!= rc29 1) (return rc29)))
+          (let ((int rc30 . #'(cw_four e g 2 f))) (if (!= rc30 1) (return rc30)))
+          (let ((int rc31 . #'(cw_iarg e g 6 (aof z)))) (if (!= rc31 1) (return rc31)))
+          (let ((int rc32 . #'(cw_iarg e g 7 (aof ae)))) (if (!= rc32 1) (return rc32)))
+          (let ((int rc33 . #'(cw_iarg e g 8 (aof ap)))) (if (!= rc33 1) (return rc33)))
+          (let ((int rc34 . #'(cw_iarg e g 9 (aof cap)))) (if (!= rc34 1) (return rc34)))
+          (let ((int rc35 . #'(cw_iarg e g 10 (aof cl)))) (if (!= rc35 1) (return rc35)))
+          (set ($ cw_decl floating attachTo) (cast Clay_FloatingAttachToElement to))
+          (set ($ cw_decl floating parentId) (cast u32 parent))
+          (set ($ cw_decl floating offset) (cw_vec (nth 0 f) (nth 1 f)))
+          (set ($ cw_decl floating expand width) (cast float (nth 2 f)))
+          (set ($ cw_decl floating expand height) (cast float (nth 3 f)))
+          (set ($ cw_decl floating zIndex) (cast i16 z))
+          (set ($ cw_decl floating attachPoints element) (cast Clay_FloatingAttachPointType ae))
+          (set ($ cw_decl floating attachPoints parent) (cast Clay_FloatingAttachPointType ap))
+          (set ($ cw_decl floating pointerCaptureMode) (cast Clay_PointerCaptureMode cap))
+          (set ($ cw_decl floating clipTo) (cast Clay_FloatingClipToElement cl))
+          (return 1)))
+
+  (func clay_p_configure ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc36 . #'(cw_need_frame e "clay_configure"))) (if (!= rc36 1) (return rc36)))
+        (Clay__ConfigureOpenElementPtr (aof cw_decl))
+        (return 1))
+
+  (func clay_p_close ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc37 . #'(cw_need_frame e "clay_close"))) (if (!= rc37 1) (return rc37)))
+        (Clay__CloseElement)
+        (return 1))
+
+  ;;; A text element: the content into the arena, the config as a value
+  ;;; Clay stores for the frame.
+  (func clay_p_text ((coco_engine * e) (size_t g)) (out int)
+        (let ((char text [16384]) (i64 font . 0) (i64 size . 0) (double c [4])
+              (i64 spacing . 0) (i64 lh . 0) (i64 wrap . 0) (i64 align . 0)
+              (size_t n . 0) (char * p . nil)
+              (Clay_TextElementConfig tc . '{ 0 }))
+          (let ((int rc38 . #'(cw_need_frame e "clay_text"))) (if (!= rc38 1) (return rc38)))
+          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
+              (return (coco_m_type_error e "text" (coco_m_arg e g 0))))
+          (let ((int rc39 . #'(cw_iarg e g 1 (aof font)))) (if (!= rc39 1) (return rc39)))
+          (let ((int rc40 . #'(cw_iarg e g 2 (aof size)))) (if (!= rc40 1) (return rc40)))
+          (let ((int rc41 . #'(cw_four e g 3 c))) (if (!= rc41 1) (return rc41)))
+          (let ((int rc42 . #'(cw_iarg e g 7 (aof spacing)))) (if (!= rc42 1) (return rc42)))
+          (let ((int rc43 . #'(cw_iarg e g 8 (aof lh)))) (if (!= rc43 1) (return rc43)))
+          (let ((int rc44 . #'(cw_iarg e g 9 (aof wrap)))) (if (!= rc44 1) (return rc44)))
+          (let ((int rc45 . #'(cw_iarg e g 10 (aof align)))) (if (!= rc45 1) (return rc45)))
+          (if (or (< wrap 0) (> wrap 2))
+              (return (coco_m_domain_error e "clay_wrap" (coco_m_arg e g 9))))
+          (if (or (< align 0) (> align 2))
+              (return (coco_m_domain_error e "clay_text_align" (coco_m_arg e g 10))))
+          (set n (strlen text))
+          (set p (cw_arena_text text n))
+          (if (== p nil) (return (coco_m_error e "clay_text" "no memory for the text")))
+          (set ($ tc textColor) (cw_color c))
+          (set ($ tc fontId) (cast u16 font))
+          (set ($ tc fontSize) (cast u16 size))
+          (set ($ tc letterSpacing) (cast u16 spacing))
+          (set ($ tc lineHeight) (cast u16 lh))
+          (set ($ tc wrapMode) (cast Clay_TextElementConfigWrapMode wrap))
+          (set ($ tc textAlignment) (cast Clay_TextAlignment align))
+          (Clay__OpenTextElement (cw_str p (cast long n)) (Clay__StoreTextElementConfig tc))
+          (return 1)))
+
+  ;;; ---- the commands back, as rows ----
+  ;;;
+  ;;; Built from the last command to the first so each cons is onto a list
+  ;;; already made; a row is an array of cells handed to coco_m_list. A
+  ;;; color comes back as the integer it went in as, a coordinate as the
+  ;;; float Clay computed.
+  ;;;
+  ;;; Clay computes in single precision, so a text 100.8 wide comes back as
+  ;;; 100.800003051758 through a double; a thousandth of a pixel is where
+  ;;; the truth ends, and rounding there is what lets a test pin 100.8.
+  (static)
+  (func cw_round3 ((double x)) (out double)
+        (return (/ (floor (+ (* x 1000.0) 0.5)) 1000.0)))
+
+  (static)
+  (func cw_put_color ((coco_engine * e) (Clay_Color c) (size_t * items) (int at)) (out void)
+        (set (nth at items) (coco_m_new_int e (cast i64 (+ ($ c r) 0.5))))
+        (set (nth (+ at 1) items) (coco_m_new_int e (cast i64 (+ ($ c g) 0.5))))
+        (set (nth (+ at 2) items) (coco_m_new_int e (cast i64 (+ ($ c b) 0.5))))
+        (set (nth (+ at 3) items) (coco_m_new_int e (cast i64 (+ ($ c a) 0.5)))))
+
+  (static)
+  (func cw_put_corners ((coco_engine * e) (Clay_CornerRadius c) (size_t * items) (int at)) (out void)
+        (set (nth at items) (coco_m_new_float e (cw_round3 ($ c topLeft))))
+        (set (nth (+ at 1) items) (coco_m_new_float e (cw_round3 ($ c topRight))))
+        (set (nth (+ at 2) items) (coco_m_new_float e (cw_round3 ($ c bottomLeft))))
+        (set (nth (+ at 3) items) (coco_m_new_float e (cw_round3 ($ c bottomRight)))))
+
+  (static)
+  (func cw_put_box ((coco_engine * e) (Clay_BoundingBox b) (size_t * items) (int at)) (out void)
+        (set (nth at items) (coco_m_new_float e (cw_round3 ($ b x))))
+        (set (nth (+ at 1) items) (coco_m_new_float e (cw_round3 ($ b y))))
+        (set (nth (+ at 2) items) (coco_m_new_float e (cw_round3 ($ b width))))
+        (set (nth (+ at 3) items) (coco_m_new_float e (cw_round3 ($ b height)))))
+
+  (static)
+  (func cw_codes ((coco_engine * e) (const char * s) (long n)) (out size_t)
+        (let ((size_t lst . #'(coco_m_nil e)))
+          (for ((long i . n)) (> i 0) ((-- i))
+               (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (bitand (cast int (nth (- i 1) s)) 255))) lst)))
+          (return lst)))
+
+  ;;; The term an image or a custom element carried, read back from the
+  ;;; text it went across as; `none' if nothing was there.
+  (static)
+  (func cw_data_term ((coco_engine * e) (void * data)) (out size_t)
+        (let ((size_t term . 0))
+          (if (!= data nil) (set term (coco_m_read_term e (cast (const char *) data))))
+          (if (== term 0) (set term (coco_m_new_atom e "none")))
+          (return term)))
+
+  ;;; One command as a row, or 0 for a kind nothing draws.
+  (static)
+  (func cw_row ((coco_engine * e) (long i)) (out size_t)
+        (let ((Clay_RenderCommand * c . #'(Clay_RenderCommandArray_Get (aof cw_cmds) (cast i32 i)))
+              (int kind . #'(cast int (-> c commandType)))
+              (size_t items [20]) (int n . 0))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_NONE) (return 0))
+          (set (nth 1 items) (coco_m_new_int e (cast i64 (-> c id))))
+          (cw_put_box e (-> c boundingBox) items 2)
+          (set n 6)
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_RECTANGLE)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "rect"))
+               (cw_put_color e ($ (cof c) renderData rectangle backgroundColor) items 6)
+               (cw_put_corners e ($ (cof c) renderData rectangle cornerRadius) items 10)
+               (set n 14)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_BORDER)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "border"))
+               (cw_put_color e ($ (cof c) renderData border color) items 6)
+               (cw_put_corners e ($ (cof c) renderData border cornerRadius) items 10)
+               (set (nth 14 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData border width left))))
+               (set (nth 15 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData border width right))))
+               (set (nth 16 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData border width top))))
+               (set (nth 17 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData border width bottom))))
+               (set (nth 18 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData border width betweenChildren))))
+               (set n 19)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_TEXT)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "text"))
+               (cw_put_color e ($ (cof c) renderData text textColor) items 6)
+               (set (nth 10 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData text fontId))))
+               (set (nth 11 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData text fontSize))))
+               (set (nth 12 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData text letterSpacing))))
+               (set (nth 13 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData text lineHeight))))
+               (set (nth 14 items) (cw_codes e ($ (cof c) renderData text stringContents chars)
+                                             (cast long ($ (cof c) renderData text stringContents length))))
+               (set n 15)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_IMAGE)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "image"))
+               (cw_put_color e ($ (cof c) renderData image backgroundColor) items 6)
+               (cw_put_corners e ($ (cof c) renderData image cornerRadius) items 10)
+               (set (nth 14 items) (cw_data_term e ($ (cof c) renderData image imageData)))
+               (set n 15)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_CUSTOM)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "custom"))
+               (cw_put_color e ($ (cof c) renderData custom backgroundColor) items 6)
+               (cw_put_corners e ($ (cof c) renderData custom cornerRadius) items 10)
+               (set (nth 14 items) (cw_data_term e ($ (cof c) renderData custom customData)))
+               (set n 15)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_SCISSOR_START)
+              (block
+               (set (nth 0 items) (coco_m_new_atom e "scissor_start"))
+               (set (nth 6 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData clip horizontal))))
+               (set (nth 7 items) (coco_m_new_int e (cast i64 ($ (cof c) renderData clip vertical))))
+               (set n 8)))
+          (if (== kind CLAY_RENDER_COMMAND_TYPE_SCISSOR_END)
+              (block (set (nth 0 items) (coco_m_new_atom e "scissor_end"))
+                     (set n 6)))
+          (if (> kind CLAY_RENDER_COMMAND_TYPE_CUSTOM) (return 0))
+          (return (coco_m_list e items (cast size_t n)))))
+
+  (func clay_p_end ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t lst . 0) (long n . 0))
+          (let ((int rc46 . #'(cw_need_frame e "clay_end"))) (if (!= rc46 1) (return rc46)))
+          (set cw_cmds (Clay_EndLayout))
+          (set cw_in_frame 0)
+          (if cw_err_set (return (coco_m_error e "clay" cw_err)))
+          (set lst (coco_m_nil e))
+          (set n (cast long ($ cw_cmds length)))
+          (for ((long i . #'(- n 1))) (>= i 0) ((-- i))
+               (let ((size_t row . #'(cw_row e i)))
+                 (if (!= row 0) (set lst (coco_m_cons e row lst)))))
+          (return (coco_m_unify e (coco_m_arg e g 0) lst))))
+
+  ;;; A frame given up half way -- the tree threw -- is left where it stands
+  ;;; for the next begin to reset; what this does is stop the element
+  ;;; predicates from adding to it in the meantime.
+  (func clay_p_abort ((coco_engine * e) (size_t g)) (out int)
+        (set cw_in_frame 0)
+        (return 1))
+
+  ;;; ---- the pointer and the wheel, before a frame ----
+  (func clay_p_pointer ((coco_engine * e) (size_t g)) (out int)
+        (let ((double x . 0.0) (double y . 0.0) (i64 down . 0))
+          (let ((int rc47 . #'(cw_farg e g 0 (aof x)))) (if (!= rc47 1) (return rc47)))
+          (let ((int rc48 . #'(cw_farg e g 1 (aof y)))) (if (!= rc48 1) (return rc48)))
+          (let ((int rc49 . #'(cw_iarg e g 2 (aof down)))) (if (!= rc49 1) (return rc49)))
+          (let ((int rce . #'(cw_ensure e "clay_pointer"))) (if (!= rce 1) (return rce)))
+          (Clay_SetPointerState (cw_vec x y) (!= down 0))
+          (return 1)))
+
+  (func clay_p_scroll ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 drag . 0) (double dx . 0.0) (double dy . 0.0) (double dt . 0.0))
+          (let ((int rc50 . #'(cw_iarg e g 0 (aof drag)))) (if (!= rc50 1) (return rc50)))
+          (let ((int rc51 . #'(cw_farg e g 1 (aof dx)))) (if (!= rc51 1) (return rc51)))
+          (let ((int rc52 . #'(cw_farg e g 2 (aof dy)))) (if (!= rc52 1) (return rc52)))
+          (let ((int rc53 . #'(cw_farg e g 3 (aof dt)))) (if (!= rc53 1) (return rc53)))
+          (let ((int rce . #'(cw_ensure e "clay_scroll"))) (if (!= rce 1) (return rce)))
+          (Clay_UpdateScrollContainers (!= drag 0) (cw_vec dx dy) (cast float dt))
+          (return 1)))
+
+  ;;; An id's three parts as arguments FROM, for the queries about one.
+  (static)
+  (func cw_id_args ((coco_engine * e) (size_t g) (int from) (char * name) (size_t cap)
+                    (i64 * index) (i64 * local)) (out int)
+        (if (not (coco_m_text e (coco_m_arg e g (cast size_t from)) name cap))
+            (return (coco_m_type_error e "atom" (coco_m_arg e g (cast size_t from)))))
+        (let ((int rc54 . #'(cw_iarg e g (+ from 1) index))) (if (!= rc54 1) (return rc54)))
+        (let ((int rc55 . #'(cw_iarg e g (+ from 2) local))) (if (!= rc55 1) (return rc55)))
+        (return 1))
+
+  (func clay_p_over ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (i64 index . 0) (i64 local . 0))
+          (let ((int rc56 . #'(cw_id_args e g 0 name (sizeof name) (aof index) (aof local))))
+            (if (!= rc56 1) (return rc56)))
+          (if cw_reinit (return 0))
+          (if (Clay_PointerOver (cw_id name (cast long (strlen name)) (cast long index) (cast long local)))
+              (return 1))
+          (return 0)))
+
+  (func clay_p_hovered ((coco_engine * e) (size_t g)) (out int)
+        (if cw_reinit (return 0))
+        (if (not cw_in_frame) (return 0))
+        (if (Clay_PointerOver cw_last_id) (return 1))
+        (return 0))
+
+  (func clay_p_box ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (i64 index . 0) (i64 local . 0)
+              (Clay_ElementData d . '{ 0 }))
+          (let ((int rc57 . #'(cw_id_args e g 0 name (sizeof name) (aof index) (aof local))))
+            (if (!= rc57 1) (return rc57)))
+          (if cw_reinit (return 0))
+          (set d (Clay_GetElementData (cw_id name (cast long (strlen name)) (cast long index) (cast long local))))
+          (if (not ($ d found)) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 3) (cw_round3 ($ d boundingBox x)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 4) (cw_round3 ($ d boundingBox y)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 5) (cw_round3 ($ d boundingBox width)))) (return 0))
+          (return (coco_m_unify_float e (coco_m_arg e g 6) (cw_round3 ($ d boundingBox height))))))
+
+  (func clay_p_scroll_data ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (i64 index . 0) (i64 local . 0)
+              (Clay_ScrollContainerData d . '{ 0 }))
+          (let ((int rc58 . #'(cw_id_args e g 0 name (sizeof name) (aof index) (aof local))))
+            (if (!= rc58 1) (return rc58)))
+          (if cw_reinit (return 0))
+          (set d (Clay_GetScrollContainerData (cw_id name (cast long (strlen name)) (cast long index) (cast long local))))
+          (if (not ($ d found)) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 3) (cw_round3 (-> ($ d scrollPosition) x)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 4) (cw_round3 (-> ($ d scrollPosition) y)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 5) (cw_round3 ($ d scrollContainerDimensions width)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 6) (cw_round3 ($ d scrollContainerDimensions height)))) (return 0))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 7) (cw_round3 ($ d contentDimensions width)))) (return 0))
+          (return (coco_m_unify_float e (coco_m_arg e g 8) (cw_round3 ($ d contentDimensions height))))))
+
+  ;;; ---- a font's metrics: `$clay_font'(Id, Base, Advances) ----
+  (func clay_p_font ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 id . 0) (double base . 0.0) (size_t * items . nil) (size_t n . 0)
+              (double total . 0.0) (int f . 0))
+          (let ((int rc59 . #'(cw_iarg e g 0 (aof id)))) (if (!= rc59 1) (return rc59)))
+          (let ((int rc60 . #'(cw_farg e g 1 (aof base)))) (if (!= rc60 1) (return rc60)))
+          (if (or (< id 0) (>= id 16))
+              (return (coco_m_domain_error e "clay_font_id" (coco_m_arg e g 0))))
+          (if (<= base 0.0)
+              (return (coco_m_domain_error e "clay_font_base" (coco_m_arg e g 1))))
+          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof items) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 2))))
+          (if (== n 0)
+              (return (coco_m_domain_error e "clay_font_advances" (coco_m_arg e g 2))))
+          (set f (cast int id))
+          (for ((size_t j . 0)) (< j n) ((++ j))
+               (let ((double a . 0.0) (i64 ai . 0))
+                 (if (coco_m_int e (nth j items) (aof ai))
+                     (set a (cast double ai))
+                   (if (not (coco_m_float e (nth j items) (aof a)))
+                       (let ((size_t bad . #'(nth j items)))
+                         (free items)
+                         (return (coco_m_type_error e "number" bad)))))
+                 (if (< j 224) (set (nth j (nth f cw_font_adv)) a))
+                 (set total (+ total a))))
+          (free items)
+          (set (nth f cw_font_mean) (/ total (cast double n)))
+          (for ((size_t j . n)) (< j 224) ((++ j))
+               (set (nth j (nth f cw_font_adv)) (nth f cw_font_mean)))
+          (set (nth f cw_font_base) base)
+          (set (nth f cw_font_set) 1)
+          (return 1)))
+
+  (static) (coco-emit-module-dispatch clay_dispatch *clay-predicates*)
+
+  (coco-deflibrary "clay" clay_dispatch *clay-prolog*)
+  ) ; source

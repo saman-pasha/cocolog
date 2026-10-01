@@ -95,6 +95,23 @@
 (decl) (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *))
 (decl) (func coco_m_read_term ((coco_engine * e) (const char * src)) (out size_t))
 
+;;; THREE ENTRIES ADDED FOR library(stream), ABI version unchanged: a
+;;; module that calls one needs an interpreter at least this new, and on an
+;;; older one dlopen refuses it naming the symbol. lib/module.cicili says
+;;; what each answers.
+;;;
+;;; The name of an atom (ARITY 0) or a compound, null otherwise. With
+;;; `coco_m_arg', which walks any compound, a module can take a term apart.
+(decl) (func coco_m_functor ((coco_engine * e) (size_t t) (u32 * arity)) (out const char *))
+;;; One clause, as consult reads it, with NAMES a list of 'Name'=Var: 1
+;;; read, 0 nothing but layout and comments, -1 a syntax error in ERR.
+(decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
+                                 (size_t * names) (char * err) (size_t errlen)) (out int))
+;;; An output sink the module owns: asked first by format/3 and
+;;; with_output_to/2; answers 1 took it, 0 not mine, 2 raised.
+(decl) (func coco_m_sink_install
+             ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))))
+
 ;;; A GOAL ON A MACHINE OF ITS OWN -- what library(thread) runs on a new
 ;;; thread. Here rather than in a module because `coco_engine' is opaque to
 ;;; one: a module cannot declare an engine, let alone make three. The

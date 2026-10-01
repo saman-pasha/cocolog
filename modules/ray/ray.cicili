@@ -23,16 +23,22 @@
 ;;;; or `rgba(R,G,B,A)' terms, keys are names (`ray_key_down(space)'),
 ;;;; and the resolvers are clauses where they read better as clauses.
 ;;;;
-;;;; WHY THE SHIMS EXIST -- the one raw-C block below. raylib passes
-;;;; small structs BY VALUE: every draw call takes a `Color', the 3D
-;;;; block takes a `Camera3D'. Cicili can declare a foreign function
-;;;; (`(decl) (func ...)') but describing those structs to it would EMIT
-;;;; a second definition beside raylib.h's, which does not compile. So
-;;;; each by-value call gets a one-line C wrapper that takes scalars and
-;;;; builds the struct at the call site -- the fire escape used for what
-;;;; it is for: a thing lib/std/c genuinely does not declare, one line
-;;;; each, no logic in it. Everything raylib offers over plain scalars is
-;;;; declared to Cicili directly and called from Cicili.
+;;;; RAYLIB IS DECLARED, NOT PASTED. raylib passes small structs BY
+;;;; VALUE -- every draw call takes a `Color', the 3D block a `Camera3D',
+;;;; a sprite a `Rectangle' -- and for a long time this file said that
+;;;; describing those structs to Cicili would emit a second definition
+;;;; beside raylib.h's, and carried forty-odd one-line C wrappers in
+;;;; `(code "...")' to build them at the call site. That was wrong, and
+;;;; the owner said so: a `(decl) (struct ...)' in a BINDING emits
+;;;; nothing and only teaches inference the shape, which is exactly how
+;;;; lib/std/c declares `sockaddr_in' and lib/net/curl.cicili declares
+;;;; libcurl. `./binding.cicili' is that file for raylib -- the ten value
+;;;; types and every entry point this module reaches, offered to the
+;;;; Cicili tree as a `lib/c/raylib.cicili' -- and the C half below is
+;;;; Cicili throughout: a Color is `(ray_color c)', a camera is a
+;;;; `Camera3D' local set field by field, and raylib is called by name
+;;;; with the compiler checking every call against raylib.h. There is no
+;;;; `(code ...)' left in this file.
 ;;;;
 ;;;; HEADLESS IS A FIRST-CLASS ARRANGEMENT, because the suite runs where
 ;;;; there is no screen: `ray_screenshot/1' writes the framebuffer to a
@@ -58,7 +64,7 @@
 ;;;; context that owned them goes with the window.
 ;;;;
 ;;;; WHAT IS NOT HERE YET, honestly: models from files, sound, gamepads,
-;;;; shaders, text measuring. The surface below is the loop, 2D shapes
+;;;; shaders. The surface below is the loop, 2D shapes
 ;;;; and text, textures and a canvas, a 3D camera with primitives,
 ;;;; keyboard and mouse -- enough to write a real game as clauses, and
 ;;;; each absence is a predicate away rather than a redesign.
@@ -73,6 +79,7 @@
 ;;;;   ray_close/0
 ;;;;   ray_closing/0                                      WindowShouldClose: the loop's exit
 ;;;;   ray_ready/0
+;;;;   ray_screen_size(-W, -H)                            GetScreenWidth/Height: the window's, in the units ray_rect draws in
 ;;;;   ray_fps(+Target)                                   SetTargetFPS
 ;;;;   ray_begin/0                                        a frame is what happens between
 ;;;;   ray_end/0                                          ... these two
@@ -84,6 +91,11 @@
 ;;;;   ray_poly(+X, +Y, +Sides, +Radius, +Rotation, +Color)        regular, filled
 ;;;;   ray_poly_lines(+X, +Y, +Sides, +Radius, +Rotation, +Color)  its outline
 ;;;;   ray_text(+Text, +X, +Y, +Size, +Color)
+;;;;   ray_text_ex(+Text, +X, +Y, +Size, +Spacing, +Color)     DrawTextEx: the default font, floats, a spacing you choose
+;;;;   ray_text_width(+Text, +Size, -Width)               MeasureText, as ray_text draws it; after ray_open
+;;;;   ray_rect_rounded(+X, +Y, +W, +H, +Roundness, +Segments, +Color)   DrawRectangleRounded: Roundness 0..1 of the short side
+;;;;   ray_scissor_begin(+X, +Y, +W, +H)                 clip every draw to this box ...
+;;;;   ray_scissor_end/0                                  ... until here
 ;;;;   ray_draw_fps(+X, +Y)
 ;;;;   ray_begin3d(+PX, +PY, +PZ, +TX, +TY, +TZ, +Fov)    a camera at P looking at T
 ;;;;   ray_end3d/0
@@ -96,6 +108,7 @@
 ;;;;   ray_mouse(-X, -Y)
 ;;;;   ray_mouse_down(+Button)                            left, right, middle -- HELD, level
 ;;;;   ray_mouse_pressed(+Button)                         went down THIS frame -- edge
+;;;;   ray_mouse_wheel(-X, -Y)                            GetMouseWheelMoveV: this frame's notches, floats
 ;;;;   ray_frame_time(-Seconds)                           the last frame's
 ;;;;   ray_time(-Seconds)                                 since the window opened
 ;;;;   ray_screenshot(+Path)                              the framebuffer as a PNG, at that path
@@ -129,6 +142,7 @@
     ("ray_close"       0 ray_p_close)
     ("ray_closing"     0 ray_p_closing)
     ("ray_ready"       0 ray_p_ready)
+    ("ray_screen_size" 2 ray_p_screen_size)
     ("ray_fps"         1 ray_p_fps)
     ("ray_begin"       0 ray_p_begin)
     ("ray_end"         0 ray_p_end)
@@ -140,6 +154,11 @@
     ("$ray_poly"       9 ray_p_poly)
     ("$ray_poly_lines" 9 ray_p_poly_lines)
     ("$ray_text"       8 ray_p_text)
+    ("$ray_text_ex"    9 ray_p_text_ex)
+    ("ray_text_width"  3 ray_p_text_width)
+    ("$ray_rect_rounded" 10 ray_p_rect_rounded)
+    ("ray_scissor_begin" 4 ray_p_scissor_begin)
+    ("ray_scissor_end"   0 ray_p_scissor_end)
     ("ray_draw_fps"    2 ray_p_draw_fps)
     ("ray_begin3d"     7 ray_p_begin3d)
     ("ray_end3d"       0 ray_p_end3d)
@@ -150,6 +169,7 @@
     ("$ray_key_down"    1 ray_p_key_down)
     ("$ray_key_pressed" 1 ray_p_key_pressed)
     ("ray_mouse"       2 ray_p_mouse)
+    ("ray_mouse_wheel" 2 ray_p_mouse_wheel)
     ("$ray_mouse_down" 1 ray_p_mouse_down)
     ("$ray_mouse_pressed" 1 ray_p_mouse_pressed)
     ("ray_frame_time"  1 ray_p_frame_time)
@@ -227,6 +247,8 @@
            "ray_poly(X, Y, Sides, Radius, Rot, C) :- ray_rgba(C, R, G, B, A), '$ray_poly'(X, Y, Sides, Radius, Rot, R, G, B, A)."
            "ray_poly_lines(X, Y, Sides, Radius, Rot, C) :- ray_rgba(C, R, G, B, A), '$ray_poly_lines'(X, Y, Sides, Radius, Rot, R, G, B, A)."
            "ray_text(T, X, Y, Size, C) :- ray_rgba(C, R, G, B, A), '$ray_text'(T, X, Y, Size, R, G, B, A)."
+           "ray_text_ex(T, X, Y, Size, Sp, C) :- ray_rgba(C, R, G, B, A), '$ray_text_ex'(T, X, Y, Size, Sp, R, G, B, A)."
+           "ray_rect_rounded(X, Y, W, H, Rd, Segs, C) :- ray_rgba(C, R, G, B, A), '$ray_rect_rounded'(X, Y, W, H, Rd, Segs, R, G, B, A)."
            "ray_cube(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube'(X, Y, Z, W, H, L, R, G, B, A)."
            "ray_cube_wires(X, Y, Z, W, H, L, C) :- ray_rgba(C, R, G, B, A), '$ray_cube_wires'(X, Y, Z, W, H, L, R, G, B, A)."
            "ray_sphere(X, Y, Z, Rad, C) :- ray_rgba(C, R, G, B, A), '$ray_sphere'(X, Y, Z, Rad, R, G, B, A)."
@@ -280,122 +302,17 @@
 
   (include <raylib.h>)
 
+  ;;; raylib's types and entry points, declared to Cicili in
+  ;;; ./binding.cicili: a Color, a Vector2, a Camera3D and a Texture2D
+  ;;; are values here, built with `$' and passed by value exactly as
+  ;;; raylib.h takes them. The binding EMITS nothing -- raylib.h stays
+  ;;; the one definition -- and the compiler checks every call against
+  ;;; the real prototypes.
+  (import "./binding.cicili")
   (import "./sdk.cicili")
   (coco-sdk)
 
-  ;;; THE FIRE ESCAPE, used for what it is for. raylib passes Color,
-  ;;; Camera3D, Texture2D, Rectangle and Image BY VALUE; describing them
-  ;;; to Cicili would emit a second struct definition beside raylib.h's.
-  ;;; One wrapper per by-value call, one line each, scalars in, no logic
-  ;;; -- and the bool-returning queries beside them, because C's _Bool in
-  ;;; a prototype is a type Cicili does not spell. Everything else is
-  ;;; declared to Cicili below and called from Cicili.
-  ;;;
-  ;;; THE TEXTURE TABLE LIVES HERE TOO, because its rows are by-value
-  ;;; structs -- but only the rows. Which slot is free, what kind it
-  ;;; holds and whether a draw needs the flip are decided in Cicili, in
-  ;;; `ray_tex_kind' and the helpers under it; the C below indexes.
-  (code "static inline Color rw_c(long r, long g, long b, long a) { Color c = { (unsigned char)r, (unsigned char)g, (unsigned char)b, (unsigned char)a }; return c; }")
-  (code "void rw_clear(long r, long g, long b, long a) { ClearBackground(rw_c(r,g,b,a)); }")
-  (code "void rw_rect(long x, long y, long w, long h, long r, long g, long b, long a) { DrawRectangle((int)x,(int)y,(int)w,(int)h, rw_c(r,g,b,a)); }")
-  (code "void rw_circle(long x, long y, double rad, long r, long g, long b, long a) { DrawCircle((int)x,(int)y,(float)rad, rw_c(r,g,b,a)); }")
-  (code "void rw_line(long x1, long y1, long x2, long y2, long r, long g, long b, long a) { DrawLine((int)x1,(int)y1,(int)x2,(int)y2, rw_c(r,g,b,a)); }")
-  (code "void rw_pixel(long x, long y, long r, long g, long b, long a) { DrawPixel((int)x,(int)y, rw_c(r,g,b,a)); }")
-  (code "void rw_text(const char * t, long x, long y, long size, long r, long g, long b, long a) { DrawText(t,(int)x,(int)y,(int)size, rw_c(r,g,b,a)); }")
-  (code "void rw_begin3d(double px, double py, double pz, double tx, double ty, double tz, double fov) { Camera3D cam = { { (float)px,(float)py,(float)pz }, { (float)tx,(float)ty,(float)tz }, { 0.0f, 1.0f, 0.0f }, (float)fov, CAMERA_PERSPECTIVE }; BeginMode3D(cam); }")
-  (code "void rw_cube(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCube(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
-  (code "void rw_cube_wires(double x, double y, double z, double w, double h, double l, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawCubeWires(p,(float)w,(float)h,(float)l, rw_c(r,g,b,a)); }")
-  (code "void rw_sphere(double x, double y, double z, double rad, long r, long g, long b, long a) { Vector3 p = { (float)x,(float)y,(float)z }; DrawSphere(p,(float)rad, rw_c(r,g,b,a)); }")
-  (code "void rw_poly(double x, double y, long sides, double radius, double rot, long r, long g, long b, long a) { Vector2 c = { (float)x, (float)y }; DrawPoly(c, (int)sides, (float)radius, (float)rot, rw_c(r,g,b,a)); }")
-  (code "void rw_poly_lines(double x, double y, long sides, double radius, double rot, long r, long g, long b, long a) { Vector2 c = { (float)x, (float)y }; DrawPolyLines(c, (int)sides, (float)radius, (float)rot, rw_c(r,g,b,a)); }")
-  (code "int rw_should_close(void) { return WindowShouldClose(); }")
-  (code "int rw_ready(void) { return IsWindowReady(); }")
-  (code "int rw_key_down(long k) { return IsKeyDown((int)k); }")
-  (code "int rw_key_pressed(long k) { return IsKeyPressed((int)k); }")
-  (code "int rw_mouse_down(long b) { return IsMouseButtonDown((int)b); }")
-  (code "int rw_mouse_pressed(long b) { return IsMouseButtonPressed((int)b); }")
-  (code "int rw_screenshot(const char * path) { Image img = LoadImageFromScreen(); int ok = ExportImage(img, path); UnloadImage(img); return ok; }")
-  (code "int rw_file_exists(const char * path) { return FileExists(path); }")
-  (code "static Texture2D rw_tex[256]; static RenderTexture2D rw_rt[256]; static Image rw_shot;")
-  (code "int rw_tex_load(long s, const char * path) { Texture2D t = LoadTexture(path); rw_tex[s] = t; return t.id > 0 && t.width > 0 && t.height > 0; }")
-  (code "void rw_tex_unload(long s) { UnloadTexture(rw_tex[s]); }")
-  (code "int rw_canvas_load(long s, long w, long h) { RenderTexture2D r = LoadRenderTexture((int)w, (int)h); rw_rt[s] = r; rw_tex[s] = r.texture; return r.id > 0 && r.texture.id > 0; }")
-  (code "void rw_canvas_unload(long s) { UnloadRenderTexture(rw_rt[s]); }")
-  (code "void rw_canvas_begin(long s) { BeginTextureMode(rw_rt[s]); }")
-  (code "long rw_tex_width(long s) { return rw_tex[s].width; }")
-  (code "long rw_tex_height(long s) { return rw_tex[s].height; }")
-  (code "void rw_tex_filter(long s, long f) { SetTextureFilter(rw_tex[s], (int)f); }")
-  (code "void rw_tex_wrap(long s, long w) { SetTextureWrap(rw_tex[s], (int)w); }")
-  (code "void rw_texture(long s, long x, long y, long r, long g, long b, long a) { DrawTexture(rw_tex[s], (int)x, (int)y, rw_c(r,g,b,a)); }")
-  (code "void rw_texture_ex(long s, double x, double y, double rot, double scale, long r, long g, long b, long a) { Vector2 p = { (float)x, (float)y }; DrawTextureEx(rw_tex[s], p, (float)rot, (float)scale, rw_c(r,g,b,a)); }")
-  (code "void rw_sprite(long s, double sx, double sy, double sw, double sh, double x, double y, long r, long g, long b, long a) { Rectangle src = { (float)sx, (float)sy, (float)sw, (float)sh }; Vector2 p = { (float)x, (float)y }; DrawTextureRec(rw_tex[s], src, p, rw_c(r,g,b,a)); }")
-  (code "void rw_sprite_ex(long s, double sx, double sy, double sw, double sh, double dx, double dy, double dw, double dh, double ox, double oy, double rot, long r, long g, long b, long a) { Rectangle src = { (float)sx, (float)sy, (float)sw, (float)sh }; Rectangle dst = { (float)dx, (float)dy, (float)dw, (float)dh }; Vector2 o = { (float)ox, (float)oy }; DrawTexturePro(rw_tex[s], src, dst, o, (float)rot, rw_c(r,g,b,a)); }")
-  (code "void rw_shot_take(void) { rw_shot = LoadImageFromScreen(); }")
-  (code "void rw_shot_drop(void) { UnloadImage(rw_shot); }")
-  (code "long rw_shot_width(void) { return rw_shot.width; }")
-  (code "long rw_shot_height(void) { return rw_shot.height; }")
-  (code "void rw_shot_color(long x, long y, long * out) { Color c = GetImageColor(rw_shot, (int)x, (int)y); out[0] = c.r; out[1] = c.g; out[2] = c.b; out[3] = c.a; }")
-
-  ;;; The shims, declared to Cicili so it can emit calls to them.
-  (decl) (func rw_clear ((long r) (long g) (long b) (long a)))
-  (decl) (func rw_rect ((long x) (long y) (long w) (long h) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_circle ((long x) (long y) (double rad) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_line ((long x1) (long y1) (long x2) (long y2) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_pixel ((long x) (long y) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_text ((const char * t) (long x) (long y) (long size) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_begin3d ((double px) (double py) (double pz) (double tx) (double ty) (double tz) (double fov)))
-  (decl) (func rw_cube ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_cube_wires ((double x) (double y) (double z) (double w) (double h) (double l) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_sphere ((double x) (double y) (double z) (double rad) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_poly ((double x) (double y) (long sides) (double radius) (double rot) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_poly_lines ((double x) (double y) (long sides) (double radius) (double rot) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_should_close () (out int))
-  (decl) (func rw_ready () (out int))
-  (decl) (func rw_key_down ((long k)) (out int))
-  (decl) (func rw_key_pressed ((long k)) (out int))
-  (decl) (func rw_mouse_down ((long b)) (out int))
-  (decl) (func rw_mouse_pressed ((long b)) (out int))
-  (decl) (func rw_screenshot ((const char * path)) (out int))
-  (decl) (func rw_file_exists ((const char * path)) (out int))
-  (decl) (func rw_tex_load ((long s) (const char * path)) (out int))
-  (decl) (func rw_tex_unload ((long s)))
-  (decl) (func rw_canvas_load ((long s) (long w) (long h)) (out int))
-  (decl) (func rw_canvas_unload ((long s)))
-  (decl) (func rw_canvas_begin ((long s)))
-  (decl) (func rw_tex_width ((long s)) (out long))
-  (decl) (func rw_tex_height ((long s)) (out long))
-  (decl) (func rw_tex_filter ((long s) (long f)))
-  (decl) (func rw_tex_wrap ((long s) (long w)))
-  (decl) (func rw_texture ((long s) (long x) (long y) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_texture_ex ((long s) (double x) (double y) (double rot) (double scale) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_sprite ((long s) (double sx) (double sy) (double sw) (double sh) (double x) (double y) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_sprite_ex ((long s) (double sx) (double sy) (double sw) (double sh) (double dx) (double dy) (double dw) (double dh) (double ox) (double oy) (double rot) (long r) (long g) (long b) (long a)))
-  (decl) (func rw_shot_take ())
-  (decl) (func rw_shot_drop ())
-  (decl) (func rw_shot_width () (out long))
-  (decl) (func rw_shot_height () (out long))
-  (decl) (func rw_shot_color ((long x) (long y) (long * out)))
-
-  ;;; raylib's scalar surface, declared to Cicili and called directly --
-  ;;; the prototypes match raylib.h exactly, which the compiler checks.
-  (decl) (func InitWindow ((int width) (int height) (const char * title)))
-  (decl) (func CloseWindow ())
-  (decl) (func BeginDrawing ())
-  (decl) (func EndDrawing ())
-  (decl) (func EndMode3D ())
-  (decl) (func EndTextureMode ())
-  (decl) (func GetScreenWidth () (out int))
-  (decl) (func GetScreenHeight () (out int))
-  (decl) (func SetTargetFPS ((int fps)))
-  (decl) (func SetTraceLogLevel ((int level)))
-  (decl) (func DrawFPS ((int x) (int y)))
-  (decl) (func DrawGrid ((int slices) (float spacing)))
-  (decl) (func GetMouseX () (out int))
-  (decl) (func GetMouseY () (out int))
-  (decl) (func GetFrameTime () (out float))
-  (decl) (func GetTime () (out double))
-
-  ;;; ---- argument helpers, so 28 predicates stay one line per arg ----
+  ;;; ---- argument helpers, so the predicates stay one line per arg ----
   ;;;
   ;;; AND THE CALLER MUST PASS WHAT THESE ANSWER STRAIGHT THROUGH, because
   ;;; a raise is not a failure. `coco_m_type_error' answers **2** -- the
@@ -410,7 +327,7 @@
   ;;; than raising something `catch/3' could hold. The shape is
   ;;; `(let ((int rc . #'(ray_iarg ...))) (if (!= rc 1) (return rc)))',
   ;;; which carries 0 as a failure, 2 as a ball and -1 as an error, and
-  ;;; is what every one of the sixty-six guards says now.
+  ;;; is what every guard here says.
   ;;;
   ;;; An integer argument, or a type error that names the culprit.
   (static)
@@ -427,11 +344,68 @@
           (if (coco_m_float e (coco_m_arg e g (cast size_t i)) v) (return 1))
           (return (coco_m_type_error e "number" (coco_m_arg e g (cast size_t i))))))
 
+  ;;; Four integers from argument FROM on: a color's R, G, B and A, which
+  ;;; the Coco half resolved from a name or an rgb/rgba term.
+  (static)
+  (func ray_carg ((coco_engine * e) (size_t g) (int from) (i64 * c)) (out int)
+        (for ((int j . 0)) (< j 4) ((++ j))
+             (let ((int rc . #'(ray_iarg e g (+ from j) (+ c j))))
+               (if (!= rc 1) (return rc))))
+        (return 1))
+
+  ;;; raylib answers a C bool where the seam wants 1 or 0.
+  (static)
+  (func ray_yes ((bool b)) (out int)
+        (if b (return 1))
+        (return 0))
+
+  ;;; ---- raylib's value types, built as values ----
+  ;;;
+  ;;; Every draw call takes a Color BY VALUE, the 3D block a Camera3D, a
+  ;;; sprite a Rectangle and a Vector2. Four bytes make a color; a
+  ;;; program's integers are narrowed here and nowhere else.
+  (static)
+  (func ray_color ((i64 * c)) (out Color)
+        (let ((Color r . '{ 0 }))
+          (set ($ r r) (cast u8 (nth 0 c)))
+          (set ($ r g) (cast u8 (nth 1 c)))
+          (set ($ r b) (cast u8 (nth 2 c)))
+          (set ($ r a) (cast u8 (nth 3 c)))
+          (return r)))
+
+  (static)
+  (func ray_v2 ((double x) (double y)) (out Vector2)
+        (let ((Vector2 r . '{ 0 }))
+          (set ($ r x) (cast float x))
+          (set ($ r y) (cast float y))
+          (return r)))
+
+  (static)
+  (func ray_v3 ((double x) (double y) (double z)) (out Vector3)
+        (let ((Vector3 r . '{ 0 }))
+          (set ($ r x) (cast float x))
+          (set ($ r y) (cast float y))
+          (set ($ r z) (cast float z))
+          (return r)))
+
+  (static)
+  (func ray_rec ((double x) (double y) (double w) (double h)) (out Rectangle)
+        (let ((Rectangle r . '{ 0 }))
+          (set ($ r x) (cast float x))
+          (set ($ r y) (cast float y))
+          (set ($ r width) (cast float w))
+          (set ($ r height) (cast float h))
+          (return r)))
+
   ;;; ---- the texture table: a handle is a slot, and the slot knows its kind ----
   ;;; 0 is free, 1 a texture from a file, 2 a canvas. Zero as "free" is
   ;;; right here where tcp's table needed -1: a slot is not a descriptor,
-  ;;; and a static array of zeros is a table with nothing in it.
+  ;;; and a static array of zeros is a table with nothing in it. A canvas
+  ;;; keeps its RenderTexture in `ray_rt' AND its texture in `ray_tex',
+  ;;; so every draw reads one table whatever the kind.
   (static) (var int ray_tex_kind [256])
+  (static) (var Texture2D ray_tex [256])
+  (static) (var RenderTexture2D ray_rt [256])
 
   (static)
   (func ray_slot_new () (out int)
@@ -442,8 +416,8 @@
   ;;; Free a slot whatever it holds; a free one is left alone.
   (static)
   (func ray_slot_free ((int s)) (out void)
-        (if (== (nth s ray_tex_kind) 1) (rw_tex_unload (cast long s)))
-        (if (== (nth s ray_tex_kind) 2) (rw_canvas_unload (cast long s)))
+        (if (== (nth s ray_tex_kind) 1) (UnloadTexture (nth s ray_tex)))
+        (if (== (nth s ray_tex_kind) 2) (UnloadRenderTexture (nth s ray_rt)))
         (set (nth s ray_tex_kind) 0))
 
   ;;; The lookup every texture predicate goes through: argument I as a
@@ -472,7 +446,7 @@
   (func ray_source ((int s) (double * sy) (double * sh)) (out void)
         (if (== (nth s ray_tex_kind) 2)
             (block
-              (set (cof sy) (- (- (cast double (rw_tex_height (cast long s))) (cof sy)) (cof sh)))
+              (set (cof sy) (- (- (cast double ($ (nth s ray_tex) height)) (cof sy)) (cof sh)))
               (set (cof sh) (- 0.0 (cof sh))))))
 
   ;;; ---- the window and the frame ----
@@ -485,7 +459,7 @@
           (if (not (coco_m_text e (coco_m_arg e g 2) title (sizeof title)))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 2))))
           (InitWindow (cast int w) (cast int h) title)
-          (return (rw_ready))))
+          (return (ray_yes (IsWindowReady)))))
 
   ;;; The GL context goes with the window, and every texture with it: the
   ;;; slots are freed FIRST, while unloading is still a thing that can be
@@ -495,10 +469,18 @@
         (CloseWindow) (return 1))
 
   (func ray_p_closing ((coco_engine * e) (size_t g)) (out int)
-        (return (rw_should_close)))
+        (return (ray_yes (WindowShouldClose))))
 
   (func ray_p_ready ((coco_engine * e) (size_t g)) (out int)
-        (return (rw_ready)))
+        (return (ray_yes (IsWindowReady))))
+
+  ;;; The window's size in the coordinates a program draws in -- what a
+  ;;; layout wants before it lays out the frame. A HiDPI render is larger
+  ;;; and is `ray_screen_pixel''s business, not this one's.
+  (func ray_p_screen_size ((coco_engine * e) (size_t g)) (out int)
+        (if (not (coco_m_unify_int e (coco_m_arg e g 0) (cast i64 (GetScreenWidth))))
+            (return 0))
+        (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (GetScreenHeight)))))
 
   (func ray_p_fps ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0))
@@ -514,139 +496,130 @@
         (EndDrawing) (return 1))
 
   (func ray_p_clear ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 r . 0) (i64 gg . 0) (i64 b . 0) (i64 a . 0))
-          (let ((int rc5 . #'(ray_iarg e g 0 (aof r))))
+        (let ((i64 c [4]))
+          (let ((int rc5 . #'(ray_carg e g 0 c)))
             (if (!= rc5 1) (return rc5)))
-          (let ((int rc6 . #'(ray_iarg e g 1 (aof gg))))
-            (if (!= rc6 1) (return rc6)))
-          (let ((int rc7 . #'(ray_iarg e g 2 (aof b))))
-            (if (!= rc7 1) (return rc7)))
-          (let ((int rc8 . #'(ray_iarg e g 3 (aof a))))
-            (if (!= rc8 1) (return rc8)))
-          (rw_clear (cast long r) (cast long gg) (cast long b) (cast long a))
+          (ClearBackground (ray_color c))
           (return 1)))
 
   ;;; ---- 2D ----
   (func ray_p_rect ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 v [8]) (int i . 0))
-          (for ((int j . 0)) (< j 8) ((++ j))
+        (let ((i64 v [4]) (i64 c [4]))
+          (for ((int j . 0)) (< j 4) ((++ j))
                (let ((int rc9 . #'(ray_iarg e g j (+ v j))))
                  (if (!= rc9 1) (return rc9))))
-          (rw_rect (cast long (nth 0 v)) (cast long (nth 1 v))
-                   (cast long (nth 2 v)) (cast long (nth 3 v))
-                   (cast long (nth 4 v)) (cast long (nth 5 v))
-                   (cast long (nth 6 v)) (cast long (nth 7 v)))
+          (let ((int rc10 . #'(ray_carg e g 4 c)))
+            (if (!= rc10 1) (return rc10)))
+          (DrawRectangle (cast int (nth 0 v)) (cast int (nth 1 v))
+                         (cast int (nth 2 v)) (cast int (nth 3 v))
+                         (ray_color c))
           (return 1)))
 
   (func ray_p_circle ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 x . 0) (i64 y . 0) (double rad . 0.0) (i64 c [4]))
-          (let ((int rc10 . #'(ray_iarg e g 0 (aof x))))
-            (if (!= rc10 1) (return rc10)))
-          (let ((int rc11 . #'(ray_iarg e g 1 (aof y))))
+          (let ((int rc11 . #'(ray_iarg e g 0 (aof x))))
             (if (!= rc11 1) (return rc11)))
-          (let ((int rc12 . #'(ray_farg e g 2 (aof rad))))
+          (let ((int rc12 . #'(ray_iarg e g 1 (aof y))))
             (if (!= rc12 1) (return rc12)))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc13 . #'(ray_iarg e g (+ j 3) (+ c j))))
-                 (if (!= rc13 1) (return rc13))))
-          (rw_circle (cast long x) (cast long y) rad
-                     (cast long (nth 0 c)) (cast long (nth 1 c))
-                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (let ((int rc13 . #'(ray_farg e g 2 (aof rad))))
+            (if (!= rc13 1) (return rc13)))
+          (let ((int rc14 . #'(ray_carg e g 3 c)))
+            (if (!= rc14 1) (return rc14)))
+          (DrawCircle (cast int x) (cast int y) (cast float rad) (ray_color c))
           (return 1)))
 
   (func ray_p_line ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 v [8]))
-          (for ((int j . 0)) (< j 8) ((++ j))
-               (let ((int rc14 . #'(ray_iarg e g j (+ v j))))
-                 (if (!= rc14 1) (return rc14))))
-          (rw_line (cast long (nth 0 v)) (cast long (nth 1 v))
-                   (cast long (nth 2 v)) (cast long (nth 3 v))
-                   (cast long (nth 4 v)) (cast long (nth 5 v))
-                   (cast long (nth 6 v)) (cast long (nth 7 v)))
+        (let ((i64 v [4]) (i64 c [4]))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (let ((int rc15 . #'(ray_iarg e g j (+ v j))))
+                 (if (!= rc15 1) (return rc15))))
+          (let ((int rc16 . #'(ray_carg e g 4 c)))
+            (if (!= rc16 1) (return rc16)))
+          (DrawLine (cast int (nth 0 v)) (cast int (nth 1 v))
+                    (cast int (nth 2 v)) (cast int (nth 3 v))
+                    (ray_color c))
           (return 1)))
 
   (func ray_p_pixel ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 v [6]))
-          (for ((int j . 0)) (< j 6) ((++ j))
-               (let ((int rc15 . #'(ray_iarg e g j (+ v j))))
-                 (if (!= rc15 1) (return rc15))))
-          (rw_pixel (cast long (nth 0 v)) (cast long (nth 1 v))
-                    (cast long (nth 2 v)) (cast long (nth 3 v))
-                    (cast long (nth 4 v)) (cast long (nth 5 v)))
-          (return 1)))
-
-  (func ray_p_text ((coco_engine * e) (size_t g)) (out int)
-        (let ((char text [2048]) (i64 v [7]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (for ((int j . 0)) (< j 7) ((++ j))
-               (let ((int rc16 . #'(ray_iarg e g (+ j 1) (+ v j))))
-                 (if (!= rc16 1) (return rc16))))
-          (rw_text text (cast long (nth 0 v)) (cast long (nth 1 v))
-                   (cast long (nth 2 v)) (cast long (nth 3 v))
-                   (cast long (nth 4 v)) (cast long (nth 5 v))
-                   (cast long (nth 6 v)))
-          (return 1)))
-
-  (func ray_p_draw_fps ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 x . 0) (i64 y . 0))
+        (let ((i64 x . 0) (i64 y . 0) (i64 c [4]))
           (let ((int rc17 . #'(ray_iarg e g 0 (aof x))))
             (if (!= rc17 1) (return rc17)))
           (let ((int rc18 . #'(ray_iarg e g 1 (aof y))))
             (if (!= rc18 1) (return rc18)))
+          (let ((int rc19 . #'(ray_carg e g 2 c)))
+            (if (!= rc19 1) (return rc19)))
+          (DrawPixel (cast int x) (cast int y) (ray_color c))
+          (return 1)))
+
+  (func ray_p_text ((coco_engine * e) (size_t g)) (out int)
+        (let ((char text [2048]) (i64 v [3]) (i64 c [4]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (for ((int j . 0)) (< j 3) ((++ j))
+               (let ((int rc20 . #'(ray_iarg e g (+ j 1) (+ v j))))
+                 (if (!= rc20 1) (return rc20))))
+          (let ((int rc21 . #'(ray_carg e g 4 c)))
+            (if (!= rc21 1) (return rc21)))
+          (DrawText text (cast int (nth 0 v)) (cast int (nth 1 v)) (cast int (nth 2 v))
+                    (ray_color c))
+          (return 1)))
+
+  (func ray_p_draw_fps ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 x . 0) (i64 y . 0))
+          (let ((int rc22 . #'(ray_iarg e g 0 (aof x))))
+            (if (!= rc22 1) (return rc22)))
+          (let ((int rc23 . #'(ray_iarg e g 1 (aof y))))
+            (if (!= rc23 1) (return rc23)))
           (DrawFPS (cast int x) (cast int y))
           (return 1)))
 
+  ;;; A regular polygon: X Y Sides Radius Rotation, then the color. Both
+  ;;; predicates read the same nine arguments; only the raylib call
+  ;;; differs, so the reading is one helper.
+  (static)
+  (func ray_poly_args ((coco_engine * e) (size_t g) (double * p) (i64 * sides) (i64 * c)) (out int)
+        (let ((int rc24 . #'(ray_farg e g 0 (+ p 0))))
+          (if (!= rc24 1) (return rc24)))
+        (let ((int rc25 . #'(ray_farg e g 1 (+ p 1))))
+          (if (!= rc25 1) (return rc25)))
+        (let ((int rc26 . #'(ray_iarg e g 2 sides)))
+          (if (!= rc26 1) (return rc26)))
+        (let ((int rc27 . #'(ray_farg e g 3 (+ p 2))))
+          (if (!= rc27 1) (return rc27)))
+        (let ((int rc28 . #'(ray_farg e g 4 (+ p 3))))
+          (if (!= rc28 1) (return rc28)))
+        (return (ray_carg e g 5 c)))
+
   (func ray_p_poly ((coco_engine * e) (size_t g)) (out int)
-        (let ((double x . 0.0) (double y . 0.0) (i64 sides . 0)
-              (double rad . 0.0) (double rot . 0.0) (i64 c [4]))
-          (let ((int rc19 . #'(ray_farg e g 0 (aof x))))
-            (if (!= rc19 1) (return rc19)))
-          (let ((int rc20 . #'(ray_farg e g 1 (aof y))))
-            (if (!= rc20 1) (return rc20)))
-          (let ((int rc21 . #'(ray_iarg e g 2 (aof sides))))
-            (if (!= rc21 1) (return rc21)))
-          (let ((int rc22 . #'(ray_farg e g 3 (aof rad))))
-            (if (!= rc22 1) (return rc22)))
-          (let ((int rc23 . #'(ray_farg e g 4 (aof rot))))
-            (if (!= rc23 1) (return rc23)))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc24 . #'(ray_iarg e g (+ j 5) (+ c j))))
-                 (if (!= rc24 1) (return rc24))))
-          (rw_poly x y (cast long sides) rad rot
-                   (cast long (nth 0 c)) (cast long (nth 1 c))
-                   (cast long (nth 2 c)) (cast long (nth 3 c)))
+        (let ((double p [4]) (i64 sides . 0) (i64 c [4]))
+          (let ((int rc29 . #'(ray_poly_args e g p (aof sides) c)))
+            (if (!= rc29 1) (return rc29)))
+          (DrawPoly (ray_v2 (nth 0 p) (nth 1 p)) (cast int sides)
+                    (cast float (nth 2 p)) (cast float (nth 3 p)) (ray_color c))
           (return 1)))
 
   (func ray_p_poly_lines ((coco_engine * e) (size_t g)) (out int)
-        (let ((double x . 0.0) (double y . 0.0) (i64 sides . 0)
-              (double rad . 0.0) (double rot . 0.0) (i64 c [4]))
-          (let ((int rc25 . #'(ray_farg e g 0 (aof x))))
-            (if (!= rc25 1) (return rc25)))
-          (let ((int rc26 . #'(ray_farg e g 1 (aof y))))
-            (if (!= rc26 1) (return rc26)))
-          (let ((int rc27 . #'(ray_iarg e g 2 (aof sides))))
-            (if (!= rc27 1) (return rc27)))
-          (let ((int rc28 . #'(ray_farg e g 3 (aof rad))))
-            (if (!= rc28 1) (return rc28)))
-          (let ((int rc29 . #'(ray_farg e g 4 (aof rot))))
-            (if (!= rc29 1) (return rc29)))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc30 . #'(ray_iarg e g (+ j 5) (+ c j))))
-                 (if (!= rc30 1) (return rc30))))
-          (rw_poly_lines x y (cast long sides) rad rot
-                         (cast long (nth 0 c)) (cast long (nth 1 c))
-                         (cast long (nth 2 c)) (cast long (nth 3 c)))
+        (let ((double p [4]) (i64 sides . 0) (i64 c [4]))
+          (let ((int rc30 . #'(ray_poly_args e g p (aof sides) c)))
+            (if (!= rc30 1) (return rc30)))
+          (DrawPolyLines (ray_v2 (nth 0 p) (nth 1 p)) (cast int sides)
+                         (cast float (nth 2 p)) (cast float (nth 3 p)) (ray_color c))
           (return 1)))
 
   ;;; ---- 3D ----
+  ;;; A camera at P looking at T, up the Y axis, in perspective: the one
+  ;;; camera a game written as clauses has asked for so far.
   (func ray_p_begin3d ((coco_engine * e) (size_t g)) (out int)
-        (let ((double v [7]))
+        (let ((double v [7]) (Camera3D cam . '{ 0 }))
           (for ((int j . 0)) (< j 7) ((++ j))
                (let ((int rc31 . #'(ray_farg e g j (+ v j))))
                  (if (!= rc31 1) (return rc31))))
-          (rw_begin3d (nth 0 v) (nth 1 v) (nth 2 v)
-                      (nth 3 v) (nth 4 v) (nth 5 v) (nth 6 v))
+          (set ($ cam position) (ray_v3 (nth 0 v) (nth 1 v) (nth 2 v)))
+          (set ($ cam target) (ray_v3 (nth 3 v) (nth 4 v) (nth 5 v)))
+          (set ($ cam up) (ray_v3 0.0 1.0 0.0))
+          (set ($ cam fovy) (cast float (nth 6 v)))
+          (set ($ cam projection) CAMERA_PERSPECTIVE)
+          (BeginMode3D cam)
           (return 1)))
 
   (func ray_p_end3d ((coco_engine * e) (size_t g)) (out int)
@@ -657,12 +630,11 @@
           (for ((int j . 0)) (< j 6) ((++ j))
                (let ((int rc32 . #'(ray_farg e g j (+ p j))))
                  (if (!= rc32 1) (return rc32))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc33 . #'(ray_iarg e g (+ j 6) (+ c j))))
-                 (if (!= rc33 1) (return rc33))))
-          (rw_cube (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
-                   (cast long (nth 0 c)) (cast long (nth 1 c))
-                   (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (let ((int rc33 . #'(ray_carg e g 6 c)))
+            (if (!= rc33 1) (return rc33)))
+          (DrawCube (ray_v3 (nth 0 p) (nth 1 p) (nth 2 p))
+                    (cast float (nth 3 p)) (cast float (nth 4 p)) (cast float (nth 5 p))
+                    (ray_color c))
           (return 1)))
 
   (func ray_p_cube_wires ((coco_engine * e) (size_t g)) (out int)
@@ -670,12 +642,11 @@
           (for ((int j . 0)) (< j 6) ((++ j))
                (let ((int rc34 . #'(ray_farg e g j (+ p j))))
                  (if (!= rc34 1) (return rc34))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc35 . #'(ray_iarg e g (+ j 6) (+ c j))))
-                 (if (!= rc35 1) (return rc35))))
-          (rw_cube_wires (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
-                         (cast long (nth 0 c)) (cast long (nth 1 c))
-                         (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (let ((int rc35 . #'(ray_carg e g 6 c)))
+            (if (!= rc35 1) (return rc35)))
+          (DrawCubeWires (ray_v3 (nth 0 p) (nth 1 p) (nth 2 p))
+                         (cast float (nth 3 p)) (cast float (nth 4 p)) (cast float (nth 5 p))
+                         (ray_color c))
           (return 1)))
 
   (func ray_p_sphere ((coco_engine * e) (size_t g)) (out int)
@@ -683,12 +654,10 @@
           (for ((int j . 0)) (< j 4) ((++ j))
                (let ((int rc36 . #'(ray_farg e g j (+ p j))))
                  (if (!= rc36 1) (return rc36))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc37 . #'(ray_iarg e g (+ j 4) (+ c j))))
-                 (if (!= rc37 1) (return rc37))))
-          (rw_sphere (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
-                     (cast long (nth 0 c)) (cast long (nth 1 c))
-                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (let ((int rc37 . #'(ray_carg e g 4 c)))
+            (if (!= rc37 1) (return rc37)))
+          (DrawSphere (ray_v3 (nth 0 p) (nth 1 p) (nth 2 p)) (cast float (nth 3 p))
+                      (ray_color c))
           (return 1)))
 
   (func ray_p_grid ((coco_engine * e) (size_t g)) (out int)
@@ -705,13 +674,13 @@
         (let ((i64 k . 0))
           (let ((int rc40 . #'(ray_iarg e g 0 (aof k))))
             (if (!= rc40 1) (return rc40)))
-          (return (rw_key_down (cast long k)))))
+          (return (ray_yes (IsKeyDown (cast int k))))))
 
   (func ray_p_key_pressed ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 k . 0))
           (let ((int rc41 . #'(ray_iarg e g 0 (aof k))))
             (if (!= rc41 1) (return rc41)))
-          (return (rw_key_pressed (cast long k)))))
+          (return (ray_yes (IsKeyPressed (cast int k))))))
 
   (func ray_p_mouse ((coco_engine * e) (size_t g)) (out int)
         (if (not (coco_m_unify_int e (coco_m_arg e g 0) (cast i64 (GetMouseX))))
@@ -722,7 +691,7 @@
         (let ((i64 b . 0))
           (let ((int rc42 . #'(ray_iarg e g 0 (aof b))))
             (if (!= rc42 1) (return rc42)))
-          (return (rw_mouse_down (cast long b)))))
+          (return (ray_yes (IsMouseButtonDown (cast int b))))))
 
   ;;; THE EDGE, WHICH THE LEVEL READ CANNOT GIVE. `IsMouseButtonDown' is
   ;;; the button's state at the moment it is asked, and raylib refreshes
@@ -741,7 +710,7 @@
         (let ((i64 b . 0))
           (let ((int rc43 . #'(ray_iarg e g 0 (aof b))))
             (if (!= rc43 1) (return rc43)))
-          (return (rw_mouse_pressed (cast long b)))))
+          (return (ray_yes (IsMouseButtonPressed (cast int b))))))
 
   ;;; ---- time ----
   (func ray_p_frame_time ((coco_engine * e) (size_t g)) (out int)
@@ -753,7 +722,7 @@
   ;;; ---- the headless witness ----
   ;;; NOT raylib's TakeScreenshot, which strips the directory off the
   ;;; path and writes the basename into its own storage dir -- a test
-  ;;; that names /tmp/frame.png should get /tmp/frame.png. The shim goes
+  ;;; that names /tmp/frame.png should get /tmp/frame.png. This goes
   ;;; through LoadImageFromScreen + ExportImage, which honours the path
   ;;; AND says whether it worked, so a full disk is a goal that FAILS
   ;;; rather than a warning on a log level the caller turned off.
@@ -761,7 +730,10 @@
         (let ((char path [4096]))
           (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (return (rw_screenshot path))))
+          (let ((Image img . #'(LoadImageFromScreen)))
+            (let ((bool ok . #'(ExportImage img path)))
+              (UnloadImage img)
+              (return (ray_yes ok))))))
 
   ;;; One pixel of the framebuffer, as four numbers. The image raylib
   ;;; reads back is the RENDER size, which a HiDPI window makes larger than
@@ -771,7 +743,7 @@
   ;;; test that asks about a pixel that is not there should hear no.
   (func ray_p_screen_pixel ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 x . 0) (i64 y . 0) (i64 sw . 0) (i64 sh . 0)
-              (i64 rx . 0) (i64 ry . 0) (long c [4]))
+              (i64 rx . 0) (i64 ry . 0) (i64 c [4]))
           (let ((int rc44 . #'(ray_iarg e g 0 (aof x))))
             (if (!= rc44 1) (return rc44)))
           (let ((int rc45 . #'(ray_iarg e g 1 (aof y))))
@@ -782,33 +754,42 @@
           (if (< y 0) (return 0))
           (if (>= x sw) (return 0))
           (if (>= y sh) (return 0))
-          (rw_shot_take)
-          (set rx (/ (* x (cast i64 (rw_shot_width))) sw))
-          (set ry (/ (* y (cast i64 (rw_shot_height))) sh))
-          (rw_shot_color (cast long rx) (cast long ry) c)
-          (rw_shot_drop)
+          (let ((Image shot . #'(LoadImageFromScreen)))
+            (set rx (/ (* x (cast i64 ($ shot width))) sw))
+            (set ry (/ (* y (cast i64 ($ shot height))) sh))
+            (let ((Color px . #'(GetImageColor shot (cast int rx) (cast int ry))))
+              (set (nth 0 c) (cast i64 ($ px r)))
+              (set (nth 1 c) (cast i64 ($ px g)))
+              (set (nth 2 c) (cast i64 ($ px b)))
+              (set (nth 3 c) (cast i64 ($ px a))))
+            (UnloadImage shot))
           (for ((int j . 0)) (< j 4) ((++ j))
-               (if (not (coco_m_unify_int e (coco_m_arg e g (+ j 2)) (cast i64 (nth j c))))
+               (if (not (coco_m_unify_int e (coco_m_arg e g (+ j 2)) (nth j c)))
                    (return 0)))
           (return 1)))
 
   ;;; ---- textures ----
   ;;; No such file is an existence_error, the ISO shape and the common
   ;;; mistake; a file that IS there and would not decode FAILS, and raylib
-  ;;; has said why on its log at whatever level the caller left it.
+  ;;; has said why on its log at whatever level the caller left it. A
+  ;;; failed load answers a texture with id 0, which is nothing to unload.
   (func ray_p_texture_load ((coco_engine * e) (size_t g)) (out int)
         (let ((char path [4096]) (int s . -1))
           (if (not (coco_m_text e (coco_m_arg e g 0) path (sizeof path)))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (if (not (rw_file_exists path))
+          (if (not (FileExists path))
               (return (coco_m_existence_error e "file" (coco_m_arg e g 0))))
           (set s (ray_slot_new))
           (if (< s 0) (return 0))
-          (if (not (rw_tex_load (cast long s) path)) (return 0))
-          (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 s)))
-              (block (rw_tex_unload (cast long s)) (return 0)))
-          (set (nth s ray_tex_kind) 1)
-          (return 1)))
+          (let ((Texture2D t . #'(LoadTexture path)))
+            (set (nth s ray_tex) t)
+            (if (== ($ t id) 0) (return 0))
+            (if (<= ($ t width) 0) (return 0))
+            (if (<= ($ t height) 0) (return 0))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 s)))
+                (block (UnloadTexture t) (return 0)))
+            (set (nth s ray_tex_kind) 1)
+            (return 1))))
 
   (func ray_p_texture_unload ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1))
@@ -821,31 +802,33 @@
         (let ((int s . -1))
           (let ((int rc47 . #'(ray_tex_arg e g 0 (aof s))))
             (if (!= rc47 1) (return rc47)))
-          (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (rw_tex_width (cast long s)))))
+          (if (not (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 ($ (nth s ray_tex) width))))
               (return 0))
-          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 (rw_tex_height (cast long s)))))))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 ($ (nth s ray_tex) height))))))
 
-  ;;; The whole texture at X, Y. A canvas goes through the sprite shim
+  ;;; The whole texture at X, Y. A canvas goes through DrawTextureRec
   ;;; with its whole extent as the source, flipped by `ray_source'.
   (func ray_p_texture ((coco_engine * e) (size_t g)) (out int)
-        (let ((int s . -1) (i64 v [6]) (double sy . 0.0) (double sh . 0.0))
+        (let ((int s . -1) (i64 x . 0) (i64 y . 0) (i64 c [4])
+              (double sy . 0.0) (double sh . 0.0))
           (let ((int rc48 . #'(ray_tex_arg e g 0 (aof s))))
             (if (!= rc48 1) (return rc48)))
-          (for ((int j . 0)) (< j 6) ((++ j))
-               (let ((int rc49 . #'(ray_iarg e g (+ j 1) (+ v j))))
-                 (if (!= rc49 1) (return rc49))))
+          (let ((int rc49 . #'(ray_iarg e g 1 (aof x))))
+            (if (!= rc49 1) (return rc49)))
+          (let ((int rc50 . #'(ray_iarg e g 2 (aof y))))
+            (if (!= rc50 1) (return rc50)))
+          (let ((int rc51 . #'(ray_carg e g 3 c)))
+            (if (!= rc51 1) (return rc51)))
           (if (== (nth s ray_tex_kind) 1)
               (block
-                (rw_texture (cast long s) (cast long (nth 0 v)) (cast long (nth 1 v))
-                            (cast long (nth 2 v)) (cast long (nth 3 v))
-                            (cast long (nth 4 v)) (cast long (nth 5 v)))
+                (DrawTexture (nth s ray_tex) (cast int x) (cast int y) (ray_color c))
                 (return 1)))
-          (set sh (cast double (rw_tex_height (cast long s))))
+          (set sh (cast double ($ (nth s ray_tex) height)))
           (ray_source s (aof sy) (aof sh))
-          (rw_sprite (cast long s) 0.0 sy (cast double (rw_tex_width (cast long s))) sh
-                     (cast double (nth 0 v)) (cast double (nth 1 v))
-                     (cast long (nth 2 v)) (cast long (nth 3 v))
-                     (cast long (nth 4 v)) (cast long (nth 5 v)))
+          (DrawTextureRec (nth s ray_tex)
+                          (ray_rec 0.0 sy (cast double ($ (nth s ray_tex) width)) sh)
+                          (ray_v2 (cast double x) (cast double y))
+                          (ray_color c))
           (return 1)))
 
   ;;; Rotated and scaled. DrawTextureEx has no source rectangle to flip,
@@ -854,119 +837,181 @@
   (func ray_p_texture_ex ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1) (double p [4]) (i64 c [4])
               (double w . 0.0) (double h . 0.0) (double sy . 0.0) (double sh . 0.0))
-          (let ((int rc50 . #'(ray_tex_arg e g 0 (aof s))))
-            (if (!= rc50 1) (return rc50)))
+          (let ((int rc52 . #'(ray_tex_arg e g 0 (aof s))))
+            (if (!= rc52 1) (return rc52)))
           (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc51 . #'(ray_farg e g (+ j 1) (+ p j))))
-                 (if (!= rc51 1) (return rc51))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc52 . #'(ray_iarg e g (+ j 5) (+ c j))))
-                 (if (!= rc52 1) (return rc52))))
+               (let ((int rc53 . #'(ray_farg e g (+ j 1) (+ p j))))
+                 (if (!= rc53 1) (return rc53))))
+          (let ((int rc54 . #'(ray_carg e g 5 c)))
+            (if (!= rc54 1) (return rc54)))
           (if (== (nth s ray_tex_kind) 1)
               (block
-                (rw_texture_ex (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
-                               (cast long (nth 0 c)) (cast long (nth 1 c))
-                               (cast long (nth 2 c)) (cast long (nth 3 c)))
+                (DrawTextureEx (nth s ray_tex) (ray_v2 (nth 0 p) (nth 1 p))
+                               (cast float (nth 2 p)) (cast float (nth 3 p)) (ray_color c))
                 (return 1)))
-          (set w (cast double (rw_tex_width (cast long s))))
-          (set h (cast double (rw_tex_height (cast long s))))
+          (set w (cast double ($ (nth s ray_tex) width)))
+          (set h (cast double ($ (nth s ray_tex) height)))
           (set sh h)
           (ray_source s (aof sy) (aof sh))
-          (rw_sprite_ex (cast long s) 0.0 sy w sh
-                        (nth 0 p) (nth 1 p) (* w (nth 3 p)) (* h (nth 3 p))
-                        0.0 0.0 (nth 2 p)
-                        (cast long (nth 0 c)) (cast long (nth 1 c))
-                        (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (DrawTexturePro (nth s ray_tex)
+                          (ray_rec 0.0 sy w sh)
+                          (ray_rec (nth 0 p) (nth 1 p) (* w (nth 3 p)) (* h (nth 3 p)))
+                          (ray_v2 0.0 0.0) (cast float (nth 2 p)) (ray_color c))
           (return 1)))
 
   ;;; A cell of the texture at X, Y: Src is SX SY SW SH, top-down.
   (func ray_p_sprite ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1) (double p [6]) (i64 c [4]))
-          (let ((int rc53 . #'(ray_tex_arg e g 0 (aof s))))
-            (if (!= rc53 1) (return rc53)))
+          (let ((int rc55 . #'(ray_tex_arg e g 0 (aof s))))
+            (if (!= rc55 1) (return rc55)))
           (for ((int j . 0)) (< j 6) ((++ j))
-               (let ((int rc54 . #'(ray_farg e g (+ j 1) (+ p j))))
-                 (if (!= rc54 1) (return rc54))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc55 . #'(ray_iarg e g (+ j 7) (+ c j))))
-                 (if (!= rc55 1) (return rc55))))
+               (let ((int rc56 . #'(ray_farg e g (+ j 1) (+ p j))))
+                 (if (!= rc56 1) (return rc56))))
+          (let ((int rc57 . #'(ray_carg e g 7 c)))
+            (if (!= rc57 1) (return rc57)))
           (ray_source s (+ p 1) (+ p 3))
-          (rw_sprite (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p) (nth 4 p) (nth 5 p)
-                     (cast long (nth 0 c)) (cast long (nth 1 c))
-                     (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (DrawTextureRec (nth s ray_tex)
+                          (ray_rec (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))
+                          (ray_v2 (nth 4 p) (nth 5 p))
+                          (ray_color c))
           (return 1)))
 
   ;;; A cell into a destination rect, rotated about an origin: the eleven
   ;;; numbers are SX SY SW SH, DX DY DW DH, OX OY, Rotation.
   (func ray_p_sprite_ex ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1) (double p [11]) (i64 c [4]))
-          (let ((int rc56 . #'(ray_tex_arg e g 0 (aof s))))
-            (if (!= rc56 1) (return rc56)))
+          (let ((int rc58 . #'(ray_tex_arg e g 0 (aof s))))
+            (if (!= rc58 1) (return rc58)))
           (for ((int j . 0)) (< j 11) ((++ j))
-               (let ((int rc57 . #'(ray_farg e g (+ j 1) (+ p j))))
-                 (if (!= rc57 1) (return rc57))))
-          (for ((int j . 0)) (< j 4) ((++ j))
-               (let ((int rc58 . #'(ray_iarg e g (+ j 12) (+ c j))))
-                 (if (!= rc58 1) (return rc58))))
+               (let ((int rc59 . #'(ray_farg e g (+ j 1) (+ p j))))
+                 (if (!= rc59 1) (return rc59))))
+          (let ((int rc60 . #'(ray_carg e g 12 c)))
+            (if (!= rc60 1) (return rc60)))
           (ray_source s (+ p 1) (+ p 3))
-          (rw_sprite_ex (cast long s) (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p)
-                        (nth 4 p) (nth 5 p) (nth 6 p) (nth 7 p)
-                        (nth 8 p) (nth 9 p) (nth 10 p)
-                        (cast long (nth 0 c)) (cast long (nth 1 c))
-                        (cast long (nth 2 c)) (cast long (nth 3 c)))
+          (DrawTexturePro (nth s ray_tex)
+                          (ray_rec (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))
+                          (ray_rec (nth 4 p) (nth 5 p) (nth 6 p) (nth 7 p))
+                          (ray_v2 (nth 8 p) (nth 9 p))
+                          (cast float (nth 10 p)) (ray_color c))
           (return 1)))
 
   (func ray_p_texture_filter ((coco_engine * e) (size_t g)) (out int)
-        (let ((int s . -1) (i64 n . 0))
-          (let ((int rc59 . #'(ray_tex_arg e g 0 (aof s))))
-            (if (!= rc59 1) (return rc59)))
-          (let ((int rc60 . #'(ray_iarg e g 1 (aof n))))
-            (if (!= rc60 1) (return rc60)))
-          (rw_tex_filter (cast long s) (cast long n))
-          (return 1)))
-
-  (func ray_p_texture_wrap ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1) (i64 n . 0))
           (let ((int rc61 . #'(ray_tex_arg e g 0 (aof s))))
             (if (!= rc61 1) (return rc61)))
           (let ((int rc62 . #'(ray_iarg e g 1 (aof n))))
             (if (!= rc62 1) (return rc62)))
-          (rw_tex_wrap (cast long s) (cast long n))
+          (SetTextureFilter (nth s ray_tex) (cast int n))
+          (return 1)))
+
+  (func ray_p_texture_wrap ((coco_engine * e) (size_t g)) (out int)
+        (let ((int s . -1) (i64 n . 0))
+          (let ((int rc63 . #'(ray_tex_arg e g 0 (aof s))))
+            (if (!= rc63 1) (return rc63)))
+          (let ((int rc64 . #'(ray_iarg e g 1 (aof n))))
+            (if (!= rc64 1) (return rc64)))
+          (SetTextureWrap (nth s ray_tex) (cast int n))
           (return 1)))
 
   ;;; ---- a canvas: a texture drawn INTO, then drawn like any other ----
   (func ray_p_canvas ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 w . 0) (i64 h . 0) (int s . -1))
-          (let ((int rc63 . #'(ray_iarg e g 0 (aof w))))
-            (if (!= rc63 1) (return rc63)))
-          (let ((int rc64 . #'(ray_iarg e g 1 (aof h))))
-            (if (!= rc64 1) (return rc64)))
+          (let ((int rc65 . #'(ray_iarg e g 0 (aof w))))
+            (if (!= rc65 1) (return rc65)))
+          (let ((int rc66 . #'(ray_iarg e g 1 (aof h))))
+            (if (!= rc66 1) (return rc66)))
           (if (<= w 0) (return 0))
           (if (<= h 0) (return 0))
           (set s (ray_slot_new))
           (if (< s 0) (return 0))
-          (if (not (rw_canvas_load (cast long s) (cast long w) (cast long h))) (return 0))
-          (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 s)))
-              (block (rw_canvas_unload (cast long s)) (return 0)))
-          (set (nth s ray_tex_kind) 2)
-          (return 1)))
+          (let ((RenderTexture2D r . #'(LoadRenderTexture (cast int w) (cast int h))))
+            (set (nth s ray_rt) r)
+            (set (nth s ray_tex) ($ r texture))
+            (if (== ($ r id) 0) (return 0))
+            (if (== ($ r texture id) 0) (return 0))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 s)))
+                (block (UnloadRenderTexture r) (return 0)))
+            (set (nth s ray_tex_kind) 2)
+            (return 1))))
 
   ;;; Only a canvas can be drawn into; a texture from a file fails here.
   (func ray_p_canvas_begin ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1))
-          (let ((int rc65 . #'(ray_tex_arg e g 0 (aof s))))
-            (if (!= rc65 1) (return rc65)))
+          (let ((int rc67 . #'(ray_tex_arg e g 0 (aof s))))
+            (if (!= rc67 1) (return rc67)))
           (if (!= (nth s ray_tex_kind) 2) (return 0))
-          (rw_canvas_begin (cast long s))
+          (BeginTextureMode (nth s ray_rt))
           (return 1)))
 
   (func ray_p_canvas_end ((coco_engine * e) (size_t g)) (out int)
         (EndTextureMode) (return 1))
 
+  ;;; ---- what library(clay_ray) asked for: text measured and drawn with
+  ;;; a spacing of the caller's, a clip box, a rounded rect, the wheel ----
+  ;;;
+  ;;; `ray_text_ex' takes FLOATS where `ray_text' takes integers, because a
+  ;;; layout engine answers floats and DrawTextEx takes a Vector2; and it
+  ;;; takes the spacing explicitly, where DrawText decides one from the
+  ;;; size (size/10), so a text measured elsewhere can be drawn to the
+  ;;; width it was measured at.
+  (func ray_p_text_ex ((coco_engine * e) (size_t g)) (out int)
+        (let ((char text [16384]) (double v [4]) (i64 c [4]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
+              (return (coco_m_type_error e "text" (coco_m_arg e g 0))))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (let ((int rc68 . #'(ray_farg e g (+ j 1) (+ v j))))
+                 (if (!= rc68 1) (return rc68))))
+          (let ((int rc69 . #'(ray_carg e g 5 c)))
+            (if (!= rc69 1) (return rc69)))
+          (DrawTextEx (GetFontDefault) text (ray_v2 (nth 0 v) (nth 1 v))
+                      (cast float (nth 2 v)) (cast float (nth 3 v)) (ray_color c))
+          (return 1)))
+
+  ;;; MeasureText, which is what DrawText draws: the default font needs
+  ;;; the window, so this answers 0 for everything before ray_open.
+  (func ray_p_text_width ((coco_engine * e) (size_t g)) (out int)
+        (let ((char text [16384]) (i64 size . 0))
+          (if (not (coco_m_text e (coco_m_arg e g 0) text (sizeof text)))
+              (return (coco_m_type_error e "text" (coco_m_arg e g 0))))
+          (let ((int rc70 . #'(ray_iarg e g 1 (aof size))))
+            (if (!= rc70 1) (return rc70)))
+          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 (MeasureText text (cast int size)))))))
+
+  (func ray_p_rect_rounded ((coco_engine * e) (size_t g)) (out int)
+        (let ((double v [5]) (i64 segs . 0) (i64 c [4]))
+          (for ((int j . 0)) (< j 5) ((++ j))
+               (let ((int rc71 . #'(ray_farg e g j (+ v j))))
+                 (if (!= rc71 1) (return rc71))))
+          (let ((int rc72 . #'(ray_iarg e g 5 (aof segs))))
+            (if (!= rc72 1) (return rc72)))
+          (let ((int rc73 . #'(ray_carg e g 6 c)))
+            (if (!= rc73 1) (return rc73)))
+          (DrawRectangleRounded (ray_rec (nth 0 v) (nth 1 v) (nth 2 v) (nth 3 v))
+                                (cast float (nth 4 v)) (cast int segs) (ray_color c))
+          (return 1)))
+
+  (func ray_p_scissor_begin ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 v [4]))
+          (for ((int j . 0)) (< j 4) ((++ j))
+               (let ((int rc74 . #'(ray_iarg e g j (+ v j))))
+                 (if (!= rc74 1) (return rc74))))
+          (BeginScissorMode (cast int (nth 0 v)) (cast int (nth 1 v))
+                            (cast int (nth 2 v)) (cast int (nth 3 v)))
+          (return 1)))
+
+  (func ray_p_scissor_end ((coco_engine * e) (size_t g)) (out int)
+        (EndScissorMode) (return 1))
+
+  (func ray_p_mouse_wheel ((coco_engine * e) (size_t g)) (out int)
+        (let ((Vector2 w . #'(GetMouseWheelMoveV)))
+          (if (not (coco_m_unify_float e (coco_m_arg e g 0) (cast double ($ w x))))
+              (return 0))
+          (return (coco_m_unify_float e (coco_m_arg e g 1) (cast double ($ w y))))))
+
   (func ray_p_log_level ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 n . 0))
-          (let ((int rc66 . #'(ray_iarg e g 0 (aof n))))
-            (if (!= rc66 1) (return rc66)))
+          (let ((int rc75 . #'(ray_iarg e g 0 (aof n))))
+            (if (!= rc75 1) (return rc75)))
           (SetTraceLogLevel (cast int n))
           (return 1)))
 

@@ -68,11 +68,14 @@ main :-
     %% display, as the curl lesson cannot assume a network), so loadable is
     %% enough.
     loadable('use_module(library(ray))', Ray),
+    %% Clay lays out with no window at all; loadable is the whole question.
+    loadable('use_module(library(clay))', Clay),
+    loadable('use_module(library(stream))', Stream),
     %% And for the arrays: the module starts an interpreter at its first
     %% predicate, so loadable is asked with one, not with use_module alone.
     loadable('use_module(library(numpy)), np_zeros([1], A), np_free(A)', Numpy),
     loadable('use_module(library(opencv)), cv_new(1, 1, ''8u'', I), cv_free(I)', Opencv),
-    basics_and_library(Torch, Crypto, Ray, Numpy),
+    basics_and_library(Torch, Crypto, Ray, Numpy, Clay, Stream),
     opencv(Opencv),
     tensor(D, Torch, Cuda),
     shl(['rm -rf ', D]),
@@ -122,7 +125,7 @@ one_lesson(Name, Path, TimeoutMs) :-
         forall(member(T, Tail), ( atom_codes(TA, T), format("      ~w~n", [TA]) ))
     ).
 
-basics_and_library(Torch, Crypto, Ray, Numpy) :-
+basics_and_library(Torch, Crypto, Ray, Numpy, Clay, Stream) :-
     section('basics and library: one process, goal `main'''),
     lessons('tutorials/basics', Basics), lessons('tutorials/library', Library),
     append(Basics, Library, All),
@@ -138,6 +141,10 @@ basics_and_library(Torch, Crypto, Ray, Numpy) :-
              ->  skip_lesson(Name, 'no ray module')
              ;   Name == 'tutorials/library/40-numpy', Numpy == no
              ->  skip_lesson(Name, 'no numpy module')
+             ;   Name == 'tutorials/library/47-clay', Clay == no
+             ->  skip_lesson(Name, 'no clay module')
+             ;   Name == 'tutorials/library/48-stream', Stream == no
+             ->  skip_lesson(Name, 'no stream module')
              ;   %% FROM THE REPO ROOT, which `library/03-files.pl' depends on:
                  %% it reads its own source through the relative path the
                  %% header tells you to use.
@@ -145,7 +152,7 @@ basics_and_library(Torch, Crypto, Ray, Numpy) :-
              ) )).
 
 %% A LESSON THAT TRAINS A NETWORK NEEDS LONGER THAN ONE THAT PRINTS A LIST,
-%% and 45-tagger is the only one of the 47: it fits the shipped tagger with
+%% and 45-tagger is the only one of the 49: it fits the shipped tagger with
 %% the shipped defaults -- 32 768 pairs generated inside the process and 500
 %% Adam steps -- which measured 308 s on this box against the 300 s every
 %% other library lesson gets, and came back exit 124 with no `done' line and
