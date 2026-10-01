@@ -399,3 +399,36 @@
 # `raggiungere il levante per la via del ponente': apertium-spa carries
 # `levante', and the bilingual pairs it with nothing
 <e><p><l>levant<s n="n"/></l><r>levante<s n="n"/><s n="m"/></r></p></e>
+# the Arzalluz report (AnCora CESS-CAST-P-20020801-17), into Italian.
+# apertium-spa carries each with its paradigm and the bilingual pairs it
+# with nothing: `mentir' is the verb `mienten' is, where the only verb spelt
+# so was `mentar' in the subjunctive (they mention); `quejar' is `se
+# quejó'; Spanish had no word for self-determination, nostalgic or
+# Francoism. An English word is lower-case letters, so `self-determination'
+# is never admitted and the word for it is `autodetermination'
+<e><p><l>lie<s n="vblex"/></l><r>mentir<s n="vblex"/></r></p></e>
+<e><p><l>complain<s n="vblex"/></l><r>quejar<s n="vblex"/></r></p></e>
+<e><p><l>autodetermination<s n="n"/></l><r>autodeterminación<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>nostalgic<s n="adj"/></l><r>nostálgico<s n="adj"/></r></p></e>
+<e><p><l>francoism<s n="n"/></l><r>franquismo<s n="n"/><s n="m"/></r></p></e>
+# ... and read only, each with a meaning the dictionary gives another word
+# first: `beneplácito' approval, `traspasar' to transfer, `lelo' silly,
+# `dictamen' a report, `revancha' revenge, and `autogobierno' autonomy,
+# which is self-government, a word with a hyphen
+<e r="RL"><p><l>autonomy<s n="n"/></l><r>autogobierno<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>approval<s n="n"/></l><r>beneplácito<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>transfer<s n="vblex"/></l><r>traspasar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>silly<s n="adj"/></l><r>lelo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>report<s n="n"/></l><r>dictamen<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>revenge<s n="n"/></l><r>revancha<s n="n"/><s n="f"/></r></p></e>
+# the Cecchi Paone report (VIT-9270..9295), into Spanish: `pisar' (to trample)
+# and `callar' for the Italian `pestare' and `tacere', `emitir' for a
+# broadcast before the dictionary's `retransmitir', `vicedirector', and
+# `vespertino' for `preserale'
+<e><p><l>trample<s n="vblex"/></l><r>pisar<s n="vblex"/></r></p></e>
+<e><p><l>hush<s n="vblex"/></l><r>callar<s n="vblex"/></r></p></e>
+<e><p><l>broadcast<s n="vblex"/></l><r>emitir<s n="vblex"/></r></p></e>
+<e><p><l>vicedirector<s n="n"/></l><r>vicedirector<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>preevening<s n="adj"/></l><r>vespertino<s n="adj"/></r></p></e>
+<e><p><l>aloofness<s n="n"/></l><r>distanciamiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>subtract<s n="vblex"/></l><r>sustraer<s n="vblex"/></r></p></e>

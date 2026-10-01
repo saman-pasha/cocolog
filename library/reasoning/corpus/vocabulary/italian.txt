@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16385 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16404 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -954,6 +954,7 @@ The verb "sente" means "feels".
 The adverb "talvolta" means "sometimes".
 The adverb "a volte" means "sometimes".
 The adverb "in genere" means "generally".
+The adverb "di fatto" means "in fact".
 The adverb "infatti" means "in fact".
 The adverb "anzi" means "in fact".
 The conjunction "certo che" means "of course".
@@ -1142,6 +1143,77 @@ The word "quanto" means "how much".
 "dice" takes the question.
 The pronoun "le" means "them".
 "fatto" takes the clause.
+The verb "lamenta" means "regrets".
+The verb "lamenta" means "complains".
+The feminine noun "scorta" means "stock".
+The feminine noun "scorta" means "escort".
+The adjective "peneuvista" means "PNV".
+"peneuvisti" is the plural of "peneuvista".
+"peneuviste" is the plural of "peneuvista".
+"peneuviste" is feminine.
+The masculine noun "archivio" means "file".
+The masculine noun "archivio" means "archive".
+"volta" is a time.
+The masculine noun "tempo" means "time".
+The feminine noun "volta" means "time".
+The verb "riesce" means "attains".
+The transitive verb "ottiene" means "attains".
+The verb "se ne va" means "goes away".
+The feminine noun "competenza" means "competence".
+The verb "approva" means "approves".
+The feminine noun "unanimità" means "unanimity".
+The verb "avverte" means "warns".
+The adverb "macché" means "no way".
+"senz'" is the elision of "senza".
+"vent'" is the elision of "venti".
+"tutt'" is the elision of "tutta".
+"fuor" is the apocope of "fuori".
+"vuol" is the apocope of "vuole".
+The masculine noun "giornalaio" means "newsagent".
+"giornalai" is the plural of "giornalaio".
+The masculine noun "trasloco" means "transfer".
+"traslochi" is the plural of "trasloco".
+The verb "manda in onda" means "broadcasts".
+"mandano in onda" is the plural of "manda in onda".
+"mandare in onda" is the infinitive of "manda in onda".
+"mandato in onda" is the participle of "manda in onda".
+The masculine adjective "passato" means "past".
+The feminine adjective "passata" means "past".
+The masculine adjective "scorso" means "past".
+The feminine adjective "scorsa" means "past".
+"Corriere della Sera" is a name.
+"Porto Cervo" is a name.
+The verb "pubblica" means "publishes".
+The conjunction "e cioè" means "that is".
+The conjunction "vale a dire" means "that is".
+The masculine noun "capo" means "boss".
+The masculine noun "superiore" means "boss".
+The masculine noun "passaggio" means "transfer".
+The adverb "per esempio" means "for example".
+The adverb "per dirne una" means "for example".
+The verb "ha a che fare" means "has dealings".
+"hanno a che fare" is the plural of "ha a che fare".
+"avere a che fare" is the infinitive of "ha a che fare".
+"avuto a che fare" is the participle of "ha a che fare".
+The feminine noun "rete 4" means "network". "rete 4" is the plural of "rete 4".
+"rete 4" is a name.
+The adverb "finora" means "until now".
+The preposition "a parte" means "apart from".
+The verb "infastidisce" means "annoys".
+The transitive verb "firma" means "signs".
+The verb "ci va" means "goes".
+"ci vanno" is the plural of "ci va".
+"andarci" is the infinitive of "ci va".
+The verb "ce ne corre" means "has a long way".
+"ce ne corrono" is the plural of "ce ne corre".
+The adverb "del resto" means "for the rest".
+The adverb "fuor dai denti" means "bluntly".
+The adverb "fuori dai denti" means "bluntly".
+The adverb "intanto" means "meanwhile".
+The preposition "dietro" means "behind".
+The preposition "a seconda di" means "according to".
+The feminine noun "fascia" means "strip".
+"fasce" is the plural of "fascia".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1276,6 +1348,17 @@ The masculine noun "darwinismo" means "darwinism".
 "darwinismi" is the plural of "darwinismo".
 The masculine noun "geocentrismo" means "geocentrism".
 "geocentrismi" is the plural of "geocentrismo".
+The feminine noun "autodeterminazione" means "autodetermination".
+"autodeterminazioni" is the plural of "autodeterminazione".
+The masculine noun "franchismo" means "francoism".
+"franchismi" is the plural of "franchismo".
+The feminine noun "rivincita" means "revenge".
+"rivincite" is the plural of "rivincita".
+The feminine noun "inattività" means "inactivity".
+"inattività" is the plural of "inattività".
+The masculine noun "vicedirettore" means "vicedirector".
+"vicedirettori" is the plural of "vicedirettore".
+The noun "distacco" means "aloofness".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -16379,6 +16462,14 @@ The feminine noun "lunghezza" means "length".
 "lunghezze" is the plural of "lunghezza".
 The masculine noun "profitto" means "profit".
 "profitti" is the plural of "profitto".
+The masculine noun "timore" means "fear".
+"timori" is the plural of "timore".
+The masculine noun "mistero" means "mystery".
+"misteri" is the plural of "mistero".
+The masculine noun "sfondo" means "background".
+"sfondi" is the plural of "sfondo".
+The masculine noun "lido" means "shore".
+"lidi" is the plural of "lido".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -22977,6 +23068,195 @@ The verb "dista" means "distances".
 "distate" is the plural of "distata".
 "distare" is the infinitive of "dista".
 "distando" is the gerund of "dista".
+The verb "indigna" means "outrages".
+"indignano" is the plural of "indigna".
+"indigniamo" is the first person of "indignano".
+"indigno" is the first person of "indigna".
+"indigni" is the second person of "indigna".
+"indignò" is the past of "indigna".
+"indignarono" is the past of "indignano".
+"indignammo" is the first person of "indignarono".
+"indignai" is the first person of "indignò".
+"indignasti" is the second person of "indignò".
+"indignava" is the past of "indigna".
+"indignavano" is the past of "indignano".
+"indignavamo" is the first person of "indignavano".
+"indignavo" is the first person of "indignava".
+"indignavi" is the second person of "indignava".
+"indignerà" is the future of "indigna".
+"indigneranno" is the plural of "indignerà".
+"indigneremo" is the first person of "indigneranno".
+"indignerò" is the first person of "indignerà".
+"indignerai" is the second person of "indignerà".
+"indignerebbe" is the conditional of "indigna".
+"indignerebbero" is the plural of "indignerebbe".
+"indigneremmo" is the first person of "indignerebbero".
+"indignerei" is the first person of "indignerebbe".
+"indigneresti" is the second person of "indignerebbe".
+"indigni" is the subjunctive of "indigna".
+"indignino" is the plural of "indigni".
+"indigniamo" is the first person of "indignino".
+"indignasse" is the past subjunctive of "indigna".
+"indignassero" is the plural of "indignasse".
+"indignassimo" is the first person of "indignassero".
+"indignassi" is the first person of "indignasse".
+"indignassi" is the second person of "indignasse".
+"indigna" is the imperative of "indigna".
+"indignare" is the negative imperative of "indigna".
+"indignate" is the imperative of "indignano".
+"indigniamo" is the hortative of "indigna".
+"indignato" is the participle of "indigna".
+"indignata" is the participle of "indigna".
+"indignata" is feminine.
+"indignati" is the participle of "indigna".
+"indignati" is the plural of "indignato".
+"indignate" is the participle of "indigna".
+"indignate" is feminine.
+"indignate" is the plural of "indignata".
+"indignare" is the infinitive of "indigna".
+"indignando" is the gerund of "indigna".
+The verb "pesta" means "tramples".
+"pestano" is the plural of "pesta".
+"pestiamo" is the first person of "pestano".
+"pesto" is the first person of "pesta".
+"pesti" is the second person of "pesta".
+"pestò" is the past of "pesta".
+"pestarono" is the past of "pestano".
+"pestammo" is the first person of "pestarono".
+"pestai" is the first person of "pestò".
+"pestasti" is the second person of "pestò".
+"pestava" is the past of "pesta".
+"pestavano" is the past of "pestano".
+"pestavamo" is the first person of "pestavano".
+"pestavo" is the first person of "pestava".
+"pestavi" is the second person of "pestava".
+"pesterà" is the future of "pesta".
+"pesteranno" is the plural of "pesterà".
+"pesteremo" is the first person of "pesteranno".
+"pesterò" is the first person of "pesterà".
+"pesterai" is the second person of "pesterà".
+"pesterebbe" is the conditional of "pesta".
+"pesterebbero" is the plural of "pesterebbe".
+"pesteremmo" is the first person of "pesterebbero".
+"pesterei" is the first person of "pesterebbe".
+"pesteresti" is the second person of "pesterebbe".
+"pesti" is the subjunctive of "pesta".
+"pestino" is the plural of "pesti".
+"pestiamo" is the first person of "pestino".
+"pestasse" is the past subjunctive of "pesta".
+"pestassero" is the plural of "pestasse".
+"pestassimo" is the first person of "pestassero".
+"pestassi" is the first person of "pestasse".
+"pestassi" is the second person of "pestasse".
+"pesta" is the imperative of "pesta".
+"pestare" is the negative imperative of "pesta".
+"pestate" is the imperative of "pestano".
+"pestiamo" is the hortative of "pesta".
+"pestato" is the participle of "pesta".
+"pestata" is the participle of "pesta".
+"pestata" is feminine.
+"pestati" is the participle of "pesta".
+"pestati" is the plural of "pestato".
+"pestate" is the participle of "pesta".
+"pestate" is feminine.
+"pestate" is the plural of "pestata".
+"pestare" is the infinitive of "pesta".
+"pestando" is the gerund of "pesta".
+The verb "brucia" means "burns".
+"bruciano" is the plural of "brucia".
+"bruciamo" is the first person of "bruciano".
+"brucio" is the first person of "brucia".
+"bruci" is the second person of "brucia".
+"bruciò" is the past of "brucia".
+"bruciarono" is the past of "bruciano".
+"bruciammo" is the first person of "bruciarono".
+"bruciai" is the first person of "bruciò".
+"bruciasti" is the second person of "bruciò".
+"bruciava" is the past of "brucia".
+"bruciavano" is the past of "bruciano".
+"bruciavamo" is the first person of "bruciavano".
+"bruciavo" is the first person of "bruciava".
+"bruciavi" is the second person of "bruciava".
+"brucerà" is the future of "brucia".
+"bruceranno" is the plural of "brucerà".
+"bruceremo" is the first person of "bruceranno".
+"brucerò" is the first person of "brucerà".
+"brucerai" is the second person of "brucerà".
+"brucerebbe" is the conditional of "brucia".
+"brucerebbero" is the plural of "brucerebbe".
+"bruceremmo" is the first person of "brucerebbero".
+"brucerei" is the first person of "brucerebbe".
+"bruceresti" is the second person of "brucerebbe".
+"bruci" is the subjunctive of "brucia".
+"brucino" is the plural of "bruci".
+"bruciamo" is the first person of "brucino".
+"bruciasse" is the past subjunctive of "brucia".
+"bruciassero" is the plural of "bruciasse".
+"bruciassimo" is the first person of "bruciassero".
+"bruciassi" is the first person of "bruciasse".
+"bruciassi" is the second person of "bruciasse".
+"brucia" is the imperative of "brucia".
+"bruciare" is the negative imperative of "brucia".
+"bruciate" is the imperative of "bruciano".
+"bruciamo" is the hortative of "brucia".
+"bruciato" is the participle of "brucia".
+"bruciata" is the participle of "brucia".
+"bruciata" is feminine.
+"bruciati" is the participle of "brucia".
+"bruciati" is the plural of "bruciato".
+"bruciate" is the participle of "brucia".
+"bruciate" is feminine.
+"bruciate" is the plural of "bruciata".
+"bruciare" is the infinitive of "brucia".
+"bruciando" is the gerund of "brucia".
+"burnt" is the past of "burns".
+The verb "tace" means "hushes".
+"tacciono" is the plural of "tace".
+"tacciamo" is the first person of "tacciono".
+"taccio" is the first person of "tace".
+"taci" is the second person of "tace".
+"tacque" is the past of "tace".
+"tacquero" is the past of "tacciono".
+"tacemmo" is the first person of "tacquero".
+"tacqui" is the first person of "tacque".
+"tacesti" is the second person of "tacque".
+"taceva" is the past of "tace".
+"tacevano" is the past of "tacciono".
+"tacevamo" is the first person of "tacevano".
+"tacevo" is the first person of "taceva".
+"tacevi" is the second person of "taceva".
+"tacerà" is the future of "tace".
+"taceranno" is the plural of "tacerà".
+"taceremo" is the first person of "taceranno".
+"tacerò" is the first person of "tacerà".
+"tacerai" is the second person of "tacerà".
+"tacerebbe" is the conditional of "tace".
+"tacerebbero" is the plural of "tacerebbe".
+"taceremmo" is the first person of "tacerebbero".
+"tacerei" is the first person of "tacerebbe".
+"taceresti" is the second person of "tacerebbe".
+"taccia" is the subjunctive of "tace".
+"tacciano" is the plural of "taccia".
+"tacciamo" is the first person of "tacciano".
+"tacesse" is the past subjunctive of "tace".
+"tacessero" is the plural of "tacesse".
+"tacessimo" is the first person of "tacessero".
+"tacessi" is the first person of "tacesse".
+"tacessi" is the second person of "tacesse".
+"taci" is the imperative of "tace".
+"tacere" is the negative imperative of "tace".
+"tacete" is the imperative of "tacciono".
+"tacciamo" is the hortative of "tace".
+"taciuto" is the participle of "tace".
+"taciuta" is the participle of "tace".
+"taciuta" is feminine.
+"taciuti" is the participle of "tace".
+"taciuti" is the plural of "taciuto".
+"taciute" is the participle of "tace".
+"taciute" is feminine.
+"taciute" is the plural of "taciuta".
+"tacere" is the infinitive of "tace".
+"tacendo" is the gerund of "tace".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -34358,7 +34638,6 @@ The verb "arde" means "burns".
 "arse" is the plural of "arsa".
 "ardere" is the infinitive of "arde".
 "ardendo" is the gerund of "arde".
-"burnt" is the past of "burns".
 The verb "esplode" means "bursts".
 "esplodono" is the plural of "esplode".
 "esplodiamo" is the first person of "esplodono".
@@ -91958,6 +92237,53 @@ The verb "trae" means "extracts".
 "tratte" is the plural of "tratta".
 "trarre" is the infinitive of "trae".
 "traendo" is the gerund of "trae".
+The verb "puntualizza" means "clarifies".
+"puntualizzano" is the plural of "puntualizza".
+"puntualizziamo" is the first person of "puntualizzano".
+"puntualizzo" is the first person of "puntualizza".
+"puntualizzi" is the second person of "puntualizza".
+"puntualizzò" is the past of "puntualizza".
+"puntualizzarono" is the past of "puntualizzano".
+"puntualizzammo" is the first person of "puntualizzarono".
+"puntualizzai" is the first person of "puntualizzò".
+"puntualizzasti" is the second person of "puntualizzò".
+"puntualizzava" is the past of "puntualizza".
+"puntualizzavano" is the past of "puntualizzano".
+"puntualizzavamo" is the first person of "puntualizzavano".
+"puntualizzavo" is the first person of "puntualizzava".
+"puntualizzavi" is the second person of "puntualizzava".
+"puntualizzerà" is the future of "puntualizza".
+"puntualizzeranno" is the plural of "puntualizzerà".
+"puntualizzeremo" is the first person of "puntualizzeranno".
+"puntualizzerò" is the first person of "puntualizzerà".
+"puntualizzerai" is the second person of "puntualizzerà".
+"puntualizzerebbe" is the conditional of "puntualizza".
+"puntualizzerebbero" is the plural of "puntualizzerebbe".
+"puntualizzeremmo" is the first person of "puntualizzerebbero".
+"puntualizzerei" is the first person of "puntualizzerebbe".
+"puntualizzeresti" is the second person of "puntualizzerebbe".
+"puntualizzi" is the subjunctive of "puntualizza".
+"puntualizzino" is the plural of "puntualizzi".
+"puntualizziamo" is the first person of "puntualizzino".
+"puntualizzasse" is the past subjunctive of "puntualizza".
+"puntualizzassero" is the plural of "puntualizzasse".
+"puntualizzassimo" is the first person of "puntualizzassero".
+"puntualizzassi" is the first person of "puntualizzasse".
+"puntualizzassi" is the second person of "puntualizzasse".
+"puntualizza" is the imperative of "puntualizza".
+"puntualizzare" is the negative imperative of "puntualizza".
+"puntualizzate" is the imperative of "puntualizzano".
+"puntualizziamo" is the hortative of "puntualizza".
+"puntualizzato" is the participle of "puntualizza".
+"puntualizzata" is the participle of "puntualizza".
+"puntualizzata" is feminine.
+"puntualizzati" is the participle of "puntualizza".
+"puntualizzati" is the plural of "puntualizzato".
+"puntualizzate" is the participle of "puntualizza".
+"puntualizzate" is feminine.
+"puntualizzate" is the plural of "puntualizzata".
+"puntualizzare" is the infinitive of "puntualizza".
+"puntualizzando" is the gerund of "puntualizza".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -97388,6 +97714,20 @@ The adjective "stupefacente" means "astonishing".
 "stupefacentissimi" is the superlative of "stupefacenti".
 "stupefacentissima" is the superlative of "stupefacente".
 "stupefacentissime" is the superlative of "stupefacenti".
+The masculine adjective "nostalgico" means "nostalgic".
+"nostalgici" is the plural of "nostalgico".
+The feminine adjective "nostalgica" means "nostalgic".
+"nostalgiche" is the plural of "nostalgica".
+"nostalgicissimo" is the superlative of "nostalgico".
+"nostalgicissimi" is the superlative of "nostalgici".
+"nostalgicissima" is the superlative of "nostalgica".
+"nostalgicissime" is the superlative of "nostalgiche".
+The adjective "preserale" means "preevening".
+"preserali" is the plural of "preserale".
+"preseralissimo" is the superlative of "preserale".
+"preseralissimi" is the superlative of "preserali".
+"preseralissima" is the superlative of "preserale".
+"preseralissime" is the superlative of "preserali".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -113287,6 +113627,12 @@ The adjective "sapiente" means "wise".
 "sapientissimi" is the superlative of "sapienti".
 "sapientissima" is the superlative of "sapiente".
 "sapientissime" is the superlative of "sapienti".
+The adjective "raggiante" means "radiant".
+"raggianti" is the plural of "raggiante".
+"raggiantissimo" is the superlative of "raggiante".
+"raggiantissimi" is the superlative of "raggianti".
+"raggiantissima" is the superlative of "raggiante".
+"raggiantissime" is the superlative of "raggianti".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -114833,6 +115179,7 @@ The adverb "strettamente" means "narrowly".
 The adverb "distruttivamente" means "destructively".
 The adverb "conseguentemente" means "consequently".
 The adverb "ora" means "now".
+The adverb "effettivamente" means "really".
 The adverb "attorno" means "around".
 The adverb "circa" means "around".
 The adverb "inoltre" means "besides".

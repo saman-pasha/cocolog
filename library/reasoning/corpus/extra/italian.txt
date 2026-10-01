@@ -1613,8 +1613,10 @@ The adverb "a volte" means "sometimes".
 The adverb "in genere" means "generally".
 # `Anzi, una sua amichetta le ha detto ...': in fact -- the dictionary's
 # `rather' is written `bastante' in Spanish. `infatti', whose meaning
-# `indeed' Spanish has no word for, is said first, so it stays the word
-# written for `in fact'
+# `indeed' Spanish has no word for, stays the word written for `in fact'
+# but for `di fatto', said first for `una "tregua de hecho"': a truce in
+# fact, and `infatti' never stands after a noun
+The adverb "di fatto" means "in fact".
 The adverb "infatti" means "in fact".
 The adverb "anzi" means "in fact".
 # `"certo che ha capito cos'è successo.': of course she understood what
@@ -2030,3 +2032,148 @@ The pronoun "le" means "them".
 # world'. The clause's subject stands first, so `i fatti che lo dimostrano'
 # stays the facts that show it
 "fatto" takes the clause.
+# the Arzalluz report (AnCora CESS-CAST-P-20020801-17), into Italian.
+# `se quejó' -- he complained, which Italian says `lamentarsi'. The
+# dictionary's first meaning of `lamenta' is `regrets', said again first
+The verb "lamenta" means "regrets".
+The verb "lamenta" means "complains".
+# `que ha pedido escolta' -- an escort, `scorta', whose first meaning is a
+# stock and is said again first
+The feminine noun "scorta" means "stock".
+The feminine noun "scorta" means "escort".
+# `el líder peneuvista' -- of the PNV
+The adjective "peneuvista" means "PNV".
+"peneuvisti" is the plural of "peneuvista".
+"peneuviste" is the plural of "peneuvista".
+"peneuviste" is feminine.
+# `Arzalluz recuperó ayer la hemeroteca' -- the archive: Italian's
+# `archivio' means a file and nothing else, said again first
+The masculine noun "archivio" means "file".
+The masculine noun "archivio" means "archive".
+# `Tres veces negó ...' -- three times: `volta' is a time, and `time' it is
+# too, which the dictionary gives it nowhere (a vault only). `tempo' is said
+# again first, so that `time' stays the word written for it where no
+# adjunct names when
+"volta" is a time.
+The masculine noun "tempo" means "time".
+The feminine noun "volta" means "time".
+# `para lograr una "tregua de hecho"' -- attain: Italian's first word is
+# `riesce', which takes no object, and `ottiene' is said of a clause with
+# one (and of an infinitive with one right after it). `de hecho' is `di
+# fatto', said above, where the dictionary's `infatti' and `anzi' are `in
+# fact' and nothing more
+The verb "riesce" means "attains".
+The transitive verb "ottiene" means "attains".
+# `se va con el chollo' -- he goes away, one word in Italian too
+The verb "se ne va" means "goes away".
+# `para asumir más las competencias' -- powers, `competenze'
+The feminine noun "competenza" means "competence".
+# `aprueba por unanimidad' -- the dictionary's first word for `approves' is
+# `vista', a visa, and `coralità' is first for `unanimity'
+The verb "approva" means "approves".
+The feminine noun "unanimità" means "unanimity".
+# `El líder del PNV previno a los suyos de que ...' -- warned them
+The verb "avverte" means "warns".
+# the Cecchi Paone report (VIT-9270..9295), into Spanish
+# `macché, non ho firmato nessun contratto' -- no way, said before a comma
+The adverb "macché" means "no way".
+# `senz'obbligo di frequenza', `vent'anni di carriera', `tutt'altra piega',
+# `fuor dai denti', `chi gli vuol bene' -- shortened before a vowel or a noun
+"senz'" is the elision of "senza".
+"vent'" is the elision of "venti".
+"tutt'" is the elision of "tutta".
+"fuor" is the apocope of "fuori".
+"vuol" is the apocope of "vuole".
+# `il "giornalaio" non conferma né smentisce' -- apertium-ita has neither
+# word, `giornalaio' and `trasloco'
+The masculine noun "giornalaio" means "newsagent".
+"giornalai" is the plural of "giornalaio".
+The masculine noun "trasloco" means "transfer".
+"traslochi" is the plural of "trasloco".
+# `dopo aver mandato in onda l'ultimo "punto di svolta"' -- broadcast: the
+# verb and its participle are one phrase, like `se ne va'
+The verb "manda in onda" means "broadcasts".
+"mandano in onda" is the plural of "manda in onda".
+"mandare in onda" is the infinitive of "manda in onda".
+"mandato in onda" is the participle of "manda in onda".
+# `da martedì scorso', `nei giorni scorsi' -- Spanish's `pasado': the
+# dictionary's `passato' stays first for `past', and `scorso' says it too
+The masculine adjective "passato" means "past".
+The feminine adjective "passata" means "past".
+The masculine adjective "scorso" means "past".
+The feminine adjective "scorsa" means "past".
+# `quanto pubblicato ieri dal Corriere della Sera', `un albergo discreto di
+# Porto Cervo' -- a paper and a place made of words the lesson knows
+"Corriere della Sera" is a name.
+"Porto Cervo" is a name.
+# `quanto pubblicato ieri dal Corriere della Sera' -- the dictionary's first
+# meaning of `pubblica' is `issues', Spanish's `emite'
+The verb "pubblica" means "publishes".
+# `e cioè di aver firmato', `vale a dire che il suo diretto superiore non
+# sarà Emilio Fede' -- that is, as the one word `cioè' is, where `vale a dire'
+# was `is worth to say'
+The conjunction "e cioè" means "that is".
+The conjunction "vale a dire" means "that is".
+# `il suo diretto superiore' -- his immediate boss: `capo' stays the first word
+# for `boss', and `superiore' is a person here
+The masculine noun "capo" means "boss".
+The masculine noun "superiore" means "boss".
+# `il passaggio alla Fininvest' -- the move, a transfer, where the dictionary's
+# first meaning of `passaggio' is `passage'
+The masculine noun "passaggio" means "transfer".
+# `ad altri - Cecchi Paone, per dirne una' -- for example: `per esempio' stays
+# the first words for it
+The adverb "per esempio" means "for example".
+The adverb "per dirne una" means "for example".
+# `l'unico che finora ha avuto a che fare con l'informazione su rete 4' -- has
+# had dealings: one verb of several words, as `se ne va' is
+The verb "ha a che fare" means "has dealings".
+"hanno a che fare" is the plural of "ha a che fare".
+"avere a che fare" is the infinitive of "ha a che fare".
+"avuto a che fare" is the participle of "ha a che fare".
+# `su rete 4' -- a channel by its number: a name, as `les lions' is one
+The feminine noun "rete 4" means "network". "rete 4" is the plural of "rete 4".
+"rete 4" is a name.
+# `l'unico che finora ha avuto a che fare ... (a parte il Tg di Fede,
+# ovviamente)' -- until now, apart from, obviously
+The adverb "finora" means "until now".
+The preposition "a parte" means "apart from".
+# `il timore di infastidire Gianfranco Funari' -- annoy: the dictionary's
+# `infastidire' is `worries', which Spanish has only as `preocuparse'
+The verb "infastidisce" means "annoys".
+# `non ho firmato nessun contratto', `ha firmato il passaggio' -- sign: the
+# dictionary's `firma' is the intransitive verb, and the transitive sense that
+# takes an object is stated beside it
+The transitive verb "firma" means "signs".
+# `su queste cose ci va con i piedi di piombo' -- `andarci' is to go with a
+# thing, and `ci' there is no pronoun: read as `us' it was `nos va'
+The verb "ci va" means "goes".
+"ci vanno" is the plural of "ci va".
+"andarci" is the infinitive of "ci va".
+# `di qui alla firma ce ne corre' -- there is a long way to it: one verb of
+# three words, as `se ne va' is
+The verb "ce ne corre" means "has a long way".
+"ce ne corrono" is the plural of "ce ne corre".
+# `del resto il suo Avvocato ...' -- for the rest: a gloss of its own, so that the
+# dictionary's `inoltre' stays the first word for `besides'
+The adverb "del resto" means "for the rest".
+# `dire la sua con distacco o fuor dai denti' -- with aloofness (apertium-ita has
+# `distaccamento', a detachment, and no `distacco', which the dictionary entry
+# above adds), and bluntly: a phrase of three words, in its two spellings
+The adverb "fuor dai denti" means "bluntly".
+The adverb "fuori dai denti" means "bluntly".
+# `A Raidue, intanto, e come se il trasloco ...' -- meanwhile: the dictionary's
+# first meaning of `intanto' is `anyhow', which Spanish has only as a phrase of
+# three words
+The adverb "intanto" means "meanwhile".
+# `dietro queste voci ci sono le voci di chi gli vuol bene' -- behind: the
+# dictionary's first meaning of `dietro' is `back', the adverb, and a phrase
+# of `dietro' crossed to Spanish's `espalda' (the back)
+The preposition "dietro" means "behind".
+# `a seconda di come saranno andate le proprie trattative' -- according to: a
+# preposition of three words, before a question
+The preposition "a seconda di" means "according to".
+# `la fascia preserale, schiacciata dai Tg' -- a strip of the day's programmes,
+# where the dictionary's `fascia' is a headband
+The feminine noun "fascia" means "strip".
+"fasce" is the plural of "fascia".

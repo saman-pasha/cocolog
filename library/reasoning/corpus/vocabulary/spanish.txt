@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20332 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20349 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -816,6 +816,45 @@ The conjunction "de lo que" means "than what".
 "alma" is not a person.
 The word "cuánto" means "how much".
 The transitive verb "aleja" means "distances".
+The verb "insulta" means "insults".
+The masculine noun "vicario" means "vicar".
+The masculine noun "párroco" means "vicar".
+The masculine noun "referéndum" means "referendum".
+The masculine noun "referendo" means "referendum".
+"referendos" is the plural of "referendo".
+The adjective "peneuvista" means "PNV".
+"peneuvistas" is the plural of "peneuvista".
+"hubiéramos" is the first person of "hubieran".
+"hubiésemos" is the first person of "hubiesen".
+The preposition "ante" means "in front of".
+"vez" is a time.
+"da" takes "a" before the person.
+The verb "advierte" means "warns".
+The verb "previene" means "warns".
+"advierte" takes the clause.
+"advierte" takes "de" before the clause.
+"previene" takes the clause.
+"previene" takes "de" before the clause.
+The verb "se va" means "goes away".
+The feminine noun "competencia" means "competence".
+"sino" takes the clause.
+"concluye" is intransitive.
+The adverb "qué va" means "no way".
+The masculine noun "quiosquero" means "newsagent".
+The masculine noun "traslado" means "transfer".
+The article "el" takes the day.
+The adjective "directo" does not precede the noun.
+The verb "tiene que ver" means "has dealings".
+"tienen que ver" is the plural of "tiene que ver".
+"tener que ver" is the infinitive of "tiene que ver".
+"tenido que ver" is the participle of "tiene que ver".
+The adverb "hasta ahora" means "until now".
+The preposition "aparte de" means "apart from".
+The verb "hay un trecho" means "has a long way".
+The adverb "por lo demás" means "for the rest".
+The verb "discute" means "discusses".
+The adverb "sin rodeos" means "bluntly".
+The preposition "detrás de" means "behind".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -931,6 +970,14 @@ The masculine noun "tabernáculo" means "tabernacle".
 "tabernáculos" is the plural of "tabernáculo".
 The masculine noun "levante" means "levant".
 "levantes" is the plural of "levante".
+The feminine noun "autodeterminación" means "autodetermination".
+"autodeterminaciones" is the plural of "autodeterminación".
+The masculine noun "franquismo" means "francoism".
+"franquismos" is the plural of "franquismo".
+The masculine noun "vicedirector" means "vicedirector".
+"vicedirectores" is the plural of "vicedirector".
+The masculine noun "distanciamiento" means "aloofness".
+"distanciamientos" is the plural of "distanciamiento".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -18620,7 +18667,6 @@ The feminine noun "colmena" means "hive".
 The masculine noun "curling" means "curling".
 "curlings" is the plural of "curling".
 The masculine noun "distanciamiento" means "estrangement".
-"distanciamientos" is the plural of "distanciamiento".
 The masculine noun "distanciamiento" means "distance".
 The masculine noun "alero" means "winger".
 "aleros" is the plural of "alero".
@@ -20028,6 +20074,14 @@ The feminine noun "velada" means "evening".
 "veladas" is the plural of "velada".
 The feminine noun "gesta" means "feat".
 "gestas" is the plural of "gesta".
+The masculine noun "autogobierno" means "autonomy".
+"autogobiernos" is the plural of "autogobierno".
+The masculine noun "beneplácito" means "approval".
+"beneplácitos" is the plural of "beneplácito".
+The masculine noun "dictamen" means "report".
+"dictámenes" is the plural of "dictamen".
+The feminine noun "revancha" means "revenge".
+"revanchas" is the plural of "revancha".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -27302,6 +27356,282 @@ The verb "equivoca" means "errs".
 "equivocadas" is the plural of "equivocada".
 "equivocar" is the infinitive of "equivoca".
 "equivocando" is the gerund of "equivoca".
+The verb "miente" means "lies".
+"mienten" is the plural of "miente".
+"mentimos" is the first person of "mienten".
+"miento" is the first person of "miente".
+"mientes" is the second person of "miente".
+"mintió" is the past of "miente".
+"mintieron" is the past of "mienten".
+"mentimos" is the first person of "mintieron".
+"mentí" is the first person of "mintió".
+"mentiste" is the second person of "mintió".
+"mentía" is the past of "miente".
+"mentían" is the past of "mienten".
+"mentíamos" is the first person of "mentían".
+"mentías" is the second person of "mentía".
+"mentirá" is the future of "miente".
+"mentirán" is the plural of "mentirá".
+"mentiremos" is the first person of "mentirán".
+"mentiré" is the first person of "mentirá".
+"mentirás" is the second person of "mentirá".
+"mentiría" is the conditional of "miente".
+"mentirían" is the plural of "mentiría".
+"mentiríamos" is the first person of "mentirían".
+"mentirías" is the second person of "mentiría".
+"mienta" is the subjunctive of "miente".
+"mientan" is the plural of "mienta".
+"mintamos" is the first person of "mientan".
+"mientas" is the second person of "mienta".
+"mintiera" is the past subjunctive of "miente".
+"mintieran" is the plural of "mintiera".
+"mintiéramos" is the first person of "mintieran".
+"mintieras" is the second person of "mintiera".
+"miente" is the imperative of "miente".
+"mientas" is the negative imperative of "miente".
+"mentid" is the imperative of "mienten".
+"mintáis" is the negative imperative of "mienten".
+"mintamos" is the hortative of "miente".
+"mentido" is the participle of "miente".
+"mentida" is the participle of "miente".
+"mentida" is feminine.
+"mentidos" is the participle of "miente".
+"mentidos" is the plural of "mentido".
+"mentidas" is the participle of "miente".
+"mentidas" is feminine.
+"mentidas" is the plural of "mentida".
+"mentir" is the infinitive of "miente".
+"mintiendo" is the gerund of "miente".
+The verb "queja" means "complains".
+"quejan" is the plural of "queja".
+"quejamos" is the first person of "quejan".
+"quejo" is the first person of "queja".
+"quejas" is the second person of "queja".
+"quejó" is the past of "queja".
+"quejaron" is the past of "quejan".
+"quejamos" is the first person of "quejaron".
+"quejé" is the first person of "quejó".
+"quejaste" is the second person of "quejó".
+"quejaba" is the past of "queja".
+"quejaban" is the past of "quejan".
+"quejábamos" is the first person of "quejaban".
+"quejabas" is the second person of "quejaba".
+"quejará" is the future of "queja".
+"quejarán" is the plural of "quejará".
+"quejaremos" is the first person of "quejarán".
+"quejaré" is the first person of "quejará".
+"quejarás" is the second person of "quejará".
+"quejaría" is the conditional of "queja".
+"quejarían" is the plural of "quejaría".
+"quejaríamos" is the first person of "quejarían".
+"quejarías" is the second person of "quejaría".
+"queje" is the subjunctive of "queja".
+"quejen" is the plural of "queje".
+"quejemos" is the first person of "quejen".
+"quejes" is the second person of "queje".
+"quejara" is the past subjunctive of "queja".
+"quejaran" is the plural of "quejara".
+"quejáramos" is the first person of "quejaran".
+"quejaras" is the second person of "quejara".
+"queja" is the imperative of "queja".
+"quejes" is the negative imperative of "queja".
+"quejad" is the imperative of "quejan".
+"quejéis" is the negative imperative of "quejan".
+"quejemos" is the hortative of "queja".
+"quejado" is the participle of "queja".
+"quejada" is the participle of "queja".
+"quejada" is feminine.
+"quejados" is the participle of "queja".
+"quejados" is the plural of "quejado".
+"quejadas" is the participle of "queja".
+"quejadas" is feminine.
+"quejadas" is the plural of "quejada".
+"quejar" is the infinitive of "queja".
+"quejando" is the gerund of "queja".
+The verb "pisa" means "tramples".
+"pisan" is the plural of "pisa".
+"pisamos" is the first person of "pisan".
+"piso" is the first person of "pisa".
+"pisas" is the second person of "pisa".
+"pisó" is the past of "pisa".
+"pisaron" is the past of "pisan".
+"pisamos" is the first person of "pisaron".
+"pisé" is the first person of "pisó".
+"pisaste" is the second person of "pisó".
+"pisaba" is the past of "pisa".
+"pisaban" is the past of "pisan".
+"pisábamos" is the first person of "pisaban".
+"pisabas" is the second person of "pisaba".
+"pisará" is the future of "pisa".
+"pisarán" is the plural of "pisará".
+"pisaremos" is the first person of "pisarán".
+"pisaré" is the first person of "pisará".
+"pisarás" is the second person of "pisará".
+"pisaría" is the conditional of "pisa".
+"pisarían" is the plural of "pisaría".
+"pisaríamos" is the first person of "pisarían".
+"pisarías" is the second person of "pisaría".
+"pise" is the subjunctive of "pisa".
+"pisen" is the plural of "pise".
+"pisemos" is the first person of "pisen".
+"pises" is the second person of "pise".
+"pisara" is the past subjunctive of "pisa".
+"pisaran" is the plural of "pisara".
+"pisáramos" is the first person of "pisaran".
+"pisaras" is the second person of "pisara".
+"pisa" is the imperative of "pisa".
+"pises" is the negative imperative of "pisa".
+"pisad" is the imperative of "pisan".
+"piséis" is the negative imperative of "pisan".
+"pisemos" is the hortative of "pisa".
+"pisado" is the participle of "pisa".
+"pisada" is the participle of "pisa".
+"pisada" is feminine.
+"pisados" is the participle of "pisa".
+"pisados" is the plural of "pisado".
+"pisadas" is the participle of "pisa".
+"pisadas" is feminine.
+"pisadas" is the plural of "pisada".
+"pisar" is the infinitive of "pisa".
+"pisando" is the gerund of "pisa".
+The verb "calla" means "hushes".
+"callan" is the plural of "calla".
+"callamos" is the first person of "callan".
+"callo" is the first person of "calla".
+"callas" is the second person of "calla".
+"calló" is the past of "calla".
+"callaron" is the past of "callan".
+"callamos" is the first person of "callaron".
+"callé" is the first person of "calló".
+"callaste" is the second person of "calló".
+"callaba" is the past of "calla".
+"callaban" is the past of "callan".
+"callábamos" is the first person of "callaban".
+"callabas" is the second person of "callaba".
+"callará" is the future of "calla".
+"callarán" is the plural of "callará".
+"callaremos" is the first person of "callarán".
+"callaré" is the first person of "callará".
+"callarás" is the second person of "callará".
+"callaría" is the conditional of "calla".
+"callarían" is the plural of "callaría".
+"callaríamos" is the first person of "callarían".
+"callarías" is the second person of "callaría".
+"calle" is the subjunctive of "calla".
+"callen" is the plural of "calle".
+"callemos" is the first person of "callen".
+"calles" is the second person of "calle".
+"callara" is the past subjunctive of "calla".
+"callaran" is the plural of "callara".
+"calláramos" is the first person of "callaran".
+"callaras" is the second person of "callara".
+"calla" is the imperative of "calla".
+"calles" is the negative imperative of "calla".
+"callad" is the imperative of "callan".
+"calléis" is the negative imperative of "callan".
+"callemos" is the hortative of "calla".
+"callado" is the participle of "calla".
+"callada" is the participle of "calla".
+"callada" is feminine.
+"callados" is the participle of "calla".
+"callados" is the plural of "callado".
+"calladas" is the participle of "calla".
+"calladas" is feminine.
+"calladas" is the plural of "callada".
+"callar" is the infinitive of "calla".
+"callando" is the gerund of "calla".
+The verb "emite" means "broadcasts".
+"emiten" is the plural of "emite".
+"emitimos" is the first person of "emiten".
+"emito" is the first person of "emite".
+"emites" is the second person of "emite".
+"emitió" is the past of "emite".
+"emitieron" is the past of "emiten".
+"emitimos" is the first person of "emitieron".
+"emití" is the first person of "emitió".
+"emitiste" is the second person of "emitió".
+"emitía" is the past of "emite".
+"emitían" is the past of "emiten".
+"emitíamos" is the first person of "emitían".
+"emitías" is the second person of "emitía".
+"emitirá" is the future of "emite".
+"emitirán" is the plural of "emitirá".
+"emitiremos" is the first person of "emitirán".
+"emitiré" is the first person of "emitirá".
+"emitirás" is the second person of "emitirá".
+"emitiría" is the conditional of "emite".
+"emitirían" is the plural of "emitiría".
+"emitiríamos" is the first person of "emitirían".
+"emitirías" is the second person of "emitiría".
+"emita" is the subjunctive of "emite".
+"emitan" is the plural of "emita".
+"emitamos" is the first person of "emitan".
+"emitas" is the second person of "emita".
+"emitiera" is the past subjunctive of "emite".
+"emitieran" is the plural of "emitiera".
+"emitiéramos" is the first person of "emitieran".
+"emitieras" is the second person of "emitiera".
+"emite" is the imperative of "emite".
+"emitas" is the negative imperative of "emite".
+"emitid" is the imperative of "emiten".
+"emitáis" is the negative imperative of "emiten".
+"emitamos" is the hortative of "emite".
+"emitido" is the participle of "emite".
+"emitida" is the participle of "emite".
+"emitida" is feminine.
+"emitidos" is the participle of "emite".
+"emitidos" is the plural of "emitido".
+"emitidas" is the participle of "emite".
+"emitidas" is feminine.
+"emitidas" is the plural of "emitida".
+"emitir" is the infinitive of "emite".
+"emitiendo" is the gerund of "emite".
+The verb "sustrae" means "subtracts".
+"sustraen" is the plural of "sustrae".
+"sustraemos" is the first person of "sustraen".
+"sustraigo" is the first person of "sustrae".
+"sustraes" is the second person of "sustrae".
+"sustrajo" is the past of "sustrae".
+"sustrajeron" is the past of "sustraen".
+"sustrajimos" is the first person of "sustrajeron".
+"sustraje" is the first person of "sustrajo".
+"sustrajiste" is the second person of "sustrajo".
+"sustraía" is the past of "sustrae".
+"sustraían" is the past of "sustraen".
+"sustraíamos" is the first person of "sustraían".
+"sustraías" is the second person of "sustraía".
+"sustraerá" is the future of "sustrae".
+"sustraerán" is the plural of "sustraerá".
+"sustraeremos" is the first person of "sustraerán".
+"sustraeré" is the first person of "sustraerá".
+"sustraerás" is the second person of "sustraerá".
+"sustraería" is the conditional of "sustrae".
+"sustraerían" is the plural of "sustraería".
+"sustraeríamos" is the first person of "sustraerían".
+"sustraerías" is the second person of "sustraería".
+"sustraiga" is the subjunctive of "sustrae".
+"sustraigan" is the plural of "sustraiga".
+"sustraigamos" is the first person of "sustraigan".
+"sustraigas" is the second person of "sustraiga".
+"sustrajera" is the past subjunctive of "sustrae".
+"sustrajeran" is the plural of "sustrajera".
+"sustrajéramos" is the first person of "sustrajeran".
+"sustrajeras" is the second person of "sustrajera".
+"sustrae" is the imperative of "sustrae".
+"sustraigas" is the negative imperative of "sustrae".
+"sustraed" is the imperative of "sustraen".
+"sustraigáis" is the negative imperative of "sustraen".
+"sustraigamos" is the hortative of "sustrae".
+"sustraído" is the participle of "sustrae".
+"sustraída" is the participle of "sustrae".
+"sustraída" is feminine.
+"sustraídos" is the participle of "sustrae".
+"sustraídos" is the plural of "sustraído".
+"sustraídas" is the participle of "sustrae".
+"sustraídas" is feminine.
+"sustraídas" is the plural of "sustraída".
+"sustraer" is the infinitive of "sustrae".
+"sustrayendo" is the gerund of "sustrae".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -62377,51 +62707,6 @@ The verb "aísla" means "isolates".
 "aislar" is the infinitive of "aísla".
 "aislando" is the gerund of "aísla".
 The verb "emite" means "issues".
-"emiten" is the plural of "emite".
-"emitimos" is the first person of "emiten".
-"emito" is the first person of "emite".
-"emites" is the second person of "emite".
-"emitió" is the past of "emite".
-"emitieron" is the past of "emiten".
-"emitimos" is the first person of "emitieron".
-"emití" is the first person of "emitió".
-"emitiste" is the second person of "emitió".
-"emitía" is the past of "emite".
-"emitían" is the past of "emiten".
-"emitíamos" is the first person of "emitían".
-"emitías" is the second person of "emitía".
-"emitirá" is the future of "emite".
-"emitirán" is the plural of "emitirá".
-"emitiremos" is the first person of "emitirán".
-"emitiré" is the first person of "emitirá".
-"emitirás" is the second person of "emitirá".
-"emitiría" is the conditional of "emite".
-"emitirían" is the plural of "emitiría".
-"emitiríamos" is the first person of "emitirían".
-"emitirías" is the second person of "emitiría".
-"emita" is the subjunctive of "emite".
-"emitan" is the plural of "emita".
-"emitamos" is the first person of "emitan".
-"emitas" is the second person of "emita".
-"emitiera" is the past subjunctive of "emite".
-"emitieran" is the plural of "emitiera".
-"emitiéramos" is the first person of "emitieran".
-"emitieras" is the second person of "emitiera".
-"emite" is the imperative of "emite".
-"emitas" is the negative imperative of "emite".
-"emitid" is the imperative of "emiten".
-"emitáis" is the negative imperative of "emiten".
-"emitamos" is the hortative of "emite".
-"emitido" is the participle of "emite".
-"emitida" is the participle of "emite".
-"emitida" is feminine.
-"emitidos" is the participle of "emite".
-"emitidos" is the plural of "emitido".
-"emitidas" is the participle of "emite".
-"emitidas" is feminine.
-"emitidas" is the plural of "emitida".
-"emitir" is the infinitive of "emite".
-"emitiendo" is the gerund of "emite".
 The verb "disecciona" means "dissects".
 "diseccionan" is the plural of "disecciona".
 "diseccionamos" is the first person of "diseccionan".
@@ -100670,51 +100955,6 @@ The verb "pelea" means "litigates".
 "pelear" is the infinitive of "pelea".
 "peleando" is the gerund of "pelea".
 The verb "sustrae" means "embezzles".
-"sustraen" is the plural of "sustrae".
-"sustraemos" is the first person of "sustraen".
-"sustraigo" is the first person of "sustrae".
-"sustraes" is the second person of "sustrae".
-"sustrajo" is the past of "sustrae".
-"sustrajeron" is the past of "sustraen".
-"sustrajimos" is the first person of "sustrajeron".
-"sustraje" is the first person of "sustrajo".
-"sustrajiste" is the second person of "sustrajo".
-"sustraía" is the past of "sustrae".
-"sustraían" is the past of "sustraen".
-"sustraíamos" is the first person of "sustraían".
-"sustraías" is the second person of "sustraía".
-"sustraerá" is the future of "sustrae".
-"sustraerán" is the plural of "sustraerá".
-"sustraeremos" is the first person of "sustraerán".
-"sustraeré" is the first person of "sustraerá".
-"sustraerás" is the second person of "sustraerá".
-"sustraería" is the conditional of "sustrae".
-"sustraerían" is the plural of "sustraería".
-"sustraeríamos" is the first person of "sustraerían".
-"sustraerías" is the second person of "sustraería".
-"sustraiga" is the subjunctive of "sustrae".
-"sustraigan" is the plural of "sustraiga".
-"sustraigamos" is the first person of "sustraigan".
-"sustraigas" is the second person of "sustraiga".
-"sustrajera" is the past subjunctive of "sustrae".
-"sustrajeran" is the plural of "sustrajera".
-"sustrajéramos" is the first person of "sustrajeran".
-"sustrajeras" is the second person of "sustrajera".
-"sustrae" is the imperative of "sustrae".
-"sustraigas" is the negative imperative of "sustrae".
-"sustraed" is the imperative of "sustraen".
-"sustraigáis" is the negative imperative of "sustraen".
-"sustraigamos" is the hortative of "sustrae".
-"sustraído" is the participle of "sustrae".
-"sustraída" is the participle of "sustrae".
-"sustraída" is feminine.
-"sustraídos" is the participle of "sustrae".
-"sustraídos" is the plural of "sustraído".
-"sustraídas" is the participle of "sustrae".
-"sustraídas" is feminine.
-"sustraídas" is the plural of "sustraída".
-"sustraer" is the infinitive of "sustrae".
-"sustrayendo" is the gerund of "sustrae".
 The verb "compagina" means "paginates".
 "compaginan" is the plural of "compagina".
 "compaginamos" is the first person of "compaginan".
@@ -108052,6 +108292,52 @@ The verb "desconoce" means "ignores".
 "desconocidas" is the plural of "desconocida".
 "desconocer" is the infinitive of "desconoce".
 "desconociendo" is the gerund of "desconoce".
+The verb "traspasa" means "transfers".
+"traspasan" is the plural of "traspasa".
+"traspasamos" is the first person of "traspasan".
+"traspaso" is the first person of "traspasa".
+"traspasas" is the second person of "traspasa".
+"traspasó" is the past of "traspasa".
+"traspasaron" is the past of "traspasan".
+"traspasamos" is the first person of "traspasaron".
+"traspasé" is the first person of "traspasó".
+"traspasaste" is the second person of "traspasó".
+"traspasaba" is the past of "traspasa".
+"traspasaban" is the past of "traspasan".
+"traspasábamos" is the first person of "traspasaban".
+"traspasabas" is the second person of "traspasaba".
+"traspasará" is the future of "traspasa".
+"traspasarán" is the plural of "traspasará".
+"traspasaremos" is the first person of "traspasarán".
+"traspasaré" is the first person of "traspasará".
+"traspasarás" is the second person of "traspasará".
+"traspasaría" is the conditional of "traspasa".
+"traspasarían" is the plural of "traspasaría".
+"traspasaríamos" is the first person of "traspasarían".
+"traspasarías" is the second person of "traspasaría".
+"traspase" is the subjunctive of "traspasa".
+"traspasen" is the plural of "traspase".
+"traspasemos" is the first person of "traspasen".
+"traspases" is the second person of "traspase".
+"traspasara" is the past subjunctive of "traspasa".
+"traspasaran" is the plural of "traspasara".
+"traspasáramos" is the first person of "traspasaran".
+"traspasaras" is the second person of "traspasara".
+"traspasa" is the imperative of "traspasa".
+"traspases" is the negative imperative of "traspasa".
+"traspasad" is the imperative of "traspasan".
+"traspaséis" is the negative imperative of "traspasan".
+"traspasemos" is the hortative of "traspasa".
+"traspasado" is the participle of "traspasa".
+"traspasada" is the participle of "traspasa".
+"traspasada" is feminine.
+"traspasados" is the participle of "traspasa".
+"traspasados" is the plural of "traspasado".
+"traspasadas" is the participle of "traspasa".
+"traspasadas" is feminine.
+"traspasadas" is the plural of "traspasada".
+"traspasar" is the infinitive of "traspasa".
+"traspasando" is the gerund of "traspasa".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -120416,54 +120702,6 @@ The verb "preocupa" means "concerns".
 "preocupadas" is the plural of "preocupada".
 "preocupar" is the infinitive of "preocupa".
 "preocupando" is the gerund of "preocupa".
-The verb "pisa" means "steps".
-"pisan" is the plural of "pisa".
-"pisamos" is the first person of "pisan".
-"piso" is the first person of "pisa".
-"pisas" is the second person of "pisa".
-"pisó" is the past of "pisa".
-"pisaron" is the past of "pisan".
-"pisamos" is the first person of "pisaron".
-"pisé" is the first person of "pisó".
-"pisaste" is the second person of "pisó".
-"pisaba" is the past of "pisa".
-"pisaban" is the past of "pisan".
-"pisábamos" is the first person of "pisaban".
-"pisabas" is the second person of "pisaba".
-"pisará" is the future of "pisa".
-"pisarán" is the plural of "pisará".
-"pisaremos" is the first person of "pisarán".
-"pisaré" is the first person of "pisará".
-"pisarás" is the second person of "pisará".
-"pisaría" is the conditional of "pisa".
-"pisarían" is the plural of "pisaría".
-"pisaríamos" is the first person of "pisarían".
-"pisarías" is the second person of "pisaría".
-"pise" is the subjunctive of "pisa".
-"pisen" is the plural of "pise".
-"pisemos" is the first person of "pisen".
-"pises" is the second person of "pise".
-"pisara" is the past subjunctive of "pisa".
-"pisaran" is the plural of "pisara".
-"pisáramos" is the first person of "pisaran".
-"pisaras" is the second person of "pisara".
-"pisa" is the imperative of "pisa".
-"pises" is the negative imperative of "pisa".
-"pisad" is the imperative of "pisan".
-"piséis" is the negative imperative of "pisan".
-"pisemos" is the hortative of "pisa".
-"pisado" is the participle of "pisa".
-"pisada" is the participle of "pisa".
-"pisada" is feminine.
-"pisados" is the participle of "pisa".
-"pisados" is the plural of "pisado".
-"pisadas" is the participle of "pisa".
-"pisadas" is feminine.
-"pisadas" is the plural of "pisada".
-"pisar" is the infinitive of "pisa".
-"pisando" is the gerund of "pisa".
-"stepped" is the past of "steps".
-"stepping" is the gerund of "steps".
 The verb "tira" means "throws".
 "tiran" is the plural of "tira".
 "tiramos" is the first person of "tiran".
@@ -123023,6 +123261,14 @@ The feminine adjective "genovesa" means "genoese".
 "genovesas" is the plural of "genovesa".
 The adjective "infernal" means "infernal".
 "infernales" is the plural of "infernal".
+The masculine adjective "nostálgico" means "nostalgic".
+"nostálgicos" is the plural of "nostálgico".
+The feminine adjective "nostálgica" means "nostalgic".
+"nostálgicas" is the plural of "nostálgica".
+The masculine adjective "vespertino" means "preevening".
+"vespertinos" is the plural of "vespertino".
+The feminine adjective "vespertina" means "preevening".
+"vespertinas" is the plural of "vespertina".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -137428,6 +137674,10 @@ The feminine adjective "cruenta" means "bloody".
 "cruentísima" is the superlative of "cruenta".
 "cruentísimos" is the superlative of "cruentos".
 "cruentísimo" is the superlative of "cruento".
+The masculine adjective "lelo" means "silly".
+"lelos" is the plural of "lelo".
+The feminine adjective "lela" means "silly".
+"lelas" is the plural of "lela".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

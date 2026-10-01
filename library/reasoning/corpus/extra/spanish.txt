@@ -1543,3 +1543,92 @@ The word "cuánto" means "how much".
 # object, as `conosce' has it: a clause with an object of its own takes
 # `aleja', and any other the first word that is not it
 The transitive verb "aleja" means "distances".
+# the Arzalluz report (AnCora CESS-CAST-P-20020801-17), into Italian.
+# `No sólo nos insultan, sino que mienten' -- they insult us: the
+# dictionary's first meaning of `insulta' is `abuses'
+The verb "insulta" means "insults".
+# `el párroco de Maruri' -- the parish priest: the dictionary's meaning is
+# `rector', which Italian writes `rettore'. Said after `vicario', which
+# stays the word written for `vicar'
+The masculine noun "vicario" means "vicar".
+The masculine noun "párroco" means "vicar".
+# `un referendo de autodeterminación': apertium-spa spells it `referéndum'
+# only, which stays the word written for it
+The masculine noun "referéndum" means "referendum".
+The masculine noun "referendo" means "referendum".
+"referendos" is the plural of "referendo".
+# `el líder peneuvista' -- of the PNV, which no dictionary has a word for
+The adjective "peneuvista" means "PNV".
+"peneuvistas" is the plural of "peneuvista".
+# `como si le hubiéramos echado': the past subjunctive's first person
+# plural, beside the hand lesson's `hubiera' and `hubieran'
+"hubiéramos" is the first person of "hubieran".
+"hubiésemos" is the first person of "hubiesen".
+# `Ante seguidores del partido en Mutriku' -- in front of: the dictionary has
+# `ante' as an elk and nothing else
+The preposition "ante" means "in front of".
+# `Tres veces negó el líder peneuvista que ...' -- three times: `vez' is a
+# time, which a front of a count and a time needs
+"vez" is a time.
+# `el ultimátum que el lehendakari ... dio a José María Aznar' -- gave it TO
+# him, which Italian writes `ha dato ad Aznar'
+"da" takes "a" before the person.
+# `El líder del PNV previno a los suyos de que no deben albergar "miedo"
+# alguno' -- warned them that. The dictionary's `previene' is `warns' too,
+# only later, and `advierte' stays the first word written for it
+The verb "advierte" means "warns".
+The verb "previene" means "warns".
+"advierte" takes the clause.
+"advierte" takes "de" before the clause.
+"previene" takes the clause.
+"previene" takes "de" before the clause.
+# `... que anunció su marcha de Euskadi: "se va con el chollo ..."' -- he
+# leaves, `irse', which the lesson cannot say of a verb and a pronoun and
+# says of one word, as `se da cuenta' is. Its meaning is its own, so that
+# no other crossing of `leaves' or `goes' moves
+The verb "se va" means "goes away".
+# `para asumir más las competencias' -- powers: the dictionary's first
+# meaning is `competition', which stays the second
+The feminine noun "competencia" means "competence".
+"sino" takes the clause.
+# `cuando concluya el ultimátum' -- the ultimatum ends: its subject stands
+# after the verb, and read with nobody named it was HE who concludes the
+# ultimatum
+"concluye" is intransitive.
+# the Cecchi Paone report (VIT-9270..9295), from Italian
+# `macché, non ho firmato' -- no way
+The adverb "qué va" means "no way".
+# `il "giornalaio"' -- a newsagent's stand is a `quiosco', and Spanish has
+# `quiosquero' for the one who keeps it; `trasloco' is a transfer, and the
+# first word the dictionary gives for one is `transbordo'
+The masculine noun "quiosquero" means "newsagent".
+The masculine noun "traslado" means "transfer".
+# `da martedì scorso fino a lunedì prossimo' -- a day of the week takes its
+# article in Spanish: `desde el martes pasado hasta el lunes próximo'
+The article "el" takes the day.
+# `il suo diretto superiore' -- `su jefe directo': the adjective stays after
+# its noun where the Italian had it before
+The adjective "directo" does not precede the noun.
+# `ha avuto a che fare con' -- `ha tenido que ver con'
+The verb "tiene que ver" means "has dealings".
+"tienen que ver" is the plural of "tiene que ver".
+"tener que ver" is the infinitive of "tiene que ver".
+"tenido que ver" is the participle of "tiene que ver".
+# `finora' and `a parte' -- until now, apart from
+The adverb "hasta ahora" means "until now".
+The preposition "aparte de" means "apart from".
+# `di qui alla firma ce ne corre' -- `de aquí a la firma hay un trecho': the
+# long way between two things, one verb of three words
+The verb "hay un trecho" means "has a long way".
+# `del resto il suo Avvocato ...' -- for the rest, Spanish's `por lo demás'; not `besides',
+# which is the dictionary's `además'
+The adverb "por lo demás" means "for the rest".
+# `ha discusso i suoi futuri destini' -- discuss: the dictionary pairs it with
+# `hablar' only, and `discutir' is there for `argue'
+The verb "discute" means "discusses".
+# `con distacco o fuor dai denti' -- bluntly, and the dictionary entry above
+# gives `distacco' its word
+The adverb "sin rodeos" means "bluntly".
+# `dietro queste voci' -- `detras de estas voces': behind, a preposition of two
+# words, before the adverb `detras' that stands alone
+The preposition "detrás de" means "behind".
