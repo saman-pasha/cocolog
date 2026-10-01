@@ -6,9 +6,13 @@
 #   docker run --rm -it cocolog                          # the REPL
 #   docker run --rm -v "$PWD":/work cocolog --embed KB -s program.pl
 #
-# The last keeps its knowledge base in ./KB on the host, through the
-# embedded store: no server to start. On a Mac the image runs in Docker's
-# Linux VM like any other; it is a Linux build, not a macOS one.
+#   docker save cocolog | gzip > cocolog.tar.gz      # to another machine,
+#   docker load -i cocolog.tar.gz                    # a Windows PC included
+#
+# The run with a mount keeps its knowledge base in ./KB on the host, through
+# the embedded store: no server to start. On a Mac the image runs in
+# Docker's Linux VM like any other; it is a Linux build, not a macOS one.
+# README's "Or in Docker" has the Windows commands and their caveats.
 #
 # THE INSTALL IS THE ONE install/README.md DOCUMENTS, not a copy of its
 # steps -- a copy is a second place for a fact, and colab/prereqs.sh records

@@ -169,19 +169,59 @@ does everything below on one machine — packages, the two sibling checkouts,
 ZiguratIP, cocolog, its schema and modules — and ends by printing the exports;
 [install/README.md](install/README.md) has the knobs.
 
-**Or in Docker**, on any machine that runs it — a Mac included, where the
-image runs in Docker's Linux VM: `docker build -t cocolog .` runs that same
-`install/install-linux.sh` on Ubuntu 24.04, and
+### Or in Docker
+
+It works on any machine that runs Docker — a Mac included, where the image
+runs in Docker's Linux VM. `docker build -t cocolog .` runs that same
+`install/install-linux.sh` on Ubuntu 24.04; the [Dockerfile](Dockerfile)
+says what it adds to the script, what it checks, and what its first build
+measured. Then:
 
 ```sh
+docker run --rm cocolog --version
+docker run --rm cocolog query 'X is 6*7, write(X), nl'
+docker run --rm -it cocolog                                  # the REPL
 docker run --rm -v "$PWD":/work cocolog --embed KB -s program.pl
 ```
 
-runs a program with its knowledge base in `./KB` beside it, no server
-needed. The [Dockerfile](Dockerfile) says what it adds to the script, what
-it checks, and what its first build measured.
+The last runs `program.pl` from the current directory with its knowledge
+base in `./KB` beside it, no server needed; a second run finds what the
+first left there.
 
-By hand, it is this:
+**The image moves to another machine as a file**, so it is built once and
+used anywhere Docker runs Linux x86-64 images — a Windows PC included:
+
+```sh
+docker save cocolog | gzip > cocolog.tar.gz     # where it was built
+docker load -i cocolog.tar.gz                   # on the other machine, once
+```
+
+On Windows, in PowerShell, the commands above are the same but for the
+mount, which names the current folder as `${PWD}`:
+
+```powershell
+docker run --rm cocolog query 'X is 6*7, write(X), nl'
+docker run --rm -v "${PWD}:/work" cocolog --embed KB -s program.pl
+```
+
+and in `cmd.exe` the mount is `-v "%cd%:/work"` and a query takes double
+quotes. A program saved with Windows line endings reads as it would on
+Linux. **The image has been run on macOS only.** The embedded store maps its
+files into memory, which on a mounted Windows folder goes through Docker
+Desktop's file sharing; if a store there misbehaves, keep it in a Docker
+volume instead and only the program in the folder:
+
+```powershell
+docker run --rm -v "${PWD}:/work" -v cocolog-kb:/kb cocolog --embed /kb -s program.pl
+```
+
+An ARM machine — a Windows laptop on Snapdragon, a Mac on Apple silicon —
+should build its own image from the Dockerfile rather than load an x86-64
+one. And a checkout made on Windows must keep Unix line endings in its
+shell scripts for `docker build` to work there: clone it with `git clone -c
+core.autocrlf=false`.
+
+### By hand
 
 What the build needs on the machine:
 
