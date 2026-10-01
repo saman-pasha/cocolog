@@ -42,8 +42,17 @@ PY_LIBS=$("$PY" -c 'import sysconfig; print(" ".join(v for v in (sysconfig.get_c
 PY_FRAMEWORK=$("$PY" -c 'import sysconfig; print(sysconfig.get_config_var("PYTHONFRAMEWORK") or "")')
 PY_PREFIX=$("$PY" -c 'import sysconfig; print(sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX") or "")')
 
-if [ -f "$PY_LIBDIR/libpython$PY_LDVER.so" ] || [ -f "$PY_LIBDIR/libpython$PY_LDVER.dylib" ]; then
+# THE LIBRARY BY NAME TOO, for the module to make its symbols global before
+# Python starts: numpy's extension modules look for them there, and Linux
+# loads a module's libraries locally (numpy.cicili's np_ready says more).
+PY_SO=""
+for f in "$PY_LIBDIR/libpython$PY_LDVER.so" "$PY_LIBDIR/libpython$PY_LDVER.dylib"; do
+  [ -f "$f" ] && { PY_SO=$f; break; }
+done
+PY_GLOBAL=""
+if [ -n "$PY_SO" ]; then
   PY_LINK="-L$PY_LIBDIR -lpython$PY_LDVER -Wl,-rpath,$PY_LIBDIR"
+  PY_GLOBAL="-DCOCO_NP_LIBPYTHON=\"$PY_SO\""
 elif [ -n "$PY_FRAMEWORK" ] && [ -n "$PY_PREFIX" ]; then
   PY_LINK="-F$PY_PREFIX -framework $PY_FRAMEWORK"
 else
@@ -65,7 +74,7 @@ mkdir -p "$OUT"
 # reorder of the includes.
 "$CC" -shared -fPIC -O3 -DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION \
     -Wno-unused-function -Wno-macro-redefined -Wno-deprecated-declarations \
-    -I"$PY_INC" -I"$NP_INC" \
+    -I"$PY_INC" -I"$NP_INC" $PY_GLOBAL \
     -o "$OUT/numpy.so" "$HERE/numpy.c" \
     $PY_LINK $PY_LIBS -lm
 echo "built $OUT/numpy.so against $PY ($("$PY" -c 'import sys, numpy; print("python " + sys.version.split()[0] + ", numpy " + numpy.__version__)'))"

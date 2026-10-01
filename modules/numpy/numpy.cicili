@@ -227,6 +227,7 @@
   (include <Python.h>)
   (include <numpy/arrayobject.h>)
   (include <math.h>)
+  (include <dlfcn.h>)
 
   (import "lib/python/python.cicili")
   (import "./sdk.cicili")
@@ -235,6 +236,15 @@
   ;;; A cast takes ONE type token, so `unsigned char' needs a name -- the
   ;;; same typedef every byte-handling module here carries.
   (@define (code "ubyte_t unsigned char"))
+
+  ;;; NUMPY 1.x HAS NO NPY_RAVEL_AXIS. 2.0 gave "the whole array, flattened"
+  ;;; a name of its own and moved NPY_MAXDIMS from 32 to 64; 1.x asked for
+  ;;; the same thing with NPY_MAXDIMS itself. Ubuntu 24.04's numpy is 1.26,
+  ;;; and without this the module did not compile there -- found by the
+  ;;; first Docker build, which uses the distribution's numpy.
+  (@ifndef (code "NPY_RAVEL_AXIS"))
+  (@define (code "NPY_RAVEL_AXIS NPY_MAXDIMS"))
+  (@endif)
 
   ;;; Three type checks the binding leaves out, being MACROS in C: a
   ;;; declaration of one would emit a prototype the preprocessor mangles, so
@@ -248,6 +258,17 @@
   (decl) (func np_is_list ((PyObject * o)) (out int))
   (decl) (func np_is_tuple ((PyObject * o)) (out int))
   (decl) (func np_is_str ((PyObject * o)) (out int))
+
+  ;;; The libpython this module links, by the path build.sh passes as
+  ;;; COCO_NP_LIBPYTHON, for np_ready to make global. A macro is invisible to
+  ;;; Cicili, so it reaches Cicili the way the three checks above do, as a
+  ;;; one-line wrapper -- 0 where the build named none (a framework Python).
+  (@ifdef (code "COCO_NP_LIBPYTHON"))
+  (code "static const char * np_libpython(void) { return COCO_NP_LIBPYTHON; }")
+  (@else)
+  (code "static const char * np_libpython(void) { return 0; }")
+  (@endif)
+  (decl) (func np_libpython () (out const char *))
   (decl) (func drand48 () (out double))
   (decl) (func srand48 ((long seed)))
 
@@ -264,6 +285,15 @@
   (static)
   (func np_ready ((coco_engine * e) (int * rc)) (out int)
         (if np_started (return 1))
+        ;; LINUX OPENS A MODULE'S LIBRARIES LOCALLY, and numpy's own extension
+        ;; modules expect Python's symbols in the process's global scope, the
+        ;; way a python3 process provides them: so `import numpy' died with
+        ;; `undefined symbol: PyExc_ImportError'. The libpython this module
+        ;; links is loaded already; opening it again with RTLD_GLOBAL and
+        ;; RTLD_NOLOAD makes its symbols global and loads nothing. build.sh
+        ;; names it. On macOS the symbols resolve anyway, and this is a no-op.
+        (if (!= (np_libpython) nil)
+            (dlopen (np_libpython) (bitor RTLD_NOW (bitor RTLD_GLOBAL RTLD_NOLOAD))))
         (if (not (Py_IsInitialized)) (Py_Initialize))
         (if (< (_import_array) 0)
             (block (PyErr_Print)
