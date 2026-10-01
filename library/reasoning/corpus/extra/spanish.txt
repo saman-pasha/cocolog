@@ -1484,3 +1484,62 @@ The adverb "más bien" means "rather".
 # dictionary's first meaning of `vista' is a court's hearing, and Italian
 # wrote `il suo udito'
 The feminine noun "vista" means "sight".
+# Umberto Eco on the flat earth (the Italian UD VIT document VIT-9967..9998),
+# from Italian: the words a column of history needs that no dictionary pairs,
+# and those apertium-spa lacks
+The conjunction "salvo que" means "except that".
+The conjunction "tanto que" means "so much that".
+The preposition "en cuanto a" means "as for".
+The preposition "en busca de" means "in search of".
+The preposition "con tal de" means "for the sake of".
+The adverb "ante todo" means "first of all".
+The adverb "como de costumbre" means "as usual".
+The adverb "antes de Cristo" means "before christ".
+The adverb "por lo demás" means "otherwise".
+The feminine noun "edad media" means "middle ages".
+The feminine noun "serendipia" means "serendipity".
+"serendipia" is the plural of "serendipia".
+The masculine adjective "decimonónico" means "nineteenth-century".
+"decimonónicos" is the plural of "decimonónico".
+The feminine adjective "decimonónica" means "nineteenth-century".
+"decimonónicas" is the plural of "decimonónica".
+The masculine adjective "decimocuarto" means "fourteenth".
+"decimocuartos" is the plural of "decimocuarto".
+The feminine adjective "decimocuarta" means "fourteenth".
+"decimocuartas" is the plural of "decimocuarta".
+The number "trescientos sesenta" means "360".
+# `no tenían funciones geográficas sino simbólicas' -- after a denial, the
+# word that says what is instead is `sino', and never `pero'
+"sino" is the partner of "no".
+# `i buoni medievali' -- the good people of the middle ages: Spanish's noun
+# as Italian's, a person, of no gender a lesson states, so the adjective
+# stays free to agree with any noun (the word's gender is the lesson's
+# whatever its class)
+The noun "medieval" means "medieval".
+"medieval" is not feminine.
+"medieval" is a person.
+# `ci si salva l'anima' -- one saves one's soul: the dictionary's first
+# Spanish word for saves is `ahorra', which saves money, and Fregene's `per
+# salvarla' came out `para ahorrarla'. Said first, `salva' is the word
+# written for saves; `ahorra' still reads as it
+The verb "salva" means "saves".
+# `gli unici a non credervi' -- the only ones not to believe it: the object
+# `you' was written `tú', `creertú', and `Il cane ti vede' came out `El perro
+# tú ve' -- `tú' is the subject, and the lesson let it stand before the verb
+# as every pronoun does, as it says `él' does not
+The pronoun "tú" does not precede the verb.
+# ... and Spanish's for it: `más amplia de lo que el genovés sostenía'
+The conjunction "de lo que" means "than what".
+# `a giocarsi l'anima' -- to stake his soul: the builder calls `alma' a
+# person, because WordNet's `soul' is one in a sense, and the word before a
+# person came out `jugarse a la alma'
+"alma" is not a person.
+# ... and Spanish's for it: `cuánto dista Roma de Jerusalén'. The dictionary
+# has `cuanto' as `as much' and `quantum' alone, and no `cuánto'
+The word "cuánto" means "how much".
+# `quanto Roma disti da Gerusalemme' -- how far Rome is from Jerusalem: the
+# dictionary's first word for `distances' is `aleja', which moves a thing
+# away, and a distance with no object is `dista'. The verb's sense by its
+# object, as `conosce' has it: a clause with an object of its own takes
+# `aleja', and any other the first word that is not it
+The transitive verb "aleja" means "distances".

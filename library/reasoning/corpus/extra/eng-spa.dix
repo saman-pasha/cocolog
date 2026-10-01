@@ -379,3 +379,23 @@
 # `una cruenta batalla' a bloody one, which `sangriento' is written for
 <e r="RL"><p><l>feat<s n="n"/></l><r>gesta<s n="n"/><s n="f"/></r></p></e>
 <e r="RL"><p><l>bloody<s n="adj"/></l><r>cruento<s n="adj"/></r></p></e>
+# Umberto Eco on the flat earth (the Italian UD VIT document VIT-9967..9998),
+# from Italian: words apertium-spa carries and the bilingual pairs with nothing
+<e><p><l>dialoguing<s n="adj"/></l><r>dialogante<s n="adj"/></r></p></e>
+<e><p><l>roundness<s n="n"/></l><r>redondez<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>sphericity<s n="n"/></l><r>esfericidad<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>geocentrism<s n="n"/></l><r>geocentrismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>tabernacle<s n="n"/></l><r>tabernáculo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>polemicize<s n="vblex"/></l><r>polemizar<s n="vblex"/></r></p></e>
+<e><p><l>genoese<s n="adj"/></l><r>genovés<s n="adj"/></r></p></e>
+<e><p><l>infernal<s n="adj"/></l><r>infernal<s n="adj"/></r></p></e>
+<e><p><l>distance<s n="vblex"/></l><r>distar<s n="vblex"/></r></p></e>
+# `err' is the hand lines' `equivoca', which state four of its forms, and
+# `si stava sbagliando' wants the gerund
+<e><p><l>err<s n="vblex"/></l><r>equivocar<s n="vblex"/></r></p></e>
+# ... and written only: `avvincente' is gripping, and `apasionante', which
+# Spanish says for it, reads as another word's meaning first
+<e r="LR"><p><l>gripping<s n="adj"/></l><r>apasionante<s n="adj"/></r></p></e>
+# `raggiungere il levante per la via del ponente': apertium-spa carries
+# `levante', and the bilingual pairs it with nothing
+<e><p><l>levant<s n="n"/></l><r>levante<s n="n"/><s n="m"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20320 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20332 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -785,6 +785,37 @@ The adverb "más bien" means "rather".
 "menudas" is exclamative.
 "pregunta" takes "por" before the question.
 The feminine noun "vista" means "sight".
+The conjunction "salvo que" means "except that".
+The conjunction "tanto que" means "so much that".
+The preposition "en cuanto a" means "as for".
+The preposition "en busca de" means "in search of".
+The preposition "con tal de" means "for the sake of".
+The adverb "ante todo" means "first of all".
+The adverb "como de costumbre" means "as usual".
+The adverb "antes de Cristo" means "before christ".
+The adverb "por lo demás" means "otherwise".
+The feminine noun "edad media" means "middle ages".
+The feminine noun "serendipia" means "serendipity".
+"serendipia" is the plural of "serendipia".
+The masculine adjective "decimonónico" means "nineteenth-century".
+"decimonónicos" is the plural of "decimonónico".
+The feminine adjective "decimonónica" means "nineteenth-century".
+"decimonónicas" is the plural of "decimonónica".
+The masculine adjective "decimocuarto" means "fourteenth".
+"decimocuartos" is the plural of "decimocuarto".
+The feminine adjective "decimocuarta" means "fourteenth".
+"decimocuartas" is the plural of "decimocuarta".
+The number "trescientos sesenta" means "360".
+"sino" is the partner of "no".
+The noun "medieval" means "medieval".
+"medieval" is not feminine.
+"medieval" is a person.
+The verb "salva" means "saves".
+The pronoun "tú" does not precede the verb.
+The conjunction "de lo que" means "than what".
+"alma" is not a person.
+The word "cuánto" means "how much".
+The transitive verb "aleja" means "distances".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -890,6 +921,16 @@ The feminine noun "aeronáutica" means "aeronautics".
 The noun "docente" means "lecturer".
 "docentes" is the plural of "docente".
 "docente" is a person.
+The feminine noun "redondez" means "roundness".
+"redondeces" is the plural of "redondez".
+The feminine noun "esfericidad" means "sphericity".
+"esfericidades" is the plural of "esfericidad".
+The masculine noun "geocentrismo" means "geocentrism".
+"geocentrismos" is the plural of "geocentrismo".
+The masculine noun "tabernáculo" means "tabernacle".
+"tabernáculos" is the plural of "tabernáculo".
+The masculine noun "levante" means "levant".
+"levantes" is the plural of "levante".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -27123,6 +27164,144 @@ The verb "salpica" means "taints".
 "salpicadas" is the plural of "salpicada".
 "salpicar" is the infinitive of "salpica".
 "salpicando" is the gerund of "salpica".
+The verb "polemiza" means "polemicizes".
+"polemizan" is the plural of "polemiza".
+"polemizamos" is the first person of "polemizan".
+"polemizo" is the first person of "polemiza".
+"polemizas" is the second person of "polemiza".
+"polemizó" is the past of "polemiza".
+"polemizaron" is the past of "polemizan".
+"polemizamos" is the first person of "polemizaron".
+"polemicé" is the first person of "polemizó".
+"polemizaste" is the second person of "polemizó".
+"polemizaba" is the past of "polemiza".
+"polemizaban" is the past of "polemizan".
+"polemizábamos" is the first person of "polemizaban".
+"polemizabas" is the second person of "polemizaba".
+"polemizará" is the future of "polemiza".
+"polemizarán" is the plural of "polemizará".
+"polemizaremos" is the first person of "polemizarán".
+"polemizaré" is the first person of "polemizará".
+"polemizarás" is the second person of "polemizará".
+"polemizaría" is the conditional of "polemiza".
+"polemizarían" is the plural of "polemizaría".
+"polemizaríamos" is the first person of "polemizarían".
+"polemizarías" is the second person of "polemizaría".
+"polemice" is the subjunctive of "polemiza".
+"polemicen" is the plural of "polemice".
+"polemicemos" is the first person of "polemicen".
+"polemices" is the second person of "polemice".
+"polemizara" is the past subjunctive of "polemiza".
+"polemizaran" is the plural of "polemizara".
+"polemizáramos" is the first person of "polemizaran".
+"polemizaras" is the second person of "polemizara".
+"polemiza" is the imperative of "polemiza".
+"polemices" is the negative imperative of "polemiza".
+"polemizad" is the imperative of "polemizan".
+"polemicéis" is the negative imperative of "polemizan".
+"polemicemos" is the hortative of "polemiza".
+"polemizado" is the participle of "polemiza".
+"polemizada" is the participle of "polemiza".
+"polemizada" is feminine.
+"polemizados" is the participle of "polemiza".
+"polemizados" is the plural of "polemizado".
+"polemizadas" is the participle of "polemiza".
+"polemizadas" is feminine.
+"polemizadas" is the plural of "polemizada".
+"polemizar" is the infinitive of "polemiza".
+"polemizando" is the gerund of "polemiza".
+The verb "dista" means "distances".
+"distan" is the plural of "dista".
+"distamos" is the first person of "distan".
+"disto" is the first person of "dista".
+"distas" is the second person of "dista".
+"distó" is the past of "dista".
+"distaron" is the past of "distan".
+"distamos" is the first person of "distaron".
+"disté" is the first person of "distó".
+"distaste" is the second person of "distó".
+"distaba" is the past of "dista".
+"distaban" is the past of "distan".
+"distábamos" is the first person of "distaban".
+"distabas" is the second person of "distaba".
+"distará" is the future of "dista".
+"distarán" is the plural of "distará".
+"distaremos" is the first person of "distarán".
+"distaré" is the first person of "distará".
+"distarás" is the second person of "distará".
+"distaría" is the conditional of "dista".
+"distarían" is the plural of "distaría".
+"distaríamos" is the first person of "distarían".
+"distarías" is the second person of "distaría".
+"diste" is the subjunctive of "dista".
+"disten" is the plural of "diste".
+"distemos" is the first person of "disten".
+"distes" is the second person of "diste".
+"distara" is the past subjunctive of "dista".
+"distaran" is the plural of "distara".
+"distáramos" is the first person of "distaran".
+"distaras" is the second person of "distara".
+"dista" is the imperative of "dista".
+"distes" is the negative imperative of "dista".
+"distad" is the imperative of "distan".
+"distéis" is the negative imperative of "distan".
+"distemos" is the hortative of "dista".
+"distado" is the participle of "dista".
+"distada" is the participle of "dista".
+"distada" is feminine.
+"distados" is the participle of "dista".
+"distados" is the plural of "distado".
+"distadas" is the participle of "dista".
+"distadas" is feminine.
+"distadas" is the plural of "distada".
+"distar" is the infinitive of "dista".
+"distando" is the gerund of "dista".
+The verb "equivoca" means "errs".
+"equivocan" is the plural of "equivoca".
+"equivocamos" is the first person of "equivocan".
+"equivoco" is the first person of "equivoca".
+"equivocas" is the second person of "equivoca".
+"equivocó" is the past of "equivoca".
+"equivocaron" is the past of "equivocan".
+"equivocamos" is the first person of "equivocaron".
+"equivoqué" is the first person of "equivocó".
+"equivocaste" is the second person of "equivocó".
+"equivocaba" is the past of "equivoca".
+"equivocaban" is the past of "equivocan".
+"equivocábamos" is the first person of "equivocaban".
+"equivocabas" is the second person of "equivocaba".
+"equivocará" is the future of "equivoca".
+"equivocarán" is the plural of "equivocará".
+"equivocaremos" is the first person of "equivocarán".
+"equivocaré" is the first person of "equivocará".
+"equivocarás" is the second person of "equivocará".
+"equivocaría" is the conditional of "equivoca".
+"equivocarían" is the plural of "equivocaría".
+"equivocaríamos" is the first person of "equivocarían".
+"equivocarías" is the second person of "equivocaría".
+"equivoque" is the subjunctive of "equivoca".
+"equivoquen" is the plural of "equivoque".
+"equivoquemos" is the first person of "equivoquen".
+"equivoques" is the second person of "equivoque".
+"equivocara" is the past subjunctive of "equivoca".
+"equivocaran" is the plural of "equivocara".
+"equivocáramos" is the first person of "equivocaran".
+"equivocaras" is the second person of "equivocara".
+"equivoca" is the imperative of "equivoca".
+"equivoques" is the negative imperative of "equivoca".
+"equivocad" is the imperative of "equivocan".
+"equivoquéis" is the negative imperative of "equivocan".
+"equivoquemos" is the hortative of "equivoca".
+"equivocado" is the participle of "equivoca".
+"equivocada" is the participle of "equivoca".
+"equivocada" is feminine.
+"equivocados" is the participle of "equivoca".
+"equivocados" is the plural of "equivocado".
+"equivocadas" is the participle of "equivoca".
+"equivocadas" is feminine.
+"equivocadas" is the plural of "equivocada".
+"equivocar" is the infinitive of "equivoca".
+"equivocando" is the gerund of "equivoca".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -122836,6 +123015,14 @@ The feminine adjective "desolada" means "desolate".
 "desoladas" is the plural of "desolada".
 The adjective "inagotable" means "inexhaustible".
 "inagotables" is the plural of "inagotable".
+The adjective "dialogante" means "dialoguing".
+"dialogantes" is the plural of "dialogante".
+The masculine adjective "genovés" means "genoese".
+"genoveses" is the plural of "genovés".
+The feminine adjective "genovesa" means "genoese".
+"genovesas" is the plural of "genovesa".
+The adjective "infernal" means "infernal".
+"infernales" is the plural of "infernal".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -138152,6 +138339,7 @@ The feminine adjective "balnearia" means "balneal".
 "balnearias" is the plural of "balnearia".
 The adjective "inexplicable" means "inexplicable".
 "inexplicables" is the plural of "inexplicable".
+The adjective "apasionante" means "gripping".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".
