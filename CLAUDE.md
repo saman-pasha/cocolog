@@ -469,7 +469,12 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   read, `initialization(G, now)` where it stands, `initialization(G, main)`
   after the load and then halts. A directive that fails or throws is
   reported in SWI's shapes and the load goes on; **a syntax error is the
-  only thing that ends a consult.** A module is claimed BEFORE its consult,
+  only thing that ends a consult.** A `use_module`/`ensure_loaded` that
+  loads nothing is reported the same way (since 1.8.39: SWI's ERROR
+  `source_sink ... does not exist`, then the failed directive; it used to
+  be SILENT), except SWI's names for what cocolog carries elsewhere --
+  `error`, `dcg/basics`, `dcg/high_order`, `lb_carried` in
+  `lib/library.cicili`. A module is claimed BEFORE its consult,
   so a goal directive in a module (and every `-s` program is one) no longer
   re-consults it.
 * **Consulting a file REPLACES the clauses it put in the store last time**

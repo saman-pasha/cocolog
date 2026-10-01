@@ -555,9 +555,11 @@
   ;;; asserts what the next one reads still works.
   ;;;
   ;;; INITS COLLECTS `initialization(G)'. Answers 1 (done), 2 (the goal
-  ;;; FAILED -- a Warning, in SWI's reckoning, and ERR says which goal) or 0
-  ;;; (an error, ERR carrying it in SWI's words). The caller REPORTS the last
-  ;;; two and carries on, because a bad directive is one bad line and not a
+  ;;; FAILED -- a Warning, in SWI's reckoning, and ERR says which goal), 0
+  ;;; (an error, ERR carrying it in SWI's words) or 3 (both: a load directive
+  ;;; that loaded nothing, which SWI reports as the ERROR saying why and then
+  ;;; the Warning that the directive failed). The caller REPORTS the last
+  ;;; three and carries on, because a bad directive is one bad line and not a
   ;;; bad file.
   (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                              (coco_initgoals * inits) (int line)
@@ -568,9 +570,12 @@
   ;;; installs itself here the way the module layer installs itself into
   ;;; solve.cicili: one function pointer, null until somebody fills it in.
   ;;; While it is null the directive stays what it always was -- accepted
-  ;;; and ignored, so a borrowed file still reads unedited.
+  ;;; and ignored, so a borrowed file still reads unedited. The hook answers
+  ;;; 1 (loaded, or carried here under another name), 0 (found and would not
+  ;;; load, ERR saying why) or -1 (not there at all).
   (decl) (func coco_use_module_install
-               ((func h ((coco_store * st) (coco_machine * m) (size_t spec))
+               ((func h ((coco_store * st) (coco_machine * m) (size_t spec)
+                         (char * err) (size_t errlen))
                      (out int))))
 
   ;;; The seam a DIRECTIVE runs through, installed by the same layer and for
@@ -598,10 +603,12 @@
   ;; No initialiser -- `. nil' cannot be written inside a generic in this
   ;; package, and a static is null anyway.
   (static) (var func coco_use_module_hook ((coco_store * st) (coco_machine * m)
-                                           (size_t spec)) (out int))
+                                           (size_t spec) (char * err) (size_t errlen))
+                (out int))
 
   (func coco_use_module_install
-        ((func h ((coco_store * st) (coco_machine * m) (size_t spec)) (out int)))
+        ((func h ((coco_store * st) (coco_machine * m) (size_t spec)
+                  (char * err) (size_t errlen)) (out int)))
         (set coco_use_module_hook h))
 
   ;; and the seam a directive runs through, filled in by the same layer
@@ -1387,33 +1394,41 @@
           ;; `use_module' and `ensure_loaded' name a library to load, and
           ;; since the loader grew a run-time seam they TRY: the hook below
           ;; resolves against the registered modules and the library path.
-          ;; A library that cannot be found is a WARNING and not a refusal,
-          ;; on purpose -- a file borrowed from SWI names libraries cocolog
-          ;; carries under other arrangements (or not at all), and refusing
-          ;; the directive would mean editing every borrowed file, which is
-          ;; the thing this block has always declined to require.
+          ;; ONE THAT LOADS NOTHING SAYS SO, in SWI's words and with both of
+          ;; SWI's lines -- the ERROR saying why (`source_sink ... does not
+          ;; exist' for a library that is not there), then the Warning that
+          ;; the directive failed -- and the load goes on. It used to stay
+          ;; quiet about a library it could not find, so that a file borrowed
+          ;; from SWI read unedited; then a program on a machine without
+          ;; raylib loaded cleanly and failed at its first drawing call,
+          ;; `Unknown procedure: ray_log_level/1', with nothing to say the
+          ;; load had gone wrong first. The borrowed file is still quiet where
+          ;; that is the truth: SWI's names for what this build carries under
+          ;; another arrangement are answered as loaded (library.cicili's
+          ;; `lb_carried').
           ;; `meta_predicate' exists to tell a module system which
           ;; arguments to qualify, and with no modules there is nothing to say.
           (if (and (== n 2) (== 0 (strcmp name "module"))) (return 1))
-          (if (and (<= n 2) (>= n 1) (== 0 (strcmp name "use_module")))
+          (if (or (and (<= n 2) (>= n 1) (== 0 (strcmp name "use_module")))
+                  (and (== n 1) (== 0 (strcmp name "ensure_loaded"))))
               (block
-               (if (and (!= coco_use_module_hook nil)
-                        (not (coco_use_module_hook st m (coco_arg m g 0))))
-                   (let ((coco_strbuf b))
-                     (coco_sb_init (aof b))
-                     (coco_write_term m (aof b) (coco_deref m (coco_arg m g 0)) 1 0)
-                     (fprintf stderr "cocolog: use_module: cannot load %s (continuing)\n"
-                              ($ b s))
-                     (coco_sb_free (aof b))))
-               (return 1)))
+               (if (== coco_use_module_hook nil) (return 1))
+               (set (nth 0 err) (cast char 0))
+               (let ((int r . #'(coco_use_module_hook st m (coco_arg m g 0) err errlen)))
+                 (if (== r 1) (return 1))
+                 (let ((coco_strbuf b))
+                   (coco_sb_init (aof b))
+                   (coco_write_term m (aof b) (coco_deref m (coco_arg m g 0)) 1 0)
+                   (if (== r -1)
+                       (snprintf err errlen "source_sink `%s' does not exist"
+                                 (? (== ($ b s) nil) "?" ($ b s)))
+                     (if (== (nth 0 err) (cast char 0))
+                         (snprintf err errlen "%s: could not be loaded"
+                                   (? (== ($ b s) nil) "?" ($ b s)))))
+                   (coco_sb_free (aof b))
+                   (return 3)))))
           ;; `autoload/1,2' is use_module that loads lazily; same answer here
           (if (and (<= n 2) (== 0 (strcmp name "autoload"))) (return 1))
-          (if (and (== n 1) (== 0 (strcmp name "ensure_loaded")))
-              (block
-               (if (and (!= coco_use_module_hook nil)
-                        (not (coco_use_module_hook st m (coco_arg m g 0))))
-                   (fprintf stderr "cocolog: ensure_loaded: cannot load the file (continuing)\n"))
-               (return 1)))
           (if (and (== n 1) (== 0 (strcmp name "meta_predicate"))) (return 1))
 
           ;; `:- set_prolog_flag(double_quotes, V)'. ACCEPTED, for all four of
@@ -2167,7 +2182,18 @@
                            (let ((int dr . #'(coco_directive st m (coco_arg m t 0)
                                                              (aof inits) at err errlen)))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
-                             (if (== dr 0) (coco_load_message "ERROR" origin at err))))
+                             (if (== dr 0) (coco_load_message "ERROR" origin at err))
+                             ;; BOTH, IN SWI'S ORDER: why nothing was loaded,
+                             ;; then that the directive failed, named
+                             (if (== dr 3)
+                                 (let ((coco_strbuf b))
+                                   (coco_load_message "ERROR" origin at err)
+                                   (coco_sb_init (aof b))
+                                   (coco_write_term m (aof b) (coco_deref m (coco_arg m t 0)) 1 0)
+                                   (snprintf err errlen "Goal (directive) failed: %s"
+                                             (? (== ($ b s) nil) "?" ($ b s)))
+                                   (coco_sb_free (aof b))
+                                   (coco_load_message "Warning" origin at err)))))
                       (set (-> m heap_len) mark))
                    (block
                     (if active

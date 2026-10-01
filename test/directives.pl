@@ -31,8 +31,9 @@
 
 main :-
     scratch(D),
-    a_goal(D), does_not_prove(D), syntax_error(D), initialization(D), init_main(D),
-    in_a_module(D), exit_status(D), reader_level(D), the_program(D), under_swipl(D),
+    a_goal(D), does_not_prove(D), loads_nothing(D), syntax_error(D), initialization(D),
+    init_main(D), in_a_module(D), exit_status(D), reader_level(D), the_program(D),
+    under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -71,6 +72,34 @@ does_not_prove(D) :-
     %% The line numbers above are the point of the check: a message that says
     %% only "unknown procedure" in a file of two hundred clauses is a message
     %% you have to go looking for.
+
+loads_nothing(D) :-
+    section('a load directive that loads nothing says so'),
+    %% IT USED TO SAY NOTHING. A library the path could not find made
+    %% `:- use_module(...)' succeed in silence -- the tolerance for files
+    %% borrowed from SWI -- so a program on a machine without raylib loaded
+    %% cleanly and failed at its first drawing call. Now it is SWI's two
+    %% lines, the ERROR and then the failed directive, and the load goes on.
+    atom_concat(D, '/missing.pl', F),
+    fixture(F, ['p(1).', ':- use_module(library(nosuch)).', ':- ensure_loaded(nosuch_file).', 'q(2).']),
+    ran(F, '(q(X), write(X))', Out),
+    sh_join(['ERROR: ', F, ':2:'], E2), has('a library that is not there is an ERROR', E2, Out),
+    has('...in SWI''s words', 'source_sink `library(nosuch)'' does not exist', Out),
+    sh_join(['Warning: ', F, ':2:'], W2), has('...and then the directive failed, as SWI says it', W2, Out),
+    has('...naming the directive', 'Goal (directive) failed: use_module(library(nosuch))', Out),
+    has('a file that is not there, the same', 'source_sink `nosuch_file'' does not exist', Out),
+    sh_join(['--local run ', F, ' "(q(X), write(X))" 2>/dev/null'], Args),
+    cocolog_run(Args, G, _),
+    check('AND THE LOAD CARRIED ON', G, '2'),
+    %% WHAT THE OLD TOLERANCE WAS FOR, KEPT BY NAME: SWI's names for what
+    %% cocolog carries under another arrangement say nothing -- and two of
+    %% the SWI files read at every start-up name library(error), so an
+    %% empty stderr here is also a start-up that stayed quiet.
+    atom_concat(D, '/carried.pl', F2),
+    fixture(F2, [ ':- use_module(library(error)).', ':- use_module(library(dcg/basics)).',
+                  ':- use_module(library(dcg/high_order)).', 'ok(yes).' ]),
+    ran(F2, '(ok(X), write(X))', Out2),
+    check('SWI''s names for what cocolog carries stay quiet', Out2, yes).
 
 syntax_error(D) :-
     section('a syntax error still ends the consult'),
@@ -348,7 +377,13 @@ under_swipl(D) :-
         sh_join([D, '/bad.pl'], Bad),
         sh_join([C, ' --local run ', Bad, ' true 2>&1 >/dev/null'], Ca3), shell(Ca3, A3r, _), norm(D, A3r, A3n), first(A3n, A3),
         sh_join(['swipl -q -g true -t halt ', Bad, ' 2>&1 >/dev/null'], Cb3), shell(Cb3, B3r, _), norm(D, B3r, B3n), first(B3n, B3),
-        check('...and locates a directive that threw the same way', A3, B3)
+        check('...and locates a directive that threw the same way', A3, B3),
+        %% A LIBRARY THAT IS NOT THERE: the whole ERROR, both lines, is
+        %% compared. The Warning after it differs only by SWI's `user:'.
+        sh_join([D, '/missing.pl'], Missing),
+        sh_join([C, ' --local run ', Missing, ' true 2>&1 >/dev/null'], Ca4), shell(Ca4, A4r, _), norm(D, A4r, A4n), first_two(A4n, A4),
+        sh_join(['swipl -q -g true -t halt ', Missing, ' 2>&1 >/dev/null'], Cb4), shell(Cb4, B4r, _), norm(D, B4r, B4n), first_two(B4n, B4),
+        check('...and says the same two lines about a library that is not there', A4, B4)
     ;   format("     (skipped: swipl is not here, so the diff did not run)~n", [])
     ).
 
@@ -362,3 +397,8 @@ norm(D, Text, Out) :-
 first(Text, Line) :-
     atom_codes(Text, Cs),
     ( first_line(Cs, L) -> atom_codes(Line, L) ; Line = '' ).
+
+%% head -2
+first_two(Text, Two) :-
+    split_string(Text, '\n', '', Ls),
+    ( Ls = [L1, L2|_] -> atomic_list_concat([L1, L2], '\n', Two) ; Two = Text ).

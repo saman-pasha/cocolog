@@ -578,14 +578,38 @@
   (func lb_use_module2 ((coco_engine * e) (size_t g)) (out int)
         (return (lb_use e g)))
 
-  ;;; A directive stays QUIET about a library it cannot find -- the old
-  ;;; tolerance, kept: borrowed files name libraries this build carries
-  ;;; inside other modules. A library that was FOUND and would not load
-  ;;; is another matter, and kb.cicili says so on stderr.
+  ;;; SWI'S NAMES FOR WHAT THIS BUILD CARRIES UNDER ANOTHER ARRANGEMENT,
+  ;;; answered as loaded when a directive names them. SWI files dcg_basics
+  ;;; and dcg_high_order as dcg/basics and dcg/high_order; here they are
+  ;;; registered at start-up under the flat names above. library(error)'s
+  ;;; must_be/2, is_of_type/2 and its type_error/2, domain_error/2 and
+  ;;; instantiation_error/1 are builtins -- which is what the two SWI files
+  ;;; read at every start-up (dcg_basics.pl, ordsets.pl) load it for. Its
+  ;;; existence_error/2, permission_error/3, representation_error/1 and
+  ;;; resource_error/1 are not built in, and a call to one says so by name.
+  ;;; Written as the writer writes the spec, which is what is compared.
+  (static) (var const char * lb_carried []
+                . '{"library(error)" "library(dcg/basics)" "library(dcg/high_order)"})
+
+  ;;; A DIRECTIVE GETS THE LOADER'S THREE ANSWERS -- 1 loaded, 0 found and
+  ;;; would not load, -1 not there -- and kb.cicili reports the last two in
+  ;;; SWI's words. This used to answer 1 for a library it could not find,
+  ;;; the tolerance for files borrowed from SWI, and that made a missing
+  ;;; library(ray) look loaded until its first call. What the tolerance was
+  ;;; FOR is kept, by name, in lb_carried.
   (static)
-  (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)) (out int)
-        (let ((char err [512]))
-          (return (? (== 0 (coco_library_load st m nil spec err 512)) 0 1))))
+  (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)
+                           (char * err) (size_t errlen)) (out int)
+        (let ((int r . #'(coco_library_load st m nil spec err errlen)))
+          (if (!= r -1) (return r))
+          (let ((coco_strbuf b) (int carried . 0))
+            (coco_sb_init (aof b))
+            (coco_write_term m (aof b) (coco_deref m spec) 1 0)
+            (if (!= ($ b s) nil)
+                (for ((size_t i . 0)) (< i 3) ((++ i))
+                     (if (== 0 (strcmp ($ b s) (nth i lb_carried))) (set carried 1))))
+            (coco_sb_free (aof b))
+            (return (? carried 1 -1)))))
 
   ;;; ---- and the seam a DIRECTIVE runs through ---------------------------
   ;;;

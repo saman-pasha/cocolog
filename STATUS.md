@@ -4079,6 +4079,53 @@ The search is back where August had it, within 3%; the other four are
 benchmark that would have caught it lived in another repository then, and
 it runs here now.
 
+## A load directive that loads nothing says so (1.8.39)
+
+**`:- use_module(library(X))` with no X on the library path succeeded in
+silence.** The directive hook in `lib/library.cicili` answered success for
+the loader's `-1` (not found) -- the tolerance for files borrowed from SWI,
+which name libraries cocolog carries under other arrangements -- so a
+library that was simply missing looked loaded until its first call. A file
+that was not there, under `use_module(F)` or `ensure_loaded(F)`, was silent
+the same way, and cocolint's card recorded it as the HARD trap T1. CivV
+found the cost on 2026-10-01: on the Docker image without raylib its game
+loaded cleanly and failed at the first drawing call, `Unknown procedure:
+ray_log_level/1`, with nothing to say the load had gone wrong first.
+
+Now the hook passes the loader's three answers back with its reason, and
+the consult reports a load directive that loaded nothing in SWI's words and
+both of SWI's lines, read off swipl first, and goes on as SWI does:
+
+    ERROR: f.pl:2:
+    ERROR:    source_sink `library(nosuch)' does not exist
+    Warning: f.pl:2:
+    Warning:    Goal (directive) failed: use_module(library(nosuch))
+
+SWI writes `user:` before the goal; cocolog has no module to name there, as
+for every failed directive. A library that was found and would not load is
+reported the same way with the loader's reason in the ERROR, in place of
+the old `cocolog: use_module: cannot load ... (continuing)`.
+
+**What the tolerance was for is kept, by name.** The tree's own directives
+name 47 libraries. Three are not found under the name SWI gives them, and
+all three are carried here otherwise. `dcg/basics` and `dcg/high_order` are
+the vendored `dcg_basics` and `dcg_high_order`, registered at start-up under
+the flat names. `error`'s `must_be/2`, `is_of_type/2`, `type_error/2`,
+`domain_error/2` and `instantiation_error/1` are builtins; its
+`existence_error/2`, `permission_error/3`, `representation_error/1` and
+`resource_error/1` are not, and a call to one is reported by name.
+`lb_carried` answers those three names as loaded.
+
+Proved by `test/directives.pl`: a new section, and a diff of the ERROR's two
+lines against swipl, GREEN at 60 checks. Two arms went red. With the old
+silence put back, the six new checks went red. With `lb_carried` emptied,
+every start-up reported two missing libraries, because two of the SWI files
+read at start-up (`ordsets.pl:61`, `dcg_basics.pl:70`) say
+`:- use_module(library(error))`. That was 322 bytes on stderr for a file
+with no directives in it, and 15 checks went red. The card's T1 now says the
+directive reports and the load goes on, so a program that must run where a
+module was not built still probes by calling; D4 cites `lb_carried`.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The
