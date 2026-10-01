@@ -14958,6 +14958,48 @@ At 3.5 GB it is an ordinary neighbour.
 change no binary, so they are this version's; the engine's change is the version's
 number.
 
+### Two lines of work, one version number (1.8.35)
+
+**THE OWNER'S `master` AND THIS BRANCH BOTH SPENT 1.8.31 AND 1.8.32, ON
+DIFFERENT THINGS.** `master` took 1.8.30 to 1.8.34 for the owner's own
+work -- library(clay) and the ray binding rewritten as a declaration
+(1.8.31), the clay widgets demo (1.8.32), library(stream) (1.8.33) and
+ISO's names over its table (1.8.34) -- while this branch, which `master`
+had last taken at 1.8.30 (the Senegal report, PR #31), spent 1.8.31 on
+the Eco column and 1.8.32 on the hashed functor and predicate tables.
+Nobody did anything wrong: the number lives in ONE place
+(`coco_version_text`) and each line of work bumped it from the value it
+could see.
+
+**THE TREE THAT JOINS THEM IS 1.8.35, A NUMBER NO BINARY HAD BEEN BUILT
+UNDER**, because the merged tree holds changes that neither 1.8.34
+(master's) nor 1.8.32 (this branch's) carries, and the version answers for
+the tree. The sections of this file keep the number each was MEASURED
+under, so `(1.8.31)` now heads three of them -- the Eco column, the
+library(ray) rewrite and library(clay) -- and `(1.8.32)` two. **The title
+names the line of work and the number only dates it inside that line**;
+read the title before the number, and ask `git log --first-parent` which
+side a section came from.
+
+**THREE FILES CONFLICTED AND NOTHING ELSE DID**, which is the check that
+the two lines are as separate as they looked: `cocolog.cicili` (the
+number), `tools/cocolint/lint.pl` (this branch's `cl_kept` wrappers around
+each phase and master's `Imports` argument to `cl_rule_s1`, both kept) and
+`tools/cocolint/traps.jsonl` (master's lines for the four rows both sides
+edited, then the three cites the engine had moved: X1 and Z1 in
+`lib/kb.cicili`, M1 in `cocolog.cicili`). `master` changed `lib/builtins`,
+`lib/module` and `lib/sdk` and this branch `lib/term` and `lib/kb`; the
+engine files the two lines share are none.
+
+**TWO THINGS TO DO BEFORE THE NEXT BUMP.** `git fetch` and read
+`git show origin/master:cocolog.cicili | grep coco_version_text` first: a
+bump taken from the local value is a guess about where the other line has
+got to, and it was a wrong one twice. And **a container is root**: the
+owner's `test/stream.pl` chmods a file to 444 and expects a refusal to
+open it, which root does not give, so the check skips by name when
+`os_uid/1` answers 0 -- a permission test run as the user it tests
+against, or not at all.
+
 ### The translator pivots on an IR now, and English IS the IR (1.3.0)
 
 **EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY.** `reason_translate/2,3`
