@@ -1613,8 +1613,10 @@ The adverb "a volte" means "sometimes".
 The adverb "in genere" means "generally".
 # `Anzi, una sua amichetta le ha detto ...': in fact -- the dictionary's
 # `rather' is written `bastante' in Spanish. `infatti', whose meaning
-# `indeed' Spanish has no word for, is said first, so it stays the word
-# written for `in fact'
+# `indeed' Spanish has no word for, stays the word written for `in fact'
+# but for `di fatto', said first for `una "tregua de hecho"': a truce in
+# fact, and `infatti' never stands after a noun
+The adverb "di fatto" means "in fact".
 The adverb "infatti" means "in fact".
 The adverb "anzi" means "in fact".
 # `"certo che ha capito cos'è successo.': of course she understood what
@@ -2030,3 +2032,45 @@ The pronoun "le" means "them".
 # world'. The clause's subject stands first, so `i fatti che lo dimostrano'
 # stays the facts that show it
 "fatto" takes the clause.
+# the Arzalluz report (AnCora CESS-CAST-P-20020801-17), into Italian.
+# `se quejó' -- he complained, which Italian says `lamentarsi'. The
+# dictionary's first meaning of `lamenta' is `regrets', said again first
+The verb "lamenta" means "regrets".
+The verb "lamenta" means "complains".
+# `que ha pedido escolta' -- an escort, `scorta', whose first meaning is a
+# stock and is said again first
+The feminine noun "scorta" means "stock".
+The feminine noun "scorta" means "escort".
+# `el líder peneuvista' -- of the PNV
+The adjective "peneuvista" means "PNV".
+"peneuvisti" is the plural of "peneuvista".
+"peneuviste" is the plural of "peneuvista".
+"peneuviste" is feminine.
+# `Arzalluz recuperó ayer la hemeroteca' -- the archive: Italian's
+# `archivio' means a file and nothing else, said again first
+The masculine noun "archivio" means "file".
+The masculine noun "archivio" means "archive".
+# `Tres veces negó ...' -- three times: `volta' is a time, and `time' it is
+# too, which the dictionary gives it nowhere (a vault only). `tempo' is said
+# again first, so that `time' stays the word written for it where no
+# adjunct names when
+"volta" is a time.
+The masculine noun "tempo" means "time".
+The feminine noun "volta" means "time".
+# `para lograr una "tregua de hecho"' -- attain: Italian's first word is
+# `riesce', which takes no object, and `ottiene' is said of a clause with
+# one (and of an infinitive with one right after it). `de hecho' is `di
+# fatto', said above, where the dictionary's `infatti' and `anzi' are `in
+# fact' and nothing more
+The verb "riesce" means "attains".
+The transitive verb "ottiene" means "attains".
+# `se va con el chollo' -- he goes away, one word in Italian too
+The verb "se ne va" means "goes away".
+# `para asumir más las competencias' -- powers, `competenze'
+The feminine noun "competenza" means "competence".
+# `aprueba por unanimidad' -- the dictionary's first word for `approves' is
+# `vista', a visa, and `coralità' is first for `unanimity'
+The verb "approva" means "approves".
+The feminine noun "unanimità" means "unanimity".
+# `El líder del PNV previno a los suyos de que ...' -- warned them
+The verb "avverte" means "warns".

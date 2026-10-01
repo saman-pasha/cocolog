@@ -750,3 +750,14 @@
 <e r="RL"><p><l>wise<s n="adj"/></l><r>sapiente<s n="adj"/></r></p></e>
 <e r="RL"><p><l>profit<s n="n"/></l><r>profitto<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>extract<s n="vblex"/></l><r>trarre<s n="vblex"/></r></p></e>
+# the Arzalluz report (AnCora CESS-CAST-P-20020801-17), into Italian:
+# apertium-ita carries each with its paradigm, the bilingual pairs it with
+# nothing, and Italian had no word for the meaning
+<e><p><l>autodetermination<s n="n"/></l><r>autodeterminazione<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>nostalgic<s n="adj"/></l><r>nostalgico<s n="adj"/></r></p></e>
+<e><p><l>francoism<s n="n"/></l><r>franchismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>revenge<s n="n"/></l><r>rivincita<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>inactivity<s n="n"/></l><r>inattività<s n="n"/><s n="f"/></r></p></e>
+# `Arzalluz se reconoció indignado' -- outraged: apertium-ita carries
+# `indignare', which the bilingual pairs with nothing
+<e><p><l>outrage<s n="vblex"/></l><r>indignare<s n="vblex"/></r></p></e>

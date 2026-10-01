@@ -286,7 +286,11 @@ module, state, zigurat, shared) and runs the 53 `.pl` cases in `pl_names/1`
   rose, several copies at a time (counts do not depend on load). A hunk that
   removes a helper other hunks call answers with an error -- no evidence.
 * **One rule, one arm.** A fix that lands in the same edit as another has not
-  been measured; a change that moves nothing measurable is not shipped.
+  been measured; a change that moves nothing measurable is not shipped. Arm by
+  RULE, a group of hunks: a rule split over two hunks (a head variable and a
+  body one) is green with either out. A section cannot arm a rule whose check
+  lives in another: run the whole case on that arm (a front's `that` clause
+  was green in its own section and red in the Ciampi one).
 * **Print the md5 of the library under test AND compare it** to the expected
   one, before the first pass and after the last; a round whose two md5s
   differ is void. Revert with `git checkout -- .`, never by naming files.
@@ -608,7 +612,9 @@ read into an English-worded IR and written into any lesson's language),
   `test/tagger.pl` alone; on a 14-16 GB box run them apart -- a cocolint run
   beside a teach was OOM-killed (exit 137) when the linter still reached
   10 GB; the corpus lint peaks near 3.5 GB now. A killed process never
-  flushes.
+  flushes. **An arm that removes half of a coupled change can loop and grow
+  its heap past 13 GB** (a clause left with an unbound variable): run arms
+  under `ulimit -v`, and never beside a teach -- the OOM killer took both.
   `tagger_tag_all/3` keeps a batch's intermediate tensors: tag big grids a
   sentence at a time.
 * **A small case lesson reproduces a fault only when it gives the word every
@@ -632,7 +638,14 @@ read into an English-worded IR and written into any lesson's language),
   under one name; the builder calls a noun a person only by its first English
   word; English has no irregular plurals (`mans`); the upstream verb table
   has `scaping`/`leaved`; `No comas el pan.` reads the subjunctive before the
-  negative imperative; `pronto` after a verb crosses as `immediate`.
+  negative imperative; `pronto` after a verb crosses as `immediate`; `ir a`
+  and an infinitive is the near future and reads as a verb of motion, with
+  the infinitive's clitic on it (`nos vamos a quedar` is `ci andiamo a
+  rimanere`); Spanish `advertir a los suyos` takes a direct object in
+  Italian (`avvertì ai suoi`); a contraction before a quoted article drops
+  the opening mark (`de "la casa"` is `della casa"`); a lesson line gives a
+  word ONE sense in both numbers (`competencias` are powers, `la competencia`
+  the rival firms, and the line for the first moved the second).
 
 ## Tutorials are documentation that runs
 

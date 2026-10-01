@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16385 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16391 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -954,6 +954,7 @@ The verb "sente" means "feels".
 The adverb "talvolta" means "sometimes".
 The adverb "a volte" means "sometimes".
 The adverb "in genere" means "generally".
+The adverb "di fatto" means "in fact".
 The adverb "infatti" means "in fact".
 The adverb "anzi" means "in fact".
 The conjunction "certo che" means "of course".
@@ -1142,6 +1143,26 @@ The word "quanto" means "how much".
 "dice" takes the question.
 The pronoun "le" means "them".
 "fatto" takes the clause.
+The verb "lamenta" means "regrets".
+The verb "lamenta" means "complains".
+The feminine noun "scorta" means "stock".
+The feminine noun "scorta" means "escort".
+The adjective "peneuvista" means "PNV".
+"peneuvisti" is the plural of "peneuvista".
+"peneuviste" is the plural of "peneuvista".
+"peneuviste" is feminine.
+The masculine noun "archivio" means "file".
+The masculine noun "archivio" means "archive".
+"volta" is a time.
+The masculine noun "tempo" means "time".
+The feminine noun "volta" means "time".
+The verb "riesce" means "attains".
+The transitive verb "ottiene" means "attains".
+The verb "se ne va" means "goes away".
+The feminine noun "competenza" means "competence".
+The verb "approva" means "approves".
+The feminine noun "unanimità" means "unanimity".
+The verb "avverte" means "warns".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1276,6 +1297,14 @@ The masculine noun "darwinismo" means "darwinism".
 "darwinismi" is the plural of "darwinismo".
 The masculine noun "geocentrismo" means "geocentrism".
 "geocentrismi" is the plural of "geocentrismo".
+The feminine noun "autodeterminazione" means "autodetermination".
+"autodeterminazioni" is the plural of "autodeterminazione".
+The masculine noun "franchismo" means "francoism".
+"franchismi" is the plural of "franchismo".
+The feminine noun "rivincita" means "revenge".
+"rivincite" is the plural of "rivincita".
+The feminine noun "inattività" means "inactivity".
+"inattività" is the plural of "inattività".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -22977,6 +23006,53 @@ The verb "dista" means "distances".
 "distate" is the plural of "distata".
 "distare" is the infinitive of "dista".
 "distando" is the gerund of "dista".
+The verb "indigna" means "outrages".
+"indignano" is the plural of "indigna".
+"indigniamo" is the first person of "indignano".
+"indigno" is the first person of "indigna".
+"indigni" is the second person of "indigna".
+"indignò" is the past of "indigna".
+"indignarono" is the past of "indignano".
+"indignammo" is the first person of "indignarono".
+"indignai" is the first person of "indignò".
+"indignasti" is the second person of "indignò".
+"indignava" is the past of "indigna".
+"indignavano" is the past of "indignano".
+"indignavamo" is the first person of "indignavano".
+"indignavo" is the first person of "indignava".
+"indignavi" is the second person of "indignava".
+"indignerà" is the future of "indigna".
+"indigneranno" is the plural of "indignerà".
+"indigneremo" is the first person of "indigneranno".
+"indignerò" is the first person of "indignerà".
+"indignerai" is the second person of "indignerà".
+"indignerebbe" is the conditional of "indigna".
+"indignerebbero" is the plural of "indignerebbe".
+"indigneremmo" is the first person of "indignerebbero".
+"indignerei" is the first person of "indignerebbe".
+"indigneresti" is the second person of "indignerebbe".
+"indigni" is the subjunctive of "indigna".
+"indignino" is the plural of "indigni".
+"indigniamo" is the first person of "indignino".
+"indignasse" is the past subjunctive of "indigna".
+"indignassero" is the plural of "indignasse".
+"indignassimo" is the first person of "indignassero".
+"indignassi" is the first person of "indignasse".
+"indignassi" is the second person of "indignasse".
+"indigna" is the imperative of "indigna".
+"indignare" is the negative imperative of "indigna".
+"indignate" is the imperative of "indignano".
+"indigniamo" is the hortative of "indigna".
+"indignato" is the participle of "indigna".
+"indignata" is the participle of "indigna".
+"indignata" is feminine.
+"indignati" is the participle of "indigna".
+"indignati" is the plural of "indignato".
+"indignate" is the participle of "indigna".
+"indignate" is feminine.
+"indignate" is the plural of "indignata".
+"indignare" is the infinitive of "indigna".
+"indignando" is the gerund of "indigna".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -97388,6 +97464,14 @@ The adjective "stupefacente" means "astonishing".
 "stupefacentissimi" is the superlative of "stupefacenti".
 "stupefacentissima" is the superlative of "stupefacente".
 "stupefacentissime" is the superlative of "stupefacenti".
+The masculine adjective "nostalgico" means "nostalgic".
+"nostalgici" is the plural of "nostalgico".
+The feminine adjective "nostalgica" means "nostalgic".
+"nostalgiche" is the plural of "nostalgica".
+"nostalgicissimo" is the superlative of "nostalgico".
+"nostalgicissimi" is the superlative of "nostalgici".
+"nostalgicissima" is the superlative of "nostalgica".
+"nostalgicissime" is the superlative of "nostalgiche".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
