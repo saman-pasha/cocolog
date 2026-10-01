@@ -46,6 +46,11 @@ ball(X, X).
 
 path(D, Name, Path) :- atomic_list_concat([D, '/', Name], Path).
 
+%% root writes through a mode of 444, so a permission check has nothing to
+%% see there -- a container runs as root as often as not
+running_as_root :-
+    catch(( use_module(library(os)), os_uid(0) ), _, fail).
+
 %% ---- text: lines out, lines in ---------------------------------------------
 
 text_out_and_in(D) :-
@@ -213,8 +218,11 @@ what_goes_wrong(D) :-
     answer(stream_open('/nonexistent/dir/x', read, _), ok, G1), ball(G1, B1),
     check('no such file is existence_error(source_sink, Path)', B1, existence_error(source_sink, '/nonexistent/dir/x')),
     path(D, 'readonly.txt', RO), shl(['touch ', RO, ' && chmod 444 ', RO]),
-    answer(stream_open(RO, write, _), ok, G2), ball(G2, B2),
-    check('a file that may not be written is a permission_error naming it', B2, permission_error(open, source_sink, RO)),
+    (   running_as_root
+    ->  format("     (skipped: running as root, who may write a read-only file)~n", [])
+    ;   answer(stream_open(RO, write, _), ok, G2), ball(G2, B2),
+        check('a file that may not be written is a permission_error naming it', B2, permission_error(open, source_sink, RO))
+    ),
     answer(stream_open(W, sideways, _), ok, G3), ball(G3, B3),
     check('a mode nobody defined is a domain error', B3, domain_error(io_mode, sideways)),
     answer(( stream_open(W, write, S4), stream_close(S4), stream_write_text(S4, x) ), ok, G4), ball(G4, B4),
