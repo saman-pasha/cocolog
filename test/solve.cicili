@@ -464,6 +464,26 @@
       (check "and so does one an assert made and a retract emptied"
              (cast llong (count (aof e) "assertz(made(1)), retract(made(1)), made(_)" 10)) 0)
 
+      ;; THE PREDICATE TABLE IS HASHED (1.8.32). 3000 predicates -- 300 names
+      ;; at ten arities -- drive it through four rehashes; each must be found
+      ;; at the index it was made at, and one never made must answer NPREDS,
+      ;; which is how every caller has always been told "not here".
+      (let ((char nb [32]) (size_t base . #'($ st npreds)) (int bad . 0))
+        (for ((int i . 0)) (< i 3000) ((++ i))
+          (sprintf nb "pr_%d" (/ i 10))
+          (if (!= (coco_pred_intern (aof st) (coco_intern (aof m) nb) (cast u32 (% i 10)))
+                  (+ base (cast size_t i)))
+              (set bad (+ bad 1))))
+        (for ((int i . 0)) (< i 3000) ((++ i))
+          (sprintf nb "pr_%d" (/ i 10))
+          (if (!= (coco_pred_find (aof st) (coco_intern (aof m) nb) (cast u32 (% i 10)))
+                  (+ base (cast size_t i)))
+              (set bad (+ bad 1))))
+        (check "3000 predicates are found where they were made" (cast llong bad) 0)
+        (check "a predicate never made answers npreds"
+               (cast llong (== (coco_pred_find (aof st) (coco_intern (aof m) "pr_0") 99)
+                               ($ st npreds))) 1))
+
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 

@@ -64,6 +64,26 @@
               (set failures (+ failures 1))))
         (check "400 names re-intern to themselves" (cast llong failures) 0))
 
+      ;; THE FUNCTOR TABLE IS HASHED TOO (1.8.32), and its probe can go wrong
+      ;; the same way. 3000 functors -- 300 names at ten arities -- drive it
+      ;; through four rehashes, and every one must come back as the id it was
+      ;; given, in the order of first use, because a frozen machine writes the
+      ;; table out in that order and a thawed one reads it back that way.
+      (let ((char buf [32]) (u64 base . #'(cast u64 ($ m functors_len))) (int bad . 0))
+        (for ((int i . 0)) (< i 3000) ((++ i))
+          (sprintf buf "fn_%d" (/ i 10))
+          (if (!= (coco_functor_id (aof m) (coco_intern (aof m) buf) (cast u32 (% i 10)))
+                  (+ base (cast u64 i)))
+              (set bad (+ bad 1))))
+        (for ((int i . 0)) (< i 3000) ((++ i))
+          (sprintf buf "fn_%d" (/ i 10))
+          (if (!= (coco_functor_id (aof m) (coco_intern (aof m) buf) (cast u32 (% i 10)))
+                  (+ base (cast u64 i)))
+              (set bad (+ bad 1))))
+        (check "3000 functors keep their ids through four rehashes" (cast llong bad) 0)
+        (check "and the table holds each once"
+               (cast llong (- ($ m functors_len) (cast size_t base))) 3000))
+
       ;; ---- a fresh variable is unbound, and derefs to itself ----------
       (let ((size_t v . #'(coco_new_var (aof m))))
         (check "fresh var derefs to itself" (cast llong (== (coco_deref (aof m) v) v)) 1))
