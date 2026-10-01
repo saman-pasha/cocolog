@@ -1728,44 +1728,50 @@ gap, the gap was closed, and the same script re-measured it.
 ### How fast it is, measured rather than asserted
 
 Five small programs, the same task in each language, every lane's answer
-checked against every other's before a number may print. `--local` is the
-in-memory arrangement, `--embed` the MVCCS engine linked into the process,
-and `cpython + sqlite3` is there because a dict is not a database and
-timing one against a store measures the guarantees rather than the engine:
+checked against every other's before a number may print — `sh
+bench/langs.sh`, with every run it has printed in
+[bench/README.md](bench/README.md). `--local` is the in-memory
+arrangement, `--embed` the MVCCS engine linked into the process, and
+`cpython + sqlite3` is there because a dict is not a database and timing
+one against a store measures the guarantees rather than the engine:
 
 | task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog server | cpython + sqlite3 |
 |---|---|---|---|---|---|
-| naive reverse, 400 elements | 0.034682 s (8.3x) | 0.004186 s | 0.035370 s (8.4x) | 0.034849 s (8.3x) | 0.004852 s (1.2x) |
-| 8-queens, all 92 solutions | 0.022249 s (11.3x) | 0.001973 s | 0.021706 s (11.0x) | 0.021999 s (11.2x) | 0.001957 s (1.0x) |
-| 100 000 additions, one at a time | 0.080093 s (19.1x) | 0.004188 s | 0.081349 s (19.4x) | 0.079177 s (18.9x) | 0.028561 s (6.8x) |
-| 1000 keyed lookups over 200 facts | 0.001773 s (18.5x) | 0.000096 s | 0.001886 s (19.6x) | 0.001820 s (19.0x) | 0.012229 s (127.4x) |
-| generate-and-sort 5000 integers | 0.010062 s (5.8x) | 0.001744 s | 0.010205 s (5.9x) | 0.010286 s (5.9x) | 0.002480 s (1.4x) |
+| naive reverse, 400 elements | 0.051387 s (9.8x) | 0.005259 s | 0.051739 s (9.8x) | 0.050893 s (9.7x) | 0.005043 s (1.0x) |
+| 8-queens, all 92 solutions | 0.036254 s (17.2x) | 0.002109 s | 0.038645 s (18.3x) | 0.037006 s (17.5x) | 0.002153 s (1.0x) |
+| 100 000 additions, one at a time | 0.097526 s (21.7x) | 0.004491 s | 0.092748 s (20.7x) | 0.095675 s (21.3x) | 0.028220 s (6.3x) |
+| 1000 keyed lookups over 200 facts | 0.002013 s (18.3x) | 0.000110 s | 0.001742 s (15.8x) | 0.001825 s (16.6x) | 0.011699 s (106.4x) |
+| generate-and-sort 5000 integers | 0.012551 s (6.8x) | 0.001844 s | 0.013382 s (7.3x) | 0.012737 s (6.9x) | 0.002653 s (1.4x) |
 
-(macOS, i9-9880H, Python 3.11.13; three runs on this box with the
-shared lanes agreeing within a few percent; the sqlite column pairs
-every task with a durable Python -- the data as committed rows, read
-back through the database per rep. The earlier Linux box read 6-34x
-with the same shape -- search best, the tight loop worst -- and the
-two boxes do not compare across without naming both.)
+(Run J: cocolog 1.8.36, macOS, i9-9880H, Python 3.11.13; the sqlite
+column pairs every task with a durable Python -- the data as committed
+rows, read back through the database per rep. Runs on other boxes and
+other versions are in bench/README.md, and none of them compares across
+without naming both.)
 
-**So cocolog is 6-19x CPython as a language**, and the spread is the
-interesting part: backtracking search is its best showing, which is the
-thing a Prolog engine is for, and a tight counting loop its worst, which
-is the per-inference cost of a continuation-passing interpreter with no
-compilation step. Start-up is not the reason and the guess that it was is
-dead — every arrangement boots in about a tenth of a second here, the
-same as Python.
+**So cocolog is 7-22x CPython as a language**, and the spread is the
+interesting part: sorting and list work are its best showings (6.8x,
+9.8x), and a tight counting loop its worst (21.7x), which is the
+per-inference cost of a continuation-passing interpreter with no
+compilation step. Start-up is not the reason — every arrangement boots in
+0.12-0.18 s here, the same as Python. **It was 6-19x a month earlier on
+the same box** (Run I), when the search read 11.3x; it is 17.2x now. That
+is not 1.8.36: paired against 1.8.35, 1.8.36 is level on the search and
+15-23% faster on the three tasks that allocate, because its heap is
+collected. It is cocolog's own: paired with Run I's source, built today
+by the same Cicili, 1.8.37 takes 57% longer on the search and 13-31%
+longer on the allocating tasks. Which change did it is not yet found.
 
-**And the server column is new.** Over a socket, with a turn committed
-against a store the harness empties per run, every task sits within a
-few percent of the in-memory lane: the pipelined client, the turn-wide
-write batch and the mapped store left the wire's per-rep cost too small
-for the two-point method to see. And the sqlite column, written for
-every task now, splits by where the work is: computation over durable rows costs Python 1.0-1.4x over its
-own dict -- the same near-nothing cocolog's store lanes pay over
-`--local` -- while per-row store traffic trades sides: the cursor's
-addends cost sqlite 6.8x on the counting loop, and the thousand keyed
-probes cost python + sqlite3 6.5x what they cost `--embed`.
+**Over a socket costs nothing the two-point method can see.** With a turn
+committed against a store the harness empties per run, every task sits
+within a few percent of the in-memory lane: the pipelined client, the
+turn-wide write batch and the mapped store left the wire's per-rep cost
+too small to measure. And the sqlite column splits by where the work is:
+computation over durable rows costs Python 1.0-1.4x over its own dict —
+the same near-nothing cocolog's store lanes pay over `--local` — while
+per-row store traffic trades sides: the cursor's addends cost sqlite 6.3x
+on the counting loop, and the thousand keyed probes cost python + sqlite3
+6.7x what they cost `--embed`.
 
 **Two of those readings used to be defects rather than a design, and the
 benchmark is what found them.**

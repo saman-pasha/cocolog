@@ -162,7 +162,7 @@ pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', crypto,
           cowork, reason, normalise, tagger, translate,
-          tls, 'zigurat-tls', tutorials, colab, lint, argv, string, directives,
+          tls, 'zigurat-tls', tutorials, colab, lint, argv, string, langs, directives,
           groups, ruler]).
 
 pl_cases(Only, Red0, Red) :-

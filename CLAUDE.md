@@ -166,8 +166,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili (term, syntax, solve,
-module, state, zigurat, shared) and runs the 53 `.pl` cases in `pl_names/1`
--- **60 lines**, each with its seconds. There is no `.sh` under `test/`.
+module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
+-- **61 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -705,6 +705,7 @@ than its cause:
 | `tools/cc/` | the compiler wrappers |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
+| `bench/` | cocolog against CPython (`sh bench/langs.sh`), moved from The Coco with every run; `test/langs.pl` guards its pairs |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`
