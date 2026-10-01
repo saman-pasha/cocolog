@@ -79,6 +79,7 @@ make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
                                 # no optional part and no Python, and cocolog:ray-torch-numpy
 make docker-save                # each as dist/*.tar.gz with dist/SHA256SUMS
+sh tools/cloud/docker-build.sh  # the same two images on a Claude Code session's Linux box (below)
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0 (committed)
 sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committed)
 ```
@@ -114,6 +115,32 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   else-if chains); C++ targets add `-std=gnu++17` (Apple clang defaults to
   C++14) and `-Wno-deprecated-declarations` (Apple marks `sprintf`). The
   error is an `Unhandled SIMPLE-ERROR` whose text is a warning.
+* **Docker on a Claude Code session's Linux box**: `make docker` does not work
+  there as it stands. `sh tools/cloud/docker-build.sh [plain|full|both]` builds
+  the same two images under the same tags from this Dockerfile, which it
+  derives a copy of and never edits, and smoke-tests them with no network
+  (`smoke IMAGE` runs the checks alone, `save` makes `make docker-save`'s
+  tarballs; its header has the whole story). What bites:
+  - **The daemon is not running at the start and dies with the VM**, which
+    restarts at every idle gap between turns and takes a build with it: keep
+    the turn active while one runs.
+  - **The only way out is the session's HTTPS proxy and its CA**
+    (`/root/.ccr/README.md`), and **both change at every restart**; the script
+    reads them live. A container cannot reach the proxy, so the build is
+    `--network host`, and **the auto-mode safety check refuses that as a
+    containment escape until the owner says so in the chat** ("go-ahead for
+    docker build --network host", 2026-10-01): ask first, never retry it in
+    pieces.
+  - apt goes over https through the proxy, and Quicklisp (HTTP only) is
+    replaced by a stand-in that loads the Lisp libraries of the box's
+    `~/common-lisp`: the one way the image differs from a Mac's.
+  - A container that runs `xvfb-run` (the ray case) needs `docker run
+    --init`: as PID 1 the script waits for ever for the X server, and the case
+    never starts.
+  - The plain image takes 6 minutes with apt's cache warm and is 1.24 GB; the
+    full one 9 minutes and 3.05 GB. **No tag or release can be made from the
+    box**: no `gh`, and a session's GitHub tools have no create-release or
+    create-tag.
 
 ## The version
 
@@ -750,6 +777,7 @@ than its cause:
 | `library/` | tier-2 Prolog libraries and the built `.so` files |
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
+| `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
 | `bench/` | cocolog against CPython (`sh bench/langs.sh`), moved from The Coco with every run; `test/langs.pl` guards its pairs |
