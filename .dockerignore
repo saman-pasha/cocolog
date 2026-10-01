@@ -11,6 +11,12 @@
 # them matches a tracked file (checked with `git ls-files ':(glob)PATTERN'').
 .git
 **/.DS_Store
+# the saved images `make docker-save' writes: never copied into the next one
+dist
+# the build's own instructions: docker reads them anyway, and kept out of the
+# copy, an edit to a comment no longer costs the next build its install step
+Dockerfile
+.dockerignore
 **/build
 **/cocolog
 **/*.o

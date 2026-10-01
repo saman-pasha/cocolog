@@ -9,6 +9,10 @@
 #   WITH_OPENCV=1 ...                brew install opencv, so library(opencv) builds -- where a
 #                                    bottle exists; without one, a source build into ~/opencv4
 #                                    is what modules/opencv/build.sh looks for
+#   WITH_RAY=1 ...                   brew install raylib, so library(ray) builds
+#   WITH_NUMPY=1 ...                 library(numpy), which embeds CPython: it wants a python3
+#                                    with NumPy and a shared libpython on PATH (pyenv has
+#                                    one); nothing is installed for it
 #   CICILI=/path ZIGURATIP=/path ... checkouts elsewhere (default: beside this one,
 #                                    cloned there when absent)
 #
@@ -40,8 +44,15 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     brew list --formula opencv >/dev/null 2>&1 || { say "WITH_OPENCV=1: brew install opencv (this is large)"; brew install opencv; }
     say "opencv"
   fi
+  if [ "${WITH_RAY:-0}" = 1 ]; then
+    brew list --formula raylib >/dev/null 2>&1 || { say "WITH_RAY=1: brew install raylib"; brew install raylib; }
+    say "raylib"
+  fi
 fi
-for t in make git curl sbcl glibtool python3; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
+for t in make git curl sbcl glibtool; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
+if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
+  command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH (WITH_NUMPY or WITH_TORCH)"
+fi
 [ -f "$BREW/include/openssl/ssl.h" ] || say "warning: no openssl/ssl.h under $BREW/include -- try: brew link openssl@3"
 
 checkouts

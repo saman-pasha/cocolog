@@ -100,7 +100,7 @@ ZT_TLS_LIBS    :=
 endif
 LIB_SOURCES    := $(wildcard lib/*.cicili)
 
-.PHONY: all client schema test clean check-cicili modules index dialect-check lint
+.PHONY: all client schema test clean check-cicili modules index dialect-check lint docker docker-save
 
 all: client cocolog
 
@@ -258,6 +258,31 @@ test: all $(BUILD)/probe
 	    || { echo "cocolog: library/$$m.so would not build -- sh modules/$$m/build.sh"; exit 1; }; \
 	done
 	CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" ./cocolog -s test/run.pl
+
+# ---- Docker: two images, every time ------------------------------------------
+# The owner's rule: a Docker build makes BOTH images -- cocolog with no optional
+# part, and cocolog with ray, torch and numpy (WITH_RAY=1 WITH_TORCH=1
+# WITH_NUMPY=1: torch's pip brings Python into that image anyway, so numpy,
+# which embeds it, costs it only NumPy; the Dockerfile says what each brings). `docker-save' writes each as a compressed file with
+# its checksum into $(DIST), for `docker load' on another machine; an image is
+# built for this machine's architecture, and the file is named for it.
+VERSION     := $(shell grep -o 'return "[0-9.]*"' cocolog.cicili | head -1 | grep -o '[0-9.][0-9.]*')
+DOCKER_ARCH := $(shell uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
+DIST        ?= dist
+
+docker:
+	docker build -t cocolog:$(VERSION) -t cocolog:latest .
+	docker build --build-arg WITH_RAY=1 --build-arg WITH_TORCH=1 --build-arg WITH_NUMPY=1 \
+	  -t cocolog:$(VERSION)-ray-torch-numpy -t cocolog:ray-torch-numpy .
+
+docker-save: docker
+	mkdir -p $(DIST)
+	docker save cocolog:$(VERSION) cocolog:latest \
+	  | gzip -9 > $(DIST)/cocolog-$(VERSION)-docker-$(DOCKER_ARCH).tar.gz
+	docker save cocolog:$(VERSION)-ray-torch-numpy cocolog:ray-torch-numpy \
+	  | gzip -9 > $(DIST)/cocolog-$(VERSION)-ray-torch-numpy-docker-$(DOCKER_ARCH).tar.gz
+	cd $(DIST) && { command -v sha256sum >/dev/null 2>&1 && sha256sum *.tar.gz || shasum -a 256 *.tar.gz; } > SHA256SUMS
+	ls -l $(DIST)
 
 clean:
 	rm -rf $(BUILD) cocolog cocolog.c *.o *.lo .libs

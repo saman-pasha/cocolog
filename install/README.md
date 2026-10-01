@@ -27,14 +27,36 @@ raise one.
 * `WITH_TORCH=1` installs a libtorch — `brew install pytorch` on macOS,
   `pip install torch` on Linux — so `library(torch)` builds. Without it the
   module is SKIPPED, which the modules step says; everything else is
-  unaffected, since the cocolog binary links no libtorch.
+  unaffected, since the cocolog binary links no libtorch. On Linux,
+  `TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu` takes the CPU-only
+  wheels, and a Python that refuses a system-wide install (PEP 668, Ubuntu
+  24.04) is asked again with `--break-system-packages`. The version is
+  `TORCH_SPEC`, `torch==2.13.*` unless told: 2.14's headers need C++20 and
+  the module is compiled as C++17, so an unpinned install builds nothing. A
+  machine that already has another torch (Colab's) gets 2.13 in its place;
+  `TORCH_SPEC=torch` keeps whatever is there.
+* `WITH_NUMPY=1` installs `python3` with its headers and NumPy on Linux, so
+  `library(numpy)` builds. It is the one module that embeds CPython, and
+  nothing else cocolog builds or runs needs Python, so neither script asks
+  for `python3` without this or `WITH_TORCH=1`. (On macOS nothing is
+  installed for it: a `python3` with NumPy and a shared libpython on `PATH`,
+  as pyenv gives, is what the module looks for.)
+* `WITH_OPENCV=1` installs OpenCV 4 — `libopencv-dev`, `opencv-devel`, or
+  `brew install opencv` — so `library(opencv)` builds. Off by default, for the
+  same reason: it is the largest thing either script would install.
+* `WITH_RAY=1` gives `library(ray)` (and `library(clay_ray)`, which draws
+  through it) a raylib. Homebrew has one; Ubuntu 24.04 does not, so on Linux
+  raylib `RAYLIB_TAG` (6.0) is cloned beside the checkouts and built with PIC
+  objects, as `modules/ray/build.sh` asks, together with X11 and GL headers
+  and Xvfb — `test/ray.pl` runs its window under `xvfb-run` where there is no
+  screen. `RAYLIB` in the environment names a raylib of your own instead.
 * `CICILI=/path`, `ZIGURATIP=/path` name checkouts elsewhere; the defaults
   are the two directories beside this one, cloned there when absent.
 * `CICILI_CC=gcc CICILI_CXX=g++` builds with gcc and needs no clang (Linux).
   On Red Hat Enterprise Linux and its rebuilds, `sbcl` is in EPEL.
 * `LOG=/path` moves the logs from `/tmp/cocolog-install.*`.
 
-`library(ray)` needs raylib and is not installed by either script;
+Without `WITH_RAY=1`, `library(ray)` is SKIPPED, and
 `modules/ray/build.sh` says what it wants.
 
 ## The same lessons as colab/

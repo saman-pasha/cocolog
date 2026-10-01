@@ -172,10 +172,24 @@ ZiguratIP, cocolog, its schema and modules — and ends by printing the exports;
 ### Or in Docker
 
 It works on any machine that runs Docker — a Mac included, where the image
-runs in Docker's Linux VM. `docker build -t cocolog .` runs that same
-`install/install-linux.sh` on Ubuntu 24.04; the [Dockerfile](Dockerfile)
-says what it adds to the script, what it checks, and what its first build
-measured. Then:
+runs in Docker's Linux VM. The [Dockerfile](Dockerfile) runs that same
+`install/install-linux.sh` on Ubuntu 24.04, and says what it adds to the
+script, what it checks, and what its builds measured. **A Docker build is
+two images, built together by `make docker`:**
+
+| image | what is in it |
+|---|---|
+| `cocolog` (tags `VERSION`, `latest`) | cocolog, its fourteen loadable modules, ZiguratIP — and no Python |
+| `cocolog:ray-torch-numpy` (tags `VERSION-ray-torch-numpy`, `ray-torch-numpy`) | the same, and `library(ray)` with `library(clay_ray)` (raylib 6.0, drawing on Xvfb's screen when there is no other), `library(torch)` (PyTorch's CPU libraries) and `library(numpy)` — torch's pip brings Python into this one anyway, and numpy embeds it |
+
+Any other mix is a build argument away — `WITH_NUMPY`, `WITH_OPENCV`,
+`WITH_RAY`, `WITH_TORCH`, each `0` unless given:
+
+```sh
+docker build --build-arg WITH_OPENCV=1 -t cocolog:opencv .
+```
+
+Then:
 
 ```sh
 docker run --rm cocolog --version
@@ -186,10 +200,20 @@ docker run --rm -v "$PWD":/work cocolog --embed KB -s program.pl
 
 The last runs `program.pl` from the current directory with its knowledge
 base in `./KB` beside it, no server needed; a second run finds what the
-first left there.
+first left there. A program that opens a window runs in the
+ray-torch-numpy image on a virtual screen:
 
-**The image moves to another machine as a file**, so it is built once and
-used anywhere Docker runs Linux x86-64 images — a Windows PC included:
+```sh
+docker run --rm --init -v "$PWD":/work --entrypoint xvfb-run cocolog:ray-torch-numpy -a cocolog -s game.pl
+```
+
+`--init` is not optional there: without it `xvfb-run` is the container's
+first process, waits for a signal that process never receives, and hangs.
+
+**An image moves to another machine as a file**, so it is built once and
+used anywhere Docker runs Linux x86-64 images — a Windows PC included.
+`make docker-save` writes both images into `dist/` with their checksums in
+`dist/SHA256SUMS`; by hand it is
 
 ```sh
 docker save cocolog | gzip > cocolog.tar.gz     # where it was built
