@@ -1791,30 +1791,33 @@ one against a store measures the guarantees rather than the engine:
 
 | task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog server | cpython + sqlite3 |
 |---|---|---|---|---|---|
-| naive reverse, 400 elements | 0.051387 s (9.8x) | 0.005259 s | 0.051739 s (9.8x) | 0.050893 s (9.7x) | 0.005043 s (1.0x) |
-| 8-queens, all 92 solutions | 0.036254 s (17.2x) | 0.002109 s | 0.038645 s (18.3x) | 0.037006 s (17.5x) | 0.002153 s (1.0x) |
-| 100 000 additions, one at a time | 0.097526 s (21.7x) | 0.004491 s | 0.092748 s (20.7x) | 0.095675 s (21.3x) | 0.028220 s (6.3x) |
-| 1000 keyed lookups over 200 facts | 0.002013 s (18.3x) | 0.000110 s | 0.001742 s (15.8x) | 0.001825 s (16.6x) | 0.011699 s (106.4x) |
-| generate-and-sort 5000 integers | 0.012551 s (6.8x) | 0.001844 s | 0.013382 s (7.3x) | 0.012737 s (6.9x) | 0.002653 s (1.4x) |
+| naive reverse, 400 elements | 0.030175 s (6.5x) | 0.004641 s | 0.029254 s (6.3x) | 0.030046 s (6.5x) | 0.004787 s (1.0x) |
+| 8-queens, all 92 solutions | 0.023113 s (12.0x) | 0.001926 s | 0.022298 s (11.6x) | 0.022841 s (11.9x) | 0.001983 s (1.0x) |
+| 100 000 additions, one at a time | 0.063794 s (15.2x) | 0.004208 s | 0.065996 s (15.7x) | 0.066508 s (15.8x) | 0.027011 s (6.4x) |
+| 1000 keyed lookups over 200 facts | 0.001292 s (13.6x) | 0.000095 s | 0.001326 s (14.0x) | 0.001347 s (14.2x) | 0.012299 s (129.5x) |
+| generate-and-sort 5000 integers | 0.008771 s (5.2x) | 0.001680 s | 0.008802 s (5.2x) | 0.009123 s (5.4x) | 0.002421 s (1.4x) |
 
-(Run J: cocolog 1.8.36, macOS, i9-9880H, Python 3.11.13; the sqlite
+(Run K: cocolog 1.8.38, macOS, i9-9880H, Python 3.11.13; the sqlite
 column pairs every task with a durable Python -- the data as committed
 rows, read back through the database per rep. Runs on other boxes and
 other versions are in bench/README.md, and none of them compares across
 without naming both.)
 
-**So cocolog is 7-22x CPython as a language**, and the spread is the
-interesting part: sorting and list work are its best showings (6.8x,
-9.8x), and a tight counting loop its worst (21.7x), which is the
+**So cocolog is 5-15x CPython as a language**, and the spread is the
+interesting part: sorting and list work are its best showings (5.2x,
+6.5x), and a tight counting loop its worst (15.2x), which is the
 per-inference cost of a continuation-passing interpreter with no
 compilation step. Start-up is not the reason — every arrangement boots in
-0.12-0.18 s here, the same as Python. **It was 6-19x a month earlier on
-the same box** (Run I), when the search read 11.3x; it is 17.2x now. That
-is not 1.8.36: paired against 1.8.35, 1.8.36 is level on the search and
-15-23% faster on the three tasks that allocate, because its heap is
-collected. It is cocolog's own: paired with Run I's source, built today
-by the same Cicili, 1.8.37 takes 57% longer on the search and 13-31%
-longer on the allocating tasks. Which change did it is not yet found.
+0.11-0.16 s here, the same as Python.
+
+**It is the best this box has read, and it was nearly the worst.** A
+month earlier (Run I) it read 6-19x; 1.8.36 read 7-22x, the search at
+17.2x where it had been 11.3x. A bisection found one commit: the engine's
+five term walks had been given a stack each, allocated and freed on every
+call, to fix a crash on long lists. 1.8.38 keeps the stacks on the machine
+(STATUS.md, "The walk stacks are kept"), and paired with August's own
+source in one sitting it is level on the search and 13-28% faster on the
+rest — the heap collector of 1.8.36 and this together.
 
 **Over a socket costs nothing the two-point method can see.** With a turn
 committed against a store the harness empties per run, every task sits
@@ -1823,9 +1826,9 @@ turn-wide write batch and the mapped store left the wire's per-rep cost
 too small to measure. And the sqlite column splits by where the work is:
 computation over durable rows costs Python 1.0-1.4x over its own dict —
 the same near-nothing cocolog's store lanes pay over `--local` — while
-per-row store traffic trades sides: the cursor's addends cost sqlite 6.3x
+per-row store traffic trades sides: the cursor's addends cost sqlite 6.4x
 on the counting loop, and the thousand keyed probes cost python + sqlite3
-6.7x what they cost `--embed`.
+9.3x what they cost `--embed`.
 
 **Two of those readings used to be defects rather than a design, and the
 benchmark is what found them.**

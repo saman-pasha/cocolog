@@ -34,36 +34,32 @@ Coco's.
 
 ## Where it stands
 
-`bench/langs.sh`, **Run J** -- 2026-10-01, cocolog 1.8.36, the box of Runs
-H and I (Intel i9-9880H, 16 GB, macOS 26.6.2, Python 3.11.13). Per rep, and
-the multiple of CPython beside it:
+`bench/langs.sh`, **Run K** -- 2026-10-01, cocolog 1.8.38, the box of Runs
+H, I and J (Intel i9-9880H, 16 GB, macOS 26.6.2, Python 3.11.13); the second
+of its two runs, the one that started on an idle box. Per rep, and the
+multiple of CPython beside it:
 
 | task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog zigurat | cpython + sqlite3 |
 |---|---|---|---|---|---|
-| nrev, 400-element list | 0.051387 s (9.8x) | 0.005259 s | 0.051739 s (9.8x) | 0.050893 s (9.7x) | 0.005043 s (1.0x) |
-| queens, all 92 solutions | 0.036254 s (17.2x) | 0.002109 s | 0.038645 s (18.3x) | 0.037006 s (17.5x) | 0.002153 s (1.0x) |
-| loop, 100 000 additions | 0.097526 s (21.7x) | 0.004491 s | 0.092748 s (20.7x) | 0.095675 s (21.3x) | 0.028220 s (6.3x) |
-| lookup, 1000 probes / 200 facts | 0.002013 s (18.3x) | 0.000110 s | 0.001742 s (15.8x) | 0.001825 s (16.6x) | 0.011699 s (106.4x) |
-| sortnums, 5000 integers | 0.012551 s (6.8x) | 0.001844 s | 0.013382 s (7.3x) | 0.012737 s (6.9x) | 0.002653 s (1.4x) |
+| nrev, 400-element list | 0.030175 s (6.5x) | 0.004641 s | 0.029254 s (6.3x) | 0.030046 s (6.5x) | 0.004787 s (1.0x) |
+| queens, all 92 solutions | 0.023113 s (12.0x) | 0.001926 s | 0.022298 s (11.6x) | 0.022841 s (11.9x) | 0.001983 s (1.0x) |
+| loop, 100 000 additions | 0.063794 s (15.2x) | 0.004208 s | 0.065996 s (15.7x) | 0.066508 s (15.8x) | 0.027011 s (6.4x) |
+| lookup, 1000 probes / 200 facts | 0.001292 s (13.6x) | 0.000095 s | 0.001326 s (14.0x) | 0.001347 s (14.2x) | 0.012299 s (129.5x) |
+| sortnums, 5000 integers | 0.008771 s (5.2x) | 0.001680 s | 0.008802 s (5.2x) | 0.009123 s (5.4x) | 0.002421 s (1.4x) |
 
-**As a language, 7-22x CPython on this box**, the three cocolog
-arrangements within a few percent of one another on every task. **As a
-state machine the column still splits by where the work is**: over durable
-data that the work only reads, sqlite costs CPython 1.0-1.4x over its dict;
-where the work IS the store, the cursor's addends cost it 6.3x on the
-counting loop, and the thousand keyed probes cost python + sqlite3 6.7x what
-they cost `--embed`.
+**As a language, 5-15x CPython on this box** -- the best it has read here --
+and the three cocolog arrangements within a few percent of one another on
+every task. **As a state machine** sqlite costs CPython 1.0-1.4x over its
+dict where the work only reads durable data, 6.4x on the counting loop
+where the cursor carries every addend, and the thousand keyed probes cost
+python + sqlite3 9.3x what they cost `--embed`.
 
-**And cocolog has lost ground since Run I on this box**, by more than the
-box moved: per rep, queens +63% where CPython moved +7%, nrev +48% (CPython
-+26%), sortnums +25% (+6%), loop +22% (+7%); lookup is level. **1.8.36 is
-not the cause** -- paired against 1.8.35 in one sitting it is level on
-queens and 15-23% faster on the other three (Run J's section). **And paired
-against Run I's own source** -- `ad3660d`, built the same day by the same
-Cicili and clang -- 1.8.37 takes 57% longer on queens, 31% on nrev, 13% on
-loop and sortnums, and 6% less on lookup. Same transpiler, same box, one
-sitting: the cost is in cocolog's own changes since 2026-08-31. Which of
-the 351 commits is not found; a bisection between the two would find it.
+**Run J, on 1.8.36, had read worse than August** -- queens at 17.2x where Run
+I read 11.3x -- and a bisection found the cause: `dd0895f` (2026-09-01) gave
+the engine's five term walks a stack each allocated and freed on every
+call, and 1.8.38 keeps the stacks on the machine instead (Run K's section;
+STATUS.md, "The walk stacks are kept"). Paired with August's own source in
+one sitting, 1.8.38 is level on queens and 13-28% faster on the other four.
 
 ## The rules
 
@@ -719,7 +715,7 @@ The transpiler and the box are the same on both sides of each pair, so
 what Run I to Run J shows is cocolog's own: its search takes 57% longer
 than a month ago, and its allocating tasks 13-31% longer even after the
 collector took 15-23% back. Which of the 351 commits between them did it is not
-found here.
+found here -- it was afterwards, by bisection: Run K.
 
 ```
 
@@ -780,4 +776,166 @@ the shape of the lookup gap -- a thousand probes, three sizes:
         200         0.20         0.22         1x
        2000         0.18         0.24         1x
       20000         0.21         0.29         1x
+```
+
+### Run K: the regression found and taken back -- 1.8.38
+
+**Run J's open question had one answer.** The bisection ran over master's
+first-parent line, the 58 commits since Run I's `ad3660d` that touch the
+engine (`lib/`, `cocolog.cicili`, `embed/`, `Makefile`, `tools/cc`), each built
+from `git archive` and timed in one sitting with both ends, queens and nrev
+interleaved: a single step at `dd0895f` (2026-09-01, "a list's depth is its
+length: five term walks off the C stack") -- queens x64 1.645 s on the
+commit before it, 2.644 s on it, and flat at that level on every one of the
+six points after. The inference counts are the same on both sides (129 453
+and 129 431 for one queens search), so it was a cost per inference: that
+commit gave copy, store-put, store-get, unify and compare each a stack of
+their own, allocated on every call and freed at the end, and `sample` shows
+macOS's allocator for blocks that size taking some 500 samples of a
+four-second queens run after it and none before. 1.8.38 keeps the two
+stacks on the machine; STATUS.md, "The walk stacks are kept", has the rest.
+
+Paired in one sitting, five interleaved passes, whole process:
+
+| program | `ad3660d` (August) | 1.8.37 | 1.8.38 |
+|---|---:|---:|---:|
+| `queens` x64 | 1.710 s | 2.662 s | **1.769 s** |
+| `nrev` x32 | 1.416 s | 1.858 s | **1.237 s** |
+| `loop` x32 | 3.139 s | 3.336 s | **2.554 s** |
+| `lookup` x1024 | 2.324 s | 2.121 s | **1.662 s** |
+| `sortnums` x256 | 3.381 s | 3.591 s | **2.896 s** |
+
+**Two runs, and the first is not the reading.** It started a minute after the
+full suite finished, the load average at 4.0, and its CPython lanes on the
+first two tasks read 8% and 18% slower than Run J's -- which flatters exactly
+those two ratios (nrev 6.2x, queens 11.3x). The second started on an idle
+box, and its CPython lanes came back to within a few per cent of Run I's
+own (queens 0.001926 s against 0.001973), so it is the table above. Against
+Run I, per rep, the second run's cocolog reads queens +4%, nrev -13%, loop
+-20%, lookup -27%, sortnums -13% -- what the interleaved pair says.
+
+The first run:
+
+```
+
+cocolog vs CPython -- same task, same answer, four arrangements
+python3 3.11.13 at /Users/a1/.pyenv/versions/3.11.13/bin/python3, cocolog 1.8.38 at /Users/a1/Projects/GitHub/cocolog/cocolog
+wall clock, median of three timed runs at each of two sizes
+a lane calibrated to ONE rep prints its wall time instead of a rate:
+at one rep the fixed cost and the work cannot be told apart
+
+-- nrev: one naive reverse of a 400-element list
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python        256    0.28     0.005670      1.0x    1.84  cpython_process
+   local          32    0.27     0.035371      6.2x    1.81  cocolog_local_in_memory_no_database
+   embed          32    0.29     0.035423      6.2x    1.80  cocolog_embedded_mvccs_fresh_store
+   zigurat        32    0.29     0.036920      6.5x    1.80  cocolog_server_one_kb_emptied
+   sqlite        256    0.29     0.005861      1.0x    1.84  cpython_sqlite3_file_indexed_committed
+
+-- queens: one full 8-queens search, all 92 solutions
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python        512    0.15     0.002497      1.0x    1.90  cpython_process
+   local          64    0.16     0.028122     11.3x    1.92  cocolog_local_in_memory_no_database
+   embed          64    0.00     0.030665     12.3x    2.10  cocolog_embedded_mvccs_fresh_store
+   zigurat        64    0.12     0.027731     11.1x    1.93  cocolog_server_one_kb_emptied
+   sqlite        512    0.43     0.001838      0.7x    1.69  cpython_sqlite3_file_indexed_committed
+
+-- loop: one hundred thousand additions, one at a time
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python        256    0.17     0.004365      1.0x    1.87  cpython_process
+   local          16    0.20     0.066400     15.2x    1.84  cocolog_local_in_memory_no_database
+   embed          16    0.18     0.066072     15.1x    1.85  cocolog_embedded_mvccs_fresh_store
+   zigurat        16    0.15     0.071610     16.4x    1.88  cocolog_server_one_kb_emptied
+   sqlite         32    0.27     0.029100      6.7x    1.78  cpython_sqlite3_file_indexed_committed
+
+-- lookup: a thousand key lookups over 200 facts
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python      16384    0.15     0.000101      1.0x    1.92  cpython_process
+   local        1024    0.20     0.001336     13.2x    1.87  cocolog_local_in_memory_no_database
+   embed        1024    0.18     0.001358     13.4x    1.89  cocolog_embedded_mvccs_fresh_store
+   zigurat      1024    0.21     0.001360     13.5x    1.87  cocolog_server_one_kb_emptied
+   sqlite        128    0.23     0.011660    115.4x    1.87  cpython_sqlite3_file_indexed_committed
+
+-- sortnums: one generate-and-sort of 5000 integers
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python       1024    0.18     0.001744      1.0x    1.91  cpython_process
+   local         128    0.20     0.008617      4.9x    1.85  cocolog_local_in_memory_no_database
+   embed         128    0.18     0.008876      5.1x    1.86  cocolog_embedded_mvccs_fresh_store
+   zigurat       128    0.23     0.008848      5.1x    1.83  cocolog_server_one_kb_emptied
+   sqlite        512    0.18     0.002448      1.4x    1.87  cpython_sqlite3_file_indexed_committed
+
+start-up alone, the same wall clock, nothing but boot and exit:
+   python         0.12 s
+   local          0.10 s
+   embed          0.11 s
+   zigurat        0.15 s
+
+the shape of the lookup gap -- a thousand probes, three sizes:
+      facts     python s    cocolog s      ratio
+        200         0.16         0.19         1x
+       2000         0.18         0.19         1x
+      20000         0.18         0.21         1x
+```
+
+The second, the reading:
+
+```
+
+cocolog vs CPython -- same task, same answer, four arrangements
+python3 3.11.13 at /Users/a1/.pyenv/versions/3.11.13/bin/python3, cocolog 1.8.38 at /Users/a1/Projects/GitHub/cocolog/cocolog
+wall clock, median of three timed runs at each of two sizes
+a lane calibrated to ONE rep prints its wall time instead of a rate:
+at one rep the fixed cost and the work cannot be told apart
+
+-- nrev: one naive reverse of a 400-element list
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python        256    0.17     0.004641      1.0x    1.88  cpython_process
+   local          64    0.17     0.030175      6.5x    1.92  cocolog_local_in_memory_no_database
+   embed          64    0.26     0.029254      6.3x    1.88  cocolog_embedded_mvccs_fresh_store
+   zigurat        64    0.23     0.030046      6.5x    1.89  cocolog_server_one_kb_emptied
+   sqlite        256    0.18     0.004787      1.0x    1.87  cpython_sqlite3_file_indexed_committed
+
+-- queens: one full 8-queens search, all 92 solutions
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python       1024    0.20     0.001926      1.0x    1.91  cpython_process
+   local          64    0.14     0.023113     12.0x    1.91  cocolog_local_in_memory_no_database
+   embed          64    0.19     0.022298     11.6x    1.88  cocolog_embedded_mvccs_fresh_store
+   zigurat        64    0.21     0.022841     11.9x    1.87  cocolog_server_one_kb_emptied
+   sqlite        512    0.19     0.001983      1.0x    1.85  cpython_sqlite3_file_indexed_committed
+
+-- loop: one hundred thousand additions, one at a time
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python        256    0.16     0.004208      1.0x    1.87  cpython_process
+   local          16    0.20     0.063794     15.2x    1.83  cocolog_local_in_memory_no_database
+   embed          16    0.16     0.065996     15.7x    1.87  cocolog_embedded_mvccs_fresh_store
+   zigurat        16    0.21     0.066508     15.8x    1.84  cocolog_server_one_kb_emptied
+   sqlite         64    0.24     0.027011      6.4x    1.88  cpython_sqlite3_file_indexed_committed
+
+-- lookup: a thousand key lookups over 200 facts
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python      16384    0.22     0.000095      1.0x    1.88  cpython_process
+   local        1024    0.23     0.001292     13.6x    1.85  cocolog_local_in_memory_no_database
+   embed        1024    0.18     0.001326     14.0x    1.88  cocolog_embedded_mvccs_fresh_store
+   zigurat      1024    0.22     0.001347     14.2x    1.86  cocolog_server_one_kb_emptied
+   sqlite        128    0.10     0.012299    129.5x    1.94  cpython_sqlite3_file_indexed_committed
+
+-- sortnums: one generate-and-sort of 5000 integers
+   lane         reps   fixed    per rep s     vs py    2R/R  arrangement
+   python       1024    0.22     0.001680      1.0x    1.89  cpython_process
+   local         128    0.19     0.008771      5.2x    1.85  cocolog_local_in_memory_no_database
+   embed         128    0.20     0.008802      5.2x    1.85  cocolog_embedded_mvccs_fresh_store
+   zigurat       128    0.19     0.009123      5.4x    1.86  cocolog_server_one_kb_emptied
+   sqlite        512    0.21     0.002421      1.4x    1.86  cpython_sqlite3_file_indexed_committed
+
+start-up alone, the same wall clock, nothing but boot and exit:
+   python         0.12 s
+   local          0.11 s
+   embed          0.12 s
+   zigurat        0.16 s
+
+the shape of the lookup gap -- a thousand probes, three sizes:
+      facts     python s    cocolog s      ratio
+        200         0.17         0.18         1x
+       2000         0.17         0.19         1x
+      20000         0.17         0.21         1x
 ```
