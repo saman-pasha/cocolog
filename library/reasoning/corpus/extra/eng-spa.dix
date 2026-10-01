@@ -421,3 +421,14 @@
 <e r="RL"><p><l>silly<s n="adj"/></l><r>lelo<s n="adj"/></r></p></e>
 <e r="RL"><p><l>report<s n="n"/></l><r>dictamen<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>revenge<s n="n"/></l><r>revancha<s n="n"/><s n="f"/></r></p></e>
+# the Cecchi Paone report (VIT-9270..9295), into Spanish: `pisar' (to trample)
+# and `callar' for the Italian `pestare' and `tacere', `emitir' for a
+# broadcast before the dictionary's `retransmitir', `vicedirector', and
+# `vespertino' for `preserale'
+<e><p><l>trample<s n="vblex"/></l><r>pisar<s n="vblex"/></r></p></e>
+<e><p><l>hush<s n="vblex"/></l><r>callar<s n="vblex"/></r></p></e>
+<e><p><l>broadcast<s n="vblex"/></l><r>emitir<s n="vblex"/></r></p></e>
+<e><p><l>vicedirector<s n="n"/></l><r>vicedirector<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>preevening<s n="adj"/></l><r>vespertino<s n="adj"/></r></p></e>
+<e><p><l>aloofness<s n="n"/></l><r>distanciamiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>subtract<s n="vblex"/></l><r>sustraer<s n="vblex"/></r></p></e>

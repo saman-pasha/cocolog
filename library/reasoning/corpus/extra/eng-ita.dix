@@ -761,3 +761,22 @@
 # `Arzalluz se reconoció indignado' -- outraged: apertium-ita carries
 # `indignare', which the bilingual pairs with nothing
 <e><p><l>outrage<s n="vblex"/></l><r>indignare<s n="vblex"/></r></p></e>
+# the Cecchi Paone report (VIT-9270..9295), into Spanish: apertium-ita carries
+# each with its paradigm and the bilingual pairs it with nothing. `pestare'
+# (to trample), `bruciare' and `tacere' are also written, for Spanish's
+# `pisar', `quemar' and `callar'; the others are read only, for the meaning
+# the dictionary gives another word first, and the two nouns for a meaning
+# Italian had no word for
+<e><p><l>trample<s n="vblex"/></l><r>pestare<s n="vblex"/></r></p></e>
+<e><p><l>burn<s n="vblex"/></l><r>bruciare<s n="vblex"/></r></p></e>
+<e><p><l>hush<s n="vblex"/></l><r>tacere<s n="vblex"/></r></p></e>
+<e><p><l>vicedirector<s n="n"/></l><r>vicedirettore<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>preevening<s n="adj"/></l><r>preserale<s n="adj"/></r></p></e>
+<e r="RL"><p><l>clarify<s n="vblex"/></l><r>puntualizzare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>fear<s n="n"/></l><r>timore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>mystery<s n="n"/></l><r>mistero<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>background<s n="n"/></l><r>sfondo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>shore<s n="n"/></l><r>lido<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>radiant<s n="adj"/></l><r>raggiante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>really<s n="adv"/></l><r>effettivamente<s n="adv"/></r></p></e>
+<e><p><l>aloofness<s n="n"/></l><r>distacco<s n="n"/><s n="m"/></r></p></e>

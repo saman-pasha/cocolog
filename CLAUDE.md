@@ -629,8 +629,10 @@ read into an English-worded IR and written into any lesson's language),
   property of a teach, not of a line. A data fix is proved on a store taught
   from the rebuilt vocabulary. Teaching both languages into one `--embed`
   store takes ~11 and ~18 minutes.
-* **Memory**: a teach sits at 4-9 GB resident, a tagger training near 10 GB,
-  `test/tagger.pl` alone; on a 14-16 GB box run them apart -- a cocolint run
+* **Memory**: a teach sat at 4-9 GB resident before the heap collector of
+  1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
+  tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run
+  the big ones apart -- a cocolint run
   beside a teach was OOM-killed (exit 137) when the linter still reached
   10 GB; the corpus lint peaks near 3.5 GB now. A killed process never
   flushes. **An arm that removes half of a coupled change can loop and grow
@@ -654,7 +656,15 @@ read into an English-worded IR and written into any lesson's language),
   own store against the new store, the only place a line of data shows. Fix
   every regression, find every cost by hunk bisection, add a section to
   `test/translate.pl` and to lesson 46, record the stated costs. Controls run
-  BEFORE the commit.
+  BEFORE the commit. **Merge `origin/master` before the teach** when it moved
+  the engine, so the numbers belong to the binary that is committed, and **run
+  the whole `test/translate.pl` (two minutes) before it**: a section alone
+  cannot see an older section's check -- the Cecchi section was green for days
+  and the whole case had eight red. Read the controls' TEXTS, not only their
+  counts: they found a pronoun lost (`lo`), a committee made the object, `ma
+  non` written last, a sentence that ran to the 300 M inference limit and
+  `l'anima` as `lo anima`; and sum the counts by hunk -- a clause that reads
+  the phrase's words a second time at every place that read nothing cost 3 %.
 * **Open leads, recorded and not done**: `tr_cap_run/3` is two predicates
   under one name; the builder calls a noun a person only by its first English
   word; English has no irregular plurals (`mans`); the upstream verb table
@@ -663,7 +673,9 @@ read into an English-worded IR and written into any lesson's language),
   and an infinitive is the near future and reads as a verb of motion, with
   the infinitive's clitic on it (`nos vamos a quedar` is `ci andiamo a
   rimanere`); Spanish `advertir a los suyos` takes a direct object in
-  Italian (`avvertì ai suoi`); a contraction before a quoted article drops
+  Italian (`avvertì ai suoi`); `da` before a bare noun is `desde` (`una fama
+  desde hábil niño`); `portarsela dietro` is an idiom and crosses word by word
+  (`traersela atrás`); a contraction before a quoted article drops
   the opening mark (`de "la casa"` is `della casa"`); a lesson line gives a
   word ONE sense in both numbers (`competencias` are powers, `la competencia`
   the rival firms, and the line for the first moved the second).

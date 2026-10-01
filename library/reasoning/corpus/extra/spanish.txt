@@ -1595,3 +1595,40 @@ The feminine noun "competencia" means "competence".
 # after the verb, and read with nobody named it was HE who concludes the
 # ultimatum
 "concluye" is intransitive.
+# the Cecchi Paone report (VIT-9270..9295), from Italian
+# `macché, non ho firmato' -- no way
+The adverb "qué va" means "no way".
+# `il "giornalaio"' -- a newsagent's stand is a `quiosco', and Spanish has
+# `quiosquero' for the one who keeps it; `trasloco' is a transfer, and the
+# first word the dictionary gives for one is `transbordo'
+The masculine noun "quiosquero" means "newsagent".
+The masculine noun "traslado" means "transfer".
+# `da martedì scorso fino a lunedì prossimo' -- a day of the week takes its
+# article in Spanish: `desde el martes pasado hasta el lunes próximo'
+The article "el" takes the day.
+# `il suo diretto superiore' -- `su jefe directo': the adjective stays after
+# its noun where the Italian had it before
+The adjective "directo" does not precede the noun.
+# `ha avuto a che fare con' -- `ha tenido que ver con'
+The verb "tiene que ver" means "has dealings".
+"tienen que ver" is the plural of "tiene que ver".
+"tener que ver" is the infinitive of "tiene que ver".
+"tenido que ver" is the participle of "tiene que ver".
+# `finora' and `a parte' -- until now, apart from
+The adverb "hasta ahora" means "until now".
+The preposition "aparte de" means "apart from".
+# `di qui alla firma ce ne corre' -- `de aquí a la firma hay un trecho': the
+# long way between two things, one verb of three words
+The verb "hay un trecho" means "has a long way".
+# `del resto il suo Avvocato ...' -- for the rest, Spanish's `por lo demás'; not `besides',
+# which is the dictionary's `además'
+The adverb "por lo demás" means "for the rest".
+# `ha discusso i suoi futuri destini' -- discuss: the dictionary pairs it with
+# `hablar' only, and `discutir' is there for `argue'
+The verb "discute" means "discusses".
+# `con distacco o fuor dai denti' -- bluntly, and the dictionary entry above
+# gives `distacco' its word
+The adverb "sin rodeos" means "bluntly".
+# `dietro queste voci' -- `detras de estas voces': behind, a preposition of two
+# words, before the adverb `detras' that stands alone
+The preposition "detrás de" means "behind".

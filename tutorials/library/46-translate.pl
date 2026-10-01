@@ -348,6 +348,7 @@ main :-
     section_53,
     section_54,
     section_55,
+    section_56,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5047,6 +5048,181 @@ The verb "riesce" means "attains". "riuscire" is the infinitive of "riesce".
 The transitive verb "ottiene" means "attains". "ottenere" is the infinitive of "ottiene".
 The preposition "davanti a" means "in front of".
 "said" is the past of "says".').
+
+section_56 :-
+    format("~n56. An Italian report into Spanish: a participle or an adjective in front of its clause, a perfect infinitive after a preposition, a clause that leaves out its copula, `né'' between clauses, the state''s copula for a place, a quoted adverb after an article, a day of the week, the cleft with its copula first, an absolute phrase, a name of several words, a title before a name, `cioè'', the pronouns joined to an infinitive, a quotation split by its report, a phrase set in front and taken up by a pronoun, a preposition before `how'', an infinitive joined to another, a subjunctive after `che'', `infatti'' in front, a phrase before `there is'', a noun after its article and adjective~n", []),
+    lesson_56(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the report''s shapes, under its own name', NI),
+    lesson_56(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('Il cane firma il libro.', italian, spanish, S56a),
+    must('a verb whose TRANSITIVE SENSE is the intransitive one''s English crosses as that sense, not the dictionary''s first meaning', S56a, 'El perro firma el libro.'),
+    reason_translate('Stanco il cane.', italian, spanish, S56b),
+    must('an ADJECTIVE IN FRONT of its subject, the copula left out', S56b, 'El perro es cansado.'),
+    reason_translate('Il cane non mangia né dorme.', italian, spanish, S56c),
+    must('`né'' between two clauses joins them as NOR', S56c, 'El perro no come ni duerme.'),
+    reason_translate('Il cane è a Milano.', italian, spanish, S56d),
+    must('the STATE''S COPULA says where somebody is, and a name for the place takes `en''', S56d, 'El perro está en Milano.'),
+    reason_translate('Il cane dorme martedì.', italian, spanish, S56e),
+    must('a DAY of the week takes the article where the lesson says so', S56e, 'El perro duerme el martes.'),
+    reason_translate('Non sarà lui a dormire.', italian, spanish, S56f),
+    must('the CLEFT with its copula first, the pronoun after the verb', S56f, 'No dormirá él.'),
+    reason_translate('Il cane dorme e la casa come sfondo.', italian, spanish, S56g),
+    must('an ABSOLUTE PHRASE after a coordinator takes the word for `with''', S56g, 'El perro duerme y con la casa como fondo.'),
+    reason_translate('Il Corriere della Sera dorme.', italian, spanish, S56h),
+    must('a NAME OF SEVERAL WORDS the lesson states is one word, as the text spells it', S56h, 'El Corriere della Sera duerme.'),
+    reason_translate('Il Tecnico Mario Rossi dorme.', italian, spanish, S56i),
+    must('a TITLE in capitals before a name is a noun', S56i, 'El técnico Mario Rossi duerme.'),
+    reason_translate('Il cane spera di dormire, cioè che il gatto mangia.', italian, spanish, S56j),
+    must('`cioè'' before what it says again', S56j, 'El perro espera dormir, es decir que el gato come.'),
+    reason_translate('Recuperato in casa, il cane dorme.', italian, spanish, S56k),
+    must('a PARTICIPLE with adjuncts only, said of the subject, is written back in front', S56k, 'Recuperado en casa, el perro duerme.'),
+    reason_translate('Il cane spera di occuparmene.', italian, spanish, S56l),
+    must('an infinitive with TWO PRONOUNS joined, the partitive said of nothing', S56l, 'El perro espera ocuparme.'),
+    reason_translate('"Il cane" dice lui, "dorme in casa".', italian, spanish, S56m),
+    must('a quotation SPLIT BY ITS REPORT, a pronoun for the report', S56m, '"El perro", dice él, "duerme en casa".'),
+    reason_translate('Il timore di dormire ce l''ha.', italian, spanish, S56n),
+    must('a phrase SET IN FRONT and taken up by a pronoun is the verb''s object', S56n, 'Tiene el miedo de dormir.'),
+    reason_translate('Lo mangia il timore di dormire.', italian, spanish, S56o),
+    must('a subject with an infinitive of its own AFTER its verb is no phrase set in front, and its pronoun stays', S56o, 'Lo come el miedo de dormir.'),
+    reason_translate('Il cane della casa lo mangia.', italian, spanish, S56p),
+    must('a subject with a phrase of its own that is no infinitive stays the subject before its verb and its pronoun', S56p, 'El perro de la casa lo come.'),
+    reason_translate('Il cane mangia il pane di soltanto la casa.', italian, spanish, S56q),
+    must('a word that says `only'' before the phrase of a preposition stays with it', S56q, 'El perro come el pan de solamente la casa.'),
+    reason_translate('Dopo aver mangiato il pane, il cane dorme.', italian, spanish, S56r),
+    must('a PERFECT INFINITIVE after a preposition is the auxiliary''s and a participle', S56r, 'Tras haber comido el pan, el perro duerme.'),
+    reason_translate('Il cane dorme a seconda di come il gatto mangia.', italian, spanish, S56s),
+    must('a PREPOSITION BEFORE `how''', S56s, 'El perro duerme según cómo el gato come.'),
+    reason_translate('Il cane spera di mangiare il pane e di dormire.', italian, spanish, S56t),
+    must('an infinitive after `e di'' is the verb''s OWN', S56t, 'El perro espera comer el pan y dormir.'),
+    reason_translate('Lui spera che passi in casa.', italian, spanish, S56u),
+    must('a second person nobody named is no SUBJUNCTIVE''S THIRD in a clause of `that''', S56u, 'Él espera que pasa en casa.'),
+    reason_translate('Infatti il cane dorme.', italian, spanish, S56v),
+    must('`infatti'' at the head is IN FRONT', S56v, 'De hecho el perro duerme.'),
+    reason_translate('Dietro le case ci sono molti cani.', italian, spanish, S56w),
+    must('a phrase before `there is'' is no SECOND THING there is', S56w, 'Hay muchos perros detrás de las casas.'),
+    reason_translate('Il cane dorme, nonostante i rispettivi giochi.', italian, spanish, S56x),
+    must('an article and an adjective before a word that is a noun and a verb''s form are ONE PHRASE', S56x, 'El perro duerme, a pesar de los respectivos juegos.'),
+    reason_translate('E in casa, il cane dorme:', italian, spanish, S56y),
+    must('a sentence that ends on a COLON is read as the piece, its connector first', S56y, 'Y en casa, el perro duerme:'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_56(L, Text) :- lesson_56(L, 1, A), lesson_56(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_56(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"dal" is the contraction of "da il". "dalla" is the contraction of "da la". "al" is the contraction of "a il". "alla" is the contraction of "a la". "ai" is the contraction of "a i".
+"l''" is the elision of "lo". "l''" is the elision of "la". "d''" is the elision of "di".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". "case" is the plural of "casa". The masculine noun "libro" means "book".
+The masculine noun "tecnico" means "coach". "tecnici" is the plural of "tecnico". "tecnico" is a person.
+The masculine noun "avvocato" means "lawyer". "avvocato" is a person.
+The masculine noun "timore" means "fear". The masculine noun "sfondo" means "background".
+The masculine noun "gioco" means "game". "giochi" is the plural of "gioco".
+The masculine noun "corriere" means "courier". The feminine noun "sera" means "evening".
+The masculine noun "martedì" means "tuesday". "martedì" is a time.
+The masculine adjective "stanco" means "tired". The masculine adjective "grande" means "big". "grandi" is the plural of "grande".
+The masculine adjective "diretto" means "direct". The masculine adjective "rispettivo" means "respective". "rispettivi" is the plural of "rispettivo".
+The adverb "qui" means "here". The adverb "anche" means "also". The adverb "quasi" means "almost". The adverb "infatti" means "in fact".
+The conjunction "e" means "and". The conjunction "o" means "or". The conjunction "ma" means "but". The conjunction "né" means "nor".
+The conjunction "che" means "that". "che" is a relative. The conjunction "cioè" means "that is". The conjunction "nonostante" means "although". The preposition "nonostante" means "despite".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "da" means "from". The preposition "per" means "for". The preposition "fra" means "among".
+The preposition "a" means "to". The preposition "con" means "with". The preposition "dopo" means "after".
+The preposition "dietro" means "behind". The adverb "dietro" means "back". The preposition "a seconda di" means "according to".
+The word "come" means "how". The preposition "come" means "like".
+The word "per" begins the purpose. The word "di" begins the infinitive. The word "a" begins the cleft.
+The reflexive pronoun "si" means "itself". The pronoun "lo" means "him". The dative pronoun "gli" means "him".
+The pronoun "lui" means "he". The pronoun "lui" means "him". The pronoun "lui" does not precede the verb.
+"Corriere della Sera" is a name.
+The pronoun "mi" means "me". The pronoun "ne" means "it". "ne" is partitive.
+The pronoun "molti" means "many". The pronoun "molti" does not precede the verb.
+The masculine noun "passo" means "step". "passi" is the plural of "passo".
+The masculine adjective "suo" means "hers". The feminine adjective "sua" means "hers". "suoi" is the plural of "suo". "sue" is the plural of "sua".').
+
+lesson_56(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+"dormirà" is the future of "dorme".
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è".
+"dormi" is the imperative of "dorme". "dormire" is the negative imperative of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+"mangi" is the second person of "mangia". "mangi" is the subjunctive of "mangia".
+"mangia" is the imperative of "mangia". "mangiare" is the negative imperative of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha". "abbiamo" is the first person of "hanno". "ce" is the particle of "ha".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha". "aver" is the infinitive of "ha".
+The verb "dice" means "says". "dicono" is the plural of "dice". "disse" is the past of "dice". "dice" takes the clause.
+The verb "spera" means "hopes". "sperano" is the plural of "spera". "sperare" is the infinitive of "spera". "spera" takes the clause.
+The verb "recupera" means "recovers". "recuperato" is the participle of "recupera".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "sarà" is the future of "è".
+The verb "firma" means "endorses". The intransitive verb "firma" means "signs". The transitive verb "firma" means "signs". "firmano" is the plural of "firma".
+The verb "gioca" means "plays". "giochi" is the second person of "gioca". "giochi" is the subjunctive of "gioca".
+The verb "va" means "goes". "andare" is the infinitive of "va".
+The verb "ci va" means "goes". "ci vanno" is the plural of "ci va". "andarci" is the infinitive of "ci va".
+The verb "ce ne corre" means "has a long way". "ce ne corrono" is the plural of "ce ne corre".
+"said" is the past of "says".
+The verb "occupa" means "occupies". "occupare" is the infinitive of "occupa". The verb "comincia" means "begins". "comincia" takes "a" before the infinitive.
+The verb "passa" means "passes". "passi" is the second person of "passa". "passi" is the subjunctive of "passa".
+The adverb "soltanto" means "only".').
+
+lesson_56(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every adjective that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not". The word "a" precedes the person.
+The masculine noun "perro" means "dog". "perros" is the plural of "perro". The masculine noun "gato" means "cat". "gatos" is the plural of "gato". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". "casas" is the plural of "casa". The masculine noun "libro" means "book".
+The masculine noun "técnico" means "coach". "técnico" is a person.
+The masculine noun "abogado" means "lawyer". "abogado" is a person.
+The masculine noun "miedo" means "fear". The masculine noun "fondo" means "background".
+The masculine noun "juego" means "game". "juegos" is the plural of "juego".
+The masculine noun "correo" means "courier". The feminine noun "tarde" means "evening".
+The masculine noun "martes" means "tuesday". "martes" is a time.
+The masculine adjective "cansado" means "tired". The masculine adjective "grande" means "big". "grandes" is the plural of "grande".
+The masculine adjective "directo" means "direct". The masculine adjective "respectivo" means "respective". "respectivos" is the plural of "respectivo".
+The adjective "directo" does not precede the noun.
+The adverb "aquí" means "here". The adverb "también" means "also". The adverb "casi" means "almost". The adverb "de hecho" means "in fact".
+The conjunction "y" means "and". The conjunction "o" means "or". The conjunction "pero" means "but". The conjunction "ni" means "nor".
+The conjunction "que" means "that". "que" is a relative. The conjunction "es decir" means "that is". The conjunction "a pesar de" means "although". The preposition "a pesar de" means "despite".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "desde" means "from". The preposition "para" means "for". The preposition "entre" means "among".
+The preposition "a" means "to". The preposition "con" means "with". The preposition "tras" means "after".
+The preposition "detrás de" means "behind". The adverb "atrás" means "back". The preposition "según" means "according to".
+The word "cómo" means "how". The preposition "como" means "like".
+The word "para" begins the purpose.
+The article "el" takes the day.
+The reflexive pronoun "se" means "itself". The pronoun "lo" means "him". The dative pronoun "le" means "him".
+The pronoun "él" means "he". The pronoun "él" means "him".
+The pronoun "me" means "me".
+The pronoun "muchos" means "many". The pronoun "muchos" does not precede the verb.
+The masculine adjective "suyo" means "hers". The feminine adjective "suya" means "hers". "suyos" is the plural of "suyo". "suyas" is the plural of "suya".').
+
+lesson_56(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+"dormirá" is the future of "duerme".
+The verb "hay" means "there is". "hay" is the plural of "hay".
+"duerme" is the imperative of "duerme". "duermas" is the negative imperative of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+"come" is the imperative of "come". "comas" is the negative imperative of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene". "tener" is the infinitive of "tiene".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haber" is the infinitive of "ha".
+The verb "dice" means "says". "dicen" is the plural of "dice". "dijo" is the past of "dice".
+The verb "espera" means "hopes". "esperan" is the plural of "espera". "esperar" is the infinitive of "espera".
+The verb "recupera" means "recovers". "recuperado" is the participle of "recupera".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "será" is the future of "es".
+The auxiliary "está" means "is". "están" is the plural of "está". "estaba" is the past of "está". The auxiliary "está" marks the state.
+The verb "avala" means "endorses". The verb "firma" means "signs". "firman" is the plural of "firma".
+The verb "va" means "goes". "ir" is the infinitive of "va".
+The verb "hay un trecho" means "has a long way".
+"said" is the past of "says".
+The verb "ocupa" means "occupies". "ocupar" is the infinitive of "ocupa". The verb "comienza" means "begins". "comienza" takes "a" before the infinitive.
+The verb "pasa" means "passes". "pasas" is the second person of "pasa".
+The adverb "solamente" means "only".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
