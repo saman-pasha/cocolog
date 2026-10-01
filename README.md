@@ -204,11 +204,16 @@ first left there. A program that opens a window runs in the
 ray-torch-numpy image on a virtual screen:
 
 ```sh
-docker run --rm --init -v "$PWD":/work --entrypoint xvfb-run cocolog:ray-torch-numpy -a cocolog -s game.pl
+docker run --rm --init -e LP_NUM_THREADS=2 -v "$PWD":/work --entrypoint xvfb-run cocolog:ray-torch-numpy -a cocolog -s game.pl
 ```
 
 `--init` is not optional there: without it `xvfb-run` is the container's
 first process, waits for a signal that process never receives, and hangs.
+`LP_NUM_THREADS=2` is a saving, not a requirement: with no GPU the window
+is drawn by Mesa's software renderer, which starts a thread for every CPU
+the container sees. A 1440×860 scene of 234 hexagons at 30 frames a second
+used 1.25 cores with sixteen threads and 0.75 with two, at the same frame
+rate.
 
 **An image moves to another machine as a file**, so it is built once and
 used anywhere Docker runs Linux x86-64 images — a Windows PC included.
