@@ -5,7 +5,19 @@
 #   sh install/install-linux.sh
 #
 #   NO_PACKAGES=1 ...                no root, or apt already done
-#   WITH_TORCH=1 ...                 pip-install torch so library(torch) builds (large)
+#   WITH_TORCH=1 ...                 pip-install torch so library(torch) builds (large;
+#                                    TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+#                                    takes the CPU-only wheels; TORCH_SPEC picks the
+#                                    version, torch==2.13.* unless told: 2.14's headers
+#                                    need C++20, and the module is C++17)
+#   WITH_NUMPY=1 ...                 python3 with its headers and NumPy, so library(numpy)
+#                                    builds -- the one module that embeds CPython, until
+#                                    it is rewritten without it; nothing else needs Python
+#   WITH_OPENCV=1 ...                OpenCV 4 from the distribution, so library(opencv)
+#                                    builds (large)
+#   WITH_RAY=1 ...                   raylib RAYLIB_TAG (6.0) built from source beside the
+#                                    checkouts, its X11 and GL headers, and Xvfb, so
+#                                    library(ray) builds and runs with no screen
 #   CICILI=/path ZIGURATIP=/path ... checkouts elsewhere (default: beside this one,
 #                                    cloned there when absent)
 #   CICILI_CC=gcc CICILI_CXX=g++ ... build with gcc; no clang needed
@@ -15,6 +27,7 @@
 # make -- colab/prereqs.sh and colab/build.sh carry the same lesson.
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd); ROOT=$(cd "$HERE/.." && pwd)
+TORCH_SPEC=${TORCH_SPEC:-torch==2.13.*}
 OS=linux; LIBVAR=LD_LIBRARY_PATH; BREW=""; LOG=${LOG:-/tmp/cocolog-install}
 . "$HERE/common.sh"
 
@@ -25,8 +38,23 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # ---- Debian, Ubuntu ------------------------------------------------
     export DEBIAN_FRONTEND=noninteractive
     $SUDO apt-get -qq update
-    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3 python3-dev python3-numpy libopencv-dev >/dev/null
-    say "build-essential make git curl sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev python3 python3-dev python3-numpy libopencv-dev"
+    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev >/dev/null
+    say "build-essential make git curl sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev"
+    if [ "${WITH_NUMPY:-0}" = 1 ]; then
+      $SUDO apt-get -qq install -y python3 python3-dev python3-numpy >/dev/null
+      say "WITH_NUMPY=1: python3 python3-dev python3-numpy"
+    fi
+    if [ "${WITH_OPENCV:-0}" = 1 ]; then
+      $SUDO apt-get -qq install -y libopencv-dev >/dev/null
+      say "WITH_OPENCV=1: libopencv-dev"
+    fi
+    if [ "${WITH_RAY:-0}" = 1 ]; then
+      # raylib is not packaged for Ubuntu 24.04, so common.sh builds it; these
+      # are its X11, GL and audio headers, and the X server a window needs
+      # where there is no screen (test/ray.pl runs under xvfb-run there)
+      $SUDO apt-get -qq install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libasound2-dev xvfb xauth >/dev/null
+      say "WITH_RAY=1: libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev libasound2-dev xvfb xauth"
+    fi
     if ! cxx_ok 16; then
       case "${CICILI_CXX:-clang++}" in
         *clang*)
@@ -46,15 +74,31 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     if [ "${WITH_TORCH:-0}" = 1 ]; then
       say "WITH_TORCH=1: pip-installing torch (this is large)"
       $SUDO apt-get -qq install -y python3-pip >/dev/null
-      python3 -m pip install -q torch
+      # Ubuntu 24.04 marks its python externally managed (PEP 668) and pip
+      # refuses a system-wide install until told; TORCH_INDEX_URL picks the
+      # wheels (https://download.pytorch.org/whl/cpu: CPU-only, far smaller)
+      python3 -m pip install -q ${TORCH_INDEX_URL:+--index-url "$TORCH_INDEX_URL"} "$TORCH_SPEC" \
+        || python3 -m pip install -q --break-system-packages ${TORCH_INDEX_URL:+--index-url "$TORCH_INDEX_URL"} "$TORCH_SPEC"
     fi
   elif command -v dnf >/dev/null 2>&1; then
     # ---- Fedora, and the Red Hat family with EPEL for sbcl --------------
     # Fedora's clang is 17 or newer, so it is taken as is; redhat-rpm-config
     # provides the hardened-cc1 specs file that home/etc/ziguratip-RedHat.conf
     # names in its CPP_FLAGS.
-    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 python3-devel python3-numpy opencv-devel redhat-rpm-config >/dev/null
-    say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel python3 python3-devel python3-numpy opencv-devel redhat-rpm-config"
+    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
+    say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
+    if [ "${WITH_NUMPY:-0}" = 1 ]; then
+      $SUDO dnf -q install -y python3 python3-devel python3-numpy >/dev/null
+      say "WITH_NUMPY=1: python3 python3-devel python3-numpy"
+    fi
+    if [ "${WITH_OPENCV:-0}" = 1 ]; then
+      $SUDO dnf -q install -y opencv-devel >/dev/null
+      say "WITH_OPENCV=1: opencv-devel"
+    fi
+    if [ "${WITH_RAY:-0}" = 1 ]; then
+      $SUDO dnf -q install -y libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel alsa-lib-devel xorg-x11-server-Xvfb xorg-x11-xauth >/dev/null
+      say "WITH_RAY=1: libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel alsa-lib-devel xorg-x11-server-Xvfb xorg-x11-xauth"
+    fi
     cxx_ok 16 || case "${CICILI_CXX:-clang++}" in
       *clang*) die "this clang is older than 16 and tools/cc/cxx needs --gcc-install-dir; dnf install a newer clang, or CICILI_CC=gcc CICILI_CXX=g++" ;;
       *) die "${CICILI_CXX} is too old for C++17" ;;
@@ -62,15 +106,24 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     if [ "${WITH_TORCH:-0}" = 1 ]; then
       say "WITH_TORCH=1: pip-installing torch (this is large)"
       $SUDO dnf -q install -y python3-pip >/dev/null
-      python3 -m pip install -q torch
+      # Ubuntu 24.04 marks its python externally managed (PEP 668) and pip
+      # refuses a system-wide install until told; TORCH_INDEX_URL picks the
+      # wheels (https://download.pytorch.org/whl/cpu: CPU-only, far smaller)
+      python3 -m pip install -q ${TORCH_INDEX_URL:+--index-url "$TORCH_INDEX_URL"} "$TORCH_SPEC" \
+        || python3 -m pip install -q --break-system-packages ${TORCH_INDEX_URL:+--index-url "$TORCH_INDEX_URL"} "$TORCH_SPEC"
     fi
   else
     say "neither apt-get nor dnf here -- needed: a C++17 compiler (clang 16+, or g++ 7+ with CICILI_CXX=g++),"
-    say "make, git, curl, sbcl, GNU libtool, the OpenSSL, zlib, libcurl headers, python3. Checking for them:"
+    say "make, git, curl, sbcl, GNU libtool, the OpenSSL, zlib, libcurl headers (python3 too for WITH_NUMPY or WITH_TORCH). Checking for them:"
   fi
 fi
 cxx_ok 16 || die "no C++17 compiler for tools/cc: ${CICILI_CXX:-clang++} (clang 16+, or CICILI_CC=gcc CICILI_CXX=g++)"
-for t in make git curl sbcl libtool python3; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
+for t in make git curl sbcl libtool; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
+# PYTHON ONLY WHEN ASKED FOR: library(numpy) embeds CPython and torch comes
+# from pip; nothing else cocolog builds or runs needs it
+if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
+  command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH (WITH_NUMPY or WITH_TORCH)"
+fi
 say "compiler: $(${CICILI_CXX:-clang++} --version | head -1)"
 
 checkouts

@@ -29,6 +29,13 @@ full story goes in its commit message or STATUS.md.
   A teach consults the library once; a round compares libraries by md5.
 * **Never `rm -rf $ZIGURATIP_HOME/data/*` unless `pgrep ziguratip` prints
   nothing** (see Hazards).
+* **No Python is needed to build or run cocolog** (owner, 2026-10-01).
+  Python appears only as the benchmark's yardstick (`bench/langs.sh`,
+  `test/langs.pl`). `library(numpy)` still embeds CPython and is to be
+  rewritten without it, on a C++ array library, keeping its `np_*`
+  predicates and `.npy` files; until then it is opt-in (`WITH_NUMPY=1` in
+  the install scripts and the Dockerfile). torch's and tensorflow's pip
+  paths and `colab/` are left as they are for now.
 
 ## The repositories
 
@@ -69,7 +76,9 @@ make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
 make modules      # every loadable module buildable here; SKIPPED, by name, for the rest
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
-docker build -t cocolog .       # the stack on Ubuntu 24.04, by install/install-linux.sh
+make docker                     # BOTH images, every time (the owner's rule): cocolog with
+                                # no optional part and no Python, and cocolog:ray-torch-numpy
+make docker-save                # each as dist/*.tar.gz with dist/SHA256SUMS
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0 (committed)
 sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committed)
 ```
@@ -464,7 +473,12 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   read, `initialization(G, now)` where it stands, `initialization(G, main)`
   after the load and then halts. A directive that fails or throws is
   reported in SWI's shapes and the load goes on; **a syntax error is the
-  only thing that ends a consult.** A module is claimed BEFORE its consult,
+  only thing that ends a consult.** A `use_module`/`ensure_loaded` that
+  loads nothing is reported the same way (since 1.8.39: SWI's ERROR
+  `source_sink ... does not exist`, then the failed directive; it used to
+  be SILENT), except SWI's names for what cocolog carries elsewhere --
+  `error`, `dcg/basics`, `dcg/high_order`, `lb_carried` in
+  `lib/library.cicili`. A module is claimed BEFORE its consult,
   so a goal directive in a module (and every `-s` program is one) no longer
   re-consults it.
 * **Consulting a file REPLACES the clauses it put in the store last time**

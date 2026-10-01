@@ -136,6 +136,38 @@ torch_env() {   # which libtorch the torch module will be built against, if any
   fi
 }
 
+# THE RAYLIB library(ray) IS BUILT AGAINST, when WITH_RAY=1 asks for one.
+# On macOS Homebrew's (install-macos.sh installs it; pkg-config finds it). On
+# Linux there is no package for Ubuntu 24.04, so it is built here, beside the
+# checkouts, the way modules/ray/build.sh's header says: the objects compiled
+# PIC by the SHARED build, archived, because a .so cannot swallow raylib's
+# default non-PIC archive. RAYLIB in the environment wins over all of it.
+RAYLIB_TAG=${RAYLIB_TAG:-6.0}
+ray_env() {
+  [ "${WITH_RAY:-0}" = 1 ] || { say "no WITH_RAY=1: library(ray) will be SKIPPED below"; return 0; }
+  if [ -n "${RAYLIB:-}" ]; then say "raylib: RAYLIB=$RAYLIB (from the environment)"; return 0; fi
+  if [ "$OS" = macos ]; then say "raylib: Homebrew's, under $BREW"; return 0; fi
+  RAYLIB=$SIDE/raylib; export RAYLIB
+  if [ ! -f "$RAYLIB/lib/libraylib.a" ]; then
+    # ONLY src/, over HTTP/1.1, three tries. The repository is mostly its
+    # examples and their media, and a slow link broke the whole clone on an
+    # HTTP/2 stream nine minutes in (`RPC failed; curl 92 HTTP/2 stream 5 was
+    # not closed cleanly'); the library is a few megabytes of it.
+    n=0
+    until [ -f "$RAYLIB/src/raylib.h" ]; do
+      n=$((n + 1)); [ "$n" -le 3 ] || die "cannot clone raylib $RAYLIB_TAG into $RAYLIB"
+      rm -rf "$RAYLIB"
+      git -c http.version=HTTP/1.1 -c advice.detachedHead=false clone -q --depth 1 --filter=blob:none --sparse \
+          --branch "$RAYLIB_TAG" https://github.com/raysan5/raylib.git "$RAYLIB" \
+        && git -C "$RAYLIB" sparse-checkout set src \
+        || say "raylib: clone attempt $n failed"
+    done
+    ( cd "$RAYLIB/src" && make PLATFORM=PLATFORM_DESKTOP RAYLIB_LIBTYPE=SHARED CC="${CICILI_CC:-clang}" ) > "$LOG.raylib" 2>&1 \
+      || { tail -8 "$LOG.raylib" | sed 's/^/   /'; die "raylib did not build  (whole log: $LOG.raylib)"; }
+    mkdir -p "$RAYLIB/lib" && ar rcs "$RAYLIB/lib/libraylib.a" "$RAYLIB"/src/*.o
+  fi
+  say "raylib $RAYLIB_TAG: $RAYLIB, built PIC"
+}
 build_cocolog() {
   step "building cocolog"
   ( cd "$ROOT" && rm -f cocolog && CICILI="$CICILI" ZIGURATIP="$ZIGURATIP" make ) > "$LOG.cocolog" 2>&1 || true
@@ -150,6 +182,7 @@ build_cocolog() {
   say "$(ls "$ZIGURATIP_HOME"/ld/lib_COCOLOG* 2>/dev/null | wc -l | tr -d ' ') objects"
   step "the loadable modules (SKIPPED names a missing dependency; sh modules/<m>/build.sh says which)"
   torch_env
+  ray_env
   ( cd "$ROOT" && CICILI="$CICILI" ZIGURATIP="$ZIGURATIP" make modules ) 2>&1 | sed 's/^/   /'
   step "does it answer"
   ans=$("$ROOT/cocolog" query "X is 6*7, write(X), nl" 2>&1 | tr -d '\r')
@@ -167,6 +200,7 @@ exports_hint() {
     echo "   export TORCH_INCLUDE=${TORCH_INCLUDE:-$LIBTORCH/include}"
     echo "   export TORCH_LIB=${TORCH_LIB:-$LIBTORCH/lib}"
   fi
+  [ -n "${RAYLIB:-}" ] && echo "   export RAYLIB=$RAYLIB"
   say "then: cd $ROOT && make test          (the suite; the database cases SKIP without a server)"
   say "server: cd $ZIGURATIP && ZIGURATIP_HOME=\$PWD/home $LIBVAR=\$PWD/home/lib ./home/bin/ziguratip &"
 }

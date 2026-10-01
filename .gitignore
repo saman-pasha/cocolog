@@ -112,3 +112,6 @@ tutorials/opencv/models/
 
 # the raw dictionaries tools/corpus/fetch.sh downloads; what build.pl writes from them is committed
 library/reasoning/corpus/raw/
+
+# saved Docker images (make docker-save)
+/dist/
