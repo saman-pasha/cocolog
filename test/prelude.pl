@@ -216,8 +216,12 @@ spawn(Cmd, Pid) :- sh_join(['exec ', Cmd], Exec), proc_spawn(Exec, Pid).
 %% stdout (and whatever Cmd redirected into it) as an atom with the last
 %% newline taken off -- what `$(...)' handed a .sh -- and the exit status,
 %% never failed on. cocolog_run/3 is the same over `cocolog ARGS'.
-shell(Cmd, Text, Exit) :-
-    proc_run(Cmd, 120000, Out, Exit),
+shell(Cmd, Text, Exit) :- shell(Cmd, Text, Exit, 120000).
+
+%% the same with a ceiling of its own, for a step whose work grows with the
+%% tree it reads (test/lint.pl's corpus lint)
+shell(Cmd, Text, Exit, Ms) :-
+    proc_run(Cmd, Ms, Out, Exit),
     chomp(Out, Body),
     atom_codes(Text, Body).
 

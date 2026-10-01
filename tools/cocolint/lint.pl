@@ -126,21 +126,36 @@ cl_wire_bytes(65535).
 %% ONE READ AND ONE SCAN, then every rule over the result. Reading the file
 %% per rule would be nine walks of it, and cc_regions/2 alone is the expensive
 %% one.
+%%
+%% EVERY PHASE IS COPIED OUT THROUGH cl_kept/2, BECAUSE A DETERMINISTIC PROOF
+%% NEVER GIVES ITS HEAP BACK. Each phase is a walk with no choice point in it,
+%% cocolog reclaims the heap only on backtracking, and so every phase left
+%% every frame it made behind it: library/reasoning/translate.pl (1.1 MB,
+%% 3 042 clauses) took one process to 9.7 GB, a third of test/lint.pl's corpus
+%% lint was the kernel handing that heap fresh pages, and a second lint beside
+%% it was killed for want of memory. Copied out, the same file holds the heap
+%% at 58 MB and the same inferences take a third of the time.
 cl_file(File, Imports0, Findings) :-
     read_file_to_codes(File, Codes),
-    cc_clauses_of(File, Clauses),
-    cc_regions(Codes, Regions),
-    cl_texts(Clauses, Codes, Texts),
+    cl_kept(Clauses, cc_clauses_of(File, Clauses)),
+    cl_kept(Regions, cc_regions(Codes, Regions)),
+    cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
     cl_zip(Clauses, Texts, Pairs),
     cl_imports(Pairs, Imports1),
     append(Imports0, Imports1, Imports),
-    cl_rule_t1(File, Pairs, F2),
-    cl_rule_n(File, Clauses, Imports, F3),
-    cl_rule_s1(File, Codes, Regions, F4),
-    cl_rule_a1(File, Codes, Regions, F5),
-    cl_rule_z1(File, Regions, Pairs, F6),
+    cl_kept(F2, cl_rule_t1(File, Pairs, F2)),
+    cl_kept(F3, cl_rule_n(File, Clauses, Imports, F3)),
+    cl_kept(F4, cl_rule_s1(File, Codes, Regions, F4)),
+    cl_kept(F5, cl_rule_a1(File, Codes, Regions, F5)),
+    cl_kept(F6, cl_rule_z1(File, Regions, Pairs, F6)),
     append([F2, F3, F4, F5, F6], All),
     cl_sort_findings(All, Findings).
+
+%% cl_kept(?X, :Goal) is semidet.
+%% Goal proved once, X bound to a COPY of what it bound there, and the heap
+%% the proof used given back: a findall/3 winds the heap back to where it
+%% began once its goal has no more answers, and keeps only the copy.
+cl_kept(X, Goal) :- findall(X, once(Goal), [X]).
 
 %% ---- T1: a use_module for a tier-1 library ---------------------------
 
@@ -422,12 +437,27 @@ cl_a1_after([C|_]) :- \+ cl_a1_bound(C).
 %% an atom, operators are rewritten -- but it is within a few per cent, which
 %% is what a budget check needs.
 cl_rule_z1(File, Regions, Pairs, Findings) :-
-    findall(F,
-            ( member(cc_clause(Span, _, _)-Text, Pairs),
-              cl_stored_size(Text, Span, Regions, N),
-              cl_z1_message(N, Msg, Fix, Cite),
-              cl_finding(File, Span, z1, 'Z1', Msg, Fix, Cite, F) ),
-            Findings).
+    cl_z1_walk(Pairs, Regions, File, Findings).
+
+%% IN STEP WITH THE REGIONS ACROSS THE CLAUSES TOO, not only inside one. The
+%% spans arrive in source order (cl_texts_/4 walks them forward) and so do
+%% the regions, so a region that ends before one clause begins ends before
+%% every later one: it is dropped here, once, and each clause shifts only the
+%% regions that begin inside it. The first version shifted the WHOLE region
+%% list for every clause, which is clauses times regions -- measured 233
+%% million inferences and fifty seconds on library/reasoning/translate.pl's
+%% 3 042 clauses, the largest single cost of test/lint.pl's corpus lint.
+cl_z1_walk([], _, _, []).
+cl_z1_walk([cc_clause(Span, _, _)-Text|Ps], Regions0, File, Findings) :-
+    Span = at(Off, _, _, _),
+    cl_drop_past(Regions0, Off, Regions),
+    cl_stored_size(Text, Span, Regions, N),
+    (   cl_z1_message(N, Msg, Fix, Cite)
+    ->  cl_finding(File, Span, z1, 'Z1', Msg, Fix, Cite, F),
+        Findings = [F|More]
+    ;   Findings = More
+    ),
+    cl_z1_walk(Ps, Regions, File, More).
 
 cl_z1_message(N, Msg, 'split it', 'client/zigurat.c:905-915') :-
     cl_wire_bytes(W), N > W, !,
@@ -446,20 +476,26 @@ cl_z1_message(N, Msg,
 %% regions is sixteen million comparisons, and it measured FORTY-THREE SECONDS
 %% on tutorials/library/36-llm.pl -- ninety per cent of the whole linter. Here
 %% the region list is consumed as the walk advances and never re-examined.
-cl_stored_size(Text, at(Off, _, _, _), Regions, N) :-
-    cl_shift_regions(Regions, Off, Local),
+cl_stored_size(Text, at(Off, _, _, Len), Regions, N) :-
+    End is Off + Len,
+    cl_shift_regions(Regions, Off, End, Local),
     cl_size_walk(Text, 0, Local, no, Out),
     cl_trim(Out, Trimmed),
     length(Trimmed, N).
 
-cl_shift_regions([], _, []).
-cl_shift_regions([reg(A, B, K)|Rs], Off, Out) :-
-    B1 is B - Off,
-    (   B1 =< 0
-    ->  cl_shift_regions(Rs, Off, Out)
-    ;   A1 is A - Off,
-        Out = [reg(A1, B1, K)|Rest],
-        cl_shift_regions(Rs, Off, Rest)
+%% A region that begins at or past the clause's end cannot touch its text,
+%% and the regions are in order, so the shift stops at the first of them.
+cl_shift_regions([], _, _, []).
+cl_shift_regions([reg(A, B, K)|Rs], Off, End, Out) :-
+    (   A >= End
+    ->  Out = []
+    ;   B1 is B - Off,
+        (   B1 =< 0
+        ->  cl_shift_regions(Rs, Off, End, Out)
+        ;   A1 is A - Off,
+            Out = [reg(A1, B1, K)|Rest],
+            cl_shift_regions(Rs, Off, End, Rest)
+        )
     ).
 
 %% A COMMENT IS NOT PART OF THE TERM AT ALL, so it goes; whitespace outside a
