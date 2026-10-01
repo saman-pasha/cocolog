@@ -292,10 +292,13 @@
     (member size_t *   atom_buckets)      ; open addressing, id+1, 0 is empty
     (member size_t     atom_bucket_cap)
 
-    ;; interned functors
+    ;; interned functors, and the table that finds one by name and arity --
+    ;; the atom table's shape, see `coco_functor_id'
     (member coco_functor * functors)
     (member size_t     functors_len)
     (member size_t     functors_cap)
+    (member size_t *   functor_buckets)   ; open addressing, id+1, 0 is empty
+    (member size_t     functor_bucket_cap)
 
     ;; doubles, which do not fit in a cell
     (member double *   floats)
@@ -371,6 +374,9 @@
   (decl) (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64))
   (decl) (func coco_atom_name ((coco_machine * m) (u64 id)) (out const char *))
   (decl) (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64))
+  ;; a name and an arity as one word, for the two tables that find one: the
+  ;; functors here and the predicates in kb.cicili
+  (decl) (func coco_name_arity_hash ((u64 name) (u32 arity)) (out u64))
 
   ;; ---- heap ----
   (decl) (func coco_push ((coco_machine * m) (u64 c)) (out size_t))
@@ -518,6 +524,7 @@
         (free (-> m atoms))
         (free (-> m atom_buckets))
         (free (-> m functors))
+        (free (-> m functor_buckets))
         (free (-> m floats))
         (for ((size_t i . 0)) (< i (-> m strings_len)) ((++ i))
           (free ($ (nth i (-> m strings)) p)))
@@ -653,23 +660,68 @@
         (if (>= (cast size_t id) (-> m atoms_len)) (return "<bad-atom>"))
         (return ($ (nth (cast size_t id) (-> m atoms)) name)))
 
+  ;;; A NAME AND AN ARITY AS ONE WORD. An atom id is small and sequential, so
+  ;;; the multiply is what spreads it -- by the FNV prime the first-argument
+  ;;; index uses, which fits a plain literal where FNV's offset basis does not
+  ;;; (see `coco_hash') -- and the shift folds the high bits it spread down
+  ;;; into the low ones a mask keeps.
+  (func coco_name_arity_hash ((u64 name) (u32 arity)) (out u64)
+        (let ((u64 h . #'(* (+ (* name 64) (cast u64 arity)) 1099511628211)))
+          (return (xor h (>> h 29)))))
+
+  ;;; The functor table at twice the size, or at 256 the first time. Every
+  ;;; entry is put back from the functor array itself, which is the truth;
+  ;;; the table is only how to find it.
+  (static)
+  (func coco_functors_rehash ((coco_machine * m)) (out int)
+        (let ((size_t ncap . #'(? (== (-> m functor_bucket_cap) 0) 256
+                                  (* (-> m functor_bucket_cap) 2)))
+              (size_t * nb . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
+          (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+          (for ((size_t i . 0)) (< i (-> m functors_len)) ((++ i))
+            (let ((size_t j . #'(cast size_t
+                                      (bitand (coco_name_arity_hash ($ (nth i (-> m functors)) name)
+                                                                    ($ (nth i (-> m functors)) arity))
+                                              (cast u64 (- ncap 1))))))
+              (while (!= (nth j nb) 0)
+                (set j (bitand (+ j 1) (- ncap 1))))
+              (set (nth j nb) (+ i 1))))
+          (free (-> m functor_buckets))
+          (set (-> m functor_buckets) nb)
+          (set (-> m functor_bucket_cap) ncap)
+          (return 1)))
+
   (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64)
-        ;; Linear, and deliberately so: a program has tens of functors, not
-        ;; thousands, and a hash table over two integers would cost more to
-        ;; maintain than the scan costs to run.
-        (for ((size_t i . 0)) (< i (-> m functors_len)) ((++ i))
-          (if (and (== ($ (nth i (-> m functors)) name) name)
-                   (== ($ (nth i (-> m functors)) arity) arity))
-              (return (cast u64 i))))
-        (if (not (coco_grow m (cast (void **) (aof (-> m functors)))
-                          (aof (-> m functors_cap)) (+ (-> m functors_len) 1)
-                          (sizeof coco_functor)))
-            (return 0))
-        (let ((size_t id . #'(-> m functors_len)))
-          (set ($ (nth id (-> m functors)) name) name)
-          (set ($ (nth id (-> m functors)) arity) arity)
-          (set (-> m functors_len) (+ id 1))
-          (return (cast u64 id))))
+        ;; HASHED. It was a scan, on the argument that a program has tens of
+        ;; functors and not thousands -- and the reasoning library has two
+        ;; thousand once it is loaded, so the scan was a quarter of every
+        ;; instruction the translator ran, and every functor a library added
+        ;; was paid for by every lookup after it (CLAUDE.md, 1.8.31 and
+        ;; 1.8.32). The table is the atom table's shape -- open addressing, an
+        ;; entry is its id plus one -- and it is kept under half full, which
+        ;; is checked BEFORE the probe: so the probe ends at an empty slot even
+        ;; when the rehash has failed for want of memory.
+        (if (> (* (+ (-> m functors_len) 1) 2) (-> m functor_bucket_cap))
+            (if (not (coco_functors_rehash m)) (return 0)))
+        (let ((size_t mask . #'(- (-> m functor_bucket_cap) 1))
+              (size_t j . 0))
+          (set j (cast size_t (bitand (coco_name_arity_hash name arity) (cast u64 mask))))
+          (while (!= (nth j (-> m functor_buckets)) 0)
+            (let ((size_t id . #'(- (nth j (-> m functor_buckets)) 1)))
+              (if (and (== ($ (nth id (-> m functors)) name) name)
+                       (== ($ (nth id (-> m functors)) arity) arity))
+                  (return (cast u64 id))))
+            (set j (bitand (+ j 1) mask)))
+          (if (not (coco_grow m (cast (void **) (aof (-> m functors)))
+                            (aof (-> m functors_cap)) (+ (-> m functors_len) 1)
+                            (sizeof coco_functor)))
+              (return 0))
+          (let ((size_t id . #'(-> m functors_len)))
+            (set ($ (nth id (-> m functors)) name) name)
+            (set ($ (nth id (-> m functors)) arity) arity)
+            (set (-> m functors_len) (+ id 1))
+            (set (nth j (-> m functor_buckets)) (+ id 1))
+            (return (cast u64 id)))))
 
   ;;; ---- heap ---------------------------------------------------------
 

@@ -225,6 +225,10 @@
     (member coco_pred * preds)
     (member size_t    npreds)
     (member size_t    pred_cap)
+    ;; the table that finds a predicate by name and arity -- the functor
+    ;; table's shape, see `coco_pred_find'
+    (member size_t *  pred_buckets)       ; open addressing, index+1, 0 is empty
+    (member size_t    pred_bucket_cap)
 
     ;; The backend. Called at most once per predicate, with the store to fill
     ;; in; answers 1 if it looked (whether or not it found anything) and 0 if
@@ -696,6 +700,7 @@
           (free ($ (nth i (-> st preds)) chain))
           (free (cast (void *) ($ (nth i (-> st preds)) slots))))
         (free (-> st preds))
+        (free (-> st pred_buckets))
         (free (-> st cells))
         (free (-> st roots))
         ;; the globals go with the cells they index -- nothing outside this
@@ -1066,12 +1071,53 @@
 
   ;;; ---- predicates -------------------------------------------------------
 
+  ;;; The predicate table at twice the size, or at 256 the first time, every
+  ;;; entry put back from `preds' itself.
+  (static)
+  (func coco_preds_rehash ((coco_store * st)) (out int)
+        (let ((size_t ncap . #'(? (== (-> st pred_bucket_cap) 0) 256
+                                  (* (-> st pred_bucket_cap) 2)))
+              (size_t * nb . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
+          (if (== nb nil) (block (set (-> st oom) 1) (return 0)))
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (let ((size_t j . #'(cast size_t
+                                      (bitand (coco_name_arity_hash ($ (nth i (-> st preds)) name)
+                                                                    ($ (nth i (-> st preds)) arity))
+                                              (cast u64 (- ncap 1))))))
+              (while (!= (nth j nb) 0)
+                (set j (bitand (+ j 1) (- ncap 1))))
+              (set (nth j nb) (+ i 1))))
+          (free (-> st pred_buckets))
+          (set (-> st pred_buckets) nb)
+          (set (-> st pred_bucket_cap) ncap)
+          (return 1)))
+
+  ;;; The slot NAME/ARITY is in, or would go into: probing from its hash, the
+  ;;; first slot that holds it or is empty. `coco_pred_make' keeps the table
+  ;;; under half full, so the probe always ends.
+  (static)
+  (func coco_pred_slot ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
+        (let ((size_t mask . #'(- (-> st pred_bucket_cap) 1))
+              (size_t j . 0))
+          (set j (cast size_t (bitand (coco_name_arity_hash name arity) (cast u64 mask))))
+          (while (!= (nth j (-> st pred_buckets)) 0)
+            (let ((size_t i . #'(- (nth j (-> st pred_buckets)) 1)))
+              (if (and (== ($ (nth i (-> st preds)) name) name)
+                       (== ($ (nth i (-> st preds)) arity) arity))
+                  (return j)))
+            (set j (bitand (+ j 1) mask)))
+          (return j)))
+
+  ;;; HASHED, as the functor table is and for the same reason: a store that
+  ;;; holds a library has hundreds of predicates, and this is asked on every
+  ;;; call -- as a scan it was 15 % of the translator's instructions. It
+  ;;; answers NPREDS for a predicate the store does not have, as it always
+  ;;; did, and a store with no table yet has no predicate yet.
   (func coco_pred_find ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
-        (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
-          (if (and (== ($ (nth i (-> st preds)) name) name)
-                   (== ($ (nth i (-> st preds)) arity) arity))
-              (return i)))
-        (return (-> st npreds)))
+        (if (== (-> st pred_buckets) nil) (return (-> st npreds)))
+        (let ((size_t j . #'(coco_pred_slot st name arity)))
+          (if (== (nth j (-> st pred_buckets)) 0) (return (-> st npreds)))
+          (return (- (nth j (-> st pred_buckets)) 1))))
 
   (static) (decl) (func coco_pred_make ((coco_store * st) (u64 name) (u32 arity)) (out size_t))
 
@@ -1082,6 +1128,9 @@
   (func coco_pred_make ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
         (let ((size_t i . #'(coco_pred_find st name arity)))
           (if (< i (-> st npreds)) (return i))
+          ;; under half full before the probe that places it
+          (if (> (* (+ (-> st npreds) 1) 2) (-> st pred_bucket_cap))
+              (if (not (coco_preds_rehash st)) (return (-> st npreds))))
           (if (not (coco_store_grow st (cast (void **) (aof (-> st preds)))
                                   (aof (-> st pred_cap)) (+ (-> st npreds) 1)
                                   (sizeof coco_pred)))
@@ -1089,6 +1138,7 @@
           (memset (aof (nth (-> st npreds) (-> st preds))) 0 (sizeof coco_pred))
           (set ($ (nth (-> st npreds) (-> st preds)) name) name)
           (set ($ (nth (-> st npreds) (-> st preds)) arity) arity)
+          (set (nth (coco_pred_slot st name arity) (-> st pred_buckets)) (+ (-> st npreds) 1))
           (set (-> st npreds) (+ (-> st npreds) 1))
           (return (- (-> st npreds) 1))))
 

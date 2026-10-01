@@ -1901,3 +1901,132 @@ The verb "gira" means "turns".
 # `hasta la otra punta del planeta', to the other end of the planet: the
 # dictionary's first Italian word for tip is `consiglio', a piece of advice
 The feminine noun "punta" means "tip".
+# Umberto Eco on the flat earth (the Italian UD VIT document VIT-9967..9998),
+# into Spanish: the words a column of history needs that no dictionary pairs,
+# and those apertium-ita lacks. `ma', `seriamente' and `contrariamente a'
+# are said again first, or `bensì', `sul serio' and `a differenza di' would
+# be the first words written for but, seriously and unlike
+The conjunction "ma" means "but".
+The conjunction "bensì" means "but".
+The adverb "seriamente" means "seriously".
+The adverb "sul serio" means "seriously".
+The preposition "contrariamente a" means "unlike".
+The preposition "a differenza di" means "unlike".
+The conjunction "siccome" means "since".
+The conjunction "salvo che" means "except that".
+The conjunction "tanto che" means "so much that".
+The preposition "quanto a" means "as for".
+The preposition "in cerca di" means "in search of".
+The preposition "sino a" means "until".
+The preposition "pur di" means "for the sake of".
+The adverb "anzitutto" means "first of all".
+The adverb "come al solito" means "as usual".
+The adverb "avanti Cristo" means "before christ".
+The adverb "per il resto" means "otherwise".
+The masculine noun "medioevo" means "middle ages".
+The feminine noun "sfericità" means "sphericity".
+"sfericità" is the plural of "sfericità".
+The feminine noun "serendipità" means "serendipity".
+"serendipità" is the plural of "serendipità".
+The masculine adjective "ottocentesco" means "nineteenth-century".
+"ottocenteschi" is the plural of "ottocentesco".
+The feminine adjective "ottocentesca" means "nineteenth-century".
+"ottocentesche" is the plural of "ottocentesca".
+The masculine adjective "quattordicesimo" means "fourteenth".
+"quattordicesimi" is the plural of "quattordicesimo".
+The feminine adjective "quattordicesima" means "fourteenth".
+"quattordicesime" is the plural of "quattordicesima".
+The number "trecentosessanta" means "360".
+"superquark" is a name.
+"benissimo" is the superlative of "bene".
+"serissimo" is the superlative of "serio".
+"serissima" is the superlative of "seria".
+"serissimi" is the superlative of "seri".
+"serissime" is the superlative of "serie".
+"perduto" is the participle of "perde".
+"perduta" is the participle of "perde".
+"perduta" is feminine.
+"perduti" is the participle of "perde".
+"perduti" is the plural of "perduto".
+"perdute" is the participle of "perde".
+"perdute" is feminine.
+"perdute" is the plural of "perduta".
+# `chi aveva detto sia a Colombo che ai suoi avversari che la terra era
+# sferica' -- said it to them THAT the earth was round, both to Columbus and to
+# his opponents: `dire' takes the clause after the person, as Spanish's
+# `decir' does, and `sia ... che' is both ... and, in the shape `tanto ...
+# quanto' has
+"dice" takes the clause.
+The conjunction "sia" means "both".
+"che" is the partner of "sia".
+# `non c'è da scandalizzarsi' -- there is no need to be shocked, the
+# impersonal `must' Spanish says `hay que'; `tanto per citarne alcuni', just
+# to name a few, a purpose of two words; and `ci stesse un altro continente',
+# there was another continent, `stare' saying what `essere' does after `ci'
+The impersonal modal "c'è da" means "must".
+The word "tanto per" begins the purpose.
+"ci stesse" is the past subjunctive of "c'è".
+# `tanto per citarne alcuni' is to name a few, and `ne sapevano tanto quanto
+# Colombo' knew as much as Columbus: `ne' says `of them', `of it', beside a
+# quantity that says how much, and a language with no such pronoun says the
+# quantity alone
+"ne" is partitive.
+# `come la chiesa si era sbagliata ..., così si stava sbagliando' -- as the
+# church had been wrong, so it was being wrong: the word that answers `come'
+"così" is the partner of "come".
+# `i buoni medievali' -- the good people of the middle ages, the adjective
+# standing for them as `i medievali' does; read with `buoni' for the noun it
+# was the coupons. A noun of no gender a lesson states, so the adjective
+# stays free to agree with any noun
+The noun "medievale" means "medieval".
+"medievale" is not feminine.
+"medievale" is a person.
+# `ritenere che' is to believe that -- `sia il mondo greco che quello
+# cristiano avevano ritenuto che la terra fosse immobile' -- and the
+# dictionary's first sense of it is to retain; `crede' said again first,
+# so it stays the word written for `believes'
+The verb "crede" means "believes".
+The verb "ritiene" means "believes".
+# `come si ritrovi anche in serissime storie della scienza' -- how it turns
+# up even in very serious histories: `ritrovare' is to find again, and the
+# dictionary's only sense of it is to retrieve. Said after `trova', which
+# stays the word written for `finds'
+The verb "ritrova" means "finds".
+# `non è conoscendo la forma della terra che ci si salva l'anima' -- it is
+# not by knowing the earth's shape that one saves one's soul: the impersonal
+# `si' with a verb whose own `si' is its reflexive is spelled `ci', since
+# `si si' is written by nobody. Read and written; a language that states no
+# such form writes its pronoun that means `one', Spanish's `uno se salva'
+"ci" is the impersonal of "si".
+# `gli unici a non credervi' -- the only ones not to believe in it: `vi' is
+# `ti''s plural, the object `you' of more than one, and stated as `ti' is.
+# After `credere' it says `in it', as `ci' does, which no lesson separates
+The pronoun "vi" means "you".
+# ... and `tu' the same: the subject, never the object before the verb
+The pronoun "tu" does not precede the verb.
+# `più ampia di quanto il genovese sosteneva' -- wider than the Genoese
+# maintained: the word that opens a comparison whose second term is a clause,
+# cmpc/2. A meaning no other word has, so that it is written only there
+The conjunction "di quanto" means "than what".
+# ... and Italian's the same: `jugarse el alma' is `giocarsi l'anima'
+"anima" is not a person.
+# `che ci vogliono dire quanto Roma disti da Gerusalemme' -- how far Rome is
+# from Jerusalem: `quanto' asks how much after a verb that takes the question
+# (wh/2), and `dire' is one. Said after `The adverb "quanto" means "as much".'
+# above, which stays the word's first meaning -- `per quanto mi riguarda',
+# `con quanto stabilito' read as they did
+The word "quanto" means "how much".
+"dice" takes the question.
+# `Che poi queste cose le sapessero i dotti' -- that the learned knew them:
+# `le' is `la''s plural, the object `them' of the feminine, as well as the
+# dative `to her' the Salvini interview stated. Said after that line, which
+# stays the word's first meaning, and after `li', which stays the word
+# written for `them'
+The pronoun "le" means "them".
+# `L'equivoco nasce dal fatto che, almeno sino a Copernico, sia il mondo
+# greco che quello cristiano avevano ritenuto ...' -- from the fact THAT both
+# had believed: the noun's own clause, as `rischio' has one. Read as a
+# relative clause, `che' was its subject and `sia' its verb, `is the Greek
+# world'. The clause's subject stands first, so `i fatti che lo dimostrano'
+# stays the facts that show it
+"fatto" takes the clause.

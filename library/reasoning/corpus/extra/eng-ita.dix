@@ -721,3 +721,32 @@
 # `sparso' would leave `sparire' for it
 <e r="LR"><p><l>valuable<s n="adj"/></l><r>prezioso<s n="adj"/></r></p></e>
 <e r="LR"><p><l>scatter<s n="vblex"/></l><r>spargere<s n="vblex"/></r></p></e>
+# Umberto Eco on the flat earth (the Italian UD VIT document VIT-9967..9998),
+# into Spanish: words apertium-ita carries and the bilingual pairs with
+# nothing, both ways where English has no Italian word for the meaning
+<e><p><l>gripping<s n="adj"/></l><r>avvincente<s n="adj"/></r></p></e>
+<e><p><l>dialoguing<s n="adj"/></l><r>dialogante<s n="adj"/></r></p></e>
+<e><p><l>medieval<s n="adj"/></l><r>medievale<s n="adj"/></r></p></e>
+<e><p><l>roundness<s n="n"/></l><r>rotondità<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>darwinism<s n="n"/></l><r>darwinismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>geocentrism<s n="n"/></l><r>geocentrismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>geocentric<s n="adj"/></l><r>geocentrico<s n="adj"/></r></p></e>
+<e><p><l>polemicize<s n="vblex"/></l><r>polemizzare<s n="vblex"/></r></p></e>
+<e><p><l>genoese<s n="adj"/></l><r>genovese<s n="adj"/></r></p></e>
+<e><p><l>distance<s n="vblex"/></l><r>distare<s n="vblex"/></r></p></e>
+<e><p><l>astonishing<s n="adj"/></l><r>stupefacente<s n="adj"/></r></p></e>
+# ... and read only, each with a meaning the dictionary gives another word
+# first: `usuale' usual, `altarino' a tabernacle, `erudito' a scholar,
+# `pazzo' crazy, `ovest' west, `longitudine' a length, `errare' to err,
+# `saggio' wise, `utile' profit, `estrarre' to extract --
+# and `sbagliare' is the hand lines' `sbaglia', which state four of its forms
+<e r="RL"><p><l>usual<s n="adj"/></l><r>solito<s n="adj"/></r></p></e>
+<e r="RL"><p><l>tabernacle<s n="n"/></l><r>tabernacolo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>scholar<s n="n"/></l><r>dotto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>crazy<s n="adj"/></l><r>pazzesco<s n="adj"/></r></p></e>
+<e r="RL"><p><l>west<s n="n"/></l><r>ponente<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>length<s n="n"/></l><r>lunghezza<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>err<s n="vblex"/></l><r>sbagliare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>wise<s n="adj"/></l><r>sapiente<s n="adj"/></r></p></e>
+<e r="RL"><p><l>profit<s n="n"/></l><r>profitto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>extract<s n="vblex"/></l><r>trarre<s n="vblex"/></r></p></e>

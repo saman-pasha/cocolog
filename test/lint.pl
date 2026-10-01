@@ -147,7 +147,13 @@ the_findings(Agent) :-
                  sh_join([Dir, '/', F], P) ), Corpus0),
     msort(Corpus0, Corpus), length(Corpus, NFiles),
     atomic_list_concat(Corpus, ' ', CorpusText),
-    sh_join(['sh ', Agent, '/lint.sh ', CorpusText, ' 2>&1'], LintCmd), shell(LintCmd, Out, _),
+    %% FIVE MINUTES, NOT THE TWO shell/3 GIVES, because this step reads the
+    %% whole tree and the tree grows with every sample the translator takes.
+    %% It ran PAST two minutes unnoticed for a stretch of versions -- 243 s on
+    %% 1.8.31, 160 s on 1.8.32 -- and a step that times out hands back an
+    %% empty output, which this case read as every pinned finding gone. The
+    %% linter's own two fixes took it to 75 s; the ceiling is for the growth.
+    sh_join(['sh ', Agent, '/lint.sh ', CorpusText, ' 2>&1'], LintCmd), shell(LintCmd, Out, _, 300000),
     sh_join(['sh ', Agent, '/lint.sh ', Agent, '/selftest/traps.pl 2>&1'], SelfCmd), shell(SelfCmd, Self, _),
     %% Every finding as `file rule [trap]', with the line number dropped: a
     %% line that moves because somebody added a comment is not a change in
