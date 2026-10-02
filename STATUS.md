@@ -4355,6 +4355,93 @@ argv, thread, process, stream, os, text, tcp, cowork, httpd, groups,
 serialize, hex, astar, normalise, translate), all GREEN, and the sixteen
 of the card's citations the edits moved re-anchored (43, all anchored).
 
+## The deterministic call, and the goal built in one piece (1.8.46)
+
+1.8.44 compiled the clause and 1.8.45 reviewed it; what was left was
+read off `callgrind` again, one mechanism at a time, each kept only when
+the instruction count moved and the differential programs answered the
+same. Eight did; one did not and is not here.
+
+**A deterministic call gets no choice frame.** Every call pushed a frame,
+tried its clauses from it and, on the last candidate, popped it again. The
+engine now asks the index for the first candidate and whether a second
+exists in one call (`coco_pred_probe`), and with no second it tries the
+one clause over the machine's own marks, with the choice stack as it
+stands for the cut barrier -- the height the frame would have had, so a
+`!` in the body cuts the same. A frame under trace stays, because the
+Fail port is printed from it. **The body's goals go on the continuation as
+one run of frames** (`coco_k_push_roots`): N `'$k'` frames reserved in one
+growth check and written back to front, cell for cell what N pushes left,
+where the first cut of this change -- the same loop, out of line -- had
+cost the body of 32 goals 4 % more. **A clause's program sits in its
+predicate's own slot** (`coco_pred.codes`, parallel to `clauses`, moved
+with them on asserta, retract and reconsult, dropped with the clause and
+cleared with the table when the store compacts), so a call reads one
+pointer where it hashed the clause's cell through two calls. **The body
+program's END word is gone** -- the program's length is its end -- and
+**the continuation is dereferenced once a step** where it was twice.
+
+**`is/2` dispatched by `strcmp`.** The evaluator read the operator's name
+back from the atom table and compared it down a chain: `N - 1` was 390
+instructions, the `strcmp` alone a sixth of them. The evaluable functors
+are interned beside the dispatch names now (`*arith-names*`, the three
+spelled with a backslash as the COCO_OP_* arrays), and the chain is
+integer compares; and two integer leaves under `+`, `-` or `*` are read
+and combined where they stand, without the two recursive asks and the
+two dispatches, which took `N - 1` to about 150.
+
+**A goal is one reservation.** The body executor walked a stack of open
+structures to find the next slot and grew the heap once per structure, as
+the copy does. The compiler settles the layout instead: a goal's root word
+carries every cell the goal takes, each argument word the offset from the
+goal's base of the slot it fills and of the cell it puts there, and the
+executor reserves the goal once and writes at offsets, with nothing to
+check and no stack to keep. The cells land where they always did.
+
+**One mechanism did not move and is not shipped**: `coco_unify`'s flat
+cases as a function of their own, so the walk's register saves cost a
+binding nothing -- the compiler had already arranged that, and five pairs
+of instruction counts were identical to the instruction.
+
+**And one bug, 1.8.41 through 1.8.45, found by the differential program
+when it stopped half way:** `catch(call(_), E, true)` ended the query
+silently with exit status 2. The loop's two raises for a goal that is a
+variable or not callable, and `call/N`'s for a closure that is not,
+RETURNED the raise's answer -- and a caught raise answers 2, "the
+continuation is the recovery goal already", which the host read as the
+query's verdict. They go round the loop now, as the undefined-predicate
+site already did; `test/errors.pl` has a section of seven checks, and the
+1.8.45 binary dies at the first.
+
+Instructions under `callgrind`, 1.8.45 against 1.8.46, the same programs:
+naive reverse 30 x 600 0.41 G to 0.26 G (-37 %), a body of 32 goals 0.74 G
+to 0.48 G (-35 %), a fact of 64 variables 0.32 G to 0.25 G (-23 %);
+`bench/langs.sh`'s programs as whole processes, from the checkout root:
+nrev 443 M to 297 M (-33 %), queens 209 M to 146 M (-30 %), loop 643 M to
+362 M (-44 %), lookup 53 M to 40 M (-25 %), sortnums 127 M to 88 M (-30 %),
+every answer the same. Wall clock, five alternating pairs, medians, whole
+processes: nrev 0.154 to 0.111 s, queens 0.069 to 0.046, loop 0.240 to
+0.130, lookup 0.021 to 0.015, sortnums 0.067 to 0.052. The differential
+programs -- the clause shapes of 1.8.44, every argument shape in a body
+(nested structures, every constant type, a variable repeated across
+goals, a 50-deep term), 3 000 random asserts, retracts and compactions
+under a running predicate, every evaluable functor -- answer the same as
+1.8.45 and as swipl, variable names aside. (swipl 9.0.4's own
+`optimise_unify` loses `B = u` in `r(A, B) :- A = t(B), B = u.`; the
+comparison runs with that flag off.) Gated in a build without the
+embedded store: term, syntax, solve, module, state; files, trace, engine,
+library, script, string, directives, hex, astar, serialize, langs,
+normalise, translate, process, text, lint, all GREEN; the embedded-store
+cases red exactly as under 1.8.45 on the same box; 1.8.46 under memcheck
+clean on the dynamic torture. Seven of the card's citations moved and are
+re-anchored.
+
+What is left in the profile is the interpretation itself: the clause
+executor's dispatch (a switch per word, about ten instructions of each
+forty-six), the dereferences (a tenth of everything), and the goal's round
+trip through the heap -- built as a term, popped, decoded. The last is the
+second half of the compile step, and the owner's decision.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

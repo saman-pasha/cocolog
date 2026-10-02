@@ -194,13 +194,30 @@
 ;;; `(coco-fid m "$k" 3)' is `m->fids[K]', with K settled at expansion time.
 (DEFMACRO coco-fid (m name arity) `(nth ,(coco-fid-index name arity) (-> ,m fids)))
 
-;;; Constructs first, then every builtin name once. The ORDER is what fixes
-;;; the indices, so it is computed here and nowhere else.
+;;; THE EVALUABLE FUNCTORS, interned beside the dispatch names (1.8.46).
+;;; `is/2' compared the operator's name with `strcmp' down a chain -- the
+;;; name read back from the atom table, then `+', `-', `*', `/' ... until
+;;; one matched: 390 instructions for `N - 1', the strcmp alone a sixth of
+;;; them. By id it is integer compares. The three spelled with a backslash
+;;; are the COCO_OP_* arrays (a Cicili string may not end in one): a SYMBOL
+;;; in this list names such an array, and `coco-id' finds it by that name.
+(DEFPARAMETER *arith-names*
+  '("+" "-" "*" "/" "//" "div" "mod" "rem" "min" "max" "**" "^" "gcd" ">>" "<<"
+    COCO_OP_AND COCO_OP_OR "xor" "pi" "e" COCO_OP_NOT "msb" "abs" "sign"
+    "float" "integer" "truncate" "round" "floor" "ceiling" "sqrt" "sin" "cos"
+    "tan" "asin" "acos" "atan" "exp" "log"))
+
+;;; Constructs first, then every builtin name once, then the evaluable
+;;; functors. The ORDER is what fixes the indices, so it is computed here
+;;; and nowhere else.
 (DEFPARAMETER *dispatch-names*
   (LET ((names (COPY-LIST *construct-names*)))
     (DOLIST (row *builtins*)
       (UNLESS (MEMBER (FIRST row) names :TEST #'STRING=)
         (SETF names (APPEND names (LIST (FIRST row))))))
+    (DOLIST (name *arith-names*)
+      (UNLESS (MEMBER name names :TEST #'STRING=)
+        (SETF names (APPEND names (LIST name)))))
     names))
 
 ;;; 192 is the array in `coco_machine'. A Cicili array size is one token, so
@@ -233,7 +250,20 @@
      ,@(LOOP FOR row IN *functor-names* FOR i FROM 0
              COLLECT `(set (nth ,i (-> m fids))
                            (coco_functor_id m (coco-id m ,(FIRST row)) ,(SECOND row))))
+     ;; THE CONSTRUCT MASK: one byte per atom interned so far, set for the
+     ;; construct names, so the loop tells a construct from a predicate
+     ;; with one load (`coco_is_construct'). An atom interned later is not
+     ;; a construct, and its id is past the mask's end.
+     (free (-> m cmask))
+     (set (-> m cmask) (cast (u8 *) (calloc (-> m atoms_len) 1)))
+     (set (-> m cmask_len) (? (== (-> m cmask) nil) 0 (-> m atoms_len)))
+     ,@(LOOP FOR name IN *construct-names* FOR i FROM 0
+             COLLECT `(if (< (nth ,i (-> m ids)) (-> m cmask_len))
+                          (set (nth (nth ,i (-> m ids)) (-> m cmask)) 1)))
      (set (-> m ids_ready) 1)))
+
+(DEFMACRO coco_is_construct (m nid)
+  `(and (< ,nid (-> ,m cmask_len)) (!= 0 (nth ,nid (-> ,m cmask)))))
 
 ;;; Grouped by arity, so a goal of arity 3 never tests a builtin of arity 1.
 ;;; FOUND says whether the name was a builtin at all -- which is what tells
@@ -256,6 +286,35 @@
               arities)
            (#t (set (cof found) 0) (return 0)))))))
 
+;;; THE SAME TABLE, BY ROW. `coco_builtin_index' answers which row of
+;;; `*builtins*' a name and arity are, or -1, by the chain `coco_builtin'
+;;; walks; the engine asks it once per functor and keeps the row on the
+;;; functor (`bix' in term.cicili). `coco_builtin_call' runs row K: a
+;;; switch, so a remembered builtin costs one jump where the chain cost
+;;; every row of its arity -- 23 comparisons for an arity-2 predicate of
+;;; the program's own, which is not a builtin at all, on every call.
+(DEFMACRO coco-emit-builtin-index ()
+  (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *builtins*)) #'<)))
+    `(func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(LOOP FOR row IN *builtins* FOR i FROM 0
+                          WHEN (= (SECOND row) n)
+                          COLLECT `((== nid (coco-id m ,(FIRST row))) (return ,i)))
+                  (#t (return -1)))))
+            arities)
+         (#t (return -1))))))
+
+(DEFMACRO coco-emit-builtin-call ()
+  `(func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int)
+     (switch ix
+       ,@(LOOP FOR row IN *builtins* FOR i FROM 0
+               COLLECT `(case ,i (return (,(THIRD row) e g))))
+       (default (return 0)))))
+
 ;;; The binary arithmetic operators, as (name int-op float-op). Both operands
 ;;; are integers only if neither is a float, which is the rule `is/2' follows
 ;;; throughout: integer arithmetic stays exact until a float enters it.
@@ -271,7 +330,7 @@
 (DEFMACRO coco-emit-arith-binops ()
   `(cond
      ,@(MAPCAR (LAMBDA (row)
-                 `((== 0 (strcmp name ,(FIRST row)))
+                 `((== nid (coco-id m ,(FIRST row)))
                    (if both_int
                        (block (set (cof iv) (,(SECOND row) ai bi))
                               (set (cof isf) 0))
@@ -433,6 +492,8 @@
   ;;; Interns the dispatcher's whole vocabulary into `m->ids'. Called once
   ;;; per machine, from the top of `coco_engine_next'.
   (decl) (func coco_ids_fill ((coco_machine * m)))
+  (decl) (func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int))
+  (decl) (func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int))
 
   ;;; ---- the module seam ---------------------------------------------------
   ;;;
@@ -786,6 +847,38 @@
           (set (nth (+ h 3) (-> m heap)) (coco-cell REF (coco_deref m rest)))
           (return h)))
 
+  ;;; A BODY'S GOALS AS ONE RUN OF FRAMES: the N roots a compiled body
+  ;;; built (`coco_clause_run') go on the continuation as N `'$k'' frames
+  ;;; reserved in ONE growth check and written back to front, each frame's
+  ;;; rest the frame after it and the last's the continuation that was
+  ;;; there -- cell for cell what N calls of `coco_k_push' would have left,
+  ;;; so nothing that reads a continuation can tell. Answers the first
+  ;;; goal's frame, or REST itself for a body with no goals (a fact), or 0
+  ;;; when the heap would not grow (`m->oom' says so).
+  (static)
+  (func coco_k_push_roots ((coco_engine * e) (const size_t * roots) (size_t n)
+                           (size_t barrier) (size_t rest)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t h . #'(-> m heap_len)))
+          (if (== n 0) (return rest))
+          (if (not (coco_grow m (cast (void **) (aof (-> m heap)))
+                            (aof (-> m heap_cap)) (+ h (* n 4)) (sizeof u64)))
+              (return 0))
+          (set (-> m heap_len) (+ h (* n 4)))
+          (let ((u64 hdr . #'(coco-cell FUN (coco-fid m "$k" 3)))
+                (u64 bar . #'(coco-int-cell (cast i64 barrier)))
+                (size_t next . #'(coco_deref m rest))
+                (size_t i . n))
+            (while (> i 0)
+              (set i (- i 1))
+              (let ((size_t f . #'(+ h (* i 4))))
+                (set (nth f (-> m heap)) hdr)
+                (set (nth (+ f 1) (-> m heap)) (coco-cell REF (coco_deref m (nth i roots))))
+                (set (nth (+ f 2) (-> m heap)) bar)
+                (set (nth (+ f 3) (-> m heap)) (coco-cell REF next))
+                (set next f))))
+          (return h)))
+
   (static)
   (func coco_k_empty ((coco_engine * e)) (out size_t)
         (let ((coco_machine * m . #'(-> e m)))
@@ -828,12 +921,6 @@
             (set rest (coco_k_push e (nth n items) barrier rest)))
           (return rest)))
 
-  (static)
-  (func coco_k_is_empty ((coco_engine * e) (size_t k)) (out int)
-        (let ((coco_machine * m . #'(-> e m)))
-          (set k (coco_deref m k))
-          (return (? (coco-tag-is ATOM (nth k (-> m heap))) 1 0))))
-
   ;;; ---- choice points -----------------------------------------------------
 
   ;;; Answers whether the frame was made, NOT where it went. The index is
@@ -866,6 +953,62 @@
             (set (-> tc exited) 0))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
           (return 1)))
+
+  ;;; ONE CLAUSE TRIED against CALL -- the IX'th of predicate P -- with
+  ;;; GOALS and BARRIER for its body: compiled when it can be
+  ;;; (`coco_clause_code', lib/kb.cicili, its program kept in the
+  ;;; predicate's own slot after the first ask) -- its head program, then
+  ;;; its body program, whose goal roots go on the continuation last first
+  ;;; (`coco_k_push_roots'), exactly as `coco_k_push_body' would push a
+  ;;; copied body -- else matched in the store (`coco_store_unify': the
+  ;;; store is never bound, a heap cell is made only where an unbound
+  ;;; variable of the call takes a piece of the head) and its body copied
+  ;;; over the same variable map. A program that could not RUN (-1: no
+  ;;; memory for its frame or its goals) is wound back and the clause
+  ;;; matched in the store, because skipping it as a head that did not
+  ;;; match would be a wrong answer. Answers 1 with the continuation set;
+  ;;; 0 with the machine wound back to the marks, TMARK and HMARK, which
+  ;;; the caller took before the attempt.
+  (static)
+  (func coco_try_clause ((coco_engine * e) (coco_pred * p) (size_t ix) (size_t call)
+                         (size_t goals) (size_t barrier) (size_t tmark) (size_t hmark)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t cl . #'(nth ix (-> p clauses)))
+              (coco_code * cd . #'(cast (coco_code *) (nth ix (-> p codes))))
+              (int matched . -1) (size_t sbody . 0))
+          ;; the program from the predicate's own slot, or from the store's
+          ;; table (which compiles it the first time) and into the slot
+          (if (== cd nil)
+              (block (set cd (coco_clause_code st m cl))
+                     (set (nth ix (-> p codes)) (cast (void *) cd))))
+          (if (!= cd nil)
+              (let ((size_t roots [64]) (size_t ng . 0))
+                (set matched (coco_clause_run m st cd call roots (aof ng)))
+                (if (== matched 1)
+                    (block (set (-> e goals) (coco_k_push_roots e roots ng barrier goals))
+                           (return 1)))
+                (if (== matched -1)
+                    (block (coco_undo_to m tmark)
+                           (set ($ (cof m) heap_len) hmark)))))
+          (if (== matched -1)
+              (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+                    (size_t shead))
+                (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
+                (coco_varmap_take m (aof vm))
+                (set matched (coco_store_unify m st call shead (aof vm)))
+                (if matched
+                    (block
+                     (set (-> e goals)
+                          (? (== sbody 0) goals
+                             (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) barrier goals)))
+                     (coco_varmap_give m (aof vm))
+                     (return 1)))
+                (coco_varmap_give m (aof vm))))
+          ;; that head did not match: put the machine back
+          (coco_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
+          (return 0)))
 
   ;;; ---- clause selection --------------------------------------------------
 
@@ -902,8 +1045,7 @@
                 (set ix (coco_pred_next_clause st p key (-> c clause_ix)))
                 (if (== ix (coco_no_clause))
                     (block (set (-> e nchoices) ci) (return 0)))
-              (let ((size_t cl . #'(nth ix (-> p clauses)))
-                    (size_t call . #'(-> c call))
+              (let ((size_t call . #'(-> c call))
                     (size_t goals . #'(-> c goals))
                     (size_t hmark . #'(-> c heap_mark))
                     (size_t tmark . #'(-> c trail_mark))
@@ -917,65 +1059,18 @@
                 (set last (? (== (coco_pred_next_clause st p key (-> c clause_ix))
                                  (coco_no_clause))
                              1 0))
-                ;; THE HEAD IS MATCHED IN THE STORE, NOT COPIED. The clause
-                ;; used to arrive on the heap as a fresh copy, head and body,
-                ;; before its head was looked at, and a head that did not
-                ;; match had cost the whole copy; `coco_store_unify' walks the
-                ;; call against the store's own cells, making heap cells only
-                ;; where an unbound variable of the call takes a piece of the
-                ;; head, and nothing in the store is bound by it. The body is
-                ;; copied after a match, over the same variable map, so a
-                ;; variable the head bound is the same variable in the body.
-                ;; THE CLAUSE RUNS COMPILED when it can be (`coco_clause_code',
-                ;; lib/kb.cicili): its head program against the call, then
-                ;; its body program, which builds the goals and lists their
-                ;; roots; they go on the continuation last first, exactly as
-                ;; `coco_k_push_body' would push a copied body. A clause the
-                ;; compiler could not take is matched and copied as before,
-                ;; and so is one whose program could not RUN (-1: no memory
-                ;; for its frame or its goals) -- after the half-built
-                ;; attempt is wound back -- because skipping it as a head
-                ;; that did not match would be a wrong answer.
-                (let ((coco_code * cd . #'(coco_clause_code st m cl))
-                      (int matched . -1) (size_t sbody . 0))
-                  (if (!= cd nil)
-                      (let ((size_t roots [64]) (size_t ng . 0))
-                        (set matched (coco_clause_run m st cd call roots (aof ng)))
-                        (if (== matched 1)
-                            (block
-                             ;; a `!' in the body cuts back to before this call.
-                             ;; Under trace the frame STAYS even on the last
-                             ;; clause: failing back past it is what prints
-                             ;; the Fail port, and a popped frame fails in
-                             ;; silence
-                             (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
-                             (let ((size_t rest . goals))
-                               (while (> ng 0)
-                                 (set ng (- ng 1))
-                                 (set rest (coco_k_push e (nth ng roots) ci rest)))
-                               (set (-> e goals) rest))
-                             (return 1)))
-                        (if (== matched -1)
-                            (block (coco_undo_to m tmark)
-                                   (set ($ (cof m) heap_len) hmark)))))
-                  (if (== matched -1)
-                      (let ((coco_varmap vm . '{ nil nil 0 0 0 })
-                            (size_t shead))
-                        (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
-                        (coco_varmap_take m (aof vm))
-                        (set matched (coco_store_unify m st call shead (aof vm)))
-                        (if matched
-                            (block
-                             (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
-                             (set (-> e goals)
-                                  (? (== sbody 0) goals
-                                     (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) ci goals)))
-                             (coco_varmap_give m (aof vm))
-                             (return 1)))
-                        (coco_varmap_give m (aof vm))))
-                  ;; that head did not match: put the machine back and try again
-                  (coco_undo_to m tmark)
-                  (set ($ (cof m) heap_len) hmark))))))
+                ;; one clause, compiled or matched in the store -- see
+                ;; `coco_try_clause'. A `!' in the body cuts back to before
+                ;; this call. Under trace the frame STAYS even on the last
+                ;; clause: failing back past it is what prints the Fail port,
+                ;; and a popped frame fails in silence
+                (if (coco_try_clause e p ix call goals ci tmark hmark)
+                    (block
+                     (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                     (return 1)))
+                ;; that head did not match: the machine is back at the marks;
+                ;; try the next
+                ))))
           (return 0)))
 
   ;;; ---- backtracking ------------------------------------------------------
@@ -1820,79 +1915,21 @@
           (return 1)))
 
   (static)
-  (func coco_engine_run ((coco_engine * e)) (out int)
-        (let ((coco_machine * m . #'(-> e m))
-              (coco_store * st . #'(-> e st)))
-
-          ;; THE MODULES' OWN CLAUSES, IF THEY ARE NOT IN THIS STORE YET. Here
-          ;; and not in `coco_engine_ask' because a store can be emptied under a
-          ;; running engine -- thawing a machine into it does exactly that --
-          ;; and this is the one function every path goes through. The hook's
-          ;; own guard makes the usual case two loads and a comparison.
-          ;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT: the
-          ;; `double_quotes' guard that used to sit here, around this one
-          ;; call, is inside coco_module_load now (lib/module.cicili),
-          ;; because a runtime `use_module' reaches that function without
-          ;; passing this hook -- and a library loaded as a GOAL after a
-          ;; file had set the flag would not consult. The story is told there.
-          (if (!= coco_extern_load nil)
-              (if (not (coco_extern_load st m e))
-                  (return (coco_fail_err e "a module's clauses would not load"))))
-
-          ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
-          ;; `coco_engine_ask' for the same reason the hook above is: a
-          ;; machine can arrive THAWED, with its atom table rebuilt and never
-          ;; an ask in sight, and this is the one function every path goes
-          ;; through. Two loads and a branch in the usual case.
-          (if (not (-> m ids_ready)) (coco_ids_fill m))
-
-          ;; a solution was reported last time; the next one is behind a
-          ;; backtrack, not in front of the current continuation
-          (if (-> e resume)
-              (block (set (-> e resume) 0)
-                     (if (not (coco_backtrack e)) (return 0))))
-
-          (while 1
-            (set (-> e steps) (+ (-> e steps) 1))
-            (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
-                (return (coco_fail_err e "inference limit reached")))
-            (if (-> e halted) (return 0))
-
-            ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
-            ;; whole state of the proof in the continuation and the frames,
-            ;; when no other engine on this machine is part way through one --
-            ;; see `coco_heap_gc'. Three loads and two compares when it does
-            ;; not run.
-            (if (and (-> e gc) (== (-> m running) 1)
-                     (or (-> m gc_request) (>= (-> m heap_len) (-> m gc_next))))
-                (coco_heap_gc e))
-
-            ;; nothing left to prove: that is a solution
-            (if (coco_k_is_empty e (-> e goals))
-                (block (set (-> e resume) 1) (return 1)))
-
-            ;; take the first goal off the continuation
-            (let ((size_t kf . #'(coco_deref m (-> e goals)))
-                  (size_t g) (size_t b) (size_t k) (int ok . 1))
-              (set g (coco_deref m (coco_arg m kf 0)))
-              (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
-              (set k (coco_arg m kf 2))
-
-              (let ((u64 gc . #'(nth g (-> m heap))))
-                (if (coco-tag-is REF gc)
-                    (return (coco_instantiation_error e)))
-                (if (not (coco_is_callable m g))
-                    (return (coco_type_error e "callable" g))))
-
-              ;; THE NAME AS AN ID, not as a string: every test below is an
-              ;; integer comparison now. `coco_atom_name' is still reached on
-              ;; the two paths that need the text -- a module's dispatcher,
-              ;; whose interface takes a `char *', and an existence error,
-              ;; which prints one.
-              (let ((u64 nid . #'(coco_name_of m g))
-                    (u32 n . #'(coco_arity m g)))
-                (cond
-
+  ;;; A CONTROL CONSTRUCT, run: `true', `fail', `,', `!', the cuts, `;',
+  ;;; `->', `*->', `\+', `once', `ignore', `call', `catch', `throw' and
+  ;;; the engine's own markers. Out of the loop, and reached only for a
+  ;;; goal whose name is a construct's (`coco_is_construct', one load),
+  ;;; because the loop used to test every goal against two dozen construct
+  ;;; names in turn before finding it was a predicate's -- which is what
+  ;;; most goals are. Answers 1 when the construct ran (the continuation
+  ;;; is set, OK says whether it proved), 0 when the name was a construct's
+  ;;; but the goal was not (`call/0', `trace/0'), which the loop then
+  ;;; treats as a predicate, and 2 when the loop must return RET at once.
+  (static)
+  (func coco_construct ((coco_engine * e) (u64 nid) (u32 n) (size_t g) (size_t k) (size_t b)
+                        (int * ok) (int * ret)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (cond
                   ;; ---- control constructs ----
                   ((and (== n 0) (== nid (coco-id m "true")))
                    (if (-> e trace)
@@ -1904,14 +1941,14 @@
                    (if (-> e trace)
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Fail" (+ (-> e trace_depth) 1) g)))
-                   (set ok 0))
+                   (set (cof ok) 0))
 
                   ;; the same two as the constructs above manufacture them:
                   ;; silent, because the program never wrote these
                   ((and (== n 0) (== nid (coco-id m "$true")))
                    (set (-> e goals) k))
                   ((and (== n 0) (== nid (coco-id m "$fail")))
-                   (set ok 0))
+                   (set (cof ok) 0))
 
                   ;; the tracer's own marker: the call it names has proven, so
                   ;; this is its Exit port. Transparent when tracing is off --
@@ -1977,14 +2014,14 @@
                          (block
                           (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "->"))
                               (block (coco_ite e (coco_arg m l 0) (coco_arg m l 1) (coco_arg m g 1) k b)
-                                     (continue)))
+                                     (return 1)))
                           ;; `(C *-> T ; E)' is one construct too
                           (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "*->"))
                               (block (coco_soft_ite e (coco_arg m l 0) (coco_arg m l 1)
                                                     (coco_arg m g 1) k b)
-                                     (continue)))))
+                                     (return 1)))))
                      (if (not (coco_push_choice e COCO_CH_GOAL (coco_arg m g 1) k b))
-                         (return (coco_fail_err e "out of memory")))
+                         (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                      (set (-> e goals) (coco_k_push e (coco_arg m g 0) b k))))
 
                   ((and (== n 2) (== nid (coco-id m "->")))
@@ -2058,7 +2095,7 @@
                                                     (coco_arg m g 1) (coco_arg m g 2)))
                          (size_t ci . #'(-> e nchoices)))
                      (if (not (coco_push_choice e COCO_CH_CATCH cr k b))
-                         (return (coco_fail_err e "out of memory")))
+                         (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                      (set (-> e goals)
                           (coco_k_push e (coco_arg m g 0) (-> e nchoices)
                                        (coco_k_push e (coco_make1_f m (coco-fid m "$catch_exit" 1)
@@ -2095,7 +2132,7 @@
                             (if live
                                 (block
                                  (if (not (coco_push_choice e COCO_CH_CATCH_RETRY 0 k b))
-                                     (return (coco_fail_err e "out of memory")))
+                                     (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                                  (set ($ (nth (- (-> e nchoices) 1) (-> e choices)) clause_ix)
                                       ci)))))))
                    (set (-> e goals) k))
@@ -2103,7 +2140,7 @@
                   ((and (== n 1) (== nid (coco-id m "throw")))
                    ;; never fails and never simply succeeds: it either transfers
                    ;; control to a recovery goal or ends the query
-                   (if (coco_m_thrown e (coco_arg m g 0)) (block) (return -1)))
+                   (if (coco_m_thrown e (coco_arg m g 0)) (block) (block (set (cof ret) -1) (return 2))))
 
                   ((and (> n 1) (== nid (coco-id m "call")))
                    ;; `call(G, A, B, ...)' -- G with the extra arguments added
@@ -2118,17 +2155,22 @@
                    ;; is why it is rebuilt rather than the extra ones being
                    ;; pushed onto it.
                    (let ((size_t c . #'(coco_deref m (coco_arg m g 0))))
+                     ;; a caught raise (2) is handled: the loop goes on at
+                     ;; the recovery goal, as the loop's own two sites do
                      (if (not (coco_is_callable m c))
-                         (return (coco_type_error e "callable" c)))
+                         (let ((int rc1 . #'(coco_type_error e "callable" c)))
+                           (if (== rc1 2) (return 1))
+                           (set (cof ret) rc1)
+                           (return 2)))
                      (let ((u32 have . #'(coco_arity m c))
                            (u32 extra . #'(- n 1)))
                        (if (> (+ have extra) 255)
-                           (return (coco_fail_err e "call/N: too many arguments")))
+                           (block (set (cof ret) (coco_fail_err e "call/N: too many arguments")) (return 2)))
                        (let ((size_t built)
                              (size_t * args . #'(cast (size_t *)
                                                       (malloc (* (+ have extra)
                                                                  (sizeof size_t))))))
-                         (if (== args nil) (return (coco_fail_err e "out of memory")))
+                         (if (== args nil) (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                          (for ((u32 i . 0)) (< i have) ((++ i))
                            (set (nth i args) (coco_arg m c i)))
                          (for ((u32 i . 0)) (< i extra) ((++ i))
@@ -2139,7 +2181,98 @@
                          ;; opaque to cut, exactly as call/1 is
                          (set (-> e goals) (coco_k_push e built (-> e nchoices) k)))))) 
 
-                  (#t
+                  (#t (return 0)))
+          (return 1)))
+
+  (func coco_engine_run ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st)))
+
+          ;; THE MODULES' OWN CLAUSES, IF THEY ARE NOT IN THIS STORE YET. Here
+          ;; and not in `coco_engine_ask' because a store can be emptied under a
+          ;; running engine -- thawing a machine into it does exactly that --
+          ;; and this is the one function every path goes through. The hook's
+          ;; own guard makes the usual case two loads and a comparison.
+          ;; A MODULE'S OWN TEXT IS READ AS ITS AUTHOR WROTE IT: the
+          ;; `double_quotes' guard that used to sit here, around this one
+          ;; call, is inside coco_module_load now (lib/module.cicili),
+          ;; because a runtime `use_module' reaches that function without
+          ;; passing this hook -- and a library loaded as a GOAL after a
+          ;; file had set the flag would not consult. The story is told there.
+          (if (!= coco_extern_load nil)
+              (if (not (coco_extern_load st m e))
+                  (return (coco_fail_err e "a module's clauses would not load"))))
+
+          ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
+          ;; `coco_engine_ask' for the same reason the hook above is: a
+          ;; machine can arrive THAWED, with its atom table rebuilt and never
+          ;; an ask in sight, and this is the one function every path goes
+          ;; through. Two loads and a branch in the usual case.
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+
+          ;; a solution was reported last time; the next one is behind a
+          ;; backtrack, not in front of the current continuation
+          (if (-> e resume)
+              (block (set (-> e resume) 0)
+                     (if (not (coco_backtrack e)) (return 0))))
+
+          (while 1
+            (set (-> e steps) (+ (-> e steps) 1))
+            (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
+                (return (coco_fail_err e "inference limit reached")))
+            (if (-> e halted) (return 0))
+
+            ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
+            ;; whole state of the proof in the continuation and the frames,
+            ;; when no other engine on this machine is part way through one --
+            ;; see `coco_heap_gc'. Three loads and two compares when it does
+            ;; not run.
+            (if (and (-> e gc) (== (-> m running) 1)
+                     (or (-> m gc_request) (>= (-> m heap_len) (-> m gc_next))))
+                (coco_heap_gc e))
+
+            ;; the continuation, dereferenced ONCE: the empty one is an atom
+            ;; (`coco_k_empty'), and that is a solution; anything else is a
+            ;; `'$k'' frame, and its first goal comes off
+            (let ((size_t kf . #'(coco_deref m (-> e goals)))
+                  (size_t g) (size_t b) (size_t k) (int ok . 1))
+              (if (coco-tag-is ATOM (nth kf (-> m heap)))
+                  (block (set (-> e resume) 1) (return 1)))
+              (set g (coco_deref m (coco_arg m kf 0)))
+              (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
+              (set k (coco_arg m kf 2))
+
+              ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return' (the note at
+              ;; the undefined-predicate site below says why): 2 means a
+              ;; catcher took the ball and the continuation is the recovery
+              ;; goal already, so the loop goes round again. These two sites
+              ;; returned the 2, and `catch(call(_), E, true)' ended the
+              ;; query silently with the host's exit status 2 (1.8.46).
+              (let ((u64 gc . #'(nth g (-> m heap))))
+                (if (coco-tag-is REF gc)
+                    (block (if (!= 2 (coco_instantiation_error e)) (return -1))
+                           continue))
+                (if (not (coco_is_callable m g))
+                    (block (if (!= 2 (coco_type_error e "callable" g)) (return -1))
+                           continue)))
+
+              ;; THE NAME AS AN ID, not as a string: every test below is an
+              ;; integer comparison now. `coco_atom_name' is still reached on
+              ;; the two paths that need the text -- a module's dispatcher,
+              ;; whose interface takes a `char *', and an existence error,
+              ;; which prints one.
+              (let ((u64 nid . #'(coco_name_of m g))
+                    (u32 n . #'(coco_arity m g)))
+                  ;; A CONSTRUCT, by one load (`coco_is_construct'), and
+                  ;; nothing else is compared against the construct names:
+                  ;; most goals are a predicate's, and the predicate path
+                  ;; below is where they go straight away
+                  (let ((int handled . 0) (int ret . 0))
+                    (if (coco_is_construct m nid)
+                        (let ((int rc0 . #'(coco_construct e nid n g k b (aof ok) (aof ret))))
+                          (if (== rc0 2) (return ret))
+                          (set handled rc0)))
+                    (if (not handled)
                    ;; ---- a builtin, or a predicate ----
                    (let ((int found . 0) (int rc . 0) (int tport . 0) (int tD . 0))
                      ;; the Call port, before anything runs -- SWI prints it
@@ -2151,7 +2284,19 @@
                          (block (set tport 1)
                                 (set tD (+ (-> e trace_depth) 1))
                                 (coco_trace_port e "Call" tD g)))
-                     (set rc (coco_builtin e nid n g (aof found)))
+                     ;; A CORE BUILTIN, BY THE ROW THE FUNCTOR REMEMBERS -- asked
+                     ;; once (`coco_builtin_index'), then one jump; an atom
+                     ;; goal has no functor and walks the chain as before
+                     (if (> n 0)
+                         (let ((coco_functor * f0 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                              (-> m functors)))))
+                           (if (== (-> f0 bix) 0)
+                               (set (-> f0 bix) (cast u32 (+ (coco_builtin_index m nid n) 2))))
+                           (if (>= (-> f0 bix) 2)
+                               (block (set found 1)
+                                      (set rc (coco_builtin_call e (cast int (- (-> f0 bix) 2)) g)))
+                               (set found 0)))
+                         (set rc (coco_builtin e nid n g (aof found))))
                      ;; not a core builtin: a module may still own it, and
                      ;; the module interface speaks names -- so the text is
                      ;; fetched HERE, on the path that needs it, rather than
@@ -2203,8 +2348,21 @@
                                 (#t
                                  (if tport (coco_trace_port e "Fail" tD g))
                                  (set ok 0))))
-                       ;; nobody's builtin: the knowledge base decides
-                       (let ((size_t pi . #'(coco_pred_of st m g)))
+                       ;; nobody's builtin: the knowledge base decides -- the
+                       ;; predicate by the index the functor remembers for
+                       ;; this store, looked up once (`coco_pred_of' hashes)
+                       (let ((size_t pi . 0))
+                         (if (> n 0)
+                             (let ((coco_functor * f1 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                                  (-> m functors)))))
+                               (if (and (== (-> f1 pst) (cast (void *) st))
+                                        (== (-> f1 pserial) (-> st serial)))
+                                   (set pi (-> f1 pidx))
+                                   (block (set pi (coco_pred_of st m g))
+                                          (set (-> f1 pst) (cast (void *) st))
+                                          (set (-> f1 pserial) (-> st serial))
+                                          (set (-> f1 pidx) pi))))
+                             (set pi (coco_pred_of st m g)))
                          (cond
                           ((>= pi ($ (cof st) npreds))
                            ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return'.
@@ -2218,7 +2376,28 @@
                            (coco_pred_ensure st pi)
                            (cond
                             ((> ($ (nth pi ($ (cof st) preds)) nclauses) 0)
-                             (block
+                             (let ((int det . -1) (size_t ix0 . 0))
+                               ;; A DETERMINISTIC CALL GETS NO FRAME. The index is
+                               ;; asked for the first candidate and whether there
+                               ;; is a second (`coco_pred_probe'); with no second
+                               ;; the clause is tried here, over the machine's own
+                               ;; marks, with the choice stack as it stands for its
+                               ;; cut barrier -- the height a frame would have
+                               ;; had, so a `!' in the body cuts the same -- and
+                               ;; nothing is pushed to be popped. A frame under
+                               ;; trace stays (the Fail port is printed from it),
+                               ;; so the trace keeps the path below.
+                               (if (== (-> e trace) 0)
+                                   (set det (coco_pred_probe st (aof (nth pi ($ (cof st) preds)))
+                                                             (coco_arg_key m g) (aof ix0))))
+                               (cond
+                                 ((== det 0) (set ok 0))
+                                 ((== det 1)
+                                  (if (not (coco_try_clause e (aof (nth pi ($ (cof st) preds))) ix0
+                                                            g k (-> e nchoices)
+                                                            ($ (cof m) trail_len) ($ (cof m) heap_len)))
+                                      (set ok 0)))
+                                 (#t
                               ;; under trace the body exits through a marker,
                               ;; pushed BEFORE the frame so its cells sit
                               ;; below the frame's heap mark and survive
@@ -2235,7 +2414,9 @@
                                     (return (coco_fail_err e "out of memory")))
                                 (let ((size_t ci . #'(- (-> e nchoices) 1)))
                                   (set ($ (nth ci (-> e choices)) pred) pi)
-                                  (set ($ (nth ci (-> e choices)) clause_ix) 0)
+                                  ;; the first candidate, when it was found above;
+                                  ;; 0 under trace, where nothing was asked yet
+                                  (set ($ (nth ci (-> e choices)) clause_ix) (? (== det 2) ix0 0))
                                   ;; this frame IS the traced call
                                   (if tport
                                       (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
@@ -2249,7 +2430,7 @@
                                     ;; the body runs inside this call now
                                     (if tport
                                         (block (set (-> e trace_goal) g)
-                                               (set (-> e trace_depth) tD))))))))
+                                               (set (-> e trace_depth) tD))))))))))
                             ;; NO CLAUSES IS NOT THE SAME AS UNDEFINED. A
                             ;; predicate the program declared dynamic -- or that
                             ;; an `assert' brought into being and a `retract'
@@ -2432,21 +2613,22 @@
   ;;; The names this expands under are bound by the parameter list below: that
   ;;; is the contract `coco-emit-arith-binops' documents.
   (static)
-  (func coco_arith_simple ((const char * name) (int both_int)
+  (func coco_arith_simple ((coco_machine * m) (u64 nid) (int both_int)
                          (i64 ai) (double af) (i64 bi) (double bf)
                          (int * isf) (i64 * iv) (double * fv)) (out int)
         (coco-emit-arith-binops))
 
   (static)
-  (func coco_arith_binary ((coco_engine * e) (const char * name) (int both_int)
+  (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int)
                          (i64 ai) (double af) (i64 bi) (double bf)
                          (int * isf) (i64 * iv) (double * fv)) (out int)
-        (if (coco_arith_simple name both_int ai af bi bf isf iv fv) (return 1))
+        (let ((coco_machine * m . #'(-> e m)))
+        (if (coco_arith_simple m nid both_int ai af bi bf isf iv fv) (return 1))
         (cond
           ;; `/' answers an integer when it divides exactly and a float when it
           ;; does not, which is what most Prologs do and what surprises fewest
           ;; people; `//' is always integer division.
-          ((== 0 (strcmp name "/"))
+          ((== nid (coco-id m "/"))
            (if both_int
                (block (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
                       (if (== 0 (% ai bi))
@@ -2455,11 +2637,11 @@
                                (set (cof isf) 1))))
              (block (set (cof fv) (/ af bf)) (set (cof isf) 1)))
            (return 1))
-          ((== 0 (strcmp name "//"))
+          ((== nid (coco-id m "//"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "div"))
+          ((== nid (coco-id m "div"))
            ;; floored division: the quotient mod pairs with, so
            ;; A =:= (A div B) * B + A mod B holds for every sign
            (if (not both_int) (return (coco_type_error e "integer" 0)))
@@ -2467,22 +2649,22 @@
            (set (cof iv) (- (/ ai bi) (? (and (!= (% ai bi) 0)
                                               (< (* (% ai bi) bi) 0)) 1 0)))
            (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "mod"))
+          ((== nid (coco-id m "mod"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            ;; mod follows the sign of the divisor, rem follows the dividend
            (set (cof iv) (- (% ai bi) (? (and (!= (% ai bi) 0)
                                               (< (* (% ai bi) bi) 0)) (- 0 bi) 0)))
            (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "rem"))
+          ((== nid (coco-id m "rem"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "min"))
+          ((== nid (coco-id m "min"))
            (if both_int (block (set (cof iv) (? (< ai bi) ai bi)) (set (cof isf) 0))
              (block (set (cof fv) (? (< af bf) af bf)) (set (cof isf) 1)))
            (return 1))
-          ((== 0 (strcmp name "max"))
+          ((== nid (coco-id m "max"))
            (if both_int (block (set (cof iv) (? (> ai bi) ai bi)) (set (cof isf) 0))
              (block (set (cof fv) (? (> af bf) af bf)) (set (cof isf) 1)))
            (return 1))
@@ -2490,7 +2672,7 @@
           ;; integer exponent, and a float everywhere else; `^' reads the same
           ;; table. 64-bit like everything else here: a power that does not
           ;; fit wraps, exactly as `*' does.
-          ((or (== 0 (strcmp name "**")) (== 0 (strcmp name "^")))
+          ((or (== nid (coco-id m "**")) (== nid (coco-id m "^")))
            (if (and both_int (>= bi 0))
                (let ((i64 acc . #'1) (i64 base . #'ai) (i64 n . #'bi))
                  (while (> n 0)
@@ -2500,7 +2682,7 @@
                  (set (cof iv) acc) (set (cof isf) 0))
              (block (set (cof fv) (pow af bf)) (set (cof isf) 1)))
            (return 1))
-          ((== 0 (strcmp name "gcd"))
+          ((== nid (coco-id m "gcd"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (let ((i64 a . #'(? (< ai 0) (- 0 ai) ai))
                  (i64 b . #'(? (< bi 0) (- 0 bi) bi)))
@@ -2509,10 +2691,10 @@
                  (set a b) (set b r)))
              (set (cof iv) a))
            (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name ">>"))
+          ((== nid (coco-id m ">>"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (>> ai bi)) (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "<<"))
+          ((== nid (coco-id m "<<"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (<< ai bi)) (set (cof isf) 0) (return 1))
           ;; The bitwise three. Integers only -- ISO says type_error(integer)
@@ -2524,16 +2706,16 @@
           ;; string may not end in a backslash, and `/\' does. `\/' and `\'
           ;; could be written, and are spelled the same way so the four read
           ;; alike and nobody has to remember which one is the exception.
-          ((== 0 (strcmp name COCO_OP_AND))
+          ((== nid (coco-id m COCO_OP_AND))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (bitand ai bi)) (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name COCO_OP_OR))
+          ((== nid (coco-id m COCO_OP_OR))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (bitor ai bi)) (set (cof isf) 0) (return 1))
-          ((== 0 (strcmp name "xor"))
+          ((== nid (coco-id m "xor"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (xor ai bi)) (set (cof isf) 0) (return 1))
-          (#t (return (coco_fail_err e "unknown arithmetic function")))))
+          (#t (return (coco_fail_err e "unknown arithmetic function"))))))
 
   ;;; Evaluates an arithmetic expression. Recursive over the DEPTH of the
   ;;; expression, which is bounded by the text that was read -- unlike the
@@ -2553,91 +2735,91 @@
                (set (cof fv) (nth (cast size_t (coco-payload c)) (-> m floats)))
                (set (cof isf) 1) (return 1))
               ((coco-tag-is ATOM c)
-               (let ((const char * nm . #'(coco_atom_name m (coco_name_of m t))))
-                 (if (== 0 (strcmp nm "pi"))
+               (let ((u64 nid . #'(coco_name_of m t)))
+                 (if (== nid (coco-id m "pi"))
                      (block (set (cof fv) 3.14159265358979323846) (set (cof isf) 1) (return 1)))
-                 (if (== 0 (strcmp nm "e"))
+                 (if (== nid (coco-id m "e"))
                      (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
                  (return (coco_type_error e "evaluable" t))))
               (#t
-               (let ((const char * nm . #'(coco_atom_name m (coco_name_of m t)))
+               (let ((u64 nid . #'(coco_name_of m t))
                      (u32 n . #'(coco_arity m t)))
                  (if (== n 1)
                      (let ((int s0) (i64 i0) (double f0) (int rc))
                        (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0)))
                        (if (!= rc 1) (return rc))
                        (cond
-                         ((== 0 (strcmp nm "-"))
+                         ((== nid (coco-id m "-"))
                           (if s0 (block (set (cof fv) (- 0.0 f0)) (set (cof isf) 1))
                             (block (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
                           (return 1))
-                         ((== 0 (strcmp nm "+"))
+                         ((== nid (coco-id m "+"))
                           (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
                             (block (set (cof iv) i0) (set (cof isf) 0)))
                           (return 1))
                          ;; bitwise complement, on the two's complement the
                          ;; whole engine already uses: \ 0 is -1
-                         ((== 0 (strcmp nm COCO_OP_NOT))
+                         ((== nid (coco-id m COCO_OP_NOT))
                           (if s0 (return (coco_type_error e "integer" 0)))
                           (set (cof iv) (- (- 0 i0) 1)) (set (cof isf) 0)
                           (return 1))
-                         ((== 0 (strcmp nm "msb"))
+                         ((== nid (coco-id m "msb"))
                           (if s0 (return (coco_type_error e "integer" 0)))
                           (if (<= i0 0) (return (coco_type_error e "integer" 0)))
                           (let ((i64 b . #'-1) (i64 v . #'i0))
                             (while (> v 0) (set b (+ b 1)) (set v (>> v 1)))
                             (set (cof iv) b))
                           (set (cof isf) 0) (return 1))
-                         ((== 0 (strcmp nm "abs"))
+                         ((== nid (coco-id m "abs"))
                           (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
                             (block (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
                           (return 1))
-                         ((== 0 (strcmp nm "sign"))
+                         ((== nid (coco-id m "sign"))
                           (if s0 (block (set (cof fv) (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0)))
                                         (set (cof isf) 1))
                             (block (set (cof iv) (? (> i0 0) 1 (? (< i0 0) -1 0))) (set (cof isf) 0)))
                           (return 1))
-                         ((== 0 (strcmp nm "float"))
+                         ((== nid (coco-id m "float"))
                           (set (cof fv) (? s0 f0 (cast double i0))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "integer"))
+                         ((== nid (coco-id m "integer"))
                           (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
-                         ((== 0 (strcmp nm "truncate"))
+                         ((== nid (coco-id m "truncate"))
                           (set (cof iv) (? s0 (cast i64 f0) i0)) (set (cof isf) 0) (return 1))
-                         ((== 0 (strcmp nm "round"))
+                         ((== nid (coco-id m "round"))
                           (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
                          ;; floor and ceiling from the truncating cast, which
                          ;; goes toward zero: one step down for a negative
                          ;; fraction, one step up for a positive one
-                         ((== 0 (strcmp nm "floor"))
+                         ((== nid (coco-id m "floor"))
                           (if s0
                               (let ((i64 w . #'(cast i64 f0)))
                                 (set (cof iv) (? (and (< f0 0.0) (!= (cast double w) f0)) (- w 1) w)))
                             (set (cof iv) i0))
                           (set (cof isf) 0) (return 1))
-                         ((== 0 (strcmp nm "ceiling"))
+                         ((== nid (coco-id m "ceiling"))
                           (if s0
                               (let ((i64 w . #'(cast i64 f0)))
                                 (set (cof iv) (? (and (> f0 0.0) (!= (cast double w) f0)) (+ w 1) w)))
                             (set (cof iv) i0))
                           (set (cof isf) 0) (return 1))
-                         ((== 0 (strcmp nm "sqrt"))
+                         ((== nid (coco-id m "sqrt"))
                           (set (cof fv) (sqrt (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
                          ;; the ISO transcendentals, each libm's own
-                         ((== 0 (strcmp nm "sin"))
+                         ((== nid (coco-id m "sin"))
                           (set (cof fv) (sin (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "cos"))
+                         ((== nid (coco-id m "cos"))
                           (set (cof fv) (cos (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "tan"))
+                         ((== nid (coco-id m "tan"))
                           (set (cof fv) (tan (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "asin"))
+                         ((== nid (coco-id m "asin"))
                           (set (cof fv) (asin (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "acos"))
+                         ((== nid (coco-id m "acos"))
                           (set (cof fv) (acos (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "atan"))
+                         ((== nid (coco-id m "atan"))
                           (set (cof fv) (atan (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "exp"))
+                         ((== nid (coco-id m "exp"))
                           (set (cof fv) (exp (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         ((== 0 (strcmp nm "log"))
+                         ((== nid (coco-id m "log"))
                           (if (<= (? s0 f0 (cast double i0)) 0.0)
                               (return (coco_evaluation_error e "undefined")))
                           (set (cof fv) (log (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
@@ -2645,6 +2827,28 @@
                    (if (== n 2)
                        (let ((int s0) (i64 i0) (double f0) (int s1) (i64 i1) (double f1)
                              (int rc) (int both))
+                         ;; TWO INTEGER LEAVES UNDER `+', `-' OR `*' -- `N - 1',
+                         ;; `A0 + K', most of what a program counts with --
+                         ;; are read here, without the two recursive asks
+                         ;; and the two dispatches below (1.8.46): 254
+                         ;; instructions an `is' on the counting loop, 150
+                         ;; after
+                         (let ((u64 c0 . #'(nth (coco_deref m (coco_arg m t 0)) (-> m heap)))
+                               (u64 c1 . #'(nth (coco_deref m (coco_arg m t 1)) (-> m heap))))
+                           (if (and (coco-tag-is INT c0) (coco-tag-is INT c1))
+                               (block
+                                (set (cof isf) 0)
+                                (cond
+                                  ((== nid (coco-id m "+"))
+                                   (set (cof iv) (+ (coco-signed-payload c0) (coco-signed-payload c1)))
+                                   (return 1))
+                                  ((== nid (coco-id m "-"))
+                                   (set (cof iv) (- (coco-signed-payload c0) (coco-signed-payload c1)))
+                                   (return 1))
+                                  ((== nid (coco-id m "*"))
+                                   (set (cof iv) (* (coco-signed-payload c0) (coco-signed-payload c1)))
+                                   (return 1))
+                                  (#t (block))))))
                          (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0)))
                          (if (!= rc 1) (return rc))
                          (set rc (coco_arith e (coco_arg m t 1) (aof s1) (aof i1) (aof f1)))
@@ -2652,7 +2856,7 @@
                          (set both (? (and (== s0 0) (== s1 0)) 1 0))
                          ;; each operand is offered as both, and `both' says
                          ;; which pair the operator should read
-                         (return (coco_arith_binary e nm both
+                         (return (coco_arith_binary e nid both
                                                   i0 (? s0 f0 (cast double i0))
                                                   i1 (? s1 f1 (cast double i1))
                                                   isf iv fv)))
@@ -3532,5 +3736,7 @@
   (coco-emit-id-fill)
 
   (coco-emit-builtin-dispatch)
+  (coco-emit-builtin-index)
+  (coco-emit-builtin-call)
 
   ) ; impl-solve

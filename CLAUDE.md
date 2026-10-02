@@ -576,7 +576,8 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   variables, a nested structure flattened through a temporary, READ or
   WRITE mode per structure -- and a body program that builds the goals top
   down through the frame and lists their roots, which go on the
-  continuation as `'$k'` frames exactly as a copied body did. The frame
+  continuation as `'$k'` frames exactly as a copied body did -- N frames
+  reserved in one growth check (`coco_k_push_roots`, 1.8.46). The frame
   lives for the one call (an array, not a heap object: 128 slots on the C
   stack, past that the machine's kept `cslots`), so nothing new is
   frozen and a clause asserted while its body runs cannot move the body
@@ -585,8 +586,18 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   where one dies (`coco_code_drop`: retract, reconsult -- without it a
   retract-and-assert counter held a program per dead clause, 298 MB at a
   million rounds); a constant is its cell and a functor its id, so a
-  compaction cannot stale it. **Each number in an instruction has its own
-  field** -- a frame index in 24 bits, an argument index or an arity in 32;
+  compaction cannot stale it. **The predicate keeps a copy of each
+  clause's program pointer** (`coco_pred.codes`, since 1.8.46), a fifth
+  array parallel to `clauses`: every site that shifts, drops or renumbers
+  the clause list moves it too -- asserta, retract, `coco_pred_forget_from`,
+  the compaction's second pass (which nils it: the table is about to be
+  cleared) -- and a sixth array would go to the same five places. **The
+  body program is a layout** (1.8.46): a goal's root word carries the
+  cells the goal takes, each ARG word the offset of its slot (K) and of
+  the cell it fills (N), the executor reserves the goal once and keeps no
+  stack; a program ends at its length (no END word). **Each number in an
+  instruction has its own field** -- a frame index or a slot offset in 24
+  bits, an argument index, an arity or a cell offset in 32;
   GET_STRUCT once packed two into 16 bits each and a head structure of
   65 536 arguments read back wrong (1.8.45) -- and a clause past what a
   field holds is not compiled. A clause the compiler
@@ -599,11 +610,26 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   `$fail`, `$cut`, `:-`, the markers -- are interned once per machine
   beside the ids (`fids`, `coco-fid`); add to `*functor-names*`, never
   call `coco_make` with a literal name on a hot path. A `'$k'` frame is
-  four cells with the barrier an INT in its slot. What is left is the
-  interpretation of the built goals: the loop's dispatch, the builtins'
-  argument reading, and the continuation itself -- the second half of the
-  compile step, which would change the continuation's shape and is the
-  owner's decision.
+  four cells with the barrier an INT in its slot. **A deterministic call
+  gets no choice frame** (1.8.46): the engine asks `coco_pred_probe` for
+  the first candidate and whether a second exists, and with none tries the
+  clause over the machine's own marks with `nchoices` as the barrier --
+  what the frame's index would have been; under trace a frame is pushed
+  as before, the Fail port is printed from it. **The evaluator dispatches
+  by id** (`*arith-names*`, interned beside the dispatch names; a symbol
+  in that list is a COCO_OP_* array, for the three names a Cicili string
+  cannot end): add an evaluable functor to the table, never a `strcmp`;
+  two integer leaves under `+`, `-`, `*` are combined in `coco_arith`
+  without the recursive asks. **A raise inside the loop is never
+  `return`ed**: `coco_raise` answers 2 when a catcher took the ball and
+  the continuation is the recovery goal, so the loop goes round
+  (`continue`); three sites returned the 2 through 1.8.45 and
+  `catch(call(_), E, true)` ended the query with exit status 2 and no
+  message (`test/errors.pl`, "an unbound or non-callable goal is
+  catchable"). What is left is the interpretation of the built goals:
+  the loop's dispatch, the builtins' argument reading, and the
+  continuation itself -- the second half of the compile step, which
+  would change the continuation's shape and is the owner's decision.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

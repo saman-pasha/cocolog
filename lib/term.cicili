@@ -277,7 +277,21 @@
     ;; later is asked again -- see `coco_extern_generation' in solve.cicili.
     ;; Not frozen with the machine: a thawed functor is asked afresh.
     (member i32      dmod)
-    (member u32      dgen))
+    (member u32      dgen)
+    ;; THE CORE BUILTIN A GOAL OF THIS FUNCTOR IS, remembered: 0 not asked,
+    ;; 1 none, K+2 the K-th row of `*builtins*' (solve.cicili). The table
+    ;; never changes, so there is no generation; a thawed functor starts at
+    ;; 0 and is asked once.
+    (member u32      bix)
+    ;; THE PREDICATE A GOAL OF THIS FUNCTOR IS IN A STORE, remembered: the
+    ;; store (its address and its serial, so a store reset or freed and
+    ;; made again at the same address is not mistaken for the one that
+    ;; answered) and the predicate's index in it. Predicates are only ever
+    ;; appended to a store, so an index stays true as long as the store
+    ;; does.
+    (member void *   pst)
+    (member u64      pserial)
+    (member size_t   pidx))
 
   ;;; A ROOT ARRAY A HOST OWNS, registered with the machine for as long as it
   ;;; holds heap cell indices across a run of the engine: where the array
@@ -358,6 +372,11 @@
     ;; machine refills both; the index of each is settled at expansion
     ;; time by `coco-fid' in solve.cicili.
     (member u64        fids [16])
+    ;; one byte per atom: 1 where the atom names a control construct, so the
+    ;; engine's loop tells a construct from a predicate with one load. Sized
+    ;; when `coco_ids_fill' runs; an atom past its end is not a construct.
+    (member u8 *       cmask)
+    (member size_t     cmask_len)
 
     ;; set when the machine runs out of memory, so callers may check once at
     ;; the end rather than after every push
@@ -454,6 +473,10 @@
   ;; for the caller to point somewhere (`coco_set_arg'), in one growth check
   ;; and N+1 stores: what the copy walks push for every compound they meet
   (decl) (func coco_push_struct ((coco_machine * m) (u64 c) (u32 n)) (out size_t))
+  ;; the same with the N slots RESERVED AND NOT WRITTEN: for a caller that
+  ;; will write every one of them itself before anything can read them
+  ;; (the clause executor), and so saves a store per slot
+  (decl) (func coco_push_struct_raw ((coco_machine * m) (u64 c) (u32 n)) (out size_t))
   (decl) (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t))
   (decl) (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t))
   (decl) (func coco_new_float ((coco_machine * m) (double v)) (out size_t))
@@ -666,6 +689,7 @@
         (free (-> m wpairs))
         (free (-> m vmap_from))
         (free (-> m vmap_to))
+        (free (-> m cmask))
         (free (-> m cslots))
         (memset m 0 (sizeof coco_machine)))
 
@@ -857,6 +881,10 @@
             (set ($ (nth id (-> m functors)) arity) arity)
             (set ($ (nth id (-> m functors)) dmod) -1)
             (set ($ (nth id (-> m functors)) dgen) 0)
+            (set ($ (nth id (-> m functors)) bix) 0)
+            (set ($ (nth id (-> m functors)) pst) nil)
+            (set ($ (nth id (-> m functors)) pserial) 0)
+            (set ($ (nth id (-> m functors)) pidx) 0)
             (set (-> m functors_len) (+ id 1))
             (set (nth j (-> m functor_buckets)) (+ id 1))
             (return (cast u64 id)))))
@@ -879,6 +907,16 @@
         (let ((size_t i . #'(coco_push m 0)))
           (set (nth i (-> m heap)) (coco-cell REF i))
           (return i)))
+
+  (func coco_push_struct_raw ((coco_machine * m) (u64 c) (u32 n)) (out size_t)
+        (let ((size_t h . #'(-> m heap_len)))
+          (if (not (coco_grow m (cast (void **) (aof (-> m heap)))
+                            (aof (-> m heap_cap)) (+ h (+ (cast size_t n) 1))
+                            (sizeof u64)))
+              (return 0))
+          (set (nth h (-> m heap)) c)
+          (set (-> m heap_len) (+ h (+ (cast size_t n) 1)))
+          (return h)))
 
   (func coco_push_struct ((coco_machine * m) (u64 c) (u32 n)) (out size_t)
         (let ((size_t h . #'(-> m heap_len)))
@@ -1173,6 +1211,26 @@
   ;;; deep however long the list. On failure the bindings already made are
   ;;; left for the CALLER's trail mark to undo, exactly as before.
   (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        ;; THE FLAT CASES FIRST, without the worklist: a variable on either
+        ;; side, or two atoms, two integers. Most unifications a program
+        ;; writes are one of these -- `X = foo', a head's `get_value' -- and
+        ;; the worklist's borrow and return were the cost of each
+        (set a (coco_deref m a))
+        (set b (coco_deref m b))
+        (if (== a b) (return 1))
+        (let ((u64 ca . #'(nth a (-> m heap)))
+              (u64 cb . #'(nth b (-> m heap))))
+          (cond
+            ((coco-tag-is REF ca)
+             (if (coco-tag-is REF cb)
+                 (if (> a b) (coco_bind m a b) (coco_bind m b a))
+                 (coco_bind m a b))
+             (return 1))
+            ((coco-tag-is REF cb) (coco_bind m b a) (return 1))
+            ((!= (coco-tag ca) (coco-tag cb)) (return 0))
+            ((coco-tag-is ATOM ca) (return (? (== ca cb) 1 0)))
+            ((coco-tag-is INT ca)  (return (? (== ca cb) 1 0)))
+            (#t (block))))
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
               (int ok . 1) (int running . 1))
           (set wl (coco_wpairs_take m (aof wcap)))
