@@ -50,7 +50,11 @@ main :-
               'boom(X) :- throw(too_big(X)).',
               '',
               '%% reads what cowork_tell/2 put in the worker''s own store',
-              'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.' ]),
+              'yield(Tile, Y) :- tile(Tile, F, P), Y is F + P.',
+              '',
+              '%% Waits MS milliseconds on a channel nobody writes to: a job as long',
+              '%% as the clock says, however fast the engine has become.',
+              'nap(Ms) :- channel_new(Z), ( channel_recv(Z, Ms, _) -> true ; true ).' ]),
     use_module(Jobs),
     answers_and_order, outcomes, telling, the_discipline, many_turns, parallel,
     pipelining, a_worker_always_answers(D), bounded_waits, nothing_inherits_the_dead,
@@ -341,8 +345,11 @@ nothing_inherits_the_dead :-
     section('a wait that gave up leaves nothing for the next one to inherit'),
     cowork_start(2, [timeout(60)], C1),
     %% the job outlives the wait, so its answer lands on the channel after
-    %% the map that asked for it has already raised
-    written(( catch(cowork_map(C1, [slow(1, _)], _), error(E1, _), true) ), E1, G1),
+    %% the map that asked for it has already raised. BY THE CLOCK: the job
+    %% was `slow(1, _)', 150 000 spins, about 90 ms when this was written --
+    %% and 37 ms on 1.8.44's engine, inside the 60 ms wait, so the map
+    %% answered instead of giving up and the check read an unbound ball
+    written(( catch(cowork_map(C1, [nap(400)], _), error(E1, _), true) ), E1, G1),
     check('the map gives up and says so', G1, 'timeout_error(cowork,1)'),
     pause_ms(1500),
     written(( catch(cowork_tell(C1, [after(1)]), B2, true),

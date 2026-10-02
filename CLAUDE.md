@@ -43,7 +43,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `541ba5d` |
+| `../cicili` | the language cocolog is written in; BUILD time | `b5fafd0` |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -267,6 +267,18 @@ module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
 * **A case that passes alone proves the case; the suite proves the contract
   between cases** (a lesson's last line must be exactly `done`; a library
   loaded as a goal after a module set a flag).
+* **A fixture that has to TAKE a while is timed by the clock, never by a
+  count.** 1.8.42-1.8.44 made the engine two to three times faster and
+  three cases went red for it alone: a cowork job that had to outlive a
+  60 ms wait (it waits on an empty channel now), an httpd page that had to
+  outweigh a request's fixed cost (timed in-process, sized to 400 ms), and
+  `groups`, whose floor of turns caught fewer steps per proof as designed
+  (group b moved to a goal with more search). An httpd page gets
+  `page_limit` inferences, a million by default, and past them it is a 500
+  -- the old slow page never finished, and nothing checked its answer: **a
+  timed request checks its status too.** A change to the engine is gated
+  with the modules built and a server up; `make EMBED=0` without them
+  cannot run these three.
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
   recycled PID fail a section silently. Not fixed.
@@ -548,9 +560,13 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
 * **A global is found by a scan from the first one made and COPIED on every
   read** (`nb_getval/2`, `b_getval/2`): keep a table small per global, and
   make a global you read often once rather than catching its absence.
-* **The five term walks borrow the machine's stacks** (copy, store-put,
-  store-get, unify, compare: `coco_wframes_take`/`_give`,
-  `coco_wpairs_take`/`_give` in `lib/term.cicili`). They are iterative so a
+* **The six term walks borrow the machine's stacks** (copy, store-put,
+  store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
+  `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that
+  rename variables borrow its variable map too (`coco_varmap_take`/`_give`:
+  an open-addressed table, epoch-stamped so nothing is cleared between
+  copies; its hash must spread CONSECUTIVE keys -- a multiply alone put a
+  whole clause's variables in one slot). They are iterative so a
   200 000-element list cannot overflow the C stack, and when each walk
   allocated its stack per call, queens took 61% longer (1.8.38's bisection,
   STATUS.md). A walk must not `malloc` per call; anything new on that path
@@ -585,10 +601,77 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   use, which a frozen machine relies on; `coco_name_arity_hash` serves the
   functors (`lib/term.cicili`) and the predicates (`lib/kb.cicili`). Each
   table has exactly one writer (`coco_functor_id`, `coco_pred_make`); keep
-  it that way. What is left in the translator's profile, recorded and not
-  done: copying a clause from the store to the heap at each call
-  (`coco_store_get`, ~27 %), module dispatch by `strcmp` on the goal's name
-  (`coco-emit-module-dispatch`, ~9 %), `coco_unify`, and the allocator.
+  it that way. The functor also remembers which module owns a goal of its
+  name (`dmod`/`dgen`, since 1.8.42): the `strcmp` walk over the modules
+  runs once per functor per registry generation, and `coco_module_register`
+  raises `coco_extern_generation` so a name nobody owned is asked again.
+  **That is true only of a dispatcher whose claim is the name and arity**: a
+  hand-written one that turns a goal down by its arguments or its state
+  (torch: `tensor_execution/3`, every `tensor_*` under another backend)
+  calls `coco_m_decline` first, a walk with a decline in it keeps nothing
+  on the functor, and an owner that declines sends the call through the
+  whole walk (1.8.45; MODULES.md). A module that declines without saying so
+  leaves the functor with the knowledge base after a first declined call.
+* **A clause is COMPILED the first time it is selected** (`coco_clause_code`
+  and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44): a head program --
+  the WAM's GET and UNIFY instructions over a frame of the clause's
+  variables, a nested structure flattened through a temporary, READ or
+  WRITE mode per structure -- and a body program that builds the goals top
+  down through the frame and lists their roots, which go on the
+  continuation as `'$k'` frames exactly as a copied body did -- N frames
+  reserved in one growth check (`coco_k_push_roots`, 1.8.46). The frame
+  lives for the one call (an array, not a heap object: 128 slots on the C
+  stack, past that the machine's kept `cslots`), so nothing new is
+  frozen and a clause asserted while its body runs cannot move the body
+  under it. The code is keyed by the clause's cell in a table on the
+  store, cleared when the store compacts and dropped clause by clause
+  where one dies (`coco_code_drop`: retract, reconsult -- without it a
+  retract-and-assert counter held a program per dead clause, 298 MB at a
+  million rounds); a constant is its cell and a functor its id, so a
+  compaction cannot stale it. **The predicate keeps a copy of each
+  clause's program pointer** (`coco_pred.codes`, since 1.8.46), a fifth
+  array parallel to `clauses`: every site that shifts, drops or renumbers
+  the clause list moves it too -- asserta, retract, `coco_pred_forget_from`,
+  the compaction's second pass (which nils it: the table is about to be
+  cleared) -- and a sixth array would go to the same five places. **The
+  body program is a layout** (1.8.46): a goal's root word carries the
+  cells the goal takes, each ARG word the offset of its slot (K) and of
+  the cell it fills (N), the executor reserves the goal once and keeps no
+  stack; a program ends at its length (no END word). **Each number in an
+  instruction has its own field** -- a frame index or a slot offset in 24
+  bits, an argument index, an arity or a cell offset in 32;
+  GET_STRUCT once packed two into 16 bits each and a head structure of
+  65 536 arguments read back wrong (1.8.45) -- and a clause past what a
+  field holds is not compiled. A clause the compiler
+  cannot take (a head that is not callable, a frame over 2^24 - 1 slots) or
+  whose program cannot RUN (`coco_clause_run` answers -1: no memory) is
+  matched in the store and copied as before (`coco_store_unify`,
+  `coco_store_get_vm`: the store is
+  never bound, a variable met first lives in the slot `coco_push_struct`
+  reserved). The engine's own names and functors -- `'$k'`, `$true`,
+  `$fail`, `$cut`, `:-`, the markers -- are interned once per machine
+  beside the ids (`fids`, `coco-fid`); add to `*functor-names*`, never
+  call `coco_make` with a literal name on a hot path. A `'$k'` frame is
+  four cells with the barrier an INT in its slot. **A deterministic call
+  gets no choice frame** (1.8.46): the engine asks `coco_pred_probe` for
+  the first candidate and whether a second exists, and with none tries the
+  clause over the machine's own marks with `nchoices` as the barrier --
+  what the frame's index would have been; under trace a frame is pushed
+  as before, the Fail port is printed from it. **The evaluator dispatches
+  by id** (`*arith-names*`, interned beside the dispatch names; a symbol
+  in that list is a COCO_OP_* array, for the three names a Cicili string
+  cannot end): add an evaluable functor to the table, never a `strcmp`;
+  two integer leaves under `+`, `-`, `*` are combined in `coco_arith`
+  without the recursive asks. **A raise inside the loop is never
+  `return`ed**: `coco_raise` answers 2 when a catcher took the ball and
+  the continuation is the recovery goal, so the loop goes round
+  (`continue`); three sites returned the 2 through 1.8.45 and
+  `catch(call(_), E, true)` ended the query with exit status 2 and no
+  message (`test/errors.pl`, "an unbound or non-callable goal is
+  catchable"). What is left is the interpretation of the built goals:
+  the loop's dispatch, the builtins' argument reading, and the
+  continuation itself -- the second half of the compile step, which
+  would change the continuation's shape and is the owner's decision.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
@@ -810,7 +893,7 @@ than its cause:
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
-| `bench/` | cocolog against CPython (`sh bench/langs.sh`), moved from The Coco with every run; `test/langs.pl` guards its pairs |
+| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco with every run; `test/langs.pl` guards its pairs |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`

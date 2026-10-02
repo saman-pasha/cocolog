@@ -47,6 +47,7 @@
 main :-
     catch_frame,
     all_solutions_throw,
+    unbound_goal,
     join_and_split,
     clause_too_long,
     globals_belong_to_a_store,
@@ -117,6 +118,43 @@ all_solutions_throw :-
     check('an ordinary forall still holds', G5, yes),
     answer(aggregate_all(sum(X6), member(X6, [1,2,3]), S6), S6, G6),
     check('an ordinary aggregate_all still sums', G6, 6).
+
+%% ---- an unbound or non-callable goal, inside a catch --------------------
+%%
+%% The engine raised instantiation_error for a goal that was a variable and
+%% type_error(callable, G) for one that was a number -- and RETURNED the
+%% raise's answer from its loop. A caught raise answers 2, "the continuation
+%% is the recovery goal already", and a 2 out of the loop reached the host
+%% as the query's verdict: `catch(call(_), E, true)' printed nothing and the
+%% process exited 2, from 1.8.41 through 1.8.45. Only a raise nobody caught
+%% (-1) may leave the loop; a caught one goes round again (1.8.46).
+
+unbound_goal :-
+    section('an unbound or non-callable goal is catchable'),
+
+    answer(catch(call(_), error(E1, _), true), E1, G1),
+    check('call/1 of a variable raises instantiation_error, and it is caught',
+          G1, instantiation_error),
+
+    answer(catch(call(1), error(E2, _), true), E2, G2),
+    check('call/1 of a number raises type_error(callable, 1)', G2, type_error(callable, 1)),
+
+    answer(catch(call(1, x), error(E3, _), true), E3, G3),
+    check('and so does call/2 of one', G3, type_error(callable, 1)),
+
+    answer(catch(p7(_), error(E4, _), true), E4, G4),
+    check('a clause whose body is its unbound argument, the same', G4, instantiation_error),
+
+    answer(catch((true, _), error(E5, _), true), E5, G5),
+    check('a variable inside a conjunction, the same', G5, instantiation_error),
+
+    answer(catch(_, error(E6, _), true), E6, G6),
+    check('and catch/3 of a variable is caught by that very catch', G6, instantiation_error),
+
+    answer(( catch(call(_), _, R7 = recovered), R7 == recovered, X7 = after ), R7-X7, G7),
+    check('the proof carries on after the recovery goal', G7, recovered-after).
+
+p7(G) :- G.
 
 %% ---- atomic_list_concat, past the buffer and past the errors ------------
 

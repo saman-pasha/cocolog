@@ -1,5 +1,6 @@
 #!/bin/sh
-# cocolog against CPython, the same task, in all three arrangements.
+# cocolog against CPython and SWI-Prolog, the same task, in all three
+# arrangements.
 #
 # `bench/languages.md' compares the two languages across every aspect and
 # stops short of one sentence, on purpose: "the sentence `cocolog is
@@ -74,6 +75,26 @@
 # turn that is the store's transaction. Those are not faster or slower
 # than Python. They are absent from it, and a speed table cannot say so.
 #
+# AND THE SECOND YARDSTICK IS A PROLOG. CPython says what an algorithm
+# costs in a language people reach for; it cannot say whether cocolog is a
+# good PROLOG, because a dict is not a clause and a while loop is not a
+# backtracking search. SWI-Prolog runs the very same `.pl' files, unedited,
+# twice: `swi-O' is `swipl -O', which compiles arithmetic into the virtual
+# machine's own instructions, and `swi' is `swipl' as installed, where
+# `optimise' is false and every `is/2' builds its expression as a term and
+# calls a predicate on it. Both run `swipl -f none -q [-O] -g main(N,R)
+# -t halt FILE', so no init file of whoever runs it changes what is
+# measured, and both answers pass the same gate as every other lane.
+#
+# `vs swi-O' IS READ AGAINST SWI AT ITS BEST, because a benchmark that
+# picks the slower of two flags for its rival flatters itself. The first
+# run with SWI in it had only the `swi' lane and read cocolog FASTER than
+# SWI on four tasks of five; with `-O' the same box reads SWI's counting
+# loop nine times faster (0.18 s against 1.61 for sixteen reps -- 787
+# collections and half a second of system time without it, one with it).
+# The `swi' row stays, because it is what typing `swipl FILE' gets, and
+# its `vs swi-O' says what the flag is worth on that task.
+#
 # WHAT NO RULE CAN CATCH is which tasks were chosen -- `harness.pl' says
 # it and it is truer here than anywhere: five small programs are not a
 # language. These five were picked to include the ones cocolog is
@@ -132,7 +153,13 @@ CAP_NS=25000000000         # and one over 25s is a calibration that ran away
 if [ ! -x "$C" ]; then echo "no cocolog binary at $C"; exit 1; fi
 command -v "$PY" >/dev/null || { echo "SKIP no python3"; exit 0; }
 
+SWI=${SWIPL:-swipl}
 LANES="python local embed"
+if command -v "$SWI" >/dev/null 2>&1; then
+  LANES="python swi-O swi local embed"
+else
+  echo "note: no SWI-Prolog ($SWI) on PATH -- the swi-O and swi lanes are skipped"
+fi
 if timeout 20 "$C" $DIAL --kb "$KB" list >/dev/null 2>&1; then
   LANES="$LANES zigurat"
 else
@@ -159,6 +186,8 @@ run_once() {
   _lane=$1; _task=$2; _n=$3; _reps=$4
   case $_lane in
     python)  set -- timeout $RUN_CAP "$PY" "$L/$_task.py" "$_n" "$_reps" ;;
+    swi-O)   set -- timeout $RUN_CAP "$SWI" -f none -q -O -g "main($_n,$_reps)" -t halt "$L/$_task.pl" ;;
+    swi)     set -- timeout $RUN_CAP "$SWI" -f none -q -g "main($_n,$_reps)" -t halt "$L/$_task.pl" ;;
     local)   set -- timeout $RUN_CAP "$C" run "$L/$_task.pl" "main($_n,$_reps)" ;;
     embed)   rm -rf "$EMB"; mkdir -p "$EMB"
              set -- timeout $RUN_CAP "$C" --embed "$EMB" run "$L/$_task.pl" "main($_n,$_reps)" ;;
@@ -182,6 +211,8 @@ run_once() {
 arr_name() {
   case $1 in
     python)  echo cpython_process ;;
+    swi-O)   echo swi_prolog_process_optimised ;;
+    swi)     echo swi_prolog_process_as_installed ;;
     local)   echo cocolog_local_in_memory_no_database ;;
     embed)   echo cocolog_embedded_mvccs_fresh_store ;;
     zigurat) echo cocolog_server_one_kb_emptied ;;
@@ -208,8 +239,9 @@ calibrate() {
 secs() { awk -v n="$1" 'BEGIN { printf "%.2f", n / 1000000000 }'; }
 
 echo
-echo "cocolog vs CPython -- same task, same answer, four arrangements"
+echo "cocolog vs CPython and SWI-Prolog -- same task, same answer, four arrangements"
 echo "python3 $("$PY" --version 2>&1 | cut -d' ' -f2) at $(command -v "$PY"), $("$C" --version) at $C"
+case " $LANES " in *" swi-O "*) echo "$("$SWI" --version) at $(command -v "$SWI")" ;; esac
 echo "wall clock, median of three timed runs at each of two sizes"
 echo "a lane calibrated to ONE rep prints its wall time instead of a rate:"
 echo "at one rep the fixed cost and the work cannot be told apart"
@@ -225,8 +257,8 @@ sortnums:5000:one generate-and-sort of 5000 integers"
 echo "$TASKS" | while IFS=: read -r task n what; do
   [ -z "$task" ] && continue
   echo "-- $task: $what"
-  printf '   %-8s %8s %7s %12s %9s %7s  %s\n' lane reps fixed 'per rep s' 'vs py' '2R/R' arrangement
-  _ref=""; _pyrate=""
+  printf '   %-8s %8s %7s %12s %9s %8s %7s  %s\n' lane reps fixed 'per rep s' 'vs py' 'vs swi-O' '2R/R' arrangement
+  _ref=""; _pyrate=""; _swirate=""
   _lanes=$LANES
   [ -f "$L/${task}_sqlite.py" ] && _lanes="$_lanes sqlite"
   for lane in $_lanes; do
@@ -241,8 +273,8 @@ echo "$TASKS" | while IFS=: read -r task n what; do
     # nobody here wrote the engine for.
     if [ -z "$_ref" ]; then _ref=$ans; fi
     if [ "$ans" != "$_ref" ] || [ "$ans" = "NONE" ]; then
-      printf '   %-8s %8s %7s %12s %9s %7s  REFUSED: answered %s, not %s\n' \
-        "$lane" "$r" - - - - "$ans" "$_ref"
+      printf '   %-8s %8s %7s %12s %9s %8s %7s  REFUSED: answered %s, not %s\n' \
+        "$lane" "$r" - - - - - "$ans" "$_ref"
       continue
     fi
 
@@ -255,8 +287,8 @@ echo "$TASKS" | while IFS=: read -r task n what; do
     # are arithmetic, neither is a measurement. What IS honest at one rep
     # is the wall time itself, so that is what the row carries.
     if [ "$r" -le 1 ]; then
-      printf '   %-8s %8s %7s %12s %9s %7s  %s\n' "$lane" "$r" "$(secs $tR)" \
-        'one rep' 'no rate' - \
+      printf '   %-8s %8s %7s %12s %9s %8s %7s  %s\n' "$lane" "$r" "$(secs $tR)" \
+        'one rep' 'no rate' - - \
         "$(arr_name "$lane")"
       continue
     fi
@@ -267,8 +299,17 @@ echo "$TASKS" | while IFS=: read -r task n what; do
     else
       rel=$(awk -v p="$per" -v q="$_pyrate" 'BEGIN { printf "%.1fx", (q > 0 ? p / q : 0) }')
     fi
+    # Against SWI only from its own row down: python's row is read before
+    # SWI's rate exists, and it is the `vs py' column's reference anyway.
+    # sqlite's partner is a store, not a Prolog in memory, so it has none.
+    [ "$lane" = swi-O ] && _swirate=$per
+    if [ -n "$_swirate" ] && [ "$lane" != sqlite ]; then
+      rels=$(awk -v p="$per" -v q="$_swirate" 'BEGIN { printf "%.1fx", (q > 0 ? p / q : 0) }')
+    else
+      rels=-
+    fi
     dbl=$(awk -v a="$tR" -v b="$t2R" 'BEGIN { printf "%.2f", (a > 0 ? b / a : 0) }')
-    printf '   %-8s %8s %7s %12s %9s %7s  %s\n' "$lane" "$r" "$fix" "$per" "$rel" "$dbl" \
+    printf '   %-8s %8s %7s %12s %9s %8s %7s  %s\n' "$lane" "$r" "$fix" "$per" "$rel" "$rels" "$dbl" \
       "$(arr_name "$lane")"
   done
   echo
@@ -278,6 +319,8 @@ echo "start-up alone, the same wall clock, nothing but boot and exit:"
 for lane in $LANES; do
   case $lane in
     python)  s=$(now); "$PY" -c pass >/dev/null 2>&1; e=$(now) ;;
+    swi-O)   s=$(now); "$SWI" -f none -q -O -g halt >/dev/null 2>&1; e=$(now) ;;
+    swi)     s=$(now); "$SWI" -f none -q -g halt >/dev/null 2>&1; e=$(now) ;;
     local)   s=$(now); "$C" query true >/dev/null 2>&1; e=$(now) ;;
     embed)   rm -rf "$EMB"; mkdir -p "$EMB"; s=$(now); "$C" --embed "$EMB" query true >/dev/null 2>&1; e=$(now) ;;
     zigurat) s=$(now); timeout 60 "$C" $DIAL --kb "$KB" query true >/dev/null 2>&1; e=$(now) ;;
@@ -294,14 +337,21 @@ echo
 # order, so the gap was not a factor but a slope -- 8x at 200 facts, 428x
 # at 20 000 in Run A. cocolog has a first-argument index now and the slope
 # is flat. The same thousand probes still run over three sizes of
-# database, in the two lanes that can do it quickly, read DOWN the column:
-# a return to a slope is the regression this table exists to show.
+# database, in the lanes that can do it quickly, read DOWN the column: a
+# return to a slope is the regression this table exists to show. SWI's
+# column (`-O') is its just-in-time index on the first argument, the same
+# promise.
 echo "the shape of the lookup gap -- a thousand probes, three sizes:"
-printf '   %8s %12s %12s %10s\n' facts 'python s' 'cocolog s' ratio
+printf '   %8s %12s %12s %12s %10s\n' facts 'python s' 'swi-O s' 'cocolog s' ratio
 for n in 200 2000 20000; do
   s=$(now); timeout $RUN_CAP "$PY" "$L/lookup.py" "$n" 20 >/dev/null 2>&1; e=$(now); pt=$((e - s))
+  st=-
+  case " $LANES " in *" swi-O "*)
+    s=$(now); timeout $RUN_CAP "$SWI" -f none -q -O -g "main($n,20)" -t halt "$L/lookup.pl" >/dev/null 2>&1; e=$(now)
+    st=$(secs $((e - s))) ;;
+  esac
   s=$(now); timeout $RUN_CAP "$C" run "$L/lookup.pl" "main($n,20)" >/dev/null 2>&1; e=$(now); ct=$((e - s))
-  printf '   %8s %12s %12s %10s\n' "$n" "$(secs $pt)" "$(secs $ct)" \
+  printf '   %8s %12s %12s %12s %10s\n' "$n" "$(secs $pt)" "$st" "$(secs $ct)" \
     "$(awk -v a="$ct" -v b="$pt" 'BEGIN { printf "%.0fx", (b > 0 ? a / b : 0) }')"
 done
 echo

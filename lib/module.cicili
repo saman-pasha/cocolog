@@ -197,6 +197,17 @@
   (decl) (func coco_m_mark ((coco_engine * e)) (out size_t))
   (decl) (func coco_m_undo ((coco_engine * e) (size_t mark)))
 
+  ;;; A DISPATCHER THAT KNOWS THE NAME AND DECLINES THIS GOAL SAYS SO, then
+  ;;; answers with `*found = 0' as before and binds nothing. The engine
+  ;;; remembers which module owns a functor after its first call; that is
+  ;;; only true of a module whose claim is the name and arity alone, and one
+  ;;; that turns a goal down by its arguments or its own state (torch's
+  ;;; `tensor_execution/3', its `tensor_*' under another backend) would
+  ;;; otherwise leave the functor with the knowledge base for good. A
+  ;;; dispatcher made by `coco-emit-module-dispatch' claims by name and
+  ;;; arity and never needs it.
+  (decl) (func coco_m_decline ((coco_engine * e)))
+
   ;;; ---- reading arguments ----
 
   (decl) (func coco_m_is_var ((coco_engine * e) (size_t t)) (out int))
@@ -475,6 +486,34 @@
                   (if mine (block (set (cof found) 1) (return rc)))))))
         (return 0))
 
+  ;;; The same walk, also saying WHICH module claimed the name, so the
+  ;;; engine can keep that on the functor and come back through
+  ;;; `coco_module_call_at' -- that one module's dispatcher and no other --
+  ;;; for every later call (see `coco_extern_install_resolve' in
+  ;;; solve.cicili). A dispatcher cannot be asked without being run, which
+  ;;; is why resolution is the first call itself rather than a probe.
+  (static)
+  (func coco_module_call_resolving ((coco_engine * e) (const char * name) (u32 arity)
+                                  (size_t g) (int * found) (size_t * out_at)) (out int)
+        (set (cof found) 0)
+        (set (cof out_at) 0)
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (let ((coco_module * mod . #'(aof (nth i coco_modules))))
+            (if (!= (-> mod dispatch) nil)
+                (let ((int mine . 0)
+                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                  (if mine (block (set (cof found) 1) (set (cof out_at) i) (return rc)))))))
+        (return 0))
+
+  (static)
+  (func coco_module_call_at ((coco_engine * e) (size_t at) (const char * name) (u32 arity)
+                           (size_t g) (int * found)) (out int)
+        (set (cof found) 0)
+        (if (>= at coco_nmodules) (return 0))
+        (let ((coco_module * mod . #'(aof (nth at coco_modules))))
+          (if (== (-> mod dispatch) nil) (return 0))
+          (return ((-> mod dispatch) e name arity g found))))
+
   ;;; The Coco half of every module NOT YET IN THIS STORE, consulted in.
   ;;; Called by the engine when a query starts, and guarded by a count on the
   ;;; STORE rather than a flag here: a store that has been reset -- which is
@@ -560,13 +599,16 @@
 
   (func coco_module_init ()
         (set coco_nmodules 0)
-        (coco_extern_install coco_module_call coco_module_load))
+        (coco_extern_install coco_module_call coco_module_load)
+        (coco_extern_install_resolve coco_module_call_resolving coco_module_call_at))
 
   (func coco_module_free ()
         (free coco_modules)
         (set coco_modules nil)
         (set coco_nmodules 0)
-        (set coco_modcap 0))
+        (set coco_modcap 0)
+        ;; every functor's remembered owner is stale now
+        (set coco_extern_generation (+ coco_extern_generation 1)))
 
   (func coco_module_register ((const char * name)
                             (func dispatch ((coco_engine * e) (const char * nm)
@@ -591,6 +633,9 @@
           (set (-> slot prolog) prolog)
           (set (-> slot init) init))
         (set coco_nmodules (+ coco_nmodules 1))
+        ;; a name nobody owned may be this module's now: every functor's
+        ;; remembered owner is asked again (solve.cicili, `dmod')
+        (set coco_extern_generation (+ coco_extern_generation 1))
         (return 1))
 
   (func coco_module_count () (out size_t) (return coco_nmodules))
@@ -632,6 +677,7 @@
 
   (func coco_m_mark ((coco_engine * e)) (out size_t) (return ($ (cof (-> e m)) trail_len)))
   (func coco_m_undo ((coco_engine * e) (size_t mark)) (coco_undo_to (-> e m) mark))
+  (func coco_m_decline ((coco_engine * e)) (set (-> e declines) (+ (-> e declines) 1)))
 
   ;;; ALL FOUR OF THESE DEREFERENCE FIRST, and it is not defensiveness. A term
   ;;; index reaches a module from two places: `coco_m_arg', which dereferences,

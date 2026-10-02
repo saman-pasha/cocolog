@@ -180,6 +180,7 @@
   (code "int coco_module_register(const char*, int (*)(struct coco_engine*, const char*, uint32_t, size_t, int*), const char*, int (*)(struct coco_engine*));")
   (code "size_t coco_m_arg(struct coco_engine*, size_t, uint32_t);")
   (code "struct coco_machine* coco_m_machine(struct coco_engine*);")
+  (code "void coco_m_decline(struct coco_engine*);")
   (code "int coco_m_is_atom(struct coco_engine*, size_t);")
   (code "const char* coco_m_atom(struct coco_engine*, size_t);")
   (code "int coco_m_int(struct coco_engine*, size_t, int64_t*); int coco_m_float(struct coco_engine*, size_t, double*);")
@@ -210,6 +211,7 @@
                                      (func init ((coco_engine * e)) (out int))) (out int))
   (decl) (func coco_m_arg ((coco_engine * e) (size_t g) (uint32_t i)) (out size_t))
   (decl) (func coco_m_machine ((coco_engine * e)) (out coco_machine *))
+  (decl) (func coco_m_decline ((coco_engine * e)))
   (decl) (func coco_m_is_atom ((coco_engine * e) (size_t t)) (out int))
   (decl) (func coco_m_atom ((coco_engine * e) (size_t t)) (out const char *))
   (decl) (func coco_m_int ((coco_engine * e) (size_t t) (int64_t * out)) (out int))
@@ -2644,8 +2646,9 @@
 
   (extern-c
 
-    (func coco_torch_dispatch ((coco_engine * e) (const char * name)
-                               (uint32_t arity) (size_t g) (int * found)) (out int)
+    (static)
+    (func ct_dispatch ((coco_engine * e) (const char * name)
+                       (uint32_t arity) (size_t g) (int * found)) (out int)
       (set (cof found) 1)
       ;; the seam: under tensor_execution(tensorflow, _) every tensor_* call is the other module's
       (if (and (ct_backend_active) (== 0 (strncmp name "tensor_" 7))
@@ -2715,6 +2718,22 @@
            ((== 0 (strcmp name "model_evaluate")) (return (t_model_eval e g)))
            (#t (set (cof found) 0) (return 0))))
         (#t (set (cof found) 0) (return 0))))
+
+    ;;; A tensor_* NAME BELONGS TO THE BACKEND OF THE MOMENT -- under
+    ;;; tensor_execution(tensorflow, _) every one but tensor_execution goes to
+    ;;; the other module, which may lack it -- and tensor_execution/3 is turned
+    ;;; down by its arguments (the DCG form of tensor_execution/1 is a clause of
+    ;;; library(tensor_expr)). So a tensor_* goal this module does not take is
+    ;;; DECLINED, not unknown, and the engine is told: it remembers which
+    ;;; module owns a functor after one call, and a functor first met in its
+    ;;; DCG form was left with the knowledge base for good -- the module's own
+    ;;; tensor_execution(torch, eager, cpu) then raised a domain error.
+    (func coco_torch_dispatch ((coco_engine * e) (const char * name)
+                               (uint32_t arity) (size_t g) (int * found)) (out int)
+      (let ((int rc . #'(ct_dispatch e name arity g found)))
+        (if (and (not (cof found)) (== 0 (strncmp name "tensor_" 7)))
+            (coco_m_decline e))
+        (return rc)))
 
     ;;; THE ONE SYMBOL THE LOADER CALLS, inside the `extern "C"' block with
     ;;; everything else here -- a C++ entry point that kept C++ linkage

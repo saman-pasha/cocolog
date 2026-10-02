@@ -578,6 +578,144 @@ surface nobody had walked end to end.
 `tutorials/library/NN-name.pl` in the same commit. The numbering is one
 per library and a gap is visible, which is the point.
 
+## The copy was the call
+
+Found by profiling against SWI-Prolog with the same programs, after
+cicili-lang measured its two walks at 5 microseconds a call. The same
+work under both -- naive reverse, a fact of K variables, a body of G
+trivial goals -- put cocolog at 14x SWI on naive reverse, at 11x to 19x on
+the fact as K grew, and at 60x to 80x per body goal; `callgrind` said why.
+Unification, the useful work, was 6-9% of the instructions. Four things
+were the rest, and 1.8.42 takes three of them out and most of the fourth.
+
+**A clause arrived as a copy, head and body, before its head was looked
+at**, and the copy's variable map was a linear scan with a `realloc' and a
+`free' per clause tried: on a fact of 64 variables the copy was 72% of all
+instructions, and a call cost 4.4 microseconds where a fact of none cost
+0.9 -- quadratic in the variables. Now the head is **matched in the store**
+(`coco_store_unify'): the call is walked against the store's own cells, a
+store variable met for the first time is mapped to the heap cell it meets
+and made into nothing, met again it is unified with that, and a store
+atom or compound is copied only where an unbound variable of the call
+takes it. Nothing in the store is bound, ever. Only the body is copied,
+over the same map, so a variable the head bound is the same variable in
+the body (`coco_store_get_vm'). The map itself is an open-addressed
+table the machine keeps and lends (`coco_varmap_take'/`_give'), epoch-
+stamped so nothing is cleared between copies; its first hash put every
+run of consecutive keys in ONE slot (a multiply's low bits are the key's
+low bits), and the golden-ratio multiply with the high halves folded down
+is what replaced it -- checked on runs of 64 keys: 55 slots of 256 and
+ten extra probes where there had been two thousand.
+
+**The continuation was built by name.** `'$k'/3' for every goal proven,
+`$true', `$fail', `$cut' and the markers for every if-then-else, went
+through `coco_make' and `coco_new_atom' with a C string: `strlen', the
+atom table's hash and probe, the functor table's. On a clause of 32
+trivial body goals that was 31% of the instructions. They are interned
+once per machine now, beside the dispatch ids (`fids' on the machine,
+`coco-fid' in solve.cicili), and a thawed machine refills them as it
+refills the ids. **And a body's conjunction is pushed as one chain**
+(`coco_k_push_body'): the loop used to take `(A, (B, (C, D)))' apart one
+`,' per step, a whole iteration -- the step count, the collector's
+check, the dereference, two dozen construct tests -- before every goal's
+own; those were 18%. The cells on the continuation come out the same.
+
+**The module walk was `strcmp'.** A goal that is not a core builtin
+asked every registered module, and each compared the name against every
+C predicate of that arity: 45 compares for an arity-2 predicate of the
+user's own, on every call, before the knowledge base was asked -- 25% of
+naive reverse. The answer is kept on the functor now (`dmod', `dgen' in
+`coco_functor'): the first call of a functor goes through the walk and
+records which module claimed it or that none did, and every later call
+goes to that module's dispatcher alone or straight to the knowledge base.
+A module registered later raises `coco_extern_generation' and every
+functor is asked again; a thawed functor is asked afresh. `:-' is an
+interned id too, so splitting a clause stopped being a `strcmp' as well.
+
+Same machine, same sitting, minimum of five, CPU seconds:
+
+| | 1.8.41 | 1.8.42 | |
+|---|---|---|---|
+| naive reverse of 30, 3 000 times | 0.455 | **0.217** | 2.1x |
+| a fact of 64 variables, 200 000 calls | 0.864 | **0.274** | 3.2x |
+| a fact of 128 variables | 2.188 | **0.504** | 4.3x |
+| a body of 32 trivial goals, 200 000 calls | 1.038 | **0.571** | 1.8x |
+| 8 if-then-else arms, 200 000 calls | 0.562 | **0.364** | 1.5x |
+
+And `bench/langs.sh`'s own programs, `--local`, wall clock with the
+process start in it: nrev 385 to 169 ms, queens 62 to 33, loop 517 to
+362, sortnums 141 to 104, lookup 37 to 25, every answer the same. In
+instructions, which do not move with the machine's load: naive reverse
+1.30 G to 0.74 G, the fact of 64 from 2.30 G to 0.95 G.
+
+**What is left is the body copy**, now half of a body-heavy clause's
+instructions, and it is the interpreter's design: a clause body is
+built on the heap for every call that reaches it. The next step is not
+a faster copy but no copy -- a body executed from the store over a
+frame of its variables, which is the compile step; `coco_store_unify'
+is the first half of it, the head side.
+
+**1.8.43 took the next slice of the copy**: the store-to-heap walk is
+one loop (`coco_store_get_vm`), a variable met first lives in the slot
+`coco_push_struct` reserved -- which is already an unbound variable -- so
+`f(X, X)` copies as three cells and nothing is pushed for a variable; the
+map is probed once per occurrence (`coco_varmap_intern`); and a `'$k'`
+frame is four cells reserved at once, its barrier an INT in its own slot
+rather than a REF to one pushed beside it. Same sitting, five alternating
+pairs, medians, 1.8.42 against 1.8.43: naive reverse 0.210 to 0.178 s, the
+fact of 64 variables 0.306 to 0.245, of 128 0.496 to 0.415, a body of 8
+goals 0.205 to 0.160, of 32 0.601 to 0.543, 8 if-then-else arms 0.381 to
+0.325. In instructions: naive reverse 0.74 G to 0.61 G, the body of 32
+1.42 G to 1.08 G, the fact of 64 0.95 G to 0.74 G. One thing tried and not
+shipped: a byte per atom saying whether it names a construct, so the
+loop's two dozen construct tests become one load -- fewer tests, the same
+instructions, and nothing measurable in five pairs; the tests were cheap
+all along.
+
+**1.8.44 compiles the clause.** The first time a clause is selected it is
+compiled into two programs over a frame of its variables
+(`coco_clause_code`, `coco_clause_run`): the head's -- the WAM's GET and
+UNIFY instructions, a nested structure flattened through a temporary, READ
+or WRITE mode per structure, a constant by its cell and a functor by its
+id -- and the body's, which builds the goals top down through the frame
+and lists their roots for the continuation. The matcher and the copy of
+1.8.42 walked the store's cells, dereferencing each, testing its tag and
+probing the map for every variable; the programs are straight lines where
+a variable is a frame index. The frame is an array alive for the one call,
+not a heap object: the continuation is the same `'$k'` frames it was, a
+frozen machine carries exactly what it carried, and a clause asserted or
+retracted while its body runs cannot move the body under it -- the two
+things a body run lazily from the store would have had to give up. The
+code is keyed by the clause's cell on the store and cleared when the
+store compacts; a clause the compiler cannot take falls back to the
+matcher. Same sitting, five alternating pairs, medians, 1.8.43 against
+1.8.44: naive reverse 0.194 to 0.140 s, the fact of 64 variables 0.257 to
+0.129, of 128 0.391 to 0.198, a body of 8 goals 0.161 to 0.113, of 32
+0.503 to 0.317, 8 if-then-else arms 0.324 to 0.299. In instructions:
+naive reverse 0.61 G to 0.41 G, the body of 32 1.08 G to 0.73 G, the fact
+of 64 0.74 G to 0.37 G. `bench/langs.sh`'s programs, 1.8.41 against
+1.8.44, same sitting, best of three with the process start in them: nrev
+344 to 112 ms, queens 56 to 26, loop 544 to 236, sortnums 132 to 79,
+lookup 33 to 21, every answer the same; `test/translate.pl` ran in 34 s
+where the 1.8.41 build took 80 s. A differential run of the clause
+shapes that matter -- nested heads, a variable repeated across nested
+structures, every constant type in a head, write mode on an unbound
+call, a body past 63 goals, an 80-element list in a body, a variable
+goal, asserta and retract under a running predicate -- answers the same
+under both builds, variable names (heap positions) aside.
+
+Gated by `test/run.pl -- term syntax solve module state files trace
+engine library script string langs directives hex astar serialize
+normalise lint`, every one GREEN, in a build without the embedded store
+(`make EMBED=0`); the full `make test' in that build ends with the same
+verdicts as 1.8.41's, the reds all `embed:` cases and modules the
+build did not have. `files' and `trace' are the two that matter most
+here: the same programs under swipl and cocolog byte for byte, and the
+four-port tracer held to SWI's line for line, with the copy gone from
+under both. The `lint' case's dialect card cites lines in `lib/', and
+sixteen of its citations moved with the code; they are re-anchored in
+the same commit.
+
 ## The engine was quadratic
 
 `coco_make` now dereferences every argument as it stores it. An argument was
@@ -4125,6 +4263,184 @@ read at start-up (`ordsets.pl:61`, `dcg_basics.pl:70`) say
 with no directives in it, and 15 checks went red. The card's T1 now says the
 directive reports and the load goes on, so a program that must run where a
 module was not built still probes by calling; D4 cites `lb_carried`.
+
+## The compiled clause, reviewed: three faults found by running, and three clocks in the suite (1.8.45)
+
+1.8.42-1.8.44 (section "The copy was the call") made the engine two to three
+times faster and were gated without the modules and without a server
+(`make EMBED=0`). The full suite on a Mac with both read 53 GREEN, 5 SKIP and
+3 RED, and a review of the pull found the rest. Each of these was run before
+it was called a fault, and each fix has an arm that goes red without it.
+
+**A head structure of 65 536 arguments or more read back wrong.** GET_STRUCT
+packed the head argument's index and the structure's arity into sixteen bits
+each of one 32-bit field. A fact `s(A)` with `A` of arity 65 536 came back
+with all 65 536 arguments wrong, and one of 70 000 with 65 536 wrong, silently;
+1.8.41 read both whole. The index now sits in the 24-bit frame field and the
+arity in the 32-bit one, as GET_STRUCT_T already had them, and a clause whose
+frame would outgrow 24 bits is not compiled. `test/solve.cicili` reads facts
+of 65 536 and 70 000 back whole and matches a head structure at argument
+66 000 in both modes; with the old packing put back, all four checks are red.
+
+**A retracted clause kept its compiled program until the store compacted.**
+The table counts nothing the compaction trigger reads, so a counter kept by
+retract and assertz held a program per dead clause: a million rounds peaked
+at 298 MB where 1.8.41 peaked at 70. `coco_code_drop` frees a clause's
+program where the clause dies, on retract and on reconsult, filling the hole
+in the linear-probed table by shifting the rest of its run back. The same
+million rounds now peak at 77 MB and run in 0.79 s where 1.8.44 took 1.46.
+`test/solve.cicili` counts the programs: three live ones after a thousand
+rounds, and a reconsulted file's are replaced. With the two drops removed,
+the store held 1003 and the replaced clauses' programs stayed.
+
+**A module that declines a goal by its arguments lost the functor to the
+knowledge base.** 1.8.42 remembers, per functor, which module claimed its
+first call or that none did. torch turns `tensor_execution/3` down when its
+first argument is a mode or its second a list, which is
+`tensor_execution(graph, S0, S)`, the DCG form of `tensor_execution/1` that
+library(tensor_expr) answers with a clause. A program whose first such call
+was the nonterminal therefore had its later `tensor_execution(torch, eager,
+cpu)` go to that clause, which raised `domain_error(tensor_execution, torch)`.
+That was run on 1.8.44 and not on 1.8.41. A dispatcher that knows a name and
+declines a goal now calls `coco_m_decline` (MODULES.md). A resolving walk in
+which one did keeps nothing on the functor. A remembered owner that declines
+sends the call through the whole walk, as the walk always did. torch declines
+every `tensor_*` goal it does not take, because under the tensorflow backend
+those names belong to the other module. `test/module.cicili` gains a module
+that declines by argument and one registered after it. Each half of the rule
+has its own arm and its own red check. The torch program runs in both orders
+on the rebuilt `torch.so`; the September `torch.so`, which never says it
+declined, still fails, so a module built before 1.8.45 needs rebuilding.
+
+Found by the review, smaller and fixed in passing. `coco_clause_run` used to
+malloc and free its frame on every call past 128 slots; it borrows the
+machine's (`cslots`) now. It also answers -1 when it cannot run at all, which
+used to read as "the head did not match" and skip the clause; the caller now
+winds back and matches in the store instead. The executor names its opcodes
+instead of numbering them. The Docker workflow's `tag` input lost its
+default, `v1.8.41`, which the `check` job refused against 1.8.44.
+
+**The three reds were the suite's clocks, not the engine's answers.** All
+three were GREEN on 1.8.41, built from `ef1a356` with the same modules, and
+red on 1.8.44 alone as well as in the suite.
+
+* `cowork` needed a job to outlive a 60 ms wait. `slow(1, _)` spun 150 000
+  times: about 90 ms under 1.8.41 and 37 ms under 1.8.44, so the map
+  answered instead of giving up. The job now waits 400 ms on an empty
+  channel.
+* `httpd` needed four queued slow requests to take over twice one. The slow
+  page, `pool_spin(4000000)`, never finished. A page gets `page_limit`
+  inferences, a million by default, and every slow request was a 500 whose
+  status nothing read. It took as long as a million inferences: 190 ms on
+  1.8.41, against a third of a second's fixed cost per request (2.07 times
+  one), and 90 ms on 1.8.44 (1.8 times). It is now a failure-driven loop that
+  keeps no heap. Its length is timed in the case by the binary that will
+  serve it and sized to 400 ms, and its servers get the `page_limit` it
+  needs. Its 200 is checked: 731 ms one, 1915 four queued, 822 four pooled.
+* `groups` checks a floor of 20 turns before calling a split fair, and it
+  caught exactly what it was written to catch: every group took about a
+  fifth fewer steps (34, 24, 60, 60 to 27, 19, 46, 45) once a conjunction
+  stopped costing a step a comma. Group b, `ancestor(bob,X)`, has nothing
+  more to find. It asks `ancestor(X,ann)` now, a goal that walks every
+  parent: 44 turns.
+
+Measured beside 1.8.44 in one sitting, five alternating pairs of
+`bench/langs.sh`'s programs as whole processes: nrev 7 % faster in all five
+pairs, loop and lookup 3 % slower in four of five, queens and sortnums
+level. The signs go both ways and the sizes are what code layout moves. All
+fifty answers are the same. Gated case by case: five of the seven test
+binaries (term, syntax, solve, module, state) and 26 cases (engine, errors,
+gc, meter, library, directives, reconsult, files, trace, string, script,
+argv, thread, process, stream, os, text, tcp, cowork, httpd, groups,
+serialize, hex, astar, normalise, translate), all GREEN, and the sixteen
+of the card's citations the edits moved re-anchored (43, all anchored).
+
+## The deterministic call, and the goal built in one piece (1.8.46)
+
+1.8.44 compiled the clause and 1.8.45 reviewed it; what was left was
+read off `callgrind` again, one mechanism at a time, each kept only when
+the instruction count moved and the differential programs answered the
+same. Eight did; one did not and is not here.
+
+**A deterministic call gets no choice frame.** Every call pushed a frame,
+tried its clauses from it and, on the last candidate, popped it again. The
+engine now asks the index for the first candidate and whether a second
+exists in one call (`coco_pred_probe`), and with no second it tries the
+one clause over the machine's own marks, with the choice stack as it
+stands for the cut barrier -- the height the frame would have had, so a
+`!` in the body cuts the same. A frame under trace stays, because the
+Fail port is printed from it. **The body's goals go on the continuation as
+one run of frames** (`coco_k_push_roots`): N `'$k'` frames reserved in one
+growth check and written back to front, cell for cell what N pushes left,
+where the first cut of this change -- the same loop, out of line -- had
+cost the body of 32 goals 4 % more. **A clause's program sits in its
+predicate's own slot** (`coco_pred.codes`, parallel to `clauses`, moved
+with them on asserta, retract and reconsult, dropped with the clause and
+cleared with the table when the store compacts), so a call reads one
+pointer where it hashed the clause's cell through two calls. **The body
+program's END word is gone** -- the program's length is its end -- and
+**the continuation is dereferenced once a step** where it was twice.
+
+**`is/2` dispatched by `strcmp`.** The evaluator read the operator's name
+back from the atom table and compared it down a chain: `N - 1` was 390
+instructions, the `strcmp` alone a sixth of them. The evaluable functors
+are interned beside the dispatch names now (`*arith-names*`, the three
+spelled with a backslash as the COCO_OP_* arrays), and the chain is
+integer compares; and two integer leaves under `+`, `-` or `*` are read
+and combined where they stand, without the two recursive asks and the
+two dispatches, which took `N - 1` to about 150.
+
+**A goal is one reservation.** The body executor walked a stack of open
+structures to find the next slot and grew the heap once per structure, as
+the copy does. The compiler settles the layout instead: a goal's root word
+carries every cell the goal takes, each argument word the offset from the
+goal's base of the slot it fills and of the cell it puts there, and the
+executor reserves the goal once and writes at offsets, with nothing to
+check and no stack to keep. The cells land where they always did.
+
+**One mechanism did not move and is not shipped**: `coco_unify`'s flat
+cases as a function of their own, so the walk's register saves cost a
+binding nothing -- the compiler had already arranged that, and five pairs
+of instruction counts were identical to the instruction.
+
+**And one bug, 1.8.41 through 1.8.45, found by the differential program
+when it stopped half way:** `catch(call(_), E, true)` ended the query
+silently with exit status 2. The loop's two raises for a goal that is a
+variable or not callable, and `call/N`'s for a closure that is not,
+RETURNED the raise's answer -- and a caught raise answers 2, "the
+continuation is the recovery goal already", which the host read as the
+query's verdict. They go round the loop now, as the undefined-predicate
+site already did; `test/errors.pl` has a section of seven checks, and the
+1.8.45 binary dies at the first.
+
+Instructions under `callgrind`, 1.8.45 against 1.8.46, the same programs:
+naive reverse 30 x 600 0.41 G to 0.26 G (-37 %), a body of 32 goals 0.74 G
+to 0.48 G (-35 %), a fact of 64 variables 0.32 G to 0.25 G (-23 %);
+`bench/langs.sh`'s programs as whole processes, from the checkout root:
+nrev 443 M to 297 M (-33 %), queens 209 M to 146 M (-30 %), loop 643 M to
+362 M (-44 %), lookup 53 M to 40 M (-25 %), sortnums 127 M to 88 M (-30 %),
+every answer the same. Wall clock, five alternating pairs, medians, whole
+processes: nrev 0.154 to 0.111 s, queens 0.069 to 0.046, loop 0.240 to
+0.130, lookup 0.021 to 0.015, sortnums 0.067 to 0.052. The differential
+programs -- the clause shapes of 1.8.44, every argument shape in a body
+(nested structures, every constant type, a variable repeated across
+goals, a 50-deep term), 3 000 random asserts, retracts and compactions
+under a running predicate, every evaluable functor -- answer the same as
+1.8.45 and as swipl, variable names aside. (swipl 9.0.4's own
+`optimise_unify` loses `B = u` in `r(A, B) :- A = t(B), B = u.`; the
+comparison runs with that flag off.) Gated in a build without the
+embedded store: term, syntax, solve, module, state; files, trace, engine,
+library, script, string, directives, hex, astar, serialize, langs,
+normalise, translate, process, text, lint, all GREEN; the embedded-store
+cases red exactly as under 1.8.45 on the same box; 1.8.46 under memcheck
+clean on the dynamic torture. Seven of the card's citations moved and are
+re-anchored.
+
+What is left in the profile is the interpretation itself: the clause
+executor's dispatch (a switch per word, about ten instructions of each
+forty-six), the dereferences (a tenth of everything), and the goal's round
+trip through the heap -- built as a term, popped, decoded. The last is the
+second half of the compile step, and the owner's decision.
 
 ## Not started
 

@@ -35,6 +35,35 @@
 (IN-PACKAGE :cocolog)
 
 
+;;; THE CLAUSE COMPILER'S OPCODES, one table read two ways -- the `cc_NAME'
+;;; functions the compiler calls (emitted beside it), and `(cc-op "NAME")',
+;;; a number at expansion time, for a `case' label in the executor's switch,
+;;; which must be a constant. Nothing else may spell an opcode's number.
+(DEFPARAMETER *cc-ops*
+  '(("GET_VAR" 1)
+    ("GET_VAL" 2)
+    ("GET_CONST" 3)
+    ("GET_STRUCT" 4)
+    ("GET_STRUCT_T" 5)
+    ("UNIFY_VAR" 6)
+    ("UNIFY_VAL" 7)
+    ("UNIFY_CONST" 8)
+    ("GOAL_STRUCT" 20)
+    ("GOAL_ATOM" 21)
+    ("GOAL_VAR" 22)
+    ("GOAL_VAR_1" 23)
+    ("ARG_CONST" 24)
+    ("ARG_VAR" 25)
+    ("ARG_VAR_1" 26)
+    ("ARG_STRUCT" 27)))
+
+(DEFUN cc-op-number (name)
+  (LET ((row (ASSOC name *cc-ops* :TEST #'STRING=)))
+    (UNLESS row (ERROR "cocolog: no clause opcode ~S" name))
+    (SECOND row)))
+
+(DEFMACRO cc-op (name) (cc-op-number name))
+
 (generic decl-kb
   ()
 
@@ -85,6 +114,16 @@
     ;; be written back either.
     (member int *    muted)
     (member size_t   muted_cap)
+    ;; EACH CLAUSE'S COMPILED PROGRAM, parallel to CLAUSES: the `coco_code'
+    ;; the store's code table holds for that clause, or nil until the clause
+    ;; is first tried (1.8.46). A call read the table by the clause's cell --
+    ;; a hash, a probe and two calls -- on every inference; this is one load.
+    ;; The table stays the owner: an entry here is a copy of its pointer,
+    ;; moved with the clause when the list shifts (asserta, retract, a
+    ;; reconsult), dropped when the clause is (its program is freed), and
+    ;; cleared with the table when the store compacts (every cell moved).
+    (member void **  codes)
+    (member size_t   codes_cap)
     (member int      dynamic)
     (member int      loaded)
     ;; The backend was asked about this predicate and added NOTHING. Kept per
@@ -228,6 +267,15 @@
     (member coco_pred * preds)
     (member size_t    npreds)
     (member size_t    pred_cap)
+    ;; which store this is, for a cache keyed by store: a number no store
+    ;; made in this process before it had, given at init (`coco_store_init')
+    (member u64       serial)
+    ;; compiled clauses by clause cell: open addressing, a key is the cell
+    ;; plus one, 0 is empty -- see `coco_clause_code'
+    (member size_t *  code_keys)
+    (member void **   code_vals)
+    (member size_t    code_cap)
+    (member size_t    code_len)
     ;; the table that finds a predicate by name and arity -- the functor
     ;; table's shape, see `coco_pred_find'
     (member size_t *  pred_buckets)       ; open addressing, index+1, 0 is empty
@@ -379,6 +427,88 @@
   ;;; rename variables consistently -- see coco_varmap in term.cicili.
   (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
+  ;;; The same copy over a variable map the CALLER holds, so two walks can
+  ;;; share one renaming: a head matched in place and a body copied after
+  ;;; it (`coco_store_unify' below), and `coco_select_clause' in solve.cicili
+  ;;; is the one that holds it.
+  (decl) (func coco_store_get_vm ((coco_machine * m) (coco_store * st) (size_t t)
+                                  (coco_varmap * vm)) (out size_t))
+  ;;; UNIFIES A HEAP TERM WITH A STORE TERM WITHOUT COPYING THE STORE TERM.
+  ;;; A clause used to arrive on the heap as a fresh copy, head and body,
+  ;;; and the copy was thrown away when the head did not match: on naive
+  ;;; reverse the copies were 57 % of the interpreter's instructions. This
+  ;;; walks the two side by side instead -- a store variable met for the
+  ;;; first time is MAPPED to the heap cell it meets (VM, no cell made),
+  ;;; met again it is unified with what it was mapped to; a store atom or
+  ;;; compound against an unbound heap variable is copied then, and only
+  ;;; then, through the same map, so the body copy that follows a match
+  ;;; (`coco_store_get_vm' with the same VM) renames consistently. Nothing
+  ;;; in the store is ever bound. Answers 1 on success; on failure the
+  ;;; bindings made are left for the caller's trail mark to undo, as
+  ;;; `coco_unify' leaves them.
+  (decl) (func coco_store_unify ((coco_machine * m) (coco_store * st) (size_t a) (size_t s)
+                                 (coco_varmap * vm)) (out int))
+  ;;; A clause's head and body AS STORE INDICES, without copying it: a
+  ;;; `:-'/2 whose name is NECK (the interned `:-') splits, anything else
+  ;;; is a fact and the body is 0.
+  (decl) (func coco_store_clause_parts ((coco_store * st) (coco_machine * m) (size_t clause)
+                                        (u64 neck) (size_t * head) (size_t * body)))
+
+  ;;; ---- compiled clauses --------------------------------------------------
+  ;;;
+  ;;; A CLAUSE IS COMPILED THE FIRST TIME IT IS SELECTED, into two programs
+  ;;; over a FRAME of its variables: the head's, which unifies the call's
+  ;;; arguments with the head -- the WAM's get and unify instructions, with
+  ;;; a nested structure flattened through a temporary -- and the body's,
+  ;;; which builds the body goals on the heap through the frame, in the
+  ;;; order the copy would have walked them, and lists their roots for the
+  ;;; continuation. Where the matcher and the copy walked store cells --
+  ;;; dereferencing each, testing its tag, probing the variable map for
+  ;;; each variable met -- the programs are straight lines: a variable is
+  ;;; a frame index, a constant is its cell, a structure its functor and
+  ;;; arity.
+  ;;;
+  ;;; THE FRAME IS NOT A HEAP OBJECT. It lives for the one call that
+  ;;; selects the clause: every body goal is built then and pushed on the
+  ;;; continuation as before, so a frozen machine carries exactly what it
+  ;;; carried -- the same `'$k'' cells, nothing new to thaw -- and a
+  ;;; clause asserted or retracted while its body runs cannot move the
+  ;;; body under it. This is the compile step's head half and build half;
+  ;;; running a body from the store instead of building it would change
+  ;;; the continuation's shape, and that is a design decision, not this.
+  ;;;
+  ;;; THE CODE IS KEYED BY THE CLAUSE'S CELL in a table on the store, and
+  ;;; the table is cleared when the store compacts (every cell moves) and
+  ;;; freed with the store. A retracted clause's code stays until then,
+  ;;; unreachable: a store appends, so its cell is not reused before a
+  ;;; compaction. A thawed machine's store is a fresh one, so it compiles
+  ;;; afresh. Nothing in the code names a store position -- a constant is
+  ;;; the cell itself, a functor its id -- so a compaction cannot stale it.
+  (struct coco_code
+    (member u64 *  head)
+    (member size_t hlen)
+    (member u64 *  body)
+    (member size_t blen)
+    (member u32    nvars)
+    (member u32    ngoals))
+
+  ;;; The clause's code, compiled on the first ask; null when it could not
+  ;;; be compiled (out of memory, a head that is not callable), and the
+  ;;; caller then matches and copies the store cells as before.
+  (decl) (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause))
+               (out coco_code *))
+  ;;; Runs the clause's code against CALL: the head program, then, when
+  ;;; the head matched, the body program, whose goal roots are written to
+  ;;; GOALS (at most 64; a longer body ends in one `,' goal the engine
+  ;;; takes apart) with their count in NGOALS. Answers 1 on a match, 0
+  ;;; when the head did not unify, and -1 when the program could not run
+  ;;; (no memory for its frame or its goals) -- the bindings and cells made
+  ;;; are left for the caller's marks to undo, as `coco_unify' leaves them.
+  (decl) (func coco_clause_run ((coco_machine * m) (coco_store * st) (coco_code * cd)
+                                (size_t call) (size_t * goals) (size_t * ngoals)) (out int))
+  (decl) (func coco_code_table_clear ((coco_store * st)))
+  ;;; Frees one clause's code, if it has any: called where a clause dies.
+  (decl) (func coco_code_drop ((coco_store * st) (size_t clause)))
   ;;; Copies every live term into a fresh cell array and drops the old one;
   ;;; the second asks only when the store has grown enough to be worth it.
   (decl) (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int))
@@ -450,6 +580,9 @@
   ;;; second candidate leaves no choice point behind at all.
   (decl) (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
                                     (u64 key) (size_t from)) (out size_t))
+  ;; the first candidate and whether a second exists: 0 none, 1 one, 2 more
+  (decl) (func coco_pred_probe ((coco_store * st) (coco_pred * p)
+                              (u64 key) (size_t * ix)) (out int))
 
   ;;; What `coco_pred_next_clause' answers when the clauses have run out. Not
   ;;; a position anything can hold, because the clause array would have to
@@ -697,20 +830,34 @@
           (set (cof cap) ncap)
           (return 1)))
 
+  ;;; Each store made gets the next serial; a thread making one while
+  ;;; another does may draw the same number, and the cache that reads it
+  ;;; (`pserial' on a functor) keys by the store's address too, so a
+  ;;; duplicate matters only for a store freed and made again at the same
+  ;;; address in the same thread -- which the counter moving past it rules
+  ;;; out.
+  (static) (var u64 coco_store_serials . 0)
+
   (func coco_store_init ((coco_store * st))
-        (memset st 0 (sizeof coco_store)))
+        (memset st 0 (sizeof coco_store))
+        (set coco_store_serials (+ coco_store_serials 1))
+        (set (-> st serial) coco_store_serials))
 
   (func coco_store_free ((coco_store * st))
         (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
           (free ($ (nth i (-> st preds)) clauses))
           (free ($ (nth i (-> st preds)) origins))
           (free ($ (nth i (-> st preds)) muted))
+          (free (cast (void *) ($ (nth i (-> st preds)) codes)))
           ;; the index's three arrays go with the clause list they describe
           (free ($ (nth i (-> st preds)) keys))
           (free ($ (nth i (-> st preds)) chain))
           (free (cast (void *) ($ (nth i (-> st preds)) slots))))
         (free (-> st preds))
         (free (-> st pred_buckets))
+        (coco_code_table_clear st)
+        (free (-> st code_keys))
+        (free (-> st code_vals))
         (free (-> st cells))
         (free (-> st roots))
         ;; the globals go with the cells they index -- nothing outside this
@@ -812,9 +959,10 @@
             (#t (return (coco_store_push st c))))))
 
   (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
-        (let ((coco_varmap vm . '{ nil nil 0 0 })
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
               (coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
               (size_t r . 0))
+          (coco_varmap_take m (aof vm))
           (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
           (set r (coco_store_put_node st m t (aof vm) (aof fs) (aof flen) (aof fcap)))
           (while (> flen 0)
@@ -831,60 +979,882 @@
                                                          (aof fs) (aof flen) (aof fcap))))
                   (set (nth slot (-> st cells)) (coco-cell REF a))))))
           (coco_wframes_give m (cast (void *) fs) fcap)
-          (coco_varmap_free (aof vm))
+          (coco_varmap_give m (aof vm))
           (return r)))
 
+  ;;; The store's own dereference: a reserved argument slot is a REF to
+  ;;; where the argument was put, and an unbound store variable points at
+  ;;; itself. Nothing else in the store is ever a chain.
   (static)
-  (func coco_store_get_node ((coco_machine * m) (coco_store * st) (size_t t)
-                             (coco_varmap * vm) (coco_copyframe ** fs)
-                             (size_t * flen) (size_t * fcap))
-        (out size_t)
-        ;; a store term is never bound, so the only dereferencing needed is the
-        ;; one step a reserved argument slot introduces
-        (while (coco-tag-is REF (nth t (-> st cells)))
-          (let ((size_t next . #'(cast size_t (coco-payload (nth t (-> st cells))))))
-            (if (== next t) break)
-            (set t next)))
-        (let ((u64 c . #'(nth t (-> st cells))))
-          (cond
-            ((coco-tag-is REF c)
-             (let ((size_t to . 0))
-               (if (coco_varmap_get vm t (aof to)) (return to))
-               (set to (coco_new_var m))
-               (coco_varmap_put vm t to)
-               (return to)))
-            ((coco-tag-is FUN c)
-             (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
-                   (size_t h . #'(coco_push m c)))
-               (for ((u32 i . 0)) (< i n) ((++ i)) (coco_new_var m))
-               (if (> n 0)
-                   (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
-                       (set (-> m oom) 1)))
-               (return h)))
-            (#t (return (coco_push m c))))))
+  (func coco_store_deref ((coco_store * st) (size_t s)) (out size_t)
+        (while (coco-tag-is REF (nth s (-> st cells)))
+          (let ((size_t next . #'(cast size_t (coco-payload (nth s (-> st cells))))))
+            (if (== next s) (return s))
+            (set s next)))
+        (return s))
 
-  (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
-        (let ((coco_varmap vm . '{ nil nil 0 0 })
-              (coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
-              (size_t r . 0))
+  ;;; THE STORE-TO-HEAP COPY, in one loop. The root is pushed, and every
+  ;;; compound met puts a frame on the walk stack -- its store index, its
+  ;;; first heap slot, its arity, how many slots are done -- and the loop
+  ;;; takes the frames' arguments one at a time, so a list's depth is never
+  ;;; the C stack's. Two things make it cheap per cell:
+  ;;;
+  ;;; A VARIABLE MET FIRST LIVES IN ITS SLOT. The slot `coco_push_struct'
+  ;;; reserved is already an unbound variable (a REF to itself), so the
+  ;;; copy maps the store variable to the SLOT and pushes nothing; met
+  ;;; again, the slot is pointed at that. The copy of `f(X, X)' is three
+  ;;; cells, as `coco_make' would build it. Binding such a variable writes
+  ;;; the slot, which is what binding any argument variable does.
+  ;;;
+  ;;; THE MAP IS PROBED ONCE per occurrence (`coco_varmap_intern'): found,
+  ;;; or entered, in the one walk down the chain.
+  (func coco_store_get_vm ((coco_machine * m) (coco_store * st) (size_t t)
+                           (coco_varmap * vm)) (out size_t)
+        (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
+              (size_t r . 0) (u64 c . 0))
+          (set t (coco_store_deref st t))
+          (set c (nth t (-> st cells)))
+          ;; the root: a variable, an atom or number, or a compound
+          (if (coco-tag-is REF c)
+              (let ((size_t to . 0) (size_t v . #'(coco_new_var m)))
+                (if (== 1 (coco_varmap_intern vm t v (aof to)))
+                    (block (set ($ (cof m) heap_len) v) (return to)))
+                (return v)))
+          (if (not (coco-tag-is FUN c)) (return (coco_push m c)))
           (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
-          (set r (coco_store_get_node m st t (aof vm) (aof fs) (aof flen) (aof fcap)))
+          (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+            (set r (coco_push_struct m c n))
+            (if (> n 0)
+                (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) t (+ r 1) n))
+                    (set (-> m oom) 1))))
           (while (> flen 0)
             (let ((size_t fi . #'(- flen 1)))
               (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
                   (block (set flen fi) continue))
-              (let ((size_t src . #'(+ ($ (nth fi fs) src)
-                                       (+ (cast size_t ($ (nth fi fs) i)) 1)))
+              (let ((size_t src . #'(coco_store_deref st (+ ($ (nth fi fs) src)
+                                                           (+ (cast size_t ($ (nth fi fs) i)) 1))))
                     (size_t slot . #'(+ ($ (nth fi fs) dst)
-                                        (cast size_t ($ (nth fi fs) i)))))
+                                        (cast size_t ($ (nth fi fs) i))))
+                    (u64 cs . 0))
                 (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
                 (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
-                (let ((size_t a . #'(coco_store_get_node m st src (aof vm)
-                                                         (aof fs) (aof flen) (aof fcap))))
-                  (coco_set_arg m slot a)))))
+                (set cs (nth src (-> st cells)))
+                (cond
+                  ((coco-tag-is REF cs)
+                   ;; first met: the slot IS the variable; met again: point
+                   ;; the slot at the one it became
+                   (let ((size_t to . 0))
+                     (if (== 1 (coco_varmap_intern vm src slot (aof to)))
+                         (coco_set_arg m slot to))))
+                  ((coco-tag-is FUN cs)
+                   (let ((u32 nn . #'($ (nth (cast size_t (coco-payload cs)) (-> m functors)) arity))
+                         (size_t hh . #'(coco_push_struct m cs nn)))
+                     (coco_set_arg m slot hh)
+                     (if (> nn 0)
+                         (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) src (+ hh 1) nn))
+                             (set (-> m oom) 1)))))
+                  (#t (coco_set_arg m slot (coco_push m cs)))))))
           (coco_wframes_give m (cast (void *) fs) fcap)
-          (coco_varmap_free (aof vm))
           (return r)))
+
+  (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t r . 0))
+          (coco_varmap_take m (aof vm))
+          (set r (coco_store_get_vm m st t (aof vm)))
+          (coco_varmap_give m (aof vm))
+          (return r)))
+
+  ;;; Three words per pending pair: the heap side, the other side, and
+  ;;; which kind the other side is -- 0 a store index, 1 a heap index (a
+  ;;; store variable met again brings the heap term it was mapped to).
+  (static)
+  (func coco_su_push ((coco_machine * m) (size_t ** wl) (size_t * wlen) (size_t * wcap)
+                      (size_t a) (size_t b) (size_t kind)) (out int)
+        (if (< (cof wcap) (+ (cof wlen) 3))
+            (let ((size_t ncap . #'(? (== (cof wcap) 0) 96 (* (cof wcap) 2)))
+                  (void * nb))
+              (set nb (realloc (cast (void *) (cof wl)) (* ncap (sizeof size_t))))
+              (if (== nb nil) (block (set (-> m oom) 1) (return 0)))
+              (set (cof wl) (cast (size_t *) nb))
+              (set (cof wcap) ncap)))
+        (set (nth (cof wlen) (cof wl)) a)
+        (set (nth (+ (cof wlen) 1) (cof wl)) b)
+        (set (nth (+ (cof wlen) 2) (cof wl)) kind)
+        (set (cof wlen) (+ (cof wlen) 3))
+        (return 1))
+
+  ;;; ITERATIVE, as `coco_unify' is, and for the same reason: a list's depth
+  ;;; is its length. The pairs wait in the machine's pair stack, pushed
+  ;;; right to left so the walk stays left to right. The heap-heap case is
+  ;;; `coco_unify''s own, written out here so a repeated variable does not
+  ;;; start a second walk with a worklist of its own.
+  (func coco_store_unify ((coco_machine * m) (coco_store * st) (size_t a) (size_t s)
+                          (coco_varmap * vm)) (out int)
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (size_t kind . 0) (int ok . 1) (int running . 1))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (while (== running 1)
+            (set a (coco_deref m a))
+            (if (== kind 1)
+                ;; ---- both on the heap: coco_unify's cases ----
+                (block
+                 (set s (coco_deref m s))
+                 (if (!= a s)
+                     (let ((u64 ca . #'(nth a (-> m heap)))
+                           (u64 cb . #'(nth s (-> m heap))))
+                       (cond
+                         ((coco-tag-is REF ca)
+                          (if (coco-tag-is REF cb)
+                              (if (> a s) (coco_bind m a s) (coco_bind m s a))
+                              (coco_bind m a s)))
+                         ((coco-tag-is REF cb) (coco_bind m s a))
+                         ((!= (coco-tag ca) (coco-tag cb)) (set ok 0))
+                         ((coco-tag-is ATOM ca) (if (!= ca cb) (set ok 0)))
+                         ((coco-tag-is INT ca)  (if (!= ca cb) (set ok 0)))
+                         ((coco-tag-is FLT ca)
+                          (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
+                                  (nth (cast size_t (coco-payload cb)) (-> m floats)))
+                              (set ok 0)))
+                         ((coco-tag-is STR ca)
+                          (if (not (coco_str_eq m ca cb)) (set ok 0)))
+                         ((coco-tag-is FUN ca)
+                          (if (!= (coco-payload ca) (coco-payload cb))
+                              (set ok 0)
+                              (let ((u32 n . #'(coco_arity m a)))
+                                (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                                     (let ((u32 j . #'(- i 1)))
+                                       (if (not (coco_su_push m (aof wl) (aof wlen) (aof wcap)
+                                                              (coco_arg m a j) (coco_arg m s j) 1))
+                                           (set ok 0)))))))
+                         (#t (set ok 0))))))
+                ;; ---- heap against store ----
+                (block
+                 (set s (coco_store_deref st s))
+                 (let ((u64 ca . #'(nth a (-> m heap)))
+                       (u64 cs . #'(nth s (-> st cells))))
+                   (cond
+                     ;; a store variable: mapped to what it meets the first
+                     ;; time, unified with that the next
+                     ((coco-tag-is REF cs)
+                      (let ((size_t to . 0))
+                        (if (coco_varmap_get vm s (aof to))
+                            (if (not (coco_su_push m (aof wl) (aof wlen) (aof wcap) a to 1))
+                                (set ok 0))
+                          (if (not (coco_varmap_put vm s a)) (set ok 0)))))
+                     ;; an unbound heap variable against something: the
+                     ;; something is copied now, through the shared map, and
+                     ;; the variable bound to the copy
+                     ((coco-tag-is REF ca)
+                      (if (coco-tag-is FUN cs)
+                          (coco_bind m a (coco_store_get_vm m st s vm))
+                          (coco_bind m a (coco_push m cs))))
+                     ((!= (coco-tag ca) (coco-tag cs)) (set ok 0))
+                     ((coco-tag-is ATOM ca) (if (!= ca cs) (set ok 0)))
+                     ((coco-tag-is INT ca)  (if (!= ca cs) (set ok 0)))
+                     ((coco-tag-is FLT ca)
+                      ;; the store shares the machine's float table by index
+                      (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
+                              (nth (cast size_t (coco-payload cs)) (-> m floats)))
+                          (set ok 0)))
+                     ((coco-tag-is STR ca)
+                      (if (not (coco_str_eq m ca cs)) (set ok 0)))
+                     ((coco-tag-is FUN ca)
+                      (if (!= (coco-payload ca) (coco-payload cs))
+                          (set ok 0)
+                          (let ((u32 n . #'(coco_arity m a)))
+                            (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                                 (let ((u32 j . #'(- i 1)))
+                                   ;; the store lays a compound out as the
+                                   ;; heap does: the header, then its slots
+                                   (if (not (coco_su_push m (aof wl) (aof wlen) (aof wcap)
+                                                          (coco_arg m a j) (+ s (+ (cast size_t j) 1)) 0))
+                                       (set ok 0)))))))
+                     (#t (set ok 0))))))
+            (if (or (== ok 0) (== wlen 0))
+                (set running 0)
+                (block
+                  (set kind (nth (- wlen 1) wl))
+                  (set s (nth (- wlen 2) wl))
+                  (set a (nth (- wlen 3) wl))
+                  (set wlen (- wlen 3)))))
+          (coco_wpairs_give m wl wcap)
+          (return ok)))
+
+  (func coco_store_clause_parts ((coco_store * st) (coco_machine * m) (size_t clause)
+                                 (u64 neck) (size_t * head) (size_t * body))
+        (set clause (coco_store_deref st clause))
+        (set (cof head) clause)
+        (set (cof body) 0)
+        (let ((u64 c . #'(nth clause (-> st cells))))
+          (if (not (coco-tag-is FUN c)) (return))
+          (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload c)) (-> m functors)))))
+            (if (or (!= (-> f arity) 2) (!= (-> f name) neck)) (return)))
+          (set (cof head) (+ clause 1))
+          (set (cof body) (+ clause 2))))
+
+  ;;; ---- compiled clauses --------------------------------------------------
+  ;;;
+  ;;; ONE WORD AN INSTRUCTION: the operation in the low eight bits, a frame
+  ;;; index K in the next twenty-four, an argument index or an arity N in
+  ;;; the high thirty-two; a constant or a functor follows in the word
+  ;;; after. EACH NUMBER HAS A FIELD OF ITS OWN: GET_STRUCT once packed its
+  ;;; argument index and its arity into sixteen bits each, and a head
+  ;;; holding a structure of 65 536 arguments read back with every one of
+  ;;; them wrong (1.8.45). A clause whose frame needs more than K can hold
+  ;;; is not compiled (`coco_clause_code'). The head's instructions:
+  ;;;
+  ;;;   GET_VAR    k i     frame[k] is the call's argument i, dereferenced
+  ;;;   GET_VAL    k i     unify frame[k] with argument i
+  ;;;   GET_CONST  i  C    argument i is the constant C, or is bound to it
+  ;;;   GET_STRUCT i n F   argument i (in K) is F/n: read its arguments, or
+  ;;;                      build it and bind the argument to it -- READ or
+  ;;;                      WRITE
+  ;;;   GET_STRUCT_T k n F the same on frame[k]: a nested structure the
+  ;;;                      parent left in a temporary
+  ;;;   UNIFY_VAR   k      the next argument of the structure in hand is a
+  ;;;                      variable met first: frame[k] is its slot
+  ;;;   UNIFY_VAL   k      ... a variable met before: unify, or write it
+  ;;;   UNIFY_CONST C      ... the constant C
+  ;;;
+  ;;; and the body's, which build a goal top down over ONE reservation:
+  ;;; the goal's root word carries every cell the goal takes, and each
+  ;;; argument word the offset from the goal's base of the slot it fills
+  ;;; (in K) and, for a constant or a structure, of the cell it puts
+  ;;; there (in N) -- settled here, so the executor keeps no stack of
+  ;;; open structures and checks nothing (1.8.46; through 1.8.45 the
+  ;;; words said "the next slot" and the executor found it on a frame
+  ;;; stack, growing the heap once per structure, as the copy does):
+  ;;;
+  ;;;   GOAL_STRUCT t F    a goal F/_ starts: t cells, the header first
+  ;;;   GOAL_ATOM   C      a goal that is an atom
+  ;;;   GOAL_VAR    k      a goal that is a variable (call/1's business)
+  ;;;   GOAL_VAR_1  k      ... met first here
+  ;;;   ARG_CONST   o a C  slot o: the constant C, in cell a
+  ;;;   ARG_VAR     k o    slot o: frame[k]
+  ;;;   ARG_VAR_1   k o    slot o IS the variable, met first here
+  ;;;   ARG_STRUCT  o a F  slot o: the structure whose header F is cell a,
+  ;;;                      and whose own slots the words that follow fill
+  ;;;
+  ;;; A program ends where its length says (there was an END word through
+  ;;; 1.8.45, one dispatch a clause for nothing).
+  ;;;
+  ;;; The executor names them too (`coco_clause_run'), never their numbers:
+  ;;; ONE TABLE, read two ways -- the `cc_NAME' functions below, which the
+  ;;; compiler calls, and `(cc-op "NAME")', a number at expansion time, for
+  ;;; a `case' label in the executor's switch, which must be a constant.
+  ;;; Nothing else may spell an opcode's number.
+  (static) (func cc_GET_VAR () (out u64) (return (cc-op "GET_VAR")))
+  (static) (func cc_GET_VAL () (out u64) (return (cc-op "GET_VAL")))
+  (static) (func cc_GET_CONST () (out u64) (return (cc-op "GET_CONST")))
+  (static) (func cc_GET_STRUCT () (out u64) (return (cc-op "GET_STRUCT")))
+  (static) (func cc_GET_STRUCT_T () (out u64) (return (cc-op "GET_STRUCT_T")))
+  (static) (func cc_UNIFY_VAR () (out u64) (return (cc-op "UNIFY_VAR")))
+  (static) (func cc_UNIFY_VAL () (out u64) (return (cc-op "UNIFY_VAL")))
+  (static) (func cc_UNIFY_CONST () (out u64) (return (cc-op "UNIFY_CONST")))
+  (static) (func cc_GOAL_STRUCT () (out u64) (return (cc-op "GOAL_STRUCT")))
+  (static) (func cc_GOAL_ATOM () (out u64) (return (cc-op "GOAL_ATOM")))
+  (static) (func cc_GOAL_VAR () (out u64) (return (cc-op "GOAL_VAR")))
+  (static) (func cc_GOAL_VAR_1 () (out u64) (return (cc-op "GOAL_VAR_1")))
+  (static) (func cc_ARG_CONST () (out u64) (return (cc-op "ARG_CONST")))
+  (static) (func cc_ARG_VAR () (out u64) (return (cc-op "ARG_VAR")))
+  (static) (func cc_ARG_VAR_1 () (out u64) (return (cc-op "ARG_VAR_1")))
+  (static) (func cc_ARG_STRUCT () (out u64) (return (cc-op "ARG_STRUCT")))
+
+  (static)
+  (func cc_word ((u64 op) (u64 k) (u64 n)) (out u64)
+        (return (bitor op (bitor (<< (bitand k 16777215) 8) (<< n 32)))))
+  (static) (func cc_op ((u64 w)) (out u64) (return (bitand w 255)))
+  (static) (func cc_k ((u64 w)) (out size_t) (return (cast size_t (bitand (>> w 8) 16777215))))
+  (static) (func cc_n ((u64 w)) (out u64) (return (>> w 32)))
+
+  ;;; A growing word buffer, for the two programs as they are emitted.
+  (struct coco_cbuf
+    (member u64 *  w)
+    (member size_t len)
+    (member size_t cap))
+
+  (static)
+  (func cc_emit ((coco_cbuf * b) (u64 w)) (out int)
+        (if (>= (-> b len) (-> b cap))
+            (let ((size_t ncap . #'(? (== (-> b cap) 0) 16 (* (-> b cap) 2)))
+                  (void * nb . #'(realloc (cast (void *) (-> b w)) (* ncap (sizeof u64)))))
+              (if (== nb nil) (return 0))
+              (set (-> b w) (cast (u64 *) nb))
+              (set (-> b cap) ncap)))
+        (set (nth (-> b len) (-> b w)) w)
+        (set (-> b len) (+ (-> b len) 1))
+        (return 1))
+
+  ;;; One pending compound of a compilation: the structure's store index,
+  ;;; how many of its arguments are emitted, and for the head the frame
+  ;;; index its temporary was left in.
+  (struct coco_cframe
+    (member size_t src)
+    (member size_t k)
+    (member u32    n)
+    (member u32    i))
+
+  (static)
+  (func cc_frames_push ((coco_cframe ** fs) (size_t * len) (size_t * cap)
+                        (size_t src) (size_t k) (u32 n)) (out int)
+        (if (>= (cof len) (cof cap))
+            (let ((size_t ncap . #'(? (== (cof cap) 0) 32 (* (cof cap) 2)))
+                  (void * nb . #'(realloc (cast (void *) (cof fs)) (* ncap (sizeof coco_cframe)))))
+              (if (== nb nil) (return 0))
+              (set (cof fs) (cast (coco_cframe *) nb))
+              (set (cof cap) ncap)))
+        (set ($ (nth (cof len) (cof fs)) src) src)
+        (set ($ (nth (cof len) (cof fs)) k) k)
+        (set ($ (nth (cof len) (cof fs)) n) n)
+        (set ($ (nth (cof len) (cof fs)) i) 0)
+        (set (cof len) (+ (cof len) 1))
+        (return 1))
+
+  ;;; The frame index of the store variable at S, numbering it if this is
+  ;;; its first occurrence; FIRST says which it was.
+  (static)
+  (func cc_var ((coco_varmap * vm) (size_t s) (u32 * nvars) (int * first)) (out size_t)
+        (let ((size_t k . 0))
+          (if (== 1 (coco_varmap_intern vm s (cast size_t (cof nvars)) (aof k)))
+              (block (set (cof first) 0) (return k)))
+          (set (cof first) 1)
+          (set k (cast size_t (cof nvars)))
+          (set (cof nvars) (+ (cof nvars) 1))
+          (return k)))
+
+  ;;; The arguments of one head structure, as UNIFY instructions: a
+  ;;; variable by its frame index, a constant by its cell, and a nested
+  ;;; structure through a temporary -- the WAM's flattening -- with the
+  ;;; structure itself queued to be emitted after, breadth first, so it is
+  ;;; always read or written after its parent put its slot in hand.
+  (static)
+  (func cc_head_args ((coco_store * st) (coco_machine * m) (size_t src) (u32 an)
+                      (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b)
+                      (coco_cframe ** q) (size_t * qlen) (size_t * qcap)) (out int)
+        (let ((int ok . 1))
+          (for ((u32 j . 0)) (< j an) ((++ j))
+            (let ((size_t sa . #'(coco_store_deref st (+ src (+ (cast size_t j) 1))))
+                  (u64 cs . 0) (int sfirst . 0))
+              (set cs (nth sa (-> st cells)))
+              (cond
+                ((coco-tag-is REF cs)
+                 (let ((size_t k . #'(cc_var vm sa nvars (aof sfirst))))
+                   (if (not (cc_emit b (cc_word (? sfirst (cc_UNIFY_VAR) (cc_UNIFY_VAL)) k 0)))
+                       (set ok 0))))
+                ((coco-tag-is FUN cs)
+                 (let ((size_t t . #'(cast size_t (cof nvars)))
+                       (u32 sn . #'($ (nth (cast size_t (coco-payload cs)) (-> m functors)) arity)))
+                   (set (cof nvars) (+ (cof nvars) 1))
+                   (if (not (cc_emit b (cc_word (cc_UNIFY_VAR) t 0))) (set ok 0))
+                   (if (not (cc_frames_push q qlen qcap sa t sn)) (set ok 0))))
+                (#t
+                 (if (not (cc_emit b (cc_word (cc_UNIFY_CONST) 0 0))) (set ok 0))
+                 (if (not (cc_emit b cs)) (set ok 0))))))
+          (return ok)))
+
+  ;;; THE HEAD. Each top-level argument gets its GET instruction and, for a
+  ;;; structure, its arguments' UNIFY instructions right after; the nested
+  ;;; structures those queued are worked off in order.
+  (static)
+  (func cc_compile_head ((coco_store * st) (coco_machine * m) (size_t head)
+                         (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b)) (out int)
+        (let ((coco_cframe * q . nil) (size_t qlen . 0) (size_t qcap . 0) (size_t qi . 0)
+              (u64 c . #'(nth head (-> st cells))) (int ok . 1))
+          (if (not (coco-tag-is FUN c)) (return 1))
+          (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (let ((size_t a . #'(coco_store_deref st (+ head (+ (cast size_t i) 1))))
+                    (u64 ca . 0) (int first . 0))
+                (set ca (nth a (-> st cells)))
+                (cond
+                  ((coco-tag-is REF ca)
+                   (let ((size_t k . #'(cc_var vm a nvars (aof first))))
+                     (if (not (cc_emit b (cc_word (? first (cc_GET_VAR) (cc_GET_VAL)) k i)))
+                         (set ok 0))))
+                  ((coco-tag-is FUN ca)
+                   (let ((u32 an . #'($ (nth (cast size_t (coco-payload ca)) (-> m functors)) arity)))
+                     ;; the argument index in K, which has twenty-four bits
+                     (if (> i 16777215) (set ok 0))
+                     (if (not (cc_emit b (cc_word (cc_GET_STRUCT) (cast u64 i) (cast u64 an))))
+                         (set ok 0))
+                     (if (not (cc_emit b (coco-payload ca))) (set ok 0))
+                     (if (not (cc_head_args st m a an vm nvars b (aof q) (aof qlen) (aof qcap)))
+                         (set ok 0))))
+                  (#t
+                   (if (not (cc_emit b (cc_word (cc_GET_CONST) 0 i))) (set ok 0))
+                   (if (not (cc_emit b ca)) (set ok 0)))))))
+          (while (and ok (< qi qlen))
+            (let ((size_t src . #'($ (nth qi q) src)) (size_t t . #'($ (nth qi q) k))
+                  (u32 an . #'($ (nth qi q) n))
+                  (u64 cs0 . #'(nth ($ (nth qi q) src) (-> st cells))))
+              (if (not (cc_emit b (cc_word (cc_GET_STRUCT_T) t (cast u64 an)))) (set ok 0))
+              (if (not (cc_emit b (coco-payload cs0))) (set ok 0))
+              (if (not (cc_head_args st m src an vm nvars b (aof q) (aof qlen) (aof qcap)))
+                  (set ok 0))
+              (set qi (+ qi 1))))
+          (free q)
+          (return ok)))
+
+  ;;; THE CELLS A GOAL TAKES ON THE HEAP, built as the executor builds it:
+  ;;; a structure's header and its slots, a constant argument's own cell,
+  ;;; nothing for a variable (its slot is the variable, or points at one
+  ;;; that exists). 0 when the walk's stack could not grow, which the
+  ;;; compile reads as "not compiled".
+  (static)
+  (func cc_goal_cells ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
+        (let ((coco_cframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
+              (size_t total . 0) (int ok . 1) (u64 c . 0))
+          (set t (coco_store_deref st t))
+          (set c (nth t (-> st cells)))
+          (if (not (coco-tag-is FUN c)) (return 1))
+          (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+            (set total (+ (cast size_t n) 1))
+            (if (> n 0)
+                (if (not (cc_frames_push (aof fs) (aof flen) (aof fcap) t 0 n)) (set ok 0))))
+          (while (and ok (> flen 0))
+            (let ((size_t fi . #'(- flen 1)))
+              (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
+                  (block (set flen fi) continue))
+              (let ((size_t sa . #'(coco_store_deref st (+ ($ (nth fi fs) src)
+                                                          (+ (cast size_t ($ (nth fi fs) i)) 1))))
+                    (u64 cs . 0))
+                (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
+                (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
+                (set cs (nth sa (-> st cells)))
+                (cond
+                  ((coco-tag-is REF cs) (block))
+                  ((coco-tag-is FUN cs)
+                   (let ((u32 sn . #'($ (nth (cast size_t (coco-payload cs)) (-> m functors)) arity)))
+                     (set total (+ total (+ (cast size_t sn) 1)))
+                     (if (> sn 0)
+                         (if (not (cc_frames_push (aof fs) (aof flen) (aof fcap) sa 0 sn)) (set ok 0)))))
+                  (#t (set total (+ total 1)))))))
+          (free fs)
+          (return (? ok total 0))))
+
+  ;;; ONE GOAL OF THE BODY, top down: the root's instruction, then its
+  ;;; arguments depth first, each structure's arguments right after its
+  ;;; own word -- the order the copy walks, and the order the executor
+  ;;; fills slots in. THE LAYOUT IS SETTLED HERE: the root's cells come
+  ;;; first, then each nested structure's and each constant's in emission
+  ;;; order, so every slot and every cell has an offset from the goal's
+  ;;; base known at compile time -- the slot's in a word's K, the cell's
+  ;;; in its N -- and the root's word carries the goal's total, for the
+  ;;; executor to reserve in one go (1.8.46). A frame's `k' is its
+  ;;; structure's offset, so its i'th slot is at k + 1 + i.
+  (static)
+  (func cc_compile_goal ((coco_store * st) (coco_machine * m) (size_t t)
+                         (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b)) (out int)
+        (let ((coco_cframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
+              (u64 c . 0) (int ok . 1) (int first . 0) (size_t top . 0))
+          (set t (coco_store_deref st t))
+          (set c (nth t (-> st cells)))
+          (cond
+            ((coco-tag-is REF c)
+             (let ((size_t k . #'(cc_var vm t nvars (aof first))))
+               (if (not (cc_emit b (cc_word (? first (cc_GOAL_VAR_1) (cc_GOAL_VAR)) k 0)))
+                   (set ok 0))
+               (return ok)))
+            ((coco-tag-is FUN c)
+             (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
+                   (size_t total . #'(cc_goal_cells st m t)))
+               (if (== total 0) (return 0))
+               (if (not (cc_emit b (cc_word (cc_GOAL_STRUCT) 0 (cast u64 total)))) (set ok 0))
+               (if (not (cc_emit b (coco-payload c))) (set ok 0))
+               (set top (+ (cast size_t n) 1))
+               (if (> n 0)
+                   (if (not (cc_frames_push (aof fs) (aof flen) (aof fcap) t 0 n)) (set ok 0)))))
+            (#t
+             (if (not (cc_emit b (cc_word (cc_GOAL_ATOM) 0 0))) (set ok 0))
+             (if (not (cc_emit b c)) (set ok 0))
+             (return ok)))
+          (while (and ok (> flen 0))
+            (let ((size_t fi . #'(- flen 1)))
+              (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
+                  (block (set flen fi) continue))
+              (let ((size_t sa . #'(coco_store_deref st (+ ($ (nth fi fs) src)
+                                                          (+ (cast size_t ($ (nth fi fs) i)) 1))))
+                    (size_t off . #'(+ ($ (nth fi fs) k) (+ (cast size_t ($ (nth fi fs) i)) 1)))
+                    (u64 cs . 0))
+                (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
+                (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
+                (set cs (nth sa (-> st cells)))
+                ;; a slot offset is K's twenty-four bits; a goal is a
+                ;; clause's and a clause fits a page, so this cannot be
+                ;; reached, and is refused rather than wrapped
+                (if (> off 16777215) (set ok 0))
+                (cond
+                  ((coco-tag-is REF cs)
+                   (let ((size_t k . #'(cc_var vm sa nvars (aof first))))
+                     (if (not (cc_emit b (cc_word (? first (cc_ARG_VAR_1) (cc_ARG_VAR)) k (cast u64 off))))
+                         (set ok 0))))
+                  ((coco-tag-is FUN cs)
+                   (let ((u32 sn . #'($ (nth (cast size_t (coco-payload cs)) (-> m functors)) arity))
+                         (size_t at . top))
+                     (set top (+ top (+ (cast size_t sn) 1)))
+                     (if (not (cc_emit b (cc_word (cc_ARG_STRUCT) (cast u64 off) (cast u64 at)))) (set ok 0))
+                     (if (not (cc_emit b (coco-payload cs))) (set ok 0))
+                     (if (> sn 0)
+                         (if (not (cc_frames_push (aof fs) (aof flen) (aof fcap) sa at sn)) (set ok 0)))))
+                  (#t
+                   (let ((size_t at . top))
+                     (set top (+ top 1))
+                     (if (not (cc_emit b (cc_word (cc_ARG_CONST) (cast u64 off) (cast u64 at)))) (set ok 0))
+                     (if (not (cc_emit b cs)) (set ok 0))))))))
+          (free fs)
+          (return ok)))
+
+  ;;; THE BODY: its right spine of `,' is one goal per term, up to 63; what
+  ;;; is left past that is one `,' goal, which the engine takes apart as it
+  ;;; always did.
+  (static)
+  (func cc_compile_body ((coco_store * st) (coco_machine * m) (size_t body)
+                         (coco_varmap * vm) (u32 * nvars) (coco_cbuf * b) (u32 * ngoals)) (out int)
+        (let ((size_t g . #'(coco_store_deref st body)) (int ok . 1) (u32 count . 0)
+              (u64 comma . #'(coco_intern m ",")))
+          (while (and ok (< count 63))
+            (let ((u64 c . #'(nth g (-> st cells))))
+              (if (and (coco-tag-is FUN c)
+                       (== ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity) 2)
+                       (== ($ (nth (cast size_t (coco-payload c)) (-> m functors)) name) comma))
+                  (block
+                   (if (not (cc_compile_goal st m (+ g 1) vm nvars b)) (set ok 0))
+                   (set count (+ count 1))
+                   (set g (coco_store_deref st (+ g 2))))
+                  break)))
+          ;; the last goal, or everything that is left
+          (if ok
+              (block
+               (if (not (cc_compile_goal st m g vm nvars b)) (set ok 0))
+               (set count (+ count 1))))
+          (set (cof ngoals) count)
+          (return ok)))
+
+  (static)
+  (func coco_code_free ((coco_code * cd))
+        (if (== cd nil) (return))
+        (free (-> cd head))
+        (free (-> cd body))
+        (free cd))
+
+  (func coco_code_table_clear ((coco_store * st))
+        (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
+          (if (!= (nth i (-> st code_keys)) 0)
+              (block (coco_code_free (cast (coco_code *) (nth i (-> st code_vals))))
+                     (set (nth i (-> st code_keys)) 0)
+                     (set (nth i (-> st code_vals)) nil))))
+        (set (-> st code_len) 0))
+
+  (static)
+  (func coco_code_slot ((size_t cap) (size_t key)) (out size_t)
+        (let ((u64 h . #'(* (cast u64 key) (cast u64 0x9E3779B97F4A7C15))))
+          (set h (xor h (>> h 32)))
+          (set h (xor h (>> h 16)))
+          (return (cast size_t (bitand h (cast u64 (- cap 1)))))))
+
+  (static)
+  (func coco_code_find ((coco_store * st) (size_t clause)) (out coco_code *)
+        (if (== (-> st code_cap) 0) (return nil))
+        (let ((size_t mask . #'(- (-> st code_cap) 1))
+              (size_t i . #'(coco_code_slot (-> st code_cap) (+ clause 1))))
+          (while (!= (nth i (-> st code_keys)) 0)
+            (if (== (nth i (-> st code_keys)) (+ clause 1))
+                (return (cast (coco_code *) (nth i (-> st code_vals)))))
+            (set i (bitand (+ i 1) mask)))
+          (return nil)))
+
+  (static)
+  (func coco_code_put ((coco_store * st) (size_t clause) (coco_code * cd)) (out int)
+        ;; under half full before the probe that places it
+        (if (> (* (+ (-> st code_len) 1) 2) (-> st code_cap))
+            (let ((size_t ncap . #'(? (== (-> st code_cap) 0) 256 (* (-> st code_cap) 2)))
+                  (size_t * nk . #'(cast (size_t *) (calloc ncap (sizeof size_t))))
+                  (void ** nv . #'(cast (void **) (calloc ncap (sizeof size_t)))))
+              (if (or (== nk nil) (== nv nil)) (block (free nk) (free nv) (return 0)))
+              (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
+                (let ((size_t key . #'(nth i (-> st code_keys))))
+                  (if (!= key 0)
+                      (let ((size_t j . #'(coco_code_slot ncap key)))
+                        (while (!= (nth j nk) 0) (set j (bitand (+ j 1) (- ncap 1))))
+                        (set (nth j nk) key)
+                        (set (nth j nv) (nth i (-> st code_vals)))))))
+              (free (-> st code_keys)) (free (-> st code_vals))
+              (set (-> st code_keys) nk) (set (-> st code_vals) nv) (set (-> st code_cap) ncap)))
+        (let ((size_t mask . #'(- (-> st code_cap) 1))
+              (size_t i . #'(coco_code_slot (-> st code_cap) (+ clause 1))))
+          (while (!= (nth i (-> st code_keys)) 0) (set i (bitand (+ i 1) mask)))
+          (set (nth i (-> st code_keys)) (+ clause 1))
+          (set (nth i (-> st code_vals)) (cast (void *) cd))
+          (set (-> st code_len) (+ (-> st code_len) 1))
+          (return 1)))
+
+  ;;; A CLAUSE THAT DIES TAKES ITS PROGRAM WITH IT -- a retract, a reconsult
+  ;;; -- or the table keeps every dead clause's code until the next
+  ;;; compaction, which counts store cells and not this: a million
+  ;;; retract-and-assert cycles held 298 MB where 1.8.41 held 70 (1.8.45).
+  ;;; A hole in a linear-probed table is filled by shifting back each later
+  ;;; entry of its run whose home slot does not lie between the two.
+  (func coco_code_drop ((coco_store * st) (size_t clause))
+        (if (== (-> st code_len) 0) (return))
+        (let ((size_t mask . #'(- (-> st code_cap) 1))
+              (size_t i . #'(coco_code_slot (-> st code_cap) (+ clause 1)))
+              (size_t j . 0) (size_t h . 0))
+          (while (!= (nth i (-> st code_keys)) (+ clause 1))
+            (if (== (nth i (-> st code_keys)) 0) (return))
+            (set i (bitand (+ i 1) mask)))
+          (coco_code_free (cast (coco_code *) (nth i (-> st code_vals))))
+          (set (-> st code_len) (- (-> st code_len) 1))
+          (set j i)
+          (while 1
+            (set j (bitand (+ j 1) mask))
+            (if (== (nth j (-> st code_keys)) 0) break)
+            (set h (coco_code_slot (-> st code_cap) (nth j (-> st code_keys))))
+            ;; home h cyclically in (i, j]: the entry is where it belongs
+            (if (? (<= i j) (and (< i h) (<= h j)) (or (< i h) (<= h j)))
+                continue)
+            (set (nth i (-> st code_keys)) (nth j (-> st code_keys)))
+            (set (nth i (-> st code_vals)) (nth j (-> st code_vals)))
+            (set i j))
+          (set (nth i (-> st code_keys)) 0)
+          (set (nth i (-> st code_vals)) nil)))
+
+  (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
+        (let ((coco_code * cd . #'(coco_code_find st clause)))
+          (if (!= cd nil) (return cd))
+          (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+                (coco_cbuf hb . '{ nil 0 0 }) (coco_cbuf bb . '{ nil 0 0 })
+                (size_t head . 0) (size_t body . 0) (u32 nvars . 0) (u32 ngoals . 0)
+                (int ok . 1))
+            (coco_store_clause_parts st m clause (coco_intern m ":-") (aof head) (aof body))
+            (set head (coco_store_deref st head))
+            ;; a head is an atom or a compound; anything else is not compiled
+            (if (not (or (coco-tag-is ATOM (nth head (-> st cells)))
+                         (coco-tag-is FUN (nth head (-> st cells)))))
+                (return nil))
+            (coco_varmap_take m (aof vm))
+            (if (not (cc_compile_head st m head (aof vm) (aof nvars) (aof hb))) (set ok 0))
+            (if (and ok (!= body 0))
+                (if (not (cc_compile_body st m body (aof vm) (aof nvars) (aof bb) (aof ngoals)))
+                    (set ok 0)))
+            ;; a frame index is K's twenty-four bits; a clause with more
+            ;; variables and temporaries than that is matched and copied
+            (if (> nvars 16777215) (set ok 0))
+            (coco_varmap_give m (aof vm))
+            (if (not ok)
+                (block (free ($ hb w)) (free ($ bb w)) (return nil)))
+            (set cd (cast (coco_code *) (calloc 1 (sizeof coco_code))))
+            (if (== cd nil) (block (free ($ hb w)) (free ($ bb w)) (return nil)))
+            (set (-> cd head) ($ hb w)) (set (-> cd hlen) ($ hb len))
+            (set (-> cd body) ($ bb w)) (set (-> cd blen) ($ bb len))
+            (set (-> cd nvars) nvars)
+            (set (-> cd ngoals) ngoals)
+            (if (not (coco_code_put st clause cd))
+                (block (coco_code_free cd) (return nil)))
+            (return cd))))
+
+  ;;; A constant against a dereferenced heap cell: bound to a copy when the
+  ;;; cell is unbound, else the same comparison `coco_unify' makes.
+  (static)
+  (func cc_match_const ((coco_machine * m) (size_t a) (u64 c)) (out int)
+        (let ((u64 ca . #'(nth a (-> m heap))))
+          (if (coco-tag-is REF ca)
+              (block (coco_bind m a (coco_push m c)) (return 1)))
+          (if (!= (coco-tag ca) (coco-tag c)) (return 0))
+          (cond
+            ((coco-tag-is FLT ca)
+             (return (? (== (nth (cast size_t (coco-payload ca)) (-> m floats))
+                            (nth (cast size_t (coco-payload c)) (-> m floats))) 1 0)))
+            ((coco-tag-is STR ca) (return (coco_str_eq m ca c)))
+            (#t (return (? (== ca c) 1 0))))))
+
+  ;;; Answers 1 when the head matched (the goals are built), 0 when it did
+  ;;; not, and -1 when it could not run at all -- no frame to be had -- which
+  ;;; the caller answers by matching the clause in the store instead: a
+  ;;; clause skipped because memory was short would be a wrong answer.
+  ;;;
+  ;;; A SWITCH, NOT A CHAIN: the opcode is a jump, where a chain of
+  ;;; comparisons cost each instruction its position in the chain. And THE
+  ;;; SLOTS ARE RESERVED, NOT WRITTEN (`coco_push_struct_raw'): every slot
+  ;;; of every structure built here is written by exactly one instruction
+  ;;; before anything can read it -- the two that leave a slot as the
+  ;;; variable it is (UNIFY_VAR in write mode, ARG_VAR_1) write the
+  ;;; variable themselves -- so the walk that cleared them to variables was
+  ;;; a store per slot for nothing. Nothing reads a half-built structure: a
+  ;;; structure's instructions follow its GET or ARG at once, and a nested
+  ;;; one is reached only through the slot its parent wrote.
+  (func coco_clause_run ((coco_machine * m) (coco_store * st) (coco_code * cd)
+                         (size_t call) (size_t * goals) (size_t * ngoals)) (out int)
+        (let ((size_t frame_small [128])
+              (size_t * frame . nil) (size_t frcap . 0)
+              (size_t pc . 0)
+              (size_t S . 0) (int write . 0) (int ok . 1))
+          (set (cof ngoals) 0)
+          ;; THE FRAME: 128 slots on the C stack, or the machine's kept array
+          ;; -- never a malloc and a free per call, which is what the walk
+          ;; stacks stopped doing (1.8.38)
+          (if (<= (-> cd nvars) 128)
+              (set frame frame_small)
+              (set frame (coco_cslots_take m (cast size_t (-> cd nvars)) (aof frcap))))
+          (if (== frame nil) (return -1))
+          ;; ---- the head ----
+          (while (and ok (< pc (-> cd hlen)))
+            (let ((u64 w . #'(nth pc (-> cd head))))
+              (set pc (+ pc 1))
+              (switch (cast int (cc_op w))
+                (case (cc-op "GET_VAR")
+                  (set (nth (cc_k w) frame) (coco_deref m (+ call (+ (cast size_t (cc_n w)) 1))))
+                  break)
+                (case (cc-op "GET_VAL")
+                  (if (not (coco_unify m (nth (cc_k w) frame) (+ call (+ (cast size_t (cc_n w)) 1))))
+                      (set ok 0))
+                  break)
+                (case (cc-op "GET_CONST")
+                  (let ((u64 c . #'(nth pc (-> cd head))))
+                    (set pc (+ pc 1))
+                    (if (not (cc_match_const m (coco_deref m (+ call (+ (cast size_t (cc_n w)) 1))) c))
+                        (set ok 0)))
+                  break)
+                (case (cc-op "GET_STRUCT")
+                  ;; the argument index is in K, the arity in N
+                  (let ((u64 fid . #'(nth pc (-> cd head)))
+                        (u32 n . #'(cast u32 (cc_n w)))
+                        (size_t a . #'(coco_deref m (+ call (+ (cc_k w) 1)))))
+                    (set pc (+ pc 1))
+                    (let ((u64 ca . #'(nth a (-> m heap))))
+                      (cond
+                        ((coco-tag-is REF ca)
+                         ;; WRITE: the structure is built and the variable bound to it
+                         (let ((size_t h . #'(coco_push_struct_raw m (coco-cell FUN fid) n)))
+                           (coco_bind m a h)
+                           (set S (+ h 1))
+                           (set write 1)))
+                        ((and (coco-tag-is FUN ca) (== (coco-payload ca) fid))
+                         (set S (+ a 1))
+                         (set write 0))
+                        (#t (set ok 0)))))
+                  break)
+                (case (cc-op "GET_STRUCT_T")
+                  ;; the temporary is in K, the arity in N
+                  (let ((u64 fid . #'(nth pc (-> cd head)))
+                        (u32 n . #'(cast u32 (cc_n w)))
+                        (size_t a . #'(coco_deref m (nth (cc_k w) frame))))
+                    (set pc (+ pc 1))
+                    (let ((u64 ca . #'(nth a (-> m heap))))
+                      (cond
+                        ((coco-tag-is REF ca)
+                         (let ((size_t h . #'(coco_push_struct_raw m (coco-cell FUN fid) n)))
+                           (coco_bind m a h)
+                           (set S (+ h 1))
+                           (set write 1)))
+                        ((and (coco-tag-is FUN ca) (== (coco-payload ca) fid))
+                         (set S (+ a 1))
+                         (set write 0))
+                        (#t (set ok 0)))))
+                  break)
+                (case (cc-op "UNIFY_VAR")
+                  ;; write: the slot IS the variable, and is written as one
+                  (if write
+                      (block (set (nth S (-> m heap)) (coco-cell REF S))
+                             (set (nth (cc_k w) frame) S))
+                      (set (nth (cc_k w) frame) (coco_deref m S)))
+                  (set S (+ S 1))
+                  break)
+                (case (cc-op "UNIFY_VAL")
+                  (if write
+                      (coco_set_arg m S (coco_deref m (nth (cc_k w) frame)))
+                      (if (not (coco_unify m (nth (cc_k w) frame) S)) (set ok 0)))
+                  (set S (+ S 1))
+                  break)
+                (case (cc-op "UNIFY_CONST")
+                  (let ((u64 c . #'(nth pc (-> cd head))))
+                    (set pc (+ pc 1))
+                    (if write
+                        (coco_set_arg m S (coco_push m c))
+                        (if (not (cc_match_const m (coco_deref m S) c)) (set ok 0)))
+                    (set S (+ S 1)))
+                  break)
+                (default (set ok 0)))))
+          (if (not ok)
+              (block (if (!= frame frame_small) (coco_cslots_give m frame frcap)) (return 0)))
+          ;; ---- the body ----
+          ;; EVERY GOAL IS ONE RESERVATION: its GOAL_STRUCT carries the
+          ;; cells the whole goal takes -- header, slots, every nested
+          ;; structure's and every constant's -- and reserves them in one
+          ;; growth check; the ARG words that follow carry the OFFSET from
+          ;; the goal's base of the slot they fill and of the cell they
+          ;; put there, settled when the clause was compiled, so each is a
+          ;; store or two with nothing to check and no stack of pending
+          ;; structures to keep (1.8.46; through 1.8.45 the executor
+          ;; walked a frame stack to find the next slot and grew the heap
+          ;; per structure, as the copy does).
+          (if (> (-> cd blen) 0)
+              (let ((size_t ng . 0) (size_t h . 0))
+                (set pc 0)
+                ;; the program's length is its end: no END word to dispatch
+                (while (and ok (< pc (-> cd blen)))
+                  (let ((u64 w . #'(nth pc (-> cd body))))
+                    (set pc (+ pc 1))
+                    (switch (cast int (cc_op w))
+                      (case (cc-op "GOAL_STRUCT")
+                        (let ((u64 fid . #'(nth pc (-> cd body)))
+                              (size_t total . #'(cast size_t (cc_n w))))
+                          (set pc (+ pc 1))
+                          (set h (-> m heap_len))
+                          (if (not (coco_grow m (cast (void **) (aof (-> m heap)))
+                                            (aof (-> m heap_cap)) (+ h total) (sizeof u64)))
+                              (block (set ok 0) break))
+                          (set (-> m heap_len) (+ h total))
+                          (set (nth h (-> m heap)) (coco-cell FUN fid))
+                          (if (< ng 64) (block (set (nth ng goals) h) (set ng (+ ng 1)))))
+                        break)
+                      (case (cc-op "GOAL_ATOM")
+                        (let ((u64 c . #'(nth pc (-> cd body))))
+                          (set pc (+ pc 1))
+                          (if (< ng 64) (block (set (nth ng goals) (coco_push m c)) (set ng (+ ng 1)))))
+                        break)
+                      (case (cc-op "GOAL_VAR")
+                        (if (< ng 64) (block (set (nth ng goals) (coco_deref m (nth (cc_k w) frame)))
+                                             (set ng (+ ng 1))))
+                        break)
+                      (case (cc-op "GOAL_VAR_1")
+                        (let ((size_t v . #'(coco_new_var m)))
+                          (set (nth (cc_k w) frame) v)
+                          (if (< ng 64) (block (set (nth ng goals) v) (set ng (+ ng 1)))))
+                        break)
+                      (case (cc-op "ARG_CONST")
+                        ;; the constant in its own cell, the slot pointing at it
+                        (let ((u64 c . #'(nth pc (-> cd body)))
+                              (size_t at . #'(+ h (cast size_t (cc_n w)))))
+                          (set pc (+ pc 1))
+                          (set (nth at (-> m heap)) c)
+                          (set (nth (+ h (cc_k w)) (-> m heap)) (coco-cell REF at)))
+                        break)
+                      (case (cc-op "ARG_VAR")
+                        (set (nth (+ h (cast size_t (cc_n w))) (-> m heap))
+                             (coco-cell REF (coco_deref m (nth (cc_k w) frame))))
+                        break)
+                      (case (cc-op "ARG_VAR_1")
+                        ;; the slot IS the variable, and is written as one
+                        (let ((size_t slot . #'(+ h (cast size_t (cc_n w)))))
+                          (set (nth slot (-> m heap)) (coco-cell REF slot))
+                          (set (nth (cc_k w) frame) slot))
+                        break)
+                      (case (cc-op "ARG_STRUCT")
+                        ;; the header where the compiler placed it; its own
+                        ;; slots are filled by the words that follow
+                        (let ((u64 fid . #'(nth pc (-> cd body)))
+                              (size_t at . #'(+ h (cast size_t (cc_n w)))))
+                          (set pc (+ pc 1))
+                          (set (nth at (-> m heap)) (coco-cell FUN fid))
+                          (set (nth (+ h (cc_k w)) (-> m heap)) (coco-cell REF at)))
+                        break)
+                      (default (set ok 0)))))
+                (set (cof ngoals) ng)))
+          (if (!= frame frame_small) (coco_cslots_give m frame frcap))
+          ;; the head matched; a body that could not be built is not a
+          ;; head that failed to match, and must not be reported as one
+          (return (? ok 1 -1))))
 
   ;;; ---- reclaiming the store ---------------------------------------------
   ;;;
@@ -1014,12 +1984,15 @@
           ;; an allocation that failed leaves the old store exactly as it was
           (if (or ($ tmp oom) (-> m oom))
               (block (free ($ tmp cells)) (free roots) (return 0)))
-          ;; pass two: the roots move, and nothing else does
+          ;; pass two: the roots move, and nothing else does -- except each
+          ;; clause's compiled program, which the table below is about to
+          ;; free and which the predicate must not keep pointing at
           (set k 0)
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
             (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
               (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
                 (set (nth j (-> p clauses)) (nth k roots))
+                (set (nth j (-> p codes)) nil)
                 (set k (+ k 1)))))
           (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
             (set ($ (nth i (-> st globals)) cell) (nth k roots))
@@ -1047,6 +2020,9 @@
           (set (-> st mark) ($ tmp len))
           (set (-> st dead) 0)
           (set (-> st ncompacts) (+ (-> st ncompacts) 1))
+          ;; every clause cell moved, so every compiled clause is keyed by
+          ;; a cell that no longer means it: compiled again on the next ask
+          (coco_code_table_clear st)
           (free roots)
           (return 1)))
 
@@ -1076,6 +2052,8 @@
   ;;; The term is copied to the heap and the copy's length is its span --
   ;;; the two walkers push one cell for the other's one -- then wound back.
   (func coco_store_orphan ((coco_store * st) (coco_machine * m) (size_t cell))
+        ;; a clause's compiled program dies with it
+        (coco_code_drop st cell)
         (let ((size_t mark . #'(-> m heap_len)))
           (coco_store_get m st cell)
           (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) mark)))
@@ -1690,6 +2668,36 @@
           (if (== b (coco_no_clause)) (return a))
           (return (? (< a b) a b))))
 
+  ;;; THE FIRST CANDIDATE AND WHETHER THERE IS A SECOND, in one ask: 0 for
+  ;;; no clause that can match, 1 for exactly one (its position in IX), 2
+  ;;; for more, with IX the first -- what a call needs to know to go
+  ;;; without a choice frame (`coco_engine_run', 1.8.46). A small
+  ;;; predicate's scan finds both in one pass over its keys where two asks
+  ;;; of `coco_pred_next_clause' made two passes and two calls; an indexed
+  ;;; one still asks twice.
+  (func coco_pred_probe ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix)) (out int)
+        (let ((size_t n . #'(-> p nclauses)))
+          (if (== n 0) (return 0))
+          (if (== key 0)
+              (block (set (cof ix) 0) (return (? (== n 1) 1 2))))
+          (if (or (< n (coco_index_floor))
+                  (and (== (-> p indexed) 0) (not (coco_pred_reindex st p))))
+              (let ((size_t first . #'(coco_no_clause)))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                  (let ((u64 k . #'(nth i (-> p keys))))
+                    (if (or (== k 0) (== k key))
+                        (block
+                         (if (!= first (coco_no_clause))
+                             (block (set (cof ix) first) (return 2)))
+                         (set first i)))))
+                (if (== first (coco_no_clause)) (return 0))
+                (set (cof ix) first)
+                (return 1)))
+          (let ((size_t a . #'(coco_pred_next_clause st p key 0)))
+            (if (== a (coco_no_clause)) (return 0))
+            (set (cof ix) a)
+            (return (? (== (coco_pred_next_clause st p key (+ a 1)) (coco_no_clause)) 1 2)))))
+
   (static)
   (func coco_pred_add_clause ((coco_store * st) (size_t pi) (size_t clause)
                             (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
@@ -1717,11 +2725,16 @@
                                   (aof (-> p muted_cap)) (+ (-> p nclauses) 1)
                                   (sizeof int)))
               (return 0))
+          (if (not (coco_store_grow st (cast (void **) (aof (-> p codes)))
+                                  (aof (-> p codes_cap)) (+ (-> p nclauses) 1)
+                                  (sizeof size_t)))
+              (return 0))
           (if at_end
               (block (set (nth (-> p nclauses) (-> p clauses)) clause)
                      (set (nth (-> p nclauses) (-> p keys)) key)
                      (set (nth (-> p nclauses) (-> p origins)) origin)
-                     (set (nth (-> p nclauses) (-> p muted)) muted))
+                     (set (nth (-> p nclauses) (-> p muted)) muted)
+                     (set (nth (-> p nclauses) (-> p codes)) nil))
             ;; asserta: shift the rest up by one and put this first. Every
             ;; clause after it is renumbered, and the chains hold POSITIONS,
             ;; so the index is dropped rather than patched.
@@ -1731,11 +2744,13 @@
                        (set (nth i (-> p keys)) (nth (- i 1) (-> p keys)))
                        (set (nth i (-> p origins)) (nth (- i 1) (-> p origins)))
                        (set (nth i (-> p muted)) (nth (- i 1) (-> p muted)))
+                       (set (nth i (-> p codes)) (nth (- i 1) (-> p codes)))
                        (set i (- i 1))))
                    (set (nth 0 (-> p clauses)) clause)
                    (set (nth 0 (-> p keys)) key)
                    (set (nth 0 (-> p origins)) origin)
                    (set (nth 0 (-> p muted)) muted)
+                   (set (nth 0 (-> p codes)) nil)
                    (set (-> p indexed) 0)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
           ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
@@ -1784,7 +2799,8 @@
                     (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
                            (set (nth kept (-> p keys)) (nth i (-> p keys)))
                            (set (nth kept (-> p origins)) (nth i (-> p origins)))
-                           (set (nth kept (-> p muted)) (nth i (-> p muted)))))
+                           (set (nth kept (-> p muted)) (nth i (-> p muted)))
+                           (set (nth kept (-> p codes)) (nth i (-> p codes)))))
                 (set kept (+ kept 1)))))
           (if (== gone 0) (return 0))
           (set (-> p nclauses) kept)
@@ -2349,8 +3365,11 @@
                   (if ok
                       (block
                        ;; drop it from the predicate; the cells are orphaned
-                       ;; until the next compaction (`coco_store_compact').
+                       ;; until the next compaction (`coco_store_compact'),
+                       ;; and its compiled program goes now
                        (set (-> st dead) (+ (-> st dead) span))
+                       (coco_code_drop st (nth i (-> p clauses)))
+                       (set (nth i (-> p codes)) nil)
                        ;; The index keys shift with them, and the chains --
                        ;; which hold POSITIONS -- are dropped: everything
                        ;; after this clause has just been renumbered.
@@ -2358,7 +3377,8 @@
                          (set (nth j (-> p clauses)) (nth (+ j 1) (-> p clauses)))
                          (set (nth j (-> p keys)) (nth (+ j 1) (-> p keys)))
                          (set (nth j (-> p origins)) (nth (+ j 1) (-> p origins)))
-                         (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted))))
+                         (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
+                         (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
                        (set (-> p indexed) 0)
                        ;; anything retractable is dynamic by definition, whether
