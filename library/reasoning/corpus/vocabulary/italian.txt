@@ -1226,6 +1226,7 @@ The feminine noun "indigenza" means "destitution".
 "presiedute" is feminine.
 "presiedute" is the plural of "presieduta".
 "è" is the auxiliary of "aumenta".
+The determiner "ogni" means "each".
 The pronoun "ciascuno" means "each".
 The pronoun "ciascuno" does not precede the verb.
 The verb "sbarca il lunario" means "makes ends meet".
@@ -1243,6 +1244,7 @@ The masculine noun "disegno di legge" means "bill".
 "disegni di legge" is the plural of "disegno di legge".
 The feminine noun "conferenza stampa" means "press conference".
 "conferenze stampa" is the plural of "conferenza stampa".
+The masculine noun "equilibrio" means "equilibrium".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

@@ -738,7 +738,18 @@ read into an English-worded IR and written into any lesson's language),
   owners of a plural crosses as `il suo` (`su futuro` of the shops);
   `afectar a` keeps its `a` (`influire negativamente alle centrali`); an
   adjective after two coordinated nouns agrees with the nearest (`centrali e
-  gruppi di spesa spagnola`).
+  gruppi di spesa spagnola`); `se si elevasse` crosses as `si se elevó`, the
+  imperfect subjunctive written as a past indicative; `del quale` is `de
+  quién`; `un altro milione` is `un otro millón`; `insomma` at the head of a
+  clause is written at its end (`en resumen`); `in termini percentuali` is
+  `en porcentajes plazos`; the clitic `ne` crosses as `lo` (`ne potranno
+  beneficiare` is `lo podrán beneficiar`); `da` after coordinated participles
+  is `desde`; an adjective after a quoted noun agrees with the nearest noun
+  outside the marks (`"reddito minimo di inserimento" francese` is
+  `francesa`, `si chiama "minimo vitale"` is `se llama "mínima vital"`);
+  English writes `Non sono pochi` as `Few are not` and moves a quotation's
+  marks to the edges of its phrase; a name of one capital word and an
+  adjective (`Roma antica`) is not read.
 
 ## Tutorials are documentation that runs
 

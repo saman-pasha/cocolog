@@ -2197,7 +2197,10 @@ The feminine noun "indigenza" means "destitution".
 # builds its perfect with the copula, as `finire' and `passare' do
 "è" is the auxiliary of "aumenta".
 # `ciascuno di loro vive con ...' -- each of them: the dictionary has `ciascuno'
-# only as the determiner of a noun
+# only as the determiner of a noun. A line of extra/ comes first for its word
+# and for its meaning, so `ogni' is said again before it: `cada año' is `ogni
+# anno' still, and not `ciascuno anno'
+The determiner "ogni" means "each".
 The pronoun "ciascuno" means "each".
 The pronoun "ciascuno" does not precede the verb.
 # `coloro che non riescono a sbarcare il lunario' -- who cannot make ends meet:
@@ -2234,3 +2237,7 @@ The masculine noun "disegno di legge" means "bill".
 "disegni di legge" is the plural of "disegno di legge".
 The feminine noun "conferenza stampa" means "press conference".
 "conferenze stampa" is the plural of "conferenza stampa".
+# `con equilibrio' -- the Spanish extra line that makes `balance' the word for a
+# balance (`un consuntivo inquietante') took `equilibrio' with it, which wrote
+# `con balance': the Italian word is the equilibrium first, as Spanish's is
+The masculine noun "equilibrio" means "equilibrium".

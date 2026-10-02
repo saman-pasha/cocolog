@@ -1683,3 +1683,8 @@ The masculine noun "proyecto de ley" means "bill".
 "proyectos de ley" is the plural of "proyecto de ley".
 The feminine noun "rueda de prensa" means "press conference".
 "ruedas de prensa" is the plural of "rueda de prensa".
+# `medio siglo' -- half a century: the dictionary's own first meaning of the
+# adjective, said again before the `average' that `el italiano medio' made
+# first (a line of extra/ and the entries read both ways come before the
+# dictionary's order), which wrote `medio secolo' for `mezzo secolo'
+The masculine adjective "medio" means "half".
