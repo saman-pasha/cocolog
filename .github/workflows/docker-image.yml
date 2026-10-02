@@ -60,7 +60,7 @@ jobs:
       sha: ${{ steps.what.outputs.sha }}
       version: ${{ steps.what.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
@@ -98,7 +98,7 @@ jobs:
       VERSION: ${{ needs.check.outputs.version }}
       SHA: ${{ needs.check.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.check.outputs.sha }}
           persist-credentials: false
@@ -132,6 +132,11 @@ jobs:
             "cocolog:$VERSION-ray-torch-numpy" -a cocolog -s test/run.pl -- ray 2>&1) || true
           printf '%s\n' "$out" | tail -4
           printf '%s\n' "$out" | grep -q '^ray  *GREEN'
+          echo "== the second image: torch (lesson 22 trains a small model on the CPU)"
+          out=$(docker run --rm --init --network none -w /opt/cocolog \
+            "cocolog:$VERSION-ray-torch-numpy" run tutorials/library/22-torch.pl main 2>&1) || true
+          printf '%s\n' "$out" | tail -4
+          [ "$(printf '%s\n' "$out" | tail -1)" = done ]
 
       - name: Check the files and write the summary
         run: |
@@ -146,7 +151,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cocolog-${{ needs.check.outputs.version }}-docker
           path: dist/*
@@ -168,7 +173,7 @@ jobs:
       TAG: ${{ inputs.tag }}
       BUILT: ${{ needs.check.outputs.sha }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: cocolog-${{ needs.check.outputs.version }}-docker
           path: dist
