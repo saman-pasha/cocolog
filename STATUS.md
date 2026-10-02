@@ -672,6 +672,38 @@ loop's two dozen construct tests become one load -- fewer tests, the same
 instructions, and nothing measurable in five pairs; the tests were cheap
 all along.
 
+**1.8.44 compiles the clause.** The first time a clause is selected it is
+compiled into two programs over a frame of its variables
+(`coco_clause_code`, `coco_clause_run`): the head's -- the WAM's GET and
+UNIFY instructions, a nested structure flattened through a temporary, READ
+or WRITE mode per structure, a constant by its cell and a functor by its
+id -- and the body's, which builds the goals top down through the frame
+and lists their roots for the continuation. The matcher and the copy of
+1.8.42 walked the store's cells, dereferencing each, testing its tag and
+probing the map for every variable; the programs are straight lines where
+a variable is a frame index. The frame is an array alive for the one call,
+not a heap object: the continuation is the same `'$k'` frames it was, a
+frozen machine carries exactly what it carried, and a clause asserted or
+retracted while its body runs cannot move the body under it -- the two
+things a body run lazily from the store would have had to give up. The
+code is keyed by the clause's cell on the store and cleared when the
+store compacts; a clause the compiler cannot take falls back to the
+matcher. Same sitting, five alternating pairs, medians, 1.8.43 against
+1.8.44: naive reverse 0.194 to 0.140 s, the fact of 64 variables 0.257 to
+0.129, of 128 0.391 to 0.198, a body of 8 goals 0.161 to 0.113, of 32
+0.503 to 0.317, 8 if-then-else arms 0.324 to 0.299. In instructions:
+naive reverse 0.61 G to 0.41 G, the body of 32 1.08 G to 0.73 G, the fact
+of 64 0.74 G to 0.37 G. `bench/langs.sh`'s programs, 1.8.41 against
+1.8.44, same sitting, best of three with the process start in them: nrev
+344 to 112 ms, queens 56 to 26, loop 544 to 236, sortnums 132 to 79,
+lookup 33 to 21, every answer the same; `test/translate.pl` ran in 34 s
+where the 1.8.41 build took 80 s. A differential run of the clause
+shapes that matter -- nested heads, a variable repeated across nested
+structures, every constant type in a head, write mode on an unbound
+call, a body past 63 goals, an 80-element list in a body, a variable
+goal, asserta and retract under a running predicate -- answers the same
+under both builds, variable names (heap positions) aside.
+
 Gated by `test/run.pl -- term syntax solve module state files trace
 engine library script string langs directives hex astar serialize
 normalise lint`, every one GREEN, in a build without the embedded store

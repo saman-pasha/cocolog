@@ -551,21 +551,30 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   name (`dmod`/`dgen`, since 1.8.42): the `strcmp` walk over the modules
   runs once per functor per registry generation, and `coco_module_register`
   raises `coco_extern_generation` so a name nobody owned is asked again.
-* **A clause's head is matched in the store, not copied** (`coco_store_unify`
-  in `lib/kb.cicili`, since 1.8.42): the call is walked against the store's
-  cells, a store variable met first is MAPPED to the heap cell it meets, a
-  store atom or compound is copied only where an unbound variable of the
-  call takes it, and nothing in the store is ever bound. The body is copied
-  after a match over the same map (`coco_store_get_vm`), in one loop where a
-  variable met first LIVES IN ITS SLOT (the slot `coco_push_struct` reserved
-  is already an unbound variable). The engine's own names and functors --
-  `'$k'`, `$true`, `$fail`, `$cut`, `:-`, the markers -- are interned once
-  per machine beside the ids (`fids`, `coco-fid`); add to `*functor-names*`,
-  never call `coco_make` with a literal name on a hot path. A `'$k'` frame
-  is four cells with the barrier an INT in its slot. What is left in a
-  body-heavy clause's profile is the body copy itself, now about half of it,
-  and the next step is not a faster copy but none -- a body run from the
-  store over a frame of its variables, the compile step.
+* **A clause is COMPILED the first time it is selected** (`coco_clause_code`
+  and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44): a head program --
+  the WAM's GET and UNIFY instructions over a frame of the clause's
+  variables, a nested structure flattened through a temporary, READ or
+  WRITE mode per structure -- and a body program that builds the goals top
+  down through the frame and lists their roots, which go on the
+  continuation as `'$k'` frames exactly as a copied body did. The frame
+  lives for the one call (an array, not a heap object), so nothing new is
+  frozen and a clause asserted while its body runs cannot move the body
+  under it. The code is keyed by the clause's cell in a table on the
+  store, cleared when the store compacts; a constant is its cell and a
+  functor its id, so a compaction cannot stale it. A clause the compiler
+  cannot take (a head that is not callable) is matched in the store and
+  copied as before (`coco_store_unify`, `coco_store_get_vm`: the store is
+  never bound, a variable met first lives in the slot `coco_push_struct`
+  reserved). The engine's own names and functors -- `'$k'`, `$true`,
+  `$fail`, `$cut`, `:-`, the markers -- are interned once per machine
+  beside the ids (`fids`, `coco-fid`); add to `*functor-names*`, never
+  call `coco_make` with a literal name on a hot path. A `'$k'` frame is
+  four cells with the barrier an INT in its slot. What is left is the
+  interpretation of the built goals: the loop's dispatch, the builtins'
+  argument reading, and the continuation itself -- the second half of the
+  compile step, which would change the continuation's shape and is the
+  owner's decision.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

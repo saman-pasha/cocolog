@@ -909,24 +909,45 @@
                 ;; head, and nothing in the store is bound by it. The body is
                 ;; copied after a match, over the same variable map, so a
                 ;; variable the head bound is the same variable in the body.
-                (let ((coco_varmap vm . '{ nil nil 0 0 0 })
-                      (size_t shead) (size_t sbody) (int matched . 0))
-                  (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
-                  (coco_varmap_take m (aof vm))
-                  (set matched (coco_store_unify m st call shead (aof vm)))
-                  (if matched
-                      (block
-                       ;; a `!' in the body cuts back to before this call.
-                       ;; Under trace the frame STAYS even on the last clause:
-                       ;; failing back past it is what prints the Fail port,
-                       ;; and a popped frame fails in silence
-                       (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
-                       (set (-> e goals)
-                            (? (== sbody 0) goals
-                               (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) ci goals)))
-                       (coco_varmap_give m (aof vm))
-                       (return 1)))
-                  (coco_varmap_give m (aof vm))
+                ;; THE CLAUSE RUNS COMPILED when it can be (`coco_clause_code',
+                ;; lib/kb.cicili): its head program against the call, then
+                ;; its body program, which builds the goals and lists their
+                ;; roots; they go on the continuation last first, exactly as
+                ;; `coco_k_push_body' would push a copied body. A clause the
+                ;; compiler could not take is matched and copied as before.
+                (let ((coco_code * cd . #'(coco_clause_code st m cl))
+                      (int matched . 0) (size_t sbody . 0))
+                  (if (!= cd nil)
+                      (let ((size_t roots [64]) (size_t ng . 0))
+                        (set matched (coco_clause_run m st cd call roots (aof ng)))
+                        (if matched
+                            (block
+                             ;; a `!' in the body cuts back to before this call.
+                             ;; Under trace the frame STAYS even on the last
+                             ;; clause: failing back past it is what prints
+                             ;; the Fail port, and a popped frame fails in
+                             ;; silence
+                             (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                             (let ((size_t rest . goals))
+                               (while (> ng 0)
+                                 (set ng (- ng 1))
+                                 (set rest (coco_k_push e (nth ng roots) ci rest)))
+                               (set (-> e goals) rest))
+                             (return 1))))
+                      (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+                            (size_t shead))
+                        (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
+                        (coco_varmap_take m (aof vm))
+                        (set matched (coco_store_unify m st call shead (aof vm)))
+                        (if matched
+                            (block
+                             (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                             (set (-> e goals)
+                                  (? (== sbody 0) goals
+                                     (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) ci goals)))
+                             (coco_varmap_give m (aof vm))
+                             (return 1)))
+                        (coco_varmap_give m (aof vm))))
                   ;; that head did not match: put the machine back and try again
                   (coco_undo_to m tmark)
                   (set ($ (cof m) heap_len) hmark))))))
