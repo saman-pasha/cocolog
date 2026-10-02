@@ -505,21 +505,22 @@ the_pool(D, Root) :-
     ;   \+ sh_exit('command -v curl >/dev/null 2>&1', 0)
     ->  format("     (skipped: the pool -- no curl to make concurrent requests with)~n", [])
     ;   atom_concat(D, '/pages2.pl', Pages2),
+        slow_steps(Steps), Limit is Steps * 20,
+        sh_join(['httpd_page(''/slow'', _, reply(200, [], done)) :- ( between(1, ', Steps, ', _), fail ; true ).'], SlowPage),
         fixture(Pages2,
                 [ '%% A page that takes a WHILE, and one that does not. Under one connection',
                   '%% at a time the slow one blocks every other client; that is the whole',
                   '%% claim the pool makes, and it cannot be checked without a slow page.',
-                  'httpd_page(''/slow'', _, reply(200, [], done)) :- pool_spin(4000000).',
+                  SlowPage,
                   'httpd_page(''/fast'', _, reply(200, [], quick)).',
                   '%% A page that BREAKS, to check one bad request does not take a worker',
                   '%% with it -- a pool that dies a thread at a time is worse than no pool.',
-                  'httpd_page(''/boom2'', _, _) :- X is 1/0, write(X).',
-                  'pool_spin(0) :- !.',
-                  'pool_spin(N) :- M is N - 1, pool_spin(M).' ]),
+                  'httpd_page(''/boom2'', _, _) :- X is 1/0, write(X).' ]),
         atom_concat(D, '/pool.pl', Pool),
         sh_join([':- use_module(''', Pages2, ''').'], UsePages2),
-        sh_join(['pool(Port, N, Accepts) :- httpd_serve(Port, [root(''', Root, '''), workers(N)], Accepts).'], PoolClause),
-        sh_join(['alone(Port, Accepts)   :- httpd_serve(Port, [root(''', Root, ''')], Accepts).'], AloneClause),
+        %% page_limit: the slow page must FINISH -- see `slow_steps/1'
+        sh_join(['pool(Port, N, Accepts) :- httpd_serve(Port, [root(''', Root, '''), workers(N), page_limit(', Limit, ')], Accepts).'], PoolClause),
+        sh_join(['alone(Port, Accepts)   :- httpd_serve(Port, [root(''', Root, '''), page_limit(', Limit, ')], Accepts).'], AloneClause),
         fixture(Pool, [':- use_module(library(httpd)).', UsePages2, '', PoolClause, AloneClause]),
         %% It serves at all, through a worker rather than the accepting thread.
         pool_server(Pool, 'pool(18910, 4, 2)', 18910, Pid1),
@@ -528,10 +529,12 @@ the_pool(D, Root) :-
         hit('http://127.0.0.1:18910/fast', C2),
         check('and so does a page', C2, '200'),
         reap(Pid1),
-        %% ONE SLOW REQUEST, for the ratio below to mean anything.
+        %% ONE SLOW REQUEST, for the ratio below to mean anything -- and it
+        %% has to be the page RUNNING, so its answer is checked too.
         pool_server(Pool, 'alone(18911, 1)', 18911, Pid2),
-        get_time(T0), hit('http://127.0.0.1:18911/slow', _), get_time(T1),
+        get_time(T0), hit('http://127.0.0.1:18911/slow', C0), get_time(T1),
         One is round((T1 - T0) * 1000), reap(Pid2),
+        check('the slow page finishes: 200, not cut off at its inference limit', C0, '200'),
         %% FOUR AT ONCE, one connection at a time: they queue, and the wall
         %% clock is four of them end to end. This is the arrangement the pool
         %% replaces.
@@ -579,6 +582,26 @@ the_pool(D, Root) :-
         %% A case that renamed a .so and put it back would fail dirty if the
         %% run died in between, and would be testing the rename.
     ).
+
+%% THE SLOW PAGE FINISHES, AND IS SLOW BY THE CLOCK. It was
+%% `pool_spin(4000000)', a recursion of eight million inferences, and a page
+%% gets `page_limit' of them -- a million unless the server says otherwise --
+%% so it never finished: every slow request was a 500, `page exceeded its
+%% inference limit', which the timing above never looked at. Its length was
+%% a million inferences' worth: about 190 ms under 1.8.41, a third of a
+%% second's fixed cost per request (curl, the connection) on top, and four
+%% queued came to 2.07 times one; 1.8.44's engine spends a million in about
+%% 90 ms, the fixed cost won, four queued were 1.8 times one, and `queued',
+%% which wants more than two, went red. So the page is a loop that fails and
+%% retries -- it spins, because four pooled requests overlapping is a claim
+%% about COMPUTE running at once, and it keeps no heap, which a recursion
+%% does in the nested engine a page runs in -- its length is timed here, by
+%% the binary that will serve it, sized to about 400 ms, and the servers
+%% give it room: twenty inferences a step where it takes six.
+slow_steps(N) :-
+    get_time(T0), ( between(1, 1000000, _), fail ; true ), get_time(T1),
+    Ms is max(1, (T1 - T0) * 1000),
+    N is max(100000, round(1000000 * 400 / Ms)).
 
 pool_server(Pool, Goal, Port, Pid) :-
     sh_join(['run ', Pool, ' "', Goal, '"'], Args),

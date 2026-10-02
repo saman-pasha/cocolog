@@ -225,6 +225,18 @@ module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
 * **A case that passes alone proves the case; the suite proves the contract
   between cases** (a lesson's last line must be exactly `done`; a library
   loaded as a goal after a module set a flag).
+* **A fixture that has to TAKE a while is timed by the clock, never by a
+  count.** 1.8.42-1.8.44 made the engine two to three times faster and
+  three cases went red for it alone: a cowork job that had to outlive a
+  60 ms wait (it waits on an empty channel now), an httpd page that had to
+  outweigh a request's fixed cost (timed in-process, sized to 400 ms), and
+  `groups`, whose floor of turns caught fewer steps per proof as designed
+  (group b moved to a goal with more search). An httpd page gets
+  `page_limit` inferences, a million by default, and past them it is a 500
+  -- the old slow page never finished, and nothing checked its answer: **a
+  timed request checks its status too.** A change to the engine is gated
+  with the modules built and a server up; `make EMBED=0` without them
+  cannot run these three.
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
   recycled PID fail a section silently. Not fixed.
@@ -551,6 +563,13 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   name (`dmod`/`dgen`, since 1.8.42): the `strcmp` walk over the modules
   runs once per functor per registry generation, and `coco_module_register`
   raises `coco_extern_generation` so a name nobody owned is asked again.
+  **That is true only of a dispatcher whose claim is the name and arity**: a
+  hand-written one that turns a goal down by its arguments or its state
+  (torch: `tensor_execution/3`, every `tensor_*` under another backend)
+  calls `coco_m_decline` first, a walk with a decline in it keeps nothing
+  on the functor, and an owner that declines sends the call through the
+  whole walk (1.8.45; MODULES.md). A module that declines without saying so
+  leaves the functor with the knowledge base after a first declined call.
 * **A clause is COMPILED the first time it is selected** (`coco_clause_code`
   and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44): a head program --
   the WAM's GET and UNIFY instructions over a frame of the clause's
@@ -558,13 +577,23 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   WRITE mode per structure -- and a body program that builds the goals top
   down through the frame and lists their roots, which go on the
   continuation as `'$k'` frames exactly as a copied body did. The frame
-  lives for the one call (an array, not a heap object), so nothing new is
+  lives for the one call (an array, not a heap object: 128 slots on the C
+  stack, past that the machine's kept `cslots`), so nothing new is
   frozen and a clause asserted while its body runs cannot move the body
   under it. The code is keyed by the clause's cell in a table on the
-  store, cleared when the store compacts; a constant is its cell and a
-  functor its id, so a compaction cannot stale it. A clause the compiler
-  cannot take (a head that is not callable) is matched in the store and
-  copied as before (`coco_store_unify`, `coco_store_get_vm`: the store is
+  store, cleared when the store compacts and dropped clause by clause
+  where one dies (`coco_code_drop`: retract, reconsult -- without it a
+  retract-and-assert counter held a program per dead clause, 298 MB at a
+  million rounds); a constant is its cell and a functor its id, so a
+  compaction cannot stale it. **Each number in an instruction has its own
+  field** -- a frame index in 24 bits, an argument index or an arity in 32;
+  GET_STRUCT once packed two into 16 bits each and a head structure of
+  65 536 arguments read back wrong (1.8.45) -- and a clause past what a
+  field holds is not compiled. A clause the compiler
+  cannot take (a head that is not callable, a frame over 2^24 - 1 slots) or
+  whose program cannot RUN (`coco_clause_run` answers -1: no memory) is
+  matched in the store and copied as before (`coco_store_unify`,
+  `coco_store_get_vm`: the store is
   never bound, a variable met first lives in the slot `coco_push_struct`
   reserved). The engine's own names and functors -- `'$k'`, `$true`,
   `$fail`, `$cut`, `:-`, the markers -- are interned once per machine

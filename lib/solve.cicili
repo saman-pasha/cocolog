@@ -401,6 +401,12 @@
     ;; had. See `coco_heap_gc'.
     (member int         gc)
 
+    ;; HOW MANY TIMES A MODULE HAS DECLINED A GOAL WHOSE NAME IT KNOWS --
+    ;; `coco_m_decline', the module saying "not these arguments" or "not in
+    ;; this state". The engine reads it across a resolving walk and keeps
+    ;; nothing on the functor when it moved: see the dispatch in `step'.
+    (member u64         declines)
+
     (member char        err [192]))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
@@ -570,6 +576,17 @@
   ;;; none claimed it. A module registered later raises the generation
   ;;; (`coco_extern_generation'), so every functor is asked again. Null
   ;;; until installed: the walk is then as it was.
+  ;;;
+  ;;; WHICH IS TRUE ONLY OF A DISPATCHER WHOSE CLAIM IS ITS NAME AND ARITY.
+  ;;; torch turns `tensor_execution/3' down by its arguments (the DCG form
+  ;;; `tensor_execution(graph)' is a clause of library(tensor_expr)) and
+  ;;; every `tensor_*' name by its backend; a first call it declined left
+  ;;; the functor with the knowledge base for good, and its own shape then
+  ;;; raised a domain error (1.8.42-1.8.44). So a dispatcher that knows a
+  ;;; name and declines this goal says so -- `coco_m_decline' -- and a walk
+  ;;; during which one did keeps NOTHING on the functor: the next call
+  ;;; walks again, as every call did before. An owner that declines sends
+  ;;; the goal on through the whole walk, which is what the walk did.
   (decl) (func coco_extern_install_resolve
                ((func resolving ((coco_engine * e) (const char * name) (u32 arity)
                                  (size_t g) (int * found) (size_t * out_at)) (out int))
@@ -914,13 +931,17 @@
                 ;; its body program, which builds the goals and lists their
                 ;; roots; they go on the continuation last first, exactly as
                 ;; `coco_k_push_body' would push a copied body. A clause the
-                ;; compiler could not take is matched and copied as before.
+                ;; compiler could not take is matched and copied as before,
+                ;; and so is one whose program could not RUN (-1: no memory
+                ;; for its frame or its goals) -- after the half-built
+                ;; attempt is wound back -- because skipping it as a head
+                ;; that did not match would be a wrong answer.
                 (let ((coco_code * cd . #'(coco_clause_code st m cl))
-                      (int matched . 0) (size_t sbody . 0))
+                      (int matched . -1) (size_t sbody . 0))
                   (if (!= cd nil)
                       (let ((size_t roots [64]) (size_t ng . 0))
                         (set matched (coco_clause_run m st cd call roots (aof ng)))
-                        (if matched
+                        (if (== matched 1)
                             (block
                              ;; a `!' in the body cuts back to before this call.
                              ;; Under trace the frame STAYS even on the last
@@ -933,7 +954,11 @@
                                  (set ng (- ng 1))
                                  (set rest (coco_k_push e (nth ng roots) ci rest)))
                                (set (-> e goals) rest))
-                             (return 1))))
+                             (return 1)))
+                        (if (== matched -1)
+                            (block (coco_undo_to m tmark)
+                                   (set ($ (cof m) heap_len) hmark)))))
+                  (if (== matched -1)
                       (let ((coco_varmap vm . '{ nil nil 0 0 0 })
                             (size_t shead))
                         (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
@@ -2143,15 +2168,24 @@
                              ;; read after the walk, never across it.
                              (let ((size_t fi . #'(cast size_t (coco-payload (nth g (-> m heap))))))
                                (if (!= ($ (nth fi (-> m functors)) dgen) coco_extern_generation)
-                                   (let ((size_t at . 0))
+                                   (let ((size_t at . 0) (u64 d0 . #'(-> e declines)))
                                      (set rc (coco_extern_resolving e (coco_atom_name m nid) n g
                                                                     (aof found) (aof at)))
-                                     (set ($ (nth fi (-> m functors)) dmod)
-                                          (? found (cast i32 at) -2))
-                                     (set ($ (nth fi (-> m functors)) dgen) coco_extern_generation))
+                                     ;; a walk in which a module declined says
+                                     ;; nothing about the next call: keep none
+                                     (if (== (-> e declines) d0)
+                                         (block
+                                          (set ($ (nth fi (-> m functors)) dmod)
+                                               (? found (cast i32 at) -2))
+                                          (set ($ (nth fi (-> m functors)) dgen) coco_extern_generation))))
                                  (if (>= ($ (nth fi (-> m functors)) dmod) 0)
-                                     (set rc (coco_extern_call_at e (cast size_t ($ (nth fi (-> m functors)) dmod))
-                                                                  (coco_atom_name m nid) n g (aof found))))))
+                                     (block
+                                      (set rc (coco_extern_call_at e (cast size_t ($ (nth fi (-> m functors)) dmod))
+                                                                   (coco_atom_name m nid) n g (aof found)))
+                                      ;; the owner declined these arguments: on
+                                      ;; through every module, as the walk went
+                                      (if (not found)
+                                          (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found))))))))
                            (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found)))))
                      (if found
                          (block

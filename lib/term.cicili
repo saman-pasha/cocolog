@@ -402,7 +402,12 @@
     (member size_t *   vmap_from)
     (member size_t *   vmap_to)
     (member size_t     vmap_cap)
-    (member u64        vmap_epoch))
+    (member u64        vmap_epoch)
+    ;; AND A COMPILED CLAUSE'S FRAME, past the 128 slots it finds on the C
+    ;; stack: `coco_clause_run' (kb.cicili) borrows it -- `coco_cslots_take'
+    ;; -- where it used to malloc and free one per call.
+    (member size_t *   cslots)
+    (member size_t     cslots_cap))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -575,6 +580,9 @@
   ;; the `wframes' and `wpairs' members
   (decl) (func coco_wframes_take ((coco_machine * m) (size_t * cap)) (out void *))
   (decl) (func coco_wframes_give ((coco_machine * m) (void * p) (size_t cap)))
+  ;; the `cslots' member: at least NEED slots, or nil when none can be had
+  (decl) (func coco_cslots_take ((coco_machine * m) (size_t need) (size_t * cap)) (out size_t *))
+  (decl) (func coco_cslots_give ((coco_machine * m) (size_t * p) (size_t cap)))
   (decl) (func coco_wpairs_take ((coco_machine * m) (size_t * cap)) (out size_t *))
   (decl) (func coco_wpairs_give ((coco_machine * m) (size_t * p) (size_t cap)))
 
@@ -658,6 +666,7 @@
         (free (-> m wpairs))
         (free (-> m vmap_from))
         (free (-> m vmap_to))
+        (free (-> m cslots))
         (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------
@@ -1102,6 +1111,28 @@
   (func coco_wframes_give ((coco_machine * m) (void * p) (size_t cap))
         (if (and (== (-> m wframes) nil) (<= cap 65536))
             (block (set (-> m wframes) p) (set (-> m wframes_cap) cap))
+            (free p)))
+
+  ;;; A compiled clause's frame, grown to NEED when the kept one is smaller.
+  ;;; A grow that fails leaves the kept array where it was and answers nil.
+  (func coco_cslots_take ((coco_machine * m) (size_t need) (size_t * cap)) (out size_t *)
+        (let ((size_t * p . #'(-> m cslots)) (size_t c . #'(-> m cslots_cap)))
+          (set (cof cap) 0)
+          (if (< c need)
+              (let ((size_t ncap . #'(? (< c 256) 256 c)))
+                (while (< ncap need) (set ncap (* ncap 2)))
+                (let ((void * np . #'(realloc (cast (void *) p) (* ncap (sizeof size_t)))))
+                  (if (== np nil) (return nil))
+                  (set p (cast (size_t *) np))
+                  (set c ncap))))
+          (set (-> m cslots) nil)
+          (set (-> m cslots_cap) 0)
+          (set (cof cap) c)
+          (return p)))
+
+  (func coco_cslots_give ((coco_machine * m) (size_t * p) (size_t cap))
+        (if (and (== (-> m cslots) nil) (<= cap 65536))
+            (block (set (-> m cslots) p) (set (-> m cslots_cap) cap))
             (free p)))
 
   (func coco_wpairs_take ((coco_machine * m) (size_t * cap)) (out size_t *)

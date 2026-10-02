@@ -71,6 +71,9 @@
 (decl) (func coco_m_machine ((coco_engine * e)) (out coco_machine *))
 (decl) (func coco_m_mark ((coco_engine * e)) (out size_t))
 (decl) (func coco_m_undo ((coco_engine * e) (size_t mark)))
+;;; a dispatcher that knows the name and declines THIS goal -- by its
+;;; arguments or its state -- calls this before answering `*found = 0'
+(decl) (func coco_m_decline ((coco_engine * e)))
 
 (decl) (func coco_m_is_var ((coco_engine * e) (size_t t)) (out int))
 (decl) (func coco_m_is_atom ((coco_engine * e) (size_t t)) (out int))

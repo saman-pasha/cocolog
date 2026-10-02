@@ -24,11 +24,12 @@ name: Docker images
 on:
   workflow_dispatch:
     inputs:
+      # No default: one goes stale at every bump, and the `check' job then
+      # refuses a run started with it (a default of v1.8.41 met 1.8.44).
       tag:
-        description: "Tag of the draft release (the version in cocolog.cicili must match it)"
+        description: "Tag of the draft release, e.g. v1.8.45 (the version in cocolog.cicili must match it)"
         type: string
         required: true
-        default: "v1.8.41"
       ref:
         description: "Branch, tag or commit to build"
         type: string

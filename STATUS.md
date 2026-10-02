@@ -4264,6 +4264,97 @@ with no directives in it, and 15 checks went red. The card's T1 now says the
 directive reports and the load goes on, so a program that must run where a
 module was not built still probes by calling; D4 cites `lb_carried`.
 
+## The compiled clause, reviewed: three faults found by running, and three clocks in the suite (1.8.45)
+
+1.8.42-1.8.44 (section "The copy was the call") made the engine two to three
+times faster and were gated without the modules and without a server
+(`make EMBED=0`). The full suite on a Mac with both read 53 GREEN, 5 SKIP and
+3 RED, and a review of the pull found the rest. Each of these was run before
+it was called a fault, and each fix has an arm that goes red without it.
+
+**A head structure of 65 536 arguments or more read back wrong.** GET_STRUCT
+packed the head argument's index and the structure's arity into sixteen bits
+each of one 32-bit field. A fact `s(A)` with `A` of arity 65 536 came back
+with all 65 536 arguments wrong, and one of 70 000 with 65 536 wrong, silently;
+1.8.41 read both whole. The index now sits in the 24-bit frame field and the
+arity in the 32-bit one, as GET_STRUCT_T already had them, and a clause whose
+frame would outgrow 24 bits is not compiled. `test/solve.cicili` reads facts
+of 65 536 and 70 000 back whole and matches a head structure at argument
+66 000 in both modes; with the old packing put back, all four checks are red.
+
+**A retracted clause kept its compiled program until the store compacted.**
+The table counts nothing the compaction trigger reads, so a counter kept by
+retract and assertz held a program per dead clause: a million rounds peaked
+at 298 MB where 1.8.41 peaked at 70. `coco_code_drop` frees a clause's
+program where the clause dies, on retract and on reconsult, filling the hole
+in the linear-probed table by shifting the rest of its run back. The same
+million rounds now peak at 77 MB and run in 0.79 s where 1.8.44 took 1.46.
+`test/solve.cicili` counts the programs: three live ones after a thousand
+rounds, and a reconsulted file's are replaced. With the two drops removed,
+the store held 1003 and the replaced clauses' programs stayed.
+
+**A module that declines a goal by its arguments lost the functor to the
+knowledge base.** 1.8.42 remembers, per functor, which module claimed its
+first call or that none did. torch turns `tensor_execution/3` down when its
+first argument is a mode or its second a list, which is
+`tensor_execution(graph, S0, S)`, the DCG form of `tensor_execution/1` that
+library(tensor_expr) answers with a clause. A program whose first such call
+was the nonterminal therefore had its later `tensor_execution(torch, eager,
+cpu)` go to that clause, which raised `domain_error(tensor_execution, torch)`.
+That was run on 1.8.44 and not on 1.8.41. A dispatcher that knows a name and
+declines a goal now calls `coco_m_decline` (MODULES.md). A resolving walk in
+which one did keeps nothing on the functor. A remembered owner that declines
+sends the call through the whole walk, as the walk always did. torch declines
+every `tensor_*` goal it does not take, because under the tensorflow backend
+those names belong to the other module. `test/module.cicili` gains a module
+that declines by argument and one registered after it. Each half of the rule
+has its own arm and its own red check. The torch program runs in both orders
+on the rebuilt `torch.so`; the September `torch.so`, which never says it
+declined, still fails, so a module built before 1.8.45 needs rebuilding.
+
+Found by the review, smaller and fixed in passing. `coco_clause_run` used to
+malloc and free its frame on every call past 128 slots; it borrows the
+machine's (`cslots`) now. It also answers -1 when it cannot run at all, which
+used to read as "the head did not match" and skip the clause; the caller now
+winds back and matches in the store instead. The executor names its opcodes
+instead of numbering them. The Docker workflow's `tag` input lost its
+default, `v1.8.41`, which the `check` job refused against 1.8.44.
+
+**The three reds were the suite's clocks, not the engine's answers.** All
+three were GREEN on 1.8.41, built from `ef1a356` with the same modules, and
+red on 1.8.44 alone as well as in the suite.
+
+* `cowork` needed a job to outlive a 60 ms wait. `slow(1, _)` spun 150 000
+  times: about 90 ms under 1.8.41 and 37 ms under 1.8.44, so the map
+  answered instead of giving up. The job now waits 400 ms on an empty
+  channel.
+* `httpd` needed four queued slow requests to take over twice one. The slow
+  page, `pool_spin(4000000)`, never finished. A page gets `page_limit`
+  inferences, a million by default, and every slow request was a 500 whose
+  status nothing read. It took as long as a million inferences: 190 ms on
+  1.8.41, against a third of a second's fixed cost per request (2.07 times
+  one), and 90 ms on 1.8.44 (1.8 times). It is now a failure-driven loop that
+  keeps no heap. Its length is timed in the case by the binary that will
+  serve it and sized to 400 ms, and its servers get the `page_limit` it
+  needs. Its 200 is checked: 731 ms one, 1915 four queued, 822 four pooled.
+* `groups` checks a floor of 20 turns before calling a split fair, and it
+  caught exactly what it was written to catch: every group took about a
+  fifth fewer steps (34, 24, 60, 60 to 27, 19, 46, 45) once a conjunction
+  stopped costing a step a comma. Group b, `ancestor(bob,X)`, has nothing
+  more to find. It asks `ancestor(X,ann)` now, a goal that walks every
+  parent: 44 turns.
+
+Measured beside 1.8.44 in one sitting, five alternating pairs of
+`bench/langs.sh`'s programs as whole processes: nrev 7 % faster in all five
+pairs, loop and lookup 3 % slower in four of five, queens and sortnums
+level. The signs go both ways and the sizes are what code layout moves. All
+fifty answers are the same. Gated case by case: five of the seven test
+binaries (term, syntax, solve, module, state) and 26 cases (engine, errors,
+gc, meter, library, directives, reconsult, files, trace, string, script,
+argv, thread, process, stream, os, text, tcp, cowork, httpd, groups,
+serialize, hex, astar, normalise, translate), all GREEN, and the sixteen
+of the card's citations the edits moved re-anchored (43, all anchored).
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

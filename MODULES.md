@@ -80,10 +80,14 @@ the difference across processes.
 
 The two spellings differ in one place: as a **goal**, a library that
 cannot be found or loaded throws a catchable error; as a **directive**,
-a library that is not found is passed over in silence — a file borrowed
-from SWI names libraries this build carries under other arrangements —
-while one that was found and would not load says so on stderr and lets
-the file go on reading.
+it is reported in SWI's two lines on stderr — `source_sink ... does not
+exist` (or why it would not load), then the failed directive — and the
+file goes on reading (since 1.8.39; before, a library that was not found
+was passed over in silence). The exceptions are the names SWI's own
+libraries use for what cocolog carries elsewhere — `library(error)`,
+`library(dcg/basics)`, `library(dcg/high_order)` — which a file borrowed
+from SWI names and which stay quiet (`lb_carried` in
+`lib/library.cicili`).
 
 The `.so` contract, whole: export `int coco_library_entry(void)` (the
 `coco-deflibrary` macro writes it), register through
@@ -159,6 +163,22 @@ arity**, so a goal of arity 3 is never compared against a predicate of arity 1.
 It is `*builtins*` in `lib/solve.cicili` one module along: add a line to the
 table and write the function, and the dispatcher cannot fall out of step with
 it because it is generated from it.
+
+**A dispatcher that turns a goal down by its arguments or its state says
+so.** The engine remembers, per functor, which module claimed its first call
+or that none did, and sends every later call there (since 1.8.42) — which is
+right for a generated dispatcher, whose claim is the name and arity alone. A
+hand-written one may know a name and still answer `*found = 0`: torch passes
+`tensor_execution(graph, S0, S)`, the DCG form of `tensor_execution/1`, to the
+clause library(tensor_expr) has for it, and every `tensor_*` name to whichever
+backend is selected. Such a dispatcher calls `coco_m_decline(e)` before it
+answers `*found = 0` (and binds nothing): the engine then keeps nothing on
+the functor after that call, and a module that owns a functor and declines
+one call of it sends that call on through every module, as the walk always
+did. Without it, a first call that was declined left the functor with the
+knowledge base for good, and torch's own `tensor_execution(torch, eager,
+cpu)` raised a domain error (1.8.42–1.8.44; `test/module.cicili` holds the
+shape).
 
 ## AND IT GETS A TUTORIAL, in the same commit
 

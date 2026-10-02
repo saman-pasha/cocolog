@@ -458,12 +458,15 @@
   ;;; Runs the clause's code against CALL: the head program, then, when
   ;;; the head matched, the body program, whose goal roots are written to
   ;;; GOALS (at most 64; a longer body ends in one `,' goal the engine
-  ;;; takes apart) with their count in NGOALS. Answers 1 on a match and 0
-  ;;; when the head did not unify -- the bindings and cells made are left
-  ;;; for the caller's marks to undo, as `coco_unify' leaves them.
+  ;;; takes apart) with their count in NGOALS. Answers 1 on a match, 0
+  ;;; when the head did not unify, and -1 when the program could not run
+  ;;; (no memory for its frame or its goals) -- the bindings and cells made
+  ;;; are left for the caller's marks to undo, as `coco_unify' leaves them.
   (decl) (func coco_clause_run ((coco_machine * m) (coco_store * st) (coco_code * cd)
                                 (size_t call) (size_t * goals) (size_t * ngoals)) (out int))
   (decl) (func coco_code_table_clear ((coco_store * st)))
+  ;;; Frees one clause's code, if it has any: called where a clause dies.
+  (decl) (func coco_code_drop ((coco_store * st) (size_t clause)))
   ;;; Copies every live term into a fresh cell array and drops the old one;
   ;;; the second asks only when the store has grown enough to be worth it.
   (decl) (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int))
@@ -1139,13 +1142,18 @@
   ;;; ONE WORD AN INSTRUCTION: the operation in the low eight bits, a frame
   ;;; index K in the next twenty-four, an argument index or an arity N in
   ;;; the high thirty-two; a constant or a functor follows in the word
-  ;;; after. The head's instructions:
+  ;;; after. EACH NUMBER HAS A FIELD OF ITS OWN: GET_STRUCT once packed its
+  ;;; argument index and its arity into sixteen bits each, and a head
+  ;;; holding a structure of 65 536 arguments read back with every one of
+  ;;; them wrong (1.8.45). A clause whose frame needs more than K can hold
+  ;;; is not compiled (`coco_clause_code'). The head's instructions:
   ;;;
   ;;;   GET_VAR    k i     frame[k] is the call's argument i, dereferenced
   ;;;   GET_VAL    k i     unify frame[k] with argument i
   ;;;   GET_CONST  i  C    argument i is the constant C, or is bound to it
-  ;;;   GET_STRUCT i n F   argument i is F/n: read its arguments, or build
-  ;;;                      it and bind the argument to it -- READ or WRITE
+  ;;;   GET_STRUCT i n F   argument i (in K) is F/n: read its arguments, or
+  ;;;                      build it and bind the argument to it -- READ or
+  ;;;                      WRITE
   ;;;   GET_STRUCT_T k n F the same on frame[k]: a nested structure the
   ;;;                      parent left in a temporary
   ;;;   UNIFY_VAR   k      the next argument of the structure in hand is a
@@ -1165,6 +1173,8 @@
   ;;;   ARG_VAR_1   k      the next slot IS the variable, met first here
   ;;;   ARG_STRUCT  n F    the next slot: a structure F/n, its own slots next
   ;;;   END
+  ;;;
+  ;;; The executor names them too (`coco_clause_run'), never their numbers.
   (static) (func cc_GET_VAR () (out u64) (return 1))
   (static) (func cc_GET_VAL () (out u64) (return 2))
   (static) (func cc_GET_CONST () (out u64) (return 3))
@@ -1296,7 +1306,9 @@
                          (set ok 0))))
                   ((coco-tag-is FUN ca)
                    (let ((u32 an . #'($ (nth (cast size_t (coco-payload ca)) (-> m functors)) arity)))
-                     (if (not (cc_emit b (cc_word (cc_GET_STRUCT) 0 (bitor (cast u64 i) (<< (cast u64 an) 16)))))
+                     ;; the argument index in K, which has twenty-four bits
+                     (if (> i 16777215) (set ok 0))
+                     (if (not (cc_emit b (cc_word (cc_GET_STRUCT) (cast u64 i) (cast u64 an))))
                          (set ok 0))
                      (if (not (cc_emit b (coco-payload ca))) (set ok 0))
                      (if (not (cc_head_args st m a an vm nvars b (aof q) (aof qlen) (aof qcap)))
@@ -1457,6 +1469,36 @@
           (set (-> st code_len) (+ (-> st code_len) 1))
           (return 1)))
 
+  ;;; A CLAUSE THAT DIES TAKES ITS PROGRAM WITH IT -- a retract, a reconsult
+  ;;; -- or the table keeps every dead clause's code until the next
+  ;;; compaction, which counts store cells and not this: a million
+  ;;; retract-and-assert cycles held 298 MB where 1.8.41 held 70 (1.8.45).
+  ;;; A hole in a linear-probed table is filled by shifting back each later
+  ;;; entry of its run whose home slot does not lie between the two.
+  (func coco_code_drop ((coco_store * st) (size_t clause))
+        (if (== (-> st code_len) 0) (return))
+        (let ((size_t mask . #'(- (-> st code_cap) 1))
+              (size_t i . #'(coco_code_slot (-> st code_cap) (+ clause 1)))
+              (size_t j . 0) (size_t h . 0))
+          (while (!= (nth i (-> st code_keys)) (+ clause 1))
+            (if (== (nth i (-> st code_keys)) 0) (return))
+            (set i (bitand (+ i 1) mask)))
+          (coco_code_free (cast (coco_code *) (nth i (-> st code_vals))))
+          (set (-> st code_len) (- (-> st code_len) 1))
+          (set j i)
+          (while 1
+            (set j (bitand (+ j 1) mask))
+            (if (== (nth j (-> st code_keys)) 0) break)
+            (set h (coco_code_slot (-> st code_cap) (nth j (-> st code_keys))))
+            ;; home h cyclically in (i, j]: the entry is where it belongs
+            (if (? (<= i j) (and (< i h) (<= h j)) (or (< i h) (<= h j)))
+                continue)
+            (set (nth i (-> st code_keys)) (nth j (-> st code_keys)))
+            (set (nth i (-> st code_vals)) (nth j (-> st code_vals)))
+            (set i j))
+          (set (nth i (-> st code_keys)) 0)
+          (set (nth i (-> st code_vals)) nil)))
+
   (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))
@@ -1477,6 +1519,9 @@
                     (set ok 0)))
             (if (and ok (!= body 0))
                 (if (not (cc_emit (aof bb) (cc_word (cc_END) 0 0))) (set ok 0)))
+            ;; a frame index is K's twenty-four bits; a clause with more
+            ;; variables and temporaries than that is matched and copied
+            (if (> nvars 16777215) (set ok 0))
             (coco_varmap_give m (aof vm))
             (if (not ok)
                 (block (free ($ hb w)) (free ($ bb w)) (return nil)))
@@ -1505,39 +1550,49 @@
             ((coco-tag-is STR ca) (return (coco_str_eq m ca c)))
             (#t (return (? (== ca c) 1 0))))))
 
+  ;;; Answers 1 when the head matched (the goals are built), 0 when it did
+  ;;; not, and -1 when it could not run at all -- no frame to be had -- which
+  ;;; the caller answers by matching the clause in the store instead: a
+  ;;; clause skipped because memory was short would be a wrong answer.
   (func coco_clause_run ((coco_machine * m) (coco_store * st) (coco_code * cd)
                          (size_t call) (size_t * goals) (size_t * ngoals)) (out int)
         (let ((size_t frame_small [128])
-              (size_t * frame . nil)
+              (size_t * frame . nil) (size_t frcap . 0)
               (size_t pc . 0)
               (size_t S . 0) (int write . 0) (int ok . 1))
           (set (cof ngoals) 0)
-          (set frame (? (<= (-> cd nvars) 128) frame_small
-                        (cast (size_t *) (malloc (* (-> cd nvars) (sizeof size_t))))))
-          (if (== frame nil) (return 0))
+          ;; THE FRAME: 128 slots on the C stack, or the machine's kept array
+          ;; -- never a malloc and a free per call, which is what the walk
+          ;; stacks stopped doing (1.8.38)
+          (if (<= (-> cd nvars) 128)
+              (set frame frame_small)
+              (set frame (coco_cslots_take m (cast size_t (-> cd nvars)) (aof frcap))))
+          (if (== frame nil) (return -1))
           ;; ---- the head ----
           (while (and ok (< pc (-> cd hlen)))
             (let ((u64 w . #'(nth pc (-> cd head)))
                   (u64 op . #'(cc_op (nth pc (-> cd head)))))
               (set pc (+ pc 1))
               (cond
-                ((== op 1)   ; GET_VAR k i
+                ((== op (cc_GET_VAR))
                  (set (nth (cc_k w) frame) (coco_deref m (+ call (+ (cast size_t (cc_n w)) 1)))))
-                ((== op 2)   ; GET_VAL k i
+                ((== op (cc_GET_VAL))
                  (if (not (coco_unify m (nth (cc_k w) frame) (+ call (+ (cast size_t (cc_n w)) 1))))
                      (set ok 0)))
-                ((== op 3)   ; GET_CONST i C
+                ((== op (cc_GET_CONST))
                  (let ((u64 c . #'(nth pc (-> cd head))))
                    (set pc (+ pc 1))
                    (if (not (cc_match_const m (coco_deref m (+ call (+ (cast size_t (cc_n w)) 1))) c))
                        (set ok 0))))
-                ((or (== op 4) (== op 5))   ; GET_STRUCT i n F / GET_STRUCT_T k n F
+                ((or (== op (cc_GET_STRUCT)) (== op (cc_GET_STRUCT_T)))
+                 ;; the argument index (GET_STRUCT) or the temporary
+                 ;; (GET_STRUCT_T) is in K, the arity in N
                  (let ((u64 fid . #'(nth pc (-> cd head)))
-                       (u32 n . #'(cast u32 (? (== op 4) (>> (cc_n w) 16) (cc_n w))))
+                       (u32 n . #'(cast u32 (cc_n w)))
                        (size_t a . 0))
                    (set pc (+ pc 1))
-                   (set a (coco_deref m (? (== op 4)
-                                           (+ call (+ (cast size_t (bitand (cc_n w) 65535)) 1))
+                   (set a (coco_deref m (? (== op (cc_GET_STRUCT))
+                                           (+ call (+ (cc_k w) 1))
                                            (nth (cc_k w) frame))))
                    (let ((u64 ca . #'(nth a (-> m heap))))
                      (cond
@@ -1551,15 +1606,15 @@
                         (set S (+ a 1))
                         (set write 0))
                        (#t (set ok 0))))))
-                ((== op 6)   ; UNIFY_VAR k
+                ((== op (cc_UNIFY_VAR))
                  (set (nth (cc_k w) frame) (? write S (coco_deref m S)))
                  (set S (+ S 1)))
-                ((== op 7)   ; UNIFY_VAL k
+                ((== op (cc_UNIFY_VAL))
                  (if write
                      (coco_set_arg m S (coco_deref m (nth (cc_k w) frame)))
                      (if (not (coco_unify m (nth (cc_k w) frame) S)) (set ok 0)))
                  (set S (+ S 1)))
-                ((== op 8)   ; UNIFY_CONST C
+                ((== op (cc_UNIFY_CONST))
                  (let ((u64 c . #'(nth pc (-> cd head))))
                    (set pc (+ pc 1))
                    (if write
@@ -1568,7 +1623,7 @@
                    (set S (+ S 1))))
                 (#t (set ok 0)))))
           (if (not ok)
-              (block (if (!= frame frame_small) (free frame)) (return 0)))
+              (block (if (!= frame frame_small) (coco_cslots_give m frame frcap)) (return 0)))
           ;; ---- the body ----
           (if (> (-> cd blen) 0)
               (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
@@ -1581,13 +1636,14 @@
                         (size_t slot . 0))
                     (set pc (+ pc 1))
                     ;; the slot an ARG instruction fills: the open structure's next
-                    (if (and (>= op 24) (<= op 27))
+                    (if (or (== op (cc_ARG_CONST)) (== op (cc_ARG_VAR))
+                            (== op (cc_ARG_VAR_1)) (== op (cc_ARG_STRUCT)))
                         (let ((size_t fi . #'(- flen 1)))
                           (set slot (+ ($ (nth fi fs) dst) (cast size_t ($ (nth fi fs) i))))
                           (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
                           (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))))
                     (cond
-                      ((== op 20)   ; GOAL_STRUCT n F
+                      ((== op (cc_GOAL_STRUCT))
                        (let ((u64 fid . #'(nth pc (-> cd body)))
                              (u32 n . #'(cast u32 (cc_n w))) (size_t h . 0))
                          (set pc (+ pc 1))
@@ -1596,26 +1652,26 @@
                          (if (> n 0)
                              (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) 0 (+ h 1) n))
                                  (set ok 0)))))
-                      ((== op 21)   ; GOAL_ATOM C
+                      ((== op (cc_GOAL_ATOM))
                        (let ((u64 c . #'(nth pc (-> cd body))))
                          (set pc (+ pc 1))
                          (if (< ng 64) (block (set (nth ng goals) (coco_push m c)) (set ng (+ ng 1))))))
-                      ((== op 22)   ; GOAL_VAR k
+                      ((== op (cc_GOAL_VAR))
                        (if (< ng 64) (block (set (nth ng goals) (coco_deref m (nth (cc_k w) frame)))
                                             (set ng (+ ng 1)))))
-                      ((== op 23)   ; GOAL_VAR_1 k
+                      ((== op (cc_GOAL_VAR_1))
                        (let ((size_t v . #'(coco_new_var m)))
                          (set (nth (cc_k w) frame) v)
                          (if (< ng 64) (block (set (nth ng goals) v) (set ng (+ ng 1))))))
-                      ((== op 24)   ; ARG_CONST C
+                      ((== op (cc_ARG_CONST))
                        (let ((u64 c . #'(nth pc (-> cd body))))
                          (set pc (+ pc 1))
                          (coco_set_arg m slot (coco_push m c))))
-                      ((== op 25)   ; ARG_VAR k
+                      ((== op (cc_ARG_VAR))
                        (coco_set_arg m slot (coco_deref m (nth (cc_k w) frame))))
-                      ((== op 26)   ; ARG_VAR_1 k: the slot is the variable
+                      ((== op (cc_ARG_VAR_1))   ; the slot is the variable
                        (set (nth (cc_k w) frame) slot))
-                      ((== op 27)   ; ARG_STRUCT n F
+                      ((== op (cc_ARG_STRUCT))
                        (let ((u64 fid . #'(nth pc (-> cd body)))
                              (u32 n . #'(cast u32 (cc_n w))) (size_t hh . 0))
                          (set pc (+ pc 1))
@@ -1624,12 +1680,14 @@
                          (if (> n 0)
                              (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) 0 (+ hh 1) n))
                                  (set ok 0)))))
-                      ((== op 28) break)   ; END
+                      ((== op (cc_END)) break)
                       (#t (set ok 0)))))
                 (coco_wframes_give m (cast (void *) fs) fcap)
                 (set (cof ngoals) ng)))
-          (if (!= frame frame_small) (free frame))
-          (return ok)))
+          (if (!= frame frame_small) (coco_cslots_give m frame frcap))
+          ;; the head matched; a body that could not be built is not a
+          ;; head that failed to
+          (return (? ok 1 -1))))
 
   ;;; ---- reclaiming the store ---------------------------------------------
   ;;;
@@ -1824,6 +1882,8 @@
   ;;; The term is copied to the heap and the copy's length is its span --
   ;;; the two walkers push one cell for the other's one -- then wound back.
   (func coco_store_orphan ((coco_store * st) (coco_machine * m) (size_t cell))
+        ;; a clause's compiled program dies with it
+        (coco_code_drop st cell)
         (let ((size_t mark . #'(-> m heap_len)))
           (coco_store_get m st cell)
           (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) mark)))
@@ -3097,8 +3157,10 @@
                   (if ok
                       (block
                        ;; drop it from the predicate; the cells are orphaned
-                       ;; until the next compaction (`coco_store_compact').
+                       ;; until the next compaction (`coco_store_compact'),
+                       ;; and its compiled program goes now
                        (set (-> st dead) (+ (-> st dead) span))
+                       (coco_code_drop st (nth i (-> p clauses)))
                        ;; The index keys shift with them, and the chains --
                        ;; which hold POSITIONS -- are dropped: everything
                        ;; after this clause has just been renumbered.

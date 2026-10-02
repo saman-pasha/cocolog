@@ -484,6 +484,62 @@
                (cast llong (== (coco_pred_find (aof st) (coco_intern (aof m) "pr_0") 99)
                                ($ st npreds))) 1))
 
+      ;; A CLAUSE THAT DIES TAKES ITS COMPILED PROGRAM WITH IT (1.8.45). A
+      ;; clause is compiled the first time it is selected and its program
+      ;; kept on the store until the store compacts; a retract or a
+      ;; reconsult used to leave it there, and a counter kept by retract and
+      ;; assertz held every dead clause's program -- 298 MB at a million
+      ;; rounds where the clauses themselves needed 70. Counted on the
+      ;; table, not timed: a thousand rounds leave the three live programs
+      ;; (churn/1's last clause and churn_loop/1's two), not a thousand.
+      (let ((char err [256]) (size_t before . #'($ st code_len)))
+        (coco_consult (aof st) (aof m)
+                      "churn_loop(0) :- !. churn_loop(K) :- churn(M), retract(churn(M)), M1 is M + 1, assertz(churn(M1)), K1 is K - 1, churn_loop(K1)."
+                      nil err (sizeof err))
+        (check "a thousand retract-and-assert rounds"
+               (cast llong (count (aof e) "assertz(churn(0)), churn_loop(1000), churn(1000)" 10)) 1)
+        (check "leave the live clauses' programs and no dead one's"
+               (cast llong (- ($ st code_len) before)) 3)
+        ;; and a file consulted again replaces its clauses, programs and all
+        (set before ($ st code_len))
+        (coco_consult (aof st) (aof m) "rc(1). rc(2)." "rc.pl" err (sizeof err))
+        (check "both clauses of a file run, compiled"
+               (cast llong (count (aof e) "rc(X)" 10)) 2)
+        (check "two programs kept" (cast llong (- ($ st code_len) before)) 2)
+        (coco_consult (aof st) (aof m) "rc(3)." "rc.pl" err (sizeof err))
+        (check "consulted again, only the new clause answers"
+               (cast llong (count (aof e) "rc(X)" 10)) 1)
+        (check "and the replaced clauses' programs went with them"
+               (cast llong (- ($ st code_len) before)) 1))
+
+      ;; A HEAD STRUCTURE WITH 65 536 ARGUMENTS OR MORE (1.8.45): GET_STRUCT
+      ;; packed its argument index and the structure's arity into sixteen
+      ;; bits each, and every argument of such a fact read back wrong. A
+      ;; fact of 70 000, every argument its own index, read back whole.
+      (let ((char err [256]) (int bad . 0))
+        (coco_consult (aof st) (aof m)
+                      "fill(_, I, N) :- I > N, !. fill(A, I, N) :- arg(I, A, I), I1 is I + 1, fill(A, I1, N). wide_ok(N) :- functor(A, w, N), fill(A, 1, N), assertz(wide(A)), wide(B), functor(B, w, N), wide_check(B, 1, N). wide_check(_, I, N) :- I > N, !. wide_check(B, I, N) :- arg(I, B, V), V == I, I1 is I + 1, wide_check(B, I1, N)."
+                      nil err (sizeof err))
+        (check "a fact of 65 536 arguments reads back whole"
+               (cast llong (count (aof e) "wide_ok(65536)" 10)) 1)
+        (check "and of 70 000"
+               (cast llong (count (aof e) "retract(wide(_)), wide_ok(70000)" 10)) 1)
+        ;; and a structure at an argument index past 65 535, which shares X
+        ;; with argument 1 so both modes show: READ, the call holds f(a, b)
+        ;; and argument 1 comes back b; WRITE, argument 1 is c and the head
+        ;; builds f(a, c) where the call had nothing
+        (coco_consult (aof st) (aof m)
+                      "far_make :- functor(H, far, 70000), arg(66000, H, f(a, X)), arg(1, H, X), assertz(H)."
+                      nil err (sizeof err))
+        (check "a head structure past argument 65 535, read"
+               (cast llong (count (aof e)
+                                  "far_make, functor(G, far, 70000), arg(66000, G, f(a, b)), G, arg(1, G, Y), Y == b"
+                                  10)) 1)
+        (check "and built"
+               (cast llong (count (aof e)
+                                  "functor(G, far, 70000), arg(1, G, c), G, arg(66000, G, S), S == f(a, c)"
+                                  10)) 1))
+
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 

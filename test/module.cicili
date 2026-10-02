@@ -133,6 +133,40 @@
 
   (coco-defmodule tm_module_three "three" nil *m3-prolog*)
 
+  ;;; ---- a fourth: a dispatcher that turns a goal down by its ARGUMENTS --
+  ;;;
+  ;;; `picky(module, X)' is this module's -- X is yes -- and `picky(kb, X)' is
+  ;;; not: a clause in the knowledge base answers that one. It is the shape of
+  ;;; torch's tensor_execution/3 beside library(tensor_expr)'s DCG form of
+  ;;; tensor_execution/1, which the engine's per-functor memory of who owns a
+  ;;; name (1.8.42) got wrong until a declining module could say so
+  ;;; (`coco_m_decline', 1.8.45). `choosy/2' declines the same way, and a
+  ;;; fifth module registered after this one takes what it turns down.
+  (func tm_m4_dispatch ((coco_engine * e) (const char * name) (u32 arity)
+                        (size_t g) (int * found)) (out int)
+        (set (cof found) 0)
+        (if (and (== arity 2)
+                 (or (== 0 (strcmp name "picky")) (== 0 (strcmp name "choosy"))))
+            (let ((const char * a . #'(coco_m_atom e (coco_m_arg e g 0))))
+              (if (and (!= a nil) (== 0 (strcmp a "module")))
+                  (block (set (cof found) 1)
+                         (return (coco_m_unify_atom e (coco_m_arg e g 1) "yes"))))
+              (coco_m_decline e)
+              (return 0)))
+        (return 0))
+
+  (coco-defmodule tm_module_four "four" tm_m4_dispatch)
+
+  (func tm_choosy ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((x 1))
+          (return (coco_m_unify_atom e x "from_five"))))
+
+  (DEFPARAMETER *m5-predicates*
+    '(("choosy" 2 tm_choosy)))
+
+  (static) (coco-emit-module-dispatch tm_m5_dispatch *m5-predicates*)
+  (coco-defmodule tm_module_five "five" tm_m5_dispatch)
+
   ;;; ---- the harness ----------------------------------------------------
 
   (func count ((coco_engine * e) (const char * goal) (int limit)) (out int)
@@ -223,6 +257,35 @@
       (check "and they come back on the next query"
              (cast llong (count (aof e) "from_module(yes)" 10)) 1)
       (check "the count says so" (cast llong ($ st libs)) 3)
+
+      (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
+
+    ;; ================================================================
+    ;; A module that declines by argument. The engine keeps, per functor,
+    ;; which module claimed its first call or that none did; a first call
+    ;; the module DECLINED must not leave the functor with the knowledge
+    ;; base, and an owner that declines must not stop the walk.
+    ;; ================================================================
+    (let ((coco_machine m) (coco_store st) (coco_engine e) (char err [256]))
+      (coco_machine_init (aof m)) (coco_store_init (aof st))
+      (coco_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 1000000)
+
+      (coco_module_init)
+      (check "registered the picky one" (cast llong (tm_module_four)) 1)
+      (check "and one after it" (cast llong (tm_module_five)) 1)
+      (coco_consult (aof st) (aof m) "picky(kb, from_kb)." nil err (sizeof err))
+
+      (check "the shape the module declines goes to the knowledge base"
+             (cast llong (count (aof e) "picky(kb, from_kb)" 10)) 1)
+      (check "and the module's own shape still reaches the module"
+             (cast llong (count (aof e) "picky(module, yes)" 10)) 1)
+      (check "after which the declined shape still reaches the knowledge base"
+             (cast llong (count (aof e) "picky(kb, from_kb)" 10)) 1)
+      (check "an owner's own shape first"
+             (cast llong (count (aof e) "choosy(module, yes)" 10)) 1)
+      (check "then the shape it declines goes on to the next module"
+             (cast llong (count (aof e) "choosy(other, from_five)" 10)) 1)
 
       (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
 

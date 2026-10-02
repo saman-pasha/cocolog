@@ -60,7 +60,7 @@ main :-
     %% claim about the scheduler rather than a coin toss. See the --steps note
     %% below: a fair split of N turns three ways starves somebody about
     %% 3*(2/3)^N of the time, so 20 is 0.09% per group and the four groups
-    %% measure 34, 24, 60 and 60.
+    %% measure 27, 44, 46 and 45 (1.8.45; see `group/3' for why b moved).
     env_int('TURNS_FLOOR', 20, Floor),
     cocolog(C),
     sh_join(['--kb groups_test --host ', Host, ' --tcp ', Port, ' --timeout ', Socket], Base),
@@ -150,7 +150,16 @@ env_int(Name, Default, V) :- ( getenv(Name, A), atom_number(A, N) -> V = N ; V =
 %% produce. Kept here rather than spread through the file, so that adding a
 %% fifth group is one clause.
 group(a, 'ancestor(tom,X)', ['ancestor(tom,ann)', 'ancestor(tom,bob)', 'ancestor(tom,jim)', 'ancestor(tom,liz)', 'ancestor(tom,pat)', 'ancestor(tom,zoe)']).
-group(b, 'ancestor(bob,X)', ['ancestor(bob,ann)', 'ancestor(bob,jim)', 'ancestor(bob,pat)', 'ancestor(bob,zoe)']).
+%%
+%% GROUP b WAS `ancestor(bob,X)', and the floor caught it shrinking, as it is
+%% there to: 24 turns at 1.8.41 and 19 at 1.8.42, whose engine pushes a
+%% body's conjunction as one chain rather than one step per `,' -- every group
+%% lost about a fifth (34, 24, 60, 60 to 27, 19, 46, 45) and b went under 20.
+%% bob has four descendants and nothing more to find. A goal whose first
+%% argument is unbound walks every parent, whatever it answers: 43 to 46
+%% turns for each of `ancestor(X,ann)', `ancestor(X,pat)' and
+%% `ancestor(X,liz)', measured, so b asks who ann descends from.
+group(b, 'ancestor(X,ann)', ['ancestor(bob,ann)', 'ancestor(tom,ann)']).
 group(c, 'ancestor(X,zoe)', ['ancestor(bob,zoe)', 'ancestor(jim,zoe)', 'ancestor(pat,zoe)', 'ancestor(tom,zoe)']).
 group(d, 'ancestor(X,jim)', ['ancestor(bob,jim)', 'ancestor(pat,jim)', 'ancestor(tom,jim)']).
 

@@ -197,6 +197,17 @@
   (decl) (func coco_m_mark ((coco_engine * e)) (out size_t))
   (decl) (func coco_m_undo ((coco_engine * e) (size_t mark)))
 
+  ;;; A DISPATCHER THAT KNOWS THE NAME AND DECLINES THIS GOAL SAYS SO, then
+  ;;; answers with `*found = 0' as before and binds nothing. The engine
+  ;;; remembers which module owns a functor after its first call; that is
+  ;;; only true of a module whose claim is the name and arity alone, and one
+  ;;; that turns a goal down by its arguments or its own state (torch's
+  ;;; `tensor_execution/3', its `tensor_*' under another backend) would
+  ;;; otherwise leave the functor with the knowledge base for good. A
+  ;;; dispatcher made by `coco-emit-module-dispatch' claims by name and
+  ;;; arity and never needs it.
+  (decl) (func coco_m_decline ((coco_engine * e)))
+
   ;;; ---- reading arguments ----
 
   (decl) (func coco_m_is_var ((coco_engine * e) (size_t t)) (out int))
@@ -666,6 +677,7 @@
 
   (func coco_m_mark ((coco_engine * e)) (out size_t) (return ($ (cof (-> e m)) trail_len)))
   (func coco_m_undo ((coco_engine * e) (size_t mark)) (coco_undo_to (-> e m) mark))
+  (func coco_m_decline ((coco_engine * e)) (set (-> e declines) (+ (-> e declines) 1)))
 
   ;;; ALL FOUR OF THESE DEREFERENCE FIRST, and it is not defensiveness. A term
   ;;; index reaches a module from two places: `coco_m_arg', which dereferences,
