@@ -139,11 +139,23 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
     never starts.
   - The plain image takes 6 minutes with apt's cache warm and is 1.24 GB; the
     full one 9 minutes and 3.05 GB.
-  - **A release's images are built from the tag's commit**, in a clean `git
-    worktree add --detach DIR COMMIT` with `COCOLOG_ROOT=DIR`, saved with
-    `SAVE=1`, and handed to the owner: **the box cannot make a tag or a
-    release, or attach a file to one** -- no `gh`, and a session's GitHub tools
-    only read releases.
+  - **A release's images come from the `Docker images` workflow**
+    (`.github/workflows/docker-image.yml`), which the owner starts by hand
+    (Actions, Run workflow; inputs `tag`, `ref`, `attach`): on a GitHub runner
+    it runs `make docker-save`, smoke-tests both images with no network and,
+    with `attach` on, uploads them to the DRAFT release of the tag. **The box
+    cannot make, edit or publish a release, or attach a file to one** (HTTP
+    403, "not permitted for this session type"): the owner makes the draft,
+    pastes its notes and publishes it. The tag is made at that publish, at the
+    tip of master, so master stays still from the build to the publish (the
+    `publish` job refuses a moved target). Prove a changed workflow with a run
+    with `attach` off. `COCOLOG_ROOT=DIR` with `SAVE=1` still builds a
+    commit's images here, but they are a different build of the same source,
+    not the release's files.
+  - **Read an action's version from its repository, never from memory**: its
+    `action.yml` at the tag names `runs.using` (`node24`).
+    `download-artifact@v6` still ran on Node.js 20, and the first run's three
+    notices named the `@v4` actions.
 
 ## The version
 
