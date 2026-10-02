@@ -1,0 +1,204 @@
+# Docker images: build the two cocolog images and attach them to a DRAFT release.
+#
+# File:   .github/workflows/docker-image.yaml
+# Start:  Actions -> Docker images -> Run workflow (it never starts by itself).
+#
+# It does what `make docker-save` does, on a GitHub runner, from the Dockerfile in
+# the repository, and attaches the three files to the draft release:
+#
+#   cocolog-VERSION-docker-amd64.tar.gz                   cocolog:VERSION, cocolog:latest
+#   cocolog-VERSION-ray-torch-numpy-docker-amd64.tar.gz   cocolog:VERSION-ray-torch-numpy, cocolog:ray-torch-numpy
+#   SHA256SUMS
+#
+# Three jobs, so that a failure costs as little as possible:
+#   check    (a minute)   the version in cocolog.cicili is the tag, and the draft exists
+#   build    (the long one) make docker-save, a smoke test, and the files kept as a run artifact
+#   publish  (a minute)   the files go to the draft; "Re-run failed jobs" runs only this job again
+#
+# The files are also in the run's Artifacts (cocolog-VERSION-docker), whatever happens to
+# the release: they can be downloaded from the run page for 14 days.
+#
+# The release itself is not published, renamed or edited here. Only its assets change.
+name: Docker images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of the draft release (the version in cocolog.cicili must match it)"
+        type: string
+        required: true
+        default: "v1.8.41"
+      ref:
+        description: "Branch, tag or commit to build"
+        type: string
+        required: true
+        default: "master"
+      attach:
+        description: "Attach the files to the draft release (off: keep them as run artifacts only)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: docker-images-${{ inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the version and the draft release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write   # a draft release is visible only to a token that can write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+    outputs:
+      sha: ${{ steps.what.outputs.sha }}
+      version: ${{ steps.what.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: The version in cocolog.cicili is the tag
+        id: what
+        run: |
+          version=$(grep -o 'return "[0-9.]*"' cocolog.cicili | head -1 | grep -o '[0-9.][0-9.]*')
+          sha=$(git rev-parse HEAD)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "cocolog $version at $sha"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::cocolog.cicili says $version, and the tag is $TAG"
+            exit 1
+          fi
+
+      - name: There is a draft release for the tag
+        if: ${{ inputs.attach }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            | jq -rs --arg tag "$TAG" 'add | map(select(.draft and .tag_name == $tag)) | .[0].id // empty')
+          if [ -z "$id" ]; then
+            echo "::error::there is no draft release with the tag $TAG"
+            exit 1
+          fi
+          echo "draft release $id"
+
+  build:
+    name: Build and save the two images
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      SHA: ${{ needs.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Build both images and save them (make docker-save)
+        run: make docker-save
+
+      - name: Smoke test, with no network
+        run: |
+          case_green() {   # case_green IMAGE CASE: one case of the suite, inside the image
+            out=$(docker run --rm --init --network none -w /opt/cocolog "$1" -s test/run.pl -- "$2" 2>&1) || true
+            printf '%s\n' "$out" | tail -4
+            printf '%s\n' "$out" | grep -q "^$2  *GREEN"
+          }
+          for img in "cocolog:$VERSION" "cocolog:$VERSION-ray-torch-numpy"; do
+            echo "== $img"
+            docker run --rm --network none "$img" --version
+            [ "$(docker run --rm --network none "$img" query 'X is 6*7, write(X), nl' | head -1)" = 42 ]
+            case_green "$img" engine
+            case_green "$img" gc
+          done
+          echo "== the second image: numpy, and ray on a virtual screen"
+          case_green "cocolog:$VERSION-ray-torch-numpy" numpy
+          out=$(docker run --rm --init --network none -w /opt/cocolog --entrypoint xvfb-run \
+            "cocolog:$VERSION-ray-torch-numpy" -a cocolog -s test/run.pl -- ray 2>&1) || true
+          printf '%s\n' "$out" | tail -4
+          printf '%s\n' "$out" | grep -q '^ray  *GREEN'
+
+      - name: Check the files and write the summary
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          ls -l
+          {
+            echo "### cocolog $VERSION, built from \`$SHA\`"
+            echo
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cocolog-${{ needs.check.outputs.version }}-docker
+          path: dist/*
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
+
+  publish:
+    name: Attach the files to the draft release
+    needs: [check, build]
+    if: ${{ inputs.attach }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag }}
+      BUILT: ${{ needs.check.outputs.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cocolog-${{ needs.check.outputs.version }}-docker
+          path: dist
+
+      - name: Check the files
+        run: |
+          cd dist
+          sha256sum -c SHA256SUMS
+          ls -l
+
+      - name: The release target is still the commit that was built
+        run: |
+          target=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            | jq -rs --arg tag "$TAG" 'add | map(select(.draft and .tag_name == $tag)) | .[0].target_commitish // empty')
+          if [ -z "$target" ]; then
+            echo "::error::there is no draft release with the tag $TAG"
+            exit 1
+          fi
+          now=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
+          echo "built $BUILT; the target $target is $now"
+          if [ "$now" != "$BUILT" ]; then
+            echo "::error::$target is $now now, and the images come from $BUILT. Run the workflow again, or set the target of the release to $BUILT."
+            exit 1
+          fi
+
+      - name: Upload the files to the draft release
+        run: gh release upload "$TAG" dist/*.tar.gz dist/SHA256SUMS --clobber
+
+      - name: The assets of the draft release now
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            | jq -rs --arg tag "$TAG" 'add | map(select(.draft and .tag_name == $tag)) | .[0].assets[] | "\(.name)  \(.size) bytes  \(.state)"'
+            
