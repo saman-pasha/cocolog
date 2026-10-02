@@ -350,6 +350,7 @@ main :-
     section_55,
     section_56,
     section_57,
+    section_58,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5308,6 +5309,133 @@ The verb "ferma" means "stops".
 The verb "provoca" means "causes".
 The verb "toglie" means "removes".
 "said" is the past of "says".').
+
+section_58 :-
+    format("~n58. An Italian report into Spanish: an elided article before a digit, a ratio, a compound count, a copula that agrees with what follows, the perfect with `essere' and with `avere', `senza' and an infinitive, an infinitive question, `quanti', a question after a dashed aside~n", []),
+    lesson_58(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('an Italian lesson of the report''s shapes, under its own name', NI),
+    lesson_58(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('and a Spanish one', NS),
+    reason_translate('Un bambino su sette vive.', italian, spanish, S58a),
+    must('a RATIO is one phrase, an article, a noun, `su'' and a number: `un bambino su sette'' is `uno de cada siete niños''', S58a, 'Uno de cada siete niños vive.'),
+    reason_translate('Vivono 6 milioni e 458 mila poveri.', italian, spanish, S58b),
+    must('a COMPOUND COUNT heads a phrase of its own, though the noun after it is an adjective in the lesson', S58b, 'Viven 6 millones y 458 mil pobres.'),
+    reason_translate('Il problema sono i cani.', italian, spanish, S58c),
+    must('a COPULA agrees with the phrase after it, and the subject is written first: `il problema sono i cani'' is `los perros son el problema''', S58c, 'Los perros son el problema.'),
+    reason_translate('El gasto ha aumentado.', spanish, italian, S58d),
+    must('the PERFECT of a verb the lesson builds with `è'' is written with it when the clause has no object', S58d, 'La spesa è aumentata.'),
+    reason_translate('El gobierno ha aumentado el gasto.', spanish, italian, S58e),
+    must('... and with `ha'' when it has one', S58e, 'Il governo ha aumentato la spesa.'),
+    reason_translate('Senza contare che il cane dorme.', italian, spanish, S58f),
+    must('`senza'' and an infinitive, with a clause of `that'' after them, make a whole piece', S58f, 'Sin contar que el perro duerme.'),
+    reason_translate('Come affrontare il problema?', italian, spanish, S58g),
+    must('an INFINITIVE QUESTION has its question word, the infinitive and what it takes, with no subject and no tense', S58g, '¿Cómo afrontar el problema?'),
+    reason_translate('Su due case quanti sono i cani?', italian, spanish, S58h),
+    must('`quanti'' asks how many, after a front that counts', S58h, '¿Cuántos son los perros sobre dos casas?'),
+    reason_translate('Il cane mangia il pane - dove vive il gatto - su due case quanti sono i cani?', italian, spanish, S58i),
+    must('a question after an ASIDE between dashes is the last clause''s: the first is written as a statement, and the mark opens before the question', S58i, 'El perro come el pan – donde vive el gato – ¿cuántos son los perros sobre dos casas?'),
+    reason_unlearn(italian), reason_unlearn(spanish).
+
+lesson_58(L, Text) :- lesson_58(L, 1, A), lesson_58(L, 2, B), lesson_58(L, 3, C), atomic_list_concat([A, ' ', B, ' ', C], Text).
+
+lesson_58(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"dei" is the contraction of "di i". "al" is the contraction of "a il". "ai" is the contraction of "a i". "sul" is the contraction of "su il".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The masculine noun "bambino" means "child". "bambini" is the plural of "bambino".
+The masculine noun "nucleo" means "household". "nuclei" is the plural of "nucleo". The feminine noun "famiglia" means "family". "famiglie" is the plural of "famiglia".
+The masculine noun "problema" means "problem". "problema" is not feminine. "problemi" is the plural of "problema".
+The feminine noun "spesa" means "expense". The masculine noun "governo" means "government".
+The feminine noun "metà" means "half". The masculine noun "giardino" means "garden".
+The masculine noun "quadro" means "picture". The masculine noun "milione" means "million". "milioni" is the plural of "milione".
+The masculine noun "numero" means "number".').
+lesson_58(italian, 2, 'The number "mila" means "thousand". The number "sette" means "seven". The number "due" means "two".
+The adjective "povero" means "poor". "poveri" is the plural of "povero".
+The adjective "piccolo" means "small". The adjective "nero" means "black". The adjective "grafico" means "graphic". The adjective "francese" means "French".
+The adjective "migliore" means "good". "migliore" is the comparative of "buono". The adjective "buono" means "good".
+The masculine adjective "colpito" means "struck". "colpiti" is the plural of "colpito". The feminine adjective "colpita" means "struck". "colpite" is the plural of "colpita".
+The word "più" begins the comparative. The adverb "più" means "more". The adverb "meno" means "less".
+The adverb "non più" means "no longer".
+The determiner "ogni" means "each". The pronoun "pochi" means "few". "pochi" is the plural of "poco".
+The masculine pronoun "alcuno" means "some". "alcuni" is the plural of "alcuno". The pronoun "alcuno" does not precede the verb. The determiner "alcun" means "some". "alcuni" is the plural of "alcun".
+The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb. The possessive "loro" means "their". The pronoun "ciascuno" means "each". The determiner "ciascuno" means "each". The pronoun "ciascuno" does not precede the verb.
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb. The pronoun "lo" means "it".
+The word "quello" replaces the noun. The masculine pronoun "quello" means "that". The masculine demonstrative "quello" means "that". The pronoun "quello" does not precede the verb. "quelli" is the plural of "quello".
+The impersonal pronoun "si" means "one".
+The word "dove" means "where". The word "come" means "how". The word "quanto" means "how much". The word "quanti" means "how many". The adverb "quanto" means "as much".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative.
+The conjunction "perché" means "because". The conjunction "perché" means "so that".
+The conjunction "di quanto" means "than what".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "a" means "to". The preposition "con" means "with".
+The preposition "su" means "on". The preposition "per" means "for". The preposition "senza" means "without". The preposition "da" means "by".').
+lesson_58(italian, 3, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+The verb "vive" means "lives". "vivono" is the plural of "vive". "vivere" is the infinitive of "vive". "viva" is the subjunctive of "vive". "vivano" is the plural of "viva".
+The adjective "vivo" means "alive". The feminine adjective "viva" means "alive". "vive" is the plural of "viva".
+The verb "spende" means "spends". "spendono" is the plural of "spende".
+The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è".
+The verb "ha" means "has". "hanno" is the plural of "ha". The auxiliary "ha" means "has".
+The verb "aumenta" means "increases". "aumentato" is the participle of "aumenta". "aumentata" is the participle of "aumenta". "aumentata" is feminine. "è" is the auxiliary of "aumenta".
+The verb "finisce" means "finishes". "finito" is the participle of "finisce". "finita" is the participle of "finisce". "finita" is feminine. "è" is the auxiliary of "finisce".
+The verb "penalizza" means "penalises". "penalizzato" is the participle of "penalizza". "penalizzati" is the participle of "penalizza". "penalizzati" is the plural of "penalizzato".
+The verb "conta" means "counts". "contare" is the infinitive of "conta".
+The verb "affronta" means "tackles". "affrontare" is the infinitive of "affronta".').
+
+lesson_58(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The masculine noun "niño" means "child". "niños" is the plural of "niño".
+The masculine noun "núcleo" means "household". "núcleos" is the plural of "núcleo". The feminine noun "familia" means "family".
+The masculine noun "problema" means "problem". "problema" is not feminine. "problemas" is the plural of "problema".
+The masculine noun "gasto" means "expense". The masculine noun "gobierno" means "government".
+The feminine noun "mitad" means "half". The masculine noun "jardín" means "garden".
+The masculine noun "cuadro" means "picture". The masculine noun "millón" means "million". "millones" is the plural of "millón".
+The masculine noun "número" means "number".').
+lesson_58(spanish, 2, 'The number "mil" means "thousand". The number "siete" means "seven". The number "dos" means "two".
+The adjective "pobre" means "poor". "pobres" is the plural of "pobre".
+The adjective "pequeño" means "small". The adjective "negro" means "black". The adjective "gráfico" means "graphic". The masculine adjective "francés" means "French". The feminine adjective "francesa" means "French".
+The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The adjective "bueno" means "good".
+The masculine adjective "golpeado" means "struck". "golpeados" is the plural of "golpeado". The feminine adjective "golpeada" means "struck". "golpeadas" is the plural of "golpeada".
+The word "más" begins the comparative. The adverb "más" means "more". The adverb "menos" means "less".
+The adverb "ya no" means "no longer".
+The determiner "cada" means "each". The pronoun "pocos" means "few". "pocos" is the plural of "poco".
+The masculine pronoun "alguno" means "some". "algunos" is the plural of "alguno". The pronoun "alguno" does not precede the verb. The determiner "algún" means "some". "algunos" is the plural of "algún".
+The pronoun "ellos" means "they". The pronoun "ellos" means "them". The pronoun "ellos" does not precede the verb. The pronoun "cada uno" means "each". The pronoun "cada uno" does not precede the verb.
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb. The pronoun "lo" means "it".
+The word "el" replaces the noun. The pronoun "aquel" means "that". "aquellos" is the plural of "aquel". The pronoun "aquel" does not precede the verb.
+The impersonal pronoun "se" means "one".
+The word "dónde" means "where". The conjunction "donde" means "where". The word "cómo" means "how". The word "cuánto" means "how much". The word "cuántos" means "how many". The adverb "cuanto" means "as much". The mark "¿" begins the question.
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative.
+The conjunction "porque" means "because". The conjunction "de modo que" means "so that".
+The conjunction "de lo que" means "than what".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "a" means "to". The preposition "con" means "with".
+The preposition "sobre" means "on". The preposition "para" means "for". The preposition "sin" means "without". The preposition "por" means "by".').
+lesson_58(spanish, 3, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "vive" means "lives". "viven" is the plural of "vive". "vivir" is the infinitive of "vive".
+The verb "gasta" means "spends". "gastan" is the plural of "gasta".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "tiene" means "has". "tienen" is the plural of "tiene". The auxiliary "ha" means "has". "han" is the plural of "ha". "ha" is the auxiliary of "es".
+The verb "aumenta" means "increases". "aumentado" is the participle of "aumenta".
+The verb "termina" means "finishes". "terminado" is the participle of "termina".
+The verb "penaliza" means "penalises". "penalizado" is the participle of "penaliza". "penalizados" is the participle of "penaliza". "penalizados" is the plural of "penalizado".
+The verb "cuenta" means "counts". "contar" is the infinitive of "cuenta".
+The verb "afronta" means "tackles". "afrontar" is the infinitive of "afronta".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
