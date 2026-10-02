@@ -1632,3 +1632,19 @@ The adverb "sin rodeos" means "bluntly".
 # `dietro queste voci' -- `detras de estas voces': behind, a preposition of two
 # words, before the adverb `detras' that stands alone
 The preposition "detrás de" means "behind".
+# `pese a la existencia de la ley' -- despite: `pese' is the subjunctive of
+# `pesar' (weighs), and read as the verb it was `pesa all'esistenza'
+The preposition "pese a" means "despite".
+# `la revisión de la ley' -- a revision: the dictionary's first meaning of
+# `revisión' is `review', which Italian writes `rivista' (a magazine)
+The feminine noun "revisión" means "revision".
+# `el vicepresidente ..., Salvador Bellido, mostró ayer' -- a first name that is
+# also a noun (the saviour), a name where a capital stands before a surname
+"salvador" is a name.
+# `emita un informe' -- issues: the first meaning of `emite' is `broadcasts'
+# (the Cecchi Paone report's `manda in onda'), which Italian writes as a
+# phrasal verb of three words; the broadcast stays a meaning of its own
+The verb "emite" means "issues".
+# `alrededor de 6.000 tiendas' -- around: the adverb `alrededor' and the
+# preposition `de', and written so `intorno di 6.000'
+The preposition "alrededor de" means "around".

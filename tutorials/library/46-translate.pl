@@ -349,6 +349,7 @@ main :-
     section_54,
     section_55,
     section_56,
+    section_57,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5223,6 +5224,90 @@ The verb "hay un trecho" means "has a long way".
 The verb "ocupa" means "occupies". "ocupar" is the infinitive of "ocupa". The verb "comienza" means "begins". "comienza" takes "a" before the infinitive.
 The verb "pasa" means "passes". "pasas" is the second person of "pasa".
 The adverb "solamente" means "only".').
+
+section_57 :-
+    format("~n57. A Spanish report into Italian: a word in single quotation marks, a word no lesson knows alone in marks, a first name that is a noun too, a quotation that opens on its relative word, a denial in a clause with a preposition that is a verb's form, the phrases of one preposition before `without that'~n", []),
+    lesson_57(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_57(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Los ''botiguers'' duermen.', spanish, italian, S57a),
+    must('a word in SINGLE quotation marks is quoted, as in double ones, and a word no lesson knows, alone in marks, is kept as it stands', S57a, 'I "botiguers" dormono.'),
+    reason_translate('Los "perros" duermen.', spanish, italian, S57b),
+    must('a word the lesson knows, in marks, is translated inside them', S57b, 'I "cani" dormono.'),
+    reason_translate('Salvador Bellido duerme.', spanish, italian, S57c),
+    must('a FIRST NAME the lesson knows for a noun and says is a name is the name, when capital words follow it', S57c, 'Salvador Bellido dorme.'),
+    reason_translate('El perro tiene un monopolio "que quita el pan".', spanish, italian, S57d),
+    must('a quotation that OPENS ON THE RELATIVE WORD keeps its opening mark', S57d, 'Il cane ha un monopolio "che toglie il pane".'),
+    reason_translate('El técnico dijo que el pan entre el perro y el gato no es malo.', spanish, italian, S57e),
+    must('a preposition that is a verb''s form too is no verb of the clause where its denial is looked for', S57e, 'Il tecnico disse che il pane tra il cane e il gatto non è cattivo.'),
+    reason_translate('El técnico dijo que el pan es malo para el perro y para el gato sin que el gato coma.', spanish, italian, S57f),
+    must('two phrases of ONE PREPOSITION before `without that'' are not divided at their `y''', S57f, 'Il tecnico disse che il pane è cattivo per il cane e per il gatto senza che il gatto mangia.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_57(L, Text) :- lesson_57(L, 1, A), lesson_57(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_57(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The masculine noun "técnico" means "coach". "técnico" is a person.
+The masculine noun "hombre" means "man". "hombre" is a person.
+The masculine noun "salvador" means "rescuer". "salvador" is a name.
+The masculine noun "monopolio" means "monopoly".
+The masculine adjective "malo" means "bad". "malos" is the plural of "malo".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The conjunction "sin que" means "without".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "a" means "to".
+The preposition "para" means "for". The preposition "entre" means "between".').
+
+lesson_57(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "coma" is the subjunctive of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "dice" means "says". "dijo" is the past of "dice".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra". "entran" is the plural of "entra".
+The verb "para" means "stops". "paran" is the plural of "para".
+The verb "provoca" means "causes". "provoque" is the subjunctive of "provoca".
+The verb "quita" means "removes".
+"said" is the past of "says".').
+
+lesson_57(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"al" is the contraction of "a il". "ai" is the contraction of "a i".
+"l''" is the elision of "lo". "l''" is the elision of "la". "d''" is the elision of "di".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The masculine noun "tecnico" means "coach". "tecnico" is a person.
+The masculine noun "uomo" means "man". "uomo" is a person.
+The masculine noun "salvatore" means "rescuer".
+The masculine noun "monopolio" means "monopoly".
+The masculine adjective "cattivo" means "bad". "cattivi" is the plural of "cattivo".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The conjunction "senza che" means "without".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "a" means "to".
+The preposition "per" means "for". The preposition "tra" means "between".').
+
+lesson_57(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha".
+The verb "dice" means "says". "disse" is the past of "dice".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+The verb "ferma" means "stops".
+The verb "provoca" means "causes".
+The verb "toglie" means "removes".
+"said" is the past of "says".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

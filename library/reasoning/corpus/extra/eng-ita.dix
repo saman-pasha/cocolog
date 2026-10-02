@@ -780,3 +780,36 @@
 <e r="RL"><p><l>radiant<s n="adj"/></l><r>raggiante<s n="adj"/></r></p></e>
 <e r="RL"><p><l>really<s n="adv"/></l><r>effettivamente<s n="adv"/></r></p></e>
 <e><p><l>aloofness<s n="n"/></l><r>distacco<s n="n"/><s n="m"/></r></p></e>
+# the Carrefour and Promodès report (AnCora CESS-CAST-P-19990901-75), into Italian:
+# apertium-ita carries each with its paradigm and the bilingual dictionary pairs
+# it with nothing, and Italian had no word for the meaning
+<e><p><l>employers<s n="n"/></l><r>padronato<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>antimonopoly<s n="adj"/></l><r>antimonopolistico<s n="adj"/></r></p></e>
+<e><p><l>selfservice<s n="n"/></l><r>autoservizio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>offload<s n="vblex"/></l><r>ribaltare<s n="vblex"/></r></p></e>
+<e><p><l>central<s n="n"/></l><r>centrale<s n="n"/><s n="f"/></r></p></e>
+# `se encontrará con trabas' -- Spanish `traba' is a fetter in the lesson, and
+# Italian had no word for it; apertium-ita carries `intralcio' with nothing
+<e><p><l>fetter<s n="n"/></l><r>intralcio<s n="n"/><s n="m"/></r></p></e>
+# the Carrefour and Promodès report (AnCora CESS-CAST-P-19990901-75), into Italian:
+# the bilingual dictionary has the Italian word for each of these as its second
+# or not at all, and its first is another thing: `operation' is `funzionamento',
+# `department' `assessorato', `scale' `squama' (of a fish), `degree' `laurea',
+# `help' `ausilio', `manage' `raggiungere', `allegation' `asserzione'
+<e><p><l>operation<s n="n"/></l><r>operazione<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>department<s n="n"/></l><r>dipartimento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>scale<s n="n"/></l><r>scala<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>degree<s n="n"/></l><r>grado<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>help<s n="n"/></l><r>aiuto<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>manage<s n="vblex"/></l><r>gestire<s n="vblex"/></r></p></e>
+<e><p><l>allegation<s n="n"/></l><r>allegazione<s n="n"/><s n="f"/></r></p></e>
+# `ley de comercio que prohíbe' ... `alegaciones oportunas': Spanish `oportuno' is
+# timely, and Italian had no word for it though apertium-ita carries `opportuno';
+# the dictionary's first word for `encourage' is `animare' and for `leader'
+# `dirigente' (`líder en ventas del sector', `puede fomentar')
+<e><p><l>timely<s n="adj"/></l><r>opportuno<s n="adj"/></r></p></e>
+<e><p><l>encourage<s n="vblex"/></l><r>incoraggiare<s n="vblex"/></r></p></e>
+<e><p><l>leader<s n="n"/></l><r>leader<s n="n"/><s n="mf"/></r></p></e>
+# `emita un informe' -- issue a report: the dictionary's only Italian word for
+# `issue' as a verb is `pubblicare'; apertium-ita carries `emettere' with nothing
+<e><p><l>issue<s n="vblex"/></l><r>emettere<s n="vblex"/></r></p></e>

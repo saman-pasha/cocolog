@@ -929,6 +929,16 @@ tr_quote_names(Side, Where, Prev, [w(W, C)|Ws0], [w(W1, C1)|Ws]) :-
     ;   tr_cap(W, WC), atomic_list_concat([Pre, WC, Post], W1), C1 = upper
     ),
     tr_quote_names(Side, later, w(W, C), Ws0, Ws).
+%% ... AND A WORD IN SMALL LETTERS ALONE IN QUOTATION MARKS THAT NO LESSON
+%% KNOWS IS KEPT AS IT STANDS: `Los "botiguers" prevén ...' is Catalan's
+%% shopkeepers in the marks that set a word of another language apart, and
+%% the whole sentence was refused for the one word. It is spelled with its
+%% marks, as a name is, and every writer puts it back as it stood. (A number
+%% in marks is no word to keep.)
+tr_quote_names(Side, _, _, [w(W, qboth)|Ws0], [w(W1, upper)|Ws]) :-
+    atom(W), \+ tr_known_word(Side, W), \+ tr_digits(W),
+    atomic_list_concat(['"', W, '"'], W1), !,
+    tr_quote_names(Side, later, w(W, qboth), Ws0, Ws).
 tr_quote_names(Side, _, _, [X|Ws0], [X|Ws]) :- tr_quote_names(Side, later, X, Ws0, Ws).
 %% the word is a noun of the lesson's in the number of the determiner or
 %% the contraction before it
@@ -1677,8 +1687,43 @@ tr_time_lexeme(english, E) :- tr_solve(mean(W, E)), tr_holds(time(W)), !.
 %% (`.' when it had none), the blank ones dropped
 tr_pieces(Text, Pieces) :-
     tr_memo_reset,
-    tr_codes(Text, Codes), tr_split(Codes, Pieces0), tr_quote_pieces(Pieces0, Pieces1),
+    tr_codes(Text, Codes0), tr_single_quotes(Codes0, Codes),
+    tr_split(Codes, Pieces0), tr_quote_pieces(Pieces0, Pieces1),
     tr_speech_pieces(Pieces1, Pieces).
+
+%% A WORD OR TWO IN SINGLE QUOTATION MARKS IS QUOTED, as in double ones: `Los
+%% 'botiguers' prevén que la relación con los fabricantes empeorará' (the
+%% press quotes a Catalan word so). The tokeniser keeps an apostrophe only
+%% between letters, and these marks went with the punctuation: the word lost
+%% them, and where no lesson knew it the sentence was refused. A single mark
+%% opens at the start of the text, after a blank or a bracket, before a
+%% letter; it closes after a letter or a digit, before a blank, a stop, a
+%% comma, a bracket or the end, three words on at most and with no stop
+%% between. Both become the plain double mark, which the clauses for a
+%% quoted word read. An elision (`l'altro': a letter before the apostrophe),
+%% a clipped word (`un po' di': no mark open) and a year (`'68': no letter
+%% after the mark) are no marks.
+tr_single_quotes(Cs0, Cs) :- tr_sq(Cs0, 32, Cs).
+
+tr_sq([], _, []).
+tr_sq([39, N|Cs], Prev, [34|Out]) :-
+    tr_sq_opens(Prev), rt_alpha(N),
+    tr_sq_close([N|Cs], Inside, Rest), !,
+    append(Inside, [34|Out1], Out),
+    tr_sq(Rest, 34, Out1).
+tr_sq([C|Cs], _, [C|Out]) :- tr_sq(Cs, C, Out).
+
+tr_sq_opens(P) :- ( P =< 32 ; P == 40 ; P == 91 ), !.          % a blank, `(' or `['
+
+tr_sq_close(Cs, Inside, Rest) :-
+    append(Inside, [39|Rest], Cs), Inside \== [],
+    last(Inside, L), ( rt_alpha(L) ; rt_digit(L) ),
+    ( Rest == [] ; Rest = [R|_], \+ rt_alpha(R), \+ rt_digit(R) ),
+    \+ ( member(S, Inside), memberchk(S, [46, 33, 63]) ),
+    tr_sq_blanks(Inside, NB), NB =< 2, !.
+
+tr_sq_blanks([], 0).
+tr_sq_blanks([C|Cs], N) :- tr_sq_blanks(Cs, N0), ( C =< 32 -> N is N0 + 1 ; N = N0 ).
 
 %% A SENTENCE IN QUOTATION MARKS: `"¿Cómo ha podido salir así?".' The mark
 %% opens before the sentence and closes after its stop, so the splitter cut
@@ -9271,8 +9316,12 @@ tr_negation(foreign, Words, Rest, yes) :-
     %% an adjective an adverb is its intensifier (tr_intensify/3).
     \+ ( last(A, P0), P0 = w(_, _), ( tr_is(foreign, P0, noun) ; tr_is(foreign, P0, adjective) ),
          B = [J0|_], J0 = w(JW0, _), atom(JW0), tr_is(foreign, J0, adjective), \+ tr_verb_form_word(JW0) ),
+    %% (a verb form that is a PREPOSITION too is no verb here: `manifestó que
+    %% la fusión entre Carrefour y Promodès no es buena' -- `entre' is also
+    %% the subjunctive of `entrar', and counted as the clause's verb it
+    %% gave the denial to `manifestó' and left the clause without it)
     \+ ( append(_, [w(X, XC)|Between], A), tr_opens_clause(w(X, XC)),
-         \+ ( member(w(V, _), Between), tr_verb_form_word(V) ) ),
+         \+ ( member(w(V, VC), Between), tr_verb_form_word(V), \+ tr_is(foreign, w(V, VC), preposition) ) ),
     %% NOR A DENIAL BEFORE `only' AND A `but' AFTER IT: `vede non solo il
     %% gatto ma anche la casa' sees not only the cat but the house too, and
     %% taken as the sentence's it said he did not see them (nonly/3)
@@ -10437,7 +10486,8 @@ tr_np(Side, Words, rc(NP, Role, S)) :-
     \+ ( Role0 = pp(_), Rest = [_, D, _|_], D = w(DW, _), tr_determiner(Side, D, _, article),
          tr_head_number(Side, NP, N), tr_lexeme(Side, DW, _, DN), DN \== N ), !,
     tr_rc_role(Side, Rest, NP, Role0, S0, Role1, S1),
-    ( Side == foreign -> tr_accident_rc(Role1, S1, Role, S) ; Role = Role1, S = S1 ).
+    ( Side == foreign -> tr_accident_rc(Role1, S1, Role, S2) ; Role = Role1, S2 = S1 ),
+    tr_rel_mark(Rest, S2, S).
 %% THE GAP OF A SUBJECT'S RELATIVE CLAUSE AGREES WITH ITS PHRASE: `después
 %% de la que celebraron el Lunes por la noche delegaciones del Gobierno' is
 %% the one the delegations held, and read with `la' for the subject, a
@@ -10871,6 +10921,15 @@ tr_np(foreign, [W1, W2|Ws], name(N)) :-
     tr_name_word(foreign, W1),
     forall(member(W, [W2|Ws]), ( W = w(_, upper), ( tr_name_part(foreign, W) ; tr_is(foreign, W, noun) ; tr_is(foreign, W, adjective) ) )), !,
     findall(C, ( member(w(X, _), [W1, W2|Ws]), tr_cap(X, C) ), Cs), atomic_list_concat(Cs, ' ', N).
+%% ... AND A FIRST NAME THE LESSON KNOWS AS A NOUN AND SAYS IS A NAME TOO:
+%% `Salvador Bellido' -- `salvador' is a saviour in the vocabulary
+%% (`"salvador" is a name.'), and read as the noun with a surname apposed to
+%% it the man crossed as `Soccorritore Bellido'. Every word after it is a
+%% capital, as in the run above.
+tr_np(foreign, [w(W1, upper), W2|Ws], name(N)) :-
+    atom(W1), tr_solve(name(W1)),
+    forall(member(W, [W2|Ws]), ( W = w(_, upper), ( tr_name_part(foreign, W) ; tr_is(foreign, W, noun) ; tr_is(foreign, W, adjective) ) )), !,
+    findall(C, ( member(w(X, _), [w(W1, upper), W2|Ws]), tr_cap(X, C) ), Cs), atomic_list_concat(Cs, ' ', N).
 tr_name_part(Side, W) :- tr_name_word(Side, W), !.
 tr_name_part(foreign, W) :-
     W = w(X, upper), \+ tr_is(foreign, W, noun), \+ tr_is(foreign, W, adjective),
@@ -15132,6 +15191,13 @@ tr_nested_join(Side, Ws, J) :-
     ( \+ tr_comma_before(L, w(W, WC)) -> Comma = no ; tr_coord(Side, w(W, WC)), tr_subjunctive_after(Side, R), Comma = yes ),
     tr_connector(Side, W),
     \+ ( tr_coord(Side, w(W, WC)), R = [w(V, _)|_], tr_solve(infinitive_of(V, _)) ),
+    %% (nor between two phrases of ONE preposition, as the whole sentence
+    %% is not divided there (tr_joins_phrases/3): `opina que el acuerdo es
+    %% una mala noticia para los consumidores y para los pequeños
+    %% comerciantes en España, al endurecer ... sin que eso provoque ...'
+    %% divided at that `y', and `para' -- also the verb `parar' -- stopped
+    %% the traders: `e arresta i piccoli commercianti')
+    \+ ( tr_coord(Side, w(W, WC)), tr_joins_phrases(Side, L, R) ),
     tr_read_statement(Side, L, none, S1),
     (   tr_coord(Side, w(W, WC)), S1 = s(_, _, g(_, _, A1, _), _), A1 \== imperative
     ->  tr_global('$tr_no_command', F0), nb_setval('$tr_no_command', yes),
@@ -16144,9 +16210,16 @@ tr_np_out(To, ncl(NP, S), Outs, Noun, Number) :- !,
     tr_that_word(To, TW),
     tr_write_nested(To, S, SOut),
     append([NPOut, BOut, [o(TW, lower)], SOut], Outs).
-tr_np_out(To, rc(NP, Role, S), Outs, Noun, Number) :- !,
+tr_np_out(To, rc(NP, Role, S0), Outs, Noun, Number) :- !,
     tr_np_out(To, NP, NPOut, Noun, Number),
-    tr_relative_out(To, Role, Noun, Number, RelOut),
+    tr_relative_out(To, Role, Noun, Number, RelOut0),
+    %% (a quotation that opened on the relative word, tr_rel_mark/3, as a
+    %% relative set off with a comma has it: `un monopolio "que quita la
+    %% competencia"' lost its opening mark and kept the closing one)
+    (   S0 = s(A0, Su0, G0, Cs0), select(qrel, Cs0, Cs1), RelOut0 = [o(RW, _)|RR]
+    ->  S = s(A0, Su0, G0, Cs1), RelOut = [o(RW, qopen)|RR]
+    ;   S = S0, RelOut = RelOut0
+    ),
     (   S = s(A, gap, G, Cs) -> S1 = s(A, gap(third, Number), G, Cs) ; S1 = S ),
     tr_gap_write(To, Noun, S1, SOut),
     append(NPOut, RelOut, O1), append(O1, SOut, Outs).

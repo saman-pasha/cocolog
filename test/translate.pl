@@ -30,7 +30,7 @@ main :-
     newspaper_pacifist, newspaper_mobile, newspaper_bastille, newspaper_basque, newspaper_giglio,
     newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
-    newspaper_eco, newspaper_arzalluz, newspaper_cecchi,
+    newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -10148,6 +10148,131 @@ newspaper_cecchi_checks_7 :-
     nf_tr('E in casa, il cane dorme:', italian, spanish, G2),
     check('a sentence that ends on a colon is read as the piece, the connector at its head before any division: `E per quella data, Funari spera ...:'' divided at its first comma, `data'' a command', G2,
           'Y en casa, el perro duerme:').
+
+newspaper_carrefour :-
+    section('a Spanish report into Italian: a word in single quotation marks, a word no lesson knows alone in marks, a first name that is a noun too, a quotation that opens on its relative word, a denial in a clause with a preposition that is a verb''s form, the phrases of one preposition before `without that'''),
+    newspaper_carrefour_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_carrefour_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_carrefour_checks_1, newspaper_carrefour_checks_2, newspaper_carrefour_checks_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others. What the vocabulary gives a word
+%% the lesson gives it too: `entre' a preposition and the subjunctive of a
+%% verb, `para' a preposition and a verb, `salvador' a noun and a name, and
+%% `sin que' one conjunction
+newspaper_carrefour_lesson(L, Text) :-
+    newspaper_carrefour_part(L, 1, A), newspaper_carrefour_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+newspaper_carrefour_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The masculine noun "técnico" means "coach". "técnico" is a person.
+The masculine noun "hombre" means "man". "hombre" is a person.
+The masculine noun "salvador" means "rescuer". "salvador" is a name.
+The masculine noun "monopolio" means "monopoly".
+The masculine adjective "malo" means "bad". "malos" is the plural of "malo".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The conjunction "sin que" means "without".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "a" means "to".
+The preposition "para" means "for". The preposition "entre" means "between".').
+newspaper_carrefour_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "coma" is the subjunctive of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "dice" means "says". "dijo" is the past of "dice".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra". "entran" is the plural of "entra".
+The verb "para" means "stops". "paran" is the plural of "para".
+The verb "provoca" means "causes". "provoque" is the subjunctive of "provoca".
+The verb "quita" means "removes".
+"said" is the past of "says".').
+newspaper_carrefour_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"al" is the contraction of "a il". "ai" is the contraction of "a i".
+"l''" is the elision of "lo". "l''" is the elision of "la". "d''" is the elision of "di".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The masculine noun "tecnico" means "coach". "tecnico" is a person.
+The masculine noun "uomo" means "man". "uomo" is a person.
+The masculine noun "salvatore" means "rescuer".
+The masculine noun "monopolio" means "monopoly".
+The masculine adjective "cattivo" means "bad". "cattivi" is the plural of "cattivo".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The conjunction "senza che" means "without".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "a" means "to".
+The preposition "per" means "for". The preposition "tra" means "between".').
+newspaper_carrefour_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha".
+The verb "dice" means "says". "disse" is the past of "dice".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+The verb "ferma" means "stops".
+The verb "provoca" means "causes".
+The verb "toglie" means "removes".
+"said" is the past of "says".').
+
+newspaper_carrefour_checks_1 :-
+    nf_tr('Los ''botiguers'' duermen.', spanish, italian, A1),
+    check('a word in single quotation marks is quoted, as in double ones: `Los ''botiguers'' prevén que la relación con los fabricantes empeorará'' lost its marks with the rest of the punctuation, and no lesson knew the word, so the sentence was refused', A1,
+          'I "botiguers" dormono.'),
+    nf_tr('Los "botiguers" duermen.', spanish, italian, A2),
+    check('a word in small letters that no lesson knows, alone in double marks, is kept as it stands and in its marks: the press sets a word of another language apart so, and the sentence was refused for the one word', A2,
+          'I "botiguers" dormono.'),
+    nf_tr('Los "botiguers" duermen.', spanish, english, A3),
+    check('... and in English', A3,
+          'The "botiguers" sleep.'),
+    nf_tr('I ''botiguers'' dormono.', italian, spanish, A4),
+    check('... and from Italian, where a word in single marks and in double ones is one', A4,
+          'Los "botiguers" duermen.'),
+    nf_tr('Los "perros" duermen.', spanish, italian, A5),
+    check('a GUARD: a word the lesson knows, in marks, is translated inside them and not kept', A5,
+          'I "cani" dormono.'),
+    nf_tr('Il tecnico dice ''cane e l''uomo dorme.', italian, spanish, A6),
+    check('a GUARD: a mark that nothing closes is no quotation, and the apostrophe of an elision (`l''uomo'') is no closing mark', A6,
+          'El técnico dice perro y el hombre duerme.').
+
+newspaper_carrefour_checks_2 :-
+    nf_tr('Salvador Bellido duerme.', spanish, italian, B1),
+    check('a first name that the lesson knows for a noun and says is a name too is the name, when capital words follow it: `Salvador Bellido'' crossed as `Soccorritore Bellido'', the noun and a surname apposed to it', B1,
+          'Salvador Bellido dorme.'),
+    nf_tr('Salvador Bellido duerme.', spanish, english, B2),
+    check('... and in English', B2,
+          'Salvador Bellido sleeps.'),
+    nf_tr('El perro tiene un monopolio "que quita el pan".', spanish, italian, B3),
+    check('a quotation that opens on the relative word of a clause keeps its opening mark: `un monopolio "que quita la competencia y destruye la libertad de mercado"'' lost it and kept the closing one', B3,
+          'Il cane ha un monopolio "che toglie il pane".'),
+    nf_tr('El perro tiene un monopolio "que quita el pan".', spanish, english, B4),
+    check('... and in English', B4,
+          'The dog has a monopoly "that removes the bread".').
+
+newspaper_carrefour_checks_3 :-
+    nf_tr('El técnico dijo que el pan entre el perro y el gato no es malo.', spanish, italian, C1),
+    check('a preposition that is a verb''s form too is no verb of the clause where its denial is looked for: in `Manifestó que la fusión entre Carrefour y Promodès no es buena'' the denial went to `manifestó'', `entre'' being the subjunctive of `entrar'' too and so a verb between `que'' and `no'', and the clause was left without it', C1,
+          'Il tecnico disse che il pane tra il cane e il gatto non è cattivo.'),
+    nf_tr('El técnico dijo que el pan entre el perro y el gato no es malo.', spanish, english, C2),
+    check('... and in English, where it read `the bread enters the dog''', C2,
+          'The coach said that the bread between the dog and the cat is not bad.'),
+    nf_tr('El técnico dijo que el pan para el perro no es malo.', spanish, italian, C3),
+    check('... and `para'', the verb `parar'' too', C3,
+          'Il tecnico disse che il pane per il cane non è cattivo.'),
+    nf_tr('El técnico dijo que el pan para el perro no es malo.', spanish, english, C4),
+    check('... and in English', C4,
+          'The coach said that the bread for the dog is not bad.'),
+    nf_tr('El técnico dijo que el pan es malo para el perro y para el gato sin que el gato coma.', spanish, italian, C5),
+    check('two phrases of one preposition before `without that'' are not divided at their `y'': `una mala noticia para los consumidores y para los pequeños comerciantes ..., sin que eso provoque ...'' stopped the traders, `para'' being the verb `parar'' too, `e arresta i piccoli commercianti'' (the subjunctive written as an indicative is the stated cost)', C5,
+          'Il tecnico disse che il pane è cattivo per il cane e per il gatto senza che il gatto mangia.').
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

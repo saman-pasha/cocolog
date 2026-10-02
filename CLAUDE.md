@@ -734,7 +734,11 @@ read into an English-worded IR and written into any lesson's language),
   (`traersela atrás`); a contraction before a quoted article drops
   the opening mark (`de "la casa"` is `della casa"`); a lesson line gives a
   word ONE sense in both numbers (`competencias` are powers, `la competencia`
-  the rival firms, and the line for the first moved the second).
+  the rival firms, and the line for the first moved the second); `su` for the
+  owners of a plural crosses as `il suo` (`su futuro` of the shops);
+  `afectar a` keeps its `a` (`influire negativamente alle centrali`); an
+  adjective after two coordinated nouns agrees with the nearest (`centrali e
+  gruppi di spesa spagnola`).
 
 ## Tutorials are documentation that runs
 

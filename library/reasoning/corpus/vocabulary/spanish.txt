@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20349 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20354 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -855,6 +855,11 @@ The adverb "por lo demás" means "for the rest".
 The verb "discute" means "discusses".
 The adverb "sin rodeos" means "bluntly".
 The preposition "detrás de" means "behind".
+The preposition "pese a" means "despite".
+The feminine noun "revisión" means "revision".
+"salvador" is a name.
+The verb "emite" means "issues".
+The preposition "alrededor de" means "around".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -978,6 +983,12 @@ The masculine noun "vicedirector" means "vicedirector".
 "vicedirectores" is the plural of "vicedirector".
 The masculine noun "distanciamiento" means "aloofness".
 "distanciamientos" is the plural of "distanciamiento".
+The feminine noun "patronal" means "employers".
+"patronales" is the plural of "patronal".
+The masculine noun "autoservicio" means "selfservice".
+"autoservicios" is the plural of "autoservicio".
+The feminine noun "central" means "central".
+"centrales" is the plural of "central".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -27632,6 +27643,52 @@ The verb "sustrae" means "subtracts".
 "sustraídas" is the plural of "sustraída".
 "sustraer" is the infinitive of "sustrae".
 "sustrayendo" is the gerund of "sustrae".
+The verb "repercute" means "offloads".
+"repercuten" is the plural of "repercute".
+"repercutimos" is the first person of "repercuten".
+"repercuto" is the first person of "repercute".
+"repercutes" is the second person of "repercute".
+"repercutió" is the past of "repercute".
+"repercutieron" is the past of "repercuten".
+"repercutimos" is the first person of "repercutieron".
+"repercutí" is the first person of "repercutió".
+"repercutiste" is the second person of "repercutió".
+"repercutía" is the past of "repercute".
+"repercutían" is the past of "repercuten".
+"repercutíamos" is the first person of "repercutían".
+"repercutías" is the second person of "repercutía".
+"repercutirá" is the future of "repercute".
+"repercutirán" is the plural of "repercutirá".
+"repercutiremos" is the first person of "repercutirán".
+"repercutiré" is the first person of "repercutirá".
+"repercutirás" is the second person of "repercutirá".
+"repercutiría" is the conditional of "repercute".
+"repercutirían" is the plural of "repercutiría".
+"repercutiríamos" is the first person of "repercutirían".
+"repercutirías" is the second person of "repercutiría".
+"repercuta" is the subjunctive of "repercute".
+"repercutan" is the plural of "repercuta".
+"repercutamos" is the first person of "repercutan".
+"repercutas" is the second person of "repercuta".
+"repercutiera" is the past subjunctive of "repercute".
+"repercutieran" is the plural of "repercutiera".
+"repercutiéramos" is the first person of "repercutieran".
+"repercutieras" is the second person of "repercutiera".
+"repercute" is the imperative of "repercute".
+"repercutas" is the negative imperative of "repercute".
+"repercutid" is the imperative of "repercuten".
+"repercutáis" is the negative imperative of "repercuten".
+"repercutamos" is the hortative of "repercute".
+"repercutido" is the participle of "repercute".
+"repercutida" is the participle of "repercute".
+"repercutida" is feminine.
+"repercutidos" is the participle of "repercute".
+"repercutidos" is the plural of "repercutido".
+"repercutidas" is the participle of "repercute".
+"repercutidas" is feminine.
+"repercutidas" is the plural of "repercutida".
+"repercutir" is the infinitive of "repercute".
+"repercutiendo" is the gerund of "repercute".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -123269,6 +123326,7 @@ The masculine adjective "vespertino" means "preevening".
 "vespertinos" is the plural of "vespertino".
 The feminine adjective "vespertina" means "preevening".
 "vespertinas" is the plural of "vespertina".
+The adjective "antimonopolio" means "antimonopoly".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

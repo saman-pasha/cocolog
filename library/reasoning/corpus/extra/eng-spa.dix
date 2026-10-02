@@ -432,3 +432,12 @@
 <e><p><l>preevening<s n="adj"/></l><r>vespertino<s n="adj"/></r></p></e>
 <e><p><l>aloofness<s n="n"/></l><r>distanciamiento<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>subtract<s n="vblex"/></l><r>sustraer<s n="vblex"/></r></p></e>
+# the Carrefour and Promodès report (AnCora CESS-CAST-P-19990901-75), into Italian:
+# apertium-spa carries each with its paradigm and the bilingual dictionary pairs
+# it with nothing. `central' as a noun is `las centrales de compra': the lesson
+# knew only the adjective, and a bare adjective before `y' heads no phrase
+<e><p><l>employers<s n="n"/></l><r>patronal<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>antimonopoly<s n="adj"/></l><r>antimonopolio<s n="adj"/></r></p></e>
+<e><p><l>selfservice<s n="n"/></l><r>autoservicio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>offload<s n="vblex"/></l><r>repercutir<s n="vblex"/></r></p></e>
+<e><p><l>central<s n="n"/></l><r>central<s n="n"/><s n="f"/></r></p></e>

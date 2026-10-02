@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16404 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16415 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1359,6 +1359,29 @@ The feminine noun "inattività" means "inactivity".
 The masculine noun "vicedirettore" means "vicedirector".
 "vicedirettori" is the plural of "vicedirettore".
 The noun "distacco" means "aloofness".
+The masculine noun "padronato" means "employers".
+"padronati" is the plural of "padronato".
+The masculine noun "autoservizio" means "selfservice".
+"autoservizi" is the plural of "autoservizio".
+The feminine noun "centrale" means "central".
+"centrali" is the plural of "centrale".
+The masculine noun "intralcio" means "fetter".
+"intralci" is the plural of "intralcio".
+The feminine noun "operazione" means "operation".
+"operazioni" is the plural of "operazione".
+The masculine noun "dipartimento" means "department".
+"dipartimenti" is the plural of "dipartimento".
+The feminine noun "scala" means "scale".
+"scale" is the plural of "scala".
+The masculine noun "grado" means "degree".
+"gradi" is the plural of "grado".
+The masculine noun "aiuto" means "help".
+"aiuti" is the plural of "aiuto".
+The feminine noun "allegazione" means "allegation".
+"allegazioni" is the plural of "allegazione".
+The noun "leader" means "leader".
+"leader" is the plural of "leader".
+"leader" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -3146,7 +3169,6 @@ The noun "agrologia" means "agrology".
 The feminine noun "agronomia" means "agronomy".
 "agronomie" is the plural of "agronomia".
 The masculine noun "aiuto" means "aid".
-"aiuti" is the plural of "aiuto".
 The feminine noun "aria" means "air".
 "arie" is the plural of "aria".
 The masculine noun "aeromobile" means "aircraft".
@@ -5558,8 +5580,6 @@ The feminine noun "degenerazione" means "degeneration".
 "degenerazioni" is the plural of "degenerazione".
 The feminine noun "laurea" means "degree".
 "lauree" is the plural of "laurea".
-The masculine noun "grado" means "degree".
-"gradi" is the plural of "grado".
 The feminine noun "disidratazione" means "dehydration".
 "disidratazioni" is the plural of "disidratazione".
 The noun "deidrogenazione" means "dehydrogenation".
@@ -5638,8 +5658,6 @@ The masculine noun "deodorante" means "deodorant".
 "deodoranti" is the plural of "deodorante".
 The feminine noun "deontologia" means "deontology".
 "deontologie" is the plural of "deontologia".
-The masculine noun "dipartimento" means "department".
-"dipartimenti" is the plural of "dipartimento".
 The feminine noun "partenza" means "departure".
 The feminine noun "dipendenza" means "dependence".
 "dipendenze" is the plural of "dipendenza".
@@ -11390,8 +11408,6 @@ The feminine noun "squama" means "scale".
 "squame" is the plural of "squama".
 The feminine noun "bilancia" means "scale".
 "bilance" is the plural of "bilancia".
-The feminine noun "scala" means "scale".
-"scale" is the plural of "scala".
 The masculine noun "cuoio" means "scalp".
 "cuoi" is the plural of "cuoio".
 The masculine noun "scandalo" means "scandal".
@@ -18444,9 +18460,6 @@ The masculine noun "pigro" means "lazy".
 "pigri" is the plural of "pigro".
 The feminine noun "pigra" means "lazy".
 "pigre" is the plural of "pigra".
-The noun "leader" means "leader".
-"leader" is the plural of "leader".
-"leader" is a person.
 The feminine noun "legalità" means "legality".
 "legalità" is the plural of "legalità".
 The feminine noun "legittimità" means "legitimacy".
@@ -18783,8 +18796,6 @@ The masculine noun "onnivoro" means "omnivore".
 "onnivori" is the plural of "onnivoro".
 The feminine noun "onnivora" means "omnivore".
 "onnivore" is the plural of "onnivora".
-The feminine noun "operazione" means "operation".
-"operazioni" is the plural of "operazione".
 The feminine noun "operatività" means "operation".
 "operatività" is the plural of "operatività".
 The masculine noun "operatore" means "operator".
@@ -23257,6 +23268,194 @@ The verb "tace" means "hushes".
 "taciute" is the plural of "taciuta".
 "tacere" is the infinitive of "tace".
 "tacendo" is the gerund of "tace".
+The verb "ribalta" means "offloads".
+"ribaltano" is the plural of "ribalta".
+"ribaltiamo" is the first person of "ribaltano".
+"ribalto" is the first person of "ribalta".
+"ribalti" is the second person of "ribalta".
+"ribaltò" is the past of "ribalta".
+"ribaltarono" is the past of "ribaltano".
+"ribaltammo" is the first person of "ribaltarono".
+"ribaltai" is the first person of "ribaltò".
+"ribaltasti" is the second person of "ribaltò".
+"ribaltava" is the past of "ribalta".
+"ribaltavano" is the past of "ribaltano".
+"ribaltavamo" is the first person of "ribaltavano".
+"ribaltavo" is the first person of "ribaltava".
+"ribaltavi" is the second person of "ribaltava".
+"ribalterà" is the future of "ribalta".
+"ribalteranno" is the plural of "ribalterà".
+"ribalteremo" is the first person of "ribalteranno".
+"ribalterò" is the first person of "ribalterà".
+"ribalterai" is the second person of "ribalterà".
+"ribalterebbe" is the conditional of "ribalta".
+"ribalterebbero" is the plural of "ribalterebbe".
+"ribalteremmo" is the first person of "ribalterebbero".
+"ribalterei" is the first person of "ribalterebbe".
+"ribalteresti" is the second person of "ribalterebbe".
+"ribalti" is the subjunctive of "ribalta".
+"ribaltino" is the plural of "ribalti".
+"ribaltiamo" is the first person of "ribaltino".
+"ribaltasse" is the past subjunctive of "ribalta".
+"ribaltassero" is the plural of "ribaltasse".
+"ribaltassimo" is the first person of "ribaltassero".
+"ribaltassi" is the first person of "ribaltasse".
+"ribaltassi" is the second person of "ribaltasse".
+"ribalta" is the imperative of "ribalta".
+"ribaltare" is the negative imperative of "ribalta".
+"ribaltate" is the imperative of "ribaltano".
+"ribaltiamo" is the hortative of "ribalta".
+"ribaltato" is the participle of "ribalta".
+"ribaltata" is the participle of "ribalta".
+"ribaltata" is feminine.
+"ribaltati" is the participle of "ribalta".
+"ribaltati" is the plural of "ribaltato".
+"ribaltate" is the participle of "ribalta".
+"ribaltate" is feminine.
+"ribaltate" is the plural of "ribaltata".
+"ribaltare" is the infinitive of "ribalta".
+"ribaltando" is the gerund of "ribalta".
+The verb "gestisce" means "manages".
+"gestiscono" is the plural of "gestisce".
+"gestiamo" is the first person of "gestiscono".
+"gestisco" is the first person of "gestisce".
+"gestisci" is the second person of "gestisce".
+"gestì" is the past of "gestisce".
+"gestirono" is the past of "gestiscono".
+"gestimmo" is the first person of "gestirono".
+"gestii" is the first person of "gestì".
+"gestisti" is the second person of "gestì".
+"gestiva" is the past of "gestisce".
+"gestivano" is the past of "gestiscono".
+"gestivamo" is the first person of "gestivano".
+"gestivo" is the first person of "gestiva".
+"gestivi" is the second person of "gestiva".
+"gestirà" is the future of "gestisce".
+"gestiranno" is the plural of "gestirà".
+"gestiremo" is the first person of "gestiranno".
+"gestirò" is the first person of "gestirà".
+"gestirai" is the second person of "gestirà".
+"gestirebbe" is the conditional of "gestisce".
+"gestirebbero" is the plural of "gestirebbe".
+"gestiremmo" is the first person of "gestirebbero".
+"gestirei" is the first person of "gestirebbe".
+"gestiresti" is the second person of "gestirebbe".
+"gestisca" is the subjunctive of "gestisce".
+"gestiscano" is the plural of "gestisca".
+"gestiamo" is the first person of "gestiscano".
+"gestisse" is the past subjunctive of "gestisce".
+"gestissero" is the plural of "gestisse".
+"gestissimo" is the first person of "gestissero".
+"gestissi" is the first person of "gestisse".
+"gestissi" is the second person of "gestisse".
+"gestisci" is the imperative of "gestisce".
+"gestire" is the negative imperative of "gestisce".
+"gestite" is the imperative of "gestiscono".
+"gestiamo" is the hortative of "gestisce".
+"gestito" is the participle of "gestisce".
+"gestita" is the participle of "gestisce".
+"gestita" is feminine.
+"gestiti" is the participle of "gestisce".
+"gestiti" is the plural of "gestito".
+"gestite" is the participle of "gestisce".
+"gestite" is feminine.
+"gestite" is the plural of "gestita".
+"gestire" is the infinitive of "gestisce".
+"gestendo" is the gerund of "gestisce".
+The verb "incoraggia" means "encourages".
+"incoraggiano" is the plural of "incoraggia".
+"incoraggiamo" is the first person of "incoraggiano".
+"incoraggio" is the first person of "incoraggia".
+"incoraggi" is the second person of "incoraggia".
+"incoraggiò" is the past of "incoraggia".
+"incoraggiarono" is the past of "incoraggiano".
+"incoraggiammo" is the first person of "incoraggiarono".
+"incoraggiai" is the first person of "incoraggiò".
+"incoraggiasti" is the second person of "incoraggiò".
+"incoraggiava" is the past of "incoraggia".
+"incoraggiavano" is the past of "incoraggiano".
+"incoraggiavamo" is the first person of "incoraggiavano".
+"incoraggiavo" is the first person of "incoraggiava".
+"incoraggiavi" is the second person of "incoraggiava".
+"incoraggerà" is the future of "incoraggia".
+"incoraggeranno" is the plural of "incoraggerà".
+"incoraggeremo" is the first person of "incoraggeranno".
+"incoraggerò" is the first person of "incoraggerà".
+"incoraggerai" is the second person of "incoraggerà".
+"incoraggerebbe" is the conditional of "incoraggia".
+"incoraggerebbero" is the plural of "incoraggerebbe".
+"incoraggeremmo" is the first person of "incoraggerebbero".
+"incoraggerei" is the first person of "incoraggerebbe".
+"incoraggeresti" is the second person of "incoraggerebbe".
+"incoraggi" is the subjunctive of "incoraggia".
+"incoraggino" is the plural of "incoraggi".
+"incoraggiamo" is the first person of "incoraggino".
+"incoraggiasse" is the past subjunctive of "incoraggia".
+"incoraggiassero" is the plural of "incoraggiasse".
+"incoraggiassimo" is the first person of "incoraggiassero".
+"incoraggiassi" is the first person of "incoraggiasse".
+"incoraggiassi" is the second person of "incoraggiasse".
+"incoraggia" is the imperative of "incoraggia".
+"incoraggiare" is the negative imperative of "incoraggia".
+"incoraggiate" is the imperative of "incoraggiano".
+"incoraggiamo" is the hortative of "incoraggia".
+"incoraggiato" is the participle of "incoraggia".
+"incoraggiata" is the participle of "incoraggia".
+"incoraggiata" is feminine.
+"incoraggiati" is the participle of "incoraggia".
+"incoraggiati" is the plural of "incoraggiato".
+"incoraggiate" is the participle of "incoraggia".
+"incoraggiate" is feminine.
+"incoraggiate" is the plural of "incoraggiata".
+"incoraggiare" is the infinitive of "incoraggia".
+"incoraggiando" is the gerund of "incoraggia".
+The verb "emette" means "issues".
+"emettono" is the plural of "emette".
+"emettiamo" is the first person of "emettono".
+"emetto" is the first person of "emette".
+"emetti" is the second person of "emette".
+"emise" is the past of "emette".
+"emisero" is the past of "emettono".
+"emettemmo" is the first person of "emisero".
+"emisi" is the first person of "emise".
+"emettesti" is the second person of "emise".
+"emetteva" is the past of "emette".
+"emettevano" is the past of "emettono".
+"emettevamo" is the first person of "emettevano".
+"emettevo" is the first person of "emetteva".
+"emettevi" is the second person of "emetteva".
+"emetterà" is the future of "emette".
+"emetteranno" is the plural of "emetterà".
+"emetteremo" is the first person of "emetteranno".
+"emetterò" is the first person of "emetterà".
+"emetterai" is the second person of "emetterà".
+"emetterebbe" is the conditional of "emette".
+"emetterebbero" is the plural of "emetterebbe".
+"emetteremmo" is the first person of "emetterebbero".
+"emetterei" is the first person of "emetterebbe".
+"emetteresti" is the second person of "emetterebbe".
+"emetta" is the subjunctive of "emette".
+"emettano" is the plural of "emetta".
+"emettiamo" is the first person of "emettano".
+"emettesse" is the past subjunctive of "emette".
+"emettessero" is the plural of "emettesse".
+"emettessimo" is the first person of "emettessero".
+"emettessi" is the first person of "emettesse".
+"emettessi" is the second person of "emettesse".
+"emetti" is the imperative of "emette".
+"emettere" is the negative imperative of "emette".
+"emettete" is the imperative of "emettono".
+"emettiamo" is the hortative of "emette".
+"emesso" is the participle of "emette".
+"emessa" is the participle of "emette".
+"emessa" is feminine.
+"emessi" is the participle of "emette".
+"emessi" is the plural of "emesso".
+"emesse" is the participle of "emette".
+"emesse" is feminine.
+"emesse" is the plural of "emessa".
+"emettere" is the infinitive of "emette".
+"emettendo" is the gerund of "emette".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -96926,7 +97125,6 @@ The verb "fa" means "makes".
 "fare" is the infinitive of "fa".
 "facendo" is the gerund of "fa".
 "made" is the past of "makes".
-The verb "raggiunge" means "manages".
 The verb "manipola" means "manipulates".
 The verb "merita" means "merits".
 The verb "emigra" means "migrates".
@@ -97728,6 +97926,18 @@ The adjective "preserale" means "preevening".
 "preseralissimi" is the superlative of "preserali".
 "preseralissima" is the superlative of "preserale".
 "preseralissime" is the superlative of "preserali".
+The masculine adjective "antimonopolistico" means "antimonopoly".
+"antimonopolistici" is the plural of "antimonopolistico".
+The feminine adjective "antimonopolistica" means "antimonopoly".
+"antimonopolistiche" is the plural of "antimonopolistica".
+The masculine adjective "opportuno" means "timely".
+"opportuni" is the plural of "opportuno".
+The feminine adjective "opportuna" means "timely".
+"opportune" is the plural of "opportuna".
+"opportunissimo" is the superlative of "opportuno".
+"opportunissimi" is the superlative of "opportuni".
+"opportunissima" is the superlative of "opportuna".
+"opportunissime" is the superlative of "opportune".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
