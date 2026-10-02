@@ -813,3 +813,27 @@
 # `emita un informe' -- issue a report: the dictionary's only Italian word for
 # `issue' as a verb is `pubblicare'; apertium-ita carries `emettere' with nothing
 <e><p><l>issue<s n="vblex"/></l><r>emettere<s n="vblex"/></r></p></e>
+# the poverty report of the Carniti commission (VIT-9637..9672), into Spanish:
+# apertium-ita carries each of these with its paradigm and the bilingual
+# dictionary pairs it with no English at all; the ones read only are the
+# word's second sense or a sense the English word has beside another
+# (`rapporto' is the commission's report first, `girone' a circle of hell,
+# `dicastero' a ministry, `mesto' sad, `ciascun' each)
+<e><p><l>compatriot<s n="n"/></l><r>connazionale<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>damned<s n="adj"/></l><r>dannato<s n="adj"/></r></p></e>
+<e><p><l>preside<s n="vblex"/></l><r>presiedere<s n="vblex"/></r></p></e>
+<e><p><l>reside<s n="vblex"/></l><r>risiedere<s n="vblex"/></r></p></e>
+<e><p><l>parent<s n="n"/></l><r>genitore<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>invalidity<s n="n"/></l><r>invalidità<s n="n"/><s n="f"/></r></p><par n="SP"/></e>
+<e><p><l>offspring<s n="n"/></l><r>prole<s n="n"/><s n="f"/></r></p><par n="SP"/></e>
+<e><p><l>comforting<s n="adj"/></l><r>confortante<s n="adj"/></r></p></e>
+<e r="RL"><p><l>report<s n="n"/></l><r>rapporto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>relationship<s n="n"/></l><r>rapporto<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>circle<s n="n"/></l><r>girone<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>ministry<s n="n"/></l><r>dicastero<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>sad<s n="adj"/></l><r>mesto<s n="adj"/></r></p></e>
+<e r="RL"><p><l>investigation<s n="n"/></l><r>indagine<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>benefit<s n="vblex"/></l><r>beneficiare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>beneficial<s n="adj"/></l><r>migliorativo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>taxation<s n="n"/></l><r>fiscalità<s n="n"/><s n="f"/></r></p><par n="SP"/></e>
+<e r="RL"><p><l>each<s n="det"/><s n="ind"/></l><r>ciascun<s n="det"/><s n="ind"/><s n="m"/></r></p></e>

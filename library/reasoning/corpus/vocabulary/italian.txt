@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16415 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16430 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1214,6 +1214,17 @@ The preposition "dietro" means "behind".
 The preposition "a seconda di" means "according to".
 The feminine noun "fascia" means "strip".
 "fasce" is the plural of "fascia".
+The adjective "rutilante" means "dazzling".
+"rutilanti" is the plural of "rutilante".
+The feminine noun "indigenza" means "destitution".
+"presieduto" is the participle of "presiede".
+"presieduta" is the participle of "presiede".
+"presieduta" is feminine.
+"presieduti" is the participle of "presiede".
+"presieduti" is the plural of "presieduto".
+"presiedute" is the participle of "presiede".
+"presiedute" is feminine.
+"presiedute" is the plural of "presieduta".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1382,6 +1393,17 @@ The feminine noun "allegazione" means "allegation".
 The noun "leader" means "leader".
 "leader" is the plural of "leader".
 "leader" is a person.
+The masculine noun "connazionale" means "compatriot".
+"connazionali" is the plural of "connazionale".
+"connazionale" is a person.
+The masculine noun "genitore" means "parent".
+"genitori" is the plural of "genitore".
+"genitore" is a person.
+The feminine noun "invalidità" means "invalidity".
+"invalidità" is the plural of "invalidità".
+The feminine noun "prole" means "offspring".
+"prole" is the plural of "prole".
+"prole" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -16486,6 +16508,17 @@ The masculine noun "sfondo" means "background".
 "sfondi" is the plural of "sfondo".
 The masculine noun "lido" means "shore".
 "lidi" is the plural of "lido".
+The masculine noun "rapporto" means "report".
+"rapporti" is the plural of "rapporto".
+The masculine noun "rapporto" means "relationship".
+The masculine noun "girone" means "circle".
+"gironi" is the plural of "girone".
+The masculine noun "dicastero" means "ministry".
+"dicasteri" is the plural of "dicastero".
+The feminine noun "indagine" means "investigation".
+"indagini" is the plural of "indagine".
+The feminine noun "fiscalità" means "taxation".
+"fiscalità" is the plural of "fiscalità".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -20862,7 +20895,6 @@ The feminine noun "cazzeruola" means "pan".
 The masculine noun "pacchetto" means "parcel".
 The feminine noun "lottizzazione" means "parcelling".
 "lottizzazioni" is the plural of "lottizzazione".
-The masculine noun "padre" means "parent".
 The feminine noun "società" means "partnership".
 The feminine noun "morte" means "passing".
 The feminine noun "pasta" means "paste".
@@ -20942,7 +20974,6 @@ The masculine noun "regime" means "regime".
 The masculine noun "registro" means "register".
 The masculine noun "saggio" means "rehearsal".
 The feminine noun "relazione" means "relation".
-The feminine noun "relazione" means "relationship".
 The feminine noun "religiosità" means "religiosity".
 The masculine noun "resto" means "remains".
 The feminine noun "osservazione" means "remark".
@@ -20951,7 +20982,6 @@ The masculine noun "affitto" means "rent".
 The masculine noun "affitto" means "rental".
 The masculine noun "rimborso" means "repayment".
 The feminine noun "risposta" means "reply".
-The feminine noun "relazione" means "report".
 The feminine noun "riproduzione" means "reproduction".
 The feminine noun "riedizione" means "republising".
 The feminine noun "riprogrammazione" means "rescheduling".
@@ -23456,6 +23486,100 @@ The verb "emette" means "issues".
 "emesse" is the plural of "emessa".
 "emettere" is the infinitive of "emette".
 "emettendo" is the gerund of "emette".
+The verb "presiede" means "presides".
+"presiedono" is the plural of "presiede".
+"presediamo" is the first person of "presiedono".
+"presiedo" is the first person of "presiede".
+"presiedi" is the second person of "presiede".
+"presedè" is the past of "presiede".
+"presederono" is the past of "presiedono".
+"presedemmo" is the first person of "presederono".
+"presedei" is the first person of "presedè".
+"presedesti" is the second person of "presedè".
+"presedeva" is the past of "presiede".
+"presedevano" is the past of "presiedono".
+"presedevamo" is the first person of "presedevano".
+"presedevo" is the first person of "presedeva".
+"presedevi" is the second person of "presedeva".
+"presederà" is the future of "presiede".
+"presederanno" is the plural of "presederà".
+"presederemo" is the first person of "presederanno".
+"presederò" is the first person of "presederà".
+"presederai" is the second person of "presederà".
+"presederebbe" is the conditional of "presiede".
+"presederebbero" is the plural of "presederebbe".
+"presederemmo" is the first person of "presederebbero".
+"presederei" is the first person of "presederebbe".
+"presederesti" is the second person of "presederebbe".
+"presieda" is the subjunctive of "presiede".
+"presiedano" is the plural of "presieda".
+"presediamo" is the first person of "presiedano".
+"presedesse" is the past subjunctive of "presiede".
+"presedessero" is the plural of "presedesse".
+"presedessimo" is the first person of "presedessero".
+"presedessi" is the first person of "presedesse".
+"presedessi" is the second person of "presedesse".
+"presiedi" is the imperative of "presiede".
+"presedere" is the negative imperative of "presiede".
+"presedete" is the imperative of "presiedono".
+"presediamo" is the hortative of "presiede".
+"preseduto" is the participle of "presiede".
+"preseduta" is the participle of "presiede".
+"preseduta" is feminine.
+"preseduti" is the participle of "presiede".
+"preseduti" is the plural of "preseduto".
+"presedute" is the participle of "presiede".
+"presedute" is feminine.
+"presedute" is the plural of "preseduta".
+"presedere" is the infinitive of "presiede".
+"presedendo" is the gerund of "presiede".
+The verb "risiede" means "resides".
+"risiedono" is the plural of "risiede".
+"risediamo" is the first person of "risiedono".
+"risiedo" is the first person of "risiede".
+"risiedi" is the second person of "risiede".
+"risedè" is the past of "risiede".
+"risederono" is the past of "risiedono".
+"risedemmo" is the first person of "risederono".
+"risedei" is the first person of "risedè".
+"risedesti" is the second person of "risedè".
+"risedeva" is the past of "risiede".
+"risedevano" is the past of "risiedono".
+"risedevamo" is the first person of "risedevano".
+"risedevo" is the first person of "risedeva".
+"risedevi" is the second person of "risedeva".
+"risederà" is the future of "risiede".
+"risederanno" is the plural of "risederà".
+"risederemo" is the first person of "risederanno".
+"risederò" is the first person of "risederà".
+"risederai" is the second person of "risederà".
+"risederebbe" is the conditional of "risiede".
+"risederebbero" is the plural of "risederebbe".
+"risederemmo" is the first person of "risederebbero".
+"risederei" is the first person of "risederebbe".
+"risederesti" is the second person of "risederebbe".
+"risieda" is the subjunctive of "risiede".
+"risiedano" is the plural of "risieda".
+"risediamo" is the first person of "risiedano".
+"risedesse" is the past subjunctive of "risiede".
+"risedessero" is the plural of "risedesse".
+"risedessimo" is the first person of "risedessero".
+"risedessi" is the first person of "risedesse".
+"risedessi" is the second person of "risedesse".
+"risiedi" is the imperative of "risiede".
+"risedere" is the negative imperative of "risiede".
+"risedete" is the imperative of "risiedono".
+"risediamo" is the hortative of "risiede".
+"riseduto" is the participle of "risiede".
+"riseduta" is the participle of "risiede".
+"riseduta" is feminine.
+"riseduti" is the participle of "risiede".
+"riseduti" is the plural of "riseduto".
+"risedute" is the participle of "risiede".
+"risedute" is feminine.
+"risedute" is the plural of "riseduta".
+"risedere" is the infinitive of "risiede".
+"risedendo" is the gerund of "risiede".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -92483,6 +92607,53 @@ The verb "puntualizza" means "clarifies".
 "puntualizzate" is the plural of "puntualizzata".
 "puntualizzare" is the infinitive of "puntualizza".
 "puntualizzando" is the gerund of "puntualizza".
+The verb "beneficia" means "benefits".
+"beneficiano" is the plural of "beneficia".
+"beneficiamo" is the first person of "beneficiano".
+"beneficio" is the first person of "beneficia".
+"benefici" is the second person of "beneficia".
+"beneficiò" is the past of "beneficia".
+"beneficiarono" is the past of "beneficiano".
+"beneficiammo" is the first person of "beneficiarono".
+"beneficiai" is the first person of "beneficiò".
+"beneficiasti" is the second person of "beneficiò".
+"beneficiava" is the past of "beneficia".
+"beneficiavano" is the past of "beneficiano".
+"beneficiavamo" is the first person of "beneficiavano".
+"beneficiavo" is the first person of "beneficiava".
+"beneficiavi" is the second person of "beneficiava".
+"beneficerà" is the future of "beneficia".
+"beneficeranno" is the plural of "beneficerà".
+"beneficeremo" is the first person of "beneficeranno".
+"beneficerò" is the first person of "beneficerà".
+"beneficerai" is the second person of "beneficerà".
+"beneficerebbe" is the conditional of "beneficia".
+"beneficerebbero" is the plural of "beneficerebbe".
+"beneficeremmo" is the first person of "beneficerebbero".
+"beneficerei" is the first person of "beneficerebbe".
+"beneficeresti" is the second person of "beneficerebbe".
+"benefici" is the subjunctive of "beneficia".
+"beneficino" is the plural of "benefici".
+"beneficiamo" is the first person of "beneficino".
+"beneficiasse" is the past subjunctive of "beneficia".
+"beneficiassero" is the plural of "beneficiasse".
+"beneficiassimo" is the first person of "beneficiassero".
+"beneficiassi" is the first person of "beneficiasse".
+"beneficiassi" is the second person of "beneficiasse".
+"beneficia" is the imperative of "beneficia".
+"beneficiare" is the negative imperative of "beneficia".
+"beneficiate" is the imperative of "beneficiano".
+"beneficiamo" is the hortative of "beneficia".
+"beneficiato" is the participle of "beneficia".
+"beneficiata" is the participle of "beneficia".
+"beneficiata" is feminine.
+"beneficiati" is the participle of "beneficia".
+"beneficiati" is the plural of "beneficiato".
+"beneficiate" is the participle of "beneficia".
+"beneficiate" is feminine.
+"beneficiate" is the plural of "beneficiata".
+"beneficiare" is the infinitive of "beneficia".
+"beneficiando" is the gerund of "beneficia".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -97938,6 +98109,20 @@ The feminine adjective "opportuna" means "timely".
 "opportunissimi" is the superlative of "opportuni".
 "opportunissima" is the superlative of "opportuna".
 "opportunissime" is the superlative of "opportune".
+The masculine adjective "dannato" means "damned".
+"dannati" is the plural of "dannato".
+The feminine adjective "dannata" means "damned".
+"dannate" is the plural of "dannata".
+"dannatissimo" is the superlative of "dannato".
+"dannatissimi" is the superlative of "dannati".
+"dannatissima" is the superlative of "dannata".
+"dannatissime" is the superlative of "dannate".
+The adjective "confortante" means "comforting".
+"confortanti" is the plural of "confortante".
+"confortantissimo" is the superlative of "confortante".
+"confortantissimi" is the superlative of "confortanti".
+"confortantissima" is the superlative of "confortante".
+"confortantissime" is the superlative of "confortanti".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -113843,6 +114028,22 @@ The adjective "raggiante" means "radiant".
 "raggiantissimi" is the superlative of "raggianti".
 "raggiantissima" is the superlative of "raggiante".
 "raggiantissime" is the superlative of "raggianti".
+The masculine adjective "mesto" means "sad".
+"mesti" is the plural of "mesto".
+The feminine adjective "mesta" means "sad".
+"meste" is the plural of "mesta".
+"mestissimo" is the superlative of "mesto".
+"mestissimi" is the superlative of "mesti".
+"mestissima" is the superlative of "mesta".
+"mestissime" is the superlative of "meste".
+The masculine adjective "migliorativo" means "beneficial".
+"migliorativi" is the plural of "migliorativo".
+The feminine adjective "migliorativa" means "beneficial".
+"migliorative" is the plural of "migliorativa".
+"migliorativissimo" is the superlative of "migliorativo".
+"migliorativissimi" is the superlative of "migliorativi".
+"migliorativissima" is the superlative of "migliorativa".
+"migliorativissime" is the superlative of "migliorative".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -115619,6 +115820,8 @@ The masculine determiner "certo" means "some".
 "certi" is the plural of "certo".
 The feminine determiner "certa" means "some".
 "certe" is the plural of "certa".
+The masculine determiner "ciascun" means "each".
+The feminine determiner "ciascuna" means "each".
 The determiner "altro" means "other".
 The determiner "ciascuno" means "each".
 The determiner "poco" means "few".

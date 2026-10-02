@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20354 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20356 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -27689,6 +27689,52 @@ The verb "repercute" means "offloads".
 "repercutidas" is the plural of "repercutida".
 "repercutir" is the infinitive of "repercute".
 "repercutiendo" is the gerund of "repercute".
+The verb "preside" means "presides".
+"presiden" is the plural of "preside".
+"presidimos" is the first person of "presiden".
+"presido" is the first person of "preside".
+"presides" is the second person of "preside".
+"presidió" is the past of "preside".
+"presidieron" is the past of "presiden".
+"presidimos" is the first person of "presidieron".
+"presidí" is the first person of "presidió".
+"presidiste" is the second person of "presidió".
+"presidía" is the past of "preside".
+"presidían" is the past of "presiden".
+"presidíamos" is the first person of "presidían".
+"presidías" is the second person of "presidía".
+"presidirá" is the future of "preside".
+"presidirán" is the plural of "presidirá".
+"presidiremos" is the first person of "presidirán".
+"presidiré" is the first person of "presidirá".
+"presidirás" is the second person of "presidirá".
+"presidiría" is the conditional of "preside".
+"presidirían" is the plural of "presidiría".
+"presidiríamos" is the first person of "presidirían".
+"presidirías" is the second person of "presidiría".
+"presida" is the subjunctive of "preside".
+"presidan" is the plural of "presida".
+"presidamos" is the first person of "presidan".
+"presidas" is the second person of "presida".
+"presidiera" is the past subjunctive of "preside".
+"presidieran" is the plural of "presidiera".
+"presidiéramos" is the first person of "presidieran".
+"presidieras" is the second person of "presidiera".
+"preside" is the imperative of "preside".
+"presidas" is the negative imperative of "preside".
+"presidid" is the imperative of "presiden".
+"presidáis" is the negative imperative of "presiden".
+"presidamos" is the hortative of "preside".
+"presidido" is the participle of "preside".
+"presidida" is the participle of "preside".
+"presidida" is feminine.
+"presididos" is the participle of "preside".
+"presididos" is the plural of "presidido".
+"presididas" is the participle of "preside".
+"presididas" is feminine.
+"presididas" is the plural of "presidida".
+"presidir" is the infinitive of "preside".
+"presidiendo" is the gerund of "preside".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -39845,51 +39891,6 @@ The verb "encadena" means "chains".
 "encadenar" is the infinitive of "encadena".
 "encadenando" is the gerund of "encadena".
 The verb "preside" means "chairs".
-"presiden" is the plural of "preside".
-"presidimos" is the first person of "presiden".
-"presido" is the first person of "preside".
-"presides" is the second person of "preside".
-"presidió" is the past of "preside".
-"presidieron" is the past of "presiden".
-"presidimos" is the first person of "presidieron".
-"presidí" is the first person of "presidió".
-"presidiste" is the second person of "presidió".
-"presidía" is the past of "preside".
-"presidían" is the past of "presiden".
-"presidíamos" is the first person of "presidían".
-"presidías" is the second person of "presidía".
-"presidirá" is the future of "preside".
-"presidirán" is the plural of "presidirá".
-"presidiremos" is the first person of "presidirán".
-"presidiré" is the first person of "presidirá".
-"presidirás" is the second person of "presidirá".
-"presidiría" is the conditional of "preside".
-"presidirían" is the plural of "presidiría".
-"presidiríamos" is the first person of "presidirían".
-"presidirías" is the second person of "presidiría".
-"presida" is the subjunctive of "preside".
-"presidan" is the plural of "presida".
-"presidamos" is the first person of "presidan".
-"presidas" is the second person of "presida".
-"presidiera" is the past subjunctive of "preside".
-"presidieran" is the plural of "presidiera".
-"presidiéramos" is the first person of "presidieran".
-"presidieras" is the second person of "presidiera".
-"preside" is the imperative of "preside".
-"presidas" is the negative imperative of "preside".
-"presidid" is the imperative of "presiden".
-"presidáis" is the negative imperative of "presiden".
-"presidamos" is the hortative of "preside".
-"presidido" is the participle of "preside".
-"presidida" is the participle of "preside".
-"presidida" is feminine.
-"presididos" is the participle of "preside".
-"presididos" is the plural of "presidido".
-"presididas" is the participle of "preside".
-"presididas" is feminine.
-"presididas" is the plural of "presidida".
-"presidir" is the infinitive of "preside".
-"presidiendo" is the gerund of "preside".
 The verb "cambia" means "changes".
 "cambian" is the plural of "cambia".
 "cambiamos" is the first person of "cambian".
@@ -123327,6 +123328,8 @@ The masculine adjective "vespertino" means "preevening".
 The feminine adjective "vespertina" means "preevening".
 "vespertinas" is the plural of "vespertina".
 The adjective "antimonopolio" means "antimonopoly".
+The adjective "reconfortante" means "comforting".
+"reconfortantes" is the plural of "reconfortante".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

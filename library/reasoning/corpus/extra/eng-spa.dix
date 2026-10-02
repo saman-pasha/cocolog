@@ -441,3 +441,8 @@
 <e><p><l>selfservice<s n="n"/></l><r>autoservicio<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>offload<s n="vblex"/></l><r>repercutir<s n="vblex"/></r></p></e>
 <e><p><l>central<s n="n"/></l><r>central<s n="n"/><s n="f"/></r></p></e>
+# the poverty report of the Carniti commission (VIT-9637..9672): `presidir' and
+# `reconfortante' for the English words of the Italian entries; apertium-spa
+# carries both with their paradigms and the bilingual dictionary pairs neither
+<e><p><l>preside<s n="vblex"/></l><r>presidir<s n="vblex"/></r></p></e>
+<e><p><l>comforting<s n="adj"/></l><r>reconfortante<s n="adj"/><s n="mf"/></r></p></e>

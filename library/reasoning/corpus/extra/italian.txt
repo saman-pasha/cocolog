@@ -2177,3 +2177,19 @@ The preposition "a seconda di" means "according to".
 # where the dictionary's `fascia' is a headband
 The feminine noun "fascia" means "strip".
 "fasce" is the plural of "fascia".
+# the poverty report of the Carniti commission (VIT-9637..9672): `rutilante' and
+# `indigenza' are in no dictionary, the first a dazzling world of goods and the
+# second destitution
+The adjective "rutilante" means "dazzling".
+"rutilanti" is the plural of "rutilante".
+The feminine noun "indigenza" means "destitution".
+# `presieduta da Pierre Carniti' -- apertium-ita's paradigm for `presiedere' has
+# `preseduto' and no `presieduto', so its participles are stated here
+"presieduto" is the participle of "presiede".
+"presieduta" is the participle of "presiede".
+"presieduta" is feminine.
+"presieduti" is the participle of "presiede".
+"presieduti" is the plural of "presieduto".
+"presiedute" is the participle of "presiede".
+"presiedute" is feminine.
+"presiedute" is the plural of "presieduta".
