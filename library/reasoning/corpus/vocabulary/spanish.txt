@@ -860,6 +860,7 @@ The feminine noun "revisión" means "revision".
 "salvador" is a name.
 The verb "emite" means "issues".
 The preposition "alrededor de" means "around".
+The adverb "peor" means "worse".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

@@ -1648,3 +1648,7 @@ The verb "emite" means "issues".
 # `alrededor de 6.000 tiendas' -- around: the adverb `alrededor' and the
 # preposition `de', and written so `intorno di 6.000'
 The preposition "alrededor de" means "around".
+# `Stanno peggio le famiglie' -- worse: the lesson had `peor' as an adjective
+# only (`"peor" is the comparative of "malo"'), and the Italian adverb
+# `peggio' had no Spanish word to cross to
+The adverb "peor" means "worse".
