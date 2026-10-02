@@ -1652,3 +1652,28 @@ The preposition "alrededor de" means "around".
 # only (`"peor" is the comparative of "malo"'), and the Italian adverb
 # `peggio' had no Spanish word to cross to
 The adverb "peor" means "worse".
+# `le famiglie più numerose sono le più colpite': the Italian adjective
+# `colpito' crosses as struck, and the dictionary has `golpeado' only as the
+# participle of `golpear', so the superlative `los más golpeados' had no word
+The masculine adjective "golpeado" means "struck".
+The feminine adjective "golpeada" means "struck".
+# `cada uno de ellos vive con ...' -- the pronoun, where `cada' is the determiner
+The pronoun "cada uno" means "each".
+The pronoun "cada uno" does not precede the verb.
+# `llegar a fin de mes' -- to make ends meet, the Italian `sbarcare il lunario'
+The verb "llega a fin de mes" means "makes ends meet".
+"llegan a fin de mes" is the plural of "llega a fin de mes".
+"llegar a fin de mes" is the infinitive of "llega a fin de mes".
+"llegado a fin de mes" is the participle of "llega a fin de mes".
+# `un consuntivo inquietante' -- a balance: the dictionary's first word for the
+# noun is `balance', and the lesson's `equilibrio' came before it
+The masculine noun "balance" means "balance".
+# `en la estela de' -- the Italian `sulla scia di'
+The preposition "en la estela de" means "in the wake of".
+# `ya no' -- no longer, the Italian `non più'
+The adverb "ya no" means "no longer".
+# `de cada cien italianos residentes, ¿cuántos son los pobres?' -- how many and
+# how much, and a hundred
+The word "cuántos" means "how many".
+The word "cuánto" means "how much".
+The number "cien" means "hundred".

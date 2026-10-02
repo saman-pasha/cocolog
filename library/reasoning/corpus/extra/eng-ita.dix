@@ -837,3 +837,12 @@
 <e r="RL"><p><l>beneficial<s n="adj"/></l><r>migliorativo<s n="adj"/></r></p></e>
 <e r="RL"><p><l>taxation<s n="n"/></l><r>fiscalità<s n="n"/><s n="f"/></r></p><par n="SP"/></e>
 <e r="RL"><p><l>each<s n="det"/><s n="ind"/></l><r>ciascun<s n="det"/><s n="ind"/><s n="m"/></r></p></e>
+# `Segnano la differenza ... le condizioni sociali' -- mark: apertium-ita carries
+# `segnare' and the bilingual dictionary pairs it with no English
+<e r="RL"><p><l>mark<s n="vblex"/></l><r>segnare<s n="vblex"/></r></p></e>
+# `la mesta classifica di coloro che ...' -- a ranking: apertium-ita carries the
+# noun `classifica' and the verb `classifica' says the word the lesson knew
+<e><p><l>ranking<s n="n"/></l><r>classifica<s n="n"/><s n="f"/></r></p></e>
+# `l'italiano medio' -- the average Italian: apertium-ita carries the adjective
+# `medio' and the bilingual dictionary pairs `average' with `mediano' alone
+<e><p><l>average<s n="adj"/></l><r>medio<s n="adj"/></r></p></e>

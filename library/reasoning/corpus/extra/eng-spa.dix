@@ -446,3 +446,16 @@
 # carries both with their paradigms and the bilingual dictionary pairs neither
 <e><p><l>preside<s n="vblex"/></l><r>presidir<s n="vblex"/></r></p></e>
 <e><p><l>comforting<s n="adj"/></l><r>reconfortante<s n="adj"/><s n="mf"/></r></p></e>
+# `Segnano la differenza' -- mark: the dictionary's first Spanish word for the verb
+# is `manchar', to stain, and `marcar' comes second
+<e><p><l>mark<s n="vblex"/></l><r>marcar<s n="vblex"/></r></p></e>
+# `la mesta classifica' -- a ranking, Spanish's `clasificación'
+<e><p><l>ranking<s n="n"/></l><r>clasificación<s n="n"/><s n="f"/></r></p></e>
+# `un consuntivo inquietante' -- disturbing: apertium-spa carries `inquietante'
+# and the bilingual dictionary pairs it with nothing
+<e><p><l>disturbing<s n="adj"/></l><r>inquietante<s n="adj"/><s n="mf"/></r></p></e>
+# `addirittura raddoppierebbe' -- double: the dictionary's only Spanish verb for it
+# is `plegar', to fold, and `duplicar' comes with nothing
+<e><p><l>double<s n="vblex"/></l><r>duplicar<s n="vblex"/></r></p></e>
+# `el italiano medio' -- the average Italian, `medio' where the dictionary gives `mediano'
+<e><p><l>average<s n="adj"/></l><r>medio<s n="adj"/></r></p></e>

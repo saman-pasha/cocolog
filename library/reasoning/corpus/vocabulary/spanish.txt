@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20356 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20359 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -861,6 +861,20 @@ The feminine noun "revisión" means "revision".
 The verb "emite" means "issues".
 The preposition "alrededor de" means "around".
 The adverb "peor" means "worse".
+The masculine adjective "golpeado" means "struck".
+The feminine adjective "golpeada" means "struck".
+The pronoun "cada uno" means "each".
+The pronoun "cada uno" does not precede the verb.
+The verb "llega a fin de mes" means "makes ends meet".
+"llegan a fin de mes" is the plural of "llega a fin de mes".
+"llegar a fin de mes" is the infinitive of "llega a fin de mes".
+"llegado a fin de mes" is the participle of "llega a fin de mes".
+The masculine noun "balance" means "balance".
+The preposition "en la estela de" means "in the wake of".
+The adverb "ya no" means "no longer".
+The word "cuántos" means "how many".
+The word "cuánto" means "how much".
+The number "cien" means "hundred".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -990,6 +1004,8 @@ The masculine noun "autoservicio" means "selfservice".
 "autoservicios" is the plural of "autoservicio".
 The feminine noun "central" means "central".
 "centrales" is the plural of "central".
+The feminine noun "clasificación" means "ranking".
+"clasificaciones" is the plural of "clasificación".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -2650,7 +2666,6 @@ The feminine noun "clase" means "class".
 The masculine noun "clasicismo" means "classicism".
 "clasicismos" is the plural of "clasicismo".
 The feminine noun "clasificación" means "classification".
-"clasificaciones" is the plural of "clasificación".
 The feminine noun "aula" means "classroom".
 "aulas" is the plural of "aula".
 The feminine noun "cláusula" means "clause".
@@ -27736,6 +27751,98 @@ The verb "preside" means "presides".
 "presididas" is the plural of "presidida".
 "presidir" is the infinitive of "preside".
 "presidiendo" is the gerund of "preside".
+The verb "marca" means "marks".
+"marcan" is the plural of "marca".
+"marcamos" is the first person of "marcan".
+"marco" is the first person of "marca".
+"marcas" is the second person of "marca".
+"marcó" is the past of "marca".
+"marcaron" is the past of "marcan".
+"marcamos" is the first person of "marcaron".
+"marqué" is the first person of "marcó".
+"marcaste" is the second person of "marcó".
+"marcaba" is the past of "marca".
+"marcaban" is the past of "marcan".
+"marcábamos" is the first person of "marcaban".
+"marcabas" is the second person of "marcaba".
+"marcará" is the future of "marca".
+"marcarán" is the plural of "marcará".
+"marcaremos" is the first person of "marcarán".
+"marcaré" is the first person of "marcará".
+"marcarás" is the second person of "marcará".
+"marcaría" is the conditional of "marca".
+"marcarían" is the plural of "marcaría".
+"marcaríamos" is the first person of "marcarían".
+"marcarías" is the second person of "marcaría".
+"marque" is the subjunctive of "marca".
+"marquen" is the plural of "marque".
+"marquemos" is the first person of "marquen".
+"marques" is the second person of "marque".
+"marcara" is the past subjunctive of "marca".
+"marcaran" is the plural of "marcara".
+"marcáramos" is the first person of "marcaran".
+"marcaras" is the second person of "marcara".
+"marca" is the imperative of "marca".
+"marques" is the negative imperative of "marca".
+"marcad" is the imperative of "marcan".
+"marquéis" is the negative imperative of "marcan".
+"marquemos" is the hortative of "marca".
+"marcado" is the participle of "marca".
+"marcada" is the participle of "marca".
+"marcada" is feminine.
+"marcados" is the participle of "marca".
+"marcados" is the plural of "marcado".
+"marcadas" is the participle of "marca".
+"marcadas" is feminine.
+"marcadas" is the plural of "marcada".
+"marcar" is the infinitive of "marca".
+"marcando" is the gerund of "marca".
+The verb "duplica" means "doubles".
+"duplican" is the plural of "duplica".
+"duplicamos" is the first person of "duplican".
+"duplico" is the first person of "duplica".
+"duplicas" is the second person of "duplica".
+"duplicó" is the past of "duplica".
+"duplicaron" is the past of "duplican".
+"duplicamos" is the first person of "duplicaron".
+"dupliqué" is the first person of "duplicó".
+"duplicaste" is the second person of "duplicó".
+"duplicaba" is the past of "duplica".
+"duplicaban" is the past of "duplican".
+"duplicábamos" is the first person of "duplicaban".
+"duplicabas" is the second person of "duplicaba".
+"duplicará" is the future of "duplica".
+"duplicarán" is the plural of "duplicará".
+"duplicaremos" is the first person of "duplicarán".
+"duplicaré" is the first person of "duplicará".
+"duplicarás" is the second person of "duplicará".
+"duplicaría" is the conditional of "duplica".
+"duplicarían" is the plural of "duplicaría".
+"duplicaríamos" is the first person of "duplicarían".
+"duplicarías" is the second person of "duplicaría".
+"duplique" is the subjunctive of "duplica".
+"dupliquen" is the plural of "duplique".
+"dupliquemos" is the first person of "dupliquen".
+"dupliques" is the second person of "duplique".
+"duplicara" is the past subjunctive of "duplica".
+"duplicaran" is the plural of "duplicara".
+"duplicáramos" is the first person of "duplicaran".
+"duplicaras" is the second person of "duplicara".
+"duplica" is the imperative of "duplica".
+"dupliques" is the negative imperative of "duplica".
+"duplicad" is the imperative of "duplican".
+"dupliquéis" is the negative imperative of "duplican".
+"dupliquemos" is the hortative of "duplica".
+"duplicado" is the participle of "duplica".
+"duplicada" is the participle of "duplica".
+"duplicada" is feminine.
+"duplicados" is the participle of "duplica".
+"duplicados" is the plural of "duplicado".
+"duplicadas" is the participle of "duplica".
+"duplicadas" is feminine.
+"duplicadas" is the plural of "duplicada".
+"duplicar" is the infinitive of "duplica".
+"duplicando" is the gerund of "duplica".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -70441,52 +70548,6 @@ The verb "mancha" means "marks".
 "manchadas" is the plural of "manchada".
 "manchar" is the infinitive of "mancha".
 "manchando" is the gerund of "mancha".
-The verb "marca" means "marks".
-"marcan" is the plural of "marca".
-"marcamos" is the first person of "marcan".
-"marco" is the first person of "marca".
-"marcas" is the second person of "marca".
-"marcó" is the past of "marca".
-"marcaron" is the past of "marcan".
-"marcamos" is the first person of "marcaron".
-"marqué" is the first person of "marcó".
-"marcaste" is the second person of "marcó".
-"marcaba" is the past of "marca".
-"marcaban" is the past of "marcan".
-"marcábamos" is the first person of "marcaban".
-"marcabas" is the second person of "marcaba".
-"marcará" is the future of "marca".
-"marcarán" is the plural of "marcará".
-"marcaremos" is the first person of "marcarán".
-"marcaré" is the first person of "marcará".
-"marcarás" is the second person of "marcará".
-"marcaría" is the conditional of "marca".
-"marcarían" is the plural of "marcaría".
-"marcaríamos" is the first person of "marcarían".
-"marcarías" is the second person of "marcaría".
-"marque" is the subjunctive of "marca".
-"marquen" is the plural of "marque".
-"marquemos" is the first person of "marquen".
-"marques" is the second person of "marque".
-"marcara" is the past subjunctive of "marca".
-"marcaran" is the plural of "marcara".
-"marcáramos" is the first person of "marcaran".
-"marcaras" is the second person of "marcara".
-"marca" is the imperative of "marca".
-"marques" is the negative imperative of "marca".
-"marcad" is the imperative of "marcan".
-"marquéis" is the negative imperative of "marcan".
-"marquemos" is the hortative of "marca".
-"marcado" is the participle of "marca".
-"marcada" is the participle of "marca".
-"marcada" is feminine.
-"marcados" is the participle of "marca".
-"marcados" is the plural of "marcado".
-"marcadas" is the participle of "marca".
-"marcadas" is feminine.
-"marcadas" is the plural of "marcada".
-"marcar" is the infinitive of "marca".
-"marcando" is the gerund of "marca".
 The verb "puntúa" means "marks".
 "puntúan" is the plural of "puntúa".
 "puntuamos" is the first person of "puntúan".
@@ -100828,51 +100889,6 @@ The verb "dilata" means "dilates".
 "dilatar" is the infinitive of "dilata".
 "dilatando" is the gerund of "dilata".
 The verb "duplica" means "duplicates".
-"duplican" is the plural of "duplica".
-"duplicamos" is the first person of "duplican".
-"duplico" is the first person of "duplica".
-"duplicas" is the second person of "duplica".
-"duplicó" is the past of "duplica".
-"duplicaron" is the past of "duplican".
-"duplicamos" is the first person of "duplicaron".
-"dupliqué" is the first person of "duplicó".
-"duplicaste" is the second person of "duplicó".
-"duplicaba" is the past of "duplica".
-"duplicaban" is the past of "duplican".
-"duplicábamos" is the first person of "duplicaban".
-"duplicabas" is the second person of "duplicaba".
-"duplicará" is the future of "duplica".
-"duplicarán" is the plural of "duplicará".
-"duplicaremos" is the first person of "duplicarán".
-"duplicaré" is the first person of "duplicará".
-"duplicarás" is the second person of "duplicará".
-"duplicaría" is the conditional of "duplica".
-"duplicarían" is the plural of "duplicaría".
-"duplicaríamos" is the first person of "duplicarían".
-"duplicarías" is the second person of "duplicaría".
-"duplique" is the subjunctive of "duplica".
-"dupliquen" is the plural of "duplique".
-"dupliquemos" is the first person of "dupliquen".
-"dupliques" is the second person of "duplique".
-"duplicara" is the past subjunctive of "duplica".
-"duplicaran" is the plural of "duplicara".
-"duplicáramos" is the first person of "duplicaran".
-"duplicaras" is the second person of "duplicara".
-"duplica" is the imperative of "duplica".
-"dupliques" is the negative imperative of "duplica".
-"duplicad" is the imperative of "duplican".
-"dupliquéis" is the negative imperative of "duplican".
-"dupliquemos" is the hortative of "duplica".
-"duplicado" is the participle of "duplica".
-"duplicada" is the participle of "duplica".
-"duplicada" is feminine.
-"duplicados" is the participle of "duplica".
-"duplicados" is the plural of "duplicado".
-"duplicadas" is the participle of "duplica".
-"duplicadas" is feminine.
-"duplicadas" is the plural of "duplicada".
-"duplicar" is the infinitive of "duplica".
-"duplicando" is the gerund of "duplica".
 The verb "devora" means "devours".
 "devoran" is the plural of "devora".
 "devoramos" is the first person of "devoran".
@@ -122538,7 +122554,6 @@ The verb "embute" means "dishes".
 The verb "muestra" means "displays".
 The verb "coloca" means "disposes".
 The verb "da" means "donates".
-The verb "pliega" means "doubles".
 The verb "baja" means "drops".
 "bajan" is the plural of "baja".
 "bajamos" is the first person of "bajan".
@@ -123331,6 +123346,16 @@ The feminine adjective "vespertina" means "preevening".
 The adjective "antimonopolio" means "antimonopoly".
 The adjective "reconfortante" means "comforting".
 "reconfortantes" is the plural of "reconfortante".
+The adjective "inquietante" means "disturbing".
+"inquietantes" is the plural of "inquietante".
+The masculine adjective "medio" means "average".
+"medios" is the plural of "medio".
+The feminine adjective "media" means "average".
+"medias" is the plural of "media".
+"mediísimas" is the superlative of "medias".
+"mediísima" is the superlative of "media".
+"mediísimos" is the superlative of "medios".
+"mediísimo" is the superlative of "medio".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -126466,13 +126491,7 @@ The feminine adjective "peluda" means "hairy".
 "peludísimos" is the superlative of "peludos".
 "peludísimo" is the superlative of "peludo".
 The masculine adjective "medio" means "half".
-"medios" is the plural of "medio".
 The feminine adjective "media" means "half".
-"medias" is the plural of "media".
-"mediísimas" is the superlative of "medias".
-"mediísima" is the superlative of "media".
-"mediísimos" is the superlative of "medios".
-"mediísimo" is the superlative of "medio".
 The masculine adjective "minusválido" means "handicapped".
 "minusválidos" is the plural of "minusválido".
 The feminine adjective "minusválida" means "handicapped".

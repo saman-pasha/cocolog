@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16430 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16433 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1225,6 +1225,20 @@ The feminine noun "indigenza" means "destitution".
 "presiedute" is the participle of "presiede".
 "presiedute" is feminine.
 "presiedute" is the plural of "presieduta".
+"è" is the auxiliary of "aumenta".
+The pronoun "ciascuno" means "each".
+The pronoun "ciascuno" does not precede the verb.
+The verb "sbarca il lunario" means "makes ends meet".
+"sbarcano il lunario" is the plural of "sbarca il lunario".
+"sbarcare il lunario" is the infinitive of "sbarca il lunario".
+"sbarcato il lunario" is the participle of "sbarca il lunario".
+"coloro" is the plural of "colui".
+The preposition "sulla scia di" means "in the wake of".
+The adverb "non più" means "no longer".
+The feminine noun "alimentazione" means "feeding".
+The masculine noun "vestiario" means "clothing".
+The word "quanti" means "how many".
+The number "cento" means "hundred".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1404,6 +1418,8 @@ The feminine noun "invalidità" means "invalidity".
 The feminine noun "prole" means "offspring".
 "prole" is the plural of "prole".
 "prole" is a person.
+The feminine noun "classifica" means "ranking".
+"classifiche" is the plural of "classifica".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -92654,6 +92670,53 @@ The verb "beneficia" means "benefits".
 "beneficiate" is the plural of "beneficiata".
 "beneficiare" is the infinitive of "beneficia".
 "beneficiando" is the gerund of "beneficia".
+The verb "segna" means "marks".
+"segnano" is the plural of "segna".
+"segniamo" is the first person of "segnano".
+"segno" is the first person of "segna".
+"segni" is the second person of "segna".
+"segnò" is the past of "segna".
+"segnarono" is the past of "segnano".
+"segnammo" is the first person of "segnarono".
+"segnai" is the first person of "segnò".
+"segnasti" is the second person of "segnò".
+"segnava" is the past of "segna".
+"segnavano" is the past of "segnano".
+"segnavamo" is the first person of "segnavano".
+"segnavo" is the first person of "segnava".
+"segnavi" is the second person of "segnava".
+"segnerà" is the future of "segna".
+"segneranno" is the plural of "segnerà".
+"segneremo" is the first person of "segneranno".
+"segnerò" is the first person of "segnerà".
+"segnerai" is the second person of "segnerà".
+"segnerebbe" is the conditional of "segna".
+"segnerebbero" is the plural of "segnerebbe".
+"segneremmo" is the first person of "segnerebbero".
+"segnerei" is the first person of "segnerebbe".
+"segneresti" is the second person of "segnerebbe".
+"segni" is the subjunctive of "segna".
+"segnino" is the plural of "segni".
+"segniamo" is the first person of "segnino".
+"segnasse" is the past subjunctive of "segna".
+"segnassero" is the plural of "segnasse".
+"segnassimo" is the first person of "segnassero".
+"segnassi" is the first person of "segnasse".
+"segnassi" is the second person of "segnasse".
+"segna" is the imperative of "segna".
+"segnare" is the negative imperative of "segna".
+"segnate" is the imperative of "segnano".
+"segniamo" is the hortative of "segna".
+"segnato" is the participle of "segna".
+"segnata" is the participle of "segna".
+"segnata" is feminine.
+"segnati" is the participle of "segna".
+"segnati" is the plural of "segnato".
+"segnate" is the participle of "segna".
+"segnate" is feminine.
+"segnate" is the plural of "segnata".
+"segnare" is the infinitive of "segna".
+"segnando" is the gerund of "segna".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -98123,6 +98186,10 @@ The adjective "confortante" means "comforting".
 "confortantissimi" is the superlative of "confortanti".
 "confortantissima" is the superlative of "confortante".
 "confortantissime" is the superlative of "confortanti".
+The masculine adjective "medio" means "average".
+"medi" is the plural of "medio".
+The feminine adjective "media" means "average".
+"medie" is the plural of "media".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
