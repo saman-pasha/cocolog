@@ -138,9 +138,12 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
     --init`: as PID 1 the script waits for ever for the X server, and the case
     never starts.
   - The plain image takes 6 minutes with apt's cache warm and is 1.24 GB; the
-    full one 9 minutes and 3.05 GB. **No tag or release can be made from the
-    box**: no `gh`, and a session's GitHub tools have no create-release or
-    create-tag.
+    full one 9 minutes and 3.05 GB.
+  - **A release's images are built from the tag's commit**, in a clean `git
+    worktree add --detach DIR COMMIT` with `COCOLOG_ROOT=DIR`, saved with
+    `SAVE=1`, and handed to the owner: **the box cannot make a tag or a
+    release, or attach a file to one** -- no `gh`, and a session's GitHub tools
+    only read releases.
 
 ## The version
 

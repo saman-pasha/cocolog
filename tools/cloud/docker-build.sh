@@ -7,6 +7,8 @@
 #   SAVE=1 ... [plain|full|both]                         build, smoke-test, then save
 #   DRY_RUN=1 ... [plain|full|both]                      write the contexts and the derived
 #                                                        Dockerfile, then stop: no daemon, no build
+#   COCOLOG_ROOT=DIR sh tools/cloud/docker-build.sh ...  build the tree in DIR, not this checkout's:
+#                                                        a release's images come from the tag's commit
 #
 # `make docker' does not work on that box as it stands, and this script is what it needed. It
 # builds the SAME TWO IMAGES under the SAME TAGS as the Makefile -- cocolog:VERSION and :latest
@@ -53,6 +55,16 @@
 #  8. THE ray CASE RUNS UNDER xvfb-run WITH `docker run --init': as PID 1 the script waits for ever
 #     for the X server's ready signal and the case never starts (nine minutes at a load of 0.06).
 #     Every case has a time limit, CASE_TIMEOUT seconds (900), so a hang is red and not endless.
+#  9. A RELEASE'S IMAGES COME FROM THE TAG'S COMMIT, NOT FROM WHATEVER IS CHECKED OUT: `git worktree
+#     add --detach DIR COMMIT', then COCOLOG_ROOT=DIR, so the image holds exactly that tree and the
+#     script names the commit. Two commits hold the same tree when `git rev-parse A^{tree}' says so
+#     (a pull request merged over a branch that already holds its base has the branch's tree: the
+#     1.8.41 images built from 8f6bd59 and from master's merge commit 24e1365 are the same
+#     files). A release is saved with SAVE=1, PROVED by loading the files back into an empty
+#     store (docker rmi the tags, docker load -i, then `smoke'), and HANDED to the owner: the
+#     box's GitHub tools read releases and cannot upload to one or edit one. The saved archives
+#     were searched for the scratchpad path, the proxy and the CA: none (the history keeps the
+#     RUN lines with their `. /ccr/on.sh' and `. /ccr/off.sh', and nothing else of the setup).
 #
 # NOT HERE: A TAG OR A RELEASE. There is no `gh' on the box and a session's GitHub tools have
 # no create-release or create-tag. Make them elsewhere, from the tarballs `save' leaves in
@@ -61,7 +73,8 @@
 # Where `make docker' works (a Mac, a Linux desktop) use it. This script exits at once when
 # there is no session proxy, so it cannot be run there by mistake.
 set -eu
-HERE=$(cd "$(dirname "$0")" && pwd); ROOT=$(cd "$HERE/../.." && pwd)
+HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(cd "${COCOLOG_ROOT:-$HERE/../..}" 2>/dev/null && pwd) || { printf 'DOCKER RED: no such checkout: %s\n' "${COCOLOG_ROOT:-}" >&2; exit 1; }
 MODE=${1:-both}
 WORK=${WORK:-${TMPDIR:-/tmp}/cocolog-docker}
 DIST=${DIST:-$ROOT/dist}
@@ -81,6 +94,7 @@ esac
 command -v docker >/dev/null 2>&1 && command -v dockerd >/dev/null 2>&1 || die "docker and dockerd are not installed here"
 [ -n "${HTTPS_PROXY:-}" ] || die "no HTTPS_PROXY: this is not a session box; use make docker"
 [ -f /root/.ccr/ca-bundle.crt ] || die "no /root/.ccr/ca-bundle.crt: this is not a session box; use make docker"
+[ -f "$ROOT/Dockerfile" ] && [ -f "$ROOT/cocolog.cicili" ] || die "$ROOT is not a cocolog checkout: no Dockerfile or cocolog.cicili"
 VERSION=$(grep -o 'return "[0-9.]*"' "$ROOT/cocolog.cicili" | head -1 | grep -o '[0-9.][0-9.]*')   # the Makefile's own line
 ARCH=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
 mkdir -p "$WORK"
