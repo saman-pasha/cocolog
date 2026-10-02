@@ -2177,3 +2177,67 @@ The preposition "a seconda di" means "according to".
 # where the dictionary's `fascia' is a headband
 The feminine noun "fascia" means "strip".
 "fasce" is the plural of "fascia".
+# the poverty report of the Carniti commission (VIT-9637..9672): `rutilante' and
+# `indigenza' are in no dictionary, the first a dazzling world of goods and the
+# second destitution
+The adjective "rutilante" means "dazzling".
+"rutilanti" is the plural of "rutilante".
+The feminine noun "indigenza" means "destitution".
+# `presieduta da Pierre Carniti' -- apertium-ita's paradigm for `presiedere' has
+# `preseduto' and no `presieduto', so its participles are stated here
+"presieduto" is the participle of "presiede".
+"presieduta" is the participle of "presiede".
+"presieduta" is feminine.
+"presieduti" is the participle of "presiede".
+"presieduti" is the plural of "presieduto".
+"presiedute" is the participle of "presiede".
+"presiedute" is feminine.
+"presiedute" is the plural of "presieduta".
+# `L'incidenza della povertà è infatti aumentata' -- the intransitive `aumentare'
+# builds its perfect with the copula, as `finire' and `passare' do
+"è" is the auxiliary of "aumenta".
+# `ciascuno di loro vive con ...' -- each of them: the dictionary has `ciascuno'
+# only as the determiner of a noun. A line of extra/ comes first for its word
+# and for its meaning, so `ogni' is said again before it: `cada año' is `ogni
+# anno' still, and not `ciascuno anno'
+The determiner "ogni" means "each".
+The pronoun "ciascuno" means "each".
+The pronoun "ciascuno" does not precede the verb.
+# `coloro che non riescono a sbarcare il lunario' -- who cannot make ends meet:
+# one verb of three words, as `ha a che fare' is
+The verb "sbarca il lunario" means "makes ends meet".
+"sbarcano il lunario" is the plural of "sbarca il lunario".
+"sbarcare il lunario" is the infinitive of "sbarca il lunario".
+"sbarcato il lunario" is the participle of "sbarca il lunario".
+# `la mesta classifica di coloro che non riescono a sbarcare il lunario' -- those
+# who: apertium-ita has `coloro' as the first person of `colorare' alone, and
+# `colui' as the pronoun with no plural
+"coloro" is the plural of "colui".
+# `sulla scia del "reddito minimo di inserimento" francese' -- following the
+# example of: the dictionary's `scia' is a verb's form only, the imperative of
+# `sciare'
+The preposition "sulla scia di" means "in the wake of".
+# `intestati non più al genitore ma direttamente ai figli' -- no longer: the
+# denial and `più' read apart were a denied phrase no reading had
+The adverb "non più" means "no longer".
+# `misure di sostegno per affitto, riscaldamento, vestiario e alimentazione' --
+# the dictionary's English word for `alimentazione' is `alimentation', which
+# Spanish's `alimentación' has not: its words are feeding, diet and supply
+The feminine noun "alimentazione" means "feeding".
+# `vestiario' in a list of what a benefit pays for is clothing: the dictionary's
+# first English word for it is `wardrobe'
+The masculine noun "vestiario" means "clothing".
+# `su cento italiani residenti quanti sono i poveri?' -- how many, and a hundred
+The word "quanti" means "how many".
+The number "cento" means "hundred".
+# `un disegno di legge', `la conferenza stampa' -- a bill and a press
+# conference: the lesson's `disegno' is a drawing and a cartoonist, and `stampa'
+# a verb's form
+The masculine noun "disegno di legge" means "bill".
+"disegni di legge" is the plural of "disegno di legge".
+The feminine noun "conferenza stampa" means "press conference".
+"conferenze stampa" is the plural of "conferenza stampa".
+# `con equilibrio' -- the Spanish extra line that makes `balance' the word for a
+# balance (`un consuntivo inquietante') took `equilibrio' with it, which wrote
+# `con balance': the Italian word is the equilibrium first, as Spanish's is
+The masculine noun "equilibrio" means "equilibrium".

@@ -94,6 +94,12 @@
           (coco_reader_free (aof r))
           (return (? (== rc 1) 1 0))))
 
+  ;; what a directive's goal runs through in a program: here every goal is
+  ;; proved, so a consult can run an initialization goal without an engine
+  (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (char * err) (size_t errlen))
+        (out int)
+        (return 1))
+
   (func main ()
     (let ((coco_machine m) (coco_store st) (coco_engine e) (char err [256]) (char buf [256])
           (int clauses . 0))
@@ -539,6 +545,52 @@
                (cast llong (count (aof e)
                                   "functor(G, far, 70000), arg(1, G, c), G, arg(66000, G, S), S == f(a, c)"
                                   10)) 1))
+
+      ;; A DEATH ADDS TO THE DEAD WHAT THE TERM ADDED TO THE CELLS (1.8.48).
+      ;; The three places that count a death measure it by copying the dying
+      ;; term to the heap, and since 1.8.43 a variable first met lives in its
+      ;; argument slot on the heap and takes a cell of its own in the store:
+      ;; the copy was shorter than the span by the number of distinct
+      ;; variables, and a store that churned clauses with variables
+      ;; compacted later than it said. Counted on the store itself, the cells
+      ;; a put added against the dead a death added: a clause with five
+      ;; distinct variables, two of them met twice, retracted; the same
+      ;; clause replaced by a consult; an initialization goal that has run.
+      (let ((char err [256]) (size_t len0 . 0) (size_t dead0 . 0) (size_t span . 0))
+        (set len0 ($ st len))
+        (check "a clause of five variables is asserted"
+               (cast llong (count (aof e) "assertz(dv(a, X, Y, X, f(Z, W), b, Z, _))" 10)) 1)
+        (set span (- ($ st len) len0))
+        (set dead0 ($ st dead))
+        (check "and retracted"
+               (cast llong (count (aof e) "retract(dv(a, _, _, _, _, b, _, _))" 10)) 1)
+        (check "the retract counts every cell it took"
+               (cast llong (- ($ st dead) dead0)) (cast llong span))
+
+        (set len0 ($ st len))
+        (coco_consult (aof st) (aof m) "dr(a, X, Y, X, f(Z, W), b, Z, _)." "dr.pl" err (sizeof err))
+        (set span (- ($ st len) len0))
+        (set dead0 ($ st dead))
+        (coco_consult (aof st) (aof m) "dr(c, c, c, c, c, c, c, c)." "dr.pl" err (sizeof err))
+        (check "a file consulted again counts every cell it replaced"
+               (cast llong (- ($ st dead) dead0)) (cast llong span))
+
+        (coco_goal_install proved)
+        (set len0 ($ st len))
+        (set dead0 ($ st dead))
+        (coco_consult (aof st) (aof m)
+                      ":- initialization((A = f(B, C, B), D = A, _ = D))."
+                      "di.pl" err (sizeof err))
+        (check "an initialization goal that ran counts every cell it took"
+               (cast llong (- ($ st dead) dead0)) (cast llong (- ($ st len) len0)))
+
+        ;; and a term that is one variable is one cell on both sides, so it
+        ;; is not counted for the copy and again for the variable
+        (set len0 ($ st len))
+        (set dead0 ($ st dead))
+        (coco_store_orphan (aof st) (aof m) (coco_store_put (aof st) (aof m) (coco_new_var (aof m))))
+        (check "a lone variable is one cell, counted once"
+               (cast llong (- ($ st dead) dead0)) (cast llong (- ($ st len) len0))))
 
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)

@@ -45,7 +45,7 @@
 
 :- use_module('test/prelude.pl').
 
-:- dynamic gc_f/3, gc_g/1, gc_s/1, gc_h/4, gc_r/2.
+:- dynamic gc_f/3, gc_g/1, gc_s/1, gc_h/4, gc_r/2, gc_d/1.
 
 main :-
     bounded,
@@ -90,7 +90,20 @@ bounded :-
              forall(between(1, 2999, I5), retract(gc_r(I5, _))),
              gc_r(3000, V5), length(V5, N5), statistics(store_used, B5),
              ( B5 < 67108864 -> Size5 = under_64mb ; Size5 = over(B5) ) ), N5-Size5, X5),
-    check('3 000 asserta and 2 999 retracts leave one clause and a small store', X5, 2000-under_64mb).
+    check('3 000 asserta and 2 999 retracts leave one clause and a small store', X5, 2000-under_64mb),
+    %% a base drained with nothing asserted meanwhile, which the growth
+    %% trigger cannot answer for: only the count of the dead can. 1 500
+    %% clauses of 3 000 variables each take 6 003 cells in the store and 3 003
+    %% on the heap, and a thousand are retracted. Counted at the copy's length
+    %% (1.8.43 to 1.8.47) the dead never came to half the store and nothing
+    %% was compacted; 1.8.48 counts the span, and the store compacts once.
+    answer(( forall(between(1, 1500, _), ( functor(T6, gc_wide, 3000), assertz(gc_d(T6)) )),
+             statistics(compactions, C6a), statistics(store_used, B6a),
+             forall(between(1, 1000, _), retract(gc_d(_))),
+             statistics(compactions, C6b), statistics(store_used, B6b),
+             D6 is C6b - C6a,
+             ( B6b < B6a -> Fell6 = fell ; Fell6 = held ) ), D6-Fell6, X6),
+    check('a thousand of 1 500 clauses of 3 000 variables retracted compacts the store', X6, 1-fell).
 
 %% ---- everything reachable survives --------------------------------------
 

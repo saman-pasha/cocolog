@@ -43,7 +43,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `541ba5d` |
+| `../cicili` | the language cocolog is written in; BUILD time | `b5fafd0` |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -79,6 +79,7 @@ make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
                                 # no optional part and no Python, and cocolog:ray-torch-numpy
 make docker-save                # each as dist/*.tar.gz with dist/SHA256SUMS
+sh tools/cloud/docker-build.sh  # the same two images on a Claude Code session's Linux box (below)
 sh tools/lexicon/build.sh       # the reasoning lexicon from WordNet 3.0 (committed)
 sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committed)
 ```
@@ -114,6 +115,47 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   else-if chains); C++ targets add `-std=gnu++17` (Apple clang defaults to
   C++14) and `-Wno-deprecated-declarations` (Apple marks `sprintf`). The
   error is an `Unhandled SIMPLE-ERROR` whose text is a warning.
+* **Docker on a Claude Code session's Linux box**: `make docker` does not work
+  there as it stands. `sh tools/cloud/docker-build.sh [plain|full|both]` builds
+  the same two images under the same tags from this Dockerfile, which it
+  derives a copy of and never edits, and smoke-tests them with no network
+  (`smoke IMAGE` runs the checks alone, `save` makes `make docker-save`'s
+  tarballs; its header has the whole story). What bites:
+  - **The daemon is not running at the start and dies with the VM**, which
+    restarts at every idle gap between turns and takes a build with it: keep
+    the turn active while one runs.
+  - **The only way out is the session's HTTPS proxy and its CA**
+    (`/root/.ccr/README.md`), and **both change at every restart**; the script
+    reads them live. A container cannot reach the proxy, so the build is
+    `--network host`, and **the auto-mode safety check refuses that as a
+    containment escape until the owner says so in the chat** ("go-ahead for
+    docker build --network host", 2026-10-01): ask first, never retry it in
+    pieces.
+  - apt goes over https through the proxy, and Quicklisp (HTTP only) is
+    replaced by a stand-in that loads the Lisp libraries of the box's
+    `~/common-lisp`: the one way the image differs from a Mac's.
+  - A container that runs `xvfb-run` (the ray case) needs `docker run
+    --init`: as PID 1 the script waits for ever for the X server, and the case
+    never starts.
+  - The plain image takes 6 minutes with apt's cache warm and is 1.24 GB; the
+    full one 9 minutes and 3.05 GB.
+  - **A release's images come from the `Docker images` workflow**
+    (`.github/workflows/docker-image.yml`), which the owner starts by hand
+    (Actions, Run workflow; inputs `tag`, `ref`, `attach`): on a GitHub runner
+    it runs `make docker-save`, smoke-tests both images with no network and,
+    with `attach` on, uploads them to the DRAFT release of the tag. **The box
+    cannot make, edit or publish a release, or attach a file to one** (HTTP
+    403, "not permitted for this session type"): the owner makes the draft,
+    pastes its notes and publishes it. The tag is made at that publish, at the
+    tip of master, so master stays still from the build to the publish (the
+    `publish` job refuses a moved target). Prove a changed workflow with a run
+    with `attach` off. `COCOLOG_ROOT=DIR` with `SAVE=1` still builds a
+    commit's images here, but they are a different build of the same source,
+    not the release's files.
+  - **Read an action's version from its repository, never from memory**: its
+    `action.yml` at the tag names `runs.using` (`node24`).
+    `download-artifact@v6` still ran on Node.js 20, and the first run's three
+    notices named the `@v4` actions.
 
 ## The version
 
@@ -302,7 +344,12 @@ module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
 * **An inference count is not a clock, and a clock is not a count.** Count
   inferences (`statistics/2`, `call_metered/4`) to find a cost, time to
   confirm it; a lookup with its first argument unbound is one call in the
-  count and every row in the time.
+  count and every row in the time. **A count is comparable within one engine
+  and not across two**: the engine of 1.8.47 counts 19.5 % fewer inferences
+  than 1.8.43's for the same 1762 translations of the sample loop's controls
+  (with every text the same; the compiled clause, the deterministic call and
+  `is/2` came between them), so a baseline kept from an older binary is
+  counted again on the new one.
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that
@@ -775,7 +822,22 @@ read into an English-worded IR and written into any lesson's language),
   (`traersela atrás`); a contraction before a quoted article drops
   the opening mark (`de "la casa"` is `della casa"`); a lesson line gives a
   word ONE sense in both numbers (`competencias` are powers, `la competencia`
-  the rival firms, and the line for the first moved the second).
+  the rival firms, and the line for the first moved the second); `su` for the
+  owners of a plural crosses as `il suo` (`su futuro` of the shops);
+  `afectar a` keeps its `a` (`influire negativamente alle centrali`); an
+  adjective after two coordinated nouns agrees with the nearest (`centrali e
+  gruppi di spesa spagnola`); `se si elevasse` crosses as `si se elevó`, the
+  imperfect subjunctive written as a past indicative; `del quale` is `de
+  quién`; `un altro milione` is `un otro millón`; `insomma` at the head of a
+  clause is written at its end (`en resumen`); `in termini percentuali` is
+  `en porcentajes plazos`; the clitic `ne` crosses as `lo` (`ne potranno
+  beneficiare` is `lo podrán beneficiar`); `da` after coordinated participles
+  is `desde`; an adjective after a quoted noun agrees with the nearest noun
+  outside the marks (`"reddito minimo di inserimento" francese` is
+  `francesa`, `si chiama "minimo vitale"` is `se llama "mínima vital"`);
+  English writes `Non sono pochi` as `Few are not` and moves a quotation's
+  marks to the edges of its phrase; a name of one capital word and an
+  adjective (`Roma antica`) is not read.
 
 ## Tutorials are documentation that runs
 
@@ -833,6 +895,7 @@ than its cause:
 | `library/` | tier-2 Prolog libraries and the built `.so` files |
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
+| `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
 | `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco with every run; `test/langs.pl` guards its pairs |

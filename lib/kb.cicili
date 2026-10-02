@@ -427,6 +427,14 @@
   ;;; rename variables consistently -- see coco_varmap in term.cicili.
   (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
+  ;;; The same copy, and with it SPAN, the cells the term takes IN THE
+  ;;; STORE. The copy is shorter than that by one cell per distinct
+  ;;; variable (a variable met first lives in its argument slot on the
+  ;;; heap and has a cell of its own in the store), so a caller that
+  ;;; counts a dying term dead by copying it asks here, and never reads the
+  ;;; heap's length as the span.
+  (decl) (func coco_store_get_span ((coco_machine * m) (coco_store * st) (size_t t)
+                                    (size_t * span)) (out size_t))
   ;;; The same copy over a variable map the CALLER holds, so two walks can
   ;;; share one renaming: a head matched in place and a body copied after
   ;;; it (`coco_store_unify' below), and `coco_select_clause' in solve.cicili
@@ -1062,6 +1070,28 @@
               (size_t r . 0))
           (coco_varmap_take m (aof vm))
           (set r (coco_store_get_vm m st t (aof vm)))
+          (coco_varmap_give m (aof vm))
+          (return r)))
+
+  ;;; THE STORE'S SPAN IS THE COPY'S LENGTH PLUS ONE CELL PER DISTINCT
+  ;;; VARIABLE, which the map counted as it entered them: the put gave each
+  ;;; one a cell besides its argument slot, and the copy gives it the slot
+  ;;; alone. Every other cell has its twin -- a header, a slot, an atom or
+  ;;; a number -- and a repeated variable has none on either side. A ROOT
+  ;;; that is a variable is the one cell on both sides, so it is not
+  ;;; counted twice. Until 1.8.48 the dead were counted at the copy's
+  ;;; length, which was the span before the copy put a variable in its slot
+  ;;; (1.8.43), and a store compacted later than it said.
+  (func coco_store_get_span ((coco_machine * m) (coco_store * st) (size_t t)
+                             (size_t * span)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t mark . #'(-> m heap_len))
+              (size_t r . 0))
+          (coco_varmap_take m (aof vm))
+          (set r (coco_store_get_vm m st t (aof vm)))
+          (set (cof span) (+ (- (-> m heap_len) mark) ($ vm len)))
+          (if (coco-tag-is REF (nth (coco_store_deref st t) (-> st cells)))
+              (set (cof span) (- (cof span) 1)))
           (coco_varmap_give m (aof vm))
           (return r)))
 
@@ -1888,8 +1918,9 @@
   ;;; last compaction and by those 32 MB. The dead are counted where a
   ;;; death is cheap to see: a global's old value (its size is kept beside
   ;;; its cell), a retracted or reconsulted clause and an initialization
-  ;;; goal that has run (each was just copied to the heap, and the copy's
-  ;;; length is the span), a findall's solutions (their puts are its own),
+  ;;; goal that has run (each was just copied to the heap, and the span is
+  ;;; the copy's length and a cell for each of its variables --
+  ;;; `coco_store_get_span'), a findall's solutions (their puts are its own),
   ;;; a ball once caught. The growth net is for whatever a site forgets to
   ;;; count, because the one it forgets is the one that grows without
   ;;; bound; its price is a compaction of a store that is all live once per
@@ -2049,14 +2080,15 @@
   (func coco_store_root_pop ((coco_store * st))
         (if (> (-> st nroots) 0) (set (-> st nroots) (- (-> st nroots) 1))))
 
-  ;;; The term is copied to the heap and the copy's length is its span --
-  ;;; the two walkers push one cell for the other's one -- then wound back.
+  ;;; The term is copied to the heap, measured there (`coco_store_get_span':
+  ;;; the copy's length is not the span) and wound back.
   (func coco_store_orphan ((coco_store * st) (coco_machine * m) (size_t cell))
         ;; a clause's compiled program dies with it
         (coco_code_drop st cell)
-        (let ((size_t mark . #'(-> m heap_len)))
-          (coco_store_get m st cell)
-          (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) mark)))
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t span . 0))
+          (coco_store_get_span m st cell (aof span))
+          (set (-> st dead) (+ (-> st dead) span))
           (set (-> m heap_len) mark)))
 
   ;;; ---- predicates -------------------------------------------------------
@@ -3254,10 +3286,11 @@
                     (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
                                            "initialization: there is no engine over this store")
                            (set code 2))
-                  (let ((size_t goal . #'(coco_store_get m st (nth i ($ inits cells))))
+                  (let ((size_t span . 0)
+                        (size_t goal . #'(coco_store_get_span m st (nth i ($ inits cells)) (aof span)))
                         (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0)))
                     ;; fetched, the goal's cells are orphans
-                    (set (-> st dead) (+ (-> st dead) (- (-> m heap_len) back)))
+                    (set (-> st dead) (+ (-> st dead) span))
                     (set gr (coco_goal_hook st m goal err errlen))
                     ;; SWI'S TWO VOICES, measured: an `after_load' goal that
                     ;; fails is a Warning and the program carries on, while a
@@ -3332,9 +3365,10 @@
                     continue)
                 (let ((size_t mark . #'(-> m heap_len))
                       (size_t tmark . #'(-> m trail_len))
-                      (size_t cand . #'(coco_store_get m st (nth i (-> p clauses))))
-                      ;; the copy's length is the clause's span in the store
-                      (size_t span . #'(- (-> m heap_len) mark))
+                      ;; SPAN is the clause's cells in the store, which the
+                      ;; copy's length is not (`coco_store_get_span')
+                      (size_t span . 0)
+                      (size_t cand . #'(coco_store_get_span m st (nth i (-> p clauses)) (aof span)))
                       (size_t chead . 0) (size_t cbody . 0) (int ok . 0))
                   ;; the candidate arrives as a fresh copy, so unifying against
                   ;; it cannot bind anything in the store

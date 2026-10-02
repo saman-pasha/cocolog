@@ -432,3 +432,30 @@
 <e><p><l>preevening<s n="adj"/></l><r>vespertino<s n="adj"/></r></p></e>
 <e><p><l>aloofness<s n="n"/></l><r>distanciamiento<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>subtract<s n="vblex"/></l><r>sustraer<s n="vblex"/></r></p></e>
+# the Carrefour and Promodès report (AnCora CESS-CAST-P-19990901-75), into Italian:
+# apertium-spa carries each with its paradigm and the bilingual dictionary pairs
+# it with nothing. `central' as a noun is `las centrales de compra': the lesson
+# knew only the adjective, and a bare adjective before `y' heads no phrase
+<e><p><l>employers<s n="n"/></l><r>patronal<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>antimonopoly<s n="adj"/></l><r>antimonopolio<s n="adj"/></r></p></e>
+<e><p><l>selfservice<s n="n"/></l><r>autoservicio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>offload<s n="vblex"/></l><r>repercutir<s n="vblex"/></r></p></e>
+<e><p><l>central<s n="n"/></l><r>central<s n="n"/><s n="f"/></r></p></e>
+# the poverty report of the Carniti commission (VIT-9637..9672): `presidir' and
+# `reconfortante' for the English words of the Italian entries; apertium-spa
+# carries both with their paradigms and the bilingual dictionary pairs neither
+<e><p><l>preside<s n="vblex"/></l><r>presidir<s n="vblex"/></r></p></e>
+<e><p><l>comforting<s n="adj"/></l><r>reconfortante<s n="adj"/><s n="mf"/></r></p></e>
+# `Segnano la differenza' -- mark: the dictionary's first Spanish word for the verb
+# is `manchar', to stain, and `marcar' comes second
+<e><p><l>mark<s n="vblex"/></l><r>marcar<s n="vblex"/></r></p></e>
+# `la mesta classifica' -- a ranking, Spanish's `clasificación'
+<e><p><l>ranking<s n="n"/></l><r>clasificación<s n="n"/><s n="f"/></r></p></e>
+# `un consuntivo inquietante' -- disturbing: apertium-spa carries `inquietante'
+# and the bilingual dictionary pairs it with nothing
+<e><p><l>disturbing<s n="adj"/></l><r>inquietante<s n="adj"/><s n="mf"/></r></p></e>
+# `addirittura raddoppierebbe' -- double: the dictionary's only Spanish verb for it
+# is `plegar', to fold, and `duplicar' comes with nothing
+<e><p><l>double<s n="vblex"/></l><r>duplicar<s n="vblex"/></r></p></e>
+# `el italiano medio' -- the average Italian, `medio' where the dictionary gives `mediano'
+<e><p><l>average<s n="adj"/></l><r>medio<s n="adj"/></r></p></e>
