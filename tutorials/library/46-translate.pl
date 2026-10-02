@@ -5380,7 +5380,7 @@ The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare"
 The verb "vive" means "lives". "vivono" is the plural of "vive". "vivere" is the infinitive of "vive". "viva" is the subjunctive of "vive". "vivano" is the plural of "viva".
 The adjective "vivo" means "alive". The feminine adjective "viva" means "alive". "vive" is the plural of "viva".
 The verb "spende" means "spends". "spendono" is the plural of "spende".
-The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è".
+The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è". "stato" is the participle of "è". "è" is the auxiliary of "è".
 The verb "ha" means "has". "hanno" is the plural of "ha". The auxiliary "ha" means "has".
 The verb "aumenta" means "increases". "aumentato" is the participle of "aumenta". "aumentata" is the participle of "aumenta". "aumentata" is feminine. "è" is the auxiliary of "aumenta".
 The verb "finisce" means "finishes". "finito" is the participle of "finisce". "finita" is the participle of "finisce". "finita" is feminine. "è" is the auxiliary of "finisce".

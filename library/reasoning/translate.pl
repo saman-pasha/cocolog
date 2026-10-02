@@ -6840,8 +6840,8 @@ tr_clause_split(Side, Words, Left, Conn, Right) :-
 %% refused or read right
 tr_clause_split(foreign, Words, Left, Conn, Right) :-
     append(Left1, [w(C, CC)|Right0], Words),
-    tr_clitic_verb_start(Right0),
     tr_coord(foreign, w(C, CC)),
+    tr_clitic_verb_start(Right0),
     \+ tr_joins_phrases(foreign, Left1, Right0),
     \+ tr_inside_insertion(foreign, Left1, Right0),
     (   append(Left0, [comma], Left1), Left0 \== [] -> Conn = both(comma, w(C, CC)) ; Left0 = Left1, Conn = w(C, CC) ),
@@ -7461,7 +7461,7 @@ fo_np_number(name(_), singular).
 %% -- the subject ended at `un nucleo' and `ogni venti' were read as a
 %% phrase of their own, each winds (tr_np/3 has the ratio).
 fo_np_words_after([D, N, R, M|Rest], [D, N, R, M], Rest) :-
-    D = w(_, _), tr_indefinite(foreign, D), tr_np(foreign, [D, N, R, M], ell(_, _, _, pp(_, _))), !.
+    tr_ratio_count(M), D = w(_, _), tr_indefinite(foreign, D), tr_np(foreign, [D, N, R, M], ell(_, _, _, pp(_, _))), !.
 fo_np_words_after(Words, Content, Rest) :-
     append(PW0, Rest0, Words), PW0 \== [],
     last(PW0, w(P, _)), tr_participle_here(foreign, P, _),
@@ -9036,8 +9036,10 @@ tr_read_statement0(foreign, Words0, none, S) :-
 %% `Los ancianos son el otro eslabón débil de la cadena'. Tried only after
 %% the plain reading has failed, which is what the disagreement does.
 tr_read_statement0(foreign, Words0, none, S) :-
+    Words0 = [D0|_], tr_phrase_opener(D0),
     tr_negation(foreign, Words0, Words, Neg),
     tr_group_from(foreign, Words, Before, g(CL, T, simple, third, plural), After), tr_copula_lexeme(CL),
+    After = [W2|_], tr_plural_start(W2),
     Before = [D|_], tr_determiner(foreign, D, _, DK), memberchk(DK, [article, demonstrative, possessive]),
     nb_setval('$tr_read_group', CL), nb_setval('$tr_read_aspect', simple),
     tr_complements(foreign, Before, [obj(NP1)|PPs]), fo_np_number(NP1, singular), tr_subject_comps(PPs),
@@ -9046,6 +9048,20 @@ tr_read_statement0(foreign, Words0, none, S) :-
     append([obj(NP1)|PPs], More, Comps),
     S = s(none, NP2, g(CL, T, simple, Neg), Comps).
 
+%% (the piece opens on an article, a demonstrative or a possessive in the
+%% singular -- asked first, for a plural one is the plural verb's own subject
+%% and the plain reading has it: the phrases of every piece that read no
+%% other way were read before a verb of it was found to be the wrong one)
+tr_phrase_opener(D) :-
+    D = w(W, _), atom(W), tr_determiner(foreign, D, DL, DK), memberchk(DK, [article, demonstrative, possessive]),
+    tr_det_gender(foreign, D, DL, _, singular), !.
+%% (and the word after the verb is a plural noun, the plural of a word that
+%% opens a phrase, or a count -- the two phrases were read, the dearest part,
+%% only to find an adjective or a participle after the verb)
+tr_plural_start(w(W, _)) :-
+    atom(W), tr_lexeme(foreign, W, L, plural),
+    ( tr_class_of(L, noun) ; tr_class_of(L, article) ; tr_class_of(L, determiner) ; tr_class_of(L, demonstrative) ; tr_class_of(L, possessive) ), !.
+tr_plural_start(w(W, C)) :- atom(W), ( tr_digits(W) ; tr_is(foreign, w(W, C), number) ), !.
 %% A CLEFT: `A chiederlo è la procura di Palermo' is the prosecution asking
 %% for it. Italian puts what is done first -- the word the lesson says
 %% begins the cleft (`The word "a" begins the cleft.'), the infinitive and
@@ -11289,17 +11305,22 @@ tr_np(foreign, [D, N, A, M], np(det(DK, DL, D), none, [A, nmodp(M)], N, singular
 %% `ogni' and `venti' among the adjectives of `un nucleo'.
 tr_np(foreign, [D, N0, R, M], ell(det(DK, DL, D), G, singular,
                                   pp(w(PW, lower), np(det(determiner, EL, w(EW, lower)), M, [], w(NPl, lower), plural)))) :-
-    D = w(_, _), tr_determiner(foreign, D, DL, DK), DK == article, tr_indefinite(foreign, D),
-    N0 = w(NW, lower), atom(NW), tr_lexeme(foreign, NW, NL, singular), tr_class_of(NL, noun),
-    tr_det_gender(foreign, D, DL, G, singular), tr_gender(NL, NG), ( G == none ; NG == none ; NG == G ),
-    ( tr_is(foreign, M, number) ; M = w(MW, _), tr_digits(MW) ),
+    tr_ratio_count(M),
     R = w(RW, _), atom(RW), tr_lexeme(foreign, RW, RL, _),
     (   tr_class_of(RL, preposition), tr_solve(mean(RL, on))
     ->  once(( tr_solve(mean(EL, each)), tr_class_of(EL, determiner) )), EW = EL
     ;   tr_class_of(RL, determiner), tr_solve(mean(RL, each)), EL = RL, EW = RW
     ),
+    D = w(_, _), tr_determiner(foreign, D, DL, DK), DK == article, tr_indefinite(foreign, D),
+    N0 = w(NW, lower), atom(NW), tr_lexeme(foreign, NW, NL, singular), tr_class_of(NL, noun),
+    tr_det_gender(foreign, D, DL, G, singular), tr_gender(NL, NG), ( G == none ; NG == none ; NG == G ),
     once(( tr_solve(mean(PW, of)), tr_class_of(PW, preposition) )),
     tr_number_form(NL, plural, NPl), !.
+%% the count of a ratio, a number in digits or one the lesson names -- asked
+%% first, being the test that nearly every phrase of four words fails (the
+%% clause was one of the dearer of the reader's, asked of them all)
+tr_ratio_count(M) :- M = w(MW, _), tr_digits(MW), !.
+tr_ratio_count(M) :- tr_is(foreign, M, number), !.
 %% A PARTICIPLE BEFORE ITS NOUN IS SAID OF IT AS AN ADJECTIVE BEFORE ITS
 %% NOUN IS: `el esperado regreso' is the awaited return, and `proclamó un
 %% emocionado Bruno Metsu' a thrilled Bruno Metsu. After its noun a
@@ -11646,11 +11667,14 @@ tr_np(foreign, [D|Ws0], np(det(DK, DL, D), none, Adjs, named(G, Ws), Number)) :-
 %% presieduta da Pierre Carniti grafico' ends on a name and the word that
 %% labels what follows it, an adjective, and the phrase of a name and an
 %% adjective had no reading. The gender is the adjective's where it says one.
+%% (asked of every phrase that opens on a capital word, a sentence's first
+%% included: the phrase must end in small letters, the name words are the
+%% longest run -- tr_name_run/3, each word asked once -- and the rest are all
+%% adjectives, where splitting the phrase at every word asked them again)
 tr_np(foreign, Ws0, np(none, none, Adjs, named(G, Ws), singular)) :-
-    Ws0 = [W1, _, _|_], W1 = w(_, upper), tr_name_word(foreign, W1),
-    append(Ws, Adjs, Ws0), Ws \== [], Adjs \== [],
-    forall(member(W, Ws), tr_name_word(foreign, W)),
-    forall(member(A, Adjs), ( A = w(_, lower), tr_adj_word(foreign, A), tr_is(foreign, A, adjective) )),
+    Ws0 = [W1, _, _|_], W1 = w(_, upper), last(Ws0, w(_, lower)), tr_name_word(foreign, W1),
+    tr_name_run(Ws0, Ws, Adjs), Ws \== [], Adjs \== [],
+    forall(member(A, Adjs), ( A = w(_, lower), tr_is(foreign, A, adjective), tr_adj_word(foreign, A) )),
     Adjs = [w(AW, _)|_], atom(AW),
     ( tr_holds(feminine(AW)) -> G = feminine ; G = masculine ), !.
 
@@ -12123,7 +12147,7 @@ tr_adj_word(Side, w(W, C)) :-
     %% question the phrase stands before: `Su cento famiglie quanti sono i
     %% poveri?' took `quanti' for an adjective of the families, and no
     %% language had one to write
-    \+ ( Side == foreign, atom(W), tr_how_many_word(W), \+ tr_is(Side, w(W, C), adjective) ).
+    \+ ( Side == foreign, atom(W), \+ tr_is(Side, w(W, C), adjective), tr_how_many_word(W) ).
 tr_how_many_word(W) :-
     tr_lexeme(foreign, W, L, _), tr_solve(mean(L, E)), memberchk(E, ['how many', 'how much']), !.
 
@@ -14301,7 +14325,7 @@ tr_counting_adverb(Side, [], [A, M|_]) :-
 %% the ratio): `Resta nell'indigenza un nucleo ogni venti' ended the phrase
 %% at `un nucleo' and read `ogni venti' as one of its own, each winds.
 tr_phrase_words0(foreign, [D, N, R, M|Rest], [D, N, R, M], Rest) :-
-    D = w(_, _), tr_indefinite(foreign, D), tr_np(foreign, [D, N, R, M], ell(_, _, _, pp(_, _))), !.
+    tr_ratio_count(M), D = w(_, _), tr_indefinite(foreign, D), tr_np(foreign, [D, N, R, M], ell(_, _, _, pp(_, _))), !.
 tr_phrase_words0(foreign, [D, w(W1, qopen)|Ws], [D, w(W1, qopen)|Run], Rest) :-
     tr_determiner(foreign, D, _, _),
     append(Run, Rest, Ws), Run = [_|_], last(Run, w(_, qclose)),
@@ -14945,7 +14969,8 @@ tr_comparison_start(foreign, [w(Q, _), P, w(I, _)|_]) :-
 %% `di quanto spende ...' for its relative clause, so the comparison (cmpc/2)
 %% never saw its word
 tr_cmpc_start(foreign, [w(Q, _)|Ws]) :-
-    Ws \== [], atom(Q), tr_solve(mean(Q, 'than what')), tr_compared_before(Q), !.
+    Ws \== [], atom(Q), tr_language(L), tr_memo(cmpc(L, Q), x, tr_solve(mean(Q, 'than what')), [_|_]),
+    tr_compared_before(Q), !.
 
 %% (`"pasara" is the past subjunctive of "pasa".' is subjunctive_of/2 too, and
 %% past/1 beside it)
@@ -15998,8 +16023,10 @@ tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg0), Comps00), Outs) :-
         %% `el gobierno ha aumentado el gasto' came out `il governo è
         %% aumentato il costo' -- the same for `finisce', `passa'. The
         %% intransitive perfect takes the lesson's word; a clause with an
-        %% object takes the one that means `has', as it did before the line
-        ;   A == perfect, atom(LTR), tr_clause_object(Comps), tr_solve(auxiliary_of(_, LTR))
+        %% object takes the one that means `has', as it did before the line --
+        %% never the copula's own, whose predicate is no object: `ha sido un
+        %% gran Senegal' is `è stato un gran Senegal'
+        ;   A == perfect, atom(LTR), tr_clause_object(Comps), \+ tr_copula_lexeme(LTR), tr_solve(auxiliary_of(_, LTR))
         ->  LT1 = LTR, A1 = perfect_has
         ;   LT1 = LTR, A1 = A
         ),

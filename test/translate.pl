@@ -10333,7 +10333,7 @@ The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare"
 The verb "vive" means "lives". "vivono" is the plural of "vive". "vivere" is the infinitive of "vive". "viva" is the subjunctive of "vive". "vivano" is the plural of "viva".
 The adjective "vivo" means "alive". The feminine adjective "viva" means "alive". "vive" is the plural of "viva".
 The verb "spende" means "spends". "spendono" is the plural of "spende".
-The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è".
+The verb "è" means "is". "sono" is the plural of "è". "sono" is the first person of "è". "essere" is the infinitive of "è". "stato" is the participle of "è". "è" is the auxiliary of "è".
 The verb "ha" means "has". "hanno" is the plural of "ha". The auxiliary "ha" means "has".
 The verb "aumenta" means "increases". "aumentato" is the participle of "aumenta". "aumentata" is the participle of "aumenta". "aumentata" is feminine. "è" is the auxiliary of "aumenta".
 The verb "finisce" means "finishes". "finito" is the participle of "finisce". "finita" is the participle of "finisce". "finita" is feminine. "è" is the auxiliary of "finisce".
@@ -10453,14 +10453,17 @@ newspaper_poverty_checks_3 :-
     nf_tr('El perro lo ha terminado.', spanish, italian, C4),
     check('a GUARD: with an object pronoun the clause has an object too, `lo ha terminado''', C4,
           'Il cane lo ha finito.'),
-    nf_tr('El perro ha terminado.', spanish, italian, C5),
-    check('a GUARD: a clause with no object keeps the lesson''s word, `è finito''', C5,
+    nf_tr('El perro ha sido un gato.', spanish, italian, C5),
+    check('a GUARD: the copula''s own perfect is the lesson''s word, whatever follows it: `ha sido un gran Senegal'' is `è stato un gran Senegal'', what follows it no object -- written with the word that means `has'' it came out `ha stato''', C5,
+          'Il cane è stato un gatto.'),
+    nf_tr('El perro ha terminado.', spanish, italian, C6),
+    check('a GUARD: a clause with no object keeps the lesson''s word, `è finito''', C6,
           'Il cane è finito.'),
-    nf_tr('Il cane dorme perché ciascuno vive.', italian, spanish, C6),
-    check('a plural that is an adjective''s is no subjunctive''s: `perché ciascuno vive'' is because each lives -- `vive'' is the plural of the adjective `viva'', which is the subjunctive of `vivere'', and the clause read `de modo que''', C6,
+    nf_tr('Il cane dorme perché ciascuno vive.', italian, spanish, C7),
+    check('a plural that is an adjective''s is no subjunctive''s: `perché ciascuno vive'' is because each lives -- `vive'' is the plural of the adjective `viva'', which is the subjunctive of `vivere'', and the clause read `de modo que''', C7,
           'El perro duerme porque cada uno vive.'),
-    nf_tr('Il cane dorme perché vivano.', italian, spanish, C7),
-    check('a GUARD: the plural of a subjunctive the lesson states is one still, `perché vivano'' is so that they live', C7,
+    nf_tr('Il cane dorme perché vivano.', italian, spanish, C8),
+    check('a GUARD: the plural of a subjunctive the lesson states is one still, `perché vivano'' is so that they live', C8,
           'El perro duerme de modo que viven.').
 
 newspaper_poverty_checks_4 :-
