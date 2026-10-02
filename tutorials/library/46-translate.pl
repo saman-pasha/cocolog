@@ -5356,14 +5356,13 @@ The masculine noun "problema" means "problem". "problema" is not feminine. "prob
 The feminine noun "spesa" means "expense". The masculine noun "governo" means "government".
 The feminine noun "metà" means "half". The masculine noun "giardino" means "garden".
 The masculine noun "quadro" means "picture". The masculine noun "milione" means "million". "milioni" is the plural of "milione".
-The masculine noun "numero" means "number".').
+The masculine noun "numero" means "number". The masculine noun "grafico" means "graph".').
 lesson_58(italian, 2, 'The number "mila" means "thousand". The number "sette" means "seven". The number "due" means "two".
 The adjective "povero" means "poor". "poveri" is the plural of "povero".
 The adjective "piccolo" means "small". The adjective "nero" means "black". The adjective "grafico" means "graphic". The adjective "francese" means "French".
 The adjective "migliore" means "good". "migliore" is the comparative of "buono". The adjective "buono" means "good".
 The masculine adjective "colpito" means "struck". "colpiti" is the plural of "colpito". The feminine adjective "colpita" means "struck". "colpite" is the plural of "colpita".
-The word "più" begins the comparative. The adverb "più" means "more". The adverb "meno" means "less".
-The adverb "non più" means "no longer".
+The word "più" begins the comparative. The adverb "più" means "more". The adverb "meno" means "less". The adverb "direttamente" means "directly".
 The determiner "ogni" means "each". The pronoun "pochi" means "few". "pochi" is the plural of "poco".
 The masculine pronoun "alcuno" means "some". "alcuni" is the plural of "alcuno". The pronoun "alcuno" does not precede the verb. The determiner "alcun" means "some". "alcuni" is the plural of "alcun".
 The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb. The possessive "loro" means "their". The pronoun "ciascuno" means "each". The determiner "ciascuno" means "each". The pronoun "ciascuno" does not precede the verb.
@@ -5405,14 +5404,13 @@ The masculine noun "problema" means "problem". "problema" is not feminine. "prob
 The masculine noun "gasto" means "expense". The masculine noun "gobierno" means "government".
 The feminine noun "mitad" means "half". The masculine noun "jardín" means "garden".
 The masculine noun "cuadro" means "picture". The masculine noun "millón" means "million". "millones" is the plural of "millón".
-The masculine noun "número" means "number".').
+The masculine noun "número" means "number". The masculine noun "gráfico" means "graph".').
 lesson_58(spanish, 2, 'The number "mil" means "thousand". The number "siete" means "seven". The number "dos" means "two".
 The adjective "pobre" means "poor". "pobres" is the plural of "pobre".
 The adjective "pequeño" means "small". The adjective "negro" means "black". The adjective "gráfico" means "graphic". The masculine adjective "francés" means "French". The feminine adjective "francesa" means "French".
 The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The adjective "bueno" means "good".
 The masculine adjective "golpeado" means "struck". "golpeados" is the plural of "golpeado". The feminine adjective "golpeada" means "struck". "golpeadas" is the plural of "golpeada".
-The word "más" begins the comparative. The adverb "más" means "more". The adverb "menos" means "less".
-The adverb "ya no" means "no longer".
+The word "más" begins the comparative. The adverb "más" means "more". The adverb "menos" means "less". The adverb "directamente" means "directly".
 The determiner "cada" means "each". The pronoun "pocos" means "few". "pocos" is the plural of "poco".
 The masculine pronoun "alguno" means "some". "algunos" is the plural of "alguno". The pronoun "alguno" does not precede the verb. The determiner "algún" means "some". "algunos" is the plural of "algún".
 The pronoun "ellos" means "they". The pronoun "ellos" means "them". The pronoun "ellos" does not precede the verb. The pronoun "cada uno" means "each". The pronoun "cada uno" does not precede the verb.

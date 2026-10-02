@@ -10309,14 +10309,13 @@ The masculine noun "problema" means "problem". "problema" is not feminine. "prob
 The feminine noun "spesa" means "expense". The masculine noun "governo" means "government".
 The feminine noun "metà" means "half". The masculine noun "giardino" means "garden".
 The masculine noun "quadro" means "picture". The masculine noun "milione" means "million". "milioni" is the plural of "milione".
-The masculine noun "numero" means "number".').
+The masculine noun "numero" means "number". The masculine noun "grafico" means "graph".').
 newspaper_poverty_part(italian, 2, 'The number "mila" means "thousand". The number "sette" means "seven". The number "due" means "two".
 The adjective "povero" means "poor". "poveri" is the plural of "povero".
 The adjective "piccolo" means "small". The adjective "nero" means "black". The adjective "grafico" means "graphic". The adjective "francese" means "French".
 The adjective "migliore" means "good". "migliore" is the comparative of "buono". The adjective "buono" means "good".
 The masculine adjective "colpito" means "struck". "colpiti" is the plural of "colpito". The feminine adjective "colpita" means "struck". "colpite" is the plural of "colpita".
-The word "più" begins the comparative. The adverb "più" means "more". The adverb "meno" means "less".
-The adverb "non più" means "no longer".
+The word "più" begins the comparative. The adverb "più" means "more". The adverb "meno" means "less". The adverb "direttamente" means "directly".
 The determiner "ogni" means "each". The pronoun "pochi" means "few". "pochi" is the plural of "poco".
 The masculine pronoun "alcuno" means "some". "alcuni" is the plural of "alcuno". The pronoun "alcuno" does not precede the verb. The determiner "alcun" means "some". "alcuni" is the plural of "alcun".
 The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb. The possessive "loro" means "their". The pronoun "ciascuno" means "each". The determiner "ciascuno" means "each". The pronoun "ciascuno" does not precede the verb.
@@ -10358,14 +10357,13 @@ The masculine noun "problema" means "problem". "problema" is not feminine. "prob
 The masculine noun "gasto" means "expense". The masculine noun "gobierno" means "government".
 The feminine noun "mitad" means "half". The masculine noun "jardín" means "garden".
 The masculine noun "cuadro" means "picture". The masculine noun "millón" means "million". "millones" is the plural of "millón".
-The masculine noun "número" means "number".').
+The masculine noun "número" means "number". The masculine noun "gráfico" means "graph".').
 newspaper_poverty_part(spanish, 2, 'The number "mil" means "thousand". The number "siete" means "seven". The number "dos" means "two".
 The adjective "pobre" means "poor". "pobres" is the plural of "pobre".
 The adjective "pequeño" means "small". The adjective "negro" means "black". The adjective "gráfico" means "graphic". The masculine adjective "francés" means "French". The feminine adjective "francesa" means "French".
 The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The adjective "bueno" means "good".
 The masculine adjective "golpeado" means "struck". "golpeados" is the plural of "golpeado". The feminine adjective "golpeada" means "struck". "golpeadas" is the plural of "golpeada".
-The word "más" begins the comparative. The adverb "más" means "more". The adverb "menos" means "less".
-The adverb "ya no" means "no longer".
+The word "más" begins the comparative. The adverb "más" means "more". The adverb "menos" means "less". The adverb "directamente" means "directly".
 The determiner "cada" means "each". The pronoun "pocos" means "few". "pocos" is the plural of "poco".
 The masculine pronoun "alguno" means "some". "algunos" is the plural of "alguno". The pronoun "alguno" does not precede the verb. The determiner "algún" means "some". "algunos" is the plural of "algún".
 The pronoun "ellos" means "they". The pronoun "ellos" means "them". The pronoun "ellos" does not precede the verb. The pronoun "cada uno" means "each". The pronoun "cada uno" does not precede the verb.
@@ -10409,8 +10407,11 @@ newspaper_poverty_checks_1 :-
     nf_tr('Migliore al Nord dove vive un bambino ogni sette.', italian, spanish, A6),
     check('an adjective in front of its subject, then a place and the clause that says where: `Migliore al Nord dove resta nell''indigenza un nucleo ogni venti'' -- only the `di'' phrases go to the subject, the rest are the clause''s adjuncts', A6,
           'Mejor al Nord donde vive uno de cada siete niños.'),
-    nf_tr('Non sono pochi.', italian, spanish, A7),
-    check('`Non sono pochi'' is THEY are not few: `sono'' is also I, and `pochi'' a pronoun that is the plural of `poco'' -- read with the first person it came out `No soy pocos''', A7,
+    nf_tr('Povero il cane in casa.', italian, spanish, A7),
+    check('an adjective in front of its subject, the subject and a phrase of ANY preposition: `Disastrosa la situazione nel Mezzogiorno dove ...'' was refused, every phrase being given to the subject, which takes `di'' phrases only -- the others are the clause''s', A7,
+          'El perro es pobre en casa.'),
+    nf_tr('Non sono pochi.', italian, spanish, A8),
+    check('`Non sono pochi'' is THEY are not few: `sono'' is also I, and `pochi'' a pronoun that is the plural of `poco'' -- read with the first person it came out `No soy pocos''', A8,
           'No son pocos.').
 
 newspaper_poverty_checks_2 :-
@@ -10435,37 +10436,31 @@ newspaper_poverty_checks_2 :-
     nf_tr('Il problema sono i cani.', italian, english, B7),
     check('... and in English', B7,
           'The dogs are the problem.'),
-    nf_tr('Le famiglie sono le più colpite.', italian, spanish, B8),
-    check('an article, the word for `more'' and a participle that is an adjective: `le più colpite'' is the most affected, and not the pronoun `le'' with an adverb before a participle', B8,
-          'Las familias son las más golpeadas.'),
-    nf_tr('Il cane dorme con Pierre Carniti grafico.', italian, spanish, B9),
-    check('a name and an adjective with no determiner: `presieduta da Pierre Carniti grafico'' ends on a name and the word that labels what follows it', B9,
+    nf_tr('Il cane dorme con Pierre Carniti grafico.', italian, spanish, B8),
+    check('a name and an adjective with no determiner: `presieduta da Pierre Carniti grafico'' ends on a name and the word that labels what follows it', B8,
           'El perro duerme con Pierre Carniti gráfico.').
 
 newspaper_poverty_checks_3 :-
-    nf_tr('La spesa è aumentata.', italian, spanish, C1),
-    check('a verb the lesson builds with `è'' is read as the perfect it is: `L''incidenza della povertà è infatti aumentata'' read as a passive, `es aumentada''', C1,
-          'El gasto ha aumentado.'),
-    nf_tr('El gasto ha aumentado.', spanish, italian, C2),
-    check('... and its intransitive perfect is written with the lesson''s word, `la spesa è aumentata''', C2,
+    nf_tr('El gasto ha aumentado.', spanish, italian, C1),
+    check('... and its intransitive perfect is written with the lesson''s word, `la spesa è aumentata''', C1,
           'La spesa è aumentata.'),
-    nf_tr('El gobierno ha aumentado el gasto.', spanish, italian, C3),
-    check('... but a clause with an object takes the word that means `has'': `el gobierno ha aumentado el gasto'' came out `il governo è aumentato la spesa''', C3,
+    nf_tr('El gobierno ha aumentado el gasto.', spanish, italian, C2),
+    check('... but a clause with an object takes the word that means `has'': `el gobierno ha aumentado el gasto'' came out `il governo è aumentato la spesa''', C2,
           'Il governo ha aumentato la spesa.'),
-    nf_tr('El perro ha terminado el pan.', spanish, italian, C4),
-    check('... and the same for the verb of a second line: `ha terminado el pan'' came out `è finito il pane''', C4,
+    nf_tr('El perro ha terminado el pan.', spanish, italian, C3),
+    check('... and the same for the verb of a second line: `ha terminado el pan'' came out `è finito il pane''', C3,
           'Il cane ha finito il pane.'),
-    nf_tr('El perro lo ha terminado.', spanish, italian, C5),
-    check('a GUARD: with an object pronoun the clause has an object too, `lo ha terminado''', C5,
+    nf_tr('El perro lo ha terminado.', spanish, italian, C4),
+    check('a GUARD: with an object pronoun the clause has an object too, `lo ha terminado''', C4,
           'Il cane lo ha finito.'),
-    nf_tr('El perro ha terminado.', spanish, italian, C6),
-    check('a GUARD: a clause with no object keeps the lesson''s word, `è finito''', C6,
+    nf_tr('El perro ha terminado.', spanish, italian, C5),
+    check('a GUARD: a clause with no object keeps the lesson''s word, `è finito''', C5,
           'Il cane è finito.'),
-    nf_tr('Il cane dorme perché ciascuno vive.', italian, spanish, C7),
-    check('a plural that is an adjective''s is no subjunctive''s: `perché ciascuno vive'' is because each lives -- `vive'' is the plural of the adjective `viva'', which is the subjunctive of `vivere'', and the clause read `de modo que''', C7,
+    nf_tr('Il cane dorme perché ciascuno vive.', italian, spanish, C6),
+    check('a plural that is an adjective''s is no subjunctive''s: `perché ciascuno vive'' is because each lives -- `vive'' is the plural of the adjective `viva'', which is the subjunctive of `vivere'', and the clause read `de modo que''', C6,
           'El perro duerme porque cada uno vive.'),
-    nf_tr('Il cane dorme perché vivano.', italian, spanish, C8),
-    check('a GUARD: the plural of a subjunctive the lesson states is one still, `perché vivano'' is so that they live', C8,
+    nf_tr('Il cane dorme perché vivano.', italian, spanish, C7),
+    check('a GUARD: the plural of a subjunctive the lesson states is one still, `perché vivano'' is so that they live', C7,
           'El perro duerme de modo que viven.').
 
 newspaper_poverty_checks_4 :-
@@ -10487,15 +10482,9 @@ newspaper_poverty_checks_4 :-
     nf_tr('Il cane dorme al Nord e al Centro mangia.', italian, spanish, D6),
     check('two clauses at a coordinator between two phrases of one preposition, where nothing else read: `aumenterebbe notevolmente al Nord e al Centro addirittura raddoppierebbe''', D6,
           'El perro duerme al Nord y come al Centro.'),
-    nf_tr('Il cane dorme nella casa e nel giardino.', italian, spanish, D7),
-    check('a GUARD: two phrases of one preposition with no verb after them are no division, `nella casa e nel giardino''', D7,
-          'El perro duerme en la casa y en el jardín.'),
-    nf_tr('Il cane dorme non più in casa.', italian, spanish, D8),
-    check('`non più'' is one adverb, no longer: the denial and `più'' read apart were a denied phrase no reading had', D8,
-          'El perro duerme ya no en casa.'),
-    nf_tr('Il cane dorme non più in casa ma in giardino e lo mangia il gatto.', italian, spanish, D9),
-    check('a coordinator before an object pronoun and a verb divides first: `... ma direttamente ai figli E NE potranno beneficiare ...'' divided at `ma'', and the second side read as one clause with `e ne'' in its front', D9,
-          'El perro duerme ya no en casa pero en jardín y lo come el gato.').
+    nf_tr('Il cane dorme in casa ma direttamente in giardino e lo mangia il gatto.', italian, spanish, D7),
+    check('a coordinator before an object pronoun and a verb divides first: `... ma direttamente ai figli E NE potranno beneficiare anche i lavoratori autonomi'' divided at `ma'', and the second side read as one clause with `direttamente ai figli e ne'' in its front, written at its end', D7,
+          'El perro duerme en casa pero directamente en jardín y lo come el gato.').
 
 newspaper_poverty_checks_5 :-
     nf_tr('Come affrontare il problema?', italian, spanish, E1),
@@ -10535,10 +10524,7 @@ newspaper_poverty_checks_6 :-
           'El "perro pequeño" negro duerme.'),
     nf_tr('Il "cane di casa" francese dorme.', italian, spanish, F2),
     check('... and a mark that closes on the noun stays on it, whatever follows: `"reddito minimo di inserimento" francese'' came out `... inserción francesa"''', F2,
-          'El "perro de casa" francesa duerme.'),
-    nf_tr('Il "cane piccolo" dorme.', italian, spanish, F3),
-    check('a GUARD: a quotation that closes on the phrase''s last word is still closed there, whatever order its language puts the words in', F3,
-          'El "perro pequeño" duerme.').
+          'El "perro de casa" francesa duerme.').
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

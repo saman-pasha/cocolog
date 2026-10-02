@@ -9685,9 +9685,6 @@ tr_subject_number(nq(_, _), singular).
 tr_subject_number(with(NP, _), N) :- tr_subject_number(NP, N).
 tr_subject_number(all(_, NP), N) :- tr_subject_number(NP, N).
 tr_subject_number(app(NP, _, _), N) :- tr_subject_number(NP, N).
-%% ... and one whose noun was left out is in the number it states: `Resta
-%% nell'indigenza un nucleo ogni venti' (a ratio, tr_np/3)
-tr_subject_number(ell(_, _, N, _), N).
 %% ... and a phrase with its relative clause is the phrase's number: `Carlos
 %% Herrera, que se expresó en catalán, y Margarida Lluch presentaron el acto'
 %% -- read with its commas out the clause ran on over `y Margarida Lluch',
@@ -10771,10 +10768,6 @@ tr_np(foreign, [D, w(M, _), w(P, PC)|Rest], rel(np(det(DK, DL, D), none, [], eli
 tr_np(foreign, Words, rel(NP, L, [padv(A)|Comps])) :-
     append(Core, [A, w(P, PC)|Rest], Words), Core = [_|_],
     A = w(_, _), tr_plain_adverb(foreign, A), \+ tr_is(foreign, A, preposition),
-    %% (an article and the word for `more' are the superlative's, `le più
-    %% colpite' the most affected, and not the pronoun `le' with an adverb
-    %% before a participle: `sono le più colpite' came out refused)
-    \+ ( Core = [D], A = w(M, _), tr_degree_word(M), tr_determiner(foreign, D, _, article), \+ tr_standalone_det(foreign, D) ),
     tr_participle_here(foreign, P, L), \+ tr_is(foreign, w(P, lower), noun),
     tr_headed(foreign, Core),
     tr_object_phrase(foreign, Core, NP), NP \= rel(_, _, _), \+ tr_clause_phrase(NP),
