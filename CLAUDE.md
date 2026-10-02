@@ -344,7 +344,12 @@ module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
 * **An inference count is not a clock, and a clock is not a count.** Count
   inferences (`statistics/2`, `call_metered/4`) to find a cost, time to
   confirm it; a lookup with its first argument unbound is one call in the
-  count and every row in the time.
+  count and every row in the time. **A count is comparable within one engine
+  and not across two**: the engine of 1.8.47 counts 19.5 % fewer inferences
+  than 1.8.43's for the same 1762 translations of the sample loop's controls
+  (with every text the same; the compiled clause, the deterministic call and
+  `is/2` came between them), so a baseline kept from an older binary is
+  counted again on the new one.
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that
