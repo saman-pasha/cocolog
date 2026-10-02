@@ -809,7 +809,7 @@ than its cause:
 | `tools/cc/` | the compiler wrappers |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
-| `bench/` | cocolog against CPython (`sh bench/langs.sh`), moved from The Coco with every run; `test/langs.pl` guards its pairs |
+| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco with every run; `test/langs.pl` guards its pairs |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`

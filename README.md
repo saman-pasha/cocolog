@@ -1814,50 +1814,74 @@ Five small programs, the same task in each language, every lane's answer
 checked against every other's before a number may print — `sh
 bench/langs.sh`, with every run it has printed in
 [bench/README.md](bench/README.md). `--local` is the in-memory
-arrangement, `--embed` the MVCCS engine linked into the process, and
+arrangement, `--embed` the MVCCS engine linked into the process, SWI-Prolog
+runs the very same `.pl` files with `-O` and as installed, and
 `cpython + sqlite3` is there because a dict is not a database and timing
 one against a store measures the guarantees rather than the engine:
 
-| task (one rep) | cocolog --local | cpython | cocolog --embed | cocolog server | cpython + sqlite3 |
-|---|---|---|---|---|---|
-| naive reverse, 400 elements | 0.030175 s (6.5x) | 0.004641 s | 0.029254 s (6.3x) | 0.030046 s (6.5x) | 0.004787 s (1.0x) |
-| 8-queens, all 92 solutions | 0.023113 s (12.0x) | 0.001926 s | 0.022298 s (11.6x) | 0.022841 s (11.9x) | 0.001983 s (1.0x) |
-| 100 000 additions, one at a time | 0.063794 s (15.2x) | 0.004208 s | 0.065996 s (15.7x) | 0.066508 s (15.8x) | 0.027011 s (6.4x) |
-| 1000 keyed lookups over 200 facts | 0.001292 s (13.6x) | 0.000095 s | 0.001326 s (14.0x) | 0.001347 s (14.2x) | 0.012299 s (129.5x) |
-| generate-and-sort 5000 integers | 0.008771 s (5.2x) | 0.001680 s | 0.008802 s (5.2x) | 0.009123 s (5.4x) | 0.002421 s (1.4x) |
+| task (one rep) | cocolog --local | cpython | swipl -O | swipl | cocolog --embed | cocolog server | cpython + sqlite3 |
+|---|---|---|---|---|---|---|---|
+| naive reverse, 400 elements | 0.008738 s (1.8x, 3.2x) | 0.004831 s | 0.002698 s | 0.003041 s | 0.008198 s | 0.008462 s | 0.005037 s (1.0x) |
+| 8-queens, all 92 solutions | 0.007331 s (3.4x, 4.1x) | 0.002186 s | 0.001795 s | 0.030557 s | 0.007311 s | 0.007863 s | 0.002060 s (0.9x) |
+| 100 000 additions, one at a time | 0.026588 s (6.0x, 6.1x) | 0.004448 s | 0.004356 s | 0.091584 s | 0.025254 s | 0.024550 s | 0.027945 s (6.3x) |
+| 1000 keyed lookups over 200 facts | 0.000560 s (5.0x, 3.3x) | 0.000112 s | 0.000172 s | 0.002069 s | 0.000513 s | 0.000547 s | 0.012375 s (110.5x) |
+| generate-and-sort 5000 integers | 0.005149 s (2.8x, 2.8x) | 0.001856 s | 0.001860 s | 0.016613 s | 0.005812 s | 0.004935 s | 0.002616 s (1.4x) |
 
-(Run K: cocolog 1.8.38, macOS, i9-9880H, Python 3.11.13; the sqlite
+(Run L: cocolog 1.8.44, macOS, i9-9880H, Python 3.11.13, SWI-Prolog
+10.0.2; the two multiples are of CPython and of `swipl -O`. The sqlite
 column pairs every task with a durable Python -- the data as committed
 rows, read back through the database per rep. Runs on other boxes and
 other versions are in bench/README.md, and none of them compares across
 without naming both.)
 
-**So cocolog is 5-15x CPython as a language**, and the spread is the
-interesting part: sorting and list work are its best showings (5.2x,
-6.5x), and a tight counting loop its worst (15.2x), which is the
-per-inference cost of a continuation-passing interpreter with no
-compilation step. Start-up is not the reason — every arrangement boots in
-0.11-0.16 s here, the same as Python.
+**So cocolog is 1.8-6x CPython and 2.8-6.1x SWI-Prolog as a language**,
+and faster than `swipl` without its `-O` on four tasks of five: SWI as
+installed builds every `is/2` expression as a term and calls a predicate
+on it, and collects 787 times in sixteen reps of the counting loop. The
+spread is the interesting part: list work and sorting are cocolog's best
+showings (1.8x, 2.8x CPython), and a tight counting loop its worst (6x),
+which is the per-inference cost of an interpreter whose clauses are
+compiled but whose built goals are still interpreted. Start-up is not the
+reason — every arrangement boots in 0.12-0.18 s here, as Python and SWI do.
 
-**It is the best this box has read, and it was nearly the worst.** A
-month earlier (Run I) it read 6-19x; 1.8.36 read 7-22x, the search at
-17.2x where it had been 11.3x. A bisection found one commit: the engine's
-five term walks had been given a stack each, allocated and freed on every
-call, to fix a crash on long lists. 1.8.38 keeps the stacks on the machine
-(STATUS.md, "The walk stacks are kept"), and paired with August's own
-source in one sitting it is level on the search and 13-28% faster on the
-rest — the heap collector of 1.8.36 and this together.
+**But cocolog is a state machine, not only a language, and as a state
+machine it is measured against a language with a database: against
+`python + sqlite3`, which keeps the same promises — rows that outlive the
+process, the build committed as one transaction, an index on the key —
+cocolog's store is 24 times faster at a thousand keyed probes and 1.1
+times faster on the counting loop, where every addend is a row.** It is
+1.6-3.8 times slower where the work is computation over data read once,
+because there the sqlite lane runs at Python's own speed and cocolog's at
+its interpreter's:
+
+| task (one rep) | cocolog --embed | cocolog server | cpython + sqlite3 | cocolog against it |
+|---|---:|---:|---:|---|
+| 1000 keyed lookups over 200 facts | 0.000513 s | 0.000547 s | 0.012375 s | **24x faster** (server 23x) |
+| 100 000 additions, one at a time | 0.025254 s | 0.024550 s | 0.027945 s | **1.1x faster** |
+| naive reverse, 400 elements | 0.008198 s | 0.008462 s | 0.005037 s | 1.6-1.7x slower |
+| generate-and-sort 5000 integers | 0.005812 s | 0.004935 s | 0.002616 s | 1.9-2.2x slower |
+| 8-queens, all 92 solutions | 0.007311 s | 0.007863 s | 0.002060 s | 3.5-3.8x slower |
+
+**The language figures are the best this box has read, by far.** Run K, a
+day earlier on 1.8.38, read 5-15x CPython; 1.8.42-1.8.44 match a head against the store
+instead of copying the clause, remember which module owns a functor
+instead of walking every module's names on every call, and compile each
+clause into a head and a body program the first time it is selected
+(STATUS.md, "The copy was the call") — 1.7-3.5 times faster per rep. A
+month before that it had nearly been the worst: 1.8.36 read 7-22x until a
+bisection found the engine's five term walks allocating a stack on every
+call, taken back in 1.8.38 (STATUS.md, "The walk stacks are kept").
 
 **Over a socket costs nothing the two-point method can see.** With a turn
 committed against a store the harness empties per run, every task sits
 within a few percent of the in-memory lane: the pipelined client, the
 turn-wide write batch and the mapped store left the wire's per-rep cost
 too small to measure. And the sqlite column splits by where the work is:
-computation over durable rows costs Python 1.0-1.4x over its own dict —
+computation over durable rows costs Python 0.9-1.4x over its own dict —
 the same near-nothing cocolog's store lanes pay over `--local` — while
-per-row store traffic trades sides: the cursor's addends cost sqlite 6.4x
+per-row store traffic trades sides: the cursor's addends cost sqlite 6.3x
 on the counting loop, and the thousand keyed probes cost python + sqlite3
-9.3x what they cost `--embed`.
+24x what they cost `--embed`.
 
 **Two of those readings used to be defects rather than a design, and the
 benchmark is what found them.**
