@@ -578,6 +578,95 @@ surface nobody had walked end to end.
 `tutorials/library/NN-name.pl` in the same commit. The numbering is one
 per library and a gap is visible, which is the point.
 
+## The copy was the call
+
+Found by profiling against SWI-Prolog with the same programs, after
+cicili-lang measured its two walks at 5 microseconds a call. The same
+work under both -- naive reverse, a fact of K variables, a body of G
+trivial goals -- put cocolog at 14x SWI on naive reverse, at 11x to 19x on
+the fact as K grew, and at 60x to 80x per body goal; `callgrind` said why.
+Unification, the useful work, was 6-9% of the instructions. Four things
+were the rest, and 1.8.42 takes three of them out and most of the fourth.
+
+**A clause arrived as a copy, head and body, before its head was looked
+at**, and the copy's variable map was a linear scan with a `realloc' and a
+`free' per clause tried: on a fact of 64 variables the copy was 72% of all
+instructions, and a call cost 4.4 microseconds where a fact of none cost
+0.9 -- quadratic in the variables. Now the head is **matched in the store**
+(`coco_store_unify'): the call is walked against the store's own cells, a
+store variable met for the first time is mapped to the heap cell it meets
+and made into nothing, met again it is unified with that, and a store
+atom or compound is copied only where an unbound variable of the call
+takes it. Nothing in the store is bound, ever. Only the body is copied,
+over the same map, so a variable the head bound is the same variable in
+the body (`coco_store_get_vm'). The map itself is an open-addressed
+table the machine keeps and lends (`coco_varmap_take'/`_give'), epoch-
+stamped so nothing is cleared between copies; its first hash put every
+run of consecutive keys in ONE slot (a multiply's low bits are the key's
+low bits), and the golden-ratio multiply with the high halves folded down
+is what replaced it -- checked on runs of 64 keys: 55 slots of 256 and
+ten extra probes where there had been two thousand.
+
+**The continuation was built by name.** `'$k'/3' for every goal proven,
+`$true', `$fail', `$cut' and the markers for every if-then-else, went
+through `coco_make' and `coco_new_atom' with a C string: `strlen', the
+atom table's hash and probe, the functor table's. On a clause of 32
+trivial body goals that was 31% of the instructions. They are interned
+once per machine now, beside the dispatch ids (`fids' on the machine,
+`coco-fid' in solve.cicili), and a thawed machine refills them as it
+refills the ids. **And a body's conjunction is pushed as one chain**
+(`coco_k_push_body'): the loop used to take `(A, (B, (C, D)))' apart one
+`,' per step, a whole iteration -- the step count, the collector's
+check, the dereference, two dozen construct tests -- before every goal's
+own; those were 18%. The cells on the continuation come out the same.
+
+**The module walk was `strcmp'.** A goal that is not a core builtin
+asked every registered module, and each compared the name against every
+C predicate of that arity: 45 compares for an arity-2 predicate of the
+user's own, on every call, before the knowledge base was asked -- 25% of
+naive reverse. The answer is kept on the functor now (`dmod', `dgen' in
+`coco_functor'): the first call of a functor goes through the walk and
+records which module claimed it or that none did, and every later call
+goes to that module's dispatcher alone or straight to the knowledge base.
+A module registered later raises `coco_extern_generation' and every
+functor is asked again; a thawed functor is asked afresh. `:-' is an
+interned id too, so splitting a clause stopped being a `strcmp' as well.
+
+Same machine, same sitting, minimum of five, CPU seconds:
+
+| | 1.8.41 | 1.8.42 | |
+|---|---|---|---|
+| naive reverse of 30, 3 000 times | 0.455 | **0.217** | 2.1x |
+| a fact of 64 variables, 200 000 calls | 0.864 | **0.274** | 3.2x |
+| a fact of 128 variables | 2.188 | **0.504** | 4.3x |
+| a body of 32 trivial goals, 200 000 calls | 1.038 | **0.571** | 1.8x |
+| 8 if-then-else arms, 200 000 calls | 0.562 | **0.364** | 1.5x |
+
+And `bench/langs.sh`'s own programs, `--local`, wall clock with the
+process start in it: nrev 385 to 169 ms, queens 62 to 33, loop 517 to
+362, sortnums 141 to 104, lookup 37 to 25, every answer the same. In
+instructions, which do not move with the machine's load: naive reverse
+1.30 G to 0.74 G, the fact of 64 from 2.30 G to 0.95 G.
+
+**What is left is the body copy**, now half of a body-heavy clause's
+instructions, and it is the interpreter's design: a clause body is
+built on the heap for every call that reaches it. The next step is not
+a faster copy but no copy -- a body executed from the store over a
+frame of its variables, which is the compile step; `coco_store_unify'
+is the first half of it, the head side.
+
+Gated by `test/run.pl -- term syntax solve module state files trace
+engine library script string langs directives hex astar serialize
+normalise lint`, every one GREEN, in a build without the embedded store
+(`make EMBED=0`); the full `make test' in that build ends with the same
+verdicts as 1.8.41's, the reds all `embed:` cases and modules the
+build did not have. `files' and `trace' are the two that matter most
+here: the same programs under swipl and cocolog byte for byte, and the
+four-port tracer held to SWI's line for line, with the copy gone from
+under both. The `lint' case's dialect card cites lines in `lib/', and
+sixteen of its citations moved with the code; they are re-anchored in
+the same commit.
+
 ## The engine was quadratic
 
 `coco_make` now dereferences every argument as it stores it. An argument was

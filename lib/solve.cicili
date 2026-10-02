@@ -168,7 +168,31 @@
 (DEFPARAMETER *construct-names*
   '("true" "fail" "false" "$true" "$fail" "$trace_exit" "," "!" "$cut"
     "$softcut" ";" "->" "*->" "\\+" "not" "once" "ignore" "call" "catch"
-    "$catch_exit" "throw" "trace" "notrace"))
+    "$catch_exit" "throw" "trace" "notrace"
+    ;; not dispatched on, but BUILT on every inference: the continuation's
+    ;; functor, its end, and the catch marker. Interned here so the engine
+    ;; pushes them by id -- see `*functor-names*' and `coco-fid' below.
+    "$k" "[]" "$catch"
+    ;; the neck, so a clause splits into head and body without a strcmp
+    ":-"))
+
+;;; THE FUNCTORS THE ENGINE BUILDS, interned once beside the names. Every
+;;; one of these was `coco_make' with a C string -- `strlen', the atom
+;;; table's hash and probe, then the functor table's -- on every goal
+;;; proven, for `'$k'/3', and on every if-then-else, catch and traced call
+;;; for the rest. Measured on a clause of 32 trivial body goals: building
+;;; the continuation by name was 31 % of the interpreter's instructions.
+;;; The index of each is settled here, at expansion time, as `ids' are.
+(DEFPARAMETER *functor-names*
+  '(("$k" 3) ("$cut" 1) ("$softcut" 1) ("$catch" 2) ("$catch_exit" 1)
+    ("$trace_exit" 3)))
+
+(DEFUN coco-fid-index (name arity)
+  (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
+      (ERROR "coco: no functor id for ~S/~D -- add it to *functor-names*" name arity)))
+
+;;; `(coco-fid m "$k" 3)' is `m->fids[K]', with K settled at expansion time.
+(DEFMACRO coco-fid (m name arity) `(nth ,(coco-fid-index name arity) (-> ,m fids)))
 
 ;;; Constructs first, then every builtin name once. The ORDER is what fixes
 ;;; the indices, so it is computed here and nowhere else.
@@ -196,12 +220,19 @@
 (DEFMACRO coco-id (m name) `(nth ,(coco-id-index name) (-> ,m ids)))
 
 ;;; Interning them all costs one hash apiece, once per machine, and buys
-;;; every inference after it.
+;;; every inference after it. The functors come after the names, because
+;;; each one is its name's id and an arity.
 (DEFMACRO coco-emit-id-fill ()
   (coco-check-ids)
+  (WHEN (> (LENGTH *functor-names*) 16)
+    (ERROR "coco: ~D functor names, and coco_machine.fids holds 16"
+           (LENGTH *functor-names*)))
   `(func coco_ids_fill ((coco_machine * m))
      ,@(LOOP FOR name IN *dispatch-names* FOR i FROM 0
              COLLECT `(set (nth ,i (-> m ids)) (coco_intern m ,name)))
+     ,@(LOOP FOR row IN *functor-names* FOR i FROM 0
+             COLLECT `(set (nth ,i (-> m fids))
+                           (coco_functor_id m (coco-id m ,(FIRST row)) ,(SECOND row))))
      (set (-> m ids_ready) 1)))
 
 ;;; Grouped by arity, so a goal of arity 3 never tests a builtin of arity 1.
@@ -526,6 +557,25 @@
                 (func load ((coco_store * st) (coco_machine * m) (coco_engine * e))
                       (out int))))
 
+  ;;; THE MODULE WALK, RESOLVED ONCE PER FUNCTOR. `call' above asks every
+  ;;; registered module in turn, and each compares the name with `strcmp'
+  ;;; against its predicates of that arity -- on every call of every
+  ;;; predicate that is not a core builtin, the user's own included:
+  ;;; measured on naive reverse, 25 % of the interpreter's instructions.
+  ;;; With these two installed, the first call of a functor goes through
+  ;;; `resolving', the same walk, which also says WHICH module claimed the
+  ;;; name; the engine keeps that on the functor (`dmod' in term.cicili)
+  ;;; under the registry's generation of the moment, and every later call
+  ;;; is `call_at' on that one module, or the knowledge base directly when
+  ;;; none claimed it. A module registered later raises the generation
+  ;;; (`coco_extern_generation'), so every functor is asked again. Null
+  ;;; until installed: the walk is then as it was.
+  (decl) (func coco_extern_install_resolve
+               ((func resolving ((coco_engine * e) (const char * name) (u32 arity)
+                                 (size_t g) (int * found) (size_t * out_at)) (out int))
+                (func call_at ((coco_engine * e) (size_t at) (const char * name) (u32 arity)
+                               (size_t g) (int * found)) (out int))))
+
   ;;; Puts back one choice-point frame read out of a frozen machine. The
   ;;; predicate arrives as a name and an arity rather than as an index -- see
   ;;; state.cicili for why -- and is interned into whatever store this machine
@@ -612,6 +662,23 @@
         (set coco_extern_call call)
         (set coco_extern_load load))
 
+  (static) (var func coco_extern_resolving ((coco_engine * e) (const char * name) (u32 arity)
+                                            (size_t g) (int * found) (size_t * out_at)) (out int))
+  (static) (var func coco_extern_call_at ((coco_engine * e) (size_t at) (const char * name)
+                                          (u32 arity) (size_t g) (int * found)) (out int))
+  ;; the registry's generation: 0 is what a fresh functor carries, so it
+  ;; starts at 1 and whoever changes the registry raises it
+  (var u32 coco_extern_generation . 1)
+
+  (func coco_extern_install_resolve
+        ((func resolving ((coco_engine * e) (const char * name) (u32 arity)
+                          (size_t g) (int * found) (size_t * out_at)) (out int))
+         (func call_at ((coco_engine * e) (size_t at) (const char * name) (u32 arity)
+                        (size_t g) (int * found)) (out int)))
+        (set coco_extern_resolving resolving)
+        (set coco_extern_call_at call_at)
+        (set coco_extern_generation (+ coco_extern_generation 1)))
+
   (static)
   (func coco_fail_err ((coco_engine * e) (const char * what)) (out int)
         (snprintf (-> e err) 192 "%s" what)
@@ -683,15 +750,58 @@
   ;;; known when this was written.
   (static)
   (func coco_k_push ((coco_engine * e) (size_t goal) (size_t barrier) (size_t rest)) (out size_t)
-        (let ((size_t args [3]))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t args [3]))
+          ;; `coco_engine_ask' pushes the first frame before the loop has
+          ;; interned anything, and a thawed machine arrives with nothing
+          ;; interned: two loads and a branch, once per machine
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
           (set (nth 0 args) goal)
-          (set (nth 1 args) (coco_new_int (-> e m) (cast i64 barrier)))
+          (set (nth 1 args) (coco_new_int m (cast i64 barrier)))
           (set (nth 2 args) rest)
-          (return (coco_make (-> e m) "$k" 3 args))))
+          (return (coco_make_f m (coco-fid m "$k" 3) 3 args))))
 
   (static)
   (func coco_k_empty ((coco_engine * e)) (out size_t)
-        (return (coco_new_atom (-> e m) "[]")))
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (return (coco_new_atom_id m (coco-id m "[]")))))
+
+  ;;; A BODY'S CONJUNCTION, PUSHED AS ONE CHAIN. `(A, (B, (C, D)))' used to
+  ;;; go on the continuation as one goal, and the loop took it apart one `,'
+  ;;; per step: a full iteration -- the step count, the collector's check,
+  ;;; the dereference and the construct tests -- for every goal in the
+  ;;; body, before the goal itself got an iteration of its own. Measured on
+  ;;; a clause of 32 trivial body goals, the `,' steps were 18 % of the
+  ;;; interpreter's instructions. Here the right spine is walked once and
+  ;;; its goals pushed last first, so the continuation comes out exactly
+  ;;; as the loop would have built it -- the same `'$k'' cells, the same
+  ;;; barrier on each -- and a frozen machine thaws the same either way.
+  ;;;
+  ;;; THE SPINE IS BOUNDED. A body longer than the buffer leaves its tail
+  ;;; on the continuation as one `,' goal, which the loop still takes
+  ;;; apart as before; nothing is lost, only the shortcut.
+  (static)
+  (func coco_k_push_body ((coco_engine * e) (size_t body) (size_t barrier) (size_t rest))
+        (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t items [64])
+              (size_t n . 0)
+              (size_t g . #'(coco_deref m body)))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (while (and (< n 63)
+                      (coco-tag-is FUN (nth g (-> m heap)))
+                      (== (coco_arity m g) 2)
+                      (== (coco_name_of m g) (coco-id m ",")))
+            (set (nth n items) (coco_arg m g 0))
+            (set n (+ n 1))
+            (set g (coco_deref m (coco_arg m g 1))))
+          (set (nth n items) g)
+          (set n (+ n 1))
+          (while (> n 0)
+            (set n (- n 1))
+            (set rest (coco_k_push e (nth n items) barrier rest)))
+          (return rest)))
 
   (static)
   (func coco_k_is_empty ((coco_engine * e) (size_t k)) (out int)
@@ -782,12 +892,21 @@
                 (set last (? (== (coco_pred_next_clause st p key (-> c clause_ix))
                                  (coco_no_clause))
                              1 0))
-                ;; the clause arrives as a fresh copy on the heap, so unifying
-                ;; against its head cannot bind anything in the store
-                (let ((size_t ct . #'(coco_store_get m st cl))
-                      (size_t head) (size_t body))
-                  (coco_clause_parts m ct (aof head) (aof body))
-                  (if (coco_unify m call head)
+                ;; THE HEAD IS MATCHED IN THE STORE, NOT COPIED. The clause
+                ;; used to arrive on the heap as a fresh copy, head and body,
+                ;; before its head was looked at, and a head that did not
+                ;; match had cost the whole copy; `coco_store_unify' walks the
+                ;; call against the store's own cells, making heap cells only
+                ;; where an unbound variable of the call takes a piece of the
+                ;; head, and nothing in the store is bound by it. The body is
+                ;; copied after a match, over the same variable map, so a
+                ;; variable the head bound is the same variable in the body.
+                (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+                      (size_t shead) (size_t sbody) (int matched . 0))
+                  (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
+                  (coco_varmap_take m (aof vm))
+                  (set matched (coco_store_unify m st call shead (aof vm)))
+                  (if matched
                       (block
                        ;; a `!' in the body cuts back to before this call.
                        ;; Under trace the frame STAYS even on the last clause:
@@ -795,8 +914,11 @@
                        ;; and a popped frame fails in silence
                        (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
                        (set (-> e goals)
-                            (? (== body 0) goals (coco_k_push e body ci goals)))
+                            (? (== sbody 0) goals
+                               (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) ci goals)))
+                       (coco_varmap_give m (aof vm))
                        (return 1)))
+                  (coco_varmap_give m (aof vm))
                   ;; that head did not match: put the machine back and try again
                   (coco_undo_to m tmark)
                   (set ($ (cof m) heap_len) hmark))))))
@@ -1099,7 +1221,7 @@
               (size_t h0 . #'(-> e nchoices)))
           (if (not (coco_push_choice e COCO_CH_GOAL els k b)) (return 0))
           (let ((size_t k1 . #'(coco_k_push e t b k))
-                (size_t cut . #'(coco_make1 m "$cut" (coco_new_int m (cast i64 h0)))))
+                (size_t cut . #'(coco_make1_f m (coco-fid m "$cut" 1) (coco_new_int m (cast i64 h0)))))
             (set (-> e goals) (coco_k_push e c (-> e nchoices) (coco_k_push e cut b k1))))
           (return 1)))
 
@@ -1119,7 +1241,7 @@
               (size_t h0 . #'(-> e nchoices)))
           (if (not (coco_push_choice e COCO_CH_GOAL els k b)) (return 0))
           (let ((size_t k1 . #'(coco_k_push e t b k))
-                (size_t sc . #'(coco_make1 m "$softcut" (coco_new_int m (cast i64 h0)))))
+                (size_t sc . #'(coco_make1_f m (coco-fid m "$softcut" 1) (coco_new_int m (cast i64 h0)))))
             (set (-> e goals) (coco_k_push e c (-> e nchoices) (coco_k_push e sc b k1))))
           (return 1)))
 
@@ -1766,8 +1888,8 @@
                    (set (-> e goals) k))
 
                   ((and (== n 2) (== nid (coco-id m ",")))
-                   (set (-> e goals)
-                        (coco_k_push e (coco_arg m g 0) b (coco_k_push e (coco_arg m g 1) b k))))
+                   ;; the whole right spine at once -- see `coco_k_push_body'
+                   (set (-> e goals) (coco_k_push_body e g b k)))
 
                   ((and (== n 0) (== nid (coco-id m "!")))
                    ;; cut: the stack goes back to the barrier this goal carried
@@ -1815,7 +1937,7 @@
                    ;; a bare if-then fails when the condition does. `$fail'
                    ;; rather than `fail': the arm is the construct's own
                    ;; plumbing, and SWI's tracer never shows it
-                   (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom m "$fail") k b))
+                   (coco_ite e (coco_arg m g 0) (coco_arg m g 1) (coco_new_atom_id m (coco-id m "$fail")) k b))
 
                   ((and (== n 2) (== nid (coco-id m "*->")))
                    ;; a bare soft cut has no else to take away, so it is just
@@ -1823,10 +1945,11 @@
                    ;; the cut barrier C runs under is the one it would have had
                    ;; with an else branch present.
                    (coco_soft_ite e (coco_arg m g 0) (coco_arg m g 1)
-                                  (coco_new_atom m "$fail") k b))
+                                  (coco_new_atom_id m (coco-id m "$fail")) k b))
 
                   ((and (== n 1) (or (== nid (coco-id m "\\+")) (== nid (coco-id m "not"))))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$fail") (coco_new_atom m "$true") k b))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$fail"))
+                             (coco_new_atom_id m (coco-id m "$true")) k b))
 
                   ;; `once(G)' IS `(G -> true ; fail)' AND NOTHING ELSE, which
                   ;; is why it belongs here rather than in a library. Written
@@ -1845,8 +1968,8 @@
                   ;; the construct rather than from a hand-written cut is why
                   ;; there is nothing to get wrong.
                   ((and (== n 1) (== nid (coco-id m "once")))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
-                             (coco_new_atom m "$fail") k b))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                             (coco_new_atom_id m (coco-id m "$fail")) k b))
 
                   ;; `ignore(G)' is the same construct with the failure arm
                   ;; saying yes: run G, keep the first solution's bindings if
@@ -1856,8 +1979,8 @@
                   ;; pushed with -- so `ignore/1' cannot leak a half-made
                   ;; binding, and that is the engine doing it rather than us.
                   ((and (== n 1) (== nid (coco-id m "ignore")))
-                   (coco_ite e (coco_arg m g 0) (coco_new_atom m "$true")
-                             (coco_new_atom m "$true") k b))
+                   (coco_ite e (coco_arg m g 0) (coco_new_atom_id m (coco-id m "$true"))
+                             (coco_new_atom_id m (coco-id m "$true")) k b))
 
                   ((and (== n 1) (== nid (coco-id m "call")))
                    ;; call/1 is opaque to cut: the goal runs under a barrier of
@@ -1877,15 +2000,15 @@
                    ;; AND THE GOAL IS FOLLOWED BY A MARKER, because a catch
                    ;; that has finished catching has to say so. See
                    ;; `$catch_exit' below and COCO_CH_CATCH_RETRY above.
-                   (let ((size_t cr . #'(coco_make2 m "$catch"
-                                                  (coco_arg m g 1) (coco_arg m g 2)))
+                   (let ((size_t cr . #'(coco_make2_f m (coco-fid m "$catch" 2)
+                                                    (coco_arg m g 1) (coco_arg m g 2)))
                          (size_t ci . #'(-> e nchoices)))
                      (if (not (coco_push_choice e COCO_CH_CATCH cr k b))
                          (return (coco_fail_err e "out of memory")))
                      (set (-> e goals)
                           (coco_k_push e (coco_arg m g 0) (-> e nchoices)
-                                       (coco_k_push e (coco_make1 m "$catch_exit"
-                                                                  (coco_new_int m (cast i64 ci)))
+                                       (coco_k_push e (coco_make1_f m (coco-fid m "$catch_exit" 1)
+                                                                    (coco_new_int m (cast i64 ci)))
                                                     b k)))))
 
                   ;;; The goal of the catch frame at CI has EXITED. From here
@@ -1980,7 +2103,27 @@
                      ;; fetched HERE, on the path that needs it, rather than
                      ;; for every goal
                      (if (and (not found) (!= coco_extern_call nil))
-                         (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found))))
+                         (if (and (> n 0) (!= coco_extern_resolving nil))
+                             ;; by the functor's remembered owner, asked once
+                             ;; per generation of the registry -- see
+                             ;; `coco_extern_install_resolve'. The functor
+                             ;; index is the FUN cell's payload; `g' is
+                             ;; dereferenced and callable, so with n > 0 it
+                             ;; is one. A functor made by this very call --
+                             ;; `coco_functor_id' may grow the table -- is
+                             ;; read after the walk, never across it.
+                             (let ((size_t fi . #'(cast size_t (coco-payload (nth g (-> m heap))))))
+                               (if (!= ($ (nth fi (-> m functors)) dgen) coco_extern_generation)
+                                   (let ((size_t at . 0))
+                                     (set rc (coco_extern_resolving e (coco_atom_name m nid) n g
+                                                                    (aof found) (aof at)))
+                                     (set ($ (nth fi (-> m functors)) dmod)
+                                          (? found (cast i32 at) -2))
+                                     (set ($ (nth fi (-> m functors)) dgen) coco_extern_generation))
+                                 (if (>= ($ (nth fi (-> m functors)) dmod) 0)
+                                     (set rc (coco_extern_call_at e (cast size_t ($ (nth fi (-> m functors)) dmod))
+                                                                  (coco_atom_name m nid) n g (aof found))))))
+                           (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found)))))
                      (if found
                          (block
                           (if (== rc -1) (return -1))
@@ -2024,7 +2167,7 @@
                                       (set (nth 0 margs) (coco_new_int m (cast i64 g)))
                                       (set (nth 1 margs) (coco_new_int m (cast i64 tD)))
                                       (set (nth 2 margs) (coco_new_int m (cast i64 (-> e trace_goal))))
-                                      (set k2 (coco_k_push e (coco_make m "$trace_exit" 3 margs) b k))))
+                                      (set k2 (coco_k_push e (coco_make_f m (coco-fid m "$trace_exit" 3) 3 margs) b k))))
                                 (if (not (coco_push_choice e COCO_CH_CLAUSE g k2 b))
                                     (return (coco_fail_err e "out of memory")))
                                 (let ((size_t ci . #'(- (-> e nchoices) 1)))
