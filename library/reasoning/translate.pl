@@ -5128,6 +5128,19 @@ tr_read0(Side, question, Words0, S) :-
     tr_clause_words(Left0, Left), tr_clause_words(Right0, Right),
     tr_read(Side, statement, Left, S1), tr_read(Side, question, Right, S2), !,
     S = join(colon, S1, q(S2)).
+%% ... AND SO IS A QUESTION AFTER AN ASIDE BETWEEN DASHES: `quanto si spende per
+%% la sicurezza sociale - dove si concentrano le famiglie povere - su cento
+%% italiani residenti quanti sono i poveri?' is a heading's three questions,
+%% the middle one between its dashes (tr_asides/3 makes it one word, and the
+%% first clause ends on it). The first is written as the statement it is, the
+%% last as the question the mark says, and nothing is written between them
+%% but the dashes the aside keeps: join(aside, ...), as a quotation's is.
+tr_read0(foreign, question, Words0, join(aside, S1, q(S2))) :-
+    append(Left0, [w(K, dashed)|Right0], Words0), Left0 \== [], Right0 \== [],
+    \+ memberchk(comma, Right0),
+    append(Left0, [w(K, dashed)], Left),
+    tr_read(foreign, statement, Left, S1),
+    tr_read(foreign, question, Right0, S2), S2 = s(Asked, _, _, _), Asked \== none, !.
 %% A COLON DIVIDES AS A SEMICOLON DOES: `Le condizioni generali sono
 %% ottime: ridono, scherzano, raccontano.' Two clauses, the second saying
 %% what the first announced.
@@ -11636,6 +11649,17 @@ tr_np(foreign, [D|Ws0], np(det(DK, DL, D), none, Adjs, named(G, Ws), Number)) :-
     forall(member(A, Adjs), ( A = w(_, lower), tr_adj_word(foreign, A), tr_is(foreign, A, adjective) )),
     tr_determiner(foreign, D, DL, DK),
     tr_det_gender(foreign, D, DL, G0, Number), tr_name_gender(foreign, D, Ws, G0, G), !.
+%% ... AND AFTER A NAME THAT HAS NO DETERMINER: `la commissione sulla povertà
+%% presieduta da Pierre Carniti grafico' ends on a name and the word that
+%% labels what follows it, an adjective, and the phrase of a name and an
+%% adjective had no reading. The gender is the adjective's where it says one.
+tr_np(foreign, Ws0, np(none, none, Adjs, named(G, Ws), singular)) :-
+    Ws0 = [W1, _, _|_], W1 = w(_, upper), tr_name_word(foreign, W1),
+    append(Ws, Adjs, Ws0), Ws \== [], Adjs \== [],
+    forall(member(W, Ws), tr_name_word(foreign, W)),
+    forall(member(A, Adjs), ( A = w(_, lower), tr_adj_word(foreign, A), tr_is(foreign, A, adjective) )),
+    Adjs = [w(AW, _)|_], atom(AW),
+    ( tr_holds(feminine(AW)) -> G = feminine ; G = masculine ), !.
 
 %% AN ELIDED ARTICLE SAYS NO GENDER -- `l'' is `lo' and `la' alike -- so a
 %% name after one takes the gender the lesson states of it: `l'Italia',
@@ -15701,7 +15725,11 @@ tr_write(To, Kind, join(C, none, S2), Outs) :- !,
 tr_write(To, _, join(C, S1, q(S2)), Outs) :- !,
     tr_write(To, statement, S1, O1), tr_connector_out(To, C, CO),
     tr_write(To, question, S2, O20),
-    ( To == foreign, once(tr_solve(begin(M, question))) -> O2 = [o(M, lower)|O20] ; O2 = O20 ),
+    %% (a second clause that is a statement and then a question of its own opens
+    %% its mark there, not here: join(aside, S, q(Q)) of tr_read0/4)
+    (   To == foreign, S2 \= join(aside, _, q(_)), once(tr_solve(begin(M, question))) -> O2 = [o(M, lower)|O20]
+    ;   O2 = O20
+    ),
     append(O1, CO, Front), append(Front, O2, Outs).
 tr_write(To, Kind, join(C, S1, none), Outs) :- !,
     tr_write(To, Kind, S1, O1), tr_connector_out(To, C, CO), append(O1, CO, Outs).

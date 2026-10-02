@@ -875,6 +875,10 @@ The adverb "ya no" means "no longer".
 The word "cuántos" means "how many".
 The word "cuánto" means "how much".
 The number "cien" means "hundred".
+The masculine noun "proyecto de ley" means "bill".
+"proyectos de ley" is the plural of "proyecto de ley".
+The feminine noun "rueda de prensa" means "press conference".
+"ruedas de prensa" is the plural of "rueda de prensa".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

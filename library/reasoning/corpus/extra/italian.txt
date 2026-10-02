@@ -2227,3 +2227,10 @@ The masculine noun "vestiario" means "clothing".
 # `su cento italiani residenti quanti sono i poveri?' -- how many, and a hundred
 The word "quanti" means "how many".
 The number "cento" means "hundred".
+# `un disegno di legge', `la conferenza stampa' -- a bill and a press
+# conference: the lesson's `disegno' is a drawing and a cartoonist, and `stampa'
+# a verb's form
+The masculine noun "disegno di legge" means "bill".
+"disegni di legge" is the plural of "disegno di legge".
+The feminine noun "conferenza stampa" means "press conference".
+"conferenze stampa" is the plural of "conferenza stampa".

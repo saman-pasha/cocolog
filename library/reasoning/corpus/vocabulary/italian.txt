@@ -1239,6 +1239,10 @@ The feminine noun "alimentazione" means "feeding".
 The masculine noun "vestiario" means "clothing".
 The word "quanti" means "how many".
 The number "cento" means "hundred".
+The masculine noun "disegno di legge" means "bill".
+"disegni di legge" is the plural of "disegno di legge".
+The feminine noun "conferenza stampa" means "press conference".
+"conferenze stampa" is the plural of "conferenza stampa".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
