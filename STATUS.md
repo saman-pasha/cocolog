@@ -655,6 +655,23 @@ a faster copy but no copy -- a body executed from the store over a
 frame of its variables, which is the compile step; `coco_store_unify'
 is the first half of it, the head side.
 
+**1.8.43 took the next slice of the copy**: the store-to-heap walk is
+one loop (`coco_store_get_vm`), a variable met first lives in the slot
+`coco_push_struct` reserved -- which is already an unbound variable -- so
+`f(X, X)` copies as three cells and nothing is pushed for a variable; the
+map is probed once per occurrence (`coco_varmap_intern`); and a `'$k'`
+frame is four cells reserved at once, its barrier an INT in its own slot
+rather than a REF to one pushed beside it. Same sitting, five alternating
+pairs, medians, 1.8.42 against 1.8.43: naive reverse 0.210 to 0.178 s, the
+fact of 64 variables 0.306 to 0.245, of 128 0.496 to 0.415, a body of 8
+goals 0.205 to 0.160, of 32 0.601 to 0.543, 8 if-then-else arms 0.381 to
+0.325. In instructions: naive reverse 0.74 G to 0.61 G, the body of 32
+1.42 G to 1.08 G, the fact of 64 0.95 G to 0.74 G. One thing tried and not
+shipped: a byte per atom saying whether it names a construct, so the
+loop's two dozen construct tests become one load -- fewer tests, the same
+instructions, and nothing measurable in five pairs; the tests were cheap
+all along.
+
 Gated by `test/run.pl -- term syntax solve module state files trace
 engine library script string langs directives hex astar serialize
 normalise lint`, every one GREEN, in a build without the embedded store

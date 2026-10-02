@@ -751,15 +751,23 @@
   (static)
   (func coco_k_push ((coco_engine * e) (size_t goal) (size_t barrier) (size_t rest)) (out size_t)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t args [3]))
+              (size_t h . 0))
           ;; `coco_engine_ask' pushes the first frame before the loop has
           ;; interned anything, and a thawed machine arrives with nothing
           ;; interned: two loads and a branch, once per machine
           (if (not (-> m ids_ready)) (coco_ids_fill m))
-          (set (nth 0 args) goal)
-          (set (nth 1 args) (coco_new_int m (cast i64 barrier)))
-          (set (nth 2 args) rest)
-          (return (coco_make_f m (coco-fid m "$k" 3) 3 args))))
+          ;; FOUR CELLS, RESERVED ONCE: the header, the goal and the rest as
+          ;; `coco_make' would store them -- dereferenced, which is what
+          ;; keeps the chain one link long -- and the barrier AS THE CELL
+          ;; ITSELF, an INT in its slot rather than a REF to one pushed
+          ;; beside it. Every reader dereferences, and an INT dereferences
+          ;; to itself; the collector keeps a kept compound's slots whatever
+          ;; they hold. One push and one cell fewer per goal proven.
+          (set h (coco_push_struct m (coco-cell FUN (coco-fid m "$k" 3)) 3))
+          (set (nth (+ h 1) (-> m heap)) (coco-cell REF (coco_deref m goal)))
+          (set (nth (+ h 2) (-> m heap)) (coco-int-cell (cast i64 barrier)))
+          (set (nth (+ h 3) (-> m heap)) (coco-cell REF (coco_deref m rest)))
+          (return h)))
 
   (static)
   (func coco_k_empty ((coco_engine * e)) (out size_t)

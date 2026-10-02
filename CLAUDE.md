@@ -506,9 +506,13 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
 * **A global is found by a scan from the first one made and COPIED on every
   read** (`nb_getval/2`, `b_getval/2`): keep a table small per global, and
   make a global you read often once rather than catching its absence.
-* **The five term walks borrow the machine's stacks** (copy, store-put,
-  store-get, unify, compare: `coco_wframes_take`/`_give`,
-  `coco_wpairs_take`/`_give` in `lib/term.cicili`). They are iterative so a
+* **The six term walks borrow the machine's stacks** (copy, store-put,
+  store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
+  `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that
+  rename variables borrow its variable map too (`coco_varmap_take`/`_give`:
+  an open-addressed table, epoch-stamped so nothing is cleared between
+  copies; its hash must spread CONSECUTIVE keys -- a multiply alone put a
+  whole clause's variables in one slot). They are iterative so a
   200 000-element list cannot overflow the C stack, and when each walk
   allocated its stack per call, queens took 61% longer (1.8.38's bisection,
   STATUS.md). A walk must not `malloc` per call; anything new on that path
@@ -543,10 +547,25 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   use, which a frozen machine relies on; `coco_name_arity_hash` serves the
   functors (`lib/term.cicili`) and the predicates (`lib/kb.cicili`). Each
   table has exactly one writer (`coco_functor_id`, `coco_pred_make`); keep
-  it that way. What is left in the translator's profile, recorded and not
-  done: copying a clause from the store to the heap at each call
-  (`coco_store_get`, ~27 %), module dispatch by `strcmp` on the goal's name
-  (`coco-emit-module-dispatch`, ~9 %), `coco_unify`, and the allocator.
+  it that way. The functor also remembers which module owns a goal of its
+  name (`dmod`/`dgen`, since 1.8.42): the `strcmp` walk over the modules
+  runs once per functor per registry generation, and `coco_module_register`
+  raises `coco_extern_generation` so a name nobody owned is asked again.
+* **A clause's head is matched in the store, not copied** (`coco_store_unify`
+  in `lib/kb.cicili`, since 1.8.42): the call is walked against the store's
+  cells, a store variable met first is MAPPED to the heap cell it meets, a
+  store atom or compound is copied only where an unbound variable of the
+  call takes it, and nothing in the store is ever bound. The body is copied
+  after a match over the same map (`coco_store_get_vm`), in one loop where a
+  variable met first LIVES IN ITS SLOT (the slot `coco_push_struct` reserved
+  is already an unbound variable). The engine's own names and functors --
+  `'$k'`, `$true`, `$fail`, `$cut`, `:-`, the markers -- are interned once
+  per machine beside the ids (`fids`, `coco-fid`); add to `*functor-names*`,
+  never call `coco_make` with a literal name on a hot path. A `'$k'` frame
+  is four cells with the barrier an INT in its slot. What is left in a
+  body-heavy clause's profile is the body copy itself, now about half of it,
+  and the next step is not a faster copy but none -- a body run from the
+  store over a frame of its variables, the compile step.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

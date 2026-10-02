@@ -546,6 +546,10 @@
 
   (decl) (func coco_varmap_get ((coco_varmap * vm) (size_t from) (size_t * out_to)) (out int))
   (decl) (func coco_varmap_put ((coco_varmap * vm) (size_t from) (size_t to)) (out int))
+  ;; one probe for both: answers 1 and fills OUT_TO when FROM is mapped,
+  ;; else maps it to TO and answers 0 (-1 when the table could not grow)
+  (decl) (func coco_varmap_intern ((coco_varmap * vm) (size_t from) (size_t to)
+                                   (size_t * out_to)) (out int))
   (decl) (func coco_varmap_free ((coco_varmap * vm)))
   (decl) (func coco_varmap_take ((coco_machine * m) (coco_varmap * vm)))
   (decl) (func coco_varmap_give ((coco_machine * m) (coco_varmap * vm)))
@@ -1267,8 +1271,25 @@
           (set (-> vm len) (+ (-> vm len) 1))
           (return 1)))
 
-  ;;; The machine's spare pair, cleared, or nothing: a copy that starts
-  ;;; while another holds the pair makes its own on the first put.
+  (func coco_varmap_intern ((coco_varmap * vm) (size_t from) (size_t to)
+                            (size_t * out_to)) (out int)
+        (if (> (* (+ (-> vm len) 1) 2) (-> vm cap))
+            (if (not (coco_varmap_grow vm (? (== (-> vm cap) 0) 32 (* (-> vm cap) 2))))
+                (return -1)))
+        (let ((size_t mask . #'(- (-> vm cap) 1))
+              (size_t want . #'(coco_varmap_entry vm from))
+              (size_t i . #'(coco_varmap_slot (-> vm cap) from)))
+          (while (coco_varmap_live vm i)
+            (if (== (nth i (-> vm from)) want)
+                (block (set (cof out_to) (nth i (-> vm to))) (return 1)))
+            (set i (bitand (+ i 1) mask)))
+          (set (nth i (-> vm from)) want)
+          (set (nth i (-> vm to)) to)
+          (set (-> vm len) (+ (-> vm len) 1))
+          (return 0)))
+
+  ;;; The machine's spare pair, or nothing: a copy that starts while
+  ;;; another holds the pair makes its own on the first put.
   (func coco_varmap_take ((coco_machine * m) (coco_varmap * vm))
         ;; the next epoch; at the wrap the kept table is cleared, once
         (set (-> m vmap_epoch) (+ (-> m vmap_epoch) 1))
@@ -1334,12 +1355,14 @@
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
             ((coco-tag-is REF c)
-             ;; unbound: one fresh variable per distinct original
-             (let ((size_t to . 0))
-               (if (coco_varmap_get vm t (aof to)) (return to))
-               (set to (coco_new_var m))
-               (coco_varmap_put vm t to)
-               (return to)))
+             ;; unbound: one fresh variable per distinct original. The
+             ;; variable is made first and the map probed once; a second
+             ;; occurrence gives the cell straight back, it being the last
+             ;; one pushed and pointed at by nothing
+             (let ((size_t to . 0) (size_t v . #'(coco_new_var m)))
+               (if (== 1 (coco_varmap_intern vm t v (aof to)))
+                   (block (set ($ (cof m) heap_len) v) (return to)))
+               (return v)))
             ((coco-tag-is FUN c)
              (let ((u32 n . #'(coco_arity m t))
                    (size_t h . #'(coco_push m c)))

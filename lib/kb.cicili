@@ -861,64 +861,6 @@
           (coco_varmap_give m (aof vm))
           (return r)))
 
-  (static)
-  (func coco_store_get_node ((coco_machine * m) (coco_store * st) (size_t t)
-                             (coco_varmap * vm) (coco_copyframe ** fs)
-                             (size_t * flen) (size_t * fcap))
-        (out size_t)
-        ;; a store term is never bound, so the only dereferencing needed is the
-        ;; one step a reserved argument slot introduces
-        (while (coco-tag-is REF (nth t (-> st cells)))
-          (let ((size_t next . #'(cast size_t (coco-payload (nth t (-> st cells))))))
-            (if (== next t) break)
-            (set t next)))
-        (let ((u64 c . #'(nth t (-> st cells))))
-          (cond
-            ((coco-tag-is REF c)
-             (let ((size_t to . 0))
-               (if (coco_varmap_get vm t (aof to)) (return to))
-               (set to (coco_new_var m))
-               (coco_varmap_put vm t to)
-               (return to)))
-            ((coco-tag-is FUN c)
-             (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity))
-                   (size_t h . #'(coco_push_struct m c n)))
-               (if (> n 0)
-                   (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
-                       (set (-> m oom) 1)))
-               (return h)))
-            (#t (return (coco_push m c))))))
-
-  (func coco_store_get_vm ((coco_machine * m) (coco_store * st) (size_t t)
-                           (coco_varmap * vm)) (out size_t)
-        (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
-              (size_t r . 0))
-          (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
-          (set r (coco_store_get_node m st t vm (aof fs) (aof flen) (aof fcap)))
-          (while (> flen 0)
-            (let ((size_t fi . #'(- flen 1)))
-              (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
-                  (block (set flen fi) continue))
-              (let ((size_t src . #'(+ ($ (nth fi fs) src)
-                                       (+ (cast size_t ($ (nth fi fs) i)) 1)))
-                    (size_t slot . #'(+ ($ (nth fi fs) dst)
-                                        (cast size_t ($ (nth fi fs) i)))))
-                (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
-                (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
-                (let ((size_t a . #'(coco_store_get_node m st src vm
-                                                         (aof fs) (aof flen) (aof fcap))))
-                  (coco_set_arg m slot a)))))
-          (coco_wframes_give m (cast (void *) fs) fcap)
-          (return r)))
-
-  (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
-        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
-              (size_t r . 0))
-          (coco_varmap_take m (aof vm))
-          (set r (coco_store_get_vm m st t (aof vm)))
-          (coco_varmap_give m (aof vm))
-          (return r)))
-
   ;;; The store's own dereference: a reserved argument slot is a REF to
   ;;; where the argument was put, and an unbound store variable points at
   ;;; itself. Nothing else in the store is ever a chain.
@@ -929,6 +871,78 @@
             (if (== next s) (return s))
             (set s next)))
         (return s))
+
+  ;;; THE STORE-TO-HEAP COPY, in one loop. The root is pushed, and every
+  ;;; compound met puts a frame on the walk stack -- its store index, its
+  ;;; first heap slot, its arity, how many slots are done -- and the loop
+  ;;; takes the frames' arguments one at a time, so a list's depth is never
+  ;;; the C stack's. Two things make it cheap per cell:
+  ;;;
+  ;;; A VARIABLE MET FIRST LIVES IN ITS SLOT. The slot `coco_push_struct'
+  ;;; reserved is already an unbound variable (a REF to itself), so the
+  ;;; copy maps the store variable to the SLOT and pushes nothing; met
+  ;;; again, the slot is pointed at that. The copy of `f(X, X)' is three
+  ;;; cells, as `coco_make' would build it. Binding such a variable writes
+  ;;; the slot, which is what binding any argument variable does.
+  ;;;
+  ;;; THE MAP IS PROBED ONCE per occurrence (`coco_varmap_intern'): found,
+  ;;; or entered, in the one walk down the chain.
+  (func coco_store_get_vm ((coco_machine * m) (coco_store * st) (size_t t)
+                           (coco_varmap * vm)) (out size_t)
+        (let ((coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
+              (size_t r . 0) (u64 c . 0))
+          (set t (coco_store_deref st t))
+          (set c (nth t (-> st cells)))
+          ;; the root: a variable, an atom or number, or a compound
+          (if (coco-tag-is REF c)
+              (let ((size_t to . 0) (size_t v . #'(coco_new_var m)))
+                (if (== 1 (coco_varmap_intern vm t v (aof to)))
+                    (block (set ($ (cof m) heap_len) v) (return to)))
+                (return v)))
+          (if (not (coco-tag-is FUN c)) (return (coco_push m c)))
+          (set fs (cast (coco_copyframe *) (coco_wframes_take m (aof fcap))))
+          (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+            (set r (coco_push_struct m c n))
+            (if (> n 0)
+                (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) t (+ r 1) n))
+                    (set (-> m oom) 1))))
+          (while (> flen 0)
+            (let ((size_t fi . #'(- flen 1)))
+              (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n))
+                  (block (set flen fi) continue))
+              (let ((size_t src . #'(coco_store_deref st (+ ($ (nth fi fs) src)
+                                                           (+ (cast size_t ($ (nth fi fs) i)) 1))))
+                    (size_t slot . #'(+ ($ (nth fi fs) dst)
+                                        (cast size_t ($ (nth fi fs) i))))
+                    (u64 cs . 0))
+                (set ($ (nth fi fs) i) (+ ($ (nth fi fs) i) 1))
+                (if (>= ($ (nth fi fs) i) ($ (nth fi fs) n)) (set flen fi))
+                (set cs (nth src (-> st cells)))
+                (cond
+                  ((coco-tag-is REF cs)
+                   ;; first met: the slot IS the variable; met again: point
+                   ;; the slot at the one it became
+                   (let ((size_t to . 0))
+                     (if (== 1 (coco_varmap_intern vm src slot (aof to)))
+                         (coco_set_arg m slot to))))
+                  ((coco-tag-is FUN cs)
+                   (let ((u32 nn . #'($ (nth (cast size_t (coco-payload cs)) (-> m functors)) arity))
+                         (size_t hh . #'(coco_push_struct m cs nn)))
+                     (coco_set_arg m slot hh)
+                     (if (> nn 0)
+                         (if (not (coco_frames_push (aof fs) (aof flen) (aof fcap) src (+ hh 1) nn))
+                             (set (-> m oom) 1)))))
+                  (#t (coco_set_arg m slot (coco_push m cs)))))))
+          (coco_wframes_give m (cast (void *) fs) fcap)
+          (return r)))
+
+  (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t r . 0))
+          (coco_varmap_take m (aof vm))
+          (set r (coco_store_get_vm m st t (aof vm)))
+          (coco_varmap_give m (aof vm))
+          (return r)))
 
   ;;; Three words per pending pair: the heap side, the other side, and
   ;;; which kind the other side is -- 0 a store index, 1 a heap index (a
