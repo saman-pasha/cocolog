@@ -115,3 +115,4 @@ library/reasoning/corpus/raw/
 
 # saved Docker images (make docker-save)
 /dist/
+.DS_Store
