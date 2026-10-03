@@ -851,7 +851,25 @@ read into an English-worded IR and written into any lesson's language),
   it as read and English refuses it (17 and 21 of the Israel report); a day
   fronts a relative clause only as an article and its noun (`que todos los
   domingos visita`, `que cada domingo visita` and `que el 12 de enero
-  compró` are refused).
+  compró` are refused); `su` after a verb of writing is `en` (`scritto su
+  Montanelli`, not `sobre`); the imperfect crosses as the preterite
+  (`sapevo` is `supe`, `mi piaceva` `me gustó`); `lo conosco` is `lo sé`
+  (the clitic does not say whether it stands for a person or a fact), and so
+  is the object of a relative (`il giornalista che io abbia conosciuto` is
+  `he sabido`); `la prima di molte lezioni` reads `prima di` as the
+  preposition `before` and `il primo era buono` reads `era` as a noun;
+  `Dare ordini` reads the infinitive as a subject and `ordini` as its verb
+  (`Dar ordena`); `piano` is `plan` after an ordinal (`al terzo piano`, `al
+  tercer plan`) and `campioni alimentari` `campeones`; `darsi da fare`,
+  `darlo a vedere`, `non ci sono riuscito`, `adesso che ci penso`, `passare
+  per la testa`, `in fondo` and `all'opera` cross word by word; a clitic
+  cluster is not rewritten (`decirlelo`, `se la ricordava` is `si la
+  recordó`); `dei libri da non scrivere` is `desde no escribir`; `Sapendo
+  che dorme, lui mangia` reads `lui` as the gerund's object clitic; `ancora
+  quindi più cara` after a comma reads `ancora` as the noun (`ancla`); the
+  role after `da` is written `as student` into English, with no article; an
+  apposition keeps no gender (`la sua compagna` is `su compañero`); `tutti
+  quelli` is `everyone those` into English, never `all of those`.
 
 ## Tutorials are documentation that runs
 
