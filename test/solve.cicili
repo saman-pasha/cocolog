@@ -182,6 +182,33 @@
       (check_str "exact division stays integer" buf "3")
       (first_binding (aof e) "X is -7 mod 3" buf (sizeof buf))
       (check_str "mod follows the divisor"    buf "2")
+      (first_binding (aof e) "X is 7 mod -3" buf (sizeof buf))
+      (check_str "mod by a negative divisor"  buf "-2")
+      (first_binding (aof e) "X is -7 div 2" buf (sizeof buf))
+      (check_str "div is floored"             buf "-4")
+      (first_binding (aof e) "X is 7 div -2" buf (sizeof buf))
+      (check_str "div by a negative divisor"  buf "-4")
+      ;; THE SIGNS ARE COMPARED, NOT MULTIPLIED. The test for `the remainder is
+      ;; not on the divisor's side' was the sign of remainder * divisor, which
+      ;; passes 2^63 once both are over about three billion and wraps: mod and
+      ;; div answered for the wrapped sign -- adding the divisor to a remainder
+      ;; that needed none (`2654435761 mod 4294967296' was 6949403057), and
+      ;; leaving a negative one alone. Every check above uses numbers small
+      ;; enough to have hidden it.
+      (first_binding (aof e) "X is 2654435761 mod 4294967296" buf (sizeof buf))
+      (check_str "mod, both over three billion" buf "2654435761")
+      (first_binding (aof e) "X is 2654435761 div 4294967296" buf (sizeof buf))
+      (check_str "div, both over three billion" buf "0")
+      (first_binding (aof e) "X is -2654435761 mod 4294967296" buf (sizeof buf))
+      (check_str "a big negative dividend takes the divisor's sign" buf "1640531535")
+      (first_binding (aof e) "X is 2654435761 mod -4294967296" buf (sizeof buf))
+      (check_str "a big negative divisor"     buf "-1640531535")
+      (first_binding (aof e) "X is -2654435761 div 4294967296" buf (sizeof buf))
+      (check_str "floored, and big"           buf "-1")
+      (first_binding (aof e) "X is 3037000501 mod 5000000000" buf (sizeof buf))
+      (check_str "the product just past 2^63" buf "3037000501")
+      (first_binding (aof e) "X is 1152921504606846975 mod -1152921504606846974" buf (sizeof buf))
+      (check_str "and at the top of the range" buf "-1152921504606846973")
       (first_binding (aof e) "X is max(3, 4.5)" buf (sizeof buf))
       (check_str "max across types"           buf "4.5")
 

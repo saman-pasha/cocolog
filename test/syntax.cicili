@@ -71,6 +71,17 @@
             (check_str text flat want))
           (coco_sb_free (aof b))))
 
+  ;; read TEXT as a clause and check that the reader REFUSES it, and says WANT
+  (func refuses ((coco_machine * m) (const char * text) (const char * want))
+        (let ((coco_reader r) (size_t t) (int rc))
+          (coco_reader_init (aof r) m text)
+          (set rc (coco_read_clause (aof r) (aof t)))
+          (if (and (== rc -1) (!= nil (strstr ($ r err) want)))
+              (printf "ok   %-30s refused: %s\n" text ($ r err))
+            (block (printf "FAIL %-30s rc %d, err [%s]\n" text rc ($ r err))
+                   (set failures (+ failures 1))))
+          (coco_reader_free (aof r))))
+
   ;; read TEXT, write it, read that, and check the two terms are identical
   (func stable ((coco_machine * m) (const char * text))
         (let ((size_t t1) (size_t t2) (coco_strbuf b))
@@ -230,6 +241,27 @@
       (trip (aof m) "3.5"          "3.5")
       (trip (aof m) "2.0"          "2.0")
       (trip (aof m) "1.0e3"        "1000.0")
+
+      ;; ---- AN INTEGER IS 61 BITS, AND A LITERAL PAST THEM IS REFUSED ---------
+      ;;
+      ;; The digits were read into 64 bits -- a decimal saturated at the largest,
+      ;; a radix literal wrapped -- and the cell kept the low 61 of them, without
+      ;; a word: `1152921504606846976' was the least integer, `0xffffffffffffffff'
+      ;; was -1 and `0x10000000000000000' was 0. The range is -2^60 .. 2^60 - 1,
+      ;; so the magnitude of a negative literal may be one more than a positive's.
+      (trip (aof m) "1152921504606846975"  "1152921504606846975")    ; 2^60 - 1
+      (trip (aof m) "-1152921504606846976" "-1152921504606846976")   ; -2^60
+      (trip (aof m) "0xfffffffffffffff"    "1152921504606846975")
+      (trip (aof m) "-0x1000000000000000"  "-1152921504606846976")
+      (refuses (aof m) "1152921504606846976."   "integer out of range")
+      (refuses (aof m) "-1152921504606846977."  "integer out of range")
+      (refuses (aof m) "9223372036854775808."   "integer out of range")
+      (refuses (aof m) "99999999999999999999."  "integer out of range")
+      (refuses (aof m) "0x1000000000000000."    "integer out of range")
+      (refuses (aof m) "0xffffffffffffffff."    "integer out of range")
+      (refuses (aof m) "0x10000000000000000."   "integer out of range")
+      (refuses (aof m) "0o7777777777777777777777." "integer out of range")
+      (refuses (aof m) "f(1, 1152921504606846976)." "integer out of range")
 
       ;; ---- strings are code lists ---------------------------------------
       (trip (aof m) "\"ab\""       "[97,98]")
