@@ -5557,6 +5557,12 @@ section_60 :-
     must('a noun that is an adverb too after an ordinal that is a noun too: `al terzo piano'' is on the third floor, and `piano'' is `slowly'' as well', S60n, 'Maria duerme en el segundo piso.'),
     reason_translate('Maria vede Giovanni, lo studente.', italian, spanish, S60o),
     must('a phrase after an object and its comma is the object''s apposition: `amava teneramente Marisa Rivolta, la sua compagna d''autunno'' -- no second object, and no marker of a person before it', S60o, 'Maria ve a Giovanni, el estudiante.'),
+    reason_translate('Maria pubblica da studente a professore.', italian, spanish, S60p),
+    must('a range of roles is no role: `da giudice di legittimità a giudice di merito'' is from judge to judge, never `como juez''', S60p, 'Maria publica desde estudiante a profesor.'),
+    reason_translate('Maria vede tutti quelli con cui il cane dorme.', italian, spanish, S60q),
+    must('the pronoun after `all'' is a personal one: `tutti quelli con cui ho lavorato'' is all of those, and `tutti noi'' all of us', S60q, 'Maria ve todos aquellos con los que el perro duerme.'),
+    reason_translate('C''è ancora oggi un cane.', italian, spanish, S60r),
+    must('the cut for a noun that is an adverb too is made after an ordinal only: `c''è ancora oggi gente'' is there are still today people, and `ancora'' is an anchor as well', S60r, 'Hay todavía hoy un perro.'),
     reason_unlearn(spanish), reason_unlearn(italian).
 
 lesson_60(L, Text) :- lesson_60(L, 1, A), lesson_60(L, 2, B), atomic_list_concat([A, ' ', B], Text).
@@ -5582,11 +5588,13 @@ The pronoun "yo" means "I". The pronoun "yo" does not precede the verb.
 The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb. The masculine pronoun "todo" means "all". "todos" is the plural of "todo".
 The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
 The pronoun "alguno" means "somebody".
-The adverb "ahora" means "now". The adverb "a menudo" means "often".
+The masculine demonstrative "aquel" means "that". "aquellos" is the plural of "aquel". The masculine pronoun "aquel" means "that". The pronoun "aquel" does not precede the verb.
+The masculine noun "profesor" means "teacher". "profesor" is a person.
+The adverb "ahora" means "now". The adverb "a menudo" means "often". The adverb "todavía" means "still". The adverb "hoy" means "today".
 The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "para" means "for". The preposition "desde" means "from". The preposition "como" means "as". The preposition "a" means "to". The word "a" precedes the person.').
 lesson_60(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
 The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "como" is the first person of "come". "comiendo" is the gerund of "come".
-The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "tiene" means "has". "tienen" is the plural of "tiene". The verb "hay" means "there is".
 The verb "es" means "is". "era" is the past of "es". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
 The verb "ve" means "sees". "visto" is the participle of "ve". "he" is the first person of "ha". "ha" is the auxiliary of "es".
 The verb "sabe" means "knows". "sabiendo" is the gerund of "sabe". "saber" is the infinitive of "sabe".
@@ -5616,12 +5624,15 @@ The pronoun "io" means "I". The pronoun "io" does not precede the verb.
 The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb. The masculine pronoun "tutto" means "all". "tutti" is the plural of "tutto".
 The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
 The pronoun "qualcuno" means "somebody".
-The adverb "ora" means "now". The adverb "spesso" means "often".
+The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". The masculine pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The masculine noun "professore" means "teacher". "professore" is a person.
+The adverb "ora" means "now". The adverb "spesso" means "often". The adverb "ancora" means "still". The feminine noun "ancora" means "anchor". The adverb "oggi" means "today". The masculine noun "oggi" means "today".
 The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "per" means "for". The preposition "da" means "from". The preposition "da" means "as a". The preposition "come" means "as". The preposition "a" means "to".
 "cui" is a relative. The word "cui" follows the preposition.').
 lesson_60(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
 The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangio" is the first person of "mangia". "mangiando" is the gerund of "mangia".
 The verb "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha". "ha" is the auxiliary of "è". "abbia" is the subjunctive of "ha".
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è".
 The verb "è" means "is". "era" is the past of "è". "sono" is the plural of "è". "essere" is the infinitive of "è". "è" is the auxiliary of "è". "stato" is the participle of "è".
 The verb "vede" means "sees". "visto" is the participle of "vede".
 The verb "sa" means "knows". "sapendo" is the gerund of "sa". "sapere" is the infinitive of "sa".

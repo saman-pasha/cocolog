@@ -4089,7 +4089,20 @@ tr_cross_comps([opron(w(W, _)), Q|Cs0], Cs) :-
 tr_cross_comps([C0, Q|Cs0], [C|Cs]) :-
     tr_partitive_off(C0, C1), tr_quantity_comp(Q), !,
     tr_cross_comp(C1, C), tr_cross_comps([Q|Cs0], Cs).
+%% A RANGE OF ROLES IS NO ROLE: `da giudice di legittimità a giudice di merito'
+%% is from judge of legitimacy to judge of merit, and the role of tr_cross_comp/2
+%% made the first end `as judge' -- `como juez de legitimidad a juez de mérito'.
+%% The first phrase is a bare person and a phrase of `to' with another bare
+%% person comes after it, through the phrases of `of' that belong to the first
+tr_cross_comps([pp(w(P, C), NP0)|Cs0], [pp(w(PT, C), NP)|Cs]) :-
+    tr_side_here(foreign), NP0 = np(none, none, [], N, singular), N = w(_, _), tr_person_word(N),
+    tr_role_range(Cs0), !,
+    tr_prep_across(P, PT), tr_cross_np(NP0, NP), tr_cross_comps(Cs0, Cs).
 tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs).
+
+tr_role_range([pp(w(Q, _), np(none, none, [], N, singular))|_]) :-
+    atom(Q), tr_means_to(Q), N = w(_, _), tr_person_word(N), !.
+tr_role_range([pp(_, _)|Cs]) :- tr_role_range(Cs).
 
 tr_partitive_off(infx(L, A, Cls0), infx(L, A, Cls)) :- select(P, Cls0, Cls), atom(P), tr_solve(partitive(P)), !.
 tr_partitive_off(purp(X0), purp(X)) :- tr_partitive_off(X0, X).
@@ -11185,7 +11198,7 @@ tr_np(Side, [w(T, TC), N|Ws], all(w(T, TC), NP)) :-
 %% `todos nosotros'. `tutti' is the pronoun for everyone, and `noi' was left
 %% with no phrase to stand in: the sentence was refused with every word known
 tr_np(foreign, [w(T, TC), w(P, PC)], all(w(T, TC), pronoun(w(P, PC)))) :-
-    tr_all_word(foreign, T), atom(P), tr_subject_pronoun(foreign, P, _, plural), !.
+    tr_all_word(foreign, T), tr_all_person(P), !.
 tr_np(Side, [w(W, upper)], name(W)) :- \+ tr_known_word(Side, W), !.
 %% A CAPITALISED NOUN STANDING ALONE AS A PHRASE INSIDE A SENTENCE IS A NAME,
 %% even one the lesson knows: `en Valencia' is the city, where the
@@ -14685,7 +14698,12 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
             %% before it: `al terzo piano' is on the third floor, and `terzo' is a
             %% noun too (a third), so the phrase had its noun and `piano' -- the
             %% adverb `slowly' -- was the clause's: `vivo al tercio despacio'
-            \+ ( tr_is(Side, R, noun), append(PW, [R], PWR), tr_np(Side, PWR, np(_, _, _, R1, _)), R1 == R ),
+            %% -- AFTER AN ORDINAL ONLY: the guard with any word before the noun
+            %% took `ancora oggi' for one phrase (`ancla hoy'), `più tardi' for
+            %% `more afternoon' and `dietro anche' for `behind hips', every adverb
+            %% that is a noun too after a word that leaves it room to be one
+            \+ ( tr_is(Side, R, noun), last(PW, w(OW, _)), atom(OW), tr_ordinal_word(Side, OW),
+                 append(PW, [R], PWR), tr_np(Side, PWR, np(_, _, _, R1, _)), R1 == R ),
             %% ... nor an adverb with the phrase's PARTICIPLE after it (tr_np/3
             %% reads the pair): `sesiones a puerta cerrada centradas en ...'
             \+ tr_adverb_before_participle(Side, PW, Rest),
@@ -14707,7 +14725,7 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
             %% ... nor a plural personal pronoun after `all': `per tutti noi'
             %% is one phrase, all of us (tr_np/3's all/2 with a pronoun)
             \+ ( last(PW, w(AT0, _)), atom(AT0), tr_all_word(Side, AT0), Side == foreign,
-                 Rest = [w(P0, _)|_], atom(P0), tr_subject_pronoun(foreign, P0, _, plural) )
+                 Rest = [w(P0, _)|_], tr_all_person(P0) )
         %% ... AND A DETERMINER AFTER A PHRASE THAT ALREADY HAS ITS NOUN
         %% STARTS THE NEXT ONE. `mettere in pericolo LA casa' -- the
         %% infinitive's phrase is `pericolo' and the object is `la casa',
@@ -14844,7 +14862,7 @@ tr_object_pronoun_here(Side, [w(W, _)|Ws]) :-
     \+ ( tr_determiner(Side, w(W, lower), _, article), tr_article_holds(Side, Ws) ),
     \+ ( tr_all_word(Side, W), Ws = [D|_], tr_determiner(Side, D, _, _) ),
     %% (nor before a plural personal pronoun: `per tutti noi', tr_np/3)
-    \+ ( Side == foreign, tr_all_word(Side, W), Ws = [w(P, _)|_], atom(P), tr_subject_pronoun(foreign, P, _, plural) ),
+    \+ ( Side == foreign, tr_all_word(Side, W), Ws = [w(P, _)|_], tr_all_person(P) ),
     %% (nor before a bare plural noun: `desde todas direcciones', tr_np/3)
     \+ ( tr_all_word(Side, W), Ws = [N|_], N = w(NW, _), atom(NW), tr_is(Side, N, noun),
          tr_lexeme(Side, NW, _, plural) ).
@@ -14910,6 +14928,15 @@ tr_content_word(Side, N) :- tr_name_word(Side, N), !.
 tr_all_word(english, all) :- !.
 tr_all_word(foreign, T) :- atom(T), tr_language(G), tr_memo(allw(G, T), x, tr_all_word0(T), [_|_]), !.
 tr_all_word0(T) :- tr_lexeme(foreign, T, L, _), tr_solve(mean(L, all)), !.
+%% THE PRONOUN `all' TAKES INTO ONE PHRASE (`tutti noi', `todos nosotros') is a
+%% plural PERSONAL one: its English is we, us, they, them or you. A
+%% demonstrative is a third person plural to tr_subject_pronoun/4 as well, and
+%% `tutti quelli con cui ho lavorato' -- all of those I worked with -- was
+%% taken for `all of us': `quelli' left no phrase for its relative clause and
+%% the sentence was refused with every word known
+tr_all_person(P) :-
+    atom(P), tr_subject_pronoun(foreign, P, _, plural),
+    tr_solve(mean(P, E)), tr_plural_person(E, _), !.
 
 %% the word that begins BOTH ... AND and its partner: English's own pair; the
 %% lesson's word that means `both' and the word it says is its partner
@@ -14946,10 +14973,14 @@ tr_np(Side, [D, M|Ws], np(det(DK, DL, D), M, Adjs, elided(G), Number)) :-
 %% (`uno stoico' is a stoic: `uno' is the pronoun for one too, and read as one
 %% it left no noun to elide -- but the lesson's article is the word before
 %% `st', `z', `gn' ..., and a pronoun is the word before nothing in particular,
-%% so an adjective that begins one of them has the article before it)
+%% so an adjective that begins one of them has the article before it. Only
+%% where the article IS a pronoun: written as `; tr_article_by_letters' beside
+%% `\+ tr_standalone_det', the letters were tried again for every article that
+%% passed, when the rest of the clause failed -- `gli errori' read the whole
+%% phrase for adjectives 21 000 times in one sentence, +45 %)
 tr_np(Side, [D|Ws], np(det(DK, DL, D), none, Adjs, elided(G), Number)) :-
     Ws \== [], tr_determiner(Side, D, DL, DK), DK == article,
-    ( \+ tr_standalone_det(Side, D) ; tr_article_by_letters(Side, D, Ws) ),
+    ( \+ tr_standalone_det(Side, D) -> true ; tr_article_by_letters(Side, D, Ws) ),
     tr_degree_of(Side, det(DK, DL, D), Degree), tr_degrees(Side, Degree, Ws, Adjs),
     Adjs \== [], forall(member(A, Adjs), ( A = deg(_, _) ; tr_is(Side, A, adjective) )),
     ( member(deg(_, _), Adjs) -> true ; \+ ( member(A, Ws), tr_is(Side, A, noun) ) ),
@@ -15052,10 +15083,21 @@ tr_noun_replacer(foreign, w(Q, _)) :-
 %% so `uno dei paesi' is one of the countries, as 1.6.7 read it, and never
 %% an article whose noun was left out. A clitic (`la', `los') carries no
 %% such denial, and `los de clase media' stays the ellipsis it is.
-tr_standalone_det(foreign, w(W, _)) :- tr_lexeme(foreign, W, L, _), tr_solve(neg(precede(L, verb))), !.
+%% (KEPT FOR THE SENTENCE (tr_memo/4): the phrase reader asks it of the article
+%% at every place a phrase can begin, and each time was a lexeme and a query
+%% of the lesson)
+tr_standalone_det(foreign, w(W, _)) :-
+    (   atom(W) -> tr_language(G), tr_memo(sdet(G, W), x, tr_standalone_det0(W), [_|_])
+    ;   tr_standalone_det0(W)
+    ), !.
+tr_standalone_det0(W) :- tr_lexeme(foreign, W, L, _), tr_solve(neg(precede(L, verb))), !.
 %% an article the lesson says comes before the letters the next word begins with
+%% (KEPT FOR THE SENTENCE (tr_memo/4), by the two words: `uno che stabilisca'
+%% asked it 1 900 times of the same pair, a query of the lesson's eighteen
+%% beginnings each, and a fifth of Ferlaino's twenty-first sentence was that)
 tr_article_by_letters(foreign, w(W, _), [w(N, _)|_]) :-
-    atom(N), tr_lexeme(foreign, W, L, _), tr_solve(come_before(L, P)), begin_with(N, P), !.
+    atom(N), atom(W), tr_language(G), tr_memo(letters(G, W, N), x, tr_article_by_letters0(W, N), [_|_]), !.
+tr_article_by_letters0(W, N) :- tr_lexeme(foreign, W, L, _), tr_solve(come_before(L, P)), begin_with(N, P), !.
 tr_degree_start(foreign, [w(M, _), A|_]) :- tr_degree_word(M), tr_is(foreign, A, adjective), !.
 tr_degree_start(english, [w(M, _), A|_]) :- en_degree_marker(M, _), tr_is(english, A, adjective), !.
 tr_degree_start(Side, [A, J|_]) :- tr_intensifier(Side, A, J), !.

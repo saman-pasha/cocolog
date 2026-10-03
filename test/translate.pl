@@ -10723,11 +10723,13 @@ The pronoun "yo" means "I". The pronoun "yo" does not precede the verb.
 The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb. The masculine pronoun "todo" means "all". "todos" is the plural of "todo".
 The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
 The pronoun "alguno" means "somebody".
-The adverb "ahora" means "now". The adverb "a menudo" means "often".
+The masculine demonstrative "aquel" means "that". "aquellos" is the plural of "aquel". The masculine pronoun "aquel" means "that". The pronoun "aquel" does not precede the verb.
+The masculine noun "profesor" means "teacher". "profesor" is a person.
+The adverb "ahora" means "now". The adverb "a menudo" means "often". The adverb "todavía" means "still". The adverb "hoy" means "today".
 The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "para" means "for". The preposition "desde" means "from". The preposition "como" means "as". The preposition "a" means "to". The word "a" precedes the person.').
 newspaper_montanelli_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
 The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "como" is the first person of "come". "comiendo" is the gerund of "come".
-The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "tiene" means "has". "tienen" is the plural of "tiene". The verb "hay" means "there is".
 The verb "es" means "is". "era" is the past of "es". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
 The verb "ve" means "sees". "visto" is the participle of "ve". "he" is the first person of "ha". "ha" is the auxiliary of "es".
 The verb "sabe" means "knows". "sabiendo" is the gerund of "sabe". "saber" is the infinitive of "sabe".
@@ -10757,12 +10759,15 @@ The pronoun "io" means "I". The pronoun "io" does not precede the verb.
 The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb. The masculine pronoun "tutto" means "all". "tutti" is the plural of "tutto".
 The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
 The pronoun "qualcuno" means "somebody".
-The adverb "ora" means "now". The adverb "spesso" means "often".
+The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". The masculine pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The masculine noun "professore" means "teacher". "professore" is a person.
+The adverb "ora" means "now". The adverb "spesso" means "often". The adverb "ancora" means "still". The feminine noun "ancora" means "anchor". The adverb "oggi" means "today". The masculine noun "oggi" means "today".
 The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "per" means "for". The preposition "da" means "from". The preposition "da" means "as a". The preposition "come" means "as". The preposition "a" means "to".
 "cui" is a relative. The word "cui" follows the preposition.').
 newspaper_montanelli_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
 The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangio" is the first person of "mangia". "mangiando" is the gerund of "mangia".
 The verb "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha". "ha" is the auxiliary of "è". "abbia" is the subjunctive of "ha".
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è".
 The verb "è" means "is". "era" is the past of "è". "sono" is the plural of "è". "essere" is the infinitive of "è". "è" is the auxiliary of "è". "stato" is the participle of "è".
 The verb "vede" means "sees". "visto" is the participle of "vede".
 The verb "sa" means "knows". "sapendo" is the gerund of "sa". "sapere" is the infinitive of "sa".
@@ -10803,7 +10808,13 @@ newspaper_montanelli_checks_3 :-
           'Maria eats as student.'),
     nf_tr('Maria mangia da casa.', italian, spanish, C3),
     check('a GUARD: a bare noun that is no person is the place it came from', C3,
-          'Maria come desde casa.').
+          'Maria come desde casa.'),
+    nf_tr('Maria pubblica da studente a professore.', italian, spanish, C4),
+    check('a GUARD: A RANGE OF ROLES IS NO ROLE -- `da giudice di legittimità a giudice di merito'' came out `como juez de legitimidad a juez de mérito'', for the first of two bare persons that a phrase of `to'' joins is where it starts', C4,
+          'Maria publica desde estudiante a profesor.'),
+    nf_tr('Maria pubblica da studente a professore.', italian, english, C5),
+    check('... and in English', C5,
+          'Maria publishes from student to teacher.').
 
 newspaper_montanelli_checks_4 :-
     nf_tr('Maria vede Giovanni e tutti gli amici.', italian, spanish, D1),
@@ -10820,7 +10831,10 @@ newspaper_montanelli_checks_4 :-
           'Maria has a medal for all of us.'),
     nf_tr('Maria vede tutti.', italian, spanish, D4),
     check('a GUARD: `tutti'' alone is the pronoun for everyone', D4,
-          'Maria ve todos.').
+          'Maria ve todos.'),
+    nf_tr('Maria vede tutti quelli con cui il cane dorme.', italian, spanish, D6),
+    check('a GUARD: THE PRONOUN AFTER `ALL'' IS A PERSONAL ONE (we, you, they) -- `tutti quelli con cui ho lavorato'' was read as `all of us'' and refused, for the demonstrative is a third person plural to the subject pronouns too, and the relative clause had no phrase to hang on', D6,
+          'Maria ve todos aquellos con los que el perro duerme.').
 
 newspaper_montanelli_checks_5 :-
     nf_tr('Ora, perché il cane dorme, il gatto mangia.', italian, spanish, E1),
@@ -10879,7 +10893,13 @@ newspaper_montanelli_checks_8 :-
           'Maria duerme en el segundo piso.'),
     nf_tr('Maria dorme piano.', italian, spanish, H6),
     check('a GUARD: the adverb is still the adverb', H6,
-          'Maria duerme despacio.').
+          'Maria duerme despacio.'),
+    nf_tr('C''è ancora oggi un cane.', italian, spanish, H7),
+    check('a GUARD: THE CUT STAYS WITH AN ORDINAL BEFORE -- `c''è ancora oggi gente'' took `ancora oggi'' for one phrase of two nouns, an anchor and a today, and was `hay ancla hoy gente''', H7,
+          'Hay todavía hoy un perro.'),
+    nf_tr('C''è ancora oggi un cane.', italian, english, H8),
+    check('... and in English', H8,
+          'There is still today a dog.').
 
 newspaper_montanelli_checks_9 :-
     nf_tr('Maria vede Giovanni, lo studente.', italian, spanish, I1),
