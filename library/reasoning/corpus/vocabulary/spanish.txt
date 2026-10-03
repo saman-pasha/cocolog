@@ -901,6 +901,36 @@ The adverb "por eso" means "for this reason".
 The conjunction "cada vez que" means "whenever".
 The adverb "juntos" means "together".
 The adverb "o mejor dicho" means "or rather".
+The masculine adjective "cuarto" means "fourth".
+"cuartos" is the plural of "cuarto".
+The feminine adjective "cuarta" means "fourth".
+"cuartas" is the plural of "cuarta".
+The masculine adjective "quinto" means "fifth".
+"quintos" is the plural of "quinto".
+The feminine adjective "quinta" means "fifth".
+"quintas" is the plural of "quinta".
+The masculine adjective "sexto" means "sixth".
+"sextos" is the plural of "sexto".
+The feminine adjective "sexta" means "sixth".
+"sextas" is the plural of "sexta".
+The masculine adjective "séptimo" means "seventh".
+"séptimos" is the plural of "séptimo".
+The feminine adjective "séptima" means "seventh".
+"séptimas" is the plural of "séptima".
+The masculine adjective "octavo" means "eighth".
+"octavos" is the plural of "octavo".
+The feminine adjective "octava" means "eighth".
+"octavas" is the plural of "octava".
+The masculine adjective "noveno" means "ninth".
+"novenos" is the plural of "noveno".
+The feminine adjective "novena" means "ninth".
+"novenas" is the plural of "novena".
+The masculine adjective "décimo" means "tenth".
+"décimos" is the plural of "décimo".
+The feminine adjective "décima" means "tenth".
+"décimas" is the plural of "décima".
+"mar" is not feminine.
+The adverb "de prisa" means "in a hurry".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

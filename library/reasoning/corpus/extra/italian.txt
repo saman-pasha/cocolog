@@ -2344,3 +2344,36 @@ The adverb "insieme" means "together".
 The conjunction "da quando" means "ever since".
 # `- o meglio: io mangiavo, lui testava piccoli campioni alimentari -' -- or rather
 The adverb "o meglio" means "or rather".
+# `al terzo piano', `il quarto piano' -- the ordinals after the third, which the
+# dictionaries have as nouns for some and for none of the rest (an ordinal is the
+# adjective of its noun: `il quarto piano')
+The masculine adjective "quarto" means "fourth".
+"quarti" is the plural of "quarto".
+The feminine adjective "quarta" means "fourth".
+"quarte" is the plural of "quarta".
+The masculine adjective "quinto" means "fifth".
+"quinti" is the plural of "quinto".
+The feminine adjective "quinta" means "fifth".
+"quinte" is the plural of "quinta".
+The masculine adjective "sesto" means "sixth".
+"sesti" is the plural of "sesto".
+The feminine adjective "sesta" means "sixth".
+"seste" is the plural of "sesta".
+The masculine adjective "settimo" means "seventh".
+"settimi" is the plural of "settimo".
+The feminine adjective "settima" means "seventh".
+"settime" is the plural of "settima".
+The masculine adjective "ottavo" means "eighth".
+"ottavi" is the plural of "ottavo".
+The feminine adjective "ottava" means "eighth".
+"ottave" is the plural of "ottava".
+The masculine adjective "nono" means "ninth".
+"noni" is the plural of "nono".
+The feminine adjective "nona" means "ninth".
+"none" is the plural of "nona".
+The masculine adjective "decimo" means "tenth".
+"decimi" is the plural of "decimo".
+The feminine adjective "decima" means "tenth".
+"decime" is the plural of "decima".
+# `Sto scrivendo in fretta' -- in a hurry
+The adverb "in fretta" means "in a hurry".

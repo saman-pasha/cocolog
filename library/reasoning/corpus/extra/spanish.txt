@@ -1731,3 +1731,38 @@ The conjunction "cada vez que" means "whenever".
 The adverb "juntos" means "together".
 # `o meglio' -- `o mejor dicho'
 The adverb "o mejor dicho" means "or rather".
+# `al terzo piano', `il quarto piano' -- the ordinals after the third, which the
+# dictionaries have as nouns for some and for none of the rest (an ordinal is the
+# adjective of its noun: `il quarto piano')
+The masculine adjective "cuarto" means "fourth".
+"cuartos" is the plural of "cuarto".
+The feminine adjective "cuarta" means "fourth".
+"cuartas" is the plural of "cuarta".
+The masculine adjective "quinto" means "fifth".
+"quintos" is the plural of "quinto".
+The feminine adjective "quinta" means "fifth".
+"quintas" is the plural of "quinta".
+The masculine adjective "sexto" means "sixth".
+"sextos" is the plural of "sexto".
+The feminine adjective "sexta" means "sixth".
+"sextas" is the plural of "sexta".
+The masculine adjective "séptimo" means "seventh".
+"séptimos" is the plural of "séptimo".
+The feminine adjective "séptima" means "seventh".
+"séptimas" is the plural of "séptima".
+The masculine adjective "octavo" means "eighth".
+"octavos" is the plural of "octavo".
+The feminine adjective "octava" means "eighth".
+"octavas" is the plural of "octava".
+The masculine adjective "noveno" means "ninth".
+"novenos" is the plural of "noveno".
+The feminine adjective "novena" means "ninth".
+"novenas" is the plural of "novena".
+The masculine adjective "décimo" means "tenth".
+"décimos" is the plural of "décimo".
+The feminine adjective "décima" means "tenth".
+"décimas" is the plural of "décima".
+# `davanti al mare' -- the sea is masculine (`el mar'); the dictionary's `la mar' is the sailors'
+"mar" is not feminine.
+# `de prisa' -- in a hurry
+The adverb "de prisa" means "in a hurry".

@@ -4309,10 +4309,29 @@ tr_wh_after_object(S, S).
 tr_clause_post(foreign, Words, s(A, Su0, G, Cs0), S) :- !,
     G = g(L, _, Asp, _),
     tr_dislocated_subject(Su0, Cs0, Su, Cs00),
-    tr_group_adverb(Words, L, Asp, Cs00, Cs1),
+    tr_group_adverb(Words, L, Asp, Cs00, Cs01),
+    tr_object_appos(Cs01, Cs1),
     tr_subject_agreement(Su, Words, L, Asp, Cs1, Cs),
     tr_accident(s(A, Su, G, Cs), S).
 tr_clause_post(_, _, S, S).
+
+%% A PHRASE AFTER AN OBJECT AND ITS COMMA IS THE OBJECT'S APPOSITION, no second
+%% object: `Amava teneramente Marisa Rivolta, la sua compagna d'autunno' -- read
+%% as two objects the second took the marker of a person before it, `a su
+%% compañero'. It is appos/1, as a reporting clause's is (tr_report_appos/2),
+%% and the writers put no marker before it. A name or a phrase with its
+%% determiner, after the clause's first object and with nothing but phrases of
+%% a preposition after it
+tr_object_appos(Cs0, Cs) :-
+    append(Front, [obj(NP1), sep, obj(NP2)|Tail], Cs0), \+ memberchk(obj(_), Front),
+    tr_appos_head(NP1), tr_appos_phrase(NP2),
+    forall(member(T, Tail), T = pp(_, _)), !,
+    append(Front, [obj(NP1), sep, appos(NP2)|Tail], Cs).
+tr_object_appos(Cs, Cs).
+tr_appos_head(name(_)).
+tr_appos_head(np(_, _, _, _, _)).
+tr_appos_phrase(name(_)).
+tr_appos_phrase(np(det(_, _, _), _, _, _, _)).
 
 %% WHAT HAPPENED TO SOMEBODY BY ACCIDENT IS WHAT THEY DID. `Es un efecto
 %% especial que se les olvidó' is a special effect THEY forgot: Spanish says
@@ -6033,10 +6052,16 @@ tr_read0(Side, Kind, [w(C, CC), comma|Words0], S) :-
 %% Spanish's record report 14.4 million inferences a sentence against 5.7
 tr_read0(Side, Kind, [w(C, CC)|Rest], S) :-
     Rest = [R1|_], R1 \== comma, tr_connector(Side, C), tr_coord(Side, w(C, CC)),
-    tr_global('$tr_piece', P0), P0 == [w(C, CC)|Rest],
+    tr_global('$tr_piece', P0), tr_piece_starts(P0, [w(C, CC)|Rest]),
     nb_setval('$tr_piece', Rest),
     (   tr_read_after_coord(Side, Kind, w(C, CC), Rest, S1) -> nb_setval('$tr_piece', P0) ; nb_setval('$tr_piece', P0), fail ), !,
     S = join(w(C, CC), none, S1).
+%% the words are the piece, or its first part before a semicolon: `Ma so che
+%% amava Marisa Rivolta, la sua compagna d'autunno; e aveva pianto' -- the
+%% first part is read after the semicolon's division and was no piece, so
+%% the reading further down had it, with its commas lost
+tr_piece_starts(P, Ws) :- P == Ws, !.
+tr_piece_starts(P, Ws) :- append(Ws, [semicolon|_], P).
 %% ... AND WHAT FOLLOWS A COORDINATOR AT THE HEAD IS NO COMMAND SPELLED AS A
 %% THIRD PERSON, outside an exclamation: `Y sabe lo que quiere: jugar de
 %% forma sencilla' is and HE knows what he wants -- the sentence goes on from
@@ -14656,6 +14681,11 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
             %% mediazione' is the way, and `via' is also `away' -- the
             %% phrase ended at `la', which was then the pronoun `her'
             \+ tr_noun_after_det(Side, PW, R),
+            %% ... nor a NOUN too that the phrase reads as its head with the words
+            %% before it: `al terzo piano' is on the third floor, and `terzo' is a
+            %% noun too (a third), so the phrase had its noun and `piano' -- the
+            %% adverb `slowly' -- was the clause's: `vivo al tercio despacio'
+            \+ ( tr_is(Side, R, noun), append(PW, [R], PWR), tr_np(Side, PWR, np(_, _, _, R1, _)), R1 == R ),
             %% ... nor an adverb with the phrase's PARTICIPLE after it (tr_np/3
             %% reads the pair): `sesiones a puerta cerrada centradas en ...'
             \+ tr_adverb_before_participle(Side, PW, Rest),
@@ -17938,8 +17968,11 @@ tr_comp_out(To, ger(reflexive(L), Cs), Noun, Number, [], [o(G, lower)|COut], [])
 %% ... and the pronouns that stand before a verb are joined to a gerund,
 %% as they are to an infinitive: `chiedendogli' (no accent is written: a
 %% lesson cannot say where Spanish's `pidiéndole' puts one)
+%% -- the verb by its object, as a finite one is (tr_verb_out/4): `sapendo di non
+%% essere obbedito' is knowing a thing, `sabiendo', and by the first meaning
+%% it came out `conociendo'
 tr_comp_out(To, ger(L, Cs), Noun, Number, [], [o(G, lower)|COut], []) :- !,
-    tr_lexeme_across(L, To, LT), tr_gerund_out(To, LT, G0),
+    tr_verb_out(To, L, Cs, LT), tr_gerund_out(To, LT, G0),
     tr_comps_out(To, Cs, Noun, Number, Cl, CO, CA), append(CO, CA, COut),
     findall(P, member(o(P, _), Cl), Ps), atomic_list_concat([G0|Ps], G).
 %% (a reflexive gerund keeps its pronoun joined to the infinitive, as after a
