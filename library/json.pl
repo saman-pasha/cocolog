@@ -310,10 +310,11 @@ json_raw([C|Cs]) --> [C], json_raw(Cs).
 %%   where two implementations disagree about the same bytes.
 %%
 %%   AN INTEGER TOO BIG FOR THE MACHINE IS AN ERROR. cocolog's integers
-%%   are 64-bit and `number_codes/2' answers -1 for a twenty-digit
-%%   literal without complaining, so the digits are written back and
-%%   compared. A silently wrong balance is the worst thing a JSON parser
-%%   can do.
+%%   are 61-bit, and `number_codes/2' used to answer -1 for a twenty-digit
+%%   literal without complaining, so the digits were written back and
+%%   compared. Since 1.8.50 it FAILS for one, and the failure is turned
+%%   into the same syntax error (json_numeral/4). A silently wrong
+%%   balance is the worst thing a JSON parser can do.
 %%
 %%   `\uXXXX' IS DECODED TO UTF-8, surrogate pairs included, because this
 %%   library is byte-oriented everywhere else: the serialiser passes UTF-8
@@ -573,8 +574,17 @@ json_no_nul([C|Cs], Whole) :-
 json_number_in(N) -->
     json_minus_in(A), json_int_in(B), json_frac_in(C), json_exp_in(D),
     { append(A, B, AB), append(C, D, CD), append(AB, CD, Cs),
-      number_codes(N, Cs),
+      json_numeral(Cs, C, D, N),
       json_number_fits(Cs, C, D, N) }.
+
+%% number_codes/2 REFUSES AN INTEGER PAST THE CELL, and refuses it by failing:
+%% since 1.8.50 the reader says `integer out of range' where it used to
+%% answer a wrapped number. A parser that fails is not a parser that refuses
+%% -- the caller got neither a value nor a syntax error, and test/serialize.pl
+%% and lesson 12 went red for it. An integer has no fraction and no
+%% exponent; a float whose numeral the reader refuses still fails, as it did.
+json_numeral(Cs, _, _, N) :- number_codes(N, Cs), !.
+json_numeral(Cs, [], [], _) :- json_oops('an integer this machine can hold -- 61 bits', Cs).
 
 json_minus_in([0'-]) --> [0'-], !.
 json_minus_in([]) --> [].
@@ -605,10 +615,12 @@ json_exp_digits([D|Ds]) --> [D], { code_type(D, digit) }, !, json_digits_in(Ds).
 json_exp_digits(_, Rest, _) :- json_oops('a digit after the exponent', Rest).
 
 %% THE OVERFLOW CHECK, and it is only meaningful for an integer. cocolog's
-%% integers are 64-bit and `number_codes/2' answers -1 for a twenty-digit
+%% integers are 61-bit and `number_codes/2' answered -1 for a twenty-digit
 %% literal with no complaint at all, so the digits are written back and
-%% compared. `-0' is the one numeral that legitimately differs from its own
-%% round trip, and it is the only exception.
+%% compared. Since 1.8.50 json_numeral/4 meets the reader's refusal first, and
+%% this stays as the test that does not depend on how the reader says no.
+%% `-0' is the one numeral that legitimately differs from its own round trip,
+%% and it is the only exception.
 json_number_fits(_, [_|_], _, _) :- !.       % has a fraction: a float
 json_number_fits(_, _, [_|_], _) :- !.       % has an exponent: a float
 json_number_fits(Cs, _, _, N) :-
@@ -617,5 +629,5 @@ json_number_fits(Cs, _, _, N) :-
     ->  true
     ;   Cs == [0'-, 0'0]
     ->  true
-    ;   json_oops('an integer this machine can hold -- 64 bits', Cs)
+    ;   json_oops('an integer this machine can hold -- 61 bits', Cs)
     ).

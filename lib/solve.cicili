@@ -2618,6 +2618,19 @@
                          (int * isf) (i64 * iv) (double * fv)) (out int)
         (coco-emit-arith-binops))
 
+  ;;; DOES FLOORED DIVISION DIFFER FROM C's? When the remainder is not zero and
+  ;;; has the sign the divisor has not: `div' takes one off the quotient and
+  ;;; `mod' adds the divisor. THE SIGNS ARE COMPARED, NEVER MULTIPLIED. The test
+  ;;; was `(< (* r b) 0)', and a product of a remainder and a divisor passes
+  ;;; 2^63 once both are over about three billion: it wrapped, and the answer
+  ;;; was right for the small numbers every check used and wrong from there --
+  ;;; `2654435761 mod 4294967296' came out 6949403057, `2654435761 div
+  ;;; 4294967296' -1, and `-2654435761 mod 4294967296' was left negative.
+  (static)
+  (func coco_floor_adjusts ((i64 a) (i64 b)) (out int)
+        (let ((i64 r . #'(% a b)))
+          (return (? (and (!= r 0) (!= (< r 0) (< b 0))) 1 0))))
+
   (static)
   (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int)
                          (i64 ai) (double af) (i64 bi) (double bf)
@@ -2646,15 +2659,13 @@
            ;; A =:= (A div B) * B + A mod B holds for every sign
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
-           (set (cof iv) (- (/ ai bi) (? (and (!= (% ai bi) 0)
-                                              (< (* (% ai bi) bi) 0)) 1 0)))
+           (set (cof iv) (- (/ ai bi) (coco_floor_adjusts ai bi)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "mod"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            ;; mod follows the sign of the divisor, rem follows the dividend
-           (set (cof iv) (- (% ai bi) (? (and (!= (% ai bi) 0)
-                                              (< (* (% ai bi) bi) 0)) (- 0 bi) 0)))
+           (set (cof iv) (- (% ai bi) (? (coco_floor_adjusts ai bi) (- 0 bi) 0)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "rem"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))

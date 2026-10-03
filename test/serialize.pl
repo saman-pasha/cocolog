@@ -263,13 +263,22 @@ json_strict :-
     written(( catch(json_parse('{"a" 1}', _), error(syntax_error(W4), json_at(At4)), true),
               ( sub_atom(W4, _, _, _, colon), At4 == '1}' -> R4 = precise ; R4 = W4-At4 ) ), R4, G4),
     check('a missing colon says so, and says where', G4, precise),
-    %% AN INTEGER TOO BIG FOR THE MACHINE. number_codes/2 answers -1 for this
-    %% and complains about nothing, which is the worst thing a JSON parser can
-    %% do with a balance.
+    %% AN INTEGER TOO BIG FOR THE MACHINE. number_codes/2 answered -1 for this
+    %% and complained about nothing, which is the worst thing a JSON parser can
+    %% do with a balance; since 1.8.50 it FAILS, and a parser that fails is not
+    %% one that refuses -- the whole case went red for it, `failed' where it
+    %% wanted a syntax error. The cell holds 61 bits, so the line is there and
+    %% not at 64: the second numeral fits a machine word and not the cell.
     refused_by_syntax(json_parse('12345678901234567890', _), G5),
     check('an integer past 64 bits is refused, not wrapped', G5, refused),
+    refused_by_syntax(json_parse('5000000000000000000', _), G7),
+    check('... and so is one that fits 64 bits and not the cell\'s 61', G7, refused),
     written(json_parse('9007199254740993', T6), T6, G6),
-    check('and one that fits is exact', G6, '9007199254740993').
+    check('and one that fits is exact', G6, '9007199254740993'),
+    written(json_parse('1152921504606846975', T8), T8, G8),
+    check('the largest the cell holds is exact', G8, '1152921504606846975'),
+    written(json_parse('-1152921504606846976', T9), T9, G9),
+    check('... and so is the least', G9, '-1152921504606846976').
 
 %% the .sh's idiom: catch the syntax error and answer `refused' -- so a
 %% parse that SUCCEEDS answers `failed' here (the catch proves, the

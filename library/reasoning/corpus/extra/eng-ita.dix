@@ -846,3 +846,45 @@
 # `l'italiano medio' -- the average Italian: apertium-ita carries the adjective
 # `medio' and the bilingual dictionary pairs `average' with `mediano' alone
 <e><p><l>average<s n="adj"/></l><r>medio<s n="adj"/></r></p></e>
+# the Israeli report, from Spanish: `abatido' is felled -- the dictionary has
+# `abbattere' only as `knock down', two words -- and `cisjordana' is
+# Cisjordanian, `cisgiordana' in Italian
+<e><p><l>fell<s n="vblex"/></l><r>abbattere<s n="vblex"/></r></p></e>
+<e><p><l>Cisjordanian<s n="adj"/></l><r>cisgiordano<s n="adj"/></r></p></e>
+# the Israeli report, more words, each with its paradigm in apertium-ita.ita.dix
+# and no English word, or with a first word that is another thing: `crímenes
+# asesinos' are murderous crimes (`omicida'), `los sospechosos' are suspects
+# (`sospettato'), `un incidente armado' an armed one, `se clamó a la venganza'
+# was cried out for vengeance (`vendetta', where `revenge' is `rivincita'),
+# `una escalada de violencia' an escalation (Italian says `escalation'), `un
+# sepelio multitudinario' a crowded funeral, and `aparecieron desnudos'
+# appeared naked -- `apparire', where the entry that has it is marked for one
+# direction and `figurare' was the word written
+<e><p><l>murderous<s n="adj"/></l><r>omicida<s n="adj"/></r></p></e>
+<e><p><l>suspect<s n="n"/></l><r>sospettato<s n="n"/><s n="GD"/></r></p></e>
+<e><p><l>armed<s n="adj"/></l><r>armato<s n="adj"/></r></p></e>
+<e><p><l>vengeance<s n="n"/></l><r>vendetta<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>escalation<s n="n"/></l><r>escalation<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>crowded<s n="adj"/></l><r>affollato<s n="adj"/></r></p></e>
+<e><p><l>appear<s n="vblex"/></l><r>apparire<s n="vblex"/></r></p></e>
+# `un intercambio de fuego' is an exchange of fire -- `scambio', where the
+# dictionary's first Italian for `exchange' is `cambio' (the rate) -- and `a
+# tiros', `los disparos' are shots, `spari' (`tiri' were throws)
+<e><p><l>exchange<s n="n"/></l><r>scambio<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>shot<s n="n"/></l><r>sparo<s n="n"/><s n="m"/></r></p></e>
+# the Montanelli tribute (VIT-10059..10095), each in apertium-ita.ita.dix and
+# with no English word: `i pompieri' are firemen, `rimandare' is to postpone
+# (the pain), `uno stoico' a stoic, `i lombardi' Lombards, `gareggiare' to
+# compete, `scabra' rough, `preoccupato' worried, `inefficiente' inefficient.
+# Read into English only, so that the word written for each English one stays
+<e r="RL"><p><l>fireman<s n="n"/></l><r>pompiere<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>postpone<s n="vblex"/></l><r>rimandare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>stoic<s n="adj"/></l><r>stoico<s n="adj"/></r></p></e>
+<e r="RL"><p><l>Lombard<s n="adj"/></l><r>lombardo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>compete<s n="vblex"/></l><r>gareggiare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>rough<s n="adj"/></l><r>scabro<s n="adj"/></r></p></e>
+<e r="RL"><p><l>worried<s n="adj"/></l><r>preoccupato<s n="adj"/></r></p></e>
+<e r="RL"><p><l>inefficient<s n="adj"/></l><r>inefficiente<s n="adj"/></r></p></e>
+# `appassionarsi in difesa di' -- the dictionary has `appassionare' only as
+# `grip', which Spanish says nowhere
+<e><p><l>impassion<s n="vblex"/></l><r>appassionare<s n="vblex"/></r></p></e>

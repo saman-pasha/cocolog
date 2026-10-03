@@ -351,6 +351,8 @@ main :-
     section_56,
     section_57,
     section_58,
+    section_59,
+    section_60,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5434,6 +5436,212 @@ The verb "termina" means "finishes". "terminado" is the participle of "termina".
 The verb "penaliza" means "penalises". "penalizado" is the participle of "penaliza". "penalizados" is the participle of "penaliza". "penalizados" is the plural of "penalizado".
 The verb "cuenta" means "counts". "contar" is the infinitive of "cuenta".
 The verb "afronta" means "tackles". "afrontar" is the infinitive of "afronta".').
+
+section_59 :-
+    format("~n59. A Spanish report into Italian: a share of a plural for a subject, a day after a participle, a phrase of `among' with a pronoun between commas, the participle after a perfect infinitive's copula, a day before a relative clause's verb~n", []),
+    lesson_59(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_59(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Parte de los perros comen el pan.', spanish, italian, S59a),
+    must('a SHARE OF A PLURAL is the subject, and the plural''s verb agrees with it: `parte de los explosivos fueron colocados'' is `parte degli esplosivi ...'' -- `parte'' is the verb''s third person too, and a bare singular that is a verb''s form was no subject', S59a, 'Parte dei cani mangia il pane.'),
+    reason_translate('Parte con los perros.', spanish, italian, S59b),
+    must('... and with no plural after `de'' it is the verb still: he leaves with the dogs', S59b, 'Parte con i cani.'),
+    reason_translate('Los perros comprados el domingo comen el pan.', spanish, italian, S59c),
+    must('a DAY after a reduced relative''s participle is the participle''s own: `los hechos ocurridos el pasado domingo arrastran la situación'' is the facts that happened on Sunday', S59c, 'I cani comprati domenica mangiano il pane.'),
+    reason_translate('Dos perros, entre ellos un gato, comen el pan.', spanish, italian, S59d),
+    must('a phrase of AMONG with a pronoun between commas stands aside: `cuatro palestinos, entre ellos un niño de 10 años, y dos israelís, perdieron la vida'' -- `entre'' is the subjunctive of `entrar'' too, and was read as a clause of its own', S59d, 'Due cani, tra loro un gatto, mangiano il pane.'),
+    reason_translate('Dos perros, entre ellos un gato, comen el pan.', spanish, english, S59e),
+    must('... and English writes it as it stood', S59e, 'Two dogs, among them a cat, eat the bread.'),
+    reason_translate('Los perros parecen haber sido vistos.', spanish, italian, S59f),
+    must('the participle after a PERFECT INFINITIVE''S COPULA agrees with the subject: `parecen haber sido vistos'' is `sembrano essere stati visti'', not `essere stato visti''', S59f, 'I cani sembrano essere stati visti.'),
+    reason_translate('Las casas parecen haber sido vistas.', spanish, italian, S59g),
+    must('... in the feminine plural too', S59g, 'Le case sembrano essere state viste.'),
+    reason_translate('Los perros parecen haber comido el pan.', spanish, italian, S59h),
+    must('... and after `avere'' the participle agrees with nothing', S59h, 'I cani sembrano avere mangiato il pane.'),
+    reason_translate('El perro que el domingo come el pan duerme.', spanish, italian, S59i),
+    must('a DAY before a relative clause''s verb is its front, and the relative word its subject: `un niño que el domingo había resultado herido'' is the boy who was hurt on Sunday, not the day that was', S59i, 'Il cane che domenica mangia il pane dorme.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_59(L, Text) :- lesson_59(L, 1, A), lesson_59(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_59(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "parte" means "part".
+The noun "domingo" means "sunday". "domingo" is a time. The article "el" takes the day.
+The pronoun "ellos" means "they". The pronoun "ellos" means "them". The pronoun "ellos" does not precede the verb.
+The number "dos" means "two". The number "cuatro" means "four".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "entre" means "among".').
+lesson_59(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "parte" means "leaves". "parten" is the plural of "parte".
+The verb "compra" means "buys". "comprado" is the participle of "compra". "comprados" is the participle of "compra". "comprados" is the plural of "comprado".
+The verb "ve" means "sees". "visto" is the participle of "ve". "vista" is the participle of "ve". "vista" is feminine. "vistos" is the participle of "ve". "vistos" is the plural of "visto". "vistas" is the participle of "ve". "vistas" is feminine. "vistas" is the plural of "vista".
+The verb "parece" means "seems". "parecen" is the plural of "parece".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haber" is the infinitive of "ha". "ha" is the auxiliary of "es".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra".
+"bought" is the participle of "buys". "seen" is the participle of "sees". "been" is the participle of "is".').
+lesson_59(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"dei" is the contraction of "di i". "delle" is the contraction of "di le". "degli" is the contraction of "di gli". "al" is the contraction of "a il". "ai" is the contraction of "a i".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The feminine noun "parte" means "part".
+The feminine noun "domenica" means "sunday". "domenica" is a time.
+The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb.
+The number "due" means "two". The number "quattro" means "four".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "tra" means "among".').
+lesson_59(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "è" is the auxiliary of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine. "stati" is the participle of "è". "stati" is the plural of "stato". "state" is the participle of "è". "state" is feminine. "state" is the plural of "stata".
+The verb "compra" means "buys". "comprato" is the participle of "compra". "comprata" is the participle of "compra". "comprata" is feminine. "comprati" is the participle of "compra". "comprati" is the plural of "comprato".
+The verb "parte" means "leaves". "partono" is the plural of "parte". "case" is the plural of "casa".
+The verb "vede" means "sees". "visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine. "visti" is the participle of "vede". "visti" is the plural of "visto". "viste" is the participle of "vede". "viste" is feminine. "viste" is the plural of "vista".
+The verb "sembra" means "seems". "sembrano" is the plural of "sembra".
+The verb "entra" means "enters".
+The auxiliary "ha" means "has".').
+
+section_60 :-
+    format("~n60. An Italian tribute into Spanish: `uno' and an adjective for a noun, dashes after a coordinator, a role after `da', `all' before a pronoun, a front before a connector's clause, a clause between dashes after an adverb, a relative's front after its preposition, a verb by its object in a gerund, a noun that is an adverb too, a phrase after an object and its comma~n", []),
+    lesson_60(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the tribute''s shapes, under its own name', NS),
+    lesson_60(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('Il cane era uno stoico.', italian, spanish, S60a),
+    must('`UNO'' and an adjective for a noun: `Era uno stoico pratico'' is he was a practical stoic -- `uno'' is the pronoun for one too, and the lesson''s article is the word before `st'', `z'', `gn''', S60a, 'El perro era un estoico.'),
+    reason_translate('Il cane dorme, ma - ora - il gatto mangia il pane.', italian, spanish, S60b),
+    must('dashes after a coordinator are commas: `Mi piaceva, ma - di nuovo - non potevo dirglielo''', S60b, 'El perro duerme, pero, ahora, el gato come el pan.'),
+    reason_translate('Maria mangia da studente.', italian, spanish, S60c),
+    must('a bare noun for a person after `da'' is a role, as a student: the lesson says `The preposition "da" means "as a".'', never `as'', which would make `da quando'' a clause of comparison', S60c, 'Maria come como estudiante.'),
+    reason_translate('Maria vede Giovanni e tutti gli amici.', italian, english, S60d),
+    must('`tutti'' before its determiner ends no phrase: `Giovanni e tutti gli amici''', S60d, 'Maria sees Giovanni and all the friends.'),
+    reason_translate('Il cane, per tutti noi, era una medaglia.', italian, spanish, S60e),
+    must('`all'' before a plural pronoun is one phrase: `per tutti noi'' is for all of us, and `todos'' agrees with it', S60e, 'El perro, para todos nosotros, era una medalla.'),
+    reason_translate('Ora, ogni volta che il cane dorme, il gatto mangia.', italian, english, S60f),
+    must('a front and a clause that opens on a connector: `Per questo, ogni volta che andavamo a mangiare ..., gli ricordavo ...'' -- the front is a verbless part of its own', S60f, 'Now, whenever the dog sleeps, the cat eats.'),
+    reason_translate('Il cane dorme ora - io mangio - e il gatto mangia.', italian, spanish, S60g),
+    must('a clause between dashes after an adverb stays where it stood: `andavamo a mangiare insieme - o meglio: io mangiavo, lui testava ... - gli ricordavo''', S60g, 'El perro duerme ahora – yo como – y el gato come.'),
+    reason_translate('Il cane dorme nella casa - e nella città - del gatto.', italian, spanish, S60h),
+    must('dashes round a coordinator and a phrase of a preposition are commas, in the middle of a phrase: `dall''avventura - e dallo spettacolare naufragio - della "voce"''', S60h, 'El perro duerme en la casa, y en la ciudad, del gato.'),
+    reason_translate('Il cane con cui spesso dorme mangia il pane.', italian, spanish, S60i),
+    must('a relative''s front after its preposition: `con cui per decenni ha condotto una battaglia'' -- the adverb stays in its clause', S60i, 'El perro con el que a menudo duerme come el pan.'),
+    reason_translate('Il cane che io abbia visto dorme.', italian, spanish, S60j),
+    must('a present subjunctive''s first person in the perfect: `il capo che io abbia visto'' is the boss I have seen', S60j, 'El perro que yo he visto duerme.'),
+    reason_translate('Il cane, dico, mangia il pane.', italian, spanish, S60k),
+    must('who says so after a phrase, with a verb group after it, is the phrase''s aside: `Questo, devo dire, gli piaceva''', S60k, 'El perro, digo, come el pan.'),
+    reason_translate('Qualcuno dei cani dorme.', italian, spanish, S60l),
+    must('a pronoun that opens the subject and has a phrase of `of'' after it is no clitic: `Qualcuno dei suoi ragazzi affogasse''', S60l, 'Alguno de los perros duerme.'),
+    reason_translate('Sapendo che il cane dorme, Maria mangia.', italian, spanish, S60m),
+    must('a gerund''s verb by its object: `sapendo di non essere obbedito'' knows a thing -- `sabiendo'', and `conociendo'' with an object', S60m, 'Sabiendo que el perro duerme, Maria come.'),
+    reason_translate('Maria dorme nel secondo piano.', italian, spanish, S60n),
+    must('a noun that is an adverb too after an ordinal that is a noun too: `al terzo piano'' is on the third floor, and `piano'' is `slowly'' as well', S60n, 'Maria duerme en el segundo piso.'),
+    reason_translate('Maria vede Giovanni, lo studente.', italian, spanish, S60o),
+    must('a phrase after an object and its comma is the object''s apposition: `amava teneramente Marisa Rivolta, la sua compagna d''autunno'' -- no second object, and no marker of a person before it', S60o, 'Maria ve a Giovanni, el estudiante.'),
+    reason_translate('Maria pubblica da studente a professore.', italian, spanish, S60p),
+    must('a range of roles is no role: `da giudice di legittimità a giudice di merito'' is from judge to judge, never `como juez''', S60p, 'Maria publica desde estudiante a profesor.'),
+    reason_translate('Maria vede tutti quelli con cui il cane dorme.', italian, spanish, S60q),
+    must('the pronoun after `all'' is a personal one: `tutti quelli con cui ho lavorato'' is all of those, and `tutti noi'' all of us', S60q, 'Maria ve todos aquellos con los que el perro duerme.'),
+    reason_translate('C''è ancora oggi un cane.', italian, spanish, S60r),
+    must('the cut for a noun that is an adverb too is made after an ordinal only: `c''è ancora oggi gente'' is there are still today people, and `ancora'' is an anchor as well', S60r, 'Hay todavía hoy un perro.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_60(L, Text) :- lesson_60(L, 1, A), lesson_60(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_60(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative. The conjunction "porque" means "because".
+The conjunction "cada vez que" means "whenever".
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "ciudad" means "city". "ciudades" is the plural of "ciudad". The masculine noun "amigo" means "friend".
+The feminine noun "medalla" means "medal". The masculine noun "estudiante" means "student". "estudiante" is a person. "estudiantes" is the plural of "estudiante".
+The masculine noun "piso" means "floor". The masculine noun "segundo" means "second". The masculine adjective "segundo" means "second". The adverb "despacio" means "slowly".
+The masculine adjective "estoico" means "stoic".
+The pronoun "nosotros" means "we". The pronoun "nosotros" means "us". The pronoun "nosotros" does not precede the verb.
+The pronoun "yo" means "I". The pronoun "yo" does not precede the verb.
+The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb. The masculine pronoun "todo" means "all". "todos" is the plural of "todo".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "alguno" means "somebody".
+The masculine demonstrative "aquel" means "that". "aquellos" is the plural of "aquel". The masculine pronoun "aquel" means "that". The pronoun "aquel" does not precede the verb.
+The masculine noun "profesor" means "teacher". "profesor" is a person.
+The adverb "ahora" means "now". The adverb "a menudo" means "often". The adverb "todavía" means "still". The adverb "hoy" means "today".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "para" means "for". The preposition "desde" means "from". The preposition "como" means "as". The preposition "a" means "to". The word "a" precedes the person.').
+lesson_60(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "como" is the first person of "come". "comiendo" is the gerund of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene". The verb "hay" means "there is".
+The verb "es" means "is". "era" is the past of "es". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "ve" means "sees". "visto" is the participle of "ve". "he" is the first person of "ha". "ha" is the auxiliary of "es".
+The verb "sabe" means "knows". "sabiendo" is the gerund of "sabe". "saber" is the infinitive of "sabe".
+The transitive verb "conoce" means "knows". "conociendo" is the gerund of "conoce". "conocer" is the infinitive of "conoce".
+The verb "dice" means "says". "digo" is the first person of "dice". "decir" is the infinitive of "dice".
+The verb "publica" means "publishes". "publicar" is the infinitive of "publica".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haber" is the infinitive of "ha".
+"seen" is the participle of "sees". "known" is the participle of "knows". "been" is the participle of "is".').
+lesson_60(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The masculine article "uno" means "a". The feminine article "una" means "a". The article "uno" comes before "st".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "al" is the contraction of "a il".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative. The conjunction "perché" means "because".
+The conjunction "ogni volta che" means "whenever".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The feminine noun "città" means "city". The masculine noun "amico" means "friend". "amici" is the plural of "amico".
+The feminine noun "medaglia" means "medal". The masculine noun "studente" means "student". "studente" is a person.
+The masculine noun "piano" means "floor". The masculine noun "secondo" means "second". The masculine adjective "secondo" means "second". The adverb "piano" means "slowly".
+The masculine adjective "stoico" means "stoic".
+The pronoun "noi" means "we". The pronoun "noi" means "us". The pronoun "noi" does not precede the verb.
+The pronoun "io" means "I". The pronoun "io" does not precede the verb.
+The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb. The masculine pronoun "tutto" means "all". "tutti" is the plural of "tutto".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.
+The pronoun "qualcuno" means "somebody".
+The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". The masculine pronoun "quello" means "that". The pronoun "quello" does not precede the verb.
+The masculine noun "professore" means "teacher". "professore" is a person.
+The adverb "ora" means "now". The adverb "spesso" means "often". The adverb "ancora" means "still". The feminine noun "ancora" means "anchor". The adverb "oggi" means "today". The masculine noun "oggi" means "today".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "per" means "for". The preposition "da" means "from". The preposition "da" means "as a". The preposition "come" means "as". The preposition "a" means "to".
+"cui" is a relative. The word "cui" follows the preposition.').
+lesson_60(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangio" is the first person of "mangia". "mangiando" is the gerund of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha". "ha" is the auxiliary of "è". "abbia" is the subjunctive of "ha".
+The verb "c''è" means "there is". "ci sono" is the plural of "c''è".
+The verb "è" means "is". "era" is the past of "è". "sono" is the plural of "è". "essere" is the infinitive of "è". "è" is the auxiliary of "è". "stato" is the participle of "è".
+The verb "vede" means "sees". "visto" is the participle of "vede".
+The verb "sa" means "knows". "sapendo" is the gerund of "sa". "sapere" is the infinitive of "sa".
+The transitive verb "conosce" means "knows". "conoscendo" is the gerund of "conosce". "conoscere" is the infinitive of "conosce".
+The verb "dice" means "says". "dico" is the first person of "dice". "dire" is the infinitive of "dice".
+The verb "pubblica" means "publishes". "pubblicare" is the infinitive of "pubblica".
+The auxiliary "ha" means "has". "hanno" is the plural of "ha".
+"seen" is the participle of "sees". "known" is the participle of "knows". "been" is the participle of "is".').
+
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

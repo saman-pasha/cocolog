@@ -1688,3 +1688,81 @@ The feminine noun "rueda de prensa" means "press conference".
 # first (a line of extra/ and the entries read both ways come before the
 # dictionary's order), which wrote `medio secolo' for `mezzo secolo'
 The masculine adjective "medio" means "half".
+# the Israeli report (AnCora CESS-CAST-P-20010102-25), into Italian.
+# `ultraderecha' and `anoche': the monolingual dictionary has the first with
+# no English word, and the bilingual one has the second only as two words
+# (`last night'), which the builder leaves out. `ellas' is the feminine of
+# `ellos', which the hand lesson has: `una de ellas' is one of them
+The feminine noun "ultraderecha" means "far right".
+The adverb "anoche" means "last night".
+The pronoun "ellas" means "they".
+The pronoun "ellas" means "them".
+The pronoun "ellas" does not precede the verb.
+# the Israeli report, more words: `clamores de venganza' is vengeance -- the
+# first English word the dictionary gives `venganza' is `revenge', which the
+# Italian lessons write `rivincita' (a rematch); `la cisjordana localidad' is
+# a locality, where `location' became `localizzazione'; `en la madrugada de
+# ayer' is at dawn yesterday, not in the morning; and `una cuarentena de
+# personas' is about forty people, which Italian writes `una quarantina'
+The feminine noun "venganza" means "vengeance".
+The feminine noun "localidad" means "locality".
+The feminine noun "madrugada" means "dawn".
+The feminine noun "cuarentena" means "about forty".
+# the Israeli report, a verb and a noun: `no descartaban' ruled out, which the
+# dictionary reads as `dismiss' (Italian `licenziare', fired) -- `descartar'
+# reads as `excludes' now, with `excluir' said first so that it stays the
+# word written for it; and `un atentado' is a terrorist attack where the
+# dictionary says `attack', which Italian writes `attacco' (an attack in a
+# match), and its `attentato' means it
+The verb "excluye" means "excludes".
+The verb "descarta" means "excludes".
+The masculine noun "atentado" means "terrorist attack".
+# the Montanelli tribute, into Spanish: the words that stand for the Italian ones
+# above, `muchísimo' very much, `tiernamente' tenderly, `capataz' the foreman
+The adverb "muchísimo" means "very much".
+The adverb "tiernamente" means "tenderly".
+The masculine noun "capataz" means "foreman".
+"capataces" is the plural of "capataz".
+# `A pensarci bene' -- `pensandolo bien'; `Per questo' -- `por eso'; `ogni volta
+# che' -- `cada vez que'; `insieme' -- `juntos'
+The adverb "pensándolo bien" means "on second thought".
+The adverb "por eso" means "for this reason".
+The conjunction "cada vez que" means "whenever".
+The adverb "juntos" means "together".
+# `o meglio' -- `o mejor dicho'
+The adverb "o mejor dicho" means "or rather".
+# `al terzo piano', `il quarto piano' -- the ordinals after the third, which the
+# dictionaries have as nouns for some and for none of the rest (an ordinal is the
+# adjective of its noun: `il quarto piano')
+The masculine adjective "cuarto" means "fourth".
+"cuartos" is the plural of "cuarto".
+The feminine adjective "cuarta" means "fourth".
+"cuartas" is the plural of "cuarta".
+The masculine adjective "quinto" means "fifth".
+"quintos" is the plural of "quinto".
+The feminine adjective "quinta" means "fifth".
+"quintas" is the plural of "quinta".
+The masculine adjective "sexto" means "sixth".
+"sextos" is the plural of "sexto".
+The feminine adjective "sexta" means "sixth".
+"sextas" is the plural of "sexta".
+The masculine adjective "séptimo" means "seventh".
+"séptimos" is the plural of "séptimo".
+The feminine adjective "séptima" means "seventh".
+"séptimas" is the plural of "séptima".
+The masculine adjective "octavo" means "eighth".
+"octavos" is the plural of "octavo".
+The feminine adjective "octava" means "eighth".
+"octavas" is the plural of "octava".
+The masculine adjective "noveno" means "ninth".
+"novenos" is the plural of "noveno".
+The feminine adjective "novena" means "ninth".
+"novenas" is the plural of "novena".
+The masculine adjective "décimo" means "tenth".
+"décimos" is the plural of "décimo".
+The feminine adjective "décima" means "tenth".
+"décimas" is the plural of "décima".
+# `davanti al mare' -- the sea is masculine (`el mar'); the dictionary's `la mar' is the sailors'
+"mar" is not feminine.
+# `de prisa' -- in a hurry
+The adverb "de prisa" means "in a hurry".

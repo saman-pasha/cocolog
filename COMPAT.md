@@ -13,7 +13,7 @@ an existence error, an instantiation error, a refusal by name.
 
 | what | SWI-Prolog | cocolog | what to do |
 |---|---|---|---|
-| integers | unbounded | 61-bit, −2^60 … 2^60−1; a literal or a result outside that **wraps without an error**: `X is 2**70` is `0`, the literal `2305843009213693952` reads as `0`, `1152921504606846975 + 1` is `-1152921504606846976` | `library(bigint)` for anything that can get that large |
+| integers | unbounded | 61-bit, −2^60 … 2^60−1; a result outside that **wraps without an error**: `X is 2**70` is `0`, `1152921504606846975 + 1` is `-1152921504606846976`. A literal outside it is refused, `syntax error ... integer out of range` (`2305843009213693952`, `0xffffffffffffffff`; before 1.8.50 a literal read as its low 61 bits, the first as `0`), and `atom_number/2` and `number_codes/2` fail for such a numeral instead of answering a wrapped number | `library(bigint)` for anything that can get that large |
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | text length and codes | characters: `atom_length('pequeño', N)` is `7`, `atom_codes('ñ', C)` is `[241]` | **UTF-8 bytes**: `8`, and `[195,177]`; `sub_atom/5` counts bytes too, `char_code('ñ', X)` raises an `instantiation_error`, and `char_code(C, 241)` makes the one-byte atom 0xF1, which is not `'ñ'` | keep text ASCII where its length matters, or count characters yourself from the bytes |
 | case mapping | Unicode: `upcase_atom('ñandú', U)` is `'ÑANDÚ'` | ASCII only: `'ñANDú'` | — |

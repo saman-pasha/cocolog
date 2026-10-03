@@ -1106,8 +1106,9 @@ httpd_page('/api/stock', _, reply(200, ['Content-Type'-'application/json'], Body
 **They throw rather than guess.** An unbound variable is not `null`; `foo(1)`
 is not `"foo(1)"`; `@(maybe)` is not a literal; `<br>text</br>` is not markup;
 an integer past 64 bits is refused rather than wrapped, because
-`number_codes/2` answers -1 for a twenty-digit literal without complaining and
-a silently wrong balance is the worst thing a JSON parser can do. Every
+`number_codes/2` answered -1 for a twenty-digit literal without complaining
+(it fails since 1.8.50) and a silently wrong balance is the worst thing a JSON
+parser can do. Every
 refusal names the term.
 
 **A code list is a list, and `str/1` is the way out.** `double_quotes`

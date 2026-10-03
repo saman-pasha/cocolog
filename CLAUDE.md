@@ -43,7 +43,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `b5fafd0` |
+| `../cicili` | the language cocolog is written in; BUILD time | `541ba5d` |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -837,7 +837,39 @@ read into an English-worded IR and written into any lesson's language),
   `francesa`, `si chiama "minimo vitale"` is `se llama "mínima vital"`);
   English writes `Non sono pochi` as `Few are not` and moves a quotation's
   marks to the edges of its phrase; a name of one capital word and an
-  adjective (`Roma antica`) is not read.
+  adjective (`Roma antica`) is not read; `participar en` is `partecipare
+  nel` (`partecipò nell'attentato`) and `a poca distancia de` `a poca
+  distanza di`; `fue abatido` is `era abbattuto` (the lesson's past of `è`
+  is `era`); `cerca de su casa` is `vicino la sua casa` (the hand lesson's
+  `vicino` first, the `de` dropped) and `dentro de` a vehicle `entro`; `su
+  esposa` is `la sua moglie`; `huían del lugar` is `fuggirono del luogo`
+  (`de` after a verb of motion is not `da`); `pasado` before a day is
+  `passata domenica`; `ayer` after the verb is written last (`in questa
+  zona ieri`); `heridas` after `causando` is the singular `ferita`; `de
+  gravedad` is `di gravità`; `murió un joven` reads the subject as an
+  object, as the lesson does not call `morir` intransitive: Italian writes
+  it as read and English refuses it (17 and 21 of the Israel report); a day
+  fronts a relative clause only as an article and its noun (`que todos los
+  domingos visita`, `que cada domingo visita` and `que el 12 de enero
+  compró` are refused); `su` after a verb of writing is `en` (`scritto su
+  Montanelli`, not `sobre`); the imperfect crosses as the preterite
+  (`sapevo` is `supe`, `mi piaceva` `me gustó`); `lo conosco` is `lo sé`
+  (the clitic does not say whether it stands for a person or a fact), and so
+  is the object of a relative (`il giornalista che io abbia conosciuto` is
+  `he sabido`); `la prima di molte lezioni` reads `prima di` as the
+  preposition `before` and `il primo era buono` reads `era` as a noun;
+  `Dare ordini` reads the infinitive as a subject and `ordini` as its verb
+  (`Dar ordena`); `piano` is `plan` after an ordinal (`al terzo piano`, `al
+  tercer plan`) and `campioni alimentari` `campeones`; `darsi da fare`,
+  `darlo a vedere`, `non ci sono riuscito`, `adesso che ci penso`, `passare
+  per la testa`, `in fondo` and `all'opera` cross word by word; a clitic
+  cluster is not rewritten (`decirlelo`, `se la ricordava` is `si la
+  recordó`); `dei libri da non scrivere` is `desde no escribir`; `Sapendo
+  che dorme, lui mangia` reads `lui` as the gerund's object clitic; `ancora
+  quindi più cara` after a comma reads `ancora` as the noun (`ancla`); the
+  role after `da` is written `as student` into English, with no article; an
+  apposition keeps no gender (`la sua compagna` is `su compañero`); `tutti
+  quelli` is `everyone those` into English, never `all of those`.
 
 ## Tutorials are documentation that runs
 

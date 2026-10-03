@@ -2241,3 +2241,139 @@ The feminine noun "conferenza stampa" means "press conference".
 # balance (`un consuntivo inquietante') took `equilibrio' with it, which wrote
 # `con balance': the Italian word is the equilibrium first, as Spanish's is
 The masculine noun "equilibrio" means "equilibrium".
+# the Israeli report, from Spanish: `la ultraderecha' is the far right, which
+# Italian says `l'estrema destra', and `anoche' is last night, `ieri sera'
+The feminine noun "estrema destra" means "far right".
+The adverb "ieri sera" means "last night".
+# the Israeli report, more words: `asimismo' is likewise, which Italian says
+# `inoltre' (said again as `besides' first, which the lesson's reader keeps);
+# `località' is a locality before it is a town; `una quarantina di persone';
+# and `ammanettare', which apertium-ita lacks and the bilingual dictionary
+# has for `manacle' -- the forms of `incatenare', a regular verb of the same
+# conjugation, with its stem changed
+The adverb "inoltre" means "besides".
+The adverb "inoltre" means "likewise".
+The feminine noun "località" means "locality".
+The feminine noun "quarantina" means "about forty".
+The verb "ammanetta" means "manacles".
+"ammanettano" is the plural of "ammanetta".
+"ammanettiamo" is the first person of "ammanettano".
+"ammanetto" is the first person of "ammanetta".
+"ammanetti" is the second person of "ammanetta".
+"ammanettò" is the past of "ammanetta".
+"ammanettarono" is the past of "ammanettano".
+"ammanettammo" is the first person of "ammanettarono".
+"ammanettai" is the first person of "ammanettò".
+"ammanettasti" is the second person of "ammanettò".
+"ammanettava" is the past of "ammanetta".
+"ammanettavano" is the past of "ammanettano".
+"ammanettavamo" is the first person of "ammanettavano".
+"ammanettavo" is the first person of "ammanettava".
+"ammanettavi" is the second person of "ammanettava".
+"ammanetterà" is the future of "ammanetta".
+"ammanetteranno" is the plural of "ammanetterà".
+"ammanetteremo" is the first person of "ammanetteranno".
+"ammanetterò" is the first person of "ammanetterà".
+"ammanetterai" is the second person of "ammanetterà".
+"ammanetterebbe" is the conditional of "ammanetta".
+"ammanetterebbero" is the plural of "ammanetterebbe".
+"ammanetteremmo" is the first person of "ammanetterebbero".
+"ammanetterei" is the first person of "ammanetterebbe".
+"ammanetteresti" is the second person of "ammanetterebbe".
+"ammanetti" is the subjunctive of "ammanetta".
+"ammanettino" is the plural of "ammanetti".
+"ammanettiamo" is the first person of "ammanettino".
+"ammanettasse" is the past subjunctive of "ammanetta".
+"ammanettassero" is the plural of "ammanettasse".
+"ammanettassimo" is the first person of "ammanettassero".
+"ammanettassi" is the first person of "ammanettasse".
+"ammanettassi" is the second person of "ammanettasse".
+"ammanetta" is the imperative of "ammanetta".
+"ammanettare" is the negative imperative of "ammanetta".
+"ammanettate" is the imperative of "ammanettano".
+"ammanettiamo" is the hortative of "ammanetta".
+"ammanettato" is the participle of "ammanetta".
+"ammanettata" is the participle of "ammanetta".
+"ammanettata" is feminine.
+"ammanettati" is the participle of "ammanetta".
+"ammanettati" is the plural of "ammanettato".
+"ammanettate" is the participle of "ammanetta".
+"ammanettate" is feminine.
+"ammanettate" is the plural of "ammanettata".
+"ammanettare" is the infinitive of "ammanetta".
+"ammanettando" is the gerund of "ammanetta".
+# `un atentado' is an `attentato', the terrorist attack; and `confuso' is
+# confused, `confusionale' being the Livata lesson's word for a state
+The masculine noun "attentato" means "terrorist attack".
+The masculine adjective "confuso" means "confused".
+The feminine adjective "confusa" means "confused".
+# the Montanelli tribute (VIT-10059..10095): `moltissimo' is `very much', which
+# the dictionaries say nowhere; `teneramente' and `caposquadra' are in no
+# monolingual dictionary
+The adverb "moltissimo" means "very much".
+The adverb "teneramente" means "tenderly".
+The masculine noun "caposquadra" means "foreman".
+"capisquadra" is the plural of "caposquadra".
+# `Montanelli aveva letto alcuni corsivi che pubblicavo da studente': a `corsivo'
+# is a short column of a newspaper, and the dictionary's `cursive' has no
+# Spanish word. `colonna' is said again first, so that it stays the word
+# written for `column'; and `da' before a person with no article is `as a' --
+# not `as', which would make `da quando' and `da come' clauses of comparison
+The feminine noun "colonna" means "column".
+The masculine noun "corsivo" means "column".
+The preposition "da" means "as a".
+# `aveva pianto per Egisto Corradi' -- apertium-ita's paradigm for `piangere'
+# (the one `affrangere' has) makes its participle `pianso', and `pianto' is
+# nobody's, so the sentence was refused with every word known
+"pianto" is the participle of "piange".
+"pianta" is the participle of "piange".
+"pianta" is feminine.
+"pianti" is the participle of "piange".
+"pianti" is the plural of "pianto".
+"piante" is the participle of "piange".
+"piante" is feminine.
+"piante" is the plural of "pianta".
+# `A pensarci bene, non ho mai scritto niente' -- on second thought; `Per questo,
+# ogni volta che andavamo a mangiare insieme' -- for this reason, whenever,
+# together (the dictionary has `insieme' for `set' only); `da quando lo conosco'
+# -- ever since, as `sin da quando' is
+The adverb "a pensarci bene" means "on second thought".
+The adverb "per questo" means "for this reason".
+The conjunction "ogni volta che" means "whenever".
+The adverb "insieme" means "together".
+The conjunction "da quando" means "ever since".
+# `- o meglio: io mangiavo, lui testava piccoli campioni alimentari -' -- or rather
+The adverb "o meglio" means "or rather".
+# `al terzo piano', `il quarto piano' -- the ordinals after the third, which the
+# dictionaries have as nouns for some and for none of the rest (an ordinal is the
+# adjective of its noun: `il quarto piano')
+The masculine adjective "quarto" means "fourth".
+"quarti" is the plural of "quarto".
+The feminine adjective "quarta" means "fourth".
+"quarte" is the plural of "quarta".
+The masculine adjective "quinto" means "fifth".
+"quinti" is the plural of "quinto".
+The feminine adjective "quinta" means "fifth".
+"quinte" is the plural of "quinta".
+The masculine adjective "sesto" means "sixth".
+"sesti" is the plural of "sesto".
+The feminine adjective "sesta" means "sixth".
+"seste" is the plural of "sesta".
+The masculine adjective "settimo" means "seventh".
+"settimi" is the plural of "settimo".
+The feminine adjective "settima" means "seventh".
+"settime" is the plural of "settima".
+The masculine adjective "ottavo" means "eighth".
+"ottavi" is the plural of "ottavo".
+The feminine adjective "ottava" means "eighth".
+"ottave" is the plural of "ottava".
+The masculine adjective "nono" means "ninth".
+"noni" is the plural of "nono".
+The feminine adjective "nona" means "ninth".
+"none" is the plural of "nona".
+The masculine adjective "decimo" means "tenth".
+"decimi" is the plural of "decimo".
+The feminine adjective "decima" means "tenth".
+"decime" is the plural of "decima".
+# `Sto scrivendo in fretta' -- in a hurry
+The adverb "in fretta" means "in a hurry".

@@ -689,7 +689,13 @@
                                      ((coco-ch-between c "a" "f") (set d (+ 10 (- c (coco-ch "a")))))
                                      ((coco-ch-between c "A" "F") (set d (+ 10 (- c (coco-ch "A"))))))
                                (if (or (== d -1) (>= d base)) break)
-                               (set v (+ (* v (cast i64 base)) (cast i64 d)))
+                               ;; the magnitude is kept to 2^60, the most a
+                               ;; cell holds (negated, the least it holds);
+                               ;; past that it stays at the largest i64 for
+                               ;; the parser to refuse, and never wraps
+                               (if (> v (/ (- 1152921504606846976 (cast i64 d)) (cast i64 base)))
+                                   (set v 9223372036854775807)
+                                 (set v (+ (* v (cast i64 base)) (cast i64 d))))
                                (set n (+ n 1))
                                (coco_bump r)))
                            (if (== n 0) (return (coco_fail r "digits expected after radix prefix")))
@@ -1006,6 +1012,12 @@
         (set (cof outprec) 0)
         (cond
           ((== (-> r tok) COCO_TK_INT)
+           ;; AN INTEGER IS 61 BITS, and a literal past them was taken
+           ;; without a word: the digits were read into 64 bits (a decimal
+           ;; saturated at the largest, a radix literal wrapped) and the cell
+           ;; kept the low 61 -- `1152921504606846976' was the least integer
+           (if (> (-> r ival) 1152921504606846975)
+               (return (coco_fail r "integer out of range")))
            (set (cof out) (coco_new_int (-> r m) (-> r ival)))
            (return (coco_next_token r)))
 
@@ -1080,7 +1092,9 @@
              (if (and (== 0 (strcmp name "-")) (== (-> r layout_before) 0))
                  (block
                   (if (== (-> r tok) COCO_TK_INT)
-                      (block (set (cof out) (coco_new_int (-> r m) (- 0 (-> r ival))))
+                      (block (if (> (-> r ival) 1152921504606846976)
+                                 (return (coco_fail r "integer out of range")))   ; -2^60 is the least
+                             (set (cof out) (coco_new_int (-> r m) (- 0 (-> r ival))))
                              (return (coco_next_token r))))
                   (if (== (-> r tok) COCO_TK_FLOAT)
                       (block (set (cof out) (coco_new_float (-> r m) (- 0.0 (-> r fval))))
