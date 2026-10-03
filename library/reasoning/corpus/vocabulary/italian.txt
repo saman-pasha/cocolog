@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16442 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16451 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1301,6 +1301,21 @@ The verb "ammanetta" means "manacles".
 The masculine noun "attentato" means "terrorist attack".
 The masculine adjective "confuso" means "confused".
 The feminine adjective "confusa" means "confused".
+The adverb "moltissimo" means "very much".
+The adverb "teneramente" means "tenderly".
+The masculine noun "caposquadra" means "foreman".
+"capisquadra" is the plural of "caposquadra".
+The feminine noun "colonna" means "column".
+The masculine noun "corsivo" means "column".
+The preposition "da" means "as".
+"pianto" is the participle of "piange".
+"pianta" is the participle of "piange".
+"pianta" is feminine.
+"pianti" is the participle of "piange".
+"pianti" is the plural of "pianto".
+"piante" is the participle of "piange".
+"piante" is feminine.
+"piante" is the plural of "pianta".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -16611,6 +16626,8 @@ The feminine noun "indagine" means "investigation".
 "indagini" is the plural of "indagine".
 The feminine noun "fiscalità" means "taxation".
 "fiscalità" is the plural of "fiscalità".
+The masculine noun "pompiere" means "fireman".
+"pompieri" is the plural of "pompiere".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -23765,6 +23782,53 @@ The verb "appare" means "appears".
 "apparse" is the plural of "apparsa".
 "apparire" is the infinitive of "appare".
 "apparendo" is the gerund of "appare".
+The verb "appassiona" means "impassions".
+"appassionano" is the plural of "appassiona".
+"appassioniamo" is the first person of "appassionano".
+"appassiono" is the first person of "appassiona".
+"appassioni" is the second person of "appassiona".
+"appassionò" is the past of "appassiona".
+"appassionarono" is the past of "appassionano".
+"appassionammo" is the first person of "appassionarono".
+"appassionai" is the first person of "appassionò".
+"appassionasti" is the second person of "appassionò".
+"appassionava" is the past of "appassiona".
+"appassionavano" is the past of "appassionano".
+"appassionavamo" is the first person of "appassionavano".
+"appassionavo" is the first person of "appassionava".
+"appassionavi" is the second person of "appassionava".
+"appassionerà" is the future of "appassiona".
+"appassioneranno" is the plural of "appassionerà".
+"appassioneremo" is the first person of "appassioneranno".
+"appassionerò" is the first person of "appassionerà".
+"appassionerai" is the second person of "appassionerà".
+"appassionerebbe" is the conditional of "appassiona".
+"appassionerebbero" is the plural of "appassionerebbe".
+"appassioneremmo" is the first person of "appassionerebbero".
+"appassionerei" is the first person of "appassionerebbe".
+"appassioneresti" is the second person of "appassionerebbe".
+"appassioni" is the subjunctive of "appassiona".
+"appassionino" is the plural of "appassioni".
+"appassioniamo" is the first person of "appassionino".
+"appassionasse" is the past subjunctive of "appassiona".
+"appassionassero" is the plural of "appassionasse".
+"appassionassimo" is the first person of "appassionassero".
+"appassionassi" is the first person of "appassionasse".
+"appassionassi" is the second person of "appassionasse".
+"appassiona" is the imperative of "appassiona".
+"appassionare" is the negative imperative of "appassiona".
+"appassionate" is the imperative of "appassionano".
+"appassioniamo" is the hortative of "appassiona".
+"appassionato" is the participle of "appassiona".
+"appassionata" is the participle of "appassiona".
+"appassionata" is feminine.
+"appassionati" is the participle of "appassiona".
+"appassionati" is the plural of "appassionato".
+"appassionate" is the participle of "appassiona".
+"appassionate" is feminine.
+"appassionate" is the plural of "appassionata".
+"appassionare" is the infinitive of "appassiona".
+"appassionando" is the gerund of "appassiona".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -87435,52 +87499,6 @@ The verb "abbranca" means "grasps".
 "abbrancare" is the infinitive of "abbranca".
 "abbrancando" is the gerund of "abbranca".
 The verb "appassiona" means "grips".
-"appassionano" is the plural of "appassiona".
-"appassioniamo" is the first person of "appassionano".
-"appassiono" is the first person of "appassiona".
-"appassioni" is the second person of "appassiona".
-"appassionò" is the past of "appassiona".
-"appassionarono" is the past of "appassionano".
-"appassionammo" is the first person of "appassionarono".
-"appassionai" is the first person of "appassionò".
-"appassionasti" is the second person of "appassionò".
-"appassionava" is the past of "appassiona".
-"appassionavano" is the past of "appassionano".
-"appassionavamo" is the first person of "appassionavano".
-"appassionavo" is the first person of "appassionava".
-"appassionavi" is the second person of "appassionava".
-"appassionerà" is the future of "appassiona".
-"appassioneranno" is the plural of "appassionerà".
-"appassioneremo" is the first person of "appassioneranno".
-"appassionerò" is the first person of "appassionerà".
-"appassionerai" is the second person of "appassionerà".
-"appassionerebbe" is the conditional of "appassiona".
-"appassionerebbero" is the plural of "appassionerebbe".
-"appassioneremmo" is the first person of "appassionerebbero".
-"appassionerei" is the first person of "appassionerebbe".
-"appassioneresti" is the second person of "appassionerebbe".
-"appassioni" is the subjunctive of "appassiona".
-"appassionino" is the plural of "appassioni".
-"appassioniamo" is the first person of "appassionino".
-"appassionasse" is the past subjunctive of "appassiona".
-"appassionassero" is the plural of "appassionasse".
-"appassionassimo" is the first person of "appassionassero".
-"appassionassi" is the first person of "appassionasse".
-"appassionassi" is the second person of "appassionasse".
-"appassiona" is the imperative of "appassiona".
-"appassionare" is the negative imperative of "appassiona".
-"appassionate" is the imperative of "appassionano".
-"appassioniamo" is the hortative of "appassiona".
-"appassionato" is the participle of "appassiona".
-"appassionata" is the participle of "appassiona".
-"appassionata" is feminine.
-"appassionati" is the participle of "appassiona".
-"appassionati" is the plural of "appassionato".
-"appassionate" is the participle of "appassiona".
-"appassionate" is feminine.
-"appassionate" is the plural of "appassionata".
-"appassionare" is the infinitive of "appassiona".
-"appassionando" is the gerund of "appassiona".
 "gript" is the past of "grips".
 "gripping" is the gerund of "grips".
 The verb "ammaestra" means "guides".
@@ -92839,6 +92857,100 @@ The verb "segna" means "marks".
 "segnate" is the plural of "segnata".
 "segnare" is the infinitive of "segna".
 "segnando" is the gerund of "segna".
+The verb "rimanda" means "postpones".
+"rimandano" is the plural of "rimanda".
+"rimandiamo" is the first person of "rimandano".
+"rimando" is the first person of "rimanda".
+"rimandi" is the second person of "rimanda".
+"rimandò" is the past of "rimanda".
+"rimandarono" is the past of "rimandano".
+"rimandammo" is the first person of "rimandarono".
+"rimandai" is the first person of "rimandò".
+"rimandasti" is the second person of "rimandò".
+"rimandava" is the past of "rimanda".
+"rimandavano" is the past of "rimandano".
+"rimandavamo" is the first person of "rimandavano".
+"rimandavo" is the first person of "rimandava".
+"rimandavi" is the second person of "rimandava".
+"rimanderà" is the future of "rimanda".
+"rimanderanno" is the plural of "rimanderà".
+"rimanderemo" is the first person of "rimanderanno".
+"rimanderò" is the first person of "rimanderà".
+"rimanderai" is the second person of "rimanderà".
+"rimanderebbe" is the conditional of "rimanda".
+"rimanderebbero" is the plural of "rimanderebbe".
+"rimanderemmo" is the first person of "rimanderebbero".
+"rimanderei" is the first person of "rimanderebbe".
+"rimanderesti" is the second person of "rimanderebbe".
+"rimandi" is the subjunctive of "rimanda".
+"rimandino" is the plural of "rimandi".
+"rimandiamo" is the first person of "rimandino".
+"rimandasse" is the past subjunctive of "rimanda".
+"rimandassero" is the plural of "rimandasse".
+"rimandassimo" is the first person of "rimandassero".
+"rimandassi" is the first person of "rimandasse".
+"rimandassi" is the second person of "rimandasse".
+"rimanda" is the imperative of "rimanda".
+"rimandare" is the negative imperative of "rimanda".
+"rimandate" is the imperative of "rimandano".
+"rimandiamo" is the hortative of "rimanda".
+"rimandato" is the participle of "rimanda".
+"rimandata" is the participle of "rimanda".
+"rimandata" is feminine.
+"rimandati" is the participle of "rimanda".
+"rimandati" is the plural of "rimandato".
+"rimandate" is the participle of "rimanda".
+"rimandate" is feminine.
+"rimandate" is the plural of "rimandata".
+"rimandare" is the infinitive of "rimanda".
+"rimandando" is the gerund of "rimanda".
+The verb "gareggia" means "competes".
+"gareggiano" is the plural of "gareggia".
+"gareggiamo" is the first person of "gareggiano".
+"gareggio" is the first person of "gareggia".
+"gareggi" is the second person of "gareggia".
+"gareggiò" is the past of "gareggia".
+"gareggiarono" is the past of "gareggiano".
+"gareggiammo" is the first person of "gareggiarono".
+"gareggiai" is the first person of "gareggiò".
+"gareggiasti" is the second person of "gareggiò".
+"gareggiava" is the past of "gareggia".
+"gareggiavano" is the past of "gareggiano".
+"gareggiavamo" is the first person of "gareggiavano".
+"gareggiavo" is the first person of "gareggiava".
+"gareggiavi" is the second person of "gareggiava".
+"gareggerà" is the future of "gareggia".
+"gareggeranno" is the plural of "gareggerà".
+"gareggeremo" is the first person of "gareggeranno".
+"gareggerò" is the first person of "gareggerà".
+"gareggerai" is the second person of "gareggerà".
+"gareggerebbe" is the conditional of "gareggia".
+"gareggerebbero" is the plural of "gareggerebbe".
+"gareggeremmo" is the first person of "gareggerebbero".
+"gareggerei" is the first person of "gareggerebbe".
+"gareggeresti" is the second person of "gareggerebbe".
+"gareggi" is the subjunctive of "gareggia".
+"gareggino" is the plural of "gareggi".
+"gareggiamo" is the first person of "gareggino".
+"gareggiasse" is the past subjunctive of "gareggia".
+"gareggiassero" is the plural of "gareggiasse".
+"gareggiassimo" is the first person of "gareggiassero".
+"gareggiassi" is the first person of "gareggiasse".
+"gareggiassi" is the second person of "gareggiasse".
+"gareggia" is the imperative of "gareggia".
+"gareggiare" is the negative imperative of "gareggia".
+"gareggiate" is the imperative of "gareggiano".
+"gareggiamo" is the hortative of "gareggia".
+"gareggiato" is the participle of "gareggia".
+"gareggiata" is the participle of "gareggia".
+"gareggiata" is feminine.
+"gareggiati" is the participle of "gareggia".
+"gareggiati" is the plural of "gareggiato".
+"gareggiate" is the participle of "gareggia".
+"gareggiate" is feminine.
+"gareggiate" is the plural of "gareggiata".
+"gareggiare" is the infinitive of "gareggia".
+"gareggiando" is the gerund of "gareggia".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -114261,6 +114373,44 @@ The feminine adjective "migliorativa" means "beneficial".
 "migliorativissimi" is the superlative of "migliorativi".
 "migliorativissima" is the superlative of "migliorativa".
 "migliorativissime" is the superlative of "migliorative".
+The masculine adjective "stoico" means "stoic".
+"stoici" is the plural of "stoico".
+The feminine adjective "stoica" means "stoic".
+"stoiche" is the plural of "stoica".
+"stoicissimo" is the superlative of "stoico".
+"stoicissimi" is the superlative of "stoici".
+"stoicissima" is the superlative of "stoica".
+"stoicissime" is the superlative of "stoiche".
+The masculine adjective "lombardo" means "lombard".
+"lombardi" is the plural of "lombardo".
+The feminine adjective "lombarda" means "lombard".
+"lombarde" is the plural of "lombarda".
+"lombardissimo" is the superlative of "lombardo".
+"lombardissimi" is the superlative of "lombardi".
+"lombardissima" is the superlative of "lombarda".
+"lombardissime" is the superlative of "lombarde".
+The masculine adjective "scabro" means "rough".
+"scabri" is the plural of "scabro".
+The feminine adjective "scabra" means "rough".
+"scabre" is the plural of "scabra".
+"scabrissimo" is the superlative of "scabro".
+"scabrissimi" is the superlative of "scabri".
+"scabrissima" is the superlative of "scabra".
+"scabrissime" is the superlative of "scabre".
+The masculine adjective "preoccupato" means "worried".
+"preoccupati" is the plural of "preoccupato".
+The feminine adjective "preoccupata" means "worried".
+"preoccupate" is the plural of "preoccupata".
+"preoccupatissimo" is the superlative of "preoccupato".
+"preoccupatissimi" is the superlative of "preoccupati".
+"preoccupatissima" is the superlative of "preoccupata".
+"preoccupatissime" is the superlative of "preoccupate".
+The adjective "inefficiente" means "inefficient".
+"inefficienti" is the plural of "inefficiente".
+"inefficientissimo" is the superlative of "inefficiente".
+"inefficientissimi" is the superlative of "inefficienti".
+"inefficientissima" is the superlative of "inefficiente".
+"inefficientissime" is the superlative of "inefficienti".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

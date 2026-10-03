@@ -2307,3 +2307,28 @@ The verb "ammanetta" means "manacles".
 The masculine noun "attentato" means "terrorist attack".
 The masculine adjective "confuso" means "confused".
 The feminine adjective "confusa" means "confused".
+# the Montanelli tribute (VIT-10059..10095): `moltissimo' is `very much', which
+# the dictionaries say nowhere; `teneramente' and `caposquadra' are in no
+# monolingual dictionary
+The adverb "moltissimo" means "very much".
+The adverb "teneramente" means "tenderly".
+The masculine noun "caposquadra" means "foreman".
+"capisquadra" is the plural of "caposquadra".
+# `Montanelli aveva letto alcuni corsivi che pubblicavo da studente': a `corsivo'
+# is a short column of a newspaper, and the dictionary's `cursive' has no
+# Spanish word. `colonna' is said again first, so that it stays the word
+# written for `column'; and `da' before a person with no article is `as'
+The feminine noun "colonna" means "column".
+The masculine noun "corsivo" means "column".
+The preposition "da" means "as".
+# `aveva pianto per Egisto Corradi' -- apertium-ita's paradigm for `piangere'
+# (the one `affrangere' has) makes its participle `pianso', and `pianto' is
+# nobody's, so the sentence was refused with every word known
+"pianto" is the participle of "piange".
+"pianta" is the participle of "piange".
+"pianta" is feminine.
+"pianti" is the participle of "piange".
+"pianti" is the plural of "pianto".
+"piante" is the participle of "piange".
+"piante" is feminine.
+"piante" is the plural of "pianta".

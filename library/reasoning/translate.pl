@@ -2950,6 +2950,25 @@ tr_asides(foreign, [W, dash, A|Ws0], [W, w(K, dashed)|Ws]) :-
 %% verb, so no clause, and read as the sentence's own complements the dashes
 %% were nothing and the sentence was refused. It goes back between its
 %% dashes, w(Key, dashed), after the phrase it says something of (app/3).
+%% ... AFTER A WORD THAT ENDS NO PHRASE they are commas, and read as the
+%% adjuncts of the clause they stand in, as a pair of commas has always been:
+%% `Mi piaceva, ma - di nuovo - non potevo dirglielo' -- the dashes after a
+%% coordinator, a pronoun or a verb were an aside no phrase could take (app/3
+%% is the phrase's), and the sentence was refused with every word known. The
+%% writers put commas where the dashes stood.
+tr_asides(foreign, [W, dash, A|Ws0], [W, comma|Ws]) :-
+    W = w(_, _), A = w(_, _), ( tr_plain_adverb(foreign, A) ; tr_is(foreign, A, preposition) ),
+    \+ tr_dash_phrase_end(W),
+    append(In0, [dash|Rest], Ws0), \+ memberchk(dash, In0), Rest = [w(_, _)|_],
+    \+ ( member(X, In0), atom(X) ),
+    \+ ( member(w(V, _), In0), atom(V), tr_verb_form_word(V) ),
+    In = [A|In0],
+    nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
+    tr_joined_words(foreign, In, InJ),
+    tr_complements(foreign, InJ, Cs), Cs \== [], forall(member(C, Cs), tr_adjunct(C)), !,
+    append(In, [comma|Rest1], Ws1), tr_asides(foreign, Rest, Rest1), Ws = Ws1.
+%% a word a phrase can end on, which an aside after it hangs on
+tr_dash_phrase_end(W) :- ( tr_is(foreign, W, noun) ; tr_name_word(foreign, W) ; tr_is(foreign, W, adjective) ), !.
 tr_asides(foreign, [W, dash, A|Ws0], [W, w(K, dashed)|Ws]) :-
     W = w(_, _), A = w(_, _), ( tr_plain_adverb(foreign, A) ; tr_is(foreign, A, preposition) ),
     append(In0, [dash|Rest], Ws0), \+ memberchk(dash, In0), Rest = [w(_, _)|_],
@@ -4113,6 +4132,15 @@ tr_cross_comp(cmtc(S0), cmtc(S)) :- !, tr_side_here(Side), tr_cross(Side, S0, S)
 tr_cross_comp(asrwh(Q, S0), asrwh(Q, S)) :- !, tr_side_here(Side), tr_cross(Side, S0, S).
 tr_cross_comp(rcl(Role0, S0), rcl(Role, S)) :- !,
     tr_cross_np(rc(np(none, none, [], elided(masculine), singular), Role0, S0), rc(_, Role, S)).
+%% A BARE NOUN FOR A PERSON AFTER A PREPOSITION THE LESSON GIVES `AS' IS A ROLE:
+%% `pubblicavo da studente' is as a student, and crossed by its first meaning
+%% that is not `by' the preposition was `from' and the role the place it came
+%% from, `desde estudiante'. The lesson says `The preposition "da" means
+%% "as".', after the meanings it has always had.
+tr_cross_comp(pp(w(P, C), NP0), pp(w(as, C), NP)) :-
+    tr_side_here(foreign), NP0 = np(none, none, [], N, singular), N = w(_, _), tr_person_word(N),
+    tr_lexeme(foreign, P, L, _), tr_meanings_of(L, english, preposition, Ms), memberchk(as, Ms), !,
+    tr_cross_np(NP0, NP).
 tr_cross_comp(pp(w(P, C), NP0), pp(w(PT, C), NP)) :- !, tr_prep_across(P, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(rpp(w(P, C), NP0), rpp(w(PT, C), NP)) :- !, tr_prep_across(P, PT), tr_cross_np(NP0, NP).
 tr_cross_comp(rca(Role0, S0), rca(Role, S)) :- !,
@@ -10089,8 +10117,20 @@ tr_group_at(foreign, [w(C, _), w(B, _)|R0], g(L, T, passive_perfect, Person, N),
 %% `Su constructor está considerado como el Van Gogh' came out `has
 %% considered'
 tr_group_at(foreign, [w(A, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
-    tr_form(A, AL, N, T, Person), tr_solve(auxiliary(AL)), \+ tr_solve(mean(AL, is)),
-    tr_solve(participle_of(P, L)), tr_known(foreign, L), !.
+    tr_form(A, AL, N, T, Person0), tr_solve(auxiliary(AL)), \+ tr_solve(mean(AL, is)),
+    tr_solve(participle_of(P, L)), tr_known(foreign, L), !,
+    tr_group_person(A, N, T, Person0, Person).
+%% ... AND A PRESENT SUBJUNCTIVE'S FIRST PERSON IS SPELLED AS ITS THIRD in the
+%% perfect too (tr_form0/5): `Il capo che io abbia visto', `credo che io sia
+%% stato felice' -- the group read for the third, the cut taken, and the
+%% subject `io' had no group to agree with, so the sentence was refused with
+%% every word known. The first person is the second reading of the group,
+%% after the third and only where the sentence names the first person
+tr_group_person(A, N, T, Person0, Person) :-
+    (   Person = Person0
+    ;   Person0 == third, N == singular, T == present, tr_global('$tr_first', yes),
+        tr_solve(subjunctive_of(A, _)), \+ tr_holds(past(A)), Person = first
+    ).
 %% ... AND AN ADVERB MAY STAND BETWEEN THE AUXILIARY AND THE PARTICIPLE OF
 %% ANY OF THEM: `è SEMPRE risultato spento', `si era QUINDI temuto il
 %% peggio', `abbiamo POI ritrovato la mamma'. Without this the copula alone
@@ -10115,10 +10155,11 @@ tr_group_at(foreign, [w(C, CC)|R0], G, R) :-
 %% The copula's OWN perfect is the same shape: `sono stati eroici' has been,
 %% where the lesson names no other word for it (tr_perfect_auxiliary/2).
 tr_group_at(foreign, [w(C, _), w(P, _)|R], g(L, T, perfect, Person, N), R) :-
-    tr_form(C, CL, N, T, Person), tr_copula_lexeme(CL),
+    tr_form(C, CL, N, T, Person0), tr_copula_lexeme(CL),
     tr_solve(participle_of(P, L)),
     ( tr_solve(auxiliary_of(CL, L)) -> true ; tr_copula_lexeme(L), tr_perfect_auxiliary(L, CL) ),
-    tr_known(foreign, L), tr_participle_agrees(P, N), !.
+    tr_known(foreign, L), tr_participle_agrees(P, N), !,
+    tr_group_person(C, N, T, Person0, Person).
 %% WHAT TELLS A PASSIVE FROM A PERFECT IS THE LESSON, not this code. Italian
 %% builds the perfect of some verbs with `essere' too -- `e riuscito' is `has
 %% succeeded', not `is succeeded' -- and nothing in a lesson says which verbs
@@ -14595,7 +14636,11 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
             \+ ( tr_is(Side, R, adverb), tr_adverb_before_participle(Side, PW, Rest) ),
             member(X, PW), ( tr_is(Side, X, noun) ; tr_name_like(Side, X) ; last(PW, X), tr_is(Side, X, number) ),
             \+ ( last(PW, LW), tr_coord(Side, LW) ),
-            \+ ( last(PW, LP), tr_is(Side, LP, preposition) )  % `y el de LOS chicos'
+            \+ ( last(PW, LP), tr_is(Side, LP, preposition) ),  % `y el de LOS chicos'
+            %% ... nor `all' before its determiner, the phrase's own (all/2):
+            %% `Giovanni e tutti gli amici' ended at `tutti', the pronoun for
+            %% everyone, and `gli amici' was a second object
+            \+ ( last(PW, w(AT, _)), atom(AT), tr_all_word(Side, AT) )
         %% ... A NAME IS A PHRASE'S NOUN FOR THAT, and a number after one starts
         %% the next phrase too: `acquisirà da Veba LA partecipazione' and
         %% `verserà a Veba 3,65 miliardi' put a short phrase with its
@@ -14789,8 +14834,13 @@ tr_np(Side, [D, M|Ws], np(det(DK, DL, D), M, Adjs, elided(G), Number)) :-
     Ws \== [], tr_determiner(Side, D, DL, DK), DK == article, \+ tr_standalone_det(Side, D),
     tr_is(Side, M, number),
     tr_np(Side, [D|Ws], np(_, none, Adjs, elided(G), Number)), !.
+%% (`uno stoico' is a stoic: `uno' is the pronoun for one too, and read as one
+%% it left no noun to elide -- but the lesson's article is the word before
+%% `st', `z', `gn' ..., and a pronoun is the word before nothing in particular,
+%% so an adjective that begins one of them has the article before it)
 tr_np(Side, [D|Ws], np(det(DK, DL, D), none, Adjs, elided(G), Number)) :-
-    Ws \== [], tr_determiner(Side, D, DL, DK), DK == article, \+ tr_standalone_det(Side, D),
+    Ws \== [], tr_determiner(Side, D, DL, DK), DK == article,
+    ( \+ tr_standalone_det(Side, D) ; tr_article_by_letters(Side, D, Ws) ),
     tr_degree_of(Side, det(DK, DL, D), Degree), tr_degrees(Side, Degree, Ws, Adjs),
     Adjs \== [], forall(member(A, Adjs), ( A = deg(_, _) ; tr_is(Side, A, adjective) )),
     ( member(deg(_, _), Adjs) -> true ; \+ ( member(A, Ws), tr_is(Side, A, noun) ) ),
@@ -14894,6 +14944,9 @@ tr_noun_replacer(foreign, w(Q, _)) :-
 %% an article whose noun was left out. A clitic (`la', `los') carries no
 %% such denial, and `los de clase media' stays the ellipsis it is.
 tr_standalone_det(foreign, w(W, _)) :- tr_lexeme(foreign, W, L, _), tr_solve(neg(precede(L, verb))), !.
+%% an article the lesson says comes before the letters the next word begins with
+tr_article_by_letters(foreign, w(W, _), [w(N, _)|_]) :-
+    atom(N), tr_lexeme(foreign, W, L, _), tr_solve(come_before(L, P)), begin_with(N, P), !.
 tr_degree_start(foreign, [w(M, _), A|_]) :- tr_degree_word(M), tr_is(foreign, A, adjective), !.
 tr_degree_start(english, [w(M, _), A|_]) :- en_degree_marker(M, _), tr_is(english, A, adjective), !.
 tr_degree_start(Side, [A, J|_]) :- tr_intensifier(Side, A, J), !.
@@ -15357,6 +15410,28 @@ tr_relative_clause(Side, [P, w(R, RC)|Ws], Role, S) :-
         ;   tr_rel_join(Side, Ws, S)
         )
     ), !.
+%% ... AND ITS ADJUNCTS BEFORE THE CLAUSE, when the relative word has a
+%% preposition: `Iside Frigerio, con cui per decenni ha condotto una battaglia
+%% silenziosa' -- for decades, and the clause after it. Only the relative
+%% with a subject gap had a front (below); here the words after `cui' were
+%% read as a clause and `per decenni' was none, so the sentence was refused,
+%% and an adverb alone (`la donna con cui spesso parla') was lifted out of
+%% the clause and written after the main clause's verb, `es alta a menudo'.
+%% The front goes where the other relatives put it: an adverb alone before
+%% the verb, a phrase after it (tr_front_after/3)
+tr_relative_clause(Side, [P, w(R, RC)|Ws], Role, S) :-
+    tr_is(Side, P, preposition), tr_relative_word(Side, R), Ws = [F1, _|_],
+    ( tr_is(Side, F1, preposition) ; tr_is(Side, F1, adverb) ),
+    tr_front_max(Side, Ws, no, Max),
+    append(Front0, _, Max), Front0 \== [], append(Front0, Rest, Ws), Rest \== [],
+    tr_complements(Side, Front0, Front), Front \== [], tr_adjuncts(Front),
+    tr_read_nested(Side, Rest, rel, S0), !,
+    Role = pp(P), S0 = s(_, Su, G, Comps0),
+    (   forall(member(X, Front), X = adv(_))
+    ->  findall(frn(X), member(X, Front), Fr), append(Fr, Comps0, Comps)
+    ;   tr_front_after(Comps0, Front, Comps)
+    ),
+    S = s(none, Su, G, Comps).
 %% ... AND A PREPOSITION AND THE RELATIVE WORD JOINED AS ONE WORD OF THE
 %% LESSON'S: `Il terzo motivo per cui il cronista è qui ... è lo
 %% stabilimento' is the reason FOR WHICH the reporter is here, and `per cui'

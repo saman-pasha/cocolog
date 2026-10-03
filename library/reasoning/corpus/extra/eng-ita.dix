@@ -872,3 +872,19 @@
 # tiros', `los disparos' are shots, `spari' (`tiri' were throws)
 <e><p><l>exchange<s n="n"/></l><r>scambio<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>shot<s n="n"/></l><r>sparo<s n="n"/><s n="m"/></r></p></e>
+# the Montanelli tribute (VIT-10059..10095), each in apertium-ita.ita.dix and
+# with no English word: `i pompieri' are firemen, `rimandare' is to postpone
+# (the pain), `uno stoico' a stoic, `i lombardi' Lombards, `gareggiare' to
+# compete, `scabra' rough, `preoccupato' worried, `inefficiente' inefficient.
+# Read into English only, so that the word written for each English one stays
+<e r="RL"><p><l>fireman<s n="n"/></l><r>pompiere<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>postpone<s n="vblex"/></l><r>rimandare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>stoic<s n="adj"/></l><r>stoico<s n="adj"/></r></p></e>
+<e r="RL"><p><l>Lombard<s n="adj"/></l><r>lombardo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>compete<s n="vblex"/></l><r>gareggiare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>rough<s n="adj"/></l><r>scabro<s n="adj"/></r></p></e>
+<e r="RL"><p><l>worried<s n="adj"/></l><r>preoccupato<s n="adj"/></r></p></e>
+<e r="RL"><p><l>inefficient<s n="adj"/></l><r>inefficiente<s n="adj"/></r></p></e>
+# `appassionarsi in difesa di' -- the dictionary has `appassionare' only as
+# `grip', which Spanish says nowhere
+<e><p><l>impassion<s n="vblex"/></l><r>appassionare<s n="vblex"/></r></p></e>

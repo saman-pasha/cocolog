@@ -476,3 +476,14 @@
 # escalation, where `climbing' was the dictionary's word for `escalada'
 <e><p><l>crowded<s n="adj"/></l><r>multitudinario<s n="adj"/></r></p></e>
 <e><p><l>escalation<s n="n"/></l><r>escalada<s n="n"/><s n="f"/></r></p></e>
+# the Montanelli tribute, into Spanish: the Spanish words for the English ones
+# the Italian entries above read -- `estoico', `lombardo', `preocupado' and
+# `ineficiente' are in apertium-spa.spa.dix and in no bilingual entry. Written
+# only (LR): the Spanish words need no meaning of their own to be read
+<e r="LR"><p><l>stoic<s n="adj"/></l><r>estoico<s n="adj"/></r></p></e>
+<e r="LR"><p><l>Lombard<s n="adj"/></l><r>lombardo<s n="adj"/></r></p></e>
+<e r="LR"><p><l>worried<s n="adj"/></l><r>preocupado<s n="adj"/></r></p></e>
+<e r="LR"><p><l>inefficient<s n="adj"/></l><r>ineficiente<s n="adj"/></r></p></e>
+# `appassionarsi' into Spanish: `apasionar' is in apertium-spa.spa.dix and in
+# no bilingual entry of one English word
+<e><p><l>impassion<s n="vblex"/></l><r>apasionar<s n="vblex"/></r></p></e>

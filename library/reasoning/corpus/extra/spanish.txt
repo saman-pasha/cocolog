@@ -1717,3 +1717,9 @@ The feminine noun "cuarentena" means "about forty".
 The verb "excluye" means "excludes".
 The verb "descarta" means "excludes".
 The masculine noun "atentado" means "terrorist attack".
+# the Montanelli tribute, into Spanish: the words that stand for the Italian ones
+# above, `muchísimo' very much, `tiernamente' tenderly, `capataz' the foreman
+The adverb "muchísimo" means "very much".
+The adverb "tiernamente" means "tenderly".
+The masculine noun "capataz" means "foreman".
+"capataces" is the plural of "capataz".

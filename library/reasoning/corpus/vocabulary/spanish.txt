@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20366 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20371 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -892,6 +892,10 @@ The feminine noun "cuarentena" means "about forty".
 The verb "excluye" means "excludes".
 The verb "descarta" means "excludes".
 The masculine noun "atentado" means "terrorist attack".
+The adverb "muchísimo" means "very much".
+The adverb "tiernamente" means "tenderly".
+The masculine noun "capataz" means "foreman".
+"capataces" is the plural of "capataz".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -27911,6 +27915,52 @@ The verb "abate" means "fells".
 "abatidas" is the plural of "abatida".
 "abatir" is the infinitive of "abate".
 "abatiendo" is the gerund of "abate".
+The verb "apasiona" means "impassions".
+"apasionan" is the plural of "apasiona".
+"apasionamos" is the first person of "apasionan".
+"apasiono" is the first person of "apasiona".
+"apasionas" is the second person of "apasiona".
+"apasionó" is the past of "apasiona".
+"apasionaron" is the past of "apasionan".
+"apasionamos" is the first person of "apasionaron".
+"apasioné" is the first person of "apasionó".
+"apasionaste" is the second person of "apasionó".
+"apasionaba" is the past of "apasiona".
+"apasionaban" is the past of "apasionan".
+"apasionábamos" is the first person of "apasionaban".
+"apasionabas" is the second person of "apasionaba".
+"apasionará" is the future of "apasiona".
+"apasionarán" is the plural of "apasionará".
+"apasionaremos" is the first person of "apasionarán".
+"apasionaré" is the first person of "apasionará".
+"apasionarás" is the second person of "apasionará".
+"apasionaría" is the conditional of "apasiona".
+"apasionarían" is the plural of "apasionaría".
+"apasionaríamos" is the first person of "apasionarían".
+"apasionarías" is the second person of "apasionaría".
+"apasione" is the subjunctive of "apasiona".
+"apasionen" is the plural of "apasione".
+"apasionemos" is the first person of "apasionen".
+"apasiones" is the second person of "apasione".
+"apasionara" is the past subjunctive of "apasiona".
+"apasionaran" is the plural of "apasionara".
+"apasionáramos" is the first person of "apasionaran".
+"apasionaras" is the second person of "apasionara".
+"apasiona" is the imperative of "apasiona".
+"apasiones" is the negative imperative of "apasiona".
+"apasionad" is the imperative of "apasionan".
+"apasionéis" is the negative imperative of "apasionan".
+"apasionemos" is the hortative of "apasiona".
+"apasionado" is the participle of "apasiona".
+"apasionada" is the participle of "apasiona".
+"apasionada" is feminine.
+"apasionados" is the participle of "apasiona".
+"apasionados" is the plural of "apasionado".
+"apasionadas" is the participle of "apasiona".
+"apasionadas" is feminine.
+"apasionadas" is the plural of "apasionada".
+"apasionar" is the infinitive of "apasiona".
+"apasionando" is the gerund of "apasiona".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -138791,6 +138841,28 @@ The feminine adjective "balnearia" means "balneal".
 The adjective "inexplicable" means "inexplicable".
 "inexplicables" is the plural of "inexplicable".
 The adjective "apasionante" means "gripping".
+The masculine adjective "estoico" means "stoic".
+"estoicos" is the plural of "estoico".
+The feminine adjective "estoica" means "stoic".
+"estoicas" is the plural of "estoica".
+The masculine adjective "lombardo" means "lombard".
+"lombardos" is the plural of "lombardo".
+The feminine adjective "lombarda" means "lombard".
+"lombardas" is the plural of "lombarda".
+"lombardísimas" is the superlative of "lombardas".
+"lombardísima" is the superlative of "lombarda".
+"lombardísimos" is the superlative of "lombardos".
+"lombardísimo" is the superlative of "lombardo".
+The masculine adjective "preocupado" means "worried".
+"preocupados" is the plural of "preocupado".
+The feminine adjective "preocupada" means "worried".
+"preocupadas" is the plural of "preocupada".
+"preocupadísimas" is the superlative of "preocupadas".
+"preocupadísima" is the superlative of "preocupada".
+"preocupadísimos" is the superlative of "preocupados".
+"preocupadísimo" is the superlative of "preocupado".
+The adjective "ineficiente" means "inefficient".
+"ineficientes" is the plural of "ineficiente".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".
