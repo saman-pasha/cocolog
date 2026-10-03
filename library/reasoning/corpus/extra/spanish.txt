@@ -1723,3 +1723,11 @@ The adverb "muchísimo" means "very much".
 The adverb "tiernamente" means "tenderly".
 The masculine noun "capataz" means "foreman".
 "capataces" is the plural of "capataz".
+# `A pensarci bene' -- `pensandolo bien'; `Per questo' -- `por eso'; `ogni volta
+# che' -- `cada vez que'; `insieme' -- `juntos'
+The adverb "pensándolo bien" means "on second thought".
+The adverb "por eso" means "for this reason".
+The conjunction "cada vez que" means "whenever".
+The adverb "juntos" means "together".
+# `o meglio' -- `o mejor dicho'
+The adverb "o mejor dicho" means "or rather".

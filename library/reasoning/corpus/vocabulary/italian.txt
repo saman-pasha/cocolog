@@ -1307,7 +1307,7 @@ The masculine noun "caposquadra" means "foreman".
 "capisquadra" is the plural of "caposquadra".
 The feminine noun "colonna" means "column".
 The masculine noun "corsivo" means "column".
-The preposition "da" means "as".
+The preposition "da" means "as a".
 "pianto" is the participle of "piange".
 "pianta" is the participle of "piange".
 "pianta" is feminine.
@@ -1316,6 +1316,12 @@ The preposition "da" means "as".
 "piante" is the participle of "piange".
 "piante" is feminine.
 "piante" is the plural of "pianta".
+The adverb "a pensarci bene" means "on second thought".
+The adverb "per questo" means "for this reason".
+The conjunction "ogni volta che" means "whenever".
+The adverb "insieme" means "together".
+The conjunction "da quando" means "ever since".
+The adverb "o meglio" means "or rather".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

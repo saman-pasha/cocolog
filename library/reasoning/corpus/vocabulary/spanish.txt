@@ -896,6 +896,11 @@ The adverb "muchísimo" means "very much".
 The adverb "tiernamente" means "tenderly".
 The masculine noun "capataz" means "foreman".
 "capataces" is the plural of "capataz".
+The adverb "pensándolo bien" means "on second thought".
+The adverb "por eso" means "for this reason".
+The conjunction "cada vez que" means "whenever".
+The adverb "juntos" means "together".
+The adverb "o mejor dicho" means "or rather".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

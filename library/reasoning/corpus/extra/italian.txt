@@ -2317,10 +2317,11 @@ The masculine noun "caposquadra" means "foreman".
 # `Montanelli aveva letto alcuni corsivi che pubblicavo da studente': a `corsivo'
 # is a short column of a newspaper, and the dictionary's `cursive' has no
 # Spanish word. `colonna' is said again first, so that it stays the word
-# written for `column'; and `da' before a person with no article is `as'
+# written for `column'; and `da' before a person with no article is `as a' --
+# not `as', which would make `da quando' and `da come' clauses of comparison
 The feminine noun "colonna" means "column".
 The masculine noun "corsivo" means "column".
-The preposition "da" means "as".
+The preposition "da" means "as a".
 # `aveva pianto per Egisto Corradi' -- apertium-ita's paradigm for `piangere'
 # (the one `affrangere' has) makes its participle `pianso', and `pianto' is
 # nobody's, so the sentence was refused with every word known
@@ -2332,3 +2333,14 @@ The preposition "da" means "as".
 "piante" is the participle of "piange".
 "piante" is feminine.
 "piante" is the plural of "pianta".
+# `A pensarci bene, non ho mai scritto niente' -- on second thought; `Per questo,
+# ogni volta che andavamo a mangiare insieme' -- for this reason, whenever,
+# together (the dictionary has `insieme' for `set' only); `da quando lo conosco'
+# -- ever since, as `sin da quando' is
+The adverb "a pensarci bene" means "on second thought".
+The adverb "per questo" means "for this reason".
+The conjunction "ogni volta che" means "whenever".
+The adverb "insieme" means "together".
+The conjunction "da quando" means "ever since".
+# `- o meglio: io mangiavo, lui testava piccoli campioni alimentari -' -- or rather
+The adverb "o meglio" means "or rather".
