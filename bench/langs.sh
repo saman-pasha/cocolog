@@ -132,12 +132,12 @@ if ! command -v timeout >/dev/null 2>&1; then
   fi
 fi
 
-# THE PYENV SHIM IS NOT PYTHON. Run H found `python3' resolving through a
-# shim that spends 1.8-3.7 s deciding which interpreter to start -- on
-# 2026-10-01, on the same box, 2.0 s against the real binary's 0.14 -- and
-# the shim alone clears the one-second floor, so it would poison every
-# python lane's calibration. PYTHON names an interpreter outright; else a
-# shim is looked through.
+# THE PYENV SHIM IS NOT PYTHON. A run on the Mac found `python3' resolving
+# through a shim that spends 1.8-3.7 s deciding which interpreter to start
+# -- on 2026-10-01, on the same box, 2.0 s against the real binary's 0.14
+# -- and the shim alone clears the one-second floor, so it would poison
+# every python lane's calibration. PYTHON names an interpreter outright;
+# else a shim is looked through.
 PY=${PYTHON:-python3}
 case "$(command -v "$PY" 2>/dev/null)" in
   */.pyenv/shims/*) PY=$(pyenv which "$PY" 2>/dev/null || echo "$PY") ;;
@@ -335,12 +335,12 @@ echo
 # `lookup' was the task where the two systems differed in KIND rather than
 # in speed: SQLite's PRIMARY KEY is an index and cocolog tried clauses in
 # order, so the gap was not a factor but a slope -- 8x at 200 facts, 428x
-# at 20 000 in Run A. cocolog has a first-argument index now and the slope
-# is flat. The same thousand probes still run over three sizes of
-# database, in the lanes that can do it quickly, read DOWN the column: a
-# return to a slope is the regression this table exists to show. SWI's
-# column (`-O') is its just-in-time index on the first argument, the same
-# promise.
+# at 20 000, in the first run of all. cocolog has a first-argument index
+# now and the slope is flat. The same thousand probes still run over three
+# sizes of database, in the lanes that can do it quickly, read DOWN the
+# column: a return to a slope is the regression this table exists to show.
+# SWI's column (`-O') is its just-in-time index on the first argument, the
+# same promise.
 echo "the shape of the lookup gap -- a thousand probes, three sizes:"
 printf '   %8s %12s %12s %12s %10s\n' facts 'python s' 'swi-O s' 'cocolog s' ratio
 for n in 200 2000 20000; do

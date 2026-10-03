@@ -1812,7 +1812,7 @@ gap, the gap was closed, and the same script re-measured it.
 
 Five small programs, the same task in each language, every lane's answer
 checked against every other's before a number may print — `sh
-bench/langs.sh`, with every run it has printed in
+bench/langs.sh`, with its runs from 1.8.48 on in
 [bench/README.md](bench/README.md). `--local` is the in-memory
 arrangement, `--embed` the MVCCS engine linked into the process, SWI-Prolog
 runs the very same `.pl` files with `-O` and as installed, and
@@ -1821,108 +1821,63 @@ one against a store measures the guarantees rather than the engine:
 
 | task (one rep) | cocolog --local | cpython | swipl -O | swipl | cocolog --embed | cocolog server | cpython + sqlite3 |
 |---|---|---|---|---|---|---|---|
-| naive reverse, 400 elements | 0.008738 s (1.8x, 3.2x) | 0.004831 s | 0.002698 s | 0.003041 s | 0.008198 s | 0.008462 s | 0.005037 s (1.0x) |
-| 8-queens, all 92 solutions | 0.007331 s (3.4x, 4.1x) | 0.002186 s | 0.001795 s | 0.030557 s | 0.007311 s | 0.007863 s | 0.002060 s (0.9x) |
-| 100 000 additions, one at a time | 0.026588 s (6.0x, 6.1x) | 0.004448 s | 0.004356 s | 0.091584 s | 0.025254 s | 0.024550 s | 0.027945 s (6.3x) |
-| 1000 keyed lookups over 200 facts | 0.000560 s (5.0x, 3.3x) | 0.000112 s | 0.000172 s | 0.002069 s | 0.000513 s | 0.000547 s | 0.012375 s (110.5x) |
-| generate-and-sort 5000 integers | 0.005149 s (2.8x, 2.8x) | 0.001856 s | 0.001860 s | 0.016613 s | 0.005812 s | 0.004935 s | 0.002616 s (1.4x) |
+| naive reverse, 400 elements | 0.004908 s (1.1x, 1.9x) | 0.004614 s | 0.002589 s | 0.002931 s | 0.005362 s | 0.005893 s | 0.005118 s (1.1x) |
+| 8-queens, all 92 solutions | 0.005242 s (2.4x, 2.8x) | 0.002198 s | 0.001840 s | 0.032128 s | 0.004827 s | 0.004735 s | 0.001972 s (0.9x) |
+| 100 000 additions, one at a time | 0.012041 s (2.8x, 2.7x) | 0.004284 s | 0.004407 s | 0.090732 s | 0.012529 s | 0.011861 s | 0.026686 s (6.2x) |
+| 1000 keyed lookups over 200 facts | 0.000341 s (4.6x, 2.3x) | 0.000074 s | 0.000151 s | 0.002096 s | 0.000361 s | 0.000331 s | 0.011921 s (161.1x) |
+| generate-and-sort 5000 integers | 0.003162 s (1.8x, 1.9x) | 0.001764 s | 0.001682 s | 0.015741 s | 0.003225 s | 0.003205 s | 0.002433 s (1.4x) |
 
-(Run L: cocolog 1.8.44, macOS, i9-9880H, Python 3.11.13, SWI-Prolog
+(Run N: cocolog 1.8.48, macOS, i9-9880H, Python 3.11.13, SWI-Prolog
 10.0.2; the two multiples are of CPython and of `swipl -O`. The sqlite
 column pairs every task with a durable Python -- the data as committed
-rows, read back through the database per rep. Runs on other boxes and
-other versions are in bench/README.md, and none of them compares across
-without naming both.)
+rows, read back through the database per rep. The Linux box of Run M reads
+the same shape by its ratios; neither compares with the other in seconds.)
 
-**So cocolog is 1.8-6x CPython and 2.8-6.1x SWI-Prolog as a language**,
-and faster than `swipl` without its `-O` on four tasks of five: SWI as
-installed builds every `is/2` expression as a term and calls a predicate
-on it, and collects 787 times in sixteen reps of the counting loop. The
-spread is the interesting part: list work and sorting are cocolog's best
-showings (1.8x, 2.8x CPython), and a tight counting loop its worst (6x),
-which is the per-inference cost of an interpreter whose clauses are
-compiled but whose built goals are still interpreted. Start-up is not the
-reason — every arrangement boots in 0.12-0.18 s here, as Python and SWI do.
+**So cocolog is 1.1-4.6x CPython and 1.9-2.8x SWI-Prolog as a language**,
+and 5 to 7.5 times faster than `swipl` without its `-O` on four tasks of
+five: SWI as installed builds every `is/2` expression as a term and calls a
+predicate on it. The spread is the interesting part: list work and sorting
+are cocolog's best showings (1.1x, 1.8x CPython), and the keyed lookup and
+the counting loop its worst (4.6x, 2.8x) -- the lookup's 4.6x read against a
+CPython lane whose fixed cost came out high, so likely less. Start-up is not
+the reason: every arrangement boots in 0.11-0.18 s here, as Python and SWI
+do.
 
 **But cocolog is a state machine, not only a language, and as a state
 machine it is measured against a language with a database: against
 `python + sqlite3`, which keeps the same promises — rows that outlive the
 process, the build committed as one transaction, an index on the key —
-cocolog's store is 24 times faster at a thousand keyed probes and 1.1
+cocolog's store is 33 times faster at a thousand keyed probes and 2.1
 times faster on the counting loop, where every addend is a row.** It is
-1.6-3.8 times slower where the work is computation over data read once,
-because there the sqlite lane runs at Python's own speed and cocolog's at
-its interpreter's:
+level on naive reverse and 1.3-2.4 times slower where the work is
+computation over data read once, because there the sqlite lane runs at
+Python's own speed and cocolog's at its interpreter's:
 
 | task (one rep) | cocolog --embed | cocolog server | cpython + sqlite3 | cocolog against it |
 |---|---:|---:|---:|---|
-| 1000 keyed lookups over 200 facts | 0.000513 s | 0.000547 s | 0.012375 s | **24x faster** (server 23x) |
-| 100 000 additions, one at a time | 0.025254 s | 0.024550 s | 0.027945 s | **1.1x faster** |
-| naive reverse, 400 elements | 0.008198 s | 0.008462 s | 0.005037 s | 1.6-1.7x slower |
-| generate-and-sort 5000 integers | 0.005812 s | 0.004935 s | 0.002616 s | 1.9-2.2x slower |
-| 8-queens, all 92 solutions | 0.007311 s | 0.007863 s | 0.002060 s | 3.5-3.8x slower |
-
-**The language figures are the best this box has read, by far.** Run K, a
-day earlier on 1.8.38, read 5-15x CPython; 1.8.42-1.8.44 match a head against the store
-instead of copying the clause, remember which module owns a functor
-instead of walking every module's names on every call, and compile each
-clause into a head and a body program the first time it is selected
-(STATUS.md, "The copy was the call") — 1.7-3.5 times faster per rep. A
-month before that it had nearly been the worst: 1.8.36 read 7-22x until a
-bisection found the engine's five term walks allocating a stack on every
-call, taken back in 1.8.38 (STATUS.md, "The walk stacks are kept").
+| 1000 keyed lookups over 200 facts | 0.000361 s | 0.000331 s | 0.011921 s | **33x faster** (server 36x) |
+| 100 000 additions, one at a time | 0.012529 s | 0.011861 s | 0.026686 s | **2.1x faster** (server 2.2x) |
+| naive reverse, 400 elements | 0.005362 s | 0.005893 s | 0.005118 s | level (1.05x; server 1.15x slower) |
+| generate-and-sort 5000 integers | 0.003225 s | 0.003205 s | 0.002433 s | 1.3x slower |
+| 8-queens, all 92 solutions | 0.004827 s | 0.004735 s | 0.001972 s | 2.4x slower |
 
 **Over a socket costs nothing the two-point method can see.** With a turn
 committed against a store the harness empties per run, every task sits
-within a few percent of the in-memory lane: the pipelined client, the
-turn-wide write batch and the mapped store left the wire's per-rep cost
-too small to measure. And the sqlite column splits by where the work is:
-computation over durable rows costs Python 0.9-1.4x over its own dict —
-the same near-nothing cocolog's store lanes pay over `--local` — while
-per-row store traffic trades sides: the cursor's addends cost sqlite 6.3x
-on the counting loop, and the thousand keyed probes cost python + sqlite3
-24x what they cost `--embed`.
+within a few percent of the in-memory lane but naive reverse (20 %): the
+pipelined client, the turn-wide write batch and the mapped store left the
+wire's per-rep cost too small to measure. And the sqlite column splits by
+where the work is: computation over durable rows costs Python 0.9-1.4x over
+its own dict — the same near-nothing cocolog's store lanes pay over
+`--local` — while per-row store traffic trades sides: the cursor's addends
+cost sqlite 6.2x on the counting loop, and the thousand keyed probes cost
+python + sqlite3 33x what they cost `--embed`.
 
-**Two of those readings used to be defects rather than a design, and the
-benchmark is what found them.**
-
-*The keyed lookup was a SLOPE, not a factor.* A call walked the predicate,
-copying each clause onto the heap and unifying its head, so a probe into a
-table of facts copied the table — 7x slower than a Python dict at 200
-facts, 49x at 2 000, **411x at 20 000**. A ratio that grows with N is a
-linear scan's signature. `coco_pred` now carries a first-argument index:
-
-| facts | before | after |
-|---|---:|---:|
-| 200 | 7x | **3x** |
-| 2 000 | 49x | **3x** |
-| 20 000 | 411x | **4x** |
-
-(On the second box, a Mac, it is still flat: 0.20 s at 200 facts,
-0.22 s at 20 000.)
-
-*Writing was quadratic in the clauses already there.* A clause written
-through to the database re-sent its WHOLE predicate, and the batching that
-made a `consult` cheap was switched off before the goal ran — so a file of
-clauses was cheap and the same clauses asserted BY THE GOAL were not. The
-batch spans the turn now, and the turn was already one transaction:
-
-| `assertz` into one predicate, `--embed` | before | after |
-|---|---:|---:|
-| 50 clauses | 0.59 s | **0.024 s** |
-| 100 | 2.98 s | **0.031 s** |
-| 200 | 16.88 s | **0.050 s** |
-| 400 | 85.38 s | **0.088 s** |
-
-Roughly N^2.4 became roughly linear. Downstream, The Coco's settlement
-lane — blocks sealed onto a chain through the store — went from 18.38 to
-**194.84 blocks/s at an identical arrangement**, and three of its lanes
-had to have their counts raised because they finished in under a second
-and the harness refused to print a rate for them.
-
-**Neither fix touched the per-inference cost**, and the table above is
-unchanged by them on the four compute tasks. Two defects moved; a design
-did not.
+**The benchmark found two defects on its way here**, both fixed long
+before 1.8.48: a keyed lookup that walked every clause, so its gap to a
+dict grew with the table where an index keeps it flat (the lookup-shape
+table under each run in bench/README.md still checks it), and writes that
+were quadratic in the clauses already there, until the write batch spanned
+the turn. Neither fix touched the per-inference cost.
 
 ## A worked store slows down. Truncate it.
 
