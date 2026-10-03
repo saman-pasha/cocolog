@@ -1688,3 +1688,32 @@ The feminine noun "rueda de prensa" means "press conference".
 # first (a line of extra/ and the entries read both ways come before the
 # dictionary's order), which wrote `medio secolo' for `mezzo secolo'
 The masculine adjective "medio" means "half".
+# the Israeli report (AnCora CESS-CAST-P-20010102-25), into Italian.
+# `ultraderecha' and `anoche': the monolingual dictionary has the first with
+# no English word, and the bilingual one has the second only as two words
+# (`last night'), which the builder leaves out. `ellas' is the feminine of
+# `ellos', which the hand lesson has: `una de ellas' is one of them
+The feminine noun "ultraderecha" means "far right".
+The adverb "anoche" means "last night".
+The pronoun "ellas" means "they".
+The pronoun "ellas" means "them".
+The pronoun "ellas" does not precede the verb.
+# the Israeli report, more words: `clamores de venganza' is vengeance -- the
+# first English word the dictionary gives `venganza' is `revenge', which the
+# Italian lessons write `rivincita' (a rematch); `la cisjordana localidad' is
+# a locality, where `location' became `localizzazione'; `en la madrugada de
+# ayer' is at dawn yesterday, not in the morning; and `una cuarentena de
+# personas' is about forty people, which Italian writes `una quarantina'
+The feminine noun "venganza" means "vengeance".
+The feminine noun "localidad" means "locality".
+The feminine noun "madrugada" means "dawn".
+The feminine noun "cuarentena" means "about forty".
+# the Israeli report, a verb and a noun: `no descartaban' ruled out, which the
+# dictionary reads as `dismiss' (Italian `licenziare', fired) -- `descartar'
+# reads as `excludes' now, with `excluir' said first so that it stays the
+# word written for it; and `un atentado' is a terrorist attack where the
+# dictionary says `attack', which Italian writes `attacco' (an attack in a
+# match), and its `attentato' means it
+The verb "excluye" means "excludes".
+The verb "descarta" means "excludes".
+The masculine noun "atentado" means "terrorist attack".

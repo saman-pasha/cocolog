@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20359 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20366 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -880,6 +880,18 @@ The masculine noun "proyecto de ley" means "bill".
 The feminine noun "rueda de prensa" means "press conference".
 "ruedas de prensa" is the plural of "rueda de prensa".
 The masculine adjective "medio" means "half".
+The feminine noun "ultraderecha" means "far right".
+The adverb "anoche" means "last night".
+The pronoun "ellas" means "they".
+The pronoun "ellas" means "them".
+The pronoun "ellas" does not precede the verb.
+The feminine noun "venganza" means "vengeance".
+The feminine noun "localidad" means "locality".
+The feminine noun "madrugada" means "dawn".
+The feminine noun "cuarentena" means "about forty".
+The verb "excluye" means "excludes".
+The verb "descarta" means "excludes".
+The masculine noun "atentado" means "terrorist attack".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1011,6 +1023,8 @@ The feminine noun "central" means "central".
 "centrales" is the plural of "central".
 The feminine noun "clasificación" means "ranking".
 "clasificaciones" is the plural of "clasificación".
+The feminine noun "escalada" means "escalation".
+"escaladas" is the plural of "escalada".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -2702,7 +2716,6 @@ The masculine noun "escalofrío" means "shiver".
 The masculine noun "estremecimiento" means "shudder".
 "estremecimientos" is the plural of "estremecimiento".
 The feminine noun "escalada" means "climbing".
-"escaladas" is the plural of "escalada".
 The masculine noun "clip" means "clip".
 "clips" is the plural of "clip".
 The masculine noun "reloj" means "clock".
@@ -20114,6 +20127,10 @@ The masculine noun "dictamen" means "report".
 "dictámenes" is the plural of "dictamen".
 The feminine noun "revancha" means "revenge".
 "revanchas" is the plural of "revancha".
+The masculine noun "sepelio" means "funeral".
+"sepelios" is the plural of "sepelio".
+The masculine noun "colono" means "colonist".
+"colonos" is the plural of "colono".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -27848,6 +27865,52 @@ The verb "duplica" means "doubles".
 "duplicadas" is the plural of "duplicada".
 "duplicar" is the infinitive of "duplica".
 "duplicando" is the gerund of "duplica".
+The verb "abate" means "fells".
+"abaten" is the plural of "abate".
+"abatimos" is the first person of "abaten".
+"abato" is the first person of "abate".
+"abates" is the second person of "abate".
+"abatió" is the past of "abate".
+"abatieron" is the past of "abaten".
+"abatimos" is the first person of "abatieron".
+"abatí" is the first person of "abatió".
+"abatiste" is the second person of "abatió".
+"abatía" is the past of "abate".
+"abatían" is the past of "abaten".
+"abatíamos" is the first person of "abatían".
+"abatías" is the second person of "abatía".
+"abatirá" is the future of "abate".
+"abatirán" is the plural of "abatirá".
+"abatiremos" is the first person of "abatirán".
+"abatiré" is the first person of "abatirá".
+"abatirás" is the second person of "abatirá".
+"abatiría" is the conditional of "abate".
+"abatirían" is the plural of "abatiría".
+"abatiríamos" is the first person of "abatirían".
+"abatirías" is the second person of "abatiría".
+"abata" is the subjunctive of "abate".
+"abatan" is the plural of "abata".
+"abatamos" is the first person of "abatan".
+"abatas" is the second person of "abata".
+"abatiera" is the past subjunctive of "abate".
+"abatieran" is the plural of "abatiera".
+"abatiéramos" is the first person of "abatieran".
+"abatieras" is the second person of "abatiera".
+"abate" is the imperative of "abate".
+"abatas" is the negative imperative of "abate".
+"abatid" is the imperative of "abaten".
+"abatáis" is the negative imperative of "abaten".
+"abatamos" is the hortative of "abate".
+"abatido" is the participle of "abate".
+"abatida" is the participle of "abate".
+"abatida" is feminine.
+"abatidos" is the participle of "abate".
+"abatidos" is the plural of "abatido".
+"abatidas" is the participle of "abate".
+"abatidas" is feminine.
+"abatidas" is the plural of "abatida".
+"abatir" is the infinitive of "abate".
+"abatiendo" is the gerund of "abate".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -108418,6 +108481,52 @@ The verb "traspasa" means "transfers".
 "traspasadas" is the plural of "traspasada".
 "traspasar" is the infinitive of "traspasa".
 "traspasando" is the gerund of "traspasa".
+The verb "clama" means "cries".
+"claman" is the plural of "clama".
+"clamamos" is the first person of "claman".
+"clamo" is the first person of "clama".
+"clamas" is the second person of "clama".
+"clamó" is the past of "clama".
+"clamaron" is the past of "claman".
+"clamamos" is the first person of "clamaron".
+"clamé" is the first person of "clamó".
+"clamaste" is the second person of "clamó".
+"clamaba" is the past of "clama".
+"clamaban" is the past of "claman".
+"clamábamos" is the first person of "clamaban".
+"clamabas" is the second person of "clamaba".
+"clamará" is the future of "clama".
+"clamarán" is the plural of "clamará".
+"clamaremos" is the first person of "clamarán".
+"clamaré" is the first person of "clamará".
+"clamarás" is the second person of "clamará".
+"clamaría" is the conditional of "clama".
+"clamarían" is the plural of "clamaría".
+"clamaríamos" is the first person of "clamarían".
+"clamarías" is the second person of "clamaría".
+"clame" is the subjunctive of "clama".
+"clamen" is the plural of "clame".
+"clamemos" is the first person of "clamen".
+"clames" is the second person of "clame".
+"clamara" is the past subjunctive of "clama".
+"clamaran" is the plural of "clamara".
+"clamáramos" is the first person of "clamaran".
+"clamaras" is the second person of "clamara".
+"clama" is the imperative of "clama".
+"clames" is the negative imperative of "clama".
+"clamad" is the imperative of "claman".
+"claméis" is the negative imperative of "claman".
+"clamemos" is the hortative of "clama".
+"clamado" is the participle of "clama".
+"clamada" is the participle of "clama".
+"clamada" is feminine.
+"clamados" is the participle of "clama".
+"clamados" is the plural of "clamado".
+"clamadas" is the participle of "clama".
+"clamadas" is feminine.
+"clamadas" is the plural of "clamada".
+"clamar" is the infinitive of "clama".
+"clamando" is the gerund of "clama".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -123361,6 +123470,14 @@ The feminine adjective "media" means "average".
 "mediísima" is the superlative of "media".
 "mediísimos" is the superlative of "medios".
 "mediísimo" is the superlative of "medio".
+The masculine adjective "cisjordano" means "cisjordanian".
+"cisjordanos" is the plural of "cisjordano".
+The feminine adjective "cisjordana" means "cisjordanian".
+"cisjordanas" is the plural of "cisjordana".
+The masculine adjective "multitudinario" means "crowded".
+"multitudinarios" is the plural of "multitudinario".
+The feminine adjective "multitudinaria" means "crowded".
+"multitudinarias" is the plural of "multitudinaria".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -130624,9 +130741,7 @@ The feminine adjective "cuadrada" means "square".
 The adjective "uniforme" means "uniform".
 "uniformes" is the plural of "uniforme".
 The masculine adjective "multitudinario" means "multitudinous".
-"multitudinarios" is the plural of "multitudinario".
 The feminine adjective "multitudinaria" means "multitudinous".
-"multitudinarias" is the plural of "multitudinaria".
 The adjective "récord" means "record".
 The masculine adjective "opuesto" means "opposite".
 "opuestos" is the plural of "opuesto".

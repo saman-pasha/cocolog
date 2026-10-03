@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16433 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16442 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1245,6 +1245,62 @@ The masculine noun "disegno di legge" means "bill".
 The feminine noun "conferenza stampa" means "press conference".
 "conferenze stampa" is the plural of "conferenza stampa".
 The masculine noun "equilibrio" means "equilibrium".
+The feminine noun "estrema destra" means "far right".
+The adverb "ieri sera" means "last night".
+The adverb "inoltre" means "besides".
+The adverb "inoltre" means "likewise".
+The feminine noun "località" means "locality".
+The feminine noun "quarantina" means "about forty".
+The verb "ammanetta" means "manacles".
+"ammanettano" is the plural of "ammanetta".
+"ammanettiamo" is the first person of "ammanettano".
+"ammanetto" is the first person of "ammanetta".
+"ammanetti" is the second person of "ammanetta".
+"ammanettò" is the past of "ammanetta".
+"ammanettarono" is the past of "ammanettano".
+"ammanettammo" is the first person of "ammanettarono".
+"ammanettai" is the first person of "ammanettò".
+"ammanettasti" is the second person of "ammanettò".
+"ammanettava" is the past of "ammanetta".
+"ammanettavano" is the past of "ammanettano".
+"ammanettavamo" is the first person of "ammanettavano".
+"ammanettavo" is the first person of "ammanettava".
+"ammanettavi" is the second person of "ammanettava".
+"ammanetterà" is the future of "ammanetta".
+"ammanetteranno" is the plural of "ammanetterà".
+"ammanetteremo" is the first person of "ammanetteranno".
+"ammanetterò" is the first person of "ammanetterà".
+"ammanetterai" is the second person of "ammanetterà".
+"ammanetterebbe" is the conditional of "ammanetta".
+"ammanetterebbero" is the plural of "ammanetterebbe".
+"ammanetteremmo" is the first person of "ammanetterebbero".
+"ammanetterei" is the first person of "ammanetterebbe".
+"ammanetteresti" is the second person of "ammanetterebbe".
+"ammanetti" is the subjunctive of "ammanetta".
+"ammanettino" is the plural of "ammanetti".
+"ammanettiamo" is the first person of "ammanettino".
+"ammanettasse" is the past subjunctive of "ammanetta".
+"ammanettassero" is the plural of "ammanettasse".
+"ammanettassimo" is the first person of "ammanettassero".
+"ammanettassi" is the first person of "ammanettasse".
+"ammanettassi" is the second person of "ammanettasse".
+"ammanetta" is the imperative of "ammanetta".
+"ammanettare" is the negative imperative of "ammanetta".
+"ammanettate" is the imperative of "ammanettano".
+"ammanettiamo" is the hortative of "ammanetta".
+"ammanettato" is the participle of "ammanetta".
+"ammanettata" is the participle of "ammanetta".
+"ammanettata" is feminine.
+"ammanettati" is the participle of "ammanetta".
+"ammanettati" is the plural of "ammanettato".
+"ammanettate" is the participle of "ammanetta".
+"ammanettate" is feminine.
+"ammanettate" is the plural of "ammanettata".
+"ammanettare" is the infinitive of "ammanetta".
+"ammanettando" is the gerund of "ammanetta".
+The masculine noun "attentato" means "terrorist attack".
+The masculine adjective "confuso" means "confused".
+The feminine adjective "confusa" means "confused".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1426,6 +1482,20 @@ The feminine noun "prole" means "offspring".
 "prole" is a person.
 The feminine noun "classifica" means "ranking".
 "classifiche" is the plural of "classifica".
+The masculine noun "sospettato" means "suspect".
+"sospettati" is the plural of "sospettato".
+"sospettato" is a person.
+The feminine noun "sospettata" means "suspect".
+"sospettate" is the plural of "sospettata".
+"sospettata" is a person.
+The feminine noun "vendetta" means "vengeance".
+"vendette" is the plural of "vendetta".
+The feminine noun "escalation" means "escalation".
+"escalation" is the plural of "escalation".
+The masculine noun "scambio" means "exchange".
+"scambi" is the plural of "scambio".
+The masculine noun "sparo" means "shot".
+"spari" is the plural of "sparo".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -20680,7 +20750,6 @@ The feminine noun "equitazione" means "equitation".
 "equitazioni" is the plural of "equitazione".
 The feminine noun "proprietà" means "estate".
 The masculine noun "esame" means "examination".
-The masculine noun "cambio" means "exchange".
 The feminine noun "esalazione" means "exhalation".
 The feminine noun "etichettatura" means "labeling".
 The feminine noun "spedizione" means "expedition".
@@ -23602,6 +23671,100 @@ The verb "risiede" means "resides".
 "risedute" is the plural of "riseduta".
 "risedere" is the infinitive of "risiede".
 "risedendo" is the gerund of "risiede".
+The verb "abbatte" means "fells".
+"abbattono" is the plural of "abbatte".
+"abbattiamo" is the first person of "abbattono".
+"abbatto" is the first person of "abbatte".
+"abbatti" is the second person of "abbatte".
+"abbatté" is the past of "abbatte".
+"abbatterono" is the past of "abbattono".
+"abbattemmo" is the first person of "abbatterono".
+"abbattei" is the first person of "abbatté".
+"abbattesti" is the second person of "abbatté".
+"abbatteva" is the past of "abbatte".
+"abbattevano" is the past of "abbattono".
+"abbattevamo" is the first person of "abbattevano".
+"abbattevo" is the first person of "abbatteva".
+"abbattevi" is the second person of "abbatteva".
+"abbatterà" is the future of "abbatte".
+"abbatteranno" is the plural of "abbatterà".
+"abbatteremo" is the first person of "abbatteranno".
+"abbatterò" is the first person of "abbatterà".
+"abbatterai" is the second person of "abbatterà".
+"abbatterebbe" is the conditional of "abbatte".
+"abbatterebbero" is the plural of "abbatterebbe".
+"abbatteremmo" is the first person of "abbatterebbero".
+"abbatterei" is the first person of "abbatterebbe".
+"abbatteresti" is the second person of "abbatterebbe".
+"abbatta" is the subjunctive of "abbatte".
+"abbattano" is the plural of "abbatta".
+"abbattiamo" is the first person of "abbattano".
+"abbattesse" is the past subjunctive of "abbatte".
+"abbattessero" is the plural of "abbattesse".
+"abbattessimo" is the first person of "abbattessero".
+"abbattessi" is the first person of "abbattesse".
+"abbattessi" is the second person of "abbattesse".
+"abbatti" is the imperative of "abbatte".
+"abbattere" is the negative imperative of "abbatte".
+"abbattete" is the imperative of "abbattono".
+"abbattiamo" is the hortative of "abbatte".
+"abbattuto" is the participle of "abbatte".
+"abbattuta" is the participle of "abbatte".
+"abbattuta" is feminine.
+"abbattuti" is the participle of "abbatte".
+"abbattuti" is the plural of "abbattuto".
+"abbattute" is the participle of "abbatte".
+"abbattute" is feminine.
+"abbattute" is the plural of "abbattuta".
+"abbattere" is the infinitive of "abbatte".
+"abbattendo" is the gerund of "abbatte".
+The verb "appare" means "appears".
+"appaiono" is the plural of "appare".
+"appariamo" is the first person of "appaiono".
+"appaio" is the first person of "appare".
+"appari" is the second person of "appare".
+"apparve" is the past of "appare".
+"apparvero" is the past of "appaiono".
+"apparimmo" is the first person of "apparvero".
+"apparvi" is the first person of "apparve".
+"apparisti" is the second person of "apparve".
+"appariva" is the past of "appare".
+"apparivano" is the past of "appaiono".
+"apparivamo" is the first person of "apparivano".
+"apparivo" is the first person of "appariva".
+"apparivi" is the second person of "appariva".
+"apparirà" is the future of "appare".
+"appariranno" is the plural of "apparirà".
+"appariremo" is the first person of "appariranno".
+"apparirò" is the first person of "apparirà".
+"apparirai" is the second person of "apparirà".
+"apparirebbe" is the conditional of "appare".
+"apparirebbero" is the plural of "apparirebbe".
+"appariremmo" is the first person of "apparirebbero".
+"apparirei" is the first person of "apparirebbe".
+"appariresti" is the second person of "apparirebbe".
+"appaia" is the subjunctive of "appare".
+"appaiano" is the plural of "appaia".
+"appariamo" is the first person of "appaiano".
+"apparisse" is the past subjunctive of "appare".
+"apparissero" is the plural of "apparisse".
+"apparissimo" is the first person of "apparissero".
+"apparissi" is the first person of "apparisse".
+"apparissi" is the second person of "apparisse".
+"appari" is the imperative of "appare".
+"apparire" is the negative imperative of "appare".
+"apparite" is the imperative of "appaiono".
+"appariamo" is the hortative of "appare".
+"apparso" is the participle of "appare".
+"apparsa" is the participle of "appare".
+"apparsa" is feminine.
+"apparsi" is the participle of "appare".
+"apparsi" is the plural of "apparso".
+"apparse" is the participle of "appare".
+"apparse" is feminine.
+"apparse" is the plural of "apparsa".
+"apparire" is the infinitive of "appare".
+"apparendo" is the gerund of "appare".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -28411,53 +28574,6 @@ The verb "anticipa" means "anticipates".
 "anticipate" is the plural of "anticipata".
 "anticipare" is the infinitive of "anticipa".
 "anticipando" is the gerund of "anticipa".
-The verb "appare" means "appears".
-"appaiono" is the plural of "appare".
-"appariamo" is the first person of "appaiono".
-"appaio" is the first person of "appare".
-"appari" is the second person of "appare".
-"apparve" is the past of "appare".
-"apparvero" is the past of "appaiono".
-"apparimmo" is the first person of "apparvero".
-"apparvi" is the first person of "apparve".
-"apparisti" is the second person of "apparve".
-"appariva" is the past of "appare".
-"apparivano" is the past of "appaiono".
-"apparivamo" is the first person of "apparivano".
-"apparivo" is the first person of "appariva".
-"apparivi" is the second person of "appariva".
-"apparirà" is the future of "appare".
-"appariranno" is the plural of "apparirà".
-"appariremo" is the first person of "appariranno".
-"apparirò" is the first person of "apparirà".
-"apparirai" is the second person of "apparirà".
-"apparirebbe" is the conditional of "appare".
-"apparirebbero" is the plural of "apparirebbe".
-"appariremmo" is the first person of "apparirebbero".
-"apparirei" is the first person of "apparirebbe".
-"appariresti" is the second person of "apparirebbe".
-"appaia" is the subjunctive of "appare".
-"appaiano" is the plural of "appaia".
-"appariamo" is the first person of "appaiano".
-"apparisse" is the past subjunctive of "appare".
-"apparissero" is the plural of "apparisse".
-"apparissimo" is the first person of "apparissero".
-"apparissi" is the first person of "apparisse".
-"apparissi" is the second person of "apparisse".
-"appari" is the imperative of "appare".
-"apparire" is the negative imperative of "appare".
-"apparite" is the imperative of "appaiono".
-"appariamo" is the hortative of "appare".
-"apparso" is the participle of "appare".
-"apparsa" is the participle of "appare".
-"apparsa" is feminine.
-"apparsi" is the participle of "appare".
-"apparsi" is the plural of "apparso".
-"apparse" is the participle of "appare".
-"apparse" is feminine.
-"apparse" is the plural of "apparsa".
-"apparire" is the infinitive of "appare".
-"apparendo" is the gerund of "appare".
 The verb "placa" means "appeases".
 "placano" is the plural of "placa".
 "plachiamo" is the first person of "placano".
@@ -98196,6 +98312,34 @@ The masculine adjective "medio" means "average".
 "medi" is the plural of "medio".
 The feminine adjective "media" means "average".
 "medie" is the plural of "media".
+The masculine adjective "cisgiordano" means "cisjordanian".
+"cisgiordani" is the plural of "cisgiordano".
+The feminine adjective "cisgiordana" means "cisjordanian".
+"cisgiordane" is the plural of "cisgiordana".
+"cisgiordanissimo" is the superlative of "cisgiordano".
+"cisgiordanissimi" is the superlative of "cisgiordani".
+"cisgiordanissima" is the superlative of "cisgiordana".
+"cisgiordanissime" is the superlative of "cisgiordane".
+The adjective "omicida" means "murderous".
+"omicidi" is the plural of "omicida".
+"omicide" is the plural of "omicida".
+"omicide" is feminine.
+The masculine adjective "armato" means "armed".
+"armati" is the plural of "armato".
+The feminine adjective "armata" means "armed".
+"armate" is the plural of "armata".
+"armatissimo" is the superlative of "armato".
+"armatissimi" is the superlative of "armati".
+"armatissima" is the superlative of "armata".
+"armatissime" is the superlative of "armate".
+The masculine adjective "affollato" means "crowded".
+"affollati" is the plural of "affollato".
+The feminine adjective "affollata" means "crowded".
+"affollate" is the plural of "affollata".
+"affollatissimo" is the superlative of "affollato".
+"affollatissimi" is the superlative of "affollati".
+"affollatissima" is the superlative of "affollata".
+"affollatissime" is the superlative of "affollate".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

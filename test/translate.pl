@@ -31,6 +31,7 @@ main :-
     newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
+    newspaper_israel,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -10528,6 +10529,160 @@ newspaper_poverty_checks_6 :-
     nf_tr('Il "cane di casa" francese dorme.', italian, spanish, F2),
     check('... and a mark that closes on the noun stays on it, whatever follows: `"reddito minimo di inserimento" francese'' came out `... inserción francesa"''', F2,
           'El "perro de casa" francesa duerme.').
+
+
+% ---- a Spanish report into Italian ---------------------------------------------------------
+%%
+%% A Spanish report of the Israeli and Palestinian violence -- AnCora CESS-CAST-P-20010102-25,
+%% twenty-two sentences, nine read before this -- needed five shapes beyond its words: a share
+%% of a plural for a subject (`parte de los explosivos fueron colocados'), a day after a
+%% reduced relative's participle (`los hechos ocurridos el pasado domingo'), a phrase of
+%% `among' with a pronoun between commas (`cuatro palestinos, entre ellos un niño de 10 años,
+%% y ...'), the participle after a perfect infinitive's copula agreeing (`haber sido
+%% esposados'), and a day before a relative clause's verb (`un niño de 10 años que el domingo
+%% había resultado gravemente herido'). Each is pinned on two small lessons of its own, and
+%% each check but the four marked as guards fails on the translator before them.
+
+newspaper_israel :-
+    section('a Spanish report into Italian: a share of a plural for a subject, a day after a participle, a phrase of `among'' with a pronoun between commas, the participle after a perfect infinitive''s copula, a day before a relative clause''s verb'),
+    newspaper_israel_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_israel_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_israel_checks_1, newspaper_israel_checks_2, newspaper_israel_checks_3,
+    newspaper_israel_checks_4, newspaper_israel_checks_5,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others. What the vocabulary gives a word the lesson gives it
+%% too: `parte' a noun and a verb's form, `entre' a preposition and the subjunctive of `entrar',
+%% `vista' a participle and a noun, `domingo' a day that takes the article in Spanish
+newspaper_israel_lesson(L, Text) :-
+    newspaper_israel_part(L, 1, A), newspaper_israel_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+newspaper_israel_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "no" means "not".
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "parte" means "part".
+The noun "domingo" means "sunday". "domingo" is a time. The article "el" takes the day.
+The pronoun "ellos" means "they". The pronoun "ellos" means "them". The pronoun "ellos" does not precede the verb.
+The number "dos" means "two". The number "cuatro" means "four".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "entre" means "among".').
+newspaper_israel_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "comido" is the participle of "come".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "parte" means "leaves". "parten" is the plural of "parte".
+The verb "compra" means "buys". "comprado" is the participle of "compra". "comprados" is the participle of "compra". "comprados" is the plural of "comprado".
+The verb "ve" means "sees". "visto" is the participle of "ve". "vista" is the participle of "ve". "vista" is feminine. "vistos" is the participle of "ve". "vistos" is the plural of "visto". "vistas" is the participle of "ve". "vistas" is feminine. "vistas" is the plural of "vista".
+The verb "parece" means "seems". "parecen" is the plural of "parece".
+The auxiliary "ha" means "has". "han" is the plural of "ha". "haber" is the infinitive of "ha". "ha" is the auxiliary of "es".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra".
+"bought" is the participle of "buys". "seen" is the participle of "sees". "been" is the participle of "is".').
+newspaper_israel_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la".
+"dei" is the contraction of "di i". "delle" is the contraction of "di le". "degli" is the contraction of "di gli". "al" is the contraction of "a il". "ai" is the contraction of "a i".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The word "non" means "not".
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The feminine noun "parte" means "part".
+The feminine noun "domenica" means "sunday". "domenica" is a time.
+The pronoun "loro" means "they". The pronoun "loro" means "them". The pronoun "loro" does not precede the verb.
+The number "due" means "two". The number "quattro" means "four".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "tra" means "among".').
+newspaper_israel_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiato" is the participle of "mangia".
+The verb "ha" means "has". "hanno" is the plural of "ha". "avere" is the infinitive of "ha".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "è" is the auxiliary of "è".
+"stato" is the participle of "è". "stata" is the participle of "è". "stata" is feminine. "stati" is the participle of "è". "stati" is the plural of "stato". "state" is the participle of "è". "state" is feminine. "state" is the plural of "stata".
+The verb "compra" means "buys". "comprato" is the participle of "compra". "comprata" is the participle of "compra". "comprata" is feminine. "comprati" is the participle of "compra". "comprati" is the plural of "comprato".
+The verb "parte" means "leaves". "partono" is the plural of "parte". "case" is the plural of "casa".
+The verb "vede" means "sees". "visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine. "visti" is the participle of "vede". "visti" is the plural of "visto". "viste" is the participle of "vede". "viste" is feminine. "viste" is the plural of "vista".
+The verb "sembra" means "seems". "sembrano" is the plural of "sembra".
+The verb "entra" means "enters".
+The auxiliary "ha" means "has".').
+
+newspaper_israel_checks_1 :-
+    nf_tr('Parte de los perros comen el pan.', spanish, italian, A1),
+    check('A SHARE OF A PLURAL is the subject, and the plural''s verb agrees with it: `Al menos, parte de los explosivos fueron colocados cerca o dentro de un vehículo'' was refused -- `parte'' is the verb''s third person too, so a bare singular that is a verb''s form was no subject, and `fueron'' did not agree with it', A1,
+          'Parte dei cani mangia il pane.'),
+    nf_tr('Parte de los perros come el pan.', spanish, italian, A2),
+    check('... and the singular''s verb as well', A2,
+          'Parte dei cani mangia il pane.'),
+    nf_tr('Parte de los perros comen el pan.', spanish, english, A3),
+    check('... and in English', A3,
+          'Part of the dogs eats the bread.'),
+    nf_tr('Parte con los perros.', spanish, italian, A4),
+    check('a GUARD: a share word with no plural after `de'' is the verb still: he leaves with the dogs', A4,
+          'Parte con i cani.').
+
+newspaper_israel_checks_2 :-
+    nf_tr('Los perros comprados el domingo comen el pan.', spanish, italian, B1),
+    check('A DAY AFTER A REDUCED RELATIVE''S PARTICIPLE is the participle''s own: `los hechos ocurridos el pasado domingo arrastran la situación'' was refused -- a participle took an agent and nothing else, so the day was left to a verb that is not its', B1,
+          'I cani comprati domenica mangiano il pane.'),
+    nf_tr('Los perros comprados el domingo comen el pan.', spanish, english, B2),
+    check('... and in English', B2,
+          'The dogs bought sunday eat the bread.'),
+    nf_tr('Los perros vistos el domingo duermen.', spanish, italian, B3),
+    check('... with a participle of another verb', B3,
+          'I cani visti domenica dormono.').
+
+newspaper_israel_checks_3 :-
+    nf_tr('Dos perros, entre ellos un gato, comen el pan.', spanish, italian, C1),
+    check('A PHRASE OF `AMONG'' WITH A PRONOUN after its noun and a comma stands aside like the others: `cuatro palestinos, entre ellos un niño de 10 años, y dos israelís, perdieron la vida'' read `entre'', the subjunctive of `entrar'' too, as the verb of a clause of its own -- `li entra un bimbo di 10 anni''', C1,
+          'Due cani, tra loro un gatto, mangiano il pane.'),
+    nf_tr('Dos perros, entre ellos un gato, comen el pan.', spanish, english, C2),
+    check('... and in English', C2,
+          'Two dogs, among them a cat, eat the bread.'),
+    nf_tr('Entre ellos un gato duerme.', spanish, italian, C3),
+    check('a GUARD: with no noun before it the phrase stays where it stood, a phrase of the clause', C3,
+          'Un gatto dorme tra loro.').
+
+newspaper_israel_checks_4 :-
+    nf_tr('Los perros parecen haber sido vistos.', spanish, italian, D1),
+    check('THE PARTICIPLE AFTER A PERFECT INFINITIVE''S COPULA AGREES WITH THE SUBJECT: `mostraban signos de haber sido esposados y maltratados'' came out `d''esser stato ammanettati e abusati'', the one participle left in the masculine singular beside the predicates that agreed', D1,
+          'I cani sembrano essere stati visti.'),
+    nf_tr('La casa parece haber sido vista.', spanish, italian, D2),
+    check('... in the feminine singular', D2,
+          'La casa sembra essere stata vista.'),
+    nf_tr('Las casas parecen haber sido vistas.', spanish, italian, D3),
+    check('... and the feminine plural', D3,
+          'Le case sembrano essere state viste.'),
+    nf_tr('Los perros parecen haber sido vistos.', spanish, english, D4),
+    check('a GUARD: English has no participle to agree', D4,
+          'The dogs seem to have been seen.'),
+    nf_tr('Los perros parecen haber comido el pan.', spanish, italian, D5),
+    check('a GUARD: after `avere'' the participle agrees with nothing', D5,
+          'I cani sembrano avere mangiato il pane.').
+
+newspaper_israel_checks_5 :-
+    nf_tr('El perro que el domingo come el pan duerme.', spanish, italian, E1),
+    check('A DAY BEFORE A RELATIVE CLAUSE''S VERB is its front, and the relative word its subject: `un niño que el domingo había resultado herido'' was the day for the clause''s subject, and a clause with an object of its own was refused', E1,
+          'Il cane che domenica mangia il pane dorme.'),
+    nf_tr('El perro que el domingo come el pan duerme.', spanish, english, E2),
+    check('... and in English', E2,
+          'The dog that sunday eats the bread sleeps.'),
+    reason_ir('El perro de las casas que el domingo duerme come el pan.', spanish, E3),
+    check('and never the day for the subject of an object reading: `un niño de 10 años que el domingo había resultado gravemente herido'' hangs the clause on the years, which its singular gap does not agree with, and read as an object `el domingo'' was the one hurt, `che domenica era risultata ferita''', E3,
+          [ir(s(none, with(np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
+                            [pp(w(of, lower),
+                                rc(np(det(article, the, w(the, lower)), none, [], w(house, lower), plural), subject,
+                                   s(none, gap(third, singular), g(sleeps, present, simple, no),
+                                     [frn(at_time(np(none, none, [], w(sunday, lower), singular)))])))]),
+                g(eats, present, simple, no),
+                [obj(np(det(article, the, w(the, lower)), none, [], w(bread, lower), singular))]), 46)]).
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

@@ -2241,3 +2241,69 @@ The feminine noun "conferenza stampa" means "press conference".
 # balance (`un consuntivo inquietante') took `equilibrio' with it, which wrote
 # `con balance': the Italian word is the equilibrium first, as Spanish's is
 The masculine noun "equilibrio" means "equilibrium".
+# the Israeli report, from Spanish: `la ultraderecha' is the far right, which
+# Italian says `l'estrema destra', and `anoche' is last night, `ieri sera'
+The feminine noun "estrema destra" means "far right".
+The adverb "ieri sera" means "last night".
+# the Israeli report, more words: `asimismo' is likewise, which Italian says
+# `inoltre' (said again as `besides' first, which the lesson's reader keeps);
+# `località' is a locality before it is a town; `una quarantina di persone';
+# and `ammanettare', which apertium-ita lacks and the bilingual dictionary
+# has for `manacle' -- the forms of `incatenare', a regular verb of the same
+# conjugation, with its stem changed
+The adverb "inoltre" means "besides".
+The adverb "inoltre" means "likewise".
+The feminine noun "località" means "locality".
+The feminine noun "quarantina" means "about forty".
+The verb "ammanetta" means "manacles".
+"ammanettano" is the plural of "ammanetta".
+"ammanettiamo" is the first person of "ammanettano".
+"ammanetto" is the first person of "ammanetta".
+"ammanetti" is the second person of "ammanetta".
+"ammanettò" is the past of "ammanetta".
+"ammanettarono" is the past of "ammanettano".
+"ammanettammo" is the first person of "ammanettarono".
+"ammanettai" is the first person of "ammanettò".
+"ammanettasti" is the second person of "ammanettò".
+"ammanettava" is the past of "ammanetta".
+"ammanettavano" is the past of "ammanettano".
+"ammanettavamo" is the first person of "ammanettavano".
+"ammanettavo" is the first person of "ammanettava".
+"ammanettavi" is the second person of "ammanettava".
+"ammanetterà" is the future of "ammanetta".
+"ammanetteranno" is the plural of "ammanetterà".
+"ammanetteremo" is the first person of "ammanetteranno".
+"ammanetterò" is the first person of "ammanetterà".
+"ammanetterai" is the second person of "ammanetterà".
+"ammanetterebbe" is the conditional of "ammanetta".
+"ammanetterebbero" is the plural of "ammanetterebbe".
+"ammanetteremmo" is the first person of "ammanetterebbero".
+"ammanetterei" is the first person of "ammanetterebbe".
+"ammanetteresti" is the second person of "ammanetterebbe".
+"ammanetti" is the subjunctive of "ammanetta".
+"ammanettino" is the plural of "ammanetti".
+"ammanettiamo" is the first person of "ammanettino".
+"ammanettasse" is the past subjunctive of "ammanetta".
+"ammanettassero" is the plural of "ammanettasse".
+"ammanettassimo" is the first person of "ammanettassero".
+"ammanettassi" is the first person of "ammanettasse".
+"ammanettassi" is the second person of "ammanettasse".
+"ammanetta" is the imperative of "ammanetta".
+"ammanettare" is the negative imperative of "ammanetta".
+"ammanettate" is the imperative of "ammanettano".
+"ammanettiamo" is the hortative of "ammanetta".
+"ammanettato" is the participle of "ammanetta".
+"ammanettata" is the participle of "ammanetta".
+"ammanettata" is feminine.
+"ammanettati" is the participle of "ammanetta".
+"ammanettati" is the plural of "ammanettato".
+"ammanettate" is the participle of "ammanetta".
+"ammanettate" is feminine.
+"ammanettate" is the plural of "ammanettata".
+"ammanettare" is the infinitive of "ammanetta".
+"ammanettando" is the gerund of "ammanetta".
+# `un atentado' is an `attentato', the terrorist attack; and `confuso' is
+# confused, `confusionale' being the Livata lesson's word for a state
+The masculine noun "attentato" means "terrorist attack".
+The masculine adjective "confuso" means "confused".
+The feminine adjective "confusa" means "confused".

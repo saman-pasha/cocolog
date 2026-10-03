@@ -2577,6 +2577,22 @@ tr_asides(Side, [W, comma, P, w(Y, YC)|Ws0], [W, w(K, aside)|Ws]) :-
     ( tr_is(Side, W, noun) -> true ; tr_name_word(Side, W) ),
     ( Ws0 == [] -> Rest = [] ; Ws0 = [comma|Rest] ), !,
     tr_aside_key(K, [P, w(Y, YC)]), tr_asides(Side, Rest, Ws).
+%% ... AND A PHRASE OF `AMONG' WITH A PRONOUN, after a noun and its comma: `cuatro
+%% palestinos, entre ellos un niño de 10 años, y dos israelís, perdieron la vida'
+%% -- the boy is one of the four. `entre' is the subjunctive of `entrar' too,
+%% and read as the clause's own words it was that verb, `li entra un bimbo',
+%% the boy its subject. The preposition, its pronoun and what they have after
+%% them, to the next comma or the end, are read as the phrase of a preposition
+%% is (tr_complements/3), and the phrase hangs on the noun before the comma
+tr_asides(foreign, [W, comma, P, Pr|Ws0], [W, w(K, aside)|Ws]) :-
+    W = w(_, _), tr_is(foreign, W, noun),
+    P = w(PW, _), atom(PW), tr_is(foreign, P, preposition), tr_lexeme(foreign, PW, PL, _), tr_solve(mean(PL, among)),
+    Pr = w(_, _), tr_is(foreign, Pr, pronoun),
+    ( append(In0, [comma|Rest], Ws0) -> true ; In0 = Ws0, Rest = [] ),
+    In0 \== [], In = [P, Pr|In0],
+    nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
+    tr_complements(foreign, In, [pp(_, _)|_]), !,
+    tr_aside_key(K, In), tr_asides(foreign, Rest, Ws).
 %% ... AND AN ADJECTIVE PHRASE BETWEEN TWO COMMAS AFTER THE PHRASE IT
 %% DESCRIBES: `una versión estilizada, conservadora en el mejor sentido del
 %% término, y permite ...', `el éxito, discreto pero al fin y al cabo éxito,
@@ -8202,7 +8218,11 @@ tr_read_generic(Side, Words0, Asked, S) :-
     %% `En esta versión, además, cuenta con una June Anderson en plena forma'
     %% read `cuenta con ... en plena' as the subject, an account, and `forma'
     %% as its verb, it forms -- where `cuenta' is the verb, it counts on her
-    \+ ( Side == foreign, tr_bare_singular(Subject0), SubjectWords = [w(F1, _)|_],
+    %% (EXCEPT A SHARE OF A PLURAL: `Parte de los explosivos fueron colocados' --
+    %% `parte' is the verb's third person too, and a share word before `de' and
+    %% a plural is the noun, with the plural's verb after it)
+    \+ ( Side == foreign, tr_bare_singular(Subject0), \+ tr_share_subject(Subject0),
+         SubjectWords = [w(F1, _)|_],
          tr_form(F1, L1, _, _, _), atom(L1), tr_class_of(L1, verb) ),
     %% A VERB THE LESSON CALLS REFLEXIVE TAKES `se' AS ITS OWN PRONOUN, never
     %% as the impersonal subject: `Se ha equivocado' is somebody erring, and
@@ -9671,16 +9691,21 @@ tr_name_after_comma(Side, Words) :-
 %% does, and both languages allow it. The head is a percentage, or a noun
 %% the lesson says means majority or minority, and a `de' phrase in the
 %% plural follows it.
-tr_number_agrees(foreign, with(NP0, [pp(P, NP2)|_]), plural) :-
+tr_number_agrees(foreign, S, plural) :- tr_share_subject(S), !.
+tr_number_agrees(foreign, S, N) :- tr_subject_number(S, SN), !, SN == N.
+
+%% the subject that is a share of a plural: the head a share word, `de' and the plural
+tr_share_subject(with(NP0, [pp(P, NP2)|_])) :-
     ( NP0 = all(_, NP) -> true ; NP = NP0 ),                % `tutta una serie di problemi'
     NP = np(_, _, _, w(W, _), singular), tr_share_word(W),
-    tr_means_of(foreign, P), tr_subject_number(NP2, plural), !.
-tr_number_agrees(foreign, S, N) :- tr_subject_number(S, SN), !, SN == N.
+    tr_means_of(foreign, P), tr_subject_number(NP2, plural).
 tr_number_agrees(_, _, _).
 
 tr_share_word(W) :- atom(W), sub_atom(W, _, 1, 0, '%'), !.
 %% ... and a SERIES of them: `una serie di problemi (...) vengono trascurati'
-tr_share_word(W) :- tr_lexeme(foreign, W, L, _), tr_solve(mean(L, E)), memberchk(E, [majority, minority, series]), !.
+%% ... and a PART of them: `parte de los explosivos fueron colocados cerca de
+%% un vehículo' -- the verb is the explosives', as the majority's is the voters'
+tr_share_word(W) :- tr_lexeme(foreign, W, L, _), tr_solve(mean(L, E)), memberchk(E, [majority, minority, series, part]), !.
 
 tr_subject_number(np(_, _, _, W, N), N) :- W \= elided(_), W \= named(_, _).
 %% (and a name the lesson states with no determiner is in the number it
@@ -10698,7 +10723,12 @@ tr_gap_agrees(_, _, _, _).
 %% quello guidato dal magnate televisivo ...', went from 8.3 million
 %% inferences to 13.4
 tr_rc_role(Side, _, NP, Role0, S0, Role0, S0) :- tr_gap_agrees(Side, Role0, S0, NP), !.
-tr_rc_role(Side, Rest, _, _, _, object, S) :- tr_relative_clause(Side, Rest, object, S), !.
+%% (never with a DAY for the subject: `un niño de 10 años que el domingo había
+%% resultado herido' hangs on the years, which the singular gap does not
+%% agree with, and read for an object `el domingo' was the subject, the day
+%% that was hurt, `che domenica era risultata ferita')
+tr_rc_role(Side, Rest, _, _, _, object, S) :-
+    tr_relative_clause(Side, Rest, object, S), S = s(_, Su, _, _), \+ tr_time_phrase(Su), !.
 %% ... and where neither reads, the first reading as it stood: a relative
 %% clause after two phrases joined agrees with both and hangs on the last,
 %% `un elicottero della forestale e uno della Guardia di finanza che hanno
@@ -11930,6 +11960,15 @@ tr_reduced_agent(Side, Ws, Cs) :-
     tr_complements(Side, Pre, Cs1), Cs1 \== [], forall(member(C, Cs1), tr_adjunct(C)), \+ memberchk(sep, Cs1),
     tr_reduced_agent(Side, [P|Rest], Cs2), Cs2 = [by(_)|_], !,
     append(Cs1, Cs2, Cs).
+%% ... AND A TIME: `los hechos ocurridos el pasado domingo arrastran la
+%% situación' -- the day they happened. A phrase that names a day or a month is
+%% nobody's agent and no object of the verb after it, so it is the participle's
+%% own: with nothing but an agent allowed here the phrase was left to a verb
+%% that is not its, and the sentence was refused (`ocurridos ayer' read, an
+%% adverb the clause took)
+tr_reduced_agent(foreign, Ws, Cs) :-
+    Ws = [w(_, _)|_], tr_time_noun_then(4, Ws, After), tr_time_tail(After), tr_time_after(foreign, Ws),
+    tr_complements(foreign, Ws, Cs), Cs = [at_time(_)|_], tr_adjuncts(Cs), \+ memberchk(sep, Cs), !.
 tr_reduced_agent(Side, Ws, [by(NP)|Cs]) :-
     Ws = [P|Rest], tr_is(Side, P, preposition), tr_means_by(Side, P), \+ tr_bare_start(Side, Rest),
     \+ tr_date_range(Side, Rest), \+ tr_time_after(Side, Rest),
@@ -13444,6 +13483,28 @@ tr_time_near([W|Ws]) :-
     (   tr_noun_of_lesson(W, N), ( tr_holds(time(N)) ; tr_holds(month(N)) ) -> true
     ;   tr_time_near(Ws)
     ).
+%% ... in the first N words only, where a time phrase has its noun (`el
+%% pasado domingo': the third); a clause's words run to the end of the sentence
+tr_time_in_first(N, Ws) :- tr_time_noun_then(N, Ws, _).
+%% ... and the words after that noun
+tr_time_noun_then(N, [W|Ws], After) :-
+    N > 0, W = w(X, _), atom(X), \+ tr_is(foreign, W, preposition),
+    (   tr_noun_of_lesson(W, Noun), ( tr_holds(time(Noun)) ; tr_holds(month(Noun)) ) -> After = Ws
+    ;   N1 is N - 1, tr_time_noun_then(N1, Ws, After)
+    ).
+%% a time phrase starts with an article or a demonstrative (`el domingo',
+%% `este lunes'), asked of the word first, which the phrase reader has asked
+%% already: the sentence keeps the answer (tr_is/3)
+tr_time_starts(Side, W) :-
+    W = w(X, _), atom(X), ( tr_is(Side, W, article) ; tr_is(Side, W, demonstrative) ), !.
+%% what follows a participle's time and belongs to it: nothing, or an adjunct
+%% -- never a comma, which the complements make a separator (and the participle's
+%% time has none), nor a phrase of its own, an object: `approvata il 12 gennaio il
+%% presidente ...' (the comma of an aside is not among the words) read the phrase
+%% and the rest of the sentence for the hundred thousand inferences that failed it
+tr_time_tail([]).
+tr_time_tail([R|_]) :-
+    R \== comma, \+ tr_is(foreign, R, article), \+ tr_is(foreign, R, demonstrative).
 
 %% ... BUT A DAY IS NOBODY'S AGENT: `è vietato DAL 24 luglio al 25 agosto',
 %% `"proibita" dal primo al 31 agosto' -- from one day to another, and read
@@ -15095,6 +15156,29 @@ tr_relative_clause(Side, [w(R, RC), w(C, CC)|Ws], subject, S) :-
     tr_read_nested(Side, Cond, none, S1),
     tr_relative_clause(Side, [w(R, RC)|Rest], subject, s(A, Su, G, Comps0)), !,
     S = s(A, Su, G, [fr(sub(w(C, CC), S1))|Comps0]).
+%% A TIME BEFORE A RELATIVE CLAUSE'S VERB IS ITS FRONT, NOT ITS SUBJECT: `un
+%% niño que el domingo había resultado gravemente herido' -- the boy was hurt
+%% on Sunday. Read with the day before the verb the clause had no gap to
+%% leave: the relative word was an object and `el domingo' the subject, `che
+%% domenica era risultata ferita', the day hurt (and a sentence whose clause
+%% has an object of its own was refused). The phrase for a day or a month
+%% first, the clause is read without it, and the time is its front.
+%% (Three tests come first, each cheap: the clause's first word an article or
+%% a demonstrative, a noun the lesson calls a time in its first three words,
+%% and only then the phrases. A clause's words run to the end of the sentence
+%% and every reading of it asks this: `que tuvo lugar ayer, el secretario ...'
+%% found `ayer' at the end of a scan to the first preposition and read `tuvo
+%% lugar' and `tuvo lugar ayer' for phrases, 2.4 million inferences in one
+%% sentence of the Basque article, a hundred times over.)
+tr_relative_clause(Side, [w(R, RC)|Ws], subject, S) :-
+    Ws = [W1, _|_], tr_time_starts(Side, W1), tr_relative_word(Side, R), tr_time_in_first(3, Ws),
+    between(2, 5, N), length(PW, N), append(PW, Rest, Ws), Rest = [w(_, _)|_],
+    \+ memberchk(comma, PW),
+    tr_phrase_np(Side, PW, NP0), tr_time_phrase(NP0),
+    nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
+    tr_complements(Side, PW, [at_time(NP)]),
+    tr_relative_clause(Side, [w(R, RC)|Rest], subject, s(A, Su, G, Comps0)), !,
+    S = s(A, Su, G, [frn(at_time(NP))|Comps0]).
 tr_relative_clause(Side, [w(R, _)|Ws], subject, S) :-
     tr_relative_word(Side, R), Ws \== [],
     tr_read_nested(Side, Ws, subject(rel), S0),
@@ -17769,12 +17853,12 @@ tr_comp_out(english, infx(L, Asp, Cls), _, _, [], Outs, []) :- !,
     ( tr_modal_verb -> To = [] ; To = [o(to, lower)] ),
     findall(o(T, lower), ( member(W, Cls), ( W = w(T, _) ; W = dat(w(T, _)) ) ), Objs),
     append([To, V, Objs], Outs).
-tr_comp_out(foreign, infx(L, Asp, Cls), _, _, [], Outs, []) :- !,
+tr_comp_out(foreign, infx(L, Asp, Cls), _, Number, [], Outs, []) :- !,
     tr_lexeme_across(L, foreign, LT),
     maplist(tr_enclitic_out, Cls, Ps),
     (   Asp == perfect
     ->  tr_infinitive_auxiliary(LT, Cls, AuxInf), tr_joined_infinitive(AuxInf, Ps, J),
-        once(tr_solve(participle_of(PP, LT))), Outs = [o(J, lower), o(PP, lower)]
+        tr_perfect_participle(LT, Cls, Number, PP), Outs = [o(J, lower), o(PP, lower)]
     ;   once(tr_solve(infinitive_of(Inf, LT))), tr_joined_infinitive(Inf, Ps, J), Outs = [o(J, lower)]
     ).
 tr_comp_out(english, opron(dat(W)), N, Nb, Cl, Outs, A) :- !, tr_comp_out(english, opron(W), N, Nb, Cl, Outs, A).
@@ -17825,6 +17909,18 @@ tr_infinitive_auxiliary(LT, Cls, Inf) :-
     ;   tr_solve(auxiliary(A)), tr_solve(mean(A, has)) -> true
     ),
     once(tr_solve(infinitive_of(Inf, A))).
+
+%% THE PARTICIPLE AFTER A PERFECT INFINITIVE'S AUXILIARY: after the copula's
+%% it agrees with the subject the infinitive belongs to -- `esser stati
+%% ammanettati', `essere andate' -- where `haber sido esposados' was `esser
+%% stato ammanettati', the one participle left in the masculine singular
+%% beside the predicate that agreed; after `avere' it never agrees
+tr_perfect_participle(LT, Cls, Number, PP) :-
+    (   ( tr_solve(auxiliary_of(_, LT)) ; memberchk(refl, Cls), tr_solve(auxiliary_of(_, reflexive)) ),
+        ( Number == singular ; Number == plural )
+    ->  tr_participle_agreeing(LT, Number, PP)
+    ;   once(tr_solve(participle_of(PP, LT)))
+    ).
 
 tr_gerund_out(english, LT, G) :- !, en_gerund_of(LT, G).
 tr_gerund_out(foreign, LT, G) :- once(tr_solve(gerund_of(G, LT))).

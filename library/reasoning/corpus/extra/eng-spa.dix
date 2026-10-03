@@ -459,3 +459,20 @@
 <e><p><l>double<s n="vblex"/></l><r>duplicar<s n="vblex"/></r></p></e>
 # `el italiano medio' -- the average Italian, `medio' where the dictionary gives `mediano'
 <e><p><l>average<s n="adj"/></l><r>medio<s n="adj"/></r></p></e>
+# the Israeli report (AnCora CESS-CAST-P-20010102-25), into Italian: each of
+# these has its paradigm in apertium-spa.spa.dix and no English word.
+# `el sepelio' is the funeral and `los colonos' the settlers -- both read
+# into English only, `funeral' and `colonizador' stay the words written; `se
+# clamó a la venganza' is cried out for revenge; `abatido a tiros' is felled
+# by shots (the dictionary has `abatir' only as `knock down', two words); and
+# `la cisjordana localidad' is the West Bank town
+<e r="RL"><p><l>funeral<s n="n"/></l><r>sepelio<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>colonist<s n="n"/></l><r>colono<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>cry<s n="vblex"/></l><r>clamar<s n="vblex"/></r></p></e>
+<e><p><l>fell<s n="vblex"/></l><r>abatir<s n="vblex"/></r></p></e>
+<e><p><l>Cisjordanian<s n="adj"/></l><r>cisjordano<s n="adj"/></r></p></e>
+# `un sepelio multitudinario' is a crowded funeral (the monolingual dictionary
+# has the adjective and no English), and `una escalada de violencia' is an
+# escalation, where `climbing' was the dictionary's word for `escalada'
+<e><p><l>crowded<s n="adj"/></l><r>multitudinario<s n="adj"/></r></p></e>
+<e><p><l>escalation<s n="n"/></l><r>escalada<s n="n"/><s n="f"/></r></p></e>

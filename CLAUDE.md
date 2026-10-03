@@ -837,7 +837,21 @@ read into an English-worded IR and written into any lesson's language),
   `francesa`, `si chiama "minimo vitale"` is `se llama "mínima vital"`);
   English writes `Non sono pochi` as `Few are not` and moves a quotation's
   marks to the edges of its phrase; a name of one capital word and an
-  adjective (`Roma antica`) is not read.
+  adjective (`Roma antica`) is not read; `participar en` is `partecipare
+  nel` (`partecipò nell'attentato`) and `a poca distancia de` `a poca
+  distanza di`; `fue abatido` is `era abbattuto` (the lesson's past of `è`
+  is `era`); `cerca de su casa` is `vicino la sua casa` (the hand lesson's
+  `vicino` first, the `de` dropped) and `dentro de` a vehicle `entro`; `su
+  esposa` is `la sua moglie`; `huían del lugar` is `fuggirono del luogo`
+  (`de` after a verb of motion is not `da`); `pasado` before a day is
+  `passata domenica`; `ayer` after the verb is written last (`in questa
+  zona ieri`); `heridas` after `causando` is the singular `ferita`; `de
+  gravedad` is `di gravità`; `murió un joven` reads the subject as an
+  object, as the lesson does not call `morir` intransitive: Italian writes
+  it as read and English refuses it (17 and 21 of the Israel report); a day
+  fronts a relative clause only as an article and its noun (`que todos los
+  domingos visita`, `que cada domingo visita` and `que el 12 de enero
+  compró` are refused).
 
 ## Tutorials are documentation that runs
 
