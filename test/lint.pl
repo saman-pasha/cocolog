@@ -15,6 +15,8 @@
 %%   2. the retrieval index's paths and anchors resolve
 %%   3. clauses.pl reads selftest/reader.pl into exactly reader.expected --
 %%      every shape that has ever fooled a clause reader here
+%%   3b. E1 pairs backslashes the way the reader does -- the one thing
+%%      selftest/traps.pl cannot show, for it shows what is FOUND
 %%   4. every rule still fires on selftest/traps.pl
 %%   5. the findings over the corpus are still the pinned set, and the
 %%      blocklist still matches what the running store says
@@ -38,7 +40,7 @@ main :-
     shl([ 'sh ', Agent, '/tool.sh build >/dev/null 2>&1 || echo BUILD-FAILED' ]),
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
-    the_reader(Agent), the_findings(Agent),
+    the_reader(Agent), the_escapes(Agent), the_findings(Agent),
     checks_done.
 
 %% ---- 1. the dialect card's citations -------------------------------------
@@ -137,6 +139,39 @@ the_reader(Agent) :-
         shl(['diff ', WF, ' ', GF, ' | sed ''s/^/    /'' || true']),
         check('clauses.pl reads its own fixture the way it is pinned', differs, same)
     ),
+    shl(['rm -rf ', T]).
+
+%% ---- 3b. E1 reads the backslash the way the reader pairs them --------------
+%%
+%% THE SCAN SEES BYTES AND THE READER SEES PAIRS. E1 looks inside quotes for a
+%% backslash, `u' and four hex digits, and in a quoted atom `\\u0041' is an
+%% escaped backslash and the letters u0041 -- what every JSON test writes --
+%% which matched at its SECOND backslash: six HARD findings in
+%% test/serialize.pl over code that was right. selftest/traps.pl shows what a
+%% rule FINDS and cannot show what it must leave alone, so the six shapes are
+%% written here, with ~c so that this file says nothing the linter would read
+%% as an escape: one backslash, two, three, four, a pair round x41, and a real
+%% \x41\. The reader pairs from the left, so the one and the three (a pair and
+%% an escape) and the real one are findings, at the backslash that opens them,
+%% and the two, the four and the pair round x41 are not.
+the_escapes(Agent) :-
+    section('E1 reads the backslash the way the reader pairs them'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/escapes.pl'], F),
+    findall(Line, ( member(Fmt-Args, [ "a('~cu0041').~n"-[92],
+                                       "b('~c~cu0041').~n"-[92, 92],
+                                       "c('~c~c~cu0041').~n"-[92, 92, 92],
+                                       "d('~c~c~c~cu0041').~n"-[92, 92, 92, 92],
+                                       "e('~c~cx41~c~c').~n"-[92, 92, 92, 92],
+                                       "f('a~cx41~cb').~n"-[92, 92] ] ),
+                    format(atom(Line), Fmt, Args) ), Lines),
+    atomic_list_concat(Lines, '', Text), atom_codes(Text, TCs), write_file_from_codes(F, TCs),
+    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(LC, ( member(L, OLines), atom_codes(LA, L),
+                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
+                  re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
+    check('only the backslashes the reader would not have paired are findings (line:col)', Got, ['1:4', '3:6', '6:5']),
     shl(['rm -rf ', T]).
 
 %% ---- 5. the findings themselves, 4. every rule fires, and the probe -------
