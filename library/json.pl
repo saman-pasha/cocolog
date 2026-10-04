@@ -431,7 +431,13 @@ json_by(_, _, Rest, _) :- json_oops('a value', Rest).
 json_number_start(0'-) :- !.
 json_number_start(C) :- code_type(C, digit).
 
-json_word([]) --> [].
+%% THE END OF THE WORD COMMITS, like every other success here. The empty
+%% clause had no cut and the last clause answers ANY call, so every `true',
+%% `false' and `null' left a way back into json_oops/2 with nothing of the
+%% word left to say: findall/3 over json_parse/2 threw `syntax_error([])',
+%% and so did any goal that failed after a document that held one -- from a
+%% parser the entry points call `det'.
+json_word([]) --> !, [].
 json_word([C|Cs]) --> [C], !, json_word(Cs).
 json_word(Cs, Rest, _) :- json_oops(Cs, Rest).
 

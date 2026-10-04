@@ -39,7 +39,7 @@ main :-
     json_writes, json_escapes, json_lists, json_refusals, json_indent,
     xml_writes, xml_payloads, xml_refusals, xml_indent,
     html_writes, html_raw, together,
-    json_reads, json_read_escapes, json_strict, json_streaming, json_round_trip,
+    json_reads, json_read_escapes, json_strict, json_streaming, json_determinism, json_round_trip,
     xml_reads, xml_prologue, xml_read_refusals, xml_space, xml_round_trip,
     html_reads, html_unclosed, html_raw_reads, html_round_trip,
     agreement, css_reads, css_refusals,
@@ -295,6 +295,35 @@ json_streaming :-
     check('json_parse/3 hands back what was not this value', G1, 'json([a-1])-rest'),
     refused_by_syntax(json_parse('{"a":1}rest', _), G2),
     check('json_parse/2 refuses the same input', G2, refused).
+
+json_determinism :-
+    section('library(json): det means det -- the next answer is asked for and there is none'),
+    %% A WORD WAS A CHOICE POINT LEFT BEHIND. json_word/3 ended on its empty
+    %% clause with no cut, and its last clause answers any call, so every
+    %% `true', `false' and `null' kept a way back into a syntax error about
+    %% nothing: findall/3 over json_parse/2 threw `syntax_error([])', and so
+    %% did any goal that failed after a document that held one. The entry
+    %% points say `is det'.
+    written(findall(T1, json_parse('true', T1), L1), L1, G1),
+    check('one answer for a literal, and asking for more is no error', G1, '[@(true)]'),
+    written(findall(T2, json_parse('[true,false,null]', T2), L2), L2, G2),
+    check('... in an array', G2, '[[@(true),@(false),@(null)]]'),
+    written(findall(T3, json_parse('{"a":true,"b":null}', T3), L3), L3, G3),
+    check('... in an object', G3, '[json([a- @(true),b- @(null)])]'),
+    written(( json_parse('true', V4), V4 == @(false) ), yes, G4),
+    check('a goal that fails after a literal fails, and does not throw', G4, failed),
+    written(( findall(x, json_parse("false rest", _, _), L5), length(L5, N5) ), N5, G5),
+    check('the streaming entry point answers once too', G5, '1'),
+    written(findall(T6, json_parse('[1,2.5,"s",{"k":[]}]', T6), L6), L6, G6),
+    check('and so does every other kind of value', G6, '[[1,2.5,s,json([k-[]])]]'),
+    %% THE CUT MUST NOT TAKE THE REFUSALS WITH IT: the clause behind it is
+    %% still how a word that is not the word it started as is named.
+    refused_by_syntax(json_parse('tru', _), G7),
+    check('a truncated word is still refused', G7, refused),
+    refused_by_syntax(json_parse('[nul]', _), G8),
+    check('... inside an array', G8, refused),
+    refused_by_syntax(json_parse('truex', _), G9),
+    check('a word with something after it is still refused', G9, refused).
 
 json_round_trip :-
     section('library(json): the round trip, which is the real check'),
