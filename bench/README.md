@@ -88,8 +88,9 @@ sqlite3 the embedded store 16 times faster at the keyed probes (14x over
 the socket), 2.1 times on the counting loop (2.2x) and 1.3 times on nrev,
 and 1.6 times slower on sortnums (1.5x) and 2.7 times on queens (3.3x).
 The lookup's wider gap is mostly sqlite's lane slowing on that box. Its
-`--embed` start-up is 0.08 s, where Run M's read 0.01: the engine builds
-a 32 MB record cache at every open (Run O's section).
+`--embed` start-up is 0.08 s, where Run M's read 0.01: the engine built
+a 32 MB record cache at every open, which ZiguratIP 0.1.22 grows instead
+-- 16-22 ms again (Run O's section).
 
 ## The rules
 
@@ -460,7 +461,12 @@ Four things to read with care:
   pays it once (a reopened store too: 39-63 ms), outside the per-rep
   column; a server pays it once at start. The cure is ZiguratIP's -- a
   cache that starts small and grows with the tree -- and is not in this
-  build.
+  build. It came the same evening as ZiguratIP 0.1.22 (`6a8f2f5`: each
+  array starts at a sixteenth of its cap and grows four-fold as it
+  misses): 1.8.54 rebuilt on it starts a fresh store in 16-22 ms against
+  this build's 72-87 (seven alternating pairs), a reopened one in 15-21
+  against 40-51, at 9 MB resident; a two-million-row table with a hashed
+  tree index writes as fast either way (ABBA, pairs 0.988 and 1.020).
 
 The lookup-shape table is coarse again (two decimals of a second) and flat,
 which is its claim. The run, as `sh bench/langs.sh` printed it:
