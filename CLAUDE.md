@@ -869,7 +869,22 @@ read into an English-worded IR and written into any lesson's language),
   quindi più cara` after a comma reads `ancora` as the noun (`ancla`); the
   role after `da` is written `as student` into English, with no article; an
   apposition keeps no gender (`la sua compagna` is `su compañero`); `tutti
-  quelli` is `everyone those` into English, never `all of those`.
+  quelli` is `everyone those` into English, never `all of those`; `esperar
+  que` is `attende che` (hopes that) and `apostar por` `scommettere per`;
+  `gran` before a vowel is written whole (`gran asse`, where Italian has
+  `grande asse`); a subjunctive after `impiden que` is written as the
+  indicative (`che ... è continuo`, `che si permette`); `también` and
+  `siempre` are written last (`il passaggio di Vintró anche`); a dash aside
+  inside a quotation is written after the whole sentence, outside its mark
+  (`"La peatonalización - añade - complementará ..."`); `fincas` are farms,
+  `acogerse a` is `riceversi a` and `contar con` `contare con`; `Rambla` at
+  the head of a sentence is the common noun (`Passeggio senz'ostacoli`); a
+  capital word the lesson knows as an adjective crosses by its meaning unless
+  the lesson says it is a name (`"meridiana" is a name.`); English refuses a
+  null third-person subject (`asegura`, `añade`), and does not write a
+  relative clause `en que esté permitida` or one with a participle and its
+  agent after `contará con`: four of the Clot report's sentences stay out of
+  English.
 
 ## Tutorials are documentation that runs
 

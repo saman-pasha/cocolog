@@ -691,6 +691,20 @@ tr_stated_names0([w(W, upper)|Ws0], [w(Name, upper)|Ws]) :-
     atomic_list_concat(Parts, ' ', Key), tr_solve(name(Key)), !,
     tr_name_spelling([w(W, upper)|Run0], Name),
     tr_stated_names0(Rest, Ws).
+%% ... AND A NAME OF ONE WORD THE LESSON KNOWS AS NO NOUN: `la Meridiana' is
+%% the avenue and `meridiana' the feminine of meridian to the vocabulary
+%% (`"meridiana" is a name.'), where read with its noun left out it came out
+%% `la Meridiano'. A capital word the lesson says is a name goes through as
+%% one, spelled as the text spelled it, which no lesson knows -- so every
+%% reading of a name has it, `entre Meridiana y Aragó' as `entre Barcelona y
+%% Aragó'. A noun keeps the readings it has (`Salvador', `Margherita': made
+%% a word no lesson knows it cost one sentence of the controls 12 % more, for
+%% the same text); and at the head of a sentence a known word is lowered
+%% before this
+tr_stated_names0([w(W, upper)|Ws0], [w(Name, upper)|Ws]) :-
+    atom(W), tr_solve(name(W)), \+ tr_is(foreign, w(W, lower), noun), !,
+    tr_name_spelling([w(W, upper)], Name),
+    tr_stated_names0(Ws0, Ws).
 tr_stated_names0([X|Ws0], [X|Ws]) :- tr_stated_names0(Ws0, Ws).
 %% A TITLE IN CAPITALS BEFORE A NAME IS A COMMON NOUN: `il suo Avvocato
 %% Francesco Assumma' is his lawyer, and the three capitalised words were one
@@ -1251,7 +1265,21 @@ tr_joined_words(Side, Words0, Words) :-
     tr_multi(Side, Words2, Words3),
     tr_enclitics(Side, Words3, Words4),
     tr_enclitic_multi(Side, Words4, Words5),
-    tr_particles(Side, Words5, Words).
+    tr_particles(Side, Words5, Words6),
+    tr_name_links(Side, Words6, Words).
+
+%% A CATALAN `i' BETWEEN TWO CAPITALISED WORDS IS PART OF A NAME: `Font i
+%% Sagué' is one square, two surnames joined, and `i' is a word of neither
+%% lesson (Italian's is the article, which a lesson knows, and is no name's
+%% link) -- read apart it was an unknown word and the sentence was refused.
+%% The three join as one name, written as the source spelled them
+tr_name_links(english, Ws, Ws) :- !.
+tr_name_links(foreign, [], []) :- !.
+tr_name_links(foreign, [w(A, upper), w(i, lower), w(B, upper)|Ws0], Ws) :-
+    atom(A), atom(B), \+ tr_known_word(foreign, i), !,
+    tr_cap(A, CA), tr_cap(B, CB), atomic_list_concat([CA, i, CB], ' ', J),
+    tr_name_links(foreign, [w(J, upper)|Ws0], Ws).
+tr_name_links(foreign, [W|Ws0], [W|Ws]) :- tr_name_links(foreign, Ws0, Ws).
 
 %% A PARTICLE A VERB TAKES BEFORE ITS PRONOUNS SAYS NOTHING OF ITS OWN: `Io la
 %% risposta non ce l'ho' is I do not have the answer, and `ce' is the `ci'
@@ -2041,11 +2069,21 @@ tr_part_words(Codes, Ws) :-
 %% chollo que le han dado una cátedra en Nueva York'. The brackets inside the
 %% pair are read as the marks they are, which tr_asides/2 turns into the
 %% aside.
+%% ... AND A DASH INSIDE A PAIR IS A DASH: `"La peatonalización - - añade - -
+%% complementará el uso lúdico del pasaje", en el que ...' -- the pair is not
+%% the whole piece, so it stays in the text with its hyphens in it, which
+%% tr_whole_pair/3 turns into dashes when the same words are alone in the
+%% pair; read as hyphens the reporting clause between them was refused, with
+%% every word known. Only the dashes: a colon in a quoted title is its own
 tr_inside_words(Inside, Ws) :-
-    (   ( memberchk(40, Inside) ; memberchk(41, Inside) )
-    ->  tr_bracket_codes(Inside, Inside1), tr_piece_words(Inside1, Ws)
+    (   ( memberchk(40, Inside) ; memberchk(41, Inside) ; tr_has_dash(Inside) )
+    ->  tr_bracket_codes(Inside, Inside0), tr_inside_dashes(Inside0, Inside1), tr_piece_words(Inside1, Ws)
     ;   tr_part_words(Inside, Ws)
     ).
+tr_inside_dashes([], []).
+tr_inside_dashes([226, 128, D|Cs], [3|More]) :- ( D == 147 ; D == 148 ), !, tr_inside_dashes(Cs, More).
+tr_inside_dashes([C0, 45|Cs], [C0, 3|More]) :- C0 =< 32, \+ ( Cs = [D|_], ( D > 32, D \== 0',, D \== 0'. ) ), !, tr_inside_dashes(Cs, More).
+tr_inside_dashes([C|Cs], [C|More]) :- tr_inside_dashes(Cs, More).
 tr_bracket_codes([], []).
 tr_bracket_codes([40|Cs], [5|Ds]) :- !, tr_bracket_codes(Cs, Ds).              % 40 is `(', code 5 `lparen'
 tr_bracket_codes([41|Cs], [6|Ds]) :- !, tr_bracket_codes(Cs, Ds).              % 41 is `)', code 6 `rparen'
@@ -2997,6 +3035,23 @@ tr_asides(foreign, [W, dash, C|Ws0], [W, comma|Ws]) :-
     append(In, [comma|Rest1], Ws1), tr_asides(foreign, Rest, Rest1), Ws = Ws1.
 %% a word a phrase can end on, which an aside after it hangs on
 tr_dash_phrase_end(W) :- ( tr_is(foreign, W, noun) ; tr_name_word(foreign, W) ; tr_is(foreign, W, adjective) ), !.
+%% ... AND A PHRASE OF A PREPOSITION BETWEEN TWO DASHES BEFORE A COORDINATOR,
+%% in the middle of a pair: `para la circulación - - en las circunstancias en
+%% que esté permitida - - y la carga y descarga' -- the aside stands between
+%% the first half of the pair and its `y', and as an aside after the phrase
+%% (app/3) the pair's split had no first half to take. As two commas it
+%% reads, as the same words with commas always have; the verb is its
+%% relative clause's, which the check on the words of the clause above would
+%% have taken for a clause of its own
+tr_asides(foreign, [W, dash, A|Ws0], [W, comma|Ws]) :-
+    W = w(_, _), A = w(_, _), tr_is(foreign, A, preposition),
+    append(In0, [dash|Rest], Ws0), \+ memberchk(dash, In0), Rest = [C|_], C = w(_, _), tr_coord(foreign, C),
+    \+ ( member(X, In0), atom(X) ),
+    In = [A|In0],
+    nb_setval('$tr_read_aspect', simple), nb_setval('$tr_read_group', none),
+    tr_joined_words(foreign, In, InJ),
+    tr_complements(foreign, InJ, Cs), Cs \== [], forall(member(C1, Cs), tr_adjunct(C1)), !,
+    append(In, [comma|Rest1], Ws1), tr_asides(foreign, Rest, Rest1), Ws = Ws1.
 tr_asides(foreign, [W, dash, A|Ws0], [W, w(K, dashed)|Ws]) :-
     W = w(_, _), A = w(_, _), ( tr_plain_adverb(foreign, A) ; tr_is(foreign, A, preposition) ),
     append(In0, [dash|Rest], Ws0), \+ memberchk(dash, In0), Rest = [w(_, _)|_],
@@ -3932,7 +3987,16 @@ tr_cross_np(app(NP0, yearw, w(Y0, C)), app(NP, yearw, w(Y, C))) :- !,           
     tr_cross_np(NP0, NP), tr_word_across(w(Y0, lower), english, number, Y).
 tr_cross_np(app(NP0, title, Cs0), app(NP, title, Cs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(Cs0, Cs).
 tr_cross_np(app(NP0, Kind, K), app(NP, Kind, Inner)) :- !,
-    tr_cross_np(NP0, NP), tr_aside_inner(K, Inner).
+    tr_cross_np(NP0, NP), tr_aside_inner(K, Inner0), tr_aside_participle(NP0, Inner0, Inner).
+%% A PARTICIPLE IN AN ASIDE THAT AGREES WITH THE PHRASE BEFORE IT IS SAID OF
+%% THE NOUN AS WRITTEN: `esta obra, presupuestada en 60 millones' is `questo
+%% lavoro, preventivato' -- the source's feminine is not the Italian noun's,
+%% and agreeing with it it came out `preventivata'. Where the source form
+%% agrees with another noun (`conocido', the man in charge's, after `la
+%% seguridad') its gender stays, agr/1, and the writer agrees with that.
+tr_aside_participle(np(_, _, _, w(NW, _), N), part(L, [agr(G), agrn(N)|Cs]), part(L, [agrn(N)|Cs])) :-
+    atom(NW), tr_lexeme(foreign, NW, NL, _), tr_gender(NL, G), !.
+tr_aside_participle(_, Inner, Inner).
 tr_cross_np(rel(NP0, L0, Cs0), rel(NP, L, Cs)) :- !,
     tr_cross_np(NP0, NP), tr_lexeme_across(L0, english, L), tr_cross_comps(Cs0, Cs).
 tr_cross_np(adv(w(A, C)), adv(w(AT, C))) :- !, tr_word_across(w(A, lower), english, adverb, AT).
@@ -4156,6 +4220,7 @@ tr_cross_comp(appos(NP0), appos(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(topic(NP0), topic(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(obj(NP0), obj(NP)) :- !, tr_cross_np(NP0, NP).
 tr_cross_comp(adj(Ws0), adj(Ws)) :- !, tr_cross_adjectives(Ws0, Ws).
+tr_cross_comp(oadj(Ws0, G, N), oadj(Ws, G, N)) :- !, tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(oc(NP0, Ws0), oc(NP, Ws)) :- !, tr_cross_np(NP0, NP), tr_cross_adjectives(Ws0, Ws).
 tr_cross_comp(that(S0), that(S)) :- !, tr_side_here(Side), tr_cross(Side, S0, S).
 tr_cross_comp(thatg(S0), thatg(S)) :- !, tr_side_here(Side), tr_cross(Side, S0, S).
@@ -9128,6 +9193,8 @@ tr_subject_after(Words, FP, FN, Rest, Subject) :-
 %% happened -- where the same words with a subject before them were already
 %% read as what they are, `El efecto ha pasado casi inadvertido'
 tr_lone_adjective([W], np(none, none, [], _, _)) :- tr_is(foreign, W, adjective), \+ tr_is(foreign, W, noun).
+%% ... and the same word read with its noun left out (tr_np/3's adjective alone)
+tr_lone_adjective([W], np(none, none, [W], elided(_), _)) :- tr_is(foreign, W, adjective), \+ tr_is(foreign, W, noun).
 %% one-word names with list commas between them: `Luisa, Anna'
 tr_lcomma_names([N]) :- !, tr_name_word(foreign, N).
 tr_lcomma_names([N, w(',', lcomma)|Ns]) :- tr_name_word(foreign, N), tr_lcomma_names(Ns).
@@ -10610,7 +10677,11 @@ tr_conjunction_split(Side, Words, W1, w(C, CC), W2) :-
     %% -- a bracket after them says something of the whole phrase and heads
     %% nothing: `funzioni geografiche bensì simboliche (con Gerusalemme al
     %% centro)' split at `bensì', and the symbolic ones came out masculine
-    \+ ( W1 = [_, _|_], member(Y, W2), tr_is(Side, Y, adjective),
+    %% -- a run goes on from an ADJECTIVE: `los comerciantes y vecinos' is two
+    %% nouns, `vecinos' being an adjective too, and after a noun the guard
+    %% left the whole phrase unread
+    \+ ( W1 = [_, _|_], last(W1, L0), tr_is(Side, L0, adjective),
+         member(Y, W2), tr_is(Side, Y, adjective),
          forall(member(X, W2), ( tr_coord(Side, X) ; tr_is(Side, X, adjective) ; X = w(_, paren) )) ),
     %% nor between two ADJECTIVES before one noun: `i loro assurdi e folli
     %% scopi' is their absurd and mad aims -- `assurdi' is also the noun
@@ -11534,6 +11605,15 @@ tr_pre_participles([w(P, _)|Ws], [pptc(L)-N|Xs], Rest) :-
         )
     ;   Xs = [], Rest = Ws
     ).
+%% AN ADJECTIVE ALONE IS A PHRASE WHOSE NOUN WAS LEFT OUT, with no article to
+%% say so where the lesson knows the word as no noun: `la transformación en
+%% peatonal del tramo' is into pedestrian -- a street left out -- and read as
+%% a noun it crossed by the noun's meaning, `in pedone', a person who walks
+tr_np(foreign, [A], np(none, none, [A], elided(G), Number)) :-
+    A = w(W, lower), atom(W), tr_is(foreign, A, adjective),
+    \+ tr_is(foreign, A, noun), \+ tr_is(foreign, A, pronoun), \+ tr_is(foreign, A, adverb),
+    \+ tr_determiner(foreign, A, _, _), \+ tr_participle_here(foreign, W, _),
+    tr_adjective_agreement(A, G, Number0), ( Number0 == plural -> Number = plural ; Number = singular ), !.
 tr_np(Side, Words00, np(Det, Num, AdjsM, Noun, Number)) :-
     tr_tail_name(Side, Words00, Words0),
     %% A POSSESSIVE AFTER AN ARTICLE IS THE PHRASE'S DETERMINER: `la sua
@@ -13124,10 +13204,13 @@ tr_complements0(foreign, [w(P, PC)|Ws], no, Out) :-
     %% clause -- the phrase `el técnico que el gato duerme' an object, which
     %% the subject after a verb of saying (tr_report_inv_fix/3) then took for
     %% the one who says
+    %% -- AND AFTER A PASSIVE, whose subject is what was done to: `el proyecto
+    %% fue presentado a los comerciantes' was shown TO the traders, and read as
+    %% the object they came out `era presentato i commercianti'
     (   atom(G0), tr_saying_verb(G0), NP = rc(NP0, Role0, S1), tr_report_clause(Role0, S1, S2)
     ->  Out = [pp(w(P, PC), NP0), that(S2)|Cs]
     ;   ( tr_verb_object(Cs) ; tr_verb_clause(Cs) ; tr_takes_before_person(P) ; G0 == none
-        ; atom(G0), tr_solve(intransitive(G0)) )
+        ; atom(G0), tr_solve(intransitive(G0)) ; tr_read_passive )
     ->  Out = [pp(w(P, PC), NP)|Cs]
     ;   Out = [obj(NP)|Cs]
     ).
@@ -13512,6 +13595,17 @@ tr_complements0(english, [w(B, _)|Ws], Seen, [inf(L)|Cs]) :-
 tr_complements0(Side, [C|Ws], Seen, [cnj(C)|Cs]) :-
     tr_coord(Side, C), tr_after_coord(Side, Ws), !,
     tr_complements(Side, Ws, Seen, Cs).
+%% ... AND AN ADJECTIVE AFTER A COORDINATOR IS SAID OF A NOUN THE PHRASE BEFORE
+%% IT DOES NOT AGREE WITH: `una calle con tramos de acera de distintas
+%% anchuras e incómodos para el tránsito' -- the stretches are uncomfortable,
+%% and the adjective stands after the whole chain of `de' phrases, which
+%% tr_phrase_words0/4 ends before the coordinator (tr_postposed_adjective/2).
+%% It travels as oadj/3 with its OWN gender and number: left to the clause's
+%% subject (`la peatonalización', feminine singular) it was `scomoda'.
+tr_complements0(foreign, [C, A|Ws], _, [cnj(C), oadj(PW, G, N)|Cs]) :-
+    C = w(_, _), tr_coord(foreign, C), tr_postposed_adjectives([A|Ws], PW, Rest),
+    tr_adjective_agreement(A, G, N), !,
+    tr_complements(foreign, Rest, yes, Cs).
 %% ... AND A WORD FOR `THAT IS' BEFORE WHAT IT SAYS AGAIN: `smentisce quanto
 %% pubblicato e cioè di aver firmato il passaggio' -- what was published,
 %% that is, signing the move; `..., vale a dire che il suo diretto superiore
@@ -14323,6 +14417,33 @@ tr_after_coord0(Side, Ws) :- tr_adverbs_adjective(Side, Ws), !.
 tr_adverbs_adjective(Side, [A, J|_]) :- tr_is(Side, A, adverb), J = w(_, _), tr_is(Side, J, adjective), !.
 tr_adverbs_adjective(Side, [A|Ws]) :- tr_is(Side, A, adverb), tr_adverbs_adjective(Side, Ws).
 
+%% THE ADJECTIVES AFTER A COORDINATOR, STANDING FOR A NOUN FAR BEFORE IT:
+%% words that begin with an adjective (no noun, no adverb) and end where
+%% their phrase does, all of them adjectives -- `incómodos para el tránsito'
+%% is `incómodos' and then a phrase of `para' (tr_complements0/4, oadj/3)
+tr_postposed_adjectives([A|Ws], PW, Rest) :-
+    A = w(AW, _), atom(AW), tr_is(foreign, A, adjective),
+    \+ tr_is(foreign, A, noun), \+ tr_is(foreign, A, adverb),
+    tr_phrase_words(foreign, [A|Ws], PW, Rest), PW \== [],
+    tr_all_adjectives(foreign, PW), \+ tr_verbless_thing(foreign, PW).
+%% ... and one a phrase ENDS BEFORE, where its last word is a noun the
+%% adjective does not agree with: `tramos de acera de distintas anchuras e
+%% incómodos' read on, `acera e incómodos' was one phrase and no phrase
+%% reads a noun and an adjective joined (tr_np/3), so nothing read. An
+%% adjective that agrees with the noun stays in the phrase, and so does one
+%% with a noun after it: `las casas y estoicos estudiantes' is two phrases
+%% joined, and cut before `estoicos' nothing read
+tr_postposed_adjective(PW, [A|Ws]) :-
+    A = w(AW, _), atom(AW), tr_is(foreign, A, adjective), \+ tr_is(foreign, A, noun),
+    last(PW, N), N = w(NW, _), atom(NW), tr_is(foreign, N, noun), \+ tr_is(foreign, N, adjective),
+    \+ tr_aside_agrees(N, A),
+    tr_postposed_adjectives([A|Ws], _, _).
+%% an adjective's own gender and number, as its form says them: its lexeme's
+%% gender where the lesson states one, the masculine where it states none
+tr_adjective_agreement(w(W, _), G, N) :-
+    once(tr_lexeme(foreign, W, L, N)),
+    ( tr_stated_gender(L, G0), G0 \== none -> G = G0 ; G = masculine ).
+
 %% what may follow a conjunction standing between two complements
 tr_starts_infinitive(foreign, [w(V, _)|_]) :- tr_solve(infinitive_of(V, _)), !.
 tr_starts_infinitive(english, [w(to, _), w(_, _)|_]).
@@ -14844,6 +14965,11 @@ tr_phrase_words0(Side, Words, PW, Rest) :-
             %% agreed with the subject, `maleducato'. After a comma they say
             %% more of the phrase before it, which the complement reader reads)
             \+ tr_adverbs_adjective(Side, [A3|More3])
+        %% ... and one before an ADJECTIVE THE NOUN BEFORE IT DOES NOT AGREE
+        %% WITH: `tramos de acera de distintas anchuras e incómodos para el
+        %% tránsito' -- the stretches are what is uncomfortable, and
+        %% the adjective is no part of `acera' (tr_postposed_adjective/2)
+        ;   PW \== [], Side == foreign, tr_coord(Side, R), Rest = [_|More4], tr_postposed_adjective(PW, More4)
         ),
         %% asked only where a boundary was found, and not at every word
         \+ tr_degree_start(Side, Rest),             % `el más débil': `más' is a preposition too
@@ -16998,8 +17124,10 @@ tr_np_out(To, np(Det, Num, Adjs, elided(G0), Number), Outs, elided(G), Number) :
     tr_det_out(To, Det, elided(G), Number, After, DetOut),
     %% (a count alone needs no `ones' in English: `entre las tres y las cinco'
     %% is between the three and the five, and it came out `the three ones')
+    %% (nor an adjective alone, which says what it is of nothing: `convertir en
+    %% peatonal' is turn into pedestrian, never `pedestrian one')
     (   To == english, \+ memberchk(deg(superlative, _), Adjs), \+ memberchk(deg(less(superlative), _), Adjs),
-        \+ ( Adjs == [], Num \== none )
+        \+ ( Adjs == [], Num \== none ), \+ ( Det == none, Num == none )
     ->  ( Number == plural -> One = [o(ones, lower)] ; One = [o(one, lower)] )
     ;   One = []
     ),
@@ -17966,6 +18094,9 @@ tr_comp_out(foreign, opred(L, G, N), _, _, [], [o(PP, lower)], []) :- !,
     tr_lexeme_across(L, foreign, LT), tr_with_gender(G, tr_participle_agreeing(LT, N, PP)).
 tr_comp_out(foreign, oadj(As, G, N), _, _, [], Outs, []) :- !,
     tr_with_gender(G, ( tr_adjectives_out(foreign, As, none, N, AOs), tr_adj_words(AOs, Outs) )).
+%% ... which English writes as it writes any adjective: it agrees with nothing
+tr_comp_out(english, oadj(As, _, _), Noun, Number, Cl, Outs, Advs) :- !,
+    tr_comp_out(english, adj(As), Noun, Number, Cl, Outs, Advs).
 %% a time phrase, bare in every language; a conjunction between two
 %% complements, by the target's word for it
 %% ... AND A BARE TIME TAKES THE LESSON'S WORD FOR A TIME where it has one:

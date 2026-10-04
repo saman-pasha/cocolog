@@ -353,6 +353,7 @@ main :-
     section_58,
     section_59,
     section_60,
+    section_61,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5641,6 +5642,116 @@ The verb "dice" means "says". "dico" is the first person of "dice". "dire" is th
 The verb "pubblica" means "publishes". "pubblicare" is the infinitive of "pubblica".
 The auxiliary "ha" means "has". "hanno" is the plural of "ha".
 "seen" is the participle of "sees". "known" is the participle of "knows". "been" is the participle of "is".').
+
+section_61 :-
+    format("~n61. A Spanish report on a street into Italian: an adjective for a noun far before it, a person after a passive, a participle agreeing with the noun written, a name that is an adjective too, an adjective alone for a noun, a Catalan `i' between two names, dashes round a phrase before a coordinator and inside a quotation, and a noun that is an adjective too before a coordinator~n", []),
+    lesson_61(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_61(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    reason_translate('La casa mejora una calle con tramos de acera e incómodos para el tránsito.', spanish, italian, S61a),
+    must('an adjective after a coordinator is said of a noun far before it: `una calle con tramos de acera de distintas anchuras e incómodos para el tránsito'' -- the stretches are uncomfortable, and the adjective keeps its OWN gender and number, never the subject''s', S61a, 'La casa migliora una strada con tratti di marciapiede e scomodi per il transito.'),
+    reason_translate('La casa mejora una calle con tramos de acera e incómodos para el tránsito.', spanish, english, S61b),
+    must('... and in English, where an adjective agrees with nothing', S61b, 'The house improves a street with stretches of sidewalk and uncomfortable for the traffic.'),
+    reason_translate('Maria ve las casas y estoicos estudiantes.', spanish, italian, S61c),
+    must('a noun after the adjective keeps the phrase whole: `las casas y estoicos estudiantes'' is two phrases joined', S61c, 'Maria vede le case e stoici studenti.'),
+    reason_translate('El perro era presentado al profesor.', spanish, italian, S61d),
+    must('a person after a passive is the one it was done to: `fue presentado a los comerciantes'' was shown TO the traders, and keeps its preposition', S61d, 'Il cane era presentato al professore.'),
+    reason_translate('El gato ve al profesor.', spanish, italian, S61e),
+    must('... where after an active verb the same person is its object, and Italian says no marker', S61e, 'Il gatto vede il professore.'),
+    reason_translate('La obra, presupuestada para la calle, mejora la ciudad.', spanish, italian, S61f),
+    must('a participle in an aside agrees with the noun as written: `esta obra, presupuestada en 60 millones'' is `questo lavoro, preventivato''', S61f, 'Il lavoro, preventivato per la strada, migliora la città.'),
+    reason_translate('El profesor de la casa, presupuestado para la calle, duerme.', spanish, italian, S61g),
+    must('... but one that agrees with another noun than the one before the comma keeps its own gender: `conocido'', the man in charge''s, after `la seguridad''', S61g, 'Il professore della casa, preventivato per la strada, dorme.'),
+    reason_translate('El perro duerme en la Meridiana.', spanish, italian, S61h),
+    must('a word the lesson says is a name is one wherever it stands: `la avenida de la Meridiana'' is the avenue, though `meridiana'' is the feminine of meridian', S61h, 'Il cane dorme nella Meridiana.'),
+    reason_translate('El perro entre Meridiana y Aragó duerme.', spanish, italian, S61i),
+    must('... and a coordinator between two names is no clause''s: `entre Meridiana y Aragó'' is between two names, never `entra Meridiana''', S61i, 'Il cane tra Meridiana e Aragó dorme.'),
+    reason_translate('El gato convierte la casa en peatonal.', spanish, italian, S61j),
+    must('an adjective alone is a phrase whose noun was left out: `la transformación en peatonal'' is into pedestrian, never `in pedone'' -- a person who walks', S61j, 'Il gatto converte la casa in pedonale.'),
+    reason_translate('El gato convierte la casa en peatonal.', spanish, english, S61k),
+    must('... and English adds no `one'' to it', S61k, 'The cat converts the house in pedestrian.'),
+    reason_translate('El gato duerme en Font i Sagué.', spanish, italian, S61l),
+    must('a Catalan `i'' between two capitals joins them: `Font i Sagué'' is one name', S61l, 'Il gatto dorme in Font i Sagué.'),
+    reason_translate('El gato come el pan para la casa - en la ciudad - y el perro.', spanish, italian, S61m),
+    must('dashes round a phrase of a preposition before a coordinator are commas: `para la circulación - en las circunstancias en que esté permitida - y la carga y descarga''', S61m, 'Il gatto mangia il pane per la casa, nella città, e il cane.'),
+    reason_translate('Los comerciantes y vecinos duermen.', spanish, italian, S61n),
+    must('a run of adjectives goes on from an adjective: `los comerciantes y vecinos'' is two nouns, `vecinos'' being an adjective too', S61n, 'I commercianti e vicini dormono.'),
+    reason_translate('"El perro - dice - duerme en la casa", en la ciudad.', spanish, italian, S61o),
+    must('a dash inside a pair of marks that is not the whole piece is a dash: `"La peatonalización - añade - complementará ...", en el que ...'' -- the aside goes last', S61o, '"Il cane dorme nella casa", nella città – dice –.'),
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_61(L, Text) :- lesson_61(L, 1, A), lesson_61(L, 2, B), atomic_list_concat([A, ' ', B], Text).
+
+lesson_61(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "e" means "and". The conjunction "que" means "that". "que" is a relative.
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "ciudad" means "city". "ciudades" is the plural of "ciudad".
+The masculine noun "estudiante" means "student". "estudiante" is a person. "estudiantes" is the plural of "estudiante".
+The masculine noun "profesor" means "teacher". "profesor" is a person.
+The feminine noun "calle" means "street". The masculine noun "tramo" means "stretch". The feminine noun "acera" means "sidewalk".
+The masculine noun "tránsito" means "traffic". The feminine noun "obra" means "work". The masculine noun "piso" means "floor".
+The masculine noun "comerciante" means "trader". "comerciantes" is the plural of "comerciante".
+The masculine noun "vecino" means "neighbour". The masculine adjective "vecino" means "neighbouring". "vecinos" is the plural of "vecino".
+The masculine adjective "incómodo" means "uncomfortable". "incómodos" is the plural of "incómodo".
+The feminine adjective "incómoda" means "uncomfortable". "incómodas" is the plural of "incómoda".
+The masculine adjective "estoico" means "stoic". "estoicos" is the plural of "estoico".
+The adjective "peatonal" means "pedestrian". "peatonales" is the plural of "peatonal".
+The feminine adjective "meridiana" means "meridian". "meridiana" is a name.
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "para" means "for".
+The preposition "a" means "to". The word "a" precedes the person. The preposition "entre" means "between".').
+lesson_61(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "dice" means "says". "decir" is the infinitive of "dice".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "mejora" means "improves". "mejoran" is the plural of "mejora".
+The verb "convierte" means "converts". "convierten" is the plural of "convierte".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra".
+The verb "es" means "is". "era" is the past of "es". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "presenta" means "presents". "presentado" is the participle of "presenta". "presentada" is the participle of "presenta". "presentada" is feminine.
+The verb "presupuesta" means "budgets". "presupuestado" is the participle of "presupuesta". "presupuestada" is the participle of "presupuesta". "presupuestada" is feminine.
+"seen" is the participle of "sees". "been" is the participle of "is".').
+lesson_61(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The masculine article "uno" means "a". The feminine article "una" means "a". The article "uno" comes before "st".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "al" is the contraction of "a il". "agli" is the contraction of "a gli".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "città" means "city".
+The masculine noun "studente" means "student". "studente" is a person. "studenti" is the plural of "studente".
+The masculine noun "professore" means "teacher". "professore" is a person.
+The feminine noun "strada" means "street". "strade" is the plural of "strada". The masculine noun "tratto" means "stretch". "tratti" is the plural of "tratto". The masculine noun "marciapiede" means "sidewalk".
+The masculine noun "transito" means "traffic". The masculine noun "lavoro" means "work". The masculine noun "piano" means "floor". "piani" is the plural of "piano".
+The masculine noun "commerciante" means "trader". "commercianti" is the plural of "commerciante".
+The masculine noun "vicino" means "neighbour". The masculine adjective "vicino" means "neighbouring". "vicini" is the plural of "vicino".
+The masculine adjective "scomodo" means "uncomfortable". "scomodi" is the plural of "scomodo".
+The feminine adjective "scomoda" means "uncomfortable". "scomode" is the plural of "scomoda".
+The masculine adjective "stoico" means "stoic". "stoici" is the plural of "stoico".
+The adjective "pedonale" means "pedestrian". "pedonali" is the plural of "pedonale". The masculine noun "pedone" means "pedestrian".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "per" means "for".
+The preposition "a" means "to". The preposition "tra" means "between".').
+lesson_61(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dice" means "says". "dire" is the infinitive of "dice".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "migliora" means "improves". "migliorano" is the plural of "migliora".
+The verb "converte" means "converts". "convertono" is the plural of "converte".
+The verb "entra" means "enters".
+The verb "è" means "is". "era" is the past of "è". "sono" is the plural of "è". "essere" is the infinitive of "è". "stato" is the participle of "è".
+The verb "presenta" means "presents". "presentato" is the participle of "presenta". "presentata" is the participle of "presenta". "presentata" is feminine.
+The verb "preventiva" means "budgets". "preventivato" is the participle of "preventiva". "preventivata" is the participle of "preventiva". "preventivata" is feminine.
+"seen" is the participle of "sees". "been" is the participle of "is".').
 
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy

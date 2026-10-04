@@ -2377,3 +2377,47 @@ The feminine adjective "decima" means "tenth".
 "decime" is the plural of "decima".
 # `Sto scrivendo in fretta' -- in a hurry
 The adverb "in fretta" means "in a hurry".
+# the Clot street report (AnCora CESS-CAST-P-20000701-80), from Spanish:
+# `da quindici anni' is the word the writer finds for `desde hace' -- the
+# lesson's `da' is from first, and `fin da' is the dictionary's word for since
+The preposition "da" means "for the past".
+# the Clot street report, from Spanish: `semipedonalizzazione' is in no
+# dictionary, `polisportivo' is a sports centre, `mediante' is by means of, a
+# `corsia' is a lane before it is a gangway, and `consigliere comunale' is an
+# alderman, the English word the Spanish `concejal' has
+The feminine noun "semipedonalizzazione" means "semipedestrianisation".
+"semipedonalizzazioni" is the plural of "semipedonalizzazione".
+The masculine noun "polisportivo" means "sports centre".
+"polisportivi" is the plural of "polisportivo".
+The preposition "mediante" means "by means of".
+The feminine noun "corsia" means "lane".
+The masculine noun "consigliere comunale" means "alderman".
+"consiglieri comunali" is the plural of "consigliere comunale".
+# the Clot street report, from Spanish: `in questo modo' is in this way, the
+# plural of `peseta' is `pesete', `traffico veicolare' is road traffic, and
+# `insieme a' together with (`impedire', to impede, is an entry of eng-ita.dix:
+# it has no English word in the dictionary, so no forms either)
+The adverb "in questo modo" means "in this way".
+"pesete" is the plural of "peseta".
+The masculine noun "traffico veicolare" means "road traffic".
+The preposition "insieme a" means "together with".
+# the Clot street report, third batch: `una facciata' is a facade, `lo scarico'
+# is the unloading
+The feminine noun "facciata" means "facade".
+"facciate" is the plural of "facciata".
+The masculine noun "scarico" means "unloading".
+"scarichi" is the plural of "scarico".
+# `abogar por que' into Italian: what a newspaper says of one who asks that
+# something be allowed is `auspica che'. The dictionary's own meaning is said
+# again first, so that `auspica' still reads as hopes -- and the line for
+# advocates comes before `difende', the dictionary's word for it
+The verb "auspica" means "hopes".
+The verb "auspica" means "advocates".
+# the Clot street report, fourth batch: the plural of `passeggio' is `passeggi'
+# (the dictionary's paradigm is the one of `addio', `addii', which has the
+# stress on the vowel)
+"passeggi" is the plural of "passeggio".
+# `la oferta ... 430 tiendas' -- shops: the dictionary's first Italian word for
+# the English one is `bottega', and a Spanish `tienda' is a `negozio'; the
+# dictionary's own meaning is said again first
+The masculine noun "negozio" means "shop".

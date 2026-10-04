@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20371 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20379 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -931,6 +931,27 @@ The feminine adjective "décima" means "tenth".
 "décimas" is the plural of "décima".
 "mar" is not feminine.
 The adverb "de prisa" means "in a hurry".
+The preposition "desde hace" means "for the past".
+The feminine noun "semipeatonalización" means "semipedestrianisation".
+"semipeatonalizaciones" is the plural of "semipeatonalización".
+The masculine noun "párking" means "parking".
+"párkings" is the plural of "párking".
+The masculine noun "polideportivo" means "sports centre".
+"polideportivos" is the plural of "polideportivo".
+The preposition "mediante" means "by means of".
+The adverb "de este modo" means "in this way".
+The feminine noun "duración" means "duration".
+The masculine noun "impulso" means "boost".
+The feminine noun "intervención" means "intervention".
+The feminine noun "actuación" means "intervention".
+The masculine noun "tráfico rodado" means "road traffic".
+The preposition "junto con" means "together with".
+The feminine noun "acera" means "sidewalk".
+The feminine noun "descarga" means "unloading".
+"aboga" takes "por" before the clause.
+The verb "aboga" means "advocates".
+"meridiana" is a name.
+The masculine noun "tránsito" means "transit".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1064,6 +1085,8 @@ The feminine noun "clasificación" means "ranking".
 "clasificaciones" is the plural of "clasificación".
 The feminine noun "escalada" means "escalation".
 "escaladas" is the plural of "escalada".
+The masculine noun "pilón" means "bollard".
+"pilones" is the plural of "pilón".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -20170,6 +20193,12 @@ The masculine noun "sepelio" means "funeral".
 "sepelios" is the plural of "sepelio".
 The masculine noun "colono" means "colonist".
 "colonos" is the plural of "colono".
+The masculine noun "abonado" means "subscriber".
+"abonados" is the plural of "abonado".
+"abonado" is a person.
+The feminine noun "abonada" means "subscriber".
+"abonadas" is the plural of "abonada".
+"abonada" is a person.
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -27996,6 +28025,144 @@ The verb "apasiona" means "impassions".
 "apasionadas" is the plural of "apasionada".
 "apasionar" is the infinitive of "apasiona".
 "apasionando" is the gerund of "apasiona".
+The verb "revitaliza" means "revitalises".
+"revitalizan" is the plural of "revitaliza".
+"revitalizamos" is the first person of "revitalizan".
+"revitalizo" is the first person of "revitaliza".
+"revitalizas" is the second person of "revitaliza".
+"revitalizó" is the past of "revitaliza".
+"revitalizaron" is the past of "revitalizan".
+"revitalizamos" is the first person of "revitalizaron".
+"revitalicé" is the first person of "revitalizó".
+"revitalizaste" is the second person of "revitalizó".
+"revitalizaba" is the past of "revitaliza".
+"revitalizaban" is the past of "revitalizan".
+"revitalizábamos" is the first person of "revitalizaban".
+"revitalizabas" is the second person of "revitalizaba".
+"revitalizará" is the future of "revitaliza".
+"revitalizarán" is the plural of "revitalizará".
+"revitalizaremos" is the first person of "revitalizarán".
+"revitalizaré" is the first person of "revitalizará".
+"revitalizarás" is the second person of "revitalizará".
+"revitalizaría" is the conditional of "revitaliza".
+"revitalizarían" is the plural of "revitalizaría".
+"revitalizaríamos" is the first person of "revitalizarían".
+"revitalizarías" is the second person of "revitalizaría".
+"revitalice" is the subjunctive of "revitaliza".
+"revitalicen" is the plural of "revitalice".
+"revitalicemos" is the first person of "revitalicen".
+"revitalices" is the second person of "revitalice".
+"revitalizara" is the past subjunctive of "revitaliza".
+"revitalizaran" is the plural of "revitalizara".
+"revitalizáramos" is the first person of "revitalizaran".
+"revitalizaras" is the second person of "revitalizara".
+"revitaliza" is the imperative of "revitaliza".
+"revitalices" is the negative imperative of "revitaliza".
+"revitalizad" is the imperative of "revitalizan".
+"revitalicéis" is the negative imperative of "revitalizan".
+"revitalicemos" is the hortative of "revitaliza".
+"revitalizado" is the participle of "revitaliza".
+"revitalizada" is the participle of "revitaliza".
+"revitalizada" is feminine.
+"revitalizados" is the participle of "revitaliza".
+"revitalizados" is the plural of "revitalizado".
+"revitalizadas" is the participle of "revitaliza".
+"revitalizadas" is feminine.
+"revitalizadas" is the plural of "revitalizada".
+"revitalizar" is the infinitive of "revitaliza".
+"revitalizando" is the gerund of "revitaliza".
+The verb "humaniza" means "humanises".
+"humanizan" is the plural of "humaniza".
+"humanizamos" is the first person of "humanizan".
+"humanizo" is the first person of "humaniza".
+"humanizas" is the second person of "humaniza".
+"humanizó" is the past of "humaniza".
+"humanizaron" is the past of "humanizan".
+"humanizamos" is the first person of "humanizaron".
+"humanicé" is the first person of "humanizó".
+"humanizaste" is the second person of "humanizó".
+"humanizaba" is the past of "humaniza".
+"humanizaban" is the past of "humanizan".
+"humanizábamos" is the first person of "humanizaban".
+"humanizabas" is the second person of "humanizaba".
+"humanizará" is the future of "humaniza".
+"humanizarán" is the plural of "humanizará".
+"humanizaremos" is the first person of "humanizarán".
+"humanizaré" is the first person of "humanizará".
+"humanizarás" is the second person of "humanizará".
+"humanizaría" is the conditional of "humaniza".
+"humanizarían" is the plural of "humanizaría".
+"humanizaríamos" is the first person of "humanizarían".
+"humanizarías" is the second person of "humanizaría".
+"humanice" is the subjunctive of "humaniza".
+"humanicen" is the plural of "humanice".
+"humanicemos" is the first person of "humanicen".
+"humanices" is the second person of "humanice".
+"humanizara" is the past subjunctive of "humaniza".
+"humanizaran" is the plural of "humanizara".
+"humanizáramos" is the first person of "humanizaran".
+"humanizaras" is the second person of "humanizara".
+"humaniza" is the imperative of "humaniza".
+"humanices" is the negative imperative of "humaniza".
+"humanizad" is the imperative of "humanizan".
+"humanicéis" is the negative imperative of "humanizan".
+"humanicemos" is the hortative of "humaniza".
+"humanizado" is the participle of "humaniza".
+"humanizada" is the participle of "humaniza".
+"humanizada" is feminine.
+"humanizados" is the participle of "humaniza".
+"humanizados" is the plural of "humanizado".
+"humanizadas" is the participle of "humaniza".
+"humanizadas" is feminine.
+"humanizadas" is the plural of "humanizada".
+"humanizar" is the infinitive of "humaniza".
+"humanizando" is the gerund of "humaniza".
+The verb "presupuesta" means "budgets".
+"presupuestan" is the plural of "presupuesta".
+"presupuestamos" is the first person of "presupuestan".
+"presupuesto" is the first person of "presupuesta".
+"presupuestas" is the second person of "presupuesta".
+"presupuestó" is the past of "presupuesta".
+"presupuestaron" is the past of "presupuestan".
+"presupuestamos" is the first person of "presupuestaron".
+"presupuesté" is the first person of "presupuestó".
+"presupuestaste" is the second person of "presupuestó".
+"presupuestaba" is the past of "presupuesta".
+"presupuestaban" is the past of "presupuestan".
+"presupuestábamos" is the first person of "presupuestaban".
+"presupuestabas" is the second person of "presupuestaba".
+"presupuestará" is the future of "presupuesta".
+"presupuestarán" is the plural of "presupuestará".
+"presupuestaremos" is the first person of "presupuestarán".
+"presupuestaré" is the first person of "presupuestará".
+"presupuestarás" is the second person of "presupuestará".
+"presupuestaría" is the conditional of "presupuesta".
+"presupuestarían" is the plural of "presupuestaría".
+"presupuestaríamos" is the first person of "presupuestarían".
+"presupuestarías" is the second person of "presupuestaría".
+"presupueste" is the subjunctive of "presupuesta".
+"presupuesten" is the plural of "presupueste".
+"presupuestemos" is the first person of "presupuesten".
+"presupuestes" is the second person of "presupueste".
+"presupuestara" is the past subjunctive of "presupuesta".
+"presupuestaran" is the plural of "presupuestara".
+"presupuestáramos" is the first person of "presupuestaran".
+"presupuestaras" is the second person of "presupuestara".
+"presupuesta" is the imperative of "presupuesta".
+"presupuestes" is the negative imperative of "presupuesta".
+"presupuestad" is the imperative of "presupuestan".
+"presupuestéis" is the negative imperative of "presupuestan".
+"presupuestemos" is the hortative of "presupuesta".
+"presupuestado" is the participle of "presupuesta".
+"presupuestada" is the participle of "presupuesta".
+"presupuestada" is feminine.
+"presupuestados" is the participle of "presupuesta".
+"presupuestados" is the plural of "presupuestado".
+"presupuestadas" is the participle of "presupuesta".
+"presupuestadas" is feminine.
+"presupuestadas" is the plural of "presupuestada".
+"presupuestar" is the infinitive of "presupuesta".
+"presupuestando" is the gerund of "presupuesta".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -123563,6 +123730,16 @@ The masculine adjective "multitudinario" means "crowded".
 "multitudinarios" is the plural of "multitudinario".
 The feminine adjective "multitudinaria" means "crowded".
 "multitudinarias" is the plural of "multitudinaria".
+The adjective "peatonal" means "pedestrian".
+"peatonales" is the plural of "peatonal".
+The masculine adjective "afectado" means "affected".
+"afectados" is the plural of "afectado".
+The feminine adjective "afectada" means "affected".
+"afectadas" is the plural of "afectada".
+"afectadísimas" is the superlative of "afectadas".
+"afectadísima" is the superlative of "afectada".
+"afectadísimos" is the superlative of "afectados".
+"afectadísimo" is the superlative of "afectado".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -137964,6 +138141,10 @@ The masculine adjective "lelo" means "silly".
 "lelos" is the plural of "lelo".
 The feminine adjective "lela" means "silly".
 "lelas" is the plural of "lela".
+The masculine adjective "lúdico" means "recreational".
+"lúdicos" is the plural of "lúdico".
+The feminine adjective "lúdica" means "recreational".
+"lúdicas" is the plural of "lúdica".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

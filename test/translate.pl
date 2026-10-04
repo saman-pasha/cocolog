@@ -31,7 +31,7 @@ main :-
     newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
-    newspaper_israel, newspaper_montanelli,
+    newspaper_israel, newspaper_montanelli, newspaper_clot,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -10914,6 +10914,156 @@ newspaper_montanelli_checks_9 :-
     nf_tr('Maria vede Giovanni e lo studente.', italian, spanish, I3),
     check('a GUARD: two objects joined by a coordinator are one phrase of two, with its one marker and no comma', I3,
           'Maria ve a Giovanni y el estudiante.').
+
+%% >>> clot
+%% ---- a Spanish report on a street into Italian (AnCora's CESS-CAST-P-20000701-80) ---------
+
+newspaper_clot :-
+    section('a Spanish report on a street into Italian: an adjective for a noun far before it, a person after a passive, a participle agreeing with the noun written, a name that is an adjective too, an adjective alone for a noun, a Catalan `i'' between two names, dashes round a phrase before a coordinator and inside a quotation, and a noun that is an adjective too before a coordinator'),
+    newspaper_clot_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_clot_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_clot_checks_1, newspaper_clot_checks_2, newspaper_clot_checks_3,
+    newspaper_clot_checks_4, newspaper_clot_checks_5, newspaper_clot_checks_6,
+    newspaper_clot_checks_7,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others
+newspaper_clot_lesson(L, Text) :-
+    newspaper_clot_part(L, 1, A), newspaper_clot_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+newspaper_clot_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "e" means "and". The conjunction "que" means "that". "que" is a relative.
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house". The feminine noun "ciudad" means "city". "ciudades" is the plural of "ciudad".
+The masculine noun "estudiante" means "student". "estudiante" is a person. "estudiantes" is the plural of "estudiante".
+The masculine noun "profesor" means "teacher". "profesor" is a person.
+The feminine noun "calle" means "street". The masculine noun "tramo" means "stretch". The feminine noun "acera" means "sidewalk".
+The masculine noun "tránsito" means "traffic". The feminine noun "obra" means "work". The masculine noun "piso" means "floor".
+The masculine noun "comerciante" means "trader". "comerciantes" is the plural of "comerciante".
+The masculine noun "vecino" means "neighbour". The masculine adjective "vecino" means "neighbouring". "vecinos" is the plural of "vecino".
+The masculine adjective "incómodo" means "uncomfortable". "incómodos" is the plural of "incómodo".
+The feminine adjective "incómoda" means "uncomfortable". "incómodas" is the plural of "incómoda".
+The masculine adjective "estoico" means "stoic". "estoicos" is the plural of "estoico".
+The adjective "peatonal" means "pedestrian". "peatonales" is the plural of "peatonal".
+The feminine adjective "meridiana" means "meridian". "meridiana" is a name.
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "para" means "for".
+The preposition "a" means "to". The word "a" precedes the person. The preposition "entre" means "between".').
+newspaper_clot_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "dice" means "says". "decir" is the infinitive of "dice".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "mejora" means "improves". "mejoran" is the plural of "mejora".
+The verb "convierte" means "converts". "convierten" is the plural of "convierte".
+The verb "entra" means "enters". "entre" is the subjunctive of "entra".
+The verb "es" means "is". "era" is the past of "es". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es".
+The verb "presenta" means "presents". "presentado" is the participle of "presenta". "presentada" is the participle of "presenta". "presentada" is feminine.
+The verb "presupuesta" means "budgets". "presupuestado" is the participle of "presupuesta". "presupuestada" is the participle of "presupuesta". "presupuestada" is feminine.
+"seen" is the participle of "sees". "been" is the participle of "is".').
+newspaper_clot_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The masculine article "uno" means "a". The feminine article "una" means "a". The article "uno" comes before "st".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "al" is the contraction of "a il". "agli" is the contraction of "a gli".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "città" means "city".
+The masculine noun "studente" means "student". "studente" is a person. "studenti" is the plural of "studente".
+The masculine noun "professore" means "teacher". "professore" is a person.
+The feminine noun "strada" means "street". "strade" is the plural of "strada". The masculine noun "tratto" means "stretch". "tratti" is the plural of "tratto". The masculine noun "marciapiede" means "sidewalk".
+The masculine noun "transito" means "traffic". The masculine noun "lavoro" means "work". The masculine noun "piano" means "floor". "piani" is the plural of "piano".
+The masculine noun "commerciante" means "trader". "commercianti" is the plural of "commerciante".
+The masculine noun "vicino" means "neighbour". The masculine adjective "vicino" means "neighbouring". "vicini" is the plural of "vicino".
+The masculine adjective "scomodo" means "uncomfortable". "scomodi" is the plural of "scomodo".
+The feminine adjective "scomoda" means "uncomfortable". "scomode" is the plural of "scomoda".
+The masculine adjective "stoico" means "stoic". "stoici" is the plural of "stoico".
+The adjective "pedonale" means "pedestrian". "pedonali" is the plural of "pedonale". The masculine noun "pedone" means "pedestrian".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "per" means "for".
+The preposition "a" means "to". The preposition "tra" means "between".').
+newspaper_clot_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "dice" means "says". "dire" is the infinitive of "dice".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "migliora" means "improves". "migliorano" is the plural of "migliora".
+The verb "converte" means "converts". "convertono" is the plural of "converte".
+The verb "entra" means "enters".
+The verb "è" means "is". "era" is the past of "è". "sono" is the plural of "è". "essere" is the infinitive of "è". "stato" is the participle of "è".
+The verb "presenta" means "presents". "presentato" is the participle of "presenta". "presentata" is the participle of "presenta". "presentata" is feminine.
+The verb "preventiva" means "budgets". "preventivato" is the participle of "preventiva". "preventivata" is the participle of "preventiva". "preventivata" is feminine.
+"seen" is the participle of "sees". "been" is the participle of "is".').
+
+newspaper_clot_checks_1 :-
+    nf_tr('La casa mejora una calle con tramos de acera e incómodos para el tránsito.', spanish, italian, A1),
+    check('AN ADJECTIVE AFTER A COORDINATOR IS SAID OF A NOUN FAR BEFORE IT: `una calle con tramos de acera de distintas anchuras e incómodos para el tránsito'' -- the stretches are uncomfortable, and the phrase read on to `acera e incómodos'', which no phrase reads; the adjective keeps its OWN gender and number, never the subject''s (`scomoda'')', A1,
+          'La casa migliora una strada con tratti di marciapiede e scomodi per il transito.'),
+    nf_tr('La casa mejora una calle con tramos de acera e incómodos para el tránsito.', spanish, english, A2),
+    check('... and in English, where an adjective agrees with nothing', A2,
+          'The house improves a street with stretches of sidewalk and uncomfortable for the traffic.'),
+    nf_tr('Maria ve las casas y estoicos estudiantes.', spanish, italian, A3),
+    check('a GUARD: a noun after the adjective keeps the phrase whole -- `las casas y estoicos estudiantes'' is two phrases joined, and cut before `estoicos'' nothing read', A3,
+          'Maria vede le case e stoici studenti.').
+
+newspaper_clot_checks_2 :-
+    nf_tr('El perro era presentado al profesor.', spanish, italian, B1),
+    check('A PERSON AFTER A PASSIVE IS THE ONE IT WAS DONE TO: `fue presentado a los comerciantes'' was shown TO the traders, and read as the object they came out without the preposition', B1,
+          'Il cane era presentato al professore.'),
+    nf_tr('El gato ve al profesor.', spanish, italian, B2),
+    check('a GUARD: after an active verb the same person is its object, and Italian says no marker', B2,
+          'Il gatto vede il professore.').
+
+newspaper_clot_checks_3 :-
+    nf_tr('La obra, presupuestada para la calle, mejora la ciudad.', spanish, italian, C1),
+    check('A PARTICIPLE IN AN ASIDE AGREES WITH THE NOUN AS WRITTEN: `esta obra, presupuestada en 60 millones'' is `questo lavoro, preventivato'' -- the source''s feminine is not the Italian noun''s', C1,
+          'Il lavoro, preventivato per la strada, migliora la città.'),
+    nf_tr('El profesor de la casa, presupuestado para la calle, duerme.', spanish, italian, C2),
+    check('a GUARD: a participle that agrees with another noun than the one before the comma keeps its own gender -- `conocido'', the man in charge''s, after `la seguridad''', C2,
+          'Il professore della casa, preventivato per la strada, dorme.'),
+    nf_tr('La casa del profesor, presupuestada para la calle, duerme.', spanish, italian, C3),
+    check('... and the feminine one after a masculine noun', C3,
+          'La casa del professore, preventivata per la strada, dorme.').
+
+newspaper_clot_checks_4 :-
+    nf_tr('El perro duerme en la Meridiana.', spanish, italian, D1),
+    check('A WORD THE LESSON SAYS IS A NAME IS ONE WHEREVER IT STANDS: `la avenida de la Meridiana'' is the avenue, and `meridiana'' is the feminine of meridian to the vocabulary -- read with its noun left out it came out `la Meridiano''', D1,
+          'Il cane dorme nella Meridiana.'),
+    nf_tr('El perro entre Meridiana y Aragó duerme.', spanish, italian, D2),
+    check('... and a coordinator between two names is no clause''s: `entre Meridiana y Aragó'' split at `y'' had nothing to head the half before it, and `entre'' was a verb -- `el tramo entra Meridiana''', D2,
+          'Il cane tra Meridiana e Aragó dorme.').
+
+newspaper_clot_checks_5 :-
+    nf_tr('El gato convierte la casa en peatonal.', spanish, italian, E1),
+    check('AN ADJECTIVE ALONE IS A PHRASE WHOSE NOUN WAS LEFT OUT: `la transformación en peatonal'' is into pedestrian, and read as a noun it crossed as `in pedone'', a person who walks', E1,
+          'Il gatto converte la casa in pedonale.'),
+    nf_tr('El gato convierte la casa en peatonal.', spanish, english, E2),
+    check('... and in English it is no `pedestrian one''', E2,
+          'The cat converts the house in pedestrian.').
+
+newspaper_clot_checks_6 :-
+    nf_tr('El gato duerme en Font i Sagué.', spanish, italian, F1),
+    check('A CATALAN `I'' BETWEEN TWO CAPITALS JOINS THEM: `Font i Sagué'' is one name, and `i'' is a word no Spanish lesson knows', F1,
+          'Il gatto dorme in Font i Sagué.'),
+    nf_tr('El gato come el pan para la casa - en la ciudad - y el perro.', spanish, italian, F2),
+    check('DASHES ROUND A PHRASE OF A PREPOSITION BEFORE A COORDINATOR ARE COMMAS: `para la circulación - en las circunstancias en que esté permitida - y la carga y descarga''', F2,
+          'Il gatto mangia il pane per la casa, nella città, e il cane.').
+
+newspaper_clot_checks_7 :-
+    nf_tr('Los comerciantes y vecinos duermen.', spanish, italian, G1),
+    check('A RUN OF ADJECTIVES GOES ON FROM AN ADJECTIVE: `los comerciantes y vecinos'' is two nouns, `vecinos'' being an adjective too, and after a noun the guard left the whole phrase unread', G1,
+          'I commercianti e vicini dormono.'),
+    nf_tr('"El perro - dice - duerme en la casa", en la ciudad.', spanish, italian, G2),
+    check('A DASH INSIDE A PAIR OF MARKS THAT IS NOT THE WHOLE PIECE IS A DASH: `"La peatonalización - añade - complementará ...", en el que ...'' -- the aside goes last, as every one inside a quotation does', G2,
+          '"Il cane dorme nella casa", nella città – dice –.').
+%% <<< clot
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------
