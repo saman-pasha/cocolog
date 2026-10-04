@@ -269,6 +269,14 @@ cl_dcg_note(_, _, _, '').
 %% counts as code, which F1, L1 and E1 need because the form they look for
 %% lives inside a quote by construction. NOTHING scans comments: a comment
 %% naming ~t documents the rule rather than breaking it.
+%%
+%% AND A MATCH THAT OPENS ON AN ESCAPED BACKSLASH IS NO MATCH (cl_escaped_backslash/2).
+%% Inside a quote `\\u0041' is a backslash and the letters u0041 -- what every
+%% JSON test writes, and what the reader takes without a word -- yet E1's `\u'
+%% and four hex digits matched at its SECOND backslash, six HARD findings in
+%% test/serialize.pl over code that was right. A text scan sees the bytes, the
+%% reader sees pairs, so the scan is asked what the reader would have made of
+%% the backslash it opens on.
 cl_rule_s1(File, Codes, Regions, Imports, Findings) :-
     findall(tr(Id, Scan, P, Set, Pre, Why, Fix, Cite),
             ( cl_trap(Id, _, Scan, P, Why, Fix, Cite),
@@ -285,9 +293,27 @@ cl_rule_s1(File, Codes, Regions, Imports, Findings) :-
               \+ cl_trap_lifted(Id, Imports),
               cl_skip_kinds(Scan, Kinds),
               \+ cc_in_region(Regions, Off, Kinds),
+              \+ ( Scan == text, cl_escaped_backslash(Codes, Off) ),
               format(atom(Msg), "[~w] ~w", [Id, Why]),
               cl_finding_off(File, Codes, Off, s1, Id, Msg, Fix, Cite, F) ),
             Findings).
+
+%% cl_escaped_backslash(+Codes, +Off) is semidet.
+%% The code at Off is a backslash that an ODD run of backslashes right before it
+%% has already used: the second of a pair, as the reader pairs them from the
+%% left. `\\u0041' is escaped at its second backslash; `\\\u0041' is not, for
+%% the first two are a pair and the third opens a real escape. A code that is
+%% not a backslash is never escaped, so a hit on `~t' or `'[|]'' passes through.
+cl_escaped_backslash(Codes, Off) :-
+    cl_backslash_run(Codes, Off, 0, Run, Rest),
+    Rest = [92|_],
+    Run mod 2 =:= 1.
+
+cl_backslash_run(Rest, 0, Run, Run, Rest) :- !.
+cl_backslash_run([92|T], N, R0, Run, Rest) :- !,
+    N1 is N - 1, R1 is R0 + 1, cl_backslash_run(T, N1, R1, Run, Rest).
+cl_backslash_run([_|T], N, _, Run, Rest) :-
+    N1 is N - 1, cl_backslash_run(T, N1, 0, Run, Rest).
 
 %% ONE WALK FOR ALL SEVENTEEN, GATED TWICE. Seventeen separate searches each
 %% walked the whole file -- measured four seconds on a 26 KB file, the linter's

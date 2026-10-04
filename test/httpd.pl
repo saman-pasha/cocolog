@@ -40,7 +40,8 @@ main :-
     atom_concat(D, '/root', Root),
     a_file(Root), every_byte(Root), path_rules(Root), never_served(Root), methods(Root),
     the_builtin, the_fence, outer_budget(D), head(Root), no_root,
-    pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root), the_pool(D, Root),
+    pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root),
+    the_timings, the_pool(D, Root),
     module_registry(D), knowledge_base(D, Root), the_prewarm(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -529,30 +530,22 @@ the_pool(D, Root) :-
         hit('http://127.0.0.1:18910/fast', C2),
         check('and so does a page', C2, '200'),
         reap(Pid1),
-        %% ONE SLOW REQUEST, for the ratio below to mean anything -- and it
-        %% has to be the page RUNNING, so its answer is checked too.
-        pool_server(Pool, 'alone(18911, 1)', 18911, Pid2),
-        get_time(T0), hit('http://127.0.0.1:18911/slow', C0), get_time(T1),
-        One is round((T1 - T0) * 1000), reap(Pid2),
-        check('the slow page finishes: 200, not cut off at its inference limit', C0, '200'),
+        %% ONE SLOW REQUEST, three times, for the ratios below to mean
+        %% anything -- and it has to be the page RUNNING, so every answer is
+        %% checked too.
+        one_slow(Pool, Ones, Codes0),
+        check('the slow page finishes: 200, not cut off at its inference limit', Codes0, ['200', '200', '200']),
         %% FOUR AT ONCE, one connection at a time: they queue, and the wall
         %% clock is four of them end to end. This is the arrangement the pool
         %% replaces.
-        pool_server(Pool, 'alone(18912, 4)', 18912, Pid3),
-        get_time(T2), four_at_once(18912), get_time(T3),
-        Serial is round((T3 - T2) * 1000), reap(Pid3),
-        %% FOUR AT ONCE THROUGH FOUR WORKERS: they overlap.
-        pool_server(Pool, 'pool(18913, 4, 4)', 18913, Pid4),
-        get_time(T4), four_at_once(18913), get_time(T5),
-        Pooled is round((T5 - T4) * 1000), reap(Pid4),
-        format("     one ~wms; four serially ~wms; four pooled ~wms~n", [One, Serial, Pooled]),
-        %% THE THRESHOLD IS LOOSE ON PURPOSE. Four requests overlapping cannot
-        %% take three times one of them; four queued cannot take less than
-        %% two. How much more or less depends on the machine, and this is not
-        %% a benchmark.
-        ( One > 0, Serial > One * 2 -> Q = queued ; Q = overlapped ),
+        four_queued(Pool, Serial),
+        %% FOUR AT ONCE THROUGH FOUR WORKERS: they overlap. Three rounds.
+        four_pooled(Pool, Pooleds),
+        min_list(Ones, One), min_list(Pooleds, Pooled),
+        format("     one ~wms of ~w; four serially ~wms; four pooled ~wms of ~w~n", [One, Ones, Serial, Pooled, Pooleds]),
+        timing_queued(Ones, Serial, Q),
         check('queued, four slow requests take about four times one', Q, queued),
-        ( One > 0, Pooled < One * 3 -> P = overlapped ; P = queued ),
+        timing_overlapped(Ones, Pooleds, P),
         %% `overlapped' where `parallel' is the word elsewhere, so the
         %% shared verdict is handed the word it tests for.
         ( P == overlapped -> PC = parallel ; PC = serial ),
@@ -611,6 +604,90 @@ pool_server(Pool, Goal, Port, Pid) :-
 four_at_once(Port) :-
     sh_join(['for i in 1 2 3 4; do timeout 90 curl -s -o /dev/null http://127.0.0.1:', Port, '/slow & done; wait'], Cmd),
     sh_exit(Cmd, _).
+
+%% THE BEST OF THREE, NOT ONE SAMPLE. A timing here can only be too LONG --
+%% another process on the box, and above all the FIRST request to a fresh
+%% server, which pays for whatever the server was still doing when its port
+%% began to listen -- never too short, so of several samples the fastest is
+%% the one nearest the truth. (`overlap_ratio/1' in the prelude takes the
+%% WORST of three, and rightly: it asks whether the machine can be relied on
+%% to overlap, not how long a request takes.)
+%%
+%% The case used the first request of a fresh server as `One' and went red
+%% once in a full run (green thirteen times in thirteen run alone): `queued'
+%% wants four requests through one connection to take more than twice `One',
+%% and the first request is the slow one. Timed three at a time on one
+%% server, in sixteen runs it was slower than the best of its three every
+%% time, by about a fifth as a rule and by four times once -- 1847 ms against
+%% 451, a `One' that asks the four queued for 3694 -- and the first pooled
+%% round took up to 1864 ms where the best took 627. The queue is timed
+%% once: noise only makes it longer, and a longer queue is still a queue.
+%%
+%% The one request, three times against one server: each one's milliseconds,
+%% and curl's status, which the case checks for every one.
+one_slow(Pool, Ones, Codes) :-
+    pool_server(Pool, 'alone(18911, 3)', 18911, Pid),
+    findall(Ms-Code,
+            ( between(1, 3, _), timed_hit('http://127.0.0.1:18911/slow', Ms, Code) ),
+            Samples),
+    reap(Pid),
+    pairs_keys_values(Samples, Ones, Codes).
+
+%% four at once, one connection at a time
+four_queued(Pool, Serial) :-
+    pool_server(Pool, 'alone(18912, 4)', 18912, Pid),
+    timed_four(18912, Serial),
+    reap(Pid).
+
+%% four at once through four workers, three rounds on the one server: twelve
+%% accepts
+four_pooled(Pool, Pooleds) :-
+    pool_server(Pool, 'pool(18913, 4, 12)', 18913, Pid),
+    findall(Ms, ( between(1, 3, _), timed_four(18913, Ms) ), Pooleds),
+    reap(Pid).
+
+timed_hit(Url, Ms, Code) :-
+    get_time(T0), hit(Url, Code), get_time(T1),
+    Ms is round((T1 - T0) * 1000).
+
+timed_four(Port, Ms) :-
+    get_time(T0), four_at_once(Port), get_time(T1),
+    Ms is round((T1 - T0) * 1000).
+
+%% THE THRESHOLDS ARE LOOSE ON PURPOSE. Four requests overlapping cannot take
+%% three times one of them; four queued cannot take less than two. How much
+%% more or less depends on the machine, and this is not a benchmark. `One' is
+%% the fastest single request; a request that took no time measured nothing,
+%% and nothing measured is never a queue.
+timing_queued(Ones, Serial, Verdict) :-
+    min_list(Ones, One),
+    (   One > 0, Serial > One * 2 -> Verdict = queued ; Verdict = overlapped ).
+
+timing_overlapped(Ones, Pooleds, Verdict) :-
+    min_list(Ones, One), min_list(Pooleds, Pooled),
+    (   One > 0, Pooled < One * 3 -> Verdict = overlapped ; Verdict = queued ).
+
+%% THE VERDICTS ON NUMBERS, so the rule that says `queued' and `overlapped'
+%% is itself checked, against what a noisy box hands it. The samples are
+%% ones real runs printed, the cold first one first: each case is one a rule
+%% that takes the first sample gets wrong, or one a rule too loose would let
+%% through.
+the_timings :-
+    section('the timing verdicts, on numbers: a cold first sample decides nothing'),
+    timing_queued([524, 427, 425], 2378, V1),
+    check('four queued at over five times one are queued', V1, queued),
+    timing_queued([1847, 451, 468], 1847, V2),
+    check('a first request four times too slow does not hide the queue', V2, queued),
+    timing_queued([451, 468, 460], 520, V3),
+    check('four that took the time of one are no queue', V3, overlapped),
+    timing_queued([0, 0, 0], 1847, V4),
+    check('a request that took no time measured nothing, and that is never a queue', V4, overlapped),
+    timing_overlapped([555, 481, 572], [672, 711, 671], V5),
+    check('four pooled at about one and a half times one overlapped', V5, overlapped),
+    timing_overlapped([451, 468, 460], [1864, 817, 627], V6),
+    check('a slow first round of the pool does not undo it', V6, overlapped),
+    timing_overlapped([451, 468, 460], [1700, 1650, 1800], V7),
+    check('a pool that runs the four end to end has not overlapped', V7, queued).
 
 module_registry(D) :-
     section('a pooled worker serves pages from the MODULE REGISTRY, and only those'),
