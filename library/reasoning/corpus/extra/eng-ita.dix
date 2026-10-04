@@ -888,3 +888,27 @@
 # `appassionarsi in difesa di' -- the dictionary has `appassionare' only as
 # `grip', which Spanish says nowhere
 <e><p><l>impassion<s n="vblex"/></l><r>appassionare<s n="vblex"/></r></p></e>
+# the Clot street report (AnCora CESS-CAST-P-20000701-80), from Spanish: the
+# Italian words for the English ones the Spanish entries above read. Each has
+# its paradigm in apertium-ita.ita.dix and no English word, `pedonale' and
+# `pedonalizzazione' for the pedestrian street, `paletto' for a bollard,
+# `preventivare' for a work budgeted at so many millions, `sconto' and
+# `disaccordo' for a discount and a disagreement, `interessato' for the traders
+# affected and `previsto' for a planned length (`godere' is in the store
+# already, `usufruire' coming first in the dictionary)
+<e><p><l>pedestrian<s n="adj"/></l><r>pedonale<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>pedestrianisation<s n="n"/></l><r>pedonalizzazione<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>bollard<s n="n"/></l><r>paletto<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>budget<s n="vblex"/></l><r>preventivare<s n="vblex"/></r></p></e>
+<e><p><l>discount<s n="n"/></l><r>sconto<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>disagreement<s n="n"/></l><r>disaccordo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>affected<s n="adj"/></l><r>interessato<s n="adj"/></r></p></e>
+<e><p><l>planned<s n="adj"/></l><r>previsto<s n="adj"/></r></p></e>
+# `impedire' is in apertium-ita.ita.dix and in no bilingual entry, and it is
+# the Italian word for the English `prevent' that the Spanish `impedir' takes
+# first: the dictionary's own is `prevenire', which is to forestall
+<e><p><l>prevent<s n="vblex"/></l><r>impedire<s n="vblex"/></r></p></e>
+# `a determinadas horas' -- at certain hours: the Spanish `determinado' is
+# `determinate' to the dictionary, and apertium-ita carries `determinato' with
+# its paradigm and no English word
+<e><p><l>determinate<s n="adj"/></l><r>determinato<s n="adj"/></r></p></e>

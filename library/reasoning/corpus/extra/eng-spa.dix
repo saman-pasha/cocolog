@@ -487,3 +487,20 @@
 # `appassionarsi' into Spanish: `apasionar' is in apertium-spa.spa.dix and in
 # no bilingual entry of one English word
 <e><p><l>impassion<s n="vblex"/></l><r>apasionar<s n="vblex"/></r></p></e>
+# the Clot street report (AnCora CESS-CAST-P-20000701-80), into Italian: each of
+# these has its paradigm in apertium-spa.spa.dix and no English word.
+# `peatonal', `revitalizar', `humanizar', `presupuestar' and `pilón' (a bollard)
+# are read and written; `lúdico' and `abonado' only read -- `recreativo' and
+# `suscriptor' stay the Spanish words for recreational and subscriber
+<e><p><l>pedestrian<s n="adj"/></l><r>peatonal<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>revitalise<s n="vblex"/></l><r>revitalizar<s n="vblex"/></r></p></e>
+<e><p><l>humanise<s n="vblex"/></l><r>humanizar<s n="vblex"/></r></p></e>
+<e><p><l>budget<s n="vblex"/></l><r>presupuestar<s n="vblex"/></r></p></e>
+<e><p><l>bollard<s n="n"/></l><r>pilón<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>recreational<s n="adj"/></l><r>lúdico<s n="adj"/></r></p></e>
+<e r="RL"><p><l>subscriber<s n="n"/></l><r>abonado<s n="n"/><s n="GD"/></r></p></e>
+# `los comerciantes afectados' -- the traders affected: `afectado' is an
+# adjective to apertium-spa.spa.dix and the bilingual dictionary has no entry
+# for it, so `afectados' was only the participle of `afectar' and Italian wrote
+# the verb's first word, `influiti'
+<e><p><l>affected<s n="adj"/></l><r>afectado<s n="adj"/></r></p></e>

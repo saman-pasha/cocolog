@@ -1766,3 +1766,51 @@ The feminine adjective "décima" means "tenth".
 "mar" is not feminine.
 # `de prisa' -- in a hurry
 The adverb "de prisa" means "in a hurry".
+# the Clot street report (AnCora CESS-CAST-P-20000701-80), into Italian:
+# `lo estamos reclamando desde hace 15 años' is for the past fifteen years,
+# which Italian says `da quindici anni' -- `desde' and `hace' read apart were
+# from and ago, `da fa quindici anni' in Italian and `from ago 15 years' in
+# English
+The preposition "desde hace" means "for the past".
+# the Clot street report, more words: `semipeatonalización' and `párking' are in
+# no dictionary, `polideportivo' is a sports centre (a noun that is an adjective
+# first in the lesson's reading), and `mediante' is by means of
+The feminine noun "semipeatonalización" means "semipedestrianisation".
+"semipeatonalizaciones" is the plural of "semipeatonalización".
+The masculine noun "párking" means "parking".
+"párkings" is the plural of "párking".
+The masculine noun "polideportivo" means "sports centre".
+"polideportivos" is the plural of "polideportivo".
+The preposition "mediante" means "by means of".
+# the Clot street report, words the dictionary reads another way: `de este
+# modo' is in this way (read apart it was of this way); its first English word
+# for `duración' is `length' and for `impulso' `impulse'; an `actuación' is an
+# intervention before it is a performance -- and the dictionary's own word for
+# an intervention is said again first, so that an Italian `intervento' is
+# still `intervención'; `el tráfico rodado' is road traffic, and `junto con'
+# together with
+The adverb "de este modo" means "in this way".
+The feminine noun "duración" means "duration".
+The masculine noun "impulso" means "boost".
+The feminine noun "intervención" means "intervention".
+The feminine noun "actuación" means "intervention".
+The masculine noun "tráfico rodado" means "road traffic".
+The preposition "junto con" means "together with".
+# the Clot street report, third batch: `acera' is a sidewalk, not a footpath
+# (the lesson's first word for the English one is `sendero' in Italian); `la
+# carga y descarga' is the loading and unloading, `descarga' being a download
+# to the dictionary; `aboga por que' advocates that -- the verb takes `por'
+# before its clause, as `insiste' takes `en'
+The feminine noun "acera" means "sidewalk".
+The feminine noun "descarga" means "unloading".
+"aboga" takes "por" before the clause.
+The verb "aboga" means "advocates".
+# the Clot street report, fourth batch: `entre Meridiana y Aragó' and `la
+# avenida de la Meridiana' -- an avenue, which the vocabulary knows as the
+# feminine of `meridiano' (meridian): a capital word the lesson says is a name
+# is one wherever it stands
+"meridiana" is a name.
+# `incómodos para el tránsito de viandantes' -- the transit of pedestrians: the
+# dictionary's only English word for `tránsito' is `traffic', which Italian
+# writes `traffico'
+The masculine noun "tránsito" means "transit".

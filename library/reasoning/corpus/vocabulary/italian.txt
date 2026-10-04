@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16451 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16461 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1351,6 +1351,27 @@ The masculine adjective "decimo" means "tenth".
 The feminine adjective "decima" means "tenth".
 "decime" is the plural of "decima".
 The adverb "in fretta" means "in a hurry".
+The preposition "da" means "for the past".
+The feminine noun "semipedonalizzazione" means "semipedestrianisation".
+"semipedonalizzazioni" is the plural of "semipedonalizzazione".
+The masculine noun "polisportivo" means "sports centre".
+"polisportivi" is the plural of "polisportivo".
+The preposition "mediante" means "by means of".
+The feminine noun "corsia" means "lane".
+The masculine noun "consigliere comunale" means "alderman".
+"consiglieri comunali" is the plural of "consigliere comunale".
+The adverb "in questo modo" means "in this way".
+"pesete" is the plural of "peseta".
+The masculine noun "traffico veicolare" means "road traffic".
+The preposition "insieme a" means "together with".
+The feminine noun "facciata" means "facade".
+"facciate" is the plural of "facciata".
+The masculine noun "scarico" means "unloading".
+"scarichi" is the plural of "scarico".
+The verb "auspica" means "hopes".
+The verb "auspica" means "advocates".
+"passeggi" is the plural of "passeggio".
+The masculine noun "negozio" means "shop".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1546,6 +1567,14 @@ The masculine noun "scambio" means "exchange".
 "scambi" is the plural of "scambio".
 The masculine noun "sparo" means "shot".
 "spari" is the plural of "sparo".
+The feminine noun "pedonalizzazione" means "pedestrianisation".
+"pedonalizzazioni" is the plural of "pedonalizzazione".
+The masculine noun "paletto" means "bollard".
+"paletti" is the plural of "paletto".
+The masculine noun "sconto" means "discount".
+"sconti" is the plural of "sconto".
+The masculine noun "disaccordo" means "disagreement".
+"disaccordi" is the plural of "disaccordo".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -23864,6 +23893,100 @@ The verb "appassiona" means "impassions".
 "appassionate" is the plural of "appassionata".
 "appassionare" is the infinitive of "appassiona".
 "appassionando" is the gerund of "appassiona".
+The verb "preventiva" means "budgets".
+"preventivano" is the plural of "preventiva".
+"preventiviamo" is the first person of "preventivano".
+"preventivo" is the first person of "preventiva".
+"preventivi" is the second person of "preventiva".
+"preventivò" is the past of "preventiva".
+"preventivarono" is the past of "preventivano".
+"preventivammo" is the first person of "preventivarono".
+"preventivai" is the first person of "preventivò".
+"preventivasti" is the second person of "preventivò".
+"preventivava" is the past of "preventiva".
+"preventivavano" is the past of "preventivano".
+"preventivavamo" is the first person of "preventivavano".
+"preventivavo" is the first person of "preventivava".
+"preventivavi" is the second person of "preventivava".
+"preventiverà" is the future of "preventiva".
+"preventiveranno" is the plural of "preventiverà".
+"preventiveremo" is the first person of "preventiveranno".
+"preventiverò" is the first person of "preventiverà".
+"preventiverai" is the second person of "preventiverà".
+"preventiverebbe" is the conditional of "preventiva".
+"preventiverebbero" is the plural of "preventiverebbe".
+"preventiveremmo" is the first person of "preventiverebbero".
+"preventiverei" is the first person of "preventiverebbe".
+"preventiveresti" is the second person of "preventiverebbe".
+"preventivi" is the subjunctive of "preventiva".
+"preventivino" is the plural of "preventivi".
+"preventiviamo" is the first person of "preventivino".
+"preventivasse" is the past subjunctive of "preventiva".
+"preventivassero" is the plural of "preventivasse".
+"preventivassimo" is the first person of "preventivassero".
+"preventivassi" is the first person of "preventivasse".
+"preventivassi" is the second person of "preventivasse".
+"preventiva" is the imperative of "preventiva".
+"preventivare" is the negative imperative of "preventiva".
+"preventivate" is the imperative of "preventivano".
+"preventiviamo" is the hortative of "preventiva".
+"preventivato" is the participle of "preventiva".
+"preventivata" is the participle of "preventiva".
+"preventivata" is feminine.
+"preventivati" is the participle of "preventiva".
+"preventivati" is the plural of "preventivato".
+"preventivate" is the participle of "preventiva".
+"preventivate" is feminine.
+"preventivate" is the plural of "preventivata".
+"preventivare" is the infinitive of "preventiva".
+"preventivando" is the gerund of "preventiva".
+The verb "impedisce" means "prevents".
+"impediscono" is the plural of "impedisce".
+"impediamo" is the first person of "impediscono".
+"impedisco" is the first person of "impedisce".
+"impedisci" is the second person of "impedisce".
+"impedì" is the past of "impedisce".
+"impedirono" is the past of "impediscono".
+"impedimmo" is the first person of "impedirono".
+"impedii" is the first person of "impedì".
+"impedisti" is the second person of "impedì".
+"impediva" is the past of "impedisce".
+"impedivano" is the past of "impediscono".
+"impedivamo" is the first person of "impedivano".
+"impedivo" is the first person of "impediva".
+"impedivi" is the second person of "impediva".
+"impedirà" is the future of "impedisce".
+"impediranno" is the plural of "impedirà".
+"impediremo" is the first person of "impediranno".
+"impedirò" is the first person of "impedirà".
+"impedirai" is the second person of "impedirà".
+"impedirebbe" is the conditional of "impedisce".
+"impedirebbero" is the plural of "impedirebbe".
+"impediremmo" is the first person of "impedirebbero".
+"impedirei" is the first person of "impedirebbe".
+"impediresti" is the second person of "impedirebbe".
+"impedisca" is the subjunctive of "impedisce".
+"impediscano" is the plural of "impedisca".
+"impediamo" is the first person of "impediscano".
+"impedisse" is the past subjunctive of "impedisce".
+"impedissero" is the plural of "impedisse".
+"impedissimo" is the first person of "impedissero".
+"impedissi" is the first person of "impedisse".
+"impedissi" is the second person of "impedisse".
+"impedisci" is the imperative of "impedisce".
+"impedire" is the negative imperative of "impedisce".
+"impedite" is the imperative of "impediscono".
+"impediamo" is the hortative of "impedisce".
+"impedito" is the participle of "impedisce".
+"impedita" is the participle of "impedisce".
+"impedita" is feminine.
+"impediti" is the participle of "impedisce".
+"impediti" is the plural of "impedito".
+"impedite" is the participle of "impedisce".
+"impedite" is feminine.
+"impedite" is the plural of "impedita".
+"impedire" is the infinitive of "impedisce".
+"impedendo" is the gerund of "impedisce".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -98487,6 +98610,28 @@ The feminine adjective "affollata" means "crowded".
 "affollatissimi" is the superlative of "affollati".
 "affollatissima" is the superlative of "affollata".
 "affollatissime" is the superlative of "affollate".
+The adjective "pedonale" means "pedestrian".
+"pedonali" is the plural of "pedonale".
+The masculine adjective "interessato" means "affected".
+"interessati" is the plural of "interessato".
+The feminine adjective "interessata" means "affected".
+"interessate" is the plural of "interessata".
+"interessatissimo" is the superlative of "interessato".
+"interessatissimi" is the superlative of "interessati".
+"interessatissima" is the superlative of "interessata".
+"interessatissime" is the superlative of "interessate".
+The masculine adjective "previsto" means "planned".
+"previsti" is the plural of "previsto".
+The feminine adjective "prevista" means "planned".
+"previste" is the plural of "prevista".
+The masculine adjective "determinato" means "determinate".
+"determinati" is the plural of "determinato".
+The feminine adjective "determinata" means "determinate".
+"determinate" is the plural of "determinata".
+"determinatissimo" is the superlative of "determinato".
+"determinatissimi" is the superlative of "determinati".
+"determinatissima" is the superlative of "determinata".
+"determinatissime" is the superlative of "determinate".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -102800,9 +102945,7 @@ The adjective "duttile" means "ductile".
 "duttilissima" is the superlative of "duttile".
 "duttilissime" is the superlative of "duttili".
 The masculine adjective "previsto" means "due".
-"previsti" is the plural of "previsto".
 The feminine adjective "prevista" means "due".
-"previste" is the plural of "prevista".
 The adjective "duodecimale" means "duodecimal".
 The adjective "duodenale" means "duodenal".
 "duodenali" is the plural of "duodenale".
