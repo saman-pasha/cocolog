@@ -17,6 +17,8 @@
 %%      every shape that has ever fooled a clause reader here
 %%   3b. E1 pairs backslashes the way the reader does -- the one thing
 %%      selftest/traps.pl cannot show, for it shows what is FOUND
+%%   3c. E1's radix numeral needs a digit after its quote, so a quoted atom
+%%      that ends in 16 is no finding -- the same thing, the same way
 %%   4. every rule still fires on selftest/traps.pl
 %%   5. the findings over the corpus are still the pinned set, and the
 %%      blocklist still matches what the running store says
@@ -40,7 +42,7 @@ main :-
     shl([ 'sh ', Agent, '/tool.sh build >/dev/null 2>&1 || echo BUILD-FAILED' ]),
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
-    the_reader(Agent), the_escapes(Agent), the_findings(Agent),
+    the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_findings(Agent),
     checks_done.
 
 %% ---- 1. the dialect card's citations -------------------------------------
@@ -172,6 +174,38 @@ the_escapes(Agent) :-
                   re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
                   re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
     check('only the backslashes the reader would not have paired are findings (line:col)', Got, ['1:4', '3:6', '6:5']),
+    shl(['rm -rf ', T]).
+
+%% ---- 3c. E1's radix numeral has digits after its quote ---------------------
+%%
+%% `16'FF' is SWI's radix notation, which the reader here does not have, and E1
+%% looks for it inside quotes like the rest. The pattern was the bytes `16'' and
+%% nothing after them, so a QUOTED ATOM that ends in 16 matched at its own
+%% closing quote: `'Content-Length: 16'' in test/httpd.pl, a HARD finding over
+%% code that was right. A numeral has a digit after the quote, and now so does
+%% the pattern. selftest/traps.pl shows what a rule FINDS, so what it must
+%% leave alone is written here, with ~c for the quote of a numeral so that this
+%% file says nothing the linter would read as one: an atom that ends in 16, the
+%% atom `16', an escaped quote and a hex letter after a 16, and then two
+%% numerals, with capital digits and with small ones. Only the two numerals
+%% are findings, at the 16 that opens each.
+the_radix(Agent) :-
+    section('E1 flags a radix numeral, not a quoted atom that ends in 16'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/radix.pl'], F),
+    findall(Line, ( member(Fmt-Args, [ "a('Content-Length: 16').~n"-[],
+                                       "b('16').~n"-[],
+                                       "c('it''s 16''a').~n"-[],
+                                       "d(X) :- X is 16~cFF.~n"-[39],
+                                       "e(X) :- X is 16~cff.~n"-[39] ] ),
+                    format(atom(Line), Fmt, Args) ), Lines),
+    atomic_list_concat(Lines, '', Text), atom_codes(Text, TCs), write_file_from_codes(F, TCs),
+    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(LC, ( member(L, OLines), atom_codes(LA, L),
+                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
+                  re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
+    check('only a numeral with its digits is a finding (line:col)', Got, ['4:14', '5:14']),
     shl(['rm -rf ', T]).
 
 %% ---- 5. the findings themselves, 4. every rule fires, and the probe -------
