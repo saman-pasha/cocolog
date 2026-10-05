@@ -1,7 +1,7 @@
 # cocolog
 
 ![cocolog, the bridge between the three](art/banner.svg)
-
+** Can computation become durable knowledge? **
 **A Prolog interpreter whose running state is data, so it can be suspended into
 a database and finished by a different process.**
 
