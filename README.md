@@ -1,9 +1,10 @@
 # cocolog
 
 ![cocolog, the bridge between the three](art/banner.svg)
-** Can computation become durable knowledge? **
-**A Prolog interpreter whose running state is data, so it can be suspended into
-a database and finished by a different process.**
+**Computation become durable knowledge.**
+
+A Prolog interpreter whose running state is data, so it can be suspended into
+a database and finished by a different process.
 
 cocolog is written in [Cicili](https://github.com/saman-pasha/cicili) and keeps
 its knowledge base in [ZiguratIP](https://github.com/saman-pasha/ziguratip).
