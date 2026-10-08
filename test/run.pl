@@ -93,8 +93,10 @@ cicili_each([C|Cs], Cicili, Sbcl, Red0, Red) :-
     root(Root),
     %% Cicili takes the directory it starts in as where its own library
     %% lives, so it is run from its own checkout with the target named
-    %% absolutely.
-    sh_join(['cd ', Cicili, ' && ', Sbcl, ' --script cicili.lisp ', Root, '/test/', C, '.cicili 2>&1'], Build),
+    %% absolutely. --release, as the Makefile builds the interpreter: without
+    %% it Cicili compiles -g -O0, and a test binary would prove the engine
+    %% in a build nobody ships.
+    sh_join(['cd ', Cicili, ' && ', Sbcl, ' --script cicili.lisp --release ', Root, '/test/', C, '.cicili 2>&1'], Build),
     shell(Build, BuildOut, BuildRc),
     (   BuildRc =:= 0
     ->  sh_join([Root, '/test/cocolog_', C, '_test 2>&1'], Run),

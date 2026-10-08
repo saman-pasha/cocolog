@@ -37,6 +37,13 @@ main :-
                        'either(5)', 'either(1)', '3 < 2', 'X = f(Y)', 'atom(foo)',
                        'X is 2 + 2, X > 3', 'np(2)', 'np(1)' ]),
            traced(Swipl, Program, Q)),
+    %% TRACED AFTER AN UNTRACED CALL. The first call resolves every functor
+    %% it meets and stamps the plain predicates (`fgen', 1.8.55), whose
+    %% goals then skip the questions a traced call has to ask; `trace/0'
+    %% switched on afterwards must still bring every port of the second
+    %% call back.
+    forall(member(Q, [ 'anc(tom, ann)', 'sum([1,2,3], S), S > 5' ]),
+           traced_late(Swipl, Program, Q)),
     checks_done.
 
 %% every query is wrapped in ( Q -> true ; true ) on BOTH sides, so a
@@ -51,3 +58,18 @@ traced(Swipl, Program, Q) :-
     td_ports(Swi0, Swi), td_ports(Coco0, Coco),
     ( td_compare(Swi, Coco, 1, Q) -> R = identical ; R = differs ),
     check(Q, R, identical).
+
+%% the query run once untraced, then again with `trace/0' switched on
+%% between the two -- on both sides, and without --trace on this one
+traced_late(Swipl, Program, Q) :-
+    sh_join(['yes '''' | timeout 20 ', Swipl, ' -q -g "leash(-all), consult(''', Program,
+             '''), ( ', Q, ' -> true ; true ), trace, ( ', Q, ' -> true ; true ), notrace, halt" -t halt 2>&1'], SwiCmd),
+    proc_run(SwiCmd, 30000, Swi0, _),
+    cocolog(C),
+    sh_join(['timeout 20 ', C, ' run ', Program, ' "( ', Q, ' -> true ; true ), trace, ( ', Q,
+             ' -> true ; true ), notrace" 2>&1 >/dev/null'], CocoCmd),
+    proc_run(CocoCmd, 30000, Coco0, _),
+    td_ports(Swi0, Swi), td_ports(Coco0, Coco),
+    atom_concat('traced after an untraced call: ', Q, Name),
+    ( td_compare(Swi, Coco, 1, Name) -> R = identical ; R = differs ),
+    check(Name, R, identical).

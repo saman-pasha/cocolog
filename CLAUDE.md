@@ -15,6 +15,12 @@ full story goes in its commit message or STATUS.md.
   one-goal query, one section) unless told otherwise.
 * **Commit or push only when asked.** Push with
   `git push git@github.com:saman-pasha/cocolog.git master:master`.
+* **Every binary is built in release mode** (owner, 2026-10-08): Cicili's
+  `--release` (`-O3`, plus `-falign-loops=32` for C) for the interpreter,
+  the embedded store, every module and the `test/*.cicili` binaries, and
+  `-O3` for anything compiled by hand (the `hoot` fixture). Cicili's
+  default is `-g -O0`; nothing that runs a test or a measurement is built
+  that way.
 * **Never commit build output**: `.o`, `.so`, the C/C++ Cicili emits, the
   `sdk.cicili`/`zigheaders` symlinks in `modules/*`. The test is to delete
   everything a `build.sh` makes and run it: what comes back was output.
@@ -217,8 +223,9 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 ## The suite
 
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
-the seven `test/*.cicili` binaries through Cicili (term, syntax, solve,
-module, state, zigurat, shared) and runs the 54 `.pl` cases in `pl_names/1`
+the seven `test/*.cicili` binaries through Cicili with `--release` (term,
+syntax, solve, module, state, zigurat, shared; about forty seconds each that
+links the engine) and runs the 54 `.pl` cases in `pl_names/1`
 -- **61 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
@@ -617,6 +624,26 @@ ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
   on the functor, and an owner that declines sends the call through the
   whole walk (1.8.45; MODULES.md). A module that declines without saying so
   leaves the functor with the knowledge base after a first declined call.
+  **Since 1.8.55 the functor is also stamped as a plain predicate**
+  (`fgen`): set only on the step's slow path, when no construct, no builtin
+  and no module claims the name (a construct's name never: it can turn a
+  goal down by its shape), and honoured while it carries the registry's
+  generation and the store's `pst`/`pserial`, not under trace. A stamped
+  goal skips every question and goes to `pidx`. **A new way for something to
+  claim a name must make the stamp stale**, as `coco_module_register` does
+  by raising the generation; `test/module.cicili` registers a module after
+  its name was a plain predicate and goes red if the stamp outlives it.
+* **The first goal of an entered clause travels in the engine, not in a
+  frame** (`ngoal`/`nbar`/`nset`, since 1.8.55): `coco_try_clause` hands it
+  over and the next step takes it, and only the body's other goals are
+  `'$k'` frames. Before anything reads the continuation as a term -- a
+  collection, a stop at the inference limit, a halt -- the loop pushes it
+  back as a frame (`coco_k_flush`). **A new return from the loop, or a
+  builtin that inspects `e->goals`, flushes first**; every caller of
+  `coco_try_clause` today is a step about to end. `test/state.cicili` stops
+  a proof at each of its first sixty steps and resumes it in another
+  machine, `test/gc.pl` collects every 2000 cells under naive reverse, and
+  each goes red without its flush.
 * **A clause is COMPILED the first time it is selected** (`coco_clause_code`
   and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44): a head program --
   the WAM's GET and UNIFY instructions over a frame of the clause's

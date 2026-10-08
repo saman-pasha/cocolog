@@ -167,7 +167,30 @@
   (static) (coco-emit-module-dispatch tm_m5_dispatch *m5-predicates*)
   (coco-defmodule tm_module_five "five" tm_m5_dispatch)
 
+  ;;; ---- a sixth: registered after its name was a plain predicate -------
+  ;;;
+  ;;; `late/1' is a clause of the knowledge base until this module arrives.
+  ;;; The step stamps a functor it found to be a plain predicate claimed by
+  ;;; no module (`fgen', 1.8.55) and skips every other question while the
+  ;;; stamp holds -- so a module registered afterwards must still win the
+  ;;; name, which it does only if registering it made the stamp stale.
+  (func tm_late ((coco_engine * e) (size_t g)) (out int)
+        (coco-mod-args e g ((x 0))
+          (return (coco_m_unify_atom e x "from_six"))))
+
+  (DEFPARAMETER *m6-predicates*
+    '(("late" 1 tm_late)))
+
+  (static) (coco-emit-module-dispatch tm_m6_dispatch *m6-predicates*)
+  (coco-defmodule tm_module_six "six" tm_m6_dispatch)
+
   ;;; ---- the harness ----------------------------------------------------
+
+  ;;; Whether NAME/ARITY carries the step's plain-predicate stamp of the
+  ;;; registry's present generation: 1 or 0.
+  (func stamped ((coco_machine * m) (const char * name) (u32 arity)) (out llong)
+        (let ((u64 f . #'(coco_functor_id m (coco_intern m name) arity)))
+          (return (? (== ($ (nth f (-> m functors)) fgen) coco_extern_generation) 1 0))))
 
   (func count ((coco_engine * e) (const char * goal) (int limit)) (out int)
         (let ((int n . 0) (int rc . 1))
@@ -278,6 +301,8 @@
 
       (check "the shape the module declines goes to the knowledge base"
              (cast llong (count (aof e) "picky(kb, from_kb)" 10)) 1)
+      (check "a walk with a decline in it stamps nothing"
+             (stamped (aof m) "picky" 2) 0)
       (check "and the module's own shape still reaches the module"
              (cast llong (count (aof e) "picky(module, yes)" 10)) 1)
       (check "after which the declined shape still reaches the knowledge base"
@@ -286,6 +311,30 @@
              (cast llong (count (aof e) "choosy(module, yes)" 10)) 1)
       (check "then the shape it declines goes on to the next module"
              (cast llong (count (aof e) "choosy(other, from_five)" 10)) 1)
+
+      (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
+
+    ;; ================================================================
+    ;; A plain predicate, stamped, and then a module that claims its name.
+    ;; ================================================================
+    (let ((coco_machine m) (coco_store st) (coco_engine e) (char err [256]))
+      (coco_machine_init (aof m)) (coco_store_init (aof st))
+      (coco_engine_init (aof e) (aof m) (aof st))
+      (set ($ e max_steps) 1000000)
+
+      (coco_module_init)
+      (coco_consult (aof st) (aof m) "late(kb)." nil err (sizeof err))
+      (check "a plain predicate answers" (cast llong (count (aof e) "late(kb)" 10)) 1)
+      (check "and its functor carries the stamp" (stamped (aof m) "late" 1) 1)
+      (check "a stamped call answers the same" (cast llong (count (aof e) "late(kb)" 10)) 1)
+      (check "registered a module that claims the name" (cast llong (tm_module_six)) 1)
+      (check "which leaves the stamp stale" (stamped (aof m) "late" 1) 0)
+      (check "the module wins the name"
+             (cast llong (count (aof e) "late(from_six)" 10)) 1)
+      (check "and the clause no longer answers it"
+             (cast llong (count (aof e) "late(kb)" 10)) 0)
+      (check "nor is the module's name stamped as a plain predicate"
+             (stamped (aof m) "late" 1) 0)
 
       (coco_engine_free (aof e)) (coco_store_free (aof st)) (coco_machine_free (aof m)))
 

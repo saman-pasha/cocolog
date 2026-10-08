@@ -180,6 +180,14 @@ knowledge base for good, and torch's own `tensor_execution(torch, eager,
 cpu)` raised a domain error (1.8.42–1.8.44; `test/module.cicili` holds the
 shape).
 
+**And a functor nobody claims is stamped as a plain predicate** (since
+1.8.55): once a call has found that no construct, no builtin and no module
+claims the name, the engine skips all three questions for that functor until
+the registry changes. Registering a module raises the registry's generation,
+which makes every stamp stale, so a module loaded after a predicate of the
+same name was called still wins the name; and a walk with a decline in it
+stamps nothing, as it remembers nothing. A dispatcher has nothing new to do.
+
 ## AND IT GETS A TUTORIAL, in the same commit
 
 `tutorials/library/` is numbered **one file per library**, tier 1 and

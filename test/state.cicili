@@ -64,6 +64,13 @@
             nil err (sizeof err))))
           (return n)))
 
+  ;; Naive reverse, for the machine stopped at every step below.
+  (func load_nrev ((coco_store * st) (coco_machine * m)) (out int)
+        (let ((char err [256]))
+          (return (coco_consult st m
+            "app([], L, L). app([H|T], L, [H|R]) :- app(T, L, R). nrev([], []). nrev([H|T], R) :- nrev(T, RT), app(RT, [H], R)."
+            nil err (sizeof err)))))
+
   ;; Writes the current binding of the query's first variable into OUT.
   (func binding_of ((coco_engine * e) (size_t cell) (char * out) (size_t cap))
         (let ((coco_strbuf b))
@@ -220,6 +227,53 @@
           (coco_store_free (aof st6))
           (coco_machine_free (aof m6)))
         (free blob5))
+
+      ;; ---- a machine stopped at EVERY step, and resumed elsewhere -----
+      ;;
+      ;; The step hands the first goal of the clause it entered to the next
+      ;; step in the engine, not in a `'$k'' frame (`ngoal', 1.8.55), and a
+      ;; stop at the inference limit pushes it back as a frame first. So the
+      ;; proof is stopped after each of its first sixty steps -- many of
+      ;; them right after a clause was entered, with a goal in hand --
+      ;; frozen, and finished by a machine that never saw the query. A goal
+      ;; missing from the frozen machine would leave the list short or the
+      ;; proof failing, and the query checks its own answer.
+      (let ((int stopped . 0) (int right . 0))
+        (for ((int lim . 1)) (<= lim 60) ((++ lim))
+          (let ((coco_machine ma) (coco_store sa) (coco_engine ea) (coco_strbuf fa)
+                (char * blobn . nil) (int rca . 0))
+            (coco_machine_init (aof ma))
+            (coco_store_init (aof sa))
+            (coco_engine_init (aof ea) (aof ma) (aof sa))
+            (load_nrev (aof sa) (aof ma))
+            (set ($ ea max_steps) (cast u64 lim))
+            (coco_engine_ask_text (aof ea) "nrev([1,2,3,4,5,6,7], R), R == [7,6,5,4,3,2,1]")
+            (set rca (coco_engine_next (aof ea)))
+            ;; a budget that sufficed is a right answer with nothing to resume
+            (if (== rca 1) (set right (+ right 1)))
+            (if (== rca -1)
+                (block (set stopped (+ stopped 1))
+                       (coco_sb_init (aof fa))
+                       (if (coco_freeze (aof ea) (aof fa)) (set blobn (strdup ($ fa s))))
+                       (coco_sb_free (aof fa))))
+            (coco_engine_free (aof ea))
+            (coco_store_free (aof sa))
+            (coco_machine_free (aof ma))
+            (if (!= blobn nil)
+                (let ((coco_machine mb) (coco_store sb) (coco_engine eb))
+                  (coco_machine_init (aof mb))
+                  (coco_store_init (aof sb))
+                  (coco_engine_init (aof eb) (aof mb) (aof sb))
+                  (if (coco_thaw (aof eb) (aof mb) (aof sb) blobn)
+                      (block (load_nrev (aof sb) (aof mb))
+                             (set ($ eb max_steps) 100000)
+                             (if (== (coco_engine_next (aof eb)) 1) (set right (+ right 1)))))
+                  (coco_engine_free (aof eb))
+                  (coco_store_free (aof sb))
+                  (coco_machine_free (aof mb))
+                  (free blobn)))))
+        (check "the proof was stopped inside, again and again" (cast llong (> stopped 30)) 1)
+        (check "each stop, frozen and finished elsewhere, came out right" (cast llong right) 60))
 
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
       (return (? (== failures 0) 0 1)))))

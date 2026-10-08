@@ -89,14 +89,15 @@ shared_object(D) :-
     ->  atom_concat(D, '/plib', PLib),
         working_directory(Root, Root),
         %% Cicili takes the directory it starts in as where its own library
-        %% lives, so it runs from its checkout with the target named absolutely
-        shl(['cd ', Cicili, ' && sbcl --script cicili.lisp ', Root, '/test/hoot.cicili > ', D, '/transpile.log 2>&1 || true']),
+        %% lives, so it runs from its checkout with the target named
+        %% absolutely; --release and -O3 below, as every module is built
+        shl(['cd ', Cicili, ' && sbcl --script cicili.lisp --release ', Root, '/test/hoot.cicili > ', D, '/transpile.log 2>&1 || true']),
         %% THE ONE COMPILER: tools/cc/cc is the wrapper every link here goes
         %% through, and on a Mac the one that knows a module may leave the
         %% interpreter's symbols undefined (-Wl,-undefined,dynamic_lookup)
         ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = gcc ),
         (   sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc), sh_exit(HaveCc, 0)
-        ->  sh_join([Compiler, ' -shared -fPIC -O2 -o ', PLib, '/hoot.so test/hoot.c > ', D, '/cc.log 2>&1'], Cc),
+        ->  sh_join([Compiler, ' -shared -fPIC -O3 -o ', PLib, '/hoot.so test/hoot.c > ', D, '/cc.log 2>&1'], Cc),
             (   sh_exit(Cc, 0)
             ->  written(( use_module(library(hoot)), hoot(X1), double_hoot(X1, X1) ), X1, G1),
                 check('a compiled Cicili module loads, both halves', G1, hoot_from_c)

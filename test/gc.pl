@@ -461,4 +461,21 @@ heap :-
     (   re_match('X = f\\(450015000,done\\)', O6) -> H6 = printed
     ;   atom_codes(T6, O6), H6 = wrong(T6)
     ),
-    check('the toplevel prints the bindings of a query collected under it', H6, printed).
+    check('the toplevel prints the bindings of a query collected under it', H6, printed),
+    %% A GOAL IN HAND IS NOT A ROOT. Since 1.8.55 the step hands the first
+    %% goal of the clause it entered to the next step in the engine, not in
+    %% a frame, and pushes it back as a frame before a collection moves the
+    %% heap under it (`coco_k_flush'). Naive reverse enters a clause on
+    %% nearly every step, so collecting every two thousand cells meets a
+    %% goal in hand at almost every collection; without the flush the
+    %% program died of an instantiation error or answered nothing at all,
+    %% and the program above stayed green.
+    scratch(D7), atom_concat(D7, '/nrev.pl', F7),
+    fixture(F7, [ 'app([], L, L).',
+                  'app([H|T], L, [H|R]) :- app(T, L, R).',
+                  'nrev([], []).',
+                  'nrev([H|T], R) :- nrev(T, RT), app(RT, [H], R).',
+                  'go :- numlist(1, 300, L), nrev(L, R), nrev(R, S), S == L, R = [F|_], write(go(F)), nl.' ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F7, ' go 2>&1'], Cmd7),
+    proc_run(Cmd7, 120000, O7, _), chomp(O7, B7), atom_codes(T7, B7),
+    check('a goal handed from one step to the next survives a collection between them', T7, 'go(300)').

@@ -291,7 +291,16 @@
     ;; does.
     (member void *   pst)
     (member u64      pserial)
-    (member size_t   pidx))
+    (member size_t   pidx)
+    ;; A PLAIN PREDICATE, AND KNOWN TO BE ONE: no construct's name, no core
+    ;; builtin, and no module claiming it as of the registry's generation
+    ;; `fgen' -- stamped by the step's slow path once all three answers
+    ;; above agree (solve.cicili, the dispatch in `coco_engine_run'). A
+    ;; goal whose functor carries the current generation, in the store
+    ;; `pst' names, goes straight to `pidx'; a module registered later
+    ;; raises the generation and the next call asks everything again.
+    ;; 0 is never a generation, so a fresh or thawed functor is unknown.
+    (member u32      fgen))
 
   ;;; A ROOT ARRAY A HOST OWNS, registered with the machine for as long as it
   ;;; holds heap cell indices across a run of the engine: where the array
@@ -885,6 +894,7 @@
             (set ($ (nth id (-> m functors)) pst) nil)
             (set ($ (nth id (-> m functors)) pserial) 0)
             (set ($ (nth id (-> m functors)) pidx) 0)
+            (set ($ (nth id (-> m functors)) fgen) 0)
             (set (-> m functors_len) (+ id 1))
             (set (nth j (-> m functor_buckets)) (+ id 1))
             (return (cast u64 id)))))

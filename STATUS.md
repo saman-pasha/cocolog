@@ -4442,6 +4442,65 @@ forty-six), the dereferences (a tenth of everything), and the goal's round
 trip through the heap -- built as a term, popped, decoded. The last is the
 second half of the compile step, and the owner's decision.
 
+## One dispatch per functor, and the next goal in a register (1.8.55)
+
+The first two stages of the compiled-control proposal, both inside the
+continuation's shape: nothing a program, a frozen machine or the tracer can
+see has changed. Per inference on naive reverse, 1.8.54 spent 860
+instructions, 471 of them interpreting control -- 120 deciding what a goal
+was, 95 building a `'$k'` frame for it and taking it apart again.
+
+**A plain predicate is stamped as one** (`fgen` on the functor). The step
+asked four questions of every goal -- a construct? a builtin? a module's?
+which predicate? -- with each answer cached on the functor but each cache a
+test. Once all four have been asked and none claimed the goal but the store,
+the functor carries the registry's generation, and a goal whose functor
+carries the current one, for the same store, goes straight to its predicate.
+Registering a module raises the generation; a walk with a decline in it
+stamps nothing; a construct's name is never stamped; under trace the
+dispatch runs as it always did.
+
+**The first goal of an entered clause goes to the next step in the engine**
+(`ngoal`), not in a `'$k'` frame of its own, and the body's other goals are
+framed as before. The loop pushes it back as a frame before a collection, a
+stop at the inference limit or a halt (`coco_k_flush`), so every reader of
+the continuation as a term finds what it always found.
+
+Instructions under `callgrind`, 1.8.54 against 1.8.55, `bench/langs.sh`'s
+programs as whole processes, every answer the same: nrev 1.422 G to 1.223 G
+(-14.0 %), queens 272 M to 262 M (-3.7 %), loop 703 M to 671 M (-4.6 %),
+lookup 896 M to 867 M (-3.3 %), sortnums 156 M to 152 M (-2.5 %). The
+stamp alone was -8.0, -2.6, -3.4, -2.8 and -1.8 %. Wall clock, alternating
+pairs, median user time against 1.8.54: nrev 0.863 (five pairs, 400
+elements, 100 reps); queens 0.955, sortnums 0.966 and loop 1.018 over nine
+longer pairs, and lookup 0.922 over five -- inside this box's noise, where
+the counts say 2.5 to 4.6 %. The other four save
+less because most of their goals are builtins, which the stamp does not
+shortcut, and the register saves one frame per clause, which is most of
+naive reverse's frames and few of theirs. Without the trace test in the
+stamp's condition, which the tracer does not need, the compiler made the
+loop 11 instructions an inference longer, so the test stays.
+
+Proved by four checks, each shown red by an arm that put the old behaviour
+back: a module registered after its name was a plain predicate must win it
+(`test/module.cicili`; red when the stamp ignores the generation), a walk
+with a decline in it leaves no stamp, a proof stopped at each of its first
+sixty steps, frozen and finished by another machine, comes out right
+(`test/state.cicili`; 33 of 60 without the flush at the limit), and naive
+reverse collected every 2000 cells answers (`test/gc.pl`; an instantiation
+error without the flush before a collection, where the older torture
+program stayed green). `test/trace.pl` adds a query traced after the same
+query ran untraced, against SWI-Prolog. The test binaries and the `hoot`
+fixture are built in release mode now, as everything else is (`--release`,
+`-O3`; Cicili's default is `-g -O0`).
+
+Gated with a server up (ZiguratIP 0.1.22 on 64 KiB pages,
+`COCOLOG_PAGE_SIZE=65536`): 51 cases GREEN, 8 SKIP (the four torch cases,
+tensorflow, ray, numpy and opencv, whose libraries this box lacks), and two
+red exactly as on 1.8.54 and in the box's runs of 2026-10-03 -- `reason` and
+lesson 43 want a tensor backend (`tensor_from_list/2`), lesson 41 OpenCV
+(`cv_version/1`).
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

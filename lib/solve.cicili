@@ -466,6 +466,20 @@
     ;; nothing on the functor when it moved: see the dispatch in `step'.
     (member u64         declines)
 
+    ;; THE NEXT GOAL, HANDED OVER IN THE ENGINE: the first goal of the clause
+    ;; just entered and its cut barrier (`coco_try_clause'), which the next
+    ;; step takes from here instead of from a `'$k'' frame built for it only
+    ;; to be taken apart again -- on naive reverse, 57 of the 95
+    ;; instructions an inference spent on frames. Nothing outside the step
+    ;; ever meets it: the loop pushes it back as an ordinary frame before a
+    ;; collection, a stop at the inference limit or a halt (`coco_k_flush'),
+    ;; so a frozen machine, the collector and the tracer see the
+    ;; continuation they always saw. `nset' says it holds one; zero after
+    ;; `coco_engine_init', which memsets.
+    (member size_t      ngoal)
+    (member size_t      nbar)
+    (member int         nset)
+
     (member char        err [192]))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
@@ -879,6 +893,17 @@
                 (set next f))))
           (return h)))
 
+  ;;; THE HANDED-OVER GOAL BACK ON THE CONTINUATION, as the frame
+  ;;; `coco_try_clause' did not build for it (`ngoal' on the engine). Called
+  ;;; before anything reads the continuation as a term -- a collection, and
+  ;;; every return from the loop that can leave the machine to be frozen or
+  ;;; resumed. Two loads and a branch when nothing is held.
+  (static)
+  (func coco_k_flush ((coco_engine * e))
+        (if (-> e nset)
+            (block (set (-> e nset) 0)
+                   (set (-> e goals) (coco_k_push e (-> e ngoal) (-> e nbar) (-> e goals))))))
+
   (static)
   (func coco_k_empty ((coco_engine * e)) (out size_t)
         (let ((coco_machine * m . #'(-> e m)))
@@ -958,9 +983,11 @@
   ;;; GOALS and BARRIER for its body: compiled when it can be
   ;;; (`coco_clause_code', lib/kb.cicili, its program kept in the
   ;;; predicate's own slot after the first ask) -- its head program, then
-  ;;; its body program, whose goal roots go on the continuation last first
-  ;;; (`coco_k_push_roots'), exactly as `coco_k_push_body' would push a
-  ;;; copied body -- else matched in the store (`coco_store_unify': the
+  ;;; its body program, whose first goal is handed to the next step
+  ;;; (`ngoal') and the rest go on the continuation last first
+  ;;; (`coco_k_push_roots'); flushed, that is exactly the continuation
+  ;;; `coco_k_push_body' pushes for a copied body -- else matched in the
+  ;;; store (`coco_store_unify': the
   ;;; store is never bound, a heap cell is made only where an unbound
   ;;; variable of the call takes a piece of the head) and its body copied
   ;;; over the same variable map. A program that could not RUN (-1: no
@@ -986,8 +1013,21 @@
               (let ((size_t roots [64]) (size_t ng . 0))
                 (set matched (coco_clause_run m st cd call roots (aof ng)))
                 (if (== matched 1)
-                    (block (set (-> e goals) (coco_k_push_roots e roots ng barrier goals))
-                           (return 1)))
+                    (block
+                     ;; THE FIRST GOAL GOES TO THE NEXT STEP IN THE ENGINE
+                     ;; (`ngoal'), and only the rest go on the continuation.
+                     ;; Every caller of this function is a step about to end
+                     ;; -- the loop's own call, or `coco_select_clause' from
+                     ;; the loop or from `coco_backtrack' -- so the next thing
+                     ;; to run is the loop's top, which flushes or takes it.
+                     (if (> ng 0)
+                         (block (set (-> e ngoal) (coco_deref m (nth 0 roots)))
+                                (set (-> e nbar) barrier)
+                                (set (-> e nset) 1)
+                                (set (-> e goals) (coco_k_push_roots e (aof (nth 1 roots)) (- ng 1)
+                                                                     barrier goals)))
+                         (set (-> e goals) goals))
+                     (return 1)))
                 (if (== matched -1)
                     (block (coco_undo_to m tmark)
                            (set ($ (cof m) heap_len) hmark)))))
@@ -1729,6 +1769,8 @@
         (set (-> e query) goal)
         (set (-> e trace_depth) 0)
         (set (-> e trace_goal) 0)
+        ;; and no goal handed over by a query that is gone
+        (set (-> e nset) 0)
         (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
 
   (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
@@ -2218,9 +2260,13 @@
 
           (while 1
             (set (-> e steps) (+ (-> e steps) 1))
+            ;; a stop at the limit, a halt and a collection each see the
+            ;; continuation whole: a goal the last step handed over goes back
+            ;; in its frame first (`coco_k_flush')
             (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
-                (return (coco_fail_err e "inference limit reached")))
-            (if (-> e halted) (return 0))
+                (block (coco_k_flush e)
+                       (return (coco_fail_err e "inference limit reached"))))
+            (if (-> e halted) (block (coco_k_flush e) (return 0)))
 
             ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
             ;; whole state of the proof in the continuation and the frames,
@@ -2229,18 +2275,25 @@
             ;; not run.
             (if (and (-> e gc) (== (-> m running) 1)
                      (or (-> m gc_request) (>= (-> m heap_len) (-> m gc_next))))
-                (coco_heap_gc e))
+                (block (coco_k_flush e) (coco_heap_gc e)))
 
-            ;; the continuation, dereferenced ONCE: the empty one is an atom
-            ;; (`coco_k_empty'), and that is a solution; anything else is a
-            ;; `'$k'' frame, and its first goal comes off
-            (let ((size_t kf . #'(coco_deref m (-> e goals)))
-                  (size_t g) (size_t b) (size_t k) (int ok . 1))
-              (if (coco-tag-is ATOM (nth kf (-> m heap)))
-                  (block (set (-> e resume) 1) (return 1)))
-              (set g (coco_deref m (coco_arg m kf 0)))
-              (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
-              (set k (coco_arg m kf 2))
+            ;; THE NEXT GOAL: the one the clause entered by the last step
+            ;; handed over (`ngoal'), or else the continuation's, dereferenced
+            ;; ONCE -- the empty continuation is an atom (`coco_k_empty'), and
+            ;; that is a solution; anything else is a `'$k'' frame, and its
+            ;; first goal comes off
+            (let ((size_t g) (size_t b) (size_t k) (int ok . 1))
+              (if (-> e nset)
+                  (block (set (-> e nset) 0)
+                         (set g (-> e ngoal))
+                         (set b (-> e nbar))
+                         (set k (-> e goals)))
+                  (let ((size_t kf . #'(coco_deref m (-> e goals))))
+                    (if (coco-tag-is ATOM (nth kf (-> m heap)))
+                        (block (set (-> e resume) 1) (return 1)))
+                    (set g (coco_deref m (coco_arg m kf 0)))
+                    (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
+                    (set k (coco_arg m kf 2))))
 
               ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return' (the note at
               ;; the undefined-predicate site below says why): 2 means a
@@ -2262,13 +2315,36 @@
               ;; whose interface takes a `char *', and an existence error,
               ;; which prints one.
               (let ((u64 nid . #'(coco_name_of m g))
-                    (u32 n . #'(coco_arity m g)))
+                    (u32 n . #'(coco_arity m g))
+                    (int known . 0) (size_t kpi . 0))
+                  ;; A PLAIN PREDICATE ALREADY KNOWN TO BE ONE (`fgen' in
+                  ;; term.cicili): stamped with the registry's generation of
+                  ;; now, for this store -- then the construct, builtin and
+                  ;; module questions below were all answered no when it was
+                  ;; stamped and would be again, and the goal goes straight
+                  ;; to its predicate. On naive reverse that is 55 of the 120
+                  ;; instructions a dispatch cost. Not under trace, where the
+                  ;; dispatch runs exactly as it always did: the ports come
+                  ;; out the same either way (test/trace.pl), but with the
+                  ;; test the compiler makes this loop 11 instructions an
+                  ;; inference shorter on nrev. The index is read here and
+                  ;; the functor is not held: a module's walk may grow the
+                  ;; functor table, and on this path there is no walk to grow
+                  ;; it. An atom goal has no functor and asks as before.
+                  (if (> n 0)
+                      (let ((coco_functor * fk . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                           (-> m functors)))))
+                        (if (and (== (-> fk fgen) coco_extern_generation)
+                                 (== (-> fk pst) (cast (void *) st))
+                                 (== (-> fk pserial) (-> st serial))
+                                 (== (-> e trace) 0))
+                            (block (set known 1) (set kpi (-> fk pidx))))))
                   ;; A CONSTRUCT, by one load (`coco_is_construct'), and
                   ;; nothing else is compared against the construct names:
                   ;; most goals are a predicate's, and the predicate path
                   ;; below is where they go straight away
                   (let ((int handled . 0) (int ret . 0))
-                    (if (coco_is_construct m nid)
+                    (if (and (not known) (coco_is_construct m nid))
                         (let ((int rc0 . #'(coco_construct e nid n g k b (aof ok) (aof ret))))
                           (if (== rc0 2) (return ret))
                           (set handled rc0)))
@@ -2287,21 +2363,22 @@
                      ;; A CORE BUILTIN, BY THE ROW THE FUNCTOR REMEMBERS -- asked
                      ;; once (`coco_builtin_index'), then one jump; an atom
                      ;; goal has no functor and walks the chain as before
-                     (if (> n 0)
-                         (let ((coco_functor * f0 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
-                                                              (-> m functors)))))
-                           (if (== (-> f0 bix) 0)
-                               (set (-> f0 bix) (cast u32 (+ (coco_builtin_index m nid n) 2))))
-                           (if (>= (-> f0 bix) 2)
-                               (block (set found 1)
-                                      (set rc (coco_builtin_call e (cast int (- (-> f0 bix) 2)) g)))
-                               (set found 0)))
-                         (set rc (coco_builtin e nid n g (aof found))))
+                     (if (not known)
+                         (if (> n 0)
+                             (let ((coco_functor * f0 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                                  (-> m functors)))))
+                               (if (== (-> f0 bix) 0)
+                                   (set (-> f0 bix) (cast u32 (+ (coco_builtin_index m nid n) 2))))
+                               (if (>= (-> f0 bix) 2)
+                                   (block (set found 1)
+                                          (set rc (coco_builtin_call e (cast int (- (-> f0 bix) 2)) g)))
+                                   (set found 0)))
+                             (set rc (coco_builtin e nid n g (aof found)))))
                      ;; not a core builtin: a module may still own it, and
                      ;; the module interface speaks names -- so the text is
                      ;; fetched HERE, on the path that needs it, rather than
                      ;; for every goal
-                     (if (and (not found) (!= coco_extern_call nil))
+                     (if (and (not known) (not found) (!= coco_extern_call nil))
                          (if (and (> n 0) (!= coco_extern_resolving nil))
                              ;; by the functor's remembered owner, asked once
                              ;; per generation of the registry -- see
@@ -2352,17 +2429,34 @@
                        ;; predicate by the index the functor remembers for
                        ;; this store, looked up once (`coco_pred_of' hashes)
                        (let ((size_t pi . 0))
-                         (if (> n 0)
-                             (let ((coco_functor * f1 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
-                                                                  (-> m functors)))))
-                               (if (and (== (-> f1 pst) (cast (void *) st))
-                                        (== (-> f1 pserial) (-> st serial)))
-                                   (set pi (-> f1 pidx))
-                                   (block (set pi (coco_pred_of st m g))
-                                          (set (-> f1 pst) (cast (void *) st))
-                                          (set (-> f1 pserial) (-> st serial))
-                                          (set (-> f1 pidx) pi))))
-                             (set pi (coco_pred_of st m g)))
+                         (cond
+                          ((!= known 0) (set pi kpi))
+                          ((> n 0)
+                           (let ((coco_functor * f1 . #'(aof (nth (cast size_t (coco-payload (nth g (-> m heap))))
+                                                                (-> m functors)))))
+                             (if (and (== (-> f1 pst) (cast (void *) st))
+                                      (== (-> f1 pserial) (-> st serial)))
+                                 (set pi (-> f1 pidx))
+                                 (block (set pi (coco_pred_of st m g))
+                                        (set (-> f1 pst) (cast (void *) st))
+                                        (set (-> f1 pserial) (-> st serial))
+                                        (set (-> f1 pidx) pi)))
+                             ;; THE STAMP, set only here, where every question
+                             ;; has just been asked and answered no: not a
+                             ;; construct's name (one of those can turn a goal
+                             ;; down by its shape), not a builtin (we are past
+                             ;; that test), and no module claims it -- either
+                             ;; there is no module seam, or the remembered walk
+                             ;; of this very generation found no owner. A walk
+                             ;; with a decline in it remembered nothing, so it
+                             ;; stamps nothing either.
+                             (if (and (< pi ($ (cof st) npreds))
+                                      (not (coco_is_construct m nid))
+                                      (or (== coco_extern_call nil)
+                                          (and (== (-> f1 dgen) coco_extern_generation)
+                                               (< (-> f1 dmod) 0))))
+                                 (set (-> f1 fgen) coco_extern_generation))))
+                          (#t (set pi (coco_pred_of st m g))))
                          (cond
                           ((>= pi ($ (cof st) npreds))
                            ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return'.
