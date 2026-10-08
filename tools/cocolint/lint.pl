@@ -322,8 +322,9 @@ cl_backslash_run([_|T], N, _, Run, Rest) :-
 %% pattern could start there at all. Only then are the individual patterns
 %% tried, and only those whose own set admits the code.
 %%
-%% The union is not tiny -- H1 can start at a space and E1 at a digit -- but it
-%% excludes most letters, which is most of a source file.
+%% The union is not tiny -- E1 can start at any digit, and the names the
+%% patterns look for at half the lowercase letters -- but it excludes
+%% whitespace, capitals and most punctuation, which is most of a source file.
 %% INDEXED BY FIRST CODE. Trying all seventeen at every position the union
 %% admits was three seconds on library/html.pl; a code that only one pattern
 %% can start with should try one pattern. The index is a sorted list of
@@ -659,8 +660,7 @@ cl_main :-
 %% cl_lint(+Files) is semidet.
 %% FAILS when there is a HARD finding, and that is the exit code. `cocolog
 %% --local run FILE GOAL' exits 1 with empty stderr when the goal fails --
-%% verified -- so no halt is needed, which matters because halt/0 would make
-%% the goal report no solution and is the trap card row H1 names.
+%% verified -- so no halt is needed.
 cl_lint(Files) :-
     cl_manifest(Files, Manifest),
     findall(Fs, ( member(File, Files), cl_file(File, [], Fs) ), PerFile),
@@ -873,11 +873,12 @@ cl_first(lit(A), Set) :- !, atom_codes(A, [C|_]), Set = [C].
 cl_first(oneof(A), Set) :- !, atom_codes(A, Set).
 cl_first(someof(A, N), Set) :- N > 0, !, atom_codes(A, Set).
 cl_first(exactly(N, A), Set) :- N > 0, !, atom_codes(A, Set).
-%% A ZERO-WIDTH ALTERNATIVE CONTRIBUTES NO CODE OF ITS OWN. H1 begins
-%% alt([bol, oneof(...)]) -- `at the start of input, or after one of these' --
-%% and reading bol as an unknown made the whole alternation `any', which made
-%% the UNION `any', which turned the gate off entirely and cost more than it
-%% saved. bol contributes nothing; what follows the alternation does.
+%% A ZERO-WIDTH ALTERNATIVE CONTRIBUTES NO CODE OF ITS OWN. H1, while it was a
+%% pattern, began alt([bol, oneof(...)]) -- `at the start of input, or after
+%% one of these' -- and reading bol as an unknown made the whole alternation
+%% `any', which made the UNION `any', which turned the gate off entirely and
+%% cost more than it saved. bol contributes nothing; what follows the
+%% alternation does.
 cl_first(alt(Ps), Set) :- !,
     findall(P, ( member(P, Ps), \+ cl_zero_width(P) ), Real),
     cl_first_alt(Real, Sets),

@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.8.56"))
+  (func coco_version_text () (out const char *) (return "1.8.57"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -574,12 +574,42 @@
   (func gate_vacuum ((coco_store * st))
         (if (not ($ opts vacuum)) (set (-> st vacuum) nil)))
 
+  ;;; The halt gate, beside it: what a halt during the LOAD finishes before
+  ;;; the process ends (`on_halt', kb.cicili) -- a `:- halt.', a halt in an
+  ;;; initialization goal, `initialization(G, main)' done. Installed by the
+  ;;; commands that end in one commit -- -s, run, query, the toplevel and
+  ;;; consult -- and it finishes the turn as they finish theirs after the
+  ;;; goal: the writes out and committed, or dropped and rolled back, then
+  ;;; the connection closed, which is where the embedded store syncs to
+  ;;; disk. Until it was here every one of those halts kept nothing, under
+  ;;; --embed and against a server alike, with exit 0 and an empty stderr.
+  ;;; `step', `work' and `swarm' do not install it: a machine's turn keeps
+  ;;; its writes with its saved state, so a halt in the middle of one stays
+  ;;; the rollback it always was. Nor does a thread, whose store is its own.
+  (func halt_finish ((coco_store * st) (void * ctx) (int code) (int keep)) (out int)
+        (if (or (== db nil) (!= ($ opts http) nil)) (return code))
+        (let ((coco_zg * z . #'(cast (coco_zg *) ctx)))
+          (if keep
+              (if (not (and (coco_zg_batch z 0) (zg_commit db)))
+                  (block (fprintf stderr "cocolog: commit failed: %s\n" (zg_error db))
+                         (set code 2)))
+            (block (coco_zg_forget_dirty z)
+                   (coco_zg_batch z 0)
+                   (zg_rollback db))))
+        (zg_close db)
+        (set db nil)
+        (return code))
+
+  (func gate_halt ((coco_store * st))
+        (if (!= db nil) (set (-> st on_halt) halt_finish)))
+
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [256]) (int total . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
           (gate_vacuum (aof st))
+          (gate_halt (aof st))
           ;; batched: each consulted predicate is written ONCE, at the end,
           ;; instead of being re-synced whole on every clause -- which was
           ;; quadratic, and 61 measured seconds for one 150-clause file
@@ -796,6 +826,7 @@
           ;; `query' after a run, which a collection keeps up to date
           (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (gate_halt (aof st))
           (set batched (batch_open (aof z)))
           (if (not (coco_engine_ask_text (aof e) goal))
               (block (fprintf stderr "cocolog: %s\n" ($ e err)) (return 1)))
@@ -831,6 +862,7 @@
           ;; `query' after a run, which a collection keeps up to date
           (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (gate_halt (aof st))
           (set batched (batch_open (aof z)))
 
           (if (not (coco_engine_ask_text (aof e) goal))
@@ -1317,6 +1349,7 @@
           ;; registered with the machine while the query runs -- below
           (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (gate_halt (aof st))
           ;; ONE GOAL IS ONE TRANSACTION HERE, so the batch is opened and
           ;; closed per goal rather than once for the session: what a goal
           ;; asserted has to be in the database by the time its own commit
@@ -2276,6 +2309,7 @@
           ;; `query' after a run, which a collection keeps up to date
           (set ($ e gc) 1)
           (attach (aof z) (aof zt) (aof m) (aof st))
+          (gate_halt (aof st))
 
           ;; BATCHED FOR THE WHOLE TURN -- the consult AND the goal. One sync
           ;; per predicate the turn touched, at the end, instead of a whole

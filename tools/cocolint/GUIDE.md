@@ -65,13 +65,14 @@ one.
 ### A finding
 
 ```
-tutorials/library/30-hex.pl:75:8 HARD S1 [H1] halt/0 sets `halted', and the engine tests halted BEFORE ...
-    fix: let main succeed; the CLI's exit code is the verdict
+tutorials/basics/07-assert-and-retract.pl:75:7 HARD S1 [R1] retract/1 is a C builtin: deterministic, leaving no choice point to fail back into. ...
+    fix: recurse instead of failing back
+    see: lib/solve.cicili:140-144
 ```
 
 `path:line:col`, the severity, the rule, the card row in brackets when the
-rule has one, the message, and on the next line what to do about it. The
-last line of the run is the count:
+rule has one, the message, and on the next lines what to do about it and
+the code the row cites. The last line of the run is the count:
 
 ```
 cocolint: 1 HARD, 0 WARN over 1 file(s)
@@ -89,21 +90,19 @@ the wrap, a clause that will not fit a page).
 | **N1** | HARD | a head that collides with a clause-defined tier-1 name; the two sets of clauses MERGE, and which is tried first depends on how the file is run | prefix the head with the program's own name — a DCG head too (row N4): `digit//1` is `digit/3` in the store |
 | **N2** | HARD | a head that collides with a C-registered name; dispatched before the store, so the clauses are DEAD CODE and `listing/1` will still show them | prefix the head |
 | **N3** | HARD | a head whose NAME is a control construct (`once`, `call`, `catch`, `throw`, …); no arity escapes it | prefix the head |
-| **S1** | HARD | one of the fourteen banned forms below, matched as a term with comments and quotes masked | the row's own fix |
+| **S1** | HARD | one of the twelve banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **A1** | WARN | an integer literal at or above 2^59 — a cell is a u64 with three tag bits and no range check, so arithmetic wraps SILENTLY at 2^60 | keep under 2^59, or `library(bigint)` |
 | **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`, so this warns a little early on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 
-S1's fourteen forms are rows of the dialect card, `traps.jsonl`, each with
+S1's twelve forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
 |---|---|---|---|
 | R1 | `clear :- retract(x(_)), fail.` | `( retract(x(_)) -> clear ; true )` | `retract/1` is a C builtin, deterministic: the failure-driven loop removes ONE clause |
-| H1 | `main :- ..., halt.` | omit `halt` | `halted` is tested before the empty continuation, so the goal reports no solution and exits 1 with nothing on stderr |
 | D2 | `:- table p/2.` `:- thread_local p/1.` | delete | not prefix operators here: the file does not parse |
-| C1 | `catch(findall(...), E, ...)` | `findall(X, catch(G, E, fail), L)` | `findall`, `forall`, `aggregate_all`, `bagof`, `setof`, `with_output_to` run a nested engine that drops the ball |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a library failure is `error(cocolog_error(Text), _)` and the house style puts a bare `Name/Arity` second |
 | A1 | `atan(Dy, Dx)` `log(2, N)` `random(10)` | the one-argument forms | an unknown arithmetic FUNCTOR is uncatchably fatal |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
@@ -115,10 +114,11 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | P1 | `current_prolog_flag(bounded, B)` | do not branch on a flag | four flags answer — `executable`, `argv`, `os_argv`, `double_quotes` — and every other one FAILS |
 | E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |
 
-The card has twenty more rows that inform the prompt rather than the
+The card has twenty-two more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the
-PROMPT rows on determinism, `**` staying an integer and the like. `tool.sh
-card --card` prints the card whole.
+PROMPT rows on determinism, `**` staying an integer, a halt inside a
+`findall` or a `forall` (H1), what a load-time goal writes under `-s` (H2),
+and the like. `tool.sh card --card` prints the card whole.
 
 ### C2 and the manifest
 

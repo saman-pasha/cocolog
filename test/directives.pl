@@ -32,7 +32,7 @@
 main :-
     scratch(D),
     a_goal(D), does_not_prove(D), loads_nothing(D), syntax_error(D), initialization(D),
-    init_main(D), in_a_module(D), exit_status(D), reader_level(D), the_program(D),
+    init_main(D), halted_load(D), in_a_module(D), exit_status(D), reader_level(D), the_program(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -173,6 +173,91 @@ init_main(D) :-
     fixture(F3, [':- initialization(true, restore_state).']),
     ran(F3, true, Out3),
     has('a when cocolog has not is refused BY NAME', restore_state, Out3).
+
+%% ---- a halt during the load, under a store -------------------------------
+%%
+%% A HALT IS AN ANSWER, AND WHAT THE RUN WROTE IS KEPT, wherever it comes.
+%% After the CLI's goal that has held since 1.2.4. During the LOAD -- a
+%% `:- halt.', a halt in an initialization goal, `initialization(G, main)'
+%% done -- the process exited from inside the consult, before the commit,
+%% and kept nothing: exit 0, an empty stderr, and a second process found no
+%% seen/1 at all, under --embed and over the wire alike. The claim is what a
+%% SECOND process reads, so every check is two: the run, and a read-back
+%% that consulted nothing. A main that threw is the one rolled back, as a
+%% goal that threw is after the CLI's own.
+%%
+%% `-s' ADDS ONE THING: the file is a module there, and a module's load is
+%% muted -- its directives write nothing through. The `main' goal is not
+%% part of the load but the program, standing where `-s' would have called
+%% main, so it writes through like that main does.
+halted_load(D) :-
+    section('a halt during the load keeps what the run wrote, under a store'),
+    atom_concat(D, '/probe.kb', P),
+    sh_join(['--embed ', P, ' query true >/dev/null 2>&1'], A0),
+    (   cocolog_run(A0, _, 0)
+    ->  halt_embed(D, h1, [':- dynamic(seen/1).', ':- assertz(seen(directive)).', ':- halt.'], run, Rc1, S1),
+        check('a :- halt. directive keeps what the load wrote before it, and exits 0', Rc1-S1, 0-answer([directive])),
+        halt_embed(D, h2, [':- dynamic(seen/1).', ':- assertz(seen(three)).', ':- halt(3).', 'seen(never).'], run, Rc2, S2),
+        check(':- halt(3). exits 3, keeps the write, and stops the load where it stands', Rc2-S2, 3-answer([three])),
+        halt_embed(D, h3, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(main)).'], run, Rc3, S3),
+        check('initialization(main, main) under run: main''s write is kept', Rc3-S3, 0-answer([main])),
+        halt_embed(D, h4, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(main)).'], s, Rc4, S4),
+        check('...and under -s, where the file is a module whose load is muted', Rc4-S4, 0-answer([main])),
+        halt_embed(D, h5, [':- dynamic(seen/1).', ':- initialization(main).', 'main :- assertz(seen(after_load)), halt.'], run, Rc5, S5),
+        check('initialization(main) with a halt in main keeps its write', Rc5-S5, 0-answer([after_load])),
+        halt_embed(D, h6, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(four)), halt(4).'], s, Rc6, S6),
+        check('halt(4) inside the main goal exits 4 and keeps the write', Rc6-S6, 4-answer([four])),
+        halt_embed(D, h7, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(failed)), fail.'], run, Rc7, S7),
+        check('a main that fails exits 1 and is committed, as a failed goal is', Rc7-S7, 1-answer([failed])),
+        halt_embed(D, h8, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(thrown)), throw(my_ball).'], run, Rc8, S8),
+        check('a main that throws exits 2 and is rolled back, as a goal that threw is', Rc8-S8, 2-answer([]))
+    ;   format("     (skipped: this build has no embedded store -- the --embed half not run)~n")
+    ),
+    halted_load_wire(D).
+
+%% the same three kinds over the wire, when a server answers
+halted_load_wire(D) :-
+    ( getenv('ZIGURAT_HOST', Host) -> true ; Host = '127.0.0.1' ),
+    ( getenv('ZIGURAT_PORT', Port) -> true ; Port = 2160 ),
+    sh_join(['--host ', Host, ' --tcp ', Port, ' --timeout 60 --kb halt_case'], W),
+    sh_join(['--host ', Host, ' --tcp ', Port, ' --timeout 10 --kb halt_case list >/dev/null 2>&1'], A0),
+    (   cocolog_run(A0, _, 0)
+    ->  halt_wire(D, W, w1, [':- dynamic(seen/1).', ':- assertz(seen(directive)).', ':- halt.'], run, Rc1, S1),
+        check('wire: a :- halt. directive keeps what the load wrote', Rc1-S1, 0-answer([directive])),
+        halt_wire(D, W, w2, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(main)).'], s, Rc2, S2),
+        check('wire: initialization(main, main) under -s keeps main''s write', Rc2-S2, 0-answer([main])),
+        halt_wire(D, W, w3, [':- dynamic(seen/1).', ':- initialization(main, main).', 'main :- assertz(seen(thrown)), throw(my_ball).'], run, Rc3, S3),
+        check('wire: a main that throws is rolled back', Rc3-S3, 2-answer([]))
+    ;   format("     (skipped: no Zigurat server at ~w:~w -- the wire half not run)~n", [Host, Port])
+    ).
+
+%% one run of a file under a fresh embedded store, then what a second
+%% process reads back from that store: the run's exit status, and seen/1's
+%% solutions -- [] when there are none, or no seen/1 at all
+halt_embed(D, Name, Lines, How, Rc, Seen) :-
+    atomic_list_concat([D, '/', Name, '.pl'], F), fixture(F, Lines),
+    atomic_list_concat([D, '/', Name, '.kb'], S),
+    sh_join(['--embed ', S], W),
+    halt_go(W, F, How, Rc),
+    halt_seen(W, Seen).
+
+%% the same against the server's halt_case base, emptied before and after
+halt_wire(D, W, Name, Lines, How, Rc, Seen) :-
+    atomic_list_concat([D, '/', Name, '.pl'], F), fixture(F, Lines),
+    sh_join([W, ' forget >/dev/null 2>&1'], Fg),
+    cocolog_run(Fg, _, _),
+    halt_go(W, F, How, Rc),
+    halt_seen(W, Seen),
+    cocolog_run(Fg, _, _).
+
+halt_go(W, F, s, Rc) :- !,
+    sh_join([W, ' -s ', F, ' >/dev/null 2>&1'], A), cocolog_run(A, _, Rc).
+halt_go(W, F, run, Rc) :-
+    sh_join([W, ' run ', F, ' true >/dev/null 2>&1'], A), cocolog_run(A, _, Rc).
+
+halt_seen(W, Seen) :-
+    sh_join([W, ' query "catch(findall(X, seen(X), L), _, L = []), write(answer(L)), nl"'], A),
+    cocolog_answer(A, Seen).
 
 in_a_module(D) :-
     section('a goal directive in a MODULE: the -s file, and a library .pl'),

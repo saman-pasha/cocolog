@@ -73,8 +73,13 @@ selftest_main :-
     atom_codes(_A, 'a\x41\b'),
     N = 1_000_000, write(N),
 
-    %% ---- H1: halt makes a proof report NO SOLUTION --------------------
-    halt.
+    %% ---- H1 IS NOT A PATTERN ANY MORE, and this is where it was --------
+    %% It fired on every halt, saying a proof that halts reports no solution
+    %% and exits 1. The CLI reads a halt as the program's answer, so a halt
+    %% here is SWI's; what is left of the trap is a halt inside a nested
+    %% search, which no textual pattern can see, and the row is a PROMPT,
+    %% carried to the agent rather than matched.
+    true.
 
 selftest_g(1).
 

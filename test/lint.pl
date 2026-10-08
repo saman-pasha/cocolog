@@ -11,7 +11,7 @@
 %%
 %% Five things are checked, in cost order:
 %%
-%%   1. the dialect card's 42 citations still point at the code they claim
+%%   1. the dialect card's 48 citations still point at the code they claim
 %%   2. the retrieval index's paths and anchors resolve
 %%   3. clauses.pl reads selftest/reader.pl into exactly reader.expected --
 %%      every shape that has ever fooled a clause reader here
@@ -24,7 +24,7 @@
 %%      blocklist still matches what the running store says
 %%
 %% A FINDING IN 5 IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the point of
-%% calibrating against code known to work. The twenty-two that survived are
+%% calibrating against code known to work. The seventeen that survive are
 %% listed below with the argument for each.
 %%
 %%     cocolog -s test/lint.pl        from the checkout root
@@ -276,9 +276,9 @@ the_findings(Agent) :-
         check('cocolint''s findings over the calibration corpus are the pinned set', changed, same)
     ).
 
-%% ---- the twenty-two, and why each is kept rather than silenced -----------
+%% ---- the seventeen, and why each is kept rather than silenced ------------
 %%
-%% FOURTEEN OF THE TWENTY-TWO ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
+%% TWELVE OF THE SEVENTEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
 %% ENFORCES, which is the most satisfying kind of true positive there is --
 %% and a standing argument that the rules point at real divergences, because
 %% somebody thought each one worth a lesson:
@@ -293,13 +293,6 @@ the_findings(Agent) :-
 %%                       BINDING an unbound context slot, so the handler runs
 %%                       and reads back something it invented. The lesson says
 %%                       so in the comment above the line.
-%%   37-lint    S1 [H1] x2  the tutorial FOR the linter, writing `lit(halt)'
-%%                       as a pattern term. H1 looks for halt after one of
-%%                       ` \t\n,(;>' and a `(' is one of those, so naming the
-%%                       trap in the notation that catches it trips it. The
-%%                       alternative is to obscure the pattern the lesson
-%%                       exists to show, which is a worse trade than one line
-%%                       in this list.
 %%   basics/04, 21-bigint, 25-der  A1 x6  `1000000000000000000 * 997' and the
 %%                       wrapped answer, which 25-der calls "a wrong answer
 %%                       returned confidently".
@@ -307,23 +300,17 @@ the_findings(Agent) :-
 %%                       cocolog does not have FAILS -- which it does by
 %%                       asking for one, `current_prolog_flag(bounded, _)'.
 %%                       P1 is right that this is a flag with no answer; the
-%%                       lesson's whole claim is that it has none. Naming the
-%%                       trap in the notation that catches it, exactly as
-%%                       37-lint does above.
+%%                       lesson's whole claim is that it has none, and naming
+%%                       the trap in the notation that catches it trips it.
 %%   basics/10  N1 x2    defines digits//1 and digit//1, which are also
 %%                       dcg_basics' at arity 3. A real collision, and the two
 %%                       definitions DIFFER -- the tutorial's wants at least
 %%                       one digit, dcg_basics' allows none. Latent rather than
 %%                       harmful only because their first solutions agree.
 %%
-%% FOUR ARE REAL FINDINGS IN THE TREE, left for the owner rather than quietly
+%% ONE IS A REAL FINDING IN THE TREE, left for the owner rather than quietly
 %% edited:
 %%
-%%   29-ray, 30-hex, 31-astar  S1 [H1]  their must/3 calls halt(1) on the
-%%                       failure branch where the other 48 tutorials fail.
-%%                       The exit code coincides, so it works; what it costs is
-%%                       the remaining checks and any stdout not yet flushed --
-%%                       the failure mode CLAUDE.md records under flush_output.
 %%   36-llm     Z1       its main/0 is ~15 KB stored, twice the page budget.
 %%                       Harmless only because the tutorial runs --local. The
 %%                       same clause under a store is lost SILENTLY -- measured
@@ -366,12 +353,7 @@ expected([ 'library/astar.pl WARN T1',
            'tutorials/library/25-der.pl WARN A1 [A2]',
            'tutorials/library/26-x509.pl WARN T1',
            'tutorials/library/27-ca.pl WARN T1',
-           'tutorials/library/29-ray.pl HARD S1 [H1]',
-           'tutorials/library/30-hex.pl HARD S1 [H1]',
-           'tutorials/library/31-astar.pl HARD S1 [H1]',
            'tutorials/library/36-llm.pl WARN Z1 [Z1]',
-           'tutorials/library/37-lint.pl HARD S1 [H1]',
-           'tutorials/library/37-lint.pl HARD S1 [H1]',
            'tutorials/library/38-main.pl HARD S1 [P1]',
            'tutorials/library/39-tensor-expr.pl HARD N1' ]).
 

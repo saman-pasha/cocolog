@@ -627,7 +627,9 @@
   ;;; `:- halt.' HALTS, here as in SWI. The flag belongs to the engine that
   ;;; ran the goal and would die with it, so it is read before that engine
   ;;; is freed and acted on at once: a program that says halt in a directive
-  ;;; means the process, not this goal.
+  ;;; means the process, not this goal. And a halt is an ANSWER, as it is
+  ;;; after the CLI's goal: what the run wrote is committed first
+  ;;; (`coco_halt_load'), where an exit from here used to lose it.
   (static)
   (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal)
                       (char * err) (size_t errlen)) (out int)
@@ -642,7 +644,7 @@
               (if (not (coco_engine_error_text (aof e) err errlen))
                   (snprintf err errlen "%s" ($ e err))))
           (coco_engine_free (aof e))
-          (if halted (block (fflush nil) (exit code)))
+          (if halted (coco_halt_load st code 1))
           (if (== rc 1) (return 1))
           (if (== rc 0) (return 0))
           (return -1)))

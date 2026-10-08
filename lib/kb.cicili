@@ -389,6 +389,20 @@
     ;; zg_conn is, exactly as ctx is opaque.
     (member func conn ((coco_store * st) (void * ctx)) (out void *))
 
+    ;; WHAT A HALT DURING A LOAD FINISHES before the process ends: a halt in
+    ;; a directive's goal or an initialization goal, or `initialization(G,
+    ;; main)' done (`coco_halt_load'). The run's writes become durable at
+    ;; the commit its host makes AFTER the goal it was given, and an exit
+    ;; from inside the load never got there: measured under --embed, every
+    ;; one of those halts kept nothing, with exit 0 and an empty stderr.
+    ;; This commits them (KEEP) or rolls them back, closes what the store
+    ;; rides on and answers the exit status -- CODE, or what a failed commit
+    ;; makes it. Null where there is nothing to finish, or where finishing
+    ;; is not this store's to do: --local, a thread's store, a machine's turn
+    ;; (whose writes belong with its saved state). The composition root
+    ;; installs it for the commands that end in one commit.
+    (member func on_halt ((coco_store * st) (void * ctx) (int code) (int keep)) (out int))
+
     ;; How many MODULES have had their clauses consulted into this store. It
     ;; lives here rather than beside the registry because it is a fact about
     ;; this store and not about the build: `coco_store_reset' -- which is what
@@ -734,6 +748,13 @@
                          (char * err) (size_t errlen))
                      (out int))))
 
+  ;;; Ends the process from inside a load with CODE -- SWI's halt, which
+  ;;; stops the load where it stands -- after the store's `on_halt', when it
+  ;;; has one, has finished the run: KEEP commits what it wrote, as a halt
+  ;;; after the CLI's goal is committed, and 0 rolls it back, as a goal
+  ;;; that threw is. Never returns.
+  (decl) (func coco_halt_load ((coco_store * st) (int code) (int keep)))
+
   ) ; decl-kb
 
 
@@ -761,6 +782,14 @@
         ((func h ((coco_store * st) (coco_machine * m) (size_t goal)
                   (char * err) (size_t errlen)) (out int)))
         (set coco_goal_hook h))
+
+  (func coco_halt_load ((coco_store * st) (int code) (int keep))
+        ;; the program's output first: a failed commit says so on stderr
+        (fflush nil)
+        (if (!= (-> st on_halt) nil)
+            (set code ((-> st on_halt) st (-> st ctx) code keep)))
+        (fflush nil)
+        (exit code))
 
   ;;; ---- the messages a load can produce ----------------------------------
   ;;;
@@ -900,7 +929,9 @@
                                  (i64 sq) (double * o) (u32 cap) (u32 * n)) (out int)
                       . #'(-> st tensor_row))
                 (func keep_tforget ((coco_store * s) (void * c) (const char * nm)) (out int)
-                      . #'(-> st tensor_forget)))
+                      . #'(-> st tensor_forget))
+                (func keep_halt ((coco_store * s) (void * c) (int cd) (int kp)) (out int)
+                      . #'(-> st on_halt)))
             (coco_store_free st)
             (coco_store_init st)
             (set (-> st ctx) ctx)
@@ -911,7 +942,8 @@
             (set (-> st on_dynamic) keep_dynamic)
             (set (-> st tensor_put) keep_tput)
             (set (-> st tensor_row) keep_trow)
-            (set (-> st tensor_forget) keep_tforget))))
+            (set (-> st tensor_forget) keep_tforget)
+            (set (-> st on_halt) keep_halt))))
 
   (static)
   (func coco_store_push ((coco_store * st) (u64 c)) (out size_t)
@@ -3291,7 +3323,16 @@
                         (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0)))
                     ;; fetched, the goal's cells are orphans
                     (set (-> st dead) (+ (-> st dead) span))
-                    (set gr (coco_goal_hook st m goal err errlen))
+                    ;; THE `main' GOAL IS THE PROGRAM, NOT PART OF THE LOAD,
+                    ;; so it writes through even when the file is a module
+                    ;; -- and `-s FILE' makes it one, whose load is muted. It
+                    ;; stands where `-s' would have called main, whose writes
+                    ;; reach the knowledge base; muted, G's stayed in this
+                    ;; process and ended with it.
+                    (let ((int was . #'(-> st muted)))
+                      (if main (set (-> st muted) 0))
+                      (set gr (coco_goal_hook st m goal err errlen))
+                      (set (-> st muted) was))
                     ;; SWI'S TWO VOICES, measured: an `after_load' goal that
                     ;; fails is a Warning and the program carries on, while a
                     ;; `main' one that fails is an ERROR and the exit status
@@ -3326,9 +3367,11 @@
             ;; when it is done -- 0 proved, 1 failed, 2 threw, which are the
             ;; three answers `swipl -g' ends with as well. Anything the
             ;; process was going to do next, including the goal the CLI was
-            ;; given, is not done: that is the point of the word `main'.
+            ;; given, is not done: that is the point of the word `main'. What
+            ;; the run wrote is finished as the CLI finishes its own goal's:
+            ;; committed when G proved or failed, rolled back when it threw.
             (if halt_after
-                (block (fflush nil) (exit halt_code))))
+                (coco_halt_load st halt_code (? (== halt_code 2) 0 1))))
           (return n)))
 
   (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int)

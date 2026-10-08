@@ -4515,6 +4515,53 @@ not; lesson 43 prints its notice and ends `done`. `test/tutorials.pl` skips
 lesson 41 by name when the opencv module will not load, as it already
 skipped the opencv category.
 
+## A halt during the load keeps what the run wrote (1.8.57)
+
+A halt after the CLI's goal has been an answer since 1.2.4: the exit status
+is the program's and the writes are committed. A halt during the LOAD was
+not. A `:- halt.`, a halt in an initialization goal and `initialization(G,
+main)` done each called `exit()` from inside the consult (`lb_goal_hook`, the
+end of `coco_consult`), before the commit the CLI makes after its goal, so
+under a store every one of them kept nothing, with exit 0 and an empty
+stderr. SWI's canonical script, `:- initialization(main, main).`, wrote
+nothing under `--embed` or a server, run with `-s` or with `run`. It came out
+of rereading the dialect card's row H1.
+
+The two exits go through `coco_halt_load`, which asks the store's new
+`on_halt` first. The composition root installs it for the commands that end
+in one commit -- `-s`, `run`, `query`, the toplevel and `consult` -- and it
+finishes the turn as they finish theirs: the writes out and committed, or for
+a `main` that threw dropped and rolled back, then the connection closed,
+which is where the embedded store syncs. `step`, `work` and `swarm` do not
+install it, since a machine's turn keeps its writes with its saved state, and
+neither does a thread. Under `-s` the file is a module whose load is muted,
+so the `main` goal -- the program, standing where `-s` would have called
+main -- runs unmuted; directives and `initialization(G)` stay muted, as a
+module's load always was.
+
+`test/directives.pl` checks eight shapes under `--embed` and three over the
+wire, each read back by a second process: `:- halt.`, `:- halt(3).` (which
+also stops the load where it stands), `initialization(main, main)` under
+`run` and under `-s`, `initialization(main)` with a halt in main, `halt(4)`
+inside the main goal, a main that fails (committed, exit 1) and one that
+throws (rolled back, exit 2). Three arms, each its own build, put the old
+behaviour back: without the hook all nine keep checks go red, under
+`--embed` and over the wire alike; with the main goal muted, the three `-s`
+checks; with a thrown main kept, the two rollback checks.
+
+Row H1 said `main :- ..., halt.` exits 1 with nothing on stderr, and was a
+HARD pattern on every halt -- false since 1.2.4, and it flagged correct code
+(`test/run.pl`'s `halt(1)`). It is a PROMPT row now, about the halt that does
+differ from SWI: one inside `findall/3,4`, `forall/2`, `aggregate_all/3`,
+`bagof/3`, `setof/3`, `call_metered/4` or `with_output_to/2`, which run their
+goal in an engine of their own and read its halt as the end of the search.
+The program carries on and exits 0, where swipl exits with the halt's code,
+and `with_output_to/2` fails. That is a matter of nesting, which no text
+pattern can see. Row H2 is new: under `-s`, SWI's older idiom,
+`:- initialization(main).` with a halt in main, writes nothing. The corpus
+loses five findings (29-ray, 30-hex, 31-astar and two in 37-lint), all of
+them correct code.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

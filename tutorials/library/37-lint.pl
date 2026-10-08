@@ -15,8 +15,8 @@
 %% compile, and far enough that they will be wrong. Every rule cocolint has
 %% exists because the failure it catches is SILENT or nearly so -- a loud
 %% failure needs no linter, because the interpreter already names it. A
-%% program that calls `halt' at the end of main exits 1 with nothing on
-%% stderr; one that defines `step/4' merges its clauses into a library's; one
+%% program that clears a predicate with `retract(p(_)), fail' removes ONE
+%% clause; one that defines `step/4' merges its clauses into a library's; one
 %% that writes `~t~20|' for alignment gets a format directive refused by
 %% name. None of the three says so.
 %%
@@ -195,9 +195,11 @@ t37_where :-
     must('every match, in order', Offsets, [0, 3, 6]),
 
     format("~n   A WORD BOUNDARY IS A CHANGE, not a character. `halt' fires;~n"),
-    format("   `ahalt' and `halted' do not, which is exactly what rule H1~n"),
-    format("   needs -- halt/0 makes a proof report NO SOLUTION and the~n"),
-    format("   process exit 1 with nothing on stderr.~n"),
+    format("   `ahalt' and `halted' do not. Card row H1 was this pattern once~n"),
+    format("   and is a row without one now: a halt at the top of a proof is~n"),
+    format("   SWI's, and the halt that misbehaves -- inside a findall or a~n"),
+    format("   forall, where it ends only that search -- is a matter of~n"),
+    format("   NESTING, which no pattern over the text can see.~n"),
     ( cl_match(seq([bstart, lit(halt), bend]), "x halt y", OffH, _)
     -> true ; OffH = none ),
     must('halt, at a boundary', OffH, 2),
@@ -239,12 +241,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 33),
+    must('rows in the card', NRows, 34),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 33),
-    %% FIFTEEN OF THE THIRTY-FIVE CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 34),
+    %% TWELVE OF THE THIRTY-FOUR CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
     %% a big integer literal is right there in the text -- and `I1', which is
@@ -261,9 +263,18 @@ t37_card :-
     %% halves of it are worth telling apart: a row loses its PATTERN when
     %% the form stops being detectable, and loses ITSELF when the form stops
     %% being a divergence.
+    %%
+    %% H1 LOST ITS PATTERN BY BEING WRONG ABOUT WHERE THE TRAP WAS. It fired
+    %% on every halt, saying a proof that halts exits 1 silently; the CLI
+    %% reads a halt as the program's answer, so at the top of a proof it is
+    %% SWI's, and the pattern flagged correct code. What is true is a halt
+    %% inside a nested search, which no text pattern can see, so the row
+    %% stayed and the pattern went -- and H2 came with it: under -s the file
+    %% is a module whose load is muted, so SWI's older idiom,
+    %% `:- initialization(main).' with a halt in main, writes nothing.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 13),
+    must('rows carrying an S1 pattern term', NPats, 12),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 
@@ -276,10 +287,10 @@ t37_running :-
     format("   -- N1, N2, N3 -- need a blocklist extracted from this~n"),
     format("   checkout, and lint.sh makes one for you:~n"),
     format("~n       sh tools/cocolint/lint.sh myprogram.pl~n~n"),
-    format("   It exits 1 if there is a HARD finding, which is how a cocolog~n"),
-    format("   program sets an exit code at all: `cocolog run FILE GOAL'~n"),
-    format("   exits 1 when the goal FAILS, so cl_lint/1 simply fails. No~n"),
-    format("   halt is involved, and could not be -- see section 6.~n"),
+    format("   It exits 1 if there is a HARD finding: `cocolog run FILE GOAL'~n"),
+    format("   exits 1 when the goal FAILS, so cl_lint/1 simply fails and~n"),
+    format("   needs no halt. halt(1) at the top of the goal would say the~n"),
+    format("   same -- there it is SWI's halt; see section 6 for where not.~n"),
     ( exists_file('tools/cocolint/blocklist.pl') -> Index = built ; Index = absent ),
     show('the generated blocklist is', Index),
     (   Index == built

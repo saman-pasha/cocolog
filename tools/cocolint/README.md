@@ -328,11 +328,11 @@ that was wrong, under `empirical`:
 
 ## Every rule has to fire, and a corpus of correct code cannot show that
 
-`test/lint.pl` has two halves. The first runs cocolint over the 58 files and
+`test/lint.pl` has two halves. The first runs cocolint over the 82 files and
 pins the exact **set** of findings — not a count, because two findings that
 cancel out in a total would slip through. The second runs it over
 `selftest/traps.pl`, which walks into every divergence on purpose, and asserts
-that all 24 rules still fire. A rule whose pattern has quietly stopped matching
+that all 18 rules still fire. A rule whose pattern has quietly stopped matching
 is invisible against code that is correct; this is the half that sees it.
 
 Writing the trap file caught two bugs in the linter itself:
@@ -348,18 +348,21 @@ Writing the trap file caught two bugs in the linter itself:
 
 ## What survives on the calibration corpus, and why it stays
 
-Seventeen findings over 58 known-good files, and **ten of them are tutorials
-teaching the very trap the rule enforces** — `basics/07`'s
+Seventeen findings over 82 known-good files, and **twelve of them are
+tutorials teaching the very trap the rule enforces** — `basics/07`'s
 `( retract(seen(_)), fail ; true )`, `library/04`'s `~t~20|` inside a `catch/3`,
-and six `1000000000000000000 * 997` wraps across three lessons. That is the
-strongest evidence available that the rules point at real divergences: somebody
-thought each one worth writing a lesson about.
+`basics/09`'s `context(Who, _)`, `38-main` asking for the `bounded` flag,
+`basics/10`'s `digits//1` beside dcg_basics', and six
+`1000000000000000000 * 997` wraps across three lessons. That is the strongest
+evidence available that the rules point at real divergences: somebody thought
+each one worth writing a lesson about.
 
-Four are real findings left for the owner rather than quietly edited: three
-tutorials whose `must/3` calls `halt(1)` where the other 44 fail, and one whose
-`main/0` is ~15 KB stored — nearly twice the page budget, harmless only
-because the tutorial runs `--local`. The last three are no-op tier-1 imports already named
-in `CLAUDE.md`.
+One is a real finding left for the owner rather than quietly edited: a
+tutorial whose `main/0` is ~15 KB stored — nearly twice the page budget,
+harmless only because the tutorial runs `--local`. Three are no-op tier-1
+imports already named in `CLAUDE.md`, and one is `39-tensor-expr` adding to
+library(tensor_expr)'s grammar on purpose, an extension point the library
+does not declare. `test/lint.pl` argues each one.
 
 ## The gates, and what each is for
 

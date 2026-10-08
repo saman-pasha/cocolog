@@ -197,7 +197,11 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 * **`-s FILE` is `use_module(FILE), main`**, so the file's clauses are muted
   like any module's and never written through; **`run FILE GOAL` CONSULTS**,
   and consulting writes into the knowledge base. Under `--local` the two look
-  identical; under a real store they are not. `-s` also puts
+  identical; under a real store they are not. So are the writes of the goals
+  an `-s` file's load runs (directives, `initialization(G)`), while
+  `initialization(G, main)` is the program and writes through. A halt during
+  any load commits what was written through before the process ends (the
+  store's `on_halt`; until 1.8.57 it kept nothing). `-s` also puts
   `library(main)`'s `main/0` first where `run` puts the file's.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
