@@ -4501,6 +4501,20 @@ red exactly as on 1.8.54 and in the box's runs of 2026-10-03 -- `reason` and
 lesson 43 want a tensor backend (`tensor_from_list/2`), lesson 41 OpenCV
 (`cv_version/1`).
 
+## Without torch or OpenCV, the reasoning case and lessons 41 and 43 say so (1.8.56)
+
+`reason_prose/2` promises `existence_error(tagger, pretrained)` where there is
+no shipped tagger, and the catch that kept the promise could never fire: the
+tagger LOADS without torch -- its vocabulary, encoding and tag ids are
+clauses -- so the load never failed, and the shipped model died at its first
+tensor with torch's own `existence_error(procedure, tensor_from_list/2)`,
+which nothing caught. `rp_model/1` asks for `library(torch)` first now. On a
+box without it the promise is the error, which `test/reason.pl` checks there
+(red with the old loader), and the case's later sections run where they had
+not; lesson 43 prints its notice and ends `done`. `test/tutorials.pl` skips
+lesson 41 by name when the opencv module will not load, as it already
+skipped the opencv category.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

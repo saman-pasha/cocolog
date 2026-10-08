@@ -20,11 +20,13 @@
 %% would also share their train/test/predict clauses -- and the first one
 %% consulted would answer for all of them.
 %%
-%% THREE KINDS OF SKIP, all because "not built here" and "wrong" are
-%% different findings: the torch category needs the torch module,
-%% `library/22-torch.pl' needs it too, 23 to 28 need ZiguratIP's
-%% cryptography and its sample certificate directory, 29 needs the ray
-%% module and 40 the numpy one. A lesson skipped says so INDENTED, because
+%% A LESSON SKIPS WHEN ITS MODULE IS NOT HERE, because "not built here" and
+%% "wrong" are different findings: the torch category needs the torch
+%% module, and so do `library/22-torch.pl', 39 and 45; 23 to 28 need
+%% ZiguratIP's cryptography and its sample certificate directory; 29 needs
+%% the ray module, 40 the numpy one, 41 and the opencv category the opencv
+%% one, 47 clay and 48 stream. 43 needs nothing: its typed-prose section is
+%% optional and says so itself. A lesson skipped says so INDENTED, because
 %% a SKIP at column 0 would skip the whole case.
 %%
 %%     cocolog -s test/tutorials.pl        from the checkout root
@@ -75,7 +77,7 @@ main :-
     %% predicate, so loadable is asked with one, not with use_module alone.
     loadable('use_module(library(numpy)), np_zeros([1], A), np_free(A)', Numpy),
     loadable('use_module(library(opencv)), cv_new(1, 1, ''8u'', I), cv_free(I)', Opencv),
-    basics_and_library(Torch, Crypto, Ray, Numpy, Clay, Stream),
+    basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream),
     opencv(Opencv),
     tensor(D, Torch, Cuda),
     shl(['rm -rf ', D]),
@@ -125,7 +127,7 @@ one_lesson(Name, Path, TimeoutMs) :-
         forall(member(T, Tail), ( atom_codes(TA, T), format("      ~w~n", [TA]) ))
     ).
 
-basics_and_library(Torch, Crypto, Ray, Numpy, Clay, Stream) :-
+basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream) :-
     section('basics and library: one process, goal `main'''),
     lessons('tutorials/basics', Basics), lessons('tutorials/library', Library),
     append(Basics, Library, All),
@@ -141,6 +143,8 @@ basics_and_library(Torch, Crypto, Ray, Numpy, Clay, Stream) :-
              ->  skip_lesson(Name, 'no ray module')
              ;   Name == 'tutorials/library/40-numpy', Numpy == no
              ->  skip_lesson(Name, 'no numpy module')
+             ;   Name == 'tutorials/library/41-opencv', Opencv == no
+             ->  skip_lesson(Name, 'no opencv module')
              ;   Name == 'tutorials/library/47-clay', Clay == no
              ->  skip_lesson(Name, 'no clay module')
              ;   Name == 'tutorials/library/48-stream', Stream == no

@@ -559,12 +559,19 @@ reason_prose(Text, Terms) :- rp_model(M), tagger_normalise(M, Text, _, Terms).
 reason_ask_prose(Text, Answers) :- rp_model(M), tagger_ask(M, Text, Answers).
 reason_ask_prose(Text, Answers, Explanations) :- rp_model(M), tagger_ask(M, Text, Answers, Explanations).
 
+%% LIBRARY(TORCH) IS ASKED FOR FIRST. The tagger LOADS where torch is
+%% absent -- its vocabulary, encoding and tag ids are clauses -- so a load
+%% of it that did not fail never meant torch was there, and the shipped
+%% model then died at its first tensor with torch's own
+%% existence_error(procedure, tensor_from_list/2), which no caller of the
+%% header's promise catches: test/reason.pl and lesson 43 went red on every
+%% box without torch where they meant to say "no shipped tagger here".
 rp_model(M) :-
     (   catch(nb_getval('$rp_model', Cached), _, Cached = none), Cached \== none
     ->  M = Cached
-    ;   catch(use_module(library(reasoning/tagger)), _,
+    ;   catch(( use_module(library(torch)), use_module(library(reasoning/tagger)) ), _,
               throw(error(existence_error(tagger, pretrained),
-                          context(reason_prose/2, 'library(reasoning/tagger) would not load: is library(torch) built?')))),
+                          context(reason_prose/2, 'library(torch) or library(reasoning/tagger) would not load: is library(torch) built?')))),
         tagger_pretrained(M0),
         nb_setval('$rp_model', M0),
         M = M0

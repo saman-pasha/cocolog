@@ -657,6 +657,18 @@ topics :-
 %% are on the next training.
 prose :-
     section('prose'),
+    %% WITHOUT TORCH THE PROMISE IS THE ERROR: reason_prose/2 raises
+    %% existence_error(tagger, pretrained), which the header names and the
+    %% branch below catches -- not torch's own existence_error for a tensor
+    %% predicate, which it raised through 1.8.55 and which took this case and
+    %% lesson 43 red on every box without torch. Asked of the module itself,
+    %% which may be beside the binary, on the path or compiled in.
+    (   catch(use_module(library(torch)), _, fail)
+    ->  true
+    ;   catch(( reason_prose('Rex owns a car.', _), E0 = none ), E0, true),
+        ( E0 = error(existence_error(tagger, pretrained), _) -> R0 = promised ; R0 = E0 ),
+        check('without library(torch), reason_prose/2 raises existence_error(tagger, pretrained)', R0, promised)
+    ),
     (   catch(reason_prose('Well, Rex really owns a red car, obviously. Kim rents a flat in Oslo and is insured.', T1),
               error(existence_error(tagger, pretrained), _), fail)
     ->  check('typed prose, read through the shipped tagger', T1,
