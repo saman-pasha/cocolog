@@ -104,6 +104,19 @@ and not too closely: SWI's and CPython's lanes ran 1.0-1.47 times their Run
 O per rep while cocolog's ran 0.78-1.12 times, more than the engine change
 between them explains (Run P's section).
 
+**Run Q**, on 1.9.1 -- an index on any argument, a body's first call in
+registers, its leading arithmetic run as guards on entry, and every jump
+padded off a 32-byte boundary -- on the same kind of box: cocolog --local
+0.5-3.6 times CPython and 0.9-2.0 times SWI-Prolog with `-O`. Naive reverse
+takes half CPython's time, and **sortnums is faster than SWI-Prolog with
+`-O`**, 0.9x, the first task in these runs that is. Against python +
+sqlite3 the embedded store is 20 times faster at the keyed probes (21x over
+the socket), 6.0 times on the counting loop (5.5x), 1.8 times on nrev
+(1.7x) and 1.5 times on sortnums (1.5x) -- faster on four tasks of five --
+and 1.7 times slower on queens (1.7x). The engine change itself is measured
+by the within-run pairs in STATUS.md, not by this run against Run P (Run
+Q's section).
+
 ## The rules
 
 `langs.sh`'s header is the authority; in short:
@@ -689,5 +702,141 @@ the shape of the lookup gap -- a thousand probes, three sizes:
         200         0.03         0.03         0.06         2x
        2000         0.03         0.03         0.05         2x
       20000         0.03         0.05         0.06         2x
+
+```
+
+### Run Q: 1.9.1, any argument indexed, calls in registers, guards, padded jumps
+
+cocolog 1.9.1, the tree this section was committed with -- Run P's engine
+(1.8.57's, unchanged through 1.9.0's `library(websocket)`) with an index on
+any argument, the first call of a body written into registers, a body's
+leading arithmetic and type tests run as guards when its clause is entered,
+and every jump padded off a 32-byte boundary (`-mbranches-within-32B-boundaries`,
+which `tools/cc` passes on x86-64 since: this box is a Cascade Lake, and
+the JCC erratum's microcode keeps a jump on such a boundary out of the
+uop cache) -- built by clang in release mode, with ZiguratIP's MVCCS engine
+at `6a8f2f5` (0.1.22) linked in; the zigurat lane is ZiguratIP 0.1.22
+started fresh for the run, on 64 KiB pages (`COCOLOG_PAGE_SIZE=65536`), its
+Parsi objects rebuilt by clang that day (they had been gcc's). The same
+kind of box as Runs O and P, a four-vCPU Intel Xeon microVM at 2.80 GHz
+(Linux 6.18, 16 GB), with Python 3.11.15 and SWI-Prolog 9.0.4; 2026-10-08,
+11 min 07 s, a load of 0.65 at the start and the harness the only busy
+process. Every answer passed the gate.
+
+**As a language**, cocolog --local is 0.5-3.6 times CPython and 0.9-2.0
+times SWI-Prolog with `-O` (Run P: 0.8-4.4 and 1.2-2.3). Naive reverse
+takes half CPython's time, and **sortnums is faster than SWI-Prolog with
+`-O`**, 0.9x, the first task in these runs that is. Against `swipl` as
+installed cocolog is faster on four tasks of five (queens 1.31x, loop
+3.00x, lookup 1.51x, sortnums 3.08x) and 1.33 times slower on naive
+reverse. **As a state machine**, against python + sqlite3 -- faster on four
+tasks of five:
+
+| task (one rep) | cocolog --embed | cocolog zigurat | cpython + sqlite3 | cocolog against it | Run P |
+|---|---:|---:|---:|---|---|
+| lookup, 1000 probes / 200 facts | 0.000395 s | 0.000383 s | 0.007887 s | **20.0x faster** (20.6x) | 14.5x (17.2x) |
+| loop, 100 000 additions | 0.005872 s | 0.006379 s | 0.034982 s | **5.96x faster** (5.48x) | 1.66x (1.30x) |
+| nrev, 400-element list | 0.004722 s | 0.004965 s | 0.008597 s | **1.82x faster** (1.73x) | 2.73x (2.08x) |
+| sortnums, 5000 integers | 0.002099 s | 0.002144 s | 0.003109 s | **1.48x faster** (1.45x) | 1.33x slower (1.11x slower) |
+| queens, all 92 solutions | 0.004628 s | 0.004652 s | 0.002707 s | 1.71x slower (1.72x) | 2.75x slower (2.17x) |
+
+Four things to read with care:
+
+* **The engine change is the within-run pairs, not this run against Run
+  P.** This sitting's rivals ran 0.67-1.13 times their Run P per rep
+  (CPython 0.68-1.13, SWI-Prolog with `-O` 0.67-0.93) and cocolog --local
+  0.44-0.87 times (nrev 0.65, queens 0.87, loop 0.44, lookup 0.78, sortnums
+  0.48). Nine alternating pairs of 1.9.0 against 1.9.1 in one sitting, and
+  of the plain build against the padded one, are in STATUS.md's 1.9.1
+  section; they are what say how much faster the engine got.
+* **The loop against sqlite, 6.0x where Run P read 1.7x**, is the guards:
+  `N > 0` and both `is` run as the clause is entered and the recursive call
+  goes in registers (0.46 of 1.9.0's time in the pairs), while sqlite's lane
+  read 1.03 times its Run P figure.
+* **Queens is the one task sqlite still wins**, computation over data read
+  once, where the sqlite lane runs at Python's own speed (1.1x its dict
+  here); cocolog's queens moved least in the pairs too (0.72, and 0.99 more
+  from the padding).
+* **The three cocolog arrangements spread up to 21 %**, and the stores
+  ahead of --local on four tasks (queens 21 %, loop 14 %, lookup 10-13 %,
+  sortnums 6-8 %): each lane computes in memory after one consult, so the
+  order is the sitting's noise -- --local's queens reads a `2R/R` of 2.26,
+  the least linear figure in the table.
+
+The lookup-shape table is flat again, a constant 2x at 200, 2 000 and 20 000
+facts. The run, as `sh bench/langs.sh` printed it:
+
+```
+
+cocolog vs CPython and SWI-Prolog -- same task, same answer, four arrangements
+python3 3.11.15 at /usr/local/bin/python3, cocolog 1.9.1 at /home/user/cocolog/cocolog
+SWI-Prolog version 9.0.4 for x86_64-linux at /usr/bin/swipl
+wall clock, median of three timed runs at each of two sizes
+a lane calibrated to ONE rep prints its wall time instead of a rate:
+at one rep the fixed cost and the work cannot be told apart
+
+-- nrev: one naive reverse of a 400-element list
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        256    0.00     0.010086      1.0x        -    2.21  cpython_process
+   swi-O         512    0.00     0.003307      0.3x     1.0x    2.04  swi_prolog_process_optimised
+   swi           512    0.00     0.003498      0.3x     1.1x    2.02  swi_prolog_process_as_installed
+   local         256    0.04     0.004640      0.5x     1.4x    1.97  cocolog_local_in_memory_no_database
+   embed         256    0.03     0.004722      0.5x     1.4x    1.97  cocolog_embedded_mvccs_fresh_store
+   zigurat       256    0.00     0.004965      0.5x     1.5x    2.04  cocolog_server_one_kb_emptied
+   sqlite        128    0.07     0.008597      0.9x        -    1.94  cpython_sqlite3_file_indexed_committed
+
+-- queens: one full 8-queens search, all 92 solutions
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.00     0.002369      1.0x        -    2.06  cpython_process
+   swi-O         512    0.10     0.002858      1.2x     1.0x    1.94  swi_prolog_process_optimised
+   swi           256    0.18     0.007611      3.2x     2.7x    1.92  swi_prolog_process_as_installed
+   local         256    0.00     0.005828      2.5x     2.0x    2.26  cocolog_local_in_memory_no_database
+   embed         256    0.09     0.004628      2.0x     1.6x    1.93  cocolog_embedded_mvccs_fresh_store
+   zigurat       256    0.35     0.004652      2.0x     1.6x    1.77  cocolog_server_one_kb_emptied
+   sqlite        512    0.00     0.002707      1.1x        -    2.11  cpython_sqlite3_file_indexed_committed
+
+-- loop: one hundred thousand additions, one at a time
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python        256    0.00     0.005646      1.0x        -    2.00  cpython_process
+   swi-O         256    0.00     0.005886      1.0x     1.0x    2.06  swi_prolog_process_optimised
+   swi            64    0.00     0.020494      3.6x     3.5x    2.08  swi_prolog_process_as_installed
+   local         256    0.00     0.006831      1.2x     1.2x    2.07  cocolog_local_in_memory_no_database
+   embed         256    0.20     0.005872      1.0x     1.0x    1.88  cocolog_embedded_mvccs_fresh_store
+   zigurat       256    0.06     0.006379      1.1x     1.1x    1.97  cocolog_server_one_kb_emptied
+   sqlite         32    0.19     0.034982      6.2x        -    1.86  cpython_sqlite3_file_indexed_committed
+
+-- lookup: a thousand key lookups over 200 facts
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python      16384    0.03     0.000123      1.0x        -    1.99  cpython_process
+   swi-O        8192    0.12     0.000219      1.8x     1.0x    1.94  swi_prolog_process_optimised
+   swi          2048    0.10     0.000663      5.4x     3.0x    1.93  swi_prolog_process_as_installed
+   local        4096    0.00     0.000440      3.6x     2.0x    2.04  cocolog_local_in_memory_no_database
+   embed        4096    0.18     0.000395      3.2x     1.8x    1.90  cocolog_embedded_mvccs_fresh_store
+   zigurat      4096    0.20     0.000383      3.1x     1.7x    1.89  cocolog_server_one_kb_emptied
+   sqlite        256    0.00     0.007887     64.1x        -    2.01  cpython_sqlite3_file_indexed_committed
+
+-- sortnums: one generate-and-sort of 5000 integers
+   lane         reps   fixed    per rep s     vs py vs swi-O    2R/R  arrangement
+   python       1024    0.26     0.002004      1.0x        -    1.89  cpython_process
+   swi-O         512    0.17     0.002578      1.3x     1.0x    1.89  swi_prolog_process_optimised
+   swi           256    0.00     0.007013      3.5x     2.7x    2.02  swi_prolog_process_as_installed
+   local        1024    0.00     0.002277      1.1x     0.9x    2.06  cocolog_local_in_memory_no_database
+   embed        1024    0.12     0.002099      1.0x     0.8x    1.95  cocolog_embedded_mvccs_fresh_store
+   zigurat      1024    0.04     0.002144      1.1x     0.8x    1.98  cocolog_server_one_kb_emptied
+   sqlite        512    0.22     0.003109      1.6x        -    1.88  cpython_sqlite3_file_indexed_committed
+
+start-up alone, the same wall clock, nothing but boot and exit:
+   python         0.02 s
+   swi-O          0.01 s
+   swi            0.02 s
+   local          0.01 s
+   embed          0.02 s
+   zigurat        0.01 s
+
+the shape of the lookup gap -- a thousand probes, three sizes:
+      facts     python s      swi-O s    cocolog s      ratio
+        200         0.02         0.02         0.04         2x
+       2000         0.02         0.03         0.05         2x
+      20000         0.03         0.05         0.05         2x
 
 ```

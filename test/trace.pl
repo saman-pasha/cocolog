@@ -41,8 +41,11 @@ main :-
     %% it meets and stamps the plain predicates (`fgen', 1.8.55), whose
     %% goals then skip the questions a traced call has to ask; `trace/0'
     %% switched on afterwards must still bring every port of the second
-    %% call back.
-    forall(member(Q, [ 'anc(tom, ann)', 'sum([1,2,3], S), S > 5' ]),
+    %% call back. And `classify/2' starts with a guard, `N < 0', which the
+    %% untraced call compiles and runs as the clause is entered (1.9.1):
+    %% traced, it must be a goal with its ports again.
+    forall(member(Q, [ 'anc(tom, ann)', 'sum([1,2,3], S), S > 5',
+                       'classify(-3, C)', 'classify(7, C)' ]),
            traced_late(Swipl, Program, Q)),
     checks_done.
 

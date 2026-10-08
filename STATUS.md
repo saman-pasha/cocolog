@@ -4640,6 +4640,136 @@ Around it:
   checks the lift both ways.
 * The retrieval index has a capability row for websocket.
 
+## Any argument indexes, a call in registers, and the guards run on entry (1.9.1)
+
+The rest of the compiled-control proposal, and the index the translator
+had been asking for. Nothing a program, a frozen machine or the tracer can
+see has changed -- every answer, every solution order and every inference
+count is 1.9.0's -- and three things are faster. Instructions per inference
+under `callgrind`, start-up cancelled (`main(N,R)` minus `main(N,0)`, over
+the inferences of the same difference), 1.9.0 against 1.9.1:
+
+| task | 1.9.0 | 1.9.1 | |
+|---|---:|---:|---|
+| nrev | 737.5 | 649.1 | -12.0 % |
+| queens | 795.2 | 576.5 | -27.5 % |
+| loop | 540.8 | 244.4 | -54.8 % |
+| lookup | 602.8 | 495.4 | -17.8 % |
+| sortnums | 1080.9 | 623.3 | -42.3 % |
+
+and on the tree's own programs, whole processes: the linter over every
+file of `library/` 21.20 G instructions to 19.59 G (-7.6 %, the same
+findings), and the translator's lesson (`tutorials/library/46-translate.pl`)
+114.88 G to 111.32 G (-3.1 %, its 864 lines the same) -- a program whose
+inferences are a third control constructs and 4 % arithmetic, which is
+what Stage 4 below is about.
+
+**A call is keyed on whichever bound argument chooses.** The first
+argument was the only one: a lookup by the second argument walked the
+predicate head by head, and a table whose first argument most clauses
+share walked that argument's whole chain -- from its head at every retry,
+so backtracking through one key's clauses was quadratic. Arguments 2 to 8
+get a table each (`coco_argix`), built the first time a call wants one and
+kept true by `assertz` (`asserta`, `retract` and a reconsult drop them);
+the argument that leaves the fewest candidates is chosen once per call and
+rides in the choice frame (`ixpos`, never frozen); a retry starts from the
+link of the clause just tried. A predicate under the floor of 8 clauses,
+or a call with its first argument bound into a table whose longest key
+leaves 4 candidates or fewer (variable heads included), never asks
+(`coco_pred_first_enough`), so the bench tasks pay 0.1 to 0.7 % for the
+question. 2000 lookups by the second argument of 2000 facts take 3 ms
+(1.9.0: 65 ms) and 2000 through a first argument every clause shares 4 ms
+(1.9.0: 4.3 s); enumerating one key's 20 000 clauses 3 to 13 ms (1.9.0:
+0.64 s). `test/engine.pl` times
+the three in children with wide margins and pins the order of the answers
+through `asserta`, `retract` and `assertz`, with a variable head among
+them; four arms (the retry shortcut, and each of the three updates) went
+red.
+
+**Stage 3: the first goal of a body is written into registers, not
+built.** A first goal that calls a plain predicate writes its arguments
+into the engine (`areg`, two banks of eight), and the next step tries the
+callee's one candidate straight from them; a choice frame, no clauses, a
+call another argument would key better or a flush builds the term from
+the registers first (`coco_areg_term`). The register form is a program of
+its own (`rbody`), run by an executor of its own (`coco_clause_run_r`)
+so a body that starts with a builtin runs 1.9.0's executor unchanged, and
+a callee with two clauses or more whose first argument is a variable keeps
+the term form (`cc_regs_worth`) -- its every call leaves a choice, which
+cost queens 1.4 % in registers. nrev alone: -12.6 % instructions; the clock
+cannot see it on this box (below). Proved by `test/engine.pl`'s register
+section (each goal asked twice: a callee is called from registers only
+once its first call stamped it, and asked once three checks stayed green
+under an arm), `test/module.cicili` (a module registered after a clause's
+first goal was a plain predicate must win the call; red when the stamp is
+not asked), `test/state.cicili` and `test/gc.pl` (the flush; 32 of 60 stops
+right without it), and three arms of the register path itself.
+
+**Stage 4: the lazy body, counted and not built; the guards, built
+instead.** The proposal's Stage 4 would carry the rest of a body as one
+frame and build each goal when reached, changing the continuation's shape
+and the frozen format, and waited on a count of what it would save on the
+programs the tree runs. Counted on the translator's lesson (99 M
+inferences): clause bodies average 1.9 goals, later goals that call a
+plain predicate are 17 % of inferences, arithmetic 4 %, and control
+constructs 32 % (`;`, `->`, `catch/3`), which no lazy body touches. On the
+bench tasks arithmetic is 43 to 67 % of inferences, and most of it is a
+body's first goals: so those are compiled. `X is E` over integers, the six
+comparisons and seven type tests of a variable met before, up to eight at
+the start of a body, become a program over a stack of integers (`gbody`)
+run between the head and the body (`coco_clause_run_g`): no term, no frame,
+no step. A guard only ever takes the road the step would have: anything it
+cannot decide -- a variable not bound to an integer, a float, a zero
+divisor -- stops the guards before that goal does anything, and the body
+is built from it (`gstart`); each guard that runs is an inference, the one
+that fails too, and under an inference limit only as many run as the limit
+has room for, so `statistics(inferences)` and every stop are 1.9.0's
+(1000 turns of a guarded loop 3004 inferences on both; `call_metered/4`
+stops at the same goal for every ceiling from 1 to 12); under trace none
+runs. Proved by `test/engine.pl`'s guard section -- every operator and test
+against the same goal run through the step, over twelve values including
+floats, an atom, an unbound variable and a zero divisor, errors included --
+a guarded loop frozen at each of its first sixty steps and finished by
+another machine (`test/state.cicili`), and `classify/2` traced after an
+untraced call against SWI-Prolog (`test/trace.pl`). Seven arms went red:
+`mod` computed as `rem`, the guards not counted, the failing one not
+counted, the budget past the limit, a stopped guard's goal skipped,
+`atomic/1` taking a compound (which found the check enumerating only
+`var/1`, now fixed), a float read as an integer, and guards under trace.
+
+`test/gc.pl`'s deterministic recursion had to be told to make garbage:
+`N1 is N - 1` now runs on entry and the call goes in registers, so it left
+one cell a turn where it left fourteen and never reached the collector.
+It keeps a structure each turn now, nine cells, and a million and a half
+turns build 13.5 million.
+
+**The clock**, nine alternating pairs of in-process CPU time per task,
+1.9.0 against 1.9.1 as first built: queens 0.72, loop 0.46, lookup 0.86,
+sortnums 0.51 -- and nrev 1.02, its 12 % fewer instructions invisible.
+Stage 3's own arm (registers off against on, the same build otherwise)
+read loop 0.87, sortnums 0.91, nrev 0.94, queens 0.96 and lookup 1.02 (its
+count unchanged): the registers pay, and something else was eating nrev's
+saving.
+
+**It was the layout, and the CPU's JCC erratum.** This box is a Cascade
+Lake (family 6, model 85, stepping 7), as Skylake's descendants are, the
+owner's Mac's Coffee Lake among them: the microcode that fixes the erratum
+keeps every jump that crosses or ends on a 32-byte boundary out of the
+decoded-uop cache, and the code around it is decoded again at each pass.
+Where the hot jumps fall is an accident of the build. Counted under
+`callgrind` (each executed jump's address against the binary's
+boundaries), naive reverse executed 16.2 such jumps an inference on 1.9.0
+and 26.6 on 1.9.1 -- 65 % more, out of 12 % fewer jumps. Built with clang's
+`-mbranches-within-32B-boundaries`, which pads every jump off a boundary
+with prefixes and NOPs (2 % more code, 3.5 to 4.9 % more instructions),
+both fall to 0.02, and the pairs read: padded 1.9.1 against padded 1.9.0,
+nrev 0.90; padded against plain 1.9.1, nrev 0.80, loop 0.86, lookup 0.87,
+sortnums 0.92, queens 0.99; padded against plain 1.9.0, 0.93 to 0.98, every
+answer the same. `tools/cc` passes the flag on every x86-64 compile since
+(`coco_arch_flags`), and the 1.9.1 binary is the padded one, its code
+byte for byte the build those pairs timed. Run Q in `bench/README.md` is
+the run of record.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

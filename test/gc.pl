@@ -407,8 +407,16 @@ keys :-
 %% floor is four million cells, 32 MB, and each bound here is pinned at a
 %% small multiple of that.
 
+%% THE RECURSION KEEPS A STRUCTURE EACH TURN (`gc_keep/1'), because since
+%% 1.9.1 it has to be told to make garbage: `N1 is N - 1' is run as the
+%% clause is entered and the call goes in registers, so the plain
+%% `gc_count(N) :- N1 is N - 1, gc_count(N1)' leaves one cell a turn where
+%% it left fourteen, never reaches the collector's floor and passed this
+%% check only by not being collected at all. With the structure each turn
+%% is nine cells.
 gc_count(0) :- !.
-gc_count(N) :- N1 is N - 1, gc_count(N1).
+gc_count(N) :- N1 is N - 1, gc_keep(f(N1)), gc_count(N1).
+gc_keep(_).
 
 gc_program_lines(['t1(4)', 't1(5)', 't2(f(3))', 't2(unbound)', 't2(shared)',
                   't3(2000)', 't4(2)', 't4(b)', 't5(1250025000)', 't5(4.75)',
@@ -418,8 +426,8 @@ gc_program_lines(['t1(4)', 't1(5)', 't2(f(3))', 't2(unbound)', 't2(shared)',
 
 heap :-
     section('the heap is collected, and a proof goes on as it was'),
-    %% three hundred thousand turns of the recursion build ten million cells
-    answer(( statistics(heap_collections, C0), gc_count(300000),
+    %% a million and a half turns of the recursion build 13.5 million cells
+    answer(( statistics(heap_collections, C0), gc_count(1500000),
              statistics(heap_collections, C1), statistics(globalused, U),
              ( C1 > C0, U < 67108864 -> Shape1 = bounded ; Shape1 = grew(C0, C1, U) ) ),
            Shape1, H1),
@@ -464,12 +472,13 @@ heap :-
     check('the toplevel prints the bindings of a query collected under it', H6, printed),
     %% A GOAL IN HAND IS NOT A ROOT. Since 1.8.55 the step hands the first
     %% goal of the clause it entered to the next step in the engine, not in
-    %% a frame, and pushes it back as a frame before a collection moves the
-    %% heap under it (`coco_k_flush'). Naive reverse enters a clause on
-    %% nearly every step, so collecting every two thousand cells meets a
-    %% goal in hand at almost every collection; without the flush the
-    %% program died of an instantiation error or answered nothing at all,
-    %% and the program above stayed green.
+    %% a frame -- since 1.9.1 as its arguments in the engine's registers,
+    %% never a term -- and builds and pushes it back as a frame before a
+    %% collection moves the heap under it (`coco_k_flush'). Naive reverse
+    %% enters a clause on nearly every step, so collecting every two
+    %% thousand cells meets a goal in hand at almost every collection;
+    %% without the flush the program died of an instantiation error or
+    %% answered nothing at all, and the program above stayed green.
     scratch(D7), atom_concat(D7, '/nrev.pl', F7),
     fixture(F7, [ 'app([], L, L).',
                   'app([H|T], L, [H|R]) :- app(T, L, R).',

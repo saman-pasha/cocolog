@@ -323,16 +323,25 @@
       (set ($ e max_steps) 1000000)
 
       (coco_module_init)
-      (coco_consult (aof st) (aof m) "late(kb)." nil err (sizeof err))
+      ;; `via/1' calls it as the first goal of a clause, which writes the
+      ;; call into the engine's registers while the stamp holds (1.9.1):
+      ;; the stamp is asked when the clause is entered, so the call made
+      ;; after the module arrived must not go to the clause either
+      (coco_consult (aof st) (aof m) "late(kb). via(X) :- late(X)." nil err (sizeof err))
       (check "a plain predicate answers" (cast llong (count (aof e) "late(kb)" 10)) 1)
       (check "and its functor carries the stamp" (stamped (aof m) "late" 1) 1)
       (check "a stamped call answers the same" (cast llong (count (aof e) "late(kb)" 10)) 1)
+      (check "and so does one made in the registers" (cast llong (count (aof e) "via(kb)" 10)) 1)
       (check "registered a module that claims the name" (cast llong (tm_module_six)) 1)
       (check "which leaves the stamp stale" (stamped (aof m) "late" 1) 0)
       (check "the module wins the name"
              (cast llong (count (aof e) "late(from_six)" 10)) 1)
       (check "and the clause no longer answers it"
              (cast llong (count (aof e) "late(kb)" 10)) 0)
+      (check "the module wins it from a clause's first goal too"
+             (cast llong (count (aof e) "via(from_six)" 10)) 1)
+      (check "where the clause no longer answers it either"
+             (cast llong (count (aof e) "via(kb)" 10)) 0)
       (check "nor is the module's name stamped as a plain predicate"
              (stamped (aof m) "late" 1) 0)
 

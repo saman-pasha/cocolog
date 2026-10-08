@@ -571,9 +571,21 @@ and `library/reasoning/`); `library/*.so` are modules built from
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and
   `sub_string/5` are clauses** walking every position -- use
   `atom_concat/3`, `memberchk/2`, `split_string/4` in a hot path.
-* **An unbound first argument keys as 0 and walks the whole predicate**; a
-  hit hides it, a miss or a `findall` pays it. To read a predicate's heads,
-  `clause/2` enumerates them; calling the goal proves it.
+* **A call is keyed on whichever bound argument chooses** (since 1.9.1):
+  the first argument's table as always, and for a predicate the first
+  argument will not do for (`coco_pred_first_enough`: at or over the floor
+  of 8 clauses, with the call's first argument unbound, or the longest
+  key's chain and the variable heads together over 4) a table per
+  argument 2 to 8 (`coco_argix`), built the first time a call wants one,
+  kept by `assertz`, dropped by `asserta`, `retract` and a reconsult. The
+  argument with the fewest candidates wins (`coco_pred_select`), once per
+  call, and the choice rides in the choice frame (`ixpos`, never frozen: a
+  thawed frame is keyed on the first argument, which is always sound); a
+  retry starts from the chain link of the clause just tried, so
+  backtracking through one key's clauses is linear. **A call with no bound
+  argument still walks the whole predicate**; a hit hides it, a miss or a
+  `findall` pays it. To read a predicate's heads, `clause/2` enumerates
+  them; calling the goal proves it.
 * **A global is found by a scan from the first one made and COPIED on every
   read** (`nb_getval/2`, `b_getval/2`): keep a table small per global, and
   make a global you read often once rather than catching its absence.
@@ -648,9 +660,42 @@ and `library/reasoning/`); `library/*.so` are modules built from
   `coco_try_clause` today is a step about to end. `test/state.cicili` stops
   a proof at each of its first sixty steps and resumes it in another
   machine, `test/gc.pl` collects every 2000 cells under naive reverse, and
-  each goes red without its flush.
+  each goes red without its flush. **Since 1.9.1 that goal may never be
+  built at all**: a first goal (after the guards) that calls a plain
+  predicate writes its arguments into the engine's registers (`areg`, two
+  banks of eight, `nset` 2, the code's register form `rbody`), and the
+  next step tries the callee's one candidate straight from them
+  (`coco_try_clause` given the bank); a choice to keep, no clauses, a call
+  another argument would key better, or a flush builds the term first
+  (`coco_areg_term`). The stamp is asked when the registers are written
+  (`coco_regs_ok`) and not again: nothing that could change its answer
+  runs in between. A callee with two clauses or more whose first argument
+  is a variable keeps the term form (`cc_regs_worth`), its every call
+  leaving a choice.
+* **A body's leading arithmetic and type tests run as its clause is
+  entered** (`gbody`, the guards, since 1.9.1): `X is E` over integers, the
+  six comparisons, and `var`/`nonvar`/`atom`/`integer`/`number`/`atomic`/
+  `compound` of a variable met before, up to eight, compiled into a program
+  over a stack of integers (`cc_compile_guards`, `cc_guards_run`) and run
+  between the head and the body (`coco_clause_run_g`). **A guard only ever
+  takes the road the step would have**: whatever it cannot decide -- a
+  variable not bound to an integer, a float, a zero divisor, an operator
+  not in `*cc-gops*` -- stops the guards before that goal has done
+  anything, and the body is built from that goal (`gstart`). Each guard
+  that runs is an inference, the one that fails too, and under an
+  inference limit only as many run as the limit has room for
+  (`coco_guard_budget`), so `statistics(inferences)` and every stop are
+  what they were; under trace none runs. The arithmetic is `coco_arith`'s
+  own C, and a result is compared or bound as the cell `coco_new_int`
+  makes. `test/engine.pl` holds every operator and test to the step's
+  answer, errors included; a recursion that must make garbage for the
+  collector now has to build something (`test/gc.pl`).
 * **A clause is COMPILED the first time it is selected** (`coco_clause_code`
-  and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44): a head program --
+  and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44; `coco_clause_run_r`
+  for a call or a goal in registers and `coco_clause_run_g` for a body with
+  guards, each its own function so that a clause using none of it runs
+  exactly the first, and the head and body programs written once as the
+  macros `cc-head-program` and `cc-body-program`): a head program --
   the WAM's GET and UNIFY instructions over a frame of the clause's
   variables, a nested structure flattened through a temporary, READ or
   WRITE mode per structure -- and a body program that builds the goals top
@@ -708,7 +753,11 @@ and `library/reasoning/`); `library/*.so` are modules built from
   catchable"). What is left is the interpretation of the built goals:
   the loop's dispatch, the builtins' argument reading, and the
   continuation itself -- the second half of the compile step, which
-  would change the continuation's shape and is the owner's decision.
+  would change the continuation's shape and is the owner's decision. The
+  proposal's lazy body was counted and not built (1.9.1): the
+  translator's clause bodies average 1.9 goals and a third of its
+  inferences are control constructs (`;`, `->`, `catch/3`), which no
+  lazy body touches.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
