@@ -109,7 +109,7 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | F1 | `~t ~| ~+` | pad by hand | refused by name at the three codes |
 | W1 | `write_canonical/1` | `write_term(T, [quoted(true), ignore_ops(true)])` | `write_canonical` here keeps operators |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
-| X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer |
+| X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it, is not flagged |
 | X3 | `setup_call_cleanup/3` `predsort/3` `numbervars/3` `freeze/2` `dif/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
 | P1 | `current_prolog_flag(bounded, B)` | do not branch on a flag | four flags answer — `executable`, `argv`, `os_argv`, `double_quotes` — and every other one FAILS |
 | E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |

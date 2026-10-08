@@ -93,7 +93,9 @@ lib/zeytun.cicili      the same for the page client
 
 library/               THE LIBRARY PATH, and what ships on it: http.pl
                        (HTTP/1.1 as a grammar), httpd.pl (a server whose
-                       pages are clauses), json.pl, xml.pl and html.pl (a
+                       pages are clauses), websocket.pl (RFC 6455: a
+                       client, and a page that answers websocket(Goal)),
+                       json.pl, xml.pl and html.pl (a
                        term as a document, and back), ca.pl (a certificate
                        authority as rules), tensor_expr.pl (tensor
                        expressions over the torch module: a DCG from an
@@ -426,7 +428,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — forty-nine lessons, one per library that ships
+### `library/` — fifty lessons, one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 eleven on the library path.
@@ -441,6 +443,7 @@ eleven on the library path.
 | [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
+| [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -690,6 +693,7 @@ code.
 | `library(tensorflow)` | `.so` | TensorFlow's C library as the second backend of the `tensor_*` predicates, behind `tensor_execution(tensorflow, eager\|graph, cpu\|cuda\|auto)` |
 | `library(http)` | `.pl` | HTTP/1.1 as a DCG over the bytes tcp gives back |
 | `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool |
+| `library(websocket)` | `.pl` | RFC 6455: a client (`ws://`, and `wss://` over `library(tls)`), and the server half as an httpd page |
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
 | `library(xml)` | `.pl` | the same for XML |
 | `library(html)` | `.pl` | the same for HTML |
@@ -820,6 +824,29 @@ when it does. Under `workers(0)`, the default, every request is parsed on the
 serving machine, so a server that clients can send ever-new paths to grows by
 those atoms for as long as it runs (`statistics(atoms, N)` shows it). **A
 long-running public server should use a pool**, even a pool of one.
+
+**A page can answer `websocket(Goal)` instead** (`library(websocket)`, RFC
+6455) and is handed the connection: httpd checks the handshake whole, sends
+the 101, and `call(Goal, WS)` runs for as long as the session lasts —
+`ws_receive/2` and `ws_send/2` over messages in SWI's shapes (`text(T)`,
+`binary(B)`, `pong(D)`, `close(Code, Why)`), with pings answered by the
+library on the way. Every conversation ends with `close(Code, Why)`, whoever
+ended it — the peer, this side failing it (1002, 1007, 1009), or the
+connection lost (1006) — so a session loop has one way out to test for:
+
+```prolog
+httpd_page('/echo', _, websocket(echo)).
+
+echo(WS) :-
+    ws_receive(WS, M),
+    ( M = close(_, _) -> true ; ws_send(WS, M), echo(WS) ).
+```
+
+A session goal that returns with the conversation open is closed for it,
+1000, and one that throws, 1011. A session holds its connection while it
+lasts, so a server with sessions wants `workers(N)`. The client is one call,
+`ws_open('ws://host:8080/echo', WS)`, or `wss://` over `library(tls)`. The
+handshake's SHA-1 and base64 are clauses too, so `ws://` needs no ZiguratIP.
 
 ## Cryptography and a CA, imported rather than rewritten
 

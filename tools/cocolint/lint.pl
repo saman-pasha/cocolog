@@ -739,7 +739,13 @@ cl_del([Y|T], X, [Y|R]) :- cl_del(T, X, R).
 %% supplies open/3,4, close/1, current_output/1, set_output/1, read_term/2,3
 %% and the rest under ISO's names. The file's own imports decide; nothing
 %% else about the trap moves.
-cl_trap_lifted('X2', Imports) :- memberchk(stream, Imports).
+%%
+%% AND OF ONE THAT LOADS library(websocket), which loads library(stream)
+%% itself -- so the premise is false there too -- and whose every session
+%% loop matches `close(Code, Why)', the message a conversation ends with.
+%% The pattern is textual and cannot tell that term from a call.
+cl_trap_lifted('X2', Imports) :-
+    (   memberchk(stream, Imports) -> true ; memberchk(websocket, Imports) ).
 
 %% Which tier-2 libraries a file imports.
 cl_imports(Pairs, Imports) :-

@@ -4562,6 +4562,84 @@ pattern can see. Row H2 is new: under `-s`, SWI's older idiom,
 loses five findings (29-ray, 30-hex, 31-astar and two in 37-lint), all of
 them correct code.
 
+## `library(websocket)`: RFC 6455, a client and an httpd page (1.9.0)
+
+Clauses only, over the bytes `library(tcp)` and `library(tls)` give back; the
+opening handshake is HTTP and is read with `library(http)`'s own grammar. A
+client is `ws_open/2,3` (`ws://`, `wss://`), then `ws_send/2`,
+`ws_receive/2,3` and `ws_close/1,3`. A server is an httpd page that answers
+`websocket(Goal)` or `websocket(Goal, Options)`: httpd routes a request that
+asks to upgrade once, `ws_accept/5` checks the handshake whole and sends the
+101, and `call(Goal, WS)` runs for the life of the session. A websocket page
+asked for without a handshake is 426, naming the version. Messages are SWI's
+shapes, `text/1`, `binary/1`, `ping/1`, `pong/1`, `close/2`. Pings are
+answered by the library. Every conversation ends with `close(Code, Why)`,
+whoever ended it, and a timeout between messages is a plain failure.
+
+Where it is strict: a client's frames must be masked and a server's must not
+be (1002). A control frame is at most 125 bytes and whole, RSV bits are zero
+and an unknown opcode is 1002. A length past `max_message` (16 MiB) is
+refused before its payload is read (1009), and a 64-bit length whose top half
+is not zero is refused before the number is built, because a cell holds 60
+bits. Text is UTF-8 by RFC 3629 or 1007, both ways, close reasons included.
+Close codes are checked against RFC 6455 section 7.4. A client's masking keys
+and handshake key come from `/dev/urandom` through `library(stream)`. SHA-1
+and base64 are clauses too, so `ws://` needs no ZiguratIP. Not here:
+extensions (permessage-deflate is declined), and sending a message in
+fragments (fragments are read, control frames between them included).
+
+A conversation that has ended is marked so, per transport. `ws_close/1,3` on
+it does nothing, and `ws_send/2` and `ws_receive/2,3` raise
+`permission_error(_, closed_websocket, WS)`. A client's socket goes at the
+end, and its slot is the next one library(tcp) hands out, so an ended
+WebSocket that wrote or closed would be writing to or closing somebody else's
+connection. A session goal that returns with its conversation open is closed
+for it, 1000, as SWI-Prolog's is; one that throws is closed 1011, unless its
+conversation was already over.
+
+`test/websocket.pl`, 71 checks:
+* SHA-1 against FIPS 180's vectors and against `library(sha)` where it
+  loads; base64 against RFC 4648's.
+* The handshake key of RFC 6455 section 1.3, every refusal a server makes,
+  and the 101 checked both ways.
+* Every frame RFC 6455 section 5.7 prints, byte for byte.
+* The 16- and 64-bit lengths, and the frame rules.
+* Live sessions against a spawned httpd: echo of text, UTF-8, binary, ping
+  and 70 000 bytes; a timeout that fails plainly and leaves the conversation
+  going (over `wss://` too); 1009 past `max_message`; no socket left after a
+  closing handshake; a chosen subprotocol; a server's close; pages that are
+  not websockets.
+* A session that returns (1000), one that throws (1011), and one that throws
+  after its closing handshake (nothing more is sent).
+* An ended WebSocket whose slot a listener has taken: `ws_close` leaves the
+  listener alone, and `ws_send` and `ws_receive` raise.
+* Five arms, each taking out one of those guards, and each red on its own
+  check. Without the guard in `ws_close/3`, the ended WebSocket closed the
+  listener.
+* Raw clients that are wrong (unmasked, fragmented with a ping between,
+  not UTF-8), each answered with its code.
+* Two sessions at once under `workers(2)`. Its arm, the same check against
+  `workers(0)`, goes red: the second handshake waits and times out.
+* `wss://`.
+
+Writing it found the one bug a `\+` always hides: the handshake check bound
+the key inside a negation, answered `accept(_, ...)`, and the live server
+raised in `ws_accept_key/2`, which the client read as "the server sent no
+answer". Lesson 49 runs a session with both ends in one process.
+
+Around it:
+* `http_status_text/2` has 101 and 426.
+* `httpd.pl`'s comments said a directive naming a missing library stays
+  quiet, false since 1.8.39. Its `use_module(library(tls))` reports a
+  missing `tls.so` as before. `websocket.pl` asks for `tls` with a goal that
+  tries, so a `ws://` program on such a build loads silently and `wss://`
+  throws by name.
+* cocolint's X2 is lifted for a file that loads `library(websocket)`, which
+  loads `library(stream)` itself. Its sessions match `close(Code, Why)`,
+  which a textual pattern cannot tell from a call. `test/lint.pl` section 3d
+  checks the lift both ways.
+* The retrieval index has a capability row for websocket.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

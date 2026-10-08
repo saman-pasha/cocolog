@@ -242,6 +242,7 @@ http_header_lines([N-V|Hs], Out) :-
 %% The ones a server built on this will actually send. A status with no
 %% text here still goes out, with `Unknown' as its reason phrase, because
 %% the number is what a client acts on and inventing a reason is harmless.
+http_status_text(101, 'Switching Protocols').
 http_status_text(200, 'OK').
 http_status_text(201, 'Created').
 http_status_text(204, 'No Content').
@@ -256,6 +257,7 @@ http_status_text(408, 'Request Timeout').
 http_status_text(411, 'Length Required').
 http_status_text(413, 'Payload Too Large').
 http_status_text(414, 'URI Too Long').
+http_status_text(426, 'Upgrade Required').
 http_status_text(500, 'Internal Server Error').
 http_status_text(501, 'Not Implemented').
 http_status_text(503, 'Service Unavailable').

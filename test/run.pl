@@ -152,6 +152,9 @@ fail_lines(Text) :-
 %%   thread  threads that share nothing and channels that copy
 %%   httpd   the server half: routing, the four ways a static file server
 %%           leaks, keep-alive, the pool, pages that reach the knowledge base
+%%   websocket  RFC 6455: frames and the handshake against the RFC's own
+%%           bytes, sessions against an httpd page, two at once in a pool,
+%%           and wss://
 %%   tcp     the socket seam, and one process reaching another
 %%   colab   the notebook and the scripts beside it, without a VM
 %%   crypto  ZiguratIP's cryptography and its CA as cocolog predicates
@@ -162,7 +165,7 @@ fail_lines(Text) :-
 pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
-          curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', crypto,
+          curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', websocket, crypto,
           cowork, reason, normalise, tagger, translate,
           tls, 'zigurat-tls', tutorials, colab, lint, argv, string, langs, directives,
           groups, ruler]).

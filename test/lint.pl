@@ -19,6 +19,8 @@
 %%      selftest/traps.pl cannot show, for it shows what is FOUND
 %%   3c. E1's radix numeral needs a digit after its quote, so a quoted atom
 %%      that ends in 16 is no finding -- the same thing, the same way
+%%   3d. X2 is lifted where a library gives streams: library(stream), and
+%%      library(websocket), which loads it
 %%   4. every rule still fires on selftest/traps.pl
 %%   5. the findings over the corpus are still the pinned set, and the
 %%      blocklist still matches what the running store says
@@ -42,7 +44,7 @@ main :-
     shl([ 'sh ', Agent, '/tool.sh build >/dev/null 2>&1 || echo BUILD-FAILED' ]),
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
-    the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_findings(Agent),
+    the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_lifts(Agent), the_findings(Agent),
     checks_done.
 
 %% ---- 1. the dialect card's citations -------------------------------------
@@ -206,6 +208,33 @@ the_radix(Agent) :-
                   re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[E1\\]', LA),
                   re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), Got),
     check('only a numeral with its digits is a finding (line:col)', Got, ['4:14', '5:14']),
+    shl(['rm -rf ', T]).
+
+%% ---- 3d. X2 is lifted where a library gives streams ------------------------
+%%
+%% A LIFT IS A RULE LEAVING CODE ALONE, which selftest/traps.pl cannot show
+%% either. One clause three times -- a session loop's test for the message
+%% `close(Code, Why)', which a textual pattern cannot tell from a call --
+%% with no import, under library(stream), and under library(websocket),
+%% which loads library(stream) itself. Only the first is a finding.
+the_lifts(Agent) :-
+    section('X2 is lifted by library(stream), and by library(websocket), which loads it'),
+    scratch(T), shl(['mkdir -p ', T]),
+    findall(Name-LCs,
+            ( member(Name-Import, [ bare-[],
+                                    stream-[':- use_module(library(stream)).'],
+                                    websocket-[':- use_module(library(websocket)).'] ]),
+              atomic_list_concat([T, '/', Name, '.pl'], F),
+              append(Import, ['ended(M) :- M = close(_, _).'], Lines),
+              fixture(F, Lines),
+              sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+              atom_codes(Out, OCs), codes_lines(OCs, OLines),
+              findall(LC, ( member(L, OLines), atom_codes(LA, L),
+                            re_match('^[^ :]+:[0-9]+:[0-9]+ HARD S1 \\[X2\\]', LA),
+                            re_replace_atom('^[^ :]+:([0-9]+:[0-9]+) .*', '\\1', LA, LC) ), LCs) ),
+            Got),
+    check('close(Code, Why) is a finding only where no library gives streams (line:col)', Got,
+          [bare-['1:17'], stream-[], websocket-[]]),
     shl(['rm -rf ', T]).
 
 %% ---- 5. the findings themselves, 4. every rule fires, and the probe -------

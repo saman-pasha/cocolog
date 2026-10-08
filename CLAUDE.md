@@ -229,8 +229,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 54 `.pl` cases in `pl_names/1`
--- **61 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 55 `.pl` cases in `pl_names/1`
+-- **62 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -481,9 +481,10 @@ not edit them). Only files swipl also runs (`test/files/*.pl`,
 **Tier 2 is loaded when asked**, from `$COCOLOG_LIBRARY` (colon-separated),
 then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
-libraries. `library/*.pl` are clauses only (http, httpd, json, xml, html,
-ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm, and
-`library/reasoning/`); `library/*.so` are modules built from `modules/`.
+libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
+xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
+and `library/reasoning/`); `library/*.so` are modules built from
+`modules/`.
 
 **`modules/` holds the loadable modules**, one directory each -- a
 `.cicili`, a `build.sh` (`sh modules/NAME/build.sh`), output nobody commits
@@ -919,7 +920,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 125 files -- `basics/` 11, `library/` 49, `opencv/` 23,
+`tutorials/` holds 126 files -- `basics/` 11, `library/` 50, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a

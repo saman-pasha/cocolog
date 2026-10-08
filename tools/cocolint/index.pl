@@ -531,6 +531,9 @@ ix_capability('an HTTP client', [fetch, 'http request', download, rest, curl],
               [http, curl], ['tier-2 library'], local).
 ix_capability('an HTTP server', [serve, 'web server', endpoint, route, page],
               [httpd, html], ['tier-2 library'], local).
+ix_capability('a websocket', [websocket, 'web socket', 'ws://', 'wss://', 'rfc 6455',
+                              'server push', 'real time', 'two-way'],
+              [websocket, httpd], ['tier-2 library'], local).
 ix_capability('TLS or certificates', [tls, https, certificate, ca, x509, sign],
               [x509, ca, tls, der, sha], ['tier-2 library'], local).
 ix_capability('hashing or ciphers', [sha, hash, hmac, aes, encrypt],

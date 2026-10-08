@@ -56,6 +56,14 @@
 %%         memberchk(name-N, Query),
 %%         atom_concat('hello ', N, Answer).
 %%
+%% A PAGE MAY ANSWER `websocket(Goal)' INSTEAD, and is given the connection
+%% (library(websocket)): the handshake is checked, the 101 sent, and
+%% `call(Goal, WS)' runs for the life of the session. `websocket(Goal,
+%% Options)' names the subprotocols the page speaks. Asked for without a
+%% handshake, such a path answers 426.
+%%
+%%     httpd_page('/echo', _, websocket(echo)).
+%%
 %% Load it with `use_module('/path/to/hello.pl')' -- as a MODULE and not a
 %% consult, which matters in every arrangement but --local: a module's
 %% clauses are muted, so they belong to this process and are never written
@@ -190,22 +198,24 @@
 %% BOTH HALVES ARE LOADABLE MODULES NOW. library(tcp) used to be compiled
 %% into the binary and always present; it lives in modules/tcp and is asked
 %% for like anything else. A directive that names a library this build does
-%% not carry stays quiet -- see lib/library.cicili -- so a cocolog without
-%% tcp.so beside it fails at the first tcp_listen and not at load, which is
-%% the same shape library(curl) has always had.
+%% not carry is REPORTED, in SWI's words, and the load goes on -- see
+%% lib/library.cicili; it was silent before 1.8.39 -- so a cocolog without
+%% tcp.so beside it says so at load and fails at the first tcp_listen, which
+%% is the same shape library(curl) has always had.
 :- use_module(library(tcp)).
 :- use_module(library(http)).
 %% HTTPS: the same directive discipline. `library(tls)' is a loadable
-%% module against a BUILT ZiguratIP, and a directive naming a library this
-%% build does not carry stays quiet -- so a cocolog with no tls.so still
-%% loads this file and still serves plaintext. Asking for `tls(...)'
-%% without it throws, by name, at the first listen.
+%% module against a BUILT ZiguratIP, and a cocolog with no tls.so reports
+%% it, still loads this file and still serves plaintext. Asking for
+%% `tls(...)' without it throws, by name, at the first listen.
 :- use_module(library(tls)).
-%% Only `workers(N)' needs it, and a directive naming a library this build
-%% does not carry stays quiet -- see lib/library.cicili -- so a cocolog
-%% with no thread.so still loads this and still serves, single-threaded.
-%% Asking for workers without it throws, by name, rather than failing.
+%% Only `workers(N)' needs it, and a cocolog with no thread.so reports it,
+%% still loads this and still serves, single-threaded. Asking for workers
+%% without it throws, by name, rather than failing.
 :- use_module(library(thread)).
+%% A page that answers `websocket(Goal)' is handed the connection: clauses
+%% only, always present, so this one is never missing.
+:- use_module(library(websocket)).
 
 %% ---- the transport ----------------------------------------------------
 %%
@@ -543,13 +553,21 @@ httpd_conversation(C, Options, MR, RT, Buffered, N) :-
         %% settled them -- so `httpd_answer/3' is still a request in and
         %% bytes out, and every routing rule below it is unchanged.
         httpd_identify(C, Request, Identified),
-        httpd_answer(Options, Identified, Extra, Out),
-        httpd_sock_write(C, Out),
-        (   Keep == keep
-        ->  httpd_option(keep_alive_timeout(KT), Options, 2000),
-            N1 is N + 1,
-            httpd_conversation(C, Options, MR, KT, Rest, N1)
-        ;   true
+        (   ws_upgrade_asked(Identified)
+        ->  %% A HANDSHAKE IS ROUTED LIKE ANY REQUEST, AND ONCE. A page that
+            %% answers `websocket(Goal)' gets the connection; any other
+            %% answer is sent as it would be, and either way this is the
+            %% last thing said on it as HTTP.
+            httpd_route(Options, Identified, Reply),
+            httpd_upgrade(C, Identified, Rest, Reply)
+        ;   httpd_answer(Options, Identified, Extra, Out),
+            httpd_sock_write(C, Out),
+            (   Keep == keep
+            ->  httpd_option(keep_alive_timeout(KT), Options, 2000),
+                N1 is N + 1,
+                httpd_conversation(C, Options, MR, KT, Rest, N1)
+            ;   true
+            )
         )
     ;   %% NOTHING PARSEABLE, and what that means depends on where we are.
         %% On the FIRST request the client sent rubbish, or nothing, and 400
@@ -613,6 +631,36 @@ httpd_connection_is(Request, Token) :-
     downcase_atom(V, D),
     sub_atom(D, _, _, _, Token).
 
+%% ---- a page that speaks websocket ---------------------------------------
+%%
+%% THE SESSION RUNS ON THIS CONNECTION, in this conversation's turn: the
+%% single-threaded loop is held for as long as it lasts, and a worker of
+%% `workers(N)' is -- so a server with sessions that last wants a pool.
+%% Nothing fences a session the way page_limit fences a page: a session is
+%% long by nature, and it ends when its goal returns.
+%%
+%% AND IT IS ONE TRANSACTION, as a connection always is here: what a
+%% session writes is committed when it ends. A session that wants its
+%% writes seen sooner commits them itself (zigurat_commit/0).
+httpd_upgrade(C, Request, Rest, websocket(Goal)) :- !,
+    ws_accept(C, Request, Rest, Goal, []).
+httpd_upgrade(C, Request, Rest, websocket(Goal, WOptions)) :- !,
+    ws_accept(C, Request, Rest, Goal, WOptions).
+httpd_upgrade(C, _, _, Reply) :-
+    httpd_plain_reply(Reply, reply(S, Hs, Body)),
+    http_response(S, ['Connection'-close|Hs], Body, Out),
+    httpd_sock_write(C, Out).
+
+%% A websocket answer to a request that did not ask to upgrade is 426, the
+%% status that says which protocol the path wants -- and not a failure the
+%% loop would read as a broken request.
+httpd_plain_reply(reply(S, Hs, Body), reply(S, Hs, Body)) :- !.
+httpd_plain_reply(websocket(_), R) :- !, httpd_websocket_only(R).
+httpd_plain_reply(websocket(_, _), R) :- httpd_websocket_only(R).
+
+httpd_websocket_only(reply(426, ['Upgrade'-websocket, 'Sec-WebSocket-Version'-'13'],
+                           'this path speaks websocket')).
+
 %% SAID EXPLICITLY IN BOTH DIRECTIONS. `Connection: close' is the only
 %% warning a client gets that this is the last response on the socket, and
 %% while `keep-alive' is the HTTP/1.1 default and needs no announcing, an
@@ -642,7 +690,8 @@ httpd_answer(Options, Request, Codes) :-
 %% exists. Everything above this line is still a request in and bytes out.
 httpd_answer(Options, request(head, P, Q, V, H, B), Extra, Codes) :-
     !,
-    httpd_route(Options, request(get, P, Q, V, H, B), reply(S, Hs, Body)),
+    httpd_route(Options, request(get, P, Q, V, H, B), Reply),
+    httpd_plain_reply(Reply, reply(S, Hs, Body)),
     append(Extra, Hs, All),
     http_response(S, All, Body, Full),
     http_body_codes(Body, BC),
@@ -652,7 +701,8 @@ httpd_answer(Options, request(head, P, Q, V, H, B), Extra, Codes) :-
     length(Codes, HL),
     append(Codes, _, Full).
 httpd_answer(Options, Request, Extra, Codes) :-
-    httpd_route(Options, Request, reply(S, Hs, Body)),
+    httpd_route(Options, Request, Reply),
+    httpd_plain_reply(Reply, reply(S, Hs, Body)),
     append(Extra, Hs, All),
     http_response(S, All, Body, Codes).
 
