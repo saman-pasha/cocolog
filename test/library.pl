@@ -95,7 +95,7 @@ shared_object(D) :-
         %% THE ONE COMPILER: tools/cc/cc is the wrapper every link here goes
         %% through, and on a Mac the one that knows a module may leave the
         %% interpreter's symbols undefined (-Wl,-undefined,dynamic_lookup)
-        ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = gcc ),
+        ( exists_file('tools/cc/cc') -> Compiler = 'tools/cc/cc' ; Compiler = clang ),
         (   sh_join(['command -v ', Compiler, ' >/dev/null 2>&1 || test -x ', Compiler], HaveCc), sh_exit(HaveCc, 0)
         ->  sh_join([Compiler, ' -shared -fPIC -O3 -o ', PLib, '/hoot.so test/hoot.c > ', D, '/cc.log 2>&1'], Cc),
             (   sh_exit(Cc, 0)

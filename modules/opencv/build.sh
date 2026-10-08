@@ -74,15 +74,15 @@ mkdir -p "$OUT"
 # Pillow's resampler, vendored: pil/Resample.c is Pillow 11.3.0's file unchanged
 # (LICENSE beside it), pil/Imaging.h the shim of what it reads, pil/pil-resample.c
 # the allocation and the entry cv_resample calls. Compiled as C, linked in.
-: "${CC:=cc}"
+: "${CC:=$ROOT/tools/cc/cc}"
 for c in Resample pil-resample; do
-  "$CC" -c -O2 -fPIC -o "$HERE/pil/$c.o" "$HERE/pil/$c.c" || exit 1
+  "$CC" -c -O3 -fPIC -o "$HERE/pil/$c.o" "$HERE/pil/$c.c" || exit 1
 done
 
 # One Cicili :cpp target, one emitted C++ file, the vendored C, one link against OpenCV.
 # The data directory is compiled in so cv_data_dir/1 can name the
 # haarcascades without a search; OPENCV_DATA in the environment overrides it.
-"$CXX" -shared -fPIC -O2 -std=c++17 -Wno-deprecated-declarations -Wno-unused-function \
+"$CXX" -shared -fPIC -O3 -std=c++17 -Wno-deprecated-declarations -Wno-unused-function \
     $CV_CFLAGS $CV_QRENC -DCOCO_CV_DATA="\"$CV_DATA\"" \
     -o "$OUT/opencv.so" "$HERE/coco-opencv.cpp" "$HERE/pil/Resample.o" "$HERE/pil/pil-resample.o" \
     $CV_LIBS -Wl,-rpath,"$CV_LIBDIR"

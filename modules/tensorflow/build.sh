@@ -49,7 +49,7 @@ fi
 [ -f "$OUT/torch.so" ] || { echo "tensorflow: build library(torch) first (sh modules/torch/build.sh) -- this module attaches to torch.so" >&2; exit 1; }
 mkdir -p "$OUT"
 ( cd "$CICILI" && sbcl --script cicili.lisp --release "$HERE/coco-tensorflow.cicili" )
-"${CC:-${CICILI_CC:-clang}}" -shared -fPIC -O2 -std=c11 -Wno-unused-function \
+"${CC:-${CICILI_CC:-clang}}" -shared -fPIC -O3 -std=c11 -Wno-unused-function \
     -I"$TF_INCLUDE" \
     -o "$OUT/tensorflow.so" "$HERE/coco-tensorflow.c" "$HERE/backend.c" \
     -L"$TF_LIB" $TF_LINK -ldl -lm \

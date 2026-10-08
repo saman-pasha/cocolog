@@ -38,8 +38,8 @@ case "$cxx" in
       done
     fi
     if [ -n "$CICILI_GCC_DIR" ]; then
-      exec "$cxx" $extra "--gcc-install-dir=$CICILI_GCC_DIR" "$@"
+      exec "$cxx" $extra $(coco_arch_flags "$@") "--gcc-install-dir=$CICILI_GCC_DIR" "$@"
     fi
     ;;
 esac
-exec "$cxx" $extra "$@"
+exec "$cxx" $extra $(coco_arch_flags "$@") "$@"

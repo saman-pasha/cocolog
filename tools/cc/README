@@ -73,9 +73,9 @@ THE PATCH CICILI WOULD WANT, offered rather than applied:
 and then `,cc' / `,cxx' where the strings are now. Two of the five files
 here go away with it.
 
-GOING BACK TO GCC: `make CICILI_CC=gcc CICILI_CXX=g++', and the same two
-in the environment for the build scripts. Nothing here is load-bearing on
-clang. What IS load-bearing is that all of it agrees: cocolog links
+NO GOING BACK TO GCC: every build is clang, the owner's rule (2026-10-08),
+and CICILI_CC and CICILI_CXX choose only WHICH clang. What is also
+load-bearing is that all of it agrees: cocolog links
 ZiguratIP's libCore into its own binary and dlopen's modules into its own
 process, so the compiler is not a per-repository choice. ZiguratIP and The
 Coco keep an identical copy of this directory, which is the honest cost of

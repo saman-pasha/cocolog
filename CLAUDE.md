@@ -21,6 +21,14 @@ full story goes in its commit message or STATUS.md.
   `-O3` for anything compiled by hand (the `hoot` fixture). Cicili's
   default is `-g -O0`; nothing that runs a test or a measurement is built
   that way.
+* **Every build and every configuration uses clang, never gcc** (owner,
+  2026-10-08): cocolog, ZiguratIP, every module and library, and the Parsi
+  objects in `$ZIGURATIP_HOME/ld`, whose compiler is `COMPILER/CPP` in
+  `ziguratip.conf` (it said `c++`, which is g++ on Ubuntu, and all 111
+  objects there were gcc's until they were rebuilt with clang that day).
+  Check a build by its own objects: `readelf -p .comment` on a clang object
+  names clang; the `GCC:` line every binary also carries is the system's
+  `crtbeginS.o`.
 * **Never commit build output**: `.o`, `.so`, the C/C++ Cicili emits, the
   `sdk.cicili`/`zigheaders` symlinks in `modules/*`. The test is to delete
   everything a `build.sh` makes and run it: what comes back was output.
@@ -99,8 +107,9 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
 * **Everything is built by clang** -- the client, the interpreter, the
-  embedded store, every module, and ZiguratIP's libCore and server -- because
-  cocolog links ZiguratIP's C++ and `dlopen`s modules into one address space.
+  embedded store, every module, ZiguratIP's libraries and server, and the
+  Parsi objects the server loads -- because cocolog links ZiguratIP's C++
+  and `dlopen`s modules into one address space, and the owner's rule says so.
   `tools/cc/` is the answer (`tools/cc/README` the long version):
   - Cicili names `gcc` (and on Darwin `clang`) outright and takes no
     override, so the build puts `tools/cc` first on PATH, where shims hand
@@ -110,8 +119,21 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   - `clang++` alone borrows libstdc++ from the newest gcc it finds, which may
     have no headers (`'string' file not found`); `tools/cc/cxx` passes
     `--gcc-install-dir`.
-  - `make CICILI_CC=gcc CICILI_CXX=g++` builds with gcc; what is load-bearing
-    is that all of it agrees, not clang.
+  - **On x86-64 both wrappers pad every jump off a 32-byte boundary**
+    (`-mbranches-within-32B-boundaries`, from `coco_arch_flags` in
+    `compiler.sh`, on a command that compiles and never on a link alone),
+    the owner's choice of 2026-10-08 -- see Measuring. ZiguratIP's and
+    coco's copies of `tools/cc` do not do it yet.
+  - `CICILI_CC`/`CICILI_CXX` choose WHICH clang (Apple's, `clang-18`); the
+    install scripts refuse a compiler that is not clang.
+  - **The Parsi objects take their compiler from `ziguratip.conf`**
+    (`COMPILER/CPP`, `clang++` now), not from `tools/cc`: `make schema`,
+    ZiguratIP's System and demo objects and coco's all go through it, and
+    `parsi/build.sh` compiles with a `clang++` copy of a configuration that
+    names anything else (ZiguratIP's committed one said `c++`). parsi
+    leaves each object's generated C++ in `home/tmp` and its two command
+    lines at the head of the `.out` beside it, which is how the objects
+    were rebuilt as they stood.
 * **`?=` does not work for `CC`/`CXX`**: make gives them built-in values of
   origin `default`. Test `ifeq ($(origin CXX),default)`. The tell is
   `readelf -p .comment` naming gcc.
@@ -361,6 +383,16 @@ links the engine) and runs the 55 `.pl` cases in `pl_names/1`
   (with every text the same; the compiled clause, the deterministic call and
   `is/2` came between them), so a baseline kept from an older binary is
   counted again on the new one.
+* **When fewer instructions buy no time, count the jumps on 32-byte
+  boundaries.** On Skylake's descendants (this box's Cascade Lake, the
+  owner's Mac's Coffee Lake) the JCC erratum's microcode keeps a jump that
+  crosses or ends on one out of the decoded-uop cache. 1.9.1's naive
+  reverse ran 12 % fewer instructions in the same time, with 26.6 such
+  jumps an inference against 1.9.0's 16.2; padded, 0.02, and 20 % faster
+  (STATUS.md). The count: `callgrind --dump-instr=yes --dump-line=no`
+  self counts per address against `objdump -d`'s jump addresses. There are
+  no hardware counters in this VM (no `cpu` event source; the `msr` one has
+  only `tsc` and `smi`).
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that

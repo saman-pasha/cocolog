@@ -29,4 +29,4 @@ case "$(uname -s)" in
     link=1; for a in "$@"; do [ "$a" = -c ] && link=0; done
     [ $link = 1 ] && extra="-Wl,-undefined,dynamic_lookup" ;;
 esac
-exec "$(coco_compiler cc)" $extra "$@"
+exec "$(coco_compiler cc)" $extra $(coco_arch_flags "$@") "$@"

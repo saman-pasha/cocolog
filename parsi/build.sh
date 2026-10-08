@@ -29,6 +29,23 @@ export LD_LIBRARY_PATH="$ZIGURATIP_HOME/lib:$LD_LIBRARY_PATH"
 # $ZIGURATIP_HOME/etc/ziguratip.conf -- the owner's own pointer, and the
 # way to change CPP_FLAGS without editing a file the pillar tracks. Set
 # ZIGURATIP_CONF to use one; CLAUDE.md's macOS note says when.
+#
+# CLANG, AS EVERY BUILD HERE IS (the owner's rule). The objects take their
+# compiler from the configuration's COMPILER/CPP, and a home that says `c++'
+# -- g++ on Ubuntu -- compiled every one of them with gcc while everything
+# else was clang. Such a configuration is copied with CPP set to clang++
+# and the copy used in its place, as ZIGURATIP_CONF would be; one that names
+# clang is used as it is.
+cfg=${ZIGURATIP_CONF:-$ZIGURATIP_HOME/etc/ziguratip.conf}
+cpp=$(awk '/^COMPILER:/ {c = 1; next} /^[A-Z_]+:/ {c = 0} c && $1 == "CPP:" {print $2; exit}' "$cfg")
+case "$cpp" in
+  *clang*) ;;
+  *) clangcfg=$(mktemp "${TMPDIR:-/tmp}/cocolog-parsi.XXXXXX")
+     trap 'rm -f "$clangcfg"' EXIT
+     sed 's/^\([[:space:]]*CPP:[[:space:]]*\)[^[:space:]]*/\1clang++/' "$cfg" > "$clangcfg"
+     ZIGURATIP_CONF=$clangcfg
+     echo "==> $cfg compiles with '${cpp:-nothing}': a copy with CPP clang++ is used" ;;
+esac
 conf=
 [ -n "$ZIGURATIP_CONF" ] && conf="--config=$ZIGURATIP_CONF"
 for step in "$HERE"/0*.parsi; do

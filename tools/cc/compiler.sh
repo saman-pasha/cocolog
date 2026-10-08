@@ -26,11 +26,35 @@
 # links ZiguratIP's C++ libraries into its own binary and dlopen's modules
 # into its own process.
 #
-# $CICILI_CC and $CICILI_CXX still win over all of it, which is how
-# `make CICILI_CC=gcc CICILI_CXX=g++' and Apple's own clang stay reachable:
+# $CICILI_CC and $CICILI_CXX still win over all of it, which is how another
+# clang -- Apple's own, a versioned one -- stays reachable (every build here
+# is clang, the owner's rule; these choose WHICH):
 #
 #     make CICILI_CC=/usr/bin/clang CICILI_CXX=/usr/bin/clang++
 #
+# JUMPS KEPT OFF 32-BYTE BOUNDARIES, on x86-64 (the owner's choice,
+# 2026-10-08). Intel's JCC erratum -- Skylake through Cascade Lake, and the
+# Coffee Lake of the owner's Mac: the microcode that fixes it keeps every
+# jump that crosses or ends on a 32-byte boundary out of the decoded-uop
+# cache, so that code is decoded again each time it runs. Where the hot
+# jumps land is an accident of layout. 1.9.1's naive reverse executed 26.6
+# such jumps an inference against 1.9.0's 16.2 and ran no faster for 12 %
+# fewer instructions; padded, it ran 10 % faster than padded 1.9.0, and
+# padding made 1.9.1 8-20 % faster on four of the five bench tasks
+# (STATUS.md). The padding is prefixes and NOPs: 2 % more code, a few per
+# cent more instructions. Only on a command that compiles something -- a
+# link alone has nothing to pad, and a compiler that called the flag unused
+# there would be chatter, which Cicili takes as fatal.
+coco_arch_flags() {        # coco_arch_flags ARGS... -> flags to add to that command
+  case "$(uname -m)" in x86_64|amd64) ;; *) return 0 ;; esac
+  for _coco_a in "$@"; do
+    case "$_coco_a" in
+      -c|-x|*.c|*.cc|*.cpp|*.cxx|*.C|*.i|*.ii|*.s|*.S)
+        printf '%s\n' "-mbranches-within-32B-boundaries"; return 0 ;;
+    esac
+  done
+}
+
 coco_compiler() {          # coco_compiler cc|cxx -> the program to exec
   case "$1" in
     cc) _coco_bare=clang;   _coco_set=$CICILI_CC ;;
