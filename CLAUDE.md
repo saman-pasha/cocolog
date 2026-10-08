@@ -134,6 +134,9 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
     leaves each object's generated C++ in `home/tmp` and its two command
     lines at the head of the `.out` beside it, which is how the objects
     were rebuilt as they stood.
+* **`sudo sh install/install-linux.sh` installs the packages as root and
+  runs the rest as the calling user**, in that user's home: Quicklisp and
+  `~/common-lisp` are found through `$HOME`, which sudo makes `/root`.
 * **`?=` does not work for `CC`/`CXX`**: make gives them built-in values of
   origin `default`. Test `ifeq ($(origin CXX),default)`. The tell is
   `readelf -p .comment` naming gcc.

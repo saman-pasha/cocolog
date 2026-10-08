@@ -59,12 +59,12 @@ if [ "$home_real" != "$zig_real/home" ]; then
   exit 1
 fi
 
-cxx_ok() {   # see ZiguratIP/install/common.sh: 16 on Linux, 10 on macOS, g++ 7+
-  cxx=${CICILI_CXX:-clang++}
+cxx_ok() {   # see ZiguratIP/install/common.sh: 16 on Linux, 10 on macOS -- and clang
+  cxx=${CICILI_CXX:-clang++}  # only: every build here is clang, so another compiler fails this
   case "$cxx" in
     *clang*) v=$("$cxx" --version 2>/dev/null | grep -oE 'version [0-9]+' | grep -oE '[0-9]+' | head -1)
              [ "${v:-0}" -ge "$1" ] ;;
-    *)       v=$("$cxx" -dumpversion 2>/dev/null | cut -d. -f1); [ "${v:-0}" -ge 7 ] ;;
+    *)       return 1 ;;
   esac
 }
 

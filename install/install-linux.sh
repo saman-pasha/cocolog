@@ -20,7 +20,10 @@
 #                                    library(ray) builds and runs with no screen
 #   CICILI=/path ZIGURATIP=/path ... checkouts elsewhere (default: beside this one,
 #                                    cloned there when absent)
-#   CICILI_CC=gcc CICILI_CXX=g++ ... build with gcc; no clang needed
+#   CICILI_CC=... CICILI_CXX=...     a particular clang (clang-18, a path); every build
+#                                    here is clang, and a compiler that is not is refused
+#   sudo sh install/install-linux.sh the packages as root, then the rest as the user who
+#                                    called sudo, in that user's own home
 #
 # Idempotent. The compiler is installed before anything is made, because a
 # make without one leaves ZiguratIP dependency files that poison the next
@@ -68,7 +71,7 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
             $SUDO update-alternatives --install /usr/bin/$t $t /usr/bin/$t-18 100 >/dev/null
             $SUDO update-alternatives --set $t /usr/bin/$t-18 >/dev/null
           done ;;
-        *) die "${CICILI_CXX} is too old for C++17" ;;
+        *) die "CICILI_CXX=${CICILI_CXX} is not clang -- every build here is clang" ;;
       esac
     fi
     if [ "${WITH_TORCH:-0}" = 1 ]; then
@@ -82,9 +85,9 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     fi
   elif command -v dnf >/dev/null 2>&1; then
     # ---- Fedora, and the Red Hat family with EPEL for sbcl --------------
-    # Fedora's clang is 17 or newer, so it is taken as is; redhat-rpm-config
-    # provides the hardened-cc1 specs file that home/etc/ziguratip-RedHat.conf
-    # names in its CPP_FLAGS.
+    # Fedora's clang is 17 or newer, so it is taken as is. gcc-c++ is here
+    # for libstdc++'s headers and runtime, which clang compiles and links
+    # against; nothing is compiled by gcc.
     $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
     say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
@@ -100,8 +103,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
       say "WITH_RAY=1: libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel alsa-lib-devel xorg-x11-server-Xvfb xorg-x11-xauth"
     fi
     cxx_ok 16 || case "${CICILI_CXX:-clang++}" in
-      *clang*) die "this clang is older than 16 and tools/cc/cxx needs --gcc-install-dir; dnf install a newer clang, or CICILI_CC=gcc CICILI_CXX=g++" ;;
-      *) die "${CICILI_CXX} is too old for C++17" ;;
+      *clang*) die "this clang is older than 16 and tools/cc/cxx needs --gcc-install-dir; dnf install a newer clang" ;;
+      *) die "CICILI_CXX=${CICILI_CXX} is not clang -- every build here is clang" ;;
     esac
     if [ "${WITH_TORCH:-0}" = 1 ]; then
       say "WITH_TORCH=1: pip-installing torch (this is large)"
@@ -113,11 +116,32 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
         || python3 -m pip install -q --break-system-packages ${TORCH_INDEX_URL:+--index-url "$TORCH_INDEX_URL"} "$TORCH_SPEC"
     fi
   else
-    say "neither apt-get nor dnf here -- needed: a C++17 compiler (clang 16+, or g++ 7+ with CICILI_CXX=g++),"
+    say "neither apt-get nor dnf here -- needed: clang 16+ with libstdc++'s headers,"
     say "make, git, curl, sbcl, GNU libtool, the OpenSSL, zlib, libcurl headers (python3 too for WITH_NUMPY or WITH_TORCH). Checking for them:"
   fi
 fi
-cxx_ok 16 || die "no C++17 compiler for tools/cc: ${CICILI_CXX:-clang++} (clang 16+, or CICILI_CC=gcc CICILI_CXX=g++)"
+
+# THE REST IS THE CALLING USER'S. Quicklisp and the ~/common-lisp tree are
+# found through $HOME -- SBCL's (user-homedir-pathname), ASDF's search of
+# ~/common-lisp -- and under `sudo sh install/install-linux.sh' $HOME is
+# /root: both went to root's home, owned by root, where the user's own sbcl
+# never looks, and the builds beside them were root's too. So the packages
+# go in as root, and everything after them runs again as the user who
+# called sudo, in that user's own home (-H), with NO_PACKAGES=1 and this
+# run's options. A root login with no sudo (a container, Colab) is in its
+# own home already and goes on.
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ]; then
+  say "packages done as root; the rest as $SUDO_USER, in $(getent passwd "$SUDO_USER" | cut -d: -f6)"
+  set -- NO_PACKAGES=1
+  for v in CICILI ZIGURATIP ZIGURATIP_HOME QUICKLISP_HOME CICILI_CC CICILI_CXX LOG \
+           WITH_TORCH WITH_NUMPY WITH_OPENCV WITH_RAY TORCH_INDEX_URL TORCH_SPEC \
+           RAYLIB RAYLIB_TAG LIBTORCH TORCH_INCLUDE TORCH_LIB; do
+    if eval "[ -n \"\${$v+set}\" ]"; then eval "set -- \"\$@\" \"$v=\$$v\""; fi
+  done
+  exec sudo -u "$SUDO_USER" -H env "$@" sh "$HERE/install-linux.sh"
+fi
+
+cxx_ok 16 || die "no clang 16+ for tools/cc: ${CICILI_CXX:-clang++}"
 for t in make git curl sbcl libtool; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
 # PYTHON ONLY WHEN ASKED FOR: library(numpy) embeds CPython and torch comes
 # from pip; nothing else cocolog builds or runs needs it

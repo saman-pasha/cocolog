@@ -24,6 +24,13 @@ raise one.
 ## Knobs
 
 * `NO_PACKAGES=1` skips the package step: no root, or already done.
+* Run as yourself, the Linux script asks `sudo` only for the packages.
+  `sudo sh install/install-linux.sh` works too: the packages go in as root,
+  and everything after them runs again as the user who called `sudo`, in
+  that user's own home. Quicklisp and `~/common-lisp` are found through
+  `$HOME`, which `sudo` sets to `/root`, so done as root they landed where
+  the user's own `sbcl` never looks. A root login with no `sudo` (a
+  container, Colab) uses root's home, which is its own.
 * `WITH_TORCH=1` installs a libtorch — `brew install pytorch` on macOS,
   `pip install torch` on Linux — so `library(torch)` builds. Without it the
   module is SKIPPED, which the modules step says; everything else is
@@ -52,8 +59,11 @@ raise one.
   screen. `RAYLIB` in the environment names a raylib of your own instead.
 * `CICILI=/path`, `ZIGURATIP=/path` name checkouts elsewhere; the defaults
   are the two directories beside this one, cloned there when absent.
-* `CICILI_CC=gcc CICILI_CXX=g++` builds with gcc and needs no clang (Linux).
-  On Red Hat Enterprise Linux and its rebuilds, `sbcl` is in EPEL.
+* `CICILI_CC=...`, `CICILI_CXX=...` name a particular clang (`clang-18`, a
+  path). Every build here is clang -- the interpreter, ZiguratIP, every
+  module and every Parsi object -- and the scripts refuse a compiler that
+  is not.
+* On Red Hat Enterprise Linux and its rebuilds, `sbcl` is in EPEL.
 * `LOG=/path` moves the logs from `/tmp/cocolog-install.*`.
 
 Without `WITH_RAY=1`, `library(ray)` is SKIPPED, and
