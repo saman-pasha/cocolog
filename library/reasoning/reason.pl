@@ -1085,9 +1085,24 @@ re_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 =
 %% until its sentence parses and is dropped when it does not: `the big
 %% barn' in a refused sentence once made `big' a noun for the rest of the
 %% process, and an explanation said `the box is a big'.
-re_name(X) :- catch(nb_getval('$rs_names', L), _, fail), memberchk(X, L).
-re_noun(P) :- catch(nb_getval('$rs_nouns', L), _, fail), memberchk(P, L).
-re_quoted(W) :- catch(nb_getval('$rs_quoted', L), _, fail), memberchk(W, L).
+%% A WORD'S NOTE IS A GLOBAL OF ITS OWN (1.9.4), `'$rs_quoted|casa'' and the
+%% like, found by name through the store's hash: one list a kind grew with
+%% every word the process met, and a global is copied whole each time it is
+%% read -- the translator's lesson copied 135 million cells of
+%% `'$rs_quoted'' to ask 18 thousand times whether a word was in it, and put
+%% the grown list back into the store for every word it added. A note that
+%% is not an atom keeps the list under the bare name, as before.
+re_name(X) :- rs_noted('$rs_names', '$rs_names|', X).
+re_noun(P) :- rs_noted('$rs_nouns', '$rs_nouns|', P).
+re_quoted(W) :- rs_noted('$rs_quoted', '$rs_quoted|', W).
+rs_noted(Key, Prefix, X) :-
+    (   atom(X)
+    ->  atom_concat(Prefix, X, K), catch(nb_getval(K, _), _, fail)
+    ;   catch(nb_getval(Key, L), _, fail), memberchk(X, L)
+    ).
+rs_note_prefix('$rs_names', '$rs_names|').
+rs_note_prefix('$rs_nouns', '$rs_nouns|').
+rs_note_prefix('$rs_quoted', '$rs_quoted|').
 rs_note(Key, X) :-
     catch(nb_getval('$rs_pending', L), _, L = []),
     nb_setval('$rs_pending', [Key-X|L]).
@@ -1100,8 +1115,11 @@ rs_notes_commit :-
     forall(member(Key-X, Notes), rs_register(Key, X)),
     nb_setval('$rs_pending', []).
 rs_register(Key, X) :-
-    catch(nb_getval(Key, L), _, L = []),
-    ( memberchk(X, L) -> true ; nb_setval(Key, [X|L]) ).
+    (   atom(X), rs_note_prefix(Key, Prefix)
+    ->  atom_concat(Prefix, X, K), nb_setval(K, yes)
+    ;   catch(nb_getval(Key, L), _, L = []),
+        ( memberchk(X, L) -> true ; nb_setval(Key, [X|L]) )
+    ).
 
 %% the sentences in order, and the STATE between them: the subject of the
 %% last fact, which a subject pronoun in the next sentence stands for

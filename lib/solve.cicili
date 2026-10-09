@@ -503,7 +503,23 @@
     (member u32         aarity)
     (member int         acur)
 
-    (member char        err [192]))
+    (member char        err [192])
+
+    ;; COLLECTED INSIDE A NESTED ENGINE (1.9.4). OUTER is the engine whose
+    ;; builtin started this one (`coco_engine_next' links it; a
+    ;; `coco_engine *'), and while this engine is itself part way through
+    ;; a module's predicate, KGOAL and KCALL are that call's continuation
+    ;; and goal, kept here rather than in the loop's C locals so that a
+    ;; collection the predicate's nested engine runs can rewrite them.
+    ;; PTRAIL and PHEAP are the marks the builtin that started THIS engine
+    ;; winds the machine back to when it is done -- a choice point, as far
+    ;; as the collector is concerned, between the outer engine's frames and
+    ;; this one's (`coco_heap_collect').
+    (member void *      outer)
+    (member size_t      kgoal)
+    (member size_t      kcall)
+    (member size_t      ptrail)
+    (member size_t      pheap))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -593,8 +609,25 @@
   ;;; ball, in which case the engine already points at that catch's recovery
   ;;; goal and the caller must answer 2 in its turn rather than setting a
   ;;; continuation of its own.
+  ;;;
+  ;;; THE SEARCH MAY COLLECT THE HEAP (1.9.4), and a collection moves cells:
+  ;;; GP, when not nil, is the caller's goal cell, given back where the
+  ;;; collector left it -- a caller that reads its goal's arguments after
+  ;;; the search reads them from there.
   (decl) (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
-                                  (size_t * out)) (out int))
+                                  (size_t * out) (size_t * gp)) (out int))
+
+  ;;; A NESTED ENGINE COLLECTS A REGION WORTH IT (1.9.4). A builtin about to
+  ;;; run a nested engine raises the machine's threshold to its heap mark
+  ;;; plus the floor, and puts it back after (`coco_gc_nested_end' with
+  ;;; what this answered): the search collects once it has made a floor's
+  ;;; worth of cells of its own, and a short one never does -- the mark it
+  ;;; is wound back to reclaims those for nothing, where a collection there
+  ;;; marks every live cell of every engine. Measured on the linter, whose
+  ;;; every clause is linted inside a findall: four collections, 0.86 % of
+  ;;; its instructions, for a peak 28 % lower (52.7 MB, not 73.2).
+  (decl) (func coco_gc_nested_begin ((coco_machine * m) (size_t hmark)) (out size_t))
+  (decl) (func coco_gc_nested_end ((coco_machine * m) (size_t saved)))
 
   ;;; ---- a goal under a ceiling -------------------------------------------
   ;;;
@@ -633,9 +666,10 @@
   ;;; ceiling was reached), 3 (it threw and an outer `catch/3' took it, so the
   ;;; caller must answer 2 -- "the continuation is already set"), or -1 (it
   ;;; threw and nothing caught it, `e->err' set). Everything but 1 puts the
-  ;;; machine back exactly as it was.
+  ;;; machine back exactly as it was. GP is the caller's goal cell, as for
+  ;;; findall: the goal may collect the heap.
   (decl) (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
-                                       (u64 limit) (u64 * used)) (out int))
+                                       (u64 limit) (u64 * used) (size_t * gp)) (out int))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and
@@ -878,6 +912,20 @@
 
   ;;; ---- the continuation --------------------------------------------------
 
+  ;;; A CONTINUATION THAT WOULD NOT FIT. The three builders of the
+  ;;; continuation -- `coco_k_push', `coco_k_push_roots', `coco_areg_term'
+  ;;; -- answer 0 and write nothing when the heap would not grow, and a
+  ;;; caller that stores the 0 as the continuation or as the next goal never
+  ;;; runs it: this stops the run at the next step's top, which tests
+  ;;; `halted' on every step anyway. 2 is not a halt but memory, and
+  ;;; `coco_engine_next' turns it into the error before any host reads it.
+  ;;; Through 1.9.3 `coco_k_push' wrote its frame over cells 1 to 3 and the
+  ;;; other two left cell 0 as the continuation or the goal.
+  (static)
+  (func coco_k_room ((coco_engine * e)) (out size_t)
+        (if (== (-> e halted) 0) (set (-> e halted) 2))
+        (return 0))
+
   ;;; '$k'(Goal, Barrier, Rest). Built with coco_make rather than the term DSL
   ;;; because all three arguments are values the engine is holding, not a shape
   ;;; known when this was written.
@@ -897,6 +945,8 @@
           ;; to itself; the collector keeps a kept compound's slots whatever
           ;; they hold. One push and one cell fewer per goal proven.
           (set h (coco_push_struct m (coco-cell FUN (coco-fid m "$k" 3)) 3))
+          ;; no room: nothing written over cell 0's neighbours
+          (if (== h 0) (return (coco_k_room e)))
           (set (nth (+ h 1) (-> m heap)) (coco-cell REF (coco_deref m goal)))
           (set (nth (+ h 2) (-> m heap)) (coco-int-cell (cast i64 barrier)))
           (set (nth (+ h 3) (-> m heap)) (coco-cell REF (coco_deref m rest)))
@@ -909,7 +959,7 @@
   ;;; there -- cell for cell what N calls of `coco_k_push' would have left,
   ;;; so nothing that reads a continuation can tell. Answers the first
   ;;; goal's frame, or REST itself for a body with no goals (a fact), or 0
-  ;;; when the heap would not grow (`m->oom' says so).
+  ;;; when the heap would not grow (`coco_k_room').
   (static)
   (func coco_k_push_roots ((coco_engine * e) (const size_t * roots) (size_t n)
                            (size_t barrier) (size_t rest)) (out size_t)
@@ -918,7 +968,7 @@
           (if (== n 0) (return rest))
           (if (not (coco_grow m (cast (void **) (aof (-> m heap)))
                             (aof (-> m heap_cap)) (+ h (* n 4)) (sizeof u64)))
-              (return 0))
+              (return (coco_k_room e)))
           (set (-> m heap_len) (+ h (* n 4)))
           (let ((u64 hdr . #'(coco-cell FUN (coco-fid m "$k" 3)))
                 (u64 bar . #'(coco-int-cell (cast i64 barrier)))
@@ -937,7 +987,8 @@
   ;;; THE GOAL IN THE REGISTERS, BUILT: the term `coco_clause_run_r' did
   ;;; not build, its header and one slot an argument, each slot pointing at
   ;;; the argument the register holds -- cell for cell what the body program
-  ;;; would have left. Answers the term, or 0 when the heap would not grow.
+  ;;; would have left. Answers the term, or 0 when the heap would not grow
+  ;;; (`coco_k_room').
   (static)
   (func coco_areg_term ((coco_engine * e)) (out size_t)
         (let ((coco_machine * m . #'(-> e m))
@@ -946,7 +997,7 @@
               (size_t h . 0))
           (set h (coco_push_struct_raw m (coco-cell FUN (-> e afid)) n))
           ;; no room: nothing written over cell 0's neighbours
-          (if (== h 0) (return 0))
+          (if (== h 0) (return (coco_k_room e)))
           (for ((u32 i . 0)) (< i n) ((++ i))
             (set (nth (+ h (+ (cast size_t i) 1)) (-> m heap)) (coco-cell REF (nth i a))))
           (return h)))
@@ -955,17 +1006,23 @@
   ;;; `coco_try_clause' did not build for it (`ngoal' on the engine). Called
   ;;; before anything reads the continuation as a term -- a collection, and
   ;;; every return from the loop that can leave the machine to be frozen or
-  ;;; resumed. Two loads and a branch when nothing is held.
+  ;;; resumed. Two loads and a branch when nothing is held. Answers 0, with
+  ;;; nothing changed, when the heap would not grow (`coco_k_room').
   (static)
-  (func coco_k_flush ((coco_engine * e))
+  (func coco_k_flush ((coco_engine * e)) (out int)
         ;; a goal in the registers is built first, and then goes back as
         ;; any handed-over goal does
         (if (== (-> e nset) 2)
-            (block (set (-> e ngoal) (coco_areg_term e))
-                   (set (-> e nset) 1)))
+            (let ((size_t t . #'(coco_areg_term e)))
+              (if (== t 0) (return 0))
+              (set (-> e ngoal) t)
+              (set (-> e nset) 1)))
         (if (-> e nset)
-            (block (set (-> e nset) 0)
-                   (set (-> e goals) (coco_k_push e (-> e ngoal) (-> e nbar) (-> e goals))))))
+            (let ((size_t f . #'(coco_k_push e (-> e ngoal) (-> e nbar) (-> e goals))))
+              (if (== f 0) (return 0))
+              (set (-> e nset) 0)
+              (set (-> e goals) f)))
+        (return 1))
 
   ;;; ---- the continuation as terms, for a freeze (Stage 5) -----------------
   ;;;
@@ -1139,7 +1196,7 @@
           ;; a goal handed over goes back on the continuation first, and
           ;; stays there: a frame is a continuation the live machine reads
           ;; as well as it read the goal held
-          (coco_k_flush e)
+          (if (not (coco_k_flush e)) (return 0))
           (set (-> sv heap_len) (-> m heap_len))
           (set (-> sv goals) (-> e goals))
           (set (-> sv n) n)
@@ -2143,9 +2200,11 @@
   ;;; treated as roots and rewritten like any other index.
   ;;;
   ;;; WHEN: at the top of the engine's loop, between two steps, which is the
-  ;;; one place no C frame of the engine holds an index -- and only when
-  ;;; this is the only engine running on the machine (`running', see the
-  ;;; machine) and its host said yes (`gc' on the engine). After a
+  ;;; one place no C frame of the engine holds an index -- and only when its
+  ;;; host said yes (`gc' on the engine). A nested engine says yes when the
+  ;;; builtin that started it registered every cell its own frame holds and
+  ;;; its outer engine may collect (1.9.4): the engines part way through a
+  ;;; step are found on the machine's chain (`eng', `outer'). After a
   ;;; collection the next one waits until the heap has grown by as much
   ;;; again as survived, and by at least `coco_gc_floor' cells: amortised,
   ;;; the work is a constant per cell allocated.
@@ -2311,36 +2370,92 @@
           (free ($ set keys)) (free ($ set vals))
           (coco_code_sweep st epoch)))
 
-  (static)
-  (func coco_heap_gc ((coco_engine * e))
+  ;;; NOT STATIC (1.9.4): a static function with one caller is inlined
+  ;;; whatever its size, and the collector inlined into `coco_engine_run'
+  ;;; cost the step loop the register it kept the engine in -- four
+  ;;; instructions a step on naive reverse, once the collector learned the
+  ;;; chain of engines. It runs once in millions of steps.
+  (func coco_heap_collect ((coco_engine * e))
         (let ((coco_machine * m . #'(-> e m))
               (size_t n . #'(-> m heap_len))
               (size_t nw . #'(>> (+ n 63) 6))
               (u64 * bits . nil) (size_t * pre . nil)
               (size_t * stk . nil) (size_t slen . 0) (size_t scap . 0)
               (u64 * fixed . nil) (size_t nmarkers . 0)
-              (u64 texit . 0) (int ok . 1))
-          (set (-> m gc_request) 0)
+              (u64 texit . 0) (int ok . 1)
+              (size_t ** tmp . nil) (size_t ** hmp . nil) (size_t nbar . 0))
           (set texit (coco_functor_id m (coco-id m "$trace_exit") 3))
           (set bits (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
           (set pre (cast (size_t *) (malloc (* (+ nw 1) (sizeof size_t)))))
           (if (or (== bits nil) (== pre nil)) (set ok 0))
 
-          ;; ---- mark ----
-          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                       (aof nmarkers) (-> e goals))))
-          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                       (aof nmarkers) (-> e query))))
-          (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                       (aof nmarkers) (-> e trace_goal))))
-          (for ((size_t k . 0)) (and ok (< k (-> e nchoices))) ((++ k))
-            (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                  (aof nmarkers) ($ (nth k (-> e choices)) call)))
-            (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                         (aof nmarkers) ($ (nth k (-> e choices)) goals))))
-            (if (and ok (!= (-> e tchoices) nil))
+          ;; ---- mark: EVERY ENGINE ON THE MACHINE'S CHAIN (1.9.4), this
+          ;; one first and then each whose builtin started the one inside
+          ;; it -- its continuation, its query, the tracer's goal and its
+          ;; frames, and for an engine part way through a module's call that
+          ;; call's goal and continuation (`kcall', `kgoal'). Through 1.9.3
+          ;; only an engine alone on its machine collected.
+          (let ((coco_engine * x . e))
+            (while (and ok (!= x nil))
+              (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                           (aof nmarkers) (-> x goals))))
+              (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                           (aof nmarkers) (-> x query))))
+              (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                           (aof nmarkers) (-> x trace_goal))))
+              (if (and ok (!= x e))
+                  (block
+                   (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                         (aof nmarkers) (-> x kgoal)))
+                   (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                                (aof nmarkers) (-> x kcall))))))
+              (for ((size_t k . 0)) (and ok (< k (-> x nchoices))) ((++ k))
                 (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                      (aof nmarkers) ($ (nth k (-> e tchoices)) goal)))))
+                                      (aof nmarkers) ($ (nth k (-> x choices)) call)))
+                (if ok (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                             (aof nmarkers) ($ (nth k (-> x choices)) goals))))
+                (if (and ok (!= (-> x tchoices) nil))
+                    (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                          (aof nmarkers) ($ (nth k (-> x tchoices)) goal)))))
+              ;; a frame per choice point, and one for the marks a nested
+              ;; engine's builtin winds back to
+              (set nbar (+ nbar (-> x nchoices)))
+              (if (!= (-> x outer) nil) (set nbar (+ nbar 1)))
+              (set x (cast (coco_engine *) (-> x outer)))))
+
+          ;; THE TRAIL'S BARRIERS, OLDEST FIRST: the outermost engine's choice
+          ;; points, then for each engine inside it the marks its builtin took
+          ;; before starting it (`ptrail', `pheap') and that engine's own
+          ;; points -- each made after everything before it in this order, so
+          ;; their trail marks never fall (the trail pass below needs that)
+          (if (and ok (> nbar 0))
+              (let ((size_t nch . 0) (size_t at . 0) (coco_engine ** ch . nil))
+                (let ((coco_engine * x . e))
+                  (while (!= x nil) (set nch (+ nch 1)) (set x (cast (coco_engine *) (-> x outer)))))
+                (set tmp (cast (size_t **) (malloc (* nbar (sizeof (size_t *))))))
+                (set hmp (cast (size_t **) (malloc (* nbar (sizeof (size_t *))))))
+                (set ch (cast (coco_engine **) (malloc (* nch (sizeof (coco_engine *))))))
+                (if (or (== tmp nil) (== hmp nil) (== ch nil)) (set ok 0))
+                (if ok
+                    (let ((coco_engine * x . e) (size_t d . 0))
+                      (while (!= x nil)
+                        (set (nth d ch) x)
+                        (set d (+ d 1))
+                        (set x (cast (coco_engine *) (-> x outer))))
+                      ;; outermost first
+                      (while (> d 0)
+                        (set d (- d 1))
+                        (let ((coco_engine * y . #'(nth d ch)))
+                          (if (!= (-> y outer) nil)
+                              (block (set (nth at tmp) (aof (-> y ptrail)))
+                                     (set (nth at hmp) (aof (-> y pheap)))
+                                     (set at (+ at 1))))
+                          (for ((size_t k . 0)) (< k (-> y nchoices)) ((++ k))
+                            (set (nth at tmp) (aof ($ (nth k (-> y choices)) trail_mark)))
+                            (set (nth at hmp) (aof ($ (nth k (-> y choices)) heap_mark)))
+                            (set at (+ at 1)))))))
+                (free (cast (void *) ch))))
+
           (for ((size_t r . 0)) (and ok (< r (-> m nhroots))) ((++ r))
             (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
                   (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
@@ -2355,6 +2470,7 @@
               ;; NOTHING HAS MOVED YET, so giving up is free: only memory ran
               ;; out, and the next try waits until the heap has doubled
               (block (free bits) (free pre) (free stk) (free fixed)
+                     (free (cast (void *) tmp)) (free (cast (void *) hmp))
                      (set (-> m gc_next) (* (-> m heap_len) 2))
                      (return)))
 
@@ -2388,39 +2504,49 @@
                                           (set (nth j (-> m heap))
                                                (coco-int-cell (cast i64 (coco_gc_rank bits pre (cast size_t q))))))))))))))))
 
-          ;; ---- the trail, against the OLD heap marks ----
+          ;; ---- the trail, against the OLD heap marks, over the barriers in
+          ;; the order they were made (`tmp', `hmp': every engine's choice
+          ;; points and each nested engine's starting marks) ----
           (let ((size_t tl . #'(-> m trail_len))
-                (size_t kept . 0) (size_t f . 0)
-                (size_t nc . #'(-> e nchoices)))
+                (size_t kept . 0) (size_t f . 0))
             (for ((size_t p . 0)) (< p tl) ((++ p))
-              ;; every frame made at or before this entry: its new trail mark
-              ;; is the number of entries kept before it
-              (while (and (< f nc) (<= ($ (nth f (-> e choices)) trail_mark) p))
-                (set ($ (nth f (-> e choices)) trail_mark) kept)
+              ;; every barrier made at or before this entry: its new trail
+              ;; mark is the number of entries kept before it
+              (while (and (< f nbar) (<= (cof (nth f tmp)) p))
+                (set (cof (nth f tmp)) kept)
                 (set f (+ f 1)))
               (if (> f 0)
                   (let ((size_t v . #'(nth p (-> m trail))))
-                    (if (and (< v n) (< v ($ (nth (- f 1) (-> e choices)) heap_mark))
+                    (if (and (< v n) (< v (cof (nth (- f 1) hmp)))
                              (coco_gc_marked bits v))
                         (block (set (nth kept (-> m trail)) (coco_gc_rank bits pre v))
                                (set kept (+ kept 1)))))))
-            (while (< f nc)
-              (set ($ (nth f (-> e choices)) trail_mark) kept)
+            (while (< f nbar)
+              (set (cof (nth f tmp)) kept)
               (set f (+ f 1)))
             (set (-> m trail_len) kept))
 
-          ;; ---- the roots ----
-          (set (-> e goals) (coco_gc_moved bits pre n (-> e goals)))
-          (set (-> e query) (coco_gc_moved bits pre n (-> e query)))
-          (set (-> e trace_goal) (coco_gc_moved bits pre n (-> e trace_goal)))
-          (for ((size_t k . 0)) (< k (-> e nchoices)) ((++ k))
-            (let ((coco_choice * c . #'(aof (nth k (-> e choices)))))
-              (set (-> c call) (coco_gc_moved bits pre n (-> c call)))
-              (set (-> c goals) (coco_gc_moved bits pre n (-> c goals)))
-              (set (-> c heap_mark) (coco_gc_moved bits pre (+ n 1) (-> c heap_mark))))
-            (if (!= (-> e tchoices) nil)
-                (set ($ (nth k (-> e tchoices)) goal)
-                     (coco_gc_moved bits pre n ($ (nth k (-> e tchoices)) goal)))))
+          ;; ---- the roots, every engine's on the chain ----
+          (let ((coco_engine * x . e))
+            (while (!= x nil)
+              (set (-> x goals) (coco_gc_moved bits pre n (-> x goals)))
+              (set (-> x query) (coco_gc_moved bits pre n (-> x query)))
+              (set (-> x trace_goal) (coco_gc_moved bits pre n (-> x trace_goal)))
+              (if (!= x e)
+                  (block (set (-> x kgoal) (coco_gc_moved bits pre n (-> x kgoal)))
+                         (set (-> x kcall) (coco_gc_moved bits pre n (-> x kcall)))))
+              (if (!= (-> x outer) nil)
+                  (set (-> x pheap) (coco_gc_moved bits pre (+ n 1) (-> x pheap))))
+              (for ((size_t k . 0)) (< k (-> x nchoices)) ((++ k))
+                (let ((coco_choice * c . #'(aof (nth k (-> x choices)))))
+                  (set (-> c call) (coco_gc_moved bits pre n (-> c call)))
+                  (set (-> c goals) (coco_gc_moved bits pre n (-> c goals)))
+                  (set (-> c heap_mark) (coco_gc_moved bits pre (+ n 1) (-> c heap_mark))))
+                (if (!= (-> x tchoices) nil)
+                    (set ($ (nth k (-> x tchoices)) goal)
+                         (coco_gc_moved bits pre n ($ (nth k (-> x tchoices)) goal)))))
+              (set x (cast (coco_engine *) (-> x outer)))))
+          (free (cast (void *) tmp)) (free (cast (void *) hmp))
           (for ((size_t r . 0)) (< r (-> m nhroots)) ((++ r))
             (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
                   (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
@@ -2452,6 +2578,39 @@
                                    (? (> (-> m heap_len) floor) (-> m heap_len) floor))))
           (set (-> m gc_count) (+ (-> m gc_count) 1))
           (free bits) (free pre) (free stk) (free fixed)))
+
+  ;;; THE FREEZE, TORTURED (`COCOLOG_KMAT'). A freeze is right or wrong only
+  ;;; on a freeze, and freezes are rare, so this puts every collection
+  ;;; through one before anything is marked: 1 materialises the
+  ;;; continuation and puts it back, as a freeze does to the live machine
+  ;;; around its image (`coco_engine_materialize' and its undo); 2
+  ;;; materialises it and keeps it, so the run goes on from the `'$k''
+  ;;; frames a thawed machine starts from, and the collection that follows
+  ;;; frees the environments nothing names any more. With
+  ;;; `COCOLOG_GC_CELLS=2000' that is every 2000 cells; unset, it is one
+  ;;; `getenv' per collection. Every answer, every inference count and
+  ;;; every stop come out the same either way, which is what a run under
+  ;;; it checks. A child process inherits it, as it inherits the floor.
+  (static)
+  (func coco_kmat_tortured ((coco_engine * e))
+        (let ((const char * s . #'(getenv "COCOLOG_KMAT"))
+              (int kt . 0))
+          (if (and (!= s nil) (!= (nth 0 s) (cast char 0)))
+              (set kt (cast int (strtol s nil 10))))
+          (if (> kt 0)
+              (let ((coco_kmat sv))
+                (if (coco_engine_materialize e (aof sv))
+                    (if (== kt 1)
+                        (coco_engine_materialize_undo e (aof sv))
+                        ;; kept: only the record of what it changed goes
+                        (block (free ($ sv cgoals)) (free ($ sv ccalls))
+                               (free ($ sv cmarks)))))))))
+
+  ;;; A COLLECTION, the freeze's torture first when it is asked for
+  (static)
+  (func coco_heap_gc ((coco_engine * e))
+        (coco_kmat_tortured e)
+        (coco_heap_collect e))
 
   ;;; ---- the loop -----------------------------------------------------------
 
@@ -2499,14 +2658,39 @@
             (coco_code_retired_free (-> e st)))
         (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
 
+  ;;; A SEARCH A BUILTIN STARTS COLLECTS ONLY ONCE IT HAS GROWN BY THE FLOOR
+  ;;; ITSELF (1.9.4): most are short, and what a findall built goes when it
+  ;;; ends, for nothing. So the threshold is raised to the floor above the
+  ;;; heap where the search starts (HMARK) and put back when it ends -- unless
+  ;;; it is 0 then, a request (`garbage_collect/0') made inside that nothing
+  ;;; there could serve, which waits for the outer engine.
+  (func coco_gc_nested_begin ((coco_machine * m) (size_t hmark)) (out size_t)
+        (let ((size_t saved . #'(-> m gc_next))
+              (size_t at . #'(+ hmark (-> m gc_floor))))
+          (if (< (-> m gc_next) at) (set (-> m gc_next) at))
+          (return saved)))
+
+  (func coco_gc_nested_end ((coco_machine * m) (size_t saved))
+        (if (!= (-> m gc_next) 0) (set (-> m gc_next) saved)))
+
   (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
-                          (size_t * out)) (out int)
+                          (size_t * out) (size_t * gp)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
-              (size_t ball_size . 0) (size_t kept_cells . 0))
+              (size_t ball_size . 0) (size_t kept_cells . 0)
+              ;; WHAT THIS FRAME HOLDS ON THE HEAP, told to the collector for
+              ;; the search (1.9.4): the template, the goal, and the caller's
+              ;; own goal cell (GP, nil when it keeps none), each read back
+              ;; from here after the search
+              (size_t hold [3]) (size_t * holdp . nil) (size_t nhold . 3) (int held . 0)
+              (size_t gsaved . 0))
+          (set (nth 0 hold) template)
+          (set (nth 1 hold) goal)
+          (set (nth 2 hold) (? (== gp nil) 0 (cof gp)))
+          (set holdp hold)
 
           ;; WHERE THE MACHINE STOOD BEFORE THE SEARCH. The sub-engine's last
           ;; solution leaves its bindings on the trail: the final clause of a
@@ -2522,6 +2706,7 @@
           ;; below, so the store is told where they are: a compaction during
           ;; the search -- a `forall/2' IS one -- moves them with the rest
           (coco_store_root_push st (aof kept) (aof n))
+          (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
           (coco_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
           ;; `cocolog step' with a step limit cannot be overrun by a findall
@@ -2535,6 +2720,14 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
+          ;; THE SEARCH MAY COLLECT (1.9.4) when this engine may and nothing
+          ;; is traced (the tracer's ports read goals the loop holds): the
+          ;; marks the machine is wound back to below go with the inner
+          ;; engine, where the collector keeps them true as it moves cells
+          (set ($ sub ptrail) tmark)
+          (set ($ sub pheap) hmark)
+          (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+          (set gsaved (coco_gc_nested_begin m hmark))
 
           (while 1
             (set rc (coco_engine_next (aof sub)))
@@ -2564,14 +2757,21 @@
                   (set kept nb)
                   (set cap ncap)))
             ;; into the STORE, because the heap under us is about to be wound
-            ;; back past this point
-            (set (nth n kept) (coco_store_put st m template))
+            ;; back past this point -- the template where the collector left it
+            (set (nth n kept) (coco_store_put st m (nth 0 hold)))
             (set kept_cells (+ kept_cells (- (-> st len) (nth n kept))))
             (set n (+ n 1)))
 
           ;; the outer engine's step count includes the inner search: a goal
           ;; that costs a million inferences inside a findall costs them
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (coco_gc_nested_end m gsaved)
+          ;; and everything this frame told the collector, as it left it --
+          ;; read before the free, which memsets the inner engine
+          (set tmark ($ sub ptrail))
+          (set hmark ($ sub pheap))
+          (if held (coco_heap_root_pop m))
+          (if (!= gp nil) (set (cof gp) (nth 2 hold)))
           (coco_engine_free (aof sub))
 
           ;; AND NOW THROW IT AGAIN, IN THE OUTER ENGINE. The sub-engine is a
@@ -2621,13 +2821,19 @@
           (return 1))))
 
   (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
-                                (u64 limit) (u64 * used)) (out int)
+                                (u64 limit) (u64 * used) (size_t * gp)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (coco_engine sub)
               (size_t tmark . #'($ (cof m) trail_len))
               (size_t hmark . #'($ (cof m) heap_len))
-              (int rc . 0) (int out . 0))
+              (int rc . 0) (int out . 0)
+              ;; the caller's goal cell, told to the collector for the run
+              ;; (1.9.4; `coco_engine_findall')
+              (size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
+          (set (nth 0 hold) (? (== gp nil) 0 (cof gp)))
+          (set holdp hold)
+          (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
           (coco_engine_init (aof sub) m st)
           (set ($ sub max_steps) limit)
           ;; narrowed to what the OUTER engine has left, never widened
@@ -2639,8 +2845,17 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
-          (set rc (coco_engine_next (aof sub)))
+          (set ($ sub ptrail) tmark)
+          (set ($ sub pheap) hmark)
+          (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+          (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
+            (set rc (coco_engine_next (aof sub)))
+            (coco_gc_nested_end m gsaved))
           (set (cof used) ($ sub steps))
+          (set tmark ($ sub ptrail))
+          (set hmark ($ sub pheap))
+          (if held (coco_heap_root_pop m))
+          (if (!= gp nil) (set (cof gp) (nth 0 hold)))
           ;; SPENT IS SPENT, whichever way it went: an outer budget that did
           ;; not count a fenced goal's inferences would be a hole big enough
           ;; to drive the whole loop through.
@@ -2997,13 +3212,19 @@
             (if (-> e halted) (block (coco_k_flush e) (return 0)))
 
             ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
-            ;; whole state of the proof in the continuation and the frames,
-            ;; when no other engine on this machine is part way through one --
-            ;; see `coco_heap_gc'. Three loads and two compares when it does
-            ;; not run.
-            (if (and (-> e gc) (== (-> m running) 1)
-                     (or (-> m gc_request) (>= (-> m heap_len) (-> m gc_next))))
-                (block (coco_k_flush e) (coco_heap_gc e)))
+            ;; whole state of the proof in the continuation and the frames --
+            ;; see `coco_heap_gc'. Once the heap reaches the threshold (0 when
+            ;; `garbage_collect/0' asked), an engine collects if its host said
+            ;; so, or, nested, if the builtin that started it told the
+            ;; collector everything its own frame holds and its outer engine
+            ;; may collect too (1.9.4; `coco_engine_findall'): the engines
+            ;; part way through a step are found on the machine's chain. Two
+            ;; loads and a compare when it does not run -- the host's word is
+            ;; asked only past the threshold, since nested engines say yes
+            ;; too. A flush that found no room changed nothing, and the run
+            ;; stops at the next step's top (`coco_k_room').
+            (if (>= (-> m heap_len) (-> m gc_next))
+                (if (-> e gc) (if (coco_k_flush e) (coco_heap_gc e))))
 
             ;; THE NEXT GOAL: the one the clause entered by the last step
             ;; handed over (`ngoal'), or else the continuation's,
@@ -3090,7 +3311,10 @@
                            ((== r 0)
                             (if (not (coco_backtrack e)) (return 0))
                             continue)
-                           (#t (set (-> e ngoal) (coco_areg_term e))))))
+                           ;; no room for the term: the run stops at the
+                           ;; top (`coco_k_room'), and cell 0 is no goal
+                           (#t (set (-> e ngoal) (coco_areg_term e))
+                               (if (== (-> e ngoal) 0) continue)))))
                    (set (-> e nset) 0)
                    (set g (-> e ngoal))
                    (set b (-> e nbar))
@@ -3180,36 +3404,48 @@
                      ;; fetched HERE, on the path that needs it, rather than
                      ;; for every goal
                      (if (and (not known) (not found) (!= coco_extern_call nil))
-                         (if (and (> n 0) (!= coco_extern_resolving nil))
-                             ;; by the functor's remembered owner, asked once
-                             ;; per generation of the registry -- see
-                             ;; `coco_extern_install_resolve'. The functor
-                             ;; index is the FUN cell's payload; `g' is
-                             ;; dereferenced and callable, so with n > 0 it
-                             ;; is one. A functor made by this very call --
-                             ;; `coco_functor_id' may grow the table -- is
-                             ;; read after the walk, never across it.
-                             (let ((size_t fi . #'(cast size_t (coco-payload (nth g (-> m heap))))))
-                               (if (!= ($ (nth fi (-> m functors)) dgen) coco_extern_generation)
-                                   (let ((size_t at . 0) (u64 d0 . #'(-> e declines)))
-                                     (set rc (coco_extern_resolving e (coco_atom_name m nid) n g
-                                                                    (aof found) (aof at)))
-                                     ;; a walk in which a module declined says
-                                     ;; nothing about the next call: keep none
-                                     (if (== (-> e declines) d0)
-                                         (block
-                                          (set ($ (nth fi (-> m functors)) dmod)
-                                               (? found (cast i32 at) -2))
-                                          (set ($ (nth fi (-> m functors)) dgen) coco_extern_generation))))
-                                 (if (>= ($ (nth fi (-> m functors)) dmod) 0)
-                                     (block
-                                      (set rc (coco_extern_call_at e (cast size_t ($ (nth fi (-> m functors)) dmod))
-                                                                   (coco_atom_name m nid) n g (aof found)))
-                                      ;; the owner declined these arguments: on
-                                      ;; through every module, as the walk went
-                                      (if (not found)
-                                          (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found))))))))
-                           (set rc (coco_extern_call e (coco_atom_name m nid) n g (aof found)))))
+                         (block
+                          ;; THE CALL'S CONTINUATION AND GOAL ON THE ENGINE
+                          ;; (1.9.4), not only in this frame: a module's
+                          ;; predicate may start a nested engine, and a
+                          ;; collection in there rewrites every cell index
+                          ;; it can find (`coco_heap_collect') -- these two
+                          ;; included, read back below
+                          (set (-> e kgoal) k)
+                          (set (-> e kcall) g)
+                          (if (and (> n 0) (!= coco_extern_resolving nil))
+                              ;; by the functor's remembered owner, asked once
+                              ;; per generation of the registry -- see
+                              ;; `coco_extern_install_resolve'. The functor
+                              ;; index is the FUN cell's payload; `g' is
+                              ;; dereferenced and callable, so with n > 0 it
+                              ;; is one. A functor made by this very call --
+                              ;; `coco_functor_id' may grow the table -- is
+                              ;; read after the walk, never across it.
+                              (let ((size_t fi . #'(cast size_t (coco-payload (nth g (-> m heap))))))
+                                (if (!= ($ (nth fi (-> m functors)) dgen) coco_extern_generation)
+                                    (let ((size_t at . 0) (u64 d0 . #'(-> e declines)))
+                                      (set rc (coco_extern_resolving e (coco_atom_name m nid) n (-> e kcall)
+                                                                     (aof found) (aof at)))
+                                      ;; a walk in which a module declined says
+                                      ;; nothing about the next call: keep none
+                                      (if (== (-> e declines) d0)
+                                          (block
+                                           (set ($ (nth fi (-> m functors)) dmod)
+                                                (? found (cast i32 at) -2))
+                                           (set ($ (nth fi (-> m functors)) dgen) coco_extern_generation))))
+                                  (if (>= ($ (nth fi (-> m functors)) dmod) 0)
+                                      (block
+                                       (set rc (coco_extern_call_at e (cast size_t ($ (nth fi (-> m functors)) dmod))
+                                                                    (coco_atom_name m nid) n (-> e kcall) (aof found)))
+                                       ;; the owner declined these arguments: on
+                                       ;; through every module, as the walk went
+                                       (if (not found)
+                                           (set rc (coco_extern_call e (coco_atom_name m nid) n (-> e kcall)
+                                                                     (aof found))))))))
+                            (set rc (coco_extern_call e (coco_atom_name m nid) n (-> e kcall) (aof found))))
+                          (set k (-> e kgoal))
+                          (set g (-> e kcall))))
                      (if found
                          (block
                           (if (== rc -1) (return -1))
@@ -3400,10 +3636,24 @@
   ;;; counter bumped at each `return' -- there are forty of those.
   (func coco_engine_next ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (int rc . 0))
-          (if (== (-> m gc_next) 0) (set (-> m gc_next) (coco_gc_floor)))
+          ;; the first run on the machine sets the threshold; after it a
+          ;; threshold of 0 is `garbage_collect/0''s request, kept
+          (if (== (-> m gc_floor) 0)
+              (block (set (-> m gc_floor) (coco_gc_floor))
+                     (set (-> m gc_next) (-> m gc_floor))))
           (set (-> m running) (+ (-> m running) 1))
+          ;; THE CHAIN OF ENGINES ON THE MACHINE: this one, then the one
+          ;; whose builtin started it, and so on out (`coco_heap_collect')
+          (set (-> e outer) (-> m eng))
+          (set (-> m eng) (cast (void *) e))
           (set rc (coco_engine_run e))
+          (set (-> m eng) (-> e outer))
           (set (-> m running) (- (-> m running) 1))
+          ;; MEMORY, NOT A HALT: a builder of the continuation found no room
+          ;; and stopped the run (`coco_k_room'); no host sees the 2
+          (if (== (-> e halted) 2)
+              (block (set (-> e halted) 0)
+                     (set rc (coco_fail_err e "out of memory"))))
           (return rc)))
 
   ;;;; ----------------------------------------------------------------

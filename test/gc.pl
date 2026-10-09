@@ -516,4 +516,85 @@ heap :-
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F8, ' go 2>&1'], Cmd8),
     proc_run(Cmd8, 120000, O8, _), chomp(O8, B8), atom_codes(T8, B8),
     check('a recursion through environments, collected every 2000 cells, answers right',
-          T8, 'go(200010000)\ng4(200010000)\nrr(6000)').
+          T8, 'go(200010000)\ng4(200010000)\nrr(6000)'),
+    %% THE FREEZE, TORTURED (`COCOLOG_KMAT', 1.9.4). A freeze materialises
+    %% the continuation -- every position back to the goal its frame held
+    %% -- and freezes are rare, so a fault in it shows nowhere else. Under
+    %% the knob every collection materialises first: 1 and puts it back,
+    %% as a freeze does to the live machine around its image; 2 and keeps
+    %% it, so the run goes on from the frames a thawed machine starts from.
+    %% `rt/2' leaves a later builtin pending in every environment of a deep
+    %% recursion, so each collection rebuilds thousands of them, and a
+    %% wrong one is a wrong sum or an unknown procedure.
+    atom_concat(D7, '/kmat.pl', F9),
+    fixture(F9, [ 'rt(N, S) :- ( N =:= 0 -> S = 0 ; M is N - 1, rt(M, S0), S is S0 + N ).',
+                  'go :- rt(20000, S), write(rt(S)), nl.' ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F9, ' go 2>&1'], Cmd9),
+    proc_run(Cmd9, 120000, O9, _), chomp(O9, B9), atom_codes(T9, B9),
+    check('a builtin pending in every environment of a recursion, collected', T9, 'rt(200010000)'),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 ', C, ' run ', F9, ' go 2>&1'], Cmd10),
+    proc_run(Cmd10, 120000, O10, _), chomp(O10, B10), atom_codes(T10, B10),
+    check('and materialised at every collection, then put back', T10, 'rt(200010000)'),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F9, ' go 2>&1'], Cmd11),
+    proc_run(Cmd11, 120000, O11, _), chomp(O11, B11), atom_codes(T11, B11),
+    check('and materialised and kept, as a thawed machine runs on', T11, 'rt(200010000)'),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F8, ' go 2>&1'], Cmd12),
+    proc_run(Cmd12, 120000, O12, _), chomp(O12, B12), atom_codes(T12, B12),
+    check('the recursions through environments, materialised and kept',
+          T12, 'go(200010000)\ng4(200010000)\nrr(6000)'),
+    nested_engines_collect(C, D7).
+
+%% A NESTED ENGINE COLLECTS (1.9.4). findall/3 and its family, call_metered/4
+%% and with_output_to/2 run their goal in an engine of its own on the same
+%% heap, and through 1.9.3 nothing collected in there: a long deterministic
+%% phase inside one kept every cell it made (1.25 GB for the loop below).
+%% Now the engines part way through a step are on the machine's chain, the
+%% builtin that started each one has told the collector what its frame
+%% holds, and the marks it winds the machine back to are a barrier the
+%% trail is compacted against -- so a binding the search made to a variable
+%% from before it is still undone after it (t2, t10), an outer choice point
+%% is still there to backtrack into (t9), a ball still reaches its catch
+%% (t8), and every answer is the one a run that never collected gives.
+nested_engines_collect(C, D) :-
+    atom_concat(D, '/nested.pl', F13),
+    fixture(F13, [ 'long(N, S) :- numlist(1, N, L), sum_list(L, S).',
+                   't1 :- statistics(heap_collections, C0), findall(S, long(200000, S), [S1]), statistics(heap_collections, C1), ( C1 > C0 -> G = collected ; G = none ), write(t1(S1, G)), nl.',
+                   't2 :- X = f(Y), findall(Y-I, (member(I, [1,2,3]), long(50000, _), Y = I), L), write(t2(L)), nl, ( var(Y), X = f(V), var(V) -> write(unbound) ; write(bound) ), nl.',
+                   't3 :- findall(X-L, (member(X, [a, b]), findall(S, (member(N, [30000, 40000]), long(N, S)), L)), R), write(t3(R)), nl.',
+                   't4 :- forall(member(N, [100000, 120000]), (long(N, S), S > 0)), write(t4), nl.',
+                   't5 :- aggregate_all(count, (between(1, 3, _), long(60000, _)), C), write(t5(C)), nl.',
+                   't6 :- call_metered(long(100000, S), 100000000, _, R), write(t6(S, R)), nl.',
+                   't7 :- with_output_to(atom(A), (long(80000, S), write(S))), write(t7(A)), nl.',
+                   't8 :- catch(findall(S, (long(100000, S), throw(ball(S))), _), ball(B), (write(t8(B)), nl)).',
+                   't9 :- member(X, [a, b, c]), findall(S, long(70000, S), [_]), X == c, write(t9(X)), nl.',
+                   't10 :- length(L0, 3), findall(L0, (long(90000, S), L0 = [S|_]), [[R|_]]), write(t10(R)), nl, ( L0 = [A|_], var(A) -> write(fresh) ; write(bound) ), nl.',
+                   't11 :- X = f(Y), findall(S, (Y = 1, garbage_collect, long(2000, S)), [_]), ( X = f(V), var(V) -> write(t11(unbound)) ; write(t11(bound)) ), nl.',
+                   'go :- t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11.' ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F13, ' go 2>&1'], Cmd13),
+    proc_run(Cmd13, 120000, O13, _), chomp(O13, B13), atom_codes(T13, B13),
+    check('findall, forall, aggregate_all, call_metered, with_output_to, collected inside',
+          T13, 't1(20000100000,collected)\nt2([1-1,2-2,3-3])\nunbound\nt3([a-[450015000,800020000],b-[450015000,800020000]])\nt4\nt5(3)\nt6(5000050000,true)\nt7(3200040000)\nt8(5000050000)\nt9(c)\nt10(4050045000)\nfresh\nt11(unbound)'),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F13, ' go 2>&1'], Cmd14),
+    proc_run(Cmd14, 120000, O14, _), chomp(O14, B14), atom_codes(T14, B14),
+    check('and with the freeze tortured at every collection', T14, T13),
+    %% THREE MILLION TURNS INSIDE A findall/3, each leaving garbage, in an
+    %% address space of 400 MB: 1.9.3 needed 1.25 GB and, refused, answered
+    %% `done(1)' and then a type error over a cell it had overwritten
+    atom_concat(D, '/inner.pl', F15),
+    fixture(F15, [ 'loop(0) :- !.',
+                   'loop(N) :- g(N, T), _ = f(T, T, T), M is N - 1, loop(M).',
+                   'g(N, t(N, [a, b, c], N)).',
+                   'go :- findall(x, loop(3000000), L), length(L, K), write(done(K)), nl.' ]),
+    sh_join(['ulimit -v 400000; ', C, ' run ', F15, ' go 2>&1'], Cmd15),
+    proc_run(Cmd15, 300000, O15, _), chomp(O15, B15), atom_codes(T15, B15),
+    check('a long phase inside findall/3 runs in 400 MB', T15, 'done(1)'),
+    %% A REQUEST NOTHING INSIDE COULD SERVE WAITS FOR THE OUTER ENGINE. The
+    %% request is a threshold of 0 (`gc_next'), and the end of a search puts
+    %% back the threshold its start raised -- all but a 0: under trace the
+    %% search may not collect, and with the 0 put back too the request was
+    %% gone (`served(0)'). The tracer's lines go to stderr, hence a process.
+    atom_concat(D, '/request.pl', F16),
+    fixture(F16, [ 'go :- statistics(heap_collections, N0), trace, findall(x, garbage_collect, _), notrace, statistics(heap_collections, N1), K is N1 - N0, write(served(K)), nl.' ]),
+    sh_join([C, ' run ', F16, ' go 2>/dev/null'], Cmd16),
+    proc_run(Cmd16, 120000, O16, _), chomp(O16, B16), atom_codes(T16, B16),
+    check('garbage_collect/0 under trace inside findall/3 is served after it', T16, 'served(1)').

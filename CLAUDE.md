@@ -254,8 +254,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 55 `.pl` cases in `pl_names/1`
--- **62 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 56 `.pl` cases in `pl_names/1`
+-- **63 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -627,9 +627,12 @@ and `library/reasoning/`); `library/*.so` are modules built from
   argument still walks the whole predicate**; a hit hides it, a miss or a
   `findall` pays it. To read a predicate's heads, `clause/2` enumerates
   them; calling the goal proves it.
-* **A global is found by a scan from the first one made and COPIED on every
-  read** (`nb_getval/2`, `b_getval/2`): keep a table small per global, and
-  make a global you read often once rather than catching its absence.
+* **A global is found by a hash of its name (1.9.4) and COPIED on every
+  read** (`nb_getval/2`, `b_getval/2`): keep a table small per global --
+  one global per word is cheap now (`reason.pl`'s notes and the
+  translator's `'$tr_w|W'` tables), one growing list read for each
+  question is not -- and make a global you read often once rather than
+  catching its absence.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
   `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that
@@ -650,21 +653,32 @@ and `library/reasoning/`); `library/*.so` are modules built from
   (`coco_store_root_push`).
 * **The heap is collected since 1.8.36** (`coco_heap_gc`, a sliding
   mark-compact that keeps cell order, so heap marks stay true): at a step
-  boundary, on the OUTERMOST engine of a machine, under a host that set
-  `e->gc` -- `-s`, `run`, `query`, the REPL, `step`, `run_isolated/2`. A
-  host holding cell indices across a step registers them with
-  `coco_heap_root_push` (the REPL's variable table) or leaves `gc` off.
-  **Nothing collects inside a nested engine** -- `findall/3`, `forall/2`,
-  `aggregate_all/3`, `call_metered/4`, `with_output_to/2`, a directive's
-  goal -- so a long deterministic phase in one still keeps its heap
-  (50-120 bytes an inference) until it ends: copy such a phase out through
-  `findall/3` (`cl_kept/2` in `tools/cocolint/lint.pl` is
-  `findall(X, once(Goal), [X])`) or wrap it in `\+ \+`; the linter went
-  from 9.7 GB to 58 MB of heap that way. `COCOLOG_GC_CELLS=N` sets the
-  threshold (2000 tortures it, and children inherit it),
-  `statistics(heap_collections, N)` counts them, and a `_G` name is a heap
-  position, so it changes across a collection. The float, string and atom
-  tables are never reclaimed.
+  boundary, under a host that set `e->gc` -- `-s`, `run`, `query`, the
+  REPL, `step`, `run_isolated/2`. A host holding cell indices across a
+  step registers them with `coco_heap_root_push` (the REPL's variable
+  table) or leaves `gc` off. **Since 1.9.4 the engines a builtin starts
+  collect too** -- `findall/3` and so `forall/2` and `aggregate_all/3`,
+  `call_metered/4`, `with_output_to/2`: the starter registers what its own
+  frame holds (the caller's goal cell comes in as `gp`), the engines part
+  way through a step are on the machine's chain (`m->eng`, `e->outer`),
+  and the marks the starter winds the machine back to (`ptrail`, `pheap`)
+  are a barrier the trail is compacted against and are moved with the
+  cells. A starter that does none of this leaves its engine's `gc` off,
+  and so does trace; **a directive's goal collects nothing**
+  (`lb_goal_hook` sets no `gc`), so a long phase in one still keeps its
+  heap, 50-120 bytes an inference. A search a builtin starts collects
+  only once it has grown by the floor itself (`coco_gc_nested_begin`).
+  1.9.3 needed 1.25 GB for three million turns of a loop inside
+  `findall/3` that now runs in 44 MB, and the linter peaks at 53 MB
+  against 73, for 0.86 % more instructions (four collections). A
+  collection is due when `heap_len` reaches `gc_next`;
+  `garbage_collect/0` asks for one by setting `gc_next` to 0, and the end
+  of a search keeps a 0 nothing inside it could serve.
+  `COCOLOG_GC_CELLS=N` sets the floor (2000 tortures it, and children
+  inherit it), `COCOLOG_KMAT=1|2` puts every collection through a freeze's
+  materialisation first, `statistics(heap_collections, N)` counts them,
+  and a `_G` name is a heap position, so it changes across a collection.
+  The float, string and atom tables are never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
   a failed rehash still leaves an empty slot). Ids stay in order of first
@@ -698,7 +712,12 @@ and `library/reasoning/`); `library/*.so` are modules built from
   collection, a stop at the inference limit, a halt -- the loop pushes it
   back as a frame (`coco_k_flush`). **A new return from the loop, or a
   builtin that inspects `e->goals`, flushes first**; every caller of
-  `coco_try_clause` today is a step about to end. `test/state.cicili` stops
+  `coco_try_clause` today is a step about to end. **A builder of the
+  continuation that finds no room writes nothing**, answers 0 and sets
+  `halted` to 2 (`coco_k_room`: `coco_k_push`, `coco_k_push_roots`,
+  `coco_areg_term`), which stops the run at the next step's top and
+  `coco_engine_next` answers as `out of memory` (1.9.4); a new builder
+  does the same. `test/state.cicili` stops
   a proof at each of its first sixty steps and resumes it in another
   machine, `test/gc.pl` collects every 2000 cells under naive reverse, and
   each goes red without its flush. **Since 1.9.1 that goal may never be
@@ -832,7 +851,12 @@ and `library/reasoning/`); `library/*.so` are modules built from
     position's goals, raises the choice frames' heap marks, and puts it
     all back after: a frozen machine carries no environment) and for the
     tracer (under trace no environment is made, and a unit taken under
-    trace is handed over as its term, port for port).
+    trace is handed over as its term, port for port). **`COCOLOG_KMAT`
+    tortures the freeze** (1.9.4): every collection materialises first,
+    1 putting it back as a freeze does, 2 keeping it so the run goes on as
+    a thawed machine would; with `COCOLOG_GC_CELLS=2000` that is every
+    2000 cells, and children inherit both. `test/gc.pl` runs `rt/2` and
+    the environment fixture under it; only 2 sees a wrong unit term.
   - **The collector keeps an environment whole from any position** (the
     POS rule in `coco_gc_mark`) and every retired code a live environment
     names (`coco_gc_codes`). A clause that dies while an environment is
@@ -1118,6 +1142,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
+| `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
 | `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs |

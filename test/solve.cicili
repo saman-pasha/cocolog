@@ -619,6 +619,81 @@
         (check "a lone variable is one cell, counted once"
                (cast llong (- ($ st dead) dead0)) (cast llong (- ($ st len) len0))))
 
+      ;; A CONTINUATION THAT WILL NOT FIT (1.9.4). A heap that cannot grow,
+      ;; made by a lie: the machine is told it is full at 2^45 cells, so the
+      ;; next push asks realloc for 2^49 bytes, which no 47-bit address space
+      ;; has. Each builder of the continuation answers 0 and writes nothing
+      ;; -- `coco_k_push' wrote its frame over cells 1 to 3 through 1.9.3 --
+      ;; and stops the run: `halted' is 2, which `coco_engine_next' answers
+      ;; as the error, leaving `halted' 0 for the host. Last, a run whose one
+      ;; push (call/1's frame) finds no room ends in that error.
+      (let ((size_t len0 . 0) (size_t cap0 . 0) (size_t full . 0)
+            (u64 c1 . 0) (u64 c2 . 0) (u64 c3 . 0)
+            (size_t roots [2]) (size_t got . 0) (int rc . 0))
+        (set full (<< (cast size_t 1) 45))
+        (set (nth 0 roots) (coco_new_atom (aof m) "true"))
+        (set (nth 1 roots) (coco_new_atom (aof m) "true"))
+        (set len0 ($ m heap_len))
+        (set cap0 ($ m heap_cap))
+        (set c1 (nth 1 ($ m heap)))
+        (set c2 (nth 2 ($ m heap)))
+        (set c3 (nth 3 ($ m heap)))
+
+        (set ($ m heap_len) full)
+        (set ($ m heap_cap) full)
+        (set got (coco_k_push (aof e) (nth 0 roots) 7 (nth 1 roots)))
+        (set ($ m heap_len) len0)
+        (set ($ m heap_cap) cap0)
+        (check "a frame with no room answers 0"     (cast llong got) 0)
+        (check "and writes nothing over cells 1 to 3"
+               (cast llong (and (== (nth 1 ($ m heap)) c1) (== (nth 2 ($ m heap)) c2)
+                                (== (nth 3 ($ m heap)) c3))) 1)
+        (check "and stops the run"                  (cast llong ($ e halted)) 2)
+        (set ($ e halted) 0)
+
+        (set ($ m heap_len) full)
+        (set ($ m heap_cap) full)
+        (set got (coco_k_push_roots (aof e) roots 2 7 (nth 1 roots)))
+        (set ($ m heap_len) len0)
+        (set ($ m heap_cap) cap0)
+        (check "a body's frames with no room answer 0" (cast llong got) 0)
+        (check "and stop the run"                   (cast llong ($ e halted)) 2)
+        (set ($ e halted) 0)
+
+        (set (nth 0 ($ e areg)) (nth 0 roots))
+        (set (nth 1 ($ e areg)) (nth 1 roots))
+        (set ($ e afid) (coco_functor_id (aof m) (coco_intern (aof m) "f") 2))
+        (set ($ e aarity) 2)
+        (set ($ e acur) 0)
+        (set ($ m heap_len) full)
+        (set ($ m heap_cap) full)
+        (set got (coco_areg_term (aof e)))
+        (set ($ m heap_len) len0)
+        (set ($ m heap_cap) cap0)
+        (check "a goal in the registers with no room answers 0" (cast llong got) 0)
+        (check "and stops the run"                  (cast llong ($ e halted)) 2)
+        (set ($ e halted) 0)
+
+        (coco_engine_ask_text (aof e) "true")
+        (set ($ e halted) 2)
+        (check "a run stopped for room is an error" (cast llong (coco_engine_next (aof e))) -1)
+        (check_str "named so"                       ($ e err) "out of memory")
+        (check "and no halt for the host"           (cast llong ($ e halted)) 0)
+
+        (coco_engine_ask_text (aof e) "call(true)")
+        (set len0 ($ m heap_len))
+        (set cap0 ($ m heap_cap))
+        (set ($ m heap_len) full)
+        (set ($ m heap_cap) full)
+        (set rc (coco_engine_next (aof e)))
+        (set ($ m heap_len) len0)
+        (set ($ m heap_cap) cap0)
+        (check "call/1 with no room for its frame is an error" (cast llong rc) -1)
+        (check_str "out of memory"                  ($ e err) "out of memory")
+        (check "the machine says why"               (cast llong ($ m oom)) 1)
+        (set ($ m oom) 0)
+        (check "and the next query runs"            (cast llong (count (aof e) "p(X)" 100)) 3))
+
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 

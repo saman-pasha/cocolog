@@ -454,11 +454,10 @@
                 (for ((size_t s . 0)) (< s ntm) ((++ s))
                   (set (nth (+ eh (+ nes (+ s 4))) (-> m heap))
                        (coco-cell REF (coco_deref m (nth s troots)))))
-                (for ((size_t s . 0)) (< s nsl) ((++ s))
-                  (set (nth (+ eh (+ (+ nes ntm) (+ s 4))) (-> m heap)) (coco-int-cell 0)))
-                (for ((size_t s . 0)) (< s npos) ((++ s))
-                  (set (nth (+ eh (+ ps s)) (-> m heap))
-                       (coco-cell POS (bitor (<< (+ ps s) 16) (+ s 1)))))
+                ;; the condition slots and the positions, alike in every
+                ;; environment of this code: one block (`etmpl')
+                (memcpy (cast (void *) (aof (nth (+ eh (+ (+ nes ntm) 4)) (-> m heap))))
+                        (cast (const void *) (-> cd etmpl)) (* (+ nsl npos) (sizeof u64)))
                 (set (-> cd envd) 1)
                 (set (-> er next) (+ eh (+ ps (- (cast size_t (-> cd eu0)) 1))))))))))
 
@@ -841,6 +840,11 @@
     (member coco_global * globals)
     (member size_t    nglobals)
     (member size_t    gcap)
+    ;; AND THEY ARE FOUND BY NAME THROUGH A HASH (1.9.4): an open table of
+    ;; an entry's index plus one, kept under half full -- see
+    ;; `coco_global_find' in lib/builtins.cicili, its only reader
+    (member size_t *  gbuckets)
+    (member size_t    gbucket_cap)
 
     (member coco_pred * preds)
     (member size_t    npreds)
@@ -1228,6 +1232,11 @@
     (member size_t eblen)
     (member u64 *  xbody)
     (member size_t xblen)
+    ;; THE TAIL EVERY ENTRY WRITES ALIKE (1.9.4): the NSLOT condition slots,
+    ;; zero, then a position per unit -- a distance back to the header and
+    ;; a unit number, the same in every environment of this code -- copied
+    ;; as one block where the entry wrote them cell by cell
+    (member u64 *  etmpl)
     ;; WHAT ENTERING THE CLAUSE TAKES beyond the plain executor: 0 nothing,
     ;; 1 its guards, 2 its environment, 3 both -- so `coco_try_clause' asks
     ;; a plain clause one question, the one it asked through 1.9.2
@@ -1719,8 +1728,10 @@
         (free (-> st cells))
         (free (-> st roots))
         ;; the globals go with the cells they index -- nothing outside this
-        ;; store could read them once `cells' is gone
+        ;; store could read them once `cells' is gone -- and so does the
+        ;; hash that finds them
         (free (-> st globals))
+        (free (-> st gbuckets))
         (memset st 0 (sizeof coco_store)))
 
   (func coco_store_mute ((coco_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
@@ -3311,6 +3322,22 @@
                         (if (!= (cc_op (nth (+ (-> x rat) j) ($ ($ uc eb) w))) (cc_RARG_VAR))
                             (set all 0)))
                       (set (-> x rvars) all))))))
+          ;; the entry's alike tail (`etmpl'): the condition slots and the
+          ;; positions, which begin at PB + 1
+          (let ((size_t nsl . #'(cast size_t ($ uc nslot)))
+                (size_t nu . #'(cast size_t ($ uc nu)))
+                (size_t ps . #'(cast size_t (+ (+ (+ ($ uc nes) ($ uc nterm)) ($ uc nslot)) 4)))
+                (u64 * t . nil))
+            (set t (cast (u64 *) (malloc (* (+ nsl nu) (sizeof u64)))))
+            (if (== t nil)
+                (block (free ($ uc einit)) (free (cast (void *) ($ uc us)))
+                       (free ($ ($ uc eb) w)) (free ($ ($ uc xb) w))
+                       (return 0)))
+            (for ((size_t s . 0)) (< s nsl) ((++ s))
+              (set (nth s t) (coco-int-cell 0)))
+            (for ((size_t s . 0)) (< s nu) ((++ s))
+              (set (nth (+ nsl s) t) (coco-cell POS (bitor (<< (+ ps s) 16) (+ s 1)))))
+            (set (-> cd etmpl) t))
           (set (-> cd nes) ($ uc nes))
           (set (-> cd nterm) ($ uc nterm))
           (set (-> cd nslot) ($ uc nslot))
@@ -3340,6 +3367,7 @@
         (free (cast (void *) (-> cd egoals)))
         (free (-> cd ebody))
         (free (-> cd xbody))
+        (free (-> cd etmpl))
         (free cd))
 
   (func coco_code_table_clear ((coco_store * st))

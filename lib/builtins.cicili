@@ -469,7 +469,7 @@
   (func coco_b_findall ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t lst . 0)
               (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
-                                               (coco_m_arg e g 1) (aof lst))))
+                                               (coco_m_arg e g 1) (aof lst) (aof g))))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           (return (coco_m_unify e (coco_m_arg e g 2) lst))))
@@ -481,7 +481,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t lst . 0) (size_t * v . nil) (size_t n . 0) (size_t out)
               (int fr . #'(coco_engine_findall e (coco_m_arg e g 0)
-                                               (coco_m_arg e g 1) (aof lst))))
+                                               (coco_m_arg e g 1) (aof lst) (aof g))))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
@@ -538,7 +538,7 @@
           (if (< lim 1)
               (return (coco_m_domain_error e "positive_integer" (coco_m_arg e g 1))))
           (set rc (coco_engine_call_limited e (coco_m_arg e g 0)
-                                            (cast u64 lim) (aof used)))
+                                            (cast u64 lim) (aof used) (aof g)))
           (if (== rc -1) (return -1))
           ;; 3 is "it threw and an outer catch took it": the continuation is
           ;; already set, which is what 2 means to the engine here
@@ -595,7 +595,7 @@
           (if (< lim 1)
               (return (coco_m_domain_error e "positive_integer" (coco_m_arg e g 1))))
           (set rc (coco_engine_call_limited e (coco_m_arg e g 0)
-                                            (cast u64 lim) (aof used)))
+                                            (cast u64 lim) (aof used) (aof g)))
           (if (== rc -1) (return -1))
           ;; 3 is "it threw and an outer catch took it": the continuation is
           ;; already set, and there is nothing here left to report to
@@ -621,7 +621,7 @@
               (size_t lst . 0)
               (size_t goal . #'(coco_make2 m "," (coco_m_arg e g 0)
                                          (coco_make1 m "\\+" (coco_m_arg e g 1))))
-              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst))))
+              (int fr . #'(coco_engine_findall e (coco_new_atom m "x") goal (aof lst) (aof g))))
           (if (== fr 2) (return 2))
           (if (not fr) (return -1))
           ;; no counterexample means the list is empty
@@ -657,7 +657,7 @@
                 (set tmpl (coco_arg m spec 0)))
                (#t (return (coco_m_domain_error e "aggregate_spec" spec))))))
 
-          (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst))))
+          (let ((int fr . #'(coco_engine_findall e tmpl goal (aof lst) (aof g))))
             (if (== fr 2) (return 2))
             (if (not fr) (return -1)))
           (if (not (coco_m_list_array e lst (aof v) (aof n))) (return 0))
@@ -1346,7 +1346,21 @@
                    (? (>= (-> e steps) (-> e max_steps)) 1
                       (- (-> e max_steps) (-> e steps)))))
           (coco_engine_ask (aof sub) goal)
-          (set rc (coco_engine_next (aof sub)))
+          ;; THE GOAL MAY COLLECT THE HEAP (1.9.4; `coco_engine_findall'):
+          ;; the sink, which is read after it, is told to the collector, and
+          ;; the machine's marks at the start go with the inner engine
+          (let ((size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
+            (set (nth 0 hold) sink)
+            (set holdp hold)
+            (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
+            (set ($ sub ptrail) ($ (cof m) trail_len))
+            (set ($ sub pheap) ($ (cof m) heap_len))
+            (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+            (let ((size_t gsaved . #'(coco_gc_nested_begin m ($ sub pheap))))
+              (set rc (coco_engine_next (aof sub)))
+              (coco_gc_nested_end m gsaved))
+            (if held (coco_heap_root_pop m))
+            (set sink (nth 0 hold)))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           ;; AND THE BALL WITH IT, which this did not do until 1.2.12 and the
           ;; other six nested-engine builtins have done since 1.1.0. A
@@ -2043,21 +2057,70 @@
         (coco_store_unmute (-> e st))
         (return 1))
 
+  ;;; A GLOBAL BY NAME (1.9.4), through the store's hash of them
+  ;;; (`gbuckets'): an open table of an entry's index plus one, kept under
+  ;;; half full and probed in a line from the name's hash. Through 1.9.3
+  ;;; every read and every write scanned from the first global made, and
+  ;;; the translator keeps one per word it has looked up -- its lesson made
+  ;;; 1 710 and read them 3.7 million times. Answers the index, or -1.
+  (static)
+  (func coco_global_find ((coco_store * st) (u64 name)) (out i64)
+        (if (== (-> st gbucket_cap) 0) (return -1))
+        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
+              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash name 0) (cast u64 mask)))))
+          (while 1
+            (let ((size_t v . #'(nth j (-> st gbuckets))))
+              (if (== v 0) (return -1))
+              (if (== ($ (nth (- v 1) (-> st globals)) name) name) (return (cast i64 (- v 1))))
+              (set j (bitand (+ j 1) mask))))
+          (return -1)))
+
+  ;;; Entry I into the hash: the first empty slot on its name's line
+  (static)
+  (func coco_global_place ((coco_store * st) (size_t i))
+        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
+              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash ($ (nth i (-> st globals)) name) 0)
+                                                (cast u64 mask)))))
+          (while (!= (nth j (-> st gbuckets)) 0)
+            (set j (bitand (+ j 1) mask)))
+          (set (nth j (-> st gbuckets)) (+ i 1))))
+
+  ;;; A NEW ENTRY I, the table doubled first when one more would put it
+  ;;; over half full: every entry below I is put back from the array
+  ;;; itself, which is the truth -- the table is only how to find it.
+  ;;; 0 when it would not grow.
+  (static)
+  (func coco_global_hash ((coco_store * st) (size_t i)) (out int)
+        (if (> (* (+ i 1) 2) (-> st gbucket_cap))
+            (let ((size_t ncap . #'(? (== (-> st gbucket_cap) 0) 16 (* (-> st gbucket_cap) 2)))
+                  (size_t * nb . nil))
+              (while (> (* (+ i 1) 2) ncap) (set ncap (* ncap 2)))
+              (set nb (cast (size_t *) (calloc ncap (sizeof size_t))))
+              (if (== nb nil) (return 0))
+              (free (-> st gbuckets))
+              (set (-> st gbuckets) nb)
+              (set (-> st gbucket_cap) ncap)
+              (for ((size_t k . 0)) (< k i) ((++ k))
+                (coco_global_place st k))))
+        (coco_global_place st i)
+        (return 1))
+
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
-                (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1))))
-            (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
-              (if (== ($ (nth i (-> st globals)) name) name)
-                  (block ;; the old value is an orphan now, and its size was kept
-                         (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
-                         (set ($ (nth i (-> st globals)) cell) cell)
-                         (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
-                         (coco_store_maybe_compact st m)
-                         (return 1))))
+                (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))
+                (i64 at . #'(coco_global_find st name)))
+            (if (>= at 0)
+                (let ((size_t i . #'(cast size_t at)))
+                  ;; the old value is an orphan now, and its size was kept
+                  (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
+                  (set ($ (nth i (-> st globals)) cell) cell)
+                  (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
+                  (coco_store_maybe_compact st m)
+                  (return 1)))
             (if (>= (-> st nglobals) (-> st gcap))
                 (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
                       (coco_global * nb))
@@ -2069,6 +2132,7 @@
             (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
             (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
             (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
+            (if (not (coco_global_hash st (-> st nglobals))) (return 0))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
             (coco_store_maybe_compact st m)
             (return 1))))
@@ -2078,12 +2142,11 @@
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
           (let ((coco_store * st . #'(-> e st))
-                (u64 name . #'(coco_name_of m k)))
-            (for ((size_t i . 0)) (< i (-> st nglobals)) ((++ i))
-              (if (== ($ (nth i (-> st globals)) name) name)
-                  (return (coco_m_unify e (coco_m_arg e g 1)
+                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+            (if (>= at 0)
+                (return (coco_m_unify e (coco_m_arg e g 1)
                                       (coco_store_get m st
-                                                    ($ (nth i (-> st globals)) cell))))))
+                                                    ($ (nth (cast size_t at) (-> st globals)) cell)))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
 
   ;;; `prewarm(-Count)' asks the backend, once, about every predicate a MODULE
@@ -2130,12 +2193,13 @@
   ;;;
   ;;; AND IT ASKS FOR A HEAP COLLECTION at the next step boundary, because a
   ;;; builtin is the one place a collection cannot run -- this call's own
-  ;;; frame holds the goal. Where the collector may not run at all (a
-  ;;; nested engine, a host that did not turn it on) the request waits for a
+  ;;; frame holds the goal. The request is a threshold of 0 (`gc_next' on
+  ;;; the machine). Where the collector may not run (a host that did not
+  ;;; turn it on, an engine started under trace) the request waits for a
   ;;; step where it may. See `coco_heap_gc' in lib/solve.cicili.
   (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
         (coco_store_compact (-> e st) (coco_m_machine e))
-        (set ($ (cof (coco_m_machine e)) gc_request) 1)
+        (set ($ (cof (coco_m_machine e)) gc_next) 0)
         (return 1))
 
   ;;; `statistics/2', the keys a program can act on. SWI's names where SWI

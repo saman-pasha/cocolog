@@ -176,7 +176,17 @@ terms(D) :-
     check('and a clause the end of the file cut short says so', V7, cut_short),
     answer(( stream_open(C, write, S8), stream_write_text(S8, "  % only a comment\n/* and another */\n"), stream_close(S8),
              stream_open(C, read, S9), stream_read_term(S9, T9), stream_close(S9) ), T9, G9),
-    check('a file of comments is end_of_file', G9, end_of_file).
+    check('a file of comments is end_of_file', G9, end_of_file),
+    %% AN ESCAPED QUOTE DOES NOT CLOSE ITS QUOTES (1.9.4). The scanner that
+    %% finds where a clause ends left a quoted atom at the `\'' and opened
+    %% another at the quote that really closed it, so the text up to the
+    %% next quote anywhere -- a comment's apostrophe -- was one atom, and
+    %% `q('\'')' was read and every clause after it lost
+    answer(( stream_open(C, write, S10),
+             stream_write_text(S10, "q('\\'').\nr(\"\\\"\").\n%% it's here\nt.\n"),
+             stream_close(S10),
+             stream_open(C, read, S11), stream_read_terms(S11, Ts11), stream_close(S11) ), Ts11, G11),
+    check('an escaped quote inside a quoted atom or a string does not end it', G11, [q(''''), r([34]), t]).
 
 %% ---- the standard three --------------------------------------------------
 

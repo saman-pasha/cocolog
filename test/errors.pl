@@ -329,7 +329,24 @@ globals_belong_to_a_store :-
     ->  the_isolated_boundary, the_concurrent_table
     ;   format("     (skipped: no library/thread.so -- sh modules/thread/build.sh)~n", [])
     ),
-    the_sub_engine.
+    the_sub_engine,
+    the_many_globals.
+
+%% MANY GLOBALS, FOUND BY NAME (1.9.4). The table is hashed and doubles at
+%% half full, so five thousand names cross nine rehashes. Each is read back,
+%% a third are set again over their first value (which the store may
+%% reclaim as an orphan in between), and a name never set still raises by
+%% name.
+the_many_globals :-
+    written(( forall(between(1, 5000, I6), ( atom_concat(mg_, I6, K6), nb_setval(K6, v(I6)) )),
+              forall(between(1, 5000, J6),
+                     ( J6 mod 3 =:= 0 -> atom_concat(mg_, J6, L6), nb_setval(L6, w(J6)) ; true )),
+              findall(N6, ( between(1, 5000, N6), atom_concat(mg_, N6, M6), nb_getval(M6, V6),
+                            ( N6 mod 3 =:= 0 -> V6 == w(N6) ; V6 == v(N6) ) ), Ns6),
+              length(Ns6, C6),
+              catch(nb_getval(mg_none, _), error(existence_error(variable, mg_none), _), true) ),
+            C6, X6),
+    check('five thousand globals, a third set twice, each read back by name', X6, '5000').
 
 %% A sub-engine SHARES the store, so a global set inside `forall/2' is still
 %% there afterwards. Needs no thread module -- negation is the engine's own.

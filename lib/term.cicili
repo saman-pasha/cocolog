@@ -407,17 +407,17 @@
     ;; machine starts from the defaults and collects when it next grows.
     ;;
     ;; RUNNING counts the engines inside `coco_engine_next' on this machine
-    ;; right now. A collection moves cells, so it may only happen when the one
-    ;; running engine is the only thing holding cell indices -- which is what
-    ;; a count of one says. An outer engine whose builtin started a nested
-    ;; one (findall, call_metered, with_output_to) is part way through a step,
-    ;; and its C frame holds indices nobody could tell the collector about.
+    ;; right now. Through 1.9.3 a collection needed a count of one; since
+    ;; 1.9.4 it finds the engines part way through a step on the chain
+    ;; (`eng' below), and the count says only when NO engine runs -- when the
+    ;; codes dead clauses retired are named by nothing (`coco_engine_ask').
     (member int        running)
-    ;; the heap length that triggers the next collection; 0 until the first
-    ;; run on this machine sets it
+    ;; the heap length that triggers the next collection, set by the first
+    ;; run on this machine (`gc_floor') and by each collection. 0 is a
+    ;; request: `garbage_collect/0' sets it, and the next step boundary of
+    ;; an engine that may collect does (1.9.4; a flag of its own through
+    ;; 1.9.3, one more load a step)
     (member size_t     gc_next)
-    ;; set by `garbage_collect/0': collect at the next step boundary
-    (member int        gc_request)
     ;; collections so far, for `statistics/2'
     (member u64        gc_count)
     ;; the root arrays hosts hold, a stack -- see `coco_heap_root_push'
@@ -446,7 +446,17 @@
     ;; stack: `coco_clause_run' (kb.cicili) borrows it -- `coco_cslots_take'
     ;; -- where it used to malloc and free one per call.
     (member size_t *   cslots)
-    (member size_t     cslots_cap))
+    (member size_t     cslots_cap)
+    ;; THE INNERMOST ENGINE RUNNING ON THIS MACHINE (1.9.4), each linked to
+    ;; the one whose builtin started it (`outer' on the engine), so a
+    ;; collection inside a nested engine finds every engine part way
+    ;; through a step. Set and put back by `coco_engine_next'; a
+    ;; `coco_engine *' this struct cannot name.
+    (member void *     eng)
+    ;; `coco_gc_floor', read by the first run on the machine (0 until then),
+    ;; for a builtin that starts a nested engine to raise the threshold by
+    ;; (`coco_gc_nested_begin')
+    (member size_t     gc_floor))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

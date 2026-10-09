@@ -983,6 +983,16 @@
                      (if (>= d 0)
                          (block (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
                                 (set (nth n buf) (cast u8 d)) (set n (+ n 1)))))))
+              ;; INSIDE QUOTES A BACKSLASH TAKES THE NEXT CHARACTER, so the
+              ;; quote in `'\''' or `"\""' does not close them (1.9.4).
+              ;; Without it the quote after the escaped one opened a
+              ;; quoted atom that ran on into the next clauses, and
+              ;; library/reasoning/translate.pl read 308 of its clauses.
+              ((and (>= state 1) (and (<= state 3) (== c 92)))
+               (let ((int d . #'(st_getc s)))
+                 (if (>= d 0)
+                     (block (if (not (st_grow (aof buf) (aof cap) (+ n 2))) (block (free buf) (return -1)))
+                            (set (nth n buf) (cast u8 d)) (set n (+ n 1))))))
               ((== state 1) (if (== c 39) (set state 0)))
               ((== state 2) (if (== c 34) (set state 0)))
               ((== state 3) (if (== c 96) (set state 0)))

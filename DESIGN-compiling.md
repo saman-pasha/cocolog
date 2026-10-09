@@ -181,6 +181,8 @@ So the sentence to keep is narrower than "the cheap wins are spent": the
 LARGEST ones are spent, and two ordinary ones are still on the table and are
 cheaper than any compiler. What is left after those is the cost of the
 continuation being data — which is the thing that must not be removed.
+(The first was taken in 1.8.32: the functor and predicate tables are
+hashed. The second, the conditional trail, still has not been.)
 
 ## 6. What the other systems gave up
 
@@ -237,6 +239,57 @@ many predicates are reachable without `assert`, `retract`, `dynamic/1`,
 `consult` or a computed `call/N`. Until that number exists, section 3B's payoff
 is a guess.
 
+**Measured in 1.9.4**, by `tools/compile/static.pl`, which reads each file as
+cocolog reads it and says of every predicate whether its clauses can change
+while the program runs, and of every goal what it calls. A predicate's clauses
+can change when its file declares it `dynamic` or asserts into it, retracts
+from it or abolishes it by name; and all of a file's can when the file asserts
+a clause it builds at run time, which no compiler can name in advance, or
+consults while it runs. Over the 154 files — 3 799 predicates, 8 109 clauses:
+
+| | predicates | fixed, provably | fixed, a built clause read as data |
+|---|---:|---:|---:|
+| `library/` | 2 336 | 1 061 (45.4 %) | 2 333 (99.9 %) |
+| `tutorials/` | 1 442 | 1 431 (99.2 %) | 1 442 (100 %) |
+| `coworker/` | 21 | 21 (100 %) | 21 (100 %) |
+| all | 3 799 | 2 513 (66.1 %) | 3 796 (99.9 %) |
+
+Three predicates with clauses in their own file are declared `dynamic`; the
+rest of what changes at run time is predicates no file defines — a lesson's
+vocabulary, a certificate authority's grants, the assert tutorial's counter,
+the grammar rule the DCG tutorial asserts to show that it is translated. The
+whole gap between the two columns is four files that assert a clause they
+build: the reasoner's and the translator's learning paths (`reason_learn/2`,
+`tr_learn_term/2`, `assert_once/1` and two more) and the two tutorials that
+use them, whose 1 283 predicates a compiler that cannot see what such a
+clause will be must treat as changeable. What they assert is what they are
+taught — facts, and the reasoner's rules read from English (`Every employee
+has a badge`) — and never their own code.
+
+Of the 40 661 calls in bodies (a cut and `true` are none), 34.7 % are of
+their own file's predicates, 42.4 % of builtins and 20.5 % of a library's; 81
+call a predicate their file asserts by name and defines nowhere, 76 an
+argument of the clause's head (a closure, which the caller knows) and 14 a
+goal built at run time; 2.0 % name nothing a file defines — almost all the
+vocabulary a lesson teaches (`mean/2`, `plural_of/2`), which the translator
+reaches through a goal it builds. 92.9 % of the predicates are reached from
+their file's directives, `main/0` or exports by literal calls.
+
+**Where the time goes** is what the count cannot say, so a scratch build
+counted, per predicate, the clauses the engine entered and the asserts and
+retracts a run made (the counters were not committed). The linter's 12.5
+million clause entries all went to predicates whose clauses never changed
+after loading. The translator's lesson made 54.2 million: 88.2 % into
+predicates fixed since load, and 11.7 % into the 184 that its 45 139 asserts
+and retracts changed — each one something a lesson taught it (`lesson/2`,
+`lesson_predicate/3`, `italian:mean/2` and the like). None of its own
+predicates changed.
+
+So the obstacle is real and smaller than this section feared: in this corpus
+a program's own code is fixed and what it learns is not. A compiler of 3B's
+kind would take every predicate a file defines and leave what the program
+learns where it is, in the store and indexed, which is what the store is for.
+
 ## 8. If any of this were to be done, in order
 
 1. **A garbage collector, or a heap that a deterministic recursion does not
@@ -246,10 +299,18 @@ is a guess.
    **Done in 1.8.36** (STATUS.md, "The heap is collected"): a sliding
    mark-compact between engine steps. `count(2000000)` now finishes holding
    23 MB of heap where it held 560 MB, the `between/3` loop peaks at 44 MB
-   where it peaked near a gigabyte, and neither got slower. What it does not
-   reach yet is a phase inside a nested engine — `findall/3` and its family.
+   where it peaked near a gigabyte, and neither got slower. Since 1.9.4 it
+   reaches a phase inside the engines a builtin starts — `findall/3` and its
+   family, `call_metered/4`, `with_output_to/2` — and not yet a directive's
+   goal.
 2. **The static-fraction count** of section 7 — a day's work, and it decides
-   whether 3B is worth weeks.
+   whether 3B is worth weeks. **Done in 1.9.4** (§7): 99.9 % of the
+   predicates have clauses nothing changes by name, 66.1 % even when a
+   clause built at run time is read as able to change anything in its file,
+   and of the two real workloads' clause entries 100 % (the linter) and
+   88 % (the translator; the rest went to what its lessons taught it) went
+   to code fixed since load. It came back high, which is step 4's
+   condition.
 3. **Packaging (3A)**, if a single-file deliverable is what is wanted. It is
    nearly free and it is orthogonal to everything else.
 4. **3B, emitting C**, if the count in step 2 comes back high.
@@ -263,7 +324,9 @@ Said plainly, so nobody mistakes its scope:
 * No prototype was written, and no compiled clause was measured. Every
   performance claim about a *compiler* is an estimate; every claim about the
   *interpreter* is measured and reproducible from section 1.
-* The static-fraction count (section 7) is not done.
+* The static-fraction count (section 7) was not done; it was in 1.9.4, over
+  this repository's own Prolog, which is not every program a user will
+  write.
 * `catch/throw` across a compiled boundary, and cut across one, are named in
   the literature as the standard hazards and are not analysed here.
 * The interaction with `library(thread)` — a compiled predicate reached from an

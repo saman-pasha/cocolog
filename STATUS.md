@@ -4946,17 +4946,205 @@ a check strengthened for it, the first form having stayed green).
 sortnums 0.94; and the linter's user time, nine pairs, medians 2.468 s and
 2.269 s, median pair ratio 0.90.
 
+## What 1.9.3 left open, closed before Stage 7 (1.9.4)
+
+What the 1.9.3 entry left open or found on the way, done before Stage 7 is
+counted: four engine items, the count DESIGN-compiling.md asked for before
+any compiler, and a reader fault that count ran into. Every answer, solution
+order and inference count is 1.9.3's. What a program can see is memory -- a
+long phase inside `findall/3` and its family is collected now -- an `out of
+memory` error where 1.9.3 wrote over the first cells of the heap, and
+`read_term/3` reading files it used to stop in.
+
+**A continuation that will not fit stops the run, as an error.**
+`coco_push_struct` answers 0 when the heap cannot grow, and `coco_k_push`
+went on to write its frame into cells 1 to 3; the body's builder and the
+register goal's wrote nothing but answered 0, which their callers took for
+a cell -- the continuation, or the goal, became cell 0. Each now writes
+nothing, answers 0 and sets `halted` to 2 (`coco_k_room`), which stops the
+run at the next step's top, where `coco_engine_next` answers it as `out of
+memory` and leaves no halt for the host. `test/solve.cicili`'s new section
+makes a heap that cannot grow (the machine told it is full at 2^45 cells)
+and holds each builder, the error, `call/1` with no room for its frame and
+the next query to it: 14 checks. Without the guard the test binary
+crashed; without the conversion the run came back as a halt, not an error.
+It costs nothing: nrev -0.14 %, lookup -0.39 %, the linter -0.11 %, queens
++0.08 %.
+
+**The freeze, tortured** (`COCOLOG_KMAT`). A freeze materialises the
+continuation -- builds the goal every environment position stands for --
+and freezes are rare, so a fault there shows nowhere else. Under the knob
+every collection materialises first: 1 puts it back, as a freeze does
+around its image; 2 keeps it, so the run goes on from the frames a thawed
+machine starts from. With `COCOLOG_GC_CELLS=2000`, `gc`, `engine`,
+`errors`, `trace` and `state` gave the verdicts they give without it -- the
+freeze was right. `test/gc.pl` runs a recursion leaving a builtin pending in
+every environment (`rt/2`) and the environment fixture under both; an arm
+whose `coco_unit_term` built a goal's unit as its environment went red
+under 2 alone (`Unknown procedure: '$e'/18`), so 2 is the mode that sees a
+unit term.
+
+**Why the translator's lesson gained 3.2 % and the linter 10 %.**
+Entering a body through an environment costs about what building it did
+(the executors' net: -0.42 G on the lesson, -0.37 G on the linter); what
+Stages 5 and 6 saved is continuation work (-3.9 G and -2.0 G). The lesson
+is 5.6 times the linter, and 13 % of it was reading globals --
+`nb_getval/2`'s scan for the name (2.35 G) and its copy out of the store
+(10.25 G) -- which no stage touches. Three fixes:
+
+* **A global is found by a hash of its name** (`coco_global_find`, open
+  addressing over `coco_name_arity_hash`, doubled at half full); 1.9.3
+  scanned from the first one made, and the lesson reads 1 710 names 3.7
+  million times. The lesson -2.06 %. `test/errors.pl` sets five
+  thousand, a third twice, and reads each back by name; without the
+  rehash's re-placement it is red.
+* **`reason.pl`'s notes are one global per word** (`rs_noted/3`): a proper
+  noun, a class noun and a quoted word were each a list read whole for
+  every question, and `'$rs_quoted'` alone was 18 393 reads copying 135
+  million cells, half of all the cells the lesson's globals copied. The
+  lesson -10.1 % more, its 864 lines the same.
+* **An environment is entered by copying one block**: its condition slots
+  and position cells are the same in every entry of a clause, so they are
+  laid out once when the clause is compiled (`etmpl`) and copied by one
+  `memcpy` where each was written. lookup -2.51 %, the linter -1.83 %, the
+  lesson -0.91 %; nrev, queens, loop and sortnums make no environment and
+  did not move.
+
+**The heap is collected inside the engines a builtin starts.**
+`findall/3` (and so `forall/2` and `aggregate_all/3`), `call_metered/4`
+and `with_output_to/2` run their goal in an engine of their own on the same
+heap, and through 1.9.3 nothing collected there: three million turns of a
+loop inside `findall/3` needed 1.25 GB, and under `ulimit -v 400000`
+answered `done(1)` and then a type error over a cell it had overwritten.
+Now each such engine is linked on the machine's chain (`m->eng`,
+`e->outer`) by `coco_engine_next`, and the collector marks every engine on
+it -- an outer engine part way through a module's call keeps that call's
+goal and continuation where the collector can move them (`kgoal`,
+`kcall`). The starter registers what its own frame holds (template, goal,
+the sink, and the caller's goal cell, passed in as `gp`), and the marks it
+winds the machine back to (`ptrail`, `pheap`) are a barrier the trail is
+compacted against and are moved with the cells, so a binding the search
+made to an older variable is still undone after it. Not under trace, not in
+a directive's goal (`lb_goal_hook` sets no `gc`), and a search collects
+only once it has grown by the floor itself (`coco_gc_nested_begin`): what a
+findall built goes when it ends, for nothing.
+
+Two things made the step itself cheaper, and they are why the five tasks
+below gained. The collector is out of line (`coco_heap_collect` is not
+static): a static function with one caller is inlined whatever its size,
+and 1.9.3's was inlined into the step loop, which cost the loop the
+register that held the engine. And `garbage_collect/0`'s request became a
+threshold of 0 (`gc_next`) rather than a flag of its own, so the step's
+test is two loads and a compare, and the engine's own word is asked only
+past the threshold. On nrev, the chain of engines with the collector out
+of line came to -0.31 % against the build before it (inlined, the chain
+had cost +0.57 %), and the request as a threshold -0.85 % more. The end of
+a search keeps a 0 that nothing inside it could serve.
+
+The loop inside `findall/3` peaks at 44 MB where it took 1 220 MB, and the
+linter at 52.7 MB where it took 73.2 MB, for four collections it never ran
+before: 144 M instructions, 0.86 % of it. Proved by `test/gc.pl`: eleven
+programs through `findall/3`, `forall/2`, `aggregate_all/3`,
+`call_metered/4`, `with_output_to/2`, a ball out of one, an outer choice
+point backtracked into after one, a binding undone after one and a
+collection asked for inside one, collected every 2000 cells and with the
+freeze tortured too; the loop in 400 MB; and a request made under trace
+inside `findall/3`, served after it. Four arms went red: the search's `gc`
+off (t1 not collected, and the loop out of memory -- as an error now), the
+barrier gone (`t11(bound)`), the module call's continuation not read back
+(a crash, and `done(_G12)`), and the end of a search putting back a 0
+(`served(0)`).
+
+Instructions under `callgrind`, whole process, 1.9.3 against 1.9.4:
+
+| program | 1.9.3 | 1.9.4 | |
+|---|---:|---:|---|
+| the linter over the fifteen files of `library/` | 17.001 G | 16.821 G | -1.06 % (the same findings) |
+| the translator's lesson (`tutorials/library/46-translate.pl`) | 95.678 G | 83.032 G | -13.22 % (its 864 lines the same) |
+| nrev | 1.130 G | 1.115 G | -1.29 % |
+| queens | 0.923 G | 0.922 G | -0.09 % |
+| loop | 0.334 G | 0.330 G | -1.08 % |
+| lookup | 0.685 G | 0.657 G | -4.12 % |
+| sortnums | 0.390 G | 0.388 G | -0.49 % |
+
+Each binary ran with its own library, frozen and checked by md5 before and
+after: the lesson's gain is mostly `reason.pl`'s, and the linter's and the
+tasks' is the engine's alone.
+
+**The clock**, 1.9.4 over 1.9.3: the lesson, five alternating pairs of
+user time, medians 14.23 s and 12.75 s, every pair between 0.85 and 0.93,
+median 0.89; the linter, nine pairs, medians 2.140 s and 2.081 s, median
+pair ratio 0.97; the five tasks, fifteen pairs of in-process CPU time each,
+medians between 0.97 and 1.03, which is this box's noise and not a
+difference.
+
+**How much a compiler could take** (DESIGN-compiling.md §7, the count its
+§8 puts before any code generator). `tools/compile/static.pl` reads every
+file as cocolog does and says of each predicate whether its clauses can
+change while the program runs -- declared dynamic, asserted into,
+retracted from or abolished by name, or in a file that asserts a clause it
+builds or consults as it runs -- and of each call what it reaches; a
+meta-predicate's goal arguments are calls, the builtins' from a table and
+the corpus's own found to a fixpoint. Over `library/`, `tutorials/` and
+`coworker/` (154 files, 3 799 predicates), 3 796 have clauses nothing
+changes by name, 99.9 %; 2 513 (66.1 %) even when a clause built at run
+time is read as able to change anything in its file -- the gap is the
+reasoner's and the translator's learning paths, which assert what they are
+taught. Of 40 661 calls, 76 are of a closure and 14 of a goal built at run
+time. And by the clock's measure rather than the source's, a scratch build
+counting clause entries per predicate (not committed): every one of the
+linter's 12.5 million went to predicates whose clauses never changed after
+loading, and 88.2 % of the lesson's 54.2 million -- the rest to the 184
+predicates its lessons taught it. `test/static.pl` holds the count to a
+two-file corpus counted by hand, each kind of predicate and call once; an
+arm without the fixpoint and one that counted `true` as a call went red.
+
+**`read_term/3` lost the clauses after an escaped quote.** The scanner
+library(stream) uses to find where a clause ends left a quoted atom or a
+string at the `\'` of `'\''`, and opened another at the quote that really
+closed it, so everything to the next quote anywhere -- a comment's
+apostrophe -- was one atom: `read_term/3` read 308 of
+`library/reasoning/translate.pl`'s 3 259 clauses and then reported a
+syntax error, while consulting the same file was right. Inside quotes a
+backslash now takes the next character. `test/stream.pl`'s new check
+writes `q('\'')`, `r("\"")`, a commented apostrophe and `t`, and reads
+three terms; the 1.9.3 module read one.
+
 ## Not started
 
-* The heap collector's remaining reach (it landed in 1.8.36, section "The
-  heap is collected"): collecting inside a nested engine, which needs every
-  builtin that starts one -- `findall/3`, `call_metered/4`,
-  `with_output_to/2`, a consult's directives -- to register the cell indices
-  and the heap and trail marks its C frame holds; and compacting the float
-  and string tables, which needs the store's cells rewritten with them.
+* Stage 7 of the second-half proposal, builtins in place: a builtin read
+  from an environment's slots or the registers rather than built as a goal
+  term and found by its name, arithmetic and type tests at any position as
+  guard programs, `=/2` in an environment as a head-program unify. Counted
+  on 1.9.3, not begun. A scratch build counted every builtin dispatch by
+  where its goal came from: of the lesson's 22.2 million, 11.4 million are
+  environment units, 4.1 million clauses' first goals and 6.7 million come
+  from `'$k'` frames (bodies with no environment, and goals called through
+  `call/N`), which Stage 7 cannot reach; the linter's 5.2 million are
+  nearly all environment units -- 2.7 million `=/2` and 2.1 million
+  arithmetic. Programs one goal apart, under
+  callgrind, priced a call: a builtin in an environment is about 98
+  instructions of step, which stays, 90 of being read as a term and found
+  to be a builtin and 56 to 134 of building the term, which would go, and
+  its own work; `_ is N + 1` costs 520 there and 116 as a guard, `N =:= N`
+  405 and 97, `atom/1` 263 and 41. Expected, with each replacement's cost
+  measured or estimated: the lesson 3.4 % (ceiling 4.1 %), the linter 9.6 %
+  (12.2 %), lookup 23.6 % (30.4 %), the four other tasks nothing. (it landed in 1.8.36, section "The
+  heap is collected", and reached the engines a builtin starts in 1.9.4): a
+  directive's goal, whose engine `lb_goal_hook` starts with no `gc` --
+  turning it on means the consult registering whatever cells it holds across
+  the directive, as `findall/3` does -- and anything under trace; and
+  compacting the float and string tables, which needs the store's cells
+  rewritten with them.
 * Compiling a program to an object file. Studied, not begun:
   `DESIGN-compiling.md` is the feasibility report and its §8 says what to do
-  first, which is the collector above rather than a code generator.
+  first. Its first item was the collector above; its second, the count of
+  how much of a real program could be compiled at all, was done in 1.9.4
+  and came back high (99.9 % of the predicates' clauses fixed by name, and
+  nothing the two real workloads' files define changed while they ran).
+  What follows is the project's choice:
+  packaging (§8's step 3) or emitting C (step 4), whose first task is not a
+  code generator but a runtime split out of `cocolog.c` (§10.3).
 * The Coco — the intelligent aggregator hub this project's machinery makes
   possible: chains as knowledge bases, consensus as clauses, contracts
   that learn. Its missions moved to their own repository, where the hub
