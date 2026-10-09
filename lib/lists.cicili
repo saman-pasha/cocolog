@@ -435,15 +435,11 @@
           (set p (coco_m_arg e g 1))
           (while (> want 0)
             (set p (coco_deref m p))
-            (if (not (coco_is_callable m p)) (return 0))
-            (if (!= (coco_arity m p) 2) (return 0))
-            (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+            (if (not (coco_is_cons m p)) (return 0))
             (set p (coco_arg m p 1))
             (set want (- want 1)))
           (set p (coco_deref m p))
-          (if (not (coco_is_callable m p)) (return 0))
-          (if (!= (coco_arity m p) 2) (return 0))
-          (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+          (if (not (coco_is_cons m p)) (return 0))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_arg m p 0)))))
 
   ;;; UNIFIES, and keeps the first that works -- `memberchk(X, [a,b])' binds X
@@ -455,9 +451,7 @@
               (size_t p . #'(coco_m_arg e g 1)))
           (while 1
             (set p (coco_deref m p))
-            (if (not (coco_is_callable m p)) (return 0))
-            (if (!= (coco_arity m p) 2) (return 0))
-            (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) ".")) (return 0))
+            (if (not (coco_is_cons m p)) (return 0))
             (let ((size_t mark . #'(coco_m_mark e)))
               (if (coco_m_unify e x (coco_arg m p 0)) (return 1))
               (coco_m_undo e mark))
@@ -490,13 +484,11 @@
         (return 0))
 
   ;;; One step along a list: the head and the tail, or 0 when this is not a
-  ;;; cons cell. The same three questions `memberchk' asks.
+  ;;; cons cell. The same question `memberchk' asks.
   (static)
   (func coco_l_step ((coco_machine * m) (size_t p) (size_t * head) (size_t * tail)) (out int)
         (let ((size_t d . #'(coco_deref m p)))
-          (if (not (coco_is_callable m d)) (return 0))
-          (if (!= (coco_arity m d) 2) (return 0))
-          (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m d)) ".")) (return 0))
+          (if (not (coco_is_cons m d)) (return 0))
           (set (cof head) (coco_arg m d 0))
           (set (cof tail) (coco_arg m d 1))
           (return 1)))

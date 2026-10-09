@@ -381,6 +381,14 @@
     ;; machine refills both; the index of each is settled at expansion
     ;; time by `coco-fid' in solve.cicili.
     (member u64        fids [16])
+    ;; THE LIST FUNCTOR `'.'/2', AS ITS ID PLUS ONE: 0 until a list cell is
+    ;; first built or met (`coco_cons_fid', `coco_is_cons'). Every list cell
+    ;; was built by name -- the atom and the functor probed again per cell --
+    ;; and every walk along a list asked each cell's name with `strcmp'.
+    ;; Lazily and not in `coco_machine_init', so the atom and functor tables
+    ;; keep the order of first use they always had; `coco_machine_init'
+    ;; memsets it, so a thawed machine finds it again.
+    (member u64        cons1)
     ;; one byte per atom: 1 where the atom names a control construct, so the
     ;; engine's loop tells a construct from a predicate with one load. Sized
     ;; when `coco_ids_fill' runs; an atom past its end is not a construct.
@@ -517,6 +525,10 @@
   ;; the list cell '.'(H, T) -- spelt out because the reader builds a great
   ;; many of them and `[H|T]' should not cost an array on the way past
   (decl) (func coco_cons ((coco_machine * m) (size_t h) (size_t t)) (out size_t))
+  ;; `'.'/2''s functor id, interned the first time it is asked for
+  (decl) (func coco_cons_fid ((coco_machine * m)) (out u64))
+  ;; is T, dereferenced, a list cell? By the functor's id, never its name
+  (decl) (func coco_is_cons ((coco_machine * m) (size_t t)) (out int))
 
   ;; ---- inspection ----
   (decl) (func coco_deref ((coco_machine * m) (size_t t)) (out size_t))
@@ -1066,8 +1078,36 @@
   (func coco_new_atom_id ((coco_machine * m) (u64 id)) (out size_t)
         (return (coco_push m (coco-cell ATOM id))))
 
+  ;;; THE LIST FUNCTOR BY ID. `coco_cons' built every cell by name, so a
+  ;;; code list of N characters interned "." and probed the functor table N
+  ;;; times: 2 % of the translator's lesson and 2.1 % of the linter, in
+  ;;; `atom_codes/2', `read_file_to_codes/3', `=..' and `split_string/4'. An
+  ;;; id kept only when nothing ran out of memory on the way, since a failed
+  ;;; intern answers 0, which is somebody else's id.
+  (func coco_cons_fid ((coco_machine * m)) (out u64)
+        (if (== (-> m cons1) 0)
+            (let ((u64 f . #'(coco_functor_id m (coco_intern m ".") 2)))
+              (if (-> m oom) (return f))
+              (set (-> m cons1) (+ f 1))))
+        (return (- (-> m cons1) 1)))
+
   (func coco_cons ((coco_machine * m) (size_t h) (size_t t)) (out size_t)
-        (return (coco_make2 m "." h t)))
+        (return (coco_make2_f m (coco_cons_fid m) h t)))
+
+  ;;; A list cell is a compound whose functor is `'.'/2' -- one comparison of
+  ;;; ids, where each walk along a list (`memberchk/2', `length/2',
+  ;;; `is_list/1', the writer) asked every cell's name with `strcmp'. Until
+  ;;; the id is known it is learnt from the first cell met, so asking never
+  ;;; interns anything.
+  (func coco_is_cons ((coco_machine * m) (size_t t)) (out int)
+        (let ((u64 c . #'(nth t (-> m heap))))
+          (if (not (coco-tag-is FUN c)) (return 0))
+          (if (!= (-> m cons1) 0) (return (? (== (coco-payload c) (- (-> m cons1) 1)) 1 0)))
+          (if (and (== (coco_arity m t) 2)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) ".")))
+              (block (set (-> m cons1) (+ (coco-payload c) 1))
+                     (return 1)))
+          (return 0)))
 
   ;;; ---- inspection ---------------------------------------------------
 

@@ -4770,6 +4770,70 @@ answer the same. `tools/cc` passes the flag on every x86-64 compile since
 byte for byte the build those pairs timed. Run Q in `bench/README.md` is
 the run of record.
 
+## Names by id, not by string, on five hot paths (1.9.2)
+
+What the second-half proposal found on the way, one rule each, each
+measured by its own arm (the patch with that rule taken out). Nothing a
+program sees has changed except one runaway, below: every answer, every
+inference count, the linter's findings and the bench tasks' answers are
+1.9.1's.
+
+1. **The writer asks `operand` first.** It asked every atom it wrote
+   whether the atom is an operator -- a `strcmp` down every infix and then
+   every prefix operator, about 1 300 instructions -- and threw the answer
+   away unless the atom stood as an operand. The atom builtins get their
+   text through the writer, so `atom_codes/2` and its family paid it too.
+2. **The in-tree module dispatchers go by arity, then by the name's first
+   character** (`coco-emit-module-dispatch`), so `nb_getval/2` compares one
+   name where it compared twelve. lib/sdk.cicili's copy, for modules built
+   out of the tree, is unchanged.
+3. **A list cell is recognised by `'.'/2`'s functor id** (`coco_is_cons`),
+   not by `strcmp` with `"."`: `memberchk/2`, `nth0`, the lists module's
+   walks, `length/2`'s, `is_list/1`, `=..`, the text walks and the writer.
+4. **A list cell is built by that id** (`coco_cons`). It interned `"."` and
+   probed the functor table once per cell, about 150 instructions a cell,
+   in `atom_codes/2`, `read_file_to_codes/3`, `=..`, `split_string/4` and
+   every code list `with_output_to/2` hands back. The id is kept on the
+   machine (`cons1`), learnt on first use so the atom and functor tables
+   keep their order of first use, and memset with the machine so a thawed
+   one finds it again.
+5. **`;` asks whether its left arm is `->` or `*->` by the interned ids.**
+
+Instructions under `callgrind`, whole process, 1.9.1 against 1.9.2: the
+translator's lesson (`tutorials/library/46-translate.pl`) 113.88 G to
+98.84 G (-13.21 %, its 864 lines the same), and the linter over the
+fifteen files of `library/` 20.185 G to 18.891 G (-6.41 %), of which the
+writer 1.61 %, the dispatch 0.25 %, the walks 1.81 %, the cells 2.41 %
+and `;` 0.31 % (the arms add up to 99.7 % of the difference). A
+micro-benchmark with one section per rule, N iterations minus none:
+
+| section | 1.9.1 | 1.9.2 | |
+|---|---:|---:|---|
+| 20 000 writes of ten atoms into codes | 758.5 M | 273.5 M | -63.9 % (writer 293 M, cells 176 M) |
+| 100 000 `nb_getval/2` and `b_getval/2` | 487.1 M | 420.6 M | -13.7 % |
+| 20 000 `memberchk/2` and `is_list/1` over 100 cells | 454.5 M | 332.9 M | -26.8 % |
+| 100 000 `atom_codes/2` of 26 letters | 1 097.1 M | 569.7 M | -48.1 % (cells 390 M, writer 138 M) |
+| 200 000 disjunctions | 782.1 M | 770.3 M | -1.5 % |
+
+The bench tasks, whole process: nrev, queens and loop unchanged (under
+0.03 %), lookup -0.9 %, sortnums -4.4 %, every answer the same. The clock,
+nine alternating pairs of the linter's user time: medians 2.660 s and
+2.478 s, median pair ratio 0.90.
+
+**`=..` no longer runs away on a `'.'/1`.** Building from a list, it took
+any cell named `.` for a list cell whatever its arity, so the tail of a
+`'.'/1` was read from the cell past its end -- and that walk found no end:
+1.9.1 grew to 13 GB on `X =.. '.'(f, '.'(a))` before the kernel's OOM
+killer took it. 1.9.2 refuses it with the error any improper list gets.
+`test/errors.pl` checks it in a child under one CPU second: green on 1.9.2,
+red on 1.9.1, which is killed having printed nothing (under a memory
+ceiling alone 1.9.1 printed the same refusal once its array would not
+grow, so that check could not tell them apart).
+
+The dialect card's citations were renumbered for the moved lines; row L1
+(a list cell is `'.'/2`) cites the intern in `coco_cons_fid`, its old
+evidence having been rewritten.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

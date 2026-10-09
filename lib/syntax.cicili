@@ -1279,14 +1279,13 @@
           (while 1
             (set t (coco_deref m t))
             (let ((u64 c . #'(nth t (-> m heap))))
-              (if (and (coco-tag-is FUN c) (== (coco_arity m t) 2))
-                  (if (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "."))
-                      (block
-                       (if (not first) (coco_sb_putc b (cast char (coco-ch ","))))
-                       (set first 0)
-                       (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 999 0)
-                       (set t (coco_arg m t 1))
-                       continue)))
+              (if (coco_is_cons m t)
+                  (block
+                   (if (not first) (coco_sb_putc b (cast char (coco-ch ","))))
+                   (set first 0)
+                   (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 999 0)
+                   (set t (coco_arg m t 1))
+                   continue))
               ;; not a list cell: either the proper end, or a partial list
               (if (and (coco-tag-is ATOM c)
                        (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
@@ -1365,7 +1364,13 @@
                ;;
                ;; It used to bracket in every position but the top, which is
                ;; safe and is not what SWI writes.
-               (if (and (coco_op_is_any name) operand)
+               ;;
+               ;; OPERAND IS ASKED FIRST. The tables answer with a `strcmp'
+               ;; down every infix and then every prefix operator, about
+               ;; 1300 instructions, and they were asked of every atom
+               ;; written -- 7.8 % of the translator's lesson -- to be
+               ;; thrown away for every atom that was not an operand.
+               (if (and operand (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
                           (coco_write_atom b name quoted)
                           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
@@ -1378,7 +1383,7 @@
                (if (not ignore_ops)
                    (block
                     ;; lists and curly terms have their own surface syntax
-                    (if (and (== n 2) (== 0 (strcmp name ".")))
+                    (if (coco_is_cons m t)
                         (return (coco_write_list m b t quoted ignore_ops)))
                     (if (and (== n 1) (== 0 (strcmp name "{}")))
                         (block (coco_sb_putc b (cast char (coco-ch "{")))

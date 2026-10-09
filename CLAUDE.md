@@ -768,7 +768,12 @@ and `library/reasoning/`); `library/*.so` are modules built from
   reserved). The engine's own names and functors -- `'$k'`, `$true`,
   `$fail`, `$cut`, `:-`, the markers -- are interned once per machine
   beside the ids (`fids`, `coco-fid`); add to `*functor-names*`, never
-  call `coco_make` with a literal name on a hot path. A `'$k'` frame is
+  call `coco_make` with a literal name on a hot path. **A list cell is
+  built with `coco_cons` and recognised with `coco_is_cons`** (1.9.2), by
+  `'.'/2`'s functor id kept on the machine (`cons1`, learnt on first use
+  so the intern order stays first-use) -- never by `strcmp` with `"."`:
+  `=..` once tested the name alone, and a `'.'/1` in its list ran away to
+  13 GB. A `'$k'` frame is
   four cells with the barrier an INT in its slot. **A deterministic call
   gets no choice frame** (1.8.46): the engine asks `coco_pred_probe` for
   the first candidate and whether a second exists, and with none tries the

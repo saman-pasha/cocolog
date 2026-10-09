@@ -41,6 +41,11 @@
 %%   when the index landed in range, SIGSEGV when it did not. Reported from a
 %%   running game as an intermittent crash. The table is three members of
 %%   `coco_store' now (1.2.8), so a global belongs to the store its cell does.
+%%
+%% * A LIST CELL KNOWN BY ITS NAME ALONE. `=..' took any cell named `.' for
+%%   a list cell, so the tail of a '.'/1 was read from past its end and the
+%%   walk never ended (1.9.1 reached 13 GB). Every list walk tests the
+%%   functor's id since 1.9.2.
 
 :- use_module('test/prelude.pl').
 
@@ -52,6 +57,7 @@ main :-
     clause_too_long,
     globals_belong_to_a_store,
     with_output_to_fails,
+    list_cell_is_dot_2,
     checks_done.
 
 %% ---- a catch that has finished catching ---------------------------------
@@ -428,3 +434,27 @@ with_output_to_fails :-
     with_output_to(codes(C8), write(back)),
     atom_codes(A8, C8),
     check('and stdout is back afterwards, which a lost line would hide', A8, back).
+
+%% ---- a list cell is '.'/2 ----------------------------------------------------
+%%
+%% `=..' building from a list took any cell whose NAME was `.' for a list
+%% cell, whatever its arity, so the tail of a '.'/1 was read from the cell
+%% past its end -- and that walk found no end: 1.9.1 grew to 13 GB on
+%% `X =.. '.'(f, '.'(a))' before the kernel killed it. Every walk along a
+%% list tests the functor's id now (`coco_is_cons', 1.9.2). A child, because
+%% the refusal is the engine's own (`coco_fail_err'), which ends the query
+%% rather than reaching a catch, and under a CPU ceiling, because what this
+%% guards against is a runaway: under a memory ceiling alone 1.9.1 printed
+%% the same refusal once its array would not grow (at 2 GB, in 1.4 s), and
+%% under one CPU second it is killed and prints nothing. The refusal takes
+%% 12 ms.
+list_cell_is_dot_2 :-
+    section('a list cell is \'.\'/2, not any cell named \'.\''),
+    cocolog(C),
+    sh_join(['ulimit -t 1; ulimit -v 8000000; ', C,
+             ' --local query "X =.. \'.\'(f, \'.\'(a))" 2>&1'], Cmd1),
+    shell(Cmd1, T1, _, 30000),
+    yes_no(sub_atom(T1, _, _, _, 'wants a proper non-empty list'), V1),
+    check('=.. refuses a \'.\'/1 in its list at once, rather than walk past it', V1, yes),
+    answer(X2 =.. [f, a, b], X2, R2),
+    check('and a proper list still builds its term', R2, f(a, b)).

@@ -2220,13 +2220,15 @@
                    (let ((size_t l . #'(coco_deref m (coco_arg m g 0))))
                      ;; (C -> T ; E) is one construct, not a disjunction whose
                      ;; left arm happens to be an implication
+                     ;; by the interned ids, as the dispatch is: a `strcmp'
+                     ;; here ran on every disjunction
                      (if (and (coco_is_callable m l) (== (coco_arity m l) 2))
                          (block
-                          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "->"))
+                          (if (== (coco_name_of m l) (coco-id m "->"))
                               (block (coco_ite e (coco_arg m l 0) (coco_arg m l 1) (coco_arg m g 1) k b)
                                      (return 1)))
                           ;; `(C *-> T ; E)' is one construct too
-                          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "*->"))
+                          (if (== (coco_name_of m l) (coco-id m "*->"))
                               (block (coco_soft_ite e (coco_arg m l 0) (coco_arg m l 1)
                                                     (coco_arg m g 1) k b)
                                      (return 1)))))
@@ -2918,9 +2920,7 @@
             (let ((u64 c . #'(nth t (-> m heap))))
               (if (coco-tag-is ATOM c)
                   (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")) 1 0)))
-              (if (not (coco-tag-is FUN c)) (return 0))
-              (if (!= (coco_arity m t) 2) (return 0))
-              (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) ".")) (return 0))
+              (if (not (coco_is_cons m t)) (return 0))
               (set t (coco_arg m t 1))
               (set guard (+ guard 1))
               (if (> guard 10000000) (return 0))))
@@ -3318,8 +3318,10 @@
                     (block (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
                                (set ok 0))
                            break))
-                (if (not (coco-tag-is FUN c)) (block (set ok 0) break))
-                (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) ".")) (block (set ok 0) break))
+                ;; a cell's functor is `'.'/2' or the list is not proper: a
+                ;; `'.'/1' passed the name test alone and had its tail read
+                ;; from past its end
+                (if (not (coco_is_cons m lst)) (block (set ok 0) break))
                 (if (>= n cap)
                     (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
                       (set items (cast (size_t *) (realloc items (* ncap (sizeof size_t)))))
@@ -3386,9 +3388,7 @@
             (let ((u64 c . #'(nth lst (-> m heap))))
               (if (coco-tag-is ATOM c)
                   (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
-              (if (not (coco-tag-is FUN c)) (return 0))
-              (if (!= (coco_arity m lst) 2) (return 0))
-              (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) ".")) (return 0))
+              (if (not (coco_is_cons m lst)) (return 0))
               ;; A CODE OR A ONE-CHARACTER ATOM. `double_quotes' has four
               ;; values and TWO of them make a list, so under `chars' the
               ;; "ab" a program hands string_length/2 IS [a,b] -- and a walk
@@ -3491,9 +3491,7 @@
             (let ((u64 c . #'(nth lst (-> m heap))))
               (if (coco-tag-is ATOM c)
                   (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
-              (if (not (coco-tag-is FUN c)) (return 0))
-              (if (!= (coco_arity m lst) 2) (return 0))
-              (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) ".")) (return 0))
+              (if (not (coco_is_cons m lst)) (return 0))
               (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
                     (const char * one . nil))
                 (set one (coco_atom_name m (coco_name_of m h)))
