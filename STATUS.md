@@ -4875,6 +4875,7 @@ Instructions under `callgrind`, whole process, 1.9.2 against 1.9.3:
 | program | 1.9.2 | 1.9.3 | |
 |---|---:|---:|---|
 | the linter over the fifteen files of `library/` | 18.890 G | 17.001 G | -10.00 % (the same findings) |
+| the translator's lesson (`tutorials/library/46-translate.pl`) | 98.846 G | 95.680 G | -3.20 % (its 864 lines the same) |
 | nrev | 1.131 G | 1.130 G | -0.13 % |
 | queens | 0.919 G | 0.923 G | +0.40 % |
 | loop | 0.333 G | 0.334 G | +0.20 % |
