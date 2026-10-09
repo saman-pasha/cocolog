@@ -99,7 +99,8 @@
             (coco_sb_put b tmp)))
         (return 1))
 
-  (func coco_freeze ((coco_engine * e) (coco_strbuf * b)) (out int)
+  (static)
+  (func coco_freeze_image ((coco_engine * e) (coco_strbuf * b)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (coco_sb_put b "cocolog 1\n")
 
@@ -189,6 +190,19 @@
                    (coco_sb_putc b (cast char 10))))))
 
           (return (? (== ($ (cof b) s) nil) 0 1))))
+
+  ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
+  ;;; (Stage 5): `coco_engine_materialize' builds every body's later goals
+  ;;; the way entering the clause built them through 1.9.2, the image is
+  ;;; written, and the heap is wound back so the live machine keeps its own.
+  ;;; The format is the one it was, and a thawed machine is all frames;
+  ;;; what environments the heap still holds are cells nothing names.
+  (func coco_freeze ((coco_engine * e) (coco_strbuf * b)) (out int)
+        (let ((coco_kmat sv) (int rc . 0))
+          (if (not (coco_engine_materialize e (aof sv))) (return 0))
+          (set rc (coco_freeze_image e b))
+          (coco_engine_materialize_undo e (aof sv))
+          (return rc)))
 
   ;;; ---- reading ------------------------------------------------------------
 

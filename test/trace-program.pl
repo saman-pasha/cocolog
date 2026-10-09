@@ -29,3 +29,7 @@ small(_).
 np(X) :- \+ q0(X), r0(X).
 q0(1).
 r0(_).
+
+%% switches the tracer on from inside its own body, so its disjunction is
+%% reached from an environment written untraced (trace.pl's `env_late')
+lt(X) :- trace, ( pick(X) ; X = c ).

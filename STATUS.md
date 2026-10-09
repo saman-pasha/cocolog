@@ -4834,6 +4834,117 @@ The dialect card's citations were renumbered for the moved lines; row L1
 (a list cell is `'.'/2`) cites the intern in `coco_cons_fid`, its old
 evidence having been rewritten.
 
+## A body's later goals and its constructs, reached from one record (1.9.3)
+
+Stages 5 and 6 of the second-half proposal, shipped together as it allows.
+Nothing a program, a frozen machine or the tracer can see has changed:
+every answer, every solution order, every inference count and every stop
+under an inference limit is 1.9.2's, and a frozen machine is written in
+1.9.2's format. (The name `_G` gives an unbound variable is its heap
+position, and fewer cells are built now, so a variable made after a
+construct can print under another number -- as one already could across a
+collection.)
+
+**One record instead of a frame per goal.** A body with a construct -- an
+if-then-else, `\+`, `once/1`, `ignore/1`, a disjunction, a `,` inside one
+-- writes one environment when it is entered, after its guards and its
+first goal: the code, the continuation it returns to, its cut barrier, a
+slot per variable a later call reads, one per later goal that is still a
+term, a condition slot per if-then-else and a position cell per unit,
+where a unit is what one `'$k'` frame held through 1.9.2 (a goal, a
+construct, a condition or a branch, a `,`'s item, a construct's own
+`$cut`, `$true` and `$fail`). The continuation is still one cell -- a
+frame, the empty atom, or a position (tag `POS`) -- and the step takes a
+position by its unit: a call is written into the registers from the slots
+and tried as a first goal is; a term built at entry is handed over and
+dispatched in the same step; an if-then-else pushes its else's choice,
+writes the height into its slot and goes on to its condition, whose cut
+cuts to that height; a disjunction pushes its right arm. Each unit taken
+is the step its frame was. What is not built at all is every `;`, `->`,
+`,` and `$cut` term, their frames, and a call's term made only to be read
+back. A body with no construct makes no environment; `*->` and a
+construct reached through `call/1` stay terms; the tracer sees none (none
+is made under trace, and a unit taken under trace is handed over as the
+term its frame held); a freeze builds the goals every position stands for
+and puts them back after; the collector keeps an environment whole from
+any of its positions and keeps the code it names, which a clause that dies
+while its body runs goes on running.
+
+Instructions under `callgrind`, whole process, 1.9.2 against 1.9.3:
+
+| program | 1.9.2 | 1.9.3 | |
+|---|---:|---:|---|
+| the linter over the fifteen files of `library/` | 18.890 G | 17.001 G | -10.00 % (the same findings) |
+| nrev | 1.131 G | 1.130 G | -0.13 % |
+| queens | 0.919 G | 0.923 G | +0.40 % |
+| loop | 0.333 G | 0.334 G | +0.20 % |
+| lookup | 0.734 G | 0.685 G | -6.55 % |
+| sortnums | 0.390 G | 0.390 G | +0.12 % |
+
+What decided its shape, each measured on the linter and the five tasks:
+
+* **Stage 5 alone did not pay.** Environments for any body with a later
+  call or cut moved the linter between -0.19 % and +0.09 % and cost queens
+  1.2 %: a call read back from slots cost what its term and frame had.
+  What pays is the constructs, so a body makes an environment only when it
+  has one; for every body the linter would gain 0.23 % more and queens
+  lose 0.96 %.
+* **A body that starts with guards makes one after them** (an executor of
+  its own, with its own copy of the guards' runner): the linter from -4.42
+  to -5.76 %. Guards that stop short build the body from the one they
+  stopped at and make none, as 1.9.2 built it.
+* **The take was the cost.** Recomputing each position from the counts,
+  testing the kinds in a chain, reading a call's arguments through a
+  dispatched program in a function of its own, and sending each
+  handed-over goal round the loop a second time made lookup's loop 3.9 %
+  dearer than its frames had been. With every offset settled when the
+  clause is compiled, the kind a switch, a call's variable arguments
+  copied in the take, and the goal dispatched in the step that took it:
+  lookup -6.55 %, the linter from -5.76 to -10.00 %. Calls built as terms
+  instead would give lookup 4 % of that back.
+* **A plain clause asks one question on entry**, as through 1.9.2 (`ex`:
+  0 plain, 1 guards, 2 an environment, 3 both). A guarded clause asks two,
+  which is what loop and queens pay above.
+* **A clause is compiled again for its environment**, once. A scan for a
+  construct comes first, so a body without one is not: twenty thousand
+  fresh clauses each called once cost 4.3 % more than on 1.9.2 (60 % with
+  every body compiled twice). With a construct in every body they cost
+  55 % more -- the environment's own compile, some 10 000 instructions a
+  clause, which a clause called a few times pays back.
+
+Proved by `test/engine.pl`'s environment section -- a cut in a condition
+cuts the condition and one in a branch the clause, a disjunction leaves
+its arm, `\+`, `once/1` and `ignore/1`, guards before a construct, each
+construct's inference count and `call_metered/4` at every ceiling, all
+1.9.2's, and two programs run with environments and without
+(`COCOLOG_ENV=0`, the stage's arm) to one output, which is 1.9.2's --
+`test/state.cicili` (a proof through constructs, disjunctions and a call
+read after a choice, stopped at each of its first sixty steps, frozen,
+finished elsewhere and by the machine that froze), `test/gc.pl` (two
+recursions through if-then-elses, one after guards, collected every 2000
+cells, and a clause that retracts itself in a body with a construct) and
+`test/trace.pl` (bodies of constructs traced after an untraced call,
+against SWI-Prolog, and a disjunction with a call in it taken under trace
+from an environment written before the tracer was on, against no
+environments). Ten arms, each a rule taken out and the cases run, went
+red: the barrier a unit inside a condition cuts to (a cut in a condition
+cut the clause), a disjunction's choice (five checks, and 1 of 60 frozen
+stops right), a construct's own step (the counts), guards that stopped
+short building nothing (the guarded fixture), the guards before an
+environment uncounted (the counts and the stops), the freeze leaving a
+choice's alternative a position (`test/state.cicili` crashed), the freeze
+reading a call's variables through their bindings rather than one link
+(43 of 60), the collector not keeping an environment from its positions
+(`test/gc.pl` crashed), a dead clause's code freed under its environment
+(out of memory, and the recursion's answer wrong), and a unit taken under
+trace in the registers (the stamped call's Call, Exit and Redo missing --
+a check strengthened for it, the first form having stayed green).
+
+**The clock**, nine alternating pairs of in-process CPU time per task,
+1.9.3 over 1.9.2: nrev 1.00, queens 0.95, loop 0.93, lookup 0.95,
+sortnums 0.94; and the linter's user time, nine pairs, medians 2.468 s and
+2.269 s, median pair ratio 0.90.
+
 ## Not started
 
 * The heap collector's remaining reach (it landed in 1.8.36, section "The

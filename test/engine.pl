@@ -34,7 +34,7 @@
 main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
-    in_registers, guards,
+    in_registers, guards, environments(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -356,3 +356,157 @@ guards :-
     findall(L9-U9-inference_limit_exceeded, ( between(1, 11, L9), U9 is L9 + 1 ), E8a),
     append(E8a, [12-12-true], E8),
     check('an inference limit stops where it always stopped', M8, E8).
+
+%% ENVIRONMENTS (Stages 5 and 6). A body with a construct among its goals
+%% -- an if-then-else, `\+', `once/1', `ignore/1', a disjunction, a `,'
+%% inside one -- writes ONE environment when it is entered, after its
+%% guards and its first goal, and the goals from there on are reached from
+%% it: a call written into the registers from the environment's slots, a
+%% cut cut to its barrier, a construct taken apart by the step its goal
+%% was, the rest built at entry as they always were. The environment names
+%% the clause's compiled code, so a clause retracted while its body runs
+%% goes on running the code it was entered with -- the logical update view
+%% the copied body gave -- and a compaction of the store keys that code
+%% again rather than freeing it.
+:- dynamic ev_r/1.
+:- dynamic ev_big/0.
+ev_s(1, 2).
+ev_t(2, 1).
+ev_a(1).
+ev_d(_).
+ev_e(X) :- throw(boom(X)).
+ev_c(R) :- ev_a(X), ( ev_d(X) -> catch(ev_e(X), E, R = caught(E)) ; R = none ).
+ev_c2(R) :- ev_a(X), ( ev_e(X) ; true ), R = no.
+ev_c3(R) :- ev_a(X), catch(ev_e(X), boom(Y), true), ( ev_d(Y) -> R = Y ; R = none ).
+ev_k(X) :- ev_m(X), !, ( ev_d(X) -> true ; true ).
+ev_k(none).
+ev_m(1). ev_m(2).
+ev_n.
+ev_body(1, ( ev_n -> true ; true )) :- !.
+ev_body(N, (ev_n, B)) :- N1 is N - 1, ev_body(N1, B).
+%% THE CONSTRUCTS AS UNITS (Stage 6): a cut in a condition cuts the
+%% condition alone, one in a branch the clause; a disjunction leaves its
+%% other arm; `\+', `once/1' and `ignore/1' are if-then-elses; and a body
+%% that starts with guards makes its environment after them.
+ev_o(X) :- ev_a(_), ( ev_m(X), !, X > 1 -> true ; X = none ).
+ev_p(X) :- ev_a(_), ( ev_d(x) -> ev_m(X), ! ; true ).
+ev_p(other).
+ev_q(X) :- ev_a(_), ( ev_m(X) ; X = 3 ), X > 0.
+ev_u(X, Y) :- ev_m(X), \+ X = 2, once(ev_m(Y)), ignore(fail).
+ev_g(X, Y) :- X > 0, Z is X * 2, ( Z > 2 -> Y = big(Z) ; Y = small(Z) ).
+
+%% the same program run with environments and without (`COCOLOG_ENV=0',
+%% the stage's arm): backtracking into a choice the environment's goals
+%% follow, a cut and an if-then-else after the first goal, a term built
+%% from variables the later goals made, and the inference count at the end
+ev_both([ 'q(1). q(2). q(3). q(4). q(5). q(6).',
+          'w(X, Y) :- Y is X * 10.',
+          'add1(A, B) :- B is A + 1.',
+          'id(A, A).',
+          'v(Y, Z) :- add1(Y, Z0), id(Z0, Z).',
+          'p(X, Z) :- q(X), w(X, Y), v(Y, Z), Z > 15.',
+          's(X) :- q(X), X > 2, !, id(X, _).',
+          't(X, Y) :- q(X), ( X > 3 -> id(X, Y) ; Y = small ).',
+          'f(T) :- id(T, f(A, B)), A = 1, id(B, 2).',
+          'main :- findall(X-Z, p(X, Z), L1), write(L1), nl, s(X2), write(X2), nl,',
+          '        findall(X-Y, t(X, Y), L3), write(L3), nl, f(T4), write(T4), nl,',
+          '        statistics(inferences, I), write(I), nl.' ]).
+
+%% and one whose bodies start with guards (Stage 6): an environment after
+%% them, a guard that cannot decide -- `2.5 > 1' -- building the body from
+%% itself as it always did, a cut inside a disjunction, and a stop at every
+%% ceiling to thirty in a recursion like the lookup benchmark's
+ev_both6([ 'r(1). r(2). r(3). r(4). r(5).',
+           'id(A, A).',
+           'g1(X, Y) :- X > 2, ( r(X) -> Y = yes ; Y = no ).',
+           'g2(X, L) :- X1 is X + 1, X1 > 0, ( id(X1, L) ; L = alt(X1) ).',
+           'g4(X, Y) :- X > 1, ( X > 2 -> Y = a ; Y = b ).',
+           'g5(X, Y) :- X >= 0, \\+ X =:= 3, ( r(X), ! ; Y = none ), id(X, Y).',
+           'g9(X, Y) :- X > 0, Z is X * 3, ( Z > 9, !, Y = big ; Y = small(Z) ).',
+           'g9(_, other).',
+           'probe(0, _, A, A) :- !.',
+           'probe(M, N, A0, A) :- K is ((M * 37) mod N) + 1, ( r(K) -> A1 is A0 + K ; A1 = A0 ),',
+           '                      M1 is M - 1, probe(M1, N, A1, A).',
+           'main :- findall(X-Y, (r(X), g1(X, Y)), L1), write(L1), nl,',
+           '        findall(L, g2(3, L), L2), write(L2), nl,',
+           '        findall(Y, g4(2.5, Y), L4), write(L4), nl,',
+           '        findall(X-Y, (member(X, [0,1,2,3,4,7]), g5(X, Y)), L5), write(L5), nl,',
+           '        findall(X-Y, (member(X, [0, 1, 5]), g9(X, Y)), L9), write(L9), nl,',
+           '        probe(50, 7, 0, P), write(P), nl,',
+           '        findall(Lm-U, (between(1, 30, Lm), call_metered(probe(3, 7, 0, _), Lm, U, _)), M),',
+           '        write(M), nl, statistics(inferences, I), write(I), nl.' ]).
+
+%% FILE run both ways, its two outputs into ON and OFF
+ev_run_both(File, On, Off) :-
+    cocolog(C),
+    sh_join([C, ' -s ', File, ' 2>&1'], OnCmd), proc_run(OnCmd, 120000, OnOut, _),
+    sh_join(['COCOLOG_ENV=0 ', C, ' -s ', File, ' 2>&1'], OffCmd), proc_run(OffCmd, 120000, OffOut, _),
+    atom_codes(On, OnOut), atom_codes(Off, OffOut).
+
+environments(D) :-
+    section('environments: the goals after a body\'s first, reached from one record'),
+    assertz((ev_r(X1) :- retract((ev_r(_) :- _)), garbage_collect,
+                         ( ev_s(X1, Y1) -> ev_t(Y1, X1) ; X1 = none ))),
+    ev_r(R1),
+    check('a body whose clause is retracted as it runs, the store compacted, runs on', R1, 1),
+    ( clause(ev_r(_), _) -> T1 = still ; T1 = gone ),
+    check('...and the clause is gone', T1, gone),
+    ev_c(R2),
+    check('a catch after a goal reached from the environment catches', R2, caught(boom(1))),
+    catch(ev_c2(_), E3, true),
+    check('a throw from a call reached from it reaches the catch outside', E3, boom(1)),
+    ev_c3(R4),
+    check('the goals after a catch that recovered are reached from it', R4, 1),
+    findall(X5, ev_k(X5), L5),
+    check('a cut among them cuts to the clause\'s barrier', L5, [1]),
+    %% 1.9.2's counts, goal by goal: a body of more than 64 goals keeps the
+    %% one `,' step its overflow was
+    ev_body(65, B6), assertz((ev_big :- B6)),
+    gd_inferences(ev_big, I6), gd_inferences(ev_big, I6b),
+    check('a body of 65 goals counts the inferences it counted', I6-I6b, 72-72),
+    gd_inferences(findall(X7, ev_k(X7), _), I7),
+    check('...a cut reached from the environment too', I7, 11),
+    gd_inferences(ev_c3(_), I8),
+    check('...and a catch', I8, 12),
+    findall(X10, ev_o(X10), L10),
+    check('a cut in a condition cuts the condition, not the clause', L10, [none]),
+    findall(X11, ev_p(X11), L11),
+    check('a cut in a branch cuts the clause', L11, [1]),
+    findall(X12, ev_q(X12), L12),
+    check('a disjunction leaves its other arm to come back to', L12, [1, 2, 3]),
+    findall(X13-Y13, ev_u(X13, Y13), L13),
+    check('\\+, once/1 and ignore/1 answer as they did', L13, [1-1]),
+    findall(X14-Y14, ( member(X14, [0, 1, 2]), ev_g(X14, Y14) ), L14),
+    check('a body that starts with guards makes its environment after them', L14,
+          [1-small(2), 2-big(4)]),
+    gd_inferences(findall(X15, ev_o(X15), _), I15a),
+    gd_inferences(findall(X15b, ev_p(X15b), _), I15b),
+    gd_inferences(findall(X15c, ev_q(X15c), _), I15c),
+    gd_inferences(findall(X15d-Y15d, ev_u(X15d, Y15d), _), I15d),
+    gd_inferences(findall(X15e-Y15e, ( member(X15e, [0, 1, 2]), ev_g(X15e, Y15e) ), _), I15e),
+    check('each construct counts the inferences it counted, its own step among them',
+          [I15a, I15b, I15c, I15d, I15e], [12, 12, 14, 20, 25]),
+    %% an inference limit stops at the same goal whether it falls among the
+    %% guards, at a construct or inside one of its arms: 1.9.2's answers
+    findall(L16-U16-R16, ( between(1, 9, L16), call_metered(ev_g(2, _), L16, U16, R16) ), M16),
+    findall(L16e-U16e-inference_limit_exceeded, ( between(1, 7, L16e), U16e is L16e + 1 ), E16a),
+    append(E16a, [8-8-true, 9-8-true], E16),
+    check('an inference limit stops where it always stopped, among guards and constructs', M16, E16),
+    findall(L17-U17-R17, ( between(1, 12, L17), call_metered(ev_q(_), L17, U17, R17) ), M17),
+    findall(L17e-U17e-inference_limit_exceeded, ( between(1, 5, L17e), U17e is L17e + 1 ), E17a),
+    findall(L17t-6-true, between(6, 12, L17t), E17b),
+    append(E17a, E17b, E17),
+    check('...and in a disjunction that leaves a choice', M17, E17),
+    atom_concat(D, '/both.pl', F9),
+    ev_both(Lines9), fixture(F9, Lines9),
+    ev_run_both(F9, A9, B9),
+    check('a program answers and counts the same with environments and without', A9, B9),
+    atom_codes(W9, "[2-21,3-31,4-41,5-51,6-61]\n3\n[1-small,2-small,3-small,4-4,5-5,6-6]\nf(1,2)\n"),
+    ( atom_concat(W9, _, A9) -> T9 = yes ; T9 = A9 ),
+    check('...and the answers are the ones it gave', T9, yes),
+    atom_concat(D, '/both6.pl', F18),
+    ev_both6(Lines18), fixture(F18, Lines18),
+    ev_run_both(F18, A18, B18),
+    check('so does one whose bodies start with guards', A18, B18),
+    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-23,23-23,24-23,25-23,26-23,27-23,28-23,29-23,30-23]\n1166\n"),
+    check('...and its answers, stops and count are 1.9.2\'s', A18, W18).

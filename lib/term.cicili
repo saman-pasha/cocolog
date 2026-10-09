@@ -62,7 +62,10 @@
     (INT  2 "the value itself, shifted left by 3")
     (FUN  3 "a functor id -- an index into the functor table")
     (FLT  4 "an index into the float table")
-    (STR  5 "an index into the string table -- SWI's string type")))
+    (STR  5 "an index into the string table -- SWI's string type")
+    ;; never part of a term a program can reach: a cell of a clause's
+    ;; environment that a continuation names (Stage 5, `coco_env_take')
+    (POS  6 "a goal of an environment: the distance back to its header over bit 16, the goal's index under it")))
 
 (DEFUN tag-value (name)
   "The numeric tag NAME stands for, at macro-expansion time."

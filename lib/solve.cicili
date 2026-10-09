@@ -173,6 +173,8 @@
     ;; functor, its end, and the catch marker. Interned here so the engine
     ;; pushes them by id -- see `*functor-names*' and `coco-fid' below.
     "$k" "[]" "$catch"
+    ;; the record a body's later goals are reached from (Stage 5)
+    "$e"
     ;; the neck, so a clause splits into head and body without a strcmp
     ":-"))
 
@@ -520,6 +522,24 @@
 
   ;;; Reads GOAL as text and asks it. Answers 1, or 0 with `e->err' set.
   (decl) (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int))
+
+  ;;; THE CONTINUATION AS TERMS, FOR A FREEZE (Stage 5): every goal of an
+  ;;; environment that the engine or one of its choice frames will still
+  ;;; reach turned into the goal term and `'$k'' frame it stands for, built
+  ;;; on the heap, the frames' heap marks raised over them -- the machine a
+  ;;; freeze writes, which a thaw anywhere reads as it always did. SV keeps
+  ;;; what it changed, and `coco_engine_materialize_undo' puts it back, the
+  ;;; heap wound back with it, so the live machine goes on with its
+  ;;; environments. 0, and nothing changed, when memory ran short.
+  (struct coco_kmat
+    (member size_t   heap_len)
+    (member size_t   goals)
+    (member size_t   n)
+    (member size_t * cgoals)
+    (member size_t * ccalls)
+    (member size_t * cmarks))
+  (decl) (func coco_engine_materialize ((coco_engine * e) (coco_kmat * sv)) (out int))
+  (decl) (func coco_engine_materialize_undo ((coco_engine * e) (coco_kmat * sv)))
 
   (decl) (func coco_builtin ((coco_engine * e) (u64 nid) (u32 arity)
                            (size_t g) (int * found)) (out int))
@@ -947,6 +967,236 @@
             (block (set (-> e nset) 0)
                    (set (-> e goals) (coco_k_push e (-> e ngoal) (-> e nbar) (-> e goals))))))
 
+  ;;; ---- the continuation as terms, for a freeze (Stage 5) -----------------
+  ;;;
+  ;;; A FROZEN MACHINE CARRIES NO ENVIRONMENT. Its image is the heap, the
+  ;;; trail and the frames as numbers, and an environment names its code by
+  ;;; an address that means nothing in the process that thaws it -- which
+  ;;; has its own store, compiled afresh. So a freeze builds what every
+  ;;; position it can still reach stands for -- the goal term and `'$k''
+  ;;; frame entering the clause built through 1.9.2 -- writes the image,
+  ;;; and winds the heap back: the live machine keeps its environments, and
+  ;;; the image is one 1.9.2 could have written. The frames' heap marks are
+  ;;; raised to the top in the image, so a thawed machine that backtracks
+  ;;; keeps the terms built here: a cell kept past a backtrack is only
+  ;;; garbage, and every binding is undone by the trail, which is
+  ;;; unconditional. What is built is built from the cells as the clause's
+  ;;; entry left them, never dereferenced through a binding made since: a
+  ;;; choice frame comes back to its goals with those bindings undone.
+
+  ;;; Which continuation cells are built already, and as what: open
+  ;;; addressing, the key a cell's index plus one, so what frames and
+  ;;; environments share is built once.
+  (struct coco_kmemo
+    (member u64 *    keys)
+    (member size_t * vals)
+    (member size_t   cap)
+    (member size_t   len))
+
+  (static)
+  (func coco_kmemo_slot ((size_t cap) (u64 key)) (out size_t)
+        (let ((u64 h . #'(* key (cast u64 0x9E3779B97F4A7C15))))
+          (set h (xor h (>> h 29)))
+          (return (cast size_t (bitand h (cast u64 (- cap 1)))))))
+
+  (static)
+  (func coco_kmemo_get ((coco_kmemo * t) (u64 key) (size_t * out)) (out int)
+        (if (== (-> t cap) 0) (return 0))
+        (let ((size_t i . #'(coco_kmemo_slot (-> t cap) key)))
+          (while (!= (nth i (-> t keys)) 0)
+            (if (== (nth i (-> t keys)) key)
+                (block (set (cof out) (nth i (-> t vals))) (return 1)))
+            (set i (bitand (+ i 1) (- (-> t cap) 1))))
+          (return 0)))
+
+  (static)
+  (func coco_kmemo_put ((coco_kmemo * t) (u64 key) (size_t val)) (out int)
+        ;; under half full before the probe that places it
+        (if (> (* (+ (-> t len) 1) 2) (-> t cap))
+            (let ((size_t ncap . #'(? (== (-> t cap) 0) 1024 (* (-> t cap) 2)))
+                  (u64 * nk . #'(cast (u64 *) (calloc ncap (sizeof u64))))
+                  (size_t * nv . #'(cast (size_t *) (calloc ncap (sizeof size_t)))))
+              (if (or (== nk nil) (== nv nil)) (block (free nk) (free nv) (return 0)))
+              (for ((size_t i . 0)) (< i (-> t cap)) ((++ i))
+                (if (!= (nth i (-> t keys)) 0)
+                    (let ((size_t j . #'(coco_kmemo_slot ncap (nth i (-> t keys)))))
+                      (while (!= (nth j nk) 0) (set j (bitand (+ j 1) (- ncap 1))))
+                      (set (nth j nk) (nth i (-> t keys)))
+                      (set (nth j nv) (nth i (-> t vals))))))
+              (free (-> t keys)) (free (-> t vals))
+              (set (-> t keys) nk) (set (-> t vals) nv) (set (-> t cap) ncap)))
+        (let ((size_t i . #'(coco_kmemo_slot (-> t cap) key)))
+          (while (!= (nth i (-> t keys)) 0) (set i (bitand (+ i 1) (- (-> t cap) 1))))
+          (set (nth i (-> t keys)) key)
+          (set (nth i (-> t vals)) val)
+          (set (-> t len) (+ (-> t len) 1))
+          (return 1)))
+
+  (static)
+  (func coco_kstk_push ((size_t ** s) (size_t * len) (size_t * cap) (size_t v)) (out int)
+        (if (>= (cof len) (cof cap))
+            (let ((size_t ncap . #'(? (== (cof cap) 0) 256 (* (cof cap) 2)))
+                  (void * nb . #'(realloc (cast (void *) (cof s)) (* ncap (sizeof size_t)))))
+              (if (== nb nil) (return 0))
+              (set (cof s) (cast (size_t *) nb))
+              (set (cof cap) ncap)))
+        (set (nth (cof len) (cof s)) v)
+        (set (cof len) (+ (cof len) 1))
+        (return 1))
+
+  ;;; A `'$k'' FRAME FROM CELLS AS THEY ARE: the goal's cell and the
+  ;;; barrier's copied, not dereferenced, over REST. 0 when the heap would
+  ;;; not grow.
+  (static)
+  (func coco_k_frame ((coco_machine * m) (u64 gcell) (u64 bcell) (size_t rest)) (out size_t)
+        (let ((size_t h . #'(coco_push_struct_raw m (coco-cell FUN (coco-fid m "$k" 3)) 3)))
+          (if (== h 0) (return 0))
+          (set (nth (+ h 1) (-> m heap)) gcell)
+          (set (nth (+ h 2) (-> m heap)) bcell)
+          (set (nth (+ h 3) (-> m heap)) (coco-cell REF rest))
+          (return h)))
+
+  ;;; THE CONTINUATION C0 AS TERMS, into OUT: every position in it turned
+  ;;; into its goal -- the term the environment holds, or a call built from
+  ;;; its slots, or a cut -- in a `'$k'' frame over what follows it, and
+  ;;; every frame above one built again over what that became; a frame
+  ;;; with nothing of the kind under it is itself. ITERATIVE, a stack of
+  ;;; cells: a deep recursion's continuation is a chain as long as it is
+  ;;; deep. A cell is built once what follows it is (MEMO), so a chain is
+  ;;; walked once however many frames share it. 0 when memory ran short.
+  (static)
+  (func coco_k_resolve ((coco_engine * e) (coco_kmemo * memo) (size_t c0) (size_t * out)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t * stk . nil) (size_t slen . 0) (size_t scap . 0)
+              (u64 khdr . #'(coco-cell FUN (coco-fid m "$k" 3)))
+              (int ok . 1))
+          (set c0 (coco_deref m c0))
+          (set ok (coco_kstk_push (aof stk) (aof slen) (aof scap) c0))
+          (while (and ok (> slen 0))
+            (let ((size_t c . #'(nth (- slen 1) stk))
+                  (u64 cv . 0) (size_t nx . 0) (size_t got . 0)
+                  (size_t env . 0) (u32 i . 0) (int kind . 0))
+              (set cv (nth c (-> m heap)))
+              (if (coco_kmemo_get memo (+ (cast u64 c) 1) (aof got))
+                  (block (set slen (- slen 1)) continue))
+              ;; what follows this cell: KIND 1 a frame, 2 a position, 0
+              ;; the empty continuation (or nothing this knows), itself
+              (cond
+                ((== cv khdr)
+                 (set kind 1)
+                 (set nx (coco_deref m (+ c 3))))
+                ((coco-tag-is POS cv)
+                 (let ((size_t pay . #'(cast size_t (coco-payload cv)))
+                       (coco_code * ecd . nil) (u32 un . 0))
+                   (set kind 2)
+                   (set env (- c (>> pay 16)))
+                   (set i (cast u32 (bitand pay 65535)))
+                   (set ecd (coco-env-code m env))
+                   (set un ($ (nth i (-> ecd egoals)) next))
+                   (set nx (? (== un 0) (coco_deref m (+ env 2)) (coco-env-pos env ecd un))))))
+              (cond
+                ((== kind 0)
+                 (set ok (coco_kmemo_put memo (+ (cast u64 c) 1) c))
+                 (set slen (- slen 1)))
+                ((coco_kmemo_get memo (+ (cast u64 nx) 1) (aof got))
+                 (let ((size_t res . c))
+                   (if (== kind 2)
+                       ;; unit I of the environment, in its frame: the term
+                       ;; that frame held (`coco_unit_term'), under the
+                       ;; barrier it had
+                       (let ((coco_code * cd . #'(coco-env-code m env))
+                             (coco_egoal * eg . nil) (size_t g . 0) (size_t bv . 0))
+                         (set eg (aof (nth i (-> cd egoals))))
+                         (set bv (? (== (-> eg bslot) 0) (coco-env-barrier m env)
+                                    (+ (cast size_t (coco-signed-payload
+                                                     (nth (coco-env-slot-at env cd (- (-> eg bslot) 1))
+                                                          (-> m heap))))
+                                       1)))
+                         (if (not (coco_unit_term m cd env i (aof g))) (set ok 0))
+                         (if ok
+                             (block (set res (coco_k_frame m (coco-cell REF g) (coco-int-cell (cast i64 bv)) got))
+                                    (if (== res 0) (set ok 0)))))
+                       ;; a frame: itself when what follows it came out as
+                       ;; itself, else a copy over what it came out as
+                       (if (!= got nx)
+                           (block (set res (coco_k_frame m (nth (+ c 1) (-> m heap))
+                                                         (nth (+ c 2) (-> m heap)) got))
+                                  (if (== res 0) (set ok 0)))))
+                   (if ok (set ok (coco_kmemo_put memo (+ (cast u64 c) 1) res)))
+                   (set slen (- slen 1))))
+                (#t (set ok (coco_kstk_push (aof stk) (aof slen) (aof scap) nx))))))
+          (free stk)
+          (if (or (not ok) (-> m oom)) (return 0))
+          (return (coco_kmemo_get memo (+ (cast u64 c0) 1) out))))
+
+  (func coco_engine_materialize ((coco_engine * e) (coco_kmat * sv)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_kmemo memo . '{ nil nil 0 0 })
+              (size_t n . #'(-> e nchoices))
+              (size_t r . 0) (int ok . 1))
+          (memset sv 0 (sizeof coco_kmat))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          ;; a goal handed over goes back on the continuation first, and
+          ;; stays there: a frame is a continuation the live machine reads
+          ;; as well as it read the goal held
+          (coco_k_flush e)
+          (set (-> sv heap_len) (-> m heap_len))
+          (set (-> sv goals) (-> e goals))
+          (set (-> sv n) n)
+          (if (> n 0)
+              (block
+               (set (-> sv cgoals) (cast (size_t *) (malloc (* n (sizeof size_t)))))
+               (set (-> sv ccalls) (cast (size_t *) (malloc (* n (sizeof size_t)))))
+               (set (-> sv cmarks) (cast (size_t *) (malloc (* n (sizeof size_t)))))
+               (if (or (== (-> sv cgoals) nil) (== (-> sv ccalls) nil) (== (-> sv cmarks) nil))
+                   (block (free (-> sv cgoals)) (free (-> sv ccalls)) (free (-> sv cmarks))
+                          (memset sv 0 (sizeof coco_kmat))
+                          (return 0)))
+               (for ((size_t i . 0)) (< i n) ((++ i))
+                 (set (nth i (-> sv cgoals)) ($ (nth i (-> e choices)) goals))
+                 (set (nth i (-> sv ccalls)) ($ (nth i (-> e choices)) call))
+                 (set (nth i (-> sv cmarks)) ($ (nth i (-> e choices)) heap_mark)))))
+          (if (coco_k_resolve e (aof memo) (-> e goals) (aof r))
+              (set (-> e goals) r)
+              (set ok 0))
+          (for ((size_t i . 0)) (and ok (< i n)) ((++ i))
+            (if (coco_k_resolve e (aof memo) ($ (nth i (-> e choices)) goals) (aof r))
+                (set ($ (nth i (-> e choices)) goals) r)
+                (set ok 0))
+            ;; A CHOICE WHOSE ALTERNATIVE IS A POSITION (Stage 6: a
+            ;; construct's else, a disjunction's right arm) gets back the
+            ;; term `coco_ite' and the disjunction gave it, over the goals
+            ;; just built, as 1.9.2 kept it
+            (if (and ok (== ($ (nth i (-> e choices)) kind) COCO_CH_GOAL)
+                     (coco-tag-is POS (nth ($ (nth i (-> e choices)) call) (-> m heap))))
+                (let ((size_t pc . #'($ (nth i (-> e choices)) call))
+                      (size_t pay . 0) (size_t env . 0) (size_t g . 0))
+                  (set pay (cast size_t (coco-payload (nth pc (-> m heap)))))
+                  (set env (- pc (>> pay 16)))
+                  (if (coco_unit_term m (coco-env-code m env) env (cast u32 (bitand pay 65535)) (aof g))
+                      (set ($ (nth i (-> e choices)) call) g)
+                      (set ok 0)))))
+          ;; what was built must outlive every backtrack the image makes
+          (if (and ok (> (-> m heap_len) (-> sv heap_len)))
+              (for ((size_t i . 0)) (< i n) ((++ i))
+                (set ($ (nth i (-> e choices)) heap_mark) (-> m heap_len))))
+          (free ($ memo keys)) (free ($ memo vals))
+          (if (not ok) (block (coco_engine_materialize_undo e sv) (return 0)))
+          (return 1)))
+
+  (func coco_engine_materialize_undo ((coco_engine * e) (coco_kmat * sv))
+        (let ((coco_machine * m . #'(-> e m)))
+          (set (-> m heap_len) (-> sv heap_len))
+          (set (-> e goals) (-> sv goals))
+          (for ((size_t i . 0)) (and (< i (-> sv n)) (< i (-> e nchoices))) ((++ i))
+            (set ($ (nth i (-> e choices)) goals) (nth i (-> sv cgoals)))
+            (set ($ (nth i (-> e choices)) call) (nth i (-> sv ccalls)))
+            (set ($ (nth i (-> e choices)) heap_mark) (nth i (-> sv cmarks))))
+          (free (-> sv cgoals))
+          (free (-> sv ccalls))
+          (free (-> sv cmarks))
+          (memset sv 0 (sizeof coco_kmat))))
+
   ;;; WHETHER THE CLAUSE'S FIRST GOAL GOES INTO THE REGISTERS: it has the
   ;;; form for it (`rblen'), nothing is traced, and its functor is stamped
   ;;; a plain predicate of this store as of now (`fgen') -- the only goal
@@ -1080,14 +1330,124 @@
   ;;; limit only as many as the limit has steps left -- the guard after
   ;;; them is left to the step, which stops at the limit exactly where it
   ;;; always stopped. The step that entered the clause is counted already,
-  ;;; and guard I would have been step STEPS + 1 + I.
+  ;;; and guard I would have been step STEPS + 1 + I. Asked only of a
+  ;;; code with guards (`ex' 1 or 3), so not whether there are any: asked
+  ;;; that again behind the question `ex' answers, it cost the counting
+  ;;; loop 3 instructions a turn.
   (static)
   (func coco_guard_budget ((coco_engine * e) (coco_code * cd)) (out u32)
-        (if (or (== (-> cd ngd) 0) (!= (-> e trace) 0)) (return 0))
+        (if (!= (-> e trace) 0) (return 0))
         (if (== (-> e max_steps) 0) (return (-> cd ngd)))
         (if (>= (-> e steps) (-> e max_steps)) (return 0))
         (let ((u64 left . #'(- (-> e max_steps) (-> e steps))))
           (return (? (< left (cast u64 (-> cd ngd))) (cast u32 left) (-> cd ngd)))))
+
+  ;;; THE CLAUSE MATCHED IN THE STORE AND ITS BODY COPIED, for a program
+  ;;; that could not be had or could not run (`coco_store_unify': the store
+  ;;; is never bound, a heap cell is made only where an unbound variable of
+  ;;; the call takes a piece of the head, and the body copied over the same
+  ;;; variable map). 1 entered, the body over GOALS; 0 the head did not
+  ;;; match, the machine wound back to TMARK and HMARK.
+  (func coco_try_store ((coco_engine * e) (size_t cl) (size_t call) (size_t goals)
+                        (size_t barrier) (size_t tmark) (size_t hmark)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t shead . 0) (size_t sbody . 0) (int matched . 0))
+          (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
+          (coco_varmap_take m (aof vm))
+          (set matched (coco_store_unify m st call shead (aof vm)))
+          (if matched
+              (block
+               (set (-> e goals)
+                    (? (== sbody 0) goals
+                       (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) barrier goals)))
+               (coco_varmap_give m (aof vm))
+               (return 1)))
+          (coco_varmap_give m (aof vm))
+          (coco_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
+          (return 0)))
+
+  ;;; A CLAUSE THAT MAKES AN ENVIRONMENT, ENTERED (Stage 5): its head, its
+  ;;; first goal handed to the next step as `coco_try_clause' hands one,
+  ;;; and the environment for the goals after it, whose body returns to
+  ;;; GOALS; the continuation becomes the environment's first position. A
+  ;;; function of its own, so that a clause without an environment pays one
+  ;;; test for there being one: asked in `coco_try_clause', the request cost
+  ;;; naive reverse 16 instructions a call. NOT STATIC, and neither is
+  ;;; `coco_try_store', so that the compiler has no reason to fold either
+  ;;; into `coco_try_clause' for having one caller: folded in, they cost
+  ;;; every clause entry 7 instructions more. Answers as `coco_try_clause'
+  ;;; answers.
+  ;;;
+  ;;; A BODY THAT STARTS WITH GUARDS (`ex' 3, Stage 6) runs them as
+  ;;; `coco_try_clause' runs a guarded body's -- the ones that ran are
+  ;;; inferences, the one that failed too -- and makes the environment only
+  ;;; when every one of them ran. Guards that stopped short leave the body
+  ;;; built from the one they stopped at (ER's next still 0), handed over
+  ;;; and pushed as `coco_try_clause' hands over and pushes a body.
+  (func coco_try_env ((coco_engine * e) (coco_code * cd) (size_t cl) (size_t call)
+                      (const size_t * args) (size_t goals) (size_t barrier)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t tmark . #'($ (cof m) trail_len))
+              (size_t hmark . #'($ (cof m) heap_len))
+              (size_t roots [64]) (size_t ng . 0)
+              (int nxt . #'(- 1 (-> e acur)))
+              (size_t * regs . nil)
+              (coco_envreq er) (int matched . -1))
+          (if (and (-> cd ehand) (coco_regs_ok e cd))
+              (set regs (aof (nth (* (cast size_t nxt) 8) (-> e areg)))))
+          (set ($ er parent) goals)
+          (set ($ er barrier) barrier)
+          (set ($ er next) 0)
+          (if (== (-> cd ex) 3)
+              (let ((u32 gdone . 0))
+                (set matched (coco_clause_run_ge m st cd call args roots (aof ng) regs (aof er)
+                                                 (coco_guard_budget e cd) (aof gdone)))
+                (if (!= matched -1) (set (-> e steps) (+ (-> e steps) (cast u64 gdone)))))
+              (set matched (coco_clause_run_e m st cd call args roots (aof ng) regs (aof er))))
+          (if (and (== matched 1) (== ($ er next) 0))
+              ;; the guards stopped short: no environment, and the body from
+              ;; the guard they stopped at, which is never in the registers.
+              ;; Its later goals a frame each, pushed one at a time from the
+              ;; last: `coco_k_push_roots' called here as well stopped being
+              ;; inline in `coco_try_clause', where every body's are pushed
+              (let ((size_t k . goals) (size_t i . ng))
+                (if (> ng 0)
+                    (block (set (-> e ngoal) (coco_deref m (nth 0 roots)))
+                           (set (-> e nbar) barrier)
+                           (set (-> e nset) 1)))
+                (while (and (> i 1) (!= k 0))
+                  (set i (- i 1))
+                  (set k (coco_k_push e (nth i roots) barrier k)))
+                (set (-> e goals) k)
+                (return 1)))
+          (if (== matched 1)
+              (block
+               ;; the first goal handed over, unless it is a unit itself
+               ;; (Stage 6), which the continuation starts at
+               (cond
+                 ((!= regs nil)
+                  (set (-> e afid) (-> cd rfid))
+                  (set (-> e aarity) (-> cd rarity))
+                  (set (-> e acur) nxt)
+                  (set (-> e nbar) barrier)
+                  (set (-> e nset) 2))
+                 ((> ng 0)
+                  (set (-> e ngoal) (coco_deref m (nth 0 roots)))
+                  (set (-> e nbar) barrier)
+                  (set (-> e nset) 1)))
+               (set (-> e goals) ($ er next))
+               (return 1)))
+          (coco_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
+          (if (== matched 0) (return 0))
+          ;; a program that could not run: the long way, or for a call in
+          ;; the registers back to the caller, to build it first
+          (if (!= args nil) (return -1))
+          (return (coco_try_store e cl call goals barrier tmark hmark))))
 
   (static)
   (func coco_try_clause ((coco_engine * e) (coco_pred * p) (size_t ix) (size_t call)
@@ -1098,7 +1458,7 @@
               (size_t hmark . #'($ (cof m) heap_len))
               (size_t cl . #'(nth ix (-> p clauses)))
               (coco_code * cd . #'(cast (coco_code *) (nth ix (-> p codes))))
-              (int matched . -1) (size_t sbody . 0))
+              (int matched . -1))
           ;; the program from the predicate's own slot, or from the store's
           ;; table (which compiles it the first time) and into the slot
           (if (== cd nil)
@@ -1114,20 +1474,44 @@
                 (if (coco_regs_ok e cd)
                     (set regs (aof (nth (* (cast size_t nxt) 8) (-> e areg)))))
                 (cond
-                  ;; THE GUARDS THAT RAN ARE INFERENCES (Stage 4), the one
-                  ;; that failed too: `statistics(inferences)' and the
-                  ;; inference limit count what they counted when each was
-                  ;; a step. A program that could not run is wound back
-                  ;; below and stepped through from its head, so it counts
-                  ;; nothing here. Guards that stopped before the last
-                  ;; leave the one they stopped at as the next goal, built:
-                  ;; the registers were not written.
-                  ((> (-> cd ngd) 0)
-                   (let ((u32 gdone . 0))
-                     (set matched (coco_clause_run_g m st cd call args roots (aof ng) regs
-                                                     (coco_guard_budget e cd) (aof gdone)))
-                     (if (!= matched -1) (set (-> e steps) (+ (-> e steps) (cast u64 gdone))))
-                     (if (< gdone (-> cd ngd)) (set regs nil))))
+                  ;; NOT THE PLAIN EXECUTOR (`ex'): guards (1), an
+                  ;; environment (2) or both (3) -- one test for all three,
+                  ;; the one the guards had, so a plain clause pays nothing
+                  ;; for the others.
+                  ;; A BODY THAT MAKES AN ENVIRONMENT (Stage 5) is entered
+                  ;; by `coco_try_env' unless something is traced: the
+                  ;; tracer prints its ports from goals, so under it every
+                  ;; body is built as it always was. THE GUARDS THAT RAN
+                  ;; ARE INFERENCES (Stage 4), the one that failed too:
+                  ;; `statistics(inferences)' and the inference limit count
+                  ;; what they counted when each was a step. A program that
+                  ;; could not run is wound back below and stepped through
+                  ;; from its head, so it counts nothing here. Guards that
+                  ;; stopped before the last leave the one they stopped at
+                  ;; as the next goal, built: the registers were not
+                  ;; written.
+                  ((!= (-> cd ex) 0)
+                   (cond
+                     ((== (-> cd ex) 1)
+                      (let ((u32 gdone . 0))
+                        (set matched (coco_clause_run_g m st cd call args roots (aof ng) regs
+                                                        (coco_guard_budget e cd) (aof gdone)))
+                        (if (!= matched -1) (set (-> e steps) (+ (-> e steps) (cast u64 gdone))))
+                        (if (< gdone (-> cd ngd)) (set regs nil))))
+                     ((== (-> e trace) 0)
+                      (return (coco_try_env e cd cl call args goals barrier)))
+                     ;; traced, a body with guards and an environment is
+                     ;; built from its first guard, as every guarded body
+                     ;; is under trace: none of them runs here
+                     ((== (-> cd ex) 3)
+                      (let ((u32 gdone . 0))
+                        (set matched (coco_clause_run_g m st cd call args roots (aof ng) nil
+                                                        0 (aof gdone)))
+                        (set regs nil)))
+                     ((and (== regs nil) (== args nil))
+                      (set matched (coco_clause_run m st cd call roots (aof ng))))
+                     (#t
+                      (set matched (coco_clause_run_r m st cd call args roots (aof ng) regs)))))
                   ((and (== regs nil) (== args nil))
                    (set matched (coco_clause_run m st cd call roots (aof ng))))
                   (#t
@@ -1171,19 +1555,7 @@
                            (set ($ (cof m) heap_len) hmark)))))
           (if (and (== matched -1) (!= args nil)) (return -1))
           (if (== matched -1)
-              (let ((coco_varmap vm . '{ nil nil 0 0 0 })
-                    (size_t shead))
-                (coco_store_clause_parts st m cl (coco-id m ":-") (aof shead) (aof sbody))
-                (coco_varmap_take m (aof vm))
-                (set matched (coco_store_unify m st call shead (aof vm)))
-                (if matched
-                    (block
-                     (set (-> e goals)
-                          (? (== sbody 0) goals
-                             (coco_k_push_body e (coco_store_get_vm m st sbody (aof vm)) barrier goals)))
-                     (coco_varmap_give m (aof vm))
-                     (return 1)))
-                (coco_varmap_give m (aof vm))))
+              (return (coco_try_store e cl call goals barrier tmark hmark)))
           ;; that head did not match: put the machine back
           (coco_undo_to m tmark)
           (set ($ (cof m) heap_len) hmark)
@@ -1281,6 +1653,129 @@
             (set ($ (nth ci (-> e choices)) ixpos) 0)
             (return (? (coco_select_clause e ci) 1 0)))))
 
+  ;;; THE NEXT UNIT OF AN ENVIRONMENT (Stages 5 and 6), the continuation
+  ;;; having named its position P: the continuation moves on to the unit
+  ;;; after it (`next'), or from the body's last (EXECUTE) to the one the
+  ;;; body returns to -- after which nothing reaches the environment but a
+  ;;; choice frame that still names one of its positions -- and the unit is
+  ;;; taken by its kind, under the barrier it was given (`bslot'). A term,
+  ;;; built at entry, is handed to the step from its slot as a clause's
+  ;;; first goal is handed over (`ngoal', `nset' 1), and dispatched as a
+  ;;; frame's goal was. A call goes into the registers (`nset' 2) when its
+  ;;; functor is stamped a plain predicate of this store as of now,
+  ;;; untraced (`fgen', what `coco_regs_ok' asks of a first goal), and is
+  ;;; built from the slots and handed over otherwise, which stamps one that
+  ;;; is plain the first time it is dispatched. The rest are done here, each
+  ;;; the step its goal was: a cut; `true' and `fail'; a `,' going on to its
+  ;;; first item; an if-then-else pushing the choice that runs its else,
+  ;;; writing the height it went in at into its slot and going on to its
+  ;;; condition; the cut after the condition, to that height; a disjunction
+  ;;; pushing the choice that runs its right arm and going on to its left.
+  ;;; UNDER TRACE every unit is handed over as the term its frame held
+  ;;; (`coco_unit_term'), and runs as it did through 1.9.2, port for port.
+  ;;; 1 when a goal was handed over; 0 when the unit was done here; -2 when
+  ;;; it failed; -1 when the heap would not grow.
+  ;;;
+  ;;; WHAT IT READS IS SETTLED AT COMPILE TIME (`coco_egoal''s offsets): the
+  ;;; continuation after the unit, its barrier's cell, its slot and its
+  ;;; parts' positions are each the header plus one number, and the kind is
+  ;;; a switch. A call whose arguments are all variables has them copied
+  ;;; here, slot to register (`rvars'); any other is run by its register
+  ;;; program (`coco_env_regs'). Recomputed from the counts at every take,
+  ;;; and with the call's every argument a dispatched word in a function of
+  ;;; its own, an environment made the lookup benchmark's loop 3.9 % dearer
+  ;;; than its frames were; settled here, with the loop taking a handed-over
+  ;;; goal in the same step, it is 6.5 % cheaper.
+  (static)
+  (func coco_env_take ((coco_engine * e) (size_t p)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t pay . #'(cast size_t (coco-payload (nth p (-> m heap)))))
+              (size_t env . #'(- p (>> pay 16)))
+              (coco_code * cd . #'(coco-env-code m env))
+              (coco_egoal * eg . #'(aof (nth (bitand pay 65535) (-> cd egoals))))
+              ;; the continuation after it, and its barrier: the
+              ;; environment's, or a condition's height plus one
+              (size_t nk . #'(+ env (cast size_t (-> eg noff))))
+              (size_t bar . #'(+ (cast size_t (coco-signed-payload (nth (+ env (cast size_t (-> eg boff)))
+                                                                       (-> m heap))))
+                                 (cast size_t (-> eg badd)))))
+          (if (-> e trace)
+              (let ((size_t g . 0))
+                (if (not (coco_unit_term m cd env (cast u32 (bitand pay 65535)) (aof g))) (return -1))
+                (set (-> e goals) nk)
+                (set (-> e ngoal) (coco_deref m g))
+                (set (-> e nbar) bar)
+                (set (-> e nset) 1)
+                (return 1)))
+          (switch (cast int (-> eg kind))
+            (case (cc-eg "TERM")
+              (set (-> e goals) nk)
+              (set (-> e ngoal) (coco_deref m (+ env (cast size_t (-> eg soff)))))
+              (set (-> e nbar) bar)
+              (set (-> e nset) 1)
+              (return 1))
+            (case (cc-eg "CALL")
+              (let ((coco_functor * f . #'(aof (nth (cast size_t (-> eg fid)) (-> m functors)))))
+                (set (-> e goals) nk)
+                (if (and (== (-> f fgen) coco_extern_generation)
+                         (== (-> f pst) (cast (void *) (-> e st)))
+                         (== (-> f pserial) (-> (-> e st) serial)))
+                    (let ((int nxt . #'(- 1 (-> e acur)))
+                          (size_t * rg . #'(aof (nth (* (cast size_t nxt) 8) (-> e areg)))))
+                      ;; arguments that are all variables, copied here; any
+                      ;; other register form run by its program
+                      (if (-> eg rvars)
+                          (let ((u64 * rp . #'(+ (-> cd ebody) (-> eg rat)))
+                                (size_t eb . #'(+ env 4)))
+                            (for ((u32 j . 0)) (< j (-> eg rlen)) ((++ j))
+                              (let ((u64 w . #'(nth j rp)))
+                                (set (nth (cast size_t (cc_n w)) rg) (coco_deref m (+ eb (cc_k w)))))))
+                          (if (not (coco_env_regs m cd env (cast u32 (bitand pay 65535)) rg))
+                              (return -1)))
+                      (set (-> e afid) (-> eg fid))
+                      (set (-> e aarity) (-> eg arity))
+                      (set (-> e acur) nxt)
+                      (set (-> e nbar) bar)
+                      (set (-> e nset) 2)
+                      (return 1)))
+                (let ((size_t g . 0))
+                  (if (not (coco_env_term m cd env (cast u32 (bitand pay 65535)) (aof g))) (return -1))
+                  (set (-> e ngoal) g)
+                  (set (-> e nbar) bar)
+                  (set (-> e nset) 1)
+                  (return 1))))
+            (case (cc-eg "ITE")
+              (let ((size_t h0 . #'(-> e nchoices)))
+                (set (nth (+ env (cast size_t (-> eg soff))) (-> m heap)) (coco-int-cell (cast i64 h0)))
+                (if (not (coco_push_choice e COCO_CH_GOAL (+ env (cast size_t (-> eg coff))) nk bar))
+                    (return -1))
+                (set (-> e goals) (+ env (cast size_t (-> eg aoff))))
+                (return 0)))
+            (case (cc-eg "CUTC")
+              (let ((size_t h0 . #'(cast size_t (coco-signed-payload
+                                                 (nth (+ env (cast size_t (-> eg soff))) (-> m heap))))))
+                (if (< h0 (-> e nchoices)) (set (-> e nchoices) h0))
+                (set (-> e goals) nk)
+                (return 0)))
+            (case (cc-eg "CONJ")
+              (set (-> e goals) (+ env (cast size_t (-> eg aoff))))
+              (return 0))
+            (case (cc-eg "CUT")
+              (if (< bar (-> e nchoices)) (set (-> e nchoices) bar))
+              (set (-> e goals) nk)
+              (return 0))
+            (case (cc-eg "TRUE")
+              (set (-> e goals) nk)
+              (return 0))
+            (case (cc-eg "DISJ")
+              (if (not (coco_push_choice e COCO_CH_GOAL (+ env (cast size_t (-> eg coff))) nk bar))
+                  (return -1))
+              (set (-> e goals) (+ env (cast size_t (-> eg aoff))))
+              (return 0))
+            ;; `fail', `false' and a construct's `$fail'
+            (default (return -2)))
+          (return -2)))
+
   ;;; ---- backtracking ------------------------------------------------------
 
   ;;; Winds the machine back to the newest choice point that still has
@@ -1325,7 +1820,12 @@
                          (set (-> e trace_goal) (-> tc goal))
                          (set (-> e trace_depth) (-> tc depth))))
                    (set (-> e nchoices) ci)
-                   (set (-> e goals) (coco_k_push e call barrier goals))
+                   ;; an alternative that is a position (Stage 6: a
+                   ;; construct's else, a disjunction's right arm) is the
+                   ;; continuation itself, its unit leading on to the rest
+                   (if (coco-tag-is POS (nth call (-> m heap)))
+                       (set (-> e goals) call)
+                       (set (-> e goals) (coco_k_push e call barrier goals)))
                    (return 1)))
               ;; WE ARE FAILING BACK INTO A CATCH'S GOAL, so that catch is
               ;; catching again. It offers no alternative of its own -- the
@@ -1733,6 +2233,14 @@
                    (let ((size_t p . #'(cast size_t (coco-payload c))))
                      (if (and (!= p t) (< p n) (not (coco_gc_marked bits p)))
                          (if (not (coco_gc_push s len cap p)) (return 0)))))
+                  ;; A POSITION KEEPS ITS WHOLE ENVIRONMENT (Stage 5): the
+                  ;; header it names, and so every slot and every other
+                  ;; position -- the distance back is the environment's own,
+                  ;; which a compound kept whole keeps
+                  ((coco-tag-is POS c)
+                   (let ((size_t hd . #'(- t (>> (cast size_t (coco-payload c)) 16))))
+                     (if (and (< hd n) (not (coco_gc_marked bits hd)))
+                         (if (not (coco_gc_push s len cap hd)) (return 0)))))
                   ((coco-tag-is FUN c)
                    (let ((u64 f . #'(coco-payload c))
                          (u32 a . #'($ (nth (cast size_t f) (-> m functors)) arity)))
@@ -1762,6 +2270,46 @@
   (static)
   (func coco_gc_moved ((u64 * bits) (size_t * pre) (size_t limit) (size_t i)) (out size_t)
         (return (? (< i limit) (coco_gc_rank bits pre i) i)))
+
+  ;;; RETIRED CODES (Stage 5): a dead clause's code is kept while an
+  ;;; environment names it, and the mark has just found every environment
+  ;;; there is -- a marked `'$e'' compound whose first slot is the address
+  ;;; of a code on the store's retired list. Those are kept, the rest freed
+  ;;; (`coco_code_sweep'). An address is looked up among the retired ones,
+  ;;; so a program's own `'$e'' term, whatever it holds, keeps nothing that
+  ;;; is not one, and touches nothing.
+  (static)
+  (func coco_gc_codes ((coco_engine * e) (u64 * bits) (size_t n))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (coco_kmemo set . '{ nil nil 0 0 })
+              (u64 epoch . #'(+ (cast u64 (-> m gc_count)) 1))
+              (u64 eid . #'(coco-id m "$e"))
+              (size_t nw . #'(>> (+ n 63) 6))
+              (coco_code * cd . nil))
+          (set cd (cast (coco_code *) (-> st retired)))
+          (while (!= cd nil)
+            ;; no memory for the table: nothing is freed this time
+            (if (not (coco_kmemo_put (aof set) (cast u64 (cast size_t cd)) 1))
+                (block (free ($ set keys)) (free ($ set vals)) (return)))
+            (set cd (cast (coco_code *) (-> cd rnext))))
+          (for ((size_t w . 0)) (< w nw) ((++ w))
+            (if (!= (nth w bits) 0)
+                (for ((size_t b . 0)) (< b 64) ((++ b))
+                  (let ((size_t t . #'(+ (<< w 6) b)))
+                    (if (and (< (+ t 1) n) (coco_gc_marked bits t))
+                        (let ((u64 c . #'(nth t (-> m heap))))
+                          (if (and (coco-tag-is FUN c)
+                                   (== ($ (nth (cast size_t (coco-payload c)) (-> m functors)) name) eid)
+                                   (>= ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity) 4)
+                                   (coco-tag-is INT (nth (+ t 1) (-> m heap))))
+                              (let ((size_t got . 0)
+                                    (u64 a . #'(cast u64 (coco-signed-payload (nth (+ t 1) (-> m heap))))))
+                                (if (and (!= a 0) (coco_kmemo_get (aof set) a (aof got)))
+                                    (let ((coco_code * rc . #'(cast (coco_code *) (cast size_t a))))
+                                      (set (-> rc gcmark) epoch)))))))))))
+          (free ($ set keys)) (free ($ set vals))
+          (coco_code_sweep st epoch)))
 
   (static)
   (func coco_heap_gc ((coco_engine * e))
@@ -1809,6 +2357,10 @@
               (block (free bits) (free pre) (free stk) (free fixed)
                      (set (-> m gc_next) (* (-> m heap_len) 2))
                      (return)))
+
+          ;; ---- the retired codes no environment names any more (Stage 5),
+          ;; while the mark still says which environments there are
+          (if (!= (-> (-> e st) retired) nil) (coco_gc_codes e bits n))
 
           ;; ---- where everything goes ----
           (set (nth 0 pre) 0)
@@ -1939,6 +2491,12 @@
         (set (-> e trace_goal) 0)
         ;; and no goal handed over by a query that is gone
         (set (-> e nset) 0)
+        ;; NOR ANY ENVIRONMENT (Stage 5): with nothing running on the
+        ;; machine and a host that lets the collector run -- one that keeps
+        ;; no second engine's continuation on this heap -- every code a dead
+        ;; clause retired is named by nothing that can run again
+        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) retired) nil))
+            (coco_code_retired_free (-> e st)))
         (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
 
   (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
@@ -2448,11 +3006,37 @@
                 (block (coco_k_flush e) (coco_heap_gc e)))
 
             ;; THE NEXT GOAL: the one the clause entered by the last step
-            ;; handed over (`ngoal'), or else the continuation's, dereferenced
-            ;; ONCE -- the empty continuation is an atom (`coco_k_empty'), and
-            ;; that is a solution; anything else is a `'$k'' frame, and its
-            ;; first goal comes off
-            (let ((size_t g) (size_t b) (size_t k) (int ok . 1))
+            ;; handed over (`ngoal'), or else the continuation's,
+            ;; dereferenced ONCE -- a `'$k'' frame, and its first goal comes
+            ;; off; the empty continuation, an atom (`coco_k_empty'), and
+            ;; that is a solution; or a position in an environment (Stage
+            ;; 5), whose goal is handed over as a clause's first goal is
+            ;; (`coco_env_take') and taken below in this same step, as a
+            ;; frame's goal is -- going round once more for it cost every
+            ;; such goal the loop's top again, 3.9 % of lookup -- or, a cut
+            ;; or a construct, done there, and that was the step. The frame
+            ;; is told by its tag alone, the test the atom had, so a step
+            ;; that pops one asks nothing it did not ask through 1.9.2.
+            (let ((size_t g . 0) (size_t b . 0) (size_t k . 0) (int ok . 1))
+              (if (not (-> e nset))
+                  (let ((size_t kf . #'(coco_deref m (-> e goals))))
+                    (if (coco-tag-is FUN (nth kf (-> m heap)))
+                        (block
+                         (set g (coco_deref m (coco_arg m kf 0)))
+                         (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
+                         (set k (coco_arg m kf 2)))
+                        (block
+                         (if (coco-tag-is ATOM (nth kf (-> m heap)))
+                             (block (set (-> e resume) 1) (return 1)))
+                         (let ((int er . #'(coco_env_take e kf)))
+                           (if (== er -1) (return (coco_fail_err e "out of memory")))
+                           ;; a unit that failed fails as its goal did
+                           (if (== er -2)
+                               (block (if (not (coco_backtrack e)) (return 0))
+                                      continue))
+                           ;; a unit done here was the step; one that handed
+                           ;; its goal over has it taken below, in this step
+                           (if (== er 0) continue))))))
               (if (-> e nset)
                   (block
                    ;; THE NEXT GOAL IN THE REGISTERS (Stage 3): a call the
@@ -2510,13 +3094,7 @@
                    (set (-> e nset) 0)
                    (set g (-> e ngoal))
                    (set b (-> e nbar))
-                   (set k (-> e goals)))
-                  (let ((size_t kf . #'(coco_deref m (-> e goals))))
-                    (if (coco-tag-is ATOM (nth kf (-> m heap)))
-                        (block (set (-> e resume) 1) (return 1)))
-                    (set g (coco_deref m (coco_arg m kf 0)))
-                    (set b (cast size_t (coco-signed-payload (nth (coco_deref m (coco_arg m kf 1)) (-> m heap)))))
-                    (set k (coco_arg m kf 2))))
+                   (set k (-> e goals))))
 
               ;; A RAISE FROM INSIDE THE LOOP IS NOT A `return' (the note at
               ;; the undefined-predicate site below says why): 2 means a
@@ -4075,6 +4653,32 @@
 
   (coco-emit-builtin-dispatch)
   (coco-emit-builtin-index)
+
+  ;;; THE NAMES THE ENVIRONMENT'S COMPILER TELLS A CONSTRUCT BY (Stage 6),
+  ;;; from the vocabulary interned once per machine (lib/kb.cicili asks):
+  ;;; NAMES[0 .. 13] the atoms `;', `->', `*->', `\+', `not', `once',
+  ;;; `ignore', `,', `true', `fail', `false', `!', `$true' and `$fail', and
+  ;;; FCUT the functor `'$cut'/1'. 0, with nothing written, before the
+  ;;; vocabulary is interned. Interned at every compile instead, they cost
+  ;;; each clause 1 300 instructions.
+  (func coco_unit_names ((coco_machine * m) (u64 * names) (u64 * fcut)) (out int)
+        (if (not (-> m ids_ready)) (return 0))
+        (set (nth 0 names) (coco-id m ";"))
+        (set (nth 1 names) (coco-id m "->"))
+        (set (nth 2 names) (coco-id m "*->"))
+        (set (nth 3 names) (coco-id m "\\+"))
+        (set (nth 4 names) (coco-id m "not"))
+        (set (nth 5 names) (coco-id m "once"))
+        (set (nth 6 names) (coco-id m "ignore"))
+        (set (nth 7 names) (coco-id m ","))
+        (set (nth 8 names) (coco-id m "true"))
+        (set (nth 9 names) (coco-id m "fail"))
+        (set (nth 10 names) (coco-id m "false"))
+        (set (nth 11 names) (coco-id m "!"))
+        (set (nth 12 names) (coco-id m "$true"))
+        (set (nth 13 names) (coco-id m "$fail"))
+        (set (cof fcut) (coco-fid m "$cut" 1))
+        (return 1))
   (coco-emit-builtin-call)
 
   ) ; impl-solve

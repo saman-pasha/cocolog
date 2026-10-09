@@ -487,4 +487,33 @@ heap :-
                   'go :- numlist(1, 300, L), nrev(L, R), nrev(R, S), S == L, R = [F|_], write(go(F)), nl.' ]),
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F7, ' go 2>&1'], Cmd7),
     proc_run(Cmd7, 120000, O7, _), chomp(O7, B7), atom_codes(T7, B7),
-    check('a goal handed from one step to the next survives a collection between them', T7, 'go(300)').
+    check('a goal handed from one step to the next survives a collection between them', T7, 'go(300)'),
+    %% AN ENVIRONMENT IS KEPT WHOLE FROM ANY OF ITS POSITIONS (Stages 5 and
+    %% 6): a continuation names one cell of it, and the collector keeps the
+    %% compound that cell belongs to (`coco_gc_mark') -- its code, its
+    %% slots, its other positions -- and moves it as one. Two recursions
+    %% through a body with an if-then-else, one of them after guards,
+    %% collected every two thousand cells, meet an environment between
+    %% their goals -- and inside a condition, its slot holding a choice
+    %% height -- at nearly every collection.
+    %% And the code it names outlives its clause: `rr/1' retracts itself
+    %% and then builds enough to be collected, and the collection must keep
+    %% the retired code the environment still reads (`coco_gc_codes').
+    atom_concat(D7, '/env.pl', F8),
+    fixture(F8, [ ':- dynamic rr/1.',
+                  'r3(0, A, A) :- !.',
+                  'r3(N, A0, A) :- r3s(N, M), ( r3k(f(N), A0, A1) -> true ; A1 = A0 ), r3(M, A1, A).',
+                  'r4(0, A, A) :- !.',
+                  'r4(N, A0, A) :- N > 0, M is N - 1, ( r3k(f(N), A0, A1) -> true ; A1 = A0 ), r4(M, A1, A).',
+                  'r3s(N, M) :- M is N - 1.',
+                  'r3k(T, A0, A1) :- arg(1, T, X), A1 is A0 + X.',
+                  'rr_s(N, X) :- X is N * 2.',
+                  'rr_t(_).',
+                  'go :- r3(20000, 0, S), write(go(S)), nl, r4(20000, 0, S4), write(g4(S4)), nl,',
+                  '      assertz((rr(X) :- retract((rr(_) :- _)), numlist(1, 3000, L), length(L, N),',
+                  '                        ( rr_s(N, X) -> rr_t(X) ; true ))),',
+                  '      rr(Y), write(rr(Y)), nl.' ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F8, ' go 2>&1'], Cmd8),
+    proc_run(Cmd8, 120000, O8, _), chomp(O8, B8), atom_codes(T8, B8),
+    check('a recursion through environments, collected every 2000 cells, answers right',
+          T8, 'go(200010000)\ng4(200010000)\nrr(6000)').

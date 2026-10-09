@@ -449,6 +449,12 @@ much later.
 * **`defer` is an attribute of a `let`/`var` binding**, not a statement.
 * **Lambda-list markers are uppercase** (`&REST`). **A macro emits ONE
   form**; several leave the symbols unregistered. **`new` is a macro.**
+  **An attribute written before a macro that emits a function does not
+  reach it**: `(static) (some-macro …)` came out without `static`, and the
+  guards' runner emitted that way was called rather than inlined (the
+  module dispatchers emitted by `coco-emit-module-dispatch` are not static
+  either). Write the `func` with its attribute and let the macro make the
+  body (`cc-guards-body`).
 * **A function pointer in a variable is a `func` clause in type position**
   (`coco_store_reset` in `lib/kb.cicili`); a static one is
   `(static) (var func hook (ARGS) (out int) . nil)`. As a PARAMETER, the
@@ -790,14 +796,62 @@ and `library/reasoning/`); `library/*.so` are modules built from
   (`continue`); three sites returned the 2 through 1.8.45 and
   `catch(call(_), E, true)` ended the query with exit status 2 and no
   message (`test/errors.pl`, "an unbound or non-callable goal is
-  catchable"). What is left is the interpretation of the built goals:
-  the loop's dispatch, the builtins' argument reading, and the
-  continuation itself -- the second half of the compile step, which
-  would change the continuation's shape and is the owner's decision. The
-  proposal's lazy body was counted and not built (1.9.1): the
-  translator's clause bodies average 1.9 goals and a third of its
-  inferences are control constructs (`;`, `->`, `catch/3`), which no
-  lazy body touches.
+  catchable"). The proposal's lazy body was counted and not built
+  (1.9.1): the translator's clause bodies average 1.9 goals and a third
+  of its inferences are control constructs (`;`, `->`, `catch/3`), which
+  no lazy body touches -- the constructs are what environments took on.
+* **A body with a construct writes ONE environment when it is entered**
+  (Stages 5 and 6, 1.9.3): an if-then-else, `\+`/`not`, `once/1`,
+  `ignore/1`, a `;`, or a `,` inside one, after the body's guards and its
+  first goal. It is a compound on the heap, `'$e'(Code, Parent, Barrier,
+  V1 ... Vn, T1 ... Tm, S1 ... Sj, P1 ... Pk)` (`cc-env-entry`): the code
+  as an integer, the continuation the body returns to, its cut barrier, a
+  slot per variable a later call reads, one per later goal built at entry
+  as a term (a builtin, anything not a plain predicate), a condition slot
+  per if-then-else (the choice height its step writes), and a POS cell
+  (tag 6) per UNIT -- what one `'$k'` frame held through 1.9.2: a goal, a
+  construct, a condition, a branch, a `,`'s item, a construct's own
+  `$cut`, `$true`, `$fail` (`coco_egoal`). **The continuation is still
+  one cell**: a frame, the empty atom, or a POS cell naming a unit (the
+  distance back to the header over bit 16, the unit under it). The loop
+  tells them by tag; `coco_env_take` hands a unit's goal over and the
+  same step dispatches it, or does the construct's step itself (pushing
+  the else's choice, cutting to a condition's height). **Each unit taken
+  is the step its frame was**, so inference counts and every stop are
+  1.9.2's. The arm is `COCOLOG_ENV=0`; the engine's cases run programs
+  both ways to one answer. What bites:
+  - **A body without a construct makes none**: its later calls cost from
+    an environment what their frames did (environments for every body:
+    the linter 0.23 % further on, queens 0.96 % back). `*->` and a
+    construct reached through `call/1` stay terms.
+  - **A unit kind lives in six places**: `*cc-eg-kinds*`, the compiler
+    (`cc_unit`, `cc_ubranch`, `cc_ulink`), the offsets the take reads
+    (`noff` ... `rvars`, set at the end of `cc_compile_env`), the take's
+    switch, and `coco_unit_term`, which builds a unit back as the term its
+    frame held -- for a freeze (`coco_engine_materialize` builds every
+    position's goals, raises the choice frames' heap marks, and puts it
+    all back after: a frozen machine carries no environment) and for the
+    tracer (under trace no environment is made, and a unit taken under
+    trace is handed over as its term, port for port).
+  - **The collector keeps an environment whole from any position** (the
+    POS rule in `coco_gc_mark`) and every retired code a live environment
+    names (`coco_gc_codes`). A clause that dies while an environment is
+    part way through its body goes on running that code -- the logical
+    update view -- so the code is retired, not freed (`coco_code_retire`),
+    and a compaction keys kept codes again.
+  - **What the take reads is settled at compile time** -- each offset the
+    header plus one number, the kind a switch, a call's variable arguments
+    copied slot to register in the take -- and a goal it hands over is
+    dispatched in the same step: recomputed per take, every argument a
+    dispatched word in `coco_env_regs` and each handed-over goal a second
+    trip round the loop, lookup's loop was 3.9 % dearer than its frames;
+    settled, 6.5 % cheaper.
+  - **`ex` is what entering a clause takes**: 0 plain, 1 guards, 2 an
+    environment, 3 both, so `coco_try_clause` asks a plain clause one
+    question. Guards and an environment have their own executor
+    (`coco_clause_run_ge`) and their own copy of the guards' runner
+    (`cc-guards-body`); guards that stop short build the body from the one
+    they stopped at and make no environment, as 1.9.2 built it.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

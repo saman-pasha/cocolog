@@ -79,6 +79,23 @@
             "cnt(0, A, A). cnt(N, A0, A) :- N > 0, A1 is A0 + N, N1 is N - 1, cnt(N1, A1, A)."
             nil err (sizeof err)))))
 
+  ;; Bodies with constructs, reached from an environment (Stages 5 and 6):
+  ;; `k/2''s condition and `p/2''s leave choices inside an if-then-else,
+  ;; its slot holding the height they went in at; `d/1' and `w/2' leave
+  ;; a disjunction's other arm, whose choice frame names a position;
+  ;; `n/1' and `o/1' are `\+' and `once/1'; and `p/2' starts with guards.
+  ;; And in `pq/2' the choice `q/1' leaves names an environment whose
+  ;; call `t(X, Y)' reads X, which the step binds after it. So a stop finds
+  ;; environments in the continuation, in choice frames, and between a
+  ;; condition and its branch -- and each must come back as the goals it
+  ;; stands for, its variables as the clause's entry left them, not as the
+  ;; stop happened to see them: `t(X, Y)' with X unbound again.
+  (func load_env ((coco_store * st) (coco_machine * m)) (out int)
+        (let ((char err [256]))
+          (return (coco_consult st m
+            "r(1). r(2). r(3). r(4). k(X, Y) :- ( r(X), X > 2 -> Y = big(X) ; Y = small ). d(X) :- ( X = a ; X = b ; X = c ). n(X) :- \\+ X = 2. o(X) :- once(r(X)). w(X, Y) :- ( X > 0, Y = le ; Y = gt ). p(N, R) :- N > 0, M is N * 2, k(X, B), ( d(C), C == c -> true ; C = none ), o(O), n(O), w(O, W), R = f(M, X, B, C, O, W). q(1). q(2). q(3). q(4). q(5). q(6). t(X, Y) :- Y is X * 10. add1(A, B) :- B is A + 1. id(A, A). v(Y, Z) :- add1(Y, Z0), id(Z0, Z). pq(X, Z) :- q(X), t(X, Y), ( v(Y, Z) -> true ; Z = 0 ), Z > 15."
+            nil err (sizeof err)))))
+
   ;; Writes the current binding of the query's first variable into OUT.
   (func binding_of ((coco_engine * e) (size_t cell) (char * out) (size_t cap))
         (let ((coco_strbuf b))
@@ -329,6 +346,59 @@
         (check "a guarded proof was stopped inside, again and again" (cast llong (> stopped 30)) 1)
         (check "each stop among the guards, frozen and finished elsewhere, came out right"
                (cast llong right) 60))
+
+      ;; ---- the same with environments live (Stages 5 and 6) ---------
+      ;;
+      ;; A frozen machine carries no environment: the freeze builds the
+      ;; goals each position stands for (`coco_engine_materialize') -- a
+      ;; construct as it was written, the cut after a condition as
+      ;; `'$cut'(H)' for the height its slot holds -- as the clause's entry
+      ;; and the step built them through 1.9.2, and winds the heap back. So
+      ;; each stop is frozen and finished elsewhere -- the disjunctions and
+      ;; `q/1' fail back into the choice frames they left -- and the
+      ;; machine that froze is finished too, which it can only do if the
+      ;; freeze put back every environment it took apart.
+      (let ((int stopped . 0) (int right . 0) (int kept . 0))
+        (for ((int lim . 1)) (<= lim 60) ((++ lim))
+          (let ((coco_machine ma) (coco_store sa) (coco_engine ea) (coco_strbuf fa)
+                (char * blobn . nil) (int rca . 0))
+            (coco_machine_init (aof ma))
+            (coco_store_init (aof sa))
+            (coco_engine_init (aof ea) (aof ma) (aof sa))
+            (load_env (aof sa) (aof ma))
+            (set ($ ea max_steps) (cast u64 lim))
+            (coco_engine_ask_text (aof ea) "p(5, R), R == f(10, 3, big(3), c, 1, le), pq(X, Z), Z == 61, X == 6")
+            (set rca (coco_engine_next (aof ea)))
+            (if (== rca 1) (block (set right (+ right 1)) (set kept (+ kept 1))))
+            (if (== rca -1)
+                (block (set stopped (+ stopped 1))
+                       (coco_sb_init (aof fa))
+                       (if (coco_freeze (aof ea) (aof fa)) (set blobn (strdup ($ fa s))))
+                       (coco_sb_free (aof fa))
+                       ;; and the live machine goes on from where it stopped
+                       (set ($ ea max_steps) 100000)
+                       (if (== (coco_engine_next (aof ea)) 1) (set kept (+ kept 1)))))
+            (coco_engine_free (aof ea))
+            (coco_store_free (aof sa))
+            (coco_machine_free (aof ma))
+            (if (!= blobn nil)
+                (let ((coco_machine mb) (coco_store sb) (coco_engine eb))
+                  (coco_machine_init (aof mb))
+                  (coco_store_init (aof sb))
+                  (coco_engine_init (aof eb) (aof mb) (aof sb))
+                  (if (coco_thaw (aof eb) (aof mb) (aof sb) blobn)
+                      (block (load_env (aof sb) (aof mb))
+                             (set ($ eb max_steps) 100000)
+                             (if (== (coco_engine_next (aof eb)) 1) (set right (+ right 1)))))
+                  (coco_engine_free (aof eb))
+                  (coco_store_free (aof sb))
+                  (coco_machine_free (aof mb))
+                  (free blobn)))))
+        (check "a proof through environments was stopped inside, again and again"
+               (cast llong (> stopped 30)) 1)
+        (check "each stop with environments live, frozen and finished elsewhere, came out right"
+               (cast llong right) 60)
+        (check "and each machine that froze finished right itself" (cast llong kept) 60))
 
       (printf "\n%s: %d failure(s)\n" (? (== failures 0) "GREEN" "RED") failures)
       (return (? (== failures 0) 0 1)))))

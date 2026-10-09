@@ -43,10 +43,25 @@ main :-
     %% switched on afterwards must still bring every port of the second
     %% call back. And `classify/2' starts with a guard, `N < 0', which the
     %% untraced call compiles and runs as the clause is entered (1.9.1):
-    %% traced, it must be a goal with its ports again.
+    %% traced, it must be a goal with its ports again. And `pick/1',
+    %% `either/1' and `np/1' are bodies of constructs, which the untraced
+    %% call compiles into environments (Stage 6): traced, each is built as
+    %% the terms it was written as, and the Redo of a written `;' comes back.
     forall(member(Q, [ 'anc(tom, ann)', 'sum([1,2,3], S), S > 5',
-                       'classify(-3, C)', 'classify(7, C)' ]),
+                       'classify(-3, C)', 'classify(7, C)',
+                       'pick(X), fail', 'pick(b)', 'either(5)', 'either(1)', 'np(2)' ]),
            traced_late(Swipl, Program, Q)),
+    %% A DISJUNCTION FROM AN ENVIRONMENT WRITTEN UNTRACED, TAKEN TRACED
+    %% (Stage 6): `lt/1' switches the tracer on as its first goal, so its
+    %% `;' -- and the call to `pick/1' inside it -- are reached from the
+    %% environment its untraced entry wrote, and each is handed over as the
+    %% term it was written as. `pick/1' is called once untraced first, so it
+    %% is stamped a plain predicate and its call could go into the
+    %% registers, which skip the tracer's ports: taken without the tracer's
+    %% test, its Call, Exit and Redo went missing. SWI shows the `lt/1'
+    %% call it finds in its frames and this engine never has, so the run is
+    %% held to itself with no environments at all (`COCOLOG_ENV=0').
+    env_late(Program, 'pick(_), lt(X), X == c'),
     checks_done.
 
 %% every query is wrapped in ( Q -> true ; true ) on BOTH sides, so a
@@ -75,4 +90,17 @@ traced_late(Swipl, Program, Q) :-
     td_ports(Swi0, Swi), td_ports(Coco0, Coco),
     atom_concat('traced after an untraced call: ', Q, Name),
     ( td_compare(Swi, Coco, 1, Name) -> R = identical ; R = differs ),
+    check(Name, R, identical).
+
+%% the query run with environments and without, both through `trace/0'
+%% switched on inside it: the port lines must be the same lines
+env_late(Program, Q) :-
+    cocolog(C),
+    sh_join(['timeout 20 ', C, ' run ', Program, ' "( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'], OnCmd),
+    proc_run(OnCmd, 30000, On, _),
+    sh_join(['COCOLOG_ENV=0 timeout 20 ', C, ' run ', Program, ' "( ', Q, ' -> true ; true ), notrace" 2>&1 >/dev/null'],
+            OffCmd),
+    proc_run(OffCmd, 30000, Off, _),
+    atom_concat('traced from inside, through an environment: ', Q, Name),
+    ( On == Off, On \== [] -> R = identical ; R = differs ),
     check(Name, R, identical).
