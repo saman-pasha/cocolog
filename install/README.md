@@ -61,8 +61,8 @@ raise one.
 * `CICILI=/path`, `ZIGURATIP=/path` name checkouts elsewhere; the defaults
   are the two directories beside this one, cloned there when absent.
 * `CICILI_CC=...`, `CICILI_CXX=...` name a particular clang (`clang-18`, a
-  path). Every build here is clang -- the interpreter, ZiguratIP, every
-  module and every Parsi object -- and the scripts refuse a compiler that
+  path). Every build here is clang — the interpreter, ZiguratIP, every
+  module and every Parsi object — and the scripts refuse a compiler that
   is not.
 * On Red Hat Enterprise Linux and its rebuilds, `sbcl` is in EPEL.
 * `LOG=/path` moves the logs from `/tmp/cocolog-install.*`. A log there
@@ -81,6 +81,17 @@ Either way `(ql:add-to-init-file)` follows, unless `~/.sbclrc` loads a
 Quicklisp already, so your own `sbcl` has it too. `gnupg` is among the
 packages for this; with `NO_PACKAGES=1` and no `gpg`, the script stops and
 says so.
+
+`QUICKLISP_HOME` elsewhere than `~/quicklisp` wants Cicili 1.0.1 or later.
+Every build runs `sbcl --script cicili.lisp`, which reads no `~/.sbclrc`, so
+Cicili finds Quicklisp itself: from `$QUICKLISP_HOME`, or `~/quicklisp` when
+that is unset. An older Cicili loads `(user-homedir-pathname)/quicklisp/setup.lisp`
+and nothing else, and a Quicklisp anywhere else would install, load cicili,
+and then fail every build with `Component "str" not found` — so against
+such a checkout the scripts refuse it by name before Quicklisp is installed
+(update the checkout, or make `~/quicklisp` a symlink to it), and so does
+`colab/prereqs.sh`. It must be an absolute path, and it must stay exported
+for every later build too; the exports printed at the end include it.
 
 Without `WITH_RAY=1`, `library(ray)` is SKIPPED, and
 `modules/ray/build.sh` says what it wants.

@@ -23,7 +23,7 @@
 -- WHY THE STATE IS IN CHUNKS, AND WHY THEY ARE SMALL. A Text is documented as
 -- holding 65,535 bytes, and the wire agrees: a value is written with a 16-bit
 -- length. THE STORE DOES NOT. A row has to fit inside a page: MEMORY/PAGE_SIZE,
--- 65536 by default since ZiguratIP 0.1.23 and 8192 before, and a store keeps
+-- 65536 by default since ZiguratIP 1.0.0 and 8192 before, and a store keeps
 -- the page it was made on (data/pagesize). On 8192 pages
 -- a Text of 8192 comes back as `allocation overflow' while 8000 goes in.
 -- Measured, not guessed: 1000 through 8000 store, 8192 and above do not.

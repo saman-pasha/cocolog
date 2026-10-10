@@ -93,7 +93,7 @@ typedef enum {
  *
  * WHAT A COLUMN WILL HOLD IS SMALLER, and the protocol does not know it. A row
  * has to fit in a page: MEMORY/PAGE_SIZE is 65536 by default since ZiguratIP
- * 0.1.23 (and cocolog 1.9.7's embedded store), and a store made before then
+ * 1.0.0 (and cocolog 1.10.0's embedded store), and a store made before then
  * is on 8192, where a Text of 8000 stores and one of 8192 comes back as
  * "allocation overflow". Anything putting large values in a table should
  * chunk them well under the page size rather than up to ZG_MAX_TEXT. */

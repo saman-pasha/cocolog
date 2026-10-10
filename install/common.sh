@@ -122,15 +122,49 @@ quicklisp_get() {
   rm -rf "$qt"
 }
 
+# CICILI'S BUILD FINDS QUICKLISP ITSELF. Every build runs `sbcl --script
+# cicili.lisp', and --script reads no ~/.sbclrc, so what loads Quicklisp
+# there is cicili.lisp's own lines: since Cicili 1.0.1 they read
+# $QUICKLISP_HOME and fall back to ~/quicklisp; before, they named
+# (user-homedir-pathname)/quicklisp/setup.lisp and nothing else, and a
+# QUICKLISP_HOME elsewhere installed, loaded cicili below (lisp_side names
+# $QL/setup.lisp), and then every build died with `Component "str" not
+# found'. So a QUICKLISP_HOME elsewhere is taken when $CICILI's cicili.lisp
+# reads it -- exported for the builds below, and printed by exports_hint for
+# the ones after -- and refused by name against an older checkout. It must
+# be absolute: each build reads it from a directory of its own. The same
+# directory by another path is ~/quicklisp, and so is $HOME/quicklisp as a
+# symlink to $QL, even before $QL exists. Asked in lisp_side, not when this
+# file is sourced: under sudo the packages' phase has root's $HOME, and the
+# checkout is cloned by then.
+ql_home_ok() {
+  case $QL in /*) ;; *) die "QUICKLISP_HOME=$QL is not an absolute path, and every build reads it from a directory of its own -- give it as /..., and re-run" ;; esac
+  q=$QL; while [ "${q%/}" != "$q" ]; do q=${q%/}; done
+  [ "$q" = "$HOME/quicklisp" ] && return 0
+  a=$(cd "$q" 2>/dev/null && pwd -P) || :
+  b=$(cd "$HOME/quicklisp" 2>/dev/null && pwd -P) || :
+  [ -n "$a" ] && [ "$a" = "$b" ] && return 0
+  r=$(readlink "$HOME/quicklisp" 2>/dev/null) || :
+  [ -n "$r" ] && [ "${r%/}" = "$q" ] && return 0
+  if grep -q 'getenv "QUICKLISP_HOME"' "$CICILI/cicili.lisp" 2>/dev/null; then
+    QUICKLISP_HOME=$QL; export QUICKLISP_HOME
+    say "QUICKLISP_HOME=$QL, which the Cicili at $CICILI reads -- keep it exported for every build"
+    return 0
+  fi
+  die "QUICKLISP_HOME=$QL is not $HOME/quicklisp, and the Cicili at $CICILI is older than 1.0.1, the first whose cicili.lisp reads QUICKLISP_HOME (sbcl --script reads no ~/.sbclrc, and an older one loads (user-homedir-pathname)/quicklisp/setup.lisp only) -- update it (git -C $CICILI pull), unset QUICKLISP_HOME, or make $HOME/quicklisp a symlink to $QL, and re-run"
+}
+
 lisp_side() {
   step "the Lisp systems Cicili is built from"
+  ql_home_ok
   if [ ! -f "$QL/setup.lisp" ]; then
     say "installing Quicklisp into $QL"
     quicklisp_get
   fi
   # the last step of Quicklisp's instructions, so the user's own sbcl loads
   # it. (ql:add-to-init-file) asks for Enter and appends at every call, hence
-  # the newline and the look first. Cicili's build loads ~/quicklisp itself.
+  # the newline and the look first. Cicili's build loads Quicklisp itself,
+  # from $QUICKLISP_HOME or ~/quicklisp (ql_home_ok).
   if grep -qE 'quicklisp-init|setup\.lisp' "$HOME/.sbclrc" 2>/dev/null; then
     say "$HOME/.sbclrc loads Quicklisp already"
   else
@@ -247,6 +281,7 @@ exports_hint() {
   echo "   export ZIGURATIP=$ZIGURATIP"
   echo "   export ZIGURATIP_HOME=$ZIGURATIP_HOME"
   echo "   export $LIBVAR=\$ZIGURATIP_HOME/lib"
+  [ -n "${QUICKLISP_HOME:-}" ] && echo "   export QUICKLISP_HOME=$QUICKLISP_HOME"
   if [ -n "${LIBTORCH:-}" ]; then
     echo "   export LIBTORCH=$LIBTORCH"
     echo "   export TORCH_INCLUDE=${TORCH_INCLUDE:-$LIBTORCH/include}"

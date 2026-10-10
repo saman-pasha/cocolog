@@ -117,7 +117,7 @@
       ;; A frozen machine travels in Text fields, so a big one is worth proving
       ;; rather than assuming. 6000 and not 40000: the wire would take 65535,
       ;; but a row has to fit in a page, and a store made before ZiguratIP
-      ;; 0.1.23 is on 8192 (65536 since), where a Text of 8192 comes back as
+      ;; 1.0.0 is on 8192 (65536 since), where a Text of 8192 comes back as
       ;; `allocation overflow'. cocolog chunks at 4000 for that reason and
       ;; this is a size comfortably either side of it.
       (let ((char * big . #'(cast (char *) (malloc 6001)))

@@ -106,7 +106,7 @@ cl_wrap_at('576460752303423488').
 %%     page - 190 - length(knowledge base name) - length(predicate name)
 %%
 %% measured at three page sizes and three name lengths. On an 8192 page
-%% (the default before 1.9.7, and every store made before it keeps it; a
+%% (the default before 1.10.0, and every store made before it keeps it; a
 %% new store is on 65536) with a knowledge base called `main' that is 7998
 %% minus the head's name, so 7800 sits DELIBERATELY BELOW it: a linter has
 %% no store to ask, cannot know the page or which knowledge base a program

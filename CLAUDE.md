@@ -57,7 +57,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `541ba5d` |
+| `../cicili` | the language cocolog is written in; BUILD time | `b027a4b` |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.

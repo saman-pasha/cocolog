@@ -39,8 +39,10 @@ SBCL           ?= sbcl
 # benchmark that cannot say what it measured. CC and CXX are now the single
 # answer, exported so every build.sh under modules/ and embed/ inherits it.
 #
-# `make CICILI_CC=gcc CICILI_CXX=g++' still builds with gcc; nothing here is
-# load-bearing on clang. What IS load-bearing is that all of it agrees.
+# Every build is clang, the owner's rule (2026-10-08): CICILI_CC and
+# CICILI_CXX choose WHICH clang (clang-18, a path), never gcc, and install/
+# refuses a compiler that is not clang. What is also load-bearing is that
+# all of it agrees.
 #
 # CC and CXX name the two WRAPPERS in tools/cc rather than the compilers
 # outright, because tools/cc/cxx carries the --gcc-install-dir that Ubuntu

@@ -34,7 +34,9 @@ say "disk here" "$(df -h . 2>/dev/null | awk 'NR==2{print $4" free"}')"
 echo
 echo "== the toolchain the build needs"
 
-# The C and C++ compilers, and make. build-essential carries all three.
+# build-essential: make, and the libstdc++ headers and gcc runtime that
+# clang compiles and links against (tools/cc/cxx's --gcc-install-dir).
+# Nothing is compiled by gcc; gcc and g++ are asked as the package's tell.
 if command -v gcc >/dev/null 2>&1; then say "gcc" "$(gcc -dumpversion)"
 else bad "gcc" "apt-get install -y build-essential"; fi
 if command -v g++ >/dev/null 2>&1; then say "g++" "$(g++ -dumpversion)"
@@ -43,7 +45,7 @@ else bad "g++" "apt-get install -y build-essential"; fi
 # older clang rejects it as `unsupported option'. The first Colab session
 # that hit this had passed preflight: the image has no clang, nothing
 # here asked, and the build died on its first file. CICILI_CXX names
-# another compiler and is honoured -- g++ needs no clang at all.
+# WHICH clang (clang++-18, a path); every build here is clang.
 cxx=${CICILI_CXX:-clang++}
 case "$cxx" in
   *clang*)
@@ -51,8 +53,8 @@ case "$cxx" in
       cv=$("$cxx" --version | grep -oE 'version [0-9]+' | grep -oE '[0-9]+' | head -1)
       if [ "${cv:-0}" -ge 16 ] 2>/dev/null; then say "clang++" "$("$cxx" --version | head -1)"
       else bad "clang++" "clang ${cv:-?} rejects --gcc-install-dir; sh colab/prereqs.sh installs 18 from apt.llvm.org"; fi
-    else bad "clang++" "sh colab/prereqs.sh installs clang 18 from apt.llvm.org  (or CICILI_CXX=g++)"; fi ;;
-  *) say "clang++" "not needed: CICILI_CXX=$cxx" ;;
+    else bad "clang++" "sh colab/prereqs.sh installs clang 18 from apt.llvm.org"; fi ;;
+  *) bad "clang++" "CICILI_CXX=$cxx is not clang -- every build here is clang" ;;
 esac
 if command -v make >/dev/null 2>&1; then say "make" "$(make --version | head -1)"
 else bad "make" "apt-get install -y build-essential"; fi
@@ -96,11 +98,14 @@ echo "== the Lisp systems Cicili is built from"
 # ziguratip, so no schema. THE COST OF A HIDDEN ERROR IS THE TIME TO THE
 # NEXT ONE, and this one bought twelve wrong ones.
 #
-# So the real precondition is asked directly, by loading it.
+# So the real precondition is asked directly, by loading it -- with
+# Quicklisp found where cicili.lisp finds it: $QUICKLISP_HOME, or else
+# ~/quicklisp (Cicili 1.0.1; an older one names ~/quicklisp alone, and
+# prereqs.sh refuses a QUICKLISP_HOME elsewhere against it).
 if command -v sbcl >/dev/null 2>&1; then
   asdf_out=$(sbcl --non-interactive --disable-debugger \
       --eval '(require "asdf")' \
-      --eval '(let ((q (merge-pathnames "quicklisp/setup.lisp" (user-homedir-pathname)))) (when (probe-file q) (load q)))' \
+      --eval '(let* ((h (uiop:getenv "QUICKLISP_HOME")) (q (if (and h (plusp (length h))) (merge-pathnames "setup.lisp" (uiop:ensure-directory-pathname h)) (merge-pathnames "quicklisp/setup.lisp" (user-homedir-pathname))))) (when (probe-file q) (load q)))' \
       --eval '(handler-case (progn (asdf:load-system "cicili") (format t "~&CICILI-LOADS~%"))
                  (error (e) (format t "~&CICILI-FAILS ~a~%" e)))' 2>&1)
   case "$asdf_out" in
@@ -125,8 +130,9 @@ if python3 -c "import torch" >/dev/null 2>&1; then
   say "torch" "$(python3 -c 'import torch;print(torch.__version__)' 2>/dev/null)"
   say "torch lib" "$(python3 -c "import torch,os;print(os.path.join(os.path.dirname(torch.__file__),'lib'))" 2>/dev/null)"
   # THE ABI IS THE TRAP. A pip wheel built with _GLIBCXX_USE_CXX11_ABI=0
-  # links against std::string spelled the old way; g++ here spells it the
-  # new way by default, and the two do not resolve -- the error arrives at
+  # links against std::string spelled the old way; libstdc++, which clang
+  # compiles against here, spells it the new way by default, and the two
+  # do not resolve -- the error arrives at
   # the FINAL link as undefined `c10::' symbols full of __cxx11, long
   # after anything that could explain it. Recent wheels are ABI=1 and
   # match; an ABI=0 wheel needs -D_GLIBCXX_USE_CXX11_ABI=0 on every C++
@@ -134,7 +140,7 @@ if python3 -c "import torch" >/dev/null 2>&1; then
   # flag you can add at the end.
   abi=$(python3 -c "import torch;print(torch._C._GLIBCXX_USE_CXX11_ABI)" 2>/dev/null)
   if [ "$abi" = "True" ]; then
-    say "torch C++11 ABI" "True -- matches g++'s default"
+    say "torch C++11 ABI" "True -- matches libstdc++'s default"
   elif [ "$abi" = "False" ]; then
     # LOUD, BUT NOT FATAL. This was fatal at first, and that was wrong:
     # it stopped the whole build -- ZiguratIP, the client, the
@@ -142,7 +148,7 @@ if python3 -c "import torch" >/dev/null 2>&1; then
     # that can only break the FINAL link, and only the part of it that
     # touches libtorch. A warning that lets the build run and then fails
     # with a named cause is worth more than a refusal that guesses.
-    printf '  %-22s %s\n' "torch C++11 ABI" "FALSE -- g++ defaults to the new spelling,"
+    printf '  %-22s %s\n' "torch C++11 ABI" "FALSE -- libstdc++ defaults to the new spelling,"
     printf '  %-22s %s\n' "" "so the final link may fail on c10:: symbols"
     printf '  %-22s %s\n' "" "full of __cxx11. Not stopping: see COLAB.md."
   else

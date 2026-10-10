@@ -19,7 +19,7 @@
 ;;;
 ;;; MACHINES TRAVEL AS CHUNKS OF 4000 BYTES. A Text is documented at 65535 and
 ;;; the wire agrees, but a row has to fit in a page: with an 8192-byte page (the
-;;; default until cocolog 1.9.7 and ZiguratIP 0.1.23, 65536 since) a Text of
+;;; default until cocolog 1.10.0 and ZiguratIP 1.0.0, 65536 since) a Text of
 ;;; 8000 stores and one of 8192 is refused with "allocation overflow". 4000
 ;;; leaves room for the rest of the row under any page size anyone is likely to
 ;;; configure, and a store from before the change is still on 8192.
@@ -275,7 +275,7 @@
         ;; its mark: embed/embed.cicili, `ce_page_settle'); a SERVER's page is
         ;; its store's, settled the same way from `MEMORY/PAGE_SIZE' on its
         ;; own machine, and no call in the protocol asks -- so over the wire
-        ;; this assumes ZiguratIP's default, 65536 since 0.1.23, and
+        ;; this assumes ZiguratIP's default, 65536 since 1.0.0, and
         ;; $COCOLOG_PAGE_SIZE is how an operator says otherwise: 8192 for a
         ;; server that is older or whose store is (a store keeps the page it
         ;; was made on). Too small a budget refuses a clause that would have

@@ -34,7 +34,7 @@ BREW=$(brew --prefix 2>/dev/null || echo /usr/local)
 
 step "Xcode command line tools"
 xcode-select -p >/dev/null 2>&1 || die "run: xcode-select --install   (Apple's clang, make, git and python3)"
-cxx_ok 10 || die "${CICILI_CXX:-clang++} does not speak C++17"
+cxx_ok 10 || die "${CICILI_CXX:-clang++} is not a clang 10+ (C++17) -- every build here is clang"
 say "$(${CICILI_CXX:-clang++} --version | head -1)"
 
 if [ "${NO_PACKAGES:-0}" != 1 ]; then

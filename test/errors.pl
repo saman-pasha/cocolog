@@ -272,8 +272,8 @@ clause_too_long :-
     %% three page sizes and three name lengths; the embedded engine makes a
     %% new store at 65536, so under `--kb main' a p/1 clause of 65341
     %% characters stores and one of 65342 does not (7997 and 7998 on a store
-    %% made at 8192, before 1.9.7). Both halves are pinned, because a budget that
-    %% only refuses is a budget nobody can tell from a broken store.
+    %% made at 8192, before 1.10.0). Both halves are pinned, because a budget
+    %% that only refuses is a budget nobody can tell from a broken store.
     atom_concat(D, '/KB3', KB3),
     boundary(D, KB3, 65338, In1),
     check('a clause at the budget stores', In1, stored),
