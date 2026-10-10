@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16481 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16482 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -188,6 +188,7 @@ The preposition "grazie a" means "thanks to".
 The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
+The conjunction "anche se" means "although".
 The conjunction "nonostante" means "although".
 The preposition "nonostante" means "despite".
 The conjunction "mentre" means "while".
@@ -202,6 +203,8 @@ The feminine adjective "pazza" means "crazy".
 The adjective "fuori di testa" means "crazy".
 The verb "fa sapere" means "reports".
 The verb "ci si rende conto" means "realizes".
+"avere" is the infinitive of "ha".
+"essere" is the infinitive of "è".
 "aver" is the infinitive of "ha".
 "esser" is the infinitive of "è".
 "è" is the auxiliary of "prosegue".
@@ -1461,6 +1464,88 @@ The adverb "tra gli altri" means "among others".
 "glieli" is the contraction of "le li".
 "gliele" is the contraction of "le le".
 "gliene" is the contraction of "le ne".
+"permette" takes "di" before the infinitive.
+"stato" is an institution.
+"giustizia" is an institution.
+"dipende" takes "da" before the phrase.
+"conta" takes "su" before the phrase.
+"partecipa" takes "a" before the phrase.
+"consiste" takes "in" before the phrase.
+"insiste" takes "su" before the phrase.
+"pensa" takes "a" before the phrase.
+"Tarragona" is a city.
+"Barcelona" is a city.
+"Madrid" is a city.
+"Girona" is a city.
+"Lleida" is a city.
+"Valencia" is a city.
+"Sevilla" is a city.
+"Bilbao" is a city.
+"Zaragoza" is a city.
+"Roma" is a city.
+"Milano" is a city.
+"Torino" is a city.
+"Napoli" is a city.
+"Genova" is a city.
+"Bologna" is a city.
+"Firenze" is a city.
+"Palermo" is a city.
+"Venezia" is a city.
+"il che" is a remark.
+"vuole" takes the subjunctive.
+"desidera" takes the subjunctive.
+"chiede" takes the subjunctive.
+"spera" takes the subjunctive.
+"teme" takes the subjunctive.
+"dubita" takes the subjunctive.
+"permette" takes the subjunctive.
+"preferisce" takes the subjunctive.
+"crede" takes the subjunctive.
+"pensa" takes the subjunctive.
+"ritiene" takes the subjunctive.
+"sembra" takes the subjunctive.
+"esige" takes the subjunctive.
+"impedisce" takes the subjunctive.
+"evita" takes the subjunctive.
+"suggerisce" takes the subjunctive.
+"propone" takes the subjunctive.
+"ingiusto" takes the subjunctive.
+"giusto" takes the subjunctive.
+"necessario" takes the subjunctive.
+"possibile" takes the subjunctive.
+"probabile" takes the subjunctive.
+"importante" takes the subjunctive.
+"strano" takes the subjunctive.
+"normale" takes the subjunctive.
+"opportuno" takes the subjunctive.
+"utile" takes the subjunctive.
+"esiste" is intransitive.
+"accade" is intransitive.
+"succede" is intransitive.
+"arriva" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nasce" is intransitive.
+"muore" is intransitive.
+"dorme" is intransitive.
+The masculine noun "potere giudiziario" means "judiciary".
+"poteri giudiziari" is the plural of "potere giudiziario".
+The feminine noun "voce di bilancio" means "budget item".
+"voci di bilancio" is the plural of "voce di bilancio".
+The verb "porta avanti" means "carries forward".
+"portano avanti" is the plural of "porta avanti".
+"portare avanti" is the infinitive of "porta avanti".
+"portando avanti" is the gerund of "porta avanti".
+"portato avanti" is the participle of "porta avanti".
+The feminine noun "base" means "base".
+The feminine noun "legittimità" means "legitimacy".
+The verb "iscrive" means "inscribes".
+The masculine noun "utile" means "profit".
+The masculine adjective "distorto" means "distorted".
+"distorti" is the plural of "distorto".
+The feminine adjective "distorta" means "distorted".
+"distorte" is the plural of "distorta".
+The adjective "abituale" means "usual".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -23771,11 +23856,11 @@ The verb "presiede" means "presides".
 "presiedo" is the first person of "presiede".
 "presiedi" is the second person of "presiede".
 "presedette" is the past of "presiede".
+"presedettero" is the past of "presiedono".
 "presederono" is the past of "presiedono".
 "presedemmo" is the first person of "presederono".
 "presedei" is the first person of "presedette".
 "presedesti" is the second person of "presedette".
-"presedettero" is the past of "presiedono".
 "presedeva" is the imperfect of "presiede".
 "presedevano" is the imperfect of "presiedono".
 "presedevamo" is the first person of "presedevano".
@@ -23819,11 +23904,11 @@ The verb "risiede" means "resides".
 "risiedo" is the first person of "risiede".
 "risiedi" is the second person of "risiede".
 "risedette" is the past of "risiede".
+"risedettero" is the past of "risiedono".
 "risederono" is the past of "risiedono".
 "risedemmo" is the first person of "risederono".
 "risedei" is the first person of "risedette".
 "risedesti" is the second person of "risedette".
-"risedettero" is the past of "risiedono".
 "risedeva" is the imperfect of "risiede".
 "risedevano" is the imperfect of "risiedono".
 "risedevamo" is the first person of "risedevano".
@@ -24143,6 +24228,53 @@ The verb "trattiene" means "retains".
 "trattenute" is the plural of "trattenuta".
 "trattenere" is the infinitive of "trattiene".
 "trattenendo" is the gerund of "trattiene".
+The verb "distorce" means "distorts".
+"distorcono" is the plural of "distorce".
+"distorciamo" is the first person of "distorcono".
+"distorco" is the first person of "distorce".
+"distorci" is the second person of "distorce".
+"distorse" is the past of "distorce".
+"distorsero" is the past of "distorcono".
+"distorcemmo" is the first person of "distorsero".
+"distorsi" is the first person of "distorse".
+"distorcesti" is the second person of "distorse".
+"distorceva" is the imperfect of "distorce".
+"distorcevano" is the imperfect of "distorcono".
+"distorcevamo" is the first person of "distorcevano".
+"distorcevo" is the first person of "distorceva".
+"distorcevi" is the second person of "distorceva".
+"distorcerà" is the future of "distorce".
+"distorceranno" is the plural of "distorcerà".
+"distorceremo" is the first person of "distorceranno".
+"distorcerò" is the first person of "distorcerà".
+"distorcerai" is the second person of "distorcerà".
+"distorcerebbe" is the conditional of "distorce".
+"distorcerebbero" is the plural of "distorcerebbe".
+"distorceremmo" is the first person of "distorcerebbero".
+"distorcerei" is the first person of "distorcerebbe".
+"distorceresti" is the second person of "distorcerebbe".
+"distorca" is the subjunctive of "distorce".
+"distorcano" is the plural of "distorca".
+"distorciamo" is the first person of "distorcano".
+"distorcesse" is the past subjunctive of "distorce".
+"distorcessero" is the plural of "distorcesse".
+"distorcessimo" is the first person of "distorcessero".
+"distorcessi" is the first person of "distorcesse".
+"distorcessi" is the second person of "distorcesse".
+"distorci" is the imperative of "distorce".
+"distorcere" is the negative imperative of "distorce".
+"distorcete" is the imperative of "distorcono".
+"distorciamo" is the hortative of "distorce".
+"distorto" is the participle of "distorce".
+"distorta" is the participle of "distorce".
+"distorta" is feminine.
+"distorti" is the participle of "distorce".
+"distorti" is the plural of "distorto".
+"distorte" is the participle of "distorce".
+"distorte" is feminine.
+"distorte" is the plural of "distorta".
+"distorcere" is the infinitive of "distorce".
+"distorcendo" is the gerund of "distorce".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -28770,11 +28902,11 @@ The verb "annette" means "annexes".
 "annetto" is the first person of "annette".
 "annetti" is the second person of "annette".
 "annettette" is the past of "annette".
+"annettettero" is the past of "annettono".
 "annetterono" is the past of "annettono".
 "annettemmo" is the first person of "annetterono".
 "annettei" is the first person of "annettette".
 "annettesti" is the second person of "annettette".
-"annettettero" is the past of "annettono".
 "annetteva" is the imperfect of "annette".
 "annettevano" is the imperfect of "annettono".
 "annettevamo" is the first person of "annettevano".
@@ -30183,11 +30315,11 @@ The verb "assiste" means "assists".
 "assisto" is the first person of "assiste".
 "assisti" is the second person of "assiste".
 "assistette" is the past of "assiste".
+"assistettero" is the past of "assistono".
 "assisterono" is the past of "assistono".
 "assistemmo" is the first person of "assisterono".
 "assistei" is the first person of "assistette".
 "assistesti" is the second person of "assistette".
-"assistettero" is the past of "assistono".
 "assisteva" is the imperfect of "assiste".
 "assistevano" is the imperfect of "assistono".
 "assistevamo" is the first person of "assistevano".
@@ -40201,11 +40333,11 @@ The verb "connette" means "connects".
 "connetto" is the first person of "connette".
 "connetti" is the second person of "connette".
 "connettette" is the past of "connette".
+"connettettero" is the past of "connettono".
 "connetterono" is the past of "connettono".
 "connettemmo" is the first person of "connetterono".
 "connettei" is the first person of "connettette".
 "connettesti" is the second person of "connettette".
-"connettettero" is the past of "connettono".
 "connetteva" is the imperfect of "connette".
 "connettevano" is the imperfect of "connettono".
 "connettevamo" is the first person of "connettevano".
@@ -40531,11 +40663,11 @@ The verb "consiste" means "consists".
 "consisto" is the first person of "consiste".
 "consisti" is the second person of "consiste".
 "consistette" is the past of "consiste".
+"consistettero" is the past of "consistono".
 "consisterono" is the past of "consistono".
 "consistemmo" is the first person of "consisterono".
 "consistei" is the first person of "consistette".
 "consistesti" is the second person of "consistette".
-"consistettero" is the past of "consistono".
 "consisteva" is the imperfect of "consiste".
 "consistevano" is the imperfect of "consistono".
 "consistevamo" is the first person of "consistevano".
@@ -46090,11 +46222,11 @@ The verb "desiste" means "desists".
 "desisto" is the first person of "desiste".
 "desisti" is the second person of "desiste".
 "desistette" is the past of "desiste".
+"desistettero" is the past of "desistono".
 "desisterono" is the past of "desistono".
 "desistemmo" is the first person of "desisterono".
 "desistei" is the first person of "desistette".
 "desistesti" is the second person of "desistette".
-"desistettero" is the past of "desistono".
 "desisteva" is the imperfect of "desiste".
 "desistevano" is the imperfect of "desistono".
 "desistevamo" is the first person of "desistevano".
@@ -52507,11 +52639,11 @@ The verb "esiste" means "exists".
 "esisto" is the first person of "esiste".
 "esisti" is the second person of "esiste".
 "esistette" is the past of "esiste".
+"esistettero" is the past of "esistono".
 "esisterono" is the past of "esistono".
 "esistemmo" is the first person of "esisterono".
 "esistei" is the first person of "esistette".
 "esistesti" is the second person of "esistette".
-"esistettero" is the past of "esistono".
 "esisteva" is the imperfect of "esiste".
 "esistevano" is the imperfect of "esistono".
 "esistevamo" is the first person of "esistevano".
@@ -59356,11 +59488,11 @@ The verb "insiste" means "insists".
 "insisto" is the first person of "insiste".
 "insisti" is the second person of "insiste".
 "insistette" is the past of "insiste".
+"insistettero" is the past of "insistono".
 "insisterono" is the past of "insistono".
 "insistemmo" is the first person of "insisterono".
 "insistei" is the first person of "insistette".
 "insistesti" is the second person of "insistette".
-"insistettero" is the past of "insistono".
 "insisteva" is the imperfect of "insiste".
 "insistevano" is the imperfect of "insistono".
 "insistevamo" is the first person of "insistevano".
@@ -62001,11 +62133,11 @@ The verb "riflette" means "reflects".
 "rifletto" is the first person of "riflette".
 "rifletti" is the second person of "riflette".
 "riflettette" is the past of "riflette".
+"riflettettero" is the past of "riflettono".
 "rifletterono" is the past of "riflettono".
 "riflettemmo" is the first person of "rifletterono".
 "riflettei" is the first person of "riflettette".
 "riflettesti" is the second person of "riflettette".
-"riflettettero" is the past of "riflettono".
 "rifletteva" is the imperfect of "riflette".
 "riflettevano" is the imperfect of "riflettono".
 "riflettevamo" is the first person of "riflettevano".
@@ -62661,11 +62793,11 @@ The verb "resiste" means "resists".
 "resisto" is the first person of "resiste".
 "resisti" is the second person of "resiste".
 "resistette" is the past of "resiste".
+"resistettero" is the past of "resistono".
 "resisterono" is the past of "resistono".
 "resistemmo" is the first person of "resisterono".
 "resistei" is the first person of "resistette".
 "resistesti" is the second person of "resistette".
-"resistettero" is the past of "resistono".
 "resisteva" is the imperfect of "resiste".
 "resistevano" is the imperfect of "resistono".
 "resistevamo" is the first person of "resistevano".
@@ -63185,11 +63317,11 @@ The verb "discute" means "discusses".
 "discuto" is the first person of "discute".
 "discuti" is the second person of "discute".
 "discutette" is the past of "discute".
+"discutettero" is the past of "discutono".
 "discuterono" is the past of "discutono".
 "discutemmo" is the first person of "discuterono".
 "discutei" is the first person of "discutette".
 "discutesti" is the second person of "discutette".
-"discutettero" is the past of "discutono".
 "discuteva" is the imperfect of "discute".
 "discutevano" is the imperfect of "discutono".
 "discutevamo" is the first person of "discutevano".
@@ -67761,11 +67893,11 @@ The verb "possiede" means "owns".
 "possiedo" is the first person of "possiede".
 "possiedi" is the second person of "possiede".
 "possedette" is the past of "possiede".
+"possedettero" is the past of "possiedono".
 "possederono" is the past of "possiedono".
 "possedemmo" is the first person of "possederono".
 "possedei" is the first person of "possedette".
 "possedesti" is the second person of "possedette".
-"possedettero" is the past of "possiedono".
 "possedeva" is the imperfect of "possiede".
 "possedevano" is the imperfect of "possiedono".
 "possedevamo" is the first person of "possedevano".
@@ -68702,11 +68834,11 @@ The verb "persiste" means "persists".
 "persisto" is the first person of "persiste".
 "persisti" is the second person of "persiste".
 "persistette" is the past of "persiste".
+"persistettero" is the past of "persistono".
 "persisterono" is the past of "persistono".
 "persistemmo" is the first person of "persisterono".
 "persistei" is the first person of "persistette".
 "persistesti" is the second person of "persistette".
-"persistettero" is the past of "persistono".
 "persisteva" is the imperfect of "persiste".
 "persistevano" is the imperfect of "persistono".
 "persistevamo" is the first person of "persistevano".
@@ -77918,11 +78050,11 @@ The verb "siede" means "sits".
 "siedo" is the first person of "siede".
 "siedi" is the second person of "siede".
 "sedette" is the past of "siede".
+"sedettero" is the past of "siedono".
 "sederono" is the past of "siedono".
 "sedemmo" is the first person of "sederono".
 "sedei" is the first person of "sedette".
 "sedesti" is the second person of "sedette".
-"sedettero" is the past of "siedono".
 "sedeva" is the imperfect of "siede".
 "sedevano" is the imperfect of "siedono".
 "sedevamo" is the first person of "sedevano".
@@ -94083,11 +94215,11 @@ The verb "flette" means "bends".
 "fletto" is the first person of "flette".
 "fletti" is the second person of "flette".
 "flettette" is the past of "flette".
+"flettettero" is the past of "flettono".
 "fletterono" is the past of "flettono".
 "flettemmo" is the first person of "fletterono".
 "flettei" is the first person of "flettette".
 "flettesti" is the second person of "flettette".
-"flettettero" is the past of "flettono".
 "fletteva" is the imperfect of "flette".
 "flettevano" is the imperfect of "flettono".
 "flettevamo" is the first person of "flettevano".
@@ -98560,11 +98692,11 @@ The modal "può" means "can".
 "posso" is the first person of "può".
 "puoi" is the second person of "può".
 "potette" is the past of "può".
+"potettero" is the past of "possono".
 "poterono" is the past of "possono".
 "potemmo" is the first person of "poterono".
 "potei" is the first person of "potette".
 "potesti" is the second person of "potette".
-"potettero" is the past of "possono".
 "poteva" is the imperfect of "può".
 "potevano" is the imperfect of "possono".
 "potevamo" is the first person of "potevano".

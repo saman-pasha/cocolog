@@ -729,14 +729,15 @@ cb_verb_forms(L, Forms) :-
     %% plural is `-erono' and the page says `insistette', `esistette', `credette'
     %% (and `insistettero'). The third person is stated with `-ette' -- the form
     %% a page has and the one a writer should write -- and its plural in `-ettero'
-    %% after the dictionary's own
+    %% before the dictionary's own, which is then only read
     ( cb_verb_form(Forms, [ifi, p3, sg], Past0), cb_past_spelling(Past0, Past)
-    ->  cb_line('"~w" is the past of "~w".', [Past, L]), cb_tense(Forms, ifi, Past, past_of),
+    ->  cb_line('"~w" is the past of "~w".', [Past, L]),
         (   Past \== Past0, cb_verb_form(Forms, [pri, p3, pl], PresPl0), cb_verb_form(Forms, [ifi, p3, pl], PastPl0),
             atom_concat(PlStem, erono, PastPl0), atom_concat(PlStem, ettero, PastPl)
         ->  cb_line('"~w" is the past of "~w".', [PastPl, PresPl0])
         ;   true
-        )
+        ),
+        cb_tense(Forms, ifi, Past, past_of)
     ;   true
     ),
     %% the imperfect is a tense of its own -- `estaba', `tenía', `era' -- stated

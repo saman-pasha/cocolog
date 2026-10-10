@@ -1916,3 +1916,72 @@ The adverb "entre otros" means "among others".
 "se la" is the contraction of "les la".
 "se los" is the contraction of "les los".
 "se las" is the contraction of "les las".
+# `un pacto de Estado sobre Justicia' (the Abogacía report): the State and Justice
+# are common nouns a newspaper capitalises, and a capital word alone after a
+# preposition is a name unless the lesson says this
+"estado" is an institution.
+"justicia" is an institution.
+# `el progreso depende de la calidad', `pueden contar con su colaboración' (the
+# Abogacía report, into Italian): the preposition a verb governs before a phrase,
+# which the language it is written in says its own way (`"dipende" takes "da"
+# before the phrase.'); English's is translate.pl's own (`depends on')
+"depende" takes "de" before the phrase.
+"cuenta" takes "con" before the phrase.
+"participa" takes "en" before the phrase.
+"consiste" takes "en" before the phrase.
+"insiste" takes "en" before the phrase.
+"piensa" takes "en" before the phrase.
+# `..., lo que, en su opinión, no basta' (the Abogacía report, into Italian): the
+# relative that comments on the clause before its comma is not the phrase `the
+# one that', and Italian says `il che'
+"lo que" is a remark.
+# the verbs and the adjectives Spanish puts a subjunctive after, in a clause of
+# `que' (`Piden que la cantidad sea ...', `Es injusto que ... tengan')
+"quiere" takes the subjunctive.
+"desea" takes the subjunctive.
+"pide" takes the subjunctive.
+"espera" takes the subjunctive.
+"teme" takes the subjunctive.
+"duda" takes the subjunctive.
+"permite" takes the subjunctive.
+"prefiere" takes the subjunctive.
+"necesita" takes the subjunctive.
+"exige" takes the subjunctive.
+"impide" takes the subjunctive.
+"evita" takes the subjunctive.
+"sugiere" takes the subjunctive.
+"propone" takes the subjunctive.
+"injusto" takes the subjunctive.
+"justo" takes the subjunctive.
+"necesario" takes the subjunctive.
+"posible" takes the subjunctive.
+"probable" takes the subjunctive.
+"importante" takes the subjunctive.
+"extraño" takes the subjunctive.
+"normal" takes the subjunctive.
+"oportuno" takes the subjunctive.
+"útil" takes the subjunctive.
+# `No existía consenso entre los profesionales' (the Abogacía report, into
+# English): the verbs that take no object, so that the phrase after them is
+# their subject and `a Madrid' after `va' is where, not whom
+"existe" is intransitive.
+"ocurre" is intransitive.
+"sucede" is intransitive.
+"llega" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nace" is intransitive.
+"muere" is intransitive.
+"duerme" is intransitive.
+# `la reforma de la ley orgánica del poder judicial', `un código ... para sacar
+# adelante', `una partida presupuestaria mayor' (the Abogacía report, into
+# Italian): words of two or three that are one in the other language
+The masculine noun "poder judicial" means "judiciary".
+"poderes judiciales" is the plural of "poder judicial".
+The feminine noun "partida presupuestaria" means "budget item".
+"partidas presupuestarias" is the plural of "partida presupuestaria".
+The verb "saca adelante" means "carries forward".
+"sacan adelante" is the plural of "saca adelante".
+"sacar adelante" is the infinitive of "saca adelante".
+"sacando adelante" is the gerund of "saca adelante".
+"sacado adelante" is the participle of "saca adelante".

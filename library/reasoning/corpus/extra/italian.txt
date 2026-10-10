@@ -197,6 +197,10 @@ The preposition "grazie a" means "thanks to".
 The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
+# `aunque avisó: ...' (the Abogacía report, from Spanish): the clause after `aunque' is in the
+# indicative, and `nonostante' and `sebbene' want a subjunctive Italian writes here
+# and this does not; `anche se' takes the indicative, and is said first
+The conjunction "anche se" means "although".
 The conjunction "nonostante" means "although".
 # `nonostante la continua incertezza politica': before a phrase it is the
 # preposition, and the dictionary's first one is `around'
@@ -219,6 +223,10 @@ The feminine adjective "pazza" means "crazy".
 The adjective "fuori di testa" means "crazy".
 The verb "fa sapere" means "reports".
 The verb "ci si rende conto" means "realizes".
+# `Dobbiamo esser proprio premiati' (the Abogacía report): `aver' and `esser' are read,
+# and the whole infinitives are said first so that they are the ones written
+"avere" is the infinitive of "ha".
+"essere" is the infinitive of "è".
 "aver" is the infinitive of "ha".
 "esser" is the infinitive of "è".
 "è" is the auxiliary of "prosegue".
@@ -2566,3 +2574,104 @@ The adverb "tra gli altri" means "among others".
 "glieli" is the contraction of "le li".
 "gliele" is the contraction of "le le".
 "gliene" is the contraction of "le ne".
+# `permitió aprobar la legitimidad' (the Abogacía report, from Spanish): Italian
+# says `permise di approvare'
+"permette" takes "di" before the infinitive.
+# `un pacto de Estado sobre Justicia': the State and Justice, capitalised with
+# no article after a preposition, are the common nouns (`"estado" is an
+# institution.'), where a capital word alone there is a name
+"stato" is an institution.
+"giustizia" is an institution.
+# `dipende dalla qualità', `contare sulla loro collaborazione' (the Abogacía
+# report, from Spanish): the preposition a verb governs before a phrase
+"dipende" takes "da" before the phrase.
+"conta" takes "su" before the phrase.
+"partecipa" takes "a" before the phrase.
+"consiste" takes "in" before the phrase.
+"insiste" takes "su" before the phrase.
+"pensa" takes "a" before the phrase.
+# `inauguró en Tarragona': a city takes the word for `to' where English says
+# `in' (`"Tarragona" is a city.'); a country or a region keeps `in'
+"Tarragona" is a city.
+"Barcelona" is a city.
+"Madrid" is a city.
+"Girona" is a city.
+"Lleida" is a city.
+"Valencia" is a city.
+"Sevilla" is a city.
+"Bilbao" is a city.
+"Zaragoza" is a city.
+"Roma" is a city.
+"Milano" is a city.
+"Torino" is a city.
+"Napoli" is a city.
+"Genova" is a city.
+"Bologna" is a city.
+"Firenze" is a city.
+"Palermo" is a city.
+"Venezia" is a city.
+# `..., il che, a suo avviso, non basta' (from Spanish's `lo que')
+"il che" is a remark.
+# `Es injusto que los abogados tengan que soportar ...', `piden que la cantidad sea
+# ...' (the Abogacía report, from Spanish): the verbs and the adjectives Italian
+# puts a subjunctive after, in a clause of `che' -- `È ingiusto che debbano'
+"vuole" takes the subjunctive.
+"desidera" takes the subjunctive.
+"chiede" takes the subjunctive.
+"spera" takes the subjunctive.
+"teme" takes the subjunctive.
+"dubita" takes the subjunctive.
+"permette" takes the subjunctive.
+"preferisce" takes the subjunctive.
+"crede" takes the subjunctive.
+"pensa" takes the subjunctive.
+"ritiene" takes the subjunctive.
+"sembra" takes the subjunctive.
+"esige" takes the subjunctive.
+"impedisce" takes the subjunctive.
+"evita" takes the subjunctive.
+"suggerisce" takes the subjunctive.
+"propone" takes the subjunctive.
+"ingiusto" takes the subjunctive.
+"giusto" takes the subjunctive.
+"necessario" takes the subjunctive.
+"possibile" takes the subjunctive.
+"probabile" takes the subjunctive.
+"importante" takes the subjunctive.
+"strano" takes the subjunctive.
+"normale" takes the subjunctive.
+"opportuno" takes the subjunctive.
+"utile" takes the subjunctive.
+# the verbs that take no object (the Abogacía report, from Spanish)
+"esiste" is intransitive.
+"accade" is intransitive.
+"succede" is intransitive.
+"arriva" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nasce" is intransitive.
+"muore" is intransitive.
+"dorme" is intransitive.
+# the same words, in Italian
+The masculine noun "potere giudiziario" means "judiciary".
+"poteri giudiziari" is the plural of "potere giudiziario".
+The feminine noun "voce di bilancio" means "budget item".
+"voci di bilancio" is the plural of "voce di bilancio".
+The verb "porta avanti" means "carries forward".
+"portano avanti" is the plural of "porta avanti".
+"portare avanti" is the infinitive of "porta avanti".
+"portando avanti" is the gerund of "porta avanti".
+"portato avanti" is the participle of "porta avanti".
+# `las bases de un código', `la legitimidad', `están inscritos', `los
+# beneficios', `la imagen distorsionada', `honorarios habituales': the
+# dictionary's first Italian word is `basamento', `legittimazione', `inscrive'
+# (to inscribe), `profitto', `falsato' and `usuale', and these are said first
+The feminine noun "base" means "base".
+The feminine noun "legittimità" means "legitimacy".
+The verb "iscrive" means "inscribes".
+The masculine noun "utile" means "profit".
+The masculine adjective "distorto" means "distorted".
+"distorti" is the plural of "distorto".
+The feminine adjective "distorta" means "distorted".
+"distorte" is the plural of "distorta".
+The adjective "abituale" means "usual".

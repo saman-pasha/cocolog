@@ -11390,17 +11390,17 @@ newspaper_abogacia_checks_2 :-
 
 newspaper_abogacia_checks_3 :-
     nf_tr('El gato también ve la casa, en la que duerme el perro.', spanish, italian, C1),
-    check('A COMMA BEFORE A PREPOSITION AND ITS RELATIVE KEEPS THE ADVERB THE CLAUSE LIFTS: `Alonso-Cuevillas también reivindicó un mejor trato fiscal para los abogados, a quienes se les retiene el 20%'' -- `también'' is lifted and the comma kept, as `..., que superaron'' had it; with every comma out the relative clause was restrictive, and nothing read it after a preposition (the adverb is written last, as every lifted one is)', C1,
-          'Il gatto vede la casa, in cui dorme il cane anche.'),
+    check('A COMMA BEFORE A PREPOSITION AND ITS RELATIVE KEEPS THE ADVERB THE CLAUSE LIFTS: `Alonso-Cuevillas también reivindicó un mejor trato fiscal para los abogados, a quienes se les retiene el 20%'' -- `también'' is lifted and the comma kept, as `..., que superaron'' had it; with every comma out the relative clause was restrictive, and nothing read it after a preposition (the adverb is the word for `also'', which stands right after the verb)', C1,
+          'Il gatto vede anche la casa, in cui dorme il cane.'),
     nf_tr('El gato también ve el pan para los estudiantes, a quienes el perro ve la casa.', spanish, italian, C2),
     check('... with the relative word right after the preposition, no article between: `a quienes''', C2,
-          'Il gatto vede il pane per gli studenti, a cui il cane vede la casa anche.'),
+          'Il gatto vede anche il pane per gli studenti, a cui il cane vede la casa.'),
     nf_tr('El gato también ve la casa, en la ciudad.', spanish, italian, C3),
     check('a GUARD: a comma and a preposition that opens no relative clause leave the commas out, as they did', C3,
-          'Il gatto vede la casa nella città anche.'),
+          'Il gatto vede anche la casa nella città.'),
     nf_tr('El gato también ve la casa en la que duerme el perro.', spanish, italian, C4),
     check('a GUARD: a relative with no comma is restrictive, as it was', C4,
-          'Il gatto vede la casa in cui dorme il cane anche.').
+          'Il gatto vede anche la casa in cui dorme il cane.').
 
 newspaper_abogacia_checks_4 :-
     nf_tr('"El perro duerme; el gato come", dice el profesor.', spanish, italian, D1),

@@ -968,3 +968,6 @@
 # and is a believing; `trattenere' has its paradigm in apertium-ita.ita.dix and
 # no bilingual entry. Both ways, so that it is the first word for `retain'
 <e><p><l>retain<s n="vblex"/></l><r>trattenere<s n="vblex"/></r></p></e>
+# `la imagen distorsionada' (the Abogacía report, from Spanish): the participle
+# of `distort' is `distorto', never `falsato'
+<e><p><l>distort<s n="vblex"/></l><r>distorcere<s n="vblex"/></r></p></e>

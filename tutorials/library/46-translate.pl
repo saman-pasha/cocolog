@@ -5950,13 +5950,13 @@ section_63_2 :-
 
 section_63_3 :-
     reason_translate('El gato también ve la casa, en la que duerme el perro.', spanish, italian, S63c1),
-    must('a comma before a preposition and its relative keeps the adverb the clause lifts: `Alonso-Cuevillas también reivindicó un mejor trato fiscal para los abogados, a quienes se les retiene el 20%''', S63c1, 'Il gatto vede la casa, in cui dorme il cane anche.'),
+    must('a comma before a preposition and its relative keeps the adverb the clause lifts: `Alonso-Cuevillas también reivindicó un mejor trato fiscal para los abogados, a quienes se les retiene el 20%''', S63c1, 'Il gatto vede anche la casa, in cui dorme il cane.'),
     reason_translate('El gato también ve el pan para los estudiantes, a quienes el perro ve la casa.', spanish, italian, S63c2),
-    must('... with the relative word right after the preposition, no article between: `a quienes''', S63c2, 'Il gatto vede il pane per gli studenti, a cui il cane vede la casa anche.'),
+    must('... with the relative word right after the preposition, no article between: `a quienes''', S63c2, 'Il gatto vede anche il pane per gli studenti, a cui il cane vede la casa.'),
     reason_translate('El gato también ve la casa, en la ciudad.', spanish, italian, S63c3),
-    must('... but a comma and a preposition that opens no relative clause leave the commas out', S63c3, 'Il gatto vede la casa nella città anche.'),
+    must('... but a comma and a preposition that opens no relative clause leave the commas out', S63c3, 'Il gatto vede anche la casa nella città.'),
     reason_translate('El gato también ve la casa en la que duerme el perro.', spanish, italian, S63c4),
-    must('... and a relative with no comma is restrictive', S63c4, 'Il gatto vede la casa in cui dorme il cane anche.').
+    must('... and a relative with no comma is restrictive', S63c4, 'Il gatto vede anche la casa in cui dorme il cane.').
 
 section_63_4 :-
     reason_translate('"El perro duerme; el gato come", dice el profesor.', spanish, italian, S63d1),

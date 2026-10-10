@@ -1000,6 +1000,57 @@ The adverb "entre otros" means "among others".
 "se la" is the contraction of "les la".
 "se los" is the contraction of "les los".
 "se las" is the contraction of "les las".
+"estado" is an institution.
+"justicia" is an institution.
+"depende" takes "de" before the phrase.
+"cuenta" takes "con" before the phrase.
+"participa" takes "en" before the phrase.
+"consiste" takes "en" before the phrase.
+"insiste" takes "en" before the phrase.
+"piensa" takes "en" before the phrase.
+"lo que" is a remark.
+"quiere" takes the subjunctive.
+"desea" takes the subjunctive.
+"pide" takes the subjunctive.
+"espera" takes the subjunctive.
+"teme" takes the subjunctive.
+"duda" takes the subjunctive.
+"permite" takes the subjunctive.
+"prefiere" takes the subjunctive.
+"necesita" takes the subjunctive.
+"exige" takes the subjunctive.
+"impide" takes the subjunctive.
+"evita" takes the subjunctive.
+"sugiere" takes the subjunctive.
+"propone" takes the subjunctive.
+"injusto" takes the subjunctive.
+"justo" takes the subjunctive.
+"necesario" takes the subjunctive.
+"posible" takes the subjunctive.
+"probable" takes the subjunctive.
+"importante" takes the subjunctive.
+"extraño" takes the subjunctive.
+"normal" takes the subjunctive.
+"oportuno" takes the subjunctive.
+"útil" takes the subjunctive.
+"existe" is intransitive.
+"ocurre" is intransitive.
+"sucede" is intransitive.
+"llega" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nace" is intransitive.
+"muere" is intransitive.
+"duerme" is intransitive.
+The masculine noun "poder judicial" means "judiciary".
+"poderes judiciales" is the plural of "poder judicial".
+The feminine noun "partida presupuestaria" means "budget item".
+"partidas presupuestarias" is the plural of "partida presupuestaria".
+The verb "saca adelante" means "carries forward".
+"sacan adelante" is the plural of "saca adelante".
+"sacar adelante" is the infinitive of "saca adelante".
+"sacando adelante" is the gerund of "saca adelante".
+"sacado adelante" is the participle of "saca adelante".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
