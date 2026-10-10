@@ -106,6 +106,11 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
 * **Where `$HOME` is not where the checkouts are** (a container), set
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
+* **Debian's SBCL 2.2.9 starts with a 1 GB heap, which a build of cocolog
+  exhausts** (a heap-exhaustion report from Cicili, midway). `make` takes
+  `SBCL="sbcl --dynamic-space-size 4096"`; the `build.sh` of a module calls
+  `sbcl` by name, so put a shim first on PATH that runs
+  `exec /usr/bin/sbcl --dynamic-space-size 4096 "$@"`.
 * **Everything is built by clang** -- the client, the interpreter, the
   embedded store, every module, ZiguratIP's libraries and server, and the
   Parsi objects the server loads -- because cocolog links ZiguratIP's C++
@@ -1013,8 +1018,12 @@ read into an English-worded IR and written into any lesson's language),
   not become the word written.
 * **A store learns only the lines it lacks**, appended: an ORDER is a
   property of a teach, not of a line. A data fix is proved on a store taught
-  from the rebuilt vocabulary. Teaching both languages into one `--embed`
-  store takes ~11 and ~18 minutes.
+  from the rebuilt vocabulary. Teaching both languages into one fresh
+  `--embed` store takes ~40 s on 1.10.0 (18 s and 23 s, four vCPUs; it took
+  ~11 and ~18 minutes), so **try an ORDER effect on a fresh store before an
+  `extra/` line is final**: a working store that had lines appended in
+  another order showed a first meaning the fresh one did not (`de riesgo`,
+  `cualquiera`).
 * **Memory**: a teach sat at 4-9 GB resident before the heap collector of
   1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
   tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run
@@ -1126,7 +1135,37 @@ read into an English-worded IR and written into any lesson's language),
   null third-person subject (`asegura`, `añade`), and does not write a
   relative clause `en que esté permitida` or one with a participle and its
   agent after `contará con`: four of the Clot report's sentences stay out of
-  English.
+  English; from the Quartieri report (Italian into Spanish): the words
+  `linguaggi` (`idiomas`), `laboratori` (`laboratorios`), `strada` after
+  `teatro di` (`carretera`), `sfilata` (`intestino`), `palco` (`etapa`),
+  `costumi` (`costumbres`), `opere` (`óperas`), `pannelli` (`tableros`),
+  `tele` (`lonas`), `svolgersi` (`actuar`), `contributo libero`
+  (`contribución gratuita`), `impegneranno` (`comprometerán`), `saranno
+  insieme` (`serán juntos`), `per una settimana` (`para una semana`) and
+  `ragazzi` (`niños`; `chico` first broke `bambino`) are the dictionary's
+  first word, not the news's; `a` before a place keeps its `a` (`a Harlem`,
+  `a Tor Bella Monaca`, where Spanish says `en`: the lesson has no notion of a
+  place), a country keeps its article (`desde la Italia`) and a name is
+  translated word by word where its words are common (`Alta tensione` is
+  `Alto voltaje`, `Sud Africa` `Sur Africa`); a quotation, its verb and then
+  the speaker (`..." spiega Nicoletta Gaida`) writes the speaker as an object
+  (`explica a Nicoletta Gaida`) and the apposition after it keeps no gender
+  (`ideatrice` is `creador`); a quotation inside a quotation (`come
+  "delinquenti"`) loses its place; `che da anni coinvolge ... e dal Sud
+  Africa l'amajica ...` is one relative clause to the end of its bracket, so
+  `desde hace años` is written at the end of the bracket; `nuovi linguaggi del
+  disagio giovanile in cui immergersi` attaches `in cui` to `disagio`
+  (`en el que`); `"quartieri"` in lowercase marks is translated (`"barrios"`)
+  where the lesson names it only with a capital; a name that begins with a
+  word the lesson knows (`Lord of the Rings`) is still refused, and `&`
+  between lowercase words is dropped (`pane & vino`). A bare noun before
+  `di` no longer takes the gender of the noun after it unless it says a part
+  (`tasse d'iscrizione` is `impuestos de inscripción`, like the first
+  `tasse`; it was `tasas`, by the gender of `inscripción`). English writes
+  `graffiti` as `graffitoes` (no irregular plurals) and a weekday with no
+  capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
+  (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
+  `La mostra` alone is refused into English).
 
 ## Tutorials are documentation that runs
 

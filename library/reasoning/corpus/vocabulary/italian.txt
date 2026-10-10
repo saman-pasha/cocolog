@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16461 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16479 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1372,6 +1372,41 @@ The verb "auspica" means "hopes".
 The verb "auspica" means "advocates".
 "passeggi" is the plural of "passeggio".
 The masculine noun "negozio" means "shop".
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+The masculine determiner "diverso" means "several".
+"diversi" is the plural of "diverso".
+The feminine determiner "diversa" means "several".
+"diverse" is the plural of "diversa".
+The masculine determiner "vario" means "several".
+"vari" is the plural of "vario".
+The feminine determiner "varia" means "several".
+"varie" is the plural of "varia".
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+The feminine noun "ideatrice" means "creator".
+"ideatrici" is the plural of "ideatrice".
+"ideatrice" is a person.
+"devoluto" is the participle of "devolve".
+"devoluta" is the participle of "devolve".
+"devoluti" is the participle of "devolve".
+"devolute" is the participle of "devolve".
+The masculine adjective "sudafricano" means "south african".
+"sudafricani" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricane" is the plural of "sudafricana".
+"usa" is a name.
+The masculine noun "cantiere" means "building site".
+"cantieri" is the plural of "cantiere".
+The masculine noun "disagio" means "unrest".
+"Lega Italiana Lotta Aids" is a name.
+The verb "dichiara" means "declares".
+The preposition "a capo di" means "in charge of".
+The verb "ingaggia" means "engages".
+The verb "impegna" means "engages".
+The pronoun "molto altro ancora" means "much more". The pronoun "molto altro ancora" does not precede the verb.
+"quartieri" is a name.
+The masculine noun "amajica performing arts project" means "amajica performing arts project".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -16692,6 +16727,23 @@ The feminine noun "fiscalità" means "taxation".
 "fiscalità" is the plural of "fiscalità".
 The masculine noun "pompiere" means "fireman".
 "pompieri" is the plural of "pompiere".
+The masculine noun "graffito" means "graffito".
+"graffiti" is the plural of "graffito".
+The feminine noun "zampa" means "paw".
+"zampe" is the plural of "zampa".
+The masculine noun "ideatore" means "creator".
+"ideatori" is the plural of "ideatore".
+The noun "delinquente" means "criminal".
+"delinquenti" is the plural of "delinquente".
+"delinquente" is a person.
+The masculine noun "montatore" means "fitter".
+"montatori" is the plural of "montatore".
+The masculine noun "ingresso" means "entrance".
+"ingressi" is the plural of "ingresso".
+The feminine noun "rassegna" means "festival".
+"rassegne" is the plural of "rassegna".
+The feminine noun "serata" means "evening".
+"serate" is the plural of "serata".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -93109,6 +93161,241 @@ The verb "gareggia" means "competes".
 "gareggiate" is the plural of "gareggiata".
 "gareggiare" is the infinitive of "gareggia".
 "gareggiando" is the gerund of "gareggia".
+The verb "dilaga" means "proliferates".
+"dilagano" is the plural of "dilaga".
+"dilaghiamo" is the first person of "dilagano".
+"dilago" is the first person of "dilaga".
+"dilaghi" is the second person of "dilaga".
+"dilagò" is the past of "dilaga".
+"dilagarono" is the past of "dilagano".
+"dilagammo" is the first person of "dilagarono".
+"dilagai" is the first person of "dilagò".
+"dilagasti" is the second person of "dilagò".
+"dilagava" is the past of "dilaga".
+"dilagavano" is the past of "dilagano".
+"dilagavamo" is the first person of "dilagavano".
+"dilagavo" is the first person of "dilagava".
+"dilagavi" is the second person of "dilagava".
+"dilagherà" is the future of "dilaga".
+"dilagheranno" is the plural of "dilagherà".
+"dilagheremo" is the first person of "dilagheranno".
+"dilagherò" is the first person of "dilagherà".
+"dilagherai" is the second person of "dilagherà".
+"dilagherebbe" is the conditional of "dilaga".
+"dilagherebbero" is the plural of "dilagherebbe".
+"dilagheremmo" is the first person of "dilagherebbero".
+"dilagherei" is the first person of "dilagherebbe".
+"dilagheresti" is the second person of "dilagherebbe".
+"dilaghi" is the subjunctive of "dilaga".
+"dilaghino" is the plural of "dilaghi".
+"dilaghiamo" is the first person of "dilaghino".
+"dilagasse" is the past subjunctive of "dilaga".
+"dilagassero" is the plural of "dilagasse".
+"dilagassimo" is the first person of "dilagassero".
+"dilagassi" is the first person of "dilagasse".
+"dilagassi" is the second person of "dilagasse".
+"dilaga" is the imperative of "dilaga".
+"dilagare" is the negative imperative of "dilaga".
+"dilagate" is the imperative of "dilagano".
+"dilaghiamo" is the hortative of "dilaga".
+"dilagato" is the participle of "dilaga".
+"dilagata" is the participle of "dilaga".
+"dilagata" is feminine.
+"dilagati" is the participle of "dilaga".
+"dilagati" is the plural of "dilagato".
+"dilagate" is the participle of "dilaga".
+"dilagate" is feminine.
+"dilagate" is the plural of "dilagata".
+"dilagare" is the infinitive of "dilaga".
+"dilagando" is the gerund of "dilaga".
+The verb "immerge" means "submerges".
+"immergono" is the plural of "immerge".
+"immergiamo" is the first person of "immergono".
+"immergo" is the first person of "immerge".
+"immergi" is the second person of "immerge".
+"immerse" is the past of "immerge".
+"immersero" is the past of "immergono".
+"immergemmo" is the first person of "immersero".
+"immersi" is the first person of "immerse".
+"immergesti" is the second person of "immerse".
+"immergeva" is the past of "immerge".
+"immergevano" is the past of "immergono".
+"immergevamo" is the first person of "immergevano".
+"immergevo" is the first person of "immergeva".
+"immergevi" is the second person of "immergeva".
+"immergerà" is the future of "immerge".
+"immergeranno" is the plural of "immergerà".
+"immergeremo" is the first person of "immergeranno".
+"immergerò" is the first person of "immergerà".
+"immergerai" is the second person of "immergerà".
+"immergerebbe" is the conditional of "immerge".
+"immergerebbero" is the plural of "immergerebbe".
+"immergeremmo" is the first person of "immergerebbero".
+"immergerei" is the first person of "immergerebbe".
+"immergeresti" is the second person of "immergerebbe".
+"immerga" is the subjunctive of "immerge".
+"immergano" is the plural of "immerga".
+"immergiamo" is the first person of "immergano".
+"immergesse" is the past subjunctive of "immerge".
+"immergessero" is the plural of "immergesse".
+"immergessimo" is the first person of "immergessero".
+"immergessi" is the first person of "immergesse".
+"immergessi" is the second person of "immergesse".
+"immergi" is the imperative of "immerge".
+"immergere" is the negative imperative of "immerge".
+"immergete" is the imperative of "immergono".
+"immergiamo" is the hortative of "immerge".
+"immerso" is the participle of "immerge".
+"immersa" is the participle of "immerge".
+"immersa" is feminine.
+"immersi" is the participle of "immerge".
+"immersi" is the plural of "immerso".
+"immerse" is the participle of "immerge".
+"immerse" is feminine.
+"immerse" is the plural of "immersa".
+"immergere" is the infinitive of "immerge".
+"immergendo" is the gerund of "immerge".
+The verb "emargina" means "marginalises".
+"emarginano" is the plural of "emargina".
+"emarginiamo" is the first person of "emarginano".
+"emargino" is the first person of "emargina".
+"emargini" is the second person of "emargina".
+"emarginò" is the past of "emargina".
+"emarginarono" is the past of "emarginano".
+"emarginammo" is the first person of "emarginarono".
+"emarginai" is the first person of "emarginò".
+"emarginasti" is the second person of "emarginò".
+"emarginava" is the past of "emargina".
+"emarginavano" is the past of "emarginano".
+"emarginavamo" is the first person of "emarginavano".
+"emarginavo" is the first person of "emarginava".
+"emarginavi" is the second person of "emarginava".
+"emarginerà" is the future of "emargina".
+"emargineranno" is the plural of "emarginerà".
+"emargineremo" is the first person of "emargineranno".
+"emarginerò" is the first person of "emarginerà".
+"emarginerai" is the second person of "emarginerà".
+"emarginerebbe" is the conditional of "emargina".
+"emarginerebbero" is the plural of "emarginerebbe".
+"emargineremmo" is the first person of "emarginerebbero".
+"emarginerei" is the first person of "emarginerebbe".
+"emargineresti" is the second person of "emarginerebbe".
+"emargini" is the subjunctive of "emargina".
+"emarginino" is the plural of "emargini".
+"emarginiamo" is the first person of "emarginino".
+"emarginasse" is the past subjunctive of "emargina".
+"emarginassero" is the plural of "emarginasse".
+"emarginassimo" is the first person of "emarginassero".
+"emarginassi" is the first person of "emarginasse".
+"emarginassi" is the second person of "emarginasse".
+"emargina" is the imperative of "emargina".
+"emarginare" is the negative imperative of "emargina".
+"emarginate" is the imperative of "emarginano".
+"emarginiamo" is the hortative of "emargina".
+"emarginato" is the participle of "emargina".
+"emarginata" is the participle of "emargina".
+"emarginata" is feminine.
+"emarginati" is the participle of "emargina".
+"emarginati" is the plural of "emarginato".
+"emarginate" is the participle of "emargina".
+"emarginate" is feminine.
+"emarginate" is the plural of "emarginata".
+"emarginare" is the infinitive of "emargina".
+"emarginando" is the gerund of "emargina".
+The verb "presceglie" means "chooses".
+"prescelgono" is the plural of "presceglie".
+"prescegliamo" is the first person of "prescelgono".
+"prescelgo" is the first person of "presceglie".
+"prescegli" is the second person of "presceglie".
+"prescelse" is the past of "presceglie".
+"prescelsero" is the past of "prescelgono".
+"prescegliemmo" is the first person of "prescelsero".
+"prescelsi" is the first person of "prescelse".
+"prescegliesti" is the second person of "prescelse".
+"presceglieva" is the past of "presceglie".
+"presceglievano" is the past of "prescelgono".
+"presceglievamo" is the first person of "presceglievano".
+"presceglievo" is the first person of "presceglieva".
+"presceglievi" is the second person of "presceglieva".
+"presceglierà" is the future of "presceglie".
+"presceglieranno" is the plural of "presceglierà".
+"presceglieremo" is the first person of "presceglieranno".
+"presceglierò" is the first person of "presceglierà".
+"presceglierai" is the second person of "presceglierà".
+"presceglierebbe" is the conditional of "presceglie".
+"presceglierebbero" is the plural of "presceglierebbe".
+"presceglieremmo" is the first person of "presceglierebbero".
+"presceglierei" is the first person of "presceglierebbe".
+"presceglieresti" is the second person of "presceglierebbe".
+"prescelga" is the subjunctive of "presceglie".
+"prescelgano" is the plural of "prescelga".
+"prescegliamo" is the first person of "prescelgano".
+"prescegliesse" is the past subjunctive of "presceglie".
+"prescegliessero" is the plural of "prescegliesse".
+"prescegliessimo" is the first person of "prescegliessero".
+"prescegliessi" is the first person of "prescegliesse".
+"prescegliessi" is the second person of "prescegliesse".
+"prescegli" is the imperative of "presceglie".
+"prescegliere" is the negative imperative of "presceglie".
+"prescegliete" is the imperative of "prescelgono".
+"prescegliamo" is the hortative of "presceglie".
+"prescelto" is the participle of "presceglie".
+"prescelta" is the participle of "presceglie".
+"prescelta" is feminine.
+"prescelti" is the participle of "presceglie".
+"prescelti" is the plural of "prescelto".
+"prescelte" is the participle of "presceglie".
+"prescelte" is feminine.
+"prescelte" is the plural of "prescelta".
+"prescegliere" is the infinitive of "presceglie".
+"prescegliendo" is the gerund of "presceglie".
+The verb "devolve" means "allocates".
+"devolvono" is the plural of "devolve".
+"devolviamo" is the first person of "devolvono".
+"devolvo" is the first person of "devolve".
+"devolvi" is the second person of "devolve".
+"devolse" is the past of "devolve".
+"devolsero" is the past of "devolvono".
+"devolvemmo" is the first person of "devolsero".
+"devolsi" is the first person of "devolse".
+"devolvesti" is the second person of "devolse".
+"devolveva" is the past of "devolve".
+"devolvevano" is the past of "devolvono".
+"devolvevamo" is the first person of "devolvevano".
+"devolvevo" is the first person of "devolveva".
+"devolvevi" is the second person of "devolveva".
+"devolverà" is the future of "devolve".
+"devolveranno" is the plural of "devolverà".
+"devolveremo" is the first person of "devolveranno".
+"devolverò" is the first person of "devolverà".
+"devolverai" is the second person of "devolverà".
+"devolverebbe" is the conditional of "devolve".
+"devolverebbero" is the plural of "devolverebbe".
+"devolveremmo" is the first person of "devolverebbero".
+"devolverei" is the first person of "devolverebbe".
+"devolveresti" is the second person of "devolverebbe".
+"devolva" is the subjunctive of "devolve".
+"devolvano" is the plural of "devolva".
+"devolviamo" is the first person of "devolvano".
+"devolvesse" is the past subjunctive of "devolve".
+"devolvessero" is the plural of "devolvesse".
+"devolvessimo" is the first person of "devolvessero".
+"devolvessi" is the first person of "devolvesse".
+"devolvessi" is the second person of "devolvesse".
+"devolvi" is the imperative of "devolve".
+"devolvere" is the negative imperative of "devolve".
+"devolvete" is the imperative of "devolvono".
+"devolviamo" is the hortative of "devolve".
+"devolto" is the participle of "devolve".
+"devolta" is the participle of "devolve".
+"devolta" is feminine.
+"devolti" is the participle of "devolve".
+"devolti" is the plural of "devolto".
+"devolte" is the participle of "devolve".
+"devolte" is feminine.
+"devolte" is the plural of "devolta".
+"devolvere" is the infinitive of "devolve".
+"devolvendo" is the gerund of "devolve".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -97229,6 +97516,53 @@ The verb "sparge" means "scatters".
 "sparse" is the plural of "sparsa".
 "spargere" is the infinitive of "sparge".
 "spargendo" is the gerund of "sparge".
+The verb "coinvolge" means "involves".
+"coinvolgono" is the plural of "coinvolge".
+"coinvolgiamo" is the first person of "coinvolgono".
+"coinvolgo" is the first person of "coinvolge".
+"coinvolgi" is the second person of "coinvolge".
+"coinvolse" is the past of "coinvolge".
+"coinvolsero" is the past of "coinvolgono".
+"coinvolgemmo" is the first person of "coinvolsero".
+"coinvolsi" is the first person of "coinvolse".
+"coinvolgesti" is the second person of "coinvolse".
+"coinvolgeva" is the past of "coinvolge".
+"coinvolgevano" is the past of "coinvolgono".
+"coinvolgevamo" is the first person of "coinvolgevano".
+"coinvolgevo" is the first person of "coinvolgeva".
+"coinvolgevi" is the second person of "coinvolgeva".
+"coinvolgerà" is the future of "coinvolge".
+"coinvolgeranno" is the plural of "coinvolgerà".
+"coinvolgeremo" is the first person of "coinvolgeranno".
+"coinvolgerò" is the first person of "coinvolgerà".
+"coinvolgerai" is the second person of "coinvolgerà".
+"coinvolgerebbe" is the conditional of "coinvolge".
+"coinvolgerebbero" is the plural of "coinvolgerebbe".
+"coinvolgeremmo" is the first person of "coinvolgerebbero".
+"coinvolgerei" is the first person of "coinvolgerebbe".
+"coinvolgeresti" is the second person of "coinvolgerebbe".
+"coinvolga" is the subjunctive of "coinvolge".
+"coinvolgano" is the plural of "coinvolga".
+"coinvolgiamo" is the first person of "coinvolgano".
+"coinvolgesse" is the past subjunctive of "coinvolge".
+"coinvolgessero" is the plural of "coinvolgesse".
+"coinvolgessimo" is the first person of "coinvolgessero".
+"coinvolgessi" is the first person of "coinvolgesse".
+"coinvolgessi" is the second person of "coinvolgesse".
+"coinvolgi" is the imperative of "coinvolge".
+"coinvolgere" is the negative imperative of "coinvolge".
+"coinvolgete" is the imperative of "coinvolgono".
+"coinvolgiamo" is the hortative of "coinvolge".
+"coinvolto" is the participle of "coinvolge".
+"coinvolta" is the participle of "coinvolge".
+"coinvolta" is feminine.
+"coinvolti" is the participle of "coinvolge".
+"coinvolti" is the plural of "coinvolto".
+"coinvolte" is the participle of "coinvolge".
+"coinvolte" is feminine.
+"coinvolte" is the plural of "coinvolta".
+"coinvolgere" is the infinitive of "coinvolge".
+"coinvolgendo" is the gerund of "coinvolge".
 The verb "pratica" means "practices".
 The verb "ristabilisce" means "reinstates".
 The verb "strappa" means "rips".
@@ -98632,6 +98966,12 @@ The feminine adjective "determinata" means "determinate".
 "determinatissimi" is the superlative of "determinati".
 "determinatissima" is the superlative of "determinata".
 "determinatissime" is the superlative of "determinate".
+The adjective "proveniente" means "originating".
+"provenienti" is the plural of "proveniente".
+"provenientissimo" is the superlative of "proveniente".
+"provenientissimi" is the superlative of "provenienti".
+"provenientissima" is the superlative of "proveniente".
+"provenientissime" is the superlative of "provenienti".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -104725,11 +105065,6 @@ The feminine adjective "preposta" means "preferred".
 "prepostissima" is the superlative of "preposta".
 "prepostissime" is the superlative of "preposte".
 The adjective "proveniente" means "resulting".
-"provenienti" is the plural of "proveniente".
-"provenientissimo" is the superlative of "proveniente".
-"provenientissimi" is the superlative of "provenienti".
-"provenientissima" is the superlative of "proveniente".
-"provenientissime" is the superlative of "provenienti".
 The adjective "giacobita" means "jacobite".
 The adjective "graduale" means "gradual".
 "graduali" is the plural of "graduale".
@@ -114589,6 +114924,30 @@ The adjective "inefficiente" means "inefficient".
 "inefficientissimi" is the superlative of "inefficienti".
 "inefficientissima" is the superlative of "inefficiente".
 "inefficientissime" is the superlative of "inefficienti".
+The masculine adjective "visivo" means "visual".
+"visivi" is the plural of "visivo".
+The feminine adjective "visiva" means "visual".
+"visive" is the plural of "visiva".
+"visivissimo" is the superlative of "visivo".
+"visivissimi" is the superlative of "visivi".
+"visivissima" is the superlative of "visiva".
+"visivissime" is the superlative of "visive".
+The masculine adjective "emarginato" means "marginalised".
+"emarginati" is the plural of "emarginato".
+The feminine adjective "emarginata" means "marginalised".
+"emarginate" is the plural of "emarginata".
+"emarginatissimo" is the superlative of "emarginato".
+"emarginatissimi" is the superlative of "emarginati".
+"emarginatissima" is the superlative of "emarginata".
+"emarginatissime" is the superlative of "emarginate".
+The masculine adjective "impegnato" means "committed".
+"impegnati" is the plural of "impegnato".
+The feminine adjective "impegnata" means "committed".
+"impegnate" is the plural of "impegnata".
+"impegnatissimo" is the superlative of "impegnato".
+"impegnatissimi" is the superlative of "impegnati".
+"impegnatissima" is the superlative of "impegnata".
+"impegnatissime" is the superlative of "impegnate".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

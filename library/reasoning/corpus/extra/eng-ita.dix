@@ -912,3 +912,51 @@
 # `determinate' to the dictionary, and apertium-ita carries `determinato' with
 # its paradigm and no English word
 <e><p><l>determinate<s n="adj"/></l><r>determinato<s n="adj"/></r></p></e>
+# the Quartieri article (Venice treebank VIT, hip hop workshops at Tor Bella
+# Monaca), into Spanish: the Italian words for the English ones the Spanish
+# entries below write. Each has its paradigm in apertium-ita.ita.dix and no
+# English word, or one the translator cannot use, and all are read only (RL)
+# but `coinvolgere'. (`le varie espressioni' and `sudafricani' are in
+# extra/italian.txt: `vario' is `various' to the dictionary, which is no
+# determiner the builder admits, and the builder reads no entry of two English
+# words.) `arti visive':
+<e r="RL"><p><l>visual<s n="adj"/></l><r>visivo<s n="adj"/></r></p></e>
+# `Graffiti per colorare il grigio delle metropoli' and `la violenza che dilaga
+# tra i giovani': a graffito, and violence that proliferates
+<e r="RL"><p><l>graffito<s n="n"/></l><r>graffito<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>proliferate<s n="vblex"/></l><r>dilagare<s n="vblex"/></r></p></e>
+# `in cui immergersi', `coinvolge ragazzi', `i giovani emarginati', `andare a
+# quattro zampe', `nei campi prescelti', `contributo ... devoluto alla Lega'.
+# `coinvolgere' is LR and not RL: an RL entry for `involve' comes before the
+# dictionary's LR one for `implicare', which the builder then drops as both its
+# words seen, and `implica' lost its second meaning, involves
+<e r="RL"><p><l>submerge<s n="vblex"/></l><r>immergere<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>involve<s n="vblex"/></l><r>coinvolgere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>marginalise<s n="vblex"/></l><r>emarginare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>paw<s n="n"/></l><r>zampa<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>choose<s n="vblex"/></l><r>prescegliere<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>allocate<s n="vblex"/></l><r>devolvere<s n="vblex"/></r></p></e>
+# `Nicoletta Gaida, ideatrice dell'iniziativa' (the paradigm has the feminine),
+# `etichettarli come "delinquenti"', `squadre di montatori', `ingresso gratuito'
+# and `la rassegna "quartieri"'
+<e r="RL"><p><l>creator<s n="n"/></l><r>ideatore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>creator<s n="n"/></l><r>ideatore<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>criminal<s n="n"/></l><r>delinquente<s n="n"/><s n="mf"/></r></p></e>
+<e r="RL"><p><l>fitter<s n="n"/></l><r>montatore<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>entrance<s n="n"/></l><r>ingresso<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>festival<s n="n"/></l><r>rassegna<s n="n"/><s n="f"/></r></p></e>
+# `nella serata finale': the Italian entry for `serata' is in the monolingual
+# dictionary only; the evening is what Spanish says `noche' for
+<e r="RL"><p><l>evening<s n="n"/></l><r>serata<s n="n"/><s n="f"/></r></p></e>
+# `ragazzi emarginati e a rischio': the youths marginalised and at risk. A
+# participle that is no adjective to the lesson cannot be joined to one by `e',
+# so `emarginato' (an adjective of apertium-ita.ita.dix) is the adjective too
+<e r="RL"><p><l>marginalised<s n="adj"/></l><r>emarginato<s n="adj"/></r></p></e>
+# `persone impegnate nel recupero dei giovani emarginati': committed people --
+# `impegnato' is an adjective of apertium-ita.ita.dix with no English word, and
+# the participle of `impegnare' is pledged, which Spanish says `prometidas'
+<e r="RL"><p><l>committed<s n="adj"/></l><r>impegnato<s n="adj"/></r></p></e>
+# `ragazzi provenienti dai ghetti': the dictionary's meaning for `proveniente'
+# is resulting, which Spanish says `resultantes'; the youths come from the
+# ghettos. Both ways, so that it is the first meaning of the word
+<e><p><l>originating<s n="adj"/></l><r>proveniente<s n="adj"/><s n="mf"/></r></p></e>

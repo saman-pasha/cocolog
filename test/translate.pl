@@ -31,7 +31,7 @@ main :-
     newspaper_england, newspaper_bovalino, newspaper_puigbo, newspaper_salvini, newspaper_radio,
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
-    newspaper_israel, newspaper_montanelli, newspaper_clot,
+    newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -11064,6 +11064,203 @@ newspaper_clot_checks_7 :-
     check('A DASH INSIDE A PAIR OF MARKS THAT IS NOT THE WHOLE PIECE IS A DASH: `"La peatonalización - añade - complementará ...", en el que ...'' -- the aside goes last, as every one inside a quotation does', G2,
           '"Il cane dorme nella casa", nella città – dice –.').
 %% <<< clot
+
+%% >>> quartieri
+%% ---- an Italian report on a youth festival into Spanish (VIT's "Quartieri") ----------------
+
+newspaper_quartieri :-
+    section('an Italian report on a youth festival into Spanish: a pair of places in front, a reflexive infinitive in a relative clause, a plural heading, a purpose in front, the word after a colon, the commas of a list after its verb, the gender of a noun its adjective settles, a stated name at the head, an ampersand and an `of the'' in a name, a count of time after `da'', a weekday and its number, a byline, and a clitic that agrees with its phrase'),
+    newspaper_quartieri_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_quartieri_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_quartieri_checks_1, newspaper_quartieri_checks_2, newspaper_quartieri_checks_3,
+    newspaper_quartieri_checks_4, newspaper_quartieri_checks_5, newspaper_quartieri_checks_6,
+    newspaper_quartieri_checks_7, newspaper_quartieri_checks_8,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others
+newspaper_quartieri_lesson(L, Text) :-
+    newspaper_quartieri_part(L, 1, A), newspaper_quartieri_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+newspaper_quartieri_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "o" means "or". The conjunction "si" means "if". The conjunction "que" means "that". "que" is a relative.
+The adverb "mañana" means "tomorrow". The reflexive pronoun "se" means "itself".
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house".
+The masculine noun "estudiante" means "student". "estudiante" is a person. "estudiantes" is the plural of "estudiante".
+The masculine noun "vecino" means "neighbour". The masculine adjective "vecino" means "neighbouring". "vecinos" is the plural of "vecino".
+The masculine noun "autor" means "author". "autor" is a person. "autores" is the plural of "autor".
+The feminine noun "autora" means "author". "autora" is a person. "autoras" is the plural of "autora".
+The masculine noun "miembro" means "limb". The feminine noun "arte" means "art". "artes" is the plural of "arte".
+The adjective "visual" means "visual". "visuales" is the plural of "visual".
+The masculine noun "año" means "year". "año" is a time. "años" is the plural of "año".
+The masculine noun "lunes" means "monday". "lunes" is a time. The masculine noun "jueves" means "thursday". "jueves" is a time. The article "el" takes the day.
+The feminine noun "reunión" means "meeting". The masculine noun "parecer" means "opinion". The feminine noun "muestra" means "exhibition". "muestras" is the plural of "muestra".
+The masculine noun "libro" means "book". "libros" is the plural of "libro".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "desde" means "from". The preposition "desde hace" means "for the past".
+The word "para" begins the purpose. The preposition "para" means "for". The preposition "a" means "to". The word "a" precedes the person.').
+newspaper_quartieri_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "lava" means "washes". "lavar" is the infinitive of "lava".
+The verb "da" means "gives". "dar" is the infinitive of "da". The verb "parece" means "seems". "parecer" is the infinitive of "parece".
+The verb "trabaja" means "works". "trabaja" is intransitive. "trabajan" is the plural of "trabaja". "trabajar" is the infinitive of "trabaja".
+The verb "muestra" means "shows". "mostrar" is the infinitive of "muestra".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es".
+The pronoun "la" means "her". The pronoun "la" means "it". The pronoun "lo" means "him". The pronoun "lo" means "it".
+"seen" is the participle of "sees". "been" is the participle of "is".').
+newspaper_quartieri_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la". "dei" is the contraction of "di i". "dalla" is the contraction of "da la".
+"l''" is the elision of "lo". "l''" is the elision of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "o" means "or". The conjunction "se" means "if". The conjunction "che" means "that". "che" is a relative. "cui" is a relative. The word "cui" follows the preposition.
+The adverb "domani" means "tomorrow". The reflexive pronoun "si" means "itself".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto". The masculine noun "pane" means "bread".
+The feminine noun "casa" means "house". "case" is the plural of "casa".
+The masculine noun "studente" means "student". "studente" is a person. "studenti" is the plural of "studente".
+The masculine noun "vicino" means "neighbour". The masculine adjective "vicino" means "neighbouring". "vicini" is the plural of "vicino".
+The masculine noun "autore" means "author". "autore" is a person. "autori" is the plural of "autore".
+The feminine noun "autrice" means "author". "autrice" is a person. "autrici" is the plural of "autrice".
+The masculine noun "arto" means "limb". "arti" is the plural of "arto". The feminine noun "arte" means "art". "arti" is the plural of "arte".
+The masculine adjective "visivo" means "visual". "visivi" is the plural of "visivo". The feminine adjective "visiva" means "visual". "visive" is the plural of "visiva".
+The masculine noun "anno" means "year". "anno" is a time. "anni" is the plural of "anno".
+The masculine noun "lunedì" means "monday". "lunedì" is a time. The masculine noun "giovedì" means "thursday". "giovedì" is a time.
+The masculine noun "convegno" means "meeting". The masculine noun "parere" means "opinion". The feminine noun "mostra" means "exhibition". "mostre" is the plural of "mostra".
+The masculine noun "libro" means "book". "libri" is the plural of "libro".
+The masculine noun "quartiere" means "district". "quartieri" is the plural of "quartiere". "quartieri" is a name.
+The preposition "in" means "in". The preposition "di" means "of". The preposition "da" means "from". The preposition "da" means "for the past".
+The word "per" begins the purpose. The preposition "per" means "for". The preposition "a" means "to".').
+newspaper_quartieri_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "lava" means "washes". "lavare" is the infinitive of "lava".
+The verb "dà" means "gives". "dare" is the infinitive of "dà". The verb "pare" means "seems". "parere" is the infinitive of "pare".
+The verb "lavora" means "works". "lavora" is intransitive. "lavorano" is the plural of "lavora". "lavorare" is the infinitive of "lavora".
+The verb "mostra" means "shows". "mostrare" is the infinitive of "mostra".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+The pronoun "la" means "her". The pronoun "la" means "it". The pronoun "lo" means "him". The pronoun "lo" means "it".
+"seen" is the participle of "sees". "been" is the participle of "is".').
+
+newspaper_quartieri_checks_1 :-
+    nf_tr('Roma o Milano, il gatto dorme.', italian, spanish, A1),
+    check('A PAIR OF PLACES IN FRONT: `Usa o Italia, "hip hop" è la lingua del ghetto'' -- the pair was no name to the clause, and the whole sentence was refused', A1,
+          'Roma o Milano, el gato duerme.'),
+    nf_tr('Roma o il cane, il gatto dorme.', italian, spanish, A2),
+    check('a GUARD: a pair of which one is no name is no place in front', A2,
+          refused),
+    nf_tr('Per lavorare il gatto mangia il pane.', italian, spanish, A3),
+    check('A PURPOSE IN FRONT WITH NO COMMA IS A FRONT: an infinitive with a word before it was no adjunct, and the sentence was refused -- it goes after the clause, as any front with no comma does', A3,
+          'El gato come el pan para trabajar.'),
+    nf_tr('Per lavarsi il gatto mangia il pane.', italian, spanish, A6),
+    check('... AND SO IS ONE WHOSE INFINITIVE TAKES ITS PRONOUN JOINED: `per farlo'' -- the reader keeps it apart (purp/1, never purpose/1)', A6,
+          'El gato come el pan para lavarse.'),
+    nf_tr('Il gatto dorme, ma per lavorare il gatto mangia il pane.', italian, spanish, A7),
+    check('... AT THE HEAD OF A CLAUSE, not only of the sentence: `ma per farlo bisogna prima conoscerlo'' -- after a connector, and the sentence of the article it came from was refused', A7,
+          'El gato duerme, pero el gato come el pan para trabajar.'),
+    nf_tr('Cani del gatto.', italian, spanish, A4),
+    check('A PLURAL WITH NO ARTICLE HEADS A PIECE WITH NO VERB: `Nuovi linguaggi del disagio giovanile in cui immergersi ...'' names a kind', A4,
+          'Perros del gato.'),
+    nf_tr('Pane del gatto.', italian, spanish, A5),
+    check('a GUARD: a singular with none is no heading, as it never was -- `Pan del perro''', A5,
+          refused).
+
+newspaper_quartieri_checks_2 :-
+    nf_tr('Il gatto vede una casa in cui lavarsi.', italian, spanish, B1),
+    check('A REFLEXIVE JOINED TO AN INFINITIVE IN A RELATIVE CLAUSE: `nuovi linguaggi in cui immergersi'' -- the `si'' cut off the infinitive was left over, no complement reads a pronoun alone, and the clause was refused; written back the pronoun is joined AFTER the infinitive, never before like a finite verb''s (`en el que se sumergir'')', B1,
+          'El gato ve una casa en la que lavarse.'),
+    nf_tr('Il gatto vede una casa in cui lavarsi.', italian, english, B2),
+    check('... and in English, which has no reflexive there', B2,
+          'The cat sees a house in which to wash.').
+
+newspaper_quartieri_checks_3 :-
+    nf_tr('Il gatto vede: Cani, gatti e case.', italian, spanish, C1),
+    check('THE WORD AFTER A COLON IS A HEAD: `autori di diverse espressioni: Rap, graffiti, teatro di strada, Grunge'' -- the capital kept on a known word made it the first of a list of names', C1,
+          'El gato ve: perros, gatos y casas.'),
+    nf_tr('Il gatto vede: Casa Rossi.', italian, spanish, C2),
+    check('a GUARD: a head keeps its capital before a name, as at the head of a sentence -- `Casa Rossi'' is a name', C2,
+          'El gato ve: Casa Rossi.'),
+    nf_tr('Dalla casa mangiano cani, gatti, studenti.', italian, spanish, C3),
+    check('THE COMMAS OF A LIST AFTER ITS VERB ARE THE LIST''S: `Dagli stessi paesi provengono studiosi, operatori, autori'' -- the front went after the first of them, where the first comma was taken for the end of the clause', C3,
+          'Comen perros, gatos, estudiantes desde la casa.'),
+    nf_tr('Dalla casa mangiano vicini, cani, gatti.', italian, spanish, C4),
+    check('... and where the first of them is a word that is an adjective as well (`studiosi''): read as one', C4,
+          'Comen vecinos, perros, gatos desde la casa.'),
+    nf_tr('Il gatto vede, se il lunedì il cane dà parere visivo, la casa.', italian, spanish, C5),
+    check('a GUARD: a phrase with a determiner after the comma is no item of a list -- `se il prossimo febbraio il senato accademico darà parere positivo, la prima facoltà europea ...'': the comma ends the clause of `se'', and the day stays in it', C5,
+          'El gato ve, si el perro da parecer visual el lunes, la casa.').
+
+newspaper_quartieri_checks_4 :-
+    nf_tr('Il gatto vede autori di case.', italian, spanish, D1),
+    check('A PARTITIVE TAKES THE GENDER OF THE OTHER NOUN ONLY FOR A WORD THAT SAYS A PART: `autori di diverse espressioni'' are authors, and took the feminine of the expressions, `autoras''', D1,
+          'El gato ve autores de casas.'),
+    nf_tr('Il gatto vede arti visive.', italian, spanish, D2),
+    check('A BARE NOUN TAKES THE GENDER OF THE ADJECTIVE AFTER IT: `arti visive'' -- `arti'' is the plural of `arto'', a limb, first in the vocabulary, and of `arte'', and `visive'' is feminine', D2,
+          'El gato ve artes visuales.'),
+    nf_tr('Il gatto vede arti visivi.', italian, spanish, D3),
+    check('a GUARD: a masculine adjective leaves the limbs', D3,
+          'El gato ve miembros visuales.').
+
+newspaper_quartieri_checks_5 :-
+    nf_tr('Un convegno, la mostra dei libri.', italian, spanish, E1),
+    check('A CLITIC AGREES WITH THE PHRASE IT TAKES UP: `un convegno, proiezioni, la mostra dei Murales'' -- `la'' is feminine and `convegno'' masculine, so `la mostra'' is the exhibition, and read as a pronoun and a verb it was a clause', E1,
+          'Una reunión, la muestra de los libros.'),
+    nf_tr('Il gatto, lo studente lo vede.', italian, spanish, E2),
+    check('a GUARD: a phrase and a clitic of one gender are still a dislocation -- the pronoun takes up the student, and the cat is the subject', E2,
+          'El gato ve al estudiante.').
+
+newspaper_quartieri_checks_6 :-
+    nf_tr('Quartieri è un gatto.', italian, spanish, F1),
+    check('A WORD THE LESSON SAYS IS A NAME KEEPS ITS CAPITAL AT THE HEAD OF A SENTENCE: `Quartieri è stato realizzato dall''associazione'' is the festival, and lowered `quartieri'' were the districts, plural, for a verb in the singular', F1,
+          'Quartieri es un gato.'),
+    nf_tr('Cani dormono.', italian, spanish, F2),
+    check('a GUARD: a known word the lesson does not call a name still goes lower there', F2,
+          'Perros duermen.'),
+    nf_tr('Il gatto vede Procter & Gamble.', italian, spanish, F3),
+    check('AN AMPERSAND BETWEEN TWO CAPITALISED WORDS IS PART OF A NAME: `Havoc & Prodeje Common Sense'' -- the tokeniser drops a symbol, and `Procter & Gamble'' came out `Procter Gamble''', F3,
+          'El gato ve a Procter & Gamble.'),
+    nf_tr('Il gatto vede Prophets of the City.', italian, spanish, F4),
+    check('AN ENGLISH `OF THE'' IN A NAME IS PART OF IT: `i Prophets of the City'' -- `of'' and `the'' are words of neither lesson', F4,
+          'El gato ve a Prophets of the City.'),
+    nf_tr('Il gatto vede i Prophets of the City.', italian, spanish, F5),
+    check('... and after an article, as the article stood before it in the text (`i Prophets of the City'')', F5,
+          'El gato ve los Prophets of the City.').
+
+newspaper_quartieri_checks_7 :-
+    nf_tr('Il gatto lavora da 15 anni.', italian, spanish, G1),
+    check('A COUNT OF TIME AFTER `DA'' IS HOW LONG IT HAS GONE ON: `che da anni coinvolge'' -- crossed by the first meaning, `from'', Spanish said `desde 15 años'', a date', G1,
+          'El gato trabaja desde hace 15 años.'),
+    nf_tr('Il gatto lavora da lunedì.', italian, spanish, G2),
+    check('a GUARD: a day with no count stays since -- `da lunedì'' is `desde el lunes''', G2,
+          'El gato trabaja desde el lunes.'),
+    nf_tr('Il gatto lavora da 15 anni.', italian, english, G3),
+    check('... and in English, where the lesson''s `for the past'' is written as it stands', G3,
+          'The cat works for the past 15 years.'),
+    nf_tr('Il gatto dorme giovedì 20.', italian, spanish, G4),
+    check('A DAY AND ITS NUMBER ARE ONE PHRASE: `Inoltre un convegno (giovedì 20)'' -- a bare noun the lesson calls a time and the number that labels it', G4,
+          'El gato duerme el jueves 20.'),
+    nf_tr('Il gatto vede casa 20.', italian, spanish, G5),
+    check('a GUARD: a noun that is no time is no day, whatever number follows', G5,
+          refused).
+
+newspaper_quartieri_checks_8 :-
+    nf_tr('di Maria Rossi pane per lavorare.', italian, spanish, H1),
+    check('A BYLINE GLUED TO THE LINE AFTER IT: `di Rita Celi rap per comunicare'' is a headline and the name of the one who signs it, with no stop between them in the text', H1,
+          'De Maria Rossi, pan para trabajar.'),
+    nf_tr('Di Maria Rossi dormono i gatti.', italian, spanish, H2),
+    check('a GUARD: where the plain reading exists it is the one taken -- `Di Maria Rossi dormono i gatti'' is her cats', H2,
+          'Duermen los gatos de Maria Rossi.').
+%% <<< quartieri
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

@@ -329,6 +329,9 @@ The verb "dosifica" means "doses".
 "dosifican" is the plural of "dosifica".
 The masculine noun "octavo de final" means "eighth-final".
 "octavos de final" is the plural of "octavo de final".
+# (`con qualsiasi materiale' into Spanish: before a noun `any' is `cualquier',
+# and `cualquiera' first came out `cualquiera material')
+The determiner "cualquier" means "any".
 The determiner "cualquiera" means "any".
 # a verb's own word before an infinitive: `confía en repetir' trusts to
 # repeat, and Italian's verb takes `di' there
@@ -1814,3 +1817,34 @@ The verb "aboga" means "advocates".
 # dictionary's only English word for `tránsito' is `traffic', which Italian
 # writes `traffico'
 The masculine noun "tránsito" means "transit".
+# the Quartieri article (Venice treebank VIT), from Italian: `hip hop' and `rap',
+# the English words the Italian text keeps and Spanish keeps too
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+# `sessanta ragazzi italiani, americani e sudafricani', into Spanish: the
+# builder reads no entry of two English words, so the adjective is stated
+The masculine adjective "sudafricano" means "south african".
+"sudafricanos" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricanas" is the plural of "sudafricana".
+# `un cantiere di creatività internazionale', into Spanish: `obra' is a building
+# site as well as a work, and the work is said again first so that it stays the
+# meaning a Spanish text reads -- and `trabajo' (a job, then a work) before it,
+# or `obra' becomes the first Spanish word for `work': `il lavoro, l'impegno e
+# i risultati' was `la obra, el compromiso y los resultados'
+The masculine noun "trabajo" means "job".
+The masculine noun "trabajo" means "work".
+The feminine noun "obra" means "work".
+"obras" is the plural of "obra".
+The feminine noun "obra" means "building site".
+# `fra le varie espressioni', into Spanish: the adjective `vario' has the plural
+# `varios' and the meaning varied, and only the determiner `varios' means
+# several, which no adjective before a noun after an article can be
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+# `John Bess, a capo del centro The Valley': in charge of
+The preposition "al frente de" means "in charge of".
+# `e molto altro ancora', into Spanish: and much more
+The pronoun "mucho más" means "much more". The pronoun "mucho más" does not precede the verb.
+# `l'amajica performing arts project', into Spanish
+The masculine noun "amajica performing arts project" means "amajica performing arts project".

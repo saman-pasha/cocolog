@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20379 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20386 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -241,6 +241,7 @@ The verb "dosifica" means "doses".
 "dosifican" is the plural of "dosifica".
 The masculine noun "octavo de final" means "eighth-final".
 "octavos de final" is the plural of "octavo de final".
+The determiner "cualquier" means "any".
 The determiner "cualquiera" means "any".
 "confía" takes "en" before the infinitive.
 The preposition "por" means "for".
@@ -952,6 +953,22 @@ The feminine noun "descarga" means "unloading".
 The verb "aboga" means "advocates".
 "meridiana" is a name.
 The masculine noun "tránsito" means "transit".
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+The masculine adjective "sudafricano" means "south african".
+"sudafricanos" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricanas" is the plural of "sudafricana".
+The masculine noun "trabajo" means "job".
+The masculine noun "trabajo" means "work".
+The feminine noun "obra" means "work".
+"obras" is the plural of "obra".
+The feminine noun "obra" means "building site".
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+The preposition "al frente de" means "in charge of".
+The pronoun "mucho más" means "much more". The pronoun "mucho más" does not precede the verb.
+The masculine noun "amajica performing arts project" means "amajica performing arts project".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -25145,6 +25162,15 @@ The feminine noun "piamontesa" means "piedmontese".
 "piamontesas" is the plural of "piamontesa".
 The feminine noun "absolución" means "acquittal".
 The masculine noun "transbordador" means "shuttle".
+The masculine noun "grafiti" means "graffito".
+"grafitis" is the plural of "grafiti".
+The feminine noun "pata" means "paw".
+The masculine noun "montador" means "fitter".
+"montadores" is the plural of "montador".
+The feminine noun "montadora" means "fitter".
+"montadoras" is the plural of "montadora".
+The masculine noun "gueto" means "ghetto".
+"guetos" is the plural of "gueto".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -28163,6 +28189,52 @@ The verb "presupuesta" means "budgets".
 "presupuestadas" is the plural of "presupuestada".
 "presupuestar" is the infinitive of "presupuesta".
 "presupuestando" is the gerund of "presupuesta".
+The verb "involucra" means "involves".
+"involucran" is the plural of "involucra".
+"involucramos" is the first person of "involucran".
+"involucro" is the first person of "involucra".
+"involucras" is the second person of "involucra".
+"involucró" is the past of "involucra".
+"involucraron" is the past of "involucran".
+"involucramos" is the first person of "involucraron".
+"involucré" is the first person of "involucró".
+"involucraste" is the second person of "involucró".
+"involucraba" is the past of "involucra".
+"involucraban" is the past of "involucran".
+"involucrábamos" is the first person of "involucraban".
+"involucrabas" is the second person of "involucraba".
+"involucrará" is the future of "involucra".
+"involucrarán" is the plural of "involucrará".
+"involucraremos" is the first person of "involucrarán".
+"involucraré" is the first person of "involucrará".
+"involucrarás" is the second person of "involucrará".
+"involucraría" is the conditional of "involucra".
+"involucrarían" is the plural of "involucraría".
+"involucraríamos" is the first person of "involucrarían".
+"involucrarías" is the second person of "involucraría".
+"involucre" is the subjunctive of "involucra".
+"involucren" is the plural of "involucre".
+"involucremos" is the first person of "involucren".
+"involucres" is the second person of "involucre".
+"involucrara" is the past subjunctive of "involucra".
+"involucraran" is the plural of "involucrara".
+"involucráramos" is the first person of "involucraran".
+"involucraras" is the second person of "involucrara".
+"involucra" is the imperative of "involucra".
+"involucres" is the negative imperative of "involucra".
+"involucrad" is the imperative of "involucran".
+"involucréis" is the negative imperative of "involucran".
+"involucremos" is the hortative of "involucra".
+"involucrado" is the participle of "involucra".
+"involucrada" is the participle of "involucra".
+"involucrada" is feminine.
+"involucrados" is the participle of "involucra".
+"involucrados" is the plural of "involucrado".
+"involucradas" is the participle of "involucra".
+"involucradas" is feminine.
+"involucradas" is the plural of "involucrada".
+"involucrar" is the infinitive of "involucra".
+"involucrando" is the gerund of "involucra".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -107811,52 +107883,6 @@ The verb "inutiliza" means "disables".
 "inutilizadas" is the plural of "inutilizada".
 "inutilizar" is the infinitive of "inutiliza".
 "inutilizando" is the gerund of "inutiliza".
-The verb "involucra" means "involves".
-"involucran" is the plural of "involucra".
-"involucramos" is the first person of "involucran".
-"involucro" is the first person of "involucra".
-"involucras" is the second person of "involucra".
-"involucró" is the past of "involucra".
-"involucraron" is the past of "involucran".
-"involucramos" is the first person of "involucraron".
-"involucré" is the first person of "involucró".
-"involucraste" is the second person of "involucró".
-"involucraba" is the past of "involucra".
-"involucraban" is the past of "involucran".
-"involucrábamos" is the first person of "involucraban".
-"involucrabas" is the second person of "involucraba".
-"involucrará" is the future of "involucra".
-"involucrarán" is the plural of "involucrará".
-"involucraremos" is the first person of "involucrarán".
-"involucraré" is the first person of "involucrará".
-"involucrarás" is the second person of "involucrará".
-"involucraría" is the conditional of "involucra".
-"involucrarían" is the plural of "involucraría".
-"involucraríamos" is the first person of "involucrarían".
-"involucrarías" is the second person of "involucraría".
-"involucre" is the subjunctive of "involucra".
-"involucren" is the plural of "involucre".
-"involucremos" is the first person of "involucren".
-"involucres" is the second person of "involucre".
-"involucrara" is the past subjunctive of "involucra".
-"involucraran" is the plural of "involucrara".
-"involucráramos" is the first person of "involucraran".
-"involucraras" is the second person of "involucrara".
-"involucra" is the imperative of "involucra".
-"involucres" is the negative imperative of "involucra".
-"involucrad" is the imperative of "involucran".
-"involucréis" is the negative imperative of "involucran".
-"involucremos" is the hortative of "involucra".
-"involucrado" is the participle of "involucra".
-"involucrada" is the participle of "involucra".
-"involucrada" is feminine.
-"involucrados" is the participle of "involucra".
-"involucrados" is the plural of "involucrado".
-"involucradas" is the participle of "involucra".
-"involucradas" is feminine.
-"involucradas" is the plural of "involucrada".
-"involucrar" is the infinitive of "involucra".
-"involucrando" is the gerund of "involucra".
 The verb "promociona" means "promotes".
 "promocionan" is the plural of "promociona".
 "promocionamos" is the first person of "promocionan".
@@ -122712,6 +122738,52 @@ The verb "desorganiza" means "disorganizes".
 "desorganizadas" is the plural of "desorganizada".
 "desorganizar" is the infinitive of "desorganiza".
 "desorganizando" is the gerund of "desorganiza".
+The verb "margina" means "marginalises".
+"marginan" is the plural of "margina".
+"marginamos" is the first person of "marginan".
+"margino" is the first person of "margina".
+"marginas" is the second person of "margina".
+"marginó" is the past of "margina".
+"marginaron" is the past of "marginan".
+"marginamos" is the first person of "marginaron".
+"marginé" is the first person of "marginó".
+"marginaste" is the second person of "marginó".
+"marginaba" is the past of "margina".
+"marginaban" is the past of "marginan".
+"marginábamos" is the first person of "marginaban".
+"marginabas" is the second person of "marginaba".
+"marginará" is the future of "margina".
+"marginarán" is the plural of "marginará".
+"marginaremos" is the first person of "marginarán".
+"marginaré" is the first person of "marginará".
+"marginarás" is the second person of "marginará".
+"marginaría" is the conditional of "margina".
+"marginarían" is the plural of "marginaría".
+"marginaríamos" is the first person of "marginarían".
+"marginarías" is the second person of "marginaría".
+"margine" is the subjunctive of "margina".
+"marginen" is the plural of "margine".
+"marginemos" is the first person of "marginen".
+"margines" is the second person of "margine".
+"marginara" is the past subjunctive of "margina".
+"marginaran" is the plural of "marginara".
+"margináramos" is the first person of "marginaran".
+"marginaras" is the second person of "marginara".
+"margina" is the imperative of "margina".
+"margines" is the negative imperative of "margina".
+"marginad" is the imperative of "marginan".
+"marginéis" is the negative imperative of "marginan".
+"marginemos" is the hortative of "margina".
+"marginado" is the participle of "margina".
+"marginada" is the participle of "margina".
+"marginada" is feminine.
+"marginados" is the participle of "margina".
+"marginados" is the plural of "marginado".
+"marginadas" is the participle of "margina".
+"marginadas" is feminine.
+"marginadas" is the plural of "marginada".
+"marginar" is the infinitive of "margina".
+"marginando" is the gerund of "margina".
 The verb "calma" means "abates".
 The verb "secuestra" means "abducts".
 The verb "sube" means "climbs".
@@ -139079,6 +139151,16 @@ The feminine adjective "preocupada" means "worried".
 "preocupadísimo" is the superlative of "preocupado".
 The adjective "ineficiente" means "inefficient".
 "ineficientes" is the plural of "ineficiente".
+The masculine adjective "marginado" means "marginalised".
+"marginados" is the plural of "marginado".
+The feminine adjective "marginada" means "marginalised".
+"marginadas" is the plural of "marginada".
+"marginadísimas" is the superlative of "marginadas".
+"marginadísima" is the superlative of "marginada".
+"marginadísimos" is the superlative of "marginados".
+"marginadísimo" is the superlative of "marginado".
+The adjective "proveniente" means "originating".
+"provenientes" is the plural of "proveniente".
 The masculine adjective "repentino" means "abrupt".
 The feminine adjective "repentina" means "abrupt".
 The masculine adjective "íntegro" means "upright".

@@ -2421,3 +2421,76 @@ The verb "auspica" means "advocates".
 # the English one is `bottega', and a Spanish `tienda' is a `negozio'; the
 # dictionary's own meaning is said again first
 The masculine noun "negozio" means "shop".
+# the Quartieri article (Venice treebank VIT, hip hop workshops at Tor Bella
+# Monaca), into Spanish: `hip hop' and `rap' are English words that Italian
+# and Spanish both keep
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+# `fra le varie espressioni': `vario' is the dictionary's `various', no
+# determiner the builder admits, and `several' has `diverso' for its Italian
+# word, said again first so that it stays the word written. The adjective too:
+# after an article it is the adjective that reads (`le diverse espressioni')
+The masculine determiner "diverso" means "several".
+"diversi" is the plural of "diverso".
+The feminine determiner "diversa" means "several".
+"diverse" is the plural of "diversa".
+The masculine determiner "vario" means "several".
+"vari" is the plural of "vario".
+The feminine determiner "varia" means "several".
+"varie" is the plural of "varia".
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+# `Nicoletta Gaida, ideatrice dell'iniziativa': the dictionary entry for
+# `ideatore' is written once a class, and the feminine is not a second line
+The feminine noun "ideatrice" means "creator".
+"ideatrici" is the plural of "ideatrice".
+"ideatrice" is a person.
+# `devoluto alla Lega': the paradigm of `devolvere' is the one of `assolvere',
+# whose participle is `assolto'
+"devoluto" is the participle of "devolve".
+"devoluta" is the participle of "devolve".
+"devoluti" is the participle of "devolve".
+"devolute" is the participle of "devolve".
+# `ragazzi italiani, americani e sudafricani': the builder reads no entry of
+# two English words, so the Italian adjective is stated, in lower case as
+# `american' is
+The masculine adjective "sudafricano" means "south african".
+"sudafricani" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricane" is the plural of "sudafricana".
+# `Usa o Italia, "hip hop" è la lingua del ghetto': `Usa' is the United States
+# and `usa' what `usare' says of one person, which at the head of a sentence
+# was a command
+"usa" is a name.
+# `un cantiere di creatività internazionale', `il cantiere sarà coordinato':
+# the dictionary's only meaning for `cantiere' is a shipyard, which Spanish has
+# no word for; a building site is what a newspaper means by it
+The masculine noun "cantiere" means "building site".
+"cantieri" is the plural of "cantiere".
+# `il disagio giovanile': youth unrest, to which Spanish says `malestar', where
+# the dictionary's discomfort is `incomodidad'
+The masculine noun "disagio" means "unrest".
+# `devoluto alla Lega Italiana Lotta Aids': a league made of words every lesson
+# knows (`lega' an alloy, `lotta' a fight, `aids' what helps)
+"Lega Italiana Lotta Aids" is a name.
+# `dichiara energicamente John Bess': declares, where the dictionary's first
+# meaning for `dichiarare' is alleges, which Spanish says `alega'
+The verb "dichiara" means "declares".
+# `a capo del centro The Valley': in charge of
+The preposition "a capo di" means "in charge of".
+# `persone impegnate nel recupero dei giovani emarginati': engaged in it, where
+# the dictionary's first meaning for `impegnare' is pledges, `prometidas' --
+# and `ingaggiare' (the Spanish `fichado por TVE') before it, or `impegna'
+# becomes the first Italian word for `engages': `recentemente ingaggiato' was
+# `recentemente impegnato'
+The verb "ingaggia" means "engages".
+The verb "impegna" means "engages".
+# `e molto altro ancora': and much more, a pronoun of four words (`altro' an
+# adjective and `ancora' an anchor or still to the lesson)
+The pronoun "molto altro ancora" means "much more". The pronoun "molto altro ancora" does not precede the verb.
+# `Quartieri è stato realizzato dall'associazione': the festival, a name that is a
+# plural noun and would be lowered at the head of the sentence for one
+"quartieri" is a name.
+# `l'amajica performing arts project': a South African project, named in
+# English in small letters
+The masculine noun "amajica performing arts project" means "amajica performing arts project".

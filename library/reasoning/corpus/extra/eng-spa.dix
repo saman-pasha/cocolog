@@ -504,3 +504,22 @@
 # for it, so `afectados' was only the participle of `afectar' and Italian wrote
 # the verb's first word, `influiti'
 <e><p><l>affected<s n="adj"/></l><r>afectado<s n="adj"/></r></p></e>
+# the Quartieri article (Venice treebank VIT), from Italian: the Spanish words
+# for the English ones the Italian entries read. Each has its paradigm in
+# apertium-spa.spa.dix and no English word; written only (LR), as the Spanish
+# words need no meaning of their own to be read. `involve' is the exception:
+# the dictionary's first Spanish word for it is `acarrear', to cart, and
+# `coinvolge ragazzi' needs `involucra', so the entry is both ways and comes first
+<e r="LR"><p><l>graffito<s n="n"/></l><r>grafiti<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>involve<s n="vblex"/></l><r>involucrar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>marginalise<s n="vblex"/></l><r>marginar<s n="vblex"/></r></p></e>
+<e r="LR"><p><l>paw<s n="n"/></l><r>pata<s n="n"/><s n="f"/></r></p></e>
+<e r="LR"><p><l>fitter<s n="n"/></l><r>montador<s n="n"/><s n="GD"/></r></p></e>
+# `la lingua del ghetto': the Italian dictionary has `ghetto' and the Spanish
+# `gueto' only inside its own entry, with no bilingual one to carry it
+<e r="LR"><p><l>ghetto<s n="n"/></l><r>gueto<s n="n"/><s n="m"/></r></p></e>
+# `ragazzi emarginati e a rischio', into Spanish: the adjective `marginado'
+<e r="LR"><p><l>marginalised<s n="adj"/></l><r>marginado<s n="adj"/></r></p></e>
+# `ragazzi provenienti dai ghetti', into Spanish: `proveniente' has its paradigm
+# in apertium-spa.spa.dix and the dictionary's only entry for it is `from'
+<e r="LR"><p><l>originating<s n="adj"/></l><r>proveniente<s n="adj"/><s n="mf"/></r></p></e>
