@@ -843,10 +843,26 @@ and `library/reasoning/`); `library/*.so` are modules built from
     an environment what their frames did (environments for every body:
     the linter 0.23 % further on, queens 0.96 % back). `*->` and a
     construct reached through `call/1` stay terms.
-  - **A unit kind lives in six places**: `*cc-eg-kinds*`, the compiler
-    (`cc_unit`, `cc_ubranch`, `cc_ulink`), the offsets the take reads
-    (`noff` ... `rvars`, set at the end of `cc_compile_env`), the take's
-    switch, and `coco_unit_term`, which builds a unit back as the term its
+  - **A core builtin among the later goals is done where it stands**
+    (Stage 7, 1.9.5; `cc_uplace` picks the kind): `is/2`, the comparisons
+    and the type tests as a GUARD, Stage 4's program over the slots
+    (`coco_env_guard`; no AG_ISF there -- a variable it meets first was
+    made with the environment), whose term is built and handed over only
+    when the program cannot decide; `=/2`, `==/2`, `\==/2` as SIDES, read
+    out of the slots like a call's registers (`coco_env_sides`); any other
+    with arguments as a BUILTIN, its entry-built term called by its row
+    (`coco_builtin_call`), its first-met variables made in cell order
+    (`cc_uslots` BYCELL, at most 64, past that a TERM). Each is still one
+    step and one inference. The three run in `coco_env_place`, which is
+    OUT OF LINE AND NOT STATIC: inlined into the take they cost the step
+    loop its registers (lookup +0.68 % with the arm off). The arm is
+    `COCOLOG_INPLACE=0`; the take answers -3 for a builtin's error nothing
+    caught, and the loop ends the run as the step's call did.
+  - **A unit kind lives in seven places**: `*cc-eg-kinds*`, the compiler
+    (`cc_unit`, `cc_ubranch`, `cc_ulink`, `cc_uplace`), the offsets the
+    take reads (`noff` ... `rvars`, set at the end of `cc_compile_env`),
+    the take's switch, `coco_env_place` for the builtins in place, and
+    `coco_unit_term`, which builds a unit back as the term its
     frame held -- for a freeze (`coco_engine_materialize` builds every
     position's goals, raises the choice frames' heap marks, and puts it
     all back after: a frozen machine carries no environment) and for the
@@ -855,8 +871,9 @@ and `library/reasoning/`); `library/*.so` are modules built from
     tortures the freeze** (1.9.4): every collection materialises first,
     1 putting it back as a freeze does, 2 keeping it so the run goes on as
     a thawed machine would; with `COCOLOG_GC_CELLS=2000` that is every
-    2000 cells, and children inherit both. `test/gc.pl` runs `rt/2` and
-    the environment fixture under it; only 2 sees a wrong unit term.
+    2000 cells, and children inherit both. `test/gc.pl` runs `rt/2`,
+    `rb/2` and the environment fixture under it; only 2 sees a wrong unit
+    term (and `test/trace.pl`'s `env_late`, from inside a traced body).
   - **The collector keeps an environment whole from any position** (the
     POS rule in `coco_gc_mark`) and every retired code a live environment
     names (`coco_gc_codes`). A clause that dies while an environment is

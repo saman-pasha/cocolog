@@ -5110,26 +5110,128 @@ backslash now takes the next character. `test/stream.pl`'s new check
 writes `q('\'')`, `r("\"")`, a commented apostrophe and `t`, and reads
 three terms; the 1.9.3 module read one.
 
+## Builtins in place (1.9.5)
+
+Stage 7 of the second-half proposal: a later goal of a body that makes an
+environment, when it is a core builtin, is done where it stands rather than
+built as a term at entry, handed over and found by its name. Three unit
+kinds join `*cc-eg-kinds*`, chosen when the clause is compiled
+(`cc_uplace`):
+
+* **GUARD** -- `is/2`, the six comparisons and the type tests -- runs Stage
+  4's guard program over the environment's slots (`coco_env_guard`: the
+  runner `cc-guards-body` is emitted a third time, its variables reached
+  through `cc-env-slot`). A variable such a goal meets first was made with
+  the environment, so the program has no AG_ISF and the left of an `is` is
+  bound by AG_ISV (`cc_uguard`). When the program cannot decide -- a float,
+  an unbound variable, an atom -- it has done nothing, and the goal's term
+  is built from the slots and handed over as it always was.
+* **SIDES** -- `=/2`, `==/2`, `\==/2` -- reads its two arguments out of the
+  slots as a call's register form does (copied when both are variables,
+  anything they nest made in one reservation) and unifies or compares them
+  (`coco_env_sides`).
+* **BUILTIN** -- any other core builtin with arguments -- keeps the term
+  built at entry and is called by its row (`coco_builtin_call`), skipping
+  the read and the lookup by name. A builtin's variables are made in the
+  order of the cells its term gave them (`cc_uslots` with BYCELL), so that
+  `compare/3` sees unbound variables where it saw them; past 64 the goal
+  stays a TERM.
+
+Each is still the one step and the one inference its goal was, so every
+answer, solution order, inference count and stop is 1.9.4's. Under trace
+every unit is handed over as its term, port for port (`coco_unit_term`
+rebuilds each kind). The arm is `COCOLOG_INPLACE=0`. The three are done
+out of line, in `coco_env_place` (not static), which the take calls from
+its default case: inlined into the take, they cost the step loop registers
+it had, and lookup with the arm off ran 0.68 % more instructions than
+1.9.4; out of line, 0.17 %, and the linter 0.13 %. With the stage on,
+nrev, queens, loop and sortnums, which make no environment, are 1.9.4's to
+0.07 %. `coco_env_guard` and `coco_env_sides` are static, each with one
+caller, and are inline in `coco_env_place`. A unit kind now lives in seven
+places: the six of 1.9.3 and `coco_env_place`.
+
+Instructions under `callgrind`, whole process, 1.9.4 against 1.9.5, each
+binary with its own library, frozen and checked by md5 before and after
+(ffb347458c71, the same for both: nothing in `library/` changed):
+
+| program | 1.9.4 | 1.9.5 | | arm off |
+|---|---:|---:|---|---:|
+| the linter over the fifteen files of `library/` | 16.821 G | 15.632 G | -7.07 % (the same findings) | +0.13 % |
+| the translator's lesson (`tutorials/library/46-translate.pl`) | 83.030 G | 80.715 G | -2.79 % (its 864 lines the same) | |
+| nrev | 1.115 G | 1.115 G | -0.02 % | |
+| queens | 0.922 G | 0.922 G | -0.03 % | |
+| loop | 0.330 G | 0.330 G | -0.07 % | |
+| lookup | 0.657 G | 0.545 G | -17.02 % | +0.17 % |
+| sortnums | 0.388 G | 0.388 G | -0.06 % | |
+
+Against what was counted on 1.9.3 before it was built: the lesson 2.79 %
+of an expected 3.4 % (ceiling 4.1 %), 82 %; the linter 7.07 % of 9.6 %
+(12.2 %), 74 %; lookup 17.02 % of 23.6 % (30.4 %), 72 %. What the estimate
+did not price is what a unit in place still costs past its take: priced
+at 116 instructions as a guard at entry, an `is/2` in place is about 203
+in `coco_env_place` -- 22 of prologue, 10 for the kind, 15 of setup, about
+52 dispatching its four words and about 45 for the bind -- and on the
+linter the 4.83 million units in place cost 630 M there, with
+`coco_env_regs` 138 M more for the sides.
+
+Proved by `test/engine.pl`'s new section, eleven checks: the guards'
+families again with each goal after a construct, every operator and test
+held to the step's answer, errors included; `=`, `==` and `\==` over every
+pair of values and pairs that share a variable, what they bound compared as
+a variant; variables a guard and a unification make read by the goals after
+them; a guard in place that fails sending the call on; a builtin's
+`instantiation_error` reaching the catch outside; each unit one inference,
+the failing one too; a stop at every inference limit to eighteen where it
+always stopped; and a program that passes, fails, cannot decide, raises
+and is stopped at every limit to forty, run in place and not, to the same
+answers, count and uncaught error, which are 1.9.4's. `test/gc.pl`'s
+environment fixture gained `rb/2`, a recursion leaving a builtin and a
+guard pending in every environment, run collected every 2000 cells and
+with the freeze tortured both ways; `test/trace.pl` holds `len3/1` (a type
+test as an if-then-else's condition, a builtin and a comparison in its
+then-branch) to SWI traced and traced after an untraced call, and `lb/2` (a `=/2`, a builtin and a comparison, reached
+from an environment written before the tracer was switched on) to itself
+without environments, both branches. Three arms, each building one kind's
+unit term wrong in `coco_unit_term`, went red: under `COCOLOG_KMAT=2` all
+three (`rb/2`); traced from inside, the guard's in `lb(x, N)`, the sides'
+in `lb/2` and `pick(_), lt(X), X == c`, the builtin's in `lb(abc, N)`
+alone, the one branch with a builtin.
+
+**The clock**, nine alternating pairs of in-process CPU time per task,
+1.9.5 over 1.9.4: lookup 0.80, loop 0.93, queens 0.98, sortnums 1.03, and
+nrev 1.10; the linter, nine pairs of user time, medians 1.614 s and
+1.530 s, median pair ratio 1.00. nrev runs the same instructions in every
+function of both builds (callgrind's per-function counts are equal); what
+moved is where the step loop's functions start -- `coco_engine_run`,
+`coco_clause_run` and `coco_clause_run_r` from 32 bytes past a 64-byte line
+to on one. Built with every function aligned to 64 (`-falign-functions=64`,
+scratch builds, not adopted), 1.9.5 over 1.9.4 is nrev 0.99, queens 1.02,
+loop 0.98, lookup 0.85, sortnums 1.02, and the order of the pairs reversed
+gives nrev 0.99 again; aligning 1.9.4 alone moved its nrev by 4 %, and
+1.9.5's by 3 % the other way. So nrev's 10 % is placement, which an edit
+anywhere above the loop can move; the alignment itself is no net gain
+(1.9.5 aligned against as built: nrev 0.96, loop 1.04, lookup 1.03, text
+3.9 % larger) and is not proposed.
+
+**The gate's one red was a clock the suite still kept by a count.**
+`cowork`'s "a gather that cannot finish raises rather than hanging" gave a
+one-worker crew a 60 ms wait and `slow(9, _)`, 1 350 000 spins, to outlive
+it; the job took 56 to 83 ms on 1.9.4 and 1.9.5 alike, so the map answered
+before the wait ended and the check read an unbound ball -- red three
+times running on each binary. 1.8.44 moved the other wait in that case to
+`nap(400)`, 400 ms on an empty channel, and this one now waits the same
+way: green three times on 1.9.5 and twice on 1.9.4.
+
 ## Not started
 
-* Stage 7 of the second-half proposal, builtins in place: a builtin read
-  from an environment's slots or the registers rather than built as a goal
-  term and found by its name, arithmetic and type tests at any position as
-  guard programs, `=/2` in an environment as a head-program unify. Counted
-  on 1.9.3, not begun. A scratch build counted every builtin dispatch by
-  where its goal came from: of the lesson's 22.2 million, 11.4 million are
-  environment units, 4.1 million clauses' first goals and 6.7 million come
-  from `'$k'` frames (bodies with no environment, and goals called through
-  `call/N`), which Stage 7 cannot reach; the linter's 5.2 million are
-  nearly all environment units -- 2.7 million `=/2` and 2.1 million
-  arithmetic. Programs one goal apart, under
-  callgrind, priced a call: a builtin in an environment is about 98
-  instructions of step, which stays, 90 of being read as a term and found
-  to be a builtin and 56 to 134 of building the term, which would go, and
-  its own work; `_ is N + 1` costs 520 there and 116 as a guard, `N =:= N`
-  405 and 97, `atom/1` 263 and 41. Expected, with each replacement's cost
-  measured or estimated: the lesson 3.4 % (ceiling 4.1 %), the linter 9.6 %
-  (12.2 %), lookup 23.6 % (30.4 %), the four other tasks nothing. (it landed in 1.8.36, section "The
+* Fused guard words for the guards in place: `X is A op B` over `+`, `-`
+  and `*`, and the six comparisons, each with its two operands a slot or a
+  constant, as one word (AG_ISX, AG_CMPX: a peephole in `cc_uguard` and a
+  fast path in `coco_env_guard`) rather than the four the stack program
+  dispatches. About 65 instructions an `is/2`; estimated on 1.9.5 from the
+  linter's profile, -0.67 % there (about 104 M) and -4.8 % on lookup. Not
+  built; it would take its own arm.
+* The heap collector's remaining reach (it landed in 1.8.36, section "The
   heap is collected", and reached the engines a builtin starts in 1.9.4): a
   directive's goal, whose engine `lb_goal_hook` starts with no `gc` --
   turning it on means the consult registering whatever cells it holds across

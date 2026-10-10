@@ -309,9 +309,12 @@ bounded_waits :-
     section('a wait that cannot be answered ends, and says so'),
     %% A one-worker crew given 60ms and a job that takes far longer is the
     %% same shape as a worker that will never answer, and it is deterministic
-    %% where killing a thread is not.
+    %% where killing a thread is not. BY THE CLOCK, as below: the job was
+    %% `slow(9, _)', 1 350 000 spins, and 56 to 83 ms on the engines of 1.9.4
+    %% and 1.9.5 alike -- a coin toss against the 60 ms wait, which the map
+    %% won as often as not, and the check read an unbound ball
     cowork_start(1, [timeout(60)], C1),
-    written(( catch(cowork_map(C1, [slow(9, _)], _), error(E1, _), true) ), E1, G1),
+    written(( catch(cowork_map(C1, [nap(400)], _), error(E1, _), true) ), E1, G1),
     check('a gather that cannot finish raises rather than hanging', G1,
           'timeout_error(cowork,1)'),
     cowork_stop(C1),

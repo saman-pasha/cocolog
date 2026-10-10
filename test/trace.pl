@@ -35,7 +35,7 @@ main :-
                        'memb(X, [1,2]), X > 1', 'memb(9, [1,2])',
                        'classify(-3, C)', 'classify(0, C)', 'classify(7, C)',
                        'either(5)', 'either(1)', '3 < 2', 'X = f(Y)', 'atom(foo)',
-                       'X is 2 + 2, X > 3', 'np(2)', 'np(1)' ]),
+                       'X is 2 + 2, X > 3', 'np(2)', 'np(1)', 'len3(abc)', 'len3(ab)' ]),
            traced(Swipl, Program, Q)),
     %% TRACED AFTER AN UNTRACED CALL. The first call resolves every functor
     %% it meets and stamps the plain predicates (`fgen', 1.8.55), whose
@@ -47,9 +47,12 @@ main :-
     %% `either/1' and `np/1' are bodies of constructs, which the untraced
     %% call compiles into environments (Stage 6): traced, each is built as
     %% the terms it was written as, and the Redo of a written `;' comes back.
+    %% And in `len3/1' a type test, a builtin and a comparison run in place
+    %% from that environment (Stage 7): traced, each is a goal with its ports.
     forall(member(Q, [ 'anc(tom, ann)', 'sum([1,2,3], S), S > 5',
                        'classify(-3, C)', 'classify(7, C)',
-                       'pick(X), fail', 'pick(b)', 'either(5)', 'either(1)', 'np(2)' ]),
+                       'pick(X), fail', 'pick(b)', 'either(5)', 'either(1)', 'np(2)',
+                       'len3(abc)', 'len3(ab)' ]),
            traced_late(Swipl, Program, Q)),
     %% A DISJUNCTION FROM AN ENVIRONMENT WRITTEN UNTRACED, TAKEN TRACED
     %% (Stage 6): `lt/1' switches the tracer on as its first goal, so its
@@ -62,6 +65,11 @@ main :-
     %% call it finds in its frames and this engine never has, so the run is
     %% held to itself with no environments at all (`COCOLOG_ENV=0').
     env_late(Program, 'pick(_), lt(X), X == c'),
+    %% AND THE UNITS RUN IN PLACE (Stage 7): in `lb/2' a `=/2', a builtin
+    %% and a comparison are reached the same way, and each is handed over as
+    %% the term it was written as, whichever branch is taken.
+    env_late(Program, 'lb(abc, N)'),
+    env_late(Program, 'lb(x, N)'),
     checks_done.
 
 %% every query is wrapped in ( Q -> true ; true ) on BOTH sides, so a

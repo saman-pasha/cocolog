@@ -33,3 +33,12 @@ r0(_).
 %% switches the tracer on from inside its own body, so its disjunction is
 %% reached from an environment written untraced (trace.pl's `env_late')
 lt(X) :- trace, ( pick(X) ; X = c ).
+
+%% a type test, a builtin and a comparison inside a construct, which an
+%% untraced call runs in place from its environment (Stage 7): traced,
+%% each is a goal with its ports again
+len3(X) :- ( atom(X) -> atom_length(X, N), N > 2 ; fail ).
+
+%% the same kinds and `=/2', reached from an environment written untraced
+%% and taken traced (trace.pl's `env_late')
+lb(X, N) :- trace, ( X = abc -> atom_length(X, N) ; N = 0 ), N > 2.

@@ -34,7 +34,7 @@
 main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
-    in_registers, guards, environments(D),
+    in_registers, guards, environments(D), in_place(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -300,22 +300,27 @@ gd_out(G, R, Out) :-
 
 gd_values([-7, -1, 0, 1, 3, 40, 1000000007, -1000000007, 1099511627776, 2.5, foo, _]).
 
-gd_mismatch(Kind, Name, X, Y) :-
+%% family F's clause of kind K over ARGS -- gd_bin/4 or ip_bin/4 (Stage 7,
+%% below), and so on -- against the step's answer
+gd_call(F, K, Args, G) :- atomic_list_concat([F, '_', K], P), G =.. [P|Args].
+
+gd_mismatch(F, Kind, Name, X, Y) :-
     gd_values(Vs), member(X, Vs), member(Y, Vs),
-    (   Kind = bin, gd_expr(Name, X, Y, E),
-        gd_out(gd_bin(Name, X, Y, R1), R1, O1), gd_out(gd_ref(E, R2), R2, O2)
-    ;   Kind = cmp, gd_cexpr(Name, X, Y, E),
-        gd_out(gd_cmp(Name, X, Y), yes, O1), gd_out(gd_test(E), yes, O2)
+    (   Kind = bin, gd_expr(Name, X, Y, E), gd_call(F, bin, [Name, X, Y, R1], G1),
+        gd_out(G1, R1, O1), gd_out(gd_ref(E, R2), R2, O2)
+    ;   Kind = cmp, gd_cexpr(Name, X, Y, E), gd_call(F, cmp, [Name, X, Y], G1),
+        gd_out(G1, yes, O1), gd_out(gd_test(E), yes, O2)
     ),
     O1 \== O2.
-gd_mismatch(un, Name, X, none) :-
-    gd_values(Vs), member(X, Vs), gd_uexpr(Name, X, E),
-    gd_out(gd_un(Name, X, R1), R1, O1), gd_out(gd_ref(E, R2), R2, O2),
+gd_mismatch(F, un, Name, X, none) :-
+    gd_values(Vs), member(X, Vs), gd_uexpr(Name, X, E), gd_call(F, un, [Name, X, R1], G1),
+    gd_out(G1, R1, O1), gd_out(gd_ref(E, R2), R2, O2),
     O1 \== O2.
-gd_mismatch(type, Name, X, none) :-
+gd_mismatch(F, type, Name, X, none) :-
     member(X, [_, 3, 2.5, foo, "s", [], [a], f(x)]),
     member(Name, [var, nonvar, atom, integer, number, atomic, compound]),
-    gd_out(gd_type(Name, X), yes, O1), G =.. [Name, X], gd_out(gd_test(G), yes, O2),
+    gd_call(F, type, [Name, X], G1),
+    gd_out(G1, yes, O1), G =.. [Name, X], gd_out(gd_test(G), yes, O2),
     O1 \== O2.
 
 %% falling through to the next clause, a bound left side, an integer on the
@@ -334,7 +339,7 @@ gd_inferences(G, I) :-
 
 guards :-
     section('guards: the arithmetic a body starts with, run as it is entered'),
-    findall(K-N-X-Y, ( member(K, [bin, cmp, un, type]), gd_mismatch(K, N, X, Y) ), L1),
+    findall(K-N-X-Y, ( member(K, [bin, cmp, un, type]), gd_mismatch(gd, K, N, X, Y) ), L1),
     check('every operator and test answers as the step answers, errors included', L1, []),
     findall(C2, ( member(X2, [5, 50, 500]), gd_cls(X2, C2) ), L2),
     check('a guard that fails sends the call on to the next clause', L2,
@@ -510,3 +515,151 @@ environments(D) :-
     check('so does one whose bodies start with guards', A18, B18),
     atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-23,23-23,24-23,25-23,26-23,27-23,28-23,29-23,30-23]\n1166\n"),
     check('...and its answers, stops and count are 1.9.2\'s', A18, W18).
+
+%% THE BUILTINS IN PLACE (Stage 7). A later goal of a body that makes an
+%% environment, when it is a core builtin, is done where it stands: `is/2',
+%% the six comparisons and the type tests run as Stage 4's guard program
+%% over the environment's slots, `=/2', `==/2' and `\==/2' read their two
+%% sides out of the slots, and any other builtin is called by its row on
+%% the term built at entry -- each the one step its goal was. The guards'
+%% families again, each goal after a construct so that it is one of its
+%% environment's units, held to the step goal by goal, errors included.
+ip_bin(plus, X, Y, R) :- once(true), R is X + Y.
+ip_bin(minus, X, Y, R) :- once(true), R is X - Y.
+ip_bin(times, X, Y, R) :- once(true), R is X * Y.
+ip_bin(intdiv, X, Y, R) :- once(true), R is X // Y.
+ip_bin(div, X, Y, R) :- once(true), R is X div Y.
+ip_bin(mod, X, Y, R) :- once(true), R is X mod Y.
+ip_bin(rem, X, Y, R) :- once(true), R is X rem Y.
+ip_bin(min, X, Y, R) :- once(true), R is min(X, Y).
+ip_bin(max, X, Y, R) :- once(true), R is max(X, Y).
+ip_bin(shr, X, Y, R) :- once(true), R is X >> Y.
+ip_bin(shl, X, Y, R) :- once(true), R is X << Y.
+ip_bin(and, X, Y, R) :- once(true), R is X /\ Y.
+ip_bin(or, X, Y, R) :- once(true), R is X \/ Y.
+ip_bin(xor, X, Y, R) :- once(true), R is X xor Y.
+ip_bin(nest, X, Y, R) :- once(true), R is (X * 31 + Y) mod 1000003 - min(X, -Y).
+
+ip_un(neg, X, R) :- once(true), R is -X.
+ip_un(pos, X, R) :- once(true), R is +(X).
+ip_un(not, X, R) :- once(true), R is \X.
+ip_un(abs, X, R) :- once(true), R is abs(X).
+ip_un(sign, X, R) :- once(true), R is sign(X).
+
+ip_cmp(lt, X, Y) :- once(true), X < Y.
+ip_cmp(gt, X, Y) :- once(true), X > Y.
+ip_cmp(le, X, Y) :- once(true), X =< Y.
+ip_cmp(ge, X, Y) :- once(true), X >= Y.
+ip_cmp(eq, X, Y) :- once(true), X =:= Y.
+ip_cmp(ne, X, Y) :- once(true), X =\= Y.
+ip_cmp(sum, X, Y) :- once(true), X + 1 > Y - 1.
+
+ip_type(var, X) :- once(true), var(X).
+ip_type(nonvar, X) :- once(true), nonvar(X).
+ip_type(atom, X) :- once(true), atom(X).
+ip_type(integer, X) :- once(true), integer(X).
+ip_type(number, X) :- once(true), number(X).
+ip_type(atomic, X) :- once(true), atomic(X).
+ip_type(compound, X) :- once(true), compound(X).
+
+%% the two sides, in place and through the step, over every pair of
+%% values and the pairs that share a variable; what they bound is
+%% compared as a variant, its variables numbered in order
+ip_sides(eq, X, Y) :- once(true), X = Y.
+ip_sides(same, X, Y) :- once(true), X == Y.
+ip_sides(diff, X, Y) :- once(true), X \== Y.
+ip_sref(eq, X, Y) :- gd_test(X = Y).
+ip_sref(same, X, Y) :- gd_test(X == Y).
+ip_sref(diff, X, Y) :- gd_test(X \== Y).
+
+ip_svalues([_, 1, a, 2.5, "s", [], f(_), f(1), f(_, a), [1, 2], [_|_], g(f(a))]).
+
+ip_spair(X-Y) :- ip_svalues(Vs), member(X, Vs), member(Y, Vs).
+ip_spair(P) :- member(P, [A-A, f(A)-f(A), f(A, B)-f(B, A), f(A, A)-f(1, B), [A|B]-[1, 2]]).
+
+ip_bound(G, T, Out) :-
+    (   call(G)
+    ->  copy_term(T, C), term_variables(C, Vs), ip_number(Vs, 0), Out = yes(C)
+    ;   Out = no
+    ).
+ip_number([], _).
+ip_number([v(N)|T], N) :- N1 is N + 1, ip_number(T, N1).
+
+ip_sides_mismatch(Op, P) :-
+    ip_spair(P), member(Op, [eq, same, diff]),
+    copy_term(P, X1-Y1), copy_term(P, X2-Y2),
+    ip_bound(ip_sides(Op, X1, Y1), X1-Y1, O1), ip_bound(ip_sref(Op, X2, Y2), X2-Y2, O2),
+    O1 \== O2.
+
+%% a variable a guard makes, and two a unification makes, read by the
+%% goals after them; a guard that fails sending the call on; a loop
+ip_fresh(X, L) :- once(true), Y is X * 2, Z is Y + 1, L = [Y, Z].
+ip_struct(T, L) :- once(true), T = f(A, B), L = [B, A].
+ip_cls(X, small) :- once(true), X < 10.
+ip_cls(X, medium) :- once(true), X < 100.
+ip_cls(_, large).
+ip_loop(0) :- !.
+ip_loop(N) :- once(true), N > 0, N1 is N - 1, ip_loop(N1).
+ip_len(X, N) :- once(true), atom_length(X, N).
+
+%% a program run with the builtins in place and without (`COCOLOG_INPLACE=0',
+%% the stage's arm): guards that pass, fail and cannot decide -- a float,
+%% an unbound variable, an atom -- two sides over a structure a guard
+%% reads, builtins called by their row and raising, a stop at every ceiling
+%% to forty, the count, and an error nothing catches
+ip_both([ 'q(1). q(2). q(3). q(4).',
+          'g(X, Y) :- q(X), ( X > 1 -> Y is X * 10 ; Y = small ), Y \\== 20.',
+          's(T, L) :- once(true), T = f(A, B), A == 1, ( B = 2 -> L = yes(A, B) ; L = no ).',
+          'l(A, N) :- once(true), atom_length(A, N), N >= 3.',
+          'd(X, R) :- once(true), R is X / 2, R > 1.',
+          'c(X, R) :- once(true), X = [H|T], atom(H), functor(R, H, 2), arg(1, R, T), arg(2, R, z).',
+          'e(G, F) :- catch(G, error(F, _), true), ( var(F) -> F = none ; true ).',
+          'main :- findall(X-Y, g(X, Y), L1), write(L1), nl,',
+          '        findall(T-L, ( member(T, [f(1, 2), f(1, 3), f(2, 2), g(1)]), s(T, L) ), L2), write(L2), nl,',
+          '        findall(A-N, ( member(A, [ab, abc, abcd]), l(A, N) ), L3), write(L3), nl,',
+          '        findall(X-R, ( member(X, [1, 3, 4.0, 5]), d(X, R) ), L4), write(L4), nl,',
+          '        findall(R, c([k, a, b], R), L5), write(L5), nl,',
+          '        findall(F, ( member(G, [l(_, _), d(_, _), d(foo, _), c(_, _), c([1], _)]), e(G, F) ), L6),',
+          '        write(L6), nl,',
+          '        findall(Lm-U-Rm, ( between(1, 40, Lm), call_metered(findall(X-Y, g(X, Y), _), Lm, U, Rm) ), M),',
+          '        write(M), nl,',
+          '        statistics(inferences, I), write(I), nl,',
+          '        l(_, _).' ]).
+
+in_place(D) :-
+    section('builtins in place: a later goal\'s arithmetic, tests and unification'),
+    findall(K-N-X-Y, ( member(K, [bin, cmp, un, type]), gd_mismatch(ip, K, N, X, Y) ), L1),
+    check('every operator and test at a later position answers as the step answers, errors included', L1, []),
+    findall(Op-P, ip_sides_mismatch(Op, P), L2),
+    check('=, == and \\== from the slots bind and answer as the step', L2, []),
+    ip_fresh(3, L3), ip_struct(T3, L3b), T3 = f(1, 2),
+    check('the variables they make are read by the goals after them', L3-L3b, [6, 7]-[2, 1]),
+    findall(C4, ( member(X4, [5, 50, 500]), ip_cls(X4, C4) ), L4),
+    check('a guard in place that fails sends the call on to the next clause', L4,
+          [small, medium, large, medium, large, large]),
+    catch(ip_len(_, _), error(E5, _), true),
+    check('a builtin called in place raises as it did, to the catch outside', E5, instantiation_error),
+    %% 1.9.4 counted these, unit by unit, and so does this engine
+    gd_inferences(ip_loop(1000), I6), gd_inferences(ip_loop(1000), I6b),
+    check('each one is still an inference', I6-I6b, 7004-7004),
+    gd_inferences(findall(C7, ( member(X7, [5, 50, 500]), ip_cls(X7, C7) ), _), I7),
+    gd_inferences(ip_fresh(3, _), I7b), gd_inferences(ip_struct(_, _), I7c),
+    gd_inferences(ip_len(abc, _), I7d),
+    check('the one that fails too, and the unifications and the builtins', [I7, I7b, I7c, I7d], [47, 10, 9, 8]),
+    findall(L8-U8-R8, ( between(1, 18, L8), call_metered(ip_loop(2), L8, U8, R8) ), M8),
+    findall(L8e-U8e-inference_limit_exceeded, ( between(1, 16, L8e), U8e is L8e + 1 ), E8a),
+    append(E8a, [17-17-true, 18-17-true], E8),
+    check('an inference limit stops where it always stopped', M8, E8),
+    atom_concat(D, '/both7.pl', F9),
+    ip_both(Lines9), fixture(F9, Lines9),
+    cocolog(C),
+    sh_join([C, ' -s ', F9, ' 2>&1; echo "exit $?"'], OnCmd), proc_run(OnCmd, 120000, OnOut, _),
+    sh_join(['COCOLOG_INPLACE=0 ', C, ' -s ', F9, ' 2>&1; echo "exit $?"'], OffCmd), proc_run(OffCmd, 120000, OffOut, _),
+    atom_codes(A9, OnOut), atom_codes(B9, OffOut),
+    check('a program answers, raises, stops and counts the same in place and not', A9, B9),
+    atom_codes(W9, "[1-small,3-30,4-40]\n[f(1,2)-yes(1,2),f(1,3)-no]\n[abc-3,abcd-4]\n[3-1.5,4.0-2.0,5-2.5]\n[k([a,b],z)]\n[instantiation_error,instantiation_error,type_error(evaluable,foo)]\n"),
+    ( atom_concat(W9, _, A9) -> T9 = yes ; T9 = A9 ),
+    check('...and its answers are 1.9.4\'s', T9, yes),
+    W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
+    ( atom_concat(_, W9e, A9) -> T9e = yes ; T9e = A9 ),
+    check('...as are its count and the error nothing caught', T9e, yes).

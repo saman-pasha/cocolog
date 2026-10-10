@@ -525,19 +525,22 @@ heap :-
     %% it, so the run goes on from the frames a thawed machine starts from.
     %% `rt/2' leaves a later builtin pending in every environment of a deep
     %% recursion, so each collection rebuilds thousands of them, and a
-    %% wrong one is a wrong sum or an unknown procedure.
+    %% wrong one is a wrong sum or an unknown procedure; `rb/2' leaves the
+    %% three goals Stage 7 runs in place -- a `=/2', a builtin and an
+    %% arithmetic guard -- and each is rebuilt as the term it was written as.
     atom_concat(D7, '/kmat.pl', F9),
     fixture(F9, [ 'rt(N, S) :- ( N =:= 0 -> S = 0 ; M is N - 1, rt(M, S0), S is S0 + N ).',
-                  'go :- rt(20000, S), write(rt(S)), nl.' ]),
+                  'rb(N, S) :- ( N =:= 0 -> S = 0 ; M is N - 1, rb(M, S0), atom_length(abc, L), T = S0, S is T + L ).',
+                  'go :- rt(20000, S), write(rt(S)), nl, rb(20000, B), write(rb(B)), nl.' ]),
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F9, ' go 2>&1'], Cmd9),
     proc_run(Cmd9, 120000, O9, _), chomp(O9, B9), atom_codes(T9, B9),
-    check('a builtin pending in every environment of a recursion, collected', T9, 'rt(200010000)'),
+    check('a builtin pending in every environment of a recursion, collected', T9, 'rt(200010000)\nrb(60000)'),
     sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 ', C, ' run ', F9, ' go 2>&1'], Cmd10),
     proc_run(Cmd10, 120000, O10, _), chomp(O10, B10), atom_codes(T10, B10),
-    check('and materialised at every collection, then put back', T10, 'rt(200010000)'),
+    check('and materialised at every collection, then put back', T10, 'rt(200010000)\nrb(60000)'),
     sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F9, ' go 2>&1'], Cmd11),
     proc_run(Cmd11, 120000, O11, _), chomp(O11, B11), atom_codes(T11, B11),
-    check('and materialised and kept, as a thawed machine runs on', T11, 'rt(200010000)'),
+    check('and materialised and kept, as a thawed machine runs on', T11, 'rt(200010000)\nrb(60000)'),
     sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F8, ' go 2>&1'], Cmd12),
     proc_run(Cmd12, 120000, O12, _), chomp(O12, B12), atom_codes(T12, B12),
     check('the recursions through environments, materialised and kept',

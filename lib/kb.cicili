@@ -114,8 +114,13 @@
 ;;; written as one (ITE), a disjunction (DISJ), the cut after a condition
 ;;; (CUTC), a conjunction taken apart (CONJ), and the construct's own
 ;;; `true' and `fail' (TRUE, FAIL) -- each one step, as each was one goal.
+;;; Since Stage 7 a core builtin is done where it stands: arithmetic and a
+;;; type test as a guard over the slots (GUARD), `=/2', `==/2' and `\==/2'
+;;; from two sides read out of the slots (SIDES), and any other with
+;;; arguments called by its row with the term built at entry (BUILTIN).
 (DEFPARAMETER *cc-eg-kinds* '(("TERM" 0) ("CALL" 1) ("CUT" 2) ("ITE" 3) ("DISJ" 4)
-                              ("CUTC" 5) ("CONJ" 6) ("TRUE" 7) ("FAIL" 8)))
+                              ("CUTC" 5) ("CONJ" 6) ("TRUE" 7) ("FAIL" 8)
+                              ("GUARD" 9) ("SIDES" 10) ("BUILTIN" 11)))
 
 (DEFUN cc-eg-number (name)
   (LET ((row (ASSOC name *cc-eg-kinds* :TEST #'STRING=)))
@@ -461,29 +466,35 @@
                 (set (-> cd envd) 1)
                 (set (-> er next) (+ eh (+ ps (- (cast size_t (-> cd eu0)) 1))))))))))
 
-;;; THE GUARDS' RUNNER, WRITTEN ONCE AND EMITTED TWICE (Stage 6): the body
-;;; of `cc_guards_run', for the guards' own executor, and of
+;;; THE GUARDS' RUNNER, WRITTEN ONCE AND EMITTED THREE TIMES (Stage 6): the
+;;; body of `cc_guards_run', for the guards' own executor, and of
 ;;; `cc_guards_run_e', for the one that makes an environment after them,
 ;;; each a static function with one caller, which the compiler keeps
-;;; inline there. One function called from two executors became a call of
+;;; inline there; and since Stage 7 of `coco_env_guard', for one goal of an
+;;; environment. One function called from two executors became a call of
 ;;; its own, and cost the counting loop 6 instructions a turn (Stage 5's
 ;;; first form). The body and not the function, because an attribute
 ;;; written before a macro that makes a function does not reach it: the
 ;;; two came out with `(static)' lost, and called.
 ;;;
-;;; RUNS THE GUARDS (`gbody'), at most BUDGET goals of them, over the
-;;; frame the head filled. Answers how many ran to the end; FAILED is set
-;;; when the next one failed -- the clause fails, its bindings left for
-;;; the caller's marks. A goal this cannot decide -- a variable not bound
-;;; to an integer, a zero divisor, anything the step would raise for or
-;;; answer a float to -- stops the run BEFORE it has done anything, and
-;;; that goal and the rest are built and stepped as they always were.
+;;; RUNS THE GUARDS (PROG, LEN words of it), at most BUDGET goals of them,
+;;; over the variables VARAT reaches by number: the frame the head filled
+;;; (`cc-frame-var'), or an environment's slots (`cc-env-slot', ENV 1,
+;;; whose programs have no AG_ISF: a variable a guard there meets first
+;;; was made with the environment, and is bound by AG_ISV). Answers how
+;;; many ran to the end; FAILED is set when the next one failed -- the
+;;; clause fails, its bindings left for the caller's marks. A goal this
+;;; cannot decide -- a variable not bound to an integer, a zero divisor,
+;;; anything the step would raise for or answer a float to -- stops the
+;;; run BEFORE it has done anything, and that goal and the rest are built
+;;; and stepped as they always were.
 ;;; Every value is computed with the C `coco_arith' uses for it, and a
 ;;; result is compared with or bound to the left of an `is' as the cell
 ;;; `coco_new_int' makes of it, which is what `coco_unify' compares.
-(DEFMACRO cc-guards-body ()
+(DEFMACRO cc-frame-var (K) `(coco_deref m (nth ,K frame)))
+(DEFMACRO cc-guards-body (PROG LEN VARAT ENV)
   `      (let ((i64 sk [16]) (u32 sp . 0) (u32 done . 0) (size_t pc . 0)
-            (u64 * p . #'(-> cd gbody)) (size_t len . #'(-> cd gblen)))
+            (u64 * p . #',PROG) (size_t len . #',LEN))
         (set (cof failed) 0)
         (if (== budget 0) (return 0))
         (while (< pc len)
@@ -491,7 +502,7 @@
             (set pc (+ pc 1))
             (switch (cast int (cc_op w))
               (case (cc-op "AG_LOAD")
-                (let ((u64 c . #'(nth (coco_deref m (nth (cc_k w) frame)) (-> m heap))))
+                (let ((u64 c . #'(nth (,VARAT (cc_k w)) (-> m heap))))
                   (if (not (coco-tag-is INT c)) (return done))
                   (set (nth sp sk) (coco-signed-payload c))
                   (set sp (+ sp 1)))
@@ -556,13 +567,16 @@
                 break)
               (case (cc-op "AG_ISF")
                 ;; met first here: the frame slot IS the result
-                (set sp (- sp 1))
-                (set (nth (cc_k w) frame) (coco_new_int m (nth sp sk)))
-                (set fin 1)
-                break)
+                ,@(COPY-TREE
+                   (IF (EQL ENV 1)
+                       '((return done))
+                       '((set sp (- sp 1))
+                         (set (nth (cc_k w) frame) (coco_new_int m (nth sp sk)))
+                         (set fin 1)
+                         break))))
               (case (cc-op "AG_ISV")
                 ;; met before: bound to the result, or compared with it
-                (let ((size_t v . #'(coco_deref m (nth (cc_k w) frame))) (u64 c . 0))
+                (let ((size_t v . #'(,VARAT (cc_k w))) (u64 c . 0))
                   (set sp (- sp 1))
                   (set c (nth v (-> m heap)))
                   (cond
@@ -580,7 +594,7 @@
                 break)
               (case (cc-op "AG_TYPE")
                 ;; as the type-test builtins read their argument
-                (let ((u64 c . #'(nth (coco_deref m (nth (cc_k w) frame)) (-> m heap))))
+                (let ((u64 c . #'(nth (,VARAT (cc_k w)) (-> m heap))))
                   (switch (cast int (cc_n w))
                     (case (cc-gop "var") (set pass (coco-tag-is REF c)) break)
                     (case (cc-gop "nonvar") (set pass (not (coco-tag-is REF c))) break)
@@ -1107,6 +1121,14 @@
   ;;; TLEN)). A CUT cuts to its barrier, TRUE goes on and FAIL fails, FID
   ;;; the atom each was written as.
   ;;;
+  ;;; THE BUILTINS IN PLACE (Stage 7). A GUARD -- `is/2', a comparison, a
+  ;;; type test -- runs its guard program (EBODY[RAT, RAT + RLEN), Stage
+  ;;; 4's words over the slots) and builds its term from the slots (TAT,
+  ;;; TLEN) only when the program cannot decide. A SIDES -- `=/2', `==/2',
+  ;;; `\==/2', FORM 0 to 2 -- reads its two arguments out of the slots as a
+  ;;; call's register form does (RAT, RLEN, RVARS) and unifies or compares
+  ;;; them. A BUILTIN is a TERM whose builtin's row is FORM, called by it.
+  ;;;
   ;;; THE CONSTRUCTS (Stage 6). An ITE -- `( C -> T ; E )', `( C -> T )',
   ;;; `\+ C' or `not(C)', `once(C)' and `ignore(C)', which FORM tells apart
   ;;; (0 to 4 in that order), FID and FID2 the functors they were written
@@ -1128,11 +1150,12 @@
   ;;; NOFF the continuation after it, the next unit's position or the
   ;;; parent's cell; BOFF the cell its barrier is read from and BADD what
   ;;; is added to it (the environment's barrier, or a condition's height
-  ;;; plus one); SOFF a term's slot, or an if-then-else's and its cut's
-  ;;; condition slot; AOFF the position of a construct's first part and
-  ;;; COFF of its alternative (an if-then-else's else, a disjunction's
-  ;;; right arm). RVARS says a call's arguments are all variables, every
-  ;;; word of its register form an RARG_VAR, which a step copies itself.
+  ;;; plus one); SOFF a term's slot (a TERM's or a BUILTIN's), or an
+  ;;; if-then-else's and its cut's condition slot; AOFF the position of a
+  ;;; construct's first part and COFF of its alternative (an
+  ;;; if-then-else's else, a disjunction's right arm). RVARS says a call's
+  ;;; arguments are all variables (or a SIDES's two), every word of its
+  ;;; register form an RARG_VAR, which a step copies itself.
   (struct coco_egoal
     (member u32 kind)
     (member u32 arity)
@@ -1312,6 +1335,16 @@
                               (size_t * regs)) (out int))
   (decl) (func coco_env_term ((coco_machine * m) (coco_code * cd) (size_t env) (u32 i)
                               (size_t * out)) (out int))
+  ;;; A GUARD OR A SIDES AT UNIT U, done where it stands (Stage 7): the
+  ;;; guard's program over the slots -- 1 when it passed, 0 when it did not
+  ;;; with FAILED set, or did not decide with FAILED clear -- and the two
+  ;;; sides unified or compared -- 1 true, 0 false, -1 the heap would not
+  ;;; grow. Static, each with one caller (`coco_env_place' in
+  ;;; solve.cicili), and inline there.
+  (static) (decl) (func coco_env_guard ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
+                                        (int * failed)) (out u32))
+  (static) (decl) (func coco_env_sides ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u))
+                        (out int))
   ;;; UNIT U OF THE ENVIRONMENT AT ENV as the term its frame held through
   ;;; 1.9.2 (Stage 6, `coco_unit_term'): 1, or 0 when the heap would not grow.
   (decl) (func coco_unit_term ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
@@ -2500,11 +2533,12 @@
   ;;; goals.
 
   ;;; The names a Cicili string cannot carry, by their codes: `/\', `\/',
-  ;;; `\' and `=\='.
+  ;;; `\' and `=\=', and `\==' for Stage 7.
   (static) (var char CC_GN_AND [] . '{ 47 92 0 })
   (static) (var char CC_GN_OR  [] . '{ 92 47 0 })
   (static) (var char CC_GN_NOT [] . '{ 92 0 })
   (static) (var char CC_GN_NEQ [] . '{ 61 92 61 0 })
+  (static) (var char CC_GN_NEQEQ [] . '{ 92 61 61 0 })
 
   ;;; The guard code of an operator S of arity N: KIND 0 an arithmetic one,
   ;;; KIND 1 a comparison, KIND 2 a type test; 0 for none.
@@ -2809,6 +2843,17 @@
               (set cc_env_state (? (and (!= s nil) (== 0 (strcmp s "0"))) 2 1))))
         (return (? (== cc_env_state 1) 1 0)))
 
+  ;;; THE BUILTINS IN PLACE (Stage 7) are on unless `COCOLOG_INPLACE' says
+  ;;; 0, the stage's arm, read at the first compile as the one above is.
+  (static) (var int cc_inplace_state . 0)
+
+  (static)
+  (func cc_inplace_enabled () (out int)
+        (if (== cc_inplace_state 0)
+            (let ((const char * s . #'(getenv "COCOLOG_INPLACE")))
+              (set cc_inplace_state (? (and (!= s nil) (== 0 (strcmp s "0"))) 2 1))))
+        (return (? (== cc_inplace_state 1) 1 0)))
+
   ;;; WHETHER A LATER GOAL OF FUNCTOR FID IS REACHED AS A CALL: a predicate
   ;;; of the program's own -- not a construct's name, not a core builtin's
   ;;; -- of one to eight arguments, whose call the registers pay for
@@ -2840,9 +2885,10 @@
   ;;; and nothing a construct writes around its goals -- the `;', the `->',
   ;;; the `,' -- is built at all. US holds the units from 1; XB, EB, GB, TB
   ;;; and RB the entry program, the calls' programs, one goal's words, one
-  ;;; call's words over the slots and its register form; EMAP and EINIT the
-  ;;; variable slots (NEMAP the frame's size); the atoms the constructs are
-  ;;; told by, and the functors a freeze builds two of them back with.
+  ;;; call's words over the slots and its register form, and QB a guard's
+  ;;; program (Stage 7); EMAP and EINIT the variable slots (NEMAP the
+  ;;; frame's size); the atoms the constructs are told by, and the
+  ;;; functors a freeze builds two of them back with.
   (struct coco_ucomp
     (member coco_store * st)
     (member coco_machine * m)
@@ -2856,6 +2902,7 @@
     (member coco_cbuf gb)
     (member coco_cbuf tb)
     (member coco_cbuf rb)
+    (member coco_cbuf qb)
     (member u32 * emap)
     (member u32 * einit)
     (member u32 nemap)
@@ -2903,59 +2950,159 @@
           (if (!= u 0) (set ($ (nth u (-> uc us)) fid) atom))
           (return u)))
 
+  ;;; A GOAL'S WORDS OVER THE ENVIRONMENT'S SLOTS (Stages 5 and 7): W[0,
+  ;;; LEN), as `cc_compile_goal' emitted them, into TB with each variable an
+  ;;; ARG_VAR of its slot -- every variable the goal has gets one -- and
+  ;;; each it meets first made at entry, a FRESH word in the entry program.
+  ;;; A call's are made in the order its words name them (Stage 5); BYCELL
+  ;;; makes them in the order of the cells its term gave them (Stage 7), so
+  ;;; that a builtin's variables stand where its term made them, in the
+  ;;; order `compare/3' sees unbound variables in -- 64 of them at most: 0
+  ;;; past that, with none made and OK still set.
+  (static)
+  (func cc_uslots ((coco_ucomp * uc) (const u64 * w) (size_t len) (int bycell)) (out int)
+        (let ((size_t pc . 0) (u32 fk [64]) (u32 fn [64]) (u32 nf . 0))
+          (set ($ (-> uc tb) len) 0)
+          (while (and (-> uc ok) (< pc len))
+            (let ((u64 x . #'(nth pc w)) (u64 op . 0))
+              (set op (cc_op x))
+              (set pc (+ pc 1))
+              (if (or (== op (cc_ARG_VAR)) (== op (cc_ARG_VAR_1)))
+                  (let ((size_t k . #'(cc_k x)))
+                    (if (>= k (cast size_t (-> uc nemap)))
+                        (block (set (-> uc ok) 0) (return 0)))
+                    (if (== op (cc_ARG_VAR_1))
+                        (if bycell
+                            (block (if (>= nf 64) (return 0))
+                                   (set (nth nf fk) (cast u32 k))
+                                   (set (nth nf fn) (cast u32 (cc_n x)))
+                                   (set nf (+ nf 1)))
+                            (if (not (cc_emit (aof (-> uc xb)) (cc_word (cc_FRESH) (cast u64 k) 0)))
+                                (set (-> uc ok) 0))))
+                    (if (== (nth k (-> uc emap)) 0)
+                        (block (set (nth (-> uc nes) (-> uc einit)) (cast u32 k))
+                               (set (-> uc nes) (+ (-> uc nes) 1))
+                               (set (nth k (-> uc emap)) (-> uc nes))))
+                    (if (not (cc_emit (aof (-> uc tb)) (cc_word (cc_ARG_VAR)
+                                                                (cast u64 (- (nth k (-> uc emap)) 1))
+                                                                (cc_n x))))
+                        (set (-> uc ok) 0)))
+                  (block
+                   (if (not (cc_emit (aof (-> uc tb)) x)) (set (-> uc ok) 0))
+                   ;; and the functor or the constant after it
+                   (if (or (== op (cc_GOAL_STRUCT)) (== op (cc_ARG_CONST)) (== op (cc_ARG_STRUCT)))
+                       (block (if (not (cc_emit (aof (-> uc tb)) (nth pc w))) (set (-> uc ok) 0))
+                              (set pc (+ pc 1))))))))
+          ;; the ones met first, made in the order of their cells
+          (while (and (-> uc ok) (> nf 0))
+            (let ((u32 best . 0))
+              (for ((u32 j . 1)) (< j nf) ((++ j))
+                (if (< (nth j fn) (nth best fn)) (set best j)))
+              (if (not (cc_emit (aof (-> uc xb)) (cc_word (cc_FRESH) (cast u64 (nth best fk)) 0)))
+                  (set (-> uc ok) 0))
+              (set nf (- nf 1))
+              (set (nth best fk) (nth nf fk))
+              (set (nth best fn) (nth nf fn))))
+          (return (-> uc ok))))
+
+  ;;; WHETHER A GOAL OF FUNCTOR FID IS A BUILTIN DONE IN PLACE (Stage 7),
+  ;;; its words compiled with LIMIT variables met before it: a GUARD when
+  ;;; `cc_guard_goal' takes it, its program left in QB over the frame's
+  ;;; numbering; a SIDES for `=/2', `==/2' and `\==/2', FORM 0, 1 and 2; a
+  ;;; BUILTIN for any other core builtin with arguments, FORM its row; and
+  ;;; a TERM for anything else.
+  (static)
+  (func cc_uplace ((coco_ucomp * uc) (size_t t) (u64 fid) (u32 limit) (u32 * form)) (out u32)
+        (let ((coco_machine * m . #'(-> uc m))
+              (u64 name . #'($ (nth (cast size_t fid) (-> m functors)) name))
+              (u32 arity . #'($ (nth (cast size_t fid) (-> m functors)) arity))
+              (const char * s . nil) (int row . -1))
+          (set ($ (-> uc qb) len) 0)
+          (if (cc_guard_goal (-> uc st) m t (-> uc vm) limit (aof (-> uc qb)))
+              (return (cc-eg "GUARD")))
+          (set ($ (-> uc qb) len) 0)
+          (if (or (== arity 0) (not (-> m ids_ready)) (coco_is_construct m name))
+              (return (cc-eg "TERM")))
+          (if (== arity 2)
+              (block
+               (set s (coco_atom_name m name))
+               (if (== 0 (strcmp s "=")) (block (set (cof form) 0) (return (cc-eg "SIDES"))))
+               (if (== 0 (strcmp s "==")) (block (set (cof form) 1) (return (cc-eg "SIDES"))))
+               (if (== 0 (strcmp s CC_GN_NEQEQ)) (block (set (cof form) 2) (return (cc-eg "SIDES"))))))
+          (set row (coco_builtin_index m name arity))
+          (if (< row 0) (return (cc-eg "TERM")))
+          (set (cof form) (cast u32 row))
+          (return (cc-eg "BUILTIN"))))
+
+  ;;; A GUARD'S PROGRAM OVER THE SLOTS (Stage 7): QB's words, numbered by
+  ;;; the frame, into EB with each variable its slot -- every variable of
+  ;;; the goal has one by now (`cc_uslots') -- and the left of an `is' met
+  ;;; first here bound where the environment made it: AG_ISV, not AG_ISF.
+  (static)
+  (func cc_uguard ((coco_ucomp * uc)) (out int)
+        (let ((u64 * q . #'($ (-> uc qb) w)) (size_t qn . #'($ (-> uc qb) len)) (size_t pc . 0))
+          (while (and (-> uc ok) (< pc qn))
+            (let ((u64 x . #'(nth pc q)) (u64 op . 0))
+              (set op (cc_op x))
+              (set pc (+ pc 1))
+              (cond
+                ((or (== op (cc_AG_LOAD)) (== op (cc_AG_TYPE)) (== op (cc_AG_ISV)) (== op (cc_AG_ISF)))
+                 (let ((size_t k . #'(cc_k x)))
+                   (if (or (>= k (cast size_t (-> uc nemap))) (== (nth k (-> uc emap)) 0))
+                       (block (set (-> uc ok) 0) (return 0)))
+                   (if (not (cc_emit (aof (-> uc eb))
+                                     (cc_word (? (== op (cc_AG_ISF)) (cc_AG_ISV) op)
+                                              (cast u64 (- (nth k (-> uc emap)) 1)) (cc_n x))))
+                       (set (-> uc ok) 0))))
+                ((or (== op (cc_AG_PUSH)) (== op (cc_AG_ISC)))
+                 (if (not (cc_emit (aof (-> uc eb)) x)) (set (-> uc ok) 0))
+                 (if (not (cc_emit (aof (-> uc eb)) (nth pc q))) (set (-> uc ok) 0))
+                 (set pc (+ pc 1)))
+                (#t (if (not (cc_emit (aof (-> uc eb)) x)) (set (-> uc ok) 0))))))
+          (return (-> uc ok))))
+
   ;;; A GOAL THAT IS NO CONSTRUCT: a CALL when its predicate is the
-  ;;; program's own and the registers pay (`cc_env_callable'), a TERM built
+  ;;; program's own and the registers pay (`cc_env_callable'); a builtin
+  ;;; done in place (Stage 7, `cc_uplace'): a GUARD or a SIDES over the
+  ;;; slots, or a BUILTIN, a TERM its step calls by its row; a TERM built
   ;;; at entry otherwise.
   (static)
   (func cc_uleaf ((coco_ucomp * uc) (size_t t)) (out u32)
         (let ((coco_store * st . #'(-> uc st)) (coco_machine * m . #'(-> uc m))
-              (u64 * w . nil) (size_t len . 0) (u32 u . 0))
+              (u64 * w . nil) (size_t len . 0) (u32 u . 0)
+              (u32 limit . #'(-> uc nvars)) (u32 kind . 0) (u32 form . 0))
           (set ($ (-> uc gb) len) 0)
           (if (not (cc_compile_goal st m t (-> uc vm) (aof (-> uc nvars)) (aof (-> uc gb))))
               (block (set (-> uc ok) 0) (return 0)))
           (set w ($ (-> uc gb) w))
           (set len ($ (-> uc gb) len))
-          (if (and (== (cc_op (nth 0 w)) (cc_GOAL_STRUCT)) (cc_env_callable st m (nth 1 w)))
-              (let ((size_t pc . 0) (u64 fid . 0) (u32 arity . 0))
-                ;; its words over the slots, its first-met variables made at
-                ;; entry in its place
-                (set ($ (-> uc tb) len) 0)
-                (while (and (-> uc ok) (< pc len))
-                  (let ((u64 x . #'(nth pc w)) (u64 op . 0))
-                    (set op (cc_op x))
-                    (set pc (+ pc 1))
-                    (if (or (== op (cc_ARG_VAR)) (== op (cc_ARG_VAR_1)))
-                        (let ((size_t k . #'(cc_k x)))
-                          (if (>= k (cast size_t (-> uc nemap)))
-                              (block (set (-> uc ok) 0) (return 0)))
-                          (if (== op (cc_ARG_VAR_1))
-                              (if (not (cc_emit (aof (-> uc xb)) (cc_word (cc_FRESH) (cast u64 k) 0)))
-                                  (set (-> uc ok) 0)))
-                          (if (== (nth k (-> uc emap)) 0)
-                              (block (set (nth (-> uc nes) (-> uc einit)) (cast u32 k))
-                                     (set (-> uc nes) (+ (-> uc nes) 1))
-                                     (set (nth k (-> uc emap)) (-> uc nes))))
-                          (if (not (cc_emit (aof (-> uc tb)) (cc_word (cc_ARG_VAR)
-                                                                      (cast u64 (- (nth k (-> uc emap)) 1))
-                                                                      (cc_n x))))
-                              (set (-> uc ok) 0)))
-                        (block
-                         (if (not (cc_emit (aof (-> uc tb)) x)) (set (-> uc ok) 0))
-                         ;; and the functor or the constant after it
-                         (if (or (== op (cc_GOAL_STRUCT)) (== op (cc_ARG_CONST)) (== op (cc_ARG_STRUCT)))
-                             (block (if (not (cc_emit (aof (-> uc tb)) (nth pc w))) (set (-> uc ok) 0))
-                                    (set pc (+ pc 1))))))))
-                ;; and its register form, which `cc_env_callable' has said
-                ;; there is: only memory makes this fail
+          (set kind (cc-eg "TERM"))
+          (if (== (cc_op (nth 0 w)) (cc_GOAL_STRUCT))
+              (cond
+                ((cc_env_callable st m (nth 1 w)) (set kind (cc-eg "CALL")))
+                ((cc_inplace_enabled) (set kind (cc_uplace uc t (nth 1 w) limit (aof form))))))
+          ;; a call, two sides or a guard: its words over the slots, its
+          ;; first-met variables made at entry in its place -- in the order
+          ;; its term made them, for the builtins; one with more of those
+          ;; than that keeps track of is a term
+          (if (and (or (== kind (cc-eg "CALL")) (== kind (cc-eg "SIDES")) (== kind (cc-eg "GUARD")))
+                   (not (cc_uslots uc w len (!= kind (cc-eg "CALL")))))
+              (block (if (not (-> uc ok)) (return 0))
+                     (set kind (cc-eg "TERM"))))
+          (if (or (== kind (cc-eg "CALL")) (== kind (cc-eg "SIDES")))
+              (let ((u64 fid . 0) (u32 arity . 0))
+                ;; and its register form, which `cc_env_callable' or the
+                ;; arity has said there is: only memory makes this fail
                 (set ($ (-> uc rb) len) 0)
                 (if (not (and (-> uc ok)
                               (cc_reg_form m ($ (-> uc tb) w) 0 ($ (-> uc tb) len) (aof (-> uc rb))
                                            (aof fid) (aof arity))))
                     (block (set (-> uc ok) 0) (return 0)))
-                (set u (cc_unew uc (cc-eg "CALL")))
+                (set u (cc_unew uc kind))
                 (if (== u 0) (return 0))
                 (set ($ (nth u (-> uc us)) fid) fid)
                 (set ($ (nth u (-> uc us)) arity) arity)
+                (set ($ (nth u (-> uc us)) form) form)
                 (set ($ (nth u (-> uc us)) tat) (cast u32 ($ (-> uc eb) len)))
                 (set ($ (nth u (-> uc us)) tlen) (cast u32 ($ (-> uc tb) len)))
                 (for ((size_t j . 0)) (and (-> uc ok) (< j ($ (-> uc tb) len))) ((++ j))
@@ -2965,9 +3112,27 @@
                 (for ((size_t j . 0)) (and (-> uc ok) (< j ($ (-> uc rb) len))) ((++ j))
                   (if (not (cc_emit (aof (-> uc eb)) (nth j ($ (-> uc rb) w)))) (set (-> uc ok) 0)))
                 (return u)))
-          ;; a term: built at entry over the frame, as before
-          (set u (cc_unew uc (cc-eg "TERM")))
+          (if (== kind (cc-eg "GUARD"))
+              (block
+               (set u (cc_unew uc kind))
+               (if (== u 0) (return 0))
+               (set ($ (nth u (-> uc us)) fid) (nth 1 w))
+               (set ($ (nth u (-> uc us)) arity) ($ (nth (cast size_t (nth 1 w)) (-> m functors)) arity))
+               ;; its term over the slots, for when the program cannot decide
+               (set ($ (nth u (-> uc us)) tat) (cast u32 ($ (-> uc eb) len)))
+               (set ($ (nth u (-> uc us)) tlen) (cast u32 ($ (-> uc tb) len)))
+               (for ((size_t j . 0)) (and (-> uc ok) (< j ($ (-> uc tb) len))) ((++ j))
+                 (if (not (cc_emit (aof (-> uc eb)) (nth j ($ (-> uc tb) w)))) (set (-> uc ok) 0)))
+               ;; and its program over them
+               (set ($ (nth u (-> uc us)) rat) (cast u32 ($ (-> uc eb) len)))
+               (if (not (cc_uguard uc)) (return 0))
+               (set ($ (nth u (-> uc us)) rlen) (- (cast u32 ($ (-> uc eb) len)) ($ (nth u (-> uc us)) rat)))
+               (return u)))
+          ;; a term: built at entry over the frame, as before -- a BUILTIN
+          ;; is one, called by its row
+          (set u (cc_unew uc kind))
           (if (== u 0) (return 0))
+          (set ($ (nth u (-> uc us)) form) form)
           (set ($ (nth u (-> uc us)) tslot) (-> uc nterm))
           (set (-> uc nterm) (+ (-> uc nterm) 1))
           (for ((size_t j . 0)) (and (-> uc ok) (< j len)) ((++ j))
@@ -3291,7 +3456,8 @@
           (if ($ uc ok)
               (for ((u32 i . 0)) (< i nb) ((++ i))
                 (cc_ulink (aof uc) (nth i bus) (? (< (+ i 1) nb) (nth (+ i 1) bus) 0) 0)))
-          (free ($ ($ uc gb) w)) (free ($ ($ uc tb) w)) (free ($ ($ uc rb) w)) (free ($ uc emap))
+          (free ($ ($ uc gb) w)) (free ($ ($ uc tb) w)) (free ($ ($ uc rb) w)) (free ($ ($ uc qb) w))
+          (free ($ uc emap))
           (if (or (not ($ uc ok)) (== ($ uc ncons) 0) (== nb 0) (> ($ uc nterm) 64)
                   (!= ($ uc nvars) (-> cd nvars)))
               (let ((int oom . #'(not ($ uc ok))))
@@ -3308,7 +3474,7 @@
                 (set (-> x boff) (? (== (-> x bslot) 0) 3 (+ sb (- (-> x bslot) 1))))
                 (set (-> x badd) (? (== (-> x bslot) 0) 0 1))
                 (cond
-                  ((== (-> x kind) (cc-eg "TERM"))
+                  ((or (== (-> x kind) (cc-eg "TERM")) (== (-> x kind) (cc-eg "BUILTIN")))
                    (set (-> x soff) (+ (+ ($ uc nes) (-> x tslot)) 4)))
                   ((or (== (-> x kind) (cc-eg "ITE")) (== (-> x kind) (cc-eg "CUTC")))
                    (set (-> x soff) (+ sb (-> x tslot)))))
@@ -3316,7 +3482,7 @@
                 (cond
                   ((== (-> x kind) (cc-eg "ITE")) (set (-> x coff) (+ pb (-> x c))))
                   ((== (-> x kind) (cc-eg "DISJ")) (set (-> x coff) (+ pb (-> x b)))))
-                (if (== (-> x kind) (cc-eg "CALL"))
+                (if (or (== (-> x kind) (cc-eg "CALL")) (== (-> x kind) (cc-eg "SIDES")))
                     (let ((u32 all . 1))
                       (for ((u32 j . 0)) (< j (-> x rlen)) ((++ j))
                         (if (!= (cc_op (nth (+ (-> x rat) j) ($ ($ uc eb) w))) (cc_RARG_VAR))
@@ -3786,11 +3952,11 @@
   (static)
   (func cc_guards_run ((coco_machine * m) (coco_code * cd) (size_t * frame) (u32 budget)
                        (int * failed)) (out u32)
-        (cc-guards-body))
+        (cc-guards-body (-> cd gbody) (-> cd gblen) cc-frame-var 0))
   (static)
   (func cc_guards_run_e ((coco_machine * m) (coco_code * cd) (size_t * frame) (u32 budget)
                          (int * failed)) (out u32)
-        (cc-guards-body))
+        (cc-guards-body (-> cd gbody) (-> cd gblen) cc-frame-var 0))
 
   ;;; THE SAME, TWO WAYS MORE (Stage 3): a call whose arguments are in
   ;;; registers (ARGS, CALL not read), and a first goal written into the
@@ -4076,6 +4242,38 @@
                 (default (return 0)))))
           (return 1)))
 
+  ;;; A GUARD, DONE IN PLACE (Stage 7): unit U's program over the
+  ;;; environment's slots, one goal -- 1 when it passed, 0 with FAILED set
+  ;;; when it failed, 0 with FAILED clear when it could not decide and did
+  ;;; nothing, for the step to build its term and take it as it always did.
+  (static)
+  (func coco_env_guard ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
+                        (int * failed)) (out u32)
+        (let ((coco_egoal * g . #'(aof (nth u (-> cd egoals))))
+              (size_t eb . #'(+ env 4)) (u32 budget . 1))
+          (cc-guards-body (+ (-> cd ebody) (-> g rat)) (cast size_t (-> g rlen)) cc-env-slot 1)))
+
+  ;;; TWO SIDES, DONE IN PLACE (Stage 7): unit U's two arguments read out of
+  ;;; the slots as a call's are -- copied when both are variables
+  ;;; (`rvars'), anything they nest made in one reservation otherwise
+  ;;; (`coco_env_regs') -- and unified (`=/2') or compared (`==/2',
+  ;;; `\==/2'), as the builtins unify and compare their two arguments. 1
+  ;;; true, 0 false, -1 when the heap would not grow.
+  (static)
+  (func coco_env_sides ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)) (out int)
+        (let ((coco_egoal * g . #'(aof (nth u (-> cd egoals))))
+              (size_t rg [8]) (size_t eb . #'(+ env 4)))
+          (if (-> g rvars)
+              (let ((u64 * rp . #'(+ (-> cd ebody) (-> g rat))))
+                (for ((u32 j . 0)) (< j (-> g rlen)) ((++ j))
+                  (let ((u64 w . #'(nth j rp)))
+                    (set (nth (cast size_t (cc_n w)) rg) (coco_deref m (+ eb (cc_k w)))))))
+              (if (not (coco_env_regs m cd env u rg)) (return -1)))
+          (switch (cast int (-> g form))
+            (case 0 (return (? (coco_unify m (nth 0 rg) (nth 1 rg)) 1 0)))
+            (case 1 (return (? (== 0 (coco_compare m (nth 0 rg) (nth 1 rg))) 1 0)))
+            (default (return (? (!= 0 (coco_compare m (nth 0 rg) (nth 1 rg))) 1 0))))))
+
   ;;; A compound of functor FID over X (and Y, for N 2) as they are: the
   ;;; body program's way, never dereferenced.
   (static)
@@ -4091,24 +4289,25 @@
   ;;; 1.9.2 (Stage 6), into OUT -- for a freeze, which writes no
   ;;; environment, and for the tracer, which prints its ports from terms. A
   ;;; goal that is a term is the one entering the clause built, one link
-  ;;; from its slot; a call is built from the variable slots
-  ;;; (`coco_env_term'); a construct is built back from its parts as it was
-  ;;; written, with the functors it was written with; a cut after a
-  ;;; condition is `'$cut'(H)' for the height its slot holds. 1, or 0 when
-  ;;; the heap would not grow. Recursive over the constructs' nesting,
-  ;;; which the compiler keeps under 64.
+  ;;; from its slot (a BUILTIN's too); a call, a guard and two sides are
+  ;;; built from the variable slots (`coco_env_term'); a construct is built
+  ;;; back from its parts as it was written, with the functors it was
+  ;;; written with; a cut after a condition is `'$cut'(H)' for the height
+  ;;; its slot holds. 1, or 0 when the heap would not grow. Recursive over
+  ;;; the constructs' nesting, which the compiler keeps under 64.
   (func coco_unit_term ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
                         (size_t * out)) (out int)
         (let ((coco_egoal * g . #'(aof (nth u (-> cd egoals))))
               (u32 kind . 0) (size_t x . 0) (size_t y . 0) (size_t z . 0))
           (set kind (-> g kind))
-          (if (== kind (cc-eg "TERM"))
+          (if (or (== kind (cc-eg "TERM")) (== kind (cc-eg "BUILTIN")))
               (block
                (set (cof out) (cast size_t (coco-payload (nth (+ env (+ (+ (cast size_t (-> cd nes))
                                                                           (cast size_t (-> g tslot))) 4))
                                                               (-> m heap)))))
                (return 1)))
-          (if (== kind (cc-eg "CALL")) (return (coco_env_term m cd env u out)))
+          (if (or (== kind (cc-eg "CALL")) (== kind (cc-eg "GUARD")) (== kind (cc-eg "SIDES")))
+              (return (coco_env_term m cd env u out)))
           (if (or (== kind (cc-eg "CUT")) (== kind (cc-eg "TRUE")) (== kind (cc-eg "FAIL")))
               (block (set x (coco_push m (coco-cell ATOM (-> g fid))))
                      (if (== x 0) (return 0))

@@ -1710,6 +1710,48 @@
             (set ($ (nth ci (-> e choices)) ixpos) 0)
             (return (? (coco_select_clause e ci) 1 0)))))
 
+  ;;; THE BUILTINS IN PLACE (Stage 7): unit U of the environment at ENV
+  ;;; (whose code is CD), NK the continuation after it and BAR its barrier
+  ;;; -- a guard's program over the slots, its term built and handed over
+  ;;; only when the program cannot decide; two sides read out of the slots
+  ;;; and unified or compared; and any other builtin called by its row on
+  ;;; the term built at entry, each the step its goal was. Answers as
+  ;;; `coco_env_take' does. OUT OF LINE AND NOT STATIC, so that the step
+  ;;; loop the take is part of keeps the registers it had, and the guard's
+  ;;; and the sides' runners are inline here instead.
+  (func coco_env_place ((coco_engine * e) (coco_code * cd) (size_t env) (u32 u)
+                        (size_t nk) (size_t bar)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_egoal * eg . #'(aof (nth u (-> cd egoals)))))
+          (set (-> e goals) nk)
+          (switch (cast int (-> eg kind))
+            (case (cc-eg "GUARD")
+              (let ((int gf . 0) (u32 gd . #'(coco_env_guard m cd env u (aof gf))))
+                (if (== gd 1) (return 0))
+                (if gf (return -2))
+                (let ((size_t g . 0))
+                  (if (not (coco_env_term m cd env u (aof g))) (return -1))
+                  (set (-> e ngoal) g)
+                  (set (-> e nbar) bar)
+                  (set (-> e nset) 1)
+                  (return 1))))
+            (case (cc-eg "SIDES")
+              (let ((int r . #'(coco_env_sides m cd env u)))
+                (if (== r 1) (return 0))
+                (if (== r 0) (return -2))
+                (return -1)))
+            (case (cc-eg "BUILTIN")
+              (let ((int rc . #'(coco_builtin_call e (cast int (-> eg form))
+                                                   (coco_deref m (+ env (cast size_t (-> eg soff)))))))
+                ;; 2: a catcher took a ball the builtin raised, and the
+                ;; continuation is its recovery already
+                (cond ((== rc 1) (set (-> e goals) nk) (return 0))
+                      ((== rc 2) (return 0))
+                      ((== rc 0) (return -2))
+                      (#t (return -3)))))
+            (default (return -2)))
+          (return -2)))
+
   ;;; THE NEXT UNIT OF AN ENVIRONMENT (Stages 5 and 6), the continuation
   ;;; having named its position P: the continuation moves on to the unit
   ;;; after it (`next'), or from the body's last (EXECUTE) to the one the
@@ -1730,8 +1772,11 @@
   ;;; pushing the choice that runs its right arm and going on to its left.
   ;;; UNDER TRACE every unit is handed over as the term its frame held
   ;;; (`coco_unit_term'), and runs as it did through 1.9.2, port for port.
-  ;;; 1 when a goal was handed over; 0 when the unit was done here; -2 when
-  ;;; it failed; -1 when the heap would not grow.
+  ;;; Since Stage 7 a builtin is done here too, where it stands: a guard,
+  ;;; two sides, or a builtin called by its row on its term. 1 when a goal
+  ;;; was handed over; 0 when the unit was done here; -2 when it failed; -1
+  ;;; when the heap would not grow; -3 when a builtin raised an error that
+  ;;; nothing caught (`err' filled in).
   ;;;
   ;;; WHAT IT READS IS SETTLED AT COMPILE TIME (`coco_egoal''s offsets): the
   ;;; continuation after the unit, its barrier's cell, its slot and its
@@ -1830,7 +1875,9 @@
               (set (-> e goals) (+ env (cast size_t (-> eg aoff))))
               (return 0))
             ;; `fail', `false' and a construct's `$fail'
-            (default (return -2)))
+            (case (cc-eg "FAIL") (return -2))
+            ;; a builtin in place (Stage 7), out of line
+            (default (return (coco_env_place e cd env (cast u32 (bitand pay 65535)) nk bar))))
           (return -2)))
 
   ;;; ---- backtracking ------------------------------------------------------
@@ -3250,14 +3297,19 @@
                          (if (coco-tag-is ATOM (nth kf (-> m heap)))
                              (block (set (-> e resume) 1) (return 1)))
                          (let ((int er . #'(coco_env_take e kf)))
-                           (if (== er -1) (return (coco_fail_err e "out of memory")))
-                           ;; a unit that failed fails as its goal did
-                           (if (== er -2)
-                               (block (if (not (coco_backtrack e)) (return 0))
-                                      continue))
                            ;; a unit done here was the step; one that handed
                            ;; its goal over has it taken below, in this step
-                           (if (== er 0) continue))))))
+                           (if (== er 0) continue)
+                           (if (< er 0)
+                               (block
+                                ;; a unit that failed fails as its goal did
+                                (if (== er -2)
+                                    (block (if (not (coco_backtrack e)) (return 0))
+                                           continue))
+                                ;; a builtin's error that nothing caught
+                                ;; ends the run, as the step's call did
+                                (if (== er -3) (return -1))
+                                (return (coco_fail_err e "out of memory")))))))))
               (if (-> e nset)
                   (block
                    ;; THE NEXT GOAL IN THE REGISTERS (Stage 3): a call the
