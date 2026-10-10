@@ -91,6 +91,10 @@
 %%     remark(J)                       the two words that comment on a clause after a comma
 %%                                     (`"lo que" is a remark.', `"il che" is a remark.'):
 %%                                     English's `which'
+%%     mean_as(V, E, clausal)          what a verb means before a clause of `that', its first
+%%                                     meaning being another (`The clausal verb "supone" means
+%%                                     "supposes".': `supongo que', and `represents' anywhere
+%%                                     else, the first meaning the lesson gives)
 %%     take_before(V, P, phrase)       the word a verb takes before a phrase it governs
 %%                                     (`"depende" takes "de" before the phrase', Italian's
 %%                                     `"dipende" takes "da" before the phrase'), each language
@@ -1156,6 +1160,9 @@ tr_mean_links([mean(W, E)|Ts], W0-C-As, [mean_as(W, E, C)|Ls0]) :- W == W0, !,
     %% ... and one it calls PROGRESSIVE is what the verb means before a
     %% gerund (tr_verb_across/5)
     ;   C == verb, memberchk(progressive, As) -> Ls0 = [mean_as(W, E, progressive)|Ls]
+    %% ... and one it calls CLAUSAL is what the verb means before a clause of
+    %% `that' (tr_verb_across/5)
+    ;   C == verb, memberchk(clausal, As) -> Ls0 = [mean_as(W, E, clausal)|Ls]
     %% ... and a noun's GENDER, as a candidate reason_learn/3 keeps only for a
     %% word the lesson states in both genders (tr_gender_links/3)
     ;   C == noun, member(G, [masculine, feminine]), memberchk(G, As) -> Ls0 = [gender_candidate(W, E, G)|Ls]
@@ -1538,6 +1545,20 @@ tr_expand(foreign, [w(W, C)|Ws], Out) :-
     tr_solve(contraction_of(W, J)), atomic_list_concat([P1|Ps], ' ', J), Ps \== [], !,
     findall(w(P, lower), member(P, Ps), Rest), tr_expand(foreign, Ws, Out1),
     append([w(P1, C)|Rest], Out1, Out).
+%% A PAIR OF CLITICS THE LESSON WRITES JOINED IS TWO CLITICS WHERE A VERB
+%% FOLLOWS: `te lo dico' is `ti lo dico' and `se lo doy' is `le lo doy'. The
+%% contraction is stated for the writer, and a key with a blank is no word, so
+%% the reader never joined it -- `te' alone is the tonic pronoun, `ce' a name,
+%% and the sentence was refused or read with the wrong words. The verb is what
+%% tells the pair from `se la casa è grande', where a noun follows: only a
+%% second word that is a clitic of the object, and a verb group after it.
+tr_expand(foreign, [w(A, C), w(B, _), w(V, VC)|Ws], Out) :-
+    memberchk(B, [lo, la, li, le, ne, los, las]), atom_length(A, 2),
+    atomic_list_concat([A, B], ' ', K), tr_solve(contraction_of(K, J)),
+    tr_group_at(foreign, [w(V, lower)|Ws], _, _), !,
+    atomic_list_concat([P1, P2], ' ', J),
+    tr_expand(foreign, [w(V, VC)|Ws], Out1),
+    Out = [w(P1, C), w(P2, lower)|Out1].
 %% AN ABSOLUTE SUPERLATIVE IS THE LESSON'S WORD FOR `very' AND THE PLAIN
 %% FORM: `le pesantissime accuse' is the very heavy accusations. The
 %% lesson states it -- `"pesantissime" is the superlative of "pesanti".',
@@ -1638,7 +1659,8 @@ tr_join_word(Ns, J) :-
 %% ... BUT NOT BY A CONTRACTION WHOSE KEY HAS A BLANK: `"me lo" is the
 %% contraction of "mi lo".' is for the writer, which joins two clitics it
 %% writes side by side; read, Italian `se la' is also `if the', and joined and
-%% expanded `se la casa è grande' would be a reflexive pair
+%% expanded `se la casa è grande' would be a reflexive pair (tr_expand/2 takes
+%% a pair apart where a verb follows it)
 tr_stated_word(J) :-
     member(G, [mean(J, _), plural_of(J, _), person_of(J, _), past_of(J, _), imperfect_of(J, _), future_of(J, _),
                participle_of(J, _), gerund_of(J, _), infinitive_of(J, _), conditional_of(J, _),
@@ -2673,9 +2695,6 @@ tr_into_ir(Side, Kind, Words0, S) :-
     %% (tr_relative_clause/4); and a word the lesson calls exclamative
     %% (tr_complements0/4))
     (   Side == foreign, \+ tr_pptc_note(Words0) -> nb_setval('$tr_pptc', no) ; nb_setval('$tr_pptc', yes) ),
-    %% (and a participle with an adverb right after it, `votada ayer', which
-    %% the phrase reader asked after at every boundary: tr_phrase_words0/4)
-    (   Side == foreign, \+ tr_ptc_adverb_note(Words0) -> nb_setval('$tr_ptc_adv', no) ; nb_setval('$tr_ptc_adv', yes) ),
     (   Side == foreign, \+ ( member(w(XW, _), Words0), tr_whose_word(XW) )
     ->  nb_setval('$tr_whose', no) ; nb_setval('$tr_whose', yes) ),
     (   Side == foreign, \+ ( member(w(EW, _), Words0), atom(EW), tr_solve(exclamative(EW)) )
@@ -2912,6 +2931,10 @@ tr_asides(foreign, [W, comma, A|Ws0], [W, w(K, aside), comma|Ws]) :-
 tr_asides(foreign, [W, comma, A|Ws0], [W, w(K, aside), comma|Ws]) :-
     W = w(WW, _), atom(WW), A = w(_, _), tr_determiner(foreign, A, _, article),
     ( tr_is(foreign, W, noun) -> true ; tr_name_word(foreign, W) ),
+    %% (and no adverb, which is a noun in the lesson too: `Pujol vio, ayer, el
+    %% pan, que duerme' set `el pan' off as what `ayer' is -- the yesterday, the
+    %% bread -- and the sentence was refused)
+    \+ tr_is(foreign, W, adverb),
     append(In, [comma|Rest], [A|Ws0]), \+ memberchk(comma, In),
     tr_relative_start(foreign, Rest),
     \+ ( member(X, In), atom(X) ),
@@ -3921,11 +3944,17 @@ tr_list_tail_head(Side, Ws) :-
 %% ... AND AN ITEM MAY HAVE A PHRASE OF `OF' IN IT: `debatirán la pasantía, los
 %% honorarios, la normalización del catalán y otros temas' -- the `del' was no
 %% phrase's word, that comma stayed the clause's, and a front put before the
-%% first of them (`durante tres días') landed between two items
+%% first of them (`durante tres días') landed between two items. Only in a
+%% list with commas: `el espejo del fútbol moderno e invencible' is no list of
+%% two, and read as one it cost the Senegal report's twenty-second 3.5 %, a
+%% reading that failed after it
 tr_list_items(Side, S) :-
     S = [X0|_], X0 \== comma, last(S, XL), XL \== comma,
     \+ append(_, [comma, comma|_], S),
-    forall(member(X, S), ( X == comma ; tr_list_word(Side, X) ; X = w(_, _), tr_means_of(Side, X) )),
+    (   memberchk(comma, S)
+    ->  forall(member(X, S), ( X == comma ; tr_list_word(Side, X) ; X = w(_, _), tr_means_of(Side, X) ))
+    ;   forall(member(X, S), ( X == comma ; tr_list_word(Side, X) ))
+    ),
     tr_list_word(Side, XL).
 
 tr_list_word(Side, W) :-
@@ -4033,6 +4062,16 @@ tr_verb_across(L0, _, Comps, _, L) :-
 %% Meaning, progressive) (tr_mean_links/2)
 tr_verb_across(L0, _, Comps, _, L) :-
     atom(L0), tr_first_comp(Comps, ger(_, _)), tr_solve(mean_as(L0, L, progressive)), !.
+%% A VERB BEFORE A CLAUSE OF `THAT' CROSSES BY THE MEANING THE LESSON GIVES IT
+%% THERE: `los tributos suponen el 50%' is what they represent, and `supongo
+%% que viene', `se supone que ...' what is supposed -- the dictionary's first
+%% meaning for `suponer', which is the minority one in a newspaper (eleven of
+%% the twelve sentences in the treebank's development part are `supone una
+%% limitación', `no supone la adición aritmética'). `The clausal verb "supone" means
+%% "supposes".' is the line, and the first meaning the lesson gives is the
+%% one anywhere else
+tr_verb_across(L0, _, Comps, _, L) :-
+    atom(L0), memberchk(that(_), Comps), tr_solve(mean_as(L0, L, clausal)), !.
 tr_verb_across(L0, _, _, _, L) :- tr_lexeme_across(L0, english, L).
 
 tr_intransitive_meanings(L, Is) :- findall(M, tr_solve(mean_as(L, M, intransitive)), Is), Is \== [].
@@ -5464,7 +5503,7 @@ tr_read0(Side, statement, Words0, S) :-
 tr_read0(Side, statement, Words0, S) :-
     Side == foreign, memberchk(comma, Words0),
     append(Left0, [comma|Right], Words0), Left0 \== [], Right = [w(_, _)|_],
-    \+ memberchk(comma, Right),
+    tr_speaker_tail(Left0, Right),
     %% (and the person is the clause's subject and nothing else's: `si disse
     %% subito dopo Hiroshima' is IT WAS SAID right after Hiroshima -- `si'
     %% names nobody, and the name is the object of `dopo', which is an adverb
@@ -5474,6 +5513,17 @@ tr_read0(Side, statement, Words0, S) :-
     \+ memberchk(opron(_), Cs2),
     tr_clause_words(Left0, Left), tr_read(Side, statement, Left, S1), !,
     S = join(comma, S1, S2).
+%% ... THE REPORTING CLAUSE HAS NO COMMA IN IT, or one more after a quotation,
+%% which sets off the speaker's own relative clause: `"Escucho", dijo el
+%% presidente de la Generalitat, que inauguró el congreso' -- the president,
+%% who inaugurated it. With that comma the clause was read as a statement of
+%% its own, saying the president, and English wrote `they said the chairman'.
+%% tr_reporting/3 reads the speaker and its relative clause whole
+tr_speaker_tail(_, Right) :- \+ memberchk(comma, Right), !.
+tr_speaker_tail(Left0, Right) :-
+    last(Left0, w(_, QC)), memberchk(QC, [qclose, qboth]),
+    append(Mid, [comma|R1], Right), \+ memberchk(comma, Mid), \+ memberchk(comma, R1),
+    tr_nrc_start(foreign, R1).
 %% A QUOTATION THAT CLOSES INSIDE ITS PIECE, AND THE CLAUSE THAT REPORTS IT:
 %% `L'acquisto da parte di Fiat del 100% di Chrysler “ci permetterà di
 %% realizzare ... unico al mondo” aggiunge l'ad Sergio Marchionne.' The pair
@@ -5828,7 +5878,11 @@ tr_read0(Side, Kind, Words0, S) :-
 %% whole sentence and fails after reading it once more, and the sentence is
 %% read with the commas out, as it was (the Basque report's ninth sentence
 %% 3.4 million inferences more of its 19, the festival report's last 0.4
-%% million of its 3.5)
+%% million of its 3.5; the same comma kept alone among others, tried again for
+%% `Pujol también reivindicó, ayer, un trato mejor para los abogados, a
+%% quienes se les retiene el 20%', cost the Valencia report's second 1.7
+%% million of its 9 and the festival report's last 0.4 of its 3.5 -- the
+%% sentence reads with that comma lost)
 tr_comma_relative(Side, Words) :-
     append(_, [comma, w(RW, _)|_], Words), tr_relative_word(Side, RW), !.
 tr_comma_relative(Side, Words) :-
@@ -9772,6 +9826,7 @@ tr_read_statement0(foreign, Words0, none, S) :-
     ( Neg == no -> Clitics0 == [] ; true ),
     (   NoCommand == yes -> Neg == yes, \+ tr_verb_form_word(V)
     ;   NoCommand == third -> \+ tr_third_person_command(Neg, V, Rest1)
+    ;   tr_that_follows(Rest1) -> \+ tr_third_person_command(Neg, V, Rest1)
     ;   true
     ),
     tr_imperative_here(foreign, Neg, V, F),
@@ -9786,6 +9841,12 @@ tr_read_statement0(foreign, Words0, none, S) :-
     findall(opron(W), member(W, Clitics), Cs),
     append(Cs, Comps0, Comps),
     S = s(none, Subject, g(LV, present, imperative, Neg), Comps).
+%% ... AND SO DOES ONE BEFORE A `that' CLAUSE: `Añade que el Gobierno se
+%% comprometió' and `Quiere que se cumpla la ley' are a person nobody named
+%% adding and wanting -- the way a newspaper reports -- and read as commands
+%% they were `Aggiungi che' and `Vuoi che', to somebody. A command is the
+%% reading only where the verb has a form of its own (`di que sí').
+tr_that_follows([w(Q, _)|_]) :- atom(Q), tr_solve(mean(Q, that)), tr_solve(conjunction(Q)), !.
 %% an affirmative command spelled as a verb's third person singular, with no
 %% pronoun joined to it: the reading a coordinator or an adverb at the head
 %% stands down (tr_read_after_coord/5)
@@ -9830,17 +9891,22 @@ tr_read_statement0(foreign, Words0, none, S) :-
 tr_read_statement0(foreign, Words0, Asked, S) :-
     Asked \= subject(_),
     tr_negation(foreign, Words0, Words, Neg),
-    tr_group_from(foreign, Words, Before, g(L, T, A, third, singular), After),
+    tr_group_from(foreign, Words, Before, g(L, T, A, third, N), After),
+    %% ... AND THE PLURAL'S TOO IN A RELATIVE CLAUSE, where the subject after the
+    %% verb is found from this reading (tr_rel_subject_after/3): `la casa en
+    %% la que duermen los perros' had the one reading for `duerme el perro'
+    %% and none for `duermen los perros'
+    ( N == singular ; Asked == rel ),
     tr_denial_before(foreign, Neg, Words0, Before),
     nb_setval('$tr_read_group', L),
     nb_setval('$tr_read_aspect', A),
     tr_uncomma(Before, BeforeU0), tr_tonic_dative(foreign, BeforeU0, BeforeU),
-    tr_split_clitics(foreign, BeforeU, unsaid(Asked), third, singular, [], Clitics0),
+    tr_split_clitics(foreign, BeforeU, unsaid(Asked), third, N, [], Clitics0),
     tr_reflexive_off(foreign, Clitics0, Clitics, L, LV),
-    tr_si_perfect(LV, null(third, singular), A, A1),
+    tr_si_perfect(LV, null(third, N), A, A1),
     tr_complements(foreign, After, Comps00), !,
     %% (and a bare name after the verb is its subject, as tr_read_generic/4 says)
-    tr_name_subject(foreign, null(third, singular), third, singular, L, LV, Comps00, Subject, LV1, Comps0),
+    tr_name_subject(foreign, null(third, N), third, N, L, LV, Comps00, Subject, LV1, Comps0),
     findall(opron(W), member(W, Clitics), Cs),
     append(Cs, Comps0, Comps),
     S = s(Asked, Subject, g(LV1, T, A1, Neg), Comps).
@@ -11294,8 +11360,11 @@ tr_np(Side, Words, rc(NP, Role, S)) :-
     %% singular `ridículo', and read as `of which' it came out `il ridicolo di
     %% cui li usano'. What is left is the phrase and a `de' phrase whose noun
     %% the relative clause stands for (ell/4)
-    \+ ( Role0 = pp(_), Rest = [_, D, _|_], D = w(DW, _), tr_determiner(Side, D, _, article),
-         tr_head_number(Side, NP, N), tr_lexeme(Side, DW, _, DN), DN \== N ), !,
+    %% (the number of THE ARTICLE: `los' is also the pronoun `them', whose
+    %% lexeme is singular, and `los gatos en los que duermen los perros' was
+    %% blocked as a plural article for a singular phrase)
+    \+ ( Role0 = pp(_), Rest = [_, D, _|_], D = w(DW, _), tr_determiner(Side, D, DL, article),
+         tr_head_number(Side, NP, N), tr_lexeme(Side, DW, DL, DN), DN \== N ), !,
     tr_rc_role(Side, Rest, NP, Role0, S0, Role1, S1),
     ( Side == foreign -> tr_accident_rc(Role1, S1, Role, S2) ; Role = Role1, S2 = S1 ),
     tr_rel_mark(Rest, S2, S).
@@ -12541,6 +12610,11 @@ tr_participle_here(english, P, L) :- en_passive_participle(P, L), !.
 
 %% what may follow a reduced relative and belong to it: its agent, and
 %% nothing else -- a phrase after it is the sentence's, not the participle's
+%% ... or an adverb of its own: `la primera medida votada ayer en el congreso'
+%% was voted yesterday, and with `ayer' the sentence's it was lifted out of
+%% the phrase and written at the end, where it said when the measure PERMITTED
+tr_reduced_agent(foreign, [A], [adv(A)]) :-
+    A = w(AW, _), atom(AW), tr_plain_adverb(foreign, A), \+ tr_is(foreign, A, preposition), !.
 %% ... and what follows the agent is the participle's too, when it is only
 %% adjuncts: `i risultati raggiunti da Chrysler negli ultimi quattro anni e
 %% mezzo' were reached by Chrysler IN those years, and with the agent held to
@@ -12551,9 +12625,6 @@ tr_participle_here(english, P, L) :- en_passive_participle(P, L), !.
 %% After such a participle EVERY capitalised word is the name's, one the
 %% lesson knows among them: `Ex' is the adjective `former' to the lesson,
 %% and the violin is the `Ex Von Szerdahely VieuxTemps'.
-%% ... an adverb of its own: `votada ayer' (tr_phrase_words0/4)
-tr_reduced_agent(foreign, [A], [adv(A)]) :-
-    A = w(AW, _), atom(AW), tr_plain_adverb(foreign, A), \+ tr_is(foreign, A, preposition), !.
 tr_reduced_agent(Side, Ws, [obj(name(N))]) :-
     Ws = [w(_, upper)|_], tr_np(Side, Ws, name(N)), !.
 tr_reduced_agent(Side, Ws, [obj(name(N))]) :-
@@ -13580,7 +13651,8 @@ tr_complements0(foreign, [w(P, PC)|Ws], no, Out) :-
     tr_global('$tr_read_group', G0),
     tr_marker_word(P, Class),
     tr_person_words(Ws, PW, Rest),
-    tr_phrase_np(foreign, PW, NP), tr_marked_class(NP, Class), !,
+    tr_phrase_np(foreign, PW, NP),
+    ( tr_marked_class(NP, Class) ; tr_named_object(NP, Class, G0, P, PW) ), !,
     tr_complements(foreign, Rest, yes, Cs),
     %% ... AND AN OBJECT AFTER IT MAKES IT THE INDIRECT ONE: `ha reclamado a
     %% los jugadores la máxima concentración' asked the players for it, and
@@ -13634,6 +13706,22 @@ tr_verb_clause([C|Cs]) :- ( C = that(_) -> true ; \+ tr_verbal_comp(C), C \= obj
 %% `to': `avendo per testimoni a 62.561 spettatori'
 tr_marked_class(NP, Class) :- tr_of_class(NP, Class), !.
 tr_marked_class(co(_, A, _), Class) :- tr_marked_class(A, Class).
+%% ... AND A NAME AFTER ITS ARTICLE IS A PERSON FOR IT, READ, RIGHT AFTER THE
+%% VERB'S OWN WORD: `temas que benefician al Govern' benefit the Govern, and
+%% read as a phrase of `to' the word before a person stayed, `avvantaggiano al
+%% Govern'. Only read, and only here: a name with its article is as often a
+%% paper or a gallery as somebody, and written back it took the person's `a'
+%% (`ve a la Tate Gallery'). Asked of every phrase (tr_of_class/2) the reading
+%% of `aseguró, advirtiendo que es un rival superior al Gandia' went through
+%% this branch for the Gandia as the object of `aseguró', 0.8 million
+%% inferences of the football report's twentieth -- so the word before the
+%% marker is the group's, found in the piece
+tr_named_object(np(_, _, _, named(_, _), _), Class, G, P, PW) :-
+    ( Class == name ; Class == person ),
+    atom(G), G \== none, \+ tr_saying_verb(G),
+    tr_global('$tr_piece', Piece),
+    append(_, [w(V, _), w(P, _)|T], Piece), append(PW, _, T),
+    tr_lexeme(foreign, V, G, _).
 
 %% the person's words -- AND AFTER A VERB THE LESSON SAYS TAKES THE CLAUSE,
 %% THE PERSON ALONE FIRST: `Redondo declaró a Europa Press que la "parálisis"
@@ -14944,12 +15032,6 @@ tr_of_class(np(_, none, [w(P, _)], elided(feminine), singular), _) :- en_possess
 tr_of_class(np(_, _, _, elided(_), _), _) :- !.
 tr_of_class(ell(_, _, _, _), _) :- !.
 tr_of_class(name(_), Class) :- !, ( Class == name ; Class == person ), !.
-%% ... AND SO IS A NAME AFTER ITS ARTICLE: `temas que benefician al Govern'
-%% benefit the Govern, and read as a phrase of `to' the word before a person
-%% stayed, `avvantaggiano al Govern' -- READ, and only read: a name with its
-%% article is as often a paper or a gallery as somebody, and written back it
-%% took the person's `a' (`ve a la Tate Gallery')
-tr_of_class(np(_, _, _, named(_, _), _), Class) :- tr_side_here(foreign), !, ( Class == name ; Class == person ), !.
 %% ... and a pronoun is of the class the lesson says its word is of:
 %% `representan a otros muchos' -- `"otros muchos" is a person.' -- and read
 %% as a phrase of `to' the word before a person stayed, `a molti altri'
@@ -15144,22 +15226,6 @@ tr_phrase_words0(foreign, Words, PW, Rest) :-
          \+ tr_is(foreign, Q, noun), \+ tr_is(foreign, Q, adjective) ),
     tr_lone_agent(A1, _), tr_participle_here(foreign, P, _),
     append(Core, [B, A1, w(P, PC)], PW),
-    tr_np(foreign, PW, rel(_, _, _)), !.
-%% ... a participle and the adverb right after it, closing a phrase: `la
-%% primera medida votada ayer en el congreso' was voted yesterday, and the
-%% phrase ended at the participle, `ayer' was lifted out of the sentence and
-%% written at its end, where it said when the measure PERMITTED
-%% (tr_reduced_agent/3 reads it as the participle's own)
-tr_phrase_words0(foreign, Words, PW, Rest) :-
-    nb_getval('$tr_ptc_adv', yes),
-    append(Core, [w(P, PC), A|Rest], Words), Core = [_|_], \+ memberchk(comma, Core),
-    A = w(AW, _), atom(AW), atom(P), tr_participle_here(foreign, P, _),
-    tr_plain_adverb(foreign, A), \+ tr_is(foreign, A, preposition),
-    \+ tr_is(foreign, w(P, lower), noun),
-    \+ ( member(Q, Core), ( tr_is(foreign, Q, preposition) ; tr_is(foreign, Q, verb) ),
-         \+ tr_is(foreign, Q, noun), \+ tr_is(foreign, Q, adjective) ),
-    once(( member(N, Core), tr_is(foreign, N, noun) )),
-    append(Core, [w(P, PC), A], PW),
     tr_np(foreign, PW, rel(_, _, _)), !.
 tr_phrase_words0(Side, Words, PW, Rest) :-
     append(PW0, Rest0, Words), PW0 \== [],
@@ -16830,7 +16896,9 @@ tr_write(foreign, _, s(none, Subject, g(L, T, A, Neg), Comps0), Outs) :-
 tr_null_subject(english, null(third, singular), L, Comps, pronoun(P, N, w(W, lower))) :-
     ( L = reflexive(L1) -> true ; L1 = L ), atom(L1),
     (   en_null_it(L1, Comps) -> W = it, P = third, N = singular
-    ;   en_null_they(L1) -> W = they, P = third, N = plural
+    %% (a verb of saying with a phrase for its object has the speaker after
+    %% it, `dice el presidente', and no reading of that is a null subject)
+    ;   en_null_they(L1), \+ memberchk(obj(_), Comps) -> W = they, P = third, N = plural
     ), !.
 tr_null_subject(_, Subject, _, _, Subject).
 en_null_it(is, Comps) :-
@@ -16840,7 +16908,9 @@ en_null_it(V, _) :- memberchk(V, [suffices, matters, seems, appears, remains, ha
 %% other English words for: `señaló' signals, `reconoció' recognises)
 en_null_they(V) :- en_saying(V), !.
 en_null_they(V) :- memberchk(V, [signals, indicates, recognises, recognizes, acknowledges, assures, ensures, points,
-                                 pledges, promises, deplores, regrets, wishes, hopes]).
+                                 pledges, promises, deplores, regrets, wishes, hopes, wants, asks, demands, requests,
+                                 thinks, believes, considers, fears, knows, understands, doubts, expects, orders,
+                                 prefers, proposes, recommends]).
 
 
 tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg0), Comps00), Outs) :-
@@ -18225,6 +18295,17 @@ tr_noun_gender(Noun, G) :-
 %% the complements out: objects and predicates in place, the adverbs last,
 %% and an object pronoun the lesson puts before the verb kept aside for it
 tr_comps_out(_, [], _, _, [], [], []).
+%% PRONOUNS THAT CLIMBED TO A VERB OF THE SAME SUBJECT ARE THE INFINITIVE'S:
+%% `No nos pueden acusar de desleales' has `nos' before `pueden', and English
+%% says `cannot accuse us' -- never `cannot us accuse', nor, for `Lo quiero
+%% comer', `want him to eat', which is another sentence. A modal and the verbs
+%% of wanting, trying and beginning take their own subject's infinitive; the
+%% verbs that make or let another one do it (`Lo dejo comer') keep the object
+%% where it stands.
+tr_comps_out(english, [opron(P)|Cs0], Noun, Number, Clitics, Outs, Advs) :-
+    tr_same_subject_verb, tr_climbed_pronouns(Cs0, Ps, I, Post), !,
+    append([I, opron(P)|Ps], Post, Cs),
+    tr_comps_out(english, Cs, Noun, Number, Clitics, Outs, Advs).
 %% ... but in English an adverb before a QUANTITY is the quantity's: `muy
 %% pocos elementos' is very few elements, and put last it was `few elements
 %% very'
@@ -18919,6 +19000,17 @@ tr_by_word(english, by) :- !.
 tr_by_word(foreign, By) :- once(tr_solve(mean(By, by))).
 
 %% the verb group being written is a modal
+tr_climbed_pronouns([I|Post], [], I, Post) :- ( I = inf(_) ; I = ainf(_, _) ), !.
+tr_climbed_pronouns([opron(P)|Cs], [opron(P)|Ps], I, Post) :- tr_climbed_pronouns(Cs, Ps, I, Post).
+
+%% the verb being written takes its own subject's infinitive: a modal, or one
+%% of wanting, trying, beginning and going
+tr_same_subject_verb :- tr_modal_verb, !.
+tr_same_subject_verb :-
+    catch(nb_getval('$tr_verb', V0), _, fail), ( V0 = refl(V) -> true ; V = V0 ),
+    memberchk(V, [wants, wishes, needs, tries, hopes, prefers, intends, plans, decides, begins, starts,
+                  continues, goes, likes, loves, hates, dares]).
+
 tr_modal_verb :-
     catch(nb_getval('$tr_verb', V0), _, fail), tr_side_here(Side),
     %% (a modal with its reflexive on it is a modal still: `¿Me puedo ir a
@@ -19713,10 +19805,6 @@ tr_memo_generation(G) :- ( catch(nb_getval('$tr_gen', G0), _, fail) -> G = G0 ; 
 %% agent, Livata's `invece di andare da una parte è andata dall'altra' had
 %% the note -- `una' stands after a preposition, and `andata' is three
 %% words on -- and the walk cost that sentence 0.30 million)
-tr_ptc_adverb_note(Ws0) :-
-    tr_uncomma(Ws0, Ws),
-    append(_, [w(P, _), A|_], Ws), atom(P), tr_pptc_form(P), A = w(AW, _), atom(AW),
-    tr_is(foreign, A, adverb), !.
 tr_agent_first_note(Ws0) :-
     tr_uncomma(Ws0, Ws),
     append(_, [B, A1|After], Ws), B = w(BW, _), atom(BW), tr_means_by(foreign, B),
@@ -19751,7 +19839,7 @@ tr_pptc_before([D|Ws]) :-
 tr_memo_reset :-
     tr_memo_generation(G0), G is G0 + 1, nb_setval('$tr_gen', G), nb_setval('$tr_joined', yes),
     nb_setval('$tr_first', no), nb_setval('$tr_agent_first', yes),
-    nb_setval('$tr_pptc', yes), nb_setval('$tr_ptc_adv', yes), nb_setval('$tr_whose', yes), nb_setval('$tr_exclamative', yes),
+    nb_setval('$tr_pptc', yes), nb_setval('$tr_whose', yes), nb_setval('$tr_exclamative', yes),
     nb_setval('$tr_small_name', yes),
     ( catch(nb_getval('$tr_said_to', _), _, fail) -> true ; nb_setval('$tr_said_to', none) ),
     ( catch(nb_getval('$tr_denied', _), _, fail) -> true ; nb_setval('$tr_denied', none) ).

@@ -975,8 +975,8 @@ The masculine noun "presidente" means "chairman".
 The masculine noun "president" means "chairman".
 "president" is a person.
 The masculine noun "conseller" means "adviser".
-The feminine noun "consejera" means "adviser".
-The feminine noun "consellera" means "adviser".
+The feminine noun "consejera" means "councilwoman".
+The feminine noun "consellera" means "councilwoman".
 "consellera" is a person.
 The masculine noun "tratamiento" means "treatment".
 The masculine noun "trato" means "treatment".
@@ -1051,6 +1051,12 @@ The verb "saca adelante" means "carries forward".
 "sacar adelante" is the infinitive of "saca adelante".
 "sacando adelante" is the gerund of "saca adelante".
 "sacado adelante" is the participle of "saca adelante".
+The masculine noun "colectivo" means "collective".
+The pronoun "os" means "you".
+The verb "representa" means "represents".
+The verb "supone" means "represents".
+The clausal verb "supone" means "supposes".
+The masculine noun "colegio" means "college".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

@@ -2506,7 +2506,8 @@ The masculine noun "amajica performing arts project" means "amajica performing a
 # `confiscatorio' is in no Italian dictionary here; `autoregolamentazione' has
 # its English word hyphenated (`self-regulation'); `consigliera' is the
 # feminine of `consigliere', said first, or an Italian adviser would be
-# written `consigliera' for every Spanish `conseller'
+# written `consigliera' for every Spanish `conseller'; the feminine means a
+# councilwoman, so that a woman crosses as a woman
 The masculine adjective "confiscatorio" means "confiscatory".
 "confiscatori" is the plural of "confiscatorio".
 The feminine adjective "confiscatoria" means "confiscatory".
@@ -2514,7 +2515,7 @@ The feminine adjective "confiscatoria" means "confiscatory".
 The feminine noun "autoregolamentazione" means "self-regulation".
 "autoregolamentazioni" is the plural of "autoregolamentazione".
 The masculine noun "consigliere" means "adviser".
-The feminine noun "consigliera" means "adviser".
+The feminine noun "consigliera" means "councilwoman".
 "consigliera" is a person.
 # the Abogacía report, from Spanish: `la abogacía' is the legal profession,
 # `un trato confiscatorio' a treatment; `ritenuta' has no dictionary entry
@@ -2538,7 +2539,8 @@ The adverb "tra gli altri" means "among others".
 # `darglielo'): the contraction of the two, which the writer makes between any
 # two words it writes next to each other. The reader does not join two words
 # the lesson states a contraction of when the key has a blank, because Italian
-# `se la' is also `if the'.
+# `se la' is also `if the'; it takes them apart (`te lo dico' is `ti lo dico')
+# only where a verb follows.
 "me lo" is the contraction of "mi lo".
 "me la" is the contraction of "mi la".
 "me li" is the contraction of "mi li".
@@ -2675,3 +2677,9 @@ The masculine adjective "distorto" means "distorted".
 The feminine adjective "distorta" means "distorted".
 "distorte" is the plural of "distorta".
 The adjective "abituale" means "usual".
+# `Gli do il libro' (the Abogacía report's clitic pairs, tried the other way):
+# the first person of `dare' is `do', the accented `dò' being the old spelling
+# and the dictionary's; and `libro' is the first word for a book, where the
+# dictionary's is `blocchetto' (a pad of paper)
+"do" is the first person of "dà".
+The masculine noun "libro" means "book".

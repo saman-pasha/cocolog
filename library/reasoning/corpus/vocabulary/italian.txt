@@ -1417,7 +1417,7 @@ The feminine adjective "confiscatoria" means "confiscatory".
 The feminine noun "autoregolamentazione" means "self-regulation".
 "autoregolamentazioni" is the plural of "autoregolamentazione".
 The masculine noun "consigliere" means "adviser".
-The feminine noun "consigliera" means "adviser".
+The feminine noun "consigliera" means "councilwoman".
 "consigliera" is a person.
 The feminine noun "avvocatura" means "legal profession".
 "avvocature" is the plural of "avvocatura".
@@ -1546,6 +1546,8 @@ The masculine adjective "distorto" means "distorted".
 The feminine adjective "distorta" means "distorted".
 "distorte" is the plural of "distorta".
 The adjective "abituale" means "usual".
+"do" is the first person of "dà".
+The masculine noun "libro" means "book".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

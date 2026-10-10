@@ -1864,10 +1864,12 @@ The masculine noun "president" means "chairman".
 # dictionary's own feminine said first, or the Italian `consigliera' would be
 # written in Spanish as the Catalan word. `conseller' said first of all, or
 # `consejera' would be the first Spanish noun for an adviser and `il
-# consigliere' would be written `la consejera'
+# consigliere' would be written `la consejera'. The feminine means a
+# councilwoman, not an adviser: with one English word for both, the woman
+# crossed into Italian as `il consigliere di Justícia'
 The masculine noun "conseller" means "adviser".
-The feminine noun "consejera" means "adviser".
-The feminine noun "consellera" means "adviser".
+The feminine noun "consejera" means "councilwoman".
+The feminine noun "consellera" means "councilwoman".
 "consellera" is a person.
 # `un mejor trato fiscal', `un trato confiscatorio': a treatment, where the
 # dictionary's first meaning for `trato' is a deal, which the Italian lesson
@@ -1985,3 +1987,26 @@ The verb "saca adelante" means "carries forward".
 "sacar adelante" is the infinitive of "saca adelante".
 "sacando adelante" is the gerund of "saca adelante".
 "sacado adelante" is the participle of "saca adelante".
+# `la legitimidad del colectivo' (the Abogacía report, into Italian): the
+# dictionary's first meaning for the noun is a community, which Italian says
+# `comunità'; a collective of lawyers is `collettivo', the Italian cognate
+The masculine noun "colectivo" means "collective".
+# `Os veo', `Os lo digo': the object of more than one person spoken to, which
+# English says `you' as it does `te' (Italian's `vi' is stated as `ti' is)
+The pronoun "os" means "you".
+# `los tributos que los letrados deben pagar suponen el 50% o 60% de los
+# beneficios', `supone una limitación', `no supone la adición aritmética': what
+# `suponer' means in a newspaper is represent (eleven of the twelve sentences
+# in the treebank's development part), the dictionary's first meaning, suppose, being
+# the one before a clause of `that' (`supongo que', `se supone que'). The
+# dictionary's own `representa' is said again first, or every Italian
+# `rappresenta' would be written `supone'
+The verb "representa" means "represents".
+The verb "supone" means "represents".
+The clausal verb "supone" means "supposes".
+# `el decano del colegio barcelonés' (the Abogacía report, into Italian): a school
+# to the dictionary, and a body in a newspaper -- of the nine lines with
+# `colegio' in the treebank's development part six are polling stations
+# (`colegios electorales'), one a bar association and two a school; Italian's
+# `collegio' is the one word for all of them
+The masculine noun "colegio" means "college".

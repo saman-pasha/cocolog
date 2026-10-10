@@ -1060,13 +1060,20 @@ read into an English-worded IR and written into any lesson's language),
   non` written last, a sentence that ran to the 300 M inference limit and
   `l'anima` as `lo anima`; and sum the counts by hunk -- a clause that reads
   the phrase's words a second time at every place that read nothing cost 3 %.
+  **A refusal can hide a wrong reading**: English refused a clause with no
+  subject, and giving it `they` for a verb of saying turned `dijo el
+  presidente de la Generalitat, que inauguró` (the speaker read as an object)
+  into `they said the chairman` -- look at the IR of what a fix now writes,
+  not only at its text, and at a sentence the fix was not made for.
   **Diff the first word of every meaning** between the committed vocabulary
   and the rebuilt one (class and English meaning to first word, gender
   ignored: the writer takes the first noun of a meaning whatever its gender):
   an `extra/` line, a dictionary entry marked `RL` among them, is the first
   word of its meaning wherever it lands in the file. The Abogacía report's
   lines made a feminine `consigliera` the first Italian noun for an adviser
-  (every `conseller` was `la consigliera`), `letrado` the first Spanish noun
+  (every `conseller` was `la consigliera`; the feminines mean a `councilwoman`
+  now, so a woman crosses as a woman and the masculine is the adviser),
+  `letrado` the first Spanish noun
   for a lawyer (`su letrado`), `president` the first for a chairman, and
   `The word "quienes" follows the preposition.` the relative a Spanish writer
   puts after EVERY preposition (`en el que` was `en quienes`, in 19 sentences
@@ -1178,30 +1185,23 @@ read into an English-worded IR and written into any lesson's language),
   capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
   (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
   `La mostra` alone is refused into English).
-  The Abogacía report (Spanish into Italian) leaves these: `reclamó ayer a
-  Jordi Pujol` loses the person's `a` (`reclamò ieri Jordi Pujol`, the person
-  read as the object); `unos 5.000 o 6.000 millones` is `dei 5.000 o 6.000
-  milioni` (a pair of numbers after `unos` loses `circa`) and `el 80%` is `il
-  80%` (`l'80%`); the clitics of `me lo apunto` are `mi l'annoto` (Italian
-  says `me l'annoto`, `se lo`, `glielo`); `lo que, en su opinión, no basta`
-  is `quello che` (Italian says `il che`); `a quienes se les retiene` keeps the
-  resumptive (`a cui gli si trattiene`); `Estado` and `Justicia` after `de` and
-  `sobre` with no article stay names; `en Tarragona` is `in Tarragona`,
-  `depende de` `dipende della` and `contar con` `contare con` (a governed
-  preposition is the first meaning's); `poder judicial` is `potenza
-  giudiziaria`; `aunque` before a verb is `nonostante`; `Insistió` and
-  `existía` are `Insistè` and `esistè` (the third person of the past of an
-  `-ere` verb); a name with two particles keeps the first and writes the
-  second (`Consell de Col.legis d'Advocats di Catalunya`); a lifted adverb is
-  written after the relative clause when one follows (`... in cui dorme il
-  cane anche`), as it always was with `que`; a woman's `consellera` is `il
-  consigliere` (the writer takes the first noun for the meaning and no
-  translation carries a person's sex across); `"Escucho", dijo el presidente`
-  writes the one-word quotation of a verb without its marks. English refuses
-  a clause with no subject (`Es injusto`, `Dijo`, `Añadió que ...`: seven of the
-  twenty), a speaker with a `de` phrase and a relative clause after a
-  quotation, and every relative clause with its subject after its verb (`en la
-  que duerme el perro`).
+  The Abogacía report (Spanish into Italian) is read and written whole, and
+  what it leaves is a dictionary's first meaning for a word the paper uses in
+  another: `colegio` is a school (`il decano della scuola barcellonese`; of
+  the nine lines with `colegio` in the treebank's development part six are
+  polling stations, one a bar association and two a school) and `justamente`
+  is precisely (`proprio premiati`, for fairly). A lesson gives a word one meaning wherever no SHAPE of the clause
+  chooses -- `The clausal verb "supone" means "supposes".` does it for
+  `suponer` (represents, and supposes before `que`), as `intransitive`,
+  `progressive` and `transitive` do for others -- and these two have none.
+  `Se la cava.` has no `cavare` in the dictionaries; `d'un` is Italian
+  and written. `Os lo digo` is `Ti lo dico` (English `you` has no plural),
+  `Dile que venga` `Digli che vendica` (`venga` is `vengar`'s third person
+  before it is `venir`'s subjunctive) and `Lo dejo comer` `I leave him to eat`
+  (an object and an infinitive are written as one). English writes the report's
+  twenty sentences, none of them well: `demanded to Jordi Pujol`, `exert`,
+  `limited to say`, `councilwomans` (no irregular plurals), `They want that
+  ...` (a want takes `that`, never `to`).
 
 ## Tutorials are documentation that runs
 
