@@ -105,13 +105,14 @@ cl_wrap_at('576460752303423488').
 %%
 %%     page - 190 - length(knowledge base name) - length(predicate name)
 %%
-%% measured at three page sizes and three name lengths. On the default 8192
-%% page with a knowledge base called `main' that is 7998 minus the head's
-%% name, so 7800 sits DELIBERATELY BELOW it: a linter has no store to ask,
-%% cannot know the page or which knowledge base a program will be run
-%% against, and a warning that fires a couple of hundred bytes early costs
-%% a sentence while one that fires late costs a transaction. Erring the
-%% other way is the direction that must not happen.
+%% measured at three page sizes and three name lengths. On an 8192 page
+%% (the default before 1.9.7, and every store made before it keeps it; a
+%% new store is on 65536) with a knowledge base called `main' that is 7998
+%% minus the head's name, so 7800 sits DELIBERATELY BELOW it: a linter has
+%% no store to ask, cannot know the page or which knowledge base a program
+%% will be run against, and a warning that fires a couple of hundred bytes
+%% early costs a sentence while one that fires late costs a transaction.
+%% Erring the other way is the direction that must not happen.
 cl_page_bytes(7800).
 %% The client refuses earlier and differently: a Text is a 16-bit length.
 cl_wire_bytes(65535).

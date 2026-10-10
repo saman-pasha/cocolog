@@ -233,7 +233,7 @@ clause_too_long :-
     fixture(Prog,
             [ ':- dynamic unit/2.',
               'main :- assertz(unit(before, small)),',
-              '        numlist(1, 4000, L),',
+              '        numlist(1, 15000, L),',
               '        catch(assertz(unit(big, L)), E, true),',
               '        format("raised ~q~n", [E]),',
               '        assertz(unit(after, small)).' ]),
@@ -253,7 +253,7 @@ clause_too_long :-
     %% the file, the line, the predicate and both numbers
     atom_concat(D, '/KB2', KB2),
     atom_concat(D, '/wide.pl', Prog2),
-    long_atom(9000, Big),
+    long_atom(70000, Big),
     atomic_list_concat(['p(big(', Big, ')).'], BigClause),
     fixture(Prog2, ['p(small1).', BigClause, 'p(small2).']),
     atomic_list_concat(['--embed ', KB2, ' run ', Prog2, ' true 2>&1'], A3),
@@ -269,22 +269,23 @@ clause_too_long :-
 
     %% THE BUDGET IS DERIVED, NOT A CONSTANT, and this is the boundary.
     %% `clause_max' is page - 190 - length(kb) - length(name), measured at
-    %% three page sizes and three name lengths; the embedded engine opens at
-    %% 8192, so under `--kb main' a p/1 clause of 7997 characters stores and
-    %% one of 7998 does not. Both halves are pinned, because a budget that
+    %% three page sizes and three name lengths; the embedded engine makes a
+    %% new store at 65536, so under `--kb main' a p/1 clause of 65341
+    %% characters stores and one of 65342 does not (7997 and 7998 on a store
+    %% made at 8192, before 1.9.7). Both halves are pinned, because a budget that
     %% only refuses is a budget nobody can tell from a broken store.
     atom_concat(D, '/KB3', KB3),
-    boundary(D, KB3, 7994, In1),
+    boundary(D, KB3, 65338, In1),
     check('a clause at the budget stores', In1, stored),
-    boundary(D, KB3, 7995, In2),
+    boundary(D, KB3, 65339, In2),
     has('and one character more raises, catchably',
         'error(resource_error(clause_length)', In2),
 
     %% and the predicate's NAME comes out of the same row: a name nineteen
     %% characters longer leaves nineteen characters less for the clause
-    named(D, KB3, 7956, N1),
+    named(D, KB3, 65300, N1),
     check('a 20-character name at ITS budget stores', N1, stored),
-    named(D, KB3, 7957, N2),
+    named(D, KB3, 65301, N2),
     has('and one more raises', 'error(resource_error(clause_length)', N2),
 
     shl(['rm -rf ', D]).

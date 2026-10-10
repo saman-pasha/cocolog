@@ -98,17 +98,28 @@
   ;; ---- the one store this process holds ----------------------------
 
   (var pthread_mutex_t ce_open_access . PTHREAD_MUTEX_INITIALIZER)
-  ;;; THE PAGE THIS STORE IS OPENED ON, and the one place it is written.
-  ;;; A row must fit inside a page -- the engine's `allocate' throws
-  ;;; `allocation overflow' rather than chaining across pages -- so this
-  ;;; number decides the longest clause an embedded knowledge base can hold.
-  ;;; `ce_page_size' hands it to the client, which turns it into a refusal on
-  ;;; the way IN rather than a transaction lost at commit.
+  ;;; THE PAGE THIS STORE IS OPENED ON. A row must fit inside a page -- the
+  ;;; engine's `allocate' throws `allocation overflow' rather than chaining
+  ;;; across pages -- so this number decides the longest clause an embedded
+  ;;; knowledge base can hold. `ce_page_size' hands it to the client, which
+  ;;; turns it into a refusal on the way IN rather than a transaction lost at
+  ;;; commit.
   ;;;
-  ;;; The server's page is `MEMORY/PAGE_SIZE' in its configuration and has
-  ;;; nothing to do with this one; over the wire the client cannot ask, and
-  ;;; lib/zigurat-kb.cicili says what it assumes instead.
-  (var const int64_t ce_page_bytes . 8192)
+  ;;; It is the STORE's, not the build's: `ce_page_settle' reads it from
+  ;;; DIR/pagesize at every open, and it is set here, under `ce_open_access',
+  ;;; before the open count says the store is open. A new store is on 65536,
+  ;;; the largest page the engine reads; a store with no mark is one cocolog
+  ;;; 1.9.6 or older wrote, always on 8192, and is marked so. Two things
+  ;;; follow and nothing can check them: cocolog 1.9.6 or older opens every
+  ;;; store at 8192, so it must never open a store this one made; and a
+  ;;; 64 KiB store whose mark is deleted reads as an old 8192 one. 65536
+  ;;; before any open.
+  ;;;
+  ;;; The server's page is `MEMORY/PAGE_SIZE' in its configuration (and its
+  ;;; store's own data/pagesize) and has nothing to do with this one; over
+  ;;; the wire the client cannot ask, and lib/zigurat-kb.cicili says what it
+  ;;; assumes instead.
+  (var int64_t ce_page_bytes . 65536)
 
   (var int ce_open_count . 0)
   (var Memory ce_mem)
@@ -1129,14 +1140,121 @@
       (ce_args_clear s)
       (return ok)))
 
+  ;; ---- the store's page ---------------------------------------------
+  ;;; THE PAGE IS A PROPERTY OF THE STORE, as the server's is (ZiguratIP,
+  ;;; ziguratip/loadmemory.cpp): `memory_open' believes the page it is
+  ;;; handed -- it counts the data file's length over it, pads a ragged last
+  ;;; page and frees every page the hexmap does not cover -- so a store
+  ;;; opened at a page it was not written at is not refused, it is
+  ;;; REWRITTEN. So the store keeps its page beside it, as text in
+  ;;; DIR/pagesize, written at its first open and read back at every later
+  ;;; one, by the server's rules and in its words. A new store is on 65536,
+  ;;; the largest page the engine reads. A store with no mark was written by
+  ;;; cocolog 1.9.6 or older, whose page was always 8192: it is marked 8192
+  ;;; and opens as it always did.
+
+  ;; the blanks around and between a mark's words, as a stream reads them
+  (func ce_page_blank ((int c)) (out int)
+    (return (or (== c 32) (and (>= c 9) (<= c 13)))))
+
+  ;; why PAGE is not one the engine reads, "" when it is
+  (func ce_page_why ((int64_t page)) (out const char *)
+    (if (== page 0) (return "it is not a positive number"))
+    (if (> page 65536) (return "it is over 65536, the largest page the engine reads"))
+    (if (!= (% page 16) 0) (return "it is not a whole number of 16-byte chunks"))
+    (return ""))
+
+  ;; 1 PAGE is written into PATH, 0 it could not be
+  (func ce_page_mark ((const char * path) (int64_t page)) (out int)
+    (let ((FILE * f . #'(fopen path "w")))
+      (if (== f nil) (return 0))
+      (let ((int put . #'(fprintf f "%lld\n" (cast llong page))))
+        (if (!= 0 (fclose f)) (return 0))
+        (return (> put 0)))))
+
+  ;; the page to open the store in DIR at, or 0 when it cannot be opened
+  ;; and ERR says why
+  (func ce_page_settle ((const char * dir) (char * err) (size_t errcap)) (out int64_t)
+    (let ((char path [640]) (char datapath [640]) (int fresh . 0) (FILE * f . nil))
+      (snprintf path 640 "%s/pagesize" dir)
+      (snprintf datapath 640 "%s/data.bin" dir)
+      ;; no data file, or one of no bytes: no page in it yet. One that is
+      ;; there and cannot be read is NOT fresh -- it may hold a store.
+      (if (!= 0 (access datapath F_OK))
+          (set fresh 1)
+        (block
+          (set f (fopen datapath "rb"))
+          (if (!= f nil)
+              (block
+                (if (and (== 0 (fseek f 0 SEEK_END)) (== 0 (ftell f)))
+                    (set fresh 1))
+                (fclose f)))))
+      (if (== fresh 1)
+          (block
+            (if (== 0 (ce_page_mark path 65536))
+                (block
+                  (if (and (!= err nil) (> errcap 0))
+                      (snprintf err errcap "cannot write the store's page mark '%s'; a store whose page is not written down cannot be reopened safely" path))
+                  (return 0)))
+            (return 65536)))
+      ;; no mark: unmarkable is not unreadable, and unmarked is always 8192
+      (if (!= 0 (access path F_OK))
+          (block (ce_page_mark path 8192) (return 8192)))
+      (set f (fopen path "r"))
+      (if (== f nil)
+          (block
+            (if (and (!= err nil) (> errcap 0))
+                (snprintf err errcap "cannot read the store's page mark '%s': the store cannot be opened at a page it does not name" path))
+            (return 0)))
+      ;; the server's reading: one word of digits, growing no further once
+      ;; past the largest page, and the text shown trimmed and cut at 64
+      (let ((int c . 0) (int words . 0) (int inword . 0) (int bad . 0) (int failed . 0)
+            (int64_t n . 0) (char keep [64]) (size_t at . 0) (size_t last . 0))
+        (set c (fgetc f))
+        (while (!= c EOF)
+          (if (!= 0 (ce_page_blank c))
+              (set inword 0)
+            (block
+              (if (== inword 0) (block (set inword 1) (set words (+ words 1))))
+              (if (== words 1)
+                  (if (or (< c 48) (> c 57)) ;; '0' and '9'
+                      (set bad 1)
+                    (if (<= n 65536) (set n (+ (* n 10) (- c 48))))))
+              (set last (+ at 1))))
+          (if (> words 0)
+              (block
+                (if (< at 64) (set (nth at keep) (cast char c)))
+                (set at (+ at 1))))
+          (set c (fgetc f)))
+        (if (!= 0 (ferror f)) (set failed 1))
+        (fclose f)
+        (if (== failed 1)
+            (block
+              (if (and (!= err nil) (> errcap 0))
+                  (snprintf err errcap "cannot read the store's page mark '%s': the store cannot be opened at a page it does not name" path))
+              (return 0)))
+        (let ((const char * why . ""))
+          (if (== words 0) (set why "it is empty")
+            (if (> words 1) (set why "it is more than one word")
+              (if (== bad 1) (set why "it is not a number")
+                (set why (ce_page_why n)))))
+          (if (!= 0 (nth 0 why))
+              (block
+                (if (and (!= err nil) (> errcap 0))
+                    (snprintf err errcap "the store's page mark '%s' reads '%.*s%s', and %s: the store cannot be opened at a page it does not name"
+                              path (cast int (? (> last 64) 64 last)) keep (? (> last 64) "..." "") why))
+                (return 0)))
+          (return n)))))
+
   ;; ---- the extern-C surface: what client/zigurat.c dispatches to -----
 
   (extern-c
 
-    ;;; The page this store was opened on. It answers whether or not the
-    ;;; store is open, because it is a build-time constant and the caller
-    ;;; asks it while ATTACHING -- see `coco_zg_attach', which turns it into
-    ;;; the longest clause this arrangement will hold.
+    ;;; The page the store was opened on, settled from its mark by
+    ;;; `ce_engine_open' (65536 before any open). The caller asks it while
+    ;;; ATTACHING, after `zg_open_embed' has opened the store -- see
+    ;;; `coco_zg_attach', which turns it into the longest clause this
+    ;;; arrangement will hold.
     (func ce_page_size () (out llong)
       (return (cast llong ce_page_bytes)))
 
@@ -1169,6 +1287,13 @@
                     (snprintf err errcap "%s" order_err))
                 (pthread_mutex_unlock (aof ce_open_access))
                 (return 0))))
+        ;; AND ITS PAGE IS THE ONE IT WAS WRITTEN ON (`ce_page_settle')
+        (let ((int64_t page . #'(ce_page_settle dir err errcap)))
+          (if (== page 0)
+              (block
+                (pthread_mutex_unlock (aof ce_open_access))
+                (return 0)))
+          (set ce_page_bytes page))
         (let ((int ok . 1))
           (try
             (block

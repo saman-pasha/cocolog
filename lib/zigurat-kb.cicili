@@ -18,10 +18,11 @@
 ;;; Parsi procedure, and not tied to the interpreter's cell layout.
 ;;;
 ;;; MACHINES TRAVEL AS CHUNKS OF 4000 BYTES. A Text is documented at 65535 and
-;;; the wire agrees, but a row has to fit in a page: with the default 8192-byte
-;;; page a Text of 8000 stores and one of 8192 is refused with "allocation
-;;; overflow". 4000 leaves room for the rest of the row under any page size
-;;; anyone is likely to configure.
+;;; the wire agrees, but a row has to fit in a page: with an 8192-byte page (the
+;;; default until cocolog 1.9.7 and ZiguratIP 0.1.23, 65536 since) a Text of
+;;; 8000 stores and one of 8192 is refused with "allocation overflow". 4000
+;;; leaves room for the rest of the row under any page size anyone is likely to
+;;; configure, and a store from before the change is still on 8192.
 ;;;
 ;;; IT USES THE C ENTRY POINTS AND NOT THE FRONT-END MACROS. `zg.call' and its
 ;;; friends are named by whatever prefix the IMPORTER chose, so a library
@@ -270,19 +271,23 @@
         ;; that knows it.
         ;;
         ;; ONLY THE EMBEDDED ENGINE CAN BE ASKED. `zg_page_size' answers the
-        ;; page this process opened its own store on; a SERVER's page is
-        ;; `MEMORY/PAGE_SIZE' in its own configuration on its own machine, and
-        ;; no call in the protocol asks -- so over the wire this assumes the
-        ;; documented default and $COCOLOG_PAGE_SIZE is how an operator who
-        ;; raised it says so. Assuming the default is the safe way to be
-        ;; wrong: too small a budget refuses a clause that would have fitted,
-        ;; and the program gets a catchable error naming the number; too large
-        ;; a one loses the transaction, which is the defect this exists for.
+        ;; page this process opened its own store on (the store's own, from
+        ;; its mark: embed/embed.cicili, `ce_page_settle'); a SERVER's page is
+        ;; its store's, settled the same way from `MEMORY/PAGE_SIZE' on its
+        ;; own machine, and no call in the protocol asks -- so over the wire
+        ;; this assumes ZiguratIP's default, 65536 since 0.1.23, and
+        ;; $COCOLOG_PAGE_SIZE is how an operator says otherwise: 8192 for a
+        ;; server that is older or whose store is (a store keeps the page it
+        ;; was made on). Too small a budget refuses a clause that would have
+        ;; fitted, and the program gets a catchable error naming the number;
+        ;; too large a one loses the transaction at commit, which is the
+        ;; defect this exists for -- so against an 8192 server the variable
+        ;; is not optional.
         (let ((llong page . #'(zg_page_size db)))
           (if (<= page 0)
               (let ((const char * env . #'(getenv "COCOLOG_PAGE_SIZE")))
-                (set page (? (== env nil) 8192 (cast llong (atoll env))))
-                (if (<= page 0) (set page 8192))))
+                (set page (? (== env nil) 65536 (cast llong (atoll env))))
+                (if (<= page 0) (set page 65536))))
           (let ((llong budget . #'(- page (+ 190 (cast llong (strlen kb))))))
             (set (-> st clause_max) (? (<= budget 0) 0 (cast size_t budget)))))
         (set (-> st fetch) coco_zg_fetch)

@@ -901,10 +901,12 @@
     ;; store with no such limit -- a purely local one, which keeps clauses in
     ;; memory and has no row to fit them into.
     ;;
-    ;; A ROW MUST FIT IN A PAGE. Zigurat allocates a row inside one 8192-byte
-    ;; page and throws `allocation overflow' if it will not fit, and the throw
-    ;; comes at COMMIT: measured, a clause of 8013 characters stores and one
-    ;; of 8014 does not, and the refusal took the WHOLE TRANSACTION with it --
+    ;; A ROW MUST FIT IN A PAGE. Zigurat allocates a row inside one page
+    ;; (65536 bytes by default since 1.9.7, 8192 before, and a store keeps
+    ;; the one it was made on) and throws `allocation overflow' if it will
+    ;; not fit, and the throw comes at COMMIT: measured on 8192, a clause of
+    ;; 8013 characters stores and one of 8014 does not, and the refusal took
+    ;; the WHOLE TRANSACTION with it --
     ;; every clause the process had asserted, the small ones before and after
     ;; the big one included, silently as far as the program could tell,
     ;; because its own `findall' had already answered with all of them in it.

@@ -92,10 +92,11 @@ typedef enum {
  * instead: a silently shortened knowledge base is worse than a failed call.
  *
  * WHAT A COLUMN WILL HOLD IS SMALLER, and the protocol does not know it. A row
- * has to fit in a page, and MVCCS/PAGE_SIZE is 8192 by default -- a Text of
- * 8000 stores, one of 8192 comes back as "allocation overflow". Anything
- * putting large values in a table should chunk them well under the page size
- * rather than up to ZG_MAX_TEXT. */
+ * has to fit in a page: MEMORY/PAGE_SIZE is 65536 by default since ZiguratIP
+ * 0.1.23 (and cocolog 1.9.7's embedded store), and a store made before then
+ * is on 8192, where a Text of 8000 stores and one of 8192 comes back as
+ * "allocation overflow". Anything putting large values in a table should
+ * chunk them well under the page size rather than up to ZG_MAX_TEXT. */
 #define ZG_MAX_STRING 255u
 #define ZG_MAX_TEXT   65535u
 
@@ -192,8 +193,9 @@ int zg_embedded(zg_conn *c);
 
 /* The page a row has to fit inside, or 0 when this end cannot know it --
  * which is every connection over the wire, because a server's page is its
- * own configuration on its own machine and no call in the protocol asks.
- * The embedded engine answers exactly. See zg_page_size in zigurat.c. */
+ * store's, on its own machine, and no call in the protocol asks. The
+ * embedded engine answers exactly, from the store's own mark. See
+ * zg_page_size in zigurat.c. */
 long long zg_page_size(zg_conn *c);
 
 /* The last failure on this connection, or "" if there has not been one. */

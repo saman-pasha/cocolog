@@ -209,11 +209,14 @@ int zg_embedded(zg_conn *c)
 
 /* THE PAGE A ROW HAS TO FIT INSIDE, or 0 when this end cannot know.
  *
- * The embedded engine is opened by this process and answers exactly; a
- * SERVER's page is MEMORY/PAGE_SIZE in its own configuration, on its own
- * machine, and there is no call in the protocol that asks -- so the wire
- * answers 0 and the caller says what it assumes instead. The symbol is
- * weak: a build with no embedded engine has no ce_page_size to call. */
+ * The embedded engine is opened by this process and answers exactly: the
+ * page its store was opened on, settled from the store's own mark
+ * (DIR/pagesize, ce_page_settle in embed/embed.cicili). A SERVER's page is
+ * its store's too (its data/pagesize, or MEMORY/PAGE_SIZE for a new
+ * store), on its own machine, and there is no call in the protocol that
+ * asks -- so the wire answers 0 and the caller says what it assumes
+ * instead (65536, lib/zigurat-kb.cicili). The symbol is weak: a build
+ * with no embedded engine has no ce_page_size to call. */
 long long zg_page_size(zg_conn *c)
 {
   if (!c || !c->ce) return 0;
