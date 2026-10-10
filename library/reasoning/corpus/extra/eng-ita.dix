@@ -971,3 +971,6 @@
 # `la imagen distorsionada' (the Abogacía report, from Spanish): the participle
 # of `distort' is `distorto', never `falsato'
 <e><p><l>distort<s n="vblex"/></l><r>distorcere<s n="vblex"/></r></p></e>
+# `Los abogados deben ser justamente retribuidos' (the Abogacía report, from Spanish):
+# the Italian monolingual dictionary has `remunerare' and no bilingual line for it
+<e><p><l>remunerate<s n="vblex"/></l><r>remunerare<s n="vblex"/></r></p></e>

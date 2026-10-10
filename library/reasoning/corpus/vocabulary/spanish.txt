@@ -1057,6 +1057,11 @@ The verb "representa" means "represents".
 The verb "supone" means "represents".
 The clausal verb "supone" means "supposes".
 The masculine noun "colegio" means "college".
+The verb "ejerce" means "exercises".
+The verb "retribuye" means "remunerates".
+The adverb "justamente" means "precisely".
+The adjectival adverb "justamente" means "justly".
+The masculine noun "consejo" means "council".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

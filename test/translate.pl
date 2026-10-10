@@ -11279,6 +11279,7 @@ newspaper_abogacia :-
     newspaper_abogacia_checks_9, newspaper_abogacia_checks_10, newspaper_abogacia_checks_11,
     newspaper_abogacia_checks_12, newspaper_abogacia_checks_13, newspaper_abogacia_checks_14,
     newspaper_abogacia_checks_15, newspaper_abogacia_checks_16, newspaper_abogacia_checks_17,
+    newspaper_abogacia_checks_18,
     reason_unlearn(spanish), reason_unlearn(italian).
 
 %% each lesson in two parts, as the others
@@ -11390,7 +11391,12 @@ The masculine adjective "injusto" means "unjust". "injusto" takes the subjunctiv
 The verb "cree" means "believes". "creer" is the infinitive of "cree".
 The verb "representa" means "represents". "representan" is the plural of "representa". The verb "supone" means "represents". The clausal verb "supone" means "supposes". "suponen" is the plural of "supone".
 "dijo" is the past of "dice". "said" is the past of "says". "duerme" is intransitive.
-The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The masculine noun "día" means "day". "días" is the plural of "día".').
+The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The masculine noun "día" means "day". "días" is the plural of "día".
+The masculine noun "hombre" means "man". "hombres" is the plural of "hombre". The feminine noun "consejera" means "councilwoman". "consejeras" is the plural of "consejera". The masculine noun "presidente" means "chairman". "presidentes" is the plural of "presidente".
+The verb "reclama" means "demands". The verb "escucha" means "listens". The verb "viene" means "comes". "venir" is the infinitive of "viene". "venga" is the subjunctive of "viene". The verb "venga" means "avenges". "duermas" is the second person of "duerma".
+The pronoun "tú" means "you". The pronoun "él" means "he". The word "no" means "not". The word "no" precedes the verb.
+The verb "premia" means "rewards". "premiado" is the participle of "premia". "sea" is the subjunctive of "es". "sean" is the plural of "sea".
+The adverb "justamente" means "precisely". The adjectival adverb "justamente" means "justly".').
 newspaper_abogacia_part(italian, 3, 'The pronoun "mi" means "me". The pronoun "ti" means "you". The dative pronoun "gli" means "him". The pronoun "vi" means "you". The pronoun "la" means "her". "l''" is the elision of "il".
 "me la" is the contraction of "mi la". "te la" is the contraction of "ti la". "se la" is the contraction of "si la". "gliela" is the contraction of "gli la". "gliela" is the contraction of "le la".
 "dalla" is the contraction of "da la". "dal" is the contraction of "da il". "sul" is the contraction of "su il". "sulla" is the contraction of "su la".
@@ -11413,8 +11419,8 @@ The masculine adjective "ingiusto" means "unjust". "ingiusto" takes the subjunct
 The verb "crede" means "believes". "credere" is the infinitive of "crede".
 The verb "rappresenta" means "represents". "rappresentano" is the plural of "rappresenta". The verb "suppone" means "supposes".
 "disse" is the past of "dice". "said" is the past of "says". "dorme" is intransitive.
-The adjective "migliore" means "good". "migliore" is the comparative of "buono". The masculine noun "giorno" means "day". "giorni" is the plural of "giorno".').
-
+The adjective "migliore" means "good". "migliore" is the comparative of "buono". The masculine noun "giorno" means "day". "giorni" is the plural of "giorno".
+The adverb "proprio" means "precisely". The adverb "giustamente" means "precisely". The adjectival adverb "giustamente" means "justly".').
 
 newspaper_abogacia_checks_1 :-
     nf_tr('El perro del Col.legi d''Advocats duerme.', spanish, italian, A1),
@@ -11483,8 +11489,8 @@ newspaper_abogacia_checks_4 :-
 
 newspaper_abogacia_checks_5 :-
     nf_tr('El gato ve la casa, en la que también duerme el perro.', spanish, italian, E1),
-    check('AN ADVERB BEFORE THE CLAUSE OF `AL QUE'': `el segundo Congreso ..., al que también asistieron, entre otros, la consellera'' -- the relative with no article between the preposition and the word had its front, this one read `también asistieron ...'' as a clause and found none, so `al que'' was `a quello che'' -- the one that -- with the adverb in the middle of it', E1,
-          'Il gatto vede la casa, in cui anche dorme il cane.'),
+    check('AN ADVERB BEFORE THE CLAUSE OF `AL QUE'': `el segundo Congreso ..., al que también asistieron, entre otros, la consellera'' -- the relative with no article between the preposition and the word had its front, this one read `también asistieron ...'' as a clause and found none, so `al que'' was `a quello che'' -- the one that -- with the adverb in the middle of it (and `also'' is written after the verb, as the checks of the second round say)', E1,
+          'Il gatto vede la casa, in cui dorme anche il cane.'),
     nf_tr('El gato ve la casa, en la que en la ciudad duerme el perro.', spanish, italian, E2),
     check('... and a phrase before it goes after the verb, as a relative''s front does', E2,
           'Il gatto vede la casa, in cui dorme il cane nella città.'),
@@ -11760,6 +11766,104 @@ newspaper_abogacia_checks_17 :-
     check('a GUARD: the same with no relative clause', Q2,
           'Il gatto vede, ieri, il pane.').
 
+newspaper_abogacia_checks_18 :-
+    nf_tr('Los hombres comen el pan.', spanish, english, R1),
+    check('ENGLISH''S PLURALS THAT ARE NO ENDING''S: `los hombres y las mujeres'' were `the mans and the womans'' -- the table''s (`men'', `children'', `lives''), the compounds of `man'' and `woman'' and the Latin `-sis'' (`crises'')', R1,
+          'The men eat the bread.'),
+    nf_tr('Los presidentes comen el pan.', spanish, english, R2),
+    check('... the compound of `man'': `chairmen''', R2,
+          'The chairmen eat the bread.'),
+    nf_tr('Las consejeras comen el pan.', spanish, english, R3),
+    check('... and of `woman'': the report''s `councilwomans''', R3,
+          'The councilwomen eat the bread.'),
+    nf_tr('Los perros comen el pan.', spanish, english, R4),
+    check('a GUARD: a regular plural keeps its ending', R4,
+          'The dogs eat the bread.'),
+    nf_tr('The men eat the bread.', english, spanish, R5),
+    check('... and the reader takes the plural back to its singular: `men'' was a word nobody knew', R5,
+          'Los hombres comen el pan.'),
+    nf_tr('The councilwomen eat the bread.', english, spanish, R6),
+    check('... a compound too', R6,
+          'Las consejeras comen el pan.'),
+    nf_tr('El gato quiere que el perro duerma.', spanish, english, S1),
+    check('ENGLISH SAYS WHAT IS WANTED OF SOMEBODY WITH THE PERSON AND AN INFINITIVE, never with a clause of `that'': `quieren que los abogados sean retribuidos'' is `they want the lawyers to be rewarded'', and it came out `they want that the lawyers are rewarded''', S1,
+          'The cat wants the dog to sleep.'),
+    nf_tr('El gato quiere que el perro no duerma.', spanish, english, S2),
+    check('... denied', S2,
+          'The cat wants the dog not to sleep.'),
+    nf_tr('El gato quiere que el perro sea premiado.', spanish, english, S3),
+    check('... in the passive', S3,
+          'The cat wants the dog to be rewarded.'),
+    nf_tr('El gato quiere que duermas.', spanish, english, S4),
+    check('... with a pronoun the verb''s ending named', S4,
+          'The cat wants you to sleep.'),
+    nf_tr('El gato quiere que él duerma.', spanish, english, S5),
+    check('... and one the clause wrote, in its object form', S5,
+          'The cat wants him to sleep.'),
+    nf_tr('El gato pide que Pedro duerma.', spanish, english, S6),
+    check('... after a verb of asking when the one asked is a person', S6,
+          'The cat asks Pedro to sleep.'),
+    nf_tr('El gato pide que el perro duerma.', spanish, english, S7),
+    check('a GUARD: asking is of a person, and a dog is none in the lesson', S7,
+          'The cat asks that the dog sleeps.'),
+    nf_tr('El gato dice que el perro duerme.', spanish, english, S8),
+    check('a GUARD: a verb of saying keeps its clause', S8,
+          'The cat says that the dog sleeps.'),
+    nf_tr('El gato quiere que el perro duerma.', spanish, italian, S9),
+    check('a GUARD: the lesson''s language keeps its clause', S9,
+          'Il gatto vuole che il cane dorma.'),
+    nf_tr('El gato quiere que el perro venga.', spanish, english, T1),
+    check('A CLAUSE OF `THAT'' IS READ IN THE SUBJUNCTIVE AFTER A VERB THAT TAKES IT: `Quiero que vengas'' wants you to come, and `venga'' is also the third person of the verb that avenges -- the word the lesson names a verb by, which the reader took first: `quiero que vendiques''', T1,
+          'The cat wants the dog to come.'),
+    nf_tr('El perro venga el pan.', spanish, english, T2),
+    check('a GUARD: with no verb to take it the indicative is read, the avenger''s', T2,
+          'The dog avenges the bread.'),
+    nf_tr('El gato dice que el perro venga el pan.', spanish, english, T5),
+    check('... and after a verb the lesson does not say takes it, the clause stays as it was read', T5,
+          'The cat says that the dog avenges the bread.'),
+    nf_tr('El gato reclama el pan a Pedro.', spanish, english, T3),
+    check('A PERSON FROM WHOM SOMETHING IS DEMANDED IS A PHRASE OF `FROM'' IN ENGLISH: `reclamó a Pujol entre 5.000 y 6.000 millones'' was `demanded to Jordi Pujol''', T3,
+          'The cat demands the bread from Pedro.'),
+    nf_tr('El gato da el pan a Pedro.', spanish, english, T4),
+    check('a GUARD: a verb of giving keeps `to''', T4,
+          'The cat gives the bread to Pedro.'),
+    nf_tr('El gato es justamente bueno.', spanish, italian, U1),
+    check('AN ADVERB BEFORE AN ADJECTIVE OR A PARTICIPLE IS THE MEANING THE LESSON GIVES IT THERE: `justamente retribuidos'' is justly remunerated, and the dictionary''s one meaning, precisely, wrote `proprio premiati'' (`The adjectival adverb "justamente" means "justly".'')', U1,
+          'Il gatto è giustamente buono.'),
+    nf_tr('El gato come justamente el pan.', spanish, italian, U2),
+    check('a GUARD: anywhere else it is precisely, as it was', U2,
+          'Il gatto mangia proprio il pane.'),
+    nf_tr('Il gatto è giustamente buono.', italian, spanish, U3),
+    check('... and the other way', U3,
+          'El gato es justamente bueno.'),
+    nf_tr('El gato es justamente bueno.', spanish, english, U4),
+    check('... into English', U4,
+          'The cat is justly good.'),
+    nf_tr('El gato puede ser justamente premiado.', spanish, english, U5),
+    check('... before a participle after an infinitive: `Debemos ser justamente retribuidos''', U5,
+          'The cat can be rewarded justly.'),
+    nf_tr('El gato es justamente premiado.', spanish, english, U6),
+    check('... and after the copula, where the participle is the verb''s passive and the adverb goes back before it', U6,
+          'The cat is justly rewarded.'),
+    nf_tr('El gato escucha el pan.', spanish, english, W1),
+    check('ENGLISH TAKES A PREPOSITION WHERE SPANISH TAKES A PHRASE: `Escucho las reivindicaciones'' is `I listen to the claims'', and it came out `I listen the claims''', W1,
+          'The cat listens to the bread.'),
+    nf_tr('El gato come el pan.', spanish, english, W2),
+    check('a GUARD: a verb of eating takes none', W2,
+          'The cat eats the bread.'),
+    nf_tr('El gato ve la casa en la que también duermen los perros.', spanish, italian, X1),
+    check('THE WORD FOR `ALSO'' BEFORE A VERB WITH ITS SUBJECT AFTER IT IS WRITTEN RIGHT AFTER IT: `el Congreso, al que también asistieron, entre otros, la consellera'' is `a cui assistettero anche'', and it was `a cui anche assistettero''', X1,
+          'Il gatto vede la casa in cui dormono anche i cani.'),
+    nf_tr('Il gatto vede la casa in cui anche dormono i cani.', italian, spanish, X2),
+    check('... a relative word with no article, from the other language', X2,
+          'El gato ve la casa en la que duermen también los perros.'),
+    nf_tr('El gato ve la casa en la que ayer duermen los perros.', spanish, italian, X4),
+    check('a GUARD: any other adverb stays in front of the verb', X4,
+          'Il gatto vede la casa in cui ieri dormono i cani.'),
+    nf_tr('Dijo el pan.', spanish, english, V1),
+    check('A THIRD PERSON NOBODY NAMED IS THE SINGULAR `THEY'' AFTER A VERB OF SAYING WITH A THING FOR ITS OBJECT: `y apuntó la necesidad de un pacto'' is the verb''s own object, and the fourteenth sentence was refused into English for it; with a person for it that is the speaker after the verb (`Dice el profesor'' stays refused)', V1,
+          'They said the bread.').
+
 %% <<< abogacia
 
 
@@ -11950,6 +12054,12 @@ vocabulary :-
              memberchk('The feminine noun "consellera" means "councilwoman".', EsLines), memberchk('The clausal verb "supone" means "supposes".', EsLines),
              memberchk('The masculine noun "colegio" means "college".', EsLines) ), V3f),
     check('and the words the report''s leads needed are said first or said again: `libro'' for a book (the dictionary''s first is a pad), `do'', a woman''s adviser, the verb of `suponen el 50%'', the body of `el decano del colegio''', V3f, yes),
+    yes_no(( nth1(I3g, EsLines, 'The verb "ejerce" means "exercises".'), nth1(I3h, EsLines, 'The verb "ejerce" means "exerts".'), I3g < I3h,
+             nth1(I3i, EsLines, 'The adverb "justamente" means "precisely".'), nth1(I3j, EsLines, 'The adjectival adverb "justamente" means "justly".'), I3i < I3j,
+             nth1(I3k, ItLines, 'The adverb "giustamente" means "precisely".'), nth1(I3l, ItLines, 'The adjectival adverb "giustamente" means "justly".'), I3k < I3l,
+             memberchk('The verb "retribuye" means "remunerates".', EsLines), memberchk('The masculine noun "consejo" means "council".', EsLines),
+             memberchk('The verb "remunera" means "remunerates".', ItLines), memberchk('The masculine noun "consiglio" means "council".', ItLines) ), V3g),
+    check('and the leads of the second round: `ejercen'' exercise (the dictionary''s is exert), `retribuidos'' remunerated, a council for `Consejo'', and an adverb with a meaning before an adjective said after the plain one -- a meaning a lesson calls adjectival is linked to the adverb''s class too, in the order it is said', V3g, yes),
     reason_translate('El profesor lee el periódico en la casa.', T4),
     check('a noun that is an adjective too is the noun where the sentence puts it', T4, 'The professor reads the newspaper in the house.'),
     reason_translate('El gato negro duerme.', T5),

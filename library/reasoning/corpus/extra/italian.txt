@@ -2683,3 +2683,10 @@ The adjective "abituale" means "usual".
 # dictionary's is `blocchetto' (a pad of paper)
 "do" is the first person of "dà".
 The masculine noun "libro" means "book".
+# `giustamente retribuiti' (the Abogacía report, tried the other way): justly
+# before an adjective or a participle, and precisely elsewhere (the dictionary's
+# meaning said again first, as Spanish's `justamente')
+The adverb "giustamente" means "precisely".
+The adjectival adverb "giustamente" means "justly".
+# `il presidente del Consiglio dell'Avvocatura': a council, as Spanish's `Consejo'
+The masculine noun "consiglio" means "council".

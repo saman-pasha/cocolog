@@ -2010,3 +2010,21 @@ The clausal verb "supone" means "supposes".
 # (`colegios electorales'), one a bar association and two a school; Italian's
 # `collegio' is the one word for all of them
 The masculine noun "colegio" means "college".
+# `que ejercen la asistencia de justicia gratuita', `los 25.300 que ejercen en
+# Catalunya' (the Abogacía report): the dictionary's first meaning for `ejercer' is
+# exert, which Italian does not say of a lawyer (`esercitare' is its exercise, and
+# the other Spanish verb for that, `ejercitar', is a drill)
+The verb "ejerce" means "exercises".
+# `justamente retribuidos' (the same report): the dictionary's `retribuir' is
+# reward, which Italian says `premiare', and a lawyer is remunerated; and
+# `justamente' is precisely anywhere and justly before an adjective or a
+# participle (`The adjectival adverb ...' is what it means there). The
+# dictionary's own meaning is said again first: a meaning the lesson calls
+# adjectival is linked to the adverb's class too, in the order it is said
+The verb "retribuye" means "remunerates".
+The adverb "justamente" means "precisely".
+The adjectival adverb "justamente" means "justly".
+# `el presidente del Consejo de la Abogacía': a council, in thirteen of the
+# fifteen places the treebank's development part has `consejo' (`Consejo de
+# Ministros', `Consejo de Administración'), and the advice in two
+The masculine noun "consejo" means "council".

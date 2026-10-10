@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16482 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16483 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1548,6 +1548,9 @@ The feminine adjective "distorta" means "distorted".
 The adjective "abituale" means "usual".
 "do" is the first person of "dà".
 The masculine noun "libro" means "book".
+The adverb "giustamente" means "precisely".
+The adjectival adverb "giustamente" means "justly".
+The masculine noun "consiglio" means "council".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -24277,6 +24280,53 @@ The verb "distorce" means "distorts".
 "distorte" is the plural of "distorta".
 "distorcere" is the infinitive of "distorce".
 "distorcendo" is the gerund of "distorce".
+The verb "remunera" means "remunerates".
+"remunerano" is the plural of "remunera".
+"remuneriamo" is the first person of "remunerano".
+"remunero" is the first person of "remunera".
+"remuneri" is the second person of "remunera".
+"remunerò" is the past of "remunera".
+"remunerarono" is the past of "remunerano".
+"remunerammo" is the first person of "remunerarono".
+"remunerai" is the first person of "remunerò".
+"remunerasti" is the second person of "remunerò".
+"remunerava" is the imperfect of "remunera".
+"remuneravano" is the imperfect of "remunerano".
+"remuneravamo" is the first person of "remuneravano".
+"remuneravo" is the first person of "remunerava".
+"remuneravi" is the second person of "remunerava".
+"remunererà" is the future of "remunera".
+"remunereranno" is the plural of "remunererà".
+"remunereremo" is the first person of "remunereranno".
+"remunererò" is the first person of "remunererà".
+"remunererai" is the second person of "remunererà".
+"remunererebbe" is the conditional of "remunera".
+"remunererebbero" is the plural of "remunererebbe".
+"remunereremmo" is the first person of "remunererebbero".
+"remunererei" is the first person of "remunererebbe".
+"remunereresti" is the second person of "remunererebbe".
+"remuneri" is the subjunctive of "remunera".
+"remunerino" is the plural of "remuneri".
+"remuneriamo" is the first person of "remunerino".
+"remunerasse" is the past subjunctive of "remunera".
+"remunerassero" is the plural of "remunerasse".
+"remunerassimo" is the first person of "remunerassero".
+"remunerassi" is the first person of "remunerasse".
+"remunerassi" is the second person of "remunerasse".
+"remunera" is the imperative of "remunera".
+"remunerare" is the negative imperative of "remunera".
+"remunerate" is the imperative of "remunerano".
+"remuneriamo" is the hortative of "remunera".
+"remunerato" is the participle of "remunera".
+"remunerata" is the participle of "remunera".
+"remunerata" is feminine.
+"remunerati" is the participle of "remunera".
+"remunerati" is the plural of "remunerato".
+"remunerate" is the participle of "remunera".
+"remunerate" is feminine.
+"remunerate" is the plural of "remunerata".
+"remunerare" is the infinitive of "remunera".
+"remunerando" is the gerund of "remunera".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".

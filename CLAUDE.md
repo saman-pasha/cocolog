@@ -1081,7 +1081,7 @@ read into an English-worded IR and written into any lesson's language),
   line that a reader needs and a writer must not use stays unsaid.
 * **Open leads, recorded and not done**: `tr_cap_run/3` is two predicates
   under one name; the builder calls a noun a person only by its first English
-  word; English has no irregular plurals (`mans`); the upstream verb table
+  word; the upstream verb table
   has `scaping`/`leaved`; `No comas el pan.` reads the subjunctive before the
   negative imperative; `pronto` after a verb crosses as `immediate`; `ir a`
   and an infinitive is the near future and reads as a verb of motion, with
@@ -1181,27 +1181,35 @@ read into an English-worded IR and written into any lesson's language),
   `di` no longer takes the gender of the noun after it unless it says a part
   (`tasse d'iscrizione` is `impuestos de inscripción`, like the first
   `tasse`; it was `tasas`, by the gender of `inscripción`). English writes
-  `graffiti` as `graffitoes` (no irregular plurals) and a weekday with no
-  capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
+  a weekday with no capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
   (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
   `La mostra` alone is refused into English).
-  The Abogacía report (Spanish into Italian) is read and written whole, and
-  what it leaves is a dictionary's first meaning for a word the paper uses in
-  another: `colegio` is a school (`il decano della scuola barcellonese`; of
-  the nine lines with `colegio` in the treebank's development part six are
-  polling stations, one a bar association and two a school) and `justamente`
-  is precisely (`proprio premiati`, for fairly). A lesson gives a word one meaning wherever no SHAPE of the clause
-  chooses -- `The clausal verb "supone" means "supposes".` does it for
-  `suponer` (represents, and supposes before `que`), as `intransitive`,
-  `progressive` and `transitive` do for others -- and these two have none.
-  `Se la cava.` has no `cavare` in the dictionaries; `d'un` is Italian
-  and written. `Os lo digo` is `Ti lo dico` (English `you` has no plural),
-  `Dile que venga` `Digli che vendica` (`venga` is `vengar`'s third person
-  before it is `venir`'s subjunctive) and `Lo dejo comer` `I leave him to eat`
-  (an object and an infinitive are written as one). English writes the report's
-  twenty sentences, none of them well: `demanded to Jordi Pujol`, `exert`,
-  `limited to say`, `councilwomans` (no irregular plurals), `They want that
-  ...` (a want takes `that`, never `to`).
+  The Abogacía report (Spanish into Italian and into English) is read and
+  written whole, and its leads are fixed (1.10.3, 166 checks over it). What
+  it still leaves: `Se la cava.` has no `cavare` in either dictionary, and
+  `d'un` is Italian and written; `Os lo digo` is `Ti lo dico` -- the lesson
+  language has no second person plural (`coméis` is no word, `os` and `vi` are
+  `you`); English writes `Lo dejo comer` as `I leave him to eat` and `Lo veo
+  venir` as `I see him to come` (the bare infinitive after `let`, `make`,
+  `see` and `hear`, and `deja` as `lets` before an infinitive, are not
+  there) and `Hago comer el pan al perro` as `I make to eat the bread to the
+  dog`; `se limitó a decir` is `limited to say` (English wants `himself` and
+  `to saying`, and the IR's noun carries no gender for the pronoun); `me lo
+  apunto` is `I note him` (`lo` is him or it); `5.000 millones` is `5.000
+  millions` in English (the thousands' point and the plural of `million`);
+  `más de lo que recibe ahora` is a muddle in English; and the comma before a
+  preposition and its relative is lost where the piece has other commas
+  (`reivindicó, ayer, un trato mejor para los abogados, a quienes ...` reads
+  `... per gli avvocati a cui ...`: keeping it was tried twice and costs the
+  Valencia report's second 1.7 million of its 9 and the festival report's
+  last 0.4 million of its 3.5). A word with two meanings that no SHAPE chooses
+  between still has one: `justamente` is justly before an adjective or a
+  participle (`The adjectival adverb "justamente" means "justly".`) and
+  precisely elsewhere, as `supone` is supposes before `que`; **a meaning the
+  lesson gives a class of its own (`intransitive`, `progressive`, `clausal`,
+  `adjectival`) is linked to the word's class too, in the order it is said,
+  so the plain meaning is said first (again), or the class's meaning becomes
+  the default** (`tr_mean_links/3`).
 
 ## Tutorials are documentation that runs
 
