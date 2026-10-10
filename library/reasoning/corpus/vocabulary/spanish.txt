@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20386 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20392 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -969,6 +969,29 @@ The feminine adjective "varia" means "several".
 The preposition "al frente de" means "in charge of".
 The pronoun "mucho más" means "much more". The pronoun "mucho más" does not precede the verb.
 The masculine noun "amajica performing arts project" means "amajica performing arts project".
+The feminine noun "autorregulación" means "self-regulation".
+"autorregulaciones" is the plural of "autorregulación".
+The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "chairman".
+"president" is a person.
+The masculine noun "conseller" means "adviser".
+The feminine noun "consejera" means "adviser".
+The feminine noun "consellera" means "adviser".
+"consellera" is a person.
+The masculine noun "tratamiento" means "treatment".
+The masculine noun "trato" means "treatment".
+The masculine noun "trato" means "deal".
+The verb "reduce" means "reduces".
+The verb "rebaja" means "reduces".
+The feminine noun "retención" means "withholding".
+The verb "compromete" means "pledges".
+The feminine noun "abogacía" means "legal profession".
+The masculine noun "turno de oficio" means "court-appointed defence".
+The feminine noun "pasantía" means "traineeship".
+"tenga que" is the subjunctive of "tiene que".
+"tengan que" is the plural of "tenga que".
+"quienes" is a relative.
+The adverb "entre otros" means "among others".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1104,6 +1127,12 @@ The feminine noun "escalada" means "escalation".
 "escaladas" is the plural of "escalada".
 The masculine noun "pilón" means "bollard".
 "pilones" is the plural of "pilón".
+The masculine noun "abogado" means "lawyer".
+"abogados" is the plural of "abogado".
+"abogado" is a person.
+The feminine noun "abogada" means "lawyer".
+"abogadas" is the plural of "abogada".
+"abogada" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -20216,6 +20245,16 @@ The masculine noun "abonado" means "subscriber".
 The feminine noun "abonada" means "subscriber".
 "abonadas" is the plural of "abonada".
 "abonada" is a person.
+The masculine noun "letrado" means "lawyer".
+"letrados" is the plural of "letrado".
+"letrado" is a person.
+The feminine noun "letrada" means "lawyer".
+"letradas" is the plural of "letrada".
+"letrada" is a person.
+The masculine noun "honorario" means "honorarium".
+"honorarios" is the plural of "honorario".
+The masculine noun "enjuiciamiento" means "procedure".
+"enjuiciamientos" is the plural of "enjuiciamiento".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -21663,12 +21702,6 @@ The masculine noun "estanque" means "lake".
 The masculine noun "idioma" means "language".
 "idioma" is not feminine.
 "idiomas" is the plural of "idioma".
-The masculine noun "abogado" means "lawyer".
-"abogados" is the plural of "abogado".
-"abogado" is a person.
-The feminine noun "abogada" means "lawyer".
-"abogadas" is the plural of "abogada".
-"abogada" is a person.
 The noun "líder" means "leader".
 "líderes" is the plural of "líder".
 "líder" is a person.
@@ -22461,8 +22494,6 @@ The feminine noun "socióloga" means "sociologist".
 "sociólogas" is the plural of "socióloga".
 "socióloga" is a person.
 The masculine noun "suelo" means "soil".
-The masculine noun "abogado" means "solicitor".
-The feminine noun "abogada" means "solicitor".
 The masculine noun "son" means "sound".
 "sones" is the plural of "son".
 The masculine noun "soberano" means "sovereign".
@@ -25564,6 +25595,8 @@ The feminine noun "recesión" means "slump".
 The masculine noun "choque" means "smash".
 The masculine noun "olor" means "odour".
 The masculine noun "fragmento" means "snippet".
+The masculine noun "abogado" means "solicitor".
+The feminine noun "abogada" means "solicitor".
 The masculine noun "hijo" means "son".
 "hijos" is the plural of "hijo".
 "hijo" is a person.
@@ -108805,6 +108838,98 @@ The verb "clama" means "cries".
 "clamadas" is the plural of "clamada".
 "clamar" is the infinitive of "clama".
 "clamando" is the gerund of "clama".
+The verb "recalca" means "stresses".
+"recalcan" is the plural of "recalca".
+"recalcamos" is the first person of "recalcan".
+"recalco" is the first person of "recalca".
+"recalcas" is the second person of "recalca".
+"recalcó" is the past of "recalca".
+"recalcaron" is the past of "recalcan".
+"recalcamos" is the first person of "recalcaron".
+"recalqué" is the first person of "recalcó".
+"recalcaste" is the second person of "recalcó".
+"recalcaba" is the past of "recalca".
+"recalcaban" is the past of "recalcan".
+"recalcábamos" is the first person of "recalcaban".
+"recalcabas" is the second person of "recalcaba".
+"recalcará" is the future of "recalca".
+"recalcarán" is the plural of "recalcará".
+"recalcaremos" is the first person of "recalcarán".
+"recalcaré" is the first person of "recalcará".
+"recalcarás" is the second person of "recalcará".
+"recalcaría" is the conditional of "recalca".
+"recalcarían" is the plural of "recalcaría".
+"recalcaríamos" is the first person of "recalcarían".
+"recalcarías" is the second person of "recalcaría".
+"recalque" is the subjunctive of "recalca".
+"recalquen" is the plural of "recalque".
+"recalquemos" is the first person of "recalquen".
+"recalques" is the second person of "recalque".
+"recalcara" is the past subjunctive of "recalca".
+"recalcaran" is the plural of "recalcara".
+"recalcáramos" is the first person of "recalcaran".
+"recalcaras" is the second person of "recalcara".
+"recalca" is the imperative of "recalca".
+"recalques" is the negative imperative of "recalca".
+"recalcad" is the imperative of "recalcan".
+"recalquéis" is the negative imperative of "recalcan".
+"recalquemos" is the hortative of "recalca".
+"recalcado" is the participle of "recalca".
+"recalcada" is the participle of "recalca".
+"recalcada" is feminine.
+"recalcados" is the participle of "recalca".
+"recalcados" is the plural of "recalcado".
+"recalcadas" is the participle of "recalca".
+"recalcadas" is feminine.
+"recalcadas" is the plural of "recalcada".
+"recalcar" is the infinitive of "recalca".
+"recalcando" is the gerund of "recalca".
+The verb "aprovecha" means "exploits".
+"aprovechan" is the plural of "aprovecha".
+"aprovechamos" is the first person of "aprovechan".
+"aprovecho" is the first person of "aprovecha".
+"aprovechas" is the second person of "aprovecha".
+"aprovechó" is the past of "aprovecha".
+"aprovecharon" is the past of "aprovechan".
+"aprovechamos" is the first person of "aprovecharon".
+"aproveché" is the first person of "aprovechó".
+"aprovechaste" is the second person of "aprovechó".
+"aprovechaba" is the past of "aprovecha".
+"aprovechaban" is the past of "aprovechan".
+"aprovechábamos" is the first person of "aprovechaban".
+"aprovechabas" is the second person of "aprovechaba".
+"aprovechará" is the future of "aprovecha".
+"aprovecharán" is the plural of "aprovechará".
+"aprovecharemos" is the first person of "aprovecharán".
+"aprovecharé" is the first person of "aprovechará".
+"aprovecharás" is the second person of "aprovechará".
+"aprovecharía" is the conditional of "aprovecha".
+"aprovecharían" is the plural of "aprovecharía".
+"aprovecharíamos" is the first person of "aprovecharían".
+"aprovecharías" is the second person of "aprovecharía".
+"aproveche" is the subjunctive of "aprovecha".
+"aprovechen" is the plural of "aproveche".
+"aprovechemos" is the first person of "aprovechen".
+"aproveches" is the second person of "aproveche".
+"aprovechara" is the past subjunctive of "aprovecha".
+"aprovecharan" is the plural of "aprovechara".
+"aprovecháramos" is the first person of "aprovecharan".
+"aprovecharas" is the second person of "aprovechara".
+"aprovecha" is the imperative of "aprovecha".
+"aproveches" is the negative imperative of "aprovecha".
+"aprovechad" is the imperative of "aprovechan".
+"aprovechéis" is the negative imperative of "aprovechan".
+"aprovechemos" is the hortative of "aprovecha".
+"aprovechado" is the participle of "aprovecha".
+"aprovechada" is the participle of "aprovecha".
+"aprovechada" is feminine.
+"aprovechados" is the participle of "aprovecha".
+"aprovechados" is the plural of "aprovechado".
+"aprovechadas" is the participle of "aprovecha".
+"aprovechadas" is feminine.
+"aprovechadas" is the plural of "aprovechada".
+"aprovechar" is the infinitive of "aprovecha".
+"aprovechando" is the gerund of "aprovecha".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -138217,6 +138342,10 @@ The masculine adjective "lúdico" means "recreational".
 "lúdicos" is the plural of "lúdico".
 The feminine adjective "lúdica" means "recreational".
 "lúdicas" is the plural of "lúdica".
+The masculine adjective "confiscatorio" means "confiscatory".
+"confiscatorios" is the plural of "confiscatorio".
+The feminine adjective "confiscatoria" means "confiscatory".
+"confiscatorias" is the plural of "confiscatoria".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".

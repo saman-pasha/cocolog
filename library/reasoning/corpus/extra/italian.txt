@@ -2494,3 +2494,34 @@ The pronoun "molto altro ancora" means "much more". The pronoun "molto altro anc
 # `l'amajica performing arts project': a South African project, named in
 # English in small letters
 The masculine noun "amajica performing arts project" means "amajica performing arts project".
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), from Spanish.
+# `confiscatorio' is in no Italian dictionary here; `autoregolamentazione' has
+# its English word hyphenated (`self-regulation'); `consigliera' is the
+# feminine of `consigliere', said first, or an Italian adviser would be
+# written `consigliera' for every Spanish `conseller'
+The masculine adjective "confiscatorio" means "confiscatory".
+"confiscatori" is the plural of "confiscatorio".
+The feminine adjective "confiscatoria" means "confiscatory".
+"confiscatorie" is the plural of "confiscatoria".
+The feminine noun "autoregolamentazione" means "self-regulation".
+"autoregolamentazioni" is the plural of "autoregolamentazione".
+The masculine noun "consigliere" means "adviser".
+The feminine noun "consigliera" means "adviser".
+"consigliera" is a person.
+# the Abogacía report, from Spanish: `la abogacía' is the legal profession,
+# `un trato confiscatorio' a treatment; `ritenuta' has no dictionary entry
+# (a withholding on a salary), and the dictionary's plural for `onorario'
+# is `onorarii'
+The feminine noun "avvocatura" means "legal profession".
+"avvocature" is the plural of "avvocatura".
+The feminine noun "difesa d'ufficio" means "court-appointed defence".
+The feminine noun "ritenuta" means "withholding".
+"ritenute" is the plural of "ritenuta".
+The masculine noun "tirocinio" means "traineeship".
+"tirocini" is the plural of "tirocinio".
+"onorari" is the plural of "onorario".
+# `tienen que soportar unos costos': endure -- the dictionary's first meaning
+# for `sopportare' is support, which Spanish says `apoyar'
+The verb "sopporta" means "endures".
+# `entre otros', from Spanish: among others
+The adverb "tra gli altri" means "among others".

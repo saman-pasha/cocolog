@@ -960,3 +960,11 @@
 # is resulting, which Spanish says `resultantes'; the youths come from the
 # ghettos. Both ways, so that it is the first meaning of the word
 <e><p><l>originating<s n="adj"/></l><r>proveniente<s n="adj"/><s n="mf"/></r></p></e>
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), from Spanish: the Italian
+# word for the honorarium the Spanish entries read; `onorario' has its paradigm
+# in apertium-ita.ita.dix and no English word
+<e r="LR"><p><l>honorarium<s n="n"/></l><r>onorario<s n="n"/><s n="m"/></r></p></e>
+# `se les retiene el 20%': retains -- the dictionary's `ritenere' says it first
+# and is a believing; `trattenere' has its paradigm in apertium-ita.ita.dix and
+# no bilingual entry. Both ways, so that it is the first word for `retain'
+<e><p><l>retain<s n="vblex"/></l><r>trattenere<s n="vblex"/></r></p></e>

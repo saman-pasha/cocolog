@@ -1848,3 +1848,61 @@ The preposition "al frente de" means "in charge of".
 The pronoun "mucho más" means "much more". The pronoun "mucho más" does not precede the verb.
 # `l'amajica performing arts project', into Spanish
 The masculine noun "amajica performing arts project" means "amajica performing arts project".
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), into Italian.
+# `autorregulación' has an Italian word only inside a hyphenated English one
+# (`self-regulation', which the builder does not read)
+The feminine noun "autorregulación" means "self-regulation".
+"autorregulaciones" is the plural of "autorregulación".
+# `El president recalcó que ...': the Catalan word for the head of the
+# Generalitat, in the dictionary's first meaning for `presidente' (a chairman).
+# `presidente' said first, or `president' would be the first Spanish word for a
+# chairman and every Italian `presidente' would be written in Catalan
+The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "chairman".
+"president" is a person.
+# `la consellera de Justícia': the feminine of `conseller', an adviser; the
+# dictionary's own feminine said first, or the Italian `consigliera' would be
+# written in Spanish as the Catalan word. `conseller' said first of all, or
+# `consejera' would be the first Spanish noun for an adviser and `il
+# consigliere' would be written `la consejera'
+The masculine noun "conseller" means "adviser".
+The feminine noun "consejera" means "adviser".
+The feminine noun "consellera" means "adviser".
+"consellera" is a person.
+# `un mejor trato fiscal', `un trato confiscatorio': a treatment, where the
+# dictionary's first meaning for `trato' is a deal, which the Italian lesson
+# has no word for; `tratamiento' said first or `trato' would become the first
+# Spanish word for treatment
+The masculine noun "tratamiento" means "treatment".
+The masculine noun "trato" means "treatment".
+The masculine noun "trato" means "deal".
+# `rebajar la retención al 18%': to reduce, where the dictionary's meaning for
+# `rebajar' is recess; `reducir' said first, for the same reason
+The verb "reduce" means "reduces".
+The verb "rebaja" means "reduces".
+# `la retención' of a tax is a withholding, the dictionary's retention second
+The feminine noun "retención" means "withholding".
+# `se comprometió a seguir el diálogo': pledged himself -- the dictionary's
+# first meaning for `comprometer' is engage, which Italian says `ingaggiare'
+The verb "compromete" means "pledges".
+# `la abogacía debe adecuarse': the legal profession, where the dictionary has
+# only the law
+The feminine noun "abogacía" means "legal profession".
+# `los letrados del turno de oficio': the lawyers of the court-appointed
+# defence, the scheme that gives a lawyer to those who cannot pay for one
+The masculine noun "turno de oficio" means "court-appointed defence".
+# `la pasantía' of a lawyer is a traineeship
+The feminine noun "pasantía" means "traineeship".
+# `es injusto que los abogados tengan que soportar': the subjunctive of the
+# modal, which the lesson had for `tiene' and not for `tiene que'
+"tenga que" is the subjunctive of "tiene que".
+"tengan que" is the plural of "tenga que".
+# `a quienes se les retiene el 20%': to whom -- the relative that stands for
+# the one and for its relative both, in the plural (`quien' is begun above).
+# No line that it follows the preposition: with one, a writer takes it for the
+# relative after every preposition and `en el que' came out `en quienes'
+"quienes" is a relative.
+# `al que también asistieron, entre otros, la consellera': among others, which
+# read word by word is `entre' (a verb as well) and `otros', and in English
+# `enters others'
+The adverb "entre otros" means "among others".

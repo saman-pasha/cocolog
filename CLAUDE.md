@@ -1060,6 +1060,18 @@ read into an English-worded IR and written into any lesson's language),
   non` written last, a sentence that ran to the 300 M inference limit and
   `l'anima` as `lo anima`; and sum the counts by hunk -- a clause that reads
   the phrase's words a second time at every place that read nothing cost 3 %.
+  **Diff the first word of every meaning** between the committed vocabulary
+  and the rebuilt one (class and English meaning to first word, gender
+  ignored: the writer takes the first noun of a meaning whatever its gender):
+  an `extra/` line, a dictionary entry marked `RL` among them, is the first
+  word of its meaning wherever it lands in the file. The Abogacía report's
+  lines made a feminine `consigliera` the first Italian noun for an adviser
+  (every `conseller` was `la consigliera`), `letrado` the first Spanish noun
+  for a lawyer (`su letrado`), `president` the first for a chairman, and
+  `The word "quienes" follows the preposition.` the relative a Spanish writer
+  puts after EVERY preposition (`en el que` was `en quienes`, in 19 sentences
+  of the data column); the dictionary's own word is said again first, and a
+  line that a reader needs and a writer must not use stays unsaid.
 * **Open leads, recorded and not done**: `tr_cap_run/3` is two predicates
   under one name; the builder calls a noun a person only by its first English
   word; English has no irregular plurals (`mans`); the upstream verb table
@@ -1166,6 +1178,30 @@ read into an English-worded IR and written into any lesson's language),
   capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
   (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
   `La mostra` alone is refused into English).
+  The Abogacía report (Spanish into Italian) leaves these: `reclamó ayer a
+  Jordi Pujol` loses the person's `a` (`reclamò ieri Jordi Pujol`, the person
+  read as the object); `unos 5.000 o 6.000 millones` is `dei 5.000 o 6.000
+  milioni` (a pair of numbers after `unos` loses `circa`) and `el 80%` is `il
+  80%` (`l'80%`); the clitics of `me lo apunto` are `mi l'annoto` (Italian
+  says `me l'annoto`, `se lo`, `glielo`); `lo que, en su opinión, no basta`
+  is `quello che` (Italian says `il che`); `a quienes se les retiene` keeps the
+  resumptive (`a cui gli si trattiene`); `Estado` and `Justicia` after `de` and
+  `sobre` with no article stay names; `en Tarragona` is `in Tarragona`,
+  `depende de` `dipende della` and `contar con` `contare con` (a governed
+  preposition is the first meaning's); `poder judicial` is `potenza
+  giudiziaria`; `aunque` before a verb is `nonostante`; `Insistió` and
+  `existía` are `Insistè` and `esistè` (the third person of the past of an
+  `-ere` verb); a name with two particles keeps the first and writes the
+  second (`Consell de Col.legis d'Advocats di Catalunya`); a lifted adverb is
+  written after the relative clause when one follows (`... in cui dorme il
+  cane anche`), as it always was with `que`; a woman's `consellera` is `il
+  consigliere` (the writer takes the first noun for the meaning and no
+  translation carries a person's sex across); `"Escucho", dijo el presidente`
+  writes the one-word quotation of a verb without its marks. English refuses
+  a clause with no subject (`Es injusto`, `Dijo`, `Añadió que ...`: seven of the
+  twenty), a speaker with a `de` phrase and a relative clause after a
+  quotation, and every relative clause with its subject after its verb (`en la
+  que duerme el perro`).
 
 ## Tutorials are documentation that runs
 

@@ -523,3 +523,20 @@
 # `ragazzi provenienti dai ghetti', into Spanish: `proveniente' has its paradigm
 # in apertium-spa.spa.dix and the dictionary's only entry for it is `from'
 <e r="LR"><p><l>originating<s n="adj"/></l><r>proveniente<s n="adj"/><s n="mf"/></r></p></e>
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), into Italian: each of
+# these has its paradigm in apertium-spa.spa.dix and no English word, or one of
+# several (`aprovechar' is `take advantage of'), and is only read (RL). An RL
+# noun still comes before the dictionary's own further down the nouns, so the
+# dictionary's `abogado' is said first, both ways, or `letrado' would be the
+# first Spanish word for a lawyer; the Spanish words for procedure, stress and
+# exploit stay the dictionary's as they come first (the verbs' RL entries come
+# last). `honorario' is an honorarium, which is no `fee' (the dictionary's `fee'
+# is a cost); `enjuiciamiento', as in `ley de enjuiciamiento civil', is the
+# procedure
+<e><p><l>lawyer<s n="n"/></l><r>abogado<s n="n"/><s n="GD"/></r></p></e>
+<e r="RL"><p><l>lawyer<s n="n"/></l><r>letrado<s n="n"/><s n="GD"/></r></p></e>
+<e r="RL"><p><l>honorarium<s n="n"/></l><r>honorario<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>confiscatory<s n="adj"/></l><r>confiscatorio<s n="adj"/></r></p></e>
+<e r="RL"><p><l>procedure<s n="n"/></l><r>enjuiciamiento<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>stress<s n="vblex"/></l><r>recalcar<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>exploit<s n="vblex"/></l><r>aprovechar<s n="vblex"/></r></p></e>

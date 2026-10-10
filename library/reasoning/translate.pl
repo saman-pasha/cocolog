@@ -595,7 +595,8 @@ tr_read_ir(Piece0, Stop0, From, S, Stop) :-
     tr_quote_names(Side, Words0q, Words0r),
     tr_quote_comma(Side, Words0r, Words0n),
     tr_letter_runs(Side, Words0n, Words0),
-    tr_particle_names(Side, first, Words0, Words0p),
+    tr_elision_names(Side, Words0, Words0e),
+    tr_particle_names(Side, first, Words0e, Words0p),
     tr_stated_names(Side, Words0p, Words0a0),
     tr_title_lower(Side, Words0a0, Words0a),
     tr_month_lower(Side, Words0a, Words0b0),
@@ -1312,6 +1313,26 @@ tr_joined_words(Side, Words0, Words) :-
     tr_enclitic_multi(Side, Words4, Words5),
     tr_particles(Side, Words5, Words6),
     tr_name_links(Side, Words6, Words).
+
+%% A CATALAN ELISION BETWEEN TWO CAPITALISED WORDS IS PART OF A NAME: `el
+%% decano del Col.legi d'Advocats de Barcelona' is a bar association, and
+%% `d'' is a word no lesson knows (Spanish has no such elision). The tokeniser
+%% leaves it a word of its own, the rule for a small word no lesson knows
+%% after a name took `Col.legi d'' for the name, and `Advocats de Barcelona'
+%% was another beside it -- two names side by side, which no phrase reads.
+%% The elision is joined to the capitalised word after it, as the text
+%% spelled them, and the name goes on through the particle rule (`de
+%% Barcelona')
+tr_elision_names(foreign, Ws0, Ws) :-
+    memberchk(w(_, upper), Ws0), tr_elision_names0(Ws0, Ws), !.
+tr_elision_names(_, Ws, Ws).
+tr_elision_names0([], []).
+tr_elision_names0([w(A, upper), w(E, lower), w(B, upper)|Ws0], Ws) :-
+    atom(A), atom(E), atom(B), sub_atom(E, _, 1, 0, '\''), \+ tr_known_word(foreign, E),
+    tr_name_word(foreign, w(A, upper)), tr_name_word(foreign, w(B, upper)), !,
+    tr_cap(A, AC), tr_cap(B, BC), atomic_list_concat([AC, ' ', E, BC], Name),
+    tr_elision_names0([w(Name, upper)|Ws0], Ws).
+tr_elision_names0([W|Ws0], [W|Ws]) :- tr_elision_names0(Ws0, Ws).
 
 %% A CATALAN `i' BETWEEN TWO CAPITALISED WORDS IS PART OF A NAME: `Font i
 %% Sagué' is one square, two surnames joined, and `i' is a word of neither
@@ -2040,10 +2061,23 @@ tr_piece_words(Piece, Words) :-
 %% the piece cut at every boundary the tokeniser would drop, Codes, Sep,
 %% Codes, ...: a semicolon, and the codes tr_speech_pieces/2 put in
 tr_cut_seps(Codes, Parts) :-
-    (   append(Before, [C|After], Codes), tr_sep_code(C, Sep)
+    (   append(Before, [C|After], Codes), tr_sep_code(C, Sep), \+ tr_pair_semicolon(C, Before)
     ->  Parts = [Before, Sep|More], tr_cut_seps(After, More)
     ;   Parts = [Codes]
     ).
+
+%% A SEMICOLON INSIDE A PAIR OF MARKS IS THE QUOTATION'S, NOT THE PIECE'S:
+%% `"Escucho las reivindicaciones; me lo apunto", se limitó a decir el
+%% presidente'. The plain pair stays in its piece (tr_mid_marks/2 leaves a
+%% pair as it stands), and cut at its semicolon the first part held an
+%% opening mark with no closing one and the second a closing mark with no
+%% opening one: the closing mark read as a word, `,' with a quotation mark,
+%% and the sentence was refused. A semicolon with an opening mark before it
+%% that nothing before it closes stays in the piece (the pair's closing mark
+%% is after it: tr_mid_marks/2 left the pair only where one was), and
+%% tr_inside_words/2 cuts the quotation at it.
+tr_pair_semicolon(59, Before) :-                                         % 59 is `;'
+    tr_opens_unclosed(Before), !.
 
 tr_sep_code(59, semicolon).                                            % 59 is `;'
 tr_sep_code(1, endquote).
@@ -2124,8 +2158,13 @@ tr_part_words(Codes, Ws) :-
 %% tr_whole_pair/3 turns into dashes when the same words are alone in the
 %% pair; read as hyphens the reporting clause between them was refused, with
 %% every word known. Only the dashes: a colon in a quoted title is its own
+%% ... AND A SEMICOLON INSIDE A PAIR IS A SEMICOLON: `"Escucho las
+%% reivindicaciones; me lo apunto", se limitó a decir el presidente' -- the
+%% piece was not cut at it (tr_pair_semicolon/2), and the quotation is read
+%% here as a piece of its own, which cuts it and joins the parts with the
+%% atom `semicolon'; the tokeniser alone dropped it
 tr_inside_words(Inside, Ws) :-
-    (   ( memberchk(40, Inside) ; memberchk(41, Inside) ; tr_has_dash(Inside) )
+    (   ( memberchk(40, Inside) ; memberchk(41, Inside) ; memberchk(59, Inside) ; tr_has_dash(Inside) )
     ->  tr_bracket_codes(Inside, Inside0), tr_inside_dashes(Inside0, Inside1), tr_piece_words(Inside1, Ws)
     ;   tr_part_words(Inside, Ws)
     ).
@@ -3232,6 +3271,13 @@ tr_clause_mids(english, _, Ws, Ws) :- !.
 tr_clause_mids(_, _, [], []) :- !.
 tr_clause_mids(Side, yes(Since), [W, comma|Ws0], [W, w(K, mid)|Ws]) :-
     W = w(_, _), \+ tr_is(Side, W, preposition),
+    %% (never after a relative word, `que' among them: the aside after it is
+    %% the relative clause's own, read with its commas as frc/1 -- `Dijo que el
+    %% perro duerme, lo que, en su opinión, es bueno' set it aside in the clause
+    %% of the first `que', where the relative clause had lost it, and so did
+    %% `la casa que, en la ciudad, duerme' inside one -- or the front of the
+    %% clause that `que' opens: `Dijo que ve que, en la casa, duerme el gato')
+    \+ ( W = w(WW, _), atom(WW), tr_relative_word(Side, WW) ),
     %% (never after a coordinator, whose comma opens the NEXT clause's
     %% insertion: `El perro sabe que el gato come, pero, además, duerme' is
     %% the division's, wc/1, and taken for an aside of the clause of `que'
@@ -5612,7 +5658,7 @@ tr_read0(Side, Kind, Words0, S) :-
         %% is the phrase's aside: `También se incrementaron las ventas de
         %% minidisc, que superaron ...' read with every comma out made the
         %% clause restrictive, and the comma was lost
-        Kind == statement, append(_, [comma, w(RW, _)|_], Words0), tr_relative_word(Side, RW),
+        Kind == statement, tr_comma_relative(Side, Words0),
         tr_adverbs_off(Side, Words0, Rest, Advs0), Advs0 \== [], Rest = [R0|_], R0 \== comma,
         tr_read_statement(Side, Rest, none, S0), S0 = s(A, Su, G, Comps0)
     ->  Words = Words0
@@ -5668,6 +5714,25 @@ tr_read0(Side, Kind, Words0, S) :-
     %% writer puts on the last word it writes (tr_lifted_close/3)
     ;   Side == foreign, tr_lifted_close(Words, Advs, S1, S2) -> S = S2
     ;   S = S1 ).
+
+%% a comma before a relative word, or before a preposition and one (with its
+%% article, `a los que') when it is the only comma of the piece: `Pujol
+%% también reivindicó un trato para los abogados, a quienes se les retiene el
+%% 20%' lifts `también' and keeps the comma, as `..., que superaron' does --
+%% with every comma out the relative clause was restrictive. Only where it is
+%% the only one: with others the reading with the commas kept is asked of the
+%% whole sentence and fails after reading it once more, and the sentence is
+%% read with the commas out, as it was (the Basque report's ninth sentence
+%% 3.4 million inferences more of its 19, the festival report's last 0.4
+%% million of its 3.5)
+tr_comma_relative(Side, Words) :-
+    append(_, [comma, w(RW, _)|_], Words), tr_relative_word(Side, RW), !.
+tr_comma_relative(Side, Words) :-
+    append(Before, [comma, w(PW, _)|More], Words), \+ memberchk(comma, Before), \+ memberchk(comma, More),
+    atom(PW), tr_is(Side, w(PW, lower), preposition), tr_relative_next(Side, More), !.
+tr_relative_next(Side, [w(RW, _)|_]) :- tr_relative_word(Side, RW), !.
+tr_relative_next(Side, [w(AW, _), w(RW, _)|_]) :-
+    atom(AW), tr_article_word(Side, AW), tr_relative_word(Side, RW), !.
 
 tr_lifted_close(Words, Advs, s(A, Su, G, Cs0), s(A, Su1, G, [qe|Cs])) :-
     last(Words, w(_, QE)), memberchk(QE, [qclose, qboth]),
@@ -15895,6 +15960,27 @@ tr_relative_clause(Side, [P, D, w(R, _)|Ws], pp(P), S) :-
     tr_is(Side, P, preposition), \+ ( P = w(PW, _), tr_solve(mean(PW, like)) ),
     tr_determiner(Side, D, _, article), tr_relative_word(Side, R), Ws \== [],
     tr_read_nested(Side, Ws, rel, S0), !, tr_unrel(S0, S).
+%% ... AND ITS ADJUNCTS BEFORE THE CLAUSE, with an article between the
+%% preposition and the relative word: `el Congreso, al que también asistieron,
+%% entre otros, la consellera' -- also, and then the clause. The relative with
+%% no article had its front (above); this one read `también asistieron ...' as
+%% a clause and found none, so `al que' was `a quello che' -- the one that --
+%% and the adverb stood in the middle of it. Asked only where the clause above
+%% found nothing, so a relative that read keeps its reading.
+tr_relative_clause(Side, [P, D, w(R, _)|Ws], pp(P), S) :-
+    Ws = [F1, _|_], ( tr_is(Side, F1, preposition) ; tr_is(Side, F1, adverb) ),
+    tr_is(Side, P, preposition), \+ ( P = w(PW, _), tr_solve(mean(PW, like)) ),
+    tr_determiner(Side, D, _, article), tr_relative_word(Side, R),
+    tr_front_max(Side, Ws, no, Max),
+    append(Front0, _, Max), Front0 \== [], append(Front0, Rest, Ws), Rest \== [],
+    tr_complements(Side, Front0, Front), Front \== [], tr_adjuncts(Front),
+    tr_read_nested(Side, Rest, rel, S0), !,
+    S0 = s(_, Su, G, Comps0),
+    (   forall(member(X, Front), X = adv(_))
+    ->  findall(frn(X), member(X, Front), Fr), append(Fr, Comps0, Comps)
+    ;   tr_front_after(Comps0, Front, Comps)
+    ),
+    S = s(none, Su, G, Comps).
 
 %% ... AND WITH ITS ADJUNCTS BEFORE ITS VERB: `las ventas de sencillos, que
 %% en 1999 absorbieron casi el 4% del mercado total' -- the gap and then

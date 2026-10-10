@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16479 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16481 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1407,6 +1407,25 @@ The verb "impegna" means "engages".
 The pronoun "molto altro ancora" means "much more". The pronoun "molto altro ancora" does not precede the verb.
 "quartieri" is a name.
 The masculine noun "amajica performing arts project" means "amajica performing arts project".
+The masculine adjective "confiscatorio" means "confiscatory".
+"confiscatori" is the plural of "confiscatorio".
+The feminine adjective "confiscatoria" means "confiscatory".
+"confiscatorie" is the plural of "confiscatoria".
+The feminine noun "autoregolamentazione" means "self-regulation".
+"autoregolamentazioni" is the plural of "autoregolamentazione".
+The masculine noun "consigliere" means "adviser".
+The feminine noun "consigliera" means "adviser".
+"consigliera" is a person.
+The feminine noun "avvocatura" means "legal profession".
+"avvocature" is the plural of "avvocatura".
+The feminine noun "difesa d'ufficio" means "court-appointed defence".
+The feminine noun "ritenuta" means "withholding".
+"ritenute" is the plural of "ritenuta".
+The masculine noun "tirocinio" means "traineeship".
+"tirocini" is the plural of "tirocinio".
+"onorari" is the plural of "onorario".
+The verb "sopporta" means "endures".
+The adverb "tra gli altri" means "among others".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -20687,6 +20706,7 @@ The masculine noun "troll" means "troll".
 "troll" is the plural of "troll".
 "troll" is a person.
 The feminine noun "impresa" means "feat".
+The masculine noun "onorario" means "honorarium".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -24039,6 +24059,53 @@ The verb "impedisce" means "prevents".
 "impedite" is the plural of "impedita".
 "impedire" is the infinitive of "impedisce".
 "impedendo" is the gerund of "impedisce".
+The verb "trattiene" means "retains".
+"trattengono" is the plural of "trattiene".
+"tratteniamo" is the first person of "trattengono".
+"trattengo" is the first person of "trattiene".
+"trattieni" is the second person of "trattiene".
+"trattenne" is the past of "trattiene".
+"trattennero" is the past of "trattengono".
+"trattenemmo" is the first person of "trattennero".
+"trattenni" is the first person of "trattenne".
+"trattenesti" is the second person of "trattenne".
+"tratteneva" is the past of "trattiene".
+"trattenevano" is the past of "trattengono".
+"trattenevamo" is the first person of "trattenevano".
+"trattenevo" is the first person of "tratteneva".
+"trattenevi" is the second person of "tratteneva".
+"tratterrà" is the future of "trattiene".
+"tratterranno" is the plural of "tratterrà".
+"tratterremo" is the first person of "tratterranno".
+"tratterrò" is the first person of "tratterrà".
+"tratterrai" is the second person of "tratterrà".
+"tratterrebbe" is the conditional of "trattiene".
+"tratterrebbero" is the plural of "tratterrebbe".
+"tratterremmo" is the first person of "tratterrebbero".
+"tratterrei" is the first person of "tratterrebbe".
+"tratterresti" is the second person of "tratterrebbe".
+"trattenga" is the subjunctive of "trattiene".
+"trattengano" is the plural of "trattenga".
+"tratteniamo" is the first person of "trattengano".
+"trattenesse" is the past subjunctive of "trattiene".
+"trattenessero" is the plural of "trattenesse".
+"trattenessimo" is the first person of "trattenessero".
+"trattenessi" is the first person of "trattenesse".
+"trattenessi" is the second person of "trattenesse".
+"trattieni" is the imperative of "trattiene".
+"trattenere" is the negative imperative of "trattiene".
+"trattenete" is the imperative of "trattengono".
+"tratteniamo" is the hortative of "trattiene".
+"trattenuto" is the participle of "trattiene".
+"trattenuta" is the participle of "trattiene".
+"trattenuta" is feminine.
+"trattenuti" is the participle of "trattiene".
+"trattenuti" is the plural of "trattenuto".
+"trattenute" is the participle of "trattiene".
+"trattenute" is feminine.
+"trattenute" is the plural of "trattenuta".
+"trattenere" is the infinitive of "trattiene".
+"trattenendo" is the gerund of "trattiene".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
