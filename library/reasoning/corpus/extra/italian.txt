@@ -2525,3 +2525,44 @@ The masculine noun "tirocinio" means "traineeship".
 The verb "sopporta" means "endures".
 # `entre otros', from Spanish: among others
 The adverb "tra gli altri" means "among others".
+# A PAIR OF CLITICS BEFORE A VERB, OR JOINED TO AN INFINITIVE, is written as one
+# (`me lo apunto' is `me l'annoto', `decírtelo' `dirtelo', `dárselo'
+# `darglielo'): the contraction of the two, which the writer makes between any
+# two words it writes next to each other. The reader does not join two words
+# the lesson states a contraction of when the key has a blank, because Italian
+# `se la' is also `if the'.
+"me lo" is the contraction of "mi lo".
+"me la" is the contraction of "mi la".
+"me li" is the contraction of "mi li".
+"me le" is the contraction of "mi le".
+"me ne" is the contraction of "mi ne".
+"te lo" is the contraction of "ti lo".
+"te la" is the contraction of "ti la".
+"te li" is the contraction of "ti li".
+"te le" is the contraction of "ti le".
+"te ne" is the contraction of "ti ne".
+"se lo" is the contraction of "si lo".
+"se la" is the contraction of "si la".
+"se li" is the contraction of "si li".
+"se le" is the contraction of "si le".
+"se ne" is the contraction of "si ne".
+"ce lo" is the contraction of "ci lo".
+"ce la" is the contraction of "ci la".
+"ce li" is the contraction of "ci li".
+"ce le" is the contraction of "ci le".
+"ce ne" is the contraction of "ci ne".
+"ve lo" is the contraction of "vi lo".
+"ve la" is the contraction of "vi la".
+"ve li" is the contraction of "vi li".
+"ve le" is the contraction of "vi le".
+"ve ne" is the contraction of "vi ne".
+"glielo" is the contraction of "gli lo".
+"gliela" is the contraction of "gli la".
+"glieli" is the contraction of "gli li".
+"gliele" is the contraction of "gli le".
+"gliene" is the contraction of "gli ne".
+"glielo" is the contraction of "le lo".
+"gliela" is the contraction of "le la".
+"glieli" is the contraction of "le li".
+"gliele" is the contraction of "le le".
+"gliene" is the contraction of "le ne".

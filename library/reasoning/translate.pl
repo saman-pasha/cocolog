@@ -1615,12 +1615,17 @@ tr_join_word(Ns, J) :-
 %% the lesson says BEGINS something is stated too: `The word "in modo da"
 %% begins the purpose.' is the whole of what `in modo da poter utilizzare'
 %% needs, and read apart it was `en modo para poder'.
+%% ... BUT NOT BY A CONTRACTION WHOSE KEY HAS A BLANK: `"me lo" is the
+%% contraction of "mi lo".' is for the writer, which joins two clitics it
+%% writes side by side; read, Italian `se la' is also `if the', and joined and
+%% expanded `se la casa è grande' would be a reflexive pair
 tr_stated_word(J) :-
-    member(G, [mean(J, _), plural_of(J, _), person_of(J, _), past_of(J, _), future_of(J, _),
+    member(G, [mean(J, _), plural_of(J, _), person_of(J, _), past_of(J, _), imperfect_of(J, _), future_of(J, _),
                participle_of(J, _), gerund_of(J, _), infinitive_of(J, _), conditional_of(J, _),
-               subjunctive_of(J, _), imperative_of(J, _), elision_of(J, _), contraction_of(J, _),
-               begin(J, _)]),
+               subjunctive_of(J, _), imperative_of(J, _), elision_of(J, _), begin(J, _)]),
     tr_solve(G), !.
+tr_stated_word(J) :-
+    tr_solve(contraction_of(J, _)), atom_codes(J, Cs), \+ memberchk(32, Cs), !.
 
 tr_joined([w(A, _)], A) :- !.
 tr_joined([w(A, _)|Ws], J) :-
@@ -1664,7 +1669,7 @@ tr_contract(foreign, [o(W1, C1), o(W2, C2)|Os], Out) :-
 %% before "i".' would write `s'innamora'); an article's and any other word's
 %% before every vowel, as before
 tr_contract(foreign, [o(W1, C1), o(W2, C2)|Os], Out) :-
-    tr_solve(elision_of(E, W1)), begin_with(W2, vowel),
+    tr_solve(elision_of(E, W1)), tr_language(To), tr_starts_vowel(To, W2),
     \+ tr_opens_next(W1, W2), tr_elision_written(E, W1, W2), !,
     ( C2 == upper -> tr_cap(W2, W2C) ; W2C = W2 ),
     tr_elided_join(E, W2C, C1, C2, J, C),
@@ -1674,7 +1679,7 @@ tr_contract(foreign, [o(W1, C1), o(W2, C2)|Os], Out) :-
 %% `oltre allo' and elide to `oltre all'antenato' -- the elision looked for
 %% the whole of `oltre allo' and wrote `oltre allo antenato'
 tr_contract(foreign, [o(W1, C1), o(W2, C2)|Os], Out) :-
-    atom(W1), atom_codes(W1, Cs1), memberchk(32, Cs1), begin_with(W2, vowel),
+    atom(W1), atom_codes(W1, Cs1), memberchk(32, Cs1), tr_language(To), tr_starts_vowel(To, W2),
     sub_atom(W1, B, 1, A, ' '), sub_atom(W1, _, A, 0, Last), \+ sub_atom(Last, _, _, _, ' '),
     tr_solve(elision_of(E, Last)), \+ tr_opens_next(Last, W2), !,
     sub_atom(W1, 0, B, _, Pre), ( C2 == upper -> tr_cap(W2, W2C) ; W2C = W2 ),
@@ -1692,6 +1697,40 @@ tr_elided_join(E, W2, C1, C2, J, C) :-
     ;   C2 == qboth -> atomic_list_concat([E, '"', W2], J), ( C1 == qopen -> C = qboth ; C = qclose )
     ;   atom_concat(E, W2, J), tr_join_case(C1, C2, C)
     ).
+
+%% A NUMBER BEGINS WITH THE SOUND OF ITS FIRST WORD, not with its digit:
+%% `l'80%' (ottanta), `l'8', `l'11' (undici), `l'1,4' (uno) and `gli 80 anni',
+%% and `il 18' (diciotto), `il 25%' and `il 1.200' (milleduecento); English
+%% says `an 80%', `an 18 per cent' and `a 1,200'. A letter is a vowel by
+%% begin_with/2 and a digit is none, so `el 80%' was `il 80%'. The whole part
+%% of the number is read for its first word: its first group of digits (one
+%% to three, the thousands separators out) and how many groups follow it.
+tr_starts_vowel(_, W) :- begin_with(W, vowel), !.
+tr_starts_vowel(To, W) :-
+    atom(W), atom_codes(W, [D|Cs]), tr_digit_code(D),
+    ( To == english -> Sep = 0', ; Sep = 0'. ),
+    tr_whole_run(Sep, [D|Cs], Ds), Ds \== [],
+    length(Ds, N), G is ((N - 1) mod 3) + 1, M is (N - 1) // 3,
+    length(Lead, G), append(Lead, _, Ds), number_codes(V, Lead),
+    tr_number_vowel(To, V, M), !.
+%% the first group's value and the thousands after it (1.000 is `mille', one
+%% million `un milione')
+tr_number_vowel(english, V, _) :- ( V =:= 8 ; V =:= 11 ; V =:= 18 ; V >= 80, V =< 89 ; V >= 800, V =< 899 ).
+tr_number_vowel(To, V, M) :-
+    To \== english,
+    (   V =:= 8 ; V =:= 11 ; V >= 80, V =< 89 ; V >= 800, V =< 899
+    ;   V =:= 1, ( M =:= 0 ; M >= 2 )
+    ).
+tr_whole_run(Sep, [D|Cs], [D|Ds]) :- tr_digit_code(D), !, tr_whole_run(Sep, Cs, Ds).
+tr_whole_run(Sep, [Sep, A, B, C|Cs], [A, B, C|Ds]) :-
+    tr_digit_code(A), tr_digit_code(B), tr_digit_code(C), \+ ( Cs = [E|_], tr_digit_code(E) ), !,
+    tr_whole_run(Sep, Cs, Ds).
+tr_whole_run(_, _, []).
+tr_digit_code(C) :- C >= 0'0, C =< 0'9.
+%% a letter or a number against the beginnings a lesson states (`The article
+%% "lo" comes before a vowel.'): a number is a vowel by its sound
+tr_begin_with(W, P) :- P == vowel, !, tr_language(To), tr_starts_vowel(To, W).
+tr_begin_with(W, P) :- begin_with(W, P).
 
 %% an elided form is written before W2: always for an article, a determiner
 %% and any word that is no pronoun; for a pronoun, only before what the
@@ -3885,8 +3924,19 @@ tr_cross(foreign, s(Asked0, Subject0, g(L0, T, A, Neg), Comps0), s(Asked, Subjec
     ;   tr_verb_across(L0, A, Comps0, Gap, L)
     ),
     tr_cross_asked(Asked0, Asked),
+    tr_global('$tr_poss', Poss0), nb_setval('$tr_poss', none),
     tr_cross_subject(Asked, Subject0, Subject),
-    tr_cross_inf_comps(Comps0, Comps).
+    %% ... AND THE POSSESSIVE OF A PLURAL SUBJECT'S COMPLEMENTS IS THEIRS: see
+    %% tr_cross_det/2. The subject's own phrase is crossed first, so a
+    %% possessive inside it (`el presidente y sus ministros') is not.
+    ( tr_plural_possessor(Subject0) -> nb_setval('$tr_poss', their) ; true ),
+    tr_cross_inf_comps(Comps0, Comps),
+    nb_setval('$tr_poss', Poss0).
+
+tr_plural_possessor(np(_, _, _, _, plural)).
+tr_plural_possessor(co(_, _, _)).
+tr_plural_possessor(null(third, plural)).
+tr_plural_possessor(pronoun(third, plural, _)).
 
 %% THE INFINITIVE AFTER A MODAL TAKES ITS SENSE BY THE CLAUSE'S OBJECT, as
 %% the verb itself does (tr_verb_across/5): `deve finire in tribunale' has
@@ -4196,6 +4246,13 @@ tr_adj_gendered_noun(none, Adjs, NW, Number, Noun) :-
 tr_cross_det(none, none) :- !.
 %% a possessive crosses by the meaning that IS a possessive: `loro' is they,
 %% them and their, and `le loro condizioni' came out `they conditions'
+%% ... AND A PLURAL SUBJECT'S IS `their' where the lesson gives the word that
+%% meaning: Spanish's `su' is his, her, its and their, the first of them the
+%% lesson's, and `Los abogados cobran por sus servicios' crossed as `his
+%% services', Italian's `i suoi servizi'. The possessor of a possessive in
+%% the complements is the subject more often than any other thing
+tr_cross_det(det(possessive, DL, w(_, C)), det(possessive, their, w(their, C))) :-
+    tr_side_here(foreign), tr_global('$tr_poss', their), tr_solve(mean(DL, their)), !.
 tr_cross_det(det(possessive, DL, w(_, C)), det(possessive, T, w(T, C))) :-
     tr_side_here(foreign), tr_solve(mean(DL, T)), en_possessive(T), !.
 tr_cross_det(det(Kind, DL, w(_, C)), det(Kind, T, w(T, C))) :- tr_word_across(w(DL, lower), english, Kind, T).
@@ -10876,6 +10933,12 @@ tr_conjunction_split(Side, Words, W1, W2) :- tr_conjunction_split(Side, Words, W
 tr_conjunction_split(Side, Words, W1, w(C, CC), W2) :-
     append(W1, [w(C, CC)|W2], Words), CC \== acomma, tr_coord(Side, w(C, lower)), W1 \== [], W2 \== [],
     \+ ( W2 = [P0|_], tr_is(Side, P0, preposition) ),         % `e DEL ritrovamento' joins two phrases' prepositions
+    %% nor between the two numbers of a count whose adverb stands before the
+    %% first: `unos 5.000 o 6.000 millones' is about five or six thousand
+    %% million, one phrase (tr_np/3's adv_num/2 over nums/3) -- split at the
+    %% `o' the first half was `unos 5.000' and `unos' its article, `dei 5.000
+    %% o 6.000 milioni'
+    \+ tr_count_pair(Side, W1, W2),
     %% never inside a relative clause -- unless a comma closed the clause
     %% before the coordinator: `Carlos Herrera, que se expresó en catalán, y
     %% Margarida Lluch presentaron el acto' is two people, and read with the
@@ -10920,6 +10983,10 @@ tr_conjunction_split(Side, Words, W1, w(C, CC), W2) :-
          ( last(W2, N2) ; W2 = [_, N2, w(R2, _)|_], tr_relative_word(Side, R2) ),
          ( tr_is(Side, N2, noun) ; N2 = w(_, upper), tr_name_word(Side, N2) ) ),
     tr_headed(Side, W1), tr_headed(Side, W2), !.
+tr_count_pair(Side, W1, [M2|_]) :-
+    append(Advs, [M1], W1), Advs = [_|_],
+    forall(member(X, Advs), ( X = w(_, _), tr_is(Side, X, adverb) )),
+    tr_is(Side, M1, number), tr_is(Side, M2, number), !.
 tr_same_number(Side, w(X, _), w(Y, _)) :- atom(X), atom(Y), tr_lexeme(Side, X, _, N), tr_lexeme(Side, Y, _, N), !.
 %% ... or where the clause is its relative word and one verb the lesson calls
 %% intransitive, which takes nothing after it: `Voces de un ayer que marcó
@@ -11886,7 +11953,14 @@ tr_np(Side, Words00, np(Det, Num, AdjsM, Noun, Number)) :-
     %% (the count's adverb is NA and not A: the forall below names its own
     %% A, and with the adverb bound to it `member(A, Adjs)' matched nothing,
     %% so every adjective after such a count passed unchecked)
-    (   Words1 = [NA, M|Ws2], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
+    %% ... and the adverb stands before a PAIR of them: `unos 5.000 o 6.000
+    %% millones' is about five or six thousand million -- the phrase gave up
+    %% at the `o' left after the first, and `unos' was the article, `dei 5.000
+    %% o 6.000 milioni'
+    (   Words1 = [NA, M1, NC, M2|Ws2], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
+        tr_is(Side, M1, number), tr_coord(Side, NC), tr_is(Side, M2, number), Ws2 \== []
+    ->  Num = adv_num(NA, nums(M1, NC, M2)), Words2 = Ws2
+    ;   Words1 = [NA, M|Ws2], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
         tr_is(Side, M, number), Ws2 \== []
     ->  Num = adv_num(NA, M), Words2 = Ws2
     ;   Words1 = [M1, NC, M2|Ws2], tr_is(Side, M1, number), tr_coord(Side, NC), tr_is(Side, M2, number), Ws2 \== []
@@ -17860,7 +17934,7 @@ tr_det_out(english, det(Kind, DL, w(_, C)), _, Number, Content, Outs) :- !,
     ;   memberchk(Kind, [demonstrative, determiner]) -> en_det_number(T, Number, T1), Outs = [o(T1, C)]
     ;   T == the -> Outs = [o(the, C)]
     ;   Number == plural -> Outs = []
-    ;   Content = [o(First, _)|_], begin_with(First, vowel) -> Outs = [o(an, C)]
+    ;   Content = [o(First, _)|_], tr_starts_vowel(english, First) -> Outs = [o(an, C)]
     ;   Outs = [o(a, C)]
     ).
 %% A POSSESSIVE TAKES THE ARTICLE IN FRONT OF IT where the lesson says so
@@ -17899,7 +17973,7 @@ tr_det_form(Kind, DL, Noun, Number, Content, T) :-
     tr_noun_gender(Noun, G),
     findall(M, ( member(M, Ms), ( G == none ; tr_gender(M, G) ; tr_gender(M, none) ) ), Cands0),
     ( Cands0 == [] -> Cands = Ms ; Cands = Cands0 ),
-    (   Content = [o(Next, _)|_], atom(Next), member(L0, Cands), tr_solve(come_before(L0, P)), begin_with(Next, P) -> L = L0
+    (   Content = [o(Next, _)|_], atom(Next), member(L0, Cands), tr_solve(come_before(L0, P)), tr_begin_with(Next, P) -> L = L0
     ;   member(L0, Cands), \+ tr_solve(come_before(L0, _)) -> L = L0
     ;   Cands = [L|_]
     ), !,
@@ -17916,7 +17990,7 @@ tr_det_form(Kind, DL, Noun, Number, Content, T) :-
 %% there: `quello studente', and before a vowel the elision, `quell'uomo'.
 tr_det_apocope(L, [o(Next, _)|_], A) :-
     atom(Next), tr_solve(apocope_of(A, L)),
-    \+ ( tr_solve(come_before(Art, P)), tr_class_of(Art, article), begin_with(Next, P) ), !.
+    \+ ( tr_solve(come_before(Art, P)), tr_class_of(Art, article), tr_begin_with(Next, P) ), !.
 
 %% A NOUN OF BOTH GENDERS TAKES THE MASCULINE WHERE NOTHING SAYS WHICH. The
 %% builder states one with no gender and denies it the feminine that the rule
@@ -18523,9 +18597,21 @@ tr_joined_infinitive(Inf, Ps, J) :-
     sub_atom(Inf, B, 1, _, ' '), !,
     sub_atom(Inf, 0, B, _, First), B1 is B + 1, sub_atom(Inf, B1, _, 0, Rest),
     tr_joined_infinitive(First, Ps, J1), atomic_list_concat([J1, ' ', Rest], J).
-tr_joined_infinitive(Inf, Ps, J) :-
+tr_joined_infinitive(Inf, Ps0, J) :-
     ( atom_concat(Stem, e, Inf) -> true ; Stem = Inf ),
+    tr_cluster_pairs(Ps0, Ps),
     atomic_list_concat([Stem|Ps], J).
+
+%% TWO CLITICS JOINED TO A VERB ARE THEIR CONTRACTION where the lesson states
+%% one, blank out: `dir' + `mi' + `lo' is `dirmelo', `dar' + `gli' + `lo'
+%% `darglielo' (`"glielo" is the contraction of "gli lo".'), and Spanish's
+%% `dar' + `le' + `lo' `darselo'; written plain they were `dirmilo', `darsilo'
+tr_cluster_pairs([A, B|Ps], Out) :-
+    atom(A), atom(B), atomic_list_concat([A, B], ' ', J), tr_solve(contraction_of(K, J)), !,
+    atomic_list_concat(Parts, ' ', K), atomic_list_concat(Parts, Joined),
+    tr_cluster_pairs([Joined|Ps], Out).
+tr_cluster_pairs([P|Ps], [P|Out]) :- !, tr_cluster_pairs(Ps, Out).
+tr_cluster_pairs([], []).
 
 %% the perfect's auxiliary as an infinitive: the copula's where the lesson
 %% says the verb or the reflexive builds its perfect with it, and otherwise
@@ -18773,6 +18859,10 @@ tr_auxiliary(has, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, has)), !.
 tr_auxiliary(has, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, _)), !.
 tr_auxiliary(is, Aux) :- tr_solve(auxiliary(Aux)), tr_solve(mean(Aux, is)), !.
 
+%% ENGLISH HAS ONE PAST, and the imperfect a language reads (`existía') is
+%% written as it: `there was no consensus'
+en_group(L, P, N, imperfect, A, Neg, Statement, Front, Tail) :- !,
+    en_group(L, P, N, past, A, Neg, Statement, Front, Tail).
 %% English's verb group: the statement's words, and for a question the word
 %% that fronts and the words that stay behind the subject. A modal is its
 %% own word in the tense (`can', `could'), never `does', and `cannot' denied
@@ -19565,7 +19655,7 @@ tr_noun_plural_only(W, L) :-
     atom(W), tr_is(foreign, w(L, lower), verb), tr_is(foreign, w(L, lower), noun),
     tr_solve(plural_of(W, L)), \+ tr_verb_marked(W),
     tr_solve(plural_of(P, L)), P \== W, tr_verb_marked(P), !.
-tr_verb_marked(W) :- ( tr_solve(person_of(_, W)) ; tr_solve(past_of(_, W)) ), !.
+tr_verb_marked(W) :- ( tr_solve(person_of(_, W)) ; tr_solve(past_of(_, W)) ; tr_solve(imperfect_of(_, W)) ), !.
 
 %% A TENSE STEP CAN COME BACK TO WHERE IT STARTED, so the forms already
 %% stepped through are carried and never stepped through twice. `parar' has
@@ -19587,7 +19677,14 @@ tr_form_nt(W, L, plural, T, Seen) :-
     tr_form_nt(F0, L, singular, present, [F0|Seen]).
 
 %% a tense form of a present form: stated, or made by an ending rule
-tr_tensed(W, past, F) :- tr_solve(past_of(W, F)).
+%% -- a form the lesson states as an imperfect is no past, though a hand
+%% lesson says `"era" is the past of "è"' beside the vocabulary's
+%% `"era" is the imperfect of "è"'
+tr_tensed(W, past, F) :- tr_solve(past_of(W, F)), \+ tr_solve(imperfect_of(W, F)).
+%% THE IMPERFECT IS A TENSE OF ITS OWN: `existía' is `esisteva', never the
+%% preterite `esistette' (`"esisteva" is the imperfect of "esiste".'). English
+%% has one past, which its writer makes of it (en_group/9)
+tr_tensed(W, imperfect, F) :- tr_solve(imperfect_of(W, F)).
 tr_tensed(W, future, F) :- tr_solve(future_of(W, F)).
 tr_tensed(W, conditional, F) :- tr_solve(conditional_of(W, F)).
 %% A SUBJUNCTIVE IS READ AS THE TENSE IT STANDS FOR AND WRITTEN BACK AS
@@ -19639,7 +19736,13 @@ tr_number_form(F, plural, P) :- tr_solve(plural_of(P, F)), !.
 tr_number_form(F, plural, P) :- tr_rule_plural(F, P).
 
 tr_tense_form(F, present, F) :- !.
+%% the past is a form the lesson does not state as an imperfect, `fu' and
+%% not `era' (a hand lesson states both as the past of `è'), where it has one
+tr_tense_form(F, past, P) :- tr_solve(past_of(P, F)), \+ tr_solve(imperfect_of(P, F)), !.
 tr_tense_form(F, past, P) :- tr_solve(past_of(P, F)), !.
+%% the imperfect where the lesson states one, and else the past
+tr_tense_form(F, imperfect, P) :- tr_solve(imperfect_of(P, F)), !.
+tr_tense_form(F, imperfect, P) :- tr_solve(past_of(P, F)), !.
 tr_tense_form(F, future, P) :- tr_solve(future_of(P, F)), !.
 tr_tense_form(F, conditional, P) :- tr_solve(conditional_of(P, F)), !.
 tr_tense_form(F, T, P) :- tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, P), !.
@@ -19666,6 +19769,10 @@ tr_inflect(foreign, _, S, plural, P) :- tr_rule_plural(S, P), !.
 %% plural as they do before a singular, and with the rule for a noun's plural
 %% failing on them the phrase could not be written
 tr_inflect(foreign, determiner, S, plural, S) :- !.
+%% ... AND A POSSESSIVE THE SAME: Italian's `loro' has one form for every
+%% gender and number (`i loro servizi'), the lesson states none, and `Los
+%% abogados cobran por sus servicios' -- `sus' read as `their' -- was refused
+tr_inflect(foreign, possessive, S, plural, S) :- !.
 %% (a determiner that says either number stands for a plural as itself:
 %% `tanto per citarne alcuni' is to cite some, where the rule wrote `somes')
 tr_inflect(english, noun, S, plural, S) :- en_det(S, _, any), !.

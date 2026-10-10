@@ -713,6 +713,10 @@ cb_adjective(W, G, En, Forms, Tag) :-
         )
     ).
 
+cb_past_spelling(W, S) :-
+    cb_lang(italian), atom_concat(Stem, 'è', W), Stem \== '', !, atom_concat(Stem, ette, S).
+cb_past_spelling(W, W).
+
 %% a verb's forms, once per lexeme: the plural, the persons, the past, the
 %% future and the conditional with theirs, the participle, the infinitive
 %% and the gerund
@@ -720,10 +724,26 @@ cb_verb_forms(L, _) :- cb_formed(L, verb), !.
 cb_verb_forms(L, Forms) :-
     assertz(cb_formed(L, verb)),
     cb_tense(Forms, pri, L, plural_of),
-    ( cb_verb_form(Forms, [ifi, p3, sg], Past) -> cb_line('"~w" is the past of "~w".', [Past, L]), cb_tense(Forms, ifi, Past, past_of) ; true ),
-    %% the imperfect is a past as well -- `estaba', `tenía', `era' -- stated after
-    %% the preterite, so a page is read in either and written in the first
-    ( cb_verb_form(Forms, [pii, p3, sg], Imp), Imp \== Past -> cb_line('"~w" is the past of "~w".', [Imp, L]), cb_tense(Forms, pii, Imp, past_of) ; true ),
+    %% ITALIAN'S `-ere' VERBS OF ONE PARADIGM HAVE THEIR PRETERITE IN `-è' (`insistè',
+    %% `esistè', `credè'), a spelling no Italian page prints; the same verb's
+    %% plural is `-erono' and the page says `insistette', `esistette', `credette'
+    %% (and `insistettero'). The third person is stated with `-ette' -- the form
+    %% a page has and the one a writer should write -- and its plural in `-ettero'
+    %% after the dictionary's own
+    ( cb_verb_form(Forms, [ifi, p3, sg], Past0), cb_past_spelling(Past0, Past)
+    ->  cb_line('"~w" is the past of "~w".', [Past, L]), cb_tense(Forms, ifi, Past, past_of),
+        (   Past \== Past0, cb_verb_form(Forms, [pri, p3, pl], PresPl0), cb_verb_form(Forms, [ifi, p3, pl], PastPl0),
+            atom_concat(PlStem, erono, PastPl0), atom_concat(PlStem, ettero, PastPl)
+        ->  cb_line('"~w" is the past of "~w".', [PastPl, PresPl0])
+        ;   true
+        )
+    ;   true
+    ),
+    %% the imperfect is a tense of its own -- `estaba', `tenía', `era' -- stated
+    %% as the imperfect, after the preterite's past: a page is read in either,
+    %% and each is written back as it was read (the past, which English has
+    %% only the one of, is the preterite)
+    ( cb_verb_form(Forms, [pii, p3, sg], Imp), Imp \== Past -> cb_line('"~w" is the imperfect of "~w".', [Imp, L]), cb_tense(Forms, pii, Imp, imperfect_of) ; true ),
     ( cb_verb_form(Forms, [fti, p3, sg], Fut) -> cb_line('"~w" is the future of "~w".', [Fut, L]), cb_tense(Forms, fti, Fut, plural_of) ; true ),
     ( cb_verb_form(Forms, [cni, p3, sg], Cond) -> cb_line('"~w" is the conditional of "~w".', [Cond, L]), cb_tense(Forms, cni, Cond, plural_of) ; true ),
     %% THE SUBJUNCTIVE IS A FORM THE READER NEEDS AND ENGLISH DOES NOT MARK.
@@ -804,6 +824,8 @@ cb_tense(Forms, Tense, Sg, How) :-
     (   cb_verb_form(Forms, [Tense, p3, pl], Pl)
     ->  (   How == past_of, cb_verb_form(Forms, [pri, p3, pl], PresPl)
         ->  cb_line('"~w" is the past of "~w".', [Pl, PresPl])
+        ;   How == imperfect_of, cb_verb_form(Forms, [pri, p3, pl], PresPl)
+        ->  cb_line('"~w" is the imperfect of "~w".', [Pl, PresPl])
         ;   cb_line('"~w" is the plural of "~w".', [Pl, Sg])
         ),
         ( cb_verb_form(Forms, [Tense, p1, pl], P1pl) -> cb_line('"~w" is the first person of "~w".', [P1pl, Pl]) ; true )

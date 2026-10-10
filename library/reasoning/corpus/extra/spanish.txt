@@ -1906,3 +1906,13 @@ The feminine noun "pasantía" means "traineeship".
 # read word by word is `entre' (a verb as well) and `otros', and in English
 # `enters others'
 The adverb "entre otros" means "among others".
+# `le lo' and `les lo' are `se lo' in Spanish, and joined to an infinitive
+# `darselo' (see extra/italian.txt)
+"se lo" is the contraction of "le lo".
+"se la" is the contraction of "le la".
+"se los" is the contraction of "le los".
+"se las" is the contraction of "le las".
+"se lo" is the contraction of "les lo".
+"se la" is the contraction of "les la".
+"se los" is the contraction of "les los".
+"se las" is the contraction of "les las".
