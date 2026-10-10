@@ -41,8 +41,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # ---- Debian, Ubuntu ------------------------------------------------
     export DEBIAN_FRONTEND=noninteractive
     $SUDO apt-get -qq update
-    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev >/dev/null
-    say "build-essential make git curl sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev"
+    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev >/dev/null
+    say "build-essential make git curl gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
       $SUDO apt-get -qq install -y python3 python3-dev python3-numpy >/dev/null
       say "WITH_NUMPY=1: python3 python3-dev python3-numpy"
@@ -88,8 +88,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # Fedora's clang is 17 or newer, so it is taken as is. gcc-c++ is here
     # for libstdc++'s headers and runtime, which clang compiles and links
     # against; nothing is compiled by gcc.
-    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
-    say "gcc gcc-c++ make git curl clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
+    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
+    say "gcc gcc-c++ make git curl gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
       $SUDO dnf -q install -y python3 python3-devel python3-numpy >/dev/null
       say "WITH_NUMPY=1: python3 python3-devel python3-numpy"
@@ -117,7 +117,7 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     fi
   else
     say "neither apt-get nor dnf here -- needed: clang 16+ with libstdc++'s headers,"
-    say "make, git, curl, sbcl, GNU libtool, the OpenSSL, zlib, libcurl headers (python3 too for WITH_NUMPY or WITH_TORCH). Checking for them:"
+    say "make, git, curl, gnupg, sbcl, GNU libtool, the OpenSSL, zlib, libcurl headers (python3 too for WITH_NUMPY or WITH_TORCH). Checking for them:"
   fi
 fi
 
@@ -149,6 +149,7 @@ if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
   command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH (WITH_NUMPY or WITH_TORCH)"
 fi
 say "compiler: $(${CICILI_CXX:-clang++} --version | head -1)"
+log_ok "$LOG.ziguratip" "$LOG.raylib" "$LOG.cocolog" "$LOG.schema"
 
 checkouts
 lisp_side

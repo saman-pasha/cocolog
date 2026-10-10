@@ -30,7 +30,8 @@ raise one.
   that user's own home. Quicklisp and `~/common-lisp` are found through
   `$HOME`, which `sudo` sets to `/root`, so done as root they landed where
   the user's own `sbcl` never looks. A root login with no `sudo` (a
-  container, Colab) uses root's home, which is its own.
+  container, Colab) uses root's home, which is its own. The macOS script
+  refuses root outright, as Homebrew does.
 * `WITH_TORCH=1` installs a libtorch — `brew install pytorch` on macOS,
   `pip install torch` on Linux — so `library(torch)` builds. Without it the
   module is SKIPPED, which the modules step says; everything else is
@@ -64,7 +65,22 @@ raise one.
   module and every Parsi object -- and the scripts refuse a compiler that
   is not.
 * On Red Hat Enterprise Linux and its rebuilds, `sbcl` is in EPEL.
-* `LOG=/path` moves the logs from `/tmp/cocolog-install.*`.
+* `LOG=/path` moves the logs from `/tmp/cocolog-install.*`. A log there
+  that is not yours to write (an earlier run as root left it) is refused by
+  name before anything is built, rather than read back as this run's failure.
+
+## Quicklisp
+
+When `$QUICKLISP_HOME` (`~/quicklisp`) has no Quicklisp, it is installed as
+[its own page](https://www.quicklisp.org/beta/) says: `quicklisp.lisp` and
+its signature are fetched, the signature is checked against Quicklisp's
+release key with `gpgv` — the key is held to the fingerprint that page
+publishes, `D7A3489DDEFE32B7D0E7CC61307965AB028B5FF7`, and nothing is
+installed when it does not verify — and then `(quicklisp-quickstart:install)`.
+Either way `(ql:add-to-init-file)` follows, unless `~/.sbclrc` loads a
+Quicklisp already, so your own `sbcl` has it too. `gnupg` is among the
+packages for this; with `NO_PACKAGES=1` and no `gpg`, the script stops and
+says so.
 
 Without `WITH_RAY=1`, `library(ray)` is SKIPPED, and
 `modules/ray/build.sh` says what it wants.
