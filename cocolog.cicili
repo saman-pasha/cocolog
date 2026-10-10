@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.9.5"))
+  (func coco_version_text () (out const char *) (return "1.9.6"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -618,7 +618,11 @@
             (let ((char * text . #'(slurp (nth i argv))) (int n))
               (if (== text nil) (block (coco_store_free (aof st)) (coco_machine_free (aof m))
                                        (return 1)))
+              ;; a directive's goal may collect the heap: this host holds no
+              ;; cell (`dgc', lib/term.cicili)
+              (set ($ m dgc) 1)
               (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
+              (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
                   (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
@@ -2320,11 +2324,17 @@
           ;; first (zigurat-kb.cicili), so nothing in here can see a stale row.
           (set batched (batch_open (aof z)))
           (for ((int i . from)) (< i argc) ((++ i))
-            (let ((char * text . #'(slurp (nth i argv))))
+            (let ((char * text . #'(slurp (nth i argv))) (int n . 0))
               (if (== text nil)
                   (block (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
-              (if (< (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)) 0)
+              ;; a directive's goal may collect the heap: this host holds no
+              ;; cell yet -- the goal is read after the consults
+              ;; (`dgc', lib/term.cicili)
+              (set ($ m dgc) 1)
+              (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
+              (set ($ m dgc) 0)
+              (if (< n 0)
                   (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))

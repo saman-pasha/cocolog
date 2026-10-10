@@ -257,14 +257,17 @@
   ;;;
   ;;; NOT INTERNED, unlike an atom. Two equal strings are two entries, which is
   ;;; SWI's behaviour (a string is not a name) and is also what makes the table
-  ;;; an append-only array with no hash. `==' and unification compare the
-  ;;; BYTES, so nothing observable depends on the sharing.
+  ;;; an array with no hash. `==' and unification compare the BYTES, so
+  ;;; nothing observable depends on the sharing.
   ;;;
-  ;;; THE TABLE IS NEVER RECLAIMED, exactly as the float table is not:
-  ;;; coco_backtrack winds `heap_len' back and leaves both alone. A program
-  ;;; that builds strings in a failure-driven loop grows this table until the
-  ;;; machine is freed. That is a real limit and it is the float table's limit,
-  ;;; not a new one.
+  ;;; THE TABLE IS RECLAIMED BY THE HEAP COLLECTOR (1.9.6), as the float
+  ;;; table is: coco_backtrack winds `heap_len' back and leaves both alone, so
+  ;;; through 1.9.5 a failure-driven loop that built strings grew this table
+  ;;; until the machine was freed. A collection now marks every entry a cell
+  ;;; still names -- the heap, every store on the machine, every compiled
+  ;;; clause's constants -- frees the rest and keeps their indices for
+  ;;; `coco_new_string' to reuse (`coco_tables_reclaim', lib/solve.cicili).
+  ;;; An entry's index never moves while a cell names it.
   (struct coco_str
     (member char *   p)
     (member size_t   n))
@@ -310,9 +313,14 @@
   ;;; pointer lives, because its owner may grow it, and where its length
   ;;; lives. The heap collector rewrites every entry in place. The store's
   ;;; `coco_rootset' (lib/kb.cicili) is the same thing for the store's cells.
+  ;;; `pos' says the entries are POSITIONS rather than cells (1.9.6): a heap
+  ;;; length the host winds the machine back to, as a consult does after
+  ;;; each directive -- kept true as cells move and marking nothing, as the
+  ;;; marks a nested engine's builtin winds back to are.
   (struct coco_hroot
     (member size_t ** cells)
-    (member size_t *  len))
+    (member size_t *  len)
+    (member int       pos))
 
   ;;; The machine. Everything in it is either a plain array of words or a
   ;;; length -- which is the whole point, and what `state.cicili' relies on.
@@ -456,7 +464,38 @@
     ;; `coco_gc_floor', read by the first run on the machine (0 until then),
     ;; for a builtin that starts a nested engine to raise the threshold by
     ;; (`coco_gc_nested_begin')
-    (member size_t     gc_floor))
+    (member size_t     gc_floor)
+    ;; A DIRECTIVE'S GOAL MAY COLLECT (1.9.6): a vouch, 1 meaning every C
+    ;; frame between the call being made and the host has registered the
+    ;; cells it reads afterwards. Set around ONE call: by a host that holds
+    ;; none around its consult (`cocolog run', `cocolog consult'), by the
+    ;; run's top around the modules' load and by `use_module' as a goal
+    ;; around the library's, each when its engine may collect. Each frame on
+    ;; the way (`coco_module_load', the consult, `coco_directive') reads it,
+    ;; clears it, and sets it back only around a call whose cells it
+    ;; registered; the goal hook (lib/library.cicili) is the last reader. A
+    ;; directive's `use_module' runs no goal (no engine: the modules load
+    ;; at the next run's top), so it is not vouched.
+    (member int        dgc)
+    ;; THE FLOAT AND STRING ENTRIES A COLLECTION FOUND DEAD (1.9.6), each a
+    ;; stack of indices `coco_new_float' and `coco_new_string' take from
+    ;; before they grow their table. Rebuilt whole by every reclamation
+    ;; (`coco_tables_reclaim', lib/solve.cicili), so nothing else writes
+    ;; them.
+    (member size_t *   ffree)
+    (member size_t     nffree)
+    (member size_t     ffree_cap)
+    (member size_t *   sfree)
+    (member size_t     nsfree)
+    (member size_t     sfree_cap)
+    ;; entries made since the last reclamation. The reclamation runs only
+    ;; once `tlimit' of them and half the heap's length were made, or
+    ;; garbage_collect/0 asked -- its own cost is the words it looks at,
+    ;; and a collection asked for it costs the heap -- and at `treq' a
+    ;; collection is asked for (`gc_next' 0) if they reach that much
+    (member size_t     tmade)
+    (member size_t     tlimit)
+    (member size_t     treq))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -563,7 +602,10 @@
   ;;; `coco_engine_next' -- the REPL keeps the query's variables, to print
   ;;; their bindings -- registers the array they live in, so a collection
   ;;; moves them with the cells they name. A stack: pop in reverse order.
+  ;;; `coco_heap_pos_push' registers heap POSITIONS (lengths the host winds
+  ;;; the heap back to) on the same stack: moved, never marked.
   (decl) (func coco_heap_root_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int))
+  (decl) (func coco_heap_pos_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int))
   (decl) (func coco_heap_root_pop ((coco_machine * m)))
   (decl) (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
@@ -703,6 +745,8 @@
              (cast (size_t *) (calloc (-> m atom_bucket_cap) (sizeof size_t))))
         (if (== (-> m atom_buckets) nil)
             (block (set (-> m oom) 1) (return 0)))
+        (set (-> m tlimit) 65536)
+        (set (-> m treq) 65536)
         (return 1))
 
   (func coco_machine_free ((coco_machine * m))
@@ -716,6 +760,8 @@
         (for ((size_t i . 0)) (< i (-> m strings_len)) ((++ i))
           (free ($ (nth i (-> m strings)) p)))
         (free (-> m strings))
+        (free (-> m ffree))
+        (free (-> m sfree))
         (free (-> m trail))
         (free (-> m heap))
         (free (-> m hroots))
@@ -971,15 +1017,27 @@
   (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
         (return (coco_push m (coco-int-cell v))))
 
+  ;;; An entry made: counted toward the next reclamation. At `treq' a
+  ;;; collection is asked for, so a loop that makes floats or strings and
+  ;;; little heap still reaches one -- but only once the entries made reach
+  ;;; half the heap's length, the rule the reclamation waits for: a
+  ;;; collection costs the heap, and lesson 46 paid 3 % for one asked when
+  ;;; its heap was large and 65536 strings were made. `treq' moves on
+  ;;; whether or not the collection is asked for, so the question is asked
+  ;;; once per `tlimit' entries, not at every one.
+  (static)
+  (func coco_table_made ((coco_machine * m))
+        (set (-> m tmade) (+ (-> m tmade) 1))
+        (if (>= (-> m tmade) (-> m treq))
+            (block
+             (if (>= (-> m tmade) (>> (-> m heap_len) 1)) (set (-> m gc_next) 0))
+             (set (-> m treq) (+ (-> m tmade) (-> m tlimit))))))
+
   ;;; A STRING CELL FROM BYTES. The bytes are COPIED: the caller's buffer is
   ;;; usually a scratch array on a C stack frame that is about to go, and a
   ;;; term that outlived its text would be the worst kind of bug to find.
   (func coco_new_string ((coco_machine * m) (const char * p) (size_t n)) (out size_t)
-        (let ((char * copy))
-          (if (not (coco_grow m (cast (void **) (aof (-> m strings)))
-                            (aof (-> m strings_cap)) (+ (-> m strings_len) 1)
-                            (sizeof coco_str)))
-              (return 0))
+        (let ((char * copy) (size_t i))
           ;; ONE BYTE MORE THAN THE LENGTH, and it is not the length that uses
           ;; it: the extra NUL lets coco_string_text hand the bytes to C code
           ;; that wants a C string, for the strings that do not contain one.
@@ -987,10 +1045,21 @@
           (if (== copy nil) (block (set (-> m oom) 1) (return 0)))
           (if (> n 0) (memcpy copy p n))
           (set (nth n copy) (cast char 0))
-          (set ($ (nth (-> m strings_len) (-> m strings)) p) copy)
-          (set ($ (nth (-> m strings_len) (-> m strings)) n) n)
-          (set (-> m strings_len) (+ (-> m strings_len) 1))
-          (return (coco_push m (coco-cell STR (- (-> m strings_len) 1))))))
+          (if (> (-> m nsfree) 0)
+              (block
+               (set (-> m nsfree) (- (-> m nsfree) 1))
+               (set i (nth (-> m nsfree) (-> m sfree))))
+            (block
+             (if (not (coco_grow m (cast (void **) (aof (-> m strings)))
+                               (aof (-> m strings_cap)) (+ (-> m strings_len) 1)
+                               (sizeof coco_str)))
+                 (block (free copy) (return 0)))
+             (set i (-> m strings_len))
+             (set (-> m strings_len) (+ (-> m strings_len) 1))))
+          (set ($ (nth i (-> m strings)) p) copy)
+          (set ($ (nth i (-> m strings)) n) n)
+          (coco_table_made m)
+          (return (coco_push m (coco-cell STR i)))))
 
   (func coco_is_string ((coco_machine * m) (size_t t)) (out int)
         (return (? (coco-tag-is STR (nth (coco_deref m t) (-> m heap))) 1 0)))
@@ -1009,13 +1078,21 @@
             (return 1))))
 
   (func coco_new_float ((coco_machine * m) (double v)) (out size_t)
-        (if (not (coco_grow m (cast (void **) (aof (-> m floats)))
-                          (aof (-> m floats_cap)) (+ (-> m floats_len) 1)
-                          (sizeof double)))
-            (return 0))
-        (set (nth (-> m floats_len) (-> m floats)) v)
-        (set (-> m floats_len) (+ (-> m floats_len) 1))
-        (return (coco_push m (coco-cell FLT (- (-> m floats_len) 1)))))
+        (let ((size_t i))
+          (if (> (-> m nffree) 0)
+              (block
+               (set (-> m nffree) (- (-> m nffree) 1))
+               (set i (nth (-> m nffree) (-> m ffree))))
+            (block
+             (if (not (coco_grow m (cast (void **) (aof (-> m floats)))
+                               (aof (-> m floats_cap)) (+ (-> m floats_len) 1)
+                               (sizeof double)))
+                 (return 0))
+             (set i (-> m floats_len))
+             (set (-> m floats_len) (+ (-> m floats_len) 1))))
+          (set (nth i (-> m floats)) v)
+          (coco_table_made m)
+          (return (coco_push m (coco-cell FLT i)))))
 
   (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t)
         (let ((u64 f . #'(coco_functor_id m (coco_intern m name) arity)))
@@ -1192,7 +1269,13 @@
             (return 0))
         (set ($ (nth (-> m nhroots) (-> m hroots)) cells) cells)
         (set ($ (nth (-> m nhroots) (-> m hroots)) len) len)
+        (set ($ (nth (-> m nhroots) (-> m hroots)) pos) 0)
         (set (-> m nhroots) (+ (-> m nhroots) 1))
+        (return 1))
+
+  (func coco_heap_pos_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int)
+        (if (not (coco_heap_root_push m cells len)) (return 0))
+        (set ($ (nth (- (-> m nhroots) 1) (-> m hroots)) pos) 1)
         (return 1))
 
   (func coco_heap_root_pop ((coco_machine * m))

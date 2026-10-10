@@ -20,7 +20,9 @@ The short answer is in three parts:
 
 And one finding that reframes the question: **there is no garbage collector.**
 Measured below. A compiler makes the interpreter's inference rate better and
-does nothing whatever about the heap. (There is one since 1.8.36 — §8, item 1.)
+does nothing whatever about the heap. (There is one since 1.8.36 — §8, item 1;
+since 1.9.6 it reaches a directive's goal and a traced run, and the float and
+string tables give back what nothing holds. The atom table never does.)
 
 ## 1. The measurement, first
 
@@ -182,7 +184,8 @@ LARGEST ones are spent, and two ordinary ones are still on the table and are
 cheaper than any compiler. What is left after those is the cost of the
 continuation being data — which is the thing that must not be removed.
 (The first was taken in 1.8.32: the functor and predicate tables are
-hashed. The second, the conditional trail, still has not been.)
+hashed. The second, the conditional trail, still has not been: in 1.9.6
+`coco_bind`, now `lib/term.cicili:1250`, is the same two statements.)
 
 ## 6. What the other systems gave up
 
@@ -301,8 +304,14 @@ learns where it is, in the store and indexed, which is what the store is for.
    23 MB of heap where it held 560 MB, the `between/3` loop peaks at 44 MB
    where it peaked near a gigabyte, and neither got slower. Since 1.9.4 it
    reaches a phase inside the engines a builtin starts — `findall/3` and its
-   family, `call_metered/4`, `with_output_to/2` — and not yet a directive's
-   goal.
+   family, `call_metered/4`, `with_output_to/2` — and since 1.9.6 a
+   directive's goal, when whoever started the load may collect (the
+   `consult` and `run` commands, and a `use_module` reached from a goal that
+   may, which is how `-s` loads its file), and a traced run. 1.9.6 also
+   gives back the floats and strings no live cell names, in place — a free
+   list and a trimmed tail, so no cell that names one is rewritten — and
+   asks for a collection once the entries made since the last reclaim
+   reach half the heap's length. The atom table is never reclaimed.
 2. **The static-fraction count** of section 7 — a day's work, and it decides
    whether 3B is worth weeks. **Done in 1.9.4** (§7): 99.9 % of the
    predicates have clauses nothing changes by name, 66.1 % even when a
@@ -312,8 +321,17 @@ learns where it is, in the store and indexed, which is what the store is for.
    to code fixed since load. It came back high, which is step 4's
    condition.
 3. **Packaging (3A)**, if a single-file deliverable is what is wanted. It is
-   nearly free and it is orthogonal to everything else.
-4. **3B, emitting C**, if the count in step 2 comes back high.
+   nearly free and it is orthogonal to everything else. Not started as of
+   1.9.6: its first step is §10.5's — today's binary finds ZiguratIP's
+   libraries only where they were when it was linked — and the feature itself
+   is something new a program can reach, so a minor version, which is proposed
+   to the owner rather than taken.
+4. **3B, emitting C**, if the count in step 2 comes back high. It did. Its
+   first task is §10.3's, and checked in 1.9.6 there are two roads to it: a
+   runtime split out of `cocolog.c`, or the functions a compiled clause would
+   call made non-static under the `-rdynamic` link that already exports the
+   rest. Either fixes an ABI every later change to the engine has to keep, so
+   the choice is the project's; in 1.9.6 it has not been made.
 5. **Not 3C**, unless the project decides that freeze-and-resume is no longer
    what it is for. That is a decision about the project, not about a compiler.
 
@@ -375,14 +393,15 @@ box's own numbers.
 
 ### 10.2 The delivery channel for a compiled program already exists
 
-`-s FILE` is literally `use_module('FILE'), main` (`cocolog.cicili:772`), and
-`use_module` takes the **dlopen** branch for any path ending in `.so`
-(`lib/library.cicili:347`, dispatched at `:451`). So `cocolog -s ./prog.so`
-already loads and runs a compiled object today, with no new mechanism: one
-exported symbol, `int coco_library_entry(void)`, returning ABI version 1.
+`-s FILE` is literally `use_module('FILE'), main` (`cocolog.cicili:824`; the
+lines in this section are 1.9.6's), and `use_module` takes the **dlopen**
+branch for any path ending in `.so` (`lb_load_so`, `lib/library.cicili:346`,
+dispatched at `:486`). So `cocolog -s ./prog.so` already loads and runs a
+compiled object today, with no new mechanism: one exported symbol,
+`int coco_library_entry(void)`, returning ABI version 1.
 
 **With one catch that matters.** `coco_module_load` MUTES the store while it
-consults a module's Prolog half (`lib/module.cicili:455`, `:468`), so a program
+consults a module's Prolog half (`lib/module.cicili:603`, `:625`), so a program
 delivered that way has its clauses marked `library` and writes nothing through.
 A compiled program shipped as a module is therefore a program that has opted
 out of the knowledge base — which for many programs is right, and for the ones
@@ -390,28 +409,42 @@ this project exists to demonstrate is exactly wrong.
 
 ### 10.3 There is nothing for an object file to link against
 
-`main` is inside the same 16 960-line translation unit as the engine
-(`cocolog.c`), the Makefile links `.libs/cocolog.o` plus `embed/.libs/embed.o`
-straight to the executable, and the only archive in the tree,
-`build/libcocologc.a`, holds the wire client (`zigurat.o`, `zeytun.o`) and
-nothing else. There is no engine runtime library.
+`main` is inside the same translation unit as the engine (`cocolog.c`, 16 960
+lines when this was written, 28 556 in 1.9.6), the Makefile links
+`.libs/cocolog.o` plus `embed/.libs/embed.o` straight to the executable, and
+the only archive in the tree, `build/libcocologc.a`, holds the wire client
+(`zigurat.o`, `zeytun.o`) and nothing else. There is no engine runtime library.
 
 Worse for a code generator: the four functions it would most need —
 `coco_k_push`, `coco_push_choice`, `coco_backtrack`, `coco_select_clause` — are
 all declared `(static)`, and `nm -D --defined-only ./cocolog` finds none of
-them. Option 3B's first task is therefore not a code generator: it is
-splitting a runtime out of `cocolog.c` and deciding what it exports.
+them; nor `coco_try_clause`, which has entered a clause since 1.8.46. Option
+3B's first task is therefore not a code generator: it is splitting a runtime
+out of `cocolog.c` and deciding what it exports.
+
+**The split is one road, and checked in 1.9.6 there is a shorter one.** The
+executable is linked `-rdynamic` (Makefile:189), so every function it does not
+declare static is already in its dynamic symbol table — 411 `coco_*`, 43 of
+them the `coco_m_*` SDK, and among the rest `coco_make`, `coco_bind`,
+`coco_unify`, `coco_new_int`, `coco_engine_next` and `coco_pred_next_clause` —
+and a `.so` that `use_module` opens resolves its undefined symbols against the
+executable itself, which is how every module in `modules/` links today. So a
+compiled object needs no library to link against; it needs what it calls to
+stop being static. The decision does not shrink with the road: which functions
+to export, and what they take — the machine's and the engine's fields — then
+becomes an ABI that every later change to the engine has to keep.
 
 ### 10.4 Two things a compiler would not be allowed to do
 
-* **`clause_ix` is an ordinal a frozen choice frame holds** (`lib/state.cicili`
-  writes it; `lib/solve.cicili:284` is the frame). A machine suspended part way
+* **`clause_ix` is an ordinal a frozen choice frame holds**
+  (`lib/state.cicili:164` writes it; `lib/solve.cicili:389` is the frame; the
+  lines in this section are 1.9.6's too). A machine suspended part way
   through a predicate resumes at "clause number N". So a compiled predicate may
   not reorder, merge, inline, specialise or dead-eliminate its clauses without
   breaking resumption — which removes most of the optimisations that make
   compiling a predicate worth doing.
-* **Atom and functor ids are assigned in intern ORDER** (`lib/term.cicili:638`,
-  `:656`), and a store cell carries the machine's ids unchanged. So compiled
+* **Atom and functor ids are assigned in intern ORDER** (`lib/term.cicili:864`,
+  `:934`), and a store cell carries the machine's ids unchanged. So compiled
   clause data cannot be a static blob of cells; it has to be built through the
   intern table at load time, which is most of what `coco_store_get` already
   costs.
@@ -419,57 +452,71 @@ splitting a runtime out of `cocolog.c` and deciding what it exports.
 ### 10.5 The binary is not self-contained today
 
 `readelf -d ./cocolog` lists `libCore.so` and `libStreamIO.so` as NEEDED with
-**no RUNPATH and no RPATH at all**, so the shipped binary finds ZiguratIP's
-libraries only through `LD_LIBRARY_PATH` at run time. Option 3A's "one file you
-can run" therefore has a step before it that has nothing to do with compiling:
-either static linkage of those two, or an RPATH, or a launcher. (An earlier
-draft of this section said an absolute RUNPATH was baked in. It is not; there
-is none. Checked.)
+one RUNPATH: the build's own absolute `$(ZIGURATIP)/home/lib`, which
+`EMBED_LIBS` passes as `-Wl,-rpath` (Makefile:181) and which has been there
+since this history's first commit (77f374b, 1.2.13). `make EMBED=0` links
+neither library and has none. So the binary finds ZiguratIP's libraries where
+they were when it was linked, and anywhere else only through
+`LD_LIBRARY_PATH`. Option 3A's "one file you can run" therefore has a step
+before it that has nothing to do with compiling: static linkage of those two,
+an `$ORIGIN`-relative RUNPATH with the libraries shipped beside the binary, or
+a launcher. (An earlier draft of this section said an absolute RUNPATH was
+baked in, and the published text corrected it to "none". The draft was right:
+checked again in 1.9.6, on a build with the store linked in.)
 
-### 10.6 A bug, found on the path this study recommends compiling
+### 10.6 A bug, found on the path this study recommends compiling (fixed in 1.6.16)
 
 Not a feasibility finding — a defect, discovered while checking §9's claim
 about load-time semantics, and reported here because this is where the evidence
-is.
+was. **It was fixed in 1.6.16 (063e299), and not where this section said to
+look.**
 
-**`use_module` of any file containing a GOAL directive exhausts the C stack and
-dies of SIGSEGV.** Since `-s FILE` *is* `use_module('FILE'), main`, that means
-the documented form for running a program crashes on the documented behaviour
-of a directive:
+**`use_module` of any file containing a GOAL directive exhausted the C stack
+and died of SIGSEGV.** Since `-s FILE` *is* `use_module('FILE'), main`, the
+documented form for running a program crashed on the documented behaviour of
+a directive:
 
 ```
 $ printf ':- write(hello), nl.\nmain :- write(done), nl.\n' > p.pl
 $ ./cocolog -s p.pl ; echo $?
-139                      # no output, empty stderr
+139                      # before 1.6.16: no output, empty stderr
 $ ./cocolog run p.pl main
 hello
 done
 ```
 
-Measured and characterised:
+Measured and characterised then, and run again on 1.9.6:
 
-| directive | `-s` |
-|---|---|
-| `:- dynamic(foo/1).` `:- op(700, xfx, ===).` `:- use_module(library(lists)).` | fine |
-| `:- write(x), nl.` `:- true.` `:- X is 1+1.` `:- initialization(main).` | **SIGSEGV** |
+| directive | `-s` before 1.6.16 | `-s` in 1.9.6 |
+|---|---|---|
+| `:- dynamic(foo/1).` `:- op(700, xfx, ===).` `:- use_module(library(lists)).` | fine | fine |
+| `:- write(x), nl.` `:- true.` `:- X is 1+1.` | **SIGSEGV** | fine |
+| `:- initialization(main).` | **SIGSEGV** | fine: `main` runs when the load ends and again as `-s`'s own goal |
 
-That is exactly CLAUDE.md's split: the handful of directives that act on the
+That was exactly CLAUDE.md's split: the handful of directives that act on the
 READER are answered by `coco_directive`, "and everything else is called" — and
-the called path is the one that dies. It reproduces through a nested
+the called path was the one that died. It reproduced through a nested
 `use_module` too (`run outer.pl main` where `outer.pl` imports a file with a
-goal directive), so it is `use_module` and not `-s` that is broken.
+goal directive), so it was `use_module` and not `-s` that was broken; on 1.9.6
+that prints the inner file's directive and runs, under `run` and `-s` alike,
+and `p.pl` prints `hello` and `done` under both.
 
-It is stack exhaustion, not a null dereference: time-to-crash scales with the
+It was stack exhaustion, not a null dereference: time-to-crash scaled with the
 limit — `ulimit -s 1024` 14 ms, `8192` 21 ms, `65536` 75 ms.
 
-`lb_goal_hook` (`lib/library.cicili:557`) is where to look: it makes a whole
-`coco_engine` as a C local and runs the directive's goal on it, over the same
-machine and store, from inside a consult that the module loader is holding.
+This section pointed at `lb_goal_hook`, which makes a whole `coco_engine` as a
+C local and runs the directive's goal on it, and proposed a re-entrancy guard
+there. **The cause was in the module loader.** `coco_module_load` counted a
+module as loaded (the store's `libs`) only AFTER its consult; a goal
+directive's engine, whose first step is `coco_module_load`, found the module
+still unloaded and consulted it again, whose directive did the same — 7 500
+frames of `coco_directive` -> `lb_goal_hook` -> `coco_engine_next` ->
+`coco_module_load` -> `coco_consult` until the stack ran out. 1.6.16 claims the
+module before its consult and reads the count again each time round its loop,
+and `test/directives.pl` gained eight checks through `-s` and through a
+library `.pl` loaded by a goal and by a directive; 1.6.15 fails all eight.
 
-**Why it has never been seen:** no shipped `library/*.pl` has a goal directive
-— checked, all twelve — and `test/directives.pl` exercises directives through
-`run` only and never once through `-s`. The suite is green because nothing in
-it stands on this path.
-
-The obvious repair — a re-entrancy guard on the goal hook — is not applied
-here; the diagnosis is, and it wants the full suite behind it.
+**Why it had never been seen:** no shipped `library/*.pl` had a goal directive
+— checked, all twelve — and `test/directives.pl` exercised directives through
+`run` only and never once through `-s`. The suite was green because nothing in
+it stood on this path.

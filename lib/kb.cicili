@@ -77,7 +77,12 @@
     ;; a body's later goals at entry when it makes an environment (Stage 5,
     ;; `xbody'): a fresh variable for a call's first-met variable, which
     ;; the call builds no term to hold
-    ("FRESH" 42)))
+    ("FRESH" 42)
+    ;; a guard in place whose two operands are each a slot or a constant,
+    ;; as one word and its two operands (`cc_ufuse', `coco_env_guardx'):
+    ;; `X is A op B' over `+', `-' and `*', and the six comparisons
+    ("AG_ISX" 43)
+    ("AG_CMPX" 44)))
 
 ;;; A GUARD'S OPERATORS AND TESTS, by the code in an AG_BIN, AG_UN, AG_CMP or
 ;;; AG_TYPE word's K. One table read two ways again: the compiler matches a
@@ -118,9 +123,11 @@
 ;;; type test as a guard over the slots (GUARD), `=/2', `==/2' and `\==/2'
 ;;; from two sides read out of the slots (SIDES), and any other with
 ;;; arguments called by its row with the term built at entry (BUILTIN).
+;;; A guard whose program is one fused word (`cc_ufuse') is its own kind
+;;; (GUARDX), so that a guard of several words asks nothing more for it.
 (DEFPARAMETER *cc-eg-kinds* '(("TERM" 0) ("CALL" 1) ("CUT" 2) ("ITE" 3) ("DISJ" 4)
                               ("CUTC" 5) ("CONJ" 6) ("TRUE" 7) ("FAIL" 8)
-                              ("GUARD" 9) ("SIDES" 10) ("BUILTIN" 11)))
+                              ("GUARD" 9) ("SIDES" 10) ("BUILTIN" 11) ("GUARDX" 12)))
 
 (DEFUN cc-eg-number (name)
   (LET ((row (ASSOC name *cc-eg-kinds* :TEST #'STRING=)))
@@ -1124,10 +1131,12 @@
   ;;; THE BUILTINS IN PLACE (Stage 7). A GUARD -- `is/2', a comparison, a
   ;;; type test -- runs its guard program (EBODY[RAT, RAT + RLEN), Stage
   ;;; 4's words over the slots) and builds its term from the slots (TAT,
-  ;;; TLEN) only when the program cannot decide. A SIDES -- `=/2', `==/2',
-  ;;; `\==/2', FORM 0 to 2 -- reads its two arguments out of the slots as a
-  ;;; call's register form does (RAT, RLEN, RVARS) and unifies or compares
-  ;;; them. A BUILTIN is a TERM whose builtin's row is FORM, called by it.
+  ;;; TLEN) only when the program cannot decide; a GUARDX is a GUARD whose
+  ;;; program is one fused word and its two operands (AG_ISX, AG_CMPX). A
+  ;;; SIDES -- `=/2', `==/2', `\==/2', FORM 0 to 2 -- reads its two
+  ;;; arguments out of the slots as a call's register form does (RAT, RLEN,
+  ;;; RVARS) and unifies or compares them. A BUILTIN is a TERM whose
+  ;;; builtin's row is FORM, called by it.
   ;;;
   ;;; THE CONSTRUCTS (Stage 6). An ITE -- `( C -> T ; E )', `( C -> T )',
   ;;; `\+ C' or `not(C)', `once(C)' and `ignore(C)', which FORM tells apart
@@ -1340,9 +1349,11 @@
   ;;; with FAILED set, or did not decide with FAILED clear -- and the two
   ;;; sides unified or compared -- 1 true, 0 false, -1 the heap would not
   ;;; grow. Static, each with one caller (`coco_env_place' in
-  ;;; solve.cicili), and inline there.
+  ;;; solve.cicili), and inline there. A GUARDX answers as a GUARD does.
   (static) (decl) (func coco_env_guard ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
                                         (int * failed)) (out u32))
+  (static) (decl) (func coco_env_guardx ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
+                                         (int * failed)) (out u32))
   (static) (decl) (func coco_env_sides ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u))
                         (out int))
   ;;; UNIT U OF THE ENVIRONMENT AT ENV as the term its frame held through
@@ -1859,8 +1870,10 @@
                        (set (-> st oom) 1)))
                (return h)))
             ;; A float's payload indexes the machine's float table, which the
-            ;; store shares rather than copies -- the table only grows, so the
-            ;; index stays good for as long as the machine does.
+            ;; store shares rather than copies -- the heap collector reclaims
+            ;; an entry only when no cell anywhere names it, the store's
+            ;; included (`coco_tables_reclaim', 1.9.6), so the index stays good
+            ;; for as long as the cell does.
             (#t (return (coco_store_push st c))))))
 
   (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
@@ -2214,6 +2227,8 @@
   (static) (func cc_AG_ISC () (out u64) (return (cc-op "AG_ISC")))
   (static) (func cc_AG_TYPE () (out u64) (return (cc-op "AG_TYPE")))
   (static) (func cc_FRESH () (out u64) (return (cc-op "FRESH")))
+  (static) (func cc_AG_ISX () (out u64) (return (cc-op "AG_ISX")))
+  (static) (func cc_AG_CMPX () (out u64) (return (cc-op "AG_CMPX")))
 
   (func coco_regs_max () (out u32) (return 8))
 
@@ -2854,6 +2869,17 @@
               (set cc_inplace_state (? (and (!= s nil) (== 0 (strcmp s "0"))) 2 1))))
         (return (? (== cc_inplace_state 1) 1 0)))
 
+  ;;; THE FUSED GUARD WORDS (AG_ISX, AG_CMPX) are on unless `COCOLOG_FUSE'
+  ;;; says 0, their arm, read at the first compile as the two above are.
+  (static) (var int cc_fuse_state . 0)
+
+  (static)
+  (func cc_fuse_enabled () (out int)
+        (if (== cc_fuse_state 0)
+            (let ((const char * s . #'(getenv "COCOLOG_FUSE")))
+              (set cc_fuse_state (? (and (!= s nil) (== 0 (strcmp s "0"))) 2 1))))
+        (return (? (== cc_fuse_state 1) 1 0)))
+
   ;;; WHETHER A LATER GOAL OF FUNCTOR FID IS REACHED AS A CALL: a predicate
   ;;; of the program's own -- not a construct's name, not a core builtin's
   ;;; -- of one to eight arguments, whose call the registers pay for
@@ -3034,12 +3060,66 @@
           (set (cof form) (cast u32 row))
           (return (cc-eg "BUILTIN"))))
 
+  ;;; ONE WORD FOR A GUARD OF TWO OPERANDS: QB as `X is A op B' over `+',
+  ;;; `-' or `*' with X a variable -- [LOAD a | PUSH c] twice, [BIN op],
+  ;;; [ISV x | ISF x] -- or as a comparison of two -- the two, [CMP c] -- is
+  ;;; written into EB as AG_ISX or AG_CMPX, its K the slot of X, its N the
+  ;;; operator's code with 256 for an A that is an integer and 512 for a B,
+  ;;; then A and B: each its slot, or its cell. 1 when it took QB (with OK
+  ;;; clear when a variable has no slot, as `cc_uguard' refuses it), 0 when
+  ;;; QB is any other shape, nothing written. What the stack program
+  ;;; dispatched as four words is then one, and its unit a GUARDX
+  ;;; (`cc_uleaf', `coco_env_guardx').
+  (static)
+  (func cc_ufuse ((coco_ucomp * uc)) (out int)
+        (let ((u64 * q . #'($ (-> uc qb) w)) (size_t qn . #'($ (-> uc qb) len)) (size_t pc . 0)
+              (u64 opd [2]) (u64 fl . 0) (u64 op . 0) (u64 code . 0) (u64 xs . 0))
+          (for ((u32 i . 0)) (< i 2) ((++ i))
+            (if (>= pc qn) (return 0))
+            (cond
+              ((== (cc_op (nth pc q)) (cc_AG_LOAD))
+               (set (nth i opd) (cast u64 (cc_k (nth pc q))))
+               (set pc (+ pc 1)))
+              ((and (== (cc_op (nth pc q)) (cc_AG_PUSH)) (< (+ pc 1) qn))
+               (set (nth i opd) (nth (+ pc 1) q))
+               (set fl (bitor fl (<< (cast u64 256) i)))
+               (set pc (+ pc 2)))
+              (#t (return 0))))
+          (if (>= pc qn) (return 0))
+          (set code (cast u64 (cc_k (nth pc q))))
+          (cond
+            ((and (== (cc_op (nth pc q)) (cc_AG_BIN))
+                  (or (== code (cc-gop "+")) (== code (cc-gop "-")) (== code (cc-gop "*")))
+                  (== (+ pc 2) qn)
+                  (or (== (cc_op (nth (+ pc 1) q)) (cc_AG_ISV)) (== (cc_op (nth (+ pc 1) q)) (cc_AG_ISF))))
+             (let ((size_t k . #'(cc_k (nth (+ pc 1) q))))
+               (if (or (>= k (cast size_t (-> uc nemap))) (== (nth k (-> uc emap)) 0))
+                   (block (set (-> uc ok) 0) (return 1)))
+               (set xs (cast u64 (- (nth k (-> uc emap)) 1)))
+               (set op (cc_AG_ISX))))
+            ((and (== (cc_op (nth pc q)) (cc_AG_CMP)) (== (+ pc 1) qn))
+             (set op (cc_AG_CMPX)))
+            (#t (return 0)))
+          ;; each variable its slot
+          (for ((u32 i . 0)) (< i 2) ((++ i))
+            (if (not (bitand fl (<< (cast u64 256) i)))
+                (let ((size_t k . #'(cast size_t (nth i opd))))
+                  (if (or (>= k (cast size_t (-> uc nemap))) (== (nth k (-> uc emap)) 0))
+                      (block (set (-> uc ok) 0) (return 1)))
+                  (set (nth i opd) (cast u64 (- (nth k (-> uc emap)) 1))))))
+          (if (not (cc_emit (aof (-> uc eb)) (cc_word op xs (bitor code fl)))) (set (-> uc ok) 0))
+          (if (not (cc_emit (aof (-> uc eb)) (nth 0 opd))) (set (-> uc ok) 0))
+          (if (not (cc_emit (aof (-> uc eb)) (nth 1 opd))) (set (-> uc ok) 0))
+          (return 1)))
+
   ;;; A GUARD'S PROGRAM OVER THE SLOTS (Stage 7): QB's words, numbered by
   ;;; the frame, into EB with each variable its slot -- every variable of
   ;;; the goal has one by now (`cc_uslots') -- and the left of an `is' met
   ;;; first here bound where the environment made it: AG_ISV, not AG_ISF.
+  ;;; One word when it can be (`cc_ufuse'), under `COCOLOG_FUSE'.
   (static)
   (func cc_uguard ((coco_ucomp * uc)) (out int)
+        (if (and (cc_fuse_enabled) (cc_ufuse uc)) (return (-> uc ok)))
         (let ((u64 * q . #'($ (-> uc qb) w)) (size_t qn . #'($ (-> uc qb) len)) (size_t pc . 0))
           (while (and (-> uc ok) (< pc qn))
             (let ((u64 x . #'(nth pc q)) (u64 op . 0))
@@ -3123,10 +3203,15 @@
                (set ($ (nth u (-> uc us)) tlen) (cast u32 ($ (-> uc tb) len)))
                (for ((size_t j . 0)) (and (-> uc ok) (< j ($ (-> uc tb) len))) ((++ j))
                  (if (not (cc_emit (aof (-> uc eb)) (nth j ($ (-> uc tb) w)))) (set (-> uc ok) 0)))
-               ;; and its program over them
+               ;; and its program over them, a GUARDX when that is one
+               ;; fused word
                (set ($ (nth u (-> uc us)) rat) (cast u32 ($ (-> uc eb) len)))
                (if (not (cc_uguard uc)) (return 0))
                (set ($ (nth u (-> uc us)) rlen) (- (cast u32 ($ (-> uc eb) len)) ($ (nth u (-> uc us)) rat)))
+               (if (> ($ (nth u (-> uc us)) rlen) 0)
+                   (let ((u64 x . #'(nth ($ (nth u (-> uc us)) rat) ($ (-> uc eb) w))))
+                     (if (or (== (cc_op x) (cc_AG_ISX)) (== (cc_op x) (cc_AG_CMPX)))
+                         (set ($ (nth u (-> uc us)) kind) (cc-eg "GUARDX")))))
                (return u)))
           ;; a term: built at entry over the frame, as before -- a BUILTIN
           ;; is one, called by its row
@@ -4253,6 +4338,48 @@
               (size_t eb . #'(+ env 4)) (u32 budget . 1))
           (cc-guards-body (+ (-> cd ebody) (-> g rat)) (cast size_t (-> g rlen)) cc-env-slot 1)))
 
+  ;;; A GUARDX, DONE IN PLACE: unit U's one fused word (`cc_ufuse') reads
+  ;;; its two operands, each a slot or a cell, and does nothing unless both
+  ;;; are integers; the rest is the stack program's, the same C on the same
+  ;;; values. Answers as `coco_env_guard' does.
+  (static)
+  (func coco_env_guardx ((coco_machine * m) (coco_code * cd) (size_t env) (u32 u)
+                         (int * failed)) (out u32)
+        (let ((coco_egoal * g . #'(aof (nth u (-> cd egoals))))
+              (size_t eb . #'(+ env 4))
+              (u64 * fp . #'(+ (-> cd ebody) (-> g rat)))
+              (u64 w . #'(nth 0 fp)) (u64 f . #'(cc_n w))
+              (u64 ca . #'(nth 1 fp)) (u64 cb . #'(nth 2 fp)) (int pass . 1))
+          (set (cof failed) 0)
+          (if (not (bitand f 256)) (set ca (nth (cc-env-slot ca) (-> m heap))))
+          (if (not (bitand f 512)) (set cb (nth (cc-env-slot cb) (-> m heap))))
+          (if (not (and (coco-tag-is INT ca) (coco-tag-is INT cb))) (return 0))
+          (let ((i64 a . #'(coco-signed-payload ca)) (i64 b . #'(coco-signed-payload cb)))
+            (if (== (cc_op w) (cc-op "AG_ISX"))
+                (let ((i64 r . 0) (size_t v . 0) (u64 c . 0))
+                  (switch (cast int (bitand f 255))
+                    (case (cc-gop "+") (set r (+ a b)) break)
+                    (case (cc-gop "-") (set r (- a b)) break)
+                    (case (cc-gop "*") (set r (* a b)) break)
+                    (default (return 0)))
+                  ;; the left: bound to the result, or compared with it
+                  (set v (cc-env-slot (cc_k w)))
+                  (set c (nth v (-> m heap)))
+                  (if (coco-tag-is REF c)
+                      (coco_bind m v (coco_new_int m r))
+                      (set pass (== c (coco-int-cell r)))))
+                (switch (cast int (bitand f 255))
+                  (case (cc-gop "<") (set pass (< a b)) break)
+                  (case (cc-gop ">") (set pass (> a b)) break)
+                  (case (cc-gop "=<") (set pass (<= a b)) break)
+                  (case (cc-gop ">=") (set pass (>= a b)) break)
+                  (case (cc-gop "=:=") (set pass (== a b)) break)
+                  (case (cc-gop "numneq") (set pass (!= a b)) break)
+                  (default (return 0)))))
+          (if pass (return 1))
+          (set (cof failed) 1)
+          (return 0)))
+
   ;;; TWO SIDES, DONE IN PLACE (Stage 7): unit U's two arguments read out of
   ;;; the slots as a call's are -- copied when both are variables
   ;;; (`rvars'), anything they nest made in one reservation otherwise
@@ -4306,7 +4433,8 @@
                                                                           (cast size_t (-> g tslot))) 4))
                                                               (-> m heap)))))
                (return 1)))
-          (if (or (== kind (cc-eg "CALL")) (== kind (cc-eg "GUARD")) (== kind (cc-eg "SIDES")))
+          (if (or (== kind (cc-eg "CALL")) (== kind (cc-eg "GUARD")) (== kind (cc-eg "GUARDX"))
+                  (== kind (cc-eg "SIDES")))
               (return (coco_env_term m cd env u out)))
           (if (or (== kind (cc-eg "CUT")) (== kind (cc-eg "TRUE")) (== kind (cc-eg "FAIL")))
               (block (set x (coco_push m (coco-cell ATOM (-> g fid))))
@@ -4856,7 +4984,13 @@
             (block (snprintf err errlen "a directive must be a callable term") (return 0)))
 
         (let ((const char * name . #'(coco_atom_name m (coco_name_of m g)))
-              (u32 n . #'(coco_arity m g)))
+              (u32 n . #'(coco_arity m g))
+              ;; MAY THE GOAL COLLECT THE HEAP (1.9.6)? Only if the consult
+              ;; said so (`dgc', lib/term.cicili), and only around a call of
+              ;; the goal hook below that this frame has made safe: what it
+              ;; reads of the term afterwards registered first.
+              (int vouch . #'(-> m dgc)))
+          (set (-> m dgc) 0)
 
           (if (and (== n 1) (== 0 (strcmp name "dynamic")))
               (return (coco_dynamic_spec st m (coco_arg m g 0) err errlen)))
@@ -5006,7 +5140,13 @@
                          (block (snprintf err errlen
                                           "initialization(G, now): there is no engine over this store")
                                 (return 0)))
-                     (let ((int r . #'(coco_goal_hook st m (coco_arg m g 0) err errlen)))
+                     ;; nothing of the term is read after it -- the message
+                     ;; for a failure is fixed text -- so it may collect as
+                     ;; it stands
+                     (let ((int r . 0))
+                       (set (-> m dgc) vouch)
+                       (set r (coco_goal_hook st m (coco_arg m g 0) err errlen))
+                       (set (-> m dgc) 0)
                        (if (== r 1) (return 1))
                        (if (== r 0)
                            (block (snprintf err errlen "Goal (initialization) failed")
@@ -5039,7 +5179,17 @@
           (if (== coco_goal_hook nil)
               (block (snprintf err errlen "unsupported directive: %s/%u" name (cast unsigned n))
                      (return 0)))
-          (let ((int r . #'(coco_goal_hook st m g err errlen)))
+          ;;
+          ;; THE GOAL IS REGISTERED AROUND IT (1.9.6), because a goal that
+          ;; collects moves the cells under it and the message for a failure
+          ;; writes it afterwards. Unregistered, it runs collecting nothing.
+          (let ((int r . 0) (size_t * gp . nil) (size_t gl . 1) (int held . 0))
+            (set gp (aof g))
+            (set held (coco_heap_root_push m (aof gp) (aof gl)))
+            (set (-> m dgc) (? held vouch 0))
+            (set r (coco_goal_hook st m g err errlen))
+            (set (-> m dgc) 0)
+            (if held (coco_heap_root_pop m))
             (if (== r 1) (return 1))
             (if (== r 0)
                 (let ((coco_strbuf b))
@@ -5841,10 +5991,15 @@
                   (set oid (+ (coco_intern m origin) 1)))))
           ;; the loop registers its `initialization/1' goals as roots and
           ;; leaves on several paths, so the registration is dropped HERE,
-          ;; whichever way it came out
-          (let ((size_t depth . #'(-> st nroots)))
+          ;; whichever way it came out -- and so are the heap roots it holds
+          ;; around a goal that may collect, and the word that let it (`dgc',
+          ;; which the loop takes for itself and gives back to nobody)
+          (let ((size_t depth . #'(-> st nroots)) (size_t hdepth . #'(-> m nhroots))
+                (int dgc . #'(-> m dgc)))
             (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
-            (set (-> st nroots) depth))
+            (set (-> st nroots) depth)
+            (set (-> m nhroots) hdepth)
+            (set (-> m dgc) dgc))
           (free (cast (void *) ($ seen pis)))
           ;; a reconsult has just orphaned the file's previous clauses
           (coco_store_maybe_compact st m)
@@ -5869,7 +6024,14 @@
               ;; token in hand, so this is the line the clause STARTS on --
               ;; which is the line SWI names too.
               (size_t scanned . 0) (int line . 1) (int at . 1)
-              (coco_initgoals inits))
+              (coco_initgoals inits)
+              ;; MAY A GOAL RUN FROM HERE COLLECT THE HEAP (1.9.6)? Only if
+              ;; whoever called the consult said so (`dgc', lib/term.cicili),
+              ;; and only around a call whose cells this frame has registered:
+              ;; the clause in hand and the mark the heap is wound back to.
+              ;; Taken here, so the reader and the store never run under it.
+              (int vouch . #'(-> m dgc)))
+          (set (-> m dgc) 0)
           (memset (aof inits) 0 (sizeof coco_initgoals))
           ;; the goals put off to the end are cell indices; a compaction
           ;; before they run must move them too. `coco_consult' unregisters.
@@ -5964,9 +6126,25 @@
                        ;; clauses under it, which is what returning -1 here
                        ;; used to do: one `:- initialization(main).' at the
                        ;; top of a file and NOTHING in it was loaded.
+                       ;;
+                       ;; THE MARK IS REGISTERED around it (1.9.6), as a
+                       ;; position: a goal that collects slides the cells
+                       ;; below it down, and the wind-back below must land
+                       ;; where they now end, not above it. The clause is not:
+                       ;; coco_directive registers the goal it names in a
+                       ;; failure's message, and the one read of the clause
+                       ;; here -- the message for a `use_module' that loaded
+                       ;; nothing -- follows a directive that runs no goal.
+                       ;; Unregistered, the goal runs as it did, collecting
+                       ;; nothing.
                        (if (and (== handled 0) active)
-                           (let ((int dr . #'(coco_directive st m (coco_arg m t 0)
-                                                             (aof inits) at err errlen)))
+                           (let ((size_t * mp . nil) (size_t ml . 1) (int pushed . 0) (int dr . 0))
+                             (set mp (aof mark))
+                             (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
+                             (set (-> m dgc) (? pushed vouch 0))
+                             (set dr (coco_directive st m (coco_arg m t 0) (aof inits) at err errlen))
+                             (set (-> m dgc) 0)
+                             (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
                              (if (== dr 0) (coco_load_message "ERROR" origin at err))
                              ;; BOTH, IN SWI'S ORDER: why nothing was loaded,
@@ -6035,9 +6213,17 @@
                     ;; stands where `-s' would have called main, whose writes
                     ;; reach the knowledge base; muted, G's stayed in this
                     ;; process and ended with it.
-                    (let ((int was . #'(-> st muted)))
+                    ;; and it may collect, with the mark it is wound back to
+                    ;; registered -- nothing else of the heap is read after
+                    (let ((int was . #'(-> st muted)) (size_t * bp . nil) (size_t bl . 1)
+                          (int pushed . 0))
+                      (set bp (aof back))
+                      (set pushed (coco_heap_pos_push m (aof bp) (aof bl)))
                       (if main (set (-> st muted) 0))
+                      (set (-> m dgc) (? pushed vouch 0))
                       (set gr (coco_goal_hook st m goal err errlen))
+                      (set (-> m dgc) 0)
+                      (if pushed (coco_heap_root_pop m))
                       (set (-> st muted) was))
                     ;; SWI'S TWO VOICES, measured: an `after_load' goal that
                     ;; fails is a Warning and the program carries on, while a

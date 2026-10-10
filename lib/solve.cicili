@@ -1712,8 +1712,9 @@
 
   ;;; THE BUILTINS IN PLACE (Stage 7): unit U of the environment at ENV
   ;;; (whose code is CD), NK the continuation after it and BAR its barrier
-  ;;; -- a guard's program over the slots, its term built and handed over
-  ;;; only when the program cannot decide; two sides read out of the slots
+  ;;; -- a guard's program over the slots (a GUARDX's one fused word), its
+  ;;; term built and handed over only when the program cannot decide; two
+  ;;; sides read out of the slots
   ;;; and unified or compared; and any other builtin called by its row on
   ;;; the term built at entry, each the step its goal was. Answers as
   ;;; `coco_env_take' does. OUT OF LINE AND NOT STATIC, so that the step
@@ -1727,6 +1728,17 @@
           (switch (cast int (-> eg kind))
             (case (cc-eg "GUARD")
               (let ((int gf . 0) (u32 gd . #'(coco_env_guard m cd env u (aof gf))))
+                (if (== gd 1) (return 0))
+                (if gf (return -2))
+                (let ((size_t g . 0))
+                  (if (not (coco_env_term m cd env u (aof g))) (return -1))
+                  (set (-> e ngoal) g)
+                  (set (-> e nbar) bar)
+                  (set (-> e nset) 1)
+                  (return 1))))
+            ;; the same, its program one fused word
+            (case (cc-eg "GUARDX")
+              (let ((int gf . 0) (u32 gd . #'(coco_env_guardx m cd env u (aof gf))))
                 (if (== gd 1) (return 0))
                 (if gf (return -2))
                 (let ((size_t g . 0))
@@ -2251,14 +2263,18 @@
   ;;; host said yes (`gc' on the engine). A nested engine says yes when the
   ;;; builtin that started it registered every cell its own frame holds and
   ;;; its outer engine may collect (1.9.4): the engines part way through a
-  ;;; step are found on the machine's chain (`eng', `outer'). After a
+  ;;; step are found on the machine's chain (`eng', `outer'). So does a
+  ;;; directive's goal (1.9.6) when every frame between it and the host
+  ;;; vouched (`dgc' on the machine, lib/term.cicili). Trace stops none of
+  ;;; them (1.9.6): what the tracer holds is on those engines. After a
   ;;; collection the next one waits until the heap has grown by as much
   ;;; again as survived, and by at least `coco_gc_floor' cells: amortised,
   ;;; the work is a constant per cell allocated.
   ;;;
-  ;;; NOT COMPACTED HERE: the float and string tables (the store shares
-  ;;; them by index -- see `coco_store_put_node'), and the atom table (a
-  ;;; frozen machine's cells name atoms by id).
+  ;;; THE FLOAT AND STRING TABLES ARE RECLAIMED, NOT COMPACTED (1.9.6): the
+  ;;; store and the compiled programs share their entries by index, so a
+  ;;; dead entry is freed and reused in place (`coco_tables_reclaim'). The
+  ;;; atom table is neither (a frozen machine's cells name atoms by id).
 
   ;;; Cells per collection at the least: 4M, 32 MB. A program whose heap
   ;;; never reaches it never collects, so everything small behaves exactly
@@ -2417,6 +2433,154 @@
           (free ($ set keys)) (free ($ set vals))
           (coco_code_sweep st epoch)))
 
+  ;;; Every word of W that has a float's or a string's tag marks the entry
+  ;;; it names in FB or SB, whatever the word is -- an operand of a program
+  ;;; may look like one, and keeping an entry that could have gone is the
+  ;;; safe mistake.
+  (static)
+  (func coco_tables_mark ((coco_machine * m) (u64 * fb) (u64 * sb) (u64 * w) (size_t len))
+        (if (== w nil) (return))
+        (for ((size_t i . 0)) (< i len) ((++ i))
+          (let ((u64 c . #'(nth i w)))
+            (cond
+              ((coco-tag-is FLT c)
+               (let ((size_t k . #'(cast size_t (coco-payload c))))
+                 (if (< k (-> m floats_len))
+                     (set (nth (>> k 6) fb) (bitor (nth (>> k 6) fb) (<< (cast u64 1) (bitand k 63)))))))
+              ((coco-tag-is STR c)
+               (let ((size_t k . #'(cast size_t (coco-payload c))))
+                 (if (< k (-> m strings_len))
+                     (set (nth (>> k 6) sb) (bitor (nth (>> k 6) sb) (<< (cast u64 1) (bitand k 63)))))))))))
+
+  ;;; The six programs of one compiled clause; answers the words looked at.
+  (static)
+  (func coco_tables_mark_code ((coco_machine * m) (u64 * fb) (u64 * sb) (coco_code * cd))
+        (out size_t)
+        (if (== cd nil) (return 0))
+        (coco_tables_mark m fb sb (-> cd head) (-> cd hlen))
+        (coco_tables_mark m fb sb (-> cd body) (-> cd blen))
+        (coco_tables_mark m fb sb (-> cd rbody) (-> cd rblen))
+        (coco_tables_mark m fb sb (-> cd gbody) (-> cd gblen))
+        (coco_tables_mark m fb sb (-> cd ebody) (-> cd eblen))
+        (coco_tables_mark m fb sb (-> cd xbody) (-> cd xblen))
+        (return (+ (+ (+ (-> cd hlen) (-> cd blen)) (+ (-> cd rblen) (-> cd gblen)))
+                   (+ (-> cd eblen) (-> cd xblen)))))
+
+  ;;; A store's cells -- the knowledge base, the globals, what a builtin
+  ;;; keeps across its search -- and every program it holds: the code table,
+  ;;; each predicate's copy of its clauses' programs (one of them may be a
+  ;;; clause the table has not seen yet), and the retired ones an
+  ;;; environment still runs. Answers the words looked at.
+  (static)
+  (func coco_tables_mark_store ((coco_machine * m) (u64 * fb) (u64 * sb) (coco_store * st))
+        (out size_t)
+        (let ((size_t seen . 0)
+              (coco_code * cd . nil))
+          (if (== st nil) (return 0))
+          (coco_tables_mark m fb sb (-> st cells) (-> st len))
+          (set seen (-> st len))
+          (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
+            (if (!= (nth i (-> st code_keys)) 0)
+                (set seen (+ seen (coco_tables_mark_code
+                                   m fb sb (cast (coco_code *) (nth i (-> st code_vals))))))))
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+              (if (!= (-> p codes) nil)
+                  (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
+                    (set seen (+ seen (coco_tables_mark_code
+                                       m fb sb (cast (coco_code *) (nth j (-> p codes))))))))))
+          (set cd (cast (coco_code *) (-> st retired)))
+          (while (!= cd nil)
+            (set seen (+ seen (coco_tables_mark_code m fb sb cd)))
+            (set cd (cast (coco_code *) (-> cd rnext))))
+          (return seen)))
+
+  ;;; THE FLOAT AND STRING TABLES (1.9.6), reclaimed once the slide has left
+  ;;; the heap holding only what is live. A float or a string cell names an
+  ;;; entry by index, and three things hold such cells: the heap, the store
+  ;;; of every engine on the chain, and the compiled programs, which carry a
+  ;;; constant as its cell (`coco_tables_mark_store'). An entry none of them
+  ;;; names is dead: a string's bytes are freed, the dead entries at the end
+  ;;; of a table are cut off, and the rest become the free lists
+  ;;; `coco_new_float' and `coco_new_string' take from. A live entry never
+  ;;; moves, so no cell is rewritten, and a machine frozen afterwards writes
+  ;;; its tables as they stand. The work is the words looked at, so it waits
+  ;;; until `tlimit' entries were made since the last time, and half the
+  ;;; heap's length (the least it will look at, and all it knows of that
+  ;;; before the first time) -- unless ASKED, a collection garbage_collect/0
+  ;;; or `coco_table_made' asked for -- and the limit is set again from what
+  ;;; this time looked at: a constant per entry made.
+  ;;; NOT STATIC: inlined into `coco_heap_collect', its one caller, it made
+  ;;; the collector's own loops dearer even when it returned at once.
+  (func coco_tables_reclaim ((coco_engine * e) (int asked))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t nf . #'(-> m floats_len))
+              (size_t ns . #'(-> m strings_len))
+              (u64 * fb . nil) (u64 * sb . nil)
+              (size_t seen . 0) (size_t livef . 0) (size_t lives . 0)
+              (coco_engine * x . e)
+              (coco_store * last . nil))
+          (if (and (not asked)
+                   (or (< (-> m tmade) (-> m tlimit))
+                       (< (-> m tmade) (>> (-> m heap_len) 1))))
+              (return))
+          (set fb (cast (u64 *) (calloc (+ (>> (+ nf 63) 6) 1) (sizeof u64))))
+          (set sb (cast (u64 *) (calloc (+ (>> (+ ns 63) 6) 1) (sizeof u64))))
+          ;; no memory to mark with: nothing is reclaimed this time
+          (if (or (== fb nil) (== sb nil)) (block (free fb) (free sb) (return)))
+          (coco_tables_mark m fb sb (-> m heap) (-> m heap_len))
+          (set seen (-> m heap_len))
+          (while (!= x nil)
+            (if (!= (-> x st) last)
+                (block
+                 (set last (-> x st))
+                 (set seen (+ seen (coco_tables_mark_store m fb sb last)))))
+            (set x (cast (coco_engine *) (-> x outer))))
+          ;; the dead: a string's bytes go, the tail is cut off
+          (for ((size_t i . 0)) (< i ns) ((++ i))
+            (if (coco_gc_marked sb i)
+                (set lives (+ lives 1))
+              (block
+               (free (cast (void *) ($ (nth i (-> m strings)) p)))
+               (set ($ (nth i (-> m strings)) p) nil)
+               (set ($ (nth i (-> m strings)) n) 0))))
+          (for ((size_t i . 0)) (< i nf) ((++ i))
+            (if (coco_gc_marked fb i) (set livef (+ livef 1))))
+          (while (and (> nf 0) (not (coco_gc_marked fb (- nf 1)))) (set nf (- nf 1)))
+          (while (and (> ns 0) (not (coco_gc_marked sb (- ns 1)))) (set ns (- ns 1)))
+          (set (-> m floats_len) nf)
+          (set (-> m strings_len) ns)
+          ;; the free lists, made again from the top down so the lowest
+          ;; index is taken first; a list that cannot grow keeps what it has
+          ;; and the table grows instead
+          (set (-> m nffree) 0)
+          (set (-> m nsfree) 0)
+          (if (coco_grow m (cast (void **) (aof (-> m ffree))) (aof (-> m ffree_cap))
+                         (- nf livef) (sizeof size_t))
+              (for ((size_t i . nf)) (> i 0) ((-- i))
+                (if (not (coco_gc_marked fb (- i 1)))
+                    (block
+                     (set (nth (-> m nffree) (-> m ffree)) (- i 1))
+                     (set (-> m nffree) (+ (-> m nffree) 1))))))
+          (if (coco_grow m (cast (void **) (aof (-> m sfree))) (aof (-> m sfree_cap))
+                         (- ns lives) (sizeof size_t))
+              (for ((size_t i . ns)) (> i 0) ((-- i))
+                (if (not (coco_gc_marked sb (- i 1)))
+                    (block
+                     (set (nth (-> m nsfree) (-> m sfree)) (- i 1))
+                     (set (-> m nsfree) (+ (-> m nsfree) 1))))))
+          (free fb) (free sb)
+          ;; the next time: once as many entries were made as half the words
+          ;; looked at, as the live entries, and as the least of 65536 and
+          ;; the collector's floor (which is how a torture run reaches it)
+          (let ((size_t lim . #'(coco_gc_floor)))
+            (if (> lim 65536) (set lim 65536))
+            (if (> (+ livef lives) lim) (set lim (+ livef lives)))
+            (if (> (>> seen 1) lim) (set lim (>> seen 1)))
+            (set (-> m tlimit) lim)
+            (set (-> m treq) lim)
+            (set (-> m tmade) 0))))
+
   ;;; NOT STATIC (1.9.4): a static function with one caller is inlined
   ;;; whatever its size, and the collector inlined into `coco_engine_run'
   ;;; cost the step loop the register it kept the engine in -- four
@@ -2430,7 +2594,8 @@
               (size_t * stk . nil) (size_t slen . 0) (size_t scap . 0)
               (u64 * fixed . nil) (size_t nmarkers . 0)
               (u64 texit . 0) (int ok . 1)
-              (size_t ** tmp . nil) (size_t ** hmp . nil) (size_t nbar . 0))
+              (size_t ** tmp . nil) (size_t ** hmp . nil) (size_t nbar . 0)
+              (int asked . #'(== (-> m gc_next) 0)))
           (set texit (coco_functor_id m (coco-id m "$trace_exit") 3))
           (set bits (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
           (set pre (cast (size_t *) (malloc (* (+ nw 1) (sizeof size_t)))))
@@ -2503,9 +2668,12 @@
                             (set at (+ at 1)))))))
                 (free (cast (void *) ch))))
 
+          ;; a registered POSITION (a heap length a host winds back to) keeps
+          ;; nothing alive: it is only moved, below
           (for ((size_t r . 0)) (and ok (< r (-> m nhroots))) ((++ r))
             (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
-                  (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
+                  (size_t alen . #'(? ($ (nth r (-> m hroots)) pos) 0
+                                      (cof ($ (nth r (-> m hroots)) len)))))
               (for ((size_t i . 0)) (and ok (< i alen)) ((++ i))
                 (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
                                       (aof nmarkers) (nth i arr))))))
@@ -2596,9 +2764,10 @@
           (free (cast (void *) tmp)) (free (cast (void *) hmp))
           (for ((size_t r . 0)) (< r (-> m nhroots)) ((++ r))
             (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
-                  (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
+                  (size_t alen . #'(cof ($ (nth r (-> m hroots)) len)))
+                  (size_t lim . #'(? ($ (nth r (-> m hroots)) pos) (+ n 1) n)))
               (for ((size_t i . 0)) (< i alen) ((++ i))
-                (set (nth i arr) (coco_gc_moved bits pre n (nth i arr))))))
+                (set (nth i arr) (coco_gc_moved bits pre lim (nth i arr))))))
 
           ;; ---- slide: every kept cell down to its rank, references
           ;; rewritten on the way. A cell's rank is never above its index, so
@@ -2617,6 +2786,9 @@
                             (set (nth dst (-> m heap)) c)
                             (set dst (+ dst 1))))))))
             (set (-> m heap_len) dst))
+
+          ;; ---- the float and string entries nothing names any more (1.9.6)
+          (coco_tables_reclaim e asked)
 
           ;; the next collection waits for as much growth again as survived,
           ;; and for at least the floor
@@ -2710,8 +2882,15 @@
   ;;; ends, for nothing. So the threshold is raised to the floor above the
   ;;; heap where the search starts (HMARK) and put back when it ends -- unless
   ;;; it is 0 then, a request (`garbage_collect/0') made inside that nothing
-  ;;; there could serve, which waits for the outer engine.
+  ;;; there could serve, which waits for the outer engine. A directive's goal
+  ;;; may be the first search on its machine (1.9.6: a consult before any
+  ;;; query), so the floor is read here when nothing has read it yet, as
+  ;;; `coco_engine_next' would -- otherwise a threshold of 0 would ask for a
+  ;;; collection at every step.
   (func coco_gc_nested_begin ((coco_machine * m) (size_t hmark)) (out size_t)
+        (if (== (-> m gc_floor) 0)
+            (block (set (-> m gc_floor) (coco_gc_floor))
+                   (set (-> m gc_next) (-> m gc_floor))))
         (let ((size_t saved . #'(-> m gc_next))
               (size_t at . #'(+ hmark (-> m gc_floor))))
           (if (< (-> m gc_next) at) (set (-> m gc_next) at))
@@ -2767,13 +2946,17 @@
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
-          ;; THE SEARCH MAY COLLECT (1.9.4) when this engine may and nothing
-          ;; is traced (the tracer's ports read goals the loop holds): the
-          ;; marks the machine is wound back to below go with the inner
-          ;; engine, where the collector keeps them true as it moves cells
+          ;; THE SEARCH MAY COLLECT (1.9.4) when this engine may -- under
+          ;; trace too (1.9.6): what the tracer holds is on the engines on
+          ;; the chain (each one's goal, its choices' goals, the indices in
+          ;; its `$trace_exit' markers), where the collector moves it, and
+          ;; the loop reads its goal again from `kcall' after a module's
+          ;; call. The marks the machine is wound back to below go with the
+          ;; inner engine, where the collector keeps them true as it moves
+          ;; cells
           (set ($ sub ptrail) tmark)
           (set ($ sub pheap) hmark)
-          (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+          (set ($ sub gc) (? (and held (-> e gc)) 1 0))
           (set gsaved (coco_gc_nested_begin m hmark))
 
           (while 1
@@ -2894,7 +3077,7 @@
           (set ($ sub trace_goal) (-> e trace_goal))
           (set ($ sub ptrail) tmark)
           (set ($ sub pheap) hmark)
-          (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+          (set ($ sub gc) (? (and held (-> e gc)) 1 0))
           (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
             (set rc (coco_engine_next (aof sub)))
             (coco_gc_nested_end m gsaved))
@@ -3231,9 +3414,18 @@
           ;; because a runtime `use_module' reaches that function without
           ;; passing this hook -- and a library loaded as a GOAL after a
           ;; file had set the flag would not consult. The story is told there.
+          ;; ITS DIRECTIVES MAY COLLECT WHEN THIS ENGINE MAY (1.9.6): this
+          ;; frame holds no cell across the load -- the engine's goals are on
+          ;; the engine, and the engine is on the chain (`coco_engine_next')
+          ;; -- so it vouches (`dgc', lib/term.cicili) for exactly the call,
+          ;; under trace as elsewhere (`coco_engine_findall').
           (if (!= coco_extern_load nil)
-              (if (not (coco_extern_load st m e))
-                  (return (coco_fail_err e "a module's clauses would not load"))))
+              (let ((int lok . 0))
+                (set (-> m dgc) (? (-> e gc) 1 0))
+                (set lok (coco_extern_load st m e))
+                (set (-> m dgc) 0)
+                (if (not lok)
+                    (return (coco_fail_err e "a module's clauses would not load")))))
 
           ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
           ;; `coco_engine_ask' for the same reason the hook above is: a

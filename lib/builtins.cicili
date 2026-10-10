@@ -1355,7 +1355,7 @@
             (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
             (set ($ sub ptrail) ($ (cof m) trail_len))
             (set ($ sub pheap) ($ (cof m) heap_len))
-            (set ($ sub gc) (? (and held (-> e gc) (== (-> e trace) 0)) 1 0))
+            (set ($ sub gc) (? (and held (-> e gc)) 1 0))
             (let ((size_t gsaved . #'(coco_gc_nested_begin m ($ sub pheap))))
               (set rc (coco_engine_next (aof sub)))
               (coco_gc_nested_end m gsaved))
@@ -2195,8 +2195,9 @@
   ;;; builtin is the one place a collection cannot run -- this call's own
   ;;; frame holds the goal. The request is a threshold of 0 (`gc_next' on
   ;;; the machine). Where the collector may not run (a host that did not
-  ;;; turn it on, an engine started under trace) the request waits for a
-  ;;; step where it may. See `coco_heap_gc' in lib/solve.cicili.
+  ;;; turn it on, a search whose starter told the collector nothing of its
+  ;;; own frame) the request waits for a step where it may. See
+  ;;; `coco_heap_gc' in lib/solve.cicili.
   (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
         (coco_store_compact (-> e st) (coco_m_machine e))
         (set ($ (cof (coco_m_machine e)) gc_next) 0)

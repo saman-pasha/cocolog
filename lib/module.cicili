@@ -589,10 +589,17 @@
   ;;; would consult them twice and double every answer they give. A module
   ;;; that fails is given back only when nothing after it was loaded in the
   ;;; meantime, which is the old retry exactly in every case that had one.
+  ;;;
+  ;;; A MODULE'S DIRECTIVES COLLECT THE HEAP WHEN THE CALLER VOUCHED (1.9.6):
+  ;;; `dgc' on the machine (lib/term.cicili), taken here and handed on only
+  ;;; to the consult, since this frame reads nothing of the heap after it --
+  ;;; an init is C that holds no cell across a goal, and runs with none.
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
-        (let ((char err [256]) (int ok . 1) (int saved_dq . #'(-> m double_quotes)))
+        (let ((char err [256]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
+              (int vouch . #'(-> m dgc)))
+          (set (-> m dgc) 0)
           (coco_store_mute st)
           (set (-> m double_quotes) 0)
           (while (and (== ok 1) (< (-> st libs) coco_nmodules))
@@ -607,8 +614,11 @@
                    (if (!= (-> mod init) nil)
                        (if (not ((-> mod init) e)) (set ok 0)))
                    (if (and (== ok 1) (!= (-> mod prolog) nil))
-                       (if (< (coco_consult st m (-> mod prolog) (-> mod name) err (sizeof err)) 0)
-                           (set ok 0)))
+                       (let ((int cr . 0))
+                         (set (-> m dgc) vouch)
+                         (set cr (coco_consult st m (-> mod prolog) (-> mod name) err (sizeof err)))
+                         (set (-> m dgc) 0)
+                         (if (< cr 0) (set ok 0))))
                    (if (and (== ok 0) (== (-> st libs) (+ i 1)))
                        (set (-> st libs) i)))))))
           (set (-> m double_quotes) saved_dq)

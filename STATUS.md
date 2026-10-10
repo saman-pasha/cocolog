@@ -5222,31 +5222,202 @@ times running on each binary. 1.8.44 moved the other wait in that case to
 `nap(400)`, 400 ms on an empty channel, and this one now waits the same
 way: green three times on 1.9.5 and twice on 1.9.4.
 
+## Fused guards, and the collector's reach widened (1.9.6)
+
+The first two items 1.9.5 left under "Not started": the guards in place
+fused into one word each, and the heap collector reaching two places it
+did not -- a goal a load runs, a traced program -- with the float and
+string tables reclaimed beside it. Every answer, solution order and
+inference count is 1.9.5's.
+
+**A guard in place over two slots or constants is one word.** Stage 7 ran
+`X is A + B` in an environment as Stage 4's stack program: load A, load B,
+add, bind -- four words dispatched, each through the runner's switch. When
+an `is/2` over `+`, `-` or `*`, or one of the six comparisons, has each
+operand a slot or an integer constant, the compiler now writes one word
+and its two operands (AG_ISX, AG_CMPX; the unit kind GUARDX). `cc_ufuse`
+is a peephole in `cc_uguard` over the program it has just compiled: two
+operand loads, then the operation and the bind, or the comparison. The
+word carries the slot of the `is`'s left, the operator or comparison, and
+two flags saying which operand is an integer constant (256 for A, 512 for
+B); an operand is a slot or the constant's cell. `coco_env_guardx`, out of
+line in `coco_env_place` like the other kinds, decides only when both
+operands are integers: an `is` binds its left's slot if it is unbound and
+otherwise compares it as unification would, with the same C as
+`cc-guards-body`'s AG_BIN, AG_ISV and AG_CMP, so the arithmetic wraps
+where the step's wraps. Anything else -- a float, an atom, an unbound
+operand -- has done nothing, and the goal's term is built from the slots
+and handed over as Stage 7's GUARD does. Still one step and one inference.
+The kind is named in `*cc-eg-kinds*`, set by `cc_uleaf` when
+`cc_uguard`'s peephole fused the unit's program, done by
+`coco_env_place`, which the take reaches from its default as it does
+every builtin in place, and built back by `coco_unit_term` as the `is/2`
+or comparison it was. The arm is `COCOLOG_FUSE=0`.
+
+Estimated on 1.9.5 from the linter's profile at about 65 instructions an
+`is/2`: -0.67 % there (about 104 M) and -4.8 % on lookup. Measured with
+the fused words alone, before anything else of 1.9.6: -0.80 % (-124.4 M)
+and -4.72 % (-25.7 M). Proved by `test/engine.pl`'s new section, nine
+checks: every fused operator and comparison against the step's answer
+over -7, 0, 3, 7, 2^40, 2^60-1, -2^60, 2.5, `foo` and an unbound variable,
+with a constant on either side and on both and the same variable twice,
+errors included; a left side already bound, compared as unification
+compares, and one with an integer on its left, which is not fused; each
+fused word one inference; a stop at every inference limit, and where a
+fused guard fails; and a program that passes, fails, cannot decide,
+raises and is stopped at every limit to thirty, run fused and not, to the
+same output, which is 1.9.5's answers, its count (890) and its uncaught
+error. Five arms, each one fault, all red: the operands of `-` swapped;
+a bound left that passes; `=<` read as `<`; the two operand flags
+crossed; only the left operand checked for an integer. Two programs print
+on 1.9.6 what they print on 1.9.5, byte for byte, with the arm on and
+off, without environments, without the builtins in place, and with the
+freeze tortured both ways at every 2000 cells: every fused operator and
+comparison over a grid of twelve values with the metered stops (90 917
+bytes), and the case's `fx_both` program (1 012 bytes, 1.9.4's too).
+
+**A goal a load runs collects.** Through 1.9.5 a directive, an
+`initialization/1` goal and one run `now` started their engine with no
+`gc` (`lb_goal_hook`), so a long phase in one -- and a script's start-up
+is mostly that -- kept every cell it made. The goal hook runs inside C
+frames that hold heap cells across it: the consult, the directive's own
+term, the module load around the file. It collects now when every one of
+them has said that it registered what it reads afterwards: the machine's
+`dgc`, a vouch set around ONE call and cleared by each frame it passes
+through, which sets it back only around a call whose cells it registered.
+It is set by a host that holds nothing around its consult (`cocolog run`,
+`cocolog consult`), by the run's top around the modules' load, and by
+`use_module/1` as a goal around the library's, each when its own engine
+may collect -- which is how `-s` loads its file. The load registers the
+directive's term (`g` in `coco_directive`, `coco_heap_root_push`) and the
+heap marks it winds back to after a directive and after an
+initialization goal (`mark` and `back` in `coco_consult_owned`, as
+positions a collection moves: `coco_heap_pos_push`). A collection inside
+such a goal starts from the nested floor (`coco_gc_nested_begin`), as a
+builtin's search does. A directive's `use_module` is not vouched: it runs
+no goal (no engine; the modules load at the next run's top). `test/gc.pl`
+has two checks and a torture: a directive, both kinds of initialization
+goal, a binding made before a collection and read after it, a ball caught
+inside a directive, a directive that fails (its warning names the goal
+through `g`), a file loaded from inside a directive with its own
+directives and initialization goal, and the program after, each building
+past the floor and collecting, every answer right, and the same with the
+freeze tortured at every collection; and a probe that loads a file whose
+one goal collects and asks whether the heap is lower after the load than
+before. Arms: without `g` the failed directive's warning read `Goal
+(directive) failed: 4`, a term read at a cell the collection had moved;
+without `mark` the probe read `mark-collected-held`, without `back`
+`back-collected-held` -- the heap put back as high as before the
+collection, nothing reclaimed.
+
+**A traced program collects.** Through 1.9.5 the tracer kept every
+collection off but the run's own engine's: a search a builtin starts
+(`findall/3` and its family, `call_metered/4`, `with_output_to/2`), a goal
+a load runs and a file loaded as a goal each left `gc` off under trace,
+three sites testing `(== (-> e trace) 0)`. What the tracer holds is on the
+engines of the machine's chain -- each one's `trace_goal`, its traced
+choices' goals (`tchoices`) and the indices in its `$trace_exit`
+markers -- and the collector now moves it for every engine there, the
+outer ones too. On 1.9.5 `test/gc.pl`'s new traced check printed `kept`
+on every line but `main`; on 1.9.6 every goal a load runs and every
+search a builtin starts collects, and a traced program whose body's
+`findall/3` collects prints, line for line, the trace a run that never
+collects prints (the `_G` names aside, a variable's name being its heap
+position), with the freeze tortured too. Arm T, `trace_goal` moved only
+for the current engine: red on exactly the three trace checks -- the
+outer call's Redo lines printed `[[3,2,1]]` and `_G` where `w([[3,2,1]])`
+and `w(_G)` were wanted. Arm R, `coco_gc_nested_end` no longer keeping a
+request of 0 that nothing inside the search could serve: red only on
+"garbage_collect/0 in a search stopped at its limit is served after it"
+(`served(0,…)`), whose search was traced through 1.9.5 and so had never
+collected.
+
+**The float and string tables are reclaimed.** A float or a string cell
+names an entry of a table of the machine's by index, and through 1.9.5 no
+entry was ever given back: a loop making 300 000 strings and as many
+floats grew the tables by as much. A collection now marks every entry a
+word names -- on the heap, in the store of every engine on the machine's
+chain (the clauses, asserted or consulted, and the globals), and in the
+compiled programs, which carry a constant as its cell, retired codes
+included -- and frees the rest (`coco_tables_reclaim`): a string's bytes
+go, the dead entries at a table's end are cut off, and the others become
+free lists `coco_new_float` and `coco_new_string` take from, lowest index
+first, before a table grows. A live entry never moves, so no cell
+anywhere is rewritten -- what the "Not started" item thought it needed --
+and a machine frozen afterwards writes its tables as they stand. It is
+sound because every store that can hold such a cell is an engine's on the
+chain: every nested starter (`with_output_to/2`, `findall/3`,
+`call_metered/4`, the goal hook) runs on the caller's store, a thaw
+resets its store, `run_isolated/2` has its own machine, and each host has
+one machine and one store. The atom table is still never reclaimed. The
+work is the words looked at, so it waits until `tlimit` entries were made
+since the last time AND half the heap's length (or a collection
+`garbage_collect/0` asked for), and the limit is then set from what was
+looked at: a constant per entry made. A loop that asks for no collection
+is given one: every `tlimit` entries made (65 536 at first), one is asked
+for if the entries made reach half the heap's length (`coco_table_made`).
+Without that last condition, lesson 46 -- a large heap that makes strings
+-- was asked for a collection at every 65 536 strings: three collections
+against two, 3.17 % more instructions, 279 M of them in the reclaimer;
+with it, 0.014 %. And `coco_tables_reclaim` is not static: inlined into
+`coco_heap_collect`, its one caller, it made the collector's own loops
+dearer even when it returned at once (nrev 0.12 % more). `test/gc.pl`'s
+new section holds a float and a string in each place -- the heap, a
+global, an asserted clause, one asserted after a retract, a consulted
+clause, a `findall/3`'s answers -- across collections that gave back a
+churning loop's entries around them, the table bounded and its entries
+taken again, by default, with a collection every 2000 cells, and with
+the freeze put back and kept; and a loop that grows one cell of heap a
+turn, too little to reach the floor in 300 000 turns, given its strings
+back. Arm S, the store and the programs left unmarked: the loop's `-1.0`
+was given back and taken by a float the loop made, so a comparison with
+it failed, and without that comparison the global's 3.25 and the clause's
+1.25 read back as 48307.0 and 48305.0 and their strings as `""`. Arm F,
+the question in `coco_table_made` taken out: the second loop ended with
+300 000 strings, against 92 945.
+
+Instructions under `callgrind`, whole process, 1.9.5 against 1.9.6, each
+binary with its own library, frozen and checked by md5 before and after
+(ffb347458c71, the same for both: nothing in `library/` changed):
+
+| program | 1.9.5 | 1.9.6 | | fused words off |
+|---|---:|---:|---|---:|
+| the linter over the fifteen files of `library/` | 15.632 G | 15.503 G | -0.82 % (the same findings) | -0.03 % |
+| the translator's lesson (`tutorials/library/46-translate.pl`) | 80.715 G | 80.631 G | -0.10 % (its 864 lines the same) | +0.09 % |
+| nrev | 1.115 G | 1.113 G | -0.12 % | |
+| queens | 0.922 G | 0.922 G | +0.00 % | |
+| loop | 0.330 G | 0.330 G | +0.01 % | |
+| lookup | 0.545 G | 0.519 G | -4.87 % | -0.17 % |
+| sortnums | 0.388 G | 0.388 G | +0.02 % | |
+
+The last column is the fused words alone, before anything else of 1.9.6,
+with `COCOLOG_FUSE=0`, against 1.9.5. No clock was taken for 1.9.6.
+
+Compiling a program to an object file (DESIGN-compiling.md) is studied,
+and §8's first two steps are done: the collector, which runs since 1.8.36,
+reaches a builtin's searches since 1.9.4 and, since 1.9.6, the goals a
+load runs and a traced program; the count of step 2 was done in 1.9.4.
+What is left, §8's steps 3 and 4 and §10, is the owner's to choose
+(below).
+
 ## Not started
 
-* Fused guard words for the guards in place: `X is A op B` over `+`, `-`
-  and `*`, and the six comparisons, each with its two operands a slot or a
-  constant, as one word (AG_ISX, AG_CMPX: a peephole in `cc_uguard` and a
-  fast path in `coco_env_guard`) rather than the four the stack program
-  dispatches. About 65 instructions an `is/2`; estimated on 1.9.5 from the
-  linter's profile, -0.67 % there (about 104 M) and -4.8 % on lookup. Not
-  built; it would take its own arm.
-* The heap collector's remaining reach (it landed in 1.8.36, section "The
-  heap is collected", and reached the engines a builtin starts in 1.9.4): a
-  directive's goal, whose engine `lb_goal_hook` starts with no `gc` --
-  turning it on means the consult registering whatever cells it holds across
-  the directive, as `findall/3` does -- and anything under trace; and
-  compacting the float and string tables, which needs the store's cells
-  rewritten with them.
-* Compiling a program to an object file. Studied, not begun:
-  `DESIGN-compiling.md` is the feasibility report and its §8 says what to do
-  first. Its first item was the collector above; its second, the count of
-  how much of a real program could be compiled at all, was done in 1.9.4
-  and came back high (99.9 % of the predicates' clauses fixed by name, and
-  nothing the two real workloads' files define changed while they ran).
-  What follows is the project's choice:
-  packaging (§8's step 3) or emitting C (step 4), whose first task is not a
-  code generator but a runtime split out of `cocolog.c` (§10.3).
+* Compiling a program to an object file. `DESIGN-compiling.md` is the
+  feasibility report; §8's first two items are done (the collector's
+  reach, widened in 1.9.6; the count of how much of a real program could
+  be compiled, 1.9.4: 99.9 % of the predicates have clauses nothing changes
+  by name). What follows is the owner's choice. Packaging (§8's step 3,
+  §3A: a binary that carries its program and needs no `.pl` beside it) is
+  something new reachable from a program, so a minor, 1.10.0, PROPOSED
+  rather than taken; its first task is §10.5's, the binary's one RUNPATH
+  being the build's own `$(ZIGURATIP)/home/lib` (Makefile:181), so the
+  binary finds ZiguratIP's libraries only where they were when it was
+  linked, or through `LD_LIBRARY_PATH`. Emitting C (step 4) first needs
+  the interpreter's functions reachable from an object the compiler
+  writes, by one of two roads: a runtime split out of `cocolog.c` (§10.3,
+  28 556 lines in one translation unit), or chosen statics exported
+  through `-rdynamic` (Makefile:189: 411 `coco_*` functions are exported,
+  43 of them the SDK's `coco_m_*`).
 * The Coco — the intelligent aggregator hub this project's machinery makes
   possible: chains as knowledge bases, consensus as clauses, contracts
   that learn. Its missions moved to their own repository, where the hub

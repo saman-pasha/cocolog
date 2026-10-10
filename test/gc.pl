@@ -36,12 +36,16 @@
 %%   what they were written for;
 %% * `statistics/2' answers the keys a program can act on and refuses the
 %%   rest by name;
-%% * and since 1.8.36 the HEAP is collected too: a deterministic recursion
+%% * since 1.8.36 the HEAP is collected too: a deterministic recursion
 %%   and a failure-driven loop each stay under twice the collector's floor
 %%   where they used to hold everything they ever built, `garbage_collect/0'
 %%   collects at the next step, and a proof goes on exactly as it was -- the
 %%   same program, collected every thousand cells and never, answers the
-%%   same (`coco_heap_gc' in lib/solve.cicili; test/gc-program.pl).
+%%   same (`coco_heap_gc' in lib/solve.cicili; test/gc-program.pl);
+%% * and since 1.9.6 so is a goal a load runs -- a directive, an
+%%   initialization goal -- with the term it runs and the marks the load
+%%   winds the heap back to moved with the rest (`coco_consult_owned' in
+%%   lib/kb.cicili).
 
 :- use_module('test/prelude.pl').
 
@@ -545,7 +549,10 @@ heap :-
     proc_run(Cmd12, 120000, O12, _), chomp(O12, B12), atom_codes(T12, B12),
     check('the recursions through environments, materialised and kept',
           T12, 'go(200010000)\ng4(200010000)\nrr(6000)'),
-    nested_engines_collect(C, D7).
+    nested_engines_collect(C, D7),
+    directives_collect(C, D7),
+    traced_collect(C, D7),
+    tables_collect(C, D7).
 
 %% A NESTED ENGINE COLLECTS (1.9.4). findall/3 and its family, call_metered/4
 %% and with_output_to/2 run their goal in an engine of its own on the same
@@ -592,12 +599,223 @@ nested_engines_collect(C, D) :-
     proc_run(Cmd15, 300000, O15, _), chomp(O15, B15), atom_codes(T15, B15),
     check('a long phase inside findall/3 runs in 400 MB', T15, 'done(1)'),
     %% A REQUEST NOTHING INSIDE COULD SERVE WAITS FOR THE OUTER ENGINE. The
-    %% request is a threshold of 0 (`gc_next'), and the end of a search puts
-    %% back the threshold its start raised -- all but a 0: under trace the
-    %% search may not collect, and with the 0 put back too the request was
-    %% gone (`served(0)'). The tracer's lines go to stderr, hence a process.
+    %% request is a threshold of 0 (`gc_next'), served at the top of the next
+    %% step, and the end of a search puts back the threshold its start raised
+    %% -- all but a 0: a search stopped at its inference limit ends before the
+    %% top of the step that would have served it, and with the 0 put back too
+    %% the request was gone (`served(0, ...)'). Through 1.9.5 the search here
+    %% was a traced findall/3, which did not collect at all; since 1.9.6 it
+    %% does.
     atom_concat(D, '/request.pl', F16),
-    fixture(F16, [ 'go :- statistics(heap_collections, N0), trace, findall(x, garbage_collect, _), notrace, statistics(heap_collections, N1), K is N1 - N0, write(served(K)), nl.' ]),
-    sh_join([C, ' run ', F16, ' go 2>/dev/null'], Cmd16),
+    fixture(F16, [ 'go :- statistics(heap_collections, N0), call_metered(garbage_collect, 1, _, R), statistics(heap_collections, N1), K is N1 - N0, write(served(K, R)), nl.' ]),
+    sh_join([C, ' run ', F16, ' go 2>&1'], Cmd16),
     proc_run(Cmd16, 120000, O16, _), chomp(O16, B16), atom_codes(T16, B16),
-    check('garbage_collect/0 under trace inside findall/3 is served after it', T16, 'served(1)').
+    check('garbage_collect/0 in a search stopped at its limit is served after it', T16, 'served(1,inference_limit_exceeded)').
+
+%% A GOAL A LOAD RUNS COLLECTS (1.9.6). Through 1.9.5 a directive, an
+%% `initialization/1' goal and one run `now' collected nothing (the goal
+%% hook set no `gc'), so a long phase in one kept every cell it made, and a
+%% script's start-up is mostly that. A goal hook collects now when every C
+%% frame above it has said what it holds -- the machine's `dgc', set around
+%% the one call by whoever vouches for its frames and cleared after it --
+%% and the load registers what it holds across the goal: the directive's
+%% term (`g' in `coco_directive'), and the heap mark it winds back to after
+%% a directive and after an initialization goal (`mark' and `back' in
+%% `coco_consult_owned'), as positions a collection moves. Each line below
+%% is a goal that built more than the floor and collected: a directive,
+%% both kinds of initialization goal, a binding made before a collection
+%% and read after it, a ball caught inside the directive, a directive that
+%% fails -- its message names the goal through `g' -- a file loaded as a
+%% goal from inside one, its own directives and its initialization goal,
+%% and the program after. Without `g' the message read `Goal (directive)
+%% failed: 4', a term read at a cell the collection had moved.
+directives_collect(C, D) :-
+    atom_concat(D, '/dir.pl', F17), atom_concat(D, '/dir_b.pl', F17b),
+    fixture(F17b, [ ':- churn(2000), mk(3, L), L == [3, 2, 9].',
+                    ':- col(b).',
+                    ':- initialization(col(bi)).' ]),
+    atomic_list_concat([':- churn(300), ( true -> ensure_loaded(''', F17b, ''') ; true ), col(d2).'], Load17),
+    fixture(F17, [ 'mk(0, []) :- !.',
+                   'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
+                   'churn(0) :- !.',
+                   'churn(N) :- mk(50, _), N1 is N - 1, churn(N1).',
+                   'col(Tag) :- statistics(heap_collections, A), churn(2000), statistics(heap_collections, B), ( B > A -> C = collected ; C = kept ), write(Tag-C), nl.',
+                   ':- initialization(col(i1)).',
+                   ':- col(d1).',
+                   ':- initialization(col(i2), now).',
+                   ':- X = f(Y), churn(2000), mk(4, Y), write(X), nl.',
+                   ':- catch((churn(2000), mk(3, L), throw(ball(L))), ball(B), (write(caught(B)), nl)).',
+                   Load17,
+                   'go :- col(main).' ]),
+    atomic_list_concat([ 'd1-collected\ni2-collected\nf([4,3,2,1])\ncaught([3,2,1])\n',
+                         'Warning: ', F17b, ':1:\n',
+                         'Warning:    Goal (directive) failed: churn(2000),mk(3,[3,2,1]),[3,2,1]==[3,2,9]\n',
+                         'b-collected\nbi-collected\nd2-collected\ni1-collected\nmain-collected' ], Want17),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F17, ' go 2>&1'], Cmd17),
+    proc_run(Cmd17, 120000, O17, _), chomp(O17, B17), atom_codes(T17, B17),
+    check('directives and initialization goals collect, and every one answers right', T17, Want17),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F17, ' go 2>&1'], Cmd18),
+    proc_run(Cmd18, 120000, O18, _), chomp(O18, B18), atom_codes(T18, B18),
+    check('and with the freeze tortured at every collection', T18, T17),
+    %% THE MARKS MOVE WITH THE HEAP. A collection inside the goal slides the
+    %% live cells below the load's mark down under it, and a mark left where
+    %% it stood puts the heap back as high as before the collection: nothing
+    %% wrong, and nothing reclaimed. Each probe leaves garbage on the heap,
+    %% loads a file whose one goal builds past the floor, and asks whether
+    %% the heap is lower after the load than before it. Without the
+    %% registration of `mark' the first probe read `mark-collected-held',
+    %% without `back' the second `back-collected-held'.
+    atom_concat(D, '/dirm.pl', F19), atom_concat(D, '/diri.pl', F19i),
+    atom_concat(D, '/heap.pl', F19h),
+    fixture(F19, [ ':- churn(1000).' ]),
+    fixture(F19i, [ ':- initialization(churn(1000)).' ]),
+    atomic_list_concat(['go :- probe(''', F19, ''', mark), probe(''', F19i, ''', back).'], Go19),
+    fixture(F19h, [ 'mk(0, []) :- !.',
+                    'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
+                    'churn(0) :- !.',
+                    'churn(N) :- mk(50, _), N1 is N - 1, churn(N1).',
+                    'probe(F, Tag) :- churn(150), statistics(globalused, A), statistics(heap_collections, C0),',
+                    '    ensure_loaded(F), statistics(globalused, B), statistics(heap_collections, C1),',
+                    '    ( C1 > C0 -> Col = collected ; Col = kept ),',
+                    '    ( B < A -> Fell = fell ; Fell = held ),',
+                    '    write(Tag-Col-Fell), nl.',
+                    Go19 ]),
+    sh_join(['COCOLOG_GC_CELLS=100000 ', C, ' run ', F19h, ' go 2>&1'], Cmd19),
+    proc_run(Cmd19, 120000, O19, _), chomp(O19, B19), atom_codes(T19, B19),
+    check('a collection in a loaded file''s goal leaves the heap lower than before the load',
+          T19, 'mark-collected-fell\nback-collected-fell').
+
+%% A TRACED PROGRAM COLLECTS TOO (1.9.6). Through 1.9.5 the tracer kept
+%% every collection off but the run's own engine's: a search a builtin
+%% starts (findall/3 and its family, call_metered/4, with_output_to/2), a
+%% goal a load runs and a file loaded as a goal each left `gc' off under
+%% trace, so a traced program kept every cell those made (1.9.5 printed
+%% `kept' on every line of the first check but `main'). What the tracer
+%% holds is on the engines of the machine's chain -- each one's
+%% `trace_goal', its traced choices' goals (`tchoices') and the indices in
+%% its `$trace_exit' markers -- and the collector moves it for every engine
+%% there, the outer ones too. So a traced run prints, line for line, what
+%% a run that never collected prints, the `_G' names aside (a variable's
+%% name is its heap position): both Redo lines below name the outer call
+%% `w/1' after a findall/3 inside its body collected, the first from a
+%% disjunction's choice made after it, the second from the call's own.
+traced_collect(C, D) :-
+    atom_concat(D, '/tload.pl', F20), atom_concat(D, '/tuse2.pl', F20u),
+    atom_concat(D, '/tuse3.pl', F20v),
+    fixture(F20u, [ ':- col(u2).' ]),
+    fixture(F20v, [ ':- col(u3).' ]),
+    atomic_list_concat([':- use_module(''', F20v, ''').'], Use20),
+    atomic_list_concat(['go :- use_module(''', F20u, '''), col(main), findall(x, col(findall), _), forall(member(_, [a]), col(forall)), aggregate_all(count, col(aggregate_all), _), call_metered(col(call_metered), 100000000, _, _), with_output_to(atom(A), col(with_output_to)), write(A).'], Go20),
+    fixture(F20, [ 'mk(0, []) :- !.',
+                   'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
+                   'churn(0) :- !.',
+                   'churn(N) :- mk(50, _), N1 is N - 1, churn(N1).',
+                   'col(Tag) :- statistics(heap_collections, A), churn(60), statistics(heap_collections, B), ( B > A -> C = collected ; C = kept ), write(Tag-C), nl.',
+                   ':- col(d1).',
+                   Use20,
+                   ':- col(d2).',
+                   ':- initialization(col(i1)).',
+                   ':- initialization(col(i2), now).',
+                   Go20 ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' --trace run ', F20, ' go 2>/dev/null'], Cmd20),
+    proc_run(Cmd20, 120000, O20, _), chomp(O20, B20), atom_codes(T20, B20),
+    check('under trace, goals a load runs and searches a builtin starts collect', T20,
+          'd1-collected\nu3-collected\nd2-collected\ni2-collected\ni1-collected\nu2-collected\nmain-collected\nfindall-collected\nforall-collected\naggregate_all-collected\ncall_metered-collected\nwith_output_to-collected'),
+    atom_concat(D, '/traced.pl', F21),
+    fixture(F21, [ 'mk(0, []) :- !.',
+                   'mk(N, [N|T]) :- N1 is N - 1, mk(N1, T).',
+                   'churn(0) :- !.',
+                   'churn(N) :- mk(50, _), N1 is N - 1, churn(N1).',
+                   'w(L) :- findall(R, (churn(60), mk(3, R)), L), ( fail ; true ).',
+                   'w(x).',
+                   'v(X, W) :- X = f(Y), call_metered((churn(60), Y = 7), 100000000, _, _), with_output_to(atom(W), (churn(60), write(w))).',
+                   'go :- churn(10), trace, w(L), L == x, v(X, W), notrace, write(L-X-W), nl.' ]),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F21, ' go 2>/dev/null'], Cmd21),
+    proc_run(Cmd21, 120000, O21, _), chomp(O21, B21), atom_codes(T21, B21),
+    check('a traced program that collects answers right', T21, 'x-f(7)-w'),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F21, ' go 2>&1 >/dev/null | sed ''s/_G[0-9]*/_G/g'' | grep '': (1) '''], Cmd22),
+    proc_run(Cmd22, 120000, O22, _), chomp(O22, B22), atom_codes(T22, B22),
+    check('and every outer line of its trace names the call it did, Redo too', T22,
+          '   Call: (1) w(_G)\n   Redo: (1) w([[3,2,1]])\n   Exit: (1) w([[3,2,1]])\n   Call: (1) [[3,2,1]]==x\n   Fail: (1) [[3,2,1]]==x\n   Redo: (1) w(_G)\n   Exit: (1) w(x)\n   Call: (1) x==x\n   Exit: (1) x==x\n   Call: (1) v(_G,_G)\n   Exit: (1) v(f(7),w)'),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F21, ' go 2>&1 >/dev/null | sed ''s/_G[0-9]*/_G/g'' | cksum'], Cmd23),
+    proc_run(Cmd23, 120000, O23, _), chomp(O23, B23), atom_codes(T23, B23),
+    sh_join([C, ' run ', F21, ' go 2>&1 >/dev/null | sed ''s/_G[0-9]*/_G/g'' | cksum'], Cmd24),
+    proc_run(Cmd24, 120000, O24, _), chomp(O24, B24), atom_codes(T24, B24),
+    check('and its whole trace is the one a run that never collects prints', T23, T24),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F21, ' go 2>&1 >/dev/null | sed ''s/_G[0-9]*/_G/g'' | cksum'], Cmd25),
+    proc_run(Cmd25, 120000, O25, _), chomp(O25, B25), atom_codes(T25, B25),
+    check('and with the freeze tortured at every collection', T25, T24).
+
+%% THE FLOAT AND STRING TABLES ARE RECLAIMED (1.9.6). A float or a string
+%% cell names an entry of a table of the machine's, and through 1.9.5 no
+%% entry was ever given back: the loop below makes 300 000 strings and as
+%% many floats, and the tables grew by as much (1.9.5 printed `grew-grew',
+%% with 200 009 and 300 009 strings at the two counts). A collection now
+%% marks every entry a word names -- on the heap, in the store of every
+%% engine on the machine's chain (the clauses, asserted or consulted, and
+%% the globals) and in the compiled programs -- and the next float or
+%% string takes a dead entry before the table grows
+%% (`coco_tables_reclaim'). Each value printed lives in one of those
+%% places across collections that gave back the loop's entries around it;
+%% the table stays small (`bounded') and the strings made after the first
+%% count take its entries again (`reused'). With the store and the programs
+%% left unmarked (the arm) `go' fails: the loop's own `-1.0' is given back
+%% and taken by a float the loop makes, so `F > -1.0' fails; without that
+%% comparison the global's 3.25 and the clause's 1.25 read back as 48307.0
+%% and 48305.0, and their strings as "".
+%%
+%% A loop that asks for no collection is given one: every `tlimit' entries
+%% made (65 536 at first), a collection is asked for if the entries made
+%% since the last reclamation reach half the heap's length
+%% (`coco_table_made'), so a collection, which costs the heap, is paid for
+%% by as many entries. The second fixture's loop grows one cell of heap a
+%% turn (the body of `rep''s second clause, built above the choice the
+%% next turn leaves; `rep :- true, rep' grows six), too little to reach the
+%% floor of 4 194 304 cells in 300 000 turns: with the question taken out
+%% (the arm) it ends with 300 000 strings, and with it 92 945. A loop
+%% driven by `between/3' grows five cells a turn and is asked nothing: its
+%% strings stay within a constant of its heap.
+tables_collect(C, D) :-
+    atom_concat(D, '/tables.pl', F26),
+    fixture(F26, [ ':- set_prolog_flag(double_quotes, string).',
+                   ':- dynamic(keep/2).',
+                   'lit(1.25, "in a clause").',
+                   'churn(N) :- forall(between(1, N, I), (number_string(I, S), atom_length(S, _), F is I * 0.5, F > -1.0)).',
+                   'go :-',
+                   '    X is 2.5, S0 = "on the heap", nb_setval(gk, f(3.25, "in a global")),',
+                   '    assertz(keep(1.75, "asserted")),',
+                   '    findall(V-T, (between(1, 3, K), V is K * 0.25, number_string(K, T)), L0),',
+                   '    churn(200000), garbage_collect,',
+                   '    statistics(strings, Ns1),',
+                   '    churn(50000),',
+                   '    assertz(keep(9.5, "retracted")), retract(keep(9.5, _)), assertz(keep(8.5, "asserted after")),',
+                   '    churn(50000), garbage_collect,',
+                   '    statistics(strings, Ns2),',
+                   '    nb_getval(gk, G), findall(A-B, keep(A, B), Ks), lit(Lf, Ls),',
+                   '    ( Ns1 < 100000 -> Bd = bounded ; Bd = grew ),',
+                   '    ( Ns2 =< Ns1 -> Kp = reused ; Kp = grew ),',
+                   '    writeq(X-S0-G-Ks-Lf-Ls), nl, writeq(L0), nl, write(Bd-Kp), nl.' ]),
+    Want26 = '2.5-"on the heap"-f(3.25,"in a global")-[1.75-"asserted",8.5-"asserted after"]-1.25-"in a clause"\n[0.25-"1",0.5-"2",0.75-"3"]\nbounded-reused',
+    sh_join([C, ' run ', F26, ' go 2>&1'], Cmd26),
+    proc_run(Cmd26, 120000, O26, _), chomp(O26, B26), atom_codes(T26, B26),
+    check('floats and strings a loop made are given back, and every one held reads right', T26, Want26),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F26, ' go 2>&1'], Cmd27),
+    proc_run(Cmd27, 120000, O27, _), chomp(O27, B27), atom_codes(T27, B27),
+    check('and with a collection every 2000 cells', T27, Want26),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=1 ', C, ' run ', F26, ' go 2>&1'], Cmd28),
+    proc_run(Cmd28, 120000, O28, _), chomp(O28, B28), atom_codes(T28, B28),
+    check('and with every collection a freeze put back', T28, Want26),
+    sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F26, ' go 2>&1'], Cmd29),
+    proc_run(Cmd29, 120000, O29, _), chomp(O29, B29), atom_codes(T29, B29),
+    check('and with every collection a freeze kept', T29, Want26),
+    atom_concat(D, '/churn.pl', F30),
+    fixture(F30, [ 'rep.',
+                   'rep :- rep.',
+                   'churn(N) :- nb_setval(cnt, 0), rep, nb_getval(cnt, I), I1 is I + 1, nb_setval(cnt, I1), number_string(I1, S), atom_length(S, _), F is I1 * 0.5, F > -1.0, I1 >= N, !.',
+                   'go :- churn(300000), statistics(strings, Ns), ( Ns < 200000 -> write(bounded) ; write(grew(Ns)) ), nl.' ]),
+    sh_join([C, ' run ', F30, ' go 2>&1'], Cmd30),
+    proc_run(Cmd30, 120000, O30, _), chomp(O30, B30), atom_codes(T30, B30),
+    check('a loop that asks for no collection and grows little heap is given its strings back', T30, bounded),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F30, ' go 2>&1'], Cmd31),
+    proc_run(Cmd31, 120000, O31, _), chomp(O31, B31), atom_codes(T31, B31),
+    check('and by the collections a small floor brings', T31, bounded).

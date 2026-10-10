@@ -561,12 +561,19 @@
 
   ;;; ---- the module and the directive hook -------------------------------
 
+  ;;; A LIBRARY LOADED BY A GOAL MAY COLLECT IN ITS DIRECTIVES (1.9.6) when
+  ;;; the engine asking may collect: nothing of the heap is read here after
+  ;;; the load, the spec only before it, and the step that called this keeps
+  ;;; its goal on the engine (`kcall'). The vouch is `dgc' (lib/term.cicili).
   (static)
   (func lb_use ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0))
-          (let ((char err [512]))
-            (if (== 1 (coco_library_load (-> e st) (-> e m) e spec err 512))
-                (return 1))
+          (let ((char err [512]) (coco_machine * m . #'(-> e m)) (int was . #'(-> m dgc))
+                (int r . 0))
+            (set (-> m dgc) (? (-> e gc) 1 0))
+            (set r (coco_library_load (-> e st) m e spec err 512))
+            (set (-> m dgc) was)
+            (if (== 1 r) (return 1))
             (return (coco_m_error e "use_module" err)))))
 
   (func lb_use_module1 ((coco_engine * e) (size_t g)) (out int)
@@ -630,14 +637,37 @@
   ;;; means the process, not this goal. And a halt is an ANSWER, as it is
   ;;; after the CLI's goal: what the run wrote is committed first
   ;;; (`coco_halt_load'), where an exit from here used to lose it.
+  ;;;
+  ;;; THE GOAL COLLECTS THE HEAP WHEN ITS CALLER VOUCHED (1.9.6): `dgc' on
+  ;;; the machine (lib/term.cicili), set by the frame that called the hook
+  ;;; only once every frame out to the host has registered what it reads
+  ;;; afterwards. It is taken here, so nothing the goal starts reads it, and
+  ;;; given back after. As a builtin's search does (`coco_engine_findall'),
+  ;;; the goal collects once it has grown by the floor, and the heap and
+  ;;; trail where it starts are its marks -- a barrier the trail is
+  ;;; compacted against when an engine runs outside it, and moved with the
+  ;;; cells, traced or not (`coco_engine_findall'). Through 1.9.5 a
+  ;;; directive's goal collected nothing, and a long phase in one kept its
+  ;;; whole heap.
   (static)
   (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal)
                       (char * err) (size_t errlen)) (out int)
-        (let ((coco_engine e) (int rc . 0) (int halted . 0) (int code . 0))
+        (let ((coco_engine e) (int rc . 0) (int halted . 0) (int code . 0)
+              (int dgc . #'(-> m dgc)) (int gc . 0) (size_t gsaved . 0))
+          (set (-> m dgc) 0)
           (coco_engine_init (aof e) m st)
           (set ($ e max_steps) 0)
           (coco_engine_ask (aof e) goal)
+          ;; after the ask, which frees the retired codes when the engine
+          ;; may collect and runs alone: whether it does is this frame's say
+          (set ($ e ptrail) (-> m trail_len))
+          (set ($ e pheap) (-> m heap_len))
+          (set gc (? dgc 1 0))
+          (set ($ e gc) gc)
+          (if gc (set gsaved (coco_gc_nested_begin m ($ e pheap))))
           (set rc (coco_engine_next (aof e)))
+          (if gc (coco_gc_nested_end m gsaved))
+          (set (-> m dgc) dgc)
           (set halted ($ e halted))
           (set code ($ e halt_code))
           (if (== rc -1)

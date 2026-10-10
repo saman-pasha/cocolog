@@ -34,7 +34,7 @@
 main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
-    in_registers, guards, environments(D), in_place(D),
+    in_registers, guards, environments(D), in_place(D), fused(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -663,3 +663,146 @@ in_place(D) :-
     W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
     ( atom_concat(_, W9e, A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
+
+%% THE FUSED GUARD WORDS (1.9.6). A guard in place whose two operands are
+%% each a slot or an integer constant -- `X is A op B' over `+', `-' and
+%% `*', and the six comparisons -- is one word and its two operands
+%% (AG_ISX, AG_CMPX), its unit a GUARDX, where the stack program dispatched
+%% four. Held to the step as Stage 7's families are, errors included, with
+%% a constant on either side and on both, the same variable twice and the
+%% integers' edges, where the arithmetic wraps as the step's does; what it
+%% cannot decide -- a float, an atom, an unbound variable -- it hands to the
+%% step as its term. The arm is `COCOLOG_FUSE=0'.
+fx_bin(plus, X, Y, R) :- once(true), R is X + Y.
+fx_bin(minus, X, Y, R) :- once(true), R is X - Y.
+fx_bin(times, X, Y, R) :- once(true), R is X * Y.
+fx_bin(addc, X, _, R) :- once(true), R is X + 7.
+fx_bin(subc, X, _, R) :- once(true), R is 7 - X.
+fx_bin(mulc, _, Y, R) :- once(true), R is -3 * Y.
+fx_bin(negc, X, _, R) :- once(true), R is X - -5.
+fx_bin(bigc, X, _, R) :- once(true), R is X + 1152921504606846975.
+fx_bin(cc, _, _, R) :- once(true), R is 6 * 7.
+fx_bin(same, X, _, R) :- once(true), R is X + X.
+fx_bin(sq, _, Y, R) :- once(true), R is Y * Y.
+fx_bin(flt, X, _, R) :- once(true), R is X + 2.5.
+
+fx_expr(plus, X, Y, X + Y).        fx_expr(minus, X, Y, X - Y).
+fx_expr(times, X, Y, X * Y).       fx_expr(addc, X, _, X + 7).
+fx_expr(subc, X, _, 7 - X).        fx_expr(mulc, _, Y, -3 * Y).
+fx_expr(negc, X, _, X - -5).       fx_expr(bigc, X, _, X + 1152921504606846975).
+fx_expr(cc, _, _, 6 * 7).          fx_expr(same, X, _, X + X).
+fx_expr(sq, _, Y, Y * Y).          fx_expr(flt, X, _, X + 2.5).
+
+fx_cmp(lt, X, Y) :- once(true), X < Y.
+fx_cmp(gt, X, Y) :- once(true), X > Y.
+fx_cmp(le, X, Y) :- once(true), X =< Y.
+fx_cmp(ge, X, Y) :- once(true), X >= Y.
+fx_cmp(eq, X, Y) :- once(true), X =:= Y.
+fx_cmp(ne, X, Y) :- once(true), X =\= Y.
+fx_cmp(ltc, X, _) :- once(true), X < 3.
+fx_cmp(gtc, _, Y) :- once(true), 3 > Y.
+fx_cmp(lec, X, _) :- once(true), X =< -7.
+fx_cmp(gec, _, Y) :- once(true), -7 >= Y.
+fx_cmp(eqc, X, _) :- once(true), X =:= 7.
+fx_cmp(nec, _, Y) :- once(true), 7 =\= Y.
+fx_cmp(cc, _, _) :- once(true), 3 >= 3.
+fx_cmp(ccf, _, _) :- once(true), 3 < 2.
+fx_cmp(same, X, _) :- once(true), X < X.
+fx_cmp(sameq, _, Y) :- once(true), Y =:= Y.
+fx_cmp(flt, X, _) :- once(true), X < 2.5.
+
+fx_cexpr(lt, X, Y, X < Y).         fx_cexpr(gt, X, Y, X > Y).
+fx_cexpr(le, X, Y, X =< Y).        fx_cexpr(ge, X, Y, X >= Y).
+fx_cexpr(eq, X, Y, X =:= Y).       fx_cexpr(ne, X, Y, X =\= Y).
+fx_cexpr(ltc, X, _, X < 3).        fx_cexpr(gtc, _, Y, 3 > Y).
+fx_cexpr(lec, X, _, X =< -7).      fx_cexpr(gec, _, Y, -7 >= Y).
+fx_cexpr(eqc, X, _, X =:= 7).      fx_cexpr(nec, _, Y, 7 =\= Y).
+fx_cexpr(cc, _, _, 3 >= 3).        fx_cexpr(ccf, _, _, 3 < 2).
+fx_cexpr(same, X, _, X < X).       fx_cexpr(sameq, _, Y, Y =:= Y).
+fx_cexpr(flt, X, _, X < 2.5).
+
+%% a left side already bound -- compared, as unification compares -- and
+%% one the guard binds that is also an operand
+fx_left(eq, X, Y) :- once(true), X is Y + 1.
+fx_left(self, X, _) :- once(true), X is X * 1.
+fx_left(four, _, Y) :- once(true), 4 is Y + 1.
+fx_lexpr(eq, X, Y, X is Y + 1).
+fx_lexpr(self, X, _, X is X * 1).
+fx_lexpr(four, _, Y, 4 is Y + 1).
+
+fx_values([-7, 0, 3, 7, 1099511627776, 1152921504606846975, -1152921504606846976, 2.5, foo, _]).
+
+fx_out(G, T, Out) :- catch(ip_bound(G, T, Out), error(F, _), Out = error(F)).
+
+fx_mismatch(bin, Name, X, Y) :-
+    fx_values(Vs), member(X, Vs), member(Y, Vs), fx_expr(Name, X, Y, E),
+    gd_out(fx_bin(Name, X, Y, R1), R1, O1), gd_out(gd_ref(E, R2), R2, O2),
+    O1 \== O2.
+fx_mismatch(cmp, Name, X, Y) :-
+    fx_values(Vs), member(X, Vs), member(Y, Vs), fx_cexpr(Name, X, Y, E),
+    gd_out(fx_cmp(Name, X, Y), yes, O1), gd_out(gd_test(E), yes, O2),
+    O1 \== O2.
+fx_mismatch(left, Name, X0, Y0) :-
+    fx_values(Vs), member(X0, Vs), member(Y0, Vs),
+    copy_term(X0-Y0, X1-Y1), copy_term(X0-Y0, X2-Y2), fx_lexpr(Name, X2, Y2, E),
+    fx_out(fx_left(Name, X1, Y1), X1-Y1, O1), fx_out(gd_test(E), X2-Y2, O2),
+    O1 \== O2.
+
+%% a body of four fused guards, and a loop that calls it
+fx_k(X, R) :- once(true), 3 < X, R is 6 * 7, X =< 100, R =:= 42.
+fx_kl(3) :- !.
+fx_kl(N) :- fx_k(N, _), N1 is N - 1, fx_kl(N1).
+
+%% a program run fused and not: guards that pass, fail and cannot decide,
+%% a bound left side, the step's errors, a stop at every ceiling to thirty,
+%% the count, and an error nothing catches
+fx_both([ 'q(1). q(2). q(3). q(4).',
+          'a(X, R) :- q(X), ( X > 2 -> R is 7 - X ; R is X * 3 ), R =\\= 6.',
+          'b(X, Y, R) :- once(true), R is X + Y, 3 < R, R =< 1000000.',
+          'c(X) :- once(true), R = 10, R is X + 6.',
+          'k(R) :- once(true), R is 6 * 7, 42 =:= R.',
+          'w(X, R) :- once(true), R is X * X.',
+          'e(G, F) :- catch(G, error(F, _), true), ( var(F) -> F = none ; true ).',
+          'main :- findall(X-R, a(X, R), L1), write(L1), nl,',
+          '        findall(X-Y-R, ( member(X-Y, [1-1, 2-3, 2.5-1, 999999-2]), b(X, Y, R) ), L2), write(L2), nl,',
+          '        findall(X, ( member(X, [4, 5, 4.0]), c(X) ), L3), write(L3), nl,',
+          '        k(R4), write(R4), nl,',
+          '        findall(R, ( member(X, [1000, -3, 7]), w(X, R) ), L5), write(L5), nl,',
+          '        findall(F, ( member(G, [b(_, 1, _), b(foo, 1, _), c(_), w(a, _)]), e(G, F) ), L6), write(L6), nl,',
+          '        findall(Lm-U-Rm, ( between(1, 30, Lm), call_metered(findall(X-R, a(X, R), _), Lm, U, Rm) ), M),',
+          '        write(M), nl,',
+          '        statistics(inferences, I), write(I), nl,',
+          '        b(_, 2, _).' ]).
+
+fused(D) :-
+    section('fused guard words: a guard in place over two slots or constants, as one word'),
+    findall(K-N-X-Y, ( member(K, [bin, cmp, left]), fx_mismatch(K, N, X, Y) ), L1),
+    check('every fused operator and comparison answers as the step answers, errors included', L1, []),
+    findall(T2, ( member(A2-B2, [4-3, 5-3, 4.0-3, a-3, f(x)-3]), ( fx_left(eq, A2, B2) -> T2 = yes ; T2 = no ) ), L2),
+    check('a fused is/2 whose left is bound compares, as unification does', L2, [yes, no, no, no, no]),
+    findall(T3, ( member(B3, [3, 2]), ( fx_left(four, _, B3) -> T3 = yes ; T3 = no ) ), L3),
+    check('...and one with an integer on its left, which is not fused, the same', L3, [yes, no]),
+    gd_inferences(fx_k(5, _), I4), gd_inferences(fx_kl(100), I4b),
+    check('each fused word is still an inference', I4-I4b, 11-1071),
+    findall(L5-U5-R5, ( between(1, 12, L5), call_metered(fx_k(5, _), L5, U5, R5) ), M5),
+    findall(L5e-U5e-inference_limit_exceeded, ( between(1, 9, L5e), U5e is L5e + 1 ), E5a),
+    append(E5a, [10-10-true, 11-10-true, 12-10-true], E5),
+    check('an inference limit stops where it always stopped', M5, E5),
+    findall(L6-U6-R6, ( between(1, 12, L6), call_metered(fx_k(200, _), L6, U6, R6) ), M6),
+    findall(L6e-U6e-inference_limit_exceeded, ( between(1, 7, L6e), U6e is L6e + 1 ), E6a),
+    findall(L6f-8-failed, between(8, 12, L6f), E6b),
+    append(E6a, E6b, E6),
+    check('...and where a fused guard fails', M6, E6),
+    atom_concat(D, '/both8.pl', F7),
+    fx_both(Lines7), fixture(F7, Lines7),
+    cocolog(C),
+    sh_join([C, ' -s ', F7, ' 2>&1; echo "exit $?"'], OnCmd), proc_run(OnCmd, 120000, OnOut, _),
+    sh_join(['COCOLOG_FUSE=0 ', C, ' -s ', F7, ' 2>&1; echo "exit $?"'], OffCmd), proc_run(OffCmd, 120000, OffOut, _),
+    atom_codes(A7, OnOut), atom_codes(B7, OffOut),
+    check('a program answers, raises, stops and counts the same fused and not', A7, B7),
+    atom_codes(W7, "[1-3,3-4,4-3]\n[2-3-5,2.5-1-3.5]\n[4]\n42\n[1000000,9,49]\n[instantiation_error,type_error(evaluable,foo),instantiation_error,type_error(evaluable,a)]\n"),
+    ( atom_concat(W7, _, A7) -> T7 = yes ; T7 = A7 ),
+    check('...and its answers are 1.9.5\'s', T7, yes),
+    W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
+    ( atom_concat(_, W7e, A7) -> T7e = yes ; T7e = A7 ),
+    check('...as are its count and the error nothing caught', T7e, yes).

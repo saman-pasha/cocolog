@@ -663,11 +663,20 @@ and `library/reasoning/`); `library/*.so` are modules built from
   way through a step are on the machine's chain (`m->eng`, `e->outer`),
   and the marks the starter winds the machine back to (`ptrail`, `pheap`)
   are a barrier the trail is compacted against and are moved with the
-  cells. A starter that does none of this leaves its engine's `gc` off,
-  and so does trace; **a directive's goal collects nothing**
-  (`lb_goal_hook` sets no `gc`), so a long phase in one still keeps its
-  heap, 50-120 bytes an inference. A search a builtin starts collects
-  only once it has grown by the floor itself (`coco_gc_nested_begin`).
+  cells. A starter that does none of this leaves its engine's `gc` off;
+  trace no longer does (1.9.6: the tracer's roots -- `trace_goal`,
+  `tchoices`, the `'$trace_exit'` indices -- are moved for every engine on
+  the chain). **A goal a load runs collects only when its caller vouched**
+  (`dgc` on the machine, 1.9.6), set around ONE call by `cocolog
+  run`/`consult`, by the run's top around the modules' load, and by
+  `use_module/1,2` as a goal (`lb_use`, which is how `-s` loads its file);
+  each frame on the way reads it, clears it, and sets it back only around
+  a call whose cells it registered (`coco_heap_root_push`, and
+  `coco_heap_pos_push` for a position such as a load's `mark`/`back`). A
+  directive's `use_module` runs no goal and is not vouched; a new caller
+  of a load vouches nothing until it registers what it reads after. A
+  search a builtin starts, and a vouched goal of a load, collects only
+  once it has grown by the floor itself (`coco_gc_nested_begin`).
   1.9.3 needed 1.25 GB for three million turns of a loop inside
   `findall/3` that now runs in 44 MB, and the linter peaks at 53 MB
   against 73, for 0.86 % more instructions (four collections). A
@@ -678,7 +687,16 @@ and `library/reasoning/`); `library/*.so` are modules built from
   inherit it), `COCOLOG_KMAT=1|2` puts every collection through a freeze's
   materialisation first, `statistics(heap_collections, N)` counts them,
   and a `_G` name is a heap position, so it changes across a collection.
-  The float, string and atom tables are never reclaimed.
+  **The float and string tables are reclaimed in place since 1.9.6**
+  (`coco_tables_reclaim`, after the slide; NOT STATIC: inlined into the
+  collector it cost nrev 0.12 %): an entry no heap cell, no store of an
+  engine on the chain and no compiled program names is dead, a string's
+  bytes are freed, the dead tail is cut off and the rest become free lists
+  taken lowest index first. A live entry never moves, so no cell is
+  rewritten. It waits for `tlimit` entries made (65 536 at first) AND half
+  the heap's length, and `coco_table_made` asks for a collection on that
+  rule; a new holder of float or string cells outside those three is a
+  root it must be taught. The atom table is never reclaimed.
 * **The atom, functor and predicate tables are hashed** (open addressing, an
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
   a failed rehash still leaves an empty slot). Ids stay in order of first
@@ -858,6 +876,14 @@ and `library/reasoning/`); `library/*.so` are modules built from
     loop its registers (lookup +0.68 % with the arm off). The arm is
     `COCOLOG_INPLACE=0`; the take answers -3 for a builtin's error nothing
     caught, and the loop ends the run as the step's call did.
+  - **An `is/2` over `+`, `-`, `*`, or one of the six comparisons, whose
+    operands are each a slot or an integer constant, is ONE fused word**
+    (1.9.6, AG_ISX/AG_CMPX, unit kind GUARDX): `cc_ufuse`, a peephole in
+    `cc_uguard`, makes it, `cc_uleaf` sets the kind, `coco_env_guardx`
+    does it through `coco_env_place` (the take's default), and
+    `coco_unit_term` builds it back. It decides only when both operands
+    are integers; otherwise the term is handed over as a GUARD's is. Still
+    one step and one inference. The arm is `COCOLOG_FUSE=0`.
   - **A unit kind lives in seven places**: `*cc-eg-kinds*`, the compiler
     (`cc_unit`, `cc_ubranch`, `cc_ulink`, `cc_uplace`), the offsets the
     take reads (`noff` ... `rvars`, set at the end of `cc_compile_env`),
