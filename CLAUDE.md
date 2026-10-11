@@ -57,7 +57,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `b027a4b` |
+| `../cicili` | the language cocolog is written in; BUILD time | `b027a4b`, and 1.10.7's reader needs the split of `(inline)` and `(weak)` on top of it |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -499,6 +499,13 @@ much later.
   otherwise C++ mangles them and `use_module` fails with
   `undefined symbol: _Z11coco_m_text…`; the entry and dispatcher sit in
   `(extern-c …)`. Wrapping `(coco-sdk)` in `(extern-c …)` is not the fix.
+* **`(inline)` inlines, `(weak)` is weak** (the split after Cicili 1.0.1):
+  `(static) (inline)` emits `__attribute__((always_inline)) static inline`,
+  and `(weak)` `__attribute__((weak))` -- what `(inline)` emitted through
+  1.0.1: one definition however many files instantiate it, a call clang never
+  inlines, and with `(static)` no C at all (`weak declaration cannot have
+  internal linkage`). A helper two hot callers share and clang leaves out of
+  line is an `(inline)` (the reader's three, 1.10.7).
 * **The macro tables emit several things that must not drift apart**
   (`*cell-tags*`, `*operators*`, `*builtins*`, `*turn-outcomes*`,
   `*construct-names*`): **add to the table, never to the generated code.** A
@@ -948,6 +955,15 @@ cocolint index offers no import of it.
   blocking, or a marker never arrives.
 * **A grammar rule's leading terminal is stored in its head**, as SWI's
   `optimise_unify` does.
+* **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
+  `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
+  the top of `lib/syntax.cicili`, emitted as the family every consult uses
+  and as the `_p` family that also builds `read_term/3`'s positions; a
+  position site is `(if ,P ...)`, which the compiler drops from the first.
+  **A change to the parser is a change to the macro**, and a helper both
+  families call is `(inline)`. One parser with a flag at each site cost
+  consulting the translator 1.3 %; the two cost `coco_next_token` nothing
+  and the parser within 0.13 %.
 * **Concurrency shares nothing**: a `library(thread)` thread gets its own
   machine, store, engine and database connection; a channel copies terms in
   canonical text. Mutexes and conditions serialise the WORLD (a file, a tcp
@@ -962,7 +978,11 @@ cocolint index offers no import of it.
   (`coco_m_sink_install`); `set_output/1` redirects fd 1 with dup/dup2. The
   stdout sentinel for `format/2` is `(cast size_t -1)`, not 0 (cell 0 is a
   real heap cell). cocolint's X2 trap is lifted by a
-  `use_module(library(stream))` directive.
+  `use_module(library(stream))` directive. **Every byte it reads is
+  counted** (`st_count`/`st_uncount`: bytes, characters, the line, SWI's
+  column), so `read_term/3` answers `term_position` and `subterm_positions`
+  on a pipe too; a seek or a write to an update stream leaves the counters
+  behind `ftell`, and `st_pos_sync` counts again from the start.
 
 ## The document libraries
 

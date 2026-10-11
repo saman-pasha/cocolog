@@ -27,8 +27,7 @@ flow_tables :-
 %% The program, read with its variable names and where each thing stands
 %% ======================================================================
 %%
-%% read_term/3 keeps variable_names and ignores term_position, so each
-%% clause's text is cut out of the file by stream_position/2 -- the
+%% Each clause's text is cut out of the file by stream_position/2 -- the
 %% positions after two reads are contiguous, so a clause's text runs from
 %% where the last one ended, its comments included -- and its goals are
 %% found in that text in reading order, which is the order the analysis
@@ -36,6 +35,9 @@ flow_tables :-
 %% strings, comments and 0'c. Each goal found is wrapped '$at'(Goal, Info)
 %% for the analysis to carry into its node. A goal the scan cannot place is
 %% left as it is: a position is help, never a reason to refuse a program.
+%% The scan was written when read_term/3 ignored term_position and
+%% subterm_positions; it answers both since 1.10.7, and moving the scan
+%% onto them is a change to the chart, not made yet.
 %%
 %% A clause is cl(Head, Body, Names, Info), Info holding file(F), at(Line,
 %% Col) and text(Codes), and `dcg' for a grammar rule.

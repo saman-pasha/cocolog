@@ -328,6 +328,17 @@
   (decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
                                    (size_t * names) (char * err) (size_t errlen)) (out int))
 
+  ;;; THE SAME, AND WHERE EACH PART STOOD (1.10.7): POS gets SWI's
+  ;;; `subterm_positions' term, in characters counted from BASE -- the
+  ;;; character offset of SRC's first byte in whatever SRC came from -- and
+  ;;; START the BYTE offset in SRC where the term begins, after the layout
+  ;;; and comments before it, so a caller that counts lines can say where
+  ;;; that is. Both are set only when the answer is 1, and START only with
+  ;;; POS: a null POS reads as `coco_m_read_clause' does, building nothing.
+  (decl) (func coco_m_read_clause_pos ((coco_engine * e) (const char * src) (i64 base)
+                                       (size_t * out) (size_t * names) (size_t * pos)
+                                       (size_t * start) (char * err) (size_t errlen)) (out int))
+
   ;;; AN OUTPUT SINK A MODULE OWNS. `format/3' and `with_output_to/2' put
   ;;; their text wherever their first argument says; a module that owns
   ;;; streams installs a hook here and is asked FIRST about every sink but
@@ -855,14 +866,27 @@
 
   (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
                             (size_t * names) (char * err) (size_t errlen)) (out int)
+        (return (coco_m_read_clause_pos e src 0 out names nil nil err errlen)))
+
+  (func coco_m_read_clause_pos ((coco_engine * e) (const char * src) (i64 base)
+                                (size_t * out) (size_t * names) (size_t * pos)
+                                (size_t * start) (char * err) (size_t errlen)) (out int)
         (let ((coco_reader r) (int rc . 0) (size_t t . 0))
           (if (and (!= err nil) (> errlen 0)) (set (nth 0 err) (cast char 0)))
           (if (== src nil) (return 0))
           (coco_reader_init (aof r) (-> e m) src)
+          ;; the first token is already read, and positions are built only as
+          ;; terms are; where it stands is kept whatever WANT_POS says
+          (if (!= pos nil)
+              (block (set ($ r want_pos) 1)
+                     (set ($ r pbase) base)))
           (set rc (coco_read_clause (aof r) (aof t)))
           (if (== rc 1)
               (block
                 (set (cof out) t)
+                (if (!= pos nil)
+                    (block (set (cof pos) ($ r lpos))
+                           (if (!= start nil) (set (cof start) ($ r lfrom)))))
                 (if (!= names nil)
                     (let ((size_t acc . #'(coco_m_nil e)))
                       (for ((size_t i . #'($ r nvars))) (> i 0) ((-- i))

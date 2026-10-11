@@ -33,6 +33,7 @@ main :-
     aliases(D),
     current_io(D),
     read_options(D),
+    read_positions(D),
     codes(D),
     sinks,
     shl(['rm -rf ', D]),
@@ -360,6 +361,41 @@ read_options(D) :-
            X1-Y1-Z1-W1-NV-SN-SVar-Shape-Err, G1),
     check('names in the order they appear, _Z among them; W the one singleton; four variables; then a syntax error in ISO''s shape', G1,
           'X'-'Y'-'_Z'-'W'-4-'W'-w-same-syntax_error).
+
+%% ---- read_term/3's positions where SWI cannot be asked the same ----------
+%% test/files/read_term.pl holds every shape to SWI's; these are the cases
+%% a file both systems run cannot write: a seek, which takes bytes here and
+%% a '$stream_position' in SWI, a character the pushback gives back whole,
+%% and a pipe, whose position SWI counts its own way.
+
+read_positions(D) :-
+    section('read_term/3: positions after a seek, a peek and on a pipe'),
+    path(D, 'pos.pl', P),
+    answer(( open(P, write, S0), write(S0, 'a.'), nl(S0), write(S0, '  b(X).'), nl(S0), close(S0),
+             open(P, read, S1),
+             read_term(S1, _, [term_position(P1a)]), read_term(S1, _, [term_position(P1b)]),
+             stream_seek(S1, 0), read_term(S1, T1c, [term_position(P1c)]),
+             P1b = '$stream_position'(_, _, _, B1), stream_seek(S1, B1),
+             read_term(S1, T1d, [subterm_positions(P1d), term_position(P1e)]), close(S1),
+             functor(T1d, N1d, A1d) ),
+           [P1a, P1b, T1c, P1c, P1d, P1e, N1d/A1d], G1),
+    check('a seek counts the lines again, to the start or to a byte term_position gave', G1,
+          ['$stream_position'(0, 1, 0, 0), '$stream_position'(5, 2, 2, 5), a, '$stream_position'(0, 1, 0, 0),
+           term_position(5, 9, 5, 6, [7-8]), '$stream_position'(5, 2, 2, 5), b/1]),
+    path(D, 'peek.pl', Q),
+    answer(( open(Q, write, S2, [type(binary)]), forall(member(B2, [195, 169, 32, 97, 46, 10]), put_byte(S2, B2)), close(S2),
+             open(Q, read, S3), peek_char(S3, C3a), get_char(S3, C3b),
+             read_term(S3, T3, [term_position(P3), subterm_positions(Sp3)]), close(S3),
+             atom_codes(C3a, K3a), atom_codes(C3b, K3b) ),
+           K3a-K3b-T3-P3-Sp3, G3),
+    check('a two-byte character peeked and given back counts once, then the term after it',
+          G3, [195, 169]-[195, 169]-a-'$stream_position'(2, 1, 2, 3)-(2-3)),
+    cocolog(C),
+    sh_join(['printf ''a.\\n  b(X).\\n'' | ', C, ' --local query "use_module(library(stream)), read_term(user_input, _, []), read_term(user_input, _, [subterm_positions(P), term_position(Q)]), write(answer(P, Q)), nl" 2>/dev/null'], Cmd4),
+    proc_run(Cmd4, 60000, Out4, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out4, A4) -> sub_atom(A4, 7, _, 1, G4) ; G4 = Out4 ),
+    check('a pipe has no position, and the count is the bytes read from it',
+          G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)').
 
 %% ---- codes, which are bytes ----------------------------------------------
 

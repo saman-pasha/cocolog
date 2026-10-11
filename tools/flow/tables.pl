@@ -79,7 +79,7 @@ ft_sigs([F|Fs], Root, Ls, Ss) :-
     (   F \== unknown, exists_file(P)
     ->  flow_doc_sigs(P, Docs),
         findall(flow_t_sig(N, A, Ms, Ns),
-                ( member(flow_t_lib(N, A, _, F), Ls), get_assoc(N/A, Docs, sig(Ms, Ns)) ),
+                ( member(flow_t_lib(N, A, _, F), Ls), get_assoc(N/A, Docs, sig(Ms, Ns, _)) ),
                 S1)
     ;   S1 = []
     ),
@@ -141,7 +141,7 @@ ft_module_rows([N/A|Ks], M, Rel, Lines, Docs, Ps) :-
     %% a hand-written dispatcher answers the name at any arity: a row for
     %% each arity the header documents, else one row for any arity (-1)
     assoc_to_list(Docs, DL),
-    findall(flow_t_portal(M, N, K, unknown, Rel, 0, Ms, Ns), member(N/K-sig(Ms, Ns), DL), P1),
+    findall(flow_t_portal(M, N, K, unknown, Rel, 0, Ms, Ns), member(N/K-sig(Ms, Ns, _), DL), P1),
     (   P1 == [] -> P2 = [flow_t_portal(M, N, -1, unknown, Rel, 0, [], [])] ; P2 = P1 ),
     ft_module_rows(Ks, M, Rel, Lines, Docs, P3),
     append(P2, P3, Ps).
@@ -153,7 +153,7 @@ ft_module_rows([N/A|Ks], M, Rel, Lines, Docs,
     ),
     (   Sig \== none, flow_sig_parse(Sig, Modes0, Names0), length(Modes0, A)
     ->  Modes = Modes0, Names = Names0
-    ;   get_assoc(N/A, Docs, sig(Modes1, Names1)), length(Modes1, A)
+    ;   get_assoc(N/A, Docs, sig(Modes1, Names1, _)), length(Modes1, A)
     ->  Modes = Modes1, Names = Names1
     ;   length(Modes, A), flow_fill(Modes, '?'), flow_gen_arg_names(A, Names)
     ),

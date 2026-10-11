@@ -144,12 +144,14 @@ cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [
 
 ### 4.2 Reading a program
 
-* **Source files with their variable names and their positions.**
-  `read_term/3` keeps `variable_names` but ignores `term_position`, so each
+* **Source files with their variable names and their positions.** Each
   clause's byte range comes from `stream_position/2` taken before and after
   it, and each goal is found by scanning the clause's own text in reading
   order, past quoted atoms, strings, comments and `0'c`. Every clause and
-  every goal gets a line and a column.
+  every goal gets a line and a column. The scan was written when
+  `read_term/3` ignored `term_position` and `subterm_positions`; it answers
+  both as SWI does since 1.10.7 (section 11), and moving the scan onto them
+  is a change to the chart, not made yet.
 * **Library predicates and the Prolog half of a module** are read with
   `clause/2` and named from the library's header.
 * **A dynamic predicate** is one the file declares (`:- dynamic p/1.`, read
@@ -649,10 +651,24 @@ order.
   `test/files/write_term.pl` holds it to SWI's output. The library keeps
   writing terms with a grammar of its own -- it needs each argument
   separately anyway, to colour it by its mode.
-* **`read_term/3` accepts `term_position` and `subterm_positions` and does
-  nothing with them**; positions come from `stream_position/2` and a scan of
-  the clause's text (section 4.2). Not fixed yet: it wants the reader to
-  carry a position for every subterm.
+* **Fixed in 1.10.7: `read_term/3` accepted `term_position` and
+  `subterm_positions` and bound nothing.** Both answer SWI's terms now:
+  `subterm_positions` every shape -- `From-To`, `string_position/2`,
+  `term_position/5` for a name or an operator, `list_position/4` with its
+  tail or `none`, `brace_term_position/3`, `parentheses_term_position/3` --
+  in characters from the start of the stream, and `term_position`
+  `'$stream_position'(Char, Line, LinePos, Byte)` where the term begins, a
+  tab to the next eighth column and a CR back to 0. `test/files/read_term.pl`
+  holds both to SWI's output byte for byte over comments, a tab, a CR, a
+  two-byte character and other reads between two read_terms. At the end of
+  the file SWI puts `end_of_file` one character before the end, with a column
+  of -1 after a final newline; cocolog puts it at the end. The reader is
+  written once and emitted twice (`lib/syntax.cicili`): the parser every
+  consult uses builds nothing, and a second family builds the positions;
+  `library(stream)` counts characters, lines and columns over every byte it
+  reads, and counts again from the start when a seek moved the file. With
+  positions off, consulting the translator runs `coco_next_token`'s
+  instructions exactly and the parser's within 0.13 %.
 * **There is no `predicate_property/2`**, and `current_predicate/1` answers
   about the knowledge base, not modules, which is why the tables are
   generated. A missing predicate rather than a wrong one: adding it is

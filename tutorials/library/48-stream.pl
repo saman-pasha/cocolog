@@ -44,7 +44,8 @@
 %%
 %%     open/3,4  close/1,2  current_input/1  current_output/1  set_input/1  set_output/1
 %%     get_char/1,2  peek_char/1,2  put_char/1,2  get_code/1,2  peek_code/1,2  put_code/1,2
-%%     get_byte/1,2  peek_byte/1,2  put_byte/1,2  read/1,2  read_term/2,3
+%%     get_byte/1,2  peek_byte/1,2  put_byte/1,2  read/1,2  read_term/2,3 (variable_names,
+%%     variables, singletons, term_position, subterm_positions)
 %%     write/2  writeq/2  print/2  write_canonical/2  write_term/3  nl/1  tab/2
 %%     flush_output/1  at_end_of_stream/0,1  set_stream_position/2
 %%     read_line_to_codes/2  read_line_to_string/2  read_stream_to_codes/2
@@ -175,7 +176,8 @@ iso_names(Dir) :-
     close(W),
     open(Iso, read, R),
     read(R, T1),
-    read_term(R, T2, [variable_names(Names), singletons(Singles)]),
+    read_term(R, T2, [variable_names(Names), singletons(Singles),
+                      term_position(At), subterm_positions(Parts)]),
     read(R, T3),
     close(R),
     must('read/2 reads a term', T1, likes('Mary', [119, 105, 110, 101])),
@@ -184,6 +186,16 @@ iso_names(Dir) :-
     ( T2 = (p(X, Y) :- q(X, Z, Y, W3), r(W3)) -> Shape = same ; Shape = T2 ),
     must('and the term is the one the names name', Shape, same),
     must('_Z is written once and is no singleton, by the underscore', Singles, []),
+    %% WHERE IT STOOD, as SWI answers it: the first line, likes(...) and
+    %% its full stop, is 33 characters, so the rule begins at character 33,
+    %% line 2, column 0, byte 33; and each part of it has its span, an
+    %% operator or a name its own -- here the clause from 33 to 66, its
+    %% `:-' at 41 to 43, its head p(X, Y) with p at 33 and X and Y after
+    must('term_position/1: character, line, column and byte where the term begins',
+         At, '$stream_position'(33, 2, 0, 33)),
+    Parts = term_position(From, To, OpFrom, OpTo, [Head, _]),
+    must('subterm_positions/1: the clause, its operator and its head',
+         [From-To, OpFrom-OpTo, Head], [33-66, 41-43, term_position(33, 40, 33, 34, [35-36, 38-39])]),
     must('then end_of_file', T3, end_of_file),
 
     format("~n-- an alias, and set_output~n"),
