@@ -45,6 +45,7 @@
     ("aggregate_all"           3 coco_b_aggregate_all)
     ("call_limited"            3 coco_b_call_limited)
     ("call_metered"            4 coco_b_call_metered)
+    ("$trace_window"           4 coco_b_trace_window)
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
@@ -613,6 +614,151 @@
               (return (coco_m_unify_atom e (coco_m_arg e g 3)
                                          "inference_limit_exceeded")))
           (return (coco_m_unify_atom e (coco_m_arg e g 3) "true"))))
+
+  ;;; ---- a window of a run, RECORDED (1.10.12) ----------------------------
+  ;;;
+  ;;; `'$trace_window'(Goal, Options, Events, End)' -- what library(flowdebug)
+  ;;; stands on (DESIGN-flow.md 9.5). Goal is proved once in a nested
+  ;;; engine, untraced at full speed up to the inference a window opens at,
+  ;;; recorded from there, and every binding it made is undone at the end.
+  ;;; Options:
+  ;;;
+  ;;;   from(F)     the first inference recorded; 0, the default, records
+  ;;;               nothing -- a probe, which learns how the run ends
+  ;;;   to(T)       the last; the run stops past it (0, the default: never)
+  ;;;   answers(K)  the run goes on through K answers (1)
+  ;;;   text(N)     an argument is written whole up to N characters (200)
+  ;;;
+  ;;; End is `end(How, Used, Answers)': How is `answer' (the K-th was found),
+  ;;; `false', `limit' (stopped past T), `exception(Ball)', `halt(Code)' or
+  ;;; `error(Message)'; Used the inferences spent, counted as an untraced run
+  ;;; counts them; Answers the inference each answer came at. Events are in
+  ;;; the order they happened, each with its inference I, its depth D and C,
+  ;;; the goal's cell -- its call's name: a Call's cell is what its Exit,
+  ;;; Fail and Redo carry, and a cell is used again only once backtracking
+  ;;; has gone back past every call made after it:
+  ;;;
+  ;;;   call(I, D, C, Parent, Name, Args)   Parent the cell of the call it is
+  ;;;                                       in, 0 when that began before the
+  ;;;                                       window
+  ;;;   exit(I, D, C, Name, Args)           as the proof left the arguments
+  ;;;   fail(I, D, C, Name, Args)           the call is over, for good
+  ;;;   redo(I, D, C, Name, Args)           re-entered for its next clause
+  ;;;   clause(I, D, C, N)                  it entered its N-th clause
+  ;;;   nohead(I, D, C, N)                  the N-th clause's head did not unify
+  ;;;   throw(I, D, C, Ball)                raised in the body of call C
+  ;;;   catch(I, D, C)                      taken by a catch/3 in C's body
+  ;;;
+  ;;; An argument, and a ball, is its text as `writeq' writes it: an atom,
+  ;;; or `cut(Prefix, Length)' past N characters. A builtin's Call and Exit
+  ;;; are one inference; a predicate's Exit is the inference of the last
+  ;;; goal its proof took.
+  (static)
+  (func coco_b_rec_text ((coco_machine * m) (coco_rec * r) (size_t k)) (out size_t)
+        (let ((coco_rtext * x . #'(aof (nth k (-> r txs))))
+              (size_t a . 0))
+          (set a (coco_new_atom_id m (coco_intern_len m (+ (-> r arena) (-> x off))
+                                                      (cast size_t (-> x len)))))
+          (if (== (-> x chars) (-> x full)) (return a))
+          (let ((size_t args [2]))
+            (set (nth 0 args) a)
+            (set (nth 1 args) (coco_new_int m (cast i64 (-> x full))))
+            (return (coco_make m "cut" 2 args)))))
+
+  (static)
+  (func coco_b_rec_event ((coco_machine * m) (coco_rec * r) (coco_rev * v)) (out size_t)
+        (let ((size_t a [6]) (size_t texts . #'(coco_new_atom m "[]")) (u32 i . 0))
+          (set (nth 0 a) (coco_new_int m (cast i64 (-> v inf))))
+          (set (nth 1 a) (coco_new_int m (cast i64 (-> v depth))))
+          (set (nth 2 a) (coco_new_int m (cast i64 (-> v cell))))
+          (set i (-> v ntext))
+          (while (> i 0)
+            (set i (- i 1))
+            (set texts (coco_cons m (coco_b_rec_text m r (+ (-> v text) (cast size_t i))) texts)))
+          (cond
+            ((== (-> v kind) COCO_REV_CALL)
+             (block (set (nth 3 a) (coco_new_int m (cast i64 (-> v aux))))
+                    (set (nth 4 a) (coco_new_atom_id m (-> v name)))
+                    (set (nth 5 a) texts)
+                    (return (coco_make m "call" 6 a))))
+            ((or (or (== (-> v kind) COCO_REV_EXIT) (== (-> v kind) COCO_REV_FAIL))
+                 (== (-> v kind) COCO_REV_REDO))
+             (block (set (nth 3 a) (coco_new_atom_id m (-> v name)))
+                    (set (nth 4 a) texts)
+                    (return (coco_make m (? (== (-> v kind) COCO_REV_EXIT) "exit"
+                                            (? (== (-> v kind) COCO_REV_FAIL) "fail" "redo"))
+                                       5 a))))
+            ((or (== (-> v kind) COCO_REV_CLAUSE) (== (-> v kind) COCO_REV_NOHEAD))
+             (block (set (nth 3 a) (coco_new_int m (cast i64 (-> v aux))))
+                    (return (coco_make m (? (== (-> v kind) COCO_REV_CLAUSE) "clause" "nohead")
+                                       4 a))))
+            ((== (-> v kind) COCO_REV_THROW)
+             (block (set (nth 3 a) (coco_b_rec_text m r (-> v text)))
+                    (return (coco_make m "throw" 4 a)))))
+          (return (coco_make m "catch" 3 a))))
+
+  (func coco_b_trace_window ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_rec r) (size_t * v . nil) (size_t n . 0)
+              (i64 from . 0) (i64 to . 0) (i64 answers . 1) (i64 tmax . 200)
+              (u64 used . 0) (u64 * ats . nil) (u64 nats . 0) (size_t ball . 0)
+              (int haltcode . 0) (int rc . 0)
+              (size_t evs . 0) (size_t how . 0) (size_t al . 0) (size_t end . 0))
+          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
+          (if (!= (-> m rec) nil)
+              (return (coco_m_permission_error e "open" "trace_window" (coco_m_arg e g 0))))
+          (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((size_t o . #'(coco_deref m (nth i v))) (u32 ar . 0)
+                  (const char * nm . nil) (i64 x . 0) (int ok . 0))
+              (set nm (coco_m_functor e o (aof ar)))
+              (if (and (!= nm nil) (== ar 1) (coco_m_int e (coco_m_arg e o 0) (aof x)))
+                  (cond ((and (== 0 (strcmp nm "from")) (>= x 0)) (block (set from x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "to")) (>= x 0)) (block (set to x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "answers")) (>= x 1)) (block (set answers x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "text")) (>= x 1)) (block (set tmax x) (set ok 1)))))
+              (if (not ok)
+                  (block (free v)
+                         (return (coco_m_domain_error e "trace_window_option" o))))))
+          (free v)
+          (if (and (!= to 0) (< to from))
+              (return (coco_m_domain_error e "trace_window_option" (coco_m_arg e g 1))))
+          (set ats (cast (u64 *) (malloc (* (cast size_t answers) (sizeof u64)))))
+          (if (== ats nil) (return (coco_m_error e "'$trace_window'/4" "out of memory")))
+          (memset (aof r) 0 (sizeof coco_rec))
+          (set ($ r from) (cast u64 from))
+          (set ($ r to) (cast u64 to))
+          (set ($ r tmax) (cast u32 tmax))
+          (set rc (coco_engine_window e (coco_m_arg e g 0) (aof r) (cast u64 answers)
+                                      (aof used) ats (aof nats) (aof ball) (aof haltcode) (aof g)))
+          ;; the events, last first, so the list is built in one pass
+          (set evs (coco_new_atom m "[]"))
+          (let ((size_t k . #'($ r nevs)))
+            (while (> k 0)
+              (set k (- k 1))
+              (set evs (coco_cons m (coco_b_rec_event m (aof r) (aof (nth k ($ r evs)))) evs))))
+          (cond ((== rc 1) (set how (coco_new_atom m "answer")))
+                ((== rc 0) (set how (coco_new_atom m "false")))
+                ((== rc 2) (set how (coco_new_atom m "limit")))
+                ((== rc 3) (set how (coco_make1 m "exception" ball)))
+                ((== rc 4) (set how (coco_make1 m "halt" (coco_new_int m (cast i64 haltcode)))))
+                (#t (set how (coco_make1 m "error" (coco_new_atom m (-> e err))))))
+          (set al (coco_new_atom m "[]"))
+          (let ((u64 k . nats))
+            (while (> k 0)
+              (set k (- k 1))
+              (set al (coco_cons m (coco_new_int m (cast i64 (nth k ats))) al))))
+          (let ((size_t ea [3]))
+            (set (nth 0 ea) how)
+            (set (nth 1 ea) (coco_new_int m (cast i64 used)))
+            (set (nth 2 ea) al)
+            (set end (coco_make m "end" 3 ea)))
+          (free ats)
+          (coco_rec_free (aof r))
+          (if (-> m oom) (return (coco_m_error e "'$trace_window'/4" "out of memory")))
+          (if (not (coco_m_unify e (coco_m_arg e g 2) evs)) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
   ;;; collecting: it stops at the first counterexample and builds no list.

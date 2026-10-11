@@ -261,8 +261,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 57 `.pl` cases in `pl_names/1`
--- **64 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 58 `.pl` cases in `pl_names/1`
+-- **65 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -405,6 +405,14 @@ links the engine) and runs the 57 `.pl` cases in `pl_names/1`
   self counts per address against `objdump -d`'s jump addresses. There are
   no hardware counters in this VM (no `cpu` event source; the `msr` one has
   only `tsc` and `smi`).
+* **A count compared across two builds carries the padding's no-ops.** Any
+  change moves the functions after it and the padding inside them:
+  1.10.12's first build ran `coco_try_clause`, not touched, with two more
+  instructions an inference, all of them `nop` and `xchg %ax,%ax`.
+  `sh tools/flow/zero.sh OLD NEW` counts nrev, queens and lookup with the
+  padding apart; a function's own count, per function, is the same parse
+  (its header). And a source change in the step loop moves the loop's
+  register allocation whatever it says (DESIGN-flow.md 9.1).
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that
@@ -956,6 +964,27 @@ cocolint index offers no import of it.
     (`coco_clause_run_ge`) and their own copy of the guards' runner
     (`cc-guards-body`); guards that stop short build the body from the one
     they stopped at and make no environment, as 1.9.2 built it.
+* **The tracer keeps the untraced clock, and records as well as prints**
+  (1.10.12). Taking the `'$trace_exit'` marker gives its step back
+  (`coco_construct`), so a traced run counts what an untraced one does, and
+  a turn stopped at its budget is saved with the steps it took
+  (`cmd_step`; `call_metered/4` still answers L + 1 for a ceiling of L,
+  which `test/engine.pl` pins). `trace` 2 is the record mode: every port
+  goes to the machine's recorder (`m->rec`, a `coco_rec`), with the clause
+  a call entered, the heads that did not match (`coco_rec_heads`, read
+  back from the frame after the selection), an exception raised and where
+  it was caught. `'$trace_window'/4` (lib/builtins.cicili) opens a window
+  IN PLACE: the limit stops the fast-forward before inference F, narrowed
+  into nested engines as any limit is, and the limit's branch
+  (`coco_rec_open`) switches every engine on the chain to recording
+  instead of stopping -- a stop inside `findall/3`'s engine and a resume
+  would run the whole findall again. The collector is off in a window (a
+  goal's cell names its call); an inference is the sum of the steps out
+  along the chain (`coco_rec_abs`). **Every recorder function the loop or
+  `coco_backtrack` calls is `(weak)`**, which Cicili emits as a function
+  the compiler never inlines: inlined, the window's opening cost nrev
+  0.45 % in the loop's registers. A window sees the calls made in it: one
+  that began before has no Exit marker and no shadow frame.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
@@ -1336,7 +1365,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
-| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

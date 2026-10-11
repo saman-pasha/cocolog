@@ -3,10 +3,11 @@
 **A plan, with four steps built.** On master since 1.10.8: F0, the look
 (`7a11896`); F1, `library(flowchart)` in full -- `library/flowchart.pl` and
 its parts in `library/flow/`, `tools/flow/`, `test/flowchart.pl` and
-`tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). On the
-work branch `claude/cocolog-llm-agent-design-rh7t3t`, 1.10.9: F2, threads
-and processes (section 7). `library(flowdebug)` is planned. Each phase lands
-on master when the owner says so, with its case, its lesson and its version.
+`tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). Since
+1.10.9 and 1.10.11: F2, threads and processes (section 7).
+`library(flowdebug)` is being built, D0 first (section 9.5). Each phase
+lands on master when the owner says so, with its case, its lesson and its
+version.
 
 ## 1. What the flows are for
 
@@ -729,10 +730,53 @@ inference limit; a limit that switches the tracer on instead of stopping is
 a branch taken once, at the limit, with no new test on the hot path. D0
 checks both.
 
+**What D0 found: neither half of the clock held** (1.10.11).
+
+* **A traced run counted more than an untraced one.** The tracer's Exit is a
+  marker on the continuation, `'$trace_exit'/3`, and taking it was a step:
+  naive reverse of eight, `go/1`, counts 47 inferences and counted 93 under
+  `--trace` -- one more for each Exit of a predicate's call, 46 of them (a
+  builtin's Exit is printed where it ran, and takes no marker). Every event
+  a window recorded after its first would have carried a wrong number.
+* **A stop at the inference limit counted the step it did not take.** The
+  loop counts a step and then asks the limit, so the goal it stops at is
+  counted, and counted again by the turn that resumes it. `step --steps
+  12` printed `suspended at 13` (README's own first example: 26 after the
+  second turn), and `go/1` stepped ten inferences at a time finished
+  `after 51` where one turn finishes after 47. `call_metered/4` reads the
+  same count -- a goal stopped at a ceiling of L answers that it used L +
+  1, which `test/engine.pl` pins as where each ceiling stops -- but no turn
+  resumes it, so nothing is counted twice there.
+
+And a fast-forward cannot be a stop and a resume: a stop inside a nested
+engine -- `findall/3`'s, which the limit is narrowed into -- throws the
+nested search away, and the resumed outer engine starts the whole
+`findall/3` again, counting it twice. So the window switches IN PLACE, as
+the paragraph above first said: the limit's branch, taken once, finds a
+recorder waiting for this very inference and turns tracing on for every
+engine on the chain instead of stopping. D1 makes both counts true (9.5).
+
 **Proving it costs nothing**: every new hook sits on a branch the untraced
 engine never takes; callgrind's instruction counts on the untraced path
 (nrev, queens, lookup) are identical before and after; `bench/langs.sh` runs
 as within-run pairs.
+
+**What D1 found of that promise** (1.10.12, `tools/flow/zero.sh` against
+1.10.11): the hooks are never reached -- callgrind counts no instruction in
+any of the recorder's functions over nrev, queens and lookup run untraced --
+but the counts are not identical, for two reasons that are not work. The
+jump padding every binary is built with (`-mbranches-within-32B-boundaries`)
+moves with any change: `coco_try_clause`, untouched, ran three 2-byte no-ops
+fewer and two more instructions an inference, so zero.sh reports the
+padding and the work without it. And a hook in the step loop's limit branch
+moves the loop's register allocation however it is written: written inline,
+the window's opening was inlined into the loop and cost nrev 0.45 %, and with
+every hook a `(weak)` function the compiler cannot inline -- clause
+selection back to the original call, the clause events recorded after it
+from branches tracing already takes -- what remains, the padding aside, is
+nrev -57 instructions in 66.06 M, queens +13 807 in 42.67 M and lookup
+-20 047 in 48.13 M: the loop's and `coco_backtrack`'s spills, of both signs,
+at a few hundredths of a per cent. Time cannot see that on this box.
 
 ### 9.2 What could make a replay differ: the journal
 
@@ -770,6 +814,108 @@ Events)`; and a journal call in the module SDK. The recorded events are
 matched to the chart's boxes by walking each clause activation's calls in
 order.
 
+### 9.5 The plan, phase by phase
+
+**D0, the harness** (1.10.11's tree). `tools/flow/zero.sh [BINARY ...]`:
+each binary runs nrev, queens and lookup from `bench/langs` untraced under
+callgrind, and prints the instructions of the whole process and of the work
+alone. One binary counted twice in one invocation answers the same to the
+instruction, so a change that keeps 9.1's promise prints the old binary's
+numbers exactly. And the two findings above.
+
+**D1, the engine** (`lib/solve.cicili`, `lib/builtins.cicili`,
+`cocolog.cicili`; a patch):
+
+* **The clock.** `'$trace_exit'` takes back its step, so a traced run
+  counts what an untraced one counts; a turn that stopped at its limit is
+  saved with the steps it took (`suspended at 12`, and `go/1` stepped in
+  any number of turns finishes after 47). `call_metered/4` is left as it
+  is: it resumes nothing.
+* **A record mode**: `trace` 2. Every port the printer would write is
+  appended instead to a recorder on the machine (`m->rec`, so the nested
+  engines `findall/3` and `call_metered/4` start record into it too): the
+  port, the inference -- absolute: the steps of every engine on the chain
+  out to the window's own -- the depth, the goal's heap cell (with the
+  collector off for the window, the name of its call: a cell is used again
+  only once backtracking has gone back past every call made after it), at a
+  Call the cell of the call it is inside, and each argument as `writeq`
+  writes it, cut at `text(N)` characters with its whole length kept. And
+  what the printer has no port for: the clause a call entered (its number)
+  and each head before it that did not unify; an exception raised (its
+  ball) and where a `catch/3` took it. Every hook is on a branch tracing
+  already takes, and out of line -- a `(weak)` function, which the compiler
+  never inlines into the loop: the clause events are read AFTER the
+  selection, from the frame it left (`coco_rec_heads`), on the traced
+  call's and the traced retry's own branches; an exception is no path
+  zero.sh's programs take. (A copy of `coco_select_clause` that recorded as
+  it went was the first try: it moved the untraced loop's code, 9.1.)
+* **`'$trace_window'(:Goal, +Options, -Events, -End)`**: Goal proved in a
+  nested engine on this store, untraced at full speed up to `from(F)`, then
+  recorded through `to(T)` (no `to`: to the end); `answers(K)` goes on
+  through K answers; `text(N)` as above. End is `end(How, Used, Answers)`,
+  How `answer`, `false`, `exception(Ball)` or `limit`, Used the inferences
+  spent and Answers the inference of each answer found (and `halt(Code)` for
+  a run that halted, `error(Message)` for one that could not go on). Every
+  binding is undone afterwards: it is for watching, not for answers. The
+  window opens
+  in place: the limit stops the run before inference F as any limit does,
+  narrowed into every nested engine, and its branch finds the recorder
+  waiting for F and switches the chain to recording instead of stopping. A
+  window that opens inside `call_metered/4` gives that goal the window's end
+  for a ceiling; the replay's End then differs from the probe's, which is
+  how D2 knows.
+* **Proven** by zero.sh (9.1: no instruction in a hook untraced); by the
+  trace case, port for port; and by `test/window.pl`: a traced and an
+  untraced run counting alike over the trace case's queries and the bench
+  programs, a stepped machine finishing at one turn's count, and a window
+  opened part way -- in the run's engine and in a `findall/3`'s -- holding
+  event for event what a recording of the whole run holds there. Each rule
+  has an arm that takes it out and goes red (STATUS.md).
+
+**D2, `library(flowdebug)`** (proposes a minor):
+
+* `flow_debug(+Goal, +Base, +Options)` writes Base.svg and Base.xml, and
+  `flow_debug/4` hands back the run as a term. Options: `source(File)`
+  (required, as for `flow_chart/3`); `until(end | answer(K))`, where the run
+  stops being explained (the end: its first answer, its failure or its
+  exception); `window(N)`, how many inferences up to there are recorded
+  (5000; a run that short is recorded whole); `from(I)` and `to(I)` instead;
+  `view(flow | tree)`; `text(N)`.
+* **Each run is a child process** (`cocolog -s library/flow/dbgrun.pl --
+  ...`), which reads the program afresh: what the probe asserted, or set as
+  a global, cannot change the replay. The probe learns how the run ends and
+  where; the replay records the window and must end as the probe did, or the
+  picture says where it diverged rather than drawing a wrong run.
+* **The events are matched to the chart**: a call to the panel of its
+  predicate and its arguments' modes, a clause event to that panel's row,
+  and each call made inside a clause activation to the box it is, by walking
+  the row's goals in the order they can run -- on an exit to the next goal,
+  on a failure inside a condition or a disjunction into the other arm, on a
+  Redo back to the goal redone. A call whose own call began before the
+  window is placed in its panel, not in its caller's row.
+* **Drawn**: the chart, with each box the run reached heavy, each failure
+  red and the boxes never reached grey; a numbered disc where a value
+  crossed -- an argument a call was given, a binding its exit made, a
+  binding backtracking undid (hollow) -- and under the chart a legend: the
+  disc, the variable by its source name, the value, the port, the clause
+  and the inference. `view(tree)` draws the calls themselves, a row each,
+  deeper calls indented, a recursion's middle elided.
+* **The XML of the run** sits beside the chart's: each event (inference,
+  port, depth, the box's id) and each binding (the disc, the name, the value
+  cut to a length with the whole length given).
+* `tools/flow/debug.pl` (`cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
+  [OPTION ...]`), `test/flowdebug.pl`, `tutorials/library/51-flowdebug.pl`.
+
+**D3, the journal** (proposes a minor): 9.2 and 9.3 as written -- the
+answers of the impure calls recorded per thread and per process, a replay
+answered from them, and a portal reached at another inference a divergence.
+
+**D4, questions over the clock** (proposes a minor): the first inference at
+which something holds, by a search over fast runs each stopped at one
+inference (`'$trace_window'` with `to(I)` and no `from`) and asked there;
+and why a goal failed, read back from the recorded window -- the last
+failure and the failures it came from.
+
 ## 10. Phases
 
 | phase | delivers | engine change | lands |
@@ -778,8 +924,8 @@ order.
 | F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on master (1.10.8); proposes 1.11.0 |
 | F2 | threads and processes: a lane for each spawn site and the copy analysed as a copy, spawns and joins, channels followed across lanes, locks, process portals, writes to a shared knowledge base, three findings; then `cowork_map/3`'s jobs, `httpd_serve` with no pool, channels and handles followed through heads, callers, terms and other channels, and the order of a channel's messages | none | built, on master (1.10.9, 1.10.11); proposes a minor |
 | F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on master (1.10.8); proposes a minor |
-| D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
-| D1 | the record-mode tracer, the new events, `'$trace_window'/4` | `lib/solve.cicili`, `lib/builtins.cicili` | a patch |
+| D0 | the zero-overhead harness (callgrind on the untraced path, `tools/flow/zero.sh`); what it found: the traced clock and the stepped clock both wrong (9.1) | none | built (1.10.12) |
+| D1 | the clock made true traced and stepped; the record-mode tracer, the new events, `'$trace_window'/4`, the window opened in place | `lib/solve.cicili`, `lib/builtins.cicili`, `cocolog.cicili` | built (1.10.12), a patch |
 | D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML | none | proposes a minor |
 | D3 | the journal, per thread and per process; replay; divergence | builtins, the module SDK | proposes a minor |
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |

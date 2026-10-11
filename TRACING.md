@@ -89,7 +89,7 @@ deliberately, because SWI has them:
 ## How it is held to SWI
 
 `test/trace.pl` — the `trace` case of `make test` — asks both tracers
-the same twenty-one queries over `test/trace.pl` and compares the port
+the same twenty-three queries over `test/trace-program.pl` and compares the port
 lines one for one: same ports, same order, same relative depths, same
 goals. Three things are normalised first, because the two writers are
 entitled to them: the depth base (SWI's toplevel starts about ten
@@ -109,12 +109,38 @@ port. The tracer is a printer, and the machine itself is the stepper:
 time, and the two compose — a stepped machine under `--trace` prints
 the ports of exactly the inferences that turn spent.
 
+## The inference clock
+
+**A traced run counts what an untraced one counts** (since 1.10.12):
+`statistics(inferences, N)`, `call_metered/4` and a machine's turns read
+the same number with the tracer on or off, so an inference names the same
+goal in both. Through 1.10.11 they did not: the Exit marker below was
+taken as a step of its own, and naive reverse of eight, 47 inferences,
+counted 93 under `--trace`. And **a machine stepped in turns finishes at
+the count of one turn**: `step --steps 12` suspends at 12 (it printed 13,
+counting the goal it stopped at, which the next turn counted again).
+
+## A window, recorded
+
+The tracer has a second mode, which writes no line: it RECORDS each port
+as a term, with what the printer has no port for — the clause a call
+entered, each head before it that did not unify, an exception raised and
+where a `catch/3` took it. `'$trace_window'(Goal, Options, Events, End)`
+runs Goal at full speed, untraced, up to the inference a window opens at
+(`from(I)`), and records from there (`to(J)`); the window opens in place,
+inside whichever engine — a `findall/3`'s too — reaches that inference.
+It is what `library(flowdebug)` stands on: lib/builtins.cicili has the
+contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds a
+window to a recording of the whole run, event for event.
+
 ## How it works
 
 The engine's design pays for itself here. The continuation is a term,
 so the `Exit` port is nothing but a marker — `'$trace_exit'(Goal,
 Depth, Parent)` — pushed behind a call's body: when the body has proven
-its way through to it, the call has exited. It sits below the choice
+its way through to it, the call has exited. Taking it is no inference
+(the step the loop counted is given back), so the clock stays the
+untraced run's. It sits below the choice
 frame's heap mark, so no amount of backtracking into the call can lose
 it — the same trick `catch/3` plays with its `'$catch'` term. `Redo`
 and `Fail` live on a shadow of the choice stack: one tracer entry per

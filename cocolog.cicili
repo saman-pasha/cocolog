@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.10.11"))
+  (func coco_version_text () (out const char *) (return "1.10.12"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -1668,8 +1668,15 @@
             ;; broke -- but that is the program's fault and it will break the
             ;; same way next time, so it is FAILED and not something to retry.
             (if (== rc 0) (set done 1))
+            ;; OUT OF BUDGET, the machine is saved with the steps it TOOK
+            ;; (1.10.12): the loop counts a step before it asks the limit,
+            ;; and the goal it stopped at is counted again by the turn that
+            ;; takes it -- one too many a turn, `suspended at 13' after
+            ;; `--steps 12', a goal of 47 inferences finished after 51 when
+            ;; stepped ten at a time (DESIGN-flow.md 9.1)
             (if (and (== rc -1) (== 0 (strcmp ($ e err) "inference limit reached")))
-                (set done 0)
+                (block (set done 0)
+                       (set ($ e steps) (- ($ e steps) 1)))
               (if (== rc -1)
                   (block (fprintf stderr "cocolog: %s\n" ($ e err))
                          (set done 1)

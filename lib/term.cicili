@@ -502,7 +502,14 @@
     ;; nothing else sets it, and it is empty again after the write
     (member size_t *   wcells)
     (member u64 *      wnames)
-    (member size_t     nwnames))
+    (member size_t     nwnames)
+    ;; THE RECORDER OF A WINDOW OF A RUN (1.10.12, library(flowdebug)):
+    ;; `'$trace_window'/4' sets it for the one goal it proves, and every
+    ;; engine on this machine that traces in record mode (`trace' 2) --
+    ;; the window's own and the nested engines its builtins start -- writes
+    ;; its events here. Null otherwise; a `coco_rec *' this struct cannot
+    ;; name (lib/solve.cicili)
+    (member void *     rec))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

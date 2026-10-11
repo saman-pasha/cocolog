@@ -25,12 +25,12 @@ $ cocolog --kb demo --steps 12 step job          # one process
   2. ancestor(tom,liz)
   3. ancestor(tom,ann)
   4. ancestor(tom,pat)
-job: suspended at 13 inference(s), 4 answer(s) this turn
+job: suspended at 12 inference(s), 4 answer(s) this turn
 
 $ cocolog --kb demo --steps 12 step job          # a different process
   1. ancestor(tom,jim)
   2. ancestor(tom,zoe)
-job: suspended at 26 inference(s), 2 answer(s) this turn
+job: suspended at 24 inference(s), 2 answer(s) this turn
 ```
 
 Between those two commands the machine was not in memory anywhere. It was

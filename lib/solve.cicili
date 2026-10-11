@@ -526,6 +526,89 @@
   ;;; `notrace/0' flip the engine, not this.
   (var int coco_trace_default . 0)
 
+  ;;; ---- a window of a run, RECORDED (1.10.12, library(flowdebug)) ---------
+  ;;;
+  ;;; The tracer in record mode (`trace' 2): every port the printer would
+  ;;; write goes into the machine's recorder instead (`m->rec'), with what
+  ;;; the printer has no port for -- the clause a call entered and each head
+  ;;; before it that did not unify, an exception raised and where a catch
+  ;;; took it. `'$trace_window'/4' (lib/builtins.cicili) runs a goal
+  ;;; untraced at full speed up to the inference a window opens at, records
+  ;;; the window, and hands the events back as terms. DESIGN-flow.md 9.5.
+  ;;;
+  ;;; AN EVENT is fixed in size: the port or what happened, the inference --
+  ;;; counted from the window's goal, across every nested engine -- the
+  ;;; depth, the goal's heap cell (with the collector off for the window,
+  ;;; the name of its call: a cell is made again only once backtracking has
+  ;;; gone back past every call made after it), and by kind: at a Call the
+  ;;; cell of the call it is inside, at a clause entered or a head that did
+  ;;; not unify the clause's number; the goal's name and arity, and its
+  ;;; arguments as `writeq' writes them, each cut at `tmax' characters with
+  ;;; the whole length kept.
+  (enum coco_rev_kind (COCO_REV_CALL . 0) (COCO_REV_EXIT . 1) (COCO_REV_FAIL . 2)
+                      (COCO_REV_REDO . 3) (COCO_REV_CLAUSE . 4) (COCO_REV_NOHEAD . 5)
+                      (COCO_REV_THROW . 6) (COCO_REV_CATCH . 7))
+
+  (struct coco_rev
+    (member u64      inf)
+    (member u32      kind)
+    (member i32      depth)
+    (member size_t   cell)
+    (member size_t   aux)        ; a Call's parent cell; a clause's number
+    (member u64      name)       ; the goal's name, an atom id; 0 for a throw
+    (member u32      arity)
+    (member u32      ntext)      ; texts from `text' on: the arguments, or the ball
+    (member size_t   text))
+
+  (struct coco_rtext
+    (member size_t   off)        ; in the arena
+    (member u32      len)        ; the bytes kept
+    (member u32      full)       ; the characters of the whole text
+    (member u32      chars))     ; the characters kept
+
+  ;;; STATE is 0 while the window waits for inference FROM, 1 while it
+  ;;; records (through TO; 0 is to the end), 2 when nothing is recorded (a
+  ;;; probe). ROOT is the window's engine, where an inference is counted
+  ;;; from. OOM is set when the events would not grow: what was recorded
+  ;;; stands and nothing more is added.
+  (struct coco_rec
+    (member u64          from)
+    (member u64          to)
+    (member u32          tmax)
+    (member int          state)
+    (member void *       root)
+    (member coco_rev *   evs)
+    (member size_t       nevs)
+    (member size_t       evcap)
+    (member coco_rtext * txs)
+    (member size_t       ntxs)
+    (member size_t       txcap)
+    (member char *       arena)
+    (member size_t       alen)
+    (member size_t       acap)
+    (member int          oom)
+    ;; the clause a traced retry's selection starts from, kept by its Redo
+    ;; for the heads recorded after it (`coco_trace_paint')
+    (member size_t       hstart))
+
+  (decl) (func coco_rec_free ((coco_rec * r)))
+
+  ;;; GOAL proved in a nested engine on this store, as `call_metered/4'
+  ;;; proves one, through ANSWERS answers: untraced at full speed up to
+  ;;; inference R->from, then recorded into R through R->to. Answers 1 the
+  ;;; ANSWERS-th answer was found, 0 the goal failed before it, 2 the
+  ;;; window's end (or, with nothing recorded, R->to) stopped it, 3 an
+  ;;; exception nothing caught (BALL its term, on this engine's heap), 4 it
+  ;;; halted (HALTCODE), -1 anything else (`e->err'). USED is the
+  ;;; inferences it spent and ATS the inference of each answer, NATS of
+  ;;; them (room for ANSWERS). Every binding is undone: the machine is put
+  ;;; back as it was. GP is the caller's goal cell, which a collection
+  ;;; before the window may move.
+  (decl) (func coco_engine_window ((coco_engine * e) (size_t goal) (coco_rec * r)
+                                   (u64 answers) (u64 * used) (u64 * ats) (u64 * nats)
+                                   (size_t * ball) (int * haltcode) (size_t * gp))
+               (out int))
+
   (decl) (func coco_engine_init ((coco_engine * e) (coco_machine * m) (coco_store * st)))
   (decl) (func coco_engine_free ((coco_engine * e)))
 
@@ -793,6 +876,177 @@
                 (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0))
             (set fi (- fi 1)))))
 
+  ;;; ---- the recorder (1.10.12) ------------------------------------------
+  ;;; What `trace' 2 does where the printer prints; `coco_rec' in the
+  ;;; declarations says what an event holds. Nothing here is reached by an
+  ;;; engine that does not trace.
+
+  ;;; THE INFERENCE E IS AT, counted from the window's goal: its own steps
+  ;;; and those of every engine out along the chain to the window's. A
+  ;;; nested engine counts from 0 and the engine that started it adds its
+  ;;; steps only when it ends (`coco_engine_findall'), so the sum is the
+  ;;; run's inference whichever engine on the chain is asked.
+  (static)
+  (func coco_rec_abs ((coco_engine * e) (coco_rec * r)) (out u64)
+        (let ((u64 n . 0) (coco_engine * x . e))
+          (while (!= x nil)
+            (set n (+ n (-> x steps)))
+            (if (== (cast (void *) x) (-> r root)) break)
+            (set x (cast (coco_engine *) (-> x outer))))
+          (return n)))
+
+  ;;; Room for one more event, NTX more texts and NB more bytes of them:
+  ;;; 0, with OOM set, when there is none -- what was recorded stands and
+  ;;; nothing more is added.
+  (static)
+  (func coco_rec_room ((coco_rec * r) (size_t ntx) (size_t nb)) (out int)
+        (if (-> r oom) (return 0))
+        (if (>= (-> r nevs) (-> r evcap))
+            (let ((size_t c . #'(? (== (-> r evcap) 0) 1024 (* (-> r evcap) 2)))
+                  (coco_rev * nv . nil))
+              (set nv (cast (coco_rev *) (realloc (-> r evs) (* c (sizeof coco_rev)))))
+              (if (== nv nil) (block (set (-> r oom) 1) (return 0)))
+              (set (-> r evs) nv)
+              (set (-> r evcap) c)))
+        (if (> (+ (-> r ntxs) ntx) (-> r txcap))
+            (let ((size_t c . #'(? (== (-> r txcap) 0) 2048 (* (-> r txcap) 2)))
+                  (coco_rtext * nt . nil))
+              (while (< c (+ (-> r ntxs) ntx)) (set c (* c 2)))
+              (set nt (cast (coco_rtext *) (realloc (-> r txs) (* c (sizeof coco_rtext)))))
+              (if (== nt nil) (block (set (-> r oom) 1) (return 0)))
+              (set (-> r txs) nt)
+              (set (-> r txcap) c)))
+        (if (> (+ (-> r alen) nb) (-> r acap))
+            (let ((size_t c . #'(? (== (-> r acap) 0) 65536 (* (-> r acap) 2)))
+                  (char * na . nil))
+              (while (< c (+ (-> r alen) nb)) (set c (* c 2)))
+              (set na (cast (char *) (realloc (-> r arena) c)))
+              (if (== na nil) (block (set (-> r oom) 1) (return 0)))
+              (set (-> r arena) na)
+              (set (-> r acap) c)))
+        (return 1))
+
+  ;;; TERM as `writeq' writes it, the next text: cut at the recorder's
+  ;;; `tmax' characters -- at a character's first byte, never inside one --
+  ;;; with the characters of the whole text counted. 0 when there was no
+  ;;; room. The writer names an unbound variable by its cell, `_G' and the
+  ;;; number, so the same variable reads the same in every event of a
+  ;;; window, the collector being off.
+  (static)
+  (func coco_rec_text ((coco_rec * r) (coco_machine * m) (size_t term)) (out int)
+        (let ((coco_strbuf b) (size_t n . 0) (size_t keep . 0)
+              (u32 chars . 0) (u32 kept . 0) (int ok . 0))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) term 1 0)
+          (set n ($ b len))
+          (set keep n)
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            ;; a byte that is not 10xxxxxx begins a character
+            (if (!= (bitand (cast int (nth i ($ b s))) 192) 128)
+                (block (if (and (== keep n) (== chars (-> r tmax)))
+                           (block (set keep i) (set kept chars)))
+                       (set chars (+ chars 1)))))
+          (if (== keep n) (set kept chars))
+          (if (coco_rec_room r 1 keep)
+              (let ((coco_rtext * x . #'(aof (nth (-> r ntxs) (-> r txs)))))
+                (if (> keep 0) (memcpy (+ (-> r arena) (-> r alen)) ($ b s) keep))
+                (set (-> x off) (-> r alen))
+                (set (-> x len) (cast u32 keep))
+                (set (-> x full) chars)
+                (set (-> x chars) kept)
+                (set (-> r alen) (+ (-> r alen) keep))
+                (set (-> r ntxs) (+ (-> r ntxs) 1))
+                (set ok 1)))
+          (coco_sb_free (aof b))
+          (return ok)))
+
+  ;;; A PORT, recorded where the printer would have written it: G the goal,
+  ;;; whose cell names its call; AUX at a Call the cell of the call it is
+  ;;; inside (0: none in the window). The arguments are written as they
+  ;;; stand at the port, so a Call shows what the goal was given and its
+  ;;; Exit what the proof bound.
+  (weak)
+  (func coco_rec_port ((coco_engine * e) (u32 kind) (int depth) (size_t g) (size_t aux))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
+              (size_t gd . 0) (u32 n . 0) (size_t first . 0) (size_t slot . 0))
+          (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (if (not (coco_rec_room r 0 0)) (return))
+          (set slot (-> r nevs))
+          (set gd (coco_deref m g))
+          (set n (coco_arity m gd))
+          (set first (-> r ntxs))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (if (not (coco_rec_text r m (coco_arg m gd i))) (return)))
+          (let ((coco_rev * v . #'(aof (nth slot (-> r evs)))))
+            (set (-> v inf) (coco_rec_abs e r))
+            (set (-> v kind) kind)
+            (set (-> v depth) depth)
+            (set (-> v cell) g)
+            (set (-> v aux) aux)
+            (set (-> v name) (coco_name_of m gd))
+            (set (-> v arity) n)
+            (set (-> v ntext) n)
+            (set (-> v text) first))
+          (set (-> r nevs) (+ slot 1))))
+
+  ;;; WHAT THE PRINTER HAS NO PORT FOR, without text: a clause entered or a
+  ;;; head that did not unify (CELL the call, AUX the clause's number from
+  ;;; 1), and where a `catch/3' took a ball (CELL the call whose body the
+  ;;; catch is in).
+  (weak)
+  (func coco_rec_mark ((coco_engine * e) (u32 kind) (int depth) (size_t cell) (size_t aux))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec))))
+          (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (if (not (coco_rec_room r 0 0)) (return))
+          (let ((coco_rev * v . #'(aof (nth (-> r nevs) (-> r evs)))))
+            (set (-> v inf) (coco_rec_abs e r))
+            (set (-> v kind) kind)
+            (set (-> v depth) depth)
+            (set (-> v cell) cell)
+            (set (-> v aux) aux)
+            (set (-> v name) 0)
+            (set (-> v arity) 0)
+            (set (-> v ntext) 0)
+            (set (-> v text) (-> r ntxs)))
+          (set (-> r nevs) (+ (-> r nevs) 1))))
+
+  ;;; AN EXCEPTION RAISED: the ball as `writeq' writes it, in the call whose
+  ;;; body raised it (the innermost traced call running).
+  (weak)
+  (func coco_rec_throw ((coco_engine * e) (size_t ball))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
+              (size_t slot . 0) (size_t first . 0))
+          (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (if (not (coco_rec_room r 0 0)) (return))
+          (set slot (-> r nevs))
+          (set first (-> r ntxs))
+          (if (not (coco_rec_text r m ball)) (return))
+          (let ((coco_rev * v . #'(aof (nth slot (-> r evs)))))
+            (set (-> v inf) (coco_rec_abs e r))
+            (set (-> v kind) COCO_REV_THROW)
+            (set (-> v depth) (-> e trace_depth))
+            (set (-> v cell) (-> e trace_goal))
+            (set (-> v aux) 0)
+            (set (-> v name) 0)
+            (set (-> v arity) 0)
+            (set (-> v ntext) 1)
+            (set (-> v text) first))
+          (set (-> r nevs) (+ slot 1))))
+
+  (func coco_rec_free ((coco_rec * r))
+        (free (-> r evs))
+        (free (-> r txs))
+        (free (-> r arena))
+        (set (-> r evs) nil)
+        (set (-> r txs) nil)
+        (set (-> r arena) nil)
+        (set (-> r nevs) 0)
+        (set (-> r ntxs) 0)
+        (set (-> r alen) 0))
+
   ;;; ---- the four ports ----------------------------------------------------
   ;;; SWI's line, byte for byte: three spaces, the port, the depth in round
   ;;; brackets, the goal as the writer prints it. On stderr, where SWI puts
@@ -804,6 +1058,16 @@
 
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
+        ;; IN A WINDOW, RECORDED rather than printed (`trace' 2): the port by
+        ;; its first letter -- 67 C, 69 E, 70 F, else R -- and a Call with
+        ;; the call it is inside, which the context still names here
+        (if (== (-> e trace) 2)
+            (let ((int c . #'(cast int (nth 0 port))))
+              (coco_rec_port e (? (== c 67) COCO_REV_CALL
+                                  (? (== c 69) COCO_REV_EXIT
+                                     (? (== c 70) COCO_REV_FAIL COCO_REV_REDO)))
+                             depth g (? (== c 67) (-> e trace_goal) 0))
+              (return)))
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_write_term (-> e m) (aof b) g 1 0)
@@ -1707,6 +1971,77 @@
                 ))))
           (return 0)))
 
+  ;;; ---- the traced selection, out of line (1.10.12) ----------------------
+  ;;;
+  ;;; What a traced call or retry does around `coco_select_clause', each a
+  ;;; (weak) function, which Cicili emits as one the compiler never inlines:
+  ;;; the step loop and `coco_backtrack' call them from branches only
+  ;;; tracing takes and stay, for an untraced run, the code they were --
+  ;;; written inline, the first window cost nrev two instructions an
+  ;;; inference that no untraced run executes, in registers and layout
+  ;;; (tools/flow/zero.sh).
+
+  ;;; THE HEADS, AFTER THE SELECTION: in a window, each clause from START
+  ;;; up to the one the frame at CI entered -- or to the predicate's last,
+  ;;; when none was (ENTERED 0) -- did not match the call, and the entered
+  ;;; one did. Read back from the frame, which keeps both the next clause to
+  ;;; try and, under trace, its place on the last clause too. A clause the
+  ;;; index passed over is among those that did not match: its head could
+  ;;; not have.
+  (weak)
+  (func coco_rec_heads ((coco_engine * e) (size_t ci) (size_t start) (int entered))
+        (if (!= (-> e trace) 2) (return))
+        (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
+              (coco_pred * p . #'(aof (nth (-> c pred) ($ (cof (-> e st)) preds))))
+              (int depth . #'($ (nth ci (-> e tchoices)) depth))
+              (size_t upto . 0))
+          (set upto (? entered (- (-> c clause_ix) 1) (-> p nclauses)))
+          (for ((size_t ix . start)) (< ix upto) ((++ ix))
+            (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1)))
+          (if entered (coco_rec_mark e COCO_REV_CLAUSE depth (-> c call) (+ upto 1)))))
+
+  ;;; A RETRY'S CALL, painted before the selection binds it: its text for
+  ;;; the Redo line the printer writes once a clause is entered (the caller
+  ;;; frees it), or, in a window, the Redo recorded now and the clause the
+  ;;; selection starts from kept for the heads after it (nil).
+  (weak)
+  (func coco_trace_paint ((coco_engine * e) (size_t ci) (int depth) (size_t g)) (out char *)
+        (if (== (-> e trace) 2)
+            (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
+              (coco_rec_port e COCO_REV_REDO depth g 0)
+              (if (!= r nil) (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix)))
+              (return nil)))
+        (let ((coco_strbuf tb))
+          (coco_sb_init (aof tb))
+          (coco_write_term (-> e m) (aof tb) g 1 0)
+          (return ($ tb s))))
+
+  ;;; the retry entered a clause: its Redo, printed -- or the heads recorded
+  (weak)
+  (func coco_trace_redo ((coco_engine * e) (size_t ci) (int depth) (const char * text))
+        (if (== (-> e trace) 2)
+            (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
+              (if (!= r nil) (coco_rec_heads e ci (-> r hstart) 1))
+              (return)))
+        (coco_trace_line "Redo" depth text))
+
+  ;;; the retry found no clause: its Fail, printed -- or the heads and the
+  ;;; Fail recorded, the goal as backtracking left it
+  (weak)
+  (func coco_trace_fail ((coco_engine * e) (size_t ci) (int depth) (const char * text))
+        (if (== (-> e trace) 2)
+            (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
+              (if (!= r nil) (coco_rec_heads e ci (-> r hstart) 0))
+              (coco_rec_port e COCO_REV_FAIL depth ($ (nth ci (-> e tchoices)) goal) 0)
+              (return)))
+        (coco_trace_line "Fail" depth text))
+
+  ;;; a traced call matched no clause at all: the heads, then its Fail
+  (weak)
+  (func coco_trace_nomatch ((coco_engine * e) (size_t ci) (int depth) (size_t g))
+        (coco_rec_heads e ci 0 0)
+        (coco_trace_port e "Fail" depth g))
+
   ;;; THE CALL IN THE REGISTERS HAS MORE THAN ONE CANDIDATE: its frame made
   ;;; here, as the dispatch makes one, over the term built first -- so the
   ;;; term sits under the frame's heap mark -- rather than built and sent
@@ -1975,6 +2310,11 @@
               ;; a clause frame. The goal is painted BEFORE selection, which
               ;; binds it to whichever head matches -- SWI's Redo shows the
               ;; call as it stood, not the head it is about to try.
+              ;; IN A WINDOW (`trace' 2) the painting records the call as
+              ;; re-entered, before its heads are tried, and the Redo and the
+              ;; Fail record where they would print (`coco_trace_paint' and
+              ;; the two after it, out of line, so the untraced path here is
+              ;; what it was)
               (let ((char * rtext . nil) (int rD . 0) (size_t rg . 0)
                     (int rexited . 0) (int traced . 0))
                 (if (-> e trace)
@@ -1984,14 +2324,11 @@
                                  (set rD (-> tc depth))
                                  (set rg (-> tc goal))
                                  (set rexited (-> tc exited))
-                                 (let ((coco_strbuf tb))
-                                   (coco_sb_init (aof tb))
-                                   (coco_write_term m (aof tb) rg 1 0)
-                                   (set rtext ($ tb s)))))))
+                                 (set rtext (coco_trace_paint e ci rD rg))))))
                 (if (coco_select_clause e ci)
                     (block
                      (if traced
-                         (block (coco_trace_line "Redo" rD rtext)
+                         (block (coco_trace_redo e ci rD rtext)
                                 (set ($ (nth ci (-> e tchoices)) exited) 0)
                                 (coco_trace_reopen e ci rD)
                                 (set (-> e trace_goal) rg)
@@ -2001,7 +2338,7 @@
                 ;; out of heads. A call that had exited goes quietly -- the
                 ;; silence SWI's clause indexing buys by never keeping the
                 ;; frame -- and one that had not fails here, out loud.
-                (if (and traced (== rexited 0)) (coco_trace_line "Fail" rD rtext))
+                (if (and traced (== rexited 0)) (coco_trace_fail e ci rD rtext))
                 (if (!= rtext nil) (free rtext)))))
           (return 0)))
 
@@ -2029,6 +2366,8 @@
               (size_t cell . #'(coco_store_put (-> e st) (-> e m) ball))
               (size_t size . #'(- ($ (cof (-> e st)) len) cell)))
 
+          ;; a window records the raise, before anything unwinds (1.10.12)
+          (if (== (-> e trace) 2) (coco_rec_throw e ball))
           (while (> (-> e nchoices) 0)
             (let ((size_t ci . #'(- (-> e nchoices) 1))
                   (int kind) (size_t call) (size_t goals) (size_t barrier))
@@ -2054,7 +2393,12 @@
                     (block
                      (if (-> e trace)
                          (block (set (-> e trace_goal) ($ (nth ci (-> e tchoices)) goal))
-                                (set (-> e trace_depth) ($ (nth ci (-> e tchoices)) depth))))
+                                (set (-> e trace_depth) ($ (nth ci (-> e tchoices)) depth))
+                                ;; and a window where it was caught: in the
+                                ;; body of the call the catch/3 is in
+                                (if (== (-> e trace) 2)
+                                    (coco_rec_mark e COCO_REV_CATCH (-> e trace_depth)
+                                                   (-> e trace_goal) 0))))
                      (set (-> e nchoices) ci)
                      (set (-> e goals) (coco_k_push e recovery barrier goals))
                      ;; the ball is on the heap and its cell an orphan
@@ -3136,6 +3480,98 @@
                                    3 -1)))))
           (return out)))
 
+  ;;; A WINDOW OF A RUN (1.10.12) -- the declaration says what it answers.
+  ;;; `coco_engine_call_limited' with three differences: the goal goes on
+  ;;; through ANSWERS answers; an exception is handed back, not thrown
+  ;;; again, since how the run ended is what the caller asked; and nothing
+  ;;; it bound is kept. The window itself is the recorder's: armed (state
+  ;;; 0) with the limit set to the inference before it, the run goes
+  ;;; untraced at full speed until the limit's branch opens it
+  ;;; (`coco_rec_open'), and a window from inference 1 records from the
+  ;;; first step. The collector may run until then, as in any nested
+  ;;; engine; the window turns it off.
+  (func coco_engine_window ((coco_engine * e) (size_t goal) (coco_rec * r)
+                            (u64 answers) (u64 * used) (u64 * ats) (u64 * nats)
+                            (size_t * ball) (int * haltcode) (size_t * gp)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (coco_engine sub)
+              (size_t tmark . #'($ (cof m) trail_len))
+              (size_t hmark . #'($ (cof m) heap_len))
+              (int rc . 0) (int out . -1) (u64 found . 0)
+              (int threw . 0) (size_t cell . 0) (size_t bsize . 0)
+              (size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
+          (set (cof used) 0)
+          (set (cof nats) 0)
+          (if (!= ($ (cof m) rec) nil)
+              (return (coco_fail_err e "'$trace_window'/4: a window is open on this machine already")))
+          (set (nth 0 hold) (? (== gp nil) 0 (cof gp)))
+          (set holdp hold)
+          (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
+          (coco_engine_init (aof sub) m st)
+          (coco_engine_ask (aof sub) goal)
+          (set (-> r root) (cast (void *) (aof sub)))
+          ;; from 0 records nothing (a probe, bounded by `to' when it has
+          ;; one); from 1 records from the first step; anything later goes
+          ;; untraced to the inference before the window
+          (cond
+            ((== (-> r from) 0)
+             (block (set (-> r state) 2) (set ($ sub max_steps) (-> r to))))
+            ((== (-> r from) 1)
+             (block (set (-> r state) 1)
+                    (set ($ sub trace) 2)
+                    (set ($ sub max_steps) (-> r to))))
+            (#t
+             (block (set (-> r state) 0)
+                    (set ($ sub max_steps) (- (-> r from) 1)))))
+          (set ($ (cof m) rec) (cast (void *) r))
+          (set ($ sub ptrail) tmark)
+          (set ($ sub pheap) hmark)
+          (set ($ sub gc) (? (and held (-> e gc) (!= ($ sub trace) 2)) 1 0))
+          (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
+            (while 1
+              (set rc (coco_engine_next (aof sub)))
+              (if (== rc 1)
+                  (block
+                   ;; the inference the answer came at: every nested engine
+                   ;; has ended, so the window's own count is the run's
+                   (set (nth found ats) ($ sub steps))
+                   (set found (+ found 1))
+                   (if (>= found answers) (block (set out 1) break))
+                   continue))
+              (if (== rc 0)
+                  (block (set out (? (!= ($ sub halted) 0) 4 0)) break))
+              (if (== 0 (strcmp ($ sub err) "inference limit reached"))
+                  (block (set out 2) break))
+              ;; read the ball's cell BEFORE the free, which memsets it
+              (if ($ sub has_ball)
+                  (block (set threw 1)
+                         (set cell ($ sub ball_cell))
+                         (set bsize ($ sub ball_size))
+                         (set out 3))
+                  (block (snprintf (-> e err) 192 "%s" ($ sub err))
+                         (set out -1)))
+              break)
+            (coco_gc_nested_end m gsaved))
+          ;; a stop at the limit counted the step it did not take
+          (set (cof used) (? (== out 2) (- ($ sub steps) 1) ($ sub steps)))
+          (set (cof nats) found)
+          (if (== out 4) (set (cof haltcode) ($ sub halt_code)))
+          (set tmark ($ sub ptrail))
+          (set hmark ($ sub pheap))
+          (if held (coco_heap_root_pop m))
+          (if (!= gp nil) (set (cof gp) (nth 0 hold)))
+          (coco_engine_free (aof sub))
+          (set ($ (cof m) rec) nil)
+          (set (-> r root) nil)
+          ;; every binding undone: a window is for watching
+          (coco_undo_to m tmark)
+          (set ($ (cof m) heap_len) hmark)
+          (if threw
+              (block (set (-> st dead) (+ (-> st dead) bsize))
+                     (set (cof ball) (coco_store_get m st cell))))
+          (return out)))
+
   (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int)
         (let ((size_t g))
           (if (not (coco_read_term_from (-> e m) text (aof g)))
@@ -3181,8 +3617,13 @@
 
                   ;; the tracer's own marker: the call it names has proven, so
                   ;; this is its Exit port. Transparent when tracing is off --
-                  ;; a machine frozen mid-trace thaws and runs anywhere.
+                  ;; a machine frozen mid-trace thaws and runs anywhere. AND
+                  ;; NO INFERENCE (1.10.12): the step the loop counted to take
+                  ;; it is given back, so a traced run counts what an untraced
+                  ;; one counts -- a window's events are numbered by the clock
+                  ;; the untraced run that found them kept (DESIGN-flow.md 9.1)
                   ((and (== n 3) (== nid (coco-id m "$trace_exit")))
+                   (set (-> e steps) (- (-> e steps) 1))
                    (if (-> e trace)
                        (let ((size_t xg . #'(cast size_t (coco-signed-payload
                                                           (nth (coco_deref m (coco_arg m g 0)) (-> m heap)))))
@@ -3415,6 +3856,41 @@
                   (#t (return 0)))
           (return 1)))
 
+  ;;; THE WINDOW OPENS HERE, AT THE LIMIT (1.10.12). A run fast-forwarded
+  ;;; untraced has reached the inference `'$trace_window'/4' asked to
+  ;;; record from, the limit it was given stopped it -- narrowed into any
+  ;;; nested engine as a limit always is -- and instead of stopping, every
+  ;;; engine on the chain out to the window's own starts recording. IN
+  ;;; PLACE, because a stop inside a nested engine throws its search away
+  ;;; and the outer engine, resumed, would start that search again and
+  ;;; count it twice. Each engine takes the window's end for its limit,
+  ;;; measured from its own count; the collector is off, because a goal's
+  ;;; cell names its call in the recording; and a goal waiting in the
+  ;;; registers goes back as a term, so the one that opens the window is
+  ;;; dispatched -- and its Call recorded -- the way a traced goal is.
+  ;;; Answers 1 when the window opened and the step goes on, 0 when this
+  ;;; limit is another (the window's end, or a ceiling of the program's
+  ;;; own) and the run stops as it always did. Reached only from the
+  ;;; limit's branch, which a run takes once.
+  (weak)
+  (func coco_rec_open ((coco_engine * e)) (out int)
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
+          (if (or (== r nil) (!= (-> r state) 0)) (return 0))
+          (if (!= (coco_rec_abs e r) (-> r from)) (return 0))
+          (let ((coco_engine * x . e))
+            (while (!= x nil)
+              (let ((u64 base . #'(- (coco_rec_abs x r) (-> x steps))))
+                (set (-> x trace) 2)
+                (set (-> x gc) 0)
+                (set (-> x max_steps) (? (== (-> r to) 0) 0 (- (-> r to) base))))
+              (if (== (cast (void *) x) (-> r root)) break)
+              (set x (cast (coco_engine *) (-> x outer)))))
+          (set (-> r state) 1)
+          ;; no room for the term: the run stops at the next step's top
+          ;; (`coco_k_room'), and the window with it
+          (coco_k_flush e)
+          (return 1)))
+
   (func coco_engine_run ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st)))
@@ -3460,10 +3936,12 @@
             (set (-> e steps) (+ (-> e steps) 1))
             ;; a stop at the limit, a halt and a collection each see the
             ;; continuation whole: a goal the last step handed over goes back
-            ;; in its frame first (`coco_k_flush')
+            ;; in its frame first (`coco_k_flush'). A limit a recorder set is
+            ;; where a window opens, and the step goes on (`coco_rec_open')
             (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
-                (block (coco_k_flush e)
-                       (return (coco_fail_err e "inference limit reached"))))
+                (if (not (coco_rec_open e))
+                    (block (coco_k_flush e)
+                           (return (coco_fail_err e "inference limit reached")))))
             (if (-> e halted) (block (coco_k_flush e) (return 0)))
 
             ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
@@ -3829,13 +4307,17 @@
                                         (set (-> tc depth) tD)
                                         (set (-> tc printr) 1)
                                         (set (-> tc exited) 0)))
+                                  ;; a window records which heads did not match
+                                  ;; and the clause entered, after the selection
+                                  ;; (`coco_rec_heads', out of line)
                                   (if (not (coco_select_clause e ci))
-                                      (block (if tport (coco_trace_port e "Fail" tD g))
+                                      (block (if tport (coco_trace_nomatch e ci tD g))
                                              (set ok 0))
                                     ;; the body runs inside this call now
                                     (if tport
                                         (block (set (-> e trace_goal) g)
-                                               (set (-> e trace_depth) tD))))))))))
+                                               (set (-> e trace_depth) tD)
+                                               (coco_rec_heads e ci 0 1))))))))))
                             ;; NO CLAUSES IS NOT THE SAME AS UNDEFINED. A
                             ;; predicate the program declared dynamic -- or that
                             ;; an `assert' brought into being and a `retract'
