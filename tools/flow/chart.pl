@@ -19,8 +19,18 @@
 %%
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
-%% predicate, 2 anything else, with the reason on stderr. The XML's shape is
-%% in library/flow/xml.pl's header, and DESIGN-flow.md says what it is for.
+%% predicate, 2 anything else, with the reason on stderr. Standard output
+%% names the two files and then the FINDINGS, one a line, as a compiler
+%% writes them:
+%%
+%%     test/flowchart/faults.pl:29:5: error: total/2: S is free on every path
+%%     to here, and is/2 evaluates it: this call raises an instantiation error
+%%     [instantiation p2.c1.g1]
+%%
+%% (one line each; the id is the box in the SVG and the element in the XML).
+%% A finding is no failure of the command: the exit status stays 0. The
+%% XML's shape is in library/flow/xml.pl's header, and DESIGN-flow.md says
+%% what it is for.
 
 :- use_module(library(flowchart)).
 
@@ -42,8 +52,14 @@ main :-
         halt(2)
     ),
     fc_options(OptAs, Opts),
-    catch(flow_chart(Spec, Base, [source(File)|Opts]), E, fc_error(E)),
-    format("~w.svg~n~w.xml~n", [Base, Base]).
+    catch(flow_chart(Spec, Base, [source(File)|Opts], Fs), E, fc_error(E)),
+    format("~w.svg~n~w.xml~n", [Base, Base]),
+    forall(member(F, Fs), fc_finding(F)).
+
+%% a finding as a compiler says one: FILE:LINE:COL: error: IN: TEXT [KIND ID]
+fc_finding(finding(_, Kind, Sev, At, In, Where, Text, _)) :-
+    (   Where = where(F, L, C) -> format("~w:~w:~w: ", [F, L, C]) ; true ),
+    format("~w: ~w: ~w [~w ~w]~n", [Sev, In, Text, Kind, At]).
 
 fc_options([], []).
 fc_options([A|As], [O|Os]) :-

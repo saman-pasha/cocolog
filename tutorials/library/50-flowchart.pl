@@ -13,6 +13,7 @@
 %%                                          depth(D), only(Preds), builtins(fold|show) --
 %%                                          these three for the picture
 %%     flow_graph(+Spec, -Graph, +Options)  the analysis as a term
+%%     flow_findings(+Graph, -Findings)     what is wrong, and where
 %%     flow_svg(+Graph, -Svg)   flow_xml(+Graph, -Xml)      the documents as terms
 %%
 %% Spec is a call pattern -- count(+, -) -- or Name/Arity, or Name//Arity for
@@ -31,6 +32,13 @@
 %% and on_fail -- the id of the goal tried again, next_clause, or fail -- and
 %% each one's id is the id of its box in the SVG. tools/flow/chart.pl is the
 %% same from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE'.
+%%
+%% IT FINDS WHAT IS WRONG, AND WHERE: a call nothing answers, a call the
+%% engine refuses with an argument unbound on every path to it, a predicate
+%% that calls itself again first with nothing gained, a clause never tried,
+%% a `%! p(...) is det' the code does not keep -- each a numbered red disc
+%% on its box, a line under the chart, a <finding> at the head of the XML,
+%% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
 %% A BIG PROGRAM IS DRAWN IN PART and analysed in full: past 150 panels the
 %% picture stops at the depth that fits, depth(D) and only(Preds) choose
@@ -61,7 +69,8 @@ main :-
     must('the picture and the XML are both written', Both, yes),
 
     format("~n-- what each predicate is, as count(+, -) meets it~n"),
-    flow_graph(count('+', '-'), graph(Title, _, Panels, _, _), [source(Prog)]),
+    flow_graph(count('+', '-'), Graph, [source(Prog)]),
+    Graph = graph(Title, _, Panels, _, _),
     must('the title is the moded head, named as the comment names it', Title, 'count(+Text, -N)'),
     findall(K-CM-D, ( member(panel(I, K, _, CM, _, _, D, _), Panels), I > 0 ), Ps),
     must('each panel: what it is, its call pattern, how it can end', Ps,
@@ -74,14 +83,26 @@ main :-
     %% blanks//0 has two panels: ws//1's first clause calls it to read
     %% what blanks there are (+, -: it cannot fail), its second to read the
     %% REST of the text as blanks (+, +: phrase/2 left [] for what is left).
-    %% So count/2 is semidet, which its comment does not say: a character
-    %% that is neither a letter nor a blank ends the parse with no answer.
-    %% The chart said so before anything ran; running it agrees.
+    %% So count/2 is semidet, which its comment promises it is not -- `is
+    %% det' -- and a character that is neither a letter nor a blank ends
+    %% the parse with no answer. The chart said so before anything ran;
+    %% running it agrees.
     use_module(Prog),
     ( count("two words", N1) -> true ; N1 = none ),
     must('count("two words", N)', N1, 2),
     ( count("a 1", _) -> F1 = yes ; F1 = no ),
     must('count("a 1", N) has an answer', F1, no),
+
+    format("~n-- what the chart finds: a promise the code does not keep~n"),
+    %% a finding names its kind, the place it is about (p1, count/2's
+    %% panel) and what is wrong, in a sentence: here the `is det' of the
+    %% comment against the analysis, and the goal that breaks it
+    flow_findings(Graph, Fs),
+    findall(K-At, member(finding(_, K, _, At, _, _, _, _), Fs), KAs),
+    must('one finding: count/2 breaks the det its comment promises', KAs, [det_promise-p1]),
+    Fs = [finding(_, _, _, _, _, _, FText, _)],
+    must('and what breaks it', FText,
+         'count/2 is documented as det (line 3) but can fail: when phrase(ws(Ws), Text) fails, so does the whole call'),
 
     format("~n-- the XML, which is what an agent reads~n"),
     read_file_to_codes(Xml, XC),
@@ -138,7 +159,7 @@ main :-
 program([
     '%% words.pl -- what lesson 50 charts',
     '',
-    '%% count(+Text, -N): how many words Text has',
+    '%! count(+Text, -N) is det: how many words Text has',
     'count(Text, N) :-',
     '    phrase(ws(Ws), Text),',
     '    length(Ws, N).',

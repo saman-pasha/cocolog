@@ -17,9 +17,14 @@ flow_svg(Graph, Svg) :-
 %% where builtins(show) draws every goal (layout.pl, "Measuring"); the XML
 %% is never pruned and never folded
 flow_svg(Graph, Svg, Opts) :-
+    flow_findings(Graph, Fs),
+    flow_svg(Graph, Fs, Svg, Opts).
+
+%% the findings already found (flow_chart/4 finds them once for both files)
+flow_svg(Graph, Fs, Svg, Opts) :-
     flow_prune(Graph, Opts, Graph1, Note),
     (   memberchk(builtins(Fold), Opts) -> true ; Fold = fold ),
-    flow_layout(Graph1, Note, Fold, canvas(CW, CH, Items)),
+    flow_layout(Graph1, Note, Fold, Fs, canvas(CW, CH, Items)),
     flow_els(Items, Els),
     flow_defs(Defs),
     format(atom(VB), '0 0 ~w ~w', [CW, CH]),

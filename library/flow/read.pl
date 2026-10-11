@@ -561,33 +561,52 @@ flow_take(Rest, _, [], Rest).
 %% `%! pick(-X, +List)' names the arguments a predicate is drawn with. The
 %% modes drawn are still the ones INFERRED for the call -- a comment is a
 %% claim, the analysis is what the code does -- the names are the author's.
+%% sig(Modes, Names, Promise): Promise is promise(Det, Line) when the
+%% comment says how the predicate ends -- `%! count(+Text, -N) is det.' --
+%% and none when it does not. A promise is the author's claim, which is
+%% what makes it worth checking (findings.pl).
 flow_doc_sigs(File, Docs) :-
     catch(read_file_to_codes(File, Cs), _, Cs = []),
     flow_lines(Cs, 1, Lines),
-    findall(N/A-sig(Ms, Ns), ( member(_-L, Lines), flow_doc_line(L, N, A, Ms, Ns) ), Pairs),
+    findall(N/A-sig(Ms, Ns, P), ( member(LN-L, Lines), flow_doc_line(L, N, A, Ms, Ns, Rest),
+                                  flow_doc_promise(Rest, LN, P) ), Pairs),
     flow_first_per_key(Pairs, [], Firsts),
     list_to_assoc(Firsts, Docs).
 
 %% a comment line at column 0: `%' in Prolog, `;;' in a module's Cicili
-%% (one `;' could open a line of code)
-flow_doc_line(L, N, A, Ms, Ns) :-
+%% (one `;' could open a line of code); Rest is what follows the signature
+flow_doc_line(L, N, A, Ms, Ns, Rest) :-
     (   L = [37|R0] -> true ; L = [59, 59|R0] ),
     flow_drop_pct(R0, R1),
     flow_skip_sp(R1, R2),
     flow_name_codes(R2, NCs, R3),
     atom_codes(N, NCs),
-    (   R3 = [47, 47|_]
+    (   R3 = [47, 47|Rest]
     ->  Ms = ['?', '?'], Ns = ['S0', 'S'], A = 2          % name//: a nonterminal
     ;   R3 = [40|_],
         atom_codes(SigA, R2),
         flow_sig_parse(SigA, Ms0, Ns0),
         Ns0 = [_|_],
         flow_all_named(Ns0),
-        (   flow_after_close(R3, [47, 47|_])               % name(+A, -B)//
+        flow_after_close(R3, After),
+        (   After = [47, 47|Rest]                          % name(+A, -B)//
         ->  append(Ms0, ['?', '?'], Ms), append(Ns0, ['S0', 'S'], Ns)
-        ;   Ms = Ms0, Ns = Ns0
+        ;   Ms = Ms0, Ns = Ns0, Rest = After
         ),
         length(Ms, A)
+    ).
+
+%% ` is det', ` is semidet', ... right after the signature, as PlDoc
+%% writes it
+flow_doc_promise(Rest, LN, P) :-
+    flow_skip_sp(Rest, R1),
+    (   R1 = [0'i, 0's, C|R2], ( C =:= 32 ; C =:= 9 ),
+        flow_skip_sp(R2, R3),
+        flow_name_codes(R3, WCs, _),
+        atom_codes(W, WCs),
+        memberchk(W, [det, semidet, nondet, multi, failure])
+    ->  P = promise(W, LN)
+    ;   P = none
     ).
 
 %% what follows the parenthesis that closes the one in front
@@ -616,7 +635,7 @@ flow_library_docs_([], Docs, Docs).
 flow_library_docs_([N/A|Keys], Docs0, Docs) :-
     (   \+ get_assoc(N/A, Docs0, _),
         flow_t_sig(N, A, Ms, Ns)
-    ->  put_assoc(N/A, Docs0, sig(Ms, Ns), Docs1)
+    ->  put_assoc(N/A, Docs0, sig(Ms, Ns, none), Docs1)
     ;   Docs1 = Docs0
     ),
     flow_library_docs_(Keys, Docs1, Docs).
@@ -638,7 +657,7 @@ flow_all_named([N|Ns]) :-
 %% first clause head's variables, else letters
 flow_names_for(N/A, Docs, Rows, G, Names) :-
     functor(G, N, A),
-    (   get_assoc(N/A, Docs, sig(_, DNs)), length(DNs, A)
+    (   get_assoc(N/A, Docs, sig(_, DNs, _)), length(DNs, A)
     ->  G =.. [_|Vs], flow_pair_names(DNs, Vs, Names)
     ;   Rows = [row(_, H, Vs, _, _, CI)|_], H \== none
     ->  flow_arg_names(H, Vs, G, 1, A, Names0),

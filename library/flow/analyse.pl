@@ -512,13 +512,26 @@ flow_head_pass([A|As], [M|Ms], Which, S, St0, St) :-
     (   M == Which -> flow_raise_term(A, S, St0, St1) ; St1 = St0 ),
     flow_head_pass(As, Ms, Which, S, St1, St).
 
-%% a head can fail to unify when an input position holds a pattern
+%% a head can fail to unify when an input position holds a pattern, or one
+%% variable stands in two input positions: p(X, X) called (+, +) fails on
+%% two different values
 flow_head_can_fail(H, CM, HF) :-
     H =.. [_|Args],
-    (   flow_pattern_input(Args, CM) -> HF = true ; HF = false ).
+    (   flow_pattern_input(Args, CM) -> HF = true
+    ;   flow_input_vars(Args, CM, Vs), flow_repeats(Vs) -> HF = true
+    ;   HF = false
+    ).
 
 flow_pattern_input([A|As], [M|Ms]) :-
     (   M \== '-', nonvar(A) -> true ; flow_pattern_input(As, Ms) ).
+
+flow_input_vars([], [], []).
+flow_input_vars([A|As], [M|Ms], Vs) :-
+    (   M \== '-' -> Vs = [A|Vs1] ; Vs = Vs1 ),
+    flow_input_vars(As, Ms, Vs1).
+
+flow_repeats([V|Vs]) :-
+    (   flow_var_in(V, Vs) -> true ; flow_repeats(Vs) ).
 
 %% two ways through join; a dead one contributes nothing
 flow_join(S1, S2, S) :- flow_dead(S1), !, S = S2.
@@ -575,7 +588,8 @@ flow_an_goals([G|Gs], St0, St, Ctx, M0, M, Nodes) :-
 %% A GOAL KNOWN ONLY WHEN IT RUNS -- a variable in a body, catch(G, ...),
 %% call(G), call(G, X): a CLOSURE, which may fail, may leave a choice, and
 %% may bind what it is handed
-flow_an_item(V, St, St, _, M, M, [g(call(V), closure, [':'], nondet, none, [])]) :- var(V), !.
+flow_an_item(V, St, St, _, M, M, [g(call(V), closure, [':'], nondet, none, I)]) :- var(V), !,
+    flow_closure_info(V, St, I).
 %% a goal the reader placed: its place and grammar form go onto its node
 flow_an_item('$at'(G, Info), St0, St, Ctx, M0, M, Ns) :- !,
     flow_an_item(G, St0, St, Ctx, M0, M, Ns0),
@@ -593,9 +607,10 @@ flow_an_item(P, St0, St, Ctx, M0, M, [meta(phrase, Head, [':'|Ms], [Ns], [])]) :
 flow_an_item(_:G, St0, St, Ctx, M0, M, Ns) :- !,
     flow_an_item(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(!, St, St, _, M, M, [cut]) :- !.
-flow_an_item(fail, St, St, _, M, M, [failn]) :- !.
-flow_an_item(false, St, St, _, M, M, [failn]) :- !.
-flow_an_item(throw(E), St, St, _, M, M, [thrown(E)]) :- !.
+%% nothing after fail or throw runs: the state is dead past them
+flow_an_item(fail, St, [dead-dead|St], _, M, M, [failn]) :- !.
+flow_an_item(false, St, [dead-dead|St], _, M, M, [failn]) :- !.
+flow_an_item(throw(E), St, [dead-dead|St], _, M, M, [thrown(E)]) :- !.
 flow_an_item((C -> T ; E), St0, St, Ctx, M0, M, [ite(hard, Arms, Else)]) :- !,
     flow_an_ite((C -> T ; E), St0, St, Ctx, M0, M, Arms, Else).
 flow_an_item((C *-> T ; E), St0, St, Ctx, M0, M, [ite(soft, [arm(Cn, Tn)], En)]) :- !,
@@ -653,15 +668,78 @@ flow_an_item(C, St0, St, Ctx, M0, M, Ns) :-
     ;   M = M0,
         flow_arg_modes(Extra, St0, EMs),
         flow_raise_args(Extra, p, St0, St),
-        Ns = [g(C, closure, [':'|EMs], nondet, none, [])]
+        flow_closure_info(G, St0, I),
+        Ns = [g(C, closure, [':'|EMs], nondet, none, I)]
     ).
 flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
     flow_kind(G, Ctx, Kind),
     functor(G, N, A),
     G =.. [_|Args],
     flow_arg_modes(Args, St0, Ms),
-    flow_effect(Kind, N/A, Args, Ms, St0, St, Ctx, M0, M, Det),
-    (   flow_dead(St0) -> I = [unreached] ; I = [] ).
+    flow_effect(Kind, N/A, Args, Ms, St0, St1, Ctx, M0, M, Det),
+    (   flow_dead(St0) -> I = [unreached], St = St1
+    ;   Kind == unknown
+    ->  Ctx = ctx(Prog, _, _),
+        (   flow_near_name(N, A, Prog, Near) -> I = [near(Near)] ; I = [] ),
+        St = St1
+    ;   flow_refused(Kind, N, A, Args, St0, Ps, Vs)
+    ->  I = [inst(Ps, Vs)],
+        St = [dead-dead|St1]                    % it raises: nothing after it runs
+    ;   I = [], St = St1
+    ).
+
+%% A CALL THE ENGINE REFUSES: an argument it will not take unbound
+%% (modes.pl, flow_raises_unbound/4) free on every path to the call, or a
+%% variable free on every path inside an expression arithmetic evaluates.
+%% A state says f only where no goal before could have bound the variable,
+%% on any path, so this is certain whenever the call is reached; the node
+%% carries inst(Positions, Variables), and findings.pl words it.
+%% (No findall/3 here: it would copy the variables, and the finding names
+%% them by the clause's own.)
+flow_refused(Kind, N, A, Args, St, Ps, Vs) :-
+    flow_refusing_kind(Kind),
+    (   flow_evaluates(N, A, EPs)
+    ->  flow_args_at(EPs, Args, Xs),
+        term_variables(Xs, XVs),
+        flow_free_in(XVs, St, Vs),
+        Vs \== [],
+        flow_places_of(EPs, Args, Vs, Ps)
+    ;   flow_raises_unbound(N, A, Ps, _),
+        forall(member(P, Ps), ( nth1(P, Args, X), var(X), flow_st_get(St, X, f) ))
+    ->  flow_args_at(Ps, Args, Vs)
+    ).
+
+flow_args_at([], _, []).
+flow_args_at([P|Ps], Args, [X|Xs]) :-
+    nth1(P, Args, X),
+    flow_args_at(Ps, Args, Xs).
+
+%% the variables free on every path to here
+flow_free_in([], _, []).
+flow_free_in([V|Vs], St, Fs) :-
+    (   flow_st_get(St, V, f) -> Fs = [V|Fs1] ; Fs = Fs1 ),
+    flow_free_in(Vs, St, Fs1).
+
+%% the places whose argument holds one of Vs
+flow_places_of([], _, _, []).
+flow_places_of([P|Ps], Args, Vs, Out) :-
+    nth1(P, Args, X),
+    term_variables(X, XVs),
+    (   member(V, XVs), flow_var_in(V, Vs) -> Out = [P|Out1] ; Out = Out1 ),
+    flow_places_of(Ps, Args, Vs, Out1).
+
+%% only the engine's own predicates: the program's own of one of these
+%% names would be called instead
+flow_refusing_kind(builtin).
+flow_refusing_kind(test).
+flow_refusing_kind(library(_)).
+
+%% a closure whose goal is free on every path to it cannot be called
+flow_closure_info(G, St, I) :-
+    (   flow_dead(St) -> I = [unreached]
+    ;   var(G), flow_st_get(St, G, f) -> I = [inst([1], [G])]
+    ;   I = []
+    ).
 
 flow_meta_template('+', '+') :- !.
 flow_meta_template(_, '?').
@@ -719,8 +797,10 @@ flow_an_branches([D|Ds], St0, [S|Ss], Ctx, M0, M, [Ns|Nss]) :-
     flow_an_seq(D, St0, S, Ctx, M0, M1, Ns),
     flow_an_branches(Ds, St0, Ss, Ctx, M1, M, Nss).
 
-%% what a goal binds, and how it can end
-flow_effect(test, _, _, _, St, St, _, M, M, semidet) :- !.
+%% what a goal binds, and how it can end -- a test binds nothing, and what
+%% it says when it succeeds is still news
+flow_effect(test, N/A, Args, _, St0, St, _, M, M, semidet) :- !,
+    flow_test_effect(N, A, Args, St0, St).
 flow_effect(unify, _, [X, Y], _, St0, St, _, M, M, Det) :- !,
     (   flow_fresh_side(X, Y, St0) -> Det = det ; Det = semidet ),
     flow_unify_effect(X, Y, St0, St).
@@ -742,6 +822,38 @@ flow_effect(library(L), Key, Args, Ms, St0, St, Ctx, M0, M, Det) :- !,
     flow_call_effect(library(L), Key, Args, Ms, St0, St, Ctx, M0, M, Det).
 flow_effect(_, _, Args, _, St0, St, _, M, M, semidet) :-
     flow_raise_args(Args, p, St0, St).
+
+%% A TEST THAT SUCCEEDS SAYS SOMETHING. atom(X) past means X is bound, and
+%% nonvar(X) that it is at least partly; neither ever holds of a variable
+%% free on every path, so nothing after one runs. X < Y past means both
+%% sides were numbers. var(X) never holds of a bound one.
+flow_test_effect(N, 1, [X], St0, St) :-
+    flow_type_test(N, How), !,
+    (   var(X), flow_st_get(St0, X, f) -> St = [dead-dead|St0]
+    ;   flow_raise_term(X, How, St0, St)
+    ).
+flow_test_effect(var, 1, [X], St0, St) :- !,
+    (   var(X), flow_st_get(St0, X, b) -> St = [dead-dead|St0]
+    ;   nonvar(X) -> St = [dead-dead|St0]
+    ;   St = St0
+    ).
+flow_test_effect(N, 2, [X, Y], St0, St) :-
+    flow_evaluates(N, 2, _), !,
+    flow_raise_term(X-Y, b, St0, St).
+flow_test_effect(_, _, _, St, St).
+
+%% what a type test says of what it holds of: b bound, p partly
+flow_type_test(atom, b).
+flow_type_test(number, b).
+flow_type_test(integer, b).
+flow_type_test(float, b).
+flow_type_test(atomic, b).
+flow_type_test(string, b).
+flow_type_test(ground, b).
+flow_type_test(nonvar, p).
+flow_type_test(compound, p).
+flow_type_test(callable, p).
+flow_type_test(is_list, p).
 
 %% past a call not known to succeed nothing runs, so no pair is made and
 %% no answer is read: the goal is drawn, unreached, and leaves no choice
@@ -804,10 +916,14 @@ flow_clause_sp(H, St, SP) :-
     H =.. [_|Args],
     flow_args_final(Args, St, SP).
 
+%% a head argument that is a structure binds the caller's variable to it,
+%% whatever its own variables are: get(foo(Y)) leaves the X of get(X) at
+%% least partly bound
 flow_args_final([], _, []).
 flow_args_final([A|As], St, [S|Ss]) :-
     term_variables(A, Vs),
-    flow_vars_final(Vs, St, S),
+    flow_vars_final(Vs, St, S0),
+    (   S0 == f, nonvar(A) -> S = p ; S = S0 ),
     flow_args_final(As, St, Ss).
 
 flow_vars_final([], _, b) :- !.

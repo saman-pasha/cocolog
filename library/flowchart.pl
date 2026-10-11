@@ -6,7 +6,9 @@
 %%
 %%     flow_chart(+Spec, +Base)               Base.svg and Base.xml
 %%     flow_chart(+Spec, +Base, +Options)
+%%     flow_chart(+Spec, +Base, +Options, -Findings)
 %%     flow_graph(+Spec, -Graph, +Options)    the analysis, as a term
+%%     flow_findings(+Graph, -Findings)       what is wrong, and where
 %%     flow_svg(+Graph, -Svg)                 the documents, as library(xml)
 %%     flow_svg(+Graph, -Svg, +Options)       terms
 %%     flow_xml(+Graph, -Xml)
@@ -96,15 +98,26 @@
 %% to cross as little as the wires allow, and a panel is placed level with
 %% the call that first reaches it, so most wires are straight.
 %%
-%% NOT YET: threads, channels, locks and child processes (F2), findings
-%% such as left recursion (F3), and library(flowdebug), the run drawn over
-%% the chart (DESIGN-flow.md).
+%% FINDINGS: what is wrong, and where (library/flow/findings.pl) -- a call
+%% nothing answers, with the name it was probably meant to be; a call the
+%% engine refuses with an argument free on every path to it; a predicate
+%% whose first call reaches itself again with the inputs it was given, for
+%% a grammar before reading anything; a clause never tried; a `%! p(...)
+%% is det' the code does not keep. Each is about one id, a red disc on its
+%% box in the picture, an element at the head of the XML, a line from
+%% tools/flow/chart.pl as a compiler writes one:
+%%
+%%     finding(N, Kind, Severity, At, In, where(File, Line, Col), Text, See)
+%%
+%% NOT YET: threads, channels, locks and child processes (F2), and
+%% library(flowdebug), the run drawn over the chart (DESIGN-flow.md).
 
 :- use_module(library(xml)).
 :- use_module(library(stream)).
 :- use_module(library(flow/read)).
 :- use_module(library(flow/modes)).
 :- use_module(library(flow/analyse)).
+:- use_module(library(flow/findings)).
 :- use_module(library(flow/text)).
 :- use_module(library(flow/layout)).
 :- use_module(library(flow/svg)).
@@ -120,12 +133,17 @@ flow_chart(Spec, Base) :-
 
 %% Base.svg for a person and Base.xml for an agent, from one graph, so the
 %% two cannot disagree. A Base given as x.svg or x.xml means x.
-flow_chart(Spec, Base0, Opts) :-
+flow_chart(Spec, Base, Opts) :-
+    flow_chart(Spec, Base, Opts, _).
+
+%% and the findings, found once for both files
+flow_chart(Spec, Base0, Opts, Fs) :-
     flow_base(Base0, Base),
     flow_check_draw_opts(Opts),
     flow_graph(Spec, Graph, Opts),
-    flow_svg(Graph, Svg, Opts),
-    flow_xml(Graph, Xml),
+    flow_findings(Graph, Fs),
+    flow_svg(Graph, Fs, Svg, Opts),
+    flow_xml(Graph, Fs, Xml),
     atom_concat(Base, '.svg', SvgFile),
     atom_concat(Base, '.xml', XmlFile),
     flow_write_doc(SvgFile, Svg, []),

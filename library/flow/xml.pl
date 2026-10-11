@@ -40,14 +40,29 @@
 %%
 %% and a clause says where backtracking into it goes once it has exited
 %% (redo), by the same words. A goal past a call that never succeeds says
-%% reached="false": it is drawn, and nothing it calls has a panel. The
-%% schema is version 1: changing it changes the number.
+%% reached="false": it is drawn, and nothing it calls has a panel.
+%%
+%% THE FINDINGS COME FIRST, before the panels, so an agent reading the head
+%% of the file meets them: <findings count errors warnings>, then one
+%% <finding n kind severity at in file line col text> each, with a <see
+%% ref=...> for each other place it involves -- ref, not id: an id names one
+%% element of the document, and at= and ref= point at it (library/flow/
+%% findings.pl has the five kinds). n is the number on its disc in the
+%% picture.
+%%
+%% The schema is version 2 (version 1 had no findings): changing it changes
+%% the number.
 
 :- use_module(library(xml)).
 
-flow_xml_version(1).
+flow_xml_version(2).
 
-flow_xml(graph(Title, Src, Panels, Ids, Docs), element(flow, As, Cs)) :-
+flow_xml(Graph, Xml) :-
+    flow_findings(Graph, Fs),
+    flow_xml(Graph, Fs, Xml).
+
+flow_xml(Graph, Fs, element(flow, As, [FE|Cs])) :-
+    Graph = graph(Title, Src, Panels, Ids, Docs),
     flow_xml_version(V),
     memberchk(panel(0, _, _, CM, _, rows([row(_, _, _, _, [g(_, _, _, _, N/A, _)], _)]), _, _), Panels),
     functor(SG, N, A),
@@ -55,7 +70,21 @@ flow_xml(graph(Title, Src, Panels, Ids, Docs), element(flow, As, Cs)) :-
     flow_x_modes_args(Ms0, CM),
     format(atom(Spec), '~q', [SG]),
     As = [version=V, tool='library(flowchart)', title=Title, spec=Spec, source=Src],
+    flow_x_findings(Fs, FE),
     findall(E, ( member(P, Panels), flow_x_panel(P, Ids, Docs, E) ), Cs).
+
+%% ---- the findings, first, so an agent meets them before the panels ------
+
+flow_x_findings(Fs, element(findings, [count=N, errors=NE, warnings=NW], Els)) :-
+    length(Fs, N),
+    findall(x, member(finding(_, _, error, _, _, _, _, _), Fs), Es), length(Es, NE),
+    NW is N - NE,
+    findall(E, ( member(F, Fs), flow_x_finding(F, E) ), Els).
+
+flow_x_finding(finding(N, Kind, Sev, At, In, Where, Text, See), element(finding, As, Els)) :-
+    (   Where = where(F, L, C) -> WAs = [file=F, line=L, col=C] ; WAs = [] ),
+    append([[n=N, kind=Kind, severity=Sev, at=At, in=In], WAs, [text=Text]], As),
+    findall(element(see, [ref=Id], []), member(Id, See), Els).
 
 flow_x_modes_args([], []).
 flow_x_modes_args([M|Ms], [M|CMs]) :- flow_x_modes_args(Ms, CMs).
@@ -262,7 +291,7 @@ flow_x_item(_, Id, _, _, _, element(item, [id=Id], [])).
 %% or out; the then goes on as the list around the if-then-else does
 flow_x_arms([], _, _, _, _, _, _, _, []).
 flow_x_arms([arm(C, Th)|As], K, NA, Else, Id, X, T, Transp,
-            [element(arm, [n=K, id=AId], [element(cond, [id=CId], CIs), element(then, [id=AId], TIs)])|Es]) :-
+            [element(arm, [n=K], [element(cond, [id=CId], CIs), element(then, [id=AId], TIs)])|Es]) :-
     atomic_list_concat([Id, '.a', K], AId),
     atom_concat(AId, '.if', CId),
     (   K < NA -> K1 is K + 1, atomic_list_concat([Id, '.a', K1, '.if'], CD)

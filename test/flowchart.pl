@@ -19,6 +19,8 @@
 %%   runtime.pl  what is made or picked as the program runs: dynamic
 %%               predicates (one declared by notes.pl, which it loads) and
 %%               call/N, with a closure named and with one that is not
+%%   faults.pl   one of each finding, and eleven near misses that are not --
+%%               three of them false findings the translator once had
 %%   gram.pl     grammar rules, drawn as the predicates they are
 %%
 %% How the picture LOOKS is not checked here -- that is judged by eye --
@@ -38,6 +40,7 @@ main :-
     modes_and_determinism,
     fixed_point,
     runtime,
+    findings,
     grammar,
     positions,
     failure,
@@ -141,7 +144,14 @@ fixed_point :-
     flow_xml(G2, X2),
     attr_of(X2, 'p1.c1.g2', reached, R3),
     attr_of(X2, 'p1.c1.g2', calls, C3),
-    check('the XML says that goal is never reached, and names no panel for it', R3-C3, false-failed).
+    check('the XML says that goal is never reached, and names no panel for it', R3-C3, false-failed),
+    graph(top('+', '-'), fix, GF),
+    flow_findings(GF, FFs),
+    findall(K-At, member(finding(_, K, _, At, _, _, _, _), FFs), KAs),
+    %% spin/1 calls itself with what it was given; size/2 called with
+    %% nothing bound calls itself first too, and is a generator, not a loop
+    check('fix.pl: spin/1 loops for ever, and size/2 of nothing bound is no finding', KAs,
+          [left_recursion-'p6.c1.g1']).
 
 %% ---- what is made or picked as the program runs -------------------------
 
@@ -192,6 +202,114 @@ runtime :-
     flow_xml(G9, X9),
     findall(P9, ( xml_goal_attrs(X9, A9), memberchk(pred=P9, A9) ), Ps9),
     check('call((a(X), b(X))) is its two goals, not an unknown ,/2', Ps9, ['go/1', 'a/1', 'b/1']).
+
+%% ---- findings ----------------------------------------------------------
+
+findings :-
+    section('findings: what is wrong, and where -- one of each, and the near misses that are not'),
+    graph(check('+'), faults, G),
+    flow_findings(G, Fs),
+    findall(N-K-At-In, member(finding(N, K, _, At, In, _, _, _), Fs), Got1),
+    %% eleven near misses find nothing: the same goals in the right order, a
+    %% variable bound on one path only, recursion on the tail, a test before
+    %% the cut, a kept semidet promise, a dynamic call, the translator's
+    %% three, a head with one variable in two inputs, and a variable a clause
+    %% head binds
+    check('faults.pl: every finding, in document order -- and nothing from the near misses', Got1,
+          [1-instantiation-'p2.c1.g1'-'total/2',
+           2-instantiation-'p5.c1.g1'-'name_size/1',
+           3-instantiation-'p6.c1.g1'-'run_it/0',
+           4-left_recursion-'p8.c1.g1'-'spin/1',
+           5-left_recursion-'p9.c1.g1'-'ping/1',
+           6-unreachable_clause-'p11.c2'-'kind/2',
+           7-det_promise-p13-'first_pos/2',
+           8-det_promise-p14-'pick_one/2',
+           9-unknown_procedure-'p16.c1.g1'-'helper/1',
+           10-left_recursion-'p23.c1.g1'-'xs/2']),
+    panels(check('+'), faults, Ps0),
+    findall(K0-CM0-D0, ( member(K0-CM0-D0, Ps0), memberchk(K0, [total/2, percent/1]) ), Ps1),
+    %% total/2 always raises; percent/1 handed a free W fails at atom/1
+    check('a call that always raises, and a test that never holds of a free variable, end the clause',
+          Ps1, [total/2-['+', '-']-failure, percent/1-['-']-failure, percent/1-['?']-semidet]),
+    findall(S, member(finding(_, _, S, _, _, _, _, _), Fs), Ss),
+    msort(Ss, Ss2),
+    check('seven errors and three warnings', Ss2,
+          [error, error, error, error, error, error, error, warning, warning, warning]),
+    memberchk(finding(1, _, _, _, _, W1, T1, _), Fs),
+    check('an instantiation finding names the variable, by its own name, and the place', W1-T1,
+          where('test/flowchart/faults.pl', 35, 5)-'S is free on every path to here, and is/2 evaluates it: this call raises an instantiation error'),
+    memberchk(finding(2, _, _, _, _, _, T2, _), Fs),
+    check('a builtin the engine refuses unbound, from the table checked below', T2,
+          'A is free on every path to here, and atom_length/2 will not take it unbound: this call raises an error'),
+    memberchk(finding(3, _, _, _, _, _, T3, _), Fs),
+    check('a closure with no goal in it', T3,
+          'G is free on every path to here, so there is no goal to call: this raises an instantiation error'),
+    memberchk(finding(5, _, _, _, _, _, T5, S5), Fs),
+    check('left recursion through two predicates names both, and sees the other call', T5-S5,
+          'ping/1 reaches itself again first, with the inputs it was given (ping/1 -> pong/1 -> ping/1): once this clause is reached it repeats for ever'-['p24.c1.g1']),
+    memberchk(finding(10, _, _, _, _, _, T10, _), Fs),
+    check('a grammar rule that calls itself before reading anything is named as the nonterminal', T10,
+          'xs//0 calls itself before reading any input: parsing with it loops for ever'),
+    memberchk(finding(6, _, _, _, _, _, T6, S6), Fs),
+    check('the clause never tried, and the cut that keeps it out', T6-S6,
+          'clause 2 of kind/2 is never tried for kind(+, -): clause 1 matches every such call and cuts before anything in it can fail'-['p11.c1.g1']),
+    memberchk(finding(7, _, _, _, _, W7, T7, S7), Fs),
+    check('a det promise broken by a goal that can fail: the comment''s line, the goal', W7-T7-S7,
+          where('test/flowchart/faults.pl', 82, 1)-'first_pos/2 is documented as det (line 82) but can fail: when member(X, L) fails, so does the whole call'-['p13.c1.g1']),
+    memberchk(finding(8, _, _, _, _, _, T8, _), Fs),
+    check('... and by a goal that can answer again', T8,
+          'pick_one/2 is documented as det (line 86) but can leave a choice point: member(X, L) can answer again'),
+    memberchk(finding(9, _, _, _, _, _, T9, _), Fs),
+    check('an unknown procedure, with the name it was probably meant to be', T9,
+          'lenght/2 is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error; did you mean length/2?'),
+    %% the XML: the findings first, before the panels
+    flow_xml(G, X),
+    X = element(flow, _, [element(FN, FAs, FEls)|_]),
+    findall(V, ( member(A, [count, errors, warnings]), memberchk(A=V, FAs) ), Vs),
+    check('the XML opens with them: <findings count errors warnings>', FN-Vs, findings-[10, 7, 3]),
+    FEls = [element(finding, F1As, _)|_],
+    findall(V, ( member(A, [n, kind, severity, at, in, file, line, col]), memberchk(A=V, F1As) ), V1s),
+    check('each one''s number, kind, severity, place and predicate', V1s,
+          [1, instantiation, error, 'p2.c1.g1', 'total/2', 'test/flowchart/faults.pl', 35, 5]),
+    findall(I, xml_any_id(X, I), XIds), msort(XIds, XSorted), sort(XIds, XSet),
+    length(XSorted, NXI), length(XSet, NXS),
+    check('every id in the XML names one element: a finding points with at= and ref=', NXI, NXS),
+    %% the picture: a numbered disc on the box, and the count by the title
+    scratch(D),
+    atom_concat(D, '/faults', B),
+    fx(faults, FF),
+    flow_chart(check('+'), B, [source(FF)]),
+    svg_doc(B, Svg),
+    yes_no(( svg_element(Svg, p2, P2), svg_element(P2, f1, element(_, _, M1)),
+             memberchk(element(title, _, [MT]), M1),
+             atom_concat('1  --  error: S is free', _, MT) ), Y11),
+    check('finding 1 is a disc in panel 2, its sentence on hover', Y11, yes),
+    svg_texts(B, Txs),
+    yes_no(memberchk('7 errors, 3 warnings  --  numbered on the chart, listed under it', Txs), Y12),
+    check('the title says how many', Y12, yes),
+    %% the command an agent runs prints them as a compiler would
+    atomic_list_concat(['-s tools/flow/chart.pl -- \'check(+)\' test/flowchart/faults.pl ', D, '/cmdf'], A13),
+    cocolog_run(A13, Out13, E13),
+    yes_no(sub_atom(Out13, _, _, _, 'test/flowchart/faults.pl:35:5: error: total/2: S is free on every path to here'), Y13),
+    check('tools/flow/chart.pl prints each finding as FILE:LINE:COL: error: ..., and exits 0', Y13-E13, yes-0),
+    atom_concat(D, '/stop.pl', SP),
+    open(SP, write, SS),
+    format(SS, "stop :- fail, write(x).~n", []),
+    close(SS),
+    flow_graph(stop, G14, [source(SP)]),
+    flow_xml(G14, X14),
+    attr_of(X14, 'p1.c1.g2', reached, R14),
+    check('nothing after fail runs', R14, false),
+    %% the table of calls the engine refuses unbound: every example raises
+    findall(Ex, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
+                  \+ catch(( call(Ex), fail ), error(_, _), true) ), Silent),
+    check('every call the refusal table names raises an error when made unbound', Silent, []).
+
+%% every id attribute of an XML term
+xml_any_id(element(_, As, Cs), Id) :-
+    (   memberchk(id=Id, As)
+    ;   member(C, Cs), C = element(_, _, _), xml_any_id(C, Id)
+    ).
 
 %% the attributes of every goal of an XML term, in document order
 xml_goal_attrs(element(N, As, Cs), A) :-
@@ -304,7 +422,7 @@ documents :-
     answer(xml_parse(SC, element(R2, _, _)), R2, G2),
     check('the SVG reads back as an svg element', G2, svg),
     answer(( xml_parse(XC, element(R3, A3, _)), memberchk(version=V3, A3) ), R3-V3, G3),
-    check('the XML reads back as a flow element, schema version 1', G3, flow-'1'),
+    check('the XML reads back as a flow element, schema version 2', G3, flow-'2'),
     xml_parse(SC, S),
     xml_parse(XC, X),
     findall(I, xml_ids_of(X, goal, I), XIds),

@@ -1,11 +1,12 @@
 # Flows: a program drawn as it can run, and as it ran
 
-**A plan, with its first two steps built**, on the work branch
-`claude/cocolog-llm-agent-design-rh7t3t`: F0, the look (`7a11896`), and F1,
+**A plan, with three steps built**, on the work branch
+`claude/cocolog-llm-agent-design-rh7t3t`: F0, the look (`7a11896`); F1,
 `library(flowchart)` in full -- `library/flowchart.pl` and its parts in
 `library/flow/`, `tools/flow/`, `test/flowchart.pl` and
-`tutorials/library/50-flowchart.pl`. F2 on are planned. Each phase lands on
-master when the owner says so, with its case, its lesson and its version.
+`tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). F2
+and `library(flowdebug)` are planned. Each phase lands on master when the
+owner says so, with its case, its lesson and its version.
 
 ## 1. What the flows are for
 
@@ -111,7 +112,9 @@ whose track order is chosen by counting crossings.
 ```prolog
 flow_chart(+Spec, +Base)              % writes Base.svg and Base.xml
 flow_chart(+Spec, +Base, +Options)
+flow_chart(+Spec, +Base, +Options, -Findings)
 flow_graph(+Spec, -Graph, +Options)   % the analysis as a term: what the tests check
+flow_findings(+Graph, -Findings)      % what is wrong, and where (section 8)
 flow_svg(+Graph, -Svg)                % library(xml) terms, for a program that
 flow_svg(+Graph, -Svg, +Options)      % wants the documents and not the files
 flow_xml(+Graph, -Xml)
@@ -132,6 +135,8 @@ For an agent in any language, one command writes both files:
 ```sh
 cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1] [builtins=show]
 # out/report.svg and out/report.xml; exit 0, 1 for no such predicate, 2 for an error
+# then each finding as a compiler writes one:
+# test/flowchart/faults.pl:35:5: error: total/2: S is free on every path to here, and is/2 evaluates it: ... [instantiation p2.c1.g1]
 ```
 
 ### 4.2 Reading a program
@@ -205,6 +210,24 @@ for every C builtin the generated table names.
   no panel.
 * **A predicate met with two call patterns gets a panel for each**, since its
   modes, its determinism and its lanes differ.
+* **What a test says, and what never runs** (1.10.4, from F3: the
+  translator's first findings were three false ones from these gaps). A
+  type test that succeeds says what it holds of is bound -- `atom/1`,
+  `number/1`, `atomic/1`, `string/1`, `ground/1` and their kin -- or at
+  least partly -- `nonvar/1`, `compound/1`, `callable/1`, `is_list/1` -- and
+  an arithmetic comparison that succeeds says both sides were numbers. A
+  test that can never hold -- `atom/1` of a variable free on every path,
+  `var/1` of a bound one -- ends the clause there, as `fail`, `throw/1` and
+  a call the engine refuses do: what follows is drawn, unreached. A head
+  with one variable in two input places can fail to match (`p(X, X)` called
+  `(+, +)`), and a head argument that is a structure leaves the caller's
+  variable partly bound, not free (`wrap(box(_))`). A partly bound argument
+  meets either side of a builtin's mode line when no line fits exactly --
+  `G =.. [C, W]` with `W` free is the `(-, +)` line, so `G` is bound after
+  it -- and where it stands for an output the answer is unified with it, so
+  a det line can fail there (`A =.. [K, which(W)]` tests what `A` is). On the
+  translator the same 999 predicates have 2554 call patterns where they had
+  2897: patterns merged where a test now binds.
 * **`call/N` is the goal it makes**: `call(double, X, Y)` and
   `call(double(X), Y)` are analysed and drawn as `double(X, Y)`. A closure
   the source does not name -- `call(Goal, X)` with `Goal` a variable, or a
@@ -306,13 +329,18 @@ condition and its then, `X.else`, `X.b2` for a disjunction's second branch,
 `X.try` and `X.recover` for `catch/3`, `X` itself for `\+` and a meta-call
 -- so `p2.c1.g2.g1` is the first goal inside the `findall/3` that is
 `p2.c1`'s second. In the SVG each box is a `<g>` carrying its id, so
-whatever an agent finds in the XML it can point at in the picture.
+whatever an agent finds in the XML it can point at in the picture. **An id
+names one element**, in either document: an if-then-else's `<arm>` carries
+only its number, its `<then>` the `X.a1` (through 1.10.3 both did), and a
+finding points at places with `at=` and `ref=` (the case checks both
+documents for a repeated id).
 
 From `test/flowchart/demo.pl`, its `grep_count/3` (the clause's `<text>` and
 the goals' `<arg>` children shortened):
 
 ```xml
-<flow version="1" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+<flow version="2" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+  <findings count="0" errors="0" warnings="0"/>
   <panel id="p2" pred="grep_count/3" kind="user" modes="+ + -" det="det" head="grep_count(+Pat, +Text, -N)" depth="2" clauses="1">
     <clause id="p2.c1" n="1" file="test/flowchart/demo.pl" line="20" col="1" head="grep_count(Pat, Text, N)" head_can_fail="false" redo="fail">
       <arg n="1" mode="+" text="Pat"/> ...
@@ -342,10 +370,23 @@ clause: where backtracking into it goes once it has exited (`redo`). For
 every panel: its moded head, determinism, depth and source. For C: the
 module, the C function and the table row's file and line.
 
+**The findings come first** (section 8), so an agent reading the head of a
+45 MB file meets them: `<findings count errors warnings>`, then a
+`<finding n kind severity at in file line col text>` each, with a `<see
+ref>` for each other place it involves:
+
+```xml
+  <findings count="10" errors="7" warnings="3">
+    <finding n="1" kind="instantiation" severity="error" at="p2.c1.g1" in="total/2" file="test/flowchart/faults.pl" line="35" col="5" text="S is free on every path to here, and is/2 evaluates it: this call raises an instantiation error"/>
+    <finding n="5" kind="left_recursion" severity="error" at="p9.c1.g1" in="ping/1" ... text="ping/1 reaches itself again first, with the inputs it was given (ping/1 -&gt; pong/1 -&gt; ping/1): once this clause is reached it repeats for ever">
+      <see ref="p24.c1.g1"/>
+    </finding>
+```
+
 It is written with `indent(2)`, in UTF-8, an element to a line, so `grep`
 works on it as well as a parser does. The schema is versioned
-(`version="1"`) and documented in `library/flow/xml.pl`'s header; changing
-it bumps that number. **The round trip is the test**: `test/flowchart.pl`
+(`version="2"`; version 1, F1's, had no findings) and documented in
+`library/flow/xml.pl`'s header; changing it bumps that number. **The round trip is the test**: `test/flowchart.pl`
 reads the XML back through `library(xml)` and checks it against values
 worked out by hand.
 
@@ -407,25 +448,64 @@ neither joined nor detached.
 
 ## 8. Findings: what is wrong, and where (F3)
 
-The analysis already knows things a programmer would want to be told. Each
-finding has a kind, a severity, a sentence, the id of the goal it is about
-and its file, line and column. It is written in the XML and flagged on the
-chart as a numbered red marker on the box, listed under the chart.
+**Built** (1.10.4, on the work branch): `library/flow/findings.pl`. The
+analysis already knows things a programmer wants to be told, and a finding is
+one only the flow analysis can see -- cocolint stays the linter (singletons,
+the dialect's traps). Each is about one place, named by the id the XML and
+the SVG give it, and says in a sentence what will happen there:
 
-1. **Unknown procedure**: no clause, no builtin and no module answers the
-   call.
-2. **Instantiation risk**: a call whose table line needs `+` where the
-   argument is free on every path, such as `X is Y + 1` with `Y` free.
-3. **Left recursion**: a predicate or nonterminal that calls itself again
-   with nothing more bound -- for a grammar, before consuming any input.
-4. **A broken determinism promise**: a `%! p(...) is det` comment against
-   the inferred word.
-5. **A clause that is never reached**: an earlier clause matches every call
-   of this pattern and cuts before anything can fail.
-6. The concurrency findings of section 7.
+| kind | severity | what |
+|---|---|---|
+| `unknown_procedure` | error | a call nothing answers -- no clause, builtin, module or dynamic declaration -- raises `existence_error`; the same name at another arity, or a name one edit away (a swapped pair of letters is one), is offered: `lenght/2 ... did you mean length/2?` |
+| `instantiation` | error | a call the engine refuses with an argument free on every path to it: arithmetic over a free variable (`T is S + 1` before `S` is bound), a builtin of the refusal table handed a free argument, a closure with no goal in it |
+| `left_recursion` | error | a predicate whose first call reaches itself again with the inputs it was given -- through others too, `ping/1 -> pong/1 -> ping/1` -- so the search for its answers never ends; a grammar rule that calls itself before reading any input is named as the nonterminal, `xs//0`. With nothing bound it is one only when no clause can succeed: `size(L, N)` of free `L` and `N` is a generator, as `length/2` is |
+| `unreachable_clause` | warning | an earlier clause's head matches every call of this pattern and every goal before its cut succeeds, so the clauses after it are never tried |
+| `det_promise` | warning | a `%! p(...) is det` (or `semidet`) comment, for the call patterns its modes cover, against what the analysis infers -- and the goal that breaks it: `when phrase(ws(Ws), Text) fails, so does the whole call` |
 
-cocolint stays the linter (singletons, the dialect's traps); a finding here
-is one only the flow analysis can see.
+**The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
+says which builtins raise when given which arguments unbound, 52 rows, each
+with an example the case calls and requires to raise. It is not the mode
+table: that one's `+` says INPUT, and `write(X)` and `format(F, X)` take an
+unbound `X` happily. It was checked against the engine rather than written
+from SWI's manual: cocolog's `char_type(_, _)` raises where SWI enumerates,
+and its `assertz(_)` fails where SWI raises (section 11).
+
+**"Free on every path" is the analysis's own word**, `f`: no goal before,
+on any path, could have bound the variable (section 4.4). So an
+instantiation finding is certain whenever the call is reached, and the call
+never succeeds -- nothing after it runs. Only the program's own panels are
+looked at (a library's clauses are not the program's to fix), and a goal past
+a call that never succeeds has no finding.
+
+**Where they go.** In the XML, first, before the panels (section 6). In the
+SVG, a numbered disc on the box each is about -- red for an error, amber for
+a warning; a clause's on its head, a predicate's on its panel's top right
+corner -- with its sentence on hover, a line under the chart with its place,
+and the count beside the title; a goal with a finding is never folded away.
+`tools/flow/chart.pl` prints each as a compiler would, `FILE:LINE:COL: error:
+IN: TEXT [KIND ID]`, and still exits 0: a finding is no failure of the
+command.
+
+**What the translator taught.** Its first findings were three, all false:
+two `atom_concat/3` calls past an `atom(W)` the analysis did not take to bind
+`W`, and a `tr_solve/1` handed a `G` from `G =.. [C, W]`, which no mode line
+of `=..` met. Tests that bind and modes met loosely (section 4.4) took them
+away; the loose meet's own false finding -- `A0 =.. [Kind, which(Ws, C)]`
+taken to succeed, so the clause after it was "never tried" -- went with the
+rule that a partly bound output is compared. The translator now has none:
+`test/flowchart/faults.pl` keeps those three as near misses that must find
+nothing, with eight others (the same goals in the right order, a variable
+bound on one path only, a recursion on the tail, a test before the cut, a
+kept semidet promise, a dynamic predicate, a head with one variable in two
+inputs, a variable a head binds). The case was run on sixteen arms, each a
+copy of the library with one rule taken out, and went red on every one. Of
+the other fixtures only two
+findings are true and stay: `fix.pl`'s `spin/1` loops for ever, and
+`runtime.pl`'s `nosuch/1` is defined nowhere.
+
+**Not yet**: the concurrency findings of section 7 (F2); a call against a
+documented mode (`%! p(+X)` called with `X` free); left recursion through a
+construct or a library predicate; promises of `multi` and `failure`.
 
 ## 9. `library(flowdebug)`: what a query did (D0-D4)
 
@@ -523,7 +603,7 @@ order.
 | F0 | the look, on two fixtures | none | built, on the work branch |
 | F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, builtin work folded by default (`builtins(show)` draws it), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
 | F2 | threads and processes: lanes, spawn and join, messages, locks, process portals, writes to a shared knowledge base | none | proposes a minor |
-| F3 | findings, in the XML and on the chart | none | proposes a minor |
+| F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on the work branch; proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
 | D1 | the record-mode tracer, the new events, `'$trace_window'/4` | `lib/solve.cicili`, `lib/builtins.cicili` | a patch |
 | D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML | none | proposes a minor |
@@ -550,6 +630,13 @@ order.
 * **There is no `predicate_property/2`**, and `current_predicate/1` answers
   about the knowledge base, not modules, which is why the tables are
   generated.
+* **`catch(_ =.. _, E, true)` ends the program** (exit 2, `=.. wants a
+  proper non-empty list`): the error is raised where `catch/3` cannot catch
+  it, where SWI raises a catchable `instantiation_error`. Found probing the
+  refusal table; `=..` is not in it.
+* **`assertz/1`, `asserta/1` and `retract/1` fail on an unbound argument**,
+  where SWI raises `instantiation_error`; and `arg(1, _, _)` fails where SWI
+  raises. None is in the refusal table, which holds only what raises.
 * **Fixed in 1.10.3: `current_predicate/1` answered for any name a call or
   `clause/2` had looked up.** Both make an entry in the store's predicate
   table, and `'$predicates'/1` listed every entry, so a name that raises

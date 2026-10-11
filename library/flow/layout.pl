@@ -61,7 +61,8 @@ flow_pair_values([_-V|Ps], [V|Vs]) :- flow_pair_values(Ps, Vs).
 %% C. An if-then-else and a disjunction are never builtin work, whatever
 %% they hold: a condition and its branches are the flow itself, and only
 %% the goals inside them fold
-flow_plain(g(_, Kind, Ms, _, Key, _), Ids) :- !,
+flow_plain(g(_, Kind, Ms, _, Key, Info), Ids) :- !,
+    \+ memberchk(inst(_, _), Info),            % a finding is never folded away
     (   memberchk(Kind, [builtin, test, unify]) -> true
     ;   Kind = library(_),
         flow_panel_key(Kind, Key, Ms, PK),
@@ -766,7 +767,7 @@ flow_is_site(9-site(_, _)).
 %% a library clause read back with clause/2 has letters for names; its
 %% head's variables take the names its library's header documents
 flow_doc_rows(Key, library(_), Docs, Rows0, Rows) :-
-    get_assoc(Key, Docs, sig(_, DNs)), !,
+    get_assoc(Key, Docs, sig(_, DNs, _)), !,
     findall(R, ( member(R0, Rows0), flow_doc_row(R0, DNs, R) ), Rows).
 flow_doc_rows(_, _, _, Rows, Rows).
 
@@ -905,7 +906,7 @@ flow_jack_prims([C-JY|T], KMap, W, [3-c(W, JY, 4, Col, none, 0),
 flow_draw_query(panel(_, _, _, _, D, rows([row(_, _, Names0, _, [GNode], _)]), _, _), Ids, DMap, KMap, Docs, Fold,
                 pd(0, D, W, H, 56, Jacks, Prims)) :-
     GNode = g(G, _, _, _, Key, _),
-    (   get_assoc(Key, Docs, sig(_, DNs)), G =.. [_|Vs], flow_pair_names(DNs, Vs, Names1)
+    (   get_assoc(Key, Docs, sig(_, DNs, _)), G =.. [_|Vs], flow_pair_names(DNs, Vs, Names1)
     ->  Names = Names1
     ;   Names = Names0
     ),
@@ -1080,10 +1081,13 @@ flow_prune_note(rule(D, Ps), ND, NS, NP, Note) :-
 %% ======================================================================
 
 flow_layout(Graph, Canvas) :-
-    flow_layout(Graph, none, fold, Canvas).
+    flow_findings(Graph, Fs),
+    flow_layout(Graph, none, fold, Fs, Canvas).
 
-%% Note: what pruning left out, or none; Fold: fold or show (builtins/1)
-flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fold, canvas(CW, CH, Items)) :-
+%% Note: what pruning left out, or none; Fold: fold or show (builtins/1);
+%% Fs: the findings, marked on the boxes they are about and listed under
+%% the chart
+flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fold, Fs, canvas(CW, CH, Items)) :-
     findall(I-D, member(panel(I, _, _, _, D, _, _, _), Panels), DPairs),
     list_to_assoc(DPairs, DMap),
     findall(I-K, member(panel(I, _, K, _, _, _, _, _), Panels), KPairs),
@@ -1096,15 +1100,20 @@ flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fold, canvas(CW, CH, Ite
     max_list(Rs, MaxR),
     findall(B, ( member(pp(_, _, _, Y, _, H, _, _, _, _), Placed), B is Y + H ), Bs),
     max_list(Bs, MaxB),
-    flow_title_prims(Title, Src, Note, TitlePs),
+    flow_title_prims(Title, Src, Note, TitlePs0),
+    flow_findings_summary(Fs, TitlePs0, TitlePs),
     flow_lines_w(TitlePs, TitleW),
-    CW0 is max(max(MaxR + 32, 980), TitleW + 32),
-    LegendY is MaxB + 44,
+    ListY is MaxB + 44,
+    flow_findings_list(Fs, ListY, ListPs, ListH),
+    flow_lines_w(ListPs, ListW),
+    CW0 is max(max(MaxR + 32, 980), max(TitleW, ListW) + 32),
+    LegendY is ListY + ListH,
     flow_legend(LegendY, CW0, Fold, LegendPs, LegendH),
     CW = CW0,
     CH is LegendY + LegendH + 20,
-    findall(tr(X, Y, Ps, PId), ( member(pp(Id, _, X, Y, _, _, _, _, Ps0, _), Placed), flow_panel_id(Id, PId), flow_layered(Ps0, Ps) ), Groups),
-    append([TitlePs, Groups, Wires, LegendPs], Items).
+    findall(tr(X, Y, Ps, PId), ( member(pp(Id, _, X, Y, _, _, _, _, Ps0, _), Placed), flow_panel_id(Id, PId),
+                                 flow_layered(Ps0, Ps1), flow_mark_findings(Ps1, PId, Fs, Ps) ), Groups),
+    append([TitlePs, Groups, Wires, ListPs, LegendPs], Items).
 
 flow_draw_all([], _, _, _, _, _, []).
 flow_draw_all([P|Ps], Ids, DMap, KMap, Docs, Fold, [D|Ds]) :-
@@ -1318,6 +1327,144 @@ flow_title_prims(Title, Src, Note, [t(24, 36, start, 18, sans, bold, [s(Title, i
     (   Note == none -> NPs = []
     ;   NPs = [t(24, 74, start, 11, sans, bold, [s(Note, amber)])]
     ).
+
+%% ======================================================================
+%% The findings, on the chart
+%% ======================================================================
+%%
+%% Each finding (findings.pl) is a numbered disc on the box it is about --
+%% red for an error, amber for a warning; a clause's on its head, a
+%% predicate's on its panel's top right corner -- with its sentence on
+%% hover, listed under the chart with its place, and counted beside the
+%% title. A finding in a panel the picture leaves out is listed all the
+%% same, and the XML has every one.
+
+flow_finding_col(error, red).
+flow_finding_col(warning, amber).
+
+flow_findings_counts(Fs, NE, NW) :-
+    findall(x, member(finding(_, _, error, _, _, _, _, _), Fs), Es),
+    length(Es, NE),
+    length(Fs, N),
+    NW is N - NE.
+
+%% `2 errors, 1 warning'
+flow_count_words(NE, NW, W) :-
+    flow_count_word(NE, error, A),
+    flow_count_word(NW, warning, B),
+    (   NE =:= 0 -> W = B
+    ;   NW =:= 0 -> W = A
+    ;   format(atom(W), '~w, ~w', [A, B])
+    ).
+
+flow_count_word(N, Word, A) :-
+    flow_plural(N, Word, P),
+    format(atom(A), '~d ~w', [N, P]).
+
+%% beside the title, on its line
+flow_findings_summary([], Ps, Ps) :- !.
+flow_findings_summary(Fs, [T|Ps], [T, S|Ps]) :-
+    T = t(_, _, _, _, _, _, [s(Title, _)]),
+    flow_chars(Title, NT),
+    X is 24 + (NT * 18 * 62 + 99) // 100 + 28,
+    flow_findings_counts(Fs, NE, NW),
+    flow_count_words(NE, NW, Words),
+    format(atom(A), '~w  --  numbered on the chart, listed under it', [Words]),
+    (   NE > 0 -> Col = red ; Col = amber ),
+    S = t(X, 35, start, 12, sans, bold, [s(A, Col)]).
+
+flow_findings_shown(40).
+
+%% under the chart: a line each, the first forty
+flow_findings_list([], _, [], 0) :- !.
+flow_findings_list(Fs, Y0, [t(24, LY, start, 10, sans, bold, [s(findings, muted)])|Ps], H) :-
+    LY is Y0 + 4,
+    flow_findings_shown(Max),
+    length(Fs, N),
+    (   N > Max -> length(Shown, Max), append(Shown, _, Fs) ; Shown = Fs ),
+    flow_finding_lines(Shown, Y0, Ps0, YEnd),
+    (   N > Max
+    ->  More is N - Max,
+        MY is YEnd + 4,
+        format(atom(MA), '... and ~d more: the XML lists every one', [More]),
+        append(Ps0, [t(140, MY, start, 10, sans, normal, [s(MA, muted)])], Ps),
+        H is YEnd - Y0 + 22 + 34
+    ;   Ps = Ps0,
+        H is YEnd - Y0 + 34
+    ).
+
+flow_finding_lines([], Y, [], Y).
+flow_finding_lines([finding(N, _, Sev, At, In, Where, Text, _)|Fs], Y,
+                   [c(148, Y, 8, Col, white, 1.5), t(148, NY, middle, 9, sans, bold, [s(NA, white)]),
+                    t(162, TY, start, 10, sans, bold, [s(Sev, Col)]),
+                    t(214, TY, start, 10, sans, normal, [s(In, ink), s(':  ', ink), s(Short, ink), s(Place, muted)])|Ps], YEnd) :-
+    flow_finding_col(Sev, Col),
+    number_codes(N, NCs), atom_codes(NA, NCs),
+    NY is Y + 3, TY is Y + 4,
+    flow_short(Text, 180, Short),
+    (   Where = where(F, L, K) -> format(atom(Place), '  --  ~w:~w:~w  ~w', [F, L, K, At])
+    ;   format(atom(Place), '  --  ~w', [At])
+    ),
+    Y1 is Y + 22,
+    flow_finding_lines(Fs, Y1, Ps, YEnd).
+
+flow_short(T, Max, S) :-
+    flow_chars(T, N),
+    (   N =< Max -> S = T
+    ;   Keep is Max - 3,
+        atom_codes(T, Cs),
+        length(Ks, Keep),
+        append(Ks, _, Cs),
+        atom_codes(K, Ks),
+        atom_concat(K, '...', S)
+    ).
+
+%% the discs on a panel's boxes, drawn last, so on top
+flow_mark_findings(Ps0, PId, Fs, Ps) :-
+    findall(F, ( member(F, Fs), F = finding(_, _, _, At, _, _, _, _), flow_in_panel(At, PId) ), Mine),
+    (   Mine == [] -> Ps = Ps0
+    ;   flow_finding_marks(Mine, Ps0, [], Marks),
+        append(Ps0, Marks, Ps)
+    ).
+
+flow_in_panel(At, PId) :-
+    (   At == PId -> true
+    ;   atom_concat(PId, Rest, At), sub_atom(Rest, 0, 1, _, '.')
+    ).
+
+flow_finding_marks([], _, _, []).
+flow_finding_marks([finding(N, _, Sev, At, _, _, Text, _)|Fs], Ps0, Used, Marks) :-
+    (   flow_mark_point(Ps0, At, X0, Y)
+    ->  findall(x, member(X0-Y, Used), Us),
+        length(Us, K),
+        X is X0 + 17 * K,
+        flow_finding_col(Sev, Col),
+        number_codes(N, NCs), atom_codes(NA, NCs),
+        atom_concat(f, NA, FId),
+        format(atom(Tip), '~w  --  ~w: ~w', [NA, Sev, Text]),
+        TY is Y + 3,
+        Marks = [grp(tip(Tip, FId), [c(X, Y, 8, Col, white, 1.5),
+                                     t(X, TY, middle, 9, sans, bold, [s(NA, white)])])|Marks1],
+        Used1 = [X0-Y|Used]
+    ;   Marks = Marks1, Used1 = Used
+    ),
+    flow_finding_marks(Fs, Ps0, Used1, Marks1).
+
+%% where the disc goes: a panel's top right corner, a clause's head box,
+%% a goal's box
+flow_mark_point(Ps0, At, X, Y) :-
+    (   \+ sub_atom(At, _, _, _, '.')
+    ->  memberchk(r(0, 0, W, _, 8, _, _, _, _), Ps0),
+        X is W - 6, Y = 6
+    ;   (   sub_atom(At, _, _, _, '.g') -> Box = At ; atom_concat(At, '.h', Box) ),
+        memberchk(grp(tip(_, Box), Inner), Ps0),
+        Inner = [S|_],
+        flow_corner(S, X, Y)
+    ).
+
+flow_corner(r(X, Y, _, _, _, _, _, _, _), X, Y) :- !.
+flow_corner(pg([_, X-Y|_], _, _, _), X, Y) :- !.
+flow_corner(c(CX, CY, _, _, _, _), X, Y) :- X is CX + 4, Y is CY - 10.
 
 %% ======================================================================
 %% The legend: what each mark means, drawn with the marks themselves

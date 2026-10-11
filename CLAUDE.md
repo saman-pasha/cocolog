@@ -1191,7 +1191,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
-| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

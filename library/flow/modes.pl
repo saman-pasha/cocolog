@@ -1,6 +1,10 @@
 %% library(flowchart), part: the hand-kept table of tests and of every
 %% builtin's modes and determinism.
 
+%% open/3 and read_term/3 below, in the table of calls the engine refuses,
+%% are library(stream)'s
+:- use_module(library(stream)).
+
 flow_test('<', 2).
 flow_test('>', 2).
 flow_test('=<', 2).
@@ -229,9 +233,20 @@ flow_mode(zigurat_call, 3, ['+', '+', '?'], semidet).
 %% checks where it would have produced -- det becomes semidet
 flow_mode_for(N, A, Ms, DMs, Det) :-
     (   flow_mode(N, A, DMs, Det), flow_modes_meet(Ms, DMs) -> true
+    ;   flow_mode(N, A, DMs, Det0), flow_modes_meet_loosely(Ms, DMs)
+    ->  (   Det0 == det, flow_partial_output(Ms, DMs) -> Det = semidet ; Det = Det0 )
     ;   flow_mode(N, A, DMs, Det0), !,
         (   Det0 == det -> Det = semidet ; Det = Det0 )
     ).
+
+%% a partly bound argument may be what either side of a line needs: G =..
+%% [C, W] with W free is the (-, +) line, its list a proper one. Where it
+%% stands for an output the answer is unified with it, which can fail:
+%% A =.. [K, which(W, C)] tests what A is
+flow_modes_meet_loosely([], []).
+flow_modes_meet_loosely([M|Ms], [D|Ds]) :-
+    (   flow_mode_meets(M, D) -> true ; M == '?' ), !,
+    flow_modes_meet_loosely(Ms, Ds).
 
 flow_modes_meet([], []).
 flow_modes_meet([M|Ms], [D|Ds]) :-
@@ -243,3 +258,77 @@ flow_mode_meets(_, ':').
 flow_mode_meets('+', '+').
 flow_mode_meets('-', '-').
 
+
+%% CALLS THE ENGINE REFUSES. Each row says that Name/Arity raises an error
+%% when it runs with every argument at Positions unbound --
+%% instantiation_error, or type_error where cocolog says so -- whatever
+%% the others hold, and Example is such a call: test/flowchart.pl calls
+%% every Example and requires the error. A call of one of these whose
+%% arguments there are free on every path to it is an instantiation
+%% finding. The mode table's `+' above says INPUT, which is not the same
+%% thing: write(X) and format(F, X) take an unbound X and print it.
+flow_raises_unbound(atom_length, 2, [1], atom_length(_, 3)).
+flow_raises_unbound(atom_codes, 2, [1, 2], atom_codes(_, _)).
+flow_raises_unbound(atom_chars, 2, [1, 2], atom_chars(_, _)).
+flow_raises_unbound(char_code, 2, [1, 2], char_code(_, _)).
+flow_raises_unbound(number_codes, 2, [1, 2], number_codes(_, _)).
+flow_raises_unbound(atom_number, 2, [1, 2], atom_number(_, _)).
+flow_raises_unbound(atom_string, 2, [1, 2], atom_string(_, _)).
+flow_raises_unbound(number_string, 2, [1, 2], number_string(_, _)).
+flow_raises_unbound(string_codes, 2, [1, 2], string_codes(_, _)).
+flow_raises_unbound(string_chars, 2, [1, 2], string_chars(_, _)).
+flow_raises_unbound(string_to_atom, 2, [1, 2], string_to_atom(_, _)).
+flow_raises_unbound(term_to_atom, 2, [1, 2], term_to_atom(_, _)).
+flow_raises_unbound(upcase_atom, 2, [1], upcase_atom(_, 'X')).
+flow_raises_unbound(succ, 2, [1, 2], succ(_, _)).
+flow_raises_unbound(plus, 3, [1, 2], plus(_, _, 3)).
+flow_raises_unbound(plus, 3, [2, 3], plus(1, _, _)).
+flow_raises_unbound(plus, 3, [1, 3], plus(_, 1, _)).
+flow_raises_unbound(atom_concat, 3, [1, 3], atom_concat(_, a, _)).
+flow_raises_unbound(atom_concat, 3, [2, 3], atom_concat(a, _, _)).
+flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, "a", _)).
+flow_raises_unbound(string_concat, 3, [2, 3], string_concat("a", _, _)).
+flow_raises_unbound(sub_atom, 5, [1], sub_atom(_, 0, 1, _, _)).
+flow_raises_unbound(sub_string, 5, [1], sub_string(_, 0, 1, _, _)).
+flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
+flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
+flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).
+flow_raises_unbound(arg, 3, [1, 2], arg(_, _, a)).
+flow_raises_unbound(atomic_list_concat, 2, [1], atomic_list_concat(_, abc)).
+flow_raises_unbound(atomic_list_concat, 3, [1, 3], atomic_list_concat(_, '-', _)).
+flow_raises_unbound(msort, 2, [1], msort(_, _)).
+flow_raises_unbound(sort, 2, [1], sort(_, _)).
+flow_raises_unbound(keysort, 2, [1], keysort(_, _)).
+flow_raises_unbound(nb_getval, 2, [1], nb_getval(_, _)).
+flow_raises_unbound(nb_setval, 2, [1], nb_setval(_, 1)).
+flow_raises_unbound(format, 1, [1], format(_)).
+flow_raises_unbound(format, 2, [1], format(_, [])).
+flow_raises_unbound(format, 3, [2], format(atom(_), _, [])).
+flow_raises_unbound(tab, 1, [1], tab(_)).
+flow_raises_unbound(op, 3, [1], op(_, xfx, foo)).
+flow_raises_unbound(op, 3, [2], op(700, _, foo)).
+flow_raises_unbound(open, 3, [1], open(_, read, _)).
+flow_raises_unbound(exists_file, 1, [1], exists_file(_)).
+flow_raises_unbound(exists_directory, 1, [1], exists_directory(_)).
+flow_raises_unbound(read_term, 3, [1], read_term(_, _, [])).
+flow_raises_unbound(read_file_to_codes, 2, [1], read_file_to_codes(_, _)).
+flow_raises_unbound(between, 3, [1], between(_, 3, _)).
+flow_raises_unbound(between, 3, [2], between(1, _, _)).
+flow_raises_unbound(numlist, 3, [1], numlist(_, 3, _)).
+flow_raises_unbound(numlist, 3, [2], numlist(1, _, _)).
+flow_raises_unbound(char_type, 2, [1], char_type(_, alpha)).
+flow_raises_unbound(code_type, 2, [1], code_type(_, alpha)).
+flow_raises_unbound(throw, 1, [1], throw(_)).
+
+%% ARITHMETIC evaluates every variable in an expression: is/2's second
+%% argument, and both sides of a comparison
+flow_evaluates(is, 2, [2]).
+flow_evaluates('<', 2, [1, 2]).
+flow_evaluates('>', 2, [1, 2]).
+flow_evaluates('=<', 2, [1, 2]).
+flow_evaluates('>=', 2, [1, 2]).
+flow_evaluates('=:=', 2, [1, 2]).
+flow_evaluates('=\\=', 2, [1, 2]).
+
+flow_partial_output(['?'|_], ['-'|_]) :- !.
+flow_partial_output([_|Ms], [_|Ds]) :- flow_partial_output(Ms, Ds).
