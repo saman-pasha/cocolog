@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, turns, window, checks_done.
+    clock, printed, turns, window, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -56,6 +56,10 @@ w_churn(N) :-
     ( N mod 1000 =:= 0 -> garbage_collect ; true ),
     N1 is N - 1,
     w_churn(N1).
+
+%% a call that exits and is backtracked past with no clause left to try
+w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).
+w_pairs([a-1, b-2]).
 
 %% garbage below, and a collection asked for between two readings of the
 %% collector's count, inside a call whose Exit comes after it
@@ -124,6 +128,68 @@ clock_counted_file(N, Switches) :-
     ;   N = none
     ),
     shl(['rm -rf ', D]).
+
+%% ---- the recorder and the printer --------------------------------------
+%%
+%% THE RECORDER RECORDS THE PORTS THE PRINTER PRINTS, and the printer is
+%% held to SWI's by the trace case. A retry prints its Redo only once it
+%% enters a clause: through 1.10.12 a window recorded one as every retry
+%% began, so a call that had exited and was backtracked past with no clause
+%% left -- which goes quietly -- showed a Redo the printer never printed,
+%% and a call that failed out loud showed a Redo before its Fail.
+
+printed :-
+    section('the recorder records the ports the printer prints, one for one'),
+    findall(Q-R1-P1, ( clock_query(Q),
+                       G = ( Q -> true ; true ),
+                       recorded_ports(G, R1),
+                       printed_ports('test/trace-program.pl', G, P1),
+                       R1 \== P1 ),
+            Off1),
+    check('the trace case''s 23 queries: the same ports, at the same depths, of the same goals', Off1, []),
+    scratch(D),
+    atom_concat(D, '/look.pl', F),
+    fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).', 'w_pairs([a-1, b-2]).' ]),
+    recorded_ports(w_look(z, _), R2),
+    printed_ports(F, w_look(z, _), P2),
+    check('a call that exited and is backtracked past with no clause left goes quietly in both',
+          R2-P2, P2-[ call-0-w_look, call-1-w_pairs, exit-1-w_pairs, call-1-member, call-2-member,
+                      call-3-member, fail-3-member, fail-2-member, fail-1-member, fail-0-w_look ]),
+    shl(['rm -rf ', D]).
+
+%% Port-Depth-Name, each depth from the first port's
+recorded_ports(G, Ps) :-
+    '$trace_window'(G, [from(1)], Es, _),
+    findall(K-D-N, ( member(E, Es), E =.. [K, _, D, _|Rest],
+                     memberchk(K, [call, exit, fail, redo]),
+                     ( K == call -> Rest = [_, N, _] ; Rest = [N, _] ) ),
+            Ps0),
+    rel_depths(Ps0, Ps).
+
+printed_ports(File, G, Ps) :-
+    format(atom(GA), '~q', [G]),
+    cocolog(C),
+    sh_join([C, ' --trace run ', File, ' "', GA, '" 2>&1 >/dev/null'], Cmd),
+    proc_run(Cmd, 60000, Out, _),
+    atom_codes(OA, Out),
+    atomic_list_concat(Lines, '\n', OA),
+    findall(P, ( member(L, Lines), atom_codes(L, LCs), phrase(port_line(P), LCs) ), Ps0),
+    rel_depths(Ps0, Ps).
+
+port_line(K-D-N) -->
+    blanks, string_without(":", PCs), ": (", digits(DCs), ") ", remainder(GCs),
+    { atom_codes(PA, PCs), port_kind(PA, K),
+      number_codes(D, DCs),
+      atom_codes(GA, GCs), catch(term_to_atom(G, GA), _, fail), functor(G, N, _) }.
+
+port_kind('Call', call).
+port_kind('Exit', exit).
+port_kind('Fail', fail).
+port_kind('Redo', redo).
+
+rel_depths([], []).
+rel_depths([K-D0-N|Ps], [K-0-N|Rs]) :-
+    findall(K1-D1-N1, ( member(K1-D-N1, Ps), D1 is D - D0 ), Rs).
 
 %% ---- a machine stepped in turns ---------------------------------------
 

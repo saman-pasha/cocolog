@@ -76,6 +76,7 @@ written anywhere in this repository.
 | 48-stream | `library/stream.so` | files as streams: bytes, UTF-8 characters, lines, terms a clause at a time, formatted text through the engine's own formatter; stdin, stdout, stderr | `sh modules/stream/build.sh` (nothing else) |
 | 49-websocket | `library/websocket.pl` | RFC 6455 both ways: the handshake's arithmetic, a frame byte by byte, masking, a session talking to itself; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` | `tcp`, `stream`; `tls` for `wss://` |
 | 50-flowchart | `library/flowchart.pl`, `library/flow/` | a word count by a grammar charted without running it: modes, how each predicate can end, a panel per call pattern, where each failure goes; the XML an agent reads, and the picture cut to a depth, every builtin drawn by name and never gone inside, while the XML keeps everything. Its comment promises `is det`, and the chart finds the promise broken and names the goal that breaks it: the count can fail. Then a worker thread fed down a channel, charted without starting it: a lane for each thread and what each copies, the channel followed into the thread's receive, the join, and the thread nobody joins found; then a question down one channel with the channel for its answer inside it, followed into the thread that answers, a join waiting for a thread another clause made, and each send tied to the receive that takes it | `stream`, and the tables `make modules` writes (`sh tools/flow/build.sh`) |
+| 51-flowdebug | `library/flowdebug.pl`, `library/flow/dbg*.pl` | a basket total that fails, run and drawn: the probe and the replay, each call the box it is, the clause heads that did not unify for a banana nothing prices, the values that crossed by their source names, the <run> an agent reads with the call the failure began at; then a run of 402 inferences seen through a window of its last 20, its first call placed in its predicate's panel with no box | `stream`, and library(flowchart)'s tables |
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
@@ -88,7 +89,7 @@ path instead.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-fifty-one above found something while being written — a predicate that
+fifty-two above found something while being written — a predicate that
 did not exist, an arity that was wrong, a return value documented as
 `-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
 claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the

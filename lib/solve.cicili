@@ -589,7 +589,14 @@
     (member int          oom)
     ;; the clause a traced retry's selection starts from, kept by its Redo
     ;; for the heads recorded after it (`coco_trace_paint')
-    (member size_t       hstart))
+    (member size_t       hstart)
+    ;; A REDO IS PRINTED ONLY WHEN THE RETRY ENTERS A CLAUSE, so the one
+    ;; recorded as a retry begins is PENDING until it does: 1 + its event,
+    ;; and the texts and arena before it, to take it back by anything else
+    ;; recorded first (`coco_rec_unpend')
+    (member size_t       pend)
+    (member size_t       pntxs)
+    (member size_t       palen))
 
   (decl) (func coco_rec_free ((coco_rec * r)))
 
@@ -960,6 +967,19 @@
           (coco_sb_free (aof b))
           (return ok)))
 
+  ;;; A PENDING REDO TAKEN BACK: its retry found no clause -- the call
+  ;;; fails out loud or, having exited, goes quietly, and the printer
+  ;;; writes no Redo either way. Whatever is recorded next calls this, and
+  ;;; so does the window's end; only the retry entering a clause keeps it
+  ;;; (`coco_trace_redo'), and it runs before anything else can record.
+  (static)
+  (func coco_rec_unpend ((coco_rec * r))
+        (if (!= (-> r pend) 0)
+            (block (set (-> r nevs) (- (-> r pend) 1))
+                   (set (-> r ntxs) (-> r pntxs))
+                   (set (-> r alen) (-> r palen))
+                   (set (-> r pend) 0))))
+
   ;;; A PORT, recorded where the printer would have written it: G the goal,
   ;;; whose cell names its call; AUX at a Call the cell of the call it is
   ;;; inside (0: none in the window). The arguments are written as they
@@ -971,6 +991,7 @@
               (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
               (size_t gd . 0) (u32 n . 0) (size_t first . 0) (size_t slot . 0))
           (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (coco_rec_unpend r)
           (if (not (coco_rec_room r 0 0)) (return))
           (set slot (-> r nevs))
           (set gd (coco_deref m g))
@@ -999,6 +1020,7 @@
         (let ((coco_machine * m . #'(-> e m))
               (coco_rec * r . #'(cast (coco_rec *) (-> m rec))))
           (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (coco_rec_unpend r)
           (if (not (coco_rec_room r 0 0)) (return))
           (let ((coco_rev * v . #'(aof (nth (-> r nevs) (-> r evs)))))
             (set (-> v inf) (coco_rec_abs e r))
@@ -1020,6 +1042,7 @@
               (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
               (size_t slot . 0) (size_t first . 0))
           (if (or (== r nil) (!= (-> r state) 1)) (return))
+          (coco_rec_unpend r)
           (if (not (coco_rec_room r 0 0)) (return))
           (set slot (-> r nevs))
           (set first (-> r ntxs))
@@ -2008,20 +2031,32 @@
   (func coco_trace_paint ((coco_engine * e) (size_t ci) (int depth) (size_t g)) (out char *)
         (if (== (-> e trace) 2)
             (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
-              (coco_rec_port e COCO_REV_REDO depth g 0)
-              (if (!= r nil) (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix)))
+              (if (!= r nil)
+                  (block
+                   ;; recorded now, as the goal stands before selection
+                   ;; binds it, and pending until the retry enters a clause
+                   (coco_rec_unpend r)
+                   (let ((size_t n0 . #'(-> r nevs)))
+                     (set (-> r pntxs) (-> r ntxs))
+                     (set (-> r palen) (-> r alen))
+                     (coco_rec_port e COCO_REV_REDO depth g 0)
+                     (if (> (-> r nevs) n0) (set (-> r pend) (-> r nevs))))
+                   (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix))))
               (return nil)))
         (let ((coco_strbuf tb))
           (coco_sb_init (aof tb))
           (coco_write_term (-> e m) (aof tb) g 1 0)
           (return ($ tb s))))
 
-  ;;; the retry entered a clause: its Redo, printed -- or the heads recorded
+  ;;; the retry entered a clause: its Redo, printed -- or the Redo recorded
+  ;;; when the retry began kept, and the heads recorded after it
   (weak)
   (func coco_trace_redo ((coco_engine * e) (size_t ci) (int depth) (const char * text))
         (if (== (-> e trace) 2)
             (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
-              (if (!= r nil) (coco_rec_heads e ci (-> r hstart) 1))
+              (if (!= r nil)
+                  (block (set (-> r pend) 0)
+                         (coco_rec_heads e ci (-> r hstart) 1)))
               (return)))
         (coco_trace_line "Redo" depth text))
 
@@ -3562,6 +3597,8 @@
           (if held (coco_heap_root_pop m))
           (if (!= gp nil) (set (cof gp) (nth 0 hold)))
           (coco_engine_free (aof sub))
+          ;; a retry that found no clause as the run ended printed nothing
+          (coco_rec_unpend r)
           (set ($ (cof m) rec) nil)
           (set (-> r root) nil)
           ;; every binding undone: a window is for watching

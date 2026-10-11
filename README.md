@@ -106,7 +106,10 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        expression to the goals it stands for), flowchart.pl
                        and its parts in flow/ (a predicate drawn from the
                        query to C, and the threads it starts, as an SVG
-                       and an XML), kbs.pl, cowork.pl,
+                       and an XML), flowdebug.pl and its
+                       parts in flow/dbg*.pl (what a query did, drawn
+                       over its chart: the path, the failures, the values
+                       that crossed), kbs.pl, cowork.pl,
                        main.pl, astar.pl, hex.pl, clay_ray.pl and llm.pl,
                        reasoning/ (controlled English, a tagger and a
                        translator), and the .so's and flow/tables.pl that
@@ -160,7 +163,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (fifty-one: the library path, ONE PER
+                       library/ (fifty-two: the library path, ONE PER
                        LIBRARY that ships, and the linter), tensor/
                        (forty-two networks, three processes each),
                        opencv/ (twenty-three lessons of image
@@ -424,7 +427,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. **127 files**, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **128 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -462,7 +465,7 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — fifty-one lessons: the path, then one per library that ships
+### `library/` — fifty-two lessons: the path, then one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
 thirty-eight on the library path, cocolint's lesson among them though it is
@@ -491,6 +494,7 @@ a tool rather than a library.
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
 | [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flowchart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins; then a question sent down one channel with the channel for its answer, followed into the thread that answers, a join that waits for a thread made in another clause, and each send tied to the receive that takes it |
+| [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flowdebug`: a basket total that fails, run and drawn over its chart — each call the box it is, the heads that did not unify for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20 |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -511,7 +515,7 @@ under *Prolog that trains* below.
 ### EVERY CLAIM IN THE FIRST TWO IS A TEST
 
 A lesson does not print what it computed. It asserts what the answer
-must be, through one helper repeated at the bottom of all sixty-two
+must be, through one helper repeated at the bottom of all sixty-three
 files:
 
 ```prolog
@@ -608,8 +612,8 @@ connection. Those checks start a real `cocolog` and always should;
 converting them would keep a suite green and delete its proof.
 
 **cocolog's own suite went the same way, and kept the part of that
-argument which was true.** It was 39 shell cases and it is 64 now --
-seven `.cicili` binaries and fifty-seven Prolog scripts -- because a case
+argument which was true.** It was 39 shell cases and it is 66 now --
+seven `.cicili` binaries and fifty-nine Prolog scripts -- because a case
 that spawned an interpreter per check paid ~120 ms to hear an answer that
 takes a millisecond to compute: nineteen cases went from 361 s to 74 s in
 the conversion, same checks, same pins. What did NOT move is the
@@ -753,6 +757,7 @@ code.
 | `library(numpy)` | `.so` | numpy arrays over numpy's C API |
 | `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
 | `library(flowchart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; where the code runs -- a lane for each thread, pool, isolated proof, crew and httpd pool, and what crosses between them: what a spawn copies and what comes back, joins, channels and thread handles followed wherever the program takes them, to each send, receive and join, the k-th send tied to the k-th receive where that order can be read, `cowork_map/3`'s jobs a row each and an httpd server with no pool running its pages here, locks, child processes, writes to the knowledge base; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept, threads never joined, locks kept on a way out, a lane reading what only another writes -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
+| `library(flowdebug)` | `.pl` | what a query DID, drawn over its flowchart: run untraced to a window and recorded there (`'$trace_window'/4`), each call matched to its box, the path heavy, failures red, an exception purple, every value that crossed into a named variable on a numbered disc; `view(tree)` for the calls themselves; an SVG for a person and the chart's XML with a `<run>` for an agent, from a shell too (`tools/flow/debug.pl`) |
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |
@@ -1452,7 +1457,7 @@ fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
 clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the fourth
-tutorial category — `cocolog -s test/tutorials.pl` runs all 127 files,
+tutorial category — `cocolog -s test/tutorials.pl` runs all 128 files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
@@ -1832,7 +1837,7 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over **64 cases** — seven `.cicili` binaries and fifty-seven Prolog
+`red: 0` over **66 cases** — seven `.cicili` binaries and fifty-nine Prolog
 scripts, three of them TLS and one of them a window under Xvfb. Read the
 per-case lines rather than the last one, and count the SKIPs: a case that
 needs a server, `swipl`, raylib, libtensorflow or a CUDA toolkit says so by

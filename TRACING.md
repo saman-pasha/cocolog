@@ -129,9 +129,14 @@ where a `catch/3` took it. `'$trace_window'(Goal, Options, Events, End)`
 runs Goal at full speed, untraced, up to the inference a window opens at
 (`from(I)`), and records from there (`to(J)`); the window opens in place,
 inside whichever engine — a `findall/3`'s too — reaches that inference.
-It is what `library(flowdebug)` stands on: lib/builtins.cicili has the
-contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds a
-window to a recording of the whole run, event for event.
+It records the ports the printer prints, one for one -- a retry's Redo
+only once the retry enters a clause, as the printer writes it (1.10.13;
+through 1.10.12 a Redo was recorded as every retry began, so a call that
+had exited and was backtracked past quietly showed one the printer never
+wrote). It is what `library(flowdebug)` stands on: lib/builtins.cicili
+has the contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds
+the recorder to the printer over the trace case's queries, and a window
+to a recording of the whole run, event for event.
 
 ## How it works
 

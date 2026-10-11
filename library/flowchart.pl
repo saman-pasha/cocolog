@@ -129,8 +129,8 @@
 %% lock with a way out that keeps it, and a lane reading what only another
 %% lane writes are findings.
 %%
-%% NOT YET: library(flowdebug), the run drawn over the chart
-%% (DESIGN-flow.md).
+%% WHAT A RUN DID is library(flowdebug)'s: a query run, recorded and drawn
+%% over this chart, the same ids in its XML (lesson 51, DESIGN-flow.md 9).
 
 :- use_module(library(xml)).
 :- use_module(library(stream)).

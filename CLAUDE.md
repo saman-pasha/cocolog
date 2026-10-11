@@ -261,8 +261,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 58 `.pl` cases in `pl_names/1`
--- **65 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 59 `.pl` cases in `pl_names/1`
+-- **66 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -548,7 +548,8 @@ then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
 xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
-flowchart with its parts in `library/flow/`, and `library/reasoning/`);
+flowchart with its parts in `library/flow/`, flowdebug with its parts in
+`library/flow/dbg*.pl`, and `library/reasoning/`);
 `library/*.so` are modules built from `modules/`. A file whose first line
 reads `%% library(NAME), part: ...` is loaded by its library, and the
 cocolint index offers no import of it.
@@ -984,7 +985,17 @@ cocolint index offers no import of it.
   `coco_backtrack` calls is `(weak)`**, which Cicili emits as a function
   the compiler never inlines: inlined, the window's opening cost nrev
   0.45 % in the loop's registers. A window sees the calls made in it: one
-  that began before has no Exit marker and no shadow frame.
+  that began before has no Exit marker and no shadow frame. **The recorder
+  records what the printer prints, port for port** (`test/window.pl` holds
+  the two together over the trace case's queries): a retry's Redo, printed
+  only once the retry enters a clause, is recorded PENDING as the retry
+  begins (`coco_rec_unpend` takes it back when anything else is recorded
+  first, the window's end included) -- through 1.10.12 a call that had
+  exited and was backtracked past with no clause left showed a Redo the
+  printer never printed. `library(flowdebug)` (lesson 51) stands on all of
+  it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
+  the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
+  and drawn (`library/flow/dbgdraw.pl`).
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
@@ -1310,7 +1321,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 127 files -- `basics/` 11, `library/` 51, `opencv/` 23,
+`tutorials/` holds 128 files -- `basics/` 11, `library/` 52, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a
@@ -1365,7 +1376,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
-| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart); DESIGN-flow.md is the plan |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

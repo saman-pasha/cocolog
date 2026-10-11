@@ -6,7 +6,7 @@
 %%
 %% THE COCOLOG REWRITE OF index.py, and the Python is gone.
 %%
-%% Nothing here is written by hand except the twenty-three capability rows and
+%% Nothing here is written by hand except the thirty-six capability rows and
 %% the eight exemplar rows, and the builder validates every path and every
 %% anchor those name. IN PYTHON THEY WERE LIST-OF-DICT LITERALS; here they are
 %% CLAUSES, which is the shape they should always have had -- `listing(ix_capability/5)'
@@ -630,6 +630,10 @@ ix_capability('a program drawn, for a person and for an agent',
                'where does it fail', 'why does it fail', 'what calls what', determinism,
                'mode inference', 'draw a predicate', svg],
               [flowchart], ['tier-2 library'], local).
+ix_capability('a run drawn: what a query did, for a person and for an agent',
+              [debug, debugger, 'why did it fail', 'where did it fail', 'what did it do',
+               'step through', replay, 'which clause', 'what was bound', bindings, 'trace a run'],
+              [flowdebug], ['tier-2 library'], local).
 
 ix_capabilities(Rows) :-
     findall(json([topic-T, words-W, libraries-L, exemplars-E, arrangement-A]),

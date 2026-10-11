@@ -5,7 +5,8 @@
 its parts in `library/flow/`, `tools/flow/`, `test/flowchart.pl` and
 `tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). Since
 1.10.9 and 1.10.11: F2, threads and processes (section 7).
-`library(flowdebug)` is being built, D0 first (section 9.5). Each phase
+`library(flowdebug)`: D0 to D2 built in 1.10.12 and 1.10.13 -- the clock, the
+recorded window, the run drawn over the chart (section 9.5); D3 and D4 next. Each phase
 lands on master when the owner says so, with its case, its lesson and its
 version.
 
@@ -872,39 +873,64 @@ numbers exactly. And the two findings above.
   event for event what a recording of the whole run holds there. Each rule
   has an arm that takes it out and goes red (STATUS.md).
 
-**D2, `library(flowdebug)`** (proposes a minor):
+**D2, `library(flowdebug)`** (built, 1.10.13; proposes a minor):
 
 * `flow_debug(+Goal, +Base, +Options)` writes Base.svg and Base.xml, and
-  `flow_debug/4` hands back the run as a term. Options: `source(File)`
-  (required, as for `flow_chart/3`); `until(end | answer(K))`, where the run
-  stops being explained (the end: its first answer, its failure or its
-  exception); `window(N)`, how many inferences up to there are recorded
-  (5000; a run that short is recorded whole); `from(I)` and `to(I)` instead;
-  `view(flow | tree)`; `text(N)`.
-* **Each run is a child process** (`cocolog -s library/flow/dbgrun.pl --
-  ...`), which reads the program afresh: what the probe asserted, or set as
-  a global, cannot change the replay. The probe learns how the run ends and
-  where; the replay records the window and must end as the probe did, or the
-  picture says where it diverged rather than drawing a wrong run.
-* **The events are matched to the chart**: a call to the panel of its
-  predicate and its arguments' modes, a clause event to that panel's row,
-  and each call made inside a clause activation to the box it is, by walking
-  the row's goals in the order they can run -- on an exit to the next goal,
-  on a failure inside a condition or a disjunction into the other arm, on a
-  Redo back to the goal redone. A call whose own call began before the
-  window is placed in its panel, not in its caller's row.
-* **Drawn**: the chart, with each box the run reached heavy, each failure
-  red and the boxes never reached grey; a numbered disc where a value
-  crossed -- an argument a call was given, a binding its exit made, a
-  binding backtracking undid (hollow) -- and under the chart a legend: the
-  disc, the variable by its source name, the value, the port, the clause
-  and the inference. `view(tree)` draws the calls themselves, a row each,
-  deeper calls indented, a recursion's middle elided.
-* **The XML of the run** sits beside the chart's: each event (inference,
-  port, depth, the box's id) and each binding (the disc, the name, the value
-  cut to a length with the whole length given).
+  `flow_debug/4` hands back the run as a term -- `run(How, At, Answers,
+  window(From, To), Calls, Bindings, Diverged)`. Options: `source(File)`
+  (required); `until(end | answer(K))`; `window(N)`, how many inferences up
+  to there are recorded (2000; a run that short is recorded whole);
+  `from(I)` and `to(I)` instead; `discs(N)` (24); `text(N)` (60);
+  `view(flow | tree)`; `names(['X'=X, ...])`; `timeout(Ms)`.
+* **Each run is a child process**, `cocolog run FILE GOAL` with the window
+  and the writing of its events as the goal: `run` consults the file into a
+  knowledge base of its own, so what the probe asserted, or set as a
+  global, cannot change the replay. The probe runs with `from(0)` and
+  learns how the run ends and where; the replay runs to the probe's end and
+  records the window, and must end as the probe did. One that does not is
+  drawn all the same -- it is a true recording of a run of the program --
+  under a red line that says both ends, and the XML says `diverged="true"`.
+* **The events are matched to the chart** (`library/flow/dbgmatch.pl`): a
+  call to the box it is, by walking each clause activation's events
+  against a plan of the row -- where a call goes after each goal exits or
+  fails, a condition's failure into the next arm or the else, a branch's
+  into the next branch -- with the next box of the call's predicate as the
+  fallback; a call whose own call began before the window is placed in a
+  panel of its predicate, the one whose call pattern its arguments fit
+  best, with no box. The expected box is what places a then's and an
+  else's calls of one predicate apart: without it the else's call went to
+  the then's box.
+* **Drawn** (`library/flow/dbgdraw.pl`): the chart under a banner of how
+  the run ended and what was recorded; each box the window reached heavy,
+  red where its last call failed, purple where it raised an exception
+  (outlined: a call the exception ended), a count over a box called more
+  than once; a head red where its last try did not unify; a box, a panel
+  and a wire the run never reached faded; and a numbered disc on a box's
+  edge where a value crossed into a variable the source names -- given at a
+  Call, bound at an Exit, undone (hollow) at a Redo or at the Fail of a call
+  that had exited -- the last `discs(N)` of them, two rows to a box at
+  most, and a line for each under the chart. A value is named by reading
+  the argument's text back and unifying it with the argument as the source
+  wrote it, so `foo([X|Xs])` names X and Xs; a value an activation already
+  showed is not shown again. `view(tree)` draws the calls, a row each, a
+  call inside another indented under it, a recursion more than seven deep
+  by its first three levels and its last three.
+* **The XML of the run** is the chart's with a `<run>` after its panels:
+  how the run ended and where, the window, where a failed run's failure
+  began or the last goal to fail, the call that raised an exception; a
+  `<call>` for each call with its box, panel, clauses, heads and its
+  arguments at its Call and Exit; every `<event>` in order; every
+  `<binding>`, with its disc where the picture numbers it.
 * `tools/flow/debug.pl` (`cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
-  [OPTION ...]`), `test/flowdebug.pl`, `tutorials/library/51-flowdebug.pl`.
+  [OPTION ...]`, exit 0/1/2), `test/flowdebug.pl`,
+  `tutorials/library/51-flowdebug.pl`.
+* **What it found in D1**: the recorder wrote a Redo as every retry began,
+  where the printer writes one only once the retry enters a clause -- a
+  call that had exited and was backtracked past quietly showed a Redo
+  nobody printed. The Redo is now pending until the retry enters a clause
+  (1.10.13), `test/window.pl` holds the recorder to the printer over the
+  trace case's queries, and per function the untraced engine runs the
+  same instructions as 1.10.12's on nrev, queens and lookup.
 
 **D3, the journal** (proposes a minor): 9.2 and 9.3 as written -- the
 answers of the impure calls recorded per thread and per process, a replay
@@ -926,7 +952,7 @@ failure and the failures it came from.
 | F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on master (1.10.8); proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path, `tools/flow/zero.sh`); what it found: the traced clock and the stepped clock both wrong (9.1) | none | built (1.10.12) |
 | D1 | the clock made true traced and stepped; the record-mode tracer, the new events, `'$trace_window'/4`, the window opened in place | `lib/solve.cicili`, `lib/builtins.cicili`, `cocolog.cicili` | built (1.10.12), a patch |
-| D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML | none | proposes a minor |
+| D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML; the recorder's Redo only where the printer prints one | `lib/solve.cicili` (the pending Redo) | built (1.10.13); proposes a minor |
 | D3 | the journal, per thread and per process; replay; divergence | builtins, the module SDK | proposes a minor |
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |
 
