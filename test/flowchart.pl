@@ -46,7 +46,7 @@ main :-
     failure,
     documents,
     drawing_less,
-    folding,
+    builtins,
     command,
     refusals,
     checks_done.
@@ -55,8 +55,11 @@ fx(Name, F) :- atomic_list_concat(['test/flowchart/', Name, '.pl'], F).
 
 %% each panel but the query: Name/Arity, its call pattern, its determinism
 panels(Spec, Fixture, Ps) :-
+    panels(Spec, Fixture, [], Ps).
+
+panels(Spec, Fixture, Opts, Ps) :-
     fx(Fixture, F),
-    flow_graph(Spec, graph(_, _, Panels, _, _), [source(F)]),
+    flow_graph(Spec, graph(_, _, Panels, _, _), [source(F)|Opts]),
     findall(K-CM-Det, ( member(panel(I, K, _, CM, _, _, Det, _), Panels), I > 0 ), Ps).
 
 graph(Spec, Fixture, G) :-
@@ -106,7 +109,9 @@ modes_and_determinism :-
     check('length(-L, -N) is nondet', G3, nondet),
     answer(flow_mode_for(atom_length, 2, ['+', '+'], _, D4), D4, G4),
     check('a det builtin handed its output bound only compares: semidet', G4, semidet),
-    panels(check('+', '+'), gallery, Ps5),
+    %% libraries(reach) opens re_lines/3, library(text)'s, to show a library
+    %% clause's determinism read the same way
+    panels(check('+', '+'), gallery, [libraries(reach)], Ps5),
     check('gallery.pl: committed clauses whose last cannot fail are det', Ps5,
           [check/2-['+', '+']-semidet,
            sign_word/2-['+', '-']-nondet,
@@ -486,40 +491,61 @@ drawing_less :-
     answer(flow_chart(report('+', '+', '+'), B1, [source(F), only(pick)]), yes, G6),
     check('only/1 wants a list of Name/Arity', G6, error(error(domain_error(flow_only, pick), flow_chart/3))).
 
-%% ---- builtin work, folded ----------------------------------------------
+%% ---- builtins: drawn by name, never gone inside -------------------------
 
-folding :-
-    section('builtin work folded by default, every goal with builtins(show)'),
+builtins :-
+    section('every builtin drawn by name, and the chart never goes inside one'),
     scratch(D),
     fx(demo, F),
-    atom_concat(D, '/fold', B0), atom_concat(D, '/show', B1),
+    atom_concat(D, '/demo', B0),
     flow_chart(report('+', '+', '+'), B0, [source(F)]),
-    flow_chart(report('+', '+', '+'), B1, [source(F), builtins(show)]),
-    svg_doc(B0, S0), svg_doc(B1, S1),
+    svg_doc(B0, S0),
     %% grep_count/3: codes_lines(Text, Lines), findall(L, (member(L, Lines),
     %% re_match(Pat, L)), Hits), length(Hits, N)
-    svg_title(S1, 'p2.c1.g2.g1', T1),
-    check('builtins(show): member/2 has a box of its own', T1, 'member(L, Lines)  --  library(lists), nondet'),
-    svg_title(S0, 'p2.c1.g2.g1', T2),
-    check('by default it is folded, and its box says what it holds', T2,
-          '1 builtin goal, folded  --  builtins(show) draws it:\nmember(L, Lines)'),
-    svg_element(S0, 'p2.c1.g2.g1', element(_, _, C3)),
-    yes_no(svg_has_text(C3, '↻'), Y3),
-    check('the fold leaves the choice member/2 leaves, so re_match/2''s failure still goes back into it', Y3, yes),
-    svg_element(S0, 'p1.c1.g5', element(_, _, C4)),
-    yes_no(( memberchk(element(circle, _, _), C4), \+ memberchk(element(text, _, _), C4) ), Y4),
-    check('format/2, which can neither fail nor leave a choice, is a dot on the line', Y4, yes),
-    svg_element(S0, p3, element(_, _, C5)),
-    yes_no(svg_has_text(C5, 'if  ->  then  ;  else'), Y5),
-    check('classify/2''s if-then-else is drawn though it holds only builtins: conditions are the flow', Y5, yes),
-    svg_element(S0, 'p3.c1.g1.a1.if.g1', element(_, _, C6)),
-    yes_no(svg_has_text(C6, '⋯ 1'), Y6),
-    check('and the test in its condition is folded inside it', Y6, yes),
-    xml_file(B0, X0), xml_file(B1, X1),
-    yes_no(X0 == X1, Y7),
-    check('the XML is the same folded or not', Y7, yes),
-    answer(flow_chart(report('+', '+', '+'), B0, [source(F), builtins(maybe)]), yes, G8),
-    check('builtins/1 is fold or show, by name', G8, error(error(domain_error(flow_builtins, maybe), flow_chart/3))).
+    svg_title(S0, 'p2.c1.g2.g1', T1),
+    check('member/2 is a box of its own, with its text', T1, 'member(L, Lines)  --  library(lists), nondet'),
+    svg_element(S0, 'p2.c1.g2.g1', element(_, _, C2)),
+    yes_no(svg_has_text(C2, '↻'), Y2),
+    check('and it says it leaves a choice, which re_match/2''s failure goes back into', Y2, yes),
+    svg_title(S0, 'p1.c1.g5', T3),
+    check('so is format/2, which can neither fail nor leave a choice', T3,
+          'format("~w lines (~w), first big: ~w~n", [N, Class, Big])  --  builtin, C in the engine, det'),
+    svg_title(S0, 'p3.c1.g1.a1.if.g1', T4),
+    check('and the test in classify/2''s first condition', T4, 'N < 0  --  test, semidet'),
+    %% every goal the XML names is a box of its own in the picture, with its
+    %% own text: nothing stands for anything else
+    xml_file(B0, XC),
+    xml_parse(XC, X0),
+    findall(Id, xml_ids_of(X0, goal, Id), Ids),
+    findall(Id, ( member(Id, Ids), svg_title(S0, Id, none) ), Untitled),
+    length(Ids, NIds),
+    check('every one of the XML''s goals is a box with its own text', NIds-Untitled, 19-[]),
+    %% gallery.pl's lines_or_none/3 calls re_lines/3, library(text)'s, in
+    %% Prolog over the C function re_match/2
+    panels(check('+', '+'), gallery, [], Ps5),
+    check('a library predicate is a box the chart does not go inside: no panel for re_lines/3, nor for the C under it',
+          Ps5, [check/2-['+', '+']-semidet,
+                sign_word/2-['+', '-']-nondet,
+                lines_or_none/3-['+', '+', '-']-det]),
+    panels(check('+', '+'), gallery, [libraries(reach)], Ps6),
+    findall(K6, member(K6-_-_, Ps6), Keys6),
+    check('libraries(reach) opens it, down to the C it reaches', Keys6,
+          [check/2, sign_word/2, lines_or_none/3, re_lines/3, re_match/2]),
+    %% the fail port: the last clause's lane leaves through the border at its
+    %% own height -- one straight line from the last goal it serves
+    findall(Dd, ( svg_red_arrow(S0, Dd), atomic_list_concat(Ws, ' ', Dd), append(_, ['L0', _], Ws) ), Ports),
+    findall(Dd, ( member(Dd, Ports), \+ ( atomic_list_concat([M, Y, 'L0', Y], ' ', Dd), atom_concat('M', _, M) ) ), Bent),
+    length(Ports, NPorts),
+    check('each panel''s failure leaves straight through its left border, with no drop before it', NPorts-Bent, 5-[]),
+    answer(flow_graph(report('+', '+', '+'), _, [source(F), libraries(maybe)]), yes, G8),
+    check('libraries/1 is none, reach or all, by name', G8,
+          error(error(domain_error(flow_libraries, maybe), flow_graph/3))).
+
+%% the d of each red line that ends in an arrow
+svg_red_arrow(element(N, As, Cs), Dd) :-
+    (   N == path, memberchk('marker-end'='url(#a-red)', As), memberchk(d=Dd, As)
+    ;   member(C, Cs), C = element(_, _, _), svg_red_arrow(C, Dd)
+    ).
 
 svg_doc(Base, S) :-
     atom_concat(Base, '.svg', SF),

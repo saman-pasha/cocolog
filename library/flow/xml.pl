@@ -6,9 +6,7 @@
 %% if-then-else's first condition and its then, X.else, X.b2 for a
 %% disjunction's second branch, X.try and X.recover for catch/3, X itself
 %% for \+ and a meta-call -- and the box drawn for each goal carries the
-%% same id; a goal folded into a box of builtin work (builtins(fold), the
-%% picture's default) is an empty element of that id inside the box. So
-%% whatever an agent finds here it can point at in the picture.
+%% same id. So whatever an agent finds here it can point at in the picture.
 %%
 %% WHAT A GOAL SAYS: what it is (text, pred, kind, and its file, line and
 %% column), the mode of each argument, whether it can fail (can_fail) and

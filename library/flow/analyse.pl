@@ -225,8 +225,10 @@ flow_memo(ctx(_, Memo, _), Key, CM, SP, Det) :-
 %%
 %% A predicate gets a panel for each call pattern it is met with -- its
 %% modes, its determinism and its lanes differ -- and a C function one
-%% panel, since nothing inside it does. A library predicate is drawn only
-%% on a path to C (libraries(reach), the default).
+%% panel, since nothing inside it does. A library predicate is a box the
+%% chart does not go inside (libraries(none), the default) unless asked:
+%% libraries(reach) opens one that stands on a path to C, libraries(all)
+%% every one. Its clauses are analysed all the same, for what it binds.
 
 flow_build(Ctx0, Key, CM, [Q|Panels], Ids) :-
     Key = N/A,

@@ -9,9 +9,8 @@
 %% written by `make modules' (sh tools/flow/build.sh).
 %%
 %%     flow_chart(+Spec, +Base)             Base.svg and Base.xml
-%%     flow_chart(+Spec, +Base, +Options)   source(File), title(T), libraries(reach|all|none),
-%%                                          depth(D), only(Preds), builtins(fold|show) --
-%%                                          these three for the picture
+%%     flow_chart(+Spec, +Base, +Options)   source(File), title(T), libraries(none|reach|all),
+%%                                          depth(D), only(Preds) -- these two for the picture
 %%     flow_graph(+Spec, -Graph, +Options)  the analysis as a term
 %%     flow_findings(+Graph, -Findings)     what is wrong, and where
 %%     flow_svg(+Graph, -Svg)   flow_xml(+Graph, -Xml)      the documents as terms
@@ -40,13 +39,14 @@
 %% on its box, a line under the chart, a <finding> at the head of the XML,
 %% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
-%% A BIG PROGRAM IS DRAWN IN PART and analysed in full: past 150 panels the
-%% picture stops at the depth that fits, depth(D) and only(Preds) choose
-%% another part, and a panel left out is a stub that says how much hangs
-%% from it. THE FLOW GOES THROUGH YOUR CODE: a run of builtin work --
-%% tests, unifications, builtins, library calls -- is one box, a dot where
-%% it can neither fail nor leave a choice, and builtins(show) draws every
-%% goal. The XML always has everything.
+%% EVERY GOAL IS DRAWN, builtins too: a test, a unification, a builtin and
+%% a library call are each a box with its own text on its clause's line,
+%% and the chart never goes inside one -- a builtin is C in the engine, and
+%% a library predicate is opened into a panel only when libraries(reach)
+%% or libraries(all) asks. A BIG PROGRAM IS DRAWN IN PART and analysed in
+%% full: past 150 panels the picture stops at the depth that fits,
+%% depth(D) and only(Preds) choose another part, and a panel left out is a
+%% stub that says how much hangs from it. The XML always has everything.
 
 :- use_module(library(flowchart)).
 :- use_module(library(stream)).
@@ -138,20 +138,17 @@ main :-
     ( has_text(S1, 'not drawn: deeper than depth(1)') -> Stub = yes ; Stub = no ),
     must('ws//1, which count/2 calls, is a stub in the picture', Stub, yes),
 
-    format("~n-- the flow goes through your code; builtins(show) draws the rest~n"),
+    format("~n-- every goal is drawn, and the chart does not go inside a builtin~n"),
     %% word//1 is word([C|Cs]) --> [C], { code_type(C, alpha) }, word_rest(Cs):
     %% its body is the test, the list passed on (S1 = S0), and the call
     svg_title(S, 'p4.c1.g1', T5),
-    ( atom_concat('2 builtin goals, folded', _, T5) -> Fold5 = yes ; Fold5 = no ),
-    must('word//1''s code_type/2 test and the list passed on are one folded box', Fold5, yes),
-    atom_concat(Dir, '/count2', Base2),
-    flow_chart(count('+', '-'), Base2, [source(Prog), builtins(show)]),
-    atom_concat(Base2, '.svg', Svg2),
-    read_file_to_codes(Svg2, SC2),
-    xml_parse(SC2, S2),
-    svg_title(S2, 'p4.c1.g1', T6),
-    must('builtins(show) draws the test in a box of its own', T6,
+    must('word//1''s code_type/2 test is a box of its own', T5,
          'code_type(C, alpha)  --  builtin, C in the engine, semidet'),
+    svg_title(S, 'p4.c1.g2', T6),
+    must('and so is the list the grammar passes on', T6, 'S1 = S0  --  unification, det'),
+    svg_title(S, 'p1.c1.g2', T7),
+    must('length/2 is a box in count/2''s clause, and no panel of its own', T7,
+         'length(Ws, N)  --  library(lists), det'),
 
     format("~ndone~n").
 

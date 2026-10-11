@@ -13,9 +13,7 @@ flow_svg(Graph, Svg) :-
     flow_svg(Graph, Svg, []).
 
 %% depth(D) and only(Preds) choose what is drawn (layout.pl, "How much is
-%% drawn"), and builtins(fold), the default, folds builtin work into one box
-%% where builtins(show) draws every goal (layout.pl, "Measuring"); the XML
-%% is never pruned and never folded
+%% drawn"); the XML is never pruned
 flow_svg(Graph, Svg, Opts) :-
     flow_findings(Graph, Fs),
     flow_svg(Graph, Fs, Svg, Opts).
@@ -23,8 +21,7 @@ flow_svg(Graph, Svg, Opts) :-
 %% the findings already found (flow_chart/4 finds them once for both files)
 flow_svg(Graph, Fs, Svg, Opts) :-
     flow_prune(Graph, Opts, Graph1, Note),
-    (   memberchk(builtins(Fold), Opts) -> true ; Fold = fold ),
-    flow_layout(Graph1, Note, Fold, Fs, canvas(CW, CH, Items)),
+    flow_layout(Graph1, Note, Fs, canvas(CW, CH, Items)),
     flow_els(Items, Els),
     flow_defs(Defs),
     format(atom(VB), '0 0 ~w ~w', [CW, CH]),
@@ -81,8 +78,6 @@ flow_el(pg(Pts, Fill, Stroke, SW), element(polygon, [points=PA, fill=F|SAs], [])
     flow_stroke(Stroke, SW, none, SAs).
 flow_el(grp(tip(Tip, Id), Ps), element(g, [id=Id], [element(title, [], [Tip])|Es])) :- !,
     flow_els(Ps, Es).
-%% an id with nothing drawn: a folded goal, found inside its fold's box
-flow_el(anchor(Id), element(g, [id=Id], [])) :- !.
 flow_el(grp(Tip, Ps), element(g, [], [element(title, [], [Tip])|Es])) :- !,
     flow_els(Ps, Es).
 flow_el(tr(X, Y, Ps, Id), element(g, [id=Id, transform=T], Es)) :-

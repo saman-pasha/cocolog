@@ -11,7 +11,6 @@
 %%   mcut | mfail(W) | mthrow(Segs, W)
 %%   mframe(Items, W, A, D)                   an if-then-else's condition
 %%   mcon(Type, Label, Tracks, W, A, D, CF, ND)   a construct of tracks
-%%   mfold(N, Ids, Tip, CF, ND, W)            builtin work, folded
 %%
 %% CF: the item can fail. ND: it can leave a choice point to come back to.
 
@@ -21,127 +20,25 @@
 %% first condition and its then, X.else, X.b2 for a disjunction's second
 %% branch, X.try and X.recover for catch/3, X itself for the one list of
 %% \+ and of a meta-call -- so a finding in the XML points at a box here.
-%% The context is lc(Names, Ids, Self, Base, Fold): Base names the list.
+%% The context is lc(Names, Ids, Self, Base): Base names the list.
 %%
-%% THE FLOW GOES THROUGH YOUR CODE, NOT THROUGH THE BUILTINS, unless
-%% builtins(show) says so. With Fold = fold, the default, each run of
-%% goals that are builtin work -- a builtin, a test, a unification, a
-%% library predicate that leads to no panel, or \+, a meta-call or catch/3
-%% holding only such goals -- is ONE box, `⋯ N', which can fail if any goal
-%% in it can and leaves a choice if any goal in it does, so the lanes stay
-%% true; a run that can do neither changes nothing in the flow and is a
-%% dot. Its tooltip lists the goals. An if-then-else or a disjunction is
-%% always drawn -- its conditions and branches are the flow -- with the
-%% builtin work inside it folded. The run's first goal names the box and
-%% every other goal in it is an empty element inside it, so each id the
-%% XML gives still finds its box. The numbering is the XML's whatever is
-%% folded: a run folds after its goals are named.
+%% EVERY GOAL IS A BOX WITH ITS OWN TEXT: a builtin, a test, a unification
+%% and a library predicate stand on their clause's line as any call does,
+%% and the chart never goes inside one -- a builtin is C in the engine, and
+%% a library predicate is opened into a panel only when libraries(reach)
+%% or libraries(all) asks (analyse.pl, "The panels"). A construct shows
+%% the goals it was handed, which are the program's own.
 
 flow_m_list(Ns, LC, Is) :-
-    flow_m_list_(Ns, LC, 1, PIs),
-    LC = lc(_, _, _, _, Fold),
-    (   Fold == fold
-    ->  flow_fold_runs(PIs, LC, Is)
-    ;   flow_pair_values(PIs, Is)
-    ).
+    flow_m_list_(Ns, LC, 1, Is).
 
 flow_m_list_([], _, _, []).
-flow_m_list_([N|Ns], LC, K, [P-I|Is]) :-
-    LC = lc(Names, Ids, Self, Base, Fold),
+flow_m_list_([N|Ns], LC, K, [I|Is]) :-
+    LC = lc(Names, Ids, Self, Base),
     atomic_list_concat([Base, '.g', K], Id),
-    flow_m(N, lc(Names, Ids, Self, Id, Fold), I),
-    (   Fold == fold, flow_plain(N, Ids) -> P = plain(Id, N) ; P = kept ),
+    flow_m(N, lc(Names, Ids, Self, Id), I),
     K1 is K + 1,
     flow_m_list_(Ns, LC, K1, Is).
-
-flow_pair_values([], []).
-flow_pair_values([_-V|Ps], [V|Vs]) :- flow_pair_values(Ps, Vs).
-
-%% builtin work: what the program asks of the system, not of itself or of
-%% C. An if-then-else and a disjunction are never builtin work, whatever
-%% they hold: a condition and its branches are the flow itself, and only
-%% the goals inside them fold
-flow_plain(g(_, Kind, Ms, _, Key, Info), Ids) :- !,
-    \+ memberchk(inst(_, _), Info),            % a finding is never folded away
-    (   memberchk(Kind, [builtin, test, unify]) -> true
-    ;   Kind = library(_),
-        flow_panel_key(Kind, Key, Ms, PK),
-        \+ get_assoc(PK, Ids, _)
-    ).
-flow_plain(not(Ns), Ids) :- !,
-    flow_plain_all(Ns, Ids).
-flow_plain(meta(_, _, _, Ts, _), Ids) :- !,
-    forall(member(T, Ts), flow_plain_all(T, Ids)).
-flow_plain(catchc(G, _, R), Ids) :-
-    flow_plain_all(G, Ids),
-    flow_plain_all(R, Ids).
-
-flow_plain_all(Ns, Ids) :-
-    forall(member(N, Ns), flow_plain(N, Ids)).
-
-%% ONE answer, and that matters: a construct measures its lists inside
-%% findall/3, and a clause that also took the empty list folded an empty
-%% run there for ever
-flow_fold_runs([], _, []).
-flow_fold_runs([P-I|PIs], LC, Out) :-
-    (   P == kept
-    ->  Out = [I|Is],
-        flow_fold_runs(PIs, LC, Is)
-    ;   flow_plain_run([P-I|PIs], Run, Rest),
-        flow_make_fold(Run, LC, F),
-        Out = [F|Is],
-        flow_fold_runs(Rest, LC, Is)
-    ).
-
-flow_plain_run([plain(Id, N)-I|PIs], [r(Id, N, I)|Run], Rest) :- !,
-    flow_plain_run(PIs, Run, Rest).
-flow_plain_run(Rest, [], Rest).
-
-flow_make_fold(Run, lc(Names, _, _, _, _), mfold(N, Ids, Tip, CF, ND, W)) :-
-    findall(I, member(r(_, _, I), Run), Is),
-    (   member(I1, Is), flow_flags(I1, true, _) -> CF = true ; CF = false ),
-    (   member(I2, Is), flow_flags(I2, _, true) -> ND = true ; ND = false ),
-    findall(X, ( member(r(Id, Nd, _), Run), flow_node_ids(Nd, Id, X) ), Xs),
-    append(Xs, Ids),
-    findall(T, ( member(r(_, Nd, _), Run), flow_node_goal(Nd, G), flow_term_full(G, Names, 1200, T) ), Ts),
-    length(Ts, N),
-    atomic_list_concat(Ts, '\n', Body),
-    (   N =:= 1 -> What = goal, Them = it ; What = goals, Them = them ),
-    format(atom(Tip), '~d builtin ~w, folded  --  builtins(show) draws ~w:~n~w',
-           [N, What, Them, Body]),
-    (   CF == false, ND == false
-    ->  W = 10                              % changes nothing in the flow: a dot
-    ;   format(atom(L), '⋯ ~d', [N]),
-        flow_chars(L, NL),
-        flow_text_w(NL, TW),
-        (   ND == true -> NW = 13 ; NW = 0 ),
-        W is 18 + TW + NW
-    ).
-
-%% an item's id and the ids of everything inside it, named as the XML names
-%% them (a folded item is a goal, or \+, a meta-call or catch/3 holding only
-%% builtin work)
-flow_node_ids(N, Id, [Id|Inner]) :-
-    findall(I, flow_inner_id(N, Id, I), Inner).
-
-flow_inner_id(not(Ns), Id, I) :- flow_list_id(Ns, Id, I).
-flow_inner_id(meta(_, _, _, [Ns], _), Id, I) :- flow_list_id(Ns, Id, I).
-flow_inner_id(catchc(G, _, R), Id, I) :-
-    (   atom_concat(Id, '.try', B), flow_list_id(G, B, I)
-    ;   atom_concat(Id, '.recover', B), flow_list_id(R, B, I)
-    ).
-
-flow_list_id(Ns, Base, I) :-
-    nth1(K, Ns, N),
-    atomic_list_concat([Base, '.g', K], Id),
-    flow_node_ids(N, Id, Is),
-    member(I, Is).
-
-%% each goal a folded item holds, in reading order
-flow_node_goal(g(G, _, _, _, _, _), G).
-flow_node_goal(not(Ns), G) :- member(N, Ns), flow_node_goal(N, G).
-flow_node_goal(meta(_, _, _, Ts, _), G) :- member(T, Ts), member(N, T), flow_node_goal(N, G).
-flow_node_goal(catchc(Gs, _, Rs), G) :- ( member(N, Gs) ; member(N, Rs) ), flow_node_goal(N, G).
 
 %% a construct's lists, each under its own name: X.b1, X.b2, ...
 flow_m_lists(Ls, LC, Tag, Is) :-
@@ -154,11 +51,11 @@ flow_m_lists_([L|Ls], LC, Tag, K, [I|Is]) :-
     K1 is K + 1,
     flow_m_lists_(Ls, LC, Tag, K1, Is).
 
-flow_lc_sub(lc(N, I, S, X, F), Parts, lc(N, I, S, B, F)) :-
+flow_lc_sub(lc(N, I, S, X), Parts, lc(N, I, S, B)) :-
     atomic_list_concat([X, '.'|Parts], B).
 
 flow_m(g(G, Kind, Ms, Det, Key, Info), LC, mg(Kind, Segs, Badge, ND, CF, W, tip(Tip, Id))) :- !,
-    LC = lc(Names, Ids, Self, Id, _),
+    LC = lc(Names, Ids, Self, Id),
     flow_goal_segs(G, Ms, Names, Segs),
     flow_badge(Kind, Key, Ms, Ids, Self, Badge),
     flow_det_flags(Det, CF, ND),
@@ -177,7 +74,7 @@ flow_m(cut, _, mcut) :- !.
 flow_m(failn, _, mfail(W)) :- !,
     flow_text_w(4, TW),
     W is TW + 18.
-flow_m(thrown(E), lc(Names, _, _, _, _), mthrow(Segs, W)) :- !,
+flow_m(thrown(E), lc(Names, _, _, _), mthrow(Segs, W)) :- !,
     flow_term_text(E, Names, 999, T),
     Segs = [s('throw(', ink), s(T, m('+')), s(')', ink)],
     flow_segs_w(Segs, TW),
@@ -204,7 +101,7 @@ flow_m(not(Ns), LC, mcon(not, Label, Tracks, W, A, D, true, false)) :- !,
     flow_tracks([Is], 0, 0, Tracks),
     flow_con_size(Tracks, Label, W, A, D).
 flow_m(meta(Name, Head, Ms, Ts, _), LC, mcon(meta, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
-    LC = lc(Names, _, _, _, _),
+    LC = lc(Names, _, _, _),
     flow_goal_segs(Head, Ms, Names, Segs0),
     flow_meta_note(Name, Note),
     append(Segs0, [s(Note, muted)], Segs),
@@ -214,7 +111,7 @@ flow_m(meta(Name, Head, Ms, Ts, _), LC, mcon(meta, segs(Segs), Tracks, W, A, D, 
     flow_meta_can_fail(Name, Head, Ms, Ts, CF),
     (   Name == phrase -> flow_tracks_flags(Tracks, _, ND) ; ND = false ).   % phrase is transparent to choice
 flow_m(catchc(G, Ball, R), LC, mcon(catch, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
-    LC = lc(Names, _, _, _, _),
+    LC = lc(Names, _, _, _),
     flow_term_text(Ball, Names, 999, BT),
     Segs = [s('catch(…, ', ink), s(BT, m('?')), s(', …)', ink)],
     flow_lc_sub(LC, [try], LCT),
@@ -298,9 +195,7 @@ flow_flags(mfail(_), true, false).
 flow_flags(mthrow(_, _), false, false).
 flow_flags(mframe(_, _, _, _), false, false).
 flow_flags(mcon(_, _, _, _, _, _, CF, ND), CF, ND).
-flow_flags(mfold(_, _, _, CF, ND, _), CF, ND).
 
-flow_size(mfold(_, _, _, _, _, W), W, 13, 13).
 flow_size(mg(_, _, _, _, _, W, _), W, 13, 13).
 flow_size(mhead(_, _, W, _), W, 13, 13).
 flow_size(mcut, 14, 13, 13).
@@ -392,29 +287,6 @@ flow_p(mg(Kind, Segs, Badge, ND, CF, W, Tip), X, Y, Prims, it(X, W, B, CF, ND, f
     append([[Shape, t(TX, TY, start, 12, mono, normal, Segs)], Glyph, Plaque, BadgePs], Inner),
     (   Badge = ref(Id) -> Site = [9-site(Id, Y)] ; Site = [] ),
     Prims = [2-grp(Tip, Inner)|Site].
-%% builtin work, folded: a dot on the line when it can neither fail nor
-%% leave a choice -- it changes nothing in the flow -- else a grey pill
-%% with the choice mark when any goal in it leaves one; and an empty
-%% element for each goal after the first
-flow_p(mfold(_, [Id|Ids], Tip, false, false, W), X, Y,
-       [2-grp(tip(Tip, Id), [c(CX, Y, 3.5, '#a3aeb9', none, 0)|As])],
-       it(X, W, B, false, false, false)) :- !,
-    CX is X + W // 2,
-    B is Y + 13,
-    findall(anchor(A), member(A, Ids), As).
-flow_p(mfold(N, [Id|Ids], Tip, CF, ND, W), X, Y,
-       [2-grp(tip(Tip, Id), [r(X, T, W, 26, 13, '#f3f4f6', '#a3aeb9', 1, '2 2'),
-                             t(TX, TY, start, 12, mono, normal, [s(L, muted)])|Rest])],
-       it(X, W, B, CF, ND, false)) :- !,
-    T is Y - 13, B is Y + 13, TY is Y + 4,
-    (   ND == true
-    ->  GX is X + 8, TX is X + 22,
-        Glyph = [t(GX, TY, start, 11, sans, normal, [s('↻', muted)])]
-    ;   TX is X + 9, Glyph = []
-    ),
-    format(atom(L), '⋯ ~d', [N]),
-    findall(anchor(A), member(A, Ids), As),
-    append(Glyph, As, Rest).
 flow_p(mhead(Segs, HF, W, Tip), X, Y,
        [2-grp(Tip, [r(X, T, W, 26, 13, '#eef0ff', '#5a5fcf', 1, none),
                     t(TX, TY, start, 12, mono, normal, Segs)])],
@@ -577,9 +449,9 @@ flow_badge_col(_, '#6b7785').
 %% failures whose spans overlap share their target, and each target's
 %% lane is one line: the lanes never cross.
 
-flow_m_row(row(I, H, Names, HF, Nodes, _), CM, Ids, Self, PId, Fold, mrow(I, Items, A, D, W)) :-
+flow_m_row(row(I, H, Names, HF, Nodes, _), CM, Ids, Self, PId, mrow(I, Items, A, D, W)) :-
     atomic_list_concat([PId, '.c', I], Base),
-    LC = lc(Names, Ids, Self, Base, Fold),
+    LC = lc(Names, Ids, Self, Base),
     flow_m_list(Nodes, LC, BIs),
     (   H == none -> Items = BIs
     ;   atom_concat(Base, '.h', HId),
@@ -594,36 +466,41 @@ flow_m_row(row(I, H, Names, HF, Nodes, _), CM, Ids, Self, PId, Fold, mrow(I, Ite
 flow_row_tail(Items, Tail) :-
     (   append(_, [mcut], Items) -> Tail = 16 ; Tail = 0 ).
 
-flow_m_rows([], _, _, _, _, _, []).
-flow_m_rows([R|Rs], CM, Ids, Self, PId, Fold, [M|Ms]) :-
-    flow_m_row(R, CM, Ids, Self, PId, Fold, M),
-    flow_m_rows(Rs, CM, Ids, Self, PId, Fold, Ms).
+flow_m_rows([], _, _, _, _, []).
+flow_m_rows([R|Rs], CM, Ids, Self, PId, [M|Ms]) :-
+    flow_m_row(R, CM, Ids, Self, PId, M),
+    flow_m_rows(Rs, CM, Ids, Self, PId, Ms).
 
 flow_rows_maxw([], M, M).
 flow_rows_maxw([mrow(_, _, _, _, W)|Rs], M0, M) :-
     M1 is max(M0, W),
     flow_rows_maxw(Rs, M1, M).
 
+%% A failure with nothing left to redo in its clause goes left along its
+%% lane to the rail, and down the rail into the next clause; from the LAST
+%% clause the lane runs on through the panel's left border at its own
+%% height -- that is the fail port -- so it reaches the border straight.
 flow_p_rows([], _, Top, _, _, [], [], Top).
 flow_p_rows([MR|MRs], X0, Top, RailX, ExitX, Prims, [G|Gs], Bottom) :-
-    flow_p_row(MR, X0, Top, RailX, ExitX, P1, G),
+    (   MRs == [] -> LaneEnd = port ; LaneEnd = rail(RailX) ),
+    flow_p_row(MR, X0, Top, LaneEnd, ExitX, P1, G),
     G = row_geo(_, _, _, RB, _),
     Top2 is RB + 4,
     flow_p_rows(MRs, X0, Top2, RailX, ExitX, P2, Gs, Bottom),
     append(P1, P2, Prims).
 
-flow_p_row(mrow(I, Items, A, D, _), X0, Top, RailX, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
+flow_p_row(mrow(I, Items, A, D, _), X0, Top, LaneEnd, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
     Y is Top + A,
     flow_p_items(Items, X0, Y, IPs, XE, Infos),
     YF is Y + D + 12,
     flow_row_tail(Items, Tail),
     RowEnd is XE + 12 + Tail,
-    flow_lanes(Infos, RowEnd, RailX, YF, LPs, RailHit, Tags),
+    flow_lanes(Infos, RowEnd, LaneEnd, YF, LPs, RailHit, Tags),
     (   Tags == true -> Extra = 6 ; Extra = 0 ),
     Bottom is YF + 12 + Extra,
     append([[1-l([X0-Y, ExitX-Y], ink, 1.4, none, none)], IPs, LPs], Prims).
 
-flow_lanes(Infos, RowEnd, RailX, YF, Prims, RailHit, Tags) :-
+flow_lanes(Infos, RowEnd, LaneEnd, YF, Prims, RailHit, Tags) :-
     flow_index(Infos, 1, Indexed),
     flow_fail_sources(Indexed, [], Srcs0),
     reverse(Indexed, RevAll),
@@ -631,7 +508,7 @@ flow_lanes(Infos, RowEnd, RailX, YF, Prims, RailHit, Tags) :-
     Srcs = [src(EndT, RowEnd, end)|Srcs0],
     findall(T, member(src(T, _, _), Srcs), Ts0),
     sort(Ts0, Ts),
-    flow_lane_groups(Ts, Srcs, Indexed, RailX, YF, GPs),
+    flow_lane_groups(Ts, Srcs, Indexed, LaneEnd, YF, GPs),
     flow_stubs(Srcs, YF, SPs),
     (   memberchk(rail, Ts) -> RailHit = true ; RailHit = false ),
     (   memberchk(cutfail(_), Ts) -> Tags = true ; Tags = false ),
@@ -659,14 +536,17 @@ flow_fail_target([K-it(_, _, _, _, ND, Cut)|Rest], T) :-
     ).
 
 flow_lane_groups([], _, _, _, _, []).
-flow_lane_groups([T|Ts], Srcs, Indexed, RailX, YF, Prims) :-
+flow_lane_groups([T|Ts], Srcs, Indexed, LaneEnd, YF, Prims) :-
     findall(SX, member(src(T, SX, _), Srcs), SXs),
     max_list(SXs, MaxX),
-    flow_lane_group(T, MaxX, Indexed, RailX, YF, P1),
-    flow_lane_groups(Ts, Srcs, Indexed, RailX, YF, P2),
+    flow_lane_group(T, MaxX, Indexed, LaneEnd, YF, P1),
+    flow_lane_groups(Ts, Srcs, Indexed, LaneEnd, YF, P2),
     append(P1, P2, Prims).
 
-flow_lane_group(rail, MaxX, _, RailX, YF, [1-l([MaxX-YF, RailX-YF], red, 1.2, '4 3', none)]).
+%% to the rail, which takes it down into the next clause; from the last
+%% clause, through the border: out of the panel, as its fail port
+flow_lane_group(rail, MaxX, _, rail(RailX), YF, [1-l([MaxX-YF, RailX-YF], red, 1.2, '4 3', none)]).
+flow_lane_group(rail, MaxX, _, port, YF, [1-l([MaxX-YF, 0-YF], red, 1.2, '4 3', red)]).
 flow_lane_group(item(K), MaxX, Indexed, _, YF, [1-l([MaxX-YF, NX-YF, NX-BK], red, 1.2, '4 3', red)]) :-
     memberchk(K-it(XK, WK, BK, _, _, _), Indexed),
     NX is XK + WK - min(14, WK // 3).
@@ -702,12 +582,12 @@ flow_stub(SX, B, YF, [1-l([SX-B, SX-YF], red, 1.2, '4 3', none)]).
 %% pd(Id, Depth, Width, Height, CallY, Jacks, Prims): CallY is where the
 %% call port is, Jacks where its own calls leave for the panels they call.
 
-flow_draw(P, Ids, DMap, KMap, Docs, Fold, PD) :-
+flow_draw(P, Ids, DMap, KMap, Docs, PD) :-
     P = panel(_, _, Kind, _, _, Body, _, _),
     (   Body = stub(_, _, _) -> flow_draw_stub(P, Docs, PD)
-    ;   Kind == query -> flow_draw_query(P, Ids, DMap, KMap, Docs, Fold, PD)
+    ;   Kind == query -> flow_draw_query(P, Ids, DMap, KMap, Docs, PD)
     ;   Kind = portal(_) -> flow_draw_portal(P, PD)
-    ;   flow_draw_rows(P, Ids, DMap, KMap, Docs, Fold, PD)
+    ;   flow_draw_rows(P, Ids, DMap, KMap, Docs, PD)
     ).
 
 %% a panel not drawn: its head, why, and how much hangs from it
@@ -737,13 +617,13 @@ flow_draw_stub(panel(Id, Key, Kind, CM, D, stub(N, Rule, Body), Det, _), Docs,
              3-t(16, 70, start, 10, sans, normal, [s(L3, muted)])],
     append(FramePs, Body1, Prims).
 
-flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap, Docs, Fold,
+flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap, Docs,
                pd(Id, D, W, H, CallY, Jacks, Prims)) :-
     flow_panel_head(Key, CM, Rows, Docs, HeadSegs),
     flow_doc_rows(Key, Kind, Docs, Rows, DRows),
     flow_panel_key(Kind, Key, CM, Self),
     flow_panel_id(Id, PId),
-    flow_m_rows(DRows, CM, Ids, Self, PId, Fold, MRows),
+    flow_m_rows(DRows, CM, Ids, Self, PId, MRows),
     flow_rows_maxw(MRows, 0, MW),
     flow_segs_w(HeadSegs, HW),
     length(Rows, NC),
@@ -753,12 +633,15 @@ flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap,
     W is max(34 + MW + 26 + 16, 34 + HW + max(140, TagW + 30)),
     ExitX is W - 14,
     flow_p_rows(MRows, 34, 44, 16, ExitX, RowPs, Geos, Bottom),
-    H is Bottom + 22,
     Geos = [row_geo(_, CallY, _, _, _)|_],
-    flow_panel_frame(Id, Kind, W, H, HeadSegs, Tag, FramePs),
-    flow_panel_ports(Geos, W, H, ExitX, PortPs),
     MinY is CallY + 18,
     flow_jacks(RowPs, D, DMap, KMap, W, MinY, Jacks, JackPs),
+    %% room under the last lane for the fail port's word, and for every jack
+    findall(JY, member(jk(_, JY), Jacks), JYs),
+    max_list([0|JYs], MaxJY),
+    H is max(Bottom + 8, MaxJY + 12),
+    flow_panel_frame(Id, Kind, W, H, HeadSegs, Tag, FramePs),
+    flow_panel_ports(Geos, W, ExitX, PortPs),
     exclude(flow_is_site, RowPs, RowPs1),
     append([FramePs, PortPs, RowPs1, JackPs], Prims).
 
@@ -829,8 +712,9 @@ flow_panel_fill(portal(_), '#dcf1ed') :- !.
 flow_panel_fill(_, '#e9e9f3').
 
 %% Byrd's ports: call at the top left, exit at the top right, fail at the
-%% bottom left; the left rail carries each clause's failure to the next
-flow_panel_ports(Geos, W, H, ExitX, Prims) :-
+%% bottom left -- where the last clause's lane leaves through the border;
+%% the left rail carries each other clause's failure to the next
+flow_panel_ports(Geos, W, ExitX, Prims) :-
     Geos = [row_geo(_, Y1, _, _, _)|_],
     last(Geos, row_geo(_, YL, _, _, _)),
     LY is Y1 - 8,
@@ -841,8 +725,7 @@ flow_panel_ports(Geos, W, H, ExitX, Prims) :-
              3-t(EX, LY, end, 8, sans, normal, [s(exit, muted)])],
     (   YL =\= Y1 -> Rail = [1-l([ExitX-YL, ExitX-Y1], ink, 1.4, none, none)] ; Rail = [] ),
     flow_markers(Geos, Marks),
-    YB is H - 12,
-    flow_retries(Geos, YB, Retries),
+    flow_retries(Geos, Retries),
     append([Ports, Rail, Marks, Retries], Prims).
 
 flow_markers([], []).
@@ -854,19 +737,20 @@ flow_markers([row_geo(I, Y, _, _, _)|Gs], [1-l([23-Y, 34-Y], ink, 1.4, none, non
     atom_codes(IA, Cs),
     flow_markers(Gs, Ms).
 
-flow_retries([], _, []).
-flow_retries([row_geo(_, _, YF, _, Hit)|Gs], YB, Prims) :-
+%% the last clause's lane is its own way out (flow_lane_group/6): here it
+%% only gets its word, under the arrow
+flow_retries([], []).
+flow_retries([row_geo(_, _, YF, _, Hit)|Gs], Prims) :-
     (   Hit == true
     ->  (   Gs = [row_geo(_, YN, _, _, _)|_]
         ->  YT is YN - 8,
             P1 = [1-l([16-YF, 16-YT], red, 1.2, '4 3', red)]
-        ;   LY is YB + 10,
-            P1 = [1-l([16-YF, 16-YB, 0-YB], red, 1.2, '4 3', red),
-                  3-t(3, LY, start, 8, sans, normal, [s(fail, red)])]
+        ;   LY is YF + 11,
+            P1 = [3-t(3, LY, start, 8, sans, normal, [s(fail, red)])]
         )
     ;   P1 = []
     ),
-    flow_retries(Gs, YB, P2),
+    flow_retries(Gs, P2),
     append(P1, P2, Prims).
 
 %% where this panel's calls leave it: one jack per panel called in the
@@ -903,14 +787,14 @@ flow_jack_prims([C-JY|T], KMap, W, [3-c(W, JY, 4, Col, none, 0),
     flow_id_atom(C, CA),
     flow_jack_prims(T, KMap, W, R).
 
-flow_draw_query(panel(_, _, _, _, D, rows([row(_, _, Names0, _, [GNode], _)]), _, _), Ids, DMap, KMap, Docs, Fold,
+flow_draw_query(panel(_, _, _, _, D, rows([row(_, _, Names0, _, [GNode], _)]), _, _), Ids, DMap, KMap, Docs,
                 pd(0, D, W, H, 56, Jacks, Prims)) :-
     GNode = g(G, _, _, _, Key, _),
     (   get_assoc(Key, Docs, sig(_, DNs, _)), G =.. [_|Vs], flow_pair_names(DNs, Vs, Names1)
     ->  Names = Names1
     ;   Names = Names0
     ),
-    flow_m(GNode, lc(Names, Ids, none, 'query.g1', Fold), MG),
+    flow_m(GNode, lc(Names, Ids, none, 'query.g1'), MG),
     flow_size(MG, GW, _, _),
     W is max(16 + GW + 24, 184),          % room for its title and its tag
     H = 84,
@@ -1082,17 +966,16 @@ flow_prune_note(rule(D, Ps), ND, NS, NP, Note) :-
 
 flow_layout(Graph, Canvas) :-
     flow_findings(Graph, Fs),
-    flow_layout(Graph, none, fold, Fs, Canvas).
+    flow_layout(Graph, none, Fs, Canvas).
 
-%% Note: what pruning left out, or none; Fold: fold or show (builtins/1);
-%% Fs: the findings, marked on the boxes they are about and listed under
-%% the chart
-flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fold, Fs, canvas(CW, CH, Items)) :-
+%% Note: what pruning left out, or none; Fs: the findings, marked on the
+%% boxes they are about and listed under the chart
+flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fs, canvas(CW, CH, Items)) :-
     findall(I-D, member(panel(I, _, _, _, D, _, _, _), Panels), DPairs),
     list_to_assoc(DPairs, DMap),
     findall(I-K, member(panel(I, _, K, _, _, _, _, _), Panels), KPairs),
     list_to_assoc(KPairs, KMap),
-    flow_draw_all(Panels, Ids, DMap, KMap, Docs, Fold, PDs),
+    flow_draw_all(Panels, Ids, DMap, KMap, Docs, PDs),
     flow_parents(Panels, DMap, Ids, Parents),
     flow_place_tree(PDs, Parents, [], Placed),
     flow_tree_wires(Placed, Wires),
@@ -1108,17 +991,17 @@ flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fold, Fs, canvas(CW, CH,
     flow_lines_w(ListPs, ListW),
     CW0 is max(max(MaxR + 32, 980), max(TitleW, ListW) + 32),
     LegendY is ListY + ListH,
-    flow_legend(LegendY, CW0, Fold, LegendPs, LegendH),
+    flow_legend(LegendY, CW0, LegendPs, LegendH),
     CW = CW0,
     CH is LegendY + LegendH + 20,
     findall(tr(X, Y, Ps, PId), ( member(pp(Id, _, X, Y, _, _, _, _, Ps0, _), Placed), flow_panel_id(Id, PId),
                                  flow_layered(Ps0, Ps1), flow_mark_findings(Ps1, PId, Fs, Ps) ), Groups),
     append([TitlePs, Groups, Wires, ListPs, LegendPs], Items).
 
-flow_draw_all([], _, _, _, _, _, []).
-flow_draw_all([P|Ps], Ids, DMap, KMap, Docs, Fold, [D|Ds]) :-
-    flow_draw(P, Ids, DMap, KMap, Docs, Fold, D),
-    flow_draw_all(Ps, Ids, DMap, KMap, Docs, Fold, Ds).
+flow_draw_all([], _, _, _, _, []).
+flow_draw_all([P|Ps], Ids, DMap, KMap, Docs, [D|Ds]) :-
+    flow_draw(P, Ids, DMap, KMap, Docs, D),
+    flow_draw_all(Ps, Ids, DMap, KMap, Docs, Ds).
 
 %% EACH PANEL STANDS JUST RIGHT OF THE PANEL THAT FIRST CALLS IT, level
 %% with the jack its call leaves from, and moves down only as far as it
@@ -1470,15 +1353,12 @@ flow_corner(c(CX, CY, _, _, _, _), X, Y) :- X is CX + 4, Y is CY - 10.
 %% The legend: what each mark means, drawn with the marks themselves
 %% ======================================================================
 
-flow_legend(Y0, CW, Fold, Prims, H) :-
+flow_legend(Y0, CW, Prims, H) :-
     Max is CW - 24,
     RuleY is Y0 - 18,
     RX is CW - 24,
     Rule = [l([24-RuleY, RX-RuleY], '#e3e8ee', 1, none, none)],
-    (   Fold == fold
-    ->  Boxes = [head, user, portal, fold, cut]
-    ;   Boxes = [head, user, library, builtin, test, portal, cut]
-    ),
+    Boxes = [head, user, library, builtin, test, portal, cut],
     flow_legend_row('boxes', Boxes, Y0, Max, P1, Y1),
     flow_legend_row('flow', [success, failure, cutfail, choice, recursion, redo], Y1, Max, P2, Y2),
     flow_legend_row('wires and modes', [wire, mode('+'), mode('-'), mode('?'), mode(':')], Y2, Max, P3, Y3),
@@ -1510,8 +1390,6 @@ flow_legend_entry(builtin, W, 'builtin') :- flow_text_w(8, TW), W is TW + 18.
 flow_legend_entry(test, W, 'test') :- flow_text_w(5, TW), W is TW + 30.
 flow_legend_entry(portal, W, 'C function: a portal, not traced') :- flow_text_w(14, TW), W is TW + 18 + 17 + 21.
 flow_legend_entry(cut, 14, 'cut').
-flow_legend_entry(fold, W, 'builtin work, folded: hover to list it, a dot where it cannot fail  ·  builtins(show) draws every goal') :-
-    flow_text_w(3, TW), W is TW + 18.
 flow_legend_entry(success, 40, 'success: left to right').
 flow_legend_entry(failure, 40, 'failure: redo the nearest goal that can, else the next clause').
 flow_legend_entry(cutfail, 34, 'past a cut: the whole call fails').
@@ -1550,10 +1428,6 @@ flow_legend_sample(portal, X, Y, Ps) :-
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(cut, X, Y, Ps) :-
     flow_p(mcut, X, Y, Ps0, _),
-    flow_unlayer(Ps0, Ps).
-flow_legend_sample(fold, X, Y, Ps) :-
-    flow_legend_entry(fold, W, _),
-    flow_p(mfold(3, ['legend.fold'], 'builtin work, folded', true, false, W), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(success, X, Y, [l([X-Y, X2-Y], ink, 1.4, none, ink)]) :- X2 is X + 38.
 flow_legend_sample(failure, X, Y, [l([X2-Y, X-Y], red, 1.2, '4 3', red)]) :- X2 is X + 38.

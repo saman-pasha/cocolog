@@ -23,22 +23,22 @@
 %%     source(File)     the program (required), read with its own variable
 %%                      names and where each goal stands
 %%     title(Atom)      the chart's title (default: the moded head)
-%%     libraries(How)   reach (default): a library predicate becomes a panel
-%%                      only on a path that reaches C; all; none
+%%     libraries(How)   none (default): a library predicate is a box, and the
+%%                      chart never goes inside it; reach: one is opened
+%%                      into a panel of its clauses on a path that reaches
+%%                      C; all: every one the program reaches is opened
 %%     depth(D)         the PICTURE draws panels at most D calls deep
 %%     only(Preds)      the PICTURE draws these predicates' panels, a list of
 %%                      Name/Arity and Name//Arity
-%%     builtins(B)      fold (default): the PICTURE's flow goes through your
-%%                      code, a run of builtin work one box; show: every goal
 %%
-%% A panel that a drawn one calls but that is not drawn itself is a STUB --
-%% its head, why, and how many panels hang from it. With neither depth nor
+%% EVERY GOAL IS DRAWN, by name, builtins and library calls too: each is a
+%% box on its clause's line, which the chart does not go inside -- a
+%% builtin is C in the engine, and a library predicate is the library's
+%% own business unless libraries(reach|all) asks for its clauses. A panel
+%% that a drawn one calls but that is not drawn itself is a STUB -- its
+%% head, why, and how many panels hang from it. With neither depth nor
 %% only, a chart of more than 150 panels is drawn to the depth that fits
-%% and says so. BUILTIN WORK IS FOLDED: tests, unifications, builtins and
-%% library calls that lead to no panel, run by run, into one `⋯ N' box that
-%% fails and leaves a choice where they would -- a dot where it can do
-%% neither -- while if-then-else and `;' are always drawn, being the flow.
-%% THE XML IS NEVER PRUNED AND NEVER FOLDED.
+%% and says so. THE XML IS NEVER PRUNED.
 %%
 %% THE TWO FILES COME FROM ONE GRAPH, so they cannot disagree, and they
 %% share their ids: panel p3, its clause p3.c2, that clause's goal p3.c2.g4
@@ -163,7 +163,10 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
     ->  throw(error(existence_error(flow_option, source), flow_graph/3))
     ;   true
     ),
-    flow_option(libraries(How), Opts, reach),
+    flow_option(libraries(How), Opts, none),
+    (   memberchk(How, [none, reach, all]) -> true
+    ;   throw(error(domain_error(flow_libraries, How), flow_graph/3))
+    ),
     flow_tables,
     use_module(Src),
     flow_read_source(Src, Prog),
@@ -184,14 +187,8 @@ flow_option(Opt, Opts, Default) :-
     (   memberchk(Opt, Opts) -> true ; arg(1, Opt, Default) ).
 
 %% depth(D): D calls deep at most, D a positive integer or `all';
-%% only(Preds): a list of Name/Arity and Name//Arity; builtins(B): fold or
-%% show
+%% only(Preds): a list of Name/Arity and Name//Arity
 flow_check_draw_opts(Opts) :-
-    (   memberchk(builtins(B), Opts),
-        \+ memberchk(B, [fold, show])
-    ->  throw(error(domain_error(flow_builtins, B), flow_chart/3))
-    ;   true
-    ),
     (   memberchk(depth(D), Opts),
         \+ ( D == all ; integer(D), D >= 1 )
     ->  throw(error(domain_error(flow_depth, D), flow_chart/3))

@@ -71,8 +71,11 @@ construct, five panels and the query's in 3880 by 782.
   `C` plaque and the number of its panel), a cut (an orange bar).
 * **Under each row a dashed red LANE says where each failure goes**: back up
   into the NEAREST goal to its left that can redo (`↻` marks a goal that can
-  leave a choice point), else down the rail to the next clause, else -- past
-  a cut -- to a red `fail !` tag under the cut: the whole call fails. The end
+  leave a choice point), else down the rail to the next clause -- from the
+  last clause, straight out through the panel's left border at the lane's
+  own height, the fail port (through 1.10.4 it dropped to the bottom corner
+  first) -- else, past a cut, to a red `fail !` tag under the cut: the whole
+  call fails. The end
   of a row carries `↶`, where backtracking into the clause after it exited
   enters, and it follows the same rule. Because a failure always goes to the
   nearest such goal, two failures whose spans overlap share their target, and
@@ -123,17 +126,17 @@ flow_xml(+Graph, -Xml)
 `Spec` is a call pattern (`report(+, +, -)`), `Name/Arity` (every argument
 `?`), or `Name//Arity` for a nonterminal, whose two list arguments are then
 `+` and `-` (parsing). Options: `source(File)` (the program), `title(T)`,
-`libraries(reach | all | none)` (`reach`, the default, makes a library
-predicate a panel only on a path that reaches C), and for the picture alone
-`depth(D)`, `only(Preds)` (section 4.5) and `builtins(fold | show)`
-(section 4.6). A program in several files
-(`files(Files)`) is not built yet: a file's own `use_module` directives load
-the rest, which the chart reaches as libraries.
+`libraries(none | reach | all)` (section 4.6: `none`, the default, never
+opens a library predicate; `reach` opens one on a path that reaches C), and
+for the picture alone `depth(D)` and `only(Preds)` (section 4.5). A program
+in several files (`files(Files)`) is not built yet: a file's own
+`use_module` directives load the rest, which the chart reaches as
+libraries.
 
 For an agent in any language, one command writes both files:
 
 ```sh
-cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1] [builtins=show]
+cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1] [libraries=reach]
 # out/report.svg and out/report.xml; exit 0, 1 for no such predicate, 2 for an error
 # then each finding as a compiler writes one:
 # test/flowchart/faults.pl:35:5: error: total/2: S is free on every path to here, and is/2 evaluates it: ... [instantiation p2.c1.g1]
@@ -269,27 +272,41 @@ lines, reaches 2897 panels.
   goals x variables^2 (`tr_read0/4`, 72 clauses of up to 77 variables, is a
   million inferences an analysis) -- the next thing to make cheaper.
 
-### 4.6 The flow goes through your code (the owner, 2026-10-11)
+### 4.6 Builtins are drawn, and never gone inside (the owner, 2026-10-11)
 
-"Add a flag to default not go through builtins." Half of the translator's
-87 389 goals are builtin work -- 17 963 unifications, 11 660 tests, 8848
-library calls, 3840 builtins -- and each was a box on its clause's line.
+"Add a flag to default not go through builtins", and then, of what 1.10.2
+made of it: "I mean show builtins predicate in chart but don't go through
+them inside to trace", and "`⋯ 1` is not readable for user and hides the
+information".
 
-* **`builtins(fold)`, the default**: each run of builtin work -- a builtin, a
-  test, a unification, a library predicate that leads to no panel, or `\+`,
-  a meta-call or `catch/3` holding only such goals -- is ONE box, `⋯ N`,
-  that can fail if a goal in it can and leaves a choice (`↻`) if a goal in it
-  does, so the failure lanes stay true; a run that can do neither is a dot on
-  the line. Its tooltip lists the goals.
-* **An if-then-else and a disjunction are always drawn**, whatever they hold:
-  conditions and branches are the flow. Only the goals inside them fold.
-* **The ids hold**: a fold is named by its run's first goal, and every other
-  goal in it is an empty element of its own id inside the box, so each XML id
-  still finds its box. The numbering is the XML's, folded or not.
-* **`builtins(show)`** draws every goal as F1 first did. The XML is the same
-  either way (the case checks it byte for byte).
-* The translator's chart: 15 157 px wide folded against 20 425 shown, 1.20 MB
-  against 1.28 MB, in the same 45 s.
+1.10.2 had read the first as keeping builtin work off the flow line: each run
+of builtins, tests, unifications and library calls was folded into one `⋯ N`
+box, its goals only in the tooltip. Half of the translator's 87 389 goals
+are such work, so half of what the chart says was hidden. 1.10.5 takes that
+out, and does what was asked:
+
+* **Every goal is a box with its own text**, a builtin, a test, a
+  unification and a library call as much as a call of the program's own:
+  `code_type(C, alpha)`, `S1 = S0`, `length(Ws, N)` stand on their clause's
+  line where they run, with the choice mark and the failure lanes they
+  earn. Every goal the XML names is a box of its own in the SVG (the case
+  checks all of them).
+* **The chart never goes inside a builtin.** A C builtin of the engine never
+  had a panel. A library predicate is now one too, a dashed box, unless
+  `libraries(reach)` or `libraries(all)` asks for its clauses -- through
+  1.10.4 `reach` was the default, and a library predicate standing on a path
+  to C was opened into panels of its clauses and of the C under it (the
+  gallery's `re_lines/3`, library(text)'s, and its `re_match/2`). Its
+  clauses are still analysed, for what it binds and how it can end.
+* **A construct still shows the goals it was handed** -- `findall/3`'s,
+  `phrase/2`'s grammar, a condition -- because those are the program's own;
+  only the builtins among them are leaves.
+* **A C function called by the program is still its portal panel**
+  (section 2: the chart ends there, naming its module, its C function and
+  its table row).
+
+The translator's chart on 1.10.5: 21 051 by 8072 px (15 157 wide folded in
+1.10.2), the SVG 1.28 MB and the XML 38.6 MB, in 51 s on this box.
 
 ## 5. Grammar rules are predicates
 
@@ -481,7 +498,7 @@ a call that never succeeds has no finding.
 SVG, a numbered disc on the box each is about -- red for an error, amber for
 a warning; a clause's on its head, a predicate's on its panel's top right
 corner -- with its sentence on hover, a line under the chart with its place,
-and the count beside the title; a goal with a finding is never folded away.
+and the count beside the title.
 `tools/flow/chart.pl` prints each as a compiler would, `FILE:LINE:COL: error:
 IN: TEXT [KIND ID]`, and still exits 0: a finding is no failure of the
 command.
@@ -601,7 +618,7 @@ order.
 | phase | delivers | engine change | lands |
 |---|---|---|---|
 | F0 | the look, on two fixtures | none | built, on the work branch |
-| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, builtin work folded by default (`builtins(show)` draws it), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
+| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
 | F2 | threads and processes: lanes, spawn and join, messages, locks, process portals, writes to a shared knowledge base | none | proposes a minor |
 | F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on the work branch; proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
