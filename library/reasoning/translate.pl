@@ -1667,12 +1667,22 @@ tr_join_word(Ns, J) :-
 %% writes side by side; read, Italian `se la' is also `if the', and joined and
 %% expanded `se la casa è grande' would be a reflexive pair (tr_expand/2 takes
 %% a pair apart where a verb follows it)
+%% ... AND ASKED ONCE A SENTENCE, as a word's lexemes are (tr_memo/4): the
+%% joins of the same words come back at every reading, and nearly all of them
+%% are no word -- fifteen questions to the lesson for each. Kept, the check
+%% costs the controls 1.1 % less than it did, and 0.5 % less than the version
+%% before the contractions and the imperfect
 tr_stated_word(J) :-
+    (   atom(J)
+    ->  tr_language(Lang), tr_memo(sw(Lang, J), stated, tr_stated_word0(J), Sols), Sols \== []
+    ;   tr_stated_word0(J)
+    ).
+tr_stated_word0(J) :-
     member(G, [mean(J, _), plural_of(J, _), person_of(J, _), past_of(J, _), imperfect_of(J, _), future_of(J, _),
                participle_of(J, _), gerund_of(J, _), infinitive_of(J, _), conditional_of(J, _),
                subjunctive_of(J, _), imperative_of(J, _), elision_of(J, _), begin(J, _)]),
     tr_solve(G), !.
-tr_stated_word(J) :-
+tr_stated_word0(J) :-
     tr_solve(contraction_of(J, _)), atom_codes(J, Cs), \+ memberchk(32, Cs), !.
 
 tr_joined([w(A, _)], A) :- !.
@@ -1777,7 +1787,8 @@ tr_whole_run(_, _, []).
 tr_digit_code(C) :- C >= 0'0, C =< 0'9.
 %% a letter or a number against the beginnings a lesson states (`The article
 %% "lo" comes before a vowel.'): a number is a vowel by its sound
-tr_begin_with(W, P) :- P == vowel, !, tr_language(To), tr_starts_vowel(To, W).
+tr_begin_with(W, P) :- P == vowel, !, ( begin_with(W, vowel) -> true ; tr_digits_start(W), tr_language(To), tr_starts_vowel(To, W) ).
+tr_digits_start(W) :- atom(W), atom_codes(W, [D|_]), tr_digit_code(D).
 tr_begin_with(W, P) :- begin_with(W, P).
 
 %% an elided form is written before W2: always for an article, a determiner
@@ -2676,7 +2687,7 @@ tr_exclaim(Stop) :- ( ( Stop == 33 ; Stop = marks(_, 33, _) ; Stop = marks(_, _,
 
 %% into the IR: read on this side, then cross every word into English
 tr_into_ir(Side, Kind, Words0, S) :-
-    nb_setval('$tr_from', Side),
+    nb_setval('$tr_from', Side), tr_number_source(Side),
     empty_assoc(NoFailures), nb_setval('$tr_failed', NoFailures), tr_memo_reset,
     nb_setval('$tr_no_command', no),
     %% (whether the sentence has a joined relative at all -- `per cui' -- is
@@ -4073,11 +4084,11 @@ tr_verb_across(L0, _, Comps, _, L) :-
 %% A VERB BEFORE A CLAUSE OF `THAT' CROSSES BY THE MEANING THE LESSON GIVES IT
 %% THERE: `los tributos suponen el 50%' is what they represent, and `supongo
 %% que viene', `se supone que ...' what is supposed -- the dictionary's first
-%% meaning for `suponer', which is the minority one in a newspaper (eleven of
-%% the twelve sentences in the treebank's development part are `supone una
-%% limitación', `no supone la adición aritmética'). `The clausal verb "supone" means
-%% "supposes".' is the line, and the first meaning the lesson gives is the
-%% one anywhere else
+%% meaning for `suponer', which is the minority one in a newspaper: eleven of
+%% the twelve sentences with it in the treebank's development part are
+%% `supone una limitación' or `no supone la adición aritmética', represents or
+%% entails. `The clausal verb "supone" means "supposes".' is the line, and the
+%% first meaning the lesson gives is the one anywhere else
 tr_verb_across(L0, _, Comps, _, L) :-
     atom(L0), memberchk(that(_), Comps), tr_solve(mean_as(L0, L, clausal)), !.
 tr_verb_across(L0, _, _, _, L) :- tr_lexeme_across(L0, english, L).
@@ -9922,12 +9933,12 @@ tr_read_statement0(foreign, Words0, none, S) :-
 tr_read_statement0(foreign, Words0, Asked, S) :-
     Asked \= subject(_),
     tr_negation(foreign, Words0, Words, Neg),
-    tr_group_from(foreign, Words, Before, g(L, T, A, third, N), After),
     %% ... AND THE PLURAL'S TOO IN A RELATIVE CLAUSE, where the subject after the
     %% verb is found from this reading (tr_rel_subject_after/3): `la casa en
     %% la que duermen los perros' had the one reading for `duerme el perro'
     %% and none for `duermen los perros'
-    ( N == singular ; Asked == rel ),
+    ( Asked == rel -> true ; N = singular ),
+    tr_group_from(foreign, Words, Before, g(L, T, A, third, N), After),
     tr_denial_before(foreign, Neg, Words0, Before),
     nb_setval('$tr_read_group', L),
     nb_setval('$tr_read_aspect', A),
@@ -11169,9 +11180,10 @@ tr_conjunction_split(Side, Words, W1, w(C, CC), W2) :-
          ( tr_is(Side, N2, noun) ; N2 = w(_, upper), tr_name_word(Side, N2) ) ),
     tr_headed(Side, W1), tr_headed(Side, W2), !.
 tr_count_pair(Side, W1, [M2|_]) :-
+    tr_is(Side, M2, number),
     append(Advs, [M1], W1), Advs = [_|_],
     forall(member(X, Advs), ( X = w(_, _), tr_is(Side, X, adverb) )),
-    tr_is(Side, M1, number), tr_is(Side, M2, number), !.
+    tr_is(Side, M1, number), !.
 %% ... AND A NUMBER, A COORDINATOR AND A NUMBER WITH A NOUN AFTER IT, in
 %% digits: `entre 5.000 y 6.000 millones de pesetas' is one count, as `entre
 %% cinco y seis millones' is, and divided at the `y' it was two phrases, the
@@ -12156,12 +12168,13 @@ tr_np(Side, Words00, np(Det, Num, AdjsM, Noun, Number)) :-
     %% millones' is about five or six thousand million -- the phrase gave up
     %% at the `o' left after the first, and `unos' was the article, `dei 5.000
     %% o 6.000 milioni'
-    (   Words1 = [NA, M1, NC, M2|Ws2], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
-        tr_is(Side, M1, number), tr_coord(Side, NC), tr_is(Side, M2, number), Ws2 \== []
-    ->  Num = adv_num(NA, nums(M1, NC, M2)), Words2 = Ws2
-    ;   Words1 = [NA, M|Ws2], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
-        tr_is(Side, M, number), Ws2 \== []
-    ->  Num = adv_num(NA, M), Words2 = Ws2
+    (   Words1 = [NA|Rest1], NA = w(_, _), tr_is(Side, NA, adverb), \+ tr_is(Side, NA, adjective),
+        (   Rest1 = [M1, NC, M2|Ws2], tr_is(Side, M1, number), tr_coord(Side, NC), tr_is(Side, M2, number), Ws2 \== []
+        ->  Num = adv_num(NA, nums(M1, NC, M2)), Words2 = Ws2
+        ;   Rest1 = [M|Ws2], tr_is(Side, M, number), Ws2 \== []
+        ->  Num = adv_num(NA, M), Words2 = Ws2
+        )
+    ->  true
     ;   Words1 = [M1, NC, M2|Ws2], tr_is(Side, M1, number), tr_coord(Side, NC), tr_is(Side, M2, number), Ws2 \== []
     ->  Num = nums(M1, NC, M2), Words2 = Ws2
     %% ... or digits and a number word, ONE count: `il milione e 200 mila
@@ -16920,8 +16933,15 @@ tr_write(To, Kind, s(Asked, Subject, G, Comps0), Outs) :-
 %% verb and among the complements -- `ha contado a Sky Tg24 Tornaboni' --
 %% which is where the lesson's language puts a speaker too. English writes
 %% its subject first, and the place is simply dropped there.
-tr_write(english, Kind, s(Asked, Subject, G, Comps0), Outs) :-
-    append(Pre, [subj_here|Post], Comps0), !,
+tr_write(english, Kind, s(Asked, Subject0, G, Comps0), Outs) :-
+    append(Pre0, [subj_here|Post], Comps0), !,
+    %% (an adverb that says how much of the subject, right before it, is
+    %% written before it: `Están inscritos unos 1.200 abogados' is `About
+    %% 1,200 lawyers are registered', where it came last, `are registered about')
+    (   append(Pre, [adv(w(A, C))], Pre0), en_object_adverb(A), Subject0 \= null(_, _)
+    ->  Subject = advp(w(A, C), Subject0)
+    ;   Pre = Pre0, Subject = Subject0
+    ),
     %% (and the comma before a subject set at the end goes with it)
     ( Post == [], append(Pre1, [sep], Pre) -> Comps = Pre1 ; append(Pre, Post, Comps) ),
     tr_write(english, Kind, s(Asked, Subject, G, Comps), Outs).
@@ -16951,11 +16971,17 @@ tr_write(foreign, _, s(none, Subject, g(L, T, A, Neg), Comps0), Outs) :-
 %% Any other stays refused, as he, she and it are three claims
 tr_null_subject(english, null(third, singular), L, Comps, pronoun(P, N, w(W, lower))) :-
     ( L = reflexive(L1) -> true ; L1 = L ), atom(L1),
-    (   en_null_it(L1, Comps) -> W = it, P = third, N = singular
+    %% (`it' is nobody the clause before named, and stays where a coordination
+    %% elides its subject: `Sofia è stata battezzata e mi sembra giusto' is `and
+    %% it seems me just')
+    (   en_null_it(L1, Comps) -> W = it, P = third, N = singular, ( tr_global('$tr_elide', yes) -> nb_setval('$tr_elide', no) ; true )
     %% (a verb of saying with a person for its object has the speaker after
     %% it, `dice el presidente', and no reading of that is a null subject;
     %% with a thing it is the verb's own, `y apuntó la necesidad de un pacto')
-    ;   en_null_they(L1), \+ ( member(obj(NP), Comps), tr_of_class(NP, person) ) -> W = they, P = third, N = plural
+    %% (and not the second clause of a coordination that elides its subject:
+    %% `Serra Ferrer no quiere correr riesgos y ha exigido ...' is one man,
+    %% `and has demanded', never `and they have demanded' -- tr_write/4 on join/3)
+    ;   \+ tr_global('$tr_elide', yes), en_null_they(L1), \+ ( member(obj(NP), Comps), tr_of_class(NP, person) ) -> W = they, P = third, N = plural
     ), !.
 tr_null_subject(_, Subject, _, _, Subject).
 %% the verbs that take a person and an infinitive in English where Spanish
@@ -17074,13 +17100,18 @@ tr_write(To, Kind, s(Asked, Subject, g(L, T, A, Neg0), Comps00), Outs) :-
     %% (whether the clause is denied, for a `but' among its complements:
     %% tr_connector_out/3 -- and put back, for the clause this one sits in)
     ( tr_global('$tr_denied', D0) -> true ; D0 = no ), nb_setval('$tr_denied', Neg),
-    (   tr_comps_out(To, Comps2, Noun, Number, Clitics, CompOuts, Advs) -> nb_setval('$tr_denied', D0)
+    %% ... and English writes the adverbs of time and focus that stand with its
+    %% verb before it (`also', `always', `never'): `Los perros también
+    %% duermen' is `The dogs also sleep', where it came last, `sleep also'
+    ( To == english, tr_pull_adverb(Comps2, Comps3, MidAdv) -> true ; Comps3 = Comps2, MidAdv = none ),
+    (   tr_comps_out(To, Comps3, Noun, Number, Clitics, CompOuts, Advs) -> nb_setval('$tr_denied', D0)
     ;   nb_setval('$tr_denied', D0), fail
     ),
     (   To == english
-    ->  en_group(LT, Person, Number, T, A, Neg, Statement0, Front, Tail),
+    ->  en_group(LT, Person, Number, T, A, Neg, Statement0, Front, Tail0),
         tr_vq_mark(VQ, Statement0, Statement1), tr_vqc_mark(VQC, Statement1, Statement2),
-        tr_vqp_mark(VQP, Statement2, Statement3), tr_gadv_insert(english, GAdv, Statement3, Statement),
+        tr_vqp_mark(VQP, Statement2, Statement3a), tr_gadv_insert(english, GAdv, Statement3a, Statement3),
+        tr_mid_insert(MidAdv, Statement3, Statement), tr_mid_insert(MidAdv, Tail0, Tail),
         append(CompOuts, Advs, Rest),
         en_assemble(Kind, Asked, AskedOut, SubjectOut, Statement, Front, Tail, Rest, Outs0),
         tr_qs_mark(QS, QE, Outs0, Outs)
@@ -17173,6 +17204,23 @@ tr_vqp_mark(_, Os, Os).
 tr_gadv_insert(_, none, G, G) :- !.
 tr_gadv_insert(To, w(A, AC), G0, G) :-
     tr_word_across(w(A, lower), To, adverb, T), append(G1, [Last], G0), !, append(G1, [o(T, AC), Last], G).
+%% ... and the adverb of time or focus that stands with the verb: before its
+%% last word, `has also claimed', `will always sleep', after a copula or a
+%% modal that is alone, `is also', `can also eat' -- and in the question's tail
+%% too, `Do the cats also eat the bread?'
+tr_pull_adverb(Cs0, Cs, Adv) :-
+    append(Pre, [adv(w(A, C))|Post], Cs0), atom(A), en_mid_adverb(A), !,
+    append(Pre, Post, Cs), Adv = w(A, C).
+tr_mid_insert(none, G, G) :- !.
+tr_mid_insert(w(A, AC), G0, G) :-
+    tr_word_across(w(A, lower), english, adverb, T),
+    (   G0 = [o(B, _)], en_aux_alone(B) -> append(G0, [o(T, AC)], G)
+    ;   append(G1, [Last], G0) -> append(G1, [o(T, AC), Last], G)
+    ;   G = [o(T, AC)]
+    ).
+en_mid_adverb(A) :-
+    memberchk(A, [also, always, never, often, usually, sometimes, already, still, rarely, seldom, frequently, generally]).
+en_aux_alone(B) :- memberchk(B, [am, is, are, was, were, can, could, may, might, must, shall, should, will, would]).
 
 %% the verb's lexeme across: the English third person for the lesson's
 %% verb, the lesson's verb for the English one -- `is' is `is' either way
@@ -17398,7 +17446,8 @@ tr_subject_out(To, infs(L, Cs), Outs, third, singular, none) :- !,
     ;   once(tr_solve(infinitive_of(Inf0, LT))), tr_joined_infinitive(Inf0, Ps, Inf), V = [o(Inf, lower)]
     ),
     tr_comps_out(To, Cs, none, singular, [], O2, A2), append([V, O2, A2], Outs).
-tr_subject_out(To, with(NP, PPs), Outs, third, Number, Noun) :-
+tr_subject_out(To, with(NP, PPs0), Outs, third, Number, Noun) :-
+    tr_of_dropped(To, NP, PPs0, PPs),
     (   To == foreign, PPs = [PP|_], tr_partitive_gender(NP, PP, G)
     ->  tr_with_partitive(G, tr_np_out(To, NP, O1, Noun, Number))
     ;   tr_np_out(To, NP, O1, Noun, Number)
@@ -17626,7 +17675,8 @@ tr_np_out(To, what_np(NP), [o(QW, lower)|Outs], Noun, Number) :- !,
     tr_np_out(To, NP, Outs, Noun, Number).
 %% a phrase and its phrases of `of', as the head of a clause after a comma
 %% (tr_reporting/3): `el presidente de la Generalitat, que inauguró ...'
-tr_np_out(To, with(NP, PPs), Outs, Noun, Number) :- !,
+tr_np_out(To, with(NP, PPs0), Outs, Noun, Number) :- !,
+    tr_of_dropped(To, NP, PPs0, PPs),
     tr_np_out(To, NP, O1, Noun, Number),
     tr_comps_out(To, PPs, Noun, Number, _, O2, A2), append([O1, O2, A2], Outs).
 tr_np_out(To, nrc(NP, Role, S0), Outs, Noun, Number) :- !,
@@ -17917,7 +17967,9 @@ tr_np_out(foreign, np(none, none, [w(A, upper)], w(NW, NC), singular), [o(T, NC)
     ( tr_solve(apocope_of(T0, Noun)) -> T = T0 ; T = Noun ).
 tr_np_out(To, np(Det, Num, Adjs, w(NW, NC), Number), Outs, Noun, Number) :-
     tr_noun_lexeme(To, NW, Number, L, Noun),
-    tr_inflect(To, noun, Noun, Number, NounForm0),
+    tr_inflect(To, noun, Noun, Number, NounForm00),
+    tr_counted_form(To, Num, Noun, NounForm00, NounForm01),
+    tr_percent_style(To, NounForm01, NounForm0),
     tr_name_apocope(To, Adjs, Number, Noun, NounForm0, NounForm),
     tr_plural_gender(To, Noun, Number, NounForm, GNoun),
     tr_degree_last(To, Adjs, Adjs1),
@@ -18001,11 +18053,83 @@ tr_num_out(_, none, []) :- !.
 tr_num_out(english, w(MW, MC), [o(MT, MC)]) :- tr_ordinal(MW, N), !, en_ordinal(N, MT).
 tr_num_out(foreign, w(MW, MC), [o(MT, MC)]) :- tr_ordinal(MW, N), \+ atom_concat(_, 'º', MW), \+ atom_concat(_, 'ª', MW), !,
     atom_concat(N, 'º', MT).
+tr_num_out(To, w(MW, MC), [o(MT, MC)]) :- tr_number_style(To, MW, MT), !.
 tr_num_out(To, w(MW, MC), [o(MT, MC)]) :- !, tr_word_across(w(MW, MC), To, number, MT).
 tr_num_out(To, adv_num(w(A, C), M), [o(AT, C)|MO]) :- !, tr_word_across(w(A, lower), To, adverb, AT), tr_num_out(To, M, MO).
 tr_num_out(To, nums(M1, C, M2), Outs) :-
     tr_num_out(To, M1, O1), tr_connector_out(To, C, CO), tr_num_out(To, M2, O2), append([O1, CO, O2], Outs).
 tr_num_out(To, numw(M1, M2), Outs) :- tr_num_out(To, M1, O1), tr_num_out(To, M2, O2), append(O1, O2, Outs).
+
+%% A NUMBER IS WRITTEN IN THE TARGET'S STYLE WHERE ENGLISH MEETS A LANGUAGE
+%% THAT WRITES THE COMMA: Spanish and Italian group the thousands with a point
+%% and put the decimals after a comma (`5.000 millones', `3,5 millones'),
+%% English does the reverse (`5,000 million', `3.5 million'), and the digits
+%% crossed as they stood -- `5.000 and 6.000 millions' in English, `1,200' in
+%% Spanish. The reader notes the style of the text it read ($tr_numsrc,
+%% tr_number_source/1) and the writer swaps the two marks of a NUMBER and of
+%% nothing else: a first group of one to three digits, groups of three after
+%% it, one decimal mark, a percent sign perhaps. `10.30', an hour, and `2.5'
+%% read as Spanish are no numbers and stay. Between two languages of the one
+%% style, and for a language this table does not list, nothing changes.
+tr_decimal_comma(L) :-
+    memberchk(L, [spanish, italian, french, german, portuguese, catalan, galician, basque, dutch, romanian,
+                  danish, swedish, norwegian, finnish, polish, czech, russian, turkish, greek]).
+tr_number_source(Side) :-
+    (   Side == english -> St = point
+    ;   tr_language(L), tr_decimal_comma(L) -> St = comma
+    ;   St = none
+    ),
+    nb_setval('$tr_numsrc', St).
+tr_number_style(To, W0, W) :-
+    atom(W0), tr_global('$tr_numsrc', Src), Src \== none,
+    (   To == english -> Tgt = point
+    ;   tr_language(L), tr_decimal_comma(L) -> Tgt = comma
+    ;   Tgt = none
+    ),
+    Tgt \== none, Tgt \== Src,
+    atom_codes(W0, Cs0), Cs0 = [D|_], tr_digit_code(D),
+    tr_nstyle_marks(Src, G, DM),
+    tr_nstyle_digits(Cs0, Ds, R1), Ds \== [],
+    (   R1 = [G|_] -> length(Ds, N), N =< 3, tr_nstyle_groups(G, R1, Gs, R2) ; Gs = [], R2 = R1 ),
+    (   R2 = [DM|R3], tr_nstyle_digits(R3, Fd, R4), Fd \== [] -> Fs = [DM|Fd] ; Fs = [], R4 = R2 ),
+    ( R4 == [] -> Tail = [] ; R4 == [0'%] -> Tail = R4 ),
+    Gs-Fs \== []-[],
+    tr_nstyle_swap(Gs, Gs1), tr_nstyle_swap(Fs, Fs1),
+    append([Ds, Gs1, Fs1, Tail], Cs), atom_codes(W, Cs).
+tr_nstyle_marks(comma, 0'., 0',).
+tr_nstyle_marks(point, 0',, 0'.).
+tr_nstyle_digits([C|Cs], [C|Ds], R) :- tr_digit_code(C), !, tr_nstyle_digits(Cs, Ds, R).
+tr_nstyle_digits(R, [], R).
+tr_nstyle_groups(G, [G, A, B, C|Cs], [G, A, B, C|Gs], R) :-
+    tr_digit_code(A), tr_digit_code(B), tr_digit_code(C), \+ ( Cs = [E|_], tr_digit_code(E) ), !,
+    tr_nstyle_groups(G, Cs, Gs, R).
+tr_nstyle_groups(G, [G|_], _, _) :- !, fail.
+tr_nstyle_groups(_, R, [], R).
+tr_nstyle_swap([], []).
+tr_nstyle_swap([C|Cs], [S|Ss]) :- ( C =:= 0'. -> S = 0', ; C =:= 0', -> S = 0'. ; S = C ), tr_nstyle_swap(Cs, Ss).
+%% a percentage that is the phrase's own noun (`el 3,5%') is a number as well
+tr_percent_style(To, F0, F) :- atom(F0), atom_concat(_, '%', F0), tr_number_style(To, F0, F), !.
+tr_percent_style(_, F, F).
+%% A MAGNITUDE AFTER A COUNT IS SINGULAR IN ENGLISH: `5.000 millones' is `5,000
+%% million' and `tres docenas' three dozen, where it is plural alone --
+%% `millions sleep' -- and with no count (`miles de personas')
+tr_counted_form(english, Num, Noun, _, Noun) :- Num \== none, en_magnitude(Noun), !.
+tr_counted_form(_, _, _, F, F).
+en_magnitude(M) :- memberchk(M, [million, billion, trillion, thousand, hundred, dozen]).
+tr_counted_magnitude(np(_, Num, _, w(M, _), _)) :- Num \== none, en_magnitude(M).
+tr_counted_comp(obj(NP)) :- tr_counted_magnitude(NP).
+tr_counted_comp(pp(_, NP)) :- tr_counted_magnitude(NP).
+%% A COUNTED MAGNITUDE TAKES ITS NOUN WITH NO `of' IN ENGLISH: `tres millones de
+%% perros' is three million dogs, the `de' the noun's own in the lesson's
+%% language -- and with an article after it `of' stays, `three million of the
+%% dogs' (tr_counted_form/5 makes the magnitude singular). The phrase after
+%% the `of' is written as it is, bare(NP), after the magnitude's
+tr_of_dropped(english, NP, [pp(w(of, _), NP2)|PPs], [bare(NP2)|PPs]) :-
+    tr_counted_magnitude(NP), NP2 = np(none, _, _, _, _), !.
+tr_of_dropped(_, _, PPs, PPs).
+%% the adverbs that say how much of a phrase, written before it
+en_object_adverb(A) :-
+    memberchk(A, ['more than', 'less than', 'at least', 'at most', about, almost, nearly, approximately, around, roughly, exactly, only, even, just]).
 
 %% English's ordinal suffix: `st', `nd', `rd' after 1, 2 and 3, and `th'
 %% after everything else, 11, 12 and 13 included
@@ -18291,6 +18415,8 @@ tr_det_out(english, det(Kind, DL, w(_, C)), _, Number, Content, Outs) :- !,
     tr_word_across(w(DL, lower), english, Kind, T),
     (   Kind == possessive -> Outs = [o(T, C)]
     ;   memberchk(Kind, [demonstrative, determiner]) -> en_det_number(T, Number, T1), Outs = [o(T1, C)]
+    %% (no article before a percentage: `el 80%' is `80%', `the 80%' is no English)
+    ;   T == the, Content = [o(First, _)|_], atom(First), atom_concat(_, '%', First) -> Outs = []
     ;   T == the -> Outs = [o(the, C)]
     ;   Number == plural -> Outs = []
     ;   Content = [o(First, _)|_], tr_starts_vowel(english, First) -> Outs = [o(an, C)]
@@ -18378,6 +18504,31 @@ tr_comps_out(english, [opron(P)|Cs0], Noun, Number, Clitics, Outs, Advs) :-
     tr_same_subject_verb, tr_climbed_pronouns(Cs0, Ps, I, Post), !,
     append([I, opron(P)|Ps], Post, Cs),
     tr_comps_out(english, Cs, Noun, Number, Clitics, Outs, Advs).
+%% TWO OBJECT PRONOUNS ARE A THING AND A PERSON: `te lo digo' is `I say it to
+%% you' and `se lo doy' `I give it to him', where written in their order it was
+%% `I say you him', `I give him him'. The second is what is said or given --
+%% `it', or `them' -- and the first the one it goes to, `to' for the verbs of
+%% giving and saying and `from' for the ones of taking (en_takes_from/1)
+tr_comps_out(english, [opron(P1), opron(w(W2, C2))|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    memberchk(W2, [him, her, it, them]), !,
+    ( W2 == them -> T2 = them ; T2 = it ),
+    (   tr_global('$tr_verb', V0), ( V0 = refl(V) -> true ; V = V0 ), atom(V), en_takes_from(V) -> Prep = from ; Prep = to ),
+    tr_comp_out(english, opron(P1), Noun, Number, _, O1, _),
+    tr_comps_out(english, Cs, Noun, Number, Clitics, Outs0, Advs),
+    append([[o(T2, C2), o(Prep, lower)], O1, Outs0], Outs).
+%% THE `of' AFTER A COUNTED MAGNITUDE IS ITS NOUN'S, wherever the magnitude
+%% stands (see tr_np_out/5): `piden 5.000 millones de pesetas' is ask for 5,000
+%% million pesetas, where the reader gave the verb the phrase and then its `of'
+tr_comps_out(english, [C1, pp(w(of, _), NP2)|Cs], Noun, Number, Clitics, Outs, Advs) :-
+    NP2 = np(none, _, _, _, _), tr_counted_comp(C1), !,
+    tr_comps_out(english, [C1, bare(NP2)|Cs], Noun, Number, Clitics, Outs, Advs).
+%% ... and an adverb that says how much of the object, `more than', `about',
+%% `almost', is written before it in English: `reciben más de 5 perros'
+%% receive more than 5 dogs, where it came last, `receive 5 dogs more than'
+tr_comps_out(english, [adv(w(A, C)), obj(NP)|Cs], Noun, Number, Clitics, [o(AT, C)|Outs], Advs) :-
+    en_object_adverb(A), !,
+    tr_word_across(w(A, lower), english, adverb, AT),
+    tr_comps_out(english, [obj(NP)|Cs], Noun, Number, Clitics, Outs, Advs).
 %% ... but in English an adverb before a QUANTITY is the quantity's: `muy
 %% pocos elementos' is very few elements, and put last it was `few elements
 %% very'
@@ -19027,7 +19178,11 @@ tr_comp_out(foreign, infx(L, Asp, Cls), _, Number, [], Outs, []) :- !,
         tr_perfect_participle(LT, Cls, Number, PP), Outs = [o(J, lower), o(PP, lower)]
     ;   once(tr_solve(infinitive_of(Inf, LT))), tr_joined_infinitive(Inf, Ps, J), Outs = [o(J, lower)]
     ).
+tr_comp_out(english, bare(NP), _, _, [], Outs, []) :- !, tr_np_out(english, NP, Outs, _, _).
 tr_comp_out(english, opron(dat(W)), N, Nb, Cl, Outs, A) :- !, tr_comp_out(english, opron(W), N, Nb, Cl, Outs, A).
+%% ... and the pronoun after a reflexive verb is a thing: `me lo apunto' is `I note it'
+tr_comp_out(english, opron(w(W, C)), _, _, [], [o(it, C)], []) :-
+    memberchk(W, [him, her]), tr_global('$tr_verb', refl(_)), !.
 tr_comp_out(english, opron(w(W, C)), _, _, [], [o(T, C)], []) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
 tr_comp_out(foreign, opron(dat(w(W, C))), _, _, Clitics, Outs, []) :-
     tr_dative_word(W, T), !,
@@ -19174,17 +19329,17 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
     ->  tr_copula_lexeme(CL), tr_make(CL, N, T, P, CForm),
         tr_participle_agreeing(L, N, PP), VW = [o(CForm, lower), o(PP, lower)]
     ;   A == passive_perfect
-    ->  tr_copula_lexeme(CL), tr_perfect_auxiliary(CL, Aux), tr_make(Aux, N, T, P, CForm),
+    ->  tr_copula_lexeme(CL), tr_perfect_auxiliary(CL, Aux), tr_perfect_tense(T, T1), tr_make(Aux, N, T1, P, CForm),
         tr_participle_agreeing(CL, N, Been), tr_participle_agreeing(L, N, PP),
         VW = [o(CForm, lower), o(Been, lower), o(PP, lower)]
     ;   A == perfect
-    ->  fo_perfect_aux(L, Aux), tr_make(Aux, N, T, P, AuxForm),
+    ->  fo_perfect_aux(L, Aux), tr_perfect_tense(T, T1), tr_make(Aux, N, T1, P, AuxForm),
         %% built with the copula, the participle agrees with the subject:
         %% `si è sbagliato', `è uscita'
         (   tr_copula_lexeme(Aux) -> tr_participle_agreeing(L, N, PP) ; once(tr_solve(participle_of(PP, L))) ),
         VW = [o(AuxForm, lower), o(PP, lower)]
     ;   A == perfect_has
-    ->  tr_auxiliary(has, Aux), tr_make(Aux, N, T, P, AuxForm), once(tr_solve(participle_of(PP, L))),
+    ->  tr_auxiliary(has, Aux), tr_perfect_tense(T, T1), tr_make(Aux, N, T1, P, AuxForm), once(tr_solve(participle_of(PP, L))),
         VW = [o(AuxForm, lower), o(PP, lower)]
     ;   A == gerund
     ->  once(tr_solve(gerund_of(G, L))), VW = [o(G, lower)]
@@ -19209,6 +19364,14 @@ fo_group(L, P, N, T, A, Neg, Clitics, Group) :-
         atomic_list_concat([IF|CWs], J), Group = [o(J, IC)]
     ;   append(Clitics, VW, Group)
     ).
+
+%% THE PAST OF A PERFECT IS THE PLUPERFECT, the auxiliary in the imperfect:
+%% `había votado' is `aveva votato' (the lesson's past of the auxiliary, where
+%% it states no imperfect: tr_tense_form/3), never the literary past anterior
+%% `ebbe votato' -- which is what the past was, once an imperfect was no
+%% past form (`si fu annunciato', `ci ebbero parlato')
+tr_perfect_tense(past, imperfect) :- !.
+tr_perfect_tense(T, T).
 
 tr_fronts_out(To, Cs, Outs) :- tr_fronts_out(To, Cs, none, singular, Outs).
 tr_fronts_out(_, [], _, _, []).
@@ -20170,7 +20333,11 @@ tr_tensed(W, conditional, F) :- tr_solve(conditional_of(W, F)).
 %% -- so the mood is read and dropped, and `volesse' comes back `voleva'.
 %% The cost is stated in the header; the alternative is refusing the clause.
 tr_tensed(W, present, F) :- tr_solve(subjunctive_of(W, F)), \+ tr_holds(past(W)).
-tr_tensed(W, past, F) :- tr_solve(subjunctive_of(W, F)), tr_holds(past(W)).
+%% ... AND A PAST SUBJUNCTIVE IS AN IMPERFECT, which it stands for: `come se i
+%% mascalzoni fossero pochi', `Se avessimo più soldi' are `como si eran' and
+%% `si teníamos', not the preterite `fueron', `tuvimos' that the past was once
+%% an imperfect was no past form
+tr_tensed(W, imperfect, F) :- tr_solve(subjunctive_of(W, F)), tr_holds(past(W)).
 tr_tensed(W, T, F) :- ( T = past ; T = future ; T = conditional ), tr_rule_stem(W, T, F), tr_present_form(F), tr_solve(take_in(F, E, T)), atom(E), atom_concat(F, E, W).
 
 %% a present form of one of the lesson's verbs, in either number, for a
@@ -20290,14 +20457,20 @@ en_irregular_plural(S, P) :-
     (   atom_concat(Stem, woman, S) -> atom_concat(Stem, women, P)
     ;   atom_concat(Stem, man, S), Stem \== '', \+ en_not_man(S) -> atom_concat(Stem, men, P)
     ;   atom_concat(Stem, sis, S), Stem \== '', \+ memberchk(S, [chassis, tennis]) -> atom_concat(Stem, ses, P)
+    %% ... and a noun that ends in one `s' takes `es': `bus', `status', `metropolis'
+    %% were `buss', `statuss', `metropoliss'
+    ;   atom_concat(_, s, S), \+ atom_concat(_, ss, S) -> atom_concat(S, es, P)
     ), !.
 
 en_irregular_singular(P, S) :- en_plural_pair(S, P), !.
 en_irregular_singular(P, S) :-
     (   atom_concat(Stem, women, P) -> atom_concat(Stem, woman, S)
     ;   atom_concat(Stem, men, P), Stem \== '' -> atom_concat(Stem, man, S), \+ en_not_man(S)
-    ;   atom_concat(Stem, ses, P), Stem \== '' -> atom_concat(Stem, sis, S)
     ), !.
+%% ... `crises' is the plural of `crisis' and `buses' of `bus': the reader
+%% asks which of the two the lesson knows (tr_lexeme0/4)
+en_irregular_singular(P, S) :-
+    atom_concat(Stem, ses, P), Stem \== '', ( atom_concat(Stem, sis, S) ; atom_concat(Stem, s, S) ).
 
 en_plural_pair(man, men).           en_plural_pair(woman, women).
 en_plural_pair(child, children).    en_plural_pair(person, people).
@@ -20310,12 +20483,13 @@ en_plural_pair(wolf, wolves).       en_plural_pair(shelf, shelves).
 en_plural_pair(thief, thieves).     en_plural_pair(loaf, loaves).
 en_plural_pair(calf, calves).       en_plural_pair(self, selves).
 en_plural_pair(phenomenon, phenomena).  en_plural_pair(criterion, criteria).
-en_plural_pair(graffito, graffiti).
+en_plural_pair(graffito, graffiti).    en_plural_pair(quiz, quizzes).
 
 %% (nouns whose plural is their singular, and the words that end in `man' and
 %% are no man)
 en_plural_same(S) :- memberchk(S, [sheep, fish, deer, series, species, means, aircraft, offspring, salmon, trout,
-                                   moose, swine, bison, crossroads, headquarters, barracks]).
+                                   moose, swine, bison, crossroads, headquarters, barracks, news, physics,
+                                   politics, economics, mathematics, athletics, gymnastics, ethics]).
 en_not_man(S) :- memberchk(S, [human, german, roman, norman, shaman, talisman, ottoman, caiman, cayman, pullman, walkman]).
 
 %% ---- English's verb forms ---------------------------------------------------------

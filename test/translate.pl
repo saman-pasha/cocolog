@@ -1897,9 +1897,9 @@ The word "non" means "not".', italian, _),
 adjuncts :-
     section('adjuncts: an adverb inside the group, a connector at the head, a phrase before the subject'),
     reason_translate('El perro ha siempre comido el pan.', A1),
-    check('an adverb INSIDE the verb group, which no reader was looking for', A1, 'The dog has eaten the bread always.'),
+    check('an adverb INSIDE the verb group, which no reader was looking for -- and English writes it there, before the verb''s last word', A1, 'The dog has always eaten the bread.'),
     reason_translate('Siempre el perro come el pan.', A2),
-    check('and one at the head, before the subject -- and the fronting is not written back, which is 1.6.8''s rule', A2, 'The dog eats the bread always.'),
+    check('and one at the head, before the subject -- and the fronting is not written back, which is 1.6.8''s rule: English puts it before the verb', A2, 'The dog always eats the bread.'),
     reason_translate('Y el perro come el pan.', A3),
     check('a connector at the head, with no left clause in the sentence at all', A3, 'And the dog eats the bread.'),
     reason_translate('En la casa el perro come el pan.', A4),
@@ -4733,7 +4733,7 @@ newspaper_letter_checks_1 :-
           'El perro sigue sólo el camino de la casa.'),
     nf_tr('Il cane segue solo la via della casa.', italian, english, L32),
     check('... and in English', L32,
-          'The dog follows the way of the house only.'),
+          'The dog follows only the way of the house.'),
     %% a question in parentheses, and two phrases
     nf_tr('Il cane dorme (ma chi dorme)?', italian, spanish, L33),
     check('a clause in parentheses that is a question is one, which refused the sentence', L33,
@@ -8154,7 +8154,7 @@ newspaper_ciampi_checks_5 :-
           'El perro ve el artículo 74, primer código.'),
     nf_tr('Il cane mangia solo pane.', italian, english, E2),
     check('GUARD: and only an ordinal: `solo pane'' is only bread, and `solo'' is an adjective too, which English says where the words are the same in Spanish, `alone bread''', E2,
-          'The dog eats bread only.'),
+          'The dog eats only bread.'),
     nf_tr('Il cane vede legge codice.', italian, spanish, E3),
     check('two bare nouns are a compound, the second after the first as it stood: a headline''s `legge inappellabilità'', which the writer put in front, `inapelabilidad ley''', E3,
           'El perro ve ley código.'),
@@ -8207,7 +8207,7 @@ newspaper_ciampi_checks_6 :-
           'El perro duerme y "el gato come también".'),
     nf_tr('Il cane dorme e "anche il gatto mangia".', italian, english, G2),
     check('... and in English', G2,
-          'The dog sleeps and "the cat eats also".'),
+          'The dog sleeps and "the cat also eats".'),
     nf_tr('Il cane dice che "anche si dice che il gatto dorme".', italian, spanish, G3),
     check('... and the closing mark a clause the quotation holds carries on its verb is given up with it: the quotation closed on `duerme'''' and again on the adverb after it', G3,
           'El perro dice que "se dice que el gato duerme también".'),
@@ -11267,7 +11267,7 @@ newspaper_quartieri_checks_8 :-
 %% ---- a Spanish report on a lawyers' congress into Italian (AnCora's CESS-CAST-P-19991001-61) ----
 
 newspaper_abogacia :-
-    section('a Spanish report on a lawyers'' congress into Italian: a Catalan elision inside a name, a semicolon inside a pair of marks, an aside after `lo que'', a comma before a relative with its preposition, and an adverb or a phrase before the clause of `al que''; then the leads it left -- a number''s sound, clitics, a count, a plural subject''s possessive, the imperfect, a range, `to whom'', an institution, names, what a verb governs, a city, a remark, a mood, what a verb means before a clause of `that'', and what English does with a clause with no subject'),
+    section('a Spanish report on a lawyers'' congress into Italian: a Catalan elision inside a name, a semicolon inside a pair of marks, an aside after `lo que'', a comma before a relative with its preposition, and an adverb or a phrase before the clause of `al que''; then the leads it left -- a number''s sound, clitics, a count, a plural subject''s possessive, the imperfect, a range, `to whom'', an institution, names, what a verb governs, a city, a remark, a mood, what a verb means before a clause of `that'', what English does with a clause with no subject, and its numbers and adverbs'),
     newspaper_abogacia_lesson(spanish, ES), reason_learn(ES, spanish, _),
     newspaper_abogacia_lesson(italian, IT), reason_learn(IT, italian, _),
     newspaper_abogacia_checks_1, newspaper_abogacia_checks_2, newspaper_abogacia_checks_3,
@@ -11395,8 +11395,13 @@ The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The m
 The masculine noun "hombre" means "man". "hombres" is the plural of "hombre". The feminine noun "consejera" means "councilwoman". "consejeras" is the plural of "consejera". The masculine noun "presidente" means "chairman". "presidentes" is the plural of "presidente".
 The verb "reclama" means "demands". The verb "escucha" means "listens". The verb "viene" means "comes". "venir" is the infinitive of "viene". "venga" is the subjunctive of "viene". The verb "venga" means "avenges". "duermas" is the second person of "duerma".
 The pronoun "tú" means "you". The pronoun "él" means "he". The word "no" means "not". The word "no" precedes the verb.
+The auxiliary "ha" means "has". "había" is the past of "ha". "hubo" is the past of "ha". "dormía" is the imperfect of "duerme". "durmió" is the past of "duerme".
 The verb "premia" means "rewards". "premiado" is the participle of "premia". "sea" is the subjunctive of "es". "sean" is the plural of "sea".
-The adverb "justamente" means "precisely". The adjectival adverb "justamente" means "justly".').
+The adverb "justamente" means "precisely". The adjectival adverb "justamente" means "justly".
+The masculine noun "millón" means "million". "millones" is the plural of "millón". The verb "recibe" means "receives". "reciben" is the plural of "recibe". The adverb "más de" means "more than". The adverb "siempre" means "always".
+The verb "inscribe" means "registers". "inscrito" is the participle of "inscribe". "inscritos" is the participle of "inscribe". "inscritos" is the plural of "inscrito".
+The verb "apunta" means "notes". "apunto" is the first person of "apunta". "reclamo" is the first person of "reclama".
+The masculine noun "autobús" means "bus". "autobuses" is the plural of "autobús".').
 newspaper_abogacia_part(italian, 3, 'The pronoun "mi" means "me". The pronoun "ti" means "you". The dative pronoun "gli" means "him". The pronoun "vi" means "you". The pronoun "la" means "her". "l''" is the elision of "il".
 "me la" is the contraction of "mi la". "te la" is the contraction of "ti la". "se la" is the contraction of "si la". "gliela" is the contraction of "gli la". "gliela" is the contraction of "le la".
 "dalla" is the contraction of "da la". "dal" is the contraction of "da il". "sul" is the contraction of "su il". "sulla" is the contraction of "su la".
@@ -11420,7 +11425,10 @@ The verb "crede" means "believes". "credere" is the infinitive of "crede".
 The verb "rappresenta" means "represents". "rappresentano" is the plural of "rappresenta". The verb "suppone" means "supposes".
 "disse" is the past of "dice". "said" is the past of "says". "dorme" is intransitive.
 The adjective "migliore" means "good". "migliore" is the comparative of "buono". The masculine noun "giorno" means "day". "giorni" is the plural of "giorno".
-The adverb "proprio" means "precisely". The adverb "giustamente" means "precisely". The adjectival adverb "giustamente" means "justly".').
+The adverb "proprio" means "precisely". The adverb "giustamente" means "precisely". The adjectival adverb "giustamente" means "justly".
+The auxiliary "ha" means "has". "aveva" is the imperfect of "ha". "ebbe" is the past of "ha". "stato" is the participle of "è". "dormisse" is the past subjunctive of "dorme".
+The masculine noun "milione" means "million". "milioni" is the plural of "milione". The verb "riceve" means "receives". "ricevono" is the plural of "riceve". The adverb "oltre" means "more than". The adverb "sempre" means "always".
+The verb "iscrive" means "registers". "iscritto" is the participle of "iscrive". "iscritti" is the participle of "iscrive". "iscritti" is the plural of "iscritto".').
 
 newspaper_abogacia_checks_1 :-
     nf_tr('El perro del Col.legi d''Advocats duerme.', spanish, italian, A1),
@@ -11725,7 +11733,7 @@ newspaper_abogacia_checks_14 :-
           'The cat can give me the bread.'),
     nf_tr('El gato me la quiere dar.', spanish, english, N15),
     check('... the verbs of wanting too: `Lo quiero comer'' is `I want to eat him'', and as an object and an infinitive it was `want him to eat'', another sentence', N15,
-          'The cat wants to give me her.'),
+          'The cat wants to give it to me.'),
     nf_tr('El gato me la quiere dar.', spanish, italian, N16),
     check('a GUARD: the lesson''s language keeps the pronouns where the source had them', N16,
           'Il gatto me la vuole dare.').
@@ -11812,6 +11820,9 @@ newspaper_abogacia_checks_18 :-
     nf_tr('El gato quiere que el perro duerma.', spanish, italian, S9),
     check('a GUARD: the lesson''s language keeps its clause', S9,
           'Il gatto vuole che il cane dorma.'),
+    newspaper_abogacia_checks_19.
+
+newspaper_abogacia_checks_19 :-
     nf_tr('El gato quiere que el perro venga.', spanish, english, T1),
     check('A CLAUSE OF `THAT'' IS READ IN THE SUBJUNCTIVE AFTER A VERB THAT TAKES IT: `Quiero que vengas'' wants you to come, and `venga'' is also the third person of the verb that avenges -- the word the lesson names a verb by, which the reader took first: `quiero que vendiques''', T1,
           'The cat wants the dog to come.'),
@@ -11851,6 +11862,9 @@ newspaper_abogacia_checks_18 :-
     nf_tr('El gato come el pan.', spanish, english, W2),
     check('a GUARD: a verb of eating takes none', W2,
           'The cat eats the bread.'),
+    newspaper_abogacia_checks_20.
+
+newspaper_abogacia_checks_20 :-
     nf_tr('El gato ve la casa en la que también duermen los perros.', spanish, italian, X1),
     check('THE WORD FOR `ALSO'' BEFORE A VERB WITH ITS SUBJECT AFTER IT IS WRITTEN RIGHT AFTER IT: `el Congreso, al que también asistieron, entre otros, la consellera'' is `a cui assistettero anche'', and it was `a cui anche assistettero''', X1,
           'Il gatto vede la casa in cui dormono anche i cani.'),
@@ -11860,9 +11874,103 @@ newspaper_abogacia_checks_18 :-
     nf_tr('El gato ve la casa en la que ayer duermen los perros.', spanish, italian, X4),
     check('a GUARD: any other adverb stays in front of the verb', X4,
           'Il gatto vede la casa in cui ieri dormono i cani.'),
+    nf_tr('El gato había presentado el pan.', spanish, italian, Y1),
+    check('THE PAST OF A PERFECT IS THE PLUPERFECT, the auxiliary in the imperfect: `se había anunciado'' is `si era annunciato'' and `había votado'' `aveva votato'', never the literary past anterior -- once an imperfect was no past form, the controls wrote `si fu annunciato'', `ebbe votato'', `ci ebbero parlato''', Y1,
+          'Il gatto aveva presentato il pane.'),
+    nf_tr('El gato ha presentado el pan.', spanish, italian, Y2),
+    check('a GUARD: the present perfect keeps its present', Y2,
+          'Il gatto ha presentato il pane.'),
+    nf_tr('Il gatto aveva presentato il pane.', italian, spanish, Y3),
+    check('... and the other way', Y3,
+          'El gato había presentado el pan.'),
+    nf_tr('Se il cane dormisse il gatto mangia.', italian, spanish, Z1),
+    check('A PAST SUBJUNCTIVE IS AN IMPERFECT, which it stands for: `come se i mascalzoni fossero pochi'', `Se avessimo più soldi'' and `che la terra fosse immobile'' were the preterite `fueron'', `tuvimos'', `fue'' -- the past, once an imperfect was no past form', Z1,
+          'Si el perro dormía el gato come.'),
     nf_tr('Dijo el pan.', spanish, english, V1),
     check('A THIRD PERSON NOBODY NAMED IS THE SINGULAR `THEY'' AFTER A VERB OF SAYING WITH A THING FOR ITS OBJECT: `y apuntó la necesidad de un pacto'' is the verb''s own object, and the fourteenth sentence was refused into English for it; with a person for it that is the speaker after the verb (`Dice el profesor'' stays refused)', V1,
-          'They said the bread.').
+          'They said the bread.'),
+    newspaper_abogacia_checks_21.
+
+%% the English writer's numbers, and its adverbs: the last of the report's English
+newspaper_abogacia_checks_21 :-
+    nf_tr('El gato come 1.200 panes.', spanish, english, B1),
+    check('ENGLISH WRITES A NUMBER IN ITS OWN STYLE: the thousands'' point of Spanish is a comma in English, and `1.200 abogados'' and `5.000 millones'' were written as they stood', B1,
+          'The cat eats 1,200 breads.'),
+    nf_tr('El gato come 3,5 panes.', spanish, english, B2),
+    check('... and the decimal comma is a point', B2, 'The cat eats 3.5 breads.'),
+    nf_tr('Il gatto mangia 1.200 pani.', italian, english, B3),
+    check('... from Italian too', B3, 'The cat eats 1,200 breads.'),
+    nf_tr('The cat eats 1,200 breads.', english, spanish, B4),
+    check('... and the other way: English''s comma is the lesson''s point', B4, 'El gato come 1.200 panes.'),
+    nf_tr('The cat eats 3.5 breads.', english, spanish, B5),
+    check('... and its point the lesson''s comma', B5, 'El gato come 3,5 panes.'),
+    nf_tr('El gato come 1.200 panes.', spanish, italian, B6),
+    check('a GUARD: two languages that write the comma keep the digits as they were', B6, 'Il gatto mangia 1.200 pani.'),
+    nf_tr('El gato come 10.30 panes.', spanish, english, B7),
+    check('a GUARD: what is no number in the source''s style stays as it is: `10.30'' has two digits after its point, not the three of a group of thousands', B7,
+          'The cat eats 10.30 breads.'),
+    nf_tr('Los gatos comen 5.000 millones de panes.', spanish, english, B8),
+    check('A MAGNITUDE AFTER A COUNT IS SINGULAR IN ENGLISH, and the `of'' of `millones de panes'' is the noun''s own: `entre 5.000 y 6.000 millones de pesetas'' was `between 5.000 and 6.000 millions of pesetas''', B8,
+          'The cats eat 5,000 million breads.'),
+    nf_tr('5 millones de gatos comen el pan.', spanish, english, B9),
+    check('... also in the subject', B9, '5 million cats eat the bread.'),
+    nf_tr('Millones comen el pan.', spanish, english, B10),
+    check('a GUARD: with no count it is plural', B10, 'Millions eat the bread.'),
+    nf_tr('Los gatos comen 5 millones de los panes.', spanish, english, B11),
+    check('a GUARD: with an article after it the `of'' stays', B11, 'The cats eat 5 million of the breads.'),
+    nf_tr('Los gatos comen el 80% del pan.', spanish, english, B12),
+    check('ENGLISH HAS NO ARTICLE BEFORE A PERCENTAGE: `el 25% de sus honorarios'' is `25% of their fees'', where it was `the 25%''', B12,
+          'The cats eat 80% of the bread.'),
+    nf_tr('Los gatos comen el 80% del pan.', spanish, italian, B13),
+    check('a GUARD: the lesson''s language keeps its article', B13, 'I gatti mangiano l''80% del pane.'),
+    nf_tr('El gato come 3,5% del pan.', spanish, english, B14),
+    check('... and a percentage with decimals is a number too', B14, 'The cat eats 3.5% of the bread.'),
+    nf_tr('Los gatos reciben más de 5 panes.', spanish, english, C1),
+    check('AN ADVERB THAT SAYS HOW MUCH OF A PHRASE IS WRITTEN BEFORE IT IN ENGLISH: `reciben más de 5 panes'' is receive more than 5 breads, where the adverb came last, `receive 5 breads more than''', C1,
+          'The cats receive more than 5 breads.'),
+    nf_tr('I gatti ricevono oltre 5 pani.', italian, english, C1b),
+    check('... from Italian too', C1b, 'The cats receive more than 5 breads.'),
+    nf_tr('Son inscritos unos 5 gatos.', spanish, english, C2),
+    check('... and before a subject set after the verb: `están inscritos unos 1.200 abogados'' is `about 1,200 lawyers are registered'', where it came last, `are registered about''', C2,
+          'About 5 cats are registered.'),
+    nf_tr('Los gatos siempre comen el pan.', spanish, english, C3),
+    check('AN ADVERB OF TIME OR FOCUS IS WRITTEN WITH THE ENGLISH VERB, before it: `Alonso-Cuevillas también reivindicó'' is `also claimed'', where it came last, `claimed also''', C3,
+          'The cats always eat the bread.'),
+    nf_tr('Los gatos también comen el pan.', spanish, english, C4),
+    check('... `also'' too', C4, 'The cats also eat the bread.'),
+    nf_tr('El gato también es bueno.', spanish, english, C5),
+    check('... and after a copula that stands alone: `The cat also is good'' is no English', C5, 'The cat is also good.'),
+    nf_tr('Los gatos comen ayer el pan.', spanish, english, C6),
+    check('a GUARD: any other adverb stays last, before an object too', C6, 'The cats eat the bread yesterday.'),
+    nf_tr('¿Los gatos también comen el pan?', spanish, english, C7),
+    check('... in a question too, where the verb''s tail is what follows the subject: `Do the cats also eat the bread?'', and the adverb first dropped there', C7,
+          'Do the cats also eat the bread?'),
+    nf_tr('El gato puede también comer el pan.', spanish, english, C8),
+    check('... and after a modal that stands alone: `can also eat'', never `also can eat''', C8, 'The cat can also eat the bread.'),
+    nf_tr('El gato duerme y dijo el pan.', spanish, english, V2),
+    check('A THIRD PERSON NOBODY NAMED IN THE SECOND CLAUSE OF A COORDINATION IS THE FIRST CLAUSE''S: `Serra Ferrer no quiere correr riesgos y ha exigido'' is `does not want to run risks and has demanded'', never `and they have demanded'' -- the singular `they'' of a verb of saying (V1) is for a clause that has no subject before it', V2,
+          'The cat sleeps and said the bread.'),
+    nf_tr('El gato duerme y es injusto que el perro duerma.', spanish, english, V3),
+    check('... but the `it'' of an impersonal clause is nobody the first clause named, and stays: `Sofia è stata battezzata e mi sembra giusto'' is `and it seems me just'', never `Sofia ... seems me just''', V3,
+          'The cat sleeps and it is unjust that the dog sleeps.'),
+    nf_tr('Los autobuses ven el gato.', spanish, english, G1),
+    check('A NOUN THAT ENDS IN ONE `S'' TAKES `ES'' IN ENGLISH: `bus'' is `buses'', where it was `buss'' (and `metropolis'' `metropoliss'', in the festival report)', G1,
+          'The buses see the cat.'),
+    nf_tr('The buses see the cat.', english, spanish, G2),
+    check('... and `buses'' is read back to `bus'', as `crises'' to `crisis''', G2, 'Los autobuses ven el gato.'),
+    nf_tr('Te lo digo.', spanish, english, D1),
+    check('TWO OBJECT PRONOUNS ARE A THING AND A PERSON IN ENGLISH: `te lo digo'' is `I say it to you'', where written in their order it was `I say you him''', D1,
+          'I say it to you.'),
+    nf_tr('El gato se lo da.', spanish, english, D2),
+    check('... `se lo da'' is `gives it to him'', not `gives him him''', D2, 'The cat gives it to him.'),
+    nf_tr('Me las dan.', spanish, english, D3),
+    check('... and the plural of what is given stays `them''', D3, 'They give them to me.'),
+    nf_tr('Te lo reclamo.', spanish, english, D4),
+    check('... with `from'' where the verb takes from the person: `demand it from you''', D4, 'I demand it from you.'),
+    nf_tr('Me la apunto.', spanish, english, D5),
+    check('THE PRONOUN OF A REFLEXIVE VERB IS A THING: `me lo apunto'' is `I note it'', where it was `I note him''', D5, 'I note it.'),
+    nf_tr('El gato la ve.', spanish, english, D6),
+    check('a GUARD: a pronoun alone is the person it was', D6, 'The cat sees her.').
 
 %% <<< abogacia
 

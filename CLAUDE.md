@@ -1185,31 +1185,54 @@ read into an English-worded IR and written into any lesson's language),
   (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
   `La mostra` alone is refused into English).
   The Abogacía report (Spanish into Italian and into English) is read and
-  written whole, and its leads are fixed (1.10.3, 166 checks over it). What
-  it still leaves: `Se la cava.` has no `cavare` in either dictionary, and
-  `d'un` is Italian and written; `Os lo digo` is `Ti lo dico` -- the lesson
-  language has no second person plural (`coméis` is no word, `os` and `vi` are
-  `you`); English writes `Lo dejo comer` as `I leave him to eat` and `Lo veo
-  venir` as `I see him to come` (the bare infinitive after `let`, `make`,
-  `see` and `hear`, and `deja` as `lets` before an infinitive, are not
-  there) and `Hago comer el pan al perro` as `I make to eat the bread to the
-  dog`; `se limitó a decir` is `limited to say` (English wants `himself` and
-  `to saying`, and the IR's noun carries no gender for the pronoun); `me lo
-  apunto` is `I note him` (`lo` is him or it); `5.000 millones` is `5.000
-  millions` in English (the thousands' point and the plural of `million`);
-  `más de lo que recibe ahora` is a muddle in English; and the comma before a
-  preposition and its relative is lost where the piece has other commas
-  (`reivindicó, ayer, un trato mejor para los abogados, a quienes ...` reads
-  `... per gli avvocati a cui ...`: keeping it was tried twice and costs the
-  Valencia report's second 1.7 million of its 9 and the festival report's
-  last 0.4 million of its 3.5). A word with two meanings that no SHAPE chooses
-  between still has one: `justamente` is justly before an adjective or a
-  participle (`The adjectival adverb "justamente" means "justly".`) and
-  precisely elsewhere, as `supone` is supposes before `que`; **a meaning the
-  lesson gives a class of its own (`intransitive`, `progressive`, `clausal`,
-  `adjectival`) is linked to the word's class too, in the order it is said,
-  so the plain meaning is said first (again), or the class's meaning becomes
-  the default** (`tr_mean_links/3`).
+  written whole, and its leads are fixed (1.10.3, 172 checks over it). What
+  it still leaves: `Se la cava.` has no `cavare` in either dictionary (and an
+  idiom of several words crosses word by word); `Os lo digo` is `Ti lo dico`
+  -- the lesson language has no second person plural (`coméis` is no word,
+  `os` and `vi` are `you`, and the IR's `you` has no number); English writes
+  `Lo dejo comer` as `I leave him to eat`, `Lo veo venir` as `I see him to
+  come` and `Hago comer el pan al perro` as `I make to eat the bread to the
+  dog`: what makes, lets or watches somebody do something is a construction
+  of its own -- the doer of the infinitive has no term in the IR (the clitic
+  or the `a` phrase stands beside the infinitive), a lesson names no such
+  verbs, and `dejar` has no meaning of its own before an infinitive;
+  `se limitó a decir` is `limited to say` (English wants `himself` and `to
+  saying`, and the IR's noun carries no gender for the pronoun); `más de lo
+  que recibe ahora` is `more than the one that receives` (the IR does not
+  tell `lo que`, what, from `el que`); the clitic after another clitic or a
+  reflexive is read as a thing in English (`me lo apunto` is `I note it`,
+  `te lo digo` `I say it to you`), which a person is not (`se lo llevaron`,
+  took him away); the Spanish `-ra` form is read as the imperfect it stands
+  for after `si`, `como si`, `sin que`, and so it is in the literary
+  indicative past of a relative clause or after `después de que` (`donde en
+  1988 lograra`, `después de que la lista acusara`: `otteneva`, `accusava`
+  where the preterite was; two sentences of the controls, against the many
+  it mends: `como si eran pocos`, `si teníamos más`, `sin que figuraban`);
+  and the comma before a preposition and its relative is lost
+  where the piece has other commas (`reivindicó, ayer, un trato mejor para
+  los abogados, a quienes ...` reads `... per gli avvocati a cui ...`:
+  keeping it was tried twice and costs the Valencia report's second 1.7
+  million of its 9 and the festival report's last 0.4 million of its 3.5).
+  The rest of its English is the dictionary's (`a favor de` is `to favour
+  of`, `desleales` `disloyals`, `efectuadas` `effected`). **English writes a
+  number in its own style** between itself and a language of the decimal
+  comma (`tr_decimal_comma/1`: `5.000 millones` is `5,000 million`, `3,5` is
+  `3.5`, `10.30` an hour stays; the reader notes the text's style in
+  `$tr_numsrc`, the writer swaps the marks of a NUMBER only, and two such
+  languages keep their digits), a magnitude after a count singular with no
+  `of` (`tres millones de perros` is `three million dogs`), no article before
+  a percentage, the adverbs of time and focus before the verb (`also`,
+  `always`, `never`: `en_mid_adverb/1`; after a copula or a modal that stands
+  alone, in the tail of a question) and `more than`, `about`, `only` before
+  the phrase they say how much of (`en_object_adverb/1`). A word with two
+  meanings that no SHAPE chooses between still has one: `justamente` is
+  justly before an adjective or a participle (`The adjectival adverb
+  "justamente" means "justly".`) and precisely elsewhere, as `supone` is
+  supposes before `que`; **a meaning the lesson gives a class of its own
+  (`intransitive`, `progressive`, `clausal`, `adjectival`) is linked to the
+  word's class too, in the order it is said, so the plain meaning is said
+  first (again), or the class's meaning becomes the default**
+  (`tr_mean_links/3`).
 
 ## Tutorials are documentation that runs
 

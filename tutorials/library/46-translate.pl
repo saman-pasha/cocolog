@@ -495,11 +495,11 @@ section_20 :-
 section_21 :-
     format("~n21. What stands beside the sentence: an adverb inside the group, a connector at the head, an adjunct before the subject~n", []),
     reason_translate('La casa è anche evacuata da i soldati.', italian, english, S21a),
-    must('an adverb INSIDE the verb group, between the copula and the participle', S21a,
-         'The house is evacuated by the soldiers also.'),
+    must('an adverb INSIDE the verb group, between the copula and the participle -- English writes it there', S21a,
+         'The house is also evacuated by the soldiers.'),
     reason_translate('Sempre il generale domina.', italian, english, S21b),
-    must('and one at the head, before the subject -- written back after the verb, as a fronting always is', S21b,
-         'The general dominates always.'),
+    must('and one at the head, before the subject -- written back before the verb, where English puts an adverb of time', S21b,
+         'The general always dominates.'),
     reason_translate('E il generale domina.', italian, english, S21c),
     must('a CONNECTOR at the head, joining this sentence to the one before it', S21c,
          'And the general dominates.'),
@@ -5916,7 +5916,7 @@ The pronoun "la" means "her". The pronoun "la" means "it". The pronoun "lo" mean
 "seen" is the participle of "sees". "been" is the participle of "is".').
 
 section_63 :-
-    format("~n63. A Spanish report on a lawyers' congress into Italian: a Catalan elision inside a name, a semicolon inside a pair of marks, an aside after a relative word, a comma before a relative with its preposition, and an adverb or a phrase before the clause of `al que'; then the leads it left: a number's sound, clitics, a count, a plural subject's possessive, the imperfect, a range, `to whom', an institution, names, what a verb governs, a city, a remark, a mood, and what English does with a clause with no subject~n", []),
+    format("~n63. A Spanish report on a lawyers' congress into Italian: a Catalan elision inside a name, a semicolon inside a pair of marks, an aside after a relative word, a comma before a relative with its preposition, and an adverb or a phrase before the clause of `al que'; then the leads it left: a number's sound, clitics, a count, a plural subject's possessive, the imperfect, a range, `to whom', an institution, names, what a verb governs, a city, a remark, a mood, what English does with a clause with no subject, and its numbers and adverbs~n", []),
     lesson_63(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
     show('a Spanish lesson of the report''s shapes, under its own name', NS),
     lesson_63(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
@@ -5927,7 +5927,7 @@ section_63 :-
     lesson_63_more(italian, LI2), reason_learn(LI2, italian, TI2), length(TI2, NI2),
     show('... and the Italian one', NI2),
     section_63_6, section_63_7, section_63_8, section_63_9, section_63_10,
-    section_63_11, section_63_12, section_63_13, section_63_14, section_63_15, section_63_16, section_63_17, section_63_18,
+    section_63_11, section_63_12, section_63_13, section_63_14, section_63_15, section_63_16, section_63_17, section_63_18, section_63_19, section_63_20, section_63_21,
     reason_unlearn(spanish), reason_unlearn(italian).
 
 section_63_1 :-
@@ -6140,7 +6140,7 @@ section_63_14 :-
     reason_translate('El gato me puede dar el pan.', spanish, english, S63n14),
     must('PRONOUNS THAT CLIMBED TO A VERB OF THE SAME SUBJECT ARE THE INFINITIVE''S: `No nos pueden acusar de desleales'' has `nos'' before `pueden'', and English says `cannot accuse us'', never `cannot us accuse''', S63n14, 'The cat can give me the bread.'),
     reason_translate('El gato me la quiere dar.', spanish, english, S63n15),
-    must('... the verbs of wanting too: `Lo quiero comer'' is `I want to eat him'', and as an object and an infinitive it was `want him to eat'', another sentence', S63n15, 'The cat wants to give me her.'),
+    must('... the verbs of wanting too: `Lo quiero comer'' is `I want to eat him'', and as an object and an infinitive it was `want him to eat'', another sentence', S63n15, 'The cat wants to give it to me.'),
     reason_translate('El gato me la quiere dar.', spanish, italian, S63n16),
     must('a GUARD: the lesson''s language keeps the pronouns where the source had them', S63n16, 'Il gatto me la vuole dare.').
 
@@ -6200,7 +6200,9 @@ section_63_18 :-
     reason_translate('El gato dice que el perro duerme.', spanish, english, S63s8),
     must('a GUARD: a verb of saying keeps its clause', S63s8, 'The cat says that the dog sleeps.'),
     reason_translate('El gato quiere que el perro duerma.', spanish, italian, S63s9),
-    must('a GUARD: the lesson''s language keeps its clause', S63s9, 'Il gatto vuole che il cane dorma.'),
+    must('a GUARD: the lesson''s language keeps its clause', S63s9, 'Il gatto vuole che il cane dorma.').
+
+section_63_19 :-
     reason_translate('El gato quiere que el perro venga.', spanish, english, S63t1),
     must('A CLAUSE OF `THAT'' IS READ IN THE SUBJUNCTIVE AFTER A VERB THAT TAKES IT: `Quiero que vengas'' wants you to come, and `venga'' is also the third person of the verb that avenges', S63t1, 'The cat wants the dog to come.'),
     reason_translate('El perro venga el pan.', spanish, english, S63t2),
@@ -6226,15 +6228,93 @@ section_63_18 :-
     reason_translate('El gato escucha el pan.', spanish, english, S63w1),
     must('ENGLISH TAKES A PREPOSITION WHERE SPANISH TAKES A PHRASE: `Escucho las reivindicaciones'' is `I listen to the claims'', and it came out `I listen the claims''', S63w1, 'The cat listens to the bread.'),
     reason_translate('El gato come el pan.', spanish, english, S63w2),
-    must('a GUARD: a verb of eating takes none', S63w2, 'The cat eats the bread.'),
+    must('a GUARD: a verb of eating takes none', S63w2, 'The cat eats the bread.').
+
+section_63_20 :-
     reason_translate('El gato ve la casa en la que también duermen los perros.', spanish, italian, S63x1),
     must('THE WORD FOR `ALSO'' BEFORE A VERB WITH ITS SUBJECT AFTER IT IS WRITTEN RIGHT AFTER IT: `el Congreso, al que también asistieron, entre otros, la consellera'' is `a cui assistettero anche'', and it was `a cui anche assistettero''', S63x1, 'Il gatto vede la casa in cui dormono anche i cani.'),
     reason_translate('Il gatto vede la casa in cui anche dormono i cani.', italian, spanish, S63x2),
     must('... a relative word with no article, from the other language', S63x2, 'El gato ve la casa en la que duermen también los perros.'),
     reason_translate('El gato ve la casa en la que ayer duermen los perros.', spanish, italian, S63x4),
     must('a GUARD: any other adverb stays in front of the verb', S63x4, 'Il gatto vede la casa in cui ieri dormono i cani.'),
+    reason_translate('El gato había presentado el pan.', spanish, italian, S63y1),
+    must('THE PAST OF A PERFECT IS THE PLUPERFECT, the auxiliary in the imperfect: `se había anunciado'' is `si era annunciato'' and `había votado'' `aveva votato'', never the literary past anterior', S63y1, 'Il gatto aveva presentato il pane.'),
+    reason_translate('El gato ha presentado el pan.', spanish, italian, S63y2),
+    must('a GUARD: the present perfect keeps its present', S63y2, 'Il gatto ha presentato il pane.'),
+    reason_translate('Il gatto aveva presentato il pane.', italian, spanish, S63y3),
+    must('... and the other way', S63y3, 'El gato había presentado el pan.'),
+    reason_translate('Se il cane dormisse il gatto mangia.', italian, spanish, S63z1),
+    must('A PAST SUBJUNCTIVE IS AN IMPERFECT, which it stands for: `come se i mascalzoni fossero pochi'', `Se avessimo più soldi'' and `che la terra fosse immobile'' were the preterite `fueron'', `tuvimos'', `fue''', S63z1, 'Si el perro dormía el gato come.'),
     reason_translate('Dijo el pan.', spanish, english, S63v1),
     must('A THIRD PERSON NOBODY NAMED IS THE SINGULAR `THEY'' AFTER A VERB OF SAYING WITH A THING FOR ITS OBJECT: `y apuntó la necesidad de un pacto'' is the verb''s own object, and the fourteenth sentence was refused into English for it; with a person for it that is the speaker after the verb (`Dice el profesor'' stays refused)', S63v1, 'They said the bread.').
+
+section_63_21 :-
+    reason_translate('El gato come 1.200 panes.', spanish, english, S63b1),
+    must('ENGLISH WRITES A NUMBER IN ITS OWN STYLE: the thousands'' point of Spanish is a comma in English, and `1.200 abogados'' and `5.000 millones'' were written as they stood', S63b1, 'The cat eats 1,200 breads.'),
+    reason_translate('El gato come 3,5 panes.', spanish, english, S63b2),
+    must('... and the decimal comma is a point', S63b2, 'The cat eats 3.5 breads.'),
+    reason_translate('Il gatto mangia 1.200 pani.', italian, english, S63b3),
+    must('... from Italian too', S63b3, 'The cat eats 1,200 breads.'),
+    reason_translate('The cat eats 1,200 breads.', english, spanish, S63b4),
+    must('... and the other way: English''s comma is the lesson''s point', S63b4, 'El gato come 1.200 panes.'),
+    reason_translate('The cat eats 3.5 breads.', english, spanish, S63b5),
+    must('... and its point the lesson''s comma', S63b5, 'El gato come 3,5 panes.'),
+    reason_translate('El gato come 1.200 panes.', spanish, italian, S63b6),
+    must('a GUARD: two languages that write the comma keep the digits as they were', S63b6, 'Il gatto mangia 1.200 pani.'),
+    reason_translate('El gato come 10.30 panes.', spanish, english, S63b7),
+    must('a GUARD: what is no number in the source''s style stays as it is: `10.30'' has two digits after its point, not the three of a group of thousands', S63b7, 'The cat eats 10.30 breads.'),
+    reason_translate('Los gatos comen 5.000 millones de panes.', spanish, english, S63b8),
+    must('A MAGNITUDE AFTER A COUNT IS SINGULAR IN ENGLISH, and the `of'' of `millones de panes'' is the noun''s own: `entre 5.000 y 6.000 millones de pesetas'' was `between 5.000 and 6.000 millions of pesetas''', S63b8, 'The cats eat 5,000 million breads.'),
+    reason_translate('5 millones de gatos comen el pan.', spanish, english, S63b9),
+    must('... also in the subject', S63b9, '5 million cats eat the bread.'),
+    reason_translate('Millones comen el pan.', spanish, english, S63b10),
+    must('a GUARD: with no count it is plural', S63b10, 'Millions eat the bread.'),
+    reason_translate('Los gatos comen 5 millones de los panes.', spanish, english, S63b11),
+    must('a GUARD: with an article after it the `of'' stays', S63b11, 'The cats eat 5 million of the breads.'),
+    reason_translate('Los gatos comen el 80% del pan.', spanish, english, S63b12),
+    must('ENGLISH HAS NO ARTICLE BEFORE A PERCENTAGE: `el 25% de sus honorarios'' is `25% of their fees'', where it was `the 25%''', S63b12, 'The cats eat 80% of the bread.'),
+    reason_translate('Los gatos comen el 80% del pan.', spanish, italian, S63b13),
+    must('a GUARD: the lesson''s language keeps its article', S63b13, 'I gatti mangiano l''80% del pane.'),
+    reason_translate('El gato come 3,5% del pan.', spanish, english, S63b14),
+    must('... and a percentage with decimals is a number too', S63b14, 'The cat eats 3.5% of the bread.'),
+    reason_translate('Los gatos reciben más de 5 panes.', spanish, english, S63c1),
+    must('AN ADVERB THAT SAYS HOW MUCH OF A PHRASE IS WRITTEN BEFORE IT IN ENGLISH: `reciben más de 5 panes'' is receive more than 5 breads, where the adverb came last, `receive 5 breads more than''', S63c1, 'The cats receive more than 5 breads.'),
+    reason_translate('I gatti ricevono oltre 5 pani.', italian, english, S63c1b),
+    must('... from Italian too', S63c1b, 'The cats receive more than 5 breads.'),
+    reason_translate('Son inscritos unos 5 gatos.', spanish, english, S63c2),
+    must('... and before a subject set after the verb: `están inscritos unos 1.200 abogados'' is `about 1,200 lawyers are registered'', where it came last, `are registered about''', S63c2, 'About 5 cats are registered.'),
+    reason_translate('Los gatos siempre comen el pan.', spanish, english, S63c3),
+    must('AN ADVERB OF TIME OR FOCUS IS WRITTEN WITH THE ENGLISH VERB, before it: `Alonso-Cuevillas también reivindicó'' is `also claimed'', where it came last, `claimed also''', S63c3, 'The cats always eat the bread.'),
+    reason_translate('Los gatos también comen el pan.', spanish, english, S63c4),
+    must('... `also'' too', S63c4, 'The cats also eat the bread.'),
+    reason_translate('El gato también es bueno.', spanish, english, S63c5),
+    must('... and after a copula that stands alone: `The cat also is good'' is no English', S63c5, 'The cat is also good.'),
+    reason_translate('Los gatos comen ayer el pan.', spanish, english, S63c6),
+    must('a GUARD: any other adverb stays last, before an object too', S63c6, 'The cats eat the bread yesterday.'),
+    reason_translate('¿Los gatos también comen el pan?', spanish, english, S63c7),
+    must('... in a question too, where the verb''s tail is what follows the subject: `Do the cats also eat the bread?'', and the adverb first dropped there', S63c7, 'Do the cats also eat the bread?'),
+    reason_translate('El gato puede también comer el pan.', spanish, english, S63c8),
+    must('... and after a modal that stands alone: `can also eat'', never `also can eat''', S63c8, 'The cat can also eat the bread.'),
+    reason_translate('El gato duerme y dijo el pan.', spanish, english, S63v2),
+    must('A THIRD PERSON NOBODY NAMED IN THE SECOND CLAUSE OF A COORDINATION IS THE FIRST CLAUSE''S: `Serra Ferrer no quiere correr riesgos y ha exigido'' is `does not want to run risks and has demanded'', never `and they have demanded''', S63v2, 'The cat sleeps and said the bread.'),
+    reason_translate('El gato duerme y es injusto que el perro duerma.', spanish, english, S63v3),
+    must('... but the `it'' of an impersonal clause is nobody the first clause named, and stays: `Sofia è stata battezzata e mi sembra giusto'' is `and it seems me just'', never `Sofia ... seems me just''', S63v3, 'The cat sleeps and it is unjust that the dog sleeps.'),
+    reason_translate('Los autobuses ven el gato.', spanish, english, S63g1),
+    must('A NOUN THAT ENDS IN ONE `S'' TAKES `ES'' IN ENGLISH: `bus'' is `buses'', where it was `buss'' (and `metropolis'' `metropoliss'', in the festival report)', S63g1, 'The buses see the cat.'),
+    reason_translate('The buses see the cat.', english, spanish, S63g2),
+    must('... and `buses'' is read back to `bus'', as `crises'' to `crisis''', S63g2, 'Los autobuses ven el gato.'),
+    reason_translate('Te lo digo.', spanish, english, S63d1),
+    must('TWO OBJECT PRONOUNS ARE A THING AND A PERSON IN ENGLISH: `te lo digo'' is `I say it to you'', where written in their order it was `I say you him''', S63d1, 'I say it to you.'),
+    reason_translate('El gato se lo da.', spanish, english, S63d2),
+    must('... `se lo da'' is `gives it to him'', not `gives him him''', S63d2, 'The cat gives it to him.'),
+    reason_translate('Me las dan.', spanish, english, S63d3),
+    must('... and the plural of what is given stays `them''', S63d3, 'They give them to me.'),
+    reason_translate('Te lo reclamo.', spanish, english, S63d4),
+    must('... with `from'' where the verb takes from the person: `demand it from you''', S63d4, 'I demand it from you.'),
+    reason_translate('Me la apunto.', spanish, english, S63d5),
+    must('THE PRONOUN OF A REFLEXIVE VERB IS A THING: `me lo apunto'' is `I note it'', where it was `I note him''', S63d5, 'I note it.'),
+    reason_translate('El gato la ve.', spanish, english, S63d6),
+    must('a GUARD: a pronoun alone is the person it was', S63d6, 'The cat sees her.').
 
 lesson_63(L, Text) :- lesson_63(L, 1, A), lesson_63(L, 2, B), atomic_list_concat([A, ' ', B], Text).
 lesson_63_more(L, Text) :- lesson_63(L, 3, A), lesson_63(L, 4, B), atomic_list_concat([A, ' ', B], Text).
@@ -6337,8 +6417,13 @@ The adjective "mejor" means "good". "mejor" is the comparative of "bueno". The m
 The masculine noun "hombre" means "man". "hombres" is the plural of "hombre". The feminine noun "consejera" means "councilwoman". "consejeras" is the plural of "consejera". The masculine noun "presidente" means "chairman". "presidentes" is the plural of "presidente".
 The verb "reclama" means "demands". The verb "escucha" means "listens". The verb "viene" means "comes". "venir" is the infinitive of "viene". "venga" is the subjunctive of "viene". The verb "venga" means "avenges". "duermas" is the second person of "duerma".
 The pronoun "tú" means "you". The pronoun "él" means "he". The word "no" means "not". The word "no" precedes the verb.
+The auxiliary "ha" means "has". "había" is the past of "ha". "hubo" is the past of "ha". "dormía" is the imperfect of "duerme". "durmió" is the past of "duerme".
 The verb "premia" means "rewards". "premiado" is the participle of "premia". "sea" is the subjunctive of "es". "sean" is the plural of "sea".
-The adverb "justamente" means "precisely". The adjectival adverb "justamente" means "justly".').
+The adverb "justamente" means "precisely". The adjectival adverb "justamente" means "justly".
+The masculine noun "millón" means "million". "millones" is the plural of "millón". The verb "recibe" means "receives". "reciben" is the plural of "recibe". The adverb "más de" means "more than". The adverb "siempre" means "always".
+The verb "inscribe" means "registers". "inscrito" is the participle of "inscribe". "inscritos" is the participle of "inscribe". "inscritos" is the plural of "inscrito".
+The verb "apunta" means "notes". "apunto" is the first person of "apunta". "reclamo" is the first person of "reclama".
+The masculine noun "autobús" means "bus". "autobuses" is the plural of "autobús".').
 lesson_63(italian, 3, 'The pronoun "mi" means "me". The pronoun "ti" means "you". The dative pronoun "gli" means "him". The pronoun "vi" means "you". The pronoun "la" means "her". "l''" is the elision of "il".
 "me la" is the contraction of "mi la". "te la" is the contraction of "ti la". "se la" is the contraction of "si la". "gliela" is the contraction of "gli la". "gliela" is the contraction of "le la".
 "dalla" is the contraction of "da la". "dal" is the contraction of "da il". "sul" is the contraction of "su il". "sulla" is the contraction of "su la".
@@ -6362,7 +6447,10 @@ The verb "crede" means "believes". "credere" is the infinitive of "crede".
 The verb "rappresenta" means "represents". "rappresentano" is the plural of "rappresenta". The verb "suppone" means "supposes".
 "disse" is the past of "dice". "said" is the past of "says". "dorme" is intransitive.
 The adjective "migliore" means "good". "migliore" is the comparative of "buono". The masculine noun "giorno" means "day". "giorni" is the plural of "giorno".
-The adverb "proprio" means "precisely". The adverb "giustamente" means "precisely". The adjectival adverb "giustamente" means "justly".').
+The adverb "proprio" means "precisely". The adverb "giustamente" means "precisely". The adjectival adverb "giustamente" means "justly".
+The auxiliary "ha" means "has". "aveva" is the imperfect of "ha". "ebbe" is the past of "ha". "stato" is the participle of "è". "dormisse" is the past subjunctive of "dorme".
+The masculine noun "milione" means "million". "milioni" is the plural of "milione". The verb "riceve" means "receives". "ricevono" is the plural of "riceve". The adverb "oltre" means "more than". The adverb "sempre" means "always".
+The verb "iscrive" means "registers". "iscritto" is the participle of "iscrive". "iscritti" is the participle of "iscrive". "iscritti" is the plural of "iscritto".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
