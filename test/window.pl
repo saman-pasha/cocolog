@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, checks_done.
+    clock, printed, turns, window, asked, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -60,6 +60,20 @@ w_churn(N) :-
 %% a call that exits and is backtracked past with no clause left to try
 w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).
 w_pairs([a-1, b-2]).
+
+%% a list filled one element at a time; a loop; and a term made before
+%% collections, for a question asked after them (1.10.16)
+w_fill(L) :- length(L, 3), w_fill_(L, 1).
+w_fill_([], _).
+w_fill_([X|Xs], I) :- X = I, I1 is I + 1, w_fill_(Xs, I1).
+w_loop :- w_loop.
+w_hold(L, N) :- L = [a, b, c], w_churn(N), numlist(1, 50000, _).
+%% garbage left below whatever is built next: a list nothing keeps
+w_junk :- numlist(1, 20000, _).
+%% the window's goal and its question built on top of that garbage, so a
+%% collection in the run slides them down, and the list the run ends by
+%% building lands where they were
+w_asked_gc(H) :- '$trace_window'(w_hold(L, 5000), [ask(L == [a, b, c], H)], _, _).
 
 %% garbage below, and a collection asked for between two readings of the
 %% collector's count, inside a call whose Exit comes after it
@@ -402,6 +416,34 @@ win_paired([E|Es], Seen, Un) :-
     ->  Un = [E|Un1], win_paired(Es, Seen, Un1)
     ;   win_paired(Es, Seen, Un)
     ).
+
+%% ---- a question asked where the run stopped (D4) ------------------------
+
+asked :-
+    section('ask(Cond, Holds): a question asked where the run stopped, over what it had bound there'),
+    '$trace_window'(w_fill(_), [from(1)], Es0, _),
+    ( member(call(I, _, _, _, =, [_, '2']), Es0) -> true ; I = none ),
+    I0 is I - 1,
+    '$trace_window'(w_fill(L1), [to(I), ask((nth1(2, L1, X1), X1 == 2), H1)], _, E1),
+    '$trace_window'(w_fill(L2), [to(I0), ask((nth1(2, L2, X2), X2 == 2), H2)], _, _),
+    check('the second element is 2 stopped at the inference of its X = 2, and not at the one before',
+          H1-H2-E1, true-false-end(limit, I, [])),
+    '$trace_window'(w_fill(L3), [ask(L3 == [1, 2, 3], H3)], _, E3),
+    ( var(L3) -> V3 = unbound ; V3 = L3 ),
+    check('at its answer, the answer''s bindings; and nothing kept after', H3-E3-V3,
+          true-end(answer, 25, [25])-unbound),
+    '$trace_window'(w_pick(X4), [answers(5), ask(var(X4), H4)], _, end(How4, _, _)),
+    check('at a failure, what the failure left: nothing bound', How4-H4, false-true),
+    '$trace_window'(w_fill(_), [ask(w_nosuch, H5)], _, _),
+    ( H5 = exception(error(existence_error(procedure, P5), _)) -> R5 = P5 ; R5 = H5 ),
+    '$trace_window'(w_fill(_), [ask(w_loop, H6)], _, _),
+    check('a question that raises hands back its ball; one that runs on is stopped', R5-H6, w_nosuch/0-limit),
+    %% only w_junk's list below the question: a slide the run's last list
+    %% outgrows
+    garbage_collect,
+    w_junk,
+    w_asked_gc(H7),
+    check('asked after collections that moved the question and the run''s terms', H7, true).
 
 win_refused(Opts, R) :-
     answer('$trace_window'(w_go(_), Opts, _, _), x, G),

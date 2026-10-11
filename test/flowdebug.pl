@@ -47,6 +47,8 @@ main :-
     tree(D),
     diverged(D),
     journal(D),
+    asked_when(D),
+    asked_why(D),
     documents(D),
     command(D),
     refusals(D),
@@ -347,6 +349,97 @@ journal(D) :-
     check('...and its two entries -- the append and the getenv/2 after it -- neither answered the replay',
           N7-Ps7, ('2'-'0')-[false, false]).
 
+%% ---- questions over the clock (D4) ---------------------------------------
+%%
+%% flow_when/4 is checked against the window itself: the inference it
+%% names is recorded on its own, and the call made there must be the goal
+%% that made Cond true -- so no count is taken on trust.
+
+%% the call a window of the one inference I saw
+call_at(D, Name, G, I, P-In) :-
+    debugged(D, Name, G, [], [from(I), to(I)], R),
+    R = run(_, _, _, _, Calls, _, _, _),
+    (   member(call(I, P, _, _, _, _, _, In0, _, _), Calls) -> maplist(flow_dbg_ung, In0, In)
+    ;   P = none, In = none
+    ).
+
+asked_when(D) :-
+    section('flow_when/4: the first inference at which a question holds, searched over runs'),
+    fx(F),
+    flow_when(fill(L1), (nth1(3, L1, X1), X1 == 3), [source(F)], W1),
+    ( W1 = at(I1) -> call_at(D, at1, fill(_), I1, C1) ; C1 = W1 ),
+    check('fill(L): the third element is 3 from the call that bound it, X = I with I 3',
+          C1, (=)/2-['_', '3']),
+    flow_when(fill(L2), (nth1(3, L2, X2), X2 == 3), [source(F), journal(false)], W2),
+    flow_when(fill(L3), (nth1(3, L3, X3), X3 == 3), [source(F), step(5)], W3),
+    check('...the same without a journal, and stepping five inferences at a time first', W2-W3, W1-W1),
+    flow_when(fill(L4), (nth1(3, L4, X4), X4 == 4), [source(F)], W4),
+    check('a question that does not hold where the run ends: never', W4, never),
+    flow_when(pick(P5), P5 == 1, [source(F)], W5),
+    flow_when(pick(P6), P6 == 1, [source(F), step(1)], W6),
+    ( W6 = at(I6) -> call_at(D, at6, pick(_), I6, C6) ; C6 = W6 ),
+    check('pick(X): X = 1 is undone by backtracking, so not where the run ends -- never; asked at every inference, member/2''s call made it so',
+          W5-C6, never-(member/2-['_', '[1,2,3]'])),
+    atom_concat(D, '/whenw', B7),
+    flow_when(fill(L7), (nth1(5, L7, X7), X7 == 5), [source(F), base(B7), window(10)], W7),
+    atom_concat(B7, '.xml', XF7),
+    read_file_to_codes(XF7, XC7),
+    xml_parse(XC7, X7x),
+    x_el(X7x, run, RA7),
+    ( W7 = at(I7), memberchk(to=T7, RA7), atom_number(T7, I7), memberchk(from=Fr7, RA7) -> Win7 = Fr7 ; Win7 = W7-RA7 ),
+    I7f is I7 - 9, atom_number(Fr7x, I7f),
+    check('base(B): the window that ends where it began to hold, drawn', Win7, Fr7x),
+    catch(( flow_when(fill(_), nosuch(x), [source(F)], _), E8 = none ), error(E8, _), true),
+    ( E8 = flow_when_cond(nosuch(x), error(existence_error(procedure, P8), _)) -> R8 = P8 ; R8 = E8 ),
+    check('a question that raises is an error naming it and its ball', R8, nosuch/1),
+    answer(flow_when(fill(_), true, [], _), x, G9),
+    answer(flow_when(fill(_), true, [source(F), step(0)], _), x, G10),
+    check('no source, a step of nothing: refused by name', [G9, G10],
+          [ error(error(existence_error(flow_option, source), flow_when/4)),
+            error(error(domain_error(flow_when_option, step(0)), flow_when/4)) ]).
+
+asked_why(D) :-
+    section('flow_why/2: why a run failed, read back from the window -- and drawn, and in the XML'),
+    debugged(D, whyz, find(z, V1), ['V'=V1], [], R1),
+    flow_why(R1, W1),
+    why_shape(W1, S1),
+    check('find(z, V): its clause entered, lookup/2 failed in it -- its clause entered, pairs/1 exited and member/2 failed, a library''s',
+          S1, [why(find/2, [entered(1, [why(lookup/2, [entered(1, [exited(pairs/1), failed(member/2)])])])])]),
+    atom_concat(D, '/whyz.svg', SF2),
+    read_file_to_codes(SF2, SC2),
+    xml_parse(SC2, S2),
+    findall(T, ( svg_text(S2, T), ( T == 'why it failed' ; sub_atom(T, _, _, _, 'failed, with no clause') ) ), Ts2),
+    check('...under the chart: the block, down to member/2 failing with nothing of the program''s to say why',
+          Ts2, ['why it failed', '✗ member(z-_, [a-1,b-2,c-3])   failed, with no clause of the program''s to say why  ·  call at 4']),
+    atom_concat(D, '/whyz.xml', XF3),
+    read_file_to_codes(XF3, XC3),
+    xml_parse(XC3, X3),
+    findall(N-P, ( x_el(X3, failed, A3), memberchk(call=N, A3), memberchk(pred=P, A3) ), F3),
+    check('...and in the XML''s <why>, each <failed> its call and predicate', F3,
+          ['1'-'find/2', '2'-'lookup/2', '4'-'member/2']),
+    debugged(D, whyc, classify(3, C5), ['C'=C5], [], R5),
+    flow_why(R5, W5),
+    why_shape(W5, S5),
+    check('classify(3, C): both clauses entered, and each failed at its own test',
+          S5, [why(classify/2, [entered(1, [failed((>)/2)]), entered(2, [failed((>)/2)])])]),
+    debugged(D, whyok, top(5, Y4), ['Y'=Y4], [], R4),
+    flow_why(R4, W4),
+    atom_concat(D, '/whyok.xml', XF4),
+    read_file_to_codes(XF4, XC4),
+    xml_parse(XC4, X4),
+    ( x_el(X4, why, _) -> Y4w = said ; Y4w = none ),
+    ( W4 = [exited(1, top/2, _, _)] -> W4s = exited ; W4s = W4 ),
+    check('a run that answered: its top call exited, and no <why>', W4s-Y4w, exited-none).
+
+%% a why tree without its arguments
+why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).
+why_shape(why(_, P, _, Ts), why(P, Ss)) :- !, findall(X, ( member(T, Ts), why_shape(T, X) ), Ss).
+why_shape(entered(K, Gs), entered(K, Ss)) :- !, why_shape(Gs, Ss).
+why_shape(nohead(K), nohead(K)) :- !.
+why_shape(exited(_, P, _, _), exited(P)) :- !.
+why_shape(failed(_, P, _), failed(P)) :- !.
+why_shape(ended(_, P, _, F), ended(P, F)).
+
 %% ---- the two documents ----------------------------------------------------
 
 documents(D) :-
@@ -443,7 +536,16 @@ command(D) :-
     atomic_list_concat(Ls4, '\n', T4),
     ( last(Ls4, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
     check('journal=true: the line says how many portal calls the journal held, and how many answered the replay',
-          E4-Tail4, 0-'; journal 6 portal calls, 6 answered').
+          E4-Tail4, 0-'; journal 6 portal calls, 6 answered'),
+    atomic_list_concat([D, '/cmdw'], B5),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'fill(L)\' ', F, ' ', B5, ' \'when=nth1(3, L, X), X == 3\' window=4'], A5),
+    cocolog_run(A5, T5, E5),
+    atomic_list_concat(Ls5, '\n', T5),
+    ( last(Ls5, L5) -> true ; L5 = '' ),
+    atom_concat(B5, '.svg', SF5),
+    yes_no(exists_file(SF5), Y5),
+    check('when=COND: where the question first holds, and the window of the last 4 inferences up to it drawn',
+          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 26; recorded 23 to 26').
 
 %% ---- refusals -----------------------------------------------------------
 

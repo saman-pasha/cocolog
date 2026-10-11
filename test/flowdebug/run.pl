@@ -54,6 +54,17 @@ flip(F) :-
     read_file_to_codes(F, Cs), length(Cs, N),
     N mod 2 =:= 1.
 
+%% two clauses whose heads both unify and whose bodies both fail: the calls
+%% each made are its own
+classify(X, big) :- X > 10.
+classify(X, mid) :- X > 5, X < 10.
+
+%% a list of five filled one element at a time: each element is bound once,
+%% and stays bound -- what flow_when/4's bisection is for
+fill(L) :- length(L, 5), fill_(L, 1).
+fill_([], _).
+fill_([X|Xs], I) :- X = I, I1 is I + 1, fill_(Xs, I1).
+
 %% loads F -- what a load reads is the program's own clauses, read again by
 %% every run, and no journal answers it -- and then adds a clause to F unless
 %% F had one: the replay's load reads what the probe added, takes the other

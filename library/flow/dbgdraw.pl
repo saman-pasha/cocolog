@@ -913,17 +913,94 @@ flow_dbg_section(Facts, MaxW, Ps, H) :-
     (   ND =:= 0
     ->  Lines = [t(140, Y0, start, 10, sans, normal,
                    [s('no value crossed into a variable the source names in the window', muted)])],
-        YEnd = Y0
+        YEnd0 = Y0
     ;   (   NX > ND
         ->  format(atom(Say), 'the last ~d of the ~d bindings in the window, numbered on the chart; the XML has every one', [ND, NX])
         ;   format(atom(Say), 'the ~d bindings in the window, numbered on the chart', [ND])
         ),
         Y1 is Y0 + 24,
-        flow_dbg_disc_lines(Discs, Goals, Y1, DPs, YEnd),
+        flow_dbg_disc_lines(Discs, Goals, Y1, DPs, YEnd0),
         Lines = [t(140, Y0, start, 10, sans, normal, [s(Say, muted)])|DPs]
     ),
+    flow_dbg_why_block(Facts, YEnd0, WPs, YEnd),
     H is YEnd + 30,
-    append([Head, LPs, Lines], Ps).
+    append([Head, LPs, Lines, WPs], Ps).
+
+%% ---- why it failed (D4) -------------------------------------------------
+%%
+%% A run that failed has the failures it came from drawn under its
+%% bindings: each failed call of the program's own, each clause it tried --
+%% its head did not unify, or its body entered and the calls it made --
+%% down to the calls that failed with nothing of their own to say why
+%% (dbgwhy.pl). The first 60 lines; the XML's <why> has all of it.
+
+flow_dbg_why_block(Facts, Y0, Ps, YEnd) :-
+    Facts = dbg(Sum, _, Calls, _, _, _, _, _, _),
+    (   arg(3, Sum, end(false, _, _))
+    ->  flow_dbg_why(Calls, Whys),
+        flow_dbg_why_lines(Whys, 0, Ls0, []),
+        length(Ls0, NL),
+        (   NL > 60
+        ->  length(Ls1, 60), append(Ls1, _, Ls0),
+            Rest is NL - 60,
+            format(atom(More), '⋯  and ~d more lines: the XML''s <why> has every one', [Rest]),
+            append(Ls1, [l(0, [s(More, muted)])], Ls)
+        ;   Ls = Ls0
+        ),
+        Y1 is Y0 + 46,
+        Title = t(24, Y1, start, 10, sans, bold, [s('why it failed', muted)]),
+        Y2 is Y1 + 24,
+        flow_dbg_why_prims(Ls, Y2, WPs, YEnd),
+        Ps = [Title|WPs]
+    ;   Ps = [], YEnd = Y0
+    ).
+
+%% the tree as lines: l(Depth, Segments)
+flow_dbg_why_lines([], _, L, L).
+flow_dbg_why_lines([W|Ws], D, L0, L) :-
+    flow_dbg_why_line(W, D, L0, L1),
+    flow_dbg_why_lines(Ws, D, L1, L).
+
+flow_dbg_why_line(why(S, N/_, In, Tries), D, [l(D, Segs)|L1], L) :- !,
+    flow_dbg_args_text(N, In, CT),
+    format(atom(M), '   failed  ·  call at ~d', [S]),
+    Segs = [s('✗ ', red), s(CT, ink), s(M, red)],
+    D1 is D + 1,
+    flow_dbg_why_try_lines(Tries, D1, L1, L).
+flow_dbg_why_line(failed(S, N/_, In), D, [l(D, [s('✗ ', red), s(CT, ink), s(M, muted)])|L], L) :- !,
+    flow_dbg_args_text(N, In, CT),
+    format(atom(M), '   failed, with no clause of the program''s to say why  ·  call at ~d', [S]).
+flow_dbg_why_line(exited(S, N/_, In, Out), D, [l(D, Segs)|L], L) :- !,
+    flow_dbg_args_text(N, In, CT),
+    (   Out \== none, Out \== In
+    ->  flow_dbg_args_text(N, Out, OT), OS = [s('  →  ', muted), s(OT, ink)]
+    ;   OS = []
+    ),
+    format(atom(M), '   ·  call at ~d', [S]),
+    append([[s('✓ ', green), s(CT, ink)], OS, [s(M, muted)]], Segs).
+flow_dbg_why_line(ended(S, N/_, In, Fate), D, [l(D, [s(Gl, GC), s(' ', ink), s(CT, ink), s(M, muted)])|L], L) :-
+    flow_dbg_fate_glyph(Fate, Gl, GC),
+    flow_dbg_args_text(N, In, CT),
+    flow_dbg_fate_word(Fate, FW),
+    format(atom(M), '   ~w  ·  call at ~d', [FW, S]).
+
+flow_dbg_why_try_lines([], _, L, L).
+flow_dbg_why_try_lines([nohead(K)|Ts], D, [l(D, [s(T, muted)])|L1], L) :- !,
+    format(atom(T), 'clause ~d: its head did not unify', [K]),
+    flow_dbg_why_try_lines(Ts, D, L1, L).
+flow_dbg_why_try_lines([entered(K, Gs)|Ts], D, [l(D, [s(T, muted)])|L1], L) :-
+    (   Gs == [] -> format(atom(T), 'clause ~d: entered, and its body failed before calling anything', [K])
+    ;   format(atom(T), 'clause ~d: entered, and called', [K])
+    ),
+    D1 is D + 1,
+    flow_dbg_why_lines(Gs, D1, L1, L2),
+    flow_dbg_why_try_lines(Ts, D, L2, L).
+
+flow_dbg_why_prims([], Y, [], Y).
+flow_dbg_why_prims([l(D, Segs)|Ls], Y, [t(X, Y, start, 11, mono, normal, Segs)|Ps], YEnd) :-
+    X is 140 + 18 * D,
+    Y1 is Y + 18,
+    flow_dbg_why_prims(Ls, Y1, Ps, YEnd).
 
 %% the entries left to right, a new line where the next would pass Max
 flow_dbg_legend_entries([], _, Y, _, [], Y).
@@ -1207,7 +1284,34 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)
         )
     ;   JEs = []
     ),
-    append([CE, EE, BE], JEs, Ks).
+    (   How == false
+    ->  flow_dbg_why(Calls, Whys),
+        findall(WE1, ( member(W1, Whys), flow_dbg_x_why(W1, WE1) ), WEs),
+        YEs = [element(why, [], WEs)]
+    ;   YEs = []
+    ),
+    append([[CE, EE, BE], JEs, YEs], Ks).
+
+%% why it failed, as the tree dbgwhy.pl reads it: <failed call pred> with a
+%% <try n unified> for each clause it tried and, inside one entered, the
+%% calls it made -- <exited>, <failed> (own="false": nothing of the
+%% program's to say why) and <ended fate>
+flow_dbg_x_why(why(S, P, _, Tries), element(failed, [call=S, pred=PA], TEs)) :- !,
+    flow_dbg_x_pred(P, PA),
+    findall(TE, ( member(T, Tries), flow_dbg_x_why_try(T, TE) ), TEs).
+flow_dbg_x_why(failed(S, P, _), element(failed, [call=S, pred=PA, own=false], [])) :- !,
+    flow_dbg_x_pred(P, PA).
+flow_dbg_x_why(exited(S, P, _, _), element(exited, [call=S, pred=PA], [])) :- !,
+    flow_dbg_x_pred(P, PA).
+flow_dbg_x_why(ended(S, P, _, Fate), element(ended, [call=S, pred=PA, fate=Fate], [])) :-
+    flow_dbg_x_pred(P, PA).
+
+flow_dbg_x_why_try(nohead(K), element(try, [n=K, unified=false], [])) :- !.
+flow_dbg_x_why_try(entered(K, Gs), element(try, [n=K, unified=true], GEs)) :-
+    findall(GE, ( member(G, Gs), flow_dbg_x_why(G, GE) ), GEs).
+
+flow_dbg_x_pred(N/A, PA) :-
+    format(atom(PA), '~q/~w', [N, A]).
 
 flow_dbg_x_calls(Calls, JCalls, element(calls, [count=N], Es)) :-
     length(Calls, N),

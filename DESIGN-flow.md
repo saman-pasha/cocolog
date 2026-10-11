@@ -1005,11 +1005,52 @@ the same instructions as 1.10.14's on nrev, queens and lookup (zero.sh's
 work less padding moved -136, -136 and +320 instructions in 66.06 M,
 42.69 M and 48.11 M, none of them in the binary; the padding the same).
 
-**D4, questions over the clock** (proposes a minor): the first inference at
-which something holds, by a search over fast runs each stopped at one
-inference (`'$trace_window'` with `to(I)` and no `from`) and asked there;
-and why a goal failed, read back from the recorded window -- the last
-failure and the failures it came from.
+**D4, questions over the clock** (built, 1.10.16; proposes a minor): the
+first inference at which something holds, by a search over fast runs each
+stopped at one inference (`'$trace_window'` with `to(I)` and no `from`) and
+asked there; and why a goal failed, read back from the recorded window --
+the last failure and the failures it came from.
+
+* **Asked where it stopped**: `'$trace_window'/4`'s `ask(Cond, Holds)`
+  proves Cond once between the run's end and the undo, over the bindings the
+  run left -- its last inference, its answer, its failure -- in an engine of
+  its own (ten million inferences, no collection); Holds `true`, `false`,
+  `limit` or `exception(Ball)`. Cond's cell is a root beside the goal's,
+  since a collection on the way to the window moves both.
+* **`flow_when(+Goal, +Cond, +Options, -When)`** (`library/flow/dbgwhen.pl`):
+  Cond asked where the probe ended, then bisected over `[1, End]`, each step
+  a child process stopped at `to(Mid)` and asked -- about twenty runs for a
+  million inferences, each at full speed, and by default each a replay of
+  the probe's JOURNAL, so they read what the probe read and do nothing it
+  did twice. When is `at(I)`: Cond does not hold at I - 1 and does at I,
+  whose call made it so -- or `never`. That is the first such inference when
+  Cond, once true, stays true; one backtracking undoes may not hold at the
+  end at all, and `step(N)` asks every N-th inference first and bisects
+  inside the first step it holds at. `base(B)` draws the window that ends
+  at I. A run that is not the same twice cannot be searched: a divergence is
+  an error naming both ends. From a shell: `when=COND` (`step=N`).
+* **`flow_why(+Run, -Whys)`** (`library/flow/dbgwhy.pl`): read from the
+  calls flow_debug/4 recorded -- each failed call of the program's own (a
+  panel on the chart), each clause it tried, `nohead(K)` or `entered(K,
+  Goals)` with the calls its body made, down to the calls that failed with
+  nothing of the program's to say why (a builtin's, a library's). A run
+  that failed has the tree under its chart ("why it failed") and in the XML
+  as `<why>`. **What it found**: a retry takes no inference, so a clause
+  tried after one whose body failed is entered at the inference of the call
+  that failed -- which is the earlier clause's; split by `<` it went to no
+  clause at all, and two clauses that both enter and fail (`classify/2` in
+  the case) showed the first with an empty body. And a collection's
+  compaction leaves a moved term's old copy readable: the arm that asks the
+  question's old cell stayed green until the check left garbage under the
+  question and ended the run by building over where it had been.
+* `test/window.pl` holds `ask` (the stop's bindings, an answer's, a
+  failure's, a raise, a loop, collections in the way), `test/flowdebug.pl`
+  `flow_when` -- each inference it names checked against the call a window
+  of that one inference records there -- `flow_why` and the command;
+  lesson 51 a list of squares and the basket's failure read back. Each rule
+  has an arm that goes red (STATUS.md): three in the engine, eight in the
+  library. Per function the untraced engine runs the same instructions as
+  1.10.15's on nrev, queens and lookup.
 
 ## 10. Phases
 

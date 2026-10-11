@@ -1025,6 +1025,16 @@ cocolint index offers no import of it.
     and a thread's messages come from the journal.
   - **Floats are exact in it** (`m->wexact`, `coco_sb_put_double_exact`):
     `%.15g` everywhere else would make a replayed clock another number.
+* **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
+  `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
+  inferences, no collection) between the run's end and the undo, over the
+  bindings the run left; Cond's cell is a root beside the goal's
+  (`hold[1]`), because a collection on the way to the window moves it.
+  `flow_when/4` bisects over runs stopped at `to(I)` and asked -- each a
+  child process replaying the probe's journal -- and `flow_why/2`
+  (`library/flow/dbgwhy.pl`) reads a failure tree back from the calls: a
+  retried clause is entered at the inference of the call whose failure
+  retried it (a retry takes none), so that call is the clause BEFORE's.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

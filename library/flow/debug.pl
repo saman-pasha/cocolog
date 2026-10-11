@@ -5,7 +5,12 @@
 %%     :- use_module(library(flow/debug)).
 %%
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
-%%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term:
+%%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term
+%%     flow_why(+Run, -Whys)                       why it failed (dbgwhy.pl)
+%%     flow_when(+Goal, +Cond, +Options, -When)    the first inference at
+%%                                                 which Cond holds (dbgwhen.pl)
+%%
+%% The run flow_debug/4 hands back:
 %%
 %%     run(How, At, Answers, window(From, To), Calls, Bindings, Diverged, Journal)
 %%
@@ -88,6 +93,16 @@
 %% Exit, and every <event> in order. So an agent can ask which goal failed
 %% last, and with what.
 %%
+%% QUESTIONS OVER THE CLOCK (D4). A run that failed has WHY drawn under its
+%% bindings and in the XML's <why>: each failed call of the program's own,
+%% each clause it tried -- its head did not unify, or its body entered and
+%% the calls it made -- down to the calls that failed with nothing of the
+%% program's to say why; flow_why/2 hands the same tree back as a term.
+%% flow_when/4 answers WHEN: the first inference at which a question holds,
+%% asked of runs stopped part way -- a handful of them, each at full speed
+%% and each a replay of the probe's journal (dbgwhen.pl says how, and what
+%% "first" can mean for a question backtracking undoes).
+%%
 %% A WINDOW SEES THE CALLS MADE IN IT: one that began before the window
 %% opened is placed in a panel of its predicate, not in its caller's
 %% clause, and has no box.
@@ -97,6 +112,8 @@
 :- use_module(library(flow/chart)).
 :- use_module(library(flow/dbgmatch)).
 :- use_module(library(flow/dbgdraw)).
+:- use_module(library(flow/dbgwhen)).
+:- use_module(library(flow/dbgwhy)).
 
 flow_debug(Goal, Base) :-
     flow_debug(Goal, Base, []).

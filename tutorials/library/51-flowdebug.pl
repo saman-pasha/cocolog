@@ -32,6 +32,12 @@
 %% runs none of them. So it sees what the probe saw, and does not do
 %% again what the probe did.
 %%
+%% QUESTIONS OVER THE CLOCK: flow_why(+Run, -Why) reads why a run failed
+%% back from what flow_debug/4 recorded -- each failed call of the
+%% program's own and each clause it tried -- and flow_when(+Goal, +Cond,
+%% +Options, -When) finds the first inference at which Cond holds, by
+%% asking runs stopped part way: at(I), or never.
+%%
 %% WHAT IS DRAWN: the chart, every box the window reached heavy, red where
 %% its last call failed, purple where it raised an exception; a head red
 %% where its last try did not unify; whatever the run never reached faded;
@@ -124,7 +130,51 @@ main :-
 
     journalled(Dir),
 
+    format("~n-- why it failed, read back~n"),
+    %% the basket's run again: each failed call of the program's own, each
+    %% clause it tried -- its head did not unify, or its body was entered
+    %% and called what -- down to price(banana, P), whose heads both
+    %% failed to unify: the price of a banana is nowhere
+    flow_why(Run, Why),
+    why_shape(Why, Shape),
+    must('basket_total/2 failed in its second clause, at basket_total/2 again, at price/2, with no head that unified',
+         Shape, [why(basket_total/2, [nohead(1), entered(2, [exited(price/2),
+                     why(basket_total/2, [nohead(1), entered(2, [why(price/2, [nohead(1), nohead(2)])])])])])]),
+
+    asked(Dir),
+
     format("~ndone~n").
+
+%% a why tree without its arguments: what failed, and where
+why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).
+why_shape(why(_, P, _, Ts), why(P, Ss)) :- !, findall(X, ( member(T, Ts), why_shape(T, X) ), Ss).
+why_shape(entered(K, Gs), entered(K, Ss)) :- !, why_shape(Gs, Ss).
+why_shape(nohead(K), nohead(K)) :- !.
+why_shape(exited(_, P, _, _), exited(P)) :- !.
+why_shape(failed(_, P, _), failed(P)) :- !.
+why_shape(ended(_, P, _, F), ended(P, F)).
+
+%% WHEN DID IT HAPPEN? A list of squares built one at a time: the first
+%% inference at which its fourth is 16, found by asking runs stopped part
+%% way (flow_when/4 bisects: a handful of runs, each at full speed), and
+%% then the one call made there, seen through a window of one inference
+asked(Dir) :-
+    format("~n-- when did it happen?~n"),
+    atom_concat(Dir, '/squares.pl', Prog),
+    open(Prog, write, W),
+    forall(member(L, [ 'squares(N, L) :- numlist(1, N, Ns), squares_(Ns, L).',
+                       'squares_([], []).',
+                       'squares_([X|Xs], [Y|Ys]) :- Y is X * X, squares_(Xs, Ys).' ]),
+           format(W, "~w~n", [L])),
+    close(W),
+    flow_when(squares(6, Sq), (nth1(4, Sq, S4), S4 == 16), [source(Prog)], When),
+    must('the fourth square is 16 from inference 12', When, at(12)),
+    atom_concat(Dir, '/squares', Base),
+    flow_debug(squares(6, _), Base, [source(Prog), from(12), to(12)], R),
+    R = run(_, _, _, _, [call(12, P, _, _, _, _, _, _, Out, _)|_], _, _, _),
+    must('the call made there: is/2, which made 16 of 4*4', P-Out, (is)/2-['16', '4*4']),
+    flow_when(squares(6, Sq2), (nth1(4, Sq2, S42), S42 == 17), [source(Prog)], Never),
+    must('and a question that never holds where the run ends', Never, never).
 
 %% A VISIT COUNTER: each run reads a file and writes it back one more. The
 %% probe is the first visit; a replay without a journal is the second, and

@@ -632,6 +632,15 @@
   ;;;                           File (1.10.15, `coco_jrnl' in solve.cicili)
   ;;;   journal(replay(File))   every portal call answered from File's entry
   ;;;                           for it, and nothing run
+  ;;;   ask(Cond, Holds)        Cond proved once where the run stopped --
+  ;;;                           its last inference, its K-th answer, its
+  ;;;                           failure, its exception -- over the bindings
+  ;;;                           the run left there, sharing the goal's
+  ;;;                           variables; Holds true, false, limit (ten
+  ;;;                           million inferences), exception(Ball) or
+  ;;;                           error (1.10.16, D4: "the first inference at
+  ;;;                           which something holds" is a search over runs
+  ;;;                           stopped at to(I) and asked there)
   ;;;
   ;;; End is `end(How, Used, Answers)': How is `answer' (the K-th was found),
   ;;; `false', `limit' (stopped past T), `exception(Ball)', `halt(Code)',
@@ -757,7 +766,7 @@
               (int haltcode . 0) (int rc . 0)
               (size_t evs . 0) (size_t how . 0) (size_t al . 0) (size_t end . 0)
               (coco_jrnl jr) (int jmode . 0) (char jpath [1024]) (size_t jopt . 0)
-              (int jbad . 0))
+              (int jbad . 0) (size_t askcell . 0) (i64 askat . -1))
           (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
           (if (!= (-> m rec) nil)
               (return (coco_m_permission_error e "open" "trace_window" (coco_m_arg e g 0))))
@@ -775,6 +784,11 @@
               (if (not ok)
                   (block (set jm (coco_b_journal_opt e o jpath (sizeof jpath)))
                          (if (!= jm 0) (block (set jmode jm) (set jopt o) (set ok 1)))))
+              ;; ask(Cond, Holds): Cond asked where the run stops (1.10.16)
+              (if (and (not ok) (and (!= nm nil) (and (== ar 2) (== 0 (strcmp nm "ask")))))
+                  (block (set askcell (coco_deref m (coco_m_arg e o 0)))
+                         (set askat (cast i64 i))
+                         (set ok 1)))
               (if (not ok)
                   (block (free v)
                          (return (coco_m_domain_error e "trace_window_option" o))))))
@@ -806,6 +820,7 @@
           (set ($ r to) (cast u64 to))
           (set ($ r tmax) (cast u32 tmax))
           (if (!= jmode 0) (set ($ r jr) (aof jr)))
+          (set ($ r ask) askcell)
           (set rc (coco_engine_window e (coco_m_arg e g 0) (aof r) (cast u64 answers)
                                       (aof used) ats (aof nats) (aof ball) (aof haltcode) (aof g)))
           (if (== jmode 1)
@@ -845,6 +860,25 @@
           (if jbad (return (coco_m_permission_error e "write" "journal" (coco_new_atom m jpath))))
           (if (-> m oom) (return (coco_m_error e "'$trace_window'/4" "out of memory")))
           (if (not (coco_m_unify e (coco_m_arg e g 2) evs)) (return 0))
+          ;; ask's answer: true, false, limit, exception(Ball) or error -- its
+          ;; option found again by its place, the run having moved the cells
+          (if (>= askat 0)
+              (let ((size_t hv . 0))
+                (cond ((== ($ r holds) 1) (set hv (coco_new_atom m "true")))
+                      ((== ($ r holds) 0) (set hv (coco_new_atom m "false")))
+                      ((== ($ r holds) 2) (set hv (coco_new_atom m "limit")))
+                      ((== ($ r holds) 3)
+                       (block (set (-> (-> e st) dead) (+ (-> (-> e st) dead) ($ r hbsize)))
+                              (set hv (coco_make1 m "exception"
+                                                  (coco_store_get m (-> e st) ($ r hball))))))
+                      (#t (set hv (coco_new_atom m "error"))))
+                (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+                    (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+                (if (>= (cast size_t askat) n)
+                    (block (free v) (return (coco_m_error e "'$trace_window'/4" "the options moved"))))
+                (let ((size_t o . #'(coco_deref m (nth (cast size_t askat) v))))
+                  (free v)
+                  (if (not (coco_m_unify e (coco_m_arg e o 1) hv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by

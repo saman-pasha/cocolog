@@ -679,7 +679,15 @@
     (member size_t       pntxs)
     (member size_t       palen)
     ;; the run's journal, or null (1.10.15)
-    (member coco_jrnl *  jr))
+    (member coco_jrnl *  jr)
+    ;; A QUESTION ASKED WHERE THE RUN STOPPED (1.10.16): ASK the goal's cell,
+    ;; 0 for none; HOLDS 1 it proved, 0 it failed, 2 it ran out of
+    ;; inferences, 3 it raised (HBALL its ball in the store, HBSIZE its
+    ;; size), -1 anything else
+    (member size_t       ask)
+    (member int          holds)
+    (member size_t       hball)
+    (member size_t       hbsize))
 
   (decl) (func coco_rec_free ((coco_rec * r)))
 
@@ -720,7 +728,9 @@
   ;;; inferences it spent and ATS the inference of each answer, NATS of
   ;;; them (room for ANSWERS). Every binding is undone: the machine is put
   ;;; back as it was. GP is the caller's goal cell, which a collection
-  ;;; before the window may move.
+  ;;; before the window may move. R->ask, when not 0, is a goal proved once
+  ;;; where the run stopped, before anything is undone -- the run's
+  ;;; bindings are its to read -- and R->holds says how it went.
   (decl) (func coco_engine_window ((coco_engine * e) (size_t goal) (coco_rec * r)
                                    (u64 answers) (u64 * used) (u64 * ats) (u64 * nats)
                                    (size_t * ball) (int * haltcode) (size_t * gp))
@@ -4338,6 +4348,29 @@
                                    3 -1)))))
           (return out)))
 
+  ;;; THE QUESTION A WINDOW ASKS WHERE ITS RUN STOPPED (1.10.16): COND
+  ;;; proved once in an engine of its own over the bindings the run left,
+  ;;; with ten million inferences and no collection (nothing it holds is a
+  ;;; root, and what it makes is undone with the run). Its answer goes in R
+  ;;; as `coco_rec' says.
+  (static)
+  (func coco_window_ask ((coco_engine * e) (coco_rec * r) (size_t cond))
+        (let ((coco_engine sub) (int rc . 0))
+          (coco_engine_init (aof sub) (-> e m) (-> e st))
+          (coco_engine_ask (aof sub) cond)
+          (set ($ sub max_steps) 10000000)
+          (set ($ sub gc) 0)
+          (set rc (coco_engine_next (aof sub)))
+          (cond ((== rc 1) (set (-> r holds) 1))
+                ((== rc 0) (set (-> r holds) 0))
+                ((== 0 (strcmp ($ sub err) "inference limit reached")) (set (-> r holds) 2))
+                (($ sub has_ball)
+                 (block (set (-> r holds) 3)
+                        (set (-> r hball) ($ sub ball_cell))
+                        (set (-> r hbsize) ($ sub ball_size))))
+                (#t (set (-> r holds) -1)))
+          (coco_engine_free (aof sub))))
+
   ;;; A WINDOW OF A RUN (1.10.12) -- the declaration says what it answers.
   ;;; `coco_engine_call_limited' with three differences: the goal goes on
   ;;; through ANSWERS answers; an exception is handed back, not thrown
@@ -4358,12 +4391,14 @@
               (size_t hmark . #'($ (cof m) heap_len))
               (int rc . 0) (int out . -1) (u64 found . 0)
               (int threw . 0) (size_t cell . 0) (size_t bsize . 0)
-              (size_t hold [1]) (size_t * holdp . nil) (size_t nhold . 1) (int held . 0))
+              (size_t hold [2]) (size_t * holdp . nil) (size_t nhold . 2) (int held . 0))
           (set (cof used) 0)
           (set (cof nats) 0)
           (if (!= ($ (cof m) rec) nil)
               (return (coco_fail_err e "'$trace_window'/4: a window is open on this machine already")))
           (set (nth 0 hold) (? (== gp nil) 0 (cof gp)))
+          ;; the question's cell moves with a collection as the goal's does
+          (set (nth 1 hold) (-> r ask))
           (set holdp hold)
           (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
           (coco_engine_init (aof sub) m st)
@@ -4427,6 +4462,8 @@
           (if (!= (-> r jr) nil) (coco_jr_unwrap))
           (set ($ (cof m) rec) nil)
           (set (-> r root) nil)
+          ;; the question, over what the run left bound
+          (if (!= (-> r ask) 0) (coco_window_ask e r (nth 1 hold)))
           ;; every binding undone: a window is for watching
           (coco_undo_to m tmark)
           (set ($ (cof m) heap_len) hmark)

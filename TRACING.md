@@ -138,6 +138,13 @@ has the contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds
 the recorder to the printer over the trace case's queries, and a window
 to a recording of the whole run, event for event.
 
+A window can also ASK (1.10.16): `ask(Cond, Holds)` proves Cond once
+where the run stopped -- its last inference, its answer, its failure --
+over the bindings the run left there, before anything is undone; Holds is
+`true`, `false`, `limit` or `exception(Ball)`. A run stopped at `to(I)`
+and asked is how "when did X become 5?" is answered without a debugger
+in the run: `library(flow/debug)`'s `flow_when/4` bisects over such runs.
+
 ## A journal, and a replay answered from it
 
 A run is its clauses and whatever came in from outside. With

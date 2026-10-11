@@ -17,6 +17,13 @@
 %%              journal=true|false    the probe journals its portal calls and
 %%                                    the replay is answered from them (false)
 %%              journal_file=F        and the journal is kept in F
+%%              when=COND             not how the run went but WHEN: the first
+%%                                    inference at which COND holds -- a goal
+%%                                    over GOAL's variables, asked of the run
+%%                                    stopped there -- and the window that
+%%                                    ends there drawn (flow_when/4, which
+%%                                    journals by default); step=N asks every
+%%                                    N-th inference first
 %%
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
@@ -30,6 +37,11 @@
 %%
 %%     grow(F): left its journal at inference 7 (stopped at inference 9); recorded 1 to 9; diverged yes; journal 2 portal calls, 0 answered
 %%
+%% and with when=COND, where it first holds -- or that it does not where the
+%% run ends, when nothing is drawn and no file is named:
+%%
+%%     fill(L): nth1(3,L,X),X==3 first holds at inference 26; recorded 1 to 26
+%%
 %% (the XML's <run> holds every call, event and binding; library/flow/debug.pl
 %% and library/flow/dbgdraw.pl say what each is). A run that failed or threw
 %% is no failure of the command: the exit status stays 0.
@@ -41,7 +53,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [timeout=MS] [journal=true|false] [journal_file=F]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [timeout=MS] [journal=true|false] [journal_file=F] [when=COND] [step=N]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -49,12 +61,26 @@ main :-
     ;   format(user_error, "debug: no file ~w~n", [File]),
         halt(2)
     ),
-    (   fd_read_goal(GoalA, Goal, Names), callable(Goal)
-    ->  true
-    ;   format(user_error, "debug: ~w does not read as a goal~n", [GoalA]),
-        halt(2)
+    fd_split_when(OptAs, CondA, OptAs1),
+    (   CondA == none
+    ->  (   fd_read_goal(GoalA, Goal, Names), callable(Goal)
+        ->  true
+        ;   format(user_error, "debug: ~w does not read as a goal~n", [GoalA]),
+            halt(2)
+        )
+    ;   atomic_list_concat(['(', GoalA, ') - (', CondA, ')'], GC),
+        (   fd_read_goal(GC, Goal-Cond, Names), callable(Goal), callable(Cond)
+        ->  true
+        ;   format(user_error, "debug: ~w and ~w do not read as a goal and a question~n", [GoalA, CondA]),
+            halt(2)
+        )
     ),
-    fd_options(OptAs, Opts),
+    fd_options(OptAs1, Opts),
+    (   CondA == none
+    ->  true
+    ;   fd_when(Goal, Cond, Names, File, Base, Opts),
+        halt(0)
+    ),
     catch(flow_debug(Goal, Base, [source(File), names(Names)|Opts], Run), E, fd_error(E)),
     format("~w.svg~n~w.xml~n", [Base, Base]),
     Run = run(How, At, _, window(F, T), _, _, Div, J),
@@ -73,6 +99,28 @@ main :-
     flow_term_full(Goal, Names, 999, GT),
     format("~w: ~w; recorded ~w to ~w; diverged ~w~w~n", [GT, HT, F, T, DT, JT]).
 
+%% when=COND, taken out before the others: COND is Prolog and may hold an =
+fd_split_when([], none, []).
+fd_split_when([A|As], C, Rest) :-
+    (   atom_concat('when=', C0, A)
+    ->  C = C0, Rest = As
+    ;   fd_split_when(As, C, Rest0), Rest = [A|Rest0]
+    ).
+
+%% when=COND: where COND first holds, and the window that ends there drawn;
+%% a COND that does not hold where the run ends draws nothing
+fd_when(Goal, Cond, Names, File, Base, Opts) :-
+    catch(flow_when(Goal, Cond, [source(File), names(Names), base(Base)|Opts], When), E, fd_error(E)),
+    flow_term_full(Goal, Names, 999, GT),
+    flow_term_full(Cond, Names, 999, CT),
+    (   When = at(I)
+    ->  ( memberchk(window(W), Opts) -> true ; W = 2000 ),
+        From is max(1, I - W + 1),
+        format("~w.svg~n~w.xml~n", [Base, Base]),
+        format("~w: ~w first holds at inference ~w; recorded ~w to ~w~n", [GT, CT, I, From, I])
+    ;   format("~w: ~w does not hold where the run ends~n", [GT, CT])
+    ).
+
 %% the goal with the names it writes: read from a file of its own, which is
 %% how read_term/3 gives them
 fd_read_goal(A, Goal, Names) :-
@@ -90,7 +138,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, timeout=, journal= or journal_file=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, timeout=, journal=, journal_file=, when= or step=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -104,7 +152,7 @@ fd_option(journal, V, journal(V)) :-
 fd_option(journal_file, V, journal_file(V)) :-
     V \== ''.
 fd_option(K, V, O) :-
-    memberchk(K, [window, from, to, discs, text, timeout]),
+    memberchk(K, [window, from, to, discs, text, timeout, step]),
     catch(atom_number(V, N), _, fail),
     integer(N), N >= 0,
     O =.. [K, N].
