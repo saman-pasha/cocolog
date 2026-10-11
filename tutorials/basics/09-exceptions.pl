@@ -189,6 +189,16 @@ main :-
     format("     ERROR: -g main: Unknown procedure: nosuch/0~n~n"),
     format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),
     format("   can tell the goal that said no from the goal that broke.~n"),
+    format("   After the message comes WHERE it was raised (1.10.17): the~n"),
+    format("   goal that raised it and the goals left to run, or -- with~n"),
+    format("   --backtrace -- every call it was made in, as SWI writes them.~n"),
+    format("   `main :- risky(6), write(never).' under `run ... main':~n"),
+    format("~n     ERROR: -g main: Unknown message: mine(6)~n"),
+    format("     ERROR: In:~n"),
+    format("     ERROR:   [3] throw(mine(6))~n"),
+    format("     ERROR:   [2] risky(6)~n"),
+    format("     ERROR:   [1] main~n~n"),
+    format("   (TRACING.md; --no-backtrace keeps the message alone.)~n"),
     %% AND ONE THING THE MESSAGE DOES NOT SAY. Thrown at LOAD time -- out
     %% of a directive or an `initialization' goal -- the report is SWI's,
     %% line for line, and test/directives.pl diffs the two to keep it so:

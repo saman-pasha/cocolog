@@ -661,8 +661,10 @@ in_place(D) :-
     ( atom_concat(W9, _, A9) -> T9 = yes ; T9 = A9 ),
     %% but for what is not a function, named by its indicator since 1.10.6
     check('...and its answers are 1.9.4\'s', T9, yes),
-    W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
-    ( atom_concat(_, W9e, A9) -> T9e = yes ; T9e = A9 ),
+    %% the error, then its backtrace (1.10.17), which the two runs above
+    %% wrote alike
+    W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    ( sub_atom(A9, _, _, _, W9e), atom_concat(_, 'exit 2\n', A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
 
 %% THE FUSED GUARD WORDS (1.9.6). A guard in place whose two operands are
@@ -805,6 +807,8 @@ fused(D) :-
     ( atom_concat(W7, _, A7) -> T7 = yes ; T7 = A7 ),
     %% but for what is not a function, named by its indicator since 1.10.6
     check('...and its answers are 1.9.5\'s', T7, yes),
-    W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
-    ( atom_concat(_, W7e, A7) -> T7e = yes ; T7e = A7 ),
+    %% the error, then its backtrace (1.10.17), which the two runs above
+    %% wrote alike
+    W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).

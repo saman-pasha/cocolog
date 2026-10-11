@@ -513,7 +513,16 @@
     ;; FLOATS WRITTEN TO READ BACK BIT FOR BIT (1.10.15): set by the journal
     ;; around its own writes only (`coco_sb_put_double_exact'); every other
     ;; write keeps %.15g, which does not round-trip a time of day
-    (member int        wexact))
+    (member int        wexact)
+    ;; WHERE THE LAST BALL NOTHING WOULD CATCH WAS RAISED (1.10.17): the
+    ;; lines `coco_throw' writes before it unwinds, each begun `ERROR: ',
+    ;; for the host that reports the error to print after its message and
+    ;; free (`coco_bt_say', lib/kb.cicili); nil when there are none.
+    ;; BTKEEP is set by a builtin about to throw again, in its own engine,
+    ;; a ball the engine it started raised -- the lines that throw wrote
+    ;; are kept, and say more than this throw could
+    (member char *     bt)
+    (member int        btkeep))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -790,6 +799,7 @@
         (free (-> m vmap_to))
         (free (-> m cmask))
         (free (-> m cslots))
+        (free (-> m bt))
         (memset m 0 (sizeof coco_machine)))
 
   ;;; ---- the character buffer ------------------------------------------

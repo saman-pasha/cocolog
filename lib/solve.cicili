@@ -269,7 +269,9 @@
 
 ;;; Grouped by arity, so a goal of arity 3 never tests a builtin of arity 1.
 ;;; FOUND says whether the name was a builtin at all -- which is what tells
-;;; the engine to go looking in the knowledge base instead.
+;;; the engine to go looking in the knowledge base instead. A builtin found
+;;; is the engine's goal in flight (`kcall'), as a module's call is: the
+;;; goal an error's backtrace names as the one that raised (1.10.17).
 (DEFMACRO coco-emit-builtin-dispatch ()
   (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *builtins*)) #'<)))
     `(func coco_builtin ((coco_engine * e) (u64 nid) (u32 arity) (size_t g) (int * found))
@@ -282,6 +284,7 @@
                 `((== arity ,n)
                   (cond
                     ,@(MAPCAR (LAMBDA (row) `((== nid (coco-id m ,(FIRST row)))
+                                              (set (-> e kcall) g)
                                               (return (,(THIRD row) e g))))
                               (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) *builtins*))
                     (#t (set (cof found) 0) (return 0)))))
@@ -312,6 +315,8 @@
 
 (DEFMACRO coco-emit-builtin-call ()
   `(func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int)
+     ;; the goal in flight, as `coco_builtin' keeps it
+     (set (-> e kcall) g)
      (switch ix
        ,@(LOOP FOR row IN *builtins* FOR i FROM 0
                COLLECT `(case ,i (return (,(THIRD row) e g))))
@@ -519,12 +524,24 @@
     (member size_t      kgoal)
     (member size_t      kcall)
     (member size_t      ptrail)
-    (member size_t      pheap))
+    (member size_t      pheap)
+
+    ;; A BALL NOTHING IN THIS ENGINE CATCHES IS REPORTED BY WHOEVER STARTED
+    ;; IT, NOT THROWN ON (1.10.17): a directive's goal (`lb_goal_hook'). The
+    ;; backtrace's question -- would a catch take this ball? -- asks the
+    ;; engines on the chain out to this one and no further (`coco_bt_caught')
+    (member int         btstop))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
-  ;;; `notrace/0' flip the engine, not this.
+  ;;; `notrace/0' flip the engine, not this. `--backtrace' asks for 3, a
+  ;;; trace that prints nothing and keeps its markers, so that an error's
+  ;;; backtrace can name every call it was raised in (`coco_bt_capture').
   (var int coco_trace_default . 0)
+
+  ;;; Whether a ball nothing catches has its backtrace written (1.10.17):
+  ;;; 0 after `--no-backtrace'.
+  (var int coco_backtrace . 1)
 
   ;;; ---- a window of a run, RECORDED (1.10.12, library(flow/debug)) ---------
   ;;;
@@ -1212,6 +1229,9 @@
 
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
+        ;; QUIET (`trace' 3, `--backtrace'): nothing printed, the markers
+        ;; kept for an error's backtrace
+        (if (== (-> e trace) 3) (return))
         ;; IN A WINDOW, RECORDED rather than printed (`trace' 2): the port by
         ;; its first letter -- 67 C, 69 E, 70 F, else R -- and a Call with
         ;; the call it is inside, which the context still names here
@@ -2861,6 +2881,7 @@
   ;;; selection starts from kept for the heads after it (nil).
   (weak)
   (func coco_trace_paint ((coco_engine * e) (size_t ci) (int depth) (size_t g)) (out char *)
+        (if (== (-> e trace) 3) (return nil))
         (if (== (-> e trace) 2)
             (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
               (if (!= r nil)
@@ -2890,6 +2911,7 @@
                   (block (set (-> r pend) 0)
                          (coco_rec_heads e ci (-> r hstart) 1)))
               (return)))
+        (if (== (-> e trace) 3) (return))
         (coco_trace_line "Redo" depth text))
 
   ;;; the retry found no clause: its Fail, printed -- or the heads and the
@@ -2901,6 +2923,7 @@
               (if (!= r nil) (coco_rec_heads e ci (-> r hstart) 0))
               (coco_rec_port e COCO_REV_FAIL depth ($ (nth ci (-> e tchoices)) goal) 0)
               (return)))
+        (if (== (-> e trace) 3) (return))
         (coco_trace_line "Fail" depth text))
 
   ;;; a traced call matched no clause at all: the heads, then its Fail
@@ -3226,16 +3249,298 @@
   ;;; A CATCHER THAT DOES NOT MATCH MUST LEAVE NOTHING BEHIND. Trying it is a
   ;;; unification, so it is done between a mark and an undo -- otherwise a
   ;;; failed match would bind the catcher of an outer frame on the way past.
+  ;;;
+  ;;; ---- where a ball nothing caught was raised (1.10.17) -----------------
+  ;;;
+  ;;; THE BACKTRACE IS WRITTEN AS THE BALL IS THROWN, BEFORE ANYTHING
+  ;;; UNWINDS -- the one moment the run is still there to be read -- and only
+  ;;; for a ball no catch on the chain would take (`coco_bt_caught'): a
+  ;;; program that throws and catches pays a walk over its choice frames and
+  ;;; a unification for each catch, and writes nothing. The lines go to the
+  ;;; machine's `bt', for the host that reports the error to print after its
+  ;;; message (`coco_bt_say': cocolog.cicili's `say_goal_error', a load's
+  ;;; report of a directive), each begun `ERROR: ' as SWI begins its own:
+  ;;;
+  ;;;     ERROR: In:
+  ;;;     ERROR:   [5] _G120 is 2/0
+  ;;;     ERROR:   [4] oops(2,_G120)
+  ;;;
+  ;;; For each engine on the chain, the innermost first: the goal it was
+  ;;; running (`kcall': the builtin that raised, a module's predicate, the
+  ;;; builtin that started the engine inside it, the goal an error names);
+  ;;; then, TRACED (`--trace', or `--backtrace''s quiet trace 3), the calls
+  ;;; it was made in, one per `$trace_exit' marker with its depth; or
+  ;;; UNTRACED, the goals it had left to run -- each `'$k'' frame's goal and
+  ;;; each unit of an environment, with the clause the environment is a
+  ;;; body of. A run at full speed keeps no record of its calls: one that is
+  ;;; last in its body leaves nothing behind, and one that is not leaves the
+  ;;; goals after it, which are what there is to show -- and a note says how
+  ;;; to have the calls. Each engine's first eight entries and its last four
+  ;;; are written, with a count of those between; a goal past 240
+  ;;; characters is cut.
+
+  ;;; Would a catch on the chain -- from E out to the first engine whose
+  ;;; starter reports its errors itself (`btstop') -- take BALL as things
+  ;;; stand? A binding made since a catch was entered only makes its catcher
+  ;;; more particular, and the ball here shares variables its copy would
+  ;;; not, so a catch this says takes the ball does; one it says does not
+  ;;; may still, and then the lines written are never printed.
+  (static)
+  (func coco_bt_caught ((coco_engine * e) (size_t ball)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_engine * x . e))
+          (while (!= x nil)
+            (let ((size_t ci . #'(-> x nchoices)))
+              (while (> ci 0)
+                (set ci (- ci 1))
+                (if (== ($ (nth ci (-> x choices)) kind) COCO_CH_CATCH)
+                    (let ((size_t mark . #'(-> m trail_len))
+                          (int ok . #'(coco_unify m (coco_arg m ($ (nth ci (-> x choices)) call) 0)
+                                                  ball)))
+                      (coco_undo_to m mark)
+                      (if ok (return 1))))))
+            (if (-> x btstop) (return 0))
+            (set x (cast (coco_engine *) (-> x outer))))
+          (return 0)))
+
+  ;;; GOAL as `writeq' writes it, cut at 240 characters (not inside one)
+  (static)
+  (func coco_bt_text ((coco_machine * m) (coco_strbuf * b) (size_t g))
+        (let ((coco_strbuf tb) (size_t n . 0))
+          (coco_sb_init (aof tb))
+          (coco_write_term m (aof tb) g 1 0)
+          (if (== ($ tb s) nil)
+              (coco_sb_put b "?")
+            (block
+             (set n ($ tb len))
+             (if (<= n 240)
+                 (coco_sb_put_len b ($ tb s) n)
+               (block
+                (set n 240)
+                (while (and (> n 0) (== (bitand (cast int (nth n ($ tb s))) 192) 128))
+                  (set n (- n 1)))
+                (coco_sb_put_len b ($ tb s) n)
+                (coco_sb_put b " ...")))))
+          (coco_sb_free (aof tb))))
+
+  ;;; the engine's own goals, never a program's: a cut to a height, a
+  ;;; catch's exit, a trace marker, the constructs' `$true' and `$fail'
+  (static)
+  (func coco_bt_own ((coco_machine * m) (size_t g)) (out int)
+        (let ((u64 c . #'(nth g (-> m heap))))
+          (if (coco-tag-is ATOM c)
+              (let ((u64 a . #'(coco_name_of m g)))
+                (return (or (== a (coco-id m "$true")) (== a (coco-id m "$fail"))))))
+          (if (coco-tag-is FUN c)
+              (let ((u64 f . #'(cast u64 (coco-payload c))))
+                (return (or (== f (coco-fid m "$cut" 1)) (== f (coco-fid m "$softcut" 1))
+                            (== f (coco-fid m "$catch_exit" 1))
+                            (== f (coco-fid m "$trace_exit" 3))))))
+          (return 0)))
+
+  ;;; the predicate and the clause (from 1) whose program CD is, by a walk
+  ;;; over every predicate's programs; 0 when no live clause has it (its
+  ;;; clause retracted while the body ran)
+  (static)
+  (func coco_bt_clause ((coco_store * st) (void * cd) (size_t * pi) (size_t * ci)) (out int)
+        (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+          (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+            (if (!= (-> p codes) nil)
+                (for ((size_t j . 0)) (and (< j (-> p nclauses)) (< j (-> p codes_cap))) ((++ j))
+                  (if (== (nth j (-> p codes)) cd)
+                      (block (set (cof pi) i) (set (cof ci) (+ j 1)) (return 1)))))))
+        (return 0))
+
+  ;;; WHAT FOLLOWS CONTINUATION CELL C, and what C is (KIND): 1 a `'$k''
+  ;;; frame, 2 a unit of an environment, 0 neither -- the end -- as
+  ;;; `coco_k_resolve' reads them
+  (static)
+  (func coco_bt_next ((coco_machine * m) (size_t c) (int * kind)) (out size_t)
+        (let ((u64 cv . #'(nth c (-> m heap))))
+          (if (== cv (coco-cell FUN (coco-fid m "$k" 3)))
+              (block (set (cof kind) 1) (return (coco_deref m (+ c 3)))))
+          (if (coco-tag-is POS cv)
+              (let ((size_t pay . #'(cast size_t (coco-payload cv)))
+                    (size_t env . 0) (coco_code * cd . nil) (u32 un . 0))
+                (set env (- c (>> pay 16)))
+                (set cd (coco-env-code m env))
+                (set un ($ (nth (cast u32 (bitand pay 65535)) (-> cd egoals)) next))
+                (set (cof kind) 2)
+                (return (? (== un 0) (coco_deref m (+ env 2)) (coco-env-pos env cd un)))))
+          (set (cof kind) 0)
+          (return c)))
+
+  ;;; whether the entry at C (of KIND) is written: TRACED, a call's marker;
+  ;;; untraced, a goal of the program's -- a unit told by its kind, before
+  ;;; any term is built for it
+  (static)
+  (func coco_bt_shown ((coco_machine * m) (size_t c) (int kind) (int traced)) (out int)
+        (if (== kind 1)
+            (let ((size_t g . #'(coco_deref m (+ c 1))))
+              (if traced
+                  (return (== (nth g (-> m heap)) (coco-cell FUN (coco-fid m "$trace_exit" 3)))))
+              (return (not (coco_bt_own m g)))))
+        (if traced (return 0))
+        (let ((size_t pay . #'(cast size_t (coco-payload (nth c (-> m heap)))))
+              (size_t env . 0) (coco_code * cd . nil) (coco_egoal * eg . nil))
+          (set env (- c (>> pay 16)))
+          (set cd (coco-env-code m env))
+          (set eg (aof (nth (cast u32 (bitand pay 65535)) (-> cd egoals))))
+          (cond
+            ((== (-> eg kind) (cc-eg "CUTC")) (return 0))
+            ((or (== (-> eg kind) (cc-eg "CUT")) (== (-> eg kind) (cc-eg "TRUE"))
+                 (== (-> eg kind) (cc-eg "FAIL")))
+             (return (not (or (== (-> eg fid) (coco-id m "$true"))
+                              (== (-> eg fid) (coco-id m "$fail"))))))
+            ((== (-> eg kind) (cc-eg "TERM"))
+             (return (not (coco_bt_own m (coco_deref m (cast size_t (coco-payload
+                                                                     (nth (+ env (+ (+ (cast size_t (-> cd nes))
+                                                                                       (cast size_t (-> eg tslot)))
+                                                                                    4))
+                                                                          (-> m heap)))))))))
+            (#t (return 1)))))
+
+  ;;; THE ENTRY AT C, one line: TRACED, `[Depth] Goal' read from its
+  ;;; marker; untraced, `then Goal', and a unit of an environment other
+  ;;; than the last line's names the clause the environment is a body of
+  (static)
+  (func coco_bt_line ((coco_engine * x) (coco_strbuf * b) (size_t c) (int kind) (int traced)
+                      (size_t * lastenv))
+        (let ((coco_machine * m . #'(-> x m)))
+          (if (== kind 1)
+              (let ((size_t g . #'(coco_deref m (+ c 1))))
+                (if traced
+                    (block
+                     (coco_sb_put b "ERROR:   [")
+                     (coco_sb_put_i64 b (coco-signed-payload
+                                         (nth (coco_deref m (coco_arg m g 1)) (-> m heap))))
+                     (coco_sb_put b "] ")
+                     (coco_bt_text m b (cast size_t (coco-signed-payload
+                                                     (nth (coco_deref m (coco_arg m g 0)) (-> m heap))))))
+                  (block (coco_sb_put b "ERROR:   then ")
+                         (coco_bt_text m b g)))
+                (coco_sb_putc b (cast char 10))
+                (return)))
+          ;; a unit, built back as the term its frame held
+          (let ((size_t pay . #'(cast size_t (coco-payload (nth c (-> m heap)))))
+                (size_t env . 0) (coco_code * cd . nil) (size_t g . 0))
+            (set env (- c (>> pay 16)))
+            (set cd (coco-env-code m env))
+            (coco_sb_put b "ERROR:   then ")
+            (if (coco_unit_term m cd env (cast u32 (bitand pay 65535)) (aof g))
+                (coco_bt_text m b (coco_deref m g))
+              (coco_sb_put b "?"))
+            (if (!= env (cof lastenv))
+                (let ((size_t pi . 0) (size_t ci . 0))
+                  (set (cof lastenv) env)
+                  (if (coco_bt_clause (-> x st) (cast (void *) cd) (aof pi) (aof ci))
+                      (let ((coco_pred * p . #'(aof (nth pi ($ (cof (-> x st)) preds))))
+                            (size_t a . #'(coco_new_atom_id m (-> p name)))
+                            (size_t n . #'(coco_new_int m (cast i64 (-> p arity)))))
+                        (coco_sb_put b "   (clause ")
+                        (coco_sb_put_i64 b (cast i64 ci))
+                        (coco_sb_put b " of ")
+                        (coco_bt_text m b (coco_make2 m "/" a n))
+                        (coco_sb_put b ")")))))
+            (coco_sb_putc b (cast char 10)))))
+
+  ;;; ONE ENGINE'S PART: the goal it was running, then its entries -- the
+  ;;; first eight, a count of those after them but for the last four, and
+  ;;; the last four. Answers the lines written.
+  (static)
+  (func coco_bt_engine ((coco_engine * x) (coco_strbuf * b)) (out int)
+        (let ((coco_machine * m . #'(-> x m))
+              (int traced . #'(!= (-> x trace) 0))
+              (size_t kc . #'(-> x kcall))
+              (size_t c . #'(coco_deref m (-> x goals)))
+              (size_t ring [4]) (int rkind [4]) (size_t nr . 0) (size_t n . 0)
+              (size_t lastenv . 0) (int kind . 0) (size_t nx . 0) (int lines . 0))
+          ;; the goal in flight, when it is a cell of the heap
+          (if (and (!= kc 0) (< kc (-> m heap_len)))
+              (block
+               (if traced
+                   (block (coco_sb_put b "ERROR:   [")
+                          (coco_sb_put_i64 b (cast i64 (+ (-> x trace_depth) 1)))
+                          (coco_sb_put b "] "))
+                 (coco_sb_put b "ERROR:   "))
+               (coco_bt_text m b kc)
+               (coco_sb_putc b (cast char 10))
+               (set lines 1)
+               ;; taken from a frame, it left the frame where it was
+               (if (== (nth c (-> m heap)) (coco-cell FUN (coco-fid m "$k" 3)))
+                   (if (== (coco_deref m (+ c 1)) kc)
+                       (set c (coco_deref m (+ c 3)))))))
+          (while 1
+            (set nx (coco_bt_next m c (aof kind)))
+            (if (== kind 0) break)
+            (if (coco_bt_shown m c kind traced)
+                (block
+                 (set n (+ n 1))
+                 (if (<= n 8)
+                     (block (coco_bt_line x b c kind traced (aof lastenv))
+                            (set lines (+ lines 1)))
+                   (block (set (nth (% nr 4) ring) c)
+                          (set (nth (% nr 4) rkind) kind)
+                          (set nr (+ nr 1))))))
+            (set c nx))
+          (if (> nr 4)
+              (block (coco_sb_put b "ERROR:   ... ")
+                     (coco_sb_put_i64 b (cast i64 (- nr 4)))
+                     (coco_sb_put b " more ...")
+                     (coco_sb_putc b (cast char 10))))
+          (for ((size_t k . #'(? (> nr 4) (- nr 4) 0))) (< k nr) ((++ k))
+            (coco_bt_line x b (nth (% k 4) ring) (nth (% k 4) rkind) traced (aof lastenv))
+            (set lines (+ lines 1)))
+          (return lines)))
+
+  ;;; THE LINES, written for E and every engine out from it to the first
+  ;;; that reports its own errors, into the machine's `bt'
+  (static)
+  (func coco_bt_capture ((coco_engine * e))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf b) (coco_engine * x . e) (int untraced . 0) (int lines . 0))
+          (coco_sb_init (aof b))
+          (coco_sb_put (aof b) "ERROR: In:")
+          (coco_sb_putc (aof b) (cast char 10))
+          (while (!= x nil)
+            (if (== (-> x trace) 0) (set untraced 1))
+            (set lines (+ lines (coco_bt_engine x (aof b))))
+            (if (-> x btstop) break)
+            (set x (cast (coco_engine *) (-> x outer))))
+          (if untraced
+              (block
+               (coco_sb_put (aof b) "ERROR: Note: what each goal had left to run, not the calls it was made in;")
+               (coco_sb_putc (aof b) (cast char 10))
+               (coco_sb_put (aof b) "ERROR: run with --backtrace to see those.")
+               (coco_sb_putc (aof b) (cast char 10))))
+          (free (-> m bt))
+          (set (-> m bt) nil)
+          ;; nothing, or nothing the message does not say: the one line is
+          ;; the goal that raised and that goal is the whole query asked --
+          ;; `:- foo.' with foo unknown, `cocolog query 'X is 1/0''
+          (if (or (== lines 0)
+                  (and (== lines 1) (!= (-> e kcall) 0)
+                       (== (-> e kcall) (coco_deref m (-> e query)))))
+              (coco_sb_free (aof b))
+            (set (-> m bt) ($ b s)))))
+
   (static)
   (func coco_throw ((coco_engine * e) (size_t ball)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (size_t cell . #'(coco_store_put (-> e st) (-> e m) ball))
-              (size_t size . #'(- ($ (cof (-> e st)) len) cell)))
+              (size_t size . #'(- ($ (cof (-> e st)) len) cell))
+              ;; a builtin throwing again a ball its engine raised keeps the
+              ;; lines that first throw wrote (1.10.17)
+              (int keep . #'(-> m btkeep)))
+          (set (-> m btkeep) 0)
 
           ;; a window records the raise, and a journal keeps a portal call's,
           ;; before anything unwinds (1.10.12, 1.10.15)
           (if (!= ($ (cof m) rec) nil) (coco_rec_throw e ball))
+          ;; A BALL NO CATCH ON THE CHAIN WOULD TAKE: where it was raised,
+          ;; written now, while there is a run to read (1.10.17)
+          (if (and coco_backtrace (not keep))
+              (if (not (coco_bt_caught e ball)) (coco_bt_capture e)))
           (while (> (-> e nchoices) 0)
             (let ((size_t ci . #'(- (-> e nchoices) 1))
                   (int kind) (size_t call) (size_t goals) (size_t barrier))
@@ -4250,6 +4555,9 @@
                      (coco_store_root_pop st)
                      (free kept)
                      (set (-> st dead) (+ (-> st dead) (+ kept_cells ball_size)))
+                     ;; the backtrace the inner throw wrote, from inside the
+                     ;; goal out through this engine, is the one kept
+                     (set (-> m btkeep) 1)
                      (return (? (== 1 (coco_throw e (coco_store_get m st ball_cell))) 2 0))))
 
           (if (not ok) (block (coco_undo_to m tmark)
@@ -4344,6 +4652,8 @@
             ;; whatever catch frame matches, which is at or below this mark
             (if threw
                 (block (set (-> st dead) (+ (-> st dead) bsize))
+                       ;; and the inner throw's backtrace with it
+                       (set (-> m btkeep) 1)
                        (set out (? (== 1 (coco_throw e (coco_store_get m st cell)))
                                    3 -1)))))
           (return out)))
@@ -4711,7 +5021,9 @@
 
                   ((and (== n 1) (== nid (coco-id m "throw")))
                    ;; never fails and never simply succeeds: it either transfers
-                   ;; control to a recovery goal or ends the query
+                   ;; control to a recovery goal or ends the query -- and is
+                   ;; the goal the backtrace names as raising (`kcall')
+                   (set (-> e kcall) g)
                    (if (coco_m_thrown e (coco_arg m g 0)) (block) (block (set (cof ret) -1) (return 2))))
 
                   ((and (> n 1) (== nid (coco-id m "call")))
@@ -4730,7 +5042,9 @@
                      ;; a caught raise (2) is handled: the loop goes on at
                      ;; the recovery goal, as the loop's own two sites do
                      (if (not (coco_is_callable m c))
-                         (let ((int rc1 . #'(coco_type_error e "callable" c)))
+                         (let ((int rc1 . 0))
+                           (set (-> e kcall) g)
+                           (set rc1 (coco_type_error e "callable" c))
                            (if (== rc1 2) (return 1))
                            (set (cof ret) rc1)
                            (return 2)))
@@ -4964,12 +5278,16 @@
               ;; goal already, so the loop goes round again. These two sites
               ;; returned the 2, and `catch(call(_), E, true)' ended the
               ;; query silently with the host's exit status 2 (1.8.46).
+              ;; each raise names its goal as the one in flight (`kcall'),
+              ;; for the backtrace (1.10.17) -- on these paths only
               (let ((u64 gc . #'(nth g (-> m heap))))
                 (if (coco-tag-is REF gc)
-                    (block (if (!= 2 (coco_instantiation_error e)) (return -1))
+                    (block (set (-> e kcall) g)
+                           (if (!= 2 (coco_instantiation_error e)) (return -1))
                            continue))
                 (if (not (coco_is_callable m g))
-                    (block (if (!= 2 (coco_type_error e "callable" g)) (return -1))
+                    (block (set (-> e kcall) g)
+                           (if (!= 2 (coco_type_error e "callable" g)) (return -1))
                            continue)))
 
               ;; THE NAME AS AN ID, not as a string: every test below is an
@@ -5263,9 +5581,14 @@
                              (if ($ (nth pi ($ (cof st) preds)) dynamic)
                                  (block (if tport (coco_trace_port e "Fail" tD g))
                                         (set ok 0))
-                               (if (!= 2 (coco_existence_error e "procedure"
-                                                                (coco_atom_name m nid) n))
-                                   (return -1)))))))))))))
+                               (block
+                                ;; the goal in flight: the module seam's walk
+                                ;; set it the first time, and a second call
+                                ;; is stamped and walks nothing (1.10.17)
+                                (set (-> e kcall) g)
+                                (if (!= 2 (coco_existence_error e "procedure"
+                                                                 (coco_atom_name m nid) n))
+                                    (return -1))))))))))))))
 
               (if (not ok)
                   (if (not (coco_backtrack e)) (return 0)))))

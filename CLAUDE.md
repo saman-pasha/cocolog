@@ -241,6 +241,14 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   the only flags answered. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
+* **An error nothing caught is followed on stderr by its backtrace**
+  (1.10.17; TRACING.md): `ERROR: In:`, the goal that raised, then each
+  engine's goals left to run -- or, under `--backtrace` (trace 3, which
+  prints nothing) or `--trace`, every call as `[Depth] Goal`. A load's
+  directive and initialization reports carry one too. `--no-backtrace`
+  turns it off; a case that holds stderr to the letter either takes the
+  backtrace into what it expects or compares the message's lines alone
+  (test/engine.pl, test/directives.pl's swipl diff).
 * **Raise the server detached**, with its libraries on the path:
 
   ```sh
@@ -261,8 +269,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 60 `.pl` cases in `pl_names/1`
--- **67 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 61 `.pl` cases in `pl_names/1`
+-- **68 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -623,6 +631,25 @@ cocolint index offers no import of it.
   that cannot go on; a new builtin raises through `coco_raise`. `format/2`'s
   `~a`, `~s` and the format itself take text of any length
   (`coco_text_put`).
+* **The backtrace is written by the throw, before anything unwinds**
+  (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
+  catch on the chain of engines would take as things stand
+  (`coco_bt_caught`: it can say "nobody" of a catch that takes the ball
+  once the bindings are undone, never the reverse). What keeps it true:
+  **the goal in flight is `kcall`** -- set by `coco_builtin_call` and
+  `coco_builtin` (one store a builtin call: the only instruction a run
+  that throws nothing pays, `tools/flow/zero.sh`), by the module seam as before,
+  and at each raise of the step and the constructs (an unbound or
+  non-callable goal, an unknown procedure, `throw/1`, `call/N`); **a new
+  raise site outside a builtin sets `kcall` first**. **A builtin that
+  starts an engine and throws its ball again sets `m->btkeep`** before
+  `coco_throw` (findall, `call_metered/4`, `with_output_to/2`), so the
+  inner throw's lines -- which already read out through every engine --
+  are kept. **An engine whose starter reports its own errors sets
+  `btstop`** (a directive's, `lb_goal_hook`), and the starter keeps the
+  lines only when its goal raised; a load drops any it finds first
+  (`coco_bt_say(m, 0)`). Trace 3 (`--backtrace`) is trace 1 that prints
+  nothing: `coco_trace_port`, the Redo and the Fail return at once.
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,

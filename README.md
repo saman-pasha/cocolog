@@ -1817,9 +1817,27 @@ for a window of a run that reached it untraced at full speed
 reaches the world -- the clock, the environment, a file, a stream, a
 process, a thread -- written down with its answer, so that a replay is
 answered from the journal, does none of it again, and stops where it
-leaves the run it replays. **[TRACING.md](TRACING.md)** is the whole
-story: turning it on, reading the ports, the subtleties, how the
-conformance is kept, the window and the journal.
+leaves the run it replays. And an error nothing caught is followed, after
+its message, by WHERE IT WAS RAISED: the goal that raised it and the
+goals each engine still had to run -- or, with `--backtrace` (the tracer
+running and printing nothing), every call it was made in, as SWI writes
+them with library(prolog_stack):
+
+```console
+$ cocolog --backtrace -s t.pl
+ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: In:
+ERROR:   [5] _G66 is 2/(1-1)
+ERROR:   [4] oops(2,1,_G66)
+ERROR:   [3] step2(2,_G66)
+ERROR:   [2] step1(3)
+ERROR:   [1] main
+```
+
+`--no-backtrace` keeps the message alone. **[TRACING.md](TRACING.md)** is
+the whole story: turning it on, reading the ports, the subtleties, how
+the conformance is kept, where an error was raised, the window and the
+journal.
 
 ## The Emacs mode
 

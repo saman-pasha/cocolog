@@ -28,6 +28,10 @@ program's own output to stdout, so the two never tangle:
 $ cocolog --trace run program.pl "goal" 2>trace.txt
 ```
 
+`--backtrace` runs the same tracer and prints nothing: what it keeps is
+for an error's backtrace (below), which then names every call the error
+was raised in.
+
 ## Reading the ports
 
 ```console
@@ -119,6 +123,78 @@ taken as a step of its own, and naive reverse of eight, 47 inferences,
 counted 93 under `--trace`. And **a machine stepped in turns finishes at
 the count of one turn**: `step --steps 12` suspends at 12 (it printed 13,
 counting the goal it stopped at, which the next turn counted again).
+
+## Where an error was raised
+
+An error nothing caught is followed on stderr, after its message, by
+where it was raised (1.10.17). At full speed that is the goal that raised
+it and the goals each engine still had to run, innermost first. With
+
+```prolog
+main :- step1(3), write(done), nl.
+step1(N) :- N1 is N - 1, step2(N1, R), write(R), nl.
+step2(N, R) :- member(X, [1,2]), oops(N, X, R).
+oops(N, X, R) :- R is N / (X - X).
+```
+
+in `t.pl`:
+
+```console
+$ cocolog -s t.pl
+ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: In:
+ERROR:   _G38 is 2/(1-1)
+ERROR:   then write(_G38)
+ERROR:   then nl
+ERROR:   then write(done)
+ERROR:   then nl
+ERROR: Note: what each goal had left to run, not the calls it was made in;
+ERROR: run with --backtrace to see those.
+```
+
+A run at full speed keeps no record of its calls -- the continuation is
+the goals still to run, and a call last in its body leaves nothing at
+all -- so that is what there is to show. A goal still to run in a body
+with an if-then-else, a negation or a disjunction lives in that clause's
+environment, which knows its clause, and says so: `then N is N0+1
+(clause 2 of len/2)`. Under `--backtrace` (or `--trace`) every call
+leaves its `'$trace_exit'` marker on the continuation, and the backtrace
+is SWI's, depth by depth:
+
+```console
+$ cocolog --backtrace -s t.pl
+ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: In:
+ERROR:   [5] _G66 is 2/(1-1)
+ERROR:   [4] oops(2,1,_G66)
+ERROR:   [3] step2(2,_G66)
+ERROR:   [2] step1(3)
+ERROR:   [1] main
+```
+
+* **Inside a builtin's engine** -- `findall/3`, `forall/2`,
+  `aggregate_all/3`, `call_metered/4`, `with_output_to/2` -- the goals
+  inside come first, then the builtin, then the goals after it: the
+  builtin throws the ball again in its own engine and keeps the lines the
+  first throw wrote.
+* **Each engine shows its first eight entries and its last four**, with
+  a count of those between (`... 49 more ...`); a goal past 240
+  characters is cut (` ...`).
+* **A load's reports have one too**: a directive's, an initialization
+  goal's, `initialization(main, main)`'s -- after the message, which stays
+  word for word swipl's (`test/directives.pl`). A load under a `catch/3`
+  reports its directive's error itself, and so writes its lines.
+* **Nothing is written that the message already says**: a goal that is
+  itself the whole query asked (`cocolog query 'X is 1/0'`, `:- foo.`
+  with `foo` unknown) has no backtrace. `--no-backtrace` turns them off.
+* **swipl prints a backtrace only with library(prolog_stack) loaded**, in
+  the same `ERROR: In:` shape; cocolog always does.
+
+The lines are written by the throw itself, before anything unwinds -- the
+one moment the run is still there to read -- and only for a ball no catch
+on the chain of engines would take, so a program that throws and catches
+pays a walk over its choice frames and writes nothing. `test/backtrace.pl`
+holds both shapes to the letter.
 
 ## A window, recorded
 

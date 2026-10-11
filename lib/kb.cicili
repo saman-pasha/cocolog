@@ -1617,6 +1617,12 @@
   ;;; that threw is. Never returns.
   (decl) (func coco_halt_load ((coco_store * st) (int code) (int keep)))
 
+  ;;; THE BACKTRACE OF THE ERROR JUST REPORTED (1.10.17): the machine's
+  ;;; `bt', put on stderr after the message when SAY -- the run the message
+  ;;; is about ended with a ball, whose throw wrote it -- and freed either
+  ;;; way, so a later report never prints lines that were not its own.
+  (decl) (func coco_bt_say ((coco_machine * m) (int say)))
+
   ) ; decl-kb
 
 
@@ -1684,6 +1690,12 @@
         (if (!= origin nil)
             (fprintf stderr "%s: %s:%d: %s\n" tag origin line what)
           (fprintf stderr "%s: %s\n" tag what)))
+
+  (func coco_bt_say ((coco_machine * m) (int say))
+        (if (== (-> m bt) nil) (return))
+        (if say (fputs (-> m bt) stderr))
+        (free (-> m bt))
+        (set (-> m bt) nil))
 
   ;;; ---- the goals a file puts off ----------------------------------------
 
@@ -6034,6 +6046,10 @@
               ;; Taken here, so the reader and the store never run under it.
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
+          ;; a backtrace no report took (a window's, whose ball it handed
+          ;; back) is not this load's: only a goal run from here writes one
+          ;; to report
+          (coco_bt_say m 0)
           (memset (aof inits) 0 (sizeof coco_initgoals))
           ;; the goals put off to the end are cell indices; a compaction
           ;; before they run must move them too. `coco_consult' unregisters.
@@ -6149,6 +6165,10 @@
                              (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
                              (if (== dr 0) (coco_load_message "ERROR" origin at err))
+                             ;; and where it was raised, when its goal raised
+                             ;; it (1.10.17): `lb_goal_hook' keeps the lines
+                             ;; then and only then
+                             (coco_bt_say m (== dr 0))
                              ;; BOTH, IN SWI'S ORDER: why nothing was loaded,
                              ;; then that the directive failed, named
                              (if (== dr 3)
@@ -6252,7 +6272,9 @@
                                                  (? main "main: raised exception:"
                                                     "Initialization goal raised exception:"))
                                  (fprintf stderr "ERROR: %s\n" err)
-                                 (set code 2))))))
+                                 (set code 2))))
+                    ;; where it was raised, as a directive's (1.10.17)
+                    (coco_bt_say m (and (!= gr 1) (!= gr 0)))))
                 (if (== (nth i ($ inits modes)) 1)
                     (block (set halt_after 1) (set halt_code code)))
                 (set (-> m heap_len) back)))
