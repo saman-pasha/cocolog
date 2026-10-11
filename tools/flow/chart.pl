@@ -9,10 +9,13 @@
 %%     OPTION   libraries=reach|all|none    title=TEXT
 %%              depth=N|all                 draw panels at most N calls deep
 %%              only=NAME/ARITY,NAME//ARITY draw these predicates' panels
+%%              builtins=fold|show          fold (the default): a run of
+%%                                          builtin work is one box; show:
+%%                                          every goal on the flow line
 %%
-%% depth and only change the picture alone: the XML always has everything.
-%% A chart of more than 150 panels is drawn to the depth that fits unless
-%% one of them says otherwise.
+%% depth, only and builtins change the picture alone: the XML always has
+%% everything. A chart of more than 150 panels is drawn to the depth that
+%% fits unless depth or only says otherwise.
 %%
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
@@ -25,7 +28,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [SpecA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=reach|all|none] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=reach|all|none] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...] [builtins=fold|show]~n", []),
         halt(2)
     ),
     (   catch(term_to_atom(Spec, SpecA), _, fail)
@@ -46,7 +49,7 @@ fc_options([], []).
 fc_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fc_option(K, V, O)
     ->  true
-    ;   format(user_error, "chart: an option is libraries=..., title=..., depth=... or only=..., not ~w~n", [A]),
+    ;   format(user_error, "chart: an option is libraries=..., title=..., depth=..., only=... or builtins=..., not ~w~n", [A]),
         halt(2)
     ),
     fc_options(As, Os).
@@ -57,6 +60,7 @@ fc_option(depth, V, depth(D)) :-
     (   V == all -> D = all
     ;   catch(atom_number(V, D), _, fail), integer(D), D >= 1
     ).
+fc_option(builtins, V, builtins(V)) :- memberchk(V, [fold, show]).
 fc_option(only, V, only(Ps)) :-
     atomic_list_concat(As, ',', V),
     fc_preds(As, Ps).

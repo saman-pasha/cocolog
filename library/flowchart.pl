@@ -26,11 +26,17 @@
 %%     depth(D)         the PICTURE draws panels at most D calls deep
 %%     only(Preds)      the PICTURE draws these predicates' panels, a list of
 %%                      Name/Arity and Name//Arity
+%%     builtins(B)      fold (default): the PICTURE's flow goes through your
+%%                      code, a run of builtin work one box; show: every goal
 %%
 %% A panel that a drawn one calls but that is not drawn itself is a STUB --
 %% its head, why, and how many panels hang from it. With neither depth nor
 %% only, a chart of more than 150 panels is drawn to the depth that fits
-%% and says so. THE XML IS NEVER PRUNED.
+%% and says so. BUILTIN WORK IS FOLDED: tests, unifications, builtins and
+%% library calls that lead to no panel, run by run, into one `⋯ N' box that
+%% fails and leaves a choice where they would -- a dot where it can do
+%% neither -- while if-then-else and `;' are always drawn, being the flow.
+%% THE XML IS NEVER PRUNED AND NEVER FOLDED.
 %%
 %% THE TWO FILES COME FROM ONE GRAPH, so they cannot disagree, and they
 %% share their ids: panel p3, its clause p3.c2, that clause's goal p3.c2.g4
@@ -155,8 +161,14 @@ flow_option(Opt, Opts, Default) :-
     (   memberchk(Opt, Opts) -> true ; arg(1, Opt, Default) ).
 
 %% depth(D): D calls deep at most, D a positive integer or `all';
-%% only(Preds): a list of Name/Arity and Name//Arity
+%% only(Preds): a list of Name/Arity and Name//Arity; builtins(B): fold or
+%% show
 flow_check_draw_opts(Opts) :-
+    (   memberchk(builtins(B), Opts),
+        \+ memberchk(B, [fold, show])
+    ->  throw(error(domain_error(flow_builtins, B), flow_chart/3))
+    ;   true
+    ),
     (   memberchk(depth(D), Opts),
         \+ ( D == all ; integer(D), D >= 1 )
     ->  throw(error(domain_error(flow_depth, D), flow_chart/3))

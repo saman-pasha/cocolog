@@ -122,14 +122,15 @@ flow_xml(+Graph, -Xml)
 `+` and `-` (parsing). Options: `source(File)` (the program), `title(T)`,
 `libraries(reach | all | none)` (`reach`, the default, makes a library
 predicate a panel only on a path that reaches C), and for the picture alone
-`depth(D)` and `only(Preds)` (section 4.5). A program in several files
+`depth(D)`, `only(Preds)` (section 4.5) and `builtins(fold | show)`
+(section 4.6). A program in several files
 (`files(Files)`) is not built yet: a file's own `use_module` directives load
 the rest, which the chart reaches as libraries.
 
 For an agent in any language, one command writes both files:
 
 ```sh
-cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1]
+cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1] [builtins=show]
 # out/report.svg and out/report.xml; exit 0, 1 for no such predicate, 2 for an error
 ```
 
@@ -225,6 +226,28 @@ lines, reaches 2897 panels.
   largest clauses: a state is a list searched by `==`, so a clause costs about
   goals x variables^2 (`tr_read0/4`, 72 clauses of up to 77 variables, is a
   million inferences an analysis) -- the next thing to make cheaper.
+
+### 4.6 The flow goes through your code (the owner, 2026-10-11)
+
+"Add a flag to default not go through builtins." Half of the translator's
+87 389 goals are builtin work -- 17 963 unifications, 11 660 tests, 8848
+library calls, 3840 builtins -- and each was a box on its clause's line.
+
+* **`builtins(fold)`, the default**: each run of builtin work -- a builtin, a
+  test, a unification, a library predicate that leads to no panel, or `\+`,
+  a meta-call or `catch/3` holding only such goals -- is ONE box, `⋯ N`,
+  that can fail if a goal in it can and leaves a choice (`↻`) if a goal in it
+  does, so the failure lanes stay true; a run that can do neither is a dot on
+  the line. Its tooltip lists the goals.
+* **An if-then-else and a disjunction are always drawn**, whatever they hold:
+  conditions and branches are the flow. Only the goals inside them fold.
+* **The ids hold**: a fold is named by its run's first goal, and every other
+  goal in it is an empty element of its own id inside the box, so each XML id
+  still finds its box. The numbering is the XML's, folded or not.
+* **`builtins(show)`** draws every goal as F1 first did. The XML is the same
+  either way (the case checks it byte for byte).
+* The translator's chart: 15 157 px wide folded against 20 425 shown, 1.20 MB
+  against 1.28 MB, in the same 45 s.
 
 ## 5. Grammar rules are predicates
 
@@ -479,7 +502,7 @@ order.
 | phase | delivers | engine change | lands |
 |---|---|---|---|
 | F0 | the look, on two fixtures | none | built, on the work branch |
-| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
+| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, builtin work folded by default (`builtins(show)` draws it), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
 | F2 | threads and processes: lanes, spawn and join, messages, locks, process portals, writes to a shared knowledge base | none | proposes a minor |
 | F3 | findings, in the XML and on the chart | none | proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |

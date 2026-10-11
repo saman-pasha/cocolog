@@ -39,6 +39,7 @@ main :-
     failure,
     documents,
     drawing_less,
+    folding,
     command,
     refusals,
     checks_done.
@@ -306,6 +307,55 @@ drawing_less :-
     check('depth(0) is refused by name', G5, error(error(domain_error(flow_depth, 0), flow_chart/3))),
     answer(flow_chart(report('+', '+', '+'), B1, [source(F), only(pick)]), yes, G6),
     check('only/1 wants a list of Name/Arity', G6, error(error(domain_error(flow_only, pick), flow_chart/3))).
+
+%% ---- builtin work, folded ----------------------------------------------
+
+folding :-
+    section('builtin work folded by default, every goal with builtins(show)'),
+    scratch(D),
+    fx(demo, F),
+    atom_concat(D, '/fold', B0), atom_concat(D, '/show', B1),
+    flow_chart(report('+', '+', '+'), B0, [source(F)]),
+    flow_chart(report('+', '+', '+'), B1, [source(F), builtins(show)]),
+    svg_doc(B0, S0), svg_doc(B1, S1),
+    %% grep_count/3: codes_lines(Text, Lines), findall(L, (member(L, Lines),
+    %% re_match(Pat, L)), Hits), length(Hits, N)
+    svg_title(S1, 'p2.c1.g2.g1', T1),
+    check('builtins(show): member/2 has a box of its own', T1, 'member(L, Lines)  --  library(lists), nondet'),
+    svg_title(S0, 'p2.c1.g2.g1', T2),
+    check('by default it is folded, and its box says what it holds', T2,
+          '1 builtin goal, folded  --  builtins(show) draws it:\nmember(L, Lines)'),
+    svg_element(S0, 'p2.c1.g2.g1', element(_, _, C3)),
+    yes_no(svg_has_text(C3, '↻'), Y3),
+    check('the fold leaves the choice member/2 leaves, so re_match/2''s failure still goes back into it', Y3, yes),
+    svg_element(S0, 'p1.c1.g5', element(_, _, C4)),
+    yes_no(( memberchk(element(circle, _, _), C4), \+ memberchk(element(text, _, _), C4) ), Y4),
+    check('format/2, which can neither fail nor leave a choice, is a dot on the line', Y4, yes),
+    svg_element(S0, p3, element(_, _, C5)),
+    yes_no(svg_has_text(C5, 'if  ->  then  ;  else'), Y5),
+    check('classify/2''s if-then-else is drawn though it holds only builtins: conditions are the flow', Y5, yes),
+    svg_element(S0, 'p3.c1.g1.a1.if.g1', element(_, _, C6)),
+    yes_no(svg_has_text(C6, '⋯ 1'), Y6),
+    check('and the test in its condition is folded inside it', Y6, yes),
+    xml_file(B0, X0), xml_file(B1, X1),
+    yes_no(X0 == X1, Y7),
+    check('the XML is the same folded or not', Y7, yes),
+    answer(flow_chart(report('+', '+', '+'), B0, [source(F), builtins(maybe)]), yes, G8),
+    check('builtins/1 is fold or show, by name', G8, error(error(domain_error(flow_builtins, maybe), flow_chart/3))).
+
+svg_doc(Base, S) :-
+    atom_concat(Base, '.svg', SF),
+    read_file_to_codes(SF, C),
+    xml_parse(C, S).
+
+svg_element(S, Id, E) :-
+    xml_element_id(S, Id, E).
+
+svg_title(S, Id, T) :-
+    (   svg_element(S, Id, element(_, _, Cs)), memberchk(element(title, _, [T0]), Cs)
+    ->  T = T0
+    ;   T = none
+    ).
 
 %% the panels of an SVG, each drawn in full or as a stub, sorted
 svg_panels(Base, Ps) :-

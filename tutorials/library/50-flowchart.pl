@@ -10,7 +10,8 @@
 %%
 %%     flow_chart(+Spec, +Base)             Base.svg and Base.xml
 %%     flow_chart(+Spec, +Base, +Options)   source(File), title(T), libraries(reach|all|none),
-%%                                          depth(D), only(Preds) -- these two for the picture
+%%                                          depth(D), only(Preds), builtins(fold|show) --
+%%                                          these three for the picture
 %%     flow_graph(+Spec, -Graph, +Options)  the analysis as a term
 %%     flow_svg(+Graph, -Svg)   flow_xml(+Graph, -Xml)      the documents as terms
 %%
@@ -34,7 +35,10 @@
 %% A BIG PROGRAM IS DRAWN IN PART and analysed in full: past 150 panels the
 %% picture stops at the depth that fits, depth(D) and only(Preds) choose
 %% another part, and a panel left out is a stub that says how much hangs
-%% from it. The XML always has everything.
+%% from it. THE FLOW GOES THROUGH YOUR CODE: a run of builtin work --
+%% tests, unifications, builtins, library calls -- is one box, a dot where
+%% it can neither fail nor leave a choice, and builtins(show) draws every
+%% goal. The XML always has everything.
 
 :- use_module(library(flowchart)).
 :- use_module(library(stream)).
@@ -113,6 +117,21 @@ main :-
     ( has_text(S1, 'not drawn: deeper than depth(1)') -> Stub = yes ; Stub = no ),
     must('ws//1, which count/2 calls, is a stub in the picture', Stub, yes),
 
+    format("~n-- the flow goes through your code; builtins(show) draws the rest~n"),
+    %% word//1 is word([C|Cs]) --> [C], { code_type(C, alpha) }, word_rest(Cs):
+    %% its body is the test, the list passed on (S1 = S0), and the call
+    svg_title(S, 'p4.c1.g1', T5),
+    ( atom_concat('2 builtin goals, folded', _, T5) -> Fold5 = yes ; Fold5 = no ),
+    must('word//1''s code_type/2 test and the list passed on are one folded box', Fold5, yes),
+    atom_concat(Dir, '/count2', Base2),
+    flow_chart(count('+', '-'), Base2, [source(Prog), builtins(show)]),
+    atom_concat(Base2, '.svg', Svg2),
+    read_file_to_codes(Svg2, SC2),
+    xml_parse(SC2, S2),
+    svg_title(S2, 'p4.c1.g1', T6),
+    must('builtins(show) draws the test in a box of its own', T6,
+         'code_type(C, alpha)  --  builtin, C in the engine, semidet'),
+
     format("~ndone~n").
 
 %% the program this lesson charts: a word count, by a grammar
@@ -147,6 +166,12 @@ find_id(element(N, As, Cs), Id, E) :-
     ), !.
 
 has_id(T, Id) :- find_id(T, Id, _).
+
+svg_title(T, Id, Title) :-
+    (   find_id(T, Id, element(_, _, Cs)), memberchk(element(title, _, [Title0]), Cs)
+    ->  Title = Title0
+    ;   Title = none
+    ).
 
 has_text(element(_, _, Cs), T) :-
     member(C, Cs),
