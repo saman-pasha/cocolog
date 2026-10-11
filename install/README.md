@@ -59,7 +59,9 @@ raise one.
   and Xvfb — `test/ray.pl` runs its window under `xvfb-run` where there is no
   screen. `RAYLIB` in the environment names a raylib of your own instead.
 * `CICILI=/path`, `ZIGURATIP=/path` name checkouts elsewhere; the defaults
-  are the two directories beside this one, cloned there when absent.
+  are the two directories beside this one, cloned there when absent. A
+  checkout found there is built as it stands, and cocolog 1.10.7 and later
+  want Cicili 2.0.0 or later: pull an older one first.
 * `CICILI_CC=...`, `CICILI_CXX=...` name a particular clang (`clang-18`, a
   path). Every build here is clang — the interpreter, ZiguratIP, every
   module and every Parsi object — and the scripts refuse a compiler that

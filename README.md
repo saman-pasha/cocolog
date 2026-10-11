@@ -261,6 +261,11 @@ What the build needs on the machine:
 
 * **SBCL** — Cicili is Lisp that emits C, and `sbcl` runs it. Needed only to
   build.
+* **Cicili 2.0.0 or later** — since 1.10.7 cocolog's reader asks Cicili's
+  `(inline)` to inline a static function. Through 1.0.1 `(inline)` emitted a
+  weak symbol, which clang refuses on a static function (`weak declaration
+  cannot have internal linkage`), so an older checkout stops the build
+  there: pull it.
 * **A C and a C++ compiler and GNU make** — `gcc`/`g++` or equivalents. The
   interpreter is C; the embedded engine and the torch module are C++.
 * **libtorch** — optional, and only `make modules` wants it: it builds

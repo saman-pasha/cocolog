@@ -57,14 +57,15 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `b027a4b`, and 1.10.7's reader needs the split of `(inline)` and `(weak)` on top of it |
+| `../cicili` | the language cocolog is written in; BUILD time | `8be7385` (2.0.0: `(inline)` and `(weak)` split, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one. The SHA above is an observation, not a pin -- the owner
-moves cicili; check it with `git -C ../cicili log --oneline -1` when a build
-behaves oddly, and correct the row rather than trusting it.
+not an applied one (the owner let one in by name: 2.0.0's split, 2026-10-11).
+The SHA above is an observation, not a pin -- the owner moves cicili; check it
+with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
+correct the row rather than trusting it.
 
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
@@ -499,7 +500,7 @@ much later.
   otherwise C++ mangles them and `use_module` fails with
   `undefined symbol: _Z11coco_m_text…`; the entry and dispatcher sit in
   `(extern-c …)`. Wrapping `(coco-sdk)` in `(extern-c …)` is not the fix.
-* **`(inline)` inlines, `(weak)` is weak** (the split after Cicili 1.0.1):
+* **`(inline)` inlines, `(weak)` is weak** (Cicili 2.0.0, `8be7385`):
   `(static) (inline)` emits `__attribute__((always_inline)) static inline`,
   and `(weak)` `__attribute__((weak))` -- what `(inline)` emitted through
   1.0.1: one definition however many files instantiate it, a call clang never
