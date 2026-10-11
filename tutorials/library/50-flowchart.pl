@@ -39,6 +39,14 @@
 %% on its box, a line under the chart, a <finding> at the head of the XML,
 %% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
+%% IT SHOWS WHERE THE CODE RUNS: a thread, a pool, an isolated proof, a
+%% cowork crew and an httpd pool each start a LANE -- a band of the picture
+%% with its own panels -- and what crosses between lanes is drawn and
+%% listed: what a spawn copies and what comes back, joins, a channel's sends
+%% and receives tied across the lanes, locks, child processes and writes to
+%% the knowledge base. A thread never joined, a lock with a way out that
+%% keeps it, and a lane reading what only another lane writes are findings.
+%%
 %% EVERY GOAL IS DRAWN, builtins too: a test, a unification, a builtin and
 %% a library call are each a box with its own text on its clause's line,
 %% and the chart never goes inside one -- a builtin is C in the engine, and
@@ -150,7 +158,76 @@ main :-
     must('length/2 is a box in count/2''s clause, and no panel of its own', T7,
          'length(Ws, N)  --  library(lists), det'),
 
+    threads(Dir),
+
     format("~ndone~n").
+
+%% WHERE THE CODE RUNS. A spawn is a fork: its goal goes, a copy, to a LANE
+%% of its own -- a band of the picture, a <lane> of the XML -- and nothing
+%% it binds comes back but what the spawn itself hands back. What crosses
+%% between lanes is a LINK, each with an id: a spawn and a join, a channel
+%% followed from channel_new/1 into the thread it was copied to, a lock, a
+%% child process, a write to the knowledge base. Nothing is run here either:
+%% the threads are charted, never started.
+threads(Dir) :-
+    format("~n-- where the code runs: a lane for each place, a link for what crosses~n"),
+    atom_concat(Dir, '/jobs.pl', Prog),
+    jobs(Lines),
+    open(Prog, write, W),
+    forall(member(L, Lines), format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(run('+'), G, [source(Prog)]),
+    flow_xml(G, X),
+    findall(L1-K1-G1-C1, ( element_attrs(X, lane, A1), memberchk(id=L1, A1), L1 \== l0,
+                           memberchk(kind=K1, A1), memberchk(goal=G1, A1), memberchk(copies=C1, A1) ), Ls),
+    must('two threads, two lanes: the goal each is sent, and what it copies from run/1''s clause', Ls,
+         [l1-thread-'worker(Ch)'-'Ch', l2-thread-ticker-nothing]),
+    %% send_all/2 is handed the channel as an argument, worker/1 by the copy
+    %% thread_create/2 made of worker(Ch): the analysis follows it into both
+    findall(Op-At, ( element_attrs(X, channel, A2), memberchk(id=ch1, A2), element_op(X, ch1, Op, At) ), Ops),
+    must('one channel, ch1, closed in run/1, sent to in send_all/2, received from in the worker''s lane', Ops,
+         [close-'p1.c1.g5', send-'p2.c2.g1', receive-'p4.c1.g1']),
+    goal_attr(X, 'p1.c1.g6', joins, J3),
+    must('thread_join/2 joins lane l1, and reads its status, never its bindings', J3, l1),
+    flow_findings(G, Fs),
+    findall(K4-At4, member(finding(_, K4, _, At4, _, _, _, _), Fs), KAs),
+    must('the ticker is never joined nor detached: the one finding', KAs, [thread_unjoined-'p1.c1.g3']).
+
+%% the program the threads are charted in
+jobs([
+    '%% jobs.pl -- the threads lesson 50 charts',
+    '',
+    'run(Jobs) :-',
+    '    channel_new(Ch),',
+    '    thread_create(worker(Ch), Id),',
+    '    thread_create(ticker, _),',
+    '    send_all(Jobs, Ch),',
+    '    channel_close(Ch),',
+    '    thread_join(Id, _).',
+    '',
+    'send_all([], _).',
+    'send_all([J|Js], Ch) :- channel_send(Ch, J), send_all(Js, Ch).',
+    '',
+    'worker(Ch) :-',
+    '    channel_recv(Ch, J), !,',
+    '    with_mutex(log, format("job ~w~n", [J])),',
+    '    worker(Ch).',
+    'worker(_).',
+    '',
+    'ticker :- format("tick~n").'
+]).
+
+%% the attributes of each element of that name, in document order
+element_attrs(element(N, As, Cs), Name, A) :-
+    (   N == Name, A = As
+    ;   member(C, Cs), C = element(_, _, _), element_attrs(C, Name, A)
+    ).
+
+%% each end of a channel, in the order the XML lists them
+element_op(X, Id, Op, At) :-
+    find_id(X, Id, element(channel, _, Cs)),
+    member(element(Op, OAs, _), Cs),
+    memberchk(at=At, OAs).
 
 %% the program this lesson charts: a word count, by a grammar
 program([

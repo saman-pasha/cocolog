@@ -1,12 +1,12 @@
 # Flows: a program drawn as it can run, and as it ran
 
-**A plan, with three steps built**, on the work branch
-`claude/cocolog-llm-agent-design-rh7t3t`: F0, the look (`7a11896`); F1,
-`library(flowchart)` in full -- `library/flowchart.pl` and its parts in
-`library/flow/`, `tools/flow/`, `test/flowchart.pl` and
-`tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). F2
-and `library(flowdebug)` are planned. Each phase lands on master when the
-owner says so, with its case, its lesson and its version.
+**A plan, with four steps built.** On master since 1.10.8: F0, the look
+(`7a11896`); F1, `library(flowchart)` in full -- `library/flowchart.pl` and
+its parts in `library/flow/`, `tools/flow/`, `test/flowchart.pl` and
+`tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). On the
+work branch `claude/cocolog-llm-agent-design-rh7t3t`, 1.10.9: F2, threads
+and processes (section 7). `library(flowdebug)` is planned. Each phase lands
+on master when the owner says so, with its case, its lesson and its version.
 
 ## 1. What the flows are for
 
@@ -168,9 +168,10 @@ unification, a C builtin, a C function of a module (a portal), a dynamic
 predicate, the program's own predicate, a library predicate, the Prolog half
 of a module, or unknown -- an existence error when it runs, and a finding
 (section 8). A goal known only when it runs -- a variable, or `call/N` with
-a closure the source does not name -- is a closure. A concurrency primitive
-(section 7) is today a portal or a library call like any other; F2 gives it
-a kind of its own.
+a closure the source does not name -- is a closure. A goal of
+`library(thread)` is a `thread` goal with its role, a spawn a `spawn` with
+its type, a child process a `process` (section 7): what it binds and how it
+ends are still read from what it is underneath, a portal or a library call.
 
 **Dynamic or unknown is the engine's own question**, and the chart asks
 the engine: a call to a predicate with no clause fails when it is declared
@@ -358,9 +359,13 @@ From `test/flowchart/demo.pl`, its `grep_count/3` (the clause's `<text>` and
 the goals' `<arg>` children shortened):
 
 ```xml
-<flow version="2" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+<flow version="3" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
   <findings count="0" errors="0" warnings="0"/>
-  <panel id="p2" pred="grep_count/3" kind="user" modes="+ + -" det="det" head="grep_count(+Pat, +Text, -N)" depth="2" clauses="1">
+  <lanes count="1">
+    <lane id="l0" kind="query" root="query"/>
+  </lanes>
+  <links/>
+  <panel id="p2" pred="grep_count/3" kind="user" lane="l0" modes="+ + -" det="det" head="grep_count(+Pat, +Text, -N)" depth="2" clauses="1">
     <clause id="p2.c1" n="1" file="test/flowchart/demo.pl" line="20" col="1" head="grep_count(Pat, Text, N)" head_can_fail="false" redo="fail">
       <arg n="1" mode="+" text="Pat"/> ...
       <text>grep_count(Pat, Text, N) :- ...</text>
@@ -372,7 +377,7 @@ the goals' `<arg>` children shortened):
       <goal id="p2.c1.g3" kind="library" library="lists" pred="length/2" text="length(Hits, N)" modes="+ -" det="det" can_fail="false" choice="false" on_fail="fail" line="23" col="5"> ...
     </clause>
   </panel>
-  <panel id="p5" pred="re_match/2" kind="c" module="text" cfun="coco_x_match" file="modules/text/text.cicili" line="53" modes="+ +" det="semidet" head="re_match(+Pat, +Text)" depth="3"/>
+  <panel id="p5" pred="re_match/2" kind="c" lane="l0" module="text" cfun="coco_x_match" file="modules/text/text.cicili" line="53" modes="+ +" det="semidet" head="re_match(+Pat, +Text)" depth="3"/>
 </flow>
 ```
 
@@ -402,10 +407,15 @@ ref>` for each other place it involves:
     </finding>
 ```
 
+**Then where the code runs** (section 7): `<lanes>`, the query's `l0` and
+one for each place a spawn sends a goal, and `<links>`, what crosses between
+them; every panel says its lane.
+
 It is written with `indent(2)`, in UTF-8, an element to a line, so `grep`
 works on it as well as a parser does. The schema is versioned
-(`version="2"`; version 1, F1's, had no findings) and documented in
-`library/flow/xml.pl`'s header; changing it bumps that number. **The round trip is the test**: `test/flowchart.pl`
+(`version="3"`; version 1, F1's, had no findings, and version 2, F3's, no
+lanes) and documented in `library/flow/xml.pl`'s header; changing it bumps
+that number. **The round trip is the test**: `test/flowchart.pl`
 reads the XML back through `library(xml)` and checks it against values
 worked out by hand.
 
@@ -464,6 +474,81 @@ Its findings: a goal run in a thread that calls a predicate the parent only
 consulted or asserted (an existence error in the thread, which sees modules
 only); a `mutex_lock/1` with a way out that does not unlock; a thread that is
 neither joined nor detached.
+
+**Built** (1.10.9, on the work branch): `library/flow/lanes.pl`, with the
+analysis, the layout, the XML and the findings taught what it finds.
+`test/flowchart/threads.pl` is the fixture -- a worker fed down a channel, a
+pool, an isolated proof, a crew, an httpd pool, locks by hand and by
+`with_mutex/2`, two child processes and the writes of a counter, four
+predicates wrong on purpose and six near misses -- and lesson 50 has a
+section of its own.
+
+* **A lane for each spawn SITE**: `thread_create/2`, `thread_pool/3`,
+  `run_isolated/2`, `cowork_ask/2,3`, `cowork_post/2`, `cowork_start/3`'s
+  `on_start(G)` and `httpd_serve/2,3` with `workers(N)` (whose lane runs
+  `httpd_page/3`, its path and request handed to it). A lane's ROOT is a
+  panel of one row, the goal as it was sent, and each lane has panels of its
+  own: `report/1` reached from five places is drawn five times. A spawn
+  inside a lane starts a lane of its own. The index keeps which panel each
+  call of a lane goes to, `L-PK -> Id`, beside the lanes and the links.
+* **The copy is analysed as a copy.** A spawned goal is analysed with what
+  is bound where the spawn stands, and nothing it binds comes back but what
+  the spawn hands back: a thread's handle, `run_isolated/2`'s status,
+  `cowork_ask/3`'s copy -- and `cowork_ask/2`'s answer, which is unified
+  into the caller's goal. So a variable only a thread binds is free after the
+  join, and `B is A + 1` there is an instantiation finding (the fixture's
+  `lost/1`), where the same line after `cowork_ask/2` is none.
+* **Drawn**: each lane but the query's is a band, below everything placed
+  before it, opening with a rule and a line (`lane l1 · thread -- a thread of
+  its own, started at p2.c1.g2 in lane l0`); a heavy dashed violet wire from
+  the spawn into the root, labelled with what it copies; a thin violet wire
+  back to the spawn's jack for what comes back, dotted for the status a join
+  in the same panel reads (a detach reads nothing); a plaque on each goal of
+  `library(thread)` saying its role and its channel or mutex (`recv ch1`,
+  `lock log`), `$` on a child process and `KB` on a write; and a dotted blue
+  line from each send of a channel to each receive of it, across the lanes.
+* **A channel is followed** from `channel_new/1,2` through the clause's own
+  variables, `X = Y`, the arguments callers hand (by passes until none
+  changes; two callers handing different channels make one nobody can
+  follow) and across a spawn, whose root holds the spawner clause's very
+  variables. **That is why no `findall/3` may stand between a clause and the
+  lane made from it**: it copies, and three copies -- the scan's queue, the
+  panels it made, the root's own list -- each left the worker's receive
+  named `Ch` instead of `ch1` (the case's arms put each back and go red).
+* **The XML** (version 3): `<lanes>` -- each lane's kind, root, site, the
+  lane it was started from, the goal, what it copies and what comes back --
+  and `<links>`: `<spawn>`, `<join>` (with what it carries: the status, or
+  nothing for a detach), `<channel>` with its `<close>`, `<send>` and
+  `<receive>` ends (`followed="false"` and the variable's name for one it
+  cannot follow), `<lock>`, `<process>` (its command when written, and the
+  file whose chart is its own when the command runs cocolog on one) and
+  `<write>`. Every panel says `lane=`; a goal of `library(thread)` says
+  `kind="thread"` and its `role`, with `channel=`, `mutex=`, `condition=`
+  or `joins=`; a spawn `kind="spawn"`, its `type` and `lane`; a child
+  process `kind="process"`; a write `kb="write"`.
+* **Findings** (section 8): `thread_unjoined`, a `thread_create/2` whose
+  handle nothing else in the clause or its head names; `lock_held`, a
+  `mutex_lock/1` with a goal that can fail before the clause's
+  `mutex_unlock/1`; `thread_visibility`, a dynamic predicate called in a lane
+  that does not write it where another lane does. The plan's existence error
+  for a predicate the parent only consulted was left out: whether a thread
+  sees a file's clauses depends on how the file was loaded (`-s` makes it a
+  module, which every thread sees; `run` consults it, which none does), and
+  the chart cannot know which.
+* **What it costs a program with no thread in it**: one walk of every goal,
+  indexed on the node and then its kind, finds the clauses anything links
+  (`link_rows`), and every later pass reads only those. The translator
+  charts in the same time and 3 MB more, for 0.84 % more
+  inferences -- the analysis 0.7 %, the findings 1.9 %, the XML 1.3 %, the
+  picture 2 %. The first version cost 7.4 %: channel following built an
+  environment for every clause, and the spawn scan appended its queue once a
+  panel.
+
+**Not yet**: `cowork_map/3` (a list of goals, one job each); `httpd_serve`
+with `workers(0)`, which serves on the caller's thread and is no lane; a
+join in another panel than its spawn's, which is a badge and no wire; a
+channel handed on inside a term or down another channel; the order of a
+channel's messages (a line joins each send to each receive).
 
 ## 8. Findings: what is wrong, and where (F3)
 
@@ -525,9 +610,12 @@ the other fixtures only two
 findings are true and stay: `fix.pl`'s `spin/1` loops for ever, and
 `runtime.pl`'s `nosuch/1` is defined nowhere.
 
-**Not yet**: the concurrency findings of section 7 (F2); a call against a
-documented mode (`%! p(+X)` called with `X` free); left recursion through a
-construct or a library predicate; promises of `multi` and `failure`.
+**And three about threads** (F2, section 7), each a warning about one goal:
+`thread_unjoined`, `lock_held` and `thread_visibility`.
+
+**Not yet**: a call against a documented mode (`%! p(+X)` called with `X`
+free); left recursion through a construct or a library predicate; promises
+of `multi` and `failure`.
 
 ## 9. `library(flowdebug)`: what a query did (D0-D4)
 
@@ -622,10 +710,10 @@ order.
 
 | phase | delivers | engine change | lands |
 |---|---|---|---|
-| F0 | the look, on two fixtures | none | built, on the work branch |
-| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
-| F2 | threads and processes: lanes, spawn and join, messages, locks, process portals, writes to a shared knowledge base | none | proposes a minor |
-| F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on the work branch; proposes a minor |
+| F0 | the look, on two fixtures | none | built, on master |
+| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on master (1.10.8); proposes 1.11.0 |
+| F2 | threads and processes: a lane for each spawn site and the copy analysed as a copy, spawns and joins, channels followed across lanes, locks, process portals, writes to a shared knowledge base, three findings | none | built, on the work branch (1.10.9); proposes a minor |
+| F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on master (1.10.8); proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
 | D1 | the record-mode tracer, the new events, `'$trace_window'/4` | `lib/solve.cicili`, `lib/builtins.cicili` | a patch |
 | D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML | none | proposes a minor |

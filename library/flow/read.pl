@@ -346,6 +346,15 @@ flow_meta_args(ignore(_), [g]).
 flow_meta_args(not(_), [g]).
 flow_meta_args(call(G), [g]) :- nonvar(G).
 flow_meta_args(catch(_, _, _), [g, t, g]).
+%% the goals a thread, a crew or a lock is handed (lanes.pl)
+flow_meta_args(thread_create(_, _), [g, t]).
+flow_meta_args(thread_pool(_, _, _), [t, g, t]).
+flow_meta_args(run_isolated(_, _), [g, t]).
+flow_meta_args(cowork_ask(_, _), [t, g]).
+flow_meta_args(cowork_ask(_, _, _), [t, g, t]).
+flow_meta_args(cowork_post(_, _), [t, g]).
+flow_meta_args(with_mutex(_, _), [t, g]).
+flow_meta_args(cond_wait_until(_, _, _), [t, t, g]).
 
 flow_ann_args([], [], T, T, []).
 flow_ann_args([A|As], [Kd|Ks], T0, T, [AA|AAs]) :-

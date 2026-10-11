@@ -105,7 +105,8 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        expressions over the torch module: a DCG from an
                        expression to the goals it stands for), flowchart.pl
                        and its parts in flow/ (a predicate drawn from the
-                       query to C, as an SVG and an XML), kbs.pl, cowork.pl,
+                       query to C, and the threads it starts, as an SVG
+                       and an XML), kbs.pl, cowork.pl,
                        main.pl, astar.pl, hex.pl, clay_ray.pl and llm.pl,
                        reasoning/ (controlled English, a tagger and a
                        translator), and the .so's and flow/tables.pl that
@@ -489,7 +490,7 @@ a tool rather than a library.
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
-| [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flowchart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; and the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything |
+| [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flowchart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -751,7 +752,7 @@ code.
 | `library(opencv)` | `.so` | OpenCV 4: images, filters, contours, the DNN module |
 | `library(numpy)` | `.so` | numpy arrays over numpy's C API |
 | `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
-| `library(flowchart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
+| `library(flowchart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; where the code runs -- a lane for each thread, pool, isolated proof, crew and httpd pool, and what crosses between them: what a spawn copies and what comes back, joins, channels followed to each send and receive, locks, child processes, writes to the knowledge base; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept, threads never joined, locks kept on a way out, a lane reading what only another writes -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |

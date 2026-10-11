@@ -26,9 +26,27 @@
 %%                               the analysis says the code does not keep,
 %%                               and the goals that break it
 %%
+%% and three about threads (F2, lanes.pl), each about one goal:
+%%
+%%   thread_visibility  warning  a call, in a lane of its own, to a dynamic
+%%                               predicate only another lane writes: a
+%%                               thread's store starts with what the modules
+%%                               hold and none of what was asserted, and an
+%%                               isolated proof's sees no write of a turn
+%%                               still running
+%%   lock_held          warning  mutex_lock/1 with a goal after it that can
+%%                               fail before the clause's mutex_unlock/1:
+%%                               that way out keeps the lock
+%%   thread_unjoined    warning  thread_create/2 whose Id nothing else in the
+%%                               clause or its head names: neither joined
+%%                               nor detached, the thread's slot is never
+%%                               given back
+%%
 %% Only the program's own panels are looked at: a library's clauses are
 %% not the program's to fix. A goal past a call that never succeeds is
-%% never reached, and has no finding.
+%% never reached, and has no finding. A lane's root is the program's own
+%% goal, so its goals are looked at too; a predicate drawn again in another
+%% lane is looked at once, where the chart first meets it.
 %%
 %%     finding(N, Kind, Severity, At, In, Where, Text, See)
 %%
@@ -38,12 +56,29 @@
 
 flow_findings(graph(_, Src, Panels, Ids, Docs), Fs) :-
     findall(P, ( member(P, Panels), P = panel(I, _, K, _, _, rows(_), _, _), I > 0,
-                 memberchk(K, [user, dynamic]) ), Own),
+                 memberchk(K, [user, dynamic]) ), Own0),
+    (   flow_graph_lanes(Ids, []) -> Own = Own0
+    ;   empty_assoc(Seen0), flow_first_pairs(Own0, Seen0, Own)
+    ),
+    findall(P, ( member(P, Panels), P = panel(_, _, lane(_, _), _, _, rows(_), _, _) ), Roots),
     findall(Key-F, ( member(P, Own), flow_panel_finding(P, Src, Docs, Key, F) ), KFs0),
+    findall(Key-F, ( member(P, Roots), flow_goal_findings(P, Key, F) ), KFsR),
     flow_left_recursion(Own, Ids, KFs1),
-    append(KFs0, KFs1, KFs2),
-    keysort(KFs2, KFs),
+    append(Own, Roots, Mine),
+    flow_thread_findings(Mine, Panels, Ids, KFs2),
+    append([KFs0, KFsR, KFs1, KFs2], KFs3),
+    keysort(KFs3, KFs),
     flow_number_findings(KFs, 1, Fs).
+
+%% a predicate and call pattern drawn in two lanes is the same code: the
+%% first panel speaks for it
+flow_first_pairs([], _, []).
+flow_first_pairs([P|Ps], Seen, Out) :-
+    P = panel(_, Key, _, CM, _, _, _, _),
+    (   get_assoc(Key-CM, Seen, _) -> Out = Out1, Seen1 = Seen
+    ;   Out = [P|Out1], put_assoc(Key-CM, Seen, x, Seen1)
+    ),
+    flow_first_pairs(Ps, Seen1, Out1).
 
 flow_number_findings([], _, []).
 flow_number_findings([_-f(Kind, Sev, At, In, Where, Text, See)|KFs], N,
@@ -57,6 +92,9 @@ flow_severity(instantiation, error).
 flow_severity(left_recursion, error).
 flow_severity(unreachable_clause, warning).
 flow_severity(det_promise, warning).
+flow_severity(thread_visibility, warning).
+flow_severity(lock_held, warning).
+flow_severity(thread_unjoined, warning).
 
 %% ---- each panel's own findings, keyed k(Panel, Clause, Seq) -------------
 
@@ -66,7 +104,10 @@ flow_panel_finding(P, Src, Docs, k(I, 0, 0), F) :-
 flow_panel_finding(P, _, _, k(I, C, 0), F) :-
     flow_unreachable(P, C, F),
     P = panel(I, _, _, _, _, _, _, _).
-flow_panel_finding(P, _, _, k(I, C, S), F) :-
+flow_panel_finding(P, _, _, K, F) :-
+    flow_goal_findings(P, K, F).
+
+flow_goal_findings(P, k(I, C, S), F) :-
     P = panel(I, Key, _, _, _, rows(Rows), _, _),
     flow_panel_id(I, PId),
     flow_pred_atom(Key, In),
@@ -408,12 +449,13 @@ flow_left_recursion(Own, Ids, KFs) :-
                    flow_lr_cycle(P, Es, Own, K, F) ), KFs).
 
 flow_left_edge(panel(P, _, _, CM, _, rows(Rows), _, _), Ids, P, Q, Map, GId, CI) :-
+    flow_panel_lane(Ids, P, L),
     member(row(C, H, _, _, Nodes, CI), Rows),
     H =.. [_|HArgs],
     flow_lr_inputs(HArgs, CM, 1, Alias0),
     flow_lr_walk(Nodes, 1, Alias0, K, g(G, Kind, Ms, _, Key2, _), Alias),
     flow_panel_key(Kind, Key2, Ms, PK),
-    get_assoc(PK, Ids, Q),
+    get_assoc(L-PK, Ids, Q),
     G =.. [_|GArgs],
     flow_lr_map(GArgs, Ms, 1, Alias, Map),
     flow_panel_id(P, PId),
@@ -544,4 +586,109 @@ flow_lr_name(N/A, CI, Name) :-
     (   memberchk(dcg, CI), A >= 2
     ->  A2 is A - 2, format(atom(Name), '~q//~w', [N, A2])
     ;   format(atom(Name), '~q/~w', [N, A])
+    ).
+
+%% ======================================================================
+%% Threads (F2): what is seen where, a lock kept, a thread let go
+%% ======================================================================
+
+flow_thread_findings(Mine, Panels, Ids, KFs) :-
+    flow_graph_link_rows(Ids, LRs),
+    findall(K-F, ( member(lr(I, _, Row), LRs), flow_mine(I, Mine, P),
+                   flow_unjoined(P, Row, Panels, K, F) ), K1),
+    findall(K-F, ( member(lr(I, _, Row), LRs), flow_mine(I, Mine, P),
+                   flow_lock_held(P, Row, Panels, K, F) ), K2),
+    findall(K-F, flow_unseen_write(Panels, Ids, K, F), K3),
+    append([K1, K2, K3], KFs).
+
+%% the panel of that id, when it is one the findings look at
+flow_mine(I, Mine, P) :-
+    P = panel(I, _, _, _, _, _, _, _),
+    memberchk(P, Mine).
+
+%% thread_create(G, Id) with Id named nowhere else: in the clause's head,
+%% or any other goal of it
+flow_unjoined(P, Row, Panels, k(I, C, S), f(thread_unjoined, warning, GId, In, Where, Text, [])) :-
+    P = panel(I, Key, _, _, _, _, _, _),
+    Row = row(C, H, _, _, Nodes, _),
+    flow_nodes_has(spawn, Nodes),
+    flow_panel_id(I, PId),
+    atomic_list_concat([PId, '.c', C], Base),
+    flow_list_sites(Nodes, Base, Ss),
+    member(GId-g(thread_create(_, Id), spawn(thread), _, _, _, Info), Ss),
+    \+ memberchk(unreached, Info),
+    var(Id),
+    \+ ( H \== none, term_variables(H, HVs), flow_var_in(Id, HVs) ),
+    \+ ( member(OId-N, Ss), OId \== GId, flow_site_term(N, T),
+          term_variables(T, TVs), flow_var_in(Id, TVs) ),
+    flow_pred_atom(Key, In),
+    flow_goal_place(GId, I, Panels, C, S, Where),
+    Text = 'the thread started here is neither joined nor detached: when it ends it keeps its slot, one of 256, and its pthread until the process does -- thread_join/2 reads its status, thread_detach/1 lets it clean up after itself'.
+
+%% what a site holds, to look for a variable in
+flow_site_term(g(G, _, _, _, _, _), G).
+flow_site_term(meta(_, H, _, _, _), H).
+
+%% mutex_lock(M), then a goal that can fail, then mutex_unlock(M): all in
+%% the clause's own line
+flow_lock_held(P, Row, Panels, k(I, C, S), f(lock_held, warning, GId, In, Where, Text, [FId])) :-
+    P = panel(I, Key, _, _, _, _, _, _),
+    Row = row(C, _, Names, _, Nodes, _),
+    memberchk(g(_, conc(lock(lock, _)), _, _, _, _), Nodes),
+    flow_panel_id(I, PId),
+    atomic_list_concat([PId, '.c', C], Base),
+    flow_x_index(Nodes, Base, 1, Indexed),
+    append(_, [GId-g(LG, conc(lock(lock, M)), _, _, _, Info)|After], Indexed),
+    \+ memberchk(unreached, Info),
+    once(( append(Between, [_-g(_, conc(lock(unlock, M2)), _, _, _, _)|_], After),
+           flow_same_handle(M, M2) )),
+    once(( member(FId-FN, Between), \+ flow_node_total(FN) )),
+    flow_pred_atom(Key, In),
+    flow_goal_place(GId, I, Panels, C, S, Where),
+    flow_term_full(LG, Names, 999, LT),
+    flow_handle_name(M, Names, MN),
+    (   FN = g(FG, _, _, _, _, _) -> flow_term_full(FG, Names, 999, FT) ; FT = 'the construct after it' ),
+    format(atom(Text), '~w is not released on every way out: when ~w fails, the clause leaves holding the lock, and the next mutex_lock(~w) waits for ever -- with_mutex(~w, Goal) releases it on success, on failure and on an exception alike',
+           [LT, FT, MN, MN]).
+
+flow_same_handle(A, B) :-
+    (   var(A) -> A == B ; A == B ).
+
+%% a dynamic predicate called in a lane that does not write it, where
+%% another lane does: the lane's store never sees those writes
+flow_unseen_write(Panels, Ids, k(I, C, S), f(thread_visibility, warning, GId, In, Where, Text, [WId])) :-
+    flow_graph_links(Ids, links(_, _, _, _, _, Writes)),
+    Writes \== [],
+    member(P, Panels),
+    P = panel(I, Key, _, _, _, rows(Rows), _, _),
+    flow_panel_lane(Ids, I, L),
+    L > 0,
+    flow_panel_id(I, PId),
+    member(row(C, _, _, _, Nodes, _), Rows),
+    atomic_list_concat([PId, '.c', C], Base),
+    flow_list_goals(Nodes, Base, Gs),
+    member(GId-g(_, dynamic, _, _, DKey, Info), Gs),
+    \+ memberchk(unreached, Info),
+    \+ ( member(write(W0, _, DKey), Writes), flow_site_panel(W0, WP0), flow_panel_lane(Ids, WP0, L) ),
+    once(( member(write(WId, Op, DKey), Writes),
+           flow_site_panel(WId, WP),
+           flow_panel_lane(Ids, WP, WL),
+           WL =\= L )),
+    flow_pred_atom(Key, In),
+    flow_goal_place(GId, I, Panels, C, S, Where),
+    flow_pred_atom(DKey, DA),
+    flow_graph_lanes(Ids, Lanes),
+    memberchk(lane(L, Type, _, _, _, _, _, _), Lanes),
+    flow_lane_word(Type, LW),
+    flow_lane_store(Type, Store),
+    format(atom(Text), '~w is written in lane l~w (~w/1 at ~w), and this goal runs in lane l~w, ~w: ~w',
+           [DA, WL, Op, WId, L, LW, Store]).
+
+%% what a lane's store starts with (modules/thread): a thread has no
+%% connection; run_isolated/2, and so an httpd worker's request, has one
+%% of its own, a turn that sees what was committed when it began
+flow_lane_store(Type, Text) :-
+    (   memberchk(Type, [isolated, httpd])
+    ->  Text = 'its proof has a connection of its own, and its store holds the modules'' clauses and, under --kb or --embed, what was committed when it began -- never a write of a turn still running -- so it does not see that write while the turn that made it runs'
+    ;   Text = 'a thread has no connection to the knowledge base, and its store starts with the clauses of the modules loaded before it and none of what was asserted, so it never sees that write'
     ).

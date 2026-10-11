@@ -57,12 +57,13 @@
 %% for, translated by the engine's own translator, its leading terminal in
 %% the head as the store keeps it. A goal past a call that never succeeds
 %% is drawn and marked unreached. The translator, 1066 predicates and 3255
-%% clauses, charts in 45 s.
+%% clauses, charts in about 50 s.
 %%
 %% THE PARTS, each a file under library/flow/: read (the program, its
 %% positions, its comments' signatures, the generated tables), modes (the
-%% hand-kept table, a line per way of calling a builtin), analyse, text
-%% (terms written with their names), layout, svg, xml, write. The tables
+%% hand-kept table, a line per way of calling a builtin), analyse, findings,
+%% lanes (where the code runs), text (terms written with their names),
+%% layout, svg, xml, write. The tables
 %% (library/flow/tables.pl) are written by `make modules'
 %% (tools/flow/build.sh) and git ignores them.
 %%
@@ -109,8 +110,21 @@
 %%
 %%     finding(N, Kind, Severity, At, In, where(File, Line, Col), Text, See)
 %%
-%% NOT YET: threads, channels, locks and child processes (F2), and
-%% library(flowdebug), the run drawn over the chart (DESIGN-flow.md).
+%% WHERE THE CODE RUNS (library/flow/lanes.pl). A spawn -- thread_create/2,
+%% thread_pool/3, run_isolated/2, a cowork job, an httpd pool of workers --
+%% sends its goal, a copy, to a LANE of its own: a band of the picture with
+%% its own panels, a <lane> of the XML. The copy is analysed as one: what
+%% is bound where the spawn stands goes, and nothing the lane binds comes
+%% back but what the spawn hands back (a status, cowork_ask/2's answer).
+%% What crosses between lanes is a LINK: a spawn and its join, a channel
+%% followed from channel_new/1 to each send and receive (a dotted line
+%% across the lanes), a lock, a child process -- a portal like C, its
+%% command written on it -- and a write to the knowledge base. A thread
+%% never joined, a lock with a way out that keeps it, and a lane reading
+%% what only another lane writes are findings.
+%%
+%% NOT YET: library(flowdebug), the run drawn over the chart
+%% (DESIGN-flow.md).
 
 :- use_module(library(xml)).
 :- use_module(library(stream)).
@@ -118,6 +132,7 @@
 :- use_module(library(flow/modes)).
 :- use_module(library(flow/analyse)).
 :- use_module(library(flow/findings)).
+:- use_module(library(flow/lanes)).
 :- use_module(library(flow/text)).
 :- use_module(library(flow/layout)).
 :- use_module(library(flow/svg)).
