@@ -40,12 +40,17 @@
 %% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
 %% IT SHOWS WHERE THE CODE RUNS: a thread, a pool, an isolated proof, a
-%% cowork crew and an httpd pool each start a LANE -- a band of the picture
-%% with its own panels -- and what crosses between lanes is drawn and
-%% listed: what a spawn copies and what comes back, joins, a channel's sends
-%% and receives tied across the lanes, locks, child processes and writes to
-%% the knowledge base. A thread never joined, a lock with a way out that
-%% keeps it, and a lane reading what only another lane writes are findings.
+%% cowork crew (a job, or cowork_map/3's list of them) and an httpd pool
+%% each start a LANE -- a band of the picture with its own panels -- while
+%% an httpd server with no pool runs its pages here. What crosses between
+%% lanes is drawn and listed: what a spawn copies and what comes back,
+%% joins, a channel's sends and receives tied across the lanes, locks, child
+%% processes and writes to the knowledge base. A channel or a handle is
+%% followed wherever the program takes it -- into a call, back out of one,
+%% inside a term, down another channel -- and the k-th send of a channel is
+%% tied to the k-th receive where that order can be read. A thread never
+%% joined, a lock with a way out that keeps it, and a lane reading what only
+%% another lane writes are findings.
 %%
 %% EVERY GOAL IS DRAWN, builtins too: a test, a unification, a builtin and
 %% a library call are each a box with its own text on its clause's line,
@@ -159,6 +164,7 @@ main :-
          'length(Ws, N)  --  library(lists), det'),
 
     threads(Dir),
+    asking(Dir),
 
     format("~ndone~n").
 
@@ -192,6 +198,60 @@ threads(Dir) :-
     flow_findings(G, Fs),
     findall(K4-At4, member(finding(_, K4, _, At4, _, _, _, _), Fs), KAs),
     must('the ticker is never joined nor detached: the one finding', KAs, [thread_unjoined-'p1.c1.g3']).
+
+%% WHAT IS FOLLOWED. A channel or a thread's handle is followed wherever
+%% the program takes it: down into what it is handed to, back up out of the
+%% predicate that made it, inside a term, and down another channel. So a
+%% join in another clause than its spawn's still knows its lane, and a
+%% channel sent along with a question is followed into the thread that
+%% answers on it. And where one lane sends on a channel and one receives,
+%% each in an order the chart can read, the k-th send is the k-th
+%% receive's: the chart says which (n=) and ties those two alone.
+asking(Dir) :-
+    format("~n-- what is followed: handles and channels through heads, terms and other channels~n"),
+    atom_concat(Dir, '/ask.pl', Prog),
+    ask(Lines),
+    open(Prog, write, W),
+    forall(member(L, Lines), format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(ask('+', '-'), G, [source(Prog)]),
+    flow_xml(G, X),
+    goal_attr(X, 'p1.c1.g6', joins, J1),
+    must('ask/2''s join waits for the thread start/2 made: the handle came back up out of start/2', J1, l1),
+    findall(Op2-At2, element_op(X, ch2, Op2, At2), Ops2),
+    must('Req, made in start/2 and handed back up too: ask/2 sends on it and closes it, the thread receives',
+         Ops2, [send-'p1.c1.g3', close-'p1.c1.g5', receive-'p4.c1.g1']),
+    findall(Op3-At3, element_op(X, ch1, Op3, At3), Ops3),
+    find_id(X, ch1, element(_, A3, _)),
+    (   memberchk(via=V3, A3) -> true ; V3 = none ),
+    must('Back goes down Req inside q(Q, Back): the thread''s send is on it, and it says which channel carried it',
+         V3-Ops3, ch2-[receive-'p1.c1.g4', send-'p4.c1.g3']),
+    findall(C4-P4, ( element_attrs(X, channel, A4), memberchk(id=C4, A4),
+                     ( memberchk(pairs=P4, A4) -> true ; P4 = false ) ), Ps4),
+    must('one lane sends on each, one receives, each in its order: the first send is the first receive''s',
+         Ps4, [ch1-true, ch2-true]).
+
+%% the program the handles and channels are followed through
+ask([
+    '%% ask.pl -- a question down one channel, its answer down another',
+    '',
+    'ask(Q, A) :-',
+    '    start(Req, Id),',
+    '    channel_new(Back),',
+    '    channel_send(Req, q(Q, Back)),',
+    '    channel_recv(Back, A),',
+    '    channel_close(Req),',
+    '    thread_join(Id, _).',
+    '',
+    'start(Req, Id) :-',
+    '    channel_new(Req),',
+    '    thread_create(answer(Req), Id).',
+    '',
+    'answer(Req) :-',
+    '    channel_recv(Req, q(Q, Back)),',
+    '    atom_length(Q, N),',
+    '    channel_send(Back, N).'
+]).
 
 %% the program the threads are charted in
 jobs([

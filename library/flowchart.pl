@@ -111,17 +111,23 @@
 %%     finding(N, Kind, Severity, At, In, where(File, Line, Col), Text, See)
 %%
 %% WHERE THE CODE RUNS (library/flow/lanes.pl). A spawn -- thread_create/2,
-%% thread_pool/3, run_isolated/2, a cowork job, an httpd pool of workers --
-%% sends its goal, a copy, to a LANE of its own: a band of the picture with
-%% its own panels, a <lane> of the XML. The copy is analysed as one: what
+%% thread_pool/3, run_isolated/2, a cowork job or cowork_map/3's list of
+%% them (a row each), an httpd pool of workers -- sends its goal, a copy, to
+%% a LANE of its own: a band of the picture with its own panels, a <lane>
+%% of the XML. An httpd server with no pool serves on the caller's thread:
+%% a construct whose page is called here. The copy is analysed as one: what
 %% is bound where the spawn stands goes, and nothing the lane binds comes
 %% back but what the spawn hands back (a status, cowork_ask/2's answer).
 %% What crosses between lanes is a LINK: a spawn and its join, a channel
-%% followed from channel_new/1 to each send and receive (a dotted line
-%% across the lanes), a lock, a child process -- a portal like C, its
-%% command written on it -- and a write to the knowledge base. A thread
-%% never joined, a lock with a way out that keeps it, and a lane reading
-%% what only another lane writes are findings.
+%% from channel_new/1 to each send and receive (a dotted line across the
+%% lanes), a lock, a child process -- a portal like C, its command written
+%% on it -- and a write to the knowledge base. A channel and a thread's
+%% handle are FOLLOWED wherever the program takes them: into a call, back
+%% out of one, inside a term, down another channel. Where one lane sends on
+%% a channel and one receives, each in an order the chart can read, the
+%% k-th send is tied to the k-th receive alone. A thread never joined, a
+%% lock with a way out that keeps it, and a lane reading what only another
+%% lane writes are findings.
 %%
 %% NOT YET: library(flowdebug), the run drawn over the chart
 %% (DESIGN-flow.md).

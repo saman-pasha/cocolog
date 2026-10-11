@@ -359,7 +359,7 @@ From `test/flowchart/demo.pl`, its `grep_count/3` (the clause's `<text>` and
 the goals' `<arg>` children shortened):
 
 ```xml
-<flow version="3" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+<flow version="4" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
   <findings count="0" errors="0" warnings="0"/>
   <lanes count="1">
     <lane id="l0" kind="query" root="query"/>
@@ -413,8 +413,9 @@ them; every panel says its lane.
 
 It is written with `indent(2)`, in UTF-8, an element to a line, so `grep`
 works on it as well as a parser does. The schema is versioned
-(`version="3"`; version 1, F1's, had no findings, and version 2, F3's, no
-lanes) and documented in `library/flow/xml.pl`'s header; changing it bumps
+(`version="4"`; version 1, F1's, had no findings, version 2, F3's, no
+lanes, and version 3, F2's, no jobs and no order of messages) and
+documented in `library/flow/xml.pl`'s header; changing it bumps
 that number. **The round trip is the test**: `test/flowchart.pl`
 reads the XML back through `library(xml)` and checks it against values
 worked out by hand.
@@ -475,7 +476,7 @@ consulted or asserted (an existence error in the thread, which sees modules
 only); a `mutex_lock/1` with a way out that does not unlock; a thread that is
 neither joined nor detached.
 
-**Built** (1.10.9, on the work branch): `library/flow/lanes.pl`, with the
+**Built** (1.10.9, on master): `library/flow/lanes.pl`, with the
 analysis, the layout, the XML and the findings taught what it finds.
 `test/flowchart/threads.pl` is the fixture -- a worker fed down a channel, a
 pool, an isolated proof, a crew, an httpd pool, locks by hand and by
@@ -515,8 +516,9 @@ section of its own.
   lane made from it**: it copies, and three copies -- the scan's queue, the
   panels it made, the root's own list -- each left the worker's receive
   named `Ch` instead of `ch1` (the case's arms put each back and go red).
-* **The XML** (version 3): `<lanes>` -- each lane's kind, root, site, the
-  lane it was started from, the goal, what it copies and what comes back --
+* **The XML** (version 3, and 4 since 1.10.11, below): `<lanes>` -- each
+  lane's kind, root, site, the lane it was started from, the goal, what it
+  copies and what comes back --
   and `<links>`: `<spawn>`, `<join>` (with what it carries: the status, or
   nothing for a detach), `<channel>` with its `<close>`, `<send>` and
   `<receive>` ends (`followed="false"` and the variable's name for one it
@@ -544,11 +546,73 @@ section of its own.
   environment for every clause, and the spawn scan appended its queue once a
   panel.
 
-**Not yet**: `cowork_map/3` (a list of goals, one job each); `httpd_serve`
-with `workers(0)`, which serves on the caller's thread and is no lane; a
-join in another panel than its spawn's, which is a badge and no wire; a
-channel handed on inside a term or down another channel; the order of a
-channel's messages (a line joins each send to each receive).
+**And what it left** (1.10.11, on master): `test/flowchart/crossing.pl` is
+the fixture, a predicate charted at a time, and lesson 50 follows a
+question down one channel and its answer down another.
+
+* **`cowork_map/3`** is a lane whose root has a row for each job the source
+  writes -- `c1`, `c2`, ... in the XML's `<job n>` -- and one row more,
+  `rest="true"`, a goal known only when it runs, for a list or a tail it
+  does not write. Each job is proved on its own with what is bound at the
+  spawn, so a variable one job binds is free in the next (the fixture's job
+  1 halves what job 2 doubles: an instantiation finding). Drawn, every job
+  is called through the left border and each one that can fail leaves
+  through it, worded `failed` -- its answer -- and never into the next job;
+  the head says how many (`cowork_map/3: 3 jobs`). The reader places each
+  job of a list the source writes (a new kind of meta-call argument, `l`).
+* **`httpd_serve/2,3` with no `workers(N)`** serves on the caller's thread:
+  a construct (`name="httpd_serve"`) whose goal is `httpd_page(Path,
+  Request, Reply)` called here, the first two bound, named as the httpd
+  lane's root names them; a page that fails is a 404, so the construct
+  never fails, and the XML says its goal's failure goes to `X:next`. Its
+  page reads what its own lane writes: no `thread_visibility`, where the
+  same page on a pool is one. A `workers(W)` the source does not write is
+  neither, and stays a box.
+* **What crosses is FOLLOWED, not looked for in one clause**: a channel,
+  `ch(K)`, a thread's handle, `th(L)`, or a pool's list of them, `ths(L)`,
+  each at a PATH inside a term, through a clause's head (what its callers
+  hand), its root (the spawner clause's environment), `X = T` and `arg/3`,
+  `member/2` over a pool's list, a call (what the callee's clauses give
+  back in their heads -- their own values only, never one handed in, which
+  would hand a channel to a caller that passed nothing), and a receive
+  (what every send down that channel sends, when they agree). It is settled
+  by passes, the callers of a panel that gives something back joining the
+  next pass; two places that disagree make the value `unknown`, and nobody
+  follows it. So a join in another clause than its spawn's -- the handle
+  handed back up out of a helper, or on down into one -- knows its lane,
+  `thread_join_all([A, B])` joins both, and a reply channel sent with a
+  question is followed into the thread that answers on it (`via="ch1"`).
+  The join's badge was there; a fine dotted violet line now runs from the
+  lane's root to a join that stands outside its spawn's panel.
+* **A channel's order**: a lane is walked as it runs, from its root, goals
+  left to right and into each call, and each send and receive of a channel
+  gets its place among its lane's sends (or receives) -- `n="1"`, or
+  `n="2 3"` for a helper called twice. A place the walk cannot know has
+  none, nor has any later one of its kind on that channel in that lane: in
+  a recursion, in a predicate of several clauses, inside a construct that
+  may skip or repeat it, after a goal that can be redone, or in a lane that
+  runs more than once (a pool, an httpd pool, a crew's `on_start`, a spawn
+  its parent's walk does not meet exactly once). Where one lane sends and
+  one receives, every one with its place, the channel `pairs="true"`: the
+  k-th send is the k-th receive's, and the picture draws those lines alone,
+  `ch1 #2`.
+* **A lane's root is proved once**: nothing backtracks into it after it
+  exits, so it has no redo mark and no redo lane.
+* **The XML is version 4**: `<job n>` (and `rest="true"`) in a jobs root,
+  a `<meta name="httpd_serve">` whose goal's failure goes to `X:next`, and
+  on a `<channel>` `via=` and `pairs="true"`, on its ends `n=`.
+* **What it costs a program with no thread in it**: the translator charts
+  the same graph, findings, XML and picture, byte for byte, for 0.001 % more
+  inferences (the `httpd_serve` clause first cost 0.22 % of the analysis,
+  tried for every goal, until its heads let the index pass it by). Each of
+  the twenty-one rules was armed -- taken out of a copy of the library --
+  and the case went red on every one.
+
+**Not yet**: a value held in the knowledge base (`assertz(chan(Ch))`) or
+carried by `findall/3`, `maplist/2..` or any list but a pool's;
+`cowork_post/2`'s answer, which `cowork_poll/2,3` collects. Where two lanes
+send on one channel, or two receive, its messages have no order to read,
+and that is the answer rather than a gap.
 
 ## 8. Findings: what is wrong, and where (F3)
 
@@ -712,7 +776,7 @@ order.
 |---|---|---|---|
 | F0 | the look, on two fixtures | none | built, on master |
 | F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on master (1.10.8); proposes 1.11.0 |
-| F2 | threads and processes: a lane for each spawn site and the copy analysed as a copy, spawns and joins, channels followed across lanes, locks, process portals, writes to a shared knowledge base, three findings | none | built, on the work branch (1.10.9); proposes a minor |
+| F2 | threads and processes: a lane for each spawn site and the copy analysed as a copy, spawns and joins, channels followed across lanes, locks, process portals, writes to a shared knowledge base, three findings; then `cowork_map/3`'s jobs, `httpd_serve` with no pool, channels and handles followed through heads, callers, terms and other channels, and the order of a channel's messages | none | built, on master (1.10.9, 1.10.11); proposes a minor |
 | F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on master (1.10.8); proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
 | D1 | the record-mode tracer, the new events, `'$trace_window'/4` | `lib/solve.cicili`, `lib/builtins.cicili` | a patch |

@@ -102,12 +102,13 @@ flow_m(not(Ns), LC, mcon(not, Label, Tracks, W, A, D, true, false)) :- !,
     flow_m_list(Ns, LC, Is),
     flow_tracks([Is], 0, 0, Tracks),
     flow_con_size(Tracks, Label, W, A, D).
-flow_m(meta(Name, Head, Ms, Ts, _), LC, mcon(meta, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
+flow_m(meta(Name, Head, Ms, Ts, Info), LC, mcon(meta, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
     LC = lc(Names, _, _, _),
     flow_goal_segs(Head, Ms, Names, Segs0),
     flow_meta_note(Name, Note),
     append(Segs0, [s(Note, muted)], Segs),
-    findall(TI, ( member(T, Ts), flow_m_list(T, LC, TI) ), TIs),
+    flow_lc_names(LC, Info, LCT),
+    findall(TI, ( member(T, Ts), flow_m_list(T, LCT, TI) ), TIs),
     flow_tracks(TIs, 0, 0, Tracks),
     flow_con_size(Tracks, segs(Segs), W, A, D),
     flow_meta_can_fail(Name, Head, Ms, Ts, CF),
@@ -133,6 +134,12 @@ flow_meta_note(phrase, '    the grammar over a list').
 flow_meta_note(with_mutex, '    once, holding the lock').
 flow_meta_note(channel_forall, '    for every term the channel brings').
 flow_meta_note(cond_wait_until, '    waits until it holds').
+flow_meta_note(httpd_serve, '    each request, here: a page that fails is a 404').
+
+%% a construct that names what it hands its goal -- httpd_serve/2,3 a
+%% page's Path, Request and Reply -- names it inside
+flow_lc_names(lc(Ns, I, S, B), Info, lc(Ns1, I, S, B)) :-
+    (   memberchk(names(NL), Info) -> append(NL, Ns, Ns1) ; Ns1 = Ns ).
 
 flow_m_arms([], _, _, []).
 flow_m_arms([arm(C, T)|As], LC, K, [[F|TIs]|Ts]) :-
@@ -384,7 +391,9 @@ flow_p(mg(Kind, Segs, Badge, ND, CF, W, Tip, Plaque0), X, Y, Prims, it(X, W, B, 
     flow_badge_prims(Badge, Kind, X, W, Y, BadgePs),
     append([[Shape, t(TX, TY, start, 12, mono, normal, Segs)], Glyph, Plaque, BadgePs], Inner),
     (   Badge = ref(Id) -> Site = [9-site(Id, Y)]
-    ;   Badge = lane(R), Kind = conc(join(_)) -> Site = [9-jsite(R, Y)]
+    ;   Badge = lane(_), Kind = conc(join(_)), Tip = tip(_, GId)
+    ->  JX is X + W // 2, JB is Y + 13,
+        Site = [9-jsite(GId, JX, JB)]
     ;   Site = []
     ),
     flow_box_marks(Plaque1, X, W, Y, Marks),
@@ -527,7 +536,7 @@ flow_plaque_text(spawn(Type), _, Ids, Id, _, plq(T, '#7c3aed', none)) :- !,
     ->  format(atom(T), '~w  l~w', [Type, L])
     ;   T = Type
     ).
-flow_plaque_text(conc(chan(Op, Ch)), _, Ids, Id, Names, plq(T, '#2f5bd3', chan(K, Op))) :- !,
+flow_plaque_text(conc(chan(Op, Ch)), _, Ids, Id, Names, plq(T, '#2f5bd3', chan(K, Op, Id))) :- !,
     flow_site_channel(Ids, Id, Ch, Names, K),
     flow_chan_label(K, KT),
     format(atom(T), '~w ~w', [Op, KT]).
@@ -548,7 +557,7 @@ flow_plaque_text(_, _, _, _, _, none).
 %% the channel a site is about: its number, or the variable that names it
 flow_site_channel(Ids, Id, Ch, Names, K) :-
     flow_graph_links(Ids, links(_, _, Chans, _, _, _)),
-    (   member(channel(K0, _, Ops), Chans), memberchk(op(Id, _), Ops) -> K = K0
+    (   member(channel(K0, _, Ops, _, _), Chans), memberchk(op(Id, _, _), Ops) -> K = K0
     ;   flow_handle_name(Ch, Names, Nm), K = var(Nm)
     ).
 
@@ -585,7 +594,7 @@ flow_plaque_prims(plq(T, Col, M), X, W, Badge, Y,
     TY is Y + 3.
 
 %% a channel's end tells the panel where it stands, for its message line
-flow_box_marks(plq(_, _, chan(K, Op)), X, W, Y, [9-msg(K, Op, CX, Y)]) :- !,
+flow_box_marks(plq(_, _, chan(K, Op, Id)), X, W, Y, [9-msg(K, Op, Id, CX, Y)]) :- !,
     CX is X + W // 2.
 flow_box_marks(_, _, _, _, []).
 
@@ -660,32 +669,40 @@ flow_rows_maxw([mrow(_, _, _, _, W)|Rs], M0, M) :-
 %% lane to the rail, and down the rail into the next clause; from the LAST
 %% clause the lane runs on through the panel's left border at its own
 %% height -- that is the fail port -- so it reaches the border straight.
+%% A lane's root (RailX `root') is proved once, and nothing backtracks into
+%% it once it has exited: it has no redo. cowork_map/3's jobs (RailX
+%% `jobs') are no clauses either: each is proved once, on its own, and each
+%% one's failure leaves through the border -- its answer, failed.
 flow_p_rows([], _, Top, _, _, [], [], Top).
 flow_p_rows([MR|MRs], X0, Top, RailX, ExitX, Prims, [G|Gs], Bottom) :-
-    (   MRs == [] -> LaneEnd = port ; LaneEnd = rail(RailX) ),
-    flow_p_row(MR, X0, Top, LaneEnd, ExitX, P1, G),
+    (   integer(RailX), MRs \== [] -> LaneEnd = rail(RailX) ; LaneEnd = port ),
+    (   integer(RailX) -> Redo = true ; Redo = false ),
+    flow_p_row(MR, X0, Top, LaneEnd, Redo, ExitX, P1, G),
     G = row_geo(_, _, _, RB, _),
     Top2 is RB + 4,
     flow_p_rows(MRs, X0, Top2, RailX, ExitX, P2, Gs, Bottom),
     append(P1, P2, Prims).
 
-flow_p_row(mrow(I, Items, A, D, _), X0, Top, LaneEnd, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
+flow_p_row(mrow(I, Items, A, D, _), X0, Top, LaneEnd, Redo, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
     Y is Top + A,
     flow_p_items(Items, X0, Y, IPs, XE, Infos),
     YF is Y + D + 12,
     flow_row_tail(Items, Tail),
     RowEnd is XE + 12 + Tail,
-    flow_lanes(Infos, RowEnd, LaneEnd, YF, LPs, RailHit, Tags),
+    flow_lanes(Infos, RowEnd, LaneEnd, Redo, YF, LPs, RailHit, Tags),
     (   Tags == true -> Extra = 6 ; Extra = 0 ),
     Bottom is YF + 12 + Extra,
     append([[1-l([X0-Y, ExitX-Y], ink, 1.4, none, none)], IPs, LPs], Prims).
 
-flow_lanes(Infos, RowEnd, LaneEnd, YF, Prims, RailHit, Tags) :-
+flow_lanes(Infos, RowEnd, LaneEnd, Redo, YF, Prims, RailHit, Tags) :-
     flow_index(Infos, 1, Indexed),
     flow_fail_sources(Indexed, [], Srcs0),
-    reverse(Indexed, RevAll),
-    flow_fail_target(RevAll, EndT),
-    Srcs = [src(EndT, RowEnd, end)|Srcs0],
+    (   Redo == true
+    ->  reverse(Indexed, RevAll),
+        flow_fail_target(RevAll, EndT),
+        Srcs = [src(EndT, RowEnd, end)|Srcs0]
+    ;   Srcs = Srcs0
+    ),
     findall(T, member(src(T, _, _), Srcs), Ts0),
     sort(Ts0, Ts),
     flow_lane_groups(Ts, Srcs, Indexed, LaneEnd, YF, GPs),
@@ -819,7 +836,11 @@ flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap,
     TagW is (TN * 62 + 9) // 10,
     W is max(34 + MW + 26 + 16, 34 + HW + max(140, TagW + 30)),
     ExitX is W - 14,
-    flow_p_rows(MRows, 34, 44, 16, ExitX, RowPs, Geos, Bottom),
+    (   flow_jobs_root(Kind, Rows) -> RailX = jobs
+    ;   Kind = lane(_, _) -> RailX = root
+    ;   RailX = 16
+    ),
+    flow_p_rows(MRows, 34, 44, RailX, ExitX, RowPs, Geos, Bottom),
     Geos = [row_geo(_, CallY, _, _, _)|_],
     MinY is CallY + 18,
     flow_jacks(RowPs, D, DMap, KMap, W, MinY, Jacks0, JackPs),
@@ -830,7 +851,9 @@ flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap,
     max_list([0|JYs], MaxJY),
     H is max(Bottom + 8, MaxJY + 12),
     flow_panel_frame(Id, Kind, W, H, HeadSegs, Tag, FramePs),
-    flow_panel_ports(Geos, W, ExitX, PortPs),
+    (   RailX == jobs -> flow_job_ports(Geos, W, ExitX, PortPs)
+    ;   flow_panel_ports(Geos, W, ExitX, PortPs)
+    ),
     exclude(flow_is_site, RowPs, RowPs1),
     append([FramePs, PortPs, RowPs1, JackPs], Prims).
 
@@ -842,8 +865,8 @@ flow_is_site(9-_).
 flow_marks_of(Prims, Marks) :-
     findall(M, ( member(9-P, Prims), flow_mark(P, M) ), Marks).
 
-flow_mark(jsite(R, Y), jj(R, Y)).
-flow_mark(msg(K, Op, X, Y), ms(K, Op, X, Y)).
+flow_mark(jsite(GId, X, Y), jj(GId, X, Y)).
+flow_mark(msg(K, Op, Id, X, Y), ms(K, Op, Id, X, Y)).
 
 %% a library clause read back with clause/2 has letters for names; its
 %% head's variables take the names its library's header documents
@@ -882,15 +905,33 @@ flow_panel_tag(dynamic, Det0, NC, Tag) :- !,
 flow_panel_tag(lane(_, _), Det0, _, Tag) :- !,
     flow_det_text(Det0, Det),
     format(atom(Tag), 'what it proves  ·  ~w', [Det]).
+flow_panel_tag(_, Det0, _, Det) :- flow_det_text(Det0, Det).
 
-%% a lane's root says where it runs: `l1 · thread · worker(Ch)'
-flow_lane_head(Type, LN, [row(_, _, Names, _, Nodes, _)], Segs) :-
+%% a lane's root says where it runs: `l1 · thread · worker(Ch)', and
+%% cowork_map/3's how many jobs it was handed
+flow_lane_head(Type, LN, Rows, Segs) :-
     format(atom(L), 'l~w  ·  ~w  ·  ', [LN, Type]),
-    (   Nodes = [g(G, _, _, _, _, _)] -> flow_term_text(G, Names, 999, T)
-    ;   T = 'a conjunction'
+    (   Rows = [row(0, _, Names, _, Nodes, _)]
+    ->  (   Nodes = [g(G, _, _, _, _, _)] -> flow_term_text(G, Names, 999, T)
+        ;   T = 'a conjunction'
+        )
+    ;   flow_jobs_text(Rows, T)
     ),
     Segs = [s(L, muted), s(T, ink)].
-flow_panel_tag(_, Det0, _, Det) :- flow_det_text(Det0, Det).
+
+flow_jobs_text(Rows, T) :-
+    length(Rows, N),
+    (   last(Rows, row(_, _, Names, _, [g(call(Rest), _, _, _, _, _)], CI)),
+        memberchk(rest, CI)
+    ->  flow_term_text(Rest, Names, 999, RT),
+        N1 is N - 1,
+        (   N1 =:= 0 -> format(atom(T), 'cowork_map/3: each job of ~w', [RT])
+        ;   flow_plural(N1, job, JW),
+            format(atom(T), 'cowork_map/3: ~d ~w, then each of ~w', [N1, JW, RT])
+        )
+    ;   flow_plural(N, job, JW),
+        format(atom(T), 'cowork_map/3: ~d ~w', [N, JW])
+    ).
 
 flow_plural(1, W, W) :- !.
 flow_plural(_, W, P) :- atom_concat(W, s, P).
@@ -937,6 +978,25 @@ flow_panel_ports(Geos, W, ExitX, Prims) :-
     flow_markers(Geos, Marks),
     flow_retries(Geos, Retries),
     append([Ports, Rail, Marks, Retries], Prims).
+
+%% cowork_map/3's root: every job is called, each through the left border,
+%% and each that fails leaves through it at its own height, answered
+%% `failed'; the exits meet on the right, where the answers are gathered
+flow_job_ports(Geos, W, ExitX, Prims) :-
+    Geos = [row_geo(_, Y1, _, _, _)|_],
+    last(Geos, row_geo(_, YL, _, _, _)),
+    LY is Y1 - 8,
+    EX is W - 3,
+    Ports = [3-t(2, LY, start, 8, sans, normal, [s(call, muted)]),
+             1-l([ExitX-Y1, W-Y1], ink, 1.4, none, ink),
+             3-t(EX, LY, end, 8, sans, normal, [s(exit, muted)])],
+    findall(1-l([0-Y, 9-Y], ink, 1.4, none, ink), member(row_geo(_, Y, _, _, _), Geos), Calls),
+    (   YL =\= Y1 -> Rail = [1-l([ExitX-YL, ExitX-Y1], ink, 1.4, none, none)] ; Rail = [] ),
+    flow_markers(Geos, Marks),
+    findall(3-t(3, FY, start, 8, sans, normal, [s(failed, red)]),
+            ( member(row_geo(_, _, YF, _, true), Geos), FY is YF + 11 ),
+            Words),
+    append([Ports, Calls, Rail, Marks, Words], Prims).
 
 flow_markers([], []).
 flow_markers([row_geo(I, Y, _, _, _)|Gs], [1-l([23-Y, 34-Y], ink, 1.4, none, none),
@@ -1206,7 +1266,9 @@ flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fs, canvas(CW, CH, Items
     flow_parents(Panels, DMap, Ids, Parents),
     flow_place_tree(PDs, Parents, Ids, Placed, Bands),
     flow_tree_wires(Placed, KMap, Ids, Wires),
-    flow_message_lines(Placed, Ids, Msgs),
+    flow_message_lines(Placed, Ids, Msgs0),
+    flow_join_lines(Placed, Ids, JLines),
+    append(Msgs0, JLines, Msgs),
     findall(R, ( member(pp(_, _, X, _, W, _, _, _, _, _), Placed), R is X + W ), Rs),
     max_list(Rs, MaxR),
     findall(B, ( member(pp(_, _, _, Y, _, H, _, _, _, _), Placed), B is Y + H ), Bs),
@@ -1349,7 +1411,9 @@ flow_tree_wires(Placed, KMap, Ids, Wires) :-
               flow_order_nets(Nets0, Nets1),
               flow_moved_last(Nets1, GL, Placed, Nets),
               XT0 is GL + 16,
-              findall(JC-JY1, ( member(jj(JC, JY0), Jacks), JY1 is Y + JY0 ), Joins),
+              findall(JC-JY1, ( member(jj(GId, _, JY0), Jacks),
+                                flow_join_roots(Ids, GId, JRs), member(JC, JRs),
+                                JY1 is Y + JY0 ), Joins),
               flow_tree_route(Nets, XT0, GL, Placed, KMap, Ids, Joins, Ws) ),
             Wss),
     append(Wss, Wires).
@@ -1484,20 +1548,54 @@ flow_spawn_wire(SX, SY, XT, TX, TY, C, LN, Ids, Joins, Wires) :-
     ),
     append(Spawn, Back1, Wires).
 
+%% A JOIN OUTSIDE ITS SPAWN'S PANEL -- the handle handed back up, or on --
+%% reads its lane's status down a fine dotted violet line from the lane's
+%% root to the join's box; a join beside its spawn reads it on the spawn's
+%% own wire (flow_spawn_wire/10)
+flow_join_lines(Placed, Ids, Lines) :-
+    flow_graph_lanes(Ids, Lanes),
+    findall(Ps,
+            ( member(pp(P, _, PX, PY, _, _, _, Jacks, _, _), Placed),
+              member(jj(GId, JX, JY), Jacks),
+              flow_join_roots(Ids, GId, Rs),
+              member(R, Rs),
+              memberchk(lane(_, _, R, SiteId, _, _, _, _), Lanes),
+              flow_site_panel(SiteId, SP),
+              SP =\= P,
+              memberchk(pp(R, _, RX, RY, RW, _, RCY, _, _, _), Placed),
+              EX is RX + RW, EY is RY + RCY,
+              TX is PX + JX, TY is PY + JY,
+              MX is (EX + TX) // 2, MY is (EY + TY) // 2 - 4,
+              Ps = [l([EX-EY, TX-TY], violet, 1, '2 3', violet),
+                    t(MX, MY, middle, 9, sans, bold, [s(status, violet)])] ),
+            Pss),
+    append(Pss, Lines).
+
+%% the roots of the lanes a join at GId waits for
+flow_join_roots(Ids, GId, Rs) :-
+    flow_graph_links(Ids, links(_, Joins, _, _, _, _)),
+    flow_graph_lanes(Ids, Lanes),
+    findall(R, ( member(join(GId, L, join), Joins),
+                 memberchk(lane(L, _, R, _, _, _, _, _), Lanes) ), Rs).
+
 %% A CHANNEL'S SENDS AND RECEIVES ARE TIED by a dotted blue line from each
-%% send to each receive of it, across the lanes, its name half way
-flow_message_lines(Placed, _, Msgs) :-
-    findall(m(K, Op, AX, AY),
+%% send to each receive of it, across the lanes, its name half way -- or,
+%% where its k-th send is its k-th receive's (lanes.pl, "The order of a
+%% channel's messages"), from each send to the receives that take it alone,
+%% numbered: ch1 #2
+flow_message_lines(Placed, Ids, Msgs) :-
+    findall(m(K, Op, Id, AX, AY),
             ( member(pp(_, _, X, Y, _, _, _, Jacks, _, _), Placed),
-              member(ms(K, Op, MX, MY), Jacks),
+              member(ms(K, Op, Id, MX, MY), Jacks),
               AX is X + MX,
               AY is Y + MY ),
             Ends),
+    flow_graph_links(Ids, links(_, _, Chans, _, _, _)),
     findall(Ps,
-            ( member(m(K, send, SX, SY), Ends),
-              member(m(K2, recv, RX, RY), Ends),
+            ( member(m(K, send, SId, SX, SY), Ends),
+              member(m(K2, recv, RId, RX, RY), Ends),
               K2 == K,
-              flow_chan_label(K, KT),
+              flow_msg_label(Chans, K, SId, RId, KT),
               SY1 is SY + 13,
               RY1 is RY - 13,
               MX is (SX + RX) // 2,
@@ -1506,6 +1604,20 @@ flow_message_lines(Placed, _, Msgs) :-
                     t(MX, MY, middle, 9, sans, bold, [s(KT, blue)])] ),
             Pss),
     append(Pss, Msgs).
+
+%% a send and a receive of channel K: the channel's name, or -- where they
+%% pair -- with the places they share, and nothing where they share none
+flow_msg_label(Chans, K, SId, RId, Label) :-
+    flow_chan_label(K, KT),
+    (   member(channel(K0, _, Ops, _, true), Chans), K0 == K
+    ->  memberchk(op(SId, send, SN), Ops),
+        memberchk(op(RId, recv, RN), Ops),
+        findall(N, ( member(N, SN), memberchk(N, RN) ), Ns),
+        Ns \== [],
+        findall(A, ( member(N, Ns), format(atom(A), '#~d', [N]) ), As),
+        atomic_list_concat([KT|As], ' ', Label)
+    ;   Label = KT
+    ).
 
 %% each lane but the query's opens with a rule across the chart and a line
 %% saying where its code runs, and what started it
@@ -1705,7 +1817,7 @@ flow_legend(Y0, CW, Threads, Prims, H) :-
     flow_legend_row('flow', [success, failure, cutfail, choice, recursion, redo], Y1, Max, P2, Y2),
     flow_legend_row('wires and modes', [wire, mode('+'), mode('-'), mode('?'), mode(':')], Y2, Max, P3, Y3),
     (   Threads == true
-    ->  flow_legend_row('threads', [spawn, spawnwire, chan, message, lock, process, kbwrite], Y3, Max, P4, Y4)
+    ->  flow_legend_row('threads', [spawn, spawnwire, joinline, chan, message, lock, process, kbwrite], Y3, Max, P4, Y4)
     ;   P4 = [], Y4 = Y3
     ),
     H is Y4 - Y0 + 4,
@@ -1750,6 +1862,7 @@ flow_legend_entry(mode(':'), W, 'a goal') :- flow_text_w(5, W).
 flow_legend_entry(spawn, W, 'a spawn: its goal runs in lane l1, from panel 7') :-
     flow_text_w(10, TW), flow_plaque_w(plq('thread  l1', x, none), PW), W is 18 + TW + PW + 21.
 flow_legend_entry(spawnwire, 48, 'the goal goes, a copy: nothing comes back').
+flow_legend_entry(joinline, 48, 'a join elsewhere reads the status').
 flow_legend_entry(chan, W, 'a channel end') :-
     flow_text_w(10, TW), flow_plaque_w(plq('send ch1', x, none), PW), W is 18 + TW + PW.
 flow_legend_entry(message, 48, 'a send to a receive').
@@ -1804,6 +1917,7 @@ flow_legend_sample(spawn, X, Y, Ps) :-
               plq('thread  l1', '#7c3aed', none)), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(spawnwire, X, Y, [l([X-Y, X2-Y], violet, 2.4, '9 5', violet)]) :- X2 is X + 46.
+flow_legend_sample(joinline, X, Y, [l([X-Y, X2-Y], violet, 1, '2 3', violet)]) :- X2 is X + 46.
 flow_legend_sample(chan, X, Y, Ps) :-
     flow_legend_entry(chan, W, _),
     flow_p(mg(conc(chan(send, _)), [s('send(C, T)', ink)], none, false, false, W, 'a channel end',

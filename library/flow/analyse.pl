@@ -678,7 +678,7 @@ flow_an_item(cond_wait_until(C, Mx, G), St0, St, Ctx, M0, M,
     flow_arg_mode(Mx, St0, MM),
     flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
 flow_an_item(channel_forall(Ch, G), St0, St0, Ctx, M0, M,
-             [meta(channel_forall, channel_forall(Ch, '…'), [MC, ':'], [Ns], [chan(recv, Ch)])]) :-
+             [meta(channel_forall, channel_forall(Ch, '…'), [MC, ':'], [Ns], [chan(recv, Ch), into(T)])]) :-
     flow_conc_lib(channel_forall(Ch, G), Ctx), !,
     flow_arg_mode(Ch, St0, MC),
     (   flow_closure_goal(G, [T], Goal)
@@ -688,6 +688,19 @@ flow_an_item(channel_forall(Ch, G), St0, St0, Ctx, M0, M,
         flow_closure_info(G, St0, I),
         Ns = [g(call(G, T), closure, [':', '+'], nondet, none, I)]
     ).
+%% httpd_serve/2,3 with no pool of workers serves on the caller's own
+%% thread: each request is httpd_page/3 called HERE, once, with its path
+%% and its request, and a page that fails is a 404 -- the server goes on to
+%% the next request, and never fails. Nothing a page binds comes back.
+%% (Its own heads, so the index passes them by for any other goal.)
+flow_an_item(httpd_serve(P, O), St0, St, Ctx, M0, M, Ns) :-
+    flow_serves_here(O),
+    flow_kind(httpd_serve(P, O), Ctx, library(httpd)), !,
+    flow_an_here(httpd_serve(P, O), St0, St, Ctx, M0, M, Ns).
+flow_an_item(httpd_serve(P, O, C), St0, St, Ctx, M0, M, Ns) :-
+    flow_serves_here(O),
+    flow_kind(httpd_serve(P, O, C), Ctx, library(httpd)), !,
+    flow_an_here(httpd_serve(P, O, C), St0, St, Ctx, M0, M, Ns).
 %% A SPAWN: the goal it sends is proved where it goes, with what is bound
 %% here -- a copy -- and nothing it binds comes back but what the spawn
 %% itself hands back. Past a call that never succeeds nothing is sent.
@@ -706,7 +719,7 @@ flow_an_item(G0, St0, St, Ctx, M0, M, [g(G, spawn(Type), Ms, Det, N/A, I)]) :-
     ;   flow_raise_list(Bound, b, St0, StIn),
         term_variables(Goal, GVs),
         flow_copied_vars(GVs, St0, Copied0),
-        flow_an_seq(Goal, StIn, StOut, Ctx, M0, M, Ns),
+        flow_an_sent(Goal, StIn, StOut, Ctx, M0, M, Ns),
         (   Back == back
         ->  (   flow_dead(StOut) -> St = [dead-dead|St1]
             ;   flow_back_vars(GVs, StOut, St1, St)
@@ -714,7 +727,8 @@ flow_an_item(G0, St0, St, Ctx, M0, M, [g(G, spawn(Type), Ms, Det, N/A, I)]) :-
             (   flow_nodes_total(Ns) -> Det = det ; Det = semidet )
         ;   St = St1, Det = det
         ),
-        flow_strip_at(Goal, GoalS),
+        flow_strip_at(Goal, GoalS0),
+        (   GoalS0 = '$jobs'(GoalS) -> true ; GoalS = GoalS0 ),
         I = [spawn(Type, GoalS, Ns, Back, Copied0)]
     ).
 %% call/N runs the goal its closure makes with N-1 arguments more, and
@@ -750,6 +764,34 @@ flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
         St = [dead-dead|St1]                    % it raises: nothing after it runs
     ;   I = [], St = St1
     ).
+
+%% httpd_serve/2,3 here: a construct whose goal is the page, its Path and
+%% Request bound, its Reply free; the caller's state is the page's to read
+%% and nothing the page binds comes back
+flow_an_here(G0, St0, St0, Ctx, M0, M, [meta(httpd_serve, G, Ms, [Ns], [names(Names)])]) :-
+    flow_strip_at(G0, G),
+    G =.. [_|Args],
+    flow_arg_modes(Args, St0, Ms),
+    Page = httpd_page(Path, Request, _),
+    flow_page_names(Page, Names),
+    flow_raise_list([Path, Request], b, St0, St1),
+    flow_an_seq(Page, St1, _, Ctx, M0, M, Ns).
+
+%% what a spawn sends, analysed where it goes: its goal, or cowork_map/3's
+%% jobs, jobs(Js), each proved on its own with what is bound at the spawn.
+%% A list the source does not write is rest(Ns): a goal known only when it
+%% runs, and no finding -- the list may well be bound by then.
+flow_an_sent('$jobs'(L), St, St, Ctx, M0, M, jobs(Js)) :- !,
+    flow_an_jobs(L, St, Ctx, M0, M, Js).
+flow_an_sent(Goal, StIn, StOut, Ctx, M0, M, Ns) :-
+    flow_an_seq(Goal, StIn, StOut, Ctx, M0, M, Ns).
+
+flow_an_jobs(L, _, _, M, M, [rest([g(call(L), closure, [':'], nondet, none, [])])]) :-
+    var(L), !.
+flow_an_jobs([G|Gs], St, Ctx, M0, M, [job(Ns)|Js]) :- !,
+    flow_an_seq(G, St, _, Ctx, M0, M1, Ns),
+    flow_an_jobs(Gs, St, Ctx, M1, M, Js).
+flow_an_jobs(_, _, _, M, M, []).
 
 %% What a goal is, said as the chart says it: library(thread)'s goals by
 %% what they do between threads, and a child process as a portal of its
@@ -1121,6 +1163,7 @@ flow_meta_can_fail(aggregate_all, aggregate_all(Spec, _, _), [_, _, MR], _, CF) 
 flow_meta_can_fail(forall, _, _, _, true) :- !.
 flow_meta_can_fail(ignore, _, _, _, false) :- !.
 flow_meta_can_fail(cond_wait_until, _, _, _, false) :- !.    % it waits until the goal holds
+flow_meta_can_fail(httpd_serve, _, _, _, false) :- !.        % a page that fails is a 404
 flow_meta_can_fail(_, _, _, [Ns], CF) :-
     (   flow_nodes_total(Ns) -> CF = false ; CF = true ).
 

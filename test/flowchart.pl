@@ -26,6 +26,10 @@
 %%               pool; a channel, locks, child processes, writes to the
 %%               knowledge base; the three thread findings, a binding a
 %%               thread never hands back, and six near misses
+%%   crossing.pl what F2 left: a crew handed a list of jobs, a server on
+%%               the caller's thread, handles and channels followed through
+%%               heads, callers, terms and other channels, and the order a
+%%               channel's messages are taken in -- a predicate at a time
 %%
 %% How the picture LOOKS is not checked here -- that is judged by eye --
 %% but that it is an SVG that reads back, and that every goal in the XML
@@ -52,6 +56,7 @@ main :-
     drawing_less,
     builtins,
     threads,
+    crossing,
     command,
     refusals,
     checks_done.
@@ -432,7 +437,7 @@ documents :-
     answer(xml_parse(SC, element(R2, _, _)), R2, G2),
     check('the SVG reads back as an svg element', G2, svg),
     answer(( xml_parse(XC, element(R3, A3, _)), memberchk(version=V3, A3) ), R3-V3, G3),
-    check('the XML reads back as a flow element, schema version 3', G3, flow-'3'),
+    check('the XML reads back as a flow element, schema version 4', G3, flow-'4'),
     xml_parse(SC, S),
     xml_parse(XC, X),
     findall(I, xml_ids_of(X, goal, I), XIds),
@@ -789,6 +794,14 @@ threads_picture :-
            'lane l5  ·  thread', 'lane l6  ·  thread', 'lane l7  ·  isolated', 'lane l8  ·  crew',
            'lane l9  ·  httpd', 'lane l10  ·  thread']).
 
+%% the failure lanes of a panel that leave through its left border
+svg_port_lanes(S, PId, N) :-
+    (   svg_element(S, PId, P) -> true ; P = element(g, [], []) ),
+    findall(x, ( xml_el(P, path, element(_, As, _)), memberchk('marker-end'='url(#a-red)', As),
+                 memberchk(d=D, As), sub_atom(D, _, _, _, ' L0 ') ),
+            Xs),
+    length(Xs, N).
+
 %% every element of that name, in document order
 xml_el(element(N, As, Cs), Name, E) :-
     (   N == Name, E = element(N, As, Cs)
@@ -804,7 +817,149 @@ svg_paths(S, Stroke, Dash, N) :-
             Xs),
     length(Xs, N).
 
-%% ---- the command an agent runs -------------------------------------------
+%% ---- what crosses: the cases F2 left ------------------------------------
+%%
+%% crossing.pl, a predicate charted at a time: a crew handed jobs, a server
+%% on the caller's thread, handles and channels followed through heads,
+%% callers, terms and other channels, and the order a channel's messages
+%% are taken in
+
+crossing :-
+    section('what crosses: jobs, a server here, handles and channels followed, the order of messages'),
+    crossing_jobs,
+    crossing_here,
+    crossing_followed,
+    crossing_order,
+    crossing_picture.
+
+%% a crew handed a list of jobs: a lane, a row a job, each proved alone
+crossing_jobs :-
+    graph(jobs('-', '-', '-'), crossing, G1),
+    flow_xml(G1, X1),
+    findall(L1-R1-S1-Gl1-C1-B1,
+            ( xml_el(X1, lane, element(_, A1, _)), memberchk(id=L1, A1), L1 \== l0,
+              memberchk(root=R1, A1), memberchk(site=S1, A1), memberchk(goal=Gl1, A1),
+              memberchk(copies=C1, A1), memberchk(returns=B1, A1) ),
+            Ls1),
+    check('cowork_map/3: a lane each, its jobs as the source writes them, what they copy, and a copy back', Ls1,
+          [l1-p3-'p1.c1.g3'-'[(half(A, H), H > 1), double(X, A), double(2, B)]'-'X'-copy,
+           l2-p6-'p1.c1.g5'-'[double(5, _)|Gs]'-'Gs'-copy,
+           l3-p8-'p1.c1.g6'-'Gs'-'Gs'-copy]),
+    findall(J2-N2-Rt2, ( xml_el(X1, job, element(_, A2, _)), memberchk(id=J2, A2), memberchk(n=N2, A2),
+                         ( memberchk(rest=Rt2, A2) -> true ; Rt2 = no ) ),
+            Js2),
+    check('a <job> for each, and one more for the rest of a list the source does not write', Js2,
+          ['p3.c1'-1-no, 'p3.c2'-2-no, 'p3.c3'-3-no, 'p6.c1'-1-no, 'p6.c2'-2-true, 'p8.c1'-1-true]),
+    attr_of(X1, 'p3.c1.g1', line, Ln3), attr_of(X1, 'p3.c1.g1', col, Cl3),
+    attr_of(X1, 'p6.c2.g1', text, T3), attr_of(X1, 'p6.c2.g1', kind, K3),
+    check('each job stands where the source writes it, and the rest is a goal known only when it runs',
+          Ln3-Cl3-T3-K3, 23-21-'call(Gs)'-closure),
+    flow_findings(G1, Fs4),
+    findall(K4-At4-In4, member(finding(_, K4, _, At4, In4, _, _, _), Fs4), F4),
+    check('each job is proved on its own: the A job 1 halves is free there, whatever job 2 binds', F4,
+          [instantiation-'p4.c1.g1'-'half/2']).
+
+%% an httpd server with no pool: the page runs here, in the caller's lane
+crossing_here :-
+    graph(serve, crossing, G5),
+    flow_xml(G5, X5),
+    attr_of(X5, 'p1.c1.g2', name, N5), attr_of(X5, 'p1.c1.g2', can_fail, CF5),
+    attr_of(X5, 'p1.c1.g2.g1', text, T5), attr_of(X5, 'p1.c1.g2.g1', modes, M5),
+    attr_of(X5, 'p1.c1.g2.g1', calls, C5), attr_of(X5, 'p1.c1.g2.g1', on_fail, O5),
+    attr_of(X5, C5, lane, L5),
+    check('httpd_serve/2 with no workers is a construct: the page, called here with its path and request; a failure is a 404',
+          [N5, CF5, T5, M5, L5, O5],
+          [httpd_serve, false, 'httpd_page(Path, Request, Reply)', '+ + -', l0, 'p1.c1.g2:next']),
+    flow_findings(G5, Fs6),
+    findall(K6-At6, member(finding(_, K6, _, At6, _, _, _, _), Fs6), F6),
+    check('the page here reads what its own lane writes: only the pool''s copy is a finding', F6,
+          [thread_visibility-'p6.c1.g1']).
+
+%% a handle and a channel followed: up through a head, down through a
+%% call, inside a term, down another channel
+crossing_followed :-
+    graph(handles, crossing, G7),
+    flow_xml(G7, X7),
+    findall(At7-L7, ( xml_el(X7, join, element(_, A7, _)), memberchk(at=At7, A7), memberchk(lane=L7, A7) ), J7),
+    check('each join reads the lane whose handle it holds: two in one list, a pool''s by member/2, one handed back up and on down',
+          J7, ['p1.c1.g4'-l3, 'p1.c1.g4'-l4, 'p1.c1.g6.g2'-l1, 'p3.c1.g1'-l2]),
+    graph(terms, crossing, G8),
+    flow_xml(G8, X8),
+    findall(Op8-At8, ( xml_el(X8, channel, element(_, A8, C8)), memberchk(id=ch1, A8),
+                       member(element(Op8, OA8, _), C8), memberchk(at=At8, OA8) ), Ops8),
+    check('a channel inside a term is followed out of it by a head, by =/2 and by arg/3', Ops8,
+          [send-'p1.c1.g5', close-'p1.c1.g6', receive-'p3.c1.g1', receive-'p6.c1.g2', receive-'p9.c1.g2']),
+    graph(reply, crossing, G9),
+    flow_xml(G9, X9),
+    (   xml_el(X9, channel, element(_, A9, C9)), memberchk(id=ch2, A9) -> true ; A9 = [], C9 = [] ),
+    findall(Op9-At9, ( member(element(Op9, OA9, _), C9), memberchk(at=At9, OA9) ), Ops9),
+    (   memberchk(via=V9, A9) -> true ; V9 = none ),
+    check('a channel sent down another is followed into the thread that takes it, and says which carried it',
+          V9-Ops9, ch1-[receive-'p1.c1.g5', send-'p4.c1.g2']).
+
+%% the k-th send is the k-th receive's where one lane sends and one takes,
+%% each its messages in an order known; none has a place in a loop, a
+%% recursion or a pool
+crossing_order :-
+    graph(order, crossing, G10),
+    flow_xml(G10, X10),
+    (   xml_el(X10, channel, element(_, A10, C10)), memberchk(id=ch1, A10) -> true ; A10 = [], C10 = [] ),
+    findall(Op10-At10-N10, ( member(element(Op10, OA10, _), C10), memberchk(at=At10, OA10),
+                             ( memberchk(n=N10, OA10) -> true ; N10 = none ) ), Ops10),
+    (   memberchk(pairs=P10, A10) -> true ; P10 = false ),
+    check('three messages in order: each send and receive its place, two of them one helper''s called twice; they pair',
+          P10-Ops10,
+          true-[send-'p1.c1.g3'-'1', close-'p1.c1.g6'-none, send-'p2.c1.g1'-'2 3',
+                receive-'p4.c1.g1'-'1', receive-'p4.c1.g2'-'2', receive-'p5.c1.g1'-'3']),
+    findall(Q11-P11, ( member(Q11, [maybe, spin, pooled, choose]),
+                       graph(Q11, crossing, G11), flow_xml(G11, X11),
+                       xml_el(X11, channel, element(_, A11, _)),
+                       ( memberchk(pairs=P11, A11) -> true ; P11 = false ) ),
+            Ps11),
+    check('a send in one clause of two, in a recursion or after a goal that can be redone, a receive in a pool: no place, no pairs',
+          Ps11, [maybe-false, spin-false, pooled-false, choose-false]).
+
+%% what the picture adds: jobs that fail answered `failed', a fine line to
+%% each join elsewhere, numbered message lines, and a root with no redo
+crossing_picture :-
+    scratch(D),
+    fx(crossing, F),
+    atom_concat(D, '/jobs', B12),
+    flow_chart(jobs('-', '-', '-'), B12, [source(F)]),
+    svg_texts(B12, Tx12),
+    findall(H12, ( member(H12, Tx12), atom_concat('cowork_map/3: ', _, H12) ), Hs12),
+    msort(Hs12, Ss12),
+    findall(x, member(failed, Tx12), Fd12), length(Fd12, NF12),
+    svg_doc(B12, S12),
+    svg_port_lanes(S12, p3, NP12),
+    check('a jobs root says how many, and each job that can fail -- the first, too -- leaves through the border, failed',
+          Ss12-NF12-NP12,
+          ['cowork_map/3: 1 job, then each of Gs', 'cowork_map/3: 3 jobs', 'cowork_map/3: each job of Gs']-3-1),
+    atom_concat(D, '/handles', B13),
+    flow_chart(handles, B13, [source(F)]),
+    svg_doc(B13, S13),
+    svg_paths(S13, '#7c3aed', '2 3', N13),
+    check('a fine dotted line from each lane joined outside its spawn''s panel to its join (and the legend''s)', N13, 4),
+    atom_concat(D, '/order', B14),
+    flow_chart(order, B14, [source(F)]),
+    svg_texts(B14, Tx14),
+    findall(T14, ( member(T14, Tx14), atom_concat(ch1, _, T14), T14 \== ch1,
+                   \+ atom_concat('send ', _, T14) ), Ls14),
+    msort(Ls14, Ss14),
+    check('a paired channel ties each send to the receive that takes it alone, numbered', Ss14,
+          ['ch1 #1', 'ch1 #2', 'ch1 #3']),
+    atom_concat(D, '/serve', B16),
+    flow_chart(serve, B16, [source(F)]),
+    svg_doc(B16, S16),
+    svg_title(S16, 'p1.c1.g2.g1', T16),
+    (   sub_atom(T16, 0, 32, _, P16) -> true ; P16 = T16 ),
+    check('the page inside the construct names what it is handed, as its lane''s root does', P16,
+          'httpd_page(Path, Request, Reply)'),
+    atom_concat(D, '/once', B15),
+    flow_chart(once_root, B15, [source(F)]),
+    svg_texts(B15, Tx15),
+    findall(x, member('↶', Tx15), Rd15), length(Rd15, NR15),
+    check('a lane''s root is proved once: no redo marks it, where its own clause and work/1''s have one (and the legend)', NR15, 3).
 
 command :-
     section('tools/flow/chart.pl: one command, two files, an exit status'),

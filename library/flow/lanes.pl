@@ -20,14 +20,20 @@
 %%     crew      cowork_ask(Crew, Goal)             a worker of a cowork crew;
 %%               cowork_ask(Crew, Goal, Answer)     /2 unifies the answer back,
 %%               cowork_post(Crew, Goal)            /3 copies it, post waits for
-%%               cowork_start(N, [on_start(G)], C)  nothing; G starts each worker
+%%               cowork_start(N, [on_start(G)], C)  nothing; G starts each worker;
+%%               cowork_map(Crew, Goals, Results)   map waits for a copy of each
+%%                                                  job's answer, in order
 %%     httpd     httpd_serve(Port, [workers(N)])    each request on a worker of
 %%                                                  the pool: httpd_page/3
 %%
 %% A lane is a SITE -- the place in the program a spawn stands -- so a site
 %% reached from two lanes starts one lane. Its first panel is its ROOT,
 %% what it proves, as the query's panel is the query: the goal as the
-%% source writes it. Every panel the root reaches is drawn again in the
+%% source writes it, one row, c0. cowork_map/3's root has a row for each
+%% job, c1, c2, ..., each proved on its own -- one that fails is answered
+%% `failed', and the next is not its retry -- and a list the source does
+%% not write, or a tail it does not, is a row more: a goal known only when
+%% it runs. Every panel the root reaches is drawn again in the
 %% lane and numbered anew, since the same code running in two places is
 %% exactly what a reader needs to see.
 %%
@@ -36,14 +42,15 @@
 %%     spawn     into the lane: what is copied, and what comes back --
 %%               nothing, the status (run_isolated/2), or the answer
 %%               (cowork_ask/2,3)
-%%     join      thread_join/2 or thread_join_all/1 of what a spawn in the
-%%               same clause made: the status only; thread_detach/1
+%%     join      thread_join/2 or thread_join_all/1 of the handle a spawn
+%%               made, followed to it: the status only; thread_detach/1
 %%               likewise, and it reads nothing
 %%     channel   channel_new/1,2 names one, ch1, ch2, ... in the order the
-%%               chart meets them, and the channel is followed into the
-%%               goals and the arguments it is handed, so each send and
-%%               receive says which; one the chart cannot follow is named
-%%               by its variable
+%%               chart meets them, and the channel is followed wherever the
+%%               program takes it, so each send and receive says which --
+%%               and, where one lane sends and one receives, each in an
+%%               order the chart can read, which send each receive takes;
+%%               one the chart cannot follow is named by its variable
 %%     lock      with_mutex/2 (a construct: its goal once, under the lock),
 %%               mutex_lock/1, mutex_unlock/1, mutex_trylock/1, and the
 %%               condition variables' wait, signal and broadcast
@@ -76,6 +83,8 @@ flow_spawn(cowork_post(_, G), crew, G, [], [], none) :- flow_written_goal(G).
 flow_spawn(cowork_start(_, Opts, _), crew, G, [], [3], none) :-
     flow_opt_arg(Opts, on_start, G),
     flow_written_goal(G).
+flow_spawn(cowork_map(_, Gs, _), crew, '$jobs'(Gs), [], [3], waits) :-
+    (   var(Gs) -> true ; Gs = [_|_] ).
 flow_spawn(httpd_serve(_, Opts), httpd, httpd_page(P, R, _), [P, R], [], none) :-
     flow_pool_opts(Opts).
 flow_spawn(httpd_serve(_, Opts, _), httpd, httpd_page(P, R, _), [P, R], [], none) :-
@@ -106,6 +115,16 @@ flow_pool_opts(Opts) :-
     flow_opt_arg(Opts, workers, N),
     integer(N),
     N > 0.
+
+%% httpd_serve/2,3 serving on the caller's thread (analyse.pl): options the
+%% source writes, with no workers(N) or workers(0) -- a workers(W) the
+%% source does not write is neither this nor a pool
+flow_serves_here(Opts) :-
+    is_list(Opts),
+    (   flow_opt_arg(Opts, workers, N) -> integer(N), N =< 0 ; true ).
+
+%% what a page is handed, by the names library(httpd) gives them
+flow_page_names(httpd_page(P, Rq, Rp), ['Path'=P, 'Request'=Rq, 'Reply'=Rp]).
 
 %% The reader wraps the goals inside a meta-call's arguments in '$at'/2 to
 %% say where they stand (read.pl); the goal as written has none of it
@@ -335,7 +354,7 @@ flow_lane_sites([sp(SiteId, SK, Node, Names, CI)|Ss], L, P, Ctx, PM, St0, St, Ne
         Node = g(_, spawn(Type), _, _, _, Info),
         memberchk(spawn(Type, Goal, Ns, Back, _), Info),
         flow_lane_root(R, LN, Type, PKey, Goal, Ns, Names, CI, Info, D1, Root),
-        Root = panel(_, _, _, _, _, rows([row(_, _, RNames, _, _, _)]), _, Calls),
+        Root = panel(_, _, _, _, _, rows([row(_, _, RNames, _, _, _)|_]), _, Calls),
         flow_enqueue(Calls, D1, LN, Ctx, PM, I0, I1, N1, N2, Todos),
         flow_bfs(Todos, LN, Ctx, PM, I1, N2, LPs, I2, N3),
         put_assoc(SK, Sites0, R, Sites1),
@@ -348,22 +367,42 @@ flow_lane_sites([sp(SiteId, SK, Node, Names, CI)|Ss], L, P, Ctx, PM, St0, St, Ne
     ),
     flow_lane_sites(Ss, L, P, Ctx, PM, St1, St, New1).
 
-%% THE ROOT: one row, the spawned goal as analysed where it was spawned. Its
-%% key is the spawner's, so a finding in it names the predicate whose
-%% clause wrote it; its row stands where the spawn does.
+%% THE ROOT: one row, the spawned goal as analysed where it was spawned --
+%% or cowork_map/3's jobs, a row each. Its key is the spawner's, so a
+%% finding in it names the predicate whose clause wrote it; its rows stand
+%% where the spawn does.
 flow_lane_root(R, LN, Type, Key, Goal, Ns, Names0, CI0, Info, D,
-               panel(R, Key, lane(Type, LN), [], D, rows([Row]), Det, Calls)) :-
+               panel(R, Key, lane(Type, LN), [], D, rows(Rows), Det, Calls)) :-
     flow_lane_names(Goal, Names0, Names),
     flow_lane_ci(CI0, Info, CI),
-    Row = row(0, none, Names, false, Ns, CI),
-    flow_lane_det(Ns, Det),
-    flow_rows_calls([Row], Calls).
+    (   Ns = jobs(Js)
+    ->  flow_job_rows(Js, 1, Names, CI, Rows, JNs),
+        flow_lane_det(JNs, Det)
+    ;   Rows = [row(0, none, Names, false, Ns, CI)],
+        flow_lane_det(Ns, Det)
+    ),
+    flow_rows_calls(Rows, Calls).
+
+%% a row for each job, c1, c2, ...; a list the source does not write is
+%% the rest, a row of one goal known only when it runs, marked `rest'
+flow_job_rows([], _, _, _, [], []).
+flow_job_rows([J|Js], K, Names, CI, [row(K, none, Names, false, Ns, CI1)|Rows], AllNs) :-
+    (   J = rest(Ns) -> CI1 = [rest|CI] ; J = job(Ns), CI1 = CI ),
+    K1 is K + 1,
+    flow_job_rows(Js, K1, Names, CI, Rows, AllNs1),
+    append(Ns, AllNs1, AllNs).
+
+%% a lane root of cowork_map/3's, whose rows are its jobs
+flow_jobs_root(lane(_, _), [row(C, _, _, _, _, _)|_]) :- C > 0.
 
 %% an httpd page's request is handed to it: its variables are named
+%% (never by unifying: a goal may be the program's own variable, a list of
+%% jobs the source does not write)
 flow_lane_names(Goal, Names0, Names) :-
     flow_strip_at(Goal, G),
-    (   G = httpd_page(P, Rq, Rp), var(P), var(Rq), var(Rp)
-    ->  Names = ['Path'=P, 'Request'=Rq, 'Reply'=Rp|Names0]
+    (   nonvar(G), G = httpd_page(P, Rq, Rp), var(P), var(Rq), var(Rp)
+    ->  flow_page_names(G, PNs),
+        append(PNs, Names0, Names)
     ;   Names = Names0
     ).
 
@@ -398,8 +437,16 @@ flow_lane_word(httpd, 'each request, on a worker of the httpd pool').
 %%                                                     what is bound and goes,
 %%                                                     as one atom
 %%     join(SiteId, Lane, How)                         How: join | detach
-%%     channel(K, Made, Ops)                           Ops: op(SiteId, Op),
-%%                                                     Op new|send|recv|close
+%%     channel(K, Made, Ops, Via, Pairs)               Ops: op(SiteId, Op, N),
+%%                                                     Op new|send|recv|close,
+%%                                                     N where a send or a
+%%                                                     receive comes in its
+%%                                                     lane's order, a list,
+%%                                                     or none; Via the
+%%                                                     channels it was sent
+%%                                                     down; Pairs true when
+%%                                                     the k-th send is the
+%%                                                     k-th receive's
 %%     lock(SiteId, Op, Name)                          Op with|lock|unlock|
 %%                                                     trylock|wait|signal|
 %%                                                     broadcast; Name the
@@ -414,8 +461,10 @@ flow_links(LRs, Panels, Ids, links(Spawns, Joins, Chans, Locks, Procs, Writes)) 
     findall(S, flow_link_site(LRs, S), Sites),
     findall(X, ( member(site(Id, Node, Names, _, _), Sites),
                  flow_spawn_link(Id, Node, Names, Ids, X) ), Spawns),
-    findall(X, flow_join_link(LRs, Ids, X), Joins),
-    flow_channels(LRs, Panels, Ids, Chans),
+    flow_follow(Sites, LRs, Panels, Ids, Fw),
+    flow_join_links(LRs, Panels, Ids, Fw, Joins),
+    findall(Id-G, member(site(Id, g(G, spawn(_), _, _, _, _), _, _, _), Sites), Spawned),
+    flow_channels(LRs, Panels, Ids, Fw, Spawned, Chans),
     findall(X, ( member(site(Id, Node, Names, _, _), Sites), flow_lock_link(Id, Node, Names, X) ), Locks),
     findall(X, ( member(site(Id, Node, _, _, _), Sites), flow_proc_link(Id, Node, X) ), Procs),
     findall(X, ( member(site(Id, Node, _, _, _), Sites), flow_write_link(Id, Node, X) ), Writes).
@@ -449,7 +498,7 @@ flow_graph_link_rows(Ids, LRs) :-
 
 %% flow_nodes_has(+What, +Nodes): a node of the list, at any depth inside a
 %% construct, is one What is about -- link (anything above), spawn, chan (a
-%% channel op), new (channel_new/1,2)
+%% channel op), new (channel_new/1,2), join (a join or a detach)
 flow_nodes_has(W, [N|Ns]) :-
     (   flow_node_has(N, W) -> true ; flow_nodes_has(W, Ns) ).
 
@@ -473,6 +522,8 @@ flow_goal_has(link, K, G) :- flow_kind_link(K, G).
 flow_goal_has(spawn, spawn(_), _).
 flow_goal_has(chan, conc(chan(_, _)), _).
 flow_goal_has(new, conc(chan(new, _)), _).
+flow_goal_has(join, conc(join(_)), _).
+flow_goal_has(join, conc(detach(_)), _).
 
 flow_kind_link(spawn(_), _).
 flow_kind_link(conc(_), _).
@@ -547,27 +598,46 @@ flow_spawn_link(Id, g(_, spawn(Type), _, _, _, Info), Names, Ids, spawn(Id, L, R
     flow_panel_lane(Ids, R, L),
     flow_var_names(Copied, Names, CT).
 
-%% ---- joins: what a spawn in the same clause made ----------------------
+%% ---- joins: the handle followed to each join and detach ----------------
+%%
+%% A join or a detach is about the lane whose handle its argument holds
+%% (below, "What is followed"): in the clause that spawned it, in a caller
+%% that was handed it back, in a callee it was handed to, in another lane
+%% it was sent to down a channel. A list of handles joins each.
 
-flow_join_link(LRs, Ids, join(JId, L, How)) :-
-    member(lr(PI, _, row(C, _, _, _, Nodes, _)), LRs),
-    flow_nodes_has(spawn, Nodes),
-    flow_panel_id(PI, PId),
-    atomic_list_concat([PId, '.c', C], Base),
-    flow_list_sites(Nodes, Base, Ss),
-    append(_, [SId-g(SG, spawn(_), _, _, _, _)|After], Ss),
-    flow_site_root(Ids, SId, R),
-    flow_panel_lane(Ids, R, L),
-    flow_spawn_handle(SG, Handle),
-    member(JId-g(JG, conc(Role), _, _, _, _), After),
-    flow_joins(Role, Handle, How).
+flow_join_links(_, _, _, fw([], _, _, _), []) :- !.
+flow_join_links(LRs, Panels, Ids, Fw, Joins) :-
+    findall(join(SId, L, How),
+            ( member(lr(PI, Kind, Row), LRs),
+              Row = row(_, _, _, _, Nodes, _),
+              flow_nodes_has(join, Nodes),
+              flow_row_env(PI, Kind, Row, Panels, Ids, Fw, Env, Ss),
+              member(SId-g(_, conc(Role), _, _, _, _), Ss),
+              flow_join_role(Role, H, How),
+              flow_term_values(H, Env, PVs),
+              member(_-V-_, PVs),
+              flow_handle_lane(V, L) ),
+            Joins0),
+    flow_uniq(Joins0, Joins).
+
+flow_join_role(join(H), H, join).
+flow_join_role(detach(H), H, detach).
+
+flow_handle_lane(th(L), L).
+flow_handle_lane(ths(L), L).
 
 %% the variable a spawn binds to what it made
 flow_spawn_handle(thread_create(_, Id), Id) :- var(Id).
 flow_spawn_handle(thread_pool(_, _, Ids), Ids) :- var(Ids).
 
-flow_joins(join(H), Handle, join) :- H == Handle.
-flow_joins(detach(H), Handle, detach) :- H == Handle.
+%% each once, in the order met
+flow_uniq(Xs, Ys) :-
+    flow_uniq_(Xs, [], Ys).
+
+flow_uniq_([], _, []).
+flow_uniq_([X|Xs], Seen, Ys) :-
+    (   memberchk(X, Seen) -> Ys = Ys1 ; Ys = [X|Ys1] ),
+    flow_uniq_(Xs, [X|Seen], Ys1).
 
 %% ---- locks ------------------------------------------------------------
 
@@ -598,143 +668,210 @@ flow_write_link(Id, g(G, K, _, _, _, _), write(Id, Op, Pred)) :-
     flow_kb_write(G, Op, Pred).
 
 %% ======================================================================
-%% Channels, followed
+%% What is followed: channels and thread handles
 %% ======================================================================
 %%
-%% channel_new/1,2 makes one, numbered by the order the chart meets the
-%% sites. A clause's ENVIRONMENT says which channel each of its variables
-%% holds: from its head, by what the callers hand each argument, and from
-%% the channel_new it runs, and from X = Y. A call hands its callee's panel
-%% what it holds in each argument; a spawn hands its root the clause's own
-%% environment, since the root's goal IS the clause's term. Callers are
-%% many and recursive, so the arguments are settled by passes until none
-%% changes (a handful: a channel is handed on, not built). An argument two
-%% callers hand different channels is one nobody can follow.
+%% A clause's variables may hold what crosses between lanes: a channel,
+%% ch(K) -- channel_new/1,2 at the site numbered K, in the order the chart
+%% meets them -- the handle of the thread that runs lane L, th(L), or a
+%% pool's list of handles, ths(L). The clause's ENVIRONMENT says which, as
+%% e(Var, Path, Value, Src): Var holds Value at Path -- [] the variable
+%% itself, [2, 1] the first argument of its second argument -- and Src is
+%% `in' where the clause was handed it and `own' where it made it or got
+%% it. It comes from
+%%
+%%     the head        what the callers hand each argument, at any depth
+%%     the root        a lane's root holds its spawner clause's very
+%%                     variables, so its environment is that clause's
+%%     a maker         channel_new/1,2, thread_create/2, thread_pool/3
+%%     X = T, arg/3    the value goes where the unification puts it, and
+%%     member/2        a pool's list hands each element a thread's handle
+%%     a call          what the callee's clauses bind in their heads --
+%%                     their own values only: one handed in is not given back
+%%     a receive       what every send down that channel sends, when they
+%%                     agree: a channel, or a handle, sent down another
+%%
+%% Callers are many and recursive, so it is settled by passes until nothing
+%% changes (a handful: a value is handed on, not built). Where two callers,
+%% two clauses or two sends disagree the value is `unknown', and nobody
+%% follows it. A program with no maker pays nothing here.
+%%
+%% fw(Made, Args, Rets, Carr): Made is SiteId-Value for each maker; Args
+%% maps a panel to the Path-Value pairs its callers hand it, Rets a panel
+%% to what its clauses give back, Carr a channel's K to what it carries.
+%%
+%% NO findall/3 MAY STAND BETWEEN A CLAUSE AND ITS ENVIRONMENT: it copies,
+%% and an environment is about the clause's very variables. Every result
+%% that leaves a findall/3 here is ground.
 
-flow_channels(LRs, Panels, Ids, Chans) :-
-    findall(Id, flow_link_site(LRs, site(Id, g(_, conc(chan(new, _)), _, _, _, _), _, _, _)), News),
-    flow_number_list(News, 1, Made),
-    empty_assoc(A0),
-    (   Made == [] -> Args = A0
-    ;   flow_chan_panels(Ids, Made, PIs),
-        flow_chan_passes(5, PIs, Panels, Ids, Made, A0, Args)
-    ),
-    flow_chan_ops(LRs, Panels, Ids, Made, Args, Ops),
-    findall(channel(K, MadeAt, KOps),
-            ( member(MadeAt-K, Made),
-              findall(op(S, Op), member(op(S, Op, K), Ops), KOps) ),
-            Known),
-    findall(Name, member(op(_, _, var(Name)), Ops), Vars0),
-    sort(Vars0, Vars),
-    findall(channel(var(Name), none, VOps),
-            ( member(Name, Vars),
-              findall(op(S, Op), member(op(S, Op, var(Name)), Ops), VOps) ),
-            Unknown),
-    append(Known, Unknown, Chans).
+flow_follow(Sites, LRs, Panels, Ids, fw(Made, Args, Rets, Carr)) :-
+    findall(Id, member(site(Id, g(_, conc(chan(new, _)), _, _, _, _), _, _, _), Sites), News),
+    flow_number_list(News, 1, NKs),
+    findall(Id-ch(K), member(Id-K, NKs), MadeC),
+    findall(Id-V, ( member(site(Id, g(G, spawn(_), _, _, _, _), _, _, _), Sites),
+                    flow_handle_made(G, Id, Ids, V) ),
+            MadeT),
+    append(MadeC, MadeT, Made),
+    empty_assoc(E),
+    (   Made == []
+    ->  Args = E, Rets = E, Carr = E
+    ;   flow_follow_panels(LRs, Ids, PIs),
+        flow_callers(Panels, Ids, Callers),
+        flow_passes(8, PIs, Panels, Ids, Callers, fw(Made, E, E, E), fw(_, Args, Rets, Carr))
+    ).
 
 flow_number_list([], _, []).
 flow_number_list([X|Xs], K, [X-K|R]) :-
     K1 is K + 1,
     flow_number_list(Xs, K1, R).
 
-%% Args: PanelId -> [I-K, ...], an argument position and the channel it
-%% holds, or I-unknown where two callers disagree. A pass looks at the
-%% panels whose clauses can hold a channel: the lanes' roots, the panels
-%% that make one, and those handed one by the passes before
-flow_chan_passes(0, _, _, _, _, A, A) :- !.
-flow_chan_passes(N, PIs0, Panels, Ids, Made, A0, A) :-
-    assoc_to_keys(A0, Handed),
-    append(PIs0, Handed, PIs1),
-    sort(PIs1, PIs),
-    findall(Q-(I-K), flow_chan_handed(PIs, Panels, Ids, Made, A0, Q, I, K), Hs),
-    flow_chan_merge(Hs, A0, A1),
-    (   A1 == A0 -> A = A0
-    ;   N1 is N - 1,
-        flow_chan_passes(N1, PIs0, Panels, Ids, Made, A1, A)
-    ).
+%% the handle a spawn makes: its thread's, or its pool's list of them
+flow_handle_made(thread_create(_, H), SiteId, Ids, th(L)) :-
+    var(H), flow_site_lane(Ids, SiteId, L).
+flow_handle_made(thread_pool(_, _, H), SiteId, Ids, ths(L)) :-
+    var(H), flow_site_lane(Ids, SiteId, L).
 
-%% the lanes' roots and the panels that make a channel
-flow_chan_panels(Ids, Made, PIs) :-
+flow_site_lane(Ids, SiteId, L) :-
+    flow_site_root(Ids, SiteId, R),
+    flow_panel_lane(Ids, R, L).
+
+%% where a pass begins: the clauses anything links, and the lanes' roots
+flow_follow_panels(LRs, Ids, PIs) :-
+    findall(PI, member(lr(PI, _, _), LRs), Ps0),
     flow_graph_lanes(Ids, Lanes),
     findall(R, member(lane(_, _, R, _, _, _, _, _), Lanes), Rs),
-    findall(P, ( member(SId-_, Made), flow_site_panel(SId, P) ), Ms),
-    append(Rs, Ms, PIs).
+    append(Ps0, Rs, Ps1),
+    sort(Ps1, PIs).
 
-%% what each call hands: the panel it goes to, an argument, a channel
-flow_chan_handed(PIs, Panels, Ids, Made, Args, Q, I, K) :-
+%% who calls each panel, in its own lane: Q -> [P, ...]
+flow_callers(Panels, Ids, Callers) :-
+    findall(Q-P, ( member(panel(P, _, _, _, _, rows(_), _, Calls), Panels),
+                   flow_panel_lane(Ids, P, L),
+                   member(c(Key, Kind, Ms), Calls),
+                   flow_panel_key(Kind, Key, Ms, PK),
+                   get_assoc(L-PK, Ids, Q) ),
+            QPs0),
+    sort(QPs0, QPs),
+    group_pairs_by_key(QPs, Groups),
+    list_to_assoc(Groups, Callers).
+
+%% A PASS looks at the panels whose clauses can hold something followed:
+%% where the passes began, those handed something, and the callers of
+%% those that give something back
+flow_passes(0, _, _, _, _, Fw, Fw) :- !.
+flow_passes(N, PIs0, Panels, Ids, Callers, Fw0, Fw) :-
+    Fw0 = fw(_, A0, R0, _),
+    assoc_to_keys(A0, Handed),
+    assoc_to_keys(R0, Giving),
+    flow_callers_of(Giving, Callers, Cs),
+    append([PIs0, Handed, Cs], PIs1),
+    sort(PIs1, PIs),
+    findall(X, flow_contrib(PIs, Panels, Ids, Fw0, X), Xs),
+    flow_fw_merge(Xs, Fw0, Fw1),
+    (   Fw1 == Fw0 -> Fw = Fw0
+    ;   N1 is N - 1,
+        flow_passes(N1, PIs0, Panels, Ids, Callers, Fw1, Fw)
+    ).
+
+flow_callers_of([], _, []).
+flow_callers_of([Q|Qs], Callers, Cs) :-
+    (   get_assoc(Q, Callers, Ps) -> append(Ps, Cs1, Cs) ; Cs = Cs1 ),
+    flow_callers_of(Qs, Callers, Cs1).
+
+%% what a clause of a panel says, each a ground term: hand(Q, Path, V), a
+%% call hands panel Q; ret(P, Path, V), its head gives back; carr(K, Path,
+%% V), a send down channel K sends
+flow_contrib(PIs, Panels, Ids, Fw, X) :-
     member(PI, PIs),
     memberchk(panel(PI, _, Kind, _, _, rows(Rows), _, _), Panels),
-    member(Row, Rows),
-    Row = row(C, _, _, _, Nodes, _),
-    flow_chan_env(PI, Kind, Row, Panels, Ids, Made, Args, Env),
-    Env \== [],
     flow_panel_lane(Ids, PI, L),
-    flow_panel_id(PI, PId),
-    atomic_list_concat([PId, '.c', C], Base),
-    flow_list_sites(Nodes, Base, Ss),
-    member(SId-Node, Ss),
-    flow_chan_hand(Node, SId, L, Ids, Env, Q, I, K).
+    member(Row, Rows),
+    flow_row_env(PI, Kind, Row, Panels, Ids, Fw, Env, Ss),
+    Env \== [],
+    (   member(_-N, Ss),
+        flow_site_contrib(N, Env, L, Ids, X)
+    ;   Row = row(_, H, _, _, _, _),
+        H \== none,
+        flow_head_ret(H, Env, PI, X)
+    ).
 
-%% a call to a panel of the lane: its arguments
-flow_chan_hand(g(G, Kind, Ms, _, Key, _), _, L, Ids, Env, Q, I, K) :-
-    flow_callable_kind(Kind),
-    flow_panel_key(Kind, Key, Ms, PK),
-    get_assoc(L-PK, Ids, Q),
-    G =.. [_|As],
+flow_site_contrib(g(G, Kind, Ms, _, Key, _), Env, L, Ids, X) :-
+    (   Kind = conc(chan(send, Ch))
+    ->  var(Ch),
+        flow_env_value(Env, Ch, [], ch(K)),
+        arg(2, G, T),
+        flow_term_values(T, Env, PVs),
+        member(P-V-_, PVs),
+        X = carr(K, P, V)
+    ;   flow_callable_kind(Kind),
+        flow_panel_key(Kind, Key, Ms, PK),
+        get_assoc(L-PK, Ids, Q),
+        G =.. [_|As],
+        nth1(I, As, A),
+        flow_term_values(A, Env, PVs),
+        member(P-V-_, PVs),
+        X = hand(Q, [I|P], V)
+    ).
+
+flow_head_ret(H, Env, PI, ret(PI, [I|P], V)) :-
+    H =.. [_|As],
     nth1(I, As, A),
-    var(A),
-    flow_env_get(Env, A, K).
-%% a spawn: the root holds the clause's own variables -- nothing to hand
-%% by position; flow_chan_env/8 reads the spawner's environment instead
+    flow_term_values(A, Env, PVs),
+    member(P-V-own, PVs).
 
-flow_chan_merge([], A, A).
-flow_chan_merge([Q-(I-K)|Hs], A0, A) :-
-    (   get_assoc(Q, A0, IKs) -> true ; IKs = [] ),
-    (   memberchk(I-K0, IKs)
-    ->  (   K0 == K -> A1 = A0
-        ;   K0 == unknown -> A1 = A0
-        ;   flow_ik_set(IKs, I, unknown, IKs1), put_assoc(Q, A0, IKs1, A1)
+flow_fw_merge([], Fw, Fw).
+flow_fw_merge([X|Xs], Fw0, Fw) :-
+    flow_fw_put(X, Fw0, Fw1),
+    flow_fw_merge(Xs, Fw1, Fw).
+
+flow_fw_put(hand(Q, P, V), fw(M, A0, R, C), fw(M, A, R, C)) :- flow_put_value(Q, P, V, A0, A).
+flow_fw_put(ret(Q, P, V), fw(M, A, R0, C), fw(M, A, R, C)) :- flow_put_value(Q, P, V, R0, R).
+flow_fw_put(carr(K, P, V), fw(M, A, R, C0), fw(M, A, R, C)) :- flow_put_value(K, P, V, C0, C).
+
+%% Key's value at Path: set, kept where it agrees, `unknown' where it does
+%% not -- and the assoc itself is kept when nothing changes, so a pass that
+%% learns nothing is seen to by ==
+flow_put_value(Key, P, V, A0, A) :-
+    (   get_assoc(Key, A0, PVs) -> true ; PVs = [] ),
+    (   memberchk(P-V0, PVs)
+    ->  (   ( V0 == V ; V0 == unknown ) -> A = A0
+        ;   flow_pv_unknown(PVs, P, PVs1), put_assoc(Key, A0, PVs1, A)
         )
-    ;   put_assoc(Q, A0, [I-K|IKs], A1)
-    ),
-    flow_chan_merge(Hs, A1, A).
+    ;   put_assoc(Key, A0, [P-V|PVs], A)
+    ).
 
-flow_ik_set([], _, _, []).
-flow_ik_set([I0-K0|R], I, K, [I0-K1|R1]) :-
-    (   I0 == I -> K1 = K ; K1 = K0 ),
-    flow_ik_set(R, I, K, R1).
+flow_pv_unknown([], _, []).
+flow_pv_unknown([P0-V0|R], P, [P0-V1|R1]) :-
+    (   P0 == P -> V1 = unknown ; V1 = V0 ),
+    flow_pv_unknown(R, P, R1).
 
-%% a clause's environment: Var-K pairs, by identity
-flow_chan_env(PI, Kind, row(C, H, _, _, Nodes, _), Panels, Ids, Made, Args, Env) :-
+%% ---- a clause's environment ------------------------------------------
+
+%% its environment, and its sites in order
+flow_row_env(PI, Kind, Row, Panels, Ids, Fw, Env, Ss) :-
+    Row = row(C, H, _, _, Nodes, _),
     (   Kind = lane(_, _)
-    ->  flow_root_env(PI, Panels, Ids, Made, Args, Env0)
-    ;   H \== none, get_assoc(PI, Args, IKs)
+    ->  flow_root_env(PI, Panels, Ids, Fw, Env0)
+    ;   H \== none, Fw = fw(_, Args, _, _), get_assoc(PI, Args, PVs)
     ->  H =.. [_|As],
-        flow_head_env(IKs, As, Env0)
+        flow_given(PVs, As, in, [], Env0)
     ;   Env0 = []
     ),
     flow_panel_id(PI, PId),
     atomic_list_concat([PId, '.c', C], Base),
     flow_list_sites(Nodes, Base, Ss),
-    flow_env_walk(Ss, Made, Env0, Env).
-
-%% the head's arguments a channel was handed in, by the clause's own
-%% variables (a findall/3 would copy them, and nothing would match)
-flow_head_env([], _, []).
-flow_head_env([I-K|IKs], As, Env) :-
-    (   K \== unknown, nth1(I, As, V), var(V) -> Env = [V-K|Env1] ; Env = Env1 ),
-    flow_head_env(IKs, As, Env1).
+    flow_panel_lane(Ids, PI, L),
+    flow_env_settle(3, Ss, L, Ids, Fw, Env0, Env).
 
 %% a root's environment is its spawner clause's, where the spawn stands
-flow_root_env(R, Panels, Ids, Made, Args, Env) :-
+flow_root_env(R, Panels, Ids, Fw, Env) :-
     (   get_assoc(lanes, Ids, Lanes),
         memberchk(lane(_, _, R, SiteId, _, _, _, _), Lanes),
         flow_site_panel(SiteId, SP),
         memberchk(panel(SP, _, SK, _, _, rows(SRows), _, _), Panels),
         flow_site_row(SiteId, SC),
-        memberchk(row(SC, SH, SN, SHF, SNs, SCI), SRows),
-        SK \= lane(_, _)
-    ->  flow_chan_env(SP, SK, row(SC, SH, SN, SHF, SNs, SCI), Panels, Ids, Made, Args, Env)
+        memberchk(row(SC, SH, SN, SHF, SNs, SCI), SRows)
+    ->  flow_row_env(SP, SK, row(SC, SH, SN, SHF, SNs, SCI), Panels, Ids, Fw, Env, _)
     ;   Env = []
     ).
 
@@ -749,38 +886,452 @@ flow_site_row(SiteId, C) :-
     atom_concat(c, NA, CA),
     atom_number(NA, C).
 
-flow_env_walk([], _, Env, Env).
-flow_env_walk([SId-N|Ss], Made, Env0, Env) :-
-    (   N = g(_, conc(chan(new, Ch)), _, _, _, _), var(Ch), memberchk(SId-K, Made)
-    ->  Env1 = [Ch-K|Env0]
-    ;   N = g(X = Y, unify, _, _, _, _), var(X), var(Y), flow_env_get(Env0, Y, K)
-    ->  Env1 = [X-K|Env0]
-    ;   N = g(X = Y, unify, _, _, _, _), var(X), var(Y), flow_env_get(Env0, X, K)
-    ->  Env1 = [Y-K|Env0]
-    ;   Env1 = Env0
-    ),
-    flow_env_walk(Ss, Made, Env1, Env).
+%% A WALK OF THE SITES IN ORDER, again while it learns something: X = Y
+%% may come before what makes Y
+flow_env_settle(N, Ss, L, Ids, Fw, Env0, Env) :-
+    flow_env_walk(Ss, L, Ids, Fw, Env0, Env1),
+    (   N =< 1 -> Env = Env1
+    ;   length(Env0, K0), length(Env1, K1), K1 =:= K0 -> Env = Env1
+    ;   N1 is N - 1,
+        flow_env_settle(N1, Ss, L, Ids, Fw, Env1, Env)
+    ).
 
-flow_env_get([V0-K0|R], V, K) :-
-    (   V0 == V -> K = K0 ; flow_env_get(R, V, K) ).
+flow_env_walk([], _, _, _, Env, Env).
+flow_env_walk([SId-N|Ss], L, Ids, Fw, Env0, Env) :-
+    flow_env_site(N, SId, L, Ids, Fw, Env0, Env1),
+    flow_env_walk(Ss, L, Ids, Fw, Env1, Env).
+
+flow_env_site(g(G, K, Ms, _, Key, _), SId, L, Ids, Fw, Env0, Env) :- !,
+    flow_env_goal(K, G, Ms, Key, SId, L, Ids, Fw, Env0, Env).
+flow_env_site(meta(_, _, _, _, Info), _, _, _, Fw, Env0, Env) :- !,
+    (   memberchk(chan(recv, Ch), Info), memberchk(into(T), Info)
+    ->  flow_env_recv(Ch, T, Fw, Env0, Env)
+    ;   Env = Env0
+    ).
+flow_env_site(_, _, _, _, _, Env, Env).
+
+%% by its kind, so a goal of any other kind costs one call
+flow_env_goal(conc(Role), G, _, _, SId, _, _, Fw, Env0, Env) :- !,
+    flow_env_conc(Role, G, SId, Fw, Env0, Env).
+flow_env_goal(spawn(_), G, _, _, SId, _, _, fw(Made, _, _, _), Env0, Env) :- !,
+    (   memberchk(SId-V, Made), flow_spawn_handle(G, H)
+    ->  flow_env_add(H, [], V, own, Env0, Env)
+    ;   Env = Env0
+    ).
+flow_env_goal(unify, X = Y, _, _, _, _, _, _, Env0, Env) :- !,
+    flow_env_unify(X, Y, Env0, Env).
+flow_env_goal(K, G, Ms, Key, _, L, Ids, Fw, Env0, Env) :-
+    flow_env_lib(G, Env0, Env1), !,
+    flow_env_call(K, G, Ms, Key, L, Ids, Fw, Env1, Env).
+flow_env_goal(K, G, Ms, Key, _, L, Ids, Fw, Env0, Env) :-
+    flow_env_call(K, G, Ms, Key, L, Ids, Fw, Env0, Env).
+
+flow_env_conc(chan(new, Ch), _, SId, fw(Made, _, _, _), Env0, Env) :- !,
+    (   var(Ch), memberchk(SId-V, Made) -> flow_env_add(Ch, [], V, own, Env0, Env) ; Env = Env0 ).
+flow_env_conc(chan(recv, Ch), G, _, Fw, Env0, Env) :- !,
+    arg(2, G, T),
+    flow_env_recv(Ch, T, Fw, Env0, Env).
+flow_env_conc(_, _, _, _, Env, Env).
+
+%% arg(N, T, A) takes what T holds in its N-th argument; member(X, L) and
+%% memberchk/2 hand X a thread's handle when L is a pool's list
+flow_env_lib(arg(N, T, A), Env0, Env) :-
+    integer(N),
+    flow_term_values(T, Env0, TVs),
+    flow_arg_values(TVs, N, AVs),
+    flow_place_all(AVs, A, Env0, Env).
+flow_env_lib(member(X, Ls), Env0, Env) :-
+    flow_env_pool_elem(X, Ls, Env0, Env).
+flow_env_lib(memberchk(X, Ls), Env0, Env) :-
+    flow_env_pool_elem(X, Ls, Env0, Env).
+
+flow_arg_values([], _, []).
+flow_arg_values([[N0|R]-V-S|TVs], N, AVs) :-
+    N0 == N, !,
+    AVs = [R-V-S|AVs1],
+    flow_arg_values(TVs, N, AVs1).
+flow_arg_values([_|TVs], N, AVs) :-
+    flow_arg_values(TVs, N, AVs).
+
+flow_env_pool_elem(X, Ls, Env0, Env) :-
+    var(Ls),
+    flow_env_value(Env0, Ls, [], ths(L)),
+    flow_place(X, [], th(L), own, Env0, Env).
+
+%% a call: what the callee's clauses give back, in the call's own terms
+flow_env_call(K, G, Ms, Key, L, Ids, fw(_, _, Rets, _), Env0, Env) :-
+    (   flow_callable_kind(K),
+        flow_panel_key(K, Key, Ms, PK),
+        get_assoc(L-PK, Ids, Q),
+        get_assoc(Q, Rets, PVs)
+    ->  G =.. [_|As],
+        flow_given(PVs, As, own, Env0, Env)
+    ;   Env = Env0
+    ).
+
+%% a receive: what the channel carries, placed in the term received
+flow_env_recv(Ch, T, fw(_, _, _, Carr), Env0, Env) :-
+    (   var(Ch), flow_env_value(Env0, Ch, [], ch(K)), get_assoc(K, Carr, PVs)
+    ->  flow_given_term(PVs, T, Env0, Env)
+    ;   Env = Env0
+    ).
+
+%% X = Y: what each side holds goes where it lands in the other
+flow_env_unify(X, Y, Env0, Env) :-
+    flow_term_values(Y, Env0, YVs),
+    flow_place_all(YVs, X, Env0, Env1),
+    flow_term_values(X, Env1, XVs),
+    flow_place_all(XVs, Y, Env1, Env).
+
+%% Path-Value pairs placed in a goal's arguments (Path's first step is the
+%% argument) or in a term
+flow_given([], _, _, Env, Env).
+flow_given([[I|R]-V|PVs], As, Src, Env0, Env) :-
+    (   V \== unknown, nth1(I, As, A) -> flow_place(A, R, V, Src, Env0, Env1) ; Env1 = Env0 ),
+    flow_given(PVs, As, Src, Env1, Env).
+
+flow_given_term([], _, Env, Env).
+flow_given_term([P-V|PVs], T, Env0, Env) :-
+    (   V \== unknown -> flow_place(T, P, V, own, Env0, Env1) ; Env1 = Env0 ),
+    flow_given_term(PVs, T, Env1, Env).
+
+flow_place_all([], _, Env, Env).
+flow_place_all([P-V-S|PVs], T, Env0, Env) :-
+    flow_place(T, P, V, S, Env0, Env1),
+    flow_place_all(PVs, T, Env1, Env).
+
+%% Value at Path inside T: on the variable the path reaches, with what is
+%% left of the path; a path T's shape does not have places nothing
+flow_place(T, P, V, Src, Env0, Env) :-
+    (   var(T)
+    ->  flow_env_add(T, P, V, Src, Env0, Env)
+    ;   P = [J|R], compound(T), functor(T, _, Ar), J =< Ar
+    ->  arg(J, T, A),
+        flow_place(A, R, V, Src, Env0, Env)
+    ;   Env = Env0
+    ).
+
+flow_env_add(X, P, V, Src, Env0, Env) :-
+    (   flow_env_has(Env0, X, P, V) -> Env = Env0 ; Env = [e(X, P, V, Src)|Env0] ).
+
+flow_env_has([e(X0, P0, V0, _)|R], X, P, V) :-
+    (   X0 == X, P0 == P, V0 == V -> true ; flow_env_has(R, X, P, V) ).
+
+%% what a variable holds at a path, by identity
+flow_env_value([e(X0, P0, V0, _)|R], X, P, V) :-
+    (   X0 == X, P0 == P -> V = V0 ; flow_env_value(R, X, P, V) ).
+
+%% everything a term holds: Path-Value-Src, Path from the term's top
+flow_term_values(T, Env, PVs) :-
+    flow_term_values(T, Env, [], PVs, []).
+
+flow_term_values(T, Env, Pre, PVs0, PVs) :-
+    (   var(T) -> flow_var_values(Env, T, Pre, PVs0, PVs)
+    ;   compound(T) -> T =.. [_|As], flow_args_values(As, 1, Env, Pre, PVs0, PVs)
+    ;   PVs0 = PVs
+    ).
+
+flow_var_values([], _, _, PVs, PVs).
+flow_var_values([e(X, P, V, S)|R], T, Pre, PVs0, PVs) :-
+    (   X == T, V \== unknown
+    ->  append(Pre, P, PP), PVs0 = [PP-V-S|PVs1]
+    ;   PVs0 = PVs1
+    ),
+    flow_var_values(R, T, Pre, PVs1, PVs).
+
+flow_args_values([], _, _, _, PVs, PVs).
+flow_args_values([A|As], J, Env, Pre, PVs0, PVs) :-
+    append(Pre, [J], Pre1),
+    flow_term_values(A, Env, Pre1, PVs0, PVs1),
+    J1 is J + 1,
+    flow_args_values(As, J1, Env, Pre, PVs1, PVs).
+
+%% ======================================================================
+%% Channels
+%% ======================================================================
+%%
+%% Each channel_new/1,2 the chart meets is a channel, ch1, ch2, ...; each
+%% send, receive and close is about the channel its argument holds where
+%% it stands -- or, where the chart cannot follow it, the variable that
+%% names it there, var(Name). A channel sent down another says so (Via).
+
+flow_channels(LRs, Panels, Ids, Fw, Spawned, Chans) :-
+    Fw = fw(Made, _, _, Carr),
+    flow_chan_ops(LRs, Panels, Ids, Fw, Ops),
+    findall(channel(K, MadeAt, KOps, Via, false),
+            ( member(MadeAt-ch(K), Made),
+              findall(op(S, Op, none), member(op(S, Op, K), Ops), KOps),
+              flow_chan_via(K, Carr, Via) ),
+            Known),
+    findall(Name, member(op(_, _, var(Name)), Ops), Vars0),
+    sort(Vars0, Vars),
+    findall(channel(var(Name), none, VOps, [], false),
+            ( member(Name, Vars),
+              findall(op(S, Op, none), member(op(S, Op, var(Name)), Ops), VOps) ),
+            Unknown),
+    append(Known, Unknown, Chans0),
+    flow_chan_order(Chans0, Spawned, Panels, Ids, Chans).
+
+%% the channels that carried channel K
+flow_chan_via(K, Carr, Via) :-
+    assoc_to_list(Carr, KPVs),
+    findall(K2, ( member(K2-PVs, KPVs), member(_-ch(K0), PVs), K0 == K ), Via0),
+    sort(Via0, Via).
 
 %% every channel op, with the channel it is about: K, or var(Name)
-flow_chan_ops(LRs, Panels, Ids, Made, Args, Ops) :-
+flow_chan_ops(LRs, Panels, Ids, Fw, Ops) :-
+    Fw = fw(Made, _, _, _),
     findall(op(SId, Op, K),
             ( member(lr(PI, Kind, Row), LRs),
-              Row = row(C, _, Names, _, Nodes, _),
+              Row = row(_, _, Names, _, Nodes, _),
               flow_nodes_has(chan, Nodes),
-              flow_panel_id(PI, PId),
-              flow_chan_env(PI, Kind, Row, Panels, Ids, Made, Args, Env),
-              atomic_list_concat([PId, '.c', C], Base),
-              flow_list_sites(Nodes, Base, Ss),
+              flow_row_env(PI, Kind, Row, Panels, Ids, Fw, Env, Ss),
               member(SId-N, Ss),
               flow_chan_op(N, Op, Ch),
-              (   memberchk(SId-K0, Made), Op == new -> K = K0
-              ;   var(Ch), flow_env_get(Env, Ch, K1) -> K = K1
+              (   Op == new, memberchk(SId-ch(K0), Made) -> K = K0
+              ;   var(Ch), flow_env_value(Env, Ch, [], ch(K1)) -> K = K1
               ;   flow_handle_name(Ch, Names, Nm), K = var(Nm)
               ) ),
             Ops).
 
 flow_chan_op(g(_, conc(chan(Op, Ch)), _, _, _, _), Op, Ch).
 flow_chan_op(meta(_, _, _, _, Info), recv, Ch) :- memberchk(chan(recv, Ch), Info).
+
+%% ======================================================================
+%% The order of a channel's messages
+%% ======================================================================
+%%
+%% A channel is first in, first out. So where ONE lane sends on it and ONE
+%% lane receives, each a single run, and each knows the order its own
+%% sends (or receives) come in, the k-th send is what the k-th receive
+%% takes -- and the chart ties those two alone (Pairs). A lane's order is
+%% read by walking it as it runs, from its root: goals left to right, into
+%% each call. A send or a receive whose place the walk cannot know has
+%% none, and neither has any of its kind on its channel after it in its
+%% lane: one a recursion repeats, one in a predicate of several clauses,
+%% one inside a construct that may skip it or repeat it (if-then-else, ;,
+%% \+, catch/3, findall/3, forall/2, ...), one after a goal that can be
+%% redone, and every one in a lane that runs more than once -- a pool, an
+%% httpd pool, a crew's on_start, cowork_map/3's jobs, or a spawn its own
+%% lane's walk does not meet exactly once.
+
+flow_chan_order(Chans0, Spawned, Panels, Ids, Chans) :-
+    findall(S-K, ( member(channel(K, _, Ops, _, _), Chans0), integer(K),
+                   member(op(S, Op, _), Ops), flow_msg_op(Op) ),
+            SKs),
+    (   SKs == []
+    ->  Chans = Chans0
+    ;   findall(S-x, ( member(S-_, SKs) ; member(S-_, Spawned) ), Keys0),
+        sort(Keys0, Keys),
+        list_to_assoc(Keys, Sites),
+        flow_callers(Panels, Ids, Callers),
+        flow_graph_lanes(Ids, Lanes),
+        findall(L, member(lane(L, _, _, _, _, _, _, _), Lanes), Ls),
+        flow_lane_walks([0|Ls], Sites, Panels, Ids, Callers, Walks),
+        flow_once_lanes(Lanes, Spawned, Walks, [0], Once),
+        flow_number_ops(Chans0, Walks, Once, Ids, Chans)
+    ).
+
+flow_msg_op(send).
+flow_msg_op(recv).
+
+%% each lane's walk, L-Occs: o(SiteId, Sure) for each send, receive and
+%% spawn met, in the order they run
+flow_lane_walks([], _, _, _, _, []).
+flow_lane_walks([L|Ls], Sites, Panels, Ids, Callers, [L-Occs|Ws]) :-
+    flow_relevant(L, Sites, Ids, Callers, Rel),
+    (   Rel == []
+    ->  Occs = []
+    ;   flow_lane_start(Ids, L, Start),
+        flow_recursive(Rel, L, Panels, Ids, Rec),
+        flow_trav_panel(Start, true, [], tr(L, Panels, Ids, Sites, Rel, Rec), 0, _, [], Rev),
+        reverse(Rev, Occs)
+    ),
+    flow_lane_walks(Ls, Sites, Panels, Ids, Callers, Ws).
+
+flow_lane_start(_, 0, 0) :- !.
+flow_lane_start(Ids, L, R) :-
+    flow_graph_lanes(Ids, Lanes),
+    memberchk(lane(L, _, R, _, _, _, _, _), Lanes).
+
+%% the panels of lane L that hold a site, and their callers, all the way up
+flow_relevant(L, Sites, Ids, Callers, Rel) :-
+    assoc_to_keys(Sites, Ss),
+    findall(P, ( member(S, Ss), flow_site_panel(S, P), flow_panel_lane(Ids, P, L) ), P0s),
+    sort(P0s, P0),
+    flow_reach_back(P0, Callers, P0, Rel).
+
+flow_reach_back([], _, Rel, Rel).
+flow_reach_back([P|Ps], Callers, Seen, Rel) :-
+    (   get_assoc(P, Callers, Cs0) -> sort(Cs0, Cs) ; Cs = [] ),
+    ord_subtract(Cs, Seen, New),
+    ord_union(Seen, New, Seen1),
+    append(Ps, New, Ps1),
+    flow_reach_back(Ps1, Callers, Seen1, Rel).
+
+%% the panels of Rel that reach themselves again
+flow_recursive(Rel, L, Panels, Ids, Rec) :-
+    findall(Q, ( member(Q, Rel), flow_reaches(Q, Q, Rel, L, Panels, Ids) ), Rec).
+
+flow_reaches(From, To, Rel, L, Panels, Ids) :-
+    flow_callees_in(From, L, Panels, Ids, Rel, Cs),
+    flow_reach_fwd(Cs, To, Rel, L, Panels, Ids, []).
+
+flow_reach_fwd([C|Cs], To, Rel, L, Panels, Ids, Seen) :-
+    (   C =:= To -> true
+    ;   memberchk(C, Seen) -> flow_reach_fwd(Cs, To, Rel, L, Panels, Ids, Seen)
+    ;   flow_callees_in(C, L, Panels, Ids, Rel, Ds),
+        append(Ds, Cs, Next),
+        flow_reach_fwd(Next, To, Rel, L, Panels, Ids, [C|Seen])
+    ).
+
+flow_callees_in(P, L, Panels, Ids, Rel, Qs) :-
+    (   memberchk(panel(P, _, _, _, _, _, _, Calls), Panels)
+    ->  findall(Q, ( member(c(Key, Kind, Ms), Calls),
+                     flow_panel_key(Kind, Key, Ms, PK),
+                     get_assoc(L-PK, Ids, Q),
+                     ord_memberchk(Q, Rel) ),
+                Qs0),
+        sort(Qs0, Qs)
+    ;   Qs = []
+    ).
+
+%% THE WALK. A panel is sure where its call was, it has one clause, and it
+%% is not recursive; a cut makes its clause sure again after a goal that
+%% could be redone; a construct's lists are never sure, but once/1's,
+%% with_mutex/2's and phrase/2,3's goal is where the construct stands. A
+%% walk stops at 4000 panels, and what it did not meet has no place.
+flow_trav_panel(P, Sure0, Stack, T, N0, N, Acc0, Acc) :-
+    T = tr(_, Panels, _, _, _, Rec),
+    (   N0 > 4000
+    ->  N = N0, Acc = Acc0
+    ;   memberchk(panel(P, _, _, _, _, rows(Rows), _, _), Panels)
+    ->  N1 is N0 + 1,
+        (   Sure0 == true, Rows = [_], \+ memberchk(P, Rec) -> Sure = true ; Sure = false ),
+        flow_panel_id(P, PId),
+        flow_trav_rows(Rows, PId, Sure, [P|Stack], T, N1, N, Acc0, Acc)
+    ;   N = N0, Acc = Acc0
+    ).
+
+flow_trav_rows([], _, _, _, _, N, N, Acc, Acc).
+flow_trav_rows([row(C, _, _, _, Nodes, _)|Rs], PId, Sure, Stack, T, N0, N, Acc0, Acc) :-
+    atomic_list_concat([PId, '.c', C], Base),
+    flow_trav_list(Nodes, Base, 1, Sure, Sure, Stack, T, N0, N1, Acc0, Acc1),
+    flow_trav_rows(Rs, PId, Sure, Stack, T, N1, N, Acc1, Acc).
+
+flow_trav_list([], _, _, _, _, _, _, N, N, Acc, Acc).
+flow_trav_list([Nd|Nds], Base, K, S0, S, Stack, T, N0, N, Acc0, Acc) :-
+    atomic_list_concat([Base, '.g', K], Id),
+    flow_trav_node(Nd, Id, S, Stack, T, N0, N1, Acc0, Acc1),
+    (   Nd == cut -> S1 = S0
+    ;   flow_node_nondet(Nd) -> S1 = false
+    ;   S1 = S
+    ),
+    K1 is K + 1,
+    flow_trav_list(Nds, Base, K1, S0, S1, Stack, T, N1, N, Acc1, Acc).
+
+flow_trav_node(g(_, Kind, Ms, _, Key, _), Id, S, Stack, T, N0, N, Acc0, Acc) :- !,
+    T = tr(L, _, Ids, Sites, Rel, _),
+    (   get_assoc(Id, Sites, _) -> Acc1 = [o(Id, S)|Acc0] ; Acc1 = Acc0 ),
+    (   flow_callable_kind(Kind),
+        flow_panel_key(Kind, Key, Ms, PK),
+        get_assoc(L-PK, Ids, Q),
+        ord_memberchk(Q, Rel),
+        \+ memberchk(Q, Stack)
+    ->  flow_trav_panel(Q, S, Stack, T, N0, N, Acc1, Acc)
+    ;   N = N0, Acc = Acc1
+    ).
+flow_trav_node(meta(Name, _, _, Ts, _), Id, S, Stack, T, N0, N, Acc0, Acc) :- !,
+    T = tr(_, _, _, Sites, _, _),
+    (   get_assoc(Id, Sites, _) -> Acc1 = [o(Id, false)|Acc0] ; Acc1 = Acc0 ),
+    (   memberchk(Name, [once, with_mutex, phrase]) -> SI = S ; SI = false ),
+    (   Ts = [Ns] -> flow_trav_list(Ns, Id, 1, SI, SI, Stack, T, N0, N, Acc1, Acc)
+    ;   N = N0, Acc = Acc1
+    ).
+flow_trav_node(Nd, Id, _, Stack, T, N0, N, Acc0, Acc) :-
+    flow_node_goals_sub(Nd, Id, Subs),
+    flow_trav_subs(Subs, Stack, T, N0, N, Acc0, Acc).
+
+flow_trav_subs([], _, _, N, N, Acc, Acc).
+flow_trav_subs([B-Ns|Subs], Stack, T, N0, N, Acc0, Acc) :-
+    flow_trav_list(Ns, B, 1, false, false, Stack, T, N0, N1, Acc0, Acc1),
+    flow_trav_subs(Subs, Stack, T, N1, N, Acc1, Acc).
+
+%% the lanes that run once: the query's, and one started by a goal that
+%% runs once, met exactly once and surely by a lane that runs once
+flow_once_lanes([], _, _, Once, Once).
+flow_once_lanes([lane(L, _, _, SiteId, From, _, _, _)|Ls], Spawned, Walks, Once0, Once) :-
+    (   memberchk(From, Once0),
+        memberchk(SiteId-G, Spawned),
+        flow_spawn_once(G),
+        memberchk(From-Occs, Walks),
+        findall(S, member(o(SiteId, S), Occs), [true])
+    ->  Once1 = [L|Once0]
+    ;   Once1 = Once0
+    ),
+    flow_once_lanes(Ls, Spawned, Walks, Once1, Once).
+
+flow_spawn_once(thread_create(_, _)).
+flow_spawn_once(run_isolated(_, _)).
+flow_spawn_once(cowork_ask(_, _)).
+flow_spawn_once(cowork_ask(_, _, _)).
+flow_spawn_once(cowork_post(_, _)).
+
+%% each send and receive of a channel, numbered in its lane's order
+flow_number_ops([], _, _, _, []).
+flow_number_ops([channel(K, M, Ops0, Via, _)|Cs0], Walks, Once, Ids, [channel(K, M, Ops, Via, Pairs)|Cs]) :-
+    (   integer(K)
+    ->  flow_chan_seqs(Ops0, Walks, Once, Ops),
+        flow_chan_pairs(Ops, Ids, Pairs)
+    ;   Ops = Ops0, Pairs = false
+    ),
+    flow_number_ops(Cs0, Walks, Once, Ids, Cs).
+
+flow_chan_seqs(Ops0, Walks, Once, Ops) :-
+    findall(S-N, ( flow_msg_op(Op),
+                   findall(S1, member(op(S1, Op, _), Ops0), Ss),
+                   Ss \== [],
+                   member(L-Occs, Walks),
+                   findall(o(S2, Sure), ( member(o(S2, Sure), Occs), memberchk(S2, Ss) ), Os0),
+                   Os0 \== [],
+                   (   memberchk(L, Once) -> Os = Os0 ; flow_all_unsure(Os0, Os) ),
+                   flow_count_occs(Os, 1, false, SNs),
+                   member(S-N, SNs) ),
+            SNs0),
+    flow_op_seqs(Ops0, SNs0, Ops).
+
+flow_all_unsure([], []).
+flow_all_unsure([o(S, _)|Os], [o(S, false)|Rs]) :- flow_all_unsure(Os, Rs).
+
+%% the k-th of its kind, until one whose place is not known
+flow_count_occs([], _, _, []).
+flow_count_occs([o(S, Sure)|Os], N, Broken, [S-Num|SNs]) :-
+    (   Broken == false, Sure == true
+    ->  Num = N, N1 is N + 1, B1 = false
+    ;   Num = unsure, N1 = N, B1 = true
+    ),
+    flow_count_occs(Os, N1, B1, SNs).
+
+%% a site's places, or none where any is not known
+flow_op_seqs([], _, []).
+flow_op_seqs([op(S, Op, _)|Os], SNs, [op(S, Op, Seq)|Rs]) :-
+    findall(N, member(S-N, SNs), Ns),
+    (   Ns \== [], \+ memberchk(unsure, Ns) -> Seq = Ns ; Seq = none ),
+    flow_op_seqs(Os, SNs, Rs).
+
+%% one lane sends, one receives, and every send and receive has its place
+flow_chan_pairs(Ops, Ids, Pairs) :-
+    findall(L, ( member(op(S, send, _), Ops), flow_site_in_lane(Ids, S, L) ), SL0),
+    sort(SL0, SL),
+    findall(L, ( member(op(S, recv, _), Ops), flow_site_in_lane(Ids, S, L) ), RL0),
+    sort(RL0, RL),
+    (   SL = [_], RL = [_],
+        \+ ( member(op(_, Op, none), Ops), flow_msg_op(Op) )
+    ->  Pairs = true
+    ;   Pairs = false
+    ).
+
+%% the lane a site stands in
+flow_site_in_lane(Ids, S, L) :-
+    flow_site_panel(S, P),
+    flow_panel_lane(Ids, P, L).

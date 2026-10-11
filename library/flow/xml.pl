@@ -37,6 +37,9 @@
 %%                          succeeds, findall has every solution
 %%     X:wait               cond_wait_until/3 waits for a signal, and
 %%                          tries its goal again
+%%     X:next               httpd_serve/2,3, serving on the caller's own
+%%                          thread, answers the request 404 and waits for
+%%                          the next one
 %%
 %% and a clause says where backtracking into it goes once it has exited
 %% (redo), by the same words. A goal past a call that never succeeds says
@@ -56,21 +59,28 @@
 %% site and the lane it stands in, the goal, what is copied and what comes
 %% back -- and <links>, what crosses between them, each an element with an
 %% id: <spawn>, <join> (a join carries the lane's status, a detach
-%% nothing), <channel> with its <send>, <receive> and <close>
-%% ends, <lock>, <process> (a child process: its command, and the file
-%% whose chart is its own when it runs cocolog on one) and <write> (to the
-%% knowledge base). Every panel says its lane. A goal of library(thread)
-%% says kind="thread" and its role -- send, recv, close, new, lock, unlock,
-%% trylock, wait, signal, broadcast, join, detach -- with the channel, the
-%% mutex or the lane it is about; a spawn says kind="spawn", its type and
-%% its lane; a child process kind="process".
+%% nothing), <channel> with its <send>, <receive> and <close> ends -- via=
+%% the channels it was sent down, n= where a send or a receive comes in its
+%% lane's order, and pairs="true" where one lane sends and one receives, so
+%% the k-th send is the k-th receive's -- <lock>, <process> (a child
+%% process: its command, and the file whose chart is its own when it runs
+%% cocolog on one) and <write> (to the knowledge base). Every panel says
+%% its lane; a lane's root holds its goals, or a <job n> for each of
+%% cowork_map/3's (rest="true" for a list the source does not write). A
+%% goal of library(thread) says kind="thread" and its role -- send, recv,
+%% close, new, lock, unlock, trylock, wait, signal, broadcast, join, detach
+%% -- with the channel, the mutex or the lane it is about; a spawn says
+%% kind="spawn", its type and its lane; a child process kind="process". An
+%% httpd server with no pool is a <meta name="httpd_serve"> whose goal is
+%% the page, called here.
 %%
-%% The schema is version 3 (version 1 had no findings, version 2 no lanes):
+%% The schema is version 4 (version 1 had no findings, version 2 no lanes,
+%% version 3 no jobs, no message order and no channel carried by another):
 %% changing it changes the number.
 
 :- use_module(library(xml)).
 
-flow_xml_version(3).
+flow_xml_version(4).
 
 flow_xml(Graph, Xml) :-
     flow_findings(Graph, Fs),
@@ -107,7 +117,7 @@ flow_x_lane(lane(L, Type, R, SiteId, From, Back, Goal, Names), Ids, Panels, elem
     flow_graph_links(Ids, links(Spawns, _, _, _, _, _)),
     (   memberchk(spawn(SiteId, _, _, _, _, CT0), Spawns) -> CT = CT0 ; CT = nothing ),
     flow_x_returns(Type, Back, RT),
-    (   memberchk(panel(R, _, _, _, _, rows([row(_, _, _, _, _, CI)]), _, _), Panels)
+    (   memberchk(panel(R, _, _, _, _, rows([row(_, _, _, _, _, CI)|_]), _, _), Panels)
     ->  flow_x_where(CI, WAs)
     ;   WAs = []
     ),
@@ -152,10 +162,19 @@ flow_x_link(write(At, Op, Pred), Id, _, element(write, As, [])) :-
     (   Pred = N/A -> format(atom(PA), '~q/~w', [N, A]), PAs = [pred=PA] ; PAs = [] ),
     append([[id=Id, at=At, op=Op], PAs], As).
 
-flow_x_channel(channel(K, Made, Ops), element(channel, As, Els)) :-
+flow_x_channel(channel(K, Made, Ops, Via, Pairs), element(channel, As, Els)) :-
     flow_chan_label(K, KA),
-    (   integer(K) -> As = [id=KA, made=Made] ; As = [id=KA, followed=false] ),
-    findall(element(E, [at=At], []), ( member(op(At, Op), Ops), Op \== new, flow_x_end(Op, E) ), Els).
+    (   integer(K)
+    ->  findall(VA, ( member(V, Via), flow_chan_label(V, VA) ), VAs),
+        (   VAs == [] -> ViaAs = [] ; atomic_list_concat(VAs, ' ', VT), ViaAs = [via=VT] ),
+        (   Pairs == true -> PAs = [pairs=true] ; PAs = [] ),
+        append([[id=KA, made=Made], ViaAs, PAs], As)
+    ;   As = [id=KA, followed=false]
+    ),
+    findall(element(E, EAs, []),
+            ( member(op(At, Op, N), Ops), Op \== new, flow_x_end(Op, E),
+              (   N = [_|_] -> atomic_list_concat(N, ' ', NT), EAs = [at=At, n=NT] ; EAs = [at=At] ) ),
+            Els).
 
 flow_x_end(send, send).
 flow_x_end(recv, receive).
@@ -183,17 +202,33 @@ flow_x_panel(panel(0, _, _, CM, D, rows([row(_, _, Names, _, [GN], _)]), Det, _)
              element(panel, [id=query, kind=query, lane=l0, modes=MA, det=Det, depth=D], [GE])) :- !,
     flow_x_modes(CM, MA),
     flow_x_items([GN], query, x(Names, Ids, 0-none), fail, true, [GE]).
-%% a lane's root: what the spawned goal proves, where it was spawned
-flow_x_panel(panel(Id, _, lane(Type, L), _, D, rows([row(_, _, Names, _, Nodes, CI)]), Det, _), Ids, _,
+%% a lane's root: what the spawned goal proves, where it was spawned --
+%% its goals, or a <job> for each of cowork_map/3's
+flow_x_panel(panel(Id, _, lane(Type, L), _, D, rows(Rows), Det, _), Ids, _,
              element(panel, As, Items)) :- !,
+    Rows = [row(C1, _, _, _, _, CI)|_],
     flow_panel_id(Id, PId),
     flow_lane_atom(L, LA),
     flow_graph_lanes(Ids, Lanes),
     (   memberchk(lane(L, _, _, SiteId, _, _, _, _), Lanes) -> true ; SiteId = none ),
     flow_x_where(CI, WAs),
     append([[id=PId, kind=lane, lane=LA, type=Type, site=SiteId], WAs, [det=Det, depth=D]], As),
-    atom_concat(PId, '.c0', Base),
-    flow_x_items(Nodes, Base, x(Names, Ids, L-root(Id)), fail, true, Items).
+    Self = L-root(Id),
+    (   C1 =:= 0
+    ->  Rows = [row(_, _, Names, _, Nodes, _)],
+        atom_concat(PId, '.c0', Base),
+        flow_x_items(Nodes, Base, x(Names, Ids, Self), fail, true, Items)
+    ;   findall(E, ( member(Row, Rows), flow_x_job(Row, PId, Ids, Self, E) ), Items)
+    ).
+
+%% one of cowork_map/3's jobs, proved on its own: a failure in it is its
+%% answer, failed, and never the next job; rest="true" for the jobs of a
+%% list the source does not write
+flow_x_job(row(K, _, Names, _, Nodes, CI), PId, Ids, Self, element(job, As, Items)) :-
+    atomic_list_concat([PId, '.c', K], Base),
+    (   memberchk(rest, CI) -> RAs = [rest=true] ; RAs = [] ),
+    append([[id=Base, n=K], RAs], As),
+    flow_x_items(Nodes, Base, x(Names, Ids, Self), fail, true, Items).
 flow_x_panel(panel(Id, N/A, portal(Mod), _, D, portal(info(CFun, File, Line, Modes, Names)), Det, _), Ids, _,
              element(panel, [id=PId, pred=Pred, kind=c, lane=LA, module=Mod, cfun=CFun, file=File, line=Line,
                              modes=MA, det=Det, head=Head, depth=D], [])) :- !,
@@ -371,7 +406,7 @@ flow_x_item(not(Ns), Id, X, T, _, element(not, As, Is)) :- !,
     atom_concat(Id, ':done', Done),
     flow_x_items(Ns, Id, X, Done, false, Is).
 flow_x_item(meta(Name, Head, Ms, Ts, Info), Id, X, T, _, element(meta, As, Is)) :- !,
-    X = x(Names, Ids, _),
+    X = x(Names, Ids, Self),
     flow_term_full(Head, Names, 1200, HT),
     flow_x_modes(Ms, MA),
     flow_x_flags(meta(Name, Head, Ms, Ts, Info), CF, ND),
@@ -381,10 +416,12 @@ flow_x_item(meta(Name, Head, Ms, Ts, Info), Id, X, T, _, element(meta, As, Is)) 
     append([[id=Id, name=Name, text=HT, modes=MA, can_fail=CF, choice=ND], MLs, FAs, IAs], As),
     (   memberchk(Name, [once, phrase, with_mutex, channel_forall]) -> D = T
     ;   Name == cond_wait_until -> atom_concat(Id, ':wait', D)
+    ;   Name == httpd_serve -> atom_concat(Id, ':next', D)
     ;   atom_concat(Id, ':done', D)
     ),
     (   Ts = [Ns] -> true ; Ns = [] ),
-    flow_x_items(Ns, Id, X, D, false, Is).
+    (   memberchk(names(NL), Info) -> append(NL, Names, Names1) ; Names1 = Names ),
+    flow_x_items(Ns, Id, x(Names1, Ids, Self), D, false, Is).
 flow_x_item(catchc(G, Ball, R), Id, X, T, _, element(catch, As, [element(try, [id=TId], GIs),
                                                                   element(recover, [id=RId], RIs)])) :- !,
     X = x(Names, _, _),
