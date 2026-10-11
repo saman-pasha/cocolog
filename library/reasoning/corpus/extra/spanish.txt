@@ -329,6 +329,9 @@ The verb "dosifica" means "doses".
 "dosifican" is the plural of "dosifica".
 The masculine noun "octavo de final" means "eighth-final".
 "octavos de final" is the plural of "octavo de final".
+# (`con qualsiasi materiale' into Spanish: before a noun `any' is `cualquier',
+# and `cualquiera' first came out `cualquiera material')
+The determiner "cualquier" means "any".
 The determiner "cualquiera" means "any".
 # a verb's own word before an infinitive: `confía en repetir' trusts to
 # repeat, and Italian's verb takes `di' there
@@ -1814,3 +1817,214 @@ The verb "aboga" means "advocates".
 # dictionary's only English word for `tránsito' is `traffic', which Italian
 # writes `traffico'
 The masculine noun "tránsito" means "transit".
+# the Quartieri article (Venice treebank VIT), from Italian: `hip hop' and `rap',
+# the English words the Italian text keeps and Spanish keeps too
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+# `sessanta ragazzi italiani, americani e sudafricani', into Spanish: the
+# builder reads no entry of two English words, so the adjective is stated
+The masculine adjective "sudafricano" means "south african".
+"sudafricanos" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricanas" is the plural of "sudafricana".
+# `un cantiere di creatività internazionale', into Spanish: `obra' is a building
+# site as well as a work, and the work is said again first so that it stays the
+# meaning a Spanish text reads -- and `trabajo' (a job, then a work) before it,
+# or `obra' becomes the first Spanish word for `work': `il lavoro, l'impegno e
+# i risultati' was `la obra, el compromiso y los resultados'
+The masculine noun "trabajo" means "job".
+The masculine noun "trabajo" means "work".
+The feminine noun "obra" means "work".
+"obras" is the plural of "obra".
+The feminine noun "obra" means "building site".
+# `fra le varie espressioni', into Spanish: the adjective `vario' has the plural
+# `varios' and the meaning varied, and only the determiner `varios' means
+# several, which no adjective before a noun after an article can be
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+# `John Bess, a capo del centro The Valley': in charge of
+The preposition "al frente de" means "in charge of".
+# `e molto altro ancora', into Spanish: and much more
+The pronoun "mucho más" means "much more". The pronoun "mucho más" does not precede the verb.
+# `l'amajica performing arts project', into Spanish
+The masculine noun "amajica performing arts project" means "amajica performing arts project".
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), into Italian.
+# `autorregulación' has an Italian word only inside a hyphenated English one
+# (`self-regulation', which the builder does not read)
+The feminine noun "autorregulación" means "self-regulation".
+"autorregulaciones" is the plural of "autorregulación".
+# `El president recalcó que ...': the Catalan word for the head of the
+# Generalitat, in the dictionary's first meaning for `presidente' (a chairman).
+# `presidente' said first, or `president' would be the first Spanish word for a
+# chairman and every Italian `presidente' would be written in Catalan
+The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "chairman".
+"president" is a person.
+# `la consellera de Justícia': the feminine of `conseller', an adviser; the
+# dictionary's own feminine said first, or the Italian `consigliera' would be
+# written in Spanish as the Catalan word. `conseller' said first of all, or
+# `consejera' would be the first Spanish noun for an adviser and `il
+# consigliere' would be written `la consejera'. The feminine means a
+# councilwoman, not an adviser: with one English word for both, the woman
+# crossed into Italian as `il consigliere di Justícia'
+The masculine noun "conseller" means "adviser".
+The feminine noun "consejera" means "councilwoman".
+The feminine noun "consellera" means "councilwoman".
+"consellera" is a person.
+# `un mejor trato fiscal', `un trato confiscatorio': a treatment, where the
+# dictionary's first meaning for `trato' is a deal, which the Italian lesson
+# has no word for; `tratamiento' said first or `trato' would become the first
+# Spanish word for treatment
+The masculine noun "tratamiento" means "treatment".
+The masculine noun "trato" means "treatment".
+The masculine noun "trato" means "deal".
+# `rebajar la retención al 18%': to reduce, where the dictionary's meaning for
+# `rebajar' is recess; `reducir' said first, for the same reason
+The verb "reduce" means "reduces".
+The verb "rebaja" means "reduces".
+# `la retención' of a tax is a withholding, the dictionary's retention second
+The feminine noun "retención" means "withholding".
+# `se comprometió a seguir el diálogo': pledged himself -- the dictionary's
+# first meaning for `comprometer' is engage, which Italian says `ingaggiare'
+The verb "compromete" means "pledges".
+# `la abogacía debe adecuarse': the legal profession, where the dictionary has
+# only the law
+The feminine noun "abogacía" means "legal profession".
+# `los letrados del turno de oficio': the lawyers of the court-appointed
+# defence, the scheme that gives a lawyer to those who cannot pay for one
+The masculine noun "turno de oficio" means "court-appointed defence".
+# `la pasantía' of a lawyer is a traineeship
+The feminine noun "pasantía" means "traineeship".
+# `es injusto que los abogados tengan que soportar': the subjunctive of the
+# modal, which the lesson had for `tiene' and not for `tiene que'
+"tenga que" is the subjunctive of "tiene que".
+"tengan que" is the plural of "tenga que".
+# `a quienes se les retiene el 20%': to whom -- the relative that stands for
+# the one and for its relative both, in the plural (`quien' is begun above).
+# No line that it follows the preposition: with one, a writer takes it for the
+# relative after every preposition and `en el que' came out `en quienes'
+"quienes" is a relative.
+# `al que también asistieron, entre otros, la consellera': among others, which
+# read word by word is `entre' (a verb as well) and `otros', and in English
+# `enters others'
+The adverb "entre otros" means "among others".
+# `le lo' and `les lo' are `se lo' in Spanish, and joined to an infinitive
+# `darselo' (see extra/italian.txt)
+"se lo" is the contraction of "le lo".
+"se la" is the contraction of "le la".
+"se los" is the contraction of "le los".
+"se las" is the contraction of "le las".
+"se lo" is the contraction of "les lo".
+"se la" is the contraction of "les la".
+"se los" is the contraction of "les los".
+"se las" is the contraction of "les las".
+# `un pacto de Estado sobre Justicia' (the Abogacía report): the State and Justice
+# are common nouns a newspaper capitalises, and a capital word alone after a
+# preposition is a name unless the lesson says this
+"estado" is an institution.
+"justicia" is an institution.
+# `el progreso depende de la calidad', `pueden contar con su colaboración' (the
+# Abogacía report, into Italian): the preposition a verb governs before a phrase,
+# which the language it is written in says its own way (`"dipende" takes "da"
+# before the phrase.'); English's is translate.pl's own (`depends on')
+"depende" takes "de" before the phrase.
+"cuenta" takes "con" before the phrase.
+"participa" takes "en" before the phrase.
+"consiste" takes "en" before the phrase.
+"insiste" takes "en" before the phrase.
+"piensa" takes "en" before the phrase.
+# `..., lo que, en su opinión, no basta' (the Abogacía report, into Italian): the
+# relative that comments on the clause before its comma is not the phrase `the
+# one that', and Italian says `il che'
+"lo que" is a remark.
+# the verbs and the adjectives Spanish puts a subjunctive after, in a clause of
+# `que' (`Piden que la cantidad sea ...', `Es injusto que ... tengan')
+"quiere" takes the subjunctive.
+"desea" takes the subjunctive.
+"pide" takes the subjunctive.
+"espera" takes the subjunctive.
+"teme" takes the subjunctive.
+"duda" takes the subjunctive.
+"permite" takes the subjunctive.
+"prefiere" takes the subjunctive.
+"necesita" takes the subjunctive.
+"exige" takes the subjunctive.
+"impide" takes the subjunctive.
+"evita" takes the subjunctive.
+"sugiere" takes the subjunctive.
+"propone" takes the subjunctive.
+"injusto" takes the subjunctive.
+"justo" takes the subjunctive.
+"necesario" takes the subjunctive.
+"posible" takes the subjunctive.
+"probable" takes the subjunctive.
+"importante" takes the subjunctive.
+"extraño" takes the subjunctive.
+"normal" takes the subjunctive.
+"oportuno" takes the subjunctive.
+"útil" takes the subjunctive.
+# `No existía consenso entre los profesionales' (the Abogacía report, into
+# English): the verbs that take no object, so that the phrase after them is
+# their subject and `a Madrid' after `va' is where, not whom
+"existe" is intransitive.
+"ocurre" is intransitive.
+"sucede" is intransitive.
+"llega" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nace" is intransitive.
+"muere" is intransitive.
+"duerme" is intransitive.
+# `la reforma de la ley orgánica del poder judicial', `un código ... para sacar
+# adelante', `una partida presupuestaria mayor' (the Abogacía report, into
+# Italian): words of two or three that are one in the other language
+The masculine noun "poder judicial" means "judiciary".
+"poderes judiciales" is the plural of "poder judicial".
+The feminine noun "partida presupuestaria" means "budget item".
+"partidas presupuestarias" is the plural of "partida presupuestaria".
+The verb "saca adelante" means "carries forward".
+"sacan adelante" is the plural of "saca adelante".
+"sacar adelante" is the infinitive of "saca adelante".
+"sacando adelante" is the gerund of "saca adelante".
+"sacado adelante" is the participle of "saca adelante".
+# `la legitimidad del colectivo' (the Abogacía report, into Italian): the
+# dictionary's first meaning for the noun is a community, which Italian says
+# `comunità'; a collective of lawyers is `collettivo', the Italian cognate
+The masculine noun "colectivo" means "collective".
+# `Os veo', `Os lo digo': the object of more than one person spoken to, which
+# English says `you' as it does `te' (Italian's `vi' is stated as `ti' is)
+The pronoun "os" means "you".
+# `los tributos que los letrados deben pagar suponen el 50% o 60% de los
+# beneficios', `supone una limitación', `no supone la adición aritmética': what
+# `suponer' means in a newspaper is represent (eleven of the twelve sentences
+# in the treebank's development part), the dictionary's first meaning, suppose, being
+# the one before a clause of `that' (`supongo que', `se supone que'). The
+# dictionary's own `representa' is said again first, or every Italian
+# `rappresenta' would be written `supone'
+The verb "representa" means "represents".
+The verb "supone" means "represents".
+The clausal verb "supone" means "supposes".
+# `el decano del colegio barcelonés' (the Abogacía report, into Italian): a school
+# to the dictionary, and a body in a newspaper -- of the nine lines with
+# `colegio' in the treebank's development part six are polling stations
+# (`colegios electorales'), one a bar association and two a school; Italian's
+# `collegio' is the one word for all of them
+The masculine noun "colegio" means "college".
+# `que ejercen la asistencia de justicia gratuita', `los 25.300 que ejercen en
+# Catalunya' (the Abogacía report): the dictionary's first meaning for `ejercer' is
+# exert, which Italian does not say of a lawyer (`esercitare' is its exercise, and
+# the other Spanish verb for that, `ejercitar', is a drill)
+The verb "ejerce" means "exercises".
+# `justamente retribuidos' (the same report): the dictionary's `retribuir' is
+# reward, which Italian says `premiare', and a lawyer is remunerated; and
+# `justamente' is precisely anywhere and justly before an adjective or a
+# participle (`The adjectival adverb ...' is what it means there). The
+# dictionary's own meaning is said again first: a meaning the lesson calls
+# adjectival is linked to the adverb's class too, in the order it is said
+The verb "retribuye" means "remunerates".
+The adverb "justamente" means "precisely".
+The adjectival adverb "justamente" means "justly".
+# `el presidente del Consejo de la Abogacía': a council, in thirteen of the
+# fifteen places the treebank's development part has `consejo' (`Consejo de
+# Ministros', `Consejo de Administración'), and the advice in two
+The masculine noun "consejo" means "council".

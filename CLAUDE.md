@@ -108,6 +108,11 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
 * **Where `$HOME` is not where the checkouts are** (a container), set
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
+* **Debian's SBCL 2.2.9 starts with a 1 GB heap, which a build of cocolog
+  exhausts** (a heap-exhaustion report from Cicili, midway). `make` takes
+  `SBCL="sbcl --dynamic-space-size 4096"`; the `build.sh` of a module calls
+  `sbcl` by name, so put a shim first on PATH that runs
+  `exec /usr/bin/sbcl --dynamic-space-size 4096 "$@"`.
 * **Everything is built by clang** -- the client, the interpreter, the
   embedded store, every module, ZiguratIP's libraries and server, and the
   Parsi objects the server loads -- because cocolog links ZiguratIP's C++
@@ -1056,8 +1061,12 @@ read into an English-worded IR and written into any lesson's language),
   not become the word written.
 * **A store learns only the lines it lacks**, appended: an ORDER is a
   property of a teach, not of a line. A data fix is proved on a store taught
-  from the rebuilt vocabulary. Teaching both languages into one `--embed`
-  store takes ~11 and ~18 minutes.
+  from the rebuilt vocabulary. Teaching both languages into one fresh
+  `--embed` store takes ~40 s on 1.10.0 (18 s and 23 s, four vCPUs; it took
+  ~11 and ~18 minutes), so **try an ORDER effect on a fresh store before an
+  `extra/` line is final**: a working store that had lines appended in
+  another order showed a first meaning the fresh one did not (`de riesgo`,
+  `cualquiera`).
 * **Memory**: a teach sat at 4-9 GB resident before the heap collector of
   1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
   tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run
@@ -1094,9 +1103,28 @@ read into an English-worded IR and written into any lesson's language),
   non` written last, a sentence that ran to the 300 M inference limit and
   `l'anima` as `lo anima`; and sum the counts by hunk -- a clause that reads
   the phrase's words a second time at every place that read nothing cost 3 %.
+  **A refusal can hide a wrong reading**: English refused a clause with no
+  subject, and giving it `they` for a verb of saying turned `dijo el
+  presidente de la Generalitat, que inauguró` (the speaker read as an object)
+  into `they said the chairman` -- look at the IR of what a fix now writes,
+  not only at its text, and at a sentence the fix was not made for.
+  **Diff the first word of every meaning** between the committed vocabulary
+  and the rebuilt one (class and English meaning to first word, gender
+  ignored: the writer takes the first noun of a meaning whatever its gender):
+  an `extra/` line, a dictionary entry marked `RL` among them, is the first
+  word of its meaning wherever it lands in the file. The Abogacía report's
+  lines made a feminine `consigliera` the first Italian noun for an adviser
+  (every `conseller` was `la consigliera`; the feminines mean a `councilwoman`
+  now, so a woman crosses as a woman and the masculine is the adviser),
+  `letrado` the first Spanish noun
+  for a lawyer (`su letrado`), `president` the first for a chairman, and
+  `The word "quienes" follows the preposition.` the relative a Spanish writer
+  puts after EVERY preposition (`en el que` was `en quienes`, in 19 sentences
+  of the data column); the dictionary's own word is said again first, and a
+  line that a reader needs and a writer must not use stays unsaid.
 * **Open leads, recorded and not done**: `tr_cap_run/3` is two predicates
   under one name; the builder calls a noun a person only by its first English
-  word; English has no irregular plurals (`mans`); the upstream verb table
+  word; the upstream verb table
   has `scaping`/`leaved`; `No comas el pan.` reads the subjunctive before the
   negative imperative; `pronto` after a verb crosses as `immediate`; `ir a`
   and an infinitive is the near future and reads as a verb of motion, with
@@ -1169,7 +1197,85 @@ read into an English-worded IR and written into any lesson's language),
   null third-person subject (`asegura`, `añade`), and does not write a
   relative clause `en que esté permitida` or one with a participle and its
   agent after `contará con`: four of the Clot report's sentences stay out of
-  English.
+  English; from the Quartieri report (Italian into Spanish): the words
+  `linguaggi` (`idiomas`), `laboratori` (`laboratorios`), `strada` after
+  `teatro di` (`carretera`), `sfilata` (`intestino`), `palco` (`etapa`),
+  `costumi` (`costumbres`), `opere` (`óperas`), `pannelli` (`tableros`),
+  `tele` (`lonas`), `svolgersi` (`actuar`), `contributo libero`
+  (`contribución gratuita`), `impegneranno` (`comprometerán`), `saranno
+  insieme` (`serán juntos`), `per una settimana` (`para una semana`) and
+  `ragazzi` (`niños`; `chico` first broke `bambino`) are the dictionary's
+  first word, not the news's; `a` before a place keeps its `a` (`a Harlem`,
+  `a Tor Bella Monaca`, where Spanish says `en`: the lesson has no notion of a
+  place), a country keeps its article (`desde la Italia`) and a name is
+  translated word by word where its words are common (`Alta tensione` is
+  `Alto voltaje`, `Sud Africa` `Sur Africa`); a quotation, its verb and then
+  the speaker (`..." spiega Nicoletta Gaida`) writes the speaker as an object
+  (`explica a Nicoletta Gaida`) and the apposition after it keeps no gender
+  (`ideatrice` is `creador`); a quotation inside a quotation (`come
+  "delinquenti"`) loses its place; `che da anni coinvolge ... e dal Sud
+  Africa l'amajica ...` is one relative clause to the end of its bracket, so
+  `desde hace años` is written at the end of the bracket; `nuovi linguaggi del
+  disagio giovanile in cui immergersi` attaches `in cui` to `disagio`
+  (`en el que`); `"quartieri"` in lowercase marks is translated (`"barrios"`)
+  where the lesson names it only with a capital; a name that begins with a
+  word the lesson knows (`Lord of the Rings`) is still refused, and `&`
+  between lowercase words is dropped (`pane & vino`). A bare noun before
+  `di` no longer takes the gender of the noun after it unless it says a part
+  (`tasse d'iscrizione` is `impuestos de inscripción`, like the first
+  `tasse`; it was `tasas`, by the gender of `inscripción`). English writes
+  a weekday with no capital (`thursday 20`), and refuses sentence 20 (`Inoltre un convegno
+  (giovedì 20), proiezioni, la mostra dei Murales, ...`: a heading made of
+  `La mostra` alone is refused into English).
+  The Abogacía report (Spanish into Italian and into English) is read and
+  written whole, and its leads are fixed (1.10.3, 172 checks over it). What
+  it still leaves: `Se la cava.` has no `cavare` in either dictionary (and an
+  idiom of several words crosses word by word); `Os lo digo` is `Ti lo dico`
+  -- the lesson language has no second person plural (`coméis` is no word,
+  `os` and `vi` are `you`, and the IR's `you` has no number); English writes
+  `Lo dejo comer` as `I leave him to eat`, `Lo veo venir` as `I see him to
+  come` and `Hago comer el pan al perro` as `I make to eat the bread to the
+  dog`: what makes, lets or watches somebody do something is a construction
+  of its own -- the doer of the infinitive has no term in the IR (the clitic
+  or the `a` phrase stands beside the infinitive), a lesson names no such
+  verbs, and `dejar` has no meaning of its own before an infinitive;
+  `se limitó a decir` is `limited to say` (English wants `himself` and `to
+  saying`, and the IR's noun carries no gender for the pronoun); `más de lo
+  que recibe ahora` is `more than the one that receives` (the IR does not
+  tell `lo que`, what, from `el que`); the clitic after another clitic or a
+  reflexive is read as a thing in English (`me lo apunto` is `I note it`,
+  `te lo digo` `I say it to you`), which a person is not (`se lo llevaron`,
+  took him away); the Spanish `-ra` form is read as the imperfect it stands
+  for after `si`, `como si`, `sin que`, and so it is in the literary
+  indicative past of a relative clause or after `después de que` (`donde en
+  1988 lograra`, `después de que la lista acusara`: `otteneva`, `accusava`
+  where the preterite was; two sentences of the controls, against the many
+  it mends: `como si eran pocos`, `si teníamos más`, `sin que figuraban`);
+  and the comma before a preposition and its relative is lost
+  where the piece has other commas (`reivindicó, ayer, un trato mejor para
+  los abogados, a quienes ...` reads `... per gli avvocati a cui ...`:
+  keeping it was tried twice and costs the Valencia report's second 1.7
+  million of its 9 and the festival report's last 0.4 million of its 3.5).
+  The rest of its English is the dictionary's (`a favor de` is `to favour
+  of`, `desleales` `disloyals`, `efectuadas` `effected`). **English writes a
+  number in its own style** between itself and a language of the decimal
+  comma (`tr_decimal_comma/1`: `5.000 millones` is `5,000 million`, `3,5` is
+  `3.5`, `10.30` an hour stays; the reader notes the text's style in
+  `$tr_numsrc`, the writer swaps the marks of a NUMBER only, and two such
+  languages keep their digits), a magnitude after a count singular with no
+  `of` (`tres millones de perros` is `three million dogs`), no article before
+  a percentage, the adverbs of time and focus before the verb (`also`,
+  `always`, `never`: `en_mid_adverb/1`; after a copula or a modal that stands
+  alone, in the tail of a question) and `more than`, `about`, `only` before
+  the phrase they say how much of (`en_object_adverb/1`). A word with two
+  meanings that no SHAPE chooses between still has one: `justamente` is
+  justly before an adjective or a participle (`The adjectival adverb
+  "justamente" means "justly".`) and precisely elsewhere, as `supone` is
+  supposes before `que`; **a meaning the lesson gives a class of its own
+  (`intransitive`, `progressive`, `clausal`, `adjectival`) is linked to the
+  word's class too, in the order it is said, so the plain meaning is said
+  first (again), or the class's meaning becomes the default**
+  (`tr_mean_links/3`).
 
 ## Tutorials are documentation that runs
 

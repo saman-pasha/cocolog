@@ -197,6 +197,10 @@ The preposition "grazie a" means "thanks to".
 The preposition "invece di" means "instead of".
 The preposition "vicino" means "near".
 The noun "il peggio" means "the worst".
+# `aunque avisó: ...' (the Abogacía report, from Spanish): the clause after `aunque' is in the
+# indicative, and `nonostante' and `sebbene' want a subjunctive Italian writes here
+# and this does not; `anche se' takes the indicative, and is said first
+The conjunction "anche se" means "although".
 The conjunction "nonostante" means "although".
 # `nonostante la continua incertezza politica': before a phrase it is the
 # preposition, and the dictionary's first one is `around'
@@ -219,6 +223,10 @@ The feminine adjective "pazza" means "crazy".
 The adjective "fuori di testa" means "crazy".
 The verb "fa sapere" means "reports".
 The verb "ci si rende conto" means "realizes".
+# `Dobbiamo esser proprio premiati' (the Abogacía report): `aver' and `esser' are read,
+# and the whole infinitives are said first so that they are the ones written
+"avere" is the infinitive of "ha".
+"essere" is the infinitive of "è".
 "aver" is the infinitive of "ha".
 "esser" is the infinitive of "è".
 "è" is the auxiliary of "prosegue".
@@ -2421,3 +2429,264 @@ The verb "auspica" means "advocates".
 # the English one is `bottega', and a Spanish `tienda' is a `negozio'; the
 # dictionary's own meaning is said again first
 The masculine noun "negozio" means "shop".
+# the Quartieri article (Venice treebank VIT, hip hop workshops at Tor Bella
+# Monaca), into Spanish: `hip hop' and `rap' are English words that Italian
+# and Spanish both keep
+The masculine noun "hip hop" means "hip hop".
+The masculine noun "rap" means "rap".
+# `fra le varie espressioni': `vario' is the dictionary's `various', no
+# determiner the builder admits, and `several' has `diverso' for its Italian
+# word, said again first so that it stays the word written. The adjective too:
+# after an article it is the adjective that reads (`le diverse espressioni')
+The masculine determiner "diverso" means "several".
+"diversi" is the plural of "diverso".
+The feminine determiner "diversa" means "several".
+"diverse" is the plural of "diversa".
+The masculine determiner "vario" means "several".
+"vari" is the plural of "vario".
+The feminine determiner "varia" means "several".
+"varie" is the plural of "varia".
+The masculine adjective "vario" means "several".
+The feminine adjective "varia" means "several".
+# `Nicoletta Gaida, ideatrice dell'iniziativa': the dictionary entry for
+# `ideatore' is written once a class, and the feminine is not a second line
+The feminine noun "ideatrice" means "creator".
+"ideatrici" is the plural of "ideatrice".
+"ideatrice" is a person.
+# `devoluto alla Lega': the paradigm of `devolvere' is the one of `assolvere',
+# whose participle is `assolto'
+"devoluto" is the participle of "devolve".
+"devoluta" is the participle of "devolve".
+"devoluti" is the participle of "devolve".
+"devolute" is the participle of "devolve".
+# `ragazzi italiani, americani e sudafricani': the builder reads no entry of
+# two English words, so the Italian adjective is stated, in lower case as
+# `american' is
+The masculine adjective "sudafricano" means "south african".
+"sudafricani" is the plural of "sudafricano".
+The feminine adjective "sudafricana" means "south african".
+"sudafricane" is the plural of "sudafricana".
+# `Usa o Italia, "hip hop" è la lingua del ghetto': `Usa' is the United States
+# and `usa' what `usare' says of one person, which at the head of a sentence
+# was a command
+"usa" is a name.
+# `un cantiere di creatività internazionale', `il cantiere sarà coordinato':
+# the dictionary's only meaning for `cantiere' is a shipyard, which Spanish has
+# no word for; a building site is what a newspaper means by it
+The masculine noun "cantiere" means "building site".
+"cantieri" is the plural of "cantiere".
+# `il disagio giovanile': youth unrest, to which Spanish says `malestar', where
+# the dictionary's discomfort is `incomodidad'
+The masculine noun "disagio" means "unrest".
+# `devoluto alla Lega Italiana Lotta Aids': a league made of words every lesson
+# knows (`lega' an alloy, `lotta' a fight, `aids' what helps)
+"Lega Italiana Lotta Aids" is a name.
+# `dichiara energicamente John Bess': declares, where the dictionary's first
+# meaning for `dichiarare' is alleges, which Spanish says `alega'
+The verb "dichiara" means "declares".
+# `a capo del centro The Valley': in charge of
+The preposition "a capo di" means "in charge of".
+# `persone impegnate nel recupero dei giovani emarginati': engaged in it, where
+# the dictionary's first meaning for `impegnare' is pledges, `prometidas' --
+# and `ingaggiare' (the Spanish `fichado por TVE') before it, or `impegna'
+# becomes the first Italian word for `engages': `recentemente ingaggiato' was
+# `recentemente impegnato'
+The verb "ingaggia" means "engages".
+The verb "impegna" means "engages".
+# `e molto altro ancora': and much more, a pronoun of four words (`altro' an
+# adjective and `ancora' an anchor or still to the lesson)
+The pronoun "molto altro ancora" means "much more". The pronoun "molto altro ancora" does not precede the verb.
+# `Quartieri è stato realizzato dall'associazione': the festival, a name that is a
+# plural noun and would be lowered at the head of the sentence for one
+"quartieri" is a name.
+# `l'amajica performing arts project': a South African project, named in
+# English in small letters
+The masculine noun "amajica performing arts project" means "amajica performing arts project".
+# the Abogacía report (AnCora CESS-CAST-P-19991001-61), from Spanish.
+# `confiscatorio' is in no Italian dictionary here; `autoregolamentazione' has
+# its English word hyphenated (`self-regulation'); `consigliera' is the
+# feminine of `consigliere', said first, or an Italian adviser would be
+# written `consigliera' for every Spanish `conseller'; the feminine means a
+# councilwoman, so that a woman crosses as a woman
+The masculine adjective "confiscatorio" means "confiscatory".
+"confiscatori" is the plural of "confiscatorio".
+The feminine adjective "confiscatoria" means "confiscatory".
+"confiscatorie" is the plural of "confiscatoria".
+The feminine noun "autoregolamentazione" means "self-regulation".
+"autoregolamentazioni" is the plural of "autoregolamentazione".
+The masculine noun "consigliere" means "adviser".
+The feminine noun "consigliera" means "councilwoman".
+"consigliera" is a person.
+# the Abogacía report, from Spanish: `la abogacía' is the legal profession,
+# `un trato confiscatorio' a treatment; `ritenuta' has no dictionary entry
+# (a withholding on a salary), and the dictionary's plural for `onorario'
+# is `onorarii'
+The feminine noun "avvocatura" means "legal profession".
+"avvocature" is the plural of "avvocatura".
+The feminine noun "difesa d'ufficio" means "court-appointed defence".
+The feminine noun "ritenuta" means "withholding".
+"ritenute" is the plural of "ritenuta".
+The masculine noun "tirocinio" means "traineeship".
+"tirocini" is the plural of "tirocinio".
+"onorari" is the plural of "onorario".
+# `tienen que soportar unos costos': endure -- the dictionary's first meaning
+# for `sopportare' is support, which Spanish says `apoyar'
+The verb "sopporta" means "endures".
+# `entre otros', from Spanish: among others
+The adverb "tra gli altri" means "among others".
+# A PAIR OF CLITICS BEFORE A VERB, OR JOINED TO AN INFINITIVE, is written as one
+# (`me lo apunto' is `me l'annoto', `decírtelo' `dirtelo', `dárselo'
+# `darglielo'): the contraction of the two, which the writer makes between any
+# two words it writes next to each other. The reader does not join two words
+# the lesson states a contraction of when the key has a blank, because Italian
+# `se la' is also `if the'; it takes them apart (`te lo dico' is `ti lo dico')
+# only where a verb follows.
+"me lo" is the contraction of "mi lo".
+"me la" is the contraction of "mi la".
+"me li" is the contraction of "mi li".
+"me le" is the contraction of "mi le".
+"me ne" is the contraction of "mi ne".
+"te lo" is the contraction of "ti lo".
+"te la" is the contraction of "ti la".
+"te li" is the contraction of "ti li".
+"te le" is the contraction of "ti le".
+"te ne" is the contraction of "ti ne".
+"se lo" is the contraction of "si lo".
+"se la" is the contraction of "si la".
+"se li" is the contraction of "si li".
+"se le" is the contraction of "si le".
+"se ne" is the contraction of "si ne".
+"ce lo" is the contraction of "ci lo".
+"ce la" is the contraction of "ci la".
+"ce li" is the contraction of "ci li".
+"ce le" is the contraction of "ci le".
+"ce ne" is the contraction of "ci ne".
+"ve lo" is the contraction of "vi lo".
+"ve la" is the contraction of "vi la".
+"ve li" is the contraction of "vi li".
+"ve le" is the contraction of "vi le".
+"ve ne" is the contraction of "vi ne".
+"glielo" is the contraction of "gli lo".
+"gliela" is the contraction of "gli la".
+"glieli" is the contraction of "gli li".
+"gliele" is the contraction of "gli le".
+"gliene" is the contraction of "gli ne".
+"glielo" is the contraction of "le lo".
+"gliela" is the contraction of "le la".
+"glieli" is the contraction of "le li".
+"gliele" is the contraction of "le le".
+"gliene" is the contraction of "le ne".
+# `permitió aprobar la legitimidad' (the Abogacía report, from Spanish): Italian
+# says `permise di approvare'
+"permette" takes "di" before the infinitive.
+# `un pacto de Estado sobre Justicia': the State and Justice, capitalised with
+# no article after a preposition, are the common nouns (`"estado" is an
+# institution.'), where a capital word alone there is a name
+"stato" is an institution.
+"giustizia" is an institution.
+# `dipende dalla qualità', `contare sulla loro collaborazione' (the Abogacía
+# report, from Spanish): the preposition a verb governs before a phrase
+"dipende" takes "da" before the phrase.
+"conta" takes "su" before the phrase.
+"partecipa" takes "a" before the phrase.
+"consiste" takes "in" before the phrase.
+"insiste" takes "su" before the phrase.
+"pensa" takes "a" before the phrase.
+# `inauguró en Tarragona': a city takes the word for `to' where English says
+# `in' (`"Tarragona" is a city.'); a country or a region keeps `in'
+"Tarragona" is a city.
+"Barcelona" is a city.
+"Madrid" is a city.
+"Girona" is a city.
+"Lleida" is a city.
+"Valencia" is a city.
+"Sevilla" is a city.
+"Bilbao" is a city.
+"Zaragoza" is a city.
+"Roma" is a city.
+"Milano" is a city.
+"Torino" is a city.
+"Napoli" is a city.
+"Genova" is a city.
+"Bologna" is a city.
+"Firenze" is a city.
+"Palermo" is a city.
+"Venezia" is a city.
+# `..., il che, a suo avviso, non basta' (from Spanish's `lo que')
+"il che" is a remark.
+# `Es injusto que los abogados tengan que soportar ...', `piden que la cantidad sea
+# ...' (the Abogacía report, from Spanish): the verbs and the adjectives Italian
+# puts a subjunctive after, in a clause of `che' -- `È ingiusto che debbano'
+"vuole" takes the subjunctive.
+"desidera" takes the subjunctive.
+"chiede" takes the subjunctive.
+"spera" takes the subjunctive.
+"teme" takes the subjunctive.
+"dubita" takes the subjunctive.
+"permette" takes the subjunctive.
+"preferisce" takes the subjunctive.
+"crede" takes the subjunctive.
+"pensa" takes the subjunctive.
+"ritiene" takes the subjunctive.
+"sembra" takes the subjunctive.
+"esige" takes the subjunctive.
+"impedisce" takes the subjunctive.
+"evita" takes the subjunctive.
+"suggerisce" takes the subjunctive.
+"propone" takes the subjunctive.
+"ingiusto" takes the subjunctive.
+"giusto" takes the subjunctive.
+"necessario" takes the subjunctive.
+"possibile" takes the subjunctive.
+"probabile" takes the subjunctive.
+"importante" takes the subjunctive.
+"strano" takes the subjunctive.
+"normale" takes the subjunctive.
+"opportuno" takes the subjunctive.
+"utile" takes the subjunctive.
+# the verbs that take no object (the Abogacía report, from Spanish)
+"esiste" is intransitive.
+"accade" is intransitive.
+"succede" is intransitive.
+"arriva" is intransitive.
+"va" is intransitive.
+"viene" is intransitive.
+"nasce" is intransitive.
+"muore" is intransitive.
+"dorme" is intransitive.
+# the same words, in Italian
+The masculine noun "potere giudiziario" means "judiciary".
+"poteri giudiziari" is the plural of "potere giudiziario".
+The feminine noun "voce di bilancio" means "budget item".
+"voci di bilancio" is the plural of "voce di bilancio".
+The verb "porta avanti" means "carries forward".
+"portano avanti" is the plural of "porta avanti".
+"portare avanti" is the infinitive of "porta avanti".
+"portando avanti" is the gerund of "porta avanti".
+"portato avanti" is the participle of "porta avanti".
+# `las bases de un código', `la legitimidad', `están inscritos', `los
+# beneficios', `la imagen distorsionada', `honorarios habituales': the
+# dictionary's first Italian word is `basamento', `legittimazione', `inscrive'
+# (to inscribe), `profitto', `falsato' and `usuale', and these are said first
+The feminine noun "base" means "base".
+The feminine noun "legittimità" means "legitimacy".
+The verb "iscrive" means "inscribes".
+The masculine noun "utile" means "profit".
+The masculine adjective "distorto" means "distorted".
+"distorti" is the plural of "distorto".
+The feminine adjective "distorta" means "distorted".
+"distorte" is the plural of "distorta".
+The adjective "abituale" means "usual".
+# `Gli do il libro' (the Abogacía report's clitic pairs, tried the other way):
+# the first person of `dare' is `do', the accented `dò' being the old spelling
+# and the dictionary's; and `libro' is the first word for a book, where the
+# dictionary's is `blocchetto' (a pad of paper)
+"do" is the first person of "dà".
+The masculine noun "libro" means "book".
+# `giustamente retribuiti' (the Abogacía report, tried the other way): justly
+# before an adjective or a participle, and precisely elsewhere (the dictionary's
+# meaning said again first, as Spanish's `justamente')
+The adverb "giustamente" means "precisely".
+The adjectival adverb "giustamente" means "justly".
+# `il presidente del Consiglio dell'Avvocatura': a council, as Spanish's `Consejo'
+The masculine noun "consiglio" means "council".
