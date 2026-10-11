@@ -39,32 +39,66 @@ flow_tables :-
 %%
 %% A clause is cl(Head, Body, Names, Info), Info holding file(F), at(Line,
 %% Col) and text(Codes), and `dcg' for a grammar rule.
+%%
+%% Prog maps each Name/Arity to its clauses -- or to dyn(Clauses) when the
+%% file declares it dynamic, whether or not it holds a clause of it: what a
+%% dynamic predicate answers is made as the program runs. One lookup says
+%% both, and it is the one every goal of the program's own costs anyway.
 
 flow_read_source(File, Prog) :-
     read_file_to_codes(File, Codes),
     open(File, read, S),
-    flow_read_terms(S, File, Codes, 0, 1, 1, Pairs),
+    flow_read_terms(S, File, Codes, 0, 1, 1, Pairs, Dyn0),
     close(S),
     keysort(Pairs, Sorted),
     flow_group(Sorted, Grouped),
-    list_to_assoc(Grouped, Prog).
+    list_to_assoc(Grouped, Prog0),
+    sort(Dyn0, Dyn),
+    flow_mark_dynamic(Dyn, Prog0, Prog).
+
+flow_mark_dynamic([], Prog, Prog).
+flow_mark_dynamic([K|Ks], Prog0, Prog) :-
+    (   get_assoc(K, Prog0, Cls) -> true ; Cls = [] ),
+    put_assoc(K, Prog0, dyn(Cls), Prog1),
+    flow_mark_dynamic(Ks, Prog1, Prog).
 
 %% Rest is the file from byte Off on, which is line L, column K
-flow_read_terms(S, File, Rest, Off, L, K, Pairs) :-
+flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
     read_term(S, T, [variable_names(Vs)]),
     stream_position(S, Off1),
     N is Off1 - Off,
     flow_split_at(Rest, N, Text0, Rest1),
     flow_advance(Text0, L, K, L1, K1),
     (   T == end_of_file
-    ->  Pairs = []
+    ->  Pairs = [], Dyn = []
     ;   flow_skip_layout(Text0, L, K, Text, LS, KS),
         (   catch(flow_source_clause(T, Vs, File, Text, LS, KS, Pair), _, fail)
         ->  Pairs = [Pair|Pairs1]
         ;   Pairs = Pairs1
         ),
-        flow_read_terms(S, File, Rest1, Off1, L1, K1, Pairs1)
+        (   nonvar(T), T = (:- D), nonvar(D), D = dynamic(Spec)
+        ->  flow_dynamic_keys(Spec, Ks), append(Ks, Dyn1, Dyn)
+        ;   Dyn = Dyn1
+        ),
+        flow_read_terms(S, File, Rest1, Off1, L1, K1, Pairs1, Dyn1)
     ).
+
+%% dynamic p/1, (p/1, q/2), [p/1, q/2], m:p/1 -- `:- dynamic p/1, q/2.'
+%% reads as dynamic((p/1, q/2))
+flow_dynamic_keys(V, []) :- var(V), !.
+flow_dynamic_keys((A, B), Ks) :- !,
+    flow_dynamic_keys(A, Ka),
+    flow_dynamic_keys(B, Kb),
+    append(Ka, Kb, Ks).
+flow_dynamic_keys([], []) :- !.
+flow_dynamic_keys([S|Ss], Ks) :- !,
+    flow_dynamic_keys(S, K1),
+    flow_dynamic_keys(Ss, K2),
+    append(K1, K2, Ks).
+flow_dynamic_keys(_:S, Ks) :- !,
+    flow_dynamic_keys(S, Ks).
+flow_dynamic_keys(N/A, [N/A]) :- atom(N), integer(A), !.
+flow_dynamic_keys(_, []).
 
 flow_source_clause(T, _, _, _, _, _, _) :- var(T), !, fail.
 flow_source_clause((:- _), _, _, _, _, _, _) :- !, fail.

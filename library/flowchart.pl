@@ -73,7 +73,12 @@
 %% clause, else, past a cut, out of the whole call. A call carries the
 %% number of the panel it calls; between panels a dark wire takes the call
 %% there and a green one brings the answer back. A C function is a PORTAL:
-%% the end of the chart, never looked inside.
+%% the end of the chart, never looked inside. A DYNAMIC predicate -- one
+%% declared dynamic -- is drawn with the clauses the file starts it with,
+%% and may fail or answer again whatever they say. call(double, X, Y) is
+%% double(X, Y); a goal known only when it runs is a CLOSURE, which may
+%% fail and leave a choice; a call nothing defines is UNKNOWN, an
+%% existence error when it runs.
 %%
 %% MODES are shown the Prolog way, on every argument: + input, - output,
 %% ? either, : a goal. A builtin's come from the hand-kept table

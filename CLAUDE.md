@@ -558,7 +558,10 @@ cocolint index offers no import of it.
   `nm -D --defined-only` over `home/lib`, and name every transitive
   dependency on the link line.
 * **`current_predicate/1` answers about the knowledge base**, not modules:
-  probe a module by catching `existence_error` around a real call.
+  probe a module by catching `existence_error` around a real call. It
+  answers for a predicate with a clause or a dynamic declaration, as SWI's
+  does; through 1.10.2 it also answered for any name a call or `clause/2`
+  had merely looked up (each makes a table entry).
 * **Register modules before spawning threads**: the registry is
   process-wide and unguarded.
 * `cocolint`'s index picks `modules/NAME/NAME.cicili` by name; a header

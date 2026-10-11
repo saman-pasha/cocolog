@@ -13,7 +13,21 @@
 %% WHAT A GOAL SAYS: what it is (text, pred, kind, and its file, line and
 %% column), the mode of each argument, whether it can fail (can_fail) and
 %% whether it can leave a choice point (choice), the panel it calls, and
-%% where control goes when it fails (on_fail):
+%% where control goes when it fails (on_fail). Its kind is one of
+%%
+%%     user        the program's own predicate
+%%     dynamic     one whose clauses the program makes and unmakes as it
+%%                 runs (declared dynamic): drawn with the clauses the file
+%%                 starts it with, if any, and it may fail or answer again
+%%     library     a library predicate, with library="..."
+%%     c           a C function of a module (a portal), with module="..."
+%%     builtin, test, unify    what the engine answers in C
+%%     closure     a goal known only when it runs: a variable, or call/N
+%%                 with a closure the source does not name
+%%     unknown     defined nowhere the chart can see: calling it raises
+%%                 existence_error
+%%
+%% and where control goes when it fails (on_fail) is
 %%
 %%     an id                the goal that is tried again
 %%     next_clause          the next clause of the predicate

@@ -339,12 +339,14 @@ flow_tip(G, Kind, Det, Names, Tip) :-
     format(atom(Tip), '~w  --  ~w, ~w', [T, KW, DT]).
 
 flow_kind_word(user, 'your predicate') :- !.
+flow_kind_word(dynamic, 'dynamic: its clauses are made and unmade as the program runs') :- !.
 flow_kind_word(library(L), W) :- !, flow_lib_name(L, N), format(atom(W), 'library(~w)', [N]).
 flow_kind_word(builtin, 'builtin, C in the engine') :- !.
 flow_kind_word(test, test) :- !.
 flow_kind_word(unify, unification) :- !.
 flow_kind_word(portal(M), W) :- !, format(atom(W), 'C function of library(~w), not traced', [M]).
-flow_kind_word(unknown, 'defined nowhere the chart can see') :- !.
+flow_kind_word(unknown, 'defined nowhere the chart can see: calling it is an existence error') :- !.
+flow_kind_word(closure, 'a goal known only when it runs') :- !.
 flow_kind_word(_, 'a goal known only when it runs').
 
 flow_m_head(H, CM, Names, HF, Id, mhead(Segs, HF, W, tip(Tip, Id))) :-
@@ -523,6 +525,7 @@ flow_or_retries([T1, T2|Ts], [1-l([XL-Y0, XL-Y2, XS2-Y2], red, 1.2, '4 3', red)|
 flow_or_retries(_, []).
 
 flow_box_style(user, '#ffffff', '#52606d', none) :- !.
+flow_box_style(dynamic, '#f3f7fd', '#33507a', '6 2') :- !.
 flow_box_style(library(_), '#ffffff', '#8a97a5', '4 3') :- !.
 flow_box_style(builtin, '#eef1f4', '#a3aeb9', none) :- !.
 flow_box_style(test, '#fff7df', '#c08a00', none) :- !.
@@ -554,6 +557,7 @@ flow_badge_prims(ref(Id), Kind, X, W, Y,
     atom_codes(IdA, Cs).
 
 flow_badge_col(user, '#33507a') :- !.
+flow_badge_col(dynamic, '#33507a') :- !.
 flow_badge_col(library(_), '#6b7785') :- !.
 flow_badge_col(portal(_), '#0f766e') :- !.
 flow_badge_col(query, '#3d3d6b') :- !.
@@ -741,13 +745,15 @@ flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap,
     flow_m_rows(DRows, CM, Ids, Self, PId, Fold, MRows),
     flow_rows_maxw(MRows, 0, MW),
     flow_segs_w(HeadSegs, HW),
-    W is max(34 + MW + 26 + 16, 34 + HW + 140),
+    length(Rows, NC),
+    flow_panel_tag(Kind, Det, NC, Tag),
+    flow_chars(Tag, TN),
+    TagW is (TN * 62 + 9) // 10,
+    W is max(34 + MW + 26 + 16, 34 + HW + max(140, TagW + 30)),
     ExitX is W - 14,
     flow_p_rows(MRows, 34, 44, 16, ExitX, RowPs, Geos, Bottom),
     H is Bottom + 22,
     Geos = [row_geo(_, CallY, _, _, _)|_],
-    length(Rows, NC),
-    flow_panel_tag(Kind, Det, NC, Tag),
     flow_panel_frame(Id, Kind, W, H, HeadSegs, Tag, FramePs),
     flow_panel_ports(Geos, W, H, ExitX, PortPs),
     MinY is CallY + 18,
@@ -787,6 +793,10 @@ flow_panel_tag(library(L), Det0, NC, Tag) :- !,
     flow_lib_name(L, LN),
     flow_plural(NC, clause, Cl),
     format(atom(Tag), 'library(~w)  ·  ~w  ·  ~d ~w', [LN, Det, NC, Cl]).
+flow_panel_tag(dynamic, Det0, NC, Tag) :- !,
+    flow_det_text(Det0, Det),
+    flow_plural(NC, clause, Cl),
+    format(atom(Tag), 'dynamic  ·  ~w  ·  starts with ~d ~w', [Det, NC, Cl]).
 flow_panel_tag(_, Det0, _, Det) :- flow_det_text(Det0, Det).
 
 flow_plural(1, W, W) :- !.
@@ -812,6 +822,7 @@ flow_id_atom(query, '?-') :- !.
 flow_id_atom(Id, A) :- number_codes(Id, Cs), atom_codes(A, Cs).
 
 flow_panel_fill(user, '#e8eef6') :- !.
+flow_panel_fill(dynamic, '#e3ebf8') :- !.
 flow_panel_fill(library(_), '#eef0f2') :- !.
 flow_panel_fill(portal(_), '#dcf1ed') :- !.
 flow_panel_fill(_, '#e9e9f3').

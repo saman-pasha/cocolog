@@ -8,6 +8,8 @@ p(1). p(2). p(3).
 q(X) :- p(X), X > 1.
 r(a, 1). r(b, 2).
 
+:- dynamic dyn_only/1.
+
 main :-
     %  ---- findall and what is built on it ----
     ( findall(X1, p(X1), A1) -> s(findall, A1) ; s(findall, no) ),
@@ -85,6 +87,13 @@ main :-
     ( clause(q(_), P4) -> ( P4 = (p(_), _ > 1) -> s(clause_rule, ok) ; s(clause_rule, P4) ) ; true ),
     yn(current_predicate(p/1), current_pred_yes),
     yn(current_predicate(nosuch/9), current_pred_no),
+    %  a name only looked up -- by clause/2, or by a call that raised -- is
+    %  no predicate; one declared dynamic is one, with no clause
+    ( catch(clause(nosuch_looked(_), _), _, true) -> true ; true ),
+    ( catch(nosuch_called, _, true) -> true ; true ),
+    yn(current_predicate(nosuch_looked/1), current_pred_looked_up),
+    yn(current_predicate(nosuch_called/0), current_pred_called),
+    yn(current_predicate(dyn_only/1), current_pred_dynamic),
 
     %  ---- writing ----
     write(quoted_next), nl, writeq('hello world'), nl,

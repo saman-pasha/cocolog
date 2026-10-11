@@ -144,16 +144,29 @@ cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [
   every goal gets a line and a column.
 * **Library predicates and the Prolog half of a module** are read with
   `clause/2` and named from the library's header.
-* **A dynamic predicate** is drawn with the clauses its files hold. Marking
-  it as changing at run time is not built yet.
+* **A dynamic predicate** is one the file declares (`:- dynamic p/1.`, read
+  with the clauses), or one with no clause that the store defines --
+  declared by a file the program loads, or asserted and emptied. It is
+  drawn with the clauses the file starts it with, if any, and what it
+  answers is not taken from them: it may bind any argument, fail, or answer
+  again (1.10.3).
 
 ### 4.3 Classifying a goal
 
 In the engine's own dispatch order: a control construct, a test, a
-unification, a C builtin, a C function of a module (a portal), the program's
-own predicate, a library predicate, the Prolog half of a module, a
-concurrency primitive (section 7), a dynamic predicate, or unknown -- an
-existence error when it runs, and a finding (section 8).
+unification, a C builtin, a C function of a module (a portal), a dynamic
+predicate, the program's own predicate, a library predicate, the Prolog half
+of a module, or unknown -- an existence error when it runs, and a finding
+(section 8). A goal known only when it runs -- a variable, or `call/N` with
+a closure the source does not name -- is a closure. A concurrency primitive
+(section 7) is today a portal or a library call like any other; F2 gives it
+a kind of its own.
+
+**Dynamic or unknown is the engine's own question**, and the chart asks
+the engine: a call to a predicate with no clause fails when it is declared
+dynamic and raises `existence_error` when it is not, and
+`current_predicate/1` answers yes only for a predicate with a clause or a
+declaration (section 11 has why that needed 1.10.3).
 
 **The tables.** `tools/flow/tables.pl` reads the builtin tables in
 `lib/*.cicili` and each module's dispatch rows in `modules/*/*.cicili` with
@@ -192,9 +205,15 @@ for every C builtin the generated table names.
   no panel.
 * **A predicate met with two call patterns gets a panel for each**, since its
   modes, its determinism and its lanes differ.
-* A closure is not followed yet: `maplist(foo, L)` is a box with its table
-  line (`:` for the closure), and a call to `foo/N+k` would be F1's next
-  step; a variable goal is a `call/N` box decided at run time.
+* **`call/N` is the goal it makes**: `call(double, X, Y)` and
+  `call(double(X), Y)` are analysed and drawn as `double(X, Y)`. A closure
+  the source does not name -- `call(Goal, X)` with `Goal` a variable, or a
+  variable goal -- is a CLOSURE box: it may fail, may leave a choice, and may
+  bind what it is handed (until 1.10.3 an explicit `call/N` of one was
+  `unknown`, and a closure was taken to leave no choice). A closure passed
+  to a library is not followed yet: `maplist(foo, L)` is a box with its
+  table line (`:` for the closure), and a call to `foo/N+k` is the next
+  step.
 
 ### 4.5 Scale
 
@@ -511,7 +530,7 @@ order.
 | D3 | the journal, per thread and per process; replay; divergence | builtins, the module SDK | proposes a minor |
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |
 
-## 11. Engine findings on the way (not fixed here)
+## 11. Engine findings on the way
 
 * **`format/2`'s `~a` and `~s` copy their text through an 8192-byte buffer**
   (`lib/builtins.cicili:1112`): an atom or code list of 8192 bytes or more
@@ -531,6 +550,14 @@ order.
 * **There is no `predicate_property/2`**, and `current_predicate/1` answers
   about the knowledge base, not modules, which is why the tables are
   generated.
+* **Fixed in 1.10.3: `current_predicate/1` answered for any name a call or
+  `clause/2` had looked up.** Both make an entry in the store's predicate
+  table, and `'$predicates'/1` listed every entry, so a name that raises
+  `existence_error` when called read as defined, and the chart called an
+  undefined predicate dynamic once `clause/2` had asked about it. SWI
+  answers only for a predicate with a clause or a declaration, and so does
+  cocolog now (`lib/builtins.cicili`, `coco_b_predicates`;
+  `test/files/builtins.pl` holds it to SWI's answer).
 
 ## 12. Prior art
 

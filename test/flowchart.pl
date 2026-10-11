@@ -16,6 +16,9 @@
 %%   fix.pl      the fixed point: one predicate met in three call patterns,
 %%               an accumulator, two predicates through each other, one
 %%               that never succeeds
+%%   runtime.pl  what is made or picked as the program runs: dynamic
+%%               predicates (one declared by notes.pl, which it loads) and
+%%               call/N, with a closure named and with one that is not
 %%   gram.pl     grammar rules, drawn as the predicates they are
 %%
 %% How the picture LOOKS is not checked here -- that is judged by eye --
@@ -34,6 +37,7 @@ main :-
     tables,
     modes_and_determinism,
     fixed_point,
+    runtime,
     grammar,
     positions,
     failure,
@@ -138,6 +142,62 @@ fixed_point :-
     attr_of(X2, 'p1.c1.g2', reached, R3),
     attr_of(X2, 'p1.c1.g2', calls, C3),
     check('the XML says that goal is never reached, and names no panel for it', R3-C3, false-failed).
+
+%% ---- what is made or picked as the program runs -------------------------
+
+runtime :-
+    section('dynamic predicates and call/N: what is made, or picked, as the program runs'),
+    panels(run('+', '-'), runtime, Ps1),
+    %% tally/1 starts with one clause and may answer again, or not at all;
+    %% apply_to/3's closure may leave a choice; nosuch/1 can only raise
+    check('runtime.pl: each panel, its call pattern and how it can end', Ps1,
+          [run/2-['+', '-']-nondet,
+           visit/1-['+']-nondet,
+           apply_to/3-['+', '+', '-']-nondet,
+           twice/2-['+', '-']-det,
+           try/1-['+']-det,
+           broken/1-['+']-semidet,
+           tally/1-['-']-nondet,
+           double/2-['+', '-']-det]),
+    graph(run('+', '-'), runtime, G),
+    flow_xml(G, X),
+    findall(P-K, ( xml_goal_attrs(X, As), memberchk(kind=K, As),
+                   memberchk(K, [dynamic, closure, unknown]), memberchk(pred=P, As) ), PKs),
+    check('declared dynamic -- here, with a clause or none, or by a file it loads -- is dynamic; a goal the source does not name is a closure; only what nothing defines is unknown',
+          PKs, ['note/1'-dynamic, 'seen/1'-dynamic, 'tally/1'-dynamic,
+                'call/3'-closure, 'call/1'-closure, 'nosuch/1'-unknown]),
+    attr_of(X, p7, kind, K3), attr_of(X, p7, clauses, C3), attr_of(X, p7, det, D3),
+    check('tally/1''s panel holds the clause the file starts it with', K3-C3-D3, dynamic-1-nondet),
+    attr_of(X, 'p2.c1.g1.a1.if.g1', calls, C4),
+    check('seen/1 has no clause in the file, so no panel to call', C4, failed),
+    attr_of(X, 'p4.c1.g1', text, T5), attr_of(X, 'p4.c1.g1', calls, C5),
+    attr_of(X, 'p4.c1.g2', text, T6), attr_of(X, 'p4.c1.g2', calls, C6),
+    check('call(double, X, Y0) and call(double(Y0), Y) run double/2, one panel for both',
+          [T5-C5, T6-C6], ['double(X, Y0)'-p8, 'double(Y0, Y)'-p8]),
+    attr_of(X, 'p3.c1.g1', choice, H7),
+    check('a closure may leave a choice, so a failure after it goes back into it', H7, true),
+    scratch(D),
+    atom_concat(D, '/runtime', B),
+    fx(runtime, F),
+    flow_chart(run('+', '-'), B, [source(F)]),
+    svg_doc(B, S),
+    svg_title(S, 'p2.c1.g1.a1.if.g1', T8),
+    check('the box says what it is', T8,
+          'seen(X)  --  dynamic: its clauses are made and unmade as the program runs, nondet'),
+    atom_concat(D, '/conj.pl', CF),
+    open(CF, write, CS),
+    format(CS, "go(X) :- call((a(X), b(X))).~na(1).~nb(1).~n", []),
+    close(CS),
+    flow_graph(go('?'), G9, [source(CF)]),
+    flow_xml(G9, X9),
+    findall(P9, ( xml_goal_attrs(X9, A9), memberchk(pred=P9, A9) ), Ps9),
+    check('call((a(X), b(X))) is its two goals, not an unknown ,/2', Ps9, ['go/1', 'a/1', 'b/1']).
+
+%% the attributes of every goal of an XML term, in document order
+xml_goal_attrs(element(N, As, Cs), A) :-
+    (   N == goal, A = As
+    ;   member(C, Cs), C = element(_, _, _), xml_goal_attrs(C, A)
+    ).
 
 %% ---- grammar rules ------------------------------------------------------
 

@@ -8,6 +8,13 @@
 %% Dispatch is construct, C builtin, module, store -- so is this, in that
 %% order: a name the engine answers in C is a builtin whatever a file
 %% defines under it.
+%%
+%% A DYNAMIC predicate is one whose clauses the program makes and unmakes
+%% as it runs: one the file declares dynamic, drawn with whatever clauses
+%% the file gives it, and one the store knows that has no clause at all --
+%% declared dynamic by a file the program loads, or asserted and retracted
+%% (current_predicate/1 answers about the store). A call to it fails when
+%% it has no clauses; a call to an UNKNOWN predicate is an existence error.
 
 flow_kind(G, Ctx, Kind) :-
     functor(G, N, A),
@@ -16,17 +23,23 @@ flow_kind(G, Ctx, Kind) :-
     ;   N == (=), A =:= 2               -> Kind = unify
     ;   flow_t_c(N, A, _)               -> Kind = builtin
     ;   flow_portal_row(Mod, N, A, _)    -> Kind = portal(Mod)
-    ;   get_assoc(N/A, Prog, _)         -> Kind = user
+    ;   get_assoc(N/A, Prog, V)         -> ( V = dyn(_) -> Kind = dynamic ; Kind = user )
     ;   flow_t_lib(N, A, L, _)          -> Kind = library(L)
     ;   flow_has_clauses(N, A)          -> Kind = library(loaded)
+    ;   catch(current_predicate(N/A), _, fail) -> Kind = dynamic
     ;   Kind = unknown
     ).
+
+%% the clauses the file holds, of a predicate of its own or a dynamic one
+flow_prog_clauses(dyn(Cls), Cls) :- !.
+flow_prog_clauses(Cls, Cls).
 
 flow_has_clauses(N, A) :-
     functor(H, N, A),
     catch(clause(H, _), _, fail), !.
 
 flow_callable_kind(user).
+flow_callable_kind(dynamic).
 flow_callable_kind(library(_)).
 flow_callable_kind(portal(_)).
 
@@ -183,12 +196,15 @@ flow_reach_new([need(K, Ms, _)|Ns], S0, S, New) :-
 
 %% a pair's clauses, analysed against the memo: its rows, its success
 %% pattern (`bot' when no clause can succeed yet, `any' when its clauses
-%% cannot be seen at all), its determinism, and the pairs it needs
+%% cannot be seen at all), its determinism, and the pairs it needs. The
+%% clauses a file gives a dynamic predicate are only where it starts: it
+%% may bind anything, fail, or answer again, whatever they say
 flow_pair(Key, CM, Kind, Ctx, SP, Det, Rows, Needs) :-
     flow_clauses(Key, Kind, Ctx, Cls),
     flow_rows(Cls, 1, CM, Ctx, [], Needs0, Rows, SPs),
     length(CM, Ar),
-    (   Cls == [], Kind \== user -> SP = any, Det = semidet
+    (   Kind == dynamic -> SP = any, Det = nondet
+    ;   Cls == [], Kind \== user -> SP = any, Det = semidet
     ;   flow_combine_sps(SPs, Ar, SP),
         (   SP == bot
         ->  Det = failure               % no clause can succeed: it never does
@@ -259,6 +275,8 @@ flow_enqueue([c(Key, Kind, CMs)|Cs], D, Ctx, PM, I0, I, N0, N, New) :-
 
 flow_panel_worthy(_, user, _) :- !.
 flow_panel_worthy(_, portal(_), _) :- !.
+flow_panel_worthy(Key, dynamic, ctx(Prog, _, _)) :- !,
+    get_assoc(Key, Prog, dyn([_|_])).
 flow_panel_worthy(Key, library(_), ctx(_, _, How)) :-
     (   How == all -> true
     ;   How == reach -> flow_reaches_c(Key, [], 0)
@@ -328,6 +346,8 @@ flow_rows_nodes([row(_, _, _, _, Ns, _)|Rs], [Ns|NLs]) :- flow_rows_nodes(Rs, NL
 
 flow_clauses(Key, user, ctx(Prog, _, _), Cls) :- !,
     get_assoc(Key, Prog, Cls).
+flow_clauses(Key, dynamic, ctx(Prog, _, _), Cls) :- !,
+    (   get_assoc(Key, Prog, dyn(Cls0)) -> Cls = Cls0 ; Cls = [] ).
 flow_clauses(N/A, _, _, Cls) :-
     functor(H, N, A),
     findall(cl(H, B, Vs, []), ( catch(clause(H, B), _, fail), flow_gen_names(H-B, Vs) ), Cls).
@@ -396,7 +416,7 @@ flow_query_panel(Key, Kind, CM, ctx(Prog, _, _), Panels,
                        Det, [c(Key, Kind, CM)])) :-
     Key = N/A,
     functor(Goal, N, A),
-    (   get_assoc(Key, Prog, [cl(H, _, Vs, _)|_])
+    (   get_assoc(Key, Prog, V), flow_prog_clauses(V, [cl(H, _, Vs, _)|_])
     ->  flow_arg_names(H, Vs, Goal, 1, A, Names)
     ;   flow_gen_names(Goal, Names)
     ),
@@ -552,7 +572,10 @@ flow_an_goals([G|Gs], St0, St, Ctx, M0, M, Nodes) :-
     flow_an_goals(Gs, St1, St, Ctx, M1, M, Rest),
     append(Ns, Rest, Nodes).
 
-flow_an_item(V, St, St, _, M, M, [g(call(V), closure, ['?'], semidet, none, [])]) :- var(V), !.
+%% A GOAL KNOWN ONLY WHEN IT RUNS -- a variable in a body, catch(G, ...),
+%% call(G), call(G, X): a CLOSURE, which may fail, may leave a choice, and
+%% may bind what it is handed
+flow_an_item(V, St, St, _, M, M, [g(call(V), closure, [':'], nondet, none, [])]) :- var(V), !.
 %% a goal the reader placed: its place and grammar form go onto its node
 flow_an_item('$at'(G, Info), St0, St, Ctx, M0, M, Ns) :- !,
     flow_an_item(G, St0, St, Ctx, M0, M, Ns0),
@@ -617,8 +640,21 @@ flow_an_item(catch(G, Ball, R), St0, St, Ctx, M0, M, [catchc(Gn, Ball, Rn)]) :- 
     flow_an_seq(G, St0, St1, Ctx, M0, M1, Gn),
     flow_an_seq(R, St0, St2, Ctx, M1, M, Rn),
     flow_join(St1, St2, St).
-flow_an_item(call(G), St0, St, Ctx, M0, M, Ns) :- nonvar(G), !,
-    flow_an_item(G, St0, St, Ctx, M0, M, Ns).
+%% call/N runs the goal its closure makes with N-1 arguments more, and
+%% that goal is what is analysed: call(double, X, Y) is double(X, Y). A
+%% closure the source does not bind is known only when it runs
+flow_an_item(C, St0, St, Ctx, M0, M, Ns) :-
+    compound(C), functor(C, call, _), !,
+    C =.. [call, G|Extra],
+    (   flow_closure_goal(G, Extra, Goal)
+    ->  flow_an_seq(Goal, St0, St, Ctx, M0, M, Ns)
+    ;   Extra == []
+    ->  flow_an_item(G, St0, St, Ctx, M0, M, Ns)
+    ;   M = M0,
+        flow_arg_modes(Extra, St0, EMs),
+        flow_raise_args(Extra, p, St0, St),
+        Ns = [g(C, closure, [':'|EMs], nondet, none, [])]
+    ).
 flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
     flow_kind(G, Ctx, Kind),
     functor(G, N, A),
@@ -629,6 +665,18 @@ flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
 
 flow_meta_template('+', '+') :- !.
 flow_meta_template(_, '?').
+
+%% the goal a closure makes with arguments more: double and [X, Y] make
+%% double(X, Y), and m:p(a) and [X] make p(a, X)
+flow_closure_goal(G, Extra, Goal) :-
+    nonvar(G),
+    (   G = _:G1
+    ->  flow_closure_goal(G1, Extra, Goal)
+    ;   callable(G),
+        G =.. L0,
+        append(L0, Extra, L),
+        Goal =.. L
+    ).
 
 flow_phrase_call(phrase(G, L), G, L, [], [L]).
 flow_phrase_call(phrase(G, L, R), G, L, R, [L, R]).
@@ -685,6 +733,8 @@ flow_effect(portal(Mod), N/A, Args, _, St0, St, _, M, M, semidet) :- !,
 %% says what is known of it so far
 flow_effect(user, Key, Args, Ms, St0, St, Ctx, M0, M, Det) :- !,
     flow_call_effect(user, Key, Args, Ms, St0, St, Ctx, M0, M, Det).
+flow_effect(dynamic, Key, Args, Ms, St0, St, Ctx, M0, M, Det) :- !,
+    flow_call_effect(dynamic, Key, Args, Ms, St0, St, Ctx, M0, M, Det).
 flow_effect(_, N/A, Args, Ms, St0, St, _, M, M, Det) :-
     flow_mode_for(N, A, Ms, DMs, Det), !,
     flow_apply_modes(Args, DMs, St0, St).

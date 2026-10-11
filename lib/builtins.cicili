@@ -1950,15 +1950,21 @@
                     (block (coco_m_undo e mark) (return 0)))
                 (return 1))))))
 
-  ;;; Every predicate the store knows, as Name/Arity. The library's own
-  ;;; predicates are left out: `current_predicate/1' is about the program.
+  ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
+  ;;; one declared dynamic (an assert declares it too), as SWI counts them.
+  ;;; The table holds more -- a call, or `clause/2', makes an entry for a
+  ;;; name it looks up, and a call to it still raises `existence_error' --
+  ;;; and those are left out, as are the library's own predicates:
+  ;;; `current_predicate/1' is about the program.
   (func coco_b_predicates ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
           (coco_store_warm st)
           (for ((size_t i . 0)) (< i ($ (cof st) npreds)) ((++ i))
-            (if (not ($ (nth i ($ (cof st) preds)) library))
+            (if (and (not ($ (nth i ($ (cof st) preds)) library))
+                     (or (> ($ (nth i ($ (cof st) preds)) nclauses) 0)
+                         ($ (nth i ($ (cof st) preds)) dynamic)))
                 (block
                  (if (>= n cap)
                      (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
