@@ -131,6 +131,8 @@ fail_lines(Text) :-
 %%   files   the Files module, run against SWI-Prolog and compared line for line
 %%   trace   the four-port tracer, run against SWI-Prolog's and compared
 %%           port for port
+%%   journal a run's portal calls journalled and a replay answered from
+%%           them: nothing done twice, every divergence where it happens
 %%   vacuum  the reclaim pass: the verb in both arrangements, and the gate
 %%           on the vacuum_kb builtin
 %%   repl    the toplevel, piped: SWI's answer shapes, one session one
@@ -162,7 +164,7 @@ fail_lines(Text) :-
 %%   lint    cocolint over the calibration corpus
 %%   groups  twelve interpreters sharing four machine STATES
 %%   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-pl_names([files, trace, window, vacuum, repl, script, tunnel, reconsult, tensors,
+pl_names([files, trace, window, journal, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, flowdebug, httpd, 'httpd-tls', websocket, crypto,

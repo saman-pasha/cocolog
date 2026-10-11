@@ -690,7 +690,8 @@ of `multi` and `failure`.
 
 ```prolog
 flow_debug(+Goal, +Base, +Options)    % writes Base.svg and Base.xml
-    % window(N), at(I), from(I), to(I), until(exception | fail | answer(K)), view(flow | tree)
+    % window(N), at(I), from(I), to(I), until(exception | fail | answer(K)), view(flow | tree),
+    % journal(true), journal_file(F)
 ```
 
 * **The picture** is the flowchart with the path taken drawn heavy, the
@@ -794,6 +795,46 @@ at a few hundredths of a per cent. Time cannot see that on this box.
   reaches a portal at another count stops with *diverged at inference N*
   instead of drawing a wrong picture.
 
+**As built** (D3, 1.10.15). The impure calls are the PORTALS: a module's
+call that reaches the world. The modules that hold a piece of it are portals
+whole -- zigurat (the knowledge base under `--kb`), os, process, stream,
+thread, tcp, tls, curl, ray, opencv, torch, tensorflow, numpy, aes, x509:
+what such a module hands out is a handle into a table only the run that made
+it has, so a replay that answered the call that made one answers every call
+that uses it -- and of the rest, by name: the files module's twenty (not the
+four that only take a name apart), `getenv/2`, `setenv/2`, `unsetenv/1`,
+`statistics/2`, `current_prolog_flag/2`, `sha_file/3`, and `format/3` to a
+stream (to a term it writes nowhere). A module out of the tree names its
+own (`coco_m_portal`, MODULES.md). There is no random-number source in
+cocolog to journal; the clock is `get_time/1` and `statistics/2`, both
+portals. **A core builtin is never one** -- `write/1` writes to standard
+output, which no run reads back -- **nor is a load**: `use_module/1` reads
+the program's own clauses, again in every run.
+
+* **The journal is the module seam's**: its three hooks are wrapped while a
+  journal's window runs and put back as it ends, so a run with none
+  dispatches as before and the step loop has no new instruction. A replay
+  never starts a thread or opens a stream: a write it makes to a stream it
+  never opened goes nowhere, and a thread's messages are the journal's.
+* **An entry** is `j(I, Module, Name/Arity, CallText, Outcome)`: the
+  inference, the call as `writeq` writes it with its variables `_0`, `_1`,
+  ..., and `exit(Goal)`, `fail`, `throw(Ball)` or `error(Message)`. Floats
+  are written to read back to the bit. A replay matches a call by inference,
+  predicate AND text: a failure has nothing to unify, so only the text tells
+  another call from the journal's.
+* **Divergence** is `end(diverged(I, Want, Got), Used, Answers)`, the run
+  stopped where no `catch/3` sees it: another portal where the journal holds
+  one, another argument, one the journal holds made early (stopped BEFORE it
+  runs: the entries say which predicates are portals before any is called) or
+  late, one past the journal's last, and a call passed by -- noticed at the
+  next call a module answers, or at the run's end (`Got` none). Want and Got
+  are each `portal(I, Module, Name/Arity, CallText)` or `none`.
+* **Per thread and per process, not yet**: what reaches the run from a
+  thread or a child -- `thread_join/2`, `channel_recv/2`, `proc_run/4` -- is
+  journalled in the run that called it, and a replay takes it from there; a
+  thread's own run, or a child's, is not recorded to be replayed on its own.
+  9.3 stands as the plan for that.
+
 ### 9.3 Threads and processes in the debugger
 
 * **Sharing nothing makes a thread replayable on its own.** What reaches a
@@ -880,7 +921,8 @@ numbers exactly. And the two findings above.
 
 * `flow_debug(+Goal, +Base, +Options)` writes Base.svg and Base.xml, and
   `flow_debug/4` hands back the run as a term -- `run(How, At, Answers,
-  window(From, To), Calls, Bindings, Diverged)`. Options: `source(File)`
+  window(From, To), Calls, Bindings, Diverged, Journal)` (Journal since D3).
+  Options: `source(File)`
   (required); `until(end | answer(K))`; `window(N)`, how many inferences up
   to there are recorded (2000; a run that short is recorded whole);
   `from(I)` and `to(I)` instead; `discs(N)` (24); `text(N)` (60);
@@ -935,9 +977,33 @@ numbers exactly. And the two findings above.
   trace case's queries, and per function the untraced engine runs the
   same instructions as 1.10.12's on nrev, queens and lookup.
 
-**D3, the journal** (proposes a minor): 9.2 and 9.3 as written -- the
-answers of the impure calls recorded per thread and per process, a replay
-answered from them, and a portal reached at another inference a divergence.
+**D3, the journal** (built, 1.10.15; proposes a minor): 9.2 as built --
+the answers of the portal calls recorded, a replay answered from them, and
+each way of leaving the recorded run a divergence. In the engine,
+`'$trace_window'/4`'s `journal(record(File))` and `journal(replay(File))`;
+in `library(flow/debug)`, `journal(true)` and `journal_file(F)`: the probe
+records, the replay replays, a box whose call reached the world through the
+journal carries a teal ⇄ (the nearest box of the program's own: open/3
+reaches it through `'$stream_open'/4`), the banner says how many calls the
+journal held and answered, a replay that left it is drawn up to there under
+a red line naming the journal's call and the replay's, and the XML's `<run>`
+holds a `<journal>` with a `<portal>` per entry and a `<divergence>`.
+`test/journal.pl` (39 checks: a record of every kind of portal and its
+replay in one process and in two, under collections every 2000 cells; each
+divergence; a raise; the refusals) and `test/flowdebug.pl`'s journal
+section, lesson 51's visit counter. Each rule has an arm that takes it out
+and goes red (STATUS.md): nine in the engine, six in the library. **What it
+found**: an `exit` outcome catches a call with another argument by not
+unifying, and hid that the text was never compared for a `fail` -- the
+first arms of the text rule and of the passed-by rule stayed green until a
+failing call and a non-portal module call were made the witnesses; and a
+replay that left the journal's calls out could end where the record did,
+which no call noticed -- the run's end is now asked (`coco_jr_settle`).
+Per thread and per process: 9.2's last point. **And it costs the run it
+journals nothing when it has none**: per function, the untraced engine runs
+the same instructions as 1.10.14's on nrev, queens and lookup (zero.sh's
+work less padding moved -136, -136 and +320 instructions in 66.06 M,
+42.69 M and 48.11 M, none of them in the binary; the padding the same).
 
 **D4, questions over the clock** (proposes a minor): the first inference at
 which something holds, by a search over fast runs each stopped at one

@@ -120,6 +120,13 @@
 ;;; with_output_to/2; answers 1 took it, 0 not mine, 2 raised.
 (decl) (func coco_m_sink_install
              ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))))
+;;; A PORTAL, of a module this tree does not know (1.10.15): NAME/ARITY of
+;;; MODULE answers from outside the run -- a file, a device, the clock -- or
+;;; changes it, so a journal records each call and a replay answers it from
+;;; the journal and runs nothing (DESIGN-flow.md 9.2). NAME "*" names every
+;;; predicate of MODULE. Once, when the module registers; the strings must
+;;; outlive the process. A module that needs 1.10.15 or later.
+(decl) (func coco_m_portal ((const char * module) (const char * name) (int arity)) (out int))
 
 ;;; A GOAL ON A MACHINE OF ITS OWN -- what library(thread) runs on a new
 ;;; thread. Here rather than in a module because `coco_engine' is opaque to

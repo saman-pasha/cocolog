@@ -261,8 +261,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 59 `.pl` cases in `pl_names/1`
--- **66 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 60 `.pl` cases in `pl_names/1`
+-- **67 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -996,6 +996,35 @@ cocolint index offers no import of it.
   it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
   the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
   and drawn (`library/flow/dbgdraw.pl`).
+* **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
+  `'$trace_window'/4` with `journal(record(F))` writes a line for each
+  PORTAL call -- a module call that reaches the world -- and with
+  `journal(replay(F))` answers each from its line and runs none. A portal
+  is decided by module (`coco_jr_whole`: zigurat, os, process, stream,
+  thread, tcp, tls, curl, ray, opencv, torch, tensorflow, numpy, aes, x509
+  -- every C predicate of one), by name for the modules that are not
+  (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
+  current_prolog_flag/2, sha_file/3, and format/3 unless its sink is a
+  term), and by `coco_m_portal` for a module out of the tree. **A core
+  builtin is never one**, nor a load (`use_module/1` reads the program's own
+  clauses again in every run). What bites:
+  - **The journal is the seam's, and only while a window holds one**: the
+    seam's three static hooks are wrapped as the window's run starts and
+    put back as it ends (`coco_jr_wrap`), so an untraced run dispatches
+    exactly as before, and another thread's machine goes straight through.
+  - **A replay is matched by inference, predicate AND call text**: an
+    `exit(Goal)` outcome would catch another argument by not unifying, but
+    a `fail` has nothing to unify -- the text is the only witness. A replay
+    that passes an entry by is caught at the next module call (`portal`
+    names that call, its module `unknown`: it was stopped before it ran) or
+    at its end (`coco_jr_settle`, `Got` none).
+  - **Read the goal BEFORE the call runs**: a caught raise unwinds the heap
+    the goal's cell is on, so the text and format/3's sink are taken first.
+  - **A replay opens no stream and starts no thread**: a write the replay
+    makes to a stream it never opened goes nowhere (`coco_m_replay_sink`),
+    and a thread's messages come from the journal.
+  - **Floats are exact in it** (`m->wexact`, `coco_sb_put_double_exact`):
+    `%.15g` everywhere else would make a replayed clock another number.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.

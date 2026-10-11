@@ -14,6 +14,9 @@
 %%              text=N                a value written whole up to N characters
 %%              view=flow|tree        the chart with the run over it, or the calls
 %%              timeout=MS            for each run of the program
+%%              journal=true|false    the probe journals its portal calls and
+%%                                    the replay is answered from them (false)
+%%              journal_file=F        and the journal is kept in F
 %%
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
@@ -21,6 +24,11 @@
 %% names the two files and then one line about the run:
 %%
 %%     go(30,R): answer at inference 501; recorded 402 to 501; diverged no
+%%
+%% and with a journal, how many portal calls it held and how many of them
+%% answered the replay; a replay that left its journal says where:
+%%
+%%     grow(F): left its journal at inference 7 (stopped at inference 9); recorded 1 to 9; diverged yes; journal 2 portal calls, 0 answered
 %%
 %% (the XML's <run> holds every call, event and binding; library/flow/debug.pl
 %% and library/flow/dbgdraw.pl say what each is). A run that failed or threw
@@ -33,7 +41,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [timeout=MS]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [timeout=MS] [journal=true|false] [journal_file=F]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -49,11 +57,21 @@ main :-
     fd_options(OptAs, Opts),
     catch(flow_debug(Goal, Base, [source(File), names(Names)|Opts], Run), E, fd_error(E)),
     format("~w.svg~n~w.xml~n", [Base, Base]),
-    Run = run(How, At, _, window(F, T), _, _, Div),
-    (   How = exception(B) -> format(atom(HT), 'exception ~q', [B]) ; HT = How ),
+    Run = run(How, At, _, window(F, T), _, _, Div, J),
+    (   How = exception(B) -> format(atom(HT), 'exception ~q at inference ~w', [B, At])
+    ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
+    ;   format(atom(HT), '~w at inference ~w', [How, At])
+    ),
     (   Div == false -> DT = no ; DT = yes ),
+    (   J = journal(Es)
+    ->  length(Es, NE),
+        (   How = diverged(DI2, _, _) -> Lim is DI2 - 1 ; Lim = At ),
+        findall(x, ( member(j(I, _, _, _, _), Es), I =< Lim ), As), length(As, NA),
+        format(atom(JT), '; journal ~d portal calls, ~d answered', [NE, NA])
+    ;   JT = ''
+    ),
     flow_term_full(Goal, Names, 999, GT),
-    format("~w: ~w at inference ~w; recorded ~w to ~w; diverged ~w~n", [GT, HT, At, F, T, DT]).
+    format("~w: ~w; recorded ~w to ~w; diverged ~w~w~n", [GT, HT, F, T, DT, JT]).
 
 %% the goal with the names it writes: read from a file of its own, which is
 %% how read_term/3 gives them
@@ -72,7 +90,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view= or timeout=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, timeout=, journal= or journal_file=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -81,6 +99,10 @@ fd_option(until, V, until(U)) :-
     catch(term_to_atom(U, V), _, fail).
 fd_option(view, V, view(V)) :-
     memberchk(V, [flow, tree]).
+fd_option(journal, V, journal(V)) :-
+    memberchk(V, [true, false]).
+fd_option(journal_file, V, journal_file(V)) :-
+    V \== ''.
 fd_option(K, V, O) :-
     memberchk(K, [window, from, to, discs, text, timeout]),
     catch(atom_number(V, N), _, fail),

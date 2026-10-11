@@ -509,7 +509,11 @@
     ;; the window's own and the nested engines its builtins start -- writes
     ;; its events here. Null otherwise; a `coco_rec *' this struct cannot
     ;; name (lib/solve.cicili)
-    (member void *     rec))
+    (member void *     rec)
+    ;; FLOATS WRITTEN TO READ BACK BIT FOR BIT (1.10.15): set by the journal
+    ;; around its own writes only (`coco_sb_put_double_exact'); every other
+    ;; write keeps %.15g, which does not round-trip a time of day
+    (member int        wexact))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -535,6 +539,7 @@
   ;; the writer. Two fixed formatters cover everything the writer needs.
   (decl) (func coco_sb_put_i64 ((coco_strbuf * b) (i64 v)) (out int))
   (decl) (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int))
+  (decl) (func coco_sb_put_double_exact ((coco_strbuf * b) (double v)) (out int))
 
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
@@ -848,6 +853,26 @@
   (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int)
         (let ((char tmp [40]) (int exact . 1))
           (snprintf tmp (sizeof tmp) "%.15g" v)
+          (for ((int i . 0)) (!= (nth i tmp) (cast char 0)) ((++ i))
+            (if (or (== (nth i tmp) 46) (or (== (nth i tmp) 101) (== (nth i tmp) 69)))
+                (set exact 0)))
+          (if (not (coco_sb_put b tmp)) (return 0))
+          (if (== exact 1) (return (coco_sb_put b ".0")))
+          (return 1)))
+
+  ;;; THE SHORTEST OF %.15g, %.16g AND %.17g THAT READS BACK AS V, bit for
+  ;;; bit -- what the journal writes (1.10.15), since %.15g gives back a
+  ;;; different double for a time of day (1791737042.2061312 is written
+  ;;; 1791737042.20613) and a replay answered with it would not be the run
+  ;;; it replays. A NaN or an infinity has no Prolog text; it is written as
+  ;;; %.15g writes it.
+  (func coco_sb_put_double_exact ((coco_strbuf * b) (double v)) (out int)
+        (let ((char tmp [48]) (int exact . 1) (int digits . 15))
+          (while (< digits 17)
+            (snprintf tmp (sizeof tmp) "%.*g" digits v)
+            (if (== (strtod tmp nil) v) break)
+            (set digits (+ digits 1)))
+          (if (== digits 17) (snprintf tmp (sizeof tmp) "%.17g" v))
           (for ((int i . 0)) (!= (nth i tmp) (cast char 0)) ((++ i))
             (if (or (== (nth i tmp) 46) (or (== (nth i tmp) 101) (== (nth i tmp) 69)))
                 (set exact 0)))

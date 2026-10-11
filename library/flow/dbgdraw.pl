@@ -17,7 +17,9 @@
 %%     variable. A value a call is given that the same clause activation
 %%     already showed is not shown again. The last discs(N) are numbered;
 %%   * how the run ended, its window, the last goal to fail, the last
-%%     exception, and whether the replay ended where the probe did.
+%%     exception, and whether the replay ended where the probe did;
+%%   * with a journal, its entries, and the calls of the window the replay
+%%     answered from it rather than ran.
 %%
 %%     flow_dbg_facts(+Graph, +Run, +Calls, +Names, +Opts, -Facts)
 %%     flow_dbg_svg(+Graph, +Findings, +Facts, +Opts, -Svg)
@@ -38,7 +40,11 @@
 %% A REPLAY THAT DID NOT END WHERE THE PROBE DID is drawn all the same --
 %% it is a true recording of a run of the program -- under a red line that
 %% says both ends: something the program read changed between the runs
-%% (the time, a file, the knowledge base; D3's journal will say what).
+%% (the time, a file, the knowledge base). With a journal, a box whose
+%% calls the journal answered carries a teal ⇄ (with a count, more than
+%% one), the banner says how many calls the journal held, and a replay
+%% that left the journal is stopped where it did, under a red line that
+%% names the journal's call there and the replay's.
 
 %% ======================================================================
 %% The facts
@@ -56,7 +62,7 @@
 
 flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
                dbg(Sum, SEs, Calls, Boxes, Heads, Entered, Xs, Discs, Goals)) :-
-    Run = run(Goal, _, _, _, Events),
+    Run = run(Goal, _, _, _, Events, _),
     flow_dbg_serial(Events, SEs),
     flow_dbg_thrown(SEs, Calls0, Calls, Throws),
     flow_dbg_box_states(Calls, Boxes),
@@ -66,7 +72,8 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
     flow_dbg_crossings(SEs, Goals, Xs),
     flow_option(discs(ND), Opts, 24),
     flow_dbg_discs(Xs, ND, Discs),
-    flow_dbg_summary(Run, Names, Calls, SEs, Throws, Sum).
+    flow_option(text(TM), Opts, 60),
+    flow_dbg_summary(Run, Names, Calls, SEs, Throws, TM, Sum).
 
 %% AN EXCEPTION ENDS CALLS WITH NO PORT: the call that raised it (the last
 %% one made in the body the throw was recorded in) and every call it
@@ -369,17 +376,63 @@ flow_dbg_number([X|Xs], K, [d(K, X)|Ds]) :-
 %% ---- how it ended -------------------------------------------------------
 %%
 %% sum(Goal, Names, Replay, Probe, From, To, Whole, Diverged, NCalls,
-%%     LastFail, LastThrow)
+%%     LastFail, LastThrow, Journal)
+%%
+%% Journal none, or jr(Entries, Answered, JBoxes, JCalls, TM): the probe's
+%% entries, how many of them the replay answered, each box -> how many of
+%% its calls in the window were answered, each such call's inference -> its
+%% entry, and text(N)'s length, which the XML cuts an entry's values at
 
-flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _), Names, Calls, SEs, Throws,
-                 sum(Goal, Names, Replay, Probe, F, T, Whole, Div, NC, LastFail, Throw)) :-
+flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _, Journal), Names, Calls, SEs, Throws, TM,
+                 sum(Goal, Names, Replay, Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr)) :-
     Probe = end(_, PU, _),
     (   F =:= 1, T >= PU -> Whole = true ; Whole = false ),
     flow_dbg_diverged(Probe, Replay, T, Div),
     length(Calls, NC),
     Replay = end(How, _, _),
     flow_dbg_last_fail(How, SEs, Calls, LastFail),
-    (   last(Throws, Th) -> Throw = Th ; Throw = none ).
+    (   last(Throws, Th) -> Throw = Th ; Throw = none ),
+    flow_dbg_journal(Journal, Replay, Calls, TM, Jr).
+
+%% THE CALLS THE JOURNAL ANSWERED: an entry is the call made at its
+%% inference, and the replay answered every entry up to where it ended --
+%% or, where it left the journal at inference I, every entry before I. A
+%% portal call is often a library's own (open/3 reaches the world through
+%% '$stream_open'/4), so the box it counts for is its nearest caller's
+%% that has one: what the program's goal did came from the journal
+flow_dbg_journal(none, _, _, _, none) :- !.
+flow_dbg_journal(journal(Es), end(How, RU, _), Calls, TM, jr(Es, NA, JBoxes, JCalls, TM)) :-
+    (   How = diverged(At, _, _) -> Lim is At - 1 ; Lim = RU ),
+    findall(I-E, ( member(E, Es), E = j(I, _, _, _, _), I =< Lim ), IE),
+    length(IE, NA),
+    list_to_assoc(IE, ByI),
+    findall(S-E, ( member(call(S, _, _, _, _, _, _, _, _, _), Calls), get_assoc(S, ByI, E) ), SE),
+    list_to_assoc(SE, JCalls),
+    findall(S-(P-B), member(call(S, _, _, P, B, _, _, _, _, _), Calls), SPB),
+    list_to_assoc(SPB, Up),
+    findall(B, ( member(S-_, SE), flow_dbg_boxed_up(S, Up, B) ), Bs0),
+    msort(Bs0, Bs),
+    flow_dbg_tally(Bs, BN),
+    list_to_assoc(BN, JBoxes).
+
+%% the box of a call, or of its nearest caller the window saw that has one
+flow_dbg_boxed_up(S, Up, B) :-
+    get_assoc(S, Up, P-B0),
+    (   B0 \== none -> B = B0
+    ;   P =\= 0, flow_dbg_boxed_up(P, Up, B)
+    ).
+
+%% a sorted list as each element -> how many times it is there
+flow_dbg_tally([], []).
+flow_dbg_tally([X|Xs], [X-N|T]) :-
+    flow_dbg_tally_run(Xs, X, 1, N, Rest),
+    flow_dbg_tally(Rest, T).
+
+flow_dbg_tally_run([Y|Ys], X, N0, N, Rest) :-
+    Y == X, !,
+    N1 is N0 + 1,
+    flow_dbg_tally_run(Ys, X, N1, N, Rest).
+flow_dbg_tally_run(Rest, _, N, N, Rest).
 
 %% the replay must end as the probe did: at the probe's end, the same way
 %% and with the same answers; short of it (to(J)), at the window's end
@@ -396,6 +449,7 @@ flow_dbg_diverged(Probe, Replay, T, Div) :-
 flow_dbg_how_word(exception(_), exception) :- !.
 flow_dbg_how_word(halt(_), halt) :- !.
 flow_dbg_how_word(error(_), error) :- !.
+flow_dbg_how_word(diverged(_, _, _), diverged) :- !.
 flow_dbg_how_word(H, H).
 
 %% A RUN THAT FAILED fails its query last, so the goal worth naming is
@@ -430,9 +484,10 @@ flow_dbg_until_call([E|Es], Acc, Tail) :-
 
 %% the run as flow_debug/4 hands it back
 flow_dbg_out(dbg(Sum, _, Calls, _, _, _, Xs, _, _),
-             run(How, At, Answers, window(F, T), Calls, Bindings, Div)) :-
-    Sum = sum(_, _, end(How, At, Answers), _, F, T, _, Div, _, _, _),
-    findall(x(I, P, S, Nm, V, Box), member(x(I, P, S, Nm, V, Box, _), Xs), Bindings).
+             run(How, At, Answers, window(F, T), Calls, Bindings, Div, Journal)) :-
+    Sum = sum(_, _, end(How, At, Answers), _, F, T, _, Div, _, _, _, Jr),
+    findall(x(I, P, S, Nm, V, Box), member(x(I, P, S, Nm, V, Box, _), Xs), Bindings),
+    (   Jr = jr(Es, _, _, _, _) -> Journal = journal(Es) ; Journal = none ).
 
 %% ======================================================================
 %% The picture
@@ -536,13 +591,16 @@ flow_dbg_prim(grp(tip(Tip, Id), Inner), Facts, Q) :-
     ).
 flow_dbg_prim(grp(tip(Tip, Id), Inner), Facts, Q) :-
     sub_atom(Id, _, _, _, '.g'), !,
-    Facts = dbg(_, _, _, Boxes, _, _, _, _, _),
+    Facts = dbg(Sum, _, _, Boxes, _, _, _, _, _),
     (   get_assoc(Id, Boxes, bs(N, S, Fate, NF))
     ->  flow_dbg_fate_kind(Fate, Kind),
         flow_dbg_restyle(Inner, Kind, Inner1),
         flow_dbg_count_mark(Inner, N, NF, Mark),
-        append(Inner1, Mark, Inner2),
-        flow_dbg_box_tip(Tip, N, S, Fate, NF, Tip1),
+        arg(12, Sum, Jr),
+        flow_dbg_journal_mark(Jr, Id, Inner, JMark, NJ),
+        append([Inner1, Mark, JMark], Inner2),
+        flow_dbg_box_tip(Tip, N, S, Fate, NF, Tip0),
+        flow_dbg_journal_tip(NJ, N, Tip0, Tip1),
         Q = grp(tip(Tip1, Id), Inner2)
     ;   Q = dim(grp(tip(Tip, Id), Inner))
     ).
@@ -579,6 +637,23 @@ flow_dbg_count_mark([S|_], N, NF, [t(XR, TY, end, 9, sans, bold, [s(A, Col)])]) 
     ;   format(atom(A), '×~d', [N]), Col = ink
     ).
 flow_dbg_count_mark(_, _, _, []).
+
+%% a box whose calls reached the world through the journal: a teal ⇄ over
+%% its top left corner, with how many portal calls when more than one; NJ
+%% is how many, or 0
+flow_dbg_journal_mark(jr(_, _, JBoxes, _, _), Id, [S|_], [t(X, TY, start, 9, sans, bold, [s(A, teal)])], NJ) :-
+    get_assoc(Id, JBoxes, NJ),
+    flow_dbg_bbox(S, X, Y, _, _), !,
+    TY is Y - 3,
+    (   NJ > 1 -> format(atom(A), '⇄ ×~d', [NJ]) ; A = '⇄' ).
+flow_dbg_journal_mark(_, _, _, [], 0).
+
+flow_dbg_journal_tip(0, _, Tip, Tip) :- !.
+flow_dbg_journal_tip(NJ, _, Tip0, Tip) :-
+    (   NJ =:= 1 -> W = 'it reached the world once, answered from the journal and not run'
+    ;   format(atom(W), 'it reached the world ~d times, each answered from the journal and none run', [NJ])
+    ),
+    format(atom(Tip), '~w; ~w', [Tip0, W]).
 
 flow_dbg_bbox(r(X, Y, W, H, _, _, _, _, _), X, Y, W, H).
 flow_dbg_bbox(pg([X-_, _-T, _, XR-_, _-B|_], _, _, _), X, T, W, H) :-
@@ -710,7 +785,7 @@ flow_dbg_els([P|Ps], Els) :-
 %% ---- the banner: how the run ended, and what was recorded --------------
 
 flow_dbg_banner(dbg(Sum, _, Calls, _, _, _, _, _, _), Ps, H) :-
-    Sum = sum(Goal, Names, end(How, Used, Ats), Probe, F, T, Whole, Div, NC, LastFail, Throw),
+    Sum = sum(Goal, Names, end(How, Used, Ats), Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr),
     flow_term_full(Goal, Names, 999, GT0),
     flow_clip(GT0, 90, GT),
     flow_dbg_end_text(How, Used, Ats, ET, Col),
@@ -718,18 +793,49 @@ flow_dbg_banner(dbg(Sum, _, Calls, _, _, _, _, _, _), Ps, H) :-
     Probe = end(_, PU, _),
     flow_dbg_window_text(F, T, PU, Whole, NC, WT),
     flow_dbg_fail_text(LastFail, Throw, Calls, FT),
-    L2 = t(24, 50, start, 11, sans, normal, [s(WT, muted), s(FT, muted)]),
+    flow_dbg_journal_text(Jr, JSegs),
+    L2 = t(24, 50, start, 11, sans, normal, [s(WT, muted), s(FT, muted)|JSegs]),
     (   Div = diverged(end(PH, PU1, _), end(RH, RU, _))
-    ->  flow_dbg_end_text(PH, PU1, [], PT, _),
-        flow_dbg_end_text(RH, RU, [], RT, _),
-        format(atom(DT), 'THE REPLAY DIVERGED: the probe ~w, the replay ~w -- something the program read changed between the runs; this is the replay''s run',
-               [PT, RT]),
+    ->  flow_dbg_div_text(PH, PU1, RH, RU, Jr, DT),
         Ps = [L1, L2, t(24, 68, start, 11, sans, bold, [s(DT, red)])],
         H = 86
     ;   Ps = [L1, L2],
         H = 66
     ).
 
+%% what the journal held, and how much of it the replay was answered from
+flow_dbg_journal_text(none, []) :- !.
+flow_dbg_journal_text(jr(Es, NA, _, _, _), [s(JT, teal)]) :-
+    length(Es, N),
+    (   NA =:= N
+    ->  format(atom(JT), '  ·  ⇄ a journal of ~d portal calls, each answered from it in the replay', [N])
+    ;   format(atom(JT), '  ·  ⇄ a journal of ~d portal calls, ~d of them answered from it in the replay', [N, NA])
+    ).
+
+%% a replay that left its journal says where and with what; one that ended
+%% elsewhere says both ends
+flow_dbg_div_text(_, _, diverged(At, W, G), _, _, DT) :- !,
+    flow_dbg_side_text(W, holds, WT),
+    flow_dbg_side_text(G, made, GT),
+    format(atom(DT), 'THE REPLAY LEFT ITS JOURNAL at inference ~d: the journal ~w, the replay ~w -- this is the replay''s run up to there',
+           [At, WT, GT]).
+flow_dbg_div_text(PH, PU, RH, RU, Jr, DT) :-
+    flow_dbg_end_text(PH, PU, [], PT, _),
+    flow_dbg_end_text(RH, RU, [], RT, _),
+    (   Jr == none -> Why = 'something the program read changed between the runs'
+    ;   Why = 'something the program read that its journal does not hold changed between the runs'
+    ),
+    format(atom(DT), 'THE REPLAY DIVERGED: the probe ~w, the replay ~w -- ~w; this is the replay''s run',
+           [PT, RT, Why]).
+
+flow_dbg_side_text(none, holds, 'holds no call there') :- !.
+flow_dbg_side_text(none, made, 'made none') :- !.
+flow_dbg_side_text(portal(I, _, _, C), Verb, T) :-
+    flow_clip(C, 50, C1),
+    format(atom(T), '~w ~w at inference ~d', [Verb, C1, I]).
+
+flow_dbg_end_text(diverged(At, _, _), _, _, T, red) :- !,
+    format(atom(T), 'left its journal at inference ~d', [At]).
 flow_dbg_end_text(answer, U, Ats, T, green) :- !,
     (   Ats = [_, _|_]
     ->  atomic_list_concat(Ats, ', ', AA),
@@ -786,17 +892,21 @@ flow_dbg_where(Box, _, W) :- format(atom(W), ' (~w)', [Box]).
 %% ---- under the chart: what the marks mean, and each disc ---------------
 
 flow_dbg_section(Facts, MaxW, Ps, H) :-
-    Facts = dbg(_, _, _, _, _, _, Xs, Discs, Goals),
+    Facts = dbg(Sum, _, _, _, _, _, Xs, Discs, Goals),
     Head = [t(24, 34, start, 10, sans, bold, [s('the run', muted)])],
     Max is max(MaxW, 980) - 24,
-    flow_dbg_legend_entries([ box(reached, 'reached in the window'),
-                              box(failed, 'its last call failed, or a head did not unify'),
-                              box(raised, 'raised an exception (outlined: ended by one)'),
-                              box(dim, 'not reached in the window'),
-                              disc(call, 'a value given at a call'),
-                              disc(exit, 'a binding an exit made'),
-                              disc(redo, 'a binding backtracking undid') ],
-                            140, 30, Max, LPs, LY),
+    (   arg(12, Sum, jr(_, _, _, _, _))
+    ->  JL = [mark('⇄', teal, 'it reached the world through the journal: answered from it, not run')]
+    ;   JL = []
+    ),
+    append([ box(reached, 'reached in the window'),
+             box(failed, 'its last call failed, or a head did not unify'),
+             box(raised, 'raised an exception (outlined: ended by one)'),
+             box(dim, 'not reached in the window'),
+             disc(call, 'a value given at a call'),
+             disc(exit, 'a binding an exit made'),
+             disc(redo, 'a binding backtracking undid') ], JL, Entries),
+    flow_dbg_legend_entries(Entries, 140, 30, Max, LPs, LY),
     Y0 is LY + 46,
     length(Xs, NX),
     length(Discs, ND),
@@ -837,6 +947,8 @@ flow_dbg_legend_sample(box(K, C), X, Y, [P], 30, C) :-
 flow_dbg_legend_sample(disc(Port, C), X, Y, [c(CX, Y, 8, F, St, 1.5)], 16, C) :-
     CX is X + 8,
     flow_dbg_disc_paint(Port, F, St, _).
+flow_dbg_legend_sample(mark(G, Col, C), X, Y, [t(X, TY, start, 11, sans, bold, [s(G, Col)])], 14, C) :-
+    TY is Y + 4.
 
 flow_dbg_disc_lines([], _, Y, [], Y).
 flow_dbg_disc_lines([d(K, X)|Ds], Goals, Y, Ps, YEnd) :-
@@ -1029,8 +1141,9 @@ flow_dbg_arg_short(X, A) :-
 %% The chart's XML with a <run> after its panels (run version 1):
 %%
 %%   <run version lane goal ended at answers from to whole diverged calls
-%%        [ball] [probe_ended probe_at] [last_fail_call last_fail_at]>
-%%     <calls count>   <call n pred depth parent [box] [panel] fate>
+%%        [ball] [probe_ended probe_at] [last_fail_call last_fail_at]
+%%        [journal portals answered]>
+%%     <calls count>   <call n pred depth parent [box] [panel] fate [journal]>
 %%                       <clause n at/> <nohead n at/>
 %%                       <arg i call [call_length] [exit] [exit_length]/>
 %%     <events count>  <event at port call depth [box] [clause] [ball]>
@@ -1038,17 +1151,27 @@ flow_dbg_arg_short(X, A) :-
 %%     <bindings count discs>
 %%                     <binding n [disc] at port call box name value
 %%                              [length] [undone]/>
+%%     <journal count answered>                       (journal(true))
+%%                     <portal at module pred call outcome [value] [ball]
+%%                             [message] [length] answered/>
+%%     <divergence at> <want .../> <got .../>          (a replay that left it)
 %%
 %% n of a call is the inference of its Call, and every call= names one;
 %% box= is the chart's id; a value cut at text(N) has its whole length.
+%% A portal's at= is the inference of its call -- the n= of the <call> the
+%% window saw there -- its outcome exit (value= the call as it exited),
+%% fail, throw (ball=) or error (message=); answered= says whether the
+%% replay was answered from it. <want> is the journal's call where the
+%% replay left it and <got> the replay's, each at module pred call, or
+%% none="true"; ended="diverged" then, and at= the replay's last inference.
 
 flow_dbg_xml(Graph, Fs, Facts, element(flow, As, Cs1)) :-
     flow_xml(Graph, Fs, element(flow, As, Cs)),
     flow_dbg_x_run(Facts, RunE),
     append(Cs, [RunE], Cs1).
 
-flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, [CE, EE, BE])) :-
-    Sum = sum(Goal, Names, end(How, Used, Ats), end(PH, PU, _), F, T, Whole, Div, NC, LF, Th),
+flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)) :-
+    Sum = sum(Goal, Names, end(How, Used, Ats), end(PH, PU, _), F, T, Whole, Div, NC, LF, Th, Jr),
     flow_term_full(Goal, Names, 999, GT),
     flow_dbg_how_word(How, HW),
     atomic_list_concat(Ats, ' ', AtsA),
@@ -1063,29 +1186,84 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, [CE
     (   Th = th(TI, _, _, TR) -> TA0 = [raised_at=TI], ( TR =\= 0 -> TA = [raised_call=TR|TA0] ; TA = TA0 )
     ;   TA = []
     ),
+    (   Jr = jr(Es, NA, _, JCalls, TM)
+    ->  length(Es, NE), JA = [journal=true, portals=NE, answered=NA]
+    ;   JA = [], empty_assoc(JCalls)
+    ),
     append([[version=1, lane=l0, goal=GT, ended=HW, at=Used, answers=AtsA, from=F, to=T,
-             whole=Whole, calls=NC], BA, DA, LA, TA], As),
+             whole=Whole, calls=NC], BA, DA, LA, TA, JA], As),
     findall(S-Box, member(call(S, _, _, _, Box, _, _, _, _, _), Calls), SB),
     list_to_assoc(SB, BoxOf),
-    flow_dbg_x_calls(Calls, CE),
+    flow_dbg_x_calls(Calls, JCalls, CE),
     flow_dbg_x_events(SEs, BoxOf, EE),
-    flow_dbg_x_bindings(Xs, Discs, BE).
+    flow_dbg_x_bindings(Xs, Discs, BE),
+    (   Jr = jr(_, _, _, _, _)
+    ->  flow_dbg_x_journal(Es, How, Used, TM, JE),
+        (   How = diverged(DAt, W, G)
+        ->  flow_dbg_x_side(want, W, WE),
+            flow_dbg_x_side(got, G, GE),
+            JEs = [JE, element(divergence, [at=DAt], [WE, GE])]
+        ;   JEs = [JE]
+        )
+    ;   JEs = []
+    ),
+    append([CE, EE, BE], JEs, Ks).
 
-flow_dbg_x_calls(Calls, element(calls, [count=N], Es)) :-
+flow_dbg_x_calls(Calls, JCalls, element(calls, [count=N], Es)) :-
     length(Calls, N),
-    findall(E, ( member(C, Calls), flow_dbg_x_call(C, E) ), Es).
+    findall(E, ( member(C, Calls), flow_dbg_x_call(C, JCalls, E) ), Es).
 
-flow_dbg_x_call(call(S, N/A, D, P, Box, Panel, Cl, In, Out, Fate), element(call, As, Ks)) :-
+flow_dbg_x_call(call(S, N/A, D, P, Box, Panel, Cl, In, Out, Fate), JCalls, element(call, As, Ks)) :-
     format(atom(PA), '~q/~w', [N, A]),
     flow_dbg_x_opt(box, Box, BA),
     flow_dbg_x_opt(panel, Panel, PnA),
-    append([[n=S, pred=PA, depth=D, parent=P], BA, PnA, [fate=Fate]], As),
+    (   get_assoc(S, JCalls, _) -> JA = [journal=true] ; JA = [] ),
+    append([[n=S, pred=PA, depth=D, parent=P], BA, PnA, [fate=Fate], JA], As),
     findall(E, ( member(X, Cl), flow_dbg_x_clause(X, E) ), CEs),
     flow_dbg_x_args(In, Out, AEs),
     append(CEs, AEs, Ks).
 
 flow_dbg_x_opt(_, none, []) :- !.
 flow_dbg_x_opt(K, V, [K=V]).
+
+%% the journal: every entry the probe wrote, and whether the replay was
+%% answered from it -- each one before the inference it left the journal
+%% at, or up to its last
+flow_dbg_x_journal(Es, How, Used, TM, element(journal, [count=N, answered=NA], PEs)) :-
+    (   How = diverged(At, _, _) -> Lim is At - 1 ; Lim = Used ),
+    length(Es, N),
+    findall(PE, ( member(E, Es), flow_dbg_x_portal(E, Lim, TM, PE) ), PEs),
+    findall(x, ( member(j(I, _, _, _, _), Es), I =< Lim ), Xs),
+    length(Xs, NA).
+
+flow_dbg_x_portal(j(I, M, N/A, C, O), Lim, TM, element(portal, As, [])) :-
+    format(atom(PA), '~q/~w', [N, A]),
+    flow_dbg_x_outcome(O, TM, OA),
+    (   I =< Lim -> AA = [answered=true] ; AA = [answered=false] ),
+    append([[at=I, module=M, pred=PA, call=C], OA, AA], As).
+
+flow_dbg_x_outcome(fail, _, [outcome=fail]) :- !.
+flow_dbg_x_outcome(exit(G), TM, [outcome=exit|VA]) :- !,
+    flow_dbg_x_cut(value, G, TM, VA).
+flow_dbg_x_outcome(throw(B), TM, [outcome=throw|VA]) :- !,
+    flow_dbg_x_cut(ball, B, TM, VA).
+flow_dbg_x_outcome(error(M), _, [outcome=error, message=M]) :- !.
+flow_dbg_x_outcome(O, TM, [outcome=other|VA]) :-
+    flow_dbg_x_cut(value, O, TM, VA).
+
+%% a term as writeq writes it, cut at TM characters with its whole length
+flow_dbg_x_cut(K, T, TM, As) :-
+    format(atom(A), '~q', [T]),
+    atom_length(A, L),
+    (   L > TM
+    ->  sub_atom(A, 0, TM, _, P),
+        As = [K=P, length=L]
+    ;   As = [K=A]
+    ).
+
+flow_dbg_x_side(K, none, element(K, [none=true], [])) :- !.
+flow_dbg_x_side(K, portal(I, M, N/A, C), element(K, [at=I, module=M, pred=PA, call=C], [])) :-
+    format(atom(PA), '~q/~w', [N, A]).
 
 flow_dbg_x_clause(c(K, At), element(clause, [n=K, at=At], [])).
 flow_dbg_x_clause(nohead(K, At), element(nohead, [n=K, at=At], [])).

@@ -13,9 +13,9 @@
 %%
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
 %% last N inferences, 2000), from(I) and to(J), discs(N), text(N),
-%% view(flow | tree), names(['X'=X, ...]) for the goal's variables, and
-%% timeout(Ms). The same from a shell: `cocolog -s tools/flow/debug.pl --
-%% GOAL FILE BASE [OPTION ...]'.
+%% view(flow | tree), names(['X'=X, ...]) for the goal's variables,
+%% timeout(Ms), journal(true) and journal_file(F). The same from a shell:
+%% `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [OPTION ...]'.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
@@ -25,6 +25,12 @@
 %% from there ('$trace_window'/4). A replay that does not end where the
 %% probe did -- the program read the time, a file, the knowledge base -- is
 %% said to have DIVERGED, on the picture and in the XML.
+%%
+%% journal(true) takes that away: the probe JOURNALS every call that
+%% reaches the world -- the clock, the environment, a file, a stream, a
+%% process, a thread -- and the replay is answered from the journal and
+%% runs none of them. So it sees what the probe saw, and does not do
+%% again what the probe did.
 %%
 %% WHAT IS DRAWN: the chart, every box the window reached heavy, red where
 %% its last call failed, purple where it raised an exception; a head red
@@ -61,7 +67,7 @@ main :-
     atom_concat(Base, '.svg', Svg), atom_concat(Base, '.xml', Xml),
     ( exists_file(Svg), exists_file(Xml) -> Both = yes ; Both = no ),
     must('the picture and the XML are both written', Both, yes),
-    Run = run(How, At, _, window(From, To), Calls, Bindings, Diverged),
+    Run = run(How, At, _, window(From, To), Calls, Bindings, Diverged, _),
     %% four calls, an inference each: basket_total, price(apple), basket_total
     %% of the rest, price(banana) -- and there it fails
     must('how it ended, and at which inference', How-At, false-4),
@@ -105,7 +111,7 @@ main :-
     append(Apples, [banana], Long),
     atom_concat(Dir, '/long', LongBase),
     flow_debug(basket_total(Long, _), LongBase, [source(Prog), window(20)], LongRun),
-    LongRun = run(LHow, LAt, _, LWindow, LCalls, _, _),
+    LongRun = run(LHow, LAt, _, LWindow, LCalls, _, _, _),
     must('it fails where the untraced run does, the window its last 20', LHow-LAt-LWindow,
          false-402-window(383, 402)),
     length(LCalls, NL),
@@ -116,7 +122,42 @@ main :-
     must('the window''s first call: basket_total/2, its caller unseen, no box, its panel',
          FirstP-FirstParent-FirstBox-FirstPanel, basket_total/2-0-none-p1),
 
+    journalled(Dir),
+
     format("~ndone~n").
+
+%% A VISIT COUNTER: each run reads a file and writes it back one more. The
+%% probe is the first visit; a replay without a journal is the second, and
+%% says so by diverging -- and with one it is the probe's visit again.
+journalled(Dir) :-
+    format("~n-- what the program reads, journalled~n"),
+    atom_concat(Dir, '/count', CF),
+    atom_concat(Dir, '/visits.pl', Prog),
+    format(atom(Cl), 'visit(N) :- ( exists_file(~q) -> read_file_to_codes(~q, Cs), number_codes(N0, Cs) ; N0 = 0 ), N is N0 + 1, number_codes(N, C1), write_file_from_codes(~q, C1).',
+           [CF, CF, CF]),
+    open(Prog, write, W), format(W, "~w~n", [Cl]), close(W),
+    ( exists_file(CF) -> delete_file(CF) ; true ),
+    atom_concat(Dir, '/visits', B1),
+    flow_debug(visit(N1), B1, [source(Prog), names(['N'=N1])], R1),
+    R1 = run(_, _, _, _, _, X1, D1, _),
+    %% the probe wrote 1; the replay read it, took the other way and ran
+    %% past the probe's end -- stopped there, at the window's last inference
+    must('without a journal the replay is a second visit, and diverged',
+         D1, diverged(end(answer, 8, [8]), end(limit, 8, []))),
+    findall(V, member(x(_, exit, _, 'N', V, _), X1), NV1),
+    must('...the N it shows is 2', NV1, ['2']),
+    delete_file(CF),
+    atom_concat(Dir, '/visits-j', B2),
+    flow_debug(visit(N2), B2, [source(Prog), names(['N'=N2]), journal(true)], R2),
+    R2 = run(How2, _, _, _, _, X2, D2, journal(Es)),
+    must('with a journal the replay is the probe''s visit, and did not diverge', How2-D2, answer-false),
+    findall(V, member(x(_, exit, _, 'N', V, _), X2), NV2),
+    must('...the N it shows is 1, at is/2''s exit and the query''s', NV2, ['1', '1']),
+    findall(M-P-O, ( member(j(_, M, P, _, Out), Es), functor(Out, O, _) ), MPO),
+    must('the journal: the file asked about (it was not there), then written',
+         MPO, [files-exists_file/1-fail, files-write_file_from_codes/2-exit]),
+    read_file_to_codes(CF, Cs), atom_codes(Count, Cs),
+    must('...and the file holds the probe''s 1: the replay wrote nothing', Count, '1').
 
 must(What, Got, Want) :-
     (   Got == Want

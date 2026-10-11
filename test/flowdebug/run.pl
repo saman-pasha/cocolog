@@ -53,3 +53,12 @@ flip(F) :-
     open(F, append, S), write(S, x), close(S),
     read_file_to_codes(F, Cs), length(Cs, N),
     N mod 2 =:= 1.
+
+%% loads F -- what a load reads is the program's own clauses, read again by
+%% every run, and no journal answers it -- and then adds a clause to F unless
+%% F had one: the replay's load reads what the probe added, takes the other
+%% way, and leaves the journal where the probe appended
+grow(F) :-
+    use_module(F),
+    (   catch(grown(x), _, fail) -> true ; append_file_from_codes(F, "grown(x).\n") ),
+    getenv('HOME', _).

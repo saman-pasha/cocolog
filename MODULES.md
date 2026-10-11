@@ -302,6 +302,29 @@ somewhere else.
 code list, so without it every double-quoted file name in a program would be a
 type error.
 
+### A predicate that reaches the world says so: `coco_m_portal`
+
+A run can be journalled and replayed (TRACING.md, DESIGN-flow.md 9.2): every
+call that reads the world or changes it -- a file, a device, a socket, the clock
+-- is written down with its answer, and a replay answers it from the journal and
+runs nothing. Which calls those are is the engine's to know for the modules of
+this tree (the stream, process, thread, tcp, tls, curl modules whole; the files
+module's predicates by name). **A module out of this tree names its own**, once,
+as it registers:
+
+```lisp
+(coco_m_portal "camera" "camera_grab" 2)   ; one predicate
+(coco_m_portal "camera" "*" 0)             ; every predicate of the module
+```
+
+The strings must outlive the process. A predicate not named is run again by a
+replay, so one that reads the world and is not named makes a replay see another
+world -- the replay then leaves the run it replays, and says where, but cannot
+see it was this predicate. A handle the module gives out (an index into its own
+table) is a portal's answer like any other: a replay that answered the call that
+made it from the journal answers every call that uses it so too, which is why a
+module whose predicates share a table is named whole. 1.10.15 or later.
+
 `coco-mod-args` binds arguments by position and is sugar for the `let` of
 `coco_m_arg` calls that every predicate starts with.
 

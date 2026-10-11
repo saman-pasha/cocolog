@@ -138,6 +138,32 @@ has the contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds
 the recorder to the printer over the trace case's queries, and a window
 to a recording of the whole run, event for event.
 
+## A journal, and a replay answered from it
+
+A run is its clauses and whatever came in from outside. With
+`journal(record(File))` among its options, `'$trace_window'/4` writes
+File: a line `j(I, Module, Name/Arity, CallText, Outcome)` for each
+PORTAL call the run makes -- a call of a module that reaches the world:
+the clock, the environment, a file, a stream, a socket, a process, a
+thread and its channels, the knowledge base under `--kb` -- at inference
+I, its text as `writeq` writes it (variables `_0`, `_1`, ...), and how it
+went: `exit(Goal)` with what it bound, `fail`, `throw(Ball)`, or
+`error(Message)`. A float is written so it reads back to the bit. With
+`journal(replay(File))` each of those calls is answered from its entry and
+NOT RUN -- the file is not appended to again, the thread not started, the
+clock reads what it read -- and a replay that leaves the recorded run
+stops where it does, its end `diverged(I, Want, Got)`: the journal's call
+at inference I and the replay's, each `portal(I, Module, Name/Arity,
+CallText)` or `none`, for another call where the journal holds one,
+another argument, a call the journal holds made early or late, one past
+its last, and a call passed by that nothing made. A run without a journal
+dispatches exactly as before: the module seam's hooks are wrapped only
+while a journal's window runs. `test/journal.pl` holds it to a record and
+its replay in one process and in two, under collections every 2000 cells,
+and to each divergence; `library(flow/debug)`'s `journal(true)` is the
+same pair, a probe that records and a replay that replays (DESIGN-flow.md
+9.2).
+
 ## How it works
 
 The engine's design pays for itself here. The continuation is a term,

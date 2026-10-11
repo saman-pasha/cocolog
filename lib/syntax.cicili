@@ -1579,7 +1579,10 @@
 
             ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
 
+            ;; to read back bit for bit only for the journal (`wexact')
             ((coco-tag-is FLT c)
+             (if (-> m wexact)
+                 (return (coco_sb_put_double_exact b (nth (cast size_t (coco-payload c)) (-> m floats)))))
              (return (coco_sb_put_double b (nth (cast size_t (coco-payload c)) (-> m floats)))))
 
             ;; A STRING WRITES AS ITS TEXT, and quoted it writes in DOUBLE

@@ -638,10 +638,18 @@
 
   ;;; ---- the registry ---------------------------------------------------
 
+  ;;; The module at index I by its name, or null past the last: what a
+  ;;; journal asks of the module that answered a call (1.10.15, solve.cicili)
+  (static)
+  (func coco_module_name_at ((size_t i)) (out const char *)
+        (if (>= i coco_nmodules) (return nil))
+        (return ($ (nth i coco_modules) name)))
+
   (func coco_module_init ()
         (set coco_nmodules 0)
         (coco_extern_install coco_module_call coco_module_load)
-        (coco_extern_install_resolve coco_module_call_resolving coco_module_call_at))
+        (coco_extern_install_resolve coco_module_call_resolving coco_module_call_at)
+        (coco_extern_install_names coco_module_name_at))
 
   (func coco_module_free ()
         (free coco_modules)
@@ -908,7 +916,28 @@
         ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int)))
         (set coco_m_sink_hook hook))
 
+  ;;; A REPLAY OPENED NOTHING (1.10.15): every open/3 of the run it replays
+  ;;; was answered from the journal, so a stream it would write to -- a
+  ;;; '$stream'(N), or an alias the run gave one -- is not there, and what
+  ;;; with_output_to/2 would deliver to it goes nowhere, as the journal's
+  ;;; answer to each write through the module does
+  (static)
+  (func coco_m_replay_sink ((coco_engine * e) (size_t sink)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
+              (size_t d . 0))
+          (if (or (== (-> r jr) nil) (!= ($ (cof (-> r jr)) mode) 2)) (return 0))
+          (set d (coco_deref m sink))
+          (if (not (coco_is_callable m d)) (return 0))
+          (if (== (coco_arity m d) 0)
+              (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
+                (return (and (!= 0 (strcmp nm "user_output")) (!= 0 (strcmp nm "user_error"))))))
+          (return (and (== (coco_arity m d) 1)
+                       (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "$stream"))))))
+
   (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int)
+        (if (!= ($ (cof (-> e m)) rec) nil)
+            (if (coco_m_replay_sink e sink) (return 1)))
         (if (== coco_m_sink_hook nil) (return 0))
         (return (coco_m_sink_hook e sink text len)))
 

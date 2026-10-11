@@ -494,7 +494,7 @@ a tool rather than a library.
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
 | [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flow/chart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins; then a question sent down one channel with the channel for its answer, followed into the thread that answers, a join that waits for a thread made in another clause, and each send tied to the receive that takes it |
-| [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flow/debug`: a basket total that fails, run and drawn over its chart — each call the box it is, the heads that did not unify for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20 |
+| [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flow/debug`: a basket total that fails, run and drawn over its chart — each call the box it is, the heads that did not unify for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20, and a visit counter in a file replayed without a journal (a second visit, diverged) and with one (the probe's visit, the file written once) |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -757,7 +757,7 @@ code.
 | `library(numpy)` | `.so` | numpy arrays over numpy's C API |
 | `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
 | `library(flow/chart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; where the code runs -- a lane for each thread, pool, isolated proof, crew and httpd pool, and what crosses between them: what a spawn copies and what comes back, joins, channels and thread handles followed wherever the program takes them, to each send, receive and join, the k-th send tied to the k-th receive where that order can be read, `cowork_map/3`'s jobs a row each and an httpd server with no pool running its pages here, locks, child processes, writes to the knowledge base; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept, threads never joined, locks kept on a way out, a lane reading what only another writes -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
-| `library(flow/debug)` | `.pl` | what a query DID, drawn over its flowchart: run untraced to a window and recorded there (`'$trace_window'/4`), each call matched to its box, the path heavy, failures red, an exception purple, every value that crossed into a named variable on a numbered disc; `view(tree)` for the calls themselves; an SVG for a person and the chart's XML with a `<run>` for an agent, from a shell too (`tools/flow/debug.pl`) |
+| `library(flow/debug)` | `.pl` | what a query DID, drawn over its flowchart: run untraced to a window and recorded there (`'$trace_window'/4`), each call matched to its box, the path heavy, failures red, an exception purple, every value that crossed into a named variable on a numbered disc; `view(tree)` for the calls themselves; `journal(true)`: the probe journals every call that reaches the world and the replay is answered from it, sees what the probe saw and does none of it again; an SVG for a person and the chart's XML with a `<run>` for an agent, from a shell too (`tools/flow/debug.pl`) |
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |
@@ -1811,9 +1811,15 @@ remaining clause heads can never match is discarded in silence, which
 is the quiet SWI's clause indexing buys. The engine's design pays for
 itself here: the continuation is a term, so the `Exit` port is just a
 marker the body proves its way through, and a frozen machine carries
-its pending exits with it. **[TRACING.md](TRACING.md)** is the whole
-story: turning it on, reading the ports, the subtleties, and how the
-conformance is kept.
+its pending exits with it. The tracer also RECORDS instead of printing,
+for a window of a run that reached it untraced at full speed
+(`'$trace_window'/4`), and a run can be JOURNALLED: every call that
+reaches the world -- the clock, the environment, a file, a stream, a
+process, a thread -- written down with its answer, so that a replay is
+answered from the journal, does none of it again, and stops where it
+leaves the run it replays. **[TRACING.md](TRACING.md)** is the whole
+story: turning it on, reading the ports, the subtleties, how the
+conformance is kept, the window and the journal.
 
 ## The Emacs mode
 

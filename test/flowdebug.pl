@@ -20,7 +20,9 @@
 %%   find(z, V)    a run that fails, and the goal its failure began at
 %%   go(30, R)     a recursion seen through a window of its last 100
 %%                 inferences, and go(12, R) drawn as a tree
-%%   flip(F)       a run that is not the same twice
+%%   flip(F)       a run that is not the same twice -- and with a journal is
+%%   grow(F)       a run that loads a file it then appends to, which leaves
+%%                 its journal
 %%
 %% How the picture LOOKS is judged by eye; that it reads back, carries the
 %% run's marks and names every box by the chart's id, is checked.
@@ -44,6 +46,7 @@ main :-
     window(D),
     tree(D),
     diverged(D),
+    journal(D),
     documents(D),
     command(D),
     refusals(D),
@@ -59,11 +62,11 @@ debugged(D, Name, G, Names, Opts, Run) :-
     flow_debug(G, B, [source(F), names(Names)|Opts], Run).
 
 %% each call: Name/Arity-Box-Panel-Fate, in the order they were made
-calls(run(_, _, _, _, Calls, _, _), Cs) :-
+calls(run(_, _, _, _, Calls, _, _, _), Cs) :-
     findall(P-B-Pn-F, member(call(_, P, _, _, B, Pn, _, _, _, F), Calls), Cs).
 
 %% each binding: Port-Name-Value-Box, in the order they were made
-binds(run(_, _, _, _, _, Xs, _), Bs) :-
+binds(run(_, _, _, _, _, Xs, _, _), Bs) :-
     findall(P-N-V-B, member(x(_, P, _, N, V, B), Xs), Bs).
 
 %% the untraced run's count: what call_metered/4 says the goal spends
@@ -81,10 +84,10 @@ placed(D) :-
                 pos/2-'p1.c1.g1.a1.g1'-p2-exit, bad/1-'p1.c1.g2.g1'-p4-fail,
                 findall/3-'p1.c1.g3'-none-exit, member/2-'p1.c1.g3.g1'-none-fail,
                 member/2-none-none-fail, member/2-none-none-fail ]),
-    R1 = run(How1, At1, Ats1, W1, Calls1, _, Div1),
+    R1 = run(How1, At1, Ats1, W1, Calls1, _, Div1, J1),
     metered(top(5, _), U1),
-    check('...it answers where the untraced run does, recorded whole, as the probe ran',
-          How1-At1-Ats1-W1-Div1, answer-U1-[U1]-window(1, U1)-false),
+    check('...it answers where the untraced run does, recorded whole, as the probe ran, with no journal',
+          How1-At1-Ats1-W1-Div1-J1, answer-U1-[U1]-window(1, U1)-false-none),
     findall(P-Cl, ( member(call(_, P, _, _, _, _, Cl, _, _, _), Calls1), memberchk(P, [top/2, bad/1, pos/2]) ), Cls1),
     check('...the clause each entered, and the head that did not unify',
           Cls1, [top/2-[c(1, 1)], pos/2-[c(1, 5)], bad/1-[nohead(1, 7)]]).
@@ -140,7 +143,7 @@ bindings(D) :-
     check('pick(X): X = 1 made, undone at the redo when 1 > 1 fails, X = 2 made, answered',
           B4, [ exit-'X'-'1'-'p1.c1.g1', redo-'X'-'1'-'p1.c1.g1', exit-'X'-'2'-'p1.c1.g1',
                 exit-'X'-'2'-'query.g1' ]),
-    R4 = run(_, _, _, _, Calls4, _, _),
+    R4 = run(_, _, _, _, Calls4, _, _, _),
     findall(F, member(call(_, _, _, _, 'p1.c1.g2', _, _, _, _, F), Calls4), F4),
     check('...the test called twice at its box: failed, then exited', F4, [fail, exit]).
 
@@ -158,7 +161,7 @@ exceptions(D) :-
           B5, [ call-'E'-'error(type_error(evaluable,foo/0),_)'-'p1.c1.g1.recover.g1',
                 exit-'E'-'error(type_error(evaluable,foo/0),_)'-'query.g1' ]),
     debugged(D, oops, oops(X6), ['X'=X6], [], R6),
-    R6 = run(How6, _, _, _, _, _, _),
+    R6 = run(How6, _, _, _, _, _, _, _),
     calls(R6, C6),
     (   How6 = exception(error(type_error(evaluable, foo/0), _)) -> H6 = exception ; H6 = How6 ),
     check('oops(X): nothing caught it -- the run ends with it, every call on the way ended',
@@ -182,7 +185,7 @@ failing(D) :-
     xml_parse(XC7, element(flow, _, K7)),
     elements(K7, E7s), last(E7s, element(run, A7, _)),
     (   memberchk(ended=E7, A7) -> true ; E7 = none ),
-    R7 = run(_, _, _, _, Calls7, _, _),
+    R7 = run(_, _, _, _, Calls7, _, _, _),
     (   memberchk(failed_from_call=FC7, A7), atom_number(FC7, N7),
         memberchk(call(N7, _, _, _, Box7, _, _, _, _, _), Calls7)
     ->  true
@@ -195,7 +198,7 @@ failing(D) :-
 window(D) :-
     section('a window of the last 100 inferences of a recursion'),
     debugged(D, nrevw, go(30, R8), ['R'=R8], [window(100)], Run8),
-    Run8 = run(How8, At8, _, window(F8, T8), Calls8, _, _),
+    Run8 = run(How8, At8, _, window(F8, T8), Calls8, _, _, _),
     metered(go(30, _), U8),
     F8x is U8 - 99,
     check('go(30, R): it answers where the untraced run does, and the window is its last 100 inferences',
@@ -249,7 +252,7 @@ diverged(D) :-
     section('a replay that does not end where the probe did is said to have diverged'),
     atom_concat(D, '/flip.bytes', BF),
     debugged(D, flip, flip(BF), [], [], R10),
-    R10 = run(How10, _, _, _, _, _, Div10),
+    R10 = run(How10, _, _, _, _, _, Div10, _),
     (   Div10 = diverged(end(PH, _, _), end(RH, _, _)) -> W10 = PH-RH ; W10 = Div10 ),
     read_file_to_codes(BF, BC),
     atom_codes(BA, BC),
@@ -266,6 +269,83 @@ diverged(D) :-
     (   memberchk(diverged=DA10, A10) -> true ; DA10 = none ),
     (   memberchk(probe_ended=PE10, A10) -> true ; PE10 = none ),
     check('...on the picture and in the XML', Said10-DA10-PE10, said-true-answer).
+
+%% ---- the journal ---------------------------------------------------------
+%%
+%% flip/1's probe and replay with journal(true): the probe journals each
+%% portal call its library calls make -- open/3's '$stream_open'/4, write/2's
+%% format/3, close/1's, read_file_to_codes/2 -- and the replay is answered
+%% from them, so it reads the one byte the probe wrote and answers too, and
+%% the file holds that one byte. grow/1 loads a file, which no journal
+%% answers, and appends to it: its replay takes the other way and leaves
+%% the journal where the probe appended.
+
+journal(D) :-
+    section('journal(true): the replay answered from the probe''s journal, and where it left it'),
+    atom_concat(D, '/flipj.bytes', BF),
+    atom_concat(D, '/flip.jrnl', JF),
+    debugged(D, flipj, flip(BF), [], [journal(true), journal_file(JF)], R1),
+    R1 = run(How1, At1, _, _, _, _, Div1, J1),
+    read_file_to_codes(BF, BC1), atom_codes(BA1, BC1),
+    check('flip(F): the replay reads the byte the probe wrote, answers where it did, and writes none',
+          How1-Div1-BA1, answer-false-x),
+    (   J1 = journal(Es1) -> findall(M-P, member(j(_, M, P, _, _), Es1), MP1) ; MP1 = J1 ),
+    check('...the journal: the stream opened, asked about twice, written to and closed, and the file read',
+          MP1, [stream-'$stream_open'/4, stream-'$stream_open_p'/1, builtins-format/3,
+                stream-'$stream_open_p'/1, stream-'$stream_close'/2, files-read_file_to_codes/2]),
+    flow_dbg_read_terms(JF, JT2),
+    findall(I2, member(j(I2, _, _, _, _), JT2), Is2),
+    ( J1 = journal(Es2) -> findall(I2, member(j(I2, _, _, _, _), Es2), Is2r) ; Is2r = none ),
+    ( last(Is2, L2), L2 < At1 -> Before2 = before ; Before2 = Is2 ),
+    check('...kept in journal_file(F), an entry a line, each the run hands back, all before its answer',
+          Is2-Before2, Is2r-before),
+    atom_concat(D, '/flipj.svg', SF3),
+    read_file_to_codes(SF3, SC3),
+    xml_parse(SC3, S3),
+    findall(Id-M3, ( member(Id, ['p1.c1.g1', 'p1.c1.g2', 'p1.c1.g3', 'p1.c1.g4', 'p1.c1.g5']),
+                     ( svg_g_el(S3, Id, G3), svg_text(G3, M3), sub_atom(M3, 0, _, _, '⇄') -> true ; M3 = none ) ),
+            Marks3),
+    check('...each goal whose call reached the world carries the journal''s mark, with how many times',
+          Marks3, ['p1.c1.g1'-'⇄', 'p1.c1.g2'-'⇄ ×2', 'p1.c1.g3'-'⇄ ×2', 'p1.c1.g4'-'⇄', 'p1.c1.g5'-none]),
+    atom_concat(D, '/flipj.xml', XF4),
+    read_file_to_codes(XF4, XC4),
+    xml_parse(XC4, X4),
+    x_el(X4, run, RA4),
+    findall(K=V, ( member(K, [journal, portals, answered]), memberchk(K=V, RA4) ), JA4),
+    findall(N, ( x_el(X4, call, CA4), memberchk(journal=true, CA4), memberchk(n=N, CA4) ), JC4),
+    findall(A-O, ( x_el(X4, portal, PA4), memberchk(at=A, PA4), memberchk(outcome=O, PA4) ), PO4),
+    findall(A, member(A-_, PO4), PAt4),
+    check('...in the XML: the <run> says so, each <portal> is the <call> the window saw at its inference',
+          JA4-JC4, [journal=true, portals='6', answered='6']-PAt4),
+    atom_concat(D, '/grow.pl', GF),
+    fixture(GF, []),
+    debugged(D, growj, grow(GF), [], [journal(true)], R5),
+    R5 = run(How5, _, _, _, _, _, Div5, _),
+    (   How5 = diverged(At5, portal(WI5, WM5, WP5, _), portal(GI5, GM5, GP5, GC5))
+    ->  W5 = At5-WI5-WM5-WP5-GI5-GM5-GP5-GC5
+    ;   W5 = How5
+    ),
+    check('grow(F): the replay''s load reads what the probe appended, and it leaves the journal where the append was due',
+          W5, 7-7-files-append_file_from_codes/2-9-builtins-getenv/2-'getenv(''HOME'',_0)'),
+    ( Div5 = diverged(end(answer, _, _), end(diverged(_, _, _), _, _)) -> D5 = said ; D5 = Div5 ),
+    atom_concat(D, '/growj.svg', SF6),
+    read_file_to_codes(SF6, SC6),
+    xml_parse(SC6, S6),
+    (   svg_text(S6, T6), sub_atom(T6, 0, _, _, 'THE REPLAY LEFT ITS JOURNAL at inference 7') -> Said6 = said ; Said6 = silent ),
+    atom_concat(D, '/growj.xml', XF6),
+    read_file_to_codes(XF6, XC6),
+    xml_parse(XC6, X6),
+    (   x_el(X6, divergence, DA6), memberchk(at='7', DA6), x_el(X6, want, WA6), memberchk(pred=WP6, WA6),
+        x_el(X6, got, GA6), memberchk(pred=GP6, GA6)
+    ->  Div6 = WP6-GP6
+    ;   Div6 = none
+    ),
+    check('...said on the picture, and in the XML as a <divergence> with the journal''s call and the replay''s',
+          D5-Said6-Div6, said-said-('append_file_from_codes/2'-'getenv/2')),
+    (   x_el(X6, journal, JA7), memberchk(count=C7, JA7), memberchk(answered=A7, JA7) -> N7 = C7-A7 ; N7 = none ),
+    findall(P7, ( x_el(X6, portal, PA7), memberchk(answered=P7, PA7) ), Ps7),
+    check('...and its two entries -- the append and the getenv/2 after it -- neither answered the replay',
+          N7-Ps7, ('2'-'0')-[false, false]).
 
 %% ---- the two documents ----------------------------------------------------
 
@@ -302,7 +382,7 @@ documents(D) :-
     msort(Faded0, Faded),
     check('the else the run never took is faded, and so is the panel only it calls',
           Faded, ['p1.c1.g1.else.g1'-'0.3', p3-'0.4']),
-    R11 = run(_, _, _, _, _, Xs11, _),
+    R11 = run(_, _, _, _, _, Xs11, _, _),
     length(Xs11, N11),
     x_el(X, run, RA),
     memberchk(calls=NC, RA),
@@ -356,7 +436,14 @@ command(D) :-
     check('a predicate the program does not have is exit 1', E2, 1),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'find(z, V)\' ', F, ' ', B, ' view=sideways 2>/dev/null'], A3),
     cocolog_run(A3, _, E3),
-    check('an option it does not know is exit 2', E3, 2).
+    check('an option it does not know is exit 2', E3, 2),
+    atomic_list_concat([D, '/cmd.bytes'], BF4),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'flip(\'\\\'\'', BF4, '\'\\\'\')\' ', F, ' ', B, ' journal=true'], A4),
+    cocolog_run(A4, T4, E4),
+    atomic_list_concat(Ls4, '\n', T4),
+    ( last(Ls4, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
+    check('journal=true: the line says how many portal calls the journal held, and how many answered the replay',
+          E4-Tail4, 0-'; journal 6 portal calls, 6 answered').
 
 %% ---- refusals -----------------------------------------------------------
 
@@ -369,13 +456,17 @@ refusals(D) :-
     answer(flow_debug(top(5, _), B, [source(F), view(sideways)]), x, G3),
     answer(flow_debug(top(5, _), B, [source(F), until(never)]), x, G4),
     answer(flow_debug(top(5, _), B, [source(F), window(-1)]), x, G5),
-    check('an unbound goal, no source, a view, an until and a window it does not take',
-          [G1, G2, G3, G4, G5],
+    answer(flow_debug(top(5, _), B, [source(F), journal(maybe)]), x, G6),
+    answer(flow_debug(top(5, _), B, [source(F), journal_file(7)]), x, G7),
+    check('an unbound goal, no source, a view, an until, a window and a journal it does not take',
+          [G1, G2, G3, G4, G5, G6, G7],
           [ error(error(instantiation_error, flow_debug/3)),
             error(error(existence_error(flow_option, source), flow_debug/3)),
             error(error(domain_error(flow_view, sideways), flow_debug/3)),
             error(error(domain_error(flow_until, never), flow_debug/3)),
-            error(error(domain_error(flow_debug_option, window(-1)), flow_debug/3)) ]).
+            error(error(domain_error(flow_debug_option, window(-1)), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, journal(maybe)), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, journal_file(7)), flow_debug/3)) ]).
 
 %% the elements among a node's children (an indented document has text
 %% between them)
