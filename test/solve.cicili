@@ -694,6 +694,38 @@
         (set ($ m oom) 0)
         (check "and the next query runs"            (cast llong (count (aof e) "p(X)" 100)) 3))
 
+      ;; THE STORE'S MATCHER OVER TWO CYCLIC TERMS (1.10.19). A clause the
+      ;; compiler cannot take is matched in the store (`coco_store_unify'),
+      ;; and a store variable met a second time brings two heap terms
+      ;; together: two cyclic ones went round for ever. No program reaches
+      ;; it -- every clause a program can write compiles -- so it is asked
+      ;; here: `p(V, V)' against `p(A, B)', A = f(A) and B = f(B), which
+      ;; unify, and against `p(C, D)', C = g(C, x) and D = g(D, y), which
+      ;; do not; both must end.
+      (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+            (size_t sv . 0) (size_t ps . 0) (size_t mark . 0)
+            (size_t a . 0) (size_t b . 0) (size_t c . 0) (size_t d . 0) (int rc . 0))
+        (set sv (coco_new_var (aof m)))
+        (set ps (coco_store_put (aof st) (aof m) (coco_make2 (aof m) "p" sv sv)))
+        (set mark ($ m trail_len))
+        (set a (coco_new_var (aof m)))
+        (coco_bind (aof m) a (coco_make1 (aof m) "f" a))
+        (set b (coco_new_var (aof m)))
+        (coco_bind (aof m) b (coco_make1 (aof m) "f" b))
+        (coco_varmap_take (aof m) (aof vm))
+        (set rc (coco_store_unify (aof m) (aof st) (coco_make2 (aof m) "p" a b) ps (aof vm)))
+        (coco_varmap_give (aof m) (aof vm))
+        (check "the store's matcher: two cyclic terms unify, and it ends" (cast llong rc) 1)
+        (set c (coco_new_var (aof m)))
+        (coco_bind (aof m) c (coco_make2 (aof m) "g" c (coco_new_atom (aof m) "x")))
+        (set d (coco_new_var (aof m)))
+        (coco_bind (aof m) d (coco_make2 (aof m) "g" d (coco_new_atom (aof m) "y")))
+        (coco_varmap_take (aof m) (aof vm))
+        (set rc (coco_store_unify (aof m) (aof st) (coco_make2 (aof m) "p" c d) ps (aof vm)))
+        (coco_varmap_give (aof m) (aof vm))
+        (check "...two that differ past the cycle do not, and it ends" (cast llong rc) 0)
+        (coco_undo_to (aof m) mark))
+
       (check "machine never ran out of memory" (cast llong ($ m oom)) 0)
       (check "store never ran out of memory"   (cast llong ($ st oom)) 0)
 

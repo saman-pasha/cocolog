@@ -908,12 +908,9 @@
   ;;; caught it, in which case `err' says so and the caller returns -1.
   (decl) (func coco_m_thrown ((coco_engine * e) (size_t ball)) (out int))
 
-  ;;; A BALL READ BACK from the store a throw put it in (1.10.18): the copy
-  ;;; `coco_store_get' makes, and a ball that held a cycle -- stored as its
-  ;;; factors, `'$cyclic'(Template, [V1=T1, ...])', because the store's walk
-  ;;; would go round the cycle for ever -- made cyclic again, each Vi bound
-  ;;; to its Ti. Every reader of a ball cell reads it through this.
-  (decl) (func coco_ball_get ((coco_machine * m) (coco_store * st) (size_t cell)) (out size_t))
+  ;;; A BALL IS READ BACK from the store a throw put it in through
+  ;;; `coco_store_read' (lib/kb.cicili): a ball that held a cycle was put as
+  ;;; its factors (1.10.18, `coco_ball_storable') and is made cyclic again.
 
   ;;; ---- what an exception READS like --------------------------------------
   ;;;
@@ -3531,12 +3528,14 @@
             (set (-> m bt) ($ b s)))))
 
   ;;; WHAT A THROW PUTS IN THE STORE (1.10.18): the ball, or -- when it
-  ;;; holds a cycle, which the store's walk would follow for ever -- its
-  ;;; factors as `'$cyclic'(Template, [V1=T1, ...])' (`coco_factorize',
-  ;;; lib/term.cicili), which `coco_ball_get' makes cyclic again. Through
-  ;;; 1.10.17 `throw(X)' of `X = f(X)' never came back. Asking costs the
-  ;;; quick walk of the ball, a ball being small; a ball the heap cannot
-  ;;; hold the factors of is thrown as `'$cyclic'', which is no hang.
+  ;;; holds a cycle -- its factors as `'$cyclic'(Template, [V1=T1, ...])'
+  ;;; (`coco_factorize', lib/term.cicili), which `coco_store_read' makes
+  ;;; cyclic again; `cyc_puts' counts it, as the store's put counts the
+  ;;; ones it factors (1.10.19). Through 1.10.17 `throw(X)' of `X = f(X)'
+  ;;; never came back. The put would find the cycle itself since 1.10.19,
+  ;;; past twice the heap's length; a ball is small, and asking first
+  ;;; costs its quick walk. A ball the heap cannot hold the factors of is
+  ;;; thrown as `'$cyclic'', which is no hang.
   (static)
   (func coco_ball_storable ((coco_machine * m) (size_t ball)) (out size_t)
         ;; an atom, a number, a variable: nothing to ask
@@ -3546,44 +3545,8 @@
               (size_t f . #'(coco_factorize m ball "$cyclic" (aof vars) (aof nv))))
           (free vars)
           (if (== f 0) (return (coco_new_atom m "$cyclic")))
+          (set (-> m cyc_puts) (+ (-> m cyc_puts) 1))
           (return f)))
-
-  ;;; Is T `'$cyclic'(Template, [V1=T1, ...])' with every Vi an unbound
-  ;;; variable, as only `coco_ball_storable' makes one? A program's own
-  ;;; `'$cyclic'(a, b)' is not, and is read back as it was thrown.
-  (static)
-  (func coco_ball_factored ((coco_machine * m) (size_t t)) (out int)
-        (set t (coco_deref m t))
-        (if (not (and (coco-tag-is FUN (nth t (-> m heap))) (== 2 (coco_arity m t)))) (return 0))
-        ;; `error(...)', the usual ball, is turned away by its first letter
-        ;; (36 is `$')
-        (if (!= 36 (cast int (nth 0 (coco_atom_name m (coco_name_of m t))))) (return 0))
-        (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) "$cyclic")) (return 0))
-        (let ((size_t l . #'(coco_deref m (coco_arg m t 1))))
-          (while (coco_is_cons m l)
-            (let ((size_t p . #'(coco_deref m (coco_arg m l 0))))
-              (if (not (and (coco-tag-is FUN (nth p (-> m heap))) (== 2 (coco_arity m p)))) (return 0))
-              (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")) (return 0))
-              (if (not (coco-tag-is REF (nth (coco_deref m (coco_arg m p 0)) (-> m heap)))) (return 0)))
-            (set l (coco_deref m (coco_arg m l 1))))
-          (return (? (and (coco-tag-is ATOM (nth l (-> m heap)))
-                          (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "[]")))
-                     1 0))))
-
-  (func coco_ball_get ((coco_machine * m) (coco_store * st) (size_t cell)) (out size_t)
-        (let ((size_t t . #'(coco_store_get m st cell)))
-          (if (not (coco_ball_factored m t)) (return t))
-          ;; each variable bound to its term: made here, so no trail -- and
-          ;; only while it is unbound, a list that names one twice being a
-          ;; program's own and not the factors
-          (let ((size_t l . #'(coco_deref m (coco_arg m t 1))))
-            (while (coco_is_cons m l)
-              (let ((size_t p . #'(coco_deref m (coco_arg m l 0))))
-                (let ((size_t v . #'(coco_deref m (coco_arg m p 0))))
-                  (if (coco-tag-is REF (nth v (-> m heap)))
-                      (set (nth v (-> m heap)) (coco-cell REF (coco_arg m p 1))))))
-              (set l (coco_deref m (coco_arg m l 1))))
-            (return (coco_arg m t 0)))))
 
   (static)
   (func coco_throw ((coco_engine * e) (size_t ball)) (out int)
@@ -3621,7 +3584,7 @@
               ;; `'$catch'(Catcher, Recovery)', built before the frame was
               ;; pushed and so below its heap mark -- it survived the unwinding
               (let ((size_t mark . #'($ (cof m) trail_len))
-                    (size_t fresh . #'(coco_ball_get m st cell))
+                    (size_t fresh . #'(coco_store_read m st cell))
                     (size_t catcher . #'(coco_arg m call 0))
                     (size_t recovery . #'(coco_arg m call 1)))
                 (if (coco_unify m catcher fresh)
@@ -3653,7 +3616,7 @@
           (set (-> e ball_size) size)
           (let ((coco_strbuf b))
             (coco_sb_init (aof b))
-            (coco_write_term m (aof b) (coco_ball_get m st cell) 1 0)
+            (coco_write_term m (aof b) (coco_store_read m st cell) 1 0)
             (snprintf (-> e err) 192 "uncaught exception: %s"
                       (? (== ($ b s) nil) "?" ($ b s)))
             (coco_sb_free (aof b)))
@@ -3767,7 +3730,7 @@
   (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len)) (out int)
         (if (not (-> e has_ball)) (return 0))
         (coco_error_text (-> e m)
-                         (coco_ball_get (-> e m) (-> e st) (-> e ball_cell))
+                         (coco_store_read (-> e m) (-> e st) (-> e ball_cell))
                          out len)
         (return 1))
 
@@ -4620,7 +4583,7 @@
                      ;; the backtrace the inner throw wrote, from inside the
                      ;; goal out through this engine, is the one kept
                      (set (-> m btkeep) 1)
-                     (return (? (== 1 (coco_throw e (coco_ball_get m st ball_cell))) 2 0))))
+                     (return (? (== 1 (coco_throw e (coco_store_read m st ball_cell))) 2 0))))
 
           (if (not ok) (block (coco_undo_to m tmark)
                               (set ($ (cof m) heap_len) hmark)
@@ -4638,7 +4601,7 @@
           ;; back out of the store, in order, and on to the list
           (let ((size_t lst . #'(coco_new_atom m "[]")))
             (for ((size_t i . n)) (> i 0) ((-- i))
-              (set lst (coco_cons m (coco_store_get m st (nth (- i 1) kept)) lst)))
+              (set lst (coco_cons m (coco_store_read m st (nth (- i 1) kept)) lst)))
             (coco_store_root_pop st)
             (free kept)
             (set (cof out) lst))
@@ -4716,7 +4679,7 @@
                 (block (set (-> st dead) (+ (-> st dead) bsize))
                        ;; and the inner throw's backtrace with it
                        (set (-> m btkeep) 1)
-                       (set out (? (== 1 (coco_throw e (coco_ball_get m st cell)))
+                       (set out (? (== 1 (coco_throw e (coco_store_read m st cell)))
                                    3 -1)))))
           (return out)))
 
@@ -4841,7 +4804,7 @@
           (set ($ (cof m) heap_len) hmark)
           (if threw
               (block (set (-> st dead) (+ (-> st dead) bsize))
-                     (set (cof ball) (coco_ball_get m st cell))))
+                     (set (cof ball) (coco_store_read m st cell))))
           (return out)))
 
   (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int)
@@ -5765,11 +5728,14 @@
         (return (coco_is_callable (-> e m) (coco_a e g 0))))
 
   ;;; A proper list and nothing else: a partial list `[a|X]' is not one, and
-  ;;; neither is a cyclic term -- which is what the step limit is for.
+  ;;; neither is a list that is its own tail -- which is what the step limit
+  ;;; is for. A cell of the list is three of the heap, so a walk past the
+  ;;; heap's length has gone round (1.10.19; it was ten million steps, which
+  ;;; a list longer than that came to too).
   (func coco_bi_is_list ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t t . #'(coco_a e g 0))
-              (u64 guard . 0))
+              (size_t guard . 0) (size_t lim . #'(-> (-> e m) heap_len)))
           (while 1
             (set t (coco_deref m t))
             (let ((u64 c . #'(nth t (-> m heap))))
@@ -5778,7 +5744,7 @@
               (if (not (coco_is_cons m t)) (return 0))
               (set t (coco_arg m t 1))
               (set guard (+ guard 1))
-              (if (> guard 10000000) (return 0))))
+              (if (> guard lim) (return 0))))
           (return 0)))
 
   ;;; ---- arithmetic ----
@@ -6304,6 +6270,11 @@
   (static)
   (func coco_codes_to_text ((coco_engine * e) (size_t lst) (coco_strbuf * b)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
+          ;; a list that is its own tail is none: past the heap's length the
+          ;; walk has gone round (1.10.19; it wrote until memory ran out),
+          ;; counted down in the machine (`lbudget') -- two locals more and
+          ;; the loop spilled, seven instructions a code
+          (set (-> m lbudget) (-> m heap_len))
           (coco_sb_init b)
           (while 1
             (set lst (coco_deref m lst))
@@ -6311,6 +6282,7 @@
               (if (coco-tag-is ATOM c)
                   (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
               (if (not (coco_is_cons m lst)) (return 0))
+              (if (== (-- (-> m lbudget)) 0) (return 0))
               ;; A CODE OR A ONE-CHARACTER ATOM. `double_quotes' has four
               ;; values and TWO of them make a list, so under `chars' the
               ;; "ab" a program hands string_length/2 IS [a,b] -- and a walk
@@ -6407,6 +6379,9 @@
   (static)
   (func coco_chars_to_text ((coco_engine * e) (size_t lst) (coco_strbuf * b)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
+          ;; a list that is its own tail is none, counted as for codes
+          ;; (1.10.19; string_chars/2 wrote until memory ran out)
+          (set (-> m lbudget) (-> m heap_len))
           (coco_sb_init b)
           (while 1
             (set lst (coco_deref m lst))
@@ -6414,6 +6389,7 @@
               (if (coco-tag-is ATOM c)
                   (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
               (if (not (coco_is_cons m lst)) (return 0))
+              (if (== (-- (-> m lbudget)) 0) (return 0))
               (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
                     (const char * one . nil))
                 (set one (coco_atom_name m (coco_name_of m h)))
@@ -6437,6 +6413,9 @@
                       (coco_chars_to_text e (coco_arg m g 1) (aof b))
                       (coco_codes_to_text e (coco_arg m g 1) (aof b))))
               (block (coco_sb_free (aof b))
+                     ;; a list that is its own tail is no list (1.10.19)
+                     (if (coco_list_cyclic m (coco_arg m g 1))
+                         (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
                      (return (coco_instantiation_error e))))
           (set r (coco_unify m (coco_arg m g 0) (coco_str_new e (aof b))))
           (coco_sb_free (aof b))
@@ -6626,6 +6605,9 @@
           (let ((coco_strbuf b) (int r))
             (if (not (coco_codes_to_text e (coco_arg m g 1) (aof b)))
                 (block (coco_sb_free (aof b))
+                       ;; a list that is its own tail is no list (1.10.19)
+                       (if (coco_list_cyclic m (coco_arg m g 1))
+                           (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
                        (return (coco_instantiation_error e))))
             (set r (coco_unify m (coco_arg m g 0)
                              (coco_new_atom m (? (== ($ b s) nil) "" ($ b s)))))
@@ -6644,6 +6626,9 @@
           (let ((coco_strbuf b) (size_t num) (int r))
             (if (not (coco_codes_to_text e (coco_arg m g 1) (aof b)))
                 (block (coco_sb_free (aof b))
+                       ;; a list that is its own tail is no list (1.10.19)
+                       (if (coco_list_cyclic m (coco_arg m g 1))
+                           (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
                        (return (coco_instantiation_error e))))
             ;; the reader is what decides what a number looks like, so it is
             ;; the reader that reads it back -- there is no second parser here
@@ -6816,21 +6801,35 @@
   ;;; under `,', `;', `->', `*->' or `\+' as well as alone -- is none, and
   ;;; SWI refuses the clause with type_error(callable, Body). A variable is
   ;;; call/1 of whatever it is bound to when the clause runs, as ISO has it.
+  ;;; BUDGET is the control terms it may walk before it answers -1, and the
+  ;;; caller asks whether the body is cyclic (1.10.19): `B = (a, B)' went
+  ;;; down its right side for ever, `B = (B, a)' recursed until the C stack
+  ;;; ran out.
   (static)
-  (func coco_body_callable ((coco_machine * m) (size_t b)) (out int)
+  (func coco_body_callable ((coco_machine * m) (size_t b) (size_t * budget)) (out int)
         (while 1
           (set b (coco_deref m b))
           (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
           (if (not (coco_is_callable m b)) (return 0))
           (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
+            (if (== (cof budget) 0) (return -1))
+            (set (cof budget) (- (cof budget) 1))
             (if (and (== n 1) (== nid (coco-id m "\\+")))
                 (block (set b (coco_arg m b 0)) continue))
             (if (not (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
                                          (or (== nid (coco-id m "->")) (== nid (coco-id m "*->"))))))
                 (return 1))
-            (if (not (coco_body_callable m (coco_arg m b 0))) (return 0))
+            (let ((int r . #'(coco_body_callable m (coco_arg m b 0) budget)))
+              (if (!= r 1) (return r)))
             (set b (coco_arg m b 1))))
         (return 1))
+
+  ;;; `representation_error(cyclic_term)', what SWI's assert raises over a
+  ;;; cyclic clause (1.10.19)
+  (static)
+  (func coco_cyclic_error ((coco_engine * e)) (out int)
+        (return (coco_raise e (coco_make1 (-> e m) "representation_error"
+                                          (coco_new_atom (-> e m) "cyclic_term")))))
 
   ;;; WHAT assert AND retract REFUSE, as SWI does: a clause or a head that is
   ;;; unbound is an instantiation error, a head that is not callable a type
@@ -6857,9 +6856,18 @@
               (return (coco_permission_error e "modify" "static_procedure"
                                              (coco_indicator m (coco_name_of m head)
                                                              (coco_arity m head)))))
+          ;; 4096 control terms: a body past that is asked whether it is
+          ;; cyclic, and walked again with no budget when it is not
           (if (and asserting rule)
-              (if (not (coco_body_callable m body))
-                  (return (coco_type_error e "callable" (coco_deref m body)))))
+              (let ((size_t budget . 4096)
+                    (int bc . #'(coco_body_callable m body (aof budget))))
+                (if (== bc -1)
+                    (block
+                     (if (!= 1 (coco_acyclic m body)) (return (coco_cyclic_error e)))
+                     (set budget (cast size_t -1))
+                     (set bc (coco_body_callable m body (aof budget)))))
+                (if (== bc 0)
+                    (return (coco_type_error e "callable" (coco_deref m body))))))
           (return 0)))
 
   (static)
@@ -6879,13 +6887,16 @@
           ;; it leaves a sentence behind instead -- today, a clause too long
           ;; for a row. `resource_error/1' is ISO's shape and catchable, which
           ;; is the whole point: the alternative was a commit that took every
-          ;; other clause of the transaction with it.
-          (if (not (coco_assert (-> e st) m c at_end))
-              (block
-               (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
-                   (return (coco_raise e (coco_make1 m "resource_error"
-                                                     (coco_new_atom m "clause_length")))))
-               (return 0)))
+          ;; other clause of the transaction with it. A cyclic clause is told
+          ;; by the count of cycles put moving (`coco_assert_from').
+          (let ((size_t cp . #'(-> m cyc_puts)))
+            (if (not (coco_assert (-> e st) m c at_end))
+                (block
+                 (if (!= cp (-> m cyc_puts)) (return (coco_cyclic_error e)))
+                 (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
+                     (return (coco_raise e (coco_make1 m "resource_error"
+                                                       (coco_new_atom m "clause_length")))))
+                 (return 0))))
           (if (coco_is_callable m head)
               (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
           (coco_store_maybe_compact (-> e st) m)

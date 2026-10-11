@@ -650,27 +650,81 @@ cocolint index offers no import of it.
   lines only when its goal raised; a load drops any it finds first
   (`coco_bt_say(m, 0)`). Trace 3 (`--backtrace`) is trace 1 that prints
   nothing: `coco_trace_port`, the Redo and the Fail return at once.
-* **A cyclic term (`X = f(X)`) is written, raised and caught, and NOTHING
-  ELSE WALKS ONE YET** (1.10.18, `test/cyclic.pl`). The writer asks
-  `coco_acyclic` of the compound it meets 1024 levels down (`m->wdeep`; a
-  cycle sets `wcyc` and `wdeep` 0, which stops every compound still to be
-  written) and runs Brent's method down a list's tail; the top of the write
-  takes back what it wrote and writes `@(S_1,[S_1=f(S_1)])` from
-  `coco_factorize`, swipl's text to the letter -- `S_N` unless the write
-  names variables itself (write_term's `variable_names`) or is
+* **A cyclic term (`X = f(X)`) is written, raised, caught and walked**
+  (1.10.18, 1.10.19; `test/cyclic.pl`), to swipl 9.0.4's answers. The
+  writer asks `coco_acyclic` of the compound it meets 1024 levels down
+  (`m->wdeep`; a cycle sets `wcyc` and `wdeep` 0, which stops every compound
+  still to be written) and runs Brent's method down a list's tail; the top
+  of the write takes back what it wrote and writes `@(S_1,[S_1=f(S_1)])`
+  from `coco_factorize`, swipl's text to the letter -- `S_N` unless the
+  write names variables itself (write_term's `variable_names`) or is
   write_canonical's or the store's. `is/2` and the comparisons ask at 1024
-  levels and raise `type_error(expression, E)`, E their whole argument; a
-  throw stores a cyclic ball as `'$cyclic'(Template, [V=T, ...])`, and
-  **every reader of a ball cell reads it through `coco_ball_get`**, which
-  binds it cyclic again (a new reader that uses `coco_store_get` hands the
-  catcher the factors). `acyclic_term/1` and `cyclic_term/1` answer. Copy,
-  unify of two cyclic terms, compare and `==` of two, assert, `findall/3`'s
-  results, `nb_setval/2`, `ground/1` and `term_variables/2` still loop or
-  overflow on one, and a deep TREE overflows the C stack where it always did
-  (~47k levels of `coco_write_rec`, ~87k of `coco_arith`). **The writer's
-  six arguments stay in registers**: quoted, ignore_ops and operand are one
-  `mode` word (1, 2, 4), and a compound is `coco_write_fun`, always inlined,
-  so the guard's slow path returns rather than rejoining -- rejoined, every
+  levels and raise `type_error(expression, E)`, E their whole argument.
+  `acyclic_term/1` and `cyclic_term/1` answer. **Every other walk COUNTS,
+  and asks or changes course only past its count** -- what it has met
+  against what a tree on this heap could hold -- so a term that is no cycle
+  pays a decrement:
+  - unify counts pairs of compounds down `m->ubudget` (2^20, or the heap's
+    length if more, armed again only when it reaches 0, so it runs on ACROSS
+    calls), and at 0 the rest of that walk links each pair it enters
+    (`coco_unify_linked`: A's header points at B until the walk ends, as
+    SWI's do_unify does) -- sound wherever it starts, a link never changing
+    a unify's answer. The store's matcher counts the heap's length and hands
+    a pair past it to `coco_unify`.
+  - compare, `==` and the sorts count `m->cbudget` down from the heap's
+    length, per call, the first pair in `ca`/`cb`, and at 0 the walk's EXIT
+    asks again from that pair with links (`coco_compare_linked`). SWI links
+    from the first pair, so two cyclic terms that differ within the count are
+    ordered as their trees are where SWI's links may give no order (the
+    case's P and Q: SWI answers > both ways).
+  - copy_term/2 stops at `m->wceil` (three times the heap it started from,
+    plus 64) and copies again keeping each compound once
+    (`coco_copy_shared`): a cycle stays a cycle, a DAG a DAG.
+  - the store's put (findall's results, `nb_setval/2`, a ball, a clause)
+    stops at `base + 2 * heap_len + 64`, and `coco_store_put_over` asks
+    `coco_acyclic`: a DAG is put whole, a cycle as its factors
+    `'$cyclic'(T, [V=B, ...])`, counted in `m->cyc_puts`. **A reader of a
+    cell that may hold one reads it with `coco_store_read`** (findall,
+    `nb_getval/2`, every ball), which binds the factors back once `cyc_puts`
+    has moved; `coco_store_get` hands it the factors.
+  - assert raises `representation_error(cyclic_term)` when its put counted
+    one (the store's length set back); a grammar rule is asked BEFORE its
+    translation, which recursed through a cyclic body to a SIGSEGV; the
+    clause check counts 4096 goals before it asks.
+  - ground/1 and term_variables/2 count the heap's length, then walk again
+    meeting each compound once, in SWI's order; unify_with_occurs_check/2
+    unifies, then asks `coco_occurs` of each variable it bound, unbound for
+    the question.
+  - a list that is its own tail: `coco_m_list_length` (and so a module's
+    lists), is_list/1, memberchk/2 and the text walks (a code or char list,
+    a format's text and `~s`, term_to_atom/2's) count the heap's length --
+    the last two down `m->lbudget`, which no two of them hold at once.
+    length/2, msort/2, memberchk/2 and the text builtins raise
+    `type_error(list, L)` (`coco_list_cyclic`, Brent), a format and
+    term_to_atom/2 `type_error(text, L)`; sort/2 and a sort/4 that drops
+    duplicates take it as the set of its elements; proper_length/2 and
+    is_set/1 ask is_list/1 first.
+  **A walk's slow path is NOT STATIC, and its count lives in the machine
+  where a local would cost its loop a register** (`coco_compare_linked`,
+  `coco_store_put_over`; `cbudget`, `ubudget`, `lbudget`): inlined, the
+  linked compare cost every pair 18 instructions; with a local count
+  memberchk/2 kept the machine on the stack, +12 % of its cost. Not SWI's
+  yet: list_to_set/2 and the library's other clauses walk a cyclic list for
+  ever where SWI's must_be/2 raises (append/3 and maplist/N loop in both);
+  call/1 of `G = (true, G)` runs for ever where SWI refuses to compile it; a
+  channel and thread_create/2's goal carry one as the text of its factors,
+  which reads back as `@(T, [V=B, ...])`; a format's `~s` and `~a` raise
+  cocolog's error for anything not text where SWI says
+  `format_argument_type`; the text builtins that write any term
+  (string_length/2, split_string/4, ...) write a cyclic list as its factors
+  where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
+  writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
+  `=@=`, subsumes_term/2 and numbervars/3 do not exist. A
+  deep TREE overflows the C stack where it always did (~47k levels of
+  `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
+  stay in registers**: quoted, ignore_ops and operand are one `mode` word
+  (1, 2, 4), and a compound is `coco_write_fun`, always inlined, so the
+  guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
