@@ -269,8 +269,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 61 `.pl` cases in `pl_names/1`
--- **68 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 62 `.pl` cases in `pl_names/1`
+-- **69 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -650,6 +650,28 @@ cocolint index offers no import of it.
   lines only when its goal raised; a load drops any it finds first
   (`coco_bt_say(m, 0)`). Trace 3 (`--backtrace`) is trace 1 that prints
   nothing: `coco_trace_port`, the Redo and the Fail return at once.
+* **A cyclic term (`X = f(X)`) is written, raised and caught, and NOTHING
+  ELSE WALKS ONE YET** (1.10.18, `test/cyclic.pl`). The writer asks
+  `coco_acyclic` of the compound it meets 1024 levels down (`m->wdeep`; a
+  cycle sets `wcyc` and `wdeep` 0, which stops every compound still to be
+  written) and runs Brent's method down a list's tail; the top of the write
+  takes back what it wrote and writes `@(S_1,[S_1=f(S_1)])` from
+  `coco_factorize`, swipl's text to the letter -- `S_N` unless the write
+  names variables itself (write_term's `variable_names`) or is
+  write_canonical's or the store's. `is/2` and the comparisons ask at 1024
+  levels and raise `type_error(expression, E)`, E their whole argument; a
+  throw stores a cyclic ball as `'$cyclic'(Template, [V=T, ...])`, and
+  **every reader of a ball cell reads it through `coco_ball_get`**, which
+  binds it cyclic again (a new reader that uses `coco_store_get` hands the
+  catcher the factors). `acyclic_term/1` and `cyclic_term/1` answer. Copy,
+  unify of two cyclic terms, compare and `==` of two, assert, `findall/3`'s
+  results, `nb_setval/2`, `ground/1` and `term_variables/2` still loop or
+  overflow on one, and a deep TREE overflows the C stack where it always did
+  (~47k levels of `coco_write_rec`, ~87k of `coco_arith`). **The writer's
+  six arguments stay in registers**: quoted, ignore_ops and operand are one
+  `mode` word (1, 2, 4), and a compound is `coco_write_fun`, always inlined,
+  so the guard's slow path returns rather than rejoining -- rejoined, every
+  compound read its tag and functor again (21 instructions each).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,

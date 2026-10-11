@@ -164,7 +164,7 @@ fail_lines(Text) :-
 %%   lint    cocolint over the calibration corpus
 %%   groups  twelve interpreters sharing four machine STATES
 %%   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
-pl_names([files, trace, backtrace, window, journal, vacuum, repl, script, tunnel, reconsult, tensors,
+pl_names([files, trace, backtrace, cyclic, window, journal, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, flowdebug, httpd, 'httpd-tls', websocket, crypto,
