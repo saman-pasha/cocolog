@@ -1,4 +1,4 @@
-%% gallery.pl -- every construct library(flowchart) draws, once.
+%% gallery.pl -- every construct library(flow/chart) draws, once.
 :- use_module(library(text)).
 
 %% check(+Nums, +Text): every number has a sign word; count the positive ones.

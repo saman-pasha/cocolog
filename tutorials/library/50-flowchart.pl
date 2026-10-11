@@ -1,9 +1,9 @@
-%% LIBRARY 50 -- library(flowchart): a predicate drawn from the query down to
+%% LIBRARY 50 -- library(flow/chart): a predicate drawn from the query down to
 %% the C it reaches, and back, as an SVG for a person and an XML for an agent
 %%
 %%     ./cocolog run tutorials/library/50-flowchart.pl main
 %%
-%% TIER 2: `use_module(library(flowchart))', clauses in library/flowchart.pl
+%% TIER 2: `use_module(library(flow/chart))', clauses in library/flow/chart.pl
 %% and library/flow/, over library(stream) (`sh modules/stream/build.sh').
 %% Its tables -- which C function answers each name, with what modes -- are
 %% written by `make modules' (sh tools/flow/build.sh).
@@ -61,7 +61,7 @@
 %% depth(D) and only(Preds) choose another part, and a panel left out is a
 %% stub that says how much hangs from it. The XML always has everything.
 
-:- use_module(library(flowchart)).
+:- use_module(library(flow/chart)).
 :- use_module(library(stream)).
 :- use_module(library(xml)).
 

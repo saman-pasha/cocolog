@@ -33,7 +33,7 @@
 %% XML's shape is in library/flow/xml.pl's header, and DESIGN-flow.md says
 %% what it is for.
 
-:- use_module(library(flowchart)).
+:- use_module(library(flow/chart)).
 
 main :-
     current_prolog_flag(argv, [_|Args]),

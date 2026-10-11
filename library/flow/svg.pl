@@ -1,4 +1,4 @@
-%% library(flowchart), part: the primitives written as SVG.
+%% library(flow/chart), part: the primitives written as SVG.
 
 :- use_module(library(xml)).
 

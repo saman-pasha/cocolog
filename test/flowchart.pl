@@ -1,4 +1,4 @@
-%% library(flowchart) -- a predicate drawn from the query to C and back.
+%% library(flow/chart) -- a predicate drawn from the query to C and back.
 %%
 %% WHAT IS WORTH CHECKING is what a reader would act on and could not see
 %% for themselves: the MODE drawn on an argument, the DETERMINISM written on
@@ -39,7 +39,7 @@
 
 :- use_module('test/prelude.pl').
 :- use_module(library(stream)).
-:- use_module(library(flowchart)).
+:- use_module(library(flow/chart)).
 :- use_module(library(xml)).
 
 main :-

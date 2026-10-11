@@ -1,4 +1,4 @@
-%% library(flowchart), part: terms as text, and how wide text is drawn.
+%% library(flow/chart), part: terms as text, and how wide text is drawn.
 
 %% ======================================================================
 %% Text: terms written with their own variable names

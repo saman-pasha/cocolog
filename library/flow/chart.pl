@@ -1,8 +1,8 @@
-%% library(flowchart) -- a predicate drawn as a flowchart: from the query
+%% library(flow/chart) -- a predicate drawn as a flowchart: from the query
 %% down to the C it reaches, and back -- as an SVG for a person and an XML
 %% for a program.
 %%
-%%     :- use_module(library(flowchart)).
+%%     :- use_module(library(flow/chart)).
 %%
 %%     flow_chart(+Spec, +Base)               Base.svg and Base.xml
 %%     flow_chart(+Spec, +Base, +Options)
@@ -129,7 +129,7 @@
 %% lock with a way out that keeps it, and a lane reading what only another
 %% lane writes are findings.
 %%
-%% WHAT A RUN DID is library(flowdebug)'s: a query run, recorded and drawn
+%% WHAT A RUN DID is library(flow/debug)'s: a query run, recorded and drawn
 %% over this chart, the same ids in its XML (lesson 51, DESIGN-flow.md 9).
 
 :- use_module(library(xml)).

@@ -1,4 +1,4 @@
-%% library(flowchart), part: the graph as XML, for an agent to read.
+%% library(flow/chart), part: the graph as XML, for an agent to read.
 %%
 %% THE SAME GRAPH AS THE SVG, AND THE SAME NAMES. A panel is p3, its second
 %% clause p3.c2, that clause's fourth goal p3.c2.g4; inside a construct the
@@ -94,7 +94,7 @@ flow_xml(Graph, Fs, element(flow, As, [FE, LE, KE|Cs])) :-
     SG =.. [_|Ms0],
     flow_x_modes_args(Ms0, CM),
     format(atom(Spec), '~q', [SG]),
-    As = [version=V, tool='library(flowchart)', title=Title, spec=Spec, source=Src],
+    As = [version=V, tool='library(flow/chart)', title=Title, spec=Spec, source=Src],
     flow_x_findings(Fs, FE),
     flow_x_lanes(Ids, Panels, LE),
     flow_x_links(Ids, KE),

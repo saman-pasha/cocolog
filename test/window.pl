@@ -1,5 +1,5 @@
 %% The inference clock and a window of a run, recorded (1.10.12) -- what
-%% library(flowdebug) stands on (DESIGN-flow.md 9.1 and 9.5).
+%% library(flow/debug) stands on (DESIGN-flow.md 9.1 and 9.5).
 %%
 %% THE CLOCK. A run is explained by replaying it, numbered by the
 %% inferences an untraced run spent, so the count must be the same however

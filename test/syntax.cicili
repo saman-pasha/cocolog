@@ -239,7 +239,7 @@
       ;;
       ;; `.' alone ends a clause and a run that begins `/*' begins a comment,
       ;; so written bare neither comes back as the atom it was: writeq('.')
-      ;; wrote `.', and library(flowchart) drew `root('.')' as `root(.)'. SWI
+      ;; wrote `.', and library(flow/chart) drew `root('.')' as `root(.)'. SWI
       ;; quotes the two and nothing else of the kind: `..' and `//*' read
       ;; back bare.
       (trip (aof m) "'.'"          "'.'")

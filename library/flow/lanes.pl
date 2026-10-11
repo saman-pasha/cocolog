@@ -1,4 +1,4 @@
-%% library(flowchart), part: threads and processes -- each place code runs
+%% library(flow/chart), part: threads and processes -- each place code runs
 %% is a LANE of the chart, and what crosses between lanes is drawn (F2,
 %% DESIGN-flow.md section 7).
 %%

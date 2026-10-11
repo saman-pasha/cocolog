@@ -1,4 +1,4 @@
-%% library(flowdebug), part: a recorded window matched to the chart.
+%% library(flow/debug), part: a recorded window matched to the chart.
 %%
 %% The events '$trace_window'/4 records name calls by their goal's cell and
 %% say nothing of the source; the chart names boxes and says nothing of a

@@ -526,7 +526,7 @@
   ;;; `notrace/0' flip the engine, not this.
   (var int coco_trace_default . 0)
 
-  ;;; ---- a window of a run, RECORDED (1.10.12, library(flowdebug)) ---------
+  ;;; ---- a window of a run, RECORDED (1.10.12, library(flow/debug)) ---------
   ;;;
   ;;; The tracer in record mode (`trace' 2): every port the printer would
   ;;; write goes into the machine's recorder instead (`m->rec'), with what

@@ -1,4 +1,4 @@
-%% library(flowchart), part: the analysis -- what each goal is, which
+%% library(flow/chart), part: the analysis -- what each goal is, which
 %% variables are bound when it runs, how it can end, and the panels.
 
 %% ======================================================================

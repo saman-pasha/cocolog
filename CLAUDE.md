@@ -89,7 +89,7 @@ make EMBED=0      # the same binary without the embedded store: no ZiguratIP
 make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
                   # emitted tables into $ZIGURATIP/MVCCS-cicili/generated/)
 make modules      # every loadable module buildable here; SKIPPED, by name, for the rest;
-                  # and library(flowchart)'s tables (sh tools/flow/build.sh, git-ignored)
+                  # and library(flow/chart)'s tables (sh tools/flow/build.sh, git-ignored)
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
@@ -548,8 +548,8 @@ then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
 xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
-flowchart with its parts in `library/flow/`, flowdebug with its parts in
-`library/flow/dbg*.pl`, and `library/reasoning/`);
+and `library/reasoning/` and `library/flow/`: `flow/chart` and
+`flow/debug`, each with its parts beside it, `dbg*.pl` the debugger's);
 `library/*.so` are modules built from `modules/`. A file whose first line
 reads `%% library(NAME), part: ...` is loaded by its library, and the
 cocolint index offers no import of it.
@@ -992,7 +992,7 @@ cocolint index offers no import of it.
   begins (`coco_rec_unpend` takes it back when anything else is recorded
   first, the window's end included) -- through 1.10.12 a call that had
   exited and was backtracked past with no clause left showed a Redo the
-  printer never printed. `library(flowdebug)` (lesson 51) stands on all of
+  printer never printed. `library(flow/debug)` (lesson 51) stands on all of
   it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
   the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
   and drawn (`library/flow/dbgdraw.pl`).
@@ -1376,7 +1376,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
-| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flow/chart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

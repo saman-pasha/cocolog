@@ -1,4 +1,4 @@
-%% library(flowdebug) -- what a query did, drawn over its flowchart.
+%% library(flow/debug) -- what a query did, drawn over its flowchart.
 %%
 %% WHAT IS WORTH CHECKING is what a person or an agent would act on and
 %% could not see for themselves: WHICH BOX each call of a run is -- a call
@@ -29,7 +29,7 @@
 
 :- use_module('test/prelude.pl').
 :- use_module(library(stream)).
-:- use_module(library(flowdebug)).
+:- use_module(library(flow/debug)).
 :- use_module(library(xml)).
 
 main :-

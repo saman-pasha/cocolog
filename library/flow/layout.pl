@@ -1,4 +1,4 @@
-%% library(flowchart), part: the layout -- items, rows, lanes, panels,
+%% library(flow/chart), part: the layout -- items, rows, lanes, panels,
 %% the chart and its legend, as layered primitives.
 
 %% ======================================================================
@@ -1660,7 +1660,7 @@ flow_lines_w(Ps, W) :-
 flow_title_prims(Title, Src, Note, [t(24, 36, start, 18, sans, bold, [s(Title, ink)]),
                                     t(24, 58, start, 11, sans, normal, [s(Sub, muted)])|NPs]) :-
     flow_lib_name(Src, Base),
-    format(atom(Sub), 'flowchart of ~w.pl  ·  library(flowchart)  ·  modes are inferred from the call pattern  ·  hover a box for its full text  ·  the XML beside this file says the same, for a program to read', [Base]),
+    format(atom(Sub), 'flowchart of ~w.pl  ·  library(flow/chart)  ·  modes are inferred from the call pattern  ·  hover a box for its full text  ·  the XML beside this file says the same, for a program to read', [Base]),
     (   Note == none -> NPs = []
     ;   NPs = [t(24, 74, start, 11, sans, bold, [s(Note, amber)])]
     ).

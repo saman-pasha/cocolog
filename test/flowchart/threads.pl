@@ -1,5 +1,5 @@
 %% test/flowchart/threads.pl -- threads, channels, locks and processes:
-%% library(flowchart)'s F2 fixture. It is charted, never run: every place
+%% library(flow/chart)'s F2 fixture. It is charted, never run: every place
 %% code runs is a lane, and what crosses between lanes is a link. Four of
 %% its predicates are wrong on purpose -- fire/1 never joins its thread,
 %% locked/1 keeps its lock when check/1 fails, lost/1 reads what only its

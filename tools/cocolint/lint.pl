@@ -748,24 +748,18 @@ cl_del([Y|T], X, [Y|R]) :- cl_del(T, X, R).
 cl_trap_lifted('X2', Imports) :-
     (   memberchk(stream, Imports) -> true ; memberchk(websocket, Imports) ).
 
-%% Which tier-2 libraries a file imports.
+%% Which tier-2 libraries a file imports, by the name it loads each by --
+%% `flow/chart' for library(flow/chart) -- which is what a blocklist entry
+%% is keyed on (build.pl's bd_library_of/2). Through 1.10.13 an import was
+%% keyed on its last segment and an entry on its file's base name, which
+%% agreed only while every tier-2 library it read sat in library/ itself.
 cl_imports(Pairs, Imports) :-
     findall(Lib,
             ( member(cc_clause(_, _, directive(D, _))-Text, Pairs),
               ( D == use_module ; D == ensure_loaded ),
-              cl_library_arg(Text, Lib0),
-              cl_last_segment(Lib0, Lib) ),
+              cl_library_arg(Text, Lib) ),
             Imports0),
     sort(Imports0, Imports).
-
-%% library(dcg/basics) is the path "dcg/basics" and the module is dcg_basics;
-%% what a blocklist entry is keyed on is the last segment.
-cl_last_segment(A, Last) :-
-    atom_codes(A, Cs),
-    (   append(_, [0'/|Tail], Cs)
-    ->  atom_codes(Last, Tail)
-    ;   Last = A
-    ).
 
 cl_join([], _, '').
 cl_join([X], _, A) :- !, ( atom(X) -> A = X ; term_to_atom(X, A) ).

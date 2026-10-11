@@ -1,4 +1,4 @@
-%% library(flowchart), part: the hand-kept table of tests and of every
+%% library(flow/chart), part: the hand-kept table of tests and of every
 %% builtin's modes and determinism.
 
 %% open/3 and read_term/3 below, in the table of calls the engine refuses,

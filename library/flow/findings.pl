@@ -1,4 +1,4 @@
-%% library(flowchart), part: the findings -- what is wrong, and where.
+%% library(flow/chart), part: the findings -- what is wrong, and where.
 %%
 %% THE ANALYSIS ALREADY KNOWS THINGS A PROGRAMMER WANTS TO BE TOLD, and a
 %% finding is one only the flow analysis can see (cocolint stays the

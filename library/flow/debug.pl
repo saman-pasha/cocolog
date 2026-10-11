@@ -1,8 +1,8 @@
-%% library(flowdebug) -- what a query DID, drawn over the flowchart of what
+%% library(flow/debug) -- what a query DID, drawn over the flowchart of what
 %% it can do: the path it took, where it failed, the values that crossed
 %% -- as an SVG for a person and an XML for an agent.
 %%
-%%     :- use_module(library(flowdebug)).
+%%     :- use_module(library(flow/debug)).
 %%
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
 %%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term:
@@ -20,7 +20,7 @@
 %%     cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [OPTION ...]
 %%
 %% Goal is a call of a predicate the program defines; its arguments, bound
-%% or not, are its call pattern, and the chart is library(flowchart)'s for
+%% or not, are its call pattern, and the chart is library(flow/chart)'s for
 %% that pattern. Options:
 %%
 %%     source(File)     the program (required)
@@ -51,7 +51,7 @@
 %% program, under a red line that says both ends (D3 will journal what was
 %% read).
 %%
-%% WHAT IS DRAWN. The chart (library(flowchart)), with every box the run
+%% WHAT IS DRAWN. The chart (library(flow/chart)), with every box the run
 %% reached drawn heavy, every one whose last call failed red, one that
 %% raised an exception purple, and the boxes and panels it never reached
 %% faded; a head that did not match is red too.
@@ -74,7 +74,7 @@
 
 :- use_module(library(process)).
 :- use_module(library(stream)).
-:- use_module(library(flowchart)).
+:- use_module(library(flow/chart)).
 :- use_module(library(flow/dbgmatch)).
 :- use_module(library(flow/dbgdraw)).
 

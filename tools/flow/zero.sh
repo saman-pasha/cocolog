@@ -4,7 +4,7 @@
 #
 #     sh tools/flow/zero.sh [BINARY ...]        from the checkout root
 #
-# library(flowdebug) is built on one promise (DESIGN-flow.md 9.1): the run
+# library(flow/debug) is built on one promise (DESIGN-flow.md 9.1): the run
 # it explains is never slowed down, because everything it adds to the
 # engine sits on a path only tracing takes. This is how that is checked.
 # Each BINARY (./cocolog when none is named) runs three programs from

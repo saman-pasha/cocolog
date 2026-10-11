@@ -1,11 +1,11 @@
 # Flows: a program drawn as it can run, and as it ran
 
 **A plan, with four steps built.** On master since 1.10.8: F0, the look
-(`7a11896`); F1, `library(flowchart)` in full -- `library/flowchart.pl` and
+(`7a11896`); F1, `library(flow/chart)` in full -- `library/flow/chart.pl` and
 its parts in `library/flow/`, `tools/flow/`, `test/flowchart.pl` and
 `tutorials/library/50-flowchart.pl`; and F3, the findings (section 8). Since
 1.10.9 and 1.10.11: F2, threads and processes (section 7).
-`library(flowdebug)`: D0 to D2 built in 1.10.12 and 1.10.13 -- the clock, the
+`library(flow/debug)`: D0 to D2 built in 1.10.12 and 1.10.13 -- the clock, the
 recorded window, the run drawn over the chart (section 9.5); D3 and D4 next. Each phase
 lands on master when the owner says so, with its case, its lesson and its
 version.
@@ -14,11 +14,11 @@ version.
 
 Two libraries, one prefix:
 
-* **`library(flowchart)`** draws what a predicate CAN do: from the query down
+* **`library(flow/chart)`** draws what a predicate CAN do: from the query down
   to every C function it reaches, and back, with the mode of every argument,
   the determinism of every call and where every failure goes. It is driven by
   the program, never by data, so it is not a debugger.
-* **`library(flowdebug)`** draws what a query DID: the same chart with the
+* **`library(flow/debug)`** draws what a query DID: the same chart with the
   path taken, and the data that crossed it as numbered discs listed under the
   chart. Its hard problem is cost: it must not slow down the run it explains.
 
@@ -34,11 +34,14 @@ instrumented build.
 
 ## 2. Decided (the owner, 2026-10-10)
 
-* **Names.** `library(flowchart)` and `library(flowdebug)`, and every
-  predicate of both begins `flow_`. cocolog has no module system -- clauses
-  of one name from two files join into one predicate without a word -- so
-  flowdebug's own helpers begin `flow_dbg_` and never share a name with
-  flowchart's.
+* **Names.** `library(flow/chart)` and `library(flow/debug)` --
+  `library/flow/chart.pl` and `library/flow/debug.pl`, each beside its
+  parts (the owner moved them there on 2026-10-11, from
+  `library(flowchart)` and `library(flowdebug)`) -- and every predicate of
+  both begins `flow_`. cocolog has no module system -- clauses of one name
+  from two files join into one predicate without a word -- so the
+  debugger's own helpers begin `flow_dbg_` and never share a name with the
+  chart's.
 * **Layout is our own, and clarity comes first:** better than Graphviz, by
   never asking a general graph layout to guess (section 3).
 * **Modes.** A builtin's come from a hand-kept table; user code's are
@@ -110,7 +113,7 @@ line per clause, a row per choice, a lane per failure -- and the only general
 problem left is the wires between panels, which run one way through gutters
 whose track order is chosen by counting crossings.
 
-## 4. `library(flowchart)` in full (F1)
+## 4. `library(flow/chart)` in full (F1)
 
 ### 4.1 The front predicates
 
@@ -361,7 +364,7 @@ From `test/flowchart/demo.pl`, its `grep_count/3` (the clause's `<text>` and
 the goals' `<arg>` children shortened):
 
 ```xml
-<flow version="4" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+<flow version="4" tool="library(flow/chart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
   <findings count="0" errors="0" warnings="0"/>
   <lanes count="1">
     <lane id="l0" kind="query" root="query"/>
@@ -683,7 +686,7 @@ findings are true and stay: `fix.pl`'s `spin/1` loops for ever, and
 free); left recursion through a construct or a library predicate; promises
 of `multi` and `failure`.
 
-## 9. `library(flowdebug)`: what a query did (D0-D4)
+## 9. `library(flow/debug)`: what a query did (D0-D4)
 
 ```prolog
 flow_debug(+Goal, +Base, +Options)    % writes Base.svg and Base.xml
@@ -873,7 +876,7 @@ numbers exactly. And the two findings above.
   event for event what a recording of the whole run holds there. Each rule
   has an arm that takes it out and goes red (STATUS.md).
 
-**D2, `library(flowdebug)`** (built, 1.10.13; proposes a minor):
+**D2, `library(flow/debug)`** (built, 1.10.13; proposes a minor):
 
 * `flow_debug(+Goal, +Base, +Options)` writes Base.svg and Base.xml, and
   `flow_debug/4` hands back the run as a term -- `run(How, At, Answers,
@@ -947,12 +950,12 @@ failure and the failures it came from.
 | phase | delivers | engine change | lands |
 |---|---|---|---|
 | F0 | the look, on two fixtures | none | built, on master |
-| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on master (1.10.8); proposes 1.11.0 |
+| F1 | `library(flow/chart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, every goal drawn by name, builtins too, and a library predicate never opened unless `libraries(reach|all)` asks (1.10.5; 1.10.2 folded builtin work into `⋯ N` boxes), `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on master (1.10.8); proposes 1.11.0 |
 | F2 | threads and processes: a lane for each spawn site and the copy analysed as a copy, spawns and joins, channels followed across lanes, locks, process portals, writes to a shared knowledge base, three findings; then `cowork_map/3`'s jobs, `httpd_serve` with no pool, channels and handles followed through heads, callers, terms and other channels, and the order of a channel's messages | none | built, on master (1.10.9, 1.10.11); proposes a minor |
 | F3 | findings, in the XML first and on the chart as numbered discs, from `tools/flow/chart.pl` as a compiler's diagnostics: unknown procedures with a near name, calls the engine refuses unbound (a refusal table checked against the engine), left recursion, clauses never tried, determinism promises not kept; the analysis made to bind through tests and to end clauses at what never succeeds | none | built, on master (1.10.8); proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path, `tools/flow/zero.sh`); what it found: the traced clock and the stepped clock both wrong (9.1) | none | built (1.10.12) |
 | D1 | the clock made true traced and stepped; the record-mode tracer, the new events, `'$trace_window'/4`, the window opened in place | `lib/solve.cicili`, `lib/builtins.cicili`, `cocolog.cicili` | built (1.10.12), a patch |
-| D2 | `library(flowdebug)`: the run over the chart, discs, legend, tree view, the run's XML; the recorder's Redo only where the printer prints one | `lib/solve.cicili` (the pending Redo) | built (1.10.13); proposes a minor |
+| D2 | `library(flow/debug)`: the run over the chart, discs, legend, tree view, the run's XML; the recorder's Redo only where the printer prints one | `lib/solve.cicili` (the pending Redo) | built (1.10.13); proposes a minor |
 | D3 | the journal, per thread and per process; replay; divergence | builtins, the module SDK | proposes a minor |
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |
 

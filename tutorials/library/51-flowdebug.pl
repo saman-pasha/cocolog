@@ -1,11 +1,11 @@
-%% LIBRARY 51 -- library(flowdebug): what a query DID, drawn over the
+%% LIBRARY 51 -- library(flow/debug): what a query DID, drawn over the
 %% flowchart of what it can do -- the path it took, where it failed, the
 %% values that crossed -- as an SVG for a person and an XML for an agent
 %%
 %%     ./cocolog run tutorials/library/51-flowdebug.pl main
 %%
-%% TIER 2: `use_module(library(flowdebug))', clauses in library/flowdebug.pl
-%% and library/flow/dbg*.pl, over library(flowchart) (lesson 50) and
+%% TIER 2: `use_module(library(flow/debug))', clauses in library/flow/debug.pl
+%% and library/flow/dbg*.pl, over library(flow/chart) (lesson 50) and
 %% library(stream).
 %%
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
@@ -35,7 +35,7 @@
 %% after it: how the run ended, every call with its box and its arguments,
 %% every event, every binding. view(tree) draws the calls themselves.
 
-:- use_module(library(flowdebug)).
+:- use_module(library(flow/debug)).
 :- use_module(library(stream)).
 :- use_module(library(xml)).
 

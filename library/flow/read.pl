@@ -1,4 +1,4 @@
-%% library(flowchart), part: reading a program -- its clauses with their
+%% library(flow/chart), part: reading a program -- its clauses with their
 %% variable names, and the names its comments and headers give.
 
 :- use_module(library(stream)).

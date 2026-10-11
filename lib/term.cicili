@@ -503,7 +503,7 @@
     (member size_t *   wcells)
     (member u64 *      wnames)
     (member size_t     nwnames)
-    ;; THE RECORDER OF A WINDOW OF A RUN (1.10.12, library(flowdebug)):
+    ;; THE RECORDER OF A WINDOW OF A RUN (1.10.12, library(flow/debug)):
     ;; `'$trace_window'/4' sets it for the one goal it proves, and every
     ;; engine on this machine that traces in record mode (`trace' 2) --
     ;; the window's own and the nested engines its builtins start -- writes

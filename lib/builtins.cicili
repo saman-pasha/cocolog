@@ -617,7 +617,7 @@
 
   ;;; ---- a window of a run, RECORDED (1.10.12) ----------------------------
   ;;;
-  ;;; `'$trace_window'(Goal, Options, Events, End)' -- what library(flowdebug)
+  ;;; `'$trace_window'(Goal, Options, Events, End)' -- what library(flow/debug)
   ;;; stands on (DESIGN-flow.md 9.5). Goal is proved once in a nested
   ;;; engine, untraced at full speed up to the inference a window opens at,
   ;;; recorded from there, and every binding it made is undone at the end.

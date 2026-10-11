@@ -1,4 +1,4 @@
-%% library(flowdebug), part: the run drawn over the chart, and its XML.
+%% library(flow/debug), part: the run drawn over the chart, and its XML.
 %%
 %% What both documents say is worked out ONCE, from the calls dbgmatch.pl
 %% placed (flow_dbg_facts/6), so the picture and the XML cannot disagree:
@@ -24,7 +24,7 @@
 %%     flow_dbg_xml(+Graph, +Findings, +Facts, -Xml)
 %%     flow_dbg_out(+Facts, -Run)        the run as flow_debug/4 hands it back
 %%
-%% THE PICTURE, view(flow): the chart as library(flowchart) draws it, under
+%% THE PICTURE, view(flow): the chart as library(flow/chart) draws it, under
 %% a banner that says how the run ended and what was recorded; every box
 %% the window reached drawn heavy, red where its last call failed, and the
 %% boxes it did not reach faded; a head red where its last try did not

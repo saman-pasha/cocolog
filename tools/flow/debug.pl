@@ -22,11 +22,11 @@
 %%
 %%     go(30,R): answer at inference 501; recorded 402 to 501; diverged no
 %%
-%% (the XML's <run> holds every call, event and binding; library/flowdebug.pl
+%% (the XML's <run> holds every call, event and binding; library/flow/debug.pl
 %% and library/flow/dbgdraw.pl say what each is). A run that failed or threw
 %% is no failure of the command: the exit status stays 0.
 
-:- use_module(library(flowdebug)).
+:- use_module(library(flow/debug)).
 :- use_module(library(stream)).
 
 main :-
