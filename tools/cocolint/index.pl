@@ -80,11 +80,22 @@ ix_surface(Rows) :-
             ( ix_tier_dir(Tier, Dir),
               ix_pl_files(Dir, Files),
               member(Rel-Abs, Files),
+              \+ ix_part_file(Abs),
               ix_surface_row(Tier, Dir, Rel, Abs, Row)
             ),
             PlRows),
     ix_module_rows(ModRows),
     append(PlRows, ModRows, Rows).
+
+%% A PART of a library -- a file whose first line reads `%% library(NAME),
+%% part: ...', as library/flow/*.pl do for library(flowchart) -- is loaded
+%% by its library and never by a reader, so it is no surface of its own:
+%% offering its import would send a reader to half a library.
+ix_part_file(Abs) :-
+    read_file_to_codes(Abs, Cs),
+    (   append(Line, [10|_], Cs) -> true ; Line = Cs ),
+    append("%% library(", After, Line),
+    append(_, [0'), 0',, 0' , 0'p, 0'a, 0'r, 0't, 0':|_], After), !.
 
 %% Sorted by name within a directory, which is what os.listdir + sorted gave.
 %% ONE LEVEL OF SUBDIRECTORY TOO: library/reasoning/reason.pl ships, and a
@@ -614,6 +625,11 @@ ix_capability('a user interface', [ui, 'user interface', layout, button, panel, 
 ix_capability('a file as a stream', [stream, 'read a file', 'write a file', bytes, binary,
                                      'line by line', stdin, stdout, 'read term', 'write term', seek],
               [stream], ['self-checking program'], local).
+ix_capability('a program drawn, for a person and for an agent',
+              [flowchart, 'flow chart', 'control flow', 'call graph', diagram, 'byrd box',
+               'where does it fail', 'why does it fail', 'what calls what', determinism,
+               'mode inference', 'draw a predicate', svg],
+              [flowchart], ['tier-2 library'], local).
 
 ix_capabilities(Rows) :-
     findall(json([topic-T, words-W, libraries-L, exemplars-E, arrangement-A]),

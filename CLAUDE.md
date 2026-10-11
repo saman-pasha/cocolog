@@ -57,14 +57,15 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `b027a4b` |
+| `../cicili` | the language cocolog is written in; BUILD time | `8be7385` (2.0.0: `(inline)` and `(weak)` split, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one. The SHA above is an observation, not a pin -- the owner
-moves cicili; check it with `git -C ../cicili log --oneline -1` when a build
-behaves oddly, and correct the row rather than trusting it.
+not an applied one (the owner let one in by name: 2.0.0's split, 2026-10-11).
+The SHA above is an observation, not a pin -- the owner moves cicili; check it
+with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
+correct the row rather than trusting it.
 
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
@@ -87,7 +88,8 @@ make EMBED=0      # the same binary without the embedded store: no ZiguratIP
                   # needed, --embed refuses by name, everything else unchanged
 make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
                   # emitted tables into $ZIGURATIP/MVCCS-cicili/generated/)
-make modules      # every loadable module buildable here; SKIPPED, by name, for the rest
+make modules      # every loadable module buildable here; SKIPPED, by name, for the rest;
+                  # and library(flowchart)'s tables (sh tools/flow/build.sh, git-ignored)
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
@@ -259,8 +261,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 56 `.pl` cases in `pl_names/1`
--- **63 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 57 `.pl` cases in `pl_names/1`
+-- **64 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -503,6 +505,13 @@ much later.
   otherwise C++ mangles them and `use_module` fails with
   `undefined symbol: _Z11coco_m_text…`; the entry and dispatcher sit in
   `(extern-c …)`. Wrapping `(coco-sdk)` in `(extern-c …)` is not the fix.
+* **`(inline)` inlines, `(weak)` is weak** (Cicili 2.0.0, `8be7385`):
+  `(static) (inline)` emits `__attribute__((always_inline)) static inline`,
+  and `(weak)` `__attribute__((weak))` -- what `(inline)` emitted through
+  1.0.1: one definition however many files instantiate it, a call clang never
+  inlines, and with `(static)` no C at all (`weak declaration cannot have
+  internal linkage`). A helper two hot callers share and clang leaves out of
+  line is an `(inline)` (the reader's three, 1.10.7).
 * **The macro tables emit several things that must not drift apart**
   (`*cell-tags*`, `*operators*`, `*builtins*`, `*turn-outcomes*`,
   `*construct-names*`): **add to the table, never to the generated code.** A
@@ -529,8 +538,10 @@ then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
 xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
-and `library/reasoning/`); `library/*.so` are modules built from
-`modules/`.
+flowchart with its parts in `library/flow/`, and `library/reasoning/`);
+`library/*.so` are modules built from `modules/`. A file whose first line
+reads `%% library(NAME), part: ...` is loaded by its library, and the
+cocolint index offers no import of it.
 
 **`modules/` holds the loadable modules**, one directory each -- a
 `.cicili`, a `build.sh` (`sh modules/NAME/build.sh`), output nobody commits
@@ -560,7 +571,10 @@ and `library/reasoning/`); `library/*.so` are modules built from
   `nm -D --defined-only` over `home/lib`, and name every transitive
   dependency on the link line.
 * **`current_predicate/1` answers about the knowledge base**, not modules:
-  probe a module by catching `existence_error` around a real call.
+  probe a module by catching `existence_error` around a real call. It
+  answers for a predicate with a clause or a dynamic declaration, as SWI's
+  does; through 1.10.2 it also answered for any name a call or `clause/2`
+  had merely looked up (each makes a table entry).
 * **Register modules before spawning threads**: the registry is
   process-wide and unguarded.
 * `cocolint`'s index picks `modules/NAME/NAME.cicili` by name; a header
@@ -581,7 +595,23 @@ and `library/reasoning/`); `library/*.so` are modules built from
   that predicate.
 * **Every builtin is deterministic**, so a failure-driven loop written from
   habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
-  `ignore/1` and `\+` are control constructs.
+  `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
+  `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
+  enumerates.
+* **A core builtin raises SWI's error, catchably** (1.10.6): `=..`,
+  `functor/3`, `arg/3` and `is/2` name what is wrong as SWI does
+  (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`), and
+  assert and retract refuse an unbound clause, a head that is not callable,
+  a body with a number or a string where a goal stands, and a clause for a
+  control construct (`permission_error(modify, static_procedure, ','/2)`).
+  A fact under a core builtin's name is KEPT, where SWI refuses it:
+  library(reasoning) stores word classes such as `number(dos)` and reads
+  them with `clause/2` (refusing it stopped `test/translate.pl`).
+  `coco_fail_err`, which ends the query
+  where no `catch/3` sees it, is left for a resource running out and a load
+  that cannot go on; a new builtin raises through `coco_raise`. `format/2`'s
+  `~a`, `~s` and the format itself take text of any length
+  (`coco_text_put`).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,
@@ -931,6 +961,15 @@ and `library/reasoning/`); `library/*.so` are modules built from
   blocking, or a marker never arrives.
 * **A grammar rule's leading terminal is stored in its head**, as SWI's
   `optimise_unify` does.
+* **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
+  `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
+  the top of `lib/syntax.cicili`, emitted as the family every consult uses
+  and as the `_p` family that also builds `read_term/3`'s positions; a
+  position site is `(if ,P ...)`, which the compiler drops from the first.
+  **A change to the parser is a change to the macro**, and a helper both
+  families call is `(inline)`. One parser with a flag at each site cost
+  consulting the translator 1.3 %; the two cost `coco_next_token` nothing
+  and the parser within 0.13 %.
 * **Concurrency shares nothing**: a `library(thread)` thread gets its own
   machine, store, engine and database connection; a channel copies terms in
   canonical text. Mutexes and conditions serialise the WORLD (a file, a tcp
@@ -945,7 +984,11 @@ and `library/reasoning/`); `library/*.so` are modules built from
   (`coco_m_sink_install`); `set_output/1` redirects fd 1 with dup/dup2. The
   stdout sentinel for `format/2` is `(cast size_t -1)`, not 0 (cell 0 is a
   real heap cell). cocolint's X2 trap is lifted by a
-  `use_module(library(stream))` directive.
+  `use_module(library(stream))` directive. **Every byte it reads is
+  counted** (`st_count`/`st_uncount`: bytes, characters, the line, SWI's
+  column), so `read_term/3` answers `term_position` and `subterm_positions`
+  on a pipe too; a seek or a write to an update stream leaves the counters
+  behind `ftell`, and `st_pos_sync` counts again from the start.
 
 ## The document libraries
 
@@ -1236,7 +1279,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 126 files -- `basics/` 11, `library/` 50, `opencv/` 23,
+`tutorials/` holds 127 files -- `basics/` 11, `library/` 51, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a
@@ -1291,6 +1334,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

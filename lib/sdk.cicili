@@ -110,6 +110,12 @@
 ;;; read, 0 nothing but layout and comments, -1 a syntax error in ERR.
 (decl) (func coco_m_read_clause ((coco_engine * e) (const char * src) (size_t * out)
                                  (size_t * names) (char * err) (size_t errlen)) (out int))
+;;; The same, and where each part stood (1.10.7): POS SWI's
+;;; subterm_positions in characters from BASE, START the byte offset in SRC
+;;; where the term begins. A module that calls it needs 1.10.7 or later.
+(decl) (func coco_m_read_clause_pos ((coco_engine * e) (const char * src) (i64 base)
+                                     (size_t * out) (size_t * names) (size_t * pos)
+                                     (size_t * start) (char * err) (size_t errlen)) (out int))
 ;;; An output sink the module owns: asked first by format/3 and
 ;;; with_output_to/2; answers 1 took it, 0 not mine, 2 raised.
 (decl) (func coco_m_sink_install

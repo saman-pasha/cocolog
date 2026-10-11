@@ -58,7 +58,34 @@ main :-
     globals_belong_to_a_store,
     with_output_to_fails,
     list_cell_is_dot_2,
+    data_under_a_builtin_name,
     checks_done.
+
+%% ---- what assert keeps, and what it refuses ---------------------------------
+%%
+%% 1.10.6 made assert and retract refuse what SWI refuses -- test/files/
+%% catch.pl holds that to SWI's answers -- with one difference made on
+%% purpose: a fact may share a CORE BUILTIN's name. The store is a database
+%% of terms as well as a program, and library(reasoning) keeps a lesson's
+%% word classes there, `number(dos)' among them, read back with clause/2; a
+%% call to number/1 is the builtin's and never reaches them. SWI raises
+%% permission_error there, and the first build of 1.10.6 did too, which
+%% stopped test/translate.pl at its lesson. A control construct is refused:
+%% no one keeps data under `,'/2, and `assertz((a, b))' is a slip.
+
+data_under_a_builtin_name :-
+    section('a fact under a builtin\'s name is data; a control construct is refused'),
+    answer(( assertz(number(dos)), clause(number(W1), true) ), W1, R1),
+    check('assertz(number(dos)) keeps it, and clause/2 finds it', R1, dos),
+    yes_no(number(dos), Y2),
+    check('a call to number/1 is still the builtin\'s', Y2, no),
+    answer(retract(number(dos)), yes, R3),
+    check('and retract/1 takes it back', R3, yes),
+    answer(catch(assertz((a, b)), error(E4, _), true), E4, R4),
+    check('a clause for a control construct is refused, by name', R4,
+          permission_error(modify, static_procedure, ','/2)),
+    answer(catch(assertz((foo_body :- 3)), error(E5, _), true), E5, R5),
+    check('and a body with a number where a goal stands', R5, type_error(callable, 3)).
 
 %% ---- a catch that has finished catching ---------------------------------
 
@@ -459,20 +486,22 @@ with_output_to_fails :-
 %% cell, whatever its arity, so the tail of a '.'/1 was read from the cell
 %% past its end -- and that walk found no end: 1.9.1 grew to 13 GB on
 %% `X =.. '.'(f, '.'(a))' before the kernel killed it. Every walk along a
-%% list tests the functor's id now (`coco_is_cons', 1.9.2). A child, because
-%% the refusal is the engine's own (`coco_fail_err'), which ends the query
-%% rather than reaching a catch, and under a CPU ceiling, because what this
-%% guards against is a runaway: under a memory ceiling alone 1.9.1 printed
-%% the same refusal once its array would not grow (at 2 GB, in 1.4 s), and
-%% under one CPU second it is killed and prints nothing. The refusal takes
-%% 12 ms.
+%% list tests the functor's id now (`coco_is_cons', 1.9.2). A child under a
+%% CPU ceiling, because what this guards against is a runaway: under a
+%% memory ceiling alone 1.9.1 printed its refusal once its array would not
+%% grow (at 2 GB, in 1.4 s), and under one CPU second it is killed and
+%% prints nothing. The refusal takes 12 ms. Since 1.10.6 it is SWI's
+%% type_error(list, L), which a catch/3 sees; through 1.10.5 it was the
+%% engine's own `=.. wants a proper non-empty list', which ended the query.
 list_cell_is_dot_2 :-
     section('a list cell is \'.\'/2, not any cell named \'.\''),
     cocolog(C),
     sh_join(['ulimit -t 1; ulimit -v 8000000; ', C,
              ' --local query "X =.. \'.\'(f, \'.\'(a))" 2>&1'], Cmd1),
     shell(Cmd1, T1, _, 30000),
-    yes_no(sub_atom(T1, _, _, _, 'wants a proper non-empty list'), V1),
+    yes_no(sub_atom(T1, _, _, _, 'Type error: `list\' expected'), V1),
     check('=.. refuses a \'.\'/1 in its list at once, rather than walk past it', V1, yes),
+    answer(catch(_ =.. '.'(f, '.'(a)), error(E3, _), true), E3, R3),
+    check('and a catch/3 sees the refusal: the list is not one', R3, type_error(list, '.'(f, '.'(a)))),
     answer(X2 =.. [f, a, b], X2, R2),
     check('and a proper list still builds its term', R2, f(a, b)).

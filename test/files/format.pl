@@ -47,4 +47,15 @@ main :-
     %  ---- errors ----
     ( catch(format("~w ~w", [only_one]), error(E1,_), true) -> true ; E1 = failed ),
     ( var(E1) -> write(no_error) ; write(caught) ), nl,
+
+    %  ---- text of any length: through 1.10.5 `~a', `~s', the format itself
+    %  and term_to_atom/2 reading an atom went through 8192 bytes, and text
+    %  that long raised `~s wants text' ----
+    long(20000, 0'a, L1), atom_codes(A1, L1),
+    format(atom(X1), "~a", [A1]), atom_length(X1, N1), write(a_long(N1)), nl,
+    format(atom(X2), "~s", [L1]), atom_length(X2, N2), write(s_long(N2)), nl,
+    long(9000, 0'f, L3), format(atom(X3), L3, []), atom_length(X3, N3), write(format_long(N3)), nl,
+    long(9000, 0't, L4), atom_codes(A4, L4), term_to_atom(T4, A4), atom_length(T4, N4), write(read_long(N4)), nl,
     true.
+
+long(N, C, L) :- length(L, N), maplist(=(C), L).

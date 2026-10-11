@@ -910,6 +910,22 @@
           (set (nth 2 args) culprit)
           (return (coco_raise e (coco_make m "permission_error" 3 args)))))
 
+  ;;; `domain_error(Domain, Culprit)': the argument has the right type and a
+  ;;; value outside what the builtin takes -- `functor(T, foo, -1)', `T =.. []'.
+  (static)
+  (func coco_domain_error ((coco_engine * e) (const char * domain) (size_t culprit)) (out int)
+        (return (coco_raise e (coco_make2 (-> e m) "domain_error"
+                                      (coco_new_atom (-> e m) domain) culprit))))
+
+  ;;; Name/Arity as a term, for the errors that name a predicate or a
+  ;;; function by its indicator: `permission_error(modify, static_procedure,
+  ;;; atom_length/2)', `type_error(evaluable, foo/2)'.
+  (static)
+  (func coco_indicator ((coco_machine * m) (u64 nid) (u32 n)) (out size_t)
+        (let ((size_t a . #'(coco_new_atom m (coco_atom_name m nid)))
+              (size_t k . #'(coco_new_int m (cast i64 n))))
+          (return (coco_make2 m "/" a k))))
+
   ;;; ---- the continuation --------------------------------------------------
 
   ;;; A CONTINUATION THAT WOULD NOT FIT. The three builders of the
@@ -4032,6 +4048,15 @@
         (let ((i64 r . #'(% a b)))
           (return (? (and (!= r 0) (!= (< r 0) (< b 0))) 1 0))))
 
+  ;;; WHAT IS NOT A FUNCTION IS NAMED BY ITS INDICATOR, as SWI names it:
+  ;;; `X is foo + 1' is type_error(evaluable, foo/0), `X is foo(1, 2)'
+  ;;; type_error(evaluable, foo/2). Through 1.10.5 an atom raised with the
+  ;;; atom alone, and a compound of one argument or more stopped the query
+  ;;; with "unknown arithmetic function", which no catch/3 could see.
+  (static)
+  (func coco_not_evaluable ((coco_engine * e) (u64 nid) (u32 n)) (out int)
+        (return (coco_type_error e "evaluable" (coco_indicator (-> e m) nid n))))
+
   (static)
   (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int)
                          (i64 ai) (double af) (i64 bi) (double bf)
@@ -4127,7 +4152,7 @@
           ((== nid (coco-id m "xor"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
            (set (cof iv) (xor ai bi)) (set (cof isf) 0) (return 1))
-          (#t (return (coco_fail_err e "unknown arithmetic function"))))))
+          (#t (return (coco_not_evaluable e nid 2))))))
 
   ;;; Evaluates an arithmetic expression. Recursive over the DEPTH of the
   ;;; expression, which is bounded by the text that was read -- unlike the
@@ -4152,7 +4177,7 @@
                      (block (set (cof fv) 3.14159265358979323846) (set (cof isf) 1) (return 1)))
                  (if (== nid (coco-id m "e"))
                      (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
-                 (return (coco_type_error e "evaluable" t))))
+                 (return (coco_not_evaluable e nid 0))))
               (#t
                (let ((u64 nid . #'(coco_name_of m t))
                      (u32 n . #'(coco_arity m t)))
@@ -4235,7 +4260,7 @@
                           (if (<= (? s0 f0 (cast double i0)) 0.0)
                               (return (coco_evaluation_error e "undefined")))
                           (set (cof fv) (log (? s0 f0 (cast double i0)))) (set (cof isf) 1) (return 1))
-                         (#t (return (coco_fail_err e "unknown arithmetic function")))))
+                         (#t (return (coco_not_evaluable e nid 1)))))
                    (if (== n 2)
                        (let ((int s0) (i64 i0) (double f0) (int s1) (i64 i1) (double f1)
                              (int rc) (int both))
@@ -4272,7 +4297,7 @@
                                                   i0 (? s0 f0 (cast double i0))
                                                   i1 (? s1 f1 (cast double i1))
                                                   isf iv fv)))
-                     (return (coco_fail_err e "unknown arithmetic function"))))))))
+                     (return (coco_not_evaluable e nid n))))))))
           (return 0)))
 
   (func coco_bi_is ((coco_engine * e) (size_t g)) (out int)
@@ -4336,30 +4361,52 @@
                            (set ar (coco_new_int m 0))))
                   (if (not (coco_unify m (coco_arg m g 1) nm)) (return 0))
                   (return (? (coco_unify m (coco_arg m g 2) ar) 1 0)))))
-          ;; building one: name and arity must both be given
+          ;; BUILDING ONE, with SWI's errors in SWI's order: the name and the
+          ;; arity both bound, a compound never a name, the arity an integer
+          ;; and not below 0, and a name with arguments an atom. Through
+          ;; 1.10.5 an arity below 0 stopped the query where no catch/3 could
+          ;; see it, an unbound name was a type error, and an arity that was
+          ;; bound but not an integer an instantiation error.
           (let ((size_t nt . #'(coco_a e g 1))
                 (size_t at . #'(coco_a e g 2)))
-            (if (not (coco-tag-is INT (nth at (-> m heap))))
+            (if (or (coco-tag-is REF (nth nt (-> m heap))) (coco-tag-is REF (nth at (-> m heap))))
                 (return (coco_instantiation_error e)))
+            (if (coco-tag-is FUN (nth nt (-> m heap)))
+                (return (coco_type_error e "atomic" nt)))
+            (if (not (coco-tag-is INT (nth at (-> m heap))))
+                (return (coco_type_error e "integer" at)))
             (let ((i64 n . #'(coco-signed-payload (nth at (-> m heap)))))
-              (if (< n 0) (return (coco_fail_err e "functor/3 wants an arity of 0 or more")))
+              (if (< n 0) (return (coco_domain_error e "not_less_than_zero" at)))
               (if (== n 0) (return (? (coco_unify m (coco_arg m g 0) nt) 1 0)))
               (if (not (coco-tag-is ATOM (nth nt (-> m heap))))
-                  (return (coco_type_error e "atomic" (coco_a e g 1))))
+                  (return (coco_type_error e "atom" nt)))
               (let ((size_t h . #'(coco_open_struct m (coco_atom_name m (coco_name_of m nt))
                                                  (cast u32 n))))
                 (for ((i64 i . 0)) (< i n) ((++ i)) (coco_new_var m))
                 (return (? (coco_unify m (coco_arg m g 0) h) 1 0)))))))
 
+  ;;; SWI'S ERRORS, IN SWI'S ORDER: the term first -- unbound an
+  ;;; instantiation error, atomic a type error -- then the index: unbound an
+  ;;; instantiation error (SWI enumerates there; every builtin here is
+  ;;; deterministic), bound and not an integer a type error, below 0 a
+  ;;; domain error; 0 and past the arity fail. Through 1.10.5 an unbound or
+  ;;; atomic term FAILED, and an index of any kind but an integer was an
+  ;;; instantiation error.
   (func coco_bi_arg ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t it . #'(coco_a e g 0))
               (size_t t . #'(coco_a e g 1)))
-          (if (not (coco-tag-is INT (nth it (-> m heap))))
+          (if (coco-tag-is REF (nth t (-> m heap)))
               (return (coco_instantiation_error e)))
-          (if (not (coco-tag-is FUN (nth t (-> m heap)))) (return 0))
+          (if (not (coco-tag-is FUN (nth t (-> m heap))))
+              (return (coco_type_error e "compound" t)))
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-tag-is INT (nth it (-> m heap))))
+              (return (coco_type_error e "integer" it)))
           (let ((i64 i . #'(coco-signed-payload (nth it (-> m heap))))
                 (u32 n . #'(coco_arity m t)))
+            (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
             (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
 
@@ -4380,12 +4427,20 @@
                              (set lst (coco_cons m (coco_new_atom m (coco_atom_name m (coco_name_of m t))) lst)))
                     (set lst (coco_cons m (coco_push m c) lst)))
                   (return (? (coco_unify m (coco_arg m g 1) lst) 1 0)))))
-          ;; building from a list
-          (let ((size_t lst . #'(coco_a e g 1))
+          ;; BUILDING FROM A LIST, with SWI's errors in SWI's order: a partial
+          ;; list or an unbound head is an instantiation error, anything else
+          ;; that is not a list a type error naming all of it, [] a domain
+          ;; error, a compound head alone a type error (atomic) and a head
+          ;; with arguments that is not an atom another (atom). Through
+          ;; 1.10.5 each of these stopped the query where no catch/3 could see
+          ;; it, and a compound alone was taken for the term.
+          (let ((size_t lst0 . #'(coco_a e g 1)) (size_t lst)
                 (size_t * items . nil) (size_t n . 0) (size_t cap . 0) (int ok . 1))
+            (set lst lst0)
             (while 1
               (set lst (coco_deref m lst))
               (let ((u64 c . #'(nth lst (-> m heap))))
+                (if (coco-tag-is REF c) (block (set ok 2) break))
                 (if (coco-tag-is ATOM c)
                     (block (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
                                (set ok 0))
@@ -4395,21 +4450,32 @@
                 ;; from past its end
                 (if (not (coco_is_cons m lst)) (block (set ok 0) break))
                 (if (>= n cap)
-                    (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
-                      (set items (cast (size_t *) (realloc items (* ncap (sizeof size_t)))))
-                      (if (== items nil) (block (set ok 0) break))
+                    (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
+                          (size_t * grown . #'(cast (size_t *) (realloc items (* ncap (sizeof size_t))))))
+                      (if (== grown nil) (block (set ok 3) break))
+                      (set items grown)
                       (set cap ncap)))
                 (set (nth n items) (coco_arg m lst 0))
                 (set n (+ n 1))
                 (set lst (coco_arg m lst 1))))
-            (if (or (not ok) (== n 0))
-                (block (free items) (return (coco_fail_err e "=.. wants a proper non-empty list"))))
+            (if (!= ok 1)
+                (block (free items)
+                       (if (== ok 2) (return (coco_instantiation_error e)))
+                       (if (== ok 3) (return (coco_fail_err e "out of memory")))
+                       (return (coco_type_error e "list" lst0))))
+            (if (== n 0)
+                (block (free items) (return (coco_domain_error e "non_empty_list" lst0))))
             (let ((size_t hd . #'(coco_deref m (nth 0 items))) (size_t built))
+              (if (coco-tag-is REF (nth hd (-> m heap)))
+                  (block (free items) (return (coco_instantiation_error e))))
               (if (== n 1)
-                  (set built (coco_push m (nth hd (-> m heap))))
+                  (block
+                   (if (coco-tag-is FUN (nth hd (-> m heap)))
+                       (block (free items) (return (coco_type_error e "atomic" hd))))
+                   (set built (coco_push m (nth hd (-> m heap)))))
                 (block
                  (if (not (coco-tag-is ATOM (nth hd (-> m heap))))
-                     (block (free items) (return (coco_fail_err e "=.. wants an atom at the head"))))
+                     (block (free items) (return (coco_type_error e "atom" hd))))
                  (set built (coco_make m (coco_atom_name m (coco_name_of m hd)) (cast u32 (- n 1))
                                      (+ items 1)))))
               (free items)
@@ -4932,11 +4998,93 @@
   ;;; Only the GOAL marks. `coco_consult' asserts through the same function, and
   ;;; marking there would make every consulted predicate dynamic and put a
   ;;; `:- dynamic' line above all of them in `listing'.
+
+  ;;; WHAT NO CLAUSE CAN DEFINE: a control construct -- true, fail, false,
+  ;;; !, `,', `;', `->', `*->', `\+', call/N, catch/3, throw/1. The loop runs
+  ;;; each before it looks at the store, a clause given to one never runs,
+  ;;; and nobody keeps data under one; `assertz((a, b))' is a slip, and SWI
+  ;;; refuses it: permission_error(modify, static_procedure, Name/Arity).
+  ;;; A CORE BUILTIN'S NAME IS NOT REFUSED, where SWI refuses it: the store
+  ;;; is a database of terms as well as a program, and what is kept there may
+  ;;; share a builtin's name -- library(reasoning) keeps a lesson's word
+  ;;; classes as facts, `number(dos)' among them, and reads them with
+  ;;; clause/2, which a call to number/1 never reaches. Nor is a module's
+  ;;; predicate refused: a module may decline a goal and send it on.
+  (static)
+  (func coco_static_pred ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        (if (not (-> m ids_ready)) (return 0))
+        (if (not (coco_is_construct m nid)) (return 0))
+        (if (== n 0)
+            (return (or (or (== nid (coco-id m "true")) (== nid (coco-id m "fail")))
+                        (or (== nid (coco-id m "false")) (== nid (coco-id m "!"))))))
+        (if (== n 1)
+            (return (or (or (== nid (coco-id m "\\+")) (== nid (coco-id m "throw")))
+                        (== nid (coco-id m "call")))))
+        (if (== n 2)
+            (if (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
+                    (or (== nid (coco-id m "->")) (== nid (coco-id m "*->"))))
+                (return 1)))
+        (if (and (== n 3) (== nid (coco-id m "catch"))) (return 1))
+        ;; call/N is a construct at every arity
+        (return (== nid (coco-id m "call"))))
+
+  ;;; A BODY HOLDS ONLY GOALS: a number or a string where a goal stands --
+  ;;; under `,', `;', `->', `*->' or `\+' as well as alone -- is none, and
+  ;;; SWI refuses the clause with type_error(callable, Body). A variable is
+  ;;; call/1 of whatever it is bound to when the clause runs, as ISO has it.
+  (static)
+  (func coco_body_callable ((coco_machine * m) (size_t b)) (out int)
+        (while 1
+          (set b (coco_deref m b))
+          (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
+          (if (not (coco_is_callable m b)) (return 0))
+          (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
+            (if (and (== n 1) (== nid (coco-id m "\\+")))
+                (block (set b (coco_arg m b 0)) continue))
+            (if (not (and (== n 2) (or (or (== nid (coco-id m ",")) (== nid (coco-id m ";")))
+                                         (or (== nid (coco-id m "->")) (== nid (coco-id m "*->"))))))
+                (return 1))
+            (if (not (coco_body_callable m (coco_arg m b 0))) (return 0))
+            (set b (coco_arg m b 1))))
+        (return 1))
+
+  ;;; WHAT assert AND retract REFUSE, as SWI does: a clause or a head that is
+  ;;; unbound is an instantiation error, a head that is not callable a type
+  ;;; error, a head no clause can define (`coco_static_pred') a permission
+  ;;; error, and -- asserting -- a body that is not goals a type error naming
+  ;;; the whole body. Through 1.10.5 the first three made assert and retract
+  ;;; FAIL, and `assertz((foo :- 3))' stored the clause. Answers 0 when the
+  ;;; clause may go on, else what the raise answered.
+  (static)
+  (func coco_clause_check ((coco_engine * e) (size_t c) (int asserting)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t head) (size_t body . 0) (int rule . 0))
+          (set c (coco_deref m c))
+          (if (coco-tag-is REF (nth c (-> m heap))) (return (coco_instantiation_error e)))
+          (set head c)
+          (if (and (coco-tag-is FUN (nth c (-> m heap))) (== (coco_arity m c) 2))
+              (if (== (coco_name_of m c) (coco-id m ":-"))
+                  (block (set head (coco_deref m (coco_arg m c 0)))
+                         (set body (coco_arg m c 1))
+                         (set rule 1))))
+          (if (coco-tag-is REF (nth head (-> m heap))) (return (coco_instantiation_error e)))
+          (if (not (coco_is_callable m head)) (return (coco_type_error e "callable" head)))
+          (if (coco_static_pred m (coco_name_of m head) (coco_arity m head))
+              (return (coco_permission_error e "modify" "static_procedure"
+                                             (coco_indicator m (coco_name_of m head)
+                                                             (coco_arity m head)))))
+          (if (and asserting rule)
+              (if (not (coco_body_callable m body))
+                  (return (coco_type_error e "callable" (coco_deref m body)))))
+          (return 0)))
+
   (static)
   (func coco_assert_goal ((coco_engine * e) (size_t g) (int at_end)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t c . #'(coco_deref m (coco_arg m g 0)))
-              (size_t head))
+              (size_t head)
+              (int bad . #'(coco_clause_check e c 1)))
+          (if (!= bad 0) (return bad))
           (set head c)
           ;; a rule marks the predicate its HEAD names, not `:-'/2
           (if (and (coco_is_callable m c) (== (coco_arity m c) 2))
@@ -4966,6 +5114,8 @@
         (return (coco_assert_goal e g 1)))
 
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
+        (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
+          (if (!= bad 0) (return bad)))
         (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
           (coco_store_maybe_compact (-> e st) (-> e m))
           (return (? ok 1 0))))

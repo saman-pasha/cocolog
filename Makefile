@@ -203,7 +203,11 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 #   make modules        build every one that CAN be built here
 #   sh modules/tcp/build.sh   just that one
 #
-# Each is skipped, loudly, when what it needs is absent.
+# Each is skipped, loudly, when what it needs is absent. The last line is
+# not a module: library(flowchart)'s tables (library/flow/tables.pl, which
+# C function answers each name and with what modes), read out of lib/,
+# modules/ and library/ by the cocolog just built -- here because this is
+# the step every install runs after `make'.
 modules:
 	@for m in tcp thread process text os curl bigint torch tensorflow sha aes der x509 tls ray numpy opencv clay stream; do \
 	  printf '%-8s ' "$$m"; \
@@ -213,6 +217,12 @@ modules:
 	    echo "SKIPPED (see: sh modules/$$m/build.sh)"; \
 	  fi; \
 	done
+	@printf '%-8s ' flow; \
+	  if sh tools/flow/build.sh >/dev/null 2>&1; then \
+	    echo "built (library/flow/tables.pl)"; \
+	  else \
+	    echo "SKIPPED (see: sh tools/flow/build.sh)"; \
+	  fi
 
 # ---- the schema -------------------------------------------------------------
 # Compiled by ZiguratIP's own parsi program into a ZiguratIP home. This is the

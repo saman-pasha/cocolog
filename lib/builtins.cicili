@@ -1046,6 +1046,53 @@
             (if (not (coco_sb_putc b (nth i digits))) (return 0)))
           (return 1)))
 
+  ;;; THE TEXT OF A TERM, OF ANY LENGTH, put on the end of B: what
+  ;;; `coco_m_text' takes -- a string with no NUL in it, an atom, an integer,
+  ;;; a list of codes 1 to 255 or of one-character atoms -- without its
+  ;;; buffer. Answers 1, or 0 for a term that is not text, B left as it was.
+  ;;; `~a' and `~s' (and the format itself, and term_to_atom/2 reading an
+  ;;; atom) went through a buffer of 8192 bytes, and text that long raised
+  ;;; `format/2: ~s wants text' -- naming the one thing that was not wrong.
+  ;;; library(xml) writes its whole document with one `~s', so every
+  ;;; document of 8 KB or more failed the same way (fixed in 1.10.6).
+  (static)
+  (func coco_text_put ((coco_engine * e) (size_t t) (coco_strbuf * b)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t keep . #'(-> b len)) (i64 iv . 0)
+              (const char * sp . nil) (size_t sn . 0))
+          (set t (coco_deref m t))
+          (if (coco_string_text m t (aof sp) (aof sn))
+              (block
+               (for ((size_t i . 0)) (< i sn) ((++ i))
+                    (if (== (nth i sp) (cast char 0)) (return 0)))
+               (return (coco_sb_put_len b sp sn))))
+          (if (coco_m_is_atom e t)
+              (return (coco_sb_put b (coco_atom_name m (coco_name_of m t)))))
+          (if (coco_m_int e t (aof iv))
+              (return (coco_sb_put_i64 b iv)))
+          ;; a list of character codes -- what "abc" reads as -- or, under
+          ;; `double_quotes = chars', of one-character atoms
+          (while 1
+            (if (coco_m_is_atom e t)
+                (block
+                 (if (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")) (return 1))
+                 break))
+            (if (not (coco_is_cons m t)) break)
+            (let ((size_t h . #'(coco_deref m (coco_arg m t 0))) (i64 c . 0))
+              (if (not (coco_m_int e h (aof c)))
+                  (block
+                   (if (not (coco_m_is_atom e h)) break)
+                   (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
+                     (if (!= (strlen cs) 1) break)
+                     (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))
+              (if (or (< c 1) (> c 255)) break)
+              (if (not (coco_sb_putc b (cast char c))) break))
+            (set t (coco_deref m (coco_arg m t 1))))
+          ;; not text: whatever the walk put on is taken off again
+          (set (-> b len) keep)
+          (if (!= (-> b s) nil) (set (nth keep (-> b s)) (cast char 0)))
+          (return 0)))
+
   ;;; Builds the whole of one format into B. Answers 1, or 0 with ERR set to a
   ;;; message the caller raises -- so that every way of going wrong is reported
   ;;; the same way whichever of the three arities was called.
@@ -1107,14 +1154,14 @@
                 (if (or (or (== d 119) (== d 113)) (== d 112))
                     (block (coco_write_term m b a (? (== d 113) 1 0) 0) continue))
 
-                ;; 97 `~a', 115 `~s' -- an atom, or a list of codes
+                ;; 97 `~a', 115 `~s' -- an atom, or a list of codes, of any
+                ;; length (`coco_text_put')
                 (if (or (== d 97) (== d 115))
-                    (let ((char buf [8192]))
-                      (if (not (coco_m_text e a buf (sizeof buf)))
+                    (block
+                      (if (not (coco_text_put e a b))
                           (block (snprintf err errlen
                                            "format/2: ~~%c wants text" d)
                                  (return 0)))
-                      (coco_sb_put b buf)
                       continue))
 
                 ;; 99 `~c' -- a code, NUM times
@@ -1260,18 +1307,22 @@
   (static)
   (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
         (out int)
-        (let ((char f [8192]) (char err [192])
+        (let ((coco_strbuf fb) (char err [192])
               (coco_strbuf b) (size_t * items . nil) (size_t n . 0)
               (size_t one [1]) (int owned . 0) (int ok . 0))
 
-          ;; the format itself is text: an atom, or the code list "..." reads as
-          (if (not (coco_m_text e fmt f (sizeof f)))
-              (return (coco_m_type_error e "text" fmt)))
+          ;; the format itself is text: an atom, or the code list "..." reads
+          ;; as -- of any length, as its arguments are
+          (coco_sb_init (aof fb))
+          (if (not (coco_text_put e fmt (aof fb)))
+              (block (coco_sb_free (aof fb))
+                     (return (coco_m_type_error e "text" fmt))))
 
           (set owned (coco_fmt_args e argt (aof items) (aof n) one))
           (coco_sb_init (aof b))
           (set (nth 0 err) (cast char 0))
-          (set ok (coco_fmt_build e f items n (aof b) err (sizeof err)))
+          (set ok (coco_fmt_build e (? (== ($ fb s) nil) "" ($ fb s)) items n (aof b) err (sizeof err)))
+          (coco_sb_free (aof fb))
           (if owned (free items))
 
           ;; WHAT WAS FORMATTED BEFORE THE ERROR STILL COMES OUT, when the
@@ -1633,9 +1684,10 @@
   (func coco_b_upcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 1)))
   (func coco_b_downcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 0)))
 
-  ;;; Both directions: a term written out, or an atom read back in.
+  ;;; Both directions: a term written out, or an atom read back in -- of any
+  ;;; length (`coco_text_put'; it was a buffer of 8192 bytes).
   (func coco_b_term_to_atom ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)) (char buf [8192]))
+        (let ((coco_machine * m . #'(coco_m_machine e)))
           (if (not (coco_m_is_var e (coco_m_arg e g 0)))
               (let ((coco_strbuf b) (int rc))
                 (coco_sb_init (aof b))
@@ -1644,11 +1696,17 @@
                                          (? (== ($ b s) nil) "" ($ b s))))
                 (coco_sb_free (aof b))
                 (return rc)))
-          (if (not (coco_m_text e (coco_m_arg e g 1) buf (sizeof buf)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
-          (let ((size_t t . 0))
-            (if (not (coco_read_term_from m buf (aof t)))
-                (return (coco_m_error e "term_to_atom/2 cannot read" buf)))
+          (let ((coco_strbuf tb) (size_t t . 0) (int rc))
+            (coco_sb_init (aof tb))
+            (if (not (coco_text_put e (coco_m_arg e g 1) (aof tb)))
+                (block (coco_sb_free (aof tb))
+                       (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
+            (if (not (coco_read_term_from m (? (== ($ tb s) nil) "" ($ tb s)) (aof t)))
+                (block
+                 (set rc (coco_m_error e "term_to_atom/2 cannot read" (? (== ($ tb s) nil) "" ($ tb s))))
+                 (coco_sb_free (aof tb))
+                 (return rc)))
+            (coco_sb_free (aof tb))
             (return (coco_m_unify e (coco_m_arg e g 0) t)))))
 
   ;;; One substring, at a known place and length. The enumeration is in the
@@ -1834,14 +1892,19 @@
           (coco_sb_free (aof b))
           (return 1)))
 
-  ;;; `write_term(Term, Options)'. `quoted(true)' and `ignore_ops(true)' are
-  ;;; the two the writer actually has; anything else in the list is ignored
-  ;;; rather than refused, because an option a writer does not implement is
-  ;;; not a reason to fail a program.
+  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)' and
+  ;;; `variable_names(['X'=V, ...])' are the ones the writer has -- the last
+  ;;; since 1.10.6: each named variable still unbound is written as its name,
+  ;;; where through 1.10.5 the option was read past and every variable came
+  ;;; out `_G' and a number. Anything else in the list is ignored rather
+  ;;; than refused, because an option a writer does not implement is not a
+  ;;; reason to fail a program.
   (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
-              (int quoted . 0) (int ignore_ops . 0) (coco_strbuf b))
+              (int quoted . 0) (int ignore_ops . 0) (coco_strbuf b)
+              (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
+              (size_t * cells . nil) (u64 * names . nil))
           (if (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n))
               (for ((size_t i . 0)) (< i n) ((++ i))
                 (let ((size_t o . #'(coco_deref m (nth i v))))
@@ -1851,10 +1914,32 @@
                         (if (and (!= val nil) (== 0 (strcmp val "true")))
                             (block
                              (if (== 0 (strcmp nm "quoted")) (set quoted 1))
-                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1)))))))))
+                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))))
+                        (if (and (== 0 (strcmp nm "variable_names")) (== cells nil))
+                            (if (coco_m_list_array e (coco_arg m o 0) (aof nv) (aof nn))
+                                (block
+                                 (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
+                                 (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
+                                 (if (and (!= cells nil) (!= names nil))
+                                     (for ((size_t j . 0)) (< j nn) ((++ j))
+                                       (let ((size_t p . #'(coco_deref m (nth j nv))))
+                                         (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
+                                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
+                                             (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
+                                                   (size_t vc . #'(coco_deref m (coco_arg m p 1))))
+                                               (if (and (coco_m_is_atom e nmc)
+                                                        (coco-tag-is REF (nth vc (-> m heap))))
+                                                   (block (set (nth k cells) vc)
+                                                          (set (nth k names) (coco_name_of m nmc))
+                                                          (set k (+ k 1)))))))))
+                                 (free nv)))))))))
           (free v)
           (coco_sb_init (aof b))
+          (if (and (!= cells nil) (!= names nil))
+              (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
           (coco_write_term m (aof b) (coco_m_arg e g 0) quoted ignore_ops)
+          (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
+          (free cells) (free names)
           (if (!= ($ b s) nil) (fputs ($ b s) stdout))
           (coco_sb_free (aof b))
           (return 1)))
@@ -1950,15 +2035,21 @@
                     (block (coco_m_undo e mark) (return 0)))
                 (return 1))))))
 
-  ;;; Every predicate the store knows, as Name/Arity. The library's own
-  ;;; predicates are left out: `current_predicate/1' is about the program.
+  ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
+  ;;; one declared dynamic (an assert declares it too), as SWI counts them.
+  ;;; The table holds more -- a call, or `clause/2', makes an entry for a
+  ;;; name it looks up, and a call to it still raises `existence_error' --
+  ;;; and those are left out, as are the library's own predicates:
+  ;;; `current_predicate/1' is about the program.
   (func coco_b_predicates ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
           (coco_store_warm st)
           (for ((size_t i . 0)) (< i ($ (cof st) npreds)) ((++ i))
-            (if (not ($ (nth i ($ (cof st) preds)) library))
+            (if (and (not ($ (nth i ($ (cof st) preds)) library))
+                     (or (> ($ (nth i ($ (cof st) preds)) nclauses) 0)
+                         ($ (nth i ($ (cof st) preds)) dynamic)))
                 (block
                  (if (>= n cap)
                      (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))

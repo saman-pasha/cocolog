@@ -64,7 +64,11 @@
 ;;; `read_term/3' reads through `coco_m_read_clause', the engine's reader
 ;;; with the variable names it met, so `variable_names/1', `variables/1'
 ;;; and `singletons/1' are what the file said; a clause that will not read
-;;; is `error(syntax_error(Message), read_term/3)', ISO's shape.
+;;; is `error(syntax_error(Message), read_term/3)', ISO's shape. SWI's
+;;; `subterm_positions/1' and `term_position/1' are the reader's too
+;;; (`coco_m_read_clause_pos', 1.10.7): positions in characters from the
+;;; start of the stream, and '$stream_position'(Char, Line, LinePos, Byte)
+;;; where the term begins, counted by every byte this module reads.
 ;;;
 ;;; A CODE IS A BYTE, as `atom_codes/2' counts one: `get_code/2' reads one
 ;;; byte of a text stream and `put_code/2' writes one, and a code past 255
@@ -159,7 +163,7 @@
 ;;;   put_byte(+Byte)
 ;;;   read(+Stream, -Term)
 ;;;   read(-Term)
-;;;   read_term(+Stream, -Term, +Options)              variable_names variables singletons
+;;;   read_term(+Stream, -Term, +Options)              variable_names variables singletons subterm_positions term_position
 ;;;   read_term(-Term, +Options)
 ;;;   write(+Stream, +Term)
 ;;;   writeq(+Stream, +Term)
@@ -210,7 +214,8 @@
     ("$stream_put_code"      3 st_p_put_code)
     ("$stream_read_line"     3 st_p_read_line)
     ("$stream_write_text"    3 st_p_write_text)
-    ("$stream_read_term"     6 st_p_read_term)))
+    ("$stream_read_term"     6 st_p_read_term)
+    ("$stream_read_term_pos" 11 st_p_read_term_pos)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The Coco half: the handle, the names, the formatted writers
@@ -360,22 +365,27 @@
            "read(T) :- current_input(S), read_term(S, T, [])."
            "read(S, T) :- read_term(S, T, [])."
            "read_term(T, O) :- current_input(S), read_term(S, T, O)."
-           "read_term(S, T, O) :- stream_slot(S, N), '$stream_read_term'(S, N, K, T0, Ns0, Msg), stream_read_result(K, T0, Ns0, Msg, T1, Ns), stream_read_options(O, T1, Ns), T = T1."
+           ;; every byte is counted, and the positions are built only when an
+           ;; option asks for them; end_of_file spans its name from the end
+           "read_term(S, T, O) :- stream_slot(S, N), ( stream_wants_pos(O) -> '$stream_read_term_pos'(S, N, K, T0, Ns0, Msg, P, C, L, LP, B), W = '$stream_position'(C, L, LP, B), ( K == end_of_file -> E is C + 11, P = C-E ; true ) ; '$stream_read_term'(S, N, K, T0, Ns0, Msg) ), stream_read_result(K, T0, Ns0, Msg, T1, Ns), stream_read_options(O, r(T1, Ns, P, W)), T = T1."
+           "stream_wants_pos(Os) :- nonvar(Os), Os = [O|Rest], ( nonvar(O), ( O = term_position(_) ; O = subterm_positions(_) ) -> true ; stream_wants_pos(Rest) )."
            "stream_read_result(term, T, Ns, _, T, Ns) :- !."
            "stream_read_result(end_of_file, _, _, _, end_of_file, []) :- !."
            "stream_read_result(syntax_error, _, _, Msg, _, _) :- throw(error(syntax_error(Msg), read_term/3))."
-           "stream_read_options(Os, _, _) :- var(Os), !, throw(error(instantiation_error, read_term/3))."
-           "stream_read_options([], _, _) :- !."
-           "stream_read_options([O|Os], T, Ns) :- !, stream_read_option(O, T, Ns), stream_read_options(Os, T, Ns)."
-           "stream_read_options(Os, _, _) :- throw(error(type_error(list, Os), read_term/3))."
-           "stream_read_option(O, _, _) :- var(O), !, throw(error(instantiation_error, read_term/3))."
-           "stream_read_option(variable_names(V), _, Ns) :- !, V = Ns."
-           "stream_read_option(variables(V), T, _) :- !, term_variables(T, V)."
-           "stream_read_option(singletons(V), T, Ns) :- !, stream_singletons(Ns, T, V)."
+           "stream_read_options(Os, _) :- var(Os), !, throw(error(instantiation_error, read_term/3))."
+           "stream_read_options([], _) :- !."
+           "stream_read_options([O|Os], R) :- !, stream_read_option(O, R), stream_read_options(Os, R)."
+           "stream_read_options(Os, _) :- throw(error(type_error(list, Os), read_term/3))."
+           "stream_read_option(O, _) :- var(O), !, throw(error(instantiation_error, read_term/3))."
+           "stream_read_option(variable_names(V), r(_, Ns, _, _)) :- !, V = Ns."
+           "stream_read_option(variables(V), r(T, _, _, _)) :- !, term_variables(T, V)."
+           "stream_read_option(singletons(V), r(T, Ns, _, _)) :- !, stream_singletons(Ns, T, V)."
+           "stream_read_option(subterm_positions(V), r(_, _, P, _)) :- !, V = P."
+           "stream_read_option(term_position(V), r(_, _, _, W)) :- !, V = W."
            ;; an option SWI or a later ISO revision knows and this reader does
-           ;; not (syntax_errors, term_position, ...) is accepted and has no
+           ;; not (syntax_errors, comments, ...) is accepted and has no
            ;; effect, so a program written for SWI reads the same terms
-           "stream_read_option(_, _, _)."
+           "stream_read_option(_, _)."
            "stream_singletons([], _, [])."
            "stream_singletons([Name = V|Ns], T, Out) :- stream_occurs(T, V, 0, K), atom_codes(Name, [C0|_]), ( K =:= 1, ( C0 < 95 ; C0 > 95 ) -> Out = [Name = V|Rest] ; Out = Rest ), stream_singletons(Ns, T, Rest)."
            "stream_occurs(X, V, K0, K) :- var(X), !, ( X == V -> K is K0 + 1 ; K = K0 )."
@@ -426,6 +436,22 @@
   (static) (var char * st_alias [256])      ; open(..., [alias(A)]), or null
   (static) (var int st_ready . 0)
 
+  ;;; WHERE A READ STANDS, as SWI counts it for read_term/3's positions
+  ;;; (1.10.7): the bytes and the characters taken, the line from 1 and
+  ;;; the column from 0 -- a tab to the next multiple of eight, a CR back
+  ;;; to 0, a backspace one back. Every byte `st_getc' takes is counted and
+  ;;; every one `st_ungetc' gives back uncounted, so a pipe has a position
+  ;;; too; the column before each of the last eight bytes is kept, which is
+  ;;; as deep as the pushback goes. A seek, or a write to an update stream,
+  ;;; moves the file under the counters, and `st_pos_sync' counts again
+  ;;; from the start when they disagree with it.
+  (static) (var i64 st_nb [256])
+  (static) (var i64 st_nc [256])
+  (static) (var i64 st_nl [256])
+  (static) (var i64 st_lp [256])
+  (static) (var i64 st_hp [256][8])
+  (static) (var int st_hi [256])
+
   ;;; THE CURRENT INPUT AND OUTPUT. Input is only the module's: get_char/1,
   ;;; read/1 and the rest read slot `st_cur_in'. Output is not only the
   ;;; module's, because write/1, format/2 and nl/0 are the ENGINE's and write
@@ -440,11 +466,20 @@
   (static) (var FILE * st_term . nil)
 
   (static)
+  (func st_pos_reset ((int s)) (out void)
+        (set (nth s st_nb) 0)
+        (set (nth s st_nc) 0)
+        (set (nth s st_nl) 1)
+        (set (nth s st_lp) 0)
+        (set (nth s st_hi) 0))
+
+  (static)
   (func st_setup () (out void)
         (if st_ready (return))
         (set (nth 0 st_file) stdin)  (set (nth 0 st_kind) 1) (set (nth 0 st_mode) 1)
         (set (nth 1 st_file) stdout) (set (nth 1 st_kind) 1) (set (nth 1 st_mode) 2)
         (set (nth 2 st_file) stderr) (set (nth 2 st_kind) 1) (set (nth 2 st_mode) 2)
+        (st_pos_reset 0) (st_pos_reset 1) (st_pos_reset 2)
         (set st_ready 1))
 
   ;;; The FILE a write to slot S goes to: the real terminal for user_output
@@ -534,21 +569,81 @@
         (if (>= (nth s st_mode) 2) (return 1))
         (return (coco_m_permission_error e "output" "stream" (coco_m_arg e g (cast size_t i)))))
 
-  ;;; ---- bytes in, through the pushback ----
+  ;;; ---- bytes in, through the pushback, counted ----
+  ;;; One byte past the position, and back. A continuation byte (10xxxxxx)
+  ;;; is the same character and the same column.
+  (static)
+  (func st_count ((int s) (int c)) (out void)
+        (set (nth s st_nb) (+ (nth s st_nb) 1))
+        (set (nth (nth s st_hi) (nth s st_hp)) (nth s st_lp))
+        (set (nth s st_hi) (bitand (+ (nth s st_hi) 1) 7))
+        (if (== (bitand c 192) 128) (return))
+        (set (nth s st_nc) (+ (nth s st_nc) 1))
+        (cond ((== c 10) (set (nth s st_nl) (+ (nth s st_nl) 1)) (set (nth s st_lp) 0))
+              ((== c 13) (set (nth s st_lp) 0))
+              ((== c 9) (set (nth s st_lp) (+ (bitor (nth s st_lp) 7) 1)))
+              ((== c 8) (if (> (nth s st_lp) 0) (set (nth s st_lp) (- (nth s st_lp) 1))))
+              (#t (set (nth s st_lp) (+ (nth s st_lp) 1)))))
+
+  (static)
+  (func st_uncount ((int s) (int c)) (out void)
+        (set (nth s st_nb) (- (nth s st_nb) 1))
+        (set (nth s st_hi) (bitand (+ (nth s st_hi) 7) 7))
+        (set (nth s st_lp) (nth (nth s st_hi) (nth s st_hp)))
+        (if (== (bitand c 192) 128) (return))
+        (set (nth s st_nc) (- (nth s st_nc) 1))
+        (if (== c 10) (set (nth s st_nl) (- (nth s st_nl) 1))))
+
   (static)
   (func st_getc ((int s)) (out int)
-        (if (> (nth s st_npush) 0)
-            (block
-              (set (nth s st_npush) (- (nth s st_npush) 1))
-              (return (cast int (nth (nth s st_npush) (nth s st_push))))))
-        (return (fgetc (nth s st_file))))
+        (let ((int c . 0))
+          (if (> (nth s st_npush) 0)
+              (block
+                (set (nth s st_npush) (- (nth s st_npush) 1))
+                (set c (cast int (nth (nth s st_npush) (nth s st_push)))))
+            (set c (fgetc (nth s st_file))))
+          (if (>= c 0) (st_count s c))
+          (return c)))
 
   (static)
   (func st_ungetc ((int s) (int c)) (out void)
         (if (< c 0) (return))
         (if (>= (nth s st_npush) 8) (return))
+        (st_uncount s c)
         (set (nth (nth s st_npush) (nth s st_push)) (cast u8 c))
         (set (nth s st_npush) (+ (nth s st_npush) 1)))
+
+  ;;; The counters agree with the file, or are counted again from its start
+  ;;; up to where the stream stands -- which a seek or a write moved. A
+  ;;; stream with no position (a pipe, a terminal) has only the counters.
+  (static)
+  (func st_pos_sync ((int s)) (out void)
+        (let ((long here . #'(ftell (nth s st_file))) (i64 at . 0))
+          (if (< here 0) (return))
+          (set at (- (cast i64 here) (cast i64 (nth s st_npush))))
+          (if (== at (nth s st_nb)) (return))
+          (st_pos_reset s)
+          (if (!= (fseek (nth s st_file) 0 SEEK_SET) 0) (return))
+          (while (< (nth s st_nb) at)
+            (let ((int c . #'(fgetc (nth s st_file))))
+              (if (< c 0) break)
+              (st_count s c)))
+          (fseek (nth s st_file) here SEEK_SET)))
+
+  ;;; Characters, line and column after N more bytes of BUF, by the rules
+  ;;; `st_count' keeps.
+  (static)
+  (func st_pos_walk ((const u8 * buf) (size_t n) (i64 * nc) (i64 * nl) (i64 * lp)) (out void)
+        (for ((size_t i . 0)) (< i n) ((++ i))
+             (let ((int c . #'(cast int (nth i buf))))
+               (if (!= (bitand c 192) 128)
+                   (block
+                     (set (cof nc) (+ (cof nc) 1))
+                     (cond ((== c 10) (set (cof nl) (+ (cof nl) 1)) (set (cof lp) 0))
+                           ((== c 13) (set (cof lp) 0))
+                           ((== c 9) (set (cof lp) (+ (bitor (cof lp) 7) 1)))
+                           ((== c 8) (if (> (cof lp) 0) (set (cof lp) (- (cof lp) 1))))
+                           (#t (set (cof lp) (+ (cof lp) 1)))))))))
 
   ;;; How many bytes a UTF-8 character has, from its first byte.
   (static)
@@ -619,6 +714,7 @@
           (set (nth s st_mode) (cast int mode))
           (set (nth s st_path) (strdup path))
           (set (nth s st_npush) 0)
+          (st_pos_reset s)
           (return (coco_m_unify_int e (coco_m_arg e g 3) (cast i64 s)))))
 
   (func st_p_close ((coco_engine * e) (size_t g)) (out int)
@@ -819,6 +915,8 @@
             (if (not (st_grow (aof buf) (aof cap) (+ n 65536)))
                 (block (free buf) (return (coco_m_error e "stream_read_all" "no memory"))))
             (let ((size_t got . #'(fread (+ buf n) 1 65536 (nth s st_file))))
+              (for ((size_t i . 0)) (< i got) ((++ i))
+                   (st_count s (cast int (nth (+ n i) buf))))
               (set n (+ n got))
               (if (< got 65536) break)))
           (let ((size_t lst . #'(st_codes e buf n)))
@@ -1045,14 +1143,38 @@
   ;;; One clause: '$stream_read_term'(S, N, Kind, T, Names, Message), Kind
   ;;; term, end_of_file or syntax_error -- flat, because a module builds no
   ;;; compound; the Coco half throws syntax_error(Message) in ISO's shape.
-  (func st_p_read_term ((coco_engine * e) (size_t g)) (out int)
+  ;;; '$stream_read_term_pos'/11 (WANT) adds Pos, SWI's subterm_positions
+  ;;; as the engine's reader builds them, and Char, Line, LinePos and Byte,
+  ;;; where the term begins -- at the end of the file, where that is --
+  ;;; which the Coco half makes '$stream_position'/4.
+
+  ;;; Where the stream stands now, into arguments 7 to 10.
+  (static)
+  (func st_unify_where ((coco_engine * e) (size_t g) (i64 c) (i64 l) (i64 p) (i64 b)) (out int)
+        (if (not (coco_m_unify_int e (coco_m_arg e g 7) c)) (return 0))
+        (if (not (coco_m_unify_int e (coco_m_arg e g 8) l)) (return 0))
+        (if (not (coco_m_unify_int e (coco_m_arg e g 9) p)) (return 0))
+        (return (coco_m_unify_int e (coco_m_arg e g 10) b)))
+
+  (static)
+  (func st_read_term ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((int s . -1) (u8 * buf . nil) (size_t n . 0) (int rc . 0)
-              (size_t t . 0) (size_t names . 0) (char err [192]))
+              (size_t t . 0) (size_t names . 0) (size_t pos . 0) (size_t start . 0)
+              (i64 b0 . 0) (i64 c0 . 0) (i64 l0 . 0) (i64 p0 . 0) (char err [192]))
           (let ((int rc48 . #'(st_slot e g 1 (aof s)))) (if (!= rc48 1) (return rc48)))
           (let ((int rc49 . #'(st_need e g 0 s 1 "input"))) (if (!= rc49 1) (return rc49)))
           (let ((int rc50 . #'(st_readable e g 0 s))) (if (!= rc50 1) (return rc50)))
+          ;; where the text about to be read begins, layout and all
+          (if want
+              (block (st_pos_sync s)
+                     (set b0 (nth s st_nb)) (set c0 (nth s st_nc))
+                     (set l0 (nth s st_nl)) (set p0 (nth s st_lp))))
           (set rc (st_read_clause s (aof buf) (aof n)))
-          (if (== rc 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          (if (== rc 0)
+              (block
+                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")) (return 0))
+                (if (not want) (return 1))
+                (return (st_unify_where e g (nth s st_nc) (nth s st_nl) (nth s st_lp) (nth s st_nb)))))
           ;; the scanner grows its buffer to two past every byte it keeps, so
           ;; the NUL that makes it a C string always has its slot
           (set (nth n buf) (cast u8 0))
@@ -1061,16 +1183,33 @@
                 (free buf)
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
                 (return (coco_m_unify_atom e (coco_m_arg e g 5) "end of file in clause"))))
-          (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err)))
+          (if want
+              (set rc (coco_m_read_clause_pos e (cast (char *) buf) c0 (aof t) (aof names)
+                                              (aof pos) (aof start) err (sizeof err)))
+            (set rc (coco_m_read_clause e (cast (char *) buf) (aof t) (aof names) err (sizeof err))))
+          (if (and want (== rc 1)) (st_pos_walk buf start (aof c0) (aof l0) (aof p0)))
           (free buf)
-          (if (== rc 0) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")))
+          (if (== rc 0)
+              (block
+                (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file")) (return 0))
+                (if (not want) (return 1))
+                (return (st_unify_where e g (nth s st_nc) (nth s st_nl) (nth s st_lp) (nth s st_nb)))))
           (if (== rc -1)
               (block
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "syntax_error")) (return 0))
                 (return (coco_m_unify_atom e (coco_m_arg e g 5) err))))
           (if (not (coco_m_unify_atom e (coco_m_arg e g 2) "term")) (return 0))
           (if (not (coco_m_unify e (coco_m_arg e g 3) t)) (return 0))
-          (return (coco_m_unify e (coco_m_arg e g 4) names))))
+          (if (not (coco_m_unify e (coco_m_arg e g 4) names)) (return 0))
+          (if (not want) (return 1))
+          (if (not (coco_m_unify e (coco_m_arg e g 6) pos)) (return 0))
+          (return (st_unify_where e g c0 l0 p0 (+ b0 (cast i64 start))))))
+
+  (func st_p_read_term ((coco_engine * e) (size_t g)) (out int)
+        (return (st_read_term e g 0)))
+
+  (func st_p_read_term_pos ((coco_engine * e) (size_t g)) (out int)
+        (return (st_read_term e g 1)))
 
   ;;; ---- codes, as cocolog counts them: one per byte ----
   ;;;

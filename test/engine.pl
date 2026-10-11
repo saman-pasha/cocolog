@@ -657,8 +657,9 @@ in_place(D) :-
     sh_join(['COCOLOG_INPLACE=0 ', C, ' -s ', F9, ' 2>&1; echo "exit $?"'], OffCmd), proc_run(OffCmd, 120000, OffOut, _),
     atom_codes(A9, OnOut), atom_codes(B9, OffOut),
     check('a program answers, raises, stops and counts the same in place and not', A9, B9),
-    atom_codes(W9, "[1-small,3-30,4-40]\n[f(1,2)-yes(1,2),f(1,3)-no]\n[abc-3,abcd-4]\n[3-1.5,4.0-2.0,5-2.5]\n[k([a,b],z)]\n[instantiation_error,instantiation_error,type_error(evaluable,foo)]\n"),
+    atom_codes(W9, "[1-small,3-30,4-40]\n[f(1,2)-yes(1,2),f(1,3)-no]\n[abc-3,abcd-4]\n[3-1.5,4.0-2.0,5-2.5]\n[k([a,b],z)]\n[instantiation_error,instantiation_error,type_error(evaluable,foo/0)]\n"),
     ( atom_concat(W9, _, A9) -> T9 = yes ; T9 = A9 ),
+    %% but for what is not a function, named by its indicator since 1.10.6
     check('...and its answers are 1.9.4\'s', T9, yes),
     W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
     ( atom_concat(_, W9e, A9) -> T9e = yes ; T9e = A9 ),
@@ -800,8 +801,9 @@ fused(D) :-
     sh_join(['COCOLOG_FUSE=0 ', C, ' -s ', F7, ' 2>&1; echo "exit $?"'], OffCmd), proc_run(OffCmd, 120000, OffOut, _),
     atom_codes(A7, OnOut), atom_codes(B7, OffOut),
     check('a program answers, raises, stops and counts the same fused and not', A7, B7),
-    atom_codes(W7, "[1-3,3-4,4-3]\n[2-3-5,2.5-1-3.5]\n[4]\n42\n[1000000,9,49]\n[instantiation_error,type_error(evaluable,foo),instantiation_error,type_error(evaluable,a)]\n"),
+    atom_codes(W7, "[1-3,3-4,4-3]\n[2-3-5,2.5-1-3.5]\n[4]\n42\n[1000000,9,49]\n[instantiation_error,type_error(evaluable,foo/0),instantiation_error,type_error(evaluable,a/0)]\n"),
     ( atom_concat(W7, _, A7) -> T7 = yes ; T7 = A7 ),
+    %% but for what is not a function, named by its indicator since 1.10.6
     check('...and its answers are 1.9.5\'s', T7, yes),
     W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nexit 2\n',
     ( atom_concat(_, W7e, A7) -> T7e = yes ; T7e = A7 ),
