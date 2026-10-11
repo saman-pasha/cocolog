@@ -87,7 +87,8 @@ make EMBED=0      # the same binary without the embedded store: no ZiguratIP
                   # needed, --embed refuses by name, everything else unchanged
 make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
                   # emitted tables into $ZIGURATIP/MVCCS-cicili/generated/)
-make modules      # every loadable module buildable here; SKIPPED, by name, for the rest
+make modules      # every loadable module buildable here; SKIPPED, by name, for the rest;
+                  # and library(flowchart)'s tables (sh tools/flow/build.sh, git-ignored)
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
@@ -254,8 +255,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 56 `.pl` cases in `pl_names/1`
--- **63 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 57 `.pl` cases in `pl_names/1`
+-- **64 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -524,8 +525,10 @@ then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
 xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
-and `library/reasoning/`); `library/*.so` are modules built from
-`modules/`.
+flowchart with its parts in `library/flow/`, and `library/reasoning/`);
+`library/*.so` are modules built from `modules/`. A file whose first line
+reads `%% library(NAME), part: ...` is loaded by its library, and the
+cocolint index offers no import of it.
 
 **`modules/` holds the loadable modules**, one directory each -- a
 `.cicili`, a `build.sh` (`sh modules/NAME/build.sh`), output nobody commits
@@ -1130,7 +1133,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 126 files -- `basics/` 11, `library/` 50, `opencv/` 23,
+`tutorials/` holds 127 files -- `basics/` 11, `library/` 51, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a
@@ -1185,6 +1188,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

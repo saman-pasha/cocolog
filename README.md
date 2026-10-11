@@ -99,8 +99,10 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        term as a document, and back), ca.pl (a certificate
                        authority as rules), tensor_expr.pl (tensor
                        expressions over the torch module: a DCG from an
-                       expression to the goals it stands for), and the
-                       .so's that `make modules' builds
+                       expression to the goals it stands for), flowchart.pl
+                       and its parts in flow/ (a predicate drawn from the
+                       query to C, as an SVG and an XML), and the .so's
+                       and flow/tables.pl that `make modules' builds
 modules/               the LOADABLE modules, one directory each -- tcp,
                        thread, curl, bigint, torch, tensorflow, ray, clay (a
                        user interface as a term, laid out by Clay), stream
@@ -444,6 +446,7 @@ eleven on the library path.
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
+| [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flowchart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the XML an agent reads, naming each goal's line and the box the SVG draws for it; and the picture cut to a depth while the XML keeps everything |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -704,6 +707,7 @@ code.
 | `library(opencv)` | `.so` | OpenCV 4: images, filters, contours, the DNN module |
 | `library(numpy)` | `.so` | numpy arrays over numpy's C API |
 | `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
+| `library(flowchart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |

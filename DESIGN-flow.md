@@ -1,9 +1,11 @@
 # Flows: a program drawn as it can run, and as it ran
 
-**A plan, with its first step built.** F0, the look, is
-`library/flowchart.pl` on the work branch `claude/cocolog-llm-agent-design-rh7t3t`
-(`7a11896`). Nothing else here is built. Each phase lands on master when the
-owner says so, with its case, its lesson and its version.
+**A plan, with its first two steps built**, on the work branch
+`claude/cocolog-llm-agent-design-rh7t3t`: F0, the look (`7a11896`), and F1,
+`library(flowchart)` in full -- `library/flowchart.pl` and its parts in
+`library/flow/`, `tools/flow/`, `test/flowchart.pl` and
+`tutorials/library/50-flowchart.pl`. F2 on are planned. Each phase lands on
+master when the owner says so, with its case, its lesson and its version.
 
 ## 1. What the flows are for
 
@@ -92,8 +94,9 @@ construct, five panels and the query's in 3880 by 782.
 * **Names are the author's**: a `%% p(+A, -B)` comment, a library's own
   header (`;;;` lines in a module's Cicili), else the first clause head's
   variables.
-* **The SVG is written through `library(xml)`**, presentation attributes
-  only, with a tooltip on every box giving its full text and its kind.
+* **The SVG is a `library(xml)` term**, presentation attributes only, with a
+  tooltip on every box giving its full text and its kind. (F1 writes it a
+  piece at a time, section 4.5.)
 
 **Why the layout can beat a general one.** Prolog's control is sequence and
 choice, nested, so a panel is laid out from its clauses directly -- one main
@@ -110,20 +113,23 @@ flow_chart(+Spec, +Base)              % writes Base.svg and Base.xml
 flow_chart(+Spec, +Base, +Options)
 flow_graph(+Spec, -Graph, +Options)   % the analysis as a term: what the tests check
 flow_svg(+Graph, -Svg)                % library(xml) terms, for a program that
-flow_xml(+Graph, -Xml)                % wants the documents and not the files
+flow_svg(+Graph, -Svg, +Options)      % wants the documents and not the files
+flow_xml(+Graph, -Xml)
 ```
 
 `Spec` is a call pattern (`report(+, +, -)`), `Name/Arity` (every argument
 `?`), or `Name//Arity` for a nonterminal, whose two list arguments are then
-`+` and `-` (parsing). Options: `source(File)` or `files(Files)` (the
-program), `title(T)`, `libraries(reach | all | none)` (`reach`, the default,
-makes a library predicate a panel only on a path that reaches C), and
-`depth(D)`.
+`+` and `-` (parsing). Options: `source(File)` (the program), `title(T)`,
+`libraries(reach | all | none)` (`reach`, the default, makes a library
+predicate a panel only on a path that reaches C), and for the picture alone
+`depth(D)` and `only(Preds)` (section 4.5). A program in several files
+(`files(Files)`) is not built yet: a file's own `use_module` directives load
+the rest, which the chart reaches as libraries.
 
 For an agent in any language, one command writes both files:
 
 ```sh
-cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report
+cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report [depth=N] [only=a/2,b//1]
 # out/report.svg and out/report.xml; exit 0, 1 for no such predicate, 2 for an error
 ```
 
@@ -137,8 +143,8 @@ cocolog -s tools/flow/chart.pl -- 'report(+,+,+)' demo.pl out/report
   every goal gets a line and a column.
 * **Library predicates and the Prolog half of a module** are read with
   `clause/2` and named from the library's header.
-* **A dynamic predicate** is drawn with the clauses its files hold and marked
-  as changing at run time.
+* **A dynamic predicate** is drawn with the clauses its files hold. Marking
+  it as changing at run time is not built yet.
 
 ### 4.3 Classifying a goal
 
@@ -152,8 +158,10 @@ existence error when it runs, and a finding (section 8).
 `lib/*.cicili` and each module's dispatch rows in `modules/*/*.cicili` with
 their signature comments (`("re_first" 3 coco_x_first) ; re_first(+Pat,
 +Text, -MatchCodes)`); torch, tensorflow and bigint dispatch by hand and get
-their rows by hand. `make` writes the result to `library/flow/tables.pl`,
-which git ignores, and the library names it when it is missing. The
+their rows by hand. `make modules` writes the result to
+`library/flow/tables.pl` (`sh tools/flow/build.sh`, which needs a built
+cocolog), git ignores it, and the library names the command when it is
+missing. The
 hand-kept mode table -- a line per way of calling a builtin, as SWI's manual
 lists them, so `length(+L, -N)` is det and `length(-L, -N)` nondet -- is
 source, in `library/flow/modes.pl`, and `test/flowchart.pl` requires a line
@@ -163,19 +171,60 @@ for every C builtin the generated table names.
 
 * F0's inference -- which variables are bound when each goal runs, each
   predicate's success pattern remembered per call pattern -- with the
-  recursion taken to a fixed point. (F0 assumes a recursive call binds its
-  outputs and stops there.)
+  recursion taken to a fixed point. A PAIR is a predicate and a call pattern;
+  each pair the query reaches is analysed against what its callees are known
+  to do so far (a call not yet known to succeed binds nothing, and its
+  clause counts for nothing past it), and again whenever one of those answers
+  changes, until none does.
+* **A worklist, not rounds.** F1 first analysed every pair again each round;
+  on the translator that took 26 rounds, 2.1 G inferences, 244 s and 6.6 GB,
+  the set of pairs swinging between 3000 and 5500 because calls past a goal
+  not yet known to succeed made pairs of their own. Now a pair is analysed
+  again only when an answer it read has changed -- new pairs first, so
+  callees settle before their callers come round, re-analyses last -- and a
+  call past a goal not known to succeed makes no pair. On the translator:
+  6887 analyses of 2978 pairs, 266 M inferences, 28 s, 1 GB. A pair whose
+  answer changes 16 times is widened to the answer that says least, so the
+  analysis ends whatever the program; the translator's most changed 5 times.
+* **A goal past a call that never succeeds is drawn, unreached**: the XML
+  says `reached="false"`, its tooltip says why, and what it would call gets
+  no panel.
 * **A predicate met with two call patterns gets a panel for each**, since its
   modes, its determinism and its lanes differ.
-* A closure whose name is known (`maplist(foo, L)`) is a call to `foo/N+k`;
-  one that is not is a `call/N` box marked as decided at run time.
+* A closure is not followed yet: `maplist(foo, L)` is a box with its table
+  line (`:` for the closure), and a call to `foo/N+k` would be F1's next
+  step; a variable goal is a `call/N` box decided at run time.
 
 ### 4.5 Scale
 
-The yardstick is the translator: `library/reasoning/` is some 24 000 lines.
-F1 measures the analysis time and the chart's size on it. **The XML is never
-pruned**; the SVG may be (`depth(D)`, `only(Preds)`), and a pruned panel is a
-stub that names what it hides.
+The yardstick is the translator: `reason_translate(+, -)` over
+`library/reasoning/translate.pl`, 1066 predicates and 3255 clauses in 19 815
+lines, reaches 2897 panels.
+
+* **The XML is never pruned; the SVG may be.** `depth(D)` draws panels at
+  most D calls deep, `only(Preds)` those predicates' panels, and a panel a
+  drawn one calls that is not drawn itself is a STUB: its moded head, its
+  determinism, why it is not drawn, and how many panels hang from it. A C
+  function is drawn whenever its caller is. With neither option a chart of
+  more than 150 panels is drawn to the deepest level that fits with its
+  stubs, and says so under its title.
+* **Both files are written a piece at a time** (`library/flow/write.pl`),
+  the bytes `library(xml)` writes (the case checks it), because
+  `library(xml)` makes a document as one code list: the translator's XML is
+  45.6 million codes (52 s, 251 M inferences) and its SVG ran the process out
+  of memory -- the first chart of the translator ended with exit 1 and no
+  word after 334 s at 9 GB. The writer escapes a value with one
+  `split_string/4` to see whether there is anything to escape, and an
+  attribute is one `format/3`: the XML takes 8.8 s and 51 M inferences.
+* **Measured** (`cocolog -s tools/flow/chart.pl -- 'reason_translate(+,-)'
+  library/reasoning/translate.pl out/tr`, this box): 45.5 s and 1.69 GB at
+  the peak; the SVG is 1.28 MB, 57 of 2897 panels drawn to depth 4 with 83
+  stubs; the XML is 45.6 MB. Reading the file takes about 4 s, the analysis
+  about 28 s, the XML about 15 s to build and write (separate runs, so the
+  parts do not sum exactly). The analysis's dearest pairs are the
+  largest clauses: a state is a list searched by `==`, so a clause costs about
+  goals x variables^2 (`tr_read0/4`, 72 clauses of up to 77 variables, is a
+  million inferences an analysis) -- the next thing to make cheaper.
 
 ## 5. Grammar rules are predicates
 
@@ -189,15 +238,17 @@ stub that names what it hides.
   is bound.
 * **The hidden list arguments are named `S0`, `S1`, ... in reading order**
   (another letter when the rule already uses `S` names), so the thread of the
-  input reads off the chart. A terminal is a unification box, its codes shown
-  as a quoted string when they are printable.
+  input reads off the chart; a rule's panel head with no comment to name it
+  calls the pair `S0` and `S` (`blanks(+S0, -S)`). A terminal is a
+  unification box, its codes written `0'c` (`rest(A, V, [0'+|S0], S4)`).
 * `{G}` is `G`; `!` is a cut, local to the rule as it is in the translation;
   `\+` is a negation; `call//N` is `call/N+2`; a pushback is a unification
-  after the body; `phrase/2,3` and `call_dcg/3` are calls into the
-  nonterminal.
-* **In the XML**, a goal from a grammar body carries its grammar form
-  (`dcg="terminal"`, `dcg="nonterminal" nt="digits//1"`, `dcg="goal"` for a
-  `{}`), and the rule carries its source text.
+  after the body; `phrase/2,3` and `call_dcg/3` are a box holding the
+  nonterminal's call, with the list in and `[]` or the rest out.
+* **In the XML**, a goal from a grammar body carries its grammar form --
+  `dcg="terminal"`, `dcg="nonterminal word//1"`, `dcg="goal"` for a `{}`, and
+  `dcg="pass"` for the `S1 = S0` the translator puts after a `{}` or a `!` --
+  and the clause carries `dcg="true"` and its source text.
 * **Grammar findings** (section 8): left recursion -- a nonterminal that can
   reach itself before consuming input, which loops when parsing -- and a
   nonterminal that can succeed without consuming anything where that is what
@@ -207,51 +258,54 @@ stub that names what it hides.
 
 Every front predicate writes both, from one graph term, so the two cannot
 disagree. **They share their ids**: panel `p3`, its second clause `p3.c2`,
-that clause's fourth goal `p3.c2.g4`, and inside a construct the track and
-the goal, `p3.c2.g4.t1.g2`. In the SVG each box is a `<g>` carrying its id,
-so a finding in the XML points at a box in the picture.
+that clause's fourth goal `p3.c2.g4`; inside a construct the list a goal
+stands in comes next -- `X.a1.if` and `X.a1` for an if-then-else's first
+condition and its then, `X.else`, `X.b2` for a disjunction's second branch,
+`X.try` and `X.recover` for `catch/3`, `X` itself for `\+` and a meta-call
+-- so `p2.c1.g2.g1` is the first goal inside the `findall/3` that is
+`p2.c1`'s second. In the SVG each box is a `<g>` carrying its id, so
+whatever an agent finds in the XML it can point at in the picture.
+
+From `test/flowchart/demo.pl`, its `grep_count/3` (the clause's `<text>` and
+the goals' `<arg>` children shortened):
 
 ```xml
-<flow version="1" tool="library(flowchart)" spec="report(+,+,+)" source="demo.pl">
-  <lane id="main" kind="thread"/>
-  <panel id="p2" pred="grep_count/3" kind="user" lane="main" det="det"
-         head="grep_count(+Pat, +Text, -N)" file="demo.pl" line="20">
-    <clause id="p2.c1" line="20" col="1" head="grep_count(Pat, Text, N)" head_fails="false">
-      <goal id="p2.c1.g1" line="21" col="5" kind="library" pred="codes_lines/2"
-            text="codes_lines(Text, Lines)" modes="+ -" det="det"/>
-      <findall id="p2.c1.g2" line="22" col="5" text="findall(L, …, Hits)" modes="? : -" det="det">
-        <track id="p2.c1.g2.t1">
-          <goal id="p2.c1.g2.t1.g1" kind="builtin" pred="member/2" text="member(L, Lines)"
-                modes="- +" det="nondet" on_fail="done"/>
-          <goal id="p2.c1.g2.t1.g2" kind="c" pred="re_match/2" calls="p5" text="re_match(Pat, L)"
-                modes="+ +" det="semidet" on_fail="p2.c1.g2.t1.g1"/>
-        </track>
-      </findall>
-      <goal id="p2.c1.g3" line="23" col="5" kind="builtin" pred="length/2"
-            text="length(Hits, N)" modes="+ -" det="det"/>
-      <redo to="fail"/>
+<flow version="1" tool="library(flowchart)" title="report(+Pat, +Text, +Nums)" spec="report(+,+,+)" source="test/flowchart/demo.pl">
+  <panel id="p2" pred="grep_count/3" kind="user" modes="+ + -" det="det" head="grep_count(+Pat, +Text, -N)" depth="2" clauses="1">
+    <clause id="p2.c1" n="1" file="test/flowchart/demo.pl" line="20" col="1" head="grep_count(Pat, Text, N)" head_can_fail="false" redo="fail">
+      <arg n="1" mode="+" text="Pat"/> ...
+      <text>grep_count(Pat, Text, N) :- ...</text>
+      <goal id="p2.c1.g1" kind="library" library="text" pred="codes_lines/2" text="codes_lines(Text, Lines)" modes="+ -" det="det" can_fail="false" choice="false" on_fail="fail" line="21" col="5"> ...
+      <meta id="p2.c1.g2" name="findall" text="findall(L, …, Hits)" modes="? : -" can_fail="false" choice="false" on_fail="fail" line="22" col="5">
+        <goal id="p2.c1.g2.g1" kind="library" library="lists" pred="member/2" text="member(L, Lines)" modes="- +" det="nondet" can_fail="true" choice="true" on_fail="p2.c1.g2:done" line="22" col="18"> ...
+        <goal id="p2.c1.g2.g2" kind="c" module="text" pred="re_match/2" text="re_match(Pat, L)" modes="+ +" det="semidet" can_fail="true" choice="false" calls="p5" on_fail="p2.c1.g2.g1" line="22" col="36"> ...
+      </meta>
+      <goal id="p2.c1.g3" kind="library" library="lists" pred="length/2" text="length(Hits, N)" modes="+ -" det="det" can_fail="false" choice="false" on_fail="fail" line="23" col="5"> ...
     </clause>
   </panel>
-  <panel id="p5" pred="re_match/2" kind="c" module="text" cfun="coco_x_match"
-         file="modules/text/text.cicili" line="53" det="semidet" head="re_match(+Pat, +Text)"/>
+  <panel id="p5" pred="re_match/2" kind="c" module="text" cfun="coco_x_match" file="modules/text/text.cicili" line="53" modes="+ +" det="semidet" head="re_match(+Pat, +Text)" depth="3"/>
 </flow>
 ```
 
 **What an agent can read off it.** For every goal: what it is (its text,
 predicate and kind, and its file, line and column), its modes, whether it can
-fail and whether it can leave a choice point, the panel it calls, and where
-control goes when it fails (`on_fail`: the id of the goal that is redone,
-`next_clause`, `fail` -- with the cut's id when a cut is why -- or, inside a
-construct, `next_branch`, `else` or `done`). For every clause: where
-backtracking into it goes once it has exited (`redo`). For every panel: its
-moded head, determinism, lane and source. For C: the module, the C function
-and the table row's file and line. And the findings.
+fail and whether it can leave a choice point, the panel it calls, where
+control goes when it fails -- `on_fail`: the id of the goal that is tried
+again, `next_clause`, `fail` (with `past_cut`, the cut's id, when a cut is
+why), or inside a construct the next arm's condition (`X.a2.if`), the else
+(`X.else`), the next branch (`X.b2`) or the construct done with its goal
+(`X:done`: `\+` succeeds, `findall/3` has every solution) -- and
+`reached="false"` when it stands past a call that never succeeds. For every
+clause: where backtracking into it goes once it has exited (`redo`). For
+every panel: its moded head, determinism, depth and source. For C: the
+module, the C function and the table row's file and line.
 
-It is written by `library(xml)` with `indent(2)`, in UTF-8, an element to a
-line, so `grep` works on it as well as a parser does. The schema is versioned
-(`version="1"`) and documented in the library's header; changing it bumps
-that number. **The round trip is the test**: `test/flowchart.pl` reads the
-XML back through `library(xml)` and checks it against the graph term.
+It is written with `indent(2)`, in UTF-8, an element to a line, so `grep`
+works on it as well as a parser does. The schema is versioned
+(`version="1"`) and documented in `library/flow/xml.pl`'s header; changing
+it bumps that number. **The round trip is the test**: `test/flowchart.pl`
+reads the XML back through `library(xml)` and checks it against values
+worked out by hand.
 
 ## 7. Threads and processes (F2)
 
@@ -425,7 +479,7 @@ order.
 | phase | delivers | engine change | lands |
 |---|---|---|---|
 | F0 | the look, on two fixtures | none | built, on the work branch |
-| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point, a panel per call pattern, grammar rules, source positions, the XML beside every SVG, `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | proposes 1.11.0 |
+| F1 | `library(flowchart)`: generated tables, the mode table a line per mode and checked against the engine, modes to a fixed point by a worklist, a panel per call pattern, grammar rules, source positions, unreached goals, the XML beside every SVG written a piece at a time, `depth(D)` and `only(Preds)` with stubs and a 150-panel budget, `tools/flow/chart.pl`, `test/flowchart.pl`, `tutorials/library/50-flowchart.pl` | none | built, on the work branch; proposes 1.11.0 |
 | F2 | threads and processes: lanes, spawn and join, messages, locks, process portals, writes to a shared knowledge base | none | proposes a minor |
 | F3 | findings, in the XML and on the chart | none | proposes a minor |
 | D0 | the zero-overhead harness (callgrind on the untraced path); fast-forward with `start`/`step` and `--trace`; the inference-limit trigger | none | -- |
@@ -440,9 +494,11 @@ order.
   (`lib/builtins.cicili:1112`): an atom or code list of 8192 bytes or more
   raises `format/2: ~s wants text`, which names the wrong cause. Measured:
   8191 codes are written, 8192 raise. The chart writer works around it by
-  writing 4096 codes at a time. The fix is to put the text into the string
-  builder by its length rather than through a fixed buffer, with a case and
-  a patch bump of its own.
+  writing 2000 characters at a time (a character is up to four bytes). The
+  fix is to put the text into the string builder by its length rather than
+  through a fixed buffer, with a case and a patch bump of its own.
+  `library(xml)`'s own `xml_write/1,2` writes its document with one `~s`, so
+  it fails the same way on any document of 8 KB or more.
 * **`write_term/2` ignores `variable_names`**, so the library writes terms
   with a grammar of its own (it needs each argument separately anyway, to
   colour it by its mode).

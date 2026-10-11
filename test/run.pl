@@ -165,7 +165,7 @@ fail_lines(Text) :-
 pl_names([files, trace, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, os, kbs, http,
-          curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, httpd, 'httpd-tls', websocket, crypto,
+          curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, httpd, 'httpd-tls', websocket, crypto,
           cowork, reason, normalise, tagger, translate,
           tls, 'zigurat-tls', tutorials, colab, lint, static, argv, string, langs, directives,
           groups, ruler]).

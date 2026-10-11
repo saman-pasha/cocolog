@@ -2,7 +2,7 @@
 %%
 %%   basics/   eleven files, one process each, goal `main'. No library, no
 %%             database, no build flag.
-%%   library/  forty-six files, one process each, goal `main'. Tier 2
+%%   library/  fifty-one files, one process each, goal `main'. Tier 2
 %%             needs $COCOLOG_LIBRARY, which the runner sets.
 %%   opencv/   twenty-three files, one process each, goal `main', from the
 %%             repo root; the dnn two end early without their models.
@@ -25,9 +25,10 @@
 %% module, and so do `library/22-torch.pl', 39 and 45; 23 to 28 need
 %% ZiguratIP's cryptography and its sample certificate directory; 29 needs
 %% the ray module, 40 the numpy one, 41 and the opencv category the opencv
-%% one, 47 clay and 48 stream. 43 needs nothing: its typed-prose section is
-%% optional and says so itself. A lesson skipped says so INDENTED, because
-%% a SKIP at column 0 would skip the whole case.
+%% one, 47 clay and 48 stream, and 50 the stream module and the tables
+%% `make modules' writes for library(flowchart). 43 needs nothing: its
+%% typed-prose section is optional and says so itself. A lesson skipped
+%% says so INDENTED, because a SKIP at column 0 would skip the whole case.
 %%
 %%     cocolog -s test/tutorials.pl        from the checkout root
 %%
@@ -73,11 +74,15 @@ main :-
     %% Clay lays out with no window at all; loadable is the whole question.
     loadable('use_module(library(clay))', Clay),
     loadable('use_module(library(stream))', Stream),
+    %% library(flowchart) wants the stream module too, and the tables `make
+    %% modules' writes (tools/flow/build.sh); flow_tables/0 raises without
+    %% them
+    loadable('use_module(library(stream)), use_module(library(flowchart)), flow_tables', Flow),
     %% And for the arrays: the module starts an interpreter at its first
     %% predicate, so loadable is asked with one, not with use_module alone.
     loadable('use_module(library(numpy)), np_zeros([1], A), np_free(A)', Numpy),
     loadable('use_module(library(opencv)), cv_new(1, 1, ''8u'', I), cv_free(I)', Opencv),
-    basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream),
+    basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Flow),
     opencv(Opencv),
     tensor(D, Torch, Cuda),
     shl(['rm -rf ', D]),
@@ -127,7 +132,7 @@ one_lesson(Name, Path, TimeoutMs) :-
         forall(member(T, Tail), ( atom_codes(TA, T), format("      ~w~n", [TA]) ))
     ).
 
-basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream) :-
+basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Flow) :-
     section('basics and library: one process, goal `main'''),
     lessons('tutorials/basics', Basics), lessons('tutorials/library', Library),
     append(Basics, Library, All),
@@ -149,6 +154,8 @@ basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream) :-
              ->  skip_lesson(Name, 'no clay module')
              ;   Name == 'tutorials/library/48-stream', Stream == no
              ->  skip_lesson(Name, 'no stream module')
+             ;   Name == 'tutorials/library/50-flowchart', Flow == no
+             ->  skip_lesson(Name, 'no stream module, or no flow tables (make modules)')
              ;   %% FROM THE REPO ROOT, which `library/03-files.pl' depends on:
                  %% it reads its own source through the relative path the
                  %% header tells you to use.
