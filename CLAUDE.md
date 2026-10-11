@@ -359,10 +359,12 @@ links the engine) and runs the 57 `.pl` cases in `pl_names/1`
 * **A store is in the writing machine's byte order** and does not travel;
   `byteorder.bin` beside it is checked before open, and a refusal exits 1
   with an empty stdout and the reason on stderr.
-* **A clause must fit one page** (8192 by default, ~8014 characters): the
-  store sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises
+* **A clause must fit one page** (65536 on a store made since 1.10.0 and
+  ZiguratIP 1.0.0, 8192 on an older one, ~8014 characters there): the store
+  sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises
   `resource_error(clause_length)`; a consult reports and goes on. Over the
-  wire the client assumes 8192; `$COCOLOG_PAGE_SIZE` says otherwise.
+  wire the client assumes 65536; `$COCOLOG_PAGE_SIZE` says otherwise (8192
+  for an older server or store).
 * **A writing process rewrites the whole predicate** (the backend flushes a
   dirty predicate wholesale, ~360 bytes of new store per EXISTING row) and
   the old rows stay dead; every later process is slower. `cocolog vacuum`

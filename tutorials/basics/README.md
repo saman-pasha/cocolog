@@ -17,7 +17,7 @@ cocolog binary on its own runs every one of them:
 | 05-backtracking-and-cut | choice points, `!`, and the four shapes it appears in |
 | 06-findall-and-friends | `findall`, `bagof`, `setof`, `aggregate_all` and the free-variable rule |
 | 07-assert-and-retract | a program that edits itself, and `retract/1`'s determinism |
-| 08-atoms-text-and-codes | atoms, codes, and the string type this Prolog does not have |
+| 08-atoms-text-and-codes | atoms, codes, and the string you have to ask for |
 | 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms — and the four that are cocolog's: `cocolog_error/1`, an unbound context that matches anyway, cleanup by hand, a ball whose text is codes |
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
@@ -40,8 +40,6 @@ these ever stops being true the tutorial fails and names both answers.
   and makes `atom_concat(A, B, abc)` with both unbound an
   `instantiation_error` rather than three solutions (08).
 * **`2 ** 10` is `1024`, an integer** — not `1024.0` (04).
-* **`type_error(evaluable, foo)`**, naming the atom, where SWI names
-  `foo/0` (09).
 * **The knowledge base is a DATABASE**, and `assertz` in one process is
   visible to the next one (11). That is the claim the whole project
   exists to make, and it is four lines of Prolog to see it.

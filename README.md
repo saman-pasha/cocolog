@@ -11,7 +11,7 @@ its knowledge base in [ZiguratIP](https://github.com/saman-pasha/ziguratip).
 It uses both and modifies neither.
 
 ```console
-$ cocolog --kb demo forget                       # consult ADDS; it does not replace
+$ cocolog --kb demo forget                       # start from an empty knowledge base
 forgot 0 clause(s) in 'demo'
 
 $ cocolog --kb demo consult demo/family.pl
@@ -23,16 +23,20 @@ started 'job'
 $ cocolog --kb demo --steps 12 step job          # one process
   1. ancestor(tom,bob)
   2. ancestor(tom,liz)
-job: suspended at 13 inference(s), 2 answer(s) this turn
+  3. ancestor(tom,ann)
+  4. ancestor(tom,pat)
+job: suspended at 13 inference(s), 4 answer(s) this turn
 
 $ cocolog --kb demo --steps 12 step job          # a different process
-  1. ancestor(tom,ann)
-  2. ancestor(tom,pat)
+  1. ancestor(tom,jim)
+  2. ancestor(tom,zoe)
 job: suspended at 26 inference(s), 2 answer(s) this turn
 ```
 
-Between those two commands the machine was not in memory anywhere. It was three
-hundred bytes of ASCII in a table.
+Between those two commands the machine was not in memory anywhere. It was
+fifteen kilobytes of ASCII in a table, in four chunks: about a hundred bytes
+of proof, and the names of every atom and functor it might meet -- some five
+hundred atoms, most of them interned by the libraries read at start-up.
 
 ## The one decision everything follows from
 
@@ -101,21 +105,29 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        expressions over the torch module: a DCG from an
                        expression to the goals it stands for), flowchart.pl
                        and its parts in flow/ (a predicate drawn from the
-                       query to C, as an SVG and an XML), and the .so's
-                       and flow/tables.pl that `make modules' builds
-modules/               the LOADABLE modules, one directory each -- tcp,
-                       thread, curl, bigint, torch, tensorflow, ray, clay (a
-                       user interface as a term, laid out by Clay), stream
-                       (files as streams: bytes, text, terms, formatted) and
+                       query to C, as an SVG and an XML), kbs.pl, cowork.pl,
+                       main.pl, astar.pl, hex.pl, clay_ray.pl and llm.pl,
+                       reasoning/ (controlled English, a tagger and a
+                       translator), and the .so's and flow/tables.pl that
+                       `make modules' builds
+modules/               the LOADABLE modules, nineteen, one directory each --
+                       tcp, thread, process, text, os, curl, bigint, torch,
+                       tensorflow, numpy, opencv, ray, clay (a user
+                       interface as a term, laid out by Clay), stream (files
+                       as streams: bytes, text, terms, formatted) and
                        ZiguratIP's cryptography: sha, aes, der, x509, tls.
                        None is part of
                        `make': a cocolog with no libtorch, no libcurl and no
                        OpenCV still builds and still runs. `make' DOES need a
                        built ZiguratIP, because the embedded store is part of
                        the binary -- `make EMBED=0' is the build that does not
-tools/cc/              the toolchain, in four small files: clang, plus the
-                       one flag Ubuntu makes necessary and two shims for
-                       the one build step that names gcc outright
+tools/cc/              the toolchain, and it is clang: cc and cxx (clang++,
+                       with the one flag Ubuntu makes necessary), which on
+                       x86-64 both pad every jump off a 32-byte boundary;
+                       compiler.sh, which says WHICH clang; env.sh, which
+                       puts the directory first on PATH; and gcc, g++,
+                       clang and clang++, shims for the one build step that
+                       names a compiler outright
 tools/cocolint/        THE DIALECT LINTER, and the deterministic half of the
                        NL-to-cocolog agent around it -- the clause reader as
                        one grammar, the rules as clauses, the dialect card
@@ -134,9 +146,10 @@ client/                the two protocols, in C. No C++, no ZiguratIP headers:
 parsi/                 the schema and the pages, compiled into a ZiguratIP
                        home by ZiguratIP's own parsi compiler
 cocolog.cicili         the program
-test/                  the suite, every case a cocolog script on
-                       test/prelude.pl and test/run.pl the runner; groups.pl
-                       and ruler.pl are the concurrent ones, crowds of
+test/                  the suite, test/run.pl the runner: seven .cicili
+                       programs for the engine's foundations, and every
+                       other case a cocolog script on test/prelude.pl;
+                       groups.pl and ruler.pl are the concurrent ones, crowds of
                        processes rather than .cicili; tls.pl, httpd-tls.pl and
                        zigurat-tls.pl are the three that raise real handshakes
                        between real processes
@@ -146,10 +159,11 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (eleven lessons, the language itself),
-                       library/ (forty-nine, ONE PER LIBRARY that
-                       ships), tensor/ (forty-two networks, three
-                       processes each), opencv/ (twenty-three lessons
-                       of image processing). `cocolog -s test/tutorials.pl'
+                       library/ (fifty-one: the library path, ONE PER
+                       LIBRARY that ships, and the linter), tensor/
+                       (forty-two networks, three processes each),
+                       opencv/ (twenty-three lessons of image
+                       processing). `cocolog -s test/tutorials.pl'
 demo/family.pl         something to run it on
 demo/clay-widgets.pl   a window of every shape library(clay) lays out --
                        menu, cards with tooltips, progress bars, a counter
@@ -260,13 +274,21 @@ core.autocrlf=false`.
 What the build needs on the machine:
 
 * **SBCL** — Cicili is Lisp that emits C, and `sbcl` runs it. Needed only to
-  build.
+  build. Debian's and Ubuntu's 2.2.9 starts with a 1 GB heap, which a build
+  of cocolog exhausts midway: give it more, `make SBCL="sbcl
+  --dynamic-space-size 4096"`, and export the same `SBCL` for `make test`,
+  whose runner builds its `.cicili` cases with it.
 * **Cicili 2.0.0 or later** — since 1.10.7 cocolog's reader asks Cicili's
   `(inline)` to inline a static function. Through 1.0.1 `(inline)` emitted a
   weak symbol, which clang refuses on a static function (`weak declaration
   cannot have internal linkage`), so an older checkout stops the build
   there: pull it.
-* **A C and a C++ compiler and GNU make** — `gcc`/`g++` or equivalents. The
+* **clang, clang++ and GNU make** — every build here is clang and never gcc:
+  the interpreter, the embedded store, every module, and ZiguratIP and the
+  Parsi objects its server loads, because they all end up in one address
+  space. `tools/cc` sees to it even where Cicili names `gcc` outright;
+  `CICILI_CC` and `CICILI_CXX` choose a particular clang, and the install
+  scripts refuse anything that is not one (16 or later on Linux). The
   interpreter is C; the embedded engine and the torch module are C++.
 * **libtorch** — optional, and only `make modules` wants it: it builds
   `library/torch.so`, and the cocolog binary links no libtorch at all.
@@ -321,14 +343,17 @@ export TORCH_LIB="/usr/local/lib"
 (On Linux with the pip `torch` package, the last three are not needed —
 everything asks Python where the package lives.)
 
-Build ZiguratIP first — plain `make` in its checkout; a C++17 compiler is all
-it asks — which fills `ZiguratIP/home` with its libraries, its `parsi`
-compiler and the server binary. Then:
+Build ZiguratIP first — `make` in its checkout, with the same clang and the
+same `CICILI`, since its storage engine (`MVCCS-cicili/`) is Cicili too —
+which fills `ZiguratIP/home` with its libraries, its `parsi` compiler and
+the server binary. Then:
 
 ```sh
 cd cocolog
 make            # the C client and the ONE cocolog binary
 make schema     # compile the Parsi objects into $ZIGURATIP_HOME
+make modules    # every loadable module this machine can build; the rest
+                # are SKIPPED, each by name
 make test       # the suite; the database tests skip without a server
 ```
 
@@ -348,15 +373,15 @@ fresh Ubuntu clone because ZiguratIP's MVCCS would not compile.
 And it runs — the first three need nothing else on the machine at all:
 
 ```sh
-./cocolog --version                           # `cocolog 1.2.12', on stdout
+./cocolog --version                           # `cocolog X.Y.Z', on stdout
 ./cocolog                                     # the toplevel: ?- awaits
 ./cocolog query "X is 2 + 2"                  # local: memory, the default
 ./cocolog -s myscript.pl                      # load it, prove main; the
                                               # EXIT CODE says whether it
                                               # proved -- a script's verdict
 ./cocolog --embed run tutorials/tensor/07-xor.pl train   # the store at ./KB
-cd $ZIGURATIP && ZIGURATIP_HOME=$PWD/home \
-  LD_LIBRARY_PATH=$PWD/home/lib ./home/bin/ziguratip &   # the server
+ZIGURATIP_HOME=$ZIGURATIP/home LD_LIBRARY_PATH=$ZIGURATIP/home/lib \
+  $ZIGURATIP/home/bin/ziguratip &             # the server
 ./cocolog --kb demo consult demo/family.pl    # naming a kb chooses it
 ```
 
@@ -382,8 +407,9 @@ something new is reachable from a program, the major when a program that
 worked stops working. A documentation-only commit does not bump it: there is
 no new binary for the number to describe.
 
-There is one `cocolog` binary and it is the full one: the interpreter, the
-embedded MVCCS engine and the torch module, all in it. Which knowledge base a
+There is one `cocolog` binary and it is the full one: the interpreter and the
+embedded MVCCS engine, both in it, and every module beside it in `library/`,
+loaded when a program asks. Which knowledge base a
 run uses is a runtime choice among four arrangements — `--local` (memory,
 the default when no other arrangement is named),
 the server (`--tcp`/`--tls`, or `--kb`/`--host`),
@@ -392,12 +418,12 @@ the server (`--tcp`/`--tls`, or `--kb`/`--host`),
 `--embed` opens `./KB`) — never a build. Cicili is needed only to build:
 `sbcl` runs `cicili.lisp` over the `.cicili` files and out comes C. The
 embedded engine links against the built ZiguratIP's `Core` and `StreamIO`,
-the torch module against libtorch, and a server is needed only when a run
+`library/torch.so` against libtorch, and a server is needed only when a run
 chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. **125 files**, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **127 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -435,10 +461,11 @@ rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 
-### `library/` — fifty lessons, one per library that ships
+### `library/` — fifty-one lessons: the path, then one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
-eleven on the library path.
+thirty-eight on the library path, cocolint's lesson among them though it is
+a tool rather than a library.
 
 | | | |
 |---|---|---|
@@ -446,8 +473,19 @@ eleven on the library path.
 | [01-lists](tutorials/library/01-lists.pl) … [11-ugraphs](tutorials/library/11-ugraphs.pl) | tier 1 | `lists`, `apply`, `files`, `builtins`, `dcg`, `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs` |
 | [12-json](tutorials/library/12-json.pl) [13-xml](tutorials/library/13-xml.pl) [14-html](tutorials/library/14-html.pl) | tier 2 | a term as a document, and back |
 | [15-http](tutorials/library/15-http.pl) [16-httpd](tutorials/library/16-httpd.pl) [17-tcp](tutorials/library/17-tcp.pl) [18-thread](tutorials/library/18-thread.pl) | tier 2 | the grammar, the server, the socket seam, the threads |
-| [19-zigurat](tutorials/library/19-zigurat.pl) [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | the connection, an HTTP client, integers that do not wrap, and Prolog that trains |
+| [19-zigurat](tutorials/library/19-zigurat.pl) | tier 1 | the connection to a server, compiled in |
+| [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | an HTTP client, integers that do not wrap, and Prolog that trains |
+| [23-sha](tutorials/library/23-sha.pl) [24-aes](tutorials/library/24-aes.pl) [25-der](tutorials/library/25-der.pl) [26-x509](tutorials/library/26-x509.pl) [27-ca](tutorials/library/27-ca.pl) [28-tls](tutorials/library/28-tls.pl) | tier 2 | ZiguratIP's cryptography: digests, a cipher, the encoding X.509 is made of, certificates, a certificate authority as rules, and a connection that knows who is on it |
+| [29-ray](tutorials/library/29-ray.pl) | tier 2 | a game window, 2D, 3D and textures, from clauses |
+| [30-hex](tutorials/library/30-hex.pl) [31-astar](tutorials/library/31-astar.pl) | tier 2 | hexagonal-grid arithmetic, and shortest paths over a graph of goals |
+| [32-process](tutorials/library/32-process.pl) [33-text](tutorials/library/33-text.pl) [34-kbs](tutorials/library/34-kbs.pl) [35-os](tutorials/library/35-os.pl) | tier 2 | what a suite is written with: processes, grep and sed as clauses, many knowledge bases from one script, and the system asked rather than a shell |
+| [36-llm](tutorials/library/36-llm.pl) | tier 2 | a language model as a goal |
+| [37-lint](tutorials/library/37-lint.pl) | a tool | cocolint, the dialect linter, and why it is clauses |
+| [38-main](tutorials/library/38-main.pl) | tier 2 | a command line as terms: `main/0`, `argv_options/3`, and the `--` before a program's own arguments |
 | [39-tensor-expr](tutorials/library/39-tensor-expr.pl) | tier 2 | `tensor_expr`: an expression is a list of tensor goals, `:=` runs it, and the list is the same program under both execution paths |
+| [40-numpy](tutorials/library/40-numpy.pl) [41-opencv](tutorials/library/41-opencv.pl) | tier 2 | numpy arrays as clauses, and OpenCV's images as handles -- the doorway to `opencv/` |
+| [42-cowork](tutorials/library/42-cowork.pl) | tier 2 | a crew of workers that outlives the turn |
+| [43-reason](tutorials/library/43-reason.pl) [44-normalise](tutorials/library/44-normalise.pl) [45-tagger](tutorials/library/45-tagger.pl) [46-translate](tutorials/library/46-translate.pl) | tier 2 | `reasoning`: controlled English as predicates and its explanations, the tagger's training data, the tagger, and a translator whose lessons are knowledge bases |
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
@@ -472,7 +510,7 @@ under *Prolog that trains* below.
 ### EVERY CLAIM IN THE FIRST TWO IS A TEST
 
 A lesson does not print what it computed. It asserts what the answer
-must be, through one helper repeated at the bottom of all thirty-four
+must be, through one helper repeated at the bottom of all sixty-two
 files:
 
 ```prolog
@@ -569,8 +607,8 @@ connection. Those checks start a real `cocolog` and always should;
 converting them would keep a suite green and delete its proof.
 
 **cocolog's own suite went the same way, and kept the part of that
-argument which was true.** It was 39 shell cases and it is 52 now --
-seven `.cicili` binaries and forty-five Prolog scripts -- because a case
+argument which was true.** It was 39 shell cases and it is 64 now --
+seven `.cicili` binaries and fifty-seven Prolog scripts -- because a case
 that spawned an interpreter per check paid ~120 ms to hear an answer that
 takes a millisecond to compute: nineteen cases went from 361 s to 74 s in
 the conversion, same checks, same pins. What did NOT move is the
@@ -669,12 +707,13 @@ eight of SWI's own that are vendored in `lib/swipl` and read from disk at
 start-up. They are part of Prolog here, not an optional extra — a program
 that must say `use_module(library(assoc))` before it can use an association
 list is doing the interpreter's bookkeeping. **So an import for any of the
-sixteen is a line that does nothing**, and none is written anywhere in this
-repository.
+fifteen is a line that does nothing**, and so is one for `library(error)`,
+whose predicates are builtins; nothing in this repository needs one.
 
 **TIER 2 — on the library path, loaded when asked.** `$COCOLOG_LIBRARY`
 first, then `./library`, then `library/` and `lib/swipl/` beside the
-BINARY — found through `/proc/self/exe`, so an installed cocolog finds its
+BINARY — found through the binary's own path (`/proc/self/exe`, and
+`_NSGetExecutablePath` on macOS), so an installed cocolog finds its
 own libraries and a cocolog run inside somebody else's tree does not prefer
 theirs.
 
@@ -685,8 +724,8 @@ modules go beside the shipped ones rather than instead of them:
 export COCOLOG_LIBRARY=/opt/my/modules:/opt/vendor/prolog
 ```
 
-The suite appends to it rather than replacing it, and The Coco's
-`test/config.sh` does the same, so `COCOLOG_LIBRARY=/opt/my/modules make
+The suite puts its own `library/` in front of it rather than replacing it,
+and The Coco's `test/config.sh` keeps it too, so `COCOLOG_LIBRARY=/opt/my/modules make
 test` works in both. What ships always comes first: a suite that let
 somebody else's `library(httpd)` win would be green about somebody else's
 code.
@@ -1197,8 +1236,10 @@ the database still loads.
 
 **Machine state is an opaque blob**, in chunks of 4000 bytes. A `Text` is
 documented at 65535 and the wire agrees, but a row has to fit in a page: with
-the default 8192-byte page a `Text` of 8000 stores and one of 8192 comes back
-`allocation overflow`. Measured, not guessed.
+an 8192-byte page a `Text` of 8000 stores and one of 8192 comes back
+`allocation overflow`. Measured, not guessed. A new store is on 65536-byte
+pages since cocolog 1.10.0 and ZiguratIP 1.0.0, and 8192 was the default
+before; 4000 still fits a store made then.
 
 **Model parameters are doubles**, in `cocolog::tensors` — a table of one
 `Vector<Double>` field, each row's id columns saying which tensor it belongs
@@ -1410,7 +1451,7 @@ fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
 clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the fourth
-tutorial category — `cocolog -s test/tutorials.pl` runs all 118 files,
+tutorial category — `cocolog -s test/tutorials.pl` runs all 127 files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten
@@ -1790,7 +1831,7 @@ interpreter in any of the four knowledge-base arrangements.
 
 The interpreter, the serialisation, all four transports, the schema and
 the concurrent arrangements are done and tested; `make test` ends
-`red: 0` over **52 cases** — seven `.cicili` binaries and forty-five Prolog
+`red: 0` over **64 cases** — seven `.cicili` binaries and fifty-seven Prolog
 scripts, three of them TLS and one of them a window under Xvfb. Read the
 per-case lines rather than the last one, and count the SKIPs: a case that
 needs a server, `swipl`, raylib, libtensorflow or a CUDA toolkit says so by

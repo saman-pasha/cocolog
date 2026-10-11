@@ -97,13 +97,14 @@ main :-
     format("~n-- the errors the system itself throws~n"),
     catch(atom_length(_, _), error(E1, _), true),
     must('an unbound argument', E1, instantiation_error),
-    %% SWI NAMES THE CULPRIT `foo/0' -- an evaluable functor with its
-    %% arity. cocolog names the atom. Both are `type_error(evaluable, _)',
-    %% so a handler matching the FORMAL works either way, which is the
-    %% argument for matching the formal and not the whole ball.
+    %% THE CULPRIT IS NAMED WITH ITS ARITY, `foo/0' -- an evaluable functor
+    %% is a name and an arity, and SWI says the same (through 1.10.5
+    %% cocolog named the atom alone). A handler matching the FORMAL,
+    %% `type_error(evaluable, _)', never cared about that spelling, which is
+    %% the argument for matching the formal and not the whole ball.
     catch(X2 is foo + 1, error(E2, _), true),
-    must('arithmetic on an atom (SWI says foo/0 here)', E2,
-         type_error(evaluable, foo)),
+    must('arithmetic on an atom', E2,
+         type_error(evaluable, foo/0)),
     ( var(X2) -> _ = ok ; true ),
     catch(no_such_predicate_here, error(E3, _), true),
     must('a predicate that does not exist', E3,

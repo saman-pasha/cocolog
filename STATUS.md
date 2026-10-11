@@ -5,8 +5,8 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0` over **53 case lines** — seven `.cicili` binaries
-and forty-six Prolog scripts, each line with its seconds. The database
+`make test` ends `red: 0` over **64 case lines** — seven `.cicili` binaries
+and fifty-seven Prolog scripts, each line with its seconds. The database
 suites **skip** rather than fail when there is no server, because "no server
 here" and "the backend is wrong" are different findings, so **count the
 SKIPs**: `red: 0` is printed over a run where nothing happened just as
