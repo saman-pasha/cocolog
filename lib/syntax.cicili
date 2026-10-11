@@ -1301,8 +1301,12 @@
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
             ;; an unbound variable prints by its cell, which is stable for as
-            ;; long as the machine lives and unique across it
+            ;; long as the machine lives and unique across it -- unless
+            ;; write_term/2's variable_names gave it a name for this write
             ((coco-tag-is REF c)
+             (for ((size_t i . 0)) (< i (-> m nwnames)) ((++ i))
+               (if (== (nth i (-> m wcells)) t)
+                   (return (coco_sb_put b (coco_atom_name m (nth i (-> m wnames)))))))
              (coco_sb_put b "_G")
              (return (coco_sb_put_i64 b (cast i64 t))))
 

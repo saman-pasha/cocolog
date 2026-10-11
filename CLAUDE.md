@@ -582,7 +582,23 @@ cocolint index offers no import of it.
   that predicate.
 * **Every builtin is deterministic**, so a failure-driven loop written from
   habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
-  `ignore/1` and `\+` are control constructs.
+  `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
+  `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
+  enumerates.
+* **A core builtin raises SWI's error, catchably** (1.10.6): `=..`,
+  `functor/3`, `arg/3` and `is/2` name what is wrong as SWI does
+  (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`), and
+  assert and retract refuse an unbound clause, a head that is not callable,
+  a body with a number or a string where a goal stands, and a clause for a
+  control construct (`permission_error(modify, static_procedure, ','/2)`).
+  A fact under a core builtin's name is KEPT, where SWI refuses it:
+  library(reasoning) stores word classes such as `number(dos)` and reads
+  them with `clause/2` (refusing it stopped `test/translate.pl`).
+  `coco_fail_err`, which ends the query
+  where no `catch/3` sees it, is left for a resource running out and a load
+  that cannot go on; a new builtin raises through `coco_raise`. `format/2`'s
+  `~a`, `~s` and the format itself take text of any length
+  (`coco_text_put`).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,

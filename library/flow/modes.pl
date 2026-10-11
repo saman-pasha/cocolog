@@ -293,7 +293,9 @@ flow_raises_unbound(sub_string, 5, [1], sub_string(_, 0, 1, _, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
 flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).
-flow_raises_unbound(arg, 3, [1, 2], arg(_, _, a)).
+flow_raises_unbound(arg, 3, [1], arg(_, f(a), _)).
+flow_raises_unbound(arg, 3, [2], arg(1, _, _)).
+flow_raises_unbound((=..), 2, [1, 2], _ =.. _).
 flow_raises_unbound(atomic_list_concat, 2, [1], atomic_list_concat(_, abc)).
 flow_raises_unbound(atomic_list_concat, 3, [1, 3], atomic_list_concat(_, '-', _)).
 flow_raises_unbound(msort, 2, [1], msort(_, _)).
@@ -319,6 +321,10 @@ flow_raises_unbound(numlist, 3, [2], numlist(1, _, _)).
 flow_raises_unbound(char_type, 2, [1], char_type(_, alpha)).
 flow_raises_unbound(code_type, 2, [1], code_type(_, alpha)).
 flow_raises_unbound(throw, 1, [1], throw(_)).
+flow_raises_unbound(assertz, 1, [1], assertz(_)).
+flow_raises_unbound(asserta, 1, [1], asserta(_)).
+flow_raises_unbound(assert, 1, [1], assert(_)).
+flow_raises_unbound(retract, 1, [1], retract(_)).
 
 %% ARITHMETIC evaluates every variable in an expression: is/2's second
 %% argument, and both sides of a comparison

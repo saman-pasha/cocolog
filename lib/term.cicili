@@ -495,7 +495,14 @@
     ;; collection is asked for (`gc_next' 0) if they reach that much
     (member size_t     tmade)
     (member size_t     tlimit)
-    (member size_t     treq))
+    (member size_t     treq)
+    ;; write_term/2's variable_names(Names), for the one write it is given
+    ;; to: each named variable's cell and its name's atom id. The writer
+    ;; asks here before it falls back to `_G' and the cell (1.10.6);
+    ;; nothing else sets it, and it is empty again after the write
+    (member size_t *   wcells)
+    (member u64 *      wnames)
+    (member size_t     nwnames))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

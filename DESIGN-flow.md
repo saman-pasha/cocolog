@@ -480,12 +480,15 @@ the SVG give it, and says in a sentence what will happen there:
 | `det_promise` | warning | a `%! p(...) is det` (or `semidet`) comment, for the call patterns its modes cover, against what the analysis infers -- and the goal that breaks it: `when phrase(ws(Ws), Text) fails, so does the whole call` |
 
 **The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
-says which builtins raise when given which arguments unbound, 52 rows, each
+says which builtins raise when given which arguments unbound, 58 rows, each
 with an example the case calls and requires to raise. It is not the mode
 table: that one's `+` says INPUT, and `write(X)` and `format(F, X)` take an
 unbound `X` happily. It was checked against the engine rather than written
-from SWI's manual: cocolog's `char_type(_, _)` raises where SWI enumerates,
-and its `assertz(_)` fails where SWI raises (section 11).
+from SWI's manual: cocolog's `char_type(_, _)` and `arg(_, f(a), _)` raise
+where SWI enumerates (every builtin here is deterministic), and through
+1.10.5 its `assertz(_)`, `retract(_)` and `arg(1, _, _)` failed and `_ =..
+_` ended the program where SWI raises -- fixed in 1.10.6 (section 11), when
+those took their rows.
 
 **"Free on every path" is the analysis's own word**, `f`: no goal before,
 on any path, could have bound the variable (section 4.4). So an
@@ -629,31 +632,61 @@ order.
 
 ## 11. Engine findings on the way
 
-* **`format/2`'s `~a` and `~s` copy their text through an 8192-byte buffer**
-  (`lib/builtins.cicili:1112`): an atom or code list of 8192 bytes or more
-  raises `format/2: ~s wants text`, which names the wrong cause. Measured:
-  8191 codes are written, 8192 raise. The chart writer works around it by
-  writing 2000 characters at a time (a character is up to four bytes). The
-  fix is to put the text into the string builder by its length rather than
-  through a fixed buffer, with a case and a patch bump of its own.
-  `library(xml)`'s own `xml_write/1,2` writes its document with one `~s`, so
-  it fails the same way on any document of 8 KB or more.
-* **`write_term/2` ignores `variable_names`**, so the library writes terms
-  with a grammar of its own (it needs each argument separately anyway, to
-  colour it by its mode).
+* **Fixed in 1.10.6: `format/2`'s `~a` and `~s` copied their text through an
+  8192-byte buffer**, and so did the format itself and `term_to_atom/2`
+  reading an atom: text of 8192 bytes or more raised `format/2: ~s wants
+  text`, which names the wrong cause (8191 were written, 8192 raised), and
+  `library(xml)`'s `xml_write/1,2`, which writes its document with one `~s`,
+  failed on any document of 8 KB or more. The text goes into the string
+  builder by its length now (`coco_text_put`, `lib/builtins.cicili`).
+  `test/files/format.pl` writes 20 000 characters each way and holds the
+  answer to SWI's. The chart writer still writes 2000 characters at a time,
+  which costs nothing.
+* **Fixed in 1.10.6: `write_term/2` ignored `variable_names`**: every
+  variable came out `_G` and a number. Each named variable still unbound is
+  written as its name for that one write (the machine's `wcells`/`wnames`,
+  read by the writer before it falls back to `_G`);
+  `test/files/write_term.pl` holds it to SWI's output. The library keeps
+  writing terms with a grammar of its own -- it needs each argument
+  separately anyway, to colour it by its mode.
 * **`read_term/3` accepts `term_position` and `subterm_positions` and does
   nothing with them**; positions come from `stream_position/2` and a scan of
-  the clause's text (section 4.2).
+  the clause's text (section 4.2). Not fixed yet: it wants the reader to
+  carry a position for every subterm.
 * **There is no `predicate_property/2`**, and `current_predicate/1` answers
   about the knowledge base, not modules, which is why the tables are
-  generated.
-* **`catch(_ =.. _, E, true)` ends the program** (exit 2, `=.. wants a
-  proper non-empty list`): the error is raised where `catch/3` cannot catch
-  it, where SWI raises a catchable `instantiation_error`. Found probing the
-  refusal table; `=..` is not in it.
-* **`assertz/1`, `asserta/1` and `retract/1` fail on an unbound argument**,
-  where SWI raises `instantiation_error`; and `arg(1, _, _)` fails where SWI
-  raises. None is in the refusal table, which holds only what raises.
+  generated. A missing predicate rather than a wrong one: adding it is
+  something new reachable from a program, a minor to propose.
+* **Fixed in 1.10.6: `catch(_ =.. _, E, true)` ended the program** (exit 2,
+  `=.. wants a proper non-empty list`), raised where `catch/3` could not see
+  it. So did an arity below 0 for `functor/3` and an unknown arithmetic
+  function of one argument or more. Each raises SWI's error now, in SWI's
+  order: `_ =.. foo` type_error(list, foo), `_ =.. []`
+  domain_error(non_empty_list, []), `_ =.. [f(a), b]` type_error(atom, f(a)),
+  `functor(_, foo, -1)` domain_error(not_less_than_zero, -1), `X is foo(1,
+  2)` type_error(evaluable, foo/2) -- an atom raised type_error(evaluable,
+  foo) without its arity. `functor(_, _, 1)` is an instantiation error (it
+  was a type error), and `functor(_, foo, a)` type_error(integer, a) (it was
+  an instantiation error).
+* **Fixed in 1.10.6: `assertz/1`, `asserta/1`, `assert/1` and `retract/1`
+  failed on an unbound argument, and `arg(1, _, _)` failed**, where SWI
+  raises. They raise SWI's errors now: an unbound clause or head
+  instantiation_error, a head that is not callable type_error(callable, H),
+  a body with a number or a string where a goal stands type_error(callable,
+  Body) (`assertz((foo :- 3))` STORED the clause), a clause for a control
+  construct permission_error(modify, static_procedure, N/A). A fact under a
+  core builtin's name is kept, where SWI refuses it: the store is a database
+  of terms as well as a program, and `library(reasoning)` keeps a lesson's
+  word classes there -- `number(dos)` among them, read with `clause/2` --
+  so the first build that refused it stopped `test/translate.pl` at its
+  lesson. A module's predicate is kept likewise, since a module may decline
+  a goal and send it on to the store, so `assertz(findall(a, b, c))`
+  succeeds where SWI refuses it. `arg/3` raises for an unbound or atomic term
+  and an index that is not an integer, and domain_error for one below 0.
+  `test/files/catch.pl` holds all of it to SWI's answers. Two modes stay
+  apart: `arg(N, f(a, b), A)` with `N` unbound and `char_type(C, alpha)`
+  with `C` unbound raise where SWI enumerates, since every builtin here is
+  deterministic.
 * **Fixed in 1.10.3: `current_predicate/1` answered for any name a call or
   `clause/2` had looked up.** Both make an entry in the store's predicate
   table, and `'$predicates'/1` listed every entry, so a name that raises

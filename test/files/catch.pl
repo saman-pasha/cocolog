@@ -42,4 +42,45 @@ main :-
     f(_X0 is _ + 1),
     f(1 is 1 // 0),
     f(atom_length(1, _)),
+
+    %  ---- =.., functor/3, arg/3 and is/2: SWI's errors, and catchable. Through
+    %  1.10.5 =.. and an unknown function of an argument or more ended the
+    %  query where no catch/3 could see it, and arg/3 failed ----
+    f(_ =.. _),
+    f(_ =.. foo),
+    f(_ =.. []),
+    f(_ =.. [_, a]),
+    f(_ =.. [f(a), b]),
+    f(_ =.. [f(a)]),
+    f(_ =.. [1, a]),
+    f(_ =.. [a|_]),
+    f(_ =.. [a|b]),
+    f(functor(_, foo, -1)),
+    f(functor(_, _, 1)),
+    f(functor(_, foo(a), 1)),
+    f(functor(_, foo, a)),
+    f(functor(_, 1, 1)),
+    f(_ is foo + 1),
+    f(_ is foo(1, 2)),
+    f(arg(1, _, _)),
+    f(arg(1, foo, _)),
+    f(arg(a, f(x), _)),
+    f(arg(0, f(x), _)),
+    f(arg(-1, f(x), _)),
+
+    %  ---- assert and retract refuse as SWI does. Through 1.10.5 they failed,
+    %  and `assertz((foo :- 3))' stored the clause ----
+    f(assertz(_)),
+    f(asserta(_)),
+    f(retract(_)),
+    f(assertz(3)),
+    f(assertz((foo :- 3))),
+    f(assertz((foo :- a, 3))),
+    f(assertz((_ :- true))),
+    f(retract(3)),
+    %  a clause for a control construct; SWI refuses a builtin's name too,
+    %  and cocolog keeps data under one (test/errors.pl says why)
+    f(assertz(call(x))),
+    f(assertz(true)),
+    f(assertz((a, b))),
     true.

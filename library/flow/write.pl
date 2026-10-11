@@ -124,19 +124,8 @@ flow_w_repl(A, From, To, B) :-
     atomic_list_concat(Ps, From, A),
     (   Ps = [_] -> B = A ; atomic_list_concat(Ps, To, B) ).
 
-%% format/2's ~a copies through an 8192-byte buffer (DESIGN-flow.md,
-%% section 11): an atom that may be longer goes as codes, in pieces
+%% an atom of any length, in one format/3: through 1.10.5 `~a' copied its
+%% text through an 8192-byte buffer, and this wrote a long one as codes in
+%% pieces of 2000 (DESIGN-flow.md, section 11)
 flow_w_atom(S, A) :-
-    atom_length(A, L),
-    (   L < 2000
-    ->  format(S, "~a", [A])
-    ;   atom_codes(A, Cs),
-        flow_write_codes(S, Cs)
-    ).
-
-flow_write_codes(S, Cs) :-
-    (   Cs == [] -> true
-    ;   flow_split_at(Cs, 2000, Chunk, Rest),
-        format(S, "~s", [Chunk]),
-        flow_write_codes(S, Rest)
-    ).
+    format(S, "~a", [A]).
