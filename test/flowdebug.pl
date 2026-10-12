@@ -61,6 +61,7 @@ main :-
     kept(D),
     stored(D),
     compared(D),
+    compared_own(D),
     profiled(D),
     furthest(D),
     refusals(D),
@@ -609,10 +610,11 @@ command(D) :-
     check('txt=true: BASE.txt named, the run one line a call -- inference, depth, goal, fate, clauses, box, where',
           E7-N7-TL7,
           0-named-[ '% find(z, V): false at inference 7; recorded 1 to 7; diverged no; 7 calls',
+                    '% file: test/flowdebug/run.pl',
                     '1 find(z,_) fail [c1] query.g1',
-                    '2   lookup(z,_) fail [c1] p1.c1.g1 test/flowdebug/run.pl:35:15',
-                    '3     pairs(_) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 test/flowdebug/run.pl:37:17',
-                    '4     member(z-_,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 test/flowdebug/run.pl:37:28',
+                    '2   lookup(z,_) fail [c1] p1.c1.g1 :35:15',
+                    '3     pairs(_) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 :37:17',
+                    '4     member(z-_,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 :37:28',
                     '5       member(z-_,[b-2,c-3]) fail [h1 c2] -',
                     '6         member(z-_,[c-3]) fail [h1 c2] -',
                     '7           member(z-_,[]) fail [h1 h2] -',
@@ -620,7 +622,17 @@ command(D) :-
                     '%  find(z,_): clause 1 of 1 tried, 0 of its calls exited (call 1)',
                     '%    lookup(z,_): clause 1 of 1 tried, 1 of its calls exited (call 2)',
                     '%      member(z-_,[a-1,b-2,c-3]): failed, nothing of the program''s to say why (call 4)',
-                    '' ]).
+                    '' ]),
+    %% the file is named once when every place is in it (1.11.0: the
+    %% translator's path was 93 of a line's 213 bytes); places in several
+    %% files keep their FILE:LINE:COL, and a colon in a file's name stays
+    list_to_assoc(['p1.c1.g1'-'/a/x.pl:3:5', 'p2.c1.g1'-'/b/y.pl:4:1', 'p3.c1.g1'-'/c:d/z.pl:7:2'], Ps8),
+    findall(F8, ( member(Bs8, [['p1.c1.g1'], ['p1.c1.g1', 'p2.c1.g1'], ['p3.c1.g1'], [none]]),
+                  findall(call(1, f/0, 0, x, B8, x, [], [], none, exit), member(B8, Bs8), Cs8),
+                  flow_dbg_text_file(Cs8, Ps8, F8) ),
+            Fs8),
+    check('the file a window''s places are in: one is named, several or none are not, its own colons kept',
+          Fs8, ['/a/x.pl', none, '/c:d/z.pl', none]).
 
 %% _G followed by digits read as _
 un_g([], []).
@@ -740,6 +752,14 @@ stored_(D) :-
     R2 = run(How2, _, _, _, _, _, _, _),
     exited(R2, below/1, O2),
     check('kb(other) is the store''s knowledge base of that name: limit(4), and 5', How2-O2, answer-['5']),
+    %% the child over a store is `query', which writes its goal back proved;
+    %% the driver's goal holds every event recorded, so through 1.10.28 the
+    %% child wrote them all (12.5 MB on the translator) -- a goal that binds
+    %% a list of 20000 numbers stands in for them here
+    flow_dbg_cmd(embedded(P, KB, none), 'numlist(1, 20000, L5), length(L5, _)', Cmd5),
+    proc_run(Cmd5, 60000, Out5, Rc5), length(Out5, N5),
+    ( N5 < 2000 -> W5 = a_line ; W5 = N5 ),
+    check('the child over a store writes a line, not what its goal bound', Rc5-W5, 0-a_line),
     %% asked by the exit status, as test/argv.pl's stored/2 asks: 0 when
     %% the procedure is there to ask (the answer echoes the query's text,
     %% so a word written by it would be read either way)
@@ -809,6 +829,29 @@ compared(D) :-
     check('diff_goal=GOAL: two goals over one program -- the four inputs they share answered alike',
           E5-L5,
           0-'a total([1, 2, 3], T): answer at inference 12; b total([1, 2], T): answer at inference 9; 4 inputs in both, 0 answered differently, 0 predicates only in a, 0 only in b').
+
+%% a predicate whose name begins with $ is the engine's or a library's own
+%% ('$pred_count'/3), and listed after the program's (1.11.0): on the
+%% translator four of them came first, 22 and 16 deep, over the cause
+%% (reported from the reasoning session). Here '$level'/1 answers
+%% differently two calls under the program's own.
+compared_own(D) :-
+    section('flow_diff/3: a predicate named $... comes after the program''s, however deep'),
+    atomic_list_concat([D, '/own_a.pl'], PA),
+    atomic_list_concat([D, '/own_b.pl'], PB),
+    Common = ['top(R) :- mid(R).', 'mid(R) :- low(R).', 'low(R) :- \'$level\'(R).'],
+    append(Common, ['\'$level\'(1).'], LA),
+    append(Common, ['\'$level\'(2).'], LB),
+    fixture(PA, LA),
+    fixture(PB, LB),
+    atomic_list_concat([D, '/owna'], BA),
+    atomic_list_concat([D, '/ownb'], BB),
+    flow_debug(top(R1), BA, [source(PA), names(['R'=R1]), from(1)], RA),
+    flow_debug(top(R2), BB, [source(PB), names(['R'=R2]), from(1)], RB),
+    flow_diff(RA, RB, diff(_, Ds, _, _)),
+    findall(P, member(differ(P, _, _, _), Ds), Ps),
+    check('the program''s inputs deepest first, then the $ one deepest of all',
+          Ps, [low/1, mid/1, top/1, '$level'/1]).
 
 %% ---- where the inferences went ----------------------------------------------------
 

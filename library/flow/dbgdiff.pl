@@ -25,10 +25,15 @@
 %%            the other run never gave (or its first call, when it gave none
 %%            the other did not). DEEPEST FIRST: the deepest input whose
 %%            answers differ is where a difference began, and the shallower
-%%            ones are its consequences
+%%            ones are its consequences -- the program's inputs first, then
+%%            those of a predicate whose name begins with $, the engine's
+%%            or a library's own, deepest first among themselves (1.11.0:
+%%            on the translator four '$pred_count'/3 inputs, 22 and 16
+%%            deep, hid the cause under them)
 %%   OnlyA    only(P, N, S, Box, Panel) for each predicate RunA called and
 %%            RunB never did: how many calls, and the first's inference,
-%%            box and panel, in the order of those first calls
+%%            box and panel, in the order of those first calls (a $ one
+%%            after the program's, as above)
 %%   OnlyB    the same the other way: in a regression, the code that ran
 %%            new, or no longer ran
 %%
@@ -63,12 +68,17 @@ flow_diff(RunA, RunB, diff(Both, Differs, OnlyA, OnlyB)) :-
               flow_diff_rep(LA, OB, A), flow_diff_rep(LB, OA, B),
               A = c(SA, DA, _, _, _), B = c(_, DB, _, _, _),
               Deep is -max(DA, DB),
-              Key = Deep-SA ),
+              flow_diff_own(P, Own),
+              Key = Own-Deep-SA ),
             KDs),
     keysort(KDs, SDs),
     pairs_values(SDs, Differs),
     flow_diff_only(CsA, CsB, OnlyA),
     flow_diff_only(CsB, CsA, OnlyB).
+
+%% 0 for the program's predicate, 1 for one whose name begins with $
+flow_diff_own(N/_, Own) :-
+    ( atom(N), atom_concat('$', _, N) -> Own = 1 ; Own = 0 ).
 
 %% each call of a run as c(S, Depth, Box, Panel, P-In, Answer), its texts
 %% with their _G names read as `_'
@@ -127,7 +137,7 @@ flow_diff_only(Cs, Others, Only) :-
             ( member(P-N, Ns),
               once(member(c(S, _, Box, Pn, P-_, _), Cs)) ),
             Only0),
-    findall(S-O, ( member(O, Only0), O = only(_, _, S, _, _) ), SOs),
+    findall(Own-S-O, ( member(O, Only0), O = only(P, _, S, _, _), flow_diff_own(P, Own) ), SOs),
     keysort(SOs, SSOs),
     pairs_values(SSOs, Only).
 

@@ -299,6 +299,12 @@ links the engine) and runs the 62 `.pl` cases in `pl_names/1`
 * **Wait for a port with `lsof -iTCP:PORT -sTCP:LISTEN`**, never a probe
   connection: a server that accepts N times counts it, and `httpd`'s accept
   loop ends on a failed accept.
+* **`proc_run/4`'s deadline is the monotonic clock's** (1.11.0). Through
+  1.10.28 each poll was charged its whole 200 ms step though a poll with
+  data waiting returns at once with one 4096-byte read: a child printing
+  more than ~20 bytes per millisecond of its timeout was killed with 124,
+  and `shell/3`'s two minutes held ~2.4 MB of output. A case that went red
+  on a big output then is worth running again.
 * **A clause has ONE scope**: suffix each check's variables with its number
   and never reuse a suffix. When a goal answers differently inside a clause
   than alone, look for a variable the clause already bound.

@@ -59,7 +59,8 @@
 %%     txt(Bool)        false (default), or true: Base.txt as well, the run
 %%                      one line a call -- its inference, the goal at its
 %%                      Call, how it ended, the clauses it entered, its box
-%%                      and where that box is written (dbgtext.pl): the
+%%                      and where that box is written, :LINE:COL in the file
+%%                      a `% file:' line names once (dbgtext.pl): the
 %%                      cheapest view of a run for an agent
 %%     cache(Dir)       the chart kept in Dir and built once for a call
 %%                      pattern of a file: Base.xml is then the <run> alone,
@@ -378,13 +379,17 @@ flow_dbg_src(File, Opts, Src) :-
 flow_dbg_src_file(embedded(File, _, _), File) :- !.
 flow_dbg_src_file(File, File).
 
-%% the child's command line, for GoalText, the driver
+%% the child's command line, for GoalText, the driver. Over a store it is
+%% `query', which writes the goal back as it was proved, and the driver's
+%% goal holds the events it recorded -- 12.5 MB of them on the translator,
+%% which proc_run/4 kept as codes and threw away (reported from the
+%% reasoning session). Under \+ \+ the answer it writes is the goal with
+%% its variables as they were: a line, whatever the run recorded (1.11.0).
 flow_dbg_cmd(Src, GoalText, Cmd) :-
     current_prolog_flag(executable, Exe),
     flow_dbg_shq(Exe, QExe),
     (   Src = embedded(File, Dir, K)
-    ->  format(atom(Load), 'use_module(~q), ', [File]),
-        atom_concat(Load, GoalText, G2),
+    ->  format(atom(G2), '\\+ \\+ (use_module(~q), ~w)', [File, GoalText]),
         flow_dbg_shq(G2, QG), flow_dbg_shq(Dir, QD),
         (   K == none -> KA = ''
         ;   flow_dbg_shq(K, QK), atom_concat(' --kb ', QK, KA)
