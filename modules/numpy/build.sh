@@ -19,6 +19,13 @@
 # Homebrew's python3 all answer; a Python built without --enable-shared has
 # no libpython to link and is SKIPPED by name.
 #
+# PYTHON 3.9 OR LATER, NUMPY'S OWN FLOOR: the module is written against NumPy
+# 1.26 and 2.x, and both run on 3.9 and later. It is cocolog's floor for
+# every Python it uses (PY_MIN in install/common.sh, which also makes the
+# NumPy python3's own when the distribution's was built for another Python).
+# A numpy that is on the path but built for another Python does not import,
+# and is SKIPPED as no numpy.
+#
 #   CICILI   a Cicili checkout   (default $HOME/cicili)
 #   OUT      where the .so lands (default ../../library, the default path)
 set -e
@@ -30,12 +37,14 @@ OUT=${OUT:-$ROOT/library}
 PY=${PYTHON:-python3}
 
 command -v "$PY" >/dev/null 2>&1 || { echo "numpy: SKIPPED -- no $PY on the path" >&2; exit 1; }
+"$PY" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 9) else 1)' 2>/dev/null \
+  || { echo "numpy: SKIPPED -- $PY is Python $("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo '?'); library(numpy) needs Python 3.9 or later, NumPy's own floor" >&2; exit 1; }
 PY_INC=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["include"])' 2>/dev/null) \
   || { echo "numpy: SKIPPED -- $PY has no sysconfig" >&2; exit 1; }
 [ -f "$PY_INC/Python.h" ] \
   || { echo "numpy: SKIPPED -- no Python.h under $PY_INC (apt-get install python3-dev / dnf install python3-devel)" >&2; exit 1; }
 NP_INC=$("$PY" -c 'import numpy; print(numpy.get_include())' 2>/dev/null) \
-  || { echo "numpy: SKIPPED -- $PY has no numpy ($PY -m pip install numpy)" >&2; exit 1; }
+  || { echo "numpy: SKIPPED -- $PY imports no numpy of its own ($PY -m pip install --ignore-installed 'numpy>=1.26', or WITH_NUMPY=1 in install/)" >&2; exit 1; }
 PY_LIBDIR=$("$PY" -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR") or "")')
 PY_LDVER=$("$PY" -c 'import sysconfig; print(sysconfig.get_config_var("LDVERSION") or "")')
 PY_LIBS=$("$PY" -c 'import sysconfig; print(" ".join(v for v in (sysconfig.get_config_var("LIBS") or "", sysconfig.get_config_var("SYSLIBS") or "") if v))')

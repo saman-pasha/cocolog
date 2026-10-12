@@ -12,7 +12,10 @@
 #                                    need C++20, and the module is C++17)
 #   WITH_NUMPY=1 ...                 python3 with its headers and NumPy, so library(numpy)
 #                                    builds -- the one module that embeds CPython, until
-#                                    it is rewritten without it; nothing else needs Python
+#                                    it is rewritten without it; nothing else needs Python.
+#                                    Python 3.9 or later (NumPy's floor), and NumPy 1.26
+#                                    or later of THAT python3's own: from pip, when the
+#                                    distribution's was built for another Python
 #   WITH_OPENCV=1 ...                OpenCV 4 from the distribution, so library(opencv)
 #                                    builds (large)
 #   WITH_RAY=1 ...                   raylib RAYLIB_TAG (6.0) built from source beside the
@@ -44,8 +47,9 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     $SUDO apt-get -qq install -y build-essential make git curl ca-certificates gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev >/dev/null
     say "build-essential make git curl gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
-      $SUDO apt-get -qq install -y python3 python3-dev python3-numpy >/dev/null
-      say "WITH_NUMPY=1: python3 python3-dev python3-numpy"
+      $SUDO apt-get -qq install -y python3 python3-dev python3-numpy python3-pip >/dev/null
+      say "WITH_NUMPY=1: python3 python3-dev python3-numpy python3-pip"
+      py_headers apt
     fi
     if [ "${WITH_OPENCV:-0}" = 1 ]; then
       $SUDO apt-get -qq install -y libopencv-dev >/dev/null
@@ -91,8 +95,9 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
     say "gcc gcc-c++ make git curl gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
-      $SUDO dnf -q install -y python3 python3-devel python3-numpy >/dev/null
-      say "WITH_NUMPY=1: python3 python3-devel python3-numpy"
+      $SUDO dnf -q install -y python3 python3-devel python3-numpy python3-pip >/dev/null
+      say "WITH_NUMPY=1: python3 python3-devel python3-numpy python3-pip"
+      py_headers dnf
     fi
     if [ "${WITH_OPENCV:-0}" = 1 ]; then
       $SUDO dnf -q install -y opencv-devel >/dev/null
@@ -144,10 +149,13 @@ fi
 cxx_ok 16 || die "no clang 16+ for tools/cc: ${CICILI_CXX:-clang++}"
 for t in make git curl sbcl libtool; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
 # PYTHON ONLY WHEN ASKED FOR: library(numpy) embeds CPython and torch comes
-# from pip; nothing else cocolog builds or runs needs it
+# from pip; nothing else cocolog builds or runs needs it. Its floor is
+# NumPy's, and the NumPy is python3's own (common.sh, numpy_match)
 if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
   command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH (WITH_NUMPY or WITH_TORCH)"
+  py_floor python3
 fi
+if [ "${WITH_NUMPY:-0}" = 1 ]; then numpy_match; fi
 say "compiler: $(${CICILI_CXX:-clang++} --version | head -1)"
 log_ok "$LOG.ziguratip" "$LOG.raylib" "$LOG.cocolog" "$LOG.schema"
 

@@ -30,6 +30,7 @@
 #
 #   WITH_NUMPY=1    python3 and NumPy, so library(numpy) -- the one module
 #                   that embeds CPython, until it is rewritten without it
+#                   (Python 3.9 or later, NumPy 1.26 or later of its own)
 #   WITH_OPENCV=1   OpenCV 4, so library(opencv)
 #   WITH_RAY=1      raylib 6.0, built from source, and Xvfb, so library(ray)
 #                   and library(clay_ray), drawing on a virtual screen when

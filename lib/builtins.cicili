@@ -1286,7 +1286,7 @@
   (static)
   (func coco_b_atom_to_number ((coco_engine * e) (const char * text) (size_t to)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (size_t t . 0)
-              (size_t mark . #'($ (cof (coco_m_machine e)) heap_len)))
+              (size_t mark . #'(-> (coco_m_machine e) heap_len)))
           (if (not (coco_read_term_from m text (aof t)))
               (block (set (-> m heap_len) mark) (return 0)))
           (let ((i64 iv . 0) (double d . 0.0))
@@ -2679,7 +2679,7 @@
   ;;; `coco_heap_gc' in lib/solve.cicili.
   (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
         (coco_store_compact (-> e st) (coco_m_machine e))
-        (set ($ (cof (coco_m_machine e)) gc_next) 0)
+        (set (-> (coco_m_machine e) gc_next) 0)
         (return 1))
 
   ;;; `statistics/2', the keys a program can act on. SWI's names where SWI

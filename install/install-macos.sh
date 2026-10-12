@@ -11,8 +11,9 @@
 #                                    is what modules/opencv/build.sh looks for
 #   WITH_RAY=1 ...                   brew install raylib, so library(ray) builds
 #   WITH_NUMPY=1 ...                 library(numpy), which embeds CPython: it wants a python3
-#                                    with NumPy and a shared libpython on PATH (pyenv has
-#                                    one); nothing is installed for it
+#                                    with a shared libpython on PATH (pyenv has one), Python
+#                                    3.9 or later (NumPy's floor); NumPy 1.26 or later is
+#                                    pip-installed for THAT python3 when it has none
 #   CICILI=/path ZIGURATIP=/path ... checkouts elsewhere (default: beside this one,
 #                                    cloned there when absent)
 #
@@ -58,7 +59,9 @@ fi
 for t in make git curl sbcl glibtool; do command -v $t >/dev/null 2>&1 || die "$t is not on PATH"; done
 if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
   command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH (WITH_NUMPY or WITH_TORCH)"
+  py_floor python3
 fi
+if [ "${WITH_NUMPY:-0}" = 1 ]; then numpy_match; fi
 [ -f "$BREW/include/openssl/ssl.h" ] || say "warning: no openssl/ssl.h under $BREW/include -- try: brew link openssl@3"
 log_ok "$LOG.ziguratip" "$LOG.raylib" "$LOG.cocolog" "$LOG.schema"
 

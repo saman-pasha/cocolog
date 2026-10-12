@@ -68,6 +68,66 @@ cxx_ok() {   # see ZiguratIP/install/common.sh: 16 on Linux, 10 on macOS -- and 
   esac
 }
 
+# ---- Python, for the two modules that want one ---------------------------
+#
+# cocolog needs no Python, but WITH_NUMPY=1 builds library(numpy), which
+# embeds CPython, and WITH_TORCH=1 takes torch from pip. THE OLDEST PYTHON
+# EITHER IS BUILT FOR IS NUMPY'S OLDEST: the module is written against NumPy
+# 1.26 and 2.x alike (NPY_RAVEL_AXIS in modules/numpy/numpy.cicili); 1.26 and
+# 2.0 run on Python 3.9 and later; and pip, asked for NUMPY_SPEC, takes the
+# newest NumPy that the Python in hand runs. modules/numpy/build.sh holds
+# the same floor.
+#
+# AND THE NUMPY IS THAT PYTHON'S OWN. apt's python3-numpy and python3-dev
+# are built for the distribution's Python. Where the python3 on PATH is
+# another one (a deadsnakes 3.11 that update-alternatives made python3 on
+# an Ubuntu 24.04 whose own is 3.12), it finds the other Python's NumPy on
+# the shared dist-packages path and cannot import it ("No module named
+# 'numpy.core._multiarray_umath'"), and it has no Python.h. py_headers
+# installs that python3's headers, and numpy_match installs NumPy for it
+# with pip when it imports none of its own: --ignore-installed, or pip
+# counts the other Python's copy as installed and does nothing.
+PY_MIN=3.9
+NUMPY_MIN=1.26
+NUMPY_SPEC="numpy>=$NUMPY_MIN"
+py_version() { "$1" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null; }
+py_floor() {   # $1 the interpreter, which must be Python PY_MIN or later
+  "$1" -c "import sys; sys.exit(0 if sys.version_info[:2] >= tuple(map(int, '$PY_MIN'.split('.'))) else 1)" 2>/dev/null \
+    || die "$1 is Python $(py_version "$1" || echo '?'): cocolog's Python modules need Python $PY_MIN or later, NumPy's own floor -- put a newer python3 first on PATH"
+}
+numpy_ok() {   # $1 the interpreter: it imports a NumPy NUMPY_MIN or later of its own
+  "$1" -c "import sys, numpy; v = tuple(int(x) for x in numpy.__version__.split('.')[:2]); sys.exit(0 if v >= tuple(map(int, '$NUMPY_MIN'.split('.'))) else 1)" >/dev/null 2>&1
+}
+py_headers() {   # $1 apt or dnf, as root ($SUDO): python3's own Python.h
+  PY=$(command -v python3) || return 0
+  v=$(py_version "$PY") || return 0
+  inc=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["include"])' 2>/dev/null) || return 0
+  [ -f "$inc/Python.h" ] && return 0
+  case $1 in
+    apt) $SUDO apt-get -qq install -y "python$v-dev" >/dev/null 2>&1 || true ;;
+    dnf) $SUDO dnf -q install -y "python$v-devel" >/dev/null 2>&1 || true ;;
+  esac
+  [ -f "$inc/Python.h" ] && say "python3 is Python $v, not the distribution's: python$v's headers too"
+  return 0
+}
+numpy_match() {   # as the user: python3 at the floor, with its headers and a NumPy of its own
+  PY=$(command -v python3) || die "python3 is not on PATH (WITH_NUMPY)"
+  py_floor "$PY"
+  v=$(py_version "$PY")
+  inc=$("$PY" -c 'import sysconfig; print(sysconfig.get_paths()["include"])' 2>/dev/null)
+  [ -f "$inc/Python.h" ] || die "WITH_NUMPY=1: python3 is Python $v, and has no Python.h under $inc -- install its headers (python$v-dev, python$v-devel)"
+  if ! numpy_ok "$PY"; then
+    say "python3 is Python $v and imports no NumPy $NUMPY_MIN or later of its own: pip-installing $NUMPY_SPEC for it"
+    # a root install, then the user's, each again for an externally managed
+    # Python (PEP 668); a virtualenv or a pyenv takes the first
+    for f in "" "--user" "--break-system-packages" "--user --break-system-packages"; do
+      "$PY" -m pip install -q --ignore-installed $f "$NUMPY_SPEC" >/dev/null 2>&1 && numpy_ok "$PY" && break
+    done
+    numpy_ok "$PY" || die "WITH_NUMPY=1: pip did not give python3 (Python $v, $PY) a NumPy $NUMPY_MIN or later -- does it have pip? ($PY -m pip --version)"
+  fi
+  say "library(numpy): Python $v ($PY), NumPy $("$PY" -c 'import numpy; print(numpy.__version__)' 2>/dev/null)"
+}
+
 checkouts() {
   step "the three checkouts, side by side"
   if [ -f "$CICILI/cicili.lisp" ]; then say "CICILI=$CICILI"
