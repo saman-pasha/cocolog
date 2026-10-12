@@ -10,6 +10,10 @@ cocolog is written in [Cicili](https://github.com/saman-pasha/cicili) and keeps
 its knowledge base in [ZiguratIP](https://github.com/saman-pasha/ziguratip).
 It uses both and modifies neither.
 
+**And its flow libraries are among the most powerful debugging tools a Prolog
+has: a program charted without running it, and a run explained at no cost to
+it -- [below](#the-flow-libraries-debugging-a-prolog-program-by-reading-it-not-stepping-it).**
+
 ```console
 $ cocolog --kb demo forget                       # start from an empty knowledge base
 forgot 0 clause(s) in 'demo'
@@ -37,6 +41,71 @@ Between those two commands the machine was not in memory anywhere. It was
 fifteen kilobytes of ASCII in a table, in four chunks: about a hundred bytes
 of proof, and the names of every atom and functor it might meet -- some five
 hundred atoms, most of them interned by the libraries read at start-up.
+
+## The flow libraries: debugging a Prolog program by reading it, not stepping it
+
+**`library(flow/chart)` and `library(flow/debug)` are among the most powerful
+debugging tools a Prolog has, and the most precious thing in this repository
+for anyone who writes Prolog.** A tracer shows one port at a time and leaves
+the reader to rebuild the picture from them; these build the picture -- for a
+person as an SVG, for an agent as XML and as text, every place named by its
+FILE:LINE:COL.
+
+* **What a program CAN do, without running it** (`library(flow/chart)`):
+  each predicate drawn from the query down to the C it reaches -- the mode of
+  every argument, how each predicate can end (det, semidet, nondet), where
+  every failure goes, the threads, channels and processes it starts -- and
+  what is wrong, printed as a compiler prints it: a call nothing answers
+  (with the name it was probably meant to be), an argument free where the
+  engine refuses one, left recursion, a clause never tried, a determinism
+  promise not kept, a thread never joined, a lock kept on a way out, a
+  predicate whose clauses are not together.
+* **What a query DID, at no cost to the run** (`library(flow/debug)`): the
+  program runs untraced, at full speed, in a child process, to the window of
+  inferences asked for -- the same numbers in every run -- and only that
+  window is recorded and drawn over the chart: the path heavy, failures red,
+  an exception purple, every value that crossed into a variable the source
+  names. A JOURNAL answers every call that reaches the world (the clock, a
+  file, a stream, a thread, the knowledge base), so the replay is the run it
+  explains and does nothing twice.
+* **Questions, where a debugger would have you step**: WHY a run failed --
+  every clause tried and the call each failed at, and where a failed search
+  got FURTHEST (`flow_why/2`, `flow_why_furthest/2`); WHEN something first
+  held -- its inference, found by bisecting over fast runs (`flow_when/4`);
+  what CHANGED between two runs -- before and after an edit, or two goals
+  that should behave alike: the inputs answered differently, deepest first,
+  which is where a regression began (`flow_diff/3`); and where the
+  inferences WENT (`profile(P)`).
+* **Built for a program the size of a real one**: the translator in
+  `library/reasoning/` (20 899 lines, 2 755 panels) is charted once and the
+  chart kept, so a debug run of it takes 4 seconds where it took 57, and the
+  39 of its predicates whose clauses stand apart are named by the chart.
+
+```console
+$ cocolog -s tools/flow/debug.pl -- 'find(z, V)' test/flowdebug/run.pl /tmp/find txt=true
+/tmp/find.svg
+/tmp/find.xml
+/tmp/find.txt
+find(z, V): false at inference 7; recorded 1 to 7; diverged no
+$ cat /tmp/find.txt
+% find(z, V): false at inference 7; recorded 1 to 7; diverged no; 7 calls
+1 find(z,_G6) fail [c1] query.g1
+2   lookup(z,_G6) fail [c1] p1.c1.g1 test/flowdebug/run.pl:35:15
+3     pairs(_G159) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 test/flowdebug/run.pl:37:17
+4     member(z-_G6,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 test/flowdebug/run.pl:37:28
+5       member(z-_G6,[b-2,c-3]) fail [h1 c2] -
+6         member(z-_G6,[c-3]) fail [h1 c2] -
+7           member(z-_G6,[]) fail [h1 h2] -
+% where it got furthest:
+%  find(z,_G6): clause 1 of 1 tried, 0 of its calls exited (call 1)
+%    lookup(z,_G6): clause 1 of 1 tried, 1 of its calls exited (call 2)
+%      member(z-_G6,[a-1,b-2,c-3]): failed, nothing of the program's to say why (call 4)
+```
+
+Lessons [50](tutorials/library/50-flowchart.pl) and
+[51](tutorials/library/51-flowdebug.pl) walk through both,
+[DESIGN-flow.md](DESIGN-flow.md) is the design, and [TRACING.md](TRACING.md)
+the tracer underneath.
 
 ## The one decision everything follows from
 
@@ -493,8 +562,8 @@ a tool rather than a library.
 | [47-clay](tutorials/library/47-clay.pl) | tier 2 | `clay`: a user interface as a TERM — a tree of boxes laid out by Clay into render commands, held to the coordinate with no window; `library(clay_ray)` draws them with raylib |
 | [48-stream](tutorials/library/48-stream.pl) | tier 2 | `stream`: files as streams — bytes, UTF-8 characters, lines, terms a clause at a time, and formatted text through the engine's own formatter; stdin, stdout and stderr among them; and ISO's `open/4`, `read_term/3`, `write/2` and `set_output/1` over the same table |
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
-| [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flow/chart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins; then a question sent down one channel with the channel for its answer, followed into the thread that answers, a join that waits for a thread made in another clause, and each send tied to the receive that takes it |
-| [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flow/debug`: a basket total that fails, run and drawn over its chart — each call the box it is, the heads that did not unify for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20, and a visit counter in a file replayed without a journal (a second visit, diverged) and with one (the probe's visit, the file written once); the basket's failure read back by `flow_why/2`, and when a list of squares first held a 16 (`flow_when/4`, inference 12, `is/2` making 16 of 4*4); the basket's run as text, a line a call (`txt(true)`) |
+| [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flow/chart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins; then a question sent down one channel with the channel for its answer, followed into the thread that answers, a join that waits for a thread made in another clause, and each send tied to the receive that takes it; a clause given a name already taken, apart from its predicate's others (the `discontiguous` finding) |
+| [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flow/debug`: a basket total that fails, run and drawn over its chart — each call the box it is, the heads that did not unify for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20, and a visit counter in a file replayed without a journal (a second visit, diverged) and with one (the probe's visit, the file written once); the basket's failure read back by `flow_why/2`, and when a list of squares first held a 16 (`flow_when/4`, inference 12, `is/2` making 16 of 4*4); the basket's run as text, a line a call (`txt(true)`); where its failure got furthest, where 402 inferences went (`profile(P)`), and the basket against a program that prices a banana (`flow_diff/3`: the first difference is price/2) |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -756,8 +825,8 @@ code.
 | `library(opencv)` | `.so` | OpenCV 4: images, filters, contours, the DNN module |
 | `library(numpy)` | `.so` | numpy arrays over numpy's C API |
 | `library(tensor_expr)` | `.pl` | tensor arithmetic as an expression — `L := mean((X matmul W + B - Y) ^ 2.0)` — turned into `tensor_*` goals |
-| `library(flow/chart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; where the code runs -- a lane for each thread, pool, isolated proof, crew and httpd pool, and what crosses between them: what a spawn copies and what comes back, joins, channels and thread handles followed wherever the program takes them, to each send, receive and join, the k-th send tied to the k-th receive where that order can be read, `cowork_map/3`'s jobs a row each and an httpd server with no pool running its pages here, locks, child processes, writes to the knowledge base; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept, threads never joined, locks kept on a way out, a lane reading what only another writes -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
-| `library(flow/debug)` | `.pl` | what a query DID, drawn over its flowchart: run untraced to a window and recorded there (`'$trace_window'/4`), each call matched to its box, the path heavy, failures red, an exception purple, every value that crossed into a named variable on a numbered disc; `view(tree)` for the calls themselves; `journal(true)`: the probe journals every call that reaches the world and the replay is answered from it, sees what the probe saw and does none of it again; why a run failed read back (`flow_why/2`: each failed call of the program's own, each clause it tried, down to the calls that failed with nothing to say why), and WHEN something first held (`flow_when/4`: a bisection over runs stopped part way and asked there); an SVG for a person and the chart's XML with a `<run>` for an agent, and the run as text, a line a call (`txt(true)`); the chart built once for a program and kept (`cache(Dir)`), the run's XML then its `<run>` alone; the program run over a store (`embed(Dir)`, `kb(Name)`); from a shell too (`tools/flow/debug.pl`) |
+| `library(flow/chart)` | `.pl` | a predicate drawn from the query down to the C it reaches, without running it: modes, determinism and where each failure goes, grammar rules as the predicates they are; an SVG for a person and an XML for an agent, every goal with its file, line and column; where the code runs -- a lane for each thread, pool, isolated proof, crew and httpd pool, and what crosses between them: what a spawn copies and what comes back, joins, channels and thread handles followed wherever the program takes them, to each send, receive and join, the k-th send tied to the k-th receive where that order can be read, `cowork_map/3`'s jobs a row each and an httpd server with no pool running its pages here, locks, child processes, writes to the knowledge base; and what is wrong, and where -- unknown procedures, calls the engine refuses unbound, left recursion, clauses never tried, determinism promises not kept, threads never joined, locks kept on a way out, a lane reading what only another writes, the clauses of a predicate not together in the file -- printed as a compiler's diagnostics (`cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`) |
+| `library(flow/debug)` | `.pl` | what a query DID, drawn over its flowchart: run untraced to a window and recorded there (`'$trace_window'/4`), each call matched to its box, the path heavy, failures red, an exception purple, every value that crossed into a named variable on a numbered disc; `view(tree)` for the calls themselves; `journal(true)`: the probe journals every call that reaches the world and the replay is answered from it, sees what the probe saw and does none of it again; why a run failed read back (`flow_why/2`: each failed call of the program's own, each clause it tried, down to the calls that failed with nothing to say why), and WHEN something first held (`flow_when/4`: a bisection over runs stopped part way and asked there); an SVG for a person and the chart's XML with a `<run>` for an agent, and the run as text, a line a call (`txt(true)`); the chart built once for a program and kept (`cache(Dir)`), the run's XML then its `<run>` alone; the program run over a store (`embed(Dir)`, `kb(Name)`); where a failed search got furthest (`flow_why_furthest/2`), where the inferences went (`profile(P)`), and two runs compared, the same inputs answered differently, deepest first (`flow_diff/3`); from a shell too (`tools/flow/debug.pl`) |
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |
@@ -1837,7 +1906,9 @@ ERROR:   [1] main
 `--no-backtrace` keeps the message alone. **[TRACING.md](TRACING.md)** is
 the whole story: turning it on, reading the ports, the subtleties, how
 the conformance is kept, where an error was raised, the window and the
-journal.
+journal. The window and the journal are what **[the flow
+libraries](#the-flow-libraries-debugging-a-prolog-program-by-reading-it-not-stepping-it)**
+stand on.
 
 ## The Emacs mode
 

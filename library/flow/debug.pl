@@ -7,8 +7,15 @@
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
 %%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term
 %%     flow_why(+Run, -Whys)                       why it failed (dbgwhy.pl)
+%%     flow_why_furthest(+Whys, -Path)             where a failed search got
+%%                                                 furthest (dbgwhy.pl)
 %%     flow_when(+Goal, +Cond, +Options, -When)    the first inference at
 %%                                                 which Cond holds (dbgwhen.pl)
+%%     flow_diff(+RunA, +RunB, -Diff)              two runs compared: the same
+%%                                                 inputs answered differently,
+%%                                                 deepest first (dbgdiff.pl)
+%%     flow_diff_text(+Diff, +PA, +PB, -Text)      the same as text
+%%     flow_profile_text(+Profile, -Text)          profile(P) as text (dbgprof.pl)
 %%
 %% The run flow_debug/4 hands back:
 %%
@@ -60,6 +67,12 @@
 %%     embed(Dir)       the program runs over the store in Dir, as
 %%                      `cocolog --embed Dir' runs it; kb(Name) the
 %%                      knowledge base of it (below)
+%%     places(P)        an answer, not a choice: P is bound to where each
+%%                      box and clause of the chart is written, an assoc of
+%%                      its id (p2.c1.g2, p2.c1) to FILE:LINE:COL
+%%     profile(P)       an answer too: P is bound to where the window's
+%%                      inferences went, each predicate's calls and the
+%%                      inferences spent inside them (dbgprof.pl)
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS (DESIGN-flow.md 9). The program
 %% runs twice, each time in a child process of its own that reads it
@@ -145,6 +158,11 @@
 %% each clause it tried -- its head did not unify, or its body entered and
 %% the calls it made -- down to the calls that failed with nothing of the
 %% program's to say why; flow_why/2 hands the same tree back as a term.
+%% Above the tree, and as <furthest> after <why> and at the foot of
+%% Base.txt: WHERE IT GOT FURTHEST, at each failed call the clause whose
+%% body got the most calls done, down to the call it failed at
+%% (flow_why_furthest/2) -- in a search that backtracks, the last failure
+%% is its last fallback's, and the cause is where it got furthest.
 %% flow_when/4 answers WHEN: the first inference at which a question holds,
 %% asked of runs stopped part way -- a handful of them, each at full speed
 %% and each a replay of the probe's journal (dbgwhen.pl says how, and what
@@ -162,6 +180,8 @@
 :- use_module(library(flow/dbgwhen)).
 :- use_module(library(flow/dbgwhy)).
 :- use_module(library(flow/dbgtext)).
+:- use_module(library(flow/dbgdiff)).
+:- use_module(library(flow/dbgprof)).
 
 flow_debug(Goal, Base) :-
     flow_debug(Goal, Base, []).
@@ -191,15 +211,20 @@ flow_debug(Goal, Base0, Opts, Out) :-
     atom_concat(Base, '.xml', XmlFile),
     flow_write_doc(SvgFile, Svg, []),
     flow_write_doc(XmlFile, Xml, [indent(2)]),
+    (   ( memberchk(txt(true), Opts) ; memberchk(places(_), Opts) )
+    ->  (   Places == none -> flow_dbg_text_places_of(Xml, Places1) ; Places1 = Places )
+    ;   Places1 = none
+    ),
     (   memberchk(txt(true), Opts)
-    ->  (   Places == none -> flow_dbg_text_places_of(Xml, Places1) ; Places1 = Places ),
-        flow_dbg_text(Places1, Facts, Text),
+    ->  flow_dbg_text(Places1, Facts, Text),
         atom_concat(Base, '.txt', TxtFile),
         open(TxtFile, write, TS),
         write(TS, Text),
         close(TS)
     ;   true
     ),
+    (   memberchk(places(PO), Opts) -> PO = Places1 ; true ),
+    (   memberchk(profile(PF), Opts) -> flow_dbg_profile(Facts, PF) ; true ),
     flow_dbg_out(Facts, Out).
 
 %% ======================================================================

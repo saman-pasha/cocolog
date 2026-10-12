@@ -315,6 +315,18 @@ findings :-
     flow_xml(G14, X14),
     attr_of(X14, 'p1.c1.g2', reached, R14),
     check('nothing after fail runs', R14, false),
+    %% clauses of one predicate not together: one finding, at the first
+    %% clause that stands apart; one declared discontiguous has none
+    atom_concat(D, '/apart.pl', AP),
+    fixture(AP, ['go(X) :- a(X), b(X), c(X).', 'a(1).', 'b(1).', 'a(2).', 'c(1).', 'a(3).',
+                 ':- discontiguous(c/1).', 'c(2).']),
+    flow_graph(go(-), G15, [source(AP)]),
+    flow_findings(G15, Fs15),
+    check('a/1 in three places is one finding, at its second clause, after b/1''s -- c/1 is declared',
+          Fs15,
+          [finding(1, discontiguous, warning, 'p2.c2', 'a/1', where(AP, 4, 1),
+                   'the clauses of a/1 are not together: clause 2 (line 4) comes after b/1 at line 3, and its clauses stand in 3 places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(a/1)',
+                   ['p2.c1'])]),
     %% the table of calls the engine refuses unbound: every example raises
     findall(Ex, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
                   \+ catch(( call(Ex), fail ), error(_, _), true) ), Silent),

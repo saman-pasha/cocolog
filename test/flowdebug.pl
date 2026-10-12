@@ -19,6 +19,8 @@
 %%                 recovery called; oops(X), one nothing caught
 %%   find(z, V)    a run that fails, and the goal its failure began at;
 %%                 refuse(5), a clause that cuts and then fails
+%%   parse(a)      a reader whose first clause gets furthest and whose
+%%                 fallback fails last
 %%   go(30, R)     a recursion seen through a window of its last 100
 %%                 inferences, and go(12, R) drawn as a tree
 %%   flip(F)       a run that is not the same twice -- and with a journal is
@@ -58,6 +60,9 @@ main :-
     command(D),
     kept(D),
     stored(D),
+    compared(D),
+    profiled(D),
+    furthest(D),
     refusals(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -611,6 +616,10 @@ command(D) :-
                     '5       member(z-_,[b-2,c-3]) fail [h1 c2] -',
                     '6         member(z-_,[c-3]) fail [h1 c2] -',
                     '7           member(z-_,[]) fail [h1 h2] -',
+                    '% where it got furthest:',
+                    '%  find(z,_): clause 1 of 1 tried, 0 of its calls exited (call 1)',
+                    '%    lookup(z,_): clause 1 of 1 tried, 1 of its calls exited (call 2)',
+                    '%      member(z-_,[a-1,b-2,c-3]): failed, nothing of the program''s to say why (call 4)',
                     '' ]).
 
 %% _G followed by digits read as _
@@ -743,6 +752,130 @@ stored_(D) :-
     ( How4 = exception(error(E4, _)) -> true ; E4 = How4 ),
     check('without embed(Dir) the program runs over a knowledge base of its own, which has no limit/1',
           E4, existence_error(procedure, limit/1)).
+
+%% ---- two runs compared ----------------------------------------------------------
+
+%% a running total and the same with add/3 doubling what it adds: the
+%% difference begins in add/3, three calls deep, and double/2 runs in b only
+compared(D) :-
+    section('flow_diff/3: two runs compared -- the inputs both called that answered differently, deepest first'),
+    atomic_list_concat([D, '/sum_a.pl'], PA),
+    atomic_list_concat([D, '/sum_b.pl'], PB),
+    Common = ['total(L, T) :- sumup(L, 0, T).', 'sumup([], T, T).',
+              'sumup([X|Xs], A, T) :- add(A, X, A1), sumup(Xs, A1, T).'],
+    append(Common, ['add(A, X, B) :- B is A + X.'], LA),
+    append(Common, ['add(A, X, B) :- double(X, Y), B is A + Y.', 'double(X, Y) :- Y is X * 2.'], LB),
+    fixture(PA, LA),
+    fixture(PB, LB),
+    atomic_list_concat([D, '/suma'], BA),
+    atomic_list_concat([D, '/sumb'], BB),
+    flow_debug(total([1,2,3], T1), BA, [source(PA), names(['T'=T1]), from(1), places(QA)], RA),
+    flow_debug(total([1,2,3], T2), BB, [source(PB), names(['T'=T2]), from(1), places(QB)], RB),
+    flow_diff(RA, RB, Df),
+    Df = diff(Both, Ds, OA, OB),
+    findall(P-In-AA-AB, member(differ(P, In, c(_, _, _, _, AA), c(_, _, _, _, AB)), Ds), Ks),
+    check('three inputs both called answered differently, the deepest first: add/3 began it',
+          Both-Ks,
+          3-[ add/3-['0', '1', '_']-exit(['0', '1', '1'])-exit(['0', '1', '2']),
+              sumup/3-['[1,2,3]', '0', '_']-exit(['[1,2,3]', '0', '6'])-exit(['[1,2,3]', '0', '12']),
+              total/2-['[1,2,3]', '_']-exit(['[1,2,3]', '6'])-exit(['[1,2,3]', '12']) ]),
+    check('double/2 is called in b only: three calls, the first at inference 4, its box and panel',
+          OA-OB, []-[only(double/2, 3, 4, 'p3.c1.g1', p4)]),
+    flow_diff_text(Df, QA, QB, Text),
+    atomic_list_concat(TLs, '\n', Text),
+    TLs = [H, L1, L2, L3|_],
+    append(_, [LL, ''], TLs),
+    atomic_list_concat(['  a exit add(0,1,1) at inference 3, p2.c2.g1 ', PA, ':3:24'], E2),
+    atomic_list_concat(['  b exit add(0,1,2) at inference 3, p2.c2.g1 ', PB, ':3:24'], E3),
+    atomic_list_concat(['only in b: double/2, 3 calls, the first at inference 4; defined ', PB, ':5:1'], ELL),
+    check('as text: each input, each run''s answer and where the call is written, and where double/2 is defined',
+          [H, L1, L2, L3, LL],
+          ['% 3 inputs in both runs, 3 answered differently; 0 predicates only in a, 1 only in b',
+           'differs at depth 3: add(0,1,_)', E2, E3, ELL]),
+    atomic_list_concat([D, '/sumd'], BD),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'total([1,2,3], T)\' ', PA, ' ', BD, ' diff=', PB], A4),
+    cocolog_run(A4, T4, E4),
+    atomic_list_concat(Ls4, '\n', T4),
+    atom_concat(BD, '.diff', DF4),
+    yes_no(( memberchk(DF4, Ls4), exists_file(DF4) ), Y4),
+    ( last(Ls4, L4) -> true ; L4 = '' ),
+    check('diff=FILE: the command writes each run and BASE.diff, and says how the two compare',
+          E4-Y4-L4,
+          0-yes-'a total([1, 2, 3], T): answer at inference 12; b total([1, 2, 3], T): answer at inference 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b'),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'total([1,2,3], T)\' ', PA, ' ', BD, ' \'diff_goal=total([1,2], T)\''], A5),
+    cocolog_run(A5, T5, E5),
+    atomic_list_concat(Ls5, '\n', T5),
+    ( last(Ls5, L5) -> true ; L5 = '' ),
+    check('diff_goal=GOAL: two goals over one program -- the four inputs they share answered alike',
+          E5-L5,
+          0-'a total([1, 2, 3], T): answer at inference 12; b total([1, 2], T): answer at inference 9; 4 inputs in both, 0 answered differently, 0 predicates only in a, 0 only in b').
+
+%% ---- where the inferences went ----------------------------------------------------
+
+profiled(D) :-
+    section('profile(P): where the window''s inferences went -- a call spends up to its first Exit or Fail'),
+    debugged(D, prof1, pick(X1), ['X'=X1], [profile(P1)], _),
+    check('pick(X): member/2 spends to its first Exit -- the 1 > 1 its redo comes back past is pick''s',
+          P1, profile(1, 6, 5, [prof(pick/1, 5, 1, 5), prof((>)/2, 2, 2, 1), prof(member/2, 2, 2, 1)])),
+    debugged(D, prof2, go(6, R2), ['R'=R2], [from(1), profile(P2)], _),
+    P2 = profile(_, _, Spent2, Rows2),
+    findall(P-I-N, ( member(prof(P, I, N, _), Rows2), memberchk(P, [nrev/2, app/3]) ), NA2),
+    findall(P, ( member(prof(P, I, _, _), Rows2), I > Spent2 ), Over2),
+    memberchk(prof(go/2, IG2, _, _), Rows2),
+    check('a recursion is counted once over its nested calls: nrev/2''s seven calls spend what the outermost does, and no predicate more than the window''s calls',
+          IG2-NA2-Over2, Spent2-[nrev/2-28-7, app/3-21-21]-[]),
+    flow_profile_text(P1, PT1),
+    atomic_list_concat(PLs1, '\n', PT1),
+    PLs1 = [PH1, _, PR1|_],
+    check('as text: the window, then a row a predicate, the most inclusive first', PH1-PR1,
+          '% 5 inferences spent by the calls of the window 1 to 6, 3 predicates -- a call spends from its Call to its first Exit or Fail'-'          5   100.0        1        5  pick/1'),
+    fx(F),
+    atomic_list_concat([D, '/profc'], B3),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'pick(X)\' ', F, ' ', B3, ' profile=true'], A3),
+    cocolog_run(A3, T3, E3),
+    atomic_list_concat(Ls3, '\n', T3),
+    atom_concat(B3, '.prof', PF3),
+    read_file_to_codes(PF3, PC3), atom_codes(PA3, PC3),
+    ( Ls3 = [_, _, PF3, _] -> N3 = named ; N3 = unnamed ),
+    check('profile=true: BASE.prof, named after the two files', E3-N3-PA3, 0-named-PT1).
+
+%% ---- where a failed search got furthest -------------------------------------------
+
+furthest(D) :-
+    section('flow_why_furthest/2: where a failed search got furthest -- not where it failed last'),
+    debugged(D, far1, parse(a), [], [txt(true)], R1),
+    flow_why(R1, W1),
+    flow_why_furthest(W1, F1),
+    check('parse(a): its first clause got furthest -- word/2 exited -- and check/1 had no head for aa; the fallback only failed last',
+          F1, [step(1, parse/1, [a], 1, 1, 2), nohead(3, check/1, [aa])]),
+    debugged(D, far2, find(z, V2), ['V'=V2], [], R2),
+    flow_why(R2, W2),
+    flow_why_furthest(W2, F2),
+    findall(X, ( member(S, F2), functor(S, X0, _), arg(2, S, P), X = X0-P ), F2s),
+    check('find(z, V): down one clause each to member/2, which failed with nothing of the program''s to say why',
+          F2s, [step-find/2, step-lookup/2, failed-member/2]),
+    atom_concat(D, '/far1.xml', XF3),
+    read_file_to_codes(XF3, XC3),
+    xml_parse(XC3, X3),
+    findall(N-As, ( x_el(X3, N, As0), memberchk(N, [step, end]),
+                    findall(V, ( member(K, [call, pred, clause, done, tried, how]), memberchk(K=V, As0) ), As) ),
+            S3),
+    check('in the XML, after <why>: <furthest>, a <step> a failed call, and the <end>', S3,
+          [step-['1', 'parse/1', '1', '1', '2'], end-['3', 'check/1', nohead]]),
+    atom_concat(D, '/far1.txt', TF4),
+    read_file_to_codes(TF4, TC4), atom_codes(TA4, TC4),
+    atomic_list_concat(TL4, '\n', TA4),
+    append(_, [L41, L42, L43, ''], TL4),
+    check('and at the foot of BASE.txt', [L41, L42, L43],
+          ['% where it got furthest:',
+           '%  parse(a): clause 1 of 2 tried, 1 of its calls exited (call 1)',
+           '%    check(aa): failed, no clause''s head unified (call 3)']),
+    atom_concat(D, '/far1.svg', SF5),
+    read_file_to_codes(SF5, SC5),
+    xml_parse(SC5, S5),
+    findall(T, ( svg_text(S5, T), ( T == 'where it got furthest' ; sub_atom(T, 0, _, _, '▸ ') ) ), Ts5),
+    check('and on the picture, above why it failed', Ts5,
+          ['where it got furthest', '▸ parse(a)   clause 1 of 2 tried got furthest: 1 call of its body exited  ·  call at 1']).
 
 %% ---- refusals -----------------------------------------------------------
 

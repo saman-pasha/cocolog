@@ -947,11 +947,21 @@ flow_dbg_why_block(Facts, Y0, Ps, YEnd) :-
             append(Ls1, [l(0, [s(More, muted)])], Ls)
         ;   Ls = Ls0
         ),
+        flow_why_furthest(Whys, Path),
         Y1 is Y0 + 46,
-        Title = t(24, Y1, start, 10, sans, bold, [s('why it failed', muted)]),
-        Y2 is Y1 + 24,
+        (   Path == []
+        ->  FPs = [], Y1b = Y1
+        ;   FTitle = t(24, Y1, start, 10, sans, bold, [s('where it got furthest', muted)]),
+            flow_dbg_furthest_lines(Path, 0, FLs),
+            Y1a is Y1 + 24,
+            flow_dbg_why_prims(FLs, Y1a, FPs0, Y1c),
+            FPs = [FTitle|FPs0],
+            Y1b is Y1c + 22
+        ),
+        Title = t(24, Y1b, start, 10, sans, bold, [s('why it failed', muted)]),
+        Y2 is Y1b + 24,
         flow_dbg_why_prims(Ls, Y2, WPs, YEnd),
-        Ps = [Title|WPs]
+        append(FPs, [Title|WPs], Ps)
     ;   Ps = [], YEnd = Y0
     ).
 
@@ -983,6 +993,27 @@ flow_dbg_why_line(ended(S, N/_, In, Fate), D, [l(D, [s(Gl, GC), s(' ', ink), s(C
     flow_dbg_args_text(N, In, CT),
     flow_dbg_fate_word(Fate, FW),
     format(atom(M), '   ~w  ·  call at ~d', [FW, S]).
+
+%% the furthest path (flow_why_furthest/2), a line a step, each a level in
+flow_dbg_furthest_lines([], _, []).
+flow_dbg_furthest_lines([step(S, N/_, In, K, Done, Tried)|Ps], D, [l(D, Segs)|Ls]) :- !,
+    flow_dbg_args_text(N, In, CT),
+    (   Done =:= 1 -> DW = 'call' ; DW = 'calls' ),
+    format(atom(M), '   clause ~d of ~d tried got furthest: ~d ~w of its body exited  ·  call at ~d',
+           [K, Tried, Done, DW, S]),
+    Segs = [s('▸ ', red), s(CT, ink), s(M, muted)],
+    D1 is D + 1,
+    flow_dbg_furthest_lines(Ps, D1, Ls).
+flow_dbg_furthest_lines([E|_], D, [l(D, [s(Gl, GC), s(' ', ink), s(CT, ink), s(M, muted)])]) :-
+    flow_dbg_furthest_end(E, N, In, S, Gl, GC, Why),
+    flow_dbg_args_text(N, In, CT),
+    format(atom(M), '   ~w  ·  call at ~d', [Why, S]).
+
+flow_dbg_furthest_end(failed(S, N/_, In), N, In, S, '✗', red, 'failed there: nothing of the program''s says why').
+flow_dbg_furthest_end(nohead(S, N/_, In), N, In, S, '✗', red, 'failed there: no clause''s head unified').
+flow_dbg_furthest_end(ended(S, N/_, In, Fate), N, In, S, Gl, GC, FW) :-
+    flow_dbg_fate_glyph(Fate, Gl, GC),
+    flow_dbg_fate_word(Fate, FW).
 
 flow_dbg_why_try_lines([], _, L, L).
 flow_dbg_why_try_lines([nohead(K)|Ts], D, [l(D, [s(T, muted)])|L1], L) :- !,
@@ -1292,7 +1323,12 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)
     (   How == false
     ->  flow_dbg_why(Calls, Whys),
         findall(WE1, ( member(W1, Whys), flow_dbg_x_why(W1, WE1) ), WEs),
-        YEs = [element(why, [], WEs)]
+        flow_why_furthest(Whys, Path),
+        (   Path == [] -> FEs = []
+        ;   findall(FE, ( member(PS, Path), flow_dbg_x_furthest(PS, FE) ), FEs0),
+            FEs = [element(furthest, [], FEs0)]
+        ),
+        YEs = [element(why, [], WEs)|FEs]
     ;   YEs = []
     ),
     append([[CE, EE, BE], JEs, YEs], Ks).
@@ -1309,6 +1345,20 @@ flow_dbg_x_why(failed(S, P, _), element(failed, [call=S, pred=PA, own=false], []
 flow_dbg_x_why(exited(S, P, _, _), element(exited, [call=S, pred=PA], [])) :- !,
     flow_dbg_x_pred(P, PA).
 flow_dbg_x_why(ended(S, P, _, Fate), element(ended, [call=S, pred=PA, fate=Fate], [])) :-
+    flow_dbg_x_pred(P, PA).
+
+%% where it got furthest (flow_why_furthest/2): a <step call pred clause done
+%% tried> for each failed call on the way, the clause that got furthest
+%% and how many of its body's calls exited, then an <end call pred how>
+%% -- failed, nohead, or the fate that ended it
+flow_dbg_x_furthest(step(S, P, _, K, Done, Tried),
+                    element(step, [call=S, pred=PA, clause=K, done=Done, tried=Tried], [])) :- !,
+    flow_dbg_x_pred(P, PA).
+flow_dbg_x_furthest(failed(S, P, _), element(end, [call=S, pred=PA, how=failed], [])) :- !,
+    flow_dbg_x_pred(P, PA).
+flow_dbg_x_furthest(nohead(S, P, _), element(end, [call=S, pred=PA, how=nohead], [])) :- !,
+    flow_dbg_x_pred(P, PA).
+flow_dbg_x_furthest(ended(S, P, _, F), element(end, [call=S, pred=PA, how=F], [])) :-
     flow_dbg_x_pred(P, PA).
 
 flow_dbg_x_why_try(nohead(K), element(try, [n=K, unified=false], [])) :- !.

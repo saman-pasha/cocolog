@@ -38,7 +38,9 @@ flow_dbg_text(Places, Facts, Text) :-
     flow_dbg_text_head(Sum, Head),
     findall(D, member(call(_, _, D, _, _, _, _, _, _, _), Calls), Ds),
     ( Ds == [] -> D0 = 0 ; min_list(Ds, D0) ),
-    findall(L, ( member(C, Calls), flow_dbg_text_call(C, D0, Places, L) ), Ls),
+    findall(L, ( member(C, Calls), flow_dbg_text_call(C, D0, Places, L) ), Ls0),
+    flow_dbg_text_furthest(Sum, Calls, FLs),
+    append(Ls0, FLs, Ls),
     atomic_list_concat([Head|Ls], '\n', T0),
     atom_concat(T0, '\n', Text).
 
@@ -95,9 +97,10 @@ flow_dbg_text_spaces(N, S) :-
 flow_dbg_text_trim(L0, L) :-
     (   atom_concat(L1, ' ', L0) -> flow_dbg_text_trim(L1, L) ; L = L0 ).
 
-%% where each goal of the chart is written: box id -> FILE:LINE:COL, from
-%% the chart's XML -- a <goal> has its line and column, the <clause> it is
-%% in its file
+%% where each goal and each clause of the chart is written: its id (a box,
+%% p2.c1.g2, or a clause, p2.c1) -> FILE:LINE:COL, from the chart's XML --
+%% a <goal> has its line and column, the <clause> it is in its file and its
+%% own
 flow_dbg_text_places_of(element(flow, _, Ks), Places) :-
     flow_dbg_text_places(Ks, Places).
 
@@ -114,8 +117,42 @@ flow_dbg_text_put([K-V|KVs], P0, P) :-
 flow_dbg_text_place(Ks, File, Id, W) :-
     member(K, Ks), nonvar(K), K = element(N, As, Cs),
     (   N == clause, memberchk(file=F, As) -> File1 = F ; File1 = File ),
-    (   N == goal, File1 \== none,
+    (   memberchk(N, [goal, clause]), File1 \== none,
         memberchk(id=Id, As), memberchk(line=L, As), memberchk(col=C, As),
         atomic_list_concat([File1, ':', L, ':', C], W)
     ;   flow_dbg_text_place(Cs, File1, Id, W)
     ).
+
+%% a failed run ends with where it got furthest (flow_why_furthest/2): a
+%% line a failed call on the way, the clause that got furthest and how many
+%% of its body's calls exited, and how the last failed
+flow_dbg_text_furthest(Sum, Calls, Ls) :-
+    (   arg(3, Sum, end(false, _, _))
+    ->  flow_dbg_why(Calls, Whys),
+        flow_why_furthest(Whys, Path),
+        (   Path == [] -> Ls = []
+        ;   flow_dbg_text_path(Path, 1, Ls0),
+            Ls = ['% where it got furthest:'|Ls0]
+        )
+    ;   Ls = []
+    ).
+
+flow_dbg_text_path([], _, []).
+flow_dbg_text_path([step(S, N/_, In, K, Done, Tried)|Ps], D, [L|Ls]) :- !,
+    I is 2 * D,
+    flow_dbg_text_spaces(I, Indent),
+    flow_dbg_text_goal(N, In, GT),
+    format(atom(L), '%~w~w: clause ~d of ~d tried, ~d of its calls exited (call ~w)',
+           [Indent, GT, K, Tried, Done, S]),
+    D1 is D + 1,
+    flow_dbg_text_path(Ps, D1, Ls).
+flow_dbg_text_path([E|_], D, [L]) :-
+    I is 2 * D,
+    flow_dbg_text_spaces(I, Indent),
+    flow_dbg_text_end(E, S, N, In, How),
+    flow_dbg_text_goal(N, In, GT),
+    format(atom(L), '%~w~w: ~w (call ~w)', [Indent, GT, How, S]).
+
+flow_dbg_text_end(failed(S, N/_, In), S, N, In, 'failed, nothing of the program''s to say why').
+flow_dbg_text_end(nohead(S, N/_, In), S, N, In, 'failed, no clause''s head unified').
+flow_dbg_text_end(ended(S, N/_, In, F), S, N, In, F).

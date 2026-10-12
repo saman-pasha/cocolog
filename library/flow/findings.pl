@@ -25,6 +25,11 @@
 %%   det_promise        warning  a `%! p(...) is det' (or semidet) comment
 %%                               the analysis says the code does not keep,
 %%                               and the goals that break it
+%%   discontiguous      warning  the clauses of a predicate are not together
+%%                               in the file, and it is not declared
+%%                               discontiguous: cocolog joins them without a
+%%                               word where SWI warns, so a helper given a
+%%                               name already taken joins that predicate
 %%
 %% and three about threads (F2, lanes.pl), each about one goal:
 %%
@@ -54,6 +59,8 @@
 %% panel holds it; Where where(File, Line, Col) or none; See the ids of the
 %% other places it involves.
 
+:- use_module(library(stream)).
+
 flow_findings(graph(_, Src, Panels, Ids, Docs), Fs) :-
     findall(P, ( member(P, Panels), P = panel(I, _, K, _, _, rows(_), _, _), I > 0,
                  memberchk(K, [user, dynamic]) ), Own0),
@@ -66,7 +73,8 @@ flow_findings(graph(_, Src, Panels, Ids, Docs), Fs) :-
     flow_left_recursion(Own, Ids, KFs1),
     append(Own, Roots, Mine),
     flow_thread_findings(Mine, Panels, Ids, KFs2),
-    append([KFs0, KFsR, KFs1, KFs2], KFs3),
+    flow_discontiguous(Own, Src, KFsD),
+    append([KFs0, KFsR, KFs1, KFs2, KFsD], KFs3),
     keysort(KFs3, KFs),
     flow_number_findings(KFs, 1, Fs).
 
@@ -91,6 +99,7 @@ flow_severity(unknown_procedure, error).
 flow_severity(instantiation, error).
 flow_severity(left_recursion, error).
 flow_severity(unreachable_clause, warning).
+flow_severity(discontiguous, warning).
 flow_severity(det_promise, warning).
 flow_severity(thread_visibility, warning).
 flow_severity(lock_held, warning).
@@ -692,3 +701,104 @@ flow_lane_store(Type, Text) :-
     ->  Text = 'its proof has a connection of its own, and its store holds the modules'' clauses and, under --kb or --embed, what was committed when it began -- never a write of a turn still running -- so it does not see that write while the turn that made it runs'
     ;   Text = 'a thread has no connection to the knowledge base, and its store starts with the clauses of the modules loaded before it and none of what was asserted, so it never sees that write'
     ).
+
+%% ---- clauses of one predicate not together ----------------------------------
+%%
+%% The file is read once more for where each clause stands -- its line and
+%% its predicate, a grammar rule's two arguments counted -- and for its
+%% `:- discontiguous' declarations, which exempt a predicate as they do in
+%% SWI. A predicate the chart has a panel for whose clauses stand in more
+%% than one place has ONE finding, at the first clause that stands apart:
+%% the clause of another predicate just before it, and in how many places
+%% its clauses are. The first panel of a predicate speaks for it.
+
+flow_discontiguous(Own, Src, KFs) :-
+    findall(K-I, member(panel(I, K, _, _, _, _, _, _), Own), KIs0),
+    keysort(KIs0, KIs),
+    flow_first_panels(KIs, Firsts),
+    (   Firsts == [] -> KFs = []
+    ;   flow_clause_seq(Src, Seq, Decl),
+        findall(k(I, J, 0)-F,
+                ( member(K-I, Firsts),
+                  \+ memberchk(K, Decl),
+                  flow_disc_finding(K, I, Own, Seq, J, F) ),
+                KFs)
+    ).
+
+%% each predicate with its first panel
+flow_first_panels([], []).
+flow_first_panels([K-I|KIs], [K-I|Fs]) :-
+    flow_first_panels_skip(KIs, K, Rest),
+    flow_first_panels(Rest, Fs).
+
+flow_first_panels_skip([K1-_|KIs], K, Rest) :-
+    K1 == K, !,
+    flow_first_panels_skip(KIs, K, Rest).
+flow_first_panels_skip(KIs, _, KIs).
+
+flow_disc_finding(K, I, Own, Seq, J, f(discontiguous, warning, At, In, Where, Text, [Prev])) :-
+    flow_disc_runs(Seq, K, 0, none, Runs),
+    Runs = [_, run(J, Line, Other, OLine)|_],
+    length(Runs, NR),
+    memberchk(panel(I, K, _, _, _, rows(Rows), _, _), Own),
+    memberchk(row(J, _, _, _, _, CI), Rows),
+    flow_panel_id(I, PId),
+    atomic_list_concat([PId, '.c', J], At),
+    J0 is J - 1,
+    atomic_list_concat([PId, '.c', J0], Prev),
+    flow_pred_atom(K, In),
+    flow_pred_atom(Other, OA),
+    flow_clause_where(CI, Where),
+    format(atom(Text), 'the clauses of ~w are not together: clause ~d (line ~d) comes after ~w at line ~d, and its clauses stand in ~d places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(~w)',
+           [In, J, Line, OA, OLine, NR, In]).
+
+%% the places K's clauses stand: run(J, Line, Before, BLine), J its first
+%% clause there (counted from 1 in the file), Line its line, and the clause
+%% of another predicate just before it (none for the first place)
+flow_disc_runs([], _, _, _, []).
+flow_disc_runs([L-K1|Seq], K, N0, Last, Runs) :-
+    (   K1 == K
+    ->  N is N0 + 1,
+        (   Last = K-_
+        ->  Runs = Runs1
+        ;   Last = B-BL -> Runs = [run(N, L, B, BL)|Runs1]
+        ;   Runs = [run(N, L, none, 0)|Runs1]
+        ),
+        flow_disc_runs(Seq, K, N, K-L, Runs1)
+    ;   flow_disc_runs(Seq, K, N0, K1-L, Runs)
+    ).
+
+%% every clause of the file in order, Line-Name/Arity, and the predicates
+%% it declares discontiguous
+flow_clause_seq(Src, Seq, Decl) :-
+    open(Src, read, S),
+    catch(flow_clause_seq_(S, Seq, Decl0), _, ( Seq = [], Decl0 = [] )),
+    close(S),
+    sort(Decl0, Decl).
+
+flow_clause_seq_(S, Seq, Decl) :-
+    read_term(S, T, [term_position(P)]),
+    (   T == end_of_file
+    ->  Seq = [], Decl = []
+    ;   arg(2, P, Line),
+        (   nonvar(T), T = (:- D)
+        ->  Seq = Seq1,
+            (   nonvar(D), D = discontiguous(Spec)
+            ->  flow_dynamic_keys(Spec, Ks), append(Ks, Decl1, Decl)
+            ;   Decl = Decl1
+            )
+        ;   flow_clause_key(T, K)
+        ->  Seq = [Line-K|Seq1], Decl = Decl1
+        ;   Seq = Seq1, Decl = Decl1
+        ),
+        flow_clause_seq_(S, Seq1, Decl1)
+    ).
+
+flow_clause_key(T, _) :- var(T), !, fail.
+flow_clause_key((H0 --> _), N/A) :- !,
+    (   nonvar(H0), H0 = (H1, _) -> H = H1 ; H = H0 ),
+    callable(H), functor(H, N, A0), A is A0 + 2.
+flow_clause_key((H :- _), N/A) :- !,
+    callable(H), functor(H, N, A).
+flow_clause_key(H, N/A) :-
+    callable(H), functor(H, N, A).

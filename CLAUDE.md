@@ -639,7 +639,8 @@ cocolint index offers no import of it.
   nothing). Grep a predicate name before writing it: **cocolog consults the
   clauses of one name that are not together in the file without a word**
   (SWI warns; cocolint does not), so a helper given an existing name joins
-  that predicate.
+  that predicate. library(flow/chart) names each such predicate it charts
+  (the `discontiguous` finding, 1.10.27): the translator has 39.
 * **Every builtin is deterministic**, so a failure-driven loop written from
   habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
   `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with

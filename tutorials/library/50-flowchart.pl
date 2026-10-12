@@ -163,10 +163,34 @@ main :-
     must('length/2 is a box in count/2''s clause, and no panel of its own', T7,
          'length(Ws, N)  --  library(lists), det'),
 
+    apart(Dir),
     threads(Dir),
     asking(Dir),
 
     format("~ndone~n").
+
+%% CLAUSES NOT TOGETHER. cocolog joins the clauses of a predicate wherever
+%% they stand in the file, without a word (SWI warns at load), so a clause
+%% meant for something else that is given a name already taken joins that
+%% predicate -- and is tried with it. The chart says so, at the first clause
+%% that stands apart; `:- discontiguous(sum/3).' says it is meant.
+apart(Dir) :-
+    format("~n-- clauses not together~n"),
+    atom_concat(Dir, '/apart.pl', Prog),
+    open(Prog, write, W),
+    forall(member(L, [ 'total(Xs, T) :- sum(Xs, 0, T).',
+                       'sum([], T, T).',
+                       'sum([X|Xs], A, T) :- A1 is A + X, sum(Xs, A1, T).',
+                       '',
+                       'show(T) :- format("~w~n", [T]).',
+                       'sum(none, T, T).' ]),
+           format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(total('+', '-'), G, [source(Prog)]),
+    flow_findings(G, Fs),
+    findall(K-At-Wh, member(finding(_, K, _, At, _, Wh, _, _), Fs), KAs),
+    must('one finding: sum/3''s third clause stands apart, after show/1''s', KAs,
+         [discontiguous-'p2.c3'-where(Prog, 6, 1)]).
 
 %% WHERE THE CODE RUNS. A spawn is a fork: its goal goes, a copy, to a LANE
 %% of its own -- a band of the picture, a <lane> of the XML -- and nothing

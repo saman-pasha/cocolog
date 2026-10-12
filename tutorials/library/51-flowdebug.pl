@@ -10,6 +10,9 @@
 %%
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
 %%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term
+%%     flow_why(+Run, -Why)                        why it failed, as a tree
+%%     flow_why_furthest(+Why, -Path)              where a failed search got furthest
+%%     flow_diff(+RunA, +RunB, -Diff)              two runs compared
 %%
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
 %% last N inferences, 2000), from(I) and to(J), discs(N), text(N),
@@ -17,7 +20,8 @@
 %% timeout(Ms), journal(true) and journal_file(F), txt(true) for Base.txt,
 %% the run one line a call; cache(Dir), the chart built once for a program
 %% and kept (library(sha)), and embed(Dir) with kb(Name), the program run
-%% over a store. The same from a shell:
+%% over a store; and two answers: places(P), where each box is written, and
+%% profile(P), where the inferences went. The same from a shell:
 %% `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [OPTION ...]'.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
@@ -163,6 +167,37 @@ main :-
     must('basket_total/2 failed in its second clause, at basket_total/2 again, at price/2, with no head that unified',
          Shape, [why(basket_total/2, [nohead(1), entered(2, [exited(price/2),
                      why(basket_total/2, [nohead(1), entered(2, [why(price/2, [nohead(1), nohead(2)])])])])])]),
+    %% a search that fails has many failures; the one that matters is where
+    %% it got FURTHEST -- the clause, at each failed call, whose body got
+    %% the most calls done -- not where it failed last
+    flow_why_furthest(Why, Path),
+    findall(P-K, ( member(Step, Path), arg(2, Step, P), ( Step = step(_, _, _, K, _, _) -> true ; functor(Step, K, _) ) ), PKs),
+    must('where it got furthest: clause 2 twice, then price/2 with no head that unified',
+         PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]),
+
+    format("~n-- where the inferences went~n"),
+    %% profile(P), an answer: each predicate's calls and the inferences
+    %% spent inside them, a call charged up to its first Exit or Fail
+    flow_debug(basket_total(Long, _), LongBase, [source(Prog), from(1), profile(Prof)], _),
+    Prof = profile(_, _, Spent, [TopRow, NextRow|_]),
+    must('the 402 inferences, basket_total/2 spending all of them over its 201 calls, price/2 one each',
+         Spent-TopRow-NextRow, 402-prof(basket_total/2, 402, 201, 402)-prof(price/2, 201, 201, 1)),
+
+    format("~n-- two runs compared~n"),
+    %% the same basket over a program that knows what a banana costs: the
+    %% inputs both runs called that answered differently, deepest first --
+    %% the first is where the difference began
+    atom_concat(Dir, '/basket2.pl', Prog2),
+    read_file_to_codes(Prog, PC),
+    atom_codes(PA, PC),
+    atom_concat(PA, 'price(banana, 2).\n', PB),
+    open(Prog2, write, W2), write(W2, PB), close(W2),
+    atom_concat(Dir, '/basket2', Base2),
+    flow_debug(G, Base, [source(Prog), names(['T'=T]), from(1)], RunA),
+    flow_debug(G, Base2, [source(Prog2), names(['T'=T]), from(1)], RunB),
+    flow_diff(RunA, RunB, diff(_, [differ(DP, DIn, c(_, _, _, _, DA), c(_, _, _, _, DB))|_], _, _)),
+    must('the deepest input answered differently: price(banana, P), which a fails and b answers 2',
+         DP-DIn-DA-DB, price/2-[banana, '_']-fail-exit([banana, '2'])),
 
     asked(Dir),
 

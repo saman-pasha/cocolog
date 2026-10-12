@@ -634,6 +634,7 @@ the SVG give it, and says in a sentence what will happen there:
 | `left_recursion` | error | a predicate whose first call reaches itself again with the inputs it was given -- through others too, `ping/1 -> pong/1 -> ping/1` -- so the search for its answers never ends; a grammar rule that calls itself before reading any input is named as the nonterminal, `xs//0`. With nothing bound it is one only when no clause can succeed: `size(L, N)` of free `L` and `N` is a generator, as `length/2` is |
 | `unreachable_clause` | warning | an earlier clause's head matches every call of this pattern and every goal before its cut succeeds, so the clauses after it are never tried |
 | `det_promise` | warning | a `%! p(...) is det` (or `semidet`) comment, for the call patterns its modes cover, against what the analysis infers -- and the goal that breaks it: `when phrase(ws(Ws), Text) fails, so does the whole call` |
+| `discontiguous` | warning | (1.10.27) the clauses of a predicate the chart has a panel for stand in more than one place in the file and no `:- discontiguous` declares it: cocolog joins them without a word, so a clause given a name already taken joins that predicate. One finding a predicate, at the first clause that stands apart, naming the clause of another predicate before it |
 
 **The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
 says which builtins raise when given which arguments unbound, 58 rows, each
@@ -1081,6 +1082,36 @@ from a session that used the library on `library/reasoning/translate.pl`:
   reader copied the terminator of a token buffer nothing had been put in
   (section 11) -- and the translator's run met it in the text of an argument
   `atomic_list_concat/3` exited with.
+* **Two runs compared** (`flow_diff/3`, `library/flow/dbgdiff.pl`, 1.10.27;
+  `diff=FILE`, `diff_goal=GOAL`): the session's regression hunt, ported from
+  its script. An INPUT is a predicate and its arguments' text at its Call,
+  each `_G` name read as `_`; the inputs both runs called whose answers (the
+  last Exit's arguments, or how the call ended) differ, deepest first --
+  the first is where the difference began -- and the predicates only one
+  run called. The first differing CALL is no use: a memoisation change made
+  the session's first one.
+* **Where the inferences went** (`profile(P)`, `library/flow/dbgprof.pl`,
+  1.10.27; `profile=true`): a call is charged from its Call to its FIRST
+  Exit or Fail (its last end charges it with the continuation a Redo comes
+  back over: the session's first profile added to over 100 %), a call with
+  neither up to the last inference under it, and a predicate with the union
+  of its calls' spans, so a recursion is counted once.
+* **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
+  the why of a reader that backtracks is the whole trace (2.84 MB for one
+  refusal), and following its last failure down leads to the last
+  fallback (`tr_byline/3`), not the cause. At each failed call the clause
+  whose body got the most calls done, then the most inferences spent, then
+  the earlier -- in the XML's `<furthest>`, at the foot of Base.txt and
+  above the why on the picture.
+* **Clauses not together** (`library(flow/chart)`'s finding
+  `discontiguous`, 1.10.27): cocolog joins a predicate's clauses wherever
+  they stand, without a word (SWI warns), so a helper given a name already
+  taken joins that predicate. The file is read again for each clause's line
+  and predicate (0.1 s over the translator's 3485) and its `:- discontiguous`
+  declarations; a predicate with a panel whose clauses stand in more than
+  one place has one finding, at the first clause that stands apart. The
+  translator has 39, the number the session counted from the XML's clause
+  lines.
 
 ## 10. Phases
 
