@@ -29,6 +29,8 @@ flow_test(compound, 1).
 flow_test(callable, 1).
 flow_test(is_list, 1).
 flow_test(ground, 1).
+flow_test(acyclic_term, 1).
+flow_test(cyclic_term, 1).
 flow_test(string, 1).
 
 %% THE HAND-KEPT TABLE: a builtin's or a library predicate's argument modes

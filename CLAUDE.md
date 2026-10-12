@@ -57,12 +57,13 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `8be7385` (2.0.0: `(inline)` and `(weak)` split, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `d7b4de5` (2.0.1: `->` and `=>` through a call by name; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let one in by name: 2.0.0's split, 2026-10-11).
+not an applied one (the owner let two in by name: 2.0.0's split, 2026-10-11,
+and 2.0.1's arrow through a call, 2026-10-12).
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
@@ -318,6 +319,14 @@ links the engine) and runs the 62 `.pl` cases in `pl_names/1`
 * **A case that passes alone proves the case; the suite proves the contract
   between cases** (a lesson's last line must be exactly `done`; a library
   loaded as a goal after a module set a flag).
+* **A new C builtin wants a line in `library/flow/modes.pl`** (`flow_mode/4`,
+  or `flow_test/2` for a test), and `test/flowchart.pl` holds that table to
+  `library/flow/tables.pl` -- generated, git-ignored, and rebuilt only by
+  `make modules` (`sh tools/flow/build.sh`), so an old one passes the check:
+  `acyclic_term/1` and `cyclic_term/1` (1.10.18) went through two regression
+  nets that way, and the first full suite after them ended `red: 1`
+  (1.10.19; the lines came in 1.10.20). Rebuild the tables before believing
+  the case after adding a builtin.
 * **A fixture that has to TAKE a while is timed by the clock, never by a
   count.** 1.8.42-1.8.44 made the engine two to three times faster and
   three cases went red for it alone: a cowork job that had to outlive a
@@ -499,7 +508,12 @@ much later.
   generic** in this package (`nil` is `cocolog::nil`).
 * **A `#define` is invisible to Cicili**: write the number out.
 * **`$` chains** (`($ a b c)` is `a.b.c`), `(-> p m)` is `p->m`,
-  `(=> o m args)` calls a function in a member.
+  `(=> o m args)` calls a function in a member. **Since Cicili 2.0.1 the
+  object of `->` and `=>` may be a call by name**:
+  `(-> (coco_m_machine e) heap_len)`; through 2.0.0 that was `pointer storage
+  not found`, and `($ (cof (coco_m_machine e)) heap_len)` the way round it
+  (`lib/builtins.cicili` still writes it twice). A call through a function
+  pointer, or a C++ method's, still has no storage: dereference it.
 * **`../cicili/lib/std/c/posix/` already declares the POSIX structs**; what
   is missing is only the C typedef: `(@define (code "pollfd struct pollfd"))`,
   named exactly as std names it.
