@@ -57,13 +57,13 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `d7b4de5` (2.0.1: `->` and `=>` through a call by name; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `9430f5d` (2.0.2: `->` and `=>` through any call -- by name since 2.0.1, through a function pointer, a table of them or a C++ method since 2.0.2; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let two in by name: 2.0.0's split, 2026-10-11,
-and 2.0.1's arrow through a call, 2026-10-12).
+not an applied one (the owner let three in by name: 2.0.0's split, 2026-10-11,
+and 2.0.1's and 2.0.2's arrow through a call, 2026-10-12).
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
@@ -508,12 +508,15 @@ much later.
   generic** in this package (`nil` is `cocolog::nil`).
 * **A `#define` is invisible to Cicili**: write the number out.
 * **`$` chains** (`($ a b c)` is `a.b.c`), `(-> p m)` is `p->m`,
-  `(=> o m args)` calls a function in a member. **Since Cicili 2.0.1 the
-  object of `->` and `=>` may be a call by name**:
-  `(-> (coco_m_machine e) heap_len)`; through 2.0.0 that was `pointer storage
-  not found`, and `($ (cof (coco_m_machine e)) heap_len)` the way round it
-  (`lib/builtins.cicili` still writes it twice). A call through a function
-  pointer, or a C++ method's, still has no storage: dereference it.
+  `(=> o m args)` calls a function in a member. **The object of `->` and
+  `=>` may be a call**: by name since Cicili 2.0.1,
+  `(-> (coco_m_machine e) heap_len)`, and through a function pointer (a
+  variable, a member, a table of them) or a C++ method since 2.0.2; through
+  2.0.0 that was `pointer storage not found`, and
+  `($ (cof (coco_m_machine e)) heap_len)` the way round it
+  (`lib/builtins.cicili` still writes it twice). A callee whose type Cicili
+  cannot resolve -- a type known only by a `@define` -- still has none:
+  dereference it.
 * **`../cicili/lib/std/c/posix/` already declares the POSIX structs**; what
   is missing is only the C typedef: `(@define (code "pollfd struct pollfd"))`,
   named exactly as std names it.
