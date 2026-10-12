@@ -80,7 +80,19 @@ deliberately, because SWI has them:
 * **A deeper Redo reopens its ancestors.** Once backtracking re-enters
   a call's subtree, that call is live again, and its `Fail` prints when
   the failure finally crosses it — even though its own `Exit` had
-  already been reported.
+  already been reported. Only the calls the Redo is *inside*: in
+  `d0, member(X, [1,2]), X > 5` the `d0` that exited before `member/2`
+  was called stays exited, and SWI fails it no more than cocolog does
+  (through 1.10.22 every shallower call below a Redo was reopened, and
+  `Fail: d0` was printed).
+* **A cut does not hide a Fail.** `cutfail :- !, fail.` prints
+  `Fail: cutfail`, as SWI does: the cut takes away the call's other
+  clauses and everything its body left to try, but under trace the
+  call's own frame stays, spent, and failing back into it is the call's
+  `Fail` — or nothing, once it has exited. Through 1.10.22 the cut took
+  that frame too, and every call whose clause cut and then failed ended
+  with no `Fail` at all (in a window, a call with no end: the
+  `fate="open"` of `library(flow/debug)`).
 * **Heads that cannot match make no noise.** A call that exited and is
   later backtracked *past* — its remaining clause heads all failing to
   unify — is discarded in silence. That is the quiet SWI's clause
@@ -93,7 +105,7 @@ deliberately, because SWI has them:
 ## How it is held to SWI
 
 `test/trace.pl` — the `trace` case of `make test` — asks both tracers
-the same twenty-three queries over `test/trace-program.pl` and compares the port
+the same thirty-three queries over `test/trace-program.pl` and compares the port
 lines one for one: same ports, same order, same relative depths, same
 goals. Three things are normalised first, because the two writers are
 entitled to them: the depth base (SWI's toplevel starts about ten
@@ -263,7 +275,13 @@ machine frozen mid-trace thaws anywhere, carries its pending exits with
 it (they are heap terms), and simply starts its shadow empty. Under
 trace the last matching clause keeps its frame, because failing back
 past it is what prints the `Fail` port; without trace it is popped, as
-ever, and a loop runs in constant space.
+ever, and a loop runs in constant space. So does a call whose own cut
+would take the frame (1.10.24): the cut leaves it, marked SPENT --
+nothing to try -- with everything above it gone, and backtracking into
+it prints the `Fail` and drops it. Whether a frame is a call's is told by
+its depth, never by its goal: a goal can be heap cell 0, the first term a
+fresh machine reads, and through 1.10.22 `cocolog --trace run F t` never
+printed `Fail: t` for an atom goal `t` written first in the query.
 
 ## From Emacs
 

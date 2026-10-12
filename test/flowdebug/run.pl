@@ -73,3 +73,10 @@ grow(F) :-
     use_module(F),
     (   catch(grown(x), _, fail) -> true ; append_file_from_codes(F, "grown(x).\n") ),
     getenv('HOME', _).
+
+%% a clause that cuts and then fails: the call fails, from the frame its
+%% cut kept -- through 1.10.22 the cut took that frame and the call had no
+%% end at all (its fate open)
+refuse(X) :- cut_none(X).
+cut_none(X) :- X > 0, !, fail.
+cut_none(_).

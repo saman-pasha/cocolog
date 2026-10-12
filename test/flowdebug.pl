@@ -17,7 +17,8 @@
 %%   pick(X)       a redo: a binding undone, and the next one made
 %%   safe(E)       an exception raised, unwound and caught, and the
 %%                 recovery called; oops(X), one nothing caught
-%%   find(z, V)    a run that fails, and the goal its failure began at
+%%   find(z, V)    a run that fails, and the goal its failure began at;
+%%                 refuse(5), a clause that cuts and then fails
 %%   go(30, R)     a recursion seen through a window of its last 100
 %%                 inferences, and go(12, R) drawn as a tree
 %%   flip(F)       a run that is not the same twice -- and with a journal is
@@ -193,7 +194,12 @@ failing(D) :-
     ->  true
     ;   Box7 = none
     ),
-    check('...the XML says it failed, and that its failure began at member/2''s box', E7-Box7, false-'p2.c1.g2').
+    check('...the XML says it failed, and that its failure began at member/2''s box', E7-Box7, false-'p2.c1.g2'),
+    debugged(D, refuse, refuse(5), [], [], R7b),
+    calls(R7b, C7b),
+    check('refuse(5): a clause that cuts and then fails -- the call fails, and so does its caller',
+          C7b, [ refuse/1-'query.g1'-p1-fail, cut_none/1-'p1.c1.g1'-p2-fail,
+                 (>)/2-'p2.c1.g1'-none-exit, fail/0-'p2.c1.g3'-none-fail ]).
 
 %% ---- a window --------------------------------------------------------------
 

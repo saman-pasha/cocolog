@@ -388,8 +388,17 @@
   ;;; index of the frame it revives in `clause_ix' -- a field a catch frame
   ;;; does not use, and a number, so a frozen machine still travels as a row
   ;;; of numbers with no new field in it.
+  ;;; SPENT is a traced call's CLAUSE frame that its own cut kept (1.10.24,
+  ;;; `coco_trace_cut'). Under trace the Fail port is printed from the call's
+  ;;; frame, and the cut took the frame: `cutfail :- !, fail.' printed no
+  ;;; Fail, where SWI prints `Fail: (11) cutfail', and a window recorded the
+  ;;; call as never ending. The frame stays with nothing to try; backtracking
+  ;;; into it prints the Fail -- or nothing, after an Exit -- and drops it,
+  ;;; as it drops a DEAD one. Untraced, a cut takes the frame as it always
+  ;;; did, and a SPENT frame a thawed or `notrace'd run meets is dropped in
+  ;;; silence: the cut has still cut.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
-                         (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4))
+                         (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5))
 
   (struct coco_choice
     (member int      kind)
@@ -1018,15 +1027,28 @@
 
   ;;; A Redo re-enters not only its own frame but, implicitly, every call
   ;;; it is nested in: their environments are live again, and SWI prints
-  ;;; their Fail when the failure finally crosses them. An ancestor is an
-  ;;; older frame at a strictly shallower depth.
-  (static)
+  ;;; their Fail when the failure finally crosses them. AN ANCESTOR IS THE
+  ;;; NEAREST call frame below that is shallower than the last one found --
+  ;;; the call at that depth was made after every earlier sibling at its
+  ;;; depth, so its frame is the newer -- and only the ancestors are opened
+  ;;; (1.10.24). Every shallower frame below was, through 1.10.22, a
+  ;;; sibling that had exited before the enclosing call was made among
+  ;;; them, and `d0, memb(X, [1,2]), X > 5' printed a Fail for the `d0'
+  ;;; SWI never fails. A call's frame is a traced CLAUSE frame or the SPENT
+  ;;; one its cut kept; a frame no trace made (`printr' 0) is no call's.
+  ;;; (weak): out of line, as the recorder's functions are, so the untraced
+  ;;; path of `coco_backtrack' that calls it is what it was.
+  (weak)
   (func coco_trace_reopen ((coco_engine * e) (size_t below) (int depth))
-        (let ((i64 fi . #'(- (cast i64 below) 1)))
-          (while (>= fi 0)
-            (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
-                     (< ($ (nth (cast size_t fi) (-> e tchoices)) depth) depth))
-                (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0))
+        (let ((i64 fi . #'(- (cast i64 below) 1)) (int cur . depth))
+          (while (and (>= fi 0) (> cur 1))
+            (let ((int k . #'($ (nth (cast size_t fi) (-> e choices)) kind))
+                  (coco_tchoice * tc . #'(aof (nth (cast size_t fi) (-> e tchoices)))))
+              (if (and (or (== k COCO_CH_CLAUSE) (== k COCO_CH_SPENT))
+                       (!= (-> tc printr) 0)
+                       (< (-> tc depth) cur))
+                  (block (set (-> tc exited) 0)
+                         (set cur (-> tc depth)))))
             (set fi (- fi 1)))))
 
   ;;; ---- the recorder (1.10.12) ------------------------------------------
@@ -2936,6 +2958,42 @@
         (coco_rec_heads e ci 0 0)
         (coco_trace_port e "Fail" depth g))
 
+  ;;; A CUT UNDER TRACE KEEPS ITS OWN CALL'S FRAME (1.10.24). The cut has
+  ;;; taken the stack to B; the frame at B is the call whose body the cut
+  ;;; is in when it is that call's traced frame -- its goal and its depth
+  ;;; the tracer's context, which a deeper call or a `;' never is -- and it
+  ;;; is put back, SPENT: nothing left to try, every frame above it gone as
+  ;;; the cut said. Backtracking into it is the call's Fail
+  ;;; (`coco_trace_spent'), where through 1.10.22 there was no frame to
+  ;;; fail from and the call ended in silence -- `fate="open"' in a window.
+  ;;; A cut local to `call/1', a condition or `\+' is not the call's: the
+  ;;; frame at its height is a deeper call's, or a construct's. Quiet trace
+  ;;; (3, `--backtrace') keeps nothing: it prints no port, and a frame kept
+  ;;; for each call that cut would be a deep recursion's memory for nothing.
+  (weak)
+  (func coco_trace_cut ((coco_engine * e) (size_t b))
+        (if (== (-> e trace) 3) (return))
+        (let ((coco_choice * c . #'(aof (nth b (-> e choices))))
+              (coco_tchoice * tc . #'(aof (nth b (-> e tchoices)))))
+          (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_SPENT))
+                   (!= (-> tc printr) 0)
+                   (== (-> tc depth) (-> e trace_depth))
+                   (== (-> tc goal) (-> e trace_goal)))
+              (block (set (-> c kind) COCO_CH_SPENT)
+                     (set (-> e nchoices) (+ b 1))))))
+
+  ;;; A SPENT FRAME BACKTRACKED INTO: the call whose cut kept it has nothing
+  ;;; left to try, so this is its Fail -- printed, or recorded in a window,
+  ;;; the goal as backtracking left it -- unless it had exited, when it goes
+  ;;; in silence as a clause frame out of heads does. No heads are recorded:
+  ;;; after the cut no other clause was tried.
+  (weak)
+  (func coco_trace_spent ((coco_engine * e) (size_t ci))
+        (if (== (-> e trace) 0) (return))
+        (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
+          (if (and (!= (-> tc printr) 0) (== (-> tc exited) 0))
+              (coco_trace_port e "Fail" (-> tc depth) (-> tc goal)))))
+
   ;;; THE CALL IN THE REGISTERS HAS MORE THAN ONE CANDIDATE: its frame made
   ;;; here, as the dispatch makes one, over the term built first -- so the
   ;;; term sits under the frame's heap mark -- rather than built and sent
@@ -3161,21 +3219,27 @@
                    ;; of the call it sits in, printed with the bindings just
                    ;; undone. The else-frames of `->' pass in silence, and
                    ;; either way the call context is the one the frame was
-                   ;; made under.
+                   ;; made under. A frame made in a call's body says so by its
+                   ;; depth -- 0 is the toplevel, where nothing prints -- and
+                   ;; not by its goal: a goal can be heap cell 0, the first
+                   ;; term a fresh machine reads, and through 1.10.22 `cocolog
+                   ;; --trace run F t' never printed the Fail of `t'.
                    (if (-> e trace)
                        (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
-                         (if (and (!= (-> tc printr) 0) (!= (-> tc goal) 0))
+                         (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0))
                              (block
                               (coco_trace_port e "Redo" (-> tc depth) (-> tc goal))
-                              ;; the redone call's own frame, and every call
+                              ;; the redone call's own frame -- the SPENT one its
+                              ;; cut kept, or its clause frame -- and every call
                               ;; it is nested in, are open episodes again
                               (let ((i64 fi . #'(- (cast i64 ci) 1)))
                                 (while (>= fi 0)
-                                  (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
-                                           (== ($ (nth (cast size_t fi) (-> e choices)) call) (-> tc goal))
-                                           (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) (-> tc depth)))
-                                      (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0)
-                                             break))
+                                  (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
+                                    (if (and (or (== fk COCO_CH_CLAUSE) (== fk COCO_CH_SPENT))
+                                             (== ($ (nth (cast size_t fi) (-> e choices)) call) (-> tc goal))
+                                             (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) (-> tc depth)))
+                                        (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 0)
+                                               break)))
                                   (set fi (- fi 1))))
                               (coco_trace_reopen e ci (-> tc depth))))
                          (set (-> e trace_goal) (-> tc goal))
@@ -3198,9 +3262,12 @@
                     (set (-> e nchoices) ci)
                     continue))
               ;; a catch offers no alternative, and neither does a frame the
-              ;; soft cut killed: drop it and keep going down
-              (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD))
-                  (block (set (-> e nchoices) ci) continue))
+              ;; soft cut killed, nor a traced call's frame its cut kept --
+              ;; which is that call's Fail, out of line (1.10.24): drop it
+              ;; and keep going down
+              (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD) (== kind COCO_CH_SPENT))
+                  (block (if (== kind COCO_CH_SPENT) (coco_trace_spent e ci))
+                         (set (-> e nchoices) ci) continue))
               ;; a clause frame. The goal is painted BEFORE selection, which
               ;; binds it to whichever head matches -- SWI's Redo shows the
               ;; call as it stood, not the head it is about to try.
@@ -3213,7 +3280,7 @@
                     (int rexited . 0) (int traced . 0))
                 (if (-> e trace)
                     (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
-                      (if (and (!= (-> tc printr) 0) (!= (-> tc goal) 0))
+                      (if (and (!= (-> tc printr) 0) (> (-> tc depth) 0))
                           (block (set traced 1)
                                  (set rD (-> tc depth))
                                  (set rg (-> tc goal))
@@ -4871,13 +4938,16 @@
                          ;; exit, so failing back past untried heads that
                          ;; cannot match stays silent -- the quiet SWI's
                          ;; clause indexing buys by never keeping the frame
+                         ;; -- and so does the SPENT frame a cut kept, which a
+                         ;; deterministic exit leaves with nothing to fail
                          (let ((i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
                            (while (>= fi 0)
-                             (if (and (== ($ (nth (cast size_t fi) (-> e choices)) kind) COCO_CH_CLAUSE)
-                                      (== ($ (nth (cast size_t fi) (-> e choices)) call) xg)
-                                      (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) xd))
-                                 (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 1)
-                                        break))
+                             (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
+                               (if (and (or (== fk COCO_CH_CLAUSE) (== fk COCO_CH_SPENT))
+                                        (== ($ (nth (cast size_t fi) (-> e choices)) call) xg)
+                                        (== ($ (nth (cast size_t fi) (-> e tchoices)) depth) xd))
+                                   (block (set ($ (nth (cast size_t fi) (-> e tchoices)) exited) 1)
+                                          break)))
                              (set fi (- fi 1))))
                          (set (-> e trace_depth) (- xd 1))
                          (set (-> e trace_goal) pg)))
@@ -4889,7 +4959,11 @@
 
                   ((and (== n 0) (== nid (coco-id m "!")))
                    ;; cut: the stack goes back to the barrier this goal carried
-                   (if (< b (-> e nchoices)) (set (-> e nchoices) b))
+                   ;; -- and under trace the call it belongs to keeps its own
+                   ;; frame, spent, for its Fail (`coco_trace_cut', 1.10.24)
+                   (if (< b (-> e nchoices))
+                       (block (set (-> e nchoices) b)
+                              (if (-> e trace) (coco_trace_cut e b))))
                    (set (-> e goals) k))
 
                   ((and (== n 1) (== nid (coco-id m "$cut")))
@@ -5033,7 +5107,7 @@
                             (while (> fi (cast i64 ci))
                               (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
                                 (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH)
-                                         (!= fk COCO_CH_CATCH_RETRY))
+                                         (!= fk COCO_CH_CATCH_RETRY) (!= fk COCO_CH_SPENT))
                                     (block (set live 1) break)))
                               (set fi (- fi 1)))
                             (if live

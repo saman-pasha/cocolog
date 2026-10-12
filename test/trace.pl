@@ -35,7 +35,16 @@ main :-
                        'memb(X, [1,2]), X > 1', 'memb(9, [1,2])',
                        'classify(-3, C)', 'classify(0, C)', 'classify(7, C)',
                        'either(5)', 'either(1)', '3 < 2', 'X = f(Y)', 'atom(foo)',
-                       'X is 2 + 2, X > 3', 'np(2)', 'np(1)', 'len3(abc)', 'len3(ab)' ]),
+                       'X is 2 + 2, X > 3', 'np(2)', 'np(1)', 'len3(abc)', 'len3(ab)',
+                       %% a cut and then a failure: the call's Fail from the
+                       %% frame its cut kept (1.10.24) -- and `cutfail' and
+                       %% `sib' are the query's first term, heap cell 0, which
+                       %% through 1.10.22 the tracer took for "no call" and
+                       %% printed no Fail for
+                       'cutfail', 'cpos(5)', 'cpos(-1)', 'cmem(X), fail', 'cmem(X), X > 1',
+                       'cor(X), fail', 'cin(5)', 'cutfail ; true',
+                       %% a redo opens only the calls it is inside
+                       'sib', 'csib' ]),
            traced(Swipl, Program, Q)),
     %% TRACED AFTER AN UNTRACED CALL. The first call resolves every functor
     %% it meets and stamps the plain predicates (`fgen', 1.8.55), whose

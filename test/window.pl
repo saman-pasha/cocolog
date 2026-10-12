@@ -93,7 +93,7 @@ clock :-
                      '$trace_window'(G, [from(1)], _, end(H, R, _)),
                      U \== R ),
             Off1),
-    check('the trace case''s 23 queries: recorded, each counts what it counts untraced', Off1, []),
+    check('the trace case''s 33 queries: recorded, each counts what it counts untraced', Off1, []),
     %% and printed: --trace on the command line, against the same run without
     findall(P-A-B, ( member(P-Goal, [ 'nrev.pl'-'main(30,2)', 'queens.pl'-'main(6,1)',
                                       'lookup.pl'-'main(50,2)' ]),
@@ -112,8 +112,10 @@ clock_query(Q) :-
                 (sum([1,2,3], S), S > 5), (pick(_), fail), pick(b), fst(_, [7,8]),
                 (memb(X, [1,2]), X > 1), memb(9, [1,2]), classify(-3, _), classify(0, _),
                 classify(7, _), either(5), either(1), 3 < 2, _ = f(_), atom(foo),
-                (Y is 2 + 2, Y > 3), np(2), np(1), len3(abc), len3(ab) ]),
-    S = S, X = X, Y = Y.
+                (Y is 2 + 2, Y > 3), np(2), np(1), len3(abc), len3(ab),
+                cutfail, cpos(5), cpos(-1), (cmem(_), fail), (cmem(Z), Z > 1),
+                (cor(_), fail), cin(5), (cutfail ; true), sib, csib ]),
+    S = S, X = X, Y = Y, Z = Z.
 
 %% the inferences between two statistics/2 calls around Goal, in a child,
 %% with SWITCHES on the command line
@@ -160,7 +162,7 @@ printed :-
                        printed_ports('test/trace-program.pl', G, P1),
                        R1 \== P1 ),
             Off1),
-    check('the trace case''s 23 queries: the same ports, at the same depths, of the same goals', Off1, []),
+    check('the trace case''s 33 queries: the same ports, at the same depths, of the same goals', Off1, []),
     scratch(D),
     atom_concat(D, '/look.pl', F),
     fixture(F, [ 'w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).', 'w_pairs([a-1, b-2]).' ]),

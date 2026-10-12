@@ -1127,6 +1127,17 @@ cocolint index offers no import of it.
   it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
   the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
   and drawn (`library/flow/dbgdraw.pl`).
+* **Under trace a cut keeps its own call's frame, SPENT** (1.10.24,
+  `coco_trace_cut`): the Fail port is printed from the call's frame, and
+  through 1.10.22 the cut took it, so a clause that cut and then failed
+  printed no Fail (and a window's call never ended, `fate="open"`). A
+  frame's kind is asked in five places -- `coco_backtrack`'s drop test,
+  the `$trace_exit` marker's search, the `;` Redo's search,
+  `coco_trace_reopen` and `$catch_exit`'s scan -- and a new kind goes to
+  all five. **A frame is a call's by its depth (> 0), never by its goal**:
+  a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
+  atom goal written first. A Redo reopens only the calls it is inside
+  (the nearest shallower frame, then the next), not every shallower one.
 * **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
   `'$trace_window'/4` with `journal(record(F))` writes a line for each
   PORTAL call -- a module call that reaches the world -- and with
