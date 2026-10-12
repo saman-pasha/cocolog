@@ -94,12 +94,14 @@ main :-
     must('the calls, the box each is, how each ended', Cs,
          [ basket_total/2-'query.g1'-fail, price/2-'p1.c2.g1'-exit,
            basket_total/2-'p1.c2.g2'-fail, price/2-'p1.c2.g1'-fail ]),
-    %% the last call is price(banana, P): it tried both clauses' heads, and
-    %% neither unified -- that is the bug, found without a breakpoint
+    %% the last call is price(banana, P): it tried no clause at all -- the
+    %% index passed over price(apple, 3) and price(pear, 4), whose first
+    %% argument is not banana -- and that is the bug, found without a
+    %% breakpoint. A clause is recorded where a call TRIED it: c(K, At) for
+    %% the one it entered, nohead(K, At) for one whose head did not unify
     last(Calls, call(_, _, _, _, _, _, Clauses, [Item, _], _, _)),
     must('price/2 was called with banana', Item, banana),
-    findall(K, member(nohead(K, _), Clauses), NoHeads),
-    must('and neither of its heads unified', NoHeads, [1, 2]),
+    must('and tried no clause: none has a head for a banana', Clauses, []),
 
     format("~n-- the values that crossed~n"),
     findall(Port-Name-Value, member(x(_, Port, _, Name, Value, _), Bindings), Xs),
@@ -118,9 +120,10 @@ main :-
     format("~n-- the run as text, one line a call~n"),
     %% txt(true) writes Base.txt beside the two -- the cheapest view of a
     %% run: each call's inference, the goal at its Call, how it ended, the
-    %% clauses it entered (c2) and the heads that did not unify (h1), its
-    %% box, and where that box is written: :LINE:COL in the file the second
-    %% line names once
+    %% clauses it entered (c2) and the heads it tried that did not unify
+    %% (h1) -- [] for price(banana, P), which tried none -- its box, and
+    %% where that box is written: :LINE:COL in the file the second line
+    %% names once
     flow_debug(G, Base, [source(Prog), names(['T'=T]), txt(true)], _),
     atom_concat(Base, '.txt', Txt),
     read_file_to_codes(Txt, TC),
@@ -133,9 +136,9 @@ main :-
     must('the second names the file every place below is in', FileLine, FL),
     nth1(4, TLs, Fourth),
     atomic_list_concat(Fields, ' ', Fourth),
-    append(_, [Fate, H1, H2, Box4, Where], Fields),
-    must('the fourth call: price/2 failed, neither head unified, the first goal of basket_total''s second clause, written at 3:28',
-         [Fate, H1, H2, Box4, Where], [fail, '[h1', 'h2]', 'p1.c2.g1', ':3:28']),
+    append(_, [Fate, Cl4, Box4, Where], Fields),
+    must('the fourth call: price/2 failed, no clause tried, the first goal of basket_total''s second clause, written at 3:28',
+         [Fate, Cl4, Box4, Where], [fail, '[]', 'p1.c2.g1', ':3:28']),
 
     format("~n-- a long run, its last inferences~n"),
     %% two hundred apples and then a banana: 402 inferences, and a window
@@ -162,13 +165,14 @@ main :-
     format("~n-- why it failed, read back~n"),
     %% the basket's run again: each failed call of the program's own, each
     %% clause it tried -- its head did not unify, or its body was entered
-    %% and called what -- down to price(banana, P), whose heads both
-    %% failed to unify: the price of a banana is nowhere
+    %% and called what -- down to price(banana, P), which tried none: the
+    %% price of a banana is nowhere. basket_total([], 0) is not tried
+    %% either: a list of items is never [], and the index knows it
     flow_why(Run, Why),
     why_shape(Why, Shape),
-    must('basket_total/2 failed in its second clause, at basket_total/2 again, at price/2, with no head that unified',
-         Shape, [why(basket_total/2, [nohead(1), entered(2, [exited(price/2),
-                     why(basket_total/2, [nohead(1), entered(2, [why(price/2, [nohead(1), nohead(2)])])])])])]),
+    must('basket_total/2 failed in its second clause, at basket_total/2 again, at price/2, which tried no clause',
+         Shape, [why(basket_total/2, [entered(2, [exited(price/2),
+                     why(basket_total/2, [entered(2, [why(price/2, [])])])])])]),
     %% a search that fails has many failures; the one that matters is where
     %% it got FURTHEST -- the clause, at each failed call, whose body got
     %% the most calls done -- not where it failed last

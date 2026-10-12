@@ -64,6 +64,7 @@ main :-
     compared_own(D),
     profiled(D),
     furthest(D),
+    many_heads,
     refusals(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -109,8 +110,11 @@ placed(D) :-
     check('...it answers where the untraced run does, recorded whole, as the probe ran, with no journal',
           How1-At1-Ats1-W1-Div1-J1, answer-U1-[U1]-window(1, U1)-false-none),
     findall(P-Cl, ( member(call(_, P, _, _, _, _, Cl, _, _, _), Calls1), memberchk(P, [top/2, bad/1, pos/2]) ), Cls1),
-    check('...the clause each entered, and the head that did not unify',
-          Cls1, [top/2-[c(1, 1)], pos/2-[c(1, 5)], bad/1-[nohead(1, 7)]]).
+    %% bad(5) tries no head: bad/1's one clause is bad(b), which the index
+    %% passes over -- a head never tried is not one that did not unify
+    %% (1.11.2; it was nohead(1, 7))
+    check('...the clause each entered, and none for bad(5): the index passes over bad(b)',
+          Cls1, [top/2-[c(1, 1)], pos/2-[c(1, 5)], bad/1-[]]).
 
 control(D) :-
     section('the else, a second branch, one predicate twice, a then and an else alike'),
@@ -619,8 +623,8 @@ command(D) :-
                     '6         member(z-_,[c-3]) fail [h1 c2] -',
                     '7           member(z-_,[]) fail [h1 h2] -',
                     '% where it got furthest:',
-                    '%  find(z,_): clause 1 of 1 tried, 0 of its calls exited (call 1)',
-                    '%    lookup(z,_): clause 1 of 1 tried, 1 of its calls exited (call 2)',
+                    '%  find(z,_): clause 1, the furthest of 1 tried: 0 of its calls exited (call 1)',
+                    '%    lookup(z,_): clause 1, the furthest of 1 tried: 1 of its calls exited (call 2)',
                     '%      member(z-_,[a-1,b-2,c-3]): failed, nothing of the program''s to say why (call 4)',
                     '' ]),
     %% the file is named once when every place is in it (1.11.0: the
@@ -911,14 +915,53 @@ furthest(D) :-
     append(_, [L41, L42, L43, ''], TL4),
     check('and at the foot of BASE.txt', [L41, L42, L43],
           ['% where it got furthest:',
-           '%  parse(a): clause 1 of 2 tried, 1 of its calls exited (call 1)',
+           '%  parse(a): clause 1, the furthest of 2 tried: 1 of its calls exited (call 1)',
            '%    check(aa): failed, no clause''s head unified (call 3)']),
     atom_concat(D, '/far1.svg', SF5),
     read_file_to_codes(SF5, SC5),
     xml_parse(SC5, S5),
     findall(T, ( svg_text(S5, T), ( T == 'where it got furthest' ; sub_atom(T, 0, _, _, '▸ ') ) ), Ts5),
     check('and on the picture, above why it failed', Ts5,
-          ['where it got furthest', '▸ parse(a)   clause 1 of 2 tried got furthest: 1 call of its body exited  ·  call at 1']).
+          ['where it got furthest', '▸ parse(a)   clause 1, the furthest of 2 tried: 1 call of its body exited  ·  call at 1']),
+    %% check(aa) and fallback(a) tried no clause: the index passed over
+    %% check(bb) and fallback(zz), and a window records only the heads a
+    %% call tried (1.11.2) -- each is still why it failed, with no head
+    findall(T6, ( svg_text(S5, T6), ( sub_atom(T6, 0, _, _, '✗ ') ; sub_atom(T6, 0, _, _, 'no clause tried') ) ), Ts6),
+    check('...where check(aa) ends the furthest path, and under why, the two calls that tried no clause, each said so',
+          Ts6, [ '✗ check(aa)   failed there: no clause''s head unified  ·  call at 3',
+                 '✗ parse(a)   failed  ·  call at 1',
+                 '✗ check(aa)   failed  ·  call at 3',
+                 'no clause tried: none has a head these arguments could unify with',
+                 '✗ fallback(a)   failed  ·  call at 4',
+                 'no clause tried: none has a head these arguments could unify with' ]).
+
+%% ---- a call that tried many heads -----------------------------------------
+
+many_heads :-
+    section('a call that tried many heads costs the matcher their number, not its square'),
+    %% through 1.11.1 each head was appended to the call's list: n heads
+    %% copied n * n / 2 cells (the reasoning session's 20,000 took 19 s
+    %% more than none), and the list is now built backwards and turned
+    %% round once
+    many_heads_cost(5000, I1, F1-L1),
+    many_heads_cost(10000, I2, F2-L2),
+    R is I2 / I1,
+    ( R < 2.5 -> Grows = linearly ; Grows = R ),
+    check('10,000 heads of one call cost the matcher twice what 5,000 do, and come out in the order tried',
+          Grows-F1-L1-F2-L2, linearly-nohead(1, 1)-nohead(5000, 1)-nohead(1, 1)-nohead(10000, 1)).
+
+%% the inferences flow_dbg_index/3 spends on the events of a call that
+%% tried N heads, and its first and last head
+many_heads_cost(N, I, F-L) :-
+    numlist(1, N, Ks),
+    findall(nohead(1, 1, 100, K), member(K, Ks), Hs),
+    append([[call(1, 1, 100, 0, f, [a])], Hs, [fail(1, 1, 100, f, [a])]], Es),
+    statistics(inferences, I0),
+    flow_dbg_index(Es, [c(_, _, _, _, Cl, _, _, _)], _),
+    statistics(inferences, I1),
+    I is I1 - I0,
+    Cl = [F|_],
+    last(Cl, L).
 
 %% ---- refusals -----------------------------------------------------------
 

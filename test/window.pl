@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, asked, checks_done.
+    clock, printed, turns, window, tried, asked, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -60,6 +60,14 @@ w_churn(N) :-
 %% a call that exits and is backtracked past with no clause left to try
 w_look(K, V) :- w_pairs(Ps), member(K-V, Ps).
 w_pairs([a-1, b-2]).
+
+%% heads the selection tries and heads the index passes over (1.11.2): a
+%% call keyed on its first argument tries only the clauses whose first
+%% argument could match it, and one unbound there tries them all
+w_kv(a, 3).
+w_kv(b, 2).
+w_kv(d, 3).
+w_kvs(K) :- w_kv(K, 3), K \== a.
 
 %% a list filled one element at a time; a loop; and a term made before
 %% collections, for a question asked after them (1.10.16)
@@ -250,12 +258,14 @@ window :-
           []-end(answer, 12, [12])),
     '$trace_window'(w_go(_), [from(1)], Es2, End2),
     maplist(win_key, Es2, Ks2),
-    win_first(14, Ks2, Head2),
-    check('from the first inference: the calls, the clauses they entered and the heads that did not match',
+    win_first(11, Ks2, Head2),
+    %% w_nrev([], []) is not tried for a list: the index passes over it, and
+    %% a head never tried is not one that did not match (1.11.2)
+    check('from the first inference: the calls and the clauses they entered',
           Head2,
-          [ call(1, w_go, ['_']), clause(1, 1), call(2, w_nrev, ['[1,2,3]', '_']), nohead(2, 1),
-            clause(2, 2), call(3, w_nrev, ['[2,3]', '_']), nohead(3, 1), clause(3, 2),
-            call(4, w_nrev, ['[3]', '_']), nohead(4, 1), clause(4, 2),
+          [ call(1, w_go, ['_']), clause(1, 1), call(2, w_nrev, ['[1,2,3]', '_']),
+            clause(2, 2), call(3, w_nrev, ['[2,3]', '_']), clause(3, 2),
+            call(4, w_nrev, ['[3]', '_']), clause(4, 2),
             call(5, w_nrev, [[], '_']), clause(5, 1), exit(5, w_nrev, [[], []]) ]),
     check('...and it ends as the probe did', End2, end(answer, 12, [12])),
     last(Ks2, Last2),
@@ -359,6 +369,46 @@ window :-
     ),
     check('a window inside a window is refused, one recorder to a machine: the run''s exception',
           W17, permission-1).
+
+%% ---- the heads tried ---------------------------------------------------
+%%
+%% A WINDOW RECORDS THE HEADS THE SELECTION TRIED (1.11.2). Through 1.11.1
+%% every clause before the one entered was a head that did not match, the
+%% ones the index passed over too: a failed call of a table of 32,046 facts
+%% recorded 32,046 of them, most of a translator window's 31 MB of XML
+%% (reported from the reasoning session). The heads are walked again with
+%% the key the selection read, kept before it bound the call -- the clause
+%% entered may bind the argument the call is keyed on.
+
+tried :-
+    section('the heads a window records are the ones the selection tried'),
+    win_keys(w_kv(_, 2), K1),
+    check('w_kv(K, 2): K unbound, so every clause is tried -- w_kv(a, 3) did not match, w_kv(b, 2) entered and bound K',
+          K1, [call(1, w_kv, ['_', '2']), nohead(1, 1), clause(1, 2), exit(1, w_kv, [b, '2'])]),
+    win_keys(w_kv(d, _), K2),
+    check('w_kv(d, V): the index passes over the clauses for a and b, and they are not recorded',
+          K2, [call(1, w_kv, [d, '_']), clause(1, 3), exit(1, w_kv, [d, '3'])]),
+    win_keys(w_kv(e, _), K3),
+    check('w_kv(e, V): no clause is for e -- none tried, none recorded, and the call fails',
+          K3, [call(1, w_kv, [e, '_']), fail(1, w_kv, [e, '_'])]),
+    win_keys(w_kvs(_), K4),
+    win_kinds(K4, redo, R4),
+    append(_, [redo(I4, w_kv, ['_', '3'])|After4], K4),
+    win_first(3, After4, Next4),
+    check('a retry: w_kv(K, 3) again with K unbound -- w_kv(b, 2) tried and not matched, w_kv(d, 3) entered',
+          R4-Next4, [redo(I4, w_kv, ['_', '3'])]-[nohead(I4, 2), clause(I4, 3), exit(I4, w_kv, [d, '3'])]),
+    forall(between(1, 10000, I5), ( atom_concat(k, I5, A5), assertz(w_many(A5, I5)) )),
+    '$trace_window'(w_many(k9999, _), [from(1)], Es5, _),
+    length(Es5, N5),
+    win_kinds(Es5, nohead, H5),
+    length(H5, NH5),
+    check('w_many(k9999, V) over 10,000 facts: its Call, the one clause tried, its Exit -- 9,998 heads the index passed over not recorded',
+          N5-NH5, 3-0).
+
+%% the keys of a recording of G from its first inference
+win_keys(G, Ks) :-
+    '$trace_window'(G, [from(1)], Es, _),
+    maplist(win_key, Es, Ks).
 
 %% an event without its depth and cells, `_G' names as `_': what a recording
 %% says that another recording of the same run must say too

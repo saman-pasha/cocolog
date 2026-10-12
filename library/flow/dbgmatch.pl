@@ -28,8 +28,9 @@
 %% S the inference of the Call (a call's own name from here on), Pred N/A,
 %% Parent the S of the call it is in (0: none in the window), Box the
 %% chart's id for it or none, Panel the panel it entered (p3) or none,
-%% Clauses the clauses it entered as c(N, At) and the heads that did not
-%% match as nohead(N, At), In and Out the argument texts at its Call and at
+%% Clauses the clauses it entered as c(N, At) and the heads it tried that
+%% did not match as nohead(N, At) -- a clause the index passed over is
+%% not one (1.11.2) -- In and Out the argument texts at its Call and at
 %% its last Exit (none), and Fate exit, fail, open (still running when the
 %% window closed) or redo (re-entered and not done when it closed).
 
@@ -48,15 +49,22 @@ flow_dbg_match(graph(_, _, Panels, Ids, _), Events, Calls) :-
 
 %% one pass: the calls, each with its own facts, and for each call the
 %% stream of what happened inside it -- its children's ports and its own
-%% clauses, Redos and catches, in order
+%% clauses, Redos and catches, in order. A call's clauses and heads are
+%% kept newest first, as a stream is, and turned round once here: added
+%% at the end, each event copied the list before it, and a call with n
+%% heads cost n * n / 2 cells (through 1.11.1; 20,000 heads cost 19 s of
+%% a 37 s run on the reasoning session's box)
 flow_dbg_index(Events, Calls, Streams) :-
     empty_assoc(Cells0),
     empty_assoc(Facts0),
     empty_assoc(Str0),
     flow_dbg_index_(Events, Cells0, Facts0, Facts, Str0, Str1, [], RevOrder),
     reverse(RevOrder, Order),
-    findall(C, ( member(S, Order), get_assoc(S, Facts, C) ), Calls),
+    findall(C, ( member(S, Order), get_assoc(S, Facts, C0), flow_dbg_unrev(C0, C) ), Calls),
     Streams = Str1.
+
+flow_dbg_unrev(c(S, Pr, D, P, Cl0, In, Out, Fa), c(S, Pr, D, P, Cl, In, Out, Fa)) :-
+    reverse(Cl0, Cl).
 
 flow_dbg_index_([], _, F, F, St, St, O, O).
 flow_dbg_index_([E|Es], Cells0, F0, F, St0, St, O0, O) :-
@@ -93,14 +101,14 @@ flow_dbg_event(redo(_, _, C, _, _), Cells, Cells, F0, F, St0, St, O, O) :- !,
     ).
 flow_dbg_event(clause(I, _, C, K), Cells, Cells, F0, F, St0, St, O, O) :- !,
     (   get_assoc(C, Cells, S), get_assoc(S, F0, c(S, Pr, D, P, Cl, In, Out, Fa))
-    ->  append(Cl, [c(K, I)], Cl1),
+    ->  Cl1 = [c(K, I)|Cl],
         put_assoc(S, F0, c(S, Pr, D, P, Cl1, In, Out, Fa), F),
         flow_dbg_stream_add(S, sclause(K), St0, St)
     ;   F = F0, St = St0
     ).
 flow_dbg_event(nohead(I, _, C, K), Cells, Cells, F0, F, St, St, O, O) :- !,
     (   get_assoc(C, Cells, S), get_assoc(S, F0, c(S, Pr, D, P, Cl, In, Out, Fa))
-    ->  append(Cl, [nohead(K, I)], Cl1),
+    ->  Cl1 = [nohead(K, I)|Cl],
         put_assoc(S, F0, c(S, Pr, D, P, Cl1, In, Out, Fa), F)
     ;   F = F0
     ).

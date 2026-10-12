@@ -25,8 +25,9 @@
 %%     FATE     exit -- then the goal as it last exited -- fail, open (still
 %%              running when the window closed), redo (tried again and not
 %%              done when it closed), raised or unwound
-%%     CLAUSES  the clauses it entered, c1 c3, and the heads that did not
-%%              unify, h2
+%%     CLAUSES  the clauses it entered, c1 c3, and the heads it tried that
+%%              did not unify, h2 -- [] when it tried none, no head being
+%%              one its arguments could unify with
 %%     BOX      the chart's id for the goal it is -- query.g1, p3.c2.g4 --
 %%              or - for a call made in a clause the window did not see
 %%              entered
@@ -174,7 +175,7 @@ flow_dbg_text_path([step(S, N/_, In, K, Done, Tried)|Ps], D, [L|Ls]) :- !,
     I is 2 * D,
     flow_dbg_text_spaces(I, Indent),
     flow_dbg_text_goal(N, In, GT),
-    format(atom(L), '%~w~w: clause ~d of ~d tried, ~d of its calls exited (call ~w)',
+    format(atom(L), '%~w~w: clause ~d, the furthest of ~d tried: ~d of its calls exited (call ~w)',
            [Indent, GT, K, Tried, Done, S]),
     D1 is D + 1,
     flow_dbg_text_path(Ps, D1, Ls).

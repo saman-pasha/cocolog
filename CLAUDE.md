@@ -1138,8 +1138,12 @@ cocolint index offers no import of it.
   (`cmd_step`; `call_metered/4` still answers L + 1 for a ceiling of L,
   which `test/engine.pl` pins). `trace` 2 is the record mode: every port
   goes to the machine's recorder (`m->rec`, a `coco_rec`), with the clause
-  a call entered, the heads that did not match (`coco_rec_heads`, read
-  back from the frame after the selection), an exception raised and where
+  a call entered, the heads the selection TRIED that did not match
+  (`coco_rec_heads`, read back from the frame after the selection: the
+  index's candidates walked again with the key the selection read, which
+  `coco_rec_hkey` keeps before the selection binds the call -- a head the
+  index passed over is not recorded since 1.11.2, when one failed call of
+  a 32,046-fact table recorded 32,046), an exception raised and where
   it was caught. `'$trace_window'/4` (lib/builtins.cicili) opens a window
   IN PLACE: the limit stops the fast-forward before inference F, narrowed
   into nested engines as any limit is, and the limit's branch
