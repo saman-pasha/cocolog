@@ -32,6 +32,10 @@ main :-
     ( aggregate_all(set(XA), (p(XA) ; p(XA)), B8) -> s(agg_set, B8) ; true ),
     yn(aggregate_all(max(_), fail, _), agg_max_empty),
 
+    %  ---- the two constants, to the last bit ----
+    yn(( PI is pi, PI =:= 4 * atan(1.0) ), pi_exact),
+    yn(( E is e, E =:= exp(1.0) ), e_exact),
+
     %  ---- between, succ, plus ----
     ( findall(C1, between(1,4,C1), C2) -> s(between_all, C2) ; true ),
     yn(between(1, 5, 3), between_check),

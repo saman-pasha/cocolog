@@ -57,13 +57,14 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `9430f5d` (2.0.2: `->` and `=>` through any call -- by name since 2.0.1, through a function pointer, a table of them or a C++ method since 2.0.2; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `9d74a5e` (3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let three in by name: 2.0.0's split, 2026-10-11,
-and 2.0.1's and 2.0.2's arrow through a call, 2026-10-12).
+not an applied one (the owner let four in by name: 2.0.0's split, 2026-10-11,
+2.0.1's and 2.0.2's arrow through a call and 3.0.0's double literals,
+2026-10-12).
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
@@ -477,6 +478,11 @@ much later.
 * **A string literal is raw** and reaches C untouched; it may not end in a
   backslash and cannot contain a newline (a module's Prolog half is joined
   with spaces).
+* **A float literal is a double, every digit of it** (Cicili 3.0.0). Through
+  2.0.2 the Lisp reader took it as a single float: `pi` and `e` answered
+  `3.1415927` and `2.7182817` through cocolog 1.10.21, and numpy's
+  `1e-300` guard was `0.0`. A macro that computes a float as it expands
+  computes a double -- `(sqrt 2.0)`, never `(sqrt 2)`, which prints `f0`.
 * **`break` and `continue` are bare symbols.** Use `bitand`, `bitor`, `xor`.
 * **There is no character literal**: use the macros (`coco-ch-between`) or
   the code with a comment.
