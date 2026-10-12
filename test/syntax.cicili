@@ -234,6 +234,11 @@
       (trip (aof m) "'hello world'" "'hello world'")
       (trip (aof m) "'it''s'"      "'it''s'")
       (trip (aof m) "[]"           "[]")
+      ;; the empty atom as the reader's FIRST token, when nothing has been put
+      ;; in its token buffer yet: through 1.10.25 that copied from nil and
+      ;; the process died (term_to_atom(T, '''''') did the same)
+      (trip (aof m) "''"           "''")
+      (trip (aof m) "'' - a"       "''-a")
 
       ;; ---- TWO RUNS OF SYMBOL CHARACTERS THAT DO NOT READ BACK BARE -------
       ;;

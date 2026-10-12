@@ -25,6 +25,10 @@
 %%   grow(F)       a run that loads a file it then appends to, which leaves
 %%                 its journal
 %%
+%% and two the case writes: a copy of run.pl charted once and kept, then
+%% changed (cache(Dir)), and below(X), which reads a fact only a store
+%% holds (embed(Dir)).
+%%
 %% How the picture LOOKS is judged by eye; that it reads back, carries the
 %% run's marks and names every box by the chart's id, is checked.
 %%
@@ -52,6 +56,8 @@ main :-
     asked_why(D),
     documents(D),
     command(D),
+    kept(D),
+    stored(D),
     refusals(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -67,6 +73,11 @@ debugged(D, Name, G, Names, Opts, Run) :-
 %% each call: Name/Arity-Box-Panel-Fate, in the order they were made
 calls(run(_, _, _, _, Calls, _, _, _), Cs) :-
     findall(P-B-Pn-F, member(call(_, P, _, _, B, Pn, _, _, _, F), Calls), Cs).
+
+%% the arguments the first call of P to exit exited with, as the window
+%% wrote them (none when no call of P did)
+exited(run(_, _, _, _, Calls, _, _, _), P, Out) :-
+    (   member(call(_, P, _, _, _, _, _, _, Out0, exit), Calls) -> Out = Out0 ; Out = none ).
 
 %% each binding: Port-Name-Value-Box, in the order they were made
 binds(run(_, _, _, _, _, Xs, _, _), Bs) :-
@@ -577,7 +588,161 @@ command(D) :-
               findall(x, x_el(X6, panel, _), Pn6), length(Pn6, NX6) ),
             R6),
     check('depth= and only=: find/2 and pairs/1 stubs under only=lookup/2, lookup/2 one under depth=1, the XML''s four panels both times',
-          R6, ['only=lookup/2'-0-2-4, 'depth=1'-0-1-4]).
+          R6, ['only=lookup/2'-0-2-4, 'depth=1'-0-1-4]),
+    %% txt=true: BASE.txt, the run one line a call (a variable's _G name is
+    %% a heap position, so it is read as _)
+    atomic_list_concat([D, '/cmdt'], B7),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'find(z, V)\' ', F, ' ', B7, ' txt=true'], A7),
+    cocolog_run(A7, T7, E7),
+    atomic_list_concat(Ls7, '\n', T7),
+    atom_concat(B7, '.txt', TF7),
+    ( memberchk(TF7, Ls7) -> N7 = named ; N7 = unnamed ),
+    read_file_to_codes(TF7, TC7),
+    un_g(TC7, TU7),
+    atom_codes(TA7, TU7),
+    atomic_list_concat(TL7, '\n', TA7),
+    check('txt=true: BASE.txt named, the run one line a call -- inference, depth, goal, fate, clauses, box, where',
+          E7-N7-TL7,
+          0-named-[ '% find(z, V): false at inference 7; recorded 1 to 7; diverged no; 7 calls',
+                    '1 find(z,_) fail [c1] query.g1',
+                    '2   lookup(z,_) fail [c1] p1.c1.g1 test/flowdebug/run.pl:35:15',
+                    '3     pairs(_) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 test/flowdebug/run.pl:37:17',
+                    '4     member(z-_,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 test/flowdebug/run.pl:37:28',
+                    '5       member(z-_,[b-2,c-3]) fail [h1 c2] -',
+                    '6         member(z-_,[c-3]) fail [h1 c2] -',
+                    '7           member(z-_,[]) fail [h1 h2] -',
+                    '' ]).
+
+%% _G followed by digits read as _
+un_g([], []).
+un_g([0'_, 0'G, C|Cs], [0'_|Out]) :- C >= 0'0, C =< 0'9, !,
+    un_g_digits(Cs, Rest), un_g(Rest, Out).
+un_g([C|Cs], [C|Out]) :- un_g(Cs, Out).
+
+un_g_digits([C|Cs], Rest) :- C >= 0'0, C =< 0'9, !, un_g_digits(Cs, Rest).
+un_g_digits(Cs, Cs).
+
+%% ---- the chart, kept --------------------------------------------------------
+
+kept(D) :-
+    section('cache(Dir): the chart built once, read back, and built again when the program changes'),
+    (   catch(use_module(library(sha)), _, fail)
+    ->  kept_(D)
+    ;   format("     (skipped: no library/sha.so -- sh modules/sha/build.sh)~n")
+    ).
+
+kept_(D) :-
+    fx(F),
+    atomic_list_concat([D, '/kept.pl'], P),
+    shl(['cp ', F, ' ', P]),
+    atomic_list_concat([D, '/charts'], C),
+    atomic_list_concat([D, '/kept0'], B0),
+    atomic_list_concat([D, '/kept1'], B1),
+    flow_debug(find(z, V1), B0, [source(P), names(['V'=V1])], _),
+    flow_debug(find(z, V2), B1, [source(P), names(['V'=V2]), cache(C)], _),
+    kept_doc(B0, element(flow, A0, K0)),
+    kept_doc(B1, element(flow, A1, K1)),
+    elements(K0, E0), append(EC0, [Run0], E0),
+    elements(K1, E1),
+    (   A1 = [chart=XF|A0], exists_file(XF), kept_doc_file(XF, element(flow, AF, KF))
+    ->  elements(KF, EF),
+        yes_no(( E1 == [Run0], AF == A0, EF == EC0 ), Y1)
+    ;   Y1 = no, XF = none
+    ),
+    kept_same(B0, B1, '.svg', S1),
+    check('the run''s XML is its <run> alone under a root that names the chart''s, and the two are the uncached XML; the picture is the same',
+          Y1-S1, yes-same),
+    atom_concat(XC0, '.xml', XF), atom_concat(XC0, '.chart', CF),
+    shl(['echo "% kept" >> ', CF]),
+    atomic_list_concat([D, '/kept2'], B2),
+    flow_debug(find(z, V3), B2, [source(P), names(['V'=V3]), cache(C)], R3),
+    kept_last(CF, L3),
+    kept_same(B0, B2, '.svg', S3),
+    kept_same(B1, B2, '.xml', X3),
+    R3 = run(How3, _, _, _, _, _, _, _),
+    check('a second run reads the chart back -- the line added to it is still there -- and draws the same',
+          L3-S3-X3-How3, '% kept'-same-same-false),
+    shl(['echo "pairs([z-9])." >> ', P]),
+    atomic_list_concat([D, '/kept3'], B3),
+    flow_debug(find(z, V4), B3, [source(P), names(['V'=V4]), cache(C)], R4),
+    kept_last(CF, L4),
+    ( L4 == '% kept' -> K4 = read_back ; K4 = built ),
+    R4 = run(How4, _, _, _, Cs4, _, _, _),
+    ( memberchk(call(_, pairs/1, _, _, _, _, Cl4, _, _, _), Cs4) -> true ; Cl4 = [] ),
+    findall(K, member(c(K, _), Cl4), Ks4),
+    exited(R4, find/2, O4),
+    check('a program changed is charted again, and the run enters its new clause',
+          K4-How4-Ks4-O4, built-answer-[1,2]-[z, '9']),
+    atomic_list_concat([D, '/kept4'], B5),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'find(z, V)\' ', P, ' ', B5, ' cache=', C], A5),
+    cocolog_run(A5, T5, E5),
+    atomic_list_concat(Ls5, '\n', T5),
+    atom_concat(B5, '.svg', SF5), atom_concat(B5, '.xml', XF5),
+    check('cache=DIR: the command names the chart''s XML after the two files',
+          E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at inference 10; recorded 1 to 10; diverged no']).
+
+kept_doc(B, X) :-
+    atom_concat(B, '.xml', XF),
+    kept_doc_file(XF, X).
+
+kept_doc_file(XF, X) :-
+    read_file_to_codes(XF, Cs),
+    xml_parse(Cs, X).
+
+kept_same(B0, B1, Ext, S) :-
+    atom_concat(B0, Ext, F0), atom_concat(B1, Ext, F1),
+    read_file_to_codes(F0, C0), read_file_to_codes(F1, C1),
+    ( C0 == C1 -> S = same ; S = differs ).
+
+kept_last(F, L) :-
+    read_file_to_codes(F, Cs),
+    atom_codes(A, Cs),
+    atomic_list_concat(Ls, '\n', A),
+    append(_, [L, ''], Ls), !.
+
+%% ---- over a store -------------------------------------------------------------
+
+stored(D) :-
+    section('embed(Dir): the program run over a store, its file loaded as -s loads it'),
+    atom_concat(D, '/probe.kb', P0),
+    sh_join(['--embed ', P0, ' query true >/dev/null 2>&1'], A0),
+    (   cocolog_run(A0, _, 0)
+    ->  stored_(D)
+    ;   format("     (skipped: this build has no embedded store -- the --embed half not run)~n")
+    ).
+
+%% below/1 reads limit/1, which only the store has: 2 in the main
+%% knowledge base, 4 in the one named other
+stored_(D) :-
+    atomic_list_concat([D, '/kb'], KB),
+    atomic_list_concat([D, '/seed.pl'], S1), fixture(S1, ['limit(2).']),
+    atomic_list_concat([D, '/seed2.pl'], S2), fixture(S2, ['limit(4).']),
+    atomic_list_concat([D, '/below.pl'], P),
+    fixture(P, ['below(X) :- limit(L), between(1, 9, X), X > L.']),
+    sh_join(['--embed ', KB, ' run ', S1, ' true >/dev/null 2>&1'], A1), cocolog_run(A1, _, _),
+    sh_join(['--embed ', KB, ' --kb other run ', S2, ' true >/dev/null 2>&1'], A2), cocolog_run(A2, _, _),
+    atomic_list_concat([D, '/below'], B),
+    flow_debug(below(X1), B, [source(P), names(['X'=X1]), embed(KB)], R1),
+    R1 = run(How1, _, _, _, _, _, _, _),
+    exited(R1, limit/1, L1),
+    exited(R1, below/1, O1),
+    check('the run reads what the store holds: limit(2), and below(X) answers 3', How1-L1-O1, answer-['2']-['3']),
+    flow_debug(below(X2), B, [source(P), names(['X'=X2]), embed(KB), kb(other)], R2),
+    R2 = run(How2, _, _, _, _, _, _, _),
+    exited(R2, below/1, O2),
+    check('kb(other) is the store''s knowledge base of that name: limit(4), and 5', How2-O2, answer-['5']),
+    %% asked by the exit status, as test/argv.pl's stored/2 asks: 0 when
+    %% the procedure is there to ask (the answer echoes the query's text,
+    %% so a word written by it would be read either way)
+    sh_join(['--embed ', KB, ' query "below(_)" >/dev/null 2>&1'], A3),
+    cocolog_run(A3, _, Rc3),
+    ( Rc3 =:= 0 -> S3 = stored ; S3 = absent ),
+    check('the program''s clauses were never written into the store, as under -s', S3, absent),
+    flow_debug(below(_), B, [source(P)], R4),
+    R4 = run(How4, _, _, _, _, _, _, _),
+    ( How4 = exception(error(E4, _)) -> true ; E4 = How4 ),
+    check('without embed(Dir) the program runs over a knowledge base of its own, which has no limit/1',
+          E4, existence_error(procedure, limit/1)).
 
 %% ---- refusals -----------------------------------------------------------
 
@@ -592,15 +757,30 @@ refusals(D) :-
     answer(flow_debug(top(5, _), B, [source(F), window(-1)]), x, G5),
     answer(flow_debug(top(5, _), B, [source(F), journal(maybe)]), x, G6),
     answer(flow_debug(top(5, _), B, [source(F), journal_file(7)]), x, G7),
-    check('an unbound goal, no source, a view, an until, a window and a journal it does not take',
-          [G1, G2, G3, G4, G5, G6, G7],
+    answer(flow_debug(top(5, _), B, [source(F), txt(maybe)]), x, G8),
+    check('an unbound goal, no source, a view, an until, a window, a journal and a txt it does not take',
+          [G1, G2, G3, G4, G5, G6, G7, G8],
           [ error(error(instantiation_error, flow_debug/3)),
             error(error(existence_error(flow_option, source), flow_debug/3)),
             error(error(domain_error(flow_view, sideways), flow_debug/3)),
             error(error(domain_error(flow_until, never), flow_debug/3)),
             error(error(domain_error(flow_debug_option, window(-1)), flow_debug/3)),
             error(error(domain_error(flow_debug_option, journal(maybe)), flow_debug/3)),
-            error(error(domain_error(flow_debug_option, journal_file(7)), flow_debug/3)) ]).
+            error(error(domain_error(flow_debug_option, journal_file(7)), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, txt(maybe)), flow_debug/3)) ]),
+    atomic_list_concat([D, '/nope'], Nope),
+    answer(flow_debug(top(5, _), B, [source(F), embed(Nope)]), x, G9),
+    answer(flow_debug(top(5, _), B, [source(F), kb(other)]), x, G10),
+    answer(flow_debug(top(5, _), B, [source(F), embed(D), kb(7)]), x, G11),
+    answer(flow_debug(top(5, _), B, [source(F), cache(7)]), x, G12),
+    answer(flow_when(top(5, _), true, [source(F), kb(other)], _), x, G13),
+    check('a store that is not there, a kb(Name) with no store, and a kb or a cache that is not a name -- flow_when/4''s too',
+          [G9, G10, G11, G12, G13],
+          [ error(error(existence_error(directory, Nope), flow_debug/3)),
+            error(error(existence_error(flow_option, embed), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, kb(7)), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, cache(7)), flow_debug/3)),
+            error(error(existence_error(flow_option, embed), flow_when/4)) ]).
 
 %% the elements among a node's children (an indented document has text
 %% between them)

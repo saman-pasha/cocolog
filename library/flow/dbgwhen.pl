@@ -15,9 +15,10 @@
 %% every call that reaches the world and every later run is a replay of
 %% it, so each reads what the probe read and none does again what it did
 %% (journal(false) runs the program afresh each time); timeout(Ms) for each
-%% run; and base(Base): Base.svg and Base.xml drawn for the window of
-%% window(N) inferences (2000) that ends at I, with flow_debug/4's other
-%% options.
+%% run; embed(Dir) and kb(Name), the store each run opens, as flow_debug/4
+%% takes them; and base(Base): Base.svg and Base.xml drawn for the window
+%% of window(N) inferences (2000) that ends at I, with flow_debug/4's
+%% other options.
 %%
 %% THE SEARCH is over runs, never inside one: Cond is asked where the probe
 %% ended, then bisected over [1, End] -- each step a run of its own, a child
@@ -47,8 +48,9 @@ flow_when(Goal, Cond, Opts, When) :-
     (   JFile == none -> JR = [], JP = []
     ;   JR = [journal(record(JFile))], JP = [journal(replay(JFile))]
     ),
-    Ask = ask(File, Goal, Cond, K, JP, Ms),
-    (   catch(flow_when_search(File, Goal, Cond, K, JR, Ms, Ask, Opts, When0),
+    flow_dbg_src(File, Opts, Src),
+    Ask = ask(Src, Goal, Cond, K, JP, Ms),
+    (   catch(flow_when_search(Src, Goal, Cond, K, JR, Ms, Ask, Opts, When0),
               E, ( flow_dbg_journal_drop(JFile, Keep), throw(E) ))
     ->  true
     ;   flow_dbg_journal_drop(JFile, Keep), fail
@@ -72,11 +74,12 @@ flow_when_check(Goal, Cond, Opts, File) :-
     (   memberchk(journal(J), Opts), \+ memberchk(J, [true, false])
     ->  throw(error(domain_error(flow_when_option, journal(J)), flow_when/4))
     ;   true
-    ).
+    ),
+    flow_dbg_check_where(Opts, flow_when/4).
 
 %% the probe, asked where it ends; then the steps, then the bisection
-flow_when_search(File, Goal, Cond, K, JR, Ms, Ask, Opts, When) :-
-    flow_when_child(File, Goal, Cond, [answers(K)|JR], Ms, Probe, H00),
+flow_when_search(Src, Goal, Cond, K, JR, Ms, Ask, Opts, When) :-
+    flow_when_child(Src, Goal, Cond, [answers(K)|JR], Ms, Probe, H00),
     Probe = end(_, U, _),
     flow_when_end_ok(Probe, Probe),
     flow_when_holds(Cond, H00, H0),
@@ -121,8 +124,8 @@ flow_when_bisect(Lo, Hi, Ask, Probe, I) :-
     ).
 
 %% a run stopped at inference I and asked: true when Cond held there
-flow_when_ask(ask(File, Goal, Cond, K, JP, Ms), I, Probe, H) :-
-    flow_when_child(File, Goal, Cond, [to(I), answers(K)|JP], Ms, End, H0),
+flow_when_ask(ask(Src, Goal, Cond, K, JP, Ms), I, Probe, H) :-
+    flow_when_child(Src, Goal, Cond, [to(I), answers(K)|JP], Ms, End, H0),
     flow_when_stopped(End, I, Probe),
     flow_when_holds(Cond, H0, H).
 
@@ -145,7 +148,7 @@ flow_when_end_ok(end(How, U, A), Probe) :-
 %% THE PROGRAM RUN IN A CHILD and asked where it stopped, as flow_dbg_child/6
 %% runs one: the window and the question are one term, so Cond shares
 %% Goal's variables in the child as here
-flow_when_child(File, Goal, Cond, WOpts0, Ms, End, H) :-
+flow_when_child(Src, Goal, Cond, WOpts0, Ms, End, H) :-
     tmp_file(flowwhen, Out),
     append(WOpts0, [ask(Cond, H1)], WOpts),
     Driver = ( use_module(library(stream)),
@@ -154,9 +157,7 @@ flow_when_child(File, Goal, Cond, WOpts0, Ms, End, H) :-
                format(S, '~q.~n~q.~n', [E, H1]),
                close(S) ),
     format(atom(GoalText), '~q', [Driver]),
-    current_prolog_flag(executable, Exe),
-    flow_dbg_shq(Exe, QExe), flow_dbg_shq(File, QFile), flow_dbg_shq(GoalText, QGoal),
-    atomic_list_concat([QExe, ' run ', QFile, ' ', QGoal, ' 2>&1'], Cmd),
+    flow_dbg_cmd(Src, GoalText, Cmd),
     proc_run(Cmd, Ms, OutCodes, Exit),
     (   Exit =:= 0, exists_file(Out)
     ->  flow_dbg_read_terms(Out, [End0, H|_]),
@@ -164,6 +165,7 @@ flow_when_child(File, Goal, Cond, WOpts0, Ms, End, H) :-
         catch(delete_file(Out), _, true)
     ;   catch(delete_file(Out), _, true),
         atom_codes(Said, OutCodes),
+        flow_dbg_src_file(Src, File),
         throw(error(flow_debug_run(File, Exit, Said), flow_when/4))
     ).
 

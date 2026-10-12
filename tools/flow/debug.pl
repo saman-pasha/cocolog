@@ -20,6 +20,15 @@
 %%              journal=true|false    the probe journals its portal calls and
 %%                                    the replay is answered from them (false)
 %%              journal_file=F        and the journal is kept in F
+%%              txt=true|false        BASE.txt as well: the run, one line a call
+%%                                    (false)
+%%              cache=DIR             the chart kept in DIR, built once for a
+%%                                    goal's call pattern of a file: BASE.xml
+%%                                    is then the run alone, naming the
+%%                                    chart's XML in DIR
+%%              embed=DIR  kb=NAME    the program runs over the store in DIR
+%%                                    (as cocolog --embed DIR --kb NAME), the
+%%                                    file loaded as -s loads it
 %%              when=COND             not how the run went but WHEN: the first
 %%                                    inference at which COND holds -- a goal
 %%                                    over GOAL's variables, asked of the run
@@ -37,7 +46,8 @@
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
 %% predicate, 2 anything else, with the reason on stderr. Standard output
-%% names the two files and then one line about the run:
+%% names the two files (BASE.txt as well with txt=true, and with cache=DIR
+%% the chart's XML that BASE.xml names) and then one line about the run:
 %%
 %%     go(30,R): answer at inference 501; recorded 402 to 501; diverged no
 %%
@@ -62,7 +72,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [when=COND] [step=N]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [cache=DIR] [embed=DIR] [kb=NAME] [when=COND] [step=N]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -91,7 +101,7 @@ main :-
         halt(0)
     ),
     catch(flow_debug(Goal, Base, [source(File), names(Names)|Opts], Run), E, fd_error(E)),
-    format("~w.svg~n~w.xml~n", [Base, Base]),
+    fd_files(Goal, File, Base, Opts),
     Run = run(How, At, _, window(F, T), _, _, Div, J),
     (   How = exception(B) -> format(atom(HT), 'exception ~q at inference ~w', [B, At])
     ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
@@ -125,10 +135,17 @@ fd_when(Goal, Cond, Names, File, Base, Opts) :-
     (   When = at(I)
     ->  ( memberchk(window(W), Opts) -> true ; W = 2000 ),
         From is max(1, I - W + 1),
-        format("~w.svg~n~w.xml~n", [Base, Base]),
+        fd_files(Goal, File, Base, Opts),
         format("~w: ~w first holds at inference ~w; recorded ~w to ~w~n", [GT, CT, I, From, I])
     ;   format("~w: ~w does not hold where the run ends~n", [GT, CT])
     ).
+
+%% the files written, a line each
+fd_files(Goal, File, Base, Opts) :-
+    format("~w.svg~n~w.xml~n", [Base, Base]),
+    (   memberchk(txt(true), Opts) -> format("~w.txt~n", [Base]) ; true ),
+    flow_dbg_chart_xml(Goal, [source(File)|Opts], CX),
+    (   CX == none -> true ; format("~w~n", [CX]) ).
 
 %% the goal with the names it writes: read from a file of its own, which is
 %% how read_term/3 gives them
@@ -147,7 +164,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, when= or step=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, txt=, cache=, embed=, kb=, when= or step=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -158,7 +175,15 @@ fd_option(view, V, view(V)) :-
     memberchk(V, [flow, tree]).
 fd_option(journal, V, journal(V)) :-
     memberchk(V, [true, false]).
+fd_option(txt, V, txt(V)) :-
+    memberchk(V, [true, false]).
 fd_option(journal_file, V, journal_file(V)) :-
+    V \== ''.
+fd_option(cache, V, cache(V)) :-
+    V \== ''.
+fd_option(embed, V, embed(V)) :-
+    V \== ''.
+fd_option(kb, V, kb(V)) :-
     V \== ''.
 %% depth= and only=, as chart.pl reads them: they bound the picture, which
 %% for a large program is otherwise the 150 panels that fit

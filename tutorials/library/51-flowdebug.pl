@@ -14,7 +14,10 @@
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
 %% last N inferences, 2000), from(I) and to(J), discs(N), text(N),
 %% view(flow | tree), names(['X'=X, ...]) for the goal's variables,
-%% timeout(Ms), journal(true) and journal_file(F). The same from a shell:
+%% timeout(Ms), journal(true) and journal_file(F), txt(true) for Base.txt,
+%% the run one line a call; cache(Dir), the chart built once for a program
+%% and kept (library(sha)), and embed(Dir) with kb(Name), the program run
+%% over a store. The same from a shell:
 %% `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [OPTION ...]'.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
@@ -107,6 +110,26 @@ main :-
     memberchk(ended=Ended, RA),
     memberchk(failed_from_call=FC, RA),
     must('the <run> says it failed, and the call its failure began at', Ended-FC, false-'4'),
+
+    format("~n-- the run as text, one line a call~n"),
+    %% txt(true) writes Base.txt beside the two -- the cheapest view of a
+    %% run: each call's inference, the goal at its Call, how it ended, the
+    %% clauses it entered (c2) and the heads that did not unify (h1), its
+    %% box, and where that box is written
+    flow_debug(G, Base, [source(Prog), names(['T'=T]), txt(true)], _),
+    atom_concat(Base, '.txt', Txt),
+    read_file_to_codes(Txt, TC),
+    atom_codes(TA, TC),
+    format("~w", [TA]),
+    atomic_list_concat([Head|TLs], '\n', TA),
+    must('the first line says how the run ended', Head,
+         '% basket_total([apple, banana, pear], T): false at inference 4; recorded 1 to 4; diverged no; 4 calls'),
+    nth1(4, TLs, Fourth),
+    atomic_list_concat(Fields, ' ', Fourth),
+    append(_, [Fate, H1, H2, Box4, Where], Fields),
+    atom_concat(Dir, '/basket.pl:3:28', Here),
+    must('the fourth call: price/2 failed, neither head unified, the first goal of basket_total''s second clause, written here',
+         [Fate, H1, H2, Box4, Where], [fail, '[h1', 'h2]', 'p1.c2.g1', Here]),
 
     format("~n-- a long run, its last inferences~n"),
     %% two hundred apples and then a banana: 402 inferences, and a window

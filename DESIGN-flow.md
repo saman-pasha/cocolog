@@ -1052,6 +1052,36 @@ the last failure and the failures it came from.
   library. Per function the untraced engine runs the same instructions as
   1.10.15's on nrev, queens and lookup.
 
+**After D4: what debugging the translator asked for** (1.10.24-1.10.26),
+from a session that used the library on `library/reasoning/translate.pl`:
+
+* **A cut that is followed by a failure**: the tracer printed no Fail for a
+  call whose clause cut and then failed (the cut took the frame the Fail is
+  printed from), and a Redo failed calls it was not inside. A traced cut
+  now keeps its own call's frame as SPENT, and a Redo opens only the calls
+  it is inside (1.10.24, TRACING.md); each `<event port="redo">` says
+  whether its call had exited (1.10.25).
+* **The run as text** (`txt(true)`, `library/flow/dbgtext.pl`): Base.txt,
+  a line a call -- its inference, the goal at its Call, how it ended, the
+  clauses it entered and the heads that did not unify, its box, and where
+  the box is written.
+* **The chart kept** (`cache(Dir)`): the translator's chart took 52 of a
+  run's 57 seconds and 26 MB of its XML, and is the same for every run of
+  one program. It is built once for a call pattern of a file and a cocolog
+  version and kept as KEY.chart (the graph, a term a part: one term of the
+  whole graph read slower than building it) and KEY.xml; KEY.chart names
+  each file it holds a clause of with its sha256, and a changed file builds
+  it again. The run's XML is then its `<run>` alone, under a root naming
+  KEY.xml: on the translator a hit takes 4.6 s, and the run's XML 54 KB.
+* **Over a store** (`embed(Dir)`, `kb(Name)`): each child runs `cocolog
+  --embed Dir [--kb Name] query`, the file loaded as `-s` loads it -- its
+  clauses never written through -- where `run` would consult them into the
+  store.
+* **What it found**: `term_to_atom(T, '''''')` ended the process -- the
+  reader copied the terminator of a token buffer nothing had been put in
+  (section 11) -- and the translator's run met it in the text of an argument
+  `atomic_list_concat/3` exited with.
+
 ## 10. Phases
 
 | phase | delivers | engine change | lands |
@@ -1067,6 +1097,16 @@ the last failure and the failures it came from.
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |
 
 ## 11. Engine findings on the way
+
+* **Fixed in 1.10.26: reading the empty atom `''` as the first token of a
+  reader ended the process** (`term_to_atom(T, '''''')`, SIGSEGV). The
+  reader's token buffer is allocated by the first character put in it, and
+  `''` puts none: `coco_tok_name` copied its terminator from a nil pointer.
+  A reader that has read anything else first has a buffer, which is why a
+  consult never met it. library(flow/debug) reads every argument text a
+  window wrote back with `term_to_atom/2`, and a call that exited with `''`
+  -- `atomic_list_concat([], ' ', S)` in the translator -- ended the run's
+  drawing. `test/syntax.cicili` reads `''` first.
 
 * **Fixed in 1.10.6: `format/2`'s `~a` and `~s` copied their text through an
   8192-byte buffer**, and so did the format itself and `term_to_atom/2`
