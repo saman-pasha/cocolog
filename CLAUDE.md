@@ -49,7 +49,12 @@ full story goes in its commit message or STATUS.md.
   rewritten without it, on a C++ array library, keeping its `np_*`
   predicates and `.npy` files; until then it is opt-in (`WITH_NUMPY=1` in
   the install scripts and the Dockerfile). torch's and tensorflow's pip
-  paths and `colab/` are left as they are for now.
+  paths and `colab/` are left as they are for now. **Where a Python is
+  used, its floor is NumPy's: 3.9** (`PY_MIN` in `install/common.sh`, the
+  same check in `modules/numpy/build.sh`), and `WITH_NUMPY=1` makes the
+  NumPy (1.26 or later) `python3`'s own -- a distribution's NumPy built for
+  another Python than `python3` is not importable, the mismatch a box with
+  `python3` at 3.11 and Ubuntu's NumPy at 3.12 had.
 
 ## The repositories
 

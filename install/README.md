@@ -46,9 +46,21 @@ raise one.
 * `WITH_NUMPY=1` installs `python3` with its headers and NumPy on Linux, so
   `library(numpy)` builds. It is the one module that embeds CPython, and
   nothing else cocolog builds or runs needs Python, so neither script asks
-  for `python3` without this or `WITH_TORCH=1`. (On macOS nothing is
-  installed for it: a `python3` with NumPy and a shared libpython on `PATH`,
-  as pyenv gives, is what the module looks for.)
+  for `python3` without this or `WITH_TORCH=1`. (On macOS no Python is
+  installed for it: a `python3` with a shared libpython on `PATH`, as pyenv
+  gives, is what the module looks for.)
+* **The oldest Python either script takes is NumPy's oldest, 3.9** (`PY_MIN`
+  in `common.sh`, and the same check in `modules/numpy/build.sh`): the module
+  is written against NumPy 1.26 and 2.x, and both run on 3.9 and later. And
+  **the NumPy is that `python3`'s own**. A distribution's `python3-numpy` is
+  built for the distribution's Python; where `python3` on `PATH` is another
+  one (a deadsnakes 3.11 made `python3` on an Ubuntu 24.04 whose own is
+  3.12), it sees the other Python's NumPy and cannot import it, and it has no
+  `Python.h`. So under `WITH_NUMPY=1` the packages step adds that Python's
+  headers (`python3.X-dev`, `python3.X-devel`), and the build step installs
+  `numpy>=1.26` for it with pip when it imports no NumPy of its own — on
+  macOS as on Linux. pip is told `--ignore-installed`, or it takes the other
+  Python's copy for an installed NumPy and does nothing.
 * `WITH_OPENCV=1` installs OpenCV 4 — `libopencv-dev`, `opencv-devel`, or
   `brew install opencv` — so `library(opencv)` builds. Off by default, for the
   same reason: it is the largest thing either script would install.
