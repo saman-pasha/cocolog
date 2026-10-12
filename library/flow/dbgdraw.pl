@@ -1223,7 +1223,8 @@ flow_dbg_arg_short(X, A) :-
 %%     <calls count>   <call n pred depth parent [box] [panel] fate [journal]>
 %%                       <clause n at/> <nohead n at/>
 %%                       <arg i call [call_length] [exit] [exit_length]/>
-%%     <events count>  <event at port call depth [box] [clause] [ball]>
+%%     <events count>  <event at port call depth [box] [clause] [ball]
+%%                            [exited]>
 %%                       <arg i value [length]/>      (call exit fail redo)
 %%     <bindings count discs>
 %%                     <binding n [disc] at port call box name value
@@ -1235,6 +1236,10 @@ flow_dbg_arg_short(X, A) :-
 %%
 %% n of a call is the inference of its Call, and every call= names one;
 %% box= is the chart's id; a value cut at text(N) has its whole length.
+%% A redo's exited= is true when its call had exited -- asked for another
+%% answer, the one Redo that says a call is nondeterministic -- and false
+%% when it had not: its clause failed and it goes on to the next, as SWI
+%% prints Redo too (none when the window did not see the call before).
 %% A portal's at= is the inference of its call -- the n= of the <call> the
 %% window saw there -- its outcome exit (value= the call as it exited),
 %% fail, throw (ball=) or error (message=); answered= says whether the
@@ -1387,14 +1392,34 @@ flow_dbg_x_val(Key, cut(P, L), [Key=P, KL=L]) :- !,
     atom_concat(Key, '_length', KL).
 flow_dbg_x_val(Key, V, [Key=V]).
 
+%% A REDO SAYS WHETHER ITS CALL HAD EXITED (exited=), which the tracer's
+%% Redo does not, SWI's neither: a call asked for ANOTHER answer -- its
+%% last port an Exit -- is the only Redo that says the call is
+%% nondeterministic; one whose clause failed and which goes on to its next
+%% clause is a retry within one search, and a predicate of many clauses
+%% each guarded by a cut shows many of those. Each call's last port is
+%% kept in order; a Redo whose call the window did not see before it has
+%% no exited=.
 flow_dbg_x_events(SEs, BoxOf, element(events, [count=N], Es)) :-
     length(SEs, N),
-    findall(E, ( member(Ev, SEs), flow_dbg_x_event(Ev, BoxOf, E) ), Es).
+    empty_assoc(L0),
+    flow_dbg_x_evs(SEs, BoxOf, L0, Es).
 
-flow_dbg_x_event(ev(I, Port, S, D, W, As), BoxOf, element(event, Attrs, Ks)) :-
+flow_dbg_x_evs([], _, _, []).
+flow_dbg_x_evs([Ev|Evs], BoxOf, L0, [E|Es]) :-
+    Ev = ev(_, Port, S, _, _, _),
+    (   Port == redo, get_assoc(S, L0, Last)
+    ->  ( Last == exit -> XA = [exited=true] ; XA = [exited=false] )
+    ;   XA = []
+    ),
+    flow_dbg_x_event(Ev, BoxOf, XA, E),
+    (   memberchk(Port, [call, exit, fail, redo]) -> put_assoc(S, L0, Port, L1) ; L1 = L0 ),
+    flow_dbg_x_evs(Evs, BoxOf, L1, Es).
+
+flow_dbg_x_event(ev(I, Port, S, D, W, As), BoxOf, XA, element(event, Attrs, Ks)) :-
     (   get_assoc(S, BoxOf, Box), Box \== none -> BA = [box=Box] ; BA = [] ),
     flow_dbg_x_what(Port, W, WA),
-    append([[at=I, port=Port, call=S, depth=D], BA, WA], Attrs),
+    append([[at=I, port=Port, call=S, depth=D], BA, WA, XA], Attrs),
     (   memberchk(Port, [call, exit, fail, redo])
     ->  flow_dbg_x_event_args(As, 1, Ks)
     ;   Ks = []

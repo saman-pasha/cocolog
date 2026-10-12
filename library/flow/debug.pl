@@ -62,6 +62,18 @@
 %% can -- and is drawn all the same, a true recording of a run of the
 %% program, under a red line that says both ends.
 %%
+%% DEBUG THE GOAL THE PROGRAM IS ENTERED BY, and narrow the window. Each
+%% child starts afresh: it reads the program and calls Goal, and nothing ran
+%% before it -- no earlier call set the globals, asserted the facts or
+%% opened the streams a goal from the middle of a program may stand on. So
+%% such a goal can fail in the child where it succeeds in the program: the
+%% translator's tr_write_ir(english, IR, 46, Out) alone fails at inference
+%% 330, the language it writes having been set by the reading that comes
+%% first in any real run. Give the entry goal (reason_translate/4 there),
+%% and choose the part of its run to record with from(I) and to(J) -- the
+%% inferences are the untraced run's, the same in every run -- or let
+%% flow_when/4 find the inference at which something first holds.
+%%
 %% THE JOURNAL (journal(true), DESIGN-flow.md 9.2) takes what the program
 %% reads out of that: the probe writes an entry for each PORTAL call it
 %% makes -- the clock, the environment, a file, a stream, a process, a
@@ -90,8 +102,11 @@
 %% THE XML is the chart's, the same ids, and a <run> after its panels:
 %% how the run ended and where, the window, a <call> for each call with the
 %% box it is and the panel it entered, its arguments at its Call and at its
-%% Exit, and every <event> in order. So an agent can ask which goal failed
-%% last, and with what.
+%% Exit, and every <event> in order -- a redo saying whether its call had
+%% exited (exited="true": asked for another answer, the one Redo that
+%% makes a call nondeterministic) or had not (a failed clause's retry,
+%% which SWI's tracer prints as Redo too). So an agent can ask which goal
+%% failed last, and with what.
 %%
 %% QUESTIONS OVER THE CLOCK (D4). A run that failed has WHY drawn under its
 %% bindings and in the XML's <why>: each failed call of the program's own,

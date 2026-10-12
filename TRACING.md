@@ -57,7 +57,16 @@ Each line is `Port: (Depth) Goal`.
   bound: `sum([2], _G75)` goes in, `sum([2], 2)` comes out.
 * **Redo** — backtracking re-enters the goal for another way, printed
   with the bindings just undone — which is why the `Redo` above shows
-  `member(_G0, [a,b])` again, not `member(a, [a,b])`.
+  `member(_G0, [a,b])` again, not `member(a, [a,b])`. It is printed for
+  two things, as SWI prints it for both: a call that had **exited** asked
+  for another answer (the `member/2` above), and a call whose clause
+  **failed** going on to its next clause (`Call`, the clause's ports,
+  `Redo`, the next clause's) — a retry within one search for an answer.
+  Only the first says the call is nondeterministic: a predicate of fifty
+  clauses each guarded by a cut shows a Redo for every clause it passes,
+  and is deterministic all the same. Count a Redo that follows an `Exit`
+  of the same call; `library(flow/debug)`'s XML marks each redo
+  `exited="true"` or `"false"` (1.10.25).
 * **Fail** — the goal is out of ways, for good.
 
 Every `Call` eventually meets its `Exit` or its `Fail`; a `Redo`

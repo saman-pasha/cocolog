@@ -13,6 +13,9 @@
 %%              discs=N               bindings numbered on the picture (24)
 %%              text=N                a value written whole up to N characters
 %%              view=flow|tree        the chart with the run over it, or the calls
+%%              depth=N|all           the picture's panels at most N calls deep
+%%              only=NAME/ARITY,...   the picture's panels for these predicates alone
+%%                                    (both as chart.pl's: the XML has every panel)
 %%              timeout=MS            for each run of the program
 %%              journal=true|false    the probe journals its portal calls and
 %%                                    the replay is answered from them (false)
@@ -24,6 +27,12 @@
 %%                                    ends there drawn (flow_when/4, which
 %%                                    journals by default); step=N asks every
 %%                                    N-th inference first
+%%
+%% GOAL IS BEST THE PROGRAM'S ENTRY GOAL. The program runs in a child that
+%% starts afresh, so a goal from the middle of a program may fail there for
+%% want of what an earlier call set (a global, an asserted fact): debug the
+%% goal the program is entered by and pick the part of its run with
+%% from=/to=, or with when=COND (library/flow/debug.pl says more).
 %%
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
@@ -53,7 +62,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [timeout=MS] [journal=true|false] [journal_file=F] [when=COND] [step=N]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [when=COND] [step=N]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -138,7 +147,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, timeout=, journal=, journal_file=, when= or step=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, when= or step=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -151,11 +160,26 @@ fd_option(journal, V, journal(V)) :-
     memberchk(V, [true, false]).
 fd_option(journal_file, V, journal_file(V)) :-
     V \== ''.
+%% depth= and only=, as chart.pl reads them: they bound the picture, which
+%% for a large program is otherwise the 150 panels that fit
+fd_option(depth, V, depth(D)) :-
+    (   V == all -> D = all
+    ;   catch(atom_number(V, D), _, fail), integer(D), D >= 1
+    ).
+fd_option(only, V, only(Ps)) :-
+    atomic_list_concat(As, ',', V),
+    fd_preds(As, Ps).
 fd_option(K, V, O) :-
     memberchk(K, [window, from, to, discs, text, timeout, step]),
     catch(atom_number(V, N), _, fail),
     integer(N), N >= 0,
     O =.. [K, N].
+
+fd_preds([], []).
+fd_preds([A|As], [P|Ps]) :-
+    catch(term_to_atom(P, A), _, fail),
+    flow_pred_spec(P),
+    fd_preds(As, Ps).
 
 fd_error(error(existence_error(procedure, PI), _)) :- !,
     format(user_error, "debug: the program has no ~w~n", [PI]),

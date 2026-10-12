@@ -428,6 +428,17 @@ asked_why(D) :-
     why_shape(W5, S5),
     check('classify(3, C): both clauses entered, and each failed at its own test',
           S5, [why(classify/2, [entered(1, [failed((>)/2)]), entered(2, [failed((>)/2)])])]),
+    %% a Redo after an Exit asks for another answer; one after a failed
+    %% clause is a retry -- the XML says which (exited=)
+    findall(P-E, ( member(Nm, [pick, whyc]),
+                   atomic_list_concat([D, '/', Nm, '.xml'], XFr),
+                   read_file_to_codes(XFr, XCr), xml_parse(XCr, Xr),
+                   x_el(Xr, event, Ar), memberchk(port=redo, Ar), memberchk(call=Cr, Ar),
+                   x_el(Xr, call, Cs), memberchk(n=Cr, Cs), memberchk(pred=P, Cs),
+                   ( memberchk(exited=E, Ar) -> true ; E = none ) ),
+            R5r),
+    check('...a redo says whether its call had exited: member/2 in pick(X) had, classify/2 had not',
+          R5r, ['member/2'-true, 'classify/2'-false]),
     debugged(D, whyok, top(5, Y4), ['Y'=Y4], [], R4),
     flow_why(R4, W4),
     atom_concat(D, '/whyok.xml', XF4),
@@ -551,7 +562,22 @@ command(D) :-
     atom_concat(B5, '.svg', SF5),
     yes_no(exists_file(SF5), Y5),
     check('when=COND: where the question first holds, and the window of the last 4 inferences up to it drawn',
-          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 26; recorded 23 to 26').
+          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 26; recorded 23 to 26'),
+    %% depth= and only= bound the picture as chart.pl's do: the panels left
+    %% out are stubs saying why, and the XML keeps every panel
+    findall(O-E6-St6-NX6,
+            ( member(O-Why, [ 'only=lookup/2'-'not drawn: not one of only(...)',
+                              'depth=1'-'not drawn: deeper than depth(1)' ]),
+              atomic_list_concat([D, '/cmdo'], B6),
+              atomic_list_concat(['-s tools/flow/debug.pl -- \'find(z, V)\' ', F, ' ', B6, ' ', O], A6),
+              cocolog_run(A6, _, E6),
+              atom_concat(B6, '.svg', SF6), read_file_to_codes(SF6, SC6), atom_codes(SA6, SC6),
+              atomic_list_concat(Ps6, Why, SA6), length(Ps6, NP6), St6 is NP6 - 1,
+              atom_concat(B6, '.xml', XF6), read_file_to_codes(XF6, XC6), xml_parse(XC6, X6),
+              findall(x, x_el(X6, panel, _), Pn6), length(Pn6, NX6) ),
+            R6),
+    check('depth= and only=: find/2 and pairs/1 stubs under only=lookup/2, lookup/2 one under depth=1, the XML''s four panels both times',
+          R6, ['only=lookup/2'-0-2-4, 'depth=1'-0-1-4]).
 
 %% ---- refusals -----------------------------------------------------------
 
