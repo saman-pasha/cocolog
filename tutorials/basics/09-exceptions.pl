@@ -97,13 +97,14 @@ main :-
     format("~n-- the errors the system itself throws~n"),
     catch(atom_length(_, _), error(E1, _), true),
     must('an unbound argument', E1, instantiation_error),
-    %% SWI NAMES THE CULPRIT `foo/0' -- an evaluable functor with its
-    %% arity. cocolog names the atom. Both are `type_error(evaluable, _)',
-    %% so a handler matching the FORMAL works either way, which is the
-    %% argument for matching the formal and not the whole ball.
+    %% THE CULPRIT IS NAMED WITH ITS ARITY, `foo/0' -- an evaluable functor
+    %% is a name and an arity, and SWI says the same (through 1.10.5
+    %% cocolog named the atom alone). A handler matching the FORMAL,
+    %% `type_error(evaluable, _)', never cared about that spelling, which is
+    %% the argument for matching the formal and not the whole ball.
     catch(X2 is foo + 1, error(E2, _), true),
-    must('arithmetic on an atom (SWI says foo/0 here)', E2,
-         type_error(evaluable, foo)),
+    must('arithmetic on an atom', E2,
+         type_error(evaluable, foo/0)),
     ( var(X2) -> _ = ok ; true ),
     catch(no_such_predicate_here, error(E3, _), true),
     must('a predicate that does not exist', E3,
@@ -188,6 +189,16 @@ main :-
     format("     ERROR: -g main: Unknown procedure: nosuch/0~n~n"),
     format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),
     format("   can tell the goal that said no from the goal that broke.~n"),
+    format("   After the message comes WHERE it was raised (1.10.17): the~n"),
+    format("   goal that raised it and the goals left to run, or -- with~n"),
+    format("   --backtrace -- every call it was made in, as SWI writes them.~n"),
+    format("   `main :- risky(6), write(never).' under `run ... main':~n"),
+    format("~n     ERROR: -g main: Unknown message: mine(6)~n"),
+    format("     ERROR: In:~n"),
+    format("     ERROR:   [3] throw(mine(6))~n"),
+    format("     ERROR:   [2] risky(6)~n"),
+    format("     ERROR:   [1] main~n~n"),
+    format("   (TRACING.md; --no-backtrace keeps the message alone.)~n"),
     %% AND ONE THING THE MESSAGE DOES NOT SAY. Thrown at LOAD time -- out
     %% of a directive or an `initialization' goal -- the report is SWI's,
     %% line for line, and test/directives.pl diffs the two to keep it so:

@@ -1,9 +1,9 @@
-%% LIBRARY 50 -- library(flowchart): a predicate drawn from the query down to
+%% LIBRARY 50 -- library(flow/chart): a predicate drawn from the query down to
 %% the C it reaches, and back, as an SVG for a person and an XML for an agent
 %%
 %%     ./cocolog run tutorials/library/50-flowchart.pl main
 %%
-%% TIER 2: `use_module(library(flowchart))', clauses in library/flowchart.pl
+%% TIER 2: `use_module(library(flow/chart))', clauses in library/flow/chart.pl
 %% and library/flow/, over library(stream) (`sh modules/stream/build.sh').
 %% Its tables -- which C function answers each name, with what modes -- are
 %% written by `make modules' (sh tools/flow/build.sh).
@@ -39,6 +39,19 @@
 %% on its box, a line under the chart, a <finding> at the head of the XML,
 %% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
+%% IT SHOWS WHERE THE CODE RUNS: a thread, a pool, an isolated proof, a
+%% cowork crew (a job, or cowork_map/3's list of them) and an httpd pool
+%% each start a LANE -- a band of the picture with its own panels -- while
+%% an httpd server with no pool runs its pages here. What crosses between
+%% lanes is drawn and listed: what a spawn copies and what comes back,
+%% joins, a channel's sends and receives tied across the lanes, locks, child
+%% processes and writes to the knowledge base. A channel or a handle is
+%% followed wherever the program takes it -- into a call, back out of one,
+%% inside a term, down another channel -- and the k-th send of a channel is
+%% tied to the k-th receive where that order can be read. A thread never
+%% joined, a lock with a way out that keeps it, and a lane reading what only
+%% another lane writes are findings.
+%%
 %% EVERY GOAL IS DRAWN, builtins too: a test, a unification, a builtin and
 %% a library call are each a box with its own text on its clause's line,
 %% and the chart never goes inside one -- a builtin is C in the engine, and
@@ -48,7 +61,7 @@
 %% depth(D) and only(Preds) choose another part, and a panel left out is a
 %% stub that says how much hangs from it. The XML always has everything.
 
-:- use_module(library(flowchart)).
+:- use_module(library(flow/chart)).
 :- use_module(library(stream)).
 :- use_module(library(xml)).
 
@@ -150,7 +163,131 @@ main :-
     must('length/2 is a box in count/2''s clause, and no panel of its own', T7,
          'length(Ws, N)  --  library(lists), det'),
 
+    threads(Dir),
+    asking(Dir),
+
     format("~ndone~n").
+
+%% WHERE THE CODE RUNS. A spawn is a fork: its goal goes, a copy, to a LANE
+%% of its own -- a band of the picture, a <lane> of the XML -- and nothing
+%% it binds comes back but what the spawn itself hands back. What crosses
+%% between lanes is a LINK, each with an id: a spawn and a join, a channel
+%% followed from channel_new/1 into the thread it was copied to, a lock, a
+%% child process, a write to the knowledge base. Nothing is run here either:
+%% the threads are charted, never started.
+threads(Dir) :-
+    format("~n-- where the code runs: a lane for each place, a link for what crosses~n"),
+    atom_concat(Dir, '/jobs.pl', Prog),
+    jobs(Lines),
+    open(Prog, write, W),
+    forall(member(L, Lines), format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(run('+'), G, [source(Prog)]),
+    flow_xml(G, X),
+    findall(L1-K1-G1-C1, ( element_attrs(X, lane, A1), memberchk(id=L1, A1), L1 \== l0,
+                           memberchk(kind=K1, A1), memberchk(goal=G1, A1), memberchk(copies=C1, A1) ), Ls),
+    must('two threads, two lanes: the goal each is sent, and what it copies from run/1''s clause', Ls,
+         [l1-thread-'worker(Ch)'-'Ch', l2-thread-ticker-nothing]),
+    %% send_all/2 is handed the channel as an argument, worker/1 by the copy
+    %% thread_create/2 made of worker(Ch): the analysis follows it into both
+    findall(Op-At, ( element_attrs(X, channel, A2), memberchk(id=ch1, A2), element_op(X, ch1, Op, At) ), Ops),
+    must('one channel, ch1, closed in run/1, sent to in send_all/2, received from in the worker''s lane', Ops,
+         [close-'p1.c1.g5', send-'p2.c2.g1', receive-'p4.c1.g1']),
+    goal_attr(X, 'p1.c1.g6', joins, J3),
+    must('thread_join/2 joins lane l1, and reads its status, never its bindings', J3, l1),
+    flow_findings(G, Fs),
+    findall(K4-At4, member(finding(_, K4, _, At4, _, _, _, _), Fs), KAs),
+    must('the ticker is never joined nor detached: the one finding', KAs, [thread_unjoined-'p1.c1.g3']).
+
+%% WHAT IS FOLLOWED. A channel or a thread's handle is followed wherever
+%% the program takes it: down into what it is handed to, back up out of the
+%% predicate that made it, inside a term, and down another channel. So a
+%% join in another clause than its spawn's still knows its lane, and a
+%% channel sent along with a question is followed into the thread that
+%% answers on it. And where one lane sends on a channel and one receives,
+%% each in an order the chart can read, the k-th send is the k-th
+%% receive's: the chart says which (n=) and ties those two alone.
+asking(Dir) :-
+    format("~n-- what is followed: handles and channels through heads, terms and other channels~n"),
+    atom_concat(Dir, '/ask.pl', Prog),
+    ask(Lines),
+    open(Prog, write, W),
+    forall(member(L, Lines), format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(ask('+', '-'), G, [source(Prog)]),
+    flow_xml(G, X),
+    goal_attr(X, 'p1.c1.g6', joins, J1),
+    must('ask/2''s join waits for the thread start/2 made: the handle came back up out of start/2', J1, l1),
+    findall(Op2-At2, element_op(X, ch2, Op2, At2), Ops2),
+    must('Req, made in start/2 and handed back up too: ask/2 sends on it and closes it, the thread receives',
+         Ops2, [send-'p1.c1.g3', close-'p1.c1.g5', receive-'p4.c1.g1']),
+    findall(Op3-At3, element_op(X, ch1, Op3, At3), Ops3),
+    find_id(X, ch1, element(_, A3, _)),
+    (   memberchk(via=V3, A3) -> true ; V3 = none ),
+    must('Back goes down Req inside q(Q, Back): the thread''s send is on it, and it says which channel carried it',
+         V3-Ops3, ch2-[receive-'p1.c1.g4', send-'p4.c1.g3']),
+    findall(C4-P4, ( element_attrs(X, channel, A4), memberchk(id=C4, A4),
+                     ( memberchk(pairs=P4, A4) -> true ; P4 = false ) ), Ps4),
+    must('one lane sends on each, one receives, each in its order: the first send is the first receive''s',
+         Ps4, [ch1-true, ch2-true]).
+
+%% the program the handles and channels are followed through
+ask([
+    '%% ask.pl -- a question down one channel, its answer down another',
+    '',
+    'ask(Q, A) :-',
+    '    start(Req, Id),',
+    '    channel_new(Back),',
+    '    channel_send(Req, q(Q, Back)),',
+    '    channel_recv(Back, A),',
+    '    channel_close(Req),',
+    '    thread_join(Id, _).',
+    '',
+    'start(Req, Id) :-',
+    '    channel_new(Req),',
+    '    thread_create(answer(Req), Id).',
+    '',
+    'answer(Req) :-',
+    '    channel_recv(Req, q(Q, Back)),',
+    '    atom_length(Q, N),',
+    '    channel_send(Back, N).'
+]).
+
+%% the program the threads are charted in
+jobs([
+    '%% jobs.pl -- the threads lesson 50 charts',
+    '',
+    'run(Jobs) :-',
+    '    channel_new(Ch),',
+    '    thread_create(worker(Ch), Id),',
+    '    thread_create(ticker, _),',
+    '    send_all(Jobs, Ch),',
+    '    channel_close(Ch),',
+    '    thread_join(Id, _).',
+    '',
+    'send_all([], _).',
+    'send_all([J|Js], Ch) :- channel_send(Ch, J), send_all(Js, Ch).',
+    '',
+    'worker(Ch) :-',
+    '    channel_recv(Ch, J), !,',
+    '    with_mutex(log, format("job ~w~n", [J])),',
+    '    worker(Ch).',
+    'worker(_).',
+    '',
+    'ticker :- format("tick~n").'
+]).
+
+%% the attributes of each element of that name, in document order
+element_attrs(element(N, As, Cs), Name, A) :-
+    (   N == Name, A = As
+    ;   member(C, Cs), C = element(_, _, _), element_attrs(C, Name, A)
+    ).
+
+%% each end of a channel, in the order the XML lists them
+element_op(X, Id, Op, At) :-
+    find_id(X, Id, element(channel, _, Cs)),
+    member(element(Op, OAs, _), Cs),
+    memberchk(at=At, OAs).
 
 %% the program this lesson charts: a word count, by a grammar
 program([

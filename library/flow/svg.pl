@@ -1,4 +1,4 @@
-%% library(flowchart), part: the primitives written as SVG.
+%% library(flow/chart), part: the primitives written as SVG.
 
 :- use_module(library(xml)).
 
@@ -43,6 +43,8 @@ flow_marker(red, '#d62828').
 flow_marker(green, '#15803d').
 flow_marker(amber, '#b7791f').
 flow_marker(purple, '#7e22ce').
+flow_marker(violet, '#7c3aed').
+flow_marker(blue, '#2f5bd3').
 
 flow_els([], []).
 flow_els([P|Ps], Els) :-
@@ -113,6 +115,8 @@ flow_paint(green, '#15803d') :- !.
 flow_paint(amber, '#a86a00') :- !.
 flow_paint(purple, '#7e22ce') :- !.
 flow_paint(teal, '#0f766e') :- !.
+flow_paint(violet, '#7c3aed') :- !.
+flow_paint(blue, '#2f5bd3') :- !.
 flow_paint(m('+'), '#1d4ed8') :- !.
 flow_paint(m('-'), '#c2410c') :- !.
 flow_paint(m('?'), '#7e22ce') :- !.

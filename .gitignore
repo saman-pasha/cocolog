@@ -42,7 +42,7 @@ test/hoot.so
 # checkout or into ZiguratIP's. A .so is a compiled x86-64 object linked
 # against ONE machine's libraries; it belongs in a release, never here.
 library/*.so
-# library(flowchart)'s tables: `make modules' writes them from lib/, modules/ and
+# library(flow/chart)'s tables: `make modules' writes them from lib/, modules/ and
 # library/ (sh tools/flow/build.sh), as tools/cocolint's blocklist is written
 library/flow/tables.pl
 modules/tcp/tcp.c

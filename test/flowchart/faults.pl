@@ -1,4 +1,4 @@
-%% faults.pl -- one of each thing library(flowchart) finds, and near misses
+%% faults.pl -- one of each thing library(flow/chart) finds, and near misses
 %% it must not. Each predicate's comment says which.
 
 :- dynamic seen/1.

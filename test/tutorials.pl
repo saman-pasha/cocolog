@@ -2,7 +2,7 @@
 %%
 %%   basics/   eleven files, one process each, goal `main'. No library, no
 %%             database, no build flag.
-%%   library/  fifty-one files, one process each, goal `main'. Tier 2
+%%   library/  fifty-two files, one process each, goal `main'. Tier 2
 %%             needs $COCOLOG_LIBRARY, which the runner sets.
 %%   opencv/   twenty-three files, one process each, goal `main', from the
 %%             repo root; the dnn two end early without their models.
@@ -26,7 +26,7 @@
 %% ZiguratIP's cryptography and its sample certificate directory; 29 needs
 %% the ray module, 40 the numpy one, 41 and the opencv category the opencv
 %% one, 47 clay and 48 stream, and 50 the stream module and the tables
-%% `make modules' writes for library(flowchart). 43 needs nothing: its
+%% `make modules' writes for library(flow/chart). 43 needs nothing: its
 %% typed-prose section is optional and says so itself. A lesson skipped
 %% says so INDENTED, because a SKIP at column 0 would skip the whole case.
 %%
@@ -74,10 +74,10 @@ main :-
     %% Clay lays out with no window at all; loadable is the whole question.
     loadable('use_module(library(clay))', Clay),
     loadable('use_module(library(stream))', Stream),
-    %% library(flowchart) wants the stream module too, and the tables `make
+    %% library(flow/chart) wants the stream module too, and the tables `make
     %% modules' writes (tools/flow/build.sh); flow_tables/0 raises without
     %% them
-    loadable('use_module(library(stream)), use_module(library(flowchart)), flow_tables', Flow),
+    loadable('use_module(library(stream)), use_module(library(flow/chart)), flow_tables', Flow),
     %% And for the arrays: the module starts an interpreter at its first
     %% predicate, so loadable is asked with one, not with use_module alone.
     loadable('use_module(library(numpy)), np_zeros([1], A), np_free(A)', Numpy),

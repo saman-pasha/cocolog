@@ -543,7 +543,7 @@ bd_build(b(T1c, T1p, T2, Hooks)) :-
     bd_glob('lib/*.cicili', LibC),
     bd_glob('modules/*/*.cicili', ModC),
     bd_glob('lib/swipl/*.pl', SwiplPl),
-    bd_glob('library/*.pl', LibPl),
+    bd_library_files(LibPl),
 
     bd_shape1(LibC, S1),
     bd_shape5(S5),
@@ -661,13 +661,34 @@ bd_module_of(File, Mod) :-
     append(ParentCs, [0'/|ModCs], DirCs),
     atom_codes(Mod, ModCs).
 
+%% A library by the name a program loads it by: its path under library/
+%% with .pl off -- `json', and `flow/chart' for library(flow/chart) -- which
+%% is how lint.pl keys an import, index.pl a surface row and
+%% tools/flow/tables.pl finds the file again.
 bd_library_of(File, Mod) :-
-    atom_codes(File, Cs),
-    append(_, [0'/|BaseCs], Cs),
-    \+ memberchk(0'/, BaseCs),
-    append(ModCs, ".pl", BaseCs),
-    !,
-    atom_codes(Mod, ModCs).
+    bd_path('library/', Dir),
+    atom_concat(Dir, Rel, File),
+    atom_concat(Mod, '.pl', Rel),
+    !.
+
+%% THE .pl LIBRARIES: library/*.pl, and library/flow/'s two -- chart.pl and
+%% debug.pl, library(flow/chart) and library(flow/debug), which were
+%% library/flowchart.pl and library/flowdebug.pl until the owner moved them
+%% (2026-10-11) -- without the PARTS beside them, a file whose first line
+%% reads `%% library(NAME), part: ...', which its library loads and no
+%% program does (index.pl's ix_part_file/1). library/reasoning/ was never
+%% read here, and is not now.
+bd_library_files(Files) :-
+    bd_glob('library/*.pl', Flat),
+    bd_glob('library/flow/*.pl', Flow0),
+    findall(F, ( member(F, Flow0), \+ bd_part_file(F) ), Flow),
+    append(Flat, Flow, Files).
+
+bd_part_file(Abs) :-
+    read_file_to_codes(Abs, Cs),
+    (   append(Line, [10|_], Cs) -> true ; Line = Cs ),
+    append("%% library(", After, Line),
+    append(_, [0'), 0',, 0' , 0'p, 0'a, 0'r, 0't, 0':|_], After), !.
 
 %% Key-File pairs, sorted, into Key-[File, ...].
 bd_group([], []).
@@ -806,7 +827,7 @@ bd_inputs(Files) :-
     bd_glob('lib/*.cicili', A),
     bd_glob('modules/*/*.cicili', B),
     bd_glob('lib/swipl/*.pl', C),
-    bd_glob('library/*.pl', D),
+    bd_library_files(D),
     bd_path('tools/cocolint/build.pl', E),
     bd_path('tools/cocolint/clauses.pl', F),
     append(A, B, AB), append(AB, C, ABC), append(ABC, D, ABCD),

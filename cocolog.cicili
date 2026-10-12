@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.10.8"))
+  (func coco_version_text () (out const char *) (return "1.10.20"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -442,6 +442,12 @@
         (fprintf stderr "  --trace       the four-port tracer, SWI's format, on stderr:\n")
         (fprintf stderr "                Call, Exit, Redo and Fail for every goal proved.\n")
         (fprintf stderr "                trace/0 and notrace/0 switch it from inside\n")
+        (fprintf stderr "  --backtrace   an error nothing caught is followed by every\n")
+        (fprintf stderr "                call it was raised in, as [Depth] Goal: the\n")
+        (fprintf stderr "                tracer runs and prints nothing, so the run is\n")
+        (fprintf stderr "                slower. Without it the backtrace is the goal\n")
+        (fprintf stderr "                that raised and the goals left to run\n")
+        (fprintf stderr "  --no-backtrace  the error's message alone\n")
         (fprintf stderr "  --version     the version, on stdout, and nothing else\n"))
 
   ;;; Reads a whole file. Answers nil if it cannot, with the reason printed.
@@ -795,7 +801,10 @@
         (let ((char msg [512]))
           (if (coco_engine_error_text e msg (sizeof msg))
               (fprintf stderr "ERROR: %s: %s\n" where msg)
-            (fprintf stderr "ERROR: %s: %s\n" where (-> e err)))))
+            (fprintf stderr "ERROR: %s: %s\n" where (-> e err))))
+        ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
+        ;; throw wrote (lib/solve.cicili's `coco_bt_capture'), SWI's shape
+        (coco_bt_say (-> e m) (-> e has_ball)))
 
   ;;; 0 proved, 1 failed, 2 threw -- `swipl -g' ends this way and so does a
   ;;; `main' initialization goal, so the three answers agree wherever they
@@ -1668,8 +1677,15 @@
             ;; broke -- but that is the program's fault and it will break the
             ;; same way next time, so it is FAILED and not something to retry.
             (if (== rc 0) (set done 1))
+            ;; OUT OF BUDGET, the machine is saved with the steps it TOOK
+            ;; (1.10.12): the loop counts a step before it asks the limit,
+            ;; and the goal it stopped at is counted again by the turn that
+            ;; takes it -- one too many a turn, `suspended at 13' after
+            ;; `--steps 12', a goal of 47 inferences finished after 51 when
+            ;; stepped ten at a time (DESIGN-flow.md 9.1)
             (if (and (== rc -1) (== 0 (strcmp ($ e err) "inference limit reached")))
-                (set done 0)
+                (block (set done 0)
+                       (set ($ e steps) (- ($ e steps) 1)))
               (if (== rc -1)
                   (block (fprintf stderr "cocolog: %s\n" ($ e err))
                          (set done 1)
@@ -2453,6 +2469,13 @@
                 ((== 0 (strcmp a "--insecure")) (set ($ opts insecure) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--vacuum")) (set ($ opts vacuum) 1) (set i (+ i 1)))
                 ((== 0 (strcmp a "--trace")) (set coco_trace_default 1) (set i (+ i 1)))
+                ;; AN ERROR'S BACKTRACE (1.10.17): every call it was raised
+                ;; in, kept by a trace that prints nothing (3) -- the printing
+                ;; one already keeps them -- or none at all
+                ((== 0 (strcmp a "--backtrace"))
+                 (if (!= coco_trace_default 1) (set coco_trace_default 3))
+                 (set i (+ i 1)))
+                ((== 0 (strcmp a "--no-backtrace")) (set coco_backtrace 0) (set i (+ i 1)))
                 ((== 0 (strcmp a "--help")) (usage) (return 0))
                 ;; ON STDOUT, and alone on its line. `--help' explains and
                 ;; goes to stderr; a version is an ANSWER, and a script

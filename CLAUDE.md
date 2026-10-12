@@ -57,12 +57,13 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `8be7385` (2.0.0: `(inline)` and `(weak)` split, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `9430f5d` (2.0.2: `->` and `=>` through any call -- by name since 2.0.1, through a function pointer, a table of them or a C++ method since 2.0.2; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let one in by name: 2.0.0's split, 2026-10-11).
+not an applied one (the owner let three in by name: 2.0.0's split, 2026-10-11,
+and 2.0.1's and 2.0.2's arrow through a call, 2026-10-12).
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
@@ -89,7 +90,7 @@ make EMBED=0      # the same binary without the embedded store: no ZiguratIP
 make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
                   # emitted tables into $ZIGURATIP/MVCCS-cicili/generated/)
 make modules      # every loadable module buildable here; SKIPPED, by name, for the rest;
-                  # and library(flowchart)'s tables (sh tools/flow/build.sh, git-ignored)
+                  # and library(flow/chart)'s tables (sh tools/flow/build.sh, git-ignored)
 make test         # the suite -- ask first
 make lint FILES=x.pl            # cocolint over a file
 make docker                     # BOTH images, every time (the owner's rule): cocolog with
@@ -241,6 +242,14 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   the only flags answered. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
+* **An error nothing caught is followed on stderr by its backtrace**
+  (1.10.17; TRACING.md): `ERROR: In:`, the goal that raised, then each
+  engine's goals left to run -- or, under `--backtrace` (trace 3, which
+  prints nothing) or `--trace`, every call as `[Depth] Goal`. A load's
+  directive and initialization reports carry one too. `--no-backtrace`
+  turns it off; a case that holds stderr to the letter either takes the
+  backtrace into what it expects or compares the message's lines alone
+  (test/engine.pl, test/directives.pl's swipl diff).
 * **Raise the server detached**, with its libraries on the path:
 
   ```sh
@@ -261,8 +270,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 57 `.pl` cases in `pl_names/1`
--- **64 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 62 `.pl` cases in `pl_names/1`
+-- **69 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -310,6 +319,14 @@ links the engine) and runs the 57 `.pl` cases in `pl_names/1`
 * **A case that passes alone proves the case; the suite proves the contract
   between cases** (a lesson's last line must be exactly `done`; a library
   loaded as a goal after a module set a flag).
+* **A new C builtin wants a line in `library/flow/modes.pl`** (`flow_mode/4`,
+  or `flow_test/2` for a test), and `test/flowchart.pl` holds that table to
+  `library/flow/tables.pl` -- generated, git-ignored, and rebuilt only by
+  `make modules` (`sh tools/flow/build.sh`), so an old one passes the check:
+  `acyclic_term/1` and `cyclic_term/1` (1.10.18) went through two regression
+  nets that way, and the first full suite after them ended `red: 1`
+  (1.10.19; the lines came in 1.10.20). Rebuild the tables before believing
+  the case after adding a builtin.
 * **A fixture that has to TAKE a while is timed by the clock, never by a
   count.** 1.8.42-1.8.44 made the engine two to three times faster and
   three cases went red for it alone: a cowork job that had to outlive a
@@ -359,10 +376,12 @@ links the engine) and runs the 57 `.pl` cases in `pl_names/1`
 * **A store is in the writing machine's byte order** and does not travel;
   `byteorder.bin` beside it is checked before open, and a refusal exits 1
   with an empty stdout and the reason on stderr.
-* **A clause must fit one page** (8192 by default, ~8014 characters): the
-  store sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises
+* **A clause must fit one page** (65536 on a store made since 1.10.0 and
+  ZiguratIP 1.0.0, 8192 on an older one, ~8014 characters there): the store
+  sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises
   `resource_error(clause_length)`; a consult reports and goes on. Over the
-  wire the client assumes 8192; `$COCOLOG_PAGE_SIZE` says otherwise.
+  wire the client assumes 65536; `$COCOLOG_PAGE_SIZE` says otherwise (8192
+  for an older server or store).
 * **A writing process rewrites the whole predicate** (the backend flushes a
   dirty predicate wholesale, ~360 bytes of new store per EXISTING row) and
   the old rows stay dead; every later process is slower. `cocolog vacuum`
@@ -403,6 +422,14 @@ links the engine) and runs the 57 `.pl` cases in `pl_names/1`
   self counts per address against `objdump -d`'s jump addresses. There are
   no hardware counters in this VM (no `cpu` event source; the `msr` one has
   only `tsc` and `smi`).
+* **A count compared across two builds carries the padding's no-ops.** Any
+  change moves the functions after it and the padding inside them:
+  1.10.12's first build ran `coco_try_clause`, not touched, with two more
+  instructions an inference, all of them `nop` and `xchg %ax,%ax`.
+  `sh tools/flow/zero.sh OLD NEW` counts nrev, queens and lookup with the
+  padding apart; a function's own count, per function, is the same parse
+  (its header). And a source change in the step loop moves the loop's
+  register allocation whatever it says (DESIGN-flow.md 9.1).
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that
@@ -481,7 +508,15 @@ much later.
   generic** in this package (`nil` is `cocolog::nil`).
 * **A `#define` is invisible to Cicili**: write the number out.
 * **`$` chains** (`($ a b c)` is `a.b.c`), `(-> p m)` is `p->m`,
-  `(=> o m args)` calls a function in a member.
+  `(=> o m args)` calls a function in a member. **The object of `->` and
+  `=>` may be a call**: by name since Cicili 2.0.1,
+  `(-> (coco_m_machine e) heap_len)`, and through a function pointer (a
+  variable, a member, a table of them) or a C++ method since 2.0.2; through
+  2.0.0 that was `pointer storage not found`, and
+  `($ (cof (coco_m_machine e)) heap_len)` the way round it
+  (`lib/builtins.cicili` still writes it twice). A callee whose type Cicili
+  cannot resolve -- a type known only by a `@define` -- still has none:
+  dereference it.
 * **`../cicili/lib/std/c/posix/` already declares the POSIX structs**; what
   is missing is only the C typedef: `(@define (code "pollfd struct pollfd"))`,
   named exactly as std names it.
@@ -538,7 +573,8 @@ then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
 xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
-flowchart with its parts in `library/flow/`, and `library/reasoning/`);
+and `library/reasoning/` and `library/flow/`: `flow/chart` and
+`flow/debug`, each with its parts beside it, `dbg*.pl` the debugger's);
 `library/*.so` are modules built from `modules/`. A file whose first line
 reads `%% library(NAME), part: ...` is loaded by its library, and the
 cocolint index offers no import of it.
@@ -612,6 +648,101 @@ cocolint index offers no import of it.
   that cannot go on; a new builtin raises through `coco_raise`. `format/2`'s
   `~a`, `~s` and the format itself take text of any length
   (`coco_text_put`).
+* **The backtrace is written by the throw, before anything unwinds**
+  (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
+  catch on the chain of engines would take as things stand
+  (`coco_bt_caught`: it can say "nobody" of a catch that takes the ball
+  once the bindings are undone, never the reverse). What keeps it true:
+  **the goal in flight is `kcall`** -- set by `coco_builtin_call` and
+  `coco_builtin` (one store a builtin call: the only instruction a run
+  that throws nothing pays, `tools/flow/zero.sh`), by the module seam as before,
+  and at each raise of the step and the constructs (an unbound or
+  non-callable goal, an unknown procedure, `throw/1`, `call/N`); **a new
+  raise site outside a builtin sets `kcall` first**. **A builtin that
+  starts an engine and throws its ball again sets `m->btkeep`** before
+  `coco_throw` (findall, `call_metered/4`, `with_output_to/2`), so the
+  inner throw's lines -- which already read out through every engine --
+  are kept. **An engine whose starter reports its own errors sets
+  `btstop`** (a directive's, `lb_goal_hook`), and the starter keeps the
+  lines only when its goal raised; a load drops any it finds first
+  (`coco_bt_say(m, 0)`). Trace 3 (`--backtrace`) is trace 1 that prints
+  nothing: `coco_trace_port`, the Redo and the Fail return at once.
+* **A cyclic term (`X = f(X)`) is written, raised, caught and walked**
+  (1.10.18, 1.10.19; `test/cyclic.pl`), to swipl 9.0.4's answers. The
+  writer asks `coco_acyclic` of the compound it meets 1024 levels down
+  (`m->wdeep`; a cycle sets `wcyc` and `wdeep` 0, which stops every compound
+  still to be written) and runs Brent's method down a list's tail; the top
+  of the write takes back what it wrote and writes `@(S_1,[S_1=f(S_1)])`
+  from `coco_factorize`, swipl's text to the letter -- `S_N` unless the
+  write names variables itself (write_term's `variable_names`) or is
+  write_canonical's or the store's. `is/2` and the comparisons ask at 1024
+  levels and raise `type_error(expression, E)`, E their whole argument.
+  `acyclic_term/1` and `cyclic_term/1` answer. **Every other walk COUNTS,
+  and asks or changes course only past its count** -- what it has met
+  against what a tree on this heap could hold -- so a term that is no cycle
+  pays a decrement:
+  - unify counts pairs of compounds down `m->ubudget` (2^20, or the heap's
+    length if more, armed again only when it reaches 0, so it runs on ACROSS
+    calls), and at 0 the rest of that walk links each pair it enters
+    (`coco_unify_linked`: A's header points at B until the walk ends, as
+    SWI's do_unify does) -- sound wherever it starts, a link never changing
+    a unify's answer. The store's matcher counts the heap's length and hands
+    a pair past it to `coco_unify`.
+  - compare, `==` and the sorts count `m->cbudget` down from the heap's
+    length, per call, the first pair in `ca`/`cb`, and at 0 the walk's EXIT
+    asks again from that pair with links (`coco_compare_linked`). SWI links
+    from the first pair, so two cyclic terms that differ within the count are
+    ordered as their trees are where SWI's links may give no order (the
+    case's P and Q: SWI answers > both ways).
+  - copy_term/2 stops at `m->wceil` (three times the heap it started from,
+    plus 64) and copies again keeping each compound once
+    (`coco_copy_shared`): a cycle stays a cycle, a DAG a DAG.
+  - the store's put (findall's results, `nb_setval/2`, a ball, a clause)
+    stops at `base + 2 * heap_len + 64`, and `coco_store_put_over` asks
+    `coco_acyclic`: a DAG is put whole, a cycle as its factors
+    `'$cyclic'(T, [V=B, ...])`, counted in `m->cyc_puts`. **A reader of a
+    cell that may hold one reads it with `coco_store_read`** (findall,
+    `nb_getval/2`, every ball), which binds the factors back once `cyc_puts`
+    has moved; `coco_store_get` hands it the factors.
+  - assert raises `representation_error(cyclic_term)` when its put counted
+    one (the store's length set back); a grammar rule is asked BEFORE its
+    translation, which recursed through a cyclic body to a SIGSEGV; the
+    clause check counts 4096 goals before it asks.
+  - ground/1 and term_variables/2 count the heap's length, then walk again
+    meeting each compound once, in SWI's order; unify_with_occurs_check/2
+    unifies, then asks `coco_occurs` of each variable it bound, unbound for
+    the question.
+  - a list that is its own tail: `coco_m_list_length` (and so a module's
+    lists), is_list/1, memberchk/2 and the text walks (a code or char list,
+    a format's text and `~s`, term_to_atom/2's) count the heap's length --
+    the last two down `m->lbudget`, which no two of them hold at once.
+    length/2, msort/2, memberchk/2 and the text builtins raise
+    `type_error(list, L)` (`coco_list_cyclic`, Brent), a format and
+    term_to_atom/2 `type_error(text, L)`; sort/2 and a sort/4 that drops
+    duplicates take it as the set of its elements; proper_length/2 and
+    is_set/1 ask is_list/1 first.
+  **A walk's slow path is NOT STATIC, and its count lives in the machine
+  where a local would cost its loop a register** (`coco_compare_linked`,
+  `coco_store_put_over`; `cbudget`, `ubudget`, `lbudget`): inlined, the
+  linked compare cost every pair 18 instructions; with a local count
+  memberchk/2 kept the machine on the stack, +12 % of its cost. Not SWI's
+  yet: list_to_set/2 and the library's other clauses walk a cyclic list for
+  ever where SWI's must_be/2 raises (append/3 and maplist/N loop in both);
+  call/1 of `G = (true, G)` runs for ever where SWI refuses to compile it; a
+  channel and thread_create/2's goal carry one as the text of its factors,
+  which reads back as `@(T, [V=B, ...])`; a format's `~s` and `~a` raise
+  cocolog's error for anything not text where SWI says
+  `format_argument_type`; the text builtins that write any term
+  (string_length/2, split_string/4, ...) write a cyclic list as its factors
+  where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
+  writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
+  `=@=`, subsumes_term/2 and numbervars/3 do not exist. A
+  deep TREE overflows the C stack where it always did (~47k levels of
+  `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
+  stay in registers**: quoted, ignore_ops and operand are one `mode` word
+  (1, 2, 4), and a compound is `coco_write_fun`, always inlined, so the
+  guard's slow path returns rather than rejoining -- rejoined, every
+  compound read its tag and functor again (21 instructions each).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
   reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,
@@ -954,6 +1085,76 @@ cocolint index offers no import of it.
     (`coco_clause_run_ge`) and their own copy of the guards' runner
     (`cc-guards-body`); guards that stop short build the body from the one
     they stopped at and make no environment, as 1.9.2 built it.
+* **The tracer keeps the untraced clock, and records as well as prints**
+  (1.10.12). Taking the `'$trace_exit'` marker gives its step back
+  (`coco_construct`), so a traced run counts what an untraced one does, and
+  a turn stopped at its budget is saved with the steps it took
+  (`cmd_step`; `call_metered/4` still answers L + 1 for a ceiling of L,
+  which `test/engine.pl` pins). `trace` 2 is the record mode: every port
+  goes to the machine's recorder (`m->rec`, a `coco_rec`), with the clause
+  a call entered, the heads that did not match (`coco_rec_heads`, read
+  back from the frame after the selection), an exception raised and where
+  it was caught. `'$trace_window'/4` (lib/builtins.cicili) opens a window
+  IN PLACE: the limit stops the fast-forward before inference F, narrowed
+  into nested engines as any limit is, and the limit's branch
+  (`coco_rec_open`) switches every engine on the chain to recording
+  instead of stopping -- a stop inside `findall/3`'s engine and a resume
+  would run the whole findall again. The collector is off in a window (a
+  goal's cell names its call); an inference is the sum of the steps out
+  along the chain (`coco_rec_abs`). **Every recorder function the loop or
+  `coco_backtrack` calls is `(weak)`**, which Cicili emits as a function
+  the compiler never inlines: inlined, the window's opening cost nrev
+  0.45 % in the loop's registers. A window sees the calls made in it: one
+  that began before has no Exit marker and no shadow frame. **The recorder
+  records what the printer prints, port for port** (`test/window.pl` holds
+  the two together over the trace case's queries): a retry's Redo, printed
+  only once the retry enters a clause, is recorded PENDING as the retry
+  begins (`coco_rec_unpend` takes it back when anything else is recorded
+  first, the window's end included) -- through 1.10.12 a call that had
+  exited and was backtracked past with no clause left showed a Redo the
+  printer never printed. `library(flow/debug)` (lesson 51) stands on all of
+  it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
+  the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
+  and drawn (`library/flow/dbgdraw.pl`).
+* **The journal** (1.10.15; TRACING.md, DESIGN-flow.md 9.2):
+  `'$trace_window'/4` with `journal(record(F))` writes a line for each
+  PORTAL call -- a module call that reaches the world -- and with
+  `journal(replay(F))` answers each from its line and runs none. A portal
+  is decided by module (`coco_jr_whole`: zigurat, os, process, stream,
+  thread, tcp, tls, curl, ray, opencv, torch, tensorflow, numpy, aes, x509
+  -- every C predicate of one), by name for the modules that are not
+  (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
+  current_prolog_flag/2, sha_file/3, and format/3 unless its sink is a
+  term), and by `coco_m_portal` for a module out of the tree. **A core
+  builtin is never one**, nor a load (`use_module/1` reads the program's own
+  clauses again in every run). What bites:
+  - **The journal is the seam's, and only while a window holds one**: the
+    seam's three static hooks are wrapped as the window's run starts and
+    put back as it ends (`coco_jr_wrap`), so an untraced run dispatches
+    exactly as before, and another thread's machine goes straight through.
+  - **A replay is matched by inference, predicate AND call text**: an
+    `exit(Goal)` outcome would catch another argument by not unifying, but
+    a `fail` has nothing to unify -- the text is the only witness. A replay
+    that passes an entry by is caught at the next module call (`portal`
+    names that call, its module `unknown`: it was stopped before it ran) or
+    at its end (`coco_jr_settle`, `Got` none).
+  - **Read the goal BEFORE the call runs**: a caught raise unwinds the heap
+    the goal's cell is on, so the text and format/3's sink are taken first.
+  - **A replay opens no stream and starts no thread**: a write the replay
+    makes to a stream it never opened goes nowhere (`coco_m_replay_sink`),
+    and a thread's messages come from the journal.
+  - **Floats are exact in it** (`m->wexact`, `coco_sb_put_double_exact`):
+    `%.15g` everywhere else would make a replayed clock another number.
+* **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
+  `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
+  inferences, no collection) between the run's end and the undo, over the
+  bindings the run left; Cond's cell is a root beside the goal's
+  (`hold[1]`), because a collection on the way to the window moves it.
+  `flow_when/4` bisects over runs stopped at `to(I)` and asked -- each a
+  child process replaying the probe's journal -- and `flow_why/2`
+  (`library/flow/dbgwhy.pl`) reads a failure tree back from the calls: a
+  retried clause is entered at the inference of the call whose failure
+  retried it (a retry takes none), so that call is the clause BEFORE's.
 * **`sort/4` (and so `keysort/2`) is a stable merge sort**; `library(process)`
   spawns with `posix_spawn` (`fork` is refused for a process whose one
   merged mapping exceeds RAM+swap) and RAISES when it cannot spawn.
@@ -1279,7 +1480,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 127 files -- `basics/` 11, `library/` 51, `opencv/` 23,
+`tutorials/` holds 128 files -- `basics/` 11, `library/` 52, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a
@@ -1334,7 +1535,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
-| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flowchart)'s tables, by `make modules`); DESIGN-flow.md is the plan |
+| `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flow/chart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |

@@ -140,7 +140,7 @@
            "reverse(L, R) :- '$rev_gen'(L, [], R)."
            "'$rev_gen'([], A, A)."
            "'$rev_gen'([H|T], A, R) :- '$rev_gen'(T, [H|A], R)."
-           "proper_length(L, N) :- '$len'(L, N)."
+           "proper_length(L, N) :- is_list(L), '$len'(L, N)."
            "same_length([], [])."
            "same_length([_|T], [_|R]) :- same_length(T, R)."
            "permutation(Xs, Ys) :- same_length(Xs, Ys), '$perm'(Xs, Ys)."
@@ -162,7 +162,7 @@
            "'$l2s'([H|T], Seen, [H|R]) :- '$l2s'(T, [H|Seen], R)."
            "'$mem_eq'(X, [Y|_]) :- X == Y, !."
            "'$mem_eq'(X, [_|T]) :- '$mem_eq'(X, T)."
-           "is_set(L) :- '$len'(L, _), list_to_set(L, S), '$len'(S, N), '$len'(L, N)."
+           "is_set(L) :- is_list(L), list_to_set(L, S), '$len'(S, N), '$len'(L, N)."
 
            ;; run-length pairs: [a,a,b] becomes [a-2, b-1]
            "clumped([], [])."
@@ -289,12 +289,16 @@
                             (cof (cast (const size_t *) b)))))
 
   ;;; Shared by msort/2 and sort/2: the only difference is whether elements
-  ;;; that compare equal are kept.
+  ;;; that compare equal are kept. A sort that drops them takes a list that
+  ;;; is its own tail as the set of its elements, as SWI's does (1.10.19;
+  ;;; through 1.10.18 the walk went round it for ever); msort/2 raises.
   (static)
   (func coco_l_sort_common ((coco_engine * e) (size_t g) (int dedup)) (out int)
         (let ((size_t * v . nil) (size_t n . 0) (size_t out . 0))
           (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
-              (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
+              (if (not (and dedup (coco_list_cycle_items (coco_m_machine e) (coco_m_arg e g 0)
+                                                         (aof v) (aof n))))
+                  (return (coco_m_type_error e "list" (coco_m_arg e g 0)))))
           (set coco_l_sort_machine (coco_m_machine e))
           (qsort v n (sizeof size_t) coco_l_cmp)
           (if dedup
@@ -350,8 +354,12 @@
             ((== 0 (strcmp order "@>=")) (block (set descending 1) (set keep 1)))
             (#t (return (coco_m_domain_error e "order" (coco_m_arg e g 1)))))
 
+          ;; an order that drops duplicates takes a list that is its own
+          ;; tail as its elements, as sort/2 does (1.10.19)
           (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof v) (aof n)))
-              (return (coco_m_type_error e "list" (coco_m_arg e g 2))))
+              (if (not (and (not keep) (coco_list_cycle_items (coco_m_machine e) (coco_m_arg e g 2)
+                                                              (aof v) (aof n))))
+                  (return (coco_m_type_error e "list" (coco_m_arg e g 2)))))
 
           ;; a STABLE merge sort, bottom-up. This was an insertion sort,
           ;; "n is small in every use this has" -- and keysort/2 is this
@@ -410,9 +418,16 @@
 
   ;;; Only for a PROPER list. A partial one is not an error here -- it is the
   ;;; signal that the clause above should try the generative path instead.
+  ;;; A list that is its own tail is neither, and SWI's length/2 raises
+  ;;; `type_error(list, L)' over one, asked for its length or not (1.10.19:
+  ;;; the generative path went round it for ever).
   (func coco_l_len ((coco_engine * e) (size_t g)) (out int)
         (let ((size_t n . 0))
-          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n)))
+              (block
+               (if (coco_list_cyclic (coco_m_machine e) (coco_m_arg e g 0))
+                   (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
+               (return 0)))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 n)))))
 
   (func coco_l_rev ((coco_engine * e) (size_t g)) (out int)
@@ -445,16 +460,25 @@
   ;;; UNIFIES, and keeps the first that works -- `memberchk(X, [a,b])' binds X
   ;;; to a. Every attempt that fails is wound back, because a builtin that
   ;;; fails is not a choice point and the engine winds nothing back for it.
+  ;;; A LIST THAT IS ITS OWN TAIL ends the walk once it has met more cells
+  ;;; than the heap holds, with SWI's `type_error(list, L)' (1.10.19: it
+  ;;; went round for ever); an element found before that is found, as SWI's.
+  ;;; The count is the machine's (`lbudget'), and the loop reads one machine:
+  ;;; through the SDK's mark, unify and undo, which each read `e->m' again,
+  ;;; it held two, and the count left one of them on the stack (+12 % of its
+  ;;; own cost, a local count; +1.7 % in the machine).
   (func coco_l_memberchk ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t x . #'(coco_m_arg e g 0))
               (size_t p . #'(coco_m_arg e g 1)))
+          (set (-> m lbudget) (-> m heap_len))
           (while 1
             (set p (coco_deref m p))
             (if (not (coco_is_cons m p)) (return 0))
-            (let ((size_t mark . #'(coco_m_mark e)))
-              (if (coco_m_unify e x (coco_arg m p 0)) (return 1))
-              (coco_m_undo e mark))
+            (if (== (-- (-> m lbudget)) 0) (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+            (let ((size_t mark . #'(-> m trail_len)))
+              (if (coco_unify m x (coco_arg m p 0)) (return 1))
+              (coco_undo_to m mark))
             (set p (coco_arg m p 1)))
           (return 0)))
 

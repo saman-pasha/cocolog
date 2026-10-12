@@ -1053,6 +1053,14 @@
   ;;; rename variables consistently -- see coco_varmap in term.cicili.
   (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
+  ;;; WHAT A PROGRAM PUT, READ BACK (1.10.19): `coco_store_get', and -- once
+  ;;; a cyclic term has been put as its factors (`cyc_puts' on the machine)
+  ;;; -- those factors made cyclic again (`coco_unfactor'). The readers of
+  ;;; a program's terms use it: findall/3's results, nb_getval/2, a thrown
+  ;;; ball. A clause is read with `coco_store_get', assert refusing a
+  ;;; cyclic one, and so is the compaction, which moves the factors as
+  ;;; they are.
+  (decl) (func coco_store_read ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
   ;;; The same copy, and with it SPAN, the cells the term takes IN THE
   ;;; STORE. The copy is shorter than that by one cell per distinct
   ;;; variable (a variable met first lives in its argument slot on the
@@ -1617,6 +1625,12 @@
   ;;; that threw is. Never returns.
   (decl) (func coco_halt_load ((coco_store * st) (int code) (int keep)))
 
+  ;;; THE BACKTRACE OF THE ERROR JUST REPORTED (1.10.17): the machine's
+  ;;; `bt', put on stderr after the message when SAY -- the run the message
+  ;;; is about ended with a ball, whose throw wrote it -- and freed either
+  ;;; way, so a later report never prints lines that were not its own.
+  (decl) (func coco_bt_say ((coco_machine * m) (int say)))
+
   ) ; decl-kb
 
 
@@ -1684,6 +1698,12 @@
         (if (!= origin nil)
             (fprintf stderr "%s: %s:%d: %s\n" tag origin line what)
           (fprintf stderr "%s: %s\n" tag what)))
+
+  (func coco_bt_say ((coco_machine * m) (int say))
+        (if (== (-> m bt) nil) (return))
+        (if say (fputs (-> m bt) stderr))
+        (free (-> m bt))
+        (set (-> m bt) nil))
 
   ;;; ---- the goals a file puts off ----------------------------------------
 
@@ -1866,6 +1886,11 @@
             ((coco-tag-is FUN c)
              (let ((u32 n . #'(coco_arity m t))
                    (size_t h . #'(coco_store_push st c)))
+               ;; PAST THE CEILING (1.10.19): the walk stops, no frame left,
+               ;; and `coco_store_put' asks why. Asked before the slots, so
+               ;; nothing it reads lives across their loop
+               (if (> h (-> m wceil))
+                   (block (set (-> m wceil) 0) (set (cof flen) 0) (return h)))
                (for ((u32 i . 0)) (< i n) ((++ i)) (coco_store_new_var st))
                (if (> n 0)
                    (if (not (coco_frames_push fs flen fcap t (+ h 1) n))
@@ -1878,7 +1903,8 @@
             ;; for as long as the cell does.
             (#t (return (coco_store_push st c))))))
 
-  (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
+  (static)
+  (func coco_store_put_walk ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
         (let ((coco_varmap vm . '{ nil nil 0 0 0 })
               (coco_copyframe * fs . nil) (size_t flen . 0) (size_t fcap . 0)
               (size_t r . 0))
@@ -1901,6 +1927,45 @@
           (coco_wframes_give m (cast (void *) fs) fcap)
           (coco_varmap_give m (aof vm))
           (return r)))
+
+  ;;; THE PUT, UNDER A CEILING (1.10.19). A tree on the heap takes at most
+  ;;; twice its cells in the store (a variable, or an atom in an argument,
+  ;;; is a slot and a cell of its own), so a put gone past twice the heap's
+  ;;; length is of a cycle -- which it would follow for ever, as findall/3,
+  ;;; nb_setval/2 and assert did through 1.10.18 -- or of a DAG, which it
+  ;;; copies whole as it always has. The ceiling is one compare a compound;
+  ;;; past it the store is wound back to where the put began and
+  ;;; `coco_acyclic' says which. A cycle goes in as its factors,
+  ;;; `'$cyclic'(Template, [V1=T1, ...])' (`coco_factorize', built on the
+  ;;; heap and the heap wound back after), `cyc_puts' counts it, and
+  ;;; `coco_store_read' makes it cyclic again; `coco_assert_from' refuses
+  ;;; it. A cycle the heap cannot hold the factors of goes in as the atom
+  ;;; `$cyclic', which is no hang. The slow path is a function of its own,
+  ;;; NOT STATIC, so it stays out of the put: it holds two more copies of
+  ;;; the walk.
+  (func coco_store_put_over ((coco_store * st) (coco_machine * m) (size_t t)
+                             (size_t base)) (out size_t)
+        (set (-> st len) base)
+        (set (-> m wceil) (cast size_t -1))
+        (if (== 1 (coco_acyclic m t)) (return (coco_store_put_walk st m t)))
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t * vars . nil) (size_t nv . 0)
+              (size_t f . #'(coco_factorize m t "$cyclic" (aof vars) (aof nv)))
+              (size_t r . 0))
+          (free vars)
+          (if (== f 0) (set f (coco_new_atom m "$cyclic")))
+          (set r (coco_store_put_walk st m f))
+          (set (-> m heap_len) mark)
+          (set (-> m cyc_puts) (+ (-> m cyc_puts) 1))
+          (return r)))
+
+  (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
+        (let ((size_t base . #'(-> st len))
+              (size_t r . 0))
+          (set (-> m wceil) (+ base (+ (* (-> m heap_len) 2) 64)))
+          (set r (coco_store_put_walk st m t))
+          (if (!= (-> m wceil) 0) (return r))
+          (return (coco_store_put_over st m t base))))
 
   ;;; The store's own dereference: a reserved argument slot is a REF to
   ;;; where the argument was put, and an unbound store variable points at
@@ -1985,6 +2050,11 @@
           (coco_varmap_give m (aof vm))
           (return r)))
 
+  (func coco_store_read ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t)
+        (let ((size_t r . #'(coco_store_get m st t)))
+          (if (== (-> m cyc_puts) 0) (return r))
+          (return (coco_unfactor m r))))
+
   ;;; THE STORE'S SPAN IS THE COPY'S LENGTH PLUS ONE CELL PER DISTINCT
   ;;; VARIABLE, which the map counted as it entered them: the put gave each
   ;;; one a cell besides its argument slot, and the copy gives it the slot
@@ -2034,7 +2104,12 @@
   (func coco_store_unify ((coco_machine * m) (coco_store * st) (size_t a) (size_t s)
                           (coco_varmap * vm)) (out int)
         (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
-              (size_t kind . 0) (int ok . 1) (int running . 1))
+              (size_t kind . 0) (int ok . 1) (int running . 1)
+              ;; the pairs of heap compounds before a pair is `coco_unify''s,
+              ;; whose walk links them (1.10.19): two cyclic terms a store
+              ;; variable meets went round for ever. The store's side is a
+              ;; tree, and ends
+              (size_t budget . #'(-> m heap_len)))
           (set wl (coco_wpairs_take m (aof wcap)))
           (while (== running 1)
             (set a (coco_deref m a))
@@ -2061,14 +2136,17 @@
                          ((coco-tag-is STR ca)
                           (if (not (coco_str_eq m ca cb)) (set ok 0)))
                          ((coco-tag-is FUN ca)
-                          (if (!= (coco-payload ca) (coco-payload cb))
-                              (set ok 0)
-                              (let ((u32 n . #'(coco_arity m a)))
-                                (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
-                                     (let ((u32 j . #'(- i 1)))
-                                       (if (not (coco_su_push m (aof wl) (aof wlen) (aof wcap)
-                                                              (coco_arg m a j) (coco_arg m s j) 1))
-                                           (set ok 0)))))))
+                          (cond
+                            ((!= (coco-payload ca) (coco-payload cb)) (set ok 0))
+                            ((== budget 0) (if (not (coco_unify m a s)) (set ok 0)))
+                            (#t
+                             (set budget (- budget 1))
+                             (let ((u32 n . #'(coco_arity m a)))
+                               (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                                    (let ((u32 j . #'(- i 1)))
+                                      (if (not (coco_su_push m (aof wl) (aof wlen) (aof wcap)
+                                                             (coco_arg m a j) (coco_arg m s j) 1))
+                                          (set ok 0))))))))
                          (#t (set ok 0))))))
                 ;; ---- heap against store ----
                 (block
@@ -5757,6 +5835,13 @@
         ;; nothing below this line has ever heard of a grammar.
         (if (coco_dcg_is_rule m clause)
             (let ((coco_dcg_err derr) (size_t rewritten))
+              ;; ...AND A CYCLIC ONE IS REFUSED FIRST (1.10.19): the
+              ;; translation walks the body, and went round a cyclic one for
+              ;; ever. Asked of an assert's rule (no origin), a consulted one
+              ;; having been read from text; the refusal is told as the put's
+              ;; is, by the count of cycles moving
+              (if (and (== origin 0) (!= 1 (coco_acyclic m clause)))
+                  (block (set (-> m cyc_puts) (+ (-> m cyc_puts) 1)) (return 0)))
               (set ($ derr kind) COCO_DCG_OK)
               (set ($ derr culprit) 0)
               (set rewritten (coco_dcg_rule m clause (aof derr)))
@@ -5886,7 +5971,16 @@
                     (block
                       (if (not (coco_origin_seen_add st seen pi)) (return 0))
                       (coco_pred_forget_from st m pi origin))))
-            (set stored (coco_store_put st m clause))
+            ;; A CYCLIC CLAUSE IS REFUSED (1.10.19), as SWI refuses one with
+            ;; `representation_error(cyclic_term)' (`coco_assert_goal' says
+            ;; so): the put stores a cycle as its factors, which no clause
+            ;; may be, and counts it -- so the count moving means the cells
+            ;; are taken back and nothing is added
+            (let ((size_t cp . #'(-> m cyc_puts))
+                  (size_t base . #'(-> st len)))
+              (set stored (coco_store_put st m clause))
+              (if (!= cp (-> m cyc_puts))
+                  (block (set (-> st len) base) (return 0))))
             ;; THE KEY IS TAKEN FROM THE HEAP HEAD, before the clause is a
             ;; store term: the accessors here read the machine's heap, the
             ;; head has just been dereferenced, and what goes into the store
@@ -6034,6 +6128,10 @@
               ;; Taken here, so the reader and the store never run under it.
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
+          ;; a backtrace no report took (a window's, whose ball it handed
+          ;; back) is not this load's: only a goal run from here writes one
+          ;; to report
+          (coco_bt_say m 0)
           (memset (aof inits) 0 (sizeof coco_initgoals))
           ;; the goals put off to the end are cell indices; a compaction
           ;; before they run must move them too. `coco_consult' unregisters.
@@ -6149,6 +6247,10 @@
                              (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
                              (if (== dr 0) (coco_load_message "ERROR" origin at err))
+                             ;; and where it was raised, when its goal raised
+                             ;; it (1.10.17): `lb_goal_hook' keeps the lines
+                             ;; then and only then
+                             (coco_bt_say m (== dr 0))
                              ;; BOTH, IN SWI'S ORDER: why nothing was loaded,
                              ;; then that the directive failed, named
                              (if (== dr 3)
@@ -6252,7 +6354,9 @@
                                                  (? main "main: raised exception:"
                                                     "Initialization goal raised exception:"))
                                  (fprintf stderr "ERROR: %s\n" err)
-                                 (set code 2))))))
+                                 (set code 2))))
+                    ;; where it was raised, as a directive's (1.10.17)
+                    (coco_bt_say m (and (!= gr 1) (!= gr 0)))))
                 (if (== (nth i ($ inits modes)) 1)
                     (block (set halt_after 1) (set halt_code code)))
                 (set (-> m heap_len) back)))

@@ -204,7 +204,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 #   sh modules/tcp/build.sh   just that one
 #
 # Each is skipped, loudly, when what it needs is absent. The last line is
-# not a module: library(flowchart)'s tables (library/flow/tables.pl, which
+# not a module: library(flow/chart)'s tables (library/flow/tables.pl, which
 # C function answers each name and with what modes), read out of lib/,
 # modules/ and library/ by the cocolog just built -- here because this is
 # the step every install runs after `make'.

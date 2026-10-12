@@ -447,10 +447,12 @@ under_swipl(D) :-
         %% left is compared line for line -- including the four-space indent
         %% on a directive's second line, which cocolog copies, and its
         %% ABSENCE on an initialization's, where swipl's slot holds the
-        %% thread tag.
+        %% thread tag. The message's two lines: the backtrace after them is
+        %% cocolog's own (1.10.17), which swipl writes only with
+        %% library(prolog_stack) loaded (test/backtrace.pl)
         sh_join([D, '/ithrow.pl'], Ithrow),
-        sh_join([C, ' --local run ', Ithrow, ' true 2>&1 >/dev/null'], Ca2), shell(Ca2, A2r, _), norm(D, A2r, A2),
-        sh_join(['swipl -q -g true -t halt ', Ithrow, ' 2>&1 >/dev/null'], Cb2), shell(Cb2, B2r, _), norm(D, B2r, B2),
+        sh_join([C, ' --local run ', Ithrow, ' true 2>&1 >/dev/null'], Ca2), shell(Ca2, A2r, _), norm(D, A2r, A2n), first_two(A2n, A2),
+        sh_join(['swipl -q -g true -t halt ', Ithrow, ' 2>&1 >/dev/null'], Cb2), shell(Cb2, B2r, _), norm(D, B2r, B2n), first_two(B2n, B2),
         check('swipl says the same words about a thrown init goal', A2, B2),
         %% ONLY THE LOCATION LINE FOR A DIRECTIVE, and the reason is worth
         %% writing down rather than normalising away: swipl prefixes the

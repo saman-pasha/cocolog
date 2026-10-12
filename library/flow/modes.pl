@@ -1,4 +1,4 @@
-%% library(flowchart), part: the hand-kept table of tests and of every
+%% library(flow/chart), part: the hand-kept table of tests and of every
 %% builtin's modes and determinism.
 
 %% open/3 and read_term/3 below, in the table of calls the engine refuses,
@@ -29,6 +29,8 @@ flow_test(compound, 1).
 flow_test(callable, 1).
 flow_test(is_list, 1).
 flow_test(ground, 1).
+flow_test(acyclic_term, 1).
+flow_test(cyclic_term, 1).
 flow_test(string, 1).
 
 %% THE HAND-KEPT TABLE: a builtin's or a library predicate's argument modes

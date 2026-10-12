@@ -1490,6 +1490,9 @@
   ;;; An atom needs no quotes when it is a lower-case alphanumeric word, a run
   ;;; of symbol characters, or one of the four names that stand alone. `,' is
   ;;; not among them: written bare it would be read as an argument separator.
+  ;;; Nor are two runs of symbol characters, which would not read back as
+  ;;; themselves: `.' alone ends a clause, and a run that begins `/*' begins
+  ;;; a comment (coco_skip_layout) -- SWI quotes both.
   (func coco_atom_needs_quotes ((const char * name)) (out int)
         (if (== (nth 0 name) (cast char 0)) (return 1))
         (if (or (== 0 (strcmp name "[]")) (or (== 0 (strcmp name "{}"))
@@ -1501,7 +1504,11 @@
                          (return 1)))
                    (return 0)))
         (if (coco_is_symbol (cast int (cast uchar (nth 0 name))))
-            (block (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
+            (block (if (or (== 0 (strcmp name "."))
+                           (and (== (cast int (nth 0 name)) (coco-ch "/"))
+                                (== (cast int (nth 1 name)) (coco-ch "*"))))
+                       (return 1))
+                   (for ((size_t i . 1)) (!= (nth i name) (cast char 0)) ((++ i))
                      (if (not (coco_is_symbol (cast int (cast uchar (nth i name)))))
                          (return 1)))
                    (return 0)))
@@ -1525,25 +1532,53 @@
               (#t (coco_sb_putc b (cast char c))))))
         (return (coco_sb_putc b (cast char (coco-ch "'")))))
 
+  ;;; THE WRITE'S MODE IS ONE WORD (1.10.18): quoted (1), operators ignored
+  ;;; (2), and the term an operator's operand (4) -- the first two hold for
+  ;;; the whole write, the third is each term's own. The depth the cycle
+  ;;; guard counts made the writer's arguments eight, and the seventh and
+  ;;; eighth went on the stack: two pushes and a pop a call, 3 % of the
+  ;;; writer's own count. Six fit in registers.
   (static) (decl) (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
-                                      (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int))
+                                      (int mode) (int maxprec) (u32 depth)) (out int))
+
+  ;;; A CYCLE STOPS THE WRITE (1.10.18): WCYC set, and WDEEP 0, so that every
+  ;;; compound still to be written answers at once -- `X = f(X, X)' would
+  ;;; otherwise write both arguments of every level above the one it was
+  ;;; found at -- and the top of the write takes back what it wrote
+  ;;; (`coco_write_top').
+  (static)
+  (func coco_write_stop ((coco_machine * m))
+        (set (-> m wcyc) 1)
+        (set (-> m wdeep) 0))
 
   ;;; `[a,b|T]'. Written iteratively rather than by recursing on the tail, so a
   ;;; ten-thousand-element list does not need ten thousand stack frames --
   ;;; a list is the one term shape deep enough for that to matter.
+  ;;;
+  ;;; A TAIL THAT COMES BACK ON ITSELF is found by Brent's method (1.10.18):
+  ;;; a cell kept, compared with each cell after it, and kept again at the
+  ;;; 1024th, the 2048th after that, and so on -- a cycle of any length is
+  ;;; met within twice it, past the first thousand, for a compare and a
+  ;;; count a cell. Through 1.10.17 `X = [a|X]' wrote until memory ran out.
   (static)
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
-                       (int quoted) (int ignore_ops)) (out int)
+                       (int mode) (u32 depth)) (out int)
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1))
+        (let ((int first . 1) (int kids . #'(bitand mode 3))
+              (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
             (let ((u64 c . #'(nth t (-> m heap))))
               (if (coco_is_cons m t)
                   (block
+                   (if (== t kept) (block (coco_write_stop m) break))
+                   (set lam (+ lam 1))
+                   (if (== lam power)
+                       (block (if (-> m wcyc) break)
+                              (set kept t) (set power (* power 2)) (set lam 0)))
                    (if (not first) (coco_sb_putc b (cast char (coco-ch ","))))
                    (set first 0)
-                   (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 999 0)
+                   (coco_write_rec m b (coco_arg m t 0) kids 999 (+ depth 1))
                    (set t (coco_arg m t 1))
                    continue))
               ;; not a list cell: either the proper end, or a partial list
@@ -1551,12 +1586,142 @@
                        (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
                   break)
               (coco_sb_putc b (cast char (coco-ch "|")))
-              (coco_write_rec m b t quoted ignore_ops 999 0)
+              (coco_write_rec m b t kids 999 (+ depth 1))
               break)))
         (return (coco_sb_putc b (cast char (coco-ch "]")))))
 
+  ;;; A COMPOUND, written: its own function, inlined where it is called, so
+  ;;; that the cycle guard's slow path RETURNS rather than rejoining the
+  ;;; write -- a call that rejoined could have moved the heap, as far as the
+  ;;; compiler knew, and the compound's tag and functor were read again on
+  ;;; every compound written (21 instructions each).
+  (static) (inline)
+  (func coco_write_fun ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                        (int mode) (int maxprec) (u32 depth)) (out int)
+        (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
+              (u32 n . #'(coco_arity m t))
+              (int quoted . #'(bitand mode 1))
+              ;; what this write's operands and arguments carry down
+              (int kids . #'(bitand mode 3)))
+
+          (if (== 0 (bitand mode 2))
+              (block
+               ;; lists and curly terms have their own surface syntax
+               (if (coco_is_cons m t)
+                   (return (coco_write_list m b t mode depth)))
+               (if (and (== n 1) (== 0 (strcmp name "{}")))
+                   (block (coco_sb_putc b (cast char (coco-ch "{")))
+                          (coco_write_rec m b (coco_arg m t 0) kids 1200 (+ depth 1))
+                          (return (coco_sb_putc b (cast char (coco-ch "}"))))))
+
+               (let ((int prec) (int type))
+                 ;; infix
+                 (if (and (== n 2) (coco_op_infix name (aof prec) (aof type)))
+                     (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
+                           (int rmax . #'(? (== type COCO_XFY) prec (- prec 1)))
+                           (int paren . #'(? (> prec maxprec) 1 0)))
+                       (if paren (coco_sb_putc b (cast char (coco-ch "("))))
+                       (coco_write_rec m b (coco_arg m t 0) (bitor kids 4) lmax (+ depth 1))
+                       ;; NO SPACES UNLESS THE TOKENS WOULD MERGE. `a-b',
+                       ;; but `a mod b' and `1- -2'. The operator and the
+                       ;; right operand are rendered into buffers of their
+                       ;; own first, because deciding needs their actual
+                       ;; first and last characters -- a quoted atom
+                       ;; begins with a quote, a negative number with a
+                       ;; minus, and neither is knowable from the term.
+                       (let ((coco_strbuf ob) (coco_strbuf rb))
+                         (coco_sb_init (aof ob))
+                         (coco_sb_init (aof rb))
+                         ;; THE COMMA IS NOT QUOTED IN OPERATOR POSITION.
+                         ;; `coco_write_atom' would make it `','', which is
+                         ;; right for the atom and wrong for the operator:
+                         ;; `a:-b,c' would come out `a:-b','c' and read
+                         ;; back as something else entirely. It is the only
+                         ;; operator in the table that `coco_write_atom'
+                         ;; quotes -- `;' and `|' it leaves alone.
+                         (if (== 0 (strcmp name ","))
+                             (coco_sb_putc (aof ob) (cast char (coco-ch ",")))
+                           (coco_write_atom (aof ob) name quoted))
+                         (coco_write_rec m (aof rb) (coco_arg m t 1)
+                                       (bitor kids 4) rmax (+ depth 1))
+                         (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
+                             (coco_sb_putc b (cast char 32)))
+                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                         (if (coco_needs_gap (coco_sb_last (aof ob))
+                                           (coco_sb_first (aof rb)))
+                             (coco_sb_putc b (cast char 32)))
+                         (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
+                         (coco_sb_free (aof ob))
+                         (coco_sb_free (aof rb)))
+                       (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
+                       (return 1)))
+                 ;; PREFIX, where the merging rule is not quite the same.
+                 ;; `-a' is fine and `-[a]' and `-f(x)' are fine, but
+                 ;; three things after a symbolic prefix operator need a
+                 ;; space and only one of them is a merge in the ordinary
+                 ;; sense:
+                 ;;
+                 ;;   a symbol character -- `- -a', the ordinary rule;
+                 ;;   a DIGIT -- `- 1', because `-1' is not the operator
+                 ;;     applied to 1, it is the integer minus one, and
+                 ;;     that is a rule about prefix position alone (`1-2'
+                 ;;     is right without a space);
+                 ;;   an opening parenthesis -- `- (a+b)', which SWI
+                 ;;     writes with a space and this follows.
+                 ;;
+                 ;; An alphabetic prefix operator always takes one:
+                 ;; `dynamic f/1', never `dynamicf/1'.
+                 (if (and (== n 1) (coco_op_prefix name (aof prec) (aof type)))
+                     (let ((int amax . #'(? (== type COCO_FY) prec (- prec 1)))
+                           (int paren . #'(? (> prec maxprec) 1 0)))
+                       (if paren (coco_sb_putc b (cast char (coco-ch "("))))
+                       (let ((coco_strbuf ob) (coco_strbuf ab))
+                         (coco_sb_init (aof ob))
+                         (coco_sb_init (aof ab))
+                         (coco_write_atom (aof ob) name quoted)
+                         (coco_write_rec m (aof ab) (coco_arg m t 0)
+                                       (bitor kids 4) amax (+ depth 1))
+                         (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
+                             (coco_sb_putc b (cast char 32)))
+                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                         (let ((int last . #'(coco_sb_last (aof ob)))
+                               (int first . #'(coco_sb_first (aof ab))))
+                           (if (or (coco_needs_gap last first)
+                                   (and (coco_is_symbol last)
+                                        (or (coco_is_digit first)
+                                            (== first (coco-ch "(")))))
+                               (coco_sb_putc b (cast char 32))))
+                         (if (!= ($ ab s) nil) (coco_sb_put b ($ ab s)))
+                         (coco_sb_free (aof ob))
+                         (coco_sb_free (aof ab)))
+                       (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
+                       (return 1))))))
+
+          ;; canonical application
+          (coco_write_atom b name quoted)
+          (coco_sb_putc b (cast char (coco-ch "(")))
+          (for ((u32 i . 0)) (< i n) ((++ i))
+            (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))
+            (coco_write_rec m b (coco_arg m t i) kids 999 (+ depth 1)))
+          (return (coco_sb_putc b (cast char (coco-ch ")"))))))
+
+  ;;; THE WRITER'S CYCLE GUARD (1.10.18), for every compound met WDEEP (1024)
+  ;;; levels down or more. A cyclic term's every infinite path comes this
+  ;;; deep, and a tree's rarely does, so the compound met exactly there asks
+  ;;; `coco_acyclic' of its own term -- once a path -- and a cycle stops the
+  ;;; write; any other is written as it is. Through 1.10.17 nothing asked:
+  ;;; the recursion ran until the C stack did, and `write(X)' of `X = f(X)'
+  ;;; was a SIGSEGV.
+  (static)
+  (func coco_write_deep ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                         (int mode) (int maxprec) (u32 depth)) (out int)
+        (if (-> m wcyc) (return 1))
+        (if (and (== depth (-> m wdeep)) (== 0 (coco_acyclic m t)))
+            (block (coco_write_stop m) (return 1)))
+        (return (coco_write_fun m b t mode maxprec depth)))
+
   (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
-                      (int quoted) (int ignore_ops) (int maxprec) (int operand)) (out int)
+                      (int mode) (int maxprec) (u32 depth)) (out int)
         (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
@@ -1572,7 +1737,10 @@
 
             ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
 
+            ;; to read back bit for bit only for the journal (`wexact')
             ((coco-tag-is FLT c)
+             (if (-> m wexact)
+                 (return (coco_sb_put_double_exact b (nth (cast size_t (coco-payload c)) (-> m floats)))))
              (return (coco_sb_put_double b (nth (cast size_t (coco-payload c)) (-> m floats)))))
 
             ;; A STRING WRITES AS ITS TEXT, and quoted it writes in DOUBLE
@@ -1594,7 +1762,7 @@
              ;; that wrong wrote every string delimited by backslashes.
              (let ((const char * sp . nil) (size_t sn . 0))
                (if (not (coco_string_text m t (aof sp) (aof sn))) (return 0))
-               (if (not quoted)
+               (if (== 0 (bitand mode 1))
                    (block (for ((size_t i . 0)) (< i sn) ((++ i))
                                 (coco_sb_putc b (nth i sp)))
                           (return 1)))
@@ -1634,135 +1802,91 @@
                ;; 1300 instructions, and they were asked of every atom
                ;; written -- 7.8 % of the translator's lesson -- to be
                ;; thrown away for every atom that was not an operand.
-               (if (and operand (coco_op_is_any name))
+               (if (and (!= 0 (bitand mode 4)) (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
-                          (coco_write_atom b name quoted)
+                          (coco_write_atom b name (bitand mode 1))
                           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
-               (return (coco_write_atom b name quoted))))
+               (return (coco_write_atom b name (bitand mode 1)))))
 
+            ;; a compound, unless it is deep enough to be asked whether it is
+            ;; a cycle -- or a cycle was found
             ((coco-tag-is FUN c)
-             (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
-                   (u32 n . #'(coco_arity m t)))
-
-               (if (not ignore_ops)
-                   (block
-                    ;; lists and curly terms have their own surface syntax
-                    (if (coco_is_cons m t)
-                        (return (coco_write_list m b t quoted ignore_ops)))
-                    (if (and (== n 1) (== 0 (strcmp name "{}")))
-                        (block (coco_sb_putc b (cast char (coco-ch "{")))
-                               (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops 1200 0)
-                               (return (coco_sb_putc b (cast char (coco-ch "}"))))))
-
-                    (let ((int prec) (int type))
-                      ;; infix
-                      (if (and (== n 2) (coco_op_infix name (aof prec) (aof type)))
-                          (let ((int lmax . #'(? (== type COCO_YFX) prec (- prec 1)))
-                                (int rmax . #'(? (== type COCO_XFY) prec (- prec 1)))
-                                (int paren . #'(? (> prec maxprec) 1 0)))
-                            (if paren (coco_sb_putc b (cast char (coco-ch "("))))
-                            (coco_write_rec m b (coco_arg m t 0) quoted ignore_ops lmax 1)
-                            ;; NO SPACES UNLESS THE TOKENS WOULD MERGE. `a-b',
-                            ;; but `a mod b' and `1- -2'. The operator and the
-                            ;; right operand are rendered into buffers of their
-                            ;; own first, because deciding needs their actual
-                            ;; first and last characters -- a quoted atom
-                            ;; begins with a quote, a negative number with a
-                            ;; minus, and neither is knowable from the term.
-                            (let ((coco_strbuf ob) (coco_strbuf rb))
-                              (coco_sb_init (aof ob))
-                              (coco_sb_init (aof rb))
-                              ;; THE COMMA IS NOT QUOTED IN OPERATOR POSITION.
-                              ;; `coco_write_atom' would make it `','', which is
-                              ;; right for the atom and wrong for the operator:
-                              ;; `a:-b,c' would come out `a:-b','c' and read
-                              ;; back as something else entirely. It is the only
-                              ;; operator in the table that `coco_write_atom'
-                              ;; quotes -- `;' and `|' it leaves alone.
-                              (if (== 0 (strcmp name ","))
-                                  (coco_sb_putc (aof ob) (cast char (coco-ch ",")))
-                                (coco_write_atom (aof ob) name quoted))
-                              (coco_write_rec m (aof rb) (coco_arg m t 1)
-                                            quoted ignore_ops rmax 1)
-                              (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
-                                  (coco_sb_putc b (cast char 32)))
-                              (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
-                              (if (coco_needs_gap (coco_sb_last (aof ob))
-                                                (coco_sb_first (aof rb)))
-                                  (coco_sb_putc b (cast char 32)))
-                              (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
-                              (coco_sb_free (aof ob))
-                              (coco_sb_free (aof rb)))
-                            (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
-                            (return 1)))
-                      ;; PREFIX, where the merging rule is not quite the same.
-                      ;; `-a' is fine and `-[a]' and `-f(x)' are fine, but
-                      ;; three things after a symbolic prefix operator need a
-                      ;; space and only one of them is a merge in the ordinary
-                      ;; sense:
-                      ;;
-                      ;;   a symbol character -- `- -a', the ordinary rule;
-                      ;;   a DIGIT -- `- 1', because `-1' is not the operator
-                      ;;     applied to 1, it is the integer minus one, and
-                      ;;     that is a rule about prefix position alone (`1-2'
-                      ;;     is right without a space);
-                      ;;   an opening parenthesis -- `- (a+b)', which SWI
-                      ;;     writes with a space and this follows.
-                      ;;
-                      ;; An alphabetic prefix operator always takes one:
-                      ;; `dynamic f/1', never `dynamicf/1'.
-                      (if (and (== n 1) (coco_op_prefix name (aof prec) (aof type)))
-                          (let ((int amax . #'(? (== type COCO_FY) prec (- prec 1)))
-                                (int paren . #'(? (> prec maxprec) 1 0)))
-                            (if paren (coco_sb_putc b (cast char (coco-ch "("))))
-                            (let ((coco_strbuf ob) (coco_strbuf ab))
-                              (coco_sb_init (aof ob))
-                              (coco_sb_init (aof ab))
-                              (coco_write_atom (aof ob) name quoted)
-                              (coco_write_rec m (aof ab) (coco_arg m t 0)
-                                            quoted ignore_ops amax 1)
-                              (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
-                                  (coco_sb_putc b (cast char 32)))
-                              (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
-                              (let ((int last . #'(coco_sb_last (aof ob)))
-                                    (int first . #'(coco_sb_first (aof ab))))
-                                (if (or (coco_needs_gap last first)
-                                        (and (coco_is_symbol last)
-                                             (or (coco_is_digit first)
-                                                 (== first (coco-ch "(")))))
-                                    (coco_sb_putc b (cast char 32))))
-                              (if (!= ($ ab s) nil) (coco_sb_put b ($ ab s)))
-                              (coco_sb_free (aof ob))
-                              (coco_sb_free (aof ab)))
-                            (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
-                            (return 1))))))
-
-               ;; canonical application
-               (coco_write_atom b name quoted)
-               (coco_sb_putc b (cast char (coco-ch "(")))
-               (for ((u32 i . 0)) (< i n) ((++ i))
-                 (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))
-                 (coco_write_rec m b (coco_arg m t i) quoted ignore_ops 999 0))
-               (return (coco_sb_putc b (cast char (coco-ch ")"))))))
+             (if (>= depth (-> m wdeep))
+                 (return (coco_write_deep m b t mode maxprec depth)))
+             (return (coco_write_fun m b t mode maxprec depth)))
 
             (#t (return (coco_sb_put b "<?>"))))))
 
+  ;;; A CYCLIC TERM WRITTEN AS SWI WRITES ONE (1.10.18), `@(Template,
+  ;;; Substitutions)' -- `@(S_1,[S_1=f(S_1)])' for `X = f(X)' -- from
+  ;;; `coco_factorize' (lib/term.cicili), its cells wound back after. NAMED
+  ;;; writes the variables that stand for the cycles S_1, S_2, ..., as
+  ;;; SWI's write/1, print/1 and writeq/1 do, unless this write names
+  ;;; variables of its own (write_term/2's variable_names); otherwise each
+  ;;; is the variable it is.
+  (static)
+  (func coco_write_cyclic ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                           (int quoted) (int ignore_ops) (int named)) (out int)
+        (let ((size_t mark . #'(-> m heap_len))
+              (size_t * vars . nil) (size_t nv . 0) (u64 * ids . nil)
+              (int rc . 0) (int own . 0)
+              (size_t f . #'(coco_factorize m t "@" (aof vars) (aof nv))))
+          (if (== f 0)
+              (block (free vars) (set (-> m heap_len) mark) (return 0)))
+          (if (and named (and (== (-> m nwnames) 0) (> nv 0)))
+              (block
+               (set ids (cast (u64 *) (malloc (* nv (sizeof u64)))))
+               (if (!= ids nil)
+                   (let ((char nm [32]))
+                     (for ((size_t i . 0)) (< i nv) ((++ i))
+                       (snprintf nm (sizeof nm) "S_%d" (cast int (+ i 1)))
+                       (set (nth i ids) (coco_intern m nm)))
+                     (set (-> m wcells) vars) (set (-> m wnames) ids) (set (-> m nwnames) nv)
+                     (set own 1)))))
+          (set rc (coco_write_rec m b f (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1200 0))
+          (if own
+              (block (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)))
+          (free ids) (free vars)
+          (set (-> m heap_len) mark)
+          (return rc)))
+
+  ;;; THE TOP OF A WRITE (1.10.18): the term as it stands -- or, when the
+  ;;; walk met a cycle, what it wrote taken back and the term written in
+  ;;; factors. The guard's state is the machine's between writes (WDEEP
+  ;;; 1024, WCYC 0) and is put back here, so a write that meets no cycle
+  ;;; pays a load and a branch for it.
+  (static) (inline)
+  (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                        (int quoted) (int ignore_ops) (int named)) (out int)
+        (let ((size_t from . #'(-> b len))
+              (int rc . #'(coco_write_rec m b t (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1200 0)))
+          (if (-> m wcyc)
+              (block
+               (set (-> b len) from)
+               (if (!= (-> b s) nil) (set (nth from (-> b s)) (cast char 0)))
+               (set (-> m wcyc) 0) (set (-> m wdeep) 1024)
+               (set rc (coco_write_cyclic m b t quoted ignore_ops named))
+               ;; the factors hold no cycle; this is for a write that
+               ;; could not make them
+               (set (-> m wcyc) 0) (set (-> m wdeep) 1024)))
+          (return rc)))
+
   (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int quoted) (int ignore_ops)) (out int)
-        (return (coco_write_rec m b t quoted ignore_ops 1200 0)))
+        (return (coco_write_top m b t quoted ignore_ops 1)))
 
   ;;; What goes into the database: quoted, so it reads back, and with operators
   ;;; kept, so a person looking at the table can see what the clause says.
   (func coco_write_storable ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_rec m b t 1 1 1200 0)))
+        (return (coco_write_top m b t 1 1 0)))
 
   (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_rec m b t 1 0 1200 0)))
+        (return (coco_write_top m b t 1 0 0)))
 
   (func coco_print_term ((coco_machine * m) (FILE * f) (size_t t))
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_rec m (aof b) t 0 0 1200 0)
+          (coco_write_top m (aof b) t 0 0 1)
           (if (!= ($ b s) nil) (fputs ($ b s) f))
           (coco_sb_free (aof b))))
 

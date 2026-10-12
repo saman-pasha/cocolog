@@ -1,4 +1,4 @@
-%% library(flowchart), part: the analysis -- what each goal is, which
+%% library(flow/chart), part: the analysis -- what each goal is, which
 %% variables are bound when it runs, how it can end, and the panels.
 
 %% ======================================================================
@@ -230,7 +230,10 @@ flow_memo(ctx(_, Memo, _), Key, CM, SP, Det) :-
 %% libraries(reach) opens one that stands on a path to C, libraries(all)
 %% every one. Its clauses are analysed all the same, for what it binds.
 
-flow_build(Ctx0, Key, CM, [Q|Panels], Ids) :-
+%% The query's lane, l0, first; then each lane a spawn starts, with its own
+%% panels (lanes.pl). A call's panel is looked up by its lane and its key,
+%% L-PK, in the index the graph carries as its Ids.
+flow_build(Ctx0, Key, CM, Panels, Ids) :-
     Key = N/A,
     functor(G, N, A),
     flow_kind(G, Ctx0, Kind),
@@ -238,9 +241,10 @@ flow_build(Ctx0, Key, CM, [Q|Panels], Ids) :-
     flow_pair_map(Pairs, PM),
     flow_panel_key(Kind, Key, CM, PK),
     empty_assoc(I0),
-    put_assoc(PK, I0, 1, I1),
-    flow_bfs([todo(1, Key, Kind, CM, 1)], Ctx, PM, I1, 2, Panels, Ids),
-    flow_query_panel(Key, Kind, CM, Ctx, Panels, Q).
+    put_assoc(0-PK, I0, 1, I1),
+    flow_bfs([todo(1, Key, Kind, CM, 1)], 0, Ctx, PM, I1, 2, Panels0, I2, Next),
+    flow_query_panel(Key, Kind, CM, Ctx, Panels0, Q),
+    flow_lanes([Q|Panels0], Ctx, PM, I2, Next, Panels, Ids).
 
 flow_pair_map(Pairs, PM) :-
     findall((Key-CM)-pi(Key, CM, Kind, SP, Det, Rows), member(pi(Key, CM, Kind, SP, Det, Rows), Pairs), KVs),
@@ -250,30 +254,31 @@ flow_pair_map(Pairs, PM) :-
 flow_panel_key(portal(_), Key, _, Key-c) :- !.
 flow_panel_key(_, Key, CM, Key-CM).
 
-flow_bfs([], _, _, Ids, _, [], Ids).
-flow_bfs([todo(Id, Key, Kind, CM, D)|Q], Ctx, PM, I0, Next0, [P|Ps], Ids) :-
+%% the panels of lane L, breadth first, numbered from Next0 on
+flow_bfs([], _, _, _, Ids, Next, [], Ids, Next).
+flow_bfs([todo(Id, Key, Kind, CM, D)|Q], L, Ctx, PM, I0, Next0, [P|Ps], Ids, Next) :-
     flow_make_panel(Id, Key, Kind, CM, D, Ctx, PM, P),
     P = panel(_, _, _, _, _, _, _, Calls),
-    flow_enqueue(Calls, D, Ctx, PM, I0, I1, Next0, Next1, New),
+    flow_enqueue(Calls, D, L, Ctx, PM, I0, I1, Next0, Next1, New),
     append(Q, New, Q1),
-    flow_bfs(Q1, Ctx, PM, I1, Next1, Ps, Ids).
+    flow_bfs(Q1, L, Ctx, PM, I1, Next1, Ps, Ids, Next).
 
 %% a call gets a panel when what it calls is worth drawing and, unless it
 %% is C, the fixed point reached it: a call it never reached cannot run
-flow_enqueue([], _, _, _, I, I, N, N, []).
-flow_enqueue([c(Key, Kind, CMs)|Cs], D, Ctx, PM, I0, I, N0, N, New) :-
+flow_enqueue([], _, _, _, _, I, I, N, N, []).
+flow_enqueue([c(Key, Kind, CMs)|Cs], D, L, Ctx, PM, I0, I, N0, N, New) :-
     flow_panel_key(Kind, Key, CMs, PK),
-    (   get_assoc(PK, I0, _)
+    (   get_assoc(L-PK, I0, _)
     ->  I1 = I0, N1 = N0, New = New1
     ;   flow_panel_worthy(Key, Kind, Ctx),
         ( Kind = portal(_) -> true ; get_assoc(Key-CMs, PM, _) )
-    ->  put_assoc(PK, I0, N0, I1),
+    ->  put_assoc(L-PK, I0, N0, I1),
         N1 is N0 + 1,
         D1 is D + 1,
         New = [todo(N0, Key, Kind, CMs, D1)|New1]
     ;   I1 = I0, N1 = N0, New = New1
     ),
-    flow_enqueue(Cs, D, Ctx, PM, I1, I, N1, N, New1).
+    flow_enqueue(Cs, D, L, Ctx, PM, I1, I, N1, N, New1).
 
 flow_panel_worthy(_, user, _) :- !.
 flow_panel_worthy(_, portal(_), _) :- !.
@@ -657,6 +662,75 @@ flow_an_item(catch(G, Ball, R), St0, St, Ctx, M0, M, [catchc(Gn, Ball, Rn)]) :- 
     flow_an_seq(G, St0, St1, Ctx, M0, M1, Gn),
     flow_an_seq(R, St0, St2, Ctx, M1, M, Rn),
     flow_join(St1, St2, St).
+%% THREADS (lanes.pl). with_mutex(M, G) is G once, under the lock;
+%% cond_wait_until(C, M, G) waits until G holds, and leaves its bindings;
+%% channel_forall(Ch, G) calls G with each term the channel brings, and
+%% none of what it binds stays
+flow_an_item(with_mutex(Mx, G), St0, St, Ctx, M0, M,
+             [meta(with_mutex, with_mutex(Mx, '…'), [MM, ':'], [Ns], [lock(with, Mx)])]) :-
+    flow_conc_lib(with_mutex(Mx, G), Ctx), !,
+    flow_arg_mode(Mx, St0, MM),
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
+flow_an_item(cond_wait_until(C, Mx, G), St0, St, Ctx, M0, M,
+             [meta(cond_wait_until, cond_wait_until(C, Mx, '…'), [MC, MM, ':'], [Ns], [cond(wait, C, Mx)])]) :-
+    flow_conc_lib(cond_wait_until(C, Mx, G), Ctx), !,
+    flow_arg_mode(C, St0, MC),
+    flow_arg_mode(Mx, St0, MM),
+    flow_an_seq(G, St0, St, Ctx, M0, M, Ns).
+flow_an_item(channel_forall(Ch, G), St0, St0, Ctx, M0, M,
+             [meta(channel_forall, channel_forall(Ch, '…'), [MC, ':'], [Ns], [chan(recv, Ch), into(T)])]) :-
+    flow_conc_lib(channel_forall(Ch, G), Ctx), !,
+    flow_arg_mode(Ch, St0, MC),
+    (   flow_closure_goal(G, [T], Goal)
+    ->  flow_raise_term(T, b, St0, St1),
+        flow_an_seq(Goal, St1, _, Ctx, M0, M, Ns)
+    ;   M = M0,
+        flow_closure_info(G, St0, I),
+        Ns = [g(call(G, T), closure, [':', '+'], nondet, none, I)]
+    ).
+%% httpd_serve/2,3 with no pool of workers serves on the caller's own
+%% thread: each request is httpd_page/3 called HERE, once, with its path
+%% and its request, and a page that fails is a 404 -- the server goes on to
+%% the next request, and never fails. Nothing a page binds comes back.
+%% (Its own heads, so the index passes them by for any other goal.)
+flow_an_item(httpd_serve(P, O), St0, St, Ctx, M0, M, Ns) :-
+    flow_serves_here(O),
+    flow_kind(httpd_serve(P, O), Ctx, library(httpd)), !,
+    flow_an_here(httpd_serve(P, O), St0, St, Ctx, M0, M, Ns).
+flow_an_item(httpd_serve(P, O, C), St0, St, Ctx, M0, M, Ns) :-
+    flow_serves_here(O),
+    flow_kind(httpd_serve(P, O, C), Ctx, library(httpd)), !,
+    flow_an_here(httpd_serve(P, O, C), St0, St, Ctx, M0, M, Ns).
+%% A SPAWN: the goal it sends is proved where it goes, with what is bound
+%% here -- a copy -- and nothing it binds comes back but what the spawn
+%% itself hands back. Past a call that never succeeds nothing is sent.
+flow_an_item(G0, St0, St, Ctx, M0, M, [g(G, spawn(Type), Ms, Det, N/A, I)]) :-
+    compound(G0),
+    flow_spawn(G0, Type, Goal, Bound, Outs, Back),
+    flow_kind(G0, Ctx, K0),
+    flow_spawn_kind(K0), !,
+    flow_strip_at(G0, G),
+    functor(G, N, A),
+    G =.. [_|Args],
+    flow_arg_modes(Args, St0, Ms),
+    flow_raise_at(Outs, Args, St0, St1),
+    (   flow_dead(St0)
+    ->  St = St1, M = M0, Det = det, I = [unreached]
+    ;   flow_raise_list(Bound, b, St0, StIn),
+        term_variables(Goal, GVs),
+        flow_copied_vars(GVs, St0, Copied0),
+        flow_an_sent(Goal, StIn, StOut, Ctx, M0, M, Ns),
+        (   Back == back
+        ->  (   flow_dead(StOut) -> St = [dead-dead|St1]
+            ;   flow_back_vars(GVs, StOut, St1, St)
+            ),
+            (   flow_nodes_total(Ns) -> Det = det ; Det = semidet )
+        ;   St = St1, Det = det
+        ),
+        flow_strip_at(Goal, GoalS0),
+        (   GoalS0 = '$jobs'(GoalS) -> true ; GoalS = GoalS0 ),
+        I = [spawn(Type, GoalS, Ns, Back, Copied0)]
+    ).
 %% call/N runs the goal its closure makes with N-1 arguments more, and
 %% that goal is what is analysed: call(double, X, Y) is double(X, Y). A
 %% closure the source does not bind is known only when it runs
@@ -674,21 +748,99 @@ flow_an_item(C, St0, St, Ctx, M0, M, Ns) :-
         Ns = [g(C, closure, [':'|EMs], nondet, none, I)]
     ).
 flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
-    flow_kind(G, Ctx, Kind),
+    flow_kind(G, Ctx, Kind0),
     functor(G, N, A),
     G =.. [_|Args],
     flow_arg_modes(Args, St0, Ms),
-    flow_effect(Kind, N/A, Args, Ms, St0, St1, Ctx, M0, M, Det),
+    flow_effect(Kind0, N/A, Args, Ms, St0, St1, Ctx, M0, M, Det),
+    flow_relabel(Kind0, G, Kind),
     (   flow_dead(St0) -> I = [unreached], St = St1
     ;   Kind == unknown
     ->  Ctx = ctx(Prog, _, _),
         (   flow_near_name(N, A, Prog, Near) -> I = [near(Near)] ; I = [] ),
         St = St1
-    ;   flow_refused(Kind, N, A, Args, St0, Ps, Vs)
+    ;   flow_refused(Kind0, N, A, Args, St0, Ps, Vs)
     ->  I = [inst(Ps, Vs)],
         St = [dead-dead|St1]                    % it raises: nothing after it runs
     ;   I = [], St = St1
     ).
+
+%% httpd_serve/2,3 here: a construct whose goal is the page, its Path and
+%% Request bound, its Reply free; the caller's state is the page's to read
+%% and nothing the page binds comes back
+flow_an_here(G0, St0, St0, Ctx, M0, M, [meta(httpd_serve, G, Ms, [Ns], [names(Names)])]) :-
+    flow_strip_at(G0, G),
+    G =.. [_|Args],
+    flow_arg_modes(Args, St0, Ms),
+    Page = httpd_page(Path, Request, _),
+    flow_page_names(Page, Names),
+    flow_raise_list([Path, Request], b, St0, St1),
+    flow_an_seq(Page, St1, _, Ctx, M0, M, Ns).
+
+%% what a spawn sends, analysed where it goes: its goal, or cowork_map/3's
+%% jobs, jobs(Js), each proved on its own with what is bound at the spawn.
+%% A list the source does not write is rest(Ns): a goal known only when it
+%% runs, and no finding -- the list may well be bound by then.
+flow_an_sent('$jobs'(L), St, St, Ctx, M0, M, jobs(Js)) :- !,
+    flow_an_jobs(L, St, Ctx, M0, M, Js).
+flow_an_sent(Goal, StIn, StOut, Ctx, M0, M, Ns) :-
+    flow_an_seq(Goal, StIn, StOut, Ctx, M0, M, Ns).
+
+flow_an_jobs(L, _, _, M, M, [rest([g(call(L), closure, [':'], nondet, none, [])])]) :-
+    var(L), !.
+flow_an_jobs([G|Gs], St, Ctx, M0, M, [job(Ns)|Js]) :- !,
+    flow_an_seq(G, St, _, Ctx, M0, M1, Ns),
+    flow_an_jobs(Gs, St, Ctx, M1, M, Js).
+flow_an_jobs(_, _, _, M, M, []).
+
+%% What a goal is, said as the chart says it: library(thread)'s goals by
+%% what they do between threads, and a child process as a portal of its
+%% own (lanes.pl). What the goal binds and how it ends were read from what
+%% it is underneath.
+%% (by clause, so a goal of any other kind costs one call)
+flow_relabel(portal(thread), G, K) :- !,
+    flow_relabel_conc(G, portal(thread), K).
+flow_relabel(library(thread), G, K) :- !,
+    flow_relabel_conc(G, library(thread), K).
+flow_relabel(portal(process), G, K) :- !,
+    flow_relabel_proc(G, portal(process), K).
+flow_relabel(library(process), G, K) :- !,
+    flow_relabel_proc(G, library(process), K).
+flow_relabel(K, _, K).
+
+flow_relabel_conc(G, K0, K) :-
+    (   flow_conc_role(G, Role) -> K = conc(Role) ; K = K0 ).
+
+flow_relabel_proc(G, K0, K) :-
+    (   flow_proc_goal(G, Cmd) -> K = process(Cmd) ; K = K0 ).
+
+%% one of the threads library's own, not the program's of the same name
+flow_conc_lib(G, Ctx) :-
+    flow_kind(G, Ctx, K),
+    flow_conc_kind(K).
+
+%% the arguments a spawn binds here
+flow_raise_at([], _, St, St).
+flow_raise_at([P|Ps], Args, St0, St) :-
+    nth1(P, Args, A),
+    flow_raise_term(A, b, St0, St1),
+    flow_raise_at(Ps, Args, St1, St).
+
+%% what a spawn copies: the goal's variables something here may have bound,
+%% read against the state before the spawn (what the place it goes to binds
+%% -- a request's path -- is not a copy). Kept by identity, so no findall/3
+flow_copied_vars([], _, []).
+flow_copied_vars([V|Vs], St, Out) :-
+    (   flow_st_get(St, V, f) -> Out = Out1 ; Out = [V|Out1] ),
+    flow_copied_vars(Vs, St, Out1).
+
+%% cowork_ask/2 unifies its answer back: the goal's variables are bound as
+%% the job left them
+flow_back_vars([], _, St, St).
+flow_back_vars([V|Vs], StOut, St0, St) :-
+    flow_st_get(StOut, V, S),
+    (   S == f -> St1 = St0 ; flow_raise_list([V], S, St0, St1) ),
+    flow_back_vars(Vs, StOut, St1, St).
 
 %% A CALL THE ENGINE REFUSES: an argument it will not take unbound
 %% (modes.pl, flow_raises_unbound/4) free on every path to the call, or a
@@ -1010,6 +1162,8 @@ flow_meta_can_fail(aggregate_all, aggregate_all(Spec, _, _), [_, _, MR], _, CF) 
     (   MR == '-', nonvar(Spec), \+ flow_agg_partial(Spec) -> CF = false ; CF = true ).
 flow_meta_can_fail(forall, _, _, _, true) :- !.
 flow_meta_can_fail(ignore, _, _, _, false) :- !.
+flow_meta_can_fail(cond_wait_until, _, _, _, false) :- !.    % it waits until the goal holds
+flow_meta_can_fail(httpd_serve, _, _, _, false) :- !.        % a page that fails is a 404
 flow_meta_can_fail(_, _, _, [Ns], CF) :-
     (   flow_nodes_total(Ns) -> CF = false ; CF = true ).
 

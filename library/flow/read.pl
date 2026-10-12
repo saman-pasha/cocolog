@@ -1,4 +1,4 @@
-%% library(flowchart), part: reading a program -- its clauses with their
+%% library(flow/chart), part: reading a program -- its clauses with their
 %% variable names, and the names its comments and headers give.
 
 :- use_module(library(stream)).
@@ -336,7 +336,8 @@ flow_ann_body(G, T0, T, '$at'(G, [at(L, K)])) :-
     flow_leaf_start(T0, t(_, _, L, K), T1),
     flow_skip_goal(T1, T).
 
-%% the arguments of a meta-call: g, a goal the analysis walks; t, a term
+%% the arguments of a meta-call: g, a goal the analysis walks; l, a list of
+%% them, each one placed as the source writes it; t, a term
 flow_meta_args(findall(_, _, _), [t, g, t]).
 flow_meta_args(findall(_, _, _, _), [t, g, t, t]).
 flow_meta_args(aggregate_all(_, _, _), [t, g, t]).
@@ -346,6 +347,16 @@ flow_meta_args(ignore(_), [g]).
 flow_meta_args(not(_), [g]).
 flow_meta_args(call(G), [g]) :- nonvar(G).
 flow_meta_args(catch(_, _, _), [g, t, g]).
+%% the goals a thread, a crew or a lock is handed (lanes.pl)
+flow_meta_args(thread_create(_, _), [g, t]).
+flow_meta_args(thread_pool(_, _, _), [t, g, t]).
+flow_meta_args(run_isolated(_, _), [g, t]).
+flow_meta_args(cowork_ask(_, _), [t, g]).
+flow_meta_args(cowork_ask(_, _, _), [t, g, t]).
+flow_meta_args(cowork_post(_, _), [t, g]).
+flow_meta_args(cowork_map(_, _, _), [t, l, t]).
+flow_meta_args(with_mutex(_, _), [t, g]).
+flow_meta_args(cond_wait_until(_, _, _), [t, t, g]).
 
 flow_ann_args([], [], T, T, []).
 flow_ann_args([A|As], [Kd|Ks], T0, T, [AA|AAs]) :-
@@ -353,11 +364,33 @@ flow_ann_args([A|As], [Kd|Ks], T0, T, [AA|AAs]) :-
     ->  flow_ann_body(A, T0, T1, AA),
         flow_balance(T0, T1, D),
         flow_close_n(D, T1, T2)
+    ;   Kd == l, flow_ann_list(A, T0, T2L, AAL)
+    ->  AA = AAL, T2 = T2L
     ;   AA = A,
         flow_skip_term(T0, T2)
     ),
     (   As == [] -> T3 = T2 ; T2 = [t(punct, ',', _, _)|T3] ),
     flow_ann_args(As, Ks, T3, T, AAs).
+
+%% a list of goals written as one, [G1, G2 | Rest]: each element placed, a
+%% tail a term; anything else is a term, and is not placed
+flow_ann_list(L, [t(punct, '[', _, _)|T0], T, AL) :-
+    nonvar(L), L = [_|_],
+    flow_ann_elems(L, T0, T, AL).
+
+flow_ann_elems([E|Es], T0, T, [AE|AEs]) :-
+    flow_ann_body(E, T0, T1, AE),
+    flow_balance(T0, T1, D),
+    flow_close_n(D, T1, T2),
+    (   T2 = [t(punct, ',', _, _)|T3], nonvar(Es), Es = [_|_]
+    ->  flow_ann_elems(Es, T3, T, AEs)
+    ;   T2 = [t(punct, '|', _, _)|T3]
+    ->  AEs = Es,
+        flow_skip_term(T3, T4),
+        T4 = [t(punct, ']', _, _)|T]
+    ;   Es == [], T2 = [t(punct, ']', _, _)|T]
+    ->  AEs = []
+    ).
 
 %% past the control tokens, to the token a leaf starts with
 flow_leaf_start([Tk|Ts], First, Rest) :-

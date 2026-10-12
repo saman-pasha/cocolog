@@ -657,6 +657,11 @@
           (set (-> m dgc) 0)
           (coco_engine_init (aof e) m st)
           (set ($ e max_steps) 0)
+          ;; A BALL THIS GOAL DOES NOT CATCH IS REPORTED HERE, with where it
+          ;; was raised (1.10.17): no catch outside the load can take it, so
+          ;; its throw asks no further out than this engine, and its lines
+          ;; are kept for the report only when it raised one
+          (set ($ e btstop) 1)
           (coco_engine_ask (aof e) goal)
           ;; after the ask, which frees the retired codes when the engine
           ;; may collect and runs alone: whether it does is this frame's say
@@ -673,6 +678,7 @@
           (if (== rc -1)
               (if (not (coco_engine_error_text (aof e) err errlen))
                   (snprintf err errlen "%s" ($ e err))))
+          (if (not (and (== rc -1) ($ e has_ball))) (coco_bt_say m 0))
           (coco_engine_free (aof e))
           (if halted (coco_halt_load st code 1))
           (if (== rc 1) (return 1))

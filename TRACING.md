@@ -28,6 +28,10 @@ program's own output to stdout, so the two never tangle:
 $ cocolog --trace run program.pl "goal" 2>trace.txt
 ```
 
+`--backtrace` runs the same tracer and prints nothing: what it keeps is
+for an error's backtrace (below), which then names every call the error
+was raised in.
+
 ## Reading the ports
 
 ```console
@@ -89,7 +93,7 @@ deliberately, because SWI has them:
 ## How it is held to SWI
 
 `test/trace.pl` — the `trace` case of `make test` — asks both tracers
-the same twenty-one queries over `test/trace.pl` and compares the port
+the same twenty-three queries over `test/trace-program.pl` and compares the port
 lines one for one: same ports, same order, same relative depths, same
 goals. Three things are normalised first, because the two writers are
 entitled to them: the depth base (SWI's toplevel starts about ten
@@ -109,12 +113,148 @@ port. The tracer is a printer, and the machine itself is the stepper:
 time, and the two compose — a stepped machine under `--trace` prints
 the ports of exactly the inferences that turn spent.
 
+## The inference clock
+
+**A traced run counts what an untraced one counts** (since 1.10.12):
+`statistics(inferences, N)`, `call_metered/4` and a machine's turns read
+the same number with the tracer on or off, so an inference names the same
+goal in both. Through 1.10.11 they did not: the Exit marker below was
+taken as a step of its own, and naive reverse of eight, 47 inferences,
+counted 93 under `--trace`. And **a machine stepped in turns finishes at
+the count of one turn**: `step --steps 12` suspends at 12 (it printed 13,
+counting the goal it stopped at, which the next turn counted again).
+
+## Where an error was raised
+
+An error nothing caught is followed on stderr, after its message, by
+where it was raised (1.10.17). At full speed that is the goal that raised
+it and the goals each engine still had to run, innermost first. With
+
+```prolog
+main :- step1(3), write(done), nl.
+step1(N) :- N1 is N - 1, step2(N1, R), write(R), nl.
+step2(N, R) :- member(X, [1,2]), oops(N, X, R).
+oops(N, X, R) :- R is N / (X - X).
+```
+
+in `t.pl`:
+
+```console
+$ cocolog -s t.pl
+ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: In:
+ERROR:   _G38 is 2/(1-1)
+ERROR:   then write(_G38)
+ERROR:   then nl
+ERROR:   then write(done)
+ERROR:   then nl
+ERROR: Note: what each goal had left to run, not the calls it was made in;
+ERROR: run with --backtrace to see those.
+```
+
+A run at full speed keeps no record of its calls -- the continuation is
+the goals still to run, and a call last in its body leaves nothing at
+all -- so that is what there is to show. A goal still to run in a body
+with an if-then-else, a negation or a disjunction lives in that clause's
+environment, which knows its clause, and says so: `then N is N0+1
+(clause 2 of len/2)`. Under `--backtrace` (or `--trace`) every call
+leaves its `'$trace_exit'` marker on the continuation, and the backtrace
+is SWI's, depth by depth:
+
+```console
+$ cocolog --backtrace -s t.pl
+ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: In:
+ERROR:   [5] _G66 is 2/(1-1)
+ERROR:   [4] oops(2,1,_G66)
+ERROR:   [3] step2(2,_G66)
+ERROR:   [2] step1(3)
+ERROR:   [1] main
+```
+
+* **Inside a builtin's engine** -- `findall/3`, `forall/2`,
+  `aggregate_all/3`, `call_metered/4`, `with_output_to/2` -- the goals
+  inside come first, then the builtin, then the goals after it: the
+  builtin throws the ball again in its own engine and keeps the lines the
+  first throw wrote.
+* **Each engine shows its first eight entries and its last four**, with
+  a count of those between (`... 49 more ...`); a goal past 240
+  characters is cut (` ...`).
+* **A load's reports have one too**: a directive's, an initialization
+  goal's, `initialization(main, main)`'s -- after the message, which stays
+  word for word swipl's (`test/directives.pl`). A load under a `catch/3`
+  reports its directive's error itself, and so writes its lines.
+* **Nothing is written that the message already says**: a goal that is
+  itself the whole query asked (`cocolog query 'X is 1/0'`, `:- foo.`
+  with `foo` unknown) has no backtrace. `--no-backtrace` turns them off.
+* **swipl prints a backtrace only with library(prolog_stack) loaded**, in
+  the same `ERROR: In:` shape; cocolog always does.
+
+The lines are written by the throw itself, before anything unwinds -- the
+one moment the run is still there to read -- and only for a ball no catch
+on the chain of engines would take, so a program that throws and catches
+pays a walk over its choice frames and writes nothing. `test/backtrace.pl`
+holds both shapes to the letter.
+
+## A window, recorded
+
+The tracer has a second mode, which writes no line: it RECORDS each port
+as a term, with what the printer has no port for — the clause a call
+entered, each head before it that did not unify, an exception raised and
+where a `catch/3` took it. `'$trace_window'(Goal, Options, Events, End)`
+runs Goal at full speed, untraced, up to the inference a window opens at
+(`from(I)`), and records from there (`to(J)`); the window opens in place,
+inside whichever engine — a `findall/3`'s too — reaches that inference.
+It records the ports the printer prints, one for one -- a retry's Redo
+only once the retry enters a clause, as the printer writes it (1.10.13;
+through 1.10.12 a Redo was recorded as every retry began, so a call that
+had exited and was backtracked past quietly showed one the printer never
+wrote). It is what `library(flow/debug)` stands on: lib/builtins.cicili
+has the contract, DESIGN-flow.md 9.5 the plan, and `test/window.pl` holds
+the recorder to the printer over the trace case's queries, and a window
+to a recording of the whole run, event for event.
+
+A window can also ASK (1.10.16): `ask(Cond, Holds)` proves Cond once
+where the run stopped -- its last inference, its answer, its failure --
+over the bindings the run left there, before anything is undone; Holds is
+`true`, `false`, `limit` or `exception(Ball)`. A run stopped at `to(I)`
+and asked is how "when did X become 5?" is answered without a debugger
+in the run: `library(flow/debug)`'s `flow_when/4` bisects over such runs.
+
+## A journal, and a replay answered from it
+
+A run is its clauses and whatever came in from outside. With
+`journal(record(File))` among its options, `'$trace_window'/4` writes
+File: a line `j(I, Module, Name/Arity, CallText, Outcome)` for each
+PORTAL call the run makes -- a call of a module that reaches the world:
+the clock, the environment, a file, a stream, a socket, a process, a
+thread and its channels, the knowledge base under `--kb` -- at inference
+I, its text as `writeq` writes it (variables `_0`, `_1`, ...), and how it
+went: `exit(Goal)` with what it bound, `fail`, `throw(Ball)`, or
+`error(Message)`. A float is written so it reads back to the bit. With
+`journal(replay(File))` each of those calls is answered from its entry and
+NOT RUN -- the file is not appended to again, the thread not started, the
+clock reads what it read -- and a replay that leaves the recorded run
+stops where it does, its end `diverged(I, Want, Got)`: the journal's call
+at inference I and the replay's, each `portal(I, Module, Name/Arity,
+CallText)` or `none`, for another call where the journal holds one,
+another argument, a call the journal holds made early or late, one past
+its last, and a call passed by that nothing made. A run without a journal
+dispatches exactly as before: the module seam's hooks are wrapped only
+while a journal's window runs. `test/journal.pl` holds it to a record and
+its replay in one process and in two, under collections every 2000 cells,
+and to each divergence; `library(flow/debug)`'s `journal(true)` is the
+same pair, a probe that records and a replay that replays (DESIGN-flow.md
+9.2).
+
 ## How it works
 
 The engine's design pays for itself here. The continuation is a term,
 so the `Exit` port is nothing but a marker — `'$trace_exit'(Goal,
 Depth, Parent)` — pushed behind a call's body: when the body has proven
-its way through to it, the call has exited. It sits below the choice
+its way through to it, the call has exited. Taking it is no inference
+(the step the loop counted is given back), so the clock stays the
+untraced run's. It sits below the choice
 frame's heap mark, so no amount of backtracking into the call can lose
 it — the same trick `catch/3` plays with its `'$catch'` term. `Redo`
 and `Fail` live on a shadow of the choice stack: one tracer entry per

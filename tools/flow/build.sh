@@ -1,5 +1,5 @@
 #!/bin/sh
-# tools/flow/build.sh -- library(flowchart)'s tables, from the sources.
+# tools/flow/build.sh -- library(flow/chart)'s tables, from the sources.
 #
 #     sh tools/flow/build.sh
 #

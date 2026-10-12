@@ -1,4 +1,4 @@
-%% library(flowchart), part: the layout -- items, rows, lanes, panels,
+%% library(flow/chart), part: the layout -- items, rows, lanes, panels,
 %% the chart and its legend, as layered primitives.
 
 %% ======================================================================
@@ -6,7 +6,7 @@
 %% and below the main line it sits on
 %% ======================================================================
 %%
-%%   mg(Kind, Segs, Badge, ND, CF, W, Tip)   a goal
+%%   mg(Kind, Segs, Badge, ND, CF, W, Tip, Plaque)   a goal
 %%   mhead(Segs, HF, W, Tip)                  a clause head
 %%   mcut | mfail(W) | mthrow(Segs, W)
 %%   mframe(Items, W, A, D)                   an if-then-else's condition
@@ -54,21 +54,23 @@ flow_m_lists_([L|Ls], LC, Tag, K, [I|Is]) :-
 flow_lc_sub(lc(N, I, S, X), Parts, lc(N, I, S, B)) :-
     atomic_list_concat([X, '.'|Parts], B).
 
-flow_m(g(G, Kind, Ms, Det, Key, Info), LC, mg(Kind, Segs, Badge, ND, CF, W, tip(Tip, Id))) :- !,
+flow_m(g(G, Kind, Ms, Det, Key, Info), LC, mg(Kind, Segs, Badge, ND, CF, W, tip(Tip, Id), Plaque)) :- !,
     LC = lc(Names, Ids, Self, Id),
     flow_goal_segs(G, Ms, Names, Segs),
-    flow_badge(Kind, Key, Ms, Ids, Self, Badge),
+    flow_goal_badge(Kind, Key, Ms, Ids, Self, Id, Badge),
     flow_det_flags(Det, CF, ND),
     flow_segs_w(Segs, TW),
     flow_badge_w(Badge, BW),
     (   ND == true -> NW = 13 ; NW = 0 ),
     (   Kind == test -> HW = 12 ; HW = 0 ),
-    (   Kind = portal(_) -> PW = 17 ; PW = 0 ),
+    flow_plaque_text(Kind, G, Ids, Id, Names, Plaque),
+    flow_plaque_w(Plaque, PW),
     W is 18 + TW + NW + BW + HW + PW,
     flow_tip(G, Kind, Det, Names, Tip0),
+    flow_lane_tip(Kind, G, Ids, Id, Names, Tip0, Tip1),
     (   memberchk(unreached, Info)
-    ->  atom_concat(Tip0, '  --  never reached: past a call that never succeeds', Tip)
-    ;   Tip = Tip0
+    ->  atom_concat(Tip1, '  --  never reached: past a call that never succeeds', Tip)
+    ;   Tip = Tip1
     ).
 flow_m(cut, _, mcut) :- !.
 flow_m(failn, _, mfail(W)) :- !,
@@ -100,12 +102,13 @@ flow_m(not(Ns), LC, mcon(not, Label, Tracks, W, A, D, true, false)) :- !,
     flow_m_list(Ns, LC, Is),
     flow_tracks([Is], 0, 0, Tracks),
     flow_con_size(Tracks, Label, W, A, D).
-flow_m(meta(Name, Head, Ms, Ts, _), LC, mcon(meta, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
+flow_m(meta(Name, Head, Ms, Ts, Info), LC, mcon(meta, segs(Segs), Tracks, W, A, D, CF, ND)) :- !,
     LC = lc(Names, _, _, _),
     flow_goal_segs(Head, Ms, Names, Segs0),
     flow_meta_note(Name, Note),
     append(Segs0, [s(Note, muted)], Segs),
-    findall(TI, ( member(T, Ts), flow_m_list(T, LC, TI) ), TIs),
+    flow_lc_names(LC, Info, LCT),
+    findall(TI, ( member(T, Ts), flow_m_list(T, LCT, TI) ), TIs),
     flow_tracks(TIs, 0, 0, Tracks),
     flow_con_size(Tracks, segs(Segs), W, A, D),
     flow_meta_can_fail(Name, Head, Ms, Ts, CF),
@@ -128,6 +131,15 @@ flow_meta_note(forall, '    for every one').
 flow_meta_note(once, '    the first solution').
 flow_meta_note(ignore, '    never fails').
 flow_meta_note(phrase, '    the grammar over a list').
+flow_meta_note(with_mutex, '    once, holding the lock').
+flow_meta_note(channel_forall, '    for every term the channel brings').
+flow_meta_note(cond_wait_until, '    waits until it holds').
+flow_meta_note(httpd_serve, '    each request, here: a page that fails is a 404').
+
+%% a construct that names what it hands its goal -- httpd_serve/2,3 a
+%% page's Path, Request and Reply -- names it inside
+flow_lc_names(lc(Ns, I, S, B), Info, lc(Ns1, I, S, B)) :-
+    (   memberchk(names(NL), Info) -> append(NL, Ns, Ns1) ; Ns1 = Ns ).
 
 flow_m_arms([], _, _, []).
 flow_m_arms([arm(C, T)|As], LC, K, [[F|TIs]|Ts]) :-
@@ -188,7 +200,7 @@ flow_tracks_flags(Tracks, CF, ND) :-
     (   member(t(_, Is, _, _, _), Tracks), member(I, Is), flow_flags(I, true, _) -> CF = true ; CF = false ),
     (   member(t(_, Is2, _, _, _), Tracks), member(I2, Is2), flow_flags(I2, _, true) -> ND = true ; ND = false ).
 
-flow_flags(mg(_, _, _, ND, CF, _, _), CF, ND).
+flow_flags(mg(_, _, _, ND, CF, _, _, _), CF, ND).
 flow_flags(mhead(_, HF, _, _), HF, false).
 flow_flags(mcut, false, false).
 flow_flags(mfail(_), true, false).
@@ -196,7 +208,7 @@ flow_flags(mthrow(_, _), false, false).
 flow_flags(mframe(_, _, _, _), false, false).
 flow_flags(mcon(_, _, _, _, _, _, CF, ND), CF, ND).
 
-flow_size(mg(_, _, _, _, _, W, _), W, 13, 13).
+flow_size(mg(_, _, _, _, _, W, _, _), W, 13, 13).
 flow_size(mhead(_, _, W, _), W, 13, 13).
 flow_size(mcut, 14, 13, 13).
 flow_size(mfail(W), W, 13, 13).
@@ -213,19 +225,43 @@ flow_det_flags(failure, true, false).
 flow_det_text(failure, 'never succeeds') :- !.
 flow_det_text(D, D).
 
-%% a call carries the number of the panel for its own call pattern; a call
-%% to the very panel it stands in is a recursion
+%% a call carries the number of the panel for its own call pattern, in its
+%% own lane; a call to the very panel it stands in is a recursion. Self is
+%% L-PK: the lane and the key of the panel the goal stands in.
 flow_badge(Kind, Key, Ms, Ids, Self, B) :-
     (   flow_callable_kind(Kind), flow_panel_key(Kind, Key, Ms, PK)
-    ->  (   PK == Self -> B = self
-        ;   get_assoc(PK, Ids, Id) -> B = ref(Id)
+    ->  Self = L-_,
+        (   L-PK == Self -> B = self
+        ;   get_assoc(L-PK, Ids, Id) -> B = ref(Id)
         ;   B = none
         )
     ;   B = none
     ).
 
+%% a spawn carries the number of its lane's root, and its wire goes there;
+%% a join or a detach the number of the root of the lane it is about, with
+%% no wire of its own -- a join in the spawn's own panel marks its place,
+%% and the status it reads comes back beside the spawn's wire (lanes.pl)
+flow_goal_badge(spawn(_), _, _, Ids, _, Id, B) :- !,
+    (   flow_site_root(Ids, Id, R) -> B = ref(R) ; B = none ).
+flow_goal_badge(conc(join(_)), _, _, Ids, _, Id, B) :- !,
+    flow_join_badge(Ids, Id, B).
+flow_goal_badge(conc(detach(_)), _, _, Ids, _, Id, B) :- !,
+    flow_join_badge(Ids, Id, B).
+flow_goal_badge(Kind, Key, Ms, Ids, Self, _, B) :-
+    flow_badge(Kind, Key, Ms, Ids, Self, B).
+
+flow_join_badge(Ids, Id, B) :-
+    flow_graph_links(Ids, links(_, Joins, _, _, _, _)),
+    flow_graph_lanes(Ids, Lanes),
+    (   memberchk(join(Id, L, _), Joins), memberchk(lane(L, _, R, _, _, _, _, _), Lanes)
+    ->  B = lane(R)
+    ;   B = none
+    ).
+
 flow_badge_w(none, 0).
 flow_badge_w(ref(_), 21).
+flow_badge_w(lane(_), 21).
 flow_badge_w(self, 17).
 
 flow_tip(G, Kind, Det, Names, Tip) :-
@@ -243,7 +279,75 @@ flow_kind_word(unify, unification) :- !.
 flow_kind_word(portal(M), W) :- !, format(atom(W), 'C function of library(~w), not traced', [M]).
 flow_kind_word(unknown, 'defined nowhere the chart can see: calling it is an existence error') :- !.
 flow_kind_word(closure, 'a goal known only when it runs') :- !.
+flow_kind_word(spawn(Type), W) :- !,
+    flow_lane_word(Type, LW),
+    format(atom(W), 'sends its goal to run in ~w', [LW]).
+flow_kind_word(conc(Role), W) :- !,
+    flow_role_word(Role, RW),
+    format(atom(W), 'library(thread): ~w', [RW]).
+flow_kind_word(process(_), 'a child process (library(process)): the end of the chart') :- !.
 flow_kind_word(_, 'a goal known only when it runs').
+
+flow_role_word(chan(new, _), 'makes a channel').
+flow_role_word(chan(send, _), 'sends a copy of the term down the channel').
+flow_role_word(chan(recv, _), 'takes the next term off the channel, waiting for one, and fails once it is closed and empty').
+flow_role_word(chan(close, _), 'closes the channel: its receivers stop once it is empty').
+flow_role_word(lock(lock, _), 'takes the mutex, waiting for it').
+flow_role_word(lock(unlock, _), 'gives the mutex back').
+flow_role_word(lock(trylock, _), 'takes the mutex if it is free, and fails if it is not').
+flow_role_word(cond(wait, _, _), 'gives up the mutex, waits for a signal, and takes the mutex back').
+flow_role_word(cond(signal, _, _), 'wakes one waiter').
+flow_role_word(cond(broadcast, _, _), 'wakes every waiter').
+flow_role_word(join(_), 'waits for the thread, and reads its status: true, false or error(E)').
+flow_role_word(detach(_), 'lets the thread clean up after itself; nobody reads its status').
+
+%% what the links add: the lane a spawn runs in and what crosses, the
+%% lane a join waits for, what a process runs, who sees a write
+flow_lane_tip(spawn(Type), _, Ids, Id, _, Tip0, Tip) :- !,
+    flow_graph_links(Ids, links(Spawns, _, _, _, _, _)),
+    (   memberchk(spawn(Id, L, _, _, Back, CT), Spawns)
+    ->  flow_back_word(Type, Back, BW),
+        format(atom(Tip), '~w  --  in lane l~w; it copies ~w, and ~w', [Tip0, L, CT, BW])
+    ;   Tip = Tip0
+    ).
+flow_lane_tip(conc(join(_)), _, Ids, Id, _, Tip0, Tip) :- !,
+    flow_join_tip(Ids, Id, Tip0, Tip).
+flow_lane_tip(conc(detach(_)), _, Ids, Id, _, Tip0, Tip) :- !,
+    flow_join_tip(Ids, Id, Tip0, Tip).
+flow_lane_tip(process(_), _, Ids, Id, _, Tip0, Tip) :- !,
+    flow_graph_links(Ids, links(_, _, _, _, Procs, _)),
+    (   memberchk(process(Id, Cmd, Chart), Procs), Cmd \== none
+    ->  (   Chart \== none
+        ->  format(atom(Tip), '~w  --  runs `~w'', which runs cocolog on ~w: that file''s chart is its own', [Tip0, Cmd, Chart])
+        ;   format(atom(Tip), '~w  --  runs `~w''', [Tip0, Cmd])
+        )
+    ;   Tip = Tip0
+    ).
+flow_lane_tip(K, G, _, _, _, Tip0, Tip) :-
+    flow_kb_kind(K),
+    flow_kb_write(G, _, _), !,
+    atom_concat(Tip0, '  --  a write to the knowledge base: under --kb or --embed, other processes see it when the turn commits', Tip).
+flow_lane_tip(_, _, _, _, _, Tip, Tip).
+
+flow_join_tip(Ids, Id, Tip0, Tip) :-
+    flow_graph_links(Ids, links(_, Joins, _, _, _, _)),
+    (   memberchk(join(Id, L, How), Joins)
+    ->  (   How == detach
+        ->  format(atom(Tip), '~w  --  lane l~w: nobody will join it, and it cleans up after itself', [Tip0, L])
+        ;   format(atom(Tip), '~w  --  of lane l~w: its status only, never its bindings', [Tip0, L])
+        )
+    ;   Tip = Tip0
+    ).
+
+flow_var_names([], _, nothing) :- !.
+flow_var_names(Vs, Names, T) :-
+    findall(N, ( member(V, Vs), ( flow_var_name(V, Names, N0) -> N = N0 ; N = '_' ) ), Ns),
+    atomic_list_concat(Ns, ', ', T).
+
+flow_back_word(_, none, 'nothing comes back') :- !.
+flow_back_word(isolated, waits, 'the caller waits for its status') :- !.
+flow_back_word(_, waits, 'the caller waits for a copy of its answer') :- !.
+flow_back_word(_, back, 'the caller waits, and its answer is unified back').
 
 flow_m_head(H, CM, Names, HF, Id, mhead(Segs, HF, W, tip(Tip, Id))) :-
     flow_goal_segs(H, CM, Names, Segs),
@@ -264,7 +368,7 @@ flow_m_head(H, CM, Names, HF, Id, mhead(Segs, HF, W, tip(Tip, Id))) :-
 %% made in; site(Id, Y) is no drawing, it tells the panel where a call to
 %% panel Id stands, for its wire.
 
-flow_p(mg(Kind, Segs, Badge, ND, CF, W, Tip), X, Y, Prims, it(X, W, B, CF, ND, false)) :- !,
+flow_p(mg(Kind, Segs, Badge, ND, CF, W, Tip, Plaque0), X, Y, Prims, it(X, W, B, CF, ND, false)) :- !,
     T is Y - 13,
     B is Y + 13,
     flow_box_style(Kind, Fill, Stroke, Dash),
@@ -282,11 +386,19 @@ flow_p(mg(Kind, Segs, Badge, ND, CF, W, Tip), X, Y, Prims, it(X, W, B, CF, ND, f
         Glyph = [t(GX, TY, start, 11, sans, normal, [s('↻', muted)])]
     ;   Glyph = []
     ),
-    flow_portal_plaque(Kind, X, W, Badge, Y, Plaque),
+    (   Plaque0 == default -> flow_kind_plaque(Kind, Plaque1) ; Plaque1 = Plaque0 ),
+    flow_plaque_prims(Plaque1, X, W, Badge, Y, Plaque),
     flow_badge_prims(Badge, Kind, X, W, Y, BadgePs),
     append([[Shape, t(TX, TY, start, 12, mono, normal, Segs)], Glyph, Plaque, BadgePs], Inner),
-    (   Badge = ref(Id) -> Site = [9-site(Id, Y)] ; Site = [] ),
-    Prims = [2-grp(Tip, Inner)|Site].
+    (   Badge = ref(Id) -> Site = [9-site(Id, Y)]
+    ;   Badge = lane(_), Kind = conc(join(_)), Tip = tip(_, GId)
+    ->  JX is X + W // 2, JB is Y + 13,
+        Site = [9-jsite(GId, JX, JB)]
+    ;   Site = []
+    ),
+    flow_box_marks(Plaque1, X, W, Y, Marks),
+    append(Site, Marks, Extra),
+    Prims = [2-grp(Tip, Inner)|Extra].
 flow_p(mhead(Segs, HF, W, Tip), X, Y,
        [2-grp(Tip, [r(X, T, W, 26, 13, '#eef0ff', '#5a5fcf', 1, none),
                     t(TX, TY, start, 12, mono, normal, Segs)])],
@@ -404,18 +516,87 @@ flow_box_style(builtin, '#eef1f4', '#a3aeb9', none) :- !.
 flow_box_style(test, '#fff7df', '#c08a00', none) :- !.
 flow_box_style(unify, '#eef1f4', '#a3aeb9', none) :- !.
 flow_box_style(portal(_), '#e3f4f1', '#0f766e', none) :- !.
+flow_box_style(spawn(_), '#f5f0ff', '#7c3aed', none) :- !.
+flow_box_style(conc(_), '#f2f6ff', '#2f5bd3', none) :- !.
+flow_box_style(process(_), '#f1f5f9', '#334155', none) :- !.
 flow_box_style(unknown, '#fff5f5', '#d62828', '3 3') :- !.
 flow_box_style(_, '#ffffff', '#7e22ce', '3 3').
 
-flow_portal_plaque(portal(_), X, W, Badge, Y,
-                   [r(PX, PY, 13, 16, 3, '#0f766e', none, 0, none),
-                    t(TX, TY, middle, 10, sans, bold, [s('C', white)])]) :- !,
+%% A PLAQUE says what a box is where its text cannot: C on a C function,
+%% the lane a spawn sends to, the channel a send or a receive is about, the
+%% mutex a lock takes, $ on a child process, KB on a write to the
+%% knowledge base. plq(Text, Colour, Mark): Mark is what else the box tells
+%% its panel -- a channel's end, for the message lines.
+flow_kind_plaque(portal(_), plq('C', '#0f766e', none)) :- !.
+flow_kind_plaque(_, none).
+
+flow_plaque_text(portal(_), _, _, _, _, plq('C', '#0f766e', none)) :- !.
+flow_plaque_text(spawn(Type), _, Ids, Id, _, plq(T, '#7c3aed', none)) :- !,
+    (   flow_site_root(Ids, Id, R), flow_panel_lane(Ids, R, L)
+    ->  format(atom(T), '~w  l~w', [Type, L])
+    ;   T = Type
+    ).
+flow_plaque_text(conc(chan(Op, Ch)), _, Ids, Id, Names, plq(T, '#2f5bd3', chan(K, Op, Id))) :- !,
+    flow_site_channel(Ids, Id, Ch, Names, K),
+    flow_chan_label(K, KT),
+    format(atom(T), '~w ~w', [Op, KT]).
+flow_plaque_text(conc(lock(Op, M)), _, _, _, Names, plq(T, '#b45309', none)) :- !,
+    flow_handle_name(M, Names, MT),
+    format(atom(T), '~w ~w', [Op, MT]).
+flow_plaque_text(conc(cond(Op, C, _)), _, _, _, Names, plq(T, '#b45309', none)) :- !,
+    flow_handle_name(C, Names, CT),
+    format(atom(T), '~w ~w', [Op, CT]).
+flow_plaque_text(conc(join(_)), _, _, _, _, plq(join, '#7c3aed', none)) :- !.
+flow_plaque_text(conc(detach(_)), _, _, _, _, plq(detach, '#7c3aed', none)) :- !.
+flow_plaque_text(process(_), _, _, _, _, plq('$', '#334155', none)) :- !.
+flow_plaque_text(K, G, _, _, _, plq('KB', '#9a3412', none)) :-
+    flow_kb_kind(K),
+    flow_kb_write(G, _, _), !.
+flow_plaque_text(_, _, _, _, _, none).
+
+%% the channel a site is about: its number, or the variable that names it
+flow_site_channel(Ids, Id, Ch, Names, K) :-
+    flow_graph_links(Ids, links(_, _, Chans, _, _, _)),
+    (   member(channel(K0, _, Ops, _, _), Chans), memberchk(op(Id, _, _), Ops) -> K = K0
+    ;   flow_handle_name(Ch, Names, Nm), K = var(Nm)
+    ).
+
+flow_chan_label(K, T) :-
+    (   integer(K) -> format(atom(T), 'ch~d', [K])
+    ;   K = var(Nm) -> T = Nm
+    ;   T = '?'
+    ).
+
+flow_plaque_w(none, 0) :- !.
+flow_plaque_w(plq('C', _, _), 17) :- !.
+flow_plaque_w(plq(T, _, _), W) :-
+    flow_chars(T, N),
+    W is N * 6 + 12.
+
+flow_plaque_prims(none, _, _, _, _, []) :- !.
+flow_plaque_prims(plq('C', Col, _), X, W, Badge, Y,
+                  [r(PX, PY, 13, 16, 3, Col, none, 0, none),
+                   t(TX, TY, middle, 10, sans, bold, [s('C', white)])]) :- !,
     flow_badge_w(Badge, BW),
     PX is X + W - BW - 17,
     PY is Y - 8,
     TX is PX + 7,
     TY is Y + 4.
-flow_portal_plaque(_, _, _, _, _, []).
+flow_plaque_prims(plq(T, Col, M), X, W, Badge, Y,
+                  [r(PX, PY, RW, 16, 3, Col, none, 0, none),
+                   t(TX, TY, middle, 8, sans, bold, [s(T, white)])]) :-
+    flow_plaque_w(plq(T, Col, M), PW),
+    flow_badge_w(Badge, BW),
+    RW is PW - 4,
+    PX is X + W - BW - PW,
+    PY is Y - 8,
+    TX is PX + RW // 2,
+    TY is Y + 3.
+
+%% a channel's end tells the panel where it stands, for its message line
+flow_box_marks(plq(_, _, chan(K, Op, Id)), X, W, Y, [9-msg(K, Op, Id, CX, Y)]) :- !,
+    CX is X + W // 2.
+flow_box_marks(_, _, _, _, []).
 
 flow_badge_prims(none, _, _, _, _, []).
 flow_badge_prims(self, _, X, W, Y, [t(CX, TY, middle, 14, sans, normal, [s('↺', ink)])]) :-
@@ -428,12 +609,20 @@ flow_badge_prims(ref(Id), Kind, X, W, Y,
     flow_badge_col(Kind, Col),
     number_codes(Id, Cs),
     atom_codes(IdA, Cs).
+flow_badge_prims(lane(Id), _, X, W, Y,
+                 [c(CX, Y, 8, '#7c3aed', none, 0), t(CX, TY, middle, 9, sans, bold, [s(IdA, white)])]) :-
+    CX is X + W - 12,
+    TY is Y + 3,
+    number_codes(Id, Cs),
+    atom_codes(IdA, Cs).
 
 flow_badge_col(user, '#33507a') :- !.
 flow_badge_col(dynamic, '#33507a') :- !.
 flow_badge_col(library(_), '#6b7785') :- !.
 flow_badge_col(portal(_), '#0f766e') :- !.
 flow_badge_col(query, '#3d3d6b') :- !.
+flow_badge_col(spawn(_), '#7c3aed') :- !.
+flow_badge_col(lane(_, _), '#7c3aed') :- !.
 flow_badge_col(_, '#6b7785').
 
 %% ======================================================================
@@ -480,32 +669,40 @@ flow_rows_maxw([mrow(_, _, _, _, W)|Rs], M0, M) :-
 %% lane to the rail, and down the rail into the next clause; from the LAST
 %% clause the lane runs on through the panel's left border at its own
 %% height -- that is the fail port -- so it reaches the border straight.
+%% A lane's root (RailX `root') is proved once, and nothing backtracks into
+%% it once it has exited: it has no redo. cowork_map/3's jobs (RailX
+%% `jobs') are no clauses either: each is proved once, on its own, and each
+%% one's failure leaves through the border -- its answer, failed.
 flow_p_rows([], _, Top, _, _, [], [], Top).
 flow_p_rows([MR|MRs], X0, Top, RailX, ExitX, Prims, [G|Gs], Bottom) :-
-    (   MRs == [] -> LaneEnd = port ; LaneEnd = rail(RailX) ),
-    flow_p_row(MR, X0, Top, LaneEnd, ExitX, P1, G),
+    (   integer(RailX), MRs \== [] -> LaneEnd = rail(RailX) ; LaneEnd = port ),
+    (   integer(RailX) -> Redo = true ; Redo = false ),
+    flow_p_row(MR, X0, Top, LaneEnd, Redo, ExitX, P1, G),
     G = row_geo(_, _, _, RB, _),
     Top2 is RB + 4,
     flow_p_rows(MRs, X0, Top2, RailX, ExitX, P2, Gs, Bottom),
     append(P1, P2, Prims).
 
-flow_p_row(mrow(I, Items, A, D, _), X0, Top, LaneEnd, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
+flow_p_row(mrow(I, Items, A, D, _), X0, Top, LaneEnd, Redo, ExitX, Prims, row_geo(I, Y, YF, Bottom, RailHit)) :-
     Y is Top + A,
     flow_p_items(Items, X0, Y, IPs, XE, Infos),
     YF is Y + D + 12,
     flow_row_tail(Items, Tail),
     RowEnd is XE + 12 + Tail,
-    flow_lanes(Infos, RowEnd, LaneEnd, YF, LPs, RailHit, Tags),
+    flow_lanes(Infos, RowEnd, LaneEnd, Redo, YF, LPs, RailHit, Tags),
     (   Tags == true -> Extra = 6 ; Extra = 0 ),
     Bottom is YF + 12 + Extra,
     append([[1-l([X0-Y, ExitX-Y], ink, 1.4, none, none)], IPs, LPs], Prims).
 
-flow_lanes(Infos, RowEnd, LaneEnd, YF, Prims, RailHit, Tags) :-
+flow_lanes(Infos, RowEnd, LaneEnd, Redo, YF, Prims, RailHit, Tags) :-
     flow_index(Infos, 1, Indexed),
     flow_fail_sources(Indexed, [], Srcs0),
-    reverse(Indexed, RevAll),
-    flow_fail_target(RevAll, EndT),
-    Srcs = [src(EndT, RowEnd, end)|Srcs0],
+    (   Redo == true
+    ->  reverse(Indexed, RevAll),
+        flow_fail_target(RevAll, EndT),
+        Srcs = [src(EndT, RowEnd, end)|Srcs0]
+    ;   Srcs = Srcs0
+    ),
     findall(T, member(src(T, _, _), Srcs), Ts0),
     sort(Ts0, Ts),
     flow_lane_groups(Ts, Srcs, Indexed, LaneEnd, YF, GPs),
@@ -619,9 +816,16 @@ flow_draw_stub(panel(Id, Key, Kind, CM, D, stub(N, Rule, Body), Det, _), Docs,
 
 flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap, Docs,
                pd(Id, D, W, H, CallY, Jacks, Prims)) :-
-    flow_panel_head(Key, CM, Rows, Docs, HeadSegs),
-    flow_doc_rows(Key, Kind, Docs, Rows, DRows),
-    flow_panel_key(Kind, Key, CM, Self),
+    (   Kind = lane(Type, LN)
+    ->  flow_lane_head(Type, LN, Rows, HeadSegs),
+        DRows = Rows,
+        Self = LN-root(Id)
+    ;   flow_panel_head(Key, CM, Rows, Docs, HeadSegs),
+        flow_doc_rows(Key, Kind, Docs, Rows, DRows),
+        flow_panel_key(Kind, Key, CM, PK),
+        flow_panel_lane(Ids, Id, L),
+        Self = L-PK
+    ),
     flow_panel_id(Id, PId),
     flow_m_rows(DRows, CM, Ids, Self, PId, MRows),
     flow_rows_maxw(MRows, 0, MW),
@@ -632,20 +836,37 @@ flow_draw_rows(panel(Id, Key, Kind, CM, D, rows(Rows), Det, _), Ids, DMap, KMap,
     TagW is (TN * 62 + 9) // 10,
     W is max(34 + MW + 26 + 16, 34 + HW + max(140, TagW + 30)),
     ExitX is W - 14,
-    flow_p_rows(MRows, 34, 44, 16, ExitX, RowPs, Geos, Bottom),
+    (   flow_jobs_root(Kind, Rows) -> RailX = jobs
+    ;   Kind = lane(_, _) -> RailX = root
+    ;   RailX = 16
+    ),
+    flow_p_rows(MRows, 34, 44, RailX, ExitX, RowPs, Geos, Bottom),
     Geos = [row_geo(_, CallY, _, _, _)|_],
     MinY is CallY + 18,
-    flow_jacks(RowPs, D, DMap, KMap, W, MinY, Jacks, JackPs),
+    flow_jacks(RowPs, D, DMap, KMap, W, MinY, Jacks0, JackPs),
+    flow_marks_of(RowPs, Marks),
+    append(Jacks0, Marks, Jacks),
     %% room under the last lane for the fail port's word, and for every jack
     findall(JY, member(jk(_, JY), Jacks), JYs),
     max_list([0|JYs], MaxJY),
     H is max(Bottom + 8, MaxJY + 12),
     flow_panel_frame(Id, Kind, W, H, HeadSegs, Tag, FramePs),
-    flow_panel_ports(Geos, W, ExitX, PortPs),
+    (   RailX == jobs -> flow_job_ports(Geos, W, ExitX, PortPs)
+    ;   flow_panel_ports(Geos, W, ExitX, PortPs)
+    ),
     exclude(flow_is_site, RowPs, RowPs1),
     append([FramePs, PortPs, RowPs1, JackPs], Prims).
 
-flow_is_site(9-site(_, _)).
+%% what a panel tells the chart rather than draws: where each call, join
+%% and channel end stands
+flow_is_site(9-_).
+
+%% the joins and the channel ends of a panel, for the chart to wire
+flow_marks_of(Prims, Marks) :-
+    findall(M, ( member(9-P, Prims), flow_mark(P, M) ), Marks).
+
+flow_mark(jsite(GId, X, Y), jj(GId, X, Y)).
+flow_mark(msg(K, Op, Id, X, Y), ms(K, Op, Id, X, Y)).
 
 %% a library clause read back with clause/2 has letters for names; its
 %% head's variables take the names its library's header documents
@@ -681,7 +902,36 @@ flow_panel_tag(dynamic, Det0, NC, Tag) :- !,
     flow_det_text(Det0, Det),
     flow_plural(NC, clause, Cl),
     format(atom(Tag), 'dynamic  ·  ~w  ·  starts with ~d ~w', [Det, NC, Cl]).
+flow_panel_tag(lane(_, _), Det0, _, Tag) :- !,
+    flow_det_text(Det0, Det),
+    format(atom(Tag), 'what it proves  ·  ~w', [Det]).
 flow_panel_tag(_, Det0, _, Det) :- flow_det_text(Det0, Det).
+
+%% a lane's root says where it runs: `l1 · thread · worker(Ch)', and
+%% cowork_map/3's how many jobs it was handed
+flow_lane_head(Type, LN, Rows, Segs) :-
+    format(atom(L), 'l~w  ·  ~w  ·  ', [LN, Type]),
+    (   Rows = [row(0, _, Names, _, Nodes, _)]
+    ->  (   Nodes = [g(G, _, _, _, _, _)] -> flow_term_text(G, Names, 999, T)
+        ;   T = 'a conjunction'
+        )
+    ;   flow_jobs_text(Rows, T)
+    ),
+    Segs = [s(L, muted), s(T, ink)].
+
+flow_jobs_text(Rows, T) :-
+    length(Rows, N),
+    (   last(Rows, row(_, _, Names, _, [g(call(Rest), _, _, _, _, _)], CI)),
+        memberchk(rest, CI)
+    ->  flow_term_text(Rest, Names, 999, RT),
+        N1 is N - 1,
+        (   N1 =:= 0 -> format(atom(T), 'cowork_map/3: each job of ~w', [RT])
+        ;   flow_plural(N1, job, JW),
+            format(atom(T), 'cowork_map/3: ~d ~w, then each of ~w', [N1, JW, RT])
+        )
+    ;   flow_plural(N, job, JW),
+        format(atom(T), 'cowork_map/3: ~d ~w', [N, JW])
+    ).
 
 flow_plural(1, W, W) :- !.
 flow_plural(_, W, P) :- atom_concat(W, s, P).
@@ -709,6 +959,7 @@ flow_panel_fill(user, '#e8eef6') :- !.
 flow_panel_fill(dynamic, '#e3ebf8') :- !.
 flow_panel_fill(library(_), '#eef0f2') :- !.
 flow_panel_fill(portal(_), '#dcf1ed') :- !.
+flow_panel_fill(lane(_, _), '#ece4fb') :- !.
 flow_panel_fill(_, '#e9e9f3').
 
 %% Byrd's ports: call at the top left, exit at the top right, fail at the
@@ -727,6 +978,25 @@ flow_panel_ports(Geos, W, ExitX, Prims) :-
     flow_markers(Geos, Marks),
     flow_retries(Geos, Retries),
     append([Ports, Rail, Marks, Retries], Prims).
+
+%% cowork_map/3's root: every job is called, each through the left border,
+%% and each that fails leaves through it at its own height, answered
+%% `failed'; the exits meet on the right, where the answers are gathered
+flow_job_ports(Geos, W, ExitX, Prims) :-
+    Geos = [row_geo(_, Y1, _, _, _)|_],
+    last(Geos, row_geo(_, YL, _, _, _)),
+    LY is Y1 - 8,
+    EX is W - 3,
+    Ports = [3-t(2, LY, start, 8, sans, normal, [s(call, muted)]),
+             1-l([ExitX-Y1, W-Y1], ink, 1.4, none, ink),
+             3-t(EX, LY, end, 8, sans, normal, [s(exit, muted)])],
+    findall(1-l([0-Y, 9-Y], ink, 1.4, none, ink), member(row_geo(_, Y, _, _, _), Geos), Calls),
+    (   YL =\= Y1 -> Rail = [1-l([ExitX-YL, ExitX-Y1], ink, 1.4, none, none)] ; Rail = [] ),
+    flow_markers(Geos, Marks),
+    findall(3-t(3, FY, start, 8, sans, normal, [s(failed, red)]),
+            ( member(row_geo(_, _, YF, _, true), Geos), FY is YF + 11 ),
+            Words),
+    append([Ports, Calls, Rail, Marks, Words], Prims).
 
 flow_markers([], []).
 flow_markers([row_geo(I, Y, _, _, _)|Gs], [1-l([23-Y, 34-Y], ink, 1.4, none, none),
@@ -794,7 +1064,7 @@ flow_draw_query(panel(_, _, _, _, D, rows([row(_, _, Names0, _, [GNode], _)]), _
     ->  Names = Names1
     ;   Names = Names0
     ),
-    flow_m(GNode, lc(Names, Ids, none, 'query.g1'), MG),
+    flow_m(GNode, lc(Names, Ids, 0-none, 'query.g1'), MG),
     flow_size(MG, GW, _, _),
     W is max(16 + GW + 24, 184),          % room for its title and its tag
     H = 84,
@@ -852,7 +1122,11 @@ flow_prune(graph(T, S, Panels, Ids, Docs), Opts, graph(T, S, Kept, Ids, Docs), N
     ->  Kept = Panels, Note = none
     ;   flow_drawn(Panels, Rule, Drawn),
         flow_frontier(Panels, Ids, Drawn, Stubs0),
-        findall(I, ( member(I, Stubs0), memberchk(panel(I, _, portal(_), _, _, _, _, _), Panels) ), Ports),
+        findall(I, ( member(I, Stubs0),
+                     (   memberchk(panel(I, _, portal(_), _, _, _, _, _), Panels)
+                     ;   memberchk(panel(I, _, lane(_, _), _, _, _, _, _), Panels)
+                     ) ),
+                Ports),
         subtract(Stubs0, Ports, Stubs),
         append(Drawn, Ports, Drawn1),
         flow_hidden_counts(Panels, Ids, Drawn1, Stubs, Counts),
@@ -902,14 +1176,27 @@ flow_only_has(Ps, N/A) :-
     ;   A2 is A - 2, A2 >= 0, memberchk(N//A2, Ps)
     ).
 
-%% the panels a drawn panel calls that are not drawn themselves
+%% the panels a drawn panel calls that are not drawn themselves -- a lane's
+%% root among them, which its spawn calls
 flow_frontier(Panels, Ids, Drawn, Stubs) :-
+    flow_graph_lanes(Ids, Lanes),
     findall(C, ( member(panel(I, _, _, _, _, _, _, Calls), Panels), memberchk(I, Drawn),
-                 member(c(Key, Kind, Ms), Calls),
-                 flow_panel_key(Kind, Key, Ms, PK), get_assoc(PK, Ids, C),
+                 flow_callees(I, Calls, Ids, Lanes, C),
                  \+ memberchk(C, Drawn) ),
             Cs),
     sort(Cs, Stubs).
+
+%% the panels panel I goes to: each call's, in its own lane, and the root
+%% of each lane one of its spawns starts (Lanes: the graph's, read once by
+%% the caller -- with none, every panel is the query's lane's)
+flow_callees(I, Calls, Ids, Lanes, C) :-
+    (   Lanes == [] -> L = 0 ; flow_panel_lane(Ids, I, L) ),
+    member(c(Key, Kind, Ms), Calls),
+    flow_panel_key(Kind, Key, Ms, PK),
+    get_assoc(L-PK, Ids, C).
+flow_callees(I, _, _, Lanes, C) :-
+    member(lane(_, _, C, SiteId, _, _, _, _), Lanes),
+    flow_site_panel(SiteId, I).
 
 %% how many panels hang from each stub: those whose first callers, followed
 %% back, reach it before anything drawn
@@ -977,8 +1264,11 @@ flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fs, canvas(CW, CH, Items
     list_to_assoc(KPairs, KMap),
     flow_draw_all(Panels, Ids, DMap, KMap, Docs, PDs),
     flow_parents(Panels, DMap, Ids, Parents),
-    flow_place_tree(PDs, Parents, [], Placed),
-    flow_tree_wires(Placed, Wires),
+    flow_place_tree(PDs, Parents, Ids, Placed, Bands),
+    flow_tree_wires(Placed, KMap, Ids, Wires),
+    flow_message_lines(Placed, Ids, Msgs0),
+    flow_join_lines(Placed, Ids, JLines),
+    append(Msgs0, JLines, Msgs),
     findall(R, ( member(pp(_, _, X, _, W, _, _, _, _, _), Placed), R is X + W ), Rs),
     max_list(Rs, MaxR),
     findall(B, ( member(pp(_, _, _, Y, _, H, _, _, _, _), Placed), B is Y + H ), Bs),
@@ -989,14 +1279,18 @@ flow_layout(graph(Title, Src, Panels, Ids, Docs), Note, Fs, canvas(CW, CH, Items
     ListY is MaxB + 44,
     flow_findings_list(Fs, ListY, ListPs, ListH),
     flow_lines_w(ListPs, ListW),
-    CW0 is max(max(MaxR + 32, 980), max(TitleW, ListW) + 32),
+    flow_band_label_w(Bands, Ids, BandW),
+    CW0 is max(max(max(MaxR + 32, 980), max(TitleW, ListW) + 32), BandW),
     LegendY is ListY + ListH,
-    flow_legend(LegendY, CW0, LegendPs, LegendH),
+    flow_graph_lanes(Ids, Lanes),
+    (   Lanes == [] -> Threads = false ; Threads = true ),
+    flow_legend(LegendY, CW0, Threads, LegendPs, LegendH),
     CW = CW0,
     CH is LegendY + LegendH + 20,
+    flow_band_prims(Bands, Ids, CW, BandPs),
     findall(tr(X, Y, Ps, PId), ( member(pp(Id, _, X, Y, _, _, _, _, Ps0, _), Placed), flow_panel_id(Id, PId),
                                  flow_layered(Ps0, Ps1), flow_mark_findings(Ps1, PId, Fs, Ps) ), Groups),
-    append([TitlePs, Groups, Wires, ListPs, LegendPs], Items).
+    append([TitlePs, BandPs, Groups, Wires, Msgs, ListPs, LegendPs], Items).
 
 flow_draw_all([], _, _, _, _, []).
 flow_draw_all([P|Ps], Ids, DMap, KMap, Docs, [D|Ds]) :-
@@ -1010,41 +1304,63 @@ flow_draw_all([P|Ps], Ids, DMap, KMap, Docs, [D|Ds]) :-
 %% caller's depth, and its wire across the empty space that leaves.
 flow_parents(Panels, DMap, Ids, Parents) :-
     empty_assoc(P0),
-    flow_parents_(Panels, DMap, Ids, P0, Parents).
+    flow_graph_lanes(Ids, Lanes),
+    flow_parents_(Panels, DMap, Ids, Lanes, P0, Parents).
 
-flow_parents_([], _, _, P, P).
-flow_parents_([panel(Id, _, _, _, D, _, _, Calls)|Ps], DMap, Ids, P0, P) :-
+flow_parents_([], _, _, _, P, P).
+flow_parents_([panel(Id, _, _, _, D, _, _, Calls)|Ps], DMap, Ids, Lanes, P0, P) :-
     D1 is D + 1,
-    flow_parent_calls(Calls, Id, D1, DMap, Ids, P0, P1),
-    flow_parents_(Ps, DMap, Ids, P1, P).
+    findall(C, flow_callees(Id, Calls, Ids, Lanes, C), Cs),
+    flow_parent_calls(Cs, Id, D1, DMap, P0, P1),
+    flow_parents_(Ps, DMap, Ids, Lanes, P1, P).
 
-flow_parent_calls([], _, _, _, _, P, P).
-flow_parent_calls([c(Key, Kind, Ms)|Cs], Id, D1, DMap, Ids, P0, P) :-
-    (   flow_panel_key(Kind, Key, Ms, PK), get_assoc(PK, Ids, C), \+ get_assoc(C, P0, _),
+flow_parent_calls([], _, _, _, P, P).
+flow_parent_calls([C|Cs], Id, D1, DMap, P0, P) :-
+    (   \+ get_assoc(C, P0, _),
         get_assoc(C, DMap, DC), DC =:= D1
     ->  put_assoc(C, P0, Id, P1)
     ;   P1 = P0
     ),
-    flow_parent_calls(Cs, Id, D1, DMap, Ids, P1, P).
+    flow_parent_calls(Cs, Id, D1, DMap, P1, P).
 
 %% pp(Id, Depth, X, Y, W, H, CallY, Jacks, Prims, Lo): Lo is where the
 %% corridor of the wire that comes into the panel begins (below)
-flow_place_tree([], _, Placed, Placed).
-flow_place_tree([PD|PDs], Parents, Acc, Placed) :-
+%%
+%% EACH THREAD LANE IS A BAND (lanes.pl): its panels come after the lane
+%% before's, and stand below everything placed before them, so a band
+%% begins at its FLOOR -- band(L, Floor) -- and nothing of it rises above.
+%% Its root stands right of the panel whose spawn starts it, its wire
+%% coming down the gutter as a call's does.
+flow_place_tree(PDs, Parents, Ids, Placed, Bands) :-
+    flow_place_tree_(PDs, Parents, Ids, 0, 0, [], Placed, [], Bands0),
+    reverse(Bands0, Bands).
+
+flow_place_tree_([], _, _, _, _, Placed, Placed, Bands, Bands).
+flow_place_tree_([PD|PDs], Parents, Ids, L0, Floor0, Acc, Placed, B0, Bands) :-
     PD = pd(Id, D, W, H, CY, J, Ps),
+    flow_panel_lane(Ids, Id, L),
+    (   L =\= L0
+    ->  findall(B, ( member(pp(_, _, _, PY0, _, PH0, _, _, _, _), Acc), B is PY0 + PH0 ), Bs),
+        max_list([0|Bs], MaxB),
+        Floor is MaxB + 110,
+        B1 = [band(L, Floor)|B0]
+    ;   Floor = Floor0, B1 = B0
+    ),
     (   get_assoc(Id, Parents, Par),
         memberchk(pp(Par, _, PX, PY, PW, _, _, PJ, _, _), Acc),
         memberchk(jk(Id, JY), PJ)
-    ->  length(PJ, NT),
+    ->  findall(x, member(jk(_, _), PJ), JKs),
+        length(JKs, NT),
         flow_gutter_w(NT, GW),
         GL is PX + PW,
         SY is PY + JY,
-        Want is max(SY - CY, 84),
+        Want is max(max(SY - CY, 84), Floor),
         flow_place_clear(GL, GW, SY, Want, W, H, CY, Par, Acc, X, Y, Lo)
     ;   X = 24, Lo = 24,
-        flow_free_y(X, 84, W, H, Acc, Y)
+        Y0 is max(84, Floor),
+        flow_free_y(X, Y0, W, H, Acc, Y)
     ),
-    flow_place_tree(PDs, Parents, [pp(Id, D, X, Y, W, H, CY, J, Ps, Lo)|Acc], Placed).
+    flow_place_tree_(PDs, Parents, Ids, L, Floor, [pp(Id, D, X, Y, W, H, CY, J, Ps, Lo)|Acc], Placed, B1, Bands).
 
 flow_gutter_w(NT, W) :- W is 34 + NT * 18 + 26.
 
@@ -1081,10 +1397,10 @@ flow_free_y(X, Y0, W, H, Placed, Y) :-
     ).
 
 %% every jack's wire, through its own panel's gutter
-flow_tree_wires(Placed, Wires) :-
+flow_tree_wires(Placed, KMap, Ids, Wires) :-
     findall(Ws,
             ( member(pp(_, _, X, Y, W, _, _, Jacks, _, _), Placed),
-              Jacks \== [],
+              memberchk(jk(_, _), Jacks),
               GL is X + W,
               findall(n(C, TY, [SY]),
                       ( member(jk(C, JY), Jacks),
@@ -1095,7 +1411,10 @@ flow_tree_wires(Placed, Wires) :-
               flow_order_nets(Nets0, Nets1),
               flow_moved_last(Nets1, GL, Placed, Nets),
               XT0 is GL + 16,
-              flow_tree_route(Nets, XT0, GL, Placed, Ws) ),
+              findall(JC-JY1, ( member(jj(GId, _, JY0), Jacks),
+                                flow_join_roots(Ids, GId, JRs), member(JC, JRs),
+                                JY1 is Y + JY0 ), Joins),
+              flow_tree_route(Nets, XT0, GL, Placed, KMap, Ids, Joins, Ws) ),
             Wss),
     append(Wss, Wires).
 
@@ -1110,12 +1429,15 @@ flow_moved_last(Nets, GL, Placed, Out) :-
     findall(N, member(_-N, Moved1), Moved),
     append(Clear, Moved, Out).
 
-flow_tree_route([], _, _, _, []).
-flow_tree_route([n(C, TY, [SY])|Ns], Prev, GL, Placed, Wires) :-
+flow_tree_route([], _, _, _, _, _, _, []).
+flow_tree_route([n(C, TY, [SY])|Ns], Prev, GL, Placed, KMap, Ids, Joins, Wires) :-
     memberchk(pp(C, _, TX, _, _, _, _, _, _, Lo), Placed),
     XT is max(Prev + 18, Lo + 34),
-    flow_wire(GL, SY, XT, TX, TY, W1),
-    flow_tree_route(Ns, XT, GL, Placed, W2),
+    (   get_assoc(C, KMap, lane(_, LN))
+    ->  flow_spawn_wire(GL, SY, XT, TX, TY, C, LN, Ids, Joins, W1)
+    ;   flow_wire(GL, SY, XT, TX, TY, W1)
+    ),
+    flow_tree_route(Ns, XT, GL, Placed, KMap, Ids, Joins, W2),
     append(W1, W2, Wires).
 
 %% layers, in order, keeping the order things were made in within one
@@ -1194,6 +1516,138 @@ flow_wire(SX, SY, XT, TX, TY, [l(CallPts, ink, 1.5, none, ink), l(ExitPts, green
         ExitPts = [TX-TY6, XE-TY6, XE-SY6, SX-SY6]
     ).
 
+%% A SPAWN IS A FORK: a heavy dashed violet wire into the lane's root,
+%% labelled with what is copied, and no answer coming back -- but a thin
+%% one where something does, to the spawn's own jack: solid for
+%% run_isolated/2's status and cowork_ask's answer, dotted for the status
+%% a join in the same panel reads (the join's box says which lane it is).
+flow_spawn_wire(SX, SY, XT, TX, TY, C, LN, Ids, Joins, Wires) :-
+    (   SY =:= TY
+    ->  Pts = [SX-SY, TX-TY]
+    ;   Pts = [SX-SY, XT-SY, XT-TY, TX-TY]
+    ),
+    flow_graph_lanes(Ids, Lanes),
+    flow_graph_links(Ids, links(Spawns, _, _, _, _, _)),
+    (   memberchk(lane(LN, _, C, SiteId, _, Back, _, _), Lanes),
+        memberchk(spawn(SiteId, _, _, _, _, CT0), Spawns)
+    ->  CT = CT0
+    ;   Back = none, CT = nothing
+    ),
+    format(atom(Label), 'copies ~w', [CT]),
+    LX is SX + 6,
+    LY is SY - 5,
+    Spawn = [l(Pts, violet, 2.4, '9 5', violet),
+             t(LX, LY, start, 9, sans, bold, [s(Label, violet)])],
+    TY6 is TY + 6,
+    SY6 is SY + 6,
+    (   TY > SY -> XE is XT - 6 ; XE is XT + 6 ),
+    (   SY =:= TY -> BPts = [TX-TY6, SX-SY6] ; BPts = [TX-TY6, XE-TY6, XE-SY6, SX-SY6] ),
+    (   Back \== none -> Back1 = [l(BPts, violet, 1, none, violet)]
+    ;   memberchk(C-_, Joins) -> Back1 = [l(BPts, violet, 1, '2 2', violet)]
+    ;   Back1 = []
+    ),
+    append(Spawn, Back1, Wires).
+
+%% A JOIN OUTSIDE ITS SPAWN'S PANEL -- the handle handed back up, or on --
+%% reads its lane's status down a fine dotted violet line from the lane's
+%% root to the join's box; a join beside its spawn reads it on the spawn's
+%% own wire (flow_spawn_wire/10)
+flow_join_lines(Placed, Ids, Lines) :-
+    flow_graph_lanes(Ids, Lanes),
+    findall(Ps,
+            ( member(pp(P, _, PX, PY, _, _, _, Jacks, _, _), Placed),
+              member(jj(GId, JX, JY), Jacks),
+              flow_join_roots(Ids, GId, Rs),
+              member(R, Rs),
+              memberchk(lane(_, _, R, SiteId, _, _, _, _), Lanes),
+              flow_site_panel(SiteId, SP),
+              SP =\= P,
+              memberchk(pp(R, _, RX, RY, RW, _, RCY, _, _, _), Placed),
+              EX is RX + RW, EY is RY + RCY,
+              TX is PX + JX, TY is PY + JY,
+              MX is (EX + TX) // 2, MY is (EY + TY) // 2 - 4,
+              Ps = [l([EX-EY, TX-TY], violet, 1, '2 3', violet),
+                    t(MX, MY, middle, 9, sans, bold, [s(status, violet)])] ),
+            Pss),
+    append(Pss, Lines).
+
+%% the roots of the lanes a join at GId waits for
+flow_join_roots(Ids, GId, Rs) :-
+    flow_graph_links(Ids, links(_, Joins, _, _, _, _)),
+    flow_graph_lanes(Ids, Lanes),
+    findall(R, ( member(join(GId, L, join), Joins),
+                 memberchk(lane(L, _, R, _, _, _, _, _), Lanes) ), Rs).
+
+%% A CHANNEL'S SENDS AND RECEIVES ARE TIED by a dotted blue line from each
+%% send to each receive of it, across the lanes, its name half way -- or,
+%% where its k-th send is its k-th receive's (lanes.pl, "The order of a
+%% channel's messages"), from each send to the receives that take it alone,
+%% numbered: ch1 #2
+flow_message_lines(Placed, Ids, Msgs) :-
+    findall(m(K, Op, Id, AX, AY),
+            ( member(pp(_, _, X, Y, _, _, _, Jacks, _, _), Placed),
+              member(ms(K, Op, Id, MX, MY), Jacks),
+              AX is X + MX,
+              AY is Y + MY ),
+            Ends),
+    flow_graph_links(Ids, links(_, _, Chans, _, _, _)),
+    findall(Ps,
+            ( member(m(K, send, SId, SX, SY), Ends),
+              member(m(K2, recv, RId, RX, RY), Ends),
+              K2 == K,
+              flow_msg_label(Chans, K, SId, RId, KT),
+              SY1 is SY + 13,
+              RY1 is RY - 13,
+              MX is (SX + RX) // 2,
+              MY is (SY1 + RY1) // 2 - 4,
+              Ps = [l([SX-SY1, RX-RY1], blue, 1.2, '2 4', blue),
+                    t(MX, MY, middle, 9, sans, bold, [s(KT, blue)])] ),
+            Pss),
+    append(Pss, Msgs).
+
+%% a send and a receive of channel K: the channel's name, or -- where they
+%% pair -- with the places they share, and nothing where they share none
+flow_msg_label(Chans, K, SId, RId, Label) :-
+    flow_chan_label(K, KT),
+    (   member(channel(K0, _, Ops, _, true), Chans), K0 == K
+    ->  memberchk(op(SId, send, SN), Ops),
+        memberchk(op(RId, recv, RN), Ops),
+        findall(N, ( member(N, SN), memberchk(N, RN) ), Ns),
+        Ns \== [],
+        findall(A, ( member(N, Ns), format(atom(A), '#~d', [N]) ), As),
+        atomic_list_concat([KT|As], ' ', Label)
+    ;   Label = KT
+    ).
+
+%% each lane but the query's opens with a rule across the chart and a line
+%% saying where its code runs, and what started it
+flow_band_prims([], _, _, []).
+flow_band_prims([band(L, Floor)|Bs], Ids, CW, [l([16-RY, RX-RY], '#c4b5fd', 1, '6 4', none),
+                                               t(24, TY, start, 12, sans, bold, Segs)|Ps]) :-
+    RY is Floor - 64,
+    RX is CW - 16,
+    TY is Floor - 42,
+    flow_band_text(L, Ids, Segs),
+    flow_band_prims(Bs, Ids, CW, Ps).
+
+flow_band_text(L, Ids, [s(Head, violet), s(Rest, muted)]) :-
+    flow_graph_lanes(Ids, Lanes),
+    (   memberchk(lane(L, Type, _, SiteId, From, _, _, _), Lanes)
+    ->  flow_lane_word(Type, W),
+        format(atom(Head), 'lane l~w  ·  ~w', [L, Type]),
+        format(atom(Rest), '  --  ~w, started at ~w in lane l~w', [W, SiteId, From])
+    ;   format(atom(Head), 'lane l~w', [L]),
+        Rest = ''
+    ).
+
+flow_band_label_w([], _, 0).
+flow_band_label_w([band(L, _)|Bs], Ids, W) :-
+    flow_band_text(L, Ids, Segs),
+    flow_segs_chars(Segs, N),
+    W0 is 24 + (N * 12 * 62 + 99) // 100 + 32,
+    flow_band_label_w(Bs, Ids, W1),
+    W is max(W0, W1).
+
 %% how far right the title's lines reach, at about 0.62 em a character
 flow_lines_w(Ps, W) :-
     findall(R, ( member(t(X, _, start, Size, _, _, Segs), Ps),
@@ -1206,7 +1660,7 @@ flow_lines_w(Ps, W) :-
 flow_title_prims(Title, Src, Note, [t(24, 36, start, 18, sans, bold, [s(Title, ink)]),
                                     t(24, 58, start, 11, sans, normal, [s(Sub, muted)])|NPs]) :-
     flow_lib_name(Src, Base),
-    format(atom(Sub), 'flowchart of ~w.pl  ·  library(flowchart)  ·  modes are inferred from the call pattern  ·  hover a box for its full text  ·  the XML beside this file says the same, for a program to read', [Base]),
+    format(atom(Sub), 'flowchart of ~w.pl  ·  library(flow/chart)  ·  modes are inferred from the call pattern  ·  hover a box for its full text  ·  the XML beside this file says the same, for a program to read', [Base]),
     (   Note == none -> NPs = []
     ;   NPs = [t(24, 74, start, 11, sans, bold, [s(Note, amber)])]
     ).
@@ -1353,7 +1807,7 @@ flow_corner(c(CX, CY, _, _, _, _), X, Y) :- X is CX + 4, Y is CY - 10.
 %% The legend: what each mark means, drawn with the marks themselves
 %% ======================================================================
 
-flow_legend(Y0, CW, Prims, H) :-
+flow_legend(Y0, CW, Threads, Prims, H) :-
     Max is CW - 24,
     RuleY is Y0 - 18,
     RX is CW - 24,
@@ -1362,8 +1816,12 @@ flow_legend(Y0, CW, Prims, H) :-
     flow_legend_row('boxes', Boxes, Y0, Max, P1, Y1),
     flow_legend_row('flow', [success, failure, cutfail, choice, recursion, redo], Y1, Max, P2, Y2),
     flow_legend_row('wires and modes', [wire, mode('+'), mode('-'), mode('?'), mode(':')], Y2, Max, P3, Y3),
-    H is Y3 - Y0 + 4,
-    append([Rule, P1, P2, P3], Prims).
+    (   Threads == true
+    ->  flow_legend_row('threads', [spawn, spawnwire, joinline, chan, message, lock, process, kbwrite], Y3, Max, P4, Y4)
+    ;   P4 = [], Y4 = Y3
+    ),
+    H is Y4 - Y0 + 4,
+    append([Rule, P1, P2, P3, P4], Prims).
 
 flow_legend_row(Label, Entries, Y, Max, [t(24, LY, start, 10, sans, bold, [s(Label, muted)])|Ps], YNext) :-
     LY is Y + 4,
@@ -1401,6 +1859,19 @@ flow_legend_entry(mode('+'), W, 'input') :- flow_text_w(3, W).
 flow_legend_entry(mode('-'), W, 'output') :- flow_text_w(4, W).
 flow_legend_entry(mode('?'), W, 'either') :- flow_text_w(4, W).
 flow_legend_entry(mode(':'), W, 'a goal') :- flow_text_w(5, W).
+flow_legend_entry(spawn, W, 'a spawn: its goal runs in lane l1, from panel 7') :-
+    flow_text_w(10, TW), flow_plaque_w(plq('thread  l1', x, none), PW), W is 18 + TW + PW + 21.
+flow_legend_entry(spawnwire, 48, 'the goal goes, a copy: nothing comes back').
+flow_legend_entry(joinline, 48, 'a join elsewhere reads the status').
+flow_legend_entry(chan, W, 'a channel end') :-
+    flow_text_w(10, TW), flow_plaque_w(plq('send ch1', x, none), PW), W is 18 + TW + PW.
+flow_legend_entry(message, 48, 'a send to a receive').
+flow_legend_entry(lock, W, 'a lock') :-
+    flow_text_w(13, TW), flow_plaque_w(plq('lock log', x, none), PW), W is 18 + TW + PW.
+flow_legend_entry(process, W, 'a child process: the end of the chart') :-
+    flow_text_w(9, TW), flow_plaque_w(plq('$', x, none), PW), W is 18 + TW + PW.
+flow_legend_entry(kbwrite, W, 'a write: other processes see it when the turn commits') :-
+    flow_text_w(10, TW), flow_plaque_w(plq('KB', x, none), PW), W is 18 + TW + PW.
 
 flow_legend_sample(head, X, Y, Ps) :-
     flow_p(mhead([s('p(', ink), s('+In', m('+')), s(', ', ink), s('-Out', m('-')), s(')', ink)], false, W, 'a clause head'), X, Y, Ps0, _),
@@ -1408,23 +1879,23 @@ flow_legend_sample(head, X, Y, Ps) :-
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(user, X, Y, Ps) :-
     flow_legend_entry(user, W, _),
-    flow_p(mg(user, [s('q(', ink), s('X', m('?')), s(')', ink)], ref(3), false, true, W, 'a call to your predicate'), X, Y, Ps0, _),
+    flow_p(mg(user, [s('q(', ink), s('X', m('?')), s(')', ink)], ref(3), false, true, W, 'a call to your predicate', default), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(library, X, Y, Ps) :-
     flow_legend_entry(library, W, _),
-    flow_p(mg(library(lists), [s('member(X, L)', ink)], none, false, true, W, library), X, Y, Ps0, _),
+    flow_p(mg(library(lists), [s('member(X, L)', ink)], none, false, true, W, library, default), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(builtin, X, Y, Ps) :-
     flow_legend_entry(builtin, W, _),
-    flow_p(mg(builtin, [s('write(X)', ink)], none, false, false, W, builtin), X, Y, Ps0, _),
+    flow_p(mg(builtin, [s('write(X)', ink)], none, false, false, W, builtin, default), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(test, X, Y, Ps) :-
     flow_legend_entry(test, W, _),
-    flow_p(mg(test, [s('X > 2', ink)], none, false, true, W, test), X, Y, Ps0, _),
+    flow_p(mg(test, [s('X > 2', ink)], none, false, true, W, test, default), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(portal, X, Y, Ps) :-
     flow_legend_entry(portal, W, _),
-    flow_p(mg(portal(text), [s('re_match(P, L)', ink)], ref(4), false, true, W, portal), X, Y, Ps0, _),
+    flow_p(mg(portal(text), [s('re_match(P, L)', ink)], ref(4), false, true, W, portal, default), X, Y, Ps0, _),
     flow_unlayer(Ps0, Ps).
 flow_legend_sample(cut, X, Y, Ps) :-
     flow_p(mcut, X, Y, Ps0, _),
@@ -1440,6 +1911,34 @@ flow_legend_sample(recursion, X, Y, [t(X1, TY, start, 14, sans, normal, [s('↺'
 flow_legend_sample(redo, X, Y, [t(X1, TY, start, 13, sans, bold, [s('↶', red)])]) :- X1 is X + 1, TY is Y + 5.
 flow_legend_sample(wire, X, Y, [l([X-Y1, X2-Y1], ink, 1.5, none, ink), l([X2-Y2, X-Y2], green, 1.3, none, green)]) :-
     X2 is X + 46, Y1 is Y - 3, Y2 is Y + 3.
+flow_legend_sample(spawn, X, Y, Ps) :-
+    flow_legend_entry(spawn, W, _),
+    flow_p(mg(spawn(thread), [s('thread(G)', ink)], ref(7), false, false, W, 'a spawn',
+              plq('thread  l1', '#7c3aed', none)), X, Y, Ps0, _),
+    flow_unlayer(Ps0, Ps).
+flow_legend_sample(spawnwire, X, Y, [l([X-Y, X2-Y], violet, 2.4, '9 5', violet)]) :- X2 is X + 46.
+flow_legend_sample(joinline, X, Y, [l([X-Y, X2-Y], violet, 1, '2 3', violet)]) :- X2 is X + 46.
+flow_legend_sample(chan, X, Y, Ps) :-
+    flow_legend_entry(chan, W, _),
+    flow_p(mg(conc(chan(send, _)), [s('send(C, T)', ink)], none, false, false, W, 'a channel end',
+              plq('send ch1', '#2f5bd3', none)), X, Y, Ps0, _),
+    flow_unlayer(Ps0, Ps).
+flow_legend_sample(message, X, Y, [l([X-Y, X2-Y], blue, 1.2, '2 4', blue)]) :- X2 is X + 46.
+flow_legend_sample(lock, X, Y, Ps) :-
+    flow_legend_entry(lock, W, _),
+    flow_p(mg(conc(lock(lock, log)), [s('mutex_lock(L)', ink)], none, false, false, W, 'a lock',
+              plq('lock log', '#b45309', none)), X, Y, Ps0, _),
+    flow_unlayer(Ps0, Ps).
+flow_legend_sample(process, X, Y, Ps) :-
+    flow_legend_entry(process, W, _),
+    flow_p(mg(process(cmd(ls)), [s('sh(\'ls\')', ink)], none, false, true, W, 'a child process',
+              plq('$', '#334155', none)), X, Y, Ps0, _),
+    flow_unlayer(Ps0, Ps).
+flow_legend_sample(kbwrite, X, Y, Ps) :-
+    flow_legend_entry(kbwrite, W, _),
+    flow_p(mg(builtin, [s('assertz(F)', ink)], none, false, false, W, 'a write to the knowledge base',
+              plq('KB', '#9a3412', none)), X, Y, Ps0, _),
+    flow_unlayer(Ps0, Ps).
 flow_legend_sample(mode(M), X, Y, [t(X, TY, start, 12, mono, bold, [s(T, m(M))])]) :-
     TY is Y + 4,
     flow_mode_sample(M, T).
@@ -1450,6 +1949,7 @@ flow_mode_sample('?', '?Any').
 flow_mode_sample(':', ':Goal').
 
 flow_unlayer([], []).
+flow_unlayer([9-_|T], R) :- !, flow_unlayer(T, R).
 flow_unlayer([_-P|T], R) :- !, ( P = site(_, _) -> R = R1 ; R = [P|R1] ), flow_unlayer(T, R1).
 flow_unlayer([P|T], [P|R]) :- flow_unlayer(T, R).
 

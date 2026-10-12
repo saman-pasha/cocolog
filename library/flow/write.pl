@@ -1,4 +1,4 @@
-%% library(flowchart), part: a document written to its file a piece at a
+%% library(flow/chart), part: a document written to its file a piece at a
 %% time.
 %%
 %% library(xml) makes a document as ONE code list, which is right for a

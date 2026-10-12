@@ -45,11 +45,14 @@
     ("aggregate_all"           3 coco_b_aggregate_all)
     ("call_limited"            3 coco_b_call_limited)
     ("call_metered"            4 coco_b_call_metered)
+    ("$trace_window"           4 coco_b_trace_window)
 
     ("succ"                    2 coco_b_succ)
     ("plus"                    3 coco_b_plus)
 
     ("ground"                  1 coco_b_ground)
+    ("acyclic_term"            1 coco_b_acyclic_term)
+    ("cyclic_term"             1 coco_b_cyclic_term)
     ("term_variables"          2 coco_b_term_variables)
     ("unify_with_occurs_check" 2 coco_b_unify_occurs)
 
@@ -198,12 +201,8 @@
            ;; here, so the attribute-blind copy IS the copy; and with one
            ;; namespace, stripping a module qualifier is peeling `:'s.
            "copy_term_nat(T, C) :- copy_term(T, C)."
-           ;; lambda_calls/3 asks this defensively before walking a term.
-           ;; cocolog's engine assumes acyclic terms everywhere -- writeq,
-           ;; copy_term and the store would loop on a cycle -- so the answer
-           ;; consistent with the rest of the system is `no'.
-           "cyclic_term(_) :- fail."
-           "acyclic_term(_)."
+           ;; cyclic_term/1 and acyclic_term/1, which lambda_calls/3 asks
+           ;; defensively before walking a term, are C above (1.10.18)
            "strip_module(T, M, G) :- '$strip_module'(T, user, M, G)."
            "'$strip_module'(T, _, M, G) :- nonvar(T), T = W:T1, !, '$strip_module'(T1, W, M, G)."
            "'$strip_module'(G, W, W, G)."
@@ -448,9 +447,8 @@
   ;;; two recursive term walks call themselves through a name that has to
   ;;; exist first.
   (static) (decl) (func coco_b_is_ground ((coco_machine * m) (size_t t)) (out int))
-  (static) (decl) (func coco_b_acyclic ((coco_machine * m) (size_t t) (int depth)) (out int))
-  (static) (decl) (func coco_b_collect_vars ((coco_machine * m) (size_t t)
-                                           (size_t ** v) (size_t * n) (size_t * cap)))
+  (static) (decl) (func coco_b_collect_vars ((coco_machine * m) (size_t t) (int seen)
+                                           (size_t ** v) (size_t * n) (size_t * cap)) (out int))
   (static) (decl) (func coco_b_atom_to_number ((coco_engine * e) (const char * text)
                                              (size_t to)) (out int))
   (static) (decl) (func coco_b_sort_terms ((coco_machine * m) (size_t * v) (size_t n)))
@@ -614,6 +612,272 @@
                                          "inference_limit_exceeded")))
           (return (coco_m_unify_atom e (coco_m_arg e g 3) "true"))))
 
+  ;;; ---- a window of a run, RECORDED (1.10.12) ----------------------------
+  ;;;
+  ;;; `'$trace_window'(Goal, Options, Events, End)' -- what library(flow/debug)
+  ;;; stands on (DESIGN-flow.md 9.5). Goal is proved once in a nested
+  ;;; engine, untraced at full speed up to the inference a window opens at,
+  ;;; recorded from there, and every binding it made is undone at the end.
+  ;;; Options:
+  ;;;
+  ;;;   from(F)     the first inference recorded; 0, the default, records
+  ;;;               nothing -- a probe, which learns how the run ends
+  ;;;   to(T)       the last; the run stops past it (0, the default: never)
+  ;;;   answers(K)  the run goes on through K answers (1)
+  ;;;   text(N)     an argument is written whole up to N characters (200)
+  ;;;   journal(record(File))   every portal call of the run journalled into
+  ;;;                           File (1.10.15, `coco_jrnl' in solve.cicili)
+  ;;;   journal(replay(File))   every portal call answered from File's entry
+  ;;;                           for it, and nothing run
+  ;;;   ask(Cond, Holds)        Cond proved once where the run stopped --
+  ;;;                           its last inference, its K-th answer, its
+  ;;;                           failure, its exception -- over the bindings
+  ;;;                           the run left there, sharing the goal's
+  ;;;                           variables; Holds true, false, limit (ten
+  ;;;                           million inferences), exception(Ball) or
+  ;;;                           error (1.10.16, D4: "the first inference at
+  ;;;                           which something holds" is a search over runs
+  ;;;                           stopped at to(I) and asked there)
+  ;;;
+  ;;; End is `end(How, Used, Answers)': How is `answer' (the K-th was found),
+  ;;; `false', `limit' (stopped past T), `exception(Ball)', `halt(Code)',
+  ;;; `error(Message)', or -- replaying -- `diverged(At, Want, Got)': at
+  ;;; inference At the run left the one its journal recorded, Want what the
+  ;;; journal held there and Got what the replay did, each `portal(I,
+  ;;; Module, Name/Arity, CallText)' or `none'; Used the inferences spent,
+  ;;; counted as an untraced run counts them; Answers the inference each
+  ;;; answer came at. Events are in
+  ;;; the order they happened, each with its inference I, its depth D and C,
+  ;;; the goal's cell -- its call's name: a Call's cell is what its Exit,
+  ;;; Fail and Redo carry, and a cell is used again only once backtracking
+  ;;; has gone back past every call made after it:
+  ;;;
+  ;;;   call(I, D, C, Parent, Name, Args)   Parent the cell of the call it is
+  ;;;                                       in, 0 when that began before the
+  ;;;                                       window
+  ;;;   exit(I, D, C, Name, Args)           as the proof left the arguments
+  ;;;   fail(I, D, C, Name, Args)           the call is over, for good
+  ;;;   redo(I, D, C, Name, Args)           re-entered for its next clause
+  ;;;   clause(I, D, C, N)                  it entered its N-th clause
+  ;;;   nohead(I, D, C, N)                  the N-th clause's head did not unify
+  ;;;   throw(I, D, C, Ball)                raised in the body of call C
+  ;;;   catch(I, D, C)                      taken by a catch/3 in C's body
+  ;;;
+  ;;; An argument, and a ball, is its text as `writeq' writes it: an atom,
+  ;;; or `cut(Prefix, Length)' past N characters. A builtin's Call and Exit
+  ;;; are one inference; a predicate's Exit is the inference of the last
+  ;;; goal its proof took.
+  (static)
+  (func coco_b_rec_text ((coco_machine * m) (coco_rec * r) (size_t k)) (out size_t)
+        (let ((coco_rtext * x . #'(aof (nth k (-> r txs))))
+              (size_t a . 0))
+          (set a (coco_new_atom_id m (coco_intern_len m (+ (-> r arena) (-> x off))
+                                                      (cast size_t (-> x len)))))
+          (if (== (-> x chars) (-> x full)) (return a))
+          (let ((size_t args [2]))
+            (set (nth 0 args) a)
+            (set (nth 1 args) (coco_new_int m (cast i64 (-> x full))))
+            (return (coco_make m "cut" 2 args)))))
+
+  (static)
+  (func coco_b_rec_event ((coco_machine * m) (coco_rec * r) (coco_rev * v)) (out size_t)
+        (let ((size_t a [6]) (size_t texts . #'(coco_new_atom m "[]")) (u32 i . 0))
+          (set (nth 0 a) (coco_new_int m (cast i64 (-> v inf))))
+          (set (nth 1 a) (coco_new_int m (cast i64 (-> v depth))))
+          (set (nth 2 a) (coco_new_int m (cast i64 (-> v cell))))
+          (set i (-> v ntext))
+          (while (> i 0)
+            (set i (- i 1))
+            (set texts (coco_cons m (coco_b_rec_text m r (+ (-> v text) (cast size_t i))) texts)))
+          (cond
+            ((== (-> v kind) COCO_REV_CALL)
+             (block (set (nth 3 a) (coco_new_int m (cast i64 (-> v aux))))
+                    (set (nth 4 a) (coco_new_atom_id m (-> v name)))
+                    (set (nth 5 a) texts)
+                    (return (coco_make m "call" 6 a))))
+            ((or (or (== (-> v kind) COCO_REV_EXIT) (== (-> v kind) COCO_REV_FAIL))
+                 (== (-> v kind) COCO_REV_REDO))
+             (block (set (nth 3 a) (coco_new_atom_id m (-> v name)))
+                    (set (nth 4 a) texts)
+                    (return (coco_make m (? (== (-> v kind) COCO_REV_EXIT) "exit"
+                                            (? (== (-> v kind) COCO_REV_FAIL) "fail" "redo"))
+                                       5 a))))
+            ((or (== (-> v kind) COCO_REV_CLAUSE) (== (-> v kind) COCO_REV_NOHEAD))
+             (block (set (nth 3 a) (coco_new_int m (cast i64 (-> v aux))))
+                    (return (coco_make m (? (== (-> v kind) COCO_REV_CLAUSE) "clause" "nohead")
+                                       4 a))))
+            ((== (-> v kind) COCO_REV_THROW)
+             (block (set (nth 3 a) (coco_b_rec_text m r (-> v text)))
+                    (return (coco_make m "throw" 4 a)))))
+          (return (coco_make m "catch" 3 a))))
+
+  ;;; A WHOLE FILE as malloc'd text, or null: the journal a replay reads
+  (static)
+  (func coco_b_slurp ((const char * path)) (out char *)
+        (let ((FILE * f . #'(fopen path "rb")) (char * buf . nil) (long n . 0))
+          (if (== f nil) (return nil))
+          (fseek f 0 SEEK_END)
+          (set n (ftell f))
+          (fseek f 0 SEEK_SET)
+          (if (< n 0) (block (fclose f) (return nil)))
+          (set buf (cast (char *) (malloc (+ (cast size_t n) 1))))
+          (if (== buf nil) (block (fclose f) (return nil)))
+          (if (and (> n 0) (!= (cast size_t n) (fread buf 1 (cast size_t n) f)))
+              (block (free buf) (fclose f) (return nil)))
+          (set (nth (cast size_t n) buf) (cast char 0))
+          (fclose f)
+          (return buf)))
+
+  ;;; ... and the journal a record wrote: 1, or 0 when the file would not take it
+  (static)
+  (func coco_b_spill ((const char * path) (const char * s) (size_t n)) (out int)
+        (let ((FILE * f . #'(fopen path "wb")) (int ok . 1))
+          (if (== f nil) (return 0))
+          (if (and (> n 0) (!= n (fwrite s 1 n f))) (set ok 0))
+          (if (!= 0 (fclose f)) (set ok 0))
+          (return ok)))
+
+  ;;; `journal(record(File))' or `journal(replay(File))': MODE 1 or 2 and the
+  ;;; file's name in PATH, or 0
+  (static)
+  (func coco_b_journal_opt ((coco_engine * e) (size_t o) (char * path) (size_t cap)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u32 ar . 0)
+              (const char * nm . nil) (size_t w . 0) (size_t f . 0))
+          (set nm (coco_m_functor e o (aof ar)))
+          (if (or (== nm nil) (or (!= ar 1) (!= 0 (strcmp nm "journal")))) (return 0))
+          (set w (coco_deref m (coco_m_arg e o 0)))
+          (set nm (coco_m_functor e w (aof ar)))
+          (if (or (== nm nil) (!= ar 1)) (return 0))
+          (set f (coco_deref m (coco_m_arg e w 0)))
+          (if (not (coco-tag-is ATOM (nth f (-> m heap)))) (return 0))
+          (snprintf path cap "%s" (coco_atom_name m (coco_name_of m f)))
+          (if (== 0 (strcmp nm "record")) (return 1))
+          (if (== 0 (strcmp nm "replay")) (return 2))
+          (return 0)))
+
+  (func coco_b_trace_window ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_rec r) (size_t * v . nil) (size_t n . 0)
+              (i64 from . 0) (i64 to . 0) (i64 answers . 1) (i64 tmax . 200)
+              (u64 used . 0) (u64 * ats . nil) (u64 nats . 0) (size_t ball . 0)
+              (int haltcode . 0) (int rc . 0)
+              (size_t evs . 0) (size_t how . 0) (size_t al . 0) (size_t end . 0)
+              (coco_jrnl jr) (int jmode . 0) (char jpath [1024]) (size_t jopt . 0)
+              (int jbad . 0) (size_t askcell . 0) (i64 askat . -1))
+          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
+          (if (!= (-> m rec) nil)
+              (return (coco_m_permission_error e "open" "trace_window" (coco_m_arg e g 0))))
+          (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+              (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((size_t o . #'(coco_deref m (nth i v))) (u32 ar . 0)
+                  (const char * nm . nil) (i64 x . 0) (int ok . 0) (int jm . 0))
+              (set nm (coco_m_functor e o (aof ar)))
+              (if (and (!= nm nil) (== ar 1) (coco_m_int e (coco_m_arg e o 0) (aof x)))
+                  (cond ((and (== 0 (strcmp nm "from")) (>= x 0)) (block (set from x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "to")) (>= x 0)) (block (set to x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "answers")) (>= x 1)) (block (set answers x) (set ok 1)))
+                        ((and (== 0 (strcmp nm "text")) (>= x 1)) (block (set tmax x) (set ok 1)))))
+              (if (not ok)
+                  (block (set jm (coco_b_journal_opt e o jpath (sizeof jpath)))
+                         (if (!= jm 0) (block (set jmode jm) (set jopt o) (set ok 1)))))
+              ;; ask(Cond, Holds): Cond asked where the run stops (1.10.16)
+              (if (and (not ok) (and (!= nm nil) (and (== ar 2) (== 0 (strcmp nm "ask")))))
+                  (block (set askcell (coco_deref m (coco_m_arg e o 0)))
+                         (set askat (cast i64 i))
+                         (set ok 1)))
+              (if (not ok)
+                  (block (free v)
+                         (return (coco_m_domain_error e "trace_window_option" o))))))
+          (free v)
+          (if (and (!= to 0) (< to from))
+              (return (coco_m_domain_error e "trace_window_option" (coco_m_arg e g 1))))
+          ;; THE JOURNAL (1.10.15): a record starts empty under its header, a
+          ;; replay reads the record's file whole before the run starts
+          (if (!= jmode 0)
+              (block
+               (coco_jr_init (aof jr) jmode)
+               (if (== jmode 1)
+                   (coco_sb_put (aof ($ jr out))
+                                "%% cocolog journal: j(I, Module, Name/Arity, CallText, Outcome), a portal call of the run a line (DESIGN-flow.md 9.2)\n"))
+               (if (== jmode 2)
+                   (let ((char * text . #'(coco_b_slurp jpath)) (char err [256]))
+                     (if (== text nil)
+                         (block (coco_jr_free (aof jr))
+                                (return (coco_m_existence_error e "journal" jopt))))
+                     (if (not (coco_jr_load m (aof jr) text err (sizeof err)))
+                         (block (coco_jr_free (aof jr))
+                                (return (coco_m_error e "'$trace_window'/4" err))))))))
+          (set ats (cast (u64 *) (malloc (* (cast size_t answers) (sizeof u64)))))
+          (if (== ats nil)
+              (block (if (!= jmode 0) (coco_jr_free (aof jr)))
+                     (return (coco_m_error e "'$trace_window'/4" "out of memory"))))
+          (memset (aof r) 0 (sizeof coco_rec))
+          (set ($ r from) (cast u64 from))
+          (set ($ r to) (cast u64 to))
+          (set ($ r tmax) (cast u32 tmax))
+          (if (!= jmode 0) (set ($ r jr) (aof jr)))
+          (set ($ r ask) askcell)
+          (set rc (coco_engine_window e (coco_m_arg e g 0) (aof r) (cast u64 answers)
+                                      (aof used) ats (aof nats) (aof ball) (aof haltcode) (aof g)))
+          (if (== jmode 1)
+              (if (not (coco_b_spill jpath ($ ($ jr out) s) ($ ($ jr out) len))) (set jbad 1)))
+          (if (and (== jmode 2) (and (>= rc 0) (<= rc 4))) (coco_jr_settle (aof jr) used))
+          ;; the events, last first, so the list is built in one pass
+          (set evs (coco_new_atom m "[]"))
+          (let ((size_t k . #'($ r nevs)))
+            (while (> k 0)
+              (set k (- k 1))
+              (set evs (coco_cons m (coco_b_rec_event m (aof r) (aof (nth k ($ r evs)))) evs))))
+          (cond ((and (== jmode 2) ($ jr div))
+                 (let ((size_t da [3]))
+                   (coco_jr_diverged m (aof jr) (aof (nth 0 da)) (aof (nth 1 da)) (aof (nth 2 da)))
+                   (set how (coco_make m "diverged" 3 da))))
+                ((== rc 1) (set how (coco_new_atom m "answer")))
+                ((== rc 0) (set how (coco_new_atom m "false")))
+                ((== rc 2) (set how (coco_new_atom m "limit")))
+                ((== rc 3) (set how (coco_make1 m "exception" ball)))
+                ((== rc 4) (set how (coco_make1 m "halt" (coco_new_int m (cast i64 haltcode)))))
+                (#t (set how (coco_make1 m "error" (coco_new_atom m (-> e err))))))
+          (set al (coco_new_atom m "[]"))
+          (let ((u64 k . nats))
+            (while (> k 0)
+              (set k (- k 1))
+              (set al (coco_cons m (coco_new_int m (cast i64 (nth k ats))) al))))
+          (let ((size_t ea [3]))
+            (set (nth 0 ea) how)
+            (set (nth 1 ea) (coco_new_int m (cast i64 used)))
+            (set (nth 2 ea) al)
+            (set end (coco_make m "end" 3 ea)))
+          (free ats)
+          (coco_rec_free (aof r))
+          (if (!= jmode 0) (coco_jr_free (aof jr)))
+          ;; the file by its name: a collection in the run may have moved
+          ;; the option's cell
+          (if jbad (return (coco_m_permission_error e "write" "journal" (coco_new_atom m jpath))))
+          (if (-> m oom) (return (coco_m_error e "'$trace_window'/4" "out of memory")))
+          (if (not (coco_m_unify e (coco_m_arg e g 2) evs)) (return 0))
+          ;; ask's answer: true, false, limit, exception(Ball) or error -- its
+          ;; option found again by its place, the run having moved the cells
+          (if (>= askat 0)
+              (let ((size_t hv . 0))
+                (cond ((== ($ r holds) 1) (set hv (coco_new_atom m "true")))
+                      ((== ($ r holds) 0) (set hv (coco_new_atom m "false")))
+                      ((== ($ r holds) 2) (set hv (coco_new_atom m "limit")))
+                      ((== ($ r holds) 3)
+                       (block (set (-> (-> e st) dead) (+ (-> (-> e st) dead) ($ r hbsize)))
+                              (set hv (coco_make1 m "exception"
+                                                  (coco_store_read m (-> e st) ($ r hball))))))
+                      (#t (set hv (coco_new_atom m "error"))))
+                (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+                    (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+                (if (>= (cast size_t askat) n)
+                    (block (free v) (return (coco_m_error e "'$trace_window'/4" "the options moved"))))
+                (let ((size_t o . #'(coco_deref m (nth (cast size_t askat) v))))
+                  (free v)
+                  (if (not (coco_m_unify e (coco_m_arg e o 1) hv)) (return 0)))))
+          (return (coco_m_unify e (coco_m_arg e g 3) end))))
+
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
   ;;; collecting: it stops at the first counterexample and builds no list.
   (func coco_b_forall ((coco_engine * e) (size_t g)) (out int)
@@ -767,73 +1031,172 @@
 
   ;;; ---- terms ------------------------------------------------------------
 
+  ;;; GROUND, WITH EACH COMPOUND MET ONCE: the walk ground/1 starts again
+  ;;; when its first has met more compounds than the heap holds -- a cycle
+  ;;; it was going round, or a DAG that shares them (2^40 steps for one
+  ;;; that doubles forty times).
   (static)
-  (func coco_b_is_ground ((coco_machine * m) (size_t t)) (out int)
-        (set t (coco_deref m t))
-        (if (coco-tag-is REF (nth t (-> m heap))) (return 0))
-        (if (not (coco_is_callable m t)) (return 1))
-        (for ((u32 i . 0)) (< i (coco_arity m t)) ((++ i))
-          (if (not (coco_b_is_ground m (coco_arg m t i))) (return 0)))
-        (return 1))
+  (func coco_b_ground_seen ((coco_machine * m) (size_t t)) (out int)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (int r . 1) (size_t st . 0))
+          (coco_varmap_take m (aof vm))
+          (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t)) (set r -1))
+          (while (and (== r 1) (> wlen 0))
+            (set wlen (- wlen 1))
+            (let ((size_t a . #'(coco_deref m (nth wlen wl))))
+              (cond
+                ((coco-tag-is REF (nth a (-> m heap))) (set r 0))
+                ((and (coco-tag-is FUN (nth a (-> m heap)))
+                      (not (coco_varmap_get (aof vm) a (aof st))))
+                 (if (not (coco_varmap_put (aof vm) a 1)) (set r -1))
+                 (for ((u32 i . 0)) (< i (coco_arity m a)) ((++ i))
+                   (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) (coco_arg m a i)))
+                       (set r -1))))
+                (#t (block)))))
+          (free wl)
+          (coco_varmap_give m (aof vm))
+          (if (== r -1) (block (set (-> m oom) 1) (return 0)))
+          (return r)))
+
+  ;;; A LOOP (1.10.19): it was a recursion, and `X = f(X), ground(X)' took
+  ;;; the C stack down. The compounds wait on the machine's pair stack, an
+  ;;; atom or a number is passed where it stands, and the arguments go on
+  ;;; right to left, so a list's tail comes off after its head and the
+  ;;; stack stays a cell or two deep however long the list. Past the heap's
+  ;;; worth of compounds, `coco_b_ground_seen'.
+  (static)
+  (func coco_b_is_ground ((coco_machine * m) (size_t t0)) (out int)
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (size_t t . #'(coco_deref m t0)) (size_t budget . #'(-> m heap_len)))
+          (if (coco-tag-is REF (nth t (-> m heap))) (return 0))
+          (if (not (coco-tag-is FUN (nth t (-> m heap)))) (return 1))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (while 1
+            (if (== (-- budget) 0)
+                (block (coco_wpairs_give m wl wcap) (return (coco_b_ground_seen m t0))))
+            (for ((u32 i . #'(coco_arity m t))) (> i 0) ((set i (- i 1)))
+              (let ((size_t a . #'(coco_deref m (coco_arg m t (- i 1)))))
+                (if (coco-tag-is REF (nth a (-> m heap)))
+                    (block (coco_wpairs_give m wl wcap) (return 0)))
+                (if (coco-tag-is FUN (nth a (-> m heap)))
+                    (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) a))
+                        (block (set (-> m oom) 1) (coco_wpairs_give m wl wcap) (return 0))))))
+            (if (== wlen 0) (block (coco_wpairs_give m wl wcap) (return 1)))
+            (set wlen (- wlen 1))
+            (set t (nth wlen wl)))
+          (return 1)))
 
   (func coco_b_ground ((coco_engine * e) (size_t g)) (out int)
         (return (coco_b_is_ground (coco_m_machine e) (coco_m_arg e g 0))))
 
-  ;;; Every distinct unbound variable, in the order first met -- which is the
-  ;;; order SWI answers in and is not the same as any sorted order.
+  ;;; acyclic_term/1 and cyclic_term/1 ANSWER THE QUESTION (1.10.18):
+  ;;; through 1.10.17 they were a fact and a fail, on the ground that
+  ;;; nothing here could hold a cycle. `coco_acyclic' (lib/term.cicili);
+  ;;; a walk that could not get the memory to finish answers acyclic,
+  ;;; which is what both said before.
+  (func coco_b_acyclic_term ((coco_engine * e) (size_t g)) (out int)
+        (return (? (== 0 (coco_acyclic (coco_m_machine e) (coco_m_arg e g 0))) 0 1)))
+
+  (func coco_b_cyclic_term ((coco_engine * e) (size_t g)) (out int)
+        (return (? (== 0 (coco_acyclic (coco_m_machine e) (coco_m_arg e g 0))) 1 0)))
+
+  ;;; One variable for term_variables/2, unless it is there already.
   (static)
-  (func coco_b_collect_vars ((coco_machine * m) (size_t t) (size_t ** v)
-                           (size_t * n) (size_t * cap))
-        (set t (coco_deref m t))
-        (if (coco-tag-is REF (nth t (-> m heap)))
-            (block
-             (for ((size_t i . 0)) (< i (cof n)) ((++ i))
-               (if (== (nth i (cof v)) t) (return)))
-             (if (>= (cof n) (cof cap))
-                 (let ((size_t ncap . #'(? (== (cof cap) 0) 8 (* (cof cap) 2)))
-                       (size_t * nb))
-                   (set nb (cast (size_t *) (realloc (cof v) (* ncap (sizeof size_t)))))
-                   (if (== nb nil) (return))
-                   (set (cof v) nb)
-                   (set (cof cap) ncap)))
-             (set (nth (cof n) (cof v)) t)
-             (set (cof n) (+ (cof n) 1))
-             (return)))
-        (if (not (coco_is_callable m t)) (return))
-        (for ((u32 i . 0)) (< i (coco_arity m t)) ((++ i))
-          (coco_b_collect_vars m (coco_arg m t i) v n cap)))
+  (func coco_b_var_add ((size_t ** v) (size_t * n) (size_t * cap) (size_t t)) (out int)
+        (for ((size_t i . 0)) (< i (cof n)) ((++ i))
+          (if (== (nth i (cof v)) t) (return 1)))
+        (if (>= (cof n) (cof cap))
+            (let ((size_t ncap . #'(? (== (cof cap) 0) 8 (* (cof cap) 2)))
+                  (size_t * nb))
+              (set nb (cast (size_t *) (realloc (cof v) (* ncap (sizeof size_t)))))
+              (if (== nb nil) (return 0))
+              (set (cof v) nb)
+              (set (cof cap) ncap)))
+        (set (nth (cof n) (cof v)) t)
+        (set (cof n) (+ (cof n) 1))
+        (return 1))
+
+  ;;; Every distinct unbound variable, in the order first met -- which is the
+  ;;; order SWI answers in and is not the same as any sorted order. A LOOP
+  ;;; (1.10.19), as ground/1's: a variable or a compound goes on the
+  ;;; machine's pair stack, the arguments right to left so they come off
+  ;;; left to right. Answers 1, -1 when the walk could not grow, and 0 when
+  ;;; it met more compounds than the heap holds; the caller asks again with
+  ;;; SEEN, and each compound is walked once -- as SWI's walk does from its
+  ;;; first, which is why the second walk starts at the top: the order a
+  ;;; cycle's variables come in is SWI's.
+  (static)
+  (func coco_b_collect_vars ((coco_machine * m) (size_t t) (int seen) (size_t ** v)
+                             (size_t * n) (size_t * cap)) (out int)
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 })
+              (size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (size_t budget . #'(-> m heap_len)) (int r . 1) (size_t st . 0))
+          (if seen (coco_varmap_take m (aof vm)))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t)) (set r -1))
+          (while (and (== r 1) (> wlen 0))
+            (set wlen (- wlen 1))
+            (let ((size_t a . #'(coco_deref m (nth wlen wl))))
+              (cond
+                ((coco-tag-is REF (nth a (-> m heap)))
+                 (if (not (coco_b_var_add v n cap a)) (set r -1)))
+                ((coco-tag-is FUN (nth a (-> m heap)))
+                 (cond
+                   ((and seen (coco_varmap_get (aof vm) a (aof st))) (block))
+                   ((and (not seen) (== budget 0)) (set r 0))
+                   (#t
+                    (if seen
+                        (if (not (coco_varmap_put (aof vm) a 1)) (set r -1))
+                        (set budget (- budget 1)))
+                    (for ((u32 i . #'(coco_arity m a))) (> i 0) ((set i (- i 1)))
+                      (let ((size_t x . #'(coco_deref m (coco_arg m a (- i 1)))))
+                        (if (or (coco-tag-is REF (nth x (-> m heap)))
+                                (coco-tag-is FUN (nth x (-> m heap))))
+                            (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) x))
+                                (set r -1))))))))
+                (#t (block)))))
+          (coco_wpairs_give m wl wcap)
+          (if seen (coco_varmap_give m (aof vm)))
+          (return r)))
 
   (func coco_b_term_variables ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
-          (coco_b_collect_vars (coco_m_machine e) (coco_m_arg e g 0)
-                             (aof v) (aof n) (aof cap))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out) (int r . 0))
+          (set r (coco_b_collect_vars m (coco_m_arg e g 0) 0 (aof v) (aof n) (aof cap)))
+          (if (== r 0)
+              (block (set n 0)
+                     (set r (coco_b_collect_vars m (coco_m_arg e g 0) 1 (aof v) (aof n) (aof cap)))))
+          (if (== r -1) (set (-> m oom) 1))
           (set out (coco_m_list e v n))
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 1) out))))
 
-  ;;; Unification that refuses to build a cyclic term. cocolog's `=' does not
-  ;;; check -- no Prolog's does by default -- so this one unifies and then
-  ;;; looks, winding back if what came out is not a term.
+  ;;; UNIFICATION THAT REFUSES TO BUILD A CYCLE: unify, then ask of each
+  ;;; variable the unify bound whether its binding holds it again
+  ;;; (`coco_occurs', the variable taken off for the question). That is
+  ;;; SWI's occurs check asked at the end rather than at each binding, and
+  ;;; it comes to the same: a binding that holds its variable is a cycle
+  ;;; through it, and no later binding takes one away. A cyclic term the
+  ;;; arguments held before is no binding of this unify, and is left alone.
+  ;;; Through 1.10.18 it asked whether the whole result could be walked
+  ;;; 5000 deep: a tree 6000 deep failed, a cyclic term unified with itself
+  ;;; failed, and a DAG 40 deep took 2^40 steps (1.10.19).
   (func coco_b_unify_occurs ((coco_engine * e) (size_t g)) (out int)
-        (let ((size_t mark . #'(coco_m_mark e))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t mark . #'(coco_m_mark e))
               (size_t a . #'(coco_m_arg e g 0))
               (size_t b . #'(coco_m_arg e g 1)))
           (if (not (coco_m_unify e a b)) (block (coco_m_undo e mark) (return 0)))
-          ;; a cycle shows up as a term that cannot be walked to a finite depth
-          (if (not (coco_b_acyclic (coco_m_machine e) a 0))
-              (block (coco_m_undo e mark) (return 0)))
+          (for ((size_t i . mark)) (< i (-> m trail_len)) ((++ i))
+            (let ((size_t v . #'(nth i (-> m trail)))
+                  (u64 keep . #'(nth v (-> m heap)))
+                  (int occ . 0))
+              (set (nth v (-> m heap)) (coco-cell REF v))
+              (set occ (coco_occurs m v (cast size_t (coco-payload keep))))
+              (set (nth v (-> m heap)) keep)
+              (if (!= occ 0) (block (coco_m_undo e mark) (return 0)))))
           (return 1)))
-
-  ;;; Depth-bounded rather than marking: a cyclic term has no finite depth, so
-  ;;; a bound deeper than any real term will do and costs nothing to unwind.
-  (static)
-  (func coco_b_acyclic ((coco_machine * m) (size_t t) (int depth)) (out int)
-        (if (> depth 5000) (return 0))
-        (set t (coco_deref m t))
-        (if (not (coco_is_callable m t)) (return 1))
-        (for ((u32 i . 0)) (< i (coco_arity m t)) ((++ i))
-          (if (not (coco_b_acyclic m (coco_arg m t i) (+ depth 1))) (return 0)))
-        (return 1))
 
   ;;; ---- atoms ------------------------------------------------------------
 
@@ -852,7 +1215,11 @@
           ;; the other way: a list of one-character atoms into an atom
           (let ((size_t * v . nil) (size_t n . 0) (char out [4096]))
             (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
-                (return (coco_m_instantiation_error e)))
+                (block
+                 ;; a list that is its own tail is no list (1.10.19)
+                 (if (coco_list_cyclic m (coco_m_arg e g 1))
+                     (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+                 (return (coco_m_instantiation_error e))))
             (if (>= n (sizeof out)) (block (free v) (return 0)))
             (for ((size_t i . 0)) (< i n) ((++ i))
               (let ((const char * c . #'(coco_m_atom e (coco_deref m (nth i v)))))
@@ -898,7 +1265,11 @@
                   (return (coco_m_unify e (coco_m_arg e g 1) lst)))))
           ;; chars -> number
           (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
-              (return (coco_m_instantiation_error e)))
+              (block
+               ;; a list that is its own tail is no list (1.10.19)
+               (if (coco_list_cyclic m (coco_m_arg e g 1))
+                   (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+               (return (coco_m_instantiation_error e))))
           (if (>= n (sizeof buf)) (block (free v) (return 0)))
           (for ((size_t i . 0)) (< i n) ((++ i))
             (let ((const char * c . #'(coco_m_atom e (coco_deref m (nth i v)))))
@@ -1071,13 +1442,19 @@
           (if (coco_m_int e t (aof iv))
               (return (coco_sb_put_i64 b iv)))
           ;; a list of character codes -- what "abc" reads as -- or, under
-          ;; `double_quotes = chars', of one-character atoms
+          ;; `double_quotes = chars', of one-character atoms. One that is its
+          ;; own tail is no text: past the heap's length the walk has gone
+          ;; round (1.10.19; a format, its `~s' and term_to_atom/2 wrote until
+          ;; memory ran out), counted down in the machine (`lbudget'), as the
+          ;; other list walks count
+          (set (-> m lbudget) (-> m heap_len))
           (while 1
             (if (coco_m_is_atom e t)
                 (block
                  (if (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")) (return 1))
                  break))
             (if (not (coco_is_cons m t)) break)
+            (if (== (-- (-> m lbudget)) 0) break)
             (let ((size_t h . #'(coco_deref m (coco_arg m t 0))) (i64 c . 0))
               (if (not (coco_m_int e h (aof c)))
                   (block
@@ -1397,6 +1774,13 @@
                    (? (>= (-> e steps) (-> e max_steps)) 1
                       (- (-> e max_steps) (-> e steps)))))
           (coco_engine_ask (aof sub) goal)
+          ;; the trace follows the proof inside, depth and all, as it does
+          ;; into a findall's -- through 1.10.16 this engine traced as
+          ;; `--trace' had started it whatever trace/0 and notrace/0 had said
+          ;; since, and counted its depths from 1 (1.10.17, the backtrace)
+          (set ($ sub trace) (-> e trace))
+          (set ($ sub trace_depth) (-> e trace_depth))
+          (set ($ sub trace_goal) (-> e trace_goal))
           ;; THE GOAL MAY COLLECT THE HEAP (1.9.4; `coco_engine_findall'):
           ;; the sink, which is read after it, is told to the collector, and
           ;; the machine's marks at the start go with the inner engine
@@ -1464,7 +1848,9 @@
                      ;; SWI's with_output_to/2 fails when its goal fails.
                      (if threw
                          (block (set (-> st dead) (+ (-> st dead) ball_size))
-                                (return (? (coco_m_thrown e (coco_store_get m st ball_cell)) 2 -1))))
+                                ;; the inner throw's backtrace is the one kept
+                                (set (-> m btkeep) 1)
+                                (return (? (coco_m_thrown e (coco_store_read m st ball_cell)) 2 -1))))
                      (if (== rc -1) (return -1))
                      (return 0)))
 
@@ -1698,9 +2084,11 @@
                 (return rc)))
           (let ((coco_strbuf tb) (size_t t . 0) (int rc))
             (coco_sb_init (aof tb))
+            ;; `text', as SWI names it (1.10.19; it said `atom'): a code
+            ;; list is text here too, and a list that is its own tail none
             (if (not (coco_text_put e (coco_m_arg e g 1) (aof tb)))
                 (block (coco_sb_free (aof tb))
-                       (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
+                       (return (coco_m_type_error e "text" (coco_m_arg e g 1)))))
             (if (not (coco_read_term_from m (? (== ($ tb s) nil) "" ($ tb s)) (aof t)))
                 (block
                  (set rc (coco_m_error e "term_to_atom/2 cannot read" (? (== ($ tb s) nil) "" ($ tb s))))
@@ -2236,7 +2624,7 @@
                 (i64 at . #'(coco_global_find st (coco_name_of m k))))
             (if (>= at 0)
                 (return (coco_m_unify e (coco_m_arg e g 1)
-                                      (coco_store_get m st
+                                      (coco_store_read m st
                                                     ($ (nth (cast size_t at) (-> st globals)) cell)))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
 
