@@ -239,6 +239,12 @@ for every C builtin the generated table names.
   a det line can fail there (`A =.. [K, which(W)]` tests what `A` is). On the
   translator the same 999 predicates have 2554 call patterns where they had
   2897: patterns merged where a test now binds.
+* **A recovery runs with the ball in its catcher** (1.10.28, from
+  cicili-lang): `catch(G, E, R)` analyses R with E bound, and with a
+  pattern's variables partly bound -- `catch(work(F), error(K, C), why(K,
+  C))` calls `why/2` `(?, ?)` -- where through 1.10.27 R saw the catcher as
+  free, and `report(error(N, _)) :- N > 0` raised a false instantiation
+  finding in `ccl_driver.pl`'s `dr_error/3`.
 * **`call/N` is the goal it makes**: `call(double, X, Y)` and
   `call(double(X), Y)` are analysed and drawn as `double(X, Y)`. A closure
   the source does not name -- `call(Goal, X)` with `Goal` a variable, or a
@@ -635,6 +641,23 @@ the SVG give it, and says in a sentence what will happen there:
 | `unreachable_clause` | warning | an earlier clause's head matches every call of this pattern and every goal before its cut succeeds, so the clauses after it are never tried |
 | `det_promise` | warning | a `%! p(...) is det` (or `semidet`) comment, for the call patterns its modes cover, against what the analysis infers -- and the goal that breaks it: `when phrase(ws(Ws), Text) fails, so does the whole call` |
 | `discontiguous` | warning | (1.10.27) the clauses of a predicate the chart has a panel for stand in more than one place in the file and no `:- discontiguous` declares it: cocolog joins them without a word, so a clause given a name already taken joins that predicate. One finding a predicate, at the first clause that stands apart, naming the clause of another predicate before it |
+| `defined_twice` | error | (1.10.28, from cicili-lang's report) the same, but a later place DEFINES it again: a clause there repeats one of an earlier place's (renamed apart), or its head is covered by an earlier place's fact -- so the second definition never answers first and every answer it gives comes again on backtracking. It replaces the `discontiguous` warning for that predicate, a declaration or none, and names both clauses and their lines |
+
+**A program of several files** is charted a file at a time with
+`load(Files)` (1.10.28; `load=` on the command, `library(Name)` or a
+path): each is loaded before the file is read, as the program's top file
+would load it, so a call into a sibling is a box of a loaded library and
+not an unknown procedure, and a load that loads nothing is refused by
+name. **A long chart says where it is** with `progress(S)`: a line on
+stderr every S seconds of the analysis (pairs met, analyses made, queued)
+and at each later phase; the library is silent by default and the command
+says every 10 s. **A root that calls a whole file** (cicili-lang's 1,521
+predicates of `ccl_cpp.pl`, from one clause) charts in 81 s where it did
+not end in 30 minutes: the budget's 150 caps the stubs as it caps the
+panels, the note saying how many calls past it went unmarked, the near
+name of an unknown call is asked once a chart, and left recursion keeps
+each predicate's first calls in one table, where a scan of every edge a
+step took its 50 s.
 
 **The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
 says which builtins raise when given which arguments unbound, 58 rows, each
@@ -1174,10 +1197,14 @@ from a session that used the library on `library/reasoning/translate.pl`:
   reads, and counts again from the start when a seek moved the file. With
   positions off, consulting the translator runs `coco_next_token`'s
   instructions exactly and the parser's within 0.13 %.
-* **There is no `predicate_property/2`**, and `current_predicate/1` answers
-  about the knowledge base, not modules, which is why the tables are
-  generated. A missing predicate rather than a wrong one: adding it is
-  something new reachable from a program, a minor to propose.
+* **`predicate_property/2` exists since 1.10.28** (cicili-lang asked), and
+  `current_predicate/1` answers about the program -- its own files too
+  since then, `-s FILE` and `ensure_loaded/1` among them -- not the library
+  or modules, which is why the tables are generated:
+  `predicate_property/2` knows the engine's and the compiled-in modules' C
+  predicates from the tables their dispatchers are built from, and a `.so`
+  module's not at all. It went in as a patch; the minor it is ("something
+  new reachable from a program") is the owner's to take.
 * **Fixed in 1.10.6: `catch(_ =.. _, E, true)` ended the program** (exit 2,
   `=.. wants a proper non-empty list`), raised where `catch/3` could not see
   it. So did an arity below 0 for `functor/3` and an unknown arithmetic

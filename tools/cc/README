@@ -6,6 +6,10 @@ The toolchain, in one directory.
     g++         a shim onto ./cxx, likewise
     compiler.sh WHICH clang, chosen rather than inherited -- sourced by both
     env.sh      sourced by embed/build.sh and every modules/*/build.sh
+    sbcl        the real sbcl with a 4096 MB heap where its default is
+                smaller (Debian's 2.2.9 has 1 GB, and cocolog's transpile
+                needs more); looked up without this directory, RUN with it,
+                because the Cicili inside names `gcc' and ./gcc must answer
 
 WHICH clang, AND WHY IT IS WRITTEN DOWN. `clang' as a bare name is
 whatever PATH answers first, and on a Mac with Homebrew's LLVM installed

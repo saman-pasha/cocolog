@@ -161,6 +161,7 @@
                                      (size_t what)) (out int))
 (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action)
                                       (const char * type) (size_t culprit)) (out int))
+(decl) (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int))
 (decl) (func coco_m_error ((coco_engine * e) (const char * what)
                            (const char * detail)) (out int))
 

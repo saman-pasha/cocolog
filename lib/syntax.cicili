@@ -407,7 +407,7 @@
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))
           (if (== (-> r tok) COCO_TK_FLOAT)
-              (block (set (cof out) (coco_new_float (-> r m) (- 0.0 (-> r fval))))
+              (block (set (cof out) (coco_new_float (-> r m) (- (-> r fval))))   ; -0.0 keeps its sign
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))))
 
@@ -891,6 +891,18 @@
 
   (static) (func coco_bump ((coco_reader * r)) (set (-> r pos) (+ (-> r pos) 1)))
 
+  ;;; After a float's fraction: 1 if `Inf' follows as a whole word, 2 if
+  ;;; `NaN' does, 0 otherwise (73 110 102 and 78 97 78 are their codes).
+  (static) (func coco_float_tag ((coco_reader * r)) (out int)
+                 (if (coco_is_alnum (coco_peek_at r 3)) (return 0))
+                 (if (and (== (coco_peek_at r 0) 73)
+                          (and (== (coco_peek_at r 1) 110) (== (coco_peek_at r 2) 102)))
+                     (return 1))
+                 (if (and (== (coco_peek_at r 0) 78)
+                          (and (== (coco_peek_at r 1) 97) (== (coco_peek_at r 2) 78)))
+                     (return 2))
+                 (return 0))
+
   ;;; Records where and what, and answers 0 so every caller can `return' this
   ;;; call directly. The offset is into the source text the reader was given,
   ;;; which is what a caller loading a clause out of the database needs in
@@ -1017,13 +1029,14 @@
         (coco_sb_reset (aof (-> r text)))
         (while (coco_is_digit (coco_peek r))
           (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
-        (let ((int isfloat . 0))
+        (let ((int isfloat . 0) (int tag . 0))
           (if (and (== (coco_peek r) (coco-ch ".")) (coco_is_digit (coco_peek_at r 1)))
               (block (set isfloat 1)
                      (coco_sb_putc (aof (-> r text)) (cast char (coco-ch "."))) (coco_bump r)
                      (while (coco_is_digit (coco_peek r))
-                       (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))))
-          (if (or (== (coco_peek r) (coco-ch "e")) (== (coco_peek r) (coco-ch "E")))
+                       (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+                     (set tag (coco_float_tag r))))
+          (if (and (== tag 0) (or (== (coco_peek r) (coco-ch "e")) (== (coco_peek r) (coco-ch "E"))))
               (let ((int off . 1))
                 (if (or (== (coco_peek_at r 1) (coco-ch "+")) (== (coco_peek_at r 1) (coco-ch "-")))
                     (set off 2))
@@ -1038,6 +1051,16 @@
                              (coco_bump r))))))
           (if isfloat
               (block (set (-> r fval) (strtod ($ (-> r text) s) nil))
+                     ;; 1.0Inf and 1.5NaN, SWI's spelling of the two values no
+                     ;; digits say, which the writer writes (1.10.28): any
+                     ;; mantissa before Inf, one between 1 and 2 before NaN
+                     ;; (1.0NaN is SWI's syntax error too)
+                     (if (!= tag 0)
+                         (block
+                           (if (and (== tag 2) (or (<= (-> r fval) 1.0) (>= (-> r fval) 2.0)))
+                               (return (coco_fail r "numeric constant out of range")))
+                           (set (-> r fval) (strtod (? (== tag 1) "inf" "nan") nil))
+                           (coco_bump r) (coco_bump r) (coco_bump r)))
                      (set (-> r tok) COCO_TK_FLOAT))
             (block (set (-> r ival) (cast i64 (strtoll ($ (-> r text) s) nil 10)))
                    (set (-> r tok) COCO_TK_INT))))
@@ -1744,10 +1767,8 @@
 
             ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
 
-            ;; to read back bit for bit only for the journal (`wexact')
+            ;; to read back bit for bit, as SWI writes it (1.10.28)
             ((coco-tag-is FLT c)
-             (if (-> m wexact)
-                 (return (coco_sb_put_double_exact b (nth (cast size_t (coco-payload c)) (-> m floats)))))
              (return (coco_sb_put_double b (nth (cast size_t (coco-payload c)) (-> m floats)))))
 
             ;; A STRING WRITES AS ITS TEXT, and quoted it writes in DOUBLE

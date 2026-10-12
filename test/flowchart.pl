@@ -98,7 +98,14 @@ tables :-
     check('a module''s Prolog half is named from its header', G3, ['+', '+', '-']-['Pat', 'Codes', 'Lines']),
     findall(N/A, ( flow_t_c(N, A, _), \+ atom_concat('$', _, N),
                    \+ flow_mode(N, A, _, _), \+ flow_test(N, A) ), Missing),
-    check('every C builtin of the engine has a line in the mode table', Missing, []).
+    check('every C builtin of the engine has a line in the mode table', Missing, []),
+    %% the constructs the engine dispatches itself are a table of their own,
+    %% so a script that tells a builtin from an unknown name by the tables
+    %% does not take call/1 or throw/1 for unknown (cicili-lang's report)
+    findall(K5, ( member(K5, [call/1, call/3, throw/1, catch/3, (',')/2, (;)/2, (->)/2,
+                              (\+)/1, once/1, ignore/1, not/1, true/0, fail/0, (!)/0]),
+                  K5 = N5/A5, \+ flow_t_construct(N5, A5, 'lib/solve.cicili') ), Absent5),
+    check('the control constructs are flow_t_construct/3: call/N, throw/1, catch/3 and the rest', Absent5, []).
 
 %% ---- modes and determinism ----------------------------------------------
 
@@ -327,10 +334,103 @@ findings :-
           [finding(1, discontiguous, warning, 'p2.c2', 'a/1', where(AP, 4, 1),
                    'the clauses of a/1 are not together: clause 2 (line 4) comes after b/1 at line 3, and its clauses stand in 3 places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(a/1)',
                    ['p2.c1'])]),
+    findings_twice(D),
+    findings_catch(D),
+    findings_load(D),
+    findings_near(D),
     %% the table of calls the engine refuses unbound: every example raises
     findall(Ex, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
                   \+ catch(( call(Ex), fail ), error(_, _), true) ), Silent),
     check('every call the refusal table names raises an error when made unbound', Silent, []).
+
+%% a predicate defined twice: a later place repeats a clause of an earlier
+%% one, or holds a clause an earlier fact covers -- an error each, and no
+%% discontiguous warning beside it (cicili-lang's cpp_thunk_params/4)
+findings_twice(D) :-
+    atom_concat(D, '/twice.pl', TP),
+    fixture(TP, ['go2(L, N) :- len2(L, N), col2(apple, C), write(C).',
+                 'len2([], 0).',
+                 'len2([_|T], N) :- len2(T, N0), N is N0 + 1.',
+                 'mid2(x).',
+                 'len2([], 0).',
+                 'len2([_|T], N) :- len2(T, M), N is M + 1.',
+                 'col2(_, red).',
+                 'mid3(y).',
+                 'col2(apple, red).']),
+    flow_graph(go2('+', '-'), G15b, [source(TP)]),
+    flow_findings(G15b, Fs15b),
+    findall(K15b-In15b-T15b, member(finding(_, K15b, _, _, In15b, _, T15b, _), Fs15b), KIT15b),
+    check('a later place that repeats a clause, and one an earlier fact covers: defined twice, each',
+          KIT15b,
+          [defined_twice-'len2/2'-'len2/2 is defined twice: clause 3 (line 5) repeats clause 1 (line 2), and its clauses stand in 2 places; cocolog joins the two definitions into one predicate, so the second never answers first and every answer it gives comes again on backtracking -- keep one of them',
+           defined_twice-'col2/2'-'col2/2 is defined twice: clause 2 (line 9) is covered by the fact at line 7 (clause 1), and its clauses stand in 2 places; cocolog joins the two definitions into one predicate, so the clause never answers first and every answer it gives the fact gave already -- keep one of them']).
+
+%% a recovery runs with the ball in the catcher: a catcher that is a
+%% variable is bound there, and one that is a pattern leaves its
+%% variables partly bound -- cicili-lang's report, to the letter
+findings_catch(D) :-
+    atom_concat(D, '/catchmode.pl', CP),
+    fixture(CP, ['go(F) :- catch(work(F), E, report(E)).',
+                 'work(F) :- F > 1, throw(error(F, here)).',
+                 'report(error(N, _)) :- ( N > 0 -> write(big) ; write(small) ), nl.',
+                 'go2(F) :- catch(work(F), error(K, C), why(K, C)).',
+                 'why(K, C) :- K > 0, atom_length(C, _).']),
+    flow_graph(go('+'), G16, [source(CP)]),
+    flow_findings(G16, Fs16),
+    G16 = graph(_, _, Ps16, _, _),
+    findall(K16-CM16, ( member(panel(I16, K16, _, CM16, _, _, _, _), Ps16), I16 > 0 ), KM16),
+    check('the recovery sees the catcher bound: report/1 is called (+), and N > 0 raises nothing',
+          Fs16-KM16, []-[go/1-['+'], work/1-['+'], report/1-['+']]),
+    flow_graph(go2('+'), G17, [source(CP)]),
+    flow_findings(G17, Fs17),
+    G17 = graph(_, _, Ps17, _, _),
+    findall(K17-CM17, ( member(panel(I17, K17, _, CM17, _, _, _, _), Ps17), I17 > 0 ), KM17),
+    check('a catcher''s pattern leaves its variables partly bound: why/2 is called (?, ?)',
+          Fs17-KM17, []-[go2/1-['+'], work/1-['+'], why/2-['?', '?']]).
+
+%% a program of several files, charted a file at a time: what the top
+%% file loads is defined (cicili-lang's ccl_check.pl took 237 calls into
+%% its siblings for unknown). Read alone first -- a load lasts for the
+%% process, and after it the sibling is defined whatever is asked
+findings_load(D) :-
+    atomic_list_concat([D, '/sib18.pl'], SibF18),
+    atomic_list_concat([D, '/main18.pl'], MainF18),
+    atomic_list_concat([D, '/top18.pl'], TopF18),
+    fixture(SibF18, ['sib18_twice(X, Y) :- Y is X * 2.']),
+    fixture(MainF18, ['main18_go(X, Y) :- sib18_twice(X, Y).']),
+    format(atom(L1_18), ':- use_module(~q).', [MainF18]),
+    format(atom(L2_18), ':- use_module(~q).', [SibF18]),
+    fixture(TopF18, [L1_18, L2_18]),
+    flow_graph(main18_go('+', '-'), G18, [source(MainF18)]),
+    flow_findings(G18, Fs18),
+    findall(K18-In18, member(finding(_, K18, _, _, In18, _, _, _), Fs18), KI18),
+    check('read alone, the call into a sibling it does not load is unknown', KI18,
+          [unknown_procedure-'main18_go/2']),
+    flow_graph(main18_go('+', '-'), G19, [source(MainF18), load(TopF18)]),
+    flow_findings(G19, Fs19),
+    flow_xml(G19, X19),
+    attr_of(X19, 'p1.c1.g1', kind, Kind19),
+    attr_of(X19, 'p1.c1.g1', library, Lib19),
+    check('load(Top): the sibling is defined -- a box, kind="library" library="loaded" -- and nothing is unknown',
+          Fs19-Kind19-Lib19, []-library-loaded),
+    catch(( flow_graph(main18_go('+', '-'), _, [source(MainF18), load('/nonexistent/x18.pl')]), E20 = none ),
+          error(E20, _), true),
+    check('a load that loads nothing is refused by name', E20, existence_error(flow_load, '/nonexistent/x18.pl')).
+
+%% the near name is kept once a chart, never across two: a name the
+%% first program had is no hint in the second
+findings_near(D) :-
+    atomic_list_concat([D, '/near21.pl'], NF21),
+    atomic_list_concat([D, '/near22.pl'], NF22),
+    fixture(NF21, ['go21 :- fooo_bar(1).', 'fooo_baz(_).']),
+    fixture(NF22, ['go22 :- fooo_bar(1).']),
+    flow_graph(go21, G21, [source(NF21)]),
+    flow_findings(G21, [finding(_, unknown_procedure, _, _, _, _, T21, _)]),
+    flow_graph(go22, G22, [source(NF22)]),
+    flow_findings(G22, [finding(_, unknown_procedure, _, _, _, _, T22, _)]),
+    yes_no(sub_atom(T21, _, _, _, 'did you mean fooo_baz/1?'), Y21),
+    yes_no(sub_atom(T22, _, _, _, 'did you mean'), Y22),
+    check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no).
 
 %% every id attribute of an XML term
 xml_any_id(element(_, As, Cs), Id) :-
@@ -508,6 +608,18 @@ drawing_less :-
     findall(T, ( member(T, Texts3), T == '20 more panels hang from it  ·  the XML has them all' ), Hang3),
     length(Hang3, NH3),
     check('each stub says 20 panels hang from it', NH3, 10),
+    %% a root that calls 200 predicates stands at depth one with all of them
+    %% its callees, which no depth thins: the stubs are budgeted too -- 150
+    %% marked, the 50 calls past them unmarked, and the note says so
+    wide_program(D, WF7),
+    atom_concat(D, '/wide', B7),
+    flow_chart(wide, B7, [source(WF7)]),
+    svg_panels(B7, P7),
+    findall(I7, member(I7-stub, P7), Stubs7),
+    length(Stubs7, NS7),
+    svg_note(B7, N7),
+    check('a root of 200 callees: 150 stubs marked, and the note says 50 more', NS7-N7,
+          150-'1 of 201 panels drawn, to depth 1  ·  150 stubs mark where the other 200 begin (and 50 more calls past the budget, unmarked)  ·  the XML has every one  ·  depth(D) or only([Name/Arity, ...]) draws others'),
     answer(flow_chart(report('+', '+', '+'), B1, [source(F), depth(0)]), yes, G5),
     check('depth(0) is refused by name', G5, error(error(domain_error(flow_depth, 0), flow_chart/3))),
     answer(flow_chart(report('+', '+', '+'), B1, [source(F), only(pick)]), yes, G6),
@@ -621,6 +733,17 @@ svg_note(Base, N) :-
 xml_file(Base, Cs) :-
     atom_concat(Base, '.xml', X),
     read_file_to_codes(X, Cs).
+
+%% wide/0 calls w1 .. w200, each a fact
+wide_program(D, F) :-
+    atom_concat(D, '/wide.pl', F),
+    numlist(1, 200, Ns),
+    findall(G, ( member(N, Ns), format(atom(G), 'w~d', [N]) ), Gs),
+    atomic_list_concat(Gs, ', ', Body),
+    open(F, write, S),
+    format(S, "wide :- ~w.~n", [Body]),
+    forall(member(G, Gs), format(S, "~w.~n", [G])),
+    close(S).
 
 %% top/0 calls m1 .. m10, and each mI twenty facts
 fan_program(D, F) :-
@@ -987,7 +1110,19 @@ command :-
     check('a predicate the program does not have is exit 1', E2, 1),
     atomic_list_concat(['-s tools/flow/chart.pl -- \'report(+,+,+)\' test/flowchart/demo.pl ', B, ' colour=red'], A3),
     cocolog_run(A3, _, E3),
-    check('an option it does not know is exit 2', E3, 2).
+    check('an option it does not know is exit 2', E3, 2),
+    %% progress on stderr once a chart has run S seconds: a quick chart says
+    %% nothing by default, and progress=0.0001 says each part as it starts
+    cocolog_out(A1, O4c),
+    atom_codes(O4, O4c),
+    yes_no(sub_atom(O4, _, _, _, 'chart: '), Y4),
+    atomic_list_concat([A1, ' progress=0.0001'], A5),
+    cocolog_out(A5, O5c),
+    atom_codes(O5, O5c),
+    yes_no(( sub_atom(O5, _, _, _, 'chart: the analysis, at '),
+             sub_atom(O5, _, _, _, 'chart: the findings, at '),
+             sub_atom(O5, _, _, _, 'chart: done, ') ), Y5),
+    check('progress: nothing from a quick chart, and each part from progress=S', Y4-Y5, no-yes).
 
 %% ---- refusals -----------------------------------------------------------
 

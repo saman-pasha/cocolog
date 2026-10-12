@@ -1121,7 +1121,9 @@ flow_prune(graph(T, S, Panels, Ids, Docs), Opts, graph(T, S, Kept, Ids, Docs), N
     (   Rule == all
     ->  Kept = Panels, Note = none
     ;   flow_drawn(Panels, Rule, Drawn),
-        flow_frontier(Panels, Ids, Drawn, Stubs0),
+        flow_frontier(Panels, Ids, Drawn, Stubs00),
+        flow_panel_budget(B),
+        flow_budget_take(B, Stubs00, Stubs0, NLeft),
         findall(I, ( member(I, Stubs0),
                      (   memberchk(panel(I, _, portal(_), _, _, _, _, _), Panels)
                      ;   memberchk(panel(I, _, lane(_, _), _, _, _, _, _), Panels)
@@ -1134,7 +1136,20 @@ flow_prune(graph(T, S, Panels, Ids, Docs), Opts, graph(T, S, Kept, Ids, Docs), N
         length(Panels, NP0), NP is NP0 - 1,
         length(Drawn1, ND0), ND is ND0 - 1,
         length(Stubs, NS),
-        flow_prune_note(Rule, ND, NS, NP, Note)
+        flow_prune_note(Rule, ND, NS, NP, NLeft, Note)
+    ).
+
+%% THE FRONTIER IS BUDGETED TOO: the first B panels a drawn one calls, in
+%% the order the chart met them, are marked; past them a call has no wire
+%% and nothing at its end, and the note says how many. A root that calls
+%% every predicate of a file stands at depth one with all of them its
+%% callees, which no depth can thin: cicili-lang's ccl_cpp.pl, 1,521 stubs,
+%% whose placing -- each one clear of every one before it -- ran for a
+%% quarter of an hour before 1.10.28 and was not done.
+flow_budget_take(N, Xs, Taken, Left) :-
+    length(Xs, L),
+    (   L =< N -> Taken = Xs, Left = 0
+    ;   length(Taken, N), append(Taken, _, Xs), Left is L - N
     ).
 
 %% all, or rule(Depth, Preds): Depth an integer or all, Preds a list or all
@@ -1235,7 +1250,7 @@ flow_keep(panel(I, Key, Kind, CM, D, Body, Det, _), _, Stubs, Counts, Rule,
     memberchk(I, Stubs),
     (   memberchk(I-N, Counts) -> true ; N = 0 ).
 
-flow_prune_note(rule(D, Ps), ND, NS, NP, Note) :-
+flow_prune_note(rule(D, Ps), ND, NS, NP, NLeft, Note) :-
     NH is NP - ND,
     (   Ps == all
     ->  format(atom(Why), 'to depth ~w', [D])
@@ -1244,8 +1259,11 @@ flow_prune_note(rule(D, Ps), ND, NS, NP, Note) :-
     ;   format(atom(Why), 'to depth ~w, only ~w', [D, Ps])
     ),
     (   NS =:= 1 -> SW = 'stub marks' ; SW = 'stubs mark' ),
-    format(atom(Note), '~d of ~d panels drawn, ~w  ·  ~d ~w where the other ~d begin  ·  the XML has every one  ·  depth(D) or only([Name/Arity, ...]) draws others',
-           [ND, NP, Why, NS, SW, NH]).
+    (   NLeft =:= 0 -> Past = ''
+    ;   format(atom(Past), ' (and ~d more calls past the budget, unmarked)', [NLeft])
+    ),
+    format(atom(Note), '~d of ~d panels drawn, ~w  ·  ~d ~w where the other ~d begin~w  ·  the XML has every one  ·  depth(D) or only([Name/Arity, ...]) draws others',
+           [ND, NP, Why, NS, SW, NH, Past]).
 
 %% ======================================================================
 %% The chart: panels in columns by call depth, wires through gutters

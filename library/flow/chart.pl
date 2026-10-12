@@ -30,6 +30,14 @@
 %%     depth(D)         the PICTURE draws panels at most D calls deep
 %%     only(Preds)      the PICTURE draws these predicates' panels, a list of
 %%                      Name/Arity and Name//Arity
+%%     load(Files)      the program's other files, or its top file, a file
+%%                      or a list (library(Name) too): loaded first, so a
+%%                      call into one is a box the chart knows is defined --
+%%                      for a program of several files, drawn a file at a
+%%                      time (1.10.28). Like the source, each is LOADED, as
+%%                      use_module/1 loads it: its directives run
+%%     progress(S)      a line on stderr every S seconds, once the chart
+%%                      has run S seconds (0, the default: none)
 %%
 %% EVERY GOAL IS DRAWN, by name, builtins and library calls too: each is a
 %% box on its clause's line, which the chart does not go inside -- a
@@ -163,13 +171,68 @@ flow_chart(Spec, Base0, Opts, Fs) :-
     flow_base(Base0, Base),
     flow_check_draw_opts(Opts),
     flow_graph(Spec, Graph, Opts),
+    flow_progress_phase('the findings'),
     flow_findings(Graph, Fs),
+    flow_progress_phase('the picture'),
     flow_svg(Graph, Fs, Svg, Opts),
+    flow_progress_phase('the XML'),
     flow_xml(Graph, Fs, Xml),
     atom_concat(Base, '.svg', SvgFile),
     atom_concat(Base, '.xml', XmlFile),
+    flow_progress_phase('writing the files'),
     flow_write_doc(SvgFile, Svg, []),
-    flow_write_doc(XmlFile, Xml, [indent(2)]).
+    flow_write_doc(XmlFile, Xml, [indent(2)]),
+    flow_progress_phase(done).
+
+%% PROGRESS ON STDERR, for a chart that takes a while: progress(Seconds)
+%% says how often (0, the default, says nothing). Nothing is written until
+%% the chart has run that long, so a quick one stays quiet; then a line
+%% each Seconds while the analysis runs -- the pairs met, the analyses
+%% made, the queue -- and one as each later part starts. A chart that ran
+%% longer than a time cap could not say whether it was getting anywhere
+%% (cicili-lang's ccl_cpp.pl, killed at 30 minutes).
+flow_progress_start(Opts) :-
+    flow_option(progress(Int), Opts, 0),
+    (   number(Int), Int > 0
+    ->  get_time(T0),
+        Next is T0 + Int,
+        nb_setval('$flow_progress', p(Int, T0, Next, 0, quiet))
+    ;   nb_setval('$flow_progress', off)
+    ).
+
+%% at each pair analysed: T the pairs met, Q the queue
+flow_progress_tick(T, Q) :-
+    catch(nb_getval('$flow_progress', p(Int, T0, Next, N0, Said)), _, fail), !,
+    N is N0 + 1,
+    get_time(Now),
+    (   Now >= Next
+    ->  assoc_to_keys(T, Ks), length(Ks, NP),
+        Q = q(F, B), length(F, NF), length(B, NB), NQ is NF + NB,
+        E is Now - T0,
+        format(user_error, "chart: analysing -- ~d pairs met, ~d analyses made, ~d queued, ~0f s~n",
+               [NP, N, NQ, E]),
+        Next1 is Now + Int,
+        nb_setval('$flow_progress', p(Int, T0, Next1, N, said))
+    ;   nb_setval('$flow_progress', p(Int, T0, Next, N, Said))
+    ).
+flow_progress_tick(_, _).
+
+%% a part begins: said once the chart has run Int seconds, and the next
+%% line of the analysis is Int seconds after it
+flow_progress_phase(What) :-
+    catch(nb_getval('$flow_progress', p(Int, T0, _, N, Said)), _, fail), !,
+    get_time(Now),
+    E is Now - T0,
+    Next is Now + Int,
+    (   ( Said == said ; E >= Int )
+    ->  (   What == done
+        ->  format(user_error, "chart: done, ~0f s~n", [E])
+        ;   format(user_error, "chart: ~w, at ~0f s~n", [What, E])
+        ),
+        nb_setval('$flow_progress', p(Int, T0, Next, N, said))
+    ;   nb_setval('$flow_progress', p(Int, T0, Next, N, Said))
+    ).
+flow_progress_phase(_).
 
 flow_base(B0, B) :-
     (   atom_concat(B1, '.svg', B0) -> B = B1
@@ -190,7 +253,12 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
     ;   throw(error(domain_error(flow_libraries, How), flow_graph/3))
     ),
     flow_tables,
+    flow_progress_start(Opts),
+    flow_option(load(Load0), Opts, []),
+    (   is_list(Load0) -> Loads = Load0 ; Loads = [Load0] ),
+    forall(member(LF, Loads), flow_load(LF)),
     use_module(Src),
+    flow_near_gen,
     flow_read_source(Src, Prog),
     functor(Root, Name, Arity),
     (   get_assoc(Name/Arity, Prog, _) -> true
@@ -200,6 +268,7 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
     flow_doc_sigs(Src, Docs0),
     empty_assoc(Memo0),
     Ctx = ctx(Prog, Memo0, How),
+    flow_progress_phase('the analysis'),
     flow_build(Ctx, Name/Arity, CM, Panels, Ids),
     flow_library_docs(Panels, Docs0, Docs),
     flow_option(title(Title0), Opts, none),
@@ -207,6 +276,18 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
 
 flow_option(Opt, Opts, Default) :-
     (   memberchk(Opt, Opts) -> true ; arg(1, Opt, Default) ).
+
+%% load(Files): the program's other files -- or its top file, which loads
+%% them -- loaded before the source, so that what they define is defined
+%% here too: a call into one is a box, library(loaded), and never an
+%% unknown procedure. Only the source is drawn. Through 1.10.27 a file
+%% read alone took every call into a sibling it does not load itself for
+%% unknown (cicili-lang's ccl_check.pl: 237 such findings, none real).
+flow_load(F) :-
+    (   catch(use_module(F), _, fail)
+    ->  true
+    ;   throw(error(existence_error(flow_load, F), flow_graph/3))
+    ).
 
 %% depth(D): D calls deep at most, D a positive integer or `all';
 %% only(Preds): a list of Name/Arity and Name//Arity

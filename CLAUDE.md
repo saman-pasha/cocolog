@@ -116,10 +116,14 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
 * **Debian's SBCL 2.2.9 starts with a 1 GB heap, which a build of cocolog
-  exhausts** (a heap-exhaustion report from Cicili, midway). `make` takes
-  `SBCL="sbcl --dynamic-space-size 4096"`; the `build.sh` of a module calls
-  `sbcl` by name, so put a shim first on PATH that runs
-  `exec /usr/bin/sbcl --dynamic-space-size 4096 "$@"`.
+  exhausts** (a heap-exhaustion report from Cicili, midway). Since 1.10.28
+  `tools/cc/sbcl` is the `sbcl` every build step runs (the Makefile's Cicili
+  step, `env.sh` for each `build.sh`, `test/run.pl`): it hands the real
+  sbcl 4096 MB when its default is smaller (`COCO_SBCL_HEAP=N`; a
+  `--dynamic-space-size` given is obeyed). **It must not take `tools/cc`
+  off PATH** for the sbcl it runs, as `./clang` does for itself: the Cicili
+  inside compiles by naming `gcc`, and its first version built cocolog
+  with Ubuntu's gcc (the tell, `readelf -p .comment .libs/cocolog.o`).
 * **Everything is built by clang** -- the client, the interpreter, the
   embedded store, every module, ZiguratIP's libraries and server, and the
   Parsi objects the server loads -- because cocolog links ZiguratIP's C++
@@ -617,11 +621,25 @@ cocolint index offers no import of it.
 * **Which library holds a symbol is not guessable, and a miss links fine**:
   `nm -D --defined-only` over `home/lib`, and name every transitive
   dependency on the link line.
-* **`current_predicate/1` answers about the knowledge base**, not modules:
-  probe a module by catching `existence_error` around a real call. It
-  answers for a predicate with a clause or a dynamic declaration, as SWI's
-  does; through 1.10.2 it also answered for any name a call or `clause/2`
-  had merely looked up (each makes a table entry).
+* **`current_predicate/1` answers about the PROGRAM**, not the library or
+  modules: probe a module by catching `existence_error` around a real call.
+  It answers for a predicate with a clause or a dynamic declaration, as
+  SWI's does -- consulted, asserted, or read from a file the program loaded
+  by its path (`-s FILE`, `ensure_loaded/1`, `use_module/1` of a file: a
+  module whose predicates are `own`, beside the `library` flag the pre-warm
+  needs; 1.10.28, until which they were left out with the library's, and
+  `listing/0` too). SWI answers for a library's and a builtin's as well;
+  this does not. Through 1.10.2 it also answered for any name a call or
+  `clause/2` had merely looked up (each makes a table entry).
+  `predicate_property/2` (1.10.28) answers for a construct (by name AND
+  arity, `*callable-constructs*`: the construct table also holds the
+  engine's markers, `'$k'`, `[]`, `:-`, which are no predicates), a C
+  builtin of the engine or of a compiled-in module (`built_in`, `foreign`,
+  from the tables the dispatchers are built from: `coco-emit-claims`), and
+  any predicate of the store (`dynamic`/`static`, `number_of_clauses/1`,
+  `number_of_rules/1`); `M:H` is H, so `user:H` walks the program's. A
+  `.so` module's predicates are not answered, and a library's carry no
+  `built_in`/`imported_from` (a muted consult records no file).
 * **Register modules before spawning threads**: the registry is
   process-wide and unguarded.
 * `cocolint`'s index picks `modules/NAME/NAME.cicili` by name; a header
@@ -640,7 +658,13 @@ cocolint index offers no import of it.
   clauses of one name that are not together in the file without a word**
   (SWI warns; cocolint does not), so a helper given an existing name joins
   that predicate. library(flow/chart) names each such predicate it charts
-  (the `discontiguous` finding, 1.10.27): the translator has 39.
+  (the `discontiguous` finding, 1.10.27), and as an error one DEFINED TWICE
+  -- a clause that repeats an earlier run's, or a head an earlier run's
+  fact covers (`defined_twice`, 1.10.28): the translator has 38 and one,
+  `tr_cap_run/3`. The flow chart takes `load(Files)` for a program's other
+  files, whose predicates then count as defined (`load=` on
+  tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
+  the command).
 * **Every builtin is deterministic**, so a failure-driven loop written from
   habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
   `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
@@ -656,8 +680,10 @@ cocolint index offers no import of it.
   library(reasoning) stores word classes such as `number(dos)` and reads
   them with `clause/2` (refusing it stopped `test/translate.pl`).
   `coco_fail_err`, which ends the query
-  where no `catch/3` sees it, is left for a resource running out and a load
-  that cannot go on; a new builtin raises through `coco_raise`. `format/2`'s
+  where no `catch/3` sees it, is left for a machine past saving (a growth
+  refused outright, an inference limit) and a load that cannot go on --
+  memory refused and then given less is resource_error(memory) since
+  1.10.28; a new builtin raises through `coco_raise`. `format/2`'s
   `~a`, `~s` and the format itself take text of any length
   (`coco_text_put`).
 * **The backtrace is written by the throw, before anything unwinds**
@@ -913,7 +939,9 @@ cocolint index offers no import of it.
   `halted` to 2 (`coco_k_room`: `coco_k_push`, `coco_k_push_roots`,
   `coco_areg_term`), which stops the run at the next step's top and
   `coco_engine_next` answers as `out of memory` (1.9.4); a new builder
-  does the same. `test/state.cicili` stops
+  does the same. (A growth given less than it asked stops it with the same
+  2 and no `oom`, and that one is raised: resource_error(memory), 1.10.28,
+  below.) `test/state.cicili` stops
   a proof at each of its first sixty steps and resumes it in another
   machine, `test/gc.pl` collects every 2000 cells under naive reverse, and
   each goes red without its flush. **Since 1.9.1 that goal may never be
@@ -1166,8 +1194,58 @@ cocolint index offers no import of it.
   - **A replay opens no stream and starts no thread**: a write the replay
     makes to a stream it never opened goes nowhere (`coco_m_replay_sink`),
     and a thread's messages come from the journal.
-  - **Floats are exact in it** (`m->wexact`, `coco_sb_put_double_exact`):
-    `%.15g` everywhere else would make a replayed clock another number.
+  - **Floats are exact in it, as everywhere since 1.10.28** (the writer's
+    shortest form, below): through 1.10.27 the journal alone wrote 17
+    digits (`m->wexact`, gone), and `%.15g` would have made a replayed
+    clock another number.
+* **A float is written as SWI 9 writes it** (1.10.28, `coco_sb_put_double`
+  in lib/term.cicili): the fewest significant digits that read back as the
+  same double -- `%.14e`, then 16 and 17, and at 16 the neighbour towards
+  the value when the nearest misses (a power of two's lower gap is half its
+  upper: 2.0 ** -549 is ...053, SWI's, where the nearest 16 digits are a
+  different double; `coco_float_nudge`, whose digits move the other way
+  for a negative value -- its first build wrote -2.0 ** -549 in 17) -- set
+  out by SWI's rule: `0.000ddd`
+  down to a point three places before the digits, `d.ddde-N` past it,
+  `ddd.0` up to 15 places, `d.ddde+N` beyond (`1.0e+22`, `1.0e-5`,
+  `100000000000000.0`), an infinity `1.0Inf`/`-1.0Inf`, a NaN `1.5NaN`.
+  The reader takes `1.0Inf` and `1.5NaN` back (after a fraction and no
+  exponent, as SWI: `1.0NaN` is its syntax error), and `-0.0` keeps its
+  sign, in the reader and in `-/1` (both did `0 - x`). 21,000 doubles of a
+  run are written by swipl to the letter and read back bit for bit
+  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: an
+  overflow is an infinity (`10.0 ** 400`, where SWI raises
+  `float_overflow`), `inf` and `nan` are not evaluable, and term_to_atom/2
+  reads the first term of its text and ignores the rest (`'1.0 x'` is
+  `1.0`). A frozen machine still writes `%.17g` (lib/state.cicili).
+* **A refused allocation raises resource_error(memory)** (1.10.28). A
+  doubling refused is tried again with what is needed and a sixteenth
+  (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the
+  choices, `coco_store_grow` for the store's), and given, the running
+  engine is stopped with `halted` 2 -- through `m->haltp`, which
+  `coco_engine_next` sets beside `m->eng`, or the store's `memreq`, which
+  `coco_store_put` hands over -- and the loop's top raises
+  `error(resource_error(memory), _)` (`coco_halted_step`, weak, so the
+  loop pays the test it always paid). There is room left to build the ball
+  and unwind; nothing was written wrong, because every growth succeeded. A
+  growth the ball or its throw was given less for is the same shortage,
+  dropped as it is raised -- not a second raise at the recovery's first
+  step.
+  findall/3 asks after each result it puts: its engine's next step is
+  after the search, never for one with no end. A growth refused outright
+  sets `oom` and ends the run with `out of memory` as before (a builder
+  that found no room may have written over cell 0). A C buffer refused
+  (call/N's arguments, sort's, format's, a module's) raises it too
+  (`coco_mem_error`, `coco_m_resource_error`). `test/errors.pl` runs four
+  under `ulimit -v 600000`; 1.10.27 ended three with `out of memory` and
+  ran the fourth for ever. **The growth is out of line and weak**
+  (`coco_grow_slow`, `coco_eng_grow_slow`), the test alone inlined: with
+  the fallback's call inlined into every push, clang stopped inlining
+  `coco_new_var` and lookup ran 4.2 % more instructions (1.66 million in
+  calls to it), and `(static)` lets clang inline it back the same way.
+  Weak, against 1.10.27 (`tools/flow/zero.sh`, work less padding): nrev
+  +0.63 % (all of it `coco_clause_run_r`, whose heap tests now carry a
+  call), queens -2.5 %, lookup -1.6 %.
 * **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
   `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
   inferences, no collection) between the run's end and the undo, over the

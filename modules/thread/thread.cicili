@@ -399,7 +399,7 @@
           (if (>= (-> c n) (-> c cap))
               (if (not (th_chan_grow c))
                   (block (pthread_mutex_unlock (aof (-> c lock))) (free text)
-                         (return (coco_m_error e "channel_send" "out of memory")))))
+                         (return (coco_m_resource_error e "memory")))))
           (set (nth (% (+ (-> c head) (-> c n)) (-> c cap)) (-> c slot)) text)
           (set (-> c n) (+ (-> c n) 1))
           (pthread_cond_signal (aof (-> c not_empty)))

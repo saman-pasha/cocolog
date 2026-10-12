@@ -30,6 +30,11 @@
 %%                               discontiguous: cocolog joins them without a
 %%                               word where SWI warns, so a helper given a
 %%                               name already taken joins that predicate
+%%   defined_twice      error    a later place of a predicate's clauses
+%%                               repeats a clause of an earlier one, or holds
+%%                               one an earlier fact covers: a second
+%%                               definition, joined to the first, whose
+%%                               answers all come again on backtracking
 %%
 %% and three about threads (F2, lanes.pl), each about one goal:
 %%
@@ -100,6 +105,7 @@ flow_severity(instantiation, error).
 flow_severity(left_recursion, error).
 flow_severity(unreachable_clause, warning).
 flow_severity(discontiguous, warning).
+flow_severity(defined_twice, error).
 flow_severity(det_promise, warning).
 flow_severity(thread_visibility, warning).
 flow_severity(lock_held, warning).
@@ -239,8 +245,32 @@ flow_branches_goals([B|Bs], K, Id, Gs0, Gs) :-
 %% more), among the program's own predicates, the engine's builtins and the
 %% libraries' predicates. The analysis asks it of an unknown goal, where the
 %% program is at hand, and the node carries near(Name/Arity).
-
+%%
+%% KEPT ONCE A CHART: the analysis asks it of every unknown goal at every
+%% analysis of the goal's pair, and the answer depends on the name and
+%% arity alone while the program stays the chart's. Each search walks every
+%% name the program, the engine and the libraries know -- some 3,700 -- and
+%% through 1.10.27 a file that calls into siblings it does not load spent
+%% most of its chart in it (cicili-lang's ccl_cpp.pl, 8,764 lines: see
+%% STATUS.md). flow_graph/3 starts a generation, and an answer of another
+%% generation is asked again.
 flow_near_name(N, A, Prog, Near) :-
+    (   catch(nb_getval('$flow_near_gen', G), _, fail)
+    ->  atomic_list_concat(['$flow_near|', N, '/', A], K),
+        (   catch(nb_getval(K, gen(G0, V0)), _, fail), G0 == G
+        ->  V = V0
+        ;   ( flow_near_name_(N, A, Prog, Near0) -> V = near(Near0) ; V = none ),
+            nb_setval(K, gen(G, V))
+        ),
+        V = near(Near)
+    ;   flow_near_name_(N, A, Prog, Near)
+    ).
+
+flow_near_gen :-
+    (   catch(nb_getval('$flow_near_gen', G0), _, fail) -> G is G0 + 1 ; G = 1 ),
+    nb_setval('$flow_near_gen', G).
+
+flow_near_name_(N, A, Prog, Near) :-
     assoc_to_keys(Prog, Keys),
     (   ( member(N/A2, Keys) ; flow_lib_pred(N, A2) ), A2 =\= A
     ->  Near = N/A2
@@ -452,10 +482,22 @@ flow_after_last_cut(Nodes, K0, K, After) :-
 %% succeed: size(L, N) of free L and N is a generator, lists of every length,
 %% as length/2 is. Reported once, at the cycle's first panel.
 
+%% The edges are kept by the panel they leave (Es: P -> its edges): a walk
+%% asks each panel's edges by its number. Through 1.10.27 every step of
+%% every walk scanned every edge, and a root that calls each of a file's
+%% 1,521 predicates spent 50 s and 335 M inferences here (cicili-lang's
+%% ccl_cpp.pl; 6,682 panels).
 flow_left_recursion(Own, Ids, KFs) :-
-    findall(e(P, Q, Map, GId, CI), ( member(Pn, Own), flow_left_edge(Pn, Ids, P, Q, Map, GId, CI) ), Es),
+    findall(P-e(P, Q, Map, GId, CI), ( member(Pn, Own), flow_left_edge(Pn, Ids, P, Q, Map, GId, CI) ), PEs0),
+    keysort(PEs0, PEs),
+    flow_group(PEs, Grouped),
+    list_to_assoc(Grouped, Es),
     findall(K-F, ( member(panel(P, _, _, _, _, _, _, _), Own),
+                   get_assoc(P, Es, _),
                    flow_lr_cycle(P, Es, Own, K, F) ), KFs).
+
+flow_lr_edges(X, Es, XEs) :-
+    (   get_assoc(X, Es, XEs0) -> XEs = XEs0 ; XEs = [] ).
 
 flow_left_edge(panel(P, _, _, CM, _, rows(Rows), _, _), Ids, P, Q, Map, GId, CI) :-
     flow_panel_lane(Ids, P, L),
@@ -521,7 +563,8 @@ flow_lr_map([A|As], [M|Ms], J, Alias, Map) :-
 %% a cycle of carrying edges from P back to P, its inputs back in each
 %% other's places, P the lowest panel on it
 flow_lr_cycle(P, Es, Own, k(P, C, S), f(left_recursion, error, GId, In, Where, Text, See)) :-
-    member(e(P, Q, Map0, GId, CI), Es),
+    flow_lr_edges(P, Es, PEs),
+    member(e(P, Q, Map0, GId, CI), PEs),
     flow_lr_path(Q, P, Map0, Es, [P], 6, Steps, MapEnd),
     \+ ( member(X-_, Steps), X < P ),
     memberchk(panel(P, Key, _, CM, _, _, Det, _), Own),
@@ -541,7 +584,8 @@ flow_lr_path(P, P, Map, _, _, _, [], Map) :- !.
 flow_lr_path(X, P, Map0, Es, Seen, D, [X-G|Steps], Map) :-
     D > 0,
     \+ memberchk(X, Seen),
-    member(e(X, Y, M1, G, _), Es),
+    flow_lr_edges(X, Es, XEs),
+    member(e(X, Y, M1, G, _), XEs),
     flow_lr_compose(M1, Map0, Map1),
     D1 is D - 1,
     flow_lr_path(Y, P, Map1, Es, [X|Seen], D1, Steps, Map).
@@ -718,12 +762,39 @@ flow_discontiguous(Own, Src, KFs) :-
     flow_first_panels(KIs, Firsts),
     (   Firsts == [] -> KFs = []
     ;   flow_clause_seq(Src, Seq, Decl),
+        flow_clause_index(Seq, Ix),
         findall(k(I, J, 0)-F,
                 ( member(K-I, Firsts),
-                  \+ memberchk(K, Decl),
-                  flow_disc_finding(K, I, Own, Seq, J, F) ),
+                  get_assoc(K, Ix, Cls),
+                  flow_disc_runs(K, Cls, Runs),
+                  Runs = [_, _|_],
+                  (   flow_twice_finding(K, I, Own, Cls, Runs, J, F)
+                  ->  true
+                  ;   \+ memberchk(K, Decl),
+                      flow_disc_finding(K, I, Own, Runs, J, F)
+                  ) ),
                 KFs)
     ).
+
+%% EVERY PREDICATE'S CLAUSES, read off the file once: Name/Arity -> its
+%% clauses in file order, cl(N, Line, Before, BLine, Term) -- N its number
+%% among them, Before-BLine the predicate of the clause just before it in
+%% the file and that clause's line (none-0 at the top). Through 1.10.27 the
+%% whole file was walked again for each predicate charted, twice: 4.7 s of
+%% a chart of the 1,521 of cicili-lang's ccl_cpp.pl.
+flow_clause_index(Seq, Ix) :-
+    empty_assoc(N0),
+    flow_clause_index_(Seq, none, 0, N0, Pairs0),
+    keysort(Pairs0, Pairs),
+    flow_group(Pairs, Grouped),
+    list_to_assoc(Grouped, Ix).
+
+flow_clause_index_([], _, _, _, []).
+flow_clause_index_([c(L, K, T)|Seq], PK, PL, Ns0, [K-cl(N, L, PK, PL, T)|Ps]) :-
+    (   get_assoc(K, Ns0, N0) -> true ; N0 = 0 ),
+    N is N0 + 1,
+    put_assoc(K, Ns0, N, Ns),
+    flow_clause_index_(Seq, K, L, Ns, Ps).
 
 %% each predicate with its first panel
 flow_first_panels([], []).
@@ -736,8 +807,7 @@ flow_first_panels_skip([K1-_|KIs], K, Rest) :-
     flow_first_panels_skip(KIs, K, Rest).
 flow_first_panels_skip(KIs, _, KIs).
 
-flow_disc_finding(K, I, Own, Seq, J, f(discontiguous, warning, At, In, Where, Text, [Prev])) :-
-    flow_disc_runs(Seq, K, 0, none, Runs),
+flow_disc_finding(K, I, Own, Runs, J, f(discontiguous, warning, At, In, Where, Text, [Prev])) :-
     Runs = [_, run(J, Line, Other, OLine)|_],
     length(Runs, NR),
     memberchk(panel(I, K, _, _, _, rows(Rows), _, _), Own),
@@ -752,24 +822,108 @@ flow_disc_finding(K, I, Own, Seq, J, f(discontiguous, warning, At, In, Where, Te
     format(atom(Text), 'the clauses of ~w are not together: clause ~d (line ~d) comes after ~w at line ~d, and its clauses stand in ~d places; cocolog joins them without a word where SWI warns -- move them together, or declare :- discontiguous(~w)',
            [In, J, Line, OA, OLine, NR, In]).
 
-%% the places K's clauses stand: run(J, Line, Before, BLine), J its first
-%% clause there (counted from 1 in the file), Line its line, and the clause
-%% of another predicate just before it (none for the first place)
-flow_disc_runs([], _, _, _, []).
-flow_disc_runs([L-K1|Seq], K, N0, Last, Runs) :-
-    (   K1 == K
-    ->  N is N0 + 1,
-        (   Last = K-_
-        ->  Runs = Runs1
-        ;   Last = B-BL -> Runs = [run(N, L, B, BL)|Runs1]
-        ;   Runs = [run(N, L, none, 0)|Runs1]
-        ),
-        flow_disc_runs(Seq, K, N, K-L, Runs1)
-    ;   flow_disc_runs(Seq, K, N0, K1-L, Runs)
+%% ---- a predicate defined twice ------------------------------------------
+%%
+%% A predicate whose clauses stand in more than one place and whose later
+%% place REPEATS a clause of an earlier one -- head and body the same, up to
+%% the names of the variables -- or holds a clause an earlier FACT covers
+%% (the fact's head is at least as general): the later place starts a
+%% definition the earlier one already gave, and cocolog joins the two into
+%% one predicate. That clause never answers first, and every answer it gives
+%% the earlier one gave already, so on backtracking each comes again -- for
+%% a recursion, at every level. An ERROR, one per predicate, at the first
+%% such clause, and it speaks for the predicate's split as well: no
+%% `discontiguous' warning beside it. A declaration of discontiguous does
+%% not excuse it. Over cicili-lang's library (9,476 clauses) it names the
+%% two its session found by hand, cpp_thunk_params/4 and cpp_param_types/2,
+%% and over cocolog's own libraries tr_cap_run/3, "two predicates under one
+%% name" -- and nothing else.
+
+flow_twice_finding(K, I, Own, Cls, Runs, J, f(defined_twice, error, At, In, Where, Text, [Prev])) :-
+    flow_twice_pair(Runs, Cls, I0, L0, J, L, How), !,
+    memberchk(panel(I, K, _, _, _, rows(Rows), _, _), Own),
+    memberchk(row(J, _, _, _, _, CI), Rows),
+    flow_panel_id(I, PId),
+    atomic_list_concat([PId, '.c', J], At),
+    atomic_list_concat([PId, '.c', I0], Prev),
+    flow_pred_atom(K, In),
+    flow_clause_where(CI, Where),
+    length(Runs, NR),
+    (   How == repeats
+    ->  format(atom(Text), '~w is defined twice: clause ~d (line ~d) repeats clause ~d (line ~d), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the second never answers first and every answer it gives comes again on backtracking -- keep one of them',
+               [In, J, L, I0, L0, NR])
+    ;   format(atom(Text), '~w is defined twice: clause ~d (line ~d) is covered by the fact at line ~d (clause ~d), and its clauses stand in ~d places; cocolog joins the two definitions into one predicate, so the clause never answers first and every answer it gives the fact gave already -- keep one of them',
+               [In, J, L, L0, I0, NR])
     ).
 
-%% every clause of the file in order, Line-Name/Arity, and the predicates
-%% it declares discontiguous
+%% a clause of a later place, and the earlier clause it repeats or the
+%% earlier fact that covers it: the first such in the file. The clauses are
+%% walked once, a place at a time: Seen maps the canonical form of every
+%% clause of the places before -- its variables numbered in order, so two
+%% clauses are the same up to renaming exactly when their forms are equal
+%% -- to its number and line, and Facts holds their facts with a variable
+%% in them (a ground fact covers only its own copy, which Seen finds). A
+%% fact table of thousands split in two is a walk, not a product.
+flow_twice_pair(Runs, Cls, I0, L0, J, L, How) :-
+    findall(S, member(run(S, _, _, _), Runs), [_|Starts]),
+    empty_assoc(Seen0),
+    flow_twice_walk(Cls, Starts, Seen0, [], [], I0, L0, J, L, How).
+
+flow_twice_walk([cl(N, L1, _, _, T)|Cls], Starts0, Seen0, Facts0, Pend0, I0, L0, J, L, How) :-
+    (   Starts0 = [S|Starts], N >= S
+    ->  flow_twice_commit(Pend0, Seen0, Seen, Facts0, Facts), Pend = []
+    ;   Starts = Starts0, Seen = Seen0, Facts = Facts0, Pend = Pend0
+    ),
+    flow_canon(T, Key),
+    (   get_assoc(Key, Seen, I1-L2)
+    ->  I0 = I1, L0 = L2, J = N, L = L1, How = repeats
+    ;   flow_clause_head(T, H),
+        member(f(I1, L2, H0), Facts), flow_subsumes(H0, H)
+    ->  I0 = I1, L0 = L2, J = N, L = L1, How = covers
+    ;   flow_twice_walk(Cls, Starts, Seen, Facts, [p(Key, N, L1, T)|Pend], I0, L0, J, L, How)
+    ).
+
+%% a place ends: its clauses join Seen, the first of each form kept
+flow_twice_commit(Pend, Seen0, Seen, Facts0, Facts) :-
+    reverse(Pend, Ps),
+    flow_twice_commit_(Ps, Seen0, Seen, Facts0, Facts).
+
+flow_twice_commit_([], Seen, Seen, Facts, Facts).
+flow_twice_commit_([p(Key, N, L, T)|Ps], Seen0, Seen, Facts0, Facts) :-
+    (   get_assoc(Key, Seen0, _) -> Seen1 = Seen0 ; put_assoc(Key, Seen0, N-L, Seen1) ),
+    (   flow_fact(T), \+ ground(T) -> append(Facts0, [f(N, L, T)], Facts1) ; Facts1 = Facts0 ),
+    flow_twice_commit_(Ps, Seen1, Seen, Facts1, Facts).
+
+flow_canon(T, Key) :-
+    copy_term(T, Key),
+    term_variables(Key, Vs),
+    flow_canon_vars(Vs, 0).
+
+flow_fact(T) :- \+ T = (_ :- _), \+ T = (_ --> _).
+
+flow_clause_head((H :- _), H) :- !.
+flow_clause_head((H --> _), H) :- !.
+flow_clause_head(H, H).
+
+%% G is at least as general as S: S's variables made distinct constants,
+%% and G still unifies with it
+flow_subsumes(G, S) :-
+    \+ \+ ( copy_term(S, S1), term_variables(S1, Vs), flow_canon_vars(Vs, 0),
+            copy_term(G, G1), G1 = S1 ).
+
+flow_canon_vars([], _).
+flow_canon_vars(['$VAR'(N)|Vs], N) :- N1 is N + 1, flow_canon_vars(Vs, N1).
+
+
+%% the places K's clauses stand: run(J, Line, Before, BLine), J its first
+%% clause there (counted from 1 in the file), Line its line, and the clause
+%% of another predicate just before it (none-0 at the top of the file): a
+%% place begins at each clause the one before which is another predicate's
+flow_disc_runs(K, Cls, Runs) :-
+    findall(run(N, L, B, BL), ( member(cl(N, L, B, BL, _), Cls), B \== K ), Runs).
+
+%% every clause of the file in order, c(Line, Name/Arity, Term), and the
+%% predicates it declares discontiguous
 flow_clause_seq(Src, Seq, Decl) :-
     open(Src, read, S),
     catch(flow_clause_seq_(S, Seq, Decl0), _, ( Seq = [], Decl0 = [] )),
@@ -788,7 +942,7 @@ flow_clause_seq_(S, Seq, Decl) :-
             ;   Decl = Decl1
             )
         ;   flow_clause_key(T, K)
-        ->  Seq = [Line-K|Seq1], Decl = Decl1
+        ->  Seq = [c(Line, K, T)|Seq1], Decl = Decl1
         ;   Seq = Seq1, Decl = Decl1
         ),
         flow_clause_seq_(S, Seq1, Decl1)

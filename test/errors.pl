@@ -59,7 +59,59 @@ main :-
     with_output_to_fails,
     list_cell_is_dot_2,
     data_under_a_builtin_name,
+    memory_refused,
     checks_done.
+
+%% ---- a refused allocation raises resource_error(memory) (1.10.28) -----------
+%%
+%% Through 1.10.27 a heap, a choice stack or a store that would not double
+%% ended the run with `out of memory', which nothing could catch, and a
+%% findall whose store would not grow went on for ever retrying it (with
+%% 2.5 minutes of system time in 3.3). Now a refused doubling is tried
+%% again smaller, and given, the run raises error(resource_error(memory), _)
+%% at its next step, with room left to unwind and recover in. Each fixture
+%% runs in a child under a 600 MB address-space ceiling, which this process
+%% must not share, and a CPU ceiling for the build that would spin. macOS
+%% does not enforce `ulimit -v'.
+memory_refused :-
+    section('a refused allocation raises resource_error(memory), catchably'),
+    shell('uname -s', Sys, _),
+    (   Sys == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   scratch(D),
+        atom_concat(D, '/heap.pl', Heap),
+        fixture(Heap, ['big(N, [N|T]) :- N1 is N+1, big(N1, T).',
+                       'main :- catch((big(0, L), length(L, _)), error(F, _), true), write(caught(F)), nl,',
+                       '        numlist(1, 1000, L2), sum_list(L2, S), write(after(S)), nl.']),
+        atom_concat(D, '/choice.pl', Choice),
+        fixture(Choice, ['deep(N) :- N1 is N+1, ( deep(N1) ; true ).',
+                         'main :- catch(deep(0), error(F, _), true), write(caught(F)), nl,',
+                         '        atom_length(hello, Len), write(after(Len)), nl.']),
+        atom_concat(D, '/findall.pl', Fa),
+        fixture(Fa, ['main :- catch(findall(X-[a,b,c,d], between(1, 1000000000, X), _), error(F, _), true),',
+                     '        write(caught(F)), nl, findall(Y, between(1, 3, Y), Ys), write(after(Ys)), nl.']),
+        atom_concat(D, '/uncaught.pl', Un),
+        fixture(Un, ['big(N, [N|T]) :- N1 is N+1, big(N1, T).',
+                     'main :- big(0, L), length(L, _).']),
+        cocolog(C),
+        mem_child(C, Heap, T1, _),
+        check('a heap that would not double: caught, and the run goes on', T1,
+              'caught(resource_error(memory))\nafter(500500)'),
+        mem_child(C, Choice, T2, _),
+        check('a choice stack that would not double: caught, and the run goes on', T2,
+              'caught(resource_error(memory))\nafter(5)'),
+        mem_child(C, Fa, T3, _),
+        check('a findall whose store would not double: caught, not retried for ever', T3,
+              'caught(resource_error(memory))\nafter([1,2,3])'),
+        mem_child(C, Un, T4, X4),
+        yes_no(sub_atom(T4, 0, _, _, 'ERROR: -s main: Not enough resources: memory'), V4),
+        check('uncaught, it is SWI\'s sentence', V4, yes),
+        check('and the exit status of an error', X4, 2)
+    ).
+
+mem_child(C, File, Text, Exit) :-
+    sh_join(['ulimit -v 600000; ulimit -t 60; ', C, ' -s ', File, ' 2>&1'], Cmd),
+    shell(Cmd, Text, Exit, 120000).
 
 %% ---- what assert keeps, and what it refuses ---------------------------------
 %%

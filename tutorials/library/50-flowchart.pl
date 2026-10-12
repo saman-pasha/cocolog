@@ -10,7 +10,10 @@
 %%
 %%     flow_chart(+Spec, +Base)             Base.svg and Base.xml
 %%     flow_chart(+Spec, +Base, +Options)   source(File), title(T), libraries(none|reach|all),
-%%                                          depth(D), only(Preds) -- these two for the picture
+%%                                          depth(D), only(Preds) -- these two for the picture,
+%%                                          load(Files) -- a program's other files, loaded
+%%                                          first -- and progress(S): a line on stderr every
+%%                                          S seconds of a long chart
 %%     flow_graph(+Spec, -Graph, +Options)  the analysis as a term
 %%     flow_findings(+Graph, -Findings)     what is wrong, and where
 %%     flow_svg(+Graph, -Svg)   flow_xml(+Graph, -Xml)      the documents as terms
@@ -35,7 +38,8 @@
 %% IT FINDS WHAT IS WRONG, AND WHERE: a call nothing answers, a call the
 %% engine refuses with an argument unbound on every path to it, a predicate
 %% that calls itself again first with nothing gained, a clause never tried,
-%% a `%! p(...) is det' the code does not keep -- each a numbered red disc
+%% a `%! p(...) is det' the code does not keep, a predicate's clauses apart
+%% in the file or defined twice -- each a numbered red disc
 %% on its box, a line under the chart, a <finding> at the head of the XML,
 %% and a line from tools/flow/chart.pl as a compiler writes one.
 %%
@@ -164,10 +168,46 @@ main :-
          'length(Ws, N)  --  library(lists), det'),
 
     apart(Dir),
+    twice(Dir),
     threads(Dir),
     asking(Dir),
 
     format("~ndone~n").
+
+%% DEFINED TWICE, AND A PROGRAM OF SEVERAL FILES. A later place that defines
+%% a predicate again -- a clause repeating one of an earlier place's, or a
+%% head an earlier fact covers -- is an error where clauses merely apart are
+%% a warning: the second definition never answers first, and every answer it
+%% gives comes again on backtracking. And a file of a program is charted
+%% with the files the program loads beside it, load(Files): a call into a
+%% sibling is then a library's box, not an unknown procedure.
+twice(Dir) :-
+    format("~n-- defined twice, and a program of several files~n"),
+    atom_concat(Dir, '/twice.pl', Prog),
+    open(Prog, write, W),
+    forall(member(L, [ 'len([], 0).',
+                       'len([_|T], N) :- len(T, M), N is M + 1.',
+                       '',
+                       'show(N) :- format("~w~n", [N]).',
+                       'len([], 0).' ]),
+           format(W, "~w~n", [L])),
+    close(W),
+    flow_graph(len('+', '-'), G, [source(Prog)]),
+    flow_findings(G, Fs),
+    findall(K-In, member(finding(_, K, _, _, In, _, _, _), Fs), KIs),
+    must('len/2''s third clause repeats its first: defined twice, an error', KIs,
+         [defined_twice-'len/2']),
+    atom_concat(Dir, '/helper.pl', Helper),
+    atom_concat(Dir, '/user.pl', User),
+    open(Helper, write, WH), format(WH, "double(X, Y) :- Y is X * 2.~n", []), close(WH),
+    open(User, write, WU), format(WU, "quad(X, Y) :- double(X, Z), Y is Z * 2.~n", []), close(WU),
+    flow_graph(quad('+', '-'), G1, [source(User)]),
+    flow_findings(G1, Fs1),
+    findall(K1, member(finding(_, K1, _, _, _, _, _, _), Fs1), Ks1),
+    must('user.pl read alone: double/2 is nobody''s', Ks1, [unknown_procedure]),
+    flow_graph(quad('+', '-'), G2, [source(User), load([Helper])]),
+    flow_findings(G2, Fs2),
+    must('with load([Helper]): double/2 is defined, and nothing is wrong', Fs2, []).
 
 %% CLAUSES NOT TOGETHER. cocolog joins the clauses of a predicate wherever
 %% they stand in the file, without a word (SWI warns at load), so a clause

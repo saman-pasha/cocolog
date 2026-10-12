@@ -737,6 +737,13 @@
     ;; not want the library back -- while `listing(Name)' still shows them,
     ;; because asking for one by name is asking about it specifically.
     (member int      library)
+    ;; ...UNLESS THE MODULE IS A FILE OF THE PROGRAM'S OWN (1.10.28): `-s
+    ;; FILE', ensure_loaded/1 and use_module/1 of a path load the program
+    ;; as a module, muted like a library's and `library' for the pre-warm,
+    ;; and `listing/0', current_predicate/1 and predicate_property/2 count
+    ;; it as the program's, as SWI does. Through 1.10.27 they did not
+    ;; (reported from cicili-lang).
+    (member int      own)
 
     ;; ---- first-argument indexing ------------------------------------
     ;;
@@ -1025,8 +1032,14 @@
     ;; Non-zero while the store is being filled from something that is not the
     ;; knowledge base -- a module's clauses. See `coco_store_mute'.
     (member int       muted)
+    ;; AND 1 WHILE THAT MODULE IS A FILE OF THE PROGRAM'S OWN, loaded by
+    ;; its path (`-s', ensure_loaded/1, use_module/1 of a file), not a
+    ;; library: its predicates are marked `own' (1.10.28).
+    (member int       ownload)
 
-    (member int       oom))
+    (member int       oom)
+    ;; a growth given less than it asked (`coco_store_grow', 1.10.28)
+    (member int       memreq))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -1736,6 +1749,12 @@
         (if (!= (-> gs lines) nil) (free (cast (void *) (-> gs lines))))
         (memset gs 0 (sizeof coco_initgoals)))
 
+  ;;; A doubling refused is tried again with what is needed and a
+  ;;; sixteenth, and given, sets `memreq': the next `coco_store_put', which
+  ;;; knows the machine, stops the running engine with it, and its next
+  ;;; step raises resource_error(memory) (1.10.28, as `coco_grow_short'
+  ;;; does for the machine's arrays). Refused too, `oom', as before -- and a
+  ;;; push that answers 0 writes over cell 0, which this makes rare.
   (static)
   (func coco_store_grow ((coco_store * st) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
@@ -1744,10 +1763,21 @@
               (void * nbuf))
           (while (< ncap need) (set ncap (* ncap 2)))
           (set nbuf (realloc (cof buf) (* ncap esize)))
-          (if (== nbuf nil) (block (set (-> st oom) 1) (return 0)))
+          (if (== nbuf nil)
+              (block
+                (set ncap (+ need (+ (/ need 16) 64)))
+                (set nbuf (realloc (cof buf) (* ncap esize)))
+                (if (== nbuf nil) (block (set (-> st oom) 1) (return 0)))
+                (set (-> st memreq) 1)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
           (return 1)))
+
+  ;;; `memreq' handed to the engine the machine is running (`haltp')
+  (func coco_store_memreq ((coco_store * st) (coco_machine * m))
+        (set (-> st memreq) 0)
+        (if (!= (-> m haltp) nil)
+            (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 2))))
 
   ;;; Each store made gets the next serial; a thread making one while
   ;;; another does may draw the same number, and the cache that reads it
@@ -1964,8 +1994,9 @@
               (size_t r . 0))
           (set (-> m wceil) (+ base (+ (* (-> m heap_len) 2) 64)))
           (set r (coco_store_put_walk st m t))
-          (if (!= (-> m wceil) 0) (return r))
-          (return (coco_store_put_over st m t base))))
+          (if (== (-> m wceil) 0) (set r (coco_store_put_over st m t base)))
+          (if (-> st memreq) (coco_store_memreq st m))
+          (return r)))
 
   ;;; The store's own dereference: a reserved argument slot is a REF to
   ;;; where the argument was put, and an unbound store variable points at
@@ -5997,6 +6028,7 @@
             (if (and (coco_store_is_muted st) (not ($ (nth pi (-> st preds)) library)))
                 (block
                   (set ($ (nth pi (-> st preds)) library) 1)
+                  (set ($ (nth pi (-> st preds)) own) (-> st ownload))
                   ;; AND THE PRE-WARM ANSWERS FOR IT. `loaded' stays 0 here
                   ;; otherwise -- the comment above says why -- but when the
                   ;; process has already asked the backend about this exact

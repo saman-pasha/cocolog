@@ -1,0 +1,37 @@
+#!/bin/sh
+# SBCL WITH ROOM TO TRANSPILE COCOLOG. Every build here runs `sbcl --script
+# cicili.lisp ...' by name -- the Makefile's $(SBCL), embed/build.sh, every
+# modules/*/build.sh, test/run.pl's .cicili cases -- and each puts this
+# directory first on PATH (env.sh, the Makefile's Cicili step, run.pl), so
+# `sbcl' there is this file.
+#
+# Debian's and Ubuntu's SBCL 2.2.9 starts with a 1 GB dynamic space, and the
+# transpile of cocolog.cicili does not fit in it: "Heap exhausted during
+# garbage collection ... GC invariant lost", midway, in COMPILE-ATOM <
+# COMPILE-ARGS < COMPILE-CALL < COMPILE-SIZEOF. A plain `make' stopped there,
+# and so did every script that ran one (reported from cicili-lang, Ubuntu
+# 24.04). So the real sbcl is handed a dynamic space of 4096 MB whenever its
+# own default is smaller and the caller named none; a default that is
+# already larger is left alone. The size is reserved, not taken: SBCL maps
+# it and touches only what it uses.
+#
+#   COCO_SBCL_HEAP=N    the size to give, in MB (4096)
+#   --dynamic-space-size on the command line is obeyed as written
+#
+# THE REAL sbcl IS LOOKED UP WITHOUT THIS DIRECTORY, AND RUN WITH IT. Unlike
+# ./clang, this shim must leave PATH as it found it: the Cicili inside the
+# sbcl compiles by naming `gcc', and only this directory's ./gcc makes that
+# clang. A first version took the directory off PATH for the sbcl too, and
+# that build's objects said `GCC: (Ubuntu 13.3.0...)' in .comment.
+here=$(cd "$(dirname "$0")" && pwd)
+real=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$here" | paste -sd: -); command -v sbcl)
+[ -n "$real" ] || { echo "tools/cc/sbcl: no sbcl on PATH besides this shim" >&2; exit 127; }
+want=${COCO_SBCL_HEAP:-4096}
+for a in "$@"; do
+  case "$a" in --dynamic-space-size|--dynamic-space-size=*) exec "$real" "$@" ;; esac
+done
+have=$("$real" --noinform --no-sysinit --no-userinit --non-interactive \
+         --eval '(progn (princ (floor (sb-ext:dynamic-space-size) 1048576)) (terpri))' 2>/dev/null)
+case "$have" in ''|*[!0-9]*) have=0 ;; esac
+[ "$have" -lt "$want" ] && exec "$real" --dynamic-space-size "$want" "$@"
+exec "$real" "$@"

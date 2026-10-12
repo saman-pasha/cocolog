@@ -164,7 +164,11 @@
     ;; the Coco half: clauses as text, consulted once per session
     (member const char * prolog)
     ;; run once per session, before the Coco half is consulted
-    (member func init ((coco_engine * e)) (out int)))
+    (member func init ((coco_engine * e)) (out int))
+    ;; a file of the program's own, loaded by its path rather than as a
+    ;; library (`coco_module_set_own'): its predicates are the program's
+    ;; to current_predicate/1, listing/0 and predicate_property/2 (1.10.28)
+    (member int own))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -195,6 +199,10 @@
   ;;; a library that is already in the registry -- linked into the build or
   ;;; loaded earlier -- needs no file found for it.
   (decl) (func coco_module_find ((const char * name)) (out const coco_module *))
+
+  ;;; Marks the module NAME as a file of the program's own (`own'), which
+  ;;; `use_module' does for a path it loads (lib/library.cicili).
+  (decl) (func coco_module_set_own ((const char * name)))
 
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
@@ -479,6 +487,9 @@
   ;;; Path)', and a module reading a file should say exactly that
   (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action)
                                       (const char * type) (size_t culprit)) (out int))
+  ;;; resource_error(Resource): "memory" when an allocation was refused
+  ;;; (1.10.28), as the engine raises it for its own
+  (decl) (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int))
 
   ;;; For what SWI has no error for and cocolog does: a condition of this
   ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
@@ -625,9 +636,14 @@
                    (if (!= (-> mod init) nil)
                        (if (not ((-> mod init) e)) (set ok 0)))
                    (if (and (== ok 1) (!= (-> mod prolog) nil))
-                       (let ((int cr . 0))
+                       (let ((int cr . 0) (int ow . #'(-> st ownload)))
                          (set (-> m dgc) vouch)
+                         ;; a file of the program's own marks its
+                         ;; predicates so (`own', lib/kb.cicili); put back
+                         ;; after, for a load a directive started inside one
+                         (set (-> st ownload) (-> mod own))
                          (set cr (coco_consult st m (-> mod prolog) (-> mod name) err (sizeof err)))
+                         (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
                          (if (< cr 0) (set ok 0))))
                    (if (and (== ok 0) (== (-> st libs) (+ i 1)))
@@ -699,6 +715,12 @@
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (return (aof (nth i coco_modules)))))
         (return nil))
+
+  (func coco_module_set_own ((const char * name))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) own) 1))))
 
   ;;; ---- the author's API -----------------------------------------------
 
@@ -1118,6 +1140,10 @@
           (set (nth 1 args) (coco_new_atom m type))
           (set (nth 2 args) culprit)
           (return (coco_m_raise e (coco_make m "permission_error" 3 args)))))
+
+  (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_m_raise e (coco_make1 m "resource_error" (coco_new_atom m resource))))))
 
   (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (char msg [192]))

@@ -497,7 +497,11 @@
 
           (if (== kind 1)
               (block (if (not (lb_load_so path err errlen)) (return 0)))
-            (block (if (not (lb_load_pl path name err errlen)) (return 0))))
+            (block (if (not (lb_load_pl path name err errlen)) (return 0))
+                   ;; a file named by its path is the program's own, not a
+                   ;; library: its predicates are counted as the program's
+                   ;; (1.10.28, `own' in lib/kb.cicili)
+                   (if (not is_lib) (coco_module_set_own name))))
 
           ;; its operators, for the rest of the file being read
           (let ((const coco_module * mod . #'(coco_module_find name)))
