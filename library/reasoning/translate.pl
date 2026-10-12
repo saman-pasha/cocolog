@@ -938,7 +938,13 @@ tr_article_word(foreign, W) :-
     tr_determiner(foreign, w(A, lower), _, article), !.
 
 %% the capitalised words after a name's first, a word with a digit ending
-%% them, and a small word only between two of them
+%% them, and a small word only between two of them: the FIRST answer. For a
+%% caller that needs more -- a run that is not empty, a word in it that no
+%% lesson knows -- backtracking goes on past the word that ended the run, over
+%% every capitalised word from there (the last clause): `con Marco Tg24
+%% Tornaboni' is one name, where the first answer is empty because `Tg24'
+%% ends it. These were two definitions 7 000 lines apart, and the second's
+%% last clause repeated the first's, so that every answer came twice.
 tr_cap_run([w(S, upper), W|Ws0], [w(S, upper)|Run], Ws) :-
     memberchk(S, [di, de, da, del, van, von, du, der]), W = w(_, upper), \+ tr_digit_word(W), !,
     tr_cap_run([W|Ws0], Run, Ws).
@@ -946,6 +952,7 @@ tr_cap_run([W|Ws0], [W|Run], Ws) :-
     W = w(S, upper), \+ memberchk(S, [di, de, da, del, van, von, du, der]), \+ tr_digit_word(W), !,
     tr_cap_run(Ws0, Run, Ws).
 tr_cap_run(Ws, [], Ws).
+tr_cap_run([w(W, upper)|Ws], [w(W, upper)|Run], Rest) :- !, tr_cap_run(Ws, Run, Rest).
 
 %% A MONTH IS WRITTEN SMALL IN BOTH LANGUAGES, and a capital on one is the
 %% writer's slip, not a name: `un mes de Febrero muy apretado' came out
@@ -8164,10 +8171,6 @@ tr_adjective_before_of(Side, PW, [R, P|_]) :-
     R = w(_, _), P = w(_, _), PW \== [],
     tr_means_of(Side, P), tr_is(Side, R, adjective),
     last(PW, N), N = w(_, _), tr_is(Side, N, noun), tr_aside_agrees(N, R).
-
-%% the longest run of capitalised words at the head of a word list
-tr_cap_run([w(W, upper)|Ws], [w(W, upper)|Run], Rest) :- !, tr_cap_run(Ws, Run, Rest).
-tr_cap_run(Ws, [], Ws).
 
 fo_phrase_starts(w(W, upper)) :- \+ tr_known_word(foreign, W), !.
 fo_phrase_starts(R) :- ( tr_determiner(foreign, R, _, _) ; tr_is(foreign, R, preposition) ; tr_subject_pronoun(foreign, R, _, _) ), !.

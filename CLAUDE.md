@@ -666,8 +666,8 @@ cocolint index offers no import of it.
   that predicate. library(flow/chart) names each such predicate it charts
   (the `discontiguous` finding, 1.10.27), and as an error one DEFINED TWICE
   -- a clause that repeats an earlier run's, or a head an earlier run's
-  fact covers (`defined_twice`, 1.10.28): the translator has 38 and one,
-  `tr_cap_run/3`. The flow chart takes `load(Files)` for a program's other
+  fact covers (`defined_twice`, 1.10.28): the translator has 38 and none
+  (`tr_cap_run/3` was the one, until 1.11.1). The flow chart takes `load(Files)` for a program's other
   files, whose predicates then count as defined (`load=` on
   tools/flow/chart.pl), and `progress(S)` (stderr, every S seconds, 10 from
   the command).
@@ -1430,9 +1430,8 @@ read into an English-worded IR and written into any lesson's language),
   puts after EVERY preposition (`en el que` was `en quienes`, in 19 sentences
   of the data column); the dictionary's own word is said again first, and a
   line that a reader needs and a writer must not use stays unsaid.
-* **Open leads, recorded and not done**: `tr_cap_run/3` is two predicates
-  under one name; the builder calls a noun a person only by its first English
-  word; the upstream verb table
+* **Open leads, recorded and not done**: the builder calls a noun a person
+  only by its first English word; the upstream verb table
   has `scaping`/`leaved`; `No comas el pan.` reads the subjunctive before the
   negative imperative; `pronto` after a verb crosses as `immediate`; `ir a`
   and an infinitive is the near future and reads as a verb of motion, with

@@ -23,7 +23,7 @@
 main :-
     lesson, into_spanish, into_english, plurals, negation, asks, past,
     persons, future, perfect, phrases, wh, languages, ir, elision, clauses, passive, reflexive, reduced, purpose,
-    complement, superlative, inversion, headline, subordinate, names, imperatives,
+    complement, superlative, inversion, headline, subordinate, names, cap_runs, imperatives,
     adjuncts, newspaper_es, newspaper_it, newspaper_fiat, newspaper_valencia, newspaper_bio, newspaper_football,
     newspaper_monreale, newspaper_record, newspaper_islands, newspaper_opera, newspaper_ferlaino,
     newspaper_georgia, newspaper_wapo, newspaper_clinton, newspaper_letter, newspaper_solana,
@@ -1793,6 +1793,29 @@ Every adjective follows the noun.', spanish, _),
           'Maria dominates.'),
 
     reason_unlearn(italian), reason_unlearn(spanish).
+
+% ---- the run of capitalised words a name is read from ---------------------------------
+% tr_cap_run/3 is ONE predicate. Its first answer is the run a name has -- the
+% capitalised words after a name's first, a word with a digit ending them, a
+% small word only between two of them -- and backtracking goes on past the word
+% that ended it, over every capitalised word from there, for a caller that needs
+% a run that is not empty. It was two definitions 7 000 lines apart (the chart's
+% defined_twice), the second's last clause repeating the first's, so that every
+% answer came twice.
+cap_runs :-
+    section('the run of capitalised words a name is read from: one predicate, each answer once'),
+    findall(R1, tr_cap_run([w(maria, upper), w(rossi, upper), w(a, lower)], R1, _), Rs1),
+    check('a run of capitalised words is answered ONCE: the last clause was written twice, and it came twice', Rs1,
+          [[w(maria, upper), w(rossi, upper)]]),
+    findall(R2, tr_cap_run([w(ex, upper), w(von, upper), w(szerdahely, upper)], R2, _), Rs2),
+    check('... a small word between two capitalised words stays in it, and still the run is answered once', Rs2,
+          [[w(ex, upper), w(von, upper), w(szerdahely, upper)]]),
+    findall(R3, tr_cap_run([w(marco, upper), w(tg24, upper), w(tornaboni, upper)], R3, _), Rs3),
+    check('... a word with a digit ends it, and backtracking goes on over every capitalised word after that', Rs3,
+          [[w(marco, upper)], [w(marco, upper), w(tg24, upper), w(tornaboni, upper)]]),
+    findall(R4, tr_cap_run([w(marco, upper), w(di, upper), w(a, lower)], R4, _), Rs4),
+    check('... and so is a small word with no capitalised word after it', Rs4,
+          [[w(marco, upper)], [w(marco, upper), w(di, upper)]]).
 
 % ---- the imperative ------------------------------------------------------------------
 % An imperative has no subject and names one anyway -- the person spoken to --
@@ -6552,7 +6575,11 @@ newspaper_puigbo_checks_1 :-
     %% a name after a noun in small letters
     nf_tr('El perro duerme en la cadena de radio Ona Catalana.', spanish, italian, P7),
     check('a name of several words after a noun in small letters is the noun''s name, where `catalana'' is an adjective too and the phrase had no reading', P7,
-          'Il cane dorme nella catena di radio Ona Catalana.').
+          'Il cane dorme nella catena di radio Ona Catalana.'),
+    %% a name that a word with a digit seems to end
+    nf_tr('El perro duerme con Catalana Tg24 Tornaboni.', spanish, italian, P8),
+    check('a word with a digit after a name does not split it from the words that follow: the first run is empty, and backtracking widens it (tr_cap_run/3)', P8,
+          'Il cane dorme con Catalana Tg24 Tornaboni.').
 
 newspaper_puigbo_checks_2 :-
     %% a second aside
