@@ -634,6 +634,7 @@ the SVG give it, and says in a sentence what will happen there:
 | `left_recursion` | error | a predicate whose first call reaches itself again with the inputs it was given -- through others too, `ping/1 -> pong/1 -> ping/1` -- so the search for its answers never ends; a grammar rule that calls itself before reading any input is named as the nonterminal, `xs//0`. With nothing bound it is one only when no clause can succeed: `size(L, N)` of free `L` and `N` is a generator, as `length/2` is |
 | `unreachable_clause` | warning | an earlier clause's head matches every call of this pattern and every goal before its cut succeeds, so the clauses after it are never tried |
 | `det_promise` | warning | a `%! p(...) is det` (or `semidet`) comment, for the call patterns its modes cover, against what the analysis infers -- and the goal that breaks it: `when phrase(ws(Ws), Text) fails, so does the whole call` |
+| `discontiguous` | warning | (1.10.27) the clauses of a predicate the chart has a panel for stand in more than one place in the file and no `:- discontiguous` declares it: cocolog joins them without a word, so a clause given a name already taken joins that predicate. One finding a predicate, at the first clause that stands apart, naming the clause of another predicate before it |
 
 **The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
 says which builtins raise when given which arguments unbound, 58 rows, each
@@ -1052,6 +1053,66 @@ the last failure and the failures it came from.
   library. Per function the untraced engine runs the same instructions as
   1.10.15's on nrev, queens and lookup.
 
+**After D4: what debugging the translator asked for** (1.10.24-1.10.26),
+from a session that used the library on `library/reasoning/translate.pl`:
+
+* **A cut that is followed by a failure**: the tracer printed no Fail for a
+  call whose clause cut and then failed (the cut took the frame the Fail is
+  printed from), and a Redo failed calls it was not inside. A traced cut
+  now keeps its own call's frame as SPENT, and a Redo opens only the calls
+  it is inside (1.10.24, TRACING.md); each `<event port="redo">` says
+  whether its call had exited (1.10.25).
+* **The run as text** (`txt(true)`, `library/flow/dbgtext.pl`): Base.txt,
+  a line a call -- its inference, the goal at its Call, how it ended, the
+  clauses it entered and the heads that did not unify, its box, and where
+  the box is written.
+* **The chart kept** (`cache(Dir)`): the translator's chart took 52 of a
+  run's 57 seconds and 26 MB of its XML, and is the same for every run of
+  one program. It is built once for a call pattern of a file and a cocolog
+  version and kept as KEY.chart (the graph, a term a part: one term of the
+  whole graph read slower than building it) and KEY.xml; KEY.chart names
+  each file it holds a clause of with its sha256, and a changed file builds
+  it again. The run's XML is then its `<run>` alone, under a root naming
+  KEY.xml: on the translator a hit takes 4.6 s, and the run's XML 54 KB.
+* **Over a store** (`embed(Dir)`, `kb(Name)`): each child runs `cocolog
+  --embed Dir [--kb Name] query`, the file loaded as `-s` loads it -- its
+  clauses never written through -- where `run` would consult them into the
+  store.
+* **What it found**: `term_to_atom(T, '''''')` ended the process -- the
+  reader copied the terminator of a token buffer nothing had been put in
+  (section 11) -- and the translator's run met it in the text of an argument
+  `atomic_list_concat/3` exited with.
+* **Two runs compared** (`flow_diff/3`, `library/flow/dbgdiff.pl`, 1.10.27;
+  `diff=FILE`, `diff_goal=GOAL`): the session's regression hunt, ported from
+  its script. An INPUT is a predicate and its arguments' text at its Call,
+  each `_G` name read as `_`; the inputs both runs called whose answers (the
+  last Exit's arguments, or how the call ended) differ, deepest first --
+  the first is where the difference began -- and the predicates only one
+  run called. The first differing CALL is no use: a memoisation change made
+  the session's first one.
+* **Where the inferences went** (`profile(P)`, `library/flow/dbgprof.pl`,
+  1.10.27; `profile=true`): a call is charged from its Call to its FIRST
+  Exit or Fail (its last end charges it with the continuation a Redo comes
+  back over: the session's first profile added to over 100 %), a call with
+  neither up to the last inference under it, and a predicate with the union
+  of its calls' spans, so a recursion is counted once.
+* **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
+  the why of a reader that backtracks is the whole trace (2.84 MB for one
+  refusal), and following its last failure down leads to the last
+  fallback (`tr_byline/3`), not the cause. At each failed call the clause
+  whose body got the most calls done, then the most inferences spent, then
+  the earlier -- in the XML's `<furthest>`, at the foot of Base.txt and
+  above the why on the picture.
+* **Clauses not together** (`library(flow/chart)`'s finding
+  `discontiguous`, 1.10.27): cocolog joins a predicate's clauses wherever
+  they stand, without a word (SWI warns), so a helper given a name already
+  taken joins that predicate. The file is read again for each clause's line
+  and predicate (0.1 s over the translator's 3485) and its `:- discontiguous`
+  declarations; a predicate with a panel whose clauses stand in more than
+  one place has one finding, at the first clause that stands apart. The
+  translator has 39, the number the session counted from the XML's clause
+  lines.
+
 ## 10. Phases
 
 | phase | delivers | engine change | lands |
@@ -1067,6 +1128,16 @@ the last failure and the failures it came from.
 | D4 | questions over the inference clock: the first inference where something holds, why a goal failed | none | proposes a minor |
 
 ## 11. Engine findings on the way
+
+* **Fixed in 1.10.26: reading the empty atom `''` as the first token of a
+  reader ended the process** (`term_to_atom(T, '''''')`, SIGSEGV). The
+  reader's token buffer is allocated by the first character put in it, and
+  `''` puts none: `coco_tok_name` copied its terminator from a nil pointer.
+  A reader that has read anything else first has a buffer, which is why a
+  consult never met it. library(flow/debug) reads every argument text a
+  window wrote back with `term_to_atom/2`, and a call that exited with `''`
+  -- `atomic_list_concat([], ' ', S)` in the translator -- ended the run's
+  drawing. `test/syntax.cicili` reads `''` first.
 
 * **Fixed in 1.10.6: `format/2`'s `~a` and `~s` copied their text through an
   8192-byte buffer**, and so did the format itself and `term_to_atom/2`

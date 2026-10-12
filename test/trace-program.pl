@@ -42,3 +42,25 @@ len3(X) :- ( atom(X) -> atom_length(X, N), N > 2 ; fail ).
 %% the same kinds and `=/2', reached from an environment written untraced
 %% and taken traced (trace.pl's `env_late')
 lb(X, N) :- trace, ( X = abc -> atom_length(X, N) ; N = 0 ), N > 2.
+
+%% A CALL WHOSE CLAUSE CUTS AND THEN FAILS (1.10.24): its Fail comes from
+%% the frame its cut kept. Through 1.10.22 the cut took the frame and the
+%% call ended with no Fail -- and with no end at all in a window, the
+%% `fate="open"' of library(flow/debug). Cut and then fail; cut on a
+%% guard; cut, then a call redone inside the body; cut, then a disjunction
+%% redone; one such call inside another.
+cutfail :- !, fail.
+cpos(X) :- X > 0, !, fail.
+cpos(_).
+cmem(X) :- !, memb(X, [1,2]).
+cor(X) :- !, ( X = a ; X = b ), X == b.
+cin(X) :- cpos(X).
+
+%% A REDO OPENS THE CALLS IT IS INSIDE, and only those: `det0' and `cut0'
+%% exited before `memb/2' was called, and SWI fails neither when the
+%% failure crosses them. Through 1.10.22 every shallower frame below a
+%% redo was opened again, and `det0' was failed.
+det0.
+cut0 :- !.
+sib :- det0, memb(X, [1,2]), X > 5.
+csib :- cut0, memb(X, [1,2]), X > 5.

@@ -1267,10 +1267,17 @@
   ;;; and anything longer goes to *HEAP, which grows to fit and which the caller
   ;;; frees ONCE at the end. Answers the pointer to use, or nil if the
   ;;; allocation failed.
+  ;;;
+  ;;; A reader that has read nothing but `''' has put no character in its
+  ;;; buffer, which is then still unallocated: `term_to_atom(T, '''''')' copied
+  ;;; the terminator from a nil pointer and ended the process (through
+  ;;; 1.10.25; library(flow/debug) met it in an argument a call exited with).
   (static)
   (func coco_tok_name ((coco_reader * r) (char * small) (size_t cap)
                        (char ** heap) (size_t * hcap)) (out char *)
         (let ((size_t n . #'($ (-> r text) len)))
+          (if (== ($ (-> r text) s) nil)
+              (block (set (nth 0 small) (cast char 0)) (return small)))
           (if (< n cap)
               (block (memcpy small ($ (-> r text) s) (+ n 1)) (return small)))
           (if (<= (cof hcap) n)

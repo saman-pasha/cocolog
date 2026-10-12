@@ -104,7 +104,8 @@
 %% engine refuses with an argument free on every path to it; a predicate
 %% whose first call reaches itself again with the inputs it was given, for
 %% a grammar before reading anything; a clause never tried; a `%! p(...)
-%% is det' the code does not keep. Each is about one id, a red disc on its
+%% is det' the code does not keep; a predicate whose clauses are not
+%% together in the file (1.10.27). Each is about one id, a red disc on its
 %% box in the picture, an element at the head of the XML, a line from
 %% tools/flow/chart.pl as a compiler writes one:
 %%
