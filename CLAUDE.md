@@ -513,8 +513,8 @@ much later.
   `(-> (coco_m_machine e) heap_len)`, and through a function pointer (a
   variable, a member, a table of them) or a C++ method since 2.0.2; through
   2.0.0 that was `pointer storage not found`, and
-  `($ (cof (coco_m_machine e)) heap_len)` the way round it
-  (`lib/builtins.cicili` still writes it twice). A callee whose type Cicili
+  `($ (cof (coco_m_machine e)) heap_len)` the way round it (the tree's
+  last two went in 1.10.21). A callee whose type Cicili
   cannot resolve -- a type known only by a `@define` -- still has none:
   dereference it.
 * **`../cicili/lib/std/c/posix/` already declares the POSIX structs**; what
