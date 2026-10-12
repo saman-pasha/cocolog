@@ -89,10 +89,11 @@ $ cocolog -s tools/flow/debug.pl -- 'find(z, V)' test/flowdebug/run.pl /tmp/find
 find(z, V): false at inference 7; recorded 1 to 7; diverged no
 $ cat /tmp/find.txt
 % find(z, V): false at inference 7; recorded 1 to 7; diverged no; 7 calls
+% file: test/flowdebug/run.pl
 1 find(z,_G6) fail [c1] query.g1
-2   lookup(z,_G6) fail [c1] p1.c1.g1 test/flowdebug/run.pl:35:15
-3     pairs(_G159) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 test/flowdebug/run.pl:37:17
-4     member(z-_G6,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 test/flowdebug/run.pl:37:28
+2   lookup(z,_G6) fail [c1] p1.c1.g1 :35:15
+3     pairs(_G159) exit pairs([a-1,b-2,c-3]) [c1] p2.c1.g1 :37:17
+4     member(z-_G6,[a-1,b-2,c-3]) fail [h1 c2] p2.c1.g2 :37:28
 5       member(z-_G6,[b-2,c-3]) fail [h1 c2] -
 6         member(z-_G6,[c-3]) fail [h1 c2] -
 7           member(z-_G6,[]) fail [h1 h2] -

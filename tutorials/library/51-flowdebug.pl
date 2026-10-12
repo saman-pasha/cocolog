@@ -119,21 +119,23 @@ main :-
     %% txt(true) writes Base.txt beside the two -- the cheapest view of a
     %% run: each call's inference, the goal at its Call, how it ended, the
     %% clauses it entered (c2) and the heads that did not unify (h1), its
-    %% box, and where that box is written
+    %% box, and where that box is written: :LINE:COL in the file the second
+    %% line names once
     flow_debug(G, Base, [source(Prog), names(['T'=T]), txt(true)], _),
     atom_concat(Base, '.txt', Txt),
     read_file_to_codes(Txt, TC),
     atom_codes(TA, TC),
     format("~w", [TA]),
-    atomic_list_concat([Head|TLs], '\n', TA),
+    atomic_list_concat([Head, FileLine|TLs], '\n', TA),
     must('the first line says how the run ended', Head,
          '% basket_total([apple, banana, pear], T): false at inference 4; recorded 1 to 4; diverged no; 4 calls'),
+    atom_concat('% file: ', Dir, FL0), atom_concat(FL0, '/basket.pl', FL),
+    must('the second names the file every place below is in', FileLine, FL),
     nth1(4, TLs, Fourth),
     atomic_list_concat(Fields, ' ', Fourth),
     append(_, [Fate, H1, H2, Box4, Where], Fields),
-    atom_concat(Dir, '/basket.pl:3:28', Here),
-    must('the fourth call: price/2 failed, neither head unified, the first goal of basket_total''s second clause, written here',
-         [Fate, H1, H2, Box4, Where], [fail, '[h1', 'h2]', 'p1.c2.g1', Here]),
+    must('the fourth call: price/2 failed, neither head unified, the first goal of basket_total''s second clause, written at 3:28',
+         [Fate, H1, H2, Box4, Where], [fail, '[h1', 'h2]', 'p1.c2.g1', ':3:28']),
 
     format("~n-- a long run, its last inferences~n"),
     %% two hundred apples and then a banana: 402 inferences, and a window

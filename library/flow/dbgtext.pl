@@ -10,7 +10,11 @@
 %% them.
 %%
 %% The first line says how the run ended, as tools/flow/debug.pl's summary
-%% does. Then each call the window saw, in the order it was made:
+%% does; the second, `% file: FILE', names the file every place below is in,
+%% when they are all in one (1.11.0: through 1.10.28 each line carried it,
+%% and on the translator its path was 93 of a line's 213 bytes -- reported
+%% from the reasoning session). Then each call the window saw, in the order
+%% it was made:
 %%
 %%     S INDENT GOAL FATE [CLAUSES] BOX WHERE
 %%
@@ -26,11 +30,14 @@
 %%     BOX      the chart's id for the goal it is -- query.g1, p3.c2.g4 --
 %%              or - for a call made in a clause the window did not see
 %%              entered
-%%     WHERE    that goal's FILE:LINE:COL, the place it is written
+%%     WHERE    that goal's :LINE:COL in the file the second line names, the
+%%              place it is written -- or its whole FILE:LINE:COL when the
+%%              window's places are in more than one file
 %%
 %% A value cut at text(N) ends in `...' and its whole length in brackets.
 %%
-%%     7   member(z-_8,[a-1,b-2,c-3]) fail [c1 c2] p2.c1.g2 run.pl:37:28
+%%     % file: run.pl
+%%     7   member(z-_8,[a-1,b-2,c-3]) fail [c1 c2] p2.c1.g2 :37:28
 
 %% the text of a run
 flow_dbg_text(Places, Facts, Text) :-
@@ -38,11 +45,33 @@ flow_dbg_text(Places, Facts, Text) :-
     flow_dbg_text_head(Sum, Head),
     findall(D, member(call(_, _, D, _, _, _, _, _, _, _), Calls), Ds),
     ( Ds == [] -> D0 = 0 ; min_list(Ds, D0) ),
-    findall(L, ( member(C, Calls), flow_dbg_text_call(C, D0, Places, L) ), Ls0),
+    flow_dbg_text_file(Calls, Places, File),
+    findall(L, ( member(C, Calls), flow_dbg_text_call(C, D0, Places, File, L) ), Ls0),
     flow_dbg_text_furthest(Sum, Calls, FLs),
     append(Ls0, FLs, Ls),
-    atomic_list_concat([Head|Ls], '\n', T0),
+    (   File == none -> Heads = [Head]
+    ;   format(atom(FH), '% file: ~w', [File]), Heads = [Head, FH]
+    ),
+    append(Heads, Ls, All),
+    atomic_list_concat(All, '\n', T0),
     atom_concat(T0, '\n', Text).
+
+%% the one file every place of the window's calls is in, or none: none
+%% has a place, or they are in several
+flow_dbg_text_file(Calls, Places, File) :-
+    findall(F, ( member(call(_, _, _, _, Box, _, _, _, _, _), Calls), Box \== none,
+                 get_assoc(Box, Places, W), flow_dbg_text_split(W, F, _) ),
+            Fs0),
+    sort(Fs0, Fs),
+    ( Fs = [File] -> true ; File = none ).
+
+%% FILE:LINE:COL as FILE and :LINE:COL -- split at its last two colons, so a
+%% colon in the file's own name stays in it
+flow_dbg_text_split(W, File, LC) :-
+    atomic_list_concat(Parts, ':', W),
+    append(FParts, [L, C], Parts), FParts \== [], !,
+    atomic_list_concat(FParts, ':', File),
+    atomic_list_concat(['', L, C], ':', LC).
 
 %% the head line: the goal, how it ended and where, the window
 flow_dbg_text_head(Sum, Head) :-
@@ -53,8 +82,8 @@ flow_dbg_text_head(Sum, Head) :-
     format(atom(Head), '% ~w: ~w at inference ~w; recorded ~w to ~w; diverged ~w; ~w calls',
            [GT, HW, Used, F, T, DT, NC]).
 
-%% one call's line
-flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, Line) :-
+%% one call's line, its place :LINE:COL in File, or whole when File is none
+flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, File, Line) :-
     I is 2 * max(0, D - D0),
     flow_dbg_text_spaces(I, Indent),
     flow_dbg_text_goal(N, In, GT),
@@ -66,7 +95,10 @@ flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, Li
     findall(CT, ( member(X, Cl), flow_dbg_text_clause(X, CT) ), CTs),
     atomic_list_concat(CTs, ' ', ClT),
     (   Box == none -> BT = '-' ; BT = Box ),
-    (   Box \== none, get_assoc(Box, Places, Where) -> true ; Where = '' ),
+    (   Box \== none, get_assoc(Box, Places, W)
+    ->  (   File \== none, flow_dbg_text_split(W, File, LC) -> Where = LC ; Where = W )
+    ;   Where = ''
+    ),
     format(atom(Line0), '~w ~w~w ~w [~w] ~w ~w', [S, Indent, GT, FT, ClT, BT, Where]),
     flow_dbg_text_trim(Line0, Line).
 

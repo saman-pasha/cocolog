@@ -1088,7 +1088,11 @@ from a session that used the library on `library/reasoning/translate.pl`:
 * **The run as text** (`txt(true)`, `library/flow/dbgtext.pl`): Base.txt,
   a line a call -- its inference, the goal at its Call, how it ended, the
   clauses it entered and the heads that did not unify, its box, and where
-  the box is written.
+  the box is written: `:LINE:COL` in the file a `% file:` line names once,
+  under the head (1.11.0; a window with places in several files keeps
+  each line's `FILE:LINE:COL`). Through 1.10.28 every line carried the
+  path, 93 of the 213 bytes a line of a failing translator run took
+  (8.99 MB; reported from the reasoning session).
 * **The chart kept** (`cache(Dir)`): the translator's chart took 52 of a
   run's 57 seconds and 26 MB of its XML, and is the same for every run of
   one program. It is built once for a call pattern of a file and a cocolog
@@ -1203,8 +1207,9 @@ from a session that used the library on `library/reasoning/translate.pl`:
   or modules, which is why the tables are generated:
   `predicate_property/2` knows the engine's and the compiled-in modules' C
   predicates from the tables their dispatchers are built from, and a `.so`
-  module's not at all. It went in as a patch; the minor it is ("something
-  new reachable from a program") is the owner's to take.
+  module's not at all. It went in as a patch (1.10.28), and the owner
+  took the minor it is ("something new reachable from a program") as
+  1.11.0.
 * **Fixed in 1.10.6: `catch(_ =.. _, E, true)` ended the program** (exit 2,
   `=.. wants a proper non-empty list`), raised where `catch/3` could not see
   it. So did an arity below 0 for `functor/3` and an unknown arithmetic

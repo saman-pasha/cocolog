@@ -38,7 +38,7 @@ main :-
     ->  true
     ;   skip('(library(process) will not load -- sh modules/process/build.sh)')
     ),
-    run_and_capture, spawn_watch_stop, harness_and_choreography,
+    run_and_capture, deadline_by_the_clock, spawn_watch_stop, harness_and_choreography,
     checks_done.
 
 run_and_capture :-
@@ -52,6 +52,28 @@ run_and_capture :-
     written(( proc_run('head -c 3 /dev/zero', 5000, Out3, 0),
               ( Out3 == [0, 0, 0] -> R3 = nuls ; R3 = Out3 ) ), R3, G3),
     check('every byte crosses, NUL included', G3, nuls).
+
+%% THE DEADLINE IS THE CLOCK'S (1.11.0). Through 1.10.28 proc_run/4 charged
+%% each poll its whole 200 ms step, and a poll that returns at once because
+%% data waits is 4096 bytes read: the budget was TimeoutMs/200 reads, about
+%% 20 bytes per millisecond, and a child that printed more was killed with
+%% 124 inside milliseconds (a megabyte in five seconds: 102400 bytes kept,
+%% 6 ms; the prelude's shell/3 stopped near 2.4 MB). Reported from the
+%% reasoning session. Charging nothing for an early return would not do
+%% either: a child that writes every 100 ms would never time out. So both
+%% are held: a megabyte inside its time is read whole, and a child that
+%% keeps writing is killed AT its deadline, not before.
+deadline_by_the_clock :-
+    section('the deadline is the clock\'s, not a count of polls'),
+    written(( proc_run('head -c 1000000 /dev/zero', 5000, Out1, E1), length(Out1, N1) ),
+            E1-N1, G1),
+    check('a megabyte inside its time is read whole, not killed', G1, '0-1000000'),
+    written(( get_time(T2a),
+              proc_run('while :; do echo x; sleep 0.1; done', 1000, _, E2),
+              get_time(T2b), Ms2 is (T2b - T2a) * 1000,
+              ( Ms2 < 900 -> W2 = early ; Ms2 > 5000 -> W2 = late ; W2 = on_time ) ),
+            E2-W2, G2),
+    check('a child that keeps writing is killed at its deadline, not before', G2, '124-on_time').
 
 spawn_watch_stop :-
     section('spawn, watch, stop'),

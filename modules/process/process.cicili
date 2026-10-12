@@ -152,6 +152,9 @@
   ;;; one in <signal.h> at compile time.
   (@define (code "pollfd struct pollfd"))
   (decl) (func kill ((pid_t pid) (int sig)) (out int))
+  ;;; and clock_gettime(2) is std/c/time's, whose struct needs the same
+  ;;; one-token name a Cicili type must be
+  (@define (code "timespec struct timespec"))
 
   ;;; posix_spawn(3) and its two objects are not in std/c/posix either, and
   ;;; go through the raw-C escape the way files.cicili reaches glob and
@@ -274,6 +277,15 @@
                 (set (cof outfd) (nth 0 fds))))
           (return pid)))
 
+  ;;; Milliseconds on the monotonic clock, which no change to the time of
+  ;;; day moves: what a deadline is measured against.
+  (static)
+  (func coco_p_now_ms () (out i64)
+        (let ((timespec ts))
+          (clock_gettime CLOCK_MONOTONIC (aof ts))
+          (return (+ (* (cast i64 ($ ts tv_sec)) 1000)
+                     (/ (cast i64 ($ ts tv_nsec)) 1000000)))))
+
   ;;; ---- proc_run(+Cmd, +TimeoutMs, -Out, -Exit) -------------------------
   ;;;
   ;;; Read the pipe against the deadline, then reap. EOF first, wait
@@ -282,28 +294,39 @@
   ;;; kills the GROUP with 9 and answers 124 -- coreutils' number --
   ;;; with whatever output had arrived, because a timed-out test's
   ;;; partial log is the diagnosis.
+  ;;;
+  ;;; THE DEADLINE IS THE CLOCK'S (1.11.0): taken once, and each poll
+  ;;; waits at most 200 ms or what is left of it. Through 1.10.28 every
+  ;;; poll was charged its whole 200 ms, and a poll that returns at once
+  ;;; because data waits is one 4096-byte read: the budget was
+  ;;; TimeoutMs/200 reads, about 20 bytes a millisecond, and a child that
+  ;;; printed more was killed within milliseconds (a megabyte in five
+  ;;; seconds kept 102400 bytes; reported from the reasoning session).
+  ;;; Charging nothing for an early return would not do either: a child
+  ;;; that writes every 100 ms would never time out (test/process.pl).
   (func coco_p_run ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (i64 tmo . 0) (char cmd [16384])
               (int fd . -1) (pid_t pid . 0)
               (ubyte_t * buf . nil) (size_t cap . 4096) (size_t n . 0)
-              (int status . 0) (i64 ex . 0) (i64 spent . 0)
+              (int status . 0) (i64 ex . 0) (i64 deadline . 0)
               (int timed_out . 0))
           (if (not (coco_p_cmd e g 0 cmd (sizeof cmd) (aof rc))) (return rc))
           (if (not (coco_p_int e g 1 (aof tmo) (aof rc))) (return rc))
           (set pid (coco_p_start cmd (aof fd) 0))
           (if (< pid 0) (return (coco_m_error e "proc_run: could not spawn a child" (strerror coco_p_spawn_errno))))
+          (set deadline (+ (coco_p_now_ms) tmo))
           (set buf (cast (ubyte_t *) (malloc cap)))
           (if (not buf) (block (close fd) (return 0)))
           (while 1
-            (let ((pollfd p) (int pr . 0) (ssize_t r . 0) (i64 step . 200))
-              (if (> (+ spent step) tmo) (set step (- tmo spent)))
+            (let ((pollfd p) (int pr . 0) (ssize_t r . 0)
+                  (i64 step . #'(- deadline (coco_p_now_ms))))
+              (if (> step 200) (set step 200))
               (if (<= step 0)
                   (block (set timed_out 1) break))
               (set ($ p fd) fd)
               (set ($ p events) POLLIN)
               (set ($ p revents) 0)
               (set pr (poll (aof p) 1 (cast int step)))
-              (set spent (+ spent step))
               (if (< pr 0)
                   (block
                     (if (== errno EINTR) continue)
@@ -413,6 +436,7 @@
   (include <poll.h>)
   (include <errno.h>)
   (include <stdlib.h>)
+  (include <time.h>)
 
   (import "./sdk.cicili")
   (coco-sdk)
