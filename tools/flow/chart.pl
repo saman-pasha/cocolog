@@ -13,6 +13,13 @@
 %%              title=TEXT
 %%              depth=N|all                 draw panels at most N calls deep
 %%              only=NAME/ARITY,NAME//ARITY draw these predicates' panels
+%%              load=FILE,library(NAME),... the program's other files, or
+%%                                          its top file: loaded first, so a
+%%                                          call into one is no unknown
+%%                                          procedure; only FILE is drawn
+%%              progress=S                  a line on stderr every S seconds
+%%                                          once the chart has run S seconds
+%%                                          (10; 0 for none)
 %%
 %% depth and only change the picture alone: the XML always has everything.
 %% A chart of more than 150 panels is drawn to the depth that fits unless
@@ -39,7 +46,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [SpecA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=none|reach|all] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=none|reach|all] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...] [load=FILE,...] [progress=S]~n", []),
         halt(2)
     ),
     (   catch(term_to_atom(Spec, SpecA), _, fail)
@@ -52,7 +59,8 @@ main :-
     ;   format(user_error, "chart: no file ~w~n", [File]),
         halt(2)
     ),
-    fc_options(OptAs, Opts),
+    fc_options(OptAs, Opts0),
+    (   memberchk(progress(_), Opts0) -> Opts = Opts0 ; Opts = [progress(10)|Opts0] ),
     catch(flow_chart(Spec, Base, [source(File)|Opts], Fs), E, fc_error(E)),
     format("~w.svg~n~w.xml~n", [Base, Base]),
     forall(member(F, Fs), fc_finding(F)).
@@ -66,7 +74,7 @@ fc_options([], []).
 fc_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fc_option(K, V, O)
     ->  true
-    ;   format(user_error, "chart: an option is libraries=..., title=..., depth=... or only=..., not ~w~n", [A]),
+    ;   format(user_error, "chart: an option is libraries=..., title=..., depth=..., only=..., load=... or progress=..., not ~w~n", [A]),
         halt(2)
     ),
     fc_options(As, Os).
@@ -80,6 +88,17 @@ fc_option(depth, V, depth(D)) :-
 fc_option(only, V, only(Ps)) :-
     atomic_list_concat(As, ',', V),
     fc_preds(As, Ps).
+fc_option(load, V, load(Fs)) :-
+    atomic_list_concat(As, ',', V),
+    fc_files(As, Fs).
+fc_option(progress, V, progress(S)) :-
+    catch(atom_number(V, S), _, fail), number(S), S >= 0.
+
+%% a file by its path, or library(Name) as a term
+fc_files([], []).
+fc_files([A|As], [F|Fs]) :-
+    (   atom_concat('library(', _, A) -> catch(term_to_atom(F, A), _, fail) ; F = A ),
+    fc_files(As, Fs).
 
 fc_preds([], []).
 fc_preds([A|As], [P|Ps]) :-
@@ -90,6 +109,9 @@ fc_preds([A|As], [P|Ps]) :-
 fc_error(error(existence_error(procedure, PI), _)) :- !,
     format(user_error, "chart: the program has no ~w~n", [PI]),
     halt(1).
+fc_error(error(existence_error(flow_load, F), _)) :- !,
+    format(user_error, "chart: load=~w would not load: no such file or library~n", [F]),
+    halt(2).
 fc_error(E) :-
     format(user_error, "chart: ~w~n", [E]),
     halt(2).

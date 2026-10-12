@@ -461,6 +461,11 @@
     ;; through a step. Set and put back by `coco_engine_next'; a
     ;; `coco_engine *' this struct cannot name.
     (member void *     eng)
+    ;; ITS `halted', for a growth that was refused and then given less
+    ;; (`coco_grow_short') to stop the run with, which raises
+    ;; resource_error(memory) at its next step (1.10.28). Set and put back
+    ;; beside `eng'; nil when no engine runs.
+    (member int *      haltp)
     ;; `coco_gc_floor', read by the first run on the machine (0 until then),
     ;; for a builtin that starts a nested engine to raise the threshold by
     ;; (`coco_gc_nested_begin')
@@ -510,10 +515,6 @@
     ;; its events here. Null otherwise; a `coco_rec *' this struct cannot
     ;; name (lib/solve.cicili)
     (member void *     rec)
-    ;; FLOATS WRITTEN TO READ BACK BIT FOR BIT (1.10.15): set by the journal
-    ;; around its own writes only (`coco_sb_put_double_exact'); every other
-    ;; write keeps %.15g, which does not round-trip a time of day
-    (member int        wexact)
     ;; WHERE THE LAST BALL NOTHING WOULD CATCH WAS RAISED (1.10.17): the
     ;; lines `coco_throw' writes before it unwinds, each begun `ERROR: ',
     ;; for the host that reports the error to print after its message and
@@ -582,7 +583,6 @@
   ;; the writer. Two fixed formatters cover everything the writer needs.
   (decl) (func coco_sb_put_i64 ((coco_strbuf * b) (i64 v)) (out int))
   (decl) (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int))
-  (decl) (func coco_sb_put_double_exact ((coco_strbuf * b) (double v)) (out int))
 
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
@@ -786,25 +786,59 @@
 (generic impl-term
   ()
 
-  ;;; GROWING. Every array in the machine grows the same way and every one of
-  ;;; them has to answer "did that work?" the same way, so the growth is one
-  ;;; static function taking the array by pointer-to-pointer and the element
-  ;;; size. A failure sets `oom' on the machine and leaves the array as it was:
-  ;;; the caller can carry on writing nonsense into a machine that is already
-  ;;; finished, and nothing dereferences a null on the way there.
-  (static)
-  (func coco_grow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+  ;;; A DOUBLING REFUSED (1.10.28): ask for what is needed and a sixteenth
+  ;;; more, and if that is given, stop the running engine (`haltp'), whose
+  ;;; next step raises error(resource_error(memory), _) for a catch/3 to
+  ;;; take -- with room left for the ball and the unwinding, and nothing
+  ;;; written wrong on the way, because this growth succeeded. Only when
+  ;;; that is refused too is the machine finished: `oom', as before. Through
+  ;;; 1.10.27 the doubling was all there was, and its refusal ended the run
+  ;;; with `out of memory', which nothing could catch. Out of line: only a
+  ;;; refusal comes here.
+  (func coco_grow_short ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
-        (if (<= need (cof cap)) (return 1))
+        (let ((size_t ncap . #'(+ need (+ (/ need 16) 64)))
+              (void * nbuf . #'(realloc (cof buf) (* ncap esize))))
+          (if (== nbuf nil)
+              (block (set (-> m oom) 1) (return 0)))
+          (set (cof buf) nbuf)
+          (set (cof cap) ncap)
+          (if (!= (-> m haltp) nil)
+              (if (== (cof (-> m haltp)) 0) (set (cof (-> m haltp)) 2)))
+          (return 1)))
+
+  ;;; The growth itself, out of line (weak: never inlined). Through 1.10.27
+  ;;; it was inlined into every push with the test before it, and the call
+  ;;; to `coco_grow_short' made each copy big enough that clang stopped
+  ;;; inlining `coco_new_var' -- lookup ran 4.2 % more instructions, 1.66
+  ;;; million of them in calls to it (1.10.28, callgrind).
+  (weak)
+  (func coco_grow_slow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+        (out int)
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
               (void * nbuf))
           (while (< ncap need) (set ncap (* ncap 2)))
           (set nbuf (realloc (cof buf) (* ncap esize)))
           (if (== nbuf nil)
-              (block (set (-> m oom) 1) (return 0)))
+              (return (coco_grow_short m buf cap need esize)))
           (set (cof buf) nbuf)
           (set (cof cap) ncap)
           (return 1)))
+
+  ;;; GROWING. Every array in the machine grows the same way and every one of
+  ;;; them has to answer "did that work?" the same way, so the growth is one
+  ;;; static function taking the array by pointer-to-pointer and the element
+  ;;; size: the test inlined where it is asked, the growth out of line
+  ;;; (`coco_grow_slow'). A doubling refused is tried again smaller
+  ;;; (`coco_grow_short'); a failure of that sets `oom' on the machine and
+  ;;; leaves the array as it was: the caller can carry on writing nonsense
+  ;;; into a machine that is already finished, and nothing dereferences a
+  ;;; null on the way there.
+  (static)
+  (func coco_grow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
+        (out int)
+        (if (<= need (cof cap)) (return 1))
+        (return (coco_grow_slow m buf cap need esize)))
 
   ;;; djb2, widened to 64 bits. FNV-1a would be the usual choice and is not
   ;;; used here for a blunt reason: its offset basis is 14695981039346656037,
@@ -912,42 +946,118 @@
           (snprintf tmp (sizeof tmp) "%lld" (cast llong v))
           (return (coco_sb_put b tmp))))
 
-  ;;; %.15g is the shortest form that reads back as the same double for every
-  ;;; value a Prolog program is going to write, and it drops the trailing zeros
-  ;;; %f would leave. A float that comes out looking like an integer gets a
-  ;;; ".0" put back on it, because `1' and `1.0' are different terms and the
-  ;;; reader has to be able to tell which one this was. 46/101/69 are '.', 'e'
-  ;;; and 'E' -- a character literal is not something Cicili's reader carries,
-  ;;; so the codes are written out.
-  (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int)
-        (let ((char tmp [40]) (int exact . 1))
-          (snprintf tmp (sizeof tmp) "%.15g" v)
-          (for ((int i . 0)) (!= (nth i tmp) (cast char 0)) ((++ i))
-            (if (or (== (nth i tmp) 46) (or (== (nth i tmp) 101) (== (nth i tmp) 69)))
-                (set exact 0)))
-          (if (not (coco_sb_put b tmp)) (return 0))
-          (if (== exact 1) (return (coco_sb_put b ".0")))
-          (return 1)))
+  ;;; THE NEIGHBOUR OF THE ROUNDED FORM, at the same number of digits: TMP,
+  ;;; [-]d.ddde+-X, moved one in its last digit towards V (DIR 1 up, -1
+  ;;; down, so a negative TMP's digits move the other way) and kept if it
+  ;;; reads back as V. A power of two has a gap below
+  ;;; it half the width of the gap above, so the decimal nearest it can fall
+  ;;; outside its interval while the next one up is inside: 0x1p-549 is
+  ;;; 5.426657103235053e-166, SWI's 16 digits, which %.15e rounds to ...052,
+  ;;; a different double. Without this the writer wrote 17 digits there (34
+  ;;; of 21,000 doubles of a run, every one a power of two).
+  (static)
+  (func coco_float_nudge ((char * tmp) (size_t cap) (int dir) (double v)) (out int)
+        (let ((char dg [24]) (int nd . 0) (int i . 0) (int neg . 0) (int ex . 0) (int k . 0) (int o . 0))
+          (if (== (nth 0 tmp) 45) (block (set neg 1) (set i 1) (set dir (- 0 dir))))
+          (while (!= (nth i tmp) 101)
+            (if (!= (nth i tmp) 46) (block (set (nth nd dg) (nth i tmp)) (++ nd)))
+            (++ i))
+          (set ex (cast int (strtol (+ tmp (+ i 1)) nil 10)))
+          (set k (- nd 1))
+          (if (> dir 0)
+              (block
+                (while (and (>= k 0) (== (nth k dg) 57)) (set (nth k dg) 48) (-- k))
+                (if (< k 0)
+                    (block (set (nth 0 dg) 49) (set ex (+ ex 1)))
+                    (set (nth k dg) (cast char (+ (nth k dg) 1)))))
+              (block
+                (while (and (>= k 0) (== (nth k dg) 48)) (set (nth k dg) 57) (-- k))
+                (if (>= k 0) (set (nth k dg) (cast char (- (nth k dg) 1))))
+                ;; 1.000e+X down is 9.999e+(X-1): below a power of ten the step is finer
+                (if (== (nth 0 dg) 48)
+                    (block
+                      (for ((int j . 0)) (< j nd) ((++ j)) (set (nth j dg) 57))
+                      (set ex (- ex 1))))))
+          (if neg (block (set (nth o tmp) 45) (++ o)))
+          (set (nth o tmp) (nth 0 dg)) (++ o)
+          (if (> nd 1)
+              (block
+                (set (nth o tmp) 46) (++ o)
+                (for ((int j . 1)) (< j nd) ((++ j)) (block (set (nth o tmp) (nth j dg)) (++ o)))))
+          (snprintf (+ tmp o) (- cap (cast size_t o)) "e%d" ex)
+          (return (== (strtod tmp nil) v))))
 
-  ;;; THE SHORTEST OF %.15g, %.16g AND %.17g THAT READS BACK AS V, bit for
-  ;;; bit -- what the journal writes (1.10.15), since %.15g gives back a
-  ;;; different double for a time of day (1791737042.2061312 is written
-  ;;; 1791737042.20613) and a replay answered with it would not be the run
-  ;;; it replays. A NaN or an infinity has no Prolog text; it is written as
-  ;;; %.15g writes it.
-  (func coco_sb_put_double_exact ((coco_strbuf * b) (double v)) (out int)
-        (let ((char tmp [48]) (int exact . 1) (int digits . 15))
-          (while (< digits 17)
-            (snprintf tmp (sizeof tmp) "%.*g" digits v)
-            (if (== (strtod tmp nil) v) break)
-            (set digits (+ digits 1)))
-          (if (== digits 17) (snprintf tmp (sizeof tmp) "%.17g" v))
-          (for ((int i . 0)) (!= (nth i tmp) (cast char 0)) ((++ i))
-            (if (or (== (nth i tmp) 46) (or (== (nth i tmp) 101) (== (nth i tmp) 69)))
-                (set exact 0)))
-          (if (not (coco_sb_put b tmp)) (return 0))
-          (if (== exact 1) (return (coco_sb_put b ".0")))
-          (return 1)))
+  ;;; A FLOAT IS WRITTEN AS SWI-PROLOG 9 WRITES IT (1.10.28): the fewest
+  ;;; significant digits that read back as the same double, bit for bit,
+  ;;; set out as its format_float sets them -- 0.30000000000000004 for
+  ;;; 0.1+0.2, 1.0e+22, 1.0e-5, 1234567890123456.8, 100000000000000.0 --
+  ;;; and an infinity 1.0Inf or -1.0Inf, a NaN 1.5NaN. Through 1.10.27 it
+  ;;; was %.15g with a ".0" put back: 0.3 for 0.1+0.2, which reads back as
+  ;;; another number, so a float did not survive the text of the store, a
+  ;;; channel or term_to_atom/2; 1e+22 and 1e-05 where SWI writes 1.0e+22
+  ;;; and 1.0e-5; and an infinity inf.0 (reported from cicili-lang). Only
+  ;;; the journal wrote exactly (its `wexact', now gone): every write does.
+  ;;;
+  ;;; THE DIGITS. A normal double is told from its neighbours by 15
+  ;;; significant digits -- half the step of a 15-digit decimal is wider
+  ;;; than half an ulp -- so %.14e with its trailing zeros dropped IS the
+  ;;; shortest form whenever one of 15 digits or fewer reads back, and 16,
+  ;;; then 17, are tried when none does (17 always does). A subnormal holds
+  ;;; fewer digits of its own: its search starts at one (5.0e-324 is the
+  ;;; smallest). THE LAYOUT is SWI's: with DP where the point falls after
+  ;;; the first digit (the exponent plus one), a point at or before the
+  ;;; digits is 0.000ddd down to DP -3 and d.ddde-N below; a point inside
+  ;;; them is written there; a point after them is the digits, their zeros
+  ;;; and ".0" up to DP 15, d.ddde+N past it. 45 46 48 101 are '-', '.',
+  ;;; '0' and 'e': Cicili's reader carries no character literal.
+  (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int)
+        (let ((char tmp [48]) (char out [64]) (char dig [24])
+              (int nd . 0) (int ex . 0) (int p . 15) (int i . 0) (int o . 0) (int dp . 0))
+          (if (!= v v) (return (coco_sb_put b "1.5NaN")))
+          (if (!= (- v v) 0.0) (return (coco_sb_put b (? (< v 0.0) "-1.0Inf" "1.0Inf"))))
+          ;; |v| by hand: a binary built from this file alone has no <math.h>
+          (if (< (? (< v 0.0) (- v) v) 2.2250738585072014e-308) (set p 1))
+          (while (< p 17)
+            (snprintf tmp (sizeof tmp) "%.*e" (- p 1) v)
+            (let ((double w . #'(strtod tmp nil)))
+              (if (== w v) break)
+              (if (coco_float_nudge tmp (sizeof tmp) (? (< w v) 1 -1) v) break))
+            (set p (+ p 1)))
+          (if (== p 17) (snprintf tmp (sizeof tmp) "%.16e" v))
+          ;; [-]d[.ddd]e(+|-)XX: the sign, the digits without the point, the
+          ;; exponent; then the trailing zeros off the digits
+          (if (== (nth 0 tmp) 45) (block (set (nth o out) 45) (++ o) (++ i)))
+          (while (!= (nth i tmp) 101)
+            (if (!= (nth i tmp) 46) (block (set (nth nd dig) (nth i tmp)) (++ nd)))
+            (++ i))
+          (set ex (cast int (strtol (+ tmp (+ i 1)) nil 10)))
+          (while (and (> nd 1) (== (nth (- nd 1) dig) 48)) (-- nd))
+          (set dp (+ ex 1))
+          (cond
+            ((and (<= dp 0) (> dp -4))
+             (block
+               (set (nth o out) 48) (++ o) (set (nth o out) 46) (++ o)
+               (for ((int k . 0)) (< k (- 0 dp)) ((++ k)) (block (set (nth o out) 48) (++ o)))
+               (for ((int k . 0)) (< k nd) ((++ k)) (block (set (nth o out) (nth k dig)) (++ o)))))
+            ((and (> dp 0) (> nd dp))
+             (block
+               (for ((int k . 0)) (< k dp) ((++ k)) (block (set (nth o out) (nth k dig)) (++ o)))
+               (set (nth o out) 46) (++ o)
+               (for ((int k . #'dp)) (< k nd) ((++ k)) (block (set (nth o out) (nth k dig)) (++ o)))))
+            ((and (> dp 0) (<= dp 15))
+             (block
+               (for ((int k . 0)) (< k nd) ((++ k)) (block (set (nth o out) (nth k dig)) (++ o)))
+               (for ((int k . #'nd)) (< k dp) ((++ k)) (block (set (nth o out) 48) (++ o)))
+               (set (nth o out) 46) (++ o) (set (nth o out) 48) (++ o)))
+            (#t
+             (block
+               (set (nth o out) (nth 0 dig)) (++ o) (set (nth o out) 46) (++ o)
+               (if (> nd 1)
+                   (for ((int k . 1)) (< k nd) ((++ k)) (block (set (nth o out) (nth k dig)) (++ o)))
+                   (block (set (nth o out) 48) (++ o)))
+               (set o (+ o (snprintf (+ out o) (- (sizeof out) (cast size_t o)) "e%+d" (- dp 1)))))))
+          (set (nth o out) (cast char 0))
+          (return (coco_sb_put b out))))
 
   ;;; ---- names --------------------------------------------------------
 

@@ -29,6 +29,12 @@
 
 CICILI         ?= $(HOME)/cicili
 ZIGURATIP      ?= $(HOME)/ZiguratIP
+# `sbcl' BY NAME IS tools/cc/sbcl, because the Cicili step below runs with
+# tools/cc first on PATH: it gives the real sbcl a 4096 MB dynamic space
+# when that SBCL's default is smaller -- Debian's and Ubuntu's 2.2.9 start
+# with 1 GB, and the transpile of cocolog.cicili exhausts it midway. A
+# --dynamic-space-size named here (SBCL="sbcl --dynamic-space-size 8192")
+# is obeyed as written; COCO_SBCL_HEAP=N changes the 4096.
 SBCL           ?= sbcl
 
 # ---- which compiler ---------------------------------------------------------
@@ -207,7 +213,10 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 # not a module: library(flow/chart)'s tables (library/flow/tables.pl, which
 # C function answers each name and with what modes), read out of lib/,
 # modules/ and library/ by the cocolog just built -- here because this is
-# the step every install runs after `make'.
+# the step every install runs after `make'. Its SKIPPED line carries the
+# reason tools/flow/build.sh gave, since the commonest one -- no ./cocolog,
+# after a `make' that stopped -- was otherwise said only by running the
+# script by hand.
 modules:
 	@for m in tcp thread process text os curl bigint torch tensorflow sha aes der x509 tls ray numpy opencv clay stream; do \
 	  printf '%-8s ' "$$m"; \
@@ -218,10 +227,10 @@ modules:
 	  fi; \
 	done
 	@printf '%-8s ' flow; \
-	  if sh tools/flow/build.sh >/dev/null 2>&1; then \
+	  if why=$$(sh tools/flow/build.sh 2>&1 >/dev/null); then \
 	    echo "built (library/flow/tables.pl)"; \
 	  else \
-	    echo "SKIPPED (see: sh tools/flow/build.sh)"; \
+	    echo "SKIPPED ($$(printf '%s\n' "$$why" | tail -1 | sed 's|^tools/flow/build.sh: ||'); see: sh tools/flow/build.sh)"; \
 	  fi
 
 # ---- the schema -------------------------------------------------------------

@@ -612,7 +612,8 @@
   ;;; named by where it first appears (`_0', `_1', ...), so two calls that
   ;;; are variants have one text; Outcome `exit(Goal)', the goal as the call
   ;;; left it, `fail', `throw(Ball)', or `error(Message)' for a stop nothing
-  ;;; could catch. A float is written to read back bit for bit (`wexact').
+  ;;; could catch. A float reads back bit for bit, as every float the writer
+  ;;; writes does (1.10.28; the journal alone did, through `wexact').
   ;;;
   ;;; A REPLAY THAT REACHES A PORTAL ANOTHER WAY HAS DIVERGED: a call where
   ;;; the journal holds another, an inference passed with the journal's call
@@ -1007,15 +1008,24 @@
 (generic impl-solve
   ()
 
-  (static)
-  (func coco_eng_grow ((coco_engine * e) (size_t need)) (out int)
-        (if (<= need (-> e choice_cap)) (return 1))
+  ;;; The choice stack's growth, out of line (weak), as `coco_grow_slow' is:
+  ;;; inlined into `coco_push_choice', its refused doubling's second try
+  ;;; would have cost every push (1.10.28)
+  (weak)
+  (func coco_eng_grow_slow ((coco_engine * e) (size_t need)) (out int)
         (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
               (coco_choice * nb)
               (coco_tchoice * tb))
           (while (< ncap need) (set ncap (* ncap 2)))
           (set nb (cast (coco_choice *) (realloc (-> e choices) (* ncap (sizeof coco_choice)))))
-          (if (== nb nil) (return 0))
+          ;; a doubling refused: less, and the run raises resource_error
+          ;; at its next step, as the machine's arrays do (`coco_grow_short')
+          (if (== nb nil)
+              (block
+                (set ncap (+ need (+ (/ need 16) 64)))
+                (set nb (cast (coco_choice *) (realloc (-> e choices) (* ncap (sizeof coco_choice)))))
+                (if (== nb nil) (return 0))
+                (if (== (-> e halted) 0) (set (-> e halted) 2))))
           (set (-> e choices) nb)
           ;; the shadow frames grow in step, so an index into one is an
           ;; index into the other
@@ -1024,6 +1034,11 @@
           (set (-> e tchoices) tb)
           (set (-> e choice_cap) ncap)
           (return 1)))
+
+  (static)
+  (func coco_eng_grow ((coco_engine * e) (size_t need)) (out int)
+        (if (<= need (-> e choice_cap)) (return 1))
+        (return (coco_eng_grow_slow e need)))
 
   ;;; A Redo re-enters not only its own frame but, implicitly, every call
   ;;; it is nested in: their environments are live again, and SWI prints
@@ -1333,6 +1348,14 @@
                                          (coco_new_var (-> e m)))))
           (return (? (== 1 (coco_throw e ball)) 2 -1))))
 
+  ;;; What a refused allocation raises (1.10.28): error(resource_error(memory),
+  ;;; _), built on a heap that still has room -- a C buffer was refused, or
+  ;;; a growth was given less than it asked (`coco_halted_step').
+  (static)
+  (func coco_mem_error ((coco_engine * e)) (out int)
+        (return (coco_raise e (coco_make1 (-> e m) "resource_error"
+                                      (coco_new_atom (-> e m) "memory")))))
+
   (static)
   (func coco_type_error ((coco_engine * e) (const char * type) (size_t culprit)) (out int)
         (return (coco_raise e (coco_make2 (-> e m) "type_error"
@@ -1538,12 +1561,10 @@
   ;;; a backslash, 39 34 96 the three quotes, 95 71 `_G'.
   (static)
   (func coco_jr_calltext ((coco_machine * m) (size_t g) (coco_strbuf * out))
-        (let ((coco_strbuf b) (int q . 0) (size_t i . 0) (int was . #'(-> m wexact))
+        (let ((coco_strbuf b) (int q . 0) (size_t i . 0)
               (u64 * seen . nil) (size_t nseen . 0) (size_t capseen . 0))
           (coco_sb_init (aof b))
-          (set (-> m wexact) 1)
           (coco_write_term m (aof b) g 1 0)
-          (set (-> m wexact) was)
           (coco_sb_reset out)
           (while (< i ($ b len))
             (let ((int c . #'(cast int (nth i ($ b s)))))
@@ -1593,16 +1614,13 @@
           (set (-> m double_quotes) dq)
           (return ok)))
 
-  ;;; A PORTAL CALL'S BALL, kept for its entry (`coco_rec_throw'), floats to
-  ;;; read back bit for bit
+  ;;; A PORTAL CALL'S BALL, kept for its entry (`coco_rec_throw'); its floats
+  ;;; read back bit for bit, as every float the writer writes does
   (static)
   (func coco_jr_ball ((coco_machine * m) (coco_jrnl * jr) (size_t ball))
-        (let ((int was . #'(-> m wexact)))
-          (coco_sb_reset (aof (-> jr ball)))
-          (set (-> m wexact) 1)
-          (coco_write_term m (aof (-> jr ball)) ball 1 0)
-          (set (-> m wexact) was)
-          (set (-> jr threw) 1)))
+        (coco_sb_reset (aof (-> jr ball)))
+        (coco_write_term m (aof (-> jr ball)) ball 1 0)
+        (set (-> jr threw) 1))
 
   ;;; THE ENTRY OF A PORTAL CALL, appended: AT its inference, MOD the module
   ;;; that answered, CALL its text as it was called, RC how it went, G the
@@ -1612,8 +1630,7 @@
   (func coco_jr_write ((coco_engine * e) (coco_jrnl * jr) (u64 at) (const char * mod)
                        (size_t g) (u64 nid) (u32 arity) (coco_strbuf * call) (int rc))
         (let ((coco_machine * m . #'(-> e m))
-              (size_t a [5]) (size_t pa [2]) (size_t out . 0) (size_t bt . 0)
-              (int was . #'(-> m wexact)))
+              (size_t a [5]) (size_t pa [2]) (size_t out . 0) (size_t bt . 0))
           (set (nth 0 a) (coco_new_int m (cast i64 at)))
           (set (nth 1 a) (coco_new_atom m (? (== mod nil) "unknown" mod)))
           (set (nth 0 pa) (coco_new_atom_id m nid))
@@ -1628,9 +1645,7 @@
              (set out (coco_make1 m "throw" bt)))
             (#t (set out (coco_make1 m "error" (coco_new_atom m (-> e err))))))
           (set (nth 4 a) out)
-          (set (-> m wexact) 1)
           (coco_write_term m (aof (-> jr out)) (coco_make m "j" 5 a) 1 0)
-          (set (-> m wexact) was)
           (coco_sb_put (aof (-> jr out)) ".\n")
           (set (-> jr n) (+ (-> jr n) 1))))
 
@@ -3770,7 +3785,7 @@
 
             (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
                 (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
-                       (snprintf out len "Not enough resources: `%s'" a1)
+                       (snprintf out len "Not enough resources: %s" a1)
                        (return)))
 
             (if (and (== fa 1) (== 0 (strcmp fn "syntax_error")))
@@ -4531,7 +4546,7 @@
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
-              (size_t ball_size . 0) (size_t kept_cells . 0)
+              (size_t ball_size . 0) (size_t kept_cells . 0) (int nomem . 0)
               ;; WHAT THIS FRAME HOLDS ON THE HEAP, told to the collector for
               ;; the search (1.9.4): the template, the goal, and the caller's
               ;; own goal cell (GP, nil when it keeps none), each read back
@@ -4606,16 +4621,23 @@
                 (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
                       (size_t * nb))
                   (set nb (cast (size_t *) (realloc kept (* ncap (sizeof size_t)))))
+                  ;; refused: raised below, once the machine is back
+                  ;; where it was (1.10.28)
                   (if (== nb nil)
-                      (block (coco_fail_err e "out of memory in findall")
-                             (set ok 0) break))
+                      (block (set nomem 1) (set ok 0) break))
                   (set kept nb)
                   (set cap ncap)))
             ;; into the STORE, because the heap under us is about to be wound
             ;; back past this point -- the template where the collector left it
             (set (nth n kept) (coco_store_put st m (nth 0 hold)))
             (set kept_cells (+ kept_cells (- (-> st len) (nth n kept))))
-            (set n (+ n 1)))
+            (set n (+ n 1))
+            ;; THE STORE GIVEN LESS THAN IT ASKED stops this engine
+            ;; (`coco_store_memreq'), whose next step is after the search
+            ;; -- never, for a search with no end -- so it is raised here,
+            ;; once the machine is back (1.10.28)
+            (if (and (== (-> e halted) 2) (not (-> m oom)))
+                (block (set (-> e halted) 0) (set nomem 1) (set ok 0) break)))
 
           ;; the outer engine's step count includes the inner search: a goal
           ;; that costs a million inferences inside a findall costs them
@@ -4657,6 +4679,7 @@
                               (coco_store_root_pop st)
                               (free kept)
                               (set (-> st dead) (+ (-> st dead) kept_cells))
+                              (if nomem (return (? (== 2 (coco_mem_error e)) 2 0)))
                               (return 0)))
 
           ;; put the machine back as it was, THEN build the answer. The
@@ -5155,7 +5178,13 @@
                              (size_t * args . #'(cast (size_t *)
                                                       (malloc (* (+ have extra)
                                                                  (sizeof size_t))))))
-                         (if (== args nil) (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
+                         (if (== args nil)
+                             (let ((int rc2 . 0))
+                               (set (-> e kcall) g)
+                               (set rc2 (coco_mem_error e))
+                               (if (== rc2 2) (return 1))
+                               (set (cof ret) rc2)
+                               (return 2)))
                          (for ((u32 i . 0)) (< i have) ((++ i))
                            (set (nth i args) (coco_arg m c i)))
                          (for ((u32 i . 0)) (< i extra) ((++ i))
@@ -5203,6 +5232,43 @@
           ;; (`coco_k_room'), and the window with it
           (coco_k_flush e)
           (return 1)))
+
+  ;;; THE RUN STOPPED AT A STEP'S TOP (`halted'): 1 is a halt, 2 memory.
+  ;;; MEMORY IS RAISED (1.10.28) when the refusal left nothing written
+  ;;; wrong: a doubling refused and a smaller growth given
+  ;;; (`coco_grow_short', `coco_eng_grow'), which stopped the run with room
+  ;;; to spare, and the ball is error(resource_error(memory), _), which a
+  ;;; catch/3 takes like any other. A growth refused outright set `oom' on
+  ;;; the machine, a builder that found no room wrote nothing
+  ;;; (`coco_k_room'), and that run ends as it always did, `out of memory'
+  ;;; (`coco_engine_next'). Answers 2 when a catch took the ball (the loop
+  ;;; goes round), -1 when none did, 0 to stop. Weak, so never inlined: the
+  ;;; loop pays the one test it always paid.
+  (weak)
+  (func coco_halted_step ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (if (and (== (-> e halted) 2) (not (-> m oom)))
+              (block
+                (set (-> e halted) 0)
+                ;; a goal the last step handed over goes back first, for
+                ;; the backtrace to see; the throw replaces it
+                (if (coco_k_flush e)
+                    (let ((size_t f . #'(coco_make1 m "resource_error" (coco_new_atom m "memory")))
+                          (int r . 0))
+                      (if (not (-> m oom))
+                          (block (set (-> e kcall) 0)
+                                 (set r (coco_raise e f))
+                                 ;; a growth the ball itself was given less
+                                 ;; for, or its throw's put, is this same
+                                 ;; shortage, raised now -- not a second
+                                 ;; raise at the recovery's first step: the
+                                 ;; next refusal asks again
+                                 (if (and (== (-> e halted) 2) (not (-> m oom)))
+                                     (set (-> e halted) 0))
+                                 (return r)))))
+                (if (== (-> e halted) 0) (set (-> e halted) 2))))
+          (coco_k_flush e)
+          (return 0)))
 
   (func coco_engine_run ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m))
@@ -5255,7 +5321,10 @@
                 (if (not (coco_rec_open e))
                     (block (coco_k_flush e)
                            (return (coco_fail_err e "inference limit reached")))))
-            (if (-> e halted) (block (coco_k_flush e) (return 0)))
+            (if (-> e halted)
+                (let ((int hr . #'(coco_halted_step e)))
+                  (if (== hr 2) continue)
+                  (return hr)))
 
             ;; A COLLECTION, AT THE ONE SAFE PLACE: between two steps, with the
             ;; whole state of the proof in the continuation and the frames --
@@ -5710,14 +5779,20 @@
           ;; whose builtin started it, and so on out (`coco_heap_collect')
           (set (-> e outer) (-> m eng))
           (set (-> m eng) (cast (void *) e))
+          (set (-> m haltp) (aof (-> e halted)))
           (set rc (coco_engine_run e))
           (set (-> m eng) (-> e outer))
+          (let ((coco_engine * o . #'(cast (coco_engine *) (-> e outer))))
+            (set (-> m haltp) (? (== o nil) nil (aof (-> o halted)))))
           (set (-> m running) (- (-> m running) 1))
           ;; MEMORY, NOT A HALT: a builder of the continuation found no room
-          ;; and stopped the run (`coco_k_room'); no host sees the 2
+          ;; and stopped the run (`coco_k_room'); no host sees the 2. A
+          ;; refusal the run would have raised (`coco_halted_step') but
+          ;; ended at a solution or a failure first is dropped: the next
+          ;; refusal asks again (1.10.28)
           (if (== (-> e halted) 2)
               (block (set (-> e halted) 0)
-                     (set rc (coco_fail_err e "out of memory"))))
+                     (if (-> m oom) (set rc (coco_fail_err e "out of memory")))))
           (return rc)))
 
   ;;;; ----------------------------------------------------------------
@@ -6007,7 +6082,7 @@
                        (if (!= rc 1) (return rc))
                        (cond
                          ((== nid (coco-id m "-"))
-                          (if s0 (block (set (cof fv) (- 0.0 f0)) (set (cof isf) 1))
+                          (if s0 (block (set (cof fv) (- f0)) (set (cof isf) 1))   ; -(0.0) is -0.0
                             (block (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
                           (return 1))
                          ((== nid (coco-id m "+"))
@@ -6285,7 +6360,7 @@
             (if (!= ok 1)
                 (block (free items)
                        (if (== ok 2) (return (coco_instantiation_error e)))
-                       (if (== ok 3) (return (coco_fail_err e "out of memory")))
+                       (if (== ok 3) (return (coco_mem_error e)))
                        (return (coco_type_error e "list" lst0))))
             (if (== n 0)
                 (block (free items) (return (coco_domain_error e "non_empty_list" lst0))))
@@ -7049,14 +7124,16 @@
   ;;; callable -- but a person asking what they have written does not want the
   ;;; Files library back, any more than SWI's `listing' hands back library(lists).
   ;;; `listing(Name)' still shows them: asking for one by name is asking about
-  ;;; that one specifically.
+  ;;; that one specifically. A file the program loaded by its path is the
+  ;;; program's (`own', 1.10.28): `-s FILE' listed nothing of FILE.
   (func coco_bi_listing_all ((coco_engine * e) (size_t g)) (out int)
         (coco_store_warm (-> e st))
         ;; `npreds' is read each time round rather than once: `coco_pred_ensure'
         ;; inside the listing can intern predicates the clauses it fetches
         ;; mention, and the loop should reach those too.
         (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
-          (if (not ($ (nth i ($ (cof (-> e st)) preds)) library))
+          (if (or (not ($ (nth i ($ (cof (-> e st)) preds)) library))
+                  ($ (nth i ($ (cof (-> e st)) preds)) own))
               (coco_listing_pred e i)))
         (return 1))
 

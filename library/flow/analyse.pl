@@ -107,7 +107,8 @@ flow_analyse(ctx(Prog, _, How), Root, Pairs, ctx(Prog, Memo, How)) :-
 %% Key-CM -> the pairs that read its answer; In: which pairs are queued
 flow_work(Q0, In0, T0, M0, D0, Prog, How, T, M) :-
     (   flow_q_pop(Q0, P, Q1)
-    ->  put_assoc(P, In0, false, In1),
+    ->  flow_progress_tick(T0, Q1),
+        put_assoc(P, In0, false, In1),
         get_assoc(P, T0, r(Kind, SP0, Det0, _, _, N0, C0)),
         P = Key-CM,
         flow_pair(Key, CM, Kind, ctx(Prog, M0, How), SP1, Det1, Rows, Needs),
@@ -660,7 +661,8 @@ flow_an_item(ignore(G), St0, St, Ctx, M0, M, [meta(ignore, ignore('…'), [':'],
     flow_join(St0, St1, St).
 flow_an_item(catch(G, Ball, R), St0, St, Ctx, M0, M, [catchc(Gn, Ball, Rn)]) :- !,
     flow_an_seq(G, St0, St1, Ctx, M0, M1, Gn),
-    flow_an_seq(R, St0, St2, Ctx, M1, M, Rn),
+    flow_catcher_state(Ball, St0, StR),
+    flow_an_seq(R, StR, St2, Ctx, M1, M, Rn),
     flow_join(St1, St2, St).
 %% THREADS (lanes.pl). with_mutex(M, G) is G once, under the lock;
 %% cond_wait_until(C, M, G) waits until G holds, and leaves its bindings;
@@ -763,6 +765,19 @@ flow_an_item(G, St0, St, Ctx, M0, M, [g(G, Kind, Ms, Det, N/A, I)]) :-
     ->  I = [inst(Ps, Vs)],
         St = [dead-dead|St1]                    % it raises: nothing after it runs
     ;   I = [], St = St1
+    ).
+
+%% THE RECOVERY RUNS WITH THE BALL IN THE CATCHER: what the protected goal
+%% bound is undone, and the ball, a copy of what was thrown, is unified with
+%% the catcher. A ball is never a free variable, so a catcher that is one is
+%% bound; a catcher's pattern leaves its variables whatever the ball holds
+%% there -- partly bound at least, never known free. Through 1.10.27 the
+%% recovery saw the catcher free: `catch(work(F), E, report(E))' drew
+%% report/1 called (-), and `report(error(N, _)) :- N > 0' an instantiation
+%% error that never happens (two such in cicili-lang's dr_error/3).
+flow_catcher_state(Ball, St0, St) :-
+    (   var(Ball) -> flow_raise_list([Ball], b, St0, St)
+    ;   flow_raise_term(Ball, p, St0, St)
     ).
 
 %% httpd_serve/2,3 here: a construct whose goal is the page, its Path and

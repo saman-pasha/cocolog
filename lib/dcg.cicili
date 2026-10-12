@@ -434,7 +434,7 @@
                      (return (coco_m_instantiation_error e)))
                     ((== ($ err kind) COCO_DCG_CALLABLE)
                      (return (coco_m_type_error e "callable" ($ err culprit))))
-                    (#t (return (coco_m_error e "out of memory" "translating a grammar body")))))
+                    (#t (return (coco_m_resource_error e "memory")))))
           (return (? (coco_m_unify e (coco_m_arg e g 3) built) 1 0))))
 
   (static) (coco-emit-module-dispatch coco_dcg_dispatch *dcg-predicates*)

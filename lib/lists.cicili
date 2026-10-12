@@ -371,7 +371,7 @@
           (if (> n 1)
             (let ((size_t * tmp . #'(cast (size_t *) (malloc (* n (sizeof size_t)))))
                   (size_t * src . v) (size_t * dst . nil))
-              (if (== tmp nil) (block (free v) (return (coco_m_error e "sort/4" "out of memory"))))
+              (if (== tmp nil) (block (free v) (return (coco_m_resource_error e "memory"))))
               (set dst tmp)
               (for ((size_t width . 1)) (< width n) ((set width (* width 2)))
                 (for ((size_t lo . 0)) (< lo n) ((set lo (+ lo (* width 2))))

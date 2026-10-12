@@ -116,9 +116,9 @@
             (coco_sb_put_sz b (cast size_t ($ (nth i (-> m functors)) arity)))
             (coco_sb_putc b (cast char 10)))
 
-          ;; %.17g is the shortest form that reads back bit for bit -- this is
-          ;; the one place the writer's %.15g would not do, because a machine
-          ;; that resumes has to hold the same double it held before
+          ;; %.17g always reads back bit for bit, which is all a machine that
+          ;; resumes needs: the same double it held before (the writer's
+          ;; shortest form, since 1.10.28, would do too, at more cost)
           (coco_sb_put b "D ") (coco_sb_put_sz b (-> m floats_len)) (coco_sb_putc b (cast char 10))
           (for ((size_t i . 0)) (< i (-> m floats_len)) ((++ i))
             (let ((char tmp [40]))

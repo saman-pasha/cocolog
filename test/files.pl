@@ -56,6 +56,9 @@ fixtures(stat, Sandbox) :- !,
     atom_concat(Sandbox, '/five.txt', Five), write_file_from_codes(Five, "hello"),
     atom_concat(Sandbox, '/empty.txt', Empty), write_file_from_codes(Empty, []),
     shl(['cd ', Sandbox, ' && ln -s five.txt link.txt']).
+fixtures(loaded, Sandbox) :- !,
+    atom_concat(Sandbox, '/sib.pl', Sib),
+    fixture(Sib, ['sib_a(1).', 'sib_b(X) :- sib_a(X).']).
 fixtures(_, _).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on

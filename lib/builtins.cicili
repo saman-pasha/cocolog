@@ -74,6 +74,7 @@
     ("$clause"                 3 coco_b_clause_at)
     ("$pred_count"             3 coco_b_pred_count)
     ("$predicates"             1 coco_b_predicates)
+    ("$pred_props"             2 coco_b_pred_props)
     ("abolish"                 1 coco_b_abolish)
 
     ("nb_setval"               2 coco_b_setval)
@@ -104,6 +105,32 @@
     ("$ops"                    1 coco_b_ops)
 
     ("halt"                    1 coco_b_halt1)))
+
+;;; THE C PREDICATES OF THE COMPILED-IN MODULES, for predicate_property/2
+;;; (1.10.28): a module's dispatcher is all that knows its names and asking
+;;; it is calling it, so the names come from the tables the dispatchers are
+;;; built from. Expanded after every file is read (cocolog.cicili imports
+;;; them all first), and a table a build left out is skipped. A module
+;;; loaded from a `.so' has no table here and is not answered.
+(DEFMACRO coco-emit-claims (fname &REST tables)
+  (LET ((rows (LOOP FOR tbl IN tables
+                    WHEN (BOUNDP tbl) APPEND (SYMBOL-VALUE tbl))))
+    `(func ,fname ((const char * name) (u32 arity)) (out int)
+       (cond
+         ,@(MAPCAR (LAMBDA (row)
+                     `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row)))) (return 1)))
+                   rows)
+         (#t (return 0))))))
+
+;;; THE CONTROL CONSTRUCTS A PROGRAM CALLS, by name AND arity, as SWI
+;;; lists them: `*construct-names*' holds the engine's own markers too
+;;; ('$k', [], ':-'), which are not predicates, and a name alone would
+;;; make true/1 one.
+(DEFPARAMETER *callable-constructs*
+  '(("true" 0) ("fail" 0) ("false" 0) ("!" 0) ("trace" 0) ("notrace" 0)
+    ("," 2) (";" 2) ("->" 2) ("*->" 2) ("\\+" 1) ("not" 1) ("once" 1) ("ignore" 1)
+    ("call" 1) ("call" 2) ("call" 3) ("call" 4) ("call" 5) ("call" 6) ("call" 7) ("call" 8)
+    ("catch" 3) ("throw" 1)))
 
 (DEFPARAMETER *builtins-prolog*
   (FORMAT NIL "~{~A ~}"
@@ -271,6 +298,14 @@
            "current_predicate(N/A) :- '$predicates'(L), '$cp_member'(N/A, L)."
            "'$cp_member'(X, [X|_])."
            "'$cp_member'(X, [_|T]) :- '$cp_member'(X, T)."
+
+           ;; ---- predicate_property/2 (1.10.28) -----------------------------
+           ;; A head names one predicate, whose properties the C half lists;
+           ;; an unbound head walks current_predicate/1's, the program's.
+           ;; M:H is H (one namespace), so user:H walks them too.
+           "predicate_property(H, P) :- nonvar(H), H = _:G, !, predicate_property(G, P)."
+           "predicate_property(H, P) :- nonvar(H), !, '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
+           "predicate_property(H, P) :- current_predicate(N/A), functor(H, N, A), '$pred_props'(H, Ps), '$cp_member'(P, Ps)."
 
            ;; ---- retractall/1 ----------------------------------------------
            ;;
@@ -811,7 +846,7 @@
           (set ats (cast (u64 *) (malloc (* (cast size_t answers) (sizeof u64)))))
           (if (== ats nil)
               (block (if (!= jmode 0) (coco_jr_free (aof jr)))
-                     (return (coco_m_error e "'$trace_window'/4" "out of memory"))))
+                     (return (coco_m_resource_error e "memory"))))
           (memset (aof r) 0 (sizeof coco_rec))
           (set ($ r from) (cast u64 from))
           (set ($ r to) (cast u64 to))
@@ -855,7 +890,7 @@
           ;; the file by its name: a collection in the run may have moved
           ;; the option's cell
           (if jbad (return (coco_m_permission_error e "write" "journal" (coco_new_atom m jpath))))
-          (if (-> m oom) (return (coco_m_error e "'$trace_window'/4" "out of memory")))
+          (if (-> m oom) (return (coco_m_resource_error e "memory")))
           (if (not (coco_m_unify e (coco_m_arg e g 2) evs)) (return 0))
           ;; ask's answer: true, false, limit, exception(Ball) or error -- its
           ;; option found again by its place, the run having moved the cells
@@ -1713,6 +1748,9 @@
                (if (== sink (cast size_t -1))
                    (if (!= ($ b s) nil) (fputs ($ b s) stdout)))
                (coco_sb_free (aof b))
+               ;; a refused buffer is resource_error(memory) (1.10.28)
+               (if (== 0 (strcmp err "format/2: out of memory"))
+                   (return (coco_m_resource_error e "memory")))
                (return (coco_m_error e err ""))))
 
           (let ((int rc . #'(coco_sink_deliver e sink (? (== ($ b s) nil) "" ($ b s)))))
@@ -1861,7 +1899,7 @@
           (set text (cast (char *) (malloc (cast size_t (+ len 1)))))
           (if (== text nil)
               (block (fclose tmp)
-                     (return (coco_m_error e "with_output_to/2" "out of memory"))))
+                     (return (coco_m_resource_error e "memory"))))
           (rewind tmp)
           (if (> len 0)
               (if (!= (cast long (fread text 1 (cast size_t len) tmp)) len)
@@ -2428,14 +2466,18 @@
   ;;; The table holds more -- a call, or `clause/2', makes an entry for a
   ;;; name it looks up, and a call to it still raises `existence_error' --
   ;;; and those are left out, as are the library's own predicates:
-  ;;; `current_predicate/1' is about the program.
+  ;;; `current_predicate/1' is about the program. The program's own files
+  ;;; are the program's (`own', 1.10.28): `-s FILE', ensure_loaded/1 and
+  ;;; use_module/1 of a path load them as modules, and through 1.10.27 their
+  ;;; predicates were left out with the library's.
   (func coco_b_predicates ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
           (coco_store_warm st)
           (for ((size_t i . 0)) (< i ($ (cof st) npreds)) ((++ i))
-            (if (and (not ($ (nth i ($ (cof st) preds)) library))
+            (if (and (or (not ($ (nth i ($ (cof st) preds)) library))
+                         ($ (nth i ($ (cof st) preds)) own))
                      (or (> ($ (nth i ($ (cof st) preds)) nclauses) 0)
                          ($ (nth i ($ (cof st) preds)) dynamic)))
                 (block
@@ -2454,6 +2496,72 @@
           (set out (coco_m_list e v n))
           (free v)
           (return (coco_m_unify e (coco_m_arg e g 0) out))))
+
+  (coco-emit-claims coco_b_tier1_claims *builtins-predicates* *lists-predicates*
+                    *files-predicates* *dcg-predicates* *library-predicates*
+                    *zigurat-predicates*)
+  (coco-emit-claims coco_b_construct_claims *callable-constructs*)
+
+  ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
+  ;;; the properties of the predicate Head names, or a failure where
+  ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head
+  ;;; names Head: there is one namespace. A control construct is visible,
+  ;;; built_in, static and defined (`coco_b_construct_claims', by name and
+  ;;; arity), and a C predicate of the engine's table or of a compiled-in
+  ;;; module (`coco_b_tier1_claims') foreign too; a
+  ;;; predicate of the store with a clause or a dynamic declaration is
+  ;;; visible, dynamic or static, defined, with number_of_clauses(N) and
+  ;;; number_of_rules(R). Where SWI says a library's predicate is built_in
+  ;;; or imported_from(Lib), this does not: a library's clauses are
+  ;;; consulted muted and carry no file (`coco_consult'). A module loaded
+  ;;; from a `.so' is not answered: its dispatcher is all that knows its
+  ;;; names, and asking it is calling it.
+  (func coco_b_pred_props ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_m_arg e g 0))
+              (size_t v [8]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0))
+          (if (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
+          (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
+          (set nid (coco_name_of m h))
+          (set ar (coco_arity m h))
+          (set c (or (>= (coco_builtin_index m nid ar) 0)
+                     (coco_b_tier1_claims (coco_atom_name m nid) ar)))
+          (if (or c (coco_b_construct_claims (coco_atom_name m nid) ar))
+              (block
+                (set (nth n v) (coco_new_atom m "visible")) (++ n)
+                (set (nth n v) (coco_new_atom m "built_in")) (++ n)
+                (if c (block (set (nth n v) (coco_new_atom m "foreign")) (++ n)))
+                (set (nth n v) (coco_new_atom m "static")) (++ n)
+                (set (nth n v) (coco_new_atom m "defined")) (++ n)
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
+          (let ((size_t pi . #'(coco_pred_intern st nid ar)))
+            (if (>= pi ($ (cof st) npreds)) (return 0))
+            (coco_pred_ensure st pi)
+            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
+                  (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
+                  (u64 tid . #'(coco_intern m "true")))
+              (if (and (== (-> p nclauses) 0) (not (-> p dynamic))) (return 0))
+              ;; a rule is a clause whose body is not `true'; the predicate
+              ;; read through its index each time round, as after
+              (for ((size_t i . 0)) (< i ($ (nth pi ($ (cof st) preds)) nclauses)) ((++ i))
+                (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
+                      (size_t ch . 0) (size_t cb . 0))
+                  (coco_clause_parts m t (aof ch) (aof cb))
+                  (if (and (!= cb 0)
+                           (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
+                                     (== (coco_name_of m (coco_deref m cb)) tid))))
+                      (set rules (+ rules 1)))
+                  (set (-> m heap_len) mark)))
+              ;; the store may have moved under the reads: read P again
+              (set p (aof (nth pi ($ (cof st) preds))))
+              (set (nth n v) (coco_new_atom m "visible")) (++ n)
+              (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
+              (set (nth n v) (coco_new_atom m "defined")) (++ n)
+              (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (-> p nclauses))))) (++ n)
+              (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)
+              (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
 
   ;;; `abolish(Name/Arity)' -- every clause of it goes, and the write-through
   ;;; hook hears about it because this is a retract of the whole predicate.
