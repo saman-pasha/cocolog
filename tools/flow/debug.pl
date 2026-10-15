@@ -22,9 +22,28 @@
 %%              journal_file=F        and the journal is kept in F
 %%              txt=true|false        BASE.txt as well: the run, one line a call
 %%                                    (false)
-%%              profile=true|false    BASE.prof as well: each predicate's calls
-%%                                    and the inferences spent inside them
-%%                                    (false; flow_profile_text/2)
+%%              svg=true|false        BASE.svg and BASE.xml (true): false leaves
+%%              xml=true|false        one out, and both false leave out the
+%%                                    values that crossed, which only they show
+%%                                    -- the cheap way to a profile or BASE.txt
+%%              profile=VIEWS         BASE.prof as well (false): true is each
+%%                                    predicate's calls and the inferences spent
+%%                                    inside them (flow_profile_text/2); or any
+%%                                    of inclusive (that), steps (the window's
+%%                                    inferences by what took them: each
+%%                                    predicate's calls and the control
+%%                                    constructs' steps), callers (each
+%%                                    predicate's callers and how many calls
+%%                                    each made) and repeats (the goals asked
+%%                                    more than once), a comma between, or all
+%%              windows=N             N windows of window=N inferences along the
+%%              jobs=J                run, over from= to= when given, written as
+%%                                    BASE.1.*, BASE.2.*, ... -- each by a
+%%                                    process of its own, J at a time (the
+%%                                    machine's processors) -- with BASE.prof of
+%%                                    them all (flow_debug_windows/4); the chart
+%%                                    is built once, into cache=DIR or
+%%                                    BASE.charts
 %%              cache=DIR             the chart kept in DIR, built once for a
 %%                                    goal's call pattern of a file: BASE.xml
 %%                                    is then the run alone, naming the
@@ -61,8 +80,9 @@
 %% FOR AN AGENT IN ANY LANGUAGE: one command, two files, and an exit status
 %% that says what happened -- 0 both written, 1 the program has no such
 %% predicate, 2 anything else, with the reason on stderr. Standard output
-%% names the two files (BASE.txt as well with txt=true, and with cache=DIR
-%% the chart's XML that BASE.xml names) and then one line about the run:
+%% names the files it wrote (the two, or what svg= and xml= leave; BASE.txt
+%% as well with txt=true; with cache=DIR the chart's XML that BASE.xml
+%% names; BASE.prof with profile=) and then one line about the run:
 %%
 %%     go(30,R): answer at inference 501; recorded 402 to 501; diverged no
 %%
@@ -85,6 +105,11 @@
 %%
 %%     a total([1, 2, 3], T): answer at inference 12; b total([1, 2, 3], T): answer at inference 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b
 %%
+%% and with windows=N, each window's files and line, BASE.prof, and the
+%% run's line with every window (1.11.10):
+%%
+%%     go(40, R): answer at inference 564; 3 windows: 139 to 188, 327 to 376, 515 to 564
+%%
 %% (the XML's <run> holds every call, event and binding; library/flow/debug.pl
 %% and library/flow/dbgdraw.pl say what each is). A run that failed or threw
 %% is no failure of the command: the exit status stays 0.
@@ -96,7 +121,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [profile=true|false] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [windows=N] [jobs=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [svg=true|false] [xml=true|false] [profile=true|false|all|inclusive,steps,callers,repeats] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -120,7 +145,7 @@ main :-
         )
     ),
     fd_options(OptAs1, Opts0),
-    (   selectchk(profile(PV), Opts0, Opts) -> true ; PV = false, Opts = Opts0 ),
+    (   selectchk(profile(Vs), Opts0, Opts) -> true ; Vs = [], Opts = Opts0 ),
     (   CondA == none
     ->  true
     ;   fd_when(Goal, Cond, Names, File, Base, Opts),
@@ -131,21 +156,23 @@ main :-
     ;   fd_diff(Goal, Names, File, GoalBA, Base, Opts),
         halt(0)
     ),
-    (   PV == true -> POs = [profile(Prof)|Opts] ; POs = Opts ),
-    catch(flow_debug(Goal, Base, [source(File), names(Names)|POs], Run), E, fd_error(E)),
-    fd_files(Goal, File, Base, Opts),
-    (   PV == true
-    ->  flow_profile_text(Prof, PText),
-        atom_concat(Base, '.prof', PFile),
-        open(PFile, write, PS), write(PS, PText), close(PS),
-        format("~w~n", [PFile])
+    (   memberchk(windows(_), Opts)
+    ->  fd_windows(Goal, Names, File, Base, Opts, Vs),
+        halt(0)
     ;   true
     ),
-    Run = run(How, At, _, window(F, T), _, _, Div, J),
-    (   How = exception(B) -> format(atom(HT), 'exception ~q at inference ~w', [B, At])
-    ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
-    ;   format(atom(HT), '~w at inference ~w', [How, At])
-    ),
+    fd_answers(Vs, Ans),
+    append(Ans, Opts, POs),
+    catch(flow_debug(Goal, Base, [source(File), names(Names)|POs], Run), E, fd_error(E)),
+    fd_files(Goal, File, Base, Opts),
+    fd_profile(Vs, Base, Ans),
+    flow_term_full(Goal, Names, 999, GT),
+    fd_line(GT, Run).
+
+%% the run's line: how it ended and where, the window, whether the replay
+%% was the probe's run, and what the journal answered
+fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J)) :-
+    fd_how(How, At, HT),
     flow_dbg_div_ends(Div, DT),
     (   J = journal(Es)
     ->  length(Es, NE),
@@ -154,8 +181,76 @@ main :-
         format(atom(JT), '; journal ~d portal calls, ~d answered', [NE, NA])
     ;   JT = ''
     ),
-    flow_term_full(Goal, Names, 999, GT),
     format("~w: ~w; recorded ~w to ~w; diverged ~w~w~n", [GT, HT, F, T, DT, JT]).
+
+fd_how(How, At, HT) :-
+    (   How = exception(B) -> format(atom(HT), 'exception ~q at inference ~w', [B, At])
+    ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
+    ;   format(atom(HT), '~w at inference ~w', [How, At])
+    ).
+
+%% PROFILE=: the views BASE.prof holds, in this order, a blank line between
+%% -- inclusive (profile=true), steps, callers and repeats (all four with
+%% profile=all) -- and the answers flow_debug/4 is asked for to write them
+fd_answers(Vs, Ans) :-
+    findall(A, ( member(V-A, [inclusive-profile(_), steps-profile(_), callers-callers(_), repeats-repeats(_)]),
+                 memberchk(V, Vs) ),
+            As0),
+    fd_one_profile(As0, Ans).
+
+%% profile(P) asked once, for inclusive and steps alike
+fd_one_profile(As0, As) :-
+    (   select(profile(P), As0, As1), select(profile(P), As1, As2) -> As = [profile(P)|As2]
+    ;   As = As0
+    ).
+
+fd_profile([], _, _) :- !.
+fd_profile(Vs, Base, Ans) :-
+    (   memberchk(profile(P), Ans) -> true ; P = none ),
+    (   memberchk(callers(C), Ans) -> true ; C = none ),
+    (   memberchk(repeats(R), Ans) -> true ; R = none ),
+    fd_profile_write(Vs, Base, P, C, R).
+
+fd_profile_write(Vs, Base, P, C, R) :-
+    findall(T, ( member(V, Vs), fd_view_text(V, P, C, R, T) ), Ts),
+    atomic_list_concat(Ts, '\n', Text),
+    atom_concat(Base, '.prof', PFile),
+    open(PFile, write, PS), write(PS, Text), close(PS),
+    format("~w~n", [PFile]).
+
+fd_view_text(inclusive, P, _, _, T) :- flow_profile_text(P, T).
+fd_view_text(steps, P, _, _, T) :- flow_steps_text(P, T).
+fd_view_text(callers, _, C, _, T) :- flow_callers_text(C, T).
+fd_view_text(repeats, _, _, R, T) :- flow_repeats_text(R, T).
+
+%% WINDOWS=N: N windows along the run (flow_debug_windows/4), each written
+%% as BASE.K.* and its line said, then BASE.prof of them all when profile=
+%% asks, and a line for the run. The chart is kept in cache=DIR, or in
+%% BASE.charts when none is given, which each window's XML names
+fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
+    (   memberchk(cache(_), Opts0) -> Opts = Opts0
+    ;   catch(use_module(library(sha)), _, fail)
+    ->  atom_concat(Base, '.charts', CD),
+        Opts = [cache(CD)|Opts0]
+    ;   Opts = Opts0
+    ),
+    catch(flow_debug_windows(Goal, Base, [source(File), names(Names)|Opts], windows(End, Ws)), E, fd_error(E)),
+    flow_term_full(Goal, Names, 999, GT),
+    forall(member(window(_, BK, Run, _), Ws),
+           ( fd_files(Goal, File, BK, Opts), fd_line(GT, Run) )),
+    (   Vs == [] -> true
+    ;   findall(Rows, member(window(_, _, _, Rows), Ws), RLs),
+        flow_profile_merge(RLs, P, C, R),
+        fd_profile_write(Vs, Base, P, C, R)
+    ),
+    End = end(How, At, _),
+    fd_how(How, At, HT),
+    length(Ws, NW),
+    findall(WT, ( member(window(_, _, run(_, _, _, window(F, T), _, _, _, _), _), Ws),
+                  format(atom(WT), '~w to ~w', [F, T]) ),
+            WTs),
+    atomic_list_concat(WTs, ', ', WA),
+    format("~w: ~w; ~d windows: ~w~n", [GT, HT, NW, WA]).
 
 %% when=COND and diff_goal=GOAL, taken out before the others: each is
 %% Prolog and may hold an =
@@ -227,12 +322,17 @@ fd_ended(run(How, At, _, _, _, _, _, _), T) :-
     ;   format(atom(T), '~w at inference ~w', [How, At])
     ).
 
-%% the files written, a line each
+%% the files written, a line each: BASE.svg and BASE.xml unless svg=false
+%% and xml=false leave them out, BASE.txt with txt=true, and the chart's
+%% XML that BASE.xml names, kept in cache=DIR
 fd_files(Goal, File, Base, Opts) :-
-    format("~w.svg~n~w.xml~n", [Base, Base]),
+    (   memberchk(svg(false), Opts) -> true ; format("~w.svg~n", [Base]) ),
+    (   memberchk(xml(false), Opts) -> true ; format("~w.xml~n", [Base]) ),
     (   memberchk(txt(true), Opts) -> format("~w.txt~n", [Base]) ; true ),
-    flow_dbg_chart_xml(Goal, [source(File)|Opts], CX),
-    (   CX == none -> true ; format("~w~n", [CX]) ).
+    (   memberchk(xml(false), Opts) -> true
+    ;   flow_dbg_chart_xml(Goal, [source(File)|Opts], CX),
+        (   CX == none -> true ; format("~w~n", [CX]) )
+    ).
 
 %% the goal with the names it writes: read from a file of its own, which is
 %% how read_term/3 gives them
@@ -251,7 +351,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, txt=, profile=, cache=, embed=, kb=, own=, when=, step=, diff= or diff_goal=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, windows=, jobs=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, txt=, svg=, xml=, profile=, cache=, embed=, kb=, own=, when=, step=, diff= or diff_goal=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -264,8 +364,18 @@ fd_option(journal, V, journal(V)) :-
     memberchk(V, [true, false]).
 fd_option(txt, V, txt(V)) :-
     memberchk(V, [true, false]).
-fd_option(profile, V, profile(V)) :-
+fd_option(svg, V, svg(V)) :-
     memberchk(V, [true, false]).
+fd_option(xml, V, xml(V)) :-
+    memberchk(V, [true, false]).
+fd_option(profile, V, profile(Vs)) :-
+    fd_views(V, Vs).
+%% windows=N and jobs=J, each at least 1
+fd_option(K, V, O) :-
+    memberchk(K, [windows, jobs]),
+    catch(atom_number(V, N), _, fail),
+    integer(N), N >= 1,
+    O =.. [K, N].
 fd_option(journal_file, V, journal_file(V)) :-
     V \== ''.
 fd_option(cache, V, cache(V)) :-
@@ -294,6 +404,18 @@ fd_option(K, V, O) :-
     catch(atom_number(V, N), _, fail),
     integer(N), N >= 0,
     O =.. [K, N].
+
+%% profile=: true (the inclusive view alone, as through 1.11.9), false,
+%% all, or views by name, a comma between -- in BASE.prof always in the
+%% order inclusive, steps, callers, repeats
+fd_views(true, [inclusive]) :- !.
+fd_views(false, []) :- !.
+fd_views(all, [inclusive, steps, callers, repeats]) :- !.
+fd_views(V, Vs) :-
+    atomic_list_concat(Vs0, ',', V),
+    Vs0 \== [],
+    forall(member(X, Vs0), memberchk(X, [inclusive, steps, callers, repeats])),
+    findall(X, ( member(X, [inclusive, steps, callers, repeats]), memberchk(X, Vs0) ), Vs).
 
 fd_preds([], []).
 fd_preds([A|As], [P|Ps]) :-

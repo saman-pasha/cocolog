@@ -1435,8 +1435,13 @@ read into an English-worded IR and written into any lesson's language),
   windows of a few thousand inferences spread along a run (a refusal of
   65 million inferences, say) gives BASE.prof, and a call there is ONE
   inference, which is its whole self cost: rank the predicates by CALLS, then
-  by their callers in BASE.txt. A window of 200 000 inferences takes minutes
-  to write. Half of the inferences were the lexicon lookup layer
+  by their callers. Since 1.11.10 `profile=all` writes the callers, the
+  goals asked again and the inferences by what took them (constructs
+  included) into BASE.prof -- no script over BASE.txt -- and `windows=N`
+  records N windows along the run, J at a time, their profiles added up;
+  `svg=false xml=false` for a profile alone. A window of 100 000 inferences
+  far along the translator takes ~30 s that way (100 s with every document
+  through 1.11.9, whose matcher alone took 36). Half of the inferences were the lexicon lookup layer
   (tr_solve/1, tr_memo/4 and what they call), and its four wastes were each a
   few per cent: `member/2` on a LIST WALKS IT (a clause per element) where the
   first argument is given -- tr_class_of/2 over its fourteen classes, 4 % of

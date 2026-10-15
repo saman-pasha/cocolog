@@ -30,10 +30,14 @@
 %% the run one line a call; cache(Dir), the chart built once for a program
 %% and kept (library(sha)), and embed(Dir) with kb(Name), the program run
 %% over a store; own(all) or own(Files), whose failed calls the why
-%% explains (the chart's panels by default); and two answers: places(P),
-%% where each box is written, and profile(P), where the inferences went. The
+%% explains (the chart's panels by default); svg(false) and xml(false),
+%% leaving a document out; and answers: places(P), where each box is
+%% written, profile(P), where the inferences went, callers(C), who made the
+%% calls, and repeats(R), the goals asked more than once.
+%% flow_debug_windows/4 records windows(N) windows along one run, each by a
+%% process of its own, and flow_profile_merge/4 adds their profiles up. The
 %% same from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
-%% [OPTION ...]'.
+%% [OPTION ...]', with profile=all and windows=N.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
@@ -199,6 +203,31 @@ main :-
     Prof = profile(_, _, Spent, [TopRow, NextRow|_]),
     must('the 402 inferences, basket_total/2 spending all of them over its 201 calls, price/2 one each',
          Spent-TopRow-NextRow, 402-prof(basket_total/2, 402, 201, 402)-prof(price/2, 201, 201, 1)),
+    %% who made the calls, and the goals asked more than once -- a goal's
+    %% variables named in the order they come, so price(apple, P) asked with
+    %% a fresh P each time is one goal (flow_callers_text/2 and
+    %% flow_repeats_text/2 write them; flow_steps_text/2 the window's
+    %% inferences by what took them). svg(false) and xml(false): neither
+    %% document is written, the cheap way to a profile
+    flow_debug(basket_total(Long, _), LongBase,
+               [source(Prog), from(1), callers(Callers), repeats(Repeats), svg(false), xml(false)], _),
+    Callers = callers(_, _, [callers(CP, CN, CBy)|_]),
+    must('basket_total/2''s 201 calls: 200 made by basket_total/2 itself, one by the query',
+         CP-CN-CBy, basket_total/2-201-[basket_total/2-200, '(the query)'-1]),
+    Repeats = repeats(_, _, RRows),
+    must('price/2 asked price(apple, P) 200 times: 201 calls of 2 goals',
+         RRows, [repeats(price/2, 201, 2, ['price(apple,_1)'-200])]),
+    %% windows along one run, each recorded by a process of its own, and
+    %% their profile rows added up: a long run sampled where it is slow
+    atom_concat(Dir, '/sampled', SampledBase),
+    flow_debug_windows(basket_total(Long, _), SampledBase,
+                       [source(Prog), windows(2), window(10), svg(false), xml(false)], windows(_, Ws)),
+    findall(F-T2, member(window(_, _, run(_, _, _, window(F, T2), _, _, _, _), _), Ws), Spans),
+    must('two windows of 10, the second where the run fails', Spans, [192-201, 393-402]),
+    findall(Rows, member(window(_, _, _, Rows), Ws), RowLists),
+    flow_profile_merge(RowLists, profile(_, _, _, MRows), _, _),
+    findall(MP-MN, member(prof(MP, _, MN, _), MRows), MPNs),
+    must('their calls added up: ten of each predicate', MPNs, [basket_total/2-10, price/2-10]),
 
     format("~n-- two runs compared~n"),
     %% the same basket over a program that knows what a banana costs: the

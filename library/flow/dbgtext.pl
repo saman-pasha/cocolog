@@ -134,11 +134,13 @@ flow_dbg_text_value(cut(P, L), T) :- !,
     format(atom(T), '~w...[~w]', [P, L]).
 flow_dbg_text_value(V, V).
 
-flow_dbg_text_spaces(0, '') :- !.
+%% N spaces, made at once (1.11.10): through 1.11.9 a space at a time, an
+%% atom_concat/3 a level, which is quadratic in the depth -- and a window
+%% far along a recursion that does not return (a loop of last calls) is
+%% hundreds of levels deep: BASE.txt of a 20 000-inference window took
+%% 10.4 s, of 100 000 minutes (the reasoning session's point 8)
 flow_dbg_text_spaces(N, S) :-
-    N1 is N - 1,
-    flow_dbg_text_spaces(N1, S1),
-    atom_concat(' ', S1, S).
+    format(atom(S), '~*c', [N, 0' ]).
 
 %% a line ends where its last field does
 flow_dbg_text_trim(L0, L) :-

@@ -69,7 +69,14 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
     flow_dbg_head_states(Calls, Heads),
     flow_dbg_entered(Calls, Entered),
     flow_dbg_call_goals(Calls, Panels, Goal, Names, Goals),
-    flow_dbg_crossings(SEs, Goals, Xs),
+    %% the values that crossed are drawn and written in the XML, and nothing
+    %% else reads them: with neither document (svg(false), xml(false)) they
+    %% are not worked out, and the run's Bindings are [] -- 8.7 s of a
+    %% window of 100 000 inferences of the translator (1.11.10)
+    (   memberchk(svg(false), Opts), memberchk(xml(false), Opts)
+    ->  Xs = []
+    ;   flow_dbg_crossings(SEs, Goals, Xs)
+    ),
     flow_option(discs(ND), Opts, 24),
     flow_dbg_discs(Xs, ND, Discs),
     flow_option(text(TM), Opts, 60),
@@ -145,34 +152,27 @@ flow_dbg_refate(call(S, Pr, D, P, B, Pn, Cl, In, Out, Fate), Fates, call(S, Pr, 
 %% Redo, a clause or a head is about the latest Call of its cell (one the
 %% window did not see is dropped); a throw or a catch about the call whose
 %% body it is in, 0 when that began before the window
+%% (1.11.10: which call a cell names is the matcher's flow_dbg_owners/2,
+%% sorted rather than kept in an AVL tree put into at every Call)
 flow_dbg_serial(Events, SEs) :-
-    empty_assoc(C0),
-    flow_dbg_serial_(Events, C0, SEs).
+    flow_dbg_owners(Events, Owners),
+    flow_dbg_serial_(Events, 1, Owners, SEs).
 
-flow_dbg_serial_([], _, []).
-flow_dbg_serial_([E|Es], C0, Out) :-
-    flow_dbg_ev(E, C0, C1, X),
-    (   X == none -> Out = Out1 ; Out = [X|Out1] ),
-    flow_dbg_serial_(Es, C1, Out1).
+flow_dbg_serial_([], _, _, []).
+flow_dbg_serial_([E|Es], Pos, Ow0, Out) :-
+    (   Ow0 = [Pos-S|Ow1] -> true ; S = 0, Ow1 = Ow0 ),
+    (   flow_dbg_ev(E, S, X) -> Out = [X|Out1] ; Out = Out1 ),
+    Pos1 is Pos + 1,
+    flow_dbg_serial_(Es, Pos1, Ow1, Out1).
 
-flow_dbg_ev(call(I, D, C, _, N, As), C0, C1, ev(I, call, I, D, N, As)) :- !,
-    put_assoc(C, C0, I, C1).
-flow_dbg_ev(exit(I, D, C, N, As), C0, C0, X) :- !, flow_dbg_ev_known(C, C0, ev(I, exit, _, D, N, As), X).
-flow_dbg_ev(fail(I, D, C, N, As), C0, C0, X) :- !, flow_dbg_ev_known(C, C0, ev(I, fail, _, D, N, As), X).
-flow_dbg_ev(redo(I, D, C, N, As), C0, C0, X) :- !, flow_dbg_ev_known(C, C0, ev(I, redo, _, D, N, As), X).
-flow_dbg_ev(clause(I, D, C, K), C0, C0, X) :- !, flow_dbg_ev_known(C, C0, ev(I, clause, _, D, K, []), X).
-flow_dbg_ev(nohead(I, D, C, K), C0, C0, X) :- !, flow_dbg_ev_known(C, C0, ev(I, nohead, _, D, K, []), X).
-flow_dbg_ev(throw(I, D, C, B), C0, C0, ev(I, throw, S, D, B, [])) :- !, flow_dbg_ev_of(C, C0, S).
-flow_dbg_ev(catch(I, D, C), C0, C0, ev(I, catch, S, D, none, [])) :- !, flow_dbg_ev_of(C, C0, S).
-flow_dbg_ev(_, C, C, none).
-
-flow_dbg_ev_known(C, Cells, X0, X) :-
-    (   get_assoc(C, Cells, S) -> flow_dbg_with_s(X0, S, X) ; X = none ).
-
-flow_dbg_with_s(ev(I, P, _, D, W, As), S, ev(I, P, S, D, W, As)).
-
-flow_dbg_ev_of(C, Cells, S) :-
-    (   get_assoc(C, Cells, S0) -> S = S0 ; S = 0 ).
+flow_dbg_ev(call(I, D, _, _, N, As), _, ev(I, call, I, D, N, As)) :- !.
+flow_dbg_ev(exit(I, D, _, N, As), S, ev(I, exit, S, D, N, As)) :- !, S =\= 0.
+flow_dbg_ev(fail(I, D, _, N, As), S, ev(I, fail, S, D, N, As)) :- !, S =\= 0.
+flow_dbg_ev(redo(I, D, _, N, As), S, ev(I, redo, S, D, N, As)) :- !, S =\= 0.
+flow_dbg_ev(clause(I, D, _, K), S, ev(I, clause, S, D, K, [])) :- !, S =\= 0.
+flow_dbg_ev(nohead(I, D, _, K), S, ev(I, nohead, S, D, K, [])) :- !, S =\= 0.
+flow_dbg_ev(throw(I, D, _, B), S, ev(I, throw, S, D, B, [])) :- !.
+flow_dbg_ev(catch(I, D, _), S, ev(I, catch, S, D, none, [])).
 
 %% each box: bs(N, LastS, LastFate, NFailed); the calls come in order
 flow_dbg_box_states(Calls, Boxes) :-
@@ -227,10 +227,18 @@ flow_dbg_entered(Calls, Entered) :-
 
 %% the source goal at each call's box, with its clause's names: the
 %% query's own goal is the goal flow_debug/3 was given, named by names(...)
+%% -- found once a box (1.11.10), not once a call: each walked the chart's
+%% panels and named the clause's items again
 flow_dbg_call_goals(Calls, Panels, QGoal, QNames, Goals) :-
+    findall(Box, ( member(call(_, _, _, _, Box, _, _, _, _, _), Calls), Box \== none ), Bs0),
+    sort(Bs0, Bs),
+    findall(Box-bg(G, Ns, Pre),
+            ( member(Box, Bs), flow_dbg_box_goal(Box, Panels, QGoal, QNames, G, Ns, Pre) ),
+            BGs),
+    list_to_assoc(BGs, ByBox),
     findall(S-gi(Box, G, Ns, P-Pre),
             ( member(call(S, _, _, P, Box, _, _, _, _, _), Calls), Box \== none,
-              flow_dbg_box_goal(Box, Panels, QGoal, QNames, G, Ns, Pre) ),
+              get_assoc(Box, ByBox, bg(G, Ns, Pre)) ),
             L),
     list_to_assoc(L, Goals).
 

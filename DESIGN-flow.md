@@ -1170,6 +1170,26 @@ from a session that used the library on `library/reasoning/translate.pl`:
   back over: the session's first profile added to over 100 %), a call with
   neither up to the last inference under it, and a predicate with the union
   of its calls' spans, so a recursion is counted once.
+* **Three more views, and windows along a run** (1.11.10, the reasoning
+  session's points 7 and 8): `callers(C)`, each predicate's callers and
+  how many calls each made; `repeats(R)`, the goals asked more than once, a
+  goal's variables named in the order they come (`look(even,_1)`); and
+  `flow_steps_text/2`, the window's inferences by what took them -- each
+  predicate's calls and the steps of the control constructs, which make no
+  call; `profile=all|inclusive,steps,callers,repeats`. `windows=N`
+  (`flow_debug_windows/4`) records N windows along one run, each by a
+  process of its own, J at a time, the chart built once, and
+  `flow_profile_merge/4` adds their `profile_rows` up into BASE.prof. What
+  a window FAR ALONG a long run cost was the library's, not the run's: one
+  of 100 000 inferences at inference 15 000 000 of a 46 M-inference
+  refusal of the translator took 100 s here -- the matching 36 (each event
+  put into three AVL trees, and each child call finding its box's node
+  again over the chart's 2 792 panels), the facts 13.5, the profile 6, the
+  XML 23, BASE.txt's indentation a space at a time. Sorted instead of
+  trees, the panels a box calls worked out once, the placing done down the
+  call tree: matching 7 s, the profile 0.9, and with `svg=false xml=false`
+  (the values that crossed are not worked out) the window is 31 s; three
+  such windows with BASE.txt and every view, three at a time, 53 s.
 * **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
   the why of a reader that backtracks is the whole trace (2.84 MB for one
   refusal), and following its last failure down leads to the last

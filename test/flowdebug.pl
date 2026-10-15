@@ -73,6 +73,7 @@ main :-
     compared(D),
     compared_own(D),
     profiled(D),
+    viewed(D),
     furthest(D),
     raised(D),
     raised_choice(D),
@@ -967,6 +968,121 @@ profiled(D) :-
     read_file_to_codes(PF3, PC3), atom_codes(PA3, PC3),
     ( Ls3 = [_, _, PF3, _] -> N3 = named ; N3 = unnamed ),
     check('profile=true: BASE.prof, named after the two files', E3-N3-PA3, 0-named-PT1).
+
+%% ---- the profile's other views, and windows added up (1.11.10) --------------------
+
+%% top/0 asks leaf/1 seven times from three callers, a(1) twice, g/1 twice
+%% with fresh variables, and h/2 once with one variable twice and once with
+%% two: the callers, the goals asked again and the steps are known by hand;
+%% k(K) binds a value that would cross into K
+viewed(D) :-
+    section('callers, repeats and steps: who made the calls, the goals asked again, the inferences by what took them (1.11.10)'),
+    atomic_list_concat([D, '/views.pl'], F),
+    fixture(F, ['top :- a(1), a(1), b(2), b(3), c, g(_), g(_), h(Z, Z), h(_, _), k(K), K > 0.',
+                'a(X) :- leaf(X).', 'b(X) :- leaf(X), leaf(X).', 'c :- leaf(1).',
+                'leaf(_).', 'g(_).', 'h(_, _).', 'k(5).']),
+    atomic_list_concat([D, '/views'], B),
+    flow_debug(top, B, [source(F), from(1), profile(P1), callers(C1), repeats(R1), svg(false), xml(false)], Run1),
+    C1 = callers(_, _, CR1),
+    check('callers: leaf/1''s seven calls, four of them b/1''s -- the most called first, its callers the most calling first, the query''s goal the query''s',
+          CR1, [callers(leaf/1, 7, [b/1-4, a/1-2, c/0-1]), callers(a/1, 2, [top/0-2]), callers(b/1, 2, [top/0-2]),
+                callers(g/1, 2, [top/0-2]), callers(h/2, 2, [top/0-2]), callers((>)/2, 1, [top/0-1]),
+                callers(c/0, 1, [top/0-1]), callers(k/1, 1, [top/0-1]), callers(top/0, 1, ['(the query)'-1])]),
+    R1 = repeats(_, _, RR1),
+    check('repeats: leaf(1) three times, a(1) twice, g/1 twice with fresh variables -- h(Z, Z) and h(_, _) are two goals, b(2) and b(3) two',
+          RR1, [repeats(leaf/1, 7, 3, ['leaf(1)'-3, 'leaf(2)'-2, 'leaf(3)'-2]), repeats(a/1, 2, 1, ['a(1)'-2]),
+                repeats(g/1, 2, 1, ['g(_1)'-2])]),
+    flow_steps_text(P1, ST1),
+    atomic_list_concat(SL1, '\n', ST1),
+    SL1 = [SH1, _, SA1|_],
+    append(_, [SZ1, ''], SL1),
+    check('steps: the window''s 20 inferences, 19 of them calls, leaf/1''s seven the most, and the one a control construct took',
+          [SH1, SA1, SZ1],
+          ['% the 20 inferences of the window 1 to 20 by what took them: 19 calls of 9 predicates, an inference each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
+           '        7    35.0  leaf/1',
+           '        1     5.0  (control constructs)']),
+    Run1 = run(_, _, _, _, _, Bs1, _, _),
+    atom_concat(B, '.svg', SF1), atom_concat(B, '.xml', XF1),
+    yes_no(exists_file(SF1), YS1), yes_no(exists_file(XF1), YX1),
+    check('svg(false) and xml(false): neither document written, and the values that crossed not worked out',
+          Bs1-YS1-YX1, []-no-no),
+    %% two windows of one run: the calls of each predicate are the whole
+    %% run's, and a call whose caller is in the other window is outside its
+    debugged(D, merge0, go(6, R2), ['R'=R2], [from(1), profile(P2), svg(false), xml(false)], Run2),
+    debugged(D, merge1, go(6, R3), ['R'=R3], [from(1), to(20), profile_rows(Rs3), svg(false), xml(false)], _),
+    debugged(D, merge2, go(6, R4), ['R'=R4], [from(21), profile_rows(Rs4), svg(false), xml(false)], _),
+    flow_profile_merge([Rs3, Rs4], MP, MC, _),
+    P2 = profile(_, T2, _, PR2),
+    MP = profile(MW, _, _, MPR),
+    findall(Pr-N, member(prof(Pr, _, N, _), PR2), PN2), msort(PN2, SPN2),
+    findall(Pr-N, member(prof(Pr, _, N, _), MPR), MPN), msort(MPN, SMPN),
+    check('two windows added up (flow_profile_merge/4): each predicate''s calls are the whole run''s, the windows named',
+          SMPN-MW, SPN2-windows([1-20, 21-T2])),
+    MC = callers(_, _, MCR),
+    ( memberchk(callers(app/3, NA2, AC2), MCR) -> true ; NA2 = 0, AC2 = [] ),
+    check('and a call whose caller began in the other window is outside its own: three of app/3''s 21',
+          NA2-AC2, 21-[app/3-14, nrev/2-4, '(outside the window)'-3]),
+    %% app/3's recursion is a last call, made with its caller's cell: the
+    %% matcher asks which call the parent cell names before the Call names
+    %% its own, or the call is its own parent
+    Run2 = run(_, _, _, _, Cs2, _, _, _),
+    findall(S2-Pa2, ( member(call(S2, _, _, Pa2, _, _, _, _, _, _), Cs2), Pa2 >= S2 ), Own2),
+    check('every call''s caller was made before it', Own2, []),
+    %% the translator records a Call made with its caller's own cell (a
+    %% retry in a recursion, append/3's): the matcher asks which call the
+    %% parent's cell names BEFORE the Call names its own cell (1.11.10), or
+    %% the call is its own caller
+    flow_dbg_index([call(1, 1, 100, 0, p, []), exit(1, 1, 100, p, []),
+                    call(2, 2, 100, 100, q, [a]), fail(2, 2, 100, q, [a])], Cs7, _),
+    check('a Call whose parent''s cell is its own cell is that cell''s last call''s child, not its own',
+          Cs7, [c(1, p/0, 1, 0, [], [], [], exit), c(2, q/1, 2, 1, [], [a], none, fail)]),
+    %% a window that closes on calls still running: each spends up to the
+    %% last inference under it
+    P3 = profile(_, _, _, PR3),
+    debugged(D, open20, go(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
+    findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [go/2, nrev/2]) ), Open3),
+    check('a call the window closed on spends up to the last inference made under it: go/2 the whole window, nrev/2 from inference 5',
+          Open3, [go/2-20, nrev/2-16]),
+    statistics(inferences, I0), flow_dbg_text_spaces(1000, S1000), statistics(inferences, I1),
+    atom_length(S1000, L1000), DI is I1 - I0,
+    ( DI < 20 -> Cost = constant ; Cost = DI ),
+    check('BASE.txt indents a call 500 levels deep at once, not a space a level (through 1.11.9, 100 000 inferences far along a recursion took minutes)',
+          L1000-Cost, 1000-constant),
+    viewed_command(D).
+
+%% the views and the windows from the command line
+viewed_command(D) :-
+    fx(F),
+    atomic_list_concat([D, '/viewc'], B5),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'pick(X)\' ', F, ' ', B5, ' profile=all svg=false xml=false'], A5),
+    cocolog_run(A5, T5, E5),
+    atomic_list_concat(Ls5, '\n', T5),
+    atom_concat(B5, '.prof', PF5),
+    read_file_to_codes(PF5, PC5), atom_codes(PA5, PC5),
+    atomic_list_concat(Secs5, '\n\n', PA5),
+    findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 30, _, Top) ), Tops5),
+    check('profile=all svg=false xml=false: BASE.prof alone and the line, the four views in order',
+          E5-Ls5-Tops5,
+          0-[PF5, 'pick(X): answer at inference 6; recorded 1 to 6; diverged no']-
+            ['% 5 inferences spent by the ca', '% the 6 inferences of the wind', '% the callers of the 3 predica', '% the goals the window 1 to 6 ']),
+    atomic_list_concat([D, '/vieww'], B6),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers svg=false xml=false txt=true'], A6),
+    cocolog_run(A6, T6, E6),
+    atomic_list_concat(Ls6, '\n', T6),
+    atomic_list_concat([B6, '.1.txt'], TF61), atomic_list_concat([B6, '.2.txt'], TF62),
+    atom_concat(B6, '.prof', PF6),
+    yes_no(( exists_file(TF61), exists_file(TF62), memberchk(PF6, Ls6) ), Y6),
+    ( last(Ls6, L6) -> true ; L6 = none ),
+    read_file_to_codes(PF6, PC6), atom_codes(PA6, PC6),
+    atomic_list_concat([SH6|_], '\n', PA6),
+    %% a caller's line, indented under its predicate: the header names
+    %% (the query) too
+    ( sub_atom(PA6, _, _, _, '    (the query)') -> Q6 = named ; Q6 = not_named ),
+    check('windows=2: two windows of 40 inferences, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query',
+          E6-Y6-L6-SH6-Q6,
+          0-yes-'go(30, R): answer at inference 501; 2 windows: 211 to 250, 462 to 501'-
+          '% the 80 inferences of the 2 windows 211 to 250, 462 to 501 by what took them: 79 calls of 1 predicate, an inference each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
+          not_named).
 
 %% ---- where a failed search got furthest -------------------------------------------
 

@@ -26,6 +26,18 @@
 %%                                                 deepest first (dbgdiff.pl)
 %%     flow_diff_text(+Diff, +PA, +PB, -Text)      the same as text
 %%     flow_profile_text(+Profile, -Text)          profile(P) as text (dbgprof.pl)
+%%     flow_steps_text(+Profile, -Text)            the window's inferences by
+%%                                                 what took them (dbgprof.pl)
+%%     flow_callers_text(+Callers, -Text)          callers(C) as text
+%%     flow_repeats_text(+Repeats, -Text)          repeats(R) as text
+%%     flow_profile_merge(+RowLists, -P, -C, -R)   windows' profile_rows added
+%%                                                 up (dbgprof.pl)
+%%     flow_run_end(+Goal, +Options, -End)         how the run ends, the probe
+%%                                                 alone
+%%     flow_debug_windows(+Goal, +Base, +Options, -Windows)
+%%                                                 windows(N) windows along
+%%                                                 one run, each by a process
+%%                                                 of its own (below)
 %%
 %% The run flow_debug/4 hands back:
 %%
@@ -84,6 +96,16 @@
 %%     profile(P)       an answer too: P is bound to where the window's
 %%                      inferences went, each predicate's calls and the
 %%                      inferences spent inside them (dbgprof.pl)
+%%     callers(C)       answers too (1.11.10, dbgprof.pl): each predicate's
+%%     repeats(R)       callers, the goals asked more than once, and the
+%%     profile_rows(Rs) window as rows windows are added up from
+%%     svg(Bool)        true (default), or false: Base.svg is not drawn
+%%     xml(Bool)        true (default), or false: Base.xml is not written;
+%%                      with both false the values that crossed are not
+%%                      worked out either, the run's Bindings are [], and a
+%%                      window costs its matching, its facts and what is
+%%                      asked of it (1.11.10: 100 000 inferences of the
+%%                      translator, 31 s where all of it took 73)
 %%     own(Whose)       whose failed calls the why explains, on the picture,
 %%                      in the XML and in Base.txt: chart (the default), a
 %%                      call with a panel; all, a call of any predicate with
@@ -232,19 +254,32 @@ flow_debug(Goal, Base0, Opts, Out) :-
     ),
     flow_dbg_names(Goal, Opts, Names),
     flow_dbg_facts(Graph, Run, Calls, Names, Opts, Facts),
-    flow_dbg_svg(Graph, Fs, Facts, Opts, Svg),
-    (   Chart = cached(CXF, CAs, Places)
-    ->  flow_dbg_x_run(Facts, RunE),
-        Xml = element(flow, [chart=CXF|CAs], [RunE])
-    ;   flow_dbg_xml(Graph, Fs, Facts, Xml),
-        Places = none
+    %% svg(false) and xml(false) leave a document out (1.11.10): a run's
+    %% XML is a third of what a 100 000-inference window costs, and a
+    %% profile or BASE.txt needs neither
+    (   memberchk(svg(false), Opts)
+    ->  true
+    ;   flow_dbg_svg(Graph, Fs, Facts, Opts, Svg),
+        atom_concat(Base, '.svg', SvgFile),
+        flow_write_doc(SvgFile, Svg, [])
     ),
-    atom_concat(Base, '.svg', SvgFile),
-    atom_concat(Base, '.xml', XmlFile),
-    flow_write_doc(SvgFile, Svg, []),
-    flow_write_doc(XmlFile, Xml, [indent(2)]),
+    (   memberchk(xml(false), Opts)
+    ->  (   Chart = cached(_, _, Places) -> true ; Places = none )
+    ;   (   Chart = cached(CXF, CAs, Places)
+        ->  flow_dbg_x_run(Facts, RunE),
+            Xml = element(flow, [chart=CXF|CAs], [RunE])
+        ;   flow_dbg_xml(Graph, Fs, Facts, Xml),
+            Places = none
+        ),
+        atom_concat(Base, '.xml', XmlFile),
+        flow_write_doc(XmlFile, Xml, [indent(2)])
+    ),
     (   ( memberchk(txt(true), Opts) ; memberchk(places(_), Opts) )
-    ->  (   Places == none -> flow_dbg_text_places_of(Xml, Places1) ; Places1 = Places )
+    ->  (   Places \== none -> Places1 = Places
+        ;   nonvar(Xml) -> flow_dbg_text_places_of(Xml, Places1)
+        ;   flow_xml(Graph, Fs, CX),
+            flow_dbg_text_places_of(CX, Places1)
+        )
     ;   Places1 = none
     ),
     (   memberchk(txt(true), Opts)
@@ -257,7 +292,158 @@ flow_debug(Goal, Base0, Opts, Out) :-
     ),
     (   memberchk(places(PO), Opts) -> PO = Places1 ; true ),
     (   memberchk(profile(PF), Opts) -> flow_dbg_profile(Facts, PF) ; true ),
+    (   memberchk(callers(CF), Opts) -> flow_dbg_callers(Facts, CF) ; true ),
+    (   memberchk(repeats(RF), Opts) -> flow_dbg_repeats(Facts, RF) ; true ),
+    (   memberchk(profile_rows(RowsF), Opts) -> flow_dbg_profile_rows(Facts, RowsF) ; true ),
     flow_dbg_out(Facts, Out).
+
+%% THE PROBE ALONE (1.11.10): how the run of Goal ends and at which
+%% inference, end(How, At, Answers), as flow_debug/4's probe learns it --
+%% a child at full speed, nothing recorded.
+flow_run_end(Goal, Opts, End) :-
+    flow_dbg_check(Goal, Opts, File),
+    flow_dbg_src(File, Opts, Src),
+    (   memberchk(until(answer(K)), Opts) -> true ; K = 1 ),
+    flow_option(timeout(Ms), Opts, 600000),
+    flow_dbg_child(Src, Goal, [answers(K)], Ms, End0, _),
+    flow_dbg_norm_end(End0, End).
+
+%% ======================================================================
+%% Windows along one run (1.11.10)
+%% ======================================================================
+%%
+%%     flow_debug_windows(+Goal, +Base, +Options, -Windows)
+%%
+%% windows(N) windows of window(W) inferences (2000) spread along the run
+%% -- over from(I) to to(J) when given, else over all of it: the K-th ends
+%% at the K-th N-th of the span, so the last ends where the run does, and
+%% windows the span cannot hold apart are cut to tile it -- each recorded
+%% as flow_debug/4 records one (Base.K.svg, Base.K.xml and the rest of the
+%% options) by a process of its own, jobs(J) of them at a time (the
+%% machine's processors). Windows is windows(End, Ws): End the probe's
+%% end(How, At, Answers), and Ws a window(K, BaseK, Run, Rows) for each:
+%% Run as flow_debug/4 hands one back, its calls and bindings left out,
+%% Rows its profile_rows (dbgprof.pl), which flow_profile_merge/4 adds up.
+%%
+%% WHAT IT COSTS: one probe learns where the run ends; then each window's
+%% process runs the program twice to the window's end (its own probe and
+%% the replay), at full speed, and records only its window. With
+%% cache(Dir) the chart is built once, before any window's process starts,
+%% and each reads it (tools/flow/debug.pl gives BASE.charts when no cache=
+%% is given); without, each window's process builds its own. The reasoning
+%% session's point 8: windows of 100 000 inferences far along the
+%% translator's runs took 71 s and 127 s each, and one at a time.
+flow_debug_windows(Goal, Base0, Opts, windows(End, Ws)) :-
+    flow_base(Base0, Base),
+    (   memberchk(windows(N), Opts), integer(N), N >= 1 -> true
+    ;   throw(error(domain_error(flow_debug_option, windows), flow_debug_windows/4))
+    ),
+    flow_option(jobs(J0), Opts, 0),
+    (   integer(J0), J0 >= 1 -> J = J0 ; flow_dbg_cpus(J) ),
+    flow_dbg_check(Goal, Opts, File),
+    (   memberchk(cache(_), Opts)
+    ->  flow_dbg_spec(Goal, Spec),
+        flow_dbg_chart(Spec, File, Opts, _, _, _)
+    ;   true
+    ),
+    flow_run_end(Goal, Opts, End),
+    End = end(_, At, _),
+    flow_option(window(W), Opts, 2000),
+    (   memberchk(from(I), Opts) -> Lo is max(1, I) ; Lo = 1 ),
+    (   memberchk(to(T), Opts) -> Hi is min(T, At) ; Hi = At ),
+    flow_dbg_spread(N, W, Lo, Hi, Spans),
+    findall(O, ( member(O, Opts),
+                 \+ memberchk(O, [windows(_), jobs(_), from(_), to(_), window(_)]) ),
+            COpts),
+    findall(t(K, Cmd, Out, Log, BK),
+            ( nth1(K, Spans, F-To),
+              atomic_list_concat([Base, '.', K], BK),
+              tmp_file(flowwindow, Out),
+              atom_concat(Out, '.log', Log),
+              flow_dbg_window_cmd(Goal, BK, [from(F), to(To)|COpts], Out, Log, Cmd) ),
+            Tasks),
+    findall(K-Cmd, member(t(K, Cmd, _, _, _), Tasks), KCs),
+    flow_dbg_jobs(KCs, J, Exits),
+    findall(window(K, BK, Run, Rows),
+            ( member(t(K, _, Out, Log, BK), Tasks),
+              memberchk(K-X, Exits),
+              flow_dbg_window_read(X, Out, Log, File, Run, Rows) ),
+            Ws).
+
+%% N spans of W inferences in Lo..Hi, the K-th ending at the K-th N-th of
+%% it; a span cut to begin after the one before, and an empty one dropped
+flow_dbg_spread(N, W, Lo, Hi, Spans) :-
+    L is Hi - Lo + 1,
+    flow_dbg_spread_(1, N, W, Lo, L, Lo, Spans).
+
+flow_dbg_spread_(K, N, _, _, _, _, []) :- K > N, !.
+flow_dbg_spread_(K, N, W, Lo, L, Next, Spans) :-
+    To is Lo - 1 + (K * L) // N,
+    From is max(Next, To - W + 1),
+    K1 is K + 1,
+    (   From =< To
+    ->  Spans = [From-To|Spans1], Next1 is To + 1
+    ;   Spans = Spans1, Next1 = Next
+    ),
+    flow_dbg_spread_(K1, N, W, Lo, L, Next1, Spans1).
+
+%% the machine's processors, library(os) asked; 2 when it cannot say
+flow_dbg_cpus(J) :-
+    (   catch(( use_module(library(os)), os_cpus(J0) ), _, fail), integer(J0), J0 >= 1
+    ->  J = J0
+    ;   J = 2
+    ).
+
+%% a window's process: `cocolog query' of the goal below, its output kept
+%% in Log for the reason it gives if it fails
+flow_dbg_window_cmd(Goal, Base, Opts, Out, Log, Cmd) :-
+    current_prolog_flag(executable, Exe),
+    flow_dbg_shq(Exe, QExe),
+    format(atom(G), '\\+ \\+ (use_module(library(flow/debug)), flow_dbg_window_child(~q, ~q, ~q, ~q))',
+           [Goal, Base, Opts, Out]),
+    flow_dbg_shq(G, QG),
+    flow_dbg_shq(Log, QLog),
+    atomic_list_concat([QExe, ' query ', QG, ' > ', QLog, ' 2>&1'], Cmd).
+
+%% IN THE WINDOW'S PROCESS: the window recorded, and its run -- without its
+%% calls and bindings -- and its profile rows written to Out a term a line
+flow_dbg_window_child(Goal, Base, Opts, Out) :-
+    flow_debug(Goal, Base, [profile_rows(Rows)|Opts], Run),
+    Run = run(H, A, An, W, _, _, Dv, Jr),
+    open(Out, write, S),
+    format(S, '~q.~n', [run(H, A, An, W, [], [], Dv, Jr)]),
+    forall(member(R, Rows), format(S, '~q.~n', [R])),
+    close(S).
+
+%% a window's process done: its run and rows, or its failure as
+%% flow_debug/4's child's is reported
+flow_dbg_window_read(X, Out, Log, File, Run, Rows) :-
+    (   X =:= 0, exists_file(Out)
+    ->  flow_dbg_read_terms(Out, [Run|Rows]),
+        catch(delete_file(Out), _, true),
+        catch(delete_file(Log), _, true)
+    ;   (   exists_file(Log) -> read_file_to_codes(Log, Cs), atom_codes(Said, Cs) ; Said = '' ),
+        catch(delete_file(Out), _, true),
+        catch(delete_file(Log), _, true),
+        throw(error(flow_debug_run(File, X, Said), flow_debug_windows/4))
+    ).
+
+%% K-Cmd run J at a time, each in a process of its own; K-Exit for each
+flow_dbg_jobs(KCs, J, Exits) :-
+    flow_dbg_jobs(KCs, [], J, [], Exits0),
+    msort(Exits0, Exits).
+
+flow_dbg_jobs([], [], _, Ex, Ex) :- !.
+flow_dbg_jobs([K-Cmd|Todo], Run, J, Ex0, Ex) :-
+    length(Run, NR), NR < J, !,
+    proc_spawn(Cmd, Pid),
+    flow_dbg_jobs(Todo, [K-Pid|Run], J, Ex0, Ex).
+flow_dbg_jobs(Todo, Run, J, Ex0, Ex) :-
+    (   select(K-Pid, Run, Run1), proc_wait(Pid, 0, X)
+    ->  flow_dbg_jobs(Todo, Run1, J, [K-X|Ex0], Ex)
+    ;   proc_sleep(100),
+        flow_dbg_jobs(Todo, Run, J, Ex0, Ex)
+    ).
 
 %% ======================================================================
 %% The chart, built or kept
@@ -459,6 +645,9 @@ flow_dbg_check(Goal, Opts, File) :-
     ->  throw(error(domain_error(flow_debug_option, txt(X)), flow_debug/3))
     ;   true
     ),
+    forall(( member(O2, Opts), memberchk(O2, [svg(_), xml(_)]) ),
+           ( arg(1, O2, V2), memberchk(V2, [true, false]) -> true
+           ; throw(error(domain_error(flow_debug_option, O2), flow_debug/3)) )),
     (   memberchk(own(OW), Opts),
         \+ ( OW == chart ; OW == all ; atom(OW), exists_file(OW)
            ; is_list(OW), forall(member(OF, OW), ( atom(OF), exists_file(OF) )) )
