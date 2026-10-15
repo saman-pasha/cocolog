@@ -123,7 +123,7 @@ mkdir -p "$OUT"
 
 # The -rpath is the module's now, not the binary's, which is the point of
 # the move: a cocolog with no torch.so beside it needs nothing from here.
-"$CXX" -shared -fPIC -O3 -std=c++17 $CUDA_FLAGS \
+"$CXX" -shared -fPIC -O3 -std=c++20 $CUDA_FLAGS \
     -Wno-c++20-extensions -Wno-parentheses-equality -Wno-dangling-else \
     -I"$TORCH_INCLUDE" -I"$TORCH_API_INCLUDE" \
     -o "$OUT/torch.so" "$HERE/coco-torch.cpp" \
