@@ -32,6 +32,10 @@
 %%              embed=DIR  kb=NAME    the program runs over the store in DIR
 %%                                    (as cocolog --embed DIR --kb NAME), the
 %%                                    file loaded as -s loads it
+%%              own=all|FILE,...      whose failed calls the why explains:
+%%                                    all, every predicate with clauses, or
+%%                                    those the files hold clauses of too
+%%                                    (the chart's panels alone by default)
 %%              when=COND             not how the run went but WHEN: the first
 %%                                    inference at which COND holds -- a goal
 %%                                    over GOAL's variables, asked of the run
@@ -65,7 +69,12 @@
 %% and with a journal, how many portal calls it held and how many of them
 %% answered the replay; a replay that left its journal says where:
 %%
-%%     grow(F): left its journal at inference 7 (stopped at inference 9); recorded 1 to 9; diverged yes; journal 2 portal calls, 0 answered
+%%     grow(F): left its journal at inference 7 (stopped at inference 9); recorded 1 to 9; diverged yes (the probe: answer at inference 9; the replay: diverged at inference 9); journal 2 portal calls, 0 answered
+%%
+%% A replay that diverged says both ends, the probe's -- which the window
+%% was taken from -- and the replay's (1.11.4):
+%%
+%%     go(X): exception at inference 181; recorded 4429637 to 4433636; diverged yes (the probe: answer at inference 4433636; the replay: exception at inference 181)
 %%
 %% and with when=COND, where it first holds -- or that it does not where the
 %% run ends, when nothing is drawn and no file is named:
@@ -87,7 +96,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [profile=true|false] [cache=DIR] [embed=DIR] [kb=NAME] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [profile=true|false] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -137,7 +146,7 @@ main :-
     ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
     ;   format(atom(HT), '~w at inference ~w', [How, At])
     ),
-    (   Div == false -> DT = no ; DT = yes ),
+    flow_dbg_div_ends(Div, DT),
     (   J = journal(Es)
     ->  length(Es, NE),
         (   How = diverged(DI2, _, _) -> Lim is DI2 - 1 ; Lim = At ),
@@ -242,7 +251,7 @@ fd_options([], []).
 fd_options([A|As], [O|Os]) :-
     (   atomic_list_concat([K, V], '=', A), fd_option(K, V, O)
     ->  true
-    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, txt=, profile=, cache=, embed=, kb=, when=, step=, diff= or diff_goal=, not ~w~n", [A]),
+    ;   format(user_error, "debug: an option is until=, window=, from=, to=, discs=, text=, view=, depth=, only=, timeout=, journal=, journal_file=, txt=, profile=, cache=, embed=, kb=, own=, when=, step=, diff= or diff_goal=, not ~w~n", [A]),
         halt(2)
     ),
     fd_options(As, Os).
@@ -267,6 +276,10 @@ fd_option(kb, V, kb(V)) :-
     V \== ''.
 fd_option(diff, V, diff(V)) :-
     V \== ''.
+fd_option(own, V, own(O)) :-
+    (   memberchk(V, [all, chart]) -> O = V
+    ;   atomic_list_concat(O, ',', V), O \== []
+    ).
 %% depth= and only=, as chart.pl reads them: they bound the picture, which
 %% for a large program is otherwise the 150 panels that fit
 fd_option(depth, V, depth(D)) :-

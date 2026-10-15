@@ -30,6 +30,11 @@
 %%               the caller's thread, handles and channels followed through
 %%               heads, callers, terms and other channels, and the order a
 %%               channel's messages are taken in -- a predicate at a time
+%%   gate.pl     cicili-lang's flow gate in small (1.11.4): the false
+%%               findings and the requests of its report, with gate_lib.pl
+%%               (a file it loads), gate_mod.cicili (its module's source),
+%%               gate_half.pl (a library that module loads) and
+%%               gate_clash.pl (a helper named as the library's own)
 %%
 %% How the picture LOOKS is not checked here -- that is judged by eye --
 %% but that it is an SVG that reads back, and that every goal in the XML
@@ -57,6 +62,7 @@ main :-
     builtins,
     threads,
     crossing,
+    gate,
     command,
     refusals,
     checks_done.
@@ -1095,6 +1101,116 @@ crossing_picture :-
     svg_texts(B15, Tx15),
     findall(x, member('↶', Tx15), Rd15), length(Rd15, NR15),
     check('a lane''s root is proved once: no redo marks it, where its own clause and work/1''s have one (and the legend)', NR15, 3).
+
+%% ---- cicili-lang's gate ---------------------------------------------------
+%%
+%% That session charts each file of its library from a root that calls every
+%% predicate the file defines, its arguments unknown, and holds the findings
+%% to a baseline (1.11.4). Its report named what the chart said wrongly there
+%% and what it could not see; gate.pl has each in small. The charts without
+%% the options come first: a load, and a module's rows, last for the process.
+
+gate :-
+    section('cicili-lang''s gate: sinks, text that binds, a caught absence, run-time declarations, its own modules'),
+    fx(gate, F),
+    flow_graph(gt_all/2, G0, [source(F)]),
+    flow_findings(G0, Fs0),
+    findall(In0, member(finding(_, unknown_procedure, error, _, In0, _, _, _), Fs0), Un0),
+    check('alone, a table its loaded file declares, its module''s C predicate and its module''s library''s table are unknown',
+          Un0, ['gt_bad/2', 'gt_lib/1', 'gt_nobody/1', 'gt_native/2', 'gt_half/2']),
+    (   getenv('COCOLOG_LIBRARY', Lib0) -> atomic_list_concat(['test/flowchart:', Lib0], Lib1)
+    ;   Lib0 = none, Lib1 = 'test/flowchart'
+    ),
+    setenv('COCOLOG_LIBRARY', Lib1),
+    answer(( flow_graph(gt_all/2, G1, [source(F), load('test/flowchart/gate_lib.pl'),
+                                       modules('test/flowchart/gate_mod.cicili')]),
+             flow_findings(G1, Fs1) ), G1-Fs1, R1),
+    (   Lib0 == none -> unsetenv('COCOLOG_LIBRARY') ; setenv('COCOLOG_LIBRARY', Lib0) ),
+    (   R1 = G1-Fs1 -> true
+    ;   check('the chart with load(Files) and modules(Files) runs', R1, ran), fail
+    ),
+    findall(Kd-Sev-In, member(finding(_, Kd, Sev, _, In, _, _, _), Fs1), KSI),
+    %% item 3: format(atom(A), ...) and with_output_to(string(S), ...) bind
+    %% A and S, so sub_atom/5 and split_string/4 are not refused
+    findall(In3, ( member(_-_-In3, KSI), memberchk(In3, ['gt_nan/1', 'gt_wo/2']) ), Sink),
+    check('a sink binds its variable: nothing found in gt_nan/1 or gt_wo/2', Sink, []),
+    %% item 4: atomic_list_concat([op, W|_], '.', Name) binds W, and each
+    %% segment of a list a split by length/2 and append/3 cut
+    findall(In4, ( member(_-_-In4, KSI), memberchk(In4, ['gt_fn/2', 'gt_spell/2', 'gt_member/3', 'gt_split/4']) ), Text4),
+    check('text made from text binds every argument: nothing found in gt_spell/2 and its callers', Text4, []),
+    %% item 5: under a catch that takes the existence error, a warning
+    findall(Sev5-In5, ( member(unknown_procedure-Sev5-In5, KSI), memberchk(In5, ['gt_big/2', 'gt_bad/2']) ), Caught),
+    check('an unknown call under a catch that takes its error is a warning; under one that does not, an error',
+          Caught, [warning-'gt_big/2', error-'gt_bad/2']),
+    (   member(finding(_, _, _, _, 'gt_big/2', _, T5, _), Fs1),
+        sub_atom(T5, _, _, _, 'which the catch/3 around it takes') -> Y5 = yes ; Y5 = no ),
+    check('and says the catch takes it', Y5, yes),
+    %% item 6: declared as the program runs -- a declarer called with the
+    %% name written out, dynamic/1, an assert, and a file it loads
+    findall(In6, ( member(unknown_procedure-_-In6, KSI),
+                   memberchk(In6, ['gt_look/2', 'gt_was/1', 'gt_count/1', 'gt_lib/1', 'gt_nobody/1']) ), Decl),
+    check('a table declared as the program runs is no unknown procedure: only gt_nobody/1''s is', Decl, ['gt_nobody/1']),
+    flow_xml(G1, X1),
+    findall(T6-K6, ( member(T6, ['gt_cache(K, V)', 'gt_seen(X)', 'gt_hits(N)', 'gl_table(X)']),
+                     once(( xml_goal_attrs(X1, As6), memberchk(text=T6, As6) )),
+                     memberchk(kind=K6, As6) ), Ks6),
+    check('each is a dynamic predicate''s call', Ks6,
+          ['gt_cache(K, V)'-dynamic, 'gt_seen(X)'-dynamic, 'gt_hits(N)'-dynamic, 'gl_table(X)'-dynamic]),
+    %% item 7: the module's rows, and the table of the library its half loads
+    findall(In7, ( member(_-_-In7, KSI), memberchk(In7, ['gt_native/2', 'gt_half/2']) ), Mod7),
+    check('modules(Files): its C predicate and its library''s table are known', Mod7, []),
+    findall(A7, ( member(A7n, [kind, module, cfun, file, line, modes, head]),
+                  xml_pred_attr(X1, 'gm_lex/3', A7n, A7) ), As7),
+    check('gm_lex/3 is a portal of gate_mod, its row''s C function and line, the header''s modes and names', As7,
+          [c, gate_mod, gm_p_lex, 'test/flowchart/gate_mod.cicili', 12, '+ + -', 'gm_lex(+Text, +Line0, -Tokens)']),
+    answer(flow_t_portal(gate_mod, gm_version, 1, CF8, _, _, Ms8, Ns8), CF8-Ms8-Ns8, G8),
+    check('a row''s own comment names its modes: gm_version(-V)', G8, gm_p_version-['-']-['V']),
+    check('and nothing else is found', KSI,
+          [unknown_procedure-warning-'gt_big/2', unknown_procedure-error-'gt_bad/2',
+           unknown_procedure-error-'gt_nobody/1']),
+    gate_rows,
+    gate_clash.
+
+%% the extension point: a file of flow_t_portal/8 rows, given to load(Files),
+%% adds a module's C predicates by hand -- and a table's rows are no clash
+gate_rows :-
+    scratch(D),
+    atomic_list_concat([D, '/rows.pl'], RF),
+    atomic_list_concat([D, '/use.pl'], UF),
+    fixture(RF, ['flow_t_portal(gate_rows, gr_native, 1, gr_p_native, ''gr.cicili'', 3, [''+''], [''X'']).']),
+    fixture(UF, ['gr_go(X) :- gr_native(X).']),
+    flow_graph(gr_go('+'), G, [source(UF), load(RF)]),
+    flow_findings(G, Fs),
+    flow_xml(G, X),
+    attr_of(X, 'p1.c1.g1', module, M),
+    check('flow_t_portal/8 rows loaded with load(Files) make a C predicate, and are no clash', Fs-M, []-gate_rows).
+
+%% a helper named as the library's own: its clause would join the library's,
+%% so the chart refuses it by name -- in a process of its own, since the
+%% clause, once loaded, stays joined
+gate_clash :-
+    scratch(D),
+    atomic_list_concat([D, '/clash'], B),
+    atomic_list_concat(['-s tools/flow/chart.pl -- gt_nan/1 test/flowchart/gate.pl ', B,
+                        ' load=test/flowchart/gate_clash.pl 2>&1'], A),
+    cocolog_run(A, T, E),
+    (   sub_atom(T, _, _, _, 'flow_trim/2 is library(flow/chart)''s own predicate'),
+        sub_atom(T, _, _, _, 'gate_clash.pl gives it clauses of its own') -> Y = yes ; Y = no ),
+    check('a helper named flow_trim/2 is refused by name: exit 2, the predicate and the file', E-Y, 2-yes),
+    atomic_list_concat(['-s tools/flow/chart.pl -- gt_native/2 test/flowchart/gate.pl ', B,
+                        ' modules=test/flowchart/gate_mod.cicili'], A2),
+    cocolog_run(A2, T2, E2),
+    yes_no(sub_atom(T2, _, _, _, 'gm_lex/3 is defined nowhere'), Y2),
+    check('modules=SRC on the command line', E2-Y2, 0-no).
+
+%% an attribute of the panel of a predicate, in the XML
+xml_pred_attr(X, PA, Name, V) :-
+    answer(( xml_panel_pred(X, PA, As), memberchk(Name=V0, As) ), V0, V).
+
+xml_panel_pred(element(N, As, Cs), PA, As1) :-
+    (   N == panel, memberchk(pred=PA, As) -> As1 = As
+    ;   member(C, Cs), C = element(_, _, _), xml_panel_pred(C, PA, As1)
+    ), !.
 
 command :-
     section('tools/flow/chart.pl: one command, two files, an exit status'),

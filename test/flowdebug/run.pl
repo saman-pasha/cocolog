@@ -90,3 +90,17 @@ parse(X) :- fallback(X).
 word(a, aa).
 check(bb).
 fallback(zz).
+
+%% a clause that fails by an explicit fail/0 after its condition failed:
+%% where it got furthest goes into the condition, lowerable/1, not into the
+%% fail (1.11.4, from cicili-lang's report)
+lower(X, Y) :- ( lowerable(X) -> Y = low(X) ; note(X), fail ).
+lowerable(X) :- atom(X), X \== bad.
+note(_).
+
+%% a driver that gives up with an error when a step fails: the run raises,
+%% and the failure it answered is step/1's (1.11.4)
+drive(X) :- ( step(X) -> true ; give_up(X) ).
+step(X) :- X > 0, ok_step(X).
+ok_step(1).
+give_up(X) :- throw(error(gave_up(X), drive/1)).

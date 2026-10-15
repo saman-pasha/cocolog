@@ -12,6 +12,9 @@
 %%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term
 %%     flow_why(+Run, -Why)                        why it failed, as a tree
 %%     flow_why_furthest(+Why, -Path)              where a failed search got furthest
+%%     flow_why_raised(+Run, -Raised)              why it raised: the calls the
+%%                                                 exception ended, the failure
+%%                                                 it answered
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared
 %%
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
@@ -20,9 +23,11 @@
 %% timeout(Ms), journal(true) and journal_file(F), txt(true) for Base.txt,
 %% the run one line a call; cache(Dir), the chart built once for a program
 %% and kept (library(sha)), and embed(Dir) with kb(Name), the program run
-%% over a store; and two answers: places(P), where each box is written, and
-%% profile(P), where the inferences went. The same from a shell:
-%% `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [OPTION ...]'.
+%% over a store; own(all) or own(Files), whose failed calls the why
+%% explains (the chart's panels by default); and two answers: places(P),
+%% where each box is written, and profile(P), where the inferences went. The
+%% same from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
+%% [OPTION ...]'.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
@@ -206,8 +211,33 @@ main :-
          DP-DIn-DA-DB, price/2-[banana, '_']-fail-exit([banana, '2'])),
 
     asked(Dir),
+    raised(Dir),
 
     format("~ndone~n").
+
+%% A RUN THAT RAISES: a checkout that gives up with an error when a basket
+%% has no total. Its why is the calls the exception ended and the failure
+%% the raise answered, with where that got furthest. The basket is another
+%% file's, which the chart has no panel for: own(all) explains its calls too
+raised(Dir) :-
+    format("~n-- a run that raises: why?~n"),
+    atom_concat(Dir, '/basket.pl', Basket),
+    atom_concat(Dir, '/checkout.pl', Prog),
+    open(Prog, write, W),
+    format(W, ":- use_module(~q).~n", [Basket]),
+    format(W, "checkout(Items, T) :- ( basket_total(Items, T) -> true ; throw(error(unpriced(Items), checkout/2)) ).~n", []),
+    close(W),
+    atom_concat(Dir, '/checkout', Base),
+    flow_debug(checkout([apple, banana], T), Base, [source(Prog), names(['T'=T]), own(all)], Run),
+    Run = run(How, _, _, _, _, _, _, _),
+    must('the run raised', How, exception(error(unpriced([apple, banana]), checkout/2))),
+    flow_why_raised(Run, raised(Chain, Answered), [own(all)]),
+    findall(P-F, member(ended(_, P, _, F), Chain), PF),
+    must('the exception ended checkout/2, in whose body it was raised', PF, [checkout/2-unwound]),
+    flow_why_furthest([Answered], Path),
+    findall(P-K, ( member(Step, Path), arg(2, Step, P), ( Step = step(_, _, _, K, _, _) -> true ; functor(Step, K, _) ) ), PKs),
+    must('it answered basket_total/2''s failure, which got furthest down to price/2 with no head for a banana',
+         PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]).
 
 %% a why tree without its arguments: what failed, and where
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).

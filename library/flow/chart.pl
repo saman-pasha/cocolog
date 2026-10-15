@@ -36,8 +36,26 @@
 %%                      for a program of several files, drawn a file at a
 %%                      time (1.10.28). Like the source, each is LOADED, as
 %%                      use_module/1 loads it: its directives run
+%%     modules(Files)   the Cicili sources of the program's own modules,
+%%                      a file or a list (1.11.4): each ("name" Arity
+%%                      c_function) row of their tables is a C predicate,
+%%                      a portal, with the modes its comment or the
+%%                      header's signature list gives (read.pl). The rows
+%%                      are flow_t_portal/8's -- the extension point: a
+%%                      file of such rows given to load(Files) does the same
+%%                      by hand
 %%     progress(S)      a line on stderr every S seconds, once the chart
 %%                      has run S seconds (0, the default: none)
+%%
+%% WHAT THE PROGRAM DECLARES AS IT RUNS counts as declared (1.11.4):
+%% dynamic/1 with its spec written out, an assert of a clause whose head
+%% is, and a call of a declarer of the program's own -- `reset(F/A) :-
+%% abolish(F/A), dynamic(F/A)' called as `reset(t/2)' -- anywhere in the
+%% source, the files load(Files) names and the files they load: a call of
+%% such a table is a dynamic predicate's, not an unknown procedure. A file
+%% read here that defines a predicate of this library's own -- a helper
+%% named flow_trim/2 -- is refused by name before anything is analysed:
+%% its clauses would join the library's (read.pl).
 %%
 %% EVERY GOAL IS DRAWN, by name, builtins and library calls too: each is a
 %% box on its clause's line, which the chart does not go inside -- a
@@ -256,10 +274,17 @@ flow_graph(Spec, graph(Title, Src, Panels, Ids, Docs), Opts) :-
     flow_progress_start(Opts),
     flow_option(load(Load0), Opts, []),
     (   is_list(Load0) -> Loads = Load0 ; Loads = [Load0] ),
+    flow_option(modules(Mod0), Opts, []),
+    (   is_list(Mod0) -> Mods = Mod0 ; Mods = [Mod0] ),
+    findall(Sp, ( member(MF, Mods), flow_module_portals(MF, Sps), member(Sp, Sps) ), ModLoads),
     forall(member(LF, Loads), flow_load(LF)),
     use_module(Src),
+    flow_scan(Src, Loads, ModLoads, Scan),
+    flow_clash_check(Scan),
     flow_near_gen,
-    flow_read_source(Src, Prog),
+    flow_read_source(Src, Prog0),
+    Scan = scan(Declared, _),
+    flow_mark_declared(Declared, How, Prog0, Prog),
     functor(Root, Name, Arity),
     (   get_assoc(Name/Arity, Prog, _) -> true
     ;   flow_kind(Root, ctx(Prog, none, How), RK), RK \== unknown -> true

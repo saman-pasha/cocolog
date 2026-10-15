@@ -14,6 +14,7 @@
 # on the next machine, and this cost an afternoon once already.
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/compiler.sh"
+coco_path_off "$here"
 cxx=$(coco_compiler cxx)
 # The same Darwin rule ./cc carries: a shared object may leave the
 # interpreter's symbols to load time.

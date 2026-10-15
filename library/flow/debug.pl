@@ -7,8 +7,14 @@
 %%     flow_debug(+Goal, +Base, +Options)          Base.svg and Base.xml
 %%     flow_debug(+Goal, +Base, +Options, -Run)    and the run as a term
 %%     flow_why(+Run, -Whys)                       why it failed (dbgwhy.pl)
+%%     flow_why(+Run, -Whys, +Options)             own(all|Files): whose calls
+%%                                                 it explains
+%%     flow_why_call(+Run, +S, -Why)               why the call made at S failed
 %%     flow_why_furthest(+Whys, -Path)             where a failed search got
 %%                                                 furthest (dbgwhy.pl)
+%%     flow_why_raised(+Run, -Raised)              the calls an exception
+%%                                                 ended and the failure it
+%%                                                 answered (dbgwhy.pl)
 %%     flow_when(+Goal, +Cond, +Options, -When)    the first inference at
 %%                                                 which Cond holds (dbgwhen.pl)
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared: the same
@@ -74,6 +80,13 @@
 %%     profile(P)       an answer too: P is bound to where the window's
 %%                      inferences went, each predicate's calls and the
 %%                      inferences spent inside them (dbgprof.pl)
+%%     own(Whose)       whose failed calls the why explains, on the picture,
+%%                      in the XML and in Base.txt: chart (the default), a
+%%                      call with a panel; all, a call of any predicate with
+%%                      clauses; or Files, a file or a list, the predicates
+%%                      they hold clauses of as well (1.11.4: a program of
+%%                      several files debugged from a small top file has a
+%%                      panel for the top's predicates alone)
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS (DESIGN-flow.md 9). The program
 %% runs twice, each time in a child process of its own that reads it
@@ -163,7 +176,12 @@
 %% Base.txt: WHERE IT GOT FURTHEST, at each failed call the clause whose
 %% body got the most calls done, down to the call it failed at
 %% (flow_why_furthest/2) -- in a search that backtracks, the last failure
-%% is its last fallback's, and the cause is where it got furthest.
+%% is its last fallback's, and the cause is where it got furthest. A run
+%% that RAISED has its own (1.11.4): the calls the exception ended, from the
+%% top down, and the failure it answered -- the last call that failed having
+%% tried a clause before the raise, in the deepest body first -- with where
+%% that got furthest and its tree (<raised> in the XML, flow_why_raised/2):
+%% a compiler that gives up with an error raises because something failed.
 %% flow_when/4 answers WHEN: the first inference at which a question holds,
 %% asked of runs stopped part way -- a handful of them, each at full speed
 %% and each a replay of the probe's journal (dbgwhen.pl says how, and what
@@ -426,6 +444,12 @@ flow_dbg_check(Goal, Opts, File) :-
     ),
     (   memberchk(txt(X), Opts), \+ memberchk(X, [true, false])
     ->  throw(error(domain_error(flow_debug_option, txt(X)), flow_debug/3))
+    ;   true
+    ),
+    (   memberchk(own(OW), Opts),
+        \+ ( OW == chart ; OW == all ; atom(OW), exists_file(OW)
+           ; is_list(OW), forall(member(OF, OW), ( atom(OF), exists_file(OF) )) )
+    ->  throw(error(domain_error(flow_debug_option, own(OW)), flow_debug/3))
     ;   true
     ),
     flow_dbg_check_where(Opts, flow_debug/3).

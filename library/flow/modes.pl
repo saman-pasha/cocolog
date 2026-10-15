@@ -230,6 +230,46 @@ flow_mode(zigurat_compile, 1, ['+'], det).
 flow_mode(zigurat_call, 2, ['+', '?'], semidet).
 flow_mode(zigurat_call, 3, ['+', '+', '?'], semidet).
 
+%% WHAT A CALL'S SUCCESS SAYS BEYOND ITS LINE (1.11.4, from cicili-lang's
+%% report). A SINK holds the text written once the call is past: format/3's
+%% and with_output_to/2's atom(A), string(S), codes(Cs) and chars(Cs) are
+%% bound, and codes(Cs, T) and chars(Cs, T) are lists open at T. The line's
+%% `+' says none of it: `format(atom(A), '~w', [F]), sub_atom(A, 0, 1, _,
+%% '-')' took A for free, and sub_atom/5 for an instantiation error.
+flow_sink_arg(format, 3, 1).
+flow_sink_arg(with_output_to, 2, 1).
+
+flow_sink_binds(atom(X), X, []).
+flow_sink_binds(string(X), X, []).
+flow_sink_binds(codes(X), X, []).
+flow_sink_binds(chars(X), X, []).
+flow_sink_binds(codes(X, _), [], X).
+flow_sink_binds(chars(X, _), [], X).
+
+%% TEXT MADE FROM TEXT BINDS EVERY ARGUMENT, whichever way it ran: past
+%% atomic_list_concat([op, W|_], '.', Name) W is bound -- Name split, or the
+%% list joined, which needs it ground -- though a list partly bound meets
+%% the joining line, (+, +, -), whose `+' binds nothing (cicili-lang's
+%% cpp_dbg_op_spell/2: `W is free on every path to here', reached with Name
+%% partly bound). In cocolog each of these raises or leaves no variable in
+%% any argument; atom_length/2, atom_string/2, string_length/2,
+%% split_string/4 and term_to_atom/2 write any term, and leave its
+%% variables as they were.
+flow_binds_all(atomic_list_concat, 2).
+flow_binds_all(atomic_list_concat, 3).
+flow_binds_all(atom_codes, 2).
+flow_binds_all(atom_chars, 2).
+flow_binds_all(char_code, 2).
+flow_binds_all(atom_concat, 3).
+flow_binds_all(sub_atom, 5).
+flow_binds_all(number_codes, 2).
+flow_binds_all(atom_number, 2).
+flow_binds_all(string_concat, 3).
+flow_binds_all(sub_string, 5).
+flow_binds_all(string_chars, 2).
+flow_binds_all(string_codes, 2).
+flow_binds_all(number_string, 2).
+
 %% the line a call takes: the first whose modes it meets (a bound argument
 %% meets + or ?, a free one - or ?), else the first line, which then only
 %% checks where it would have produced -- det becomes semidet

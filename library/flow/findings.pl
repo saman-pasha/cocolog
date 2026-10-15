@@ -8,7 +8,9 @@
 %%   unknown_procedure  error    a call nothing answers -- no clause,
 %%                               builtin, module or dynamic declaration --
 %%                               raises existence_error; a near name is
-%%                               offered
+%%                               offered. A WARNING under a catch/3 whose
+%%                               catcher takes that error: the recovery
+%%                               runs in its place
 %%   instantiation      error    a call the engine refuses with an
 %%                               argument free on every path to it
 %%                               (modes.pl, flow_raises_unbound/4), an
@@ -134,8 +136,24 @@ flow_goal_findings(P, k(I, C, S), F) :-
     flow_goal_finding(Kind, G, Info, Names, Fd),
     flow_goal_where(Info, CI, Where),
     Fd = f(FK, Text, See),
-    flow_severity(FK, Sev),
+    flow_goal_severity(FK, G, Info, Sev),
     F = f(FK, Sev, Id, In, Where, Text, See).
+
+%% A CALL NOTHING ANSWERS UNDER A CATCH/3 THAT TAKES ITS ERROR is a
+%% warning, not an error (1.11.4, from cicili-lang's report): the existence
+%% error never leaves the catch, the recovery runs in the call's place --
+%% `catch(Table(K, V), _, fail)' over a table the program consults at run
+%% time from a file the chart does not read is a way to ask whether it is
+%% there yet. Any catch round the call that would take the ball will do.
+flow_goal_severity(unknown_procedure, G, Info, warning) :-
+    flow_caught_unknown(G, Info), !.
+flow_goal_severity(FK, _, _, Sev) :-
+    flow_severity(FK, Sev).
+
+flow_caught_unknown(G, Info) :-
+    functor(G, N, A),
+    member(caught(B), Info),
+    \+ \+ B = error(existence_error(procedure, N/A), _), !.
 
 flow_goal_finding(unknown, G, Info, _, f(unknown_procedure, Text, [])) :-
     functor(G, N, A),
@@ -147,8 +165,12 @@ flow_goal_finding(unknown, G, Info, _, f(unknown_procedure, Text, [])) :-
         )
     ;   Hint = ''
     ),
-    format(atom(Text), '~w is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error~w',
-           [PA, Hint]).
+    (   flow_caught_unknown(G, Info)
+    ->  format(atom(Text), '~w is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error -- which the catch/3 around it takes, running its recovery instead, unless the program makes ~w as it runs~w',
+               [PA, PA, Hint])
+    ;   format(atom(Text), '~w is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error~w',
+               [PA, Hint])
+    ).
 flow_goal_finding(_, G, Info, Names, f(instantiation, Text, [])) :-
     memberchk(inst(_, Vs), Info),
     flow_var_list(Vs, Names, VT, Plural),
@@ -215,12 +237,20 @@ flow_node_goals(not(Ns), Id, Gs0, Gs) :- !,
     flow_list_goals_(Ns, Id, 1, Gs0, Gs).
 flow_node_goals(meta(_, _, _, Ts, _), Id, Gs0, Gs) :- !,
     (   Ts = [Ns] -> flow_list_goals_(Ns, Id, 1, Gs0, Gs) ; Gs = Gs0 ).
-flow_node_goals(catchc(G, _, R), Id, Gs0, Gs) :- !,
+flow_node_goals(catchc(G, B, R), Id, Gs0, Gs) :- !,
     atom_concat(Id, '.try', TId),
     atom_concat(Id, '.recover', RId),
-    flow_list_goals_(G, TId, 1, Gs0, Gs1),
+    flow_list_goals_(G, TId, 1, TGs, []),
+    flow_caught_goals(TGs, B, Gs0, Gs1),
     flow_list_goals_(R, RId, 1, Gs1, Gs).
 flow_node_goals(_, _, Gs, Gs).
+
+%% a goal a catch/3 protects carries its catcher, caught(Ball), last in its
+%% information -- the innermost catch's first
+flow_caught_goals([], _, Gs, Gs).
+flow_caught_goals([Id-g(G, K, Ms, D, Key, I)|Ts], B, [Id-g(G, K, Ms, D, Key, I1)|Gs0], Gs) :-
+    append(I, [caught(B)], I1),
+    flow_caught_goals(Ts, B, Gs0, Gs).
 
 flow_arms_goals([], _, _, Gs, Gs).
 flow_arms_goals([arm(C, T)|As], K, Id, Gs0, Gs) :-
