@@ -74,6 +74,7 @@ main :-
     compared_own(D),
     profiled(D),
     viewed(D),
+    timed(D),
     furthest(D),
     raised(D),
     raised_choice(D),
@@ -1062,13 +1063,15 @@ viewed_command(D) :-
     atom_concat(B5, '.prof', PF5),
     read_file_to_codes(PF5, PC5), atom_codes(PA5, PC5),
     atomic_list_concat(Secs5, '\n\n', PA5),
-    findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 30, _, Top) ), Tops5),
-    check('profile=all svg=false xml=false: BASE.prof alone and the line, the four views in order',
+    findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 44, _, Top) ), Tops5),
+    check('profile=all svg=false xml=false: BASE.prof alone and the line, the five views in order (time since 1.13.3)',
           E5-Ls5-Tops5,
           0-[PF5, 'pick(X): answer at inference 6; recorded 1 to 6; diverged no']-
-            ['% 5 inferences spent by the ca', '% the 6 inferences of the wind', '% the callers of the 3 predica', '% the goals the window 1 to 6 ']),
+            ['% 5 inferences spent by the calls of the win', '% the 6 inferences of the window 1 to 6 by w',
+             '% the callers of the 3 predicates the window', '% the goals the window 1 to 6 asked more tha',
+             '% the 6 inferences of the window 1 to 6 took']),
     atomic_list_concat([D, '/vieww'], B6),
-    atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers svg=false xml=false txt=true'], A6),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
     cocolog_run(A6, T6, E6),
     atomic_list_concat(Ls6, '\n', T6),
     atomic_list_concat([B6, '.1.txt'], TF61), atomic_list_concat([B6, '.2.txt'], TF62),
@@ -1080,11 +1083,56 @@ viewed_command(D) :-
     %% a caller's line, indented under its predicate: the header names
     %% (the query) too
     ( sub_atom(PA6, _, _, _, '    (the query)') -> Q6 = named ; Q6 = not_named ),
-    check('windows=2: two windows of 40 inferences, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query',
-          E6-Y6-L6-SH6-Q6,
+    %% and the time view of both, each window's probe under the clock
+    ( sub_atom(PA6, _, _, _, '\n% the 80 inferences of the 2 windows 211 to 250, 462 to 501 took ') -> M6 = timed ; M6 = untimed ),
+    check('windows=2: two windows of 40 inferences, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
+          E6-Y6-L6-SH6-Q6-M6,
           0-yes-'go(30, R): answer at inference 501; 2 windows: 211 to 250, 462 to 501'-
           '% the 80 inferences of the 2 windows 211 to 250, 462 to 501 by what took them: 79 calls of 1 predicate, an inference each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
-          not_named).
+          not_named-timed).
+
+%% ---- where the time went (1.13.3) -------------------------------------------------
+%%
+%% t_go/1 counts down 200 twice -- its is/2 a guard its clause runs as it is
+%% entered -- around one msort/2 of 20 000: one inference of the window's
+%% eight hundred, and most of its time. What is held does not depend on how
+%% fast the box is: the rows name the profile's calls, a guard has no time of
+%% its own, a predicate's own time is its Call's inference, and the one
+%% inference that costs a thousand is found.
+
+timed(D) :-
+    section('time(T): where the window''s time went -- the probe under a clock, the replay saying whose each inference was (1.13.3)'),
+    atomic_list_concat([D, '/timed.pl'], F),
+    fixture(F, ['t_sort(X) :- numlist(1, 20000, L0), reverse(L0, L), msort(L, S), last(S, X).',
+                't_count(0) :- !.', 't_count(N) :- N1 is N - 1, t_count(N1).',
+                't_go(X) :- t_count(200), t_sort(X), t_count(200).']),
+    atomic_list_concat([D, '/timed'], B),
+    flow_debug(t_go(_), B, [source(F), from(1), profile(P1), time(T1), svg(false), xml(false)], _),
+    P1 = profile(PF1, PT1, _, PR1),
+    T1 = time(TF1, TT1, total(Ns1, Reads1, _, _, _), TR1),
+    findall(Pr-N, member(prof(Pr, _, N, _), PR1), PN1), msort(PN1, SPN1),
+    findall(Pr-N, member(t(Pr, N, _, _, _), TR1), TN1), msort(TN1, STN1),
+    W1 is PT1 - PF1 + 1,
+    ( Ns1 > 0, Reads1 < W1 -> S1 = timed ; S1 = Ns1-Reads1-W1 ),
+    check('the window the profile counts, its predicates and their calls; timed, and some of its inferences not read',
+          TF1-TT1-STN1-S1, PF1-PT1-SPN1-timed),
+    ( memberchk(t(is/2, NI1, _, SI1, _), TR1) -> true ; NI1 = 0, SI1 = none ),
+    check('is/2, a guard its clause runs as it is entered: 400 calls and no time of its own -- it is t_count/1''s',
+          NI1-SI1, 400-0),
+    findall(Se-Pr, member(t(Pr, _, _, Se, _), TR1), SPs1), max_member(_-Top1, SPs1),
+    ( memberchk(prof(msort/2, IM1, NM1, _), PR1) -> true ; IM1 = 0, NM1 = 0 ),
+    check('msort/2: one inference in the profile, and in time the most of any predicate''s own',
+          Top1-IM1-NM1, (msort/2)-1-1),
+    ( memberchk(t(t_sort/1, 1, IS1, SS1, _), TR1), SS1 * 10 < IS1 -> O1 = own ; O1 = none ),
+    check('a predicate''s own time is its Call''s inference: t_sort/1''s is a tenth of what it takes inside',
+          O1, own),
+    flow_time_text(T1, TX1),
+    atomic_list_concat([TH1, _, TC1, TD1|_], '\n', TX1),
+    format(atom(TP1), '% the ~d inferences of the window ~d to ~d took ', [W1, PF1, PT1]),
+    ( atom_concat(TP1, _, TH1) -> H1 = header ; H1 = TH1 ),
+    ( sub_atom(TD1, _, _, 0, '  t_go/1') -> D1 = t_go ; D1 = TD1 ),
+    check('as text: the window''s time, then a row a predicate, the most inclusive first',
+          H1-TC1-D1, header-'% inclusive us       %     self us       %    calls  largest us  predicate'-t_go).
 
 %% ---- where a failed search got furthest -------------------------------------------
 

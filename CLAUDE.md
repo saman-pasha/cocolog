@@ -1266,6 +1266,21 @@ cocolint index offers no import of it.
   Free goals do not end a limited run early: a stop at one would be a stop
   at the step after, which is counted (a nested engine's last step at
   least), so the least limit that succeeds is still the count reported.
+* **A window's clock moves MAX_STEPS to every step** (1.13.3,
+  `'$trace_window'/4`'s `time(F, K)`, the probe of library(flow/debug)'s
+  `time(T)`): under it an engine has `tclock` set, MAX_STEPS is the step at
+  which the clock reads next and RMAX the limit it stands in for, which
+  `coco_clock_go` asks at each reading as `coco_limit_go` asks a limit.
+  **A new reader of `max_steps` as a limit reads `rmax` under `tclock`** --
+  the guards' budget did not, and the clock timed an engine that ran no
+  guard (it is asked inline: as a call out of line it cost naive reverse 2
+  instructions an inference) -- and **a new nested engine narrows through
+  `coco_limit_narrow`**, which hands it the clock, and **takes the clock
+  back where its starter's own work begins** (`coco_clock_back`: findall/3
+  at each answer and at its end, call_limited/3 and with_output_to/2 at
+  theirs), or the starter's copying is charged to the inner goal read last.
+  The clock's own work stays out of every inference's time: it reads again
+  after its array grows, and a collection moves its reading on.
 * **The tracer keeps the untraced clock, and records as well as prints**
   (1.10.12). Taking the `'$trace_exit'` marker gives its step back
   (`coco_construct`), so a traced run counts what an untraced one does, and
@@ -1570,7 +1585,11 @@ read into an English-worded IR and written into any lesson's language),
   goals asked again and the inferences by what took them (constructs
   included) into BASE.prof -- no script over BASE.txt -- and `windows=N`
   records N windows along the run, J at a time, their profiles added up;
-  `svg=false xml=false` for a profile alone. A window of 100 000 inferences
+  `svg=false xml=false` for a profile alone. Since 1.13.3 `profile=time`
+  (and `all`) writes where the window's TIME went, the probe run under a
+  clock read at every inference: a count finds the cheap step taken a
+  million times, time the one inference that costs a thousand (a sort, a
+  findall/3's copying, a store's lookup). A window of 100 000 inferences
   far along the translator takes ~30 s that way (100 s with every document
   through 1.11.9, whose matcher alone took 36). Half of the inferences were the lexicon lookup layer
   (tr_solve/1, tr_memo/4 and what they call), and its four wastes were each a

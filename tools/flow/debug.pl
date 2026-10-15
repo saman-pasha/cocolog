@@ -34,8 +34,12 @@
 %%                                    predicate's calls and the control
 %%                                    constructs' steps), callers (each
 %%                                    predicate's callers and how many calls
-%%                                    each made) and repeats (the goals asked
-%%                                    more than once), a comma between, or all
+%%                                    each made), repeats (the goals asked
+%%                                    more than once) and time (each
+%%                                    predicate's inclusive and self time,
+%%                                    the probe run untraced under a clock
+%%                                    read at every inference: 1.13.3), a
+%%                                    comma between, or all
 %%              windows=N             N windows of window=N inferences along the
 %%              jobs=J                run, over from= to= when given, written as
 %%                                    BASE.1.*, BASE.2.*, ... -- each by a
@@ -121,7 +125,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [windows=N] [jobs=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [svg=true|false] [xml=true|false] [profile=true|false|all|inclusive,steps,callers,repeats] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [windows=N] [jobs=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [svg=true|false] [xml=true|false] [profile=true|false|all|inclusive,steps,callers,repeats,time] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -190,10 +194,12 @@ fd_how(How, At, HT) :-
     ).
 
 %% PROFILE=: the views BASE.prof holds, in this order, a blank line between
-%% -- inclusive (profile=true), steps, callers and repeats (all four with
-%% profile=all) -- and the answers flow_debug/4 is asked for to write them
+%% -- inclusive (profile=true), steps, callers, repeats and time (all five
+%% with profile=all) -- and the answers flow_debug/4 is asked for to write
+%% them
 fd_answers(Vs, Ans) :-
-    findall(A, ( member(V-A, [inclusive-profile(_), steps-profile(_), callers-callers(_), repeats-repeats(_)]),
+    findall(A, ( member(V-A, [inclusive-profile(_), steps-profile(_), callers-callers(_),
+                              repeats-repeats(_), time-time(_)]),
                  memberchk(V, Vs) ),
             As0),
     fd_one_profile(As0, Ans).
@@ -209,39 +215,43 @@ fd_profile(Vs, Base, Ans) :-
     (   memberchk(profile(P), Ans) -> true ; P = none ),
     (   memberchk(callers(C), Ans) -> true ; C = none ),
     (   memberchk(repeats(R), Ans) -> true ; R = none ),
-    fd_profile_write(Vs, Base, P, C, R).
+    (   memberchk(time(Ti), Ans) -> true ; Ti = none ),
+    fd_profile_write(Vs, Base, P, C, R, Ti).
 
-fd_profile_write(Vs, Base, P, C, R) :-
-    findall(T, ( member(V, Vs), fd_view_text(V, P, C, R, T) ), Ts),
+fd_profile_write(Vs, Base, P, C, R, Ti) :-
+    findall(T, ( member(V, Vs), fd_view_text(V, P, C, R, Ti, T) ), Ts),
     atomic_list_concat(Ts, '\n', Text),
     atom_concat(Base, '.prof', PFile),
     open(PFile, write, PS), write(PS, Text), close(PS),
     format("~w~n", [PFile]).
 
-fd_view_text(inclusive, P, _, _, T) :- flow_profile_text(P, T).
-fd_view_text(steps, P, _, _, T) :- flow_steps_text(P, T).
-fd_view_text(callers, _, C, _, T) :- flow_callers_text(C, T).
-fd_view_text(repeats, _, _, R, T) :- flow_repeats_text(R, T).
+fd_view_text(inclusive, P, _, _, _, T) :- flow_profile_text(P, T).
+fd_view_text(steps, P, _, _, _, T) :- flow_steps_text(P, T).
+fd_view_text(callers, _, C, _, _, T) :- flow_callers_text(C, T).
+fd_view_text(repeats, _, _, R, _, T) :- flow_repeats_text(R, T).
+fd_view_text(time, _, _, _, Ti, T) :- flow_time_text(Ti, T).
 
 %% WINDOWS=N: N windows along the run (flow_debug_windows/4), each written
 %% as BASE.K.* and its line said, then BASE.prof of them all when profile=
 %% asks, and a line for the run. The chart is kept in cache=DIR, or in
-%% BASE.charts when none is given, which each window's XML names
+%% BASE.charts when none is given, which each window's XML names. The time
+%% view's probes run under the clock, each window's (1.13.3)
 fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
-    (   memberchk(cache(_), Opts0) -> Opts = Opts0
+    (   memberchk(cache(_), Opts0) -> Opts1 = Opts0
     ;   catch(use_module(library(sha)), _, fail)
     ->  atom_concat(Base, '.charts', CD),
-        Opts = [cache(CD)|Opts0]
-    ;   Opts = Opts0
+        Opts1 = [cache(CD)|Opts0]
+    ;   Opts1 = Opts0
     ),
+    (   memberchk(time, Vs) -> Opts = [time(_)|Opts1] ; Opts = Opts1 ),
     catch(flow_debug_windows(Goal, Base, [source(File), names(Names)|Opts], windows(End, Ws)), E, fd_error(E)),
     flow_term_full(Goal, Names, 999, GT),
     forall(member(window(_, BK, Run, _), Ws),
            ( fd_files(Goal, File, BK, Opts), fd_line(GT, Run) )),
     (   Vs == [] -> true
     ;   findall(Rows, member(window(_, _, _, Rows), Ws), RLs),
-        flow_profile_merge(RLs, P, C, R),
-        fd_profile_write(Vs, Base, P, C, R)
+        flow_profile_merge(RLs, P, C, R, Ti),
+        fd_profile_write(Vs, Base, P, C, R, Ti)
     ),
     End = end(How, At, _),
     fd_how(How, At, HT),
@@ -407,15 +417,15 @@ fd_option(K, V, O) :-
 
 %% profile=: true (the inclusive view alone, as through 1.11.9), false,
 %% all, or views by name, a comma between -- in BASE.prof always in the
-%% order inclusive, steps, callers, repeats
+%% order inclusive, steps, callers, repeats, time
 fd_views(true, [inclusive]) :- !.
 fd_views(false, []) :- !.
-fd_views(all, [inclusive, steps, callers, repeats]) :- !.
+fd_views(all, [inclusive, steps, callers, repeats, time]) :- !.
 fd_views(V, Vs) :-
     atomic_list_concat(Vs0, ',', V),
     Vs0 \== [],
-    forall(member(X, Vs0), memberchk(X, [inclusive, steps, callers, repeats])),
-    findall(X, ( member(X, [inclusive, steps, callers, repeats]), memberchk(X, Vs0) ), Vs).
+    forall(member(X, Vs0), memberchk(X, [inclusive, steps, callers, repeats, time])),
+    findall(X, ( member(X, [inclusive, steps, callers, repeats, time]), memberchk(X, Vs0) ), Vs).
 
 fd_preds([], []).
 fd_preds([A|As], [P|Ps]) :-

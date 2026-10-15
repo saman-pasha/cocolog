@@ -357,6 +357,10 @@
 (generic decl-solve
   ()
 
+  ;;; clock_gettime(2) is std/c/time's, whose struct needs the one-token name
+  ;;; a Cicili type must be: a window's clock reads it (1.13.3)
+  (@define (code "timespec struct timespec"))
+
   ;;; A CATCH frame is not an alternative and never offers one -- backtracking
   ;;; through it pops it and keeps going. What it is is a MARK: `throw/1' walks
   ;;; the stack looking for one whose catcher matches, and the trail and heap
@@ -553,7 +557,15 @@
     ;; IT, NOT THROWN ON (1.10.17): a directive's goal (`lb_goal_hook'). The
     ;; backtrace's question -- would a catch take this ball? -- asks the
     ;; engines on the chain out to this one and no further (`coco_bt_caught')
-    (member int         btstop))
+    (member int         btstop)
+
+    ;; UNDER A WINDOW'S CLOCK (1.13.3, `'$trace_window'/4''s time(F, K)):
+    ;; TCLOCK is 1, MAX_STEPS is the step at which the clock reads next --
+    ;; every step once inference F is reached -- and RMAX the limit in steps
+    ;; it stands in for, asked at each reading (`coco_clock_go'). 0 after
+    ;; `coco_engine_init', which memsets
+    (member u64         rmax)
+    (member int         tclock))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -730,9 +742,47 @@
     (member size_t       ask)
     (member int          holds)
     (member size_t       hball)
-    (member size_t       hbsize))
+    (member size_t       hbsize)
+    ;; THE CLOCK (1.13.3): with TK a probe (STATE 2) reads the monotonic
+    ;; clock at each step from inference TFROM on, and charges what passed
+    ;; since the last reading (TLAST) to the inference that was running
+    ;; (TCUR), TON once it has started. TD holds each inference's
+    ;; nanoseconds: TD[I - TFROM] for every one (TKEEP 0; TDCAP of them,
+    ;; grown zeroed), or for the last TKEEP of the run a ring of TRING, the
+    ;; power of two at or over it, TD[I mod TRING]; THI the latest charged.
+    ;; A collection is not charged to its step: GCS holds an (inference,
+    ;; nanoseconds) pair for each, NGC words of them. CALN readings cost
+    ;; CALNS nanoseconds where nothing else ran (`coco_clock_arm'). TOOM
+    ;; when TD or GCS would not grow
+    (member int          tk)
+    (member int          ton)
+    (member int          toom)
+    (member u64          tfrom)
+    (member u64          tkeep)
+    (member u64          tring)
+    (member u64 *        td)
+    (member u64          tdcap)
+    (member u64          thi)
+    (member u64          tcur)
+    (member u64          tlast)
+    (member u64 *        gcs)
+    (member size_t       ngc)
+    (member size_t       gccap)
+    (member u64          caln)
+    (member u64          calns))
 
   (decl) (func coco_rec_free ((coco_rec * r)))
+
+  ;;; THE CLOCK'S NANOSECONDS FOR INFERENCE I of R (1.13.3): 0 for one it
+  ;;; never charged -- before it started, a ring's that has left it, or an
+  ;;; inference a clause's guards took inside its call's step
+  (decl) (func coco_clock_dur ((coco_rec * r) (u64 i)) (out u64))
+
+  ;;; A NESTED ENGINE UNDER THE CLOCK HAS ENDED (findall/3, call_limited/3,
+  ;;; with_output_to/2): E is the engine whose builtin started it, its
+  ;;; steps not yet counting the inner ones. Asked by the starter when E's
+  ;;; `tclock' is set
+  (decl) (func coco_clock_back ((coco_engine * e)))
 
   ;;; A journal, empty, to record (MODE 1) or replay (2); and its end.
   (decl) (func coco_jr_init ((coco_jrnl * jr) (int mode)))
@@ -1282,12 +1332,158 @@
         (free (-> r evs))
         (free (-> r txs))
         (free (-> r arena))
+        (free (-> r td))
+        (free (-> r gcs))
         (set (-> r evs) nil)
         (set (-> r txs) nil)
         (set (-> r arena) nil)
+        (set (-> r td) nil)
+        (set (-> r gcs) nil)
         (set (-> r nevs) 0)
         (set (-> r ntxs) 0)
-        (set (-> r alen) 0))
+        (set (-> r alen) 0)
+        (set (-> r ngc) 0))
+
+  ;;; ---- the clock of a window (1.13.3) ------------------------------------
+  ;;; What `'$trace_window'/4''s time(F, K) asks of a probe: the time each
+  ;;; inference took, from the monotonic clock read at the top of each step
+  ;;; of the run UNTRACED -- the probe's run, never the replay's, whose
+  ;;; recorder writes every argument at every port. A step's time is from
+  ;;; its reading to the next: its goal's own work -- a predicate's head
+  ;;; and the guards its clause runs on entry, a builtin's whole run -- and
+  ;;; the step's share of the engine. The clock reads through the limit's
+  ;;; branch (`coco_limit_go'), MAX_STEPS moved to every step and the limit
+  ;;; it stood for kept in RMAX, so a run that did not ask pays nothing.
+
+  ;;; NANOSECONDS ON THE MONOTONIC CLOCK, which no change to the time of
+  ;;; day moves: a vDSO call on Linux, 29 ns on the four-vCPU box
+  (static)
+  (func coco_clock_ns () (out u64)
+        (let ((timespec ts))
+          (clock_gettime CLOCK_MONOTONIC (aof ts))
+          (return (+ (* (cast u64 ($ ts tv_sec)) 1000000000) (cast u64 ($ ts tv_nsec))))))
+
+  ;;; DT NANOSECONDS MORE FOR INFERENCE I, dropped before TFROM and, in a
+  ;;; ring, once I has left it. The whole run's array grows zeroed, and a
+  ;;; ring zeroes the slots it passes over, so an inference no reading
+  ;;; separated from its step -- a guard a clause ran as it was entered --
+  ;;; reads 0, and its time is its call's. A ring is a power of two: its
+  ;;; slot is a mask, where a division would cost every reading 10 ns.
+  ;;; Answers 1 when the array GREW: that is the clock's own time, after
+  ;;; its reading, and the caller reads again, or the next inference would
+  ;;; carry it (a 512 KB array's first growth, 278 us on an inference
+  ;;; that took 1)
+  (static)
+  (func coco_clock_charge ((coco_rec * r) (u64 i) (u64 dt)) (out int)
+        (if (< i (-> r tfrom)) (return 0))
+        (if (== (-> r tkeep) 0)
+            (let ((u64 ix . #'(- i (-> r tfrom))) (int grew . 0))
+              (if (>= ix (-> r tdcap))
+                  (let ((u64 c . #'(? (== (-> r tdcap) 0) 65536 (* (-> r tdcap) 2)))
+                        (u64 * nd . nil))
+                    (if (-> r toom) (return 0))
+                    (while (<= c ix) (set c (* c 2)))
+                    (set nd (cast (u64 *) (realloc (-> r td) (* (cast size_t c) (sizeof u64)))))
+                    (if (== nd nil) (block (set (-> r toom) 1) (return 0)))
+                    (memset (+ nd (-> r tdcap)) 0 (* (cast size_t (- c (-> r tdcap))) (sizeof u64)))
+                    (set (-> r td) nd)
+                    (set (-> r tdcap) c)
+                    (set grew 1)))
+              (set (nth ix (-> r td)) (+ (nth ix (-> r td)) dt))
+              (if (> i (-> r thi)) (set (-> r thi) i))
+              (return grew)))
+        (let ((u64 mask . #'(- (-> r tring) 1)))
+          (if (> i (-> r thi))
+              (let ((u64 j . #'(+ (-> r thi) 1)))
+                (if (< (+ j (-> r tring)) i) (set j (+ (- i (-> r tring)) 1)))
+                (while (< j i)
+                  (set (nth (bitand j mask) (-> r td)) 0)
+                  (set j (+ j 1)))
+                (set (nth (bitand i mask) (-> r td)) dt)
+                (set (-> r thi) i)
+                (return 0)))
+          (if (<= (+ i (-> r tring)) (-> r thi)) (return 0))
+          (set (nth (bitand i mask) (-> r td)) (+ (nth (bitand i mask) (-> r td)) dt))
+          (return 0)))
+
+  (func coco_clock_dur ((coco_rec * r) (u64 i)) (out u64)
+        (if (or (< i (-> r tfrom)) (> i (-> r thi))) (return 0))
+        (if (== (-> r tkeep) 0)
+            (return (? (< (- i (-> r tfrom)) (-> r tdcap)) (nth (- i (-> r tfrom)) (-> r td)) 0)))
+        (if (<= (+ i (-> r tring)) (-> r thi)) (return 0))
+        (return (nth (bitand i (- (-> r tring) 1)) (-> r td))))
+
+  ;;; THE CLOCK GOES INTO A NESTED ENGINE (findall/3, call_limited/3,
+  ;;; with_output_to/2, from `coco_limit_narrow', which has set SUB's limit
+  ;;; in steps): SUB reads at each step too, its limit kept in RMAX. Its
+  ;;; first step cannot be a limit's -- a MAX_STEPS of 0 is none -- so the
+  ;;; reading for it, inference BASE + 1, is taken here, and SUB reads from
+  ;;; its second; until the clock has started, SUB's first reading is at F.
+  (static)
+  (func coco_clock_narrow ((coco_engine * e) (coco_engine * sub))
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (u64 base . 0))
+          (if (or (== r nil) (not (-> r tk))) (return))
+          (set base (coco_rec_abs e r))
+          (set (-> sub rmax) (-> sub max_steps))
+          (set (-> sub tclock) 1)
+          (cond
+            ((-> r ton)
+             (let ((u64 now . #'(coco_clock_ns)))
+               (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast))) (set now (coco_clock_ns)))
+               (set (-> r tlast) now)
+               (set (-> r tcur) (+ base 1))
+               (set (-> sub max_steps) 1)))
+            ((>= (+ base 1) (-> r tfrom))
+             (block (set (-> r ton) 1)
+                    (set (-> r tlast) (coco_clock_ns))
+                    (set (-> r tcur) (+ base 1))
+                    (set (-> sub max_steps) 1)))
+            (#t (set (-> sub max_steps) (- (- (-> r tfrom) 1) base))))
+          (if (and (!= (-> sub rmax) 0) (> (-> sub max_steps) (-> sub rmax)))
+              (set (-> sub max_steps) (-> sub rmax)))))
+
+  ;;; ... AND COMES BACK OUT: the inner engine's last step has run to here,
+  ;;; and what passes until E's next step is the builtin's that started it
+  ;;; -- E's own inference, its steps not yet counting the inner ones: the
+  ;;; copying out of findall/3's answers, with_output_to/2's text
+  (func coco_clock_back ((coco_engine * e))
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (u64 now . 0))
+          (if (or (== r nil) (not (-> r ton))) (return))
+          (set now (coco_clock_ns))
+          (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast))) (set now (coco_clock_ns)))
+          (set (-> r tlast) now)
+          (set (-> r tcur) (coco_rec_abs e r))))
+
+  ;;; A COLLECTION UNDER THE CLOCK, begun at T0: kept apart as (inference,
+  ;;; nanoseconds), and not charged to the step it ran in -- its reading is
+  ;;; moved on by as much
+  (static)
+  (func coco_clock_gc ((coco_engine * e) (u64 t0))
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (u64 dt . 0))
+          (if (or (== r nil) (not (-> r ton))) (return))
+          (set dt (- (coco_clock_ns) t0))
+          (set (-> r tlast) (+ (-> r tlast) dt))
+          (if (>= (+ (-> r ngc) 2) (-> r gccap))
+              (let ((size_t c . #'(? (== (-> r gccap) 0) 64 (* (-> r gccap) 2)))
+                    (u64 * ng . nil))
+                (set ng (cast (u64 *) (realloc (-> r gcs) (* c (sizeof u64)))))
+                (if (== ng nil) (block (set (-> r toom) 1) (return)))
+                (set (-> r gcs) ng)
+                (set (-> r gccap) c)))
+          (set (nth (-> r ngc) (-> r gcs)) (coco_rec_abs e r))
+          (set (nth (+ (-> r ngc) 1) (-> r gcs)) dt)
+          (set (-> r ngc) (+ (-> r ngc) 2))))
+
+  ;;; THE RUN'S END: the step that was running has run to here -- unless it
+  ;;; is past USED, the last step counted, which is a step a limit stopped
+  (static)
+  (func coco_clock_end ((coco_rec * r) (u64 used))
+        (if (not (-> r ton)) (return))
+        (if (<= (-> r tcur) used)
+            (coco_clock_charge r (-> r tcur) (- (coco_clock_ns) (-> r tlast)))))
 
   ;;; ---- the four ports ----------------------------------------------------
   ;;; SWI's line, byte for byte: three spaces, the port, the depth in round
@@ -2617,13 +2813,22 @@
   ;;; code with guards (`ex' 1 or 3), so not whether there are any: asked
   ;;; that again behind the question `ex' answers, it cost the counting
   ;;; loop 3 instructions a turn.
+  ;;;
+  ;;; UNDER A WINDOW'S CLOCK (1.13.3) the limit is RMAX: the clock moves
+  ;;; MAX_STEPS to every step, and read as the limit it would let no guard
+  ;;; run, so the clock would time an engine without them. Asked inline: as
+  ;;; a call out of line, it cost `coco_try_clause' the registers a call
+  ;;; clobbers, and naive reverse, which has no guard, 2 instructions an
+  ;;; inference (`tools/flow/zero.sh').
   (static)
   (func coco_guard_budget ((coco_engine * e) (coco_code * cd)) (out u32)
         (if (!= (-> e trace) 0) (return 0))
         (if (== (-> e max_steps) 0) (return (-> cd ngd)))
-        (if (>= (-> e steps) (-> e max_steps)) (return 0))
-        (let ((u64 left . #'(- (-> e max_steps) (-> e steps))))
-          (return (? (< left (cast u64 (-> cd ngd))) (cast u32 left) (-> cd ngd)))))
+        (let ((u64 lim . #'(? (-> e tclock) (-> e rmax) (-> e max_steps))))
+          (if (== lim 0) (return (-> cd ngd)))
+          (if (>= (-> e steps) lim) (return 0))
+          (let ((u64 left . #'(- lim (-> e steps))))
+            (return (? (< left (cast u64 (-> cd ngd))) (cast u32 left) (-> cd ngd))))))
 
   ;;; THE CLAUSE MATCHED IN THE STORE AND ITS BODY COPIED, for a program
   ;;; that could not be had or could not run (`coco_store_unify': the store
@@ -4300,7 +4505,9 @@
               (u64 * fixed . nil) (size_t nmarkers . 0)
               (u64 texit . 0) (int ok . 1)
               (size_t ** tmp . nil) (size_t ** hmp . nil) (size_t nbar . 0)
-              (int asked . #'(== (-> m gc_next) 0)))
+              (int asked . #'(== (-> m gc_next) 0))
+              ;; under a window's clock, when it began (1.13.3)
+              (u64 gt0 . #'(? (-> e tclock) (coco_clock_ns) 0)))
           (set texit (coco_functor_id m (coco-id m "$trace_exit") 3))
           (set bits (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
           (set pre (cast (size_t *) (malloc (* (+ nw 1) (sizeof size_t)))))
@@ -4573,7 +4780,8 @@
             (set (-> m gc_next) (+ (-> m heap_len)
                                    (? (> (-> m heap_len) floor) (-> m heap_len) floor))))
           (set (-> m gc_count) (+ (-> m gc_count) 1))
-          (free bits) (free pre) (free stk) (free fixed)))
+          (free bits) (free pre) (free stk) (free fixed)
+          (if (-> e tclock) (coco_clock_gc e gt0))))
 
   ;;; THE FREEZE, TORTURED (`COCOLOG_KMAT'). A freeze is right or wrong only
   ;;; on a freeze, and freezes are rare, so this puts every collection
@@ -4754,6 +4962,10 @@
                                   (set ball_size ($ sub ball_size))))
                        (set ok 0) break))
             (if (== rc 0) break)
+            ;; a window's clock: what this answer's copy into the store
+            ;; costs -- a store that grows, 0.8 ms on one of 50 000 -- is
+            ;; findall's own, not the inner goal's that found it (1.13.3)
+            (if (-> e tclock) (coco_clock_back e))
             (if (>= n cap)
                 (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
                       (size_t * nb))
@@ -4777,7 +4989,9 @@
                 (block (set (-> e halted) 0) (set nomem 1) (set ok 0) break)))
 
           ;; the outer engine's step count includes the inner search: a goal
-          ;; that costs a million inferences inside a findall costs them
+          ;; that costs a million inferences inside a findall costs them --
+          ;; and the clock's time from here is the findall's (1.13.3)
+          (if (-> e tclock) (coco_clock_back e))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (set (-> e frees) (+ (-> e frees) ($ sub frees)))
           (coco_gc_nested_end m gsaved)
@@ -4877,6 +5091,7 @@
           ;; SPENT IS SPENT, whichever way it went: an outer budget that did
           ;; not count a fenced goal's inferences would be a hole big enough
           ;; to drive the whole loop through.
+          (if (-> e tclock) (coco_clock_back e))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (set (-> e frees) (+ (-> e frees) ($ sub frees)))
           (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0))
@@ -4952,7 +5167,10 @@
   ;;; untraced at full speed until the limit's branch opens it
   ;;; (`coco_rec_open'), and a window from inference 1 records from the
   ;;; first step. The collector may run until then, as in any nested
-  ;;; engine; the window turns it off.
+  ;;; engine; the window turns it off. A probe may run under the clock
+  ;;; instead (1.13.3, R->tk: `coco_clock_arm'), which records no event.
+  (static) (decl) (func coco_clock_arm ((coco_machine * m) (coco_engine * sub) (coco_rec * r)))
+
   (func coco_engine_window ((coco_engine * e) (size_t goal) (coco_rec * r)
                             (u64 answers) (u64 * used) (u64 * ats) (u64 * nats)
                             (size_t * ball) (int * haltcode) (size_t * gp)) (out int)
@@ -4989,6 +5207,9 @@
             (#t
              (block (set (-> r state) 0)
                     (set ($ sub max_steps) (- (-> r from) 1)))))
+          ;; the clock, armed before R is the machine's: the reading's cost
+          ;; is measured with a recorder of its own in the slot
+          (if (-> r tk) (coco_clock_arm m (aof sub) r))
           (set ($ (cof m) rec) (cast (void *) r))
           ;; a journal's run goes through the wrapped seam (1.10.15)
           (if (!= (-> r jr) nil) (coco_jr_wrap))
@@ -4996,6 +5217,8 @@
           (set ($ sub pheap) hmark)
           (set ($ sub gc) (? (and held (-> e gc) (!= ($ sub trace) 2)) 1 0))
           (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
+            ;; a clock from inference 1 reads for it here, as the run starts
+            (if (-> r ton) (set (-> r tlast) (coco_clock_ns)))
             (while 1
               (set rc (coco_engine_next (aof sub)))
               (if (== rc 1)
@@ -5022,6 +5245,7 @@
             (coco_gc_nested_end m gsaved))
           ;; a stop at the limit counted the step it did not take
           (set (cof used) (? (== out 2) (- ($ sub steps) 1) ($ sub steps)))
+          (if (-> r tk) (coco_clock_end r (cof used)))
           (set (cof nats) found)
           (if (== out 4) (set (cof haltcode) ($ sub halt_code)))
           (set tmark ($ sub ptrail))
@@ -5375,23 +5599,27 @@
   ;;; limit carries -- caps SUB's steps (TCAP); 1 is left when the outside
   ;;; is spent, as before. MAX_STEPS, which the loop tests, is set last.
   (func coco_limit_narrow ((coco_engine * e) (coco_engine * sub))
-        (if (!= (-> e max_inf) 0)
-            (let ((u64 spent . #'(- (-> e steps) (-> e frees))) (u64 left . 0))
-              (set left (? (>= spent (-> e max_inf)) 1 (- (-> e max_inf) spent)))
-              (if (or (== (-> sub max_inf) 0) (< left (-> sub max_inf))) (set (-> sub max_inf) left))
-              (if (!= (-> e tcap) 0)
-                  (set (-> sub tcap) (? (>= (-> e steps) (-> e tcap)) 1 (- (-> e tcap) (-> e steps))))))
-            (if (!= (-> e max_steps) 0)
-                (set (-> sub tcap) (? (>= (-> e steps) (-> e max_steps)) 1 (- (-> e max_steps) (-> e steps))))))
-        (cond
-          ((!= (-> sub max_inf) 0)
-           (set (-> sub max_steps) (-> sub max_inf))
-           (if (and (!= (-> sub tcap) 0) (< (-> sub tcap) (-> sub max_steps)))
-               (set (-> sub max_steps) (-> sub tcap))))
-          ((!= (-> sub tcap) 0)
-           (set (-> sub max_steps) (-> sub tcap))
-           (set (-> sub tcap) 0))
-          (#t (set (-> sub max_steps) 0))))
+        ;; E's limit in steps: RMAX under a window's clock, whose MAX_STEPS
+        ;; is only the next reading (1.13.3), and SUB reads it as well
+        (let ((u64 emax . #'(? (-> e tclock) (-> e rmax) (-> e max_steps))))
+          (if (!= (-> e max_inf) 0)
+              (let ((u64 spent . #'(- (-> e steps) (-> e frees))) (u64 left . 0))
+                (set left (? (>= spent (-> e max_inf)) 1 (- (-> e max_inf) spent)))
+                (if (or (== (-> sub max_inf) 0) (< left (-> sub max_inf))) (set (-> sub max_inf) left))
+                (if (!= (-> e tcap) 0)
+                    (set (-> sub tcap) (? (>= (-> e steps) (-> e tcap)) 1 (- (-> e tcap) (-> e steps))))))
+              (if (!= emax 0)
+                  (set (-> sub tcap) (? (>= (-> e steps) emax) 1 (- emax (-> e steps))))))
+          (cond
+            ((!= (-> sub max_inf) 0)
+             (set (-> sub max_steps) (-> sub max_inf))
+             (if (and (!= (-> sub tcap) 0) (< (-> sub tcap) (-> sub max_steps)))
+                 (set (-> sub max_steps) (-> sub tcap))))
+            ((!= (-> sub tcap) 0)
+             (set (-> sub max_steps) (-> sub tcap))
+             (set (-> sub tcap) 0))
+            (#t (set (-> sub max_steps) 0)))
+          (if (-> e tclock) (coco_clock_narrow e sub))))
 
   ;;; WHETHER THE NEXT STEP IS THE TRACER'S `$trace_exit' MARKER (1.12.2),
   ;;; asked only past the limit: a marker gives back the step taking it
@@ -5448,17 +5676,109 @@
           (coco_k_flush e)
           (return 1)))
 
+  ;;; A STEP UNDER A WINDOW'S CLOCK (1.13.3): the reading -- what passed
+  ;;; since the last is the step that ran, from here on the step at hand's
+  ;;; -- then E's own limit, RMAX, asked as `coco_limit_go' asks one, and
+  ;;; MAX_STEPS moved to the next reading: this step, so the next one
+  ;;; reads, once the clock has started; the inference before F until it
+  ;;; has. 0 when the run stops. An engine whose window has gone (none
+  ;;; does: each is freed inside it) goes back to its limit.
+  (static)
+  (func coco_clock_go ((coco_engine * e)) (out int)
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (u64 a . 0) (u64 now . 0))
+          (if (== r nil)
+              (block (set (-> e tclock) 0)
+                     (set (-> e max_steps) (-> e rmax))
+                     (if (or (== (-> e max_steps) 0) (<= (-> e steps) (-> e max_steps))) (return 1))
+                     (if (coco_limit_room e) (return 1))
+                     (if (coco_step_free e) (return 1))
+                     (return (coco_rec_open e))))
+          (set a (coco_rec_abs e r))
+          (set now (coco_clock_ns))
+          (cond ((-> r ton)
+                 (block (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast)))
+                            (set now (coco_clock_ns)))
+                        (set (-> r tlast) now)
+                        (set (-> r tcur) a)))
+                ((>= a (-> r tfrom))
+                 (block (set (-> r ton) 1)
+                        (set (-> r tlast) now)
+                        (set (-> r tcur) a))))
+          (if (and (!= (-> e rmax) 0) (> (-> e steps) (-> e rmax)))
+              (block (set (-> e max_steps) (-> e rmax))
+                     (if (not (coco_limit_room e))
+                         (if (not (coco_step_free e))
+                             (if (not (coco_rec_open e)) (return 0))))
+                     (set (-> e rmax) (-> e max_steps))))
+          (set (-> e max_steps) (? (-> r ton) (-> e steps) (- (- (-> r tfrom) 1) (- a (-> e steps)))))
+          (if (and (!= (-> e rmax) 0) (> (-> e max_steps) (-> e rmax)))
+              (set (-> e max_steps) (-> e rmax)))
+          (return 1)))
+
   ;;; PAST THE LIMIT, WHETHER THE RUN GOES ON (1.12.2): room left in a
   ;;; limit in inferences, the tracer's Exit marker next, or a window
   ;;; opening -- asked in that order, in ONE call out of line, the shape
   ;;; the branch had when `coco_rec_open' was all it asked: three calls
   ;;; there moved the step loop's registers, and lookup ran eight more
-  ;;; instructions a probe besides the padding.
+  ;;; instructions a probe besides the padding. Under a window's clock
+  ;;; every step comes here, and the clock asks them (1.13.3).
   (weak)
   (func coco_limit_go ((coco_engine * e)) (out int)
+        (if (-> e tclock) (return (coco_clock_go e)))
         (if (coco_limit_room e) (return 1))
         (if (coco_step_free e) (return 1))
         (return (coco_rec_open e)))
+
+  ;;; THE CLOCK ARMED on a probe's engine SUB before its run (1.13.3), R
+  ;;; not yet the machine's: MAX_STEPS its first reading -- F's step, or
+  ;;; its second when F is 1, whose first reading the window takes as the
+  ;;; run starts -- and RMAX the probe's limit (`to'). FIRST, with nothing
+  ;;; else running, WHAT A READING COSTS: an engine that runs no goal
+  ;;; steps 512 times as the loop steps, each through the limit's branch
+  ;;; to the clock, the cheapest of eight rounds kept (CALN readings in
+  ;;; CALNS nanoseconds) -- a reader takes it off each step it was given
+  (static)
+  (func coco_clock_arm ((coco_machine * m) (coco_engine * sub) (coco_rec * r))
+        (let ((coco_rec cal) (coco_engine fake) (u64 slots [64]) (u64 best . 0))
+          (memset (aof cal) 0 (sizeof coco_rec))
+          (memset slots 0 (sizeof slots))
+          (set ($ cal tk) 1)
+          (set ($ cal ton) 1)
+          (set ($ cal tfrom) 1)
+          (set ($ cal tkeep) 64)
+          (set ($ cal tring) 64)
+          (set ($ cal td) slots)
+          (coco_engine_init (aof fake) m (-> sub st))
+          (set ($ fake tclock) 1)
+          (set ($ cal root) (cast (void *) (aof fake)))
+          (set (-> m rec) (cast (void *) (aof cal)))
+          (for ((int rd . 0)) (< rd 8) ((++ rd))
+            (let ((u64 t0 . 0) (u64 t1 . 0))
+              (set ($ fake steps) 1)
+              (set ($ fake max_steps) 1)
+              (set ($ cal tcur) 1)
+              (set ($ cal tlast) (coco_clock_ns))
+              (set t0 (coco_clock_ns))
+              (for ((int i . 0)) (< i 512) ((++ i))
+                (set ($ fake steps) (+ ($ fake steps) 1))
+                (if (and (!= ($ fake max_steps) 0) (> ($ fake steps) ($ fake max_steps)))
+                    (coco_limit_go (aof fake))))
+              (set t1 (coco_clock_ns))
+              (if (or (== rd 0) (< (- t1 t0) best)) (set best (- t1 t0)))))
+          (set (-> m rec) nil)
+          (coco_engine_free (aof fake))
+          (set (-> r caln) 512)
+          (set (-> r calns) best)
+          (set (-> sub rmax) (-> sub max_steps))
+          (set (-> sub tclock) 1)
+          (if (<= (-> r tfrom) 1)
+              (block (set (-> r ton) 1)
+                     (set (-> r tcur) 1)
+                     (set (-> sub max_steps) 1))
+              (set (-> sub max_steps) (- (-> r tfrom) 1)))
+          (if (and (!= (-> sub rmax) 0) (> (-> sub max_steps) (-> sub rmax)))
+              (set (-> sub max_steps) (-> sub rmax)))))
 
   ;;; THE RUN STOPPED AT A STEP'S TOP (`halted'): 1 is a halt, 2 memory.
   ;;; MEMORY IS RAISED (1.10.28) when the refusal left nothing written

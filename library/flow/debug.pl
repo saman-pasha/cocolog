@@ -30,8 +30,10 @@
 %%                                                 what took them (dbgprof.pl)
 %%     flow_callers_text(+Callers, -Text)          callers(C) as text
 %%     flow_repeats_text(+Repeats, -Text)          repeats(R) as text
+%%     flow_time_text(+Time, -Text)                time(T) as text (dbgprof.pl)
 %%     flow_profile_merge(+RowLists, -P, -C, -R)   windows' profile_rows added
 %%                                                 up (dbgprof.pl)
+%%     flow_profile_merge(+RowLists, -P, -C, -R, -T)  and their time
 %%     flow_run_end(+Goal, +Options, -End)         how the run ends, the probe
 %%                                                 alone
 %%     flow_debug_windows(+Goal, +Base, +Options, -Windows)
@@ -99,6 +101,11 @@
 %%     callers(C)       answers too (1.11.10, dbgprof.pl): each predicate's
 %%     repeats(R)       callers, the goals asked more than once, and the
 %%     profile_rows(Rs) window as rows windows are added up from
+%%     time(T)          an answer too (1.13.3, dbgprof.pl): where the
+%%                      window's TIME went, each predicate's inclusive and
+%%                      self time -- the probe runs under a clock read at
+%%                      every inference of the window, untraced, and the
+%%                      replay says whose each inference was
 %%     svg(Bool)        true (default), or false: Base.svg is not drawn
 %%     xml(Bool)        true (default), or false: Base.xml is not written;
 %%                      with both false the values that crossed are not
@@ -246,7 +253,7 @@ flow_debug(Goal, Base0, Opts, Out) :-
     flow_dbg_spec(Goal, Spec),
     flow_dbg_chart(Spec, File, Opts, Graph, Fs, Chart),
     flow_dbg_src(File, Opts, Src),
-    flow_dbg_run(Goal, Src, Opts, Run),
+    flow_dbg_run(Goal, Src, Opts, Run, Clock),
     Run = run(_, _, Replay, _, Events, _),
     (   Replay = end(exception(_), _, _)
     ->  flow_dbg_match(Graph, Events, flow_dbg_source_bodies(File), Calls)
@@ -294,7 +301,8 @@ flow_debug(Goal, Base0, Opts, Out) :-
     (   memberchk(profile(PF), Opts) -> flow_dbg_profile(Facts, PF) ; true ),
     (   memberchk(callers(CF), Opts) -> flow_dbg_callers(Facts, CF) ; true ),
     (   memberchk(repeats(RF), Opts) -> flow_dbg_repeats(Facts, RF) ; true ),
-    (   memberchk(profile_rows(RowsF), Opts) -> flow_dbg_profile_rows(Facts, RowsF) ; true ),
+    (   memberchk(time(TF), Opts) -> flow_dbg_time(Facts, Clock, TF) ; true ),
+    (   memberchk(profile_rows(RowsF), Opts) -> flow_dbg_profile_rows(Facts, Clock, RowsF) ; true ),
     flow_dbg_out(Facts, Out).
 
 %% THE PROBE ALONE (1.11.10): how the run of Goal ends and at which
@@ -713,9 +721,12 @@ flow_dbg_names(_, Opts, Names) :-
 %% run(Goal, Probe, Replay, window(From, To), Events, Journal): Probe and
 %% Replay are '$trace_window'/4's end(How, Used, Answers) for each run;
 %% Journal none, or journal(Entries) when the probe journalled (and the
-%% replay was answered from it).
+%% replay was answered from it). Clock is none, or with time(T) asked the
+%% probe's clock (1.13.3): clock(First, Last, PerReading, Ds, Gcs), each
+%% inference's nanoseconds from First to Last as the probe ran untraced,
+%% what a reading of the clock cost, and I-Ns for each collection.
 
-flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events, Journal)) :-
+flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events, Journal), Clock) :-
     (   memberchk(until(answer(K)), Opts) -> true ; K = 1 ),
     flow_option(timeout(Ms), Opts, 600000),
     flow_option(text(TM), Opts, 60),
@@ -724,17 +735,32 @@ flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events,
     ;   JR = [journal(record(JFile))], JP = [journal(replay(JFile))]
     ),
     (   memberchk(to(Cap), Opts) -> POpts0 = [answers(K), to(Cap)] ; POpts0 = [answers(K)] ),
-    append(POpts0, JR, POpts),
-    (   catch(flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events),
+    append(POpts0, JR, POpts1),
+    (   memberchk(time(_), Opts)
+    ->  flow_dbg_clock_option(Opts, CO), POpts = [CO|POpts1]
+    ;   POpts = POpts1
+    ),
+    (   catch(flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock),
               E, ( flow_dbg_journal_drop(JFile, Keep), throw(E) ))
     ->  true
     ;   flow_dbg_journal_drop(JFile, Keep), fail
     ),
     flow_dbg_journal_read(JFile, Keep, Journal).
 
+%% THE PROBE'S CLOCK (1.13.3): the window's inferences when from(I) says
+%% where it begins, all of them from I; otherwise the run's last window(N),
+%% which is where the window will be (flow_dbg_window/4)
+flow_dbg_clock_option(Opts, time(F, K)) :-
+    (   memberchk(from(I), Opts)
+    ->  F is max(1, I), K = 0
+    ;   flow_option(window(W), Opts, 2000),
+        F = 1, K is max(1, W)
+    ).
+
 %% the probe, and the replay of the window it decides
-flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events) :-
-    flow_dbg_child(Src, Goal, POpts, Ms, Probe0, _),
+flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock) :-
+    flow_dbg_child(Src, Goal, POpts, Ms, Probe0, PEs),
+    (   memberchk(time(_, _), POpts) -> flow_dbg_clock(PEs, Clock) ; Clock = none ),
     flow_dbg_norm_end(Probe0, Probe),
     Probe = end(_, Used, _),
     flow_dbg_window(Opts, Used, From, To),
@@ -743,6 +769,17 @@ flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Ev
         flow_dbg_child(Src, Goal, ROpts, Ms, Replay0, Events),
         flow_dbg_norm_end(Replay0, Replay)
     ;   Replay = Probe, Events = []
+    ).
+
+%% the clock's events, as '$trace_window'/4 writes them, as one term: the
+%% steps(I, Ds) come in order, a thousand inferences each
+flow_dbg_clock(PEs, clock(First, Last, Per, Ds, Gcs)) :-
+    (   PEs = [time(First, Last, N, Ns)|Rest]
+    ->  Per is Ns / max(1, N),
+        findall(D0, member(steps(_, D0), Rest), DLs),
+        append(DLs, Ds),
+        findall(I-G, member(gc(I, G), Rest), Gcs)
+    ;   First = 1, Last = 0, Per = 0.0, Ds = [], Gcs = []
     ).
 
 %% a divergence's CallTexts as atoms: the child writes them as strings,

@@ -133,6 +133,8 @@
   (include <dirent.h>)
   ;; and gettimeofday, for get_time/1's fraction of a second
   (include <sys/time.h>)
+  ;; and clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
+  (include <time.h>)
   ;; and open(2), for read_file_to_codes/2 -- the same rule as <unistd.h>
   ;; above: lib/std/c/posix/fcntl.cicili declares `open' and O_RDONLY so
   ;; Cicili can infer through them, and the target still has to name the
@@ -383,7 +385,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.13.2"))
+  (func coco_version_text () (out const char *) (return "1.13.3"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"

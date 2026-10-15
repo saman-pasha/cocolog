@@ -257,6 +257,23 @@ over the bindings the run left there, before anything is undone; Holds is
 and asked is how "when did X become 5?" is answered without a debugger
 in the run: `library(flow/debug)`'s `flow_when/4` bisects over such runs.
 
+A probe can run under a CLOCK (1.13.3): `time(F, K)` reads the monotonic
+clock at the top of every step from inference F on, untraced, and hands
+back each inference's nanoseconds -- from its reading to the next: its
+goal's own work, a predicate's head and the guards its clause runs as it
+is entered (whose inferences no reading separates from their call's, and
+read 0), a builtin's whole run, findall/3's own copying apart from its
+inner goals' -- all of them (K 0) or the run's last K, as `time(First,
+Last, N, Ns)` and `steps(I, [T, ...])` terms, a collection as `gc(I, Ns)`
+beside them and in no inference's time. The clock reads through the
+limit's branch, MAX_STEPS moved to every step and the limit it stood for
+kept aside, so a run that does not ask pays nothing (`tools/flow/zero.sh`
+counts the same work on nrev, queens and lookup). A reading costs about
+35 ns on the four-vCPU box, N of them measured as the probe starts; the
+inferences are numbered as a replay numbers its events, so a recording of
+the same window says whose each one's time was -- `library(flow/debug)`'s
+`time(T)` (DESIGN-flow.md 9.5).
+
 ## A journal, and a replay answered from it
 
 A run is its clauses and whatever came in from outside. With

@@ -1192,6 +1192,31 @@ from a session that used the library on `library/reasoning/translate.pl`:
   call tree: matching 7 s, the profile 0.9, and with `svg=false xml=false`
   (the values that crossed are not worked out) the window is 31 s; three
   such windows with BASE.txt and every view, three at a time, 53 s.
+* **Where the time went** (`time(T)`, 1.13.3; `profile=time`, and the
+  fifth view of `profile=all`): the inference counts said where a run's
+  steps went and nothing about the one step that costs a thousand. The
+  PROBE runs under a clock (`'$trace_window'/4`'s `time(F, K)`), read at
+  the top of every inference of the window, untraced -- the run as it
+  is: the replay's recorder writes every argument at every port, and
+  timed it would weigh a call by its arguments' text -- and the replay,
+  numbered as the probe is, says whose each inference was. Each
+  predicate's inclusive time over the spans the profile counts and its
+  self time, its calls' own inferences; the control constructs' share; a
+  collection apart. A reading costs ~35 ns where an inference costs 15
+  to 60, measured as the probe starts and taken off each one read, so a
+  cheap predicate's time is an estimate within some 10 ns a call (the
+  count is its surer measure) and a costly inference stands out by three
+  orders of magnitude: a run's msort/2 of 20 000 numbers, one inference
+  of its 5 282 and nothing in the profile, 2.0 ms of its 3.9, with
+  `'$numlist'/3` 0.59 ms and `reverse/2` 0.43 ms beside it. Where a cost
+  lands was the work: an array grown after its reading put 278 us on the
+  next inference (the clock reads again after a growth); findall/3's copy
+  of each answer into the store landed on the inner goal that found it
+  (0.8 ms when the store grew), and the clock is handed back to findall's
+  own inference at each answer and at its end; the guards' budget read
+  MAX_STEPS, which the clock moves to every step, and ran no guard. No
+  third process: the default window is the run's last N, which the probe
+  keeps in a ring, and with `from(I)` the probe times from I on.
 * **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
   the why of a reader that backtracks is the whole trace (2.84 MB for one
   refusal), and following its last failure down leads to the last

@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, tried, asked, checks_done.
+    clock, printed, turns, window, tried, asked, timed, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -524,6 +524,100 @@ asked :-
     w_junk,
     w_asked_gc(H7),
     check('asked after collections that moved the question and the run''s terms', H7, true).
+
+%% ---- the clock (1.13.3) -------------------------------------------------
+%%
+%% time(F, K): a probe's run read from the monotonic clock at the top of
+%% each step, each inference's time from its reading to the next. What is
+%% held is what does not depend on how fast the box is: which inferences the
+%% clock reads, where it starts and stops, that it goes into a nested
+%% engine and out, and where a cost far over any step's lands -- a
+%% collection beside the steps, findall/3's copies on its own inference.
+
+w_cnt(0) :- !.
+w_cnt(N) :- N1 is N - 1, w_cnt(N1).
+
+w_fa(L) :- findall(X, member(X, [a, b, c]), L).
+
+w_big(L) :- findall(X, between(1, 20000, X), L).
+
+w_gcg(N) :- numlist(1, 20000, L), garbage_collect, length(L, N).
+
+w_copy(Ls) :- numlist(1, 10000, L), findall(L, member(_, [a, b, c]), Ls).
+
+timed :-
+    section('time(F, K): the clock a probe runs under -- which inferences it reads, where, and whose a cost is'),
+    w_clock(w_cnt(3), [time(1, 0)], E1, H1, Ds1, _),
+    H1 = time(F1, L1, N1, Ns1),
+    w_zeros(F1, Ds1, Z1),
+    ( Ns1 > 0 -> C1 = costed ; C1 = Ns1 ),
+    check('w_cnt(3) from inference 1: every inference timed, the clock''s cost measured over 512 readings, and the guards a clause ran as it was entered read 0',
+          E1-F1-L1-N1-C1-Z1, end(answer, 9, [9])-1-9-512-costed-[2, 4, 6]),
+    w_clock(w_fa(_), [time(1, 0)], E2, time(F2, L2, _, _), Ds2, _),
+    w_zeros(F2, Ds2, Z2),
+    check('into findall/3''s engine and out: each inference read, the inner goals'' too',
+          E2-F2-L2-Z2, end(answer, 10, [10])-1-10-[]),
+    w_clock(w_cnt(20), [time(1, 4)], E3, time(F3, L3, _, _), Ds3, _),
+    w_zeros(F3, Ds3, Z3),
+    length(Ds3, N3),
+    check('time(1, 4): the run''s last four inferences, 40 a guard',
+          E3-F3-L3-N3-Z3, end(answer, 43, [43])-40-43-4-[40]),
+    w_clock(w_cnt(20), [time(5, 0), to(9)], E4, time(F4, L4, _, _), Ds4, _),
+    w_zeros(F4, Ds4, Z4),
+    check('time(5, 0) and to(9): from 5, stopped past 9',
+          E4-F4-L4-Z4, end(limit, 9, [])-5-9-[6, 8]),
+    %% garbage_collect/0 asks, and the collection comes at the next step's
+    %% top: kept apart, and not in that step's time -- length/2 of 20 000
+    w_clock(w_gcg(_), [time(1, 0)], _, time(F5, _, _, _), Ds5, Gcs5),
+    (   Gcs5 = [gc(I5, G5)], K5 is I5 - F5 + 1, nth1(K5, Ds5, D5)
+    ->  ( G5 > D5 -> R5 = I5-apart ; R5 = I5-G5-D5 )
+    ;   R5 = Gcs5
+    ),
+    check('a collection asked for: kept apart at the inference whose step it came before, and no part of that step''s time',
+          R5, 6-apart),
+    %% each answer findall/3 copies into the store, and the list it builds
+    %% of them at the end, are findall/3's own time, not the inner goal's
+    %% that found it: 20 000 answers, its own inference the run's longest
+    w_clock(w_big(_), [time(1, 0)], _, _, Ds6, _),
+    max_list(Ds6, M6), nth1(K6, Ds6, M6),
+    check('findall/3''s copies are its own: its inference, 2, the run''s longest', K6, 2),
+    %% ... each answer's as it is found, not the inner goal's that found it:
+    %% three answers of a 10 000-element list, findall/3 at inference 5
+    w_clock(w_copy(_), [time(1, 0)], _, _, Ds10, _),
+    nth1(5, Ds10, Own10),
+    findall(I10, ( nth1(I10, Ds10, D10), I10 > 5, D10 * 10 >= Own10 ), Big10),
+    check('...and each answer''s copy as it is made: no inner inference a tenth of findall/3''s own',
+          Big10, []),
+    %% THE ARRAY GROWS, and the growth is the clock's own time: the inference
+    %% after it reads what its step took, as the ones before it do. Its
+    %% second growth, 1 MB more made and filled with zeros at the charge of
+    %% inference 131 073, landed on 131 075 without the reading taken again
+    %% -- 78 to 568 us, where the inference takes under 1 -- and the least of
+    %% three runs is taken, so a preemption is no red
+    findall(D11, ( between(1, 3, _),
+                   w_clock(w_cnt(70000), [time(1, 0)], _, _, Ds11, _),
+                   nth1(131075, Ds11, D11) ),
+            G11),
+    min_list(G11, M11),
+    ( M11 < 10000 -> R11 = cheap ; R11 = M11 ),
+    check('the clock''s array grown is its own time: the inference after its second growth reads under 10 us',
+          R11, cheap),
+    win_refused([from(1), time(1, 0)], R7),
+    win_refused([time(0, 0)], R8),
+    win_refused([time(1, -1)], R9),
+    check('refused: the clock with a recording, an inference 0 to start from, a negative K',
+          [R7, R8, R9], [domain, domain, domain]).
+
+%% a probe of G under OPTS: how it ended, its time/4 term, every inference's
+%% nanoseconds from the first timed, and its gc/2 events
+w_clock(G, Opts, E, H, Ds, Gcs) :-
+    '$trace_window'(G, Opts, [H|Es], E),
+    findall(D, ( member(steps(_, D0), Es), member(D, D0) ), Ds),
+    findall(gc(I, N), member(gc(I, N), Es), Gcs).
+
+%% the inferences that read 0, by their numbers from F
+w_zeros(F, Ds, Zs) :-
+    findall(I, ( nth1(K, Ds, 0), I is F + K - 1 ), Zs).
 
 win_refused(Opts, R) :-
     answer('$trace_window'(w_go(_), Opts, _, _), x, G),

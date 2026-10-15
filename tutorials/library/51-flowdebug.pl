@@ -33,11 +33,12 @@
 %% explains (the chart's panels by default); svg(false) and xml(false),
 %% leaving a document out; and answers: places(P), where each box is
 %% written, profile(P), where the inferences went, callers(C), who made the
-%% calls, and repeats(R), the goals asked more than once.
+%% calls, repeats(R), the goals asked more than once, and time(T), where the
+%% TIME went -- the probe run under a clock read at every inference.
 %% flow_debug_windows/4 records windows(N) windows along one run, each by a
-%% process of its own, and flow_profile_merge/4 adds their profiles up. The
+%% process of its own, and flow_profile_merge/4,5 adds their profiles up. The
 %% same from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
-%% [OPTION ...]', with profile=all and windows=N.
+%% [OPTION ...]', with profile=all (or profile=time) and windows=N.
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
@@ -229,6 +230,7 @@ main :-
     flow_profile_merge(RowLists, profile(_, _, _, MRows), _, _),
     findall(MP-MN, member(prof(MP, _, MN, _), MRows), MPNs),
     must('their calls added up: ten of each predicate', MPNs, [basket_total/2-10, price/2-10]),
+    timed(Dir),
 
     format("~n-- two runs compared~n"),
     %% the same basket over a program that knows what a banana costs: the
@@ -298,6 +300,49 @@ raised(Dir) :-
     ),
     must('...and the exception the catch took: checkout/2''s, raised in its else',
          KP-KQs-KCP-KB, (till/2)-[checkout/2]-(checkout/2)-else).
+
+%% WHERE THE TIME WENT: time(T), an answer like profile(P). The probe runs
+%% under a clock read at the top of every inference of the window, untraced
+%% -- the run as it is, not the replay, whose recorder writes every
+%% argument -- and the replay says whose each inference was: each
+%% predicate's calls, the time inside them and the time of its calls' own
+%% inferences, in nanoseconds. A count says where the inferences went; time
+%% finds the ONE inference that costs a thousand: a sort of 20 000 numbers
+%% is one inference among the window's eight hundred. A reading costs time
+%% too, measured as the probe starts and taken off each one
+timed(Dir) :-
+    format("~n-- where the time went~n"),
+    atom_concat(Dir, '/sorting.pl', Prog),
+    open(Prog, write, W),
+    forall(member(L, [ 'sorted_last(X) :- numlist(1, 20000, L0), reverse(L0, L), msort(L, S), last(S, X).',
+                       'count(0) :- !.',
+                       'count(N) :- N1 is N - 1, count(N1).',
+                       'job(X) :- count(200), sorted_last(X), count(200).' ]),
+           format(W, "~w~n", [L])),
+    close(W),
+    atom_concat(Dir, '/sorting', Base),
+    flow_debug(job(_), Base, [source(Prog), from(1), profile(Prof), time(Time), svg(false), xml(false)], _),
+    Prof = profile(_, _, _, PRows),
+    ( memberchk(prof(msort/2, MI, MN, _), PRows) -> true ; MI = 0, MN = 0 ),
+    must('msort/2 in the profile: one call, one inference', MI-MN, 1-1),
+    Time = time(_, _, _, TRows),
+    findall(Own-P, member(t(P, _, _, Own, _), TRows), Owns),
+    max_member(_-Top, Owns),
+    must('in time, msort/2''s own is the most of any predicate''s', Top, msort/2),
+    %% a GUARD -- the arithmetic and tests a clause begins with, run as the
+    %% clause is entered -- is an inference no reading separates from its
+    %% call's: count/1's is/2 has no time of its own, it is count/1's
+    ( memberchk(t(is/2, IN, _, IOwn, _), TRows) -> true ; IN = 0, IOwn = none ),
+    must('is/2, count/1''s guard: 400 calls, no time of its own', IN-IOwn, 400-0),
+    %% as text (flow_time_text/2; profile=time from the shell): the window's
+    %% time and what the clock cost, then a row a predicate, the most
+    %% inclusive first -- its numbers are this run's, and the next differs
+    flow_time_text(Time, Text),
+    atomic_list_concat([_, _, Cols|Rows], '\n', Text),
+    format("~w~n", [Cols]),
+    forall(( member(R, Rows), member(E, ['  job/1', '  sorted_last/1', '  msort/2', '  count/1']),
+             atom_concat(_, E, R) ),
+           format("~w~n", [R])).
 
 %% a why tree without its arguments: what failed, and where
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).

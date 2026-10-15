@@ -32,6 +32,8 @@
   ;; the arithmetic builtins reach pow/sqrt/fabs, so a target that uses
   ;; cocolog includes <math.h> and links -lm
   (include <math.h>)
+  ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
+  (include <time.h>)
 
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")

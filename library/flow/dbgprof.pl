@@ -1,7 +1,7 @@
 %% library(flow/debug), part: where a run's inferences went -- each
 %% predicate's calls and the inferences spent inside them, over the
 %% recorded window; the window's inferences by what took them; who made
-%% the calls; and the goals asked again.
+%% the calls; the goals asked again; and where the window's time went.
 %%
 %%     flow_debug(Goal, Base, [profile(P)|Options], Run)
 %%     flow_profile_text(+Profile, -Text)
@@ -10,8 +10,11 @@
 %%     flow_callers_text(+Callers, -Text)
 %%     flow_debug(Goal, Base, [repeats(R)|Options], Run)
 %%     flow_repeats_text(+Repeats, -Text)
+%%     flow_debug(Goal, Base, [time(T)|Options], Run)
+%%     flow_time_text(+Time, -Text)
 %%     flow_debug(Goal, Base, [profile_rows(Rows)|Options], Run)
 %%     flow_profile_merge(+RowLists, -Profile, -Callers, -Repeats)
+%%     flow_profile_merge(+RowLists, -Profile, -Callers, -Repeats, -Time)
 %%
 %% profile(P), an answer like places(P), binds P to
 %%
@@ -62,7 +65,37 @@
 %% more, so that windows add up -- and flow_profile_merge/4 sums such rows
 %% from several windows into the three answers again, their From a
 %% windows([From-To, ...]): what tools/flow/debug.pl's windows=N writes as
-%% BASE.prof.
+%% BASE.prof. With time(T) asked as well, the rows hold the window's time
+%% (tw/5, tp/5), which flow_profile_merge/5 adds up into a fourth answer.
+%%
+%% time(T) (1.13.3) binds T to where the window's TIME went:
+%%
+%%     time(From, To, total(Ns, Reads, ClockNs, GcNs, Gcs), Rows)
+%%
+%% Ns the window's nanoseconds by the clock, Reads the inferences the clock
+%% read, ClockNs its own cost at those readings (taken off Ns), GcNs and
+%% Gcs the collections the window ran (in no inference's time), and a
+%% t(Name/Arity, Calls, Inclusive, Self, Largest) for each predicate the
+%% window saw called, the most inclusive first, in nanoseconds: the time
+%% inside its calls (their spans' union, as the profile's inclusive
+%% count), the time of its calls' own inferences, and the most one call
+%% took.
+%%
+%% THE TIME IS THE PROBE'S, the run untraced, never the replay's: the
+%% probe reads the monotonic clock at the top of every step of the window
+%% ('$trace_window'/4's time(F, K), lib/builtins.cicili), and an
+%% inference's time is from its reading to the next -- its goal's own
+%% work: a predicate's head, and the guards its clause runs as it is
+%% entered (whose inferences the clock does not see, and read 0); a
+%% builtin's whole run, findall/3's less the inner goals' own. The replay,
+%% numbered as the probe is, says whose each inference was. A READING
+%% COSTS TIME TOO, some 35 ns on the four-vCPU box against an inference's
+%% 15 to 60: what it costs where nothing else runs is measured as the
+%% probe starts and taken off every inference read, so a cheap predicate's
+%% time is an estimate within some 10 ns a call -- its inference count
+%% (profile(P)) is the surer measure of it -- and what time says that a
+%% count cannot is the one inference that costs a thousand: a sort, a
+%% findall/3, a store's lookup, a file read.
 
 flow_dbg_profile(Facts, profile(From, To, Spent, Rows)) :-
     Facts = dbg(Sum, SEs, Calls, _, _, _, _, _, _),
@@ -285,9 +318,123 @@ flow_dbg_prof_sum([_-K|XKs], N0, N) :-
     N1 is N0 + K,
     flow_dbg_prof_sum(XKs, N1, N).
 
+%% ---- where the window's time went (1.13.3) -------------------------------------
+
+flow_dbg_time(Facts, Clock, time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows)) :-
+    Facts = dbg(Sum, SEs, Calls, _, _, _, _, _, _),
+    arg(5, Sum, From),
+    arg(6, Sum, To),
+    flow_dbg_time_clock(Clock, From, To, PD, PR, Per, Gcs),
+    flow_dbg_time_raw(From, To, From, To, PD, PR, Raw, Reads),
+    flow_dbg_time_off(Raw, Reads, Per, Ns),
+    ClockNs is round(Per * Reads),
+    findall(G, ( member(I-G, Gcs), I >= From, I =< To ), GNs),
+    length(GNs, NGc),
+    sum_list(GNs, GcNs),
+    flow_dbg_prof_spans(SEs, Calls, PSE0),
+    keysort(PSE0, PSE),
+    flow_dbg_time_rows(PSE, From, To, PD, PR, Per, Rows0),
+    findall(NI-R, ( member(R, Rows0), R = t(_, _, I, _, _), NI is -I ), KRs),
+    keysort(KRs, SKRs),
+    pairs_values(SKRs, Rows).
+
+%% THE WINDOW'S INFERENCES AS TWO RUNNING SUMS, each a term to read in one
+%% step (arg/3): PD's K-th argument the nanoseconds of the window's first
+%% K - 1 inferences, PR's how many of them the clock read -- an inference
+%% it did not read has 0 nanoseconds (one a clause's guards took, or one
+%% outside the probe's timed span). Per a reading's own cost; Gcs I-Ns
+flow_dbg_time_clock(none, From, To, PD, PR, 0.0, []) :- !,
+    N is max(0, To - From + 1),
+    length(Zs, N),
+    maplist(=(0), Zs),
+    flow_dbg_time_sums(Zs, PD, PR).
+flow_dbg_time_clock(clock(First, Last, Per, Ds, Gcs), From, To, PD, PR, Per, Gcs) :-
+    N is max(0, To - From + 1),
+    (   From >= First
+    ->  Skip is From - First,
+        ( length(Pre, Skip), append(Pre, Ds1, Ds) -> true ; Ds1 = [] ),
+        Ds2 = Ds1
+    ;   Z is min(N, First - From),
+        length(Zs, Z), maplist(=(0), Zs),
+        append(Zs, Ds, Ds2)
+    ),
+    Have is max(0, min(N, Last - From + 1)),
+    flow_dbg_prof_first(Ds2, Have, Ds3),
+    length(Ds3, L3),
+    Pad is N - L3,
+    length(Ps, Pad), maplist(=(0), Ps),
+    append(Ds3, Ps, Ds4),
+    flow_dbg_time_sums(Ds4, PD, PR).
+
+flow_dbg_time_sums(Ds, PD, PR) :-
+    flow_dbg_time_sums(Ds, 0, 0, SDs, SRs),
+    PD =.. [d, 0|SDs],
+    PR =.. [r, 0|SRs].
+
+flow_dbg_time_sums([], _, _, [], []).
+flow_dbg_time_sums([D|Ds], A0, R0, [A|As], [R|Rs]) :-
+    A is A0 + D,
+    ( D > 0 -> R is R0 + 1 ; R = R0 ),
+    flow_dbg_time_sums(Ds, A, R, As, Rs).
+
+%% the nanoseconds of inferences S to E and how many the clock read,
+%% within the window F to T
+flow_dbg_time_raw(S0, E0, F, T, PD, PR, Raw, Reads) :-
+    S is max(S0, F),
+    E is min(E0, T),
+    (   S =< E
+    ->  A is S - F + 1, B is E - F + 2,
+        arg(A, PD, DA), arg(B, PD, DB), Raw is DB - DA,
+        arg(A, PR, RA), arg(B, PR, RB), Reads is RB - RA
+    ;   Raw = 0, Reads = 0
+    ).
+
+%% RAW nanoseconds over READS readings, their cost taken off: never below 0
+flow_dbg_time_off(Raw, Reads, Per, Ns) :-
+    Ns is max(0, round(Raw - Per * Reads)).
+
+%% one row a predicate, as the profile's: its calls' spans in the order
+%% made, their union's time, their own inferences' and the largest span's
+flow_dbg_time_rows([], _, _, _, _, _, []).
+flow_dbg_time_rows([P-SE|PSEs], F, T, PD, PR, Per, [t(P, N, Incl, Self, Max)|Rows]) :-
+    flow_dbg_prof_take(PSEs, P, Mine, Rest),
+    Spans = [SE|Mine],
+    length(Spans, N),
+    findall(L, ( member(S-E, Spans),
+                 flow_dbg_time_raw(S, E, F, T, PD, PR, R1, K1),
+                 flow_dbg_time_off(R1, K1, Per, L) ),
+            Ls),
+    max_list(Ls, Max),
+    flow_dbg_time_self(Spans, F, T, PD, PR, 0, 0, SRaw, SReads),
+    flow_dbg_time_off(SRaw, SReads, Per, Self),
+    msort(Spans, Sorted),
+    flow_dbg_time_union(Sorted, -1, F, T, PD, PR, 0, 0, URaw, UReads),
+    flow_dbg_time_off(URaw, UReads, Per, Incl),
+    flow_dbg_time_rows(Rest, F, T, PD, PR, Per, Rows).
+
+flow_dbg_time_self([], _, _, _, _, R, K, R, K).
+flow_dbg_time_self([S-_|SEs], F, T, PD, PR, R0, K0, R, K) :-
+    flow_dbg_time_raw(S, S, F, T, PD, PR, R1, K1),
+    R2 is R0 + R1,
+    K2 is K0 + K1,
+    flow_dbg_time_self(SEs, F, T, PD, PR, R2, K2, R, K).
+
+%% the union of spans sorted by where they begin, as the profile takes it
+%% (flow_dbg_prof_union/4): a span inside the one before adds nothing
+flow_dbg_time_union([], _, _, _, _, _, R, K, R, K).
+flow_dbg_time_union([S-E|SEs], Top, F, T, PD, PR, R0, K0, R, K) :-
+    (   E =< Top
+    ->  flow_dbg_time_union(SEs, Top, F, T, PD, PR, R0, K0, R, K)
+    ;   Lo is max(S, Top + 1),
+        flow_dbg_time_raw(Lo, E, F, T, PD, PR, R1, K1),
+        R2 is R0 + R1,
+        K2 is K0 + K1,
+        flow_dbg_time_union(SEs, E, F, T, PD, PR, R2, K2, R, K)
+    ).
+
 %% ---- a window as rows, and windows merged (1.11.10) ----------------------------
 
-flow_dbg_profile_rows(Facts, Rows) :-
+flow_dbg_profile_rows(Facts, Clock, Rows) :-
     flow_dbg_profile(Facts, profile(F, T, S, PRows)),
     flow_dbg_callers(Facts, callers(_, _, CRows)),
     Facts = dbg(_, _, Calls, _, _, _, _, _, _),
@@ -295,7 +442,14 @@ flow_dbg_profile_rows(Facts, Rows) :-
     findall(p(P, I, N, M), member(prof(P, I, N, M), PRows), Ps),
     findall(c(P, C, K), ( member(callers(P, _, Cs), CRows), member(C-K, Cs) ), Cs1),
     findall(g(P, G, K), ( member(P-GNs, PGNs), member(G-K, GNs) ), Gs),
-    append([[win(F, T, S)], Ps, Cs1, Gs], Rows).
+    %% the window's time, with time(T) asked (1.13.3)
+    (   Clock == none
+    ->  Ts = []
+    ;   flow_dbg_time(Facts, Clock, time(_, _, total(TN, TR, TC, TG, TK), TRows)),
+        findall(tp(P, N, I, Se, M), member(t(P, N, I, Se, M), TRows), TPs),
+        Ts = [tw(TN, TR, TC, TG, TK)|TPs]
+    ),
+    append([[win(F, T, S)], Ps, Cs1, Gs, Ts], Rows).
 
 %% THE WINDOWS ADD UP: a predicate's inclusive inferences and calls are
 %% summed and its largest call is the largest of any window's -- the
@@ -337,6 +491,37 @@ flow_profile_merge(RowLists,
     group_pairs_by_key(PGKs, GGroups),
     findall(P-GNs, ( member(P-GKs, GGroups), flow_dbg_prof_add(GKs, GNs) ), PGNs),
     flow_dbg_repeats_of(PGNs, RRows).
+
+%% ... AND THEIR TIME (1.13.3): each window's total and each predicate's
+%% calls, inclusive and own time summed, its largest call the largest of
+%% any window's; none with no window timed
+flow_profile_merge(RowLists, P, C, R,
+                   time(windows(Ws), none, total(Ns, Rd, Ck, Gc, NG), TRows)) :-
+    flow_profile_merge(RowLists, P, C, R),
+    P = profile(windows(Ws), _, _, _),
+    append(RowLists, All),
+    findall(t(A, B, X, Y, Z), member(tw(A, B, X, Y, Z), All), TWs),
+    flow_dbg_time_add(TWs, t(0, 0, 0, 0, 0), t(Ns, Rd, Ck, Gc, NG)),
+    findall(Pr-t(N1, I1, S1, M1), member(tp(Pr, N1, I1, S1, M1), All), PTs0),
+    keysort(PTs0, PTs),
+    group_pairs_by_key(PTs, Groups),
+    findall(NI-t(Pr, N, I, S, M),
+            ( member(Pr-Ts, Groups),
+              flow_dbg_time_merge(Ts, 0, 0, 0, 0, N, I, S, M),
+              NI is -I ),
+            KTs),
+    keysort(KTs, SKTs),
+    pairs_values(SKTs, TRows).
+
+flow_dbg_time_add([], T, T).
+flow_dbg_time_add([t(A, B, C, D, E)|Ts], t(A0, B0, C0, D0, E0), T) :-
+    A1 is A0 + A, B1 is B0 + B, C1 is C0 + C, D1 is D0 + D, E1 is E0 + E,
+    flow_dbg_time_add(Ts, t(A1, B1, C1, D1, E1), T).
+
+flow_dbg_time_merge([], N, I, S, M, N, I, S, M).
+flow_dbg_time_merge([t(N1, I1, S1, M1)|Ts], N0, I0, S0, M0, N, I, S, M) :-
+    N2 is N0 + N1, I2 is I0 + I1, S2 is S0 + S1, M2 is max(M0, M1),
+    flow_dbg_time_merge(Ts, N2, I2, S2, M2, N, I, S, M).
 
 flow_dbg_prof_merge3([], I, N, M, I, N, M).
 flow_dbg_prof_merge3([I1-N1-M1|Vs], I0, N0, M0, I, N, M) :-
@@ -485,6 +670,52 @@ flow_repeats_text(repeats(From, To, Rows), Text) :-
             Ls),
     atomic_list_concat([H, T|Ls], '\n', T0),
     atom_concat(T0, '\n', Text).
+
+%% WHERE THE WINDOW'S TIME WENT (1.13.3): each predicate's inclusive and
+%% self time, the most inclusive first, and the control constructs' -- the
+%% time no call's own inference took -- in microseconds, each with its
+%% share of the window's; the header says what the clock read and cost,
+%% and what the collections took beside
+flow_time_text(time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text) :-
+    flow_dbg_prof_window_len(From, To, W),
+    flow_dbg_prof_span(From, To, Span),
+    flow_dbg_time_us(Ns, NsA),
+    flow_dbg_time_us(ClockNs, CkA),
+    (   Reads > 0 -> Per is ClockNs / Reads ; Per = 0.0 ),
+    flow_dbg_time_us(GcNs, GcA),
+    flow_dbg_prof_count(NGc, collection, GcT),
+    format(atom(H1), '% the ~d inferences of ~w took ~w us as the probe ran them untraced, read from the clock at ~d of them less its own ~w us there (~1f ns a reading, measured as the probe began); ~w took ~w us more, in no inference',
+           [W, Span, NsA, Reads, CkA, Per, GcT, GcA]),
+    H2 = '% a call takes from its Call to its first Exit or Fail, as the profile counts it; its self time is its Call''s own inference -- a predicate''s head and the guards its clause runs as it is entered, a builtin''s whole run -- and what no call''s own inference took is the control constructs''',
+    T = '% inclusive us       %     self us       %    calls  largest us  predicate',
+    findall(S, member(t(_, _, _, S, _), Rows), Ss),
+    sum_list(Ss, SAll),
+    K is max(0, Ns - SAll),
+    findall(L,
+            ( member(t(P, N, I, S, M), Rows),
+              flow_dbg_time_us(I, IA), flow_dbg_time_us(S, SA), flow_dbg_time_us(M, MA),
+              flow_dbg_time_pc(I, Ns, IP), flow_dbg_time_pc(S, Ns, SP),
+              flow_dbg_prof_pad(IA, 12, IAp), flow_dbg_prof_pad(IP, 8, IPp),
+              flow_dbg_prof_pad(SA, 12, SAp), flow_dbg_prof_pad(SP, 8, SPp),
+              flow_dbg_prof_pad(N, 9, NA), flow_dbg_prof_pad(MA, 12, MAp),
+              format(atom(L), '~w~w~w~w~w~w  ~q', [IAp, IPp, SAp, SPp, NA, MAp, P]) ),
+            Ls0),
+    flow_dbg_time_us(K, KA), flow_dbg_time_pc(K, Ns, KP),
+    flow_dbg_prof_pad('', 12, B12), flow_dbg_prof_pad('', 8, B8), flow_dbg_prof_pad('', 9, B9),
+    flow_dbg_prof_pad(KA, 12, KAp), flow_dbg_prof_pad(KP, 8, KPp),
+    format(atom(LK), '~w~w~w~w~w~w  (control constructs)', [B12, B8, KAp, KPp, B9, B12]),
+    append(Ls0, [LK], Ls),
+    atomic_list_concat([H1, H2, T|Ls], '\n', T0),
+    atom_concat(T0, '\n', Text).
+
+%% nanoseconds as microseconds, one place; a share of the window's, one place
+flow_dbg_time_us(Ns, A) :-
+    Us is Ns / 1000,
+    format(atom(A), '~1f', [Us]).
+
+flow_dbg_time_pc(X, Of, A) :-
+    Pc is 100 * X / max(1, Of),
+    format(atom(A), '~1f', [Pc]).
 
 %% the first N of a list, or all of it
 flow_dbg_prof_first(Xs, N, First) :-

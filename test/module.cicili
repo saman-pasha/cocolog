@@ -29,6 +29,8 @@
                "-o" "cocolog_module_test"))
 
   (include <math.h>)
+  ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
+  (include <time.h>)
   (include <zigurat.h>)
   (include <zeytun.h>)
 
