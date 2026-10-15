@@ -786,7 +786,9 @@ possible:
   in through portals;
 * **the inference count is a clock** that the fast engine and the tracer
   keep alike -- the same goal against the same clauses spends the same
-  inferences in every process (`call_metered/4`);
+  inferences in every process (`call_metered/4`; since 1.12.2 the clock
+  counts every goal, one a goal, and a program's count is it less the
+  `true`s and `=/2`s, which are no inference, as in SWI);
 * the tracer can be switched on part way through a run (`trace/0`).
 
 So the debugger works in four steps: **probe** (run the goal untraced, to

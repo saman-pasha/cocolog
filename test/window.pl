@@ -227,11 +227,16 @@ turns :-
                  'app([H|T], L, [H|R]) :- app(T, L, R).',
                  'nrev([], []).',
                  'nrev([H|T], R) :- nrev(T, RT), app(RT, [H], R).',
-                 'go(R) :- nrev([1,2,3,4,5,6,7,8], R).' ]),
+                 'go(R) :- nrev([1,2,3,4,5,6,7,8], R).',
+                 'cnt(0, A, A) :- !.',
+                 'cnt(N, A0, A) :- A1 = [N|A0], true, M is N - 1, cnt(M, A1, A).',
+                 'go2(L) :- cnt(10, [], L).' ]),
     cocolog(C),
     sh_join(['timeout 60 ', C, ' --embed ', KB, ' consult ', F, ' >/dev/null 2>&1 && timeout 60 ',
              C, ' --embed ', KB, ' start tens "go(R)" >/dev/null 2>&1 && timeout 60 ',
-             C, ' --embed ', KB, ' start one "go(R)" >/dev/null 2>&1'], Setup),
+             C, ' --embed ', KB, ' start one "go(R)" >/dev/null 2>&1 && timeout 60 ',
+             C, ' --embed ', KB, ' start fives "go2(L)" >/dev/null 2>&1 && timeout 60 ',
+             C, ' --embed ', KB, ' start once "go2(L)" >/dev/null 2>&1'], Setup),
     (   sh_exit(Setup, 0)
     ->  findall(At, ( between(1, 5, _),
                       sh_join(['timeout 60 ', C, ' --embed ', KB, ' --steps 10 step tens 2>&1'], Step),
@@ -244,7 +249,21 @@ turns :-
         sh_join(['timeout 60 ', C, ' --embed ', KB, ' step one 2>&1'], One),
         proc_run(One, 60000, OneOut, _),
         ( re_first_atom('finished after [0-9]+', OneOut, At1) -> true ; At1 = none ),
-        check('the same goal in one turn finishes after 47', At1, 'finished after 47')
+        check('the same goal in one turn finishes after 47', At1, 'finished after 47'),
+        %% A TURN'S BUDGET IS IN INFERENCES (1.12.2), and the steps that are
+        %% none -- each of cnt/3's turns takes a `=/2' and a `true' -- are
+        %% carried in the machine from one turn to the next
+        findall(At2, ( between(1, 5, _),
+                       sh_join(['timeout 60 ', C, ' --embed ', KB, ' --steps 5 step fives 2>&1'], Step2),
+                       proc_run(Step2, 60000, Out2, _),
+                       ( re_first_atom('(suspended at|finished after) [0-9]+', Out2, At2) -> true ; At2 = none ) ),
+                Ats2),
+        sh_join(['timeout 60 ', C, ' --embed ', KB, ' step once 2>&1'], Once3),
+        proc_run(Once3, 60000, OnceOut3, _),
+        ( re_first_atom('finished after [0-9]+', OnceOut3, At3) -> true ; At3 = none ),
+        check('five inferences a turn of a goal whose `true\'s and `=/2\'s are none: the count of one turn, 24',
+              Ats2-At3, ['suspended at 5', 'suspended at 10', 'suspended at 15', 'suspended at 20',
+                         'finished after 24']-'finished after 24')
     ;   check('could set up a machine in a scratch store', failed, done)
     ),
     shl(['rm -rf ', D]).
@@ -287,6 +306,14 @@ window :-
     Es3 = [First3|_],
     arg(4, First3, Parent3),
     check('a call made inside a call that began before the window has no parent in it', Parent3, 0),
+    %% A WINDOW'S LAST INFERENCE KEEPS ITS EXITS (1.12.2): w_nrev([], []) is
+    %% called at 5 and exits by the tracer's marker, which gives back the
+    %% step taking it -- the stop at 5 came before the marker through 1.12.1
+    '$trace_window'(w_go(_), [from(5), to(5)], Es3b, _),
+    maplist(win_key, Es3b, Ks3b),
+    win_span(Es2, 5, 5, Span3b),
+    check('to 5: the Exit at 5 a whole recording has, there too', Ks3b-Span3b,
+          [call(5, w_nrev, [[], '_']), clause(5, 1), exit(5, w_nrev, [[], []])]-Ks3b),
     '$trace_window'(w_all(_), [from(1)], Es4, End4),
     '$trace_window'(w_all(_), [from(6), to(12)], Es5, _),
     maplist(win_key, Es5, Ks5),
@@ -483,7 +510,8 @@ asked :-
     '$trace_window'(w_fill(L3), [ask(L3 == [1, 2, 3], H3)], _, E3),
     ( var(L3) -> V3 = unbound ; V3 = L3 ),
     check('at its answer, the answer''s bindings; and nothing kept after', H3-E3-V3,
-          true-end(answer, 25, [25])-unbound),
+          true-end(answer, 13, [13])-unbound),
+    %% (25 through 1.12.1, when length(L, 3) was thirteen steps of clauses)
     '$trace_window'(w_pick(X4), [answers(5), ask(var(X4), H4)], _, end(How4, _, _)),
     check('at a failure, what the failure left: nothing bound', How4-H4, false-true),
     '$trace_window'(w_fill(_), [ask(w_nosuch, H5)], _, _),

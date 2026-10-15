@@ -189,6 +189,13 @@
                    (coco_sb_put_name b nm (strlen nm))
                    (coco_sb_putc b (cast char 10))))))
 
+          ;; THE STEPS THAT WERE NO INFERENCE (1.12.2): `true' and `=/2', and
+          ;; the limit in inferences a turn set -- after the operators, so a
+          ;; blob from an older build still reads, as having none
+          (coco_sb_put b "I ")
+          (coco_sb_put_sz b (cast size_t (-> e frees)))   (coco_sb_putc b (cast char 32))
+          (coco_sb_put_sz b (cast size_t (-> e max_inf))) (coco_sb_putc b (cast char 10))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -409,6 +416,12 @@
                         (if (not (coco_op_define (? (== ($ nm s) nil) "" ($ nm s))
                                                prec type kind))
                             (block (set ok 0) break)))))))
+
+          ;; ---- the steps that were no inference (1.12.2), if it has them --
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 73)          ; `I'
+                  (block (set (-> e frees) (coco_scan_u64 (aof z) 10))
+                         (set (-> e max_inf) (coco_scan_u64 (aof z) 10)))))
 
           (coco_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

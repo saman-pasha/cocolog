@@ -666,7 +666,9 @@ command(D) :-
     atom_concat(B5, '.svg', SF5),
     yes_no(exists_file(SF5), Y5),
     check('when=COND: where the question first holds, and the window of the last 4 inferences up to it drawn',
-          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 26; recorded 23 to 26'),
+          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 10; recorded 7 to 10'),
+    %% (26, and 23 to 26, through 1.12.1, when fill/1's length(L, 5) was
+    %% seventeen steps of clauses)
     %% depth= and only= bound the picture as chart.pl's do: the panels left
     %% out are stubs saying why, and the XML keeps every panel
     findall(O-E6-St6-NX6,

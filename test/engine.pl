@@ -35,6 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
+    small_steps,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -464,15 +465,16 @@ environments(D) :-
     check('the goals after a catch that recovered are reached from it', R4, 1),
     findall(X5, ev_k(X5), L5),
     check('a cut among them cuts to the clause\'s barrier', L5, [1]),
-    %% 1.9.2's counts, goal by goal: a body of more than 64 goals keeps the
-    %% one `,' step its overflow was
+    %% 1.9.2's counts, goal by goal, but for the literal `true' and `=/2'
+    %% that take no step since 1.12.2 (one less for each run): a body of
+    %% more than 64 goals keeps the one `,' step its overflow was
     ev_body(65, B6), assertz((ev_big :- B6)),
     gd_inferences(ev_big, I6), gd_inferences(ev_big, I6b),
-    check('a body of 65 goals counts the inferences it counted', I6-I6b, 72-72),
+    check('a body of 65 goals counts the inferences it counted', I6-I6b, 71-71),
     gd_inferences(findall(X7, ev_k(X7), _), I7),
-    check('...a cut reached from the environment too', I7, 11),
+    check('...a cut reached from the environment too', I7, 10),
     gd_inferences(ev_c3(_), I8),
-    check('...and a catch', I8, 12),
+    check('...and a catch', I8, 10),
     findall(X10, ev_o(X10), L10),
     check('a cut in a condition cuts the condition, not the clause', L10, [none]),
     findall(X11, ev_p(X11), L11),
@@ -490,12 +492,13 @@ environments(D) :-
     gd_inferences(findall(X15d-Y15d, ev_u(X15d, Y15d), _), I15d),
     gd_inferences(findall(X15e-Y15e, ( member(X15e, [0, 1, 2]), ev_g(X15e, Y15e) ), _), I15e),
     check('each construct counts the inferences it counted, its own step among them',
-          [I15a, I15b, I15c, I15d, I15e], [12, 12, 14, 20, 25]),
+          [I15a, I15b, I15c, I15d, I15e], [11, 12, 13, 18, 23]),
     %% an inference limit stops at the same goal whether it falls among the
-    %% guards, at a construct or inside one of its arms: 1.9.2's answers
+    %% guards, at a construct or inside one of its arms: 1.9.2's answers, but
+    %% for ev_g/2's `Y = big(Z)', which takes no step since 1.12.2
     findall(L16-U16-R16, ( between(1, 9, L16), call_metered(ev_g(2, _), L16, U16, R16) ), M16),
-    findall(L16e-U16e-inference_limit_exceeded, ( between(1, 7, L16e), U16e is L16e + 1 ), E16a),
-    append(E16a, [8-8-true, 9-8-true], E16),
+    findall(L16e-U16e-inference_limit_exceeded, ( between(1, 6, L16e), U16e is L16e + 1 ), E16a),
+    append(E16a, [7-7-true, 8-7-true, 9-7-true], E16),
     check('an inference limit stops where it always stopped, among guards and constructs', M16, E16),
     findall(L17-U17-R17, ( between(1, 12, L17), call_metered(ev_q(_), L17, U17, R17) ), M17),
     findall(L17e-U17e-inference_limit_exceeded, ( between(1, 5, L17e), U17e is L17e + 1 ), E17a),
@@ -513,7 +516,9 @@ environments(D) :-
     ev_both6(Lines18), fixture(F18, Lines18),
     ev_run_both(F18, A18, B18),
     check('so does one whose bodies start with guards', A18, B18),
-    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-23,23-23,24-23,25-23,26-23,27-23,28-23,29-23,30-23]\n1166\n"),
+    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1134\n"),
+    %% (probe/4's `A1 = A0' and the program's `Y = yes' and the like are no
+    %% inference since 1.12.2: the probe costs 22, and the count is 1134)
     check('...and its answers, stops and count are 1.9.2\'s', A18, W18).
 
 %% THE BUILTINS IN PLACE (Stage 7). A later goal of a body that makes an
@@ -639,16 +644,19 @@ in_place(D) :-
           [small, medium, large, medium, large, large]),
     catch(ip_len(_, _), error(E5, _), true),
     check('a builtin called in place raises as it did, to the catch outside', E5, instantiation_error),
-    %% 1.9.4 counted these, unit by unit, and so does this engine
+    %% 1.9.4 counted these, unit by unit, and so does this engine -- but for
+    %% the `true' of once(true) and a unification, no inference since 1.12.2
+    %% (one each of ip_loop/1's turns: 7004 then)
     gd_inferences(ip_loop(1000), I6), gd_inferences(ip_loop(1000), I6b),
-    check('each one is still an inference', I6-I6b, 7004-7004),
+    check('each one is still an inference', I6-I6b, 6004-6004),
     gd_inferences(findall(C7, ( member(X7, [5, 50, 500]), ip_cls(X7, C7) ), _), I7),
     gd_inferences(ip_fresh(3, _), I7b), gd_inferences(ip_struct(_, _), I7c),
     gd_inferences(ip_len(abc, _), I7d),
-    check('the one that fails too, and the unifications and the builtins', [I7, I7b, I7c, I7d], [47, 10, 9, 8]),
+    %% ([47, 10, 9, 8] through 1.12.1, when the six `true's and three `=' were)
+    check('the one that fails too, and the builtins; a unification is none', [I7, I7b, I7c, I7d], [41, 8, 6, 7]),
     findall(L8-U8-R8, ( between(1, 18, L8), call_metered(ip_loop(2), L8, U8, R8) ), M8),
-    findall(L8e-U8e-inference_limit_exceeded, ( between(1, 16, L8e), U8e is L8e + 1 ), E8a),
-    append(E8a, [17-17-true, 18-17-true], E8),
+    findall(L8e-U8e-inference_limit_exceeded, ( between(1, 14, L8e), U8e is L8e + 1 ), E8a),
+    append(E8a, [15-15-true, 16-15-true, 17-15-true, 18-15-true], E8),
     check('an inference limit stops where it always stopped', M8, E8),
     atom_concat(D, '/both7.pl', F9),
     ip_both(Lines9), fixture(F9, Lines9),
@@ -663,7 +671,7 @@ in_place(D) :-
     check('...and its answers are 1.9.4\'s', T9, yes),
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
-    W9e = '1252\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    W9e = '1201\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A9, _, _, _, W9e), atom_concat(_, 'exit 2\n', A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
 
@@ -785,15 +793,16 @@ fused(D) :-
     check('a fused is/2 whose left is bound compares, as unification does', L2, [yes, no, no, no, no]),
     findall(T3, ( member(B3, [3, 2]), ( fx_left(four, _, B3) -> T3 = yes ; T3 = no ) ), L3),
     check('...and one with an integer on its left, which is not fused, the same', L3, [yes, no]),
+    %% (once(true)'s `true' is no inference since 1.12.2: 11-1071 then)
     gd_inferences(fx_k(5, _), I4), gd_inferences(fx_kl(100), I4b),
-    check('each fused word is still an inference', I4-I4b, 11-1071),
+    check('each fused word is still an inference', I4-I4b, 10-974),
     findall(L5-U5-R5, ( between(1, 12, L5), call_metered(fx_k(5, _), L5, U5, R5) ), M5),
-    findall(L5e-U5e-inference_limit_exceeded, ( between(1, 9, L5e), U5e is L5e + 1 ), E5a),
-    append(E5a, [10-10-true, 11-10-true, 12-10-true], E5),
+    findall(L5e-U5e-inference_limit_exceeded, ( between(1, 8, L5e), U5e is L5e + 1 ), E5a),
+    append(E5a, [9-9-true, 10-9-true, 11-9-true, 12-9-true], E5),
     check('an inference limit stops where it always stopped', M5, E5),
     findall(L6-U6-R6, ( between(1, 12, L6), call_metered(fx_k(200, _), L6, U6, R6) ), M6),
-    findall(L6e-U6e-inference_limit_exceeded, ( between(1, 7, L6e), U6e is L6e + 1 ), E6a),
-    findall(L6f-8-failed, between(8, 12, L6f), E6b),
+    findall(L6e-U6e-inference_limit_exceeded, ( between(1, 6, L6e), U6e is L6e + 1 ), E6a),
+    findall(L6f-7-failed, between(7, 12, L6f), E6b),
     append(E6a, E6b, E6),
     check('...and where a fused guard fails', M6, E6),
     atom_concat(D, '/both8.pl', F7),
@@ -809,7 +818,7 @@ fused(D) :-
     check('...and its answers are 1.9.5\'s', T7, yes),
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
-    W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    W7e = '863\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).
 
@@ -1052,6 +1061,57 @@ shared_globals(D) :-
     %% and 200 000 shared reads take about 30 ms
     last_line_of(F10, go, 10000, G10),
     check('200 000 reads of a value of 3 000 entries in less than ten seconds', G10, done).
+
+%% ONE STEP FOR A SMALL BUILTIN, NONE FOR `true' AND `=/2' (1.12.2).
+%% length/2, nth0/3, nth1/3, last/2, reverse/2 and atomic_list_concat/2,3
+%% are C rows in every mode that answers once -- through 1.12.1 a clause
+%% around '$len', '$nth0', '$rev', '$last' or '$atom_join' made each 2 to
+%% 13 steps -- and the modes that can answer again are the clauses they
+%% were. A literal `true' and `=/2' are no inference, as in SWI, wherever
+%% they stand: called, in a body, in an environment, in a nested engine.
+%% They are still steps of the clock a window numbers its goals by
+%% (test/window.pl): statistics/2, call_metered/4, call_limited/3 and
+%% `cocolog step' leave them out, and a limit in inferences lets them by.
+ss_t(X) :- true, X = a, Y = b, true, Y == b.
+ss_e(X, Y) :- atom(a), ( X = a -> true ; true ), Y = b, Y == b.
+ss_f :- findall(X, ss_t(X), _).
+ss_w(N) :- with_output_to(atom(_), ss_t(_)), findall(X, ss_t(X), _), call_metered(ss_t(_), 10, N, _).
+
+small_steps :-
+    section('one step for a small builtin, none for true and =/2'),
+    gd_inferences(atom(a), B1),
+    Gs1 = [ length([a, b, c], _), length(_, 3), length([a|_], 3), length([a, b], 2),
+            nth0(1, [a, b, c], _), nth1(2, [a, b, c], _), last([a, b, c], _),
+            reverse([a, b, c], _), atomic_list_concat([a, b, c], _),
+            atomic_list_concat([a, b], '-', _), atomic_list_concat(_, '-', 'a-b'),
+            atomic_list_concat([a, _], '-', 'a-b') ],
+    findall(G1-I1, ( member(G1, Gs1), gd_inferences(G1, I1), I1 =\= B1 ), L1),
+    check('each mode that answers once costs what atom/1 costs (with the call/1 and the statistics/2 that measure it)',
+          B1-L1, 3-[]),
+    findall(N2a, ( length(_, N2a), N2a >= 2, ! ), M2a),
+    findall(N2b, ( length([a|_], N2b), N2b >= 3, ! ), M2b),
+    findall(I2c-E2c, nth1(I2c, [a, b, c], E2c), M2c),
+    findall(I2d, nth0(I2d, [a, b, a], a), M2d),
+    findall(R2e, ( reverse([a, b|T2e], R2e), T2e = [x|_], ! ), M2e),
+    check('...and each that can answer again enumerates as its clauses did',
+          [M2a, M2b, M2c, M2d, M2e], [[2], [3], [1-a, 2-b, 3-c], [0, 2], [[x, b, a]]]),
+    gd_inferences(true, I3a), gd_inferences(_ = a, I3b), gd_inferences(ss_t(_), I3c),
+    gd_inferences(ss_e(_, _), I3d), gd_inferences(ss_w(_), I3e),
+    %% beside the call/1 and the statistics/2: ss_t/1 and its `==/2';
+    %% ss_e/2, atom/1, the if-then-else and the cut its `->' makes; ss_w/1,
+    %% the three builtins, each ss_t/1's two and each nested engine's last
+    %% step ([3, 3, 8, 10, 27] through 1.12.1)
+    check('a literal true and =/2 are no inference: called, in a body, in an environment, in a nested engine',
+          [I3a, I3b, I3c, I3d, I3e], [2, 2, 4, 7, 15]),
+    findall(L4-U4-R4, ( between(1, 4, L4), call_metered(ss_t(_), L4, U4, R4) ), M4),
+    findall(L4b-R4b, ( between(1, 4, L4b), call_limited(ss_t(_), L4b, R4b) ), M4b),
+    check('a limit in inferences lets them by: the least limit that succeeds is the count',
+          M4-M4b, [1-2-inference_limit_exceeded, 2-3-inference_limit_exceeded, 3-3-true, 4-3-true]-
+                  [1-inference_limit_exceeded, 2-inference_limit_exceeded, 3-true, 4-true]),
+    findall(L5-U5-R5, ( member(L5, [5, 6]), call_metered(ss_f, L5, U5, R5) ), M5),
+    findall(L5b-U5b-R5b, ( member(L5b, [13, 14]), call_metered(ss_w(_), L5b, U5b, R5b) ), M5b),
+    check('...and a nested engine spends its caller\'s inferences, not its steps',
+          M5-M5b, [5-6-inference_limit_exceeded, 6-6-true]-[13-14-inference_limit_exceeded, 14-14-true]).
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).

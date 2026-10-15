@@ -667,6 +667,13 @@ other's arithmetic. `test/meter.pl` pins that across two invocations, along
 with the two checks that keep the number honest — a tiny goal under a huge
 ceiling costs a tiny number, and ten times the work costs strictly more.
 
+**A `true` and a `=/2` are no inference** (since 1.12.2), as SWI counts
+neither in a compiled body: `Used` leaves them out, and the ceiling lets them
+by, so the least ceiling that succeeds is still the count reported. And
+length/2, nth0/3, nth1/3, last/2, reverse/2 and atomic_list_concat/2,3 cost
+one inference in every mode that answers once, where their clauses cost 2 to
+13 (test/engine.pl's last section).
+
 ### The soft cut
 
 `(C *-> T ; E)` runs `T` for **every** solution of `C`, not just the first — so

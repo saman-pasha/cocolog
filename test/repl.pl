@@ -95,6 +95,11 @@ local(D) :-
     %% contract and takes the rule too. The transcript is a live SWI's.
     piped('assertz(f(a)), assertz((f(X) :- X == b)), assertz(f(c)).\\nretract(f(a)).\\nf(b), !.\\nf(a).\\nretractall(f(_)).\\nf(b).\\n', G15),
     check('retract minds the body; retractall removes rules too', G15, 'true.\ntrue.\ntrue.\nfalse.\ntrue.\nfalse.'),
+    %% THE COUNT STARTS AGAIN AT EACH GOAL (1.12.2): `true' and `=/2' are
+    %% no inference, counted apart from the steps, and the second goal here
+    %% read I = -2 while only the steps started again
+    piped('X = a, true, Y = b.\\nstatistics(inferences, I).\\n', G18),
+    check('a goal''s `true'' and `=/2'' do not reach the next goal''s count', G18, 'X = a,\nY = b.\nI = 1.'),
     atom_concat(D, '/fam.pl', Fam),
     fixture(Fam, ['p(1).', 'p(2).', 'q(X) :- p(X), X > 1.']),
     %% the goals from a FILE this time: a path in quotes inside printf's

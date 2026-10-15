@@ -10,7 +10,7 @@
 ;;;
 ;;; IT IS THE MIRROR IMAGE OF lib/files.cicili. Files is seventeen predicates in
 ;;; C and five in Prolog, because a file system is a syscall away. Lists is
-;;; thirty-odd in Prolog and six in C, because a list predicate is a couple of
+;;; thirty-odd in Prolog and nine in C, because a list predicate is a couple of
 ;;; clauses and because MOST OF THEM MUST BE NONDETERMINISTIC -- `member/2',
 ;;; `select/3', `append/3' and `permutation/2' each answer many times, and a
 ;;; module's C half cannot: it has no access to the choice stack, deliberately,
@@ -24,9 +24,13 @@
 ;;; WHAT THE C HALF IS FOR, then, is the things that are determinate and that C
 ;;; is genuinely better at: sorting by the standard order of terms, and the
 ;;; single-pass walks that Prolog would do with a recursion and a choice point
-;;; per element. Each of those is reached through a `$'-prefixed primitive and
-;;; wrapped in a clause, exactly as the Files module does it -- so `length/2'
-;;; is fast when the list is proper and still generative when it is not.
+;;; per element. Most of those are reached through a `$'-prefixed primitive
+;;; and wrapped in a clause, exactly as the Files module does it. length/2,
+;;; nth0/3, nth1/3, last/2 and reverse/2 are rows of their own since 1.12.2,
+;;; one step in every mode that answers once, and a mode that can answer
+;;; again is declined (`:declines', `coco_m_decline') to the Coco half's
+;;; clause of the same name -- so `length/2' is one step when the list is
+;;; proper and still generative when it is not.
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -41,6 +45,15 @@
   '(("msort"      2 coco_l_msort)
     ("sort"       2 coco_l_sort)
     ("sort"       4 coco_l_sort4)
+
+    ;; ONE STEP for each mode that answers once (1.12.2), where a clause
+    ;; around a walk below took 2 to 13; a mode that enumerates is
+    ;; declined to the Coco half's clause of the same name
+    ("length"     2 coco_l_length :declines)
+    ("nth0"       3 coco_l_nth0_at :declines)
+    ("nth1"       3 coco_l_nth1_at :declines)
+    ("last"       2 coco_l_last)
+    ("reverse"    2 coco_l_reverse :declines)
 
     ("$len"       2 coco_l_len)
     ("$rev"       2 coco_l_rev)
@@ -66,15 +79,11 @@
 
            ;; ---- length/2 -------------------------------------------------
            ;; A SWI BUILTIN, not library(lists), and cocolog had none.
-           ;; The fast path is the C walk, which only answers for a PROPER
-           ;; list; everything else -- a partial list, both arguments unbound --
-           ;; falls through to the generative clauses, which is the mode
-           ;; `length(L, 3)' needs.
-           "length(L, N) :- '$len'(L, M), !, N = M."
-           "length(L, N) :- integer(N), !, N >= 0, '$len_make'(N, L)."
+           ;; The C half answers every mode that answers once -- a proper
+           ;; list, and a partial one with N bound (`length(L, 3)') -- and
+           ;; declines a partial list with N unbound, which enumerates, to
+           ;; this clause: the only call that reaches it (1.12.2).
            "length(L, N) :- '$len_gen'(L, 0, N)."
-           "'$len_make'(0, []) :- !."
-           "'$len_make'(N, [_|T]) :- M is N - 1, '$len_make'(M, T)."
            "'$len_gen'([], N, N)."
            "'$len_gen'([_|T], A, N) :- B is A + 1, '$len_gen'(T, B, N)."
 
@@ -115,12 +124,11 @@
            "delete([H|T], X, [H|R]) :- delete(T, X, R)."
 
            ;; ---- position -------------------------------------------------
-           ;; nth0/3 and nth1/3 are determinate when the index is bound -- the
-           ;; C walk -- and enumerate when it is not.
-           "nth0(N, L, E) :- integer(N), !, N >= 0, '$nth0'(N, L, E)."
-           "nth0(N, L, E) :- var(N), '$nth_gen'(L, 0, N, E)."
-           "nth1(N, L, E) :- integer(N), !, N >= 1, M is N - 1, '$nth0'(M, L, E)."
-           "nth1(N, L, E) :- var(N), '$nth_gen'(L, 1, N, E)."
+           ;; nth0/3 and nth1/3 are determinate when the index is bound --
+           ;; the C half, in one step -- and enumerate when it is not: the
+           ;; C half declines that call to these clauses (1.12.2).
+           "nth0(N, L, E) :- '$nth_gen'(L, 0, N, E)."
+           "nth1(N, L, E) :- '$nth_gen'(L, 1, N, E)."
            "'$nth_gen'([H|_], B, B, H)."
            "'$nth_gen'([_|T], B, N, E) :- C is B + 1, '$nth_gen'(T, C, N, E)."
            "nth0(N, L, E, R) :- integer(N), !, N >= 0, '$nth_sel'(L, 0, N, E, R)."
@@ -130,13 +138,14 @@
            "'$nth_sel'([H|T], B, B, H, T)."
            "'$nth_sel'([H|T], B, N, E, [H|R]) :- C is B + 1, '$nth_sel'(T, C, N, E, R)."
 
-           "last(L, X) :- '$last'(L, X)."
+           ;; last/2 is the C half's alone (1.12.2): it never enumerated
            "nextto(X, Y, [X,Y|_])."
            "nextto(X, Y, [_|T]) :- nextto(X, Y, T)."
            "prefix(P, L) :- append(P, _, L)."
 
            ;; ---- shape ----------------------------------------------------
-           "reverse(L, R) :- '$rev'(L, S), !, R = S."
+           ;; a proper list is reversed by the C half in one step; anything
+           ;; it declines -- a partial list, which enumerates -- comes here
            "reverse(L, R) :- '$rev_gen'(L, [], R)."
            "'$rev_gen'([], A, A)."
            "'$rev_gen'([H|T], A, R) :- '$rev_gen'(T, [H|A], R)."
@@ -619,6 +628,127 @@
             (set best h) (set any 1) (set p t))
           (if (not any) (return 0))
           (return (coco_m_unify e (coco_m_arg e g 1) best))))
+
+  ;;; ---- one step for the modes that answer once (1.12.2) ----------------
+  ;;;
+  ;;; length/2, nth0/3, nth1/3, last/2 and reverse/2 were each a clause
+  ;;; around one of the walks above: length/2 four steps (the clause, the
+  ;;; walk, the cut, the `='), nth1/3 six, reverse/2 four, last/2 two -- a
+  ;;; step a builtin is in SWI. Each is now a row of its own, and a mode
+  ;;; that ENUMERATES is declined (`coco_m_decline', the `:declines' row) to
+  ;;; the clause of the same name in the Coco half, which nothing else
+  ;;; reaches. Every answer is the clauses' -- a failure where SWI raises
+  ;;; included -- but where they went on for ever.
+
+  ;;; What a list argument is, in one walk: 1 a proper list of N cells, 2 a
+  ;;; partial one -- N cells, then the unbound TAIL --, 0 neither (`foo',
+  ;;; `[a|foo]'), and -1 a list that is its own tail: a cell of a list is
+  ;;; three of the heap, so a walk past the heap's length has come round.
+  (static)
+  (func coco_l_walk ((coco_machine * m) (size_t l) (size_t * n) (size_t * tail)) (out int)
+        (let ((size_t k . 0) (size_t p . l) (size_t lim . #'(-> m heap_len)))
+          (while 1
+            (set p (coco_deref m p))
+            (if (not (coco_is_cons m p)) break)
+            (set k (+ k 1))
+            (if (> k lim) (return -1))
+            (set p (coco_arg m p 1)))
+          (set (cof n) k)
+          (set (cof tail) p)
+          (if (coco-tag-is REF (nth p (-> m heap))) (return 2))
+          (if (not (coco-tag-is ATOM (nth p (-> m heap)))) (return 0))
+          (if (not (-> m ids_ready)) (coco_ids_fill m))
+          (return (? (== (coco_name_of m p) (coco-id m "[]")) 1 0))))
+
+  ;;; `length(?List, ?N)'. A proper list's length, whatever N is; a partial
+  ;;; list and an integer N bind the tail to the cells still wanted, made
+  ;;; front to back as the clause's head made them (so the first is the
+  ;;; oldest variable), and a prefix longer than N -- or N below 0 -- fails,
+  ;;; where `length([a,b,c|T], 2)' went round the clauses for ever; so did a
+  ;;; partial list and N bound to anything else (`length(L, a)'), which no
+  ;;; list has, and N the tail itself (`length([a|T], T)'), which SWI fails.
+  ;;; A partial list and N unbound enumerate: declined. A list that is its
+  ;;; own tail is SWI's type_error(list, L), and `foo' or `[a|foo]' has no
+  ;;; length, as the clauses said.
+  (func coco_l_length ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t l . #'(coco_m_arg e g 0)) (size_t nn . #'(coco_m_arg e g 1))
+              (size_t k . 0) (size_t tail . 0) (i64 want . 0) (int kind . 0))
+          (set kind (coco_l_walk m l (aof k) (aof tail)))
+          (if (== kind 1) (return (coco_m_unify_int e nn (cast i64 k))))
+          (if (== kind -1) (return (coco_m_type_error e "list" l)))
+          (if (== kind 0) (return 0))
+          (if (coco_m_int e nn (aof want))
+              (block
+               (if (< want (cast i64 k)) (return 0))
+               (if (== want (cast i64 k)) (return (coco_m_unify e tail (coco_m_nil e))))
+               (let ((u64 cf . #'(coco_cons_fid m)) (size_t first . 0) (size_t prev . 0)
+                     (size_t h . 0) (size_t end . 0))
+                 (for ((i64 i . #'(cast i64 k))) (< i want) ((++ i))
+                   (set h (coco_push_struct m (coco-cell FUN cf) 2))
+                   (if (== h 0) (return 0))
+                   (if (== i (cast i64 k))
+                       (set first h)
+                       (set (nth (+ prev 2) (-> m heap)) (coco-cell REF h)))
+                   (set prev h))
+                 (set end (coco_m_nil e))
+                 (if (== end 0) (return 0))
+                 (set (nth (+ prev 2) (-> m heap)) (coco-cell REF end))
+                 (return (coco_m_unify e tail first)))))
+          (if (not (coco_m_is_var e nn)) (return 0))
+          (if (== nn tail) (return 0))
+          (coco_m_decline e)
+          (set (cof found) 0)
+          (return 0)))
+
+  ;;; `nth0(?N, ?List, ?Elem)' and `nth1/3' with the index given: the
+  ;;; element by '$nth0''s walk; an index below the base or past the end
+  ;;; fails, and so does one bound to anything but an integer (the clauses'
+  ;;; `integer(N)' and `var(N)' both said no). An unbound index enumerates:
+  ;;; declined.
+  (static)
+  (func coco_l_nth_at ((coco_engine * e) (size_t g) (int * found) (i64 base)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t ix . #'(coco_m_arg e g 0)) (i64 want . 0) (size_t p . 0))
+          (if (coco_m_is_var e ix)
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (if (not (coco_m_int e ix (aof want))) (return 0))
+          (if (< want base) (return 0))
+          (set want (- want base))
+          (set p (coco_m_arg e g 1))
+          (while (> want 0)
+            (set p (coco_deref m p))
+            (if (not (coco_is_cons m p)) (return 0))
+            (set p (coco_arg m p 1))
+            (set want (- want 1)))
+          (set p (coco_deref m p))
+          (if (not (coco_is_cons m p)) (return 0))
+          (return (coco_m_unify e (coco_m_arg e g 2) (coco_arg m p 0)))))
+
+  (func coco_l_nth0_at ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (return (coco_l_nth_at e g found 0)))
+
+  (func coco_l_nth1_at ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (return (coco_l_nth_at e g found 1)))
+
+  ;;; `reverse(?List, ?Reversed)': a proper list's elements consed as they
+  ;;; are walked, which is its reverse. A partial list enumerates and a list
+  ;;; that is its own tail went to the clause too: both declined, as they
+  ;;; were; anything else (`foo') fails, as the clause did.
+  (func coco_l_reverse ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t l . #'(coco_m_arg e g 0)) (size_t k . 0) (size_t tail . 0)
+              (int kind . 0))
+          (set kind (coco_l_walk m l (aof k) (aof tail)))
+          (if (== kind 0) (return 0))
+          (if (!= kind 1)
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (let ((size_t r . #'(coco_m_nil e)) (size_t p . l))
+            (for ((size_t i . 0)) (< i k) ((++ i))
+              (set p (coco_deref m p))
+              (set r (coco_cons m (coco_arg m p 0) r))
+              (set p (coco_arg m p 1)))
+            (return (coco_m_unify e (coco_m_arg e g 1) r)))))
 
   ;;; ---- the module -----------------------------------------------------
 

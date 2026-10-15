@@ -435,15 +435,16 @@ links the engine) and runs the 62 `.pl` cases in `pl_names/1`
   (with every text the same; the compiled clause, the deterministic call and
   `is/2` came between them), so a baseline kept from an older binary is
   counted again on the new one.
-* **What a step costs** (1.11.4, `statistics(inferences)` differences; the
-  constructs are steps too): length/2 4 (a clause around '$len', then `!` and
-  `=`), nth1/3 with the index given 6, reverse/2 4, last/2 2,
-  atomic_list_concat/2 2 and /3 with a separator 4 (a clause around
-  '$atom_join'/3), catch/3 that exits 3 (the catch, the goal, '$catch_exit'),
-  nb_getval/2 1, `( C -> true ; E )` the `true` as well. A window of 100 000
-  inferences of the translator: `true/0` 4.1 %, `=/2` 4.2 %, `atom/1` 3.7 %,
-  `=../2` 3.7 %. A rewrite that removes steps changes the count much more than
-  the clock (-32 % and -9.6 % above); ask the clock.
+* **What a step costs** (1.12.2, `statistics(inferences)` differences; the
+  constructs are steps too): length/2, nth0/3 and nth1/3 with the index
+  given, last/2, reverse/2 of a proper list and atomic_list_concat/2,3 are 1
+  in every mode that answers once (C rows; through 1.12.1 a clause around
+  '$len', '$nth0', '$rev', '$last' or '$atom_join'/3: 2 to 13), catch/3 that
+  exits 3 (the catch, the goal, '$catch_exit'), nb_getval/2 1, and `true` and
+  `=/2` NONE (the two clocks, below). A window of 100 000 steps of the
+  translator (1.11.4): `true/0` 4.1 %, `=/2` 4.2 % -- no inferences since --
+  `atom/1` 3.7 %, `=../2` 3.7 %. A rewrite that removes steps changes the
+  count much more than the clock (-32 % and -9.6 % above); ask the clock.
 * **When fewer instructions buy no time, count the jumps on 32-byte
   boundaries.** On Skylake's descendants (this box's Cascade Lake, the
   owner's Mac's Coffee Lake) the JCC erratum's microcode keeps a jump that
@@ -1210,6 +1211,42 @@ cocolint index offers no import of it.
     (`coco_clause_run_ge`) and their own copy of the guards' runner
     (`cc-guards-body`); guards that stop short build the body from the one
     they stopped at and make no environment, as 1.9.2 built it.
+* **Two clocks: the steps, and the inferences, which are the steps less the
+  `true`s and `=/2`s** (1.12.2; SWI counts neither in a compiled body).
+  `e->steps` counts every goal at the loop's top, as always: the tracer, a
+  window, the recorder and library(flow/debug) number calls by it, and no
+  two calls share a number (one clock with those steps given back made a
+  free goal share the next call's number, and dbgmatch keys a call by its
+  number: its first build lost calls). `e->frees` counts the free ones where
+  they run -- `coco_construct`'s `true`, `coco_bi_unify`, an environment's
+  TRUE unit when its functor is `true` (a construct's `$true` stays a step)
+  and a SIDES unit of form 0 -- and a new place that runs either counts it
+  there too. What a program reads is `steps - frees`: statistics/2's
+  `inferences`, call_metered/4's Used, call_limited/3's and call_metered/4's
+  limits, `cocolog step`'s budget and its `suspended at`. **A limit in
+  inferences is `max_inf`, and the hot loop tests `max_steps` alone**: a
+  limit sets `max_steps` to the inference limit itself (no more steps can be
+  inferences), and past it the cold path makes ONE call out of line,
+  `coco_limit_go`, which asks `coco_limit_room` (moving `max_steps` on to
+  the limit plus the frees so far, never past `tcap`, a limit in steps from
+  an engine outside: a window's), then `coco_step_free` (the tracer's Exit
+  marker, which gives its step back and is taken before a stop), then
+  `coco_rec_open`; nothing goes on, and the run stops. Three calls in the
+  loop moved its registers: lookup ran eight more instructions a probe
+  besides its padding (`tools/flow/zero.sh`; one call is 1.12.1's within
+  0.05 %). A window's and the recorder's limits are in steps (`max_inf`
+  0). **A nested engine
+  narrows through `coco_limit_narrow`** (findall/3, call_metered/4 and
+  call_limited/3, with_output_to/2): in inferences for an inference limit,
+  in steps for a step limit, and its starter adds back its `frees` with its
+  `steps`. A frozen machine keeps both (`I frees max_inf` in
+  lib/state.cicili, after the operators, so an older blob reads as none),
+  and `coco_engine_ask` starts both again (the REPL's engine, asked once a
+  goal, read -2 for a goal after one with three free steps when only the
+  steps started again).
+  Free goals do not end a limited run early: a stop at one would be a stop
+  at the step after, which is counted (a nested engine's last step at
+  least), so the least limit that succeeds is still the count reported.
 * **The tracer keeps the untraced clock, and records as well as prints**
   (1.10.12). Taking the `'$trace_exit'` marker gives its step back
   (`coco_construct`), so a traced run counts what an untraced one does, and

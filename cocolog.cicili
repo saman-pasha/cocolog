@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.12.1"))
+  (func coco_version_text () (out const char *) (return "1.12.2"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -1662,7 +1662,11 @@
 
             ;; The budget is counted from where this machine already was, so a
             ;; machine resumed after a million inferences gets its own slice
-            ;; and not what is left of somebody else's.
+            ;; and not what is left of somebody else's. In INFERENCES (1.12.2):
+            ;; the steps that are none -- `true', `=/2' -- are left out of it,
+            ;; as statistics/2 leaves them out (`coco_limit_room')
+            (set ($ e max_inf) (? to_the_end 0 (+ (- ($ e steps) ($ e frees)) ($ opts steps))))
+            (set ($ e tcap) 0)
             (set ($ e max_steps) (? to_the_end 0 (+ ($ e steps) ($ opts steps))))
 
             (while 1
@@ -1726,9 +1730,9 @@
             (if (!= ($ out s) nil) (fputs ($ out s) (wout)))
             (if done
                 (fprintf (wout) "%s: finished after %llu inference(s), %d answer(s) this turn\n"
-                        name (cast ullong ($ e steps)) n)
+                        name (cast ullong (- ($ e steps) ($ e frees))) n)
               (fprintf (wout) "%s: suspended at %llu inference(s), %d answer(s) this turn\n"
-                      name (cast ullong ($ e steps)) n))
+                      name (cast ullong (- ($ e steps) ($ e frees))) n))
             (set outcome (? done (? broke (turn FAILED) (turn FINISHED)) (turn MORE)))
             break)
 

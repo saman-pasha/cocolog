@@ -99,7 +99,7 @@
 %% and with when=COND, where it first holds -- or that it does not where the
 %% run ends, when nothing is drawn and no file is named:
 %%
-%%     fill(L): nth1(3,L,X),X==3 first holds at inference 26; recorded 1 to 26
+%%     fill(L): nth1(3,L,X),X==3 first holds at inference 10; recorded 1 to 10
 %%
 %% and with diff=, each run's files, BASE.diff, and how the two compare:
 %%

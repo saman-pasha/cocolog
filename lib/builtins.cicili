@@ -64,6 +64,8 @@
     ("downcase_atom"           2 coco_b_downcase)
     ("term_to_atom"            2 coco_b_term_to_atom)
     ("$sub_atom"               5 coco_b_sub_atom_at)
+    ("atomic_list_concat"      2 coco_b_alc2)
+    ("atomic_list_concat"      3 coco_b_alc3)
     ("$atom_split"             3 coco_b_atom_split)
     ("$atom_join"              3 coco_b_atom_join)
 
@@ -389,20 +391,10 @@
            "sub_string_same(Sub, Sub0) :- string(Sub), !, Sub == Sub0."
            "sub_string_same(Sub, Sub0) :- atom_string(Sub, S1), S1 == Sub0."
 
-           ;; ---- atomic_list_concat/2,3 -------------------------------------
-           ;; With a separator and an unbound list it SPLITS, which is the mode
-           ;; everybody actually uses it in.
-           ;;
-           ;; A LIST THAT IS MERELY NOT GROUND SPLITS TOO, which is SWI's rule
-           ;; and was not this one: only a bare variable did, so
-           ;; `atomic_list_concat([A,B], -, 'x-y')' -- the shape a caller
-           ;; writes when it knows how many parts it wants -- went to the JOIN
-           ;; and raised instantiation_error about its own output. The third
-           ;; argument decides: bound, and the list not ground, means split.
-           "atomic_list_concat(L, A) :- '$atom_join'(L, '', A)."
-           "atomic_list_concat(L, Sep, A) :- var(L), !, '$atom_split'(A, Sep, L)."
-           "atomic_list_concat(L, Sep, A) :- nonvar(A), \\+ ground(L), !, '$atom_split'(A, Sep, L)."
-           "atomic_list_concat(L, Sep, A) :- '$atom_join'(L, Sep, A)."
+           ;; ---- atomic_list_concat/2,3 ARE NOT HERE -----------------------
+           ;; They were four clauses around '$atom_join'/3 and
+           ;; '$atom_split'/3, two steps and four; each is one C row now
+           ;; (1.12.2), choosing between the two as the clauses did.
 
            ;; ---- current_op/3 -----------------------------------------------
            ;; Enumerating is backtracking, so the C half hands over the whole
@@ -1845,10 +1837,7 @@
           (coco_engine_init (aof sub) m st)
           ;; the inner goal spends the outer one's remaining budget, so a step
           ;; limit cannot be overrun from in here
-          (if (!= (-> e max_steps) 0)
-              (set ($ sub max_steps)
-                   (? (>= (-> e steps) (-> e max_steps)) 1
-                      (- (-> e max_steps) (-> e steps)))))
+          (coco_limit_narrow e (aof sub))
           (coco_engine_ask (aof sub) goal)
           ;; the trace follows the proof inside, depth and all, as it does
           ;; into a findall's -- through 1.10.16 this engine traced as
@@ -1873,6 +1862,7 @@
             (if held (coco_heap_root_pop m))
             (set sink (nth 0 hold)))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
           ;; AND THE BALL WITH IT, which this did not do until 1.2.12 and the
           ;; other six nested-engine builtins have done since 1.1.0. A
           ;; sub-engine has a choice stack of its own, so a `throw' inside the
@@ -2263,13 +2253,17 @@
   ;;; -- a page, a file read in, a joined program -- raised
   ;;; `type_error(atom, ...)' about an atom that is plainly an atom, which is
   ;;; the same 8 KB ceiling `$atom_join' had on the way out.
-  (func coco_b_atom_split ((coco_engine * e) (size_t g)) (out int)
-        (let ((char * a . #'(coco_b_text_dup e (coco_m_arg e g 0))) (char sep [256])
+  ;;;
+  ;;; Its three terms are given, so atomic_list_concat/3's row hands its own
+  ;;; over in the order this takes them (1.12.2).
+  (static)
+  (func coco_b_split ((coco_engine * e) (size_t at) (size_t st) (size_t lt)) (out int)
+        (let ((char * a . #'(coco_b_text_dup e at)) (char sep [256])
               (char ** parts . nil) (size_t n . 0) (size_t cap . 0) (int rc))
           (if (== a nil)
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (if (not (coco_m_text e (coco_m_arg e g 1) sep (sizeof sep)))
-              (block (free a) (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
+              (return (coco_m_type_error e "atom" at)))
+          (if (not (coco_m_text e st sep (sizeof sep)))
+              (block (free a) (return (coco_m_type_error e "atom" st))))
           (if (== 0 (strlen sep))
               (block (free a)
                      (return (coco_m_error e "atomic_list_concat/3 cannot split on an empty separator" nil))))
@@ -2290,11 +2284,14 @@
                 (set n (+ n 1))
                 (set (nth 0 q) (nth 0 sep))
                 (set p (+ q (strlen sep))))))
-          (set rc (coco_m_unify e (coco_m_arg e g 2) (coco_m_atom_list e parts n)))
+          (set rc (coco_m_unify e lt (coco_m_atom_list e parts n)))
           (for ((size_t i . 0)) (< i n) ((++ i)) (free (nth i parts)))
           (free parts)
           (free a)
           (return rc)))
+
+  (func coco_b_atom_split ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_split e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
 
   ;;; `'$atom_join'(List, Sep, Atom)' -- what atomic_list_concat/2,3 joins with.
   ;;;
@@ -2317,14 +2314,20 @@
   ;;; AN UNBOUND ELEMENT IS AN instantiation_error, which is SWI's answer and
   ;;; the one a caller can act on. It used to be `type_error(atomic, ...)'
   ;;; naming whatever the freed array happened to still hold.
-  (func coco_b_atom_join ((coco_engine * e) (size_t g)) (out int)
+  ;;;
+  ;;; Its terms are given (1.12.2), the separator's as -1 for none: what
+  ;;; atomic_list_concat/2 joins with.
+  (static)
+  (func coco_b_join ((coco_engine * e) (size_t lt) (size_t st) (size_t at)) (out int)
         (let ((size_t * v . nil) (size_t n . 0)
               (char sep [256]) (coco_strbuf b)
               (int why . 0) (size_t bad . 0) (int rc . 0))
-          (if (not (coco_m_list_array e (coco_m_arg e g 0) (aof v) (aof n)))
-              (return (coco_m_type_error e "list" (coco_m_arg e g 0))))
-          (if (not (coco_m_text e (coco_m_arg e g 1) sep (sizeof sep)))
-              (block (free v) (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
+          (if (not (coco_m_list_array e lt (aof v) (aof n)))
+              (return (coco_m_type_error e "list" lt)))
+          (if (== st (cast size_t -1))
+              (set (nth 0 sep) (cast char 0))
+              (if (not (coco_m_text e st sep (sizeof sep)))
+                  (block (free v) (return (coco_m_type_error e "atom" st)))))
           (coco_sb_init (aof b))
           (for ((size_t i . 0)) (< i n) ((++ i))
             (block
@@ -2341,10 +2344,33 @@
               (block (coco_sb_free (aof b)) (return (coco_m_instantiation_error e))))
           (if (== why 2)
               (block (coco_sb_free (aof b)) (return (coco_m_type_error e "atomic" bad))))
-          (set rc (coco_m_unify_atom e (coco_m_arg e g 2)
-                                     (? (== ($ b s) nil) "" ($ b s))))
+          (set rc (coco_m_unify_atom e at (? (== ($ b s) nil) "" ($ b s))))
           (coco_sb_free (aof b))
           (return rc)))
+
+  (func coco_b_atom_join ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_join e (coco_m_arg e g 0) (coco_m_arg e g 1) (coco_m_arg e g 2))))
+
+  ;;; `atomic_list_concat(+List, ?Atom)': the join with no separator, in
+  ;;; one step where the clause around '$atom_join'/3 took two (1.12.2).
+  (func coco_b_alc2 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_b_join e (coco_m_arg e g 0) (cast size_t -1) (coco_m_arg e g 1))))
+
+  ;;; `atomic_list_concat(?List, +Sep, ?Atom)' in one step where its clauses
+  ;;; took four (1.12.2). With the list unbound it SPLITS, the mode everybody
+  ;;; uses it in, and so it does with a list that is merely not ground and
+  ;;; the atom bound -- SWI's rule: `atomic_list_concat([A,B], -, 'x-y')',
+  ;;; the shape a caller writes when it knows how many parts it wants, once
+  ;;; went to the join and raised instantiation_error about its own output.
+  ;;; Anything else joins.
+  (func coco_b_alc3 ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t lt . #'(coco_m_arg e g 0)) (size_t st . #'(coco_m_arg e g 1))
+              (size_t at . #'(coco_m_arg e g 2)))
+          (if (or (coco_m_is_var e lt)
+                  (and (not (coco_m_is_var e at))
+                       (not (coco_b_is_ground (coco_m_machine e) lt))))
+              (return (coco_b_split e at st lt)))
+          (return (coco_b_join e lt st at))))
 
   ;;; ---- writing ----------------------------------------------------------
 
@@ -2963,7 +2989,9 @@
                ;; at one million, on this platform and the other one
                (return (coco_m_unify e out (coco_m_new_float
                                              e (/ (cast double (clock)) 1000000.0)))))
-              ((== 0 (strcmp key "inferences")) (set v (cast i64 (-> e steps))))
+              ;; the steps less those that are no inference -- `true' and
+              ;; `=/2' (1.12.2), as SWI counts
+              ((== 0 (strcmp key "inferences")) (set v (cast i64 (- (-> e steps) (-> e frees)))))
               ((== 0 (strcmp key "globalused")) (set v (cast i64 (* (-> m heap_len) 8))))
               ((== 0 (strcmp key "trailused"))  (set v (cast i64 (* (-> m trail_len) 8))))
               ((== 0 (strcmp key "atoms"))      (set v (cast i64 (-> m atoms_len))))

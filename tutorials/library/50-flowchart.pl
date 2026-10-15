@@ -165,8 +165,10 @@ main :-
     svg_title(S, 'p4.c1.g2', T6),
     must('and so is the list the grammar passes on', T6, 'S1 = S0  --  unification, det'),
     svg_title(S, 'p1.c1.g2', T7),
+    %% (a C row of the compiled-in lists module since 1.12.2, where it was
+    %% library(lists)'s clauses: a builtin to the chart)
     must('length/2 is a box in count/2''s clause, and no panel of its own', T7,
-         'length(Ws, N)  --  library(lists), det'),
+         'length(Ws, N)  --  builtin, C in the engine, det'),
 
     apart(Dir),
     twice(Dir),

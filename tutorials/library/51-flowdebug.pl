@@ -42,7 +42,8 @@
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
 %% untraced, learns how the run ends and at which inference -- the clock is
-%% the untraced run's count, the one call_metered/4 reads -- and a REPLAY
+%% the untraced run's count of its goals, one a goal (call_metered/4 reads
+%% it less each `true' and `=/2', which are no inference) -- and a REPLAY
 %% goes untraced at full speed to the window's first inference and records
 %% from there ('$trace_window'/4). A replay that does not end where the
 %% probe did -- the program read the time, a file, the knowledge base -- is

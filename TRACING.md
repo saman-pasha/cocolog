@@ -145,6 +145,19 @@ counted 93 under `--trace`. And **a machine stepped in turns finishes at
 the count of one turn**: `step --steps 12` suspends at 12 (it printed 13,
 counting the goal it stopped at, which the next turn counted again).
 
+**A `true` and a `=/2` are no inference** (since 1.12.2), as SWI counts
+none for either in a compiled body: those three numbers leave them out,
+and a limit in inferences -- `call_metered/4`'s, `call_limited/3`'s, a
+turn's `--steps` -- lets them by. The tracer prints their ports as
+before, and the clock a window and the recorder number goals by counts
+every goal, them among them, so no two calls share a number:
+`'$trace_window'/4`'s `from(I)`, `to(J)` and `end(How, I, ...)`, and
+library(flow/debug)'s `at inference I`, are on that clock, which is a
+program's count plus its `true`s and `=/2`s. Naive reverse has neither
+and is 47 by both. A window whose last inference is a call that exits
+by its marker keeps that Exit (through 1.12.1 the stop came before the
+marker).
+
 ## Where an error was raised
 
 An error nothing caught is followed on stderr, after its message, by

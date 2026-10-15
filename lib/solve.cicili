@@ -451,6 +451,18 @@
     (member size_t      query)     ; the goal as asked, kept for reporting
     (member u64         steps)
     (member u64         max_steps) ; 0 is no limit
+    ;; THE STEPS THAT ARE NO INFERENCE (1.12.2): `true' and `=/2', each a
+    ;; step of STEPS -- the clock the tracer, a window and the recorder
+    ;; number goals by, one goal one step -- and counted again here, to be
+    ;; taken off where a program reads its inferences: statistics/2,
+    ;; call_metered/4, call_limited/3, `cocolog step'. MAX_INF is such a
+    ;; limit, in inferences (0 when MAX_STEPS is a limit in steps, or there
+    ;; is none), and MAX_STEPS is then the step at which it is asked again
+    ;; (`coco_limit_room'); TCAP a limit in steps from an engine outside,
+    ;; which an inference limit inside it never passes (a window's)
+    (member u64         frees)
+    (member u64         max_inf)
+    (member u64         tcap)
     (member int         resume)    ; a solution has been reported; go back first
     (member int         halted)
     (member int         halt_code)
@@ -920,6 +932,11 @@
   ;;; findall: the goal may collect the heap.
   (decl) (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
                                        (u64 limit) (u64 * used) (size_t * gp)) (out int))
+
+  ;;; A nested engine's limits from its outer engine's, in inferences and in
+  ;;; steps (1.12.2): SUB's own inference limit (MAX_INF, 0 for none) set
+  ;;; first, narrowed here, MAX_STEPS set last.
+  (decl) (func coco_limit_narrow ((coco_engine * e) (coco_engine * sub)))
 
   ;;; Throws BALL, exactly as `throw/1' does. A module's C half uses this to
   ;;; raise an error a program can catch, rather than filling in `err' and
@@ -3109,6 +3126,8 @@
                   (return 1))))
             (case (cc-eg "SIDES")
               (let ((int r . #'(coco_env_sides m cd env u)))
+                ;; `=' is no inference, as `coco_bi_unify' counts it (1.12.2)
+                (if (== (-> eg form) 0) (set (-> e frees) (+ (-> e frees) 1)))
                 (if (== r 1) (return 0))
                 (if (== r 0) (return -2))
                 (return -1)))
@@ -3239,6 +3258,10 @@
               (set (-> e goals) nk)
               (return 0))
             (case (cc-eg "TRUE")
+              ;; the program's own `true' is no inference (1.12.2), as the
+              ;; construct counts it under trace; a construct's `$true' is
+              ;; the inference it was
+              (if (== (-> eg fid) (coco-id m "true")) (set (-> e frees) (+ (-> e frees) 1)))
               (set (-> e goals) nk)
               (return 0))
             (case (cc-eg "DISJ")
@@ -4601,6 +4624,9 @@
   (func coco_engine_ask ((coco_engine * e) (size_t goal))
         (set (-> e nchoices) 0)
         (set (-> e steps) 0)
+        ;; and the free ones with them (1.12.2): an engine asked again --
+        ;; the REPL's, at each query -- counted `steps - frees' below zero
+        (set (-> e frees) 0)
         (set (-> e resume) 0)
         (set (-> e halted) 0)
         ;; `halt' is `halt(0)': halt/0 sets only the flag, so the code it
@@ -4690,10 +4716,7 @@
           (coco_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
           ;; `cocolog step' with a step limit cannot be overrun by a findall
-          (if (!= (-> e max_steps) 0)
-              (set ($ sub max_steps)
-                   (? (>= (-> e steps) (-> e max_steps)) 1
-                      (- (-> e max_steps) (-> e steps)))))
+          (coco_limit_narrow e (aof sub))
           (coco_engine_ask (aof sub) goal)
           ;; the trace follows the proof into the inner engine, depth and
           ;; all -- set after the ask, which resets a fresh engine's context
@@ -4756,6 +4779,7 @@
           ;; the outer engine's step count includes the inner search: a goal
           ;; that costs a million inferences inside a findall costs them
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
           (coco_gc_nested_end m gsaved)
           ;; and everything this frame told the collector, as it left it --
           ;; read before the free, which memsets the inner engine
@@ -4830,12 +4854,11 @@
           (set holdp hold)
           (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
           (coco_engine_init (aof sub) m st)
-          (set ($ sub max_steps) limit)
+          ;; a limit in INFERENCES (1.12.2): its free steps -- `true', `=/2'
+          ;; -- are left out of it, as they are of statistics/2's count;
           ;; narrowed to what the OUTER engine has left, never widened
-          (if (!= (-> e max_steps) 0)
-              (let ((u64 left . #'(? (>= (-> e steps) (-> e max_steps)) 1
-                                     (- (-> e max_steps) (-> e steps)))))
-                (if (< left limit) (set ($ sub max_steps) left))))
+          (set ($ sub max_inf) limit)
+          (coco_limit_narrow e (aof sub))
           (coco_engine_ask (aof sub) goal)
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
@@ -4846,7 +4869,7 @@
           (let ((size_t gsaved . #'(coco_gc_nested_begin m hmark)))
             (set rc (coco_engine_next (aof sub)))
             (coco_gc_nested_end m gsaved))
-          (set (cof used) ($ sub steps))
+          (set (cof used) (- ($ sub steps) ($ sub frees)))
           (set tmark ($ sub ptrail))
           (set hmark ($ sub pheap))
           (if held (coco_heap_root_pop m))
@@ -4855,6 +4878,7 @@
           ;; not count a fenced goal's inferences would be a hole big enough
           ;; to drive the whole loop through.
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
+          (set (-> e frees) (+ (-> e frees) ($ sub frees)))
           (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0))
             (if (== rc 1) (set out 1))
             (if (== rc 0) (set out 0))
@@ -5044,7 +5068,11 @@
         (let ((coco_machine * m . #'(-> e m)))
           (cond
                   ;; ---- control constructs ----
+                  ;; `true' IS NO INFERENCE (1.12.2), as SWI counts none for
+                  ;; a body's `true': a step, its ports printed as before,
+                  ;; and counted in `frees' (`coco_bi_unify')
                   ((and (== n 0) (== nid (coco-id m "true")))
+                   (set (-> e frees) (+ (-> e frees) 1))
                    (if (-> e trace)
                        (block (coco_trace_port e "Call" (+ (-> e trace_depth) 1) g)
                               (coco_trace_port e "Exit" (+ (-> e trace_depth) 1) g)))
@@ -5321,6 +5349,67 @@
                   (#t (return 0)))
           (return 1)))
 
+  ;;; THE STEP PAST A LIMIT IN INFERENCES (1.12.2): the run goes on while
+  ;;; its steps less its free ones (`frees': `true', `=/2') are within
+  ;;; MAX_INF, and MAX_STEPS moves to the step at which that is asked again
+  ;;; -- the inference limit plus the free steps so far, never past TCAP, a
+  ;;; limit in steps from outside. 1 when the step goes on. Asked only past
+  ;;; MAX_STEPS, which a limit sets at the inference limit itself (at most
+  ;;; that many steps are inferences), so a run that takes no free step
+  ;;; asks nothing it did not ask (`coco_limit_go').
+  (static)
+  (func coco_limit_room ((coco_engine * e)) (out int)
+        (let ((u64 t . 0))
+          (if (== (-> e max_inf) 0) (return 0))
+          (if (> (- (-> e steps) (-> e frees)) (-> e max_inf)) (return 0))
+          (set t (+ (-> e max_inf) (-> e frees)))
+          (if (and (!= (-> e tcap) 0) (> t (-> e tcap))) (set t (-> e tcap)))
+          (if (> (-> e steps) t) (return 0))
+          (set (-> e max_steps) t)
+          (return 1)))
+
+  ;;; A NESTED ENGINE SPENDS ITS OUTER ENGINE'S BUDGET, never more (1.12.2,
+  ;;; in two clocks): an inference limit outside narrows SUB's (MAX_INF,
+  ;;; set by the caller or 0 for none) to the inferences it has left, and a
+  ;;; limit in steps outside -- a window's, or the cap such an inference
+  ;;; limit carries -- caps SUB's steps (TCAP); 1 is left when the outside
+  ;;; is spent, as before. MAX_STEPS, which the loop tests, is set last.
+  (func coco_limit_narrow ((coco_engine * e) (coco_engine * sub))
+        (if (!= (-> e max_inf) 0)
+            (let ((u64 spent . #'(- (-> e steps) (-> e frees))) (u64 left . 0))
+              (set left (? (>= spent (-> e max_inf)) 1 (- (-> e max_inf) spent)))
+              (if (or (== (-> sub max_inf) 0) (< left (-> sub max_inf))) (set (-> sub max_inf) left))
+              (if (!= (-> e tcap) 0)
+                  (set (-> sub tcap) (? (>= (-> e steps) (-> e tcap)) 1 (- (-> e tcap) (-> e steps))))))
+            (if (!= (-> e max_steps) 0)
+                (set (-> sub tcap) (? (>= (-> e steps) (-> e max_steps)) 1 (- (-> e max_steps) (-> e steps))))))
+        (cond
+          ((!= (-> sub max_inf) 0)
+           (set (-> sub max_steps) (-> sub max_inf))
+           (if (and (!= (-> sub tcap) 0) (< (-> sub tcap) (-> sub max_steps)))
+               (set (-> sub max_steps) (-> sub tcap))))
+          ((!= (-> sub tcap) 0)
+           (set (-> sub max_steps) (-> sub tcap))
+           (set (-> sub tcap) 0))
+          (#t (set (-> sub max_steps) 0))))
+
+  ;;; WHETHER THE NEXT STEP IS THE TRACER'S `$trace_exit' MARKER (1.12.2),
+  ;;; asked only past the limit: a marker gives back the step taking it
+  ;;; counted, and its Exit carries the inference of the call it ends, so
+  ;;; it is taken before the run stops or a window opens. Through 1.12.1 a
+  ;;; window whose last inference was a call that exited by its marker
+  ;;; stopped before the marker and lost the Exit a whole recording has
+  ;;; there. Nothing is changed (`coco_limit_go').
+  (static)
+  (func coco_step_free ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t kf . 0) (size_t g . 0))
+          (if (!= (-> e nset) 0) (return 0))
+          (set kf (coco_deref m (-> e goals)))
+          (if (not (coco-tag-is FUN (nth kf (-> m heap)))) (return 0))
+          (set g (coco_deref m (coco_arg m kf 0)))
+          (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return 0))
+          (return (and (== (coco_arity m g) 3) (== (coco_name_of m g) (coco-id m "$trace_exit"))))))
+
   ;;; THE WINDOW OPENS HERE, AT THE LIMIT (1.10.12). A run fast-forwarded
   ;;; untraced has reached the inference `'$trace_window'/4' asked to
   ;;; record from, the limit it was given stopped it -- narrowed into any
@@ -5347,6 +5436,9 @@
               (let ((u64 base . #'(- (coco_rec_abs x r) (-> x steps))))
                 (set (-> x trace) 2)
                 (set (-> x gc) 0)
+                ;; the window's end is a limit in steps, which replaces any
+                (set (-> x max_inf) 0)
+                (set (-> x tcap) 0)
                 (set (-> x max_steps) (? (== (-> r to) 0) 0 (- (-> r to) base))))
               (if (== (cast (void *) x) (-> r root)) break)
               (set x (cast (coco_engine *) (-> x outer)))))
@@ -5355,6 +5447,18 @@
           ;; (`coco_k_room'), and the window with it
           (coco_k_flush e)
           (return 1)))
+
+  ;;; PAST THE LIMIT, WHETHER THE RUN GOES ON (1.12.2): room left in a
+  ;;; limit in inferences, the tracer's Exit marker next, or a window
+  ;;; opening -- asked in that order, in ONE call out of line, the shape
+  ;;; the branch had when `coco_rec_open' was all it asked: three calls
+  ;;; there moved the step loop's registers, and lookup ran eight more
+  ;;; instructions a probe besides the padding.
+  (weak)
+  (func coco_limit_go ((coco_engine * e)) (out int)
+        (if (coco_limit_room e) (return 1))
+        (if (coco_step_free e) (return 1))
+        (return (coco_rec_open e)))
 
   ;;; THE RUN STOPPED AT A STEP'S TOP (`halted'): 1 is a halt, 2 memory.
   ;;; MEMORY IS RAISED (1.10.28) when the refusal left nothing written
@@ -5447,9 +5551,11 @@
             ;; a stop at the limit, a halt and a collection each see the
             ;; continuation whole: a goal the last step handed over goes back
             ;; in its frame first (`coco_k_flush'). A limit a recorder set is
-            ;; where a window opens, and the step goes on (`coco_rec_open')
+            ;; where a window opens, and the step goes on (`coco_rec_open');
+            ;; a limit in inferences with room left, and the tracer's Exit
+            ;; marker, go on before either (1.12.2, `coco_limit_go')
             (if (and (!= (-> e max_steps) 0) (> (-> e steps) (-> e max_steps)))
-                (if (not (coco_rec_open e))
+                (if (not (coco_limit_go e))
                     (block (coco_k_flush e)
                            (return (coco_fail_err e "inference limit reached")))))
             (if (-> e halted)
@@ -5953,7 +6059,12 @@
 
   ;;; ---- unification and comparison ----
 
+  ;;; `=/2' IS NO INFERENCE (1.12.2), whether it unifies or not, as SWI
+  ;;; compiles a body's `=' inline and counts none for it: still a step of
+  ;;; the engine's clock, which the tracer, a window and the recorder number
+  ;;; it by, and counted in `frees', which a program's count leaves out.
   (func coco_bi_unify ((coco_engine * e) (size_t g)) (out int)
+        (set (-> e frees) (+ (-> e frees) 1))
         (return (? (coco_unify (-> e m) (coco_arg (-> e m) g 0) (coco_arg (-> e m) g 1)) 1 0)))
 
   ;;; `\=' must leave nothing behind: it unifies to find out, then unbinds
