@@ -68,6 +68,11 @@ The masculine noun "consomé" means "consomme".
 The masculine noun "pollastre amb galets" means "chicken with galets".
 The adjective "marginal" means "marginal".
 "marginales" is the plural of "marginal".
+# the Makula interview (VIT-9381..9414): `danni irreversibili al cervello' -- the damage
+# Spanish says `daño', the dictionary's own word said again before `destrozo', which
+# is still read as damage
+The masculine noun "daño" means "damage".
+"daños" is the plural of "daño".
 The masculine noun "destrozo" means "damage".
 "destrozos" is the plural of "destrozo".
 The masculine adjective "sacrosanto" means "sacrosanct".
@@ -2028,3 +2033,62 @@ The adjectival adverb "justamente" means "justly".
 # fifteen places the treebank's development part has `consejo' (`Consejo de
 # Ministros', `Consejo de Administración'), and the advice in two
 The masculine noun "consejo" means "council".
+# the Makula interview (VIT-9381..9414), into Spanish: `la sincope da
+# idrocuzione' -- the Spanish word has its paradigm in apertium-spa.spa.dix and no
+# English word
+The feminine noun "hidrocución" means "hydrocution".
+# the Makula interview, second batch, into Spanish: the word that begins the time of an
+# `ago' (`hace dos años'), the one that begins a duration (`durante cuatro minutos') and the
+# one that begins a measure (`por 152 metros'); the feminine nouns whose first vowel is a
+# stressed `a' take `el' in the singular (`el agua', `un águila'); `por ley'; `bajo el agua'
+The word "hace" begins the time.
+The word "durante" begins the duration.
+The word "por" begins the measure.
+"metro" is a measure.
+"kilómetro" is a measure.
+"centímetro" is a measure.
+"milla" is a measure.
+"kilo" is a measure.
+"litro" is a measure.
+"agua" is euphonic.
+"águila" is euphonic.
+"alma" is euphonic.
+"ala" is euphonic.
+"alba" is euphonic.
+"alga" is euphonic.
+"ama" is euphonic.
+"ancla" is euphonic.
+"ansia" is euphonic.
+"área" is euphonic.
+"arma" is euphonic.
+"arpa" is euphonic.
+"asa" is euphonic.
+"asma" is euphonic.
+"aula" is euphonic.
+"ave" is euphonic.
+"hada" is euphonic.
+"hacha" is euphonic.
+"hambre" is euphonic.
+"haya" is euphonic.
+"hampa" is euphonic.
+"ágora" is euphonic.
+"álgebra" is euphonic.
+"aspa" is euphonic.
+The adverb "por ley" means "by law".
+The adverb "bajo el agua" means "underwater".
+# a newspaper is a `periódico'; the dictionary's first word is `diario', the one of a diary
+The masculine noun "periódico" means "newspaper".
+# the same into Spanish: `antes de que se produzcan', and `no creo que sea' -- a verb that has the
+# subjunctive only when it is denied takes the denial
+The conjunction "antes de que" means "before".
+"antes de que" takes the subjunctive.
+"cree" takes the denial.
+"piensa" takes the denial.
+"opina" takes the denial.
+"parece" takes the denial.
+"supone" takes the denial.
+# `una bibita ghiacciata': the dictionary has `helado' as a noun alone, so the adjective had no feminine
+The masculine adjective "helado" means "freezing".
+The feminine adjective "helada" means "freezing".
+"helados" is the plural of "helado".
+"heladas" is the plural of "helada".

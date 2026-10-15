@@ -428,6 +428,15 @@ links the engine) and runs the 62 `.pl` cases in `pl_names/1`
   (with every text the same; the compiled clause, the deterministic call and
   `is/2` came between them), so a baseline kept from an older binary is
   counted again on the new one.
+* **What a step costs** (1.11.4, `statistics(inferences)` differences; the
+  constructs are steps too): length/2 4 (a clause around '$len', then `!` and
+  `=`), nth1/3 with the index given 6, reverse/2 4, last/2 2,
+  atomic_list_concat/2 2 and /3 with a separator 4 (a clause around
+  '$atom_join'/3), catch/3 that exits 3 (the catch, the goal, '$catch_exit'),
+  nb_getval/2 1, `( C -> true ; E )` the `true` as well. A window of 100 000
+  inferences of the translator: `true/0` 4.1 %, `=/2` 4.2 %, `atom/1` 3.7 %,
+  `=../2` 3.7 %. A rewrite that removes steps changes the count much more than
+  the clock (-32 % and -9.6 % above); ask the clock.
 * **When fewer instructions buy no time, count the jumps on 32-byte
   boundaries.** On Skylake's descendants (this box's Cascade Lake, the
   owner's Mac's Coffee Lake) the JCC erratum's microcode keeps a jump that
@@ -817,6 +826,16 @@ cocolint index offers no import of it.
 * **A `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` reaches
   the catch around it**, and a `catch/3` whose goal exited stops catching
   (`'$catch_exit'`).
+* **Text builtins work on BYTES, and one of them crashes** (1.11.4):
+  `atom_length('dár', N)` is 4, `atom_codes/2` gives the UTF-8 bytes,
+  `char_code(X, 225)` one raw byte, `sub_atom/5` can cut a character in half,
+  `upcase_atom('dár', U)` is `DáR`, and `atom_chars(X, [d,'á',r])` is a
+  SEGMENTATION FAULT (exit 139; reported to The Coco, 2026-10-15). Build and
+  take apart accented text with atom_concat/3 (modes -,+,+ and +,-,+),
+  atomic_list_concat/2 and member/2 over a list of the suffixes, as
+  tr_stress_stem/2 does. **A syntax error in a file has no place**:
+  `cocolog run FILE true` says the byte offset, `cocolog -s FILE` only `its
+  clauses would not consult` -- split the file and run each part to find it.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and
@@ -842,7 +861,11 @@ cocolint index offers no import of it.
   one global per word is cheap now (`reason.pl`'s notes and the
   translator's `'$tr_w|W'` tables), one growing list read for each
   question is not -- and make a global you read often once rather than
-  catching its absence.
+  catching its absence. **The copy is the price in time** (200 000 reads of
+  one global, 1.11.4): a list of 15 cells 0.4 us, 150 cells 1.6 us, 1 500 cells
+  10.8 us, 15 000 cells 126 us -- and a memberchk/2 of 300 entries already on
+  the heap 4.7 us. The translator's table of a common word (`è`, `di`) holds
+  300 entries: a memo hit is about 16 us.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
   `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that
@@ -1370,7 +1393,16 @@ read into an English-worded IR and written into any lesson's language),
 * **A line of `extra/` has two readers**: it comes first for its WORD and
   for its MEANING, so it moves the reader of one language and the writer of
   the other. Say the dictionary's own word again first where the line must
-  not become the word written.
+  not become the word written. **An elision a lesson states is read AND
+  written**: `"dev'" is the elision of "deve".` makes the reader take `dev'essere`
+  apart (tr_expand/3, for a verb form or a question word only: an article's,
+  a pronoun's and a preposition's keep theirs, which their readers ask for),
+  and made the Italian writer elide every `come` before a vowel -- the data
+  column found `com'assicurano i palestinesi`, `paesi com'Alemania` and
+  `considerato com'il Van Gogh` in ten sentences of the old controls. The
+  writer elides such a word only where the lesson says what the elided form
+  comes before (`"com'" comes before "è".`, as for a pronoun's;
+  tr_elision_written/3), which no lesson says yet.
 * **A store learns only the lines it lacks**, appended: an ORDER is a
   property of a teach, not of a line. A data fix is proved on a store taught
   from the rebuilt vocabulary. Teaching both languages into one fresh
@@ -1397,6 +1429,34 @@ read into an English-worded IR and written into any lesson's language),
   (the construct is a step too: tr_solve/1's rewrite saved +0), and the
   controls say so in inferences, not the clock -- ask the clock afterwards
   (five alternating pairs, 6 % less user time).
+  **Round two (1.11.5) took the layer's idioms, and found them in the same
+  windows**: BASE.txt parsed for the CALLERS of a predicate (the parent is the
+  nearest line above with a smaller indent) and for the goals ASKED AGAIN --
+  in a window of 100 000 inferences 1 528 tr_solve/1 calls were 391 distinct
+  goals (74 % repeats) and 648 tr_class_of/2 calls were 71 pairs of a word
+  and a class. A repeat is not a memo's to catch: a hit of tr_memo_w/5 costs
+  11-13 inferences against 19 for the lesson, and a memo of tr_class_of/2 cost
+  37 where the lesson's own answer costs 35 -- it was tried and left out.
+  What paid was the idioms: `tr_language/1` is 7 inferences (the if-then-else,
+  the catch/3, the read, the `true`), the plain read is 1, and
+  `catch(nb_getval(K, V), _, R)` is 3. So the language and the generation are
+  MADE WHEN THE LIBRARY LOADS (`:- nb_setval('$tr_language', none),
+  nb_setval('$tr_gen', 0).`; tr_memo_reset/0 checks the language too) and the
+  hot sites read them plain: tr_solve/1, tr_is/3, tr_lexeme/4, tr_form/5,
+  tr_coord/2, tr_memo_w/5. A site that may meet a machine that never loaded
+  the library keeps tr_language/1, which answers `none`. tr_prove/2 is gone
+  (tr_lesson/2's first clause is `none`); the rule lookup is a plain call of
+  the dynamic `lesson/2`, which never raises; the fact call is its own
+  catch/3, not tr_solve_plain/1's two steps; the three wrappers are clauses
+  with head patterns where an if-then-else asked `atom/1` of what the head
+  already holds. A failed lookup went from 29 to 19 inferences, a found one
+  from 28 to 20: the 87 controls 4 879 595 021 -> 3 448 261 913 (-29.3 %),
+  every status and text the same. **The clock fell less than the count**: the
+  eco control 214 939 001 -> 146 057 424 inferences (-32 %) and 17.44 -> 15.77
+  s of user time (-9.6 %, five pairs of five), because what is left is a
+  memo table COPIED out of its global at every hit (below) and not a step.
+  tools/flow/chart.pl finds the clauses an insertion splits (`not together`:
+  tr_time_phrase/1, tr_comps_out/7 were found so, 38 old ones remain).
 * **Memory**: a teach sat at 4-9 GB resident before the heap collector of
   1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
   tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run
@@ -1605,6 +1665,21 @@ read into an English-worded IR and written into any lesson's language),
   word's class too, in the order it is said, so the plain meaning is said
   first (again), or the class's meaning becomes the default**
   (`tr_mean_links/3`).
+  The Makula interview (VIT-9381..9414, Italian into Spanish: 34 of 34 on a
+  fresh store, 16 of 34 before; into English 26 of 34, 15 before) leaves: `per tirar su
+  una persona che sta per annegare` is `estirar en una persona que está para
+  ahogar`; `fuori dall'acqua` is `fuera desde el agua`; `che ti possa salvare`
+  after a negation is `que te puede salvar` (the relative clause's
+  subjunctive); `sia stata colta anche lei da sincope` is `la haya sido
+  sorprendida también desde síncope`; `non conta nulla che dopo venga portata
+  nel miglior ospedale al mondo` is `no cuenta nulo que es traída en el
+  hospital mejor al mundo después`; `entro un minuto` is `antes de un minuto`;
+  `anche`, `sicuramente` and `también` stand last where Spanish puts them
+  after the verb; `Cos'altro le devo dire?` (what else) is REFUSED now -- the
+  `¿Cosa debe otro decir?` it was had `otro` for a subject, and a question
+  word with `altro` is a shape of its own (`qué más`); English refuses eight
+  (4, 5, 7, 10, 11, 12, 27, 32), most for the third person nobody names,
+  which it refuses on purpose.
 
 ## Tutorials are documentation that runs
 

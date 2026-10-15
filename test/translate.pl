@@ -32,7 +32,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia,
+    newspaper_abogacia, newspaper_makula,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -12000,6 +12000,337 @@ newspaper_abogacia_checks_21 :-
     check('a GUARD: a pronoun alone is the person it was', D6, 'The cat sees her.').
 
 %% <<< abogacia
+
+%% >>> makula
+%% ---- an Italian interview on drowning, into Spanish (VIT's Makula, VIT-9381..9414) ----------
+
+newspaper_makula :-
+    section('an Italian interview on drowning into Spanish: the elision of a verb or a question word, a second aside after the age, a phrase of `of'' set in front and taken up by a pronoun, a question word and its phrase with no verb, a denied purpose with a count of time, `than'' after a comparative, `ago'' before its time, a duration and a measure, the subjunctive after a connecting word and a denied verb, a first person after a dash, a gerund and a time between the subject and its verb, a date, the stress of an infinitive with two pronouns, `el agua'', and what English does with a negative pronoun, `that which'' and `and a half'''),
+    newspaper_makula_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_makula_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_makula_checks_1, newspaper_makula_checks_2, newspaper_makula_checks_3, newspaper_makula_checks_4, newspaper_makula_checks_5, newspaper_makula_checks_6, newspaper_makula_checks_7, newspaper_makula_checks_8, newspaper_makula_checks_9,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others
+newspaper_makula_lesson(L, Text) :-
+    newspaper_makula_part(L, 1, A), newspaper_makula_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+newspaper_makula_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "pero" means "but". The conjunction "que" means "that". "que" is a relative. The conjunction "si" means "if". The conjunction "que" means "than".
+The conjunction "antes de que" means "before". "antes de que" takes the subjunctive.
+The masculine noun "perro" means "dog". The masculine noun "gato" means "cat". The masculine noun "pan" means "bread". "panes" is the plural of "pan".
+The feminine noun "casa" means "house".
+The feminine noun "agua" means "water". "agua" is euphonic. The feminine noun "piscina" means "pool".
+The masculine noun "socorrista" means "lifeguard". "socorrista" is a person. The masculine noun "estudiante" means "student". "estudiante" is a person. "estudiantes" is the plural of "estudiante".
+The masculine noun "año" means "year". "año" is a time. "años" is the plural of "año".
+The masculine noun "minuto" means "minute". "minuto" is a time.
+The masculine noun "tiempo" means "time". "tiempo" is a time.
+The masculine noun "metro" means "metre". "metro" is a measure.
+The masculine noun "mes" means "month". "mes" is a time. "meses" is the plural of "mes".
+The masculine noun "día" means "day". "día" is masculine. "día" is a time. "días" is the plural of "día".
+The masculine adjective "romano" means "roman". The adjective "grande" means "big". The adjective "mayor" means "big". "mayor" is the comparative of "grande". The adjective "importante" means "important".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "para" means "for". The preposition "desde" means "from". The preposition "a" means "to".
+The word "a" precedes the person.
+The preposition "durante" means "for". The word "durante" begins the duration. The preposition "por" means "for". The word "por" begins the measure.
+The adverb "hace" means "ago". The word "hace" begins the time. The adverb "más" means "more". The word "más" begins the comparative. The adverb "siempre" means "always". The adverb "bien" means "well". The adverb "mejor" means "better".
+The adverb "no" means "not". The word "no" precedes the verb. The word "dónde" means "where". The word "qué" means "what". The word "cuánto" means "how much".
+The pronoun "la" means "her". The pronoun "la" means "it". The pronoun "lo" means "him". The pronoun "lo" means "it".
+The pronoun "yo" means "I". The pronoun "él" means "he". The pronoun "nadie" means "nobody". The pronoun "nada" means "nothing".
+The mark "¿" begins the question.').
+newspaper_makula_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme". "duerme" is intransitive.
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve". "ver" is the infinitive of "ve".
+The verb "conoce" means "knows". "conocer" is the infinitive of "conoce".
+The verb "nada" means "swims". "nadar" is the infinitive of "nada". "nada" is intransitive. "nadado" is the participle of "nada".
+The verb "muere" means "dies". "morir" is the infinitive of "muere". "muere" is intransitive.
+The verb "cuenta" means "counts". "cuenta" is intransitive.
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es". "sido" is the participle of "es". "sea" is the subjunctive of "es".
+The verb "debe" means "must". "deber" is the infinitive of "debe".
+The verb "llega" means "arrives". "llegar" is the infinitive of "llega". "llegue" is the subjunctive of "llega". "llega" is intransitive.
+The verb "dice" means "says". "decir" is the infinitive of "dice".
+The auxiliary "ha" means "has".
+"seen" is the participle of "sees". "been" is the participle of "is".
+The number "dos" means "two". The number "cuatro" means "four". The masculine noun "número" means "number". "números" is the plural of "número".
+"visto" is the participle of "ve". "conocido" is the participle of "conoce".
+The feminine noun "alma" means "soul". "alma" is euphonic.
+"duermo" is the first person of "duerme". "como" is the first person of "come". "durmiendo" is the gerund of "duerme".
+The adverb "aproximadamente" means "about". The masculine adjective "y medio" means "and a half". "y medio" is the plural of "y medio".
+The masculine noun "junio" means "june". "junio" is a month. The word "de" joins the date.
+The verb "quiere" means "wants". "querer" is the infinitive of "quiere".
+The pronoun "me" means "me". "me lo" is the contraction of "me lo".
+The pronoun "aquello" means "that". The word "aquello" replaces the noun. The word "el" replaces the noun.
+The verb "cree" means "believes". "creo" is the first person of "cree". "creer" is the infinitive of "cree". "cree" takes the denial. "llegue" is the subjunctive of "llega".
+The verb "da" means "gives". "dar" is the infinitive of "da". The modal "puede" means "can". "poder" is the infinitive of "puede". The pronoun "te" means "you".
+"se la" is the contraction of "le la". "me la" is the contraction of "me la".
+The word "para" begins the purpose. "aguas" is the plural of "agua".
+The word "cómo" means "how". The verb "sorprende" means "surprises". The pronoun "me" means "me".
+"comido" is the participle of "come". "dormido" is the participle of "duerme". "llegues" is the second person of "llegue". 
+The verb "abre" means "opens".
+The feminine noun "forma" means "shape". The feminine noun "tierra" means "earth". The verb "salva" means "saves". "salva" is reflexive.
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one".').
+newspaper_makula_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"nel" is the contraction of "in il". "nella" is the contraction of "in la". "del" is the contraction of "di il". "della" is the contraction of "di la". "delle" is the contraction of "di le". "dei" is the contraction of "di i". "dell''" is the contraction of "di l''".
+"l''" is the elision of "lo". "l''" is the elision of "la". "dev''" is the elision of "deve". "dov''" is the elision of "dove". "cos''" is the elision of "cosa".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "ma" means "but". The conjunction "che" means "that". "che" is a relative. The conjunction "se" means "if".
+The conjunction "prima che" means "before". "prima che" takes the subjunctive.
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto". The masculine noun "pane" means "bread".
+The feminine noun "casa" means "house". "case" is the plural of "casa".
+The feminine noun "acqua" means "water". The feminine noun "piscina" means "pool". "piscine" is the plural of "piscina".
+The masculine noun "bagnino" means "lifeguard". "bagnino" is a person. The masculine noun "studente" means "student". "studente" is a person. "studenti" is the plural of "studente".
+The masculine noun "anno" means "year". "anno" is a time. "anni" is the plural of "anno".
+The masculine noun "minuto" means "minute". "minuto" is a time. "minuti" is the plural of "minuto".
+The masculine noun "tempo" means "time". "tempo" is a time.
+The masculine noun "metro" means "metre". "metro" is a measure. "metri" is the plural of "metro".
+The masculine noun "mese" means "month". "mese" is a time. "mesi" is the plural of "mese".
+The masculine noun "giorno" means "day". "giorno" is a time. "giorni" is the plural of "giorno".
+The masculine adjective "romano" means "roman". "romani" is the plural of "romano". The adjective "grande" means "big". "grandi" is the plural of "grande".
+The adjective "maggiore" means "big". "maggiore" is the comparative of "grande". The adjective "importante" means "important". "importanti" is the plural of "importante".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "per" means "for". The preposition "da" means "from". The preposition "a" means "to".
+The adverb "fa" means "ago". The adverb "più" means "more". The word "più" begins the comparative. The adverb "sempre" means "always". The adverb "bene" means "well". The adverb "meglio" means "better".
+The adverb "non" means "not". The word "non" precedes the verb. The mark "?" ends the question. The word "dove" means "where". The word "cosa" means "what". The word "quanto" means "how much".
+The pronoun "la" means "her". The pronoun "la" means "it". The pronoun "lo" means "him". The pronoun "lo" means "it".
+The pronoun "io" means "I". The pronoun "lui" means "he". The pronoun "nessuno" means "nobody". The pronoun "nulla" means "nothing".').
+newspaper_makula_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme". "dorme" is intransitive.
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede". "vedere" is the infinitive of "vede".
+The verb "conosce" means "knows". "conoscere" is the infinitive of "conosce".
+The verb "nuota" means "swims". "nuotare" is the infinitive of "nuota". "nuota" is intransitive. "nuotato" is the participle of "nuota".
+The verb "muore" means "dies". "morire" is the infinitive of "muore". "muore" is intransitive.
+The verb "conta" means "counts". "conta" is intransitive.
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è". "stato" is the participle of "è". "sia" is the subjunctive of "è".
+The verb "deve" means "must". "dovere" is the infinitive of "deve".
+The verb "arriva" means "arrives". "arrivare" is the infinitive of "arriva". "arrivi" is the subjunctive of "arriva". "arriva" is intransitive.
+The verb "dice" means "says". "dire" is the infinitive of "dice".
+The auxiliary "ha" means "has". 
+"seen" is the participle of "sees". "been" is the participle of "is".
+The number "due" means "two". The number "quattro" means "four". The masculine noun "numero" means "number". "numeri" is the plural of "numero".
+"visto" is the participle of "vede". "conosciuto" is the participle of "conosce".
+The feminine noun "anima" means "soul". The verb "anima" means "animates".
+"dormo" is the first person of "dorme". "mangio" is the first person of "mangia". "dormendo" is the gerund of "dorme".
+The adverb "circa" means "about". The masculine adjective "e mezzo" means "and a half". "e mezzo" is the plural of "e mezzo".
+The masculine noun "giugno" means "june". "giugno" is a month.
+The verb "vuole" means "wants". "volere" is the infinitive of "vuole".
+The pronoun "mi" means "me". "me lo" is the contraction of "mi lo".
+The pronoun "quello" means "that". The masculine demonstrative "quello" means "that". The word "quello" replaces the noun.
+The verb "crede" means "believes". "credo" is the first person of "crede". "credere" is the infinitive of "crede". "crede" takes the subjunctive.
+The verb "dà" means "gives". "dare" is the infinitive of "dà". The modal "può" means "can". "potere" is the infinitive of "può".
+"me la" is the contraction of "mi la". "se la" is the contraction of "si la". The pronoun "ti" means "you". "te lo" is the contraction of "ti lo".
+The word "per" begins the purpose. "acque" is the plural of "acqua".
+The word "come" means "how". The verb "sorprende" means "surprises". The pronoun "mi" means "me".
+"mangiato" is the participle of "mangia". "dormito" is the participle of "dorme". "arrivi" is the second person of "arriva". "arriva" is the third person of "arriva".
+The verb "apre" means "opens".
+The feminine noun "forma" means "shape". The feminine noun "terra" means "earth". The verb "salva" means "saves". "salva" is reflexive.
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one". "ci" is the impersonal of "si".').
+
+newspaper_makula_checks_1 :-
+    nf_tr('Dov''è il gatto?', italian, spanish, A1),
+    check('AN ELIDED QUESTION WORD IS UN-ELIDED: `Dov''è il gatto?'' is `dove è'' -- a group is found by the question word''s meaning and `dov'''' asked no elision, so the word was a preposition and the writers wrote `¿Dov'' es el gato?''', A1,
+          '¿Dónde es el gato?'),
+    nf_tr('Dov''è il gatto?', italian, english, A2),
+    check('... and in English', A2,
+          'Where is the cat?'),
+    nf_tr('Il gatto dev''essere in casa.', italian, spanish, A3),
+    check('AN ELIDED VERB FORM IS UN-ELIDED: `Il bagnino dev''essere lì per legge'' is `deve essere'' -- the lesson states the elision (`"dev''" is the elision of "deve".'') but a group is found by the forms of a verb, and `dev'''' began none', A3,
+          'El gato debe ser en casa.'),
+    nf_tr('El gato debe ser en casa.', spanish, italian, A4),
+    check('... and back: the elision of a verb form or a question word is not written, where the lesson says nothing of what it comes before -- `com''assicurano i palestinesi'', `paesi com''Alemania'' and `considerato com''il Van Gogh'' were written so, in ten sentences of the controls (`dev''essere'' is `deve essere'' back)', A4,
+          'Il gatto deve essere in casa.'),
+    nf_tr('Il gatto vede l''acqua.', italian, spanish, A5),
+    check('... and the articles, the pronouns and the prepositions keep their elisions, which their readers ask for: `l''acqua'' is the water, as it was', A5,
+          'El gato ve el agua.').
+
+newspaper_makula_checks_2 :-
+    nf_tr('Marco, 40 anni, romano, dorme.', italian, spanish, B1),
+    check('A SECOND ASIDE, AN ADJECTIVE, RIGHT AFTER THE AGE: `Stefano Makula, 40 anni, romano, l''acqua delle piscine la conosce bene'' -- the comma that closes the age opens the second aside, and the adjective had no comma before it for the rule that sets one off after a name, so the sentence was refused', B1,
+          'Marco, 40 años, romano, duerme.'),
+    nf_tr('Marco, 40 anni, romano, dorme.', italian, english, B2),
+    check('... and in English', B2,
+          'Marco, 40 years, roman, sleeps.'),
+    nf_tr('Marco, 40 anni, romano, l''acqua delle piscine la conosce bene.', italian, spanish, B3),
+    check('A PHRASE WITH PHRASES OF `OF'' AFTER IT, SET IN FRONT AND TAKEN UP BY A PRONOUN, IS THE VERB''S OBJECT: `l''acqua delle piscine la conosce bene'' is he knows the water of the pools well -- read alone it is the subject''s own dislocation, and after a subject with its asides the phrase and its phrases of `of'' were nobody''s', B3,
+          'Marco, 40 años, romano, conoce el agua de las piscinas bien.'),
+    nf_tr('Marco, 40 anni, romano, l''acqua delle piscine la conosce bene.', italian, english, B4),
+    check('... and in English', B4,
+          'Marco, 40 years, roman, knows the water of the pools well.'),
+    nf_tr('Il gatto vede la casa del cane che mangia l''anima.', italian, spanish, B5),
+    check('... and a phrase of `of'' is a plain phrase, a front a verb is no part of: `la forma della terra che ci si salva l''anima'' made `salva'' the end of the phrase and `l'''' the pronoun of the verb `anima'' (the soul, and he animates), so that one saves it animates', B5,
+          'El gato ve la casa del perro que come el alma.').
+
+newspaper_makula_checks_3 :-
+    nf_tr('Quanto tempo?', italian, spanish, C1),
+    check('A QUESTION WORD AND A PHRASE, NO VERB: `Quanto tempo?'' -- how much time, the question of an interview that asks how long; read with the verbless reader''s own phrase, `quanto'' was the adverb `as much'' -- `¿Cuanto tiempo?'' -- and the piece was refused', C1,
+          '¿Cuánto tiempo?'),
+    nf_tr('Quanto tempo?', italian, english, C2),
+    check('... and in English', C2,
+          'How much time?'),
+    nf_tr('Quattro minuti per non morire.', italian, spanish, C3),
+    check('A COUNT OF TIME AND A DENIED PURPOSE, NO VERB: `"quattro minuti per non morire"'' -- the headline of an interview; the word that denies stands between the purpose word and the infinitive, and English wrote `for not to die''', C3,
+          'Cuatro minutos para no morir.'),
+    nf_tr('Quattro minuti per non morire.', italian, english, C4),
+    check('... and in English', C4,
+          'Four minutes not to die.'),
+    nf_tr('Quattro minuti per morire.', italian, spanish, C5),
+    check('a GUARD: a purpose that is not denied is the same piece', C5,
+          'Cuatro minutos para morir.'),
+    nf_tr('¿Cuánto tiempo?', spanish, italian, C6),
+    check('... and back: Spanish''s `¿Cuánto tiempo?'' and `cuatro minutos para no morir''', C6,
+          'Quanto tempo?'),
+    nf_tr('Cuatro minutos para no morir.', spanish, italian, C7),
+    check('... and the denied purpose', C7,
+          'Quattro minuti per non morire.').
+
+newspaper_makula_checks_4 :-
+    nf_tr('Il gatto è più grande del cane.', italian, spanish, D1),
+    check('`DI'' AFTER A COMPARATIVE IS `THAN'': `Il soccorso immediato è più importante dell''ambulanza'' is more important THAN the ambulance -- read as the phrase of `of'' every writer said `de la ambulancia''', D1,
+          'El gato es mayor que el perro.'),
+    nf_tr('Il gatto è più grande del cane.', italian, english, D2),
+    check('... and in English', D2,
+          'The cat is bigger than the dog.'),
+    nf_tr('Il gatto dice come, in casa, il pane sia più importante del cane.', italian, spanish, D3),
+    check('... in a clause after `come'' that opens on a front: `spiega come, nei casi di annegamento, il soccorso immediato sia più importante dell''ambulanza'' -- the clause was read without what a clause''s own words say once it is read', D3,
+          'El gato dice cómo, en casa, el pan es más importante que el perro.'),
+    nf_tr('Il gatto è il più grande dei cani.', italian, spanish, D4),
+    check('a GUARD: the superlative''s `di'' is `of'', and its degree is never the comparative''s -- `il più grande dei cani''', D4,
+          'El gato es el mayor de los perros.'),
+    nf_tr('Il gatto dorme per un numero sempre più grande di cani.', italian, spanish, D5),
+    check('a GUARD: an adjective that belongs to a phrase before it keeps its `di'' -- `per un numero sempre maggiore di famiglie'' is a number, ever greater, OF families, and the reader sets that adjective among the clause''s own complements too', D5,
+          'El gato duerme para un número siempre mayor de perros.').
+
+newspaper_makula_checks_5 :-
+    nf_tr('Il gatto dorme due anni fa.', italian, spanish, E1),
+    check('`AGO'' IS WRITTEN BEFORE THE TIME where the lesson says its word begins the time (`The word "hace" begins the time.''): `due anni fa'' is `hace dos años'' -- the time came before the adverb in the IR and the Spanish writer put the adverb last', E1,
+          'El gato duerme hace dos años.'),
+    nf_tr('Due anni fa, il gatto ha nuotato.', italian, spanish, E2),
+    check('... in front too: `Due anni fa, il gatto ha nuotato''', E2,
+          'Hace dos años, el gato ha nadado.'),
+    nf_tr('Il gatto dorme due anni fa.', italian, english, E3),
+    check('... and English keeps the time first, as it always did', E3,
+          'The cat sleeps two years ago.'),
+    nf_tr('El gato duerme hace dos años.', spanish, italian, E4),
+    check('... and back: Spanish puts the adverb first and Italian writes `fa'' after the time', E4,
+          'Il gatto dorme due anni fa.'),
+    nf_tr('Un minuto e mezzo fa, in casa ha nuotato.', italian, spanish, E5),
+    check('A TIME WHEN `AGO'' IS LIFTED OUT AFTER IT IS AN ADJUNCT, NO SUBJECT: `Un mese e mezzo fa, al Foro Italico ha nuotato'' -- the month and a half, and then `fa''; read as the subject it swam, and a subject named is what makes a front end at the first comma', E5,
+          'Hace un minuto y medio, en casa, ha nadado.'),
+    nf_tr('Il gatto ha nuotato per quattro minuti.', italian, spanish, E6),
+    check('A DURATION TAKES THE WORD THE LESSON BEGINS IT WITH: `ha nuotato per quattro minuti'' is `durante cuatro minutos'', where the lesson''s word for `for'' is `para'', a purpose''s and a receiver''s', E6,
+          'El gato ha nadado durante cuatro minutos.'),
+    nf_tr('Il gatto ha nuotato per circa un minuto.', italian, spanish, E7),
+    check('... with an adverb before the count: `per circa un minuto'' -- the adverb was the phrase of `for'' and the minute a time of its own, so the word for a duration stands before both', E7,
+          'El gato ha nadado durante aproximadamente un minuto.'),
+    nf_tr('Il gatto ha nuotato per 152 metri.', italian, spanish, E8),
+    check('A MEASURE TAKES ITS OWN: `per 152 metri'' is `por 152 metros''', E8,
+          'El gato ha nadado por 152 metros.'),
+    nf_tr('Il gatto mangia il pane per il cane.', italian, spanish, E9),
+    check('a GUARD: a purpose keeps `para''', E9,
+          'El gato come el pan para el perro.'),
+    nf_tr('Il gatto mangia il pane per il mese.', italian, spanish, E10),
+    check('a GUARD: a time with no count is no duration -- `per il mese'' is for the month', E10,
+          'El gato come el pan para el mes.').
+
+newspaper_makula_checks_6 :-
+    nf_tr('Il gatto mangia prima che il cane arrivi.', italian, spanish, F1),
+    check('A WORD THE LESSON SAYS TAKES THE SUBJUNCTIVE READS ITS CLAUSE AS A CLAUSE OF `THAT'' IS READ, and writes it so: `passano quattro minuti prima che si producano danni'' is `antes de que se produzcan'' -- `Mangio prima che arrivi'' is before HE arrives, a second person no subjunctive''s third', F1,
+          'El gato come antes de que el perro llegue.'),
+    nf_tr('Io mangio prima che arrivi.', italian, spanish, F2),
+    check('... and with nobody named, where the verb alone says the person: `Mangio prima che arrivi'' is before HE arrives, not before you do', F2,
+          'Yo como antes de que llegue.'),
+    nf_tr('Il gatto mangia prima che il cane arrivi.', italian, english, F3),
+    check('... and the word is English''s `before''', F3,
+          'The cat eats before the dog arrives.'),
+    nf_tr('El gato come antes de que el perro llegue.', spanish, italian, F4),
+    check('... and back', F4,
+          'Il gatto mangia prima che il cane arrivi.'),
+    nf_tr('Io non credo che il cane arrivi.', italian, spanish, F5),
+    check('A VERB THE LESSON SAYS TAKES THE DENIAL HAS THE SUBJUNCTIVE ONLY WHEN IT IS DENIED: Spanish''s `creo que llega'' and `no creo que llegue'', where Italian''s `credo che arrivi'' has it either way', F5,
+          'Yo no creo que el perro llegue.'),
+    nf_tr('Io credo che il cane arrivi.', italian, spanish, F6),
+    check('... and not when it is not', F6,
+          'Yo creo que el perro llega.'),
+    nf_tr('Yo no creo que el perro llegue.', spanish, italian, F7),
+    check('... and back, the subjunctive read where the verb is denied', F7,
+          'Io non credo che il cane arrivi.').
+
+newspaper_makula_checks_7 :-
+    nf_tr('Io non dormo - dice il gatto - mangio.', italian, spanish, G1),
+    check('A SIDE THAT OPENS ON THE VERB OF THE FIRST OR THE SECOND PERSON IS A CLAUSE OF ITS OWN, whose subject is nobody named: `"Non so com''è andata a Fregene - premette - posso solo parlare in astratto."'' -- no subject comes first there, and the verb has none to take from the clause before it, as a third person''s would', G1,
+          'Yo no duermo – dice el gato – como.'),
+    nf_tr('Se il gatto, dormendo, non mangia, il cane dorme.', italian, english, G2),
+    check('A GERUND BETWEEN COMMAS AFTER A SUBJECT IS AN INSERTION: `Se la persona, andando giù, non ha bevuto'' is the person, going down, who has not drunk -- read as two pieces at the commas the second had nobody named, and English refused it', G2,
+          'If the cat, sleeping, does not eat, the dog sleeps.'),
+    nf_tr('Se il gatto, dormendo, non mangia, il cane dorme.', italian, spanish, G3),
+    check('... and the Spanish text, which the pieces wrote alike', G3,
+          'Si el gato, durmiendo, no come, el perro duerme.'),
+    nf_tr('Il gatto un anno dorme.', italian, spanish, G4),
+    check('A TIME BETWEEN THE SUBJECT AND ITS VERB WITH NO COMMA AROUND IT: `Anche lui un giorno rischiò di morire'' -- a determiner and a noun the lesson calls a time stand after the subject; they travel as an insertion and every writer puts them back after the subject', G4,
+          'El gato, un año, duerme.'),
+    nf_tr('Il gatto vede il pane due anni fa.', italian, spanish, G5),
+    check('A NUMBER WITH A NOUN OF ITS OWN AFTER A NOUN IS THE NEXT PHRASE''S COUNT: `ho visto il cane due anni fa'' -- `cane'' is an adjective too (bad), and read on, `due anni'' was the dog''s, the two dog years', G5,
+          'El gato ve el pan hace dos años.'),
+    nf_tr('Il 3 giugno, due anni fa, ha nuotato.', italian, spanish, G6),
+    check('A DATE OF A VERB THAT IS NO COPULA IS NO SUBJECT: `Il 3 giugno, due anni fa, ha nuotato'' is the day and the time before it -- read with the commas taken out the date was the swimmer, `El 3 de junio dos año ha nadado hace''', G6,
+          'El 3 de junio, hace dos años, ha nadado.'),
+    nf_tr('Quello che il cane mangia mi sorprende.', italian, spanish, G7),
+    check('A CLITIC AT THE END OF WHAT STANDS FOR A NOUN IS THE MAIN VERB''S: `Quello che è accaduto mi sorprende'' is what happened surprises me -- taken for the relative clause''s own, the main verb had nobody to be said of', G7,
+          'Aquello que el perro come me sorprende.').
+
+newspaper_makula_checks_8 :-
+    nf_tr('Il gatto vede l''acqua.', italian, spanish, H1),
+    check('A FEMININE NOUN WHOSE FIRST VOWEL IS A STRESSED `A'' TAKES THE MASCULINE ARTICLE IN THE SINGULAR where the lesson says it is euphonic (`"agua" is euphonic.''): `el agua'', `un águila'', never `la agua''', H1,
+          'El gato ve el agua.'),
+    nf_tr('Il gatto vede le acque.', italian, spanish, H2),
+    check('... and the plural is the feminine''s: `las aguas''', H2,
+          'El gato ve las aguas.'),
+    nf_tr('Il gatto vede la casa.', italian, spanish, H3),
+    check('a GUARD: any other feminine noun keeps its article', H3,
+          'El gato ve la casa.'),
+    nf_tr('Il gatto può darmela.', italian, spanish, H4),
+    check('AN INFINITIVE THAT ENDS IN `R'' TAKES THE STRESS MARK ON ITS LAST VOWEL BEFORE TWO PRONOUNS: Spanish''s `dártelo'', `tomársela'' -- with two pronouns joined the stress falls on the third syllable from the end, which a word of that shape marks', H4,
+          'El gato puede dármela.'),
+    nf_tr('Il gatto può darlo.', italian, spanish, H5),
+    check('... and one pronoun leaves it where it always falls: `darlo''', H5,
+          'El gato puede darlo.'),
+    nf_tr('El gato puede dártelo.', spanish, italian, H6),
+    check('... and back', H6,
+          'Il gatto può dartelo.'),
+    nf_tr('Il gatto vede il pane, quello del cane.', italian, spanish, H7),
+    check('A PHRASE THAT STANDS FOR A NOUN LEFT OUT IS THE NOUN AGAIN, no person: `il primo soccorso, quello del bagnino'' -- the first rescue, the lifeguard''s -- and with the marker of a person it came out `al del socorrista''', H7,
+          'El gato ve el pan, el del perro.').
+
+newspaper_makula_checks_9 :-
+    nf_tr('Non conta nulla che il cane dorme.', italian, english, I1),
+    check('A NEGATIVE PRONOUN FOR THE SUBJECT IS THE DENIAL IN ENGLISH, which has one to a clause: `non conta nulla che dopo venga portata nel miglior ospedale'' is `nothing counts that ...'', never `nothing does not count''', I1,
+          'Nothing counts that the dog sleeps.'),
+    nf_tr('Il gatto non vede nessuno.', italian, english, I2),
+    check('AND A NEGATIVE PRONOUN AFTER A DENIED VERB IS THE POSITIVE ONE: `non ho visto nessuno'' is `I have not seen anybody'', never `nobody''', I2,
+          'The cat does not see anybody.'),
+    nf_tr('Il gatto non conta nulla.', italian, english, I3),
+    check('... `non conta nulla'' is `does not count anything''', I3,
+          'The cat does not count anything.'),
+    nf_tr('Il gatto vede quello che il cane mangia.', italian, english, I4),
+    check('`THAT WHICH'' IS `WHAT'': `quello che è accaduto'' is what has happened, never `that that has happened''', I4,
+          'The cat sees what the dog eats.'),
+    nf_tr('Il gatto dorme un minuto e mezzo.', italian, english, I5),
+    check('`AND A HALF'' STANDS AFTER THE NOUN: `un minuto e mezzo'' is a minute and a half, where it was `an and a half minute''', I5,
+          'The cat sleeps a minute and a half.'),
+    nf_tr('È meglio.', italian, english, I6),
+    check('`IT IS BETTER'': `È ancora meglio'' -- an adverb that grades what is said, with the copula and nobody named', I6,
+          'It is better.').
+
+%% <<< makula
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16483 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16493 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1551,6 +1551,25 @@ The masculine noun "libro" means "book".
 The adverb "giustamente" means "precisely".
 The adjectival adverb "giustamente" means "justly".
 The masculine noun "consiglio" means "council".
+"com'" is the elision of "come".
+"dev'" is the elision of "deve".
+"sott" is the apocope of "sotto".
+"miglior" is the apocope of "migliore".
+"tirar" is the infinitive of "tira".
+The feminine noun "idrocuzione" means "hydrocution".
+The verb "chiarisce" means "clarifies".
+The verb "premette" means "clarifies".
+The adverb "per legge" means "by law".
+The preposition "insieme con" means "together with".
+"dov'" is the elision of "dove".
+"quand'" is the elision of "quando".
+"sott'" is the elision of "sotto".
+The adverb "sott'acqua" means "underwater".
+The adverb "sott acqua" means "underwater".
+"entra" is intransitive.
+The conjunction "prima che" means "before".
+"prima che" takes the subjunctive.
+"chiama" is reflexive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1754,6 +1773,15 @@ The masculine noun "sconto" means "discount".
 "sconti" is the plural of "sconto".
 The masculine noun "disaccordo" means "disagreement".
 "disaccordi" is the plural of "disaccordo".
+The feminine noun "pinna" means "fin".
+"pinne" is the plural of "pinna".
+The feminine noun "trachea" means "trachea".
+"trachee" is the plural of "trachea".
+The feminine noun "sincope" means "syncope".
+"sincopi" is the plural of "sincope".
+The noun "bagnante" means "bather".
+"bagnanti" is the plural of "bagnante".
+"bagnante" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -3080,7 +3108,6 @@ The masculine noun "bestemmiatore" means "swearer".
 The masculine noun "bubbone" means "swelling".
 "bubboni" is the plural of "bubbone".
 The noun "bagnante" means "swimmer".
-"bagnanti" is the plural of "bagnante".
 The masculine noun "altarino" means "tabernacle".
 "altarini" is the plural of "altarino".
 The masculine noun "buongusto" means "taste".
@@ -13153,7 +13180,6 @@ The masculine noun "sincronismo" means "synchronism".
 The feminine noun "sincronia" means "synchrony".
 "sincronie" is the plural of "sincronia".
 The feminine noun "sincope" means "syncopation".
-"sincopi" is the plural of "sincope".
 The masculine noun "sincretismo" means "syncretism".
 "sincretismi" is the plural of "sincretismo".
 The feminine noun "sindrome" means "syndrome".
@@ -16888,6 +16914,8 @@ The feminine noun "rassegna" means "festival".
 "rassegne" is the plural of "rassegna".
 The feminine noun "serata" means "evening".
 "serate" is the plural of "serata".
+The feminine noun "bibita" means "drink".
+"bibite" is the plural of "bibita".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -93697,6 +93725,55 @@ The verb "devolve" means "allocates".
 "devolte" is the plural of "devolta".
 "devolvere" is the infinitive of "devolve".
 "devolvendo" is the gerund of "devolve".
+The verb "coglie" means "overtakes".
+"colgono" is the plural of "coglie".
+"cogliamo" is the first person of "colgono".
+"colgo" is the first person of "coglie".
+"cogli" is the second person of "coglie".
+"colse" is the past of "coglie".
+"colsero" is the past of "colgono".
+"cogliemmo" is the first person of "colsero".
+"colsi" is the first person of "colse".
+"cogliesti" is the second person of "colse".
+"coglieva" is the imperfect of "coglie".
+"coglievano" is the imperfect of "colgono".
+"coglievamo" is the first person of "coglievano".
+"coglievo" is the first person of "coglieva".
+"coglievi" is the second person of "coglieva".
+"coglierà" is the future of "coglie".
+"coglieranno" is the plural of "coglierà".
+"coglieremo" is the first person of "coglieranno".
+"coglierò" is the first person of "coglierà".
+"coglierai" is the second person of "coglierà".
+"coglierebbe" is the conditional of "coglie".
+"coglierebbero" is the plural of "coglierebbe".
+"coglieremmo" is the first person of "coglierebbero".
+"coglierei" is the first person of "coglierebbe".
+"coglieresti" is the second person of "coglierebbe".
+"colga" is the subjunctive of "coglie".
+"colgano" is the plural of "colga".
+"cogliamo" is the first person of "colgano".
+"cogliesse" is the past subjunctive of "coglie".
+"cogliessero" is the plural of "cogliesse".
+"cogliessimo" is the first person of "cogliessero".
+"cogliessi" is the first person of "cogliesse".
+"cogliessi" is the second person of "cogliesse".
+"cogli" is the imperative of "coglie".
+"cogliere" is the negative imperative of "coglie".
+"cogliete" is the imperative of "colgono".
+"cogliamo" is the hortative of "coglie".
+"colto" is the participle of "coglie".
+"colta" is the participle of "coglie".
+"colta" is feminine.
+"colti" is the participle of "coglie".
+"colti" is the plural of "colto".
+"colte" is the participle of "coglie".
+"colte" is feminine.
+"colte" is the plural of "colta".
+"cogliere" is the infinitive of "coglie".
+"cogliendo" is the gerund of "coglie".
+"overtook" is the past of "overtakes".
+"overtaken" is the participle of "overtakes".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -115251,6 +115328,42 @@ The feminine adjective "impegnata" means "committed".
 "impegnatissimi" is the superlative of "impegnati".
 "impegnatissima" is the superlative of "impegnata".
 "impegnatissime" is the superlative of "impegnate".
+The adjective "efficiente" means "efficient".
+"efficienti" is the plural of "efficiente".
+"efficientissimo" is the superlative of "efficiente".
+"efficientissimi" is the superlative of "efficienti".
+"efficientissima" is the superlative of "efficiente".
+"efficientissime" is the superlative of "efficienti".
+The masculine adjective "tempestivo" means "timely".
+"tempestivi" is the plural of "tempestivo".
+The feminine adjective "tempestiva" means "timely".
+"tempestive" is the plural of "tempestiva".
+"tempestivissimo" is the superlative of "tempestivo".
+"tempestivissimi" is the superlative of "tempestivi".
+"tempestivissima" is the superlative of "tempestiva".
+"tempestivissime" is the superlative of "tempestive".
+The adjective "inderogabile" means "mandatory".
+"inderogabili" is the plural of "inderogabile".
+"inderogabilissimo" is the superlative of "inderogabile".
+"inderogabilissimi" is the superlative of "inderogabili".
+"inderogabilissima" is the superlative of "inderogabile".
+"inderogabilissime" is the superlative of "inderogabili".
+The masculine adjective "ghiacciato" means "freezing".
+"ghiacciati" is the plural of "ghiacciato".
+The feminine adjective "ghiacciata" means "freezing".
+"ghiacciate" is the plural of "ghiacciata".
+"ghiacciatissimo" is the superlative of "ghiacciato".
+"ghiacciatissimi" is the superlative of "ghiacciati".
+"ghiacciatissima" is the superlative of "ghiacciata".
+"ghiacciatissime" is the superlative of "ghiacciate".
+The masculine adjective "valido" means "valid".
+"validi" is the plural of "valido".
+The feminine adjective "valida" means "valid".
+"valide" is the plural of "valida".
+"validissimo" is the superlative of "valido".
+"validissimi" is the superlative of "validi".
+"validissima" is the superlative of "valida".
+"validissime" is the superlative of "valide".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -115602,7 +115715,6 @@ The masculine adjective "economico" means "economic".
 The feminine adjective "economica" means "economic".
 The masculine adjective "economico" means "economical".
 The feminine adjective "economica" means "economical".
-The adjective "efficace" means "efficient".
 The adjective "grande" means "elder".
 The masculine adjective "eletto" means "elect".
 The feminine adjective "eletta" means "elect".
