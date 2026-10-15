@@ -137,6 +137,9 @@ strings :-
     answer(( atom_string('¡¡ñandú!!', S5), split_string(S5, "", "¡!", P5),
              maplist(atom_string, A5, P5) ), A5, G5),
     check('and a pad of characters off both ends', G5, ['ñandú']),
+    answer(( atom_string('éaáb', S7), split_string(S7, "á", "é", P7),
+             maplist(atom_string, A7, P7) ), A7, G7),
+    check('a pad whose first byte a separator shares is another character (bytes: [a,'''',b])', G7, [a,b]),
     answer(( atom_string('dár', S6), sub_string(S6, 1, 1, A6, Sub6), atom_string(At6, Sub6) ),
            A6-At6, G6),
     check('sub_string counts characters', G6, 1-'á').

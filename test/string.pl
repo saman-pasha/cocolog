@@ -85,7 +85,22 @@ splitting :-
     answer((split_string("abc", "", "", P3), length(P3, N3)), N3, G3),
     check('no separators means one field', G3, 1),
     answer((split_string("  ab  ", "", " ", [S4]), atom_string(A4, S4)), A4, G4),
-    check('padding is stripped', G4, ab).
+    check('padding is stripped', G4, ab),
+    % SWI's rule when the pad holds a separator (1.13.1), each answer swipl
+    % 9.0.4's: the pad is skipped before a field, separators with it
+    answer((split_string("/home//jan///nice/path", "/", "/", P5), maplist(atom_string, A5, P5)), A5, G5),
+    check('a separator that is also a pad: a run of them is one cut (SWI''s own example)', G5,
+          [home, jan, nice, path]),
+    answer((split_string("/home//jan///nice/path", "/", "", P6), maplist(atom_string, A6, P6)), A6, G6),
+    check('and with no pad every separator cuts', G6, ['', home, '', jan, '', '', nice, path]),
+    answer((split_string("  a b  ", " ", " ", P7), maplist(atom_string, A7, P7)), A7, G7),
+    check('words at a space with a space for the pad: no empty field at either end', G7, [a, b]),
+    answer((split_string("   ", " ", " ", P8), maplist(atom_string, A8, P8)), A8, G8),
+    check('a string all pad is one empty field', G8, ['']),
+    answer((split_string("a, ,b", ",", " ", P9), maplist(atom_string, A9, P9)), A9, G9),
+    check('a separator that is no pad keeps the field after it', G9, [a, '', b]),
+    answer((split_string(",aab", ",a", "a", P10), maplist(atom_string, A10, P10)), A10, G10),
+    check('and skips no pad when another separator follows it at once', G10, ['', '', b]).
 
 %% ---- sub_string/5 backtracks, which is why it is a clause ------------------
 substrings :-

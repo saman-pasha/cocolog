@@ -7027,12 +7027,6 @@
           (coco_sb_free (aof b))
           (return (? r 1 0))))
 
-  (static)
-  (func coco_str_member ((char c) (coco_strbuf * set)) (out int)
-        (for ((size_t i . 0)) (< i ($ (cof set) len)) ((++ i))
-             (if (== (nth i ($ (cof set) s)) c) (return 1)))
-        (return 0))
-
   ;;; Whether character C is one of SET's characters (1.13.0).
   (static)
   (func coco_str_cmember ((i64 c) (coco_strbuf * set)) (out int)
@@ -7041,46 +7035,117 @@
             (if (== (coco_utf8_get ($ (cof set) s) ($ (cof set) len) (aof i)) c) (return 1)))
           (return 0)))
 
-  ;;; split_string/4 UNDER `text_units = characters' (1.13.0): the same
-  ;;; fields as in bytes, but a separator and a pad are each a CHARACTER, of
-  ;;; however many bytes, so `split_string("dár", "á", "", L)' is ["d","r"]
-  ;;; where bytes cut at both of á's. FS holds each field's first byte and
-  ;;; the byte after it; the pad comes off a character at a time, the back
-  ;;; found walking forward (UTF-8 is read forwards).
+  ;;; split_string/4's SEP or PAD as a table of 256 (1.13.1): in bytes every
+  ;;; byte's answer; under characters an ASCII code point's, and the answer
+  ;;; is whether the set holds a character past ASCII, which
+  ;;; `coco_split_in' then asks of the set's text.
   (static)
-  (func coco_split_chars ((coco_machine * m) (coco_strbuf * str) (coco_strbuf * sep) (coco_strbuf * pad)) (out size_t)
-        (let ((const char * s . #'($ (cof str) s)) (size_t n . #'($ (cof str) len))
-              (size_t * fs . nil) (size_t nf . 0) (size_t i . 0) (size_t out . 0))
-          (set fs (cast (size_t *) (malloc (* (sizeof size_t) (* 2 (+ n 1))))))
-          (if (== fs nil) (block (set (-> m oom) 1) (return (coco_new_atom m "[]"))))
-          (set (nth 0 fs) 0)
-          (while (< i n)
-            (let ((size_t k . i))
-              (if (coco_str_cmember (coco_utf8_get s n (aof i)) sep)
-                  (block (set (nth (+ (* 2 nf) 1) fs) k)
-                         (set nf (+ nf 1))
-                         (set (nth (* 2 nf) fs) i)))))
-          (set (nth (+ (* 2 nf) 1) fs) n)
-          (set nf (+ nf 1))
-          (set out (coco_new_atom m "[]"))
-          (while (> nf 0)
-            (set nf (- nf 1))
-            (let ((size_t from . #'(nth (* 2 nf) fs)) (size_t to . #'(nth (+ (* 2 nf) 1) fs))
-                  (size_t j . 0) (size_t first . 0) (size_t end . 0) (int found . 0))
-              ;; FIRST the field's first character that is no pad, END the
-              ;; byte after its last; a field all pad is empty
-              (set j from)
-              (while (< j to)
-                (let ((size_t k . j))
-                  (if (not (coco_str_cmember (coco_utf8_get s to (aof j)) pad))
-                      (block (if (not found) (block (set first k) (set found 1)))
-                             (set end j)))))
-              (set out (coco_cons m (? found
-                                       (coco_new_string m (+ s first) (- end first))
-                                       (coco_new_string m s 0))
-                                  out))))
-          (free fs)
-          (return out)))
+  (func coco_split_set ((coco_strbuf * set) (int ch) (u8 * tab)) (out int)
+        (let ((int wide . 0))
+          (memset tab 0 256)
+          (for ((size_t k . 0)) (< k ($ (cof set) len)) ((++ k))
+               (let ((int b . #'(bitand (cast int (nth k ($ (cof set) s))) 255)))
+                 (if (or (not ch) (< b 128)) (set (nth b tab) 1) (set wide 1))))
+          (return wide)))
+
+  ;;; Whether C, a byte in bytes or a code point under characters, is one
+  ;;; of the set TAB and WIDE describe (`coco_split_set').
+  (static) (inline)
+  (func coco_split_in ((i64 c) (int ch) (u8 * tab) (int wide) (coco_strbuf * set)) (out int)
+        (if (or (not ch) (< c 128)) (return (nth c tab)))
+        (return (? wide (coco_str_cmember c set) 0)))
+
+  ;;; The character of S (N bytes) at *I, *I moved past it: a byte in
+  ;;; bytes, a code point under characters.
+  (static) (inline)
+  (func coco_split_next ((const char * s) (size_t n) (size_t * i) (int ch)) (out i64)
+        (let ((i64 b . #'(bitand (cast i64 (nth (cof i) s)) 255)))
+          (if (and ch (>= b 128)) (return (coco_utf8_get s n i)))
+          (set (cof i) (+ (cof i) 1))
+          (return b)))
+
+  ;;; Byte I of S, as an index into a set's table.
+  (static) (inline)
+  (func coco_split_byte ((const char * s) (size_t i)) (out int)
+        (return (bitand (cast int (nth i s)) 255)))
+
+  ;;; split_string/4's FIELDS, SWI's rule (pl-string.c of 9.0.4, to the
+  ;;; letter) in the program's units (1.13.1). The pad comes off the END of
+  ;;; the whole string first. Then each field skips the pad before it --
+  ;;; past a separator that is also a pad, which is how "a  b" split at a
+  ;;; space with a space for the pad is ["a","b"], and "/home//jan" split at
+  ;;; "/" with "/" for the pad ["home","jan"] -- runs to the next separator,
+  ;;; and leaves the pad at its end out; a field that finds only pad is the
+  ;;; empty one at the end. A separator that is no pad, with another
+  ;;; separator straight after it, skips nothing, so the field between them
+  ;;; is there, empty. Through 1.13.0 every separator cut and every field
+  ;;; lost its pad after, and "a  b" was ["a","","b"]. FS gets each field's
+  ;;; first byte and the byte after it; the answer is how many (at most
+  ;;; N + 1).
+  (static)
+  (func coco_split_fields ((const char * s) (size_t n) (int ch)
+                           (u8 * stab) (int swide) (coco_strbuf * sep)
+                           (u8 * ptab) (int pwide) (coco_strbuf * pad) (size_t * fs)) (out size_t)
+        (let ((size_t end . 0) (size_t i . 0) (size_t nf . 0) (int skip . 1))
+          ;; END, the byte after the last character that is no pad: walked
+          ;; back over bytes, and forward over characters (UTF-8 is read
+          ;; forwards)
+          (if ch
+              (while (< i n)
+                (if (not (coco_split_in (coco_split_next s n (aof i) ch) ch ptab pwide pad))
+                    (set end i)))
+              (block (set end n)
+                     (while (and (> end 0) (nth (coco_split_byte s (- end 1)) ptab))
+                       (set end (- end 1)))))
+          (set i 0)
+          (while 1
+            (if skip
+                (block
+                  (if ch
+                      (while (< i end)
+                        (let ((size_t k . i))
+                          (if (not (coco_split_in (coco_split_next s n (aof k) ch) ch ptab pwide pad))
+                              break)
+                          (set i k)))
+                      (while (and (< i end) (nth (coco_split_byte s i) ptab))
+                        (set i (+ i 1))))
+                  (if (== i end)
+                      (block (set (nth (* 2 nf) fs) end)
+                             (set (nth (+ (* 2 nf) 1) fs) end)
+                             (return (+ nf 1))))))
+            (let ((size_t last . i) (size_t tend . i) (i64 c . 0) (int found . 0))
+              ;; to the separator, the pad before it left out: in bytes
+              ;; walked back from the separator, as SWI does, and under
+              ;; characters remembered on the way (the back of a character
+              ;; is found from its front)
+              (if ch
+                  (while (< i end)
+                    (let ((size_t k . i))
+                      (set c (coco_split_next s n (aof k) ch))
+                      (if (coco_split_in c ch stab swide sep)
+                          (block (set found 1) (set i k) break))
+                      (if (not (coco_split_in c ch ptab pwide pad)) (set tend k))
+                      (set i k)))
+                  (block
+                    (while (and (< i end) (not (nth (coco_split_byte s i) stab)))
+                      (set i (+ i 1)))
+                    (set tend i)
+                    (while (and (> tend last) (nth (coco_split_byte s (- tend 1)) ptab))
+                      (set tend (- tend 1)))
+                    (if (< i end)
+                        (block (set found 1)
+                               (set c (coco_split_byte s i))
+                               (set i (+ i 1))))))
+              (set (nth (* 2 nf) fs) last)
+              (set (nth (+ (* 2 nf) 1) fs) tend)
+              (set nf (+ nf 1))
+              (if (not found) (return nf))
+              ;; I is past the separator C
+              (set skip 1)
+              (if (and (not (coco_split_in c ch ptab pwide pad)) (< i end))
+                  (let ((size_t k . i))
+                    (if (coco_split_in (coco_split_next s n (aof k) ch) ch stab swide sep)
+                        (set skip 0))))))))
 
   (func coco_bi_string_length ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
@@ -7172,17 +7237,17 @@
 
   ;;; split_string(+String, +SepChars, +PadChars, -SubStrings)
   ;;;
-  ;;; SWI's, including the two rules everybody trips over: with NO separators
-  ;;; the answer is a one-element list holding the padded string, and with
-  ;;; separators the answer always has one more element than there were
-  ;;; separators -- so `split_string("a,,b", ",", "", X)' gives three, the
-  ;;; middle one empty. Padding is stripped from BOTH ends of every field,
-  ;;; after splitting.
+  ;;; SWI's, to its pl-string.c (`coco_split_fields'), in bytes or in
+  ;;; characters as the program counts: with NO separators the answer is a
+  ;;; one-element list holding the string less its pad, a separator that
+  ;;; is no pad cuts wherever it stands -- `split_string("a,,b", ",", "",
+  ;;; X)' gives three, the middle one empty -- and one that is also a pad
+  ;;; is skipped with the pad, so a run of them is one cut.
   (func coco_bi_split_string ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_strbuf str) (coco_strbuf sep) (coco_strbuf pad)
-              (size_t out . 0) (int r . 0) (size_t start . 0) (size_t i . 0)
-              (size_t * ends . nil) (size_t nends . 0))
+              (u8 stab [256]) (u8 ptab [256]) (int swide . 0) (int pwide . 0) (int ch . 0)
+              (size_t out . 0) (int r . 0) (size_t * fs . nil) (size_t nf . 0))
           (if (not (coco_str_arg e (coco_arg m g 0) (aof str)))
               (return (coco_instantiation_error e)))
           (if (not (coco_str_arg e (coco_arg m g 1) (aof sep)))
@@ -7190,34 +7255,23 @@
           (if (not (coco_str_arg e (coco_arg m g 2) (aof pad)))
               (block (coco_sb_free (aof str)) (coco_sb_free (aof sep))
                      (return (coco_instantiation_error e))))
-          (if (-> m text_chars)
-              (block (set out (coco_split_chars m (aof str) (aof sep) (aof pad)))
-                     (set r (coco_unify m (coco_arg m g 3) out))
-                     (coco_sb_free (aof str)) (coco_sb_free (aof sep)) (coco_sb_free (aof pad))
-                     (return (? r 1 0))))
+          (set ch (-> m text_chars))
+          (set swide (coco_split_set (aof sep) ch stab))
+          (set pwide (coco_split_set (aof pad) ch ptab))
+          (set fs (cast (size_t *) (malloc (* (sizeof size_t) (* 2 (+ ($ str len) 1))))))
+          (if (== fs nil)
+              (block (coco_sb_free (aof str)) (coco_sb_free (aof sep)) (coco_sb_free (aof pad))
+                     (return (coco_mem_error e))))
+          (set nf (coco_split_fields ($ str s) ($ str len) ch stab swide (aof sep)
+                                     ptab pwide (aof pad) fs))
           ;; BUILT BACK TO FRONT, because a list is built from its tail.
-          (set ends (cast (size_t *) (malloc (* (sizeof size_t) (+ ($ str len) 2)))))
-          (if (== ends nil)
-              (block (coco_sb_free (aof str)) (coco_sb_free (aof sep))
-                     (coco_sb_free (aof pad)) (return 0)))
-          (set (nth 0 ends) 0)
-          (set nends 1)
-          (for ((size_t k . 0)) (< k ($ str len)) ((++ k))
-               (if (coco_str_member (nth k ($ str s)) (aof sep))
-                   (block (set (nth nends ends) (+ k 1)) (set nends (+ nends 1)))))
           (set out (coco_new_atom m "[]"))
-          (set i nends)
-          (while (> i 0)
-            (set i (- i 1))
-            (let ((size_t from . #'(nth i ends))
-                  (size_t to . #'(? (< (+ i 1) nends) (- (nth (+ i 1) ends) 1) ($ str len))))
-              (while (and (< from to) (coco_str_member (nth from ($ str s)) (aof pad)))
-                (set from (+ from 1)))
-              (while (and (> to from) (coco_str_member (nth (- to 1) ($ str s)) (aof pad)))
-                (set to (- to 1)))
-              (set out (coco_cons m (coco_new_string m (+ ($ str s) from) (- to from)) out))))
-          (set start start)
-          (free ends)
+          (while (> nf 0)
+            (set nf (- nf 1))
+            (set out (coco_cons m (coco_new_string m (+ ($ str s) (nth (* 2 nf) fs))
+                                                   (- (nth (+ (* 2 nf) 1) fs) (nth (* 2 nf) fs)))
+                                out)))
+          (free fs)
           (set r (coco_unify m (coco_arg m g 3) out))
           (coco_sb_free (aof str)) (coco_sb_free (aof sep)) (coco_sb_free (aof pad))
           (return (? r 1 0))))

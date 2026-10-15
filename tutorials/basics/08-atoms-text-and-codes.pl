@@ -8,7 +8,7 @@
 %%     "hi"   IS   [104, 105]
 %%
 %% and not a string object -- unless the file says otherwise. There IS a
-%% string type now (library 37 is its whole lesson); what there is not is
+%% string type now (test/string.pl holds it to SWI's); what there is not is
 %% a double-quoted literal that gives you one for free.
 %%
 %% SO TEXT COMES IN THREE SHAPES, and you convert between them:
@@ -93,6 +93,15 @@ main :-
     must('with a separator', Dashed, 'a-b-c'),
     atomic_list_concat(Parts, '-', 'a-b-c'),
     must('and SPLITTING with the same predicate', Parts, [a, b, c]),
+    %% split_string/4 CUTS AT EVERY SEPARATOR, and takes the pad off each
+    %% field -- but the pad is skipped BEFORE a field, separators and all,
+    %% so with a space for both a run of spaces is one cut (SWI's rule).
+    split_string("a b  c ", " ", " ", Words),
+    maplist(atom_string, WordAtoms, Words),
+    must('split_string at a space, a space for the pad', WordAtoms, [a, b, c]),
+    split_string("a,,b", ",", "", Fields),
+    maplist(atom_string, FieldAtoms, Fields),
+    must('with no pad, two separators hold an empty field', FieldAtoms, [a, '', b]),
 
     format("~n-- atom_concat/3 runs backwards -- but ONE WAY AT A TIME~n"),
     atom_concat(Front, bc, abc),
