@@ -13,6 +13,7 @@
 main :-
     tokens, facts, copula, negation, rules, relative, mentions, lexicon, naming,
     round_trip, refusals, places, state, questions, quantities, explains, topics, prose, declares, refused, truth, errors,
+    version,
     checks_done.
 
 %% ---- the tokeniser -----------------------------------------------------
@@ -745,3 +746,34 @@ errors :-
     check('not text: type_error', E1, type_error(text, 42)),
     catch(( reason_text(f(x), _), E2 = none ), error(E2, _), true),
     check('a compound is not text either', E2, type_error(text, f(x))).
+
+%% ---- the library's own version ----------------------------------------------------------
+%%
+%% What is pinned is the SHAPE, as test/argv.pl pins cocolog's: three integers, the atom
+%% they make, one answer each. Never the number -- a commit that changes library/reasoning/
+%% moves it, and this case must not need to move with it.
+
+version :-
+    section('version'),
+    reason_version(Ma, Mi, Pa),
+    (   integer(Ma), integer(Mi), integer(Pa), Ma >= 0, Mi >= 0, Pa >= 0
+    ->  check('three integers, none negative', yes, yes)
+    ;   check('three integers, none negative', [Ma, Mi, Pa], 'integers >= 0')
+    ),
+    reason_version(V),
+    (   atom(V)
+    ->  check('the version is an atom', yes, yes)
+    ;   check('the version is an atom', V, 'an atom')
+    ),
+    atomic_list_concat([Ma, Mi, Pa], '.', Joined),
+    check('and it is the three integers joined by dots', V, Joined),
+    (   atomic_list_concat(Parts, '.', V), length(Parts, 3), forall(member(P, Parts), atom_number(P, _))
+    ->  check('three dotted numbers, and nothing else', yes, yes)
+    ;   check('three dotted numbers, and nothing else', V, 'X.Y.Z')
+    ),
+    findall(V1, reason_version(V1), Vs),
+    check('reason_version/1 answers once', Vs, [V]),
+    findall(M, reason_version(M, _, _), Ms),
+    check('reason_version/3 answers once', Ms, [Ma]),
+    (   reason_version(not_a_version) -> R1 = yes ; R1 = no ),
+    check('an atom that is not the version does not unify', R1, no).

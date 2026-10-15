@@ -489,7 +489,10 @@ to stderr the way a usage message should. The number goes up with every
 change that produces a new binary — the patch by default, the minor when
 something new is reachable from a program, the major when a program that
 worked stops working. A documentation-only commit does not bump it: there is
-no new binary for the number to describe.
+no new binary for the number to describe. The reasoning library under
+`library/reasoning/` has a number of its own, so that a change to the
+translator does not move `--version`: `reason_version/1` answers it as an atom
+(`X.Y.Z`) and `reason_version/3` as the three integers.
 
 There is one `cocolog` binary and it is the full one: the interpreter and the
 embedded MVCCS engine, both in it, and every module beside it in `library/`,

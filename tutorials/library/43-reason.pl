@@ -28,6 +28,13 @@
 %% existential in a head; `the server' is the constant `server'; and a
 %% negative sentence is neg/1, a term you can store and query, never \+,
 %% which is a question about provability and not a claim the text made.
+%%
+%% THE LIBRARY HAS A VERSION OF ITS OWN. Everything under library/reasoning/
+%% -- this grammar, the translator, the tagger, the lexicon, the lessons --
+%% moves a number that is not cocolog's: reason_version/1 answers it as an
+%% atom and reason_version/3 as the three integers a program compares, and
+%% section 18 shows both. A change to the library moves that number and
+%% leaves `cocolog --version' alone.
 
 :- use_module(library(reasoning/reason)).
 
@@ -160,6 +167,7 @@ main :-
     explanation,
     topics,
     prose,
+    version,
     format("~ndone~n", []).
 
 %% section 13 is a clause of its own: a lesson's main/0 must still fit a
@@ -264,6 +272,25 @@ prose :-
         must('and a typed question, `she'' being Kim', A14, yes(fact))
     ;   format("   (no shipped tagger here: library(torch) and library/reasoning/model.rows -- the grammar above needs neither)~n", [])
     ).
+
+%% section 18: the library's own version. The lesson pins its SHAPE -- three
+%% integers and the atom they make -- and never the number: a commit that
+%% changes library/reasoning/ moves it, and a lesson must not need to move
+%% with it.
+version :-
+    format("~n18. The library's own version -- a number of its own, not cocolog's~n", []),
+    reason_version(Ma, Mi, Pa),
+    reason_version(V),
+    show('the version, as the atom a person reads', V),
+    show('and as the three integers a program compares', [Ma, Mi, Pa]),
+    ( integer(Ma), integer(Mi), integer(Pa) -> D18a = yes ; D18a = no ),
+    must('three integers', D18a, yes),
+    atomic_list_concat([Ma, Mi, Pa], '.', Joined),
+    must('and the atom is those three joined by dots', V, Joined),
+    ( '1.10.0' @< '1.9.0' -> D18b = yes ; D18b = no ),
+    must('as atoms 1.10.0 sorts BEFORE 1.9.0, so a program does not compare the atom', D18b, yes),
+    ( [1, 10, 0] @> [1, 9, 0] -> D18c = yes ; D18c = no ),
+    must('as lists of integers it sorts after, which is what [Major, Minor, Patch] is for', D18c, yes).
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

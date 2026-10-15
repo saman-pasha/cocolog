@@ -1805,6 +1805,19 @@ nothing at all on stderr. A case that named the number would be a second
 place to edit on every change, and the one somebody forgets, which turns a
 release into a red suite.
 
+**The reasoning library has a number of its own** (it carried cocolog's through
+1.13.3 and began its own at 1.0.0). Its changes -- the sample loop's articles,
+the corpus, the shipped model -- had spent cocolog's patch, so the translator's
+branch and the engine's `master` kept taking the same number for different
+things (1.8.31 and 1.8.32 once, 1.8.35 for the join). `reason_version/3` is a fact at the top
+of `library/reasoning/reason.pl` and `reason_version/1` is made from it; the
+rules for moving it are CLAUDE.md's, and `cocolog --version` stays where the
+binary and the other libraries leave it. `test/reason.pl`'s section `version`
+pins the SHAPE and not the number, as `test/argv.pl` does for cocolog's: three
+integers, the atom they make, one answer each -- 7 checks, each of four arms
+red (a field that is no integer, a second clause, the atom joined by commas, a
+fixed atom) -- and lesson 43's section 18 shows both forms.
+
 ## op/3, and what it forced about the database
 
 `*operators*` is read at BUILD time and emits both halves of the grammar, which
