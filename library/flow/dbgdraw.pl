@@ -73,7 +73,8 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
     flow_option(discs(ND), Opts, 24),
     flow_dbg_discs(Xs, ND, Discs),
     flow_option(text(TM), Opts, 60),
-    flow_dbg_summary(Run, Names, Calls, SEs, Throws, TM, Sum).
+    flow_why_own_opt(Opts, Own),
+    flow_dbg_summary(Run, Names, Calls, SEs, Throws, TM, Own, Sum).
 
 %% AN EXCEPTION ENDS CALLS WITH NO PORT: the call that raised it (the last
 %% one made in the body the throw was recorded in) and every call it
@@ -376,15 +377,16 @@ flow_dbg_number([X|Xs], K, [d(K, X)|Ds]) :-
 %% ---- how it ended -------------------------------------------------------
 %%
 %% sum(Goal, Names, Replay, Probe, From, To, Whole, Diverged, NCalls,
-%%     LastFail, LastThrow, Journal)
+%%     LastFail, LastThrow, Journal, Own)
 %%
 %% Journal none, or jr(Entries, Answered, JBoxes, JCalls, TM): the probe's
 %% entries, how many of them the replay answered, each box -> how many of
 %% its calls in the window were answered, each such call's inference -> its
-%% entry, and text(N)'s length, which the XML cuts an entry's values at
+%% entry, and text(N)'s length, which the XML cuts an entry's values at.
+%% Own whose calls the why explains (own(...), dbgwhy.pl)
 
-flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _, Journal), Names, Calls, SEs, Throws, TM,
-                 sum(Goal, Names, Replay, Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr)) :-
+flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _, Journal), Names, Calls, SEs, Throws, TM, Own,
+                 sum(Goal, Names, Replay, Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr, Own)) :-
     Probe = end(_, PU, _),
     (   F =:= 1, T >= PU -> Whole = true ; Whole = false ),
     flow_dbg_diverged(Probe, Replay, T, Div),
@@ -485,7 +487,7 @@ flow_dbg_until_call([E|Es], Acc, Tail) :-
 %% the run as flow_debug/4 hands it back
 flow_dbg_out(dbg(Sum, _, Calls, _, _, _, Xs, _, _),
              run(How, At, Answers, window(F, T), Calls, Bindings, Div, Journal)) :-
-    Sum = sum(_, _, end(How, At, Answers), _, F, T, _, Div, _, _, _, Jr),
+    Sum = sum(_, _, end(How, At, Answers), _, F, T, _, Div, _, _, _, Jr, _),
     findall(x(I, P, S, Nm, V, Box), member(x(I, P, S, Nm, V, Box, _), Xs), Bindings),
     (   Jr = jr(Es, _, _, _, _) -> Journal = journal(Es) ; Journal = none ).
 
@@ -785,7 +787,7 @@ flow_dbg_els([P|Ps], Els) :-
 %% ---- the banner: how the run ended, and what was recorded --------------
 
 flow_dbg_banner(dbg(Sum, _, Calls, _, _, _, _, _, _), Ps, H) :-
-    Sum = sum(Goal, Names, end(How, Used, Ats), Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr),
+    Sum = sum(Goal, Names, end(How, Used, Ats), Probe, F, T, Whole, Div, NC, LastFail, Throw, Jr, _),
     flow_term_full(Goal, Names, 999, GT0),
     flow_clip(GT0, 90, GT),
     flow_dbg_end_text(How, Used, Ats, ET, Col),
@@ -936,34 +938,71 @@ flow_dbg_section(Facts, MaxW, Ps, H) :-
 
 flow_dbg_why_block(Facts, Y0, Ps, YEnd) :-
     Facts = dbg(Sum, _, Calls, _, _, _, _, _, _),
+    arg(13, Sum, Own),
     (   arg(3, Sum, end(false, _, _))
-    ->  flow_dbg_why(Calls, Whys),
-        flow_dbg_why_lines(Whys, 0, Ls0, []),
-        length(Ls0, NL),
-        (   NL > 60
-        ->  length(Ls1, 60), append(Ls1, _, Ls0),
-            Rest is NL - 60,
-            format(atom(More), '⋯  and ~d more lines: the XML''s <why> has every one', [Rest]),
-            append(Ls1, [l(0, [s(More, muted)])], Ls)
-        ;   Ls = Ls0
-        ),
+    ->  flow_dbg_why(Calls, Own, Whys),
+        flow_dbg_why_cap(Whys, Ls),
         flow_why_furthest(Whys, Path),
         Y1 is Y0 + 46,
-        (   Path == []
-        ->  FPs = [], Y1b = Y1
-        ;   FTitle = t(24, Y1, start, 10, sans, bold, [s('where it got furthest', muted)]),
-            flow_dbg_furthest_lines(Path, 0, FLs),
-            Y1a is Y1 + 24,
-            flow_dbg_why_prims(FLs, Y1a, FPs0, Y1c),
-            FPs = [FTitle|FPs0],
-            Y1b is Y1c + 22
-        ),
+        flow_dbg_furthest_block(Path, Y1, FPs, Y1b),
         Title = t(24, Y1b, start, 10, sans, bold, [s('why it failed', muted)]),
         Y2 is Y1b + 24,
         flow_dbg_why_prims(Ls, Y2, WPs, YEnd),
         append(FPs, [Title|WPs], Ps)
+    ;   arg(3, Sum, end(exception(_), _, _))
+    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
+        Y1 is Y0 + 46,
+        RTitle = t(24, Y1, start, 10, sans, bold, [s('where the exception was raised', muted)]),
+        flow_dbg_chain_lines(Chain, 0, CLs),
+        Y1a is Y1 + 24,
+        flow_dbg_why_prims(CLs, Y1a, CPs, Y1c),
+        (   Answered == none
+        ->  Y2 is Y1c + 22,
+            NPs = [t(24, Y2, start, 10, sans, normal,
+                     [s('no call failed, having tried a clause, before the raise on its way down', muted)])],
+            YEnd is Y2 + 4,
+            APs = []
+        ;   flow_why_furthest([Answered], Path),
+            Y2 is Y1c + 22,
+            flow_dbg_furthest_block(Path, Y2, FPs, Y2b),
+            ATitle = t(24, Y2b, start, 10, sans, bold, [s('the failure it answered', muted)]),
+            flow_dbg_why_cap([Answered], Ls),
+            Y3 is Y2b + 24,
+            flow_dbg_why_prims(Ls, Y3, WPs, YEnd),
+            NPs = [],
+            append(FPs, [ATitle|WPs], APs)
+        ),
+        append([[RTitle|CPs], NPs, APs], Ps)
     ;   Ps = [], YEnd = Y0
     ).
+
+%% the tree's first 60 lines; the XML has all of it
+flow_dbg_why_cap(Whys, Ls) :-
+    flow_dbg_why_lines(Whys, 0, Ls0, []),
+    length(Ls0, NL),
+    (   NL > 60
+    ->  length(Ls1, 60), append(Ls1, _, Ls0),
+        Rest is NL - 60,
+        format(atom(More), '⋯  and ~d more lines: the XML''s <why> has every one', [Rest]),
+        append(Ls1, [l(0, [s(More, muted)])], Ls)
+    ;   Ls = Ls0
+    ).
+
+%% where it got furthest, titled, from Y: the next title's Y after it
+flow_dbg_furthest_block([], Y, [], Y) :- !.
+flow_dbg_furthest_block(Path, Y1, [FTitle|FPs0], Y1b) :-
+    FTitle = t(24, Y1, start, 10, sans, bold, [s('where it got furthest', muted)]),
+    flow_dbg_furthest_lines(Path, 0, FLs),
+    Y1a is Y1 + 24,
+    flow_dbg_why_prims(FLs, Y1a, FPs0, Y1c),
+    Y1b is Y1c + 22.
+
+%% the calls an exception ended, a level each, down to the deepest
+flow_dbg_chain_lines([], _, []).
+flow_dbg_chain_lines([E|Es], D, [L|Ls]) :-
+    flow_dbg_why_line(E, D, [L], []),
+    D1 is D + 1,
+    flow_dbg_chain_lines(Es, D1, Ls).
 
 %% the tree as lines: l(Depth, Segments)
 flow_dbg_why_lines([], _, L, L).
@@ -1287,7 +1326,7 @@ flow_dbg_xml(Graph, Fs, Facts, element(flow, As, Cs1)) :-
     append(Cs, [RunE], Cs1).
 
 flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)) :-
-    Sum = sum(Goal, Names, end(How, Used, Ats), end(PH, PU, _), F, T, Whole, Div, NC, LF, Th, Jr),
+    Sum = sum(Goal, Names, end(How, Used, Ats), end(PH, PU, _), F, T, Whole, Div, NC, LF, Th, Jr, Own),
     flow_term_full(Goal, Names, 999, GT),
     flow_dbg_how_word(How, HW),
     atomic_list_concat(Ats, ' ', AtsA),
@@ -1324,23 +1363,39 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)
     ;   JEs = []
     ),
     (   How == false
-    ->  flow_dbg_why(Calls, Whys),
+    ->  flow_dbg_why(Calls, Own, Whys),
         findall(WE1, ( member(W1, Whys), flow_dbg_x_why(W1, WE1) ), WEs),
         flow_why_furthest(Whys, Path),
-        (   Path == [] -> FEs = []
-        ;   findall(FE, ( member(PS, Path), flow_dbg_x_furthest(PS, FE) ), FEs0),
-            FEs = [element(furthest, [], FEs0)]
-        ),
+        flow_dbg_x_furthest_el(Path, FEs),
         YEs = [element(why, [], WEs)|FEs]
+    ;   How = exception(_)
+    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
+        findall(CE1, ( member(C1, Chain), flow_dbg_x_why(C1, CE1) ), CEs),
+        (   Answered == none -> AEs = []
+        ;   flow_dbg_x_why(Answered, AE),
+            flow_why_furthest([Answered], APath),
+            flow_dbg_x_furthest_el(APath, AFEs),
+            AEs = [element(answered, [], [AE|AFEs])]
+        ),
+        append(CEs, AEs, REs),
+        YEs = [element(raised, [], REs)]
     ;   YEs = []
     ),
     append([[CE, EE, BE], JEs, YEs], Ks).
+
+flow_dbg_x_furthest_el([], []) :- !.
+flow_dbg_x_furthest_el(Path, [element(furthest, [], FEs)]) :-
+    findall(FE, ( member(PS, Path), flow_dbg_x_furthest(PS, FE) ), FEs).
 
 %% why it failed, as the tree dbgwhy.pl reads it: <failed call pred> with a
 %% <try n unified> for each clause it tried -- none when it tried none, no
 %% head being one its arguments could unify with -- and, inside one
 %% entered, the calls it made -- <exited>, <failed> (own="false": nothing
-%% of the program's to say why) and <ended fate>
+%% of the program's to say why) and <ended fate>. A run that raised has
+%% <raised> instead (1.11.4): an <ended fate> for each call the exception
+%% ended, from the top down, and <answered> -- the failure the raise
+%% answered, as a <failed> and its <furthest> -- when one was found
+%% (flow_why_raised/2)
 flow_dbg_x_why(why(S, P, _, Tries), element(failed, [call=S, pred=PA], TEs)) :- !,
     flow_dbg_x_pred(P, PA),
     findall(TE, ( member(T, Tries), flow_dbg_x_why_try(T, TE) ), TEs).

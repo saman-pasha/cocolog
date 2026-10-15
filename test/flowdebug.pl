@@ -64,6 +64,7 @@ main :-
     compared_own(D),
     profiled(D),
     furthest(D),
+    raised(D),
     many_heads,
     refusals(D),
     shl(['rm -rf ', D]),
@@ -297,7 +298,27 @@ diverged(D) :-
     elements(K10, E10s), last(E10s, element(run, A10, _)),
     (   memberchk(diverged=DA10, A10) -> true ; DA10 = none ),
     (   memberchk(probe_ended=PE10, A10) -> true ; PE10 = none ),
-    check('...on the picture and in the XML', Said10-DA10-PE10, said-true-answer).
+    check('...on the picture and in the XML', Said10-DA10-PE10, said-true-answer),
+    %% the command's line and BASE.txt say both ends: the window is the
+    %% probe's, and a replay that ended elsewhere is no window of it (1.11.4,
+    %% from cicili-lang's report)
+    Div10 = diverged(end(_, PU10, _), end(_, RU10, _)),
+    format(atom(Ends10), 'diverged yes (the probe: answer at inference ~w; the replay: false at inference ~w)', [PU10, RU10]),
+    atom_concat(D, '/flipc.bytes', BF11),
+    atom_concat(D, '/flipc', B11),
+    fx(F11),
+    atomic_list_concat(['-s tools/flow/debug.pl -- "flip(\'', BF11, '\')" ', F11, ' ', B11, ' txt=true'], A11),
+    cocolog_run(A11, T11, E11),
+    atomic_list_concat(Ls11, '\n', T11),
+    last(Ls11, L11),
+    ( sub_atom(L11, _, _, 0, Ends10) -> Y11 = said ; Y11 = L11 ),
+    atom_concat(B11, '.txt', TF12),
+    read_file_to_codes(TF12, TC12), atom_codes(TA12, TC12),
+    atomic_list_concat([H12|_], '\n', TA12),
+    atom_concat(Ends10, '; ', Ends12),
+    ( sub_atom(H12, _, _, _, Ends12) -> Y12 = said ; Y12 = H12 ),
+    check('...and the command''s line and BASE.txt''s first say both ends, the probe''s and the replay''s',
+          E11-Y11-Y12, 0-said-said).
 
 %% ---- the journal ---------------------------------------------------------
 %%
@@ -467,7 +488,50 @@ asked_why(D) :-
     xml_parse(XC4, X4),
     ( x_el(X4, why, _) -> Y4w = said ; Y4w = none ),
     ( W4 = [exited(1, top/2, _, _)] -> W4s = exited ; W4s = W4 ),
-    check('a run that answered: its top call exited, and no <why>', W4s-Y4w, exited-none).
+    check('a run that answered: its top call exited, and no <why>', W4s-Y4w, exited-none),
+    asked_why_own(D).
+
+%% a program of two files debugged from its top: the chart has a panel for
+%% the top's predicates alone, so the why stopped at the first call into the
+%% other file -- own(all) and own(Files) explain those too, and
+%% flow_why_call/3 any one call (1.11.4, from cicili-lang's report)
+asked_why_own(D) :-
+    atomic_list_concat([D, '/lib9.pl'], LF),
+    atomic_list_concat([D, '/top9.pl'], TF),
+    fixture(LF, ['l9_go(X) :- l9_step(X, Y), Y > 10.', 'l9_step(X, Y) :- Y is X * 2.']),
+    format(atom(UL), ':- use_module(~q).', [LF]),
+    fixture(TF, [UL, 't9 :- l9_go(3).']),
+    atomic_list_concat([D, '/own9'], B9),
+    flow_debug(t9, B9, [source(TF), txt(true)], R9),
+    flow_why(R9, W9a), why_shape(W9a, S9a),
+    flow_why(R9, W9b, [own(all)]), why_shape(W9b, S9b),
+    flow_why(R9, W9c, [own([LF])]), why_shape(W9c, S9c),
+    check('two files: the chart''s panels stop the why at l9_go/1; own(all) and own(Files) go on into it',
+          S9a-S9b-S9c,
+          [why(t9/0, [entered(1, [failed(l9_go/1)])])]
+          -[why(t9/0, [entered(1, [why(l9_go/1, [entered(1, [exited(l9_step/2), failed((>)/2)])])])])]
+          -[why(t9/0, [entered(1, [why(l9_go/1, [entered(1, [exited(l9_step/2), failed((>)/2)])])])])]),
+    R9 = run(_, _, _, _, Calls9, _, _, _),
+    once(member(call(S9, l9_go/1, _, _, _, _, _, _, _, _), Calls9)),
+    flow_why_call(R9, S9, W9d), why_shape(W9d, S9d),
+    ( flow_why_call(R9, 999, _) -> Y9e = found ; Y9e = none ),
+    check('flow_why_call/3: one call''s why, its own clauses explained, and none for an inference the window did not see',
+          S9d-Y9e, why(l9_go/1, [entered(1, [exited(l9_step/2), failed((>)/2)])])-none),
+    atomic_list_concat([D, '/own9b'], B9b),
+    flow_debug(t9, B9b, [source(TF), txt(true), own(all)], _),
+    atom_concat(B9, '.txt', T9a), atom_concat(B9b, '.txt', T9b),
+    read_file_to_codes(T9a, C9a), atom_codes(A9a, C9a),
+    read_file_to_codes(T9b, C9b), atom_codes(A9b, C9b),
+    atomic_list_concat(L9a, '\n', A9a), atomic_list_concat(L9b, '\n', A9b),
+    findall(L, ( member(L, L9a), sub_atom(L, 0, _, _, '%  ') ), F9a),
+    findall(L, ( member(L, L9b), sub_atom(L, 0, _, _, '%  ') ), F9b),
+    check('own(all) to flow_debug/4: BASE.txt''s furthest path goes into the other file''s calls',
+          F9a-F9b,
+          ['%  t9: clause 1, the furthest of 1 tried: 0 of its calls exited (call 1)',
+           '%    l9_go(3): failed, nothing of the program''s to say why (call 2)']
+          -['%  t9: clause 1, the furthest of 1 tried: 0 of its calls exited (call 1)',
+            '%    l9_go(3): clause 1, the furthest of 1 tried: 1 of its calls exited (call 2)',
+            '%      >(6,10): failed, nothing of the program''s to say why (call 5)']).
 
 %% a why tree without its arguments
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).
@@ -933,7 +997,56 @@ furthest(D) :-
                  '✗ check(aa)   failed  ·  call at 3',
                  'no clause tried: none has a head these arguments could unify with',
                  '✗ fallback(a)   failed  ·  call at 4',
-                 'no clause tried: none has a head these arguments could unify with' ]).
+                 'no clause tried: none has a head these arguments could unify with' ]),
+    %% `( lowerable(X) -> ... ; note(X), fail )': the clause failed at the
+    %% fail, which stands for the condition's failure (1.11.4)
+    debugged(D, far7, lower(bad, Y7), ['Y'=Y7], [], R7),
+    flow_why(R7, W7),
+    flow_why_furthest(W7, F7),
+    findall(X-P, ( member(S, F7), functor(S, X, _), arg(2, S, P) ), F7s),
+    check('lower(bad, Y): past the explicit fail/0, into the condition that failed, lowerable/1',
+          F7s, [step-lower/2, step-lowerable/1, failed-(\==)/2]).
+
+%% ---- why a run raised ------------------------------------------------------
+
+raised(D) :-
+    section('flow_why_raised/2: the calls an exception ended, and the failure it answered'),
+    debugged(D, rais1, drive(5), [], [txt(true)], R1),
+    flow_why_raised(R1, raised(C1, A1)),
+    findall(P-F, member(ended(_, P, _, F), C1), Cs1),
+    ( A1 == none -> As1 = none ; why_shape(A1, As1) ),
+    check('drive(5): drive/1 and give_up/1 unwound; it answered step(5), whose ok_step(5) tried no clause',
+          Cs1-As1, [drive/1-unwound, give_up/1-unwound]
+                   -why(step/1, [entered(1, [exited((>)/2), why(ok_step/1, [])])])),
+    ( A1 == none -> P1 = none ; flow_why_furthest([A1], P1) ),
+    check('...and where that got furthest', P1, [step(3, step/1, ['5'], 1, 1, 1), nohead(5, ok_step/1, ['5'])]),
+    debugged(D, rais2, find(z, V2), ['V'=V2], [], R2),
+    ( flow_why_raised(R2, _) -> Y3 = raised ; Y3 = none ),
+    check('a run that failed has none', Y3, none),
+    atom_concat(D, '/rais1.txt', TF4),
+    read_file_to_codes(TF4, TC4), atom_codes(TA4, TC4),
+    atomic_list_concat(TL4, '\n', TA4),
+    append(_, ['% where the exception was raised:'|Rest4], TL4),
+    check('at the foot of BASE.txt', Rest4,
+          [ '%  drive(5): unwound (call 1)',
+            '%    give_up(5): unwound (call 6)',
+            '% the failure it answered, where it got furthest:',
+            '%  step(5): clause 1, the furthest of 1 tried: 1 of its calls exited (call 3)',
+            '%    ok_step(5): failed, no clause''s head unified (call 5)',
+            '' ]),
+    atom_concat(D, '/rais1.xml', XF5),
+    read_file_to_codes(XF5, XC5),
+    xml_parse(XC5, X5),
+    findall(N-P5-F5, ( x_el(X5, raised, _), x_el(X5, ended, EA5), memberchk(call=N, EA5),
+                       memberchk(pred=P5, EA5), memberchk(fate=F5, EA5) ), E5),
+    findall(N-P5, ( x_el(X5, answered, _), x_el(X5, failed, FA5), memberchk(call=N, FA5), memberchk(pred=P5, FA5) ), A5),
+    check('in the XML: <raised>, an <ended> a call, and <answered>',
+          E5-A5, ['1'-'drive/1'-unwound, '6'-'give_up/1'-unwound]-['3'-'step/1', '5'-'ok_step/1']),
+    atom_concat(D, '/rais1.svg', SF6),
+    read_file_to_codes(SF6, SC6),
+    xml_parse(SC6, S6),
+    findall(T, ( svg_text(S6, T), memberchk(T, ['where the exception was raised', 'the failure it answered']) ), Ts6),
+    check('and on the picture', Ts6, ['where the exception was raised', 'the failure it answered']).
 
 %% ---- a call that tried many heads -----------------------------------------
 
@@ -999,7 +1112,13 @@ refusals(D) :-
             error(error(existence_error(flow_option, embed), flow_debug/3)),
             error(error(domain_error(flow_debug_option, kb(7)), flow_debug/3)),
             error(error(domain_error(flow_debug_option, cache(7)), flow_debug/3)),
-            error(error(existence_error(flow_option, embed), flow_when/4)) ]).
+            error(error(existence_error(flow_option, embed), flow_when/4)) ]),
+    answer(flow_debug(top(5, _), B, [source(F), own(nobody)]), x, G14),
+    answer(flow_debug(top(5, _), B, [source(F), own([Nope])]), x, G15),
+    check('an own(...) that is neither chart, all nor files that are there',
+          [G14, G15],
+          [ error(error(domain_error(flow_debug_option, own(nobody)), flow_debug/3)),
+            error(error(domain_error(flow_debug_option, own([Nope])), flow_debug/3)) ]).
 
 %% the elements among a node's children (an indented document has text
 %% between them)

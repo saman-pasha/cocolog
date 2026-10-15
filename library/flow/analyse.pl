@@ -986,7 +986,8 @@ flow_effect(dynamic, Key, Args, Ms, St0, St, Ctx, M0, M, Det) :- !,
     flow_call_effect(dynamic, Key, Args, Ms, St0, St, Ctx, M0, M, Det).
 flow_effect(_, N/A, Args, Ms, St0, St, _, M, M, Det) :-
     flow_mode_for(N, A, Ms, DMs, Det), !,
-    flow_apply_modes(Args, DMs, St0, St).
+    flow_apply_modes(Args, DMs, St0, St1),
+    flow_success_says(N, A, Args, St1, St).
 flow_effect(library(L), Key, Args, Ms, St0, St, Ctx, M0, M, Det) :- !,
     flow_call_effect(library(L), Key, Args, Ms, St0, St, Ctx, M0, M, Det).
 flow_effect(_, _, Args, _, St0, St, _, M, M, semidet) :-
@@ -1054,6 +1055,17 @@ flow_apply_modes([], _, St, St).
 flow_apply_modes([A|As], [M|Ms], St0, St) :-
     (   ( M == '-' ; M == '?' ) -> flow_raise_term(A, b, St0, St1) ; St1 = St0 ),
     flow_apply_modes(As, Ms, St1, St).
+
+%% what a builtin's success says beyond its line: text made from text binds
+%% every argument, and a sink the text it holds (modes.pl, 1.11.4)
+flow_success_says(N, A, Args, St0, St) :-
+    (   flow_binds_all(N, A)
+    ->  flow_raise_args(Args, b, St0, St)
+    ;   flow_sink_arg(N, A, P), nth1(P, Args, S), nonvar(S), flow_sink_binds(S, B, Pt)
+    ->  flow_raise_term(B, b, St0, St1),
+        flow_raise_term(Pt, p, St1, St)
+    ;   St = St0
+    ).
 
 %% bot: not known to succeed, so the clause is dead past it; any: its
 %% clauses cannot be seen, so it may bind anything it is given

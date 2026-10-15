@@ -635,7 +635,7 @@ the SVG give it, and says in a sentence what will happen there:
 
 | kind | severity | what |
 |---|---|---|
-| `unknown_procedure` | error | a call nothing answers -- no clause, builtin, module or dynamic declaration -- raises `existence_error`; the same name at another arity, or a name one edit away (a swapped pair of letters is one), is offered: `lenght/2 ... did you mean length/2?` |
+| `unknown_procedure` | error | a call nothing answers -- no clause, builtin, module or dynamic declaration -- raises `existence_error`; the same name at another arity, or a name one edit away (a swapped pair of letters is one), is offered: `lenght/2 ... did you mean length/2?`. A WARNING under a `catch/3` whose catcher takes that error (1.11.4): the recovery runs in its place, as `catch(Table(K, V), _, fail)` over a table consulted at run time means it to |
 | `instantiation` | error | a call the engine refuses with an argument free on every path to it: arithmetic over a free variable (`T is S + 1` before `S` is bound), a builtin of the refusal table handed a free argument, a closure with no goal in it |
 | `left_recursion` | error | a predicate whose first call reaches itself again with the inputs it was given -- through others too, `ping/1 -> pong/1 -> ping/1` -- so the search for its answers never ends; a grammar rule that calls itself before reading any input is named as the nonterminal, `xs//0`. With nothing bound it is one only when no clause can succeed: `size(L, N)` of free `L` and `N` is a generator, as `length/2` is |
 | `unreachable_clause` | warning | an earlier clause's head matches every call of this pattern and every goal before its cut succeeds, so the clauses after it are never tried |
@@ -658,6 +658,44 @@ panels, the note saying how many calls past it went unmarked, the near
 name of an unknown call is asked once a chart, and left recursion keeps
 each predicate's first calls in one table, where a scan of every edge a
 step took its 50 s.
+
+**What a program declares as it runs** (1.11.4, cicili-lang's gate): a
+table declared in a clause -- `dynamic(t/2)`, `assertz(t(K, V))`, or a
+declarer of the program's own (`reset(F/A) :- abolish(F/A),
+dynamic(F/A)`) called with the name written out, one level of it -- is a
+dynamic predicate's to the chart wherever it would otherwise be unknown.
+The goals are found by reading the source, the files `load(Files)` names,
+the libraries the Prolog halves of `modules(Files)` load, and the files
+each of those loads by `use_module/1,2` or `ensure_loaded/1` (found on the
+library path as `lb_find` finds them, cocolog's own libraries passed by):
+`read.pl`'s `flow_scan/4`, 0.5 s a chart of `ccl_cpp.pl` (8,776 lines),
+whose `cpp_item/2` went from 880 unknown procedures to 209. **A module of
+the program's own** is read from its Cicili source, `modules(Files)`: each
+`("name" Arity c_function)` row of its tables a portal -- the modes from the
+row's comment, else the header's signature list -- written as
+`flow_t_portal/8` rows and loaded beside the generated ones for the rest of
+the process, as `load(Files)` is. Those rows are the extension point: a file
+of them given to `load(Files)` does the same by hand. **A name the chart's
+library has** -- a helper of the program's named `flow_trim/2` -- joins the
+library's clauses and breaks the chart far from the cause (a type error
+inside the signature reader, in cicili-lang's case): a `flow_` predicate the
+store holds more clauses of than the program's files give it is refused by
+name before anything is analysed, the tables a program may add rows to
+(`flow_t_*`, `flow_mode/4`, `flow_raises_unbound/4`) excepted.
+
+**What a builtin's success says beyond its line** (1.11.4): a mode line
+says what a call needs and binds for the line met, and a loose meet (a `?`
+argument) bound nothing it did not have to. Two facts are kept beside the
+lines (`modes.pl`): a SINK holds the text written -- `format(atom(A), ...)`,
+`with_output_to(string(S), ...)` bind `A` and `S`, and a difference list's
+tail is left partly bound -- and TEXT MADE FROM TEXT BINDS EVERY ARGUMENT
+whichever way it ran (`atomic_list_concat/2,3`, `atom_codes/2`,
+`sub_atom/5`, ... -- each checked against the engine: `atom_length/2`
+and `split_string/4` take any term, and are not among them). Both were
+false findings of cicili-lang's: `sub_atom(A, 0, 1, _, '-')` after a
+`format/3` into `atom(A)`, and `atom_concat(conv_, K, W)` after
+`atomic_list_concat([op, W|_], '.', Name)` with `Name` partly bound, whose
+loose meet took the joining line and left `W` free.
 
 **The refusal table** (`flow_raises_unbound/4`, `library/flow/modes.pl`)
 says which builtins raise when given which arguments unbound, 58 rows, each
@@ -1159,6 +1197,28 @@ from a session that used the library on `library/reasoning/translate.pl`:
   run): the list is built backwards and turned round once. Per function
   the untraced engine runs the same instructions as 1.11.0's on nrev,
   queens and lookup.
+* **Whose calls the why explains, and why a run raised** (1.11.4,
+  cicili-lang's report on debugging its compiler from a small top file):
+  a call is explained by its clauses when it has a panel, so a program of
+  several files had a why that stopped at the first call into another file.
+  `own(all)` explains every call of a predicate with clauses (never a C
+  builtin, a module's C or a construct, which have none to have tried),
+  `own(Files)` those the files hold clauses of; `flow_why/3`,
+  `flow_debug/4` (the picture, the XML, Base.txt) and `own=` take it, and
+  `flow_why_call/3,4` is the why of the call made at one inference. A run
+  that ended in an EXCEPTION had no why at all: `flow_why_raised/2` gives
+  the calls it ended, from the top down -- at each level the last one made,
+  since the raise is the last thing the run did -- and the failure it
+  answered, the last call before the raise that failed having tried a
+  clause, in the deepest body first: a driver that gives up with an error,
+  `( Cond -> ... ; throw(...) )`, raises because Cond failed. `<raised>` in
+  the XML, a block on the picture, lines at the foot of Base.txt. The
+  furthest path now goes past an explicit `fail/0` or `false/0` -- `( Cond
+  -> ... ; trace(...), fail )` failed because Cond did -- into the last
+  call before it that failed having tried a clause. And a diverged run's
+  line and Base.txt's head say both ends, the probe's and the replay's: a
+  cache on disk the probe wrote sent cicili-lang's replay a shorter way,
+  and the line said only the replay's end beside the probe's window.
 
 ## 10. Phases
 

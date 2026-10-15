@@ -17,6 +17,9 @@
 %%                                          its top file: loaded first, so a
 %%                                          call into one is no unknown
 %%                                          procedure; only FILE is drawn
+%%              modules=SRC.cicili,...      the program's own modules, by
+%%                                          their Cicili sources: each row
+%%                                          of their tables a C predicate
 %%              progress=S                  a line on stderr every S seconds
 %%                                          once the chart has run S seconds
 %%                                          (10; 0 for none)
@@ -46,7 +49,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [SpecA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=none|reach|all] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...] [load=FILE,...] [progress=S]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/chart.pl -- SPEC FILE BASE [libraries=none|reach|all] [title=TEXT] [depth=N|all] [only=NAME/ARITY,...] [load=FILE,...] [modules=SRC,...] [progress=S]~n", []),
         halt(2)
     ),
     (   catch(term_to_atom(Spec, SpecA), _, fail)
@@ -91,6 +94,8 @@ fc_option(only, V, only(Ps)) :-
 fc_option(load, V, load(Fs)) :-
     atomic_list_concat(As, ',', V),
     fc_files(As, Fs).
+fc_option(modules, V, modules(Fs)) :-
+    atomic_list_concat(Fs, ',', V).
 fc_option(progress, V, progress(S)) :-
     catch(atom_number(V, S), _, fail), number(S), S >= 0.
 
@@ -111,6 +116,12 @@ fc_error(error(existence_error(procedure, PI), _)) :- !,
     halt(1).
 fc_error(error(existence_error(flow_load, F), _)) :- !,
     format(user_error, "chart: load=~w would not load: no such file or library~n", [F]),
+    halt(2).
+fc_error(error(existence_error(flow_module, F), _)) :- !,
+    format(user_error, "chart: modules=~w: no such file~n", [F]),
+    halt(2).
+fc_error(error(permission_error(modify, flow_procedure, _), context(_, Msg))) :- !,
+    format(user_error, "chart: ~w~n", [Msg]),
     halt(2).
 fc_error(E) :-
     format(user_error, "chart: ~w~n", [E]),

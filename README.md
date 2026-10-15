@@ -59,7 +59,9 @@ FILE:LINE:COL.
   (with the name it was probably meant to be), an argument free where the
   engine refuses one, left recursion, a clause never tried, a determinism
   promise not kept, a thread never joined, a lock kept on a way out, a
-  predicate whose clauses are not together.
+  predicate whose clauses are not together. The tables a program declares
+  as it runs and the C predicates of its own modules (`modules(Files)`,
+  read from their Cicili sources) count as defined.
 * **What a query DID, at no cost to the run** (`library(flow/debug)`): the
   program runs untraced, at full speed, in a child process, to the window of
   inferences asked for -- the same numbers in every run -- and only that
@@ -70,7 +72,9 @@ FILE:LINE:COL.
   explains and does nothing twice.
 * **Questions, where a debugger would have you step**: WHY a run failed --
   every clause tried and the call each failed at, and where a failed search
-  got FURTHEST (`flow_why/2`, `flow_why_furthest/2`); WHEN something first
+  got FURTHEST (`flow_why/2`, `flow_why_furthest/2`) -- or RAISED: the calls
+  the exception ended and the failure the raise answered
+  (`flow_why_raised/2`); WHEN something first
   held -- its inference, found by bisecting over fast runs (`flow_when/4`);
   what CHANGED between two runs -- before and after an edit, or two goals
   that should behave alike: the inputs answered differently, deepest first,

@@ -76,12 +76,21 @@ flow_dbg_text_split(W, File, LC) :-
 
 %% the head line: the goal, how it ended and where, the window
 flow_dbg_text_head(Sum, Head) :-
-    Sum = sum(Goal, Names, end(How, Used, _), _, F, T, _, Div, NC, _, _, _),
+    Sum = sum(Goal, Names, end(How, Used, _), _, F, T, _, Div, NC, _, _, _, _),
     flow_term_full(Goal, Names, 999, GT),
     flow_dbg_how_word(How, HW),
-    (   Div == false -> DT = no ; DT = yes ),
+    flow_dbg_div_ends(Div, DT),
     format(atom(Head), '% ~w: ~w at inference ~w; recorded ~w to ~w; diverged ~w; ~w calls',
            [GT, HW, Used, F, T, DT, NC]).
+
+%% `no', or `yes' and both ends: the window is the probe's, and a replay
+%% that ended elsewhere is no window of it (1.11.4, from cicili-lang's
+%% report: a cache on disk the probe wrote sent the replay a shorter way)
+flow_dbg_div_ends(false, no) :- !.
+flow_dbg_div_ends(diverged(end(PH, PU, _), end(RH, RU, _)), T) :-
+    flow_dbg_how_word(PH, PW),
+    flow_dbg_how_word(RH, RW),
+    format(atom(T), 'yes (the probe: ~w at inference ~w; the replay: ~w at inference ~w)', [PW, PU, RW, RU]).
 
 %% one call's line, its place :LINE:COL in File, or whole when File is none
 flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, File, Line) :-
@@ -158,17 +167,39 @@ flow_dbg_text_place(Ks, File, Id, W) :-
 
 %% a failed run ends with where it got furthest (flow_why_furthest/2): a
 %% line a failed call on the way, the clause that got furthest and how many
-%% of its body's calls exited, and how the last failed
+%% of its body's calls exited, and how the last failed. A run that raised
+%% ends with the calls the exception ended, from the top down, and where the
+%% failure it answered got furthest (flow_why_raised/2, 1.11.4)
 flow_dbg_text_furthest(Sum, Calls, Ls) :-
+    arg(13, Sum, Own),
     (   arg(3, Sum, end(false, _, _))
-    ->  flow_dbg_why(Calls, Whys),
+    ->  flow_dbg_why(Calls, Own, Whys),
         flow_why_furthest(Whys, Path),
         (   Path == [] -> Ls = []
         ;   flow_dbg_text_path(Path, 1, Ls0),
             Ls = ['% where it got furthest:'|Ls0]
         )
+    ;   arg(3, Sum, end(exception(_), _, _))
+    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
+        flow_dbg_text_chain(Chain, 1, CLs),
+        (   Answered == none
+        ->  ALs = ['% the failure it answered: none -- no call failed, having tried a clause, before the raise on its way down']
+        ;   flow_why_furthest([Answered], Path),
+            flow_dbg_text_path(Path, 1, PLs),
+            ALs = ['% the failure it answered, where it got furthest:'|PLs]
+        ),
+        append(['% where the exception was raised:'|CLs], ALs, Ls)
     ;   Ls = []
     ).
+
+flow_dbg_text_chain([], _, []).
+flow_dbg_text_chain([ended(S, N/_, In, F)|Es], D, [L|Ls]) :-
+    I is 2 * D,
+    flow_dbg_text_spaces(I, Indent),
+    flow_dbg_text_goal(N, In, GT),
+    format(atom(L), '%~w~w: ~w (call ~w)', [Indent, GT, F, S]),
+    D1 is D + 1,
+    flow_dbg_text_chain(Es, D1, Ls).
 
 flow_dbg_text_path([], _, []).
 flow_dbg_text_path([step(S, N/_, In, K, Done, Tried)|Ps], D, [L|Ls]) :- !,

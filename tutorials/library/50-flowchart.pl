@@ -12,8 +12,9 @@
 %%     flow_chart(+Spec, +Base, +Options)   source(File), title(T), libraries(none|reach|all),
 %%                                          depth(D), only(Preds) -- these two for the picture,
 %%                                          load(Files) -- a program's other files, loaded
-%%                                          first -- and progress(S): a line on stderr every
-%%                                          S seconds of a long chart
+%%                                          first -- modules(Files), the Cicili sources of
+%%                                          its own modules, and progress(S): a line on
+%%                                          stderr every S seconds of a long chart
 %%     flow_graph(+Spec, -Graph, +Options)  the analysis as a term
 %%     flow_findings(+Graph, -Findings)     what is wrong, and where
 %%     flow_svg(+Graph, -Svg)   flow_xml(+Graph, -Xml)      the documents as terms
@@ -169,10 +170,51 @@ main :-
 
     apart(Dir),
     twice(Dir),
+    tables(Dir),
     threads(Dir),
     asking(Dir),
 
     format("~ndone~n").
+
+%% WHAT A PROGRAM MAKES AS IT RUNS, AND ITS OWN C. A table declared in a
+%% clause -- dynamic/1 with its name written out, an assert, or a declarer of
+%% the program's own called with the name -- is a dynamic predicate's to the
+%% chart, not an unknown procedure. A call nothing answers under a catch/3
+%% that takes its existence error is a warning: the recovery runs in its
+%% place. And modules(Files) reads a module's Cicili source: each row of its
+%% table is a C predicate, with the modes its header gives.
+tables(Dir) :-
+    format("~n-- what the program makes as it runs, and its own C~n"),
+    atom_concat(Dir, '/tables.pl', Prog),
+    atom_concat(Dir, '/native.cicili', Mod),
+    open(Prog, write, W),
+    forall(member(L, [ 'reset(F/A) :- ( catch(abolish(F/A), _, true) -> true ; true ), dynamic(F/A).',
+                       'start :- reset(seen/1), assertz(hits(0)).',
+                       'go(X, T) :- start, \\+ seen(X), hits(_), catch(cached(X, T), _, fail).',
+                       'go(X, T) :- lex(X, T).' ]),
+           format(W, "~w~n", [L])),
+    close(W),
+    open(Mod, write, WM),
+    forall(member(L, [ ';;;; native -- a module of the program''s own, as its Cicili source',
+                       ';;;;   lex(+Text, -Tokens)',
+                       '(DEFPARAMETER *native-predicates*',
+                       '  ''(("lex" 2 native_p_lex)))' ]),
+           format(WM, "~w~n", [L])),
+    close(WM),
+    flow_graph(go('+', '-'), G0, [source(Prog)]),
+    flow_findings(G0, Fs0),
+    findall(Sev-Text, ( member(finding(_, unknown_procedure, Sev, _, _, _, T0, _), Fs0),
+                        once(sub_atom(T0, B0, _, _, ' is defined nowhere')),
+                        sub_atom(T0, 0, B0, _, Text) ), Un0),
+    must('seen/1 and hits/1 are declared as it runs; cached/2 is caught, a warning; lex/2 nobody''s',
+         Un0, [warning-'cached/2', error-'lex/2']),
+    flow_graph(go('+', '-'), G1, [source(Prog), modules([Mod])]),
+    flow_findings(G1, Fs1),
+    findall(Sev-K, member(finding(_, K, Sev, _, _, _, _, _), Fs1), Ks1),
+    must('modules([native.cicili]): lex/2 is the module''s C', Ks1, [warning-unknown_procedure]),
+    flow_t_portal(native, lex, 2, CF, _, _, Ms, Ns),
+    must('...its C function, and the modes and names its header gives', CF-Ms-Ns,
+         native_p_lex-['+', '-']-['Text', 'Tokens']).
 
 %% DEFINED TWICE, AND A PROGRAM OF SEVERAL FILES. A later place that defines
 %% a predicate again -- a clause repeating one of an earlier place's, or a

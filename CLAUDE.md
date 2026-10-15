@@ -336,7 +336,9 @@ links the engine) and runs the 62 `.pl` cases in `pl_names/1`
   between cases** (a lesson's last line must be exactly `done`; a library
   loaded as a goal after a module set a flag).
 * **A new C builtin wants a line in `library/flow/modes.pl`** (`flow_mode/4`,
-  or `flow_test/2` for a test), and `test/flowchart.pl` holds that table to
+  or `flow_test/2` for a test; and `flow_binds_all/2` when its success binds
+  every argument whichever way it ran, as text made from text does -- ask
+  the engine, `atom_length/2` takes any term), and `test/flowchart.pl` holds that table to
   `library/flow/tables.pl` -- generated, git-ignored, and rebuilt only by
   `make modules` (`sh tools/flow/build.sh`), so an old one passes the check:
   `acyclic_term/1` and `cyclic_term/1` (1.10.18) went through two regression

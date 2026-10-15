@@ -102,6 +102,386 @@ flow_dynamic_keys(_:S, Ks) :- !,
 flow_dynamic_keys(N/A, [N/A]) :- atom(N), integer(A), !.
 flow_dynamic_keys(_, []).
 
+%% ======================================================================
+%% What the program declares as it runs, and the files the chart reads
+%% ======================================================================
+%%
+%% A TABLE MAY BE DECLARED WHERE A CLAUSE RUNS rather than by a directive
+%% (1.11.4, from cicili-lang's report): `dynamic(t/2)' in a body,
+%% `assertz(t(K, V))', or a declarer of the program's own --
+%% `reset(F/A) :- abolish(F/A), dynamic(F/A)' -- called with the name
+%% written out, `reset(t/2)'. Each such goal declares what it names in the
+%% files the chart reads: the source, the files load(Files) names, the
+%% Prolog libraries the Prolog halves of modules(Files) load, and the files
+%% the directives of each of those load in turn (use_module/1,2 and
+%% ensure_loaded/1, found on the library path as the engine finds them;
+%% cocolog's own libraries are not the program's, and a compiled module has
+%% no clauses to read). A call the chart would otherwise take for unknown is
+%% then a dynamic predicate's, which fails while nothing is asserted, as if
+%% a directive had declared it (flow_mark_declared/4). One level of declarer
+%% is followed: a clause whose dynamic/1, or whose assert of a variable,
+%% takes its argument from the head declares what each call of it names.
+%% 1221 of the 1291 findings of cicili-lang's ccl_cpp.pl were calls of
+%% tables declared that way.
+%%
+%% flow_scan(+Src, +Loads, +ModLoads, -Scan): Scan is scan(Keys, Defs),
+%% the keys declared, sorted, and Name/Arity-Files-Count for each
+%% flow_-named predicate the files give clauses of, which
+%% flow_clash_check/1 holds to the store.
+
+flow_scan(Src, Loads, ModLoads, scan(Keys, Defs)) :-
+    absolute_file_name(Src, SrcA),
+    findall(P, ( member(F, Loads), flow_spec_file(F, P, _) ), LPs),
+    findall(P, ( member(F, ModLoads), flow_spec_file(F, P, own) ), MPs),
+    append([[SrcA], LPs, MPs], Roots),
+    flow_scan_files(Roots, [], Cls),
+    findall(K, ( member(c(_, _, _, B), Cls), flow_body_goal(B, G), flow_goal_declares(G, Ks),
+                 member(K, Ks) ), K1),
+    findall(d(K, H, Sp), ( member(c(K, _, H, B), Cls), H \== none,
+                           flow_body_goal(B, G), flow_goal_declarer(G, H, Sp) ), Decls),
+    (   Decls == [] -> K2 = []
+    ;   findall(K, ( member(c(_, _, _, B), Cls), flow_body_goal(B, G), callable(G),
+                     functor(G, N, A), memberchk(d(N/A, _, _), Decls),
+                     member(d(N/A, H0, Sp0), Decls),
+                     copy_term(G, G1), copy_term(H0-Sp0, G1-Sp1),
+                     flow_spec_keys(Sp1, Ks), member(K, Ks) ), K2)
+    ),
+    append(K1, K2, Keys0),
+    sort(Keys0, Keys),
+    findall(K-P, ( member(c(K, P, _, _), Cls), K = N/_, atom_concat(flow_, _, N) ), KPs0),
+    msort(KPs0, KPs),
+    flow_group(KPs, Grouped),
+    findall(K-Fs-C, ( member(K-Ps, Grouped), length(Ps, C), sort(Ps, Fs) ), Defs).
+
+%% each file once, and the files its directives load after it
+flow_scan_files([], _, []).
+flow_scan_files([P|Ps], Seen, Cls) :-
+    (   memberchk(P, Seen)
+    ->  flow_scan_files(Ps, Seen, Cls)
+    ;   flow_scan_file(P, Cls0, Specs),
+        findall(Q, ( member(S, Specs), flow_spec_file(S, Q, own) ), Qs),
+        append(Ps, Qs, Ps1),
+        append(Cls0, Cls1, Cls),
+        flow_scan_files(Ps1, [P|Seen], Cls1)
+    ).
+
+%% a file's clauses, c(Key, File, Head, Body), and what its directives load;
+%% a term the reader refuses ends the file there, as it ends a consult
+flow_scan_file(P, Cls, Specs) :-
+    catch(open(P, read, S), _, fail), !,
+    flow_scan_terms(S, P, Cls, Specs),
+    close(S).
+flow_scan_file(_, [], []).
+
+flow_scan_terms(S, P, Cls, Specs) :-
+    catch(read_term(S, T, []), _, T = end_of_file),
+    (   T == end_of_file
+    ->  Cls = [], Specs = []
+    ;   nonvar(T), T = (:- D)
+    ->  Cls = Cls1,
+        (   nonvar(D), flow_load_specs(D, Ss) -> append(Ss, Specs1, Specs) ; Specs = Specs1 ),
+        flow_scan_terms(S, P, Cls1, Specs1)
+    ;   flow_scan_clause(T, P, C)
+    ->  Cls = [C|Cls1],
+        flow_scan_terms(S, P, Cls1, Specs)
+    ;   flow_scan_terms(S, P, Cls, Specs)
+    ).
+
+flow_load_specs(use_module(X), Ss) :- flow_spec_list(X, Ss).
+flow_load_specs(use_module(X, _), Ss) :- flow_spec_list(X, Ss).
+flow_load_specs(ensure_loaded(X), Ss) :- flow_spec_list(X, Ss).
+
+flow_spec_list(X, []) :- var(X), !.
+flow_spec_list(Xs, Xs) :- is_list(Xs), !.
+flow_spec_list(X, [X]).
+
+%% a grammar rule's goals are its {}/1 parts; its head is not looked at
+flow_scan_clause(T, P, c(K, P, H, B)) :-
+    flow_clause_key(T, K),
+    (   T = (_ --> B0) -> H = none, B = '$flow_dcg'(B0)
+    ;   T = (H :- B) -> true
+    ;   H = T, B = true
+    ).
+
+%% WHERE THE ENGINE FINDS A FILE use_module/1 names (lb_find in
+%% lib/library.cicili): library(Name) on $COCOLOG_LIBRARY, then ./library,
+%% then beside the binary (library/, lib/swipl/), then ./lib/swipl -- in
+%% each a compiled module (.so) before a .pl, and a .so has no clauses to
+%% read; a path as written, then with .pl. Whose is shipped for a file of
+%% cocolog's own libraries, own for any other.
+flow_spec_file(library(L), Path, Whose) :- !,
+    flow_lib_spec_name(L, Name),
+    flow_lib_dirs(Dirs),
+    member(d(Dir, Exts), Dirs),
+    member(Ext, Exts),
+    atomic_list_concat([Dir, '/', Name, Ext], P),
+    exists_file(P), !,
+    Ext == '.pl',
+    absolute_file_name(P, Path),
+    flow_whose(Path, Whose).
+flow_spec_file(F, Path, Whose) :-
+    atom(F),
+    (   exists_file(F) -> P = F
+    ;   atom_concat(F, '.pl', P), exists_file(P)
+    ),
+    \+ atom_concat(_, '.so', P),
+    absolute_file_name(P, Path),
+    flow_whose(Path, Whose).
+
+flow_lib_spec_name(L, L) :- atom(L), !.
+flow_lib_spec_name(D/N, Name) :-
+    flow_lib_spec_name(D, DN), atom(N),
+    atomic_list_concat([DN, '/', N], Name).
+
+flow_lib_dirs(Dirs) :-
+    (   getenv('COCOLOG_LIBRARY', Env), Env \== ''
+    ->  atomic_list_concat(Es, ':', Env),
+        findall(d(E, ['.so', '.pl']), ( member(E, Es), E \== '' ), D1)
+    ;   D1 = []
+    ),
+    (   flow_exedir(X)
+    ->  atomic_list_concat([X, '/library'], XL),
+        atomic_list_concat([X, '/lib/swipl'], XS),
+        D3 = [d(XL, ['.so', '.pl']), d(XS, ['.pl'])]
+    ;   D3 = []
+    ),
+    append([D1, [d(library, ['.so', '.pl'])], D3, [d('lib/swipl', ['.pl'])]], Dirs).
+
+flow_exedir(X) :-
+    current_prolog_flag(executable, E),
+    absolute_file_name(E, EA),
+    file_directory_name(EA, X).
+
+flow_whose(Path, Whose) :-
+    (   flow_exedir(X),
+        (   atomic_list_concat([X, '/library/'], Pre)
+        ;   atomic_list_concat([X, '/lib/swipl/'], Pre)
+        ),
+        atom_concat(Pre, _, Path)
+    ->  Whose = shipped
+    ;   Whose = own
+    ).
+
+%% EACH GOAL A BODY CALLS, through the control constructs and the
+%% meta-calls whose goal it writes
+flow_body_goal(B, _) :- var(B), !, fail.
+flow_body_goal('$flow_dcg'(B), G) :- !, flow_dcg_goal(B, G).
+flow_body_goal((A, B), G) :- !, ( flow_body_goal(A, G) ; flow_body_goal(B, G) ).
+flow_body_goal((A ; B), G) :- !, ( flow_body_goal(A, G) ; flow_body_goal(B, G) ).
+flow_body_goal((A -> B), G) :- !, ( flow_body_goal(A, G) ; flow_body_goal(B, G) ).
+flow_body_goal((A *-> B), G) :- !, ( flow_body_goal(A, G) ; flow_body_goal(B, G) ).
+flow_body_goal(\+ A, G) :- !, flow_body_goal(A, G).
+flow_body_goal(_:A, G) :- !, flow_body_goal(A, G).
+flow_body_goal(B, G) :-
+    (   G = B
+    ;   flow_meta_arg(B, A), flow_body_goal(A, G)
+    ).
+
+flow_meta_arg(call(A), A).
+flow_meta_arg(once(A), A).
+flow_meta_arg(ignore(A), A).
+flow_meta_arg(not(A), A).
+flow_meta_arg(forall(A, _), A).
+flow_meta_arg(forall(_, A), A).
+flow_meta_arg(findall(_, A, _), A).
+flow_meta_arg(findall(_, A, _, _), A).
+flow_meta_arg(aggregate_all(_, A, _), A).
+flow_meta_arg(catch(A, _, _), A).
+flow_meta_arg(catch(_, _, A), A).
+flow_meta_arg(with_output_to(_, A), A).
+flow_meta_arg(with_mutex(_, A), A).
+flow_meta_arg(setof(_, A, _), A).
+flow_meta_arg(bagof(_, A, _), A).
+flow_meta_arg(_^A, A).
+
+flow_dcg_goal(B, _) :- var(B), !, fail.
+flow_dcg_goal((A, B), G) :- !, ( flow_dcg_goal(A, G) ; flow_dcg_goal(B, G) ).
+flow_dcg_goal((A ; B), G) :- !, ( flow_dcg_goal(A, G) ; flow_dcg_goal(B, G) ).
+flow_dcg_goal((A -> B), G) :- !, ( flow_dcg_goal(A, G) ; flow_dcg_goal(B, G) ).
+flow_dcg_goal(\+ A, G) :- !, flow_dcg_goal(A, G).
+flow_dcg_goal({A}, G) :- flow_body_goal(A, G).
+
+%% what a goal declares with its argument written out: dynamic/1's spec,
+%% the head of an assert's clause
+flow_goal_declares(dynamic(S), Ks) :- !,
+    flow_dynamic_keys(S, Ks), Ks \== [].
+flow_goal_declares(G, [K]) :-
+    flow_assert_arg(G, C), nonvar(C),
+    flow_asserted_key(C, K).
+
+flow_assert_arg(assert(C), C).
+flow_assert_arg(asserta(C), C).
+flow_assert_arg(assertz(C), C).
+
+flow_asserted_key(_:C, K) :- !, nonvar(C), flow_asserted_key(C, K).
+flow_asserted_key((H :- _), K) :- !, nonvar(H), flow_asserted_key(H, K).
+flow_asserted_key(H, N/A) :- callable(H), functor(H, N, A).
+
+%% a goal of a clause that declares what the clause's head is given:
+%% dynamic/1 of a spec, or an assert of a clause, not written out but
+%% sharing a variable with the head
+flow_goal_declarer(G, H, Sp) :-
+    (   G = dynamic(S), flow_dynamic_keys(S, []), Sp = dyn(S)
+    ;   flow_assert_arg(G, C), ( var(C) ; C = (V :- _), var(V) ), Sp = asr(C)
+    ),
+    term_variables(Sp, SVs),
+    term_variables(H, HVs),
+    member(V1, SVs), flow_var_in(V1, HVs), !.
+
+flow_spec_keys(dyn(S), Ks) :- flow_dynamic_keys(S, Ks).
+flow_spec_keys(asr(C), [K]) :- nonvar(C), flow_asserted_key(C, K).
+
+%% each key declared as the program runs that the chart would otherwise
+%% take for unknown: a dynamic predicate with no clauses of the file's
+flow_mark_declared([], _, Prog, Prog).
+flow_mark_declared([N/A|Ks], How, Prog0, Prog) :-
+    functor(G, N, A),
+    (   \+ get_assoc(N/A, Prog0, _),
+        flow_kind(G, ctx(Prog0, none, How), unknown)
+    ->  put_assoc(N/A, Prog0, dyn([]), Prog1)
+    ;   Prog1 = Prog0
+    ),
+    flow_mark_declared(Ks, How, Prog1, Prog).
+
+%% A CLAUSE OF THE CHART'S OWN, from the program (1.11.4, from
+%% cicili-lang's report): a file the chart reads that defines a predicate
+%% this library defines too -- a helper named flow_trim/2 -- joins the
+%% library's clauses, and the chart fails far from the cause (a type error
+%% from atom_codes/2 in the signature reader). The store holding more
+%% clauses of a flow_ predicate than the program's files give it is
+%% refused, by name, before anything is analysed. The tables the chart reads
+%% are open to a program -- flow_t_portal/8 rows for a module of its own
+%% (modules(Files) writes them), flow_mode/4 lines for a builtin -- and
+%% their rows are not refused.
+flow_clash_check(scan(_, Defs)) :-
+    (   member(N/A-Fs-C, Defs),
+        \+ flow_open_table(N, A),
+        functor(H, N, A),
+        catch(predicate_property(H, number_of_clauses(T)), _, fail),
+        T > C
+    ->  Fs = [F|_],
+        format(atom(Msg), '~q/~w is library(flow/chart)''s own predicate, and ~w gives it clauses of its own, which join the library''s: the chart would fail far from here -- name the program''s another way',
+               [N, A, F]),
+        throw(error(permission_error(modify, flow_procedure, N/A), context(flow_graph/3, Msg)))
+    ;   true
+    ).
+
+flow_open_table(N, _) :- atom_concat(flow_t_, _, N), !.
+flow_open_table(flow_mode, 4).
+flow_open_table(flow_raises_unbound, 4).
+
+%% MODULES OUT OF THE TREE (1.11.4, from cicili-lang's report):
+%% modules(Files) names a module's Cicili source, read as
+%% tools/flow/tables.pl reads the tree's own -- each ("name" Arity c_fun)
+%% row of its tables a C predicate, a portal, its modes from the row's
+%% comment, else from the header's signature list (`;;;;   name(+A, -B)'),
+%% else `?'; a name its hand-written dispatcher compares
+%% (`(strcmp name "x")') one at each arity the header documents, or at any.
+%% The rows are flow_t_portal/8's, written to a file and loaded beside the
+%% generated ones for the rest of the process, as load(Files) is; a file of
+%% such rows given to load(Files) does the same by hand. Mod is the file's
+%% name less `.cicili' (and a leading `coco-'), and Specs the libraries its
+%% Prolog half loads, read for their declarations.
+flow_module_portals(File, Specs) :-
+    (   exists_file(File) -> true
+    ;   throw(error(existence_error(flow_module, File), flow_graph/3))
+    ),
+    flow_module_rows(File, Mod, Rows, Specs),
+    (   Rows == [] -> true
+    ;   catch(flow_t_portal(Mod, _, _, _, File, _, _, _), _, fail) -> true
+    ;   tmp_file(flow_portals, T0),
+        atom_concat(T0, '.pl', T),
+        open(T, write, S),
+        forall(member(R, Rows), format(S, "~q.~n", [R])),
+        close(S),
+        use_module(T),
+        catch(delete_file(T), _, true)
+    ).
+
+flow_module_rows(File, Mod, Rows, Specs) :-
+    read_file_to_codes(File, Cs),
+    flow_lines(Cs, 1, Lines),
+    flow_doc_sigs(File, Docs),
+    file_base_name(File, Base),
+    file_name_extension(Mod0, _, Base),
+    (   atom_concat('coco-', Mod, Mod0) -> true ; Mod = Mod0 ),
+    findall(N/A-r(CFun, Line, Sig), ( member(Line-L, Lines), flow_dispatch_row(L, N, A, CFun, Sig) ), Rs0),
+    flow_first_per_key(Rs0, [], Rs),
+    findall(flow_t_portal(Mod, N, A, CFun, File, Line, Ms, Ns),
+            ( member(N/A-r(CFun, Line, Sig), Rs), flow_row_modes(Sig, N, A, Docs, Ms, Ns) ), P1),
+    findall(N, ( member(_-L, Lines), flow_strcmp_name(L, N), \+ memberchk(N/_-_, Rs) ), HNs0),
+    sort(HNs0, HNs),
+    assoc_to_list(Docs, DL),
+    findall(R, ( member(N, HNs), flow_hand_row(N, Mod, File, DL, R) ), P2),
+    append(P1, P2, Rows),
+    findall(Sp, flow_half_loads(Cs, Sp), Specs).
+
+%% ("NAME"  ARITY  c_function)  ; signature -- cocolint's first shape: any
+%% name, an arity, then a C name
+flow_dispatch_row(L, N, A, CFun, Sig) :-
+    append(_, [40, 34|R0], L),
+    flow_until(R0, 34, NCs, R1),
+    NCs \== [], \+ memberchk(10, NCs),
+    flow_skip_sp(R1, R2),
+    flow_digit_run(R2, DCs, R3),
+    DCs \== [],
+    flow_skip_sp(R3, [C|R4]),
+    ( C >= 0'a, C =< 0'z ; C =:= 0'_ ), !,
+    flow_c_name([C|R4], FCs, R5),
+    atom_codes(N, NCs),
+    number_codes(A, DCs),
+    atom_codes(CFun, FCs),
+    (   append(_, [59|R6], R5) -> flow_drop_pct(R6, R7), flow_trim(R7, SCs), atom_codes(Sig, SCs)
+    ;   Sig = none
+    ).
+
+flow_digit_run([C|Cs], [C|Ds], R) :- C >= 0'0, C =< 0'9, !, flow_digit_run(Cs, Ds, R).
+flow_digit_run(R, [], R).
+
+flow_c_name([C|Cs], [C|Ds], R) :- C =\= 41, C =\= 32, C =\= 9, !, flow_c_name(Cs, Ds, R).
+flow_c_name(R, [], R).
+
+flow_row_modes(Sig, N, A, Docs, Ms, Ns) :-
+    (   Sig \== none, flow_sig_parse(Sig, Ms0, Ns0), length(Ms0, A)
+    ->  Ms = Ms0, Ns = Ns0
+    ;   get_assoc(N/A, Docs, sig(Ms1, Ns1, _)), length(Ms1, A)
+    ->  Ms = Ms1, Ns = Ns1
+    ;   length(Ms, A), flow_fill(Ms, '?'), flow_gen_arg_names(A, Ns)
+    ).
+
+%% (strcmp name "x") -- cocolint's third shape, a hand-written dispatcher
+flow_strcmp_name(L, N) :-
+    atom_codes(strcmp, K),
+    append(_, R0, L), append(K, R1, R0),
+    flow_skip_sp(R1, R2),
+    append([0'n, 0'a, 0'm, 0'e], R3, R2),
+    flow_skip_sp(R3, [34|R4]),
+    flow_until(R4, 34, NCs, _),
+    NCs \== [],
+    atom_codes(N, NCs).
+
+flow_hand_row(N, Mod, File, DL, R) :-
+    findall(flow_t_portal(Mod, N, K, unknown, File, 0, Ms, Ns), member(N/K-sig(Ms, Ns, _), DL), Rs),
+    (   Rs == [] -> R = flow_t_portal(Mod, N, -1, unknown, File, 0, [], [])
+    ;   member(R, Rs)
+    ).
+
+%% use_module(library(X)) and ensure_loaded(library(X)) written in the
+%% module's Prolog half, which is text inside its source
+flow_half_loads(Cs, library(Spec)) :-
+    (   atom_codes('use_module(library(', K) ; atom_codes('ensure_loaded(library(', K) ),
+    append(_, R0, Cs), append(K, R1, R0),
+    flow_until(R1, 41, NCs, _),
+    NCs \== [],
+    atom_codes(NA, NCs),
+    atomic_list_concat(Parts, '/', NA),
+    flow_slash_term(Parts, Spec).
+
+flow_slash_term([P], P) :- !.
+flow_slash_term(Ps, D/L) :-
+    append(Init, [L], Ps),
+    flow_slash_term(Init, D).
+
 flow_source_clause(T, _, _, _, _, _, _) :- var(T), !, fail.
 flow_source_clause((:- _), _, _, _, _, _, _) :- !, fail.
 flow_source_clause((H0 --> B0), Vs, File, Text, L, K, N/A-cl(H, B, Names, Info)) :- !,

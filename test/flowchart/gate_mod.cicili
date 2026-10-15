@@ -1,0 +1,20 @@
+;;;; gate_mod -- the Cicili source of a module of gate.pl's program, as
+;;;; test/flowchart.pl's gate section gives it to modules(Files). It is
+;;;; read, never built: the chart takes each row of its table for a C
+;;;; predicate, its modes from the row's comment or from this header.
+;;;;
+;;;; THE SURFACE:
+;;;;
+;;;;   gm_lex(+Text, +Line0, -Tokens)
+;;;;   gm_version(-Atom)
+
+(DEFPARAMETER *gm-predicates*
+  '(("gm_lex"     3 gm_p_lex)
+    ("gm_version" 1 gm_p_version)      ; gm_version(-V)
+    ))
+
+(DEFPARAMETER *gm-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ":- use_module(library(gate_half))."   ; test/flowchart/gate_half.pl
+           "gm_twice(X, Y) :- gm_lex(X, 0, Y).")))
