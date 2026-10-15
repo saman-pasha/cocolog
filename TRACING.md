@@ -221,8 +221,10 @@ holds both shapes to the letter.
 
 The tracer has a second mode, which writes no line: it RECORDS each port
 as a term, with what the printer has no port for — the clause a call
-entered, each head before it that did not unify, an exception raised and
-where a `catch/3` took it. `'$trace_window'(Goal, Options, Events, End)`
+entered, each head before it the selection tried that did not unify (a
+clause the first-argument index passes over is never tried, and since
+1.11.2 is not recorded either), an exception raised and where a `catch/3`
+took it. `'$trace_window'(Goal, Options, Events, End)`
 runs Goal at full speed, untraced, up to the inference a window opens at
 (`from(I)`), and records from there (`to(J)`); the window opens in place,
 inside whichever engine — a `findall/3`'s too — reaches that inference.

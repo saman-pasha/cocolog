@@ -13,7 +13,12 @@
 %%                                     nohead(K), its head did not unify, or
 %%                                     entered(K, Goals), its body entered and
 %%                                     the calls it made, the one it failed at
-%%                                     last among them
+%%                                     last among them -- or [] when it tried
+%%                                     none: no clause has a head these
+%%                                     arguments could unify with, and the
+%%                                     index passed over every one (a window
+%%                                     records only the heads a call tried,
+%%                                     1.11.2)
 %%     failed(S, Name/Arity, In)       a call that failed with nothing of its
 %%                                     own to say why: a builtin, a library's
 %%     exited(S, Name/Arity, In, Out)  a call that exited, as it left its
@@ -26,9 +31,9 @@
 %% In and Out its arguments as written. A call of the program's own is one
 %% with a panel on the chart. So `basket_total([apple, banana, pear], T)'
 %% failed because its second clause's body failed at `basket_total([banana,
-%% pear], T0)', whose second clause's failed at `price(banana, P)', neither
-%% of whose heads unified: the price of a banana is nowhere -- found by
-%% reading, not by stepping.
+%% pear], T0)', whose second clause's failed at `price(banana, P)', which
+%% tried no clause at all, no head of price/2 being for a banana: the
+%% price of a banana is nowhere -- found by reading, not by stepping.
 
 flow_why(Run, Whys) :-
     Run = run(_, _, _, _, Calls, _, _, _),
@@ -60,7 +65,7 @@ flow_dbg_why_node(S, ByS, Kids, W) :-
     get_assoc(S, ByS, call(S, Pred, _, _, _, Panel, Clauses, In, Out, Fate)),
     (   Fate == exit
     ->  W = exited(S, Pred, In, Out)
-    ;   Fate == fail, Panel \== none, Clauses \== []
+    ;   Fate == fail, Panel \== none
     ->  (   get_assoc(S, Kids, Ks) -> true ; Ks = [] ),
         flow_dbg_why_tries(Clauses, Ks, ByS, Kids, Tries),
         W = why(S, Pred, In, Tries)

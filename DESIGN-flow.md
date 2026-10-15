@@ -910,8 +910,9 @@ numbers exactly. And the two findings above.
   Call the cell of the call it is inside, and each argument as `writeq`
   writes it, cut at `text(N)` characters with its whole length kept. And
   what the printer has no port for: the clause a call entered (its number)
-  and each head before it that did not unify; an exception raised (its
-  ball) and where a `catch/3` took it. Every hook is on a branch tracing
+  and each head before it that the selection tried and did not unify
+  (through 1.11.1 every clause before it, the index's skips too); an
+  exception raised (its ball) and where a `catch/3` took it. Every hook is on a branch tracing
   already takes, and out of line -- a `(weak)` function, which the compiler
   never inlines into the loop: the clause events are read AFTER the
   selection, from the frame it left (`coco_rec_heads`), on the traced
@@ -1087,7 +1088,7 @@ from a session that used the library on `library/reasoning/translate.pl`:
   whether its call had exited (1.10.25).
 * **The run as text** (`txt(true)`, `library/flow/dbgtext.pl`): Base.txt,
   a line a call -- its inference, the goal at its Call, how it ended, the
-  clauses it entered and the heads that did not unify, its box, and where
+  clauses it entered and the heads it tried that did not unify, its box, and where
   the box is written: `:LINE:COL` in the file a `% file:` line names once,
   under the head (1.11.0; a window with places in several files keeps
   each line's `FILE:LINE:COL`). Through 1.10.28 every line carried the
@@ -1139,6 +1140,25 @@ from a session that used the library on `library/reasoning/translate.pl`:
   one place has one finding, at the first clause that stands apart. The
   translator has 39, the number the session counted from the XML's clause
   lines.
+* **The heads a call TRIED, and a matcher that grows with them** (1.11.2,
+  the reasoning session's finding E): a window of 2000 inferences of the
+  translator (1,379 calls) took 292 s and wrote 31.2 MB of XML, 215,525 of
+  its events heads that did not unify -- every clause before the one a call
+  entered, the index's skips among them: one failed call of a 32,046-fact
+  table listed all 32,046. A head the index passes over is never tried, and
+  is not recorded now: `coco_rec_heads` walks the index's candidates again
+  with the key the selection read, kept before the selection binds the call
+  (`coco_rec_hkey`: `p(K, 2)` entering `p(b, 2)` binds K, and walked with
+  b's key, the head tried before it with none would be lost). A failed call
+  of the program's that tried no clause is still why it failed --
+  `why(S, P, In, [])`, "no clause tried" under it on the picture -- and the
+  furthest path ends at it, no head having unified; the furthest step
+  reads "clause K, the furthest of N tried", N the clauses tried. And the
+  matcher appended each head to its call's list, n * n / 2 cells for n
+  heads (on the session's box 20,000 skipped heads cost 19 s of a 37 s
+  run): the list is built backwards and turned round once. Per function
+  the untraced engine runs the same instructions as 1.11.0's on nrev,
+  queens and lookup.
 
 ## 10. Phases
 

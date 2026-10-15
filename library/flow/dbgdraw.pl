@@ -976,7 +976,10 @@ flow_dbg_why_line(why(S, N/_, In, Tries), D, [l(D, Segs)|L1], L) :- !,
     format(atom(M), '   failed  ·  call at ~d', [S]),
     Segs = [s('✗ ', red), s(CT, ink), s(M, red)],
     D1 is D + 1,
-    flow_dbg_why_try_lines(Tries, D1, L1, L).
+    (   Tries == []
+    ->  L1 = [l(D1, [s('no clause tried: none has a head these arguments could unify with', muted)])|L]
+    ;   flow_dbg_why_try_lines(Tries, D1, L1, L)
+    ).
 flow_dbg_why_line(failed(S, N/_, In), D, [l(D, [s('✗ ', red), s(CT, ink), s(M, muted)])|L], L) :- !,
     flow_dbg_args_text(N, In, CT),
     format(atom(M), '   failed, with no clause of the program''s to say why  ·  call at ~d', [S]).
@@ -999,7 +1002,7 @@ flow_dbg_furthest_lines([], _, []).
 flow_dbg_furthest_lines([step(S, N/_, In, K, Done, Tried)|Ps], D, [l(D, Segs)|Ls]) :- !,
     flow_dbg_args_text(N, In, CT),
     (   Done =:= 1 -> DW = 'call' ; DW = 'calls' ),
-    format(atom(M), '   clause ~d of ~d tried got furthest: ~d ~w of its body exited  ·  call at ~d',
+    format(atom(M), '   clause ~d, the furthest of ~d tried: ~d ~w of its body exited  ·  call at ~d',
            [K, Tried, Done, DW, S]),
     Segs = [s('▸ ', red), s(CT, ink), s(M, muted)],
     D1 is D + 1,
@@ -1334,9 +1337,10 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)
     append([[CE, EE, BE], JEs, YEs], Ks).
 
 %% why it failed, as the tree dbgwhy.pl reads it: <failed call pred> with a
-%% <try n unified> for each clause it tried and, inside one entered, the
-%% calls it made -- <exited>, <failed> (own="false": nothing of the
-%% program's to say why) and <ended fate>
+%% <try n unified> for each clause it tried -- none when it tried none, no
+%% head being one its arguments could unify with -- and, inside one
+%% entered, the calls it made -- <exited>, <failed> (own="false": nothing
+%% of the program's to say why) and <ended fate>
 flow_dbg_x_why(why(S, P, _, Tries), element(failed, [call=S, pred=PA], TEs)) :- !,
     flow_dbg_x_pred(P, PA),
     findall(TE, ( member(T, Tries), flow_dbg_x_why_try(T, TE) ), TEs).

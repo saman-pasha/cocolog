@@ -696,8 +696,10 @@
     (member size_t       acap)
     (member int          oom)
     ;; the clause a traced retry's selection starts from, kept by its Redo
-    ;; for the heads recorded after it (`coco_trace_paint')
+    ;; for the heads recorded after it (`coco_trace_paint'), and the key
+    ;; the selection reads, kept before it binds the call (`coco_rec_hkey')
     (member size_t       hstart)
+    (member u64          hkey)
     ;; A REDO IS PRINTED ONLY WHEN THE RETRY ENTERS A CLAUSE, so the one
     ;; recorded as a retry begins is PENDING until it does: 1 + its event,
     ;; and the texts and arena before it, to take it back by anything else
@@ -2897,23 +2899,51 @@
   ;;; inference that no untraced run executes, in registers and layout
   ;;; (tools/flow/zero.sh).
 
-  ;;; THE HEADS, AFTER THE SELECTION: in a window, each clause from START
-  ;;; up to the one the frame at CI entered -- or to the predicate's last,
-  ;;; when none was (ENTERED 0) -- did not match the call, and the entered
-  ;;; one did. Read back from the frame, which keeps both the next clause to
-  ;;; try and, under trace, its place on the last clause too. A clause the
-  ;;; index passed over is among those that did not match: its head could
-  ;;; not have.
+  ;;; THE KEY THE SELECTION READS, kept in a window before the selection
+  ;;; binds the call: the call's argument the frame is keyed on
+  ;;; (`coco_select_clause'), which the head entered may bind by the time
+  ;;; the heads are recorded -- `p(K, 2)' entering `p(b, 2)' has K bound to
+  ;;; b, and walked again with b's key the heads before it that were tried
+  ;;; with none would not be. Asked of a fresh traced call before its
+  ;;; selection, and of a retry by `coco_trace_paint'.
+  (weak)
+  (func coco_rec_hkey ((coco_engine * e) (size_t ci))
+        (if (!= (-> e trace) 2) (return))
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (coco_choice * c . #'(aof (nth ci (-> e choices)))))
+          (if (!= r nil)
+              (set (-> r hkey) (coco_call_arg_key (-> e m) (-> c call) (-> c ixpos))))))
+
+  ;;; THE HEADS, AFTER THE SELECTION: in a window, the clauses from START
+  ;;; that the selection tried up to the one the frame at CI entered -- or
+  ;;; to the predicate's last, when none was (ENTERED 0) -- did not match
+  ;;; the call, and the entered one did. They are the index's candidates,
+  ;;; walked again with the key the selection read (`coco_rec_hkey') from
+  ;;; the frame, which keeps both the next clause to try and, under trace,
+  ;;; its place on the last clause too. A clause the index passed over was
+  ;;; never tried and is not recorded (1.11.2): through 1.11.1 every clause
+  ;;; before the entered one was a head that did not match, and a failed
+  ;;; call of a table of 32,046 facts recorded 32,046 heads whose first
+  ;;; argument was never asked -- 215,525 of them in one window of the
+  ;;; translator's, most of its 31 MB of XML (reported from the reasoning
+  ;;; session).
   (weak)
   (func coco_rec_heads ((coco_engine * e) (size_t ci) (size_t start) (int entered))
         (if (!= (-> e trace) 2) (return))
-        (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
-              (coco_pred * p . #'(aof (nth (-> c pred) ($ (cof (-> e st)) preds))))
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) ($ (cof m) rec)))
+              (coco_store * st . #'(-> e st))
+              (coco_choice * c . #'(aof (nth ci (-> e choices))))
+              (coco_pred * p . #'(aof (nth (-> c pred) ($ (cof st) preds))))
               (int depth . #'($ (nth ci (-> e tchoices)) depth))
-              (size_t upto . 0))
+              (size_t upto . 0)
+              (size_t ix . 0))
+          (if (or (== r nil) (!= (-> r state) 1)) (return))
           (set upto (? entered (- (-> c clause_ix) 1) (-> p nclauses)))
-          (for ((size_t ix . start)) (< ix upto) ((++ ix))
-            (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1)))
+          (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) start))
+          (while (and (!= ix (coco_no_clause)) (< ix upto))
+            (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1))
+            (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) (+ ix 1))))
           (if entered (coco_rec_mark e COCO_REV_CLAUSE depth (-> c call) (+ upto 1)))))
 
   ;;; A RETRY'S CALL, painted before the selection binds it: its text for
@@ -2935,7 +2965,8 @@
                      (set (-> r palen) (-> r alen))
                      (coco_rec_port e COCO_REV_REDO depth g 0)
                      (if (> (-> r nevs) n0) (set (-> r pend) (-> r nevs))))
-                   (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix))))
+                   (set (-> r hstart) ($ (nth ci (-> e choices)) clause_ix))
+                   (coco_rec_hkey e ci)))
               (return nil)))
         (let ((coco_strbuf tb))
           (coco_sb_init (aof tb))
@@ -5686,16 +5717,18 @@
                                   (set ($ (nth ci (-> e choices)) clause_ix) (? (== det 2) ix0 0))
                                   ;; and the argument it was found on
                                   (set ($ (nth ci (-> e choices)) ixpos) kpos)
-                                  ;; this frame IS the traced call
+                                  ;; this frame IS the traced call; a window
+                                  ;; keeps the key its selection reads
                                   (if tport
                                       (let ((coco_tchoice * tc . #'(aof (nth ci (-> e tchoices)))))
                                         (set (-> tc goal) g)
                                         (set (-> tc depth) tD)
                                         (set (-> tc printr) 1)
-                                        (set (-> tc exited) 0)))
-                                  ;; a window records which heads did not match
-                                  ;; and the clause entered, after the selection
-                                  ;; (`coco_rec_heads', out of line)
+                                        (set (-> tc exited) 0)
+                                        (coco_rec_hkey e ci)))
+                                  ;; and records the heads it tried that did not
+                                  ;; match and the clause entered, after the
+                                  ;; selection (`coco_rec_heads', out of line)
                                   (if (not (coco_select_clause e ci))
                                       (block (if tport (coco_trace_nomatch e ci tD g))
                                              (set ok 0))
