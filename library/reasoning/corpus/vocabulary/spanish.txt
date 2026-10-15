@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20392 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20396 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -63,6 +63,8 @@ The masculine noun "consomé" means "consomme".
 The masculine noun "pollastre amb galets" means "chicken with galets".
 The adjective "marginal" means "marginal".
 "marginales" is the plural of "marginal".
+The masculine noun "daño" means "damage".
+"daños" is the plural of "daño".
 The masculine noun "destrozo" means "damage".
 "destrozos" is the plural of "destrozo".
 The masculine adjective "sacrosanto" means "sacrosanct".
@@ -1062,6 +1064,54 @@ The verb "retribuye" means "remunerates".
 The adverb "justamente" means "precisely".
 The adjectival adverb "justamente" means "justly".
 The masculine noun "consejo" means "council".
+The feminine noun "hidrocución" means "hydrocution".
+The word "hace" begins the time.
+The word "durante" begins the duration.
+The word "por" begins the measure.
+"metro" is a measure.
+"kilómetro" is a measure.
+"centímetro" is a measure.
+"milla" is a measure.
+"kilo" is a measure.
+"litro" is a measure.
+"agua" is euphonic.
+"águila" is euphonic.
+"alma" is euphonic.
+"ala" is euphonic.
+"alba" is euphonic.
+"alga" is euphonic.
+"ama" is euphonic.
+"ancla" is euphonic.
+"ansia" is euphonic.
+"área" is euphonic.
+"arma" is euphonic.
+"arpa" is euphonic.
+"asa" is euphonic.
+"asma" is euphonic.
+"aula" is euphonic.
+"ave" is euphonic.
+"hada" is euphonic.
+"hacha" is euphonic.
+"hambre" is euphonic.
+"haya" is euphonic.
+"hampa" is euphonic.
+"ágora" is euphonic.
+"álgebra" is euphonic.
+"aspa" is euphonic.
+The adverb "por ley" means "by law".
+The adverb "bajo el agua" means "underwater".
+The masculine noun "periódico" means "newspaper".
+The conjunction "antes de que" means "before".
+"antes de que" takes the subjunctive.
+"cree" takes the denial.
+"piensa" takes the denial.
+"opina" takes the denial.
+"parece" takes the denial.
+"supone" takes the denial.
+The masculine adjective "helado" means "freezing".
+The feminine adjective "helada" means "freezing".
+"helados" is the plural of "helado".
+"heladas" is the plural of "helada".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1203,6 +1253,14 @@ The masculine noun "abogado" means "lawyer".
 The feminine noun "abogada" means "lawyer".
 "abogadas" is the plural of "abogada".
 "abogada" is a person.
+The masculine noun "síncope" means "syncope".
+"síncopes" is the plural of "síncope".
+The masculine noun "ahogamiento" means "drowning".
+"ahogamientos" is the plural of "ahogamiento".
+The noun "bañista" means "bather".
+"bañista" is not feminine.
+"bañistas" is the plural of "bañista".
+"bañista" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -122979,6 +123037,9 @@ The verb "margina" means "marginalises".
 "marginadas" is the plural of "marginada".
 "marginar" is the infinitive of "margina".
 "marginando" is the gerund of "margina".
+The verb "sorprende" means "overtakes".
+"overtook" is the past of "overtakes".
+"overtaken" is the participle of "overtakes".
 The verb "calma" means "abates".
 The verb "secuestra" means "abducts".
 The verb "sube" means "climbs".

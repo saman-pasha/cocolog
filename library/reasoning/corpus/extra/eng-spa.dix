@@ -540,3 +540,12 @@
 <e r="RL"><p><l>procedure<s n="n"/></l><r>enjuiciamiento<s n="n"/><s n="m"/></r></p></e>
 <e r="RL"><p><l>stress<s n="vblex"/></l><r>recalcar<s n="vblex"/></r></p></e>
 <e r="RL"><p><l>exploit<s n="vblex"/></l><r>aprovechar<s n="vblex"/></r></p></e>
+# the Makula interview (VIT-9381..9414), into Spanish: `colta da sincope' -- the syncope of
+# fainting has `síncope' in apertium-spa.spa.dix and no English word; and `overtake', which
+# the Italian `cogliere' is read as, is written `sorprender' (left to right only)
+<e><p><l>syncope<s n="n"/></l><r>síncope<s n="n"/><s n="f"/></r></p></e>
+<e r="LR"><p><l>overtake<s n="vblex"/></l><r>sorprender<s n="vblex"/></r></p></e>
+# `nei casi di annegamento': drowning, which Spanish says `ahogamiento'; `i bagnanti',
+# the bathers, `bañistas'. Both ways
+<e><p><l>drowning<s n="n"/></l><r>ahogamiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>bather<s n="n"/></l><r>bañista<s n="n"/><s n="mf"/></r></p></e>

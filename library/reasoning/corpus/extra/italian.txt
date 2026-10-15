@@ -2690,3 +2690,32 @@ The adverb "giustamente" means "precisely".
 The adjectival adverb "giustamente" means "justly".
 # `il presidente del Consiglio dell'Avvocatura': a council, as Spanish's `Consejo'
 The masculine noun "consiglio" means "council".
+# the Makula interview (VIT-9381..9414): `com'è andata a Fregene', `dev'essere
+# immediato' -- the elision of the verb before `è' and `essere'; `sott acqua' as
+# the newspaper wrote it, without its mark; `il miglior ospedale'; `per tirar su
+# una persona', the infinitive cut short; `la sincope da idrocuzione'
+"com'" is the elision of "come".
+"dev'" is the elision of "deve".
+"sott" is the apocope of "sotto".
+"miglior" is the apocope of "migliore".
+"tirar" is the infinitive of "tira".
+The feminine noun "idrocuzione" means "hydrocution".
+# the Makula interview, second batch: `- premette -' is the speaker prefacing what he
+# says (the dictionary's `prefix'; the dictionary's own word for clarifying is said
+# again first, so that the writer keeps it); `per legge'; `insieme con'; the elisions
+# `dov'è', `quand'è' and `sott'acqua', and the newspaper's `sott acqua' without its mark
+The verb "chiarisce" means "clarifies".
+The verb "premette" means "clarifies".
+The adverb "per legge" means "by law".
+The preposition "insieme con" means "together with".
+"dov'" is the elision of "dove".
+"quand'" is the elision of "quando".
+"sott'" is the elision of "sotto".
+The adverb "sott'acqua" means "underwater".
+The adverb "sott acqua" means "underwater".
+"entra" is intransitive.
+# `passano quattro minuti prima che si producano danni': the connecting word, which takes the subjunctive
+The conjunction "prima che" means "before".
+"prima che" takes the subjunctive.
+# `si chiama infatti assistente ai bagnanti', `si chiama Maria': is called -- the impersonal `si' with no subject is the verb's own reflexive
+"chiama" is reflexive.

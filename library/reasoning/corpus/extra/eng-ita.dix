@@ -974,3 +974,32 @@
 # `Los abogados deben ser justamente retribuidos' (the Abogacía report, from Spanish):
 # the Italian monolingual dictionary has `remunerare' and no bilingual line for it
 <e><p><l>remunerate<s n="vblex"/></l><r>remunerare<s n="vblex"/></r></p></e>
+# the Makula interview (VIT-9381..9414, Italian into Spanish): words that have a
+# paradigm in apertium-ita.ita.dix and no English word.
+# `con le pinne': the fins of a swimmer; Spanish has `fin' as `aleta'. Both ways
+<e><p><l>fin<s n="n"/></l><r>pinna<s n="n"/><s n="f"/></r></p></e>
+# `più efficiente': the dictionary says `efficient' as `efficace' (and Spanish's
+# `eficiente' is read as it); only read, so that the word written stays the dictionary's
+<e r="RL"><p><l>efficient<s n="adj"/></l><r>efficiente<s n="adj"/><s n="mf"/></r></p></e>
+# `dev'essere immediato, tempestivo': timely, which Spanish says `oportuno'
+<e r="RL"><p><l>timely<s n="adj"/></l><r>tempestivo<s n="adj"/></r></p></e>
+# `la trachea resta chiusa': Spanish has `trachea' as `tráquea'. Both ways
+<e><p><l>trachea<s n="n"/></l><r>trachea<s n="n"/><s n="f"/></r></p></e>
+# `il termine di quattro minuti rimane inderogabile': a term that cannot be waived
+# is binding; the dictionary's `mandatory' is Spanish's `obligatorio'. Only read
+<e r="RL"><p><l>mandatory<s n="adj"/></l><r>inderogabile<s n="adj"/><s n="mf"/></r></p></e>
+# `una bibita ghiacciata': a drink, which Spanish says `bebida'; ice cold is
+# `freezing' for the dictionary's `helado'. Only read
+<e r="RL"><p><l>drink<s n="n"/></l><r>bibita<s n="n"/><s n="f"/></r></p></e>
+<e r="RL"><p><l>freezing<s n="adj"/></l><r>ghiacciato<s n="adj"/></r></p></e>
+# `più valido': valid, which Spanish says `válido' (the dictionary's Italian for it is `vigente'); only read
+<e r="RL"><p><l>valid<s n="adj"/></l><r>valido<s n="adj"/></r></p></e>
+# `la sincope da idrocuzione', `colta da sincope': the syncope of fainting, where the dictionary's
+# `sincope' is the rhythm. Both ways
+<e><p><l>syncope<s n="n"/></l><r>sincope<s n="n"/><s n="f"/></r></p></e>
+# `è stata colta da sincope': overtaken by -- `cogliere' has a paradigm in
+# apertium-ita.ita.dix and no English word. Only read
+<e r="RL"><p><l>overtake<s n="vblex"/></l><r>cogliere<s n="vblex"/></r></p></e>
+# `i bagnanti', `assistente ai bagnanti': a bather, which Spanish says `bañista'; the
+# dictionary has `bagnante' as a swimmer alone. Both ways
+<e><p><l>bather<s n="n"/></l><r>bagnante<s n="n"/><s n="mf"/></r></p></e>
