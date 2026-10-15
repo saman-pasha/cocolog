@@ -53,9 +53,11 @@
 %% abolish(F/A), dynamic(F/A)' called as `reset(t/2)' -- anywhere in the
 %% source, the files load(Files) names and the files they load: a call of
 %% such a table is a dynamic predicate's, not an unknown procedure. A file
-%% read here that defines a predicate of this library's own -- a helper
-%% named flow_trim/2 -- is refused by name before anything is analysed:
-%% its clauses would join the library's (read.pl).
+%% of the program's that defines a predicate of this library's own -- a
+%% helper named flow_trim/2 -- is refused by name before anything is
+%% analysed: its clauses would join the library's (read.pl). Since 1.11.7
+%% the store is held to the library's own files, so a file the program
+%% loaded itself, which the chart does not read, is refused too.
 %%
 %% EVERY GOAL IS DRAWN, by name, builtins and library calls too: each is a
 %% box on its clause's line, which the chart does not go inside -- a

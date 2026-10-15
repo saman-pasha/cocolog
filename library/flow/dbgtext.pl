@@ -27,10 +27,14 @@
 %%              done when it closed), raised or unwound
 %%     CLAUSES  the clauses it entered, c1 c3, and the heads it tried that
 %%              did not unify, h2 -- [] when it tried none, no head being
-%%              one its arguments could unify with
+%%              one its arguments could unify with -- and threw:BOX where
+%%              its own body raised an exception, a throw/1 at BOX (1.11.7)
 %%     BOX      the chart's id for the goal it is -- query.g1, p3.c2.g4 --
 %%              or - for a call made in a clause the window did not see
-%%              entered
+%%              entered; in a clause the chart does not draw, a call an
+%%              exception ended made its calls at the places the clause
+%%              read from the file gives them, cpp_refuse/2#c1.g2
+%%              (1.11.7, dbgmatch.pl), with no WHERE
 %%     WHERE    that goal's :LINE:COL in the file the second line names, the
 %%              place it is written -- or its whole FILE:LINE:COL when the
 %%              window's places are in more than one file
@@ -113,7 +117,8 @@ flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, Fi
     flow_dbg_text_trim(Line0, Line).
 
 flow_dbg_text_clause(c(K, _), CT) :- !, atom_concat(c, K, CT).
-flow_dbg_text_clause(nohead(K, _), CT) :- atom_concat(h, K, CT).
+flow_dbg_text_clause(nohead(K, _), CT) :- !, atom_concat(h, K, CT).
+flow_dbg_text_clause(thrown(B, _), CT) :- atom_concat('threw:', B, CT).
 
 %% Name(Arg, ...), each argument as the window wrote it
 flow_dbg_text_goal(N, As, T) :-
@@ -169,7 +174,10 @@ flow_dbg_text_place(Ks, File, Id, W) :-
 %% line a failed call on the way, the clause that got furthest and how many
 %% of its body's calls exited, and how the last failed. A run that raised
 %% ends with the calls the exception ended, from the top down, and where the
-%% failure it answered got furthest (flow_why_raised/2, 1.11.4)
+%% failure it answered got furthest (flow_why_raised/2, 1.11.4); since
+%% 1.11.7 between them the branch a choice took and the conditions it ran,
+%% and after them, when a catch's recovery raised it, the exception the
+%% catch took, told the same way and indented under its own line
 flow_dbg_text_furthest(Sum, Calls, Ls) :-
     arg(13, Sum, Own),
     (   arg(3, Sum, end(false, _, _))
@@ -180,17 +188,74 @@ flow_dbg_text_furthest(Sum, Calls, Ls) :-
             Ls = ['% where it got furthest:'|Ls0]
         )
     ;   arg(3, Sum, end(exception(_), _, _))
-    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
-        flow_dbg_text_chain(Chain, 1, CLs),
-        (   Answered == none
-        ->  ALs = ['% the failure it answered: none -- no call failed, having tried a clause, before the raise on its way down']
-        ;   flow_why_furthest([Answered], Path),
-            flow_dbg_text_path(Path, 1, PLs),
-            ALs = ['% the failure it answered, where it got furthest:'|PLs]
-        ),
-        append(['% where the exception was raised:'|CLs], ALs, Ls)
+    ->  flow_dbg_raised(Calls, Own, Raised, Chose, Caught),
+        flow_dbg_text_raise(Raised, Chose, Caught, 0, Ls)
     ;   Ls = []
     ).
+
+%% a raise, its headings indented D levels
+flow_dbg_text_raise(raised(Chain, Answered), Chose, Caught, D, Ls) :-
+    I is 2 * D,
+    flow_dbg_text_spaces(I, Ind),
+    D1 is D + 1,
+    (   Chain == []
+    ->  format(atom(H1), '% ~wwhere the exception was raised: it ended no call the window saw', [Ind]),
+        CLs = []
+    ;   format(atom(H1), '% ~wwhere the exception was raised:', [Ind]),
+        flow_dbg_text_chain(Chain, D1, CLs)
+    ),
+    flow_dbg_text_chose(Chose, Ind, D1, HLs),
+    (   Answered == none
+    ->  (   Chose == none
+        ->  format(atom(A1), '% ~wthe failure it answered: none -- no call failed, having tried a clause, before the raise on its way down', [Ind])
+        ;   format(atom(A1), '% ~wthe failure it answered: none -- no condition the choice ran failed having tried a clause', [Ind])
+        ),
+        ALs = [A1]
+    ;   flow_why_furthest([Answered], Path),
+        flow_dbg_text_path(Path, D1, PLs),
+        format(atom(A1), '% ~wthe failure it answered, where it got furthest:', [Ind]),
+        ALs = [A1|PLs]
+    ),
+    (   Caught = caught(KS, KN/_, KIn, KAt, R1, C1, K1)
+    ->  flow_dbg_text_goal(KN, KIn, KG),
+        format(atom(K0), '% ~wit was raised in the recovery of the catch/3 at ~w in ~w (call ~w); the exception that catch took:',
+               [Ind, KAt, KG, KS]),
+        flow_dbg_text_raise(R1, C1, K1, D1, KLs1),
+        KLs = [K0|KLs1]
+    ;   KLs = []
+    ),
+    append([[H1|CLs], HLs, ALs, KLs], Ls).
+
+%% the branch a choice took, and its conditions a line each
+flow_dbg_text_chose(none, _, _, []) :- !.
+flow_dbg_text_chose(chose(S, N/_, In, At, Branch, Conds), Ind, D1, [H|CLs]) :-
+    flow_dbg_text_goal(N, In, GT),
+    flow_dbg_branch_words(Branch, BW),
+    format(atom(H), '% ~wthe branch it was raised in: ~w, at ~w in ~w (call ~w); the conditions it ran:',
+           [Ind, BW, At, GT, S]),
+    I is 2 * D1,
+    flow_dbg_text_spaces(I, CInd),
+    findall(L, ( member(C, Conds), flow_dbg_text_cond(C, CInd, L) ), CLs).
+
+flow_dbg_text_cond(Node, CInd, L) :-
+    arg(1, Node, S), arg(2, Node, N/_), arg(3, Node, In),
+    flow_dbg_text_goal(N, In, GT),
+    flow_dbg_cond_word(Node, W),
+    format(atom(L), '%~w~w: ~w (call ~w)', [CInd, GT, W, S]).
+
+%% how a branch was chosen, and how a condition ended, in words
+flow_dbg_branch_words(then(J), W) :- !,
+    format(atom(W), 'the then of arm ~w (its condition held)', [J]).
+flow_dbg_branch_words(else, 'the else (every condition failed)') :- !.
+flow_dbg_branch_words(branch(J), W) :-
+    format(atom(W), 'branch ~w (the branches before it failed)', [J]).
+
+flow_dbg_cond_word(exited(_, _, _, _), exited) :- !.
+flow_dbg_cond_word(why(_, _, _, []), 'failed, no clause''s head unified') :- !.
+flow_dbg_cond_word(why(_, _, _, _), 'failed in its clauses') :- !.
+flow_dbg_cond_word(failed(_, _, _), 'failed, nothing of the program''s to say why') :- !.
+flow_dbg_cond_word(ended(_, _, _, F), W) :-
+    format(atom(W), '~w, and a catch took the exception', [F]).
 
 flow_dbg_text_chain([], _, []).
 flow_dbg_text_chain([ended(S, N/_, In, F)|Es], D, [L|Ls]) :-

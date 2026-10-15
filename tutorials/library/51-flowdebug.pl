@@ -15,6 +15,12 @@
 %%     flow_why_raised(+Run, -Raised)              why it raised: the calls the
 %%                                                 exception ended, the failure
 %%                                                 it answered
+%%     flow_why_raised(+Run, -Raised, +Options)    and chose(C), the branch a
+%%                                                 choice took to raise it and
+%%                                                 the conditions it ran;
+%%                                                 caught(K), the exception a
+%%                                                 catch took when its
+%%                                                 recovery raised
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared
 %%
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
@@ -216,9 +222,11 @@ main :-
     format("~ndone~n").
 
 %% A RUN THAT RAISES: a checkout that gives up with an error when a basket
-%% has no total. Its why is the calls the exception ended and the failure
-%% the raise answered, with where that got furthest. The basket is another
-%% file's, which the chart has no panel for: own(all) explains its calls too
+%% has no total. Its why is the calls the exception ended, the branch a
+%% choice took to raise it and the conditions that choice ran, and the
+%% failure the raise answered, with where that got furthest. The basket is
+%% another file's, which the chart has no panel for: own(all) explains its
+%% calls too
 raised(Dir) :-
     format("~n-- a run that raises: why?~n"),
     atom_concat(Dir, '/basket.pl', Basket),
@@ -226,18 +234,40 @@ raised(Dir) :-
     open(Prog, write, W),
     format(W, ":- use_module(~q).~n", [Basket]),
     format(W, "checkout(Items, T) :- ( basket_total(Items, T) -> true ; throw(error(unpriced(Items), checkout/2)) ).~n", []),
+    format(W, "till(Items, T) :- catch(checkout(Items, T), error(unpriced(Is), _), refuse_sale(Is)).~n", []),
+    format(W, "refuse_sale(Is) :- throw(error(sale_refused(Is), till/2)).~n", []),
     close(W),
     atom_concat(Dir, '/checkout', Base),
     flow_debug(checkout([apple, banana], T), Base, [source(Prog), names(['T'=T]), own(all)], Run),
     Run = run(How, _, _, _, _, _, _, _),
     must('the run raised', How, exception(error(unpriced([apple, banana]), checkout/2))),
-    flow_why_raised(Run, raised(Chain, Answered), [own(all)]),
+    flow_why_raised(Run, raised(Chain, Answered), [own(all), chose(Chose)]),
     findall(P-F, member(ended(_, P, _, F), Chain), PF),
     must('the exception ended checkout/2, in whose body it was raised', PF, [checkout/2-unwound]),
+    %% the throw/1 stands in the else of checkout/2's if-then-else: it ran
+    %% because every condition failed -- basket_total/2, in its clauses
+    ( Chose = chose(_, CP, _, _, Branch, Conds) -> true ; CP = none, Branch = none, Conds = [] ),
+    findall(CN-CK, ( member(C, Conds), arg(2, C, CN), functor(C, CK, _) ), CNK),
+    must('the branch it was raised in: checkout/2''s else, after basket_total/2 failed', CP-Branch-CNK,
+         (checkout/2)-else-[(basket_total/2)-why]),
     flow_why_furthest([Answered], Path),
     findall(P-K, ( member(Step, Path), arg(2, Step, P), ( Step = step(_, _, _, K, _, _) -> true ; functor(Step, K, _) ) ), PKs),
     must('it answered basket_total/2''s failure, which got furthest down to price/2 with no head for a banana',
-         PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]).
+         PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]),
+    %% A RECOVERY THAT RAISES: a till catches the checkout's error and
+    %% refuses the sale with one of its own. The run raised in the catch's
+    %% recovery, and the exception the catch took is explained as well
+    atom_concat(Dir, '/till', TBase),
+    flow_debug(till([apple, banana], T2), TBase, [source(Prog), names(['T'=T2]), own(all)], TRun),
+    flow_why_raised(TRun, raised(TChain, _), [own(all), caught(Caught)]),
+    findall(TP, member(ended(_, TP, _, _), TChain), TPs),
+    must('the sale was refused: raised by refuse_sale/1, in till/2''s recovery', TPs, [till/2, refuse_sale/1]),
+    (   Caught = caught(_, KP, _, _, raised(KChain, _), chose(_, KCP, _, _, KB, _), _)
+    ->  findall(KQ, member(ended(_, KQ, _, _), KChain), KQs)
+    ;   KP = none, KQs = [], KCP = none, KB = none
+    ),
+    must('...and the exception the catch took: checkout/2''s, raised in its else',
+         KP-KQs-KCP-KB, (till/2)-[checkout/2]-(checkout/2)-else).
 
 %% a why tree without its arguments: what failed, and where
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).

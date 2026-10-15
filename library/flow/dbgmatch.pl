@@ -19,7 +19,23 @@
 %% be matched in: it is placed in a panel of its predicate, as near its
 %% call pattern as the chart has one, and no box.
 %%
+%% A CLAUSE THE CHART DOES NOT DRAW is matched too when the caller hands
+%% its body over (1.11.7, from cicili-lang's report): a program debugged
+%% from a small top file calls into files the chart has no panel for, and
+%% the reasons an exception was raised are in those clauses. Its calls are
+%% placed by the same walk, against the clause's own goals, and each gets
+%% the place it has there for its box -- `cpp_not_abstract/1#c1.g1.a2.g1',
+%% the predicate, `#', the clause and the path the chart's ids would have
+%% -- an id no box of the chart has (a chart's never holds a `/').
+%%
 %%     flow_dbg_match(+Graph, +Events, -Calls)
+%%     flow_dbg_match(+Graph, +Events, +Bodies, -Calls)
+%%
+%% Bodies none, or a goal called as call(Bodies, Needed, Found): Needed is
+%% Name/Arity-K for each clause entered by a call no end port ended (an
+%% exception, or the window closing on it) and with no panel, Found
+%% (Name/Arity-K)-Body for each that it can read (debug.pl reads the
+%% program's own files).
 %%
 %% Calls is a list, in the order the calls were made, of
 %%
@@ -30,9 +46,12 @@
 %% chart's id for it or none, Panel the panel it entered (p3) or none,
 %% Clauses the clauses it entered as c(N, At) and the heads it tried that
 %% did not match as nohead(N, At) -- a clause the index passed over is
-%% not one (1.11.2) -- In and Out the argument texts at its Call and at
-%% its last Exit (none), and Fate exit, fail, open (still running when the
-%% window closed) or redo (re-entered and not done when it closed).
+%% not one (1.11.2) -- and, in the order of their inferences with them,
+%% thrown(Box, At) for each exception its own body raised where no call
+%% of it was running (1.11.7): a throw/1, which makes no call, at the box
+%% the chart draws it as -- In and Out the argument texts at its Call and
+%% at its last Exit (none), and Fate exit, fail, open (still running when
+%% the window closed) or redo (re-entered and not done when it closed).
 
 %% ======================================================================
 %% The calls the events make
@@ -42,10 +61,14 @@
 %% backtracking has gone back past every call made after it, so an Exit,
 %% a Fail or a Redo is about the latest Call of its cell.
 
-flow_dbg_match(graph(_, _, Panels, Ids, _), Events, Calls) :-
+flow_dbg_match(Graph, Events, Calls) :-
+    flow_dbg_match(Graph, Events, none, Calls).
+
+flow_dbg_match(graph(_, _, Panels, Ids, _), Events, Bodies, Calls) :-
     flow_dbg_index(Events, Calls0, Streams),
-    flow_dbg_rows(Panels, Rows),
-    flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, Calls).
+    flow_dbg_rows(Panels, Rows0),
+    flow_dbg_undrawn(Bodies, Calls0, Rows0, Rows, VAt),
+    flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, VAt, Calls).
 
 %% one pass: the calls, each with its own facts, and for each call the
 %% stream of what happened inside it -- its children's ports and its own
@@ -114,6 +137,10 @@ flow_dbg_event(nohead(I, _, C, K), Cells, Cells, F0, F, St, St, O, O) :- !,
     ).
 flow_dbg_event(catch(_, _, C), Cells, Cells, F, F, St0, St, O, O) :- !,
     (   get_assoc(C, Cells, S) -> flow_dbg_stream_add(S, scatch, St0, St) ; St = St0 ).
+%% a throw, in the body it was raised in: by a call of it still running, or
+%% by the body itself (throw/1, which has no port of its own)
+flow_dbg_event(throw(I, _, C, _), Cells, Cells, F, F, St0, St, O, O) :- !,
+    (   get_assoc(C, Cells, S) -> flow_dbg_stream_add(S, sthrow(I), St0, St) ; St = St0 ).
 flow_dbg_event(_, Cells, Cells, F, F, St, St, O, O).
 
 %% a stream is kept reversed and turned the right way round when it is read
@@ -204,7 +231,9 @@ flow_dbg_plan_item(g(G, Kind, _, _, Key, _), Id, K, F, [e(Id, Pred, K, F, none)]
     ).
 flow_dbg_plan_item(failn, Id, K, F, [e(Id, fail/0, K, F, none)], goal(Id)) :- !.
 flow_dbg_plan_item(cut, _, K, _, [], K) :- !.
-flow_dbg_plan_item(thrown(_), _, _, _, [], wait) :- !.
+%% a throw/1 makes no call: no entry, and thrown(Id) where a call would be
+%% expected -- no call is, and a throw the body makes there is placed on it
+flow_dbg_plan_item(thrown(_), Id, _, _, [], thrown(Id)) :- !.
 flow_dbg_plan_item(ite(_, Arms, Else), Id, K, F, Es, First) :- !,
     (   Else == none -> EFirst = F, EEs = []
     ;   atom_concat(Id, '.else', EBase),
@@ -258,15 +287,23 @@ flow_dbg_plan_branches([B|Bs], J, Id, K, F, Es, First) :-
 %% Placing the calls
 %% ======================================================================
 
-flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, Calls) :-
+flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, VAt, Calls) :-
     empty_assoc(Where0),
     %% the query's own goal: the box query.g1 and the panel it calls
     flow_dbg_query_panel(Panels, Ids, QPanel),
-    flow_dbg_place_all(Calls0, Streams, Rows, Panels, Ids, QPanel, Where0, Where),
+    flow_dbg_place_all(Calls0, Streams, Rows, Panels, Ids, QPanel, VAt, Where0, Where),
     findall(call(S, Pr, D, P, Box, Panel, Cl, In, Out, Fa),
-            ( member(c(S, Pr, D, P, Cl, In, Out, Fa), Calls0),
-              (   get_assoc(S, Where, at(Box, Panel)) -> true ; Box = none, Panel = none ) ),
+            ( member(c(S, Pr, D, P, Cl0, In, Out, Fa), Calls0),
+              (   get_assoc(S, Where, at(Box, Panel)) -> true ; Box = none, Panel = none ),
+              (   get_assoc(thrown(S), Where, Ts) -> flow_dbg_with_throws(Cl0, Ts, Cl) ; Cl = Cl0 ) ),
             Calls).
+
+%% a call's clauses and heads, and the throws its own body made, in the
+%% order of their inferences
+flow_dbg_with_throws(Cl0, Ts, Cl) :-
+    findall(At-X, ( ( member(X, Cl0) ; member(X, Ts) ), arg(2, X, At) ), AXs),
+    keysort(AXs, Sorted),
+    findall(X, member(_-X, Sorted), Cl).
 
 flow_dbg_query_panel(Panels, Ids, PId) :-
     (   memberchk(panel(0, _, _, _, _, rows([row(_, _, _, _, [g(_, Kind, Ms, _, Key, _)], _)]), _, _), Panels),
@@ -277,20 +314,144 @@ flow_dbg_query_panel(Panels, Ids, PId) :-
     ).
 
 %% calls in the order they were made, so a call's own place is known
-%% before its children are matched in its clauses
-flow_dbg_place_all([], _, _, _, _, _, W, W).
-flow_dbg_place_all([c(S, Pr, _, P, _, In, _, _)|Cs], Streams, Rows, Panels, Ids, QPanel, W0, W) :-
-    (   get_assoc(S, W0, _)
-    ->  W1 = W0
+%% before its children are matched in its clauses -- in its panel's, or,
+%% with no panel, in the clauses read for it (VAt: S -> its rows' key)
+flow_dbg_place_all([], _, _, _, _, _, _, W, W).
+flow_dbg_place_all([c(S, Pr, _, P, _, In, _, _)|Cs], Streams, Rows, Panels, Ids, QPanel, VAt, W0, W) :-
+    (   get_assoc(S, W0, at(B0, P0))
+    ->  %% placed in a clause the chart does not draw, whose ids name no
+        %% panel: a predicate the chart draws is walked in its own
+        (   P0 == none, atom(B0), sub_atom(B0, _, _, _, '#'),
+            flow_dbg_panel_for(Pr, In, Panels, PId0), PId0 \== none
+        ->  put_assoc(S, W0, at(B0, PId0), W1)
+        ;   W1 = W0
+        )
     ;   P =:= 0, flow_dbg_is_query(S, Pr, QPanel, Panels)
     ->  put_assoc(S, W0, at('query.g1', QPanel), W1)
     ;   flow_dbg_panel_for(Pr, In, Panels, PId),
         put_assoc(S, W0, at(none, PId), W1)
     ),
     get_assoc(S, W1, at(_, MyPanel)),
+    (   MyPanel == none, get_assoc(S, VAt, VPId) -> WPanel = VPId ; WPanel = MyPanel ),
     flow_dbg_stream(S, Streams, Xs),
-    flow_dbg_walk(Xs, MyPanel, Rows, Panels, Ids, W1, W2),
-    flow_dbg_place_all(Cs, Streams, Rows, Panels, Ids, QPanel, W2, W).
+    flow_dbg_walk(Xs, S, WPanel, Rows, Panels, Ids, W1, W2),
+    flow_dbg_place_all(Cs, Streams, Rows, Panels, Ids, QPanel, VAt, W2, W).
+
+%% ======================================================================
+%% The clauses the chart does not draw
+%% ======================================================================
+%%
+%% The calls no end port ended -- an exception ended them, or they were
+%% still running when the window closed -- that entered a clause: each
+%% clause they entered, read by Bodies, is planned as a row of its own,
+%% keyed '#Name/Arity'-K (no panel's id begins with `#'), its ids based
+%% `Name/Arity#cK'. A call that turns out to have a panel walks the
+%% panel's rows as before; one with none walks these.
+flow_dbg_undrawn(none, _, Rows, Rows, VAt) :- !,
+    empty_assoc(VAt).
+flow_dbg_undrawn(Bodies, Calls0, Rows0, Rows, VAt) :-
+    findall(S-Pr-Cl, ( member(c(S, Pr, _, _, Cl, _, _, Fa), Calls0), memberchk(Fa, [open, redo]),
+                       memberchk(c(_, _), Cl) ),
+            Ends),
+    findall(Pr-K, ( member(_-Pr-Cl, Ends), member(c(K, _), Cl) ), Needed0),
+    sort(Needed0, Needed),
+    (   Needed == [] -> Found = []
+    ;   catch(call(Bodies, Needed, Found), _, Found = [])
+    ),
+    flow_dbg_undrawn_rows(Found, Rows0, Rows),
+    findall(S-VPId, ( member(S-Pr-_, Ends), memberchk((Pr-_)-_, Found), flow_dbg_vpanel(Pr, VPId) ), SV),
+    list_to_assoc(SV, VAt).
+
+flow_dbg_undrawn_rows([], R, R).
+flow_dbg_undrawn_rows([(Pr-K)-B|Fs], R0, R) :-
+    flow_dbg_vpanel(Pr, VPId),
+    Pr = N/A,
+    format(atom(Base), '~w/~w#c~w', [N, A, K]),
+    (   catch(flow_dbg_body_nodes(B, Nodes), _, fail)
+    ->  flow_dbg_plan_list(Nodes, Base, wait, wait, Es, First),
+        list_to_assoc_dups(Es, Plan),
+        put_assoc(VPId-K, R0, row(First, Es, Plan), R1)
+    ;   R1 = R0
+    ),
+    flow_dbg_undrawn_rows(Fs, R1, R).
+
+flow_dbg_vpanel(N/A, VPId) :-
+    format(atom(VPId), '#~w/~w', [N, A]).
+
+%% A CLAUSE'S BODY AS THE NODES ITS ROW IS PLANNED FROM, read without the
+%% chart's analysis: each goal by its predicate, the control constructs as
+%% flow_an_item/7 draws them (analyse.pl). A grammar rule's body is
+%% translated as the engine translates it, its leading terminal lifted into
+%% the head as the store does.
+flow_dbg_body_nodes('$flow_dcg'(B0), Ns) :- !,
+    '$dcg_goal'(B0, S0, _, TB),
+    flow_dcg_lift(TB, S0, B),
+    flow_dbg_body_nodes(B, Ns).
+flow_dbg_body_nodes(B, Ns) :-
+    flow_conj(B, Gs),
+    flow_dbg_goals_nodes(Gs, Ns).
+
+flow_dbg_goals_nodes([], []).
+flow_dbg_goals_nodes([G|Gs], Ns) :-
+    flow_dbg_goal_nodes(G, N1),
+    flow_dbg_goals_nodes(Gs, N2),
+    append(N1, N2, Ns).
+
+flow_dbg_goal_nodes(V, [g(call(V), closure, [], nondet, none, [])]) :- var(V), !.
+flow_dbg_goal_nodes(_:G, Ns) :- !, flow_dbg_goal_nodes(G, Ns).
+flow_dbg_goal_nodes(!, [cut]) :- !.
+flow_dbg_goal_nodes(fail, [failn]) :- !.
+flow_dbg_goal_nodes(false, [failn]) :- !.
+flow_dbg_goal_nodes(throw(E), [thrown(E)]) :- !.
+flow_dbg_goal_nodes((C -> T ; E), [ite(hard, Arms, Else)]) :- !,
+    flow_dbg_ite_nodes((C -> T ; E), Arms, Else).
+flow_dbg_goal_nodes((C *-> T ; E), [ite(soft, [arm(Cn, Tn)], En)]) :- !,
+    flow_dbg_body_nodes(C, Cn),
+    flow_dbg_body_nodes(T, Tn),
+    flow_dbg_body_nodes(E, En).
+flow_dbg_goal_nodes((A ; B), [or(Bs)]) :- !,
+    flow_disj((A ; B), Ds),
+    maplist(flow_dbg_body_nodes, Ds, Bs).
+flow_dbg_goal_nodes((C -> T), [ite(hard, [arm(Cn, Tn)], none)]) :- !,
+    flow_dbg_body_nodes(C, Cn),
+    flow_dbg_body_nodes(T, Tn).
+flow_dbg_goal_nodes(\+ G, [not(Ns)]) :- !, flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(not(G), [not(Ns)]) :- !, flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(findall(T, G, L), [meta(findall, findall(T, '…', L), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(findall(T, G, L, R), [meta(findall, findall(T, '…', L, R), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(aggregate_all(Sp, G, R), [meta(aggregate_all, aggregate_all(Sp, '…', R), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(forall(C, A), [meta(forall, forall('…', '…'), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes((C, A), Ns).
+flow_dbg_goal_nodes(once(G), [meta(once, once('…'), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(ignore(G), [meta(ignore, ignore('…'), [], [Ns], [])]) :- !,
+    flow_dbg_body_nodes(G, Ns).
+flow_dbg_goal_nodes(catch(G, B, R), [catchc(Gn, B, Rn)]) :- !,
+    flow_dbg_body_nodes(G, Gn),
+    flow_dbg_body_nodes(R, Rn).
+flow_dbg_goal_nodes(C, Ns) :-
+    compound(C), functor(C, call, _), !,
+    C =.. [call, G|Extra],
+    (   flow_closure_goal(G, Extra, Goal) -> flow_dbg_body_nodes(Goal, Ns)
+    ;   Extra == [] -> flow_dbg_goal_nodes(G, Ns)
+    ;   Ns = [g(C, closure, [], nondet, none, [])]
+    ).
+flow_dbg_goal_nodes(G, [g(G, plain, [], det, N/A, [])]) :-
+    callable(G), !,
+    functor(G, N, A).
+flow_dbg_goal_nodes(_, []).
+
+flow_dbg_ite_nodes((C -> T ; E), [arm(Cn, Tn)|Arms], Else) :-
+    flow_dbg_body_nodes(C, Cn),
+    flow_dbg_body_nodes(T, Tn),
+    (   nonvar(E), E = (C2 -> T2 ; E2)
+    ->  flow_dbg_ite_nodes((C2 -> T2 ; E2), Arms, Else)
+    ;   Arms = [],
+        flow_dbg_body_nodes(E, Else)
+    ).
 
 %% the window's first call, with no parent in it, is the query's goal when
 %% the window began at the first inference -- the goal's own predicate
@@ -331,29 +492,39 @@ flow_dbg_text_var(T, V) :-
 %% One activation, walked
 %% ======================================================================
 %%
-%% State: the row being run (PId-K), the boxes a call is expected at next,
-%% and the last box a call landed on (for the fallback).
+%% State: st(Row, Exp, Last, Next) -- the row being run (PId-K), the boxes
+%% a call is expected at next, the last box a call landed on (for the
+%% fallback), and where the body goes next as the plan says it, unread:
+%% goal(Id), thrown(Id), wait, or running(C, Before) while the child C has
+%% not ended. A THROW THE BODY MAKES ITSELF (1.11.7) is where Next points
+%% when it comes: the plan's throw/1, or a goal that raised before its
+%% Call port (an unknown procedure, call/1 of a variable). It is kept on
+%% the activation's call as thrown(Box, At), with its clauses; a throw
+%% while a child runs is the child's.
 
-flow_dbg_walk(Xs, PId, Rows, Panels, Ids, W0, W) :-
-    flow_dbg_walk_(Xs, PId, none, [], none, Rows, Panels, Ids, W0, W).
+flow_dbg_walk(Xs, S, PId, Rows, Panels, Ids, W0, W) :-
+    flow_dbg_walk_(Xs, a(S, PId), st(none, [], none, wait), Rows, Panels, Ids, W0, W).
 
-flow_dbg_walk_([], _, _, _, _, _, _, _, W, W).
-flow_dbg_walk_([X|Xs], PId, Row, Exp, Last, Rows, Panels, Ids, W0, W) :-
-    flow_dbg_step(X, PId, Row, Exp, Last, Rows, Panels, Ids, W0, Row1, Exp1, Last1, W1),
-    flow_dbg_walk_(Xs, PId, Row1, Exp1, Last1, Rows, Panels, Ids, W1, W).
+flow_dbg_walk_([], _, _, _, _, _, W, W).
+flow_dbg_walk_([X|Xs], A, St0, Rows, Panels, Ids, W0, W) :-
+    flow_dbg_step(X, A, St0, Rows, Panels, Ids, W0, St1, W1),
+    flow_dbg_walk_(Xs, A, St1, Rows, Panels, Ids, W1, W).
 
 %% the activation entered a clause: its first goal is next
-flow_dbg_step(sclause(K), PId, _, _, _, Rows, _, _, W, Row, Exp, none, W) :- !,
-    (   PId \== none, get_assoc(PId-K, Rows, Row) -> Row = row(First, _, _), flow_dbg_target(First, Exp)
-    ;   Row = none, Exp = []
+flow_dbg_step(sclause(K), a(_, PId), _, Rows, _, _, W, st(Row, Exp, none, Next), W) :- !,
+    (   PId \== none, get_assoc(PId-K, Rows, Row)
+    ->  Row = row(First, _, _), flow_dbg_target(First, Exp), Next = First
+    ;   Row = none, Exp = [], Next = wait
     ).
-flow_dbg_step(sredo, _, Row, Exp, Last, _, _, _, W, Row, Exp, Last, W) :- !.
-flow_dbg_step(scatch, _, Row, _, Last, _, _, _, W, Row, Exp, Last, W) :- !,
-    (   Row = row(_, Es, _), flow_dbg_catch_of(Es, Last, RFirst) -> flow_dbg_target(RFirst, Exp)
-    ;   Exp = []
+flow_dbg_step(sredo, _, St, _, _, _, W, St, W) :- !.
+flow_dbg_step(scatch, _, st(Row, _, Last, _), _, _, _, W, st(Row, Exp, Last, Next), W) :- !,
+    (   Row = row(_, Es, _), flow_dbg_catch_of(Es, Last, RFirst)
+    ->  flow_dbg_target(RFirst, Exp), Next = RFirst
+    ;   Exp = [], Next = wait
     ).
 %% a child's Call: the box it is at
-flow_dbg_step(ccall(C, Pr), PId, Row, Exp, Last, _, Panels, Ids, W0, Row, Exp1, Last1, W) :- !,
+flow_dbg_step(ccall(C, Pr), a(_, PId), st(Row, Exp, Last, Next), _, Panels, Ids, W0,
+              st(Row, Exp1, Last1, running(C, Next)), W) :- !,
     (   Row = row(_, Es, Plan),
         flow_dbg_choose(Exp, Pr, Last, Es, Plan, Box)
     ->  get_assoc(Box, Plan, E),
@@ -363,21 +534,31 @@ flow_dbg_step(ccall(C, Pr), PId, Row, Exp, Last, _, Panels, Ids, W0, Row, Exp1, 
         (   E = e(_, _, _, _, Inner), Inner \== none -> flow_dbg_target(Inner, Exp1) ; Exp1 = [] )
     ;   W = W0, Last1 = Last, Exp1 = []
     ).
-flow_dbg_step(cexit(C), _, Row, _, Last, _, _, _, W, Row, Exp, Last, W) :- !,
-    flow_dbg_after(C, Row, W, succ, Exp).
-flow_dbg_step(cfail(C), _, Row, _, Last, _, _, _, W, Row, Exp, Last, W) :- !,
-    flow_dbg_after(C, Row, W, fail, Exp).
-flow_dbg_step(credo(C), _, Row, _, _, _, _, _, W, Row, [], Last, W) :- !,
+flow_dbg_step(cexit(C), _, st(Row, _, Last, Next0), _, _, _, W, st(Row, Exp, Last, Next), W) :- !,
+    flow_dbg_after(C, Row, W, succ, Next0, Exp, Next).
+flow_dbg_step(cfail(C), _, st(Row, _, Last, Next0), _, _, _, W, st(Row, Exp, Last, Next), W) :- !,
+    flow_dbg_after(C, Row, W, fail, Next0, Exp, Next).
+flow_dbg_step(credo(C), _, st(Row, _, _, Next), _, _, _, W, st(Row, [], Last, running(C, Next)), W) :- !,
     (   get_assoc(C, W, at(Box, _)), Box \== none -> Last = Box ; Last = none ).
-flow_dbg_step(_, _, Row, Exp, Last, _, _, _, W, Row, Exp, Last, W).
+flow_dbg_step(sthrow(I), a(S, _), st(Row, Exp, Last, Next), _, _, _, W0, st(Row, Exp, Last1, Next), W) :- !,
+    (   ( Next = thrown(B) ; Next = goal(B) )
+    ->  (   get_assoc(thrown(S), W0, Ts) -> true ; Ts = [] ),
+        put_assoc(thrown(S), W0, [thrown(B, I)|Ts], W),
+        Last1 = B
+    ;   W = W0, Last1 = Last
+    ).
+flow_dbg_step(_, _, St, _, _, _, W, St, W).
 
-%% where a call goes after a child's exit or failure
-flow_dbg_after(C, Row, W, Way, Exp) :-
+%% where a call goes after a child's exit or failure: the plan's place, or,
+%% for a child no box holds, where the body was going before it was called
+flow_dbg_after(C, Row, W, Way, Next0, Exp, Next) :-
     (   Row = row(_, _, Plan),
         get_assoc(C, W, at(Box, _)), Box \== none,
         get_assoc(Box, Plan, e(_, _, S, F, _))
-    ->  ( Way == succ -> flow_dbg_target(S, Exp) ; flow_dbg_target(F, Exp) )
-    ;   Exp = []
+    ->  ( Way == succ -> Next = S ; Next = F ),
+        flow_dbg_target(Next, Exp)
+    ;   Exp = [],
+        ( Next0 = running(C, Before) -> Next = Before ; Next = wait )
     ).
 
 flow_dbg_target(goal(Id), [Id]) :- !.

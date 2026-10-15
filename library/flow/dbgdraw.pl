@@ -82,7 +82,8 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
 %% the catch/3 that took it, or all of them when nothing did -- are no
 %% longer running, so a fate of open or redo becomes raised or unwound.
 %% Throws: th(I, S, Ball, Raiser), Raiser 0 when no call raised it (a
-%% throw/1 of the program's own)
+%% throw/1 of the program's own): the raiser is the last call made in that
+%% body only while it runs -- through 1.11.4 one that had exited was named
 flow_dbg_thrown(SEs, Calls0, Calls, Throws) :-
     findall(S-P, member(call(S, _, _, P, _, _, _, _, _, _), Calls0), SP),
     list_to_assoc(SP, Parents),
@@ -104,6 +105,13 @@ flow_dbg_throws([ev(I, throw, S, _, B, _)|Es], Parents, Last, [th(I, S, B, R)|Ts
     flow_dbg_throws(Es, Parents, Last, Ts, Ms).
 flow_dbg_throws([ev(I, call, I, _, _, _)|Es], Parents, Last, Ts, Ms) :- !,
     (   get_assoc(I, Parents, P) -> Last1 = c(I, P) ; Last1 = Last ),
+    flow_dbg_throws(Es, Parents, Last1, Ts, Ms).
+flow_dbg_throws([ev(_, Port, S, _, _, _)|Es], Parents, Last, Ts, Ms) :-
+    memberchk(Port, [exit, fail, redo]), !,
+    (   Port == redo, get_assoc(S, Parents, P) -> Last1 = c(S, P)
+    ;   Last = c(S, _) -> Last1 = none
+    ;   Last1 = Last
+    ),
     flow_dbg_throws(Es, Parents, Last1, Ts, Ms).
 flow_dbg_throws([_|Es], Parents, Last, Ts, Ms) :-
     flow_dbg_throws(Es, Parents, Last, Ts, Ms).
@@ -172,14 +180,24 @@ flow_dbg_box_states(Calls, Boxes) :-
     flow_dbg_box_states_(Calls, B0, Boxes).
 
 flow_dbg_box_states_([], B, B).
-flow_dbg_box_states_([call(S, _, _, _, Box, _, _, _, _, Fate)|Cs], B0, B) :-
-    (   Box == none -> B1 = B0
-    ;   (   get_assoc(Box, B0, bs(N0, _, _, F0)) -> true ; N0 = 0, F0 = 0 ),
-        N is N0 + 1,
-        (   Fate == fail -> F is F0 + 1 ; F = F0 ),
-        put_assoc(Box, B0, bs(N, S, Fate, F), B1)
-    ),
-    flow_dbg_box_states_(Cs, B1, B).
+flow_dbg_box_states_([call(S, _, _, _, Box, _, Cl, _, _, Fate)|Cs], B0, B) :-
+    flow_dbg_box_state(Box, S, Fate, B0, B1),
+    %% a throw/1 the call's body made: its box raised (1.11.7)
+    findall(TB-TA, member(thrown(TB, TA), Cl), Ths),
+    flow_dbg_box_throws(Ths, B1, B2),
+    flow_dbg_box_states_(Cs, B2, B).
+
+flow_dbg_box_state(none, _, _, B, B) :- !.
+flow_dbg_box_state(Box, S, Fate, B0, B) :-
+    (   get_assoc(Box, B0, bs(N0, _, _, F0)) -> true ; N0 = 0, F0 = 0 ),
+    N is N0 + 1,
+    (   Fate == fail -> F is F0 + 1 ; F = F0 ),
+    put_assoc(Box, B0, bs(N, S, Fate, F), B).
+
+flow_dbg_box_throws([], B, B).
+flow_dbg_box_throws([TB-TA|Ts], B0, B) :-
+    flow_dbg_box_state(TB, TA, raised, B0, B1),
+    flow_dbg_box_throws(Ts, B1, B).
 
 %% each head tried: hs(N, LastAt, LastKind, NEntered), Kind entered or
 %% nohead, in the order of the inferences they were tried at
@@ -418,9 +436,11 @@ flow_dbg_journal(journal(Es), end(How, RU, _), Calls, TM, jr(Es, NA, JBoxes, JCa
     list_to_assoc(BN, JBoxes).
 
 %% the box of a call, or of its nearest caller the window saw that has one
+%% -- a box of the chart: a place in a clause the chart does not draw
+%% (`#', dbgmatch.pl) has none to mark
 flow_dbg_boxed_up(S, Up, B) :-
     get_assoc(S, Up, P-B0),
-    (   B0 \== none -> B = B0
+    (   B0 \== none, \+ sub_atom(B0, _, _, _, '#') -> B = B0
     ;   P =\= 0, flow_dbg_boxed_up(P, Up, B)
     ).
 
@@ -950,31 +970,63 @@ flow_dbg_why_block(Facts, Y0, Ps, YEnd) :-
         flow_dbg_why_prims(Ls, Y2, WPs, YEnd),
         append(FPs, [Title|WPs], Ps)
     ;   arg(3, Sum, end(exception(_), _, _))
-    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
+    ->  flow_dbg_raised(Calls, Own, Raised, Chose, Caught),
         Y1 is Y0 + 46,
-        RTitle = t(24, Y1, start, 10, sans, bold, [s('where the exception was raised', muted)]),
-        flow_dbg_chain_lines(Chain, 0, CLs),
-        Y1a is Y1 + 24,
-        flow_dbg_why_prims(CLs, Y1a, CPs, Y1c),
-        (   Answered == none
-        ->  Y2 is Y1c + 22,
-            NPs = [t(24, Y2, start, 10, sans, normal,
-                     [s('no call failed, having tried a clause, before the raise on its way down', muted)])],
-            YEnd is Y2 + 4,
-            APs = []
-        ;   flow_why_furthest([Answered], Path),
-            Y2 is Y1c + 22,
-            flow_dbg_furthest_block(Path, Y2, FPs, Y2b),
-            ATitle = t(24, Y2b, start, 10, sans, bold, [s('the failure it answered', muted)]),
-            flow_dbg_why_cap([Answered], Ls),
-            Y3 is Y2b + 24,
-            flow_dbg_why_prims(Ls, Y3, WPs, YEnd),
-            NPs = [],
-            append(FPs, [ATitle|WPs], APs)
-        ),
-        append([[RTitle|CPs], NPs, APs], Ps)
+        flow_dbg_raise_block(Raised, Chose, Caught, 'where the exception was raised', Y1, Ps, YEnd)
     ;   Ps = [], YEnd = Y0
     ).
+
+%% a raise drawn from Y1: the calls it ended, the branch a choice took and
+%% the conditions it ran (1.11.7), the failure it answered, and -- when a
+%% catch's recovery raised it -- the exception that catch took, drawn the
+%% same way under a title of its own
+flow_dbg_raise_block(raised(Chain, Answered), Chose, Caught, Title, Y1, Ps, YEnd) :-
+    RTitle = t(24, Y1, start, 10, sans, bold, [s(Title, muted)]),
+    Y1a is Y1 + 24,
+    (   Chain == []
+    ->  CPs = [t(24, Y1a, start, 10, sans, normal, [s('it ended no call the window saw', muted)])],
+        Y1c is Y1a + 4
+    ;   flow_dbg_chain_lines(Chain, 0, CLs),
+        flow_dbg_why_prims(CLs, Y1a, CPs, Y1c)
+    ),
+    (   Chose = chose(HS, HN/_, HIn, HAt, Branch, Conds)
+    ->  Yh is Y1c + 22,
+        flow_dbg_args_text(HN, HIn, HT0),
+        flow_dbg_branch_words(Branch, BW),
+        format(atom(HT), 'the branch it was raised in: ~w, at ~w in ~w (call at ~d)', [BW, HAt, HT0, HS]),
+        flow_dbg_why_lines(Conds, 0, HLs, []),
+        Yh1 is Yh + 24,
+        flow_dbg_why_prims(HLs, Yh1, HPs0, Y1d),
+        HPs = [t(24, Yh, start, 10, sans, bold, [s(HT, muted)])|HPs0]
+    ;   HPs = [], Y1d = Y1c
+    ),
+    (   Answered == none
+    ->  Y2 is Y1d + 22,
+        (   Chose == none -> NT = 'no call failed, having tried a clause, before the raise on its way down'
+        ;   NT = 'no condition the choice ran failed having tried a clause'
+        ),
+        NPs = [t(24, Y2, start, 10, sans, normal, [s(NT, muted)])],
+        Y3 is Y2 + 4,
+        APs = []
+    ;   flow_why_furthest([Answered], Path),
+        Y2 is Y1d + 22,
+        flow_dbg_furthest_block(Path, Y2, FPs, Y2b),
+        ATitle = t(24, Y2b, start, 10, sans, bold, [s('the failure it answered', muted)]),
+        flow_dbg_why_cap([Answered], Ls),
+        Y2c is Y2b + 24,
+        flow_dbg_why_prims(Ls, Y2c, WPs, Y3),
+        NPs = [],
+        append(FPs, [ATitle|WPs], APs)
+    ),
+    (   Caught = caught(KS, KN/_, KIn, KAt, R1, KC, KK)
+    ->  flow_dbg_args_text(KN, KIn, KT0),
+        format(atom(KT), 'raised in the recovery of the catch/3 at ~w in ~w (call at ~d): the exception that catch took',
+               [KAt, KT0, KS]),
+        Y4 is Y3 + 34,
+        flow_dbg_raise_block(R1, KC, KK, KT, Y4, KPs, YEnd)
+    ;   KPs = [], YEnd = Y3
+    ),
+    append([[RTitle|CPs], HPs, NPs, APs, KPs], Ps).
 
 %% the tree's first 60 lines; the XML has all of it
 flow_dbg_why_cap(Whys, Ls) :-
@@ -1294,7 +1346,7 @@ flow_dbg_arg_short(X, A) :-
 %%        [ball] [probe_ended probe_at] [last_fail_call last_fail_at]
 %%        [journal portals answered]>
 %%     <calls count>   <call n pred depth parent [box] [panel] fate [journal]>
-%%                       <clause n at/> <nohead n at/>
+%%                       <clause n at/> <nohead n at/> <thrown box at/>
 %%                       <arg i call [call_length] [exit] [exit_length]/>
 %%     <events count>  <event at port call depth [box] [clause] [ball]
 %%                            [exited]>
@@ -1308,7 +1360,9 @@ flow_dbg_arg_short(X, A) :-
 %%     <divergence at> <want .../> <got .../>          (a replay that left it)
 %%
 %% n of a call is the inference of its Call, and every call= names one;
-%% box= is the chart's id; a value cut at text(N) has its whole length.
+%% box= is the chart's id; a value cut at text(N) has its whole length. A
+%% <thrown> is an exception the call's own body raised by a throw/1, which
+%% makes no call: box= the chart's box for it, at= its inference (1.11.7).
 %% A redo's exited= is true when its call had exited -- asked for another
 %% answer, the one Redo that says a call is nondeterministic -- and false
 %% when it had not: its clause failed and it goes on to the next, as SWI
@@ -1369,19 +1423,48 @@ flow_dbg_x_run(dbg(Sum, SEs, Calls, _, _, _, Xs, Discs, _), element(run, As, Ks)
         flow_dbg_x_furthest_el(Path, FEs),
         YEs = [element(why, [], WEs)|FEs]
     ;   How = exception(_)
-    ->  flow_dbg_raised(Calls, Own, raised(Chain, Answered)),
-        findall(CE1, ( member(C1, Chain), flow_dbg_x_why(C1, CE1) ), CEs),
-        (   Answered == none -> AEs = []
-        ;   flow_dbg_x_why(Answered, AE),
-            flow_why_furthest([Answered], APath),
-            flow_dbg_x_furthest_el(APath, AFEs),
-            AEs = [element(answered, [], [AE|AFEs])]
-        ),
-        append(CEs, AEs, REs),
-        YEs = [element(raised, [], REs)]
+    ->  flow_dbg_raised(Calls, Own, Raised, Chose, Caught),
+        flow_dbg_x_raised(Raised, Chose, Caught, RE),
+        YEs = [RE]
     ;   YEs = []
     ),
     append([[CE, EE, BE], JEs, YEs], Ks).
+
+%% <raised> (1.11.4): an <ended fate> for each call the exception ended,
+%% from the top down; <chose> (1.11.7) -- the branch a choice took, at= the
+%% construct's box, branch= then, else or branch with n= its arm or branch,
+%% call= and pred= the call whose clause chose -- holding a node for each
+%% condition it ran; <answered>, the failure it answered and its
+%% <furthest>; and <caught> (1.11.7) -- the catch whose recovery raised it,
+%% at= its box, call= and pred= the call whose clause holds it -- holding
+%% the exception that catch took as a <raised> of its own
+flow_dbg_x_raised(raised(Chain, Answered), Chose, Caught, element(raised, [], REs)) :-
+    findall(CE1, ( member(C1, Chain), flow_dbg_x_why(C1, CE1) ), CEs),
+    (   Chose = chose(HS, HP, _, HAt, Branch, Conds)
+    ->  flow_dbg_x_pred(HP, HPA),
+        flow_dbg_x_branch(Branch, BAs),
+        findall(NE, ( member(N, Conds), flow_dbg_x_why(N, NE) ), NEs),
+        append([call=HS, pred=HPA, at=HAt], BAs, HAs),
+        HEs = [element(chose, HAs, NEs)]
+    ;   HEs = []
+    ),
+    (   Answered == none -> AEs = []
+    ;   flow_dbg_x_why(Answered, AE),
+        flow_why_furthest([Answered], APath),
+        flow_dbg_x_furthest_el(APath, AFEs),
+        AEs = [element(answered, [], [AE|AFEs])]
+    ),
+    (   Caught = caught(KS, KP, _, KAt, R1, KC, KK)
+    ->  flow_dbg_x_pred(KP, KPA),
+        flow_dbg_x_raised(R1, KC, KK, R1E),
+        KEs = [element(caught, [call=KS, pred=KPA, at=KAt], [R1E])]
+    ;   KEs = []
+    ),
+    append([CEs, HEs, AEs, KEs], REs).
+
+flow_dbg_x_branch(then(J), [branch=then, n=J]).
+flow_dbg_x_branch(else, [branch=else]).
+flow_dbg_x_branch(branch(J), [branch=branch, n=J]).
 
 flow_dbg_x_furthest_el([], []) :- !.
 flow_dbg_x_furthest_el(Path, [element(furthest, [], FEs)]) :-
@@ -1393,9 +1476,13 @@ flow_dbg_x_furthest_el(Path, [element(furthest, [], FEs)]) :-
 %% entered, the calls it made -- <exited>, <failed> (own="false": nothing
 %% of the program's to say why) and <ended fate>. A run that raised has
 %% <raised> instead (1.11.4): an <ended fate> for each call the exception
-%% ended, from the top down, and <answered> -- the failure the raise
-%% answered, as a <failed> and its <furthest> -- when one was found
-%% (flow_why_raised/2)
+%% ended, from the top down; since 1.11.7 a <chose call pred at branch [n]>
+%% -- the call whose clause chose the branch the raise is in, the
+%% construct's box, then (n= its arm), else or branch (n=) -- holding an
+%% element for each condition it ran; <answered> -- the failure the raise
+%% answered, as a <failed> and its <furthest> -- when one was found; and,
+%% when a catch's recovery raised it, a <caught call pred at> holding the
+%% <raised> of the exception the catch took (flow_why_raised/2,3)
 flow_dbg_x_why(why(S, P, _, Tries), element(failed, [call=S, pred=PA], TEs)) :- !,
     flow_dbg_x_pred(P, PA),
     findall(TE, ( member(T, Tries), flow_dbg_x_why_try(T, TE) ), TEs).
@@ -1485,6 +1572,7 @@ flow_dbg_x_side(K, portal(I, M, N/A, C), element(K, [at=I, module=M, pred=PA, ca
 
 flow_dbg_x_clause(c(K, At), element(clause, [n=K, at=At], [])).
 flow_dbg_x_clause(nohead(K, At), element(nohead, [n=K, at=At], [])).
+flow_dbg_x_clause(thrown(B, At), element(thrown, [box=B, at=At], [])).
 
 flow_dbg_x_args(In, Out, Es) :-
     flow_dbg_x_args_(In, Out, 1, Es).

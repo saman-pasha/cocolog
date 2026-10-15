@@ -1195,7 +1195,13 @@ cocolint index offers no import of it.
   printer never printed. `library(flow/debug)` (lesson 51) stands on all of
   it: a probe and a replay in child processes (`cocolog run FILE GOAL`),
   the events matched to the chart's boxes (`library/flow/dbgmatch.pl`)
-  and drawn (`library/flow/dbgdraw.pl`).
+  and drawn (`library/flow/dbgdraw.pl`). **`throw/1` has no port**: the
+  printer prints nothing for it and the recorder writes a throw event
+  naming the BODY it was raised in -- for a builtin that raised, the body
+  its call was made in -- so where a program threw is read from where that
+  body was going next (the matcher's `thrown(Box, At)`, 1.11.7); the last
+  call the body made had exited, and read as the raise, it put a throw
+  written after an if-then-else in the then.
 * **Under trace a cut keeps its own call's frame, SPENT** (1.10.24,
   `coco_trace_cut`): the Fail port is printed from the call's frame, and
   through 1.10.22 the cut took it, so a clause that cut and then failed

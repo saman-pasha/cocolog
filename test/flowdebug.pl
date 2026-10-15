@@ -26,6 +26,16 @@
 %%   flip(F)       a run that is not the same twice -- and with a journal is
 %%   grow(F)       a run that loads a file it then appends to, which leaves
 %%                 its journal
+%%   drive(5)      a run that raises after a step failed (1.11.4)
+%%   build([solid])  a raise in the then of a condition that held after
+%%                 three failed (1.11.7); checked_up(5), one in an else;
+%%                 build_stop, build_throw and build_again, raises in a
+%%                 catch's recovery; fallback_up(5), give_up_after(5) and
+%%                 noted_up(1), raises no choice made
+%%
+%% and test/flowdebug/top.pl, a small top file whose chart does not draw
+%% run.pl's clauses: top_build([solid]), top_stop([solid]) and
+%% top_hooked([round, solid]).
 %%
 %% and two the case writes: a copy of run.pl charted once and kept, then
 %% changed (cache(Dir)), and below(X), which reads a fact only a store
@@ -65,6 +75,10 @@ main :-
     profiled(D),
     furthest(D),
     raised(D),
+    raised_choice(D),
+    raised_caught(D),
+    raised_place(D),
+    raised_undrawn(D),
     many_heads,
     refusals(D),
     shl(['rm -rf ', D]),
@@ -612,6 +626,10 @@ svg_g_el(element(_, _, Ks), Id, G) :- member(K, Ks), K = element(_, _, _), svg_g
 x_el(element(N, As, _), N, As).
 x_el(element(_, _, Ks), N, As) :- member(K, Ks), K = element(_, _, _), x_el(K, N, As).
 
+%% an element by its name, whole, anywhere in X
+x_sub(X, N, X) :- X = element(N, _, _).
+x_sub(element(_, _, Ks), N, E) :- member(K, Ks), K = element(_, _, _), x_sub(K, N, E).
+
 %% ---- the command ------------------------------------------------------------
 
 command(D) :-
@@ -1027,9 +1045,13 @@ raised(D) :-
     read_file_to_codes(TF4, TC4), atom_codes(TA4, TC4),
     atomic_list_concat(TL4, '\n', TA4),
     append(_, ['% where the exception was raised:'|Rest4], TL4),
+    %% since 1.11.7 with the else that chose give_up/1, and step(5) that
+    %% failed for it
     check('at the foot of BASE.txt', Rest4,
           [ '%  drive(5): unwound (call 1)',
             '%    give_up(5): unwound (call 6)',
+            '% the branch it was raised in: the else (every condition failed), at p1.c1.g1 in drive(5) (call 1); the conditions it ran:',
+            '%  step(5): failed in its clauses (call 3)',
             '% the failure it answered, where it got furthest:',
             '%  step(5): clause 1, the furthest of 1 tried: 1 of its calls exited (call 3)',
             '%    ok_step(5): failed, no clause''s head unified (call 5)',
@@ -1037,9 +1059,11 @@ raised(D) :-
     atom_concat(D, '/rais1.xml', XF5),
     read_file_to_codes(XF5, XC5),
     xml_parse(XC5, X5),
-    findall(N-P5-F5, ( x_el(X5, raised, _), x_el(X5, ended, EA5), memberchk(call=N, EA5),
+    once(x_sub(X5, raised, element(raised, _, RK5))),
+    findall(N-P5-F5, ( member(element(ended, EA5, _), RK5), memberchk(call=N, EA5),
                        memberchk(pred=P5, EA5), memberchk(fate=F5, EA5) ), E5),
-    findall(N-P5, ( x_el(X5, answered, _), x_el(X5, failed, FA5), memberchk(call=N, FA5), memberchk(pred=P5, FA5) ), A5),
+    findall(N-P5, ( member(element(answered, _, AK5), RK5), member(AX5, AK5), x_el(AX5, failed, FA5),
+                    memberchk(call=N, FA5), memberchk(pred=P5, FA5) ), A5),
     check('in the XML: <raised>, an <ended> a call, and <answered>',
           E5-A5, ['1'-'drive/1'-unwound, '6'-'give_up/1'-unwound]-['3'-'step/1', '5'-'ok_step/1']),
     atom_concat(D, '/rais1.svg', SF6),
@@ -1047,6 +1071,244 @@ raised(D) :-
     xml_parse(SC6, S6),
     findall(T, ( svg_text(S6, T), memberchk(T, ['where the exception was raised', 'the failure it answered']) ), Ts6),
     check('and on the picture', Ts6, ['where the exception was raised', 'the failure it answered']).
+
+%% ---- where a choice made the raise (1.11.7) -------------------------------
+
+%% the panel the first call of P entered; the boxes of the throws its own
+%% body made
+entered_panel(run(_, _, _, _, Calls, _, _, _), P, Pn) :-
+    memberchk(call(_, P, _, _, _, Pn, _, _, _, _), Calls).
+own_throws(run(_, _, _, _, Calls, _, _, _), P, Bs) :-
+    findall(B, ( member(call(_, P, _, _, _, _, Cl, _, _, _), Calls), member(thrown(B, _), Cl) ), Bs).
+
+%% the predicates of a raise's chain
+chain_preds(Chain, Ps) :-
+    findall(P, member(ended(_, P, _, _), Chain), Ps).
+
+%% a chose(C) or caught(K) answer's parts -- none, for an answer of none, so
+%% a check names what it got rather than its section failing
+chose_parts(chose(_, P, _, At, B, Cs), P, At, B, Cs) :- !.
+chose_parts(_, none, none, none, []).
+caught_parts(caught(_, P, _, At, R, H, K), P, At, R, H, K) :- !.
+caught_parts(_, none, none, raised([], none), none, none).
+
+%% the lines of BASE.txt from its first line equal to From
+txt_from(D, Name, From, Ls) :-
+    atomic_list_concat([D, '/', Name, '.txt'], F),
+    read_file_to_codes(F, Cs), atom_codes(A, Cs),
+    atomic_list_concat(L0, '\n', A),
+    append(_, [From|Ls], L0), !.
+
+raised_choice(D) :-
+    section('flow_why_raised/3: the branch a choice took and the conditions it ran (1.11.7)'),
+    %% cicili-lang's report: cpp_not_abstract/1 raised from the then of a
+    %% condition that HELD after one that failed (a builtin, nb_getval/2,
+    %% inside a catch/3), and 1.11.4's answer named an older failure further
+    %% out that had nothing to do with it
+    debugged(D, chos1, build([solid]), [], [txt(true)], R1),
+    flow_why_raised(R1, raised(C1, A1), [chose(H1), caught(K1)]),
+    chain_preds(C1, Ps1),
+    chose_parts(H1, HP1, HAt1, HB1, HC1),
+    why_shape(HC1, Xs1),
+    entered_panel(R1, shape_ok/1, Pn1),
+    atom_concat(Pn1, '.c1.g1', Ite1),
+    ( HAt1 == Ite1 -> At1 = its_ite ; At1 = HAt1 ),
+    check('build([solid]): raised in the then of shape_ok/1''s fourth arm -- three conditions failed (a builtin whose exception its catch took and the recovery''s fail/0, a call no head was for, a call that failed in its clause) and the fourth held',
+          Ps1-HP1-At1-HB1-Xs1-K1,
+          [build/1, shapes_ok/1, shape_ok/1, refuse_shape/1]-(shape_ok/1)-its_ite-then(4)
+          -[ended(nb_getval/2, raised), failed(fail/0), why(round_shape/1, []),
+            why(sized_shape/1, [entered(1, [exited(shape_area/2), failed((>)/2)])]),
+            exited(abstract_shape/1)]
+          -none),
+    ( A1 = why(_, AP1, _, _) -> true ; AP1 = A1 ),
+    check('...and what it answered is the last of them that failed having tried a clause -- not build/1''s sized/1, an if-then-else over before the raise',
+          AP1, sized_shape/1),
+    own_throws(R1, refuse_shape/1, TB2),
+    entered_panel(R1, refuse_shape/1, Pn2),
+    atom_concat(Pn2, '.c1.g1', T2),
+    check('the throw/1 of refuse_shape/1''s own body is on its box, among the clauses of its call', TB2, [T2]),
+    txt_from(D, chos1, '% where the exception was raised:', TL3),
+    format(atom(BL3), '% the branch it was raised in: the then of arm 4 (its condition held), at ~w in shape_ok(solid) (call 7); the conditions it ran:', [Ite1]),
+    check('at the foot of BASE.txt', TL3,
+          [ '%  build([solid]): unwound (call 1)',
+            '%    shapes_ok([solid]): unwound (call 6)',
+            '%      shape_ok(solid): unwound (call 7)',
+            '%        refuse_shape(solid): unwound (call 21)',
+            BL3,
+            '%  nb_getval(''$flow_test_shape'',yes): raised, and a catch took the exception (call 10)',
+            '%  fail: failed, nothing of the program''s to say why (call 11)',
+            '%  round_shape(solid): failed, no clause''s head unified (call 13)',
+            '%  sized_shape(solid): failed in its clauses (call 15)',
+            '%  abstract_shape(solid): exited (call 19)',
+            '% the failure it answered, where it got furthest:',
+            '%  sized_shape(solid): clause 1, the furthest of 1 tried: 1 of its calls exited (call 15)',
+            '%    >(0,0): failed, nothing of the program''s to say why (call 17)',
+            '' ]),
+    format(atom(TT4), '[c1 threw:~w]', [T2]),
+    txt_from(D, chos1, '% file: test/flowdebug/run.pl', CL4),
+    ( member(L4, CL4), sub_atom(L4, 0, _, _, '21 '), sub_atom(L4, _, _, _, TT4) -> Y4 = yes ; Y4 = no ),
+    check('...and refuse_shape/1''s line says where its body threw', Y4, yes),
+    atom_concat(D, '/chos1.xml', XF5),
+    read_file_to_codes(XF5, XC5),
+    xml_parse(XC5, X5),
+    once(x_sub(X5, raised, element(raised, _, RK5))),
+    ( member(element(chose, CA5, CK5), RK5) -> true ; CA5 = [], CK5 = [] ),
+    findall(N5, member(element(N5, _, _), CK5), Ns5),
+    ( memberchk(branch=Br5, CA5) -> true ; Br5 = none ),
+    ( memberchk(n=Nn5, CA5) -> true ; Nn5 = none ),
+    findall(B5, ( x_sub(X5, call, element(call, CA5b, CK5b)), memberchk(pred='refuse_shape/1', CA5b),
+                  member(element(thrown, TA5, _), CK5b), memberchk(box=B5, TA5) ), Bs5),
+    check('in the XML: <chose branch="then" n="4"> with an element a condition, and a <thrown box> in refuse_shape/1''s <call>',
+          Br5-Nn5-Ns5-Bs5, then-'4'-[ended, failed, failed, failed, exited]-[T2]),
+    atom_concat(D, '/chos1.svg', SF6),
+    read_file_to_codes(SF6, SC6),
+    xml_parse(SC6, S6),
+    findall(T6, ( svg_text(S6, T6), sub_atom(T6, 0, _, _, 'the branch it was raised in') ), Ts6),
+    length(Ts6, NT6),
+    check('and on the picture', NT6, 1),
+    %% a throw/1 written in the else: no call is there, and the choice is
+    %% read from where the throw stands
+    debugged(D, chos2, checked_up(5), [], [], R7),
+    flow_why_raised(R7, raised(_, A7), [chose(H7)]),
+    chose_parts(H7, HP7, _, HB7, HC7),
+    why_shape(HC7, Xs7),
+    ( A7 = why(_, AP7, _, _) -> true ; AP7 = A7 ),
+    check('checked_up(5): its throw/1 is written in the else -- every condition failed, up_step/1 in its clause, and that is what it answered',
+          HP7-HB7-Xs7-AP7,
+          (checked_up/1)-else-[why(up_step/1, [entered(1, [exited((>)/2), why(ok_up/1, [])])])]-(up_step/1)).
+
+raised_caught(D) :-
+    section('flow_why_raised/3: a raise in a catch''s recovery, and the exception the catch took (1.11.7)'),
+    debugged(D, caug1, build_stop([solid]), [], [txt(true)], R1),
+    flow_why_raised(R1, raised(C1, A1), [chose(H1), caught(K1)]),
+    chain_preds(C1, Ps1),
+    caught_parts(K1, KP1, KAt1, raised(KC1, KA1), KH1, KK1),
+    chain_preds(KC1, Qs1),
+    ( KH1 = chose(_, KHP1, _, _, KHB1, _) -> true ; KHP1 = none, KHB1 = none ),
+    ( KA1 = why(_, KAP1, _, _) -> true ; KAP1 = KA1 ),
+    entered_panel(R1, build_stop/1, Pn1),
+    atom_concat(Pn1, '.c1.g1', Catch1),
+    ( KAt1 == Catch1 -> At1 = its_catch ; At1 = KAt1 ),
+    check('build_stop([solid]): raised by stop_with/1 under the recovery''s say_stop/1 -- and the exception the catch took was the builder''s, from shape_ok/1''s fourth arm',
+          Ps1-A1-H1-KP1-At1-Qs1-KHP1-KHB1-KAP1-KK1,
+          [build_stop/1, say_stop/1, stop_with/1]-none-none-(build_stop/1)-its_catch
+          -[build/1, shapes_ok/1, shape_ok/1, refuse_shape/1]-(shape_ok/1)-then(4)-(sized_shape/1)-none),
+    debugged(D, caug2, build_throw([solid]), [], [], R2),
+    flow_why_raised(R2, raised(C2, _), [caught(K2)]),
+    chain_preds(C2, Ps2),
+    ( K2 = caught(_, KP2, _, _, raised(KC2, _), _, _) -> chain_preds(KC2, Qs2) ; KP2 = none, Qs2 = none ),
+    own_throws(R2, build_throw/1, TB2),
+    entered_panel(R2, build_throw/1, Pn2),
+    atom_concat(Pn2, '.c1.g1.recover.g1', T2),
+    check('build_throw([solid]): a recovery that only throws again -- the run raised there, at its throw/1, not in the builder, whose exception the catch took',
+          Ps2-KP2-Qs2-TB2, [build_throw/1]-(build_throw/1)-[build/1, shapes_ok/1, shape_ok/1, refuse_shape/1]-[T2]),
+    debugged(D, caug3, build_again([solid]), [], [], R3),
+    flow_why_raised(R3, raised(C3, _), [caught(K3)]),
+    chain_preds(C3, Ps3),
+    ( K3 = caught(_, KP3, _, _, _, _, _) -> true ; KP3 = none ),
+    own_throws(R3, build_again/1, TB3),
+    entered_panel(R3, build_again/1, Pn3),
+    atom_concat(Pn3, '.c1.g1.recover.g2', T3),
+    check('build_again([solid]): says the error, then throws it again -- in the recovery too', Ps3-KP3-TB3,
+          [build_again/1]-(build_again/1)-[T3]),
+    txt_from(D, caug1, '% where the exception was raised:', TL4),
+    format(atom(KL4), '% it was raised in the recovery of the catch/3 at ~w in build_stop([solid]) (call 1); the exception that catch took:', [Catch1]),
+    ( append(Top4, [KL4|In4], TL4) -> true ; Top4 = TL4, In4 = [] ),
+    ( In4 = [I4a, I4b|_] -> true ; I4a = none, I4b = none ),
+    check('at the foot of BASE.txt, the exception the catch took told under its own line',
+          Top4-I4a-I4b,
+          [ '%  build_stop([solid]): unwound (call 1)',
+            '%    say_stop(error(abstract(solid),shape_ok/1)): unwound (call 25)',
+            '%      stop_with(abstract(solid)): unwound (call 27)',
+            '% the failure it answered: none -- no call failed, having tried a clause, before the raise on its way down' ]
+          -'%   where the exception was raised:'-'%    build([solid]): unwound (call 3)'),
+    atom_concat(D, '/caug1.xml', XF5),
+    read_file_to_codes(XF5, XC5),
+    xml_parse(XC5, X5),
+    ( x_sub(X5, caught, element(caught, KA5, KK5)) -> true ; KA5 = [], KK5 = [] ),
+    ( memberchk(pred=KPr5, KA5) -> true ; KPr5 = none ),
+    findall(N5, ( member(element(raised, _, RK5), KK5), member(element(N5, _, _), RK5) ), Ns5),
+    check('in the XML: <caught pred> holding the <raised> it took -- its <ended> calls, its <chose> and its <answered>',
+          KPr5-Ns5, 'build_stop/1'-[ended, ended, ended, ended, chose, answered]),
+    atom_concat(D, '/caug1.svg', SF6),
+    read_file_to_codes(SF6, SC6),
+    xml_parse(SC6, S6),
+    format(atom(KT6), 'raised in the recovery of the catch/3 at ~w in build_stop([solid]) (call at 1): the exception that catch took', [Catch1]),
+    ( svg_text(S6, KT6) -> Y6 = yes ; Y6 = no ),
+    check('and on the picture', Y6, yes).
+
+raised_place(D) :-
+    section('flow_why_raised/3 where no choice made the raise: the clause before, an if-then-else that was over (1.11.7)'),
+    debugged(D, plac1, fallback_up(5), [], [], R1),
+    flow_why_raised(R1, raised(_, A1), [chose(H1)]),
+    ( A1 = why(_, AP1, _, _) -> true ; AP1 = A1 ),
+    check('fallback_up(5): its second clause threw because its first failed -- what it answered is settled/1, the else of the first clause''s if-then-else, though the raise is in no construct of that clause',
+          H1-AP1, none-(settled/1)),
+    debugged(D, plac2, give_up_after(5), [], [], R2),
+    flow_why_raised(R2, raised(_, A2), [chose(H2)]),
+    check('give_up_after(5): a throw after an if-then-else that is over -- its failed condition is no part of why, and none of its branches chose the raise',
+          H2-A2, none-none),
+    debugged(D, plac3, noted_up(1), [], [], R3),
+    flow_why_raised(R3, _, [chose(H3)]),
+    own_throws(R3, noted_up/1, TB3),
+    entered_panel(R3, noted_up/1, Pn3),
+    atom_concat(Pn3, '.c1.g2', T3),
+    check('noted_up(1): the then''s last call exited and the throw comes after the whole if-then-else, on its own box -- no branch chose it',
+          H3-TB3, none-[T3]),
+    atom_concat(D, '/plac3.svg', SF4),
+    read_file_to_codes(SF4, SC4),
+    xml_parse(SC4, S4),
+    findall(T4, ( svg_text(S4, T4), sub_atom(T4, _, _, _, 'an exception raised by') ), By4),
+    findall(T4b, ( svg_text(S4, T4b), sub_atom(T4b, _, _, _, 'an exception raised at inference') ), At4),
+    length(At4, NAt4),
+    check('...and the banner names no call as its raiser: through 1.11.4 it named note/1, the last call made, which had exited',
+          By4-NAt4, []-1).
+
+raised_undrawn(D) :-
+    section('flow_why_raised/3 from a small top file: the clauses its chart does not draw (1.11.7)'),
+    atomic_list_concat([D, '/undr1'], B1),
+    flow_debug(top_build([solid]), B1, [source('test/flowdebug/top.pl'), txt(true)], R1),
+    flow_why_raised(R1, raised(C1, _), [chose(H1)]),
+    chain_preds(C1, Ps1),
+    chose_parts(H1, HP1, HAt1, HB1, HC1),
+    why_shape(HC1, Xs1),
+    own_throws(R1, refuse_shape/1, TB1),
+    check('top_build([solid]): placed in run.pl''s clauses as read from the file -- shape_ok/1#c1.g1, the if-then-else that chose; by default its conditions explained as calls with no panel',
+          Ps1-HP1-HAt1-HB1-Xs1-TB1,
+          [top_build/1, build/1, shapes_ok/1, shape_ok/1, refuse_shape/1]-(shape_ok/1)-'shape_ok/1#c1.g1'-then(4)
+          -[ended(nb_getval/2, raised), failed(fail/0), failed(round_shape/1), failed(sized_shape/1), exited(abstract_shape/1)]
+          -['refuse_shape/1#c1.g1']),
+    flow_why_raised(R1, _, [own(all), chose(H2)]),
+    chose_parts(H2, _, _, _, HC2),
+    why_shape(HC2, Xs2),
+    check('...and with own(all), each by its clauses', Xs2,
+          [ended(nb_getval/2, raised), failed(fail/0), why(round_shape/1, []),
+           why(sized_shape/1, [entered(1, [exited(shape_area/2), failed((>)/2)])]),
+           exited(abstract_shape/1)]),
+    R1 = run(_, _, _, _, Calls3, _, _, _),
+    findall(Bx3, member(call(_, abstract_shape/1, _, _, Bx3, _, _, _, _, _), Calls3), Bxs3),
+    check('...abstract_shape/1''s call at its place in that clause', Bxs3, ['shape_ok/1#c1.g1.a4.if.g1']),
+    atomic_list_concat([D, '/undr2'], B4),
+    flow_debug(top_stop([solid]), B4, [source('test/flowdebug/top.pl')], R4),
+    flow_why_raised(R4, _, [caught(K4)]),
+    (   K4 = caught(_, KP4, _, KAt4, _, chose(_, _, _, KHAt4, KHB4, _), _) -> true
+    ;   KP4 = none, KAt4 = none, KHAt4 = none, KHB4 = none
+    ),
+    check('top_stop([solid]): the catch in build_stop/1''s clause read from the file, and the choice inside the exception it took',
+          KP4-KAt4-KHAt4-KHB4, (build_stop/1)-'build_stop/1#c1.g1'-'shape_ok/1#c1.g1'-then(4)),
+    %% a predicate the chart draws, called again from a clause read from
+    %% the file: that call is walked in the predicate's own panel
+    atomic_list_concat([D, '/undr3'], B5),
+    flow_debug(top_hooked([round, solid]), B5, [source('test/flowdebug/top.pl')], R5),
+    flow_why_raised(R5, _, [chose(H5)]),
+    chose_parts(H5, HP5, HAt5, HB5, _),
+    entered_panel(R5, top_hook/1, Pn5),
+    atom_concat(Pn5, '.c1.g1', Ite5),
+    atom_concat(Ite5, '.a1.g1', T5),
+    own_throws(R5, top_hook/1, TB5),
+    ( HAt5 == Ite5 -> At5 = its_ite ; At5 = HAt5 ),
+    check('top_hooked([round, solid]): top_hook/1, which the chart draws, called again from each_hook/2''s clause read from the file -- walked in its own panel, its throw placed there and the then that chose it named',
+          HP5-At5-HB5-TB5, (top_hook/1)-its_ite-then(1)-[T5]).
 
 %% ---- a call that tried many heads -----------------------------------------
 

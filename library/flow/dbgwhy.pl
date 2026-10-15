@@ -156,6 +156,8 @@ flow_dbg_why_root(S, ByS, Kids, Own, why(S, Pred, In, Tries)) :-
 flow_dbg_why_tries([], _, _, _, _, []).
 flow_dbg_why_tries([nohead(K, _)|Cs], Ks, ByS, Kids, Own, [nohead(K)|Ts]) :- !,
     flow_dbg_why_tries(Cs, Ks, ByS, Kids, Own, Ts).
+flow_dbg_why_tries([thrown(_, _)|Cs], Ks, ByS, Kids, Own, Ts) :- !,
+    flow_dbg_why_tries(Cs, Ks, ByS, Kids, Own, Ts).
 flow_dbg_why_tries([c(K, At)|Cs], Ks, ByS, Kids, Own, [entered(K, Goals)|Ts]) :-
     (   flow_dbg_why_next(Cs, Next) -> true ; Next = inf ),
     findall(G, ( member(S2, Ks), S2 > At, ( Next == inf -> true ; S2 =< Next ),
@@ -268,19 +270,74 @@ flow_why_explicit_fail(failed(_, false/0, _)).
 %% A RUN THAT ENDED IN AN EXCEPTION has a why of its own (1.11.4, from
 %% cicili-lang's report): the calls the exception unwound, from the
 %% window's top down to the deepest -- the call whose body raised it, or the
-%% builtin that did -- and the failure it answered. A program that gives up
-%% with an error, `( Cond -> ... ; throw(...) )', a compiler's driver, raises
-%% because something failed just before: the last call that failed having
-%% tried a clause, made in the deepest body before the raise, else in the
-%% body above before the call on the chain there, and so outwards.
+%% builtin that did -- and what the raise answered.
 %%
 %% Raised is raised(Chain, Answered): Chain an ended(S, Name/Arity, In,
 %% Fate) for each call on the way down (Fate raised or unwound -- or open
-%% and redo, for a body the window saw no throw in), Answered none or that
+%% and redo, for a body the window saw no throw in), Answered none or a
 %% failed call's why node, its clauses explained whoever's it is, the calls
 %% under it as the options say (own(...), as flow_why/3's);
 %% flow_why_furthest([Answered], Path) is where it got furthest. It fails
 %% for a run that did not end in an exception.
+%%
+%% WHERE A CHOICE MADE THE RAISE (1.11.7, from cicili-lang's report). A
+%% program gives up with an error in a branch a condition chose:
+%%
+%%     cpp_not_abstract(C) :- ( catch(nb_getval(K, yes), _, fail) -> true
+%%                            ; cpp_abstract_class(C) -> cpp_refuse(...)
+%%                            ; true ).
+%%
+%% raised from cpp_refuse/2 because the first condition failed and the
+%% second HELD. Through 1.11.4 the answered failure was the last call that
+%% failed having tried a clause, and nb_getval/2 tried none and
+%% cpp_abstract_class/1 exited, so the search went on outwards and named an
+%% older, unrelated failure. From the deepest body outwards, the first body
+%% where the raise stands in a branch a choice took -- the then of an
+%% if-then-else whose condition held, its else, every condition having
+%% failed, or a disjunction's later branch -- is where the raise was
+%% chosen, and the search stops there: the conditions it ran, builtins
+%% included, are the answer, and Answered is the last of them that failed
+%% having tried a clause, or none. A body with no such choice answers as
+%% before: the last call before the raise that failed having tried a
+%% clause, now one not inside a construct that the raise is outside of (an
+%% if-then-else already settled says nothing of a later raise).
+%%
+%% WHERE A CATCH'S RECOVERY RAISED (1.11.7): a driver that catches an
+%% error, reports it and throws again -- or whose report raises an error
+%% of its own -- ends the run in its recovery, and the path of that raise
+%% is the report's. The exception the catch took is then explained too,
+%% as a raise of its own: its calls (unwound, made in the catch's goal),
+%% the choice that made it and the failure it answered. A call of the
+%% catch's goal that the catch's recovery came after is never on the
+%% chain: that exception was taken, and the run went on.
+%%
+%% A raise is placed in its clause by a box: the box of the call the chain
+%% goes on into, or, where the body raised by itself, the box of its throw
+%% -- a throw/1 makes no call, and the matcher places the throw the run
+%% recorded on the chart's throw box, thrown(Box, At) among its call's
+%% clauses (dbgmatch.pl). The boxes are the chart's, or, for a clause the
+%% chart does not draw, the places library(flow/debug) read for the calls
+%% an exception ended. A raise whose place is not known -- a body whose
+%% clause has no plan -- is placed in no branch: after a then's last call
+%% the raise may be in the then or past the whole if-then-else, and the
+%% first build of this, which read it from the last call, called the second
+%% the first. Two more answers, options that are answers and not choices
+%% (as flow_debug/4's places(P)):
+%%
+%%     chose(C)    none, or chose(S, Name/Arity, In, At, Branch, Conds):
+%%                 the call whose clause chose the branch the raise is in,
+%%                 the construct's box At, Branch then(J) (the J-th
+%%                 condition held), else (every one failed) or branch(J)
+%%                 (a disjunction's J-th, the ones before it failed), and
+%%                 Conds the conditions it ran, in order, each a why node:
+%%                 failed(...) and why(...) for those that failed, ended(...)
+%%                 for one an exception ended inside it, exited(...) for the
+%%                 one that held
+%%     caught(K)   none, or caught(S, Name/Arity, In, At, Raised1, Chose1,
+%%                 Caught1): the call whose clause holds the catch/3 at
+%%                 box At whose recovery the raise came from, and the
+%%                 exception it took, as this predicate answers for a run
+%%                 (Raised1 raised([], none) when it ended no call)
 flow_why_raised(Run, Raised) :-
     flow_why_raised(Run, Raised, []).
 
@@ -288,38 +345,317 @@ flow_why_raised(Run, Raised, Opts) :-
     Run = run(How, _, _, _, Calls, _, _, _),
     How = exception(_),
     flow_why_own_opt(Opts, Own),
-    flow_dbg_raised(Calls, Own, Raised).
+    flow_dbg_raised(Calls, Own, Raised, Chose, Caught),
+    (   memberchk(chose(C), Opts) -> C = Chose ; true ),
+    (   memberchk(caught(K), Opts) -> K = Caught ; true ).
 
-flow_dbg_raised(Calls, Own, raised(Chain, Answered)) :-
+flow_dbg_raised(Calls, Own, Raised) :-
+    flow_dbg_raised(Calls, Own, Raised, _, _).
+
+flow_dbg_raised(Calls, Own, Raised, Chose, Caught) :-
     flow_dbg_why_index(Calls, ByS, Kids),
     flow_dbg_raise_chain(0, ByS, Kids, Ss),
-    findall(ended(S, P, In, F), ( member(S, Ss), get_assoc(S, ByS, call(S, P, _, _, _, _, _, In, _, F)) ), Chain),
-    reverse([0|Ss], Up),
-    (   flow_dbg_answered(Up, none, ByS, Kids, A)
-    ->  flow_dbg_why_root(A, ByS, Kids, Own, Answered)
-    ;   Answered = none
-    ).
+    flow_dbg_raise_levels(0, Ss, none, Levels),
+    flow_dbg_raise_why(Ss, Levels, ByS, Kids, Own, Raised, Chose, Caught).
 
 %% at each level the last call the exception ended -- the raise is the
 %% latest thing the run did, so on every level of its chain it is the
-%% call made last
+%% call made last -- but not a call of a catch's goal the catch's recovery
+%% came after (a call made in it, or a throw it made): that exception was
+%% taken
 flow_dbg_raise_chain(P, ByS, Kids, Chain) :-
     (   get_assoc(P, Kids, Ks),
+        flow_dbg_throws_of(P, ByS, Ths),
         reverse(Ks, Rev),
         once(( member(S, Rev), get_assoc(S, ByS, C), arg(10, C, Fate),
-               memberchk(Fate, [raised, unwound, open, redo]) ))
+               memberchk(Fate, [raised, unwound, open, redo]),
+               \+ flow_dbg_taken(S, C, Ks, Ths, ByS) ))
     ->  Chain = [S|Rest],
         flow_dbg_raise_chain(S, ByS, Kids, Rest)
     ;   Chain = []
     ).
 
-%% the last call that failed having tried a clause, in a body on the chain
-%% before the chain's call there, from the deepest body outwards
-flow_dbg_answered([L|Ls], Child, ByS, Kids, A) :-
-    (   get_assoc(L, Kids, Ks0) -> true ; Ks0 = [] ),
-    (   Child == none -> Ks = Ks0 ; findall(K, ( member(K, Ks0), K < Child ), Ks) ),
-    reverse(Ks, Rev),
-    (   member(A0, Rev), get_assoc(A0, ByS, C), arg(10, C, fail), arg(7, C, [_|_])
-    ->  A = A0
-    ;   flow_dbg_answered(Ls, L, ByS, Kids, A)
+flow_dbg_taken(S, C, Ks, Ths, ByS) :-
+    arg(5, C, Box),
+    flow_box_steps(Box, Steps),
+    member(s(Cid, try), Steps),
+    atom_concat(Cid, '.recover.', RPre),
+    (   member(S2, Ks), S2 > S,
+        get_assoc(S2, ByS, C2), arg(5, C2, B2), atom(B2),
+        sub_atom(B2, 0, _, _, RPre)
+    ;   member(B2-A2, Ths), A2 > S, sub_atom(B2, 0, _, _, RPre)
+    ), !.
+
+%% the throws a call's own body made, Box-At, in order (none for the root)
+flow_dbg_throws_of(P, ByS, Ths) :-
+    (   P =\= 0, get_assoc(P, ByS, C)
+    ->  arg(7, C, Cl), findall(B-A, member(thrown(B, A), Cl), Ths)
+    ;   Ths = []
     ).
+
+%% the levels a raise passed through, deepest first: l(P, X, Floor) for the
+%% root and each call P on its chain, X the call P's body made next on the
+%% chain (none where P's own body raised), Floor none -- or, at the root of
+%% an exception a catch took, the catch's goal, which bounds what counts
+flow_dbg_raise_levels(Root, Ss, Floor, Levels) :-
+    append(Ss, [none], Xs),
+    Xs = [X1|Xs1],
+    flow_dbg_levels_zip(Ss, Xs1, Ls),
+    reverse([l(Root, X1, Floor)|Ls], Levels).
+
+flow_dbg_levels_zip([], [], []).
+flow_dbg_levels_zip([P|Ps], [X|Xs], [l(P, X, none)|Ls]) :-
+    flow_dbg_levels_zip(Ps, Xs, Ls).
+
+flow_dbg_raise_why(Ss, Levels, ByS, Kids, Own, raised(Chain, Answered), Chose, Caught) :-
+    findall(ended(S, P, In, F), ( member(S, Ss), get_assoc(S, ByS, call(S, P, _, _, _, _, _, In, _, F)) ), Chain),
+    flow_dbg_raise_walk(Levels, ByS, Kids, Own, none, Why, none, Caught),
+    (   Why = w(A, Chose)
+    ->  (   A == none -> Answered = none ; flow_dbg_why_root(A, ByS, Kids, Own, Answered) )
+    ;   Answered = none, Chose = none
+    ).
+
+%% outwards from the deepest level: the first level with a choice, a
+%% recovery or a failure in scope gives the why (w(Answered, Chose)), and
+%% the first recovery the exception the catch took -- past which nothing
+%% further out is this raise's
+flow_dbg_raise_walk([], _, _, _, Why, Why, Caught, Caught).
+flow_dbg_raise_walk([L|Ls], ByS, Kids, Own, Why0, Why, Caught0, Caught) :-
+    flow_dbg_level_marks(L, ByS, Kids, Pos, Marks),
+    (   Why0 \== none -> Why1 = Why0
+    ;   Marks = [M|_] -> flow_dbg_mark_why(M, L, Pos, ByS, Kids, Own, Why1)
+    ;   flow_dbg_scoped_failure(L, Pos, ByS, Kids, F) -> Why1 = w(F, none)
+    ;   Why1 = none
+    ),
+    (   member(recovery(Cid), Marks)
+    ->  flow_dbg_caught(L, Cid, Pos, ByS, Kids, Own, Caught),
+        Why = Why1
+    ;   flow_dbg_raise_walk(Ls, ByS, Kids, Own, Why1, Why, Caught0, Caught)
+    ).
+
+%% where the raise stands at a level: pos(Box, Max, Way), the box of the
+%% call the chain goes on into or of the throw P's own body made (Way
+%% call: the calls before it are P's up to Max) -- or, where P's own body
+%% raised at no place the plan knows, of the last call P made (Way
+%% after(Fate): the raise came after it, and where is not known); and the
+%% marks its constructs make, innermost first, inside Floor. Only a place
+%% makes a mark (above)
+flow_dbg_level_marks(l(P, X, Floor), ByS, Kids, Pos, Marks) :-
+    (   X \== none
+    ->  get_assoc(X, ByS, CX), arg(5, CX, Box), Max is X - 1, Pos = pos(Box, Max, call)
+    ;   flow_dbg_own_throw(P, ByS, Kids, Floor, TBox, TAt)
+    ->  Pos = pos(TBox, TAt, call)
+    ;   flow_dbg_kids_upto(P, Kids, inf, Ks), last(Ks, Y)
+    ->  get_assoc(Y, ByS, CY), arg(5, CY, Box), arg(10, CY, F), Pos = pos(Box, Y, after(F))
+    ;   Pos = none
+    ),
+    (   Pos = pos(B, _, call), flow_box_steps(B, Steps0)
+    ->  flow_dbg_floor_steps(Steps0, Floor, Steps),
+        reverse(Steps, Inner),
+        findall(M, ( member(s(Id, K), Inner), flow_dbg_mark(K, Id, M) ), Marks)
+    ;   Marks = []
+    ).
+
+%% the throw P's own body raised the exception by: its last, inside Floor,
+%% with no call of P's inside Floor made after it
+flow_dbg_own_throw(P, ByS, Kids, Floor, TBox, TAt) :-
+    flow_dbg_throws_of(P, ByS, Ths0),
+    findall(B-A, ( member(B-A, Ths0), flow_dbg_in_floor(B, Floor) ), Ths),
+    last(Ths, TBox-TAt),
+    flow_dbg_kids_upto(P, Kids, inf, Ks),
+    \+ ( member(K, Ks), K > TAt, get_assoc(K, ByS, CK), arg(5, CK, KB), flow_dbg_in_floor(KB, Floor) ).
+
+flow_dbg_floor_steps(Steps, none, Steps) :- !.
+flow_dbg_floor_steps(Steps0, Floor, Steps) :-
+    atom_concat(Floor, '.', FP),
+    findall(s(Id, K), ( member(s(Id, K), Steps0), sub_atom(Id, 0, _, _, FP) ), Steps).
+
+%% a construct the raise stands in: a branch a choice took, or a recovery
+flow_dbg_mark(arm(J, then), Id, decision(Id, then(J))).
+flow_dbg_mark(else, Id, decision(Id, else)).
+flow_dbg_mark(branch(J), Id, decision(Id, branch(J))) :- J > 1.
+flow_dbg_mark(recover, Id, recovery(Id)).
+
+%% the why a mark gives: a choice, its conditions and the last that failed
+%% having tried a clause; a recovery, the last such call in it
+flow_dbg_mark_why(decision(Id, Branch), l(P, _, _), pos(_, Max, _), ByS, Kids, Own,
+                  w(A, chose(P, Pred, In, Id, Branch, Conds))) :-
+    flow_dbg_pred_in(P, ByS, Pred, In),
+    flow_dbg_kids_upto(P, Kids, Max, Ks),
+    reverse(Ks, Rev),
+    atom_concat(Id, '.', Under),
+    flow_dbg_block(Rev, Under, ByS, Block),
+    findall(S, ( member(S, Block), get_assoc(S, ByS, C), arg(5, C, B),
+                 flow_dbg_cond_of(Branch, Id, B) ), CSs),
+    findall(N, ( member(S, CSs), flow_dbg_why_node(S, ByS, Kids, Own, N) ), Conds),
+    (   flow_dbg_last_tried(CSs, ByS, A0) -> A = A0 ; A = none ).
+flow_dbg_mark_why(recovery(Cid), l(P, _, _), pos(_, Max, _), ByS, Kids, _, w(A, none)) :-
+    flow_dbg_kids_upto(P, Kids, Max, Ks),
+    atom_concat(Cid, '.recover.', RPre),
+    findall(S, ( member(S, Ks), get_assoc(S, ByS, C), arg(5, C, B), atom(B), sub_atom(B, 0, _, _, RPre) ), Ss),
+    (   flow_dbg_last_tried(Ss, ByS, A0) -> A = A0 ; A = none ).
+
+%% the last of the calls that failed having tried a clause
+flow_dbg_last_tried(Ss, ByS, A) :-
+    reverse(Ss, Rev),
+    member(A, Rev), get_assoc(A, ByS, C), arg(10, C, fail), arg(7, C, [_|_]), !.
+
+%% back from the raise, the calls under the construct, in the order made: a
+%% call outside it ends the block, one with no box (true/0) is passed
+flow_dbg_block(Rev, Under, ByS, Block) :-
+    flow_dbg_block_(Rev, Under, ByS, [], Block).
+
+flow_dbg_block_([], _, _, B, B).
+flow_dbg_block_([S|Ss], Under, ByS, B0, B) :-
+    get_assoc(S, ByS, C), arg(5, C, Box),
+    (   atom(Box), sub_atom(Box, 0, _, _, Under) -> flow_dbg_block_(Ss, Under, ByS, [S|B0], B)
+    ;   atom(Box), Box \== none -> B = B0
+    ;   flow_dbg_block_(Ss, Under, ByS, B0, B)
+    ).
+
+%% is a box one of the conditions a branch was chosen by: the conditions
+%% of arms 1 to J for then(J), of every arm for else, branches 1 to J-1 for
+%% branch(J)
+flow_dbg_cond_of(Branch, Id, B) :-
+    atom(B),
+    (   Branch = branch(J)
+    ->  atom_concat(Id, '.b', Pre), atom_concat(Pre, Rest, B),
+        once(sub_atom(Rest, Bf, _, _, '.')), sub_atom(Rest, 0, Bf, _, KA),
+        atom_number(KA, K), K < J
+    ;   atom_concat(Id, '.a', Pre), atom_concat(Pre, Rest, B),
+        once(sub_atom(Rest, Bf, _, _, '.if.')), sub_atom(Rest, 0, Bf, _, KA),
+        atom_number(KA, K),
+        ( Branch = then(J) -> K =< J ; true )
+    ).
+
+%% no choice at a level: the last call before the raise that failed having
+%% tried a clause, in the raise's scope -- not inside a construct the raise
+%% is outside of -- and, at the root of an exception a catch took, in its goal
+flow_dbg_scoped_failure(l(P, _, Floor), pos(PBox, Max, _), ByS, Kids, F) :-
+    flow_dbg_kids_upto(P, Kids, Max, Ks),
+    reverse(Ks, Rev),
+    member(F, Rev), get_assoc(F, ByS, C), arg(10, C, fail), arg(7, C, [_|_]),
+    arg(5, C, FBox),
+    flow_dbg_in_floor(FBox, Floor),
+    flow_dbg_in_scope(FBox, PBox), !.
+
+flow_dbg_in_floor(_, none) :- !.
+flow_dbg_in_floor(Box, Floor) :-
+    atom(Box), atom_concat(Floor, '.', FP), sub_atom(Box, 0, _, _, FP).
+
+%% a failure of another clause of the call is in scope -- that clause's
+%% failure is why the raise's clause ran -- and in the raise's own clause
+%% one is unless a construct it is inside does not hold the raise
+flow_dbg_in_scope(FBox, PBox) :-
+    (   \+ flow_dbg_placed(FBox) -> true
+    ;   \+ flow_dbg_placed(PBox) -> true
+    ;   flow_box_parts(FBox, FPre, _), flow_box_parts(PBox, PPre, _), FPre \== PPre -> true
+    ;   flow_box_steps(FBox, Steps),
+        forall(member(s(Id, K), Steps),
+               ( flow_step_prefix(Id, K, Pre), atom_concat(Pre, '.', P2), sub_atom(PBox, 0, _, _, P2) ))
+    ).
+
+flow_dbg_placed(B) :- atom(B), B \== none.
+
+%% the box prefix of the branch a step is: what a box in that branch
+%% begins with
+flow_step_prefix(Id, arm(J, cond), Pre) :- !, format(atom(Pre), '~w.a~w.if', [Id, J]).
+flow_step_prefix(Id, arm(J, then), Pre) :- !, format(atom(Pre), '~w.a~w', [Id, J]).
+flow_step_prefix(Id, else, Pre) :- !, atom_concat(Id, '.else', Pre).
+flow_step_prefix(Id, branch(J), Pre) :- !, format(atom(Pre), '~w.b~w', [Id, J]).
+flow_step_prefix(Id, try, Pre) :- !, atom_concat(Id, '.try', Pre).
+flow_step_prefix(Id, recover, Pre) :- !, atom_concat(Id, '.recover', Pre).
+flow_step_prefix(Id, inner, Id).
+
+%% the exception a catch took, explained as a raise of its own: from the
+%% last call of the catch's goal it ended, down -- or, when the goal's own
+%% throw raised it, from that throw
+flow_dbg_caught(l(P, _, _), Cid, pos(_, Max, _), ByS, Kids, Own,
+                caught(P, Pred, In, Cid, Raised1, Chose1, Caught1)) :-
+    flow_dbg_pred_in(P, ByS, Pred, In),
+    flow_dbg_kids_upto(P, Kids, Max, Ks),
+    atom_concat(Cid, '.try.', TPre),
+    (   reverse(Ks, Rev), member(T, Rev), get_assoc(T, ByS, C), arg(5, C, B), atom(B),
+        sub_atom(B, 0, _, _, TPre), arg(10, C, F), memberchk(F, [raised, unwound, open, redo])
+    ->  flow_dbg_raise_chain(T, ByS, Kids, Below),
+        Ss = [T|Below]
+    ;   Ss = []
+    ),
+    atom_concat(Cid, '.try', Floor),
+    flow_dbg_raise_levels(P, Ss, Floor, Levels1),
+    flow_dbg_raise_why(Ss, Levels1, ByS, Kids, Own, Raised1, Chose1, Caught1).
+
+flow_dbg_pred_in(0, _, none, []) :- !.
+flow_dbg_pred_in(P, ByS, Pred, In) :-
+    get_assoc(P, ByS, call(P, Pred, _, _, _, _, _, In, _, _)).
+
+%% the calls P's body made, up to Max (inf: all of them) -- in every
+%% clause it entered: a clause that failed is why the next ran
+flow_dbg_kids_upto(P, Kids, Max, Ks) :-
+    (   get_assoc(P, Kids, Ks0) -> true ; Ks0 = [] ),
+    findall(K, ( member(K, Ks0), ( Max == inf -> true ; K =< Max ) ), Ks).
+
+%% ---- a box, read ---------------------------------------------------------
+%%
+%% A box id names its clause and the way down to it: p5.c1.g1.a2.if.g1 is
+%% the first goal of the condition of the second arm of the if-then-else
+%% that is the first goal of clause 1 of panel 5; query.g1 the query's
+%% goal; cpp_not_abstract/1#c1.g1.a2.g1, in a clause the chart does not
+%% draw (dbgmatch.pl), the first goal of that arm's then. Steps are the
+%% constructs it is inside, outermost first: s(Id, Kind), Id the construct's
+%% own box and Kind arm(J, cond), arm(J, then), else, branch(J), try,
+%% recover or inner (\+, once/1, ignore/1, a meta-call's goal).
+flow_box_steps(Box, Steps) :-
+    flow_box_parts(Box, Pre, Comps),
+    flow_box_steps_(Comps, Pre, Steps).
+
+flow_box_parts(Box, Pre, Comps) :-
+    atom(Box), Box \== none,
+    (   flow_box_hash(Box, H)
+    ->  sub_atom(Box, 0, H, _, Name),
+        H1 is H + 1,
+        sub_atom(Box, H1, _, 0, Rest),
+        atomic_list_concat([CK|Comps], '.', Rest),
+        atomic_list_concat([Name, '#', CK], Pre)
+    ;   atomic_list_concat(Parts, '.', Box),
+        (   Parts = [query|Comps] -> Pre = query
+        ;   Parts = [P, CK|Comps], atomic_list_concat([P, '.', CK], Pre)
+        )
+    ).
+
+%% the last `#' of a box, whose name part may hold one
+flow_box_hash(Box, H) :-
+    findall(B, sub_atom(Box, B, 1, _, '#'), Bs),
+    last(Bs, H).
+
+flow_box_steps_([], _, []).
+flow_box_steps_([G|Cs], Id0, Steps) :-
+    atomic_list_concat([Id0, '.', G], Id),
+    (   Cs = [A, if|Cs1], flow_box_num(a, A, J)
+    ->  Steps = [s(Id, arm(J, cond))|Ss], atomic_list_concat([Id, '.', A, '.if'], Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [A|Cs1], flow_box_num(a, A, J)
+    ->  Steps = [s(Id, arm(J, then))|Ss], atomic_list_concat([Id, '.', A], Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [else|Cs1]
+    ->  Steps = [s(Id, else)|Ss], atom_concat(Id, '.else', Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [Bj|Cs1], flow_box_num(b, Bj, J)
+    ->  Steps = [s(Id, branch(J))|Ss], atomic_list_concat([Id, '.', Bj], Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [try|Cs1]
+    ->  Steps = [s(Id, try)|Ss], atom_concat(Id, '.try', Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [recover|Cs1]
+    ->  Steps = [s(Id, recover)|Ss], atom_concat(Id, '.recover', Id1),
+        flow_box_steps_(Cs1, Id1, Ss)
+    ;   Cs = [_|_]
+    ->  Steps = [s(Id, inner)|Ss],
+        flow_box_steps_(Cs, Id, Ss)
+    ;   Steps = []
+    ).
+
+flow_box_num(L, A, J) :-
+    atom_concat(L, JA, A), JA \== '',
+    atom_codes(JA, Cs), Cs = [C|_], C >= 0'0, C =< 0'9,
+    atom_number(JA, J), integer(J).

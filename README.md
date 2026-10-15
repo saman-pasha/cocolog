@@ -73,8 +73,10 @@ FILE:LINE:COL.
 * **Questions, where a debugger would have you step**: WHY a run failed --
   every clause tried and the call each failed at, and where a failed search
   got FURTHEST (`flow_why/2`, `flow_why_furthest/2`) -- or RAISED: the calls
-  the exception ended and the failure the raise answered
-  (`flow_why_raised/2`); WHEN something first
+  the exception ended, the branch a choice took to raise it and every
+  condition it ran, the failure the raise answered, and, when a catch's
+  recovery raised it, the exception that catch took
+  (`flow_why_raised/2,3`); WHEN something first
   held -- its inference, found by bisecting over fast runs (`flow_when/4`);
   what CHANGED between two runs -- before and after an edit, or two goals
   that should behave alike: the inputs answered differently, deepest first,

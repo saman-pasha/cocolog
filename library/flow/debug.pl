@@ -15,6 +15,10 @@
 %%     flow_why_raised(+Run, -Raised)              the calls an exception
 %%                                                 ended and the failure it
 %%                                                 answered (dbgwhy.pl)
+%%     flow_why_raised(+Run, -Raised, +Options)    own(...), and chose(C) and
+%%                                                 caught(K): the branch a
+%%                                                 choice took to raise it, the
+%%                                                 exception a catch took
 %%     flow_when(+Goal, +Cond, +Options, -When)    the first inference at
 %%                                                 which Cond holds (dbgwhen.pl)
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared: the same
@@ -182,6 +186,12 @@
 %% tried a clause before the raise, in the deepest body first -- with where
 %% that got furthest and its tree (<raised> in the XML, flow_why_raised/2):
 %% a compiler that gives up with an error raises because something failed.
+%% Since 1.11.7, where a CHOICE made the raise -- in the then of a condition
+%% that held, an else, a later branch -- the branch and every condition it
+%% ran, builtins too, and the failure it answered among them; and where a
+%% catch's RECOVERY raised it, the exception that catch took, told the same
+%% way (flow_why_raised/3's chose(C) and caught(K), dbgwhy.pl). A throw/1,
+%% which makes no call, is placed on the chart's box for it.
 %% flow_when/4 answers WHEN: the first inference at which a question holds,
 %% asked of runs stopped part way -- a handful of them, each at full speed
 %% and each a replay of the probe's journal (dbgwhen.pl says how, and what
@@ -215,8 +225,11 @@ flow_debug(Goal, Base0, Opts, Out) :-
     flow_dbg_chart(Spec, File, Opts, Graph, Fs, Chart),
     flow_dbg_src(File, Opts, Src),
     flow_dbg_run(Goal, Src, Opts, Run),
-    Run = run(_, _, _, _, Events, _),
-    flow_dbg_match(Graph, Events, Calls),
+    Run = run(_, _, Replay, _, Events, _),
+    (   Replay = end(exception(_), _, _)
+    ->  flow_dbg_match(Graph, Events, flow_dbg_source_bodies(File), Calls)
+    ;   flow_dbg_match(Graph, Events, Calls)
+    ),
     flow_dbg_names(Goal, Opts, Names),
     flow_dbg_facts(Graph, Run, Calls, Names, Opts, Facts),
     flow_dbg_svg(Graph, Fs, Facts, Opts, Svg),
@@ -477,6 +490,21 @@ flow_dbg_check_where(Opts, Who) :-
         )
     ;   true
     ).
+
+%% THE CLAUSES AN EXCEPTION ENDED, READ FROM THE PROGRAM'S OWN FILES when
+%% the chart does not draw them (1.11.7): the source and the files its
+%% directives load, as the chart's declaration scan finds them (read.pl),
+%% cocolog's own libraries not among them. Found is (Name/Arity-K)-Body for
+%% each Name/Arity-K of Needed whose K-th clause the files hold, in the
+%% order the files give a predicate's clauses -- the store's order for a
+%% predicate one file defines.
+flow_dbg_source_bodies(File, Needed, Found) :-
+    absolute_file_name(File, FA),
+    flow_scan_files([FA], [], Cls),
+    findall(Pr, member(Pr-_, Needed), Prs0),
+    sort(Prs0, Prs),
+    findall(Pr-Bs, ( member(Pr, Prs), findall(B, member(c(Pr, _, _, B), Cls), Bs), Bs \== [] ), PBs),
+    findall((Pr-K)-B, ( member(Pr-K, Needed), memberchk(Pr-Bs, PBs), nth1(K, Bs, B) ), Found).
 
 %% the call pattern a goal is: an argument bound is +, unbound -, and one
 %% partly bound ?

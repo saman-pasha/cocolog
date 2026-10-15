@@ -681,7 +681,15 @@ library's clauses and breaks the chart far from the cause (a type error
 inside the signature reader, in cicili-lang's case): a `flow_` predicate the
 store holds more clauses of than the program's files give it is refused by
 name before anything is analysed, the tables a program may add rows to
-(`flow_t_*`, `flow_mode/4`, `flow_raises_unbound/4`) excepted.
+(`flow_t_*`, `flow_mode/4`, `flow_raises_unbound/4`) excepted. Held to the
+chart's files, that missed a file the program loaded itself -- an
+`ensure_loaded/1` in its query, after the library -- and it said a
+`flow_` predicate the library does not have was the library's when two of
+the program's files gave it clauses; since 1.11.7 the store is held to the
+LIBRARY's own files instead (read once a process, 0.04 s for its twenty):
+a predicate of a loaded part with more clauses than its file gives it is
+refused, naming the chart's file that gives it one when there is one, and
+saying the program loaded it itself when none does.
 
 **What a builtin's success says beyond its line** (1.11.4): a mode line
 says what a call needs and binds for the line met, and a loose meet (a `?`
@@ -1219,6 +1227,42 @@ from a session that used the library on `library/reasoning/translate.pl`:
   line and Base.txt's head say both ends, the probe's and the replay's: a
   cache on disk the probe wrote sent cicili-lang's replay a shorter way,
   and the line said only the replay's end beside the probe's window.
+* **Where a choice made the raise, where a recovery raised it, and where a
+  throw stands** (1.11.7, cicili-lang's report). Its compiler refused
+  `cpp_not_abstract/1` from the then of a condition that HELD
+  (`cpp_abstract_class/1`) after one that failed by an exception its catch
+  took (`nb_getval/2` in `catch(..., _, fail)`): 1.11.4's answered failure
+  was the last call that failed having tried a clause, none of those had,
+  and it named an older failure further out with nothing to do with it.
+  Now, from the deepest body out, the first body where the raise stands in
+  a branch a choice took -- the then of an arm whose condition held, the
+  else, a disjunction's later branch -- is where it was chosen:
+  `flow_why_raised/3`'s `chose(C)` names that clause, the construct's box,
+  the branch, and every condition it ran, builtins included, a why node
+  each; the answered failure is the last of them that failed having tried
+  a clause. A body with no such choice answers as before, its failure in
+  the raise's scope -- another clause's (why the raising clause ran) or one
+  in no construct the raise is outside of. A raise in a catch's RECOVERY
+  -- a driver that says the error and throws again, or whose saying raises
+  one of its own -- also explains the exception the catch took
+  (`caught(K)`), the same way, and a call of the catch's goal is no longer
+  on the chain once the recovery ran. Both need to know where the raise
+  STANDS, and a `throw/1` makes no call: the tracer records a throw event
+  in the body it was raised in and no port, and the first build read the
+  place from the body's last call -- after a then's last call exited it
+  said the then, where the throw came after the whole if-then-else. So the
+  matcher plans a throw as a place, and a throw the body makes where no
+  call of it is running is put on the chart's throw box (or the goal that
+  raised before its Call port: an unknown procedure, `call/1` of a
+  variable) -- `thrown(Box, At)` among the call's clauses, `<thrown>` in
+  its XML, `threw:BOX` on its line of Base.txt, the box painted as the one
+  that raised; a raise whose place is not known is placed in no branch.
+  The calls an exception ended in a clause the chart does not draw -- a
+  program debugged from a small top file -- are placed by that clause's
+  body read from the program's files, at `Name/Arity#cK.g1...`, an id no
+  chart box has; a predicate the chart does draw, called from such a
+  clause, is walked in its own panel. The run's banner named as the raiser the last call made
+  in the body, though it had exited: it names a call only while it runs.
 
 ## 10. Phases
 

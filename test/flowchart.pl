@@ -34,7 +34,9 @@
 %%               findings and the requests of its report, with gate_lib.pl
 %%               (a file it loads), gate_mod.cicili (its module's source),
 %%               gate_half.pl (a library that module loads) and
-%%               gate_clash.pl (a helper named as the library's own)
+%%               gate_clash.pl (a helper named as the library's own, given
+%%               to the chart and, since 1.11.7, loaded by the program
+%%               itself)
 %%
 %% How the picture LOOKS is not checked here -- that is judged by eye --
 %% but that it is an SVG that reads back, and that every goal in the XML
@@ -1197,6 +1199,33 @@ gate_clash :-
     (   sub_atom(T, _, _, _, 'flow_trim/2 is library(flow/chart)''s own predicate'),
         sub_atom(T, _, _, _, 'gate_clash.pl gives it clauses of its own') -> Y = yes ; Y = no ),
     check('a helper named flow_trim/2 is refused by name: exit 2, the predicate and the file', E-Y, 2-yes),
+    %% one the program loaded itself -- the library first, then an
+    %% ensure_loaded/1 in its query -- is in none of the chart's files, and
+    %% through 1.11.4 joined unseen; and a flow_ predicate the library does
+    %% not have is the program's, however many files give it clauses -- the
+    %% check of 1.11.4 called flow_mine/1 the library's own (1.11.7)
+    atomic_list_concat([D, '/w3.pl'], WF),
+    atomic_list_concat([D, '/mine1.pl'], M1),
+    atomic_list_concat([D, '/mine2.pl'], M2),
+    fixture(M1, ['flow_mine(a).']),
+    fixture(M2, ['flow_mine(b).']),
+    format(atom(WL1), 'w3 :- ensure_loaded(''test/flowchart/gate_clash.pl''), w3_chart([]).', []),
+    format(atom(WL2), 'w4 :- ensure_loaded(''~w''), w3_chart([load(''~w'')]).', [M2, M1]),
+    fixture(WF, [ ':- use_module(library(flow/chart)).',
+                  WL1, WL2,
+                  'w3_chart(Opts) :-',
+                  '    catch(( flow_graph(gt_nan/1, _, [source(''test/flowchart/gate.pl'')|Opts]), write(charted), nl ),',
+                  '          error(permission_error(modify, flow_procedure, P), context(_, M)),',
+                  '          ( write(P), nl, write(M), nl, halt(2) )).' ]),
+    atomic_list_concat(['run ', WF, ' w3 2>&1'], A3),
+    cocolog_run(A3, T3, E3),
+    (   sub_atom(T3, 0, _, _, 'flow_trim/2'),
+        sub_atom(T3, _, _, _, 'the program gave it 1 clause of its own from a file it loaded itself') -> Y3 = yes ; Y3 = no ),
+    check('flow_trim/2 loaded by the program itself, after the library, is refused too: the predicate, and that no file the chart reads gave it',
+          E3-Y3, 2-yes),
+    atomic_list_concat(['run ', WF, ' w4 2>&1'], A4),
+    cocolog_run(A4, T4, E4),
+    check('flow_mine/1, the program''s own in two files, is no clash', E4-T4, 0-charted),
     atomic_list_concat(['-s tools/flow/chart.pl -- gt_native/2 test/flowchart/gate.pl ', B,
                         ' modules=test/flowchart/gate_mod.cicili'], A2),
     cocolog_run(A2, T2, E2),

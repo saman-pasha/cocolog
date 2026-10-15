@@ -344,24 +344,39 @@ flow_mark_declared([N/A|Ks], How, Prog0, Prog) :-
     flow_mark_declared(Ks, How, Prog1, Prog).
 
 %% A CLAUSE OF THE CHART'S OWN, from the program (1.11.4, from
-%% cicili-lang's report): a file the chart reads that defines a predicate
+%% cicili-lang's report): a file of the program's that defines a predicate
 %% this library defines too -- a helper named flow_trim/2 -- joins the
 %% library's clauses, and the chart fails far from the cause (a type error
-%% from atom_codes/2 in the signature reader). The store holding more
-%% clauses of a flow_ predicate than the program's files give it is
-%% refused, by name, before anything is analysed. The tables the chart reads
-%% are open to a program -- flow_t_portal/8 rows for a module of its own
-%% (modules(Files) writes them), flow_mode/4 lines for a builtin -- and
-%% their rows are not refused.
+%% from atom_codes/2 in the signature reader). It is refused, by name,
+%% before anything is analysed. Through 1.11.4 the store was held to the
+%% chart's own files, and a file the program loaded itself -- by an
+%% ensure_loaded/1 in the query, before the chart was asked for -- joined
+%% unseen (1.11.7, from cicili-lang's report). Now the store is held to the
+%% library: each part of it (a file beside chart.pl on the library path)
+%% is read once, for how many clauses it gives each of its flow_
+%% predicates, and a part the store holds at least that many of each is
+%% loaded; a predicate of a loaded part with more clauses in the store than
+%% its file gives it is refused -- naming the chart's files that give it
+%% clauses, or saying the program loaded them itself. A flow_ predicate of
+%% the program's that the library does not have is the program's to name.
+%% The tables the chart reads are open to a program -- flow_t_portal/8 rows
+%% for a module of its own (modules(Files) writes them), flow_mode/4 lines
+%% for a builtin -- and their rows are not refused.
 flow_clash_check(scan(_, Defs)) :-
-    (   member(N/A-Fs-C, Defs),
-        \+ flow_open_table(N, A),
-        functor(H, N, A),
-        catch(predicate_property(H, number_of_clauses(T)), _, fail),
-        T > C
-    ->  Fs = [F|_],
-        format(atom(Msg), '~q/~w is library(flow/chart)''s own predicate, and ~w gives it clauses of its own, which join the library''s: the chart would fail far from here -- name the program''s another way',
-               [N, A, F]),
+    flow_own_counts(Parts),
+    (   member(part(Lib, KLs), Parts),
+        flow_part_loaded(KLs),
+        member(N/A-L, KLs),
+        flow_store_count(N/A, T),
+        T > L
+    ->  (   memberchk(N/A-[F|_]-_, Defs)
+        ->  format(atom(Msg), '~q/~w is library(~w)''s own predicate, and ~w gives it clauses of its own, which join the library''s: the chart would fail far from here -- name the program''s another way',
+                   [N, A, Lib, F])
+        ;   X is T - L,
+            ( X =:= 1 -> Cl = clause ; Cl = clauses ),
+            format(atom(Msg), '~q/~w is library(~w)''s own predicate, and the program gave it ~d ~w of its own from a file it loaded itself -- none the chart reads -- which join the library''s: the chart would fail far from here -- name the program''s another way',
+                   [N, A, Lib, X, Cl])
+        ),
         throw(error(permission_error(modify, flow_procedure, N/A), context(flow_graph/3, Msg)))
     ;   true
     ).
@@ -369,6 +384,42 @@ flow_clash_check(scan(_, Defs)) :-
 flow_open_table(N, _) :- atom_concat(flow_t_, _, N), !.
 flow_open_table(flow_mode, 4).
 flow_open_table(flow_raises_unbound, 4).
+
+%% the clauses the store holds of a predicate: 0 for one it does not have
+flow_store_count(N/A, T) :-
+    functor(H, N, A),
+    (   catch(predicate_property(H, number_of_clauses(T0)), _, fail) -> T = T0 ; T = 0 ).
+
+flow_part_loaded(KLs) :-
+    forall(member(K-L, KLs), ( flow_store_count(K, T), T >= L )).
+
+%% each part of the library -- each file in the directory chart.pl is
+%% found in -- with the clauses its file gives each of its flow_ predicates
+%% (part(Lib, [Name/Arity-Count, ...]), Lib flow/chart or flow/debug), read
+%% once a process: twenty files, 0.04 s
+flow_own_counts(Parts) :-
+    catch(nb_getval('$flow_own_counts', Parts), _, fail), !.
+flow_own_counts(Parts) :-
+    (   flow_spec_file(library(flow/chart), CP, _)
+    ->  file_directory_name(CP, Dir),
+        atom_concat(Dir, '/*.pl', Pat),
+        expand_file_name(Pat, Fs)
+    ;   Fs = []
+    ),
+    findall(part(Lib, KLs),
+            ( member(F, Fs),
+              flow_scan_file(F, Cls, _),
+              findall(K-x, ( member(c(K, _, _, _), Cls), K = N/A, atom_concat(flow_, _, N),
+                             \+ flow_open_table(N, A) ), KXs0),
+              KXs0 \== [],
+              msort(KXs0, KXs),
+              flow_group(KXs, Grouped),
+              findall(K-L, ( member(K-Xs, Grouped), length(Xs, L) ), KLs),
+              file_base_name(F, B),
+              (   ( atom_concat(dbg, _, B) ; B == 'debug.pl' ) -> Lib = flow/debug ; Lib = flow/chart )
+            ),
+            Parts),
+    nb_setval('$flow_own_counts', Parts).
 
 %% MODULES OUT OF THE TREE (1.11.4, from cicili-lang's report):
 %% modules(Files) names a module's Cicili source, read as
