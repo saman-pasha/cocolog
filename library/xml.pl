@@ -68,8 +68,10 @@
 %%   the byte is a much worse afternoon than an error.
 %%
 %%   BYTES ABOVE 0x7F PASS THROUGH UNTOUCHED, exactly as in library(json).
-%%   cocolog is byte-oriented and there is no decoder here, so UTF-8 in is
-%%   UTF-8 out and `header(true)' declares that encoding.
+%%   cocolog is byte-oriented by default and there is no decoder here, so
+%%   UTF-8 in is UTF-8 out and `header(true)' declares that encoding. Under
+%%   `text_units = characters' (1.13.0) a code is a code point, and a
+%%   character reference read is one code, not its UTF-8.
 %%
 %% ---- OPTIONS ---------------------------------------------------------
 %%
@@ -687,6 +689,9 @@ xml_utf8(0, _) :-
     throw(error(syntax_error('any character but a NUL -- an atom stops there'),
                 xml_at(zero))).
 xml_utf8(C, [C]) :- C < 0x80, !.
+% A CODE POINT IS ONE CODE under `text_units = characters' (1.13.0),
+% as atom_codes/2 answers it there: the bytes below are bytes' own.
+xml_utf8(C, [C]) :- current_prolog_flag(text_units, characters), !.
 xml_utf8(C, [A, B]) :- C < 0x800, !,
     A is 0xC0 \/ (C >> 6), B is 0x80 \/ (C /\ 0x3F).
 xml_utf8(C, [A, B, D]) :- C < 0x10000, !,

@@ -395,6 +395,14 @@
     ;; the consult, which is what SWI does with it too.
     (member int        double_quotes)
 
+    ;; WHAT A TEXT BUILTIN COUNTS IN (1.13.0, the `text_units' flag): 0
+    ;; BYTES, every machine's default through 1.x and all cocolog ever did,
+    ;; or 1 CHARACTERS, the text decoded as UTF-8 -- SWI's. Taken from the
+    ;; process's default when the machine is made (`coco_text_default':
+    ;; COCOLOG_TEXT_UNITS, or the last `:- set_prolog_flag(text_units, V)'),
+    ;; and kept by a frozen machine.
+    (member int        text_chars)
+
     ;; the string table -- see coco_str above
     (member coco_str * strings)
     (member size_t     strings_len)
@@ -629,6 +637,21 @@
   ;; the writer. Two fixed formatters cover everything the writer needs.
   (decl) (func coco_sb_put_i64 ((coco_strbuf * b) (i64 v)) (out int))
   (decl) (func coco_sb_put_double ((coco_strbuf * b) (double v)) (out int))
+
+  ;; ---- text in characters (1.13.0, the `text_units' flag) ----
+  (decl) (func coco_text_default () (out int))
+  (decl) (func coco_text_default_set ((int chars)))
+  (decl) (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
+  (decl) (func coco_utf8_enc ((char * u) (i64 cp)) (out int))
+  (decl) (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int))
+  (decl) (func coco_text_list ((coco_machine * m) (const char * s) (size_t n) (int as_chars) (size_t tail)) (out size_t))
+  (decl) (func coco_utf8_count ((const char * s) (size_t n)) (out size_t))
+  (decl) (func coco_utf8_at ((const char * s) (size_t n) (size_t k)) (out size_t))
+  (decl) (func coco_utf8_one ((const char * s)) (out i64))
+  (decl) (func coco_uc_case ((i64 c) (int up)) (out i64))
+  (decl) (func coco_uc_letter ((i64 c)) (out int))
+  (decl) (func coco_uc_space ((i64 c)) (out int))
+  (decl) (func coco_text_case ((const char * s) (size_t n) (int up) (coco_strbuf * o)) (out int))
 
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
@@ -932,6 +955,7 @@
         (set (-> m wdeep) 1024)
         (set (-> m wceil) (cast size_t -1))
         (set (-> m ubudget) 1048576)
+        (set (-> m text_chars) (coco_text_default))
         (return 1))
 
   (func coco_machine_free ((coco_machine * m))
@@ -1003,6 +1027,286 @@
 
   (func coco_sb_put ((coco_strbuf * b) (const char * s)) (out int)
         (return (coco_sb_put_len b s (strlen s))))
+
+  ;;; ---- text in characters (1.13.0) ------------------------------------
+  ;;;
+  ;;; THE `text_units' FLAG. cocolog's text is bytes and its builtins counted
+  ;;; them -- atom_length('dár', 4), atom_codes/2 the UTF-8 bytes -- and a
+  ;;; program can now ask for SWI's characters instead, per machine:
+  ;;; `:- set_prolog_flag(text_units, characters)', or COCOLOG_TEXT_UNITS=
+  ;;; characters for a whole run. Bytes stay the default through 1.x, so a
+  ;;; program written against them -- library(reasoning)'s -- runs as it
+  ;;; did and is moved over by its author.
+  ;;;
+  ;;; The process's default: COCOLOG_TEXT_UNITS read once, then the last
+  ;;; set_prolog_flag/2's value, so a machine made after the directive -- a
+  ;;; thread's, run_isolated/2's -- counts as the program does.
+  (static) (var int coco_text_dflt . -1)
+
+  (func coco_text_default () (out int)
+        (if (< coco_text_dflt 0)
+            (let ((const char * v . #'(getenv "COCOLOG_TEXT_UNITS")))
+              (set coco_text_dflt (? (and (!= v nil) (== 0 (strcmp v "characters"))) 1 0))))
+        (return coco_text_dflt))
+
+  (func coco_text_default_set ((int chars))
+        (set coco_text_dflt chars))
+
+  ;;; ONE CHARACTER OF S (N bytes) AT *I, as its code point, *I moved past
+  ;;; it. A byte that begins no well-formed UTF-8 -- a stray continuation, a
+  ;;; sequence cut short, an overlong form, a surrogate, a value past
+  ;;; U+10FFFF -- is ONE character of its own, U+DC00 plus the byte (what
+  ;;; Python calls surrogateescape), and `coco_utf8_put' writes that back as
+  ;;; the byte: text that is not UTF-8 goes to codes and back unchanged.
+  (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64)
+        (let ((size_t k . #'(cof i))
+              (i64 b0 . #'(cast i64 (cast uchar (nth (cof i) s))))
+              (i64 cp . 0) (size_t need . 0) (i64 low . 0))
+          (cond
+            ((< b0 128) (set (cof i) (+ k 1)) (return b0))
+            ((== (bitand b0 224) 192) (set cp (bitand b0 31)) (set need 1) (set low 128))
+            ((== (bitand b0 240) 224) (set cp (bitand b0 15)) (set need 2) (set low 2048))
+            ((== (bitand b0 248) 240) (set cp (bitand b0 7)) (set need 3) (set low 65536)))
+          (if (or (== need 0) (>= (+ k need) n))
+              (block (set (cof i) (+ k 1)) (return (+ 56320 b0))))
+          (for ((size_t j . 1)) (<= j need) ((++ j))
+            (let ((i64 bj . #'(cast i64 (cast uchar (nth (+ k j) s)))))
+              (if (!= (bitand bj 192) 128)
+                  (block (set (cof i) (+ k 1)) (return (+ 56320 b0))))
+              (set cp (bitor (<< cp 6) (bitand bj 63)))))
+          (if (or (or (< cp low) (> cp 1114111)) (and (>= cp 55296) (<= cp 57343)))
+              (block (set (cof i) (+ k 1)) (return (+ 56320 b0))))
+          (set (cof i) (+ k (+ need 1)))
+          (return cp)))
+
+  ;;; Code point CP as UTF-8 into U (room for 4), answering how many bytes:
+  ;;; U+DC80..U+DCFF, what `coco_utf8_get' makes of a byte that was no
+  ;;; character, as that byte; 0 for what is no character -- below 0, past
+  ;;; U+10FFFF, any other surrogate.
+  (func coco_utf8_enc ((char * u) (i64 cp)) (out int)
+        (if (or (< cp 0) (> cp 1114111)) (return 0))
+        (if (< cp 128) (block (set (nth 0 u) (cast char cp)) (return 1)))
+        (if (and (>= cp 56448) (<= cp 56575))
+            (block (set (nth 0 u) (cast char (- cp 56320))) (return 1)))
+        (if (and (>= cp 55296) (<= cp 57343)) (return 0))
+        (if (< cp 2048)
+            (block (set (nth 0 u) (cast char (bitor 192 (>> cp 6))))
+                   (set (nth 1 u) (cast char (bitor 128 (bitand cp 63))))
+                   (return 2)))
+        (if (< cp 65536)
+            (block (set (nth 0 u) (cast char (bitor 224 (>> cp 12))))
+                   (set (nth 1 u) (cast char (bitor 128 (bitand (>> cp 6) 63))))
+                   (set (nth 2 u) (cast char (bitor 128 (bitand cp 63))))
+                   (return 3)))
+        (set (nth 0 u) (cast char (bitor 240 (>> cp 18))))
+        (set (nth 1 u) (cast char (bitor 128 (bitand (>> cp 12) 63))))
+        (set (nth 2 u) (cast char (bitor 128 (bitand (>> cp 6) 63))))
+        (set (nth 3 u) (cast char (bitor 128 (bitand cp 63))))
+        (return 4))
+
+  ;;; Code point CP on the end of B, as `coco_utf8_enc' writes it; 0 for no
+  ;;; character or no room.
+  (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int)
+        (let ((char u [4]) (int k . #'(coco_utf8_enc u cp)))
+          (if (== k 0) (return 0))
+          (return (coco_sb_put_len b u (cast size_t k)))))
+
+  ;;; TEXT AS A LIST, IN CHARACTERS (1.13.0): S's N bytes decoded, each
+  ;;; character its code point -- or, AS_CHARS 1, the one-character atom of
+  ;;; it -- in front of TAIL (`[]', or a difference list's tail): what
+  ;;; atom_codes/2, atom_chars/2 and their kin answer under `text_units =
+  ;;; characters'. Decoded front to back into a scratch array FIRST, so S
+  ;;; may point into the atom table that the atoms made after can move;
+  ;;; consed from the end, as a list is built.
+  (func coco_text_list ((coco_machine * m) (const char * s) (size_t n) (int as_chars) (size_t tail)) (out size_t)
+        (let ((i64 * cps . nil) (size_t k . 0) (size_t i . 0)
+              (size_t lst . tail))
+          (if (== n 0) (return lst))
+          (set cps (cast (i64 *) (malloc (* n (sizeof i64)))))
+          (if (== cps nil) (block (set (-> m oom) 1) (return lst)))
+          (while (< i n)
+            (set (nth k cps) (coco_utf8_get s n (aof i)))
+            (set k (+ k 1)))
+          (while (> k 0)
+            (set k (- k 1))
+            (if as_chars
+                (let ((char one [8]) (int len . #'(coco_utf8_enc one (nth k cps))))
+                  (set (nth len one) (cast char 0))
+                  (set lst (coco_cons m (coco_new_atom m one) lst)))
+                (set lst (coco_cons m (coco_new_int m (nth k cps)) lst))))
+          (free cps)
+          (return lst)))
+
+  ;;; How many characters S's N bytes are, as `coco_utf8_get' reads them.
+  (func coco_utf8_count ((const char * s) (size_t n)) (out size_t)
+        (let ((size_t i . 0) (size_t c . 0))
+          (while (< i n)
+            (if (< (cast uchar (nth i s)) 128)
+                (set i (+ i 1))
+                (coco_utf8_get s n (aof i)))
+            (set c (+ c 1)))
+          (return c)))
+
+  ;;; The byte S's character K begins at -- N when K is the count -- and
+  ;;; (size_t)-1 past that.
+  (func coco_utf8_at ((const char * s) (size_t n) (size_t k)) (out size_t)
+        (let ((size_t i . 0))
+          (while (and (> k 0) (< i n))
+            (if (< (cast uchar (nth i s)) 128)
+                (set i (+ i 1))
+                (coco_utf8_get s n (aof i)))
+            (set k (- k 1)))
+          (return (? (== k 0) i (cast size_t -1)))))
+
+  ;;; The code point of S when S is ONE character, and -1 when it is none
+  ;;; or more than one: a character, to char_code/2 and atom_chars/2.
+  (func coco_utf8_one ((const char * s)) (out i64)
+        (let ((size_t n . #'(strlen s)) (size_t i . 0) (i64 c . 0))
+          (if (== n 0) (return -1))
+          (set c (coco_utf8_get s n (aof i)))
+          (return (? (== i n) c -1))))
+
+  ;;; A RUN LO..HI OF LETTERS IN PAIRS, the capital at the even code point
+  ;;; (EVEN_UPPER 1) or at the odd one: C's capital (UP 1) or small letter,
+  ;;; or -1 outside the run.
+  (static)
+  (func coco_uc_pair ((i64 c) (int up) (i64 lo) (i64 hi) (int even_upper)) (out i64)
+        (if (or (< c lo) (> c hi)) (return -1))
+        (let ((int isup . #'(? (== (bitand c 1) (? even_upper 0 1)) 1 0)))
+          (if up (return (? isup c (- c 1))))
+          (return (? isup (+ c 1) c))))
+
+  ;;; C's capital (UP 1) or small letter, by an offset when C is in LO..HI
+  ;;; (the capitals) or LO+OFF..HI+OFF (the small letters); -1 outside both.
+  (static)
+  (func coco_uc_shift ((i64 c) (int up) (i64 lo) (i64 hi) (i64 off)) (out i64)
+        (if (and (>= c lo) (<= c hi)) (return (? up c (+ c off))))
+        (if (and (>= c (+ lo off)) (<= c (+ hi off))) (return (? up (- c off) c)))
+        (return -1))
+
+  ;;; THE OTHER CASE OF A LETTER (1.13.0): ASCII, Latin-1, Latin Extended-A
+  ;;; and the regular runs of -B, Latin Extended Additional, Greek,
+  ;;; Cyrillic, Armenian, Georgian and the fullwidth Latin letters, as
+  ;;; glibc's C.UTF-8 pairs them (swipl's on Linux) -- WRITTEN OUT, as
+  ;;; the ASCII half always was, because a C library's table moves with its
+  ;;; locale and a program's meaning must not. UP 1 answers the capital, 0
+  ;;; the small letter; anything with no other case answers itself.
+  (func coco_uc_case ((i64 c) (int up)) (out i64)
+        (let ((i64 r . -1))
+          (if (< c 128)
+              (block
+               (if (and up (and (>= c 97) (<= c 122))) (return (- c 32)))
+               (if (and (not up) (and (>= c 65) (<= c 90))) (return (+ c 32)))
+               (return c)))
+          (if (< c 256)
+              (block
+               (if (and (and (>= c 192) (<= c 222)) (!= c 215)) (return (? up c (+ c 32))))
+               (if (and (and (>= c 224) (<= c 254)) (!= c 247)) (return (? up (- c 32) c)))
+               (if (== c 255) (return (? up 376 c)))
+               (if (== c 181) (return (? up 924 c)))
+               (return c)))
+          ;; Latin Extended-A, with its five exceptions
+          (if (== c 304) (return (? up c 105)))
+          (if (== c 305) (return (? up 73 c)))
+          (if (== c 376) (return (? up c 255)))
+          (if (== c 383) (return (? up 83 c)))
+          (if (or (== c 312) (== c 329)) (return c))
+          (set r (coco_uc_pair c up 256 303 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 306 311 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 313 328 0))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 330 375 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 377 382 0))   (if (>= r 0) (return r))
+          ;; Latin Extended-B's regular runs
+          (set r (coco_uc_pair c up 461 476 0))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 478 495 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 500 501 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 504 543 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 546 563 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 582 591 1))   (if (>= r 0) (return r))
+          ;; Greek: the accented capitals, the alphabet, final sigma, the
+          ;; archaic pairs
+          (if (== c 902) (return (? up c 940)))
+          (if (== c 940) (return (? up 902 c)))
+          (set r (coco_uc_shift c up 904 906 37)) (if (>= r 0) (return r))
+          (if (== c 908) (return (? up c 972)))
+          (if (== c 972) (return (? up 908 c)))
+          (set r (coco_uc_shift c up 910 911 63)) (if (>= r 0) (return r))
+          (if (== c 962) (return (? up 931 c)))
+          (set r (coco_uc_shift c up 913 929 32)) (if (>= r 0) (return r))
+          (set r (coco_uc_shift c up 931 939 32)) (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 984 1007 1))  (if (>= r 0) (return r))
+          ;; Cyrillic
+          (set r (coco_uc_shift c up 1024 1039 80)) (if (>= r 0) (return r))
+          (set r (coco_uc_shift c up 1040 1071 32)) (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 1120 1153 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 1162 1215 1))   (if (>= r 0) (return r))
+          (if (== c 1216) (return (? up c 1231)))
+          (if (== c 1231) (return (? up 1216 c)))
+          (set r (coco_uc_pair c up 1217 1230 0))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 1232 1327 1))   (if (>= r 0) (return r))
+          ;; Armenian
+          (set r (coco_uc_shift c up 1329 1366 48)) (if (>= r 0) (return r))
+          ;; Georgian: Asomtavruli to Nuskhuri, Mtavruli to Mkhedruli
+          (set r (coco_uc_shift c up 4256 4293 7264)) (if (>= r 0) (return r))
+          (if (or (== c 4295) (== c 4301)) (return (? up c (+ c 7264))))
+          (if (or (== c 11559) (== c 11565)) (return (? up (- c 7264) c)))
+          (set r (coco_uc_shift c up 7312 7354 -3008)) (if (>= r 0) (return r))
+          (set r (coco_uc_shift c up 7357 7359 -3008)) (if (>= r 0) (return r))
+          ;; Latin Extended Additional (Vietnamese among it), the capital ß
+          (if (== c 7838) (return (? up c 223)))
+          (set r (coco_uc_pair c up 7680 7829 1))   (if (>= r 0) (return r))
+          (set r (coco_uc_pair c up 7840 7935 1))   (if (>= r 0) (return r))
+          ;; fullwidth Latin
+          (set r (coco_uc_shift c up 65313 65338 32)) (if (>= r 0) (return r))
+          (return c)))
+
+  ;;; WHETHER C, past ASCII, IS A LETTER (1.13.0): the Latin, Greek,
+  ;;; Cyrillic, Armenian, Hebrew, Arabic, Devanagari, Thai and Georgian
+  ;;; letters, the kana, Hangul, the CJK ideographs and the fullwidth Latin
+  ;;; letters -- the scripts a program here meets, written out for the
+  ;;; reason `coco_uc_case' gives. ASCII is the caller's.
+  (func coco_uc_letter ((i64 c)) (out int)
+        (if (or (or (== c 170) (== c 181)) (== c 186)) (return 1))
+        (if (and (>= c 192) (<= c 687))
+            (return (? (or (== c 215) (== c 247)) 0 1)))
+        (if (and (>= c 880) (<= c 1023))
+            (return (? (or (or (or (== c 884) (== c 885)) (or (== c 888) (== c 889)))
+                           (or (or (or (== c 890) (== c 894)) (or (== c 900) (== c 901)))
+                               (or (or (== c 903) (== c 907)) (or (or (== c 909) (== c 930)) (== c 1014)))))
+                       0 1)))
+        (if (or (and (>= c 1024) (<= c 1153)) (and (>= c 1162) (<= c 1327))) (return 1))
+        (if (or (and (>= c 1329) (<= c 1366)) (and (>= c 1377) (<= c 1415))) (return 1))
+        (if (and (>= c 1488) (<= c 1514)) (return 1))
+        (if (or (and (>= c 1568) (<= c 1610)) (and (>= c 1649) (<= c 1747))) (return 1))
+        (if (and (>= c 2308) (<= c 2361)) (return 1))
+        (if (and (>= c 3585) (<= c 3632)) (return 1))
+        (if (and (>= c 4256) (<= c 4351)) (return 1))
+        (if (or (and (>= c 7312) (<= c 7359)) (and (>= c 11520) (<= c 11565))) (return 1))
+        (if (and (>= c 7680) (<= c 8188)) (return 1))
+        (if (or (and (>= c 12353) (<= c 12438)) (and (>= c 12449) (<= c 12538))) (return 1))
+        (if (or (and (>= c 13312) (<= c 19903)) (and (>= c 19968) (<= c 40959))) (return 1))
+        (if (and (>= c 44032) (<= c 55203)) (return 1))
+        (if (or (and (>= c 65313) (<= c 65338)) (and (>= c 65345) (<= c 65370))) (return 1))
+        (return 0))
+
+  ;;; Whether C, past ASCII, is a blank, as glibc's C.UTF-8 answers and so
+  ;;; swipl on Linux: Unicode's White_Space past 127 less the no-break
+  ;;; spaces (U+00A0, U+2007, U+202F) and the next line (U+0085).
+  (func coco_uc_space ((i64 c)) (out int)
+        (if (or (== c 5760) (and (>= c 8192) (<= c 8198))) (return 1))
+        (if (and (>= c 8200) (<= c 8202)) (return 1))
+        (if (or (or (== c 8232) (== c 8233)) (== c 8287)) (return 1))
+        (return (? (== c 12288) 1 0)))
+
+  ;;; S's N bytes on the end of O with every letter in the other case (UP 1
+  ;;; the capitals), a character at a time: upcase_atom/2 and its kin under
+  ;;; `text_units = characters'. 0 for no room.
+  (func coco_text_case ((const char * s) (size_t n) (int up) (coco_strbuf * o)) (out int)
+        (let ((size_t i . 0))
+          (while (< i n)
+            (if (not (coco_utf8_put o (coco_uc_case (coco_utf8_get s n (aof i)) up)))
+                (return 0)))
+          (return 1)))
 
   ;;; The widest 64-bit integer is 20 characters and a sign, so 32 is room
   ;;; with the terminator and no arithmetic to get wrong.

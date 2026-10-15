@@ -238,7 +238,7 @@ test/files/            Prolog programs run by BOTH swipl and cocolog, with
 tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
-                       basics/ (twelve lessons, the language itself),
+                       basics/ (thirteen lessons, the language itself),
                        library/ (fifty-two: the library path, ONE PER
                        LIBRARY that ships, and the linter), tensor/
                        (forty-two networks, three processes each),
@@ -513,7 +513,7 @@ COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
 ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train
 ```
 
-### `basics/` — twelve lessons, the language itself
+### `basics/` — thirteen lessons, the language itself
 
 Nothing but the binary: no library path, no database, no build flag.
 Read them in order — each leans on the one before.
@@ -532,14 +532,16 @@ Read them in order — each leans on the one before.
 | [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
 | [11-the-knowledge-base](tutorials/basics/11-the-knowledge-base.pl) | **the one that is not in any other Prolog book**: the store outlives the process |
 | [12-globals-and-mutable-terms](tutorials/basics/12-globals-and-mutable-terms.pl) | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` and `nb_setarg/3` |
+| [13-characters](tutorials/basics/13-characters.pl) | text counted in characters, SWI's way: `:- set_prolog_flag(text_units, characters).` |
 
-Four of them exist because cocolog differs, and each difference is
+Five of them exist because cocolog differs, and each difference is
 checked by a `must/3` in the file that teaches it: `double_quotes`
 DEFAULTS to `codes`, so `"hi"` IS `[104,105]` in a file that does not set
 the flag (08); **every builtin is
 deterministic**, which retires the `retract(X), fail` loop (07) and makes
 `atom_concat(A, B, abc)` with both unbound an `instantiation_error`
 rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
+text is counted in bytes unless a program asks for characters (08, 13);
 and 11 is the claim the whole project exists to make, in four lines of
 Prolog.
 

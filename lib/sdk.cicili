@@ -81,6 +81,15 @@
 (decl) (func coco_m_int ((coco_engine * e) (size_t t) (i64 * out)) (out int))
 (decl) (func coco_m_float ((coco_engine * e) (size_t t) (double * out)) (out int))
 (decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
+;;; text in the program's units (1.13.0): whether it counts characters,
+;;; the codes (AS_CHARS the chars) of S's N bytes in front of TAIL as
+;;; atom_codes/2 would answer them, one UTF-8 character at *I, and a
+;;; code point's UTF-8 into U (0 for no character)
+(decl) (func coco_m_text_chars ((coco_engine * e)) (out int))
+(decl) (func coco_m_codes_of ((coco_engine * e) (const char * s) (size_t n)
+                              (int as_chars) (size_t tail)) (out size_t))
+(decl) (func coco_m_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
+(decl) (func coco_m_utf8_enc ((char * u) (i64 cp)) (out int))
 
 (decl) (func coco_m_unify ((coco_engine * e) (size_t t) (size_t u)) (out int))
 (decl) (func coco_m_unify_atom ((coco_engine * e) (size_t t) (const char * s)) (out int))

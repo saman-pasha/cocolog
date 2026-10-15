@@ -253,6 +253,11 @@
                 (if (== (-> mm double_quotes) 2) (set v "atom"))
                 (if (== (-> mm double_quotes) 3) (set v "string"))
                 (return (coco_m_unify_atom e (coco_m_arg e g 1) v))))
+          ;; `text_units' (1.13.0): bytes or characters, as set_prolog_flag/2
+          ;; or COCOLOG_TEXT_UNITS left it for this machine
+          (if (== 0 (strcmp flag "text_units"))
+              (return (coco_m_unify_atom e (coco_m_arg e g 1)
+                                         (? (-> (coco_m_machine e) text_chars) "characters" "bytes"))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))

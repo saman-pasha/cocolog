@@ -356,12 +356,16 @@
                     (set ex (cast i64 (WEXITSTATUS status)))
                     (set ex 128))))         ; died to a signal: past 127,
                                             ; the shell's own convention
-          ;; the output, consed from the tail so it reads forward
+          ;; the output, consed from the tail so it reads forward -- its
+          ;; characters' code points under `text_units = characters'
+          ;; (1.13.0), as the program's own text is counted there
           (let ((size_t lst . #'(coco_m_nil e)))
-            (for ((size_t i . n)) (> i 0) ((-- i))
-                 (set lst (coco_m_cons e
-                            (coco_m_new_int e (cast i64 (nth (- i 1) buf)))
-                            lst)))
+            (if (coco_m_text_chars e)
+                (set lst (coco_m_codes_of e (cast (const char *) buf) n 0 lst))
+                (for ((size_t i . n)) (> i 0) ((-- i))
+                     (set lst (coco_m_cons e
+                                (coco_m_new_int e (cast i64 (nth (- i 1) buf)))
+                                lst))))
             (free (cast (void *) buf))
             (if (not (coco_m_unify e (coco_m_arg e g 2) lst)) (return 0))
             (return (coco_m_unify_int e (coco_m_arg e g 3) ex)))))

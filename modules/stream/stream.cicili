@@ -34,6 +34,10 @@
 ;;; whole file come back as CODES, one per byte, which is what every
 ;;; text predicate in this family takes (`atom_codes/2' is the way to an
 ;;; atom) -- a line has its newline taken off, and a CR before it too.
+;;; UNDER `text_units = characters' (1.13.0) a text stream's codes are
+;;; code points, as `atom_codes/2''s are there: a line, a whole text
+;;; file, `get_code/2', `peek_code/2' and `put_code/2' read and write one
+;;; per character; a binary stream's stay bytes.
 ;;;
 ;;; THE DIVISION IS THE USUAL ONE. The C half is FLAT -- a slot number
 ;;; and one plain value per call -- and the Coco half is the surface: the
@@ -73,7 +77,8 @@
 ;;; A CODE IS A BYTE, as `atom_codes/2' counts one: `get_code/2' reads one
 ;;; byte of a text stream and `put_code/2' writes one, and a code past 255
 ;;; is written as the UTF-8 of that code point, the one reading that loses
-;;; nothing.
+;;; nothing. Under `text_units = characters' a code is a code point, as
+;;; atom_codes/2 counts one there.
 ;;;
 ;;; THE CURRENT INPUT IS THIS MODULE'S ALONE, and needs no seam: the engine
 ;;; reads no terminal of its own, so `read/1', `get_char/1' and the rest
@@ -149,11 +154,11 @@
 ;;;   peek_char(-Char)
 ;;;   put_char(+Stream, +Char)
 ;;;   put_char(+Char)
-;;;   get_code(+Stream, -Code)                         a byte, as atom_codes/2 counts; -1 at the end
+;;;   get_code(+Stream, -Code)                         a byte, as atom_codes/2 counts (a code point under characters); -1 at the end
 ;;;   get_code(-Code)
 ;;;   peek_code(+Stream, -Code)
 ;;;   peek_code(-Code)
-;;;   put_code(+Stream, +Code)                         past 255, the code point's UTF-8
+;;;   put_code(+Stream, +Code)                         past 255, the code point's UTF-8 (every code, under characters)
 ;;;   put_code(+Code)
 ;;;   get_byte(+Stream, -Byte)
 ;;;   get_byte(-Byte)
@@ -663,6 +668,14 @@
             (set acc (coco_m_cons e (coco_m_new_int e (cast i64 (nth n buf))) acc)))
           (return acc)))
 
+  ;;; A TEXT stream's codes are the program's (1.13.0): a code point a
+  ;;; character under `text_units = characters', a byte otherwise; a binary
+  ;;; stream's are its bytes whatever the program counts.
+  (static)
+  (func st_text_codes ((coco_engine * e) (int s) (const u8 * buf) (size_t n)) (out size_t)
+        (if (== (nth s st_kind) 2) (return (st_codes e buf n)))
+        (return (coco_m_codes_of e (cast (const char *) buf) n 0 (coco_m_nil e))))
+
   ;;; A growing byte buffer, for a line, a clause, the rest of a file.
   (static)
   (func st_grow ((u8 ** buf) (size_t * cap) (size_t need)) (out int)
@@ -879,13 +892,30 @@
           (if (== n 0) (block (free items) (return 1)))
           (set buf (cast (u8 *) (malloc n)))
           (if (== buf nil) (block (free items) (return (coco_m_error e "stream_write" "no memory"))))
-          (for ((size_t j . 0)) (< j n) ((++ j))
-               (let ((i64 b . 0))
-                 (if (or (not (coco_m_int e (nth j items) (aof b))) (or (< b 0) (> b 255)))
-                     (let ((size_t bad . #'(nth j items)))
-                       (free buf) (free items)
-                       (return (coco_m_type_error e "byte" bad))))
-                 (set (nth j buf) (cast u8 b))))
+          ;; UNDER `text_units = characters' (1.13.0) a text stream's code
+          ;; is a code point and goes as its UTF-8, up to four bytes each
+          (if (and (== kind 1) (coco_m_text_chars e))
+              (let ((size_t at . 0))
+                (free buf)
+                (set buf (cast (u8 *) (malloc (* n 4))))
+                (if (== buf nil) (block (free items) (return (coco_m_error e "stream_write" "no memory"))))
+                (for ((size_t j . 0)) (< j n) ((++ j))
+                     (let ((i64 c . 0) (int k . 0))
+                       (if (coco_m_int e (nth j items) (aof c))
+                           (set k (coco_m_utf8_enc (cast (char *) (+ buf at)) c)))
+                       (if (== k 0)
+                           (let ((size_t bad . #'(nth j items)))
+                             (free buf) (free items)
+                             (return (coco_m_type_error e "character_code" bad))))
+                       (set at (+ at (cast size_t k)))))
+                (set n at))
+              (for ((size_t j . 0)) (< j n) ((++ j))
+                   (let ((i64 b . 0))
+                     (if (or (not (coco_m_int e (nth j items) (aof b))) (or (< b 0) (> b 255)))
+                         (let ((size_t bad . #'(nth j items)))
+                           (free buf) (free items)
+                           (return (coco_m_type_error e "byte" bad))))
+                     (set (nth j buf) (cast u8 b)))))
           (free items)
           (st_out_begin s)
           (let ((size_t w . #'(fwrite buf 1 n (st_fp s))))
@@ -919,7 +949,7 @@
                    (st_count s (cast int (nth (+ n i) buf))))
               (set n (+ n got))
               (if (< got 65536) break)))
-          (let ((size_t lst . #'(st_codes e buf n)))
+          (let ((size_t lst . #'(st_text_codes e s buf n)))
             (free buf)
             (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
 
@@ -1002,7 +1032,7 @@
             (set n (+ n 1)))
           (if (not any) (block (free buf) (return (coco_m_unify_atom e (coco_m_arg e g 2) "end_of_file"))))
           (if (and (> n 0) (== (nth (- n 1) buf) 13)) (set n (- n 1)))
-          (let ((size_t lst . #'(st_codes e buf n)))
+          (let ((size_t lst . #'(st_text_codes e s buf n)))
             (free buf)
             (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
 
@@ -1219,11 +1249,26 @@
   ;;; nothing a byte can be, and is written as the UTF-8 of that code point
   ;;; -- put_code(S, 8364) writes the euro sign -- which is the one reading
   ;;; of it that loses nothing.
+  ;;; ONE CHARACTER'S CODE POINT under `text_units = characters' (1.13.0):
+  ;;; its bytes read as `st_read_char' reads them and decoded, any byte
+  ;;; the decoding did not take given back; PEEK gives them all back. -1
+  ;;; at the end.
+  (static)
+  (func st_get_cp ((int s) (int peek)) (out i64)
+        (let ((u8 ch [8]) (int n . #'(st_read_char s ch)) (size_t i . 0) (i64 cp . 0))
+          (if (== n 0) (return -1))
+          (set cp (coco_m_utf8_get (cast (const char *) ch) (cast size_t n) (aof i)))
+          (for ((int j . #'(- n 1))) (>= j (? peek 0 (cast int i))) ((-- j))
+               (st_ungetc s (cast int (nth j ch))))
+          (return cp)))
+
   (func st_p_get_code ((coco_engine * e) (size_t g)) (out int)
         (let ((int s . -1) (int c . 0))
           (let ((int rc51 . #'(st_slot e g 1 (aof s)))) (if (!= rc51 1) (return rc51)))
           (let ((int rc52 . #'(st_need e g 0 s 1 "input"))) (if (!= rc52 1) (return rc52)))
           (let ((int rc53 . #'(st_readable e g 0 s))) (if (!= rc53 1) (return rc53)))
+          (if (coco_m_text_chars e)
+              (return (coco_m_unify_int e (coco_m_arg e g 2) (st_get_cp s 0))))
           (set c (st_getc s))
           (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
 
@@ -1232,6 +1277,8 @@
           (let ((int rc54 . #'(st_slot e g 1 (aof s)))) (if (!= rc54 1) (return rc54)))
           (let ((int rc55 . #'(st_need e g 0 s 1 "input"))) (if (!= rc55 1) (return rc55)))
           (let ((int rc56 . #'(st_readable e g 0 s))) (if (!= rc56 1) (return rc56)))
+          (if (coco_m_text_chars e)
+              (return (coco_m_unify_int e (coco_m_arg e g 2) (st_get_cp s 1))))
           (set c (st_getc s))
           (st_ungetc s c)
           (return (coco_m_unify_int e (coco_m_arg e g 2) (? (< c 0) -1 (cast i64 c))))))
@@ -1242,7 +1289,14 @@
           (let ((int rc58 . #'(st_need e g 0 s 1 "output"))) (if (!= rc58 1) (return rc58)))
           (let ((int rc59 . #'(st_writable e g 0 s))) (if (!= rc59 1) (return rc59)))
           (let ((int rc60 . #'(st_iarg e g 2 (aof c)))) (if (!= rc60 1) (return rc60)))
+          ;; every code its code point's UTF-8 under `text_units =
+          ;; characters' (1.13.0): put_code(S, 225) is á's two bytes there,
+          ;; one byte in bytes
           (cond
+            ((coco_m_text_chars e)
+             (set k (cast size_t (coco_m_utf8_enc (cast (char *) b) c)))
+             (if (== k 0)
+                 (return (coco_m_type_error e "character_code" (coco_m_arg e g 2)))))
             ((< c 256) (set (nth 0 b) (cast u8 c)) (set k 1))
             ((< c 2048)
              (set (nth 0 b) (cast u8 (bitor 192 (>> c 6))))

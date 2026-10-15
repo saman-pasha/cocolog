@@ -5245,6 +5245,19 @@
                 ;; never generates, so any value is already honoured
                 (if (== 0 (strcmp (coco_atom_name m (coco_name_of m f)) "generate_debug_info"))
                     (return 1))
+                ;; `text_units' (1.13.0): what the text builtins count in,
+                ;; bytes or characters, for this machine and every machine
+                ;; made after it (lib/term.cicili, `coco_text_default')
+                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m f)) "text_units"))
+                    (block
+                     (if (and (coco_is_callable m v) (== (coco_arity m v) 0))
+                         (let ((const char * val . #'(coco_atom_name m (coco_name_of m v))))
+                           (if (== 0 (strcmp val "bytes"))
+                               (block (set (-> m text_chars) 0) (coco_text_default_set 0) (return 1)))
+                           (if (== 0 (strcmp val "characters"))
+                               (block (set (-> m text_chars) 1) (coco_text_default_set 1) (return 1)))))
+                     (snprintf err errlen "set_prolog_flag: text_units takes bytes or characters")
+                     (return 0)))
                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m f)) "double_quotes"))
                     (block (snprintf err errlen "set_prolog_flag: cocolog has no flag `%s'"
                                      (coco_atom_name m (coco_name_of m f)))

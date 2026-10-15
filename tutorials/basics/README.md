@@ -1,4 +1,4 @@
-# Basics: the language, twelve lessons
+# Basics: the language, thirteen lessons
 
 *One of four tutorial categories — this is the language, `../library/`
 is what ships, `../torch/` is the deep end.*
@@ -22,6 +22,7 @@ cocolog binary on its own runs every one of them:
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
 | 12-globals-and-mutable-terms | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` (backtracking takes it back) and `nb_setarg/3` (it does not) |
+| 13-characters | text counted in characters, SWI's way: `:- set_prolog_flag(text_units, characters).` -- codes are code points, a char is one character of however many bytes |
 
 Read them in order — each leans on the one before, and 11 is the one
 that is not in any other Prolog book.
@@ -32,7 +33,7 @@ Each is checked by a `must/3` in the file that teaches it, so if one of
 these ever stops being true the tutorial fails and names both answers.
 
 * **`double_quotes` DEFAULTS to `codes`.** `"hi"` IS `[104,105]` in a
-  file that says nothing — and every one of these twelve says nothing.
+  file that says nothing — and every one of these thirteen says nothing.
   There IS a string type, and a file gets one out of `"..."` only by
   setting the flag; 08 is the whole lesson, and the default is why
   `library(json)` needs `str/1`.
@@ -46,6 +47,10 @@ these ever stops being true the tutorial fails and names both answers.
   binds it; `arg/3` reads `z` in both (12).
 * **A global with a variable in its value is a fresh copy at each read**;
   a ground one is one term every read shares, as all of SWI's are (12).
+* **Text is counted in BYTES unless a program asks for characters.**
+  `atom_length` of an a-acute is 2 by default (08) and 1 under
+  `:- set_prolog_flag(text_units, characters).` (13), which every
+  builtin that counts or takes text apart follows, the reader too.
 * **The knowledge base is a DATABASE**, and `assertz` in one process is
   visible to the next one (11). That is the claim the whole project
   exists to make, and it is four lines of Prolog to see it.
@@ -53,6 +58,6 @@ these ever stops being true the tutorial fails and names both answers.
 ## The two helpers, repeated in every file
 
 `show/2` prints; `must/3` is why these are tests. Both are at the bottom
-of all twelve files rather than in a shared one, on purpose: a tutorial
+of all thirteen files rather than in a shared one, on purpose: a tutorial
 you can copy anywhere and run is worth six duplicated lines, and one
 that needs a support file beside it stops working the moment it moves.

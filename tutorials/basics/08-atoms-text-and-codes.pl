@@ -30,10 +30,11 @@
 %% flag, because the default is what every file that says nothing gets --
 %% including every one of the other ten lessons here.
 %%
-%% BYTES, NOT CHARACTERS. cocolog is byte-oriented: `atom_length/2' counts
-%% bytes, so a UTF-8 character outside ASCII counts as its byte length.
-%% Nothing here decodes UTF-8, which is also why UTF-8 passes through
-%% every library in one piece.
+%% BYTES, BY DEFAULT. cocolog keeps text as UTF-8 bytes and, unless a
+%% program asks otherwise, counts them: `atom_length/2' of a character
+%% outside ASCII is its byte length, which is also why UTF-8 passes through
+%% every library in one piece. A program that wants SWI's characters says
+%% `:- set_prolog_flag(text_units, characters).' -- lesson 13.
 %%
 %% WHICH TO USE: atoms for names and keys, code lists for anything you are
 %% going to take apart, a string when you need text that survives a NUL or

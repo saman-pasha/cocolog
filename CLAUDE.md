@@ -253,8 +253,9 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `library(main)`'s `main/0` first where `run` puts the file's.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
-  line; `executable` is the binary's path. Those three and `double_quotes` are
-  the only flags answered. `library(main)` parses the tail.
+  line; `executable` is the binary's path. Those three, `double_quotes` and
+  `text_units` (1.13.0) are the only flags answered. `library(main)` parses
+  the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -285,8 +286,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 62 `.pl` cases in `pl_names/1`
--- **69 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 63 `.pl` cases in `pl_names/1`
+-- **70 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -859,15 +860,33 @@ cocolint index offers no import of it.
 * **A `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` reaches
   the catch around it**, and a `catch/3` whose goal exited stops catching
   (`'$catch_exit'`).
-* **Text builtins work on BYTES** (1.11.4): `atom_length('dár', N)` is 4,
+* **Text builtins work on BYTES by default, on CHARACTERS when a program
+  asks** (1.13.0, `text_units`). By default `atom_length('dár', N)` is 4,
   `atom_codes/2` gives the UTF-8 bytes, `char_code(X, 225)` one raw byte,
   `sub_atom/5` can cut a character in half, `upcase_atom('dár', U)` is
-  `DáR`, and `atom_chars('dár', L)` is four one-byte atoms that join back to
-  `'dár'` -- while `atom_chars(X, [d,'á',r])` raises `type_error(character,
-  'á')` where SWI answers `'dár'` (through 1.11.7 it was a SEGMENTATION
-  FAULT, exit 139). Build and take apart accented text with atom_concat/3
-  (modes -,+,+ and +,-,+), atomic_list_concat/2 and member/2 over a list of
-  the suffixes, as tr_stress_stem/2 does. **A syntax error in a load is
+  `DáR`, `atom_chars('dár', L)` is four one-byte atoms that join back to
+  `'dár'`, and `atom_chars(X, [d,'á',r])` raises `type_error(character,
+  'á')` (through 1.11.7 a SEGMENTATION FAULT). `:- set_prolog_flag(
+  text_units, characters).` -- or `COCOLOG_TEXT_UNITS=characters` for a
+  run -- gives SWI's answers to every one of them, per machine
+  (`m->text_chars`, kept in a frozen machine's `U` section; the directive
+  also sets the process default, so a thread or `run_isolated/2` made after
+  it counts the same): a code is a code point, a char one character of
+  however many bytes, in the text builtins, the reader (`"..."`, `0'c`),
+  format's `~c`, `~s` and codes/chars sinks, char_type/2 (past ASCII as
+  glibc's C.UTF-8 classes them, swipl on Linux: `coco_uc_case`,
+  `coco_uc_letter`, `coco_uc_space` in lib/term.cicili, written out),
+  read/write_file_from_codes, library(stream)'s text streams,
+  library(process)'s output, library(text) and the document libraries'
+  character references. A byte that is no UTF-8 decodes to U+DC00 plus the
+  byte and encodes back to it (`coco_utf8_get`/`_enc`). The network
+  libraries (http, httpd, websocket, tcp, tls, curl) stay byte-oriented,
+  a binary stream is bytes, the writer still quotes `'dár'` (the reader
+  takes no unquoted letter past ASCII), and library(text)'s regexes match
+  bytes. test/units.pl holds it to swipl. Under bytes, build and take apart
+  accented text with atom_concat/3 (modes -,+,+ and +,-,+),
+  atomic_list_concat/2 and member/2 over a list of the suffixes, as
+  tr_stress_stem/2 does. **A syntax error in a load is
   placed** (1.11.9): `ERROR: FILE:LINE:COL: Syntax error: REASON`, the column
   from 0 in bytes as swipl's, from `run` and `-s` alike -- a module's names
   ITS file, through `use_module` and through the load a goal's ask makes
@@ -1787,7 +1806,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 129 files -- `basics/` 12, `library/` 52, `opencv/` 23,
+`tutorials/` holds 130 files -- `basics/` 13, `library/` 52, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a

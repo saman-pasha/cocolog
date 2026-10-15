@@ -306,6 +306,28 @@ somewhere else.
 code list, so without it every double-quoted file name in a program would be a
 type error.
 
+### Text in the program's units: bytes, or characters (1.13.0)
+
+A program can count text in characters (`:- set_prolog_flag(text_units,
+characters).`, or `COCOLOG_TEXT_UNITS=characters`): a code is then a code point
+and a char one character of however many bytes. `coco_m_text` follows it on the
+way in -- a code past 127 becomes its UTF-8 -- so a module that only TAKES text
+has nothing to do. A module that HANDS text back as codes asks:
+
+| | |
+|---|---|
+| `coco_m_text_chars(e)` | 1 when the program counts characters, 0 for bytes |
+| `coco_m_codes_of(e, s, n, as_chars, tail)` | S's N bytes as codes (AS_CHARS 1: one-character atoms) in front of TAIL, in the program's units -- what atom_codes/2 would answer. S may be an atom's name |
+| `coco_m_utf8_get(s, n, &i)` | one UTF-8 character of S at I, as a code point, I moved past it |
+| `coco_m_utf8_enc(u, cp)` | a code point as its UTF-8 into U (four bytes of room), the length, or 0 for no character |
+
+A byte that is no UTF-8 decodes to U+DC00 plus the byte and encodes back to that
+byte, so binary data handed through codes in characters mode comes back as it
+went. Bytes that are BYTES -- a socket's, a binary file's -- stay bytes whatever
+the program counts: library(stream) asks for a text stream and not a binary one,
+library(process) for a child's output, library(text) for a match; tcp, tls and
+curl do not ask.
+
 ### A predicate that reaches the world says so: `coco_m_portal`
 
 A run can be journalled and replayed (TRACING.md, DESIGN-flow.md 9.2): every

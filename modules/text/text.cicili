@@ -132,11 +132,13 @@
                       (block (free (cast (void *) buf)) (set (cof rc) 0) (return 0)))
                   (set (cof out) buf)
                   (return 1))))
-          ;; a code list, walked into bytes
-          (let ((size_t n . 0) (size_t * items . nil) (char * buf . nil))
+          ;; a code list, walked into bytes -- or under `text_units =
+          ;; characters' (1.13.0) each code point into its UTF-8
+          (let ((size_t n . 0) (size_t * items . nil) (char * buf . nil)
+                (size_t at . 0) (int uc . #'(coco_m_text_chars e)))
             (if (not (coco_m_list_array e t (aof items) (aof n)))
                 (block (set (cof rc) (coco_m_type_error e "text" t)) (return 0)))
-            (set buf (cast (char *) (malloc (+ n 1))))
+            (set buf (cast (char *) (malloc (+ (* n (? uc 4 1)) 1))))
             (if (not buf) (block (free items) (set (cof rc) 0) (return 0)))
             (for ((size_t i2 . 0)) (< i2 n) ((++ i2))
                  (let ((i64 v . 0))
@@ -144,16 +146,24 @@
                        (block (free items) (free (cast (void *) buf))
                               (set (cof rc) (coco_m_type_error e "integer" (nth i2 items)))
                               (return 0)))
-                   (set (nth i2 buf) (cast char (bitand v 255)))))
-            (set (nth n buf) (cast char 0))
+                   (if uc
+                       (set at (+ at (cast size_t (coco_m_utf8_enc (+ buf at) v))))
+                       (block (set (nth at buf) (cast char (bitand v 255)))
+                              (set at (+ at 1))))))
+            (set (nth at buf) (cast char 0))
             (free items)
             (set (cof out) buf)
             (return 1))))
 
+  ;;; Bytes FROM..TO of S as codes: a byte each, or under `text_units =
+  ;;; characters' (1.13.0) a code point a character (a match's offsets
+  ;;; are bytes either way, the regex's).
   (static)
   (func coco_x_codes ((coco_engine * e) (const char * s) (size_t from)
                       (size_t to)) (out size_t)
         (let ((size_t lst . #'(coco_m_nil e)))
+          (if (coco_m_text_chars e)
+              (return (coco_m_codes_of e (+ s from) (- to from) 0 lst)))
           (for ((size_t i . to)) (> i from) ((-- i))
                (set lst (coco_m_cons e
                           (coco_m_new_int e (cast i64 (bitand (cast int (nth (- i 1) s)) 255)))

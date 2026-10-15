@@ -196,6 +196,12 @@
           (coco_sb_put_sz b (cast size_t (-> e frees)))   (coco_sb_putc b (cast char 32))
           (coco_sb_put_sz b (cast size_t (-> e max_inf))) (coco_sb_putc b (cast char 10))
 
+          ;; WHAT ITS TEXT BUILTINS COUNT IN (1.13.0): the codes on its heap
+          ;; were made in those units, so the machine goes on in them in
+          ;; whatever process thaws it. Last, as `I' is.
+          (coco_sb_put b "U ")
+          (coco_sb_put_sz b (cast size_t (-> m text_chars))) (coco_sb_putc b (cast char 10))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -422,6 +428,11 @@
               (if (coco_scan_section (aof z) 73)          ; `I'
                   (block (set (-> e frees) (coco_scan_u64 (aof z) 10))
                          (set (-> e max_inf) (coco_scan_u64 (aof z) 10)))))
+
+          ;; ---- the text units (1.13.0), if it has them; bytes before --
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 85)          ; `U'
+                  (set (-> m text_chars) (? (!= 0 (coco_scan_u64 (aof z) 10)) 1 0))))
 
           (coco_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

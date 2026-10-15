@@ -62,13 +62,15 @@
 %%   with a letter in it (`inf', `nan', `1.0Inf') fails that and throws,
 %%   which is better than emitting a token that parses nowhere.
 %%
-%%   BYTES ABOVE 0x7F PASS THROUGH UNTOUCHED. cocolog is byte-oriented:
-%%   codes are bytes and there is no decoder in this file. So UTF-8 in is
-%%   UTF-8 out, which is what JSON wants -- RFC 8259 says the default
-%%   encoding is UTF-8 -- and the `\uXXXX' escapes are used only where the
-%%   spec REQUIRES them, on the C0 controls. A serialiser that escaped
-%%   non-ASCII would have to decode UTF-8 to do it, and would corrupt
-%%   anything that was not UTF-8 in the first place.
+%%   BYTES ABOVE 0x7F PASS THROUGH UNTOUCHED. cocolog is byte-oriented by
+%%   default: codes are bytes and there is no decoder in this file. So
+%%   UTF-8 in is UTF-8 out, which is what JSON wants -- RFC 8259 says the
+%%   default encoding is UTF-8 -- and the `\uXXXX' escapes are used only
+%%   where the spec REQUIRES them, on the C0 controls. A serialiser that
+%%   escaped non-ASCII would have to decode UTF-8 to do it, and would
+%%   corrupt anything that was not UTF-8 in the first place. Under
+%%   `text_units = characters' (1.13.0) a code is a code point and passes
+%%   through the same way, and a `\uXXXX' read is one code, not its UTF-8.
 %%
 %%   THE SOLIDUS IS NOT ESCAPED. `\/' is legal and pointless; `</script>'
 %%   inside a JSON string embedded in HTML is a problem for whoever does
@@ -553,6 +555,9 @@ json_utf8(0, _) :-
     throw(error(syntax_error('any character but a NUL -- an atom stops there'),
                 json_at('u0000'))).
 json_utf8(C, [C]) :- C < 0x80, !.
+% A CODE POINT IS ONE CODE under `text_units = characters' (1.13.0),
+% as atom_codes/2 answers it there: the bytes below are bytes' own.
+json_utf8(C, [C]) :- current_prolog_flag(text_units, characters), !.
 json_utf8(C, [A, B]) :- C < 0x800, !,
     A is 0xC0 \/ (C >> 6), B is 0x80 \/ (C /\ 0x3F).
 json_utf8(C, [A, B, D]) :- C < 0x10000, !,

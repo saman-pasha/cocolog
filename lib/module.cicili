@@ -273,6 +273,22 @@
   ;;; Answers 0 if T is none of those or does not fit in CAP.
   (decl) (func coco_m_text ((coco_engine * e) (size_t t) (char * buf) (size_t cap)) (out int))
 
+  ;;; ---- text in the program's units (1.13.0) ----
+  ;;;
+  ;;; Whether the machine counts text in characters (`text_units =
+  ;;; characters') rather than bytes; the codes, or AS_CHARS the
+  ;;; one-character atoms, of S's N bytes in front of TAIL, as atom_codes/2
+  ;;; would answer them in this machine's units; and one UTF-8 character
+  ;;; of S at *I and the UTF-8 of a code point (at most 4 bytes into U, 0
+  ;;; for no character), as `coco_utf8_get' and `coco_utf8_enc' read and
+  ;;; write them -- a byte that is no UTF-8 is U+DC00 plus the byte, and
+  ;;; goes back as that byte.
+  (decl) (func coco_m_text_chars ((coco_engine * e)) (out int))
+  (decl) (func coco_m_codes_of ((coco_engine * e) (const char * s) (size_t n)
+                                (int as_chars) (size_t tail)) (out size_t))
+  (decl) (func coco_m_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
+  (decl) (func coco_m_utf8_enc ((char * u) (i64 cp)) (out int))
+
   ;;; ---- tensors: the store's vector rows, for the torch module ----
   ;;;
   ;;; Thin passes over the store's tensor hooks (kb.cicili): put one piece,
@@ -884,21 +900,66 @@
               ;; how this was found: `set_prolog_flag(double_quotes, chars)'
               ;; then `format("answer(~w)~n", [X])' raised type_error(text)
               ;; naming a list whose elements are plainly characters.
+              ;; UNDER `text_units = characters' (1.13.0) a code is a code
+              ;; point, written as its UTF-8, and a character an atom of one
+              ;; character, of however many bytes
               (let ((size_t h . #'(coco_deref m (coco_arg m p 0))) (i64 c . 0))
                 (if (not (coco_m_int e h (aof c)))
                     (block
                      (if (not (coco_m_is_atom e h)) (return 0))
                      (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
-                       (if (!= (strlen cs) 1) (return 0))
-                       (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))
-                (if (or (< c 1) (> c 255)) (return 0))
-                (if (>= (+ n 1) cap) (return 0))
-                (set (nth n buf) (cast char c))
-                (set n (+ n 1)))
+                       (if (-> m text_chars)
+                           (set c (coco_utf8_one cs))
+                           (block (if (!= (strlen cs) 1) (return 0))
+                                  (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))))
+                (if (-> m text_chars)
+                    (let ((char u [4]) (int k . #'(coco_utf8_enc u c)))
+                      (if (or (< c 1) (== k 0)) (return 0))
+                      (if (>= (+ n (cast size_t k)) cap) (return 0))
+                      (memcpy (+ buf n) u (cast size_t k))
+                      (set n (+ n (cast size_t k))))
+                    (block
+                     (if (or (< c 1) (> c 255)) (return 0))
+                     (if (>= (+ n 1) cap) (return 0))
+                     (set (nth n buf) (cast char c))
+                     (set n (+ n 1)))))
               (set p (coco_arg m p 1)))
             ;; an empty list is the empty string, not a failure: `atom_codes(X, [])'
             (set (nth n buf) (cast char 0))
             (return 1))))
+
+  (func coco_m_text_chars ((coco_engine * e)) (out int)
+        (return (-> (-> e m) text_chars)))
+
+  ;;; S may be an atom's name: the characters are decoded first and the
+  ;;; bytes copied first, because a new atom can move the atom table.
+  (func coco_m_codes_of ((coco_engine * e) (const char * s) (size_t n)
+                         (int as_chars) (size_t tail)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t lst . tail) (char * cp . nil))
+          (if (-> m text_chars) (return (coco_text_list m s n as_chars tail)))
+          (if (not as_chars)
+              (block
+               (while (> n 0)
+                 (set n (- n 1))
+                 (set lst (coco_cons m (coco_new_int m (cast i64 (cast uchar (nth n s)))) lst)))
+               (return lst)))
+          (set cp (cast (char *) (malloc (+ n 1))))
+          (if (== cp nil) (block (set (-> m oom) 1) (return lst)))
+          (if (> n 0) (memcpy cp s n))
+          (while (> n 0)
+            (set n (- n 1))
+            (let ((char one [2]))
+              (set (nth 0 one) (nth n cp))
+              (set (nth 1 one) (cast char 0))
+              (set lst (coco_cons m (coco_new_atom m one) lst))))
+          (free cp)
+          (return lst)))
+
+  (func coco_m_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64)
+        (return (coco_utf8_get s n i)))
+
+  (func coco_m_utf8_enc ((char * u) (i64 cp)) (out int)
+        (return (coco_utf8_enc u cp)))
 
   (func coco_m_term_text ((coco_engine * e) (size_t t)) (out char *)
         (let ((coco_strbuf b) (char * out . nil))

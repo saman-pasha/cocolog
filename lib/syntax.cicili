@@ -1016,6 +1016,15 @@
             (block (coco_bump r) (coco_bump r)
                    (let ((int c . #'(coco_peek r)))
                      (if (== c -1) (return (coco_fail r "unterminated character code")))
+                     ;; ONE CHARACTER of however many bytes under `text_units
+                     ;; = characters' (1.13.0): 0'á is 225, where bytes read
+                     ;; its first byte and stop at its second
+                     (if (and (>= c 128) (-> (-> r m) text_chars))
+                         (let ((size_t i . #'(-> r pos)))
+                           (set (-> r ival) (coco_utf8_get (-> r src) (-> r len) (aof i)))
+                           (set (-> r pos) i)
+                           (set (-> r tok) COCO_TK_INT)
+                           (return 1)))
                      (coco_bump r)
                      (if (== c 92)
                          (let ((int e . #'(coco_escape_char (coco_peek r))))
@@ -1426,6 +1435,12 @@
           (if (== mode 2)
               (block (set (cof out)
                           (coco_new_atom m (? (== ($ (-> r text) s) nil) "" ($ (-> r text) s))))
+                     (return 1)))
+          ;; codes and chars ARE CHARACTERS under `text_units = characters'
+          ;; (1.13.0): "dár" is [100,225,114], or [d,á,r]
+          (if (-> m text_chars)
+              (block (set (cof out) (coco_text_list m ($ (-> r text) s) n (? (== mode 1) 1 0)
+                                                    (coco_new_atom m "[]")))
                      (return 1)))
           (let ((size_t tail . #'(coco_new_atom m "[]")))
             (while (> n 0)

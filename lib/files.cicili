@@ -319,6 +319,15 @@
           ;; us, or the read broke; either way what is in the buffer is not
           ;; the file the stat described.
           (if (< got want) (block (free buf) (return 0)))
+          ;; A CHARACTER A CODE under `text_units = characters' (1.13.0), its
+          ;; code point, as atom_codes/2 answers there and SWI reads a text
+          ;; file; a byte that is no UTF-8 is U+DC00 plus the byte, and
+          ;; write_file_from_codes/2 writes it back as that byte, so a binary
+          ;; file still goes round unchanged
+          (if (-> (-> e m) text_chars)
+              (block (set lst (coco_text_list (-> e m) buf got 0 (coco_m_nil e)))
+                     (free buf)
+                     (return (coco_m_unify e (coco_m_arg e g 1) lst))))
           ;; built back to front, as tcp_read builds its own
           ;; MASKED TO 0..255, and that is not decoration. `char' is SIGNED
           ;; on x86-64, so byte 0xFF read straight out of the buffer is -1,
@@ -376,7 +385,32 @@
           (if (coco_m_list_length e t (aof n))
               (block
                 (set as_list 1)
-                (if (> n 0)
+                ;; A CODE POINT A CODE under `text_units = characters'
+                ;; (1.13.0), written as its UTF-8 -- U+DC80..U+DCFF, what
+                ;; read_file_to_codes/2 made of a byte that was no UTF-8, as
+                ;; that byte
+                (if (and (> n 0) (-> (-> e m) text_chars))
+                    (let ((size_t at . 0))
+                      (set buf (cast (char *) (malloc (+ (* n 4) 1))))
+                      (if (== buf nil) (return 0))
+                      (if (not (coco_m_list_array e t (aof items) (aof n)))
+                          (block (free buf) (return 0)))
+                      (for ((size_t i . 0)) (< i n) ((++ i))
+                           (let ((i64 v . 0) (int k . 0))
+                             (if (not (coco_m_int e (nth i items) (aof v)))
+                                 (block (let ((size_t bad . #'(nth i items)))
+                                          (free buf) (free items)
+                                          (return (coco_m_type_error e "integer" bad)))))
+                             (set k (coco_utf8_enc (+ buf at) v))
+                             (if (== k 0)
+                                 (block (let ((size_t bad . #'(nth i items)))
+                                          (free buf) (free items)
+                                          (return (coco_m_type_error e "character_code" bad)))))
+                             (set at (+ at (cast size_t k)))))
+                      (free items)
+                      (set n at)
+                      (set items nil)))
+                (if (and (> n 0) (== buf nil))
                     (block
                       (set buf (cast (char *) (malloc (+ n 1))))
                       (if (== buf nil) (return 0))

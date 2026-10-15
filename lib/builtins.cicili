@@ -1240,9 +1240,10 @@
   ;;; builtin's answer: SWI's error, a partial list or an unbound element
   ;;; instantiation_error, a list that is its own tail type_error(list, L),
   ;;; any other element type_error(character, E). A character is a byte
-  ;;; here, so a letter of two bytes in UTF-8, `á', is no character (SWI's
-  ;;; are letters), and an improper list, `[d|r]', is an instantiation
-  ;;; error where SWI says type_error(list, L).
+  ;;; in bytes, so a letter of two bytes in UTF-8, `á', is no character
+  ;;; there (SWI's are letters, and so are cocolog's under `text_units =
+  ;;; characters', 1.13.0), and an improper list, `[d|r]', is an
+  ;;; instantiation error where SWI says type_error(list, L).
   ;;;
   ;;; THE CULPRIT IS NAMED BEFORE THE ARRAY IS FREED (1.11.8). Each builtin
   ;;; freed the array and then read the element out of it for its error:
@@ -1253,6 +1254,15 @@
   ;;; `$atom_join' records fixing below. The element is a heap index, kept
   ;;; in BAD before the free. AND THE TEXT GROWS: it was a `char[4096]', and
   ;;; a list of 4096 characters or more FAILED, with no error.
+  ;;; Whether the atom text C is ONE character: a byte, or under `text_units
+  ;;; = characters' one character of however many bytes (1.13.0), `á' among
+  ;;; them.
+  (static)
+  (func coco_b_is_char ((coco_machine * m) (const char * c)) (out int)
+        (if (== c nil) (return 0))
+        (if (-> m text_chars) (return (? (>= (coco_utf8_one c) 0) 1 0)))
+        (return (? (== 1 (strlen c)) 1 0)))
+
   (static)
   (func coco_b_chars_text ((coco_engine * e) (size_t l) (coco_strbuf * b) (int * rc)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
@@ -1268,8 +1278,8 @@
             (let ((const char * c . #'(coco_m_atom e (nth i v))))
               (cond
                 ((coco_m_is_var e (nth i v)) (block (set why 1) break))
-                ((or (== c nil) (!= 1 (strlen c))) (block (set why 2) (set bad (nth i v)) break))
-                ((not (coco_sb_putc b (nth 0 c))) (block (set why 3) break)))))
+                ((not (coco_b_is_char m c)) (block (set why 2) (set bad (nth i v)) break))
+                ((not (coco_sb_put b c)) (block (set why 3) break)))))
           (free v)
           (cond
             ((== why 1) (set (cof rc) (coco_m_instantiation_error e)))
@@ -1287,6 +1297,12 @@
           ;; all -- an instantiation error from the list's side
           (if (not (coco_m_is_var e a))
               (let ((char * buf . #'(coco_b_text_dup e a)))
+                ;; a character of however many bytes under `text_units =
+                ;; characters' (1.13.0): atom_chars('dár', [d,á,r])
+                (if (and (!= buf nil) (-> m text_chars))
+                    (let ((size_t lst . #'(coco_text_list m buf (strlen buf) 1 (coco_m_nil e))))
+                      (free buf)
+                      (return (coco_m_unify e (coco_m_arg e g 1) lst))))
                 (if (!= buf nil)
                     (let ((size_t lst . #'(coco_m_nil e)))
                       (for ((size_t i . #'(strlen buf))) (> i 0) ((-- i))
@@ -1305,16 +1321,29 @@
             (coco_sb_free (aof b))
             (return rc))))
 
+  ;;; A byte and its code, or under `text_units = characters' (1.13.0) a
+  ;;; character and its code point: char_code('á', 225), char_code(C, 8364)
+  ;;; the euro sign. Code 0 is the empty atom in both, an atom being a C
+  ;;; string; a code that is no character fails.
   (func coco_b_char_code ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * c . #'(coco_m_atom e (coco_m_arg e g 0))) (i64 code . 0))
-          (if (and (!= c nil) (== 1 (strlen c)))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (const char * c . #'(coco_m_atom e (coco_m_arg e g 0))) (i64 code . 0))
+          (if (and (-> m text_chars) (coco_b_is_char m c))
+              (return (coco_m_unify_int e (coco_m_arg e g 1) (coco_utf8_one c))))
+          (if (and (not (-> m text_chars)) (and (!= c nil) (== 1 (strlen c))))
               (return (coco_m_unify_int e (coco_m_arg e g 1)
                                       (bitand (cast i64 (nth 0 c)) 255))))
           (if (coco_m_int e (coco_m_arg e g 1) (aof code))
-              (let ((char one [2]))
-                (if (or (< code 0) (> code 255)) (return 0))
-                (set (nth 0 one) (cast char code))
-                (set (nth 1 one) (cast char 0))
+              (let ((char one [8]) (int k . 1))
+                (if (-> m text_chars)
+                    (block (if (== code 0)
+                               (set (nth 0 one) (cast char 0))
+                               (block (set k (coco_utf8_enc one code))
+                                      (if (== k 0) (return 0))))
+                           (set (nth k one) (cast char 0)))
+                    (block (if (or (< code 0) (> code 255)) (return 0))
+                           (set (nth 0 one) (cast char code))
+                           (set (nth 1 one) (cast char 0))))
                 (return (coco_m_unify_atom e (coco_m_arg e g 0) one))))
           (return (coco_m_instantiation_error e))))
 
@@ -1380,17 +1409,39 @@
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
           (return (coco_b_atom_to_number e buf (coco_m_arg e g 1)))))
 
+  ;;; upcase_atom/2 and downcase_atom/2: ASCII's letters in bytes, and under
+  ;;; `text_units = characters' every letter `coco_uc_case' knows (1.13.0):
+  ;;; upcase_atom('dár', 'DÁR'). The text of ANY LENGTH (1.13.0): it went
+  ;;; through 4096 bytes, and a longer atom was a type_error(atom, A) naming
+  ;;; an atom. An unbound one is still that type error, asked first so it
+  ;;; does not climb `coco_b_text_dup''s ladder to 16 MB.
   (static)
   (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int)
-        (let ((char buf [4096]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) buf (sizeof buf)))
+        (let ((char * buf . nil) (size_t n . 0) (int rc . 0))
+          (if (coco_m_is_var e (coco_m_arg e g 0))
               (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (for ((size_t i . 0)) (< i (strlen buf)) ((++ i))
+          (set buf (coco_b_text_dup e (coco_m_arg e g 0)))
+          (if (== buf nil)
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (set n (strlen buf))
+          (if (-> (coco_m_machine e) text_chars)
+              (let ((coco_strbuf o))
+                (coco_sb_init (aof o))
+                (if (not (coco_text_case buf n up (aof o)))
+                    (block (coco_sb_free (aof o)) (free buf)
+                           (return (coco_m_resource_error e "memory"))))
+                (free buf)
+                (set rc (coco_m_unify_atom e (coco_m_arg e g 1) (? (== ($ o s) nil) "" ($ o s))))
+                (coco_sb_free (aof o))
+                (return rc)))
+          (for ((size_t i . 0)) (< i n) ((++ i))
             (let ((int c . #'(bitand (cast int (nth i buf)) 255)))
               (if up
                   (if (and (>= c 97) (<= c 122)) (set (nth i buf) (cast char (- c 32))))
                 (if (and (>= c 65) (<= c 90)) (set (nth i buf) (cast char (+ c 32)))))))
-          (return (coco_m_unify_atom e (coco_m_arg e g 1) buf))))
+          (set rc (coco_m_unify_atom e (coco_m_arg e g 1) buf))
+          (free buf)
+          (return rc)))
 
   ;;; A one-character atom, for a `chars(...)' sink.
   (static)
@@ -1525,10 +1576,18 @@
                   (block
                    (if (not (coco_m_is_atom e h)) break)
                    (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
-                     (if (!= (strlen cs) 1) break)
-                     (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))
-              (if (or (< c 1) (> c 255)) break)
-              (if (not (coco_sb_putc b (cast char c))) break))
+                     ;; a character of however many bytes, in characters
+                     (if (-> m text_chars)
+                         (set c (coco_utf8_one cs))
+                         (block (if (!= (strlen cs) 1) break)
+                                (set c (cast i64 (bitand (cast int (nth 0 cs)) 255))))))))
+              ;; a code point as its UTF-8 under `text_units = characters'
+              ;; (1.13.0), a byte otherwise
+              (if (-> m text_chars)
+                  (block (if (< c 1) break)
+                         (if (not (coco_utf8_put b c)) break))
+                  (block (if (or (< c 1) (> c 255)) break)
+                         (if (not (coco_sb_putc b (cast char c))) break))))
             (set t (coco_deref m (coco_arg m t 1))))
           ;; not text: whatever the walk put on is taken off again
           (set (-> b len) keep)
@@ -1606,13 +1665,20 @@
                                  (return 0)))
                       continue))
 
-                ;; 99 `~c' -- a code, NUM times
+                ;; 99 `~c' -- a code, NUM times: a byte, or under
+                ;; `text_units = characters' a code point's UTF-8 (1.13.0)
                 (if (== d 99)
-                    (let ((i64 v . 0))
+                    (let ((i64 v . 0) (char u [4]) (int ul . 1))
                       (if (not (coco_m_int e a (aof v)))
                           (block (snprintf err errlen "format/2: ~~c wants a code") (return 0)))
+                      (if (-> m text_chars)
+                          (block (set ul (coco_utf8_enc u v))
+                                 (if (== ul 0)
+                                     (block (snprintf err errlen "format/2: ~~c wants a code")
+                                            (return 0))))
+                          (set (nth 0 u) (cast char v)))
                       (for ((long k . 0)) (< k (? have num 1)) ((++ k))
-                        (coco_sb_putc b (cast char v)))
+                        (coco_sb_put_len b u (cast size_t ul)))
                       continue))
 
                 ;; 100 `~d', 68 `~D'
@@ -1736,6 +1802,11 @@
 
               (let ((size_t tail . #'(? (== ar 2) (coco_arg m d 1) (coco_m_nil e)))
                     (size_t acc) (size_t len . #'(strlen out)))
+                ;; characters under `text_units = characters' (1.13.0)
+                (if (-> m text_chars)
+                    (return (? (coco_m_unify e (coco_arg m d 0)
+                                             (coco_text_list m out len as_chars tail))
+                               1 0)))
                 (set acc tail)
                 (while (> len 0)
                   (set len (- len 1))
@@ -2056,6 +2127,85 @@
             (return (? (and (!= c 0) (!= nil (strchr "+-*/\\^<>=~:.?@#&$" c))) 1 0)))
         (return -1))
 
+  ;;; ---- past ASCII, under `text_units = characters' (1.13.0) -------------
+  ;;;
+  ;;; As swipl answers on Linux, whose classes are glibc's C.UTF-8: a letter
+  ;;; of the scripts `coco_uc_letter' knows, OR A DIGIT OF ANOTHER SCRIPT
+  ;;; (glibc puts them in alpha, digit being ASCII's ten), is alpha, alnum,
+  ;;; csym, csymf and prolog_identifier_continue; upper and lower are the
+  ;;; case it has (`coco_uc_case', and the five small letters with no
+  ;;; capital, ª º ß ĸ ŉ); a blank is `coco_uc_space''s; the C1 controls and
+  ;;; the line and paragraph separators are cntrl; every other code point
+  ;;; up to U+10FFFF but a surrogate is print, graph unless a blank, punct
+  ;;; unless alpha. digit, white, end_of_line, newline, period, quote and
+  ;;; ascii are ASCII's alone -- swipl also answers period and quote for a
+  ;;; code point whose low byte is NUL or one of those marks (U+0100, U+AC00,
+  ;;; U+0627), its `strchr' over a truncated character, which is not copied.
+  ;;; In bytes nothing here is asked: a code past 127 is no letter there.
+  (static)
+  (func coco_ct_odigit ((i64 c)) (out int)
+        (return (? (or (or (and (>= c 1632) (<= c 1641)) (and (>= c 1776) (<= c 1785)))
+                       (or (or (and (>= c 2406) (<= c 2415)) (and (>= c 3664) (<= c 3673)))
+                           (and (>= c 65296) (<= c 65305))))
+                   1 0)))
+  (static)
+  (func coco_ct_ualpha ((i64 c)) (out int)
+        (return (? (or (coco_uc_letter c) (coco_ct_odigit c)) 1 0)))
+  (static)
+  (func coco_ct_uupper ((i64 c)) (out int)
+        (return (? (!= (coco_uc_case c 0) c) 1 0)))
+  (static)
+  (func coco_ct_ulower ((i64 c)) (out int)
+        (if (!= (coco_uc_case c 1) c) (return 1))
+        (return (? (or (or (== c 170) (== c 186)) (or (or (== c 223) (== c 312)) (== c 329))) 1 0)))
+  (static)
+  (func coco_ct_ucntrl ((i64 c)) (out int)
+        (return (? (or (and (>= c 128) (<= c 159)) (or (== c 8232) (== c 8233))) 1 0)))
+  (static)
+  (func coco_ct_uprint ((i64 c)) (out int)
+        (if (or (coco_ct_ucntrl c) (> c 1114111)) (return 0))
+        (return (? (and (>= c 55296) (<= c 57343)) 0 1)))
+
+  ;;; prolog_symbol past ASCII: punct, but not the no-break space, the soft
+  ;;; hyphen, the zero-width and joining marks, the byte-order mark or the
+  ;;; private use areas, which swipl's own table leaves out.
+  (static)
+  (func coco_ct_usymbol ((i64 c)) (out int)
+        (if (or (not (coco_ct_uprint c)) (or (coco_uc_space c) (coco_ct_ualpha c))) (return 0))
+        (if (or (== c 160) (== c 173)) (return 0))
+        (if (or (and (>= c 8203) (<= c 8207)) (and (>= c 8288) (<= c 8292))) (return 0))
+        (if (or (== c 65279) (and (>= c 57344) (<= c 63743))) (return 0))
+        (return (? (>= c 983040) 0 1)))
+
+  ;;; The categories with no argument for C past 127, under characters;
+  ;;; -1 for no such category, as `coco_ct_plain'.
+  (static)
+  (func coco_ct_uplain ((const char * t) (i64 c)) (out int)
+        (if (or (or (== 0 (strcmp t "alpha")) (== 0 (strcmp t "alnum")))
+                (or (or (== 0 (strcmp t "csym")) (== 0 (strcmp t "csymf")))
+                    (== 0 (strcmp t "prolog_identifier_continue"))))
+            (return (coco_ct_ualpha c)))
+        (if (or (== 0 (strcmp t "upper")) (== 0 (strcmp t "prolog_var_start")))
+            (return (coco_ct_uupper c)))
+        (if (== 0 (strcmp t "lower")) (return (coco_ct_ulower c)))
+        (if (== 0 (strcmp t "prolog_atom_start"))
+            (return (? (and (coco_uc_letter c) (not (coco_ct_uupper c))) 1 0)))
+        (if (== 0 (strcmp t "space")) (return (coco_uc_space c)))
+        (if (== 0 (strcmp t "cntrl")) (return (coco_ct_ucntrl c)))
+        (if (== 0 (strcmp t "print")) (return (coco_ct_uprint c)))
+        (if (== 0 (strcmp t "graph"))
+            (return (? (and (coco_ct_uprint c) (not (coco_uc_space c))) 1 0)))
+        (if (== 0 (strcmp t "punct"))
+            (return (? (and (and (coco_ct_uprint c) (not (coco_uc_space c)))
+                            (not (coco_ct_ualpha c))) 1 0)))
+        (if (== 0 (strcmp t "prolog_symbol")) (return (coco_ct_usymbol c)))
+        (if (or (or (or (== 0 (strcmp t "digit")) (== 0 (strcmp t "white")))
+                    (or (== 0 (strcmp t "end_of_line")) (== 0 (strcmp t "newline"))))
+                (or (or (== 0 (strcmp t "period")) (== 0 (strcmp t "quote")))
+                    (== 0 (strcmp t "ascii"))))
+            (return 0))
+        (return -1))
+
   ;;; The shared half of `code_type/2' and `char_type/2'. AS_CHAR says whether
   ;;; the argument, and any code the category hands back, is a one-character
   ;;; atom rather than a number -- the only difference between the two.
@@ -2063,7 +2213,7 @@
   (func coco_b_ctype ((coco_engine * e) (size_t g) (int as_char)) (out int)
         (let ((size_t ct . #'(coco_m_arg e g 0))
               (size_t ty . #'(coco_m_arg e g 1))
-              (int c . 0))
+              (int c . 0) (int uc . #'(-> (coco_m_machine e) text_chars)))
 
           ;; ENUMERATING IS NOT SUPPORTED. `code_type(C, alpha)' with C unbound
           ;; has fifty-two answers and a builtin here cannot succeed twice --
@@ -2075,13 +2225,20 @@
               (let ((char buf [8]))
                 (if (not (coco_m_text e ct buf (sizeof buf)))
                     (return (coco_m_type_error e "character" ct)))
-                (if (!= 1 (cast int (strlen buf)))
-                    (return (coco_m_type_error e "character" ct)))
-                (set c (bitand (cast int (nth 0 buf)) 255))) 
+                ;; one character of however many bytes, under characters
+                (if uc
+                    (block (if (not (coco_b_is_char (coco_m_machine e) buf))
+                               (return (coco_m_type_error e "character" ct)))
+                           (set c (cast int (coco_utf8_one buf))))
+                    (block (if (!= 1 (cast int (strlen buf)))
+                               (return (coco_m_type_error e "character" ct)))
+                           (set c (bitand (cast int (nth 0 buf)) 255)))))
             (let ((i64 v . 0))
               (if (not (coco_m_int e ct (aof v)))
                   (return (coco_m_type_error e "integer" ct)))
               (set c (cast int v))))
+          ;; past ASCII, under `text_units = characters': its own classes
+          (set uc (and uc (>= c 128)))
 
           (if (coco_m_is_var e ty) (return (coco_m_instantiation_error e)))
           (if (not (coco_m_is_atom e ty))
@@ -2095,15 +2252,17 @@
                       (int want . -1) (int weight . 0))
 
                   (if (== 0 (strcmp tn "upper"))
-                      (block (if (not (coco_ct_upper c)) (return 0))
-                             (set want (coco_ct_tolower c))))
+                      (block (if (not (? uc (coco_ct_uupper c) (coco_ct_upper c))) (return 0))
+                             (set want (? uc (cast int (coco_uc_case c 0)) (coco_ct_tolower c)))))
                   (if (== 0 (strcmp tn "lower"))
-                      (block (if (not (coco_ct_lower c)) (return 0))
-                             (set want (coco_ct_toupper c))))
+                      (block (if (not (? uc (coco_ct_ulower c) (coco_ct_lower c))) (return 0))
+                             (set want (? uc (cast int (coco_uc_case c 1)) (coco_ct_toupper c)))))
                   ;; to_upper/to_lower succeed for ANY code -- they are "can be
                   ;; converted", and a code with no other case converts to itself
-                  (if (== 0 (strcmp tn "to_upper")) (set want (coco_ct_tolower c)))
-                  (if (== 0 (strcmp tn "to_lower")) (set want (coco_ct_toupper c)))
+                  (if (== 0 (strcmp tn "to_upper"))
+                      (set want (? uc (cast int (coco_uc_case c 0)) (coco_ct_tolower c))))
+                  (if (== 0 (strcmp tn "to_lower"))
+                      (set want (? uc (cast int (coco_uc_case c 1)) (coco_ct_toupper c))))
 
                   (if (== 0 (strcmp tn "digit"))
                       (block (if (not (coco_ct_digit c)) (return 0))
@@ -2117,13 +2276,17 @@
 
                   (if (< want 0) (return (coco_m_type_error e "char_type" ty)))
                   (if as_char
-                      (let ((char one [2]))
-                        (set (nth 0 one) (cast char want))
-                        (set (nth 1 one) (cast char 0))
+                      (let ((char one [8]) (int k . 1))
+                        (if (-> mm text_chars)
+                            (set k (coco_utf8_enc one (cast i64 want)))
+                            (set (nth 0 one) (cast char want)))
+                        (set (nth k one) (cast char 0))
                         (return (? (coco_m_unify_atom e a one) 1 0))))
                   (return (? (coco_m_unify_int e a (cast i64 want)) 1 0)))))
 
-          (let ((int r . #'(coco_ct_plain (coco_m_atom e ty) c)))
+          (let ((int r . #'(? uc
+                              (coco_ct_uplain (coco_m_atom e ty) (cast i64 c))
+                              (coco_ct_plain (coco_m_atom e ty) c))))
             (if (< r 0) (return (coco_m_type_error e "char_type" ty)))
             (return r))))
 
@@ -2185,7 +2348,7 @@
   ;;; table under it. Nothing between `coco_m_atom' and the `memcpy' does.
   (func coco_b_sub_atom_at ((coco_engine * e) (size_t g)) (out int)
         (let ((const char * s . nil) (char num [64]) (char * out . nil)
-              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1))
+              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1) (i64 aft . 0))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof before))) (return 0))
           (if (not (coco_m_int e (coco_m_arg e g 2) (aof len))) (return 0))
           (if (or (< before 0) (< len 0)) (return 0))
@@ -2199,14 +2362,27 @@
                    (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
                (set s num)))
           (set n (strlen s))
-          (if (> (cast size_t (+ before len)) n) (return 0))
+          ;; UNDER `text_units = characters' (1.13.0) BEFORE and LEN count
+          ;; characters: they become the bytes they cover, and what is after
+          ;; is counted in characters again -- sub_atom('dár', 1, 1, A, S)
+          ;; is A = 1, S = 'á' where bytes cut á in half
+          (if (-> (coco_m_machine e) text_chars)
+              (let ((size_t b0 . #'(coco_utf8_at s n (cast size_t before))) (size_t bl . 0))
+                (if (== b0 (cast size_t -1)) (return 0))
+                (set bl (coco_utf8_at (+ s b0) (- n b0) (cast size_t len)))
+                (if (== bl (cast size_t -1)) (return 0))
+                (set aft (cast i64 (coco_utf8_count (+ s (+ b0 bl)) (- n (+ b0 bl)))))
+                (set before (cast i64 b0))
+                (set len (cast i64 bl)))
+              (block
+               (if (> (cast size_t (+ before len)) n) (return 0))
+               (set aft (cast i64 (- n (cast size_t (+ before len)))))))
           (set out (cast (char *) (malloc (+ (cast size_t len) 1))))
           (if (== out nil) (return 0))
           (memcpy out (+ s before) (cast size_t len))
           (set (nth len out) (cast char 0))
           (let ((size_t mark . #'(coco_m_mark e)))
-            (if (not (coco_m_unify_int e (coco_m_arg e g 3)
-                                     (cast i64 (- n (cast size_t (+ before len))))))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 3) aft))
                 (block (coco_m_undo e mark) (set rc 0)))
             (if (and rc (not (coco_m_unify_atom e (coco_m_arg e g 4) out)))
                 (block (coco_m_undo e mark) (set rc 0))))

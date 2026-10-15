@@ -756,8 +756,12 @@ html_snippet([C|Cs], N, Out) :-
 %% copy carries the note about why this is duplicated and the escapers are
 %% not: an escaper encodes a policy, which drifts; this is a fixed
 %% transform, which cannot.
-html_utf8(0, [0xEF, 0xBF, 0xBD]) :- !.
+%% NUL is the replacement character, U+FFFD.
+html_utf8(0, Cs) :- !, html_utf8(0xFFFD, Cs).
 html_utf8(C, [C]) :- C < 0x80, !.
+%% A CODE POINT IS ONE CODE under `text_units = characters' (1.13.0),
+%% as atom_codes/2 answers it there: the bytes below are bytes' own.
+html_utf8(C, [C]) :- current_prolog_flag(text_units, characters), !.
 html_utf8(C, [A, B]) :- C < 0x800, !,
     A is 0xC0 \/ (C >> 6), B is 0x80 \/ (C /\ 0x3F).
 html_utf8(C, [A, B, D]) :- C < 0x10000, !,
