@@ -120,6 +120,17 @@
 ;;; when it meets one; no cell index reaches 2^63.
 (DEFMACRO coco-trail-pair () `(<< (cast size_t 1) 63))
 
+;;; THE CELL A PAIR'S WORD NAMES lies under bit 40 (1.12.1), and bits 40
+;;; to 62 of both words are 0 in a value entry. In a ground global's
+;;; SENTINEL they are not: the first word carries the global's index plus
+;;; one, the second the copy's serial, and both name cell 0 -- so the undo,
+;;; which puts the second word's cell back from the first's, writes cell 0
+;;; with itself and needs no case of its own. The sentinel was put on the
+;;; trail by the copy a machine keeps of a ground global
+;;; (`coco_b_global_term'), and the copy stands while the sentinel does
+;;; (`coco_gcache_ok'): backtracking past it took the copy's cells.
+(DEFMACRO coco-trail-cell (w) `(bitand ,w (- (<< (cast size_t 1) 40) 1)))
+(DEFMACRO coco-trail-tag (w) `(bitand (>> ,w 40) (- (<< (cast size_t 1) 23) 1)))
 
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
@@ -329,6 +340,21 @@
     (member size_t *  len)
     (member int       pos))
 
+  ;;; A GROUND GLOBAL'S VALUE ON THIS MACHINE'S HEAP (1.12.1): the version
+  ;;; of the global it was copied from (0: none), the term's cell, the
+  ;;; copy's serial and where its sentinel stands on the trail (all ones:
+  ;;; nothing can take the copy away), the cells the copy took, and whether
+  ;;; it is pinned -- kept whatever backtracking does, because nb_setarg/3
+  ;;; wrote into it. See `coco_b_global_term' in lib/builtins.cicili.
+  (struct coco_gcache
+    (member u64    ver)
+    (member size_t root)
+    (member u64    serial)
+    (member size_t tpos)
+    (member size_t lo)
+    (member size_t hi)
+    (member int    pinned))
+
   ;;; The machine. Everything in it is either a plain array of words or a
   ;;; length -- which is the whole point, and what `state.cicili' relies on.
   (struct coco_machine
@@ -439,6 +465,19 @@
     (member coco_hroot * hroots)
     (member size_t     nhroots)
     (member size_t     hroot_cap)
+    ;; THE GROUND GLOBALS THIS MACHINE HAS READ (1.12.1), by each one's index
+    ;; in the table of the store whose serial is GCACHE_SS: a term copied
+    ;; once and handed out shared, and a root of the collector.
+    ;; `coco_gcache_drop' forgets them all. GFILLS is the last copy's
+    ;; serial, and GSPAN_LO and GSPAN_HI hold every copy not pinned (an
+    ;; empty span when LO is past HI), so nb_setarg/3 asks the table only
+    ;; for a cell in it.
+    (member coco_gcache * gcache)
+    (member size_t     gcache_cap)
+    (member u64        gcache_ss)
+    (member u64        gfills)
+    (member size_t     gspan_lo)
+    (member size_t     gspan_hi)
     ;; THE WALK STACKS, KEPT. Copy, store-put and store-get each walk a term
     ;; on a stack of frames, unify and compare on a stack of pairs, and a
     ;; stack allocated per walk is a malloc and a free per CALL: queens took
@@ -669,6 +708,10 @@
   ;; with the pair bit (`coco-trail-pair'), SAVED first. 0 when the trail
   ;; would not grow.
   (decl) (func coco_trail_pair ((coco_machine * m) (size_t saved) (size_t at)) (out int))
+  ;; A GLOBAL'S SENTINEL (1.12.1, `coco-trail-tag'): the copy SERIAL of
+  ;; global I was made here, I under 2^23 - 1 and SERIAL from 1 to 2^23 -
+  ;; 1. 0 when the trail would not grow.
+  (decl) (func coco_trail_sent ((coco_machine * m) (u64 serial) (size_t i)) (out int))
   (decl) (func coco_undo_to ((coco_machine * m) (size_t mark)))
 
   ;; ---- the heap collector's host roots ----
@@ -681,6 +724,15 @@
   (decl) (func coco_heap_root_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int))
   (decl) (func coco_heap_pos_push ((coco_machine * m) (size_t ** cells) (size_t * len)) (out int))
   (decl) (func coco_heap_root_pop ((coco_machine * m)))
+  ;; every registered position at or above FROM raised to H (1.12.0)
+  (decl) (func coco_heap_raise_positions ((coco_machine * m) (size_t from) (size_t h)))
+  ;; the ground globals a machine holds (1.12.1): forget them all, the
+  ;; cache then for the store whose serial is SS; room for entry I, 0 when
+  ;; it would not grow; and whether the copy entry I holds still stands --
+  ;; pinned, out of backtracking's reach, or its sentinel where it was put
+  (decl) (func coco_gcache_drop ((coco_machine * m) (u64 ss)))
+  (decl) (func coco_gcache_room ((coco_machine * m) (size_t i)) (out int))
+  (decl) (func coco_gcache_ok ((coco_machine * m) (size_t i)) (out int))
   (decl) (func coco_unify ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ;; ---- copying ----
@@ -898,6 +950,7 @@
         (free (-> m trail))
         (free (-> m heap))
         (free (-> m hroots))
+        (free (-> m gcache))
         (free (-> m wframes))
         (free (-> m wpairs))
         (free (-> m vmap_from))
@@ -1491,20 +1544,32 @@
         (set (-> m trail_len) (+ (-> m trail_len) 2))
         (return 1))
 
+  (func coco_trail_sent ((coco_machine * m) (u64 serial) (size_t i)) (out int)
+        (if (not (coco_grow m (cast (void **) (aof (-> m trail)))
+                          (aof (-> m trail_cap)) (+ (-> m trail_len) 2)
+                          (sizeof size_t)))
+            (return 0))
+        (set (nth (-> m trail_len) (-> m trail))
+             (bitor (<< (+ i 1) 40) (coco-trail-pair)))
+        (set (nth (+ (-> m trail_len) 1) (-> m trail))
+             (bitor (<< (cast size_t serial) 40) (coco-trail-pair)))
+        (set (-> m trail_len) (+ (-> m trail_len) 2))
+        (return 1))
+
   ;;; Unbind everything trailed since MARK, newest first. A variable is unbound
   ;;; by pointing it back at itself -- the same encoding a fresh one has, so
   ;;; there is nothing else to reset. A value entry's two words (1.12.0) put
   ;;; the saved cell back where it came from; a mark never falls between them.
+  ;;; A global's sentinel (1.12.1) writes cell 0 with itself.
   (func coco_undo_to ((coco_machine * m) (size_t mark))
         (while (> (-> m trail_len) mark)
           (set (-> m trail_len) (- (-> m trail_len) 1))
           (let ((size_t v . #'(nth (-> m trail_len) (-> m trail))))
             (if (== (bitand v (coco-trail-pair)) 0)
                 (set (nth v (-> m heap)) (coco-cell REF v))
-              (let ((size_t s . #'(bitand (nth (- (-> m trail_len) 1) (-> m trail))
-                                          (~ (coco-trail-pair)))))
+              (let ((size_t s . #'(coco-trail-cell (nth (- (-> m trail_len) 1) (-> m trail)))))
                 (set (-> m trail_len) (- (-> m trail_len) 1))
-                (set (nth (bitand v (~ (coco-trail-pair))) (-> m heap))
+                (set (nth (coco-trail-cell v) (-> m heap))
                      (nth s (-> m heap))))))))
 
   ;;; ---- the heap collector's host roots -------------------------------
@@ -1527,6 +1592,47 @@
 
   (func coco_heap_root_pop ((coco_machine * m))
         (if (> (-> m nhroots) 0) (set (-> m nhroots) (- (-> m nhroots) 1))))
+
+  (func coco_heap_raise_positions ((coco_machine * m) (size_t from) (size_t h))
+        (for ((size_t r . 0)) (< r (-> m nhroots)) ((++ r))
+          (if ($ (nth r (-> m hroots)) pos)
+              (let ((size_t * arr . #'(cof ($ (nth r (-> m hroots)) cells)))
+                    (size_t alen . #'(cof ($ (nth r (-> m hroots)) len))))
+                (for ((size_t i . 0)) (< i alen) ((++ i))
+                  (if (>= (nth i arr) from) (set (nth i arr) h)))))))
+
+  ;;; ---- the ground globals a machine holds (1.12.1) -------------------
+
+  (func coco_gcache_drop ((coco_machine * m) (u64 ss))
+        (if (!= (-> m gcache) nil)
+            (memset (cast (void *) (-> m gcache)) 0 (* (-> m gcache_cap) (sizeof coco_gcache))))
+        (set (-> m gspan_lo) (cast size_t -1))
+        (set (-> m gspan_hi) 0)
+        (set (-> m gcache_ss) ss))
+
+  (func coco_gcache_ok ((coco_machine * m) (size_t i)) (out int)
+        (let ((coco_gcache * g . #'(aof (nth i (-> m gcache)))))
+          (if (or (-> g pinned) (== (-> g tpos) (cast size_t -1))) (return 1))
+          (return (? (and (< (+ (-> g tpos) 1) (-> m trail_len))
+                          (== (nth (-> g tpos) (-> m trail))
+                              (bitor (<< (+ i 1) 40) (coco-trail-pair)))
+                          (== (nth (+ (-> g tpos) 1) (-> m trail))
+                              (bitor (<< (cast size_t (-> g serial)) 40) (coco-trail-pair))))
+                     1 0))))
+
+  (func coco_gcache_room ((coco_machine * m) (size_t i)) (out int)
+        (if (< i (-> m gcache_cap)) (return 1))
+        (let ((size_t ncap . #'(? (== (-> m gcache_cap) 0) 64 (* (-> m gcache_cap) 2)))
+              (coco_gcache * nb . nil))
+          (while (<= ncap i) (set ncap (* ncap 2)))
+          (set nb (cast (coco_gcache *) (realloc (cast (void *) (-> m gcache))
+                                                 (* ncap (sizeof coco_gcache)))))
+          (if (== nb nil) (return 0))
+          (memset (cast (void *) (aof (nth (-> m gcache_cap) nb))) 0
+                  (* (- ncap (-> m gcache_cap)) (sizeof coco_gcache)))
+          (set (-> m gcache) nb)
+          (set (-> m gcache_cap) ncap)
+          (return 1)))
 
   ;;; The walk stacks: a walk takes the machine's and gives it back. One
   ;;; given back while the machine holds another -- a nested walk's,

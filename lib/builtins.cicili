@@ -2738,13 +2738,21 @@
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
                 (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))
+                ;; whether a machine may keep the value and hand it out
+                ;; shared (1.12.1, `coco_b_global_term'): the put met no
+                ;; variable. A cyclic value goes in as its factors, which
+                ;; have, and is copied at every read.
+                (int ground . #'(== (-> st put_vars) 0))
                 (i64 at . #'(coco_global_find st name)))
+            (set (-> st gver) (+ (-> st gver) 1))
             (if (>= at 0)
                 (let ((size_t i . #'(cast size_t at)))
                   ;; the old value is an orphan now, and its size was kept
                   (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
                   (set ($ (nth i (-> st globals)) cell) cell)
                   (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
+                  (set ($ (nth i (-> st globals)) ver) (-> st gver))
+                  (set ($ (nth i (-> st globals)) ground) ground)
                   (coco_store_maybe_compact st m)
                   (return 1)))
             (if (>= (-> st nglobals) (-> st gcap))
@@ -2758,10 +2766,74 @@
             (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
             (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
             (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
+            (set ($ (nth (-> st nglobals) (-> st globals)) ver) (-> st gver))
+            (set ($ (nth (-> st nglobals) (-> st globals)) ground) ground)
             (if (not (coco_global_hash st (-> st nglobals))) (return 0))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
             (coco_store_maybe_compact st m)
             (return 1))))
+
+  ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value
+  ;;; as its block (`coco_store_read_block'): through 1.12.0 a read walked
+  ;;; it a cell at a time, 98 us for a list of 3 000 entries against 26
+  ;;; now, and the translator's reads (one per word it looks up) were 12 %
+  ;;; of its instructions. A GROUND value is then kept by the machine
+  ;;; (`gcache', a root of the collector, by the global's index and
+  ;;; version, for the store whose serial it names) and handed out shared,
+  ;;; as SWI hands out its globals: nothing can bind a ground term, and a
+  ;;; setarg/3 or nb_setarg/3 on it changes the global (setarg/3's until
+  ;;; backtracking takes it back), which nb_setval/2 replaces. It is kept
+  ;;; FOR AS LONG AS IT LIVES: its sentinel on the trail (`coco-trail-tag')
+  ;;; is undone when backtracking, or the end of a nested search, goes back
+  ;;; past the copy and takes its cells, and a read that finds the sentinel
+  ;;; gone from where it was put (`coco_gcache_ok') copies again.
+  ;;; Nothing else that winds the heap back can reach it: the positions a
+  ;;; host winds back to (a consult's after a directive) are raised over it
+  ;;; here, and every other wind-back undoes the trail with it or runs no
+  ;;; goal. Raising EVERY mark instead, as SWI freezes its global stack at
+  ;;; nb_setval/2, kept what backtracking had always given back, and the
+  ;;; translator's case ran 12 % slower for twice the collections (16 to
+  ;;; 34). nb_setarg/3 on a copy pins it (`coco_gcache_pin'), and its
+  ;;; write lasts as SWI's. A value with a variable in it is a fresh copy
+  ;;; at every read -- each read's variables its own, where SWI shares them
+  ;;; too -- and so is an atom or a number, a cell to copy.
+  (static)
+  (func coco_b_global_term ((coco_engine * e) (size_t i)) (out size_t)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t cell . #'($ (nth i (-> st globals)) cell))
+              (size_t size . #'($ (nth i (-> st globals)) size))
+              (u64 ver . #'($ (nth i (-> st globals)) ver))
+              (size_t h0 . 0) (size_t r . 0) (u64 sn . 0) (size_t tp . 0))
+          (if (not ($ (nth i (-> st globals)) ground)) (return (coco_store_read_block m st cell size)))
+          (if (!= (-> m gcache_ss) (-> st serial)) (coco_gcache_drop m (-> st serial)))
+          (if (and (< i (-> m gcache_cap)) (== ($ (nth i (-> m gcache)) ver) ver)
+                   (coco_gcache_ok m i))
+              (return ($ (nth i (-> m gcache)) root)))
+          (set h0 (-> m heap_len))
+          (set r (coco_deref m (coco_store_read_block m st cell size)))
+          (if (or (-> m oom) (not (coco-tag-is FUN (nth r (-> m heap))))) (return r))
+          ;; no room to keep it, or to say where it was made (a sentinel
+          ;; holds an index under 2^23 - 1): handed out as a copy, as it
+          ;; always was
+          (if (or (>= (+ i 1) (- (<< (cast size_t 1) 23) 1)) (not (coco_gcache_room m i))) (return r))
+          (set sn (bitand (+ (-> m gfills) 1) (- (<< (cast u64 1) 23) 1)))
+          (if (== sn 0) (set sn 1))
+          (set tp (-> m trail_len))
+          (if (not (coco_trail_sent m sn i)) (return r))
+          (set (-> m gfills) sn)
+          (coco_heap_raise_positions m 0 (-> m heap_len))
+          (set ($ (nth i (-> m gcache)) ver) ver)
+          (set ($ (nth i (-> m gcache)) root) r)
+          (set ($ (nth i (-> m gcache)) serial) sn)
+          (set ($ (nth i (-> m gcache)) tpos) tp)
+          (set ($ (nth i (-> m gcache)) lo) h0)
+          (set ($ (nth i (-> m gcache)) hi) (-> m heap_len))
+          (set ($ (nth i (-> m gcache)) pinned) 0)
+          (if (or (< h0 (-> m gspan_lo)) (>= (-> m gspan_lo) (-> m gspan_hi)))
+              (set (-> m gspan_lo) h0))
+          (if (> (-> m heap_len) (-> m gspan_hi)) (set (-> m gspan_hi) (-> m heap_len)))
+          (return r)))
 
   (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
@@ -2770,9 +2842,7 @@
           (let ((coco_store * st . #'(-> e st))
                 (i64 at . #'(coco_global_find st (coco_name_of m k))))
             (if (>= at 0)
-                (return (coco_m_unify e (coco_m_arg e g 1)
-                                      (coco_store_read m st
-                                                    ($ (nth (cast size_t at) (-> st globals)) cell)))))
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))
             (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
 
   ;;; `nb_current(?Key, ?Value)' (1.12.0): the global's value, read as
@@ -2793,9 +2863,7 @@
           (let ((coco_store * st . #'(-> e st))
                 (i64 at . #'(coco_global_find st (coco_name_of m k))))
             (if (< at 0) (return 0))
-            (return (coco_m_unify e (coco_m_arg e g 1)
-                                  (coco_store_read m st
-                                                ($ (nth (cast size_t at) (-> st globals)) cell)))))))
+            (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))
 
   ;;; `'$nb_keys'(-Keys)': every global's name, in the order made
   (func coco_b_nb_keys ((coco_engine * e) (size_t g)) (out int)

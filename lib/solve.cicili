@@ -858,6 +858,15 @@
   (decl) (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
                                   (size_t * out) (size_t * gp)) (out int))
 
+  ;;; Raises every mark the heap is wound back to that is at or above FROM
+  ;;; -- the choice points', the nested engines' starters', the hosts'
+  ;;; registered positions -- to the heap's length, so that no backtracking
+  ;;; and no end of a nested search takes the cells from FROM up: SWI's
+  ;;; freezeGlobal() (1.12.0, nb_setarg/3; 1.12.1, a ground global's copy
+  ;;; nb_setarg/3 wrote into, which `coco_gcache_pin' asks after: cell A)
+  (decl) (func coco_heap_freeze ((coco_engine * e) (size_t from)))
+  (decl) (func coco_gcache_pin ((coco_engine * e) (size_t a)))
+
   ;;; A NESTED ENGINE COLLECTS A REGION WORTH IT (1.9.4). A builtin about to
   ;;; run a nested engine raises the machine's threshold to its heap mark
   ;;; plus the floor, and puts it back after (`coco_gc_nested_end' with
@@ -4350,16 +4359,30 @@
               (for ((size_t i . 0)) (and ok (< i alen)) ((++ i))
                 (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
                                       (aof nmarkers) (nth i arr))))))
+          ;; THE GROUND GLOBALS THIS MACHINE KEEPS (1.12.1), each a root while
+          ;; it is its global's value in this store; one set again since, or
+          ;; another store's, is forgotten here, and its sentinel with it
+          (let ((coco_store * gst . #'(-> e st)))
+            (for ((size_t i . 0)) (and ok (< i (-> m gcache_cap))) ((++ i))
+              (if (!= ($ (nth i (-> m gcache)) ver) 0)
+                  (if (and (< ($ (nth i (-> m gcache)) root) n) (!= gst nil)
+                           (== (-> m gcache_ss) (-> gst serial)) (< i (-> gst nglobals))
+                           (== ($ (nth i (-> gst globals)) ver) ($ (nth i (-> m gcache)) ver))
+                           (coco_gcache_ok m i))
+                      (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                            (aof nmarkers) ($ (nth i (-> m gcache)) root)))
+                    (set ($ (nth i (-> m gcache)) ver) 0)))))
           ;; THE OLD VALUES `setarg/3' SAVED (1.12.0): a value entry's first
           ;; word names a cell only the trail knows, put back where it came
-          ;; from if backtracking comes back past the entry
+          ;; from if backtracking comes back past the entry. A global's
+          ;; sentinel (1.12.1) names none
           (for ((size_t p . 0)) (and ok (< p (-> m trail_len))) ((++ p))
             (let ((size_t v . #'(nth p (-> m trail))))
               (if (!= (bitand v (coco-trail-pair)) 0)
                   (block
-                   (if (< (bitand v (~ (coco-trail-pair))) n)
+                   (if (and (== (coco-trail-tag v) 0) (< (coco-trail-cell v) n))
                        (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
-                                             (aof nmarkers) (bitand v (~ (coco-trail-pair))))))
+                                             (aof nmarkers) (coco-trail-cell v))))
                    (set p (+ p 1))))))
           (if (and ok (> nmarkers 0))
               (block (set fixed (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
@@ -4423,16 +4446,34 @@
                   ;; A VALUE ENTRY (1.12.0), its two words kept or dropped
                   ;; together -- kept while the cell it restores is
                   ;; reachable and older than the barrier, as a binding is;
-                  ;; no mark falls between them
-                  (let ((size_t s . #'(bitand v (~ (coco-trail-pair))))
-                        (size_t a . #'(bitand (nth (+ p 1) (-> m trail)) (~ (coco-trail-pair)))))
-                    (if (and (> f 0) (< a n) (< a (cof (nth (- f 1) hmp)))
-                             (coco_gc_marked bits a) (< s n) (coco_gc_marked bits s))
-                        (block (set (nth kept (-> m trail))
-                                    (bitor (coco_gc_rank bits pre s) (coco-trail-pair)))
-                               (set (nth (+ kept 1) (-> m trail))
-                                    (bitor (coco_gc_rank bits pre a) (coco-trail-pair)))
-                               (set kept (+ kept 2))))
+                  ;; no mark falls between them. A GLOBAL'S SENTINEL (1.12.1)
+                  ;; is kept as it is, and its copy told where it now
+                  ;; stands, while the machine still holds that copy, not
+                  ;; pinned, and a barrier older than the sentinel could
+                  ;; take it away; with none, nothing can, and the copy no
+                  ;; longer needs one
+                  (let ((size_t s . #'(coco-trail-cell v))
+                        (size_t a . #'(coco-trail-cell (nth (+ p 1) (-> m trail))))
+                        (size_t gi . #'(coco-trail-tag v)))
+                    (if (!= (coco-trail-tag (nth (+ p 1) (-> m trail))) 0)
+                        (if (and (> gi 0) (< (- gi 1) (-> m gcache_cap)))
+                            (let ((coco_gcache * g . #'(aof (nth (- gi 1) (-> m gcache)))))
+                              (if (and (!= (-> g ver) 0) (not (-> g pinned)) (== (-> g tpos) p)
+                                       (== (cast size_t (-> g serial))
+                                           (coco-trail-tag (nth (+ p 1) (-> m trail)))))
+                                  (if (> f 0)
+                                      (block (set (nth kept (-> m trail)) v)
+                                             (set (nth (+ kept 1) (-> m trail)) (nth (+ p 1) (-> m trail)))
+                                             (set (-> g tpos) kept)
+                                             (set kept (+ kept 2)))
+                                    (set (-> g tpos) (cast size_t -1))))))
+                      (if (and (> f 0) (< a n) (< a (cof (nth (- f 1) hmp)))
+                               (coco_gc_marked bits a) (< s n) (coco_gc_marked bits s))
+                          (block (set (nth kept (-> m trail))
+                                      (bitor (coco_gc_rank bits pre s) (coco-trail-pair)))
+                                 (set (nth (+ kept 1) (-> m trail))
+                                      (bitor (coco_gc_rank bits pre a) (coco-trail-pair)))
+                                 (set kept (+ kept 2)))))
                     (set p (+ p 1))))))
             (while (< f nbar)
               (set (cof (nth f tmp)) kept)
@@ -4466,6 +4507,21 @@
                   (size_t lim . #'(? ($ (nth r (-> m hroots)) pos) (+ n 1) n)))
               (for ((size_t i . 0)) (< i alen) ((++ i))
                 (set (nth i arr) (coco_gc_moved bits pre lim (nth i arr))))))
+          ;; a copy's cells were made together and nothing else among them,
+          ;; so the ones still reachable are together still, from the rank
+          ;; of its root, the first, to the rank of its end; the span of the
+          ;; copies not pinned is made again from them
+          (set (-> m gspan_lo) (cast size_t -1))
+          (set (-> m gspan_hi) 0)
+          (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+            (if (!= ($ (nth i (-> m gcache)) ver) 0)
+                (let ((coco_gcache * gc . #'(aof (nth i (-> m gcache)))))
+                  (set (-> gc root) (coco_gc_moved bits pre n (-> gc root)))
+                  (set (-> gc lo) (coco_gc_moved bits pre (+ n 1) (-> gc lo)))
+                  (set (-> gc hi) (coco_gc_moved bits pre (+ n 1) (-> gc hi)))
+                  (if (not (-> gc pinned))
+                      (block (if (< (-> gc lo) (-> m gspan_lo)) (set (-> m gspan_lo) (-> gc lo)))
+                             (if (> (-> gc hi) (-> m gspan_hi)) (set (-> m gspan_hi) (-> gc hi))))))))
 
           ;; ---- slide: every kept cell down to its rank, references
           ;; rewritten on the way. A cell's rank is never above its index, so
@@ -4836,14 +4892,23 @@
   ;;; with ten million inferences and no collection (nothing it holds is a
   ;;; root, and what it makes is undone with the run). Its answer goes in R
   ;;; as `coco_rec' says.
+  ;;;
+  ;;; MARK IS WHERE THE WINDOW WINDS THE HEAP BACK TO AFTERWARDS, which the
+  ;;; question's engine holds as its starter's mark (`pheap') while it runs
+  ;;; and hands back (1.12.1): a mark raised in the question -- by
+  ;;; nb_setarg/3 writing a cell older than the question, `coco_heap_freeze'
+  ;;; -- is the window's, or the wind-back would cut the copy away from
+  ;;; under the cell.
   (static)
-  (func coco_window_ask ((coco_engine * e) (coco_rec * r) (size_t cond))
+  (func coco_window_ask ((coco_engine * e) (coco_rec * r) (size_t cond) (size_t * mark))
         (let ((coco_engine sub) (int rc . 0))
           (coco_engine_init (aof sub) (-> e m) (-> e st))
           (coco_engine_ask (aof sub) cond)
           (set ($ sub max_steps) 10000000)
           (set ($ sub gc) 0)
+          (set ($ sub pheap) (cof mark))
           (set rc (coco_engine_next (aof sub)))
+          (set (cof mark) ($ sub pheap))
           (cond ((== rc 1) (set (-> r holds) 1))
                 ((== rc 0) (set (-> r holds) 0))
                 ((== 0 (strcmp ($ sub err) "inference limit reached")) (set (-> r holds) 2))
@@ -4946,7 +5011,7 @@
           (set ($ (cof m) rec) nil)
           (set (-> r root) nil)
           ;; the question, over what the run left bound
-          (if (!= (-> r ask) 0) (coco_window_ask e r (nth 1 hold)))
+          (if (!= (-> r ask) 0) (coco_window_ask e r (nth 1 hold) (aof hmark)))
           ;; every binding undone: a window is for watching
           (coco_undo_to m tmark)
           (set ($ (cof m) heap_len) hmark)
@@ -6447,29 +6512,58 @@
             (set (nth a (-> m heap)) nw)
             (return 1))))
 
-  ;;; NOTHING BACKTRACKING DOES MAY TAKE AWAY WHAT A NON-BACKTRACKABLE WRITE
-  ;;; INTO CELL A NOW REACHES (1.12.0): nb_setarg/3's copy, made on the
-  ;;; heap's top, or a variable newer than A. Every mark a choice point, or a
-  ;;; nested engine's starter, winds the heap back to that is above A would
-  ;;; cut it away from under A while A stayed -- so each one, on every engine
-  ;;; out along the chain, is raised to the heap's length: SWI's
-  ;;; freezeGlobal(). A mark at or below A goes with A, and is left. The
-  ;;; cells under a raised mark stay until the collector finds them
-  ;;; unreachable; a binding made among them was trailed, as every binding
-  ;;; is, and is undone as before. The marks stay in the order they were
-  ;;; made in (the collector's trail pass needs that): the ones above A are
-  ;;; the newest, and all become the newest.
-  (static)
-  (func coco_heap_freeze ((coco_engine * e) (size_t a))
-        (let ((size_t h . #'($ (cof (-> e m)) heap_len))
+  ;;; NOTHING THE HEAP IS WOUND BACK FOR MAY TAKE AWAY THE CELLS FROM FROM UP
+  ;;; (1.12.0): nb_setarg/3's copy, made on the heap's top, or a variable
+  ;;; newer than the cell it wrote; and from 0, a ground global's copy that
+  ;;; nb_setarg/3 wrote into (1.12.1, `coco_gcache_pin'). Every mark at or
+  ;;; above FROM -- a choice point's, the one a nested engine's starter
+  ;;; winds the heap back to (`pheap'), a host's registered position, such
+  ;;; as a consult's after a directive -- would cut them away from under
+  ;;; what reaches them, which is older: so each is raised to the heap's
+  ;;; length, SWI's freezeGlobal(). A mark below FROM is left. The cells
+  ;;; under a raised mark stay until the collector finds them unreachable;
+  ;;; a binding made among them was trailed, as every binding is, and is
+  ;;; undone as before.
+  ;;;
+  ;;; THE MARKS GROW UP A CHOICE STACK AND INWARD ALONG THE CHAIN of engines
+  ;;; (a nested engine's frames were all made after its starter's mark), so
+  ;;; the marks at or above FROM are the newest few, and the walk stops at
+  ;;; the first one below -- raised, they are still in order, which the
+  ;;; collector's trail pass needs. The positions are the host's, few, and
+  ;;; each is asked.
+  (func coco_heap_freeze ((coco_engine * e) (size_t from))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t h . #'(-> m heap_len))
               (coco_engine * x . e))
           (while (!= x nil)
-            (for ((size_t k . 0)) (< k (-> x nchoices)) ((++ k))
-              (if (> ($ (nth k (-> x choices)) heap_mark) a)
-                  (set ($ (nth k (-> x choices)) heap_mark) h)))
-            (if (and (!= (-> x outer) nil) (> (-> x pheap) a))
-                (set (-> x pheap) h))
-            (set x (cast (coco_engine *) (-> x outer))))))
+            (let ((size_t k . #'(-> x nchoices)))
+              (while (and (> k 0) (>= ($ (nth (- k 1) (-> x choices)) heap_mark) from))
+                (set k (- k 1))
+                (set ($ (nth k (-> x choices)) heap_mark) h)))
+            (if (or (== (-> x outer) nil) (< (-> x pheap) from)) break)
+            (set (-> x pheap) h)
+            (set x (cast (coco_engine *) (-> x outer))))
+          (coco_heap_raise_positions m from h)))
+
+  ;;; A GROUND GLOBAL'S COPY THAT nb_setarg/3 WRITES INTO IS PINNED (1.12.1):
+  ;;; the write lasts until nb_setval/2 replaces the value, as SWI's does,
+  ;;; so the copy must outlive any backtracking -- every mark is raised over
+  ;;; it, and over every other copy the machine holds, which are all pinned
+  ;;; with it: none can be cut away now. A cell outside every copy not yet
+  ;;; pinned (`gspan_lo' .. `gspan_hi', then the table) pins nothing.
+  (func coco_gcache_pin ((coco_engine * e) (size_t a))
+        (let ((coco_machine * m . #'(-> e m)) (int hit . 0))
+          (if (or (< a (-> m gspan_lo)) (>= a (-> m gspan_hi))) (return))
+          (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+            (if (and (!= ($ (nth i (-> m gcache)) ver) 0) (not ($ (nth i (-> m gcache)) pinned))
+                     (<= ($ (nth i (-> m gcache)) lo) a) (< a ($ (nth i (-> m gcache)) hi)))
+                (block (set hit 1) break)))
+          (if (not hit) (return))
+          (coco_heap_freeze e 0)
+          (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+            (if (!= ($ (nth i (-> m gcache)) ver) 0) (set ($ (nth i (-> m gcache)) pinned) 1)))
+          (set (-> m gspan_lo) (cast size_t -1))
+          (set (-> m gspan_hi) 0)))
 
   ;;; `nb_setarg(+N, +T, +V)': NOT undone on backtracking, and V is COPIED
   ;;; when it is compound, so a later binding of a variable in it is not
@@ -6487,7 +6581,10 @@
                 (block (set v (coco_copy m v))
                        (if (-> m oom) (return 0))))
             (let ((u64 nw . #'(coco_setarg_word m v)))
-              (if (and (coco-tag-is REF nw) (> v a)) (coco_heap_freeze e a))
+              ;; a ground global's copy written into is kept as the global
+              ;; (1.12.1): its write lasts, as SWI's
+              (coco_gcache_pin e a)
+              (if (and (coco-tag-is REF nw) (> v a)) (coco_heap_freeze e (+ a 1)))
               (set (nth a (-> m heap)) nw)
               (return 1)))))
 

@@ -44,6 +44,8 @@ these ever stops being true the tutorial fails and names both answers.
 * **`setarg/3` writes the ARGUMENT, not a variable it names.** `T = f(X),
   setarg(1, T, z)` leaves X unbound, where SWI made X in the argument and
   binds it; `arg/3` reads `z` in both (12).
+* **A global with a variable in its value is a fresh copy at each read**;
+  a ground one is one term every read shares, as all of SWI's are (12).
 * **The knowledge base is a DATABASE**, and `assertz` in one process is
   visible to the next one (11). That is the claim the whole project
   exists to make, and it is four lines of Prolog to see it.

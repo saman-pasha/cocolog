@@ -700,13 +700,20 @@ cocolint index offers no import of it.
   then the cell it goes back into; `coco_undo_to` puts it back, the
   collector marks every saved cell and keeps or drops a pair whole (by the
   restored cell, as a binding by its variable), a freeze writes the words
-  as they are. **A new reader of the trail tells a pair from a variable.**
+  as they are. **A new reader of the trail tells a pair from a variable**,
+  and reads a pair's cell under bit 40 (`coco-trail-cell`): bits 40 to 62
+  (`coco-trail-tag`) are 0 in a value entry and not in a ground global's
+  sentinel (1.12.1, below) -- the global's index plus one, the copy's
+  serial, cell 0 in both words, which the undo writes with itself.
   nb_setarg/3 writes past the trail and RAISES MARKS instead
-  (`coco_heap_freeze`, SWI's freezeGlobal): every choice point's and nested
-  engine's heap mark above the written cell goes to the heap's length, so
-  its copy outlives backtracking -- **a new starter of a nested engine that
-  winds the heap back reads its mark back from the engine (`pheap`)**, as
-  findall/3 does, or that copy is cut away under the cell. The argument
+  (`coco_heap_freeze`, SWI's freezeGlobal): every choice point's, nested
+  engine's and host's registered heap mark above the written cell goes to
+  the heap's length, so its copy outlives backtracking -- **a new starter
+  of a nested engine that winds the heap back reads its mark back from the
+  engine (`pheap`)**, as findall/3 does (a window's question carries the
+  window's mark in its engine's `pheap` and hands it back, 1.12.1), or that
+  copy is cut away under the cell. The marks grow up a choice stack and
+  inward along the chain, so the walk stops at the first one below. The argument
   CELL is written: a body's variable lives in its environment or frame and
   f(X)'s argument names it, so `T = f(X), setarg(1, T, z)` leaves X unbound
   where SWI (which made X in the argument) binds it.
@@ -886,16 +893,35 @@ cocolint index offers no import of it.
   argument still walks the whole predicate**; a hit hides it, a miss or a
   `findall` pays it. To read a predicate's heads, `clause/2` enumerates
   them; calling the goal proves it.
-* **A global is found by a hash of its name (1.9.4) and COPIED on every
-  read** (`nb_getval/2`, `b_getval/2`): keep a table small per global --
-  one global per word is cheap now (`reason.pl`'s notes and the
-  translator's `'$tr_w|W'` tables), one growing list read for each
-  question is not -- and make a global you read often once rather than
-  catching its absence. **The copy is the price in time** (200 000 reads of
-  one global, 1.11.4): a list of 15 cells 0.4 us, 150 cells 1.6 us, 1 500 cells
-  10.8 us, 15 000 cells 126 us -- and a memberchk/2 of 300 entries already on
-  the heap 4.7 us. The translator's table of a common word (`è`, `di`) holds
-  300 entries: a memo hit is about 16 us.
+* **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
+  and a GROUND one's copy handed out shared while it lives (1.12.1)**
+  (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).
+  The store put a value's cells together from its root, every reference
+  among them, so a read is a memcpy and each REF moved by the distance
+  (`coco_store_read_block`): 3 000 entries 26 us, 98 through 1.12.0's walk
+  a cell at a time, and the translator's reads went from 12 % of its
+  instructions to 4 % (-7.9 % in all, its case -3.2 % of user time). A
+  ground copy is then kept by the machine (`gcache`, by the global's index
+  and version `gver`, for the store whose serial it names, a root of the
+  collector) and a repeated read is 0.2 us at any size -- as SWI's:
+  setarg/3 and nb_setarg/3 on it change the global (SWI's counter idiom
+  works) until nb_setval/2 sets it again; a value with a variable is a
+  fresh copy each read, where SWI shares it. **The copy is kept FOR AS
+  LONG AS IT LIVES**: its sentinel on the trail is undone when
+  backtracking or the end of a nested search goes back past it and takes
+  its cells, and a read that does not find it where it was put copies
+  again (`coco_gcache_ok`; the collector moves it with the trail and tells
+  the copy); the hosts' registered positions are raised over it at the
+  fill; nb_setarg/3
+  into it pins it (`coco_gcache_pin`: every mark raised, as SWI's
+  freezeGlobal()). So **a new wind-back of the heap across Prolog
+  execution undoes the trail to its mark or registers its position**, or
+  a stale copy is read. Raising every mark at each fill instead kept what
+  backtracking had always given back: the translator's case 12 % slower,
+  16 collections become 34. Only 5 % of the translator's reads find their
+  copy alive -- it backtracks past nearly every one -- so its gain is the
+  block. A memberchk/2 of 300 entries already on the heap is 4.7 us: the
+  translator's table of a common word (`è`, `di`) holds 300 entries.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
   `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that

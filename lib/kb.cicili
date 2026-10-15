@@ -814,7 +814,12 @@
   (struct coco_global
     (member u64    name)
     (member size_t cell)
-    (member size_t size))              ; cells the value occupies, for the count of the dead
+    (member size_t size)               ; cells the value occupies, for the count of the dead
+    ;; WHICH SETTING THE VALUE IS (1.12.1), unique in this store (`gver'),
+    ;; and whether it is ground: a machine keeps a ground value's copy and
+    ;; hands it out shared until the global is set again
+    (member u64    ver)
+    (member int    ground))
 
   ;;; A ROOT ARRAY SOMEBODY ELSE OWNS, registered with the store for as long
   ;;; as it holds cell indices: where the array pointer lives, because its
@@ -873,6 +878,11 @@
     ;; `coco_global_find' in lib/builtins.cicili, its only reader
     (member size_t *  gbuckets)
     (member size_t    gbucket_cap)
+    ;; the last version a setting of a global took (1.12.1)
+    (member u64       gver)
+    ;; whether the last put met a variable (1.12.1): a ground value is one
+    ;; a machine may keep and hand out shared, and the put knows it free
+    (member int       put_vars)
 
     (member coco_pred * preds)
     (member size_t    npreds)
@@ -1080,6 +1090,20 @@
   ;;; cyclic one, and so is the compaction, which moves the factors as
   ;;; they are.
   (decl) (func coco_store_read ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
+  ;;; A TERM COPIED AS ITS BLOCK (1.12.1): T the root of a term the store
+  ;;; put in one go, which took SIZE cells from T up (a global's value,
+  ;;; `coco_b_global_term'). The put wrote its cells together with nothing
+  ;;; else among them, every reference among them pointing at another of
+  ;;; them, a variable a cell pointing at itself, and a float or a string
+  ;;; indexing the machine's own tables -- so the copy is the block itself,
+  ;;; moved: one memcpy, then every REF's payload by the distance. A
+  ;;; variable stays one (a fresh one each copy), a DAG stays a DAG, and a
+  ;;; cyclic term's factors are bound back as `coco_store_read' binds them.
+  ;;; Through 1.12.0 every read walked the term a cell at a time
+  ;;; (`coco_store_get_vm'), four times as long for a list of 3 000
+  ;;; entries; refused the room, it still does.
+  (decl) (func coco_store_read_block ((coco_machine * m) (coco_store * st) (size_t t)
+                                      (size_t size)) (out size_t))
   ;;; The same copy, and with it SPAN, the cells the term takes IN THE
   ;;; STORE. The copy is shorter than that by one cell per distinct
   ;;; variable (a variable met first lives in its argument slot on the
@@ -1917,6 +1941,7 @@
              (let ((size_t to . 0))
                (if (coco_varmap_get vm t (aof to)) (return to))
                (set to (coco_store_new_var st))
+               (set (-> st put_vars) 1)
                (coco_varmap_put vm t to)
                (return to)))
             ((coco-tag-is FUN c)
@@ -1998,6 +2023,7 @@
   (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
         (let ((size_t base . #'(-> st len))
               (size_t r . 0))
+          (set (-> st put_vars) 0)
           (set (-> m wceil) (+ base (+ (* (-> m heap_len) 2) 64)))
           (set r (coco_store_put_walk st m t))
           (if (== (-> m wceil) 0) (set r (coco_store_put_over st m t base)))
@@ -2091,6 +2117,25 @@
         (let ((size_t r . #'(coco_store_get m st t)))
           (if (== (-> m cyc_puts) 0) (return r))
           (return (coco_unfactor m r))))
+
+  (func coco_store_read_block ((coco_machine * m) (coco_store * st) (size_t t) (size_t size))
+        (out size_t)
+        (let ((size_t h . #'(-> m heap_len)))
+          (if (or (== size 0)
+                  (not (coco_grow m (cast (void **) (aof (-> m heap)))
+                                  (aof (-> m heap_cap)) (+ h size) (sizeof u64))))
+              (return (coco_store_read m st t)))
+          (memcpy (cast (void *) (aof (nth h (-> m heap))))
+                  (cast (const void *) (aof (nth t (-> st cells))))
+                  (* size (sizeof u64)))
+          (for ((size_t i . h)) (< i (+ h size)) ((++ i))
+            (let ((u64 c . #'(nth i (-> m heap))))
+              (if (coco-tag-is REF c)
+                  (set (nth i (-> m heap))
+                       (coco-cell REF (+ (- (cast size_t (coco-payload c)) t) h))))))
+          (set (-> m heap_len) (+ h size))
+          (if (== (-> m cyc_puts) 0) (return h))
+          (return (coco_unfactor m h))))
 
   ;;; THE STORE'S SPAN IS THE COPY'S LENGTH PLUS ONE CELL PER DISTINCT
   ;;; VARIABLE, which the map counted as it entered them: the put gave each

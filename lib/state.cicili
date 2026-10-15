@@ -348,6 +348,9 @@
           ;; coco_new_float pushed a cell per float; the heap below replaces the
           ;; whole array anyway, so those cells are about to be overwritten
           (set (-> m heap_len) 0)
+          ;; and so are the ground globals the machine kept (1.12.1): read
+          ;; again, they are copied again
+          (coco_gcache_drop m 0)
 
           ;; ---- the heap ----
           (if ok (coco_scan_word (aof z) "H"))

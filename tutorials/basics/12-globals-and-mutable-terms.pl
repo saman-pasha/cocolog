@@ -9,10 +9,13 @@
 %% table of what was seen -- and there are two places to keep it.
 %%
 %% A GLOBAL VARIABLE has a name: `nb_setval(Key, Value)' stores a copy,
-%% `nb_getval(Key, Value)' reads one back, and `nb_current(Key, Value)'
-%% asks whether there is one at all -- failing where `nb_getval/2' raises,
-%% and naming every global with its key unbound. In cocolog `b_setval/2'
-%% and `b_getval/2' are the same pair: neither is undone by backtracking.
+%% `nb_getval(Key, Value)' hands it out, and `nb_current(Key, Value)' asks
+%% whether there is one at all -- failing where `nb_getval/2' raises, and
+%% naming every global with its key unbound. A GROUND value is handed out
+%% as one term every read shares, as SWI's is, so `nb_setarg/3' on it
+%% changes the global; a value with a variable in it is a fresh copy at
+%% each read (SWI shares that too). In cocolog `b_setval/2' and
+%% `b_getval/2' are the same pair: neither is undone by backtracking.
 %%
 %% A MUTABLE TERM is a compound whose argument you overwrite in place.
 %% `setarg(N, T, V)' writes argument N of T, and backtracking puts the old
@@ -57,6 +60,16 @@ main :-
     C = count(0),
     ( between(1, 10, I), arg(1, C, N0), N is N0 + I, nb_setarg(1, C, N), fail ; true ),
     must('the sum of 1..10, kept across ten failures', C, count(55)),
+
+    format("~n-- a ground global is one term every read shares: nb_setarg/3 on it changes the global~n"),
+    nb_setval(lesson_tally, tally(0)),
+    ( between(1, 5, _), nb_getval(lesson_tally, Ty), arg(1, Ty, Ty0), Ty1 is Ty0 + 1, nb_setarg(1, Ty, Ty1), fail ; true ),
+    nb_getval(lesson_tally, Tally),
+    must('five turns of nb_getval and nb_setarg', Tally, tally(5)),
+    nb_setval(lesson_pair, pair(_, b)), nb_getval(lesson_pair, P1), P1 = pair(a, _),
+    nb_getval(lesson_pair, P2),
+    ( P2 = pair(V2, b), var(V2) -> R2 = 'pair(_, b)' ; R2 = P2 ),
+    must('a value with a variable, read again after a read bound it (SWI shares it)', R2, 'pair(_, b)'),
 
     format("~n-- nb_setarg/3 writes a copy; setarg/3 links what it is given~n"),
     T3 = box(empty), nb_setarg(1, T3, pair(A3, b)), A3 = a,

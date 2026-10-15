@@ -34,7 +34,7 @@
 main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
-    in_registers, guards, environments(D), in_place(D), fused(D), mutable(D),
+    in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -932,3 +932,126 @@ mutable_frozen(D) :-
     proc_run(Cmd14, 300000, Out14, _), atom_codes(O14, Out14),
     check('a machine frozen and thawed at every 50 inferences puts each write back as its branch fails', O14,
           'g(3)\nf(a)\nf(k(2,[2]))\n').
+
+%% ---- a ground global read without a copy (1.12.1) --------------------------
+%%
+%% nb_getval/2 copies a value as the block the store holds it in, and hands
+%% a ground value's copy out shared for as long as it lives, as SWI hands
+%% out its globals: SWI 9.0.4's answers to setarg/3 and nb_setarg/3 on it,
+%% and to its counter idiom, but for a value with a variable, which is a
+%% fresh copy at every read here (SWI shares that too). A copy that
+%% backtracking, findall/3, \+, a throw or a window's wind-back takes away
+%% is copied again, and nb_setarg/3 into one keeps it; a load's directive
+%% keeps it -- each followed by enough new cells to write over a copy
+%% wrongly kept, and a collection; and a repeated read costs the same
+%% whatever the value's size.
+
+sg_churn :- numlist(1, 3000, L), length(L, _).
+
+shared_globals(D) :-
+    section('a ground global read without a copy: SWI\'s answers, and the copy kept'),
+    %% each step's answer copied as it stands: the reads are one term
+    nb_setval(sg_k, f(a)), nb_getval(sg_k, A1), nb_getval(sg_k, B1), setarg(1, A1, z), copy_term(B1, S1a),
+    nb_getval(sg_k, C1), copy_term(C1, S1b),
+    ( nb_getval(sg_k, A1b), setarg(1, A1b, q), fail ; true ), nb_getval(sg_k, C1b), copy_term(C1b, S1c),
+    nb_getval(sg_k, D1), nb_setarg(1, D1, w), nb_getval(sg_k, E1), copy_term(E1, S1d),
+    ( nb_getval(sg_k, D1b), nb_setarg(1, D1b, v), fail ; true ), nb_getval(sg_k, E1b), copy_term(E1b, S1e),
+    check('setarg/3 and nb_setarg/3 on what nb_getval/2 handed out change the global, as SWI\'s do',
+          [S1a, S1b, S1c, S1d, S1e], [f(z), f(z), f(z), f(w), f(v)]),
+    nb_setval(sg_cnt, c(0)),
+    forall(between(1, 10, _), ( nb_getval(sg_cnt, Cn2), arg(1, Cn2, N2a), N2b is N2a + 1, nb_setarg(1, Cn2, N2b) )),
+    nb_getval(sg_cnt, Cnt2),
+    findall(F3, nb_getval(sg_k, F3), [F3a]), nb_getval(sg_k, F3b), setarg(1, F3b, r),
+    nb_setval(sg_k, f(b)), nb_getval(sg_k, F3c),
+    check('...SWI\'s counter, a findall/3 copy, and a value set again', [Cnt2, F3a, F3b, D1, F3c],
+          [c(10), f(v), f(r), f(r), f(b)]),
+    nb_setval(sg_t, g(_)), nb_getval(sg_t, T4a), T4a = g(1), nb_getval(sg_t, T4b),
+    ( T4b = g(V4), var(V4) -> R4 = fresh ; R4 = T4b ),
+    check('a value with a variable in it is copied at every read, as it always was (SWI shares it)', R4, fresh),
+    Z11 = f(Z11), atom_string(s, Str11),
+    nb_setval(sg_v, h(X11, X11, _, 1.5, Str11, [x, y|X11], -7)), nb_setval(sg_z, k(Z11)),
+    nb_getval(sg_v, h(A11, B11, C11, F11, S11, L11, I11)), nb_getval(sg_z, k(Z11b)),
+    ( A11 == B11, var(A11), A11 \== C11, L11 = [x, y|T11], T11 == A11 -> V11 = shared ; V11 = wrong ),
+    ( string(S11), S11 == Str11 -> S11b = string ; S11b = S11 ),
+    ( cyclic_term(Z11b), Z11b = f(Z11c), Z11c = f(_) -> Z11d = cyclic ; Z11d = Z11b ),
+    check('...a value read as its block: its variables shared as they were set, a float, a string, an integer, a cyclic term',
+          [V11, F11, S11b, I11, Z11d], [shared, 1.5, string, -7, cyclic]),
+    W5 = [p(1, a), p(2, b), p(3, c)],
+    nb_setval(sg_f, W5), findall(x, nb_getval(sg_f, _), _), sg_churn, nb_getval(sg_f, V5a),
+    nb_setval(sg_n, W5), \+ \+ nb_getval(sg_n, _), sg_churn, nb_getval(sg_n, V5b),
+    nb_setval(sg_b, W5), ( nb_getval(sg_b, _), fail ; true ), sg_churn, nb_getval(sg_b, V5c),
+    nb_setval(sg_c, W5), catch(( nb_getval(sg_c, _), throw(x) ), x, true), sg_churn, nb_getval(sg_c, V5d),
+    garbage_collect, sg_churn, nb_getval(sg_f, V5e),
+    check('the copy first read in findall/3, \\+, a failed branch and a throw is the value still, after new cells and a collection',
+          [V5a, V5b, V5c, V5d, V5e], [W5, W5, W5, W5, W5]),
+    W12 = [q(1), q(2), q(3)], nb_setval(sg_g, W12),
+    ( member(_, [a, b]), nb_getval(sg_g, _), garbage_collect, sg_churn, fail ; true ),
+    sg_churn, nb_getval(sg_g, V12),
+    check('...a copy read after a choice point, a collection, then backtracking to the choice point: copied again',
+          V12, W12),
+    nb_setval(sg_p, c(0)),
+    ( between(1, 5, I13), nb_getval(sg_p, C13), ( I13 =:= 1 -> garbage_collect ; true ),
+      arg(1, C13, N13a), N13b is N13a + 1, nb_setarg(1, C13, N13b), fail
+    ; true ),
+    sg_churn, nb_getval(sg_p, F13),
+    check('...a counter whose copy a collection moved, written in a failure-driven loop', F13, c(5)),
+    %% the condition runs over its choice point, a barrier older than the copy
+    nb_setval(sg_s, f(a)),
+    (   nb_getval(sg_s, A15), sg_churn, garbage_collect, sg_churn,
+        nb_getval(sg_s, B15), setarg(1, A15, z), copy_term(B15, C15)
+    ->  true
+    ;   C15 = none
+    ),
+    check('...a copy read before a collection is the term read after it (its sentinel moved with the trail)',
+          C15, f(z)),
+    nb_setval(sg_w, [a, b, c, d, e, f, g, h]),
+    '$trace_window'(sg_spin(50), [ask(( nb_getval(sg_w, L6), L6 = [a|_] ), H6)], _, _),
+    sg_churn, nb_getval(sg_w, V6),
+    check('...and the copy a window\'s question read first', H6-V6, true-[a, b, c, d, e, f, g, h]),
+    T14 = f(a, b),
+    '$trace_window'(sg_spin(50), [ask(( nb_setarg(1, T14, g([1, 2, 3])), true ), H14)], _, _),
+    sg_churn, copy_term(T14, C14),
+    check('nb_setarg/3 in a window\'s question, into a term older than the window: the copy outlives the window\'s wind-back',
+          H14-C14, true-f(g([1, 2, 3]), b)),
+    gd_inferences(nb_getval(sg_w, _), I7),
+    check('a read is still one inference (with the call/1 and the statistics/2 that measure it)', I7, 3),
+    atom_concat(D, '/sg-load.pl', F8),
+    fixture(F8, [
+        ':- nb_setval(dk, f([1,2,3,4,5])).',
+        ':- nb_getval(dk, _).',
+        ':- numlist(1, 3000, L), length(L, _).',
+        ':- initialization((numlist(1, 3000, L), length(L, _))).',
+        'go :- nb_getval(dk, V), writeq(V), nl.'
+    ]),
+    atom_concat(D, '/sg-loop.pl', F9),
+    fixture(F9, [
+        'go :- nb_setval(g1, [e(1, alpha), e(2, beta), e(3, gamma)]), nb_setval(g2, cnt(0)), loop(300),',
+        '      nb_getval(g1, A), writeq(A), nl, nb_getval(g2, B), writeq(B), nl,',
+        '      statistics(heap_collections, N), ( N > 0 -> writeq(collected) ; writeq(none) ), nl.',
+        'loop(0) :- !.',
+        'loop(N) :- nb_getval(g1, L), length(L, Len), ( member(e(I, _), L), I > Len, fail ; true ),',
+        '           numlist(1, 50, Junk), sum_list(Junk, _), garbage_collect,',
+        '           nb_getval(g2, C), arg(1, C, K0), K is K0 + 1, nb_setarg(1, C, K),',
+        '           ( N mod 100 =:= 0 -> nb_getval(g1, L1), nb_setval(g1, [e(N, x)|L1]) ; true ),',
+        '           N1 is N - 1, loop(N1).'
+    ]),
+    cocolog(C8),
+    findall(E8-O8, ( member(E8, ['', 'COCOLOG_GC_CELLS=2000 ', 'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ']),
+                     sh_join([E8, C8, ' run ', F8, ' go 2>&1; ', E8, C8, ' run ', F9, ' go 2>&1'], Cmd8),
+                     proc_run(Cmd8, 120000, Out8, _), atom_codes(O8, Out8) ), L8),
+    W8 = 'f([1,2,3,4,5])\n[e(100,x),e(200,x),e(300,x),e(1,alpha),e(2,beta),e(3,gamma)]\ncnt(300)\ncollected\n',
+    check('in a child: a copy read in one directive and kept through the next, and three hundred turns of reads, settings and a counter, the same plain, under the collector at every 2000 cells and under the freeze\'s torture',
+          L8, [''-W8, 'COCOLOG_GC_CELLS=2000 '-W8, 'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-W8]),
+    atom_concat(D, '/sg-time.pl', F10),
+    fixture(F10, [
+        'go :- numlist(1, 3000, L0), findall(e(X, word), member(X, L0), L), nb_setval(t, L), loop(200000), write(done), nl.',
+        'loop(0) :- !.',
+        'loop(K) :- nb_getval(t, _), K1 is K - 1, loop(K1).'
+    ]),
+    %% 1.12.0 read the 15 000 cells 200 000 times in about 20 s; one copy
+    %% and 200 000 shared reads take about 30 ms
+    last_line_of(F10, go, 10000, G10),
+    check('200 000 reads of a value of 3 000 entries in less than ten seconds', G10, done).
+
+sg_spin(0) :- !.
+sg_spin(N) :- M is N - 1, sg_spin(M).
