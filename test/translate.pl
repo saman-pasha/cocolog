@@ -32,7 +32,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula,
+    newspaper_abogacia, newspaper_makula, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -12331,6 +12331,158 @@ newspaper_makula_checks_9 :-
           'It is better.').
 
 %% <<< makula
+
+%% >>> units
+%% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). By default a code
+%% list holds the UTF-8 BYTES of a text, `é' is 195 169; a program that sets
+%% text_units to characters holds CODE POINTS, `é' is 233. The reader, the
+%% writer and the tokeniser name accents and marks by their codes, so every
+%% such clause has a twin for the other unit (library(reasoning/reason),
+%% rt_chars/0). The unit is per machine, so the section asks two children,
+%% this file loaded by `cocolog query' in each unit, and holds each answer
+%% to the text it has in bytes (`-' where it is only held to the bytes
+%% answer) and the characters answer to the bytes answer. A copy of the
+%% library with the twins out answers `refused' to fifteen of the twenty
+%% translations in characters.
+newspaper_units :-
+    section('the same answers under both text units: accents and marks read as UTF-8 bytes by default and as code points when a program asks (text_units, cocolog 1.13.0)'),
+    newspaper_units_child(bytes, B),
+    newspaper_units_child(characters, C),
+    findall(L-W, newspaper_units_probe(L, _, W), Ps),
+    forall(nth1(I, Ps, L-W), newspaper_units_check(I, L, W, B, C)).
+
+newspaper_units_check(I, Label, Want, B, C) :-
+    newspaper_units_line(I, B, GB), newspaper_units_line(I, C, GC),
+    (   Want == '-' -> true ; check(Label, GB, Want) ),
+    check('... and the same under characters', GC, GB).
+
+newspaper_units_line(I, Lines, Answer) :-
+    format(atom(P), "u~d ", [I]),
+    (   member(Line, Lines), atom_concat(P, A, Line) -> Answer = A ; Answer = missing ).
+
+%% the child: the answers of every probe, one line each, in the unit asked for
+newspaper_units_child(Units, Lines) :-
+    cocolog(Exe),
+    (   Units == characters -> Env = 'env COCOLOG_TEXT_UNITS=characters' ; Env = 'env -u COCOLOG_TEXT_UNITS' ),
+    sh_join([Env, ' ', Exe, ' query "use_module(''test/translate.pl''), newspaper_units_run" 2>&1'], Cmd),
+    shell(Cmd, Text, _),
+    atomic_list_concat(Lines, '\n', Text).
+
+%% the vocabulary builder, loaded from the first directory of the library path (library(...) takes
+%% one directory level, and the builder is in reasoning/corpus)
+newspaper_units_builder :-
+    (   getenv('COCOLOG_LIBRARY', Libs), atomic_list_concat([Lib|_], ':', Libs) -> true ; Lib = library ),
+    atomic_list_concat([Lib, '/reasoning/corpus/build.pl'], Path),
+    use_module(Path).
+
+newspaper_units_run :-
+    newspaper_makula_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_makula_lesson(italian, IT), reason_learn(IT, italian, _),
+    findall(P, newspaper_units_probe(_, P, _), Ps),
+    forall(nth1(I, Ps, T-Goal),
+           (   ( catch(Goal, _, fail) -> true ; T = refused ),
+               format("u~d ~w~n", [I, T]) )).
+
+newspaper_units_probe('AN OPENING `¿'' IS A SIGN THE TOKENISER DROPS, NOT A LETTER: U+00BF is 194 191 in bytes and 191 in characters', T-nf_tr('¿Dónde duerme el perro?', spanish, italian, T),
+                      'Dove dorme il cane?').
+newspaper_units_probe('A CAPITAL WITH AN ACCENT IS LOWERED FOR THE LEXICON: `Él'' is `él'' -- 195 137 and 233 as its first codes', T-nf_tr('Él duerme.', spanish, italian, T),
+                      'Lui dorme.').
+newspaper_units_probe('... in front of a clause that follows', T-nf_tr('Él duerme, dice el gato.', spanish, italian, T),
+                      'Lui dorme, dice il gatto.').
+newspaper_units_probe('THE TYPOGRAPHIC QUOTATION MARKS: U+201C and U+201D are three bytes each and one code point each', T-nf_tr('“El perro duerme”, dice el gato.', spanish, italian, T),
+                      '“Il cane dorme”, dice il gatto.').
+newspaper_units_probe('THE STRESS MARK OF AN INFINITIVE WITH TWO PRONOUNS IS TAKEN OFF TO FIND THE VERB: `dártelo'' is `dar'' and `telo''', T-nf_tr('El gato puede dártelo.', spanish, italian, T),
+                      'Il gatto può dartelo.').
+newspaper_units_probe('THE ANGLED QUOTATION MARKS are U+00AB and U+00BB: two bytes each, one code point each', T-nf_tr('«El perro duerme», dice el gato.', spanish, italian, T),
+                      '-').
+newspaper_units_probe('AN EN DASH, U+2013: three bytes, one code point', T-nf_tr('El perro duerme – dice el gato – en la casa.', spanish, italian, T),
+                      '-').
+newspaper_units_probe('AN EM DASH, U+2014', T-nf_tr('El perro duerme — dice el gato — en la casa.', spanish, italian, T),
+                      '-').
+newspaper_units_probe('A CAPITAL È OPENS A SENTENCE: it is lowered to find the copula, and the sentence is read', T-nf_tr('È il cane che dorme.', italian, spanish, T),
+                      'Es el perro que duerme.').
+newspaper_units_probe('... and in English', T-nf_tr('È meglio.', italian, english, T),
+                      'It is better.').
+newspaper_units_probe('THE TYPOGRAPHIC APOSTROPHE, U+2019, IS THE PLAIN ONE: `L''acqua'' is the water', T-nf_tr('L’acqua dorme.', italian, spanish, T),
+                      'El agua duerme.').
+newspaper_units_probe('... and after a question word that is elided: `Dov''è'' is `dove è''', T-nf_tr('Dov’è il cane?', italian, spanish, T),
+                      '¿Dónde es el perro?').
+newspaper_units_probe('QUOTATION MARKS, ITALIAN INTO SPANISH', T-nf_tr('“Il cane dorme”, dice il gatto.', italian, spanish, T),
+                      '“El perro duerme”, dice el gato.').
+newspaper_units_probe('THE ANGLED MARKS, ITALIAN INTO SPANISH', T-nf_tr('«Il cane dorme», dice il gatto.', italian, spanish, T),
+                      '-').
+newspaper_units_probe('DASHES AROUND AN ASIDE, ITALIAN INTO SPANISH', T-nf_tr('Il cane dorme – dice il gatto – a casa.', italian, spanish, T),
+                      '-').
+newspaper_units_probe('THE TOKENISER: the question mark that opens is dropped, an accented word is one word, a capital with an accent says `upper''',
+                      T-( reason_tokens('¿Cuánto tiempo?', Ts), format(atom(T), "~w", [Ts]) ),
+                      '[word(cuánto,upper),word(tiempo,lower),.]').
+newspaper_units_probe('THE FIRST LETTER UP, AN ACCENTED ONE: `él'' is `Él''', T-tr_cap('él', T),
+                      'Él').
+newspaper_units_probe('... and `ñu'' is `Ñu''', T-tr_cap('ñu', T),
+                      'Ñu').
+newspaper_units_probe('THE ACCENT OF A STRESSED VOWEL OFF', T-tr_unaccent('dár', T),
+                      dar).
+newspaper_units_probe('AN ORDINAL IS ONE WORD WITH ITS SIGN: U+00BA after digits', T-( atom_codes('50', N0), atom_codes('º casa', P0), tr_number_written(N0, P0, NCs, _), atom_codes(T, NCs) ),
+                      '50º').
+newspaper_units_probe('... and U+00AA', T-( atom_codes('50', N0), atom_codes('ª casa', P0), tr_number_written(N0, P0, NCs, _), atom_codes(T, NCs) ),
+                      '50ª').
+newspaper_units_probe('A DASH IN THE CODES: an en dash', T-( atom_codes('a – b', Cs), ( tr_has_dash(Cs) -> T = yes ; T = no ) ),
+                      yes).
+newspaper_units_probe('... an em dash', T-( atom_codes('a — b', Cs), ( tr_has_dash(Cs) -> T = yes ; T = no ) ),
+                      yes).
+newspaper_units_probe('... and a hyphen inside a word is none', T-( atom_codes('co-op', Cs), ( tr_has_dash(Cs) -> T = yes ; T = no ) ),
+                      no).
+newspaper_units_probe('THE LAST LETTER OF A WORD IS ONE LETTER, WHATEVER ITS CODES: `café'' ends in a vowel', T-( rl_last_letter('café', L), ( rl_letter_is(L, vowel) -> T = vowel ; T = other ) ),
+                      vowel).
+newspaper_units_probe('THE FIRST LETTER OF A WORD: `énfasis'' begins with a vowel', T-( rl_first_letter('énfasis', L), ( rl_letter_is(L, vowel) -> T = vowel ; T = other ) ),
+                      vowel).
+newspaper_units_probe('A CAPITAL START: `Éxito'' has one', T-( atom_codes('Éxito', Cs), ( tr_capital_start(Cs) -> T = yes ; T = no ) ),
+                      yes).
+newspaper_units_probe('... and `éxito'' has none', T-( atom_codes('éxito', Cs), ( tr_capital_start(Cs) -> T = yes ; T = no ) ),
+                      no).
+newspaper_units_probe('THE CODES LOWERED: `ÉLAN'' is `élan''', T-( atom_codes('ÉLAN', Cs), tr_lower_codes(Cs, Ls), atom_codes(T, Ls) ),
+                      'élan').
+newspaper_units_probe('A MARK AT THE HEAD OF THE CODES: the typographic open mark', T-( atom_codes('“hola', Cs), tr_quote_mark(open, M, Cs, _), atom_codes(T, M) ),
+                      '“').
+newspaper_units_probe('... the angled open mark', T-( atom_codes('«hola', Cs), tr_quote_mark(open, M, Cs, _), atom_codes(T, M) ),
+                      '«').
+newspaper_units_probe('... and the angled close mark', T-( atom_codes('»', Cs), tr_quote_mark(close, M, Cs, _), atom_codes(T, M) ),
+                      '»').
+newspaper_units_probe('A WORD BETWEEN TYPOGRAPHIC MARKS IS MENTIONED, NOT USED: U+201C opens it and U+201D closes it', T-( reason_tokens('“gato” duerme', Ts), format(atom(T), "~w", [Ts]) ),
+                      '[quoted(gato),word(duerme,lower)]').
+newspaper_units_probe('CAPITALS COUNTED, THE ACCENTED ONES AMONG THEM', T-( atom_codes('Él Ñu y Álvaro', Cs), tr_capitals(Cs, 0, N), T = N ),
+                      '3').
+newspaper_units_probe('A SMALL LETTER, THE ACCENTED ONES AMONG THEM: none in `ÉÑ''', T-( atom_codes('ÉÑ', Cs), ( tr_has_small(Cs) -> T = yes ; T = no ) ),
+                      no).
+newspaper_units_probe('... and `ñ'' is one', T-( atom_codes('Éñ', Cs), ( tr_has_small(Cs) -> T = yes ; T = no ) ),
+                      yes).
+newspaper_units_probe('AN ELIDED WORD BEFORE A MARK KEEPS ITS APOSTROPHE, the typographic one too', T-( atom_codes('cronaca dell’', Pre), tr_pre_words(Pre, Ws), format(atom(T), "~w", [Ws]) ),
+                      '[w(cronaca,lower),w(dell'',lower)]').
+newspaper_units_probe('A NUMBER AFTER AN ELIDED WORD, the typographic apostrophe between them', T-( atom_codes('dell’11,5 milioni', Cs), tr_written_number(Cs, Pre, Num, Post), atom_codes(PA, Pre), atom_codes(PoA, Post), format(atom(T), "~w|~w|~w", [PA, Num, PoA]) ),
+                      'dell’|11,5| milioni').
+newspaper_units_probe('THE SENTENCE''S FIRST LETTER UP, PAST A TYPOGRAPHIC MARK THAT OPENS IT', T-tr_cap_head('“él duerme', T),
+                      '“Él duerme').
+newspaper_units_probe('THE FIRST LETTER UP IN THE GENERATOR OF TRAINING PAIRS (normalise.pl)', T-ng_cap('él', T),
+                      'Él').
+newspaper_units_probe('A DASH IN THE MIDDLE OF A PIECE IS ONE MARK, the code 3, wherever it stands', T-( atom_codes('dice – y calla', Cs), tr_mid_marks(Cs, Out), format(atom(T), "~w", [Out]) ),
+                      '[100,105,99,101,32,3,32,121,32,99,97,108,108,97]').
+newspaper_units_probe('... and inside a bracket, en and em dash alike', T-( atom_codes('a – b — c', Cs), tr_inside_dashes(Cs, Out), format(atom(T), "~w", [Out]) ),
+                      '[97,32,3,32,98,32,3,32,99]').
+newspaper_units_probe('AN OPENING ANGLED MARK AT THE HEAD OF A PIECE, and what is left after it', T-( atom_codes('«hola», dijo', Cs), tr_speech_mark(open, M, Cs, R), atom_codes(MA, M), atom_codes(RA, R), format(atom(T), "~w|~w", [MA, RA]) ),
+                      '«|hola», dijo').
+newspaper_units_probe('THE FIRST LETTER OF A WORD WITH A CAPITAL ACCENTED VOWEL: `Álvaro''', T-( rl_first_letter('Álvaro', L), ( rl_letter_is(L, vowel) -> T = vowel ; T = other ) ),
+                      vowel).
+newspaper_units_probe('TWO ACCENTED LETTERS ARE TWO LETTERS: the first letter of `éñe'' is `é'', a vowel, though the next code is 128 or more too', T-( rl_first_letter('éñe', L), ( rl_letter_is(L, vowel) -> T = vowel ; T = other ) ),
+                      vowel).
+newspaper_units_probe('... and the last letter of `cañé'' is `é'', not `ñé''', T-( rl_last_letter('cañé', L), ( rl_letter_is(L, vowel) -> T = vowel ; T = other ) ),
+                      vowel).
+newspaper_units_probe('AN ACCENTED LETTER THAT IS NOT A VOWEL IS A CONSONANT: the first letter of `ñu''', T-( rl_first_letter('ñu', L), ( rl_letter_is(L, consonant) -> T = consonant ; T = other ) ),
+                      consonant).
+newspaper_units_probe('THE VOCABULARY BUILDER''S TEST OF A WORD: a capital with an accent is no word of the lesson''s language', T-( newspaper_units_builder, atom_codes('Élan', Cs), ( cb_lower_codes(Cs) -> T = lower ; T = capital ) ),
+                      capital).
+newspaper_units_probe('... and a word with an accented small letter is', T-( newspaper_units_builder, atom_codes('élan', Cs), ( cb_lower_codes(Cs) -> T = lower ; T = capital ) ),
+                      lower).
+%% <<< units
 
 
 %% ---- the rules are what the translator asks ---------------------------------------------

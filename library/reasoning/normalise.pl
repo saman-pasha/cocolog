@@ -1262,6 +1262,7 @@ nb_words([T|Ts], Pos, [T|Ws]) :- nb_words(Ts, Pos, Ws).
 %% unseen because a seed has to draw such a word into the head of a lesson
 %% sentence before anything types it.
 ng_cap(W, C) :- atom_codes(W, [195, B|R]), B >= 160, B =< 190, B =\= 183, !, B1 is B - 32, atom_codes(C, [195, B1|R]).
+ng_cap(W, C) :- atom_codes(W, [C0|R]), C0 >= 224, C0 =< 254, C0 =\= 247, rt_chars, !, C1 is C0 - 32, atom_codes(C, [C1|R]).
 ng_cap(W, C) :-
     atom_codes(W, [F|R]),
     ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ),

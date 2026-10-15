@@ -497,14 +497,16 @@ rl_letter_is(L, vowel) :- rl_vowel(L).
 rl_letter_is(L, consonant) :- rl_letter(L), \+ rl_vowel(L).
 rl_last_letter(W, L) :-
     atom_codes(W, Cs), Cs \== [],
-    ( append(_, [B1, B2], Cs), B1 >= 192, B2 >= 128 -> L = [B1, B2] ; last(Cs, C), L = [C] ).
+    ( \+ rt_chars, append(_, [B1, B2], Cs), B1 >= 192, B2 >= 128 -> L = [B1, B2] ; last(Cs, C), L = [C] ).
 rl_first_letter(W, L) :-
     atom_codes(W, [C|Cs]),
-    ( C >= 192, Cs = [C2|_], C2 >= 128 -> L = [C, C2] ; L = [C] ).
+    ( \+ rt_chars, C >= 192, Cs = [C2|_], C2 >= 128 -> L = [C, C2] ; L = [C] ).
 rl_vowel([C]) :- memberchk(C, [0'a, 0'e, 0'i, 0'o, 0'u, 0'A, 0'E, 0'I, 0'O, 0'U]).
 rl_vowel([195, C]) :- memberchk(C, [161, 169, 173, 179, 186, 129, 137, 141, 147, 154]).   % á é í ó ú Á É Í Ó Ú
+rl_vowel([C]) :- memberchk(C, [225, 233, 237, 243, 250, 193, 201, 205, 211, 218]), rt_chars.   % the same, as code points
 rl_letter([C]) :- ( C >= 0'a, C =< 0'z -> true ; C >= 0'A, C =< 0'Z ).
 rl_letter([_, _]).
+rl_letter([C]) :- C >= 128, C =< 2047, rt_chars.      % a letter or a sign of the two-byte range, as one code point
 
 %% the stemmer, reason_third/2's inverse, for a program: owns -> own, and
 %% houses -> house, since a plural is made the same way
@@ -1270,6 +1272,7 @@ rt_tokens(Cs, [quoted(W)|Ts]) :-
 %% `¿Qué' is the word `qué'
 rt_tokens([194, _|Cs], Ts) :- !, rt_tokens(Cs, Ts).
 rt_tokens([226, B, _|Cs], Ts) :- ( B == 128 ; B == 129 ), !, rt_tokens(Cs, Ts).
+rt_tokens([C|Cs], Ts) :- C >= 128, rt_sign(C), !, rt_tokens(Cs, Ts).                     % the same signs, as code points
 rt_tokens([C|Cs], [num(N)|Ts]) :-
     rt_digit(C), !,
     rt_digits(Cs, More, Rest0),
@@ -1295,6 +1298,7 @@ rt_tokens([C|Cs], [word(W, Case)|Ts]) :-
 %% multiplication sign left out -- so `Él' is the word `él' capitalised
 rt_word_case([C|_], upper) :- rt_upper(C), !.
 rt_word_case([195, B|_], upper) :- rt_upper2(B), !.
+rt_word_case([C|_], upper) :- rt_upper_cp(C), rt_chars, !.
 rt_word_case(_, lower).
 rt_tokens([_|Cs], Ts) :- rt_tokens(Cs, Ts).
 
@@ -1302,8 +1306,10 @@ rt_stop(46). rt_stop(33). rt_stop(63).                          % . ! ?
 
 rt_quote_open([34|Cs], Cs).                                      % "
 rt_quote_open([226, 128, 156|Cs], Cs).                           % the typographic open quote
+rt_quote_open([8220|Cs], Cs).                                    % ... as a code point
 rt_quote_close([34|Cs], Cs).
 rt_quote_close([226, 128, 157|Cs], Cs).
+rt_quote_close([8221|Cs], Cs).
 rt_quoted(Cs, [], Rest) :- rt_quote_close(Cs, Rest), !.
 rt_quoted([], [], []).
 rt_quoted([C|Cs], [C|Ws], Rest) :- rt_quoted(Cs, Ws, Rest).
@@ -1319,8 +1325,10 @@ rt_quoted([C|Cs], [C|Ws], Rest) :- rt_quoted(Cs, Ws, Rest).
 %% lesson spells the form once.
 rt_run([39|Cs], [39], Cs) :- rt_letter_next(Cs), !.
 rt_run([226, 128, 153|Cs], [39], Cs) :- rt_letter_next(Cs), !.
+rt_run([8217|Cs], [39], Cs) :- rt_letter_next(Cs), !.                       % U+2019 as a code point
 rt_run([194, B|Cs], [], [194, B|Cs]) :- !.                              % a sign ends the word
 rt_run([226, B, C|Cs], [], [226, B, C|Cs]) :- ( B == 128 ; B == 129 ), !.
+rt_run([C|Cs], [], [C|Cs]) :- C >= 128, rt_sign(C), !.                           % a sign as a code point ends the word
 rt_run([C|Cs], [C|More], Rest) :- ( rt_alpha(C) ; rt_digit(C) ; C == 95 ), !, rt_run(Cs, More, Rest).
 rt_run(Cs, [], Cs).
 
@@ -1329,6 +1337,7 @@ rt_run(Cs, [], Cs).
 %% apostrophe would otherwise read as a letter
 rt_letter_next([194, _|_]) :- !, fail.
 rt_letter_next([226, B, _|_]) :- ( B == 128 ; B == 129 ), !, fail.
+rt_letter_next([C|_]) :- C >= 128, rt_sign(C), !, fail.
 rt_letter_next([C|_]) :- rt_alpha(C).
 
 rt_digits([C|Cs], [C|More], Rest) :- rt_digit(C), !, rt_digits(Cs, More, Rest).
@@ -1341,9 +1350,28 @@ rt_alpha(C) :- C >= 128.                                         % a byte of a U
 rt_upper(C) :- C >= 65, C =< 90.
 rt_digit(C) :- C >= 48, C =< 57.
 rt_upper2(B) :- B >= 128, B =< 158, B =\= 151.
+%% THE TEXT UNIT. By default a code list holds the UTF-8 BYTES of a text:
+%% `é' is 195 169, `¿' is 194 191, an en dash 226 128 147. A program that
+%% sets the flag text_units to characters holds CODE POINTS: 233, 191,
+%% 8211. Each clause above and in library(reasoning/translate) that names
+%% bytes has a twin that names code points. A twin on a code past 255
+%% needs no test (no byte is so big). A twin on a code of 128..255 asks
+%% rt_chars/0, and only after its numbers matched, because there the
+%% two readings meet: 195 is the lead byte of `é' and the code point of
+%% `Ã', and 226, the lead byte of a dash and of a quotation mark, is the
+%% code point of `â'.
+rt_chars :- current_prolog_flag(text_units, characters).
+%% a sign the tokeniser drops, as a code point: U+0080..U+00BF (`¿', `¡',
+%% the angled marks, the ordinal signs) and U+2000..U+207F (dashes,
+%% quotation marks, the ellipsis), the signs the byte clauses 194 and 226 drop
+rt_sign(C) :- C >= 8192, C =< 8319.
+rt_sign(C) :- C =< 191, rt_chars.
+%% a capital of U+00C0..U+00DE as a code point (the multiplication sign is no letter)
+rt_upper_cp(C) :- C >= 192, C =< 222, C =\= 215.
 rt_lower(C, L) :- ( rt_upper(C) -> L is C + 32 ; L = C ).
 rt_lowers([], []).
 rt_lowers([195, B|Cs], [195, L|Ls]) :- rt_upper2(B), !, L is B + 32, rt_lowers(Cs, Ls).
+rt_lowers([C|Cs], [L|Ls]) :- rt_upper_cp(C), rt_chars, !, L is C + 32, rt_lowers(Cs, Ls).
 rt_lowers([C|Cs], [L|Ls]) :- rt_lower(C, L), rt_lowers(Cs, Ls).
 
 %% ---- the grammar -----------------------------------------------------

@@ -695,15 +695,18 @@ tr_caps_name(X, X).
 
 tr_small_code(C, _) :- C >= 0'a, C =< 0'z, !.
 tr_small_code(195, [B|_]) :- B >= 159, B =< 191.
+tr_small_code(C, _) :- C >= 223, C =< 255, rt_chars.            % U+00DF..U+00FF as a code point
 
 tr_capitals([], N, N).
 tr_capitals([C|Cs], N0, N) :- C >= 0'A, C =< 0'Z, !, N1 is N0 + 1, tr_capitals(Cs, N1, N).
 tr_capitals([195, B|Cs], N0, N) :- B >= 128, B =< 158, B =\= 151, !, N1 is N0 + 1, tr_capitals(Cs, N1, N).
+tr_capitals([C|Cs], N0, N) :- rt_upper_cp(C), rt_chars, !, N1 is N0 + 1, tr_capitals(Cs, N1, N).
 tr_capitals([_|Cs], N0, N) :- tr_capitals(Cs, N0, N).
 
 tr_lower_codes([], []).
 tr_lower_codes([C|Cs], [L|Ls]) :- C >= 0'A, C =< 0'Z, !, L is C + 32, tr_lower_codes(Cs, Ls).
 tr_lower_codes([195, B|Cs], [195, L|Ls]) :- B >= 128, B =< 158, B =\= 151, !, L is B + 32, tr_lower_codes(Cs, Ls).
+tr_lower_codes([C|Cs], [L|Ls]) :- rt_upper_cp(C), rt_chars, !, L is C + 32, tr_lower_codes(Cs, Ls).
 tr_lower_codes([C|Cs], [C|Ls]) :- tr_lower_codes(Cs, Ls).
 
 %% A NAME MAY BEGIN WITH A SMALL WORD: `ni De la Peña', `De la Peña, en
@@ -1518,6 +1521,8 @@ tr_unaccent(W, P) :-
 tr_unaccent_codes([], []).
 tr_unaccent_codes([195, B|Cs], [V|Ps]) :- memberchk(B-V, [161-0'a, 169-0'e, 173-0'i, 179-0'o, 186-0'u]), !,
     tr_unaccent_codes(Cs, Ps).
+tr_unaccent_codes([C|Cs], [V|Ps]) :- memberchk(C-V, [225-0'a, 233-0'e, 237-0'i, 243-0'o, 250-0'u]), rt_chars, !,
+    tr_unaccent_codes(Cs, Ps).
 tr_unaccent_codes([C|Cs], [C|Ps]) :- tr_unaccent_codes(Cs, Ps).
 
 %% (atom_concat/3 has no mode that splits an atom here: sub_atom/5 does, the
@@ -1986,6 +1991,10 @@ tr_quote_mark(open, [226, 128, 156], [226, 128, 156|Rest], Rest).
 tr_quote_mark(close, [226, 128, 157], [226, 128, 157|Rest], Rest).
 tr_quote_mark(open, [194, 171], [194, 171|Rest], Rest).
 tr_quote_mark(close, [194, 187], [194, 187|Rest], Rest).
+tr_quote_mark(open, [8220], [8220|Rest], Rest).
+tr_quote_mark(close, [8221], [8221|Rest], Rest).
+tr_quote_mark(open, [171], [171|Rest], Rest) :- rt_chars.
+tr_quote_mark(close, [187], [187|Rest], Rest) :- rt_chars.
 
 %% the sentence's text with its stop, and its marks when it carries any
 tr_stop_text(P, Stop, Sentence) :-
@@ -2077,6 +2086,7 @@ tr_whole_pair(P0, [34], P1) :-
 %% en or em dash
 tr_has_dash(Cs) :- append(_, [C0, 45|Cs1], Cs), C0 =< 32, \+ ( Cs1 = [D|_], D > 32, D \== 0',, D \== 0'. ), !.
 tr_has_dash(Cs) :- append(_, [226, 128, D|_], Cs), ( D == 147 ; D == 148 ), !.
+tr_has_dash(Cs) :- ( memberchk(8211, Cs) ; memberchk(8212, Cs) ), !.        % U+2013 and U+2014 as code points
 %% an opening mark at the head of the piece, and the piece without it --
 %% a plain one only when nothing in the piece closes it, or a pair at the
 %% head (`"Hola", dijo Tom') would lose its first mark and keep its second
@@ -2120,6 +2130,8 @@ tr_mid_marks(Cs, Out) :-
     ;   Out = [2|More], tr_mid_marks(Rest, More)
     ).
 tr_mid_marks([226, 128, D|Cs], [3|More]) :- ( D == 147 ; D == 148 ), !, tr_mid_marks(Cs, More).
+tr_mid_marks([8211|Cs], [3|More]) :- !, tr_mid_marks(Cs, More).
+tr_mid_marks([8212|Cs], [3|More]) :- !, tr_mid_marks(Cs, More).
 %% (a dash has a space before it and no letter or digit after it: `"no - mi
 %% ha risposto -, a me piace ...' closes its clause with a comma straight
 %% after the dash, which read as a hyphen)
@@ -2150,6 +2162,10 @@ tr_speech_mark(open, [226, 128, 156], [226, 128, 156|Rest], Rest).
 tr_speech_mark(close, [226, 128, 157], [226, 128, 157|Rest], Rest).
 tr_speech_mark(open, [194, 171], [194, 171|Rest], Rest).
 tr_speech_mark(close, [194, 187], [194, 187|Rest], Rest).
+tr_speech_mark(open, [8220], [8220|Rest], Rest).
+tr_speech_mark(close, [8221], [8221|Rest], Rest).
+tr_speech_mark(open, [171], [171|Rest], Rest) :- rt_chars.
+tr_speech_mark(close, [187], [187|Rest], Rest) :- rt_chars.
 %% ... AND THE PLAIN ONE, WHICH OPENS AND CLOSES ALIKE, SO WHERE IT STANDS
 %% SAYS WHICH. El Periódico writes `"No es posible hacer una réplica ...
 %% sin que un experto lo note.' and, a sentence later, `son únicos ", dijo
@@ -2301,6 +2317,8 @@ tr_inside_words(Inside, Ws) :-
     ).
 tr_inside_dashes([], []).
 tr_inside_dashes([226, 128, D|Cs], [3|More]) :- ( D == 147 ; D == 148 ), !, tr_inside_dashes(Cs, More).
+tr_inside_dashes([8211|Cs], [3|More]) :- !, tr_inside_dashes(Cs, More).
+tr_inside_dashes([8212|Cs], [3|More]) :- !, tr_inside_dashes(Cs, More).
 tr_inside_dashes([C0, 45|Cs], [C0, 3|More]) :- C0 =< 32, \+ ( Cs = [D|_], ( D > 32, D \== 0',, D \== 0'. ) ), !, tr_inside_dashes(Cs, More).
 tr_inside_dashes([C|Cs], [C|More]) :- tr_inside_dashes(Cs, More).
 tr_bracket_codes([], []).
@@ -2314,7 +2332,7 @@ tr_bracket_codes([C|Cs], [C|Ds]) :- tr_bracket_codes(Cs, Ds).
 %% apostrophe, which ends a word only when a letter follows it, so the
 %% tokeniser dropped it and left `dell', a word no lesson knows
 tr_pre_words(Pre, Ws) :-
-    ( append(Pre0, [39], Pre) ; append(Pre0, [226, 128, 153], Pre) ),
+    ( append(Pre0, [39], Pre) ; append(Pre0, [226, 128, 153], Pre) ; append(Pre0, [8217], Pre) ),
     last(Pre0, C), rt_alpha(C), !,
     tr_part_words(Pre0, Ws0),
     (   append(Ws1, [w(W, WC)], Ws0)
@@ -2403,7 +2421,7 @@ tr_written_number(Codes, Pre, Num, Post) :-
 %% blank (`gli anni '60') and a digit before the apostrophe are not elisions.
 tr_written_number(Codes, Pre, Num, Post) :-
     append(Pre, [D|Rest], Codes), rt_digit(D),
-    ( append(Pre0, [39], Pre) ; append(Pre0, [226, 128, 153], Pre) ),
+    ( append(Pre0, [39], Pre) ; append(Pre0, [226, 128, 153], Pre) ; append(Pre0, [8217], Pre) ),
     last(Pre0, C), rt_alpha(C),
     tr_number_run([D|Rest], NCs, Post), !,
     atom_codes(Num, NCs).
@@ -2415,6 +2433,10 @@ tr_number_written(NCs0, [37|Post], NCs, Post) :- !, append(NCs0, [37], NCs).    
 %% is U+00BA or U+00AA, the bytes 194 186 and 194 170, after digits alone.
 tr_number_written(NCs0, [194, S|Post], NCs, Post) :-
     ( S == 186 ; S == 170 ), forall(member(D, NCs0), rt_digit(D)), !, append(NCs0, [194, S], NCs).
+tr_number_written(NCs0, [186|Post], NCs, Post) :-
+    rt_chars, forall(member(D, NCs0), rt_digit(D)), !, append(NCs0, [186], NCs).        % U+00BA as a code point
+tr_number_written(NCs0, [170|Post], NCs, Post) :-
+    rt_chars, forall(member(D, NCs0), rt_digit(D)), !, append(NCs0, [170], NCs).        % U+00AA
 tr_number_written(NCs, Post, NCs, Post) :- ( memberchk(0'-, NCs) ; memberchk(0'., NCs) ; memberchk(0',, NCs) ; memberchk(0'/, NCs) ; memberchk(0':, NCs) ), !.
 
 tr_number_run([0'-, D|Cs], [0'-, D|Ns], Post) :- rt_digit(D), !, tr_digit_run(Cs, Ns, Post).
@@ -2486,6 +2508,7 @@ tr_digit_codes(Post, [], Post).
 tr_letter_code(C) :- ( C >= 0'a, C =< 0'z ; C >= 0'A, C =< 0'Z ; C >= 128 ), !.
 tr_capital_start([C|_]) :- C >= 0'A, C =< 0'Z, !.
 tr_capital_start([195, C|_]) :- C >= 128, C =< 158.
+tr_capital_start([C|_]) :- rt_upper_cp(C), rt_chars.
 
 tr_codes(T, Cs) :- is_list(T), !, Cs = T.
 tr_codes(T, Cs) :- atom(T), !, atom_codes(T, Cs).
@@ -21252,6 +21275,7 @@ tr_cap_head(S0, S) :-
     atom_codes(S0, Cs0),
     (   Cs0 = [34|Rest] -> atom_codes(R0, Rest), tr_cap(R0, R), atom_concat('"', R, S)
     ;   Cs0 = [226, 128, 156|Rest] -> atom_codes(R0, Rest), tr_cap(R0, R), atom_concat('“', R, S)
+    ;   Cs0 = [8220|Rest] -> atom_codes(R0, Rest), tr_cap(R0, R), atom_concat('“', R, S)
     ;   tr_cap(S0, S)
     ).
 
@@ -21259,4 +21283,5 @@ tr_cap_head(S0, S) :-
 %% bytes 195 and 160..190 in UTF-8 (`él' is `Él'); the division sign is
 %% no letter
 tr_cap(W, C) :- atom_codes(W, [195, B|R]), B >= 160, B =< 190, B =\= 183, !, B1 is B - 32, atom_codes(C, [195, B1|R]).
+tr_cap(W, C) :- atom_codes(W, [C0|R]), C0 >= 224, C0 =< 254, C0 =\= 247, rt_chars, !, C1 is C0 - 32, atom_codes(C, [C1|R]).
 tr_cap(W, C) :- atom_codes(W, [F|R]), ( F >= 97, F =< 122 -> F1 is F - 32 ; F1 = F ), atom_codes(C, [F1|R]).
