@@ -19,7 +19,8 @@
 #   --dynamic-space-size on the command line is obeyed as written
 #
 # THE REAL sbcl IS LOOKED UP WITHOUT THIS DIRECTORY, AND RUN WITH IT. Unlike
-# ./clang, this shim must leave PATH as it found it: the Cicili inside the
+# ./cc and ./cxx, which take the directory off PATH before they exec the
+# compiler, this shim must leave PATH as it found it: the Cicili inside the
 # sbcl compiles by naming `gcc', and only this directory's ./gcc makes that
 # clang. A first version took the directory off PATH for the sbcl too, and
 # that build's objects said `GCC: (Ubuntu 13.3.0...)' in .comment.

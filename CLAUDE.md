@@ -121,9 +121,10 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   step, `env.sh` for each `build.sh`, `test/run.pl`): it hands the real
   sbcl 4096 MB when its default is smaller (`COCO_SBCL_HEAP=N`; a
   `--dynamic-space-size` given is obeyed). **It must not take `tools/cc`
-  off PATH** for the sbcl it runs, as `./clang` does for itself: the Cicili
-  inside compiles by naming `gcc`, and its first version built cocolog
-  with Ubuntu's gcc (the tell, `readelf -p .comment .libs/cocolog.o`).
+  off PATH** for the sbcl it runs, as the wrappers do before they exec the
+  compiler: the Cicili inside compiles by naming `gcc`, and its first
+  version built cocolog with Ubuntu's gcc (the tell, `readelf -p .comment
+  .libs/cocolog.o`).
 * **Everything is built by clang** -- the client, the interpreter, the
   embedded store, every module, ZiguratIP's libraries and server, and the
   Parsi objects the server loads -- because cocolog links ZiguratIP's C++
@@ -131,9 +132,13 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   `tools/cc/` is the answer (`tools/cc/README` the long version):
   - Cicili names `gcc` (and on Darwin `clang`) outright and takes no
     override, so the build puts `tools/cc` first on PATH, where shims hand
-    over to the real compilers (each takes itself off PATH first).
-    `tools/cc/env.sh` does it for a shell; `test/run.pl` does it for the
-    test binaries.
+    over to the two wrappers, `cc` and `cxx`, and the wrappers take
+    `tools/cc` off PATH before they exec the compiler by name
+    (`coco_path_off`). Until 2026-10-15 only the Darwin shims took it off,
+    and every compile by `gcc`, `g++` or a module's `$CC`/`$CXX` went
+    through a wrapper twice, each flag twice -- the objects byte for byte
+    the same. `tools/cc/env.sh` does it for a shell; `test/run.pl` does it
+    for the test binaries.
   - `clang++` alone borrows libstdc++ from the newest gcc it finds, which may
     have no headers (`'string' file not found`); `tools/cc/cxx` passes
     `--gcc-install-dir`.

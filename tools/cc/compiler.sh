@@ -75,3 +75,18 @@ coco_compiler() {          # coco_compiler cc|cxx -> the program to exec
   esac
   printf '%s\n' "$_coco_bare"
 }
+
+# THIS DIRECTORY COMES OFF PATH BEFORE THE COMPILER IS EXEC'D BY NAME.
+# env.sh, the Makefile's Cicili step and test/run.pl put it first, and with
+# it still there a bare `clang' is ./clang, which hands the command back to
+# ./cc: every compile by ./gcc, ./g++ or a module's "$CC" and "$CXX" went
+# through a wrapper twice and carried its flags twice (the padding flag,
+# and --gcc-install-dir on every C++ command, a link alone too) -- harmless,
+# a switch given twice is the same switch, but no compile line should need
+# that explained. ./cc and ./cxx call this first, so it holds whichever way
+# a command came in. ./sbcl alone runs its program with the directory still
+# on PATH, and must (its header says why).
+coco_path_off() {          # coco_path_off DIR -> PATH without DIR, exported
+  PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vx "$1" | paste -sd: -)
+  export PATH
+}
