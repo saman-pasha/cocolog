@@ -238,7 +238,7 @@ test/files/            Prolog programs run by BOTH swipl and cocolog, with
 tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
-                       basics/ (eleven lessons, the language itself),
+                       basics/ (twelve lessons, the language itself),
                        library/ (fifty-two: the library path, ONE PER
                        LIBRARY that ships, and the linter), tensor/
                        (forty-two networks, three processes each),
@@ -504,7 +504,7 @@ chooses the server arrangement.
 
 ## Learning it: `tutorials/`, in four categories
 
-Documentation that RUNS. **128 files**, and `cocolog -s test/tutorials.pl`
+Documentation that RUNS. **129 files**, and `cocolog -s test/tutorials.pl`
 runs every one of them as a case of the suite.
 
 ```sh
@@ -513,7 +513,7 @@ COCOLOG_LIBRARY=$PWD/library ./cocolog run tutorials/library/12-json.pl main
 ./cocolog --embed /tmp/t run tutorials/tensor/07-xor.pl train
 ```
 
-### `basics/` — eleven lessons, the language itself
+### `basics/` — twelve lessons, the language itself
 
 Nothing but the binary: no library path, no database, no build flag.
 Read them in order — each leans on the one before.
@@ -531,6 +531,7 @@ Read them in order — each leans on the one before.
 | [09-exceptions](tutorials/basics/09-exceptions.pl) | failure is not an error; `catch/3`, `throw/1`, ISO error terms |
 | [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
 | [11-the-knowledge-base](tutorials/basics/11-the-knowledge-base.pl) | **the one that is not in any other Prolog book**: the store outlives the process |
+| [12-globals-and-mutable-terms](tutorials/basics/12-globals-and-mutable-terms.pl) | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` and `nb_setarg/3` |
 
 Four of them exist because cocolog differs, and each difference is
 checked by a `must/3` in the file that teaches it: `double_quotes`
@@ -1542,7 +1543,7 @@ fitted Q-iteration reinforcement learning -- and, in 42, object detection
 on real photographs, the Penn-Fudan pedestrians, trained on a T4 with the
 boxes-to-cells assignment, the suppression and the matching written as
 clauses, its results drawn in [tutorials/tensor/](tutorials/tensor/README.md). They are the fourth
-tutorial category — `cocolog -s test/tutorials.pl` runs all 128 files,
+tutorial category — `cocolog -s test/tutorials.pl` runs all 129 files,
 the hundred and twenty-six torch processes included, green and deterministically
 in about eleven minutes on this Mac before tutorials 32 to 41 joined -- up
 from forty-five seconds before the transformer lessons did -- and those ten

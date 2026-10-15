@@ -1,4 +1,4 @@
-# Basics: the language, eleven lessons
+# Basics: the language, twelve lessons
 
 *One of four tutorial categories — this is the language, `../library/`
 is what ships, `../torch/` is the deep end.*
@@ -21,6 +21,7 @@ cocolog binary on its own runs every one of them:
 | 09-exceptions | failure is not an error; `catch/3`, `throw/1`, ISO error terms — and the four that are cocolog's: `cocolog_error/1`, an unbound context that matches anyway, cleanup by hand, a ball whose text is codes |
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
+| 12-globals-and-mutable-terms | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` (backtracking takes it back) and `nb_setarg/3` (it does not) |
 
 Read them in order — each leans on the one before, and 11 is the one
 that is not in any other Prolog book.
@@ -31,7 +32,7 @@ Each is checked by a `must/3` in the file that teaches it, so if one of
 these ever stops being true the tutorial fails and names both answers.
 
 * **`double_quotes` DEFAULTS to `codes`.** `"hi"` IS `[104,105]` in a
-  file that says nothing — and every one of these eleven says nothing.
+  file that says nothing — and every one of these twelve says nothing.
   There IS a string type, and a file gets one out of `"..."` only by
   setting the flag; 08 is the whole lesson, and the default is why
   `library(json)` needs `str/1`.
@@ -40,6 +41,9 @@ these ever stops being true the tutorial fails and names both answers.
   and makes `atom_concat(A, B, abc)` with both unbound an
   `instantiation_error` rather than three solutions (08).
 * **`2 ** 10` is `1024`, an integer** — not `1024.0` (04).
+* **`setarg/3` writes the ARGUMENT, not a variable it names.** `T = f(X),
+  setarg(1, T, z)` leaves X unbound, where SWI made X in the argument and
+  binds it; `arg/3` reads `z` in both (12).
 * **The knowledge base is a DATABASE**, and `assertz` in one process is
   visible to the next one (11). That is the claim the whole project
   exists to make, and it is four lines of Prolog to see it.
@@ -47,6 +51,6 @@ these ever stops being true the tutorial fails and names both answers.
 ## The two helpers, repeated in every file
 
 `show/2` prints; `must/3` is why these are tests. Both are at the bottom
-of all eleven files rather than in a shared one, on purpose: a tutorial
+of all twelve files rather than in a shared one, on purpose: a tutorial
 you can copy anywhere and run is worth six duplicated lines, and one
 that needs a support file beside it stops working the moment it moves.

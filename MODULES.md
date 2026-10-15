@@ -178,7 +178,11 @@ one call of it sends that call on through every module, as the walk always
 did. Without it, a first call that was declined left the functor with the
 knowledge base for good, and torch's own `tensor_execution(torch, eager,
 cpu)` raised a domain error (1.8.42–1.8.44; `test/module.cicili` holds the
-shape).
+shape). A generated dispatcher does it for a row that ends in `:declines`
+(1.12.0): that row's function takes `found` as a third argument and turns
+a goal down itself -- nb_current/2 answers a bound key in C and declines
+an unbound one, which enumerates, to a clause of the builtins module's
+Prolog half.
 
 **And a functor nobody claims is stamped as a plain predicate** (since
 1.8.55): once a call has found that no construct, no builtin and no module

@@ -34,7 +34,7 @@
 main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
-    in_registers, guards, environments(D), in_place(D), fused(D),
+    in_registers, guards, environments(D), in_place(D), fused(D), mutable(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -812,3 +812,123 @@ fused(D) :-
     W7e = '890\nERROR: -s main: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).
+
+%% ---- setarg/3, nb_setarg/3 and nb_current/2 (1.12.0) ----------------------
+%%
+%% SWI 9.0.4's answers, asked of it: the errors in its order (the index
+%% before the term, and an atom a failure but [] a type error), what
+%% backtracking takes back -- setarg/3's write, through the trail's value
+%% entry -- and what it leaves -- nb_setarg/3's, whose copy the marks are
+%% raised over -- and nb_current/2, a failure where nb_getval/2 raises, and
+%% enumerating with its key unbound. Then the same writes in a child under
+%% the collector at every 2000 cells, and under the freeze's torture.
+
+ma_try(G, R) :- catch(( G -> R = yes ; R = no ), error(E, _), R = E).
+
+mutable(D) :-
+    section('setarg/3, nb_setarg/3 and nb_current/2: SWI\'s answers, backtracking, the collector'),
+    findall(R1, ( member(G1, [setarg(a, foo, z), setarg(0, 3, z), setarg(_, 3, z), setarg(-1, 3, z),
+                              setarg(1, 1.5, z), setarg(1, [], z), setarg(1, foo, z), setarg(5, f(a), z),
+                              setarg(1.0, f(a), z), setarg(-1, _, z), setarg(0, _, z), setarg(1, _, z)]),
+                  ma_try(G1, R1) ), L1),
+    check('setarg/3 checks the index, then the term, as SWI does', L1,
+          [type_error(integer, a), no, instantiation_error, domain_error(not_less_than_zero, -1),
+           type_error(compound, 1.5), type_error(compound, []), no, no,
+           type_error(integer, 1.0), domain_error(not_less_than_zero, -1), no, instantiation_error]),
+    findall(R2, ( member(G2, [nb_setarg(a, foo, z), nb_setarg(0, 3, z), nb_setarg(1, 1.5, z),
+                              nb_setarg(1, [], z), nb_setarg(1, _, z), nb_setarg(-1, f(a), z),
+                              nb_setarg(2, f(a), z)]),
+                  ma_try(G2, R2) ), L2),
+    check('...and nb_setarg/3 the same', L2,
+          [type_error(integer, a), no, type_error(compound, 1.5), type_error(compound, []),
+           instantiation_error, domain_error(not_less_than_zero, -1), no]),
+    T3a = f(a), ( setarg(1, T3a, b), setarg(1, T3a, c), fail ; true ),
+    T3b = f(a), ( nb_setarg(1, T3b, b), fail ; true ),
+    T3c = f(a), ( nb_setarg(1, T3c, g(_)), fail ; true ),
+    check('backtracking takes back setarg/3\'s writes, newest first, and leaves nb_setarg/3\'s', [T3a, T3b], [f(a), f(b)]),
+    ( T3c = f(g(V3)), var(V3) -> R3 = yes ; R3 = T3c ),
+    check('...a copy among them, its variable fresh', R3, yes),
+    T4a = f(a), findall(x, setarg(1, T4a, h(1, 2)), _),
+    T4b = f(a), findall(x, nb_setarg(1, T4b, h(1, 2)), _),
+    T4c = f(a), \+ \+ setarg(1, T4c, k([1, 2])),
+    T4d = f(a), \+ \+ nb_setarg(1, T4d, k([1, 2])),
+    T4e = f(a), catch(( setarg(1, T4e, m(q)), throw(x) ), x, true),
+    T4f = f(a), catch(( nb_setarg(1, T4f, m(q)), throw(x) ), x, true),
+    check('...the same out of findall/3, \\+ and a throw', [T4a, T4b, T4c, T4d, T4e, T4f],
+          [f(a), f(h(1, 2)), f(a), f(k([1, 2])), f(a), f(m(q))]),
+    T5 = f(0), findall(X5, ( member(I5, [1, 2, 3]), setarg(1, T5, I5), arg(1, T5, X5) ), L5),
+    check('each solution sees its own write, and after them all none', L5-T5, [1, 2, 3]-f(0)),
+    T6 = c(0), ( between(1, 1000, I6), arg(1, T6, C6a), C6b is C6a + I6, nb_setarg(1, T6, C6b), fail ; true ),
+    S7 = state(X7), ( member(X7, [3, 1, 4, 1, 5]), arg(1, S7, M7a), M7b is max(M7a, X7), nb_setarg(1, S7, M7b), fail ; arg(1, S7, Max7) ),
+    ( var(X7) -> R7 = Max7 ; R7 = bound(X7) ),
+    check('a counter, and SWI\'s aggregate_all(max(X), ...) keeping its state while X is bound and unbound', T6-R7, c(500500)-5),
+    T8a = f(a, b), setarg(1, T8a, Q8), Q8 = 5,
+    T8b = f(a), nb_setarg(1, T8b, g(W8)), W8 = 1,
+    T8c = f(a), nb_setarg(1, T8c, B8), B8 = 1,
+    T8d = f(a), ( nb_setarg(1, T8d, B8d), B8d = 1, fail ; true ),
+    L8 = [1, 2, 3], setarg(1, L8, x),
+    ( T8b = f(g(V8b)), var(V8b), T8d = f(V8d), var(V8d) -> R8 = yes ; R8 = T8b-T8d ),
+    check('setarg/3 links its value; nb_setarg/3 copies a compound and links a variable, as SWI does', [T8a, T8c, L8, R8],
+          [f(5, b), f(1), [x, 2, 3], yes]),
+    %% NOT SWI'S, and said so in lib/solve.cicili: SWI makes X in f(X)'s
+    %% argument and answers X == z
+    T9 = f(X9), setarg(1, T9, z),
+    ( var(X9) -> R9 = unbound ; R9 = X9 ),
+    T9b = f(a), setarg(1, T9b, g(T9b)),
+    ( cyclic_term(T9b) -> R9b = cyclic ; R9b = T9b ),
+    check('the argument cell is written, not a variable it names, and a term may be made to hold itself', R9-R9b, unbound-cyclic),
+    nb_setval(ma_k1, 1), nb_setval(ma_k2, f(x)),
+    findall(R10, ( member(G10, [nb_current(ma_k1, 1), nb_current(ma_k1, 2), nb_current(ma_nope, _),
+                                nb_current(1, _), nb_current(f(x), _)]),
+                   ma_try(G10, R10) ), L10),
+    check('nb_current/2 answers a global, fails for none, and names a key that is no atom', L10,
+          [yes, no, no, type_error(atom, 1), type_error(atom, f(x))]),
+    findall(K11-V11, ( nb_current(K11, V11), memberchk(K11, [ma_k1, ma_k2]) ), L11),
+    findall(K11b, nb_current(K11b, f(x)), L11b),
+    check('...and enumerates them with its key unbound, in the order made', L11-L11b, [ma_k1-1, ma_k2-f(x)]-[ma_k2]),
+    gd_inferences(nb_current(ma_k1, _), I12a), gd_inferences(nb_getval(ma_k1, _), I12b),
+    gd_inferences(catch(nb_getval(ma_k1, _), _, true), I12c),
+    %% each count carries the call/1 and the statistics/2 that measure it
+    D12a is I12a - I12b, D12c is I12c - I12b,
+    check('a bound key is one inference, as nb_getval/2 is, where catch/3 around it is three', [D12a, D12c], [0, 2]),
+    atom_concat(D, '/setarg.pl', F13),
+    fixture(F13, [
+        'go :- T1 = c(s(0, [])), ( between(1, 20000, I), arg(1, T1, s(C0, _)), C is C0 + I, nb_setarg(1, T1, s(C, [I])), fail ; true ), writeq(T1), nl,',
+        '      T2 = f(0), between(1, 3000, J), setarg(1, T2, g(J, [J, J])), J >= 3000, !, writeq(T2), nl,',
+        '      T3 = f(a), ( setarg(1, T3, b), numlist(1, 5000, L3), length(L3, _), garbage_collect, fail ; true ), writeq(T3), nl,',
+        '      T4 = f(a), findall(x, ( nb_setarg(1, T4, g([1, 2, 3])), numlist(1, 5000, _), garbage_collect ), _), writeq(T4), nl,',
+        '      T5 = f(a), ( member(Z, [1, 2]), nb_setarg(1, T5, k(Z, [Z])), numlist(1, 3000, _), garbage_collect, Z >= 2 -> true ; true ), writeq(T5), nl,',
+        '      statistics(heap_collections, N), ( N > 0 -> writeq(collected) ; writeq(none) ), nl.'
+    ]),
+    cocolog(C13),
+    W13 = 'c(s(200010000,[20000]))\nf(g(3000,[3000,3000]))\nf(a)\nf(g([1,2,3]))\nf(k(2,[2]))\n',
+    findall(Env13-O13, ( member(Env13, ['', 'COCOLOG_GC_CELLS=2000 ', 'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ']),
+                          sh_join([Env13, C13, ' run ', F13, ' go 2>&1'], Cmd13),
+                          proc_run(Cmd13, 120000, Out13, _), atom_codes(O13, Out13) ), L13),
+    atom_concat(W13, 'collected\n', W13c),
+    check('in a child: the writes come back the same with no collection forced, under the collector at every 2000 cells, and under the freeze\'s torture', L13,
+          [''-W13c, 'COCOLOG_GC_CELLS=2000 '-W13c, 'COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 '-W13c]),
+    mutable_frozen(D).
+
+%% A FROZEN MACHINE CARRIES ITS TRAIL, value entries among them: a machine
+%% started over a store and stepped 50 inferences at a time is frozen and
+%% thawed some sixty times, the writes of each `member/2' branch on its
+%% trail at every freeze, and each is put back as the branch fails
+mutable_frozen(D) :-
+    atom_concat(D, '/frozen.pl', F14), atom_concat(D, '/frozen-kb', K14),
+    fixture(F14, [
+        'go :- T = f(a), ( member(X, [1,2,3]), setarg(1, T, g(X)), spin(200), X >= 3 -> true ; true ), arg(1, T, A), write(A), nl,',
+        '      T2 = f(a), ( member(Y, [1,2]), setarg(1, T2, h(Y)), spin(200), fail ; true ), write(T2), nl,',
+        '      T3 = f(a), ( member(Z, [1,2]), nb_setarg(1, T3, k(Z, [Z])), spin(200), fail ; true ), write(T3), nl.',
+        'spin(0) :- !.',
+        'spin(N) :- M is N - 1, spin(M).'
+    ]),
+    cocolog(C14),
+    sh_join([C14, ' --embed ', K14, ' consult ', F14, ' >/dev/null 2>&1; ',
+             C14, ' --embed ', K14, ' --steps 50 start m go >/dev/null 2>&1; i=0; ',
+             'while [ $i -lt 200 ]; do o=$(', C14, ' --embed ', K14, ' --steps 50 step m 2>&1); ',
+             'printf ''%s\\n'' "$o" | grep -v ''^m: \\|^  [0-9]*\\. ''; ',
+             'case "$o" in *finished*) echo "steps $i" >&2; break;; esac; i=$((i+1)); done'], Cmd14),
+    proc_run(Cmd14, 300000, Out14, _), atom_codes(O14, Out14),
+    check('a machine frozen and thawed at every 50 inferences puts each write back as its branch fails', O14,
+          'g(3)\nf(a)\nf(k(2,[2]))\n').

@@ -47,6 +47,8 @@ flow_mode(plus, 3, ['?', '?', '?'], semidet).
 flow_mode(functor, 3, ['+', '-', '-'], det).
 flow_mode(functor, 3, ['-', '+', '+'], det).
 flow_mode(arg, 3, ['+', '+', '?'], semidet).
+flow_mode(setarg, 3, ['+', '+', '?'], semidet).
+flow_mode(nb_setarg, 3, ['+', '+', '?'], semidet).
 flow_mode('=..', 2, ['+', '-'], det).
 flow_mode('=..', 2, ['-', '+'], det).
 flow_mode(copy_term, 2, ['+', '-'], det).
@@ -91,6 +93,8 @@ flow_mode(nb_setval, 2, ['+', '+'], det).
 flow_mode(nb_getval, 2, ['+', '-'], det).
 flow_mode(b_setval, 2, ['+', '+'], det).
 flow_mode(b_getval, 2, ['+', '-'], det).
+flow_mode(nb_current, 2, ['+', '?'], semidet).
+flow_mode(nb_current, 2, ['-', '?'], nondet).
 flow_mode(length, 2, ['+', '-'], det).
 flow_mode(length, 2, ['-', '+'], det).
 flow_mode(length, 2, ['+', '+'], semidet).
@@ -337,6 +341,10 @@ flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).
 flow_raises_unbound(arg, 3, [1], arg(_, f(a), _)).
 flow_raises_unbound(arg, 3, [2], arg(1, _, _)).
+flow_raises_unbound(setarg, 3, [1], setarg(_, f(a), b)).
+flow_raises_unbound(setarg, 3, [2], setarg(1, _, b)).
+flow_raises_unbound(nb_setarg, 3, [1], nb_setarg(_, f(a), b)).
+flow_raises_unbound(nb_setarg, 3, [2], nb_setarg(1, _, b)).
 flow_raises_unbound((=..), 2, [1, 2], _ =.. _).
 flow_raises_unbound(atomic_list_concat, 2, [1], atomic_list_concat(_, abc)).
 flow_raises_unbound(atomic_list_concat, 3, [1, 3], atomic_list_concat(_, '-', _)).

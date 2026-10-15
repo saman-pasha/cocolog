@@ -113,6 +113,13 @@
 ;;; build an INT cell from a signed value
 (DEFMACRO coco-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 3) ,(tag-value 'INT)))
 
+;;; THE TRAIL'S PAIR BIT (1.12.0): a trail word with it set is one of the
+;;; two words of a VALUE entry, `setarg/3''s -- the cell holding the old
+;;; value, then the cell it is restored into -- and not a variable to
+;;; unbind. Both words carry it, so a walk from either end knows a pair
+;;; when it meets one; no cell index reaches 2^63.
+(DEFMACRO coco-trail-pair () `(<< (cast size_t 1) 63))
+
 
 ;;;; ------------------------------------------------------------------
 ;;;; The term DSL -- Prolog terms as s-expressions, built at compile time
@@ -657,6 +664,11 @@
   ;; the heap it is restoring already holds the bindings, and what has to come
   ;; back is the record of which ones to undo.
   (decl) (func coco_trail_push ((coco_machine * m) (size_t var)) (out int))
+  ;; A VALUE ENTRY (1.12.0, `setarg/3'): cell SAVED holds what cell AT held,
+  ;; and backtracking past the entry puts it back. Two trail words, both
+  ;; with the pair bit (`coco-trail-pair'), SAVED first. 0 when the trail
+  ;; would not grow.
+  (decl) (func coco_trail_pair ((coco_machine * m) (size_t saved) (size_t at)) (out int))
   (decl) (func coco_undo_to ((coco_machine * m) (size_t mark)))
 
   ;; ---- the heap collector's host roots ----
@@ -1469,14 +1481,31 @@
         (set (nth var (-> m heap)) (coco-cell REF val))
         (coco_trail_push m var))
 
+  (func coco_trail_pair ((coco_machine * m) (size_t saved) (size_t at)) (out int)
+        (if (not (coco_grow m (cast (void **) (aof (-> m trail)))
+                          (aof (-> m trail_cap)) (+ (-> m trail_len) 2)
+                          (sizeof size_t)))
+            (return 0))
+        (set (nth (-> m trail_len) (-> m trail)) (bitor saved (coco-trail-pair)))
+        (set (nth (+ (-> m trail_len) 1) (-> m trail)) (bitor at (coco-trail-pair)))
+        (set (-> m trail_len) (+ (-> m trail_len) 2))
+        (return 1))
+
   ;;; Unbind everything trailed since MARK, newest first. A variable is unbound
   ;;; by pointing it back at itself -- the same encoding a fresh one has, so
-  ;;; there is nothing else to reset.
+  ;;; there is nothing else to reset. A value entry's two words (1.12.0) put
+  ;;; the saved cell back where it came from; a mark never falls between them.
   (func coco_undo_to ((coco_machine * m) (size_t mark))
         (while (> (-> m trail_len) mark)
           (set (-> m trail_len) (- (-> m trail_len) 1))
           (let ((size_t v . #'(nth (-> m trail_len) (-> m trail))))
-            (set (nth v (-> m heap)) (coco-cell REF v)))))
+            (if (== (bitand v (coco-trail-pair)) 0)
+                (set (nth v (-> m heap)) (coco-cell REF v))
+              (let ((size_t s . #'(bitand (nth (- (-> m trail_len) 1) (-> m trail))
+                                          (~ (coco-trail-pair)))))
+                (set (-> m trail_len) (- (-> m trail_len) 1))
+                (set (nth (bitand v (~ (coco-trail-pair))) (-> m heap))
+                     (nth s (-> m heap))))))))
 
   ;;; ---- the heap collector's host roots -------------------------------
 

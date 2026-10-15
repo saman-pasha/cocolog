@@ -691,7 +691,25 @@ cocolint index offers no import of it.
   habit (`retract(H), fail`) runs ONCE -- wrong, not slow. `once/1`,
   `ignore/1` and `\+` are control constructs. So `arg(N, f(a, b), A)` with
   `N` unbound and `char_type(C, alpha)` with `C` unbound RAISE where SWI
-  enumerates.
+  enumerates. A module row that must enumerate for some arguments ends in
+  `:declines` (1.12.0, `coco-emit-module-dispatch`): its function takes
+  `found` and turns those goals down (`coco_m_decline`) to a clause of its
+  Prolog half -- nb_current/2 with its key unbound.
+* **The trail carries VALUE ENTRIES since 1.12.0** (setarg/3): two words,
+  both with bit 63 (`coco-trail-pair`), the cell holding the old value and
+  then the cell it goes back into; `coco_undo_to` puts it back, the
+  collector marks every saved cell and keeps or drops a pair whole (by the
+  restored cell, as a binding by its variable), a freeze writes the words
+  as they are. **A new reader of the trail tells a pair from a variable.**
+  nb_setarg/3 writes past the trail and RAISES MARKS instead
+  (`coco_heap_freeze`, SWI's freezeGlobal): every choice point's and nested
+  engine's heap mark above the written cell goes to the heap's length, so
+  its copy outlives backtracking -- **a new starter of a nested engine that
+  winds the heap back reads its mark back from the engine (`pheap`)**, as
+  findall/3 does, or that copy is cut away under the cell. The argument
+  CELL is written: a body's variable lives in its environment or frame and
+  f(X)'s argument names it, so `T = f(X), setarg(1, T, z)` leaves X unbound
+  where SWI (which made X in the argument) binds it.
 * **A core builtin raises SWI's error, catchably** (1.10.6): `=..`,
   `functor/3`, `arg/3` and `is/2` name what is wrong as SWI does
   (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`), and
@@ -1706,7 +1724,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 128 files -- `basics/` 11, `library/` 52, `opencv/` 23,
+`tutorials/` holds 129 files -- `basics/` 12, `library/` 52, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a

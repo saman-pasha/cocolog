@@ -103,6 +103,8 @@
 
     ("functor"      3 coco_bi_functor)
     ("arg"          3 coco_bi_arg)
+    ("setarg"       3 coco_bi_setarg)
+    ("nb_setarg"    3 coco_bi_nb_setarg)
     ("=.."          2 coco_bi_univ)
     ("copy_term"    2 coco_bi_copy_term)
 
@@ -4348,6 +4350,17 @@
               (for ((size_t i . 0)) (and ok (< i alen)) ((++ i))
                 (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
                                       (aof nmarkers) (nth i arr))))))
+          ;; THE OLD VALUES `setarg/3' SAVED (1.12.0): a value entry's first
+          ;; word names a cell only the trail knows, put back where it came
+          ;; from if backtracking comes back past the entry
+          (for ((size_t p . 0)) (and ok (< p (-> m trail_len))) ((++ p))
+            (let ((size_t v . #'(nth p (-> m trail))))
+              (if (!= (bitand v (coco-trail-pair)) 0)
+                  (block
+                   (if (< (bitand v (~ (coco-trail-pair))) n)
+                       (set ok (coco_gc_mark m bits (aof stk) (aof slen) (aof scap) texit
+                                             (aof nmarkers) (bitand v (~ (coco-trail-pair))))))
+                   (set p (+ p 1))))))
           (if (and ok (> nmarkers 0))
               (block (set fixed (cast (u64 *) (calloc (+ nw 1) (sizeof u64))))
                      (if (== fixed nil) (set ok 0))))
@@ -4401,12 +4414,26 @@
               (while (and (< f nbar) (<= (cof (nth f tmp)) p))
                 (set (cof (nth f tmp)) kept)
                 (set f (+ f 1)))
-              (if (> f 0)
-                  (let ((size_t v . #'(nth p (-> m trail))))
-                    (if (and (< v n) (< v (cof (nth (- f 1) hmp)))
+              (let ((size_t v . #'(nth p (-> m trail))))
+                (if (== (bitand v (coco-trail-pair)) 0)
+                    (if (and (> f 0) (< v n) (< v (cof (nth (- f 1) hmp)))
                              (coco_gc_marked bits v))
                         (block (set (nth kept (-> m trail)) (coco_gc_rank bits pre v))
-                               (set kept (+ kept 1)))))))
+                               (set kept (+ kept 1))))
+                  ;; A VALUE ENTRY (1.12.0), its two words kept or dropped
+                  ;; together -- kept while the cell it restores is
+                  ;; reachable and older than the barrier, as a binding is;
+                  ;; no mark falls between them
+                  (let ((size_t s . #'(bitand v (~ (coco-trail-pair))))
+                        (size_t a . #'(bitand (nth (+ p 1) (-> m trail)) (~ (coco-trail-pair)))))
+                    (if (and (> f 0) (< a n) (< a (cof (nth (- f 1) hmp)))
+                             (coco_gc_marked bits a) (< s n) (coco_gc_marked bits s))
+                        (block (set (nth kept (-> m trail))
+                                    (bitor (coco_gc_rank bits pre s) (coco-trail-pair)))
+                               (set (nth (+ kept 1) (-> m trail))
+                                    (bitor (coco_gc_rank bits pre a) (coco-trail-pair)))
+                               (set kept (+ kept 2))))
+                    (set p (+ p 1))))))
             (while (< f nbar)
               (set (cof (nth f tmp)) kept)
               (set f (+ f 1)))
@@ -6349,6 +6376,120 @@
             (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
             (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
+
+  ;;; ---- setarg/3 and nb_setarg/3 (1.12.0) --------------------------------
+  ;;;
+  ;;; THE ARGUMENT CELL ITSELF IS WRITTEN, as SWI writes it: a variable the
+  ;;; argument only names (a reference to a cell elsewhere) stays as it was,
+  ;;; and one made in the argument IS the cell and changes with it -- which
+  ;;; is how SWI's own aggregate_all(max(X), ...) keeps its running maximum
+  ;;; in `state(X)' while X itself is bound and unbound by every solution.
+  ;;; NOT SWI'S: where a variable lives. SWI makes a body's fresh variable
+  ;;; in the first structure that holds it, so `T = f(X), setarg(1, T, z)'
+  ;;; leaves X == z there; a body here makes it in its environment or its
+  ;;; frame, and f(X)'s argument names it, so X stays unbound (functor/3's
+  ;;; and copy_term/2's variables are made in their arguments, as SWI's).
+  ;;;
+  ;;; SWI's errors in SWI's order, which is not arg/3's: the index first
+  ;;; (unbound an instantiation error, no integer a type error, below 0 a
+  ;;; domain error, 0 a failure), then the term (unbound an instantiation
+  ;;; error, an atom a failure -- it has no argument to set -- but `[]' and
+  ;;; anything else not compound type_error(compound, T)), and an index past
+  ;;; the arity a failure. Answers the cell, or 0 with RC the builtin's
+  ;;; answer (cell 0 is no argument: one follows its compound's header).
+  (static)
+  (func coco_setarg_cell ((coco_engine * e) (size_t g) (int * rc)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t it . #'(coco_a e g 0))
+              (size_t t . #'(coco_a e g 1)))
+          (set (cof rc) 0)
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (block (set (cof rc) (coco_instantiation_error e)) (return 0)))
+          (if (not (coco-tag-is INT (nth it (-> m heap))))
+              (block (set (cof rc) (coco_type_error e "integer" it)) (return 0)))
+          (let ((i64 i . #'(coco-signed-payload (nth it (-> m heap)))))
+            (if (< i 0)
+                (block (set (cof rc) (coco_domain_error e "not_less_than_zero" it)) (return 0)))
+            (if (== i 0) (return 0))
+            (if (coco-tag-is REF (nth t (-> m heap)))
+                (block (set (cof rc) (coco_instantiation_error e)) (return 0)))
+            (if (and (coco-tag-is ATOM (nth t (-> m heap)))
+                     (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
+                (return 0))
+            (if (not (coco-tag-is FUN (nth t (-> m heap))))
+                (block (set (cof rc) (coco_type_error e "compound" t)) (return 0)))
+            (if (> i (cast i64 (coco_arity m t))) (return 0))
+            (return (coco_arg m t (cast u32 (- i 1)))))))
+
+  ;;; What an argument cell holds for the value V, dereferenced: an atomic
+  ;;; value itself, as `coco_make' stores one, and a variable or a compound
+  ;;; a reference to it.
+  (static)
+  (func coco_setarg_word ((coco_machine * m) (size_t v)) (out u64)
+        (let ((u64 c . #'(nth v (-> m heap))))
+          (if (or (coco-tag-is REF c) (coco-tag-is FUN c)) (return (coco-cell REF v)))
+          (return c)))
+
+  ;;; `setarg(+N, +T, +V)': undone on backtracking. The old content of the
+  ;;; cell is kept in a cell of its own and the trail's value entry
+  ;;; (`coco_trail_pair') puts it back -- the first entry of the trail that
+  ;;; is not a binding. V is linked, not copied: a later binding of it is
+  ;;; seen in T.
+  (func coco_bi_setarg ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
+              (size_t a . #'(coco_setarg_cell e g (aof rc))))
+          (if (== a 0) (return rc))
+          (let ((u64 old . #'(nth a (-> m heap)))
+                (u64 nw . #'(coco_setarg_word m (coco_a e g 2)))
+                (size_t s . #'(-> m heap_len)))
+            (if (or (!= (coco_push m old) s) (not (coco_trail_pair m s a)))
+                (return (coco_mem_error e)))
+            (set (nth a (-> m heap)) nw)
+            (return 1))))
+
+  ;;; NOTHING BACKTRACKING DOES MAY TAKE AWAY WHAT A NON-BACKTRACKABLE WRITE
+  ;;; INTO CELL A NOW REACHES (1.12.0): nb_setarg/3's copy, made on the
+  ;;; heap's top, or a variable newer than A. Every mark a choice point, or a
+  ;;; nested engine's starter, winds the heap back to that is above A would
+  ;;; cut it away from under A while A stayed -- so each one, on every engine
+  ;;; out along the chain, is raised to the heap's length: SWI's
+  ;;; freezeGlobal(). A mark at or below A goes with A, and is left. The
+  ;;; cells under a raised mark stay until the collector finds them
+  ;;; unreachable; a binding made among them was trailed, as every binding
+  ;;; is, and is undone as before. The marks stay in the order they were
+  ;;; made in (the collector's trail pass needs that): the ones above A are
+  ;;; the newest, and all become the newest.
+  (static)
+  (func coco_heap_freeze ((coco_engine * e) (size_t a))
+        (let ((size_t h . #'($ (cof (-> e m)) heap_len))
+              (coco_engine * x . e))
+          (while (!= x nil)
+            (for ((size_t k . 0)) (< k (-> x nchoices)) ((++ k))
+              (if (> ($ (nth k (-> x choices)) heap_mark) a)
+                  (set ($ (nth k (-> x choices)) heap_mark) h)))
+            (if (and (!= (-> x outer) nil) (> (-> x pheap) a))
+                (set (-> x pheap) h))
+            (set x (cast (coco_engine *) (-> x outer))))))
+
+  ;;; `nb_setarg(+N, +T, +V)': NOT undone on backtracking, and V is COPIED
+  ;;; when it is compound, so a later binding of a variable in it is not
+  ;;; seen in T -- SWI's duplicate_term/2. An atomic V is written as it is,
+  ;;; and an unbound one LINKED, as SWI does (a later binding of it is seen
+  ;;; in T; backtracking takes that binding back, and the link stays).
+  (func coco_bi_nb_setarg ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
+              (size_t a . #'(coco_setarg_cell e g (aof rc))))
+          (if (== a 0) (return rc))
+          (let ((size_t v . #'(coco_a e g 2)))
+            ;; a copy refused its memory writes nothing into T: the run ends
+            ;; `out of memory', as every growth refused outright ends it
+            (if (coco-tag-is FUN (nth v (-> m heap)))
+                (block (set v (coco_copy m v))
+                       (if (-> m oom) (return 0))))
+            (let ((u64 nw . #'(coco_setarg_word m v)))
+              (if (and (coco-tag-is REF nw) (> v a)) (coco_heap_freeze e a))
+              (set (nth a (-> m heap)) nw)
+              (return 1)))))
 
   ;;; `=..' both ways. Taking apart is a walk; building needs the list to be
   ;;; proper, which is checked as it is walked rather than beforehand.

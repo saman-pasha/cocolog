@@ -79,6 +79,11 @@
 ;;; knows which module owns a functor (`dmod'); this is the module finding
 ;;; its own row. lib/sdk.cicili keeps the plain chain for a module built out
 ;;; of the tree.
+;;;
+;;; A ROW MAY END IN `:declines' (1.12.0): its function takes FOUND as a
+;;; third argument, and turns a goal down by its arguments itself
+;;; (`coco_m_decline', then FOUND 0) -- nb_current/2 with its key unbound,
+;;; which enumerates and so is a clause. Every other row's call is as it was.
 (DEFMACRO coco-emit-module-dispatch (fname table)
   (LET* ((rows (SYMBOL-VALUE table))
          (arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND rows)) #'<)))
@@ -99,7 +104,9 @@
                              `((== c0 ,c)
                                (cond
                                  ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
-                                                           (return (,(THIRD row) e g))))
+                                                           (return ,(IF (FOURTH row)
+                                                                        `(,(THIRD row) e g found)
+                                                                        `(,(THIRD row) e g)))))
                                            (REMOVE-IF-NOT (LAMBDA (r) (= (first-code r) c)) in-arity))
                                  (#t (set (cof found) 0) (return 0)))))
                            firsts)
