@@ -1379,6 +1379,24 @@ read into an English-worded IR and written into any lesson's language),
   `extra/` line is final**: a working store that had lines appended in
   another order showed a first meaning the fresh one did not (`de riesgo`,
   `cualquiera`).
+* **Find a translator cost with the flow profile, then bisect it** (1.11.4).
+  `cocolog -s tools/flow/debug.pl -- GOAL library/reasoning/translate.pl BASE
+  embed=STORE cache=DIR profile=true txt=true from=I to=J` over several
+  windows of a few thousand inferences spread along a run (a refusal of
+  65 million inferences, say) gives BASE.prof, and a call there is ONE
+  inference, which is its whole self cost: rank the predicates by CALLS, then
+  by their callers in BASE.txt. A window of 200 000 inferences takes minutes
+  to write. Half of the inferences were the lexicon lookup layer
+  (tr_solve/1, tr_memo/4 and what they call), and its four wastes were each a
+  few per cent: `member/2` on a LIST WALKS IT (a clause per element) where the
+  first argument is given -- tr_class_of/2 over its fourteen classes, 4 % of
+  all inferences; tr_memo/4 read the generation through a predicate and
+  compared what a unification does; the lesson's predicate name was built
+  through four calls; tr_language/1 is three inferences where the read in
+  place is one. An edit that replaces calls by an if-then-else moves nothing
+  (the construct is a step too: tr_solve/1's rewrite saved +0), and the
+  controls say so in inferences, not the clock -- ask the clock afterwards
+  (five alternating pairs, 6 % less user time).
 * **Memory**: a teach sat at 4-9 GB resident before the heap collector of
   1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
   tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run

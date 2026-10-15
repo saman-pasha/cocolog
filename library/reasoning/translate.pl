@@ -20012,7 +20012,8 @@ tr_lexeme0(foreign, W, S, plural) :- tr_solve(plural_of(W, A)), tr_solve(apocope
 %% change its lesson between two calls.
 tr_lexeme(Side, W, L, N) :-
     (   atom(W), atom(Side)
-    ->  tr_language(Lang), tr_memo(lx(Lang, Side, W), L1-N1, tr_lexeme0(Side, W, L1, N1), Sols),
+    ->  ( catch(nb_getval('$tr_language', Lang), _, fail) -> true ; Lang = none ),
+        tr_memo(lx(Lang, Side, W), L1-N1, tr_lexeme0(Side, W, L1, N1), Sols),
         member(L-N, Sols)
     ;   tr_lexeme0(Side, W, L, N)
     ).
@@ -20043,15 +20044,11 @@ tr_lexeme(Side, W, L, N) :-
 tr_memo(Key, Template, Goal, Sols) :-
     functor(Key, _, A), arg(A, Key, W),
     atom_concat('$tr_w|', W, G),
-    tr_memo_generation(Gen),
-    (   catch(nb_getval(G, g(Gen0, M1)), _, fail), Gen0 == Gen -> M0 = M1
-    ;   M0 = []
-    ),
+    (   catch(nb_getval('$tr_gen', Gen), _, fail) -> true ; Gen = 0 ),
+    (   catch(nb_getval(G, g(Gen, M0)), _, fail) -> true ; M0 = [] ),
     (   memberchk(Key-Sols0, M0) -> Sols = Sols0
     ;   findall(Template, Goal, Sols00), tr_distinct(Sols00, Sols0),
-        (   catch(nb_getval(G, g(Gen1, M2)), _, fail), Gen1 == Gen -> M3 = M2
-        ;   M3 = []
-        ),
+        (   catch(nb_getval(G, g(Gen, M2)), _, fail) -> M3 = M2 ; M3 = [] ),
         nb_setval(G, g(Gen, [Key-Sols0|M3])),
         Sols = Sols0
     ).
@@ -20243,7 +20240,8 @@ tr_known_word(foreign, W) :- atom(W), atom_codes(W, Cs), memberchk(0' , Cs), tr_
 %% sentence of thirty-five words before it was
 tr_form(W, L, N, T, P) :-
     (   atom(W)
-    ->  tr_language(Lang), tr_memo(fm(Lang, W), f(L1, N1, T1, P1), tr_form0(W, L1, N1, T1, P1), Sols),
+    ->  ( catch(nb_getval('$tr_language', Lang), _, fail) -> true ; Lang = none ),
+        tr_memo(fm(Lang, W), f(L1, N1, T1, P1), tr_form0(W, L1, N1, T1, P1), Sols),
         member(f(L, N, T, P), Sols)
     ;   tr_form0(W, L, N, T, P)
     ).
@@ -20602,7 +20600,7 @@ tr_meaning(english, E, W) :- tr_solve(mean(W, E)).
 %% 47 806 times over the thirty-five words of one sentence before it was kept
 tr_is(Side, X, Class) :-
     (   X = w(W, _), atom(W), atom(Side)
-    ->  tr_language(Lang),
+    ->  ( catch(nb_getval('$tr_language', Lang), _, fail) -> true ; Lang = none ),
         (   atom(Class) -> tr_memo(is(Lang, Side, Class, W), x, tr_is0(Side, w(W, lower), Class), [_|_])
         ;   var(Class) -> tr_memo(is1(Lang, Side, W), C1, tr_is0(Side, w(W, lower), C1), [Class])
         ;   tr_is0(Side, X, Class)
@@ -20679,8 +20677,12 @@ tr_class(_, W, noun) :- tr_percent(W), !.
 tr_class(foreign, W, C) :- tr_class_of(W, C).
 tr_class(english, E, C) :- tr_solve(mean(W, E)), tr_class_of(W, C).
 tr_class_of(W, C) :-
-    member(C, [article, possessive, verb, noun, adjective, pronoun, preposition, adverb, number, conjunction, auxiliary,
-               modal, demonstrative, determiner]),
+    (   atom(C)
+    ->  memberchk(C, [article, possessive, verb, noun, adjective, pronoun, preposition, adverb, number, conjunction,
+                      auxiliary, modal, demonstrative, determiner])
+    ;   member(C, [article, possessive, verb, noun, adjective, pronoun, preposition, adverb, number, conjunction,
+                   auxiliary, modal, demonstrative, determiner])
+    ),
     G =.. [C, W], tr_solve(G).
 
 %% a subject pronoun, with its person and number: English's own, or the
@@ -20765,8 +20767,8 @@ tr_lesson(_, number(W)) :- atom(W), tr_digits(W), !.
 %% would shut out the rules below: `precede' has facts AND `Every pronoun
 %% precedes the verb', and behind a cut `no lo vio' came out `no vio lo'.
 tr_lesson(L, G) :-
-    tr_namespaced(L, G, F), functor(F, N, A),
-    ( lesson_predicate(N, L, A) -> tr_solve_plain(F) ).
+    functor(G, Name, A), atomic_list_concat([L, ':', Name], N),
+    (   lesson_predicate(N, L, A) -> G =.. [_|Args], F =.. [N|Args], tr_solve_plain(F) ).
 tr_lesson(L, G) :- tr_solve_plain(lesson(L, (G :- B))), tr_body(L, B).
 
 tr_body(L, (A, B)) :- !, tr_body(L, A), tr_body(L, B).
