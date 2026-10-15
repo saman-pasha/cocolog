@@ -24,7 +24,10 @@
 %% * `atomic_list_concat/2,3' had an 8 KB output buffer and FAILED, with no
 %%   error term at all, once the join outran it -- and its error path read
 %%   the culprit out of an array it had already freed, so an unbound
-%%   element named the wrong term or crashed outright.
+%%   element named the wrong term or crashed outright. `atom_chars/2' and
+%%   `number_chars/2' did the same, joining a list, until 1.11.8: an element
+%%   that was not one character took the process down, and a list of 4096
+%%   characters or more failed.
 %%
 %% * A CLAUSE TOO LONG FOR A ROW took every other clause of the transaction
 %%   with it. Zigurat fits a row in one page and throws `allocation
@@ -54,6 +57,7 @@ main :-
     all_solutions_throw,
     unbound_goal,
     join_and_split,
+    chars_to_text,
     clause_too_long,
     globals_belong_to_a_store,
     with_output_to_fails,
@@ -294,6 +298,77 @@ join_and_split :-
     check('an unbound output still joins, and still raises', G13, instantiation_error).
 
 long_atom(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
+
+%% ---- a list of characters into text (1.11.8) ------------------------------
+%%
+%% atom_chars/2 and number_chars/2, joining a list, freed the array of its
+%% elements and then read the one that was no character out of it to name
+%% in the error -- the bug of atomic_list_concat/2,3 above, a second time,
+%% and ITS fix did not reach these two. Reported by the
+%% reasoning session: `atom_chars(X, [d,'á',r])' took the process down
+%% (SIGSEGV, exit status 139), and so did any element that is not ONE
+%% CHARACTER, which here is one byte (`á' is two in UTF-8; SWI, whose
+%% characters are letters, answers 'dár') -- where it stood first or second,
+%% as glibc writes its free list over a freed block's first sixteen bytes.
+%% Each such goal runs in a child, so a crash is a red check and not the end
+%% of this case. AND THE TEXT GROWS: through 1.11.7 it went through 4096
+%% bytes, and a longer list FAILED with no error, a longer atom's chars an
+%% instantiation error.
+chars_to_text :-
+    section('atom_chars/2 and number_chars/2 name the element that is no character'),
+    chars_child('atom_chars(_, [d,\'á\',r])', T1),
+    check('a letter of two bytes is no character: SWI\'s error, and no crash', T1,
+          'type_error(character,\'á\')'-0),
+    chars_child('atom_chars(_, [\'á\'])', T2),
+    check('and the first element is named as surely as the second', T2,
+          'type_error(character,\'á\')'-0),
+    chars_child('atom_chars(_, [d,ab,r])', T3),
+    check('an atom of two characters is no character', T3, 'type_error(character,ab)'-0),
+    chars_child('atom_chars(_, [d,1,r])', T4),
+    check('nor is a number', T4, 'type_error(character,1)'-0),
+    chars_child('atom_chars(_, [d,_,r])', T5),
+    check('an unbound element is SWI\'s instantiation_error', T5, instantiation_error-0),
+    chars_child('number_chars(_, [\'1\',\'á\'])', T6),
+    check('number_chars/2 reads its list the same way: the letter', T6,
+          'type_error(character,\'á\')'-0),
+    chars_child('number_chars(_, [\'1\',23])', T7),
+    check('the number', T7, 'type_error(character,23)'-0),
+    chars_child('number_chars(_, [\'1\',_])', T8),
+    check('and the unbound element', T8, instantiation_error-0),
+
+    %% past the old buffer of 4096, both ways
+    length(L9, 5000), maplist(=(x), L9),
+    answer((atom_chars(A9, L9), atom_length(A9, N9)), N9, G9),
+    check('a list of 5000 characters joins to an atom of 5000', G9, 5000),
+    long_atom(5000, A10),
+    answer((atom_chars(A10, L10), length(L10, N10)), N10, G10),
+    check('and an atom of 5000 splits into 5000 characters', G10, 5000),
+    length(Z11, 4998), maplist(=('0'), Z11), append(Z11, ['4','2'], L11),
+    answer(number_chars(N11, L11), N11, G11),
+    check('a number of 5000 characters is read', G11, 42),
+
+    %% the cases the fix must not have moved
+    answer(atom_chars(A12, [a,b,c]), A12, G12),
+    check('three characters still join', G12, abc),
+    answer(atom_chars(abc, L13), L13, G13),
+    check('an atom still splits', G13, [a,b,c]),
+    answer(atom_chars(A14, []), A14, G14),
+    check('the empty list is the empty atom', G14, ''),
+    answer(atom_chars(123, L15), L15, G15),
+    check('a number\'s text splits too', G15, ['1','2','3']),
+    answer((atom_chars('dár', L16), atom_chars(A16, L16)), A16, G16),
+    check('a word with a letter of two bytes splits and joins back as itself', G16, 'dár'),
+    answer(number_chars(N17, ['4','2']), N17, G17),
+    check('number_chars/2 still reads a number', G17, 42).
+
+%% GOAL, written, in a child under catch/3: the error it raised, as writeq/1
+%% writes it on the child's first line, and the child's exit status -- 139
+%% was the crash
+chars_child(Goal, Line-Exit) :-
+    atomic_list_concat(['--local query "catch((', Goal,
+                        '), error(E, _), true), writeq(E), nl" 2>&1'], Args),
+    cocolog_run(Args, Text, Exit),
+    (   sub_atom(Text, B, _, _, '\n') -> sub_atom(Text, 0, B, _, Line) ; Line = Text ).
 
 %% ---- a clause too long for a row ----------------------------------------
 %%

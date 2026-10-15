@@ -848,6 +848,11 @@ cocolint index offers no import of it.
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and
   `sub_string/5` are clauses** walking every position -- use
   `atom_concat/3`, `memberchk/2`, `split_string/4` in a hot path.
+  **A character is a byte**: `atom_chars('dár', L)` is four one-byte atoms
+  that join back to `'dár'`, and `atom_chars(X, [d,'á',r])` raises
+  `type_error(character, 'á')` where SWI answers `'dár'` -- join text with
+  `atom_concat/3` or `atomic_list_concat/2` (through 1.11.7 that goal
+  crashed the process).
 * **A call is keyed on whichever bound argument chooses** (since 1.9.1):
   the first argument's table as always, and for a predicate the first
   argument will not do for (`coco_pred_first_enough`: at or over the floor

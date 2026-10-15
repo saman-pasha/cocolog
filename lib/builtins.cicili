@@ -486,6 +486,7 @@
                                            (size_t ** v) (size_t * n) (size_t * cap)) (out int))
   (static) (decl) (func coco_b_atom_to_number ((coco_engine * e) (const char * text)
                                              (size_t to)) (out int))
+  (static) (decl) (func coco_b_text_dup ((coco_engine * e) (size_t t)) (out char *))
   (static) (decl) (func coco_b_sort_terms ((coco_machine * m) (size_t * v) (size_t n)))
   (static) (decl) (func coco_b_case ((coco_engine * e) (size_t g) (int up)) (out int))
   (static) (decl) (func coco_b_typename ((int type)) (out const char *))
@@ -1235,36 +1236,75 @@
 
   ;;; ---- atoms ------------------------------------------------------------
 
+  ;;; A LIST OF ONE-CHARACTER ATOMS AS TEXT, on the end of B -- atom_chars/2
+  ;;; and number_chars/2 read the other way. Answers 1, or 0 with RC the
+  ;;; builtin's answer: SWI's error, a partial list or an unbound element
+  ;;; instantiation_error, a list that is its own tail type_error(list, L),
+  ;;; any other element type_error(character, E). A character is a byte
+  ;;; here, so a letter of two bytes in UTF-8, `á', is no character (SWI's
+  ;;; are letters), and an improper list, `[d|r]', is an instantiation
+  ;;; error where SWI says type_error(list, L).
+  ;;;
+  ;;; THE CULPRIT IS NAMED BEFORE THE ARRAY IS FREED (1.11.8). Each builtin
+  ;;; freed the array and then read the element out of it for its error:
+  ;;; an element that was not one character -- `á', `ab', a number, a
+  ;;; variable -- took the process down (SIGSEGV, exit status 139) where it
+  ;;; stood first or second, whose sixteen bytes glibc writes its free list
+  ;;; over, and further on named a stale index that still held it. The bug
+  ;;; `$atom_join' records fixing below. The element is a heap index, kept
+  ;;; in BAD before the free. AND THE TEXT GROWS: it was a `char[4096]', and
+  ;;; a list of 4096 characters or more FAILED, with no error.
+  (static)
+  (func coco_b_chars_text ((coco_engine * e) (size_t l) (coco_strbuf * b) (int * rc)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * v . nil) (size_t n . 0) (size_t bad . 0) (int why . 0))
+          (if (not (coco_m_list_array e l (aof v) (aof n)))
+              (block
+               ;; a list that is its own tail is no list (1.10.19)
+               (if (coco_list_cyclic m l)
+                   (set (cof rc) (coco_m_type_error e "list" l))
+                   (set (cof rc) (coco_m_instantiation_error e)))
+               (return 0)))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((const char * c . #'(coco_m_atom e (nth i v))))
+              (cond
+                ((coco_m_is_var e (nth i v)) (block (set why 1) break))
+                ((or (== c nil) (!= 1 (strlen c))) (block (set why 2) (set bad (nth i v)) break))
+                ((not (coco_sb_putc b (nth 0 c))) (block (set why 3) break)))))
+          (free v)
+          (cond
+            ((== why 1) (set (cof rc) (coco_m_instantiation_error e)))
+            ((== why 2) (set (cof rc) (coco_m_type_error e "character" bad)))
+            ((== why 3) (set (cof rc) (coco_m_resource_error e "memory"))))
+          (return (== why 0))))
+
   ;;; A character is a ONE-CHARACTER ATOM in Prolog, not a code. `atom_chars'
   ;;; and `atom_codes' differ in exactly that.
   (func coco_b_atom_chars ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e)) (char buf [4096]))
-          (if (coco_m_text e (coco_m_arg e g 0) buf (sizeof buf))
-              (let ((size_t lst . #'(coco_m_nil e)) (size_t len . #'(strlen buf)))
-                (for ((size_t i . len)) (> i 0) ((-- i))
-                  (let ((char one [2]))
-                    (set (nth 0 one) (nth (- i 1) buf))
-                    (set (nth 1 one) (cast char 0))
-                    (set lst (coco_cons m (coco_new_atom m one) lst))))
-                (return (coco_m_unify e (coco_m_arg e g 1) lst))))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t a . #'(coco_m_arg e g 0)))
+          ;; the text of any length, an atom a byte: through 1.11.7 it went
+          ;; through 4096 bytes, and a longer atom was taken for no text at
+          ;; all -- an instantiation error from the list's side
+          (if (not (coco_m_is_var e a))
+              (let ((char * buf . #'(coco_b_text_dup e a)))
+                (if (!= buf nil)
+                    (let ((size_t lst . #'(coco_m_nil e)))
+                      (for ((size_t i . #'(strlen buf))) (> i 0) ((-- i))
+                        (let ((char one [2]))
+                          (set (nth 0 one) (nth (- i 1) buf))
+                          (set (nth 1 one) (cast char 0))
+                          (set lst (coco_cons m (coco_new_atom m one) lst))))
+                      (free buf)
+                      (return (coco_m_unify e (coco_m_arg e g 1) lst))))))
           ;; the other way: a list of one-character atoms into an atom
-          (let ((size_t * v . nil) (size_t n . 0) (char out [4096]))
-            (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
-                (block
-                 ;; a list that is its own tail is no list (1.10.19)
-                 (if (coco_list_cyclic m (coco_m_arg e g 1))
-                     (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
-                 (return (coco_m_instantiation_error e))))
-            (if (>= n (sizeof out)) (block (free v) (return 0)))
-            (for ((size_t i . 0)) (< i n) ((++ i))
-              (let ((const char * c . #'(coco_m_atom e (coco_deref m (nth i v)))))
-                (if (or (== c nil) (!= 1 (strlen c)))
-                    (block (free v) (return (coco_m_type_error e "character"
-                                                             (nth i v)))))
-                (set (nth i out) (nth 0 c))))
-            (set (nth n out) (cast char 0))
-            (free v)
-            (return (coco_m_unify_atom e (coco_m_arg e g 0) out)))))
+          (let ((coco_strbuf b) (int rc . 0))
+            (coco_sb_init (aof b))
+            (if (not (coco_b_chars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
+                (block (coco_sb_free (aof b)) (return rc)))
+            (set rc (coco_m_unify_atom e (coco_m_arg e g 0) (? (== ($ b s) nil) "" ($ b s))))
+            (coco_sb_free (aof b))
+            (return rc))))
 
   (func coco_b_char_code ((coco_engine * e) (size_t g)) (out int)
         (let ((const char * c . #'(coco_m_atom e (coco_m_arg e g 0))) (i64 code . 0))
@@ -1281,8 +1321,7 @@
 
   ;;; Like atom_chars but the atom has to read back as a number.
   (func coco_b_number_chars ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0) (char buf [4096]))
+        (let ((coco_machine * m . #'(coco_m_machine e)) (char buf [4096]))
           ;; number -> chars
           (let ((i64 iv . 0) (double d . 0.0))
             (if (or (coco_m_int e (coco_m_arg e g 0) (aof iv))
@@ -1298,22 +1337,14 @@
                       (set (nth 1 one) (cast char 0))
                       (set lst (coco_cons m (coco_new_atom m one) lst))))
                   (return (coco_m_unify e (coco_m_arg e g 1) lst)))))
-          ;; chars -> number
-          (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
-              (block
-               ;; a list that is its own tail is no list (1.10.19)
-               (if (coco_list_cyclic m (coco_m_arg e g 1))
-                   (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
-               (return (coco_m_instantiation_error e))))
-          (if (>= n (sizeof buf)) (block (free v) (return 0)))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((const char * c . #'(coco_m_atom e (coco_deref m (nth i v)))))
-              (if (or (== c nil) (!= 1 (strlen c)))
-                  (block (free v) (return (coco_m_type_error e "character" (nth i v)))))
-              (set (nth i buf) (nth 0 c))))
-          (set (nth n buf) (cast char 0))
-          (free v)
-          (return (coco_b_atom_to_number e buf (coco_m_arg e g 0)))))
+          ;; chars -> number (the list read as atom_chars/2 reads it)
+          (let ((coco_strbuf b) (int rc . 0))
+            (coco_sb_init (aof b))
+            (if (not (coco_b_chars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
+                (block (coco_sb_free (aof b)) (return rc)))
+            (set rc (coco_b_atom_to_number e (? (== ($ b s) nil) "" ($ b s)) (coco_m_arg e g 0)))
+            (coco_sb_free (aof b))
+            (return rc))))
 
   ;;; Reads TEXT as a Prolog term and insists it is a number. Going through the
   ;;; reader rather than `strtod' is what makes `0xff' and `0'a' work here
