@@ -1529,6 +1529,37 @@ read into an English-worded IR and written into any lesson's language),
   `extra/` line is final**: a working store that had lines appended in
   another order showed a first meaning the fresh one did not (`de riesgo`,
   `cualquiera`).
+* **The reasoning libraries read both text units** (1.13.2; bytes are the
+  default through 1.x, characters when a program sets `text_units`). Every
+  clause that names an accent or a mark by its UTF-8 BYTES (`[195, B]`,
+  `[226, 128, 156]`, `[194, 171]`) has a TWIN that names the CODE POINT
+  (`rt_upper_cp/1`, `[8220]`, `[171]`) in reason.pl (the tokeniser,
+  `rt_tokens/2`, `rt_run/3`, `rt_letter_next/1`, `rt_word_case/2`,
+  `rt_lowers/2`, `rl_vowel/1`, `rl_letter/1`), translate.pl (`tr_cap/2`,
+  `tr_cap_head/2`, `tr_lower_codes/2`, `tr_capitals/3`, `tr_capital_start/1`,
+  `tr_small_code/2`, `tr_unaccent_codes/2`, `tr_quote_mark/4`,
+  `tr_speech_mark/4`, `tr_has_dash/1`, `tr_mid_marks/2`, `tr_inside_dashes/2`,
+  `tr_pre_words/2`, `tr_written_number/4`, `tr_number_written/4`),
+  normalise.pl (`ng_cap/2`) and corpus/build.pl (`cb_lower_codes/1`). **A twin
+  on a code past 255 needs no test** (no byte is so big); **a twin on a code
+  of 128..255 asks `rt_chars/0` AFTER its numbers matched**, because there the
+  readings meet: 195 is the lead byte of `é` and the code point of `Ã`, and
+  226, the lead byte of every dash and quotation mark, the code point of `â`.
+  Where a clause can be written with a constant head, the twin is one (no
+  inference is spent in bytes). **A new clause that names an accent or a mark
+  by a number gets its twin in the same edit**, and a probe in
+  test/translate.pl's `newspaper_units` (two children, one per unit; 49
+  probes, an arm per rule, 25 of them, each red). The controls on ONE binary
+  (1.13.0, KB86, 87 files, 2016 sentences): the translator as it was changed
+  208 sentences under characters (188 refused, 20 other texts, +20.7 % of the
+  inferences); the one with the twins changes none in either unit, +0.052 % of
+  the inferences in bytes and +0.026 % in characters. NOT migrated, and the
+  controls found no difference: `atom_length/2` and `sub_atom/5` over an
+  accented word count characters in one unit and bytes in the other (the
+  thresholds on a stem's length in the clitic rules), and
+  `upcase_atom/2`/`downcase_atom/2` change an accented capital in characters
+  only (`tr_city_name/1`, `tr_abbreviation_end/1`). At 2.0.0, when characters
+  is the default, the byte clauses and the tests of `rt_chars/0` go.
 * **Find a translator cost with the flow profile, then bisect it** (1.11.4).
   `cocolog -s tools/flow/debug.pl -- GOAL library/reasoning/translate.pl BASE
   embed=STORE cache=DIR profile=true txt=true from=I to=J` over several
@@ -1802,7 +1833,9 @@ read into an English-worded IR and written into any lesson's language),
   `¿Cosa debe otro decir?` it was had `otro` for a subject, and a question
   word with `altro` is a shape of its own (`qué más`); English refuses eight
   (4, 5, 7, 10, 11, 12, 27, 32), most for the third person nobody names,
-  which it refuses on purpose.
+  which it refuses on purpose. The angled marks come back mixed, an opening `«`
+  and a closing `”` (`«Il cane dorme”, dice il gatto.`), in bytes and in
+  characters alike (the cause is not looked for).
 
 ## Tutorials are documentation that runs
 

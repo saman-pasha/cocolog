@@ -439,6 +439,7 @@ cb_foreign_word(W) :-
 cb_lower_codes([]).
 cb_lower_codes([C|Cs]) :- C >= 0'a, C =< 0'z, !, cb_lower_codes(Cs).
 cb_lower_codes([195, C|Cs]) :- !, ( C >= 128, C =< 158 -> fail ; true ), cb_lower_codes(Cs).
+cb_lower_codes([C|Cs]) :- C >= 192, C =< 222, current_prolog_flag(text_units, characters), !, fail.    % a capital, as a code point
 cb_lower_codes([C|Cs]) :- C >= 128, !, cb_lower_codes(Cs).
 
 %% ---- the order, so the first meaning is the canonical one ------------------------
