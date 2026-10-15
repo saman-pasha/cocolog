@@ -517,7 +517,7 @@
     (member u32         aarity)
     (member int         acur)
 
-    (member char        err [192])
+    (member char        err [512])
 
     ;; COLLECTED INSIDE A NESTED ENGINE (1.9.4). OUTER is the engine whose
     ;; builtin started this one (`coco_engine_next' links it; a
@@ -1329,7 +1329,7 @@
 
   (static)
   (func coco_fail_err ((coco_engine * e) (const char * what)) (out int)
-        (snprintf (-> e err) 192 "%s" what)
+        (snprintf (-> e err) 512 "%s" what)
         (return -1))
 
   ;;; ---- errors a program can catch ---------------------------------------
@@ -1829,7 +1829,7 @@
               (return (? (== 1 (coco_throw e (coco_deref m (coco_arg m o 0)))) 2 -1)))
           (if (and (== (coco_arity m o) 1) (== 0 (strcmp k "error")))
               (let ((size_t w . #'(coco_deref m (coco_arg m o 0))))
-                (snprintf (-> e err) 192 "%s"
+                (snprintf (-> e err) 512 "%s"
                           (? (coco_is_callable m w) (coco_atom_name m (coco_name_of m w)) "error"))
                 (return -1)))
           (return (coco_fail_err e "a journal entry's outcome is not one"))))
@@ -3730,7 +3730,7 @@
           (let ((coco_strbuf b))
             (coco_sb_init (aof b))
             (coco_write_term m (aof b) (coco_store_read m st cell) 1 0)
-            (snprintf (-> e err) 192 "uncaught exception: %s"
+            (snprintf (-> e err) 512 "uncaught exception: %s"
                       (? (== ($ b s) nil) "?" ($ b s)))
             (coco_sb_free (aof b)))
           (return -1)))
@@ -4633,7 +4633,7 @@
           (while 1
             (set rc (coco_engine_next (aof sub)))
             (if (== rc -1)
-                (block (snprintf (-> e err) 192 "%s" ($ sub err))
+                (block (snprintf (-> e err) 512 "%s" ($ sub err))
                        ;; AND THE BALL WITH IT. The sub-engine's cell is in
                        ;; the store, which both engines share, so the outer
                        ;; one can name what was thrown -- without this a
@@ -4783,7 +4783,7 @@
                    (if ($ sub has_ball)
                        (block (set threw 1) (set cell ($ sub ball_cell))
                               (set bsize ($ sub ball_size))))
-                   (snprintf (-> e err) 192 "%s" ($ sub err))
+                   (snprintf (-> e err) 512 "%s" ($ sub err))
                    (set out -1))))
             (coco_engine_free (aof sub))
             ;; BINDINGS SURVIVE ONLY A SUCCESS, and on success the heap is NOT
@@ -4900,7 +4900,7 @@
                          (set cell ($ sub ball_cell))
                          (set bsize ($ sub ball_size))
                          (set out 3))
-                  (block (snprintf (-> e err) 192 "%s" ($ sub err))
+                  (block (snprintf (-> e err) 512 "%s" ($ sub err))
                          (set out -1)))
               break)
             (coco_gc_nested_end m gsaved))
@@ -4931,7 +4931,7 @@
   (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int)
         (let ((size_t g))
           (if (not (coco_read_term_from (-> e m) text (aof g)))
-              (block (snprintf (-> e err) 192 "could not read the goal") (return 0)))
+              (block (snprintf (-> e err) 512 "could not read the goal") (return 0)))
           (coco_engine_ask e g)
           (return 1)))
 
@@ -5326,8 +5326,16 @@
                 (set (-> m dgc) (? (-> e gc) 1 0))
                 (set lok (coco_extern_load st m e))
                 (set (-> m dgc) 0)
+                ;; and why, where the consult said (1.11.9): a file that a
+                ;; directive's `use_module' named is consulted here, at the
+                ;; first goal, and its syntax error is this run's to report
                 (if (not lok)
-                    (return (coco_fail_err e "a module's clauses would not load")))))
+                    (block
+                     (if (!= (nth 0 (-> st load_err)) (cast char 0))
+                         (snprintf (-> e err) 512 "a module's clauses would not load: %s"
+                                   (-> st load_err))
+                       (snprintf (-> e err) 512 "a module's clauses would not load"))
+                     (return -1)))))
 
           ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
           ;; `coco_engine_ask' for the same reason the hook above is: a

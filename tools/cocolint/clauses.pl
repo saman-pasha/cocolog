@@ -31,10 +31,10 @@
 %% nested argument lists. Anything past the head is left as codes.
 %%
 %% HONEST LIMITS. It reads BYTES, not characters: an offset is a byte offset,
-%% because that is the only thing the interpreter ever reports (`syntax error
-%% at offset %lu', lib/syntax.cicili:589) and a column that did not match it
-%% would be worse than none. A file of UTF-8 above ASCII therefore gets byte
-%% columns, which is what cocolog's own error messages give.
+%% and a column a byte column, as cocolog's own messages give them -- a load
+%% says `FILE:LINE:COL: Syntax error: ...' since 1.11.9, its column counted
+%% in bytes as swipl's is (through 1.11.8 only `syntax error at offset N').
+%% The interpreter counts the column from 0, SWI's way; this linter from 1.
 
 %% ======================================================================
 %% ---- the grammar: clauses and lexical regions, one walk --------------
@@ -282,9 +282,9 @@ cc_scan_spans([cl(O, L)|Cs], [lc(Line, Col)|LCs], [at(O, Line, Col, L)|Ss]) :-
 
 %% cc_line_col(+Codes, +Offset, -Line, -Col)
 %%
-%% THE INTERPRETER ONLY EVER REPORTS A BYTE OFFSET -- `syntax error at
-%% offset %lu' -- and there are no line numbers anywhere in the pipeline.
-%% Every finding converts here so a human gets file:line:col.
+%% Every finding converts here so a human gets file:line:col. (The
+%% interpreter reported only a byte offset through 1.11.8 -- `syntax error at
+%% offset %lu' -- and places a load's syntax error itself since 1.11.9.)
 cc_line_col(Codes, Offset, Line, Col) :-
     cc_line_walk(Codes, 0, 1, -1, [Offset], [lc(Line, Col)]).
 

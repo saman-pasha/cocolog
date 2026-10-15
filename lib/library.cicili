@@ -383,7 +383,10 @@
                     (not (coco_module_register nm nil text nil)))
                 (block (free text)
                        (snprintf err errlen "cannot register %s" path)
-                       (return 0))))
+                       (return 0)))
+            ;; the file it came from, which its load names (1.11.9): the
+            ;; registry keeps the copy, as it keeps the name and the text
+            (coco_module_set_file nm (strdup path)))
           (return 1)))
 
   ;;; ---- lending the operators -------------------------------------------
@@ -510,9 +513,15 @@
           ;; the freshly registered clauses, into THIS store now when an
           ;; engine is running the goal; a directive leaves them for the
           ;; ask-time load
+          ;; WHY, AND WHERE (1.11.9): the consult's own words -- the file
+          ;; that would not consult, which may be one this one loads, its
+          ;; line and column, and the reason. Through 1.11.8 it was this
+          ;; file's name and `its clauses would not consult', nothing more.
           (if (!= e nil)
               (if (not (coco_module_load st m e))
-                  (block (snprintf err errlen "%s: its clauses would not consult" path)
+                  (block (if (!= (nth 0 (-> st load_err)) (cast char 0))
+                             (snprintf err errlen "%s" (-> st load_err))
+                           (snprintf err errlen "%s: its clauses would not consult" path))
                          (return 0))))
           (return 1)))
 

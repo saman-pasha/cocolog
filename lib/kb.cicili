@@ -928,6 +928,12 @@
     ;; the consult loop -- read it and say so in their own shapes.
     (member char      assert_err [256])
 
+    ;; Why the last module load would not consult, as the consult said it
+    ;; -- FILE:LINE:COL and the reason -- or empty (1.11.9). The load runs
+    ;; under `use_module' and under the engine's ask, neither of which sees
+    ;; the consult's own buffer; each reads this and says it.
+    (member char      load_err [512])
+
     ;; Set when a clause is asserted, so a backend can write through. Null for
     ;; a store that is not backed by anything.
     (member func on_assert ((coco_store * st) (void * ctx) (size_t clause)) (out int))
@@ -6133,6 +6139,17 @@
           (coco_store_maybe_compact st m)
           (return n)))
 
+  ;;; A CONSULT THAT STOPS SAYS WHERE (1.11.9), as SWI places a load's
+  ;;; messages: FILE:LINE: before the reason the stop left in ERR, so a
+  ;;; caller prints it whole. A text that came from no file says its line.
+  (static)
+  (func coco_consult_where ((char * err) (size_t errlen) (const char * origin) (int at))
+        (let ((char what [512]))
+          (snprintf what 512 "%s" err)
+          (if (!= origin nil)
+              (snprintf err errlen "%s:%d: %s" origin at what)
+            (snprintf err errlen "line %d: %s" at what))))
+
   (static)
   (func coco_consult_owned ((coco_store * st) (coco_machine * m) (const char * text)
                             (const char * origin) (u64 oid) (coco_origin_seen * seen)
@@ -6202,6 +6219,7 @@
                             (set handled 1)
                             (if (>= csp 16)
                                 (block (snprintf err errlen "if: nested too deep")
+                                       (coco_consult_where err errlen origin at)
                                        (coco_reader_free (aof r)) (return -1)))
                             (let ((int truth . 0))
                               ;; inside a skipped region the condition is not
@@ -6209,7 +6227,8 @@
                               (if active
                                   (if (not (coco_cond_eval st m (coco_arg m d 0)
                                                            (aof truth) err errlen))
-                                      (block (coco_reader_free (aof r)) (return -1))))
+                                      (block (coco_consult_where err errlen origin at)
+                                             (coco_reader_free (aof r)) (return -1))))
                               (set (nth csp ctaking) (? (and active truth) 1 0))
                               (set (nth csp ctaken) (? (and active truth) 1 0))
                               (set csp (+ csp 1)))))
@@ -6218,6 +6237,7 @@
                             (set handled 1)
                             (if (== csp 0)
                                 (block (snprintf err errlen "elif: no `:- if' is open")
+                                       (coco_consult_where err errlen origin at)
                                        (coco_reader_free (aof r)) (return -1)))
                             (let ((int truth . 0) (int outer . 1) (int ci . 0))
                               (while (< ci (- csp 1))
@@ -6227,7 +6247,8 @@
                                   (block
                                    (if (not (coco_cond_eval st m (coco_arg m d 0)
                                                             (aof truth) err errlen))
-                                       (block (coco_reader_free (aof r)) (return -1)))
+                                       (block (coco_consult_where err errlen origin at)
+                                              (coco_reader_free (aof r)) (return -1)))
                                    (set (nth (- csp 1) ctaking) truth)
                                    (if truth (set (nth (- csp 1) ctaken) 1)))
                                 (set (nth (- csp 1) ctaking) 0)))))
@@ -6236,6 +6257,7 @@
                             (set handled 1)
                             (if (== csp 0)
                                 (block (snprintf err errlen "else: no `:- if' is open")
+                                       (coco_consult_where err errlen origin at)
                                        (coco_reader_free (aof r)) (return -1)))
                             (let ((int outer . 1) (int ci . 0))
                               (while (< ci (- csp 1))
@@ -6250,6 +6272,7 @@
                             (set handled 1)
                             (if (== csp 0)
                                 (block (snprintf err errlen "endif: no `:- if' is open")
+                                       (coco_consult_where err errlen origin at)
                                        (coco_reader_free (aof r)) (return -1)))
                             (set csp (- csp 1))))
                        ;; REPORTED, AND THE LOAD GOES ON. A directive is a
@@ -6313,15 +6336,26 @@
                                         (coco_load_message "ERROR" origin at err)
                                         (set (nth 0 err) (cast char 0)))
                                (block (snprintf err errlen "not a clause")
+                                      (coco_consult_where err errlen origin at)
                                       (coco_reader_free (aof r))
                                       (return -1)))
                            (set n (+ n 1)))))
                     (set (-> m heap_len) mark))))))
+          ;; A SYNTAX ERROR IS PLACED AS SWI PLACES IT (1.11.9): the file,
+          ;; the line from 1 and the column from 0 (in bytes, as swipl's) of
+          ;; the token the reader failed at, and the reason. Through 1.11.8 this said
+          ;; `syntax error at offset N', N a byte offset into the file, and a
+          ;; module's load said nothing at all of where or why.
           (if (== rc -1)
-              (block (snprintf err errlen "%s" ($ r err))
-                     (coco_inits_free (aof inits))
-                     (coco_reader_free (aof r))
-                     (return -1)))
+              (let ((int eline . 1) (int ecol . 0)
+                    (const char * why . #'(? (== ($ r ewhat) nil) "unreadable" ($ r ewhat))))
+                (coco_reader_place (aof r) (aof eline) (aof ecol))
+                (if (!= origin nil)
+                    (snprintf err errlen "%s:%d:%d: Syntax error: %s" origin eline ecol why)
+                  (snprintf err errlen "line %d, column %d: Syntax error: %s" eline ecol why))
+                (coco_inits_free (aof inits))
+                (coco_reader_free (aof r))
+                (return -1)))
           (coco_reader_free (aof r))
 
           ;; ---- and now the goals the file put off ------------------------

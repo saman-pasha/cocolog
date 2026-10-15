@@ -1881,7 +1881,7 @@
           ;; `coco_engine_free' memsets the sub-engine, and thrown again below
           ;; once stdout is back where it belongs.
           (if (== rc -1)
-              (block (snprintf (-> e err) 192 "%s" ($ sub err))
+              (block (snprintf (-> e err) 512 "%s" ($ sub err))
                      (if ($ sub has_ball)
                          (block (set threw 1) (set ball_cell ($ sub ball_cell))
                                 (set ball_size ($ sub ball_size))))))

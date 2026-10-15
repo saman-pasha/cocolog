@@ -102,14 +102,59 @@ loads_nothing(D) :-
     check('SWI''s names for what cocolog carries stay quiet', Out2, yes).
 
 syntax_error(D) :-
-    section('a syntax error still ends the consult'),
+    section('a syntax error still ends the consult, and says where and why'),
     %% THE ONE THING THAT IS STILL FATAL, and it has to be: after a syntax
     %% error the reader does not know where the next clause begins, so
     %% carrying on would mean guessing.
     atom_concat(D, '/syn.pl', F),
     fixture(F, ['p(1).', 'q(x :- .']),
-    ran(F, true, _, Rc),
-    check('a syntax error is still fatal', Rc, 1).
+    ran(F, true, Out, Rc),
+    check('a syntax error is still fatal', Rc, 1),
+    %% WHERE AND WHY, IN SWI'S SHAPE (1.11.9): the file, the line, the
+    %% column from 0 of the token it failed at, and the reason -- where
+    %% 1.11.8 said `syntax error at offset 14', a byte offset. Here the
+    %% reader stops at the `:-', which no argument can hold (swipl reads on
+    %% to the `.'); under_swipl/1 holds the place to swipl's in files where
+    %% the two stop at one token.
+    atomic_list_concat(['ERROR: ', F, ':2:4: Syntax error: expected ) closing an argument list'], W1),
+    has('run names the file, the line, the column and the reason', W1, Out),
+    atom_concat(D, '/synat.pl', At),
+    fixture(At, ['p(1).', 'q(2) :- .']),
+    ran(At, true, OutAt, _),
+    atomic_list_concat(['ERROR: ', At, ':2:8: Syntax error: expected a term'], WAt),
+    has('the token it failed at, counted from 0', WAt, OutAt),
+    %% A MODULE'S, named by ITS file: through 1.11.8 `-s' said only that
+    %% the top file's `clauses would not consult', and the load at a goal's
+    %% ask only that `a module's clauses would not load'
+    atom_concat(D, '/synmod.pl', Mod),
+    fixture(Mod, ['m(1).', 'm(2) :- .']),
+    atom_concat(D, '/syntop.pl', Top),
+    %% named without its `.pl', as `use_module(bad)' is written: the module
+    %% is registered under the spec, and the message names the file read
+    atom_concat(D, '/synmod', ModSpec),
+    atomic_list_concat([':- use_module(''', ModSpec, ''').'], UseMod),
+    fixture(Top, [UseMod, 'main :- m(1).']),
+    sh_join(['--local -s ', Top, ' 2>&1'], A2), cocolog_run(A2, Out2, Rc2),
+    atomic_list_concat(['use_module: ', Mod, ':2:8: Syntax error: expected a term'], W2),
+    has('-s names the module''s file that would not consult, and where', W2, Out2),
+    check('and exits as a raised error', Rc2, 2),
+    ran(Top, main, Out3, _),
+    atomic_list_concat(['a module''s clauses would not load: ', Mod,
+                        ':2:8: Syntax error: expected a term'], W3),
+    has('so does the load a goal''s ask makes', W3, Out3),
+    %% THE COLUMN IS SWI'S, in bytes: two letters of two bytes before the
+    %% token move it four, as swipl's moves (`z(''aa'', b c).'' fails at 10)
+    atom_concat(D, '/synutf.pl', U),
+    fixture(U, ['x(1).', 'z(''áá'', b c).']),
+    ran(U, true, Out4, _),
+    atomic_list_concat(['ERROR: ', U, ':2:12: Syntax error: '], W4),
+    has('a column counts bytes, as swipl''s does', W4, Out4),
+    %% and the consult's other stops say where too
+    atom_concat(D, '/synendif.pl', E),
+    fixture(E, ['p(1).', ':- endif.']),
+    ran(E, true, Out5, _),
+    atomic_list_concat(['ERROR: ', E, ':2: endif: no `:- if'' is open'], W5),
+    has('a stray endif names its line', W5, Out5).
 
 initialization(D) :-
     section('initialization/1: after the file, not where it stands'),
@@ -470,8 +515,26 @@ under_swipl(D) :-
         sh_join([D, '/missing.pl'], Missing),
         sh_join([C, ' --local run ', Missing, ' true 2>&1 >/dev/null'], Ca4), shell(Ca4, A4r, _), norm(D, A4r, A4n), first_two(A4n, A4),
         sh_join(['swipl -q -g true -t halt ', Missing, ' 2>&1 >/dev/null'], Cb4), shell(Cb4, B4r, _), norm(D, B4r, B4n), first_two(B4n, B4),
-        check('...and says the same two lines about a library that is not there', A4, B4)
+        check('...and says the same two lines about a library that is not there', A4, B4),
+        %% A SYNTAX ERROR'S PLACE (1.11.9): the file, the line and the column
+        %% before `Syntax error: '. The reasons are each system's own words
+        %% (`expected a term' where swipl says `Unbalanced operator')
+        forall(member(S, [synat, synutf]),
+               ( sh_join([D, '/', S, '.pl'], SPl),
+                 sh_join([C, ' --local run ', SPl, ' true 2>&1 >/dev/null'], Ca5), shell(Ca5, A5r, _),
+                 norm(D, A5r, A5n), first(A5n, A5l), syntax_place(A5l, A5),
+                 sh_join(['LANG=C.UTF-8 swipl -q -g true -t halt ', SPl, ' 2>&1 >/dev/null'], Cb5),
+                 shell(Cb5, B5r, _), norm(D, B5r, B5n), first(B5n, B5l), syntax_place(B5l, B5),
+                 sh_join(['...and places a syntax error where swipl does in ', S, '.pl'], L5),
+                 check(L5, A5, B5) ))
     ;   format("     (skipped: swipl is not here, so the diff did not run)~n", [])
+    ).
+
+%% `ERROR: FILE:LINE:COL: ' -- a syntax error's line up to its reason
+syntax_place(Line, Place) :-
+    (   sub_atom(Line, B, _, _, 'Syntax error: ')
+    ->  sub_atom(Line, 0, B, _, Place)
+    ;   Place = Line
     ).
 
 %% the .sh's norm(): the scratch prefix and SWI's thread tag taken out

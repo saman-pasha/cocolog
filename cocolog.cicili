@@ -383,7 +383,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "1.11.8"))
+  (func coco_version_text () (out const char *) (return "1.11.9"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -610,7 +610,7 @@
         (if (!= db nil) (set (-> st on_halt) halt_finish)))
 
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
-        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [256]) (int total . 0))
+        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [512]) (int total . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
@@ -631,7 +631,7 @@
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
-                  (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
+                  (block (fprintf stderr "ERROR: %s\n" err)
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
@@ -1193,7 +1193,7 @@
   ;;; itself is not on disk -- `[family].' reads family.pl, as SWI has it.
   (func repl_consult_one ((coco_store * st) (coco_machine * m) (const char * name)) (out int)
         (let ((char withpl [512]) (const char * path . name) (FILE * probe . nil)
-              (char err [256]) (char * text . nil) (int n . 0))
+              (char err [512]) (char * text . nil) (int n . 0))
           (set probe (fopen name "rb"))
           (if (!= probe nil)
               (fclose probe)
@@ -1204,7 +1204,7 @@
           (set n (coco_consult st m text path err (sizeof err)))
           (free text)
           (if (< n 0)
-              (block (fprintf stderr "cocolog: %s: %s\n" path err)
+              (block (fprintf stderr "ERROR: %s\n" err)
                      (return 0)))
           (return 1)))
 
@@ -2320,7 +2320,7 @@
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char err [256]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
+              (char err [512]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -2351,7 +2351,7 @@
               (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
               (set ($ m dgc) 0)
               (if (< n 0)
-                  (block (fprintf stderr "cocolog: %s: %s\n" (nth i argv) err)
+                  (block (fprintf stderr "ERROR: %s\n" err)
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))

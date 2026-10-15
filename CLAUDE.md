@@ -833,26 +833,26 @@ cocolint index offers no import of it.
 * **A `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` reaches
   the catch around it**, and a `catch/3` whose goal exited stops catching
   (`'$catch_exit'`).
-* **Text builtins work on BYTES, and one of them crashes** (1.11.4):
-  `atom_length('dár', N)` is 4, `atom_codes/2` gives the UTF-8 bytes,
-  `char_code(X, 225)` one raw byte, `sub_atom/5` can cut a character in half,
-  `upcase_atom('dár', U)` is `DáR`, and `atom_chars(X, [d,'á',r])` is a
-  SEGMENTATION FAULT (exit 139; reported to The Coco, 2026-10-15). Build and
-  take apart accented text with atom_concat/3 (modes -,+,+ and +,-,+),
-  atomic_list_concat/2 and member/2 over a list of the suffixes, as
-  tr_stress_stem/2 does. **A syntax error in a file has no place**:
-  `cocolog run FILE true` says the byte offset, `cocolog -s FILE` only `its
-  clauses would not consult` -- split the file and run each part to find it.
+* **Text builtins work on BYTES** (1.11.4): `atom_length('dár', N)` is 4,
+  `atom_codes/2` gives the UTF-8 bytes, `char_code(X, 225)` one raw byte,
+  `sub_atom/5` can cut a character in half, `upcase_atom('dár', U)` is
+  `DáR`, and `atom_chars('dár', L)` is four one-byte atoms that join back to
+  `'dár'` -- while `atom_chars(X, [d,'á',r])` raises `type_error(character,
+  'á')` where SWI answers `'dár'` (through 1.11.7 it was a SEGMENTATION
+  FAULT, exit 139). Build and take apart accented text with atom_concat/3
+  (modes -,+,+ and +,-,+), atomic_list_concat/2 and member/2 over a list of
+  the suffixes, as tr_stress_stem/2 does. **A syntax error in a load is
+  placed** (1.11.9): `ERROR: FILE:LINE:COL: Syntax error: REASON`, the column
+  from 0 in bytes as swipl's, from `run` and `-s` alike -- a module's names
+  ITS file, through `use_module` and through the load a goal's ask makes
+  (`load_err` on the store) -- and the consult still ends there. Through
+  1.11.8 `run` said a byte offset and `-s` only `its clauses would not
+  consult`.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and
   `sub_string/5` are clauses** walking every position -- use
   `atom_concat/3`, `memberchk/2`, `split_string/4` in a hot path.
-  **A character is a byte**: `atom_chars('dár', L)` is four one-byte atoms
-  that join back to `'dár'`, and `atom_chars(X, [d,'á',r])` raises
-  `type_error(character, 'á')` where SWI answers `'dár'` -- join text with
-  `atom_concat/3` or `atomic_list_concat/2` (through 1.11.7 that goal
-  crashed the process).
 * **A call is keyed on whichever bound argument chooses** (since 1.9.1):
   the first argument's table as always, and for a predicate the first
   argument will not do for (`coco_pred_first_enough`: at or over the floor

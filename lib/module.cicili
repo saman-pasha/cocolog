@@ -168,7 +168,12 @@
     ;; a file of the program's own, loaded by its path rather than as a
     ;; library (`coco_module_set_own'): its predicates are the program's
     ;; to current_predicate/1, listing/0 and predicate_property/2 (1.10.28)
-    (member int own))
+    (member int own)
+    ;; the file its text was read from, or null for one compiled in: what a
+    ;; load names in its messages, a syntax error's FILE:LINE:COL among
+    ;; them (1.11.9) -- `use_module(bad)' registers the name `bad' and
+    ;; reads `bad.pl'
+    (member const char * file))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -203,6 +208,10 @@
   ;;; Marks the module NAME as a file of the program's own (`own'), which
   ;;; `use_module' does for a path it loads (lib/library.cicili).
   (decl) (func coco_module_set_own ((const char * name)))
+
+  ;;; Records the file the module NAME's text was read from (`file'), which
+  ;;; `use_module' does for each file it loads; the string is kept.
+  (decl) (func coco_module_set_file ((const char * name) (const char * file)))
 
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
@@ -619,9 +628,12 @@
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
-        (let ((char err [256]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
+        (let ((char err [512]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
+          ;; why a consult below stopped, kept for whoever asked for the
+          ;; load: `use_module' and the engine's ask (1.11.9)
+          (set (nth 0 (-> st load_err)) (cast char 0))
           (coco_store_mute st)
           (set (-> m double_quotes) 0)
           (while (and (== ok 1) (< (-> st libs) coco_nmodules))
@@ -642,10 +654,17 @@
                          ;; predicates so (`own', lib/kb.cicili); put back
                          ;; after, for a load a directive started inside one
                          (set (-> st ownload) (-> mod own))
-                         (set cr (coco_consult st m (-> mod prolog) (-> mod name) err (sizeof err)))
+                         ;; NAMED BY ITS FILE where it has one (1.11.9), so a
+                         ;; syntax error in `bad.pl' says `bad.pl:2:8' and a
+                         ;; directive's report names the file SWI names
+                         (set cr (coco_consult st m (-> mod prolog)
+                                               (? (== (-> mod file) nil) (-> mod name) (-> mod file))
+                                               err (sizeof err)))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
-                         (if (< cr 0) (set ok 0))))
+                         (if (< cr 0)
+                             (block (set ok 0)
+                                    (snprintf (-> st load_err) 512 "%s" err)))))
                    (if (and (== ok 0) (== (-> st libs) (+ i 1)))
                        (set (-> st libs) i)))))))
           (set (-> m double_quotes) saved_dq)
@@ -721,6 +740,12 @@
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (set ($ (nth i coco_modules) own) 1))))
+
+  (func coco_module_set_file ((const char * name) (const char * file))
+        (if (or (== name nil) (== file nil)) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) file) file))))
 
   ;;; ---- the author's API -----------------------------------------------
 

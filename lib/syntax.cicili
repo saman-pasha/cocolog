@@ -615,9 +615,21 @@
     (member size_t       var_cap)
 
     (member char         err [192])
-    (member int          failed))
+    (member int          failed)
+    ;; WHERE AND WHY IT STOPPED (1.11.9): the first byte of the token in hand
+    ;; when the reader failed, and the reason alone -- `err' says both as a
+    ;; byte offset, for every reader of a term; a load says them as SWI
+    ;; does, by the line and column (`coco_reader_place')
+    (member size_t       epos)
+    (member const char * ewhat))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
+
+  ;;; Where a reader that failed stopped, as SWI places a syntax error: the
+  ;;; line from 1, and the column from 0 of the token it failed at, counted
+  ;;; in BYTES as swipl 9 counts it -- `z('áá', b c).' fails at column 12,
+  ;;; where the same line with `aa' fails at 10 (1.11.9).
+  (decl) (func coco_reader_place ((coco_reader * r) (int * line) (int * col)))
   (decl) (func coco_reader_free ((coco_reader * r)))
 
   ;;; Reads one clause, up to and including its terminating `.'. Answers 1 and
@@ -907,12 +919,27 @@
   ;;; call directly. The offset is into the source text the reader was given,
   ;;; which is what a caller loading a clause out of the database needs in
   ;;; order to say which clause would not read.
+  ;;; The token's first byte and the bare reason are kept too (1.11.9),
+  ;;; which a load turns into SWI's FILE:LINE:COL (`coco_reader_place'):
+  ;;; every WHAT here is a literal, so the pointer outlives the reader.
   (static)
   (func coco_fail ((coco_reader * r) (const char * what)) (out int)
         (snprintf (-> r err) 192 "syntax error at offset %lu: %s"
                   (cast ulong (-> r pos)) what)
+        (set (-> r epos) (? (<= (-> r tstart) (-> r pos)) (-> r tstart) (-> r pos)))
+        (set (-> r ewhat) what)
         (set (-> r failed) 1)
         (return 0))
+
+  (func coco_reader_place ((coco_reader * r) (int * line) (int * col))
+        (let ((size_t p . #'(-> r epos)) (int ln . 1) (int c . 0))
+          (if (> p (-> r len)) (set p (-> r len)))
+          (for ((size_t i . 0)) (< i p) ((++ i))
+            (if (== (nth i (-> r src)) (cast char 10))
+                (block (set ln (+ ln 1)) (set c 0))
+              (set c (+ c 1))))
+          (set (cof line) ln)
+          (set (cof col) c)))
 
   ;;; Whitespace, `%' to end of line, and nested-free /* */ blocks. Whether
   ;;; anything was skipped is recorded, because `f(' and `f (' are different
