@@ -35,7 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
-    small_steps, shifts,
+    small_steps, shifts, integers_only,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1182,22 +1182,82 @@ shifts :-
               gd_out(ip_bin(Op3, A3, N3, R3), R3, Got3), Got3 \== Want3 ),
             L3),
     check('...and a goal done in place from an environment', L3, []),
-    %% a float count is still a type error, and the shift of a float too
-    findall(Got5, ( member(E5, [1 >> 1.0, 1.0 >> 1, 1 << 1.0, 1.0 << 1]),
-                    gd_out(gd_ref(E5, R5), R5, O5), sh_shape(O5, Got5) ), L5),
+    %% a float count is still a type error, and the shift of a float too,
+    %% naming the float (1.15.0; through 1.14.0 heap cell 0, below)
+    findall(O5, ( member(E5, [1 >> 1.0, 1.0 >> 1, 1 << 1.0, 1.0 << 1]),
+                  gd_out(gd_ref(E5, R5), R5, O5) ), L5),
     check('a float is still a type error on either side', L5,
-          [type_error(integer), type_error(integer), type_error(integer), type_error(integer)]).
-
-%% THE ERROR'S SHAPE WITHOUT ITS CULPRIT, because cocolog names the wrong
-%% one: `coco_type_error' is given cell 0 here, which is a real heap cell
-%% (the loaded file's path), where swipl names the float. Older than this
-%% section and not its to fix -- recorded, so that a fix finds a check to
-%% tighten.
-sh_shape(error(type_error(T, _)), type_error(T)) :- !.
-sh_shape(O, O).
+          [error(type_error(integer, 1.0)), error(type_error(integer, 1.0)),
+           error(type_error(integer, 1.0)), error(type_error(integer, 1.0))]).
 
 sh_expr(shr, A, N, A >> N).
 sh_expr(shl, A, N, A << N).
+
+%% WHAT IS NOT AN INTEGER IS NAMED BY ITS VALUE (1.15.0, cicilang's report).
+%% Every function that takes integers alone -- `//', div, mod, rem, gcd,
+%% the two shifts, the bitwise four, msb -- raised type_error(integer, P)
+%% with P heap cell 0, whatever the machine had put there first: under -s
+%% the loaded file's path. swipl names the float, the LEFT operand when
+%% both are, and the value an expression came to, not the expression; and
+%% msb/1 of an integer under 1 is outside its domain. Each row is swipl
+%% 9.0.4's own answer (the context, which cocolog leaves unbound, apart).
+ni_row(intdiv, 7.0, 2, type_error(integer, 7.0)).
+ni_row(intdiv, 7, 2.0, type_error(integer, 2.0)).
+ni_row(intdiv, 7.0, 0, type_error(integer, 7.0)).
+ni_row(intdiv, 7, 0.0, type_error(integer, 0.0)).
+ni_row(div, 7.0, 2, type_error(integer, 7.0)).
+ni_row(div, 7, 2.5, type_error(integer, 2.5)).
+ni_row(mod, 7.5, 2, type_error(integer, 7.5)).
+ni_row(mod, 7, 2.0, type_error(integer, 2.0)).
+ni_row(rem, 7.5, 2, type_error(integer, 7.5)).
+ni_row(rem, 7, 2.0, type_error(integer, 2.0)).
+ni_row(shr, 1.5, 1, type_error(integer, 1.5)).
+ni_row(shr, 1, 1.5, type_error(integer, 1.5)).
+ni_row(shr, 1.5, 2.5, type_error(integer, 1.5)).
+ni_row(shl, 1.5, 1, type_error(integer, 1.5)).
+ni_row(shl, 2, 2.0, type_error(integer, 2.0)).
+ni_row(and, 1.0, 3, type_error(integer, 1.0)).
+ni_row(or, 1, 3.0, type_error(integer, 3.0)).
+ni_row(xor, 1.0, 3, type_error(integer, 1.0)).
+ni_row(xor, 1, 3.5, type_error(integer, 3.5)).
+
+%% the ones only the step evaluates: gcd and msb have no guard, and an
+%% expression under an operator is the step's to evaluate first
+ni_step(gcd(4.0, 2), type_error(integer, 4.0)).
+ni_step(gcd(4, 2.0), type_error(integer, 2.0)).
+ni_step(\ 1.5, type_error(integer, 1.5)).
+ni_step(msb(1.5), type_error(integer, 1.5)).
+ni_step(msb(2.0), type_error(integer, 2.0)).
+ni_step(msb(0), domain_error(not_less_than_one, 0)).
+ni_step(msb(-3), domain_error(not_less_than_one, -3)).
+ni_step((1.0 + 0.5) >> 1, type_error(integer, 1.5)).
+ni_step(7 mod (4 / 8), type_error(integer, 0.5)).
+
+integers_only :-
+    section('what is not an integer is named by its value'),
+    findall(N1-X1-Y1-O1,
+            ( ni_row(N1, X1, Y1, F1), gd_expr(N1, X1, Y1, E1),
+              gd_out(gd_ref(E1, R1), R1, O1), O1 \== error(F1) ),
+            L1),
+    check('the step names the float, the left one first, as swipl does', L1, []),
+    findall(N2-X2-Y2-O2,
+            ( ni_row(N2, X2, Y2, F2),
+              gd_out(gd_bin(N2, X2, Y2, R2), R2, O2), O2 \== error(F2) ),
+            L2),
+    check('...a guard the same, which hands a float to the step', L2, []),
+    findall(N3-X3-Y3-O3,
+            ( ni_row(N3, X3, Y3, F3),
+              gd_out(ip_bin(N3, X3, Y3, R3), R3, O3), O3 \== error(F3) ),
+            L3),
+    check('...and a goal done in place from an environment', L3, []),
+    findall(E4-O4,
+            ( ni_step(E4, F4), gd_out(gd_ref(E4, R4), R4, O4), O4 \== error(F4) ),
+            L4),
+    check('gcd, the complement and msb, and an operand that is an expression', L4, []),
+    gd_out(gd_un(not, 2.5, R5), R5, O5),
+    gd_out(ip_un(not, 2.5, R5b), R5b, O5b),
+    check('the complement of a float names it in a guard and in place', O5-O5b,
+          error(type_error(integer, 2.5))-error(type_error(integer, 2.5))).
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).

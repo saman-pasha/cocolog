@@ -582,7 +582,12 @@
     ;; retry gave back -- once TMARKED says the first reading has marked
     ;; them all (`coco_clock_mark')
     (member int         tmarked)
-    (member size_t      tlow))
+    (member size_t      tlow)
+    ;; UNDER THE WHOLE RUN'S CLOCK (1.15.0, `'$trace_window'/4''s
+    ;; run_time(R)): the key of the step this engine was running when a
+    ;; nested engine took the clock (`coco_clock_narrow'), the clock's
+    ;; again where the starter's own work goes on (`coco_clock_back')
+    (member u64         tkey))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -801,7 +806,29 @@
     ;; THE PROCESS'S CPU CLOCK (1.13.7, clock()): at the run's start, and
     ;; where the window opened (-1, it did not) -- `cpu(Open, Total)'
     (member i64          cpu0)
-    (member i64          cpuopen))
+    (member i64          cpuopen)
+    ;; THE WHOLE RUN'S CLOCK, BY PREDICATE (1.15.0, run_time(R)): with
+    ;; TBYKEY the clock reads at every step from the first, as time(1, 0)
+    ;; does, and charges what a step took to the step's KEY -- what its
+    ;; goal is named by, 1 + (a functor's id << 1), or 1 + (an atom's id
+    ;; << 1 | 1), and 0 for a step no goal names (a solution handed back)
+    ;; -- and not to its number: KNS[KEY] its nanoseconds and KST[KEY] its
+    ;; readings, KCAP of each, TKCUR the key of the step running. TD is
+    ;; never made. A retry's time goes from the key of the step it ran in
+    ;; (RPK) to its predicate's own, by the predicate's index in the store
+    ;; (RPP; PRET[RPP], PCAP of them), named once as the run ends; the
+    ;; collections are summed (KGCNS nanoseconds, KGCN of them)
+    (member int          tbykey)
+    (member u64 *        kns)
+    (member u64 *        kst)
+    (member size_t       kcap)
+    (member u64          tkcur)
+    (member u64          rpk)
+    (member size_t       rpp)
+    (member u64 *        pret)
+    (member size_t       pcap)
+    (member u64          kgcns)
+    (member u64          kgcn))
 
   (decl) (func coco_rec_free ((coco_rec * r)))
 
@@ -1367,6 +1394,14 @@
         (free (-> r td))
         (free (-> r gcs))
         (free (-> r rts))
+        (free (-> r kns))
+        (free (-> r kst))
+        (free (-> r pret))
+        (set (-> r kns) nil)
+        (set (-> r kst) nil)
+        (set (-> r pret) nil)
+        (set (-> r kcap) 0)
+        (set (-> r pcap) 0)
         (set (-> r evs) nil)
         (set (-> r txs) nil)
         (set (-> r arena) nil)
@@ -1398,6 +1433,78 @@
           (clock_gettime CLOCK_MONOTONIC (aof ts))
           (return (+ (* (cast u64 ($ ts tv_sec)) 1000000000) (cast u64 ($ ts tv_nsec))))))
 
+  ;;; ---- the whole run's clock, by predicate (1.15.0) ----------------------
+  ;;; What run_time(R) asks of a probe (cicilang's: "self time alone, by
+  ;;; predicate over the whole run"): the clock read at every step from the
+  ;;; first, as time(1, 0) reads it, and what a step took charged to what
+  ;;; its goal is NAMED by -- its KEY (`coco_rec''s TBYKEY) -- read at the
+  ;;; step's top from what the step is about to take, which nothing there
+  ;;; changes. A construct is keyed by its own name (`,'/2, `;'/2, `->'/2,
+  ;;; `!'), so its steps are a row of their own; a guard a clause runs as it
+  ;;; is entered is no step the clock reads, and is its clause's.
+
+  ;;; THE KEY OF THE GOAL AT G: 1 + (a functor's id << 1), 1 + (an atom's
+  ;;; id << 1 | 1), or 0 for anything else -- a variable the step will
+  ;;; raise on
+  (static)
+  (func coco_clock_gkey ((coco_machine * m) (size_t g)) (out u64)
+        (let ((u64 c . #'(nth (coco_deref m g) (-> m heap))))
+          (if (coco-tag-is FUN c) (return (+ (<< (coco-payload c) 1) 1)))
+          (if (coco-tag-is ATOM c) (return (+ (bitor (<< (coco-payload c) 1) 1) 1)))
+          (return 0)))
+
+  ;;; THE KEY OF THE STEP AT HAND, at its top, read as the loop will take
+  ;;; it (`coco_engine_run'): the registers' functor, a goal handed over,
+  ;;; the continuation's `'$k'' frame, or a unit of its environment by what
+  ;;; `coco_env_take' would read -- a call, a guard and `=/2' and its kin by
+  ;;; the functor the unit names, a cut, `true' and `fail' by their atom, a
+  ;;; term the environment built by the term. 0 for the empty
+  ;;; continuation: the step that hands a solution back
+  (static)
+  (func coco_clock_key ((coco_engine * e)) (out u64)
+        (let ((coco_machine * m . #'(-> e m)) (size_t kf . 0) (u64 c . 0))
+          (if (== (-> e nset) 2) (return (+ (<< (-> e afid) 1) 1)))
+          (if (== (-> e nset) 1) (return (coco_clock_gkey m (-> e ngoal))))
+          (set kf (coco_deref m (-> e goals)))
+          (set c (nth kf (-> m heap)))
+          (if (coco-tag-is FUN c) (return (coco_clock_gkey m (coco_arg m kf 0))))
+          (if (not (coco-tag-is POS c)) (return 0))
+          (let ((size_t pay . #'(cast size_t (coco-payload c)))
+                (size_t env . #'(- kf (>> pay 16)))
+                (coco_code * cd . #'(coco-env-code m env))
+                (coco_egoal * eg . #'(aof (nth (bitand pay 65535) (-> cd egoals))))
+                (u32 kind . 0))
+            (set kind (-> eg kind))
+            (if (or (== kind (cc-eg "TERM")) (== kind (cc-eg "BUILTIN")))
+                (return (coco_clock_gkey m (+ env (cast size_t (-> eg soff))))))
+            (if (or (== kind (cc-eg "CUT")) (or (== kind (cc-eg "TRUE")) (== kind (cc-eg "FAIL"))))
+                (return (+ (bitor (<< (-> eg fid) 1) 1) 1)))
+            (return (+ (<< (-> eg fid) 1) 1)))))
+
+  ;;; THE STEP AT HAND IS KEY'S, and counted: the arrays grown to it first,
+  ;;; zeroed. Answers 1 when they GREW, which is the clock's own time and
+  ;;; read past, as `coco_clock_charge' says. Refused, the step is key 0's,
+  ;;; for which the arrays were made with room before the run
+  (static)
+  (func coco_clock_kset ((coco_rec * r) (u64 key)) (out int)
+        (let ((int grew . 0))
+          (if (>= key (cast u64 (-> r kcap)))
+              (let ((size_t c . #'(* (-> r kcap) 2)) (u64 * ns . nil) (u64 * ks . nil))
+                (while (<= c (cast size_t key)) (set c (* c 2)))
+                (set ns (cast (u64 *) (realloc (-> r kns) (* c (sizeof u64)))))
+                (if (!= ns nil) (set (-> r kns) ns))
+                (set ks (cast (u64 *) (realloc (-> r kst) (* c (sizeof u64)))))
+                (if (!= ks nil) (set (-> r kst) ks))
+                (if (or (== ns nil) (== ks nil))
+                    (block (set (-> r toom) 1) (set key 0))
+                    (block (memset (+ (-> r kns) (-> r kcap)) 0 (* (- c (-> r kcap)) (sizeof u64)))
+                           (memset (+ (-> r kst) (-> r kcap)) 0 (* (- c (-> r kcap)) (sizeof u64)))
+                           (set (-> r kcap) c)
+                           (set grew 1)))))
+          (set (-> r tkcur) key)
+          (set (nth key (-> r kst)) (+ (nth key (-> r kst)) 1))
+          (return grew)))
+
   ;;; DT NANOSECONDS MORE FOR INFERENCE I, dropped before TFROM and, in a
   ;;; ring, once I has left it. The whole run's array grows zeroed, and a
   ;;; ring zeroes the slots it passes over, so an inference no reading
@@ -1410,6 +1517,10 @@
   ;;; that took 1)
   (static)
   (func coco_clock_charge ((coco_rec * r) (u64 i) (u64 dt)) (out int)
+        ;; the whole run's, to the step's key (1.15.0)
+        (if (-> r tbykey)
+            (block (set (nth (-> r tkcur) (-> r kns)) (+ (nth (-> r tkcur) (-> r kns)) dt))
+                   (return 0)))
         (if (< i (-> r tfrom)) (return 0))
         (if (== (-> r tkeep) 0)
             (let ((u64 ix . #'(- i (-> r tfrom))) (int grew . 0))
@@ -1470,6 +1581,25 @@
   (func coco_clock_rclose ((coco_rec * r) (u64 now)) (out int)
         (let ((int grew . 0))
           (if (== (-> r rpend) 0) (return 0))
+          ;; the whole run's (1.15.0): off the key of the step it ran in,
+          ;; to its predicate's, by the predicate's index in the store
+          (if (-> r tbykey)
+              (let ((u64 ns . #'(- now (-> r rpend))))
+                (set (-> r rpend) 0)
+                (if (>= (-> r rpp) (-> r pcap))
+                    (let ((size_t c . #'(? (== (-> r pcap) 0) 1024 (* (-> r pcap) 2)))
+                          (u64 * np . nil))
+                      (while (<= c (-> r rpp)) (set c (* c 2)))
+                      (set np (cast (u64 *) (realloc (-> r pret) (* c (sizeof u64)))))
+                      ;; refused: the retry's time stays its step's
+                      (if (== np nil) (return 0))
+                      (memset (+ np (-> r pcap)) 0 (* (- c (-> r pcap)) (sizeof u64)))
+                      (set (-> r pret) np)
+                      (set (-> r pcap) c)
+                      (set grew 1)))
+                (set (nth (-> r rpk) (-> r kns)) (- (nth (-> r rpk) (-> r kns)) ns))
+                (set (nth (-> r rpp) (-> r pret)) (+ (nth (-> r rpp) (-> r pret)) ns))
+                (return grew)))
           (if (> (+ (-> r nrt) 4) (-> r rtcap))
               (block
                (if (!= (-> r tkeep) 0)
@@ -1540,6 +1670,11 @@
              (let ((u64 now . #'(coco_clock_ns)) (int grew . 0))
                (set grew (coco_clock_charge r (-> r tcur) (- now (-> r tlast))))
                (if (coco_clock_rclose r now) (set grew 1))
+               ;; the whole run's (1.15.0): E's step kept on E, and SUB's
+               ;; first goal the step at hand -- asked before the narrow
+               (if (-> r tbykey)
+                   (block (set (-> e tkey) (-> r tkcur))
+                          (if (coco_clock_kset r (coco_clock_key sub)) (set grew 1))))
                (if grew (set now (coco_clock_ns)))
                (set (-> r tlast) now)
                (set (-> r tcur) (+ base 1))
@@ -1565,6 +1700,8 @@
           (set grew (coco_clock_charge r (-> r tcur) (- now (-> r tlast))))
           ;; a retry the inner engine's last backtracking began ends here
           (if (coco_clock_rclose r now) (set grew 1))
+          ;; the whole run's (1.15.0): E's own step again, uncounted
+          (if (-> r tbykey) (set (-> r tkcur) (-> e tkey)))
           (if grew (set now (coco_clock_ns)))
           (set (-> r tlast) now)
           (set (-> r tcur) (coco_rec_abs e r))))
@@ -1579,6 +1716,11 @@
           (if (or (== r nil) (not (-> r ton))) (return))
           (set dt (- (coco_clock_ns) t0))
           (set (-> r tlast) (+ (-> r tlast) dt))
+          ;; the whole run's, summed (1.15.0)
+          (if (-> r tbykey)
+              (block (set (-> r kgcns) (+ (-> r kgcns) dt))
+                     (set (-> r kgcn) (+ (-> r kgcn) 1))
+                     (return)))
           (if (>= (+ (-> r ngc) 2) (-> r gccap))
               (let ((size_t c . #'(? (== (-> r gccap) 0) 64 (* (-> r gccap) 2)))
                     (u64 * ng . nil))
@@ -3406,6 +3548,8 @@
           (if (coco_clock_rclose r now) (set now (coco_clock_ns)))
           (set (-> r rpend) now)
           (set (-> r rpi) (-> r tcur))
+          (set (-> r rpk) (-> r tkcur))
+          (set (-> r rpp) (-> c pred))
           (set (-> r rpname) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
           (set (-> r rparity) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
 
@@ -5117,8 +5261,10 @@
           (coco_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
           ;; `cocolog step' with a step limit cannot be overrun by a findall
-          (coco_limit_narrow e (aof sub))
+          ;; -- narrowed after the ask, which leaves the limits alone, so
+          ;; that a clock by predicate can name the first goal (1.15.0)
           (coco_engine_ask (aof sub) goal)
+          (coco_limit_narrow e (aof sub))
           ;; the trace follows the proof into the inner engine, depth and
           ;; all -- set after the ask, which resets a fresh engine's context
           (set ($ sub trace) (-> e trace))
@@ -5265,8 +5411,8 @@
           ;; -- are left out of it, as they are of statistics/2's count;
           ;; narrowed to what the OUTER engine has left, never widened
           (set ($ sub max_inf) limit)
-          (coco_limit_narrow e (aof sub))
           (coco_engine_ask (aof sub) goal)
+          (coco_limit_narrow e (aof sub))
           (set ($ sub trace) (-> e trace))
           (set ($ sub trace_depth) (-> e trace_depth))
           (set ($ sub trace_goal) (-> e trace_goal))
@@ -5867,6 +6013,8 @@
                  (let ((int grew . #'(coco_clock_charge r (-> r tcur) (- now (-> r tlast)))))
                    ;; the retry the step's backtracking began ends here
                    (if (coco_clock_rclose r now) (set grew 1))
+                   ;; the whole run's: the step at hand's key (1.15.0)
+                   (if (-> r tbykey) (if (coco_clock_kset r (coco_clock_key e)) (set grew 1)))
                    (if grew (set now (coco_clock_ns)))
                    (set (-> r tlast) now)
                    (set (-> r tcur) a)))
@@ -5920,6 +6068,15 @@
           (set ($ cal tring) 64)
           (set ($ cal td) slots)
           (coco_engine_init (aof fake) m (-> sub st))
+          ;; the whole run's reading names its step's goal too (1.15.0): the
+          ;; engine is given one, `true', and its readings charge by key
+          (if (-> r tbykey)
+              (block (set ($ cal kns) (cast (u64 *) (calloc 4096 (sizeof u64))))
+                     (set ($ cal kst) (cast (u64 *) (calloc 4096 (sizeof u64))))
+                     (if (and (!= ($ cal kns) nil) (!= ($ cal kst) nil))
+                         (block (set ($ cal kcap) 4096)
+                                (set ($ cal tbykey) 1)
+                                (coco_engine_ask (aof fake) (coco_new_atom m "true"))))))
           (set ($ fake tclock) 1)
           (set ($ cal root) (cast (void *) (aof fake)))
           (set (-> m rec) (cast (void *) (aof cal)))
@@ -5938,6 +6095,8 @@
               (if (or (== rd 0) (< (- t1 t0) best)) (set best (- t1 t0)))))
           (set (-> m rec) nil)
           (coco_engine_free (aof fake))
+          (free ($ cal kns))
+          (free ($ cal kst))
           (set (-> r caln) 512)
           (set (-> r calns) best)
           (set (-> sub rmax) (-> sub max_steps))
@@ -5945,6 +6104,8 @@
           (if (<= (-> r tfrom) 1)
               (block (set (-> r ton) 1)
                      (set (-> r tcur) 1)
+                     ;; the whole run's first step, read as the run starts
+                     (if (-> r tbykey) (coco_clock_kset r (coco_clock_key sub)))
                      (set (-> sub max_steps) 1))
               (set (-> sub max_steps) (- (-> r tfrom) 1)))
           (if (and (!= (-> sub rmax) 0) (> (-> sub max_steps) (-> sub rmax)))
@@ -6680,8 +6841,20 @@
   (func coco_not_evaluable ((coco_engine * e) (u64 nid) (u32 n)) (out int)
         (return (coco_type_error e "evaluable" (coco_indicator (-> e m) nid n))))
 
+  ;;; WHAT IS NOT AN INTEGER IS NAMED BY ITS VALUE, as SWI names it (1.15.0,
+  ;;; cicilang's report): `X is 1.5 >> 1' and `X is 1 >> (1.0 + 0.5)' are
+  ;;; both type_error(integer, 1.5), and of two floats the left one is
+  ;;; named -- for `//', div, mod, rem, gcd, the two shifts, the bitwise
+  ;;; four and msb. Through 1.14.0 each named heap cell 0, whatever the
+  ;;; machine had put there first: under -s the loaded file's path.
   (static)
-  (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int)
+  (func coco_not_integer ((coco_engine * e) (double f)) (out int)
+        (return (coco_type_error e "integer" (coco_new_float (-> e m) f))))
+
+  ;;; LFLT says the left operand was a float, so that an operator that takes
+  ;;; integers alone can name the one that is not (`coco_not_integer').
+  (static)
+  (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int) (int lflt)
                          (i64 ai) (double af) (i64 bi) (double bf)
                          (int * isf) (i64 * iv) (double * fv)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
@@ -6700,24 +6873,24 @@
              (block (set (cof fv) (/ af bf)) (set (cof isf) 1)))
            (return 1))
           ((== nid (coco-id m "//"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "div"))
            ;; floored division: the quotient mod pairs with, so
            ;; A =:= (A div B) * B + A mod B holds for every sign
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (- (/ ai bi) (coco_floor_adjusts ai bi)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "mod"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            ;; mod follows the sign of the divisor, rem follows the dividend
            (set (cof iv) (- (% ai bi) (? (coco_floor_adjusts ai bi) (- 0 bi) 0)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "rem"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "min"))
@@ -6743,7 +6916,7 @@
              (block (set (cof fv) (pow af bf)) (set (cof isf) 1)))
            (return 1))
           ((== nid (coco-id m "gcd"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (let ((i64 a . #'(? (< ai 0) (- 0 ai) ai))
                  (i64 b . #'(? (< bi 0) (- 0 bi) bi)))
              (while (!= b 0)
@@ -6757,10 +6930,10 @@
           ;; both this box and an aarch64 one take the count modulo 64 --
           ;; `1 >> 64' answered 1. The guards' runner calls the same two.
           ((== nid (coco-id m ">>"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (set (cof iv) (coco_shift_right ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "<<"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (set (cof iv) (coco_shift_left ai bi)) (set (cof isf) 0) (return 1))
           ;; The bitwise three. Integers only -- ISO says type_error(integer)
           ;; for a float here, and a silent truncation would be worse than an
@@ -6772,13 +6945,13 @@
           ;; could be written, and are spelled the same way so the four read
           ;; alike and nobody has to remember which one is the exception.
           ((== nid (coco-id m COCO_OP_AND))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (set (cof iv) (bitand ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m COCO_OP_OR))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (set (cof iv) (bitor ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "xor"))
-           (if (not both_int) (return (coco_type_error e "integer" 0)))
+           (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (set (cof iv) (xor ai bi)) (set (cof isf) 0) (return 1))
           (#t (return (coco_not_evaluable e nid 2))))))
 
@@ -6838,12 +7011,16 @@
                          ;; bitwise complement, on the two's complement the
                          ;; whole engine already uses: \ 0 is -1
                          ((== nid (coco-id m COCO_OP_NOT))
-                          (if s0 (return (coco_type_error e "integer" 0)))
+                          (if s0 (return (coco_not_integer e f0)))
                           (set (cof iv) (- (- 0 i0) 1)) (set (cof isf) 0)
                           (return 1))
+                         ;; SWI's: an integer under 1 is outside its domain,
+                         ;; domain_error(not_less_than_one, N) -- through
+                         ;; 1.14.0 a type error naming heap cell 0
                          ((== nid (coco-id m "msb"))
-                          (if s0 (return (coco_type_error e "integer" 0)))
-                          (if (<= i0 0) (return (coco_type_error e "integer" 0)))
+                          (if s0 (return (coco_not_integer e f0)))
+                          (if (<= i0 0)
+                              (return (coco_domain_error e "not_less_than_one" (coco_new_int m i0))))
                           (let ((i64 b . #'-1) (i64 v . #'i0))
                             (while (> v 0) (set b (+ b 1)) (set v (>> v 1)))
                             (set (cof iv) b))
@@ -6935,7 +7112,7 @@
                          (set both (? (and (== s0 0) (== s1 0)) 1 0))
                          ;; each operand is offered as both, and `both' says
                          ;; which pair the operator should read
-                         (return (coco_arith_binary e nid both
+                         (return (coco_arith_binary e nid both s0
                                                   i0 (? s0 f0 (cast double i0))
                                                   i1 (? s1 f1 (cast double i1))
                                                   isf iv fv)))

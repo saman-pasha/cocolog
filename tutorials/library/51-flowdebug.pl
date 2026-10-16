@@ -347,28 +347,66 @@ timed(Dir) :-
            format(W, "~w~n", [L])),
     close(W),
     atom_concat(Dir, '/sorting', Base),
-    flow_debug(job(_), Base, [source(Prog), from(1), profile(Prof), time(Time), svg(false), xml(false)], _),
+    flow_debug(job(_), Base, [source(Prog), from(1), profile(Prof), time(Time), svg(false), xml(false)], Run),
     Prof = profile(_, _, _, PRows),
     ( memberchk(prof(msort/2, MI, MN, _), PRows) -> true ; MI = 0, MN = 0 ),
     must('msort/2 in the profile: one call, one step', MI-MN, 1-1),
     Time = time(_, _, _, TRows),
-    findall(Own-P, member(t(P, _, _, Own, _), TRows), Owns),
+    findall(Own-P, member(t(P, _, _, Own, _, _, _), TRows), Owns),
     max_member(_-Top, Owns),
     must('in time, msort/2''s own is the most of any predicate''s', Top, msort/2),
     %% a GUARD -- the arithmetic and tests a clause begins with, run as the
     %% clause is entered -- is a step no reading separates from its
     %% call's: count/1's is/2 has no time of its own, it is count/1's
-    ( memberchk(t(is/2, IN, _, IOwn, _), TRows) -> true ; IN = 0, IOwn = none ),
+    ( memberchk(t(is/2, IN, _, IOwn, _, _, _), TRows) -> true ; IN = 0, IOwn = none ),
     must('is/2, count/1''s guard: 400 calls, no time of its own', IN-IOwn, 400-0),
+    %% WHERE EACH PREDICATE'S LARGEST CALL IS (1.15.0): at(Window, Step),
+    %% the window it fell in and the step the call was made at -- the
+    %% step its call event carries, so a small window can be recorded
+    %% around it (from(S), to(S + K)) and the call read with its arguments
+    Run = run(_, _, _, window(F, T), Calls, _, _, _),
+    ( memberchk(call(MS, msort/2, _, _, _, _, _, _, _, _), Calls) -> true ; MS = none ),
+    ( memberchk(t(msort/2, _, _, _, _, MAt, _), TRows) -> true ; MAt = none ),
+    must('msort/2''s largest call: in the window, at the step its call was made', MAt, at(F-T, MS)),
+    %% A LOAD IS ONE OUTERMOST CALL (1.15.0): a row's outer(N, Ns) counts
+    %% the calls no call of the same predicate in the window is above, and
+    %% their time -- count/1's two, of its 402 -- and the text marks a
+    %% predicate (one call: P %) when one of those took ten times the
+    %% others' mean or more: the first call of a predicate held in a store,
+    %% which fetches its clauses. Through 1.14.0 every call counted, and
+    %% count/1, called twice alike, was marked by the 400 inside its two
+    ( memberchk(t(count/1, CN, _, _, _, _, outer(CON, _)), TRows) -> true ; CN = 0, CON = 0 ),
+    must('count/1: 402 calls, two of them outermost', CN-CON, 402-2),
     %% as text (flow_time_text/2; profile=time from the shell): the window's
     %% time and what the clock cost, then a row a predicate, the most
-    %% inclusive first -- its numbers are this run's, and the next differs
+    %% inclusive first, each ending in @W:S, where its largest call is --
+    %% its numbers are this run's, and the next differs
     flow_time_text(Time, Text),
     atomic_list_concat([_, _, Cols|Rows], '\n', Text),
     format("~w~n", [Cols]),
-    forall(( member(R, Rows), member(E, ['  job/1', '  sorted_last/1', '  msort/2', '  count/1']),
-             atom_concat(_, E, R) ),
-           format("~w~n", [R])).
+    forall(( member(R, Rows), member(E, ['  job/1  @', '  sorted_last/1  @', '  msort/2  @', '  count/1  @']),
+             sub_atom(R, _, _, _, E) ),
+           format("~w~n", [R])),
+    %% THE WHOLE RUN (1.15.0, flow_run_time/3): the time view is a
+    %% window's -- here the run's every step, from(1), and of a long run a
+    %% sample. flow_run_time/3 times all of a run however long: the probe
+    %% alone, under a clock read at every step from the first, each step's
+    %% time charged to what its goal is named by and a retry's to the
+    %% predicate retried -- each predicate's own time, no window, no
+    %% replay, about twice the run's time (profile=run from the shell)
+    flow_run_time(job(_), [source(Prog)], RT),
+    RT = run_time(_, _, RTRows),
+    ( RTRows = [rt(RTop, _, _, _)|_] -> true ; RTop = none ),
+    must('over the whole run, msort/2''s own time the most', RTop, msort/2),
+    ( memberchk(rt(count/1, CN2, _, _), RTRows) -> true ; CN2 = 0 ),
+    ( memberchk(rt(is/2, _, _, _), RTRows) -> IR = row ; IR = none ),
+    must('count/1''s 402 steps, and no row for is/2: the guard count/1''s clause runs as it is entered is count/1''s',
+         CN2-IR, 402-none),
+    flow_run_time_text(RT, RText),
+    atomic_list_concat([_, _, RCols|RRows], '\n', RText),
+    format("~w~n", [RCols]),
+    forall(( member(R2, RRows), member(E2, ['  msort/2', '  count/1']), sub_atom(R2, _, _, 0, E2) ),
+           format("~w~n", [R2])).
 
 %% a why tree without its arguments: what failed, and where
 why_shape(L, S) :- is_list(L), !, findall(X, ( member(W, L), why_shape(W, X) ), S).

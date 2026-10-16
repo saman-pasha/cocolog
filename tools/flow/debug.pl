@@ -39,7 +39,14 @@
 %%                                    predicate's inclusive and self time,
 %%                                    the probe run untraced under a clock
 %%                                    read at every step: 1.13.3), a
-%%                                    comma between, or all
+%%                                    comma between, or all, those five;
+%%                                    and run (1.15.0), not the window's:
+%%                                    each predicate's self time over the
+%%                                    WHOLE run, a probe of its own run to
+%%                                    its end under a clock read at every
+%%                                    step (flow_run_time/3), about twice
+%%                                    the run's time, asked by name --
+%%                                    profile=run, or all,run
 %%              windows=N             N windows of window=N steps along the
 %%              jobs=J                run, over from= to= when given, written as
 %%                                    BASE.1.*, BASE.2.*, ... -- each by a
@@ -126,7 +133,7 @@ main :-
     current_prolog_flag(argv, [_|Args]),
     (   Args = [GoalA, File, Base|OptAs]
     ->  true
-    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [windows=N] [jobs=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [svg=true|false] [xml=true|false] [profile=true|false|all|inclusive,steps,callers,repeats,time] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
+    ;   format(user_error, "usage: cocolog -s tools/flow/debug.pl -- GOAL FILE BASE [until=end|answer(K)] [window=N] [from=I] [to=J] [windows=N] [jobs=J] [discs=N] [text=N] [view=flow|tree] [depth=N|all] [only=NAME/ARITY,...] [timeout=MS] [journal=true|false] [journal_file=F] [txt=true|false] [svg=true|false] [xml=true|false] [profile=true|false|all|inclusive,steps,callers,repeats,time,run] [cache=DIR] [embed=DIR] [kb=NAME] [own=all|FILE,...] [when=COND] [step=N] [diff=FILE] [diff_goal=GOAL]~n", []),
         halt(2)
     ),
     (   exists_file(File)
@@ -170,7 +177,8 @@ main :-
     append(Ans, Opts, POs),
     catch(flow_debug(Goal, Base, [source(File), names(Names), cpu(Cpu)|POs], Run), E, fd_error(E)),
     fd_files(Goal, File, Base, Opts),
-    fd_profile(Vs, Base, Ans),
+    fd_run_time(Vs, Goal, File, Opts, RT),
+    fd_profile(Vs, Base, Ans, RT),
     flow_term_full(Goal, Names, 999, GT),
     fd_line(GT, Run, Cpu).
 
@@ -222,26 +230,36 @@ fd_one_profile(As0, As) :-
     ;   As = As0
     ).
 
-fd_profile([], _, _) :- !.
-fd_profile(Vs, Base, Ans) :-
+fd_profile([], _, _, _) :- !.
+fd_profile(Vs, Base, Ans, RT) :-
     (   memberchk(profile(P), Ans) -> true ; P = none ),
     (   memberchk(callers(C), Ans) -> true ; C = none ),
     (   memberchk(repeats(R), Ans) -> true ; R = none ),
     (   memberchk(time(Ti), Ans) -> true ; Ti = none ),
-    fd_profile_write(Vs, Base, P, C, R, Ti).
+    fd_profile_write(Vs, Base, P, C, R, Ti, RT).
 
-fd_profile_write(Vs, Base, P, C, R, Ti) :-
-    findall(T, ( member(V, Vs), fd_view_text(V, P, C, R, Ti, T) ), Ts),
+fd_profile_write(Vs, Base, P, C, R, Ti, RT) :-
+    findall(T, ( member(V, Vs), fd_view_text(V, P, C, R, Ti, RT, T) ), Ts),
     atomic_list_concat(Ts, '\n', Text),
     atom_concat(Base, '.prof', PFile),
     open(PFile, write, PS), write(PS, Text), close(PS),
     format("~w~n", [PFile]).
 
-fd_view_text(inclusive, P, _, _, _, T) :- flow_profile_text(P, T).
-fd_view_text(steps, P, _, _, _, T) :- flow_steps_text(P, T).
-fd_view_text(callers, _, C, _, _, T) :- flow_callers_text(C, T).
-fd_view_text(repeats, _, _, R, _, T) :- flow_repeats_text(R, T).
-fd_view_text(time, _, _, _, Ti, T) :- flow_time_text(Ti, T).
+fd_view_text(inclusive, P, _, _, _, _, T) :- flow_profile_text(P, T).
+fd_view_text(steps, P, _, _, _, _, T) :- flow_steps_text(P, T).
+fd_view_text(callers, _, C, _, _, _, T) :- flow_callers_text(C, T).
+fd_view_text(repeats, _, _, R, _, _, T) :- flow_repeats_text(R, T).
+fd_view_text(time, _, _, _, Ti, _, T) :- flow_time_text(Ti, T).
+fd_view_text(run, _, _, _, _, RT, T) :- flow_run_time_text(RT, T).
+
+%% PROFILE=RUN (1.15.0): the whole run's time by predicate, a probe of its
+%% own (flow_run_time/3) over the program the options name -- until=,
+%% to=, timeout=, embed= as the run's
+fd_run_time(Vs, Goal, File, Opts, RT) :-
+    (   memberchk(run, Vs)
+    ->  catch(flow_run_time(Goal, [source(File)|Opts], RT), E, fd_error(E))
+    ;   RT = none
+    ).
 
 %% WINDOWS=N: N windows along the run (flow_debug_windows/4), each written
 %% as BASE.K.* -- BASE.K.prof too when profile= asks, the window apart, so
@@ -259,18 +277,22 @@ fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
     (   memberchk(time, Vs) -> Opts = [time(_)|Opts1] ; Opts = Opts1 ),
     catch(flow_debug_windows(Goal, Base, [source(File), names(Names), cpu(ECpu)|Opts], windows(End, Ws)), E, fd_error(E)),
     flow_term_full(Goal, Names, 999, GT),
+    %% a window's own BASE.K.prof holds the window's views; the whole
+    %% run's (run) goes in BASE.prof alone, once (1.15.0)
+    (   selectchk(run, Vs, WVs) -> true ; WVs = Vs ),
     forall(member(window(_, BK, Run, WRows), Ws),
            ( fd_files(Goal, File, BK, Opts),
-             (   Vs == [] -> true
+             (   WVs == [] -> true
              ;   flow_profile_merge([WRows], WP, WC, WR, WTi),
-                 fd_profile_write(Vs, BK, WP, WC, WR, WTi)
+                 fd_profile_write(WVs, BK, WP, WC, WR, WTi, none)
              ),
              (   memberchk(cpu(WP1, WB1), WRows) -> WCpu = cpu(WP1, WB1) ; WCpu = none ),
              fd_line(GT, Run, WCpu) )),
     (   Vs == [] -> true
     ;   findall(Rows, member(window(_, _, _, Rows), Ws), RLs),
         flow_profile_merge(RLs, P, C, R, Ti),
-        fd_profile_write(Vs, Base, P, C, R, Ti)
+        fd_run_time(Vs, Goal, File, Opts, RT),
+        fd_profile_write(Vs, Base, P, C, R, Ti, RT)
     ),
     End = end(How, At, _),
     fd_how(How, At, HT),
@@ -436,16 +458,20 @@ fd_option(K, V, O) :-
     O =.. [K, N].
 
 %% profile=: true (the inclusive view alone, as through 1.11.9), false,
-%% all, or views by name, a comma between -- in BASE.prof always in the
-%% order inclusive, steps, callers, repeats, time
+%% all (the window's five), or views by name, a comma between, all among
+%% them -- in BASE.prof always in the order inclusive, steps, callers,
+%% repeats, time, run. run (1.15.0) is the whole run's, a probe of its own
+%% that costs the run twice over, so all does not take it in
 fd_views(true, [inclusive]) :- !.
 fd_views(false, []) :- !.
-fd_views(all, [inclusive, steps, callers, repeats, time]) :- !.
 fd_views(V, Vs) :-
     atomic_list_concat(Vs0, ',', V),
     Vs0 \== [],
-    forall(member(X, Vs0), memberchk(X, [inclusive, steps, callers, repeats, time])),
-    findall(X, ( member(X, [inclusive, steps, callers, repeats, time]), memberchk(X, Vs0) ), Vs).
+    (   selectchk(all, Vs0, Vs1) -> append([inclusive, steps, callers, repeats, time], Vs1, Vs2)
+    ;   Vs2 = Vs0
+    ),
+    forall(member(X, Vs2), memberchk(X, [inclusive, steps, callers, repeats, time, run])),
+    findall(X, ( member(X, [inclusive, steps, callers, repeats, time, run]), memberchk(X, Vs2) ), Vs).
 
 fd_preds([], []).
 fd_preds([A|As], [P|Ps]) :-

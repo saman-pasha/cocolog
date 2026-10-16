@@ -1248,6 +1248,40 @@ from a session that used the library on `library/reasoning/translate.pl`:
   engine's `cpu(Open, Total)`), each window's with the replay's CPU before
   it opened -- a clock for each position, as the session asked, with no
   probe of its own.
+* **Where the largest call is, and a load counted from the outside**
+  (1.15.0, cicilang's two points). Each row of the time view says where
+  its largest call was made, `at(From-To, Step)`, written ` @W:S` -- W the
+  window's place among the view's, the merged view numbering its windows,
+  and S the step its call event carries -- the earliest of any that took
+  that long, so that a window of a few thousand steps recorded around S
+  reads the call with its arguments. And the load mark counts a
+  predicate's OUTERMOST calls, those no call of it in the window is above
+  (`outer(N, Ns)` on the row, which windows add up): through 1.14.0 it
+  counted every call, so a recursion called twice alike counted the first
+  call's inner calls as "the others", their mean nearly nothing, and was
+  marked -- lesson 51's `count/1`, `(one call: 51.9 %)`. The call tree
+  names them, not the spans: a recursion redone for its next answer makes
+  its inner calls after its first Exit, where its span ends, and the spans
+  alone counted all 31 calls of `nat(X), X >= 30` outermost.
+* **Where the whole run's time went** (`flow_run_time/3`, `profile=run`,
+  1.15.0, cicilang's ask: "self time alone, by predicate over the whole
+  run, would serve us well" -- the windows had covered 0.7 % of a run).
+  No window, no replay, no chart: the probe alone, under a clock read at
+  every step from the first (`'$trace_window'/4`'s `run_time(R)`), each
+  step's time charged to what its goal is NAMED by -- read at the step's
+  top from what the loop is about to take, a functor or an atom, into an
+  array by key -- and each retry to the predicate retried. A nested
+  engine's first goal is named in the narrow, so its three starters now
+  ask before they narrow (an ask leaves the limits alone); the starter's
+  step is kept on the starter and given back where its own work goes on,
+  so findall/3's copies stay its own. A guard a clause runs as it is
+  entered is no step the clock reads (is/2 run so has no row); a control
+  construct is a row of its own (`','/2`, `(;)/2`, `!/0`, the engine's
+  `'$cut'/1` and `'$true'/0`). It costs the run about twice over, as
+  `time(1, 0)` does -- naive reverse and the eight queens, 144 to 220 ms
+  in three probes untimed, took 274 to 330 under `time(1, 0)` and 253 to
+  310 under `run_time(R)` -- and a run that asks for neither pays what it
+  did: the step loop is untouched.
 * **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
   the why of a reader that backtracks is the whole trace (2.84 MB for one
   refusal), and following its last failure down leads to the last

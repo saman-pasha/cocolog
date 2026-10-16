@@ -683,6 +683,14 @@
   ;;;                           cputime) the run had taken where the window
   ;;;                           opened -- `none' for a probe, or a run that
   ;;;                           ended first -- and the whole run's
+  ;;;   run_time(R)             bound after the run (1.15.0): the whole run's
+  ;;;                           time by predicate, a probe's (from 0) and
+  ;;;                           never beside time(F, K) -- the clock read at
+  ;;;                           every step from the first, each step's time
+  ;;;                           charged to what its goal is named by, its
+  ;;;                           retries' to the predicate retried:
+  ;;;                           run_time(Ns, Readings, N, ClockNs, GcNs,
+  ;;;                           Gcs, Rows) (`coco_b_run_time' above)
   ;;;
   ;;; End is `end(How, Used, Answers)': How is `answer' (the K-th was found),
   ;;; `false', `limit' (stopped past T), `exception(Ball)', `halt(Code)',
@@ -835,6 +843,78 @@
             (set (nth 3 a) (coco_new_int m (cast i64 (-> r calns))))
             (return (coco_cons m (coco_make m "time" 4 a) out)))))
 
+  ;;; THE WHOLE RUN'S CLOCK AS A TERM (1.15.0, run_time(R)):
+  ;;;
+  ;;;   run_time(Ns, Readings, N, ClockNs, GcNs, Gcs, Rows)
+  ;;;
+  ;;; Ns the run's nanoseconds less its collections', Readings the steps
+  ;;; the clock read, N readings costing ClockNs where nothing else ran (as
+  ;;; time(F, K) says it), GcNs the Gcs collections' own, and a
+  ;;; r(Key, Steps, KeyNs, RetryNs) for each key the clock charged or a
+  ;;; retry went to: Key Name/Arity -- a functor's, or an atom's as
+  ;;; Name/0 -- or `none' for the steps that named no goal; Steps its
+  ;;; readings; KeyNs what they took, their readings' cost in it and the
+  ;;; retries in them taken off; RetryNs the retries of the predicate,
+  ;;; named once here from the store's index. An id past its table (it
+  ;;; cannot happen as the clock keys) is `none' too
+  (static)
+  (func coco_b_run_time_key ((coco_machine * m) (u64 k)) (out size_t)
+        (let ((u64 id . 0) (size_t pa [2]))
+          (if (== k 0) (return (coco_new_atom m "none")))
+          (set id (>> (- k 1) 1))
+          (if (!= 0 (bitand (- k 1) 1))
+              (block (if (>= id (cast u64 (-> m atoms_len))) (return (coco_new_atom m "none")))
+                     (set (nth 0 pa) (coco_new_atom_id m id))
+                     (set (nth 1 pa) (coco_new_int m 0)))
+              (block (if (>= id (cast u64 (-> m functors_len))) (return (coco_new_atom m "none")))
+                     (set (nth 0 pa) (coco_new_atom_id m ($ (nth (cast size_t id) (-> m functors)) name)))
+                     (set (nth 1 pa) (coco_new_int m (cast i64 ($ (nth (cast size_t id) (-> m functors)) arity))))))
+          (return (coco_make m "/" 2 pa))))
+
+  (static)
+  (func coco_b_run_time ((coco_machine * m) (coco_store * st) (coco_rec * r)) (out size_t)
+        (let ((size_t n . #'(-> r kcap)) (u64 * kret . nil) (size_t rows . 0)
+              (u64 tot . 0) (u64 reads . 0) (size_t a [7]))
+          (set kret (cast (u64 *) (calloc (? (== n 0) 1 n) (sizeof u64))))
+          (if (== kret nil) (return 0))
+          ;; each predicate retried, by its key: an atom's for one of no
+          ;; arguments, its functor's for the rest -- every predicate the run
+          ;; retried was called, so the key is one the clock charged
+          (for ((size_t p . 0)) (< p (-> r pcap)) ((++ p))
+            (if (and (> (nth p (-> r pret)) 0) (< p (-> st npreds)))
+                (let ((u64 nm . #'($ (nth p (-> st preds)) name))
+                      (u32 ar . #'($ (nth p (-> st preds)) arity))
+                      (u64 key . 0))
+                  (set key (? (== ar 0) (+ (bitor (<< nm 1) 1) 1)
+                              (+ (<< (coco_functor_id m nm ar) 1) 1)))
+                  (if (>= key (cast u64 n)) (set key 0))
+                  (set (nth key kret) (+ (nth key kret) (nth p (-> r pret)))))))
+          (set rows (coco_new_atom m "[]"))
+          (let ((size_t k . n))
+            (while (> k 0)
+              (set k (- k 1))
+              (if (or (> (nth k (-> r kst)) 0) (or (!= (nth k (-> r kns)) 0) (> (nth k kret) 0)))
+                  (let ((size_t ra [4]) (i64 ns . #'(cast i64 (nth k (-> r kns)))))
+                    ;; a reading never runs backwards, so a key's time is
+                    ;; never below its retries'; 0 if it ever were
+                    (if (< ns 0) (set ns 0))
+                    (set tot (+ tot (+ (cast u64 ns) (nth k kret))))
+                    (set reads (+ reads (nth k (-> r kst))))
+                    (set (nth 0 ra) (coco_b_run_time_key m (cast u64 k)))
+                    (set (nth 1 ra) (coco_new_int m (cast i64 (nth k (-> r kst)))))
+                    (set (nth 2 ra) (coco_new_int m ns))
+                    (set (nth 3 ra) (coco_new_int m (cast i64 (nth k kret))))
+                    (set rows (coco_cons m (coco_make m "r" 4 ra) rows))))))
+          (free kret)
+          (set (nth 0 a) (coco_new_int m (cast i64 tot)))
+          (set (nth 1 a) (coco_new_int m (cast i64 reads)))
+          (set (nth 2 a) (coco_new_int m (cast i64 (-> r caln))))
+          (set (nth 3 a) (coco_new_int m (cast i64 (-> r calns))))
+          (set (nth 4 a) (coco_new_int m (cast i64 (-> r kgcns))))
+          (set (nth 5 a) (coco_new_int m (cast i64 (-> r kgcn))))
+          (set (nth 6 a) rows)
+          (return (coco_make m "run_time" 7 a))))
+
   ;;; A WHOLE FILE as malloc'd text, or null: the journal a replay reads
   (static)
   (func coco_b_slurp ((const char * path)) (out char *)
@@ -889,7 +969,7 @@
               (coco_jrnl jr) (int jmode . 0) (char jpath [1024]) (size_t jopt . 0)
               (int jbad . 0) (size_t askcell . 0) (i64 askat . -1) (i64 cpuat . -1)
               (i64 cpu1 . 0)
-              (int tk . 0) (i64 tfrom . 0) (i64 tkeep . 0))
+              (int tk . 0) (i64 tfrom . 0) (i64 tkeep . 0) (i64 rtat . -1) (size_t rtv . 0))
           (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
           (if (!= (-> m rec) nil)
               (return (coco_m_permission_error e "open" "trace_window" (coco_m_arg e g 0))))
@@ -922,12 +1002,20 @@
               ;; cpu(Open, Total): the run's CPU, bound after it (1.13.7)
               (if (and (not ok) (and (!= nm nil) (and (== ar 2) (== 0 (strcmp nm "cpu")))))
                   (block (set cpuat (cast i64 i)) (set ok 1)))
+              ;; run_time(R): the whole run's clock, by predicate (1.15.0)
+              (if (and (not ok) (and (!= nm nil) (and (== ar 1) (== 0 (strcmp nm "run_time")))))
+                  (block (set rtat (cast i64 i)) (set ok 1)))
               (if (not ok)
                   (block (free v)
                          (return (coco_m_domain_error e "trace_window_option" o))))))
           (free v)
           (if (and (!= to 0) (< to from))
               (return (coco_m_domain_error e "trace_window_option" (coco_m_arg e g 1))))
+          ;; the whole run's clock is the clock from the first step, keyed:
+          ;; one clock a run, so not beside time(F, K)
+          (if (>= rtat 0)
+              (block (if tk (return (coco_m_domain_error e "trace_window_option" (coco_m_arg e g 1))))
+                     (set tk 1) (set tfrom 1) (set tkeep 0)))
           ;; the clock times a probe: a recording's run is the recorder's
           (if (and tk (!= from 0))
               (return (coco_m_domain_error e "trace_window_option" (coco_m_arg e g 1))))
@@ -959,7 +1047,21 @@
           ;; ring, the power of two at or over K, its slot a mask; for every
           ;; inference from F, 65536, grown as the run needs
           ;; (`coco_clock_charge')
-          (if tk
+          ;; THE WHOLE RUN'S, BY KEY (1.15.0): no array of steps, but one of
+          ;; keys, grown as the run names them (`coco_clock_kset')
+          (if (and tk (>= rtat 0))
+              (block
+               (set ($ r tk) 1)
+               (set ($ r tfrom) 1)
+               (set ($ r tbykey) 1)
+               (set ($ r kns) (cast (u64 *) (calloc 4096 (sizeof u64))))
+               (set ($ r kst) (cast (u64 *) (calloc 4096 (sizeof u64))))
+               (set ($ r kcap) 4096)
+               (if (or (== ($ r kns) nil) (== ($ r kst) nil))
+                   (block (free ($ r kns)) (free ($ r kst)) (free ats)
+                          (if (!= jmode 0) (coco_jr_free (aof jr)))
+                          (return (coco_m_resource_error e "memory"))))))
+          (if (and tk (< rtat 0))
               (let ((u64 n2 . 2))
                 (set ($ r tk) 1)
                 (set ($ r tfrom) (cast u64 tfrom))
@@ -990,7 +1092,11 @@
             (while (> k 0)
               (set k (- k 1))
               (set evs (coco_cons m (coco_b_rec_event m (aof r) (aof (nth k ($ r evs)))) evs))))
-          (if tk (set evs (coco_b_clock_events m (aof r) used evs)))
+          (if (and tk (< rtat 0)) (set evs (coco_b_clock_events m (aof r) used evs)))
+          ;; the whole run's, built before the recorder is freed (1.15.0)
+          (if (>= rtat 0)
+              (block (set rtv (coco_b_run_time m (-> e st) (aof r)))
+                     (if (== rtv 0) (set rtv (coco_new_atom m "none")))))
           (cond ((and (== jmode 2) ($ jr div))
                  (let ((size_t da [3]))
                    (coco_jr_diverged m (aof jr) (aof (nth 0 da)) (aof (nth 1 da)) (aof (nth 2 da)))
@@ -1053,6 +1159,17 @@
                   (free v)
                   (if (not (coco_m_unify e (coco_m_arg e o 0) ov)) (return 0))
                   (if (not (coco_m_unify e (coco_m_arg e o 1) tv)) (return 0)))))
+          ;; run_time's: the whole run's clock by predicate (1.15.0) -- found
+          ;; again by its place
+          (if (>= rtat 0)
+              (block
+               (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+                   (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+               (if (>= (cast size_t rtat) n)
+                   (block (free v) (return (coco_m_error e "'$trace_window'/4" "the options moved"))))
+               (let ((size_t o . #'(coco_deref m (nth (cast size_t rtat) v))))
+                 (free v)
+                 (if (not (coco_m_unify e (coco_m_arg e o 0) rtv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by
@@ -2049,9 +2166,10 @@
 
           (coco_engine_init (aof sub) m st)
           ;; the inner goal spends the outer one's remaining budget, so a step
-          ;; limit cannot be overrun from in here
-          (coco_limit_narrow e (aof sub))
+          ;; limit cannot be overrun from in here -- narrowed after the ask,
+          ;; as findall/3's is (1.15.0)
           (coco_engine_ask (aof sub) goal)
+          (coco_limit_narrow e (aof sub))
           ;; the trace follows the proof inside, depth and all, as it does
           ;; into a findall's -- through 1.10.16 this engine traced as
           ;; `--trace' had started it whatever trace/0 and notrace/0 had said

@@ -75,6 +75,7 @@ main :-
     profiled(D),
     viewed(D),
     timed(D),
+    run_timed(D),
     furthest(D),
     raised(D),
     raised_choice(D),
@@ -1159,32 +1160,58 @@ timed(D) :-
                 't_count(0) :- !.', 't_count(N) :- N1 is N - 1, t_count(N1).',
                 't_go(X) :- t_count(200), t_sort(X), t_count(200).']),
     atomic_list_concat([D, '/timed'], B),
-    flow_debug(t_go(_), B, [source(F), from(1), profile(P1), time(T1), svg(false), xml(false)], _),
+    flow_debug(t_go(_), B, [source(F), from(1), profile(P1), time(T1), svg(false), xml(false)], R1),
     P1 = profile(PF1, PT1, _, PR1),
     T1 = time(TF1, TT1, total(Ns1, Reads1, _, _, _), TR1),
     findall(Pr-N, member(prof(Pr, _, N, _), PR1), PN1), msort(PN1, SPN1),
-    findall(Pr-N, member(t(Pr, N, _, _, _), TR1), TN1), msort(TN1, STN1),
+    findall(Pr-N, member(t(Pr, N, _, _, _, _, _), TR1), TN1), msort(TN1, STN1),
     W1 is PT1 - PF1 + 1,
     ( Ns1 > 0, Reads1 < W1 -> S1 = timed ; S1 = Ns1-Reads1-W1 ),
     check('the window the profile counts, its predicates and their calls; timed, and some of its steps not read',
           TF1-TT1-STN1-S1, PF1-PT1-SPN1-timed),
-    ( memberchk(t(is/2, NI1, _, SI1, _), TR1) -> true ; NI1 = 0, SI1 = none ),
+    ( memberchk(t(is/2, NI1, _, SI1, _, _, _), TR1) -> true ; NI1 = 0, SI1 = none ),
     check('is/2, a guard its clause runs as it is entered: 400 calls and no time of its own -- it is t_count/1''s',
           NI1-SI1, 400-0),
-    findall(Se-Pr, member(t(Pr, _, _, Se, _), TR1), SPs1), max_member(_-Top1, SPs1),
+    findall(Se-Pr, member(t(Pr, _, _, Se, _, _, _), TR1), SPs1), max_member(_-Top1, SPs1),
     ( memberchk(prof(msort/2, IM1, NM1, _), PR1) -> true ; IM1 = 0, NM1 = 0 ),
     check('msort/2: one step in the profile, and in time the most of any predicate''s own',
           Top1-IM1-NM1, (msort/2)-1-1),
-    ( memberchk(t(t_sort/1, 1, IS1, SS1, _), TR1), SS1 * 10 < IS1 -> O1 = own ; O1 = none ),
+    ( memberchk(t(t_sort/1, 1, IS1, SS1, _, _, _), TR1), SS1 * 10 < IS1 -> O1 = own ; O1 = none ),
     check('a predicate''s own time is its Call''s step: t_sort/1''s is a tenth of what it takes inside',
           O1, own),
+    %% WHERE THE LARGEST CALL IS (1.15.0, cicilang's ask): msort/2's one
+    %% call, its window and the step it was made at -- the step the run's
+    %% own call event carries, so a window can be recorded around it
+    R1 = run(_, _, _, _, Cs1, _, _, _),
+    ( memberchk(call(SM1, msort/2, _, _, _, _, _, _, _, _), Cs1) -> true ; SM1 = none ),
+    ( memberchk(t(msort/2, _, _, _, _, AM1, _), TR1) -> true ; AM1 = none ),
+    check('where msort/2''s largest call is: the window, and the step its call event names',
+          AM1, at(PF1-PT1, SM1)),
     flow_time_text(T1, TX1),
     atomic_list_concat([TH1, _, TC1, TD1|_], '\n', TX1),
     format(atom(TP1), '% the ~d steps of the window ~d to ~d, ~d of them inferences (true/0 and =/2 are none), took ', [W1, PF1, PT1, W1]),
     ( atom_concat(TP1, _, TH1) -> H1 = header ; H1 = TH1 ),
-    ( sub_atom(TD1, _, _, 0, '  t_go/1') -> D1 = t_go ; D1 = TD1 ),
-    check('as text: the window''s time, then a row a predicate, the most inclusive first',
+    ( sub_atom(TD1, _, _, _, '  t_go/1  @1:') -> D1 = t_go ; D1 = TD1 ),
+    check('as text: the window''s time, then a row a predicate, the most inclusive first, each with where its largest call is',
           H1-TC1-D1, header-'% inclusive us       %     self us       %    calls  largest us  predicate'-t_go),
+    format(atom(MW1), '  msort/2  @1:~d', [SM1]),
+    ( sub_atom(TX1, _, _, _, MW1) -> MT1 = placed ; MT1 = MW1 ),
+    check('...msort/2''s row says @1:S, window 1 and its call''s step', MT1, placed),
+    %% TWO WINDOWS ADDED UP keep the position of the one that held it: the
+    %% run cut five steps before msort/2's call, so it is in the second
+    K1 is SM1 - 5, K1b is K1 + 1,
+    flow_debug(t_go(_), B, [source(F), from(1), to(K1), time(_), profile_rows(RsA1), svg(false), xml(false)], _),
+    flow_debug(t_go(_), B, [source(F), from(K1b), time(_), profile_rows(RsB1), svg(false), xml(false)], _),
+    flow_profile_merge([RsA1, RsB1], _, _, _, TM1),
+    TM1 = time(windows(Ws1), none, _, MR1),
+    ( Ws1 = [_, K1b-TB1] -> true ; TB1 = none ),
+    ( memberchk(t(msort/2, _, _, _, _, MA1, _), MR1) -> true ; MA1 = none ),
+    check('two windows added up: msort/2''s largest call is in the second, at its step',
+          MA1, at(K1b-TB1, SM1)),
+    flow_time_text(TM1, MX1),
+    format(atom(MW2), '  msort/2  @2:~d', [SM1]),
+    ( sub_atom(MX1, _, _, _, MW2) -> MT2 = placed ; MT2 = MX1 ),
+    check('...and its row says @2:S', MT2, placed),
     %% A RETRY IS THE RETRIED PREDICATE'S (1.13.7): t_last/1's ==/2 fails
     %% at each of t_n/2's first 199 clauses, and each failure is a retry of
     %% t_n/2, whose next head binds twenty arguments. From step 3 the window
@@ -1197,11 +1224,11 @@ timed(D) :-
     atomic_list_concat([D, '/retry'], B2),
     flow_debug(t_last(_), B2, [source(F2), from(3), time(T2), svg(false), xml(false)], _),
     T2 = time(_, _, _, TR2),
-    ( memberchk(t(t_n/2, NN2, IN2, SN2, _), TR2) -> true ; NN2 = none, IN2 = 0, SN2 = 0 ),
+    ( memberchk(t(t_n/2, NN2, IN2, SN2, _, _, _), TR2) -> true ; NN2 = none, IN2 = 0, SN2 = 0 ),
     ( SN2 > 0, IN2 =:= SN2 -> O2 = retried ; O2 = IN2-SN2 ),
     check('from(3), after t_n/2''s call: its 199 retries in the window, a row of 0 calls whose time, own and inclusive, is theirs',
           NN2-O2, 0-retried),
-    ( memberchk(t((==)/2, NE2, IE2, SE2, ME2), TR2) -> true ; NE2 = 0, IE2 = 0, SE2 = 0, ME2 = 0 ),
+    ( memberchk(t((==)/2, NE2, IE2, SE2, ME2, _, _), TR2) -> true ; NE2 = 0, IE2 = 0, SE2 = 0, ME2 = 0 ),
     ( SE2 - ME2 < SN2 -> E2 = under ; E2 = SE2-ME2-SN2 ),
     ( IE2 =:= SE2 -> P2 = own ; P2 = IE2-SE2 ),
     check('==/2''s 200 calls: their own time, less the largest, under the retries'' -- a failure is not charged the retry after it -- and inside them too, each call over at its Fail',
@@ -1212,39 +1239,116 @@ timed(D) :-
     %% over at its Exit at 2, its retries after it its inclusive time too
     flow_debug(t_last(_), B2, [source(F2), from(1), to(10), time(T3), svg(false), xml(false)], _),
     T3 = time(_, _, total(Ns3, _, _, _, _), TR3),
-    ( memberchk(t(t_last/1, 1, IL3, _, _), TR3) -> true ; IL3 = none ),
-    ( memberchk(t(t_n/2, 1, IN3, SN3, _), TR3), IN3 =:= SN3 -> N3 = own ; N3 = none ),
+    ( memberchk(t(t_last/1, 1, IL3, _, _, _, _), TR3) -> true ; IL3 = none ),
+    ( memberchk(t(t_n/2, 1, IN3, SN3, _, _, _), TR3), IN3 =:= SN3 -> N3 = own ; N3 = none ),
     check('to(10): the window ends inside t_last/1, so the retry at its last step is its, and its time the window''s; t_n/2''s retries after its Exit are in its inclusive time',
           IL3-N3, Ns3-own),
     %% A LOAD, NOT A CALL (1.13.7): msort/2 of 20 000 and then of two, and
     %% t_w/1, whose first call sorts them in its body -- each one call most
     %% of its time, marked; t_e/1's two calls alike, and t_c/1's outermost
-    %% call holding all its others, are not
+    %% call holding all its others, are not. Nor is t_r/1 (1.15.0), a
+    %% recursion called twice alike, back to back: through 1.14.0 the 2 000
+    %% calls inside its first were counted as its others, their mean nearly
+    %% nothing, and it was marked -- lesson 51's count/1. The rule counts
+    %% its OUTERMOST calls since, which the CALL TREE names: t_nat/1,
+    %% backtracked into for its next answer until one reaches 30, makes its
+    %% inner calls after its first Exit, where its span ends, and the spans
+    %% alone count every one of its 31 calls outermost.
+    %%
+    %% THE TWO PAIRS ALIKE ARE BIG ENOUGH TO TIME: t_e/1 made a list of 300
+    %% through 1.14.0, some 25 us, its first call some three times its
+    %% second (a first call's own cost), and one stall of 50 us in it made
+    %% the ten times that marks a load -- once in a run of the case. Of
+    %% 3 000 and 2 000, eight runs put the larger call of each pair within
+    %% 1.3 and 2.9 times the other
     atomic_list_concat([D, '/load.pl'], F4),
-    fixture(F4, ['t_ms :- t_w(0), t_w(1), msort([b, a], _), t_e(1), t_e(2), t_c(200).',
+    fixture(F4, ['t_ms :- t_w(0), t_w(1), msort([b, a], _), t_e(1), t_e(2), t_c(200), t_r(2000), t_r(2000), t_n2.',
                  't_w(0) :- !, numlist(1, 20000, L0), reverse(L0, L), msort(L, _).', 't_w(_).',
-                 't_e(_) :- numlist(1, 300, _).',
-                 't_c(0) :- !.', 't_c(N) :- N1 is N - 1, t_c(N1).']),
+                 't_e(_) :- numlist(1, 3000, _).',
+                 't_c(0) :- !.', 't_c(N) :- N1 is N - 1, t_c(N1).',
+                 't_r(0) :- !.', 't_r(N) :- N1 is N - 1, t_r(N1).',
+                 't_n2 :- t_nat(X), X >= 30, !.',
+                 't_nat(0).', 't_nat(N) :- t_nat(M), N is M + 1.']),
     atomic_list_concat([D, '/load'], B4),
     flow_debug(t_ms, B4, [source(F4), from(1), time(T4), svg(false), xml(false)], _),
     flow_time_text(T4, TX4),
     atomic_list_concat(TL4, '\n', TX4),
-    findall(P4-M4, ( member(P4, ['msort/2', 't_c/1', 't_e/1', 't_w/1']), load_mark(TL4, P4, M4) ), PM4s),
-    check('a load, not a call: msort/2''s 20 000 and t_w/1''s first call marked, t_e/1''s two alike and the recursive t_c/1 not',
-          PM4s, ['msort/2'-load, 't_c/1'-none, 't_e/1'-none, 't_w/1'-load]).
+    findall(P4-M4, ( member(P4, ['msort/2', 't_c/1', 't_e/1', 't_r/1', 't_w/1']), load_mark(TL4, P4, M4) ), PM4s),
+    check('a load, not a call: msort/2''s 20 000 and t_w/1''s first call marked, t_e/1''s two alike, the recursive t_c/1 and t_r/1 called twice alike not',
+          PM4s, ['msort/2'-load, 't_c/1'-none, 't_e/1'-none, 't_r/1'-none, 't_w/1'-load]),
+    T4 = time(_, _, _, TR4),
+    findall(P5-O5, ( member(P5, [t_c/1, t_nat/1, t_r/1, t_w/1]), memberchk(t(P5, _, _, _, _, _, outer(O5, _)), TR4) ), PO5s),
+    check('...the outermost calls the row counts: t_c/1''s one, t_nat/1''s one of its 31, made as it was redone, t_r/1''s two of its 4002, t_w/1''s two',
+          PO5s, [t_c/1-1, t_nat/1-1, t_r/1-2, t_w/1-2]).
+
+%% THE WHOLE RUN'S TIME, BY PREDICATE (1.15.0, cicilang's ask): the probe
+%% alone, under a clock read at every step from the first, each step's
+%% time charged to what its goal is named by (flow_run_time/3) -- over all
+%% of the run, where the time view sees its window. Held: whose rows there
+%% are, with how many steps, in which order, a retry's, the text, and the
+%% shell's profile=run beside the window's views
+run_timed(D) :-
+    section('flow_run_time/3: each predicate''s own time over the whole run, the probe alone under the clock (1.15.0)'),
+    atomic_list_concat([D, '/runtime.pl'], F1),
+    fixture(F1, ['rt_go(X) :- rt_c(200), rt_s(X), rt_c(200), rt_z, rt_z, rt_p(Y), Y == c.',
+                 'rt_s(X) :- numlist(1, 20000, L0), reverse(L0, L), msort(L, S), last(S, X).',
+                 'rt_c(0) :- !.', 'rt_c(N) :- N1 is N - 1, rt_c(N1).',
+                 'rt_z.',
+                 'rt_p(a).', 'rt_p(b).', 'rt_p(c).']),
+    flow_run_time(rt_go(_), [source(F1)], RT1),
+    RT1 = run_time(end(How1, _, _), total(Ns1, Rd1, _, _, _), Rows1),
+    ( Rows1 = [rt(Top1, _, _, _)|_] -> true ; Top1 = none ),
+    findall(P1-S1, ( member(P1, [rt_c/1, rt_z/0, rt_p/1, (==)/2, (is)/2]),
+                     ( memberchk(rt(P1, S1, _, _), Rows1) -> true ; S1 = none ) ),
+            PS1),
+    check('the whole run by predicate: msort/2''s own time the most; rt_c/1''s 402 steps, rt_z/0''s two, rt_p/1''s one, ==/2''s three, is/2 none -- the guard rt_c/1''s clause runs as it is entered',
+          How1-Top1-PS1, answer-(msort/2)-[rt_c/1-402, rt_z/0-2, rt_p/1-1, (==)/2-3, (is)/2-none]),
+    ( memberchk(rt(rt_p/1, _, _, RP1), Rows1), RP1 > 0 -> R1 = retried ; R1 = none ),
+    findall(O1, ( member(rt(_, _, Se1, Re1), Rows1), O1 is Se1 + Re1 ), Os1),
+    ( msort(Os1, Asc1), reverse(Asc1, Os1) -> Or1 = descending ; Or1 = Os1 ),
+    ( Rd1 > 400, Ns1 > 0 -> T1 = read ; T1 = Rd1-Ns1 ),
+    check('...rt_p/1 retried for its next clauses, its retries'' time its own; the rows by own time, the most first; every step but the guards read',
+          R1-Or1-T1, retried-descending-read),
+    flow_run_time_text(RT1, TX1),
+    atomic_list_concat([H1, _, C1|Ls1], '\n', TX1),
+    ( sub_atom(H1, 0, _, _, '% the whole run, answer at step ') -> HH1 = header ; HH1 = H1 ),
+    ( Ls1 = [L1|_], sub_atom(L1, _, _, 0, '  msort/2') -> LL1 = msort ; LL1 = Ls1 ),
+    check('as text: how the run ended and what the clock read, then a row a predicate, msort/2''s first',
+          HH1-C1-LL1, header-'%    self us       %    retry us       %       steps  predicate'-msort),
+    %% the shell's profile=run: the window's views and then the run's, one
+    %% BASE.prof
+    atomic_list_concat([D, '/runtime'], B2),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'rt_go(X)\' ', F1, ' ', B2, ' profile=time,run svg=false xml=false'], A2),
+    cocolog_run(A2, O2, E2),
+    atomic_list_concat([B2, '.prof'], P2),
+    ( exists_file(P2) -> read_file_to_codes(P2, Cs2), atom_codes(PA2, Cs2) ; PA2 = '' ),
+    ( sub_atom(PA2, W2, _, _, ' steps of the window '), sub_atom(PA2, R2, _, _, '% the whole run, answer at step '), W2 < R2
+      -> V2 = both ; V2 = PA2 ),
+    ( sub_atom(O2, _, _, _, 'runtime.prof') -> N2 = named ; N2 = O2 ),
+    check('tools/flow/debug.pl profile=time,run: BASE.prof holds the window''s time and then the whole run''s, and is named',
+          E2-V2-N2, 0-both-named).
 
 %% P's row among the time view's LINES: `load' when it ends in the mark,
-%% `none' when it ends in P
+%% `none' when it ends in P -- past the ` @W:S' that says where its
+%% largest call is (1.15.0)
 load_mark(Lines, P, M) :-
     member(L, Lines),
     \+ sub_atom(L, 0, _, _, '%'),
     sub_atom(L, B, _, A, P),
     B >= 2, B2 is B - 2,
     sub_atom(L, B2, 2, _, '  '),
-    sub_atom(L, _, A, 0, Tail), !,
+    sub_atom(L, _, A, 0, Tail0), !,
+    load_tail(Tail0, Tail),
     (   Tail == '' -> M = none
     ;   sub_atom(Tail, 0, _, _, '   (one call: ') -> M = load
     ;   M = Tail
+    ).
+
+%% the tail with its ` @W:S' taken off: up to the mark, or to the end
+load_tail(T0, T) :-
+    (   sub_atom(T0, 0, _, _, '  @')
+    ->  (   sub_atom(T0, B, _, _, '   (one call: ') -> sub_atom(T0, B, _, 0, T) ; T = '' )
+    ;   T = T0
     ).
 
 %% ---- where a failed search got furthest -------------------------------------------

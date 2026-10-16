@@ -36,6 +36,11 @@
 %%     flow_profile_merge(+RowLists, -P, -C, -R, -T)  and their time
 %%     flow_run_end(+Goal, +Options, -End)         how the run ends, the probe
 %%                                                 alone
+%%     flow_run_time(+Goal, +Options, -RunTime)    each predicate's self time
+%%                                                 over the WHOLE run, the
+%%                                                 probe alone under a clock
+%%                                                 read at every step (1.15.0)
+%%     flow_run_time_text(+RunTime, -Text)         the same as text (dbgprof.pl)
 %%     flow_debug_windows(+Goal, +Base, +Options, -Windows)
 %%                                                 windows(N) windows along
 %%                                                 one run, each by a process
@@ -329,6 +334,67 @@ flow_run_end(Goal, Opts, End, Cpu) :-
     flow_option(timeout(Ms), Opts, 600000),
     flow_dbg_child(Src, Goal, [answers(K)], Ms, End0, _, cpu(_, Cpu)),
     flow_dbg_norm_end(End0, End).
+
+%% THE WHOLE RUN'S TIME, BY PREDICATE (1.15.0, cicilang's ask: the windows
+%% are a sample, "self time alone, by predicate over the whole run, would
+%% serve us well"). The probe alone, a child running Goal untraced to its
+%% end -- until(answer(K)) and to(J) as flow_debug/4 takes them -- under a
+%% clock read at the top of EVERY step ('$trace_window'/4's run_time(R)),
+%% each step's time charged to what its goal is named by, as the engine
+%% reads it there: no replay, no chart, no window. RunTime is
+%%
+%%     run_time(End, total(Ns, Reads, ClockNs, GcNs, Gcs), Rows)
+%%
+%% End the probe's end(How, At, Answers); Ns the run's nanoseconds, its
+%% collections' apart, Reads the steps the clock read, ClockNs what those
+%% readings cost (measured as the probe began, and taken off each row),
+%% GcNs and Gcs the collections; Rows an rt(Name/Arity, Steps, Self, Retry)
+%% for each predicate, the most own time (Self + Retry) first: the steps
+%% that took its goal, their time -- its head and the guards its clause ran
+%% as it was entered (no step the clock reads: is/2 run as a guard is its
+%% clause's), a builtin's whole run, findall/3's less the inner goals' own
+%% -- and its RETRIES': backtracking into it for its next clause, the heads
+%% tried and the guards of the clause entered. A control construct is a
+%% row of its own (','/2, (;)/2, (->)/2, !/0), and `none' the steps that
+%% handed a solution back. It costs a run untraced to its end once more,
+%% about twice as long: a reading is some 30 ns, a step 15 to 60
+flow_run_time(Goal, Opts, run_time(End, total(Ns, Reads, ClockNs, GcNs, Gcs), Rows)) :-
+    flow_dbg_check(Goal, Opts, File),
+    flow_dbg_src(File, Opts, Src),
+    (   memberchk(until(answer(K)), Opts) -> true ; K = 1 ),
+    flow_option(timeout(Ms), Opts, 600000),
+    (   memberchk(to(Cap), Opts) -> WOs = [answers(K), to(Cap), run_time(_)] ; WOs = [answers(K), run_time(_)] ),
+    flow_dbg_child(Src, Goal, WOs, Ms, End0, _, _, RT),
+    flow_dbg_norm_end(End0, End),
+    (   RT = run_time(Raw, Reads, CN, CNs, GcNs, Gcs, Rows0)
+    ->  Per is CNs / max(1, CN),
+        ClockNs is round(Per * Reads),
+        Ns is max(0, Raw - ClockNs),
+        flow_dbg_run_time_rows(Rows0, Per, Rows)
+    ;   Ns = 0, Reads = 0, ClockNs = 0, GcNs = 0, Gcs = 0, Rows = []
+    ).
+
+%% THE ROWS BY PREDICATE: the engine keys a predicate of no arguments by
+%% its functor where a call was in the registers and by its atom where it
+%% was a term, and the two are one row; each row's readings' cost taken
+%% off its steps' time, never below 0
+flow_dbg_run_time_rows(Rows0, Per, Rows) :-
+    findall(P-(S-N-R), member(r(P, S, N, R), Rows0), PVs0),
+    keysort(PVs0, PVs),
+    group_pairs_by_key(PVs, Groups),
+    findall(NO-rt(P, S, Self, R),
+            ( member(P-Vs, Groups),
+              flow_dbg_run_time_add(Vs, 0, 0, 0, S, N, R),
+              Self is max(0, round(N - Per * S)),
+              NO is -(Self + R) ),
+            KRs),
+    keysort(KRs, SKRs),
+    pairs_values(SKRs, Rows).
+
+flow_dbg_run_time_add([], S, N, R, S, N, R).
+flow_dbg_run_time_add([S1-N1-R1|Vs], S0, N0, R0, S, N, R) :-
+    S2 is S0 + S1, N2 is N0 + N1, R2 is R0 + R1,
+    flow_dbg_run_time_add(Vs, S2, N2, R2, S, N, R).
 
 %% ======================================================================
 %% Windows along one run (1.11.10)
@@ -872,19 +938,28 @@ flow_dbg_child(Src, Goal, WOpts, Ms, End, Events) :-
 %% ... and Cpu, cpu(Open, Total): the child's run in seconds of its CPU
 %% clock where its window opened (none: a probe) and in all (1.13.7)
 flow_dbg_child(Src, Goal, WOpts, Ms, End, Events, Cpu) :-
+    flow_dbg_child(Src, Goal, WOpts, Ms, End, Events, Cpu, _).
+
+%% ... and with run_time(_) among WOPTS, RunTime: what it was bound to, a
+%% line of its own after the CPU's (1.15.0), `none' without
+flow_dbg_child(Src, Goal, WOpts, Ms, End, Events, Cpu, RunTime) :-
     tmp_file(flowdebug, Out),
     Driver = ( use_module(library(stream)),
                '$trace_window'(Goal, [cpu(CO, CT)|WOpts], Es, E),
                open(Out, write, S),
                format(S, '~q.~n', [E]),
                format(S, '~q.~n', [cpu(CO, CT)]),
+               ( memberchk(run_time(RT0), WOpts) -> format(S, '~q.~n', [RT0]) ; true ),
                forall(member(X, Es), format(S, '~q.~n', [X])),
                close(S) ),
     format(atom(GoalText), '~q', [Driver]),
     flow_dbg_cmd(Src, GoalText, Cmd),
     proc_run(Cmd, Ms, OutCodes, Exit),
     (   Exit =:= 0, exists_file(Out)
-    ->  flow_dbg_read_terms(Out, [End, Cpu|Events]),
+    ->  flow_dbg_read_terms(Out, [End, Cpu|Rest]),
+        (   memberchk(run_time(_), WOpts), Rest = [RunTime|Events] -> true
+        ;   RunTime = none, Events = Rest
+        ),
         catch(delete_file(Out), _, true)
     ;   catch(delete_file(Out), _, true),
         atom_codes(Said, OutCodes),

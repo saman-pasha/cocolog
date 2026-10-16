@@ -1,7 +1,8 @@
 %% library(flow/debug), part: where a run's steps went -- each
 %% predicate's calls and the steps spent inside them, over the
 %% recorded window; the window's steps by what took them; who made
-%% the calls; the goals asked again; and where the window's time went.
+%% the calls; the goals asked again; where the window's time went; and
+%% where the WHOLE run's went, by predicate (1.15.0).
 %%
 %%     flow_debug(Goal, Base, [profile(P)|Options], Run)
 %%     flow_profile_text(+Profile, -Text)
@@ -15,6 +16,8 @@
 %%     flow_debug(Goal, Base, [profile_rows(Rows)|Options], Run)
 %%     flow_profile_merge(+RowLists, -Profile, -Callers, -Repeats)
 %%     flow_profile_merge(+RowLists, -Profile, -Callers, -Repeats, -Time)
+%%     flow_run_time(Goal, Options, RunTime)       (debug.pl says what it is)
+%%     flow_run_time_text(+RunTime, -Text)
 %%
 %% profile(P), an answer like places(P), binds P to
 %%
@@ -66,7 +69,7 @@
 %% from several windows into the three answers again, their From a
 %% windows([From-To, ...]): what tools/flow/debug.pl's windows=N writes as
 %% BASE.prof. With time(T) asked as well, the rows hold the window's time
-%% (tw/5, tp/5), which flow_profile_merge/5 adds up into a fourth answer.
+%% (tw/5, tp/7), which flow_profile_merge/5 adds up into a fourth answer.
 %%
 %% time(T) (1.13.3) binds T to where the window's TIME went:
 %%
@@ -75,11 +78,17 @@
 %% Ns the window's nanoseconds by the clock, Reads the steps the clock
 %% read, ClockNs its own cost at those readings (taken off Ns), GcNs and
 %% Gcs the collections the window ran (in no step's time), and a
-%% t(Name/Arity, Calls, Inclusive, Self, Largest) for each predicate the
-%% window saw called, the most inclusive first, in nanoseconds: the time
-%% inside its calls (their spans' union, as the profile's inclusive
-%% count), the time of its calls' own steps, and the most one call
-%% took.
+%% t(Name/Arity, Calls, Inclusive, Self, Largest, At, Outer) for each
+%% predicate the window saw called, the most inclusive first, in
+%% nanoseconds: the time inside its calls (their spans' union, as the
+%% profile's inclusive count), the time of its calls' own steps, the most
+%% one call took, WHERE THAT CALL IS (1.15.0) -- at(From-To, Step), its
+%% window and the step it was made at, the earliest of any that took that
+%% long, or `none' where the clock separated none of them; the text writes
+%% it ` @W:S', W the window's place among the view's -- and
+%% outer(ON, OSum), its OUTERMOST calls (1.15.0): how many of its calls
+%% had no call of it above them in the window, and their time summed,
+%% which is what says whether one call was a load (below).
 %%
 %% A RETRY IS THE RETRIED PREDICATE'S OWN TIME (1.13.7): backtracking
 %% into a clause frame for its next clause tries heads and runs the
@@ -345,15 +354,17 @@ flow_dbg_time(Facts, Clock, time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc),
     flow_dbg_time_retries(Rts, From, To, RtS, RtP),
     flow_dbg_time_spans(SEs, Calls, PSE0),
     keysort(PSE0, PSE),
-    flow_dbg_time_rows(PSE, From, To, PD, PR, Per, RtS, RtP, Rows1),
-    %% a predicate retried in the window whose calls were all made before it
-    findall(t(P, 0, RN, RN, 0),
+    flow_dbg_time_outers(Calls, Outer),
+    flow_dbg_time_rows(PSE, From, To, PD, PR, Per, RtS, RtP, Outer, Rows1),
+    %% a predicate retried in the window whose calls were all made before
+    %% it: no call of its own in here, so no largest call to place either
+    findall(t(P, 0, RN, RN, 0, none, outer(0, 0)),
             ( gen_assoc(P, RtP, IRs),
-              \+ memberchk(t(P, _, _, _, _), Rows1),
+              \+ memberchk(t(P, _, _, _, _, _, _), Rows1),
               flow_dbg_time_rsum(IRs, 0, RN) ),
             Rows2),
     append(Rows1, Rows2, Rows0),
-    findall(NI-R, ( member(R, Rows0), R = t(_, _, I, _, _), NI is -I ), KRs),
+    findall(NI-R, ( member(R, Rows0), R = t(_, _, I, _, _, _, _), NI is -I ), KRs),
     keysort(KRs, SKRs),
     pairs_values(SKRs, Rows).
 
@@ -460,17 +471,35 @@ flow_dbg_time_off(Raw, Reads, Per, Ns) :-
 %% retry at an end that was a port; and its retries (RtP) its own -- in
 %% its inclusive time too where one fell outside its calls, as one after
 %% a call's Exit does
-flow_dbg_time_rows([], _, _, _, _, _, _, _, []).
-flow_dbg_time_rows([P-SE|PSEs], F, T, PD, PR, Per, RtS, RtP, [t(P, N, Incl, Self, Max)|Rows]) :-
+%%
+%% AND WHERE THE LARGEST CALL IS (1.15.0, cicilang's ask): `at(F-T, S)',
+%% the window it fell in and the step it was made at, so that a window of
+%% a few thousand steps can be recorded around it and the call read with
+%% its arguments. Among calls that took the same longest time it is the
+%% EARLIEST, which is the one a load would be; a predicate none of whose
+%% calls the clock could separate (every span 0) has no position, `none'.
+%% AND ITS OUTERMOST CALLS' count and time, `outer(ON, OSum)' (1.15.0),
+%% from OUTER, each call's step to 1 when it is one
+flow_dbg_time_rows([], _, _, _, _, _, _, _, _, []).
+flow_dbg_time_rows([P-SE|PSEs], F, T, PD, PR, Per, RtS, RtP, Outer,
+                   [t(P, N, Incl, Self, Max, At, outer(ON, OSum))|Rows]) :-
     flow_dbg_prof_take(PSEs, P, Mine, Rest),
     Spans = [SE|Mine],
     length(Spans, N),
-    findall(L, ( member(S-E-K, Spans),
-                 flow_dbg_time_raw(S, E, F, T, PD, PR, R1, K1),
-                 flow_dbg_time_end(K, E, RtS, R1, R2),
-                 flow_dbg_time_off(R2, K1, Per, L) ),
-            Ls),
+    findall(L-S, ( member(S-E-K, Spans),
+                   flow_dbg_time_raw(S, E, F, T, PD, PR, R1, K1),
+                   flow_dbg_time_end(K, E, RtS, R1, R2),
+                   flow_dbg_time_off(R2, K1, Per, L) ),
+            LSs),
+    pairs_keys(LSs, Ls),
     max_list(Ls, Max),
+    (   Max > 0, findall(S1, member(Max-S1, LSs), AtS), AtS \== []
+    ->  min_list(AtS, AtStep), At = at(F-T, AtStep)
+    ;   At = none
+    ),
+    findall(L2, ( member(L2-S2, LSs), get_assoc(S2, Outer, 1) ), OLs),
+    length(OLs, ON),
+    sum_list(OLs, OSum),
     flow_dbg_time_self(Spans, F, T, PD, PR, RtS, 0, 0, SRaw, SReads),
     flow_dbg_time_off(SRaw, SReads, Per, Self0),
     msort(Spans, Sorted),
@@ -485,7 +514,40 @@ flow_dbg_time_rows([P-SE|PSEs], F, T, PD, PR, Per, RtS, RtP, [t(P, N, Incl, Self
     ;   Self = Self0,
         Incl = Incl0
     ),
-    flow_dbg_time_rows(Rest, F, T, PD, PR, Per, RtS, RtP, Rows).
+    flow_dbg_time_rows(Rest, F, T, PD, PR, Per, RtS, RtP, Outer, Rows).
+
+%% EACH CALL'S STEP TO 1 WHEN IT IS ITS PREDICATE'S OUTERMOST -- no call
+%% of the same predicate above it in the window -- and to 0 when one is
+%% (1.15.0): one walk down the call tree from the window's roots, with a
+%% count per predicate of the calls on the path. A call whose caller the
+%% window did not see is a root, and outermost as far as the window can
+%% tell. The tree, and not the spans, decides it: a recursion backtracked
+%% into for its next answer makes its inner calls after its first Exit,
+%% where its span ends -- `nat(X), X >= 30' makes 31 calls of nat/1, each
+%% inside the one before and each begun after that one had exited, and
+%% the spans alone would have counted all 31 outermost
+flow_dbg_time_outers(Calls, Outer) :-
+    findall(Pa-(S-P), member(call(S, P, _, Pa, _, _, _, _, _, _), Calls), PSs0),
+    keysort(PSs0, PSs),
+    group_pairs_by_key(PSs, Groups),
+    list_to_assoc(Groups, Kids),
+    (   get_assoc(0, Kids, Roots) -> true ; Roots = [] ),
+    empty_assoc(On),
+    flow_dbg_time_outer_trees(Roots, Kids, On, Os0, []),
+    keysort(Os0, Os),
+    list_to_assoc(Os, Outer).
+
+flow_dbg_time_outer_trees([], _, _, Os, Os).
+flow_dbg_time_outer_trees([S-P|SPs], Kids, On, [S-O|Os0], Os) :-
+    (   get_assoc(P, On, K) -> true ; K = 0 ),
+    (   K =:= 0 -> O = 1 ; O = 0 ),
+    (   get_assoc(S, Kids, Cs)
+    ->  K1 is K + 1,
+        put_assoc(P, On, K1, On1),
+        flow_dbg_time_outer_trees(Cs, Kids, On1, Os0, Os1)
+    ;   Os1 = Os0
+    ),
+    flow_dbg_time_outer_trees(SPs, Kids, On, Os1, Os).
 
 %% RAW less the retry in step E when E was a port
 flow_dbg_time_end(port, E, RtS, R0, R) :-
@@ -557,7 +619,7 @@ flow_dbg_profile_rows(Facts, Clock, Rows) :-
     (   Clock == none
     ->  Ts = []
     ;   flow_dbg_time(Facts, Clock, time(_, _, total(TN, TR, TC, TG, TK), TRows)),
-        findall(tp(P, N, I, Se, M), member(t(P, N, I, Se, M), TRows), TPs),
+        findall(tp(P, N, I, Se, M, A, O), member(t(P, N, I, Se, M, A, O), TRows), TPs),
         Ts = [tw(TN, TR, TC, TG, TK)|TPs]
     ),
     append([[win(F, T, S)], Ps, Cs1, Gs, Ts], Rows).
@@ -605,7 +667,8 @@ flow_profile_merge(RowLists,
 
 %% ... AND THEIR TIME (1.13.3): each window's total and each predicate's
 %% calls, inclusive and own time summed, its largest call the largest of
-%% any window's; none with no window timed
+%% any window's, its outermost calls and their time summed (1.15.0); none
+%% with no window timed
 flow_profile_merge(RowLists, P, C, R,
                    time(windows(Ws), none, total(Ns, Rd, Ck, Gc, NG), TRows)) :-
     flow_profile_merge(RowLists, P, C, R),
@@ -613,12 +676,12 @@ flow_profile_merge(RowLists, P, C, R,
     append(RowLists, All),
     findall(t(A, B, X, Y, Z), member(tw(A, B, X, Y, Z), All), TWs),
     flow_dbg_time_add(TWs, t(0, 0, 0, 0, 0), t(Ns, Rd, Ck, Gc, NG)),
-    findall(Pr-t(N1, I1, S1, M1), member(tp(Pr, N1, I1, S1, M1), All), PTs0),
+    findall(Pr-t(N1, I1, S1, M1, A1, O1), member(tp(Pr, N1, I1, S1, M1, A1, O1), All), PTs0),
     keysort(PTs0, PTs),
     group_pairs_by_key(PTs, Groups),
-    findall(NI-t(Pr, N, I, S, M),
+    findall(NI-t(Pr, N, I, S, M, A, O),
             ( member(Pr-Ts, Groups),
-              flow_dbg_time_merge(Ts, 0, 0, 0, 0, N, I, S, M),
+              flow_dbg_time_merge(Ts, 0, 0, 0, 0, none, outer(0, 0), N, I, S, M, A, O),
               NI is -I ),
             KTs),
     keysort(KTs, SKTs),
@@ -629,10 +692,19 @@ flow_dbg_time_add([t(A, B, C, D, E)|Ts], t(A0, B0, C0, D0, E0), T) :-
     A1 is A0 + A, B1 is B0 + B, C1 is C0 + C, D1 is D0 + D, E1 is E0 + E,
     flow_dbg_time_add(Ts, t(A1, B1, C1, D1, E1), T).
 
-flow_dbg_time_merge([], N, I, S, M, N, I, S, M).
-flow_dbg_time_merge([t(N1, I1, S1, M1)|Ts], N0, I0, S0, M0, N, I, S, M) :-
-    N2 is N0 + N1, I2 is I0 + I1, S2 is S0 + S1, M2 is max(M0, M1),
-    flow_dbg_time_merge(Ts, N2, I2, S2, M2, N, I, S, M).
+%% the largest call's POSITION travels with the largest time (1.15.0): the
+%% windows are apart, so the greatest of them is one window's call; and
+%% the outermost calls of each window add up, the windows being apart --
+%% a call counted outermost in its window when no call of its predicate
+%% above it began THERE, so a recursion that runs on into a later window
+%% has its calls there counted as that window's outermost
+flow_dbg_time_merge([], N, I, S, M, A, O, N, I, S, M, A, O).
+flow_dbg_time_merge([t(N1, I1, S1, M1, A1, outer(ON1, OS1))|Ts], N0, I0, S0, M0, A0,
+                    outer(ON0, OS0), N, I, S, M, A, O) :-
+    N2 is N0 + N1, I2 is I0 + I1, S2 is S0 + S1,
+    ( M1 > M0 -> M2 = M1, A2 = A1 ; M2 = M0, A2 = A0 ),
+    ON2 is ON0 + ON1, OS2 is OS0 + OS1,
+    flow_dbg_time_merge(Ts, N2, I2, S2, M2, A2, outer(ON2, OS2), N, I, S, M, A, O).
 
 flow_dbg_prof_merge3([], I, N, M, I, N, M).
 flow_dbg_prof_merge3([I1-N1-M1|Vs], I0, N0, M0, I, N, M) :-
@@ -678,7 +750,7 @@ flow_dbg_prof_frees(Rows, F) :-
     sum_list(Ns, F).
 
 flow_dbg_prof_free_row(prof(P, _, N, _), N) :- flow_dbg_prof_free_pred(P).
-flow_dbg_prof_free_row(t(P, N, _, _, _), N) :- flow_dbg_prof_free_pred(P).
+flow_dbg_prof_free_row(t(P, N, _, _, _, _, _), N) :- flow_dbg_prof_free_pred(P).
 
 flow_dbg_prof_free_pred((=)/2).
 flow_dbg_prof_free_pred(true/0).
@@ -822,23 +894,26 @@ flow_time_text(time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text)
     WI is max(0, W - Fr),
     format(atom(H1), '% the ~d steps of ~w, ~d of them inferences (true/0 and =/2 are none), took ~w us as the probe ran them untraced, read from the clock at ~d of them less its own ~w us there (~1f ns a reading, measured as the probe began); ~w took ~w us more, in no step',
            [W, Span, WI, NsA, Reads, CkA, Per, GcT, GcA]),
-    H2 = '% a call takes from its Call to its first Exit or Fail, as the profile counts it; its self time is its Call''s own step -- a predicate''s head and the guards its clause runs as it is entered, a builtin''s whole run -- and its retries: backtracking into it for its next clause, the heads tried and the guards of the clause entered, read apart from the step whose failure led there and its inclusive time too when it had exited; what no call''s own step took is the control constructs''; (one call: P %) after a predicate marks a load, not a call: one call P % of its inclusive time, ten times its other calls'' mean or more, the others outside it -- the first call of a predicate held in the store, which fetches its clauses, or one that builds a table',
+    H2 = '% a call takes from its Call to its first Exit or Fail, as the profile counts it; its self time is its Call''s own step -- a predicate''s head and the guards its clause runs as it is entered, a builtin''s whole run -- and its retries: backtracking into it for its next clause, the heads tried and the guards of the clause entered, read apart from the step whose failure led there and its inclusive time too when it had exited; what no call''s own step took is the control constructs''; @W:S after a predicate is where its largest call is -- window W, step S, the earliest of any that took that long -- to record a window around and read the call with its arguments; (one call: P %) marks a load, not a call: one call P % of its inclusive time and ten times the mean of its other OUTERMOST calls or more -- those no call of it in the window is above, so a recursion''s inner calls are not counted -- the first call of a predicate held in the store, which fetches its clauses, or one that builds a table',
     T = '% inclusive us       %     self us       %    calls  largest us  predicate',
-    findall(S, member(t(_, _, _, S, _), Rows), Ss),
+    findall(S, member(t(_, _, _, S, _, _, _), Rows), Ss),
     sum_list(Ss, SAll),
     K is max(0, Ns - SAll),
+    flow_dbg_time_wins(From, To, Wins),
     findall(L,
-            ( member(t(P, N, I, S, M), Rows),
+            ( member(t(P, N, I, S, M, At, O), Rows),
               flow_dbg_time_us(I, IA), flow_dbg_time_us(S, SA), flow_dbg_time_us(M, MA),
               flow_dbg_time_pc(I, Ns, IP), flow_dbg_time_pc(S, Ns, SP),
               flow_dbg_prof_pad(IA, 12, IAp), flow_dbg_prof_pad(IP, 8, IPp),
               flow_dbg_prof_pad(SA, 12, SAp), flow_dbg_prof_pad(SP, 8, SPp),
               flow_dbg_prof_pad(N, 9, NA), flow_dbg_prof_pad(MA, 12, MAp),
-              (   flow_dbg_time_load(N, I, M, LP)
+              (   flow_dbg_time_load(I, M, O, LP)
               ->  format(atom(LM), '   (one call: ~1f %)', [LP])
               ;   LM = ''
               ),
-              format(atom(L), '~w~w~w~w~w~w  ~q~w', [IAp, IPp, SAp, SPp, NA, MAp, P, LM]) ),
+              flow_dbg_time_at(At, Wins, AtM),
+              format(atom(L), '~w~w~w~w~w~w  ~q~w~w',
+                     [IAp, IPp, SAp, SPp, NA, MAp, P, AtM, LM]) ),
             Ls0),
     flow_dbg_time_us(K, KA), flow_dbg_time_pc(K, Ns, KP),
     flow_dbg_prof_pad('', 12, B12), flow_dbg_prof_pad('', 8, B8), flow_dbg_prof_pad('', 9, B9),
@@ -848,16 +923,76 @@ flow_time_text(time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text)
     atomic_list_concat([H1, H2, T|Ls], '\n', T0),
     atom_concat(T0, '\n', Text).
 
+%% THE WHOLE RUN'S TIME, BY PREDICATE (1.15.0, flow_run_time/3): each
+%% predicate's own time, the most first -- what its steps took and what
+%% its retries took, in microseconds, each with its share of the run's --
+%% and the steps that took its goal, under a header of how the run ended,
+%% what the clock read and cost, and what the collections took beside
+flow_run_time_text(run_time(End, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text) :-
+    flow_dbg_run_end_text(End, ET),
+    flow_dbg_time_us(Ns, NsA),
+    flow_dbg_time_us(ClockNs, CkA),
+    (   Reads > 0 -> Per is ClockNs / Reads ; Per = 0.0 ),
+    flow_dbg_time_us(GcNs, GcA),
+    flow_dbg_prof_count(NGc, collection, GcT),
+    format(atom(H1), '% the whole run, ~w, took ~w us as the probe ran it untraced, read from the clock at ~d of its steps less its own ~w us there (~1f ns a reading, measured as the probe began); ~w took ~w us more, in no step',
+           [ET, NsA, Reads, CkA, Per, GcT, GcA]),
+    H2 = '% each step is charged what passed from its reading to the next -- its goal''s own work: a predicate''s head and the guards its clause runs as it is entered (which no reading separates: is/2 run as a guard is its clause''s), a builtin''s whole run, findall/3''s less its inner goals'' own -- to what its goal is named by; a retry, backtracking into a predicate for its next clause, the heads tried and the guards of the clause entered, is that predicate''s; a control construct is a row of its own, and none the steps that handed a solution back',
+    T = '%    self us       %    retry us       %       steps  predicate',
+    findall(L,
+            ( member(rt(P, S, Se, R), Rows),
+              flow_dbg_time_us(Se, SeA), flow_dbg_time_pc(Se, Ns, SeP),
+              flow_dbg_time_us(R, RA), flow_dbg_time_pc(R, Ns, RP),
+              flow_dbg_prof_pad(SeA, 12, SeAp), flow_dbg_prof_pad(SeP, 8, SePp),
+              flow_dbg_prof_pad(RA, 12, RAp), flow_dbg_prof_pad(RP, 8, RPp),
+              flow_dbg_prof_pad(S, 12, SA),
+              format(atom(L), '~w~w~w~w~w  ~q', [SeAp, SePp, RAp, RPp, SA, P]) ),
+            Ls),
+    atomic_list_concat([H1, H2, T|Ls], '\n', T0),
+    atom_concat(T0, '\n', Text).
+
+%% how a probe's run ended, end(How, At, Answers), in words
+flow_dbg_run_end_text(end(How, At, _), T) :-
+    (   How = exception(B) -> format(atom(T), 'an exception ~q at step ~w', [B, At])
+    ;   format(atom(T), '~w at step ~w', [How, At])
+    ).
+
+%% THE WINDOWS IN ORDER, to number them: a merged time view carries them
+%% all, a single one is its own first and only
+flow_dbg_time_wins(windows(Ws), none, Ws) :- !.
+flow_dbg_time_wins(From, To, [From-To]) :- integer(From), integer(To), !.
+flow_dbg_time_wins(_, _, []).
+
+%% WHERE A PREDICATE'S LARGEST CALL IS (1.15.0), as ` @W:S': window W by
+%% its place among the view's windows, step S. A window the view does not
+%% carry -- it cannot happen as the view is built, but a hand-made term
+%% could -- is written by its own first step instead of a number
+flow_dbg_time_at(none, _, '') :- !.
+flow_dbg_time_at(at(F-T, S), Wins, A) :-
+    integer(S), !,
+    (   nth1(K, Wins, F-T)
+    ->  format(atom(A), '  @~d:~d', [K, S])
+    ;   format(atom(A), '  @~d..~d:~d', [F, T, S])
+    ).
+flow_dbg_time_at(_, _, '').
+
 %% A LOAD, NOT A CALL (1.13.7, the reasoning session's point): of a
-%% predicate's N calls the largest, M, took ten times the mean of the
-%% others or more -- a first call that fetched the clauses from the store
-%% ('italian:noun'/1: 252 ms in 5 calls, one of them the fetch), or built
-%% a table in its body -- and the others lie outside it, so the inclusive
-%% time I is more than M. A recursive predicate's outermost call holds
-%% all its others (I is M) and is not marked. P is M's share of I
-flow_dbg_time_load(N, I, M, P) :-
-    N >= 2, M > 0, I > M,
-    M * (N - 1) >= 10 * (I - M),
+%% predicate's OUTERMOST calls -- ON of them, OSum their time -- the
+%% largest, M, took ten times the mean of the others or more, and the
+%% others took some time: a first call that fetched the clauses from the
+%% store ('italian:noun'/1: 252 ms in 5 calls, one of them the fetch), or
+%% built a table in its body. P is M's share of the inclusive time I.
+%%
+%% OUTERMOST SINCE 1.15.0: through 1.14.0 the mean was of all the calls
+%% but M, and I less M stood for their time, so a recursion called twice
+%% alike -- lesson 51's count(200) before and after a sort -- counted the
+%% first call's 200 inner calls as its others, their mean nearly nothing
+%% against the 200 they hold, and was marked (one call: 51.9 %). The
+%% largest call is always an outermost one: a call inside another of its
+%% predicate takes no longer than the call it is inside
+flow_dbg_time_load(I, M, outer(ON, OSum), P) :-
+    ON >= 2, M > 0, OSum > M,
+    M * (ON - 1) >= 10 * (OSum - M),
     P is 100 * M / I.
 
 %% nanoseconds as microseconds, one place; a share of the window's, one place

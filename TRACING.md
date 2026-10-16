@@ -293,6 +293,21 @@ frame: the kind is tested by its own equality in `coco_backtrack`, beside
 the three it shares a branch with, which kept the step loop's jump table
 (queens -0.04 % and lookup -0.02 % of instructions, `tools/flow/zero.sh`).
 
+THE WHOLE RUN, BY PREDICATE (1.15.0): `run_time(R)` is the same clock
+from a probe's first step to its end, but a reading charges what passed
+to the KEY of the step that ran -- what its goal is named by, read at the
+step's top from what the loop is about to take: the functor in the
+registers, a goal handed over, a frame's goal, an environment unit's
+functor or atom -- and keeps no step's time. A retry goes to the predicate
+retried. R is `run_time(Ns, Readings, N, ClockNs, GcNs, Gcs, Rows)`, a
+row `r(Key, Steps, KeyNs, RetryNs)` a key (`Name/Arity`, or `none` for
+the steps that handed a solution back), and the keys' time and the
+retries' are the run's to the nanosecond. It runs about twice as long as
+the probe untraced, as `time(1, 0)` does; it is never asked beside
+`time(F, K)`, nor with `from(I)`. `library(flow/debug)`'s
+`flow_run_time/3` is the probe and the rows by predicate, each one's
+readings' cost taken off (`profile=run` from the shell).
+
 `cpu(Open, Total)` (1.13.7) answers the process's CPU clock, in seconds,
 from the run's start to where the window opened (`none` for a probe, or a
 window the run never reached) and to the run's end: where a window lies in

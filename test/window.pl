@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, tried, asked, timed, retried, cpu, checks_done.
+    clock, printed, turns, window, tried, asked, timed, retried, cpu, run_timed, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -734,6 +734,74 @@ w_retries(G, Opts, E, Rs, In) :-
     ->  In = inside
     ;   In = outside
     ).
+
+%% ---- the whole run's clock, by predicate (1.15.0) -----------------------
+%%
+%% run_time(R): a probe's run read from the clock at the top of EVERY step,
+%% as time(1, 0) reads it, and each step's time charged to what its goal is
+%% named by -- run_time(Ns, Readings, N, ClockNs, GcNs, Gcs, Rows), an
+%% r(Key, Steps, KeyNs, RetryNs) for each key -- its retries' to the
+%% predicate retried. Held: which keys have which steps, that the keys'
+%% time and the retries' are the run's to the nanosecond, where a nested
+%% engine's steps and its starter's copies go, a retry, a collection, the
+%% ways a run ends, and what is refused -- nothing that depends on how fast
+%% the box is but two costs far over any step's.
+
+run_timed :-
+    section('run_time(R): the whole run''s clock, each step charged to what its goal is named by (1.15.0)'),
+    w_rt_rows(w_cnt(3), E1, R1, Ks1, Sum1),
+    R1 = run_time(_, Rd1, N1, _, _, _, _),
+    check('w_cnt(3): every step read but the guards a clause runs as it is entered -- w_cnt/1''s four, the cut, the answer -- and the keys add up to the run',
+          E1-Rd1-N1-Ks1-Sum1, end(answer, 9, [9])-6-512-[none-1-0, !/0-1-0, w_cnt/1-4-0]-adds_up),
+    w_rt_rows(w_fa(_), E2, _, Ks2, Sum2),
+    check('into findall/3''s engine and out: every inner step its goal''s, the first too, and each answer handed back a step of none',
+          E2-Ks2-Sum2, end(answer, 10, [10])-[none-4-0, findall/3-1-0, member/2-4-retried, w_fa/1-1-0]-adds_up),
+    %% 20 000 answers copied into the store and the list built of them at
+    %% the end are findall/3's own, after the inner engine's last step: some
+    %% 2 ms, where the 20 001 answers handed back are some 0.8
+    w_rt_rows(w_big(_), _, R3, Ks3, Sum3),
+    w_rt_ns(R3, findall/3, F3), w_rt_ns(R3, none, A3),
+    ( F3 > A3 -> C3 = own ; C3 = F3-A3 ),
+    ( memberchk(between/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
+    check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried',
+          C3-S3-T3-Sum3, own-20000-retried-adds_up),
+    w_rt_rows(w_copy(_), _, R4, _, _),
+    w_rt_ns(R4, findall/3, F4), w_rt_ns(R4, member/2, M4),
+    ( F4 > 100 * M4 -> C4 = own ; C4 = F4-M4 ),
+    check('...and each answer''s copy as it is made: findall/3''s own over a hundred times member/2''s', C4, own),
+    w_rt_rows(w_rtn(200), _, _, Ks5, Sum5),
+    check('a retry is the retried predicate''s: w_pk/1''s 200 calls retried for their next clauses, ==/2''s 600 steps none, an is/2 after a body''s first goal a step of its own',
+          Ks5-Sum5, [none-1-0, !/0-1-0, (==)/2-600-0, (is)/2-200-0, w_pk/1-200-retried, w_rt/0-200-0, w_rtn/1-201-0]-adds_up),
+    w_rt_rows(w_gcg(_), _, R6, _, Sum6),
+    R6 = run_time(_, _, _, _, G6, NG6, _),
+    w_rt_ns(R6, length/2, L6),
+    ( NG6 =:= 1, G6 > L6 -> C6 = apart ; C6 = NG6-G6-L6 ),
+    check('a collection asked for: kept apart, its time in no key''s -- not length/2''s, whose step it came before',
+          C6-Sum6, apart-adds_up),
+    findall(E7-Ks7, ( member(G7, [halt(3), throw(w_x), fail]), w_rt_rows(G7, E7, _, Ks7, _) ), L7),
+    check('a halt, an exception and a failure: each run''s steps keyed to its end',
+          L7, [end(halt(3), 2, [])-[none-1-0, halt/1-1-0], end(exception(w_x), 1, [])-[throw/1-1-0],
+               end(false, 1, [])-[fail/0-1-0]]),
+    win_refused([run_time(_), time(1, 0)], R8),
+    win_refused([from(1), run_time(_)], R9),
+    check('refused: the run''s clock beside the window''s, and with a recording', [R8, R9], [domain, domain]).
+
+%% a probe of G under run_time: how it ended, the run_time/7 term, its keys
+%% as Key-Steps-Retried, sorted, and whether the keys' time and the retries'
+%% are the run's to the nanosecond
+w_rt_rows(G, E, R, Ks, Sum) :-
+    '$trace_window'(G, [run_time(R)], _, E),
+    R = run_time(Ns, _, _, _, _, _, Rows),
+    findall(K-S-RR, ( member(r(K, S, _, Rt), Rows), ( Rt > 0 -> RR = retried ; RR = 0 ) ), Ks0),
+    msort(Ks0, Ks),
+    findall(X, member(r(_, _, X, _), Rows), Xs), sum_list(Xs, SX),
+    findall(Y, member(r(_, _, _, Y), Rows), Ys), sum_list(Ys, SY),
+    (   SX + SY =:= Ns -> Sum = adds_up ; Sum = SX + SY - Ns ).
+
+%% key K's nanoseconds in run_time R, 0 without a row
+w_rt_ns(R, K, Ns) :-
+    R = run_time(_, _, _, _, _, _, Rows),
+    (   memberchk(r(K, _, Ns, _), Rows) -> true ; Ns = 0 ).
 
 %% a probe of G under OPTS: how it ended, its time/4 term, every inference's
 %% nanoseconds from the first timed, and its gc/2 events

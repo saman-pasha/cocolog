@@ -5597,11 +5597,152 @@ own answer except the two the 61 bits cut short. THE ARM is the 1.13.6
 binary: 20 of the 34 rows wrong on each of the three paths. `test/errors.pl`,
 `test/gc.pl`, `test/window.pl` and `test/meter.pl` are green with it.
 
-Recorded while writing the section, and NOT fixed: a shift by a float
-raises `type_error(integer, P)` whose culprit P is the loaded file's path,
-not the float (`coco_type_error` is given cell 0, which is a real heap
-cell). Older than this change; `sh_shape/2` holds the error's shape without
-its culprit so that a fix finds a check to tighten.
+Recorded while writing the section, and left for 1.15.0 (below, where it
+is fixed): a shift by a float raised `type_error(integer, P)` whose culprit
+P was the loaded file's path, not the float (`coco_type_error` was given
+cell 0, which is a real heap cell). Older than this change; `sh_shape/2`
+held the error's shape without its culprit so that a fix would find a
+check to tighten, and 1.15.0 tightened it.
+
+## The whole run's time by predicate, where the largest call is, and what is not an integer named (1.15.0)
+
+A minor, the owner's: a program can reach something new --
+`'$trace_window'/4`'s `run_time(R)`, library(flow/debug)'s
+`flow_run_time/3` and `flow_run_time_text/2`, and `tools/flow/debug.pl`'s
+`profile=run`. There are three parts. The first two are cicilang's two
+wishes for the time view, and the third is the culprit 1.14.0 recorded.
+
+**What is not an integer is named by its value.** Every function that
+takes integers alone (`//`, div, mod, rem, gcd, `>>`, `<<`, the bitwise
+four and msb) raised `type_error(integer, P)` with P set to heap cell 0,
+whatever the machine had put there first. Under `-s` that was the loaded
+file's path; under `cocolog run FILE G` it was G's own name. They now
+name the float through `coco_not_integer`, as swipl 9.0.4 does:
+
+* the left operand when both are floats;
+* the value an expression came to, not the expression
+  (`(1.0 + 0.5) >> 1` names 1.5);
+* and msb/1 of an integer under 1 is
+  `domain_error(not_less_than_one, N)`.
+
+A guard that meets a float hands its goal to the step, as it always did,
+and so does a goal done in place, so the step names the float on all
+three paths. `test/engine.pl`'s `integers_only` section holds the three
+paths to 19 rows, each swipl's own answer (its context apart). It holds
+the step alone to 9 more (gcd, the complement, msb, an operand that is
+an expression), and the complement of a float to its answer in a guard
+and in place. `shifts` now checks the culprit as well as the error's
+shape.
+
+* THE ARM is the 1.14.0 binary. It answered every row wrong on every
+  path (19, 19, 19 and 9) and both complements wrong, each with
+  `type_error(integer, integers_only)` when run as
+  `cocolog run test/engine.pl integers_only`.
+
+**Where a predicate's largest call is, and a load counted from the
+outside** (wish 2). Each row of the time view carries
+`at(From-To, Step)`, written ` @W:S`. That is the window, and the step
+its largest call was made at: the earliest of any call that took that
+long, read from the call event's own step. A window of a few thousand
+steps recorded around S then reads that call with its arguments. Two
+windows added up keep the position of the one that held the call; the
+case cuts a run five steps before msort/2's call and finds it at `@2:S`.
+
+The load mark, `(one call: P %)`, wants the largest call to be ten times
+the mean of the others. Through 1.14.0 it counted every call, so a
+recursion called twice alike was marked: the 2 000 calls inside the
+first call were "the others", and their mean was nearly nothing. Lesson
+51's `count/1` read `(one call: 51.9 %)`. The rule now counts a
+predicate's OUTERMOST calls, those no call of it in the window is above,
+as `outer(N, Ns)` on the row, which merged windows add up. The CALL TREE
+names those calls, not the spans. A recursion redone for its next answer
+makes its inner calls after its first Exit, where its span has ended, so
+the spans counted every one of the 31 calls of `nat(X), X >= 30`
+outermost.
+
+* ARM A, 1.14.0's rule over every call, is red on two checks: t_r/1 is
+  marked, and the outermost counts are every call
+  (`t_c/1-201, t_r/1-4002`).
+* ARM B, outermost by span, is red on one: t_nat/1 counts 31.
+
+The load fixture had been flaky since 1.13.7, and that was the fixture's
+fault, not the rule's. t_e/1 made a list of 300, some 25 us, with its
+first call about three times its second (a first call's own cost). A
+single stall of 50 us made the ten times that marks a load, once in a
+run of the case. t_e/1 makes 3 000 now and t_r/1 recurses 2 000. Over
+eight runs, the larger call of each pair was between 1.3 and 2.9 times
+the other.
+
+**The whole run's self time by predicate, at every step** (wish 1:
+"self time alone, by predicate over the whole run, would serve us well";
+the windows had covered 0.7 % of a run). The clock is `time(1, 0)`'s,
+read at every step from the first, with no window, no replay and no
+chart. Each reading charges the time since the last to the KEY of the
+step that ran: 1 + (a functor's id << 1), 1 + (an atom's id << 1 | 1),
+or 0 for a step that hands back a solution. The keys index an array that
+doubles as keys arrive (`kns`, `kst` on the recorder).
+
+`coco_clock_key` reads the key at the step's top, from what the loop is
+about to take, and changes nothing: the registers' `afid`, `ngoal`, a
+`'$k'` frame's goal, or an environment unit's `fid` or its slot's term.
+A retry is charged to the predicate retried. It is read from the key of
+the step it ran in (`rpk`) and moved to the predicate's index in the
+store (`rpp`), which is named once as the run ends. A collection is kept
+apart (`GcNs`, `Gcs`), as in the window's clock. `flow_run_time/3` takes
+the clock's own cost off each row: about 30 ns a reading on this box.
+The clock calibrates that cost as it is armed, as `time(F, K)`'s does,
+and hands it over as `run_time/7`'s N and ClockNs.
+
+* **A nested engine is asked its goal BEFORE it is narrowed**, at
+  findall/3, call_limited/3 and with_output_to/2. The narrow is where the
+  clock names the new engine's first goal, and an ask leaves the limits
+  alone. The starter's own key is kept on the starter (`e->tkey`, not
+  `kcall`, which a collection may have made stale) and given back in
+  `coco_clock_back`, so findall/3's copying stays findall/3's.
+* **A guard a clause runs as it is entered is no step the clock reads.**
+  Its time belongs to its clause's predicate, so is/2 run that way has no
+  row. A control construct is a row of its own.
+* `run_time(R)` is refused beside `time(F, K)` and with `from(I)`.
+  `profile=run` is asked by name: it is not part of `all`, and `all,run`
+  asks for both.
+
+THE ARMS are engine builds, each red on its own checks in
+`test/window.pl`'s `run_timed` section and green on the rest:
+
+* ARM R leaves a retry's time on the key of the step it ran in. It is
+  red on 3: the retry check (w_pk/1's 200 retries), findall/3's inner
+  steps, and its copies.
+* ARM N narrows before the ask, as through 1.14.0. It is red on 2: the
+  first inner step is not its goal's, and the copies.
+* ARM B gives no key back in `coco_clock_back`. It is red on 2:
+  findall/3's copies are charged to its last inner goal, and so is each
+  answer's copy as it is made.
+
+`test/flowdebug.pl`'s `run_timed` section holds library(flow/debug)'s
+rows: who has them, with how many steps, in which order, a retry's
+time, the text, and the shell's `profile=time,run`. Lesson 51 shows the
+whole run with msort/2 on top and count/1's 402 steps with no is/2 row.
+
+**WHAT IT COSTS.** A run that asks for neither clock pays what it did.
+`sh tools/flow/zero.sh`, 1.14.0 against 1.15.0, work less padding:
+
+| | 1.14.0 | 1.15.0 | instructions |
+|---|---|---|---|
+| nrev | 66 583 490 | 66 583 461 | -29 |
+| queens | 41 657 938 | 41 657 956 | +18 |
+| lookup | 47 425 449 | 47 425 451 | +2 |
+
+A run that asks for the clock costs about twice its time. Three probes
+of naive reverse and the eight queens took:
+
+| | ms |
+|---|---|
+| untimed | 144 to 220 |
+| `time(1, 0)` | 274 to 330 |
+| `run_time(R)` | 253 to 310 |
+
+The narrow cases are green on 1.15.0: engine, window, flowdebug, meter,
+errors, gc, trace, journal, cyclic, backtrace and lesson 51.
 
 ## Not started
 

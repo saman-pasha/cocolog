@@ -751,7 +751,12 @@ cocolint index offers no import of it.
   where SWI (which made X in the argument) binds it.
 * **A core builtin raises SWI's error, catchably** (1.10.6): `=..`,
   `functor/3`, `arg/3` and `is/2` name what is wrong as SWI does
-  (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`), and
+  (`type_error(evaluable, foo/2)`, `domain_error(non_empty_list, [])`; an
+  integer-only function -- `//`, div, mod, rem, gcd, `>>`, `<<`, the
+  bitwise four, msb -- names the float it was given, the left one first,
+  `type_error(integer, 1.5)`, and msb/1 of an integer under 1 is
+  `domain_error(not_less_than_one, N)`: through 1.14.0 each named heap
+  cell 0, under -s the loaded file's path; `coco_not_integer`, 1.15.0), and
   assert and retract refuse an unbound clause, a head that is not callable,
   a body with a number or a string where a goal stands, and a clause for a
   control construct (`permission_error(modify, static_procedure, ','/2)`).
@@ -1331,6 +1336,24 @@ cocolint index offers no import of it.
   new frame kind in `coco_backtrack` gets its own equality test**: folded
   into an `or` with the kinds beside it, it cost the step loop its jump
   table (queens +0.08 %).
+* **The whole run's clock charges a step to what its goal is NAMED by**
+  (1.15.0, `run_time(R)`, library(flow/debug)'s `flow_run_time/3`): the
+  same clock from the first step, but each reading charges its time to a
+  KEY -- 1 + (a functor's id << 1), 1 + (an atom's id << 1 | 1), 0 for a
+  step that names no goal (a solution handed back) -- read at the step's
+  top by `coco_clock_key` from what the loop is about to take (the
+  registers' `afid`, `ngoal`, a `'$k'` frame's goal, an environment unit's
+  `fid` or its slot's term), never by changing anything. **So a new place
+  the loop takes a goal from is a new arm of `coco_clock_key`**, or its
+  steps are charged to whatever the old arms read there. A retry goes from
+  the key of the step it ran in (`rpk`) to its predicate by its index in
+  the store (`rpp`), named once as the run ends. **A nested engine is asked
+  its goal BEFORE it is narrowed** (findall/3, call_limited/3,
+  with_output_to/2): the clock names the new engine's first goal in the
+  narrow, and an ask leaves the limits alone; the starter's step is kept on
+  the starter (`e->tkey`) and given back in `coco_clock_back`. A guard a
+  clause runs as it is entered is no step the clock reads: its time is its
+  clause's predicate's, and is/2 run that way has no row.
 * **The tracer keeps the untraced clock, and records as well as prints**
   (1.10.12). Taking the `'$trace_exit'` marker gives its step back
   (`coco_construct`), so a traced run counts what an untraced one does, and
@@ -1661,7 +1684,12 @@ read into an English-worded IR and written into any lesson's language),
   Since 1.13.3 `profile=time` (and `all`) writes where the window's TIME
   went, the probe run under a clock read at every step: a count finds the
   cheap step taken a million times, time the one step that costs a
-  thousand (a sort, a findall/3's copying, a store's lookup). A window of
+  thousand (a sort, a findall/3's copying, a store's lookup); since 1.15.0
+  each row ends ` @W:S`, where its largest call is (window W, step S: a
+  window of a few thousand steps recorded around S reads the call with its
+  arguments), and `profile=run` (asked by name; not in `all`) writes each
+  predicate's self time over the WHOLE run, a probe of its own under the
+  clock from the first step, about twice the run's time. A window of
   100 000 steps far along the translator takes ~30 s that way (100 s with every document
   through 1.11.9, whose matcher alone took 36). Half of the inferences were the lexicon lookup layer
   (tr_solve/1, tr_memo/4 and what they call), and its four wastes were each a
