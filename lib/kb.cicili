@@ -539,8 +539,11 @@
                       (set r (% a b)) break)
                     (case (cc-gop "min") (set r (? (< a b) a b)) break)
                     (case (cc-gop "max") (set r (? (> a b) a b)) break)
-                    (case (cc-gop ">>") (set r (>> a b)) break)
-                    (case (cc-gop "<<") (set r (<< a b)) break)
+                    ;; by any count, as `coco_arith' does (1.14.0): a C shift
+                    ;; is undefined past 63 and for a negative count, and the
+                    ;; hardware takes the count modulo 64
+                    (case (cc-gop ">>") (set r (coco_shift_right a b)) break)
+                    (case (cc-gop "<<") (set r (coco_shift_left a b)) break)
                     (case (cc-gop "bitand") (set r (bitand a b)) break)
                     (case (cc-gop "bitor") (set r (bitor a b)) break)
                     (case (cc-gop "xor") (set r (xor a b)) break)

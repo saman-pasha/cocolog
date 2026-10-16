@@ -35,7 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
-    small_steps,
+    small_steps, shifts,
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1112,6 +1112,92 @@ small_steps :-
     findall(L5b-U5b-R5b, ( member(L5b, [13, 14]), call_metered(ss_w(_), L5b, U5b, R5b) ), M5b),
     check('...and a nested engine spends its caller\'s inferences, not its steps',
           M5-M5b, [5-6-inference_limit_exceeded, 6-6-true]-[13-14-inference_limit_exceeded, 14-14-true]).
+
+%% THE TWO SHIFTS BY ANY COUNT (1.14.0, cicilang's report). A C shift by a
+%% count of 64 or more, or by a negative count, is UNDEFINED (C11 6.5.7/3),
+%% and both this box's x86-64 and an aarch64 one take the count modulo 64:
+%% `1 >> 64' answered 1, `1 << 1000000' answered 1, `1 >> -1' answered
+%% `1 >> 63'. The answers are SWI's, as far as a 61-bit integer carries
+%% them, and the three paths that evaluate arithmetic must all give them:
+%% the step (gd_ref/2, whose first goal is not arithmetic), the GUARDS a
+%% body starts with (gd_bin/4), and a goal done IN PLACE from an
+%% environment (ip_bin/4).
+%%
+%% Each row is A, the count, and the answer. Every one of these is swipl
+%% 9.0.4's own answer except where the note says the 61 bits cut it short:
+%% a left shift past 60 places has nothing left in the bits a cell keeps,
+%% which is why `1 << 61' answered 0 long before this.
+sh_row(shr, 1, 64, 0).
+sh_row(shr, 1, 128, 0).
+sh_row(shr, 1, 1000000, 0).
+sh_row(shr, 255, 64, 0).
+sh_row(shr, 5, 65, 0).
+sh_row(shr, -5, 64, -1).
+sh_row(shr, -256, 66, -1).
+sh_row(shr, -1, 1000000, -1).
+sh_row(shr, 0, 64, 0).
+%% the counts C already answered for, 0 to 63, unmoved
+sh_row(shr, 7, 1, 3).
+sh_row(shr, -7, 1, -4).
+sh_row(shr, 1, 63, 0).
+sh_row(shr, -1, 63, -1).
+sh_row(shr, -5, 63, -1).
+%% a negative count shifts the other way, as SWI's does
+sh_row(shr, 1, -1, 2).
+sh_row(shr, 8, -2, 32).
+sh_row(shr, -5, -1, -10).
+%% ...and one whose magnitude is past 63 is the other direction's rule
+sh_row(shr, 1, -64, 0).
+sh_row(shr, -1, -1000000, 0).
+sh_row(shl, 1, 64, 0).          % SWI, unbounded, says 2^64
+sh_row(shl, 1, 65, 0).
+sh_row(shl, 1, 1000000, 0).
+sh_row(shl, 255, 64, 0).
+sh_row(shl, -256, 66, 0).
+sh_row(shl, 0, 64, 0).
+sh_row(shl, 7, 1, 14).
+sh_row(shl, -7, 1, -14).
+sh_row(shl, 1, 40, 1099511627776).
+sh_row(shl, 1, 61, 0).          % SWI says 2^61: the 61 bits a cell keeps
+sh_row(shl, 1, -1, 0).
+sh_row(shl, 4, -1, 2).
+sh_row(shl, -1, -1, -1).
+sh_row(shl, 1, -64, 0).
+sh_row(shl, -1, -64, -1).
+
+shifts :-
+    section('the two shifts take any count, and a negative one shifts the other way'),
+    findall(Op1-A1-N1-Got1-Want1,
+            ( sh_row(Op1, A1, N1, Want1), sh_expr(Op1, A1, N1, E1),
+              gd_out(gd_ref(E1, R1), R1, Got1), Got1 \== Want1 ),
+            L1),
+    check('the step answers as SWI does, as far as 61 bits carry it', L1, []),
+    findall(Op2-A2-N2-Got2-Want2,
+            ( sh_row(Op2, A2, N2, Want2),
+              gd_out(gd_bin(Op2, A2, N2, R2), R2, Got2), Got2 \== Want2 ),
+            L2),
+    check('...a guard the same, run as the clause is entered', L2, []),
+    findall(Op3-A3-N3-Got3-Want3,
+            ( sh_row(Op3, A3, N3, Want3),
+              gd_out(ip_bin(Op3, A3, N3, R3), R3, Got3), Got3 \== Want3 ),
+            L3),
+    check('...and a goal done in place from an environment', L3, []),
+    %% a float count is still a type error, and the shift of a float too
+    findall(Got5, ( member(E5, [1 >> 1.0, 1.0 >> 1, 1 << 1.0, 1.0 << 1]),
+                    gd_out(gd_ref(E5, R5), R5, O5), sh_shape(O5, Got5) ), L5),
+    check('a float is still a type error on either side', L5,
+          [type_error(integer), type_error(integer), type_error(integer), type_error(integer)]).
+
+%% THE ERROR'S SHAPE WITHOUT ITS CULPRIT, because cocolog names the wrong
+%% one: `coco_type_error' is given cell 0 here, which is a real heap cell
+%% (the loaded file's path), where swipl names the float. Older than this
+%% section and not its to fix -- recorded, so that a fix finds a check to
+%% tighten.
+sh_shape(error(type_error(T, _)), type_error(T)) :- !.
+sh_shape(O, O).
+
+sh_expr(shr, A, N, A >> N).
+sh_expr(shl, A, N, A << N).
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).

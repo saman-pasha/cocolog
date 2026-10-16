@@ -6751,12 +6751,17 @@
                  (set a b) (set b r)))
              (set (cof iv) a))
            (set (cof isf) 0) (return 1))
+          ;; THE TWO SHIFTS TAKE ANY COUNT (1.14.0, `coco_shift_right' and
+          ;; `coco_shift_left' in lib/term.cicili, which have the rule): a C
+          ;; shift by 64 or more, or by a negative count, is undefined, and
+          ;; both this box and an aarch64 one take the count modulo 64 --
+          ;; `1 >> 64' answered 1. The guards' runner calls the same two.
           ((== nid (coco-id m ">>"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
-           (set (cof iv) (>> ai bi)) (set (cof isf) 0) (return 1))
+           (set (cof iv) (coco_shift_right ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "<<"))
            (if (not both_int) (return (coco_type_error e "integer" 0)))
-           (set (cof iv) (<< ai bi)) (set (cof isf) 0) (return 1))
+           (set (cof iv) (coco_shift_left ai bi)) (set (cof isf) 0) (return 1))
           ;; The bitwise three. Integers only -- ISO says type_error(integer)
           ;; for a float here, and a silent truncation would be worse than an
           ;; error, because the answer would look like an answer.

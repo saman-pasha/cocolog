@@ -5547,6 +5547,62 @@ The suite on 1.13.7 and ZiguratIP 1.0.1, the server up: 70 lines, red 0,
 5 SKIP (tensors, torch-graph, torch-grad, torch-replay, tensorflow: no
 CUDA on this box).
 
+## The two shifts take any count (1.14.0)
+
+cicilang's report: `X is 1 >> 64` answered 1, `1 << 1000000` answered 1,
+`-256 >> 66` answered -64, and `1 >> -1` answered what `1 >> 63` does. In C
+a shift by a count of 64 or more, or by a negative count, is UNDEFINED
+(C11 6.5.7/3); x86-64 and aarch64 both take the count modulo 64, which is
+why the answer was the same wrong answer on either machine and why no
+error was raised. They found it where a quad long double written as its
+low 64 bits and its high bits did not move, and their own constant folder
+had the fault too; a mask built as `(1 << 64) - 1` came out 0 and a store
+through it wrote nothing.
+
+Both evaluators -- `coco_arith` in lib/solve.cicili and the guards' runner,
+written once in lib/kb.cicili and emitted three times -- now call
+`coco_shift_right` and `coco_shift_left` (lib/term.cicili, static, the four
+callers' own). The answers are SWI's, as far as a 61-bit integer carries
+them:
+
+* a count past 63 gives `>>` the sign of its left side, 0 or -1, where an
+  arithmetic shift ends and what SWI's unbounded integers answer;
+* a count past 63 gives `<<` 0, which is what the 61 bits a cell keeps
+  already made of `1 << 61` (SWI, with no width, answers 2^61);
+* a negative count shifts the other way, as SWI's does -- `1 >> -1` is 2,
+  `8 >> -2` is 32, `4 << -1` is 2 -- and a magnitude past 63 is the other
+  direction's rule, tested BEFORE the negation that the smallest integer
+  would overflow;
+* the left shift goes through u64, because a left shift of a negative
+  value is undefined as well (6.5.7/4) and the bit pattern two's
+  complement wants is the one an unsigned shift leaves.
+
+WHAT IT COSTS, against 1.13.7 (`sh tools/flow/zero.sh`, work less
+padding): nrev +1 780 instructions in all (+0.0027 %), queens +15 496
+(+0.037 %), lookup +22 504 (+0.047 %). None of the three shifts at all,
+so the cost is not the two helpers running: it is the branches they put
+in the guards' AG_BIN switch, which moved the runner's registers --
+lookup's bodies start with arithmetic (`V is (K * 7) mod 1000`), so every
+clause it enters runs that switch. A build with both helpers
+`(static) (inline)` -- which takes no `(decl)`, Cicili refusing an inline
+function declared and defined apart -- counted within 200 instructions of
+this one on all three, so clang was already inlining them and the forced
+form was not kept.
+
+A count of 0 to 63 is unmoved, which is every count any case asked for
+before. `test/engine.pl`'s `shifts` section holds all three paths that
+evaluate arithmetic -- the step, a guard at clause entry, a goal done in
+place from an environment -- to a table of 34 rows, each row swipl 9.0.4's
+own answer except the two the 61 bits cut short. THE ARM is the 1.13.6
+binary: 20 of the 34 rows wrong on each of the three paths. `test/errors.pl`,
+`test/gc.pl`, `test/window.pl` and `test/meter.pl` are green with it.
+
+Recorded while writing the section, and NOT fixed: a shift by a float
+raises `type_error(integer, P)` whose culprit P is the loaded file's path,
+not the float (`coco_type_error` is given cell 0, which is a real heap
+cell). Older than this change; `sh_shape/2` holds the error's shape without
+its culprit so that a fix finds a check to tighten.
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

@@ -1434,6 +1434,26 @@ cocolint index offers no import of it.
   `float_overflow`), `inf` and `nan` are not evaluable, and term_to_atom/2
   reads the first term of its text and ignores the rest (`'1.0 x'` is
   `1.0`). A frozen machine still writes `%.17g` (lib/state.cicili).
+* **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
+  `coco_shift_left` in lib/term.cicili, which both evaluators call --
+  `coco_arith` and the guards' runner, written once in kb.cicili and
+  emitted three times). A C shift by 64 or more, or by a NEGATIVE count, is
+  undefined (C11 6.5.7/3), and x86-64 and aarch64 both take the count
+  modulo 64, so the answer was wrong with no error: `1 >> 64` was 1,
+  `1 << 1000000` was 1, `-256 >> 66` was -64, and `1 >> -1` was
+  `1 >> 63` (cicilang's report, found where a 128-bit significand written
+  as its two halves did not move; its own constant folder had the same
+  fault). Now SWI's answers, as far as 61 bits carry them: a count past 63
+  gives `>>` the sign of its left side (0 or -1) and `<<` 0 -- which is
+  what the 61 bits already made of `1 << 61` -- and a negative count shifts
+  the other way (`1 >> -1` is 2, `4 << -1` is 2), its magnitude tested
+  before the negation that the smallest integer would overflow. The left
+  shift goes through u64, because a left shift of a negative value is
+  undefined as well (6.5.7/4). `test/engine.pl`'s `shifts` section holds
+  all three paths -- the step, a guard, a goal in place -- to the answers,
+  and is red on 1.13.7 for 20 of its 34 rows in each. **A new evaluator of
+  a shift calls the two helpers**; neither `(>> a b)` nor `(<< a b)` on
+  values a program gave is sound.
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth
   (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the

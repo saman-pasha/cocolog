@@ -653,6 +653,43 @@
   (decl) (func coco_uc_space ((i64 c)) (out int))
   (decl) (func coco_text_case ((const char * s) (size_t n) (int up) (coco_strbuf * o)) (out int))
 
+  ;; ---- the two shifts, by any count (1.14.0) ----
+  ;;; A SHIFT BY A COUNT C ALREADY SHIFTS BY C IN C only while C is 0 to 63:
+  ;;; past that, and for a negative count, the shift is UNDEFINED (C11
+  ;;; 6.5.7/3), and x86-64 and aarch64 both take the count modulo 64 -- so
+  ;;; `1 >> 64' answered 1, `1 << 1000000' answered 1, and `1 >> -1'
+  ;;; answered `1 >> 63' (cicilang's report, found when a 128-bit
+  ;;; significand written as its two halves did not move). Here are SWI's
+  ;;; answers instead, as far as a 61-bit integer carries them:
+  ;;;   A >> N, N past 63: where an arithmetic shift ends, the sign of A --
+  ;;;     0, or -1 -- which is what SWI's unbounded integers answer too.
+  ;;;   A << N, N past 63: 0. A value shifted left 61 places or more has
+  ;;;     nothing left in the 61 bits a cell keeps, which is why `1 << 61'
+  ;;;     already answered 0 where SWI, whose integers have no width,
+  ;;;     answers 2^61; the count past 63 is the same answer, not a new one.
+  ;;;   A NEGATIVE COUNT shifts the other way, as SWI's does: `1 >> -1' is
+  ;;;     2 and `4 << -1' is 2. A count whose magnitude is past 63 is the
+  ;;;     other direction's rule above, and is tested BEFORE the negation,
+  ;;;     which the smallest integer would overflow.
+  ;;; The left shift goes through u64, because a left shift of a NEGATIVE
+  ;;; value is undefined as well (6.5.7/4) and the bit pattern two's
+  ;;; complement wants is the one an unsigned shift leaves.
+  ;;;
+  ;;; Static, for the four callers that share them -- `coco_arith' in
+  ;;; solve.cicili and the guards' runner, written once in kb.cicili and
+  ;;; emitted three times -- and NOT forced inline, because clang inlines
+  ;;; them where it wants to anyway: a `(static) (inline)' build (which
+  ;;; takes no `(decl)' -- Cicili refuses an inline function declared and
+  ;;; defined apart) counted within 200 instructions of this one on all
+  ;;; three of zero.sh's programs, out of 47 million. What the two cost is
+  ;;; not the call: it is the branches added to the guards' AG_BIN switch,
+  ;;; which moved its registers -- lookup, whose bodies start with
+  ;;; arithmetic and whose guards never shift, runs 0.047 % more
+  ;;; instructions than 1.13.7 (STATUS.md).
+
+  (static) (decl) (func coco_shift_right ((i64 a) (i64 n)) (out i64))
+  (static) (decl) (func coco_shift_left ((i64 a) (i64 n)) (out i64))
+
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
   (decl) (func coco_machine_free ((coco_machine * m)))
@@ -1307,6 +1344,30 @@
             (if (not (coco_utf8_put o (coco_uc_case (coco_utf8_get s n (aof i)) up)))
                 (return 0)))
           (return 1)))
+
+  ;;; THE TWO SHIFTS BY ANY COUNT (1.14.0; the declaration has the rule and
+  ;;; why C alone does not give it). A negative count is the other
+  ;;; function's work, and is answered here rather than by calling it, so
+  ;;; neither calls the other.
+  (static)
+  (func coco_shift_right ((i64 a) (i64 n)) (out i64)
+        (if (< n 0)
+            (block
+             ;; the other direction, past what it can keep
+             (if (< n -63) (return 0))
+             (return (cast i64 (<< (cast u64 a) (cast u64 (- 0 n)))))))
+        (if (> n 63) (return (? (< a 0) -1 0)))
+        (return (>> a n)))
+
+  (static)
+  (func coco_shift_left ((i64 a) (i64 n)) (out i64)
+        (if (< n 0)
+            (block
+             ;; the other direction, where an arithmetic shift ends
+             (if (< n -63) (return (? (< a 0) -1 0)))
+             (return (>> a (- 0 n)))))
+        (if (> n 63) (return 0))
+        (return (cast i64 (<< (cast u64 a) (cast u64 n)))))
 
   ;;; The widest 64-bit integer is 20 characters and a sign, so 32 is room
   ;;; with the terminator and no arithmetic to get wrong.
