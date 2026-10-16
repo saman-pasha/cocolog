@@ -516,6 +516,15 @@
         (if (coco_m_float e t dv) (block (set (cof isf) 1) (return 1)))
         (return 0))
 
+  ;;; A FLOAT THE WALK MADE IS A NUMBER OR AN ERROR (2.2.0), as `is/2' makes
+  ;;; it (`coco_float_ok' in lib/solve.cicili, swipl's check_float()): 1
+  ;;; for a finite D; else the raise's answer, evaluation_error(undefined)
+  ;;; for a NaN and float_overflow for an infinity.
+  (static)
+  (func coco_l_float_ok ((coco_engine * e) (double d)) (out int)
+        (if (== (- d d) 0.0) (return 1))
+        (return (coco_m_evaluation_error e (? (!= d d) "undefined" "float_overflow"))))
+
   ;;; One step along a list: the head and the tail, or 0 when this is not a
   ;;; cons cell. The same question `memberchk' asks.
   (static)
@@ -527,7 +536,10 @@
           (return 1)))
 
   ;;; `'$sum'(List, Acc, Sum)'. An integer accumulator stays an integer until
-  ;;; a float arrives, which is what `B is A + H' did one clause at a time.
+  ;;; a float arrives, which is what `B is A + H' did one clause at a time,
+  ;;; and a float sum that is no finite number raises at the element that
+  ;;; made it, as that `is/2' does (2.2.0; through 2.1.2 the NaN or the
+  ;;; infinity was the sum).
   (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
@@ -545,7 +557,8 @@
                 (if af (set ad (+ ad (cast double ei)))
                   ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
                   (if (coco_add_ovf ai ei (aof ai))
-                      (return (coco_m_evaluation_error e "int_overflow"))))))
+                      (return (coco_m_evaluation_error e "int_overflow")))))
+              (if af (let ((int rc . #'(coco_l_float_ok e ad))) (if (!= rc 1) (return rc)))))
             (set p t))
           (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
@@ -559,7 +572,9 @@
   ;;; integers are compared as integers -- casting a pair of them to double
   ;;; loses the distinction above 2^53, the trap `compare/3' carried
   ;;; through 1.15.0. Through 2.1.1 the first of two equal ones was kept,
-  ;;; and a NaN stopped the walk where it stood.
+  ;;; and a NaN stopped the walk where it stood. Two equal infinities raise
+  ;;; float_overflow, as that `is/2' does (2.2.0); the first element is
+  ;;; taken as it is, as SWI's is, and is no `max/2' of its own.
   (static)
   (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
@@ -574,8 +589,9 @@
             (let ((i64 hi . 0) (double hd . 0.0) (int hf . 0))
               (if (not (coco_l_num e h (aof hi) (aof hd) (aof hf)))
                   (return (coco_m_type_error e "evaluable" h)))
-              (if (== 0 (coco_num_pick want hf hi hd bf bi bd))
-                  (block (set best h) (set bi hi) (set bd hd) (set bf hf))))
+              (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
+                (if (== b 2) (return (coco_m_evaluation_error e "float_overflow")))
+                (if (== b 0) (block (set best h) (set bi hi) (set bd hd) (set bf hf)))))
             (set p t))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 

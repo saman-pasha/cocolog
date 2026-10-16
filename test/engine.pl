@@ -1281,7 +1281,6 @@ integers_only :-
 %% to a guard run as the clause is entered, and to a goal done in place;
 %% the three over `+', `-' and `*' to the fused word as well.
 i6_want(ovf, error(evaluation_error(int_overflow))) :- !.
-i6_want(undefined, error(evaluation_error(undefined))) :- !.
 i6_want(W, W).
 
 i6_bin(plus, 1152921504606846975, 1, 1152921504606846976).
@@ -1365,8 +1364,8 @@ i6_step(round(-9.3e18), ovf).
 i6_step(floor(9.2e18), 9200000000000000000).
 i6_step(ceiling(9.2e18), 9200000000000000000).
 i6_step(truncate(-9223372036854775808.0), -9223372036854775808).
-i6_step(integer(1.0Inf), undefined).       % swipl hands back the infinity
-i6_step(truncate(1.5NaN), undefined).
+i6_step(integer(1.0Inf), 1.0Inf).          % handed back, as swipl's (2.2.0)
+i6_step(truncate(1.5NaN), 1.5NaN).
 i6_step(float(9223372036854775807), 9.223372036854776e18).
 i6_step(float(-9223372036854775808), -9.223372036854776e18).
 i6_step(9223372036854775807 / 7, 1317624576693539401).

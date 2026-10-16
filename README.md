@@ -553,9 +553,8 @@ DEFAULTS to `codes`, so `"hi"` IS `[104,105]` in a file that does not set
 the flag (08); **every builtin is
 deterministic**, which retires the `retract(X), fail` loop (07) and makes
 `atom_concat(A, B, abc)` with both unbound an `instantiation_error`
-rather than three solutions (08); `2 ** 10` is `1024`, an integer, and an
-integer stops at 64 bits, `int_overflow` past them where SWI goes on in a
-bignum (04); text is counted in characters as SWI counts it, and in bytes
+rather than three solutions (08); an integer stops at 64 bits,
+`int_overflow` past them where SWI goes on in a bignum (04); text is counted in characters as SWI counts it, and in bytes
 where a program asks, which SWI has no flag for (08, 13); and 11 is the
 claim the whole project exists to make, in four lines of Prolog.
 

@@ -53,11 +53,12 @@ main :-
     D is 7 / 2,   must('7 / 2   (float division)', D, 3.5),
     E is 7 // 2,  must('7 // 2  (integer division)', E, 3),
     F is 7 mod 3, must('7 mod 3', F, 1),
-    %% `**' ANSWERS AN INTEGER HERE where SWI answers a float. ISO leaves
-    %% `**' float-valued and `^' integer-valued; cocolog treats both as the
-    %% same operation, so `2 ** 10' is 1024 and not 1024.0. Worth knowing
-    %% before you port arithmetic that relied on the float.
-    G is 2 ** 10, must('2 ** 10  (an INTEGER here, 1024.0 in SWI)', G, 1024),
+    %% `**' ANSWERS AN INTEGER of two integers, as SWI's does. ISO leaves
+    %% `**' float-valued and `^' integer-valued; SWI and cocolog treat both
+    %% as one operation, so `2 ** 10' is 1024 and not ISO's 1024.0 (and
+    %% `2 ** -1' is 0.5). Worth knowing before you port arithmetic written
+    %% for an ISO Prolog that relied on the float.
+    G is 2 ** 10, must('2 ** 10  (an INTEGER, as in SWI; 1024.0 in ISO)', G, 1024),
     H is abs(-5), must('abs(-5)', H, 5),
     I is max(3, 9), must('max(3, 9)', I, 9),
     J is truncate(3.7), must('truncate(3.7)', J, 3),

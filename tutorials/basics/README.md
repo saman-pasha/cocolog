@@ -41,7 +41,8 @@ these ever stops being true the tutorial fails and names both answers.
   which retires the classic `retract(X), fail` failure-driven loop (07)
   and makes `atom_concat(A, B, abc)` with both unbound an
   `instantiation_error` rather than three solutions (08).
-* **`2 ** 10` is `1024`, an integer** — not `1024.0` (04).
+* **An integer stops at 64 bits**: `1000000000000000000 * 997` raises
+  `evaluation_error(int_overflow)`, where SWI goes on in a bignum (04).
 * **`setarg/3` writes the ARGUMENT, not a variable it names.** `T = f(X),
   setarg(1, T, z)` leaves X unbound, where SWI made X in the argument and
   binds it; `arg/3` reads `z` in both (12).

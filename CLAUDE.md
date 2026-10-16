@@ -1476,15 +1476,10 @@ cocolint index offers no import of it.
   exponent, as SWI: `1.0NaN` is its syntax error), and `-0.0` keeps its
   sign, in the reader and in `-/1` (both did `0 - x`). 21,000 doubles of a
   run are written by swipl to the letter and read back bit for bit
-  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: a
-  result that is no number or infinite is the NaN or the infinity
-  (`0.0 / 0.0`, `1.5NaN + 1`, `2 / 0.0`, `10.0 ** 400`), where SWI raises
-  `undefined`, `zero_divisor` or `float_overflow`; `**` and `^` with a zero
-  exponent or the base 1 answer `1.0` where SWI answers `1`; `truncate/1`
-  and its kin raise for a NaN or an infinity, which SWI hands back; `inf`
-  and `nan` are not evaluable, and term_to_atom/2
-  reads the first term of its text and ignores the rest (`'1.0 x'` is
-  `1.0`). A frozen machine still writes `%.17g` (lib/state.cicili).
+  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: `inf`
+  and `nan` are not evaluable, and term_to_atom/2 reads the first term of
+  its text and ignores the rest (`'1.0 x'` is `1.0`). A frozen machine
+  still writes `%.17g` (lib/state.cicili).
   **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
   `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
   sorts before every other number (`coco_flt_order`, which
@@ -1510,6 +1505,31 @@ cocolint index offers no import of it.
   does (through 2.1.1 in doubles: 2^53 + 1 summed to 2^53, and two halves
   of 2^63 to the least integer), and `sign/1` of a NaN is SWI's one NaN.
   The guards never meet any of it: they take integers alone.
+  **A float a function makes is a number or an error** (2.2.0, swipl's
+  check_float() under its flags' defaults; cocolog has no flags to change
+  them): a NaN raises `evaluation_error(undefined)` (`0.0 / 0.0`,
+  `sqrt(-1.0)`), an infinity `float_overflow` (`10.0 ** 400`, `log(0.0)`),
+  a number other than zero over a float zero `zero_divisor`; a subnormal is
+  a number. `coco_float_ok` asks it of what `+`, `-` and `*` make (the
+  macro answers 5), of `/`, `**` and `^`, of sqrt/1, the transcendentals,
+  exp/1, log/1 and float/1 (`coco_float_fn`), and first of each float
+  OPERAND those take, as swipl's promotion does -- so `1.0Inf ** -1` and
+  `sin(1.0Inf)` are float_overflow where libm answers 0.0 and a NaN;
+  sum_list/2 and aggregate_all/3's sum ask it of each float sum
+  (`coco_l_float_ok`), and max and min of two equal infinities raise
+  float_overflow (`coco_num_pick` answers 2; swipl makes the two one type
+  and checks the float it makes), aggregate_all/3's first `max(X, X)` among
+  them. Unchecked, as in swipl: the sign, `abs`, `-`, `+` and the
+  comparisons; integer/1, truncate/1, round/1, floor/1 and ceiling/1, which
+  hand a NaN or an infinity back as it came (`coco_float_back`; undefined
+  through 2.1.2); and `/` over an infinity, the integer 0 for an integer and
+  a signed zero for a float. A power is swipl's ar_pow(): `X ** 0` is the
+  integer 1 (a NaN's too), `1 ** Y` 1, `0 ** Y` 0 or a zero divisor,
+  `-1 ** N` 1 or -1. Through 2.1.2 each of these was the C answer, the NaN
+  or the infinity, and a power with a float in it a float.
+  `test/files/float_check.pl` (194 lines) holds it to swipl; 24 arms red.
+  **A new evaluable function that makes a float asks `coco_float_ok` of it,
+  and of each float it takes.**
 * **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
   `coco_shift_left` in lib/term.cicili, which both evaluators call --
   `coco_arith` and the guards' runner, written once in kb.cicili and
@@ -1547,8 +1567,8 @@ cocolint index offers no import of it.
   `jo`; a 128-bit test made an add nine instructions), `**` and `^`
   (`coco_ipow`), the least integer `//` or `div` -1 and its `-` and `abs`,
   a `<<` that loses a bit, succ/2, plus/3, sum_list/2, numlist/3; a float
-  made an integer outside them raises it too, `evaluation_error(undefined)`
-  for an infinity or a NaN. The reader counts a literal in u64
+  made an integer outside them raises it too (a NaN or an infinity is
+  handed back, as swipl's is, since 2.2.0). The reader counts a literal in u64
   (`coco_mag_digit`, `iwide`): past 2^63-1, or 2^63 for a negative one, is
   `integer out of range`, and atom_number/2 and number_codes/2 fail for
   such a numeral. **The guards stop where they cannot decide** -- a result
