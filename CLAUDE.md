@@ -1546,10 +1546,12 @@ cocolint index offers no import of it.
   INTEGER exponent alone keeps the zero's sign). The check is asked of
   every float `+`, `-` and `*` make (the macro answers 5 for each), of `/`,
   `**` and `^`, of sqrt/1, the transcendentals, exp/1, log/1 and float/1
-  (`coco_float_fn`), and first of each float OPERAND those take, as
-  swipl's promotion does -- so `1.0Inf ** -1` and `sin(1.0Inf)` are
-  float_overflow where libm answers 0.0 and a NaN, and a subnormal operand
-  raises under `float_underflow` `error`; sum_list/2 and aggregate_all/3's
+  (`coco_float_fn`), and first of each float OPERAND those but `+`, `-` and
+  `*` take, as swipl's promotion does -- so `1.0Inf ** -1` and
+  `sin(1.0Inf)` are float_overflow where libm answers 0.0 and a NaN, a
+  subnormal operand of `/` or `sqrt/1` raises under `float_underflow`
+  `error` where `2.0e-310 + 1.0` is `1.0`, and a product that underflows
+  all the way to `0.0` stands; sum_list/2 and aggregate_all/3's
   sum ask it of each float sum, and max and min of two equal floats ask it
   of the first (`coco_num_pick` answers 2; swipl makes the two one type
   and checks the float it makes), aggregate_all/3's first `max(X, X)`
