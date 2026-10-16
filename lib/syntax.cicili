@@ -1780,10 +1780,13 @@
                  ;; sense:
                  ;;
                  ;;   a symbol character -- `- -a', the ordinary rule;
-                 ;;   a DIGIT -- `- 1', because `-1' is not the operator
-                 ;;     applied to 1, it is the integer minus one, and
-                 ;;     that is a rule about prefix position alone (`1-2'
-                 ;;     is right without a space);
+                 ;;   a DIGIT after `-' alone -- `- 1', because `-1' is
+                 ;;     not the operator applied to 1, it is the integer
+                 ;;     minus one; that is a rule about prefix position
+                 ;;     (`1-2' is right without a space) and about `-'
+                 ;;     (`+1', `\1', `?-1' and `:-1' read back as the
+                 ;;     operator applied to 1, and swipl writes them so:
+                 ;;     through 2.2.2 every one took the space);
                  ;;   an opening parenthesis -- `- (a+b)', which SWI
                  ;;     writes with a space and this follows.
                  ;;
@@ -1806,7 +1809,7 @@
                                (int first . #'(coco_sb_first (aof ab))))
                            (if (or (coco_needs_gap last first)
                                    (and (coco_is_symbol last)
-                                        (or (coco_is_digit first)
+                                        (or (and (coco_is_digit first) (== 0 (strcmp name "-")))
                                             (== first (coco-ch "(")))))
                                (coco_sb_putc b (cast char 32))))
                          (if (!= ($ ab s) nil) (coco_sb_put b ($ ab s)))

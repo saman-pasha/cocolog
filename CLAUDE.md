@@ -1493,10 +1493,17 @@ cocolint index offers no import of it.
   exponent, as SWI: `1.0NaN` is its syntax error), and `-0.0` keeps its
   sign, in the reader and in `-/1` (both did `0 - x`). 21,000 doubles of a
   run are written by swipl to the letter and read back bit for bit
-  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: `inf`
-  and `nan` are not evaluable, and term_to_atom/2 reads the first term of
-  its text and ignores the rest (`'1.0 x'` is `1.0`). A frozen machine
-  still writes `%.17g` (lib/state.cicili).
+  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet:
+  term_to_atom/2 reads the first term of its text and ignores the rest
+  (`'1.0 x'` is `1.0`; `inf` and `nan` are evaluable since 2.2.2). A
+  frozen machine still writes `%.17g` (lib/state.cicili). **A prefix
+  operator takes a space before a digit only when it is `-`** (2.2.3,
+  swipl's: `- 1`, because `-1` is the integer, but `+1`, `\1`, `\+1` and
+  `?-1`, which read back as the operator applied to 1; through 2.2.2 every
+  symbolic one took it, `+ 1`); a symbol character after any of them takes
+  one by the merge rule (`- -1`, `+ +1`), and so does an opening
+  parenthesis (`- (a+b)`). `test/files/prefix_write.pl` holds 60 terms to
+  swipl's text, and `test/syntax.cicili` the golden cases.
   **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
   `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
   sorts before every other number (`coco_flt_order`, which

@@ -161,10 +161,10 @@
 
       ;; ---- and prefix, where the rule is not quite the same --------------
       ;;
-      ;; A DIGIT after a symbolic prefix operator takes a space even though
-      ;; the two do not merge as tokens -- `-1' is not `-' applied to 1, it is
-      ;; the integer. That is a rule about prefix position alone: `1-2' is
-      ;; right without one.
+      ;; A DIGIT after prefix `-' takes a space even though the two do not
+      ;; merge as tokens -- `-1' is not `-' applied to 1, it is the integer.
+      ;; That is a rule about prefix position alone: `1-2' is right without
+      ;; one.
       (trip (aof m) "-(a)"         "-a")
       (trip (aof m) "-(1.5)"       "- 1.5")
       (trip (aof m) "-(-(a))"      "- -a")
@@ -173,6 +173,20 @@
       (trip (aof m) "-(f(x))"      "-f(x)")
       ;; and an opening parenthesis takes one, which is what SWI does
       (trip (aof m) "-(a+b)"       "- (a+b)")
+      ;; but the digit's space is `-''s alone (2.2.3): every other symbolic
+      ;; prefix operator before a number reads back as itself applied to it,
+      ;; and SWI 9 writes no space there. Through 2.2.2 each took one.
+      (trip (aof m) "+(1)"         "+1")
+      (trip (aof m) "+(1.5)"       "+1.5")
+      (trip (aof m) "\\(1)"        "\\1")
+      (trip (aof m) "\\+(1)"       "\\+1")
+      (trip (aof m) "?-(1)"        "?-1")
+      (trip (aof m) "+(+(1))"      "+ +1")
+      (trip (aof m) "-(+(1))"      "- +1")
+      (trip (aof m) "+(-(1))"      "+ - 1")
+      (trip (aof m) "+(-1)"        "+ -1")
+      (trip (aof m) "+(1)^2"       "(+1)^2")
+      (trip (aof m) "f(+(1),\\(2))" "f(+1,\\2)")
 
       ;; ---- every one of those has to read back as what it was ------------
       (stable (aof m) "1- -2")
@@ -182,6 +196,12 @@
       (stable (aof m) "1+ -2")
       (stable (aof m) "(a,-1)")
       (stable (aof m) "-(-(a))")
+      (stable (aof m) "+(1)")
+      (stable (aof m) "\\(1)")
+      (stable (aof m) "?-(1)")
+      (stable (aof m) "+(+(1))")
+      (stable (aof m) "+(-1)")
+      (stable (aof m) "1 - +(1)")
 
       ;; ---- an operator as an ordinary argument -------------------------
       ;; AN OPERATOR ATOM IS BRACKETED AS AN OPERAND AND NOWHERE ELSE, which

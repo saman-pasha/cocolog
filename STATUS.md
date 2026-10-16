@@ -1575,7 +1575,9 @@ Prefix position has one rule that is not a merge at all: **a digit after a
 symbolic prefix operator takes a space** — `- 1`, because `-1` is not the
 operator applied to one, it is the integer. `1-2` is right without one, so it
 is genuinely about prefix position. An opening parenthesis takes one too,
-which is what SWI does: `- (a+b)`.
+which is what SWI does: `- (a+b)`. (Since 2.2.3 the digit's space is `-`'s
+alone, as it is SWI's: `+1`, `\1` and `?-1` read back as the operator
+applied to 1, and through 2.2.2 they were written `+ 1`, `\ 1` and `?- 1`.)
 
 Sixty-two terms were compared against a running SWI 9 term by term; sixty-one
 now agree, and the one that does not is a *reader* gap — `:` is not an operator
@@ -6431,7 +6433,8 @@ Found on the way and not changed: the writer puts a space between any
 symbolic prefix operator and a number (`+ 1`, `+ 1.0Inf`, `\ 1`), which
 swipl 9 does after `-` alone, the one whose `-1` reads as a number
 (swipl writes `+1`, `+1.0Inf`, `\1`); both read `+1` as `+(1)`, so the
-text differs and the term does not. 2.2.1 writes the same.
+text differs and the term does not. 2.2.1 writes the same. (2.2.3 writes
+them as swipl does, the next section.)
 
 Green on 2.2.2: files (all 35 swipl-compared files), engine, units, state,
 directives, errors, argv, string, cyclic, gc, flowchart (over rebuilt
@@ -6445,3 +6448,37 @@ both ways round, counting work less padding:
 | nrev | -26 | +57 |
 | queens | -121 | -19 |
 | lookup | -933 | +56 |
+
+## A prefix operator before a number, as swipl writes it (2.2.3)
+
+The owner's ask: `+(1)`. Through 2.2.2 the writer put a space between every
+symbolic prefix operator and a digit after it -- `+ 1`, `+ 1.0Inf`, `\ 1`,
+`\+ 1`, `?- 1`, `:- 1`, `f(+ 1)`, `1- + 1` -- where swipl 9 writes `+1`,
+`+1.0Inf`, `\1`, `\+1`, `?-1`, `:-1`, `f(+1)` and `1- +1`. The rule was
+written for `-`, whose `-1` reads back as the integer and not as `-(1)`, and
+it was applied to every symbolic operator, though `+1` and `\1` read back as
+the operator applied to 1 in both systems. Now the digit's space is `-`'s
+alone (the writer's prefix branch in `lib/syntax.cicili`). What stays: a
+symbol character after the operator takes a space by the merge rule (`- -1`,
+`+ -1`, `+ +1`, `\ +1`), an opening parenthesis takes one (`- (1+2)`,
+`+ (+)`), and an alphabetic operator always takes one (`dynamic 1`).
+
+`test/files/prefix_write.pl` writes 60 terms with `write/1` and `writeq/1`
+and reads each back with term_to_atom/2, and swipl and cocolog agree byte for
+byte; 2.2.2 differs on 26 of the lines. `test/syntax.cicili` has eleven
+golden trips and six round trips more: with the old rule nine of the trips go
+red, and the two others pin the spaces the merge rule keeps (`+ -1`,
+`+ - 1`). Left as they were, and in COMPAT.md: write_canonical/1 keeps
+operators (the dialect card's W1); `print/1` writes as `write/1` does,
+unquoted, where swipl's quotes (`print('a b')` is `a b`, a row of its own
+now); and `"1"` is a code list here.
+
+The card's W1 cite moved three lines down with the comment above it. Green
+on 2.2.3: the syntax and term binaries, files (36 swipl-compared files),
+trace, backtrace, cyclic, window, journal, engine, errors, gc, stream,
+serialize, flowchart, flowdebug, lint, argv, string, units, directives,
+library, reconsult, script and repl, and the card check. flowdebug was red
+once in a run of 24 cases at once on four vCPUs (its check that a time row
+is marked) and green alone. `make test` has not been run on it.
+`tools/flow/zero.sh` against 2.2.2, the binaries placed alike, both ways
+round: nrev, queens and lookup the same to the instruction, padding too.

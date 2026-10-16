@@ -15,7 +15,7 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `number_codes/2` | `number_codes(N, "3x")` is a `syntax_error` | answers `3`, ignoring what follows the number | check the text first if it may carry trailing characters |
-| a symbolic prefix operator written before a number | `+1`, `+1.0Inf`, `\1`: a space after `-` alone (`- 1`), the one whose `-1` reads as a number | `+ 1`, `+ 1.0Inf`, `\ 1`: a space after any. Both read either text back as the same term | compare terms, not their text |
+| `print/1` | quotes, as `writeq/1` does: `print('a b')` is `'a b'` and `print(f('X'))` `f('X')` | writes as `write/1` does, unquoted: `a b` and `f(X)`, which reads back as another term (a prefix operator before a number is spaced as swipl spaces it since 2.2.3: `+1`, `\1`, and `- 1` alone) | `writeq/1` where the text must read back |
 
 ## Loud: an error where SWI enumerates or accepts
 
