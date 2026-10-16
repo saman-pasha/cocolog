@@ -1,10 +1,8 @@
 %  =@=/2, \=@=/2 and subsumes_term/2, checked against SWI.
 %  Run by BOTH systems, output compared byte for byte.
 %
-%  Each case is a clause of its own, so no two share a variable. Left out
-%  on purpose: 0.0 against -0.0, which cocolog's unify and ==/2 take as
-%  equal where SWI tells them apart by sign -- a difference of the floats,
-%  which =@=/2 inherits, not of the variant check.
+%  Each case is a clause of its own, so no two share a variable. The two
+%  zeros and a NaN under =@=/2 are test/files/float_order.pl's.
 
 s(Label, Value) :- write(Label), write(=), write(Value), nl.
 r(Label) :- ( catch(c(Label), E, (s(Label, E), fail)) -> s(Label, yes) ; s(Label, no) ).

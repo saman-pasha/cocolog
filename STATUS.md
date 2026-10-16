@@ -5955,6 +5955,63 @@ Nine arms take one rule out each, and each goes red:
 and a NaN as unequal to itself, where SWI tells floats apart by their
 bits. COMPAT.md has the row; =@=/2 inherits it from unify.
 
+## Floats are told apart by their bits (2.1.1)
+
+The owner's choice after 2.1.0. Through 2.1.0 two floats were compared as
+numbers wherever a term was:
+
+* `0.0 = -0.0`, `0.0 == -0.0` and `0.0 =@= -0.0` held;
+* `p(0.0)` answered the goal `p(-0.0)`, and a first-argument index over
+  `k(0.0, _)` and `k(-0.0, _)` handed back both;
+* `sort/2` kept one of the two zeros;
+* no NaN unified, not even with itself;
+* a NaN, equal to every number in the order, left a sort OUT OF ORDER:
+  `msort([2, NaN, 1.0, -1, NaN])` came back as `[NaN, 1.0, NaN, -1, 2]`.
+
+Now they are swipl 9.0.4's:
+
+* **Two float cells are one term when their bits are** (`coco_flt_eq`). It
+  is asked by unify (`coco_unify` and its linked walk), by the store's
+  matcher (both of its arms), and by a compiled head's constant.
+* **Two floats that do not order as numbers** (`coco_flt_order`, asked by
+  `coco_num_order`) put a NaN before any other number. Two zeros, or two
+  NaNs, go by their bits taken as a signed integer, so `-0.0 @< 0.0`. An
+  integer against a float is as before: as doubles, the float first when
+  they are equal, so `-0.0 @< 0.0 @< 0`.
+
+Arithmetic still compares numbers (`0.0 =:= -0.0`). Over a NaN, and in
+`max`/`min` of the two zeros, it is not SWI's yet: COMPAT.md has the row.
+
+`test/files/float_order.pl` is run by swipl and by cocolog, and its 72
+lines agree byte for byte. They cover unify, `==/2`, `memberchk/2`,
+`unify_with_occurs_check/2`, `subsumes_term/2` and `=@=/2`; unify past its
+count, over cyclic terms; the order under `compare/3`, msort/2, sort/2
+and sort/4, keysort/2, setof/3 and list_to_ord_set/2; compiled heads and
+their index; asserted clauses and `retract/1`; and the text and copies of
+`-0.0`. 2.1.0 differs from swipl on 50 of the 72. No program reaches the
+store's matcher (every clause a program can write compiles), so
+`test/solve.cicili` asks it directly, with five checks.
+
+Seven arms take one rule out each, and each goes red:
+
+| arm | red |
+|---|---|
+| unify | 17 lines of the 72 |
+| unify's linked walk | 2 lines (the cyclic ones) |
+| the store's matcher, a store variable met again | 1 check of `test/solve.cicili` |
+| the store's matcher, a stored float | 2 checks |
+| a compiled head's constant | 7 lines |
+| a NaN first | 8 lines |
+| the two zeros by their bits | 18 lines |
+
+`tools/flow/zero.sh` against 2.1.0, counting work less padding:
+
+| | instructions |
+|---|---|
+| nrev | +0.003 % |
+| queens | +0.027 % |
+| lookup | +0.005 % |
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

@@ -864,8 +864,8 @@ cocolint index offers no import of it.
   a unify, each variable asked still unbound and none made one (the
   variable map), the unify undone; `=@=/2` asks a COPY of its first term
   both ways, so a variable the two share is not bound across, and sets
-  the heap back after. They inherit unify's floats: `0.0 =@= -0.0` holds
-  where SWI's fails (COMPAT.md). term_variables/2's collector looks a
+  the heap back after; `0.0 =@= -0.0` fails, as unify's floats are SWI's
+  since 2.1.1 (below). term_variables/2's collector looks a
   variable up in the map past sixteen (2.1.0; it scanned, and 200 000
   variables took 6.8 s). A
   deep TREE overflows the C stack where it always did (~47k levels of
@@ -1481,6 +1481,16 @@ cocolint index offers no import of it.
   `float_overflow`), `inf` and `nan` are not evaluable, and term_to_atom/2
   reads the first term of its text and ignores the rest (`'1.0 x'` is
   `1.0`). A frozen machine still writes `%.17g` (lib/state.cicili).
+  **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
+  `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
+  sorts before every other number (`coco_flt_order`, which
+  `coco_num_order` asks of two floats that do not order as numbers) --
+  swipl 9.0.4's answers, `test/files/float_order.pl`. Through 2.1.0 unify,
+  the store's matcher and a compiled head compared the doubles, and a NaN,
+  equal to every number in the order, left a sort out of order. **A new
+  identity test of FLT cells calls `coco_flt_eq`**, never `==` on the
+  doubles. Arithmetic still compares numbers (`0.0 =:= -0.0`), and is not
+  SWI's over a NaN or the zeros' `max`/`min` (COMPAT.md).
 * **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
   `coco_shift_left` in lib/term.cicili, which both evaluators call --
   `coco_arith` and the guards' runner, written once in kb.cicili and

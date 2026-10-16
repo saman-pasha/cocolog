@@ -941,6 +941,7 @@
   ;; structural comparison: <0, 0, >0 in the standard order of terms
   (decl) (func coco_compare ((coco_machine * m) (size_t a) (size_t b)) (out int))
   (decl) (func coco_str_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int))
+  (decl) (func coco_flt_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int))
   (decl) (func coco_str_cmp ((coco_machine * m) (size_t a) (size_t b)) (out int))
 
   ) ; decl-term
@@ -2218,9 +2219,7 @@
                     ((coco-tag-is ATOM ca) (if (!= ca cb) (set ok 0)))
                     ((coco-tag-is INT ca)  (if (!= ca cb) (set ok 0)))
                     ((coco-tag-is FLT ca)
-                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
-                             (nth (cast size_t (coco-payload cb)) (-> m floats)))
-                         (set ok 0)))
+                     (if (not (coco_flt_eq m ca cb)) (set ok 0)))
                     ((coco-tag-is STR ca)
                      (if (not (coco_str_eq m ca cb)) (set ok 0)))
                     ((coco-tag-is FUN ca)
@@ -2304,9 +2303,7 @@
                     ((coco-tag-is ATOM ca) (if (!= ca cb) (set ok 0)))
                     ((coco-tag-is INT ca)  (if (!= ca cb) (set ok 0)))
                     ((coco-tag-is FLT ca)
-                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
-                             (nth (cast size_t (coco-payload cb)) (-> m floats)))
-                         (set ok 0)))
+                     (if (not (coco_flt_eq m ca cb)) (set ok 0)))
                     ;; TWO STRINGS UNIFY WHEN THEIR BYTES DO, not when their
                     ;; table indexes do: the table is not interned, so equal
                     ;; strings are ordinarily two entries.
@@ -2988,6 +2985,17 @@
                                    ($ (nth ia (-> m strings)) n)))
                      1 0))))
 
+  ;;; Two FLOAT cells are one term when their BITS are (2.1.1), as SWI's
+  ;;; are: 0.0 and -0.0 are two, and a NaN is itself. Through 2.1.0 unify,
+  ;;; the store's matcher and a compiled head compared them as numbers, so
+  ;;; `0.0 = -0.0' held, `p(0.0)' answered `p(-0.0)', and no NaN unified,
+  ;;; not even with itself. Arithmetic still compares numbers
+  ;;; (`0.0 =:= -0.0').
+  (func coco_flt_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int)
+        (let ((double x . #'(nth (cast size_t (coco-payload ca)) (-> m floats)))
+              (double y . #'(nth (cast size_t (coco-payload cb)) (-> m floats))))
+          (return (? (== 0 (memcmp (aof x) (aof y) (sizeof double))) 1 0))))
+
   ;;; Two STRING cells in the standard order. memcmp over the shorter
   ;;; length, then the shorter string first -- which is what strcmp would do
   ;;; for text without a NUL in it, and what it cannot do for text with one.
@@ -3031,6 +3039,21 @@
           (if (coco-tag-is FLT c) (return (nth (cast size_t (coco-payload c)) (-> m floats))))
           (return (cast double (coco_int_val m c)))))
 
+  ;;; TWO FLOATS THAT DO NOT ORDER AS NUMBERS (2.1.1), in swipl 9.0.4's
+  ;;; order: a NaN before any other number, and two that are equal as
+  ;;; numbers -- 0.0 and -0.0 -- or two NaNs by their bits taken as a signed
+  ;;; integer, so -0.0 comes first and a float equals itself alone. Through
+  ;;; 2.1.0 both were equal: `0.0 == -0.0' held, sort/2 kept one of the two
+  ;;; zeros, and a NaN, equal to every number, left a sort out of order.
+  (static)
+  (func coco_flt_order ((double x) (double y)) (out int)
+        (let ((int nx . #'(? (!= x x) 1 0)) (int ny . #'(? (!= y y) 1 0))
+              (i64 bx . 0) (i64 by . 0))
+          (if (!= nx ny) (return (? nx -1 1)))
+          (memcpy (aof bx) (aof x) (sizeof double))
+          (memcpy (aof by) (aof y) (sizeof double))
+          (return (? (< bx by) -1 (? (> bx by) 1 0)))))
+
   ;;; THE ORDER OF TWO NUMBERS (2.0.0): two integers as integers, exactly;
   ;;; an integer and a float as doubles, as swipl 9.0.4 compares them, and
   ;;; equal so the float first. Through 1.15.0 two integers went through
@@ -3047,9 +3070,11 @@
             (if (> x y) (return 1))
             ;; equal as numbers, and not the same term: 1 and 1.0 are two,
             ;; `1 == 1.0' is false where `1 =:= 1.0' is true, and the
-            ;; standard order puts the float first
+            ;; standard order puts the float first -- before an integer, a
+            ;; NaN too; two floats are ordered by `coco_flt_order'
             (let ((int fa . #'(? (coco-tag-is FLT ca) 1 0))
                   (int fb . #'(? (coco-tag-is FLT cb) 1 0)))
+              (if (and fa fb) (return (coco_flt_order x y)))
               (if (== fa fb) (return 0))
               (return (? fa -1 1))))))
 
