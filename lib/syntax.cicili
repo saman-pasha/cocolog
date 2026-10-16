@@ -104,7 +104,7 @@
     (1000 xfy ",")
     (900  fy  "\+")
     (700  xfx "=" "\=" "==" "\==" "@<" "@>" "@=<" "@>=" "=.." "is"
-              "=:=" "=\=" "<" ">" "=<" ">=")
+              "=:=" "=\=" "<" ">" "=<" ">=" "=@=" "\=@=")
     ;; module qualification. cocolog has one namespace, so `m:g' is only
     ;; ever a term here -- but a borrowed file writes it, and a reader that
     ;; cannot parse it cannot read the file.

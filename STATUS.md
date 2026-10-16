@@ -5890,6 +5890,214 @@ The translator's case takes 30 s, as it did under bytes at the 1.15.0
 gate. The reasoning library reads both units since 1.13.2, and its byte
 clauses can go, on its own number.
 
+## =@=/2, \=@=/2 and subsumes_term/2, and term_variables/2 linear (2.1.0)
+
+Through 2.0.0 a call of `=@=/2` or `subsumes_term/2` was an existence
+error, and `a =@= b` was a syntax error. Now they are SWI's, with
+`\=@=/2` beside them, and `=@=` and `\=@=` are operators at 700 xfx.
+
+* **subsumes_term(General, Specific)** collects Specific's variables, then
+  unifies the two. It asks whether each variable is still unbound and no
+  two were made one, then undoes the unify, so it binds nothing. SWI binds
+  each variable to `[]` and asks the next; here each goes into the
+  borrowed variable map. A variable the two share is Specific's, so
+  `subsumes_term(f(A, b), f(a, A))` is no.
+* **A =@= B** copies A first, a fresh variable for each of its own, and
+  asks whether the copy and B each subsume the other. Two terms with no
+  variable in common are variants exactly when that holds. Asked as they
+  stand, `x(A, B) =@= x(B, A)` would bind A and B together on the first
+  unify and answer no, where SWI says yes. Nothing points into the copy
+  once both questions are undone, so the heap is set back to where it was.
+* **Every walk under them is one of the cycle-safe ones** (term_variables/2's
+  collector, unify, copy_term/2's copy), so a cycle, a DAG that doubles at
+  each of 40 levels, and a list of 200 000 variables all finish, with
+  swipl's answers.
+
+**term_variables/2 was quadratic in the variables it found.** It looked
+each one up by scanning the ones it had. 200 000 distinct variables took
+6.8 s, where swipl takes 0.07, and the two new builtins walk Specific's
+variables the same way: 7.1 s and 14.4 s. Past sixteen variables it now
+asks the variable map, which holds them all by then. The same 200 000
+take 0.027 s, subsumes_term/2 over them 0.053 s and =@=/2 0.16 s. Up to
+sixteen the scan is unchanged.
+
+`test/files/variant.pl` is run by swipl 9.0.4 and by cocolog, and its 82
+lines agree byte for byte:
+
+* SWI's and ISO's examples, shared variables, and `'$VAR'` terms;
+* cycles, the DAG, the long list, and 64-bit integers;
+* nothing left bound afterwards;
+* the operators as the reader, the writer and current_op/3 see them.
+
+`test/engine.pl` adds a section of three checks, each a child under a
+timeout:
+
+* 400 000 variables are found in their order inside six seconds;
+* subsumes_term/2 and =@=/2 over 200 000 finish inside eight;
+* =@=/2 leaves no copy on the heap.
+
+Nine arms take one rule out each, and each goes red:
+
+| arm | red |
+|---|---|
+| Specific's variables still unbound | 16 lines of the 82 |
+| no two of them made one | 10 lines |
+| the unify undone | 7 lines |
+| the copy before =@=/2 asks | 8 lines |
+| asked both ways | 4 lines |
+| the copy taken back off the heap | 1 check (640 072 bytes left) |
+| the variable map past sixteen | 2 checks (timed out) |
+| the two operators | the file does not read; 2 checks |
+| their lines in library/flow/modes.pl | 1 check of `test/flowchart.pl` |
+
+**Still not SWI's:** `0.0 =@= -0.0` holds, as `0.0 = -0.0` and
+`0.0 == -0.0` do. cocolog's unify and compare take the two zeros as equal
+and a NaN as unequal to itself, where SWI tells floats apart by their
+bits. COMPAT.md has the row; =@=/2 inherits it from unify.
+
+## Floats are told apart by their bits (2.1.1)
+
+The owner's choice after 2.1.0. Through 2.1.0 two floats were compared as
+numbers wherever a term was:
+
+* `0.0 = -0.0`, `0.0 == -0.0` and `0.0 =@= -0.0` held;
+* `p(0.0)` answered the goal `p(-0.0)`, and a first-argument index over
+  `k(0.0, _)` and `k(-0.0, _)` handed back both;
+* `sort/2` kept one of the two zeros;
+* no NaN unified, not even with itself;
+* a NaN, equal to every number in the order, left a sort OUT OF ORDER:
+  `msort([2, NaN, 1.0, -1, NaN])` came back as `[NaN, 1.0, NaN, -1, 2]`.
+
+Now they are swipl 9.0.4's:
+
+* **Two float cells are one term when their bits are** (`coco_flt_eq`). It
+  is asked by unify (`coco_unify` and its linked walk), by the store's
+  matcher (both of its arms), and by a compiled head's constant.
+* **Two floats that do not order as numbers** (`coco_flt_order`, asked by
+  `coco_num_order`) put a NaN before any other number. Two zeros, or two
+  NaNs, go by their bits taken as a signed integer, so `-0.0 @< 0.0`. An
+  integer against a float is as before: as doubles, the float first when
+  they are equal, so `-0.0 @< 0.0 @< 0`.
+
+Arithmetic still compares numbers (`0.0 =:= -0.0`). Over a NaN, and in
+`max`/`min` of the two zeros, it is not SWI's yet: COMPAT.md has the row.
+(2.1.2 made both SWI's, below.)
+
+`test/files/float_order.pl` is run by swipl and by cocolog, and its 72
+lines agree byte for byte. They cover unify, `==/2`, `memberchk/2`,
+`unify_with_occurs_check/2`, `subsumes_term/2` and `=@=/2`; unify past its
+count, over cyclic terms; the order under `compare/3`, msort/2, sort/2
+and sort/4, keysort/2, setof/3 and list_to_ord_set/2; compiled heads and
+their index; asserted clauses and `retract/1`; and the text and copies of
+`-0.0`. 2.1.0 differs from swipl on 50 of the 72. No program reaches the
+store's matcher (every clause a program can write compiles), so
+`test/solve.cicili` asks it directly, with five checks.
+
+Seven arms take one rule out each, and each goes red:
+
+| arm | red |
+|---|---|
+| unify | 17 lines of the 72 |
+| unify's linked walk | 2 lines (the cyclic ones) |
+| the store's matcher, a store variable met again | 1 check of `test/solve.cicili` |
+| the store's matcher, a stored float | 2 checks |
+| a compiled head's constant | 7 lines |
+| a NaN first | 8 lines |
+| the two zeros by their bits | 18 lines |
+
+`tools/flow/zero.sh` against 2.1.0, counting work less padding:
+
+| | instructions |
+|---|---|
+| nrev | +0.003 % |
+| queens | +0.027 % |
+| lookup | +0.005 % |
+
+## Arithmetic over a NaN, and max and min, as SWI's are (2.1.2)
+
+The owner's choice after 2.1.1. Through 2.1.1:
+
+* a NaN compared equal to every number: `X =:= X`, `=<` and `>=` held of
+  a NaN and `=\=` failed, and `1.5NaN =:= 1.0` held;
+* `max` and `min` made both floats when either was one and took the
+  doubles' `<`: `max(2, 1.5)` was `2.0`, `max(0.0, -0.0)` was `-0.0`,
+  `min(-0.0, 0.0)` was `0.0`, and `max(1.0, NaN)` was the NaN;
+* `max_list/2` and `min_list/2` kept the first of two equal numbers
+  (`max_list([1, 1.0], M)` was `1`) and stopped at a NaN;
+* `aggregate_all/3`'s `sum`, `max` and `min` worked in doubles: `2^53 + 1`
+  summed to `2^53`, `2^62 + (2^62 - 1)` to the least integer, and the
+  larger of two integers past `2^53` was the first;
+* `sign/1` of a NaN was `0.0`.
+
+Now they are swipl 9.0.4's:
+
+* **A NaN is unordered.** `coco_num_cmp` answers 2, so `=\=` holds and
+  the other five fail.
+* **`max` and `min` are SWI's `ar_max` and `ar_min`** (`coco_num_pick`,
+  which answers which of the two). A NaN is passed over; -0.0 is the
+  smaller zero; of an integer and a float that are equal, the float; and
+  the one picked is answered as it came, so `max(2, 1.5)` is `2`.
+* `max_list/2` and `min_list/2` fold `M is max(H, M0)` along the list,
+  and `aggregate_all/3` folds `M is max(M0, X)`, each in the order of
+  SWI's own clause (the order picks between two NaNs). The witness forms
+  are `X > Max0`, with two integers compared as integers.
+* `aggregate_all/3`'s sum adds integers as integers until a float
+  arrives, and raises int_overflow past 64 bits, as `sum_list/2` does.
+* `sign/1` of a NaN is SWI's one NaN, the bits `1.5NaN` reads as.
+
+The guards take integers alone and never meet any of it.
+
+Found on the way and not changed, COMPAT.md's rows: a float result that is
+a NaN or infinite raises in SWI (`undefined`, `float_overflow`,
+`zero_divisor`) and is the answer here; `**` and `^` with a zero exponent
+or the base 1 are the integer 1 in SWI; `truncate/1` and its kin hand a
+NaN or an infinity back in SWI and raise here.
+
+`test/files/float_arith.pl` is run by swipl and by cocolog, and its 166
+lines agree byte for byte. It covers:
+
+* the six comparisons over a NaN: with literals, with variables, through
+  `call/N`, `\+` and an if-then-else, in a clause whose first goal is the
+  comparison, and later in a body that makes an environment;
+* the zeros, the infinities, and integers past 53 bits;
+* `max` and `min` in every pairing, as a guard and in an environment's
+  branch;
+* `sign/1`, `max_list/2` and `min_list/2`;
+* `aggregate_all/3` and `aggregate/3`.
+
+2.1.1 differs from swipl on 76 of the 166. `test/engine.pl` holds the sum
+past 64 bits to int_overflow, where SWI makes a bignum.
+
+Fifteen arms take one rule out each, and each goes red (lines of the 166
+that differ from swipl):
+
+| arm | red |
+|---|---|
+| a NaN equal to every number again (`coco_num_cmp`) | 27 |
+| `>` true of an unordered pair | 9 |
+| `>=` true of an unordered pair | 9 |
+| max and min answer a float when either was one | 15 |
+| a NaN not passed over | 16 |
+| -0.0 not the smaller zero | 13 |
+| of an integer and a float that are equal, the first | 14 |
+| two integers compared as doubles | 2 (aggregate_all's, past 2^53) |
+| `sign/1` of a NaN 0.0 | 3 |
+| `max_list/2` and `min_list/2` as through 2.1.1 | 11 |
+| `max_list/2`'s operands the other way round | 2 (two NaNs) |
+| `aggregate_all/3`'s sum in doubles | 3, and `test/engine.pl`'s sum check on 2.1.1 |
+| `aggregate_all/3`'s max and min in doubles | 8 |
+| `aggregate_all/3`'s operands the other way round | 1 (two NaNs) |
+| the witness forms' two integers compared as doubles | 2 |
+
+`tools/flow/zero.sh` against 2.1.1, counting work less padding (the
+padding the same):
+
+| | instructions |
+|---|---|
+| nrev | +0 |
+| queens | +0 |
+| lookup | +18 (+0.00004 %) |
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

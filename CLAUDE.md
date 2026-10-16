@@ -859,7 +859,15 @@ cocolint index offers no import of it.
   (string_length/2, split_string/4, ...) write a cyclic list as its factors
   where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
   writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
-  `=@=`, subsumes_term/2 and numbervars/3 do not exist. A
+  numbervars/3 does not exist. subsumes_term/2, `=@=/2` and `\=@=/2`
+  (2.1.0) do, built on the walks above: Specific's variables collected,
+  a unify, each variable asked still unbound and none made one (the
+  variable map), the unify undone; `=@=/2` asks a COPY of its first term
+  both ways, so a variable the two share is not bound across, and sets
+  the heap back after; `0.0 =@= -0.0` fails, as unify's floats are SWI's
+  since 2.1.1 (below). term_variables/2's collector looks a
+  variable up in the map past sixteen (2.1.0; it scanned, and 200 000
+  variables took 6.8 s). A
   deep TREE overflows the C stack where it always did (~47k levels of
   `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
   stay in registers**: quoted, ignore_ops and operand are one `mode` word
@@ -1468,11 +1476,40 @@ cocolint index offers no import of it.
   exponent, as SWI: `1.0NaN` is its syntax error), and `-0.0` keeps its
   sign, in the reader and in `-/1` (both did `0 - x`). 21,000 doubles of a
   run are written by swipl to the letter and read back bit for bit
-  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: an
-  overflow is an infinity (`10.0 ** 400`, where SWI raises
-  `float_overflow`), `inf` and `nan` are not evaluable, and term_to_atom/2
+  (`test/files/floats.pl` holds 40 to swipl's text). Not SWI's yet: a
+  result that is no number or infinite is the NaN or the infinity
+  (`0.0 / 0.0`, `1.5NaN + 1`, `2 / 0.0`, `10.0 ** 400`), where SWI raises
+  `undefined`, `zero_divisor` or `float_overflow`; `**` and `^` with a zero
+  exponent or the base 1 answer `1.0` where SWI answers `1`; `truncate/1`
+  and its kin raise for a NaN or an infinity, which SWI hands back; `inf`
+  and `nan` are not evaluable, and term_to_atom/2
   reads the first term of its text and ignores the rest (`'1.0 x'` is
   `1.0`). A frozen machine still writes `%.17g` (lib/state.cicili).
+  **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
+  `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
+  sorts before every other number (`coco_flt_order`, which
+  `coco_num_order` asks of two floats that do not order as numbers) --
+  swipl 9.0.4's answers, `test/files/float_order.pl`. Through 2.1.0 unify,
+  the store's matcher and a compiled head compared the doubles, and a NaN,
+  equal to every number in the order, left a sort out of order. **A new
+  identity test of FLT cells calls `coco_flt_eq`**, never `==` on the
+  doubles. Arithmetic compares numbers (`0.0 =:= -0.0`), and **a NaN is
+  unordered** (2.1.2, swipl 9.0.4's, `test/files/float_arith.pl`):
+  `coco_num_cmp` answers 2 against anything, so `=\=` holds and the other
+  five fail, `X =:= X` among them (through 2.1.1 a NaN was equal to every
+  number). **`max` and `min` are SWI's `ar_max`/`ar_min`**
+  (`coco_num_pick`, which answers which of the two): a NaN passed over,
+  -0.0 the smaller zero, of an integer and a float that are equal the
+  float, and the one picked as it came, so `max(2, 1.5)` is `2` (it was
+  `2.0`); is/2, max_list/2, min_list/2 and aggregate_all/3 each ask it in
+  the order of SWI's own clause (`max(H, Max0)` along a list,
+  `max(M0, X)` in an aggregate: the order picks which of two NaNs). **A
+  new reader of max or min calls `coco_num_pick`, and a new caller of
+  `coco_num_cmp` reads its 2.** aggregate_all/3's sum adds integers as
+  integers until a float arrives, int_overflow past 64 bits, as sum_list/2
+  does (through 2.1.1 in doubles: 2^53 + 1 summed to 2^53, and two halves
+  of 2^63 to the least integer), and `sign/1` of a NaN is SWI's one NaN.
+  The guards never meet any of it: they take integers alone.
 * **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
   `coco_shift_left` in lib/term.cicili, which both evaluators call --
   `coco_arith` and the guards' runner, written once in kb.cicili and

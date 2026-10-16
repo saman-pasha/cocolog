@@ -526,28 +526,6 @@
           (set (cof tail) (coco_arg m d 1))
           (return 1)))
 
-  ;;; -1, 0 or 1 as `>' would order them, with OK cleared when either is not
-  ;;; a number. TWO INTEGERS ARE COMPARED AS INTEGERS: casting a pair of them
-  ;;; to double loses the distinction above 2^53, which is the trap
-  ;;; `compare/3' carried through 1.15.0.
-  (static)
-  (func coco_l_cmpnum ((coco_engine * e) (size_t a) (size_t b) (int * ok)) (out int)
-        (let ((i64 ai . 0) (double ad . 0.0) (int af . 0)
-              (i64 bi . 0) (double bd . 0.0) (int bf . 0))
-          (set (cof ok) 0)
-          (if (not (coco_l_num e a (aof ai) (aof ad) (aof af))) (return 0))
-          (if (not (coco_l_num e b (aof bi) (aof bd) (aof bf))) (return 0))
-          (set (cof ok) 1)
-          (if (and (not af) (not bf))
-              (block (if (< ai bi) (return -1))
-                     (if (> ai bi) (return 1))
-                     (return 0)))
-          (if (not af) (set ad (cast double ai)))
-          (if (not bf) (set bd (cast double bi)))
-          (if (< ad bd) (return -1))
-          (if (> ad bd) (return 1))
-          (return 0)))
-
   ;;; `'$sum'(List, Acc, Sum)'. An integer accumulator stays an integer until
   ;;; a float arrives, which is what `B is A + H' did one clause at a time.
   (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
@@ -574,21 +552,30 @@
 
   ;;; `'$maxl'' and `'$minl'' answer the ELEMENT and not a number of their
   ;;; own -- `max_list([1, 2.0], M)' is 2.0, because the clause they replace
-  ;;; bound B to H rather than to its value.
+  ;;; bound B to H rather than to its value. Each step is SWI's
+  ;;; `Max1 is max(H, Max0)', H first (2.1.2, `coco_num_pick', which always
+  ;;; answers one of the two): a NaN is passed over, -0.0 is the smaller
+  ;;; zero, of an integer and a float that are equal the float, and two
+  ;;; integers are compared as integers -- casting a pair of them to double
+  ;;; loses the distinction above 2^53, the trap `compare/3' carried
+  ;;; through 1.15.0. Through 2.1.1 the first of two equal ones was kept,
+  ;;; and a NaN stopped the walk where it stood.
   (static)
   (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (size_t best . #'(coco_m_arg e g 1))
-              (size_t h . 0) (size_t t . 0) (int ok . 0)
+              (size_t h . 0) (size_t t . 0)
               (i64 bi . 0) (double bd . 0.0) (int bf . 0))
           (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
           (if (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
               (return (coco_m_type_error e "evaluable" best)))
           (while (coco_l_step m p (aof h) (aof t))
-            (let ((int c . #'(coco_l_cmpnum e h best (aof ok))))
-              (if (not ok) (return (coco_m_type_error e "evaluable" h)))
-              (if (== c want) (set best h)))
+            (let ((i64 hi . 0) (double hd . 0.0) (int hf . 0))
+              (if (not (coco_l_num e h (aof hi) (aof hd) (aof hf)))
+                  (return (coco_m_type_error e "evaluable" h)))
+              (if (== 0 (coco_num_pick want hf hi hd bf bi bd))
+                  (block (set best h) (set bi hi) (set bd hd) (set bf hf))))
             (set p t))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
