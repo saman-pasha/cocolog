@@ -252,19 +252,22 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 32),
+    must('rows in the card', NRows, 31),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 32),
-    %% TWELVE OF THE THIRTY-TWO CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 31),
+    %% TWELVE OF THE THIRTY-ONE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
     %% an arithmetic function cocolog lacks is right there in the text --
     %% and `I1', which is about a cut you should not add, cannot be. (There
     %% were thirty-four until 2.0.0, when A2, the integer literal past 61
     %% bits, and O1, the order of two integers past them, went with the
-    %% divergences they named.)
+    %% divergences they named; and thirty-two until 2.2.0, when A3 went:
+    %% it said SWI's `2 ** 10' was 1024.0, which is ISO's answer and not
+    %% swipl's -- swipl 9's is the integer 1024, as cocolog's -- and since
+    %% 2.2.0 the power is swipl's ar_pow() in every case.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
