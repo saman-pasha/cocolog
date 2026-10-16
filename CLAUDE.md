@@ -859,7 +859,15 @@ cocolint index offers no import of it.
   (string_length/2, split_string/4, ...) write a cyclic list as its factors
   where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
   writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
-  `=@=`, subsumes_term/2 and numbervars/3 do not exist. A
+  numbervars/3 does not exist. subsumes_term/2, `=@=/2` and `\=@=/2`
+  (2.1.0) do, built on the walks above: Specific's variables collected,
+  a unify, each variable asked still unbound and none made one (the
+  variable map), the unify undone; `=@=/2` asks a COPY of its first term
+  both ways, so a variable the two share is not bound across, and sets
+  the heap back after. They inherit unify's floats: `0.0 =@= -0.0` holds
+  where SWI's fails (COMPAT.md). term_variables/2's collector looks a
+  variable up in the map past sixteen (2.1.0; it scanned, and 200 000
+  variables took 6.8 s). A
   deep TREE overflows the C stack where it always did (~47k levels of
   `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
   stay in registers**: quoted, ignore_ops and operand are one `mode` word

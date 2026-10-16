@@ -15,6 +15,7 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `number_codes/2` | `number_codes(N, "3x")` is a `syntax_error` | answers `3`, ignoring what follows the number | check the text first if it may carry trailing characters |
+| `0.0` against `-0.0`, and a NaN | floats told apart by their bits: `0.0 = -0.0` and `0.0 == -0.0` fail, `compare(O, -0.0, 0.0)` is `<`, and a NaN unifies with itself | the two zeros are equal: `0.0 = -0.0`, `0.0 == -0.0` and `0.0 =@= -0.0` hold and `compare/3` says `=`; a NaN unifies with no NaN, itself included, though `1.5NaN == 1.5NaN` holds | — |
 
 ## Loud: an error where SWI enumerates or accepts
 

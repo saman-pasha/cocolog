@@ -18,6 +18,9 @@ flow_test('@>', 2).
 flow_test('@=<', 2).
 flow_test('@>=', 2).
 flow_test('\\=', 2).
+flow_test('=@=', 2).
+flow_test('\\=@=', 2).
+flow_test(subsumes_term, 2).
 flow_test(var, 1).
 flow_test(nonvar, 1).
 flow_test(atom, 1).

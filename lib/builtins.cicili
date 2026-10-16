@@ -55,6 +55,9 @@
     ("cyclic_term"             1 coco_b_cyclic_term)
     ("term_variables"          2 coco_b_term_variables)
     ("unify_with_occurs_check" 2 coco_b_unify_occurs)
+    ("subsumes_term"           2 coco_b_subsumes_term)
+    ("=@="                     2 coco_b_variant)
+    ("\\=@="                   2 coco_b_not_variant)
 
     ("atom_chars"              2 coco_b_atom_chars)
     ("char_code"               2 coco_b_char_code)
@@ -1403,11 +1406,22 @@
   (func coco_b_cyclic_term ((coco_engine * e) (size_t g)) (out int)
         (return (? (== 0 (coco_acyclic (coco_m_machine e) (coco_m_arg e g 0))) 1 0)))
 
-  ;;; One variable for term_variables/2, unless it is there already.
+  ;;; One variable for term_variables/2, unless it is there already. The
+  ;;; first sixteen are looked for by a scan of the array; from the
+  ;;; sixteenth on, in the borrowed variable map (HELD), which then has
+  ;;; every one (2.1.0). The scan alone made N distinct variables cost
+  ;;; N^2/2 compares: 200 000 took 6.8 s, where swipl takes 0.07, and
+  ;;; subsumes_term/2 and =@=/2 walk Specific's variables the same way.
   (static)
-  (func coco_b_var_add ((size_t ** v) (size_t * n) (size_t * cap) (size_t t)) (out int)
-        (for ((size_t i . 0)) (< i (cof n)) ((++ i))
-          (if (== (nth i (cof v)) t) (return 1)))
+  (func coco_b_var_add ((coco_machine * m) (coco_varmap * vm) (int * taken) (int * held)
+                        (size_t ** v) (size_t * n) (size_t * cap) (size_t t)) (out int)
+        (let ((size_t st . 0))
+          (cond
+            ((cof held)
+             (if (coco_varmap_get vm t (aof st)) (return 1)))
+            (#t
+             (for ((size_t i . 0)) (< i (cof n)) ((++ i))
+               (if (== (nth i (cof v)) t) (return 1))))))
         (if (>= (cof n) (cof cap))
             (let ((size_t ncap . #'(? (== (cof cap) 0) 8 (* (cof cap) 2)))
                   (size_t * nb))
@@ -1417,6 +1431,13 @@
               (set (cof cap) ncap)))
         (set (nth (cof n) (cof v)) t)
         (set (cof n) (+ (cof n) 1))
+        (if (cof held) (return (coco_varmap_put vm t 1)))
+        (if (== (cof n) 16)
+            (block
+             (if (not (cof taken)) (block (coco_varmap_take m vm) (set (cof taken) 1)))
+             (for ((size_t i . 0)) (< i (cof n)) ((++ i))
+               (if (not (coco_varmap_put vm (nth i (cof v)) 1)) (return 0)))
+             (set (cof held) 1)))
         (return 1))
 
   ;;; Every distinct unbound variable, in the order first met -- which is the
@@ -1433,8 +1454,9 @@
                              (size_t * n) (size_t * cap)) (out int)
         (let ((coco_varmap vm . '{ nil nil 0 0 0 })
               (size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
-              (size_t budget . #'(-> m heap_len)) (int r . 1) (size_t st . 0))
-          (if seen (coco_varmap_take m (aof vm)))
+              (size_t budget . #'(-> m heap_len)) (int r . 1) (size_t st . 0)
+              (int taken . 0) (int held . 0))
+          (if seen (block (coco_varmap_take m (aof vm)) (set taken 1)))
           (set wl (coco_wpairs_take m (aof wcap)))
           (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t)) (set r -1))
           (while (and (== r 1) (> wlen 0))
@@ -1442,7 +1464,8 @@
             (let ((size_t a . #'(coco_deref m (nth wlen wl))))
               (cond
                 ((coco-tag-is REF (nth a (-> m heap)))
-                 (if (not (coco_b_var_add v n cap a)) (set r -1)))
+                 (if (not (coco_b_var_add m (aof vm) (aof taken) (aof held) v n cap a))
+                     (set r -1)))
                 ((coco-tag-is FUN (nth a (-> m heap)))
                  (cond
                    ((and seen (coco_varmap_get (aof vm) a (aof st))) (block))
@@ -1459,7 +1482,7 @@
                                 (set r -1))))))))
                 (#t (block)))))
           (coco_wpairs_give m wl wcap)
-          (if seen (coco_varmap_give m (aof vm)))
+          (if taken (coco_varmap_give m (aof vm)))
           (return r)))
 
   (func coco_b_term_variables ((coco_engine * e) (size_t g)) (out int)
@@ -1499,6 +1522,75 @@
               (set (nth v (-> m heap)) keep)
               (if (!= occ 0) (block (coco_m_undo e mark) (return 0)))))
           (return 1)))
+
+  ;;; GENERAL SUBSUMES SPECIFIC (subsumes_term/2, ISO's, and so SWI's): a
+  ;;; binding of General's variables alone makes the two identical. Unify
+  ;;; them, then ask whether Specific's variables came through as they went
+  ;;; in -- each still unbound, and no two of them made one -- and undo the
+  ;;; unify, so the test binds nothing (2.1.0). SWI binds each to `[]' and
+  ;;; asks the next to be unbound still; here each goes in the borrowed
+  ;;; variable map. A variable both share is Specific's, so
+  ;;; `subsumes_term(f(A, b), f(a, A))' is no. The walks are the cycle-safe
+  ;;; ones term_variables/2 and `=' already use. Answers 1, 0, or -1 when a
+  ;;; walk could not get its memory.
+  (static)
+  (func coco_b_subsumes ((coco_engine * e) (size_t gen) (size_t spec)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t mark . #'(coco_m_mark e))
+              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (int r . 0))
+          (set r (coco_b_collect_vars m spec 0 (aof v) (aof n) (aof cap)))
+          (if (== r 0)
+              (block (set n 0)
+                     (set r (coco_b_collect_vars m spec 1 (aof v) (aof n) (aof cap)))))
+          (if (and (== r 1) (not (coco_m_unify e gen spec))) (set r 0))
+          (if (== r 1)
+              (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (size_t st . 0))
+                (coco_varmap_take m (aof vm))
+                (for ((size_t i . 0)) (and (== r 1) (< i n)) ((++ i))
+                  (let ((size_t d . #'(coco_deref m (nth i v))))
+                    (cond
+                      ((not (coco-tag-is REF (nth d (-> m heap)))) (set r 0))
+                      ((coco_varmap_get (aof vm) d (aof st)) (set r 0))
+                      ((not (coco_varmap_put (aof vm) d 1)) (set r -1))
+                      (#t (block)))))
+                (coco_varmap_give m (aof vm))))
+          (coco_m_undo e mark)
+          (free v)
+          (return r)))
+
+  (func coco_b_subsumes_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((int r . #'(coco_b_subsumes e (coco_m_arg e g 0) (coco_m_arg e g 1))))
+          (if (== r -1) (return (coco_m_resource_error e "memory")))
+          (return r)))
+
+  ;;; A VARIANT (=@=/2, SWI's, 2.1.0): the same term up to a renaming of each
+  ;;; side's variables, one to one. Two terms that share no variable are
+  ;;; variants when each subsumes the other, so the first is COPIED, a fresh
+  ;;; variable for each of its own, and the copy asked both ways: asked as
+  ;;; they stand, `x(A, B) =@= x(B, A)' would have its first unify bind A
+  ;;; and B together and answer no, where SWI's is yes. Each question undoes
+  ;;; what it bound, and nothing then points into the copy, so it is taken
+  ;;; back off the heap.
+  (static)
+  (func coco_b_is_variant ((coco_engine * e) (size_t a) (size_t b)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t h0 . #'(-> m heap_len))
+              (size_t c . #'(coco_copy m a))
+              (int r . 0))
+          (set r (coco_b_subsumes e c b))
+          (if (== r 1) (set r (coco_b_subsumes e b c)))
+          (set (-> m heap_len) h0)
+          (return r)))
+
+  (func coco_b_variant ((coco_engine * e) (size_t g)) (out int)
+        (let ((int r . #'(coco_b_is_variant e (coco_m_arg e g 0) (coco_m_arg e g 1))))
+          (if (== r -1) (return (coco_m_resource_error e "memory")))
+          (return r)))
+
+  (func coco_b_not_variant ((coco_engine * e) (size_t g)) (out int)
+        (let ((int r . #'(coco_b_is_variant e (coco_m_arg e g 0) (coco_m_arg e g 1))))
+          (if (== r -1) (return (coco_m_resource_error e "memory")))
+          (return (? (== r 1) 0 1))))
 
   ;;; ---- atoms ------------------------------------------------------------
 

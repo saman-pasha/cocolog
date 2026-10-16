@@ -35,7 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
-    small_steps, shifts, integers_only, integers_64(D),
+    small_steps, shifts, integers_only, integers_64(D), variables(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1454,6 +1454,37 @@ integers_64(D) :-
             L7),
     check('the least integer made inside a guard, then negated or divided by -1: the step raises', L7, []),
     i6_text, i6_order, i6_kept(D), i6_builtins.
+
+%% TERM_VARIABLES/2 FINDS N VARIABLES IN TIME LINEAR IN N (2.1.0), and
+%% subsumes_term/2 and =@=/2, which walk Specific's variables with it,
+%% likewise. It looked each up by scanning the ones it had: 200 000
+%% distinct variables took 6.8 seconds where swipl takes 0.07, and the two
+%% new builtins 7.1 and 14.4. Past sixteen it asks the variable map, and
+%% 400 000 take a few hundredths. Children under a timeout again, the
+%% margin a hundredfold one way and fourfold the other. And =@=/2 copies
+%% its first term to ask the question, and takes the copy back off the
+%% heap: 20 000 variables leave no 80 000 cells behind. A child of its own,
+%% because a collection in between would clear the copy anyway; under the
+%% collector's floor of 4M cells none runs.
+variables(D) :-
+    section('term_variables/2, subsumes_term/2 and =@=/2 stay linear in the variables'),
+    atom_concat(D, '/tv.pl', F1),
+    fixture(F1, [ 'main :- length(L, 400000), term_variables(f(L, L), V), length(V, N),',
+                  '    L = [A, B|_], ( V = [A1, B1|_], A == A1, B == B1 -> write(N) ; write(order) ), nl.' ]),
+    last_line_of(F1, main, 6000, G1),
+    check('400000 distinct variables found inside six seconds, in their order', G1, '400000'),
+    atom_concat(D, '/sub.pl', F2),
+    fixture(F2, [ 'main :- length(L, 200000), copy_term(L, L2),',
+                  '    ( subsumes_term(L, L2), L =@= L2, \\+ L \\=@= L2 -> write(done) ; write(no) ), nl.' ]),
+    last_line_of(F2, main, 8000, G2),
+    check('subsumes_term/2 and =@=/2 over 200000 of them inside eight seconds', G2, done),
+    atom_concat(D, '/left.pl', F3),
+    fixture(F3, [ 'main :- length(L, 20000), copy_term(L, L2), statistics(globalused, U0),',
+                  '    ( L =@= L2 -> true ; true ), ( L \\=@= L2 -> true ; true ),',
+                  '    statistics(globalused, U1), Left is U1 - U0, write(Left), nl.' ]),
+    last_line_of(F3, main, 30000, G3),
+    ( atom_number(G3, N3), N3 < 8000 -> Left3 = nothing ; Left3 = G3 ),
+    check('=@=/2 takes its copy back off the heap', Left3, nothing).
 
 %% the reader and the writer: a literal to 2^63 - 1, and to -2^63 after a
 %% minus; past them `integer out of range', in decimal and in a radix

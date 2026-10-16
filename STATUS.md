@@ -5890,6 +5890,71 @@ The translator's case takes 30 s, as it did under bytes at the 1.15.0
 gate. The reasoning library reads both units since 1.13.2, and its byte
 clauses can go, on its own number.
 
+## =@=/2, \=@=/2 and subsumes_term/2, and term_variables/2 linear (2.1.0)
+
+Through 2.0.0 a call of `=@=/2` or `subsumes_term/2` was an existence
+error, and `a =@= b` was a syntax error. Now they are SWI's, with
+`\=@=/2` beside them, and `=@=` and `\=@=` are operators at 700 xfx.
+
+* **subsumes_term(General, Specific)** collects Specific's variables, then
+  unifies the two. It asks whether each variable is still unbound and no
+  two were made one, then undoes the unify, so it binds nothing. SWI binds
+  each variable to `[]` and asks the next; here each goes into the
+  borrowed variable map. A variable the two share is Specific's, so
+  `subsumes_term(f(A, b), f(a, A))` is no.
+* **A =@= B** copies A first, a fresh variable for each of its own, and
+  asks whether the copy and B each subsume the other. Two terms with no
+  variable in common are variants exactly when that holds. Asked as they
+  stand, `x(A, B) =@= x(B, A)` would bind A and B together on the first
+  unify and answer no, where SWI says yes. Nothing points into the copy
+  once both questions are undone, so the heap is set back to where it was.
+* **Every walk under them is one of the cycle-safe ones** (term_variables/2's
+  collector, unify, copy_term/2's copy), so a cycle, a DAG that doubles at
+  each of 40 levels, and a list of 200 000 variables all finish, with
+  swipl's answers.
+
+**term_variables/2 was quadratic in the variables it found.** It looked
+each one up by scanning the ones it had. 200 000 distinct variables took
+6.8 s, where swipl takes 0.07, and the two new builtins walk Specific's
+variables the same way: 7.1 s and 14.4 s. Past sixteen variables it now
+asks the variable map, which holds them all by then. The same 200 000
+take 0.027 s, subsumes_term/2 over them 0.053 s and =@=/2 0.16 s. Up to
+sixteen the scan is unchanged.
+
+`test/files/variant.pl` is run by swipl 9.0.4 and by cocolog, and its 82
+lines agree byte for byte:
+
+* SWI's and ISO's examples, shared variables, and `'$VAR'` terms;
+* cycles, the DAG, the long list, and 64-bit integers;
+* nothing left bound afterwards;
+* the operators as the reader, the writer and current_op/3 see them.
+
+`test/engine.pl` adds a section of three checks, each a child under a
+timeout:
+
+* 400 000 variables are found in their order inside six seconds;
+* subsumes_term/2 and =@=/2 over 200 000 finish inside eight;
+* =@=/2 leaves no copy on the heap.
+
+Nine arms take one rule out each, and each goes red:
+
+| arm | red |
+|---|---|
+| Specific's variables still unbound | 16 lines of the 82 |
+| no two of them made one | 10 lines |
+| the unify undone | 7 lines |
+| the copy before =@=/2 asks | 8 lines |
+| asked both ways | 4 lines |
+| the copy taken back off the heap | 1 check (640 072 bytes left) |
+| the variable map past sixteen | 2 checks (timed out) |
+| the two operators | the file does not read; 2 checks |
+| their lines in library/flow/modes.pl | 1 check of `test/flowchart.pl` |
+
+**Still not SWI's:** `0.0 =@= -0.0` holds, as `0.0 = -0.0` and
+`0.0 == -0.0` do. cocolog's unify and compare take the two zeros as equal
+and a NaN as unequal to itself, where SWI tells floats apart by their
+bits. COMPAT.md has the row; =@=/2 inherits it from unify.
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

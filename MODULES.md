@@ -1000,7 +1000,8 @@ Thirty-eight remained, and they are all here:
 
 `findall/3` `findall/4` `bagof/3` `setof/3` `forall/2` `aggregate_all/3` ·
 `keysort/2` · `op/3` `current_op/3` · `between/3` `succ/2`
-`plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2` ·
+`plus/3` · `ground/1` `term_variables/2` `unify_with_occurs_check/2`
+`subsumes_term/2` `=@=/2` `\=@=/2` (these three since 2.1.0) ·
 `atom_chars/2` `char_code/2` `number_chars/2` `atom_number/2` `upcase_atom/2`
 `downcase_atom/2` `term_to_atom/2` `sub_atom/5` **`atomic_list_concat/2`**
 **`atomic_list_concat/3`** · `writeq/1` `print/1` `write_term/2` `tab/1` ·
