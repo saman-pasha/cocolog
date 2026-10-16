@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20396 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20405 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1148,6 +1148,54 @@ The verb "aspira" means "aspires".
 The feminine noun "fuente" means "source".
 The feminine noun "empresaria" means "businesswoman".
 "empresaria" is a person.
+The masculine adjective "berlusconiano" means "Berlusconian".
+"berlusconianos" is the plural of "berlusconiano".
+The feminine adjective "berlusconiana" means "Berlusconian".
+"berlusconianas" is the plural of "berlusconiana".
+The masculine noun "antitrust" means "antitrust".
+The masculine noun "leghista" means "Leghista".
+"leghistas" is the plural of "leghista".
+"leghista" is a person.
+The feminine noun "par condicio" means "par condicio".
+The adverb "esta vez" means "this time".
+The conjunction "sólo que" means "only that".
+The feminine noun "linterna" means "lantern".
+The masculine noun "farol" means "lantern".
+The masculine noun "farol" means "poker bluff".
+The feminine noun "centroderecha" means "centre-right".
+The feminine noun "centroizquierda" means "centre-left".
+The adverb "anteayer" means "the day before yesterday".
+The adverb "en la mano" means "in the hand".
+The adjective "en curso" means "ongoing".
+The preposition "justo después de" means "right after".
+The adverb "sin embargo" means "nevertheless".
+The adverb "cada día" means "every day".
+The verb "da crédito a" means "gives credence to".
+"dan crédito a" is the plural of "da crédito a".
+"dar crédito a" is the infinitive of "da crédito a".
+"dado crédito a" is the participle of "da crédito a".
+The verb "aparta" means "moves aside".
+The preposition "alrededor de" means "around".
+The adverb "por una parte" means "on one side".
+The adverb "por la otra parte" means "on the other side".
+The adverb "por la otra" means "on the other".
+The adjective "de derechas" means "right-wing".
+"de derechas" is the plural of "de derechas".
+The adjective "de izquierdas" means "left-wing".
+"de izquierdas" is the plural of "de izquierdas".
+"en curso" is the plural of "en curso".
+The masculine noun "cristianodemócrata" means "Christian Democrat".
+"cristianodemócratas" is the plural of "cristianodemócrata".
+"cristianodemócrata" is a person.
+The masculine noun "resumen de los episodios anteriores" means "summary of the previous episodes".
+"leghista" is not feminine.
+"cristianodemócrata" is not feminine.
+The adverb "por el camino" means "along the way".
+The adverb "en absoluto" means "at all".
+"concretas" is the plural of "concreta".
+The adjective "a doble vuelta" means "two-round".
+"a doble vuelta" is the plural of "a doble vuelta".
+"tenido lugar" is the participle of "tiene lugar".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1297,6 +1345,15 @@ The noun "bañista" means "bather".
 "bañista" is not feminine.
 "bañistas" is the plural of "bañista".
 "bañista" is a person.
+The masculine noun "presidencialismo" means "presidentialism".
+"presidencialismos" is the plural of "presidencialismo".
+The noun "presidencialista" means "presidentialist".
+"presidencialista" is not feminine.
+"presidencialistas" is the plural of "presidencialista".
+The masculine noun "forzamiento" means "forcing".
+"forzamientos" is the plural of "forzamiento".
+The feminine noun "sensación" means "sensation".
+"sensaciones" is the plural of "sensación".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -4796,7 +4853,6 @@ The masculine noun "federalismo" means "federalism".
 The feminine noun "federación" means "federation".
 "federaciones" is the plural of "federación".
 The feminine noun "sensación" means "feeling".
-"sensaciones" is the plural of "sensación".
 The masculine noun "sentimiento" means "feeling".
 "sentimientos" is the plural of "sentimiento".
 The masculine noun "feminismo" means "feminism".
@@ -25366,6 +25422,9 @@ The feminine noun "montadora" means "fitter".
 "montadoras" is the plural of "montadora".
 The masculine noun "gueto" means "ghetto".
 "guetos" is the plural of "gueto".
+The feminine noun "cerilla" means "matchstick".
+"cerillas" is the plural of "cerilla".
+The feminine noun "dilación" means "stalling".
 The masculine noun "testamento" means "testament".
 "testamentos" is the plural of "testamento".
 The masculine noun "personaje" means "personage".
@@ -25633,7 +25692,6 @@ The feminine noun "fabricación" means "manufacturing".
 The feminine noun "marcha" means "march".
 The masculine noun "mercado" means "marketplace".
 The feminine noun "cerilla" means "match".
-"cerillas" is the plural of "cerilla".
 The feminine noun "comida" means "meal".
 The masculine noun "medio" means "medium".
 The feminine noun "mezcla" means "melange".
@@ -124104,6 +124162,26 @@ The feminine adjective "afectada" means "affected".
 "afectadísima" is the superlative of "afectada".
 "afectadísimos" is the superlative of "afectados".
 "afectadísimo" is the superlative of "afectado".
+The masculine adjective "corto" means "short".
+"cortos" is the plural of "corto".
+The feminine adjective "corta" means "short".
+"cortas" is the plural of "corta".
+"cortísimas" is the superlative of "cortas".
+"cortísima" is the superlative of "corta".
+"cortísimos" is the superlative of "cortos".
+"cortísimo" is the superlative of "corto".
+The adjective "presidencialista" means "presidentialist".
+"presidencialistas" is the plural of "presidencialista".
+The masculine adjective "punitivo" means "punitive".
+"punitivos" is the plural of "punitivo".
+The feminine adjective "punitiva" means "punitive".
+"punitivas" is the plural of "punitiva".
+The masculine adjective "desconfiado" means "distrustful".
+"desconfiados" is the plural of "desconfiado".
+The feminine adjective "desconfiada" means "distrustful".
+"desconfiadas" is the plural of "desconfiada".
+The adjective "constituyente" means "constituent".
+"constituyentes" is the plural of "constituyente".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -129794,14 +129872,6 @@ The adjective "reluciente" means "shiny".
 "relucientes" is the plural of "reluciente".
 The masculine adjective "bajo" means "short".
 The feminine adjective "baja" means "short".
-The masculine adjective "corto" means "short".
-"cortos" is the plural of "corto".
-The feminine adjective "corta" means "short".
-"cortas" is the plural of "corta".
-"cortísimas" is the superlative of "cortas".
-"cortísima" is the superlative of "corta".
-"cortísimos" is the superlative of "cortos".
-"cortísimo" is the superlative of "corto".
 The masculine adjective "vistoso" means "showy".
 "vistosos" is the plural of "vistoso".
 The feminine adjective "vistosa" means "showy".
@@ -138893,8 +138963,6 @@ The feminine adjective "certera" means "precise".
 "certeras" is the plural of "certera".
 The adjective "predecible" means "predictable".
 "predecibles" is the plural of "predecible".
-The adjective "presidencialista" means "presidential".
-"presidencialistas" is the plural of "presidencialista".
 The masculine adjective "reputado" means "prestigious".
 "reputados" is the plural of "reputado".
 The feminine adjective "reputada" means "prestigious".

@@ -1003,3 +1003,35 @@
 # `i bagnanti', `assistente ai bagnanti': a bather, which Spanish says `bañista'; the
 # dictionary has `bagnante' as a swimmer alone. Both ways
 <e><p><l>bather<s n="n"/></l><r>bagnante<s n="n"/><s n="mf"/></r></p></e>
+# the Tempi del governo article (VIT-9673..9712, Fini and the Polo's table of rules), into Spanish and
+# English: words with a paradigm in apertium-ita.ita.dix and no English word. Nearly all only read
+# `il cerino acceso': a wax match. The dictionary's `fiammifero' is the match and comes first both ways
+# for `matchstick' (Spanish says `cerilla'); `cerino' is only read
+<e><p><l>matchstick<s n="n"/></l><r>fiammifero<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>matchstick<s n="n"/></l><r>cerino<s n="n"/><s n="m"/></r></p></e>
+# `si scotteranno le dita': burn their fingers
+<e r="RL"><p><l>burn<s n="vblex"/></l><r>scottare<s n="vblex"/></r></p></e>
+# `il cerino si fa ogni giorno più corto': short in length, where the dictionary's Italian for it is `basso'.
+# Both ways: `corto' is the first Italian word for it
+<e><p><l>short<s n="adj"/></l><r>corto<s n="adj"/></r></p></e>
+<e r="RL"><p><l>summarise<s n="vblex"/></l><r>sintetizzare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>presidentialism<s n="n"/></l><r>presidenzialismo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>presidentialist<s n="adj"/></l><r>presidenzialista<s n="adj"/></r></p></e>
+<e r="RL"><p><l>presidentialist<s n="n"/></l><r>presidenzialista<s n="n"/><s n="mf"/></r></p></e>
+# `una forzatura': a forcing of the facts
+<e r="RL"><p><l>forcing<s n="n"/></l><r>forzatura<s n="n"/><s n="f"/></r></p></e>
+# `varare riforme', `varare norme': to pass them (the dictionary's `varare' has no English at all)
+<e r="RL"><p><l>promulgate<s n="vblex"/></l><r>varare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>Berlusconian<s n="adj"/></l><r>berlusconiano<s n="adj"/></r></p></e>
+<e r="RL"><p><l>antitrust<s n="n"/></l><r>antitrust<s n="n"/><s n="m"/><s n="sp"/></r></p></e>
+<e r="RL"><p><l>television<s n="n"/></l><r>tv<s n="n"/><s n="f"/><s n="sp"/></r></p></e>
+<e r="RL"><p><l>simultaneously<s n="adv"/></l><r>contemporaneamente<s n="adv"/></r></p></e>
+<e r="RL"><p><l>punitive<s n="adj"/></l><r>punitivo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>unconstitutional<s n="adj"/></l><r>anticostituzionale<s n="adj"/></r></p></e>
+<e r="RL"><p><l>laborious<s n="adj"/></l><r>faticoso<s n="adj"/></r></p></e>
+<e r="RL"><p><l>distrustful<s n="adj"/></l><r>diffidente<s n="adj"/></r></p></e>
+# `per il raggiungimento di regole': the attainment of them
+<e r="RL"><p><l>attainment<s n="n"/></l><r>raggiungimento<s n="n"/><s n="m"/></r></p></e>
+# `la questione del governo non si dibatte': the issue of the government, where the dictionary's
+# question is `pregunta'. Both ways: `questione' is the first Italian word for an issue (it was `affare')
+<e><p><l>issue<s n="n"/></l><r>questione<s n="n"/><s n="f"/></r></p></e>

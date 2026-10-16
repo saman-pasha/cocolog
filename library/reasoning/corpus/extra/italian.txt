@@ -2783,3 +2783,210 @@ The adjective "passato" does not precede the noun.
 # `la empresaria Alicia Koplowitz': the Italian word for a businesswoman
 The feminine noun "imprenditrice" means "businesswoman".
 "imprenditrice" is a person.
+# the Tempi del governo article (VIT-9673..9712): words the dictionaries lack altogether, or carry in
+# the wrong sense. `si scotteranno le dita': the plural of `dito' is feminine, `le dita'
+"dita" is the plural of "dito". "dita" is feminine.
+# `stavolta': this time
+The adverb "stavolta" means "this time".
+# `una decina di minuti': some ten of them, as `una dozzina'
+The feminine noun "decina" means "ten".
+"decine" is the plural of "decina".
+# `la bacchettata, che è tutta berlusconiana': a rap on the knuckles, a reprimand
+The masculine noun "ammonimento" means "reprimand".
+The feminine noun "bacchettata" means "reprimand".
+"bacchettate" is the plural of "bacchettata".
+# `Il Comunicato diramato dopo quasi tre ore': issued. The dictionary's own word for to issue is said first, so
+# that `emette' (carrefour: `emita un informe') stays the word written
+The verb "emette" means "issues".
+The verb "dirama" means "issues".
+"diramano" is the plural of "dirama".
+"diramare" is the infinitive of "dirama".
+"diramato" is the participle of "dirama".
+"diramata" is the participle of "dirama".
+"diramata" is feminine.
+"diramati" is the participle of "dirama".
+"diramati" is the plural of "diramato".
+"diramate" is the participle of "dirama".
+"diramate" is feminine.
+# `la paventata approvazione': the feared one; `teme' is said first and stays the word written (and the
+# verb that takes the subjunctive)
+The verb "teme" means "fears".
+The verb "paventa" means "fears".
+"paventano" is the plural of "paventa".
+"paventare" is the infinitive of "paventa".
+"paventato" is the participle of "paventa".
+"paventata" is the participle of "paventa".
+"paventata" is feminine.
+"paventati" is the participle of "paventa".
+"paventati" is the plural of "paventato".
+"paventate" is the participle of "paventa".
+"paventate" is feminine.
+# `o ... oppure ...': or else
+The conjunction "oppure" means "or".
+# `il leghista Petrini', `par condicio': both kept as they are
+The masculine noun "leghista" means "Leghista".
+"leghisti" is the plural of "leghista".
+"leghista" is a person.
+The feminine noun "par condicio" means "par condicio".
+# `Melina tra Polo e Olivo': the footballers' stalling
+The feminine noun "melina" means "stalling".
+# the Tempi del governo article, second batch: names, and words the dictionary carries in another sense
+# `Fini: gli abbiamo rimesso ...', `tra Polo e Olivo': the coalitions and the man
+"fini" is a name.
+"polo" is a name.
+"olivo" is a name.
+# `del Centro Destra', `del centro-sinistra': the hyphen is dropped by the reader
+The masculine noun "centro destra" means "centre-right".
+The masculine noun "centro sinistra" means "centre-left".
+# `Forzatura, distinguo e bacchettata': distinguo is a noun here, the dictionary's is the first person
+# of `distinguere'
+The feminine noun "distinzione" means "distinction".
+The masculine noun "distinguo" means "distinction".
+"distinguo" is the plural of "distinguo".
+# `la fine del vertice del polo': a summit; the dictionary's first meaning is the peak
+The masculine noun "vertice" means "summit".
+"vertici" is the plural of "vertice".
+# `Riassunto delle puntate precedenti': a summary of the episodes (the dictionary has the participles)
+The masculine noun "riassunto" means "summary".
+"riassunti" is the plural of "riassunto".
+The masculine noun "episodio" means "episode".
+The feminine noun "puntata" means "episode".
+"puntate" is the plural of "puntata".
+# `rimettere il cerino nelle mani': to give it back; the dictionary's only meaning is to remit
+The verb "ritorna" means "returns".
+The transitive verb "rimette" means "returns".
+# `per gestire una fase costituente': administer; the dictionary's manage is written `conseguir'
+The verb "amministra" means "administers".
+The verb "gestisce" means "administers".
+# `Eppure': nevertheless; the dictionary's first meaning is `still'
+The adverb "eppure" means "nevertheless".
+# `l'altro ieri', `il cerino acceso in mano', `trattative in atto', `subito dopo la fine'
+The adverb "l'altro ieri" means "the day before yesterday".
+The adverb "in mano" means "in the hand".
+The adjective "in atto" means "ongoing".
+The preposition "subito dopo" means "right after".
+# `non ci sarà più spazio per i bluff': the bluff at cards
+The masculine noun "bluff" means "poker bluff".
+# `si fa ogni giorno più corto': every day is an adverb. Read as a time phrase it took the adjective
+# for its own (`giorno' is masculine and `corto' feminine in `ogni giorno più bella'), and the
+# predicate came out `cada día más lindo'
+The adverb "ogni giorno" means "every day".
+# the Tempi del governo article, third batch: names that are words, a word the dictionaries lack, and the
+# words of several words the headline and the news are made of
+# `Massimo D'Alema', `Gianni Letta': a first name and a surname the vocabulary knows as a word
+"massimo" is a name.
+"letta" is a name.
+# `Solo che il cerino si fa ogni giorno più corto': only that (the dictionary has no `solo che')
+The conjunction "solo che" means "only that".
+# `accredita la sensazione che ...': lends it credence; the dictionary's is to credit an account
+The verb "accredita" means "gives credence to".
+# `risente invece del punto di vista di AN': reflects it, the `di' is the verb's
+The verb "riflette" means "reflects".
+The verb "risente di" means "reflects".
+"risentono di" is the plural of "risente di".
+"risentire di" is the infinitive of "risente di".
+"risentito di" is the participle of "risente di".
+# `aparta unas grandes piedras': a thing moved aside is `scosta', which the dictionary lacks; `apparta' is
+# the reflexive one, `i due si sono appartati' (moved aside, to talk)
+The verb "scosta" means "moves aside".
+"scostano" is the plural of "scosta".
+"scostare" is the infinitive of "scosta".
+"scostato" is the participle of "scosta".
+"scostata" is the participle of "scosta".
+"scostata" is feminine.
+"scostati" is the participle of "scosta".
+"scostati" is the plural of "scostato".
+"scostate" is the participle of "scosta".
+"scostate" is feminine.
+# `i due si sono appartati': moved aside, to talk (the dictionary has no `appartarsi')
+The verb "apparta" means "moves aside".
+"appartano" is the plural of "apparta".
+"appartare" is the infinitive of "apparta".
+"appartato" is the participle of "apparta".
+"appartata" is the participle of "apparta".
+"appartata" is feminine.
+"appartati" is the participle of "apparta".
+"appartati" is the plural of "appartato".
+"appartate" is the participle of "apparta".
+"appartate" is feminine.
+"apparta" is reflexive.
+# `Martedì tutti attorno al tavolo': around
+The preposition "attorno a" means "around".
+# `da una parte e il resto del polo dall'altra': on one side, on the other
+The adverb "da una parte" means "on one side".
+# (`esce dall'altra parte': the noun after it is part of the adverb, or `parte' was left alone)
+The adverb "da l'altra parte" means "on the other side".
+The adverb "da l'altra" means "on the other".
+# `il polo di destra', `coalizione di sinistra': right-wing, left-wing -- the noun `destra' is the dictionary's
+# right, which Spanish writes `derecho'
+The adjective "di destra" means "right-wing".
+"di destra" is the plural of "di destra".
+The adjective "di sinistra" means "left-wing".
+"di sinistra" is the plural of "di sinistra".
+# `trattative in atto': more than one of them
+"in atto" is the plural of "in atto".
+# `i cristiano democratici', `i Cristiano Democratici': the party of the centre, in no gender and no number
+The masculine noun "cristiano democratico" means "Christian Democrat".
+"cristiano democratici" is the plural of "cristiano democratico".
+"cristiani democratici" is the plural of "cristiano democratico".
+"cristiano democratico" is a person.
+# `Riassunto delle puntate precedenti:': the recap a television summary opens with, one phrase
+The masculine noun "riassunto delle puntate precedenti" means "summary of the previous episodes".
+# `o un accordo sulle grandi riforme o un'intesa sulle garanzie': either ... or -- `o' says a choice
+# follows, in the shape `The word "bien" begins the choice.' has in Spanish
+The word "o" begins the choice.
+# the Tempi del governo article, fourth batch: the perfect of two verbs, a verb that joins, and the words
+# of several words the news is made of
+# `È iniziato il vertice': `iniziare' and `cominciare', when they have no object, build their perfect with
+# the copula, as `finire' does
+"è" is the auxiliary of "inizia".
+"è" is the auxiliary of "comincia".
+# `Al tavolo si aggregherà anche il leghista Petrini': the reflexive `aggregarsi' joins, where the
+# dictionary's meaning of `aggregare' is to accrete; `unisce' is said again first, so that it stays the
+# word written
+The verb "unisce" means "joins".
+The verb "aggrega" means "joins".
+"aggrega" is reflexive.
+# `il leghista Petrini': masculine, though it ends in a
+"leghista" is not feminine.
+# `si perdono per strada un alleato': on the way
+The adverb "per strada" means "along the way".
+# `non aver affatto abbracciato il presidenzialismo': at all, where the dictionary's meaning is completely
+The adverb "affatto" means "at all".
+# `una discussione "non di maniera e non all'acqua di rose"': neither conventional nor superficial
+The adjective "convenzionale" means "conventional".
+The adjective "di maniera" means "conventional".
+"di maniera" is the plural of "di maniera".
+The adjective "superficiale" means "superficial".
+The adjective "a l'acqua di rose" means "superficial".
+"a l'acqua di rose" is the plural of "a l'acqua di rose".
+# `è il solo Segni ad aver sposato questa opzione': the cleft's word before a vowel
+The word "ad" begins the cleft.
+# `è il solo Segni ad aver sposato questa opzione': the man, Mario Segni
+"segni" is a name.
+# `il segretario dei popolari Bianco': the man, Gerardo Bianco
+"bianco" is a name.
+# `dei cristiano democratici Casini, Mastella, D'Onofrio e del popolare Sanza': Pier Ferdinando Casini
+"casini" is a name.
+# `una riforma elettorale (a doppio turno)': a two-round election
+The adjective "a doppio turno" means "two-round".
+"a doppio turno" is the plural of "a doppio turno".
+# `Spiega il popolare Sanza:': a member of the Popolari before a name, as `il leghista Petrini' is -- the
+# speaker of a reporting clause
+"popolare" is a title.
+# `che ieri a Montecitorio sia andato in scena un classico del poker': took place, a show staged; the
+# subject after the verb, as `ha luogo' has it
+The intransitive verb "va in scena" means "takes place".
+"vanno in scena" is the plural of "va in scena".
+"andare in scena" is the infinitive of "va in scena".
+"andato in scena" is the participle of "va in scena".
+"andata in scena" is the participle of "va in scena".
+"andata in scena" is feminine.
+"andati in scena" is the participle of "va in scena".
+"andati in scena" is the plural of "andato in scena".
+"andate in scena" is the participle of "va in scena".
+"andate in scena" is feminine.
+"andate in scena" is the plural of "andata in scena".
+"è" is the auxiliary of "va in scena".
+# `ha avuto luogo': the perfect of `ha luogo'
+"avuto luogo" is the participle of "ha luogo".

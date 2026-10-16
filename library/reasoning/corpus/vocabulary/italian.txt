@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16493 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16511 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1614,6 +1614,146 @@ The verb "aspira" means "aspires".
 The adjective "passato" does not precede the noun.
 The feminine noun "imprenditrice" means "businesswoman".
 "imprenditrice" is a person.
+"dita" is the plural of "dito". "dita" is feminine.
+The adverb "stavolta" means "this time".
+The feminine noun "decina" means "ten".
+"decine" is the plural of "decina".
+The masculine noun "ammonimento" means "reprimand".
+The feminine noun "bacchettata" means "reprimand".
+"bacchettate" is the plural of "bacchettata".
+The verb "emette" means "issues".
+The verb "dirama" means "issues".
+"diramano" is the plural of "dirama".
+"diramare" is the infinitive of "dirama".
+"diramato" is the participle of "dirama".
+"diramata" is the participle of "dirama".
+"diramata" is feminine.
+"diramati" is the participle of "dirama".
+"diramati" is the plural of "diramato".
+"diramate" is the participle of "dirama".
+"diramate" is feminine.
+The verb "teme" means "fears".
+The verb "paventa" means "fears".
+"paventano" is the plural of "paventa".
+"paventare" is the infinitive of "paventa".
+"paventato" is the participle of "paventa".
+"paventata" is the participle of "paventa".
+"paventata" is feminine.
+"paventati" is the participle of "paventa".
+"paventati" is the plural of "paventato".
+"paventate" is the participle of "paventa".
+"paventate" is feminine.
+The conjunction "oppure" means "or".
+The masculine noun "leghista" means "Leghista".
+"leghisti" is the plural of "leghista".
+"leghista" is a person.
+The feminine noun "par condicio" means "par condicio".
+The feminine noun "melina" means "stalling".
+"fini" is a name.
+"polo" is a name.
+"olivo" is a name.
+The masculine noun "centro destra" means "centre-right".
+The masculine noun "centro sinistra" means "centre-left".
+The feminine noun "distinzione" means "distinction".
+The masculine noun "distinguo" means "distinction".
+"distinguo" is the plural of "distinguo".
+The masculine noun "vertice" means "summit".
+"vertici" is the plural of "vertice".
+The masculine noun "riassunto" means "summary".
+"riassunti" is the plural of "riassunto".
+The masculine noun "episodio" means "episode".
+The feminine noun "puntata" means "episode".
+"puntate" is the plural of "puntata".
+The verb "ritorna" means "returns".
+The transitive verb "rimette" means "returns".
+The verb "amministra" means "administers".
+The verb "gestisce" means "administers".
+The adverb "eppure" means "nevertheless".
+The adverb "l'altro ieri" means "the day before yesterday".
+The adverb "in mano" means "in the hand".
+The adjective "in atto" means "ongoing".
+The preposition "subito dopo" means "right after".
+The masculine noun "bluff" means "poker bluff".
+The adverb "ogni giorno" means "every day".
+"massimo" is a name.
+"letta" is a name.
+The conjunction "solo che" means "only that".
+The verb "accredita" means "gives credence to".
+The verb "riflette" means "reflects".
+The verb "risente di" means "reflects".
+"risentono di" is the plural of "risente di".
+"risentire di" is the infinitive of "risente di".
+"risentito di" is the participle of "risente di".
+The verb "scosta" means "moves aside".
+"scostano" is the plural of "scosta".
+"scostare" is the infinitive of "scosta".
+"scostato" is the participle of "scosta".
+"scostata" is the participle of "scosta".
+"scostata" is feminine.
+"scostati" is the participle of "scosta".
+"scostati" is the plural of "scostato".
+"scostate" is the participle of "scosta".
+"scostate" is feminine.
+The verb "apparta" means "moves aside".
+"appartano" is the plural of "apparta".
+"appartare" is the infinitive of "apparta".
+"appartato" is the participle of "apparta".
+"appartata" is the participle of "apparta".
+"appartata" is feminine.
+"appartati" is the participle of "apparta".
+"appartati" is the plural of "appartato".
+"appartate" is the participle of "apparta".
+"appartate" is feminine.
+"apparta" is reflexive.
+The preposition "attorno a" means "around".
+The adverb "da una parte" means "on one side".
+The adverb "da l'altra parte" means "on the other side".
+The adverb "da l'altra" means "on the other".
+The adjective "di destra" means "right-wing".
+"di destra" is the plural of "di destra".
+The adjective "di sinistra" means "left-wing".
+"di sinistra" is the plural of "di sinistra".
+"in atto" is the plural of "in atto".
+The masculine noun "cristiano democratico" means "Christian Democrat".
+"cristiano democratici" is the plural of "cristiano democratico".
+"cristiani democratici" is the plural of "cristiano democratico".
+"cristiano democratico" is a person.
+The masculine noun "riassunto delle puntate precedenti" means "summary of the previous episodes".
+The word "o" begins the choice.
+"è" is the auxiliary of "inizia".
+"è" is the auxiliary of "comincia".
+The verb "unisce" means "joins".
+The verb "aggrega" means "joins".
+"aggrega" is reflexive.
+"leghista" is not feminine.
+The adverb "per strada" means "along the way".
+The adverb "affatto" means "at all".
+The adjective "convenzionale" means "conventional".
+The adjective "di maniera" means "conventional".
+"di maniera" is the plural of "di maniera".
+The adjective "superficiale" means "superficial".
+The adjective "a l'acqua di rose" means "superficial".
+"a l'acqua di rose" is the plural of "a l'acqua di rose".
+The word "ad" begins the cleft.
+"segni" is a name.
+"bianco" is a name.
+"casini" is a name.
+The adjective "a doppio turno" means "two-round".
+"a doppio turno" is the plural of "a doppio turno".
+"popolare" is a title.
+The intransitive verb "va in scena" means "takes place".
+"vanno in scena" is the plural of "va in scena".
+"andare in scena" is the infinitive of "va in scena".
+"andato in scena" is the participle of "va in scena".
+"andata in scena" is the participle of "va in scena".
+"andata in scena" is feminine.
+"andati in scena" is the participle of "va in scena".
+"andati in scena" is the plural of "andato in scena".
+"andate in scena" is the participle of "va in scena".
+"andate in scena" is feminine.
+"andate in scena" is the plural of "andata in scena".
+"è" is the auxiliary of "va in scena".
+"avuto luogo" is the participle of "ha luogo".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -1826,6 +1966,10 @@ The feminine noun "sincope" means "syncope".
 The noun "bagnante" means "bather".
 "bagnanti" is the plural of "bagnante".
 "bagnante" is a person.
+The masculine noun "fiammifero" means "matchstick".
+"fiammiferi" is the plural of "fiammifero".
+The feminine noun "questione" means "issue".
+"questioni" is the plural of "questione".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -9556,7 +9700,6 @@ The masculine noun "mastodonte" means "mastodon".
 The feminine noun "masturbazione" means "masturbation".
 "masturbazioni" is the plural of "masturbazione".
 The masculine noun "fiammifero" means "match".
-"fiammiferi" is the plural of "fiammifero".
 The masculine noun "materiale" means "material".
 "materiali" is the plural of "materiale".
 The feminine noun "materializzazione" means "materialisation".
@@ -11272,7 +11415,6 @@ The noun "quarzite" means "quartzite".
 The feminine noun "regina" means "queen".
 "regine" is the plural of "regina".
 The feminine noun "questione" means "question".
-"questioni" is the plural of "questione".
 The masculine noun "interrogativo" means "interrogative".
 "interrogativi" is the plural of "interrogativo".
 The noun "karateka" means "karateka".
@@ -16960,6 +17102,23 @@ The feminine noun "serata" means "evening".
 "serate" is the plural of "serata".
 The feminine noun "bibita" means "drink".
 "bibite" is the plural of "bibita".
+The masculine noun "cerino" means "matchstick".
+"cerini" is the plural of "cerino".
+The masculine noun "presidenzialismo" means "presidentialism".
+"presidenzialismi" is the plural of "presidenzialismo".
+The noun "presidenzialista" means "presidentialist".
+"presidenzialista" is not feminine.
+"presidenzialisti" is the plural of "presidenzialista".
+"presidenzialiste" is the plural of "presidenzialista".
+"presidenzialiste" is feminine.
+The feminine noun "forzatura" means "forcing".
+"forzature" is the plural of "forzatura".
+The feminine noun "antitrust" means "antitrust".
+"antitrust" is the plural of "antitrust".
+The feminine noun "tv" means "television".
+"tv" is the plural of "tv".
+The masculine noun "raggiungimento" means "attainment".
+"raggiungimenti" is the plural of "raggiungimento".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -20939,7 +21098,6 @@ The feminine noun "argomentazione" means "argumentation".
 The feminine noun "varietà" means "array".
 The masculine noun "ascendente" means "ascendant".
 The masculine noun "aspetto" means "aspect".
-The masculine noun "conseguimento" means "attainment".
 The masculine noun "avvocato" means "attorney".
 The feminine noun "avvocatessa" means "attorney".
 "avvocatesse" is the plural of "avvocatessa".
@@ -93818,6 +93976,147 @@ The verb "coglie" means "overtakes".
 "cogliendo" is the gerund of "coglie".
 "overtook" is the past of "overtakes".
 "overtaken" is the participle of "overtakes".
+The verb "scotta" means "burns".
+"scottano" is the plural of "scotta".
+"scottiamo" is the first person of "scottano".
+"scotto" is the first person of "scotta".
+"scotti" is the second person of "scotta".
+"scottò" is the past of "scotta".
+"scottarono" is the past of "scottano".
+"scottammo" is the first person of "scottarono".
+"scottai" is the first person of "scottò".
+"scottasti" is the second person of "scottò".
+"scottava" is the imperfect of "scotta".
+"scottavano" is the imperfect of "scottano".
+"scottavamo" is the first person of "scottavano".
+"scottavo" is the first person of "scottava".
+"scottavi" is the second person of "scottava".
+"scotterà" is the future of "scotta".
+"scotteranno" is the plural of "scotterà".
+"scotteremo" is the first person of "scotteranno".
+"scotterò" is the first person of "scotterà".
+"scotterai" is the second person of "scotterà".
+"scotterebbe" is the conditional of "scotta".
+"scotterebbero" is the plural of "scotterebbe".
+"scotteremmo" is the first person of "scotterebbero".
+"scotterei" is the first person of "scotterebbe".
+"scotteresti" is the second person of "scotterebbe".
+"scotti" is the subjunctive of "scotta".
+"scottino" is the plural of "scotti".
+"scottiamo" is the first person of "scottino".
+"scottasse" is the past subjunctive of "scotta".
+"scottassero" is the plural of "scottasse".
+"scottassimo" is the first person of "scottassero".
+"scottassi" is the first person of "scottasse".
+"scottassi" is the second person of "scottasse".
+"scotta" is the imperative of "scotta".
+"scottare" is the negative imperative of "scotta".
+"scottate" is the imperative of "scottano".
+"scottiamo" is the hortative of "scotta".
+"scottato" is the participle of "scotta".
+"scottata" is the participle of "scotta".
+"scottata" is feminine.
+"scottati" is the participle of "scotta".
+"scottati" is the plural of "scottato".
+"scottate" is the participle of "scotta".
+"scottate" is feminine.
+"scottate" is the plural of "scottata".
+"scottare" is the infinitive of "scotta".
+"scottando" is the gerund of "scotta".
+The verb "sintetizza" means "summarises".
+"sintetizzano" is the plural of "sintetizza".
+"sintetizziamo" is the first person of "sintetizzano".
+"sintetizzo" is the first person of "sintetizza".
+"sintetizzi" is the second person of "sintetizza".
+"sintetizzò" is the past of "sintetizza".
+"sintetizzarono" is the past of "sintetizzano".
+"sintetizzammo" is the first person of "sintetizzarono".
+"sintetizzai" is the first person of "sintetizzò".
+"sintetizzasti" is the second person of "sintetizzò".
+"sintetizzava" is the imperfect of "sintetizza".
+"sintetizzavano" is the imperfect of "sintetizzano".
+"sintetizzavamo" is the first person of "sintetizzavano".
+"sintetizzavo" is the first person of "sintetizzava".
+"sintetizzavi" is the second person of "sintetizzava".
+"sintetizzerà" is the future of "sintetizza".
+"sintetizzeranno" is the plural of "sintetizzerà".
+"sintetizzeremo" is the first person of "sintetizzeranno".
+"sintetizzerò" is the first person of "sintetizzerà".
+"sintetizzerai" is the second person of "sintetizzerà".
+"sintetizzerebbe" is the conditional of "sintetizza".
+"sintetizzerebbero" is the plural of "sintetizzerebbe".
+"sintetizzeremmo" is the first person of "sintetizzerebbero".
+"sintetizzerei" is the first person of "sintetizzerebbe".
+"sintetizzeresti" is the second person of "sintetizzerebbe".
+"sintetizzi" is the subjunctive of "sintetizza".
+"sintetizzino" is the plural of "sintetizzi".
+"sintetizziamo" is the first person of "sintetizzino".
+"sintetizzasse" is the past subjunctive of "sintetizza".
+"sintetizzassero" is the plural of "sintetizzasse".
+"sintetizzassimo" is the first person of "sintetizzassero".
+"sintetizzassi" is the first person of "sintetizzasse".
+"sintetizzassi" is the second person of "sintetizzasse".
+"sintetizza" is the imperative of "sintetizza".
+"sintetizzare" is the negative imperative of "sintetizza".
+"sintetizzate" is the imperative of "sintetizzano".
+"sintetizziamo" is the hortative of "sintetizza".
+"sintetizzato" is the participle of "sintetizza".
+"sintetizzata" is the participle of "sintetizza".
+"sintetizzata" is feminine.
+"sintetizzati" is the participle of "sintetizza".
+"sintetizzati" is the plural of "sintetizzato".
+"sintetizzate" is the participle of "sintetizza".
+"sintetizzate" is feminine.
+"sintetizzate" is the plural of "sintetizzata".
+"sintetizzare" is the infinitive of "sintetizza".
+"sintetizzando" is the gerund of "sintetizza".
+The verb "vara" means "promulgates".
+"varano" is the plural of "vara".
+"variamo" is the first person of "varano".
+"varo" is the first person of "vara".
+"vari" is the second person of "vara".
+"varò" is the past of "vara".
+"vararono" is the past of "varano".
+"varammo" is the first person of "vararono".
+"varai" is the first person of "varò".
+"varasti" is the second person of "varò".
+"varava" is the imperfect of "vara".
+"varavano" is the imperfect of "varano".
+"varavamo" is the first person of "varavano".
+"varavo" is the first person of "varava".
+"varavi" is the second person of "varava".
+"varerà" is the future of "vara".
+"vareranno" is the plural of "varerà".
+"vareremo" is the first person of "vareranno".
+"varerò" is the first person of "varerà".
+"varerai" is the second person of "varerà".
+"varerebbe" is the conditional of "vara".
+"varerebbero" is the plural of "varerebbe".
+"vareremmo" is the first person of "varerebbero".
+"varerei" is the first person of "varerebbe".
+"vareresti" is the second person of "varerebbe".
+"vari" is the subjunctive of "vara".
+"varino" is the plural of "vari".
+"variamo" is the first person of "varino".
+"varasse" is the past subjunctive of "vara".
+"varassero" is the plural of "varasse".
+"varassimo" is the first person of "varassero".
+"varassi" is the first person of "varasse".
+"varassi" is the second person of "varasse".
+"vara" is the imperative of "vara".
+"varare" is the negative imperative of "vara".
+"varate" is the imperative of "varano".
+"variamo" is the hortative of "vara".
+"varato" is the participle of "vara".
+"varata" is the participle of "vara".
+"varata" is feminine.
+"varati" is the participle of "vara".
+"varati" is the plural of "varato".
+"varate" is the participle of "vara".
+"varate" is feminine.
+"varate" is the plural of "varata".
+"varare" is the infinitive of "vara".
+"varando" is the gerund of "vara".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -99396,6 +99695,14 @@ The adjective "proveniente" means "originating".
 "provenientissimi" is the superlative of "provenienti".
 "provenientissima" is the superlative of "proveniente".
 "provenientissime" is the superlative of "provenienti".
+The masculine adjective "corto" means "short".
+"corti" is the plural of "corto".
+The feminine adjective "corta" means "short".
+"corte" is the plural of "corta".
+"cortissimo" is the superlative of "corto".
+"cortissimi" is the superlative of "corti".
+"cortissima" is the superlative of "corta".
+"cortissime" is the superlative of "corte".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -115408,6 +115715,42 @@ The feminine adjective "valida" means "valid".
 "validissimi" is the superlative of "validi".
 "validissima" is the superlative of "valida".
 "validissime" is the superlative of "valide".
+The adjective "presidenzialista" means "presidentialist".
+"presidenzialisti" is the plural of "presidenzialista".
+"presidenzialiste" is the plural of "presidenzialista".
+"presidenzialiste" is feminine.
+The masculine adjective "berlusconiano" means "berlusconian".
+"berlusconiani" is the plural of "berlusconiano".
+The feminine adjective "berlusconiana" means "berlusconian".
+"berlusconiane" is the plural of "berlusconiana".
+The masculine adjective "punitivo" means "punitive".
+"punitivi" is the plural of "punitivo".
+The feminine adjective "punitiva" means "punitive".
+"punitive" is the plural of "punitiva".
+"punitivissimo" is the superlative of "punitivo".
+"punitivissimi" is the superlative of "punitivi".
+"punitivissima" is the superlative of "punitiva".
+"punitivissime" is the superlative of "punitive".
+The adjective "anticostituzionale" means "unconstitutional".
+"anticostituzionali" is the plural of "anticostituzionale".
+"anticostituzionalissimo" is the superlative of "anticostituzionale".
+"anticostituzionalissimi" is the superlative of "anticostituzionali".
+"anticostituzionalissima" is the superlative of "anticostituzionale".
+"anticostituzionalissime" is the superlative of "anticostituzionali".
+The masculine adjective "faticoso" means "laborious".
+"faticosi" is the plural of "faticoso".
+The feminine adjective "faticosa" means "laborious".
+"faticose" is the plural of "faticosa".
+"faticosissimo" is the superlative of "faticoso".
+"faticosissimi" is the superlative of "faticosi".
+"faticosissima" is the superlative of "faticosa".
+"faticosissime" is the superlative of "faticose".
+The adjective "diffidente" means "distrustful".
+"diffidenti" is the plural of "diffidente".
+"diffidentissimo" is the superlative of "diffidente".
+"diffidentissimi" is the superlative of "diffidenti".
+"diffidentissima" is the superlative of "diffidente".
+"diffidentissime" is the superlative of "diffidenti".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -115933,8 +116276,6 @@ The feminine adjective "sacra" means "sacred".
 The masculine adjective "sicuro" means "secure".
 The feminine adjective "sicura" means "secure".
 The adjective "superficiale" means "shallow".
-The masculine adjective "basso" means "short".
-The feminine adjective "bassa" means "short".
 The masculine adjective "malato" means "sick".
 The feminine adjective "malata" means "sick".
 The masculine adjective "significativo" means "significant".
@@ -116954,6 +117295,7 @@ The adverb "distruttivamente" means "destructively".
 The adverb "conseguentemente" means "consequently".
 The adverb "ora" means "now".
 The adverb "effettivamente" means "really".
+The adverb "contemporaneamente" means "simultaneously".
 The adverb "attorno" means "around".
 The adverb "circa" means "around".
 The adverb "inoltre" means "besides".

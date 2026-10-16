@@ -549,3 +549,22 @@
 # the bathers, `bañistas'. Both ways
 <e><p><l>drowning<s n="n"/></l><r>ahogamiento<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>bather<s n="n"/></l><r>bañista<s n="n"/><s n="mf"/></r></p></e>
+# the Tempi del governo article (VIT-9673..9712), into Spanish: the Spanish half of its words, which
+# apertium-spa.spa.dix has with a paradigm and the bilingual dictionary lacks or ranks below another word
+# `la cerilla': a matchstick, where the dictionary's first Spanish word for a match is the sports match.
+# Left to right only: `cerilla' is read as it was
+<e r="LR"><p><l>matchstick<s n="n"/></l><r>cerilla<s n="n"/><s n="f"/></r></p></e>
+# `più corto': short in length; the dictionary's first Spanish word for short is `bajo'
+<e><p><l>short<s n="adj"/></l><r>corto<s n="adj"/></r></p></e>
+<e><p><l>presidentialism<s n="n"/></l><r>presidencialismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>presidentialist<s n="adj"/></l><r>presidencialista<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>presidentialist<s n="n"/></l><r>presidencialista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>forcing<s n="n"/></l><r>forzamiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>punitive<s n="adj"/></l><r>punitivo<s n="adj"/></r></p></e>
+<e><p><l>distrustful<s n="adj"/></l><r>desconfiado<s n="adj"/></r></p></e>
+# `una fase costituente': constituent, the adjective; the dictionary has the noun alone (the voter)
+<e><p><l>constituent<s n="adj"/></l><r>constituyente<s n="adj"/><s n="mf"/></r></p></e>
+# `Melina tra Polo e Olivo': stalling, in the footballers' word
+<e r="LR"><p><l>stalling<s n="n"/></l><r>dilación<s n="n"/><s n="f"/></r></p></e>
+# `la sensazione che ...': the Spanish word for a sensation (the dictionary has it as a feeling only)
+<e><p><l>sensation<s n="n"/></l><r>sensación<s n="n"/><s n="f"/></r></p></e>
