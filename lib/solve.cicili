@@ -6877,8 +6877,6 @@
   (func coco_not_integer ((coco_engine * e) (double f)) (out int)
         (return (coco_type_error e "integer" (coco_new_float (-> e m) f))))
 
-  ;;; LFLT says the left operand was a float, so that an operator that takes
-  ;;; integers alone can name the one that is not (`coco_not_integer').
   ;;; AN INTEGER PAST 64 BITS (2.0.0): ISO's evaluation_error(int_overflow),
   ;;; where swipl makes a bignum. Through 1.15.0 the answer wrapped at 61
   ;;; bits and nothing was raised.
@@ -6922,8 +6920,51 @@
                 (if (coco_mul_ovf b b (aof b)) (block (set (cof ovf) 1) (return 0)))))
           (return acc)))
 
+  ;;; Is X the float -0.0? Equal to 0.0 as a number, and its sign bit set:
+  ;;; the bits taken as a signed integer are negative.
   (static)
-  (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int) (int lflt)
+  (func coco_neg_zero ((double x)) (out int)
+        (let ((i64 b . 0))
+          (if (!= x 0.0) (return 0))
+          (memcpy (aof b) (aof x) (sizeof double))
+          (return (? (< b 0) 1 0))))
+
+  ;;; MAX AND MIN ARE SWI's (2.1.2; ar_max and ar_min in swipl 9.0.4's
+  ;;; pl-arith.c): which of two numbers max(A, B) -- WANT 1 -- or min(A, B)
+  ;;; -- WANT -1 -- answers, 0 for A and 1 for B. Each comes as an integer
+  ;;; or a float, AF and BF saying which; a float's value is AD, BD. They
+  ;;; are ordered as the comparisons order them (`coco_num_cmp': two
+  ;;; integers exactly, anything with a float as doubles). A NaN is passed
+  ;;; over -- the other is the answer, and B when both are NaNs --; of two
+  ;;; that are equal -0.0 is the smaller, and otherwise the float is the
+  ;;; answer: max(1, 1.0) is 1.0 either way round, max(0, -0.0) is 0. The
+  ;;; answer is always one of the two, so an integer that wins stays one:
+  ;;; max(2, 1.5) is 2. Through 2.1.1 a float made both floats and the
+  ;;; doubles' `<' chose: max(2, 1.5) was 2.0, max(1.0, NaN) the NaN, and
+  ;;; max(0.0, -0.0) -0.0. Read by is/2, max_list/2, min_list/2 and
+  ;;; aggregate_all/3, each in the order SWI's clauses give it.
+  (static)
+  (func coco_num_pick ((int want) (int af) (i64 ai) (double ad)
+                       (int bf) (i64 bi) (double bd)) (out int)
+        (if (and (not af) (not bf))
+            (return (? (== want 1) (? (< ai bi) 1 0) (? (> ai bi) 1 0))))
+        (let ((double x . #'(? af ad (cast double ai)))
+              (double y . #'(? bf bd (cast double bi))))
+          (if (!= x x) (return 1))
+          (if (!= y y) (return 0))
+          (if (== x y)
+              (block
+                (if (and af (coco_neg_zero x)) (return (? (== want 1) 1 0)))
+                (if (and bf (coco_neg_zero y)) (return (? (== want 1) 0 1)))
+                (return (? (and (not af) bf) 1 0))))
+          (if (== want 1) (return (? (> x y) 0 1)))
+          (return (? (< x y) 0 1))))
+
+  ;;; LFLT and RFLT say which operand was a float: an operator that takes
+  ;;; integers alone names the one that is not (`coco_not_integer'), and
+  ;;; max and min answer the one they pick as it came (2.1.2).
+  (static)
+  (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int) (int lflt) (int rflt)
                          (i64 ai) (double af) (i64 bi) (double bf)
                          (int * isf) (i64 * iv) (double * fv)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (int s . 0))
@@ -6979,13 +7020,13 @@
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
            (if (== bi -1) (block (set (cof iv) 0) (set (cof isf) 0) (return 1)))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
-          ((== nid (coco-id m "min"))
-           (if both_int (block (set (cof iv) (? (< ai bi) ai bi)) (set (cof isf) 0))
-             (block (set (cof fv) (? (< af bf) af bf)) (set (cof isf) 1)))
-           (return 1))
-          ((== nid (coco-id m "max"))
-           (if both_int (block (set (cof iv) (? (> ai bi) ai bi)) (set (cof isf) 0))
-             (block (set (cof fv) (? (> af bf) af bf)) (set (cof isf) 1)))
+          ;; the one `coco_num_pick' picks, as it came: an integer or a float
+          ((or (== nid (coco-id m "max")) (== nid (coco-id m "min")))
+           (let ((int b . #'(coco_num_pick (? (== nid (coco-id m "max")) 1 -1)
+                                           lflt ai af rflt bi bf)))
+             (if (? b rflt lflt)
+                 (block (set (cof fv) (? b bf af)) (set (cof isf) 1))
+               (block (set (cof iv) (? b bi ai)) (set (cof isf) 0))))
            (return 1))
           ;; SWI answers an integer for an integer base under a non-negative
           ;; integer exponent, and a float everywhere else; `^' reads the same
@@ -7134,8 +7175,11 @@
                              (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
                              (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
                           (return 1))
+                         ;; of a NaN a NaN, SWI's one, the bits `1.5NaN'
+                         ;; reads as (2.1.2; 0.0 through 2.1.1)
                          ((== nid (coco-id m "sign"))
-                          (if s0 (block (set (cof fv) (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0)))
+                          (if s0 (block (set (cof fv) (? (!= f0 f0) (strtod "nan" nil)
+                                                         (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0))))
                                         (set (cof isf) 1))
                             (block (set (cof iv) (? (> i0 0) 1 (? (< i0 0) -1 0))) (set (cof isf) 0)))
                           (return 1))
@@ -7234,7 +7278,7 @@
                          (set both (? (and (== s0 0) (== s1 0)) 1 0))
                          ;; each operand is offered as both, and `both' says
                          ;; which pair the operator should read
-                         (return (coco_arith_binary e nid both s0
+                         (return (coco_arith_binary e nid both s0 s1
                                                   i0 (? s0 f0 (cast double i0))
                                                   i1 (? s1 f1 (cast double i1))
                                                   isf iv fv)))
@@ -7252,7 +7296,10 @@
 
   ;;; The six numeric comparisons. Both sides are evaluated, then compared as
   ;;; doubles unless both stayed integers -- so 1 =:= 1.0 is true, as it must
-  ;;; be, while 1 == 1.0 is false, as it also must be.
+  ;;; be, while 1 == 1.0 is false, as it also must be. OUT_C is -1, 0 or 1,
+  ;;; or 2 when a NaN leaves the two UNORDERED (2.1.2, IEEE's and swipl's):
+  ;;; then =\= holds and the other five fail, `X =:= X' among them. Through
+  ;;; 2.1.1 a NaN was 0 against anything, equal to every number.
   (static)
   (func coco_num_cmp ((coco_engine * e) (size_t g) (int * out_c)) (out int)
         (let ((coco_machine * m . #'(-> e m))
@@ -7267,7 +7314,7 @@
               (set (cof out_c) (? (< i0 i1) -1 (? (> i0 i1) 1 0)))
             (let ((double a . #'(? s0 f0 (cast double i0)))
                   (double b . #'(? s1 f1 (cast double i1))))
-              (set (cof out_c) (? (< a b) -1 (? (> a b) 1 0)))))
+              (set (cof out_c) (? (< a b) -1 (? (> a b) 1 (? (== a b) 0 2))))))
           (return 1)))
 
   (func coco_bi_num_eq  ((coco_engine * e) (size_t g)) (out int)
@@ -7281,13 +7328,13 @@
              (return (? (< c 0) 1 0))))
   (func coco_bi_num_gt  ((coco_engine * e) (size_t g)) (out int)
         (let ((int c) (int rc . #'(coco_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
-             (return (? (> c 0) 1 0))))
+             (return (? (== c 1) 1 0))))
   (func coco_bi_num_le  ((coco_engine * e) (size_t g)) (out int)
         (let ((int c) (int rc . #'(coco_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
              (return (? (<= c 0) 1 0))))
   (func coco_bi_num_ge  ((coco_engine * e) (size_t g)) (out int)
         (let ((int c) (int rc . #'(coco_num_cmp e g (aof c)))) (if (!= rc 1) (return rc))
-             (return (? (>= c 0) 1 0))))
+             (return (? (or (== c 0) (== c 1)) 1 0))))
 
   ;;; ---- term construction and inspection ----
 

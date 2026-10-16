@@ -1606,6 +1606,17 @@ i6_builtins :-
           9223372036854775807-9223372036854775807-
           [evaluation_error(int_overflow), evaluation_error(int_overflow),
            evaluation_error(int_overflow), evaluation_error(int_overflow)]),
+    %% aggregate_all/3's sum as sum_list/2's (2.1.2; through 2.1.1 in doubles,
+    %% and two halves of 2^63 summed to the least integer). SWI makes a bignum
+    %% past 64 bits, so test/files/float_arith.pl stops short of them.
+    findall(F1b, ( member(G1b, [aggregate_all(sum(X1b), member(X1b, [9223372036854775807, 1]), _),
+                                aggregate_all(sum(X1c), member(X1c, [-9223372036854775808, -1]), _)]),
+                   catch(( G1b, F1b = none ), error(F1b, _), true) ), L1b),
+    aggregate_all(sum(X1d), member(X1d, [4611686018427387904, 4611686018427387903]), S1b),
+    aggregate_all(sum(X1e), member(X1e, [9223372036854775807, 1.0]), S1c),
+    check('aggregate_all/3''s sum is 64 bits, and past them int_overflow', L1b-S1b-S1c,
+          [evaluation_error(int_overflow), evaluation_error(int_overflow)]-
+          9223372036854775807-9.223372036854776e18),
     findall(X2, between(9223372036854775805, 9223372036854775807, X2), L2),
     numlist(9223372036854775805, 9223372036854775807, L2b),
     sum_list([9223372036854775807, -1], S2), max_list([1, 9223372036854775807, 4611686018427387904], M2),

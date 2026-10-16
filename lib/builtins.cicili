@@ -1241,37 +1241,55 @@
 
           ;; the numeric three. An empty list is a failure for max and min --
           ;; there is no answer -- and zero for sum, which is what SWI does.
+          ;; Each is SWI's clause in C (2.1.2): the sum `S is S0 + X' from 0,
+          ;; an integer until a float arrives and past 64 bits int_overflow,
+          ;; as sum_list/2 is; max and min `M is max(M0, X)' (`coco_num_pick'),
+          ;; and the witness forms `X > Max0' and `X < Min0', which keep the
+          ;; first of two equal and never take a NaN. Through 2.1.1 every one
+          ;; was in doubles: 2^53 + 1 summed to 2^53 and two halves of 2^63
+          ;; to the least integer, the larger of two integers past 2^53 was
+          ;; the first, and a NaN or two equal numbers kept the first.
           (if (== 0 (strcmp what "sum"))
-              (let ((double acc . 0.0) (int all_int . 1))
+              (let ((i64 ai . 0) (double ad . 0.0) (int af . 0))
                 (for ((size_t i . 0)) (< i n) ((++ i))
                   (let ((double d . 0.0) (i64 iv . 0))
-                    (if (not (coco_m_int e (nth i v) (aof iv))) (set all_int 0))
-                    (if (not (coco_m_float e (nth i v) (aof d)))
-                        ;; the term is taken BEFORE the array goes: reading
-                        ;; `(nth i v)' after the free is a use-after-free, and
-                        ;; it segfaulted on the first list of integers
-                        (let ((size_t bad . #'(nth i v)))
-                          (free v)
-                          (return (coco_m_type_error e "number" bad))))
-                    (set acc (+ acc d))))
+                    (if (coco_m_int e (nth i v) (aof iv))
+                        (if af (set ad (+ ad (cast double iv)))
+                          (if (coco_add_ovf ai iv (aof ai))
+                              (block (free v)
+                                     (return (coco_m_evaluation_error e "int_overflow")))))
+                      (block
+                        (if (not (coco_m_float e (nth i v) (aof d)))
+                            ;; the term is taken BEFORE the array goes: reading
+                            ;; `(nth i v)' after the free is a use-after-free,
+                            ;; and it segfaulted on the first list of integers
+                            (let ((size_t bad . #'(nth i v)))
+                              (free v)
+                              (return (coco_m_type_error e "number" bad))))
+                        (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                        (set ad (+ ad d))))))
                 (free v)
-                (return (? all_int
-                           (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 acc))
-                           (coco_m_unify_float e (coco_m_arg e g 2) acc)))))
+                (return (? af
+                           (coco_m_unify_float e (coco_m_arg e g 2) ad)
+                           (coco_m_unify_int e (coco_m_arg e g 2) ai)))))
 
+          ;; each pair read as `'$maxl'' reads a number (`coco_l_num' in
+          ;; lib/lists.cicili, earlier in this unit), and a pair that is not
+          ;; two numbers names the newer one, as through 2.1.1
           (if (or (== 0 (strcmp what "max")) (== 0 (strcmp what "min")))
-              (let ((int want_max . #'(? (== 0 (strcmp what "max")) 1 0))
+              (let ((int want . #'(? (== 0 (strcmp what "max")) 1 -1))
                     (size_t best . 0))
                 (if (== n 0) (block (free v) (return 0)))
                 (set best (nth 0 v))
                 (for ((size_t i . 1)) (< i n) ((++ i))
-                  (let ((double a . 0.0) (double b . 0.0))
-                    (if (or (not (coco_m_float e best (aof a)))
-                            (not (coco_m_float e (nth i v) (aof b))))
+                  (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
+                        (i64 xi . 0) (double xd . 0.0) (int xf . 0))
+                    (if (or (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
+                            (not (coco_l_num e (nth i v) (aof xi) (aof xd) (aof xf))))
                         (let ((size_t bad . #'(nth i v)))
                           (free v)
                           (return (coco_m_type_error e "number" bad))))
-                    (if (? want_max (> b a) (< b a)) (set best (nth i v)))))
+                    (if (coco_num_pick want bf bi bd xf xi xd) (set best (nth i v)))))
                 (free v)
                 (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
@@ -1283,13 +1301,21 @@
                 (if (== n 0) (block (free v) (return 0)))
                 (set best (nth 0 v))
                 (for ((size_t i . 1)) (< i n) ((++ i))
-                  (let ((double a . 0.0) (double b . 0.0))
-                    (if (or (not (coco_m_float e (coco_arg m (coco_deref m best) 0) (aof a)))
-                            (not (coco_m_float e (coco_arg m (coco_deref m (nth i v)) 0) (aof b))))
+                  (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
+                        (i64 xi . 0) (double xd . 0.0) (int xf . 0) (int over . 0))
+                    (if (or (not (coco_l_num e (coco_arg m (coco_deref m best) 0)
+                                           (aof bi) (aof bd) (aof bf)))
+                            (not (coco_l_num e (coco_arg m (coco_deref m (nth i v)) 0)
+                                           (aof xi) (aof xd) (aof xf))))
                         (let ((size_t bad . #'(nth i v)))
                           (free v)
                           (return (coco_m_type_error e "number" bad))))
-                    (if (? want_max (> b a) (< b a)) (set best (nth i v)))))
+                    (if (and (not xf) (not bf))
+                        (set over (? want_max (> xi bi) (< xi bi)))
+                      (let ((double x . #'(? xf xd (cast double xi)))
+                            (double b . #'(? bf bd (cast double bi))))
+                        (set over (? want_max (> x b) (< x b)))))
+                    (if over (set best (nth i v)))))
                 (let ((size_t bp . #'(coco_deref m best))
                       (size_t out . 0))
                   (set out (coco_make2 m (? want_max "max" "min")

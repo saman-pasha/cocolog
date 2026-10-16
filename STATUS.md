@@ -5981,6 +5981,7 @@ Now they are swipl 9.0.4's:
 
 Arithmetic still compares numbers (`0.0 =:= -0.0`). Over a NaN, and in
 `max`/`min` of the two zeros, it is not SWI's yet: COMPAT.md has the row.
+(2.1.2 made both SWI's, below.)
 
 `test/files/float_order.pl` is run by swipl and by cocolog, and its 72
 lines agree byte for byte. They cover unify, `==/2`, `memberchk/2`,
@@ -6011,6 +6012,91 @@ Seven arms take one rule out each, and each goes red:
 | nrev | +0.003 % |
 | queens | +0.027 % |
 | lookup | +0.005 % |
+
+## Arithmetic over a NaN, and max and min, as SWI's are (2.1.2)
+
+The owner's choice after 2.1.1. Through 2.1.1:
+
+* a NaN compared equal to every number: `X =:= X`, `=<` and `>=` held of
+  a NaN and `=\=` failed, and `1.5NaN =:= 1.0` held;
+* `max` and `min` made both floats when either was one and took the
+  doubles' `<`: `max(2, 1.5)` was `2.0`, `max(0.0, -0.0)` was `-0.0`,
+  `min(-0.0, 0.0)` was `0.0`, and `max(1.0, NaN)` was the NaN;
+* `max_list/2` and `min_list/2` kept the first of two equal numbers
+  (`max_list([1, 1.0], M)` was `1`) and stopped at a NaN;
+* `aggregate_all/3`'s `sum`, `max` and `min` worked in doubles: `2^53 + 1`
+  summed to `2^53`, `2^62 + (2^62 - 1)` to the least integer, and the
+  larger of two integers past `2^53` was the first;
+* `sign/1` of a NaN was `0.0`.
+
+Now they are swipl 9.0.4's:
+
+* **A NaN is unordered.** `coco_num_cmp` answers 2, so `=\=` holds and
+  the other five fail.
+* **`max` and `min` are SWI's `ar_max` and `ar_min`** (`coco_num_pick`,
+  which answers which of the two). A NaN is passed over; -0.0 is the
+  smaller zero; of an integer and a float that are equal, the float; and
+  the one picked is answered as it came, so `max(2, 1.5)` is `2`.
+* `max_list/2` and `min_list/2` fold `M is max(H, M0)` along the list,
+  and `aggregate_all/3` folds `M is max(M0, X)`, each in the order of
+  SWI's own clause (the order picks between two NaNs). The witness forms
+  are `X > Max0`, with two integers compared as integers.
+* `aggregate_all/3`'s sum adds integers as integers until a float
+  arrives, and raises int_overflow past 64 bits, as `sum_list/2` does.
+* `sign/1` of a NaN is SWI's one NaN, the bits `1.5NaN` reads as.
+
+The guards take integers alone and never meet any of it.
+
+Found on the way and not changed, COMPAT.md's rows: a float result that is
+a NaN or infinite raises in SWI (`undefined`, `float_overflow`,
+`zero_divisor`) and is the answer here; `**` and `^` with a zero exponent
+or the base 1 are the integer 1 in SWI; `truncate/1` and its kin hand a
+NaN or an infinity back in SWI and raise here.
+
+`test/files/float_arith.pl` is run by swipl and by cocolog, and its 166
+lines agree byte for byte. It covers:
+
+* the six comparisons over a NaN: with literals, with variables, through
+  `call/N`, `\+` and an if-then-else, in a clause whose first goal is the
+  comparison, and later in a body that makes an environment;
+* the zeros, the infinities, and integers past 53 bits;
+* `max` and `min` in every pairing, as a guard and in an environment's
+  branch;
+* `sign/1`, `max_list/2` and `min_list/2`;
+* `aggregate_all/3` and `aggregate/3`.
+
+2.1.1 differs from swipl on 76 of the 166. `test/engine.pl` holds the sum
+past 64 bits to int_overflow, where SWI makes a bignum.
+
+Fifteen arms take one rule out each, and each goes red (lines of the 166
+that differ from swipl):
+
+| arm | red |
+|---|---|
+| a NaN equal to every number again (`coco_num_cmp`) | 27 |
+| `>` true of an unordered pair | 9 |
+| `>=` true of an unordered pair | 9 |
+| max and min answer a float when either was one | 15 |
+| a NaN not passed over | 16 |
+| -0.0 not the smaller zero | 13 |
+| of an integer and a float that are equal, the first | 14 |
+| two integers compared as doubles | 2 (aggregate_all's, past 2^53) |
+| `sign/1` of a NaN 0.0 | 3 |
+| `max_list/2` and `min_list/2` as through 2.1.1 | 11 |
+| `max_list/2`'s operands the other way round | 2 (two NaNs) |
+| `aggregate_all/3`'s sum in doubles | 3, and `test/engine.pl`'s sum check on 2.1.1 |
+| `aggregate_all/3`'s max and min in doubles | 8 |
+| `aggregate_all/3`'s operands the other way round | 1 (two NaNs) |
+| the witness forms' two integers compared as doubles | 2 |
+
+`tools/flow/zero.sh` against 2.1.1, counting work less padding (the
+padding the same):
+
+| | instructions |
+|---|---|
+| nrev | +0 |
+| queens | +0 |
+| lookup | +18 (+0.00004 %) |
 
 ## Not started
 

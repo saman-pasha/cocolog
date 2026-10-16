@@ -3,7 +3,8 @@
 %  Run by BOTH systems, output compared byte for byte.
 %
 %  Each case is a clause of its own, so no two share a variable. Left out:
-%  arithmetic, which compares numbers and not terms (`0.0 =:= -0.0').
+%  arithmetic, which compares numbers and not terms (`0.0 =:= -0.0'), and
+%  is test/files/float_arith.pl's.
 
 :- dynamic u/1, v/2, w/2.
 
