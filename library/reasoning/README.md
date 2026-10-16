@@ -30,6 +30,14 @@ stay where the runners look -- `test/run.pl` takes `test/*.pl` and
 `test/tutorials.pl` takes `tutorials/*/*.pl` -- because a case under
 `library/` is a case nobody runs.
 
+The library has a version of its own, which is not cocolog's:
+`reason_version/1` answers it as an atom (`X.Y.Z`) and `reason_version/3` as
+the three integers a program compares, from one fact at the top of
+`reason.pl`. A change to anything in this directory -- the code, `corpus/`,
+`lexicon/`, `generated/`, `model.rows` -- moves that number in the same
+commit, and `cocolog --version` stays unless the binary or another library
+changed too. CLAUDE.md, under The version, has the rules.
+
 The loop is closed: `tagger.pl` trains in about two minutes on four
 cores, over 300 sentences training never saw (seeds past the corpus)
 0.988 of the tags and 0.93 to 0.96 of the sentences are right, a training

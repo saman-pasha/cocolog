@@ -213,6 +213,16 @@
 %%     reason_verb(?Word, ?Base)
 %%     reason_proper(?Word, ?Constant)
 %%
+%%     reason_version(-Version)
+%%     reason_version(-Major, -Minor, -Patch)
+%%         The version of THIS LIBRARY -- everything under library/reasoning/:
+%%         the grammar, the translator, the tagger, the lexicon, the lessons
+%%         and the shipped model -- which is its own number and not cocolog's:
+%%         a change here moves this one and `cocolog --version' stays. Version
+%%         is an atom, 'X.Y.Z'; the three integers are what a program
+%%         compares, since '1.10.0' sorts before '1.9.0' as an atom. The
+%%         rules for moving it are in CLAUDE.md, under The version.
+%%
 %% ---- THE SENTENCES IT READS -------------------------------------------
 %%
 %%   Alice owns a red car.               car(V), red(V), own(alice, V)
@@ -451,6 +461,18 @@
 :- dynamic reason_verb/2.
 :- dynamic reason_proper/2.
 :- dynamic reason_closed/1.
+
+%% ---- version ---------------------------------------------------------
+%%
+%% THE ONE PLACE. This line is the library's version; reason_version/1 is
+%% made from it, and no code, test or lesson in the tree spells the number.
+%% Bump it in the commit that changes library/reasoning/, never afterwards.
+
+reason_version(1, 0, 0).
+
+reason_version(Version) :-
+    reason_version(Major, Minor, Patch),
+    atomic_list_concat([Major, Minor, Patch], '.', Version).
 
 %% ---- text ------------------------------------------------------------
 

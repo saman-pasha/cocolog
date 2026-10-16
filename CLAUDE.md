@@ -215,12 +215,29 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
 
 `cocolog --version` answers on stdout from ONE place, `coco_version_text` in
 `cocolog.cicili` (a `#define` would be invisible to Cicili). **The patch is
-the default**: bump it for every change to the binary or a library, in the
+the default**: bump it for every change to the binary or to a library other
+than `library/reasoning/` (which has a number of its own, below), in the
 same commit, never afterwards. A minor (something new reachable from a
 program) or a major (a program that worked stopping) is PROPOSED with what
 changed observably, and the owner takes it. **A documentation-only commit does
 not bump** (there is no new binary for the number to describe); say "cocolog
 stays X.Y.Z" in its message. `--help` goes to stderr. `test/argv.pl` pins the
+shape of the answer, deliberately not the number.
+
+**The reasoning library has a version of its own.** It carried cocolog's
+number through 1.13.3 and has its own from there, starting at 1.0.0.
+`reason_version/3`, a fact at the top
+of `library/reasoning/reason.pl`, is the ONE place; `reason_version/1` answers
+it as an atom (`'X.Y.Z'`). A change to anything under `library/reasoning/`
+(the code, `corpus/`, `lexicon/`, `generated/`, `model.rows`) bumps THAT
+number, in the same commit, and not cocolog's; a change to the binary or to
+any other library bumps cocolog's; a commit that changes both bumps both. The
+rules are the same ones: the patch is the default, a minor or a major is
+PROPOSED and the owner takes it, a documentation-only commit does not bump
+(say "reasoning stays X.Y.Z" in its message), and a message names the number
+that moved (`reasoning 1.0.1`, `cocolog 1.13.4`). Before a bump read master's:
+`git show origin/master:library/reasoning/reason.pl | grep -E '^reason_version\([0-9]'`.
+`test/reason.pl` (section `version`, four arms red) and lesson 43 pin the
 shape of the answer, deliberately not the number.
 
 **Two lines of work bump the same number**: the owner's `master` and the
@@ -229,7 +246,10 @@ shape of the answer, deliberately not the number.
 1.8.35. Before a bump, `git fetch` and read
 `git show origin/master:cocolog.cicili | grep coco_version_text`; a bump taken
 from the local value is a guess about where the other line has got to. A
-merged tree that holds both lines' changes takes a number neither had.
+merged tree that holds both lines' changes takes a number neither had. After
+1.13.3 the sample loop's changes to `library/reasoning/` spend the reasoning
+number, so the two lines meet on cocolog's only where both change the binary
+or another library.
 
 ## Running a program
 
