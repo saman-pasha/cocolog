@@ -758,6 +758,14 @@ of `multi` and `failure`.
 
 ## 9. `library(flow/debug)`: what a query did (D0-D4)
 
+> **"Inference" in this section is the engine's STEP.** The window, the
+> recorder and the library number goals by the steps the engine takes,
+> and since 1.12.2 a `true` or a `=/2` is a step and no inference
+> (statistics/2 leaves it out, as SWI does). The plan below was written
+> before that split and says "inference" throughout; since 1.13.5 the
+> library and its command print "step" for these numbers, and each
+> profile view says how many of a window's steps were inferences.
+
 ```prolog
 flow_debug(+Goal, +Base, +Options)    % writes Base.svg and Base.xml
     % window(N), at(I), from(I), to(I), until(exception | fail | answer(K)), view(flow | tree),

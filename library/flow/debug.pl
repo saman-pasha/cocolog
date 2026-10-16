@@ -19,14 +19,14 @@
 %%                                                 caught(K): the branch a
 %%                                                 choice took to raise it, the
 %%                                                 exception a catch took
-%%     flow_when(+Goal, +Cond, +Options, -When)    the first inference at
+%%     flow_when(+Goal, +Cond, +Options, -When)    the first step at
 %%                                                 which Cond holds (dbgwhen.pl)
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared: the same
 %%                                                 inputs answered differently,
 %%                                                 deepest first (dbgdiff.pl)
 %%     flow_diff_text(+Diff, +PA, +PB, -Text)      the same as text
 %%     flow_profile_text(+Profile, -Text)          profile(P) as text (dbgprof.pl)
-%%     flow_steps_text(+Profile, -Text)            the window's inferences by
+%%     flow_steps_text(+Profile, -Text)            the window's steps by
 %%                                                 what took them (dbgprof.pl)
 %%     flow_callers_text(+Callers, -Text)          callers(C) as text
 %%     flow_repeats_text(+Repeats, -Text)          repeats(R) as text
@@ -47,7 +47,7 @@
 %%
 %% How the run ended -- answer, false, limit, exception(Ball), halt(Code),
 %% error(Message), or diverged(I, Want, Got) where a replay left its
-%% journal -- at inference At, Answers the inference of each answer; Calls
+%% journal -- at step At, Answers the step of each answer; Calls
 %% a call(S, Name/Arity, Depth, Parent, Box, Panel, Clauses, In, Out, Fate)
 %% for each call the window saw (library/flow/dbgmatch.pl); Bindings an
 %% x(I, Port, S, Name, Value, Box) for each value that crossed into a
@@ -64,10 +64,10 @@
 %%     source(File)     the program (required)
 %%     until(Where)     end (default): the run's first answer, its failure or
 %%                      its exception; answer(K): its K-th answer
-%%     window(N)        the inferences recorded, up to where the run stops
+%%     window(N)        the steps recorded, up to where the run stops
 %%                      being explained (2000); a run that short is
 %%                      recorded whole
-%%     from(I), to(J)   the window by its inferences instead
+%%     from(I), to(J)   the window by its steps instead
 %%     discs(N)         how many crossings are numbered on the picture (24),
 %%                      the last before the window closes
 %%     text(N)          a value is written whole up to N characters (60)
@@ -81,7 +81,7 @@
 %%     journal_file(F)  the journal kept in F (and journal(true)); without
 %%                      it the journal is a temporary file, deleted after
 %%     txt(Bool)        false (default), or true: Base.txt as well, the run
-%%                      one line a call -- its inference, the goal at its
+%%                      one line a call -- its step, the goal at its
 %%                      Call, how it ended, the clauses it entered, its box
 %%                      and where that box is written, :LINE:COL in the file
 %%                      a `% file:' line names once (dbgtext.pl): the
@@ -96,22 +96,22 @@
 %%                      box and clause of the chart is written, an assoc of
 %%                      its id (p2.c1.g2, p2.c1) to FILE:LINE:COL
 %%     profile(P)       an answer too: P is bound to where the window's
-%%                      inferences went, each predicate's calls and the
-%%                      inferences spent inside them (dbgprof.pl)
+%%                      steps went, each predicate's calls and the
+%%                      steps spent inside them (dbgprof.pl)
 %%     callers(C)       answers too (1.11.10, dbgprof.pl): each predicate's
 %%     repeats(R)       callers, the goals asked more than once, and the
 %%     profile_rows(Rs) window as rows windows are added up from
 %%     time(T)          an answer too (1.13.3, dbgprof.pl): where the
 %%                      window's TIME went, each predicate's inclusive and
 %%                      self time -- the probe runs under a clock read at
-%%                      every inference of the window, untraced, and the
-%%                      replay says whose each inference was
+%%                      every step of the window, untraced, and the
+%%                      replay says whose each step was
 %%     svg(Bool)        true (default), or false: Base.svg is not drawn
 %%     xml(Bool)        true (default), or false: Base.xml is not written;
 %%                      with both false the values that crossed are not
 %%                      worked out either, the run's Bindings are [], and a
 %%                      window costs its matching, its facts and what is
-%%                      asked of it (1.11.10: 100 000 inferences of the
+%%                      asked of it (1.11.10: 100 000 steps of the
 %%                      translator, 31 s where all of it took 73)
 %%     own(Whose)       whose failed calls the why explains, on the picture,
 %%                      in the XML and in Base.txt: chart (the default), a
@@ -125,10 +125,15 @@
 %% runs twice, each time in a child process of its own that reads it
 %% afresh -- so what the first run asserted, or set as a global, cannot
 %% change the second: a PROBE, untraced at full speed, learns how the run
-%% ends and at which inference; a REPLAY goes untraced at full speed to
-%% the window's first inference and records from there ('$trace_window'/4,
+%% ends and at which step; a REPLAY goes untraced at full speed to
+%% the window's first step and records from there ('$trace_window'/4,
 %% the engine's). The clock is the untraced run's in both, so the replay
-%% must end where the probe did. One that does not is DIVERGED -- a
+%% must end where the probe did. Its unit is the STEP, a goal the engine
+%% took: statistics/2 and call_metered/4 count INFERENCES, the steps less
+%% each call of true/0 and =/2 (no inference since 1.12.2, as in SWI), and
+%% each profile view says how many of a window's steps were inferences
+%% (1.13.5; through 1.13.4 this library called its steps inferences).
+%% One that does not end where the probe did is DIVERGED -- a
 %% program that reads the time, a file or the knowledge base under --kb
 %% can -- and is drawn all the same, a true recording of a run of the
 %% program, under a red line that says both ends.
@@ -138,22 +143,22 @@
 %% before it -- no earlier call set the globals, asserted the facts or
 %% opened the streams a goal from the middle of a program may stand on. So
 %% such a goal can fail in the child where it succeeds in the program: the
-%% translator's tr_write_ir(english, IR, 46, Out) alone fails at inference
+%% translator's tr_write_ir(english, IR, 46, Out) alone fails at step
 %% 330, the language it writes having been set by the reading that comes
 %% first in any real run. Give the entry goal (reason_translate/4 there),
 %% and choose the part of its run to record with from(I) and to(J) -- the
-%% inferences are the untraced run's, the same in every run -- or let
-%% flow_when/4 find the inference at which something first holds.
+%% steps are the untraced run's, the same in every run -- or let
+%% flow_when/4 find the step at which something first holds.
 %%
 %% THE JOURNAL (journal(true), DESIGN-flow.md 9.2) takes what the program
 %% reads out of that: the probe writes an entry for each PORTAL call it
 %% makes -- the clock, the environment, a file, a stream, a process, a
 %% thread, the knowledge base under --kb: a call of a module that reaches
-%% the world -- with the inference it was made at, its text and how it
+%% the world -- with the step it was made at, its text and how it
 %% went; the replay answers each from its entry and runs none of them, so
 %% a file is not appended to twice, a thread not started again, and the
 %% clock reads what it read. A replay that reaches a portal call at
-%% another inference, or another call where the journal holds one, or
+%% another step, or another call where the journal holds one, or
 %% that passes one by, stops there: How is diverged(I, Want, Got), the
 %% journal's call (Want) and the replay's (Got) each portal(I, Module,
 %% Name/Arity, CallText) or none. The boxes whose calls the journal
@@ -166,7 +171,7 @@
 %% Numbered discs mark where a value crossed -- an argument a call was
 %% given, a binding its exit made, a binding backtracking undid (hollow) --
 %% and a legend under the chart lists each: the variable by its source
-%% name, the value, the port, the clause and the inference. view(tree)
+%% name, the value, the port, the clause and the step. view(tree)
 %% draws the calls instead, a row each, deeper calls indented, a
 %% recursion's middle elided.
 %%
@@ -221,7 +226,7 @@
 %% catch's RECOVERY raised it, the exception that catch took, told the same
 %% way (flow_why_raised/3's chose(C) and caught(K), dbgwhy.pl). A throw/1,
 %% which makes no call, is placed on the chart's box for it.
-%% flow_when/4 answers WHEN: the first inference at which a question holds,
+%% flow_when/4 answers WHEN: the first step at which a question holds,
 %% asked of runs stopped part way -- a handful of them, each at full speed
 %% and each a replay of the probe's journal (dbgwhen.pl says how, and what
 %% "first" can mean for a question backtracking undoes).
@@ -262,7 +267,7 @@ flow_debug(Goal, Base0, Opts, Out) :-
     flow_dbg_names(Goal, Opts, Names),
     flow_dbg_facts(Graph, Run, Calls, Names, Opts, Facts),
     %% svg(false) and xml(false) leave a document out (1.11.10): a run's
-    %% XML is a third of what a 100 000-inference window costs, and a
+    %% XML is a third of what a 100 000-step window costs, and a
     %% profile or BASE.txt needs neither
     (   memberchk(svg(false), Opts)
     ->  true
@@ -306,7 +311,7 @@ flow_debug(Goal, Base0, Opts, Out) :-
     flow_dbg_out(Facts, Out).
 
 %% THE PROBE ALONE (1.11.10): how the run of Goal ends and at which
-%% inference, end(How, At, Answers), as flow_debug/4's probe learns it --
+%% step, end(How, At, Answers), as flow_debug/4's probe learns it --
 %% a child at full speed, nothing recorded.
 flow_run_end(Goal, Opts, End) :-
     flow_dbg_check(Goal, Opts, File),
@@ -322,7 +327,7 @@ flow_run_end(Goal, Opts, End) :-
 %%
 %%     flow_debug_windows(+Goal, +Base, +Options, -Windows)
 %%
-%% windows(N) windows of window(W) inferences (2000) spread along the run
+%% windows(N) windows of window(W) steps (2000) spread along the run
 %% -- over from(I) to to(J) when given, else over all of it: the K-th ends
 %% at the K-th N-th of the span, so the last ends where the run does, and
 %% windows the span cannot hold apart are cut to tile it -- each recorded
@@ -339,7 +344,7 @@ flow_run_end(Goal, Opts, End) :-
 %% cache(Dir) the chart is built once, before any window's process starts,
 %% and each reads it (tools/flow/debug.pl gives BASE.charts when no cache=
 %% is given); without, each window's process builds its own. The reasoning
-%% session's point 8: windows of 100 000 inferences far along the
+%% session's point 8: windows of 100 000 steps far along the
 %% translator's runs took 71 s and 127 s each, and one at a time.
 flow_debug_windows(Goal, Base0, Opts, windows(End, Ws)) :-
     flow_base(Base0, Base),
@@ -378,7 +383,7 @@ flow_debug_windows(Goal, Base0, Opts, windows(End, Ws)) :-
               flow_dbg_window_read(X, Out, Log, File, Run, Rows) ),
             Ws).
 
-%% N spans of W inferences in Lo..Hi, the K-th ending at the K-th N-th of
+%% N spans of W steps in Lo..Hi, the K-th ending at the K-th N-th of
 %% it; a span cut to begin after the one before, and an empty one dropped
 flow_dbg_spread(N, W, Lo, Hi, Spans) :-
     L is Hi - Lo + 1,
@@ -723,7 +728,7 @@ flow_dbg_names(_, Opts, Names) :-
 %% Journal none, or journal(Entries) when the probe journalled (and the
 %% replay was answered from it). Clock is none, or with time(T) asked the
 %% probe's clock (1.13.3): clock(First, Last, PerReading, Ds, Gcs), each
-%% inference's nanoseconds from First to Last as the probe ran untraced,
+%% step's nanoseconds from First to Last as the probe ran untraced,
 %% what a reading of the clock cost, and I-Ns for each collection.
 
 flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events, Journal), Clock) :-
@@ -747,7 +752,7 @@ flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events,
     ),
     flow_dbg_journal_read(JFile, Keep, Journal).
 
-%% THE PROBE'S CLOCK (1.13.3): the window's inferences when from(I) says
+%% THE PROBE'S CLOCK (1.13.3): the window's steps when from(I) says
 %% where it begins, all of them from I; otherwise the run's last window(N),
 %% which is where the window will be (flow_dbg_window/4)
 flow_dbg_clock_option(Opts, time(F, K)) :-
@@ -772,7 +777,7 @@ flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Ev
     ).
 
 %% the clock's events, as '$trace_window'/4 writes them, as one term: the
-%% steps(I, Ds) come in order, a thousand inferences each
+%% steps(I, Ds) come in order, a thousand steps each
 flow_dbg_clock(PEs, clock(First, Last, Per, Ds, Gcs)) :-
     (   PEs = [time(First, Last, N, Ns)|Rest]
     ->  Per is Ns / max(1, N),
@@ -825,7 +830,7 @@ flow_dbg_text_atom(C, A) :-
     ).
 
 %% the window: from(I) and to(J) as given, else the last window(N)
-%% inferences up to where the run stopped
+%% steps up to where the run stopped
 flow_dbg_window(Opts, Used, From, To) :-
     flow_option(window(W), Opts, 2000),
     (   memberchk(to(J), Opts) -> To is min(J, Used) ; To = Used ),

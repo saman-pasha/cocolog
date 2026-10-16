@@ -41,12 +41,12 @@
 %%
 %%     call(S, Pred, Depth, Parent, Box, Panel, Clauses, In, Out, Fate)
 %%
-%% S the inference of the Call (a call's own name from here on), Pred N/A,
+%% S the step of the Call (a call's own name from here on), Pred N/A,
 %% Parent the S of the call it is in (0: none in the window), Box the
 %% chart's id for it or none, Panel the panel it entered (p3) or none,
 %% Clauses the clauses it entered as c(N, At) and the heads it tried that
 %% did not match as nohead(N, At) -- a clause the index passed over is
-%% not one (1.11.2) -- and, in the order of their inferences with them,
+%% not one (1.11.2) -- and, in the order of their steps with them,
 %% thrown(Box, At) for each exception its own body raised where no call
 %% of it was running (1.11.7): a throw/1, which makes no call, at the box
 %% the chart draws it as -- In and Out the argument texts at its Call and
@@ -78,7 +78,7 @@ flow_dbg_match(graph(_, _, Panels, Ids, _), Events, Bodies, Calls) :-
 %% events, then each stream's items, each a walk down a sorted list.
 %% Through 1.11.9 one pass kept three AVL trees -- the cells, the calls,
 %% the streams -- and put into them at every event: a window of 100 000
-%% inferences of the translator, 268 339 events, took 14 s here (the
+%% steps of the translator, 268 339 events, took 14 s here (the
 %% reasoning session's point 8). A call's clauses and heads come in the
 %% order they were tried (through 1.11.1 each was appended to the list
 %% before it, and a call with n heads cost n * n / 2 cells).
@@ -353,7 +353,7 @@ flow_dbg_plan_branches([B|Bs], J, Id, K, F, Es, First) :-
 %% clauses read for it (VAt: S -> its rows' key). Through 1.11.9 the calls
 %% were taken in the order they were made and every place went into one
 %% AVL tree of them all, put into and read at each port of a child: 6 of
-%% the 12 seconds the matching of a window of 100 000 inferences of the
+%% the 12 seconds the matching of a window of 100 000 steps of the
 %% translator still took.
 flow_dbg_place(Calls0, Streams, Rows, Panels, Ids, VAt, Calls) :-
     %% the query's own goal: the box query.g1 and the panel it calls
@@ -377,7 +377,7 @@ flow_dbg_placed([c(S, Pr, D, P, Cl0, In, Out, Fa)|Cs], Ws0, Ts0,
     flow_dbg_placed(Cs, Ws1, Ts1, Calls).
 
 %% a call's clauses and heads, and the throws its own body made, in the
-%% order of their inferences
+%% order of their steps
 flow_dbg_with_throws(Cl0, Ts, Cl) :-
     findall(At-X, ( ( member(X, Cl0) ; member(X, Ts) ), arg(2, X, At) ), AXs),
     keysort(AXs, Sorted),
@@ -537,7 +537,7 @@ flow_dbg_ite_nodes((C -> T ; E), [arm(Cn, Tn)|Arms], Else) :-
     ).
 
 %% the window's first call, with no parent in it, is the query's goal when
-%% the window began at the first inference -- the goal's own predicate
+%% the window began at the first step -- the goal's own predicate
 flow_dbg_is_query(S, Pr, QPanel, Panels) :-
     S =:= 1,
     QPanel \== none,

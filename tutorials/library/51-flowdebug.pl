@@ -24,7 +24,7 @@
 %%     flow_diff(+RunA, +RunB, -Diff)              two runs compared
 %%
 %% Options: source(File) (required), until(end | answer(K)), window(N) (the
-%% last N inferences, 2000), from(I) and to(J), discs(N), text(N),
+%% last N steps, 2000), from(I) and to(J), discs(N), text(N),
 %% view(flow | tree), names(['X'=X, ...]) for the goal's variables,
 %% timeout(Ms), journal(true) and journal_file(F), txt(true) for Base.txt,
 %% the run one line a call; cache(Dir), the chart built once for a program
@@ -32,9 +32,9 @@
 %% over a store; own(all) or own(Files), whose failed calls the why
 %% explains (the chart's panels by default); svg(false) and xml(false),
 %% leaving a document out; and answers: places(P), where each box is
-%% written, profile(P), where the inferences went, callers(C), who made the
+%% written, profile(P), where the steps went, callers(C), who made the
 %% calls, repeats(R), the goals asked more than once, and time(T), where the
-%% TIME went -- the probe run under a clock read at every inference.
+%% TIME went -- the probe run under a clock read at every step.
 %% flow_debug_windows/4 records windows(N) windows along one run, each by a
 %% process of its own, and flow_profile_merge/4,5 adds their profiles up. The
 %% same from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE
@@ -42,10 +42,11 @@
 %%
 %% NOTHING HERE SLOWS THE RUN IT EXPLAINS. The program runs twice, each
 %% time in a child process that reads it afresh: a PROBE at full speed,
-%% untraced, learns how the run ends and at which inference -- the clock is
-%% the untraced run's count of its goals, one a goal (call_metered/4 reads
-%% it less each `true' and `=/2', which are no inference) -- and a REPLAY
-%% goes untraced at full speed to the window's first inference and records
+%% untraced, learns how the run ends and at which STEP -- the clock is
+%% the untraced run's count of its goals, one a goal, a step; statistics/2
+%% and call_metered/4 count INFERENCES, the steps less each `true' and
+%% `=/2', which are no inference, and a profile says both -- and a REPLAY
+%% goes untraced at full speed to the window's first step and records
 %% from there ('$trace_window'/4). A replay that does not end where the
 %% probe did -- the program read the time, a file, the knowledge base -- is
 %% said to have DIVERGED, on the picture and in the XML.
@@ -59,7 +60,7 @@
 %% QUESTIONS OVER THE CLOCK: flow_why(+Run, -Why) reads why a run failed
 %% back from what flow_debug/4 recorded -- each failed call of the
 %% program's own and each clause it tried -- and flow_when(+Goal, +Cond,
-%% +Options, -When) finds the first inference at which Cond holds, by
+%% +Options, -When) finds the first step at which Cond holds, by
 %% asking runs stopped part way: at(I), or never.
 %%
 %% WHAT IS DRAWN: the chart, every box the window reached heavy, red where
@@ -98,10 +99,10 @@ main :-
     ( exists_file(Svg), exists_file(Xml) -> Both = yes ; Both = no ),
     must('the picture and the XML are both written', Both, yes),
     Run = run(How, At, _, window(From, To), Calls, Bindings, Diverged, _),
-    %% four calls, an inference each: basket_total, price(apple), basket_total
+    %% four calls, a step each: basket_total, price(apple), basket_total
     %% of the rest, price(banana) -- and there it fails
-    must('how it ended, and at which inference', How-At, false-4),
-    must('the window: the whole run, recorded from its first inference', From-To, 1-4),
+    must('how it ended, and at which step', How-At, false-4),
+    must('the window: the whole run, recorded from its first step', From-To, 1-4),
     must('the replay ended where the probe did', Diverged, false),
 
     format("~n-- each call is a box of the chart~n"),
@@ -136,7 +137,7 @@ main :-
 
     format("~n-- the run as text, one line a call~n"),
     %% txt(true) writes Base.txt beside the two -- the cheapest view of a
-    %% run: each call's inference, the goal at its Call, how it ended, the
+    %% run: each call's step, the goal at its Call, how it ended, the
     %% clauses it entered (c2) and the heads it tried that did not unify
     %% (h1) -- [] for price(banana, P), which tried none -- its box, and
     %% where that box is written: :LINE:COL in the file the second line
@@ -148,7 +149,7 @@ main :-
     format("~w", [TA]),
     atomic_list_concat([Head, FileLine|TLs], '\n', TA),
     must('the first line says how the run ended', Head,
-         '% basket_total([apple, banana, pear], T): false at inference 4; recorded 1 to 4; diverged no; 4 calls'),
+         '% basket_total([apple, banana, pear], T): false at step 4; recorded 1 to 4; diverged no; 4 calls'),
     atom_concat('% file: ', Dir, FL0), atom_concat(FL0, '/basket.pl', FL),
     must('the second names the file every place below is in', FileLine, FL),
     nth1(4, TLs, Fourth),
@@ -157,8 +158,8 @@ main :-
     must('the fourth call: price/2 failed, no clause tried, the first goal of basket_total''s second clause, written at 3:28',
          [Fate, Cl4, Box4, Where], [fail, '[]', 'p1.c2.g1', ':3:28']),
 
-    format("~n-- a long run, its last inferences~n"),
-    %% two hundred apples and then a banana: 402 inferences, and a window
+    format("~n-- a long run, its last steps~n"),
+    %% two hundred apples and then a banana: 402 steps, and a window
     %% of the last 20 is all that is recorded -- the program runs to it at
     %% full speed
     length(Apples, 200),
@@ -170,7 +171,7 @@ main :-
     must('it fails where the untraced run does, the window its last 20', LHow-LAt-LWindow,
          false-402-window(383, 402)),
     length(LCalls, NL),
-    must('one call an inference', NL, 20),
+    must('one call a step', NL, 20),
     %% a call made inside one that began before the window has no clause to
     %% be matched in: it is placed in its predicate's panel, with no box
     LCalls = [call(_, FirstP, _, FirstParent, FirstBox, FirstPanel, _, _, _, _)|_],
@@ -198,18 +199,18 @@ main :-
     must('where it got furthest: clause 2 twice, then price/2 with no head that unified',
          PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]),
 
-    format("~n-- where the inferences went~n"),
-    %% profile(P), an answer: each predicate's calls and the inferences
+    format("~n-- where the steps went~n"),
+    %% profile(P), an answer: each predicate's calls and the steps
     %% spent inside them, a call charged up to its first Exit or Fail
     flow_debug(basket_total(Long, _), LongBase, [source(Prog), from(1), profile(Prof)], _),
     Prof = profile(_, _, Spent, [TopRow, NextRow|_]),
-    must('the 402 inferences, basket_total/2 spending all of them over its 201 calls, price/2 one each',
+    must('the 402 steps, basket_total/2 spending all of them over its 201 calls, price/2 one each',
          Spent-TopRow-NextRow, 402-prof(basket_total/2, 402, 201, 402)-prof(price/2, 201, 201, 1)),
     %% who made the calls, and the goals asked more than once -- a goal's
     %% variables named in the order they come, so price(apple, P) asked with
     %% a fresh P each time is one goal (flow_callers_text/2 and
     %% flow_repeats_text/2 write them; flow_steps_text/2 the window's
-    %% inferences by what took them). svg(false) and xml(false): neither
+    %% steps by what took them). svg(false) and xml(false): neither
     %% document is written, the cheap way to a profile
     flow_debug(basket_total(Long, _), LongBase,
                [source(Prog), from(1), callers(Callers), repeats(Repeats), svg(false), xml(false)], _),
@@ -302,13 +303,13 @@ raised(Dir) :-
          KP-KQs-KCP-KB, (till/2)-[checkout/2]-(checkout/2)-else).
 
 %% WHERE THE TIME WENT: time(T), an answer like profile(P). The probe runs
-%% under a clock read at the top of every inference of the window, untraced
+%% under a clock read at the top of every step of the window, untraced
 %% -- the run as it is, not the replay, whose recorder writes every
-%% argument -- and the replay says whose each inference was: each
+%% argument -- and the replay says whose each step was: each
 %% predicate's calls, the time inside them and the time of its calls' own
-%% inferences, in nanoseconds. A count says where the inferences went; time
-%% finds the ONE inference that costs a thousand: a sort of 20 000 numbers
-%% is one inference among the window's eight hundred. A reading costs time
+%% steps, in nanoseconds. A count says where the steps went; time
+%% finds the ONE step that costs a thousand: a sort of 20 000 numbers
+%% is one step among the window's eight hundred. A reading costs time
 %% too, measured as the probe starts and taken off each one
 timed(Dir) :-
     format("~n-- where the time went~n"),
@@ -324,13 +325,13 @@ timed(Dir) :-
     flow_debug(job(_), Base, [source(Prog), from(1), profile(Prof), time(Time), svg(false), xml(false)], _),
     Prof = profile(_, _, _, PRows),
     ( memberchk(prof(msort/2, MI, MN, _), PRows) -> true ; MI = 0, MN = 0 ),
-    must('msort/2 in the profile: one call, one inference', MI-MN, 1-1),
+    must('msort/2 in the profile: one call, one step', MI-MN, 1-1),
     Time = time(_, _, _, TRows),
     findall(Own-P, member(t(P, _, _, Own, _), TRows), Owns),
     max_member(_-Top, Owns),
     must('in time, msort/2''s own is the most of any predicate''s', Top, msort/2),
     %% a GUARD -- the arithmetic and tests a clause begins with, run as the
-    %% clause is entered -- is an inference no reading separates from its
+    %% clause is entered -- is a step no reading separates from its
     %% call's: count/1's is/2 has no time of its own, it is count/1's
     ( memberchk(t(is/2, IN, _, IOwn, _), TRows) -> true ; IN = 0, IOwn = none ),
     must('is/2, count/1''s guard: 400 calls, no time of its own', IN-IOwn, 400-0),
@@ -354,9 +355,9 @@ why_shape(failed(_, P, _), failed(P)) :- !.
 why_shape(ended(_, P, _, F), ended(P, F)).
 
 %% WHEN DID IT HAPPEN? A list of squares built one at a time: the first
-%% inference at which its fourth is 16, found by asking runs stopped part
+%% step at which its fourth is 16, found by asking runs stopped part
 %% way (flow_when/4 bisects: a handful of runs, each at full speed), and
-%% then the one call made there, seen through a window of one inference
+%% then the one call made there, seen through a window of one step
 asked(Dir) :-
     format("~n-- when did it happen?~n"),
     atom_concat(Dir, '/squares.pl', Prog),
@@ -367,7 +368,7 @@ asked(Dir) :-
            format(W, "~w~n", [L])),
     close(W),
     flow_when(squares(6, Sq), (nth1(4, Sq, S4), S4 == 16), [source(Prog)], When),
-    must('the fourth square is 16 from inference 12', When, at(12)),
+    must('the fourth square is 16 from step 12', When, at(12)),
     atom_concat(Dir, '/squares', Base),
     flow_debug(squares(6, _), Base, [source(Prog), from(12), to(12)], R),
     R = run(_, _, _, _, [call(12, P, _, _, _, _, _, _, Out, _)|_], _, _, _),
@@ -390,7 +391,7 @@ journalled(Dir) :-
     flow_debug(visit(N1), B1, [source(Prog), names(['N'=N1])], R1),
     R1 = run(_, _, _, _, _, X1, D1, _),
     %% the probe wrote 1; the replay read it, took the other way and ran
-    %% past the probe's end -- stopped there, at the window's last inference
+    %% past the probe's end -- stopped there, at the window's last step
     must('without a journal the replay is a second visit, and diverged',
          D1, diverged(end(answer, 8, [8]), end(limit, 8, []))),
     findall(V, member(x(_, exit, _, 'N', V, _), X1), NV1),

@@ -32,7 +32,7 @@
 %%                                     closed (open, redo), or ended by an
 %%                                     exception (raised, unwound)
 %%
-%% S is the inference of the call -- the n= of its <call> in the XML -- and
+%% S is the step of the call -- the n= of its <call> in the XML -- and
 %% In and Out its arguments as written. A call of the program's own is one
 %% with a panel on the chart. So `basket_total([apple, banana, pear], T)'
 %% failed because its second clause's body failed at `basket_total([banana,
@@ -51,7 +51,7 @@
 %%
 %% A C builtin, a module's C predicate or a control construct is never one:
 %% it has no clauses to have tried. flow_why_call/3,4 is the why of the
-%% call made at inference S, whoever's it is -- its own clauses explained
+%% call made at step S, whoever's it is -- its own clauses explained
 %% whenever it has any, and the calls below it as the options say; it
 %% fails for an S the window did not see.
 
@@ -109,7 +109,7 @@ flow_dbg_why(Calls, Own, Whys) :-
     (   get_assoc(0, Kids, Tops) -> true ; Tops = [] ),
     findall(W, ( member(S, Tops), flow_dbg_why_node(S, ByS, Kids, Own, W) ), Whys).
 
-%% each call by its inference, and each call's calls
+%% each call by its step, and each call's calls
 flow_dbg_why_index(Calls, ByS, Kids) :-
     findall(S-C, ( member(C, Calls), arg(1, C, S) ), SC),
     list_to_assoc(SC, ByS),
@@ -151,8 +151,8 @@ flow_dbg_why_root(S, ByS, Kids, Own, why(S, Pred, In, Tries)) :-
 
 %% each clause tried: its head did not unify, or its body was entered and
 %% made the calls after it, up to and with the one whose failure tried the
-%% next clause: a retry takes no inference, so the next clause is entered
-%% at the inference of that call, and its own calls come after it
+%% next clause: a retry takes no step, so the next clause is entered
+%% at the step of that call, and its own calls come after it
 flow_dbg_why_tries([], _, _, _, _, []).
 flow_dbg_why_tries([nohead(K, _)|Cs], Ks, ByS, Kids, Own, [nohead(K)|Ts]) :- !,
     flow_dbg_why_tries(Cs, Ks, ByS, Kids, Own, Ts).
@@ -165,8 +165,8 @@ flow_dbg_why_tries([c(K, At)|Cs], Ks, ByS, Kids, Own, [entered(K, Goals)|Ts]) :-
             Goals),
     flow_dbg_why_tries(Cs, Ks, ByS, Kids, Own, Ts).
 
-%% the inference of the next clause entered (a head that did not unify is
-%% tried on the way to it, at the same inference)
+%% the step of the next clause entered (a head that did not unify is
+%% tried on the way to it, at the same step)
 flow_dbg_why_next([c(_, At)|_], At) :- !.
 flow_dbg_why_next([_|Cs], At) :-
     flow_dbg_why_next(Cs, At).
@@ -180,8 +180,8 @@ flow_dbg_why_next([_|Cs], At) :-
 %% to the last alternative tried, which in a reader that backtracks is its
 %% fallback (the translator's tr_byline/3), not the cause. So at each failed
 %% call this takes the clause that got furthest: the most calls of its body
-%% that exited, then the most inferences spent before it gave up (its span,
-%% from its first call to the last inference under its last), then the
+%% that exited, then the most steps spent before it gave up (its span,
+%% from its first call to the last step under its last), then the
 %% earlier clause -- and goes down into the call that clause failed at.
 %%
 %% Path is a step(S, Name/Arity, In, K, Done, Tried) for each failed call on
@@ -225,8 +225,8 @@ flow_why_path(failed(S, P, In), [failed(S, P, In)]) :- !.
 flow_why_path(ended(S, P, In, F), [ended(S, P, In, F)]) :- !.
 flow_why_path(_, []).
 
-%% the inferences a clause's calls spent: from its first call to the last
-%% inference under its last (the most a span can say: spans of 1 call)
+%% the steps a clause's calls spent: from its first call to the last
+%% step under its last (the most a span can say: spans of 1 call)
 flow_why_span([], 0).
 flow_why_span([G|Gs], Span) :-
     arg(1, G, S0),

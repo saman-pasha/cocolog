@@ -1608,19 +1608,21 @@ read into an English-worded IR and written into any lesson's language),
 * **Find a translator cost with the flow profile, then bisect it** (1.11.4).
   `cocolog -s tools/flow/debug.pl -- GOAL library/reasoning/translate.pl BASE
   embed=STORE cache=DIR profile=true txt=true from=I to=J` over several
-  windows of a few thousand inferences spread along a run (a refusal of
-  65 million inferences, say) gives BASE.prof, and a call there is ONE
-  inference, which is its whole self cost: rank the predicates by CALLS, then
-  by their callers. Since 1.11.10 `profile=all` writes the callers, the
-  goals asked again and the inferences by what took them (constructs
-  included) into BASE.prof -- no script over BASE.txt -- and `windows=N`
-  records N windows along the run, J at a time, their profiles added up;
-  `svg=false xml=false` for a profile alone. Since 1.13.3 `profile=time`
-  (and `all`) writes where the window's TIME went, the probe run under a
-  clock read at every inference: a count finds the cheap step taken a
-  million times, time the one inference that costs a thousand (a sort, a
-  findall/3's copying, a store's lookup). A window of 100 000 inferences
-  far along the translator takes ~30 s that way (100 s with every document
+  windows of a few thousand steps spread along a run (a refusal of
+  65 million steps, say) gives BASE.prof, and a call there is ONE
+  step, which is its whole self cost: rank the predicates by CALLS, then
+  by their callers. (The library's unit is the STEP, its texts say so since
+  1.13.6, and each profile view says how many of a window's steps were
+  inferences: a call of true/0 or =/2 is a step and no inference.) Since
+  1.11.10 `profile=all` writes the callers, the goals asked again and the
+  steps by what took them (constructs included) into BASE.prof -- no script
+  over BASE.txt -- and `windows=N` records N windows along the run, J at a
+  time, their profiles added up; `svg=false xml=false` for a profile alone.
+  Since 1.13.3 `profile=time` (and `all`) writes where the window's TIME
+  went, the probe run under a clock read at every step: a count finds the
+  cheap step taken a million times, time the one step that costs a
+  thousand (a sort, a findall/3's copying, a store's lookup). A window of
+  100 000 steps far along the translator takes ~30 s that way (100 s with every document
   through 1.11.9, whose matcher alone took 36). Half of the inferences were the lexicon lookup layer
   (tr_solve/1, tr_memo/4 and what they call), and its four wastes were each a
   few per cent: `member/2` on a LIST WALKS IT (a clause per element) where the

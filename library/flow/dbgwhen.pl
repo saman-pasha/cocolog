@@ -1,13 +1,13 @@
 %% library(flow/debug), part: questions over the clock -- the first
-%% inference at which something holds (DESIGN-flow.md 9.5, D4).
+%% step at which something holds (DESIGN-flow.md 9.5, D4).
 %%
 %%     flow_when(+Goal, +Cond, +Options, -When)
 %%
 %% Cond is a goal over Goal's variables -- or over anything a goal can ask:
-%% the knowledge base, a global -- asked of the run STOPPED at an inference,
+%% the knowledge base, a global -- asked of the run STOPPED at a step,
 %% with what the run had bound there ('$trace_window'/4's ask(Cond, Holds)).
 %% When is at(I): Cond does not hold at I - 1 and holds at I, where the
-%% call made at inference I is the goal that made it so; or never, when it
+%% call made at step I is the goal that made it so; or never, when it
 %% does not hold where the run ends (nor at any step(N) asked).
 %%
 %% Options: source(File) (required); until(end | answer(K)), where the run
@@ -17,19 +17,19 @@
 %% (journal(false) runs the program afresh each time); timeout(Ms) for each
 %% run; embed(Dir) and kb(Name), the store each run opens, as flow_debug/4
 %% takes them; and base(Base): Base.svg and Base.xml drawn for the window
-%% of window(N) inferences (2000) that ends at I, with flow_debug/4's
+%% of window(N) steps (2000) that ends at I, with flow_debug/4's
 %% other options.
 %%
 %% THE SEARCH is over runs, never inside one: Cond is asked where the probe
 %% ended, then bisected over [1, End] -- each step a run of its own, a child
 %% process stopped at to(Mid) and asked there: about twenty runs for a
-%% million inferences. That finds THE FIRST inference when Cond, once it
+%% million steps. That finds THE FIRST step when Cond, once it
 %% holds, holds to the end -- a binding made and kept, a fact asserted and
 %% not retracted. One that backtracking undoes is not: it may not hold at
 %% the end at all, and where it holds and stops holding the bisection finds
-%% some inference where it began to. step(N) asks every N-th inference
+%% some step where it began to. step(N) asks every N-th step
 %% first, from N, and bisects inside the first step where it holds: the
-%% first inference it holds at, whenever it holds for N inferences running.
+%% first step it holds at, whenever it holds for N steps running.
 %%
 %% A run that is not the same twice cannot be searched: a replay that
 %% leaves its journal, or a run that ends elsewhere than the probe did, is
@@ -93,7 +93,7 @@ flow_when_search(Src, Goal, Cond, K, JR, Ms, Ask, Opts, When) :-
     ;   When = never
     ).
 
-%% the first N-th inference where Cond holds, and the one before it where
+%% the first N-th step where Cond holds, and the one before it where
 %% it did not, as Lo-At; up to the run's end, where the probe asked
 flow_when_steps(I, _, Lo, U, H0, _, _, Span) :-
     I >= U, !,
@@ -123,7 +123,7 @@ flow_when_bisect(Lo, Hi, Ask, Probe, I) :-
     ;   flow_when_bisect(Mid, Hi, Ask, Probe, I)
     ).
 
-%% a run stopped at inference I and asked: true when Cond held there
+%% a run stopped at step I and asked: true when Cond held there
 flow_when_ask(ask(Src, Goal, Cond, K, JP, Ms), I, Probe, H) :-
     flow_when_child(Src, Goal, Cond, [to(I), answers(K)|JP], Ms, End, H0),
     flow_when_stopped(End, I, Probe),

@@ -81,9 +81,10 @@ FILE:LINE:COL.
   what CHANGED between two runs -- before and after an edit, or two goals
   that should behave alike: the inputs answered differently, deepest first,
   which is where a regression began (`flow_diff/3`); where the
-  inferences WENT (`profile(P)`); and where the TIME went (`time(T)`), the
-  run untraced under a clock read at every inference, so the one inference
-  that costs a thousand -- a sort, a findall/3's copying, a store's lookup
+  steps WENT (`profile(P)`, which also says how many of them were
+  inferences: a `true` or a `=/2` is a step and no inference); and where
+  the TIME went (`time(T)`), the run untraced under a clock read at every
+  step, so the one step that costs a thousand -- a sort, a findall/3's copying, a store's lookup
   -- is found among the cheap ones a count weighs alike.
 * **Built for a program the size of a real one**: the translator in
   `library/reasoning/` (20 899 lines, 2 755 panels) is charted once and the

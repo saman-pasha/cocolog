@@ -4,7 +4,7 @@
 %% placed (flow_dbg_facts/6), so the picture and the XML cannot disagree:
 %%
 %%   * each BOX the window reached: how many calls it saw, and the last one
-%%     -- its inference and how it went: exit, fail, open (still running
+%%     -- its step and how it went: exit, fail, open (still running
 %%     when the window closed) or redo (being tried again then);
 %%   * each clause HEAD a call tried: how often, and whether the last try
 %%     entered the clause or did not unify;
@@ -53,7 +53,7 @@
 %% dbg(Sum, Events, Calls, Boxes, Heads, Entered, Bindings, Discs, Goals)
 %%
 %% Events: ev(I, Port, S, Depth, What, Args), each event with its call's
-%% inference S in place of the goal's cell -- What the predicate's name
+%% step S in place of the goal's cell -- What the predicate's name
 %% (call, exit, fail, redo), the clause's number (clause, nohead), the ball
 %% (throw) or none (catch). Bindings: x(I, Port, S, Name, Value, Box, Act).
 %% Goals: S -> gi(Box, Goal, Names, Act), the source goal at each call's
@@ -72,7 +72,7 @@ flow_dbg_facts(graph(_, _, Panels, _, _), Run, Calls0, Names, Opts,
     %% the values that crossed are drawn and written in the XML, and nothing
     %% else reads them: with neither document (svg(false), xml(false)) they
     %% are not worked out, and the run's Bindings are [] -- 8.7 s of a
-    %% window of 100 000 inferences of the translator (1.11.10)
+    %% window of 100 000 steps of the translator (1.11.10)
     (   memberchk(svg(false), Opts), memberchk(xml(false), Opts)
     ->  Xs = []
     ;   flow_dbg_crossings(SEs, Goals, Xs)
@@ -148,7 +148,7 @@ flow_dbg_first_marks_([C-F|T], F0, Fs) :-
 flow_dbg_refate(call(S, Pr, D, P, B, Pn, Cl, In, Out, Fate), Fates, call(S, Pr, D, P, B, Pn, Cl, In, Out, Fate1)) :-
     (   memberchk(Fate, [open, redo]), get_assoc(S, Fates, F) -> Fate1 = F ; Fate1 = Fate ).
 
-%% the events with a call's inference for its cell: an Exit, a Fail, a
+%% the events with a call's step for its cell: an Exit, a Fail, a
 %% Redo, a clause or a head is about the latest Call of its cell (one the
 %% window did not see is dropped); a throw or a catch about the call whose
 %% body it is in, 0 when that began before the window
@@ -200,7 +200,7 @@ flow_dbg_box_throws([TB-TA|Ts], B0, B) :-
     flow_dbg_box_throws(Ts, B1, B).
 
 %% each head tried: hs(N, LastAt, LastKind, NEntered), Kind entered or
-%% nohead, in the order of the inferences they were tried at
+%% nohead, in the order of the steps they were tried at
 flow_dbg_head_states(Calls, Heads) :-
     findall(At-(H-K), ( member(call(_, _, _, _, _, P, Cl, _, _, _), Calls), P \== none,
                         member(X, Cl), flow_dbg_head_ev(X, P, H, K, At) ),
@@ -407,7 +407,7 @@ flow_dbg_number([X|Xs], K, [d(K, X)|Ds]) :-
 %%
 %% Journal none, or jr(Entries, Answered, JBoxes, JCalls, TM): the probe's
 %% entries, how many of them the replay answered, each box -> how many of
-%% its calls in the window were answered, each such call's inference -> its
+%% its calls in the window were answered, each such call's step -> its
 %% entry, and text(N)'s length, which the XML cuts an entry's values at.
 %% Own whose calls the why explains (own(...), dbgwhy.pl)
 
@@ -423,8 +423,8 @@ flow_dbg_summary(run(Goal, Probe, Replay, window(F, T), _, Journal), Names, Call
     flow_dbg_journal(Journal, Replay, Calls, TM, Jr).
 
 %% THE CALLS THE JOURNAL ANSWERED: an entry is the call made at its
-%% inference, and the replay answered every entry up to where it ended --
-%% or, where it left the journal at inference I, every entry before I. A
+%% step, and the replay answered every entry up to where it ended --
+%% or, where it left the journal at step I, every entry before I. A
 %% portal call is often a library's own (open/3 reaches the world through
 %% '$stream_open'/4), so the box it counts for is its nearest caller's
 %% that has one: what the program's goal did came from the journal
@@ -693,8 +693,8 @@ flow_dbg_bbox(pg([X-_, _-T, _, XR-_, _-B|_], _, _, _), X, T, W, H) :-
 flow_dbg_box_tip(Tip, N, S, Fate, NF, Tip1) :-
     flow_dbg_fate_word(Fate, FW),
     (   N =:= 1
-    ->  format(atom(R), 'in the window: called once, at inference ~d, and it ~w', [S, FW])
-    ;   format(atom(R), 'in the window: called ~d times, ~d of them failed; the last, at inference ~d, ~w',
+    ->  format(atom(R), 'in the window: called once, at step ~d, and it ~w', [S, FW])
+    ;   format(atom(R), 'in the window: called ~d times, ~d of them failed; the last, at step ~d, ~w',
                [N, NF, S, FW])
     ),
     format(atom(Tip1), '~w  --  ~w', [Tip, R]).
@@ -708,7 +708,7 @@ flow_dbg_fate_word(unwound, 'was ended by an exception raised inside it').
 
 flow_dbg_head_tip(Tip, N, At, Kind, NE, Tip1) :-
     (   Kind == entered -> K = 'the clause was entered' ; K = 'it did not unify' ),
-    format(atom(Tip1), '~w  --  in the window: tried ~d times, entered ~d; the last, at inference ~d: ~w',
+    format(atom(Tip1), '~w  --  in the window: tried ~d times, entered ~d; the last, at step ~d: ~w',
            [Tip, N, NE, At, K]).
 
 %% the numbered bindings of a panel's boxes, on the box's bottom edge, left
@@ -783,7 +783,7 @@ flow_dbg_disc(K, x(I, Port, _, Nm, Val, _, _), CX, CY, grp(tip(Tip, DId), [C, T]
     T = t(CX, TY, middle, 9, sans, bold, [s(KA, TCol)]),
     flow_dbg_val_short(Val, 80, VT),
     flow_dbg_port_word(Port, PW),
-    format(atom(Tip), '~w  --  ~w = ~w: ~w, at inference ~d', [KA, Nm, VT, PW, I]).
+    format(atom(Tip), '~w  --  ~w = ~w: ~w, at step ~d', [KA, Nm, VT, PW, I]).
 
 flow_dbg_disc_paint(call, '#1d4ed8', white, white).
 flow_dbg_disc_paint(exit, '#15803d', white, white).
@@ -847,7 +847,7 @@ flow_dbg_journal_text(jr(Es, NA, _, _, _), [s(JT, teal)]) :-
 flow_dbg_div_text(_, _, diverged(At, W, G), _, _, DT) :- !,
     flow_dbg_side_text(W, holds, WT),
     flow_dbg_side_text(G, made, GT),
-    format(atom(DT), 'THE REPLAY LEFT ITS JOURNAL at inference ~d: the journal ~w, the replay ~w -- this is the replay''s run up to there',
+    format(atom(DT), 'THE REPLAY LEFT ITS JOURNAL at step ~d: the journal ~w, the replay ~w -- this is the replay''s run up to there',
            [At, WT, GT]).
 flow_dbg_div_text(PH, PU, RH, RU, Jr, DT) :-
     flow_dbg_end_text(PH, PU, [], PT, _),
@@ -862,54 +862,54 @@ flow_dbg_side_text(none, holds, 'holds no call there') :- !.
 flow_dbg_side_text(none, made, 'made none') :- !.
 flow_dbg_side_text(portal(I, _, _, C), Verb, T) :-
     flow_clip(C, 50, C1),
-    format(atom(T), '~w ~w at inference ~d', [Verb, C1, I]).
+    format(atom(T), '~w ~w at step ~d', [Verb, C1, I]).
 
 flow_dbg_end_text(diverged(At, _, _), _, _, T, red) :- !,
-    format(atom(T), 'left its journal at inference ~d', [At]).
+    format(atom(T), 'left its journal at step ~d', [At]).
 flow_dbg_end_text(answer, U, Ats, T, green) :- !,
     (   Ats = [_, _|_]
     ->  atomic_list_concat(Ats, ', ', AA),
-        format(atom(T), 'answered, at inferences ~w', [AA])
-    ;   format(atom(T), 'answered at inference ~d', [U])
+        format(atom(T), 'answered, at steps ~w', [AA])
+    ;   format(atom(T), 'answered at step ~d', [U])
     ).
 flow_dbg_end_text(false, U, _, T, red) :- !,
-    format(atom(T), 'failed at inference ~d', [U]).
+    format(atom(T), 'failed at step ~d', [U]).
 flow_dbg_end_text(limit, U, _, T, amber) :- !,
-    format(atom(T), 'stopped at inference ~d, where the window ends', [U]).
+    format(atom(T), 'stopped at step ~d, where the window ends', [U]).
 flow_dbg_end_text(exception(B), U, _, T, red) :- !,
     format(atom(BT0), '~q', [B]),
     flow_dbg_ung(BT0, BT1),
     flow_clip(BT1, 70, BT),
-    format(atom(T), 'raised ~w at inference ~d', [BT, U]).
+    format(atom(T), 'raised ~w at step ~d', [BT, U]).
 flow_dbg_end_text(halt(C), U, _, T, purple) :- !,
-    format(atom(T), 'halted (~w) at inference ~d', [C, U]).
+    format(atom(T), 'halted (~w) at step ~d', [C, U]).
 flow_dbg_end_text(error(M), _, _, T, red) :- !,
     format(atom(T), 'could not go on: ~w', [M]).
 flow_dbg_end_text(H, U, _, T, ink) :-
-    format(atom(T), '~w at inference ~d', [H, U]).
+    format(atom(T), '~w at step ~d', [H, U]).
 
 flow_dbg_window_text(F, T, _, true, NC, W) :- !,
-    format(atom(W), 'recorded inferences ~d to ~d, the whole run  ·  ~d calls', [F, T, NC]).
+    format(atom(W), 'recorded steps ~d to ~d, the whole run  ·  ~d calls', [F, T, NC]).
 flow_dbg_window_text(F, T, PU, false, NC, W) :-
     N is T - F + 1,
-    format(atom(W), 'recorded inferences ~d to ~d of ~d, the last ~d  ·  ~d calls made in the window',
+    format(atom(W), 'recorded steps ~d to ~d of ~d, the last ~d  ·  ~d calls made in the window',
            [F, T, PU, N, NC]).
 
 flow_dbg_fail_text(none, none, _, '') :- !.
 flow_dbg_fail_text(LF, Th, Calls, T) :-
     (   LF = from(I, _, N/A, Box, Panel, _)
     ->  flow_dbg_where(Box, Panel, Wh),
-        format(atom(T1), '  ·  the failure began at ~q/~w~w, inference ~d', [N, A, Wh, I])
+        format(atom(T1), '  ·  the failure began at ~q/~w~w, step ~d', [N, A, Wh, I])
     ;   LF = lf(I, _, N/A, Box, Panel, _)
     ->  flow_dbg_where(Box, Panel, Wh),
-        format(atom(T1), '  ·  the last goal to fail: ~q/~w~w at inference ~d', [N, A, Wh, I])
+        format(atom(T1), '  ·  the last goal to fail: ~q/~w~w at step ~d', [N, A, Wh, I])
     ;   T1 = ''
     ),
     (   Th = th(TI, _, _, R)
     ->  (   R =\= 0, memberchk(call(R, RN/RA, _, _, RB, RP, _, _, _, _), Calls)
         ->  flow_dbg_where(RB, RP, RW),
-            format(atom(T2), '  ·  an exception raised by ~q/~w~w at inference ~d', [RN, RA, RW, TI])
-        ;   format(atom(T2), '  ·  an exception raised at inference ~d', [TI])
+            format(atom(T2), '  ·  an exception raised by ~q/~w~w at step ~d', [RN, RA, RW, TI])
+        ;   format(atom(T2), '  ·  an exception raised at step ~d', [TI])
         )
     ;   T2 = ''
     ),
@@ -1174,7 +1174,7 @@ flow_dbg_disc_lines([d(K, X)|Ds], Goals, Y, Ps, YEnd) :-
     ->  flow_term_full(G, Ns, 999, GT0), flow_clip(GT0, 50, GT)
     ;   GT = '?'
     ),
-    format(atom(Rest), '    ~w of ~w  ·  ~w  ·  inference ~d', [PW, GT, Box, I]),
+    format(atom(Rest), '    ~w of ~w  ·  ~w  ·  step ~d', [PW, GT, Box, I]),
     Ps = [c(148, Y, 8, F, St, 1.5), t(148, TY, middle, 9, sans, bold, [s(KA, TC)]),
           t(162, LY, start, 11, mono, normal, [s(Nm, ink), s(' = ', muted), s(VT, ink), s(Rest, muted)])|Ps1],
     Y1 is Y + 22,
@@ -1367,20 +1367,20 @@ flow_dbg_arg_short(X, A) :-
 %%                             [message] [length] answered/>
 %%     <divergence at> <want .../> <got .../>          (a replay that left it)
 %%
-%% n of a call is the inference of its Call, and every call= names one;
+%% n of a call is the step of its Call, and every call= names one;
 %% box= is the chart's id; a value cut at text(N) has its whole length. A
 %% <thrown> is an exception the call's own body raised by a throw/1, which
-%% makes no call: box= the chart's box for it, at= its inference (1.11.7).
+%% makes no call: box= the chart's box for it, at= its step (1.11.7).
 %% A redo's exited= is true when its call had exited -- asked for another
 %% answer, the one Redo that says a call is nondeterministic -- and false
 %% when it had not: its clause failed and it goes on to the next, as SWI
 %% prints Redo too (none when the window did not see the call before).
-%% A portal's at= is the inference of its call -- the n= of the <call> the
+%% A portal's at= is the step of its call -- the n= of the <call> the
 %% window saw there -- its outcome exit (value= the call as it exited),
 %% fail, throw (ball=) or error (message=); answered= says whether the
 %% replay was answered from it. <want> is the journal's call where the
 %% replay left it and <got> the replay's, each at module pred call, or
-%% none="true"; ended="diverged" then, and at= the replay's last inference.
+%% none="true"; ended="diverged" then, and at= the replay's last step.
 
 flow_dbg_xml(Graph, Fs, Facts, element(flow, As, Cs1)) :-
     flow_xml(Graph, Fs, element(flow, As, Cs)),
@@ -1540,7 +1540,7 @@ flow_dbg_x_opt(_, none, []) :- !.
 flow_dbg_x_opt(K, V, [K=V]).
 
 %% the journal: every entry the probe wrote, and whether the replay was
-%% answered from it -- each one before the inference it left the journal
+%% answered from it -- each one before the step it left the journal
 %% at, or up to its last
 flow_dbg_x_journal(Es, How, Used, TM, element(journal, [count=N, answered=NA], PEs)) :-
     (   How = diverged(At, _, _) -> Lim is At - 1 ; Lim = Used ),

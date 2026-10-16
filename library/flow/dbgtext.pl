@@ -18,7 +18,7 @@
 %%
 %%     S INDENT GOAL FATE [CLAUSES] BOX WHERE
 %%
-%%     S        the inference of its Call: the n= of its <call> in the
+%%     S        the step of its Call: the n= of its <call> in the
 %%              XML, by which every other element of the run names it
 %%     INDENT   two spaces a level below the shallowest call of the window
 %%     GOAL     the predicate over its arguments as they stood at its Call
@@ -84,7 +84,7 @@ flow_dbg_text_head(Sum, Head) :-
     flow_term_full(Goal, Names, 999, GT),
     flow_dbg_how_word(How, HW),
     flow_dbg_div_ends(Div, DT),
-    format(atom(Head), '% ~w: ~w at inference ~w; recorded ~w to ~w; diverged ~w; ~w calls',
+    format(atom(Head), '% ~w: ~w at step ~w; recorded ~w to ~w; diverged ~w; ~w calls',
            [GT, HW, Used, F, T, DT, NC]).
 
 %% `no', or `yes' and both ends: the window is the probe's, and a replay
@@ -94,7 +94,7 @@ flow_dbg_div_ends(false, no) :- !.
 flow_dbg_div_ends(diverged(end(PH, PU, _), end(RH, RU, _)), T) :-
     flow_dbg_how_word(PH, PW),
     flow_dbg_how_word(RH, RW),
-    format(atom(T), 'yes (the probe: ~w at inference ~w; the replay: ~w at inference ~w)', [PW, PU, RW, RU]).
+    format(atom(T), 'yes (the probe: ~w at step ~w; the replay: ~w at step ~w)', [PW, PU, RW, RU]).
 
 %% one call's line, its place :LINE:COL in File, or whole when File is none
 flow_dbg_text_call(call(S, N/_, D, _, Box, _, Cl, In, Out, Fate), D0, Places, File, Line) :-
@@ -137,7 +137,7 @@ flow_dbg_text_value(V, V).
 %% N spaces, made at once (1.11.10): through 1.11.9 a space at a time, an
 %% atom_concat/3 a level, which is quadratic in the depth -- and a window
 %% far along a recursion that does not return (a loop of last calls) is
-%% hundreds of levels deep: BASE.txt of a 20 000-inference window took
+%% hundreds of levels deep: BASE.txt of a 20 000-step window took
 %% 10.4 s, of 100 000 minutes (the reasoning session's point 8)
 flow_dbg_text_spaces(N, S) :-
     format(atom(S), '~*c', [N, 0' ]).

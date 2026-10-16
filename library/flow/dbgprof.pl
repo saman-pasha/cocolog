@@ -1,6 +1,6 @@
-%% library(flow/debug), part: where a run's inferences went -- each
-%% predicate's calls and the inferences spent inside them, over the
-%% recorded window; the window's inferences by what took them; who made
+%% library(flow/debug), part: where a run's steps went -- each
+%% predicate's calls and the steps spent inside them, over the
+%% recorded window; the window's steps by what took them; who made
 %% the calls; the goals asked again; and where the window's time went.
 %%
 %%     flow_debug(Goal, Base, [profile(P)|Options], Run)
@@ -20,27 +20,27 @@
 %%
 %%     profile(From, To, Spent, Rows)
 %%
-%% the window, the inferences its calls spent (the union of their spans:
+%% the window, the steps its calls spent (the union of their spans:
 %% what a percentage is of), and a prof(Name/Arity, Inclusive, Calls,
 %% Largest) for each predicate the window saw called, the most inclusive
-%% first: its calls, the inferences spent inside them, and the most one
+%% first: its calls, the steps spent inside them, and the most one
 %% call spent.
 %%
-%% A CALL SPENDS THE INFERENCES FROM ITS CALL TO ITS FIRST EXIT OR FAIL.
+%% A CALL SPENDS THE STEPS FROM ITS CALL TO ITS FIRST EXIT OR FAIL.
 %% Its last port is no end: after an Exit the run goes on in the call's
 %% continuation, and a Redo that comes back to it later would charge it
 %% with everything in between -- a profile taken that way adds to over 100
 %% per cent. A call with neither (an exception ended it, or the window
-%% closed on it) spends up to the last inference under it. The inferences a
+%% closed on it) spends up to the last step under it. The steps a
 %% Redo spends in a call after its first Exit are charged to the calls made
 %% then, not to it. A predicate's inclusive count is over the union of its
 %% calls' spans, so a recursion is not counted once a level: no predicate is
-%% charged more than the window, and every call is one inference -- the
+%% charged more than the window, and every call is one step -- the
 %% call itself, which is the whole of a predicate's own (self) cost.
 %%
-%% flow_steps_text/2 writes the same profile as the window's inferences by
+%% flow_steps_text/2 writes the same profile as the window's steps by
 %% what took them (1.11.10, the reasoning session's point 7): each
-%% predicate's calls, an inference each, and the steps of the control
+%% predicate's calls, a step each, and the steps of the control
 %% constructs, which make no call -- `true/0' 4.1 %, `=/2' 4.2 % and the
 %% constructs' share, where a run's time goes step by step.
 %%
@@ -72,29 +72,29 @@
 %%
 %%     time(From, To, total(Ns, Reads, ClockNs, GcNs, Gcs), Rows)
 %%
-%% Ns the window's nanoseconds by the clock, Reads the inferences the clock
+%% Ns the window's nanoseconds by the clock, Reads the steps the clock
 %% read, ClockNs its own cost at those readings (taken off Ns), GcNs and
-%% Gcs the collections the window ran (in no inference's time), and a
+%% Gcs the collections the window ran (in no step's time), and a
 %% t(Name/Arity, Calls, Inclusive, Self, Largest) for each predicate the
 %% window saw called, the most inclusive first, in nanoseconds: the time
 %% inside its calls (their spans' union, as the profile's inclusive
-%% count), the time of its calls' own inferences, and the most one call
+%% count), the time of its calls' own steps, and the most one call
 %% took.
 %%
 %% THE TIME IS THE PROBE'S, the run untraced, never the replay's: the
 %% probe reads the monotonic clock at the top of every step of the window
 %% ('$trace_window'/4's time(F, K), lib/builtins.cicili), and an
-%% inference's time is from its reading to the next -- its goal's own
+%% step's time is from its reading to the next -- its goal's own
 %% work: a predicate's head, and the guards its clause runs as it is
-%% entered (whose inferences the clock does not see, and read 0); a
+%% entered (whose steps the clock does not see, and read 0); a
 %% builtin's whole run, findall/3's less the inner goals' own. The replay,
-%% numbered as the probe is, says whose each inference was. A READING
-%% COSTS TIME TOO, some 35 ns on the four-vCPU box against an inference's
+%% numbered as the probe is, says whose each step was. A READING
+%% COSTS TIME TOO, some 35 ns on the four-vCPU box against a step's
 %% 15 to 60: what it costs where nothing else runs is measured as the
-%% probe starts and taken off every inference read, so a cheap predicate's
-%% time is an estimate within some 10 ns a call -- its inference count
+%% probe starts and taken off every step read, so a cheap predicate's
+%% time is an estimate within some 10 ns a call -- its step count
 %% (profile(P)) is the surer measure of it -- and what time says that a
-%% count cannot is the one inference that costs a thousand: a sort, a
+%% count cannot is the one step that costs a thousand: a sort, a
 %% findall/3, a store's lookup, a file read.
 
 flow_dbg_profile(Facts, profile(From, To, Spent, Rows)) :-
@@ -112,10 +112,10 @@ flow_dbg_profile(Facts, profile(From, To, Spent, Rows)) :-
     pairs_values(SKRs, Rows).
 
 %% EACH CALL'S SPAN, Pred-(S-End): to its first Exit or Fail, or, with
-%% neither in the window, to the last inference under it -- the latest
+%% neither in the window, to the last step under it -- the latest
 %% call made below it. Sorted and walked down the call tree (1.11.10):
 %% through 1.11.9 each first Exit and each call's last went into an AVL
-%% tree, 6.3 s of a window of 100 000 inferences of the translator
+%% tree, 6.3 s of a window of 100 000 steps of the translator
 flow_dbg_prof_spans(SEs, Calls, PSE) :-
     findall(S-I, ( member(ev(I, Port, S, _, _, _), SEs), ( Port == exit ; Port == fail ) ), SIs0),
     keysort(SIs0, SIs),
@@ -201,7 +201,7 @@ flow_dbg_callers(Facts, callers(From, To, Rows)) :-
     arg(5, Sum, From),
     arg(6, Sum, To),
     flow_dbg_prof_by_call(Calls, ByS),
-    %% the query's goal is the run's first call, at inference 1 (a depth is
+    %% the query's goal is the run's first call, at step 1 (a depth is
     %% counted from where the window opened)
     findall(P-C,
             ( member(call(S, P, _, Pa, _, _, _, _, _, _), Calls),
@@ -222,7 +222,7 @@ flow_dbg_callers(Facts, callers(From, To, Rows)) :-
     keysort(KRs, SKRs),
     pairs_values(SKRs, Rows).
 
-%% each call's predicate by the inference of its Call, which no two calls
+%% each call's predicate by the step of its Call, which no two calls
 %% share (the calls come in that order)
 flow_dbg_prof_by_call(Calls, ByS) :-
     findall(S-P, member(call(S, P, _, _, _, _, _, _, _, _), Calls), SPs),
@@ -338,9 +338,9 @@ flow_dbg_time(Facts, Clock, time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc),
     keysort(KRs, SKRs),
     pairs_values(SKRs, Rows).
 
-%% THE WINDOW'S INFERENCES AS TWO RUNNING SUMS, each a term to read in one
+%% THE WINDOW'S STEPS AS TWO RUNNING SUMS, each a term to read in one
 %% step (arg/3): PD's K-th argument the nanoseconds of the window's first
-%% K - 1 inferences, PR's how many of them the clock read -- an inference
+%% K - 1 steps, PR's how many of them the clock read -- a step
 %% it did not read has 0 nanoseconds (one a clause's guards took, or one
 %% outside the probe's timed span). Per a reading's own cost; Gcs I-Ns
 flow_dbg_time_clock(none, From, To, PD, PR, 0.0, []) :- !,
@@ -377,7 +377,7 @@ flow_dbg_time_sums([D|Ds], A0, R0, [A|As], [R|Rs]) :-
     ( D > 0 -> R is R0 + 1 ; R = R0 ),
     flow_dbg_time_sums(Ds, A, R, As, Rs).
 
-%% the nanoseconds of inferences S to E and how many the clock read,
+%% the nanoseconds of steps S to E and how many the clock read,
 %% within the window F to T
 flow_dbg_time_raw(S0, E0, F, T, PD, PR, Raw, Reads) :-
     S is max(S0, F),
@@ -394,7 +394,7 @@ flow_dbg_time_off(Raw, Reads, Per, Ns) :-
     Ns is max(0, round(Raw - Per * Reads)).
 
 %% one row a predicate, as the profile's: its calls' spans in the order
-%% made, their union's time, their own inferences' and the largest span's
+%% made, their union's time, their own steps' and the largest span's
 flow_dbg_time_rows([], _, _, _, _, _, []).
 flow_dbg_time_rows([P-SE|PSEs], F, T, PD, PR, Per, [t(P, N, Incl, Self, Max)|Rows]) :-
     flow_dbg_prof_take(PSEs, P, Mine, Rest),
@@ -451,7 +451,7 @@ flow_dbg_profile_rows(Facts, Clock, Rows) :-
     ),
     append([[win(F, T, S)], Ps, Cs1, Gs, Ts], Rows).
 
-%% THE WINDOWS ADD UP: a predicate's inclusive inferences and calls are
+%% THE WINDOWS ADD UP: a predicate's inclusive steps and calls are
 %% summed and its largest call is the largest of any window's -- the
 %% windows are apart, so no span is counted twice -- and the callers and
 %% the goals are counted over all of them, so a goal asked once in each of
@@ -553,11 +553,29 @@ flow_dbg_prof_span(windows(Ws), _, Span) :- !,
 flow_dbg_prof_span(F, T, Span) :-
     format(atom(Span), 'the window ~w to ~w', [F, T]).
 
+%% THE STEPS THAT WERE NO INFERENCE (1.13.5, the reasoning session's point):
+%% the window's numbers are the engine's steps, and since 1.12.2 a call of
+%% true/0 or =/2 is a step and no inference -- statistics/2 leaves it out,
+%% as SWI counts none for either in a compiled body. A replay records each
+%% as a call, so a profile's rows (prof/4) or the time view's (t/5) say how
+%% many there were: a window's steps less these are its inferences
+flow_dbg_prof_frees(Rows, F) :-
+    findall(N, ( member(R, Rows), flow_dbg_prof_free_row(R, N) ), Ns),
+    sum_list(Ns, F).
+
+flow_dbg_prof_free_row(prof(P, _, N, _), N) :- flow_dbg_prof_free_pred(P).
+flow_dbg_prof_free_row(t(P, N, _, _, _), N) :- flow_dbg_prof_free_pred(P).
+
+flow_dbg_prof_free_pred((=)/2).
+flow_dbg_prof_free_pred(true/0).
+
 flow_profile_text(profile(From, To, W, Rows), Text) :-
     length(Rows, NP),
     flow_dbg_prof_span(From, To, Span),
-    format(atom(H), '% ~d inferences spent by the calls of ~w, ~d predicates -- a call spends from its Call to its first Exit or Fail',
-           [W, Span, NP]),
+    flow_dbg_prof_frees(Rows, Fr),
+    WI is max(0, W - Fr),
+    format(atom(H), '% ~d steps spent by the calls of ~w, ~d of them inferences (true/0 and =/2 are none), ~d predicates -- a call spends from its Call to its first Exit or Fail',
+           [W, Span, WI, NP]),
     T = '% inclusive       %    calls  largest  predicate',
     findall(L,
             ( member(prof(P, I, N, M), Rows),
@@ -570,9 +588,9 @@ flow_profile_text(profile(From, To, W, Rows), Text) :-
     atomic_list_concat([H, T|Ls], '\n', T0),
     atom_concat(T0, '\n', Text).
 
-%% THE WINDOW'S INFERENCES BY WHAT TOOK THEM (1.11.10, the reasoning
-%% session's point 7c): every inference is a step, and a step is either a
-%% call -- one inference, the whole of a predicate's own (self) cost -- or
+%% THE WINDOW'S STEPS BY WHAT TOOK THEM (1.11.10, the reasoning
+%% session's point 7c): every step is a step, and a step is either a
+%% call -- one step, the whole of a predicate's own (self) cost -- or
 %% a control construct's, which has no port and is no call: an if-then-
 %% else, a cut, catch/3 and its exit, \+, call/N. So each predicate's
 %% calls are its share, the most first, and what no call took is the
@@ -587,8 +605,10 @@ flow_steps_text(profile(From, To, _, Rows), Text) :-
     K is max(0, W - NC),
     flow_dbg_prof_count(NC, call, NCText),
     flow_dbg_prof_count(NP, predicate, NPText),
-    format(atom(H), '% the ~d inferences of ~w by what took them: ~w of ~w, an inference each, and ~d by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
-           [W, Span, NCText, NPText, K]),
+    flow_dbg_prof_frees(Rows, Fr),
+    WI is max(0, W - Fr),
+    format(atom(H), '% the ~d steps of ~w, ~d of them inferences (true/0 and =/2 are none), by what took them: ~w of ~w, a step each, and ~d by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
+           [W, Span, WI, NCText, NPText, K]),
     T = '%    steps       %  predicate',
     findall(NK-(N-P), ( member(prof(P, _, N, _), Rows), NK is -N ), Ks0),
     KK is -K,
@@ -612,7 +632,7 @@ flow_dbg_prof_count(N, Word, Text) :-
     ;   format(atom(Text), '~d ~ws', [N, Word])
     ).
 
-%% the inferences a profile is of: its window's, or its windows'
+%% the steps a profile is of: its window's, or its windows'
 flow_dbg_prof_window_len(windows(Ws), _, W) :- !,
     findall(L, ( member(F-T, Ws), L is max(0, T - F + 1) ), Ls),
     sum_list(Ls, W).
@@ -673,7 +693,7 @@ flow_repeats_text(repeats(From, To, Rows), Text) :-
 
 %% WHERE THE WINDOW'S TIME WENT (1.13.3): each predicate's inclusive and
 %% self time, the most inclusive first, and the control constructs' -- the
-%% time no call's own inference took -- in microseconds, each with its
+%% time no call's own step took -- in microseconds, each with its
 %% share of the window's; the header says what the clock read and cost,
 %% and what the collections took beside
 flow_time_text(time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text) :-
@@ -684,9 +704,11 @@ flow_time_text(time(From, To, total(Ns, Reads, ClockNs, GcNs, NGc), Rows), Text)
     (   Reads > 0 -> Per is ClockNs / Reads ; Per = 0.0 ),
     flow_dbg_time_us(GcNs, GcA),
     flow_dbg_prof_count(NGc, collection, GcT),
-    format(atom(H1), '% the ~d inferences of ~w took ~w us as the probe ran them untraced, read from the clock at ~d of them less its own ~w us there (~1f ns a reading, measured as the probe began); ~w took ~w us more, in no inference',
-           [W, Span, NsA, Reads, CkA, Per, GcT, GcA]),
-    H2 = '% a call takes from its Call to its first Exit or Fail, as the profile counts it; its self time is its Call''s own inference -- a predicate''s head and the guards its clause runs as it is entered, a builtin''s whole run -- and what no call''s own inference took is the control constructs''',
+    flow_dbg_prof_frees(Rows, Fr),
+    WI is max(0, W - Fr),
+    format(atom(H1), '% the ~d steps of ~w, ~d of them inferences (true/0 and =/2 are none), took ~w us as the probe ran them untraced, read from the clock at ~d of them less its own ~w us there (~1f ns a reading, measured as the probe began); ~w took ~w us more, in no step',
+           [W, Span, WI, NsA, Reads, CkA, Per, GcT, GcA]),
+    H2 = '% a call takes from its Call to its first Exit or Fail, as the profile counts it; its self time is its Call''s own step -- a predicate''s head and the guards its clause runs as it is entered, a builtin''s whole run -- and what no call''s own step took is the control constructs''',
     T = '% inclusive us       %     self us       %    calls  largest us  predicate',
     findall(S, member(t(_, _, _, S, _), Rows), Ss),
     sum_list(Ss, SAll),

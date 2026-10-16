@@ -152,11 +152,16 @@ turn's `--steps` -- lets them by. The tracer prints their ports as
 before, and the clock a window and the recorder number goals by counts
 every goal, them among them, so no two calls share a number:
 `'$trace_window'/4`'s `from(I)`, `to(J)` and `end(How, I, ...)`, and
-library(flow/debug)'s `at inference I`, are on that clock, which is a
-program's count plus its `true`s and `=/2`s. Naive reverse has neither
-and is 47 by both. A window whose last inference is a call that exits
-by its marker keeps that Exit (through 1.12.1 the stop came before the
-marker).
+library(flow/debug)'s `at step I`, are on that clock, which is a
+program's count plus its `true`s and `=/2`s -- its STEPS. Naive reverse
+has neither and is 47 by both. Since 1.13.5 library(flow/debug) says
+"step" for that clock wherever it prints a number on it (through 1.13.4
+it said "inference" for both), and each profile view says both counts:
+`the 50 steps of the window 1 to 50, 30 of them inferences (true/0 and
+=/2 are none)` -- a replay records each call of either, so the window's
+calls of the two are its free steps. A window whose last step is a call
+that exits by its marker keeps that Exit (through 1.12.1 the stop came
+before the marker).
 
 ## Where an error was raised
 
@@ -238,9 +243,9 @@ entered, each head before it the selection tried that did not unify (a
 clause the first-argument index passes over is never tried, and since
 1.11.2 is not recorded either), an exception raised and where a `catch/3`
 took it. `'$trace_window'(Goal, Options, Events, End)`
-runs Goal at full speed, untraced, up to the inference a window opens at
+runs Goal at full speed, untraced, up to the step a window opens at
 (`from(I)`), and records from there (`to(J)`); the window opens in place,
-inside whichever engine — a `findall/3`'s too — reaches that inference.
+inside whichever engine — a `findall/3`'s too — reaches that step.
 It records the ports the printer prints, one for one -- a retry's Redo
 only once the retry enters a clause, as the printer writes it (1.10.13;
 through 1.10.12 a Redo was recorded as every retry began, so a call that
@@ -251,26 +256,26 @@ the recorder to the printer over the trace case's queries, and a window
 to a recording of the whole run, event for event.
 
 A window can also ASK (1.10.16): `ask(Cond, Holds)` proves Cond once
-where the run stopped -- its last inference, its answer, its failure --
+where the run stopped -- its last step, its answer, its failure --
 over the bindings the run left there, before anything is undone; Holds is
 `true`, `false`, `limit` or `exception(Ball)`. A run stopped at `to(I)`
 and asked is how "when did X become 5?" is answered without a debugger
 in the run: `library(flow/debug)`'s `flow_when/4` bisects over such runs.
 
 A probe can run under a CLOCK (1.13.3): `time(F, K)` reads the monotonic
-clock at the top of every step from inference F on, untraced, and hands
-back each inference's nanoseconds -- from its reading to the next: its
+clock at the top of every step from step F on, untraced, and hands
+back each step's nanoseconds -- from its reading to the next: its
 goal's own work, a predicate's head and the guards its clause runs as it
-is entered (whose inferences no reading separates from their call's, and
+is entered (whose steps no reading separates from their call's, and
 read 0), a builtin's whole run, findall/3's own copying apart from its
 inner goals' -- all of them (K 0) or the run's last K, as `time(First,
 Last, N, Ns)` and `steps(I, [T, ...])` terms, a collection as `gc(I, Ns)`
-beside them and in no inference's time. The clock reads through the
+beside them and in no step's time. The clock reads through the
 limit's branch, MAX_STEPS moved to every step and the limit it stood for
 kept aside, so a run that does not ask pays nothing (`tools/flow/zero.sh`
 counts the same work on nrev, queens and lookup). A reading costs about
 35 ns on the four-vCPU box, N of them measured as the probe starts; the
-inferences are numbered as a replay numbers its events, so a recording of
+steps are numbered as a replay numbers its events, so a recording of
 the same window says whose each one's time was -- `library(flow/debug)`'s
 `time(T)` (DESIGN-flow.md 9.5).
 
@@ -281,7 +286,7 @@ A run is its clauses and whatever came in from outside. With
 File: a line `j(I, Module, Name/Arity, CallText, Outcome)` for each
 PORTAL call the run makes -- a call of a module that reaches the world:
 the clock, the environment, a file, a stream, a socket, a process, a
-thread and its channels, the knowledge base under `--kb` -- at inference
+thread and its channels, the knowledge base under `--kb` -- at step
 I, its text as `writeq` writes it (variables `_0`, `_1`, ...), and how it
 went: `exit(Goal)` with what it bound, `fail`, `throw(Ball)`, or
 `error(Message)`. A float is written so it reads back to the bit. With
@@ -289,7 +294,7 @@ went: `exit(Goal)` with what it bound, `fail`, `throw(Ball)`, or
 NOT RUN -- the file is not appended to again, the thread not started, the
 clock reads what it read -- and a replay that leaves the recorded run
 stops where it does, its end `diverged(I, Want, Got)`: the journal's call
-at inference I and the replay's, each `portal(I, Module, Name/Arity,
+at step I and the replay's, each `portal(I, Module, Name/Arity,
 CallText)` or `none`, for another call where the journal holds one,
 another argument, a call the journal holds made early or late, one past
 its last, and a call passed by that nothing made. A run without a journal

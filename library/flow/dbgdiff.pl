@@ -31,7 +31,7 @@
 %%            on the translator four '$pred_count'/3 inputs, 22 and 16
 %%            deep, hid the cause under them)
 %%   OnlyA    only(P, N, S, Box, Panel) for each predicate RunA called and
-%%            RunB never did: how many calls, and the first's inference,
+%%            RunB never did: how many calls, and the first's step,
 %%            box and panel, in the order of those first calls (a $ one
 %%            after the program's, as above)
 %%   OnlyB    the same the other way: in a regression, the code that ran
@@ -48,9 +48,9 @@
 %%
 %%     % 7 inputs in both runs, 3 answered differently; 0 predicates only in a, 1 only in b
 %%     differs at depth 3: add(0,1,_)
-%%       a exit add(0,1,1) at inference 3, p3.c1.g1 total.pl:3:27
-%%       b exit add(0,1,2) at inference 3, p3.c1.g1 total.pl:3:27
-%%     only in b: double/2, 3 calls, the first at inference 4; defined total.pl:5:1
+%%       a exit add(0,1,1) at step 3, p3.c1.g1 total.pl:3:27
+%%       b exit add(0,1,2) at step 3, p3.c1.g1 total.pl:3:27
+%%     only in b: double/2, 3 calls, the first at step 4; defined total.pl:5:1
 
 flow_diff(RunA, RunB, diff(Both, Differs, OnlyA, OnlyB)) :-
     flow_diff_calls(RunA, CsA),
@@ -178,7 +178,7 @@ flow_diff_text_call(R, N, c(S, _, Box, _, Ans), Places, Line) :-
     ;   AT = Ans
     ),
     flow_diff_where(Box, Places, W),
-    format(atom(Line), '~w ~w at inference ~w, ~w', [R, AT, S, W]).
+    format(atom(Line), '~w ~w at step ~w, ~w', [R, AT, S, W]).
 
 flow_diff_text_only(R, only(P, N, S, _, Pn), Places, Line) :-
     (   N =:= 1 -> CT = '1 call' ; format(atom(CT), '~d calls', [N]) ),
@@ -186,7 +186,7 @@ flow_diff_text_only(R, only(P, N, S, _, Pn), Places, Line) :-
     ->  atom_concat('; defined ', W, DT)
     ;   DT = ''
     ),
-    format(atom(Line), 'only in ~w: ~q, ~w, the first at inference ~w~w', [R, P, CT, S, DT]).
+    format(atom(Line), 'only in ~w: ~q, ~w, the first at step ~w~w', [R, P, CT, S, DT]).
 
 %% a box, and where it is written when the places say
 flow_diff_where(none, _, '-') :- !.

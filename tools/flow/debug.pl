@@ -8,8 +8,8 @@
 %%     FILE     the program
 %%     BASE     what to write: BASE.svg for a person, BASE.xml for an agent
 %%     OPTION   until=end|answer(K)   where the run stops being explained
-%%              window=N              the last N inferences up to there (2000)
-%%              from=I  to=J          the window by its inferences instead
+%%              window=N              the last N steps up to there (2000)
+%%              from=I  to=J          the window by its steps instead
 %%              discs=N               bindings numbered on the picture (24)
 %%              text=N                a value written whole up to N characters
 %%              view=flow|tree        the chart with the run over it, or the calls
@@ -27,10 +27,10 @@
 %%                                    values that crossed, which only they show
 %%                                    -- the cheap way to a profile or BASE.txt
 %%              profile=VIEWS         BASE.prof as well (false): true is each
-%%                                    predicate's calls and the inferences spent
+%%                                    predicate's calls and the steps spent
 %%                                    inside them (flow_profile_text/2); or any
 %%                                    of inclusive (that), steps (the window's
-%%                                    inferences by what took them: each
+%%                                    steps by what took them: each
 %%                                    predicate's calls and the control
 %%                                    constructs' steps), callers (each
 %%                                    predicate's callers and how many calls
@@ -38,9 +38,9 @@
 %%                                    more than once) and time (each
 %%                                    predicate's inclusive and self time,
 %%                                    the probe run untraced under a clock
-%%                                    read at every inference: 1.13.3), a
+%%                                    read at every step: 1.13.3), a
 %%                                    comma between, or all
-%%              windows=N             N windows of window=N inferences along the
+%%              windows=N             N windows of window=N steps along the
 %%              jobs=J                run, over from= to= when given, written as
 %%                                    BASE.1.*, BASE.2.*, ... -- each by a
 %%                                    process of its own, J at a time (the
@@ -60,12 +60,12 @@
 %%                                    those the files hold clauses of too
 %%                                    (the chart's panels alone by default)
 %%              when=COND             not how the run went but WHEN: the first
-%%                                    inference at which COND holds -- a goal
+%%                                    step at which COND holds -- a goal
 %%                                    over GOAL's variables, asked of the run
 %%                                    stopped there -- and the window that
 %%                                    ends there drawn (flow_when/4, which
 %%                                    journals by default); step=N asks every
-%%                                    N-th inference first
+%%                                    N-th step first
 %%              diff=FILE_B           not one run but two: GOAL over FILE and
 %%              diff_goal=GOAL_B      over FILE_B, or GOAL_B over FILE (or
 %%                                    both), each recorded whole unless a
@@ -88,31 +88,31 @@
 %% as well with txt=true; with cache=DIR the chart's XML that BASE.xml
 %% names; BASE.prof with profile=) and then one line about the run:
 %%
-%%     go(30,R): answer at inference 501; recorded 402 to 501; diverged no
+%%     go(30,R): answer at step 501; recorded 402 to 501; diverged no
 %%
 %% and with a journal, how many portal calls it held and how many of them
 %% answered the replay; a replay that left its journal says where:
 %%
-%%     grow(F): left its journal at inference 7 (stopped at inference 9); recorded 1 to 9; diverged yes (the probe: answer at inference 9; the replay: diverged at inference 9); journal 2 portal calls, 0 answered
+%%     grow(F): left its journal at step 7 (stopped at step 9); recorded 1 to 9; diverged yes (the probe: answer at step 9; the replay: diverged at step 9); journal 2 portal calls, 0 answered
 %%
 %% A replay that diverged says both ends, the probe's -- which the window
 %% was taken from -- and the replay's (1.11.4):
 %%
-%%     go(X): exception at inference 181; recorded 4429637 to 4433636; diverged yes (the probe: answer at inference 4433636; the replay: exception at inference 181)
+%%     go(X): exception at step 181; recorded 4429637 to 4433636; diverged yes (the probe: answer at step 4433636; the replay: exception at step 181)
 %%
 %% and with when=COND, where it first holds -- or that it does not where the
 %% run ends, when nothing is drawn and no file is named:
 %%
-%%     fill(L): nth1(3,L,X),X==3 first holds at inference 10; recorded 1 to 10
+%%     fill(L): nth1(3,L,X),X==3 first holds at step 10; recorded 1 to 10
 %%
 %% and with diff=, each run's files, BASE.diff, and how the two compare:
 %%
-%%     a total([1, 2, 3], T): answer at inference 12; b total([1, 2, 3], T): answer at inference 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b
+%%     a total([1, 2, 3], T): answer at step 12; b total([1, 2, 3], T): answer at step 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b
 %%
 %% and with windows=N, each window's files and line, BASE.prof, and the
 %% run's line with every window (1.11.10):
 %%
-%%     go(40, R): answer at inference 564; 3 windows: 139 to 188, 327 to 376, 515 to 564
+%%     go(40, R): answer at step 564; 3 windows: 139 to 188, 327 to 376, 515 to 564
 %%
 %% (the XML's <run> holds every call, event and binding; library/flow/debug.pl
 %% and library/flow/dbgdraw.pl say what each is). A run that failed or threw
@@ -188,9 +188,9 @@ fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J)) :-
     format("~w: ~w; recorded ~w to ~w; diverged ~w~w~n", [GT, HT, F, T, DT, JT]).
 
 fd_how(How, At, HT) :-
-    (   How = exception(B) -> format(atom(HT), 'exception ~q at inference ~w', [B, At])
-    ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at inference ~w (stopped at inference ~w)', [DI, At])
-    ;   format(atom(HT), '~w at inference ~w', [How, At])
+    (   How = exception(B) -> format(atom(HT), 'exception ~q at step ~w', [B, At])
+    ;   How = diverged(DI, _, _) -> format(atom(HT), 'left its journal at step ~w (stopped at step ~w)', [DI, At])
+    ;   format(atom(HT), '~w at step ~w', [How, At])
     ).
 
 %% PROFILE=: the views BASE.prof holds, in this order, a blank line between
@@ -281,7 +281,7 @@ fd_when(Goal, Cond, Names, File, Base, Opts) :-
     ->  ( memberchk(window(W), Opts) -> true ; W = 2000 ),
         From is max(1, I - W + 1),
         fd_files(Goal, File, Base, Opts),
-        format("~w: ~w first holds at inference ~w; recorded ~w to ~w~n", [GT, CT, I, From, I])
+        format("~w: ~w first holds at step ~w; recorded ~w to ~w~n", [GT, CT, I, From, I])
     ;   format("~w: ~w does not hold where the run ends~n", [GT, CT])
     ).
 
@@ -327,9 +327,9 @@ fd_diff(Goal, Names, File, GoalBA, Base, Opts) :-
            [GT, HA, GTB, HB, Both, ND, NA, NB]).
 
 fd_ended(run(How, At, _, _, _, _, _, _), T) :-
-    (   How = exception(B) -> format(atom(T), 'exception ~q at inference ~w', [B, At])
-    ;   How = diverged(DI, _, _) -> format(atom(T), 'left its journal at inference ~w', [DI])
-    ;   format(atom(T), '~w at inference ~w', [How, At])
+    (   How = exception(B) -> format(atom(T), 'exception ~q at step ~w', [B, At])
+    ;   How = diverged(DI, _, _) -> format(atom(T), 'left its journal at step ~w', [DI])
+    ;   format(atom(T), '~w at step ~w', [How, At])
     ).
 
 %% the files written, a line each: BASE.svg and BASE.xml unless svg=false

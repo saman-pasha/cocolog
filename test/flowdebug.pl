@@ -242,12 +242,12 @@ failing(D) :-
 %% ---- a window --------------------------------------------------------------
 
 window(D) :-
-    section('a window of the last 100 inferences of a recursion'),
+    section('a window of the last 100 steps of a recursion'),
     debugged(D, nrevw, go(30, R8), ['R'=R8], [window(100)], Run8),
     Run8 = run(How8, At8, _, window(F8, T8), Calls8, _, _, _),
     metered(go(30, _), U8),
     F8x is U8 - 99,
-    check('go(30, R): it answers where the untraced run does, and the window is its last 100 inferences',
+    check('go(30, R): it answers where the untraced run does, and the window is its last 100 steps',
           How8-At8-F8-T8, answer-U8-F8x-U8),
     findall(B, ( member(call(_, _, _, _, B, _, _, _, _, _), Calls8), B \== none ), Bs0),
     sort(Bs0, Bs8),
@@ -319,7 +319,7 @@ diverged(D) :-
     %% probe's, and a replay that ended elsewhere is no window of it (1.11.4,
     %% from cicili-lang's report)
     Div10 = diverged(end(_, PU10, _), end(_, RU10, _)),
-    format(atom(Ends10), 'diverged yes (the probe: answer at inference ~w; the replay: false at inference ~w)', [PU10, RU10]),
+    format(atom(Ends10), 'diverged yes (the probe: answer at step ~w; the replay: false at step ~w)', [PU10, RU10]),
     atom_concat(D, '/flipc.bytes', BF11),
     atom_concat(D, '/flipc', B11),
     fx(F11),
@@ -381,7 +381,7 @@ journal(D) :-
     findall(N, ( x_el(X4, call, CA4), memberchk(journal=true, CA4), memberchk(n=N, CA4) ), JC4),
     findall(A-O, ( x_el(X4, portal, PA4), memberchk(at=A, PA4), memberchk(outcome=O, PA4) ), PO4),
     findall(A, member(A-_, PO4), PAt4),
-    check('...in the XML: the <run> says so, each <portal> is the <call> the window saw at its inference',
+    check('...in the XML: the <run> says so, each <portal> is the <call> the window saw at its step',
           JA4-JC4, [journal=true, portals='6', answered='6']-PAt4),
     atom_concat(D, '/grow.pl', GF),
     fixture(GF, []),
@@ -397,7 +397,7 @@ journal(D) :-
     atom_concat(D, '/growj.svg', SF6),
     read_file_to_codes(SF6, SC6),
     xml_parse(SC6, S6),
-    (   svg_text(S6, T6), sub_atom(T6, 0, _, _, 'THE REPLAY LEFT ITS JOURNAL at inference 7') -> Said6 = said ; Said6 = silent ),
+    (   svg_text(S6, T6), sub_atom(T6, 0, _, _, 'THE REPLAY LEFT ITS JOURNAL at step 7') -> Said6 = said ; Said6 = silent ),
     atom_concat(D, '/growj.xml', XF6),
     read_file_to_codes(XF6, XC6),
     xml_parse(XC6, X6),
@@ -428,7 +428,7 @@ call_at(D, Name, G, I, P-In) :-
     ).
 
 asked_when(D) :-
-    section('flow_when/4: the first inference at which a question holds, searched over runs'),
+    section('flow_when/4: the first step at which a question holds, searched over runs'),
     fx(F),
     flow_when(fill(L1), (nth1(3, L1, X1), X1 == 3), [source(F)], W1),
     ( W1 = at(I1) -> call_at(D, at1, fill(_), I1, C1) ; C1 = W1 ),
@@ -436,13 +436,13 @@ asked_when(D) :-
           C1, (=)/2-['_', '3']),
     flow_when(fill(L2), (nth1(3, L2, X2), X2 == 3), [source(F), journal(false)], W2),
     flow_when(fill(L3), (nth1(3, L3, X3), X3 == 3), [source(F), step(5)], W3),
-    check('...the same without a journal, and stepping five inferences at a time first', W2-W3, W1-W1),
+    check('...the same without a journal, and stepping five steps at a time first', W2-W3, W1-W1),
     flow_when(fill(L4), (nth1(3, L4, X4), X4 == 4), [source(F)], W4),
     check('a question that does not hold where the run ends: never', W4, never),
     flow_when(pick(P5), P5 == 1, [source(F)], W5),
     flow_when(pick(P6), P6 == 1, [source(F), step(1)], W6),
     ( W6 = at(I6) -> call_at(D, at6, pick(_), I6, C6) ; C6 = W6 ),
-    check('pick(X): X = 1 is undone by backtracking, so not where the run ends -- never; asked at every inference, member/2''s call made it so',
+    check('pick(X): X = 1 is undone by backtracking, so not where the run ends -- never; asked at every step, member/2''s call made it so',
           W5-C6, never-(member/2-['_', '[1,2,3]'])),
     atom_concat(D, '/whenw', B7),
     flow_when(fill(L7), (nth1(5, L7, X7), X7 == 5), [source(F), base(B7), window(10)], W7),
@@ -531,7 +531,7 @@ asked_why_own(D) :-
     once(member(call(S9, l9_go/1, _, _, _, _, _, _, _, _), Calls9)),
     flow_why_call(R9, S9, W9d), why_shape(W9d, S9d),
     ( flow_why_call(R9, 999, _) -> Y9e = found ; Y9e = none ),
-    check('flow_why_call/3: one call''s why, its own clauses explained, and none for an inference the window did not see',
+    check('flow_why_call/3: one call''s why, its own clauses explained, and none for an step the window did not see',
           S9d-Y9e, why(l9_go/1, [entered(1, [exited(l9_step/2), failed((>)/2)])])-none),
     atomic_list_concat([D, '/own9b'], B9b),
     flow_debug(t9, B9b, [source(TF), txt(true), own(all)], _),
@@ -645,7 +645,7 @@ command(D) :-
     atomic_list_concat(Ls1, '\n', T1),
     ( last(Ls1, L1) -> true ; L1 = '' ),
     check('it writes BASE.svg and BASE.xml, says how the run ended, and exits 0',
-          E1-Y1-L1, 0-yes-'find(z, V): false at inference 7; recorded 1 to 7; diverged no'),
+          E1-Y1-L1, 0-yes-'find(z, V): false at step 7; recorded 1 to 7; diverged no'),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'nosuch(X)\' ', F, ' ', B, ' 2>/dev/null'], A2),
     cocolog_run(A2, _, E2),
     check('a predicate the program does not have is exit 1', E2, 1),
@@ -666,8 +666,8 @@ command(D) :-
     ( last(Ls5, L5) -> true ; L5 = '' ),
     atom_concat(B5, '.svg', SF5),
     yes_no(exists_file(SF5), Y5),
-    check('when=COND: where the question first holds, and the window of the last 4 inferences up to it drawn',
-          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at inference 10; recorded 7 to 10'),
+    check('when=COND: where the question first holds, and the window of the last 4 steps up to it drawn',
+          E5-Y5-L5, 0-yes-'fill(L): (nth1(3, L, X), X == 3) first holds at step 10; recorded 7 to 10'),
     %% (26, and 23 to 26, through 1.12.1, when fill/1's length(L, 5) was
     %% seventeen steps of clauses)
     %% depth= and only= bound the picture as chart.pl's do: the panels left
@@ -697,9 +697,9 @@ command(D) :-
     un_g(TC7, TU7),
     atom_codes(TA7, TU7),
     atomic_list_concat(TL7, '\n', TA7),
-    check('txt=true: BASE.txt named, the run one line a call -- inference, depth, goal, fate, clauses, box, where',
+    check('txt=true: BASE.txt named, the run one line a call -- step, depth, goal, fate, clauses, box, where',
           E7-N7-TL7,
-          0-named-[ '% find(z, V): false at inference 7; recorded 1 to 7; diverged no; 7 calls',
+          0-named-[ '% find(z, V): false at step 7; recorded 1 to 7; diverged no; 7 calls',
                     '% file: test/flowdebug/run.pl',
                     '1 find(z,_) fail [c1] query.g1',
                     '2   lookup(z,_) fail [c1] p1.c1.g1 :35:15',
@@ -790,7 +790,7 @@ kept_(D) :-
     atomic_list_concat(Ls5, '\n', T5),
     atom_concat(B5, '.svg', SF5), atom_concat(B5, '.xml', XF5),
     check('cache=DIR: the command names the chart''s XML after the two files',
-          E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at inference 10; recorded 1 to 10; diverged no']).
+          E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at step 10; recorded 1 to 10; diverged no']).
 
 kept_doc(B, X) :-
     atom_concat(B, '.xml', XF),
@@ -889,15 +889,15 @@ compared(D) :-
           3-[ add/3-['0', '1', '_']-exit(['0', '1', '1'])-exit(['0', '1', '2']),
               sumup/3-['[1,2,3]', '0', '_']-exit(['[1,2,3]', '0', '6'])-exit(['[1,2,3]', '0', '12']),
               total/2-['[1,2,3]', '_']-exit(['[1,2,3]', '6'])-exit(['[1,2,3]', '12']) ]),
-    check('double/2 is called in b only: three calls, the first at inference 4, its box and panel',
+    check('double/2 is called in b only: three calls, the first at step 4, its box and panel',
           OA-OB, []-[only(double/2, 3, 4, 'p3.c1.g1', p4)]),
     flow_diff_text(Df, QA, QB, Text),
     atomic_list_concat(TLs, '\n', Text),
     TLs = [H, L1, L2, L3|_],
     append(_, [LL, ''], TLs),
-    atomic_list_concat(['  a exit add(0,1,1) at inference 3, p2.c2.g1 ', PA, ':3:24'], E2),
-    atomic_list_concat(['  b exit add(0,1,2) at inference 3, p2.c2.g1 ', PB, ':3:24'], E3),
-    atomic_list_concat(['only in b: double/2, 3 calls, the first at inference 4; defined ', PB, ':5:1'], ELL),
+    atomic_list_concat(['  a exit add(0,1,1) at step 3, p2.c2.g1 ', PA, ':3:24'], E2),
+    atomic_list_concat(['  b exit add(0,1,2) at step 3, p2.c2.g1 ', PB, ':3:24'], E3),
+    atomic_list_concat(['only in b: double/2, 3 calls, the first at step 4; defined ', PB, ':5:1'], ELL),
     check('as text: each input, each run''s answer and where the call is written, and where double/2 is defined',
           [H, L1, L2, L3, LL],
           ['% 3 inputs in both runs, 3 answered differently; 0 predicates only in a, 1 only in b',
@@ -911,14 +911,14 @@ compared(D) :-
     ( last(Ls4, L4) -> true ; L4 = '' ),
     check('diff=FILE: the command writes each run and BASE.diff, and says how the two compare',
           E4-Y4-L4,
-          0-yes-'a total([1, 2, 3], T): answer at inference 12; b total([1, 2, 3], T): answer at inference 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b'),
+          0-yes-'a total([1, 2, 3], T): answer at step 12; b total([1, 2, 3], T): answer at step 18; 3 inputs in both, 3 answered differently, 0 predicates only in a, 1 only in b'),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'total([1,2,3], T)\' ', PA, ' ', BD, ' \'diff_goal=total([1,2], T)\''], A5),
     cocolog_run(A5, T5, E5),
     atomic_list_concat(Ls5, '\n', T5),
     ( last(Ls5, L5) -> true ; L5 = '' ),
     check('diff_goal=GOAL: two goals over one program -- the four inputs they share answered alike',
           E5-L5,
-          0-'a total([1, 2, 3], T): answer at inference 12; b total([1, 2], T): answer at inference 9; 4 inputs in both, 0 answered differently, 0 predicates only in a, 0 only in b').
+          0-'a total([1, 2, 3], T): answer at step 12; b total([1, 2], T): answer at step 9; 4 inputs in both, 0 answered differently, 0 predicates only in a, 0 only in b').
 
 %% a predicate whose name begins with $ is the engine's or a library's own
 %% ('$pred_count'/3), and listed after the program's (1.11.0): on the
@@ -946,7 +946,7 @@ compared_own(D) :-
 %% ---- where the inferences went ----------------------------------------------------
 
 profiled(D) :-
-    section('profile(P): where the window''s inferences went -- a call spends up to its first Exit or Fail'),
+    section('profile(P): where the window''s steps went -- a call spends up to its first Exit or Fail'),
     debugged(D, prof1, pick(X1), ['X'=X1], [profile(P1)], _),
     check('pick(X): member/2 spends to its first Exit -- the 1 > 1 its redo comes back past is pick''s',
           P1, profile(1, 6, 5, [prof(pick/1, 5, 1, 5), prof((>)/2, 2, 2, 1), prof(member/2, 2, 2, 1)])),
@@ -961,7 +961,7 @@ profiled(D) :-
     atomic_list_concat(PLs1, '\n', PT1),
     PLs1 = [PH1, _, PR1|_],
     check('as text: the window, then a row a predicate, the most inclusive first', PH1-PR1,
-          '% 5 inferences spent by the calls of the window 1 to 6, 3 predicates -- a call spends from its Call to its first Exit or Fail'-'          5   100.0        1        5  pick/1'),
+          '% 5 steps spent by the calls of the window 1 to 6, 5 of them inferences (true/0 and =/2 are none), 3 predicates -- a call spends from its Call to its first Exit or Fail'-'          5   100.0        1        5  pick/1'),
     fx(F),
     atomic_list_concat([D, '/profc'], B3),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'pick(X)\' ', F, ' ', B3, ' profile=true'], A3),
@@ -979,7 +979,7 @@ profiled(D) :-
 %% two: the callers, the goals asked again and the steps are known by hand;
 %% k(K) binds a value that would cross into K
 viewed(D) :-
-    section('callers, repeats and steps: who made the calls, the goals asked again, the inferences by what took them (1.11.10)'),
+    section('callers, repeats and steps: who made the calls, the goals asked again, the steps by what took them (1.11.10)'),
     atomic_list_concat([D, '/views.pl'], F),
     fixture(F, ['top :- a(1), a(1), b(2), b(3), c, g(_), g(_), h(Z, Z), h(_, _), k(K), K > 0.',
                 'a(X) :- leaf(X).', 'b(X) :- leaf(X), leaf(X).', 'c :- leaf(1).',
@@ -999,11 +999,28 @@ viewed(D) :-
     atomic_list_concat(SL1, '\n', ST1),
     SL1 = [SH1, _, SA1|_],
     append(_, [SZ1, ''], SL1),
-    check('steps: the window''s 20 inferences, 19 of them calls, leaf/1''s seven the most, and the one a control construct took',
+    check('steps: the window''s 20 steps, 19 of them calls, leaf/1''s seven the most, and the one a control construct took',
           [SH1, SA1, SZ1],
-          ['% the 20 inferences of the window 1 to 20 by what took them: 19 calls of 9 predicates, an inference each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
+          ['% the 20 steps of the window 1 to 20, 20 of them inferences (true/0 and =/2 are none), by what took them: 19 calls of 9 predicates, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)',
            '        7    35.0  leaf/1',
            '        1     5.0  (control constructs)']),
+    %% THE STEPS THAT WERE NO INFERENCE (1.13.5, the reasoning session's
+    %% point): a call of true/0 or =/2 is a step the window numbers and no
+    %% inference, and the header says both -- the inferences as statistics/2
+    %% counts the same goal run in a child
+    atomic_list_concat([D, '/frees.pl'], F9),
+    fixture(F9, ['fr(0) :- !.',
+                 'fr(N) :- true, X = f(N), X = f(_), ( N > 2 -> true ; Y = 1, Y == 1 ), N1 is N - 1, fr(N1).']),
+    atomic_list_concat([D, '/frees'], B9),
+    flow_debug(fr(5), B9, [source(F9), from(1), profile(P9), svg(false), xml(false)], _),
+    flow_steps_text(P9, ST9),
+    atomic_list_concat([SH9|_], '\n', ST9),
+    atomic_list_concat(['run ', F9, ' \'(statistics(inferences, A), fr(5), statistics(inferences, B), C is B - A, write(c(C)), nl)\''], A9),
+    cocolog_run(A9, T9, _),
+    ( sub_atom(T9, Bc9, _, _, 'c('), sub_atom(T9, Bc9, _, 0, CT9), term_to_atom(TT9, CT9), TT9 = c(C9) -> true ; C9 = none ),
+    format(atom(EH9), '% the 50 steps of the window 1 to 50, ~w of them inferences (true/0 and =/2 are none), by what took them: 38 calls of 6 predicates, a step each, and 12 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)', [C9]),
+    check('a window''s steps less its calls of true/0 and =/2 are its inferences, as statistics/2 counts them (30 of fr(5)''s 50)',
+          C9-SH9, 30-EH9),
     Run1 = run(_, _, _, _, _, Bs1, _, _),
     atom_concat(B, '.svg', SF1), atom_concat(B, '.xml', XF1),
     yes_no(exists_file(SF1), YS1), yes_no(exists_file(XF1), YX1),
@@ -1044,12 +1061,12 @@ viewed(D) :-
     P3 = profile(_, _, _, PR3),
     debugged(D, open20, go(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
     findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [go/2, nrev/2]) ), Open3),
-    check('a call the window closed on spends up to the last inference made under it: go/2 the whole window, nrev/2 from inference 5',
+    check('a call the window closed on spends up to the last step made under it: go/2 the whole window, nrev/2 from step 5',
           Open3, [go/2-20, nrev/2-16]),
     statistics(inferences, I0), flow_dbg_text_spaces(1000, S1000), statistics(inferences, I1),
     atom_length(S1000, L1000), DI is I1 - I0,
     ( DI < 20 -> Cost = constant ; Cost = DI ),
-    check('BASE.txt indents a call 500 levels deep at once, not a space a level (through 1.11.9, 100 000 inferences far along a recursion took minutes)',
+    check('BASE.txt indents a call 500 levels deep at once, not a space a level (through 1.11.9, 100 000 steps far along a recursion took minutes)',
           L1000-Cost, 1000-constant),
     viewed_command(D).
 
@@ -1063,13 +1080,15 @@ viewed_command(D) :-
     atom_concat(B5, '.prof', PF5),
     read_file_to_codes(PF5, PC5), atom_codes(PA5, PC5),
     atomic_list_concat(Secs5, '\n\n', PA5),
-    findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 44, _, Top) ), Tops5),
+    findall(Top, ( member(Sec, Secs5), atomic_list_concat([L|_], '\n', Sec), sub_atom(L, 0, 89, _, Top) ), Tops5),
     check('profile=all svg=false xml=false: BASE.prof alone and the line, the five views in order (time since 1.13.3)',
           E5-Ls5-Tops5,
-          0-[PF5, 'pick(X): answer at inference 6; recorded 1 to 6; diverged no']-
-            ['% 5 inferences spent by the calls of the win', '% the 6 inferences of the window 1 to 6 by w',
-             '% the callers of the 3 predicates the window', '% the goals the window 1 to 6 asked more tha',
-             '% the 6 inferences of the window 1 to 6 took']),
+          0-[PF5, 'pick(X): answer at step 6; recorded 1 to 6; diverged no']-
+            ['% 5 steps spent by the calls of the window 1 to 6, 5 of them inferences (true/0 and =/2 a',
+             '% the 6 steps of the window 1 to 6, 6 of them inferences (true/0 and =/2 are none), by wh',
+             '% the callers of the 3 predicates the window 1 to 6 called, the most called first: its ca',
+             '% the goals the window 1 to 6 asked more than once, by predicate (0), the most repeats fi',
+             '% the 6 steps of the window 1 to 6, 6 of them inferences (true/0 and =/2 are none), took ']),
     atomic_list_concat([D, '/vieww'], B6),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
     cocolog_run(A6, T6, E6),
@@ -1084,11 +1103,11 @@ viewed_command(D) :-
     %% (the query) too
     ( sub_atom(PA6, _, _, _, '    (the query)') -> Q6 = named ; Q6 = not_named ),
     %% and the time view of both, each window's probe under the clock
-    ( sub_atom(PA6, _, _, _, '\n% the 80 inferences of the 2 windows 211 to 250, 462 to 501 took ') -> M6 = timed ; M6 = untimed ),
-    check('windows=2: two windows of 40 inferences, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
+    ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
+    check('windows=2: two windows of 40 steps, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
           E6-Y6-L6-SH6-Q6-M6,
-          0-yes-'go(30, R): answer at inference 501; 2 windows: 211 to 250, 462 to 501'-
-          '% the 80 inferences of the 2 windows 211 to 250, 462 to 501 by what took them: 79 calls of 1 predicate, an inference each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
+          0-yes-'go(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
+          '% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
           not_named-timed).
 
 %% ---- where the time went (1.13.3) -------------------------------------------------
@@ -1101,7 +1120,7 @@ viewed_command(D) :-
 %% inference that costs a thousand is found.
 
 timed(D) :-
-    section('time(T): where the window''s time went -- the probe under a clock, the replay saying whose each inference was (1.13.3)'),
+    section('time(T): where the window''s time went -- the probe under a clock, the replay saying whose each step was (1.13.3)'),
     atomic_list_concat([D, '/timed.pl'], F),
     fixture(F, ['t_sort(X) :- numlist(1, 20000, L0), reverse(L0, L), msort(L, S), last(S, X).',
                 't_count(0) :- !.', 't_count(N) :- N1 is N - 1, t_count(N1).',
@@ -1114,21 +1133,21 @@ timed(D) :-
     findall(Pr-N, member(t(Pr, N, _, _, _), TR1), TN1), msort(TN1, STN1),
     W1 is PT1 - PF1 + 1,
     ( Ns1 > 0, Reads1 < W1 -> S1 = timed ; S1 = Ns1-Reads1-W1 ),
-    check('the window the profile counts, its predicates and their calls; timed, and some of its inferences not read',
+    check('the window the profile counts, its predicates and their calls; timed, and some of its steps not read',
           TF1-TT1-STN1-S1, PF1-PT1-SPN1-timed),
     ( memberchk(t(is/2, NI1, _, SI1, _), TR1) -> true ; NI1 = 0, SI1 = none ),
     check('is/2, a guard its clause runs as it is entered: 400 calls and no time of its own -- it is t_count/1''s',
           NI1-SI1, 400-0),
     findall(Se-Pr, member(t(Pr, _, _, Se, _), TR1), SPs1), max_member(_-Top1, SPs1),
     ( memberchk(prof(msort/2, IM1, NM1, _), PR1) -> true ; IM1 = 0, NM1 = 0 ),
-    check('msort/2: one inference in the profile, and in time the most of any predicate''s own',
+    check('msort/2: one step in the profile, and in time the most of any predicate''s own',
           Top1-IM1-NM1, (msort/2)-1-1),
     ( memberchk(t(t_sort/1, 1, IS1, SS1, _), TR1), SS1 * 10 < IS1 -> O1 = own ; O1 = none ),
-    check('a predicate''s own time is its Call''s inference: t_sort/1''s is a tenth of what it takes inside',
+    check('a predicate''s own time is its Call''s step: t_sort/1''s is a tenth of what it takes inside',
           O1, own),
     flow_time_text(T1, TX1),
     atomic_list_concat([TH1, _, TC1, TD1|_], '\n', TX1),
-    format(atom(TP1), '% the ~d inferences of the window ~d to ~d took ', [W1, PF1, PT1]),
+    format(atom(TP1), '% the ~d steps of the window ~d to ~d, ~d of them inferences (true/0 and =/2 are none), took ', [W1, PF1, PT1, W1]),
     ( atom_concat(TP1, _, TH1) -> H1 = header ; H1 = TH1 ),
     ( sub_atom(TD1, _, _, 0, '  t_go/1') -> D1 = t_go ; D1 = TD1 ),
     check('as text: the window''s time, then a row a predicate, the most inclusive first',
@@ -1425,7 +1444,7 @@ raised_place(D) :-
     read_file_to_codes(SF4, SC4),
     xml_parse(SC4, S4),
     findall(T4, ( svg_text(S4, T4), sub_atom(T4, _, _, _, 'an exception raised by') ), By4),
-    findall(T4b, ( svg_text(S4, T4b), sub_atom(T4b, _, _, _, 'an exception raised at inference') ), At4),
+    findall(T4b, ( svg_text(S4, T4b), sub_atom(T4b, _, _, _, 'an exception raised at step') ), At4),
     length(At4, NAt4),
     check('...and the banner names no call as its raiser: through 1.11.4 it named note/1, the last call made, which had exited',
           By4-NAt4, []-1).
