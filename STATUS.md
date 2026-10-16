@@ -106,7 +106,8 @@ crashes, its join of thirty kilobytes answers `false`, and
 fixed now** (below): the join has no ceiling, and the partial list raises
 `instantiation_error` where it used to crash -- though it still JOINS
 where SWI would split, which is a mode difference and not a defect in the
-buffer. `set_prolog_flag/2` remains a directive by construction.
+buffer. `set_prolog_flag/2` remained a directive by construction until
+2.2.2, which made it a goal as well (the last section).
 
 ### One stack, three suites, one server
 
@@ -6051,7 +6052,8 @@ Found on the way and not changed, COMPAT.md's rows: a float result that is
 a NaN or infinite raises in SWI (`undefined`, `float_overflow`,
 `zero_divisor`) and is the answer here; `**` and `^` with a zero exponent
 or the base 1 are the integer 1 in SWI; `truncate/1` and its kin hand a
-NaN or an infinity back in SWI and raise here.
+NaN or an infinity back in SWI and raise here. (All three are swipl's
+since 2.2.0, below.)
 
 `test/files/float_arith.pl` is run by swipl and by cocolog, and its 166
 lines agree byte for byte. It covers:
@@ -6116,7 +6118,8 @@ now). Through 2.1.2:
 
 Now they are swipl 9.0.4's, whose float flags stand at their defaults
 (`float_overflow`, `float_zero_div` and `float_undefined` at `error`,
-`float_underflow` at `ignore`; cocolog has no flags to change them):
+`float_underflow` at `ignore`; cocolog had no flags to change them until
+2.2.2, the last section):
 
 * **A float a function makes is a number or an error** (`coco_float_ok`,
   swipl's `check_float()`): a NaN raises `evaluation_error(undefined)`, an
@@ -6271,7 +6274,8 @@ acknowledged**, and the index says nothing soft. The 122 went four ways:
   now (eleven of the card's 31 rows carry a pattern), its `why` says which
   of SWI's functions are absent here (atan/2, atan2/2, copysign/2, random/1,
   the hyperbolics, lgamma, erf, inf, nan, epsilon, ...), and that swipl 9
-  lacks `log/2` as well.
+  lacks `log/2` as well. (2.2.2 made `inf`, `nan` and `epsilon` evaluable
+  and took them off the list.)
 * **Not read.** `lib/swipl/`'s eight files are SWI's own libraries,
   unmodified, and the source the blocklist is made from: 275 of their 280
   findings were heads colliding with themselves. The linter leaves them
@@ -6299,3 +6303,145 @@ pattern put back; astar's import, lesson 10's names, lesson 36's one
 04, 07, 09, 10, 26, 27, 31, 36, 37 (now nine rules and eleven patterns, and
 `cl_acks/3` shown), 38 and 39 run to `done`; two tensor lessons train and
 test over the hook; the files and stream cases are green.
+
+## swipl's float flags, and `set_prolog_flag/2` a goal (2.2.2)
+
+The owner's ask: `set_prolog_flag(float_overflow, infinity)`. Numbered as
+the patch, the default, with no owner's number to hand; what it adds is
+reachable from a program, so 2.3.0 is PROPOSED for it. Through 2.2.1:
+
+* `set_prolog_flag/2` was a directive and no goal (`existence_error` as
+  one), and it knew three flags, `double_quotes`, `text_units` and
+  `generate_debug_info`; any other was reported (`cocolog has no flag`)
+  and the load went on;
+* every float was checked as swipl's defaults check it (2.2.0), with no
+  flag to change that;
+* `inf`, `nan` and `epsilon` were not evaluable
+  (`type_error(evaluable, inf/0)`), so `between(1, inf, X)` raised;
+* `-/1` turned a NaN's sign bit over, and so did the reader's `-1.5NaN`;
+* `current_prolog_flag/2` answered ten flags.
+
+Now they are swipl 9.0.4's:
+
+* **The four float flags** live on the machine as `fflags` (1
+  `float_overflow` at `infinity`, 2 `float_zero_div` at `infinity`, 4
+  `float_undefined` at `nan`, 8 `float_underflow` at `error`; 0 is swipl's
+  defaults). `coco_float_verdict` is swipl's `check_float()`: a NaN is
+  made swipl's one NaN (the bits `1.5NaN` reads as) and stands under
+  `nan`, else raises `undefined`; an infinity stands under `infinity`,
+  else raises `float_overflow`; and under `error` a subnormal raises
+  `float_underflow`. `coco_zero_div` is `check_zero_div()`: a number over
+  a zero is, under `infinity`, the infinity of the sign swipl gives it --
+  an integer dividend's sign, of two floats the product of their signs, a
+  zero base under a negative exponent `1.0Inf` but for `-0.0` under an odd
+  INTEGER one (`-0.0 ** -3` is `-1.0Inf`, `-0.0 ** -3.0` `1.0Inf`) -- and
+  `0 / 0` is the NaN under `float_undefined` at `nan` and a zero divisor
+  under anything else, where `0.0 / 0.0` is `undefined`.
+* **Where swipl checks, this checks**: every float result of `+`, `-` and
+  `*` (so `float_underflow` sees a subnormal one), the float operands and
+  the result of `/`, `**`, `^` and the functions, and of `max` and `min`
+  over two equal floats the one picked; `sum_list/2`, `max_list/2`,
+  `min_list/2` and `aggregate_all/3` ask the same verdict
+  (`coco_l_float_ok`). The constants, the literals, `abs`, `sign`, `+/1`
+  and `-/1` are not checked, and `integer/1` and its kin still hand a NaN
+  or an infinity back.
+* **`set_prolog_flag/2` is a goal** (`lb_set_flag`), raising swipl's
+  errors in swipl's order. The flag comes first: `instantiation_error`,
+  `type_error(atom, F)`, `existence_error(prolog_flag, F)` for a flag this
+  has not got, `permission_error(modify, flag, F)` for a read-only one
+  (`argv`, `os_argv`, `executable`, `bounded`, the integer and the float
+  bounds). Then the value: `instantiation_error`, `type_error(atom, V)`,
+  `domain_error(flag_value, V)` for a float flag,
+  `domain_error(double_quotes, V)`, `domain_error(text_units, V)`, and
+  `type_error(bool, V)` for `generate_debug_info`.
+* **The directive keeps the reader's three** -- `double_quotes`,
+  `text_units`, `generate_debug_info`, which say how the rest of the file
+  is read -- and calls any other as a goal, whose refusal is reported in
+  swipl's words while the load goes on.
+* **A thread and `run_isolated/2` made after a set start with it**: the
+  set writes the process's default too (`coco_fflags_default_set`), as
+  `text_units` does. **A frozen machine keeps its flags**, in a section `N`
+  after `B` (`F` is the functors'); a blob with none thaws at swipl's
+  defaults.
+* **`current_prolog_flag/2` answers seventeen**: the four, and
+  `float_min`, `float_max` and `float_max_integer` as well.
+* **`inf`, `nan` and `epsilon` are evaluable** (`*arith-names*`), and
+  `between(1, inf, X)` counts for ever as swipl's does.
+* **`-/1` keeps a NaN's bits**, as swipl's `ar_u_minus()` does, and the
+  reader's `-1.5NaN` is `1.5NaN`.
+
+Not swipl's yet (COMPAT.md): there is no `float_rounding`; an unknown flag
+raises `existence_error` where swipl makes it (`user_flags` is `silent`);
+`argv` and `os_argv` are read-only; a flag a thread sets becomes the
+process's default, where swipl keeps it the thread's; and
+`between(1, infinite, X)` raises.
+
+`test/files/float_flags.pl` is run by swipl and by cocolog, and its 925
+lines agree byte for byte: the setter's answers and errors, then 147
+expressions under six settings (the defaults, each flag alone, all four
+together), each setting's flags read back first. 2.2.1 differs on 788 of
+them: it has no `set_prolog_flag/2` to call. `test/engine.pl`'s
+`float_flags` section holds what swipl cannot be asked: a directive that
+sets a flag, and the load going on past two refused ones, each reported
+in swipl's words; a thread made after a goal set it; and a machine frozen
+after the goal, thawed by a process that reckons by the defaults.
+`test/units.pl` sets `text_units` as a goal.
+
+Thirty-four arms take one rule out each, and each goes red: the lines of
+the 925 that differ from swipl, or the case that catches it.
+
+| arm | red |
+|---|---|
+| `float_overflow` not read | 77, and `test/engine.pl` |
+| `float_undefined` not read | 60, and `test/engine.pl` |
+| `float_underflow` not checked | 34 |
+| a NaN kept as libm made it, not swipl's one | 5 |
+| `float_zero_div` not read | 48 |
+| `0 / 0` not the NaN under `float_undefined` at `nan` | 4 |
+| a float over a zero: the infinity's sign not the signs' product | 4 |
+| a NaN over a zero taken for a number over one | 2 |
+| an integer over a zero: the infinity's sign not the dividend's | 8 |
+| an infinity over an infinity raising where the flags let its NaN stand | 2 |
+| an integer zero base under a negative exponent always raising | 10 |
+| `-0.0` under an odd integer exponent `1.0Inf` | 2 |
+| `+`, `-` and `*` checking only a result that is no number | 8 |
+| `coco_num_pick` answering 2 only for two infinities | 6 |
+| `is/2`'s max and min of two equal floats always raising | 10 |
+| `max_list/2` and `min_list/2` the same | 10 |
+| `aggregate_all/3`'s first `max(X, X)` the same | 8 |
+| `aggregate_all/3`'s later steps the same | 4 |
+| library(lists)' checks blind to the flags | 26 |
+| `inf`, `nan` and `epsilon` not evaluable | 63 |
+| `-/1` turning a NaN's sign over | 6, and `float_arith` |
+| the reader's `-1.5NaN` the same | `float_arith` |
+| `current_prolog_flag/2` blind to the four | 24, and `test/engine.pl` |
+| `float_min`, `float_max`, `float_max_integer` not answered | 3 |
+| a read-only flag set | 3 |
+| a float flag's wrong value taken | 3, and `test/engine.pl` |
+| `double_quotes` refused as a goal | 2 |
+| `text_units` refused as a goal | `test/units.pl` |
+| `generate_debug_info` refused as a goal | 2 |
+| the process's default not set | `test/engine.pl` (the thread) |
+| a flag that is no atom unrefused | 2 |
+| an unbound flag unrefused | 1 |
+| the freeze without its `N` section | `test/engine.pl` (the frozen machine) |
+| the directive keeping every flag, as through 2.2.1 | `test/engine.pl` |
+
+Found on the way and not changed: the writer puts a space between any
+symbolic prefix operator and a number (`+ 1`, `+ 1.0Inf`, `\ 1`), which
+swipl 9 does after `-` alone, the one whose `-1` reads as a number
+(swipl writes `+1`, `+1.0Inf`, `\1`); both read `+1` as `+(1)`, so the
+text differs and the term does not. 2.2.1 writes the same.
+
+Green on 2.2.2: files (all 35 swipl-compared files), engine, units, state,
+directives, errors, argv, string, cyclic, gc, flowchart (over rebuilt
+tables) and lint, and the card check. `make test` has not been run on it.
+
+`tools/flow/zero.sh` against 2.2.1, the two binaries placed alike and run
+both ways round, counting work less padding:
+
+| | instructions | padding |
+|---|---|---|
+| nrev | -26 | +57 |
+| queens | -121 | -19 |
+| lookup | -933 | +56 |

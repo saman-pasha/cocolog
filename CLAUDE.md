@@ -276,9 +276,13 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
-  `text_units` (1.13.0) and since 2.0.0 `bounded`, `max_integer`,
-  `min_integer`, `max_tagged_integer` and `min_tagged_integer` are the only
-  flags answered. `library(main)` parses the tail.
+  `text_units` (1.13.0), since 2.0.0 `bounded`, `max_integer`,
+  `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
+  2.2.2 swipl's four float flags and `float_min`, `float_max` and
+  `float_max_integer` are the only flags answered; set_prolog_flag/2 sets
+  `double_quotes`, `text_units`, `generate_debug_info` (taken and unused)
+  and the float flags, as a goal since 2.2.2, and refuses every other flag
+  in swipl's words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -338,8 +342,10 @@ links the engine) and runs the 63 `.pl` cases in `pl_names/1`
   and never reuse a suffix. When a goal answers differently inside a clause
   than alone, look for a variable the clause already bound.
 * **libc regex `.` matches a newline**: `answer\([^\n]*\)`, not `.*`.
-* **`set_prolog_flag/2` is a directive**, not a goal; a case cannot put a
-  flag back itself.
+* **`set_prolog_flag/2` is a goal since 2.2.2** (only a directive
+  through 2.2.1), so a case can set a flag and put it back; `text_units`
+  and the float flags it sets are the process's default as well, which a
+  thread or `run_isolated/2` made after it starts with.
 * **A section that ends with no red check and no verdict line is a goal that
   FAILED**: suspect a builtin answering 0 where it should raise, a
   `proc_run/4` timeout, or a fixture lesson that lacks a word.
@@ -884,7 +890,9 @@ cocolint index offers no import of it.
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
-  reader (`op/3`, `set_prolog_flag/2`, `dynamic/1`, `discontiguous/1`,
+  reader (`op/3`, `set_prolog_flag/2` of `double_quotes`, `text_units` or
+  `generate_debug_info` -- any other flag is the goal's since 2.2.2,
+  `coco_reader_flag` --, `dynamic/1`, `discontiguous/1`,
   `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,
   `ensure_loaded/1`, `meta_predicate/1`, `if/elif/else/endif`) and calls
   everything else in file order. `initialization(G)` runs after the file is
@@ -1514,31 +1522,53 @@ cocolint index offers no import of it.
   does (through 2.1.1 in doubles: 2^53 + 1 summed to 2^53, and two halves
   of 2^63 to the least integer), and `sign/1` of a NaN is SWI's one NaN.
   The guards never meet any of it: they take integers alone.
-  **A float a function makes is a number or an error** (2.2.0, swipl's
-  check_float() under its flags' defaults; cocolog has no flags to change
-  them): a NaN raises `evaluation_error(undefined)` (`0.0 / 0.0`,
+  **A float a function makes is a number, or what swipl's four float
+  flags let it be** (2.2.0; the flags since 2.2.2): `float_overflow`
+  (`error` or `infinity`), `float_zero_div` (`error` or `infinity`),
+  `float_undefined` (`error` or `nan`) and `float_underflow` (`ignore` or
+  `error`), set by set_prolog_flag/2 as a goal or a directive and read by
+  current_prolog_flag/2 beside swipl's read-only `float_min`, `float_max`
+  and `float_max_integer`. They are four bits on the machine (`fflags`, 0
+  for swipl's defaults), the process's default for a machine made after
+  them (`coco_fflags_default`, as `text_units` keeps its), and kept by a
+  frozen machine (section `N`, after `B`; `F` is the functors'). At the
+  defaults a NaN raises `evaluation_error(undefined)` (`0.0 / 0.0`,
   `sqrt(-1.0)`), an infinity `float_overflow` (`10.0 ** 400`, `log(0.0)`),
-  a number other than zero over a float zero `zero_divisor`; a subnormal is
-  a number. `coco_float_ok` asks it of what `+`, `-` and `*` make (the
-  macro answers 5), of `/`, `**` and `^`, of sqrt/1, the transcendentals,
-  exp/1, log/1 and float/1 (`coco_float_fn`), and first of each float
-  OPERAND those take, as swipl's promotion does -- so `1.0Inf ** -1` and
-  `sin(1.0Inf)` are float_overflow where libm answers 0.0 and a NaN;
-  sum_list/2 and aggregate_all/3's sum ask it of each float sum
-  (`coco_l_float_ok`), and max and min of two equal infinities raise
-  float_overflow (`coco_num_pick` answers 2; swipl makes the two one type
-  and checks the float it makes), aggregate_all/3's first `max(X, X)` among
-  them. Unchecked, as in swipl: the sign, `abs`, `-`, `+` and the
-  comparisons; integer/1, truncate/1, round/1, floor/1 and ceiling/1, which
-  hand a NaN or an infinity back as it came (`coco_float_back`; undefined
-  through 2.1.2); and `/` over an infinity, the integer 0 for an integer and
-  a signed zero for a float. A power is swipl's ar_pow(): `X ** 0` is the
-  integer 1 (a NaN's too), `1 ** Y` 1, `0 ** Y` 0 or a zero divisor,
-  `-1 ** N` 1 or -1. Through 2.1.2 each of these was the C answer, the NaN
-  or the infinity, and a power with a float in it a float.
-  `test/files/float_check.pl` (194 lines) holds it to swipl; 24 arms red.
+  a number other than zero over a zero `zero_divisor`; a subnormal is a
+  number. `coco_float_verdict` is swipl's check_float() under the flags,
+  and makes a NaN SWI's one NaN (0x7FF8000000000000, what `1.5NaN` reads
+  as) whatever its bits, so two the flags let stand are `==`;
+  `coco_float_ok` raises through the engine and `coco_l_float_ok` through
+  the module seam. `coco_zero_div` is check_zero_div(): a zero over a zero
+  is the NaN under `float_undefined`, anything else over one the infinity
+  of the two signs' product under `float_zero_div` (`1 / -0.0` and
+  `-0.0 ** -1` are -1.0Inf, `-0.0 ** -2` and `-0.0 ** -1.0` 1.0Inf: an odd
+  INTEGER exponent alone keeps the zero's sign). The check is asked of
+  every float `+`, `-` and `*` make (the macro answers 5 for each), of `/`,
+  `**` and `^`, of sqrt/1, the transcendentals, exp/1, log/1 and float/1
+  (`coco_float_fn`), and first of each float OPERAND those take, as
+  swipl's promotion does -- so `1.0Inf ** -1` and `sin(1.0Inf)` are
+  float_overflow where libm answers 0.0 and a NaN, and a subnormal operand
+  raises under `float_underflow` `error`; sum_list/2 and aggregate_all/3's
+  sum ask it of each float sum, and max and min of two equal floats ask it
+  of the first (`coco_num_pick` answers 2; swipl makes the two one type
+  and checks the float it makes), aggregate_all/3's first `max(X, X)`
+  among them. Unchecked, as in swipl: a float literal and the constants
+  (`pi`, `e`, and since 2.2.2 `inf`, `nan` and `epsilon`), the sign,
+  `abs`, `+` and the comparisons; `-`, which keeps a NaN's bits as the
+  reader does (`-(nan) == nan`, `-1.5NaN == 1.5NaN`, 2.2.2); integer/1,
+  truncate/1, round/1, floor/1 and ceiling/1, which hand a NaN or an
+  infinity back as it came (`coco_float_back`; undefined through 2.1.2);
+  and `/` over an infinity, the integer 0 for an integer and a signed zero
+  for a float. A power is swipl's ar_pow(): `X ** 0` is the integer 1 (a
+  NaN's too), `1 ** Y` 1, `0 ** Y` 0 or a zero divisor, `-1 ** N` 1 or -1.
+  Through 2.1.2 each of these was the C answer, the NaN or the infinity,
+  and a power with a float in it a float. `test/files/float_check.pl` (194
+  lines) holds the defaults to swipl, and `test/files/float_flags.pl` (925
+  lines) every flag alone and the four together; 24 arms red, and 34.
   **A new evaluable function that makes a float asks `coco_float_ok` of it,
-  and of each float it takes.**
+  and of each float it takes; a new division by zero goes through
+  `coco_zero_div`.**
 * **`>>` and `<<` take any count** (1.14.0, `coco_shift_right` and
   `coco_shift_left` in lib/term.cicili, which both evaluators call --
   `coco_arith` and the guards' runner, written once in kb.cicili and

@@ -425,7 +425,10 @@
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))
           (if (== (-> r tok) COCO_TK_FLOAT)
-              (block (set (cof out) (coco_new_float (-> r m) (- (-> r fval))))   ; -0.0 keeps its sign
+              ;; -0.0 keeps its sign, and a NaN its bits, as swipl's reader
+              ;; and -/1 keep them (2.2.2): -1.5NaN == 1.5NaN
+              (block (set (cof out) (coco_new_float (-> r m) (? (!= (-> r fval) (-> r fval))
+                                                                (-> r fval) (- (-> r fval)))))
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))))
 

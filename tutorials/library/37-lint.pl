@@ -241,9 +241,10 @@ t37_where :-
 
 t37_lookahead :-
     format("~n-- 7. THE NEGATIVE LOOKAHEAD POSIX HAS NO FORM FOR~n"),
-    format("   Rule P1: ten prolog flags answer here -- executable, argv,~n"),
-    format("   os_argv, double_quotes, text_units, and since 2.0.0 bounded~n"),
-    format("   and the four integer bounds -- and every other one FAILS, so a~n"),
+    format("   Rule P1: seventeen prolog flags answer here -- executable,~n"),
+    format("   argv, os_argv, double_quotes, text_units, since 2.0.0 bounded~n"),
+    format("   and the four integer bounds, and since 2.2.2 the four float~n"),
+    format("   flags and the three float bounds -- and every other one FAILS, so a~n"),
     format("   portability shim written against another flag takes the wrong~n"),
     format("   branch, silently. The rule has to fire on every flag BUT those~n"),
     format("   (one of them, here). In a DCG the lookahead is \\+, one word;~n"),

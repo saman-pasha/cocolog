@@ -426,6 +426,14 @@
     ;; `:- set_prolog_flag(text_units, V)'), and kept by a frozen machine.
     (member int        text_chars)
 
+    ;; WHAT A FLOAT THAT IS NO NUMBER BECOMES (2.2.2, swipl's four flags),
+    ;; a bit each, 0 for swipl's defaults: 1 float_overflow infinity, 2
+    ;; float_zero_div infinity, 4 float_undefined nan, 8 float_underflow
+    ;; error. Taken from the process's default when the machine is made
+    ;; (`coco_fflags_default': the last set_prolog_flag/2 of one of them),
+    ;; and kept by a frozen machine.
+    (member int        fflags)
+
     ;; the string table -- see coco_str above
     (member coco_str * strings)
     (member size_t     strings_len)
@@ -668,6 +676,9 @@
   ;; ---- text in characters (1.13.0, the `text_units' flag) ----
   (decl) (func coco_text_default () (out int))
   (decl) (func coco_text_default_set ((int chars)))
+  ;; ---- the float flags (2.2.2) ----
+  (decl) (func coco_fflags_default () (out int))
+  (decl) (func coco_fflags_default_set ((int fl)))
   (decl) (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
   (decl) (func coco_utf8_enc ((char * u) (i64 cp)) (out int))
   (decl) (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int))
@@ -1037,6 +1048,7 @@
         (set (-> m wceil) (cast size_t -1))
         (set (-> m ubudget) 1048576)
         (set (-> m text_chars) (coco_text_default))
+        (set (-> m fflags) (coco_fflags_default))
         (return 1))
 
   (func coco_machine_free ((coco_machine * m))
@@ -1135,6 +1147,18 @@
 
   (func coco_text_default_set ((int chars))
         (set coco_text_dflt chars))
+
+  ;;; THE FLOAT FLAGS' DEFAULT (2.2.2): swipl's (0) until a set_prolog_flag/2
+  ;;; of one of them, and then what it left, so a machine made after it -- a
+  ;;; thread's, run_isolated/2's -- reckons as the program does, as
+  ;;; `coco_text_default' keeps the units.
+  (static) (var int coco_fflags_dflt . 0)
+
+  (func coco_fflags_default () (out int)
+        (return coco_fflags_dflt))
+
+  (func coco_fflags_default_set ((int fl))
+        (set coco_fflags_dflt fl))
 
   ;;; ONE CHARACTER OF S (N bytes) AT *I, as its code point, *I moved past
   ;;; it. A byte that begins no well-formed UTF-8 -- a stray continuation, a

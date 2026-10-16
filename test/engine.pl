@@ -35,7 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
-    small_steps, shifts, integers_only, integers_64(D), variables(D),
+    small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1453,6 +1453,53 @@ integers_64(D) :-
             L7),
     check('the least integer made inside a guard, then negated or divided by -1: the step raises', L7, []),
     i6_text, i6_order, i6_kept(D), i6_builtins.
+
+%% THE FLOAT FLAGS (2.2.2), swipl's four. test/files/float_flags.pl holds
+%% every answer under them to swipl's; here, what swipl cannot be asked:
+%% the directive, which hands any flag but the reader's three to the goal
+%% and reports a refusal as an ERROR naming it while the load goes on; a
+%% thread made after the goal, whose machine takes the process's default;
+%% and a machine frozen after the goal, which keeps its flags (`N') in a
+%% process that reckons by swipl's defaults.
+float_flags(D) :-
+    section('the float flags: the directive, a thread, a frozen machine'),
+    atom_concat(D, '/ffd.pl', F1),
+    fixture(F1, [ ':- set_prolog_flag(float_overflow, infinity).',
+                  ':- set_prolog_flag(float_zero_div, banana).',
+                  ':- set_prolog_flag(no_such_flag, x).',
+                  'main :- X is 10.0 ** 400, current_prolog_flag(float_zero_div, Z), write(X-Z), nl.' ]),
+    last_line_of(F1, main, 60000, G1),
+    check('a directive sets float_overflow, and the load goes on past two refused', G1, '1.0Inf-error'),
+    cocolog(C),
+    sh_join([C, ' run ', F1, ' main 2>&1 >/dev/null'], Cmd2), shell(Cmd2, Out2, _),
+    findall(W2, ( member(W2-N2, [domain-'Domain error: `flag_value\' expected, found `banana\'',
+                                 existence-'prolog_flag `no_such_flag\' does not exist']),
+                  \+ sub_atom(Out2, _, _, _, N2) ),
+            L2),
+    check('...each refusal reported in swipl\'s words', L2, []),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  answer(( set_prolog_flag(float_undefined, nan),
+                 channel_new(Ch3), thread_create(( catch(X3 is 0.0 / 0.0, E3, X3 = E3), channel_send(Ch3, X3) ), I3),
+                 thread_join(I3, _), channel_recv(Ch3, M3),
+                 set_prolog_flag(float_undefined, error) ), M3, G3),
+        check('a thread made after set_prolog_flag/2 reckons by it: 0.0 / 0.0 is the NaN', G3, 1.5NaN)
+    ;   format("   (library(thread) is not built: sh modules/thread/build.sh)~n", [])
+    ),
+    atom_concat(D, '/ffz.pl', F4), atom_concat(D, '/ffz-kb', K4),
+    fixture(F4, [ 'go :- set_prolog_flag(float_overflow, infinity), spin(3000), X is 10.0 ** 400, write(answer(X)), nl.',
+                  'spin(0) :- !.',
+                  'spin(N) :- M is N - 1, spin(M).' ]),
+    %% `start' makes and freezes the machine and runs nothing: the first
+    %% step, of 100 inferences, sets the flag and freezes it again, and the
+    %% second, a process that reckons by swipl's defaults, thaws it
+    sh_join([C, ' --embed ', K4, ' consult ', F4, ' >/dev/null 2>&1; ',
+             C, ' --embed ', K4, ' start ff go >/dev/null 2>&1; ',
+             C, ' --embed ', K4, ' --steps 100 step ff >/dev/null 2>&1; ',
+             C, ' --embed ', K4, ' --steps 100000 step ff 2>&1'], Cmd4),
+    proc_run(Cmd4, 120000, Out4, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out4, A4) -> true ; atom_codes(A4, Out4) ),
+    check('a machine frozen after set_prolog_flag/2 thaws reckoning by it, in a process that does not', A4,
+          'answer(1.0Inf)').
 
 %% TERM_VARIABLES/2 FINDS N VARIABLES IN TIME LINEAR IN N (2.1.0), and
 %% subsumes_term/2 and =@=/2, which walk Specific's variables with it,

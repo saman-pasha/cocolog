@@ -44,7 +44,8 @@
   '(("use_module"         1 lb_use_module1)
     ("use_module"         2 lb_use_module2)
     ("ensure_loaded"      1 lb_use_module1)
-    ("current_prolog_flag" 2 lb_current_flag)))
+    ("current_prolog_flag" 2 lb_current_flag)
+    ("set_prolog_flag"     2 lb_set_flag)))
 
 (generic decl-library
   ()
@@ -203,8 +204,8 @@
           (return out)))
 
   ;;; THE PROCESS'S THREE OF SWI'S FLAGS: `executable', `argv' and
-  ;;; `os_argv'. cocolog has no flag table (`set_prolog_flag' in kb.cicili
-  ;;; knows `double_quotes' and refuses the rest), and a
+  ;;; `os_argv'. cocolog has no flag table (`lb_set_flag' below sets seven,
+  ;;; the float four among them, and refuses the rest), and a
   ;;; `current_prolog_flag' that enumerated a dozen invented flags would be
   ;;; the predicate this repository's rule warns about: one that agrees
   ;;; with SWI until it does not. So these three and the language's below
@@ -273,10 +274,127 @@
               (return (coco_m_unify_int e (coco_m_arg e g 1) 1152921504606846975)))
           (if (== 0 (strcmp flag "min_tagged_integer"))
               (return (coco_m_unify_int e (coco_m_arg e g 1) -1152921504606846976)))
+          ;; THE FLOATS (2.2.2): what a float that is no number becomes, as
+          ;; set_prolog_flag/2 left it for this machine (`fflags'), and
+          ;; swipl's three read-only bounds -- the least normal double, the
+          ;; greatest, and 2^53, past which a double holds no odd integer
+          (let ((int fl . #'(-> (coco_m_machine e) fflags)))
+            (if (== 0 (strcmp flag "float_overflow"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (!= 0 (bitand fl 1)) "infinity" "error"))))
+            (if (== 0 (strcmp flag "float_zero_div"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (!= 0 (bitand fl 2)) "infinity" "error"))))
+            (if (== 0 (strcmp flag "float_undefined"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (!= 0 (bitand fl 4)) "nan" "error"))))
+            (if (== 0 (strcmp flag "float_underflow"))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) (? (!= 0 (bitand fl 8)) "error" "ignore")))))
+          (if (== 0 (strcmp flag "float_min"))
+              (return (coco_m_unify_float e (coco_m_arg e g 1) 2.2250738585072014e-308)))
+          (if (== 0 (strcmp flag "float_max"))
+              (return (coco_m_unify_float e (coco_m_arg e g 1) 1.7976931348623157e308)))
+          (if (== 0 (strcmp flag "float_max_integer"))
+              (return (coco_m_unify_float e (coco_m_arg e g 1) 9007199254740992.0)))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
           (return (coco_m_unify_atom e (coco_m_arg e g 1) lb_exe_path))))
+
+  ;;; THE VALUE OF V, an atom no longer than CAP, or the raise's answer as
+  ;;; set_prolog_flag/2 says it: instantiation_error, type_error(atom, V),
+  ;;; and an atom too long for any flag's value a domain error in DOMAIN.
+  ;;; 1 when VAL holds it.
+  (static)
+  (func lb_flag_value ((coco_engine * e) (size_t v) (const char * domain)
+                       (char * val) (size_t cap) (int * rc)) (out int)
+        (if (coco_m_is_var e v) (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+        (if (not (coco_m_is_atom e v)) (block (set (cof rc) (coco_m_type_error e "atom" v)) (return 0)))
+        (if (not (coco_m_text e v val cap))
+            (block (set (cof rc) (coco_m_domain_error e domain v)) (return 0)))
+        (return 1))
+
+  ;;; SET_PROLOG_FLAG/2 AS A GOAL (2.2.2), swipl's, which through 2.2.1 was
+  ;;; only a directive. The flag is asked about first, then the value, each
+  ;;; refused in swipl's words: an unbound one instantiation_error; a flag
+  ;;; that is no atom type_error(atom, F); one cocolog does not have
+  ;;; existence_error(prolog_flag, F) -- swipl's answer under its
+  ;;; user_flags `error', where by default it makes the flag, and cocolog
+  ;;; has no table to make one in --; one current_prolog_flag/2 answers and
+  ;;; nothing sets permission_error(modify, flag, F) (argv and os_argv
+  ;;; among them, which swipl lets a program set); a value that is no atom
+  ;;; type_error(atom, V); and one the flag does not take
+  ;;; domain_error(flag_value, V), where double_quotes and text_units name
+  ;;; themselves, as swipl's double_quotes does. A value it already has
+  ;;; succeeds.
+  ;;;
+  ;;; THE FOUR FLOAT FLAGS are this machine's (`fflags', lib/term.cicili)
+  ;;; and the process's default for a machine made after them, a thread's
+  ;;; or run_isolated/2's, as text_units is. double_quotes changes what this
+  ;;; machine's reader builds from here on, text_units what its text
+  ;;; builtins count, and generate_debug_info takes swipl's booleans and
+  ;;; changes nothing: cocolog makes no debugging metadata to switch off.
+  ;;; As a directive those last three are answered in kb.cicili, before
+  ;;; the next clause is read; the float flags come here, as any goal a
+  ;;; directive runs does.
+  (static)
+  (func lb_set_flag ((coco_engine * e) (size_t g)) (out int)
+        (let ((char flag [64]) (char val [64]) (int rc . 0) (int bit . 0)
+              (const char * on . nil) (const char * off . nil)
+              (size_t f . #'(coco_m_arg e g 0)) (size_t v . #'(coco_m_arg e g 1))
+              (coco_machine * mm . #'(coco_m_machine e)))
+          (if (coco_m_is_var e f) (return (coco_m_instantiation_error e)))
+          (if (not (coco_m_is_atom e f)) (return (coco_m_type_error e "atom" f)))
+          (if (not (coco_m_text e f flag 64)) (return (coco_m_existence_error e "prolog_flag" f)))
+          (if (or (== 0 (strcmp flag "argv")) (== 0 (strcmp flag "os_argv"))
+                  (== 0 (strcmp flag "executable")) (== 0 (strcmp flag "bounded"))
+                  (== 0 (strcmp flag "max_integer")) (== 0 (strcmp flag "min_integer"))
+                  (== 0 (strcmp flag "max_tagged_integer")) (== 0 (strcmp flag "min_tagged_integer"))
+                  (== 0 (strcmp flag "float_min")) (== 0 (strcmp flag "float_max"))
+                  (== 0 (strcmp flag "float_max_integer")))
+              (return (coco_m_permission_error e "modify" "flag" f)))
+          ;; each float flag a bit, the word that sets it and the one that
+          ;; clears it: float_underflow's bit is `error', its default
+          ;; `ignore' the bit clear, so 0 is swipl's defaults for all four
+          (cond
+            ((== 0 (strcmp flag "float_overflow"))  (set bit 1) (set on "infinity") (set off "error"))
+            ((== 0 (strcmp flag "float_zero_div"))  (set bit 2) (set on "infinity") (set off "error"))
+            ((== 0 (strcmp flag "float_undefined")) (set bit 4) (set on "nan")      (set off "error"))
+            ((== 0 (strcmp flag "float_underflow")) (set bit 8) (set on "error")    (set off "ignore")))
+          (if (!= bit 0)
+              (block
+               (if (not (lb_flag_value e v "flag_value" val 64 (aof rc))) (return rc))
+               (cond
+                 ((== 0 (strcmp val on))  (set (-> mm fflags) (bitor (-> mm fflags) bit)))
+                 ((== 0 (strcmp val off)) (set (-> mm fflags) (bitand (-> mm fflags) (- 15 bit))))
+                 (#t (return (coco_m_domain_error e "flag_value" v))))
+               (coco_fflags_default_set (-> mm fflags))
+               (return 1)))
+          (if (== 0 (strcmp flag "double_quotes"))
+              (block
+               (if (not (lb_flag_value e v "double_quotes" val 64 (aof rc))) (return rc))
+               (cond
+                 ((== 0 (strcmp val "codes"))  (set (-> mm double_quotes) 0))
+                 ((== 0 (strcmp val "chars"))  (set (-> mm double_quotes) 1))
+                 ((== 0 (strcmp val "atom"))   (set (-> mm double_quotes) 2))
+                 ((== 0 (strcmp val "string")) (set (-> mm double_quotes) 3))
+                 (#t (return (coco_m_domain_error e "double_quotes" v))))
+               (return 1)))
+          (if (== 0 (strcmp flag "text_units"))
+              (block
+               (if (not (lb_flag_value e v "text_units" val 64 (aof rc))) (return rc))
+               (cond
+                 ((== 0 (strcmp val "bytes"))      (set (-> mm text_chars) 0))
+                 ((== 0 (strcmp val "characters")) (set (-> mm text_chars) 1))
+                 (#t (return (coco_m_domain_error e "text_units" v))))
+               (coco_text_default_set (-> mm text_chars))
+               (return 1)))
+          (if (== 0 (strcmp flag "generate_debug_info"))
+              (block
+               (if (coco_m_is_var e v) (return (coco_m_instantiation_error e)))
+               (if (and (coco_m_is_atom e v) (coco_m_text e v val 64)
+                        (or (== 0 (strcmp val "true")) (== 0 (strcmp val "false"))
+                            (== 0 (strcmp val "on")) (== 0 (strcmp val "off"))))
+                   (return 1))
+               (return (coco_m_type_error e "bool" v))))
+          (return (coco_m_existence_error e "prolog_flag" f))))
 
   ;;; A directory under the binary's own: <exedir>/SUB.
   (static)

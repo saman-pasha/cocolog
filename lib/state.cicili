@@ -210,6 +210,13 @@
             (coco_sb_put_hex b (cast u64 (nth i (-> m bigs))))
             (coco_sb_putc b (cast char 10)))
 
+          ;; WHAT A FLOAT THAT IS NO NUMBER BECOMES (2.2.2): the four float
+          ;; flags' bits, so the machine reckons as it did in whatever
+          ;; process thaws it. Last, as `B' is; `N', since `F' is the
+          ;; functors'.
+          (coco_sb_put b "N ")
+          (coco_sb_put_sz b (cast size_t (-> m fflags))) (coco_sb_putc b (cast char 10))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -455,6 +462,14 @@
                     (for ((size_t i . 0)) (and ok (< i nb)) ((++ i))
                       (if (== (coco_big_entry m (cast i64 (coco_scan_u64 (aof z) 16))) (cast size_t -1))
                           (block (set ok 0) break))))))
+
+          ;; ---- the float flags (2.2.2), if it has them; swipl's defaults
+          ;; before, which every machine frozen until then reckoned by ----
+          (if (and ok (not ($ z bad)))
+              (block
+               (set (-> m fflags) 0)
+               (if (coco_scan_section (aof z) 78)          ; `N'
+                   (set (-> m fflags) (bitand (cast int (coco_scan_u64 (aof z) 10)) 15)))))
 
           (coco_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

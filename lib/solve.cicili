@@ -210,7 +210,7 @@
   '("+" "-" "*" "/" "//" "div" "mod" "rem" "min" "max" "**" "^" "gcd" ">>" "<<"
     COCO_OP_AND COCO_OP_OR "xor" "pi" "e" COCO_OP_NOT "msb" "abs" "sign"
     "float" "integer" "truncate" "round" "floor" "ceiling" "sqrt" "sin" "cos"
-    "tan" "asin" "acos" "atan" "exp" "log"))
+    "tan" "asin" "acos" "atan" "exp" "log" "inf" "nan" "epsilon"))
 
 ;;; Constructs first, then every builtin name once, then the evaluable
 ;;; functors. The ORDER is what fixes the indices, so it is computed here
@@ -341,9 +341,11 @@
 ;;; `coco_add_ovf' and the rest) and a result past them answers 4, for
 ;;; `coco_arith_binary' to raise evaluation_error(int_overflow): a C
 ;;; overflow of i64 is undefined, and through 1.15.0 the answer wrapped at
-;;; 61 bits with no word said. A FLOAT RESULT THAT IS NO FINITE NUMBER
-;;; answers 5 (2.2.0), for it to raise as swipl's check_float() does
-;;; (`coco_float_ok'); the integer path asks nothing more.
+;;; 61 bits with no word said. A FLOAT RESULT answers 5, for it to be
+;;; checked as swipl's check_float() checks it (`coco_float_ok'): through
+;;; 2.2.1 only one that was no finite number did, and under float_underflow
+;;; `error' a subnormal is checked too (2.2.2); the integer path asks
+;;; nothing more.
 (DEFMACRO coco-emit-arith-binops ()
   `(cond
      ,@(MAPCAR (LAMBDA (row)
@@ -353,7 +355,7 @@
                               (set (cof isf) 0))
                      (block (set (cof fv) (,(SECOND row) af bf))
                             (set (cof isf) 1)
-                            (if (!= (- (cof fv) (cof fv)) 0.0) (return 5))))
+                            (return 5)))
                    (return 1)))
                *arith-binops*)
      (#t (return 0))))
@@ -6913,18 +6915,69 @@
   (func coco_float_back ((double f) (int * isf) (double * fv)) (out int)
         (set (cof fv) f) (set (cof isf) 1) (return 1))
 
-  ;;; A FLOAT IS A NUMBER OR AN ERROR (2.2.0), as swipl's check_float()
-  ;;; makes it under its flags' defaults (float_undefined and
-  ;;; float_overflow `error', float_underflow `ignore'): 1 for a finite F,
-  ;;; the subnormals too; else the raise's answer, evaluation_error
-  ;;; (undefined) for a NaN and float_overflow for an infinity. swipl asks
-  ;;; it of every float a function makes, and of every float made one for
-  ;;; a function that takes floats (promoteToFloatNumber()); through 2.1.2
-  ;;; the NaN or the infinity was the answer.
+  ;;; SWI's ONE NaN, the bits `1.5NaN' reads as (0x7FF8000000000000), and
+  ;;; an infinity of SGN's sign: what a float the flags let stand becomes
+  ;;; (2.2.2)
   (static)
-  (func coco_float_ok ((coco_engine * e) (double f)) (out int)
-        (if (== (- f f) 0.0) (return 1))
-        (return (coco_evaluation_error e (? (!= f f) "undefined" "float_overflow"))))
+  (func coco_nan () (out double)
+        (let ((u64 b . 9221120237041090560) (double d . 0.0))
+          (memcpy (aof d) (aof b) (sizeof double))
+          (return d)))
+
+  (static)
+  (func coco_inf ((int sgn)) (out double)
+        (let ((u64 b . 9218868437227405312) (double d . 0.0))
+          (memcpy (aof d) (aof b) (sizeof double))
+          (return (? (< sgn 0) (- d) d))))
+
+  ;;; WHAT THE FLOAT FLAGS SAY OF *F (2.2.2), swipl's check_float() under
+  ;;; them (`fflags', lib/term.cicili): nil when it stands, else the name
+  ;;; of the evaluation error it raises. A finite *F stands, a subnormal
+  ;;; too unless float_underflow is `error' (`float_underflow'); a NaN is
+  ;;; made SWI's one NaN, whatever its bits, and stands under
+  ;;; float_undefined `nan' (`undefined'); an infinity stands under
+  ;;; float_overflow `infinity' (`float_overflow'). Both evaluators ask it,
+  ;;; is/2's below and the lists' (`coco_l_float_ok'), each raising through
+  ;;; its own seam.
+  (static) (inline)
+  (func coco_float_verdict ((coco_machine * m) (double * f)) (out const char *)
+        (let ((double v . #'(cof f)) (int fl . #'(-> m fflags)))
+          (if (== (- v v) 0.0)
+              (block
+               (if (and (!= 0 (bitand fl 8)) (!= v 0.0) (< (fabs v) 2.2250738585072014e-308))
+                   (return "float_underflow"))
+               (return nil)))
+          (if (!= v v)
+              (block (set (cof f) (coco_nan))
+                     (return (? (!= 0 (bitand fl 4)) nil "undefined"))))
+          (return (? (!= 0 (bitand fl 1)) nil "float_overflow"))))
+
+  ;;; A FLOAT IS A NUMBER, OR WHAT THE FLAGS LET IT BE (2.2.0, 2.2.2): 1
+  ;;; when *F stands (`coco_float_verdict'), else the raise's answer.
+  ;;; swipl asks it of every float a function makes, and of every float
+  ;;; made one for a function that takes floats (promoteToFloatNumber());
+  ;;; through 2.1.2 the NaN or the infinity was the answer, and through
+  ;;; 2.2.1 the flags' defaults were the only reading.
+  (static)
+  (func coco_float_ok ((coco_engine * e) (double * f)) (out int)
+        (let ((const char * w . #'(coco_float_verdict (-> e m) f)))
+          (if (== w nil) (return 1))
+          (return (coco_evaluation_error e w))))
+
+  ;;; A ZERO DIVISOR (2.2.2), swipl's check_zero_div(): SGN the dividend's
+  ;;; sign, 0 for a zero. A zero over a zero is the NaN under
+  ;;; float_undefined `nan', anything else over one the infinity of SGN's
+  ;;; sign under float_zero_div `infinity' -- 1 with the float in *FV --
+  ;;; and otherwise evaluation_error(zero_divisor).
+  (static)
+  (func coco_zero_div ((coco_engine * e) (int sgn) (int * isf) (double * fv)) (out int)
+        (let ((int fl . #'(-> (-> e m) fflags)))
+          (if (== sgn 0)
+              (block (if (!= 0 (bitand fl 4))
+                         (block (set (cof fv) (coco_nan)) (set (cof isf) 1) (return 1))))
+            (if (!= 0 (bitand fl 2))
+                (block (set (cof fv) (coco_inf sgn)) (set (cof isf) 1) (return 1))))
+          (return (coco_evaluation_error e "zero_divisor"))))
 
   ;;; F's sign as a double: -1.0, 1.0, or 0.0 for either zero and a NaN
   ;;; (swipl's sign_f())
@@ -6939,9 +6992,9 @@
   (static)
   (func coco_float_fn ((coco_engine * e) (int s0) (double x) (double r)
                        (int * isf) (double * fv)) (out int)
-        (if s0 (let ((int rc . #'(coco_float_ok e x))) (if (!= rc 1) (return rc))))
+        (if s0 (let ((int rc . #'(coco_float_ok e (aof x)))) (if (!= rc 1) (return rc))))
         (set (cof fv) r) (set (cof isf) 1)
-        (return (coco_float_ok e r)))
+        (return (coco_float_ok e fv)))
 
   ;;; BASE to the power N, 0 <= N, in 64 bits (2.0.0), OVF set past them.
   ;;; Squared only while a bit of N is left to use it: 2 ^ 62's last
@@ -6981,9 +7034,12 @@
   ;;; doubles' `<' chose: max(2, 1.5) was 2.0, max(1.0, NaN) the NaN, and
   ;;; max(0.0, -0.0) -0.0. Read by is/2, max_list/2, min_list/2 and
   ;;; aggregate_all/3, each in the order SWI's clauses give it. 2 for two
-  ;;; equal infinities, which the caller raises as float_overflow (2.2.0):
-  ;;; swipl makes two equal numbers one type, and a float it makes is
-  ;;; checked (promoteToFloatNumber()), so max(1.0Inf, 1.0Inf) raises.
+  ;;; equal floats: A, once the caller's check lets it stand (2.2.2; 2.2.0
+  ;;; answered 2 for two equal infinities alone, and raised): swipl makes
+  ;;; two equal numbers one type, and the first is checked as it is
+  ;;; (promoteToFloatNumber()), so max(1.0Inf, 1.0Inf) is float_overflow
+  ;;; but under float_overflow `infinity', and a subnormal pair raises
+  ;;; under float_underflow `error'.
   (static)
   (func coco_num_pick ((int want) (int af) (i64 ai) (double ad)
                        (int bf) (i64 bi) (double bd)) (out int)
@@ -6997,7 +7053,7 @@
               (block
                 (if (and af (coco_neg_zero x)) (return (? (== want 1) 1 0)))
                 (if (and bf (coco_neg_zero y)) (return (? (== want 1) 0 1)))
-                (if (!= (- x x) 0.0) (return 2))
+                (if (and af bf) (return 2))
                 (return (? (and (not af) bf) 1 0))))
           (if (== want 1) (return (? (> x y) 0 1)))
           (return (? (< x y) 0 1))))
@@ -7013,8 +7069,9 @@
         (set s (coco_arith_simple m nid both_int ai af bi bf isf iv fv))
         (if (== s 1) (return 1))
         (if (== s 4) (return (coco_int_overflow e)))
-        ;; a float `+', `-' or `*' whose result is no finite number (2.2.0)
-        (if (== s 5) (return (coco_float_ok e (cof fv))))
+        ;; a float `+', `-' or `*', its result checked (2.2.0, under the
+        ;; flags 2.2.2)
+        (if (== s 5) (return (coco_float_ok e fv)))
         (cond
           ;; `/' answers an integer when it divides exactly and a float when it
           ;; does not, which is what most Prologs do and what surprises fewest
@@ -7023,22 +7080,28 @@
           ;; and in C both its quotient and its remainder trap (SIGFPE).
           ;; The rest is swipl's ar_divide() (2.2.0): over an infinity an
           ;; integer is the integer 0 and a float a zero with the two signs'
-          ;; product (a dividend that is no finite number makes a NaN, raised
-          ;; as undefined); a float quotient's operands are checked first,
+          ;; product (a dividend that is no finite number makes a NaN, which
+          ;; is checked); a float quotient's operands are checked first,
           ;; the dividend's before the divisor's (`coco_float_ok', as swipl
           ;; promotes them: 1.0Inf / 0.0 is float_overflow); a number over a
-          ;; zero is then zero_divisor, unless it is a zero itself, whose
-          ;; quotient is the NaN raised; and the quotient is checked. Through
+          ;; zero is then a zero divisor (`coco_zero_div', the infinity of
+          ;; the two signs' product under float_zero_div, 2.2.2), and a zero
+          ;; or a NaN over one the NaN the quotient checks; and the quotient
+          ;; is checked. An integer over 0 is a zero divisor by the
+          ;; dividend's sign, 0 over 0 the NaN under float_undefined. Through
           ;; 2.1.2 the C quotient: 2 / 0.0 was 1.0Inf and 0.0 / 0.0 a NaN.
           ((== nid (coco-id m "/"))
            (if (and rflt (== bf bf) (!= (- bf bf) 0.0))
                (block
                  (if (not lflt) (block (set (cof iv) 0) (set (cof isf) 0) (return 1)))
-                 (if (!= (- af af) 0.0) (return (coco_evaluation_error e "undefined")))
-                 (set (cof fv) (* (* 0.0 (coco_fsign af)) (coco_fsign bf)))
-                 (set (cof isf) 1) (return 1)))
+                 (set (cof fv) (? (== (- af af) 0.0)
+                                  (* (* 0.0 (coco_fsign af)) (coco_fsign bf))
+                                  (coco_nan)))
+                 (set (cof isf) 1)
+                 (return (coco_float_ok e fv))))
            (if both_int
-               (block (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
+               (block (if (== bi 0)
+                          (return (coco_zero_div e (? (> ai 0) 1 (? (< ai 0) -1 0)) isf fv)))
                       (if (== bi -1)
                           (block (if (== ai (- -9223372036854775807 1)) (return (coco_int_overflow e)))
                                  (set (cof iv) (- 0 ai)) (set (cof isf) 0))
@@ -7046,14 +7109,16 @@
                             (block (set (cof iv) (/ ai bi)) (set (cof isf) 0))
                           (block (set (cof fv) (/ (cast double ai) (cast double bi)))
                                  (set (cof isf) 1)))))
-             (let ((int rc . #'(coco_float_ok e af)))
+             (let ((int rc . #'(coco_float_ok e (aof af))))
                (if (!= rc 1) (return rc))
-               (set rc (coco_float_ok e bf))
+               (set rc (coco_float_ok e (aof bf)))
                (if (!= rc 1) (return rc))
-               (if (and (== bf 0.0) (!= af 0.0))
-                   (return (coco_evaluation_error e "zero_divisor")))
+               ;; swipl's sign_f() of a NaN is 0, as of a zero: a NaN the
+               ;; flags let stand over a zero is a NaN, not a zero divisor
+               (if (and (== bf 0.0) (!= (coco_fsign af) 0.0))
+                   (return (coco_zero_div e (? (== (< af 0.0) (coco_neg_zero bf)) 1 -1) isf fv)))
                (set (cof fv) (/ af bf)) (set (cof isf) 1)
-               (return (coco_float_ok e (cof fv)))))
+               (return (coco_float_ok e fv))))
            (return 1))
           ((== nid (coco-id m "//"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
@@ -7087,11 +7152,12 @@
            (if (== bi -1) (block (set (cof iv) 0) (set (cof isf) 0) (return 1)))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
           ;; the one `coco_num_pick' picks, as it came: an integer or a float
-          ;; (and two equal infinities float_overflow, 2.2.0)
+          ;; (and of two equal floats the first, checked: 2.2.0, 2.2.2)
           ((or (== nid (coco-id m "max")) (== nid (coco-id m "min")))
            (let ((int b . #'(coco_num_pick (? (== nid (coco-id m "max")) 1 -1)
                                            lflt ai af rflt bi bf)))
-             (if (== b 2) (return (coco_evaluation_error e "float_overflow")))
+             (if (== b 2)
+                 (block (set (cof fv) af) (set (cof isf) 1) (return (coco_float_ok e fv))))
              (if (? b rflt lflt)
                  (block (set (cof fv) (? b bf af)) (set (cof isf) 1))
                (block (set (cof iv) (? b bi ai)) (set (cof isf) 0))))
@@ -7120,7 +7186,7 @@
                  (block
                    (if (== ai 1) (block (set (cof iv) 1) (set (cof isf) 0) (return 1)))
                    (if (and (== ai 0) (not enan))
-                       (block (if (< es 0.0) (return (coco_evaluation_error e "zero_divisor")))
+                       (block (if (< es 0.0) (return (coco_zero_div e 1 isf fv)))
                               (set (cof iv) 0) (set (cof isf) 0) (return 1)))
                    (if (and (== ai -1) (not rflt))
                        (block (set (cof iv) (? (== 0 (bitand bi 1)) 1 -1)) (set (cof isf) 0)
@@ -7129,13 +7195,18 @@
                  (let ((int ovf . 0) (i64 p . #'(coco_ipow ai bi (aof ovf))))
                    (if ovf (return (coco_int_overflow e)))
                    (set (cof iv) p) (set (cof isf) 0) (return 1)))
-             (if lflt (set rc (coco_float_ok e af)))
+             (if lflt (set rc (coco_float_ok e (aof af))))
              (if (!= rc 1) (return rc))
-             (if rflt (set rc (coco_float_ok e bf)))
+             (if rflt (set rc (coco_float_ok e (aof bf))))
              (if (!= rc 1) (return rc))
-             (if (and (== af 0.0) (< es 0.0)) (return (coco_evaluation_error e "zero_divisor")))
+             ;; a zero base under a negative exponent: the infinity under
+             ;; float_zero_div is negative for -0.0 under an odd INTEGER
+             ;; exponent alone, as swipl's zero_div_sign is (2.2.2)
+             (if (and (== af 0.0) (< es 0.0))
+                 (return (coco_zero_div e (? (and (not rflt) (!= 0 (bitand bi 1)) (coco_neg_zero af)) -1 1)
+                                        isf fv)))
              (set (cof fv) (pow af bf)) (set (cof isf) 1)
-             (return (coco_float_ok e (cof fv)))))
+             (return (coco_float_ok e fv))))
           ;; IN MAGNITUDES (2.0.0): the least integer's is 2^63, which an i64
           ;; cannot negate -- gcd(-2^63, 6) is 2, and gcd(-2^63, 0) is 2^63,
           ;; past 64 bits
@@ -7222,6 +7293,15 @@
                      (block (set (cof fv) 3.14159265358979323846) (set (cof isf) 1) (return 1)))
                  (if (== nid (coco-id m "e"))
                      (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
+                 ;; swipl's three other constants (2.2.2), unchecked as a
+                 ;; constant is: `X is nan' is SWI's one NaN under every
+                 ;; flag, `X is inf' the positive infinity, epsilon 2^-52
+                 (if (== nid (coco-id m "inf"))
+                     (block (set (cof fv) (coco_inf 1)) (set (cof isf) 1) (return 1)))
+                 (if (== nid (coco-id m "nan"))
+                     (block (set (cof fv) (coco_nan)) (set (cof isf) 1) (return 1)))
+                 (if (== nid (coco-id m "epsilon"))
+                     (block (set (cof fv) 2.220446049250313e-16) (set (cof isf) 1) (return 1)))
                  (return (coco_not_evaluable e nid 0))))
               ;; an integer past the 61 bits a cell keeps (2.0.0)
               ((coco-tag-is BIG c)
@@ -7236,8 +7316,11 @@
                        (set rc (coco_arith e (coco_arg m t 0) (aof s0) (aof i0) (aof f0) (+ depth 1)))
                        (if (!= rc 1) (return rc))
                        (cond
+                         ;; -(0.0) is -0.0, and a NaN is itself, its bits
+                         ;; kept as swipl's ar_u_minus() keeps them (2.2.2):
+                         ;; -(nan) == nan
                          ((== nid (coco-id m "-"))
-                          (if s0 (block (set (cof fv) (- f0)) (set (cof isf) 1))   ; -(0.0) is -0.0
+                          (if s0 (block (set (cof fv) (? (!= f0 f0) f0 (- f0))) (set (cof isf) 1))
                             (block
                              ;; the least integer has no negation in 64 bits
                              (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))

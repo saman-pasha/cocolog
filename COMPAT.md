@@ -15,6 +15,7 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `number_codes/2` | `number_codes(N, "3x")` is a `syntax_error` | answers `3`, ignoring what follows the number | check the text first if it may carry trailing characters |
+| a symbolic prefix operator written before a number | `+1`, `+1.0Inf`, `\1`: a space after `-` alone (`- 1`), the one whose `-1` reads as a number | `+ 1`, `+ 1.0Inf`, `\ 1`: a space after any. Both read either text back as the same term | compare terms, not their text |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -22,12 +23,13 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `atom_concat/3` with only the third argument bound | enumerates every split | `instantiation_error`; `(+,-,+)` and `(-,+,+)` work | `atomic_list_concat/3` with a separator, or `sub_atom/5` |
 | `string_concat/3` with only the third argument bound | enumerates every split | `instantiation_error`; only `(+,+,-)` | `sub_string/5` |
-| `between(1, inf, X)` | counts for ever | `Arithmetic: inf is not a function` | a large finite bound, or a recursion |
-| the float flags `float_overflow`, `float_zero_div`, `float_undefined` and `float_underflow` | settable: `:- set_prolog_flag(float_overflow, infinity).` makes `10.0 ** 400` the infinity, and `float_zero_div` and `float_undefined` give `2 / 0.0` and `0.0 / 0.0` their IEEE answers | not there: the directive is reported (`cocolog has no flag`) and every float is checked as swipl's defaults check it — a NaN raises `evaluation_error(undefined)`, an infinity `float_overflow`, a number over a float zero `zero_divisor` (since 2.2.0; through 2.1.2 the NaN or the infinity was the answer) | test the operands first, or catch the error |
+| `between(1, infinite, X)` | counts for ever, as `between(1, inf, X)` does | `type_error(evaluable, infinite/0)`; `between(1, inf, X)` counts for ever since 2.2.2, where `inf` became the infinity (through 2.2.1 `type_error(evaluable, inf/0)`) | `inf` |
+| `set_prolog_flag/2` with a flag cocolog has not got (`float_rounding`, `user_flags`, a flag of the program's own) | sets SWI's own; an unknown one is MADE (`user_flags` is `silent`), so `set_prolog_flag(my_flag, 3)` and then `current_prolog_flag(my_flag, V)` answer `3` | `existence_error(prolog_flag, F)`. It sets `double_quotes`, `text_units`, `generate_debug_info` and swipl's four float flags, `float_overflow`, `float_zero_div`, `float_undefined` and `float_underflow`, as a goal or a directive alike (since 2.2.2; through 2.2.1 a directive only, an `existence_error` as a goal, and no float flag at all: every float was checked as swipl's defaults check it) | a global (`nb_setval/2`) for a flag of the program's own |
+| `set_prolog_flag(argv, L)` and `os_argv` | change the flag | `permission_error(modify, flag, argv)`, as for `executable`, `bounded`, the integer and the float bounds, which SWI refuses too | `library(main)`'s parse of the tail, or a list of the program's own |
+| a float flag set in a thread | that thread's alone: a thread starts with its creator's flags, so a later thread of `main` reads `main`'s | the thread's, and the process's default as well: a thread made after it starts with the value set last anywhere, as for `text_units` | set it in `main` before the threads are made |
 | `format/2` column directives | `~t`, `~\|`, `~+` | refused by name | pad with `atom_length/2` and `tab/1` |
-| `set_prolog_flag/2` as a goal | allowed | a directive only — as a goal it is an `existence_error` | `:- set_prolog_flag(double_quotes, string).` at the head of the file |
 | integers | unbounded | **64-bit**, −2^63 … 2^63−1 (since 2.0.0; through 1.15.0 61-bit, and a result past them wrapped in silence): a result outside that raises `evaluation_error(int_overflow)` — `X is 2**63` and `9223372036854775807 + 1`, and `2**63 - 1` too, whose `2**63` comes first — and a float made an integer outside it as well (a NaN or an infinity is handed back as it came, as SWI's is, since 2.2.0). A literal outside it is refused, `syntax error ... integer out of range` (`9223372036854775808`, `0x8000000000000000`), and `atom_number/2` and `number_codes/2` fail for such a numeral | `library(bigint)` for anything that can get that large |
-| `current_prolog_flag/2` | dozens of flags | ten: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, and since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`; any other fails | — |
+| `current_prolog_flag/2` | dozens of flags | seventeen: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since 2.2.2 the four float flags and `float_min`, `float_max` and `float_max_integer`; any other fails, `generate_debug_info` among them, which `set_prolog_flag/2` takes | — |
 
 ## Not there at all (`existence_error`)
 
@@ -52,8 +54,7 @@ predicates, the constructs and the C builtins.)
 | modules | separate namespaces; `use_module/2` imports a list | one namespace; the import list is accepted and ignored | MODULES.md |
 | a predicate's clauses split across a file | joined, with a warning | joined, silently | — |
 | a clause in a database-backed store | any size | must fit one page, about 8 000 characters; past it `assertz/1` raises `resource_error(clause_length)` | a row is one page; STATUS.md |
-| floats written | `1.0e10` prints `1.0e+10` | prints `10000000000.0` | — |
-| the heap | collected | collected since 1.8.36, between steps of the outermost engine — not inside a `findall/3` or `forall/2` goal while it runs; the float and string tables are not compacted | `lib/solve.cicili`, `coco_heap_gc` |
+| the heap | collected, atoms too | collected since 1.8.36, inside the engines a builtin starts (`findall/3`, `forall/2`, `aggregate_all/3`, ...) since 1.9.4, and the float and string tables reclaimed in place since 1.9.6; the atom table is never reclaimed | `lib/solve.cicili`, `coco_heap_gc` and `coco_tables_reclaim` |
 
 ## Where to report one
 

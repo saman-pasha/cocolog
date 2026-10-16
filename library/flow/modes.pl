@@ -197,6 +197,7 @@ flow_mode(listing, 1, ['+'], det).
 flow_mode(op, 3, ['+', '+', '+'], det).
 flow_mode(current_prolog_flag, 2, ['+', '-'], semidet).
 flow_mode(current_prolog_flag, 2, ['?', '?'], nondet).
+flow_mode(set_prolog_flag, 2, ['+', '+'], det).
 flow_mode(abolish, 1, ['+'], det).
 flow_mode((dynamic), 1, ['+'], det).
 flow_mode(ensure_loaded, 1, ['+'], det).

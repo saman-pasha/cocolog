@@ -73,7 +73,14 @@ flag(D) :-
     atom_concat('run ', F6, A6),
     cocolog_out(A6, Out6),
     ( re_match('text_units takes bytes or characters', Out6) -> R6 = refused ; R6 = Out6 ),
-    check('a value that is neither is refused by name', R6, refused).
+    check('a value that is neither is refused by name', R6, refused),
+    %% set_prolog_flag/2 as a goal (2.2.2), and characters put back after
+    answer(( set_prolog_flag(text_units, bytes), atom_length('dár', N7),
+             set_prolog_flag(text_units, characters) ), N7, G7),
+    check('set_prolog_flag/2 as a goal sets the units too: 4 bytes', G7, 4),
+    answer(set_prolog_flag(text_units, words), set, G8),
+    ( G8 = error(error(domain_error(text_units, words), _)) -> R8 = refused ; R8 = G8 ),
+    check('...and refuses a value that is neither, as a domain error', R8, refused).
 
 %% ---- atoms -----------------------------------------------------------------
 

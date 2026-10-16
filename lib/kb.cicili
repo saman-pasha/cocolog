@@ -5198,6 +5198,18 @@
                 (block (snprintf err errlen "dynamic: out of memory") (return 0)))
             (return 1))))
 
+  ;;; Is F one of the three flags a directive answers itself, the ones that
+  ;;; act on what the rest of the file reads (2.2.2)? Every other
+  ;;; `:- set_prolog_flag(F, V)' is a goal.
+  (static)
+  (func coco_reader_flag ((coco_machine * m) (size_t f)) (out int)
+        (set f (coco_deref m f))
+        (if (or (not (coco_is_callable m f)) (!= (coco_arity m f) 0)) (return 0))
+        (let ((const char * fn . #'(coco_atom_name m (coco_name_of m f))))
+          (return (? (or (== 0 (strcmp fn "generate_debug_info")) (== 0 (strcmp fn "text_units"))
+                         (== 0 (strcmp fn "double_quotes")))
+                     1 0))))
+
   (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                       (coco_initgoals * inits) (int line)
                       (char * err) (size_t errlen)) (out int)
@@ -5295,12 +5307,17 @@
           ;; argument was right, and the answer to it was to honour the flag
           ;; rather than to keep refusing: there is a string type now, and an
           ;; atom was always makeable.
-          (if (and (== n 2) (== 0 (strcmp name "set_prolog_flag")))
+          ;;
+          ;; THESE THREE ARE ANSWERED HERE, the flags that act on what the
+          ;; rest of the file reads; every other flag, and a flag that is no
+          ;; atom, is a GOAL (2.2.2), run below as any directive's goal is:
+          ;; set_prolog_flag/2 (lib/library.cicili) sets the float flags and
+          ;; refuses the rest in swipl's words -- an ERROR naming the ball,
+          ;; where through 2.2.1 this said `cocolog has no flag'.
+          (if (and (== n 2) (== 0 (strcmp name "set_prolog_flag"))
+                   (coco_reader_flag m (coco_arg m g 0)))
               (let ((size_t f . #'(coco_deref m (coco_arg m g 0)))
                     (size_t v . #'(coco_deref m (coco_arg m g 1))))
-                (if (or (not (coco_is_callable m f)) (!= (coco_arity m f) 0))
-                    (block (snprintf err errlen "set_prolog_flag: the flag must be an atom")
-                           (return 0)))
                 ;; `generate_debug_info' asks for debugging metadata cocolog
                 ;; never generates, so any value is already honoured
                 (if (== 0 (strcmp (coco_atom_name m (coco_name_of m f)) "generate_debug_info"))
@@ -5318,13 +5335,10 @@
                                (block (set (-> m text_chars) 1) (coco_text_default_set 1) (return 1)))))
                      (snprintf err errlen "set_prolog_flag: text_units takes bytes or characters")
                      (return 0)))
-                (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m f)) "double_quotes"))
-                    (block (snprintf err errlen "set_prolog_flag: cocolog has no flag `%s'"
-                                     (coco_atom_name m (coco_name_of m f)))
-                           (return 0)))
-                ;; IT TAKES EFFECT FOR THE REST OF THE CONSULT, not for the
-                ;; directive's own term -- the term is already read by the
-                ;; time this runs, which is the same order SWI reads in.
+                ;; `double_quotes', the one left. IT TAKES EFFECT FOR THE
+                ;; REST OF THE CONSULT, not for the directive's own term --
+                ;; the term is already read by the time this runs, which is
+                ;; the same order SWI reads in.
                 (if (and (coco_is_callable m v) (== (coco_arity m v) 0))
                     (let ((const char * val . #'(coco_atom_name m (coco_name_of m v))))
                       (if (== 0 (strcmp val "codes"))  (block (set (-> m double_quotes) 0) (return 1)))
