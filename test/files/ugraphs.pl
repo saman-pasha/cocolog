@@ -1,7 +1,7 @@
 %  library(ugraphs), the vendored copy, against SWI's own.
 %  Run by BOTH SWI-Prolog and cocolog, output compared byte for byte.
 
-:- use_module(library(ugraphs)).
+:- use_module(library(ugraphs)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 
 p(X) :- writeq(X), nl.
 

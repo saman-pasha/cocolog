@@ -7,7 +7,7 @@
 %  parameters are shared changes its meaning -- upstream documents the
 %  trap. Distinct names keep the case about the library, not the trap.
 
-:- use_module(library(yall)).
+:- use_module(library(yall)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 
 p(X) :- writeq(X), nl.
 

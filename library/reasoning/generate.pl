@@ -23,7 +23,7 @@
 %% the lexicon and the corpus, which is the rule for every file under
 %% library/reasoning: nothing trains on what the tree does not hold.
 %%
-%%     main                     the program: the two files written, and a line each on stdout
+%%     main/0                   the program: the two files written, and a line each on stdout
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/normalise)).

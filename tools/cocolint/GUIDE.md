@@ -82,6 +82,35 @@ HARD is a divergence that will fail or silently misbehave; WARN is one that
 costs something without breaking anything (a no-op import, a clause that will
 not fit a page).
 
+A file under `lib/swipl/` is not read: those are SWI's own libraries,
+vendored unmodified, and the blocklist is made from them, so every head they
+define would come back colliding with itself. The count line says how many
+it left alone (`8 vendored and not read`).
+
+### Acknowledging a finding
+
+Some code trips a rule on purpose — a lesson that shows `retract(X), fail`
+removing one clause, a case pinning what `write_canonical/2` writes. Say so
+where it stands, with a line comment that opens on the marker:
+
+```prolog
+    ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson: this loop removes ONE clause
+% cocolint: T1 -- swipl runs this file too, and the import is its portable form
+:- use_module(library(aggregate)).
+```
+
+After code, the comment covers its own line; alone on its line, the next
+one. The IDs are what the finding renders — the card row for S1 (`R1`,
+`X2`), the rule for the rest (`T1`, `N1`, `Z1`) — and several go in one
+comment, apart by blanks or commas. The reason after `--` is required. An
+acknowledged finding is not printed and the count line says how many there
+were (`29 acknowledged`); `COCO_LINT_NO_ACK=1` reads none of them.
+
+**U1** keeps them honest. An acknowledgement whose finding is not on the
+line it covers — the code was mended, the line moved, the trap retired —
+would go on to excuse whatever lands there next, so it is a WARN of its own,
+and so is one with no reason.
+
 ### The rules
 
 | rule | severity | fires on | fix |
@@ -90,12 +119,13 @@ not fit a page).
 | **N1** | HARD | a head that collides with a clause-defined tier-1 name; the two sets of clauses MERGE, and which is tried first depends on how the file is run | prefix the head with the program's own name — a DCG head too (row N4): `digit//1` is `digit/3` in the store |
 | **N2** | HARD | a head that collides with a C-registered name; dispatched before the store, so the clauses are DEAD CODE and `listing/1` will still show them | prefix the head |
 | **N3** | HARD | a head whose NAME is a control construct (`once`, `call`, `catch`, `throw`, …); no arity escapes it | prefix the head |
-| **S1** | HARD | one of the twelve banned forms below, matched as a term with comments and quotes masked | the row's own fix |
+| **S1** | HARD | one of the eleven banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`; this warns a little below the budget of an 8192-byte page, the default before 1.10.0 and the page every store made before it keeps, on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
+| **U1** | WARN | an acknowledgement that excuses nothing: its finding has gone from the line it covers, or it gives no reason | delete it, or say why after `--` |
 
-S1's twelve forms are rows of the dialect card, `traps.jsonl`, each with
+S1's eleven forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
@@ -103,12 +133,11 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | R1 | `clear :- retract(x(_)), fail.` | `( retract(x(_)) -> clear ; true )` | `retract/1` is a C builtin, deterministic: the failure-driven loop removes ONE clause |
 | D2 | `:- table p/2.` `:- thread_local p/1.` | delete | not prefix operators here: the file does not parse |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a library failure is `error(cocolog_error(Text), _)` and the house style puts a bare `Name/Arity` second |
-| A1 | `atan(Dy, Dx)` `log(2, N)` `random(10)` | the one-argument forms | an unknown arithmetic FUNCTOR is uncatchably fatal |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
 | F1 | `~t ~| ~+` | pad by hand | refused by name at the three codes |
 | W1 | `write_canonical/1` | `write_term(T, [quoted(true), ignore_ops(true)])` | `write_canonical` here keeps operators |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
-| X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it, is not flagged |
+| X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
 | X3 | `setup_call_cleanup/3` `predsort/3` `numbervars/3` `freeze/2` `dif/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
 | P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | ten flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, and since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer` — and every other one FAILS |
 | E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |
@@ -244,14 +273,14 @@ collision.
 
 ### `card` — the dialect card
 
-`traps.jsonl` is the card as data: thirty-three rows of `{id, severity, rule,
+`traps.jsonl` is the card as data: thirty-one rows of `{id, severity, rule,
 swi, cocolog, why, cite, fix, pattern}`. Each `cite` is a `path:A-B` line
 range with an `anchor`, a literal substring that must appear inside it.
 
 `--check` verifies every anchor and answers one of three ways:
 
 ```
-traps: 33 rows, 43 cites all anchored, 13 S1 pattern terms
+traps: 31 rows, 42 cites all anchored, 11 S1 pattern terms
 traps: T1: lib/library.cicili:537-537 moved to lib/library.cicili:585 (unique anchor, accepted)
 traps: N1: anchor is not in lib/library.cicili:500-509 and appears 2 times (lines 63, 548) -- the range is what picks the site, so which one this row means is yours to say
 ```
@@ -269,7 +298,7 @@ and silently never fires.
 consults (`--if-stale` skips it when current). `--card` prints the
 divergence table as Markdown — the design document's card §B, one row per
 `traps.jsonl` row, regenerated so the two cannot drift. `--patterns` prints
-the fourteen S1 terms. `COCOLOG_TRAPS` points the checker at another
+the eleven S1 terms. `COCOLOG_TRAPS` points the checker at another
 `traps.jsonl`, which is how the suite breaks a copy on purpose.
 
 ### `index` — the retrieval index
@@ -337,17 +366,21 @@ without one it says SKIPPED rather than passing quietly. `git commit
 cocolog -s test/lint.pl
 ```
 
-Five things, in cost order: the card's 42 citations anchor and the checker's
+Five things, in cost order: the card's citations anchor and the checker's
 three verdicts behave on a copy broken each way; the index's paths and
 anchors resolve; `clauses.pl` reads `selftest/reader.pl` into exactly
-`selftest/reader.expected`; every rule fires on `selftest/traps.pl`; and the
-findings over the calibration corpus — every `.pl` under `library/` and
-`tutorials/` — are the pinned set, and the blocklist agrees with the running
-store. The last line is GREEN, RED or SKIP; about three minutes.
+`selftest/reader.expected`, and the scans' edge cases (E1's backslashes and
+radix, X2's lifts, the acknowledgements) answer as written; every rule fires
+on `selftest/traps.pl` with its acknowledgements ignored, and the file is
+clean with them read; and the whole tree — every `.pl` the repository holds,
+less the three the build writes — lints clean, and the blocklist agrees with
+the running store. The last line is GREEN, RED or SKIP; about a minute and a
+half.
 
-**A finding in the corpus is a linter bug until shown otherwise.** The
-twenty-two that stand there are argued one by one in the script; ten of them
-are tutorials teaching the very trap the rule enforces.
+**A finding in the tree is a linter bug or a defect, and none is pinned.**
+Through 2.2.0 the case held eleven, each argued in the script; the tree is
+held to none since 2.2.1, and a form a file commits on purpose carries its
+acknowledgement where it stands.
 
 ## Environment
 
@@ -358,6 +391,7 @@ are tutorials teaching the very trap the rule enforces.
 | `COCOLOG_LIBRARY` | everything that runs cocolog | the library path; the scripts put `library/` first and keep yours |
 | `COCOLOG_TRAPS` | `card` | another `traps.jsonl` to check, for tests |
 | `COCO_LINT_MANIFEST` | `lint.pl` | set to anything: the files named are one program, and C2 runs over them |
+| `COCO_LINT_NO_ACK` | `lint.pl` | set and not empty: no acknowledgement is read, so every finding prints and U1 is silent |
 | `COCO_VERIFY_TIMEOUT` | `verify.sh` | seconds for G4 and G5; default 60 |
 | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | `agent.sh` | the model call, and only that |
 
@@ -388,10 +422,12 @@ is the contract, not a gap.
 is code, never a comment), `fix`, and a `pattern` from the nine constructors
 — `seq alt lit ws oneof noneof someof exactly bstart bend notword bol` — if
 the linter is to catch it. Add the form to `selftest/traps.pl` so the suite
-proves the rule fires. Run `sh tools/cocolint/tool.sh card --check`, then
-`cocolog -s test/lint.pl`; if the new rule fires on the corpus, decide whether that
-finding is real before touching the pinned set. Never edit `lint.pl` for an
-S1 rule: S1 is generated from the card.
+proves the rule fires, with its acknowledgement at the end of the line. Run
+`sh tools/cocolint/tool.sh card --check`, then `cocolog -s test/lint.pl`; if
+the new rule fires on the tree, decide what each finding is: a defect is
+mended, a misfire is the pattern's to fix, and a form the code means is
+acknowledged where it stands. Never edit `lint.pl` for an S1 rule: S1 is
+generated from the card.
 
 **A citation moved.** `sh tools/cocolint/tool.sh card --check`. Accepted
 moves need nothing; `--check --fix` renumbers them. An ambiguous one names

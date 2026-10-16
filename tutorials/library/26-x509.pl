@@ -25,7 +25,6 @@
 
 :- use_module(library(x509)).
 :- use_module(library(der)).
-:- use_module(library(files)).
 
 %% WHERE THE SAMPLE AUTHORITY IS. `getenv/2' rather than a constant,
 %% because a checkout is not always in the same place -- and because

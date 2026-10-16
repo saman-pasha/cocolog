@@ -112,7 +112,7 @@ s1 :-
     length(Os, NOs), length(Argv, NAv),
     ( NOs >= NAv -> G = yes ; G = no ),
     must('os_argv is at least as long', G, yes),
-    ( current_prolog_flag(occurs_check, _) -> F = yes ; F = no ),
+    ( current_prolog_flag(occurs_check, _) -> F = yes ; F = no ),   % cocolint: P1 -- the lesson: a flag with no answer fails
     must('a flag cocolog does not have FAILS', F, no),
     show('argv', Argv).
 

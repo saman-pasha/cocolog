@@ -136,8 +136,9 @@ main :-
     %% matches by BINDING an unbound slot -- so the handler runs and
     %% everything it reads out of the context is something it invented.
     %% (This line is what cocolint's C2 rule looks for. A lesson that
-    %% teaches a trap trips it, which is the honest way round.)
-    catch(atom_length(_, _), error(_, context(Who, _)), true),
+    %% teaches a trap trips it, which is the honest way round, and the
+    %% comment at its end acknowledges the finding and says why.)
+    catch(atom_length(_, _), error(_, context(Who, _)), true),   % cocolint: C2 -- the lesson: it matches by binding
     ( var(Who) -> C2 = matched_and_said_nothing ; C2 = Who ),
     must('`context(_,_)` matches anyway, by binding', C2, matched_and_said_nothing),
 

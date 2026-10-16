@@ -273,7 +273,7 @@ iso_names(D) :-
     section('ISO''s names over the same table'),
     path(D, 'iso.txt', F),
     answer(( open(F, write, S1), write(S1, f('A b', "x")), nl(S1), writeq(S1, 'A b'), nl(S1),
-             print(S1, [1, 2]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),
+             print(S1, [1, 2]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),   % cocolint: W1 -- pins what it writes: the operator kept
              write_term(S1, g('Y'), [quoted(true)]), nl(S1), format(S1, "~a=~d~n", [n, 42]),
              tab(S1, 2), put_char(S1, x), nl(S1), close(S1),
              read_file_to_codes(F, C1), atom_codes(A1, C1) ), A1, G1),

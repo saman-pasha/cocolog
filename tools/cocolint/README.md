@@ -346,24 +346,55 @@ Writing the trap file caught two bugs in the linter itself:
   them read a quote as code; nothing reads a comment as code, because a comment
   naming `~t` documents the rule rather than breaking it.
 
-## What survives on the calibration corpus, and why it stays
+## The whole tree lints clean, and how it got there
 
-Eleven findings over 82 known-good files, and **six of them are tutorials
-teaching the very trap the rule enforces** — `basics/07`'s
-`( retract(seen(_)), fail ; true )`, `library/04`'s `~t~20|` inside a `catch/3`,
-`basics/09`'s `context(Who, _)`, `38-main` asking for a flag cocolog does not
-have, and `basics/10`'s `digits//1` beside dcg_basics'. That is the strongest
-evidence available that the rules point at real divergences: somebody thought
-each one worth writing a lesson about. (Six more were
-`1000000000000000000 * 997` wrapping in silence across three lessons, rule A1,
-until 2.0.0 made integers 64 bits and a result past them an error.)
+Through 2.2.0 the suite held cocolint to eleven findings over 82 known-good
+files, and **six of them were tutorials teaching the very trap the rule
+enforces** — `basics/07`'s `( retract(seen(_)), fail ; true )`, `library/04`'s
+`~t~20|` inside a `catch/3`, `basics/09`'s `context(Who, _)`, `38-main` asking
+for a flag cocolog does not have, and `basics/10`'s `digits//1` beside
+dcg_basics'. That is the strongest evidence available that the rules point at
+real divergences: somebody thought each one worth writing a lesson about.
+(Six more were `1000000000000000000 * 997` wrapping in silence across three
+lessons, rule A1, until 2.0.0 made integers 64 bits and a result past them an
+error.) The other five were a tutorial whose `main/0` was ~15 KB stored,
+three no-op tier-1 imports, and `39-tensor-expr` adding to
+library(tensor_expr)'s grammar, an extension point the library did not
+declare.
 
-One is a real finding left for the owner rather than quietly edited: a
-tutorial whose `main/0` is ~15 KB stored — nearly twice the page budget,
-harmless only because the tutorial runs `--local`. Three are no-op tier-1
-imports already named in `CLAUDE.md`, and one is `39-tensor-expr` adding to
-library(tensor_expr)'s grammar on purpose, an extension point the library
-does not declare. `test/lint.pl` argues each one.
+**Since 2.2.1 the corpus is every Prolog file the repository holds, and the
+findings it is held to are none.** Linted whole for the first time, the tree
+had 122, and they went four ways:
+
+* **Mended where the code was wrong.** The no-op imports went; `digits//1`
+  and `digit//1` are `numeral//1` and `numeral_digit//1`; the long `main/0`
+  is a predicate per section; library(tensor_expr) declares `expr//2` a hook
+  (`expr(_, _, _, _) :- fail.`), as library(httpd) declares `httpd_page/3`;
+  `test/torch-graph.pl` calls the `file_base_name/2` it had defined again.
+* **Acknowledged where the code means it.** A comment that names the finding
+  and says why — `% cocolint: R1 -- the lesson: this loop removes ONE
+  clause` — covers its own line, or the next when it stands alone, and **U1**
+  reports one whose finding has gone or that gives no reason, so an
+  acknowledgement cannot outlive what it excused. The four lessons, the case
+  that pins what `write_canonical/2` writes, the six `test/files` cases swipl
+  also runs (whose tier-1 imports are SWI's portable form) and every line of
+  `selftest/traps.pl` carry one; the suite reads the fixture with
+  `COCO_LINT_NO_ACK=1` to see each rule still fire.
+* **Misfires, mended in the linter.** Seventy-seven were X2 in
+  `test/stream.pl`, which loads library(stream) as a goal so that it can skip
+  without the module — a `use_module(library(L))` in a file's code is an
+  import now, as a directive always was. Seven were A1 on `test/tls.pl`'s own
+  `log/5`: the pattern could not tell `log(A, B)` the function from a
+  predicate of that name, and the failure it was written for has been SWI's
+  catchable `type_error(evaluable, ...)` since 1.10.6, so the row is a prompt.
+* **Not read.** `lib/swipl/`'s eight files are SWI's own libraries and the
+  source the blocklist is made from: 275 of their 280 findings were heads
+  colliding with themselves. The linter leaves them alone and its count line
+  says so.
+
+The index's soft notes went the same way: four reasoning programs whose
+headers had no signature list (and a program of one predicate that names it
+is no longer "thin"), and library(cowork), which the threads row now routes.
 
 ## The gates, and what each is for
 

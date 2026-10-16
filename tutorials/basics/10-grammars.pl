@@ -41,13 +41,19 @@
 greeting --> "hello", " ", "world".
 
 %% Recursion, and a nonterminal that can match nothing.
-digits([D|T]) --> digit(D), digits(T).
-digits([D])   --> digit(D).
+%%
+%% NOT digits//1 AND digit//1, the names that come to mind first.
+%% library(dcg/basics) is tier 1 -- there before this file, with no
+%% use_module -- and its digits//1 is digits/3 in the same store. Consult
+%% APPENDS, so clauses written under those names join its own, and which
+%% are tried first depends on how the file is run. cocolint's N1 says so.
+numeral([D|T]) --> numeral_digit(D), numeral(T).
+numeral([D])   --> numeral_digit(D).
 
-digit(D) --> [D], { D >= 0'0, D =< 0'9 }.
+numeral_digit(D) --> [D], { D >= 0'0, D =< 0'9 }.
 
 %% `{ }' to turn what was collected into a number.
-number_from(N) --> digits(Ds), { number_codes(N, Ds) }.
+number_from(N) --> numeral(Ds), { number_codes(N, Ds) }.
 
 %% A tiny expression grammar: sums of numbers, left to right.
 sum(N)      --> number_from(A), sum_rest(A, N).

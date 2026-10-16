@@ -636,7 +636,8 @@ writes**: the compiled-in `apply builtins dcg files library lists zigurat`
 and SWI's own `assoc pairs ordsets yall aggregate ugraphs dcg_basics
 dcg_high_order`, vendored unmodified in `lib/swipl` and read at start-up (do
 not edit them). Only files swipl also runs (`test/files/*.pl`,
-`emacs/test/conformance.pl`) and `test/library.pl` keep such a directive.
+`emacs/test/conformance.pl`) and `test/library.pl` keep such a directive,
+where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
 
 **Tier 2 is loaded when asked**, from `$COCOLOG_LIBRARY` (colon-separated),
 then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
@@ -699,6 +700,14 @@ cocolint index offers no import of it.
   process-wide and unguarded.
 * `cocolint`'s index picks `modules/NAME/NAME.cicili` by name; a header
   signature list counts only at column 0.
+* **The whole tree lints clean, and `test/lint.pl` holds it to that**
+  (2.2.1): every `.pl` it holds, no finding HARD or WARN, and no `thin` or
+  `unrouted` note from the index. A form a file commits on purpose (a lesson
+  teaching the trap) carries `% cocolint: ID -- why` on its line, or alone
+  on the line before; U1 reports one whose finding has gone or that gives no
+  reason, and `COCO_LINT_NO_ACK=1` reads none. `lib/swipl/` is not read.
+  Lint a new or changed `.pl` before a commit: `sh tools/cocolint/lint.sh
+  FILE.pl`.
 * **The dialect card cites engine lines by range** (`tools/cocolint/
   traps.jsonl`). An edit ANYWHERE above a cited site moves it; a cite whose
   anchor is unique is accepted as moved, one whose anchor repeats in its file
@@ -1656,11 +1665,12 @@ cocolint index offers no import of it.
   (`coco_m_sink_install`); `set_output/1` redirects fd 1 with dup/dup2. The
   stdout sentinel for `format/2` is `(cast size_t -1)`, not 0 (cell 0 is a
   real heap cell). cocolint's X2 trap is lifted by a
-  `use_module(library(stream))` directive. **Every byte it reads is
-  counted** (`st_count`/`st_uncount`: bytes, characters, the line, SWI's
-  column), so `read_term/3` answers `term_position` and `subterm_positions`
-  on a pipe too; a seek or a write to an update stream leaves the counters
-  behind `ftell`, and `st_pos_sync` counts again from the start.
+  `use_module(library(stream))`, a directive or a goal (2.2.1). **Every
+  byte it reads is counted** (`st_count`/`st_uncount`: bytes, characters,
+  the line, SWI's column), so `read_term/3` answers `term_position` and
+  `subterm_positions` on a pipe too; a seek or a write to an update stream
+  leaves the counters behind `ftell`, and `st_pos_sync` counts again from
+  the start.
 
 ## The document libraries
 

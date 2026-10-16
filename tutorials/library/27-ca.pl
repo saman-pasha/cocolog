@@ -22,7 +22,6 @@
 %% and those are RULES over facts read out of a signed document.
 
 :- use_module(library(ca)).
-:- use_module(library(files)).
 
 cert_dir(D) :-
     (   getenv('ZIGURATIP', Z) -> true ; Z = '/home/user/ZiguratIP' ),

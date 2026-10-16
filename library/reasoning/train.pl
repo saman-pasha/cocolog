@@ -16,7 +16,7 @@
 %% bare -- `The noun casa means house.' -- read back to their terms
 %% (tagger_lessons/4).
 %%
-%%     main                     the program: trains under `tagger', measures, prints one line
+%%     main/0                   the program: trains under `tagger', measures, prints one line
 
 :- use_module(library(reasoning/reason)).
 :- use_module(library(reasoning/normalise)).

@@ -401,7 +401,7 @@ ix_exemplar('assert/retract', 'tutorials/basics/07-assert-and-retract.pl',
 ix_exemplar(grammar, 'tutorials/basics/10-grammars.pl',
   'a DCG over codes, 0\'0 character literals, { } placement').
 ix_exemplar('tier-2 library', 'library/astar.pl',
-  'the shortest complete library in the tree -- the full header template plus the callback idiom. Shipped WITH its own two defects named (a no-op tier-1 use_module at line 41, and two unprefixed helpers): showing a real file and what is wrong with it beats a sanitised one').
+  'the shortest complete library in the tree -- the full header template plus the callback idiom. Shipped WITH its own defect named (two unprefixed helpers, insert_all/3 and insert_open/3, in a one-namespace world): showing a real file and what is wrong with it beats a sanitised one').
 ix_exemplar('parser: dispatch', 'library/json.pl',
   'ordered-clause DCG dispatch, the var/1 guard first, the type_error catch-all last, and the bound-code-list-is-a-call rule that nothing in an SWI corpus teaches').
 ix_exemplar('cross-process', 'tutorials/library/34-kbs.pl',
@@ -551,8 +551,8 @@ ix_capability('hashing or ciphers', [sha, hash, hmac, aes, encrypt],
               [sha, aes], ['tier-2 library'], local).
 ix_capability(sockets, [socket, tcp, listen, connect, port],
               [tcp], ['tier-2 library'], local).
-ix_capability(threads, [thread, concurrent, worker, parallel, channel],
-              [thread], ['bulk KB write'], local).
+ix_capability(threads, [thread, concurrent, worker, parallel, channel, crew, pool],
+              [thread, cowork], ['bulk KB write'], local).
 ix_capability(processes, [subprocess, spawn, exec, 'shell out'],
               [process], ['tier-2 library'], local).
 ix_capability('the knowledge base',
@@ -677,13 +677,19 @@ ix_cap_complaint(Mods, Tags, B) :-
 %% "the public surface as an indented signature list", and where one is
 %% missing the index cannot invent it -- so the honest thing is to say which
 %% library will be under-served rather than to quietly serve one name.
+%%
+%% ONE NAME IS ALMOST NOTHING ONLY WHEN THERE ARE MORE. A program of one
+%% predicate -- library/reasoning/train.pl is main/0 and nothing else --
+%% whose header names it documents all of its surface, and was reported
+%% thin beside one that names one head of thirty.
 ix_thin(Surf, Thin) :-
     findall(m(Mod, ND, NH),
             ( member(json(R), Surf),
               memberchk(tier-2, R),
               memberchk(documented-D, R), length(D, ND), ND =< 1,
               memberchk(module-Mod, R),
-              memberchk(heads-NH, R)
+              memberchk(heads-NH, R),
+              ND < NH
             ),
             Thin).
 

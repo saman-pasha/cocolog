@@ -24,6 +24,12 @@
 %%
 %% The grammar goes first, so its meaning of a word is the first the
 %% translator finds (`casa' means `house' before it means `home').
+%%
+%%     main/0                               the program: the language and the name from argv
+%%     teach(+Language, +Name)              the grammar, then the vocabulary, into this store
+%%     teach_file(+File, +Name, -N)         a lesson file's lines learned, N terms
+%%     teach_chunks(+Lines, +Name, +N0, -N) 400 lines to a reason_learn call
+%%     teach_text(+Text, +Name, -Terms)     one chunk, learned plain or under Name
 
 :- use_module(library(reasoning/translate)).
 :- use_module(library(reasoning/normalise)).

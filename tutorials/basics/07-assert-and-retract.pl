@@ -72,7 +72,7 @@ main :-
     format("   left a choice point behind would need the engine's choice~n"),
     format("   stack in its hands. So that loop removes exactly ONE clause.~n"),
     findall(S4, seen(S4), WasThere),
-    ( retract(seen(_)), fail ; true ),
+    ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson: this loop removes ONE clause
     findall(S5, seen(S5), StillThere),
     length(WasThere, WasN), length(StillThere, StillN),
     Removed is WasN - StillN,

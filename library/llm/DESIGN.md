@@ -192,9 +192,9 @@ a gate for free.
 | **D2** | `:- table p/2.` `:- thread_local p/1.` | nothing | Those names are not prefix operators, so the file does not even **parse** (`lib/syntax.cicili:97-100`: only `dynamic discontiguous meta_predicate multifile` at 1150 fx). |
 | **D3** | `:- use_module(library(lists)).` | write nothing | Tier 1 is compiled in / preloaded: `apply builtins dcg files library lists zigurat` + `assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order`. 26 such lines were deliberately removed from this tree. Harmless, but off-idiom. |
 | **D4** | `:- use_module(library(dcg/basics)).` | nothing (it is tier 1 as `dcg_basics`) | `library(Dir/Name)` becomes the path `"Dir/Name"`, and the vendored file is `lib/swipl/dcg_basics.pl`. As a directive: silently ignored. As a **goal**: raises. |
-| **C1** | `catch(findall(X,G,L), E, …)` | `findall(X, catch(G,E,fail), L)` | `findall/3,4`, `forall/2`, `aggregate_all/3`, `bagof/3`, `setof/3`, `with_output_to/2` run a nested engine that copies the error out as a **message** and drops the ball (`lib/solve.cicili:988-992`; `lib/builtins.cicili:449-452`). The catch never fires; the query ends. |
+| ~~**C1**~~ | ~~`catch(findall(X,G,L), E, …)`~~ | **retired** | A nested engine dropped the ball and the outer catch never fired; `findall/3,4`, `forall/2`, `aggregate_all/3`, `bagof/3` and `setof/3` catch since 1.1.0 and `with_output_to/2` since 1.2.12, so the row went with the divergence. |
 | **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. Library and loader failures are the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. |
-| **A1** | `X is atan(Dy,Dx)` `log(2,N)` `random(10)` | compute it: `atan(Dy/Dx)` + quadrant; `log(N)/log(B)`; there is no random | An unknown arithmetic **functor** goes through `coco_fail_err` (`lib/solve.cicili:1691`, `:545-548`) — −1, **no ball**, uncatchably fatal. (An unknown arithmetic *atom* like `inf` raises a catchable `type_error(evaluable, inf)`.) |
+| **A1** | `X is atan(Dy,Dx)` `atan2(Dy,Dx)` `random(10)` `sinh(X)` `inf` | compute it: `atan(Dy/Dx)` + quadrant; the one-argument forms; there is no random | Not evaluable here, and each raises `type_error(evaluable, Name/Arity)`, SWI's own error and catchable (since 1.10.6; through 1.10.5 a functor with arguments went through `coco_fail_err` — −1, **no ball**). A **prompt** row since 2.2.1: its linter pattern could not tell `log(A, B)` the function from a predicate of that name. `log(2, N)` is in neither: swipl 9 lacks `log/2` too. |
 | ~~**A2**~~ | ~~`X is 1 << 62`, 64-bit ids~~ | **retired** | Integers are 64 bits since 2.0.0 (a value past a cell's 61 is boxed in a table, as a float is) and a result past them raises `evaluation_error(int_overflow)`: loud, not silent. The row and its linter rule A1 went with the wrap. |
 | ~~**A3**~~ | ~~`X is 2 ** 10` → `1024.0`~~ | **retired** | That float is ISO's answer, not swipl's: swipl 9's `2 ** 10` is the integer `1024`, as cocolog's is, and since 2.2.0 the power is swipl's `ar_pow()` in every case (`X ** 0` the integer 1, `1 ** Y` 1, a NaN or an infinity raised). The row went in 2.2.0. |
 | ~~**O1**~~ | ~~`sort/2` / `==` / `compare/3` over large integers~~ | **retired** | Since 2.0.0 the standard order compares two integers exactly (`coco_num_order`); an integer and a float are compared as doubles, the float first when equal, as swipl 9.0.4 orders them. |
@@ -326,7 +326,10 @@ with zero HARD findings. A finding there is a linter bug, not a repo bug — wit
 exceptions the case whitelists by name and prints: `library/astar.pl:41` is a no-op
 `use_module(library(ordsets))` (tier 1), and `astar.pl`'s `insert_all/3` and `insert_open/3`
 are genuinely unprefixed helpers in a one-namespace world. Those two exceptions are the
-argument for the rule, so the case prints them rather than hiding them.
+argument for the rule, so the case prints them rather than hiding them. (As built, the case
+is `test/lint.pl`, and since 2.2.1 its corpus is the whole tree with no exception left: the
+import went, and a form a file commits on purpose is acknowledged where it stands, a comment
+`% cocolint: ID -- why` that the linter reads and its rule U1 keeps honest.)
 
 `test/lint.sh` follows the house shape exactly: an early unconditional SKIP path when
 `python3` is absent, and `GREEN`/`SKIP` as the **last line**, because `test/run.sh` discards
@@ -716,7 +719,7 @@ Chosen exemplars, by capability tag:
 | self-checking program | `tutorials/basics/01-facts-and-rules.pl` | the template for most requests: header, sections, `main` walking claims, the two helpers at the foot |
 | assert/retract | `tutorials/basics/07-assert-and-retract.pl` | the correct `retract` recursion, and it *counts* the removals |
 | grammar | `tutorials/basics/10-grammars.pl` | a DCG over codes, `0'0` character codes, `{ }` placement |
-| a tier-2 library | `library/astar.pl` | the shortest complete one in the tree — full header template plus the callback idiom. Shipped **with a note on its own two defects** (a no-op tier-1 `use_module`, two unprefixed helpers). Showing a real file and what is wrong with it beats a sanitised one |
+| a tier-2 library | `library/astar.pl` | the shortest complete one in the tree — full header template plus the callback idiom. Shipped **with a note on its own defect** (two unprefixed helpers; the no-op tier-1 `use_module` beside them went in 2.2.1). Showing a real file and what is wrong with it beats a sanitised one |
 | parser / refusal discipline | `library/json.pl` (two anchored spans) | ordered-clause DCG dispatch, `var/1` guard first, `type_error` catch-all last, and the bound-code-list-is-a-call rule nothing in an SWI corpus teaches |
 | cross-process | `tutorials/library/34-kbs.pl` | goals as terms, marker-line verdicts, the honest-skip idiom |
 | bulk KB write | `coworker/balancer/worker.pl` | chunk, then the completion mark, in one turn; every clause ends in a cut because consult appends |

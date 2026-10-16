@@ -12,7 +12,7 @@
 %  and answers their number, which is what SWI's own documentation says.
 %  See lib/swipl/README.md.
 
-:- use_module(library(aggregate)).
+:- use_module(library(aggregate)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 
 p(X) :- writeq(X), nl.
 

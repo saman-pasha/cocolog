@@ -143,6 +143,3 @@ tutorial(D, Pl) :-
     sh_join(['tutorial ', Name], Label),
     check(Label, G, E).
 
-%% the file part of a path
-file_base_name(Path, Base) :-
-    ( sub_atom(Path, B, _, 0, After), \+ sub_atom(After, _, _, _, '/'), sub_atom(Path, _, 1, B, '/') -> Base = After ; Base = Path ).

@@ -6,7 +6,7 @@
 %  compared is every OBSERVABLE: the sorted lists it converts to, the
 %  answers lookups give, the errors bad input raises.
 
-:- use_module(library(assoc)).
+:- use_module(library(assoc)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 
 p(X) :- writeq(X), nl.
 

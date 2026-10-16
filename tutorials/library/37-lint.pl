@@ -146,11 +146,32 @@ t37_rules :-
     format("   somebody can list and argue with.~n"),
     findall(R-S, cl_severity(R, S), Sevs),
     length(Sevs, NRules),
-    must('every rule, with the severity of each', NRules, 8),
+    must('every rule, with the severity of each', NRules, 9),
     ( memberchk(n2-hard, Sevs) -> N2 = hard ; N2 = other ),
     must('N2 -- dead clauses under a C name -- is HARD', N2, hard),
     ( memberchk(t1-warn, Sevs) -> T1 = warn ; T1 = other ),
     must('T1 -- an import that does nothing -- is a WARN', T1, warn),
+
+    %% ---- AND A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS.
+    %%
+    %% Lesson 07 shows `retract(X), fail' removing one clause by writing it,
+    %% and R1 is right about that line: the trap IS the lesson. A comment
+    %% that names the finding and says why -- `cocolint: R1 -- the lesson'
+    %% after the `%' -- covers its own line, or the next one when it stands
+    %% alone, and the reason is required. cl_acks/3 reads them out of a
+    %% file's codes and its comment regions; the text below is a quoted
+    %% string, so it is no acknowledgement of anything in THIS file.
+    AckSrc = "p :- q.   % cocolint: R1 -- shown on purpose\n% cocolint: F1, X3 -- the next line\nr.\n",
+    cc_regions(AckSrc, AckRegs),
+    cl_acks(AckSrc, AckRegs, Acks),
+    findall(Ln-Cov-Ids, member(ack(_, Ln, Cov, Ids, _), Acks), AckLines),
+    must('after code it covers its line; alone, the next', AckLines,
+         [1-1-['R1'], 2-3-['F1', 'X3']]),
+    ( memberchk(u1-warn, Sevs) -> U1 = warn ; U1 = other ),
+    %% U1 keeps them honest: one whose finding has gone would excuse the
+    %% next thing to land on its line, so it is a finding itself, and so
+    %% is one that gives no reason.
+    must('U1 -- an acknowledgement that excuses nothing -- is a WARN', U1, warn),
 
     %% ---- AND A RULE CAN RETIRE, which is the other half of the argument.
     %%
@@ -257,17 +278,20 @@ t37_card :-
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
     must('every id distinct', NIds, 31),
-    %% TWELVE OF THE THIRTY-ONE CARRY A PATTERN, and the gap is the point
+    %% ELEVEN OF THE THIRTY-ONE CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
-    %% are things a linter can SEE in a source file. `A1' can be matched --
-    %% an arithmetic function cocolog lacks is right there in the text --
-    %% and `I1', which is about a cut you should not add, cannot be. (There
-    %% were thirty-four until 2.0.0, when A2, the integer literal past 61
-    %% bits, and O1, the order of two integers past them, went with the
-    %% divergences they named; and thirty-two until 2.2.0, when A3 went:
-    %% it said SWI's `2 ** 10' was 1024.0, which is ISO's answer and not
-    %% swipl's -- swipl 9's is the integer 1024, as cocolog's -- and since
-    %% 2.2.0 the power is swipl's ar_pow() in every case.)
+    %% are things a linter can SEE in a source file. `X3' can be matched --
+    %% a predicate cocolog leaves out on purpose is right there in the text
+    %% -- and `I1', which is about a cut you should not add, cannot be.
+    %% (There were thirty-four rows until 2.0.0, when A2, the integer
+    %% literal past 61 bits, and O1, the order of two integers past them,
+    %% went with the divergences they named; and thirty-two until 2.2.0,
+    %% when A3 went: it said SWI's `2 ** 10' was 1024.0, which is ISO's
+    %% answer and not swipl's -- swipl 9's is the integer 1024, as
+    %% cocolog's -- and since 2.2.0 the power is swipl's ar_pow() in every
+    %% case. And twelve carried a pattern until 2.2.1, when A1's went: its
+    %% text could not tell `log(A, B)' the function from a predicate of
+    %% that name, and test/tls.pl's own log/5 drew seven findings.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -291,7 +315,7 @@ t37_card :-
     %% `:- initialization(main).' with a halt in main, writes nothing.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 12),
+    must('rows carrying an S1 pattern term', NPats, 11),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 

@@ -215,6 +215,12 @@ expr(up2(A, U), T)         --> !, expr(A, TA), ['$te_pixels'(TA, U, T)].
 expr(cross_entropy(A, Y), T) --> !, expr(A, TA), expr(Y, TY), ['$te_cross_entropy'(TA, TY, T)].
 expr(bce(A, Y), T)         --> !, expr(A, TA), expr(Y, TY), ['$te_bce'(TA, TY, T)].
 expr(mse(A, Y), T)         --> !, expr(A, TA), expr(Y, TY), ['$te_mse'(TA, TY, T)].
+%% THE GRAMMAR IS AN EXTENSION POINT, and says so as library(httpd) says that
+%% httpd_page/3 is one: with a clause that fails. cocolint reads `H :- fail.'
+%% in a library as a declared hook, so a file's own expr//2 clause --
+%% lesson 39's `expr(double(A), T)' -- is the use it was written for, not an
+%% N1 collision. It costs a call no clause above took one inference.
+expr(_, _, _, _) :- fail.
 %% A DEFINED FUNCTION: a clause `Head ::= Body' in the program, Head a term
 %% with variables, Body an expression in them. Used by name inside any
 %% expression; the grammar looks the definition up and expands the body.

@@ -91,7 +91,29 @@
 %% with nothing on the wire.
 :- use_module(library(json)).
 
+%% A SECTION A PREDICATE. main/0 was every section in one clause, about
+%% fifteen kilobytes stored -- twice what a page of an 8192-byte store
+%% holds -- and harmless only because the lesson runs --local: under a
+%% store the clause is refused (cocolint's Z1). Each part is its own
+%% clause now, well under a page.
 main :-
+    l36_library,
+    l36_providers,
+    l36_options,
+    l36_body,
+    l36_pieces,
+    l36_messages,
+    l36_reply,
+    l36_key,
+    l36_order,
+    l36_retry,
+    l36_usage,
+    l36_unimplemented,
+    l36_cannot,
+    l36_calls,
+    format("done~n").
+
+l36_library :-
     format("~n-- a library is not the knowledge base, even when it is all clauses~n"),
     %% 20-curl.pl teaches this about a `.so' and it is easy to read as a
     %% fact about C. It is not. `library(llm)' is pure Prolog, and its
@@ -106,8 +128,9 @@ main :-
     %% consulted unmuted, so they are in the store and it says so.
     ( current_predicate(must/3) -> MP = yes ; MP = no ),
     must('current_predicate(must/3) -- but the program is', MP, yes),
-    format("   So the availability probe is a CALL, never this question.~n"),
+    format("   So the availability probe is a CALL, never this question.~n").
 
+l36_providers :-
     format("~n-- a provider is configuration: three facts, in file order~n"),
     findall(N, llm_provider(N, _, _), Names),
     must('every provider', Names, [anthropic, openai]),
@@ -133,11 +156,12 @@ main :-
     llm_model_default(anthropic, ModelA),
     show('anthropic''s default model (not pinned)', ModelA),
     llm_model_default(openai, ModelO),
-    show('openai''s default model (not pinned)', ModelO),
+    show('openai''s default model (not pinned)', ModelO).
     %% Both are `:- dynamic', so a program adds a fourth provider with
     %% `assertz/1' and edits nothing. This lesson does not, because it
     %% would rather stay readable from the top down.
 
+l36_options :-
     format("~n-- the options, and the ONE default that matters~n"),
     %% `llm_opt/3' is the whole option table in one predicate, which is
     %% what lets a lesson check the defaults without building a request.
@@ -190,8 +214,9 @@ main :-
     %% refusal comes from the provider lookup, with the name in it, and
     %% not from a body builder that could not find a model.
     llm_opt([provider(bogus)], model, MB),
-    must('an unknown provider has no model, and says so quietly', MB, ''),
+    must('an unknown provider has no model, and says so quietly', MB, '').
 
+l36_body :-
     format("~n-- THE REQUEST BODY IS A TERM, and you can look at it~n"),
     %% This is the strongest thing the lesson can show, and it needs no
     %% socket at all: `llm_request_body/4' builds a `json/1' term and
@@ -241,11 +266,12 @@ main :-
     must('the facts alone register it', Reg, yes),
     ( llm_request_body(demo_provider, [msg(user, 'Hi')], [model(demo)], _)
     -> BodyForNew = built ; BodyForNew = none ),
-    must('but with no llm_request_body/4 clause there is no body', BodyForNew, none),
+    must('but with no llm_request_body/4 clause there is no body', BodyForNew, none).
     %% Left asserted for the rest of the file: `llm_provider/3' is dynamic
     %% precisely so a program can do this, and nothing below asks for a
     %% complete provider list again.
 
+l36_pieces :-
     format("~n-- and the pieces the body is built from~n"),
     llm_split_system([msg(system, 'Be terse.'), msg(user, 'Hello'),
                       msg(assistant, 'Hi')], Sys, Rest),
@@ -263,8 +289,9 @@ main :-
     atom_codes(Joined, JoinedCodes),
     must('two system prompts, one blank line', JoinedCodes, [65, 10, 10, 66]),
     llm_wire_messages(anthropic, [msg(user, 'Hi')], Wire),
-    must('a msg/2 becomes a json/1 object', Wire, [json([role-user, content-'Hi'])]),
+    must('a msg/2 becomes a json/1 object', Wire, [json([role-user, content-'Hi'])]).
 
+l36_messages :-
     format("~n-- a malformed message is refused BEFORE anything happens~n"),
     %% `llm_check_messages/1' is the SECOND goal in `llm_chat_full/4' --
     %% only `llm_with_system/3' runs before it, and that one cannot fail --
@@ -291,8 +318,9 @@ main :-
          T3, msg(user, [72, 101, 108, 108, 111])),
     format("   A message written with double quotes is five integers.~n"),
     format("   Write `msg(user, 'Hello')'. Every text this library takes~n"),
-    format("   and every reply it answers is an ATOM.~n"),
+    format("   and every reply it answers is an ATOM.~n").
 
+l36_reply :-
     format("~n-- the reply path, from a handwritten response~n"),
     %% `llm_reply_of/3' is the other clause per provider, and it parses
     %% with no I/O -- so a response literal exercises the REAL path,
@@ -321,8 +349,9 @@ main :-
     %% which is the only useful thing to say about a shape you did not
     %% expect.
     ( llm_reply_of(anthropic, json([content-[]]), _) -> X2 = found ; X2 = no ),
-    must('an empty content list FAILS, for the caller to name', X2, no),
+    must('an empty content list FAILS, for the caller to name', X2, no).
 
+l36_key :-
     format("~n-- a missing key is a REFUSAL, not a hang and not an empty answer~n"),
     %% `getenv/2' FAILS for a name that is not set -- it does not throw --
     %% and `llm_key/2' is the if-then-else that turns that ordinary `no'
@@ -366,8 +395,9 @@ main :-
     %% content-type here would be a SECOND one on every request. Writing
     %% this lesson is what found the first version doing exactly that.
     format("   `curl_post/6' supplies Content-Type itself, so neither~n"),
-    format("   clause repeats it -- two would be one too many.~n"),
+    format("   clause repeats it -- two would be one too many.~n").
 
+l36_order :-
     format("~n-- the refusals come in ORDER, and all of them beat the socket~n"),
     %% This is the property that makes the lesson safe, and it is
     %% checkable: `llm_chat_full/4' is the system-prompt expansion, the
@@ -394,8 +424,9 @@ main :-
     format("   have answered, so this lesson does not reach them. What it~n"),
     format("   checks instead are their INGREDIENTS: llm_status_ok/1~n"),
     format("   above, and llm_reply_of/3 against a response typed out by~n"),
-    format("   hand.~n"),
+    format("   hand.~n").
 
+l36_retry :-
     format("~n-- the retry policy, which is arithmetic and a rule~n"),
     %% A 400 is a bad request and sending it again is a bad request again:
     %% retrying it wastes the caller's quota and hides the bug. So only a
@@ -430,8 +461,9 @@ main :-
     format("   Deterministic on purpose: two runs of the same failure~n"),
     format("   take the same time. Jitter would be kinder to a server~n"),
     format("   under a thundering herd and worse for a test, and this~n"),
-    format("   family pins its timings.~n"),
+    format("   family pins its timings.~n").
 
+l36_usage :-
     format("~n-- what the last call cost, which is the PROVIDER'S number~n"),
     %% `llm_last_usage/1' FAILS before anything has run: it is a global,
     %% and reading one nothing has set raises, which the library catches
@@ -455,8 +487,9 @@ main :-
     format("   tree, so this is the provider's arithmetic and not ours --~n"),
     format("   which is the only honest number available. A library that~n"),
     format("   guessed a count would be wrong in the direction of the~n"),
-    format("   bill.~n"),
+    format("   bill.~n").
 
+l36_unimplemented :-
     format("~n-- three predicates that THROW rather than pretend~n"),
     %% A silent failure here would look exactly like "the model had
     %% nothing to say", which is the worst possible way to learn that a
@@ -469,8 +502,9 @@ main :-
     must('  likewise', S2, llm_embed/3),
     catch(llm_stream([msg(user, 'hi')], [], _), error(llm_error(N3, S3), _), true),
     must('llm_stream/3', N3, not_implemented),
-    must('  and so does this one', S3, llm_stream/3),
+    must('  and so does this one', S3, llm_stream/3).
 
+l36_cannot :-
     format("~n-- WHAT IT GENUINELY CANNOT DO~n"),
     format("~n"),
     format("   NO STREAMING, and it is not a clause away. modules/curl~n"),
@@ -504,8 +538,9 @@ main :-
     format("   A REPLY DOES NOT FIT IN A CLAUSE. The body column is a~n"),
     format("   Text and a row must fit an 8192-byte page: 8000 stores~n"),
     format("   and 8192 is `allocation overflow'. Anything longer is~n"),
-    format("   chunked, the way machine state chunks at 4000.~n"),
+    format("   chunked, the way machine state chunks at 4000.~n").
 
+l36_calls :-
     format("~n-- AND WHAT THE CALLS LOOK LIKE, once a key is exported~n"),
     format("~n"),
     format("     $ export ANTHROPIC_API_KEY=sk-...~n"),
@@ -530,8 +565,7 @@ main :-
     format("   TERM, and a reply that was prose throws with the prose in~n"),
     format("   the ball rather than failing. A model's answer becomes a~n"),
     format("   term you can unify against, which is the whole reason this~n"),
-    format("   library is a goal and not a shell script.~n~n"),
-    format("done~n").
+    format("   library is a goal and not a shell script.~n~n").
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and

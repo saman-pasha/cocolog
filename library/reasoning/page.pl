@@ -12,6 +12,10 @@
 %% goes from one language to the other through the intermediate
 %% representation, with no English sentence written -- which wants both
 %% lessons in the store, each taught under its own name.
+%%
+%%     main/0                                   the program: each sentence, then the count
+%%     page_lines(+Text, +From, +Into, -Lines)  the page as Sentence-Out pairs
+%%     page_line(+Sentence, +Out)               one pair written, or `?' and its unknown words
 
 :- use_module(library(reasoning/translate)).
 

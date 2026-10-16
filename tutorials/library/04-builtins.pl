@@ -46,7 +46,7 @@ main :-
     must('~~~~ is a literal tilde', A6, '100~'),
 
     format("~n-- and the ones that are NOT, loudly~n"),
-    catch(format(atom(_), "~t~20|x", []), error(cocolog_error(Fmt), _), true),
+    catch(format(atom(_), "~t~20|x", []), error(cocolog_error(Fmt), _), true),   % cocolint: F1 -- the refusal is the lesson
     ( sub_atom(Fmt, _, _, _, 'no column directives') -> F = refused ; F = Fmt ),
     must('a column directive', F, refused),
     format("   ...and the message NAMES all three of them, so the fix is~n"),

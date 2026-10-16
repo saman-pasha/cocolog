@@ -24,10 +24,17 @@
 %%     N3  a head whose NAME is a control construct: no arity escapes it
 %%     S1  a form this dialect refuses or silently reads differently
 %%     T1  a use_module for a tier-1 library, which is a no-op
-%%     A1  an integer literal above the cell's silent-wrap point
 %%     Z1  a clause too big for a database page, or a term too big for the wire
 %%     C2  one name defined in two files of one run
+%%     U1  an acknowledgement that acknowledges nothing, or gives no reason
 %%
+%% A FINDING THE CODE MEANS IS ACKNOWLEDGED WHERE IT STANDS, by a comment
+%% that names it and says why -- a lesson that shows `retract(X), fail'
+%% removing one clause commits the trap on purpose:
+%%
+%%     ( retract(seen(_)), fail ; true ),   % cocolint: R1 -- the lesson
+%%
+%% See cl_acks/3 below for the whole of the rule.
 %% WHY THIS IS CLAUSES AND NOT PYTHON. A lint rule IS a clause -- a head that
 %% names the rule and a body that says when it fires -- and writing them in a
 %% language where a rule is a compiled regex object was the tool disagreeing
@@ -91,7 +98,7 @@ cl_tier1(dcg_basics). cl_tier1(dcg_high_order).
 cl_severity(p1, hard).  cl_severity(n1, hard).
 cl_severity(n2, hard).  cl_severity(n3, hard).  cl_severity(s1, hard).
 cl_severity(c2, hard).
-cl_severity(t1, warn).  cl_severity(z1, warn).
+cl_severity(t1, warn).  cl_severity(z1, warn).  cl_severity(u1, warn).
 
 %% A1 IS GONE, with the trap it named (2.0.0): an integer kept 61 bits and
 %% arithmetic past them wrapped in silence, so a literal at or above 2^59
@@ -121,7 +128,8 @@ cl_wire_bytes(65535).
 %% ======================================================================
 
 %% cl_file(+File, +Imports, -Findings) is det.
-%% Every finding in one file, sorted by line then column.
+%% Every finding in one file, sorted by line then column, less the ones the
+%% file acknowledges; cl_file/4 also counts those.
 %%
 %% ONE READ AND ONE SCAN, then every rule over the result. Reading the file
 %% per rule would be nine walks of it, and cc_regions/2 alone is the expensive
@@ -136,19 +144,24 @@ cl_wire_bytes(65535).
 %% it was killed for want of memory. Copied out, the same file holds the heap
 %% at 58 MB and the same inferences take a third of the time.
 cl_file(File, Imports0, Findings) :-
+    cl_file(File, Imports0, Findings, _).
+
+cl_file(File, Imports0, Findings, NAck) :-
     read_file_to_codes(File, Codes),
     cl_kept(Clauses, cc_clauses_of(File, Clauses)),
     cl_kept(Regions, cc_regions(Codes, Regions)),
     cl_kept(Texts, cl_texts(Clauses, Codes, Texts)),
     cl_zip(Clauses, Texts, Pairs),
-    cl_imports(Pairs, Imports1),
+    cl_kept(Imports1, cl_imports(Pairs, Codes, Regions, Imports1)),
     append(Imports0, Imports1, Imports),
     cl_kept(F2, cl_rule_t1(File, Pairs, F2)),
     cl_kept(F3, cl_rule_n(File, Clauses, Imports, F3)),
     cl_kept(F4, cl_rule_s1(File, Codes, Regions, Imports, F4)),
     cl_kept(F6, cl_rule_z1(File, Regions, Pairs, F6)),
     append([F2, F3, F4, F6], All),
-    cl_sort_findings(All, Findings).
+    cl_kept(Acks, cl_acks(Codes, Regions, Acks)),
+    cl_acknowledge(File, Codes, Acks, All, Kept, NAck),
+    cl_sort_findings(Kept, Findings).
 
 %% cl_kept(?X, :Goal) is semidet.
 %% Goal proved once, X bound to a COPY of what it bound there, and the heap
@@ -518,6 +531,151 @@ cl_grouped(Pairs, K, Wheres) :-
     findall(W, member(K-W, Pairs), Wheres0),
     sort(Wheres0, Wheres).
 
+%% ---- acknowledgements, and U1 ------------------------------------------
+%%
+%% A FINDING IS ACKNOWLEDGED BY A COMMENT THAT NAMES IT AND SAYS WHY:
+%%
+%%     % cocolint: ID ... -- the reason
+%%
+%% the marker first in a line comment (after its run of `%' and blanks),
+%% then each ID the finding renders -- the trap for S1, `X2', `R1'; the rule
+%% for the others, `T1', `N1', `Z1' -- then `--' and the reason, which is
+%% REQUIRED: an acknowledgement is a claim that the form is meant, and the
+%% reason is the argument for it. On a line of code the comment covers that
+%% line; alone on its line it covers the next one. Several IDs go in one
+%% comment.
+%%
+%% WHY A TREE THAT LINTS CLEAN NEEDS THEM AT ALL. Some findings are the
+%% point of the code that trips them: a lesson that shows the failure-driven
+%% loop removing ONE clause, a case pinning what write_canonical/2 writes,
+%% the linter's own fixture walking into every trap. Rewriting such code to
+%% slip past a pattern hides the trap from the reader the rule was written
+%% for; a pinned list of known findings, kept in a test, hides it from the
+%% file. The comment keeps it where somebody reading the code sees it.
+%%
+%% U1 KEEPS THEM HONEST. An acknowledgement whose finding has gone -- the
+%% code was mended, the line moved, the trap retired -- would go on to
+%% excuse whatever lands there next, so it is a finding itself, and so is
+%% one with no reason. COCO_LINT_NO_ACK=1 reads none of them, which is how
+%% test/lint.pl sees every rule still fire on selftest/traps.pl.
+
+%% cl_acks(+Codes, +Regions, -Acks) is det.
+%% Every acknowledgement in a file, as ack(Off, Line, Covers, Ids, Why): the
+%% offset of its `%', its line, the line it covers, its IDs, and its reason
+%% as codes (`none' when it gives none). ONE WALK, from region to region,
+%% counting the lines and whether a line has held anything but blanks so far
+%% -- which is what tells a comment alone on its line from one after code.
+cl_acks(Codes, Regions, Acks) :-
+    (   getenv('COCO_LINT_NO_ACK', V), V \== ''
+    ->  Acks = []
+    ;   cl_ack_walk(Regions, Codes, 0, 1, true, Acks)
+    ).
+
+cl_ack_walk([], _, _, _, _, []).
+cl_ack_walk([reg(A, _, K)|Rs], Codes, Pos, Line0, Blank0, Acks) :-
+    N is A - Pos,
+    cl_ack_skip(N, Codes, Line0, Blank0, Here, Line, Blank),
+    (   K == comment,
+        cl_ack_text(Here, Ids, Why)
+    ->  ( Blank == true -> Covers is Line + 1 ; Covers = Line ),
+        Acks = [ack(A, Line, Covers, Ids, Why)|More]
+    ;   Acks = More
+    ),
+    cl_ack_walk(Rs, Here, A, Line, Blank, More).
+
+cl_ack_skip(0, L, Ln, B, L, Ln, B) :- !.
+cl_ack_skip(_, [], Ln, B, [], Ln, B) :- !.
+cl_ack_skip(N, [C|T], Ln0, B0, R, Ln, B) :-
+    N1 is N - 1,
+    (   C =:= 10 -> Ln1 is Ln0 + 1, B1 = true
+    ;   cl_ack_space(C) -> Ln1 = Ln0, B1 = B0
+    ;   Ln1 = Ln0, B1 = false
+    ),
+    cl_ack_skip(N1, T, Ln1, B1, R, Ln, B).
+
+cl_ack_space(32).  cl_ack_space(9).  cl_ack_space(13).
+
+%% The comment's own text: `%'s, blanks, the marker, the IDs, the reason.
+cl_ack_text([0'%|T0], Ids, Why) :-
+    cl_ack_drop(T0, 0'%, T1),
+    cl_ack_blanks(T1, T2),
+    append("cocolint:", T3, T2),
+    cl_ack_ids(T3, Ids, T4),
+    Ids \== [],
+    cl_ack_blanks(T4, T5),
+    (   append("--", T6, T5),
+        cl_ack_blanks(T6, T7),
+        cl_ack_line(T7, Why0),
+        Why0 \== []
+    ->  Why = Why0
+    ;   Why = none
+    ).
+
+cl_ack_drop([C|T], C, R) :- !, cl_ack_drop(T, C, R).
+cl_ack_drop(L, _, L).
+
+cl_ack_blanks([C|T], R) :- cl_ack_space(C), !, cl_ack_blanks(T, R).
+cl_ack_blanks(L, L).
+
+%% IDs are a capital and then capitals and digits, apart by blanks or commas.
+cl_ack_ids(L0, Ids, Rest) :-
+    cl_ack_seps(L0, L1),
+    (   L1 = [C|T], C >= 0'A, C =< 0'Z
+    ->  cl_ack_idtail(T, Cs, L2),
+        atom_codes(Id, [C|Cs]),
+        Ids = [Id|More],
+        cl_ack_ids(L2, More, Rest)
+    ;   Ids = [], Rest = L0
+    ).
+
+cl_ack_seps([C|T], R) :- ( cl_ack_space(C) ; C =:= 0', ), !, cl_ack_seps(T, R).
+cl_ack_seps(L, L).
+
+cl_ack_idtail([C|T], [C|Cs], R) :-
+    ( C >= 0'A, C =< 0'Z ; C >= 0'0, C =< 0'9 ), !,
+    cl_ack_idtail(T, Cs, R).
+cl_ack_idtail(L, [], L).
+
+%% The rest of the line, blanks at its end dropped.
+cl_ack_line(L, Line) :- cl_ack_upto_nl(L, Cs), cl_trim(Cs, Line).
+
+cl_ack_upto_nl([], []) :- !.
+cl_ack_upto_nl([10|_], []) :- !.
+cl_ack_upto_nl([C|T], [C|R]) :- cl_ack_upto_nl(T, R).
+
+%% cl_acknowledge(+File, +Codes, +Acks, +Findings, -Kept, -NAck) is det.
+%% The findings no acknowledgement covers, then a U1 for each acknowledgement
+%% with no reason and for each ID one names that its line does not render.
+cl_acknowledge(_, _, [], Fs, Fs, 0) :- !.
+cl_acknowledge(File, Codes, Acks, Fs, Kept, NAck) :-
+    findall(F, ( member(F, Fs), \+ cl_acked(F, Acks) ), Kept0),
+    length(Fs, NF), length(Kept0, NK), NAck is NF - NK,
+    findall(U, cl_ack_unused(File, Codes, Acks, Fs, U), Us),
+    append(Kept0, Us, Kept).
+
+cl_acked(cl_finding(_, Line, _, Rule, _, Id, _, _, _), Acks) :-
+    cl_ack_key(Rule, Id, Key),
+    member(ack(_, _, Line, Ids, Why), Acks),
+    Why \== none,
+    memberchk(Key, Ids), !.
+
+cl_ack_key(Rule, none, Key) :- !, upcase_atom(Rule, Key).
+cl_ack_key(_, Id, Id).
+
+cl_ack_unused(File, Codes, Acks, _, U) :-
+    member(ack(Off, _, _, Ids, none), Acks),
+    cl_join(Ids, ' ', Named),
+    format(atom(Msg), "`cocolint: ~w' gives no reason. An acknowledgement claims the form is meant; the reason, after `--', is the argument for it, and without one this excuses nothing.", [Named]),
+    cl_finding_off(File, Codes, Off, u1, none, Msg, 'say why after --', none, U).
+cl_ack_unused(File, Codes, Acks, Fs, U) :-
+    member(ack(Off, _, Covers, Ids, Why), Acks),
+    Why \== none,
+    member(Key, Ids),
+    \+ ( member(cl_finding(_, Covers, _, Rule, _, Id, _, _, _), Fs),
+         cl_ack_key(Rule, Id, Key) ),
+    format(atom(Msg), "`cocolint: ~w' acknowledges no ~w finding on line ~w. The finding it was written for has gone, and an acknowledgement left behind would excuse the next one.", [Key, Key, Covers]),
+    cl_finding_off(File, Codes, Off, u1, none, Msg, 'delete it', none, U).
+
 %% ======================================================================
 %% ---- findings ---------------------------------------------------------
 %% ======================================================================
@@ -593,10 +751,15 @@ cl_main :-
 %% FAILS when there is a HARD finding, and that is the exit code. `cocolog
 %% --local run FILE GOAL' exits 1 with empty stderr when the goal fails --
 %% verified -- so no halt is needed.
-cl_lint(Files) :-
+cl_lint(Files0) :-
+    findall(F, ( member(F, Files0), \+ cl_vendored(F) ), Files),
+    length(Files0, NF0), length(Files, NF1), NVend is NF0 - NF1,
     cl_manifest(Files, Manifest),
-    findall(Fs, ( member(File, Files), cl_file(File, [], Fs) ), PerFile),
-    append(PerFile, Findings0),
+    findall(Fs-K, ( member(File, Files), cl_file(File, [], Fs, K) ), PerFile),
+    findall(Fs, member(Fs-_, PerFile), FsLists),
+    append(FsLists, Findings0),
+    findall(K, member(_-K, PerFile), Ks),
+    sum_list(Ks, NAck),
     (   Manifest == yes
     ->  cl_rule_c2(Files, C2), append(Findings0, C2, Findings)
     ;   Findings = Findings0
@@ -606,8 +769,22 @@ cl_lint(Files) :-
     cl_count(Findings, hard, Hard),
     cl_count(Findings, warn, Warn),
     length(Files, NF),
-    format("cocolint: ~w HARD, ~w WARN over ~w file(s)~n", [Hard, Warn, NF]),
+    format("cocolint: ~w HARD, ~w WARN over ~w file(s)", [Hard, Warn, NF]),
+    ( NAck =:= 0 -> true ; format(", ~w acknowledged", [NAck]) ),
+    ( NVend =:= 0 -> true ; format(", ~w vendored and not read", [NVend]) ),
+    nl,
     Hard =:= 0.
+
+%% A VENDORED SWI FILE IS NOT LINTED, and the summary counts it. lib/swipl
+%% holds SWI's own libraries, unmodified and never edited (lib/swipl/
+%% README.md), and they are what the blocklist is READ FROM: build.pl takes
+%% the tier-1 clause-defined names out of them, so linted against it every
+%% head they define came back as colliding with itself -- 275 of the 280
+%% findings over the eight, and the other five SWI's own idioms in SWI's
+%% own code.
+cl_vendored(File) :-
+    cl_relative(File, Rel),
+    atom_concat('lib/swipl/', _, Rel).
 
 cl_manifest(_, Manifest) :-
     ( getenv('COCO_LINT_MANIFEST', _) -> Manifest = yes ; Manifest = no ).
@@ -684,13 +861,31 @@ cl_trap_lifted('X2', Imports) :-
 %% is keyed on (build.pl's bd_library_of/2). Through 1.10.13 an import was
 %% keyed on its last segment and an entry on its file's base name, which
 %% agreed only while every tier-2 library it read sat in library/ itself.
-cl_imports(Pairs, Imports) :-
+%%
+%% AND A LIBRARY LOADED AS A GOAL IS AN IMPORT TOO. test/stream.pl loads
+%% library(stream) inside catch/3 -- a case SKIPS when the module is not
+%% built, where a directive would only report it and go on -- and the
+%% seventy-seven X2 findings it drew were stream calls the library gave it.
+%% A use_module or ensure_loaded of a library anywhere in the file's code
+%% counts; one in a comment or a quote does not.
+cl_imports(Pairs, Codes, Regions, Imports) :-
     findall(Lib,
             ( member(cc_clause(_, _, directive(D, _))-Text, Pairs),
               ( D == use_module ; D == ensure_loaded ),
               cl_library_arg(Text, Lib) ),
             Imports0),
-    sort(Imports0, Imports).
+    findall(Lib,
+            ( cl_match(seq([bstart, alt([lit(use_module), lit(ensure_loaded)]),
+                            ws, lit('('), ws, lit('library(')]),
+                       Codes, Off, Len),
+              \+ cc_in_region(Regions, Off, [quote, comment]),
+              End is Off + Len,
+              cc_drop(End, Codes, After),
+              cl_upto(After, 0'), Name),
+              atom_codes(Lib, Name) ),
+            Imports1),
+    append(Imports0, Imports1, Imports2),
+    sort(Imports2, Imports).
 
 cl_join([], _, '').
 cl_join([X], _, A) :- !, ( atom(X) -> A = X ; term_to_atom(X, A) ).

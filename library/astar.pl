@@ -38,8 +38,6 @@
 %% unifiable with another (use ground nodes), and step costs must be
 %% non-negative -- A* is not Bellman-Ford.
 
-:- use_module(library(ordsets)).
-
 astar(Start, Goal, Neighbor, Heuristic, Path, Cost) :-
     call(Heuristic, Start, H0),
     astar_loop([f(H0, 0, Start, [Start])], [], Goal, Neighbor, Heuristic,

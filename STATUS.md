@@ -73,7 +73,7 @@ happily as over a real one.
 | `test/numpy.pl` | `library(numpy)`: a list of lists becoming a matrix with the shape, dtype and elements it says; reductions, operations, `.npy` and CSV round trips, and `np_store`/`np_fetch` into the knowledge base. Needs a python3 with numpy |
 | `test/opencv.pl` | `library(opencv)`: an image is a HANDLE with a shape and a type, what goes in as rows comes out as the same rows, a pixel reads and writes, a region is a view — through imgcodecs, imgproc, features2d, objdetect, photo, video, calib3d and dnn. Needs OpenCV 4 |
 | `test/colab.pl` | `colab/`: the notebook and the scripts beside it, checked WITHOUT a VM — the version declared TWICE (`colab/VERSION` and `NOTEBOOK_VERSION` inside the notebook) and having to agree, so that what stays free to drift is exactly the copy in somebody's browser; the notebook parsing as JSON, nbformat 4, every cell well-formed, because a broken one fails in Colab twenty minutes into a session and nowhere else; and the scripts the cell calls by name existing |
-| `test/lint.pl` | cocolint over the calibration corpus: the dialect card's citations still pointing at the code they claim, every rule still firing on `selftest/traps.pl`, the blocklist probed against the RUNNING store, and the findings over 65 files being the pinned set exactly |
+| `test/lint.pl` | cocolint over the WHOLE TREE (2.2.1): the dialect card's citations still pointing at the code they claim, the index reporting no library thin or unrouted, every rule still firing on `selftest/traps.pl` with its acknowledgements ignored and the file clean with them read, the acknowledgements and the X2 lifts answering as written, the blocklist probed against the RUNNING store, and no finding, HARD or WARN, over every `.pl` the repository holds (`lib/swipl`'s eight left unread) |
 | `test/argv.pl` | `current_prolog_flag(argv, V)` out of `main()`'s own argv with `--` ending cocolog's arguments, `library(main)` over it, the `-s`-versus-`run` difference in what reaches the store, and `--version`'s SHAPE — deliberately not its number |
 | `test/directives.pl` | `:- G` is a GOAL, `initialization/1,2` puts one off, and a directive that fails or throws is REPORTED in SWI's shapes rather than ending the load — a syntax error being the only thing that still does. Its last section runs the same files under `swipl` and diffs what the programs printed. Since 1.11.9 a syntax error SAYS WHERE AND WHY in swipl's shape, `ERROR: FILE:LINE:COL: Syntax error: REASON` (the column from 0, in bytes as swipl counts it: two letters of two bytes move it four), from `run`, from `-s` naming the module's own file a directive loaded (a spec written without `.pl`) and from the load a goal's ask makes; a stray `endif` names its line; and the place is held to swipl's in two files -- where 1.11.8 said `syntax error at offset N`, and `-s` only that the top file's `clauses would not consult`. Each of five arms goes red: the error unplaced (7 checks), the module's reason not handed back (2), the module named by its spec (2), the column in characters (2), the other stops unplaced (1) |
 
@@ -6227,3 +6227,75 @@ programs are integer-only, so this is where the code sits):
   cocolog and modifying none of them. cocolog itself remains what it
   is: a Prolog with advanced knowledge-base machinery, and the stories
   above are the foundations The Coco's STATUS.md builds on.
+
+## The whole tree lints clean (2.2.1, reasoning 1.0.5)
+
+The owner's ask: no cocolint finding, HARD, WARN or soft, left in the tree.
+Through 2.2.0 `test/lint.pl` held the linter to eleven pinned findings over
+82 files; linted whole for the first time, the tree had **122** -- and the
+index two soft notes besides, four reasoning programs `thin` and
+library(cowork) `unrouted`. Now every `.pl` the repository holds (327, and
+`lib/swipl`'s eight left unread) lints to **0 HARD, 0 WARN, 29
+acknowledged**, and the index says nothing soft. The 122 went four ways:
+
+* **Mended where the code was wrong.** The no-op tier-1 imports of
+  `library/astar.pl` and lessons 26 and 27 went. Lesson 10's `digits//1` and
+  `digit//1` joined dcg_basics' own (consult appends) and are `numeral//1`
+  and `numeral_digit//1`. Lesson 36's `main/0`, ~15 KB stored, is a
+  predicate per section. library(tensor_expr) declares `expr//2` the
+  extension point lesson 39 uses, `expr(_, _, _, _) :- fail.`, as
+  library(httpd) declares `httpd_page/3` (an inference more for a call no
+  clause above it took). `test/torch-graph.pl` calls the `file_base_name/2`
+  it had defined again beside the library's.
+* **Acknowledged where the code means it.** A line comment that opens on the
+  marker, `% cocolint: ID ... -- why`, covers its own line, or the next when
+  it stands alone; the IDs are what the finding renders (the card row for
+  S1, the rule for the rest), the reason is required, and the count line
+  says how many were acknowledged. **U1** (WARN) reports one whose finding
+  is not on the line it covers, or that gives no reason, so none can outlive
+  what it excused. Lessons 07 (R1), 09 (C2), 04 (F1) and 38 (P1),
+  `test/stream.pl`'s pin of what `write_canonical/2` writes (W1), the six
+  `test/files` cases swipl also runs (T1: the import is SWI's portable form)
+  and every line of `selftest/traps.pl` carry one. `COCO_LINT_NO_ACK=1`
+  reads none, which is how the suite sees each rule still fire on the
+  fixture.
+* **Misfires, mended in the linter.** 77 were X2 in `test/stream.pl`, which
+  loads library(stream) as a goal so that it can skip without the module: a
+  `use_module(library(L))` or `ensure_loaded` anywhere in a file's code is
+  an import now, as a directive always was (one in a comment or a quote is
+  not). 7 were A1 on `test/tls.pl`'s own `log/5`: the pattern could not tell
+  `log(A, B)` the function from a predicate of that name, and the failure it
+  was written for -- through 1.10.5 an arithmetic function with arguments
+  stopped the query where no catch/3 could see it -- has been SWI's
+  catchable `type_error(evaluable, F/N)` since 1.10.6. The row is a PROMPT
+  now (eleven of the card's 31 rows carry a pattern), its `why` says which
+  of SWI's functions are absent here (atan/2, atan2/2, copysign/2, random/1,
+  the hyperbolics, lgamma, erf, inf, nan, epsilon, ...), and that swipl 9
+  lacks `log/2` as well.
+* **Not read.** `lib/swipl/`'s eight files are SWI's own libraries,
+  unmodified, and the source the blocklist is made from: 275 of their 280
+  findings were heads colliding with themselves. The linter leaves them
+  alone and its count line says `8 vendored and not read`.
+
+The index's notes: the four reasoning programs' headers name their heads
+(`main/0`, `teach/2`, `page_lines/4` ...), and a library of one head that
+names it is no longer `thin` (`ix_thin`'s `ND < NH`); the threads row routes
+library(cowork).
+
+`test/lint.pl` lints the whole tree (every `.pl` under the nine directories
+that hold Prolog, less the three the build writes) and wants no finding, a
+summary line to prove the lint ran, the fixture clean with its
+acknowledgements read and every rule firing with them ignored, and the index
+quiet; its new section 3e pins the acknowledgement's five ways (after code,
+alone, two IDs, no reason, stale) in line:col, and 3d the import read from a
+goal and refused from a comment and a quote. 85 s. EIGHTEEN ARMS, one rule
+out each in a copy of the tree, every one red: an acknowledgement covering
+the next line only, or its own line only; one with no reason accepted; no
+stale U1; COCO_LINT_NO_ACK ignored; the goal import not read; an import read
+from a comment or a quote; the vendored files read; `ND < NH` dropped;
+cowork's row dropped; page.pl's and train.pl's signature lines undone; A1's
+pattern put back; astar's import, lesson 10's names, lesson 36's one
+`main/0`, tensor_expr's hook and torch-graph's helper each put back. Lessons
+04, 07, 09, 10, 26, 27, 31, 36, 37 (now nine rules and eleven patterns, and
+`cl_acks/3` shown), 38 and 39 run to `done`; two tensor lessons train and
+test over the hook; the files and stream cases are green.
