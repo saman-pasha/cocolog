@@ -413,7 +413,8 @@ builds against the wrong tree:
 # Coco requisites
 export CICILI="$HOME/Projects/GitHub/cicili"        # the Cicili checkout, for sbcl
 export ZIGURATIP="$HOME/Projects/GitHub/ZiguratIP"  # the BUILT ZiguratIP checkout
-export ZIGURATIP_HOME="$ZIGURATIP/home"             # and its home
+export ZIGURATIP_HOME="$ZIGURATIP/home"             # and its home (make takes this one
+                                                    # when it is not set)
 
 # macOS, libtorch via Homebrew: headers land in /usr/local/include and
 # dylibs in /usr/local/lib, so the root that holds both is /usr/local.
@@ -435,7 +436,8 @@ the server binary. Then:
 ```sh
 cd cocolog
 make            # the C client and the ONE cocolog binary
-make schema     # compile the Parsi objects into $ZIGURATIP_HOME
+make schema     # compile the Parsi objects into $ZIGURATIP_HOME ($ZIGURATIP/home
+                # when ZIGURATIP_HOME is not set)
 make modules    # every loadable module this machine can build; the rest
                 # are SKIPPED, each by name
 make test       # the suite; the database tests skip without a server

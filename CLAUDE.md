@@ -93,8 +93,9 @@ export ZIGURATIP_HOME=$ZIGURATIP/home
 make              # the client and the ONE cocolog binary, embedded store linked in
 make EMBED=0      # the same binary without the embedded store: no ZiguratIP
                   # needed, --embed refuses by name, everything else unchanged
-make schema       # compile the Parsi objects into $ZIGURATIP_HOME (and copy the
-                  # emitted tables into $ZIGURATIP/MVCCS-cicili/generated/)
+make schema       # compile the Parsi objects into $ZIGURATIP_HOME, $ZIGURATIP/home
+                  # unless set (and copy the emitted tables into
+                  # $ZIGURATIP/MVCCS-cicili/generated/)
 make modules      # every loadable module buildable here; SKIPPED, by name, for the rest;
                   # and library(flow/chart)'s tables (sh tools/flow/build.sh, git-ignored)
 make test         # the suite -- ask first

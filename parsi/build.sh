@@ -11,9 +11,14 @@ set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 # cocolog does not contain ZiguratIP and does not build it. What it needs is a
-# ZiguratIP home that has already been built, and the parsi compiler inside it.
+# ZiguratIP home that has already been built, and the parsi compiler inside it:
+# ZIGURATIP_HOME, or the home inside the checkout ZIGURATIP names, as `make'
+# finds one.
+if [ -z "$ZIGURATIP_HOME" ] && [ -n "$ZIGURATIP" ]; then
+  ZIGURATIP_HOME=$ZIGURATIP/home
+fi
 if [ -z "$ZIGURATIP_HOME" ]; then
-  echo "cocolog: set ZIGURATIP_HOME to a built ZiguratIP home directory" >&2
+  echo "cocolog: set ZIGURATIP (a built ZiguratIP checkout) or ZIGURATIP_HOME (its home)" >&2
   exit 1
 fi
 if [ ! -x "$ZIGURATIP_HOME/bin/parsi" ]; then

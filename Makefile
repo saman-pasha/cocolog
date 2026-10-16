@@ -9,7 +9,8 @@
 #
 #   ZiguratIP  the database. Used at RUN time, over a socket, and at setup time
 #              through its `parsi' compiler, which turns parsi/*.parsi into
-#              objects inside a ZiguratIP home. Point ZIGURATIP_HOME at one.
+#              objects inside a ZiguratIP home: $(ZIGURATIP)/home, or the
+#              one ZIGURATIP_HOME names.
 #
 # Neither is patched, forked or vendored. The client under client/ speaks
 # Zigurat's protocol from C and includes nothing of ZiguratIP's -- libc and
@@ -29,6 +30,10 @@
 
 CICILI         ?= $(HOME)/cicili
 ZIGURATIP      ?= $(HOME)/ZiguratIP
+# the home `make schema' compiles into: the one inside the checkout unless
+# named (until 2026-10-16 `make schema' refused without ZIGURATIP_HOME,
+# where `make' needed ZIGURATIP alone)
+ZIGURATIP_HOME ?= $(ZIGURATIP)/home
 # `sbcl' BY NAME IS tools/cc/sbcl, because the Cicili step below runs with
 # tools/cc first on PATH: it gives the real sbcl a 4096 MB dynamic space
 # when that SBCL's default is smaller -- Debian's and Ubuntu's 2.2.9 start
@@ -239,7 +244,7 @@ modules:
 # object directory -- which is where a Parsi object is supposed to go.
 
 schema:
-	sh parsi/build.sh
+	ZIGURATIP="$(ZIGURATIP)" ZIGURATIP_HOME="$(ZIGURATIP_HOME)" sh parsi/build.sh
 
 # ---- the agent's index -------------------------------------------------------
 # tools/cocolint reads this repository rather than being told about it: the
