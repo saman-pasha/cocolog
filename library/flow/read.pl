@@ -578,12 +578,14 @@ flow_split_at([C|Cs], N, [C|H], T) :-
     N1 is N - 1,
     flow_split_at(Cs, N1, H, T).
 
-%% the line and column after Codes: a column counts characters, not the
-%% UTF-8 bytes atom_codes/2 answers
+%% the line and column after Codes: a column counts characters, so under
+%% `text_units = bytes', where the codes are UTF-8 bytes, a continuation
+%% byte (128..191) moves nothing; in characters, the default since 2.0.0,
+%% every code is a character
 flow_advance([], L, K, L, K).
 flow_advance([C|Cs], L, K, L1, K1) :-
     (   C =:= 10 -> L2 is L + 1, K2 = 1
-    ;   C >= 128, C < 192 -> L2 = L, K2 = K
+    ;   C >= 128, C < 192, current_prolog_flag(text_units, bytes) -> L2 = L, K2 = K
     ;   L2 = L, K2 is K + 1
     ),
     flow_advance(Cs, L2, K2, L1, K1).

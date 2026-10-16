@@ -1,19 +1,21 @@
-%% text_units: text counted in CHARACTERS, as SWI counts it (1.13.0).
+%% text_units: text counted in CHARACTERS, as SWI counts it (1.13.0; the
+%% default since 2.0.0).
 %%
-%% cocolog's text is UTF-8 bytes, and through 1.12 its builtins counted the
-%% bytes: atom_length('dár', 4), atom_codes/2 the bytes 100,195,161,114, a
-%% sub_atom/5 cut through the middle of á. `:- set_prolog_flag(text_units,
-%% characters).' -- or COCOLOG_TEXT_UNITS=characters for a whole run --
-%% makes a code a CODE POINT and a char a CHARACTER of however many bytes,
-%% for every builtin that hands text out as codes or chars or counts it.
-%% BYTES STAY THE DEFAULT through 1.x, so a program written against them
-%% runs as it did; the flip is 2.0.0's.
+%% cocolog's text is UTF-8, and through 1.12 its builtins counted the bytes:
+%% atom_length('dár', 4), atom_codes/2 the bytes 100,195,161,114, a
+%% sub_atom/5 cut through the middle of á. `text_units = characters' makes a
+%% code a CODE POINT and a char a CHARACTER of however many bytes, for every
+%% builtin that hands text out as codes or chars or counts it. 1.13.0 made
+%% it a program's to ask for and kept bytes the default through 1.x; 2.0.0
+%% made characters the default, and bytes are asked for:
+%% `:- set_prolog_flag(text_units, bytes).', or COCOLOG_TEXT_UNITS=bytes for
+%% a whole run.
 %%
 %%     cocolog -s test/units.pl        from the checkout root
 %%
-%% THIS CASE RUNS IN CHARACTERS: the directive below sets the flag for the
-%% rest of the file and for the machine that runs main. Bytes, the default,
-%% is asked of child processes, as are the environment variable, a file's
+%% THIS CASE RUNS IN CHARACTERS: the directive below says so for the rest of
+%% the file and for the machine that runs main, as the default would. Bytes
+%% are asked of child processes, as are the environment variable, a file's
 %% own directive and a frozen machine. Every expected answer here is swipl
 %% 9.0.4's (LANG=C.UTF-8, double_quotes codes) unless a comment says where
 %% cocolog differs and why.
@@ -25,7 +27,7 @@
 main :-
     scratch(D),
     flag(D), atoms, cases, strings, reader(D), formats, types, undecodable(D),
-    documents, streams(D), threads(D), frozen(D),
+    documents, bytes_of_text, streams(D), threads(D), frozen(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -36,7 +38,7 @@ probe_program(['main :- current_prolog_flag(text_units, U), atom_length(\'dár\'
                '    atom_codes(\'dár\', Cs), write(answer(U-N-Cs)), nl.']).
 
 flag(D) :-
-    section('the flag: characters here, bytes by default'),
+    section('the flag: characters, the default since 2.0.0, and bytes on request'),
     answer(current_prolog_flag(text_units, U1), U1, G1),
     check('this case counts characters', G1, characters),
     probe_program(P),
@@ -44,24 +46,28 @@ flag(D) :-
     fixture(F2, P),
     atom_concat('run ', F2, A2),
     answer_text(A2, T2),
-    check('a program that says nothing counts bytes, the default through 1.x', T2,
-          'bytes-4-[100,195,161,114]'),
+    check('a program that says nothing counts characters, the default since 2.0.0 (bytes through 1.x)', T2,
+          'characters-3-[100,225,114]'),
     cocolog(C),
-    sh_join(['COCOLOG_TEXT_UNITS=characters ', C, ' run ', F2, ' 2>/dev/null'], Cmd3),
+    sh_join(['COCOLOG_TEXT_UNITS=bytes ', C, ' run ', F2, ' 2>/dev/null'], Cmd3),
     shell(Cmd3, Out3, _),
-    check('COCOLOG_TEXT_UNITS=characters counts characters for a whole run', Out3,
+    check('COCOLOG_TEXT_UNITS=bytes counts bytes for a whole run', Out3,
+          'answer(bytes-4-[100,195,161,114])'),
+    sh_join(['COCOLOG_TEXT_UNITS=characters ', C, ' run ', F2, ' 2>/dev/null'], Cmd3b),
+    shell(Cmd3b, Out3b, _),
+    check('...and COCOLOG_TEXT_UNITS=characters characters, as the default does', Out3b,
           'answer(characters-3-[100,225,114])'),
-    atom_concat(D, '/chars.pl', F4),
-    fixture(F4, [':- set_prolog_flag(text_units, characters).'|P]),
+    atom_concat(D, '/bytes.pl', F4),
+    fixture(F4, [':- set_prolog_flag(text_units, bytes).'|P]),
     atom_concat('run ', F4, A4),
     answer_text(A4, T4),
-    check('so does a file\'s own directive', T4, 'characters-3-[100,225,114]'),
+    check('so does a file\'s own directive', T4, 'bytes-4-[100,195,161,114]'),
     atom_concat(D, '/back.pl', F5),
-    fixture(F5, [':- set_prolog_flag(text_units, characters).',
-                 ':- set_prolog_flag(text_units, bytes).'|P]),
+    fixture(F5, [':- set_prolog_flag(text_units, bytes).',
+                 ':- set_prolog_flag(text_units, characters).'|P]),
     atom_concat('run ', F5, A5),
     answer_text(A5, T5),
-    check('and a second directive puts bytes back', T5, 'bytes-4-[100,195,161,114]'),
+    check('and a second directive puts characters back', T5, 'characters-3-[100,225,114]'),
     atom_concat(D, '/bad.pl', F6),
     fixture(F6, [':- set_prolog_flag(text_units, words).', 'main.']),
     atom_concat('run ', F6, A6),
@@ -267,6 +273,42 @@ documents :-
     answer(html_parse('<p>&#225;</p>', T4), T4, G4),
     check('an HTML character reference', G4, [element(p, [], ['á'])]).
 
+%% ---- string_bytes/3: a text's bytes, whatever the units (2.0.0) -------------
+%%
+%% SWI's string_bytes(?Text, ?Bytes, utf8): the one crossing between the
+%% program's text and bytes that does not move with the units, which
+%% library(http), library(websocket) and library(curl) make at the wire.
+%% Each answer is swipl 9.0.4's but the last two, cocolog's own: a byte
+%% that is no UTF-8 is U+DC00 plus it, and goes back as the byte.
+
+bytes_of_text :-
+    section('string_bytes/3: a text''s UTF-8 bytes and back, whatever the units (2.0.0)'),
+    answer(string_bytes('dár', B1, utf8), B1, G1),
+    check('an atom''s bytes', G1, [100,195,161,114]),
+    answer(string_bytes([100,225,114], B2, utf8), B2, G2),
+    check('a code list''s, its code points as UTF-8', G2, [100,195,161,114]),
+    answer(( string_bytes(S3, [100,195,161,114], utf8), string(S3), atom_string(A3, S3) ), A3, G3),
+    check('and the bytes back as a string, an atom by atom_string/2', G3, 'dár'),
+    answer(string_bytes([d,'á',r], B4, utf8), B4, G4),
+    check('a char list is text too', G4, [100,195,161,114]),
+    answer(catch(string_bytes(abc, _, latin9), error(E5, _), true), E5, G5),
+    check('utf8 is the encoding: another is a domain_error', G5, domain_error(encoding, latin9)),
+    answer(catch(string_bytes(_, _, utf8), error(E6, _), true), E6, G6),
+    check('nothing bound is an instantiation_error', G6, instantiation_error),
+    answer(catch(string_bytes(f(x), _, utf8), error(E7, _), true), E7, G7),
+    check('a compound that is no text is a type_error', G7, type_error(text, f(x))),
+    answer(( string_bytes(S8, [104, 0xFF], utf8), string_codes(S8, C8) ), C8, G8),
+    check('cocolog''s: a byte that is no UTF-8 reads as U+DC00 plus it', G8, [104, 0xDCFF]),
+    answer(string_bytes([104, 0xDCFF], B9, utf8), B9, G9),
+    check('...and goes back as that byte', G9, [104, 0xFF]),
+    cocolog(C),
+    sh_join(['COCOLOG_TEXT_UNITS=bytes ', C, ' query "atom_codes(''dár'', Cs), string_bytes(Cs, B, utf8), ',
+             'string_bytes(S, B, utf8), atom_string(A, S), write(answer(Cs, B, A)), nl" 2>/dev/null'], Cmd10),
+    shell(Cmd10, Out10, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out10, A10) -> true ; A10 = Out10 ),
+    check('under bytes the codes ARE the bytes, and come back the same',
+          A10, 'answer([100,195,161,114],[100,195,161,114],dár)').
+
 %% ---- library(stream): a text stream's codes are the program's ------------
 
 streams(D) :-
@@ -292,7 +334,8 @@ streams(D) :-
 %% Under -s this file is a module, and a thread's machine reads a module's
 %% directives again on its first goal, so the first check holds of the
 %% directive alone; a consulted program's thread has only the process
-%% default the directive set (`coco_text_default'), which the child asks.
+%% default the directive set (`coco_text_default'), which the child asks --
+%% of a directive that says bytes, since characters are the default anyway.
 threads(D) :-
     section('a thread made after the directive counts as the program does'),
     (   catch(use_module(library(thread)), _, fail)
@@ -300,17 +343,22 @@ threads(D) :-
                  thread_join(I, _), channel_recv(Ch, M) ), M, G1),
         check('atom_length(\'dár\', 3) in a thread of its own', G1, 3),
         atom_concat(D, '/thread.pl', F2),
-        fixture(F2, [':- set_prolog_flag(text_units, characters).',
+        fixture(F2, [':- set_prolog_flag(text_units, bytes).',
                      ':- use_module(library(thread)).',
                      'main :- channel_new(Ch), thread_create(( atom_length(\'dár\', N), channel_send(Ch, N) ), I),',
                      '    thread_join(I, _), channel_recv(Ch, M), write(answer(M)), nl.']),
         atom_concat('run ', F2, A2),
         answer_text(A2, T2),
-        check('and in a consulted program, whose thread has only the process default', T2, '3')
+        check('and a consulted program that says bytes, whose thread has only the process default: 4', T2, '4')
     ;   format("   (library(thread) is not built: sh modules/thread/build.sh)~n", [])
     ).
 
 %% ---- a frozen machine ------------------------------------------------------
+%%
+%% A machine is frozen with its units (`U') and thawed in them, whatever the
+%% process that steps it counts. One frozen before 1.13.0 carries no `U' and
+%% thaws in bytes, which every machine counted then (lib/state.cicili); no
+%% binary here can make one, so that branch is argued and not run.
 
 frozen(D) :-
     section('a frozen machine keeps its units'),
@@ -320,17 +368,17 @@ frozen(D) :-
     fixture(F, ['go :- atom_length(\'dár\', N), write(answer(N)), nl.']),
     cocolog(C),
     sh_join(['timeout 60 ', C, ' --embed ', KB, ' consult ', F, ' >/dev/null 2>&1 && ',
-             'COCOLOG_TEXT_UNITS=characters timeout 60 ', C, ' --embed ', KB,
+             'timeout 60 ', C, ' --embed ', KB,
              ' start chars go >/dev/null 2>&1 && ',
-             'timeout 60 ', C, ' --embed ', KB, ' start bytes go >/dev/null 2>&1'], Setup),
+             'COCOLOG_TEXT_UNITS=bytes timeout 60 ', C, ' --embed ', KB, ' start bytes go >/dev/null 2>&1'], Setup),
     (   sh_exit(Setup, 0)
-    ->  sh_join(['timeout 60 ', C, ' --embed ', KB, ' step chars 2>/dev/null'], S1),
+    ->  sh_join(['COCOLOG_TEXT_UNITS=bytes timeout 60 ', C, ' --embed ', KB, ' step chars 2>/dev/null'], S1),
         shell(S1, O1, _),
         ( re_first_atom('answer\\([0-9]+\\)', O1, A1) -> true ; A1 = O1 ),
-        check('started under characters, stepped in a process that says nothing: 3', A1, 'answer(3)'),
-        sh_join(['COCOLOG_TEXT_UNITS=characters timeout 60 ', C, ' --embed ', KB, ' step bytes 2>/dev/null'], S2),
+        check('started in characters, the default, stepped under bytes: 3', A1, 'answer(3)'),
+        sh_join(['timeout 60 ', C, ' --embed ', KB, ' step bytes 2>/dev/null'], S2),
         shell(S2, O2, _),
         ( re_first_atom('answer\\([0-9]+\\)', O2, A2) -> true ; A2 = O2 ),
-        check('started under bytes, stepped under characters: 4', A2, 'answer(4)')
+        check('started under bytes, stepped in a process that says nothing: 4', A2, 'answer(4)')
     ;   check('could set up a machine in a scratch store', failed, done)
     ).

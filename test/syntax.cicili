@@ -261,26 +261,34 @@
       (trip (aof m) "2.0"          "2.0")
       (trip (aof m) "1.0e3"        "1000.0")
 
-      ;; ---- AN INTEGER IS 61 BITS, AND A LITERAL PAST THEM IS REFUSED ---------
+      ;; ---- AN INTEGER IS 64 BITS, AND A LITERAL PAST THEM IS REFUSED ---------
       ;;
-      ;; The digits were read into 64 bits -- a decimal saturated at the largest,
-      ;; a radix literal wrapped -- and the cell kept the low 61 of them, without
-      ;; a word: `1152921504606846976' was the least integer, `0xffffffffffffffff'
-      ;; was -1 and `0x10000000000000000' was 0. The range is -2^60 .. 2^60 - 1,
-      ;; so the magnitude of a negative literal may be one more than a positive's.
-      (trip (aof m) "1152921504606846975"  "1152921504606846975")    ; 2^60 - 1
-      (trip (aof m) "-1152921504606846976" "-1152921504606846976")   ; -2^60
-      (trip (aof m) "0xfffffffffffffff"    "1152921504606846975")
-      (trip (aof m) "-0x1000000000000000"  "-1152921504606846976")
-      (refuses (aof m) "1152921504606846976."   "integer out of range")
-      (refuses (aof m) "-1152921504606846977."  "integer out of range")
+      ;; Through 1.8.49 the digits were read into 64 bits -- a decimal
+      ;; saturated at the largest, a radix literal wrapped -- and the cell kept
+      ;; the low 61 of them, without a word; through 1.15.0 the range was the
+      ;; cell's, -2^60 .. 2^60 - 1. Since 2.0.0 it is 64 bits, -2^63 .. 2^63 - 1,
+      ;; a value past the cell boxed in the machine's integer table; the
+      ;; magnitude of a negative literal may be one more than a positive's, and
+      ;; the least integer's, 2^63, has no i64 of its own: the lexer counts the
+      ;; digits in u64 and the reader negates.
+      (trip (aof m) "1152921504606846975"  "1152921504606846975")    ; 2^60 - 1, the cell's largest
+      (trip (aof m) "1152921504606846976"  "1152921504606846976")    ; 2^60, boxed
+      (trip (aof m) "-1152921504606846977" "-1152921504606846977")   ; -2^60 - 1, boxed
+      (trip (aof m) "9223372036854775807"  "9223372036854775807")    ; 2^63 - 1
+      (trip (aof m) "-9223372036854775808" "-9223372036854775808")   ; -2^63
+      (trip (aof m) "0x7fffffffffffffff"   "9223372036854775807")
+      (trip (aof m) "-0x8000000000000000"  "-9223372036854775808")
+      (trip (aof m) "0o777777777777777777777" "9223372036854775807")
+      (trip (aof m) "f(1, 4611686018427387904)" "f(1,4611686018427387904)")
       (refuses (aof m) "9223372036854775808."   "integer out of range")
+      (refuses (aof m) "-9223372036854775809."  "integer out of range")
       (refuses (aof m) "99999999999999999999."  "integer out of range")
-      (refuses (aof m) "0x1000000000000000."    "integer out of range")
+      (refuses (aof m) "0x8000000000000000."    "integer out of range")
+      (refuses (aof m) "-0x8000000000000001."   "integer out of range")
       (refuses (aof m) "0xffffffffffffffff."    "integer out of range")
       (refuses (aof m) "0x10000000000000000."   "integer out of range")
       (refuses (aof m) "0o7777777777777777777777." "integer out of range")
-      (refuses (aof m) "f(1, 1152921504606846976)." "integer out of range")
+      (refuses (aof m) "f(1, 9223372036854775808)." "integer out of range")
 
       ;; ---- strings are code lists ---------------------------------------
       (trip (aof m) "\"ab\""       "[97,98]")

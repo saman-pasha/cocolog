@@ -1,4 +1,4 @@
-%% LIBRARY 21 -- library(bigint): integers that do not wrap
+%% LIBRARY 21 -- library(bigint): integers past 64 bits
 %%
 %%     ./cocolog run tutorials/library/21-bigint.pl main
 %%
@@ -8,14 +8,15 @@
 %%
 %% ---- WHY THIS EXISTS, IN ONE NUMBER ----------------------------------
 %%
-%% cocolog's integers are 64 bits and they WRAP IN SILENCE:
+%% cocolog's integers are 64 bits, and an answer past them is an ERROR:
 %%
-%%     1000000000000000000 * 997  =  875820019684212736
+%%     1000000000000000000 * 997   raises evaluation_error(int_overflow)
 %%
-%% That is not an error, a warning or a saturation. It is a wrong answer,
-%% returned confidently, and it is the first product a token swap
-%% computes at ordinary scale. Anything doing money, cryptography or a
-%% hash needs arithmetic that does not do that.
+%% Through 1.15.0 it was worse: the product wrapped in silence, to
+%% 875820019684212736, a wrong answer returned confidently. An error is
+%% honest, but it is still no answer, and this is the first product a
+%% token swap computes at ordinary scale. Anything doing money,
+%% cryptography or a hash needs arithmetic that goes past 64 bits.
 %%
 %% A BIGINT IS AN ATOM OF DIGITS here, which is worth knowing: they are
 %% not Prolog integers and `is/2' knows nothing about them. You call the
@@ -31,12 +32,10 @@
 
 main :-
     format("~n-- FIRST, the thing this is for~n"),
-    Wrapped is 1000000000000000000 * 997,
-    show('1000000000000000000 * 997, in plain 64-bit', Wrapped),
-    ( Wrapped < 1000000000000000000 -> W = wrapped ; W = fine ),
-    must('...which is', W, wrapped),
-    format("   Silently. Nothing raised, nothing was logged, and the~n"),
-    format("   answer is smaller than one of its own factors.~n"),
+    catch(( _ is 1000000000000000000 * 997, W = an_answer ), error(W, _), true),
+    must('1000000000000000000 * 997, in plain 64-bit', W, evaluation_error(int_overflow)),
+    format("   64 bits cannot hold it, and is/2 says so rather than~n"),
+    format("   answering something smaller than one of its own factors.~n"),
 
     format("~n-- and the same product, done properly~n"),
     bigint_mul('1000000000000000000', '997', Product),

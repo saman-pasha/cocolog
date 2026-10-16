@@ -522,6 +522,9 @@
   ;;; resource_error(Resource): "memory" when an allocation was refused
   ;;; (1.10.28), as the engine raises it for its own
   (decl) (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int))
+  ;;; evaluation_error(What): "int_overflow" for an integer past 64 bits
+  ;;; (2.0.0), as the engine's arithmetic raises it
+  (decl) (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int))
 
   ;;; For what SWI has no error for and cocolog does: a condition of this
   ;;; implementation's own. It throws `error(cocolog_error(Atom), _)', so it is
@@ -818,10 +821,11 @@
         (if (not (coco_m_is_atom e t)) (return nil))
         (return (coco_atom_name (-> e m) (coco_name_of (-> e m) t))))
 
+  ;;; Either kind of integer (2.0.0): in the cell, or boxed past 61 bits.
   (func coco_m_int ((coco_engine * e) (size_t t) (i64 * out)) (out int)
         (set t (coco_deref (-> e m) t))
-        (if (not (coco-tag-is INT (nth t ($ (cof (-> e m)) heap)))) (return 0))
-        (set (cof out) (coco-signed-payload (nth t ($ (cof (-> e m)) heap))))
+        (if (not (coco-is-int (nth t ($ (cof (-> e m)) heap)))) (return 0))
+        (set (cof out) (coco_int_val (-> e m) (nth t ($ (cof (-> e m)) heap))))
         (return 1))
 
   ;;; An integer is a float too, which is what every arithmetic reader in the
@@ -1237,6 +1241,10 @@
   (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (return (coco_m_raise e (coco_make1 m "resource_error" (coco_new_atom m resource))))))
+
+  (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_m_raise e (coco_make1 m "evaluation_error" (coco_new_atom m what))))))
 
   (func coco_m_error ((coco_engine * e) (const char * what) (const char * detail)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (char msg [192]))

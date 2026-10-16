@@ -24,6 +24,20 @@
 %% atom-shaped parser would silently truncate a body -- and a body is not
 %% text. Codes carry every byte, and `phrase/2' walks them.
 %%
+%% THE WIRE IS BYTES AND THE PROGRAM'S TEXT IS IN ITS OWN UNITS (2.0.0). A
+%% message -- what http_request/3 reads and http_response/4 writes -- is
+%% bytes, 0..255 each, whatever the program counts. What crosses to the
+%% program is text: the atoms made from the wire (the target, the path, the
+%% query, a header's value) are the atoms of those UTF-8 bytes, and a body
+%% is codes as the program counts them. Under `text_units = characters',
+%% the default since 2.0.0, a code is a code point, so atom_codes/2 over the
+%% wire's bytes read each byte of a letter as a character of its own --
+%% `caf%C3%A9' was the path `cafÃ©' -- and a body's code points went out as
+%% one byte each. Every crossing goes through string_bytes/3, which is
+%% atom_codes/2 in bytes whatever the program counts (`http_bytes_atom',
+%% `http_text_bytes', `http_bytes_codes' at the end of this file); under
+%% bytes nothing is different from 1.x.
+%%
 %% WHAT A REQUEST BECOMES:
 %%
 %%     request(Method, Path, Query, Version, Headers, Body)
@@ -37,8 +51,11 @@
 %%              HTTP field names are case-insensitive and a page that has
 %%              to remember whether the client said `Host' or `host' will
 %%              get it wrong on some client eventually
-%%     Body     a code list. Exactly Content-Length bytes, or [] when there
-%%              is no body
+%%     Body     a code list: the Content-Length bytes as the program
+%%              counts text -- the bytes under `text_units = bytes', their
+%%              code points under characters (a byte that is no UTF-8 as
+%%              U+DC00 plus it, which goes back as that byte) -- or []
+%%              when there is no body
 %%
 %% WHERE IT IS STRICT, and each is a decision rather than an omission:
 %%
@@ -84,7 +101,8 @@ http_request(Codes, request(Method, Path, Query, Version, Headers, Body), Rest) 
     phrase(http_request_head(Method, Target, Version, Headers), Codes, After),
     !,
     \+ member('transfer-encoding'-_, Headers),
-    http_body(Headers, After, Body, Rest),
+    http_body(Headers, After, Bytes, Rest),
+    http_bytes_codes(Bytes, Body),
     http_target(Target, Path, Query).
 
 %% http_header(+Request, +Name, -Value) is semidet.
@@ -115,7 +133,7 @@ http_body(Headers, After, Body, Rest) :-
 
 http_request_head(Method, Target, Version, Headers) -->
     http_method(Method), " ",
-    http_target_codes(TC), { TC \== [], atom_codes(Target, TC) }, " ",
+    http_target_codes(TC), { TC \== [], http_bytes_atom(TC, Target) }, " ",
     http_version(Version), http_eol,
     http_headers(Headers),
     http_eol.
@@ -151,7 +169,7 @@ http_header_name(Name) -->
 %% whitespace was eaten by `http_ows'; the two together are RFC 7230's OWS
 %% around a field value.
 http_header_value(Value) -->
-    http_line_codes(Cs), { http_trim_right(Cs, T), atom_codes(Value, T) }.
+    http_line_codes(Cs), { http_trim_right(Cs, T), http_bytes_atom(T, Value) }.
 
 http_line_codes([C|Cs]) --> [C], { C \== 13, C \== 10 }, !, http_line_codes(Cs).
 http_line_codes([]) --> [].
@@ -159,16 +177,18 @@ http_line_codes([]) --> [].
 %% ---- the target: path, query, and per cent ---------------------------
 
 %% http_target(+Target, -Path, -Query) is det.
+%% A per cent escape is a BYTE, so the path and the query are decoded as
+%% bytes and made atoms from those: `caf%C3%A9' is `café' in both units.
 http_target(Target, Path, Query) :-
-    atom_codes(Target, Cs),
+    http_text_bytes(Target, Cs),
     (   append(P, [63|Q], Cs)          % 63 is `?'
     ->  true
     ;   P = Cs, Q = []
     ),
-    http_percent_decode(P, PD), atom_codes(Path, PD),
+    http_percent_decode(P, PD), http_bytes_atom(PD, Path),
     http_query(Q, Query).
 
-%% http_query(+Codes, -Params) is det.
+%% http_query(+Bytes, -Params) is det.
 http_query([], []) :- !.
 http_query(Cs, [Key-Value|Ps]) :-
     (   append(Pair, [38|Rest], Cs)    % 38 is `&'
@@ -179,14 +199,16 @@ http_query(Cs, [Key-Value|Ps]) :-
     ->  true
     ;   K = Pair, V = []
     ),
-    http_form_decode(K, KD), atom_codes(Key, KD),
-    http_form_decode(V, VD), atom_codes(Value, VD),
+    http_form_decode(K, KD), http_bytes_atom(KD, Key),
+    http_form_decode(V, VD), http_bytes_atom(VD, Value),
     http_query(Rest, Ps).
 
 %% http_form(+Codes, -Params) is det.
 %% An application/x-www-form-urlencoded body is a query string in the body,
-%% so it is the same rule under a name that says where it came from.
-http_form(Codes, Params) :- http_query(Codes, Params).
+%% so it is the same rule under a name that says where it came from. The
+%% body is the program's codes (a request's Body), so it goes back to its
+%% bytes first: a per cent escape names a byte.
+http_form(Codes, Params) :- http_text_bytes(Codes, Bytes), http_query(Bytes, Params).
 
 %% `+' is a space in a query or a form and is NOT a space in a path, which
 %% is why there are two decoders rather than one with a flag. A path with a
@@ -212,9 +234,11 @@ http_hex_digit(C, V) :- C >= 0'A, C =< 0'F, !, V is C - 0'A + 10.
 %% ---- building a response ---------------------------------------------
 
 %% http_response(+Status, +Headers, +Body, -Codes) is det.
-%% Body may be an atom or a code list. Content-Length is COMPUTED and never
+%% Body may be an atom, a number, a string or a code list of the program's;
+%% Codes are the message's BYTES. Content-Length is COMPUTED and never
 %% taken from the caller: a length that disagrees with the bytes is how a
-%% response gets read as two, and it is not a mistake worth allowing.
+%% response gets read as two, and it is not a mistake worth allowing -- and
+%% it counts the bytes, which under characters are more than the codes.
 http_response(Status, Headers, Body, Codes) :-
     http_body_codes(Body, BC),
     length(BC, Len),
@@ -222,11 +246,11 @@ http_response(Status, Headers, Body, Codes) :-
     atom_codes(LineA, Line),
     http_header_lines([ 'Content-Length'-Len | Headers ], HL),
     atom_concat(LineA, HL, Head),
-    atom_codes(Head, HeadC),
+    http_text_bytes(Head, HeadC),
     append(HeadC, BC, Codes).
 
-http_body_codes(Body, Codes) :- is_list(Body), !, Codes = Body.
-http_body_codes(Body, Codes) :- atom_codes(Body, Codes).
+%% a body's bytes: an atom's, or the program's codes as their bytes
+http_body_codes(Body, Codes) :- http_text_bytes(Body, Codes).
 
 http_status_line(Status, Line) :-
     ( http_status_text(Status, Text) -> true ; Text = 'Unknown' ),
@@ -316,3 +340,24 @@ http_all_space([9|T]) :- http_all_space(T).
 %% second and every hand-written client sends it sooner or later.
 http_eol --> [13, 10], !.
 http_eol --> [10].
+
+%% ---- the wire's bytes and the program's text (2.0.0) -----------------
+%%
+%% Three crossings, each string_bytes/3, which is atom_codes/2 in bytes
+%% whatever the program counts. Under bytes the codes ARE the bytes, and
+%% the third is the list it was given.
+
+%% the atom of some UTF-8 bytes from the wire
+http_bytes_atom(Bytes, Atom) :- string_bytes(S, Bytes, utf8), atom_string(Atom, S).
+
+%% the bytes of the program's text: an atom, a number, a string, or codes
+%% as the program counts them
+http_text_bytes(Text, Bytes) :- string_bytes(Text, Bytes, utf8).
+
+%% bytes from the wire as the program's codes
+http_bytes_codes(Bytes, Codes) :-
+    (   current_prolog_flag(text_units, bytes)
+    ->  Codes = Bytes
+    ;   string_bytes(S, Bytes, utf8),
+        string_codes(S, Codes)
+    ).

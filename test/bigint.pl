@@ -1,12 +1,14 @@
 %% library(bigint) -- Zigurat's arbitrary-precision integers as predicates.
 %%
 %% WHY THE CASE EXISTS, and it is not hypothetical: cocolog's own integers
-%% are 64 bits and they WRAP IN SILENCE. The first check asks `is/2' for
-%% the first product a decentralised exchange computes at the scale tokens
-%% actually use, and PINS THE WRONG ANSWER it gives. That check passing is
-%% the reason for every other check in the file; if a future cocolog grows
-%% wide integers it will fail, and this file should be read rather than
-%% patched.
+%% are 64 bits. The first check asks `is/2' for the first product a
+%% decentralised exchange computes at the scale tokens actually use, which
+%% does not fit: through 1.x it WRAPPED IN SILENCE and the check pinned the
+%% wrong answer, 875820019684212736; since 2.0.0 it raises
+%% evaluation_error(int_overflow), and the check pins that. Either way the
+%% product is not had from is/2, and that is the reason for every other
+%% check in the file; if a future cocolog grows wide integers the check
+%% will fail, and this file should be read rather than patched.
 %%
 %% WHAT IS PINNED:
 %%
@@ -61,8 +63,10 @@ err(Goal, Msg) :-
 
 the_reason :-
     section('the reason'),
-    written(X1 is 1000000000000000000*997, X1, G1),
-    check('cocolog''s 64-bit is/2 wraps, silently', G1, '875820019684212736'),
+    %% through 1.x the product wrapped, silently, to 875820019684212736;
+    %% since 2.0.0 an integer stops at 64 bits and says so
+    written(catch(( X1 is 1000000000000000000*997, R1 = X1 ), error(R1, _), true), R1, G1),
+    check('cocolog''s is/2 stops at 64 bits, and says so', G1, 'evaluation_error(int_overflow)'),
     written(bigint_mul('1000000000000000000', 997, X2), X2, G2),
     check('bigint gets it right', G2, '997000000000000000000').
 

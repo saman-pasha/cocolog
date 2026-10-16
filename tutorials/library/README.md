@@ -46,7 +46,7 @@ written anywhere in this repository.
 | 18-thread | `library/thread.so` | threads and channels sharing nothing, and locks for what they do | `sh modules/thread/build.sh` |
 | 19-zigurat | `zigurat` | the database connection, steered from Prolog | a running server |
 | 20-curl | `library/curl.so` | an HTTP client | libcurl |
-| 21-bigint | `library/bigint.so` | integers that do not wrap | a built ZiguratIP |
+| 21-bigint | `library/bigint.so` | integers past 64 bits | a built ZiguratIP |
 | 22-torch | `library/torch.so` | Prolog that trains | libtorch |
 | 23-sha | `library/sha.so` | digests and HMAC | a built ZiguratIP |
 | 24-aes | `library/aes.so` | a block cipher, and what it does not do | a built ZiguratIP |

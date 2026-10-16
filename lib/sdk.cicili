@@ -171,6 +171,8 @@
 (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action)
                                       (const char * type) (size_t culprit)) (out int))
 (decl) (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int))
+;;; evaluation_error(What): "int_overflow" for an integer past 64 bits (2.0.0)
+(decl) (func coco_m_evaluation_error ((coco_engine * e) (const char * what)) (out int))
 (decl) (func coco_m_error ((coco_engine * e) (const char * what)
                            (const char * detail)) (out int))
 

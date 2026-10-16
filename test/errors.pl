@@ -321,13 +321,14 @@ long_atom(N, A) :- length(L, N), maplist(=(0'x), L), atom_codes(A, L).
 %% and ITS fix did not reach these two. Reported by the
 %% reasoning session: `atom_chars(X, [d,'á',r])' took the process down
 %% (SIGSEGV, exit status 139), and so did any element that is not ONE
-%% CHARACTER, which here is one byte (`á' is two in UTF-8; SWI, whose
-%% characters are letters, answers 'dár') -- where it stood first or second,
+%% CHARACTER, which under bytes is one byte (`á' is two in UTF-8; SWI, whose
+%% characters are letters, answers 'dár', as cocolog does in characters, the
+%% default since 2.0.0: test/units.pl) -- where it stood first or second,
 %% as glibc writes its free list over a freed block's first sixteen bytes.
-%% Each such goal runs in a child, so a crash is a red check and not the end
-%% of this case. AND THE TEXT GROWS: through 1.11.7 it went through 4096
-%% bytes, and a longer list FAILED with no error, a longer atom's chars an
-%% instantiation error.
+%% Each such goal runs in a child, under `text_units = bytes', the units the
+%% crash was in, so a crash is a red check and not the end of this case. AND
+%% THE TEXT GROWS: through 1.11.7 it went through 4096 bytes, and a longer
+%% list FAILED with no error, a longer atom's chars an instantiation error.
 chars_to_text :-
     section('atom_chars/2 and number_chars/2 name the element that is no character'),
     chars_child('atom_chars(_, [d,\'á\',r])', T1),
@@ -375,13 +376,16 @@ chars_to_text :-
     answer(number_chars(N17, ['4','2']), N17, G17),
     check('number_chars/2 still reads a number', G17, 42).
 
-%% GOAL, written, in a child under catch/3: the error it raised, as writeq/1
-%% writes it on the child's first line, and the child's exit status -- 139
-%% was the crash
+%% GOAL, written, in a child under catch/3 and under bytes: the error it
+%% raised, as writeq/1 writes it on the child's first line, and the child's
+%% exit status -- 139 was the crash
 chars_child(Goal, Line-Exit) :-
-    atomic_list_concat(['--local query "catch((', Goal,
-                        '), error(E, _), true), writeq(E), nl" 2>&1'], Args),
-    cocolog_run(Args, Text, Exit),
+    cocolog(C),
+    atomic_list_concat(['COCOLOG_TEXT_UNITS=bytes ', C, ' --local query "catch((', Goal,
+                        '), error(E, _), true), writeq(E), nl" 2>&1'], Cmd),
+    proc_run(Cmd, 120000, Out, Exit),
+    chomp(Out, Body),
+    atom_codes(Text, Body),
     (   sub_atom(Text, B, _, _, '\n') -> sub_atom(Text, 0, B, _, Line) ; Line = Text ).
 
 %% ---- a clause too long for a row ----------------------------------------

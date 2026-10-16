@@ -79,8 +79,8 @@ cocolint: 1 HARD, 0 WARN over 1 file(s)
 ```
 
 HARD is a divergence that will fail or silently misbehave; WARN is one that
-costs something without breaking anything (a no-op import, an integer near
-the wrap, a clause that will not fit a page).
+costs something without breaking anything (a no-op import, a clause that will
+not fit a page).
 
 ### The rules
 
@@ -92,7 +92,6 @@ the wrap, a clause that will not fit a page).
 | **N3** | HARD | a head whose NAME is a control construct (`once`, `call`, `catch`, `throw`, …); no arity escapes it | prefix the head |
 | **S1** | HARD | one of the twelve banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
-| **A1** | WARN | an integer literal at or above 2^59 — a cell is a u64 with three tag bits and no range check, so arithmetic wraps SILENTLY at 2^60 | keep under 2^59, or `library(bigint)` |
 | **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`; this warns a little below the budget of an 8192-byte page, the default before 1.10.0 and the page every store made before it keeps, on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 
@@ -111,10 +110,10 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it, is not flagged |
 | X3 | `setup_call_cleanup/3` `predsort/3` `numbervars/3` `freeze/2` `dif/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
-| P1 | `current_prolog_flag(bounded, B)` | do not branch on a flag | five flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units` — and every other one FAILS |
+| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | ten flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, and since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer` — and every other one FAILS |
 | E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |
 
-The card has twenty-two more rows that inform the prompt rather than the
+The card has twenty more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the
 PROMPT rows on determinism, `**` staying an integer, a halt inside a
 `findall` or a `forall` (H1), what a load-time goal writes under `-s` (H2),

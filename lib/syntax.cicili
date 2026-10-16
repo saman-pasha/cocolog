@@ -326,11 +326,10 @@
      (set (cof outprec) 0)
      (cond
        ((== (-> r tok) COCO_TK_INT)
-        ;; AN INTEGER IS 61 BITS, and a literal past them was taken
-        ;; without a word: the digits were read into 64 bits (a decimal
-        ;; saturated at the largest, a radix literal wrapped) and the cell
-        ;; kept the low 61 -- `1152921504606846976' was the least integer
-        (if (> (-> r ival) 1152921504606846975)
+        ;; AN INTEGER IS 64 BITS (2.0.0; 61 through 1.15.0): a literal
+        ;; past 2^63 - 1 is refused by name, where SWI makes a bignum.
+        ;; The lexer said whether the magnitude fit (`iwide')
+        (if (!= (-> r iwide) 0)
             (return (coco_fail r "integer out of range")))
         (set (cof out) (coco_new_int (-> r m) (-> r ival)))
         (if ,P (coco_pos_leaf r (-> r tstart) (-> r pos)))
@@ -416,9 +415,13 @@
      (if (and (== 0 (strcmp name "-")) (== (-> r layout_before) 0))
          (block
           (if (== (-> r tok) COCO_TK_INT)
-              (block (if (> (-> r ival) 1152921504606846976)
-                         (return (coco_fail r "integer out of range")))   ; -2^60 is the least
-                     (set (cof out) (coco_new_int (-> r m) (- 0 (-> r ival))))
+              (block (if (> (-> r iwide) 1)
+                         (return (coco_fail r "integer out of range")))
+                     ;; -2^63 is the least, whose magnitude no i64 holds
+                     (set (cof out) (coco_new_int (-> r m)
+                                                  (? (== (-> r iwide) 1)
+                                                     (- -9223372036854775807 1)
+                                                     (- 0 (-> r ival)))))
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))
           (if (== (-> r tok) COCO_TK_FLOAT)
@@ -591,6 +594,9 @@
     (member int          tok)
     (member coco_strbuf    text)
     (member i64          ival)
+    ;; WHETHER AN INTEGER TOKEN'S MAGNITUDE FIT (2.0.0): 0 it is `ival',
+    ;; 1 it is 2^63 (only the least integer, negated, takes it), 2 more
+    (member int          iwide)
     (member double       fval)
     (member int          layout_before)   ; was there space before this token?
 
@@ -770,9 +776,9 @@
               (size_t nm . #'(coco_deref m (coco_arg m t 2)))
               (int type . 0) (int kind . 0) (i64 prec . 0))
 
-          (if (not (coco-tag-is INT (nth p (-> m heap))))
+          (if (not (coco-is-int (nth p (-> m heap))))
               (block (snprintf err errlen "op/3 wants a priority") (return 0)))
-          (set prec (coco-signed-payload (nth p (-> m heap))))
+          (set prec (coco_int_val m (nth p (-> m heap))))
           (if (or (< prec 0) (> prec 1200))
               (block (snprintf err errlen "op/3: priority out of range") (return 0)))
 
@@ -1022,6 +1028,28 @@
               (#t (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)))))
         (return 1))
 
+  ;;; ONE DIGIT D MORE OF A LITERAL'S MAGNITUDE (2.0.0): V becomes V * BASE
+  ;;; + D while that is no more than 2^63, the least integer's magnitude;
+  ;;; past it answers 1, V left where it was. Unsigned, so nothing here
+  ;;; overflows.
+  (static) (inline)
+  (func coco_mag_digit ((u64 * v) (u64 base) (u64 d)) (out int)
+        (let ((u64 lim . #'(+ (cast u64 9223372036854775807) 1)))
+          (if (> (cof v) (/ (- lim d) base)) (return 1))
+          (set (cof v) (+ (* (cof v) base) d))
+          (return 0)))
+
+  ;;; An integer token of magnitude V, WIDE when it went past 2^63: `ival'
+  ;;; and `iwide' as the parser reads them.
+  (static)
+  (func coco_mag_token ((coco_reader * r) (u64 v) (int wide))
+        (set (-> r tok) COCO_TK_INT)
+        (set (-> r ival) 0)
+        (cond
+          (wide (set (-> r iwide) 2))
+          ((> v (cast u64 9223372036854775807)) (set (-> r iwide) 1))
+          (#t (set (-> r iwide) 0) (set (-> r ival) (cast i64 v)))))
+
   ;;; A number. `0'c' is a character code, 0x/0o/0b are radix prefixes, and a
   ;;; `.' only starts a fraction when a digit follows it -- otherwise it is the
   ;;; end of the clause, which is why `f(1).' does not read as a float.
@@ -1037,6 +1065,7 @@
                      (if (and (>= c 128) (-> (-> r m) text_chars))
                          (let ((size_t i . #'(-> r pos)))
                            (set (-> r ival) (coco_utf8_get (-> r src) (-> r len) (aof i)))
+                           (set (-> r iwide) 0)
                            (set (-> r pos) i)
                            (set (-> r tok) COCO_TK_INT)
                            (return 1)))
@@ -1047,6 +1076,7 @@
                            (coco_bump r)
                            (set c e)))
                      (set (-> r ival) (cast i64 c))
+                     (set (-> r iwide) 0)
                      (set (-> r tok) COCO_TK_INT)
                      (return 1))))
         (if (== (coco_peek r) (coco-ch "0"))
@@ -1056,25 +1086,18 @@
                     ((or (== p (coco-ch "b")) (== p (coco-ch "B"))) (set base 2)))
               (if (!= base 0)
                   (block (coco_bump r) (coco_bump r)
-                         (let ((i64 v . 0) (int n . 0))
+                         (let ((u64 v . 0) (int n . 0) (int wide . 0))
                            (while 1
                              (let ((int c . #'(coco_peek r)) (int d . -1))
                                (cond ((coco_is_digit c) (set d (- c (coco-ch "0"))))
                                      ((coco-ch-between c "a" "f") (set d (+ 10 (- c (coco-ch "a")))))
                                      ((coco-ch-between c "A" "F") (set d (+ 10 (- c (coco-ch "A"))))))
                                (if (or (== d -1) (>= d base)) break)
-                               ;; the magnitude is kept to 2^60, the most a
-                               ;; cell holds (negated, the least it holds);
-                               ;; past that it stays at the largest i64 for
-                               ;; the parser to refuse, and never wraps
-                               (if (> v (/ (- 1152921504606846976 (cast i64 d)) (cast i64 base)))
-                                   (set v 9223372036854775807)
-                                 (set v (+ (* v (cast i64 base)) (cast i64 d))))
+                               (if (not wide) (set wide (coco_mag_digit (aof v) (cast u64 base) (cast u64 d))))
                                (set n (+ n 1))
                                (coco_bump r)))
                            (if (== n 0) (return (coco_fail r "digits expected after radix prefix")))
-                           (set (-> r ival) v)
-                           (set (-> r tok) COCO_TK_INT)
+                           (coco_mag_token r v wide)
                            (return 1))))))
         ;; plain decimal, possibly a float
         (coco_sb_reset (aof (-> r text)))
@@ -1113,8 +1136,13 @@
                            (set (-> r fval) (strtod (? (== tag 1) "inf" "nan") nil))
                            (coco_bump r) (coco_bump r) (coco_bump r)))
                      (set (-> r tok) COCO_TK_FLOAT))
-            (block (set (-> r ival) (cast i64 (strtoll ($ (-> r text) s) nil 10)))
-                   (set (-> r tok) COCO_TK_INT))))
+            ;; the digits, in 64 bits and never past them (2.0.0: through
+            ;; 1.15.0 `strtoll', which saturates at 2^63 - 1 and kept the
+            ;; least integer's magnitude from being read)
+            (let ((u64 v . 0) (int wide . 0) (const char * ds . #'($ (-> r text) s)))
+              (for ((size_t i . 0)) (and (not wide) (!= (nth i ds) 0)) ((++ i))
+                (set wide (coco_mag_digit (aof v) 10 (cast u64 (- (cast int (nth i ds)) (coco-ch "0"))))))
+              (coco_mag_token r v wide))))
         (return 1))
 
   ;;; One token into the reader. Everything the parser knows about the input is
@@ -1823,6 +1851,9 @@
              (return (coco_sb_put_i64 b (cast i64 t))))
 
             ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
+            ;; an integer past the 61 bits a cell keeps, from its table (2.0.0)
+            ((coco-tag-is BIG c)
+             (return (coco_sb_put_i64 b (nth (cast size_t (coco-payload c)) (-> m bigs)))))
 
             ;; to read back bit for bit, as SWI writes it (1.10.28)
             ((coco-tag-is FLT c)

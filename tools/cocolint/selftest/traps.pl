@@ -53,9 +53,6 @@ selftest_main :-
     %% ---- A1: an unknown arithmetic FUNCTOR is uncatchably fatal -------
     Ang is atan(3, 4), write(Ang),
 
-    %% ---- A2: a cell is u64 with 3 tag bits; silent wrap at 2^60 -------
-    Big is 1152921504606846976 + 1, write(Big),
-
 
     %% ---- X2: there is no stream layer ---------------------------------
     open('f.txt', read, _Stream),
@@ -63,8 +60,8 @@ selftest_main :-
     %% ---- X3: absent, deliberately, so ported code errors --------------
     setup_call_cleanup(true, true, true),
 
-    %% ---- P1: exactly one flag answers, and it is executable -----------
-    current_prolog_flag(bounded, _B),
+    %% ---- P1: ten flags answer, and this is none of them ---------------
+    current_prolog_flag(occurs_check, _B),
 
     %% ---- L1: a list cell is '.'/2 here --------------------------------
     functor(_T2, '[|]', 2),
@@ -82,9 +79,6 @@ selftest_main :-
     true.
 
 selftest_g(1).
-
-%% ---- A1: at or above 2^59, where a cell starts wrapping silently ------
-selftest_big(1152921504606846976).
 
 %% ---- Z1: a clause over the page budget. Generated rather than typed,
 %%      because a literal 8000-byte line in a source file is unreadable

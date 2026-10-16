@@ -47,6 +47,12 @@ ball(X, X).
 
 path(D, Name, Path) :- atomic_list_concat([D, '/', Name], Path).
 
+%% A FILE'S BYTES, whatever the program counts: read_file_to_codes/2 answers
+%% code points under characters, the default since 2.0.0 (a byte that is no
+%% UTF-8 as U+DC00 plus it), and string_bytes/3 gives back exactly the bytes
+%% they came from -- under bytes the same list
+file_bytes(F, Bytes) :- read_file_to_codes(F, Cs), string_bytes(Cs, Bytes, utf8).
+
 %% root writes through a mode of 444, so a permission check has nothing to
 %% see there -- a container runs as root as often as not
 running_as_root :-
@@ -81,7 +87,7 @@ characters(D) :-
     section('characters: one UTF-8 character at a time'),
     path(D, 'c.txt', C),
     answer(( stream_open(C, write, S1), stream_put_char(S1, a), stream_put_char(S1, 'é'), stream_put_char(S1, '€'),
-             stream_put_char(S1, '\n'), stream_close(S1), read_file_to_codes(C, Cs1), length(Cs1, N1) ), N1, G1),
+             stream_put_char(S1, '\n'), stream_close(S1), file_bytes(C, Cs1), length(Cs1, N1) ), N1, G1),
     check('put_char writes a character''s bytes: 1 + 2 + 3 + 1', G1, 7),
     answer(( stream_open(C, read, S2), stream_get_char(S2, C2a), stream_get_char(S2, C2b), stream_get_char(S2, C2c),
              stream_get_char(S2, C2d), stream_get_char(S2, C2e), stream_close(S2) ), [C2a, C2b, C2c, C2d, C2e], G2),
@@ -100,7 +106,7 @@ binary(D) :-
     section('binary: bytes, and only bytes'),
     path(D, 'b.bin', B),
     answer(( stream_open(B, write, [type(binary)], S1), stream_write_bytes(S1, [0, 1, 2, 255, 10, 13]), stream_put_byte(S1, 7),
-             stream_close(S1), read_file_to_codes(B, Cs1) ), Cs1, G1),
+             stream_close(S1), file_bytes(B, Cs1) ), Cs1, G1),
     check('write_bytes and put_byte: every value 0..255, a NUL included', G1, [0, 1, 2, 255, 10, 13, 7]),
     answer(( stream_open(B, read, [type(binary)], S2), stream_get_byte(S2, B2a), stream_peek_byte(S2, B2b), stream_get_byte(S2, B2c),
              stream_read_bytes(S2, 3, Bs2), stream_read_bytes(S2, 10, Bs2b), stream_get_byte(S2, B2e), stream_close(S2) ),
@@ -386,7 +392,7 @@ read_positions(D) :-
     answer(( open(Q, write, S2, [type(binary)]), forall(member(B2, [195, 169, 32, 97, 46, 10]), put_byte(S2, B2)), close(S2),
              open(Q, read, S3), peek_char(S3, C3a), get_char(S3, C3b),
              read_term(S3, T3, [term_position(P3), subterm_positions(Sp3)]), close(S3),
-             atom_codes(C3a, K3a), atom_codes(C3b, K3b) ),
+             string_bytes(C3a, K3a, utf8), string_bytes(C3b, K3b, utf8) ),
            K3a-K3b-T3-P3-Sp3, G3),
     check('a two-byte character peeked and given back counts once, then the term after it',
           G3, [195, 169]-[195, 169]-a-'$stream_position'(2, 1, 2, 3)-(2-3)),
@@ -397,16 +403,31 @@ read_positions(D) :-
     check('a pipe has no position, and the count is the bytes read from it',
           G4, 'term_position(5,9,5,6,[7-8]),$stream_position(5,2,2,5)').
 
-%% ---- codes, which are bytes ----------------------------------------------
+%% ---- codes, as the program counts text -----------------------------------
+%%
+%% In characters, the default since 2.0.0, a code is a code point and goes
+%% as its UTF-8; under `text_units = bytes', 1.x's default, a code below 256
+%% is a byte and one above goes as its UTF-8, and get_code/2 reads a byte.
+%% The second is asked of a child, since the flag is a directive's.
 
 codes(D) :-
-    section('codes, as cocolog counts them: bytes'),
+    section('codes, as the program counts text: characters, and bytes on request'),
     path(D, 'codes.txt', F),
     answer(( open(F, write, S1), put_code(S1, 97), put_code(S1, 8364), put_code(S1, 233), close(S1),
-             read_file_to_codes(F, C1) ), C1, G1),
-    check('put_code/2: a byte below 256, the UTF-8 of a code point above', G1, [97, 226, 130, 172, 233]),
+             file_bytes(F, C1) ), C1, G1),
+    check('put_code/2: a code point as its UTF-8', G1, [97, 226, 130, 172, 195, 169]),
     answer(( open(F, read, S2), get_code(S2, K2a), peek_code(S2, K2b), get_code(S2, K2c), close(S2) ), K2a-K2b-K2c, G2),
-    check('get_code/2 and peek_code/2 read one byte, as atom_codes/2 counts', G2, 97-226-226),
+    check('get_code/2 and peek_code/2 read one character, as atom_codes/2 counts', G2, 97-8364-8364),
+    path(D, 'bytes.txt', F4),
+    cocolog(C4),
+    sh_join(['COCOLOG_TEXT_UNITS=bytes ', C4, ' --local query "use_module(library(stream)), ',
+             'open(''', F4, ''', write, S), put_code(S, 97), put_code(S, 8364), put_code(S, 233), close(S), ',
+             'open(''', F4, ''', read, R), get_code(R, A), peek_code(R, B), get_code(R, K), close(R), ',
+             'read_file_to_codes(''', F4, ''', Cs), write(answer(Cs, A-B-K)), nl" 2>/dev/null'], Cmd4),
+    proc_run(Cmd4, 60000, Out4, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out4, A4) -> true ; A4 = Out4 ),
+    check('under bytes: a code below 256 is a byte, and get_code/2 reads one', A4,
+          'answer([97,226,130,172,233],97-226-226)'),
     answer(( open(F, write, S3), catch(put_code(S3, -1), E3, true), close(S3) ), E3, G3), ball(G3, B3),
     check('a negative code is representation_error(character_code)', B3, representation_error(character_code)).
 

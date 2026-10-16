@@ -93,10 +93,11 @@ main(_Argv) :-
 
 %% ---- 1. the flag ------------------------------------------------------
 %%
-%% THREE FLAGS ANSWER AND EVERY OTHER ONE FAILS: executable, argv and
-%% os_argv. Each is a question about the PROCESS that nothing else in the
-%% language can answer; a flag like `bounded' is a question about the
-%% LANGUAGE, and cocolog has no flag table to answer those from.
+%% THREE FLAGS ARE ABOUT THE PROCESS: executable, argv and os_argv, each a
+%% question nothing else in the language can answer. A few more are about
+%% the language -- double_quotes, text_units, and since 2.0.0 bounded and
+%% the integers' ends -- and every flag cocolog does not have FAILS: there
+%% is no flag table to answer it from.
 s1 :-
     current_prolog_flag(argv, Argv),
     ( is_list(Argv) -> L = yes ; L = no ),
@@ -111,8 +112,8 @@ s1 :-
     length(Os, NOs), length(Argv, NAv),
     ( NOs >= NAv -> G = yes ; G = no ),
     must('os_argv is at least as long', G, yes),
-    ( current_prolog_flag(bounded, _) -> F = yes ; F = no ),
-    must('an invented flag FAILS', F, no),
+    ( current_prolog_flag(occurs_check, _) -> F = yes ; F = no ),
+    must('a flag cocolog does not have FAILS', F, no),
     show('argv', Argv).
 
 %% ---- 2. main/0 --------------------------------------------------------

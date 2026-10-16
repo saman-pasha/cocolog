@@ -348,14 +348,15 @@ Writing the trap file caught two bugs in the linter itself:
 
 ## What survives on the calibration corpus, and why it stays
 
-Seventeen findings over 82 known-good files, and **twelve of them are
-tutorials teaching the very trap the rule enforces** — `basics/07`'s
+Eleven findings over 82 known-good files, and **six of them are tutorials
+teaching the very trap the rule enforces** — `basics/07`'s
 `( retract(seen(_)), fail ; true )`, `library/04`'s `~t~20|` inside a `catch/3`,
-`basics/09`'s `context(Who, _)`, `38-main` asking for the `bounded` flag,
-`basics/10`'s `digits//1` beside dcg_basics', and six
-`1000000000000000000 * 997` wraps across three lessons. That is the strongest
+`basics/09`'s `context(Who, _)`, `38-main` asking for a flag cocolog does not
+have, and `basics/10`'s `digits//1` beside dcg_basics'. That is the strongest
 evidence available that the rules point at real divergences: somebody thought
-each one worth writing a lesson about.
+each one worth writing a lesson about. (Six more were
+`1000000000000000000 * 997` wrapping in silence across three lessons, rule A1,
+until 2.0.0 made integers 64 bits and a result past them an error.)
 
 One is a real finding left for the owner rather than quietly edited: a
 tutorial whose `main/0` is ~15 KB stored — nearly twice the page budget,

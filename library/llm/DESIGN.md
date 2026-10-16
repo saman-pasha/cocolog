@@ -195,9 +195,9 @@ a gate for free.
 | **C1** | `catch(findall(X,G,L), E, …)` | `findall(X, catch(G,E,fail), L)` | `findall/3,4`, `forall/2`, `aggregate_all/3`, `bagof/3`, `setof/3`, `with_output_to/2` run a nested engine that copies the error out as a **message** and drops the ball (`lib/solve.cicili:988-992`; `lib/builtins.cicili:449-452`). The catch never fires; the query ends. |
 | **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. Library and loader failures are the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. |
 | **A1** | `X is atan(Dy,Dx)` `log(2,N)` `random(10)` | compute it: `atan(Dy/Dx)` + quadrant; `log(N)/log(B)`; there is no random | An unknown arithmetic **functor** goes through `coco_fail_err` (`lib/solve.cicili:1691`, `:545-548`) — −1, **no ball**, uncatchably fatal. (An unknown arithmetic *atom* like `inf` raises a catchable `type_error(evaluable, inf)`.) |
-| **A2** | `X is 1 << 62`, 64-bit ids | keep below 2^59 | A cell is a u64 with 3 tag bits; an INT is `v<<3\|2` with **no range check** (`lib/term.cicili:81-86, :110, :641-642`). Silent wrap at 2^60. |
+| ~~**A2**~~ | ~~`X is 1 << 62`, 64-bit ids~~ | **retired** | Integers are 64 bits since 2.0.0 (a value past a cell's 61 is boxed in a table, as a float is) and a result past them raises `evaluation_error(int_overflow)`: loud, not silent. The row and its linter rule A1 went with the wrap. |
 | **A3** | `X is 2 ** 10` → `1024.0` | here it is the **integer** `1024`; `**` and `^` are the same operation | `lib/solve.cicili:1645-1657`. Force with `float(…)`. |
-| **O1** | `sort/2` / `==` / `compare/3` over large integers | do not; key on atoms | Standard order casts both numbers to **double** (`lib/term.cicili:894-898`), so distinct integers above 2^53 compare **equal** while `=` still separates them (`:790-791`). |
+| ~~**O1**~~ | ~~`sort/2` / `==` / `compare/3` over large integers~~ | **retired** | Since 2.0.0 the standard order compares two integers exactly (`coco_num_order`); an integer and a float are compared as doubles, the float first when equal, as swipl 9.0.4 orders them. |
 | **G1** | `b_setval/2` for a backtrackable scope | thread an accumulator argument | `b_setval` **is** `nb_setval` — same C function (`lib/builtins.cicili:76-79`); the table is a file-scope static outside the machine. |
 | **F1** | `~t ~\| ~+` for alignment | pad by hand | Refused by name (`lib/builtins.cicili:1015-1018`). |
 | **W1** | `write_canonical(T)` for portable text | `write_term(T,[quoted(true),ignore_ops(true)])` | cocolog's `write_canonical/1` **keeps** operators — identical to `writeq/1` (`lib/syntax.cicili:1414-1415`). |
@@ -861,7 +861,7 @@ lives in `.cocoindex/impossible.json`, generated from `traps.jsonl` rows marked 
 | `tabling` | `:- table` does not parse — `table` is not a prefix operator | `lib/syntax.cicili:97-100` |
 | `coroutining` | no `freeze/2`, `dif/2`, `when/2`, `setup_call_cleanup/3` | grep of `lib/` |
 | `bt_global` | `b_setval` **is** `nb_setval` | `lib/builtins.cicili:76-79` |
-| `bignum` | integers are 61 bits, wrapping silently at 2^60 (`library(bigint)` is tier 2 and needs a built ZiguratIP) | `lib/term.cicili:81-86, :110, :641-642` |
+| `bignum` | integers are 64 bits (2.0.0; 61 through 1.15.0, wrapping silently at 2^60), and a result past them raises `evaluation_error(int_overflow)`; `library(bigint)` is tier 2 and needs a built ZiguratIP | `coco_new_int`, `coco_add_ovf` in `lib/term.cicili` |
 | `modules` | `:- module/2` accepted and **ignored**; one flat namespace | `lib/kb.cicili:721` |
 | `random` | no `random/1`, `random_float/0`, and reaching for one is **uncatchably** fatal | `lib/solve.cicili:1691, :545-548` |
 | `streaming_llm` | no SSE; `modules/curl` binds no multi interface | `modules/curl/curl.cicili` header |

@@ -15,8 +15,9 @@
 %%
 %%     an ATOM      'hello'  -- one indivisible name, interned, cheap to
 %%                  compare, and a C string underneath: it STOPS AT A NUL
-%%     a CODE LIST  "hello"  -- a list of integers, one per BYTE, which
-%%                  you can walk with ordinary list predicates
+%%     a CODE LIST  "hello"  -- a list of integers, one per CHARACTER
+%%                  (its code point), which you can walk with ordinary
+%%                  list predicates
 %%     a STRING     -- a distinct type, from atom_string/2 or its kin, or
 %%                  from "..." in a file that set the flag. It carries a
 %%                  NUL, which is exactly what an atom cannot.
@@ -30,11 +31,11 @@
 %% flag, because the default is what every file that says nothing gets --
 %% including every one of the other ten lessons here.
 %%
-%% BYTES, BY DEFAULT. cocolog keeps text as UTF-8 bytes and, unless a
-%% program asks otherwise, counts them: `atom_length/2' of a character
-%% outside ASCII is its byte length, which is also why UTF-8 passes through
-%% every library in one piece. A program that wants SWI's characters says
-%% `:- set_prolog_flag(text_units, characters).' -- lesson 13.
+%% CHARACTERS, BY DEFAULT (since 2.0.0). cocolog keeps text as UTF-8 and
+%% counts it in characters, as SWI does: `atom_length/2' of an e-acute is
+%% 1 and its code is the code point 233. Through 1.x it counted the bytes
+%% (an e-acute was 2 long), and a program that still wants them says
+%% `:- set_prolog_flag(text_units, bytes).' -- lesson 13.
 %%
 %% WHICH TO USE: atoms for names and keys, code lists for anything you are
 %% going to take apart, a string when you need text that survives a NUL or
@@ -124,12 +125,15 @@ main :-
     must('the last three', Suffix, llo),
     must('and how many came before them', Before, 2),
 
-    format("~n-- length is in BYTES, which matters outside ASCII~n"),
+    format("~n-- length is in CHARACTERS, outside ASCII too~n"),
     atom_length(hello, Len),
     must('atom_length(hello)', Len, 5),
-    atom_codes(Eacute, [0xC3, 0xA9]),
-    atom_length(Eacute, ELen),
-    must('one UTF-8 e-acute, in bytes', ELen, 2),
+    atom_codes(Cafe, [0'c, 0'a, 0'f, 0xE9]),
+    atom_length(Cafe, CLen),
+    must('cafe with an e-acute (code point 0xE9) is four characters', CLen, 4),
+    sub_atom(Cafe, 3, 1, _, Last),
+    char_code(Last, LastCode),
+    must('  and its fourth is the e-acute, whole', LastCode, 0xE9),
 
     format("~n-- case, and char_code~n"),
     upcase_atom(hello, Up),

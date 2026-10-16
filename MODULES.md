@@ -106,7 +106,7 @@ catch(msort(notalist, _), error(type_error(T, V), _), true).
 ```
 
 `coco_m_type_error`, `coco_m_instantiation_error`, `coco_m_domain_error`,
-`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28) and `coco_m_error` all **throw**. Each answers what its
+`coco_m_existence_error`, `coco_m_permission_error` (`permission_error(Action, Type, Culprit)`, SWI's shape for a file that is there and cannot be opened), `coco_m_resource_error` (`resource_error(Resource)`: `"memory"` for an allocation that was refused, as the engine raises it for its own since 1.10.28), `coco_m_evaluation_error` (`evaluation_error(What)`: `"int_overflow"` for an integer past 64 bits, as is/2 raises it since 2.0.0) and `coco_m_error` all **throw**. Each answers what its
 caller should return: **2** when a `catch/3` took the ball — the engine is by
 then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes
@@ -293,7 +293,7 @@ somewhere else.
 | `coco_m_mark(e)` / `coco_m_undo(e, mark)` | the trail, for a predicate that may fail |
 | `coco_m_is_var` / `coco_m_is_atom` | what a term is |
 | `coco_m_atom(e, t)` | an atom's name, or null |
-| `coco_m_int` / `coco_m_float` | a number, or 0 |
+| `coco_m_int` / `coco_m_float` | a number, or 0 -- `coco_m_int` either kind of integer, a cell's 61 bits or a boxed one's 64 (2.0.0) |
 | `coco_m_text(e, t, buf, cap)` | an atom, an integer, a string, **or a list of codes OR one-character atoms** as a C string. A string holding a NUL is REFUSED rather than truncated — the buffer cannot carry one |
 | `coco_m_unify(e, t, u)` | plain unification |
 | `coco_m_unify_atom` / `_int` / `_float` | unify with a fresh constant |
@@ -306,10 +306,11 @@ somewhere else.
 code list, so without it every double-quoted file name in a program would be a
 type error.
 
-### Text in the program's units: bytes, or characters (1.13.0)
+### Text in the program's units: characters, or bytes (1.13.0)
 
-A program can count text in characters (`:- set_prolog_flag(text_units,
-characters).`, or `COCOLOG_TEXT_UNITS=characters`): a code is then a code point
+A program counts text in characters -- the default since 2.0.0, and asked for
+through 1.x -- or in bytes where it says so (`:- set_prolog_flag(text_units,
+bytes).`, or `COCOLOG_TEXT_UNITS=bytes`). In characters a code is a code point
 and a char one character of however many bytes. `coco_m_text` follows it on the
 way in -- a code past 127 becomes its UTF-8 -- so a module that only TAKES text
 has nothing to do. A module that HANDS text back as codes asks:
@@ -325,8 +326,13 @@ A byte that is no UTF-8 decodes to U+DC00 plus the byte and encodes back to that
 byte, so binary data handed through codes in characters mode comes back as it
 went. Bytes that are BYTES -- a socket's, a binary file's -- stay bytes whatever
 the program counts: library(stream) asks for a text stream and not a binary one,
-library(process) for a child's output, library(text) for a match; tcp, tls and
-curl do not ask.
+library(process) for a child's output, library(text) for a match; tcp and tls do
+not ask, and a socket is bytes. A module that hands the program a BODY that is
+the program's to read -- library(curl)'s response, since 2.0.0 -- builds it with
+`coco_m_codes_of`, as atom_codes/2 would answer the bytes (through 1.15 curl
+widened each signed `char` as it stood, and a byte past 127 came back negative),
+and the Prolog half turns what the program hands in into bytes with
+`string_bytes(Text, Bytes, utf8)`, SWI's, which answers the same in both units.
 
 ### A predicate that reaches the world says so: `coco_m_portal`
 

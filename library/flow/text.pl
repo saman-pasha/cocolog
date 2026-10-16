@@ -148,12 +148,19 @@ flow_prefix('\\', 200, 200).
 %% ---- widths -----------------------------------------------------------
 %%
 %% Code is drawn in a monospace font at 12px, 7.2px a character, so a
-%% width is a count. atom_codes/2 answers UTF-8 BYTES, so a character is
-%% every byte that is not a continuation byte.
+%% width is a count. In characters, the default since 2.0.0, a code is a
+%% character and atom_length/2 counts them; under `text_units = bytes'
+%% atom_codes/2 answers UTF-8 BYTES, and a character is every byte that is
+%% not a continuation byte (128..191, which in characters are characters of
+%% their own: a no-break space, a `»', a `¿'). Each test of a code below
+%% asks the flag only past 127.
 
 flow_chars(A, N) :-
-    atom_codes(A, Cs),
-    flow_count_chars(Cs, 0, N).
+    (   current_prolog_flag(text_units, bytes)
+    ->  atom_codes(A, Cs),
+        flow_count_chars(Cs, 0, N)
+    ;   atom_length(A, N)
+    ).
 
 flow_count_chars([], N, N).
 flow_count_chars([C|Cs], N0, N) :-
@@ -184,7 +191,8 @@ flow_clip(A, Max, C) :-
 
 flow_take_chars([], _, []).
 flow_take_chars([C|Cs], K, Out) :-
-    (   C >= 128, C < 192 -> Out = [C|R], flow_take_chars(Cs, K, R)
+    (   C >= 128, C < 192, current_prolog_flag(text_units, bytes)
+    ->  Out = [C|R], flow_take_chars(Cs, K, R)
     ;   K =:= 0 -> Out = []
     ;   K1 is K - 1, Out = [C|R], flow_take_chars(Cs, K1, R)
     ).

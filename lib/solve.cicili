@@ -121,6 +121,7 @@
     ("number_string" 2 coco_bi_number_string)
     ("string_codes"  2 coco_bi_string_codes)
     ("string_chars"  2 coco_bi_string_chars)
+    ("string_bytes"  3 coco_bi_string_bytes)
     ("string_concat" 3 coco_bi_string_concat)
     ("text_concat"   3 coco_bi_text_concat)
     ("string_lower"  2 coco_bi_string_lower)
@@ -328,7 +329,7 @@
 ;;; are integers only if neither is a float, which is the rule `is/2' follows
 ;;; throughout: integer arithmetic stays exact until a float enters it.
 (DEFPARAMETER *arith-binops*
-  '(("+" +) ("-" -) ("*" *)))
+  '(("+" + coco_add_ovf) ("-" - coco_sub_ovf) ("*" * coco_mul_ovf)))
 
 ;;; Expands inside `coco_arith_binary' and nowhere else, and reads the names that
 ;;; function has already bound: `ai'/`af' and `bi'/`bf' are the two operands as
@@ -336,12 +337,17 @@
 ;;; are where the answer goes. Naming them here rather than passing eight forms
 ;;; keeps the call site to one word -- the same arrangement lib/std uses for
 ;;; the words its front-end macros recognise.
+;;; TWO INTEGERS ARE COMBINED IN 64 BITS (2.0.0, the row's third name:
+;;; `coco_add_ovf' and the rest) and a result past them answers 4, for
+;;; `coco_arith_binary' to raise evaluation_error(int_overflow): a C
+;;; overflow of i64 is undefined, and through 1.15.0 the answer wrapped at
+;;; 61 bits with no word said.
 (DEFMACRO coco-emit-arith-binops ()
   `(cond
      ,@(MAPCAR (LAMBDA (row)
                  `((== nid (coco-id m ,(FIRST row)))
                    (if both_int
-                       (block (set (cof iv) (,(SECOND row) ai bi))
+                       (block (if (,(THIRD row) ai bi iv) (return 4))
                               (set (cof isf) 0))
                      (block (set (cof fv) (,(SECOND row) af bf))
                             (set (cof isf) 1)))
@@ -4680,12 +4686,12 @@
           (free ($ set keys)) (free ($ set vals))
           (coco_code_sweep st epoch)))
 
-  ;;; Every word of W that has a float's or a string's tag marks the entry
-  ;;; it names in FB or SB, whatever the word is -- an operand of a program
-  ;;; may look like one, and keeping an entry that could have gone is the
-  ;;; safe mistake.
+  ;;; Every word of W that has a float's, a string's or a boxed integer's
+  ;;; tag marks the entry it names in FB, SB or BB, whatever the word is --
+  ;;; an operand of a program may look like one, and keeping an entry that
+  ;;; could have gone is the safe mistake.
   (static)
-  (func coco_tables_mark ((coco_machine * m) (u64 * fb) (u64 * sb) (u64 * w) (size_t len))
+  (func coco_tables_mark ((coco_machine * m) (u64 * fb) (u64 * sb) (u64 * bb) (u64 * w) (size_t len))
         (if (== w nil) (return))
         (for ((size_t i . 0)) (< i len) ((++ i))
           (let ((u64 c . #'(nth i w)))
@@ -4697,19 +4703,23 @@
               ((coco-tag-is STR c)
                (let ((size_t k . #'(cast size_t (coco-payload c))))
                  (if (< k (-> m strings_len))
-                     (set (nth (>> k 6) sb) (bitor (nth (>> k 6) sb) (<< (cast u64 1) (bitand k 63)))))))))))
+                     (set (nth (>> k 6) sb) (bitor (nth (>> k 6) sb) (<< (cast u64 1) (bitand k 63)))))))
+              ((coco-tag-is BIG c)
+               (let ((size_t k . #'(cast size_t (coco-payload c))))
+                 (if (< k (-> m bigs_len))
+                     (set (nth (>> k 6) bb) (bitor (nth (>> k 6) bb) (<< (cast u64 1) (bitand k 63)))))))))))
 
   ;;; The six programs of one compiled clause; answers the words looked at.
   (static)
-  (func coco_tables_mark_code ((coco_machine * m) (u64 * fb) (u64 * sb) (coco_code * cd))
+  (func coco_tables_mark_code ((coco_machine * m) (u64 * fb) (u64 * sb) (u64 * bb) (coco_code * cd))
         (out size_t)
         (if (== cd nil) (return 0))
-        (coco_tables_mark m fb sb (-> cd head) (-> cd hlen))
-        (coco_tables_mark m fb sb (-> cd body) (-> cd blen))
-        (coco_tables_mark m fb sb (-> cd rbody) (-> cd rblen))
-        (coco_tables_mark m fb sb (-> cd gbody) (-> cd gblen))
-        (coco_tables_mark m fb sb (-> cd ebody) (-> cd eblen))
-        (coco_tables_mark m fb sb (-> cd xbody) (-> cd xblen))
+        (coco_tables_mark m fb sb bb (-> cd head) (-> cd hlen))
+        (coco_tables_mark m fb sb bb (-> cd body) (-> cd blen))
+        (coco_tables_mark m fb sb bb (-> cd rbody) (-> cd rblen))
+        (coco_tables_mark m fb sb bb (-> cd gbody) (-> cd gblen))
+        (coco_tables_mark m fb sb bb (-> cd ebody) (-> cd eblen))
+        (coco_tables_mark m fb sb bb (-> cd xbody) (-> cd xblen))
         (return (+ (+ (+ (-> cd hlen) (-> cd blen)) (+ (-> cd rblen) (-> cd gblen)))
                    (+ (-> cd eblen) (-> cd xblen)))))
 
@@ -4719,26 +4729,26 @@
   ;;; clause the table has not seen yet), and the retired ones an
   ;;; environment still runs. Answers the words looked at.
   (static)
-  (func coco_tables_mark_store ((coco_machine * m) (u64 * fb) (u64 * sb) (coco_store * st))
+  (func coco_tables_mark_store ((coco_machine * m) (u64 * fb) (u64 * sb) (u64 * bb) (coco_store * st))
         (out size_t)
         (let ((size_t seen . 0)
               (coco_code * cd . nil))
           (if (== st nil) (return 0))
-          (coco_tables_mark m fb sb (-> st cells) (-> st len))
+          (coco_tables_mark m fb sb bb (-> st cells) (-> st len))
           (set seen (-> st len))
           (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
             (if (!= (nth i (-> st code_keys)) 0)
                 (set seen (+ seen (coco_tables_mark_code
-                                   m fb sb (cast (coco_code *) (nth i (-> st code_vals))))))))
+                                   m fb sb bb (cast (coco_code *) (nth i (-> st code_vals))))))))
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
             (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
               (if (!= (-> p codes) nil)
                   (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
                     (set seen (+ seen (coco_tables_mark_code
-                                       m fb sb (cast (coco_code *) (nth j (-> p codes))))))))))
+                                       m fb sb bb (cast (coco_code *) (nth j (-> p codes))))))))))
           (set cd (cast (coco_code *) (-> st retired)))
           (while (!= cd nil)
-            (set seen (+ seen (coco_tables_mark_code m fb sb cd)))
+            (set seen (+ seen (coco_tables_mark_code m fb sb bb cd)))
             (set cd (cast (coco_code *) (-> cd rnext))))
           (return seen)))
 
@@ -4763,8 +4773,9 @@
         (let ((coco_machine * m . #'(-> e m))
               (size_t nf . #'(-> m floats_len))
               (size_t ns . #'(-> m strings_len))
-              (u64 * fb . nil) (u64 * sb . nil)
-              (size_t seen . 0) (size_t livef . 0) (size_t lives . 0)
+              (size_t nb . #'(-> m bigs_len))
+              (u64 * fb . nil) (u64 * sb . nil) (u64 * bb . nil)
+              (size_t seen . 0) (size_t livef . 0) (size_t lives . 0) (size_t liveb . 0)
               (coco_engine * x . e)
               (coco_store * last . nil))
           (if (and (not asked)
@@ -4773,15 +4784,17 @@
               (return))
           (set fb (cast (u64 *) (calloc (+ (>> (+ nf 63) 6) 1) (sizeof u64))))
           (set sb (cast (u64 *) (calloc (+ (>> (+ ns 63) 6) 1) (sizeof u64))))
+          (set bb (cast (u64 *) (calloc (+ (>> (+ nb 63) 6) 1) (sizeof u64))))
           ;; no memory to mark with: nothing is reclaimed this time
-          (if (or (== fb nil) (== sb nil)) (block (free fb) (free sb) (return)))
-          (coco_tables_mark m fb sb (-> m heap) (-> m heap_len))
+          (if (or (== fb nil) (or (== sb nil) (== bb nil)))
+              (block (free fb) (free sb) (free bb) (return)))
+          (coco_tables_mark m fb sb bb (-> m heap) (-> m heap_len))
           (set seen (-> m heap_len))
           (while (!= x nil)
             (if (!= (-> x st) last)
                 (block
                  (set last (-> x st))
-                 (set seen (+ seen (coco_tables_mark_store m fb sb last)))))
+                 (set seen (+ seen (coco_tables_mark_store m fb sb bb last)))))
             (set x (cast (coco_engine *) (-> x outer))))
           ;; the dead: a string's bytes go, the tail is cut off
           (for ((size_t i . 0)) (< i ns) ((++ i))
@@ -4793,15 +4806,27 @@
                (set ($ (nth i (-> m strings)) n) 0))))
           (for ((size_t i . 0)) (< i nf) ((++ i))
             (if (coco_gc_marked fb i) (set livef (+ livef 1))))
+          (for ((size_t i . 0)) (< i nb) ((++ i))
+            (if (coco_gc_marked bb i) (set liveb (+ liveb 1))))
           (while (and (> nf 0) (not (coco_gc_marked fb (- nf 1)))) (set nf (- nf 1)))
           (while (and (> ns 0) (not (coco_gc_marked sb (- ns 1)))) (set ns (- ns 1)))
+          (while (and (> nb 0) (not (coco_gc_marked bb (- nb 1)))) (set nb (- nb 1)))
           (set (-> m floats_len) nf)
           (set (-> m strings_len) ns)
+          (set (-> m bigs_len) nb)
           ;; the free lists, made again from the top down so the lowest
           ;; index is taken first; a list that cannot grow keeps what it has
           ;; and the table grows instead
           (set (-> m nffree) 0)
           (set (-> m nsfree) 0)
+          (set (-> m nbfree) 0)
+          (if (coco_grow m (cast (void **) (aof (-> m bfree))) (aof (-> m bfree_cap))
+                         (- nb liveb) (sizeof size_t))
+              (for ((size_t i . nb)) (> i 0) ((-- i))
+                (if (not (coco_gc_marked bb (- i 1)))
+                    (block
+                     (set (nth (-> m nbfree) (-> m bfree)) (- i 1))
+                     (set (-> m nbfree) (+ (-> m nbfree) 1))))))
           (if (coco_grow m (cast (void **) (aof (-> m ffree))) (aof (-> m ffree_cap))
                          (- nf livef) (sizeof size_t))
               (for ((size_t i . nf)) (> i 0) ((-- i))
@@ -4816,13 +4841,13 @@
                     (block
                      (set (nth (-> m nsfree) (-> m sfree)) (- i 1))
                      (set (-> m nsfree) (+ (-> m nsfree) 1))))))
-          (free fb) (free sb)
+          (free fb) (free sb) (free bb)
           ;; the next time: once as many entries were made as half the words
           ;; looked at, as the live entries, and as the least of 65536 and
           ;; the collector's floor (which is how a torture run reaches it)
           (let ((size_t lim . #'(coco_gc_floor)))
             (if (> lim 65536) (set lim 65536))
-            (if (> (+ livef lives) lim) (set lim (+ livef lives)))
+            (if (> (+ (+ livef lives) liveb) lim) (set lim (+ (+ livef lives) liveb)))
             (if (> (>> seen 1) lim) (set lim (>> seen 1)))
             (set (-> m tlimit) lim)
             (set (-> m treq) lim)
@@ -6764,12 +6789,13 @@
   (func coco_bi_atom ((coco_engine * e) (size_t g)) (out int)
         (return (? (coco-tag-is ATOM (nth (coco_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
   (func coco_bi_integer ((coco_engine * e) (size_t g)) (out int)
-        (return (? (coco-tag-is INT (nth (coco_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
+        (let ((u64 c . #'(nth (coco_a e g 0) ($ (cof (-> e m)) heap))))
+          (return (? (coco-is-int c) 1 0))))
   (func coco_bi_float ((coco_engine * e) (size_t g)) (out int)
         (return (? (coco-tag-is FLT (nth (coco_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
   (func coco_bi_number ((coco_engine * e) (size_t g)) (out int)
         (let ((u64 c . #'(nth (coco_a e g 0) ($ (cof (-> e m)) heap))))
-          (return (? (or (coco-tag-is INT c) (coco-tag-is FLT c)) 1 0))))
+          (return (? (or (coco-is-int c) (coco-tag-is FLT c)) 1 0))))
   (func coco_bi_compound ((coco_engine * e) (size_t g)) (out int)
         (return (? (coco-tag-is FUN (nth (coco_a e g 0) ($ (cof (-> e m)) heap))) 1 0)))
   (func coco_bi_atomic ((coco_engine * e) (size_t g)) (out int)
@@ -6853,45 +6879,105 @@
 
   ;;; LFLT says the left operand was a float, so that an operator that takes
   ;;; integers alone can name the one that is not (`coco_not_integer').
+  ;;; AN INTEGER PAST 64 BITS (2.0.0): ISO's evaluation_error(int_overflow),
+  ;;; where swipl makes a bignum. Through 1.15.0 the answer wrapped at 61
+  ;;; bits and nothing was raised.
+  (static)
+  (func coco_int_overflow ((coco_engine * e)) (out int)
+        (return (coco_evaluation_error e "int_overflow")))
+
+  ;;; `representation_error(What)', ISO's for a value the system cannot
+  ;;; represent where it was asked to: an arity past the functor table's
+  ;;; 32 bits (2.0.0, which made 64-bit arities askable)
+  (static)
+  (func coco_representation_error ((coco_engine * e) (const char * what)) (out int)
+        (return (coco_raise e (coco_make1 (-> e m) "representation_error"
+                                          (coco_new_atom (-> e m) what)))))
+
+  ;;; MAY F BE MADE AN INTEGER (2.0.0)? 1 when 64 bits hold it,
+  ;;; [-2^63, 2^63); else the raise's answer: a NaN or an infinity is
+  ;;; evaluation_error(undefined), anything else past the range
+  ;;; int_overflow -- where swipl hands back the infinity or makes a
+  ;;; bignum.
+  (static)
+  (func coco_float_int ((coco_engine * e) (double f)) (out int)
+        (if (!= f f) (return (coco_evaluation_error e "undefined")))
+        (if (!= (- f f) 0.0) (return (coco_evaluation_error e "undefined")))
+        (if (or (< f -9223372036854775808.0) (>= f 9223372036854775808.0))
+            (return (coco_int_overflow e)))
+        (return 1))
+
+  ;;; BASE to the power N, 0 <= N, in 64 bits (2.0.0), OVF set past them.
+  ;;; Squared only while a bit of N is left to use it: 2 ^ 62's last
+  ;;; square would be 2^64, and the answer 2^62 fits. A square that does
+  ;;; not fit while a bit is left means the answer does not either.
+  (static)
+  (func coco_ipow ((i64 base) (i64 n) (int * ovf)) (out i64)
+        (let ((i64 acc . 1) (i64 b . #'base) (i64 k . #'n))
+          (while (> k 0)
+            (if (!= 0 (bitand k 1))
+                (if (coco_mul_ovf acc b (aof acc)) (block (set (cof ovf) 1) (return 0))))
+            (set k (>> k 1))
+            (if (> k 0)
+                (if (coco_mul_ovf b b (aof b)) (block (set (cof ovf) 1) (return 0)))))
+          (return acc)))
+
   (static)
   (func coco_arith_binary ((coco_engine * e) (u64 nid) (int both_int) (int lflt)
                          (i64 ai) (double af) (i64 bi) (double bf)
                          (int * isf) (i64 * iv) (double * fv)) (out int)
-        (let ((coco_machine * m . #'(-> e m)))
-        (if (coco_arith_simple m nid both_int ai af bi bf isf iv fv) (return 1))
+        (let ((coco_machine * m . #'(-> e m)) (int s . 0))
+        (set s (coco_arith_simple m nid both_int ai af bi bf isf iv fv))
+        (if (== s 1) (return 1))
+        (if (== s 4) (return (coco_int_overflow e)))
         (cond
           ;; `/' answers an integer when it divides exactly and a float when it
           ;; does not, which is what most Prologs do and what surprises fewest
-          ;; people; `//' is always integer division.
+          ;; people; `//' is always integer division. A divisor of -1 is
+          ;; asked first (2.0.0): the least integer over it is past 64 bits,
+          ;; and in C both its quotient and its remainder trap (SIGFPE).
           ((== nid (coco-id m "/"))
            (if both_int
                (block (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
-                      (if (== 0 (% ai bi))
-                          (block (set (cof iv) (/ ai bi)) (set (cof isf) 0))
-                        (block (set (cof fv) (/ (cast double ai) (cast double bi)))
-                               (set (cof isf) 1))))
+                      (if (== bi -1)
+                          (block (if (== ai (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                                 (set (cof iv) (- 0 ai)) (set (cof isf) 0))
+                        (if (== 0 (% ai bi))
+                            (block (set (cof iv) (/ ai bi)) (set (cof isf) 0))
+                          (block (set (cof fv) (/ (cast double ai) (cast double bi)))
+                                 (set (cof isf) 1)))))
              (block (set (cof fv) (/ af bf)) (set (cof isf) 1)))
            (return 1))
           ((== nid (coco-id m "//"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
+           (if (== bi -1)
+               (block (if (== ai (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                      (set (cof iv) (- 0 ai)) (set (cof isf) 0) (return 1)))
            (set (cof iv) (/ ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "div"))
            ;; floored division: the quotient mod pairs with, so
            ;; A =:= (A div B) * B + A mod B holds for every sign
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
+           (if (== bi -1)
+               (block (if (== ai (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                      (set (cof iv) (- 0 ai)) (set (cof isf) 0) (return 1)))
            (set (cof iv) (- (/ ai bi) (coco_floor_adjusts ai bi)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "mod"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
-           ;; mod follows the sign of the divisor, rem follows the dividend
-           (set (cof iv) (- (% ai bi) (? (coco_floor_adjusts ai bi) (- 0 bi) 0)))
+           ;; mod follows the sign of the divisor, rem follows the dividend;
+           ;; the divisor ADDED where it was taken away negated, which the
+           ;; least integer would overflow
+           (if (== bi -1) (block (set (cof iv) 0) (set (cof isf) 0) (return 1)))
+           (set (cof iv) (+ (% ai bi) (? (coco_floor_adjusts ai bi) bi 0)))
            (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "rem"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
            (if (== bi 0) (return (coco_evaluation_error e "zero_divisor")))
+           (if (== bi -1) (block (set (cof iv) 0) (set (cof isf) 0) (return 1)))
            (set (cof iv) (% ai bi)) (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "min"))
            (if both_int (block (set (cof iv) (? (< ai bi) ai bi)) (set (cof isf) 0))
@@ -6903,38 +6989,46 @@
            (return 1))
           ;; SWI answers an integer for an integer base under a non-negative
           ;; integer exponent, and a float everywhere else; `^' reads the same
-          ;; table. 64-bit like everything else here: a power that does not
-          ;; fit wraps, exactly as `*' does.
+          ;; table. In 64 bits since 2.0.0, and past them int_overflow
+          ;; (`coco_ipow'): through 1.15.0 it wrapped as `*' did.
           ((or (== nid (coco-id m "**")) (== nid (coco-id m "^")))
            (if (and both_int (>= bi 0))
-               (let ((i64 acc . #'1) (i64 base . #'ai) (i64 n . #'bi))
-                 (while (> n 0)
-                   (if (!= 0 (bitand n 1)) (set acc (* acc base)))
-                   (set base (* base base))
-                   (set n (>> n 1)))
-                 (set (cof iv) acc) (set (cof isf) 0))
+               (let ((int ovf . 0) (i64 p . #'(coco_ipow ai bi (aof ovf))))
+                 (if ovf (return (coco_int_overflow e)))
+                 (set (cof iv) p) (set (cof isf) 0))
              (block (set (cof fv) (pow af bf)) (set (cof isf) 1)))
            (return 1))
+          ;; IN MAGNITUDES (2.0.0): the least integer's is 2^63, which an i64
+          ;; cannot negate -- gcd(-2^63, 6) is 2, and gcd(-2^63, 0) is 2^63,
+          ;; past 64 bits
           ((== nid (coco-id m "gcd"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
-           (let ((i64 a . #'(? (< ai 0) (- 0 ai) ai))
-                 (i64 b . #'(? (< bi 0) (- 0 bi) bi)))
+           (let ((u64 a . #'(? (< ai 0) (- (cast u64 0) (cast u64 ai)) (cast u64 ai)))
+                 (u64 b . #'(? (< bi 0) (- (cast u64 0) (cast u64 bi)) (cast u64 bi))))
              (while (!= b 0)
-               (let ((i64 r . #'(% a b)))
+               (let ((u64 r . #'(% a b)))
                  (set a b) (set b r)))
-             (set (cof iv) a))
+             (if (> a (cast u64 9223372036854775807)) (return (coco_int_overflow e)))
+             (set (cof iv) (cast i64 a)))
            (set (cof isf) 0) (return 1))
           ;; THE TWO SHIFTS TAKE ANY COUNT (1.14.0, `coco_shift_right' and
           ;; `coco_shift_left' in lib/term.cicili, which have the rule): a C
           ;; shift by 64 or more, or by a negative count, is undefined, and
           ;; both this box and an aarch64 one take the count modulo 64 --
           ;; `1 >> 64' answered 1. The guards' runner calls the same two.
+          ;; A left shift that loses a bit is int_overflow (2.0.0).
           ((== nid (coco-id m ">>"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
-           (set (cof iv) (coco_shift_right ai bi)) (set (cof isf) 0) (return 1))
+           (let ((int ovf . 0) (i64 r . #'(coco_shift_right ai bi (aof ovf))))
+             (if ovf (return (coco_int_overflow e)))
+             (set (cof iv) r))
+           (set (cof isf) 0) (return 1))
           ((== nid (coco-id m "<<"))
            (if (not both_int) (return (coco_not_integer e (? lflt af bf))))
-           (set (cof iv) (coco_shift_left ai bi)) (set (cof isf) 0) (return 1))
+           (let ((int ovf . 0) (i64 r . #'(coco_shift_left ai bi (aof ovf))))
+             (if ovf (return (coco_int_overflow e)))
+             (set (cof iv) r))
+           (set (cof isf) 0) (return 1))
           ;; The bitwise three. Integers only -- ISO says type_error(integer)
           ;; for a float here, and a silent truncation would be worse than an
           ;; error, because the answer would look like an answer.
@@ -6991,6 +7085,10 @@
                  (if (== nid (coco-id m "e"))
                      (block (set (cof fv) 2.71828182845904523536) (set (cof isf) 1) (return 1)))
                  (return (coco_not_evaluable e nid 0))))
+              ;; an integer past the 61 bits a cell keeps (2.0.0)
+              ((coco-tag-is BIG c)
+               (set (cof iv) (nth (cast size_t (coco-payload c)) (-> m bigs)))
+               (set (cof isf) 0) (return 1))
               (#t
                (let ((u64 nid . #'(coco_name_of m t))
                      (u32 n . #'(coco_arity m t)))
@@ -7002,7 +7100,10 @@
                        (cond
                          ((== nid (coco-id m "-"))
                           (if s0 (block (set (cof fv) (- f0)) (set (cof isf) 1))   ; -(0.0) is -0.0
-                            (block (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
+                            (block
+                             ;; the least integer has no negation in 64 bits
+                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                             (set (cof iv) (- 0 i0)) (set (cof isf) 0)))
                           (return 1))
                          ((== nid (coco-id m "+"))
                           (if s0 (block (set (cof fv) f0) (set (cof isf) 1))
@@ -7012,7 +7113,9 @@
                          ;; whole engine already uses: \ 0 is -1
                          ((== nid (coco-id m COCO_OP_NOT))
                           (if s0 (return (coco_not_integer e f0)))
-                          (set (cof iv) (- (- 0 i0) 1)) (set (cof isf) 0)
+                          ;; -1 - X, which no X overflows (0 - X - 1 did,
+                          ;; at the least integer)
+                          (set (cof iv) (- -1 i0)) (set (cof isf) 0)
                           (return 1))
                          ;; SWI's: an integer under 1 is outside its domain,
                          ;; domain_error(not_less_than_one, N) -- through
@@ -7027,7 +7130,9 @@
                           (set (cof isf) 0) (return 1))
                          ((== nid (coco-id m "abs"))
                           (if s0 (block (set (cof fv) (fabs f0)) (set (cof isf) 1))
-                            (block (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
+                            (block
+                             (if (== i0 (- -9223372036854775807 1)) (return (coco_int_overflow e)))
+                             (set (cof iv) (? (< i0 0) (- 0 i0) i0)) (set (cof isf) 0)))
                           (return 1))
                          ((== nid (coco-id m "sign"))
                           (if s0 (block (set (cof fv) (? (> f0 0.0) 1.0 (? (< f0 0.0) -1.0 0.0)))
@@ -7036,24 +7141,37 @@
                           (return 1))
                          ((== nid (coco-id m "float"))
                           (set (cof fv) (? s0 f0 (cast double i0))) (set (cof isf) 1) (return 1))
+                         ;; A FLOAT IS ONLY AN INTEGER WHERE 64 BITS HOLD IT
+                         ;; (2.0.0, `coco_float_int'): the C conversion of
+                         ;; anything else is undefined, and through 1.15.0 it
+                         ;; was made
                          ((== nid (coco-id m "integer"))
+                          (if s0 (block (set rc (coco_float_int e f0)) (if (!= rc 1) (return rc))))
                           (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
                          ((== nid (coco-id m "truncate"))
+                          (if s0 (block (set rc (coco_float_int e f0)) (if (!= rc 1) (return rc))))
                           (set (cof iv) (? s0 (cast i64 f0) i0)) (set (cof isf) 0) (return 1))
                          ((== nid (coco-id m "round"))
+                          (if s0 (block (set rc (coco_float_int e f0)) (if (!= rc 1) (return rc))))
                           (set (cof iv) (? s0 (cast i64 (llround f0)) i0)) (set (cof isf) 0) (return 1))
                          ;; floor and ceiling from the truncating cast, which
                          ;; goes toward zero: one step down for a negative
-                         ;; fraction, one step up for a positive one
+                         ;; fraction, one step up for a positive one (a double
+                         ;; this far out has no fraction, so neither step
+                         ;; leaves 64 bits)
                          ((== nid (coco-id m "floor"))
                           (if s0
-                              (let ((i64 w . #'(cast i64 f0)))
+                              (let ((i64 w . 0))
+                                (set rc (coco_float_int e f0)) (if (!= rc 1) (return rc))
+                                (set w (cast i64 f0))
                                 (set (cof iv) (? (and (< f0 0.0) (!= (cast double w) f0)) (- w 1) w)))
                             (set (cof iv) i0))
                           (set (cof isf) 0) (return 1))
                          ((== nid (coco-id m "ceiling"))
                           (if s0
-                              (let ((i64 w . #'(cast i64 f0)))
+                              (let ((i64 w . 0))
+                                (set rc (coco_float_int e f0)) (if (!= rc 1) (return rc))
+                                (set w (cast i64 f0))
                                 (set (cof iv) (? (and (> f0 0.0) (!= (cast double w) f0)) (+ w 1) w)))
                             (set (cof iv) i0))
                           (set (cof isf) 0) (return 1))
@@ -7100,8 +7218,12 @@
                                   ((== nid (coco-id m "-"))
                                    (set (cof iv) (- (coco-signed-payload c0) (coco-signed-payload c1)))
                                    (return 1))
+                                  ;; two cells' integers, 61 bits each: their
+                                  ;; sum and difference fit 64, the product
+                                  ;; may not (2.0.0)
                                   ((== nid (coco-id m "*"))
-                                   (set (cof iv) (* (coco-signed-payload c0) (coco-signed-payload c1)))
+                                   (if (coco_mul_ovf (coco-signed-payload c0) (coco-signed-payload c1) iv)
+                                       (return (coco_int_overflow e)))
                                    (return 1))
                                   (#t (block))))))
                          (if (>= depth 1024) (if (coco_arith_deep m t depth) (return 3)))
@@ -7195,10 +7317,11 @@
                 (return (coco_instantiation_error e)))
             (if (coco-tag-is FUN (nth nt (-> m heap)))
                 (return (coco_type_error e "atomic" nt)))
-            (if (not (coco-tag-is INT (nth at (-> m heap))))
+            (if (not (coco-is-int (nth at (-> m heap))))
                 (return (coco_type_error e "integer" at)))
-            (let ((i64 n . #'(coco-signed-payload (nth at (-> m heap)))))
+            (let ((i64 n . #'(coco_int_val m (nth at (-> m heap)))))
               (if (< n 0) (return (coco_domain_error e "not_less_than_zero" at)))
+              (if (> n 4294967295) (return (coco_representation_error e "max_arity")))
               (if (== n 0) (return (? (coco_unify m (coco_arg m g 0) nt) 1 0)))
               (if (not (coco-tag-is ATOM (nth nt (-> m heap))))
                   (return (coco_type_error e "atom" nt)))
@@ -7224,9 +7347,9 @@
               (return (coco_type_error e "compound" t)))
           (if (coco-tag-is REF (nth it (-> m heap)))
               (return (coco_instantiation_error e)))
-          (if (not (coco-tag-is INT (nth it (-> m heap))))
+          (if (not (coco-is-int (nth it (-> m heap))))
               (return (coco_type_error e "integer" it)))
-          (let ((i64 i . #'(coco-signed-payload (nth it (-> m heap))))
+          (let ((i64 i . #'(coco_int_val m (nth it (-> m heap))))
                 (u32 n . #'(coco_arity m t)))
             (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
             (if (or (< i 1) (> i (cast i64 n))) (return 0))
@@ -7260,9 +7383,9 @@
           (set (cof rc) 0)
           (if (coco-tag-is REF (nth it (-> m heap)))
               (block (set (cof rc) (coco_instantiation_error e)) (return 0)))
-          (if (not (coco-tag-is INT (nth it (-> m heap))))
+          (if (not (coco-is-int (nth it (-> m heap))))
               (block (set (cof rc) (coco_type_error e "integer" it)) (return 0)))
-          (let ((i64 i . #'(coco-signed-payload (nth it (-> m heap)))))
+          (let ((i64 i . #'(coco_int_val m (nth it (-> m heap)))))
             (if (< i 0)
                 (block (set (cof rc) (coco_domain_error e "not_less_than_zero" it)) (return 0)))
             (if (== i 0) (return 0))
@@ -7518,11 +7641,13 @@
               ;; point, written as its UTF-8, and a character an atom of ONE
               ;; character, of however many bytes
               (let ((size_t h . #'(coco_deref m (coco_arg m lst 0))))
-                (if (coco-tag-is INT (nth h (-> m heap)))
+                ;; a code of either kind of integer (2.0.0): a boxed one is
+                ;; no code, and fails where it stands as a big INT does
+                (if (coco-is-int (nth h (-> m heap)))
                     (if (-> m text_chars)
-                        (block (if (not (coco_utf8_put b (coco-signed-payload (nth h (-> m heap)))))
+                        (block (if (not (coco_utf8_put b (coco_int_val m (nth h (-> m heap)))))
                                    (return 0)))
-                        (coco_sb_putc b (cast char (coco-signed-payload (nth h (-> m heap))))))
+                        (coco_sb_putc b (cast char (coco_int_val m (nth h (-> m heap))))))
                     (block
                      (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
                      (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
@@ -7865,7 +7990,7 @@
             (coco_sb_free (aof b))
             (set num (coco_deref m num))
             (let ((u64 c . #'(nth num (-> m heap))))
-              (if (not (or (coco-tag-is INT c) (coco-tag-is FLT c))) (return 0)))
+              (if (not (or (coco-is-int c) (coco-tag-is FLT c))) (return 0)))
             (return (? (coco_unify m (coco_arg m g 0) num) 1 0)))))
 
   (func coco_bi_string_codes ((coco_engine * e) (size_t g)) (out int)
@@ -7873,6 +7998,81 @@
 
   (func coco_bi_string_chars ((coco_engine * e) (size_t g)) (out int)
         (return (coco_str_list e g 1)))
+
+  ;;; string_bytes(?Text, ?Bytes, +Encoding), SWI's, for `utf8' (2.0.0):
+  ;;; THE BRIDGE BETWEEN THE PROGRAM'S TEXT AND BYTES THAT DOES NOT MOVE WITH
+  ;;; THE UNITS. cocolog keeps text as its UTF-8, so the bytes of a text are
+  ;;; the bytes it is kept as: an atom's, a string's, a number's as written,
+  ;;; and a code or char list's as the program counts -- under characters a
+  ;;; code is a code point and goes as its UTF-8 (one of U+DC80..DCFF as the
+  ;;; byte it stands for, `coco_utf8_put'), under bytes a code is the byte.
+  ;;; Given the bytes, Text is the STRING they make, every byte kept, which
+  ;;; atom_string/2 makes an atom. So `string_bytes(T, B, utf8)' is
+  ;;; atom_codes/2 in bytes whatever the program counts, which is what
+  ;;; library(http) and its kin ask at their edge, where the wire is bytes.
+  ;;; Where SWI differs: a number is text here (SWI's type_error(text, 42)),
+  ;;; utf8 is the one encoding, and a byte list is integers 0..255 alone
+  ;;; (SWI also takes chars); bytes that are no UTF-8 make a string that
+  ;;; reads, under characters, as U+DC00 plus each, where SWI decodes 0xE9
+  ;;; alone as U+00E9.
+  (func coco_bi_string_bytes ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r)
+              (size_t enc . #'(coco_a e g 2))
+              (size_t t . #'(coco_a e g 0)))
+          (if (coco-tag-is REF (nth enc (-> m heap))) (return (coco_instantiation_error e)))
+          (if (or (not (coco-tag-is ATOM (nth enc (-> m heap))))
+                  (!= 0 (strcmp (coco_atom_name m (coco_name_of m enc)) "utf8")))
+              (return (coco_domain_error e "encoding" enc)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (block
+                ;; TEXT IN: anything with text, and a list only when it is
+                ;; one of codes or of chars -- any other compound is no text
+                (if (coco-tag-is FUN (nth t (-> m heap)))
+                    (block
+                      (if (not (coco_is_cons m t)) (return (coco_type_error e "text" t)))
+                      (if (not (coco_codes_to_text e t (aof b)))
+                          (block (coco_sb_free (aof b))
+                                 (if (not (coco_chars_to_text e t (aof b)))
+                                     (block (coco_sb_free (aof b))
+                                            (return (coco_type_error e "text" t)))))))
+                    (if (not (coco_str_arg e t (aof b))) (return (coco_instantiation_error e))))
+                (let ((size_t lst . #'(coco_new_atom m "[]")) (size_t n . #'($ b len)))
+                  (while (> n 0)
+                    (set n (- n 1))
+                    (set lst (coco_cons m (coco_new_int m (cast i64 (cast uchar (nth n ($ b s)))))
+                                        lst)))
+                  (coco_sb_free (aof b))
+                  (return (? (coco_unify m (coco_arg m g 1) lst) 1 0)))))
+          ;; BYTES IN: a proper list of 0..255, into a string of those bytes
+          (let ((size_t lst . #'(coco_a e g 1)))
+            (set (-> m lbudget) (-> m heap_len))
+            (coco_sb_init (aof b))
+            (while 1
+              (set lst (coco_deref m lst))
+              (let ((u64 c . #'(nth lst (-> m heap))))
+                (if (coco-tag-is REF c)
+                    (block (coco_sb_free (aof b)) (return (coco_instantiation_error e))))
+                (if (coco-tag-is ATOM c)
+                    (block
+                      (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
+                          (block (coco_sb_free (aof b)) (return (coco_type_error e "list" lst))))
+                      break))
+                (if (or (not (coco_is_cons m lst)) (== (-- (-> m lbudget)) 0))
+                    (block (coco_sb_free (aof b)) (return (coco_type_error e "list" lst))))
+                (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
+                      (u64 hc . #'(nth h (-> m heap))))
+                  (if (coco-tag-is REF hc)
+                      (block (coco_sb_free (aof b)) (return (coco_instantiation_error e))))
+                  (if (not (coco-is-int hc))
+                      (block (coco_sb_free (aof b)) (return (coco_type_error e "byte" h))))
+                  (let ((i64 v . #'(coco_int_val m hc)))
+                    (if (or (< v 0) (> v 255))
+                        (block (coco_sb_free (aof b)) (return (coco_type_error e "byte" h))))
+                    (coco_sb_putc (aof b) (cast char v))))
+                (set lst (coco_arg m lst 1))))
+            (set r (coco_unify m (coco_arg m g 0) (coco_str_new e (aof b))))
+            (coco_sb_free (aof b))
+            (return (? r 1 0)))))
 
   ;;; string_concat(+A, +B, -C). THE SPLIT MODE IS NOT HERE: SWI backtracks
   ;;; over every way of cutting C in two when A and B are unbound, and a C
@@ -8006,7 +8206,7 @@
                        (== 0 (strcmp (coco_atom_name m (coco_name_of m num)) "+")))
                   (block (set num (coco_deref m (coco_arg m num 0)))
                          (set c (nth num (-> m heap)))))
-              (if (not (or (coco-tag-is INT c) (coco-tag-is FLT c))) (return 0)))
+              (if (not (or (coco-is-int c) (coco-tag-is FLT c))) (return 0)))
             (set r (coco_unify m (coco_arg m g 0) num))
             (return (? r 1 0)))))
 

@@ -35,7 +35,7 @@ main :-
     scratch(D),
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
-    small_steps, shifts, integers_only,
+    small_steps, shifts, integers_only, integers_64(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -299,7 +299,8 @@ gd_test(G) :- true, call(G).
 gd_out(G, R, Out) :-
     catch(( call(G) -> Out = R ; Out = failed ), error(F, _), Out = error(F)).
 
-gd_values([-7, -1, 0, 1, 3, 40, 1000000007, -1000000007, 1099511627776, 2.5, foo, _]).
+gd_values([-7, -1, 0, 1, 3, 40, 1000000007, -1000000007, 1099511627776, 2.5, foo, _,
+           1152921504606846976, -1152921504606846977, 9223372036854775807, -9223372036854775808]).
 
 %% family F's clause of kind K over ARGS -- gd_bin/4 or ip_bin/4 (Stage 7,
 %% below), and so on -- against the step's answer
@@ -741,7 +742,8 @@ fx_lexpr(eq, X, Y, X is Y + 1).
 fx_lexpr(self, X, _, X is X * 1).
 fx_lexpr(four, _, Y, 4 is Y + 1).
 
-fx_values([-7, 0, 3, 7, 1099511627776, 1152921504606846975, -1152921504606846976, 2.5, foo, _]).
+fx_values([-7, 0, 3, 7, 1099511627776, 1152921504606846975, -1152921504606846976, 2.5, foo, _,
+           1152921504606846976, 9223372036854775807, -9223372036854775808]).
 
 fx_out(G, T, Out) :- catch(ip_bound(G, T, Out), error(F, _), Out = error(F)).
 
@@ -1117,16 +1119,17 @@ small_steps :-
 %% count of 64 or more, or by a negative count, is UNDEFINED (C11 6.5.7/3),
 %% and both this box's x86-64 and an aarch64 one take the count modulo 64:
 %% `1 >> 64' answered 1, `1 << 1000000' answered 1, `1 >> -1' answered
-%% `1 >> 63'. The answers are SWI's, as far as a 61-bit integer carries
+%% `1 >> 63'. The answers are SWI's, as far as a 64-bit integer carries
 %% them, and the three paths that evaluate arithmetic must all give them:
 %% the step (gd_ref/2, whose first goal is not arithmetic), the GUARDS a
 %% body starts with (gd_bin/4), and a goal done IN PLACE from an
 %% environment (ip_bin/4).
 %%
 %% Each row is A, the count, and the answer. Every one of these is swipl
-%% 9.0.4's own answer except where the note says the 61 bits cut it short:
-%% a left shift past 60 places has nothing left in the bits a cell keeps,
-%% which is why `1 << 61' answered 0 long before this.
+%% 9.0.4's own answer except `ovf': a left shift that loses a bit, where
+%% swipl makes a bignum and cocolog, whose integers are 64 bits (2.0.0),
+%% raises evaluation_error(int_overflow). Through 1.15.0 a cell kept 61
+%% bits and those rows answered 0, as `1 << 61' did.
 sh_row(shr, 1, 64, 0).
 sh_row(shr, 1, 128, 0).
 sh_row(shr, 1, 1000000, 0).
@@ -1147,18 +1150,23 @@ sh_row(shr, 1, -1, 2).
 sh_row(shr, 8, -2, 32).
 sh_row(shr, -5, -1, -10).
 %% ...and one whose magnitude is past 63 is the other direction's rule
-sh_row(shr, 1, -64, 0).
-sh_row(shr, -1, -1000000, 0).
-sh_row(shl, 1, 64, 0).          % SWI, unbounded, says 2^64
-sh_row(shl, 1, 65, 0).
-sh_row(shl, 1, 1000000, 0).
-sh_row(shl, 255, 64, 0).
-sh_row(shl, -256, 66, 0).
+sh_row(shr, 1, -64, ovf).       % SWI says 2^64
+sh_row(shr, -1, -1000000, ovf).
+sh_row(shr, 0, -1000000, 0).
+sh_row(shl, 1, 64, ovf).        % SWI, unbounded, says 2^64
+sh_row(shl, 1, 65, ovf).
+sh_row(shl, 1, 1000000, ovf).
+sh_row(shl, 255, 64, ovf).
+sh_row(shl, -256, 66, ovf).
 sh_row(shl, 0, 64, 0).
 sh_row(shl, 7, 1, 14).
 sh_row(shl, -7, 1, -14).
 sh_row(shl, 1, 40, 1099511627776).
-sh_row(shl, 1, 61, 0).          % SWI says 2^61: the 61 bits a cell keeps
+sh_row(shl, 1, 61, 2305843009213693952).
+sh_row(shl, 1, 62, 4611686018427387904).
+sh_row(shl, 1, 63, ovf).        % SWI says 2^63: one past the largest
+sh_row(shl, -1, 63, -9223372036854775808).
+sh_row(shl, 3, 62, ovf).
 sh_row(shl, 1, -1, 0).
 sh_row(shl, 4, -1, 2).
 sh_row(shl, -1, -1, -1).
@@ -1168,17 +1176,17 @@ sh_row(shl, -1, -64, -1).
 shifts :-
     section('the two shifts take any count, and a negative one shifts the other way'),
     findall(Op1-A1-N1-Got1-Want1,
-            ( sh_row(Op1, A1, N1, Want1), sh_expr(Op1, A1, N1, E1),
+            ( sh_row(Op1, A1, N1, W1), i6_want(W1, Want1), sh_expr(Op1, A1, N1, E1),
               gd_out(gd_ref(E1, R1), R1, Got1), Got1 \== Want1 ),
             L1),
-    check('the step answers as SWI does, as far as 61 bits carry it', L1, []),
+    check('the step answers as SWI does, as far as 64 bits carry it', L1, []),
     findall(Op2-A2-N2-Got2-Want2,
-            ( sh_row(Op2, A2, N2, Want2),
+            ( sh_row(Op2, A2, N2, W2), i6_want(W2, Want2),
               gd_out(gd_bin(Op2, A2, N2, R2), R2, Got2), Got2 \== Want2 ),
             L2),
     check('...a guard the same, run as the clause is entered', L2, []),
     findall(Op3-A3-N3-Got3-Want3,
-            ( sh_row(Op3, A3, N3, Want3),
+            ( sh_row(Op3, A3, N3, W3), i6_want(W3, Want3),
               gd_out(ip_bin(Op3, A3, N3, R3), R3, Got3), Got3 \== Want3 ),
             L3),
     check('...and a goal done in place from an environment', L3, []),
@@ -1258,6 +1266,333 @@ integers_only :-
     gd_out(ip_un(not, 2.5, R5b), R5b, O5b),
     check('the complement of a float names it in a guard and in place', O5-O5b,
           error(type_error(integer, 2.5))-error(type_error(integer, 2.5))).
+
+
+%% 64-BIT INTEGERS (2.0.0). A cell keeps 61 bits; an integer past them is
+%% BOXED, a cell of its own tag naming an entry of the machine's integer
+%% table, as a float is -- canonical by range, so two INT cells are equal
+%% exactly when their words are and an INT never equals a BIG. Arithmetic
+%% is 64 bits on every path, and a result past them raises
+%% evaluation_error(int_overflow) where swipl, unbounded, makes a bignum:
+%% that is the one answer here (`ovf') that is not swipl 9.0.4's own.
+%% Through 1.15.0 a result wrapped at 61 bits with no word said
+%% (`1152921504606846975 + 1' was the least integer) and a literal past
+%% them was refused by the reader. Each binary row is held to the step,
+%% to a guard run as the clause is entered, and to a goal done in place;
+%% the three over `+', `-' and `*' to the fused word as well.
+i6_want(ovf, error(evaluation_error(int_overflow))) :- !.
+i6_want(undefined, error(evaluation_error(undefined))) :- !.
+i6_want(W, W).
+
+i6_bin(plus, 1152921504606846975, 1, 1152921504606846976).
+i6_bin(minus, 1152921504606846976, 1, 1152921504606846975).
+i6_bin(minus, -1152921504606846976, 1, -1152921504606846977).
+i6_bin(plus, -1152921504606846977, 1, -1152921504606846976).
+i6_bin(plus, 9223372036854775807, 1, ovf).
+i6_bin(minus, -9223372036854775808, 1, ovf).
+i6_bin(minus, 0, -9223372036854775808, ovf).
+i6_bin(minus, 9223372036854775807, 9223372036854775807, 0).
+i6_bin(plus, -9223372036854775808, 9223372036854775807, -1).
+i6_bin(times, 3037000499, 3037000499, 9223372030926249001).
+i6_bin(times, 3037000500, 3037000500, ovf).
+i6_bin(times, 4611686018427387904, 2, ovf).
+i6_bin(times, 4611686018427387904, -2, -9223372036854775808).
+i6_bin(times, -4611686018427387904, 2, -9223372036854775808).
+i6_bin(times, -4611686018427387905, 2, ovf).
+i6_bin(times, 1152921504606846976, 8, ovf).
+i6_bin(times, 1152921504606846976, 7, 8070450532247928832).
+i6_bin(times, 1152921504606846975, 8, 9223372036854775800).
+i6_bin(times, -1152921504606846976, 8, -9223372036854775808).
+i6_bin(times, -1, -9223372036854775808, ovf).
+i6_bin(intdiv, -9223372036854775808, -1, ovf).
+i6_bin(div, -9223372036854775808, -1, ovf).
+i6_bin(mod, -9223372036854775808, -1, 0).
+i6_bin(rem, -9223372036854775808, -1, 0).
+i6_bin(intdiv, 9223372036854775807, -1, -9223372036854775807).
+i6_bin(intdiv, -9223372036854775808, 2, -4611686018427387904).
+i6_bin(div, -9223372036854775808, 7, -1317624576693539402).
+i6_bin(mod, -9223372036854775808, 7, 6).
+i6_bin(mod, 9223372036854775807, -9223372036854775808, -1).
+i6_bin(rem, 9223372036854775807, 10, 7).
+i6_bin(shl, 1, 62, 4611686018427387904).
+i6_bin(shl, 1, 63, ovf).
+i6_bin(shl, -1, 63, -9223372036854775808).
+i6_bin(shr, 9223372036854775807, 1, 4611686018427387903).
+i6_bin(shr, -9223372036854775808, 63, -1).
+i6_bin(shr, -9223372036854775808, 64, -1).
+i6_bin(shr, 9223372036854775807, -1, ovf).
+i6_bin(and, 9223372036854775807, 1152921504606846976, 1152921504606846976).
+i6_bin(or, -9223372036854775808, 1, -9223372036854775807).
+i6_bin(xor, 9223372036854775807, -1, -9223372036854775808).
+i6_bin(min, 9223372036854775807, 9223372036854775806, 9223372036854775806).
+i6_bin(max, -9223372036854775808, -9223372036854775807, -9223372036854775807).
+
+i6_un(neg, -9223372036854775808, ovf).
+i6_un(abs, -9223372036854775808, ovf).
+i6_un(neg, 9223372036854775807, -9223372036854775807).
+i6_un(neg, 1152921504606846976, -1152921504606846976).
+i6_un(neg, -1152921504606846976, 1152921504606846976).
+i6_un(not, 9223372036854775807, -9223372036854775808).
+i6_un(not, -9223372036854775808, 9223372036854775807).
+i6_un(abs, -9223372036854775807, 9223372036854775807).
+i6_un(sign, -9223372036854775808, -1).
+
+%% the ones the step alone evaluates: a power, gcd, msb, a float made an
+%% integer and an integer made a float, `/'
+i6_step(2 ** 60, 1152921504606846976).
+i6_step(2 ** 62, 4611686018427387904).
+i6_step(2 ** 63 - 1, ovf).                 % swipl: 2**63 is a bignum on the way
+i6_step(2 ^ 63, ovf).
+i6_step((-2) ^ 63, -9223372036854775808).
+i6_step((-2) ^ 64, ovf).
+i6_step(7 ^ 22, 3909821048582988049).
+i6_step(7 ^ 23, ovf).
+i6_step(3 ** 39, 4052555153018976267).
+i6_step(3 ** 40, ovf).
+i6_step((-1) ^ 9223372036854775807, -1).
+i6_step(0 ^ 9223372036854775807, 0).
+i6_step(gcd(-9223372036854775808, 0), ovf).
+i6_step(gcd(-9223372036854775808, 6), 2).
+i6_step(gcd(9223372036854775807, 7), 7).
+i6_step(msb(9223372036854775807), 62).
+i6_step(msb(4611686018427387904), 62).
+i6_step(truncate(9.2e18), 9200000000000000000).
+i6_step(truncate(-9.2e18), -9200000000000000000).
+i6_step(truncate(9.3e18), ovf).            % swipl: a bignum
+i6_step(integer(9.2e18), 9200000000000000000).
+i6_step(integer(1.0e19), ovf).
+i6_step(round(-9.3e18), ovf).
+i6_step(floor(9.2e18), 9200000000000000000).
+i6_step(ceiling(9.2e18), 9200000000000000000).
+i6_step(truncate(-9223372036854775808.0), -9223372036854775808).
+i6_step(integer(1.0Inf), undefined).       % swipl hands back the infinity
+i6_step(truncate(1.5NaN), undefined).
+i6_step(float(9223372036854775807), 9.223372036854776e18).
+i6_step(float(-9223372036854775808), -9.223372036854776e18).
+i6_step(9223372036854775807 / 7, 1317624576693539401).
+i6_step(9223372036854775807 / 9223372036854775807, 1).
+i6_step(9223372036854775806 / 2, 4611686018427387903).
+i6_step(9223372036854775807 / 2, 4.611686018427388e18).
+i6_step(-9223372036854775808 / -1, ovf).
+i6_step(9223372036854775807 + 1.0, 9.223372036854776e18).
+i6_step(- (-9223372036854775808), ovf).
+
+i6_expr(Op, X, Y, E) :- gd_expr(Op, X, Y, E).
+i6_uexpr(Op, X, E) :- gd_uexpr(Op, X, E).
+
+%% the least integer made INSIDE a guard's program, from two cells' values,
+%% and then taken where it has no answer in 64 bits: the guard must stop
+%% there and leave the goal to the step, which raises
+i6_g(1, X, R) :- R is (X * 8) // -1.
+i6_g(2, X, R) :- R is -(X * 8).
+i6_g(3, X, R) :- R is abs(X * 8).
+i6_g(4, X, R) :- R is (X * 8) mod -1.
+i6_g(5, X, R) :- R is (X * 8) div -1.
+i6_g(6, X, R) :- R is (X * 4) * 2.
+i6_g(7, X, R) :- R is (X * 8) - 1.
+i6_g(8, X, R) :- R is \(X * 8).
+i6_ip(1, X, R) :- once(true), R is (X * 8) // -1.
+i6_ip(2, X, R) :- once(true), R is -(X * 8).
+i6_ip(3, X, R) :- once(true), R is abs(X * 8).
+i6_ip(4, X, R) :- once(true), R is (X * 8) mod -1.
+i6_ip(5, X, R) :- once(true), R is (X * 8) div -1.
+i6_ip(6, X, R) :- once(true), R is (X * 4) * 2.
+i6_ip(7, X, R) :- once(true), R is (X * 8) - 1.
+i6_ip(8, X, R) :- once(true), R is \(X * 8).
+i6_gexpr(1, X, (X * 8) // -1, ovf).
+i6_gexpr(2, X, -(X * 8), ovf).
+i6_gexpr(3, X, abs(X * 8), ovf).
+i6_gexpr(4, X, (X * 8) mod -1, 0).
+i6_gexpr(5, X, (X * 8) div -1, ovf).
+i6_gexpr(6, X, (X * 4) * 2, -9223372036854775808).
+i6_gexpr(7, X, (X * 8) - 1, ovf).
+i6_gexpr(8, X, \(X * 8), 9223372036854775807).
+
+integers_64(D) :-
+    section('integers are 64 bits, boxed past the 61 a cell keeps'),
+    findall(Op1-X1-Y1-Got1,
+            ( i6_bin(Op1, X1, Y1, W1), i6_want(W1, Want1), i6_expr(Op1, X1, Y1, E1),
+              gd_out(gd_ref(E1, R1), R1, Got1), Got1 \== Want1 ),
+            L1),
+    check('the step answers as swipl does, and past 64 bits int_overflow', L1, []),
+    findall(Op2-X2-Y2-Got2,
+            ( i6_bin(Op2, X2, Y2, W2), i6_want(W2, Want2),
+              gd_out(gd_bin(Op2, X2, Y2, R2), R2, Got2), Got2 \== Want2 ),
+            L2),
+    check('...a guard the same', L2, []),
+    findall(Op3-X3-Y3-Got3,
+            ( i6_bin(Op3, X3, Y3, W3), i6_want(W3, Want3),
+              gd_out(ip_bin(Op3, X3, Y3, R3), R3, Got3), Got3 \== Want3 ),
+            L3),
+    check('...a goal done in place the same', L3, []),
+    findall(Op4-X4-Y4-Got4,
+            ( i6_bin(Op4, X4, Y4, W4), memberchk(Op4, [plus, minus, times]), i6_want(W4, Want4),
+              gd_out(fx_bin(Op4, X4, Y4, R4), R4, Got4), Got4 \== Want4 ),
+            L4),
+    check('...and the fused word the same', L4, []),
+    findall(Op5-X5-Got5,
+            ( i6_un(Op5, X5, W5), i6_want(W5, Want5), i6_uexpr(Op5, X5, E5),
+              (   gd_out(gd_ref(E5, R5), R5, Got5)
+              ;   gd_out(gd_un(Op5, X5, R5b), R5b, Got5)
+              ;   gd_out(ip_un(Op5, X5, R5c), R5c, Got5)
+              ),
+              Got5 \== Want5 ),
+            L5),
+    check('a negation, the complement, abs and sign, on all three paths', L5, []),
+    findall(E6-Got6,
+            ( i6_step(E6, W6), i6_want(W6, Want6), gd_out(gd_ref(E6, R6), R6, Got6),
+              Got6 \== Want6 ),
+            L6),
+    check('a power, gcd, msb, and a float made an integer at 64 bits\' ends', L6, []),
+    findall(K7-Got7,
+            ( i6_gexpr(K7, -1152921504606846976, E7, W7), i6_want(W7, Want7),
+              (   gd_out(gd_ref(E7, R7), R7, Got7)
+              ;   gd_out(i6_g(K7, -1152921504606846976, R7b), R7b, Got7)
+              ;   gd_out(i6_ip(K7, -1152921504606846976, R7c), R7c, Got7)
+              ),
+              Got7 \== Want7 ),
+            L7),
+    check('the least integer made inside a guard, then negated or divided by -1: the step raises', L7, []),
+    i6_text, i6_order, i6_kept(D), i6_builtins.
+
+%% the reader and the writer: a literal to 2^63 - 1, and to -2^63 after a
+%% minus; past them `integer out of range', in decimal and in a radix
+i6_read(A, T) :- catch(term_to_atom(T0, A), _, T0 = refused), T = T0.
+
+i6_text :-
+    findall(T1, ( member(A1, ['9223372036854775807', '-9223372036854775808',
+                              '0x7fffffffffffffff', '-0x8000000000000000',
+                              '0b111111111111111111111111111111111111111111111111111111111111111',
+                              '0o777777777777777777777']),
+                  i6_read(A1, T1) ), L1),
+    check('a literal reads to 64 bits\' ends, in decimal and in a radix', L1,
+          [9223372036854775807, -9223372036854775808, 9223372036854775807,
+           -9223372036854775808, 9223372036854775807, 9223372036854775807]),
+    findall(T2, ( member(A2, ['9223372036854775808', '- 9223372036854775808',
+                              '0x8000000000000000', '0o1000000000000000000000',
+                              '99999999999999999999999999']),
+                  i6_read(A2, T2) ), L2),
+    check('...and past them is refused, a minus apart from its digits too', L2,
+          [refused, refused, refused, refused, refused]),
+    term_to_atom(f(9223372036854775807, -9223372036854775808, 1152921504606846976), A3),
+    with_output_to(atom(B3), writeq(f(-9223372036854775808, - 9223372036854775807, 1 - -9223372036854775808))),
+    check('the writer writes them whole', A3-B3,
+          'f(9223372036854775807,-9223372036854775808,1152921504606846976)'-
+          'f(-9223372036854775808,- 9223372036854775807,1- -9223372036854775808)'),
+    format(atom(A4), "~d ~D ~2d ~8r ~16r ~e",
+           [9223372036854775807, -9223372036854775808, -9223372036854775808,
+            -9223372036854775808, 9223372036854775807, 9223372036854775807]),
+    check('format/2 writes a boxed integer, and the least, in every column', A4,
+          '9223372036854775807 -9,223,372,036,854,775,808 -92233720368547758.08 -1000000000000000000000 7fffffffffffffff 9.223372e+18'),
+    atom_length(9223372036854775807, N5), atom_number('-9223372036854775808', X5),
+    number_codes(Y5, "4611686018427387904"),
+    ( atom_number('9223372036854775808', _) -> Z5 = read ; Z5 = refused ),
+    check('atom_length/2, atom_number/2 and number_codes/2 take them too', N5-X5-Y5-Z5,
+          19-(-9223372036854775808)-4611686018427387904-refused).
+
+%% the standard order: two integers EXACTLY -- through 1.15.0 they went
+%% through doubles, and two past 2^53 that differ in their last bits were
+%% one term -- and an integer and a float as doubles, the float first when
+%% equal, as swipl 9.0.4 orders them
+i6_order :-
+    compare(O1, 9007199254740993, 9007199254740992),
+    ( 9007199254740993 == 9007199254740992 -> S1 = same ; S1 = differ ),
+    compare(O1b, 9223372036854775807, 9223372036854775806),
+    check('two integers are ordered exactly', O1-S1-O1b, (>)-differ-(>)),
+    compare(O2, 9223372036854775807, 9.223372036854776e18),
+    compare(O2b, -9223372036854775808, -9.223372036854776e18),
+    compare(O2c, 9007199254740995, 9.007199254740996e15),
+    check('an integer and a float as doubles, the float first when equal', O2-O2b-O2c, (>)-(>)-(>)),
+    msort([9223372036854775807, 1.0e19, 3, -9223372036854775808, 9.0e18, 9007199254740993,
+           9007199254740992], L3),
+    check('msort/2 as swipl', L3,
+          [-9223372036854775808, 3, 9007199254740992, 9007199254740993, 9.0e18,
+           9223372036854775807, 1.0e19]),
+    X4 is 2 ** 62, Y4 is 2 ** 61 * 2,
+    sort([X4, Y4, 1152921504606846975], L4),
+    ( X4 == Y4, X4 = Y4, X4 =:= Y4 -> S4 = one ; S4 = two ),
+    check('two boxed integers made apart are one term, by value', L4-S4,
+          [1152921504606846975, 4611686018427387904]-one),
+    ( 4611686018427387904 = 4611686018427387905 -> S5 = wrong ; S5 = right ),
+    X5 is 9223372036854775807 - 1,
+    ( X5 < 9223372036854775807, X5 =\= 9223372036854775807 -> S5b = right ; S5b = wrong ),
+    check('...and two values apart are two', S5-S5b, right-right).
+
+%% a boxed integer kept: in a clause the index cannot key it (two equal
+%% values may sit at two entries of the table, as two floats do) and a
+%% call finds it by value, in a global, in a findall's results, through
+%% the heap collector and the table's reclamation, in the freeze
+:- dynamic i6_p/2.
+i6_kept(D) :-
+    X1 is 2 ** 62,
+    forall(between(1, 9, K1), ( V1 is X1 + K1 - 5, assertz(i6_p(V1, K1)) )),
+    Y1 is 2 ** 61 * 2, findall(K1b, i6_p(Y1, K1b), L1),
+    Z1 is 1152921504606846975 + 1, findall(K1c, i6_p(Z1, K1c), L1c),
+    check('a clause with a boxed integer is found by its value', L1-L1c, [5]-[]),
+    retract(i6_p(4611686018427387905, K2)),
+    check('...and retracted by it', K2, 6),
+    X3 is 2 ** 62 + 3, nb_setval(i6_k, f(X3, 1.5)), nb_getval(i6_k, V3),
+    findall(X3-Z3, member(Z3, [1, 2]), L3b), copy_term(g(X3, _), g(C3, W3)),
+    ( var(W3) -> Fr3 = fresh ; Fr3 = W3 ),
+    check('a global, a findall\'s results and a copy keep it', V3-L3b-C3-Fr3,
+          f(4611686018427387907, 1.5)-[4611686018427387907-1, 4611686018427387907-2]-4611686018427387907-fresh),
+    atom_concat(D, '/i6_gc.pl', F4),
+    fixture(F4, [ 'big(N, X) :- X is 2 ** 62 + N.',
+                  'spin(0, A, A) :- !.',
+                  'spin(N, A0, A) :- big(N, X), Y is X - 4611686018427387904, A1 is A0 + Y, M is N - 1, spin(M, A1, A).',
+                  'main :- spin(200000, 0, S), X is 2 ** 62 + 7, garbage_collect, Y is 2 ** 62 + 7,',
+                  '        statistics(heap_collections, C), ( C > 0 -> G = collected ; G = none ),',
+                  '        write(S-G), write(\' \'), ( X == Y -> write(same) ; write(differ) ), nl.' ]),
+    cocolog(C4),
+    sh_join(['COCOLOG_GC_CELLS=2000 ', C4, ' run ', F4, ' main 2>&1'], Cmd4),
+    proc_run(Cmd4, 120000, Out4, _), atom_codes(O4, Out4),
+    check('two hundred thousand boxed integers through the collector and the table\'s reclamation', O4,
+          '20000100000-collected same\n'),
+    %% a machine started over a store and stepped 20 inferences at a time is
+    %% frozen and thawed at each step, a boxed integer on its heap
+    atom_concat(D, '/i6_frozen.pl', F5), atom_concat(D, '/i6-kb', K5),
+    fixture(F5, [ 'big(X) :- X is 2 ** 62 + 11.',
+                  'count(0) :- !.',
+                  'count(N) :- M is N - 1, count(M).',
+                  'go :- big(X), count(50), Y is X + 1, Z is -(X) - 2, write(Y/Z), nl.' ]),
+    sh_join([C4, ' --embed ', K5, ' consult ', F5, ' >/dev/null 2>&1; ',
+             C4, ' --embed ', K5, ' --steps 20 start m go >/dev/null 2>&1; i=0; ',
+             'while [ $i -lt 100 ]; do o=$(', C4, ' --embed ', K5, ' --steps 20 step m 2>&1); ',
+             'printf ''%s\\n'' "$o" | grep -v ''^m: \\|^  [0-9]*\\. ''; ',
+             'case "$o" in *finished*) break;; esac; i=$((i+1)); done'], Cmd5),
+    proc_run(Cmd5, 300000, Out5, _), atom_codes(O5, Out5),
+    check('a machine frozen and thawed with a boxed integer on its heap reads it back', O5,
+          '4611686018427387916/ -4611686018427387917\n').
+
+%% succ/2, plus/3, sum_list/2, numlist/3 and between/3 at the ends; the
+%% flags that say how wide an integer is
+i6_builtins :-
+    succ(9223372036854775806, S1), plus(9223372036854775806, 1, P1),
+    findall(F1, ( member(G1, [succ(9223372036854775807, _), plus(9223372036854775807, 1, _),
+                              plus(_, 1, -9223372036854775808), sum_list([9223372036854775807, 1], _)]),
+                  catch(( G1, F1 = none ), error(F1, _), true) ), L1),
+    check('succ/2, plus/3 and sum_list/2 are 64 bits, and past them int_overflow', S1-P1-L1,
+          9223372036854775807-9223372036854775807-
+          [evaluation_error(int_overflow), evaluation_error(int_overflow),
+           evaluation_error(int_overflow), evaluation_error(int_overflow)]),
+    findall(X2, between(9223372036854775805, 9223372036854775807, X2), L2),
+    numlist(9223372036854775805, 9223372036854775807, L2b),
+    sum_list([9223372036854775807, -1], S2), max_list([1, 9223372036854775807, 4611686018427387904], M2),
+    check('between/3, numlist/3, sum_list/2 and max_list/2 at the largest', L2-L2b-S2-M2,
+          [9223372036854775805, 9223372036854775806, 9223372036854775807]-
+          [9223372036854775805, 9223372036854775806, 9223372036854775807]-
+          9223372036854775806-9223372036854775807),
+    findall(V3, ( member(F3, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer]),
+                  current_prolog_flag(F3, V3) ), L3),
+    check('the flags say so', L3,
+          [true, 9223372036854775807, -9223372036854775808, 1152921504606846975, -1152921504606846976]),
+    ( integer(4611686018427387904), number(4611686018427387904), atomic(4611686018427387904),
+      \+ float(4611686018427387904), \+ compound(4611686018427387904) -> T4 = ok ; T4 = wrong ),
+    functor(9223372036854775807, N4, A4),
+    catch(functor(_, foo, 4611686018427387904), error(F4, _), true),
+    ( arg(4611686018427387904, f(a, b), _) -> G4 = found ; G4 = none ),
+    check('the type tests, functor/3 and arg/3 take a boxed integer', T4-N4-A4-F4-G4,
+          ok-9223372036854775807-0-representation_error(max_arity)-none).
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).

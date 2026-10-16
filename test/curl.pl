@@ -46,7 +46,13 @@ main :-
     fixture(Txt, ['hello from a file url']),
     atom_concat(D, '/nul.bin', Nul),
     write_file_from_codes(Nul, [0'a, 0'b, 0, 0'c, 0'd]),
-    really_libcurl, a_transfer(Txt), every_byte(Nul), refusals, two_halves(D),
+    %% `caf', the two bytes of an e-acute, and 0xFF, which is no UTF-8,
+    %% written as the bytes they are whatever the program counts
+    atom_concat(D, '/past.bin', Past),
+    string_bytes(S0, [99, 97, 102, 195, 169, 255], utf8),
+    string_codes(S0, PastCodes),
+    write_file_from_codes(Past, PastCodes),
+    really_libcurl, a_transfer(Txt), every_byte(Nul), past_ascii(Past), refusals, two_halves(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -77,6 +83,19 @@ every_byte(Nul) :-
     check('a NUL in the middle does not end the body', G1, '5'),
     written(( curl_get(Url, _, B2), nth0(3, B2, X2) ), X2, G2),
     check('and the byte after it is the right one', G2, '99').
+
+%% THE BODY IS THE PROGRAM'S CODES (2.0.0): under characters, the default,
+%% the e-acute is one code and 0xFF the U+DCFF that stands for it, and
+%% string_bytes/3 gives back the bytes the file holds. Through 1.15 a byte
+%% past 127 came back NEGATIVE, in either unit: [99,97,102,-61,-87,-1].
+past_ascii(Past) :-
+    section('past ASCII: the body in the program''s units, its bytes exact (2.0.0)'),
+    atom_concat('file://', Past, Url),
+    written(( curl_get(Url, _, B1), string_bytes(B1, X1, utf8) ), X1, G1),
+    check('the bytes come back as they are, 0xFF too', G1, '[99,97,102,195,169,255]'),
+    written(( curl_get(Url, _, B2), atom_codes(A2, B2),
+              ( sub_atom(A2, 0, _, _, 'café') -> X2 = word ; X2 = A2 ) ), X2, G2),
+    check('and its atom begins with the word', G2, word).
 
 refusals :-
     section('what it refuses'),
@@ -118,7 +137,17 @@ two_halves(D) :-
     served(Server, 18841,
            ( curl_post('http://127.0.0.1:18841/p', 'text/plain', 'twelve bytes', St2, B2),
              atom_codes(A2, B2), atomic_list_concat([St2, ' ', A2], X2) ), X2, G2),
-    check('and POSTs a body it reads back by length', G2, '200 served post /p 12').
+    check('and POSTs a body it reads back by length', G2, '200 served post /p 12'),
+    %% text past ASCII all the way round (2.0.0): curl sends the program's
+    %% text as its bytes, the server makes the escaped path its word and
+    %% counts the body in its units, answers an atom as its bytes with a
+    %% Content-Length of bytes, and curl hands the answer back as codes
+    ( current_prolog_flag(text_units, bytes) -> N3 = 6 ; N3 = 5 ),
+    atomic_list_concat(['200 served post /café ', N3], W3),
+    served(Server, 18842,
+           ( curl_post('http://127.0.0.1:18842/caf%C3%A9', 'text/plain', 'crème', St3, B3),
+             atom_codes(A3, B3), atomic_list_concat([St3, ' ', A3], X3) ), X3, G3),
+    check('and text past ASCII goes round whole', G3, W3).
 
 %% raise the one-shot server on Port, wait for the port, prove the client
 %% goal here, reap the server

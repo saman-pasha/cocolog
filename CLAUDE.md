@@ -275,9 +275,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `library(main)`'s `main/0` first where `run` puts the file's.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
-  line; `executable` is the binary's path. Those three, `double_quotes` and
-  `text_units` (1.13.0) are the only flags answered. `library(main)` parses
-  the tail.
+  line; `executable` is the binary's path. Those three, `double_quotes`,
+  `text_units` (1.13.0) and since 2.0.0 `bounded`, `max_integer`,
+  `min_integer`, `max_tagged_integer` and `min_tagged_integer` are the only
+  flags answered. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -899,18 +900,9 @@ cocolint index offers no import of it.
   caught around a deterministic call kept a choice point a turn). The
   marker's arm is the (weak) `coco_catch_exit`: a store written into the
   inlined construct code moved the step loop's registers.
-* **Text builtins work on BYTES by default, on CHARACTERS when a program
-  asks** (1.13.0, `text_units`). By default `atom_length('dár', N)` is 4,
-  `atom_codes/2` gives the UTF-8 bytes, `char_code(X, 225)` one raw byte,
-  `sub_atom/5` can cut a character in half, `upcase_atom('dár', U)` is
-  `DáR`, `atom_chars('dár', L)` is four one-byte atoms that join back to
-  `'dár'`, and `atom_chars(X, [d,'á',r])` raises `type_error(character,
-  'á')` (through 1.11.7 a SEGMENTATION FAULT). `:- set_prolog_flag(
-  text_units, characters).` -- or `COCOLOG_TEXT_UNITS=characters` for a
-  run -- gives SWI's answers to every one of them, per machine
-  (`m->text_chars`, kept in a frozen machine's `U` section; the directive
-  also sets the process default, so a thread or `run_isolated/2` made after
-  it counts the same): a code is a code point, a char one character of
+* **Text builtins work on CHARACTERS, SWI's, and on BYTES when a program
+  asks** (`text_units`: 1.13.0, and characters the default since 2.0.0;
+  bytes were through 1.x). A code is a code point, a char one character of
   however many bytes, in the text builtins, the reader (`"..."`, `0'c`),
   format's `~c`, `~s` and codes/chars sinks, char_type/2 (past ASCII as
   glibc's C.UTF-8 classes them, swipl on Linux: `coco_uc_case`,
@@ -918,12 +910,36 @@ cocolint index offers no import of it.
   read/write_file_from_codes, library(stream)'s text streams,
   library(process)'s output, library(text) and the document libraries'
   character references. A byte that is no UTF-8 decodes to U+DC00 plus the
-  byte and encodes back to it (`coco_utf8_get`/`_enc`). The network
-  libraries (http, httpd, websocket, tcp, tls, curl) stay byte-oriented,
-  a binary stream is bytes, the writer still quotes `'dár'` (the reader
-  takes no unquoted letter past ASCII), and library(text)'s regexes match
-  bytes. test/units.pl holds it to swipl. Under bytes, build and take apart
-  accented text with atom_concat/3 (modes -,+,+ and +,-,+),
+  byte and encodes back to it (`coco_utf8_get`/`_enc`), so a binary file
+  read as codes goes back byte for byte. `:- set_prolog_flag(text_units,
+  bytes).` -- or `COCOLOG_TEXT_UNITS=bytes` for a run -- gives 1.x's
+  answers, per machine (`m->text_chars`, kept in a frozen machine's `U`
+  section, and a blob with no `U` thaws in bytes; the directive also sets
+  the process default, `coco_text_default`, so a thread or
+  `run_isolated/2` made after it counts the same): `atom_length('dár', N)`
+  is 4, `atom_codes/2` gives the UTF-8 bytes, `char_code(X, 225)` one raw
+  byte, `sub_atom/5` can cut a character in half, `upcase_atom('dár', U)`
+  is `DáR`, `atom_chars('dár', L)` is four one-byte atoms that join back to
+  `'dár'`, and `atom_chars(X, [d,'á',r])` raises `type_error(character,
+  'á')` (through 1.11.7 a SEGMENTATION FAULT). **`string_bytes(Text, Bytes,
+  utf8)` (2.0.0, SWI's) is the crossing that does not move with the
+  units**: a text's UTF-8 bytes, or the string of some bytes -- what
+  `atom_codes/2` is under bytes. **A socket is bytes**: `library(tcp)` and
+  `library(tls)` read and write 0..255 whatever the program counts, and
+  `library(http)`, `library(httpd)`, `library(websocket)` (a text message;
+  a binary one is bytes) and `library(curl)` cross at the wire with
+  string_bytes/3, handing the program text in its units (2.0.0: through
+  1.15 they handed bytes, and under characters a path `caf%C3%A9` was
+  `cafÃ©`, a websocket refused to send `héllo`, a body went out a byte a
+  code point with a Content-Length of characters, and curl's bytes past 127
+  came back negative in either unit). A NEW LIBRARY THAT MAKES AN ATOM FROM
+  WIRE BYTES, OR WIRE BYTES FROM THE PROGRAM'S TEXT, GOES THROUGH
+  string_bytes/3, never atom_codes/2. A binary stream is bytes, the writer
+  still quotes `'dár'` (the reader takes no unquoted letter past ASCII),
+  library(text)'s regexes match bytes, and library(flow)'s widths and
+  columns ask the flag past 127 (a code of 128..191 is a continuation byte
+  only under bytes). test/units.pl holds it to swipl. Under bytes, build
+  and take apart accented text with atom_concat/3 (modes -,+,+ and +,-,+),
   atomic_list_concat/2 and member/2 over a list of the suffixes, as
   tr_stress_stem/2 does. **A syntax error in a load is
   placed** (1.11.9): `ERROR: FILE:LINE:COL: Syntax error: REASON`, the column
@@ -1466,17 +1482,55 @@ cocolint index offers no import of it.
   `1 << 1000000` was 1, `-256 >> 66` was -64, and `1 >> -1` was
   `1 >> 63` (cicilang's report, found where a 128-bit significand written
   as its two halves did not move; its own constant folder had the same
-  fault). Now SWI's answers, as far as 61 bits carry them: a count past 63
-  gives `>>` the sign of its left side (0 or -1) and `<<` 0 -- which is
-  what the 61 bits already made of `1 << 61` -- and a negative count shifts
+  fault). Now SWI's answers, as far as 64 bits carry them: a count past 63
+  gives `>>` the sign of its left side (0 or -1), a negative count shifts
   the other way (`1 >> -1` is 2, `4 << -1` is 2), its magnitude tested
-  before the negation that the smallest integer would overflow. The left
-  shift goes through u64, because a left shift of a negative value is
-  undefined as well (6.5.7/4). `test/engine.pl`'s `shifts` section holds
+  before the negation that the smallest integer would overflow, and a `<<`
+  that would lose a bit raises evaluation_error(int_overflow) since 2.0.0
+  (`1 << 63`, `3 << 62`; `-1 << 63` is the least integer; through 1.15 a
+  61-bit cell wrapped it, and `1 << 64` was 0). The left shift goes through
+  u64, because a left shift of a negative value is undefined as well
+  (6.5.7/4), and the helpers say a lost bit through their `ovf`. `test/engine.pl`'s `shifts` section holds
   all three paths -- the step, a guard, a goal in place -- to the answers,
   and is red on 1.13.7 for 20 of its 34 rows in each. **A new evaluator of
   a shift calls the two helpers**; neither `(>> a b)` nor `(<< a b)` on
   values a program gave is sound.
+* **Integers are 64 bits** (2.0.0; 61 through 1.15, past which arithmetic
+  wrapped in silence). A cell holds 61 (INT, tag 2, `coco-fits-cell`); a
+  value past them is BOXED, a BIG cell (tag 7) whose payload indexes
+  `m->bigs`, i64 (`coco_big_entry`). `coco_new_int` boxes only past the 61
+  and `coco_int_val` reads either kind: **canonical by range**, so an INT
+  never equals a BIG and two INT cells still compare by word, while two
+  BIGs compare by value, as floats do. **A new reader of an integer asks
+  `coco-is-int` and `coco_int_val`, never the INT tag alone, and a new
+  builder calls `coco_new_int`.** Past 64 bits arithmetic raises
+  `evaluation_error(int_overflow)` (`coco_int_overflow`), where SWI makes a
+  bignum: `+`, `-` and `*` through `coco_add_ovf`, `_sub_` and `_mul_`
+  (`(static) (inline)` over `__builtin_*_overflow`, an add or an imul and a
+  `jo`; a 128-bit test made an add nine instructions), `**` and `^`
+  (`coco_ipow`), the least integer `//` or `div` -1 and its `-` and `abs`,
+  a `<<` that loses a bit, succ/2, plus/3, sum_list/2, numlist/3; a float
+  made an integer outside them raises it too, `evaluation_error(undefined)`
+  for an infinity or a NaN. The reader counts a literal in u64
+  (`coco_mag_digit`, `iwide`): past 2^63-1, or 2^63 for a negative one, is
+  `integer out of range`, and atom_number/2 and number_codes/2 fail for
+  such a numeral. **The guards stop where they cannot decide** -- a result
+  past 64 bits, the least integer // -1, its negation, a shift that loses
+  a bit, a BIG operand -- and AG_ISF/AG_ISV hand a result past the cell's
+  61 bits to the step, which boxes it; GUARDX (`coco_env_guardx`) works on
+  the CELLS (A+B is CA-2+CB, A-B CA-CB+2, A*B (CA-2)*B+2), where a 64-bit
+  overflow is exactly a result past the 61. The index keys a BIG as 0, as
+  FLT and STR (`coco_arg_key`, `coco_cell_key`, `coco_store_arg_key`); the
+  tables reclaim `bigs` with the floats and strings (`bb`, `bfree`); a
+  frozen machine carries them in a `B` section after `U`, each entry in hex;
+  two integers are ordered exactly and an integer and a float as doubles,
+  the float first when they are equal (`coco_num_order`, swipl 9.0.4's).
+  `bounded` is `true`, `max_integer`/`min_integer` ±2^63 (less one above),
+  `max_tagged_integer`/`min_tagged_integer` the cell's 2^60-1 and -2^60. A
+  module reads either kind with `coco_m_int` and raises with
+  `coco_m_evaluation_error`. `test/engine.pl`'s `integers_64` (and the
+  shifts) hold it; twelve arms red; tools/flow/zero.sh against 1.15.0:
+  nrev -0.16 %, queens +0.26 %, lookup +0.38 %.
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth
   (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the
@@ -1637,8 +1691,8 @@ read into an English-worded IR and written into any lesson's language),
   `extra/` line is final**: a working store that had lines appended in
   another order showed a first meaning the fresh one did not (`de riesgo`,
   `cualquiera`).
-* **The reasoning libraries read both text units** (1.13.2; bytes are the
-  default through 1.x, characters when a program sets `text_units`). Every
+* **The reasoning libraries read both text units** (1.13.2; bytes were the
+  default through 1.x, characters are since 2.0.0). Every
   clause that names an accent or a mark by its UTF-8 BYTES (`[195, B]`,
   `[226, 128, 156]`, `[194, 171]`) has a TWIN that names the CODE POINT
   (`rt_upper_cp/1`, `[8220]`, `[171]`) in reason.pl (the tokeniser,
@@ -1666,8 +1720,10 @@ read into an English-worded IR and written into any lesson's language),
   accented word count characters in one unit and bytes in the other (the
   thresholds on a stem's length in the clitic rules), and
   `upcase_atom/2`/`downcase_atom/2` change an accented capital in characters
-  only (`tr_city_name/1`, `tr_abbreviation_end/1`). At 2.0.0, when characters
-  is the default, the byte clauses and the tests of `rt_chars/0` go.
+  only (`tr_city_name/1`, `tr_abbreviation_end/1`). Characters is the
+  default since cocolog 2.0.0, so the byte clauses and the tests of
+  `rt_chars/0` can go -- the reasoning library's change, on its own number;
+  until then a program that asks for bytes reads them as before.
 * **Find a translator cost with the flow profile, then bisect it** (1.11.4).
   `cocolog -s tools/flow/debug.pl -- GOAL library/reasoning/translate.pl BASE
   embed=STORE cache=DIR profile=true txt=true from=I to=J` over several

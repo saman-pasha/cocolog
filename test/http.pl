@@ -44,17 +44,20 @@ main :-
     ;   skip('(library(http) will not load)')
     ),
     request_line, headers, query_and_body, every_byte, refusals, decoding, responses,
-    against_curl,
+    text_both_ways, against_curl,
     checks_done.
 
 req('GET /a%20b?x=1&y=hi+there HTTP/1.1\r\nHost: example.org\r\nContent-Length: 5\r\n\r\nhello').
 
-%% Whether a request parses at all.
+%% Whether a request parses at all. A request is the wire's BYTES, so its
+%% text goes through string_bytes/3: atom_codes/2 would hand a letter past
+%% ASCII over as one code point under characters (2.0.0).
 parses(Text, Got) :-
-    written(( atom_codes(Text, Cs), ( http_request(Cs, _) -> X = parsed ; X = refused ) ), X, Got).
+    written(( string_bytes(Text, Cs, utf8), ( http_request(Cs, _) -> X = parsed ; X = refused ) ),
+            X, Got).
 
 %% A parsed request, from its text.
-request_of(Text, R) :- atom_codes(Text, Cs), http_request(Cs, R).
+request_of(Text, R) :- string_bytes(Text, Cs, utf8), http_request(Cs, R).
 
 request_line :-
     section('the request line'),
@@ -145,7 +148,10 @@ decoding :-
     %% implementation.
     forall(member(Raw-Want, ['a%20b'-'a b', '%2Fslash'-'/slash', 'plus+kept'-'plus+kept',
                              '%41%42%43'-'ABC', 'caf%C3%A9'-'café', '100%25'-'100%', 'a%2Bb'-'a+b']),
-           ( written(( atom_codes(Raw, Cs), http_percent_decode(Cs, D), atom_codes(X, D) ), X, G),
+           %% D is BYTES, made an atom as the library makes one from the
+           %% wire (string_bytes/3): atom_codes/2 would read each byte of
+           %% the e-acute as a character under characters, 'cafÃ©' (2.0.0)
+           ( written(( atom_codes(Raw, Cs), http_percent_decode(Cs, D), http_bytes_atom(D, X) ), X, G),
              atom_concat('percent-decode ', Raw, Label),
              check(Label, G, Want) )),
     %% ONE KEY AT A TIME, because comparing the printed list compares cocolog's
@@ -170,6 +176,41 @@ responses :-
     written(( http_response(200, [], [104,105], Cs4), atom_codes(A4, Cs4),
               ( sub_atom(A4, _, _, 0, hi) -> X4 = ends_with_body ; X4 = mangled ) ), X4, G4),
     check('and a body of codes is written as bytes', G4, ends_with_body).
+
+%% THE WIRE IS BYTES, THE PROGRAM'S TEXT ITS OWN (2.0.0). Under
+%% `text_units = characters', the default since 2.0.0, the library made its
+%% atoms from the wire with atom_codes/2, which read each byte of a letter as
+%% a character of its own -- `caf%C3%A9' was the path `cafÃ©' -- and put a
+%% body's code points on the wire one byte each with a Content-Length that
+%% counted characters. Every check here was red with 1.15.0's library under
+%% characters, and is the same answer under bytes.
+text_both_ways :-
+    section('text past ASCII: the wire is bytes, the program''s text its own (2.0.0)'),
+    request_of('POST /caf%C3%A9?q=%C3%A9t%C3%A9 HTTP/1.1\r\nX-Name: José\r\nContent-Length: 6\r\n\r\ncafé!', R1),
+    R1 = request(_, Path1, Q1, _, H1, B1),
+    check('a path escaped as UTF-8 is the word, /caf%C3%A9', Path1, '/café'),
+    ( memberchk(q-V2, Q1) -> true ; V2 = none ),
+    check('and so is a query value', V2, 'été'),
+    ( memberchk('x-name'-V3, H1) -> true ; V3 = none ),
+    check('a header value in raw UTF-8 is its atom', V3, 'José'),
+    atom_codes(A4, B1),
+    check('the body is the program''s codes, so its atom is the text', A4, 'café!'),
+    Form = 'n=Jos%C3%A9&w=café',
+    string_bytes(Form, FB, utf8), length(FB, FL),
+    atomic_list_concat(['POST /f HTTP/1.1\r\nContent-Length: ', FL, '\r\n\r\n', Form], Req5),
+    request_of(Req5, request(_, _, _, _, _, B5)),
+    written(http_form(B5, P5), P5, G5),
+    check('a form body, escaped and raw, is its words', G5, '[n-José,w-café]'),
+    http_response(200, [], 'café', Cs6),
+    ( append(Head6, [13, 10, 13, 10|Body6], Cs6) -> true ; Head6 = [], Body6 = none ),
+    check('an atom body goes as its UTF-8 bytes', Body6, [99, 97, 102, 195, 169]),
+    atom_codes(HA6, Head6),
+    ( sub_atom(HA6, _, _, _, 'Content-Length: 5') -> X6 = bytes ; X6 = HA6 ),
+    check('and its Content-Length counts the bytes, five', X6, bytes),
+    atom_codes('café', Cs7),
+    http_response(200, [], Cs7, Out7),
+    ( append(_, [13, 10, 13, 10|Body7], Out7) -> true ; Body7 = none ),
+    check('a body of the program''s codes goes as their bytes', Body7, [99, 97, 102, 195, 169]).
 
 against_curl :-
     section('and the whole thing against curl, which nobody here wrote'),

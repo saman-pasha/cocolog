@@ -1,27 +1,28 @@
-%% BASICS 13 -- text in characters: the `text_units' flag
+%% BASICS 13 -- text in characters, and bytes on request: `text_units'
 %%
 %%     ./cocolog run tutorials/basics/13-characters.pl main
 %%
-%% cocolog keeps text as UTF-8 BYTES, and by default its builtins count
-%% the bytes (lesson 08): `atom_length' of an a-acute is 2, `atom_codes'
-%% hands out the two bytes, a `sub_atom' can cut the letter in half. That
-%% is still the default through 1.x, so a program written against bytes
-%% runs as it always did.
-%%
-%% A PROGRAM CAN ASK FOR CHARACTERS INSTEAD, which is what SWI-Prolog
-%% counts:
-%%
-%%     :- set_prolog_flag(text_units, characters).
-%%
-%% at the head of a file, or COCOLOG_TEXT_UNITS=characters in the
-%% environment for a whole run. From there on a CODE is a code point and a
-%% CHAR is one character of however many bytes, in every builtin that
+%% cocolog keeps text as UTF-8, and since 2.0.0 its builtins count it in
+%% CHARACTERS, which is what SWI-Prolog counts. A CODE is a code point and
+%% a CHAR is one character of however many bytes, in every builtin that
 %% hands text out or counts it: atom_length/2, atom_codes/2, atom_chars/2,
 %% char_code/2, sub_atom/5, upcase_atom/2, the string_* family,
 %% split_string/4, char_type/2, format's ~c and its codes and chars sinks,
-%% read_file_to_codes/2 -- and the reader, so "..." and 0'c in the rest
-%% of the file are characters too. This file sets it, so every claim below
-%% is in characters. `current_prolog_flag(text_units, U)' says which.
+%% read_file_to_codes/2 -- and the reader, so "..." and 0'c are characters
+%% too. A file that says nothing counts characters, as `main' below does;
+%% `current_prolog_flag(text_units, U)' says which.
+%%
+%% THROUGH 1.x THE DEFAULT WAS BYTES: `atom_length' of an a-acute was 2,
+%% `atom_codes' handed out its two bytes, a `sub_atom' could cut the letter
+%% in half. A program written against bytes asks for them,
+%%
+%%     :- set_prolog_flag(text_units, bytes).
+%%
+%% at the head of a file, or COCOLOG_TEXT_UNITS=bytes in the environment
+%% for a whole run. The flag holds for the REST of the file and for the
+%% machine that runs it, and the last part of this lesson is read and run
+%% between two such directives: it counts bytes while `main' counts
+%% characters.
 %%
 %% WHAT DOES NOT CHANGE: an atom is the same bytes either way (only how it
 %% is counted and taken apart moves), atom_concat/3, atomic_list_concat/3
@@ -32,12 +33,15 @@
 %% A BYTE THAT IS NO UTF-8 IS NOT LOST: it reads as the code 0xDC00 plus
 %% the byte -- what Python calls surrogateescape -- and is written back as
 %% that byte, so a file that is not UTF-8 goes round unchanged.
-
-:- set_prolog_flag(text_units, characters).
+%%
+%% AND THE BYTES ARE ONE CALL AWAY, whatever the units: SWI's
+%% `string_bytes(Text, Bytes, utf8)' (2.0.0) answers a text's UTF-8, and
+%% given bytes, the string they make. It is how library(http) and its kin
+%% cross between the program's text and the wire, which is bytes.
 
 main :-
     current_prolog_flag(text_units, U),
-    must('this file counts', U, characters),
+    must('a file that says nothing counts', U, characters),
 
     format("~n-- an atom is characters long~n"),
     atom_length('dár', N),
@@ -81,7 +85,45 @@ main :-
     must('the byte 0xFF alone is one character', OddLen, 1),
     atom_codes(Odd, OddCodes),
     must('  whose code is 0xDC00 plus the byte', OddCodes, [0xDCFF]),
+
+    format("~n-- the bytes, whatever the units: string_bytes/3~n"),
+    string_bytes('dár', Bytes, utf8),
+    must('string_bytes(\'dár\', B, utf8): its UTF-8', Bytes, [100, 195, 161, 114]),
+    string_bytes(Str, [100, 195, 161, 114], utf8),
+    atom_string(Back, Str),
+    must('  and the bytes back, a string atom_string/2 makes an atom', Back, 'dár'),
+
+    format("~n-- bytes, where a file asks for them (the part after main)~n"),
+    ( catch(nb_getval(lesson13_bytes, Got), _, fail) -> true ; Got = not_run ),
+    ( Got = BU-BN-BCs-BQ -> true ; BU = Got, BN = none, BCs = none, BQ = none ),
+    must('after the directive, the flag', BU, bytes),
+    must('  atom_length(\'dár\', N): the a-acute is two bytes', BN, 4),
+    must('  atom_codes gives the UTF-8 bytes', BCs, [100, 195, 161, 114]),
+    must('  and "dár" read there is the bytes too', BQ, [100, 195, 161, 114]),
+    current_prolog_flag(text_units, U2),
+    must('and the directive after it put characters back for main', U2, characters),
     format("~ndone~n").
+
+%% ---- bytes, asked for ---------------------------------------------------
+%% A directive is a goal run where it stands. The first one below sets the
+%% flag for the rest of the file and for the machine, so `in_bytes' is READ
+%% in bytes (its "dár") and RUN in bytes, by `initialization(_, now)' at
+%% that point of the load; the last puts characters back before `main'
+%% runs. `in_bytes' leaves what it saw in a global for `main' to check,
+%% because a directive that fails is reported and the load goes on. A
+%% program that wants bytes throughout says the first line at its head.
+
+:- set_prolog_flag(text_units, bytes).
+
+in_bytes :-
+    current_prolog_flag(text_units, U),
+    atom_length('dár', N),
+    atom_codes('dár', Cs),
+    Quoted = "dár",
+    nb_setval(lesson13_bytes, U-N-Cs-Quoted).
+
+:- initialization(in_bytes, now).
+:- set_prolog_flag(text_units, characters).
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and

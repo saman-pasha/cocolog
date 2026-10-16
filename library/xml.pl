@@ -67,11 +67,12 @@
 %%   truncates it, and a document that lost half its text at the point of
 %%   the byte is a much worse afternoon than an error.
 %%
-%%   BYTES ABOVE 0x7F PASS THROUGH UNTOUCHED, exactly as in library(json).
-%%   cocolog is byte-oriented by default and there is no decoder here, so
-%%   UTF-8 in is UTF-8 out and `header(true)' declares that encoding. Under
-%%   `text_units = characters' (1.13.0) a code is a code point, and a
-%%   character reference read is one code, not its UTF-8.
+%%   TEXT PAST ASCII PASSES THROUGH UNTOUCHED, exactly as in library(json):
+%%   a code is a code point under `text_units = characters', the default
+%%   since 2.0.0, and a byte under bytes, and there is no decoder here, so
+%%   UTF-8 in is UTF-8 out and `header(true)' declares that encoding. A
+%%   character reference read is one code in characters and its UTF-8 in
+%%   bytes (`xml_utf8').
 %%
 %% ---- OPTIONS ---------------------------------------------------------
 %%
