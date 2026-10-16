@@ -32,7 +32,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -9616,8 +9616,8 @@ newspaper_eco_checks_12 :-
     check('the article''s sixteenth sentence in small: a clause of `che'' in front, not only ... but with names to a dash, and the only ones not to', L3,
           'Que la tierra era plana lo supieron no sólo Tolomeo y Eratostene, sino incluso Pitagora, Parmenide, Eudosso – y los únicos a no creernos habían sido sólo Leucippo y Democrito.'),
     nf_tr('Il cane ha un libro di case e gatti unico.', italian, spanish, L4),
-    check('GUARD: a phrase with no determiner agrees with the adjective after its noun only where the noun is a verb''s form too, as `fosse'' is: the Fiat report''s `un bagaglio di esperienze, punti di vista e competenze unico al mondo'' has the adjective agree with the baggage, and the first cut refused it', L4,
-          'El perro tiene un libro de casas y gatos únicos.'),
+    check('GUARD: a phrase with no determiner agrees with the adjective after its noun only where the noun is a verb''s form too, as `fosse'' is: the Fiat report''s `un bagaglio di esperienze, punti di vista e competenze unico al mondo'' has the adjective agree with the baggage, and the first cut refused it -- and written as the source has it, the singular of the baggage (hotel report, 1.0.1: it was `gatos únicos'', the plural of the nearest noun)', L4,
+          'El perro tiene un libro de casas y gatos único.'),
     nf_tr('Quei morti dormono.', italian, spanish, L5),
     check('GUARD: the word that replaces the noun is never the form that stands only before a noun, the lesson''s apocope and its plural: the Bosnian letter''s `ma quei morti per le strade'' is those dead, and on the first cut it lost its demonstrative, `los muertos''', L5,
           'Esos muertos duermen.'),
@@ -10480,8 +10480,8 @@ newspaper_poverty_checks_3 :-
     check('... and the same for the verb of a second line: `ha terminado el pan'' came out `è finito il pane''', C3,
           'Il cane ha finito il pane.'),
     nf_tr('El perro lo ha terminado.', spanish, italian, C4),
-    check('a GUARD: with an object pronoun the clause has an object too, `lo ha terminado''', C4,
-          'Il cane lo ha finito.'),
+    check('a GUARD: with an object pronoun the clause has an object too, `lo ha terminado'' -- written `l''ha finito'' since the hotel report (1.0.1): Italian elides `lo'' before a silent h', C4,
+          'Il cane l''ha finito.'),
     nf_tr('El perro ha sido un gato.', spanish, italian, C5),
     check('a GUARD: the copula''s own perfect is the lesson''s word, whatever follows it: `ha sido un gran Senegal'' is `è stato un gran Senegal'', what follows it no object -- written with the word that means `has'' it came out `ha stato''', C5,
           'Il cane è stato un gatto.'),
@@ -12332,6 +12332,235 @@ newspaper_makula_checks_9 :-
 
 %% <<< makula
 
+%% >>> hotel
+%% ---- a Spanish report on a hotel auction, into Italian and English (CESS-CAST-P-20011202-66) ----------
+
+newspaper_hotel :-
+    section('a Spanish report on a hotel auction into Italian and English: a one of a plural for a subject, a phrase with no article between two dashes and a dash that ends the sentence, who said so after a bracket with the relative clause that follows it, an adjective before a date''s day and the article chosen for the day, a silent h, the commas of a list of `between'', the gender of a noun''s meaning, an adjective after a name, a purpose word that is no verb, an adjective that keeps its own number, and a name the lesson says is one'),
+    newspaper_hotel_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_hotel_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_hotel_checks_1, newspaper_hotel_checks_2, newspaper_hotel_checks_3, newspaper_hotel_checks_4, newspaper_hotel_checks_5, newspaper_hotel_checks_6, newspaper_hotel_checks_7,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% each lesson in two parts, as the others
+newspaper_hotel_lesson(L, Text) :-
+    newspaper_hotel_part(L, 1, A), newspaper_hotel_part(L, 2, B),
+    atomic_list_concat([A, ' ', B], Text).
+
+%% the two hand lessons of the Hotel Arts section, as the test file will have them
+newspaper_hotel_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative.
+The adverb "ahora" means "now". The adverb "ayer" means "yesterday".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "entre" means "between". The preposition "según" means "according to". The preposition "para" means "for". The word "para" begins the purpose. The preposition "por" means "by". The preposition "a" means "to".
+The masculine noun "perro" means "dog". "perros" is the plural of "perro". The masculine noun "gato" means "cat". "gatos" is the plural of "gato".
+The masculine noun "hombre" means "man". "hombres" is the plural of "hombre". "hombre" is a person.
+The feminine noun "casa" means "house". "casas" is the plural of "casa". The feminine noun "empresa" means "company". The feminine noun "cadena" means "chain".
+The feminine noun "galería" means "gallery". The feminine noun "sede" means "headquarters". "sedes" is the plural of "sede".
+The feminine noun "agencia" means "agency". The feminine noun "fuente" means "source". "fuentes" is the plural of "fuente".
+The feminine noun "subasta" means "auction".
+The masculine noun "dueño" means "owner". "dueños" is the plural of "dueño". "dueño" is a person.
+The masculine noun "acuerdo" means "agreement". The masculine noun "grupo" means "group". The masculine noun "banco" means "bank".
+The masculine noun "hotel" means "hotel". "hoteles" is the plural of "hotel". The masculine noun "consorcio" means "consortium".
+The masculine noun "sector" means "sector". The feminine noun "operación" means "operation". "operaciones" is the plural of "operación".
+The feminine noun "oficina" means "office". "oficinas" is the plural of "oficina". The masculine noun "espacio" means "space".
+The masculine noun "solar" means "plot". The adjective "solar" means "solar".
+The feminine noun "filial" means "subsidiary". The adjective "filial" means "filial".
+The masculine noun "capital" means "share capital". The feminine noun "capital" means "capital".
+The masculine noun "septiembre" means "september". "septiembre" is a month. The word "de" joins the date.
+The masculine noun "jueves" means "thursday". "jueves" is a time. The article "el" takes the day.
+The masculine noun "año" means "year". "año" is a time.
+The masculine noun "millón" means "million". "millones" is the plural of "millón".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb. "uno" is the first person of "une".').
+newspaper_hotel_part(spanish, 2, 'The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "para" means "stops". "parar" is the infinitive of "para".
+The verb "une" means "joins". "unir" is the infinitive of "une".
+The verb "es" means "is". "son" is the plural of "es". "ser" is the infinitive of "es".
+The verb "tiene" means "has". "tienen" is the plural of "tiene".
+The verb "posee" means "owns".
+The verb "cita" means "quotes". "citan" is the plural of "cita".
+The verb "informa" means "reports". "informó" is the past of "informa".
+The verb "ha" means "has". "ha" is the auxiliary of "es".
+The verb "alberga" means "houses". "albergan" is the plural of "alberga".
+The verb "incluye" means "includes".
+The verb "firma" means "signs". "firmó" is the past of "firma".
+The verb "integra" means "integrates". "integrado" is the participle of "integra".
+The verb "hay" means "there is".
+The masculine adjective "pequeño" means "small". "pequeños" is the plural of "pequeño". The feminine adjective "pequeña" means "small". "pequeñas" is the plural of "pequeña".
+The masculine adjective "conocedor" means "aware". "conocedores" is the plural of "conocedor". The feminine adjective "conocedora" means "aware". "conocedoras" is the plural of "conocedora".
+The masculine adjective "pasado" means "past".
+The adjective "apto" means "suitable". "aptos" is the plural of "apto".
+The adjective "olímpica" means "olympic".
+"muchos" is the plural of "mucho". The adjective "mucho" means "many".
+The feminine noun "metrópoli" means "metropolis". "metrópolis" is the plural of "metrópoli". "hotel arts" is a name. "metrópolis" is a name.').
+newspaper_hotel_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The masculine article "uno" means "a". The feminine article "una" means "a".
+The article "lo" comes before a vowel. The article "lo" comes before "sc". The article "uno" comes before "sc".
+"l''" is the elision of "lo". "l''" is the elision of "la". "dell''" is the elision of "dello". "dell''" is the elision of "della". "dall''" is the elision of "dallo". "nell''" is the elision of "nello". "nell''" is the elision of "nella".
+"del" is the contraction of "di il". "dello" is the contraction of "di lo". "della" is the contraction of "di la". "dei" is the contraction of "di i". "degli" is the contraction of "di gli". "delle" is the contraction of "di le".
+"nel" is the contraction of "in il". "nello" is the contraction of "in lo". "nella" is the contraction of "in la". "negli" is the contraction of "in gli".
+"dal" is the contraction of "da il". "dallo" is the contraction of "da lo". "dalla" is the contraction of "da la".
+"al" is the contraction of "a il". "allo" is the contraction of "a lo".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative.
+The adverb "adesso" means "now". The adverb "ieri" means "yesterday".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "tra" means "between". The preposition "secondo" means "according to". The preposition "come" means "as". The preposition "per" means "for". The word "per" begins the purpose. The preposition "da" means "by". The preposition "a" means "to".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "uomo" means "man". "uomini" is the plural of "uomo". "uomo" is a person.
+The feminine noun "casa" means "house". "case" is the plural of "casa". The feminine noun "impresa" means "company". The feminine noun "catena" means "chain".
+The feminine noun "galleria" means "gallery". "gallerie" is the plural of "galleria". The feminine noun "sede" means "headquarters". "sedi" is the plural of "sede".
+The feminine noun "agenzia" means "agency". The feminine noun "fonte" means "source". "fonti" is the plural of "fonte".
+The feminine noun "asta" means "auction".
+The masculine noun "proprietario" means "owner". "proprietari" is the plural of "proprietario". "proprietario" is a person.
+The masculine noun "accordo" means "agreement". The masculine noun "gruppo" means "group". The feminine noun "banca" means "bank".
+The masculine noun "hotel" means "hotel". "hotel" is the plural of "hotel". The masculine noun "consorzio" means "consortium".
+The masculine noun "settore" means "sector". The feminine noun "operazione" means "operation". "operazioni" is the plural of "operazione".
+The masculine noun "ufficio" means "office". "uffici" is the plural of "ufficio". The masculine noun "spazio" means "space".
+The masculine noun "terreno edificabile" means "plot".
+The feminine noun "filiale" means "subsidiary". The adjective "filiale" means "filial".
+The masculine noun "capitale" means "share capital". The feminine noun "capitale" means "capital".
+The masculine noun "settembre" means "september". "settembre" is a month.
+The masculine noun "giovedì" means "thursday". "giovedì" is a time.
+The masculine noun "anno" means "year". "anno" is a time.
+The masculine noun "milione" means "million". "milioni" is the plural of "milione".
+The pronoun "uno" means "one". The pronoun "uno" does not precede the verb.').
+newspaper_hotel_part(italian, 2, 'The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "arresta" means "stops". "arrestare" is the infinitive of "arresta".
+The verb "unisce" means "joins". "unire" is the infinitive of "unisce".
+The verb "è" means "is". "sono" is the plural of "è". "essere" is the infinitive of "è".
+The verb "ha" means "has". "hanno" is the plural of "ha". "ha" is the auxiliary of "è".
+The verb "possiede" means "owns".
+The verb "cita" means "quotes". "citano" is the plural of "cita".
+The verb "informa" means "reports". "informò" is the past of "informa".
+The verb "alberga" means "houses". "albergano" is the plural of "alberga".
+The verb "include" means "includes".
+The verb "firma" means "signs". "firmò" is the past of "firma".
+The verb "integra" means "integrates". "integrato" is the participle of "integra".
+The verb "c''è" means "there is".
+The masculine adjective "piccolo" means "small". "piccoli" is the plural of "piccolo". The feminine adjective "piccola" means "small". "piccole" is the plural of "piccola".
+The adjective "consapevole" means "aware". "consapevoli" is the plural of "consapevole".
+The masculine adjective "passato" means "past". The adjective "passato" does not precede the noun.
+The adjective "idoneo" means "suitable". "idonei" is the plural of "idoneo".
+The adjective "olimpica" means "olympic".
+The adjective "molti" means "many".
+The feminine noun "metropoli" means "metropolis". "metropoli" is the plural of "metropoli".
+"hotel arts" is a name. "metrópolis" is a name.').
+
+newspaper_hotel_checks_1 :-
+    nf_tr('Uno de los hombres duerme.', spanish, italian, A1),
+    check('A ONE OF A PLURAL IS A SUBJECT WHERE `uno'' IS A VERB''S FORM TOO: `Uno de sus principales accionistas es La Caixa'' -- `uno'' is what `unir'' says in the first person, a bare singular that is a verb''s form was no subject (tr_part_of_subject/1), and the whole sentence was refused', A1,
+          'Uno degli uomini dorme.'),
+    nf_tr('Uno de los hombres duerme.', spanish, english, A2),
+    check('... and in English', A2, 'One of the men sleeps.'),
+    nf_tr('Uno de los hombres duermen.', spanish, italian, A3),
+    check('a GUARD: the verb agrees with the singular `uno'' -- the men''s plural is refused, as it always was', A3, refused).
+
+newspaper_hotel_checks_2 :-
+    nf_tr('La empresa - - filial de la cadena - - duerme.', spanish, italian, B1),
+    check('A PHRASE WITH NO ARTICLE BETWEEN TWO DASHES, AFTER A NOUN: `la empresa R-C Spain SL - - filial de la cadena hotelera internacional Ritz-Carlton - - hasta el 2019'' -- `filial'' is an adjective too, and the aside that wants an adjective''s complements read nothing; between commas it was an apposition, between dashes the sentence was refused', B1,
+          'L''impresa – filiale della catena – dorme.'),
+    nf_tr('La empresa - - filial de la cadena - - duerme.', spanish, english, B2),
+    check('... and in English', B2, 'The company – subsidiary of the chain – sleeps.'),
+    nf_tr('El perro duerme en la empresa - - filial de la cadena - -.', spanish, italian, B3),
+    check('... AND THE CLOSING DASH MAY END THE SENTENCE', B3, 'Il cane dorme nell''impresa – filiale della catena –.'),
+    nf_tr('El perro - - Strategic Hotel Capital (SHC) - - duerme.', spanish, italian, B4),
+    check('... AND A NAME BETWEEN THE DASHES, a bracket inside it: `el fondo ... - - Strategic Hotel Capital (SHC) - -'' -- a name no lesson knows is a phrase to the dash that closes it', B4,
+          'Il cane – Strategic Hotel Capital (SHC) – dorme.'),
+    nf_tr('El gato ve las galerías de Sogo - - que ahora albergan la sede - -.', spanish, italian, B5),
+    check('A RELATIVE CLAUSE BETWEEN DASHES THAT END THE SENTENCE: `las antiguas galerías comerciales de Sogo - - que ahora albergan la sede del Casino de Barcelona - -.'' -- read with the dash for the join of two clauses, `sede'' was the verb `sedar'' and the clause came out `che albergano adesso la calma del Casino''', B5,
+          'Il gatto vede le gallerie di Sogo – che albergano la sede adesso –.'),
+    nf_tr('El perro - - Strategic - -, pequeño, duerme.', spanish, italian, B6),
+    check('a GUARD: a comma right after the closing dash is not let through -- `el fondo ... - - Strategic Hotel Capital (SHC) - -, aliado con un consorcio'' (the report''s tenth sentence): on the Spanish store the phrase after the comma left the dog and the name a piece with no verb, and `duerme'' its imperative, `dormi'' -- where the sentence was refused; the little lesson here has no imperative and would read it, so the shape stays refused until the name and the phrase after its comma are the one subject', B6,
+          refused).
+
+newspaper_hotel_checks_3 :-
+    nf_tr('El gato duerme (en casa), según informó la agencia, que cita fuentes.', spanish, italian, C1),
+    check('WHO SAID SO RIGHT AFTER A BRACKET: `ha adjudicado ... (288,4 millones de euros), según informó ayer la agencia Efe, que cita fuentes ...'' -- the comment between commas is taken after the word before its comma, and the bracket had taken that word (tr_asides/3): the comment stood down and the relative clause after it left the sentence refused', C1,
+          'Il gatto dorme (in casa), come informò l''agenzia, che cita fonti.'),
+    nf_tr('El gato duerme (en casa), según informó la agencia, que cita fuentes.', spanish, english, C2),
+    check('... AND THE RELATIVE CLAUSE AFTER THE COMMENT IS THE SPEAKER''S: outside it, it was a clause of `that'' with nobody named, which English refuses -- the comment takes it in, `as the agency, which quotes sources, reported''', C2,
+          'The cat sleeps (in house), as the agency, which quotes sources, reported.'),
+    nf_tr('El gato duerme, según informó la agencia, que cita fuentes.', spanish, english, C3),
+    check('... with no bracket too', C3, 'The cat sleeps, as the agency, which quotes sources, reported.'),
+    nf_tr('Según informó la agencia, que cita fuentes, el gato duerme.', spanish, english, C5),
+    check('... at the head of the sentence too: the comment takes its relative clause in before the clause it stands in front of', C5,
+          'As the agency, which quotes sources, reported, the cat sleeps.'),
+    nf_tr('El gato duerme, según informó la agencia.', spanish, english, C4),
+    check('a GUARD: a comment with no relative clause after it is read as it was', C4, 'The cat sleeps, as the agency reported.').
+
+newspaper_hotel_checks_4 :-
+    nf_tr('El gato duerme el pasado 11 de septiembre.', spanish, italian, D1),
+    check('AN ADJECTIVE BEFORE A DATE''S DAY: `el pasado 11 de septiembre'' -- the join word came off only between the day and the month, and with `pasado'' before the day the phrase had no reading; the writer puts the adjective after the month, as it does for a date with one', D1,
+          'Il gatto dorme l''11 settembre passato.'),
+    nf_tr('El gato duerme el pasado 11 de septiembre.', spanish, english, D2),
+    check('... and English puts it before', D2, 'The cat sleeps past September 11.'),
+    nf_tr('El gato ve el hotel del 8 de septiembre.', spanish, italian, D3),
+    check('THE ARTICLE OF A DATE IS CHOSEN FOR THE DAY THAT FOLLOWS IT, not for the month: `del 8 settembre'' and `dal 11 settembre'' -- asked of the month, `settembre'', the masculine article was `il'', and `di il'' is `del'' where `dell''8'' has the elided article of the vowel `otto''', D3,
+          'Il gatto vede l''hotel dell''8 settembre.'),
+    nf_tr('El gato ve el hotel del 1 de septiembre.', spanish, italian, D4),
+    check('a GUARD: the first of the month is `primo'', a consonant -- `del 1 settembre'' keeps `del''', D4,
+          'Il gatto vede l''hotel del 1 settembre.'),
+    nf_tr('El perro duerme en el hotel.', spanish, italian, D5),
+    check('A SILENT `h'' BEGINS WITH THE SOUND AFTER IT: `l''hotel'', `nell''hotel'', `dell''Hotel Arts'' -- a letter is a vowel by begin_with/2 and an `h'' is none, so the article was `il'' and the preposition `nel''', D5,
+          'Il cane dorme nell''hotel.').
+
+newspaper_hotel_checks_5 :-
+    nf_tr('El jueves el gato firmó un acuerdo entre los dueños, el grupo Sogo, y el banco.', spanish, italian, E1),
+    check('A LIST A PREPOSITION OF `BETWEEN'' OPENS KEEPS ITS COMMAS TOGETHER: `El pasado jueves se firmó en Londres un preacuerdo privado entre los actuales dueños, el grupo japonés Sogo, y el Deutsche Bank'' -- the front went before the first comma of the clause''s phrases, `tra gli attuali proprietari giovedì passato, il gruppo giapponese Sogo, e il Deutsche Bank''', E1,
+          'Il gatto firmò un accordo tra i proprietari, il gruppo Sogo, e la banca giovedì.'),
+    nf_tr('El jueves el gato firmó un acuerdo entre los dueños y el banco.', spanish, italian, E2),
+    check('a GUARD: with no comma in the list the time went after it already', E2,
+          'Il gatto firmò un accordo tra i proprietari e la banca giovedì.'),
+    nf_tr('El gato posee el capital.', spanish, italian, E3),
+    check('A NOUN THE LESSON STATES IN BOTH GENDERS IS WRITTEN IN THE GENDER OF ITS MEANING: `el 4,03% del capital de la institución'' is the money and `la capital'' the city, linked (mean_gender/3, tr_gender_links/3) and read by the determiner''s gender; written, tr_gender/2 took the feminine whatever the phrase said -- `il 4,03% della capitale dell''istituzione''', E3,
+          'Il gatto possiede il capitale.'),
+    nf_tr('El gato ve la capital.', spanish, italian, E4),
+    check('a GUARD: the feminine one is the city', E4, 'Il gatto vede la capitale.'),
+    nf_tr('El gato posee el capital.', spanish, english, E5),
+    check('... and English says which it is', E5, 'The cat owns the share capital.').
+
+newspaper_hotel_checks_6 :-
+    nf_tr('Los gatos ven la Barcelona olímpica.', spanish, italian, F1),
+    check('AN ADJECTIVE AFTER A NAME THAT STANDS RIGHT AFTER ITS DETERMINER IS THE NAME''S: `uno de los inmuebles más emblemáticos de la Barcelona olímpica'' -- cut after the name (an adjective after a name is a predicate: `Capri, Procida, ... Ponza off limits''), it agreed with the clause''s subject, `della Barcelona olimpici''', F1,
+          'I gatti vedono la Barcelona olimpica.'),
+    nf_tr('Los gatos ven la Barcelona olímpica.', spanish, english, F2),
+    check('... and English puts it before the name', F2, 'The cats see the olympic Barcelona.'),
+    nf_tr('Un solar apto para comer.', spanish, italian, F3),
+    check('A WORD THAT BEGINS THE PURPOSE, STRAIGHT BEFORE AN INFINITIVE AND AFTER A NOUN OR AN ADJECTIVE, IS NO VERB: `un edificio anexo ... y un solar apto para levantar otro hotel'' has no verb at all, and `para'' is also what `parar'' says -- `un terreno idoneo arresta alzare altro albergo''', F3,
+          'Un terreno edificabile idoneo per mangiare.'),
+    nf_tr('El gato para.', spanish, italian, F4),
+    check('a GUARD: `para'' with nothing after it is the verb', F4, 'Il gatto arresta.').
+
+newspaper_hotel_checks_7 :-
+    nf_tr('El gato ve un perro de casas pequeño.', spanish, italian, G1),
+    check('AN ADJECTIVE THAT DOES NOT AGREE WITH ITS NOUN IN NUMBER KEEPS ITS OWN: `un espacio de oficinas anexo'' is a space annexed, not annexed offices -- `uno spazio d''uffici annessi''; the form is stated singular (it has a plural listed), the noun plural, and agrd/3 carries the number', G1,
+          'Il gatto vede un cane di case piccolo.'),
+    nf_tr('El gato ve un perro de casas pequeñas.', spanish, italian, G2),
+    check('a GUARD: one that agrees is written as it always was', G2, 'Il gatto vede un cane di case piccole.'),
+    nf_tr('El gato ve las fuentes del sector conocedoras de la operación.', spanish, italian, G3),
+    check('... `fuentes del sector conocedoras de la operación'' are aware sources: the reader hangs the adjective on `sector'', the nearest noun, and it was `fonti del settore consapevole''', G3,
+          'Il gatto vede le fonti del settore consapevoli dell''operazione.'),
+    nf_tr('El consorcio integrado por el grupo Metrópolis duerme.', spanish, italian, G4),
+    check('A WORD THE LESSON SAYS IS A NAME, WITH ITS CAPITAL INSIDE A SENTENCE, IS ONE: `el grupo inversor catalán Metrópolis'' -- `"metrópolis" is a name.'' and the lesson knows the word as a noun; read as the noun the phrase ended at `grupo'' (a noun in the other number begins the next one) and the group was `Metropoli''', G4,
+          'Il consorzio integrato dal gruppo Metrópolis dorme.'),
+    nf_tr('Las metrópolis duermen.', spanish, italian, G5),
+    check('a GUARD: the word in small letters is the noun', G5, 'Le metropoli dormono.').
+
+%% <<< hotel
+
 %% >>> units
 %% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). By default a code
 %% list holds the UTF-8 BYTES of a text, `é' is 195 169; a program that sets
@@ -12678,6 +12907,7 @@ vocabulary :-
              memberchk('The verb "retribuye" means "remunerates".', EsLines), memberchk('The masculine noun "consejo" means "council".', EsLines),
              memberchk('The verb "remunera" means "remunerates".', ItLines), memberchk('The masculine noun "consiglio" means "council".', ItLines) ), V3g),
     check('and the leads of the second round: `ejercen'' exercise (the dictionary''s is exert), `retribuidos'' remunerated, a council for `Consejo'', and an adverb with a meaning before an adjective said after the plain one -- a meaning a lesson calls adjectival is linked to the adverb''s class too, in the order it is said', V3g, yes),
+    vocabulary_hotel(EsLines, ItLines),
     reason_translate('El profesor lee el periódico en la casa.', T4),
     check('a noun that is an adjective too is the noun where the sentence puts it', T4, 'The professor reads the newspaper in the house.'),
     reason_translate('El gato negro duerme.', T5),
@@ -12703,6 +12933,30 @@ vocabulary :-
     reason_translate_page('El gato negro duerme. El xyzzy come el pan.', Page),
     check('a page: each sentence its own, and one refused names its word', Page,
           ['El gato negro duerme.'-'The black cat sleeps.', 'El xyzzy come el pan.'-refused([xyzzy])]).
+
+%% the words of the Hotel Arts report, in a clause of their own: the one above is a page (cocolint Z1)
+vocabulary_hotel(EsLines, ItLines) :-
+    yes_no(( nth1(H1a, EsLines, 'The masculine noun "fondo" means "fund".'), nth1(H1b, EsLines, 'The masculine noun "fondo" means "background".'), H1a < H1b,
+             nth1(H1c, EsLines, 'The feminine noun "fuente" means "source".'), nth1(H1d, EsLines, 'The feminine noun "fuente" means "fountain".'), H1c < H1d,
+             nth1(H1e, EsLines, 'The masculine noun "capital" means "share capital".'), nth1(H1f, EsLines, 'The feminine noun "capital" means "capital".'), H1e < H1f,
+             nth1(H1g, EsLines, 'The verb "aspira" means "aspires".'), nth1(H1h, EsLines, 'The verb "aspira" means "inhales".'), H1g < H1h,
+             nth1(H1i, EsLines, 'The feminine noun "empresaria" means "businesswoman".'), nth1(H1j, EsLines, 'The feminine noun "empresaria" means "employer".'), H1i < H1j,
+             memberchk('The masculine adjective "anexo" means "annex".', EsLines), memberchk('The masculine noun "solar" means "building plot".', EsLines),
+             memberchk('The masculine adjective "inversor" means "investor".', EsLines), memberchk('The masculine noun "cinco estrellas" means "five-star hotel".', EsLines),
+             memberchk('"hotel arts" is a name.', EsLines), memberchk('"metrópolis" is a name.', EsLines) ), V3h),
+    yes_no(( nth1(H2a, ItLines, 'The masculine noun "albergo" means "hotel".'), nth1(H2b, ItLines, 'The masculine adjective "alberghiero" means "hotel".'),
+             nth1(H2c, ItLines, 'The masculine noun "alberghiero" means "hotel".'), H2a < H2b, H2b < H2c,
+             nth1(H2d, ItLines, 'The feminine noun "sede" means "headquarters".'), nth1(H2e, ItLines, 'The masculine noun "quartier" means "headquarters".'), H2d < H2e,
+             nth1(H2f, ItLines, 'The feminine noun "banca" means "bank".'), nth1(H2g, ItLines, 'The masculine noun "argine" means "bank".'), H2f < H2g,
+             nth1(H2h, ItLines, 'The masculine noun "acquisto" means "purchase".'), nth1(H2i, ItLines, 'The feminine noun "spesa" means "purchase".'), H2h < H2i,
+             nth1(H2j, ItLines, 'The feminine noun "gestione" means "management".'), nth1(H2k, ItLines, 'The feminine noun "dirigenza" means "management".'), H2j < H2k,
+             nth1(H2l, ItLines, 'The masculine noun "edificio" means "building".'), nth1(H2m, ItLines, 'The feminine noun "edilizia" means "building".'), H2l < H2m,
+             nth1(H2n, ItLines, 'The masculine noun "capitale" means "share capital".'), nth1(H2o, ItLines, 'The feminine noun "capitale" means "capital".'), H2n < H2o,
+             nth1(H2p, ItLines, 'The feminine noun "imprenditrice" means "businesswoman".'), nth1(H2q, ItLines, 'The feminine noun "imprenditrice" means "employer".'), H2p < H2q,
+             memberchk('The feminine noun "filiale" means "subsidiary".', ItLines), memberchk('The masculine noun "investitore" means "investor".', ItLines),
+             memberchk('The adjective "passato" does not precede the noun.', ItLines), memberchk('The verb "aspira" means "aspires".', ItLines) ), V3i),
+    check('and the words of the Hotel Arts report, Spanish: a fund (the dictionary''s first is the background), the sources (it says fountains), the masculine `capital'' said before the feminine one so that the feminine is the LINKED meaning, the verb that aspires, a businesswoman, `anexo'' and `inversor'' as the adjectives they are, a five-star hotel, and the two names', V3h, yes),
+    check('... and Italian: an hotel (not the hotel-keeper), a headquarters said before `quartier'', a bank before `argine'' (the bank of a river), a purchase before `spesa'', management before the managers, a building before the trade, the share capital before the city, a businesswoman, and `passato'' after its noun', V3i, yes).
 
 vocabulary_lines(File, Lines) :-
     read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Ss),

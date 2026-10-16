@@ -15,6 +15,10 @@ The preposition "ad" means "to".
 The masculine noun "coprifuoco" means "curfew".
 The feminine noun "leggerezza" means "negligence".
 The feminine noun "incolumità" means "safety".
+# `las galerías ... que ahora albergan la sede del Casino': a headquarters is `una sede', said before `quartier'
+# because the first word for a meaning is the one written (`quartier generale' is still read)
+The feminine noun "sede" means "headquarters".
+"sedi" is the plural of "sede".
 The masculine noun "quartier" means "headquarters".
 The masculine noun "blitz" means "raid".
 The feminine noun "connivenza" means "collusion".
@@ -2719,3 +2723,63 @@ The conjunction "prima che" means "before".
 "prima che" takes the subjunctive.
 # `si chiama infatti assistente ai bagnanti', `si chiama Maria': is called -- the impersonal `si' with no subject is the verb's own reflexive
 "chiama" is reflexive.
+# the Hotel Arts report (CESS-CAST-P-20011202-66, Spanish into Italian): the Italian words for what
+# the Spanish lines of the same report say, and the dictionary's first word of a meaning where it
+# is not the one a newspaper writes
+The masculine noun "immobile" means "real estate".
+"immobili" is the plural of "immobile".
+The adjective "immobiliare" means "real estate".
+"immobiliari" is the plural of "immobiliare".
+# a hotel is `un albergo' and the sentences' `hotelera' is `alberghiera' -- the noun is said first, because
+# the first word for a meaning is the one written, and `alberghiero' is a noun too (the hotel-keeper)
+The masculine noun "albergo" means "hotel".
+"alberghi" is the plural of "albergo".
+The masculine adjective "alberghiero" means "hotel".
+"alberghieri" is the plural of "alberghiero".
+The feminine adjective "alberghiera" means "hotel".
+"alberghiere" is the plural of "alberghiera".
+The masculine noun "preaccordo" means "draft agreement".
+"preaccordi" is the plural of "preaccordo".
+# a bank is `una banca'; the dictionary's first is `argine', the bank of a river
+The feminine noun "banca" means "bank".
+"banche" is the plural of "banca".
+# `la compra se formalizará en breve': a purchase is `un acquisto', the dictionary's `spesa' is
+# what is spent
+The masculine noun "acquisto" means "purchase".
+"acquisti" is the plural of "acquisto".
+# a building is `un edificio'; `edilizia' is building as a trade
+The masculine noun "edificio" means "building".
+"edifici" is the plural of "edificio".
+# the management of a hotel is `la gestione'; `dirigenza' is the managers
+The feminine noun "gestione" means "management".
+"gestioni" is the plural of "gestione".
+# a company's subsidiary is `una filiale'
+The feminine noun "filiale" means "subsidiary".
+"filiali" is the plural of "filiale".
+# `el grupo inversor catalán': the dictionary has no word for an investor at all
+The masculine noun "investitore" means "investor".
+"investitori" is the plural of "investitore".
+"investitore" is a person.
+The feminine noun "investitrice" means "investor".
+"investitrici" is the plural of "investitrice".
+"investitrice" is a person.
+The masculine adjective "investitore" means "investor".
+The feminine adjective "investitrice" means "investor".
+# `un cinco estrellas': a five-star hotel
+The masculine noun "cinque stelle" means "five-star hotel".
+# the masculine `capitale' is the money (the feminine one, the dictionary's, is the city)
+The masculine noun "capitale" means "share capital".
+"capitali" is the plural of "capitale".
+# `un solar apto para levantar otro hotel': a plot of building land, fit for it
+The masculine noun "terreno edificabile" means "building plot".
+The masculine adjective "idoneo" means "suitable".
+"idonei" is the plural of "idoneo".
+The feminine adjective "idonea" means "suitable".
+"idonee" is the plural of "idonea".
+# `los dos grupos que aspiraban a adquirir': `aspira' inhales in the dictionary and aspires here
+The verb "aspira" means "aspires".
+# `el pasado jueves' is `giovedì passato': past, like `scorso', stands after its noun
+The adjective "passato" does not precede the noun.
+# `la empresaria Alicia Koplowitz': the Italian word for a businesswoman
+The feminine noun "imprenditrice" means "businesswoman".
+"imprenditrice" is a person.

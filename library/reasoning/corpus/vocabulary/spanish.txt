@@ -1112,6 +1112,42 @@ The masculine adjective "helado" means "freezing".
 The feminine adjective "helada" means "freezing".
 "helados" is the plural of "helado".
 "heladas" is the plural of "helada".
+The masculine noun "inmueble" means "real estate".
+"inmuebles" is the plural of "inmueble".
+The masculine adjective "inmobiliario" means "real estate".
+"inmobiliarios" is the plural of "inmobiliario".
+The feminine adjective "inmobiliaria" means "real estate".
+"inmobiliarias" is the plural of "inmobiliaria".
+The masculine adjective "hotelero" means "hotel".
+"hoteleros" is the plural of "hotelero".
+The feminine adjective "hotelera" means "hotel".
+"hoteleras" is the plural of "hotelera".
+The masculine noun "preacuerdo" means "draft agreement".
+"preacuerdos" is the plural of "preacuerdo".
+"hotel arts" is a name.
+The masculine noun "fondo" means "fund".
+The masculine adjective "inversor" means "investor".
+The feminine adjective "inversora" means "investor".
+"inversoras" is the plural of "inversora".
+"metrópolis" is a name.
+The masculine adjective "conocedor" means "aware".
+The feminine adjective "conocedora" means "aware".
+"conocedoras" is the plural of "conocedora".
+The masculine noun "cinco estrellas" means "five-star hotel".
+The masculine noun "capital" means "share capital".
+The masculine adjective "anexo" means "annex".
+"anexos" is the plural of "anexo".
+The feminine adjective "anexa" means "annex".
+"anexas" is the plural of "anexa".
+The masculine noun "solar" means "building plot".
+The masculine adjective "apto" means "suitable".
+"aptos" is the plural of "apto".
+The feminine adjective "apta" means "suitable".
+"aptas" is the plural of "apta".
+The verb "aspira" means "aspires".
+The feminine noun "fuente" means "source".
+The feminine noun "empresaria" means "businesswoman".
+"empresaria" is a person.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

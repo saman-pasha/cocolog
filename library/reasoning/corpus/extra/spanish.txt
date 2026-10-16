@@ -2092,3 +2092,64 @@ The masculine adjective "helado" means "freezing".
 The feminine adjective "helada" means "freezing".
 "helados" is the plural of "helado".
 "heladas" is the plural of "helada".
+# the Hotel Arts report (CESS-CAST-P-20011202-66, Spanish into Italian and English): the words the
+# dictionary carries only as another part of speech, or with another meaning first
+# `un inmueble', `el sector inmobiliario', `la cadena hotelera', `un preacuerdo privado': real
+# estate, a hotel's, a draft agreement -- the dictionary has none of them as a word the sentence uses
+The masculine noun "inmueble" means "real estate".
+"inmuebles" is the plural of "inmueble".
+The masculine adjective "inmobiliario" means "real estate".
+"inmobiliarios" is the plural of "inmobiliario".
+The feminine adjective "inmobiliaria" means "real estate".
+"inmobiliarias" is the plural of "inmobiliaria".
+The masculine adjective "hotelero" means "hotel".
+"hoteleros" is the plural of "hotelero".
+The feminine adjective "hotelera" means "hotel".
+"hoteleras" is the plural of "hotelera".
+The masculine noun "preacuerdo" means "draft agreement".
+"preacuerdos" is the plural of "preacuerdo".
+# `la subasta del Hotel Arts': the hotel's name is two words, and `hotel' alone is a hotel
+"hotel arts" is a name.
+# `el fondo participado por Prudential y Goldman Sachs', `el fondo inmobiliario estadounidense
+# Blackstone': a fund -- the dictionary's first meaning of `fondo' is the background
+The masculine noun "fondo" means "fund".
+# `el grupo inversor catalán Metrópolis': the dictionary has `inversor' only as the noun, an
+# investor, and the group's name is a word it knows (a metropolis), which read the group as a
+# metropolis and the sentence as no sentence
+The masculine adjective "inversor" means "investor".
+The feminine adjective "inversora" means "investor".
+"inversoras" is the plural of "inversora".
+"metrópolis" is a name.
+# `fuentes del sector conocedoras de la operación': aware of it -- the dictionary has `conocedor'
+# as a connoisseur, a noun
+The masculine adjective "conocedor" means "aware".
+The feminine adjective "conocedora" means "aware".
+"conocedoras" is the plural of "conocedora".
+# `un cinco estrellas de gran lujo': a five-star hotel, which read as five stars
+The masculine noun "cinco estrellas" means "five-star hotel".
+# `el 4,03% del capital de la institución financiera': the masculine `capital' is the money, the
+# feminine the city (a lesson says a word's gender and meaning, and the sentence says which goes
+# with which -- tr_gender_links/3); the line comes before the dictionary's, so the dictionary's
+# feminine one is the linked meaning
+The masculine noun "capital" means "share capital".
+# `un espacio de oficinas anexo', `un edificio anexo': the dictionary has `anexo' only as a noun
+The masculine adjective "anexo" means "annex".
+"anexos" is the plural of "anexo".
+The feminine adjective "anexa" means "annex".
+"anexas" is the plural of "anexa".
+# `un solar apto para levantar otro hotel': a plot to build on, fit for it
+The masculine noun "solar" means "building plot".
+The masculine adjective "apto" means "suitable".
+"aptos" is the plural of "apto".
+The feminine adjective "apta" means "suitable".
+"aptas" is the plural of "apta".
+# `los dos grupos que aspiraban a adquirir': hoped to, where the dictionary's first meaning of
+# `aspira' is that it inhales
+The verb "aspira" means "aspires".
+# `según informaron fuentes inmobiliarias', `fuentes del sector': sources, where the dictionary's first
+# meaning of `fuente' is the fountain
+The feminine noun "fuente" means "source".
+# `la empresaria Alicia Koplowitz': a businesswoman -- the dictionary has `employer' for both
+# genders, and the Italian writer took the masculine for a woman (see `consejera' above)
+The feminine noun "empresaria" means "businesswoman".
+"empresaria" is a person.
