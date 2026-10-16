@@ -602,3 +602,8 @@
 # the PSOE and PNV article, third batch (into Italian and English)
 # `no desean potenciar': boost (the dictionary's `improves' came first)
 <e r="RL"><p><l>boost<s n="vblex"/></l><r>potenciar<s n="vblex"/></r></p></e>
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English: the Spanish for what the Italian lines say
+# `carte truccate': rigged (the dictionary's `aparejar' is a ship's)
+<e><p><l>rig<s n="vblex"/></l><r>amañar<s n="vblex"/></r></p></e>
+# `D'Alema è doppiogiochista?': a hypocrite
+<e><p><l>hypocrite<s n="n"/></l><r>hipócrita<s n="n"/><s n="mf"/></r></p></e>

@@ -3022,3 +3022,51 @@ The verb "distanzia" means "distances".
 # `una velada crítica al tremendismo': a veiled criticism, which the dictionary has no word for
 The feminine noun "critica velata" means "veiled criticism".
 "critiche velate" is the plural of "critica velata".
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English
+# `se fossi in malafede': in bad faith
+The feminine noun "malafede" means "bad faith".
+# `un incidente di percorso': a mishap
+The masculine noun "incidente di percorso" means "mishap".
+"incidenti di percorso" is the plural of "incidente di percorso".
+# `rispondete col presidenzialismo': the contraction of `con il', read and not written -- the identity first, so that
+# the writer keeps the `con il' the print writes (`col' was the word written for it in seven sentences of the controls)
+"con il" is the contraction of "con il".
+"col" is the contraction of "con il".
+# `tutti mi bacchettarono': rebuked me (the dictionary has the noun `bacchettata' only)
+The verb "bacchetta" means "rebukes".
+"bacchettano" is the plural of "bacchetta".
+"bacchettare" is the infinitive of "bacchetta".
+"bacchettò" is the past of "bacchetta".
+"bacchettarono" is the past of "bacchettano".
+"bacchettato" is the participle of "bacchetta".
+# `aspetteremo al varco il Pds': lie in wait for
+The verb "aspetta al varco" means "lies in wait for".
+"aspettano al varco" is the plural of "aspetta al varco".
+"aspettare al varco" is the infinitive of "aspetta al varco".
+"aspetterà al varco" is the future of "aspetta al varco".
+"aspetteranno al varco" is the plural of "aspetterà al varco".
+"aspetteremo al varco" is the first person of "aspetteranno al varco".
+# the second person plural as a subject: `voi direte elezioni', `voi rispondete col presidenzialismo'
+"voi" is the plural of "tu".
+# `Ma dal momento che anche lei si iscrive nel registro dei buoni': since
+The conjunction "dal momento che" means "since".
+# `e perché mai, e chi lo dice?': why on earth
+The word "perché mai" means "why".
+# `Il giorno in cui Dini si dimetterà, tutti saranno costretti a dire in parlamento se e in che modo intendono proseguire'
+The word "il giorno in cui" means "when".
+The word "in che modo" means "how".
+The word "se e in che modo" means "whether and how".
+# the clitic of the second person plural, as `voi' is the plural of `tu': `l'Olivo vi accusa'
+"vi" is the plural of "ti".
+# `regole istituzionali comuni a tutela delle prossime elezioni': for the protection of
+The preposition "a tutela di" means "for the protection of".
+# `Voi direte elezioni': the dictionary gives a choice first
+The feminine noun "elezione" means "election".
+"elezioni" is the plural of "elezione".
+# `Quindi martedì prossimo aprirete questo tavolo per l'ultima volta?': for the last time
+The adverb "per l'ultima volta" means "for the last time".
+# `Onorevole Tatarella': the dictionary's onorevole is read as a deputy; a deputy is still written `deputato'
+The masculine noun "deputato" means "deputy".
+The feminine noun "deputata" means "deputy".
+# `D'Alema è doppiogiochista?': the dictionary's doppiogiochista is read as a hypocrite; a hypocrite is still written `ipocrita'
+The noun "ipocrita" means "hypocrite".

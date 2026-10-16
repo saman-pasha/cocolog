@@ -2258,3 +2258,25 @@ The verb "da portazo" means "closes the door".
 "mayor oreja" is a name.
 # `un mensaje basado en la confrontación': confrontation, where the dictionary's `showdown' came first
 The feminine noun "confrontación" means "confrontation".
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English
+# `se fossi in malafede': in bad faith
+The feminine noun "mala fe" means "bad faith".
+# the second person plural as a subject, written for `voi direte elezioni'
+The pronoun "vosotros" means "you". "vosotros" is the plural of "tú". The pronoun "vosotros" does not precede the verb.
+# `aspetteremo al varco il Pds': lie in wait for
+The verb "acecha" means "lies in wait for".
+"acechan" is the plural of "acecha".
+"acechar" is the infinitive of "acecha".
+"acechará" is the future of "acecha".
+"acecharán" is the plural of "acechará".
+"acecharemos" is the first person of "acecharán".
+# `se e in che modo intendono proseguire': whether and how
+The word "si y cómo" means "whether and how".
+# `cose che realisticamente si possono fare'
+The adverb "de forma realista" means "realistically".
+# the clitic of the second person plural, as `vosotros' is the plural of `tú'
+"os" is the plural of "te".
+# `reglas institucionales comunes para la protección de las próximas elecciones'
+The preposition "para la protección de" means "for the protection of".
+# `per l'ultima volta': for the last time
+The adverb "por última vez" means "for the last time".

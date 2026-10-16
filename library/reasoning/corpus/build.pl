@@ -260,6 +260,12 @@ cb_negative_imperative_plural(spanish, [prs, p2, pl]).
 %% subjunctive (`dejemos'), which its dictionary tags no imperative at all
 cb_hortative(italian, [imp, p1, pl]).
 cb_hortative(spanish, [prs, p1, pl]).
+%% a form the language commands with: the plural imperative, and the negative one where it has a plural of its own --
+%% and Italian's present subjunctive, which is the imperative of `essere' and `avere' (`siate', `abbiate') where its
+%% dictionary tags the indicative's `siete' with the tag
+cb_command_plural(Forms, _, F) :- cb_verb_form(Forms, [imp, p2, pl], I), I == F, !.
+cb_command_plural(Forms, _, F) :- cb_lang(Lg), cb_negative_imperative_plural(Lg, Tags), cb_verb_form(Forms, Tags, N), N == F, !.
+cb_command_plural(_, prs, _) :- cb_lang(italian).
 cb_has_tags([], _).
 cb_has_tags([T|Ts], Have) :- memberchk(T, Have), cb_has_tags(Ts, Have).
 
@@ -830,7 +836,17 @@ cb_tense(Forms, Tense, Sg, How) :-
         ->  cb_line('"~w" is the imperfect of "~w".', [Pl, PresPl])
         ;   cb_line('"~w" is the plural of "~w".', [Pl, Sg])
         ),
-        ( cb_verb_form(Forms, [Tense, p1, pl], P1pl) -> cb_line('"~w" is the first person of "~w".', [P1pl, Pl]) ; true )
+        ( cb_verb_form(Forms, [Tense, p1, pl], P1pl) -> cb_line('"~w" is the first person of "~w".', [P1pl, Pl]) ; true ),
+        %% (the second person plural the same way, `"direte" is the second person of "diranno".': `voi direte
+        %% elezioni', `aprirete questo tavolo' -- Italian's was an imperative only, and the future, the
+        %% imperfect and the rest were unknown words. NOT A FORM THE LANGUAGE COMMANDS WITH: Italian's
+        %% present indicative is its imperative (`aprite', `guardate che ...', `non pensate che ...') and
+        %% Spanish's present subjunctive its negative one (`no miréis'), and stated as a person too they
+        %% read as the statement before the command that is tried last -- five commands of the controls
+        %% became `abrís', `miráis', `sois' -- and, spelled like the participle's feminine plural
+        %% (`proibite', `studiate', `annegate'), they made a headline a clause)
+        ( cb_verb_form(Forms, [Tense, p2, pl], P2pl), P2pl \== Pl, \+ cb_command_plural(Forms, Tense, P2pl)
+        ->  cb_line('"~w" is the second person of "~w".', [P2pl, Pl]) ; true )
     ;   true
     ),
     ( cb_verb_form(Forms, [Tense, p1, sg], P1), P1 \== Sg -> cb_line('"~w" is the first person of "~w".', [P1, Sg]) ; true ),

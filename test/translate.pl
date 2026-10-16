@@ -32,7 +32,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -13044,6 +13044,184 @@ newspaper_psoe_checks_4 :-
 
 %% <<< psoe
 
+%% >>> tatarella
+%% ---- an Italian interview with Tatarella, into Spanish and English (VIT-9714..9749) ----------
+
+newspaper_tatarella :-
+    section('an Italian interview with Tatarella into Spanish and English: a pronoun and a phrase of `of'' for a subject, the plural of `you'' as a subject, an object and the object of a preposition, a question is no command, a clause of `that'' for a piece and one left open, a name before a colon, a participle and an infinitive with no subject, an article and a possessive before a noun that is a participle, which with a verb of the second person and with a word for `what'', two questions with a comma between them, a question with no mark and a statement after it, and whether and how'),
+    newspaper_tatarella_part(spanish, 1, ES), reason_learn(ES, spanish, _),
+    newspaper_tatarella_part(italian, 1, IT), reason_learn(IT, italian, _),
+    newspaper_tatarella_checks_1, newspaper_tatarella_checks_2, newspaper_tatarella_checks_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+%% the two hand lessons of the Tatarella section, as the test file will have them
+newspaper_tatarella_part(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative. The conjunction "si" means "if".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "a" means "to". The preposition "por" means "by". The preposition "para" means "for".
+The word "no" means "not". The adverb "no" means "not".
+The masculine noun "perro" means "dog". "perros" is the plural of "perro". The masculine noun "gato" means "cat". "gatos" is the plural of "gato". The masculine noun "pan" means "bread". The feminine noun "casa" means "house". The feminine noun "mesa" means "table".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme". "dormís" is the second person of "duermen".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come". "coméis" is the second person of "comen".
+The verb "ve" means "sees". "ven" is the plural of "ve". "veis" is the second person of "ven".
+The verb "lava" means "washes". "lavan" is the plural of "lava". "laváis" is the second person of "lavan".
+The reflexive pronoun "se" means "itself".
+The pronoun "yo" means "I". The pronoun "tú" means "you". The pronoun "él" means "he". The pronoun "ellos" means "they". The pronoun "ellos" means "them".
+The pronoun "te" means "you". The pronoun "vosotros" means "you". "vosotros" is the plural of "tú". The pronoun "os" means "you". "os" is the plural of "te".
+The pronoun "él" does not precede the verb. The pronoun "ellos" does not precede the verb. The pronoun "tú" does not precede the verb. The pronoun "vosotros" does not precede the verb.
+The pronoun "alguien" means "somebody". The pronoun "alguien" does not precede the verb.
+The word "quién" means "who". The word "qué" means "what". The word "por qué" means "why". The word "cuál" means "which". "cuáles" is the plural of "cuál".
+The verb "dice" means "says". "dicen" is the plural of "dice". "decir" is the infinitive of "dice". "dice" takes the clause.
+The verb "parece" means "seems". "parecer" is the infinitive of "parece". The adverb "poco" means "little".
+The verb "prohíbe" means "forbids". "prohibido" is the participle of "prohíbe". "prohibir" is the infinitive of "prohíbe".
+The verb "propone" means "proposes". "propuesta" is the participle of "propone". The feminine noun "propuesta" means "proposal".
+The possessive "su" means "their".
+The pronoun "lo" means "him".
+The masculine noun "libro" means "book". "libros" is the plural of "libro".
+The verb "lee" means "reads". "lees" is the second person of "lee".
+"prohibida" is the participle of "prohíbe". "prohibida" is feminine.
+The word "si y cómo" means "whether and how".
+The auxiliary "está" means "is". "están" is the plural of "está". "estáis" is the second person of "están". "estad" is the imperative of "están". The verb "está" means "stays".
+"durmiendo" is the gerund of "duerme". "dormid" is the imperative of "duermen".
+The adjective "grande" means "big". "grandes" is the plural of "grande".
+"dormirá" is the future of "duerme". "dormirán" is the plural of "dormirá". "dormiréis" is the second person of "dormirán".').
+newspaper_tatarella_part(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "della" is the contraction of "di la". "nel" is the contraction of "in il". "nella" is the contraction of "in la". "sul" is the contraction of "su il". "col" is the contraction of "con il".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative. The conjunction "se" means "if".
+The preposition "in" means "in". The preposition "su" means "on". The preposition "di" means "of". The preposition "con" means "with". The preposition "a" means "to". The preposition "per" means "for".
+The word "non" means "not". The adverb "non" means "not". The word "e" means "and".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto". The masculine noun "pane" means "bread". The feminine noun "casa" means "house". The masculine noun "tavolo" means "table".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia". "mangiate" is the second person of "mangiano".
+The verb "vede" means "sees". "vedono" is the plural of "vede". "vedete" is the second person of "vedono".
+The verb "lava" means "washes". "lavano" is the plural of "lava". "lavate" is the second person of "lavano".
+The reflexive pronoun "si" means "itself".
+The pronoun "io" means "I". The pronoun "tu" means "you". The pronoun "lui" means "he". The pronoun "loro" means "they". The pronoun "loro" means "them".
+The pronoun "ti" means "you". The pronoun "voi" means "you". "voi" is the plural of "tu". The pronoun "vi" means "you". "vi" is the plural of "ti".
+The pronoun "lui" does not precede the verb. The pronoun "loro" does not precede the verb. The pronoun "tu" does not precede the verb. The pronoun "voi" does not precede the verb.
+The pronoun "qualcuno" means "somebody". The pronoun "qualcuno" does not precede the verb.
+The word "chi" means "who". The word "chi" begins the relative. The word "cosa" means "what". The word "che" means "what". The word "perché" means "why". The word "quale" means "which". "quali" is the plural of "quale". "quali" is a relative.
+The verb "dice" means "says". "dicono" is the plural of "dice". "dire" is the infinitive of "dice". "dice" takes the clause.
+The verb "sembra" means "seems". "sembrare" is the infinitive of "sembra". "sembra" is the imperative of "sembra". The adverb "poco" means "little".
+The verb "vieta" means "forbids". "vietato" is the participle of "vieta". "vietare" is the infinitive of "vieta".
+The verb "propone" means "proposes". "proposta" is the participle of "propone". The feminine noun "proposta" means "proposal".
+The possessive "loro" means "their".
+The pronoun "lo" means "him".
+The verb "gioca" means "plays". "giocare" is the infinitive of "gioca". "giochi" is the second person of "gioca".
+The masculine noun "libro" means "book". "libri" is the plural of "libro".
+The verb "legge" means "reads". "leggi" is the second person of "legge".
+"vietata" is the participle of "vieta". "vietata" is feminine.
+The word "se e in che modo" means "whether and how".
+The auxiliary "sta" means "is". "stanno" is the plural of "sta". "state" is the imperative of "stanno". The verb "sta" means "stays".
+"dormendo" is the gerund of "dorme". "dormite" is the imperative of "dormono".
+The adjective "grande" means "big". "grandi" is the plural of "grande".
+"dormirà" is the future of "dorme". "dormiranno" is the plural of "dormirà". "dormirete" is the second person of "dormiranno".').
+
+newspaper_tatarella_checks_1 :-
+    nf_tr('Qualcuno di loro dorme.', italian, spanish, A1),
+    check('A PRONOUN AND A PHRASE OF `OF'' AFTER IT IS A SUBJECT: `Onorevole Tatarella, qualcuno di voi sta giocando con carte truccate'' is somebody of you -- `qualcuno'' is a pronoun and no determiner, as `nessuno'' and `uno'' are, and a subject with no noun and no determiner in it was refused (tr_subject_shape/4)', A1,
+          'Alguien de ellos duerme.'),
+    nf_tr('Qualcuno di loro dorme.', italian, english, A2),
+    check('... and in English', A2, 'Somebody of them sleeps.'),
+    nf_tr('Qualcuno di voi dorme.', italian, spanish, A3),
+    check('THE PLURAL OF `YOU'' IS A WORD OF THE IR WHERE IT IS NO SUBJECT: `voi'' is the plural of `tu'' and means `you'', English''s word has no number, and `qualcuno di voi'' came out `alguien de tú'' -- the reader makes it `you all'' when the lesson says the word is the plural of a pronoun that means `you'', English writes `you'', and the lesson''s language the plural of the pronoun the role takes (tr_pronoun_across/6)', A3,
+          'Alguien de vosotros duerme.'),
+    nf_tr('Il cane dorme con voi.', italian, spanish, A4),
+    check('... after any preposition', A4, 'El perro duerme con vosotros.'),
+    nf_tr('Il cane vi vede.', italian, spanish, A5),
+    check('... the clitic too: `l''Olivo vi accusa'' -- `vi'' is the plural of `ti'' (corpus/extra), and the Spanish writer takes the plural of the pronoun that stands before the verb', A5,
+          'El perro os ve.'),
+    nf_tr('Il cane vi vede.', italian, english, A6),
+    check('... and English writes `you'' for either number', A6, 'The dog sees you.'),
+    nf_tr('Il cane ti vede.', italian, spanish, A7),
+    check('GUARD: the singular is the singular', A7, 'El perro te ve.'),
+    nf_tr('El perro os ve.', spanish, italian, A8),
+    check('... and Spanish into Italian, `os'' being the plural of `te''', A8, 'Il cane vi vede.').
+
+newspaper_tatarella_checks_2 :-
+    nf_tr('Voi dormirete.', italian, spanish, B1),
+    check('THE PLURAL OF `YOU'' IS A SUBJECT: `Voi direte elezioni'' -- the lesson''s `"voi" is the plural of "tu".'' says which number the pronoun is; the generic rule gave it the singular English''s table has for `you'', and the plural verb refused it (tr_subject_pronoun/4)', B1,
+          'Vosotros dormiréis.'),
+    nf_tr('Voi dormirete.', italian, english, B2),
+    check('... and in English', B2, 'You will sleep.'),
+    nf_tr('Voi dormite.', italian, spanish, B3),
+    check('THE FORM OF A COMMAND IS A STATEMENT AFTER A PLURAL `YOU'' NAMED AT THE HEAD: `e voi rispondete col presidenzialismo'' -- Italian''s present indicative of the second person plural is its imperative, and the vocabulary states it that and nothing else (a person too, it was the statement before the command in every sentence of the controls that had one, and the participle''s feminine plural a verb: `Auto proibite nelle isole'' a clause); the group is the plural form''s with the second person the pronoun gives it (tr_read_statement0/4)', B3,
+          'Vosotros dormís.'),
+    nf_tr('State dormendo.', italian, spanish, B4),
+    check('... AND A FORM OF `STARE'' WITH A GERUND AFTER IT, WHERE NOBODY IS NAMED: `state proseguendo nel cosiddetto gioco del cerino'' is you are continuing -- read as the command it was `estad continuando''; a command of that verb takes an adjective or a place', B4,
+          'Estáis durmiendo.'),
+    nf_tr('State grandi.', italian, spanish, B5),
+    check('GUARD: without the gerund it is the command, `state attenti''', B5, 'Estad grandes.'),
+    nf_tr('Voi vi lavate.', italian, spanish, B6),
+    check('A PRONOUN OF THE SUBJECT''S OWN PERSON IS ITS REFLEXIVE, THE PLURAL TOO: `voi vi lavate'' -- the pronoun the verb takes is the plural `you all'', which the subject''s own is (tr_personal_object/3)', B6,
+          'Vosotros os laváis.'),
+    nf_tr('Voi vi lavate.', italian, english, B7),
+    check('... and English drops it as it drops the reflexive of every verb, `you wash'' and not `you wash you''', B7, 'You wash.'),
+    nf_tr('Sembra poco?', italian, spanish, B8),
+    check('A QUESTION IS NO COMMAND: `Sembra poco?'' has the spelling of an imperative, whose clause took the sentence and, with its cut, kept every other reading from it; the question was then refused (tr_read/4)', B8,
+          'Parece poco?'),
+    nf_tr('Sembra poco.', italian, spanish, B9),
+    check('GUARD: a statement with nobody named is refused, as it was', B9, refused),
+    nf_tr('Che il gatto dorme.', italian, spanish, B10),
+    check('A CLAUSE OF `THAT'' AND NOTHING ELSE IS A FRAGMENT: `diciamo che ...'' and then, as a line of its own, `che è stato un incidente di percorso.'' -- that it was a mishap; asked for the whole piece, after every other reading, so that `Che poi il cane dorma, guardate che ...'' (the eco section) keeps its main clause (tr_that_fragment/4)', B10,
+          'Que el gato duerme.'),
+    nf_tr('Che il gatto dorme.', italian, english, B11),
+    check('... and in English', B11, 'That the cat sleeps.'),
+    nf_tr('Il cane dice che ...', italian, spanish, B12),
+    check('A CLAUSE OF `THAT'' LEFT OPEN AT THE END, which a trail of points stands for: `diciamo che ...'' says that, and the clause is not there; the word is written as it stood (that_open/0)', B12,
+          'El perro dice que...'),
+    nf_tr('Il cane dice che ...', italian, english, B13),
+    check('... and in English', B13, 'The dog says that...'),
+    nf_tr('Maria: il cane dorme.', italian, spanish, B14),
+    check('A NAME BEFORE A COLON IS A HEADING: `Tatarella: i trucchi sono vietati'' -- the side before the colon is read as a statement, and a name alone is none (tr_heading_left/3)', B14,
+          'Maria: el perro duerme.').
+
+newspaper_tatarella_checks_3 :-
+    nf_tr('La casa dorme: vietato mangiare.', italian, spanish, C1),
+    check('A PARTICIPLE AND AN INFINITIVE WITH NO SUBJECT ARE SAID OF THE INFINITIVE: `questo tavolo può decidere ... ma con un patto: vietato truccare'' is forbidden to rig, not a forbidden table -- the participle took the gender of the clause before the colon, `esta mesa ...: prohibida amañar'' (tr_gap_comps_out/3)', C1,
+          'La casa duerme: prohibido comer.'),
+    nf_tr('La casa dorme: vietato.', italian, spanish, C2),
+    check('GUARD: with no infinitive after it the participle agrees with the subject of the clause before, as it did', C2, 'La casa duerme: prohibida.'),
+    nf_tr('La loro proposta dorme.', italian, spanish, C3),
+    check('AN ARTICLE AND A POSSESSIVE BEFORE A NOUN THAT IS A PARTICIPLE TOO ARE NO REDUCED RELATIVE: `se la loro proposta è interpretata'' is their proposal, and read as `the theirs, proposed'' it came out `el ellos propuesta'' (tr_np/3)', C3,
+          'Su propuesta duerme.'),
+    nf_tr('Quale libro leggi?', italian, spanish, C4),
+    check('A VERB OF THE FIRST OR THE SECOND PERSON HAS NO WHICH-PHRASE FOR ITS SUBJECT: `Quale libro leggi?'' asks for the book you read, and as the subject it was `cuál libro lee'' (fo_question_word/3)', C4,
+          'Cuál libro lees?'),
+    nf_tr('Che libro leggi?', italian, spanish, C10),
+    check('A WORD THE LESSON GIVES `WHAT'' ASKS WITH THE PHRASE AFTER IT, as `quale'' does: `e che colpa ha se la loro proposta è interpretata ...?'' is which fault -- `che'' means `what'' in the hand lesson, and stating `which'' for it too gave every `che'' of a sentence a second meaning to try (the data column of the controls: +11 %, 2 to 4 times the sentences with two of them); the question word takes the phrase and the verb group after it (fo_question_word/3, tr_which_asks/1)', C10,
+          'Cuál libro lees?'),
+    nf_tr('Che libro leggi?', italian, english, C11),
+    check('... and in English', C11, 'Which book do you read?'),
+    nf_tr('Cosa il cane vede?', italian, spanish, C12),
+    check('GUARD: the phrase of a word that means `what'' begins with a noun or an adjective, no determiner -- `cosa le posso dire?'' is what can I tell you, and `le'' is the clause''s own; `cosa il cane vede?'' read `il cane'' as the phrase, `cuál el perro ve?'' (tr_which_asks/2)', C12, 'Qué ve el perro?'),
+    nf_tr('Perché, e chi lo vede?', italian, spanish, C5),
+    check('TWO QUESTIONS WITH A COMMA BETWEEN THEM, each with its question word: `e perché mai, e chi lo dice?'' is why on earth, and who says so -- one mark for the two; the first is often a question word and nothing else, which no clause says (tr_read0/4, tr_question_half/2)', C5,
+          'Por qué, y quién lo ve?'),
+    nf_tr('Cosa vede il cane, il gatto dorme.', italian, spanish, C6),
+    check('A QUESTION THE TEXT GAVE NO MARK, A COMMA, AND A STATEMENT: `cosa le posso dire, sarà stato un equivoco'' -- what can I tell you, it must have been a misunderstanding; the first half reads as the question it is, and the join writes it as one (tr_read0/4, tr_write/4)', C6,
+          'Qué ve el perro, el gato duerme.'),
+    nf_tr('Cosa vede il cane, il gatto dorme.', italian, english, C7),
+    check('... and in English, with the verb in its place after the question word', C7, 'What does the dog see, the cat sleeps.'),
+    nf_tr('Il cane dice se e in che modo il gatto mangia.', italian, spanish, C8),
+    check('`WHETHER AND HOW'' OPENS AN INDIRECT QUESTION: `tutti saranno costretti a dire in parlamento se e in che modo intendono proseguire la legislatura'' (tr_indirect_word/3)', C8,
+          'El perro dice si y cómo el gato come.'),
+    nf_tr('Il cane dice se e in che modo il gatto mangia.', italian, english, C9),
+    check('... and in English', C9, 'The dog says whether and how the cat eats.').
+
+%% <<< tatarella
+
 %% >>> units
 %% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). Under bytes a code
 %% list holds the UTF-8 BYTES of a text, `é' is 195 169; under characters --
@@ -13395,6 +13573,7 @@ vocabulary :-
     vocabulary_hotel(EsLines, ItLines),
     vocabulary_tempi(EsLines, ItLines),
     vocabulary_psoe(EsLines, ItLines),
+    vocabulary_tatarella(EsLines, ItLines),
     reason_translate('El profesor lee el periódico en la casa.', T4),
     check('a noun that is an adjective too is the noun where the sentence puts it', T4, 'The professor reads the newspaper in the house.'),
     reason_translate('El gato negro duerme.', T5),
@@ -13495,6 +13674,30 @@ vocabulary_psoe(EsLines, ItLines) :-
              memberchk('The masculine adjective "schizzinoso" means "squeamish".', ItLines) ), V5b),
     check('and the words of the PSOE and PNV article, Spanish: the dictionary''s `acuerda'' said for the meaning before the clausal `conviene'' (`convienen en que ...'' agree that; the word written for `agrees'' stays `acordar''), `conviene'' as `suits'' first, weaving before knitting, a confrontation before the showdown, `precisa'' as specifies before requires and `traslada'' as conveys before moves (both are the news''s first, and a lead: a sick man `trasladado'' to a hospital is read as conveyed), boosting before improving, the words of several, the minister''s two-word surname a name, and the word each verb puts before what it governs', V5a, yes),
     check('... and Italian: a speech (the dictionary''s first is an address), `chiede'' as asks and then demands before the dictionary''s `reclama'', `concorda'' before `accorda'', `punta'' as points and then bets before `scommette'', `distanzia'' before `allontana'', weaving before the loom, and the words of several', V5b, yes).
+
+%% the words of the Tatarella interview, in a clause of their own
+vocabulary_tatarella(EsLines, ItLines) :-
+    yes_no(( memberchk('"direte" is the second person of "diranno".', ItLines), memberchk('"aprirete" is the second person of "apriranno".', ItLines),
+             memberchk('"state" is the imperative of "stanno".', ItLines), \+ memberchk('"state" is the second person of "stanno".', ItLines),
+             memberchk('"aprite" is the imperative of "aprono".', ItLines), \+ memberchk('"aprite" is the second person of "aprono".', ItLines),
+             memberchk('"voi" is the plural of "tu".', ItLines), memberchk('"vi" is the plural of "ti".', ItLines),
+             nth1(Q1a, ItLines, 'The feminine noun "elezione" means "election".'), nth1(Q1b, ItLines, 'The feminine noun "elezione" means "choice".'), Q1a < Q1b,
+             memberchk('The verb "trucca" means "rigs".', ItLines), memberchk('The verb "aspetta al varco" means "lies in wait for".', ItLines),
+             memberchk('The word "se e in che modo" means "whether and how".', ItLines), memberchk('The word "il giorno in cui" means "when".', ItLines),
+             memberchk('The word "perché mai" means "why".', ItLines), memberchk('The conjunction "dal momento che" means "since".', ItLines),
+             memberchk('The preposition "a tutela di" means "for the protection of".', ItLines),
+             memberchk('The adverb "per l''ultima volta" means "for the last time".', ItLines), memberchk('"col" is the contraction of "con il".', ItLines) ), V6a),
+    yes_no(( memberchk('"coméis" is the second person of "comen".', EsLines), memberchk('"diréis" is the second person of "dirán".', EsLines),
+             memberchk('"miréis" is the negative imperative of "miran".', EsLines), \+ memberchk('"miréis" is the second person of "miren".', EsLines),
+             memberchk('"os" is the plural of "te".', EsLines),
+             memberchk('The pronoun "vosotros" means "you". "vosotros" is the plural of "tú". The pronoun "vosotros" does not precede the verb.', EsLines),
+             memberchk('The verb "amaña" means "rigs".', EsLines),
+             nth1(Q2a, EsLines, 'The verb "acecha" means "lies in wait for".'), nth1(Q2b, EsLines, 'The verb "acecha" means "threatens".'), Q2a < Q2b,
+             memberchk('The word "si y cómo" means "whether and how".', EsLines), memberchk('The adverb "de forma realista" means "realistically".', EsLines),
+             memberchk('The preposition "para la protección de" means "for the protection of".', EsLines),
+             memberchk('The adverb "por última vez" means "for the last time".', EsLines), memberchk('The feminine noun "mala fe" means "bad faith".', EsLines) ), V6b),
+    check('and the words of the Tatarella interview, Italian: the second person plural of every tense but the one that is the command (the builder stated an imperative for it and nothing else: `voi direte elezioni'', `aprirete questo tavolo''; `aprite'' and `state'' stay the imperative, a person too they made `Guardate che ...'' a statement and `Auto proibite'' a clause), `vi'' the plural of `ti'' as `voi'' is of `tu'', an election before a choice, the verb of rigging and the one of lying in wait, whether and how, the day when, why on earth, since, for the protection of, for the last time, and the contraction of `con il''', V6a, yes),
+    check('... and Spanish: the second person plural of every tense but the present subjunctive, which is the negative command (`coméis'' was no word), `os'' the plural of `te'' and `vosotros'' of `tú'', the verb of rigging, lying in wait said before the dictionary''s threatens, whether and how, realistically, for the protection of, for the last time, and bad faith', V6b, yes).
 
 vocabulary_lines(File, Lines) :-
     read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Ss),

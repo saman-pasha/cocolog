@@ -1059,3 +1059,19 @@
 <e><p><l>boost<s n="vblex"/></l><r>potenziare<s n="vblex"/></r></p></e>
 # `un mensaje basado en la confrontación': confrontation, written `confronto' (`comparison' is its meaning already)
 <e r="LR"><p><l>confrontation<s n="n"/></l><r>confronto<s n="n"/><s n="m"/></r></p></e>
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English: verbs and nouns the Italian dictionary
+# has and the bilingual one lacks
+# `carte truccate', `vietato truccare': rig
+<e><p><l>rig<s n="vblex"/></l><r>truccare<s n="vblex"/></r></p></e>
+# `intendono proseguire' (the dictionary's `pretende' is the one written)
+<e r="RL"><p><l>intend<s n="vblex"/></l><r>intendere<s n="vblex"/></r></p></e>
+# `tracciare una modifica costituzionale': the bilingual dictionary has `localizza' for it
+<e><p><l>trace<s n="vblex"/></l><r>tracciare<s n="vblex"/></r></p></e>
+# `Dini si dimetterà': the bilingual dictionary's `dimettire' is no word, and its forms are made as one
+<e><p><l>resign<s n="vblex"/></l><r>dimettere<s n="vblex"/></r></p></e>
+# `lo schieramento sconfitto'
+<e r="RL"><p><l>bloc<s n="n"/></l><r>schieramento<s n="n"/><s n="m"/></r></p></e>
+# `D'Alema è doppiogiochista?': a hypocrite (the builder skips an English word with a hyphen in it)
+<e r="RL"><p><l>hypocrite<s n="n"/></l><r>doppiogiochista<s n="n"/><s n="mf"/></r></p></e>
+# `Onorevole Tatarella', `l'onorevole di Alleanza Nazionale'
+<e r="RL"><p><l>deputy<s n="n"/></l><r>onorevole<s n="n"/><s n="mf"/></r></p></e>
