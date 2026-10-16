@@ -3273,6 +3273,55 @@
           (if (and (!= (-> tc printr) 0) (== (-> tc exited) 0))
               (coco_trace_port e "Fail" (-> tc depth) (-> tc goal)))))
 
+  ;;; `'$catch_exit'(CI)': the goal of the catch frame at CI has EXITED. From
+  ;;; here on a throw is somebody else's, so the frame stops being a catch --
+  ;;; and starts again the moment anything fails back into the goal, which is
+  ;;; what the retry frame is for. Silent under --trace: the program never
+  ;;; wrote it. Answers 0 with no memory for the retry frame, else 1.
+  ;;;
+  ;;; THE RETRY FRAME IS ONLY PUSHED WHEN THERE IS SOMETHING TO FAIL BACK
+  ;;; INTO. A goal that left no alternative can never be re-entered, so the
+  ;;; frame would be a choice point that exists to do nothing -- and the scan
+  ;;; stops at the first real alternative, so the case that pays for it is the
+  ;;; one that needed it.
+  ;;;
+  ;;; AND THEN THE CATCH FRAME GOES, with the dead ones above it (1.13.4,
+  ;;; SWI's I_EXITCATCH): left DEAD, a catch/3 whose goal exited once was a
+  ;;; choice point for good, and a recursion that caught around a
+  ;;; deterministic call kept one per turn -- a million calls, a million
+  ;;; frames and 201 MB of heap in 0.80 s, where with the frame gone they
+  ;;; are none, 10 MB and 0.21 s. Every
+  ;;; barrier the rest of the run carries was taken before the catch was
+  ;;; called, so this is the cut to its height. Under trace every call keeps
+  ;;; a frame, so the scan finds one and nothing changes there.
+  ;;;
+  ;;; (weak), out of the step loop the constructs are inlined into: written
+  ;;; there, the store that pops the frame moved the loop's registers, and
+  ;;; every `$cut' reloaded the address of `nchoices' from the stack (lookup,
+  ;;; one instruction a probe).
+  (weak)
+  (func coco_catch_exit ((coco_engine * e) (size_t g) (size_t k) (size_t b)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ci . #'(cast size_t (coco-signed-payload
+                                            (nth (coco_deref m (coco_arg m g 0)) (-> m heap))))))
+          (if (and (< ci (-> e nchoices))
+                   (== ($ (nth ci (-> e choices)) kind) COCO_CH_CATCH))
+              (block
+               (set ($ (nth ci (-> e choices)) kind) COCO_CH_DEAD)
+               (let ((int live . 0) (i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
+                 (while (> fi (cast i64 ci))
+                   (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
+                     (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH)
+                              (!= fk COCO_CH_CATCH_RETRY) (!= fk COCO_CH_SPENT))
+                         (block (set live 1) break)))
+                   (set fi (- fi 1)))
+                 (if live
+                     (block
+                      (if (not (coco_push_choice e COCO_CH_CATCH_RETRY 0 k b)) (return 0))
+                      (set ($ (nth (- (-> e nchoices) 1) (-> e choices)) clause_ix) ci))
+                     (set (-> e nchoices) ci)))))
+          (return 1)))
+
   ;;; THE CALL IN THE REGISTERS HAS MORE THAN ONE CANDIDATE: its frame made
   ;;; here, as the dispatch makes one, over the term built first -- so the
   ;;; term sits under the frame's heap mark -- rather than built and sent
@@ -5481,39 +5530,10 @@
                                                                     (coco_new_int m (cast i64 ci)))
                                                     b k)))))
 
-                  ;;; The goal of the catch frame at CI has EXITED. From here
-                  ;;; on a throw is somebody else's, so the frame stops being
-                  ;;; a catch -- and starts again the moment anything fails
-                  ;;; back into the goal, which is what the retry frame is
-                  ;;; for. Silent under --trace: the program never wrote it.
-                  ;;;
-                  ;;; THE RETRY FRAME IS ONLY PUSHED WHEN THERE IS SOMETHING
-                  ;;; TO FAIL BACK INTO. A goal that left no alternative can
-                  ;;; never be re-entered, so the frame would be a choice
-                  ;;; point that exists to do nothing -- and the scan stops at
-                  ;;; the first real alternative, so the case that pays for it
-                  ;;; is the one that needed it.
+                  ;;; The goal of a catch has EXITED (`coco_catch_exit')
                   ((and (== n 1) (== nid (coco-id m "$catch_exit")))
-                   (let ((size_t ci . #'(cast size_t (coco-signed-payload
-                                                      (nth (coco_deref m (coco_arg m g 0))
-                                                           (-> m heap))))))
-                     (if (and (< ci (-> e nchoices))
-                              (== ($ (nth ci (-> e choices)) kind) COCO_CH_CATCH))
-                         (block
-                          (set ($ (nth ci (-> e choices)) kind) COCO_CH_DEAD)
-                          (let ((int live . 0) (i64 fi . #'(- (cast i64 (-> e nchoices)) 1)))
-                            (while (> fi (cast i64 ci))
-                              (let ((int fk . #'($ (nth (cast size_t fi) (-> e choices)) kind)))
-                                (if (and (!= fk COCO_CH_DEAD) (!= fk COCO_CH_CATCH)
-                                         (!= fk COCO_CH_CATCH_RETRY) (!= fk COCO_CH_SPENT))
-                                    (block (set live 1) break)))
-                              (set fi (- fi 1)))
-                            (if live
-                                (block
-                                 (if (not (coco_push_choice e COCO_CH_CATCH_RETRY 0 k b))
-                                     (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
-                                 (set ($ (nth (- (-> e nchoices) 1) (-> e choices)) clause_ix)
-                                      ci)))))))
+                   (if (not (coco_catch_exit e g k b))
+                       (block (set (cof ret) (coco_fail_err e "out of memory")) (return 2)))
                    (set (-> e goals) k))
 
                   ((and (== n 1) (== nid (coco-id m "throw")))

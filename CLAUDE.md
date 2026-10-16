@@ -879,7 +879,11 @@ cocolint index offers no import of it.
   fix).
 * **A `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` reaches
   the catch around it**, and a `catch/3` whose goal exited stops catching
-  (`'$catch_exit'`).
+  (`'$catch_exit'`) -- and, with nothing above it left to retry, takes its
+  frame with it (1.13.4, SWI's I_EXITCATCH; through 1.13.3 a recursion that
+  caught around a deterministic call kept a choice point a turn). The
+  marker's arm is the (weak) `coco_catch_exit`: a store written into the
+  inlined construct code moved the step loop's registers.
 * **Text builtins work on BYTES by default, on CHARACTERS when a program
   asks** (1.13.0, `text_units`). By default `atom_length('dár', N)` is 4,
   `atom_codes/2` gives the UTF-8 bytes, `char_code(X, 225)` one raw byte,

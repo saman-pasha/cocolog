@@ -178,10 +178,24 @@ catch_frame :-
     check('a goal that throws still runs its own recovery', G5, x5-ran),
 
     answer(( catch(p6(Y6), _, Y6 = caught), Y6 == 1 ), Y6, G6),
-    check('and a catch that succeeded still hands its bindings out', G6, 1).
+    check('and a catch that succeeded still hands its bindings out', G6, 1),
+
+    %% with nothing above it to retry, the exited catch's frame goes (1.13.4,
+    %% SWI's I_EXITCATCH): through 1.13.3 it stayed, DEAD, one per call, and
+    %% a recursion catching around a deterministic goal grew without end
+    answer(( statistics(choicepoints, C7a), cl7(10000), statistics(choicepoints, C7b),
+             D7 is C7b - C7a ), D7, G7),
+    check('a catch whose goal left nothing to retry leaves no choice point', G7, 0),
+
+    yes_no(( statistics(choicepoints, C8a), catch(member(X8, [1,2]), _, true),
+             statistics(choicepoints, C8b), X8 == 1, C8b > C8a ), G8),
+    check('and one whose goal left an alternative keeps its frames', G8, yes).
 
 p6(1).
 p6(2).
+
+cl7(0) :- !.
+cl7(N) :- catch(true, _, true), N1 is N - 1, cl7(N1).
 
 %% ---- a throw out of the three all-solutions predicates ------------------
 
