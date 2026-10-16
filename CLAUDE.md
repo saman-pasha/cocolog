@@ -1887,6 +1887,106 @@ read into an English-worded IR and written into any lesson's language),
   which it refuses on purpose. The angled marks come back mixed, an opening `«`
   and a closing `”` (`«Il cane dorme”, dice il gatto.`), in bytes and in
   characters alike (the cause is not looked for).
+  The Hotel Arts auction (CESS-CAST-P-20011202-66, 17 sentences, Spanish into
+  Italian: 15 of 17 on a fresh store, 6 before; into English 15 of 17, 5
+  before; reasoning 1.0.1). It needed these SHAPES, each with its arm red:
+  a one of a plural for a subject (`Uno de sus principales accionistas es La
+  Caixa`: `uno` is the first person of `unir` too, `tr_part_of_subject/1`); a
+  phrase with no article between two dashes after a noun or a name, a name
+  with a bracket in it (`- - Strategic Hotel Capital (SHC) - -`), the closing
+  dash that ends the sentence, a relative clause between dashes that ends it;
+  who said so right after a bracket, and the relative clause after the
+  comment taken into it (`(288,4 millones de euros), según informó ayer la
+  agencia Efe, que cita fuentes`); an adjective before a date's day (`el
+  pasado 11 de septiembre`) and the article chosen for the DAY (`dell'8
+  settembre`, `del 1 settembre`); a silent h (`l'hotel`, `nell'hotel`,
+  `l'ha`: Italian and Spanish only, English keeps `a hotel`); a list that a
+  `between` opens keeps its commas together; a noun the lesson states in both
+  genders is written in the gender of its meaning (`el capital` the money,
+  `la capital` the city: `tr_meaning_gender/5`, the writer's half of
+  `tr_gender_links/3`); an adjective after a name that stands right after its
+  determiner is the name's (`la Barcelona olímpica`); a word that begins the
+  purpose, straight before an infinitive and after a noun or an adjective, is
+  no verb (`un solar apto para levantar otro hotel`); an adjective that does
+  not agree with its noun in number keeps its own (`agrd/3`: `un espacio de
+  oficinas anexo`, `fuentes del sector conocedoras`); a word the lesson says
+  is a name is one with its capital inside a phrase (`el grupo inversor
+  catalán Metrópolis`). It needed these WORDS in `extra/` (the two readers: a
+  line moves the reader of one language and the writer of the other):
+  `inmueble`/`immobile` (real estate), `hotelero`/`alberghiero`,
+  `preacuerdo`/`preaccordo`, `fondo` (fund, not the background), `fuente`
+  (source, not the fountain), `inversor`/`investitore`, `conocedor`, `cinco
+  estrellas`, the masculine `capital`/`capitale` (share capital), `anexo`,
+  `solar`/`terreno edificabile`, `apto`/`idoneo`, `aspira` (aspires),
+  `empresaria`/`imprenditrice`, `sede` before `quartier`, `albergo`, `banca`
+  before `argine`, `acquisto` before `spesa`, `edificio`, `gestione`,
+  `filiale`, `passato` after its noun, and the two names `Hotel Arts` and
+  `Metrópolis`. The CONTROLS (cocolog 1.13.6, store KB93, 89 count files, 2 050
+  sentences): the last version's translator against this one, 24 sentences in
+  8 files read differently -- 16 in the report's two files, and 8 elsewhere
+  (carrefour 22 and 23, e_senegal 26, fiat 11 and 16, israel 15, mobile 9,
+  senegal 23: an adjective agreeing with its noun, `gruppi d'acquisto
+  spagnoli`, `forze di sicurezza palestinesi`; `l'hanno`; `del capitale più
+  prezioso`; English `a competitive Senegal`), all better -- and the
+  inferences fall 0.89 % (3 595 025 781
+  to 3 563 106 210), 0.0056 % without the report's files; bytes and characters
+  read every sentence alike (0 differ, the characters 0.024 % fewer). **The
+  binaries of 1.13.3 and 1.13.6 give the same texts and the same inference
+  counts to the unit on both translators** (1.13.4's catch/3 frame, 1.13.5's
+  `=/2`, 1.13.6's names changed nothing the translator counts). The report's
+  tenth sentence costs what it did, 119.9 million inferences to its refusal
+  (119.1 for the last version); an alternative that let a comma follow the
+  closing dash made it 42.0 and was taken out, below. The DATA COLUMN (the
+  last version's translator on its own store, KB86, against this one on the
+  new): 51 sentences in 20 files, 27 outside the report's, each a word of the
+  report's lines said first -- `fuentes` are sources (5 English sentences, not
+  fountains), `fondo` is a fund (4: e_clinton 5 and 12, e_lotr 4, e_mobile 3),
+  `acquisto`/`d'acquisto` (3 and the purchasing groups of carrefour), `passato`
+  after its noun (clot 6, puigbo 4 and 7), `empresaria` (letter 3), `capital`
+  (e_fiat 5 and 16) -- and the 8 of the code. THE STATED COSTS: eco 11,
+  `Ma immobile non voleva dire piatta`, was `inmóvil` and is `inmueble` (and
+  English `real estate`): the line that makes `immobile` the noun the report
+  writes makes a bare `immobile` the noun in the reader as well -- a bare word
+  is read as a noun where the lesson has one, and the adjective said first
+  (the dictionary's own, `motionless`) was tried and changes nothing; and the
+  masculine `capital` is `share capital` in English. **A comma right after the
+  closing dash is NOT let through** (the guard's sentence, B6): the first cut
+  took `- -,` and the Spanish store read `el fondo - - Strategic - -, aliado
+  con un consorcio, duerme` as a piece with no verb and `duerme` its
+  imperative -- `dormi` -- where the last version refused it; no hand lesson
+  reproduces it (it has no imperative), the guard pins the refusal. The
+  report LEAVES: sentence 10 (`el fondo participado por Prudential y
+  Goldman Sachs - - Strategic Hotel Capital (SHC) - -, aliado con un
+  consorcio español integrado por ... Metrópolis (en el que participa la
+  familia Lara, propietaria del grupo editorial Planeta)`), refused: a dashed
+  aside followed by an adjective or a participle phrase, with or without the
+  comma, is no noun phrase (`tr_np/3` takes an aside token only last, and the
+  gloss clause for a bracket before an adjective would write the name between
+  the participle and its complement; the aside after it, `app(app(NP,
+  dashed, N), aside, Comps)`, is the shape to build), and a bracket after a
+  name that opens on a relative clause loses its marks (`Metrópolis in cui
+  partecipa la famiglia Lara proprietaria del gruppo editoriale Pianeta`,
+  where `Planeta` is a name and is written as the planet); sentence 14 is a
+  defect of the source, two of its four dashes are lost (`en España - - más
+  de 80.000 millones de pesetas (...) a finales de 1998 como al valor
+  contable de los activos 68.700 millones (...) - -`) and no reading puts
+  them back. Of the 15 it reads, what is not right: `Londres` stays (a
+  capitalised word the lesson knows after a preposition is a name, and there
+  is no city by the vocabulary; `in Londres` is `a Londra`), `in Stati Uniti`
+  is `negli Stati Uniti` (a country keeps its article in Italian), `cambiar
+  de propietario` is `cambierà di proprietario` (Italian says `cambierà
+  proprietario`) and `comprar a` writes `al gruppo` (`dal`), `uno de los
+  mayores` after `banco` is `uno dei maggiori` where `banca` is feminine (the
+  gender of an elided `uno` follows the noun the sentence names, which the
+  lesson does not carry), `otro hotel` after a verb is `altro albergo` (`un
+  altro`), `terreno inmobiliario` is `terreno immobiliare` (`campo`), a
+  relative clause between dashes in a subject writes the pronoun again in
+  English (`that they house`), `anexas` after a plural subject is read as a
+  verb form (`Las galerías anexas son grandes` is `Le gallerie attaccano sono
+  grandi`), `una casa de Pedro cansada duerme` is refused, and a weekday
+  before a date's day in front of the clause (`El jueves 9 de marzo el hotel
+  cambió de dueño`) is written after the clause with the day and no article
+  (`... 9 marzo giovedì`).
 
 ## Tutorials are documentation that runs
 
