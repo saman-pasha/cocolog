@@ -66,17 +66,26 @@
 %%
 %% A MESSAGE IS ONE OF FIVE TERMS, SWI-Prolog's own shapes, both ways:
 %%
-%%     text(Text)        UTF-8. Sent: an atom, a string or a code list.
-%%                       Received: a code list, or an atom with format(atom)
-%%     binary(Bytes)     a code list, 0..255 each
+%%     text(Text)        UTF-8 on the wire, the program's text here. Sent:
+%%                       an atom, a string or a code list; received: a code
+%%                       list, or an atom with format(atom)
+%%     binary(Bytes)     a code list, 0..255 each, whatever the program counts
 %%     ping(Data)        answered by the library: ws_receive never returns one
 %%     pong(Data)        returned, except between a message's fragments
 %%     close(Code, Why)  the last message of every conversation
 %%
-%% CODES ARE BYTES HERE, as everywhere in cocolog: an atom is its UTF-8, so
-%% `text('héllo')' goes out as the atom's bytes with nothing encoded on the
-%% way. What is CHECKED is that the bytes are UTF-8 at all -- RFC 6455 says a
-%% text message that is not is a protocol error, in both directions.
+%% A TEXT'S CODES ARE THE PROGRAM'S, A BINARY'S ARE BYTES (2.0.0). The wire
+%% is bytes; a text message's codes are counted as the program counts text
+%% -- code points under `text_units = characters', the default since 2.0.0,
+%% the UTF-8 bytes under bytes -- and cross through string_bytes/3, so
+%% `text('héllo')' goes out as the atom's bytes in both. Through 1.x a code
+%% here was a byte, as everywhere in cocolog then, and under characters a
+%% text's code points went to the UTF-8 check as bytes: `héllo' was refused.
+%% binary/1, ping/1 and pong/1 carry bytes in both units. What is CHECKED is
+%% that a text's bytes are UTF-8 at all -- RFC 6455 says a text message that
+%% is not is a protocol error, in both directions -- and a code list of the
+%% program's that is no text (a lone U+DC80..DCFF, the stand-in for a byte
+%% that was no UTF-8) is refused on the way out.
 %%
 %% A RECEIVED TEXT IS A CODE LIST UNLESS ASKED, for library(tcp)'s reason:
 %% an atom is a C string and stops at the first NUL, and a text frame may
@@ -128,8 +137,9 @@
 %%   A LENGTH IS BELIEVED ONLY UP TO max_message (16 MiB by default), and a
 %%   frame claiming more is refused before a byte of its payload is read
 %%   (1009). A 64-bit length whose top half is not zero is that by
-%%   construction -- and it is checked before the number is built, because
-%%   a cell holds 60 bits.
+%%   construction -- and it is checked before the number is built, which
+%%   through 1.x was the only way (a cell held 61 bits; an integer has 64
+%%   since 2.0.0, and the check still refuses first).
 %%
 %%   THE HANDSHAKE IS CHECKED WHOLE: GET, HTTP/1.1, a Host, `Upgrade:
 %%   websocket', `Connection: Upgrade', a key that is sixteen bytes of
@@ -296,7 +306,7 @@ ws_handshake_request(Target, Host, Key, Offered, Extra, Codes) :-
                         'Sec-WebSocket-Key: ', Key, '\r\n',
                         'Sec-WebSocket-Version: 13\r\n',
                         PL, EL, '\r\n'], A),
-    atom_codes(A, Codes).
+    string_bytes(A, Codes, utf8).
 
 ws_header_lines([], '').
 ws_header_lines([N-V|Hs], Out) :-
@@ -466,7 +476,7 @@ ws_handshake_response(Accept, Protocol, Codes) :-
                         'Connection: Upgrade\r\n',
                         'Sec-WebSocket-Accept: ', Accept, '\r\n',
                         PL, '\r\n'], A),
-    atom_codes(A, Codes).
+    string_bytes(A, Codes, utf8).
 
 %% ws_accept_key(+Key, -Accept) is det.
 %% RFC 6455 section 1.3: the key, the protocol's own GUID, SHA-1, base64.
@@ -551,14 +561,26 @@ ws_control_size(Bytes, D) :-
     ;   throw(error(domain_error(control_frame_payload, D), context(ws_send/2, _)))
     ).
 
+%% A TEXT'S BYTES: an atom's, a string's, or the program's codes as their
+%% UTF-8 (string_bytes/3). Under bytes a code list is still checked to be
+%% bytes, as it was through 1.x; under characters a code is a code point,
+%% and one that is no character is no text.
 ws_text_bytes(T, Bytes) :-
-    (   is_list(T)    -> ws_byte_list(T), Bytes = T
-    ;   string(T)     -> string_codes(T, Bytes)
-    ;   atomic(T)     -> atom_codes(T, Bytes)
+    (   is_list(T), current_prolog_flag(text_units, bytes)
+    ->  ws_byte_list(T), Bytes = T
+    ;   ( is_list(T) ; string(T) ; atomic(T) )
+    ->  catch(string_bytes(T, Bytes, utf8), error(type_error(_, _), _),
+              throw(error(type_error(text, T), context(ws_send/2, _))))
     ;   throw(error(type_error(text, T), context(ws_send/2, _)))
     ).
 
-ws_data_bytes(D, Bytes) :- ws_text_bytes(D, Bytes).
+%% A BINARY'S, a ping's or a pong's BYTES: a code list is bytes in both
+%% units; an atom or a string gives its UTF-8.
+ws_data_bytes(D, Bytes) :-
+    (   is_list(D)    -> ws_byte_list(D), Bytes = D
+    ;   ( string(D) ; atomic(D) ) -> string_bytes(D, Bytes, utf8)
+    ;   throw(error(type_error(text, D), context(ws_send/2, _)))
+    ).
 
 ws_byte_list([]).
 ws_byte_list([B|Bs]) :-
@@ -717,7 +739,8 @@ ws_kind(2, binary).
 
 ws_message(WS, text, Bytes, CT, Message) :- !,
     (   ws_utf8(Bytes)
-    ->  Message = text(Bytes)
+    ->  ws_bytes_codes(Bytes, Codes),
+        Message = text(Codes)
     ;   ws_fail_connection(WS, 1007, 'a text message that is not UTF-8', CT, Message)
     ).
 ws_message(_, binary, Bytes, _, binary(Bytes)).
@@ -752,9 +775,19 @@ ws_close_received(WS, Payload, CT, Message) :-
         ;   (   Code =:= 1005 -> Echo = [] ; HE is Code >> 8, LE is Code /\ 255, Echo = [HE, LE] ),
             ignore(ws_send_frame(WS, 1, 8, Echo))
         ),
-        atom_codes(R, Reason),
+        string_bytes(RS, Reason, utf8),
+        atom_string(R, RS),
         Message = close(Code, R),
         ws_finished(WS, CT)
+    ).
+
+%% bytes from the wire as the program's codes: the same list under bytes,
+%% code points under characters
+ws_bytes_codes(Bytes, Codes) :-
+    (   current_prolog_flag(text_units, bytes)
+    ->  Codes = Bytes
+    ;   string_bytes(S, Bytes, utf8),
+        string_codes(S, Codes)
     ).
 
 %% THIS SIDE FAILS THE CONNECTION: the close frame with the code that says

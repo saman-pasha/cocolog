@@ -202,6 +202,14 @@
           (coco_sb_put b "U ")
           (coco_sb_put_sz b (cast size_t (-> m text_chars))) (coco_sb_putc b (cast char 10))
 
+          ;; THE INTEGERS PAST 61 BITS (2.0.0): the table a BIG cell names,
+          ;; every entry in order -- a free one too -- so the heap's cells
+          ;; name what they named; each its 64 bits in hex. Last, as `U' is.
+          (coco_sb_put b "B ") (coco_sb_put_sz b (-> m bigs_len)) (coco_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m bigs_len)) ((++ i))
+            (coco_sb_put_hex b (cast u64 (nth i (-> m bigs))))
+            (coco_sb_putc b (cast char 10)))
+
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
   ;;; THE IMAGE IS WRITTEN FROM A MACHINE THAT REACHES NO ENVIRONMENT
@@ -429,10 +437,24 @@
                   (block (set (-> e frees) (coco_scan_u64 (aof z) 10))
                          (set (-> e max_inf) (coco_scan_u64 (aof z) 10)))))
 
-          ;; ---- the text units (1.13.0), if it has them; bytes before --
+          ;; ---- the text units (1.13.0), if it has them; bytes before, so a
+          ;; machine frozen in bytes goes on in them whatever this process's
+          ;; default (characters since 2.0.0) ----
           (if (and ok (not ($ z bad)))
-              (if (coco_scan_section (aof z) 85)          ; `U'
-                  (set (-> m text_chars) (? (!= 0 (coco_scan_u64 (aof z) 10)) 1 0))))
+              (block
+               (set (-> m text_chars) 0)
+               (if (coco_scan_section (aof z) 85)          ; `U'
+                   (set (-> m text_chars) (? (!= 0 (coco_scan_u64 (aof z) 10)) 1 0)))))
+
+          ;; ---- the integers past 61 bits (2.0.0), if it has any: appended
+          ;; in order to the table `coco_machine_init' left empty, so entry I
+          ;; is entry I again ----
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 66)          ; `B'
+                  (let ((size_t nb . #'(cast size_t (coco_scan_u64 (aof z) 10))))
+                    (for ((size_t i . 0)) (and ok (< i nb)) ((++ i))
+                      (if (== (coco_big_entry m (cast i64 (coco_scan_u64 (aof z) 16))) (cast size_t -1))
+                          (block (set ok 0) break))))))
 
           (coco_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

@@ -26,7 +26,7 @@
 %%      blocklist still matches what the running store says
 %%
 %% A FINDING IN 5 IS A LINTER BUG UNTIL SHOWN OTHERWISE, which is the point of
-%% calibrating against code known to work. The seventeen that survive are
+%% calibrating against code known to work. The eleven that survive are
 %% listed below with the argument for each.
 %%
 %%     cocolog -s test/lint.pl        from the checkout root
@@ -70,9 +70,10 @@ indented(Text) :-
 %% All three verdicts run against a COPY of traps.jsonl with one cite broken
 %% each way, through $COCOLOG_TRAPS; the real card is never written to. The
 %% breakages are chosen for what they prove: N1's anchor occurs ONCE in
-%% lib/kb.cicili (drift -- accepted), A2's `coco_new_int' occurs THREE times in
-%% lib/term.cicili as a macro, a declaration and a definition (ambiguous --
-%% refused, because the range is the only thing choosing between them), and an
+%% lib/kb.cicili (drift -- accepted), W1's `coco_write_canonical' occurs TWICE
+%% in lib/syntax.cicili as a declaration and a definition (ambiguous --
+%% refused, because the range is the only thing choosing between them; it was
+%% A2's `coco_new_int' until 2.0.0 retired that row), and an
 %% anchor nobody wrote is gone (refused; that row needs rereading, not
 %% renumbering).
 %%
@@ -86,7 +87,7 @@ the_verdicts(Agent) :-
     sh_join([Agent, '/traps.jsonl'], Traps),
     read_file_to_codes(Traps, Cs), codes_lines(Cs, Lines),
     vcase(Agent, V, drift, Lines, '"id": "N1"', '"lib/kb.cicili:[0-9-]*"', '"lib/kb.cicili:1-5"', 0, 'unique anchor, accepted'),
-    vcase(Agent, V, ambiguous, Lines, '"id": "A2"', '"lib/term.cicili:[0-9-]*"', '"lib/term.cicili:1-5"', 1, 'the range is what picks the site'),
+    vcase(Agent, V, ambiguous, Lines, '"id": "W1"', '"lib/syntax.cicili:[0-9-]*"', '"lib/syntax.cicili:1-5"', 1, 'the range is what picks the site'),
     %% The anchor this one breaks used to be `unsupported directive: %s/%u',
     %% which is not in the engine any more -- a directive is a goal now. Any
     %% anchor that really exists does the job; this is S2's.
@@ -286,7 +287,9 @@ the_findings(Agent) :-
     %% reported at load time rather than aborting the consult. What is left
     %% of that row is D2 -- `:- table p/1.' does not PARSE -- which is an S1
     %% pattern and comes in through `card --patterns' above.
-    append(['N1', 'N2', 'N3', 'T1', 'A1 [A2]', 'Z1 [Z1]'], PatWants, Want0), sort(Want0, Want),
+    %% NOR IS A1 (2.0.0), with the silent wrap at 2^60 it warned of:
+    %% integers are 64 bits and a result past them raises.
+    append(['N1', 'N2', 'N3', 'T1', 'Z1 [Z1]'], PatWants, Want0), sort(Want0, Want),
     findall(R, ( member(R, Want), \+ memberchk(R, Fired) ), Missing),
     the_probe(Agent, Probe),
     length(Want, NRules),
@@ -305,10 +308,10 @@ the_findings(Agent) :-
         check('cocolint''s findings over the calibration corpus are the pinned set', changed, same)
     ).
 
-%% ---- the seventeen, and why each is kept rather than silenced ------------
+%% ---- the eleven, and why each is kept rather than silenced --------------
 %%
-%% TWELVE OF THE SEVENTEEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE
-%% ENFORCES, which is the most satisfying kind of true positive there is --
+%% SIX OF THE ELEVEN ARE TUTORIALS TEACHING THE VERY TRAP THE RULE ENFORCES,
+%% which is the most satisfying kind of true positive there is --
 %% and a standing argument that the rules point at real divergences, because
 %% somebody thought each one worth a lesson:
 %%
@@ -322,12 +325,10 @@ the_findings(Agent) :-
 %%                       BINDING an unbound context slot, so the handler runs
 %%                       and reads back something it invented. The lesson says
 %%                       so in the comment above the line.
-%%   basics/04, 21-bigint, 25-der  A1 x6  `1000000000000000000 * 997' and the
-%%                       wrapped answer, which 25-der calls "a wrong answer
-%%                       returned confidently".
 %%   38-main    S1 [P1]  the tutorial FOR argv, demonstrating that a flag
 %%                       cocolog does not have FAILS -- which it does by
-%%                       asking for one, `current_prolog_flag(bounded, _)'.
+%%                       asking for one, `current_prolog_flag(occurs_check, _)'
+%%                       (it asked for `bounded' until 2.0.0, which answers it).
 %%                       P1 is right that this is a flag with no answer; the
 %%                       lesson's whole claim is that it has none, and naming
 %%                       the trap in the notation that catches it trips it.
@@ -369,17 +370,11 @@ the_findings(Agent) :-
 %%                       does not, so the finding stands and is pinned; that is
 %%                       the owner's call to make, not the linter's.
 expected([ 'library/astar.pl WARN T1',
-           'tutorials/basics/04-arithmetic.pl WARN A1 [A2]',
-           'tutorials/basics/04-arithmetic.pl WARN A1 [A2]',
            'tutorials/basics/07-assert-and-retract.pl HARD S1 [R1]',
            'tutorials/basics/09-exceptions.pl HARD S1 [C2]',
            'tutorials/basics/10-grammars.pl HARD N1',
            'tutorials/basics/10-grammars.pl HARD N1',
            'tutorials/library/04-builtins.pl HARD S1 [F1]',
-           'tutorials/library/21-bigint.pl WARN A1 [A2]',
-           'tutorials/library/21-bigint.pl WARN A1 [A2]',
-           'tutorials/library/25-der.pl WARN A1 [A2]',
-           'tutorials/library/25-der.pl WARN A1 [A2]',
            'tutorials/library/26-x509.pl WARN T1',
            'tutorials/library/27-ca.pl WARN T1',
            'tutorials/library/36-llm.pl WARN Z1 [Z1]',

@@ -27,6 +27,10 @@
 ;;;         the cell and is not bounded by it.
 ;;;   FLT   payload indexes the float table, because a double does not fit in
 ;;;         61 bits and pretending otherwise would silently lose the mantissa.
+;;;   BIG   payload indexes the integer table (2.0.0): an integer of 64 bits
+;;;         that the 61 an INT keeps cannot hold. CANONICAL BY RANGE -- a value
+;;;         that fits an INT is never boxed -- so two INTs are equal exactly
+;;;         when their words are, and an INT never equals a BIG.
 ;;;
 ;;; A COMPOUND TERM IS ITS HEADER. If the cell at index t is a FUN, the term is
 ;;; a compound and its arguments are the cells at t+1 .. t+arity. There is no
@@ -65,7 +69,10 @@
     (STR  5 "an index into the string table -- SWI's string type")
     ;; never part of a term a program can reach: a cell of a clause's
     ;; environment that a continuation names (Stage 5, `coco_env_take')
-    (POS  6 "a goal of an environment: the distance back to its header over bit 16, the goal's index under it")))
+    (POS  6 "a goal of an environment: the distance back to its header over bit 16, the goal's index under it")
+    ;; an integer past the 61 bits an INT keeps (2.0.0), boxed as a float
+    ;; is: never a value an INT could hold, so the two kinds never meet
+    (BIG  7 "an index into the integer table -- a value past the 61 bits a cell holds")))
 
 (DEFUN tag-value (name)
   "The numeric tag NAME stands for, at macro-expansion time."
@@ -112,6 +119,14 @@
 
 ;;; build an INT cell from a signed value
 (DEFMACRO coco-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 3) ,(tag-value 'INT)))
+
+;;; DOES V FIT THE 61 BITS AN INT CELL KEEPS (2.0.0)? Shifted up and back
+;;; down arithmetically, a value that fits comes back itself. V is read
+;;; twice: a variable, never a call.
+(DEFMACRO coco-fits-cell (v) `(== (>> (cast i64 (<< (cast u64 ,v) 3)) 3) (cast i64 ,v)))
+
+;;; an integer of either kind: in the cell (INT) or boxed (BIG)
+(DEFMACRO coco-is-int (c) `(or (coco-tag-is INT ,c) (coco-tag-is BIG ,c)))
 
 ;;; THE TRAIL'S PAIR BIT (1.12.0): a trail word with it set is one of the
 ;;; two words of a VALUE entry, `setarg/3''s -- the cell holding the old
@@ -388,6 +403,14 @@
     (member size_t     floats_len)
     (member size_t     floats_cap)
 
+    ;; INTEGERS PAST THE 61 BITS A CELL KEEPS (2.0.0), boxed as the
+    ;; doubles above are: a BIG cell names an entry, made by
+    ;; `coco_new_int' for a value no INT holds, and reclaimed with the
+    ;; floats (`coco_tables_reclaim')
+    (member i64 *      bigs)
+    (member size_t     bigs_len)
+    (member size_t     bigs_cap)
+
     ;; HOW THE READER TURNS `"..."' INTO A TERM: 0 codes, 1 chars, 2 atom,
     ;; 3 string -- SWI's four `double_quotes' values. It lives on the MACHINE
     ;; rather than on the reader because `:- set_prolog_flag(double_quotes,
@@ -395,12 +418,12 @@
     ;; the consult, which is what SWI does with it too.
     (member int        double_quotes)
 
-    ;; WHAT A TEXT BUILTIN COUNTS IN (1.13.0, the `text_units' flag): 0
-    ;; BYTES, every machine's default through 1.x and all cocolog ever did,
-    ;; or 1 CHARACTERS, the text decoded as UTF-8 -- SWI's. Taken from the
-    ;; process's default when the machine is made (`coco_text_default':
-    ;; COCOLOG_TEXT_UNITS, or the last `:- set_prolog_flag(text_units, V)'),
-    ;; and kept by a frozen machine.
+    ;; WHAT A TEXT BUILTIN COUNTS IN (1.13.0, the `text_units' flag): 1
+    ;; CHARACTERS, the text decoded as UTF-8 -- SWI's, and every machine's
+    ;; default since 2.0.0 -- or 0 BYTES, the default through 1.x and all
+    ;; cocolog did before 1.13.0. Taken from the process's default when the
+    ;; machine is made (`coco_text_default': COCOLOG_TEXT_UNITS, or the last
+    ;; `:- set_prolog_flag(text_units, V)'), and kept by a frozen machine.
     (member int        text_chars)
 
     ;; the string table -- see coco_str above
@@ -547,6 +570,10 @@
     (member size_t *   sfree)
     (member size_t     nsfree)
     (member size_t     sfree_cap)
+    ;; ...and the integer table's (2.0.0), `coco_new_big''s
+    (member size_t *   bfree)
+    (member size_t     nbfree)
+    (member size_t     bfree_cap)
     ;; entries made since the last reclamation. The reclamation runs only
     ;; once `tlimit' of them and half the heap's length were made, or
     ;; garbage_collect/0 asked -- its own cost is the words it looks at,
@@ -660,20 +687,23 @@
   ;;; `1 >> 64' answered 1, `1 << 1000000' answered 1, and `1 >> -1'
   ;;; answered `1 >> 63' (cicilang's report, found when a 128-bit
   ;;; significand written as its two halves did not move). Here are SWI's
-  ;;; answers instead, as far as a 61-bit integer carries them:
+  ;;; answers instead, as far as a 64-bit integer carries them (2.0.0;
+  ;;; through 1.15.0, 61 bits):
   ;;;   A >> N, N past 63: where an arithmetic shift ends, the sign of A --
   ;;;     0, or -1 -- which is what SWI's unbounded integers answer too.
-  ;;;   A << N, N past 63: 0. A value shifted left 61 places or more has
-  ;;;     nothing left in the 61 bits a cell keeps, which is why `1 << 61'
-  ;;;     already answered 0 where SWI, whose integers have no width,
-  ;;;     answers 2^61; the count past 63 is the same answer, not a new one.
+  ;;;   A << N: SWI's answer when it fits 64 bits -- `1 << 62' is 2^62,
+  ;;;     `-1 << 63' the least integer -- and OVF set when it does not, a
+  ;;;     bit of A or its sign lost (`1 << 63', `1 << 64'): the caller
+  ;;;     raises evaluation_error(int_overflow), where SWI, whose integers
+  ;;;     have no width, answers 2^63. 0 shifted is 0 by any count.
   ;;;   A NEGATIVE COUNT shifts the other way, as SWI's does: `1 >> -1' is
   ;;;     2 and `4 << -1' is 2. A count whose magnitude is past 63 is the
   ;;;     other direction's rule above, and is tested BEFORE the negation,
   ;;;     which the smallest integer would overflow.
   ;;; The left shift goes through u64, because a left shift of a NEGATIVE
   ;;; value is undefined as well (6.5.7/4) and the bit pattern two's
-  ;;; complement wants is the one an unsigned shift leaves.
+  ;;; complement wants is the one an unsigned shift leaves; it kept every
+  ;;; bit when shifting the result back arithmetically gives A again.
   ;;;
   ;;; Static, for the four callers that share them -- `coco_arith' in
   ;;; solve.cicili and the guards' runner, written once in kb.cicili and
@@ -687,8 +717,18 @@
   ;;; arithmetic and whose guards never shift, runs 0.047 % more
   ;;; instructions than 1.13.7 (STATUS.md).
 
-  (static) (decl) (func coco_shift_right ((i64 a) (i64 n)) (out i64))
-  (static) (decl) (func coco_shift_left ((i64 a) (i64 n)) (out i64))
+  (static) (decl) (func coco_shift_right ((i64 a) (i64 n) (int * ovf)) (out i64))
+  (static) (decl) (func coco_shift_left ((i64 a) (i64 n) (int * ovf)) (out i64))
+
+  ;; ---- the sum, the difference and the product in 64 bits (2.0.0) ----
+  ;;; A + B, A - B and A * B into R, answering 0 when 64 bits hold the
+  ;;; result and 1 when they do not, R then what the hardware wrapped to.
+  ;;; Every evaluator calls these -- `coco_arith', the guards' runner, the
+  ;;; fused word, succ/plus, sum_list -- so that a result past 64 bits is
+  ;;; evaluation_error(int_overflow) wherever it is computed. They are the
+  ;;; compiler's own tests (`(code ...)': Cicili cannot name a builtin), an
+  ;;; `add', `sub' or `imul' and a `jo': the same test written in 128 bits
+  ;;; was nine instructions an add, and lookup ran 2.6 % more of them.
 
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
@@ -717,6 +757,9 @@
   (decl) (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t))
   (decl) (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t))
   (decl) (func coco_new_float ((coco_machine * m) (double v)) (out size_t))
+  ;; an entry of the integer table holding V, and no cell (2.0.0): the
+  ;; thaw's way to fill the table a frozen heap names
+  (decl) (func coco_big_entry ((coco_machine * m) (i64 v)) (out size_t))
   ;; opens a compound of ARITY and answers its header index; the caller then
   ;; pushes exactly ARITY argument cells
   (decl) (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t))
@@ -1003,11 +1046,13 @@
         (free (-> m functors))
         (free (-> m functor_buckets))
         (free (-> m floats))
+        (free (-> m bigs))
         (for ((size_t i . 0)) (< i (-> m strings_len)) ((++ i))
           (free ($ (nth i (-> m strings)) p)))
         (free (-> m strings))
         (free (-> m ffree))
         (free (-> m sfree))
+        (free (-> m bfree))
         (free (-> m trail))
         (free (-> m heap))
         (free (-> m hroots))
@@ -1067,13 +1112,14 @@
 
   ;;; ---- text in characters (1.13.0) ------------------------------------
   ;;;
-  ;;; THE `text_units' FLAG. cocolog's text is bytes and its builtins counted
-  ;;; them -- atom_length('dár', 4), atom_codes/2 the UTF-8 bytes -- and a
-  ;;; program can now ask for SWI's characters instead, per machine:
-  ;;; `:- set_prolog_flag(text_units, characters)', or COCOLOG_TEXT_UNITS=
-  ;;; characters for a whole run. Bytes stay the default through 1.x, so a
-  ;;; program written against them -- library(reasoning)'s -- runs as it
-  ;;; did and is moved over by its author.
+  ;;; THE `text_units' FLAG. cocolog's text is UTF-8, and its builtins count
+  ;;; CHARACTERS, SWI's -- atom_length('dár', 3), atom_codes/2 the code
+  ;;; points -- since 2.0.0. Through 1.x they counted bytes, atom_length('dár',
+  ;;; 4) and atom_codes/2 the UTF-8 bytes, and characters (1.13.0) were asked
+  ;;; for; now bytes are, per machine: `:- set_prolog_flag(text_units,
+  ;;; bytes)', or COCOLOG_TEXT_UNITS=bytes for a whole run. A frozen machine
+  ;;; keeps the units it was frozen in, and one frozen before 1.13.0, which
+  ;;; carries none, is bytes (lib/state.cicili).
   ;;;
   ;;; The process's default: COCOLOG_TEXT_UNITS read once, then the last
   ;;; set_prolog_flag/2's value, so a machine made after the directive -- a
@@ -1083,7 +1129,7 @@
   (func coco_text_default () (out int)
         (if (< coco_text_dflt 0)
             (let ((const char * v . #'(getenv "COCOLOG_TEXT_UNITS")))
-              (set coco_text_dflt (? (and (!= v nil) (== 0 (strcmp v "characters"))) 1 0))))
+              (set coco_text_dflt (? (and (!= v nil) (== 0 (strcmp v "bytes"))) 0 1))))
         (return coco_text_dflt))
 
   (func coco_text_default_set ((int chars))
@@ -1345,29 +1391,50 @@
                 (return 0)))
           (return 1)))
 
+  ;;; THE SUM, THE DIFFERENCE AND THE PRODUCT IN 64 BITS (2.0.0; the rule
+  ;;; is with the declarations, which a function always inlined has none of)
+  (static) (inline)
+  (func coco_add_ovf ((i64 a) (i64 b) (i64 * r)) (out int)
+        (return (code "__builtin_add_overflow(a, b, r)")))
+
+  (static) (inline)
+  (func coco_sub_ovf ((i64 a) (i64 b) (i64 * r)) (out int)
+        (return (code "__builtin_sub_overflow(a, b, r)")))
+
+  (static) (inline)
+  (func coco_mul_ovf ((i64 a) (i64 b) (i64 * r)) (out int)
+        (return (code "__builtin_mul_overflow(a, b, r)")))
+
   ;;; THE TWO SHIFTS BY ANY COUNT (1.14.0; the declaration has the rule and
   ;;; why C alone does not give it). A negative count is the other
-  ;;; function's work, and is answered here rather than by calling it, so
-  ;;; neither calls the other.
+  ;;; direction's work. The left one is `coco_lsh', which both call for it
+  ;;; (2.0.0): A by K places, 0 <= K, OVF set when a bit would be lost.
+  (static) (inline)
+  (func coco_lsh ((i64 a) (i64 k) (int * ovf)) (out i64)
+        (if (== a 0) (return 0))
+        (if (> k 63) (block (set (cof ovf) 1) (return 0)))
+        (let ((i64 r . #'(cast i64 (<< (cast u64 a) (cast u64 k)))))
+          (if (!= (>> r k) a) (block (set (cof ovf) 1) (return 0)))
+          (return r)))
+
   (static)
-  (func coco_shift_right ((i64 a) (i64 n)) (out i64)
+  (func coco_shift_right ((i64 a) (i64 n) (int * ovf)) (out i64)
         (if (< n 0)
             (block
-             ;; the other direction, past what it can keep
-             (if (< n -63) (return 0))
-             (return (cast i64 (<< (cast u64 a) (cast u64 (- 0 n)))))))
+             ;; the other direction, past what it can keep: only 0 survives
+             (if (< n -63) (return (coco_lsh a 64 ovf)))
+             (return (coco_lsh a (- 0 n) ovf))))
         (if (> n 63) (return (? (< a 0) -1 0)))
         (return (>> a n)))
 
   (static)
-  (func coco_shift_left ((i64 a) (i64 n)) (out i64)
+  (func coco_shift_left ((i64 a) (i64 n) (int * ovf)) (out i64)
         (if (< n 0)
             (block
              ;; the other direction, where an arithmetic shift ends
              (if (< n -63) (return (? (< a 0) -1 0)))
              (return (>> a (- 0 n)))))
-        (if (> n 63) (return 0))
-        (return (cast i64 (<< (cast u64 a) (cast u64 n)))))
+        (return (coco_lsh a n ovf)))
 
   ;;; The widest 64-bit integer is 20 characters and a sign, so 32 is room
   ;;; with the terminator and no arithmetic to get wrong.
@@ -1662,9 +1729,6 @@
   (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t)
         (return (coco_push m (coco-cell ATOM (coco_intern m name)))))
 
-  (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
-        (return (coco_push m (coco-int-cell v))))
-
   ;;; An entry made: counted toward the next reclamation. At `treq' a
   ;;; collection is asked for, so a loop that makes floats or strings and
   ;;; little heap still reaches one -- but only once the entries made reach
@@ -1741,6 +1805,49 @@
           (set (nth i (-> m floats)) v)
           (coco_table_made m)
           (return (coco_push m (coco-cell FLT i)))))
+
+  ;;; AN ENTRY OF THE INTEGER TABLE (2.0.0) holding V, a free one first as
+  ;;; a float takes its own; (size_t) -1 when the table cannot grow. The
+  ;;; thaw fills the table this way, with no cell for each entry.
+  (func coco_big_entry ((coco_machine * m) (i64 v)) (out size_t)
+        (let ((size_t i))
+          (if (> (-> m nbfree) 0)
+              (block
+               (set (-> m nbfree) (- (-> m nbfree) 1))
+               (set i (nth (-> m nbfree) (-> m bfree))))
+            (block
+             (if (not (coco_grow m (cast (void **) (aof (-> m bigs)))
+                               (aof (-> m bigs_cap)) (+ (-> m bigs_len) 1)
+                               (sizeof i64)))
+                 (return (cast size_t -1)))
+             (set i (-> m bigs_len))
+             (set (-> m bigs_len) (+ (-> m bigs_len) 1))))
+          (set (nth i (-> m bigs)) v)
+          (coco_table_made m)
+          (return i)))
+
+  ;;; AN INTEGER NO INT HOLDS, as a BIG cell (2.0.0). Out of line and weak,
+  ;;; so that `coco_new_int' -- every integer the engine makes -- pays one
+  ;;; test for it and keeps its push inline.
+  (weak)
+  (func coco_new_big ((coco_machine * m) (i64 v)) (out size_t)
+        (let ((size_t i . #'(coco_big_entry m v)))
+          (if (== i (cast size_t -1)) (return 0))
+          (return (coco_push m (coco-cell BIG i)))))
+
+  ;;; ANY 64-BIT INTEGER AS A TERM (2.0.0): in the cell when the 61 bits an
+  ;;; INT keeps hold it, boxed otherwise -- canonical by range, which is
+  ;;; what lets unification compare two INTs as words.
+  (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
+        (if (coco-fits-cell v) (return (coco_push m (coco-int-cell v))))
+        (return (coco_new_big m v)))
+
+  ;;; THE VALUE OF AN INTEGER CELL C (2.0.0), of either kind: an INT's
+  ;;; payload, or the entry a BIG names. C is one of the two.
+  (static) (inline)
+  (func coco_int_val ((coco_machine * m) (u64 c)) (out i64)
+        (if (coco-tag-is INT c) (return (coco-signed-payload c)))
+        (return (nth (cast size_t (coco-payload c)) (-> m bigs))))
 
   (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t)
         (let ((u64 f . #'(coco_functor_id m (coco_intern m name) arity)))
@@ -2129,6 +2236,11 @@
                                      (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
                                                                (coco_arg m a j) (coco_arg m b j)))
                                          (set ok 0)))))))))
+                    ;; two boxed integers, by value (2.0.0), as floats are
+                    ((coco-tag-is BIG ca)
+                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                             (nth (cast size_t (coco-payload cb)) (-> m bigs)))
+                         (set ok 0)))
                     (#t (set ok 0)))))
             (if (or (== ok 0) (== wlen 0))
                 (set running 0)
@@ -2220,6 +2332,13 @@
                                    (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
                                                              (coco_arg m a j) (coco_arg m b j)))
                                        (set ok 0))))))))
+                    ;; TWO BOXED INTEGERS UNIFY WHEN THEIR VALUES DO (2.0.0):
+                    ;; the table is not interned, as the floats' is not, and
+                    ;; an INT never meets a BIG -- the tags differ above
+                    ((coco-tag-is BIG ca)
+                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                             (nth (cast size_t (coco-payload cb)) (-> m bigs)))
+                         (set ok 0)))
                     (#t (set ok 0)))))
             (if (or (== ok 0) (== wlen 0))
                 (set running 0)
@@ -2903,13 +3022,36 @@
                 ((coco-tag-is INT c)  (return 1))
                 ((coco-tag-is ATOM c) (return 2))
                 ((coco-tag-is STR c)  (return 3))
+                ((coco-tag-is BIG c)  (return 1))
                 (#t              (return 4)))))
 
   (static)
   (func coco_num_value ((coco_machine * m) (size_t t)) (out double)
         (let ((u64 c . #'(nth t (-> m heap))))
           (if (coco-tag-is FLT c) (return (nth (cast size_t (coco-payload c)) (-> m floats))))
-          (return (cast double (coco-signed-payload c)))))
+          (return (cast double (coco_int_val m c)))))
+
+  ;;; THE ORDER OF TWO NUMBERS (2.0.0): two integers as integers, exactly;
+  ;;; an integer and a float as doubles, as swipl 9.0.4 compares them, and
+  ;;; equal so the float first. Through 1.15.0 two integers went through
+  ;;; doubles too, and two past 2^53 that differ in their last bits were
+  ;;; one term: `9007199254740993 == 9007199254740992' held.
+  (static)
+  (func coco_num_order ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (let ((u64 ca . #'(nth a (-> m heap))) (u64 cb . #'(nth b (-> m heap))))
+          (if (and (coco-is-int ca) (coco-is-int cb))
+              (let ((i64 x . #'(coco_int_val m ca)) (i64 y . #'(coco_int_val m cb)))
+                (return (? (< x y) -1 (? (> x y) 1 0)))))
+          (let ((double x . #'(coco_num_value m a)) (double y . #'(coco_num_value m b)))
+            (if (< x y) (return -1))
+            (if (> x y) (return 1))
+            ;; equal as numbers, and not the same term: 1 and 1.0 are two,
+            ;; `1 == 1.0' is false where `1 =:= 1.0' is true, and the
+            ;; standard order puts the float first
+            (let ((int fa . #'(? (coco-tag-is FLT ca) 1 0))
+                  (int fb . #'(? (coco-tag-is FLT cb) 1 0)))
+              (if (== fa fb) (return 0))
+              (return (? fa -1 1))))))
 
   ;;; THE ORDER OF TWO TERMS WHOSE WALK MET MORE PAIRS OF COMPOUNDS THAN THE
   ;;; HEAP HOLDS (1.10.19): two cyclic terms -- `C1 = f(C1, a)' against
@@ -2936,15 +3078,7 @@
                   (cond
                     ((!= ka kb) (set r (? (< ka kb) -1 1)))
                     ((== ka 0) (set r (? (< a b) -1 (? (> a b) 1 0))))
-                    ((== ka 1)
-                     (let ((double x . #'(coco_num_value m a))
-                           (double y . #'(coco_num_value m b)))
-                       (cond
-                         ((< x y) (set r -1))
-                         ((> x y) (set r 1))
-                         (#t (let ((int fa . #'(? (coco-tag-is FLT (nth a (-> m heap))) 1 0))
-                                   (int fb . #'(? (coco-tag-is FLT (nth b (-> m heap))) 1 0)))
-                               (if (!= fa fb) (set r (? fa -1 1))))))))
+                    ((== ka 1) (set r (coco_num_order m a b)))
                     ((== ka 2)
                      (set r (strcmp (coco_atom_name m (coco_name_of m a))
                                     (coco_atom_name m (coco_name_of m b)))))
@@ -2999,19 +3133,8 @@
                   (cond
                     ((!= ka kb) (set r (? (< ka kb) -1 1)))
                     ((== ka 0) (set r (? (< a b) -1 (? (> a b) 1 0))))
-                    ((== ka 1)
-                     (let ((double x . #'(coco_num_value m a))
-                           (double y . #'(coco_num_value m b)))
-                       (cond
-                         ((< x y) (set r -1))
-                         ((> x y) (set r 1))
-                         ;; equal as numbers, and that is not the end of it: 1
-                         ;; and 1.0 are different TERMS, so `1 == 1.0' must be
-                         ;; false even though `1 =:= 1.0' is true. The standard
-                         ;; order puts the float first.
-                         (#t (let ((int fa . #'(? (coco-tag-is FLT (nth a (-> m heap))) 1 0))
-                                   (int fb . #'(? (coco-tag-is FLT (nth b (-> m heap))) 1 0)))
-                               (if (!= fa fb) (set r (? fa -1 1))))))))
+                    ;; two numbers: `coco_num_order', integers exactly
+                    ((== ka 1) (set r (coco_num_order m a b)))
                     ((== ka 2)
                      (set r (strcmp (coco_atom_name m (coco_name_of m a))
                                     (coco_atom_name m (coco_name_of m b)))))

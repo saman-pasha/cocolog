@@ -80,14 +80,16 @@ main :-
     findall(Sq, (between(1, 5, N), Sq is N * N), Squares),
     must('the first five squares', Squares, [1, 4, 9, 16, 25]),
 
-    format("~n-- AND THE WARNING: 64 bits, and they wrap in SILENCE~n"),
-    Wrapped is 1000000000000000000 * 997,
-    show('1000000000000000000 * 997', Wrapped),
-    ( Wrapped < 0 ; Wrapped < 1000000000000000000 ),
-    format("   ...which is not the answer, and nothing said so.~n"),
-    format("   For money-sized numbers use The Coco's library(u256),~n"),
-    format("   where an operation that cannot represent its answer~n"),
-    format("   RAISES instead of wrapping.~n~n"),
+    format("~n-- AND THE LIMIT: 64 bits, and past them an ERROR~n"),
+    current_prolog_flag(max_integer, Max),
+    must('the largest integer', Max, 9223372036854775807),
+    catch(( _ is 1000000000000000000 * 997, Past = an_answer ), error(Past, _), true),
+    must('1000000000000000000 * 997', Past, evaluation_error(int_overflow)),
+    format("   SWI makes a bignum there; cocolog's integers are 64 bits,~n"),
+    format("   and an answer past them is refused by name rather than~n"),
+    format("   wrapped. (Through 1.15.0 it wrapped, in silence, to~n"),
+    format("   875820019684212736.) For numbers that large use~n"),
+    format("   library(bigint), lesson 21, or The Coco's library(u256).~n~n"),
     format("done~n").
 
 %% ---- the two helpers every lesson here carries ------------------------

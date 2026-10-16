@@ -146,7 +146,7 @@ t37_rules :-
     format("   somebody can list and argue with.~n"),
     findall(R-S, cl_severity(R, S), Sevs),
     length(Sevs, NRules),
-    must('every rule, with the severity of each', NRules, 9),
+    must('every rule, with the severity of each', NRules, 8),
     ( memberchk(n2-hard, Sevs) -> N2 = hard ; N2 = other ),
     must('N2 -- dead clauses under a C name -- is HARD', N2, hard),
     ( memberchk(t1-warn, Sevs) -> T1 = warn ; T1 = other ),
@@ -164,6 +164,15 @@ t37_rules :-
     -> D1 = still_here
     ;  D1 = retired ),
     must('D1 retired with the divergence it named', D1, retired),
+    %% AND A1 WENT THE SAME WAY (2.0.0). It flagged an integer literal past
+    %% 61 bits, which the reader took and arithmetic wrapped in silence;
+    %% integers are 64 bits now, a literal past them is a syntax error by
+    %% name and a result past them evaluation_error(int_overflow), so there
+    %% is nothing silent left for it to point at.
+    ( catch(cl_severity(a1, _), error(existence_error(_, _), _), fail)
+    -> A1 = still_here
+    ;  A1 = retired ),
+    must('A1 retired when integers became 64 bits and loud past them', A1, retired),
     format("   A rule is a clause, so retiring one is DELETING a clause --~n"),
     format("   and a lesson that still asked about it would fail until~n"),
     format("   somebody said what changed. Which is the argument for~n"),
@@ -211,17 +220,19 @@ t37_where :-
 
 t37_lookahead :-
     format("~n-- 7. THE NEGATIVE LOOKAHEAD POSIX HAS NO FORM FOR~n"),
-    format("   Rule P1: exactly one prolog flag answers here, and it is~n"),
-    format("   `executable'. Every portability shim written against~n"),
-    format("   current_prolog_flag/2 therefore takes the wrong branch,~n"),
-    format("   silently. The rule has to fire on every flag BUT that one.~n"),
-    format("   In a DCG the lookahead is \\+, one word; in POSIX it does not~n"),
-    format("   exist and a port of it fails without saying so.~n"),
+    format("   Rule P1: ten prolog flags answer here -- executable, argv,~n"),
+    format("   os_argv, double_quotes, text_units, and since 2.0.0 bounded~n"),
+    format("   and the four integer bounds -- and every other one FAILS, so a~n"),
+    format("   portability shim written against another flag takes the wrong~n"),
+    format("   branch, silently. The rule has to fire on every flag BUT those~n"),
+    format("   (one of them, here). In a DCG the lookahead is \\+, one word;~n"),
+    format("   in POSIX it does not exist and a port of it fails without~n"),
+    format("   saying so.~n"),
     ( cl_match(seq([lit(current_prolog_flag), ws, lit('('), ws,
                     notword(executable), oneof(abcdefghijklmnopqrstuvwxyz_)]),
-               "p :- current_prolog_flag(bounded, B).", OffP, _)
+               "p :- current_prolog_flag(occurs_check, B).", OffP, _)
     -> true ; OffP = none ),
-    must('bounded is flagged', OffP, 5),
+    must('occurs_check is flagged', OffP, 5),
     ( cl_match(seq([lit(current_prolog_flag), ws, lit('('), ws,
                     notword(executable), oneof(abcdefghijklmnopqrstuvwxyz_)]),
                "p :- current_prolog_flag(executable, P).", _, _)
@@ -241,16 +252,19 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 34),
+    must('rows in the card', NRows, 32),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 34),
-    %% TWELVE OF THE THIRTY-FOUR CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 32),
+    %% TWELVE OF THE THIRTY-TWO CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `A1' can be matched --
-    %% a big integer literal is right there in the text -- and `I1', which is
-    %% about a cut you should not add, cannot be.
+    %% an arithmetic function cocolog lacks is right there in the text --
+    %% and `I1', which is about a cut you should not add, cannot be. (There
+    %% were thirty-four until 2.0.0, when A2, the integer literal past 61
+    %% bits, and O1, the order of two integers past them, went with the
+    %% divergences they named.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;

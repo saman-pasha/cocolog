@@ -202,7 +202,7 @@ framed(Bytes, G) :-
 
 utf8_rules :-
     section('UTF-8, strictly'),
-    atom_codes('héllo, wörld', A1),
+    string_bytes('héllo, wörld', A1, utf8),     % its BYTES, whatever the units
     findall(Name, ( member(Name-Bs, [ascii-[104, 105], latin-A1, euro-[226, 130, 172],
                                       clef-[240, 157, 132, 158], empty-[]]),
                     ws_utf8(Bs) ), Good),
@@ -270,6 +270,10 @@ session_checks(Port) :-
         check('a text message comes back', M1, text([104, 101, 108, 108, 111])),
         sent(WS, text('héllo, wörld')), recv(WS, [format(atom)], M2),
         check('...UTF-8, as an atom when asked', M2, text('héllo, wörld')),
+        %% the program's codes otherwise (2.0.0): the e-acute one code under
+        %% characters, its two bytes under bytes -- atom_codes/2's answer
+        sent(WS, text('héllo')), recv(WS, [], M2b), atom_codes('héllo', W2b),
+        check('...and the program''s codes when not', M2b, text(W2b)),
         sent(WS, binary([0, 1, 2, 255, 0])), recv(WS, [], M3),
         check('binary, NULs and all', M3, binary([0, 1, 2, 255, 0])),
         sent(WS, ping(abc)), recv(WS, [], M4),

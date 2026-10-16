@@ -237,13 +237,15 @@ json_read_escapes :-
     section('library(json): escapes, and the ones that are two code units'),
     written(( json_parse('"a\\tb\\nc"', T1), atom_codes(T1, Cs1) ), Cs1, G1),
     check('the named escapes come back as their bytes', G1, '[97,9,98,10,99]'),
-    %% A \u ESCAPE NAMES A UTF-16 CODE UNIT and this library deals in bytes, so
-    %% the parser has to encode. U+00E9 is two bytes of UTF-8.
-    written(( json_parse('"\\u00e9"', T2), atom_codes(T2, Cs2) ), Cs2, G2),
+    %% A \u ESCAPE NAMES A UTF-16 CODE UNIT and an atom is UTF-8, so the
+    %% parser has to encode. U+00E9 is two bytes of UTF-8 -- the atom's bytes,
+    %% asked of string_bytes/3, which answers them in both text units
+    %% (atom_codes/2 answers the one code point under characters, 2.0.0).
+    written(( json_parse('"\\u00e9"', T2), string_bytes(T2, Cs2, utf8) ), Cs2, G2),
     check('a \\u escape becomes UTF-8', G2, '[195,169]'),
     %% ...AND A CHARACTER ABOVE U+FFFF IS A SURROGATE PAIR, which is the whole
     %% reason the \u reader is more than one clause. U+1F600 is four bytes.
-    written(( json_parse('"\\ud83d\\ude00"', T3), atom_codes(T3, Cs3) ), Cs3, G3),
+    written(( json_parse('"\\ud83d\\ude00"', T3), string_bytes(T3, Cs3, utf8) ), Cs3, G3),
     check('a surrogate pair becomes one character', G3, '[240,159,152,128]'),
     written(( catch(json_parse('"\\ud800"', _), error(syntax_error(_), _), true), R4 = refused ), R4, G4),
     check('a lone high surrogate is refused', G4, refused).
@@ -267,18 +269,22 @@ json_strict :-
     %% and complained about nothing, which is the worst thing a JSON parser can
     %% do with a balance; since 1.8.50 it FAILS, and a parser that fails is not
     %% one that refuses -- the whole case went red for it, `failed' where it
-    %% wanted a syntax error. The cell holds 61 bits, so the line is there and
-    %% not at 64: the second numeral fits a machine word and not the cell.
+    %% wanted a syntax error. An integer is 64 bits since 2.0.0 (61 through
+    %% 1.15.0, when the second numeral below was refused too), so the line is
+    %% at 64: past 2^63 - 1, and past -2^63.
     refused_by_syntax(json_parse('12345678901234567890', _), G5),
     check('an integer past 64 bits is refused, not wrapped', G5, refused),
-    refused_by_syntax(json_parse('5000000000000000000', _), G7),
-    check('... and so is one that fits 64 bits and not the cell\'s 61', G7, refused),
+    written(json_parse('5000000000000000000', T7), T7, G7),
+    check('... and one that fits 64 bits is read whole', G7, '5000000000000000000'),
     written(json_parse('9007199254740993', T6), T6, G6),
     check('and one that fits is exact', G6, '9007199254740993'),
-    written(json_parse('1152921504606846975', T8), T8, G8),
-    check('the largest the cell holds is exact', G8, '1152921504606846975'),
-    written(json_parse('-1152921504606846976', T9), T9, G9),
-    check('... and so is the least', G9, '-1152921504606846976').
+    written(json_parse('9223372036854775807', T8), T8, G8),
+    check('the largest integer is exact', G8, '9223372036854775807'),
+    written(json_parse('-9223372036854775808', T9), T9, G9),
+    check('... and so is the least', G9, '-9223372036854775808'),
+    refused_by_syntax(json_parse('9223372036854775808', _), G10),
+    refused_by_syntax(json_parse('-9223372036854775809', _), G11),
+    check('... and one past either end is refused', G10-G11, refused-refused).
 
 %% the .sh's idiom: catch the syntax error and answer `refused' -- so a
 %% parse that SUCCEEDS answers `failed' here (the catch proves, the

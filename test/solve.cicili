@@ -210,7 +210,9 @@
       (first_binding (aof e) "X is 3037000501 mod 5000000000" buf (sizeof buf))
       (check_str "the product just past 2^63" buf "3037000501")
       (first_binding (aof e) "X is 1152921504606846975 mod -1152921504606846974" buf (sizeof buf))
-      (check_str "and at the top of the range" buf "-1152921504606846973")
+      (check_str "and at the top of the cell's 61 bits" buf "-1152921504606846973")
+      (first_binding (aof e) "X is 9223372036854775807 mod -9223372036854775806" buf (sizeof buf))
+      (check_str "and at the top of 64 bits (2.0.0)" buf "-9223372036854775805")
       (first_binding (aof e) "X is max(3, 4.5)" buf (sizeof buf))
       (check_str "max across types"           buf "4.5")
 

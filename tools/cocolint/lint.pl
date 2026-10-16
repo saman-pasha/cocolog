@@ -91,14 +91,13 @@ cl_tier1(dcg_basics). cl_tier1(dcg_high_order).
 cl_severity(p1, hard).  cl_severity(n1, hard).
 cl_severity(n2, hard).  cl_severity(n3, hard).  cl_severity(s1, hard).
 cl_severity(c2, hard).
-cl_severity(t1, warn).  cl_severity(a1, warn).  cl_severity(z1, warn).
+cl_severity(t1, warn).  cl_severity(z1, warn).
 
-%% A cell is a u64 with 3 tag bits and an INT is v<<3|2 with NO range check,
-%% so 2^60 is where a positive integer starts wrapping SILENTLY. The warning
-%% is at 2^59 rather than at the cliff: a program near the edge is one
-%% multiplication from being over it, and the wrap prints a plausible number.
-cl_wrap_digits(18).
-cl_wrap_at('576460752303423488').
+%% A1 IS GONE, with the trap it named (2.0.0): an integer kept 61 bits and
+%% arithmetic past them wrapped in silence, so a literal at or above 2^59
+%% was a warning. Integers are 64 bits now and a result past them raises
+%% evaluation_error(int_overflow) -- loud, the interpreter's own word, which
+%% is not this linter's business (HARD means it fails SILENTLY).
 
 %% A row must fit inside a database page, and the store's own budget --
 %% `clause_max', settled in coco_zg_attach -- is
@@ -147,9 +146,8 @@ cl_file(File, Imports0, Findings) :-
     cl_kept(F2, cl_rule_t1(File, Pairs, F2)),
     cl_kept(F3, cl_rule_n(File, Clauses, Imports, F3)),
     cl_kept(F4, cl_rule_s1(File, Codes, Regions, Imports, F4)),
-    cl_kept(F5, cl_rule_a1(File, Codes, Regions, F5)),
     cl_kept(F6, cl_rule_z1(File, Regions, Pairs, F6)),
-    append([F2, F3, F4, F5, F6], All),
+    append([F2, F3, F4, F6], All),
     cl_sort_findings(All, Findings).
 
 %% cl_kept(?X, :Goal) is semidet.
@@ -389,73 +387,6 @@ cl_nonoverlap_run([hit(Id, O, L)|T], End, Out) :-
 
 cl_skip_kinds(code, [quote, comment]).
 cl_skip_kinds(text, [comment]).
-
-%% ---- A1: an integer at or above the wrap point -----------------------
-%%
-%% COMPARED BY LENGTH AND THEN BY TEXT, never by evaluating the literal: a
-%% cocolog integer wraps at 2^60, so number_codes/2 on a 25-digit literal
-%% answers a number smaller than the threshold and the rule would go quiet on
-%% exactly the values it exists to catch.
-cl_rule_a1(File, Codes, Regions, Findings) :-
-    cl_digit_runs(Codes, 0, -1, Runs),
-    findall(F,
-            ( member(run(Off, Digits), Runs),
-              cl_over_wrap(Digits),
-              \+ cc_in_region(Regions, Off, [quote, comment]),
-              atom_codes(Lit, Digits),
-              format(atom(Msg),
-                     "[A2] ~w is at or above 2^59. A cell is a u64 with 3 tag bits and an INT is v<<3|2 with NO range check, so arithmetic here wraps SILENTLY at 2^60.", [Lit]),
-              cl_finding_off(File, Codes, Off, a1, 'A2', Msg,
-                             'keep integers under 2^59, or use library(bigint)',
-                             'lib/term.cicili:105-113', F) ),
-            Findings).
-
-cl_over_wrap(Digits) :-
-    length(Digits, N),
-    cl_wrap_digits(Min),
-    N >= Min,
-    (   N > Min
-    ->  true
-    ;   cl_wrap_at(W), atom_codes(W, WC), cl_ge_codes(Digits, WC)
-    ).
-
-cl_ge_codes([], []).
-cl_ge_codes([A|As], [B|Bs]) :- ( A > B -> true ; A =:= B, cl_ge_codes(As, Bs) ).
-
-%% A run of digits with no word character or `.' on either side -- Python's
-%% (?<![\w.'"])(\d{18,})(?![\w.]), which POSIX has neither half of.
-cl_digit_runs([], _, _, []).
-cl_digit_runs([C|T], Pos, Prev, Runs) :-
-    (   cl_digit(C), \+ cl_a1_bound(Prev)
-    ->  cl_digit_run([C|T], Pos, Digits, Rest, Pos1, Prev1),
-        (   cl_a1_after(Rest)
-        ->  Runs = [run(Pos, Digits)|More]
-        ;   Runs = More
-        ),
-        cl_digit_runs(Rest, Pos1, Prev1, More)
-    ;   Pos1 is Pos + 1,
-        cl_digit_runs(T, Pos1, C, Runs)
-    ).
-
-cl_digit_run([C|T], Pos, [C|Ds], Rest, End, Prev) :-
-    cl_digit(C), !,
-    Pos1 is Pos + 1,
-    cl_digit_run(T, Pos1, Ds, Rest, End, Prev0),
-    ( Prev0 == none -> Prev = C ; Prev = Prev0 ).
-cl_digit_run(Rest, Pos, [], Rest, Pos, none).
-
-cl_digit(C) :- C >= 0'0, C =< 0'9.
-
-cl_a1_bound(P) :- P =:= 0'. .
-cl_a1_bound(P) :- P =:= 0'_.
-cl_a1_bound(P) :- P =:= 0'\'.
-cl_a1_bound(P) :- P =:= 0'".
-cl_a1_bound(P) :- P >= 0'a, P =< 0'z.
-cl_a1_bound(P) :- P >= 0'A, P =< 0'Z.
-cl_a1_bound(P) :- P >= 0'0, P =< 0'9.
-
-cl_a1_after([]).
-cl_a1_after([C|_]) :- \+ cl_a1_bound(C).
 
 %% ---- Z1: a clause too big for a page ---------------------------------
 %%

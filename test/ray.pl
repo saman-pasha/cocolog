@@ -106,9 +106,14 @@ wq(Run, Goal, Got) :-
     proc_run(Cmd, 90000, Out, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out, A) -> sub_atom(A, 7, _, 1, Got) ; Got = '' ).
 
-%% is FILE a PNG, by its first four bytes
+%% is FILE a PNG, by its first four BYTES: read_file_to_codes/2 answers code
+%% points under characters, the default since 2.0.0, where 0x89 is no UTF-8
+%% and reads as U+DC89, and string_bytes/3 gives the bytes back
 png_magic(File, Verdict) :-
-    (   exists_file(File), read_file_to_codes(File, [137, 80, 78, 71|_]) -> Verdict = png ; Verdict = not_png ).
+    (   exists_file(File), read_file_to_codes(File, Cs), string_bytes(Cs, [137, 80, 78, 71|_], utf8)
+    ->  Verdict = png
+    ;   Verdict = not_png
+    ).
 
 %% cmp -s: same bytes or not
 same_bytes(A, B, V) :-

@@ -22,7 +22,7 @@ cocolog binary on its own runs every one of them:
 | 10-grammars | `-->`, `phrase/2,3`, pushback, and a parser that also generates |
 | 11-the-knowledge-base | what makes THIS Prolog different: the store outlives the process |
 | 12-globals-and-mutable-terms | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` (backtracking takes it back) and `nb_setarg/3` (it does not) |
-| 13-characters | text counted in characters, SWI's way: `:- set_prolog_flag(text_units, characters).` -- codes are code points, a char is one character of however many bytes |
+| 13-characters | text counted in characters, SWI's way and the default since 2.0.0 -- codes are code points, a char is one character of however many bytes -- and in bytes where a program asks: `:- set_prolog_flag(text_units, bytes).` |
 
 Read them in order — each leans on the one before, and 11 is the one
 that is not in any other Prolog book.
@@ -47,10 +47,11 @@ these ever stops being true the tutorial fails and names both answers.
   binds it; `arg/3` reads `z` in both (12).
 * **A global with a variable in its value is a fresh copy at each read**;
   a ground one is one term every read shares, as all of SWI's are (12).
-* **Text is counted in BYTES unless a program asks for characters.**
-  `atom_length` of an a-acute is 2 by default (08) and 1 under
-  `:- set_prolog_flag(text_units, characters).` (13), which every
-  builtin that counts or takes text apart follows, the reader too.
+* **Text is counted in CHARACTERS, as SWI counts it, since 2.0.0**
+  (08), and in BYTES where a program asks: `atom_length` of an a-acute
+  is 1, and 2 under `:- set_prolog_flag(text_units, bytes).` (13) --
+  through 1.x the default -- which every builtin that counts or takes
+  text apart follows, the reader too.
 * **The knowledge base is a DATABASE**, and `assertz` in one process is
   visible to the next one (11). That is the claim the whole project
   exists to make, and it is four lines of Prolog to see it.

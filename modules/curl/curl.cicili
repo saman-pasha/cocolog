@@ -43,6 +43,15 @@
 ;;;; a client that cannot fetch a PNG is not a client. The REQUEST body is
 ;;;; codes too, sent with `post-size' so a NUL in it survives the trip.
 ;;;;
+;;;; AND THEY ARE THE PROGRAM'S CODES (2.0.0): the response's bytes as
+;;;; atom_codes/2 would answer them -- the bytes under `text_units =
+;;;; bytes', code points under characters, the default since 2.0.0, where a
+;;;; byte that is no UTF-8 is U+DC00 plus it and goes back out as that byte
+;;;; (`coco_m_codes_of') -- and a request body of codes is the program's
+;;;; text, sent as its bytes (string_bytes/3). Through 1.15 a byte past 127
+;;;; came back NEGATIVE, `-61' for the 0xC3 of an e-acute: the buffer is
+;;;; `char *', signed here, and each byte was widened as it stood.
+;;;;
 ;;;; WHAT IS NOT HERE: the multi interface (a poll loop, a different
 ;;;; shape, and cicili's binding does not cover it either), cookies as
 ;;;; anything but a file, and streaming. A response arrives whole or not
@@ -61,7 +70,7 @@
 ;;;;   curl_ssl(-Version)                                  the TLS behind https, or none
 ;;;;   curl_version(-Version)                              libcurl's own
 ;;;;
-;;;; Status is the HTTP code and Body is CODES. Opts is a list drawn from
+;;;; Status is the HTTP code and Body is CODES, as the program counts text. Opts is a list drawn from
 ;;;; timeout(Seconds), follow(Bool), verify_peer(Bool), ca_info(Path),
 ;;;; max_size(Bytes), body(Codes or Atom) and header(Line), each with the safe
 ;;;; default -- 30 s, not followed, verified, the system roots, 16 MB -- and a
@@ -110,11 +119,11 @@
            "curl_bool(false, 0) :- !."
            "curl_bool(V, V)."
 
-           ;; The body may be codes or an atom; codes reach the wire
-           ;; unchanged, which is the point of taking them.
+           ;; The body may be codes, an atom or a string: the program's
+           ;; text, which goes as its bytes -- the codes themselves under
+           ;; bytes, their UTF-8 under characters (2.0.0).
            "curl_body(Opts, Data) :- ( memberchk(body(D), Opts) -> curl_codes(D, Data) ; Data = [] )."
-           "curl_codes(D, D) :- is_list(D), !."
-           "curl_codes(D, Cs) :- atom_codes(D, Cs)."
+           "curl_codes(D, Cs) :- string_bytes(D, Cs, utf8)."
 
            ;; Every header(...) in the option list, joined with a newline
            ;; for the C half to split. One atom rather than a list because
@@ -306,12 +315,12 @@
               ;; worse than none, because only one of the two is obvious.
               (if (and ok (> (cast i64 ($ body len)) maxsize)) (set ok 0))
 
+              ;; IN THE PROGRAM'S UNITS (2.0.0), as atom_codes/2 would
+              ;; answer the bytes; through 1.15 each `char' was widened as
+              ;; it stood, and a byte past 127 came back negative
               (if ok
-                  (let ((size_t lst . #'(coco_m_nil e)))
-                    (for ((size_t i . #'($ body len))) (> i 0) ((-- i))
-                         (set lst (coco_m_cons e
-                                               (coco_m_new_int e (cast i64 (nth (- i 1) ($ body data))))
-                                               lst)))
+                  (let ((size_t lst . #'(coco_m_codes_of e (cast (const char *) ($ body data))
+                                                         ($ body len) 0 (coco_m_nil e))))
                     (if (coco_m_unify_int e (coco_m_arg e g 9) httpcode)
                         (set ok (coco_m_unify e (coco_m_arg e g 10) lst))
                       (set ok 0))))

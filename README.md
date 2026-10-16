@@ -545,7 +545,7 @@ Read them in order — each leans on the one before.
 | [10-grammars](tutorials/basics/10-grammars.pl) | `-->`, `phrase/2,3`, and a parser that also generates |
 | [11-the-knowledge-base](tutorials/basics/11-the-knowledge-base.pl) | **the one that is not in any other Prolog book**: the store outlives the process |
 | [12-globals-and-mutable-terms](tutorials/basics/12-globals-and-mutable-terms.pl) | state by name and terms written in place: `nb_setval/2`, `nb_current/2`, `setarg/3` and `nb_setarg/3` |
-| [13-characters](tutorials/basics/13-characters.pl) | text counted in characters, SWI's way: `:- set_prolog_flag(text_units, characters).` |
+| [13-characters](tutorials/basics/13-characters.pl) | text counted in characters, SWI's way and the default since 2.0.0, and in bytes on request: `:- set_prolog_flag(text_units, bytes).` |
 
 Five of them exist because cocolog differs, and each difference is
 checked by a `must/3` in the file that teaches it: `double_quotes`
@@ -553,10 +553,11 @@ DEFAULTS to `codes`, so `"hi"` IS `[104,105]` in a file that does not set
 the flag (08); **every builtin is
 deterministic**, which retires the `retract(X), fail` loop (07) and makes
 `atom_concat(A, B, abc)` with both unbound an `instantiation_error`
-rather than three solutions (08); `2 ** 10` is `1024`, an integer (04);
-text is counted in bytes unless a program asks for characters (08, 13);
-and 11 is the claim the whole project exists to make, in four lines of
-Prolog.
+rather than three solutions (08); `2 ** 10` is `1024`, an integer, and an
+integer stops at 64 bits, `int_overflow` past them where SWI goes on in a
+bignum (04); text is counted in characters as SWI counts it, and in bytes
+where a program asks, which SWI has no flag for (08, 13); and 11 is the
+claim the whole project exists to make, in four lines of Prolog.
 
 ### `library/` — fifty-two lessons: the path, then one per library that ships
 
@@ -571,7 +572,7 @@ a tool rather than a library.
 | [12-json](tutorials/library/12-json.pl) [13-xml](tutorials/library/13-xml.pl) [14-html](tutorials/library/14-html.pl) | tier 2 | a term as a document, and back |
 | [15-http](tutorials/library/15-http.pl) [16-httpd](tutorials/library/16-httpd.pl) [17-tcp](tutorials/library/17-tcp.pl) [18-thread](tutorials/library/18-thread.pl) | tier 2 | the grammar, the server, the socket seam, the threads |
 | [19-zigurat](tutorials/library/19-zigurat.pl) | tier 1 | the connection to a server, compiled in |
-| [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | an HTTP client, integers that do not wrap, and Prolog that trains |
+| [20-curl](tutorials/library/20-curl.pl) [21-bigint](tutorials/library/21-bigint.pl) [22-torch](tutorials/library/22-torch.pl) | tier 2 | an HTTP client, integers past 64 bits, and Prolog that trains |
 | [23-sha](tutorials/library/23-sha.pl) [24-aes](tutorials/library/24-aes.pl) [25-der](tutorials/library/25-der.pl) [26-x509](tutorials/library/26-x509.pl) [27-ca](tutorials/library/27-ca.pl) [28-tls](tutorials/library/28-tls.pl) | tier 2 | ZiguratIP's cryptography: digests, a cipher, the encoding X.509 is made of, certificates, a certificate authority as rules, and a connection that knows who is on it |
 | [29-ray](tutorials/library/29-ray.pl) | tier 2 | a game window, 2D, 3D and textures, from clauses |
 | [30-hex](tutorials/library/30-hex.pl) [31-astar](tutorials/library/31-astar.pl) | tier 2 | hexagonal-grid arithmetic, and shortest paths over a graph of goals |
@@ -1975,9 +1976,10 @@ what is known to be missing.
 
 **Where cocolog differs from SWI-Prolog and from ISO is one table:
 [COMPAT.md](COMPAT.md)** — every row checked by running the same goal on both,
-the ones that can give a silently different answer first (integers are 61
-bits and wrap, `retract/1` is deterministic, text lengths count UTF-8 bytes),
-and for each what to write instead.
+the ones that can give a silently different answer first (`retract/1` is
+deterministic, `number_codes/2` reads the number at the front of its text;
+since 2.0.0 integers stop at 64 bits with an error rather than wrapping, and
+text is counted in characters), and for each what to write instead.
 
 **The heap is collected since 1.8.36.** It used to be given back by
 backtracking alone, so a deterministic recursion held everything it had ever

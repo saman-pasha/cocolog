@@ -12859,9 +12859,11 @@ newspaper_tempi_checks_8 :-
 %% <<< tempi
 
 %% >>> units
-%% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). By default a code
-%% list holds the UTF-8 BYTES of a text, `é' is 195 169; a program that sets
-%% text_units to characters holds CODE POINTS, `é' is 233. The reader, the
+%% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). Under bytes a code
+%% list holds the UTF-8 BYTES of a text, `é' is 195 169; under characters --
+%% asked for through 1.x, cocolog's default since 2.0.0 -- it holds CODE
+%% POINTS, `é' is 233. Each child names its unit (COCOLOG_TEXT_UNITS), so
+%% the section asks the same of either default. The reader, the
 %% writer and the tokeniser name accents and marks by their codes, so every
 %% such clause has a twin for the other unit (library(reasoning/reason),
 %% rt_chars/0). The unit is per machine, so the section asks two children,
@@ -12871,7 +12873,7 @@ newspaper_tempi_checks_8 :-
 %% library with the twins out answers `refused' to fifteen of the twenty
 %% translations in characters.
 newspaper_units :-
-    section('the same answers under both text units: accents and marks read as UTF-8 bytes by default and as code points when a program asks (text_units, cocolog 1.13.0)'),
+    section('the same answers under both text units: accents and marks read as UTF-8 bytes under bytes and as code points under characters (text_units, cocolog 1.13.0; characters the default since 2.0.0)'),
     newspaper_units_child(bytes, B),
     newspaper_units_child(characters, C),
     findall(L-W, newspaper_units_probe(L, _, W), Ps),
@@ -12889,7 +12891,7 @@ newspaper_units_line(I, Lines, Answer) :-
 %% the child: the answers of every probe, one line each, in the unit asked for
 newspaper_units_child(Units, Lines) :-
     cocolog(Exe),
-    (   Units == characters -> Env = 'env COCOLOG_TEXT_UNITS=characters' ; Env = 'env -u COCOLOG_TEXT_UNITS' ),
+    (   Units == characters -> Env = 'env COCOLOG_TEXT_UNITS=characters' ; Env = 'env COCOLOG_TEXT_UNITS=bytes' ),
     sh_join([Env, ' ', Exe, ' query "use_module(''test/translate.pl''), newspaper_units_run" 2>&1'], Cmd),
     shell(Cmd, Text, _),
     atomic_list_concat(Lines, '\n', Text).

@@ -520,30 +520,48 @@
                 (set sp (+ sp 1))
                 break)
               (case (cc-op "AG_BIN")
-                (let ((i64 a . #'(nth (- sp 2) sk)) (i64 b . #'(nth (- sp 1) sk)) (i64 r . 0))
+                (let ((i64 a . #'(nth (- sp 2) sk)) (i64 b . #'(nth (- sp 1) sk)) (i64 r . 0)
+                      (int ovf . 0))
                   (switch (cast int (cc_k w))
-                    (case (cc-gop "+") (set r (+ a b)) break)
-                    (case (cc-gop "-") (set r (- a b)) break)
-                    (case (cc-gop "*") (set r (* a b)) break)
+                    ;; in 64 bits, and a result past them is the step's to
+                    ;; raise (2.0.0: evaluation_error(int_overflow))
+                    (case (cc-gop "+") (if (coco_add_ovf a b (aof r)) (return done)) break)
+                    (case (cc-gop "-") (if (coco_sub_ovf a b (aof r)) (return done)) break)
+                    (case (cc-gop "*") (if (coco_mul_ovf a b (aof r)) (return done)) break)
+                    ;; the least integer over -1 is past 64 bits, and in C
+                    ;; traps (SIGFPE), as its remainder does: asked first
                     (case (cc-gop "//")
                       (if (== b 0) (return done))
+                      (if (== b -1)
+                          (block (if (== a (- -9223372036854775807 1)) (return done))
+                                 (set r (- 0 a)) break))
                       (set r (/ a b)) break)
                     (case (cc-gop "div")
                       (if (== b 0) (return done))
+                      (if (== b -1)
+                          (block (if (== a (- -9223372036854775807 1)) (return done))
+                                 (set r (- 0 a)) break))
                       (set r (- (/ a b) (cc_floor_adjusts a b))) break)
                     (case (cc-gop "mod")
                       (if (== b 0) (return done))
-                      (set r (- (% a b) (? (cc_floor_adjusts a b) (- 0 b) 0))) break)
+                      (if (== b -1) (block (set r 0) break))
+                      (set r (+ (% a b) (? (cc_floor_adjusts a b) b 0))) break)
                     (case (cc-gop "rem")
                       (if (== b 0) (return done))
+                      (if (== b -1) (block (set r 0) break))
                       (set r (% a b)) break)
                     (case (cc-gop "min") (set r (? (< a b) a b)) break)
                     (case (cc-gop "max") (set r (? (> a b) a b)) break)
                     ;; by any count, as `coco_arith' does (1.14.0): a C shift
                     ;; is undefined past 63 and for a negative count, and the
-                    ;; hardware takes the count modulo 64
-                    (case (cc-gop ">>") (set r (coco_shift_right a b)) break)
-                    (case (cc-gop "<<") (set r (coco_shift_left a b)) break)
+                    ;; hardware takes the count modulo 64; a bit lost to the
+                    ;; left is the step's to raise (2.0.0)
+                    (case (cc-gop ">>")
+                      (set r (coco_shift_right a b (aof ovf)))
+                      (if ovf (return done)) break)
+                    (case (cc-gop "<<")
+                      (set r (coco_shift_left a b (aof ovf)))
+                      (if ovf (return done)) break)
                     (case (cc-gop "bitand") (set r (bitand a b)) break)
                     (case (cc-gop "bitor") (set r (bitor a b)) break)
                     (case (cc-gop "xor") (set r (xor a b)) break)
@@ -554,10 +572,16 @@
               (case (cc-op "AG_UN")
                 (let ((i64 a . #'(nth (- sp 1) sk)) (i64 r . 0))
                   (switch (cast int (cc_k w))
-                    (case (cc-gop "neg") (set r (- 0 a)) break)
+                    ;; the least integer has no negation in 64 bits: the
+                    ;; step raises (2.0.0)
+                    (case (cc-gop "neg")
+                      (if (== a (- -9223372036854775807 1)) (return done))
+                      (set r (- 0 a)) break)
                     (case (cc-gop "pos") (set r a) break)
-                    (case (cc-gop "bitnot") (set r (- (- 0 a) 1)) break)
-                    (case (cc-gop "abs") (set r (? (< a 0) (- 0 a) a)) break)
+                    (case (cc-gop "bitnot") (set r (- -1 a)) break)
+                    (case (cc-gop "abs")
+                      (if (== a (- -9223372036854775807 1)) (return done))
+                      (set r (? (< a 0) (- 0 a) a)) break)
                     (case (cc-gop "sign") (set r (? (> a 0) 1 (? (< a 0) -1 0))) break)
                     (default (return done)))
                   (set (nth (- sp 1) sk) r))
@@ -575,22 +599,28 @@
                     (default (return done))))
                 (set fin 1)
                 break)
+              ;; A RESULT THE 61 BITS OF A CELL CANNOT HOLD IS THE STEP'S TO
+              ;; BOX (2.0.0): the guard stops before it has bound or compared
+              ;; anything, and makes no call that boxing would cost every
+              ;; guard's registers
               (case (cc-op "AG_ISF")
                 ;; met first here: the frame slot IS the result
                 ,@(COPY-TREE
                    (IF (EQL ENV 1)
                        '((return done))
                        '((set sp (- sp 1))
-                         (set (nth (cc_k w) frame) (coco_new_int m (nth sp sk)))
+                         (if (not (coco-fits-cell (nth sp sk))) (return done))
+                         (set (nth (cc_k w) frame) (coco_push m (coco-int-cell (nth sp sk))))
                          (set fin 1)
                          break))))
               (case (cc-op "AG_ISV")
                 ;; met before: bound to the result, or compared with it
                 (let ((size_t v . #'(,VARAT (cc_k w))) (u64 c . 0))
                   (set sp (- sp 1))
+                  (if (not (coco-fits-cell (nth sp sk))) (return done))
                   (set c (nth v (-> m heap)))
                   (cond
-                    ((coco-tag-is REF c) (coco_bind m v (coco_new_int m (nth sp sk))))
+                    ((coco-tag-is REF c) (coco_bind m v (coco_push m (coco-int-cell (nth sp sk)))))
                     (#t (set pass (== c (coco-int-cell (nth sp sk)))))))
                 (set fin 1)
                 break)
@@ -599,7 +629,9 @@
                 (let ((u64 c . #'(nth pc p)))
                   (set pc (+ pc 1))
                   (set sp (- sp 1))
-                  (set pass (== c (coco-int-cell (nth sp sk)))))
+                  ;; a constant is a cell's: a result past one is not it
+                  (set pass (== c (coco-int-cell (nth sp sk))))
+                  (if (not (coco-fits-cell (nth sp sk))) (set pass 0)))
                 (set fin 1)
                 break)
               (case (cc-op "AG_TYPE")
@@ -609,9 +641,9 @@
                     (case (cc-gop "var") (set pass (coco-tag-is REF c)) break)
                     (case (cc-gop "nonvar") (set pass (not (coco-tag-is REF c))) break)
                     (case (cc-gop "atom") (set pass (coco-tag-is ATOM c)) break)
-                    (case (cc-gop "integer") (set pass (coco-tag-is INT c)) break)
+                    (case (cc-gop "integer") (set pass (coco-is-int c)) break)
                     (case (cc-gop "number")
-                      (set pass (or (coco-tag-is INT c) (coco-tag-is FLT c))) break)
+                      (set pass (or (coco-is-int c) (coco-tag-is FLT c))) break)
                     (case (cc-gop "atomic")
                       (set pass (not (or (coco-tag-is REF c) (coco-tag-is FUN c)))) break)
                     (case (cc-gop "compound") (set pass (coco-tag-is FUN c)) break)
@@ -768,12 +800,14 @@
     ;; this kind answers -- and two with different non-zero cells CANNOT
     ;; unify, which is what makes skipping them sound.
     ;;
-    ;; ZERO IS "MATCHES ANYTHING", and four things take it: an unbound
+    ;; ZERO IS "MATCHES ANYTHING", and five things take it: an unbound
     ;; first argument, a FLOAT (two equal floats may sit at two indices of
     ;; the float table, so a cell comparison would answer no to 1.0 against
     ;; 1.0), a STRING for the same reason -- its table is not interned
     ;; either, and until this was written `p("ab")' as a head could not be
-    ;; found by `p("ab")' as a call -- and a predicate of arity zero. No real
+    ;; found by `p("ab")' as a call -- an integer past 61 bits, boxed in a
+    ;; table that is not interned either (2.0.0), and a predicate of arity
+    ;; zero. No real
     ;; cell is zero: every tag but REF is non-zero in the low bits and a REF
     ;; is never stored here.
     ;;
@@ -2218,6 +2252,11 @@
                           (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
                                   (nth (cast size_t (coco-payload cb)) (-> m floats)))
                               (set ok 0)))
+                         ;; a boxed integer by its value (2.0.0)
+                         ((coco-tag-is BIG ca)
+                          (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                                  (nth (cast size_t (coco-payload cb)) (-> m bigs)))
+                              (set ok 0)))
                          ((coco-tag-is STR ca)
                           (if (not (coco_str_eq m ca cb)) (set ok 0)))
                          ((coco-tag-is FUN ca)
@@ -2261,6 +2300,11 @@
                       ;; the store shares the machine's float table by index
                       (if (!= (nth (cast size_t (coco-payload ca)) (-> m floats))
                               (nth (cast size_t (coco-payload cs)) (-> m floats)))
+                          (set ok 0)))
+                     ;; and its integer table (2.0.0)
+                     ((coco-tag-is BIG ca)
+                      (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                              (nth (cast size_t (coco-payload cs)) (-> m bigs)))
                           (set ok 0)))
                      ((coco-tag-is STR ca)
                       (if (not (coco_str_eq m ca cs)) (set ok 0)))
@@ -3993,13 +4037,20 @@
         (let ((u64 ca . #'(nth a (-> m heap))))
           (if (coco-tag-is REF ca)
               (block (coco_bind m a (coco_push m c)) (return 1)))
+          ;; the same word is the same constant, whatever its tag: the
+          ;; common match decided before the tables are asked (2.0.0)
+          (if (== ca c) (return 1))
           (if (!= (coco-tag ca) (coco-tag c)) (return 0))
           (cond
             ((coco-tag-is FLT ca)
              (return (? (== (nth (cast size_t (coco-payload ca)) (-> m floats))
                             (nth (cast size_t (coco-payload c)) (-> m floats))) 1 0)))
             ((coco-tag-is STR ca) (return (coco_str_eq m ca c)))
-            (#t (return (? (== ca c) 1 0))))))
+            ;; a boxed integer by its value, as a float is (2.0.0)
+            ((coco-tag-is BIG ca)
+             (return (? (== (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                            (nth (cast size_t (coco-payload c)) (-> m bigs))) 1 0)))
+            (#t (return 0)))))
 
   ;;; Answers 1 when the head matched (the goals are built), 0 when it did
   ;;; not, and -1 when it could not run at all -- no frame to be had -- which
@@ -4519,20 +4570,31 @@
           (if (not (bitand f 256)) (set ca (nth (cc-env-slot ca) (-> m heap))))
           (if (not (bitand f 512)) (set cb (nth (cc-env-slot cb) (-> m heap))))
           (if (not (and (coco-tag-is INT ca) (coco-tag-is INT cb))) (return 0))
-          (let ((i64 a . #'(coco-signed-payload ca)) (i64 b . #'(coco-signed-payload cb)))
+          ;; ON THE CELLS THEMSELVES (2.0.0): an INT is its value times
+          ;; eight over the tag 2, so A + B is the cell CA - 2 + CB, A - B
+          ;; the cell CA - CB + 2 and A * B the cell (CA - 2) * B + 2 -- and
+          ;; a result past the 61 bits a cell keeps is exactly a 64-bit
+          ;; overflow of that sum, which the step boxes. Two cells compare as
+          ;; their values do. Through 1.15.0 the values were taken out of
+          ;; their cells and the result put back in one, wrapping at 61 bits.
+          (let ((i64 a . #'(cast i64 ca)) (i64 b . #'(cast i64 cb)))
             (if (== (cc_op w) (cc-op "AG_ISX"))
                 (let ((i64 r . 0) (size_t v . 0) (u64 c . 0))
                   (switch (cast int (bitand f 255))
-                    (case (cc-gop "+") (set r (+ a b)) break)
-                    (case (cc-gop "-") (set r (- a b)) break)
-                    (case (cc-gop "*") (set r (* a b)) break)
+                    (case (cc-gop "+") (if (coco_add_ovf (- a 2) b (aof r)) (return 0)) break)
+                    (case (cc-gop "-")
+                      (if (coco_sub_ovf a b (aof r)) (return 0))
+                      (set r (+ r 2)) break)
+                    (case (cc-gop "*")
+                      (if (coco_mul_ovf (- a 2) (coco-signed-payload cb) (aof r)) (return 0))
+                      (set r (+ r 2)) break)
                     (default (return 0)))
                   ;; the left: bound to the result, or compared with it
                   (set v (cc-env-slot (cc_k w)))
                   (set c (nth v (-> m heap)))
                   (if (coco-tag-is REF c)
-                      (coco_bind m v (coco_new_int m r))
-                      (set pass (== c (coco-int-cell r)))))
+                      (coco_bind m v (coco_push m (cast u64 r)))
+                      (set pass (== c (cast u64 r)))))
                 (switch (cast int (bitand f 255))
                   (case (cc-gop "<") (set pass (< a b)) break)
                   (case (cc-gop ">") (set pass (> a b)) break)
@@ -5132,9 +5194,9 @@
               (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
           (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
               (block (snprintf err errlen "dynamic: the name must be an atom") (return 0)))
-          (if (not (coco-tag-is INT (nth ar (-> m heap))))
+          (if (not (coco-is-int (nth ar (-> m heap))))
               (block (snprintf err errlen "dynamic: the arity must be an integer") (return 0)))
-          (let ((i64 n . #'(coco-signed-payload (nth ar (-> m heap)))))
+          (let ((i64 n . #'(coco_int_val m (nth ar (-> m heap)))))
             (if (or (< n 0) (> n 255))
                 (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
             (if (not (coco_pred_dynamic st (coco_name_of m nm) (cast u32 n)))
@@ -5404,11 +5466,12 @@
         (if (not (coco_is_callable m t)) (return 0))
         (if (== (coco_arity m t) 0) (return 0))
         (let ((u64 c . #'(nth (coco_deref m (coco_arg m t 0)) (-> m heap))))
-          ;; an unbound argument constrains nothing, and a float or a string
-          ;; cannot be compared as a cell -- see the struct
+          ;; an unbound argument constrains nothing, and a float, a string
+          ;; or a boxed integer cannot be compared as a cell -- see the struct
           (if (coco-tag-is REF c) (return 0))
           (if (coco-tag-is FLT c) (return 0))
           (if (coco-tag-is STR c) (return 0))
+          (if (coco-tag-is BIG c) (return 0))
           (return c)))
 
   ;;; A PREDICATE SMALLER THAN THIS IS NOT WORTH A TABLE. Below it the scan
@@ -5599,7 +5662,8 @@
   (static)
   (func coco_cell_key ((coco_machine * m) (size_t a)) (out u64)
         (let ((u64 c . #'(nth (coco_deref m a) (-> m heap))))
-          (if (or (coco-tag-is REF c) (coco-tag-is FLT c) (coco-tag-is STR c)) (return 0))
+          (if (or (coco-tag-is REF c) (coco-tag-is FLT c) (coco-tag-is STR c) (coco-tag-is BIG c))
+              (return 0))
           (return c)))
 
   ;;; Argument J's key in a clause's head, read from the store: what
@@ -5614,7 +5678,8 @@
           (if (not (coco-tag-is FUN c)) (return 0))
           (if (<= ($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity) j) (return 0))
           (set a (nth (coco_store_deref st (+ head (+ (cast size_t j) 1))) (-> st cells)))
-          (if (or (coco-tag-is REF a) (coco-tag-is FLT a) (coco-tag-is STR a)) (return 0))
+          (if (or (coco-tag-is REF a) (coco-tag-is FLT a) (coco-tag-is STR a) (coco-tag-is BIG a))
+              (return 0))
           (return a)))
 
   ;;; `coco_kslot_of', `coco_chain_add' and `coco_chain_from', on another
@@ -6146,9 +6211,11 @@
                       (block (snprintf err errlen "if: current_predicate wants an atom name")
                              (return 0)))
                   (let ((u64 c . #'(nth ar (-> m heap))))
-                    (if (not (coco-tag-is INT c))
+                    (if (not (coco-is-int c))
                         (block (snprintf err errlen "if: current_predicate wants an integer arity")
                                (return 0)))
+                    ;; an arity past 32 bits names no predicate (2.0.0)
+                    (if (coco-tag-is BIG c) (block (set (cof truth) 0) (return 1)))
                     (let ((size_t pi . #'(coco_pred_find st (coco_name_of m nm)
                                                         (cast u32 (cast i64 (>> (cast i64 c) 3))))))
                       (set (cof truth) (? (< pi (-> st npreds)) 1 0))

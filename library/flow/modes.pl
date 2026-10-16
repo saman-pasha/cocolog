@@ -173,6 +173,8 @@ flow_mode(string_chars, 2, ['+', '-'], det).
 flow_mode(string_chars, 2, ['-', '+'], det).
 flow_mode(string_codes, 2, ['+', '-'], det).
 flow_mode(string_codes, 2, ['-', '+'], det).
+flow_mode(string_bytes, 3, ['+', '-', '+'], det).
+flow_mode(string_bytes, 3, ['-', '+', '+'], det).
 flow_mode(string_to_atom, 2, ['+', '-'], det).
 flow_mode(string_to_atom, 2, ['-', '+'], det).
 flow_mode(string_concat, 3, ['+', '+', '-'], det).
@@ -272,6 +274,7 @@ flow_binds_all(string_concat, 3).
 flow_binds_all(sub_string, 5).
 flow_binds_all(string_chars, 2).
 flow_binds_all(string_codes, 2).
+flow_binds_all(string_bytes, 3).
 flow_binds_all(number_string, 2).
 
 %% the line a call takes: the first whose modes it meets (a bound argument
@@ -323,6 +326,7 @@ flow_raises_unbound(atom_string, 2, [1, 2], atom_string(_, _)).
 flow_raises_unbound(number_string, 2, [1, 2], number_string(_, _)).
 flow_raises_unbound(string_codes, 2, [1, 2], string_codes(_, _)).
 flow_raises_unbound(string_chars, 2, [1, 2], string_chars(_, _)).
+flow_raises_unbound(string_bytes, 3, [1, 2], string_bytes(_, _, utf8)).
 flow_raises_unbound(string_to_atom, 2, [1, 2], string_to_atom(_, _)).
 flow_raises_unbound(term_to_atom, 2, [1, 2], term_to_atom(_, _)).
 flow_raises_unbound(upcase_atom, 2, [1], upcase_atom(_, 'X')).

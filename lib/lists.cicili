@@ -529,7 +529,7 @@
   ;;; -1, 0 or 1 as `>' would order them, with OK cleared when either is not
   ;;; a number. TWO INTEGERS ARE COMPARED AS INTEGERS: casting a pair of them
   ;;; to double loses the distinction above 2^53, which is the trap
-  ;;; `compare/3' carries and there is no reason to repeat it here.
+  ;;; `compare/3' carried through 1.15.0.
   (static)
   (func coco_l_cmpnum ((coco_engine * e) (size_t a) (size_t b) (int * ok)) (out int)
         (let ((i64 ai . 0) (double ad . 0.0) (int af . 0)
@@ -565,7 +565,9 @@
                   (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
                          (set ad (+ ad ed)))
                 (if af (set ad (+ ad (cast double ei)))
-                  (set ai (+ ai ei)))))
+                  ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
+                  (if (coco_add_ovf ai ei (aof ai))
+                      (return (coco_m_evaluation_error e "int_overflow"))))))
             (set p t))
           (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
@@ -607,7 +609,9 @@
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof hi)))
               (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
           (if (> lo hi) (return 0))
-          (let ((size_t cnt . #'(cast size_t (+ (- hi lo) 1)))
+          ;; the count in u64 (2.0.0): `hi - lo' of the two ends of 64 bits
+          ;; is past an i64, and a list that long is no memory's anyway
+          (let ((size_t cnt . #'(cast size_t (+ (- (cast u64 hi) (cast u64 lo)) 1)))
                 (size_t * v . nil) (size_t out . 0))
             (set v (cast (size_t *) (malloc (* cnt (sizeof size_t)))))
             (if (== v nil) (return 0))

@@ -5744,6 +5744,152 @@ of naive reverse and the eight queens took:
 The narrow cases are green on 1.15.0: engine, window, flowdebug, meter,
 errors, gc, trace, journal, cyclic, backtrace and lesson 51.
 
+## Integers of 64 bits, and text in characters by default (2.0.0)
+
+A major, the owner's number: programs that worked can stop. Two changes
+are in it, by the owner's choice: integers of 64 bits, loud past them,
+and characters as the default text unit.
+
+### Integers are 64 bits, and say so past them
+
+Through 1.15.0 an integer was a cell's 61 bits, and a result past them
+WRAPPED in silence: `1000000000000000000 * 997` was 875820019684212736.
+COMPAT.md's silent table led with it. Now:
+
+* **A value past 61 bits is BOXED.** A BIG cell (tag 7) indexes the
+  machine's `bigs`, an array of i64, as a FLT cell indexes its floats.
+  It is canonical by range: a value that fits a cell is always an INT
+  cell, so an INT never equals a BIG, and two INT cells still compare
+  by word.
+* **Past 64 bits arithmetic raises `evaluation_error(int_overflow)`**
+  where SWI makes a bignum. That holds for `+`, `-`, `*`, `**`, `^`, the
+  least integer `//` or `div` -1, its `-` and `abs`, a `<<` that loses a
+  bit, succ/2, plus/3, sum_list/2 and numlist/3. It also holds for a float
+  made an integer outside the range; an infinity or a NaN is
+  `evaluation_error(undefined)`.
+* **The reader counts in u64.** A literal past 2^63-1 (2^63 for a
+  negative one) is `integer out of range`.
+* **Two integers are ordered exactly.** Through 1.15.0
+  `9007199254740993 == 9007199254740992` was true, both compared as
+  doubles. An integer and a float still compare as doubles, the float
+  first when equal, as swipl 9.0.4 has it.
+* **The flags:** `bounded` is `true`, `max_integer` and `min_integer`
+  are ±2^63, `max_tagged_integer` and `min_tagged_integer` the cell's.
+
+The overflow test is `__builtin_add_overflow` and its two kin (`coco_add_ovf`,
+`_sub_`, `_mul_`): an add or an imul and a `jo`. The first build tested in
+128 bits, which made an add nine instructions (sar, adc), and lookup counted
+1.5 % more (76 810 626 instructions against 1.15.0's 75 702 867, callgrind).
+The builtins, the guards' stops and GUARDX on cells brought it to the
++0.38 % of work below.
+
+Two places took a different road:
+
+* **The guards stop where they cannot decide**, as they always did for a
+  float. GUARDX computes on the cells themselves (A+B is CA-2+CB), where
+  a 64-bit overflow is exactly a result past the cell's 61 bits.
+* **`cc_match_const` asks the word first**, so a clause head's integer
+  costs the match nothing new.
+
+The tables reclaim `bigs` with the floats and strings. A frozen machine
+carries them in a `B` section. The index keys a BIG as it keys a float, as
+0. `test/engine.pl`'s `integers_64` section (145 checks) holds the step, a
+guard and a goal in place to swipl 9.0.4's answers. Twelve arms take one
+rule out each and go red:
+
+| arm | red |
+|---|---|
+| the step's overflow test (two builds) | 5 and 5 |
+| the guards' overflow tests (two) | 3 and 1 |
+| the guards' fit to a cell | 6 |
+| GUARDX's overflow test (two) | 4 and 4 |
+| the tables' marking of `bigs` | 19 |
+| the index key of a BIG | 1 |
+| the exact order | 1 |
+| unify by value | 2 |
+| the freeze's `B` section | 1 |
+
+`tools/flow/zero.sh` against 1.15.0, counting work less the padding:
+
+| | instructions |
+|---|---|
+| nrev | -0.16 % |
+| queens | +0.26 % |
+| lookup | +0.38 % |
+
+The time pairs were within the box's noise.
+
+The linter lost rule A1, which flagged an integer literal past 61 bits.
+The card lost rows A2 and O1, the literal and the order: the divergences
+they named are gone. `test/bigint.pl` pinned the wrong answer as its
+reason; it pins the error now.
+
+Not SWI's, and staying so:
+
+* past 64 bits cocolog raises where swipl goes on in a bignum;
+* `2**63 - 1` raises, its `2**63` coming first;
+* atom_number/2 and number_codes/2 fail for a numeral past 64 bits.
+
+### Text is characters by default, and the wire is bytes
+
+`text_units` (1.13.0) defaults to characters, SWI's: `atom_length('dár',
+N)` is 3 and `atom_codes/2` gives code points. Bytes are asked for, by
+`:- set_prolog_flag(text_units, bytes).` or COCOLOG_TEXT_UNITS=bytes, and
+give 1.x's answers. A frozen machine thaws in the units it was frozen in;
+one frozen before 1.13.0 carries no `U` and thaws in bytes.
+
+**The flip broke the network libraries, and they are mended.** They
+turned text into wire bytes, and back, with atom_codes/2, which now
+answers code points:
+
+* library(http) decoded `caf%C3%A9` to the path `cafÃ©`, read each byte of
+  a raw UTF-8 header as a character, and put a body's code points on the
+  wire one byte each, with a Content-Length that counted characters;
+* httpd served a binary file a byte short (`the body length is the file's
+  byte count`: 62 of 63);
+* library(websocket) refused to send `héllo`: its code points went to
+  the UTF-8 check as bytes.
+
+The new builtin is SWI's `string_bytes(?Text, ?Bytes, utf8)`: a text's
+UTF-8 bytes, or the string some bytes make, the same in both units. The
+libraries cross at the wire with it. A socket stays bytes (library(tcp),
+library(tls), a binary or a ping message). What the program is handed,
+and what it hands over, is text in its units: the atoms, a request's body,
+a text message, a curl response.
+
+**curl's bytes past 127 came back NEGATIVE, in either unit**: `café` was
+`[99,97,102,-61,-87]`. Its buffer is `char *`, signed here, and each byte
+was widened as it stood. That is older than both changes and found by
+them. The body is built with `coco_m_codes_of` now.
+
+library(flow) counted a code of 128..191 as a continuation byte. Its
+widths and columns ask the flag past 127 now: under characters such a
+code is a character of its own (a `»`, a no-break space).
+
+Cases and lessons that pinned bytes were moved to the default:
+
+* a byte witness reads bytes through string_bytes/3 (stream, ray,
+  serialize);
+* a check of bytes behaviour runs a child under bytes (errors' 1.11.8
+  crash, stream's put_code/get_code, units, translate's
+  `newspaper_units`, which names both units now);
+* lessons basics/08 and 13, library 12, 37 and 48 teach characters, and
+  lesson 13 reads and runs a part of itself in bytes.
+
+New checks, each red with 1.15.0's library or module and green under both
+units:
+
+| where | checks |
+|---|---|
+| `test/http.pl`, `text past ASCII` | 8 |
+| `test/curl.pl` (1.15.0's module) | 3 |
+| `test/websocket.pl` (the session ends at `ws_send`) | 1 |
+| `test/units.pl`, string_bytes/3 against swipl | 10 |
+
+The translator's case takes 30 s, as it did under bytes at the 1.15.0
+gate. The reasoning library reads both units since 1.13.2, and its byte
+clauses can go, on its own number.
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

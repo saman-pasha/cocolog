@@ -1305,6 +1305,9 @@
         (let ((i64 a . 0) (i64 b . 0))
           (if (coco_m_int e (coco_m_arg e g 0) (aof a))
               (block (if (< a 0) (return 0))
+                     ;; the largest integer has no successor in 64 bits (2.0.0)
+                     (if (== a 9223372036854775807)
+                         (return (coco_m_evaluation_error e "int_overflow")))
                      (return (coco_m_unify_int e (coco_m_arg e g 1) (+ a 1)))))
           (if (coco_m_int e (coco_m_arg e g 1) (aof b))
               (block (if (<= b 0) (return 0))
@@ -1318,10 +1321,15 @@
           (set ha (coco_m_int e (coco_m_arg e g 0) (aof a)))
           (set hb (coco_m_int e (coco_m_arg e g 1) (aof b)))
           (set hc (coco_m_int e (coco_m_arg e g 2) (aof c)))
-          (if (and ha hb) (return (coco_m_unify_int e (coco_m_arg e g 2) (+ a b))))
-          (if (and ha hc) (return (coco_m_unify_int e (coco_m_arg e g 1) (- c a))))
-          (if (and hb hc) (return (coco_m_unify_int e (coco_m_arg e g 0) (- c b))))
-          (return (coco_m_instantiation_error e))))
+          ;; in 64 bits, and past them int_overflow (2.0.0), as is/2 says
+          (let ((i64 w . 0) (int ovf . 0) (size_t into . 0))
+            (cond
+              ((and ha hb) (set ovf (coco_add_ovf a b (aof w))) (set into (coco_m_arg e g 2)))
+              ((and ha hc) (set ovf (coco_sub_ovf c a (aof w))) (set into (coco_m_arg e g 1)))
+              ((and hb hc) (set ovf (coco_sub_ovf c b (aof w))) (set into (coco_m_arg e g 0)))
+              (#t (return (coco_m_instantiation_error e))))
+            (if ovf (return (coco_m_evaluation_error e "int_overflow")))
+            (return (coco_m_unify_int e into w)))))
 
   ;;; ---- terms ------------------------------------------------------------
 
@@ -1741,7 +1749,8 @@
         (let ((char tmp [80]) (size_t n . 0) (int neg . 0) (u64 u)
               (const char * lo . "0123456789abcdefghijklmnopqrstuvwxyz")
               (const char * up . "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
-          (if (< v 0) (block (set neg 1) (set u (cast u64 (- 0 v)))) (set u (cast u64 v)))
+          ;; the magnitude in u64: the least integer's, 2^63, has no i64
+          (if (< v 0) (block (set neg 1) (set u (- (cast u64 0) (cast u64 v)))) (set u (cast u64 v)))
           (if (== u 0) (block (set (nth n tmp) (cast char 48)) (set n 1)))
           (while (> u 0)
             (set (nth n tmp) (nth (cast size_t (% u (cast u64 base))) (? upper up lo)))
@@ -1759,8 +1768,11 @@
   ;;; point that is inserted, not how wide the field is.
   (static)
   (func coco_fmt_fixed ((coco_strbuf * b) (i64 v) (long places)) (out int)
-        (let ((char digits [80]) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
-          (coco_fmt_radix (? neg (- 0 v) v) 10 0 digits (sizeof digits))
+        (let ((char all [80]) (char * digits . all) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
+          ;; written with its sign and the sign stepped over: the least
+          ;; integer has no negation to write (2.0.0)
+          (coco_fmt_radix v 10 0 all (sizeof all))
+          (if neg (set digits (+ all 1)))
           (set len (strlen digits))
           (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
           (if (<= places 0)
@@ -1782,8 +1794,9 @@
   ;;; `~D' groups by threes: 1234567 becomes 1,234,567.
   (static)
   (func coco_fmt_grouped ((coco_strbuf * b) (i64 v)) (out int)
-        (let ((char digits [80]) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
-          (coco_fmt_radix (? neg (- 0 v) v) 10 0 digits (sizeof digits))
+        (let ((char all [80]) (char * digits . all) (size_t len . 0) (int neg . #'(? (< v 0) 1 0)))
+          (coco_fmt_radix v 10 0 all (sizeof all))
+          (if neg (set digits (+ all 1)))
           (set len (strlen digits))
           (if neg (if (not (coco_sb_putc b (cast char 45))) (return 0)))
           (for ((size_t i . 0)) (< i len) ((++ i))

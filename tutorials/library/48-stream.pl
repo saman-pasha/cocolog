@@ -212,10 +212,14 @@ iso_names(Dir) :-
     must('format/3 by alias, then the engine''s write/1 through set_output/1', [A1, A2, C3],
          ['via the alias', 'via write/1, which knows nothing of streams', end_of_file]),
 
-    format("~n-- codes are bytes, as atom_codes/2 counts them~n"),
+    %% A CODE IS A CODE POINT, as atom_codes/2 counts it -- since 2.0.0; a
+    %% program that says `:- set_prolog_flag(text_units, bytes).' (1.x's
+    %% default) gets the euro sign's three bytes from get_code, one a call
+    format("~n-- codes are characters, as atom_codes/2 counts them~n"),
     open(Log, write, P), put_code(P, 8364), close(P),
-    open(Log, read, G), get_code(G, K1), get_code(G, K2), get_code(G, K3), get_code(G, K4), close(G),
-    must('put_code of a code point writes its UTF-8, get_code reads a byte', [K1, K2, K3, K4], [226, 130, 172, -1]).
+    open(Log, read, G), get_code(G, K1), get_code(G, K2), close(G),
+    size_file(Log, Z3),
+    must('put_code writes a code point as its UTF-8, get_code reads it whole', [K1, K2, Z3], [8364, -1, 3]).
 
 stream_size_of(Path, Size) :- stream_open(Path, read, S), stream_size(S, Size), stream_close(S).
 

@@ -62,15 +62,16 @@
 %%   with a letter in it (`inf', `nan', `1.0Inf') fails that and throws,
 %%   which is better than emitting a token that parses nowhere.
 %%
-%%   BYTES ABOVE 0x7F PASS THROUGH UNTOUCHED. cocolog is byte-oriented by
-%%   default: codes are bytes and there is no decoder in this file. So
-%%   UTF-8 in is UTF-8 out, which is what JSON wants -- RFC 8259 says the
-%%   default encoding is UTF-8 -- and the `\uXXXX' escapes are used only
-%%   where the spec REQUIRES them, on the C0 controls. A serialiser that
-%%   escaped non-ASCII would have to decode UTF-8 to do it, and would
-%%   corrupt anything that was not UTF-8 in the first place. Under
-%%   `text_units = characters' (1.13.0) a code is a code point and passes
-%%   through the same way, and a `\uXXXX' read is one code, not its UTF-8.
+%%   TEXT PAST ASCII PASSES THROUGH UNTOUCHED, in the program's units: a
+%%   code is a code point under `text_units = characters', the default
+%%   since 2.0.0, and a byte under bytes (1.x's default), and there is no
+%%   decoder in this file either way. So UTF-8 in is UTF-8 out, which is
+%%   what JSON wants -- RFC 8259 says the default encoding is UTF-8 -- and
+%%   the `\uXXXX' escapes are used only where the spec REQUIRES them, on
+%%   the C0 controls. A serialiser that escaped non-ASCII would have to
+%%   decode UTF-8 to do it, and would corrupt anything that was not UTF-8
+%%   in the first place. A `\uXXXX' read is one code in characters and its
+%%   UTF-8 in bytes (`json_utf8').
 %%
 %%   THE SOLIDUS IS NOT ESCAPED. `\/' is legal and pointless; `</script>'
 %%   inside a JSON string embedded in HTML is a problem for whoever does
@@ -312,16 +313,17 @@ json_raw([C|Cs]) --> [C], json_raw(Cs).
 %%   where two implementations disagree about the same bytes.
 %%
 %%   AN INTEGER TOO BIG FOR THE MACHINE IS AN ERROR. cocolog's integers
-%%   are 61-bit, and `number_codes/2' used to answer -1 for a twenty-digit
-%%   literal without complaining, so the digits were written back and
-%%   compared. Since 1.8.50 it FAILS for one, and the failure is turned
-%%   into the same syntax error (json_numeral/4). A silently wrong
-%%   balance is the worst thing a JSON parser can do.
+%%   are 64 bits (61 through 1.15.0), and `number_codes/2' used to answer
+%%   -1 for a twenty-digit literal without complaining, so the digits were
+%%   written back and compared. Since 1.8.50 it FAILS for one, and the
+%%   failure is turned into the same syntax error (json_numeral/4). A
+%%   silently wrong balance is the worst thing a JSON parser can do.
 %%
-%%   `\uXXXX' IS DECODED TO UTF-8, surrogate pairs included, because this
-%%   library is byte-oriented everywhere else: the serialiser passes UTF-8
-%%   through untouched, so the parser has to produce it. A LONE surrogate
-%%   is an error -- there is no byte sequence that means half a character.
+%%   `\uXXXX' IS DECODED TO THE CHARACTER IT NAMES, surrogate pairs
+%%   included -- one code under characters, its UTF-8 under bytes -- because
+%%   the serialiser passes text through untouched in the program's units, so
+%%   the parser has to produce the same. A LONE surrogate is an error --
+%%   there is no character that is half of one.
 %%
 %%   A NUL IS AN ERROR, whether it arrives as an escape or a raw byte, and
 %%   it is the one place the round trip is not total. An atom in cocolog is
@@ -595,7 +597,7 @@ json_number_in(N) -->
 %% and lesson 12 went red for it. An integer has no fraction and no
 %% exponent; a float whose numeral the reader refuses still fails, as it did.
 json_numeral(Cs, _, _, N) :- number_codes(N, Cs), !.
-json_numeral(Cs, [], [], _) :- json_oops('an integer this machine can hold -- 61 bits', Cs).
+json_numeral(Cs, [], [], _) :- json_oops('an integer this machine can hold -- 64 bits', Cs).
 
 json_minus_in([0'-]) --> [0'-], !.
 json_minus_in([]) --> [].
@@ -626,7 +628,7 @@ json_exp_digits([D|Ds]) --> [D], { code_type(D, digit) }, !, json_digits_in(Ds).
 json_exp_digits(_, Rest, _) :- json_oops('a digit after the exponent', Rest).
 
 %% THE OVERFLOW CHECK, and it is only meaningful for an integer. cocolog's
-%% integers are 61-bit and `number_codes/2' answered -1 for a twenty-digit
+%% integers were 61-bit and `number_codes/2' answered -1 for a twenty-digit
 %% literal with no complaint at all, so the digits are written back and
 %% compared. Since 1.8.50 json_numeral/4 meets the reader's refusal first, and
 %% this stays as the test that does not depend on how the reader says no.
@@ -640,5 +642,5 @@ json_number_fits(Cs, _, _, N) :-
     ->  true
     ;   Cs == [0'-, 0'0]
     ->  true
-    ;   json_oops('an integer this machine can hold -- 61 bits', Cs)
+    ;   json_oops('an integer this machine can hold -- 64 bits', Cs)
     ).
