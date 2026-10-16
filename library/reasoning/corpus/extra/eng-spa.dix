@@ -549,3 +549,61 @@
 # the bathers, `bañistas'. Both ways
 <e><p><l>drowning<s n="n"/></l><r>ahogamiento<s n="n"/><s n="m"/></r></p></e>
 <e><p><l>bather<s n="n"/></l><r>bañista<s n="n"/><s n="mf"/></r></p></e>
+# the Tempi del governo article (VIT-9673..9712), into Spanish: the Spanish half of its words, which
+# apertium-spa.spa.dix has with a paradigm and the bilingual dictionary lacks or ranks below another word
+# `la cerilla': a matchstick, where the dictionary's first Spanish word for a match is the sports match.
+# Left to right only: `cerilla' is read as it was
+<e r="LR"><p><l>matchstick<s n="n"/></l><r>cerilla<s n="n"/><s n="f"/></r></p></e>
+# `più corto': short in length; the dictionary's first Spanish word for short is `bajo'
+<e><p><l>short<s n="adj"/></l><r>corto<s n="adj"/></r></p></e>
+<e><p><l>presidentialism<s n="n"/></l><r>presidencialismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>presidentialist<s n="adj"/></l><r>presidencialista<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>presidentialist<s n="n"/></l><r>presidencialista<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>forcing<s n="n"/></l><r>forzamiento<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>punitive<s n="adj"/></l><r>punitivo<s n="adj"/></r></p></e>
+<e><p><l>distrustful<s n="adj"/></l><r>desconfiado<s n="adj"/></r></p></e>
+# `una fase costituente': constituent, the adjective; the dictionary has the noun alone (the voter)
+<e><p><l>constituent<s n="adj"/></l><r>constituyente<s n="adj"/><s n="mf"/></r></p></e>
+# `Melina tra Polo e Olivo': stalling, in the footballers' word
+<e r="LR"><p><l>stalling<s n="n"/></l><r>dilación<s n="n"/><s n="f"/></r></p></e>
+# `la sensazione che ...': the Spanish word for a sensation (the dictionary has it as a feeling only)
+<e><p><l>sensation<s n="n"/></l><r>sensación<s n="n"/><s n="f"/></r></p></e>
+# the PSOE and PNV article (AnCora CESS-CAST-P-20000903-30), Spanish into Italian and English: words with a
+# paradigm in apertium-spa.spa.dix and no English word, or with one the vocabulary cannot use
+# `se distancia del duro discurso': distances himself
+<e><p><l>distance<s n="vblex"/></l><r>distanciar<s n="vblex"/></r></p></e>
+# `no arremeter contra el PP': to attack (the dictionary has `arremeter a' as two English words)
+<e r="RL"><p><l>attack<s n="vblex"/></l><r>arremeter<s n="vblex"/></r></p></e>
+# `en materia antiterrorista' (the dictionary's anti-terrorist has a hyphen)
+<e><p><l>antiterrorist<s n="adj"/></l><r>antiterrorista<s n="adj"/><s n="mf"/></r></p></e>
+# `el tremendismo del presidente': alarmism (the dictionary's `alarmismo' is the one written)
+<e r="RL"><p><l>alarmism<s n="n"/></l><r>tremendismo<s n="n"/><s n="m"/></r></p></e>
+# `recomponer la unidad democrática': to rebuild it
+<e r="RL"><p><l>rebuild<s n="vblex"/></l><r>recomponer<s n="vblex"/></r></p></e>
+# `espetó al presidente que ...': retorted
+<e r="RL"><p><l>retort<s n="vblex"/></l><r>espetar<s n="vblex"/></r></p></e>
+# `fue mucho menos remilgado': squeamish
+<e><p><l>squeamish<s n="adj"/></l><r>remilgado<s n="adj"/></r></p></e>
+# `que han estado torpedeando': torpedoing
+<e><p><l>torpedo<s n="vblex"/></l><r>torpedear<s n="vblex"/></r></p></e>
+# `la senda de los últimos meses': a path (the dictionary's `camino' is the one written)
+<e r="RL"><p><l>path<s n="n"/></l><r>senda<s n="n"/><s n="f"/></r></p></e>
+# `mensajes de crispación': tension (the dictionary's `tensión' is the one written)
+<e r="RL"><p><l>tension<s n="n"/></l><r>crispación<s n="n"/><s n="f"/></r></p></e>
+# the PSOE and PNV article, second batch (into Italian and English)
+# `aboga por tejer una unidad': weave (the dictionary has `tejer' as knit alone)
+<e><p><l>weave<s n="vblex"/></l><r>tejer<s n="vblex"/></r></p></e>
+# `fiel a su consigna de no arremeter': a directive
+<e r="RL"><p><l>directive<s n="n"/></l><r>consigna<s n="n"/><s n="f"/></r></p></e>
+# `al precisar que esa actitud ...': specifying (the dictionary's `precisar' is to require)
+<e r="RL"><p><l>specify<s n="vblex"/></l><r>precisar<s n="vblex"/></r></p></e>
+# `trasladará al lehendakari la posición del PSOE': convey (the dictionary's `trasladar' is to move)
+<e r="RL"><p><l>convey<s n="vblex"/></l><r>trasladar<s n="vblex"/></r></p></e>
+# the PSOE and PNV article, third batch (into Italian and English)
+# `no desean potenciar': boost (the dictionary's `improves' came first)
+<e r="RL"><p><l>boost<s n="vblex"/></l><r>potenciar<s n="vblex"/></r></p></e>
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English: the Spanish for what the Italian lines say
+# `carte truccate': rigged (the dictionary's `aparejar' is a ship's)
+<e><p><l>rig<s n="vblex"/></l><r>amañar<s n="vblex"/></r></p></e>
+# `D'Alema è doppiogiochista?': a hypocrite
+<e><p><l>hypocrite<s n="n"/></l><r>hipócrita<s n="n"/><s n="mf"/></r></p></e>

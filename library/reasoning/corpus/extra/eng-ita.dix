@@ -1003,3 +1003,75 @@
 # `i bagnanti', `assistente ai bagnanti': a bather, which Spanish says `bañista'; the
 # dictionary has `bagnante' as a swimmer alone. Both ways
 <e><p><l>bather<s n="n"/></l><r>bagnante<s n="n"/><s n="mf"/></r></p></e>
+# the Tempi del governo article (VIT-9673..9712, Fini and the Polo's table of rules), into Spanish and
+# English: words with a paradigm in apertium-ita.ita.dix and no English word. Nearly all only read
+# `il cerino acceso': a wax match. The dictionary's `fiammifero' is the match and comes first both ways
+# for `matchstick' (Spanish says `cerilla'); `cerino' is only read
+<e><p><l>matchstick<s n="n"/></l><r>fiammifero<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>matchstick<s n="n"/></l><r>cerino<s n="n"/><s n="m"/></r></p></e>
+# `si scotteranno le dita': burn their fingers
+<e r="RL"><p><l>burn<s n="vblex"/></l><r>scottare<s n="vblex"/></r></p></e>
+# `il cerino si fa ogni giorno più corto': short in length, where the dictionary's Italian for it is `basso'.
+# Both ways: `corto' is the first Italian word for it
+<e><p><l>short<s n="adj"/></l><r>corto<s n="adj"/></r></p></e>
+<e r="RL"><p><l>summarise<s n="vblex"/></l><r>sintetizzare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>presidentialism<s n="n"/></l><r>presidenzialismo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>presidentialist<s n="adj"/></l><r>presidenzialista<s n="adj"/></r></p></e>
+<e r="RL"><p><l>presidentialist<s n="n"/></l><r>presidenzialista<s n="n"/><s n="mf"/></r></p></e>
+# `una forzatura': a forcing of the facts
+<e r="RL"><p><l>forcing<s n="n"/></l><r>forzatura<s n="n"/><s n="f"/></r></p></e>
+# `varare riforme', `varare norme': to pass them (the dictionary's `varare' has no English at all)
+<e r="RL"><p><l>promulgate<s n="vblex"/></l><r>varare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>Berlusconian<s n="adj"/></l><r>berlusconiano<s n="adj"/></r></p></e>
+<e r="RL"><p><l>antitrust<s n="n"/></l><r>antitrust<s n="n"/><s n="m"/><s n="sp"/></r></p></e>
+<e r="RL"><p><l>television<s n="n"/></l><r>tv<s n="n"/><s n="f"/><s n="sp"/></r></p></e>
+<e r="RL"><p><l>simultaneously<s n="adv"/></l><r>contemporaneamente<s n="adv"/></r></p></e>
+<e r="RL"><p><l>punitive<s n="adj"/></l><r>punitivo<s n="adj"/></r></p></e>
+<e r="RL"><p><l>unconstitutional<s n="adj"/></l><r>anticostituzionale<s n="adj"/></r></p></e>
+<e r="RL"><p><l>laborious<s n="adj"/></l><r>faticoso<s n="adj"/></r></p></e>
+<e r="RL"><p><l>distrustful<s n="adj"/></l><r>diffidente<s n="adj"/></r></p></e>
+# `per il raggiungimento di regole': the attainment of them
+<e r="RL"><p><l>attainment<s n="n"/></l><r>raggiungimento<s n="n"/><s n="m"/></r></p></e>
+# `la questione del governo non si dibatte': the issue of the government, where the dictionary's
+# question is `pregunta'. Both ways: `questione' is the first Italian word for an issue (it was `affare')
+<e><p><l>issue<s n="n"/></l><r>questione<s n="n"/><s n="f"/></r></p></e>
+# the PSOE and PNV article (AnCora CESS-CAST-P-20000903-30), Spanish into Italian and English: the Italian
+# words for what the Spanish dictionary now says in English
+# `se distancia del discurso': si distanzia
+<e><p><l>distance<s n="vblex"/></l><r>distanziare<s n="vblex"/></r></p></e>
+# `en materia antiterrorista'
+<e><p><l>antiterrorist<s n="adj"/></l><r>antiterrorista<s n="adj"/><s n="mf"/></r></p></e>
+# `fue mucho menos remilgado': squeamish, where the dictionary has no word for it
+<e><p><l>squeamish<s n="adj"/></l><r>schizzinoso<s n="adj"/></r></p></e>
+# `que han estado torpedeando': the Italian has `siluro' and no `silurare'; to sabotage, written for torpedo and never read as it
+<e r="LR"><p><l>torpedo<s n="vblex"/></l><r>sabotare<s n="vblex"/></r></p></e>
+# the PSOE and PNV article, second batch (Spanish into Italian)
+# `aboga por tejer una unidad': weave is `tessere', where the dictionary's only word is `tramare'
+<e><p><l>weave<s n="vblex"/></l><r>tessere<s n="vblex"/></r></p></e>
+# `fue una equivocación': a mistake, written `errore' (read as an error still)
+<e r="LR"><p><l>mistake<s n="n"/></l><r>errore<s n="n"/><s n="m"/></r></p></e>
+# `enfatizó que ...': emphasize, written `sottolineare' (`stresses' is its meaning already)
+<e r="LR"><p><l>emphasize<s n="vblex"/></l><r>sottolineare<s n="vblex"/></r></p></e>
+# the PSOE and PNV article, third batch (Spanish into Italian)
+# `acudirán dispuestos a buscar': willing, where the dictionary has `disposto' as a participle only
+<e><p><l>willing<s n="adj"/></l><r>disposto<s n="adj"/></r></p></e>
+# `no desean potenciar': boost, which the dictionary writes `aumentare'
+<e><p><l>boost<s n="vblex"/></l><r>potenziare<s n="vblex"/></r></p></e>
+# `un mensaje basado en la confrontación': confrontation, written `confronto' (`comparison' is its meaning already)
+<e r="LR"><p><l>confrontation<s n="n"/></l><r>confronto<s n="n"/><s n="m"/></r></p></e>
+# the Tatarella interview (VIT-9714..9749), Italian into Spanish and English: verbs and nouns the Italian dictionary
+# has and the bilingual one lacks
+# `carte truccate', `vietato truccare': rig
+<e><p><l>rig<s n="vblex"/></l><r>truccare<s n="vblex"/></r></p></e>
+# `intendono proseguire' (the dictionary's `pretende' is the one written)
+<e r="RL"><p><l>intend<s n="vblex"/></l><r>intendere<s n="vblex"/></r></p></e>
+# `tracciare una modifica costituzionale': the bilingual dictionary has `localizza' for it
+<e><p><l>trace<s n="vblex"/></l><r>tracciare<s n="vblex"/></r></p></e>
+# `Dini si dimetterà': the bilingual dictionary's `dimettire' is no word, and its forms are made as one
+<e><p><l>resign<s n="vblex"/></l><r>dimettere<s n="vblex"/></r></p></e>
+# `lo schieramento sconfitto'
+<e r="RL"><p><l>bloc<s n="n"/></l><r>schieramento<s n="n"/><s n="m"/></r></p></e>
+# `D'Alema è doppiogiochista?': a hypocrite (the builder skips an English word with a hyphen in it)
+<e r="RL"><p><l>hypocrite<s n="n"/></l><r>doppiogiochista<s n="n"/><s n="mf"/></r></p></e>
+# `Onorevole Tatarella', `l'onorevole di Alleanza Nazionale'
+<e r="RL"><p><l>deputy<s n="n"/></l><r>onorevole<s n="n"/><s n="mf"/></r></p></e>

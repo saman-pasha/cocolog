@@ -1730,7 +1730,16 @@ read into an English-worded IR and written into any lesson's language),
 * **A line of `extra/` has two readers**: it comes first for its WORD and
   for its MEANING, so it moves the reader of one language and the writer of
   the other. Say the dictionary's own word again first where the line must
-  not become the word written. **An elision a lesson states is read AND
+  not become the word written. **A line that gives a COMMON word a second
+  meaning makes every sentence with that word read it twice over** (`The word
+  "che" means "which".` made the old translator 11.2 % dearer over the
+  controls on the new store and the six heaviest sentences 2.6 times, and the
+  factor multiplies: cecchi 8 has two `che` and rose 3.9 times, the other
+  meaning being tried again on every failing road): find such a line by
+  teaching a store without each group of the new lines (50 s a store) and
+  counting the heaviest sentences, and where the second sense reads as the
+  first, let the code take it from the first (`tr_which_asks/2`). **An
+  elision a lesson states is read AND
   written**: `"dev'" is the elision of "deve".` makes the reader take `dev'essere`
   apart (tr_expand/3, for a verb form or a question word only: an article's,
   a pronoun's and a preposition's keep theirs, which their readers ask for),
@@ -1868,17 +1877,24 @@ read into an English-worded IR and written into any lesson's language),
   plus Tatoeba's 400, this translator against the last version's on the one
   store, twice -- and the DATA COLUMN, the last version's translator on its
   own store against the new store, the only place a line of data shows. Fix
-  every regression, find every cost by hunk bisection, add a section to
-  `test/translate.pl` and to lesson 46, record the stated costs. Controls run
+  every regression, find every cost by hunk bisection (the heaviest sentences
+  of a pass, written to a file and counted over a copy of the library per
+  rule: two seconds a copy, where a pass of the controls is two and a half
+  minutes), add a section to `test/translate.pl` and to lesson 46, record the
+  stated costs. An arm is the same copy run through the section: **one whose
+  removal makes the section RAISE has no FAIL line**, so read the last line
+  (`GREEN` or `RED`) and count the `ERROR` lines as well. Controls run
   BEFORE the commit. **Merge `origin/master` before the teach** when it moved
   the engine, so the numbers belong to the binary that is committed, and **run
-  the whole `test/translate.pl` (two minutes) before it**: a section alone
-  cannot see an older section's check -- the Cecchi section was green for days
-  and the whole case had eight red. Read the controls' TEXTS, not only their
-  counts: they found a pronoun lost (`lo`), a committee made the object, `ma
-  non` written last, a sentence that ran to the 300 M inference limit and
-  `l'anima` as `lo anima`; and sum the counts by hunk -- a clause that reads
-  the phrase's words a second time at every place that read nothing cost 3 %.
+  the whole `test/translate.pl` (half a minute on 1.15.0) before it**: a section
+  alone cannot see an older section's check -- the Cecchi section was green for
+  days and the whole case had eight red, and the Tempi section's `Persino ...`
+  before a subject read `Hasta entonces el perro duerme` as `even the dog`.
+  Read the controls' TEXTS, not only their counts: they found a pronoun lost
+  (`lo`), a committee made the object, `ma non` written last, a sentence that
+  ran to the 300 M inference limit and `l'anima` as `lo anima`; and sum the
+  counts by hunk -- a clause that reads the phrase's words a second time at
+  every place that read nothing cost 3 %.
   **A refusal can hide a wrong reading**: English refused a clause with no
   subject, and giving it `they` for a verb of saying turned `dijo el
   presidente de la Generalitat, que inauguró` (the speaker read as an object)
@@ -2005,9 +2021,10 @@ read into an English-worded IR and written into any lesson's language),
   The Abogacía report (Spanish into Italian and into English) is read and
   written whole, and its leads are fixed (1.10.3, 172 checks over it). What
   it still leaves: `Se la cava.` has no `cavare` in either dictionary (and an
-  idiom of several words crosses word by word); `Os lo digo` is `Ti lo dico`
-  -- the lesson language has no second person plural (`coméis` is no word,
-  `os` and `vi` are `you`, and the IR's `you` has no number); English writes
+  idiom of several words crosses word by word); `Os lo digo` was `Ti lo dico`
+  -- the lesson language had no second person plural (`coméis` was no word,
+  `os` and `vi` were `you`, and the IR's `you` had no number: settled by the
+  Tatarella interview below); English writes
   `Lo dejo comer` as `I leave him to eat`, `Lo veo venir` as `I see him to
   come` and `Hago comer el pan al perro` as `I make to eat the bread to the
   dog`: what makes, lets or watches somebody do something is a construction
@@ -2168,6 +2185,494 @@ read into an English-worded IR and written into any lesson's language),
   before a date's day in front of the clause (`El jueves 9 de marzo el hotel
   cambió de dueño`) is written after the clause with the day and no article
   (`... 9 marzo giovedì`).
+  The Tempi del governo report (VIT-9673..9712, 40 sentences, Italian into
+  Spanish: 39 of 40 on a fresh store, 28 with the new store alone, 13 before;
+  into English 36 of 40, 25 and 11; reasoning 1.0.2). It needed these SHAPES,
+  each with its arm red (test/translate.pl's `newspaper_tempi`: 60 checks, 48
+  arms; a guard stays only where its arm goes red, and the guards of the
+  reporting clause before a colon and of the perfect cleft had none): a name
+  the lesson states, before a comma, takes no comma into its run of words
+  (`dei cristiano democratici Casini, Mastella, D'Onofrio e del popolare
+  Sanza`: `tr_stated_run` asked each word through `forall(member(w(X, C),
+  Run), ...)`, whose pattern a comma does not match, so the comma was never
+  asked); a capital `D'` before a capitalised word is a surname's particle
+  (`Massimo D'Alema`, `Tommaso D'Aquino`, `tr_elision_names0/2`; the small
+  `d'` is the preposition still, `il governo d'Alema`); two names with a dash
+  between them after a noun are one name (`colloquio Berlusconi - D'Alema`,
+  `tr_dash_names/3`), and a bare noun and a name are a heading; a
+  demonstrative and an article at the head of a piece have their copula read
+  in (`Questo il testo del documento`, `tr_demonstrative_copula/3`; a
+  demonstrative that a verb follows is the subject); a quotation right after a
+  verb of saying, with no mark between them, is what the verb says (`il Polo
+  ha risposto "vedo"`); the word for `all` before a bare singular noun is one
+  phrase with it (`con tutta evidenza`, `tr_np/3`; before an article it is the
+  pronoun, as it was); a noun that is the first person of a verb, before
+  `che`, starts a clause (`credo che stavolta ...`, `tr_first_person_that/2`);
+  a day opens the clause of `quando` (`tr_nested_front/3`), `quando` is no
+  adjective of the day after it (`tr_adj_word/2`), and an adverb right before
+  `quando`, or before the `o` of an either-or, leads the sentence in; a
+  heading of bare nouns in a list (`Forzatura, distinguo e bacchettata.`,
+  `tr_bare_title/3`; two nouns joined by `e` are no list); among nouns that
+  are adjectives too, the one that has a plural to be heads a phrase that a
+  plural numeral opens (`due sole alternative`, `tr_plural_hint/4`); an adverb
+  between the auxiliary and its participle keeps a perfect infinitive (`di non
+  aver affatto abbracciato`), and `già` is an adverb of degree before a
+  participle; a day and a phrase that names, the verb left out (`Martedì tutti
+  attorno al tavolo.`); a bare noun and an adjective with its intensifier
+  (`Mediazione particolarmente faticosa se ...`, which joins the clause after
+  it, `tr_join_left/5`; `Big house.` stays refused); a plural noun and its
+  phrase of `of`, at the head of a piece with no other verb (`Sviluppi delle
+  trattative in atto ...`, `tr_noun_heading_start/1`: `sviluppi` is a command
+  too); a verb of two words with an adverb between them (`risente invece del
+  punto di vista`, `tr_multi/2`; before an infinitive `invece di` is the
+  preposition); a verb of saying and its speaker before the colon are the
+  reporting clause (`Spiega il popolare Sanza: "..."`, `tr_colon_left/4`), and
+  a quotation that closes at the first comma with only a reporting clause
+  after it divides before it is read whole; a phrase that is not `of`, after a
+  participle with no adjunct of its own, is the participle's (`Il Comunicato
+  diramato dopo quasi tre ore`, `tr_participle_adjunct/4`); a verb of several
+  words is shaped by its first (`gives credence to` for `accredita`,
+  `tr_phrasal_shaped/1`); the word for `all` before the shape of a phrase has
+  its shape (`Tutti gli altri hanno perplessità`, `tr_subject_shape/4`);
+  `anche`, `persino` and `solo` before the subject are said of it (`Anche
+  Gianni Letta ha parlato` is `También Gianni Letta ...`, where it was `... ha
+  hablado también`), English keeping `even` in front and writing `also` with
+  the verb, never `Also the dog sleeps` (`en_subject_adverb/4`: the controls
+  found six such sentences); never a word that is a preposition too
+  (`tr_focus_front/1`: `hasta` is `until` before it is `even`, and `Hasta
+  entonces el perro duerme`, the radio section's guard, was red in the whole
+  case only -- the adverb `entonces` lifted out of the words left `hasta el
+  perro` to read as `even the dog`, which no section of the new report could
+  see; its arm is that guard); a cleft whose infinitive is in the perfect (`è
+  il solo Segni ad aver sposato questa opzione`), `solo` before the name of a
+  cleft (`tr_cleft_who/4`), an article before a perfect infinitive (`l'aver
+  ceduto`); a verb of beginning with an infinitive after it takes `has` for
+  its perfect (`ha iniziato a raccogliere`, `tr_beginning_verb/1` in the
+  writer: the lesson's `"è" is the auxiliary of "inizia".`, which `È iniziato
+  il vertice` needs, had made it `è iniziato a raccogliere`, carrefour 7);
+  `più` in a denied clause is English `anymore`, written last (`Non ci sarà
+  più spazio per i bluff`, `Non la ricorda più nessuno`); `si fa` before an
+  adjective is English `becomes`; and `solo che` is `only that`.
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader
+  of one language and the writer of the other; where a word must stay the one
+  written, the dictionary's own line is said again first -- Italian `emette`,
+  `teme`, `distinzione`, `ritorna`, `amministra`, `unisce`, `riflette`,
+  `episodio`, `ammonimento`, `convenzionale` and `superficiale`, Spanish
+  `linterna`): `dirama` (issues, and its participles), `paventa` (fears),
+  `distinguo`, `vertice` (a summit, not the peak), `rimette` (gives back),
+  `bacchettata`, `puntata`, `stavolta`, `decina`, `oppure`, `eppure`, `melina`
+  (stalling), `bluff` (a poker bluff; Spanish `farol`), `leghista` and `par
+  condicio` (kept as they are), `dita` (the feminine plural of `dito`),
+  `accredita` (gives credence to), `risente di` (reflects), `scosta` and
+  `apparta` (moves aside), `aggrega` (joins), `affatto`, `va in scena` (takes
+  place), the adverbs, prepositions and adjectives of several words (`l'altro
+  ieri`, `subito dopo`, `ogni giorno`, `per strada`, `da una parte`, `da
+  l'altra parte`, `attorno a`, `in atto`, `di destra`, `di maniera`, `a doppio
+  turno`; Spanish `anteayer`, `justo después de`, `por el camino`, `por la
+  otra parte`, `alrededor de`, `en absoluto`, `en curso`, `de derechas`, `a
+  doble vuelta`), `cristiano democratico` and `cristianodemócrata`, `centro
+  destra` and `centroderecha`, `solo che` and `sólo que`, the auxiliaries of
+  `inizia` and `comincia` (the copula), `o` and `ad` that begin a choice and a
+  cleft, `popolare` a title, and the names `Fini`, `Polo`, `Olivo`, `Massimo`,
+  `Letta`, `Segni`, `Bianco` and `Casini`; and in the two dictionaries' extras
+  `matchstick` (`fiammifero` first both ways, `cerino` read only, `cerilla`
+  left to right only), `short`/`corto` and `issue`/`questione` (both ways),
+  `burn`/`scottare`, `forcing`, `promulgate`/`varare`, `presidentialism`,
+  `attainment`, `sensation`, `stalling`/`dilación`, and the adjectives
+  `punitive`, `unconstitutional`, `laborious`, `distrustful`, `constituent`
+  and `Berlusconian`.
+  The CONTROLS (cocolog 1.15.0, store KB107, 93 count files, 2 198 sentences):
+  the last version's translator against this one, 21 sentences in 20 files
+  outside the three newest reports (this one, the Makula interview and the
+  Hotel Arts) read differently (carrefour 7, cecchi 7, eco 21 and 26, fregene
+  10, giglio 6, livata 8, lotr 11, montanelli 20 and 28, salvini 9, senegal 1
+  and 6, tat 4, twelve 9, valencia 3: the focus adverb before the subject,
+  `D'Aquino`, `ha iniziato`, `scosta`, `anymore`, `become`, `give credence
+  to`, one that failed and reads), all better -- and the inferences fall 5.148
+  % (4 484 481 501 to 4 253 601 294), 0.278 % outside those three (3 221 894
+  127 to 3 212 933 629), and 43.0 % in the Hotel Arts report's two files,
+  whose tenth sentence is refused after 46.6 million inferences where it took
+  120.0 (not looked for); the file that rises most is solana's, +2.5 % of 15
+  million. Bytes and characters read every sentence alike (0 differ, the
+  characters 0.021 % fewer). The binaries of 1.13.7 and 1.15.0 give the same
+  texts and the same inference counts to the unit on both translators
+  (1.14.0's shifts and 1.15.0's clock and error names changed nothing the
+  translator counts). The DATA COLUMN (the last version's translator on its
+  own store, KB93, against this one on the new): 32 sentences in 21 files
+  outside those three, each a word of the report's lines or a shape of its
+  code -- the focus adverb before the subject (8: eco 26, fregene 10, giglio
+  6, montanelli 20, salvini 9, senegal 1, valencia 3 and the English of
+  valencia 3), `subito dopo` (4: eco 6 and twelve 8, in both languages), and
+  by twos `vertice` (cecchi 21: `cumbres`), `da l'altra parte` (eco 19),
+  `D'Aquino` (eco 21), `scosta` (lotr 11), `give credence to` (twelve 9) and
+  the place of `certainly` (livata 8), and one each `Marco Polo` (astro 4),
+  `anymore` (montanelli 28), `become` (senegal 6), `el asunto` for the issue
+  (eco 15), `en torno` (fregene 19), `Move aside` (tat 4), `por` for `per
+  strada` (livata 15) and a comma (cecchi 7). THE STATED COST: eco 6, `Salvo
+  che subito dopo i due dialoganti hanno osservato che erano state perdute
+  ...`, was `los dos dialogantes han observado inmediatamente después que` and
+  is `han observado justo después de los dos dialogantes que` (English `have
+  observed right after the two dialoguing ones that`): `subito dopo` is the
+  adverb there, and the line that makes it a preposition, which `subito dopo
+  la fine del vertice` needs, takes the two interlocutors for its object and
+  leaves the verb a subject nobody names; the sentence costs 1.08 million
+  inferences and now 1.31.
+  Written, found to move no sentence of the controls and no check, and taken
+  out (each hunk reversed over the full controls): the `fo_np_number`
+  alternative, a heading of a choice in `tr_verbless0`, `tr_skip_adverbs`, a
+  first-person guard in `tr_conjunction_split`, an English writer clause for
+  the connector `cmid/1`, `tr_time_adverb_comp/1` and a split of a quotation's
+  number; a fix for English `"X", dice Y, "verb ..."` (refused) went the same
+  way, no sentence reaches it. **A clause added to `tr_read0` costs about five
+  inferences a call before its first test fails**, so the first cut of the
+  shapes cost +0.54 % outside the new reports; what paid was a memo for
+  `tr_focus_adverb/1`, the selective test first in `tr_complements0/4` (the
+  article before a perfect infinitive) and the question words of
+  `tr_adj_word/2` folded into the test they were added to. The report LEAVES:
+  sentence 20 (the communiqué's second quotation, `"al tavolo non può trovare
+  spazio", prosegue il comunicato, "l'individuazione della maggioranza ... e
+  men che meno la durata del medesimo, essendo compito esclusivo del
+  parlamento, ..., fornire al capo dello stato tutti gli elementi ..."`),
+  which runs to the limit of 300 million inferences in both languages, as it
+  did at the start (22 s); and English refuses 17, 31 and 39, the third person
+  nobody names, on purpose. Of the 39 it reads into Spanish, what is not
+  right: a predicate after a heading takes the heading's gender (`Melina tra
+  Polo e Olivo e il voto è più vicino` is `Dilación ... el voto es más
+  cercana`); `a Montecitorio` and `al tavolo` keep their `a` (`en`), `sul
+  conflitto` is `en el conflicto` (`sobre`) and `varare in parlamento sugli
+  stessi argomenti norme punitive` is `promulgar en parlamento en los mismos
+  normas argumentos punitivos`; `sia andato in scena un classico` is `ha
+  tenido lugar a un clásico` (the subject after the verb has an `a`); `quando
+  ... torneranno` keeps the future (`cuando ... regresarán`, where Spanish
+  wants the subjunctive) and `convinto che` is `convencido que` (`de que`);
+  the time adverbs stand last (`l'altro ieri` in 12, `ieri` in 13, `Ora` in
+  36); `non lasciano ben sperare` crosses word by word; sentence 16's list of
+  names loses its order (`dei cristiano democratici Casini, Mastella,
+  D'Onofrio e del popolare Sanza` is `de los cristianodemócratas Casini para
+  simplicidad, a Mastella, D'Onofrio y Sanza`, with `del popolare` left behind
+  as `del poblar`, the verb, and English `Casino`), `sposare` is `casar` and a
+  quotation inside a quotation leaves a stray mark; `da una parte ...
+  dall'altra` is `por la otra por una parte`; `un alleato come segni` is `como
+  signos` (a name written small); `senza par condicio niente elezioni` is `sin
+  par condicio nada elecciones`; `parla invece di Mario` is `habla en vez de
+  Mario` (`invece di` the preposition, the verb being `parla di`); `Hasta mi
+  mamá lo sabe` stays `My mum knows him even` (`tr_focus_front/1` leaves out a
+  word that is a preposition too; to have both, `tr_adverbs_off/4` would keep
+  a preposition's adverb, where it lifts `entonces` out of `hasta entonces`
+  and leaves `hasta` bare). English: `spazio` is `blank` (`no blank for the
+  poker bluffs anymore`), `incontrarsi` is `find` (`return to find tuesday`),
+  `elezioni` were `choices` (settled by the Tatarella interview below), a
+  relative clause with no subject of its own
+  writes `they` (`an interview in which they clarified`) and `a quell'ora`
+  stands last (`to that hour`).
+  The PSOE and PNV report (AnCora CESS-CAST-P-20000903-30, 21 sentences,
+  Spanish into Italian and English: 21 of 21 and 18 of 21 on a fresh store, 17
+  and 14 with the new store alone, 8 and 7 before; reasoning 1.0.3). It needed
+  these SHAPES, each with its arm red (test/translate.pl's `newspaper_psoe`: 38
+  checks, 21 arms): a pronoun joined to the infinitive after the word for
+  `upon` (`al reclamarle que mantenga ...`: the clause is `upon(cl(L, Cls),
+  Cs)`, and `tr_cross_comp/2` and both writers know it -- Italian puts the
+  pronoun on the gerund, `chiedendogli`, English after it, `on demanding him`;
+  four arms, the reader, the cross and each writer) and an `upon` clause that
+  reads to no comma is read whole (`fue más lejos al precisar que esa actitud,
+  "que no tuvo el PP en su día", es la que ...`: the first comma is the
+  apposition's, `tr_upon_rest/5`); a verb of saying takes a person and then a
+  clause whether or not the lesson says it takes the clause (`replicó a
+  Ibarretxe que ...`: `tr_person_words/3` asks `tr_saying_verb/1`), `retorts`,
+  `demands`, `asks`, `requests` and `urges` being verbs of saying to English
+  (`en_saying/1`, which the Spanish reader asks as well); the clause after a
+  person may open on a pronoun of its verb, on a conjunction of its own or on
+  a phrase set in front of its subject (`avisó a Ibarretxe de que a su Gobierno
+  el tiempo se le acaba`, `tr_clause_after_person/1`); English `bets on` and
+  `distances from` (`en_governs/2`); an insertion with an adjective phrase and
+  no verb (`Zapatero, aunque fiel a su consigna de no arremeter contra el PP,
+  sí se permitió ...`, the fragment a headline is) and what stands between its
+  closing comma and the verb, adverbs, which become the clause's complements,
+  and pronouns, which stay with the subject's side (`tr_insertion_off/4`,
+  `tr_insertion_tail/3`); `fue` is the preterite of `ser`, not of `ir`, when
+  nothing goes (`fue una equivocación`, `ayer fue ...`: `tr_ser_not_ir/4`,
+  asked in the clause that takes its subject after the verb and in the
+  fronted inversion; with a place or a phrase of `to` after the traveller it
+  is the verb that goes); the word for `that` after a verb of saying is no
+  `than` (`fue más lejos al precisar que esa actitud ...`:
+  `tr_compared_before/2` takes the `que` it is asked about by the words that
+  follow it and not the first of the piece, looks back no further than the
+  `que` before it, and asks `tr_that_follows_saying/2` -- three arms, and the
+  one for the place is a relative `que` and then a real comparison, `La casa
+  que duerme es más grande que el perro`, which the controls broke in two
+  sentences without it, mobile 7 and salvini 28); a copula reports nothing
+  (`La casa, que compró Pedro, es la mejor` has no comment at its end,
+  `tr_reporting/3`: football 10 falls 42 % and cecchi 24 2 % for it, the
+  clause of who said so no longer read for a copula); a verb among the words
+  before a phrase set in front of the pronoun that takes it up again makes
+  them a clause of their own (`Dijo que el perro lo come`, which the cut after
+  the dislocation's condition refused, `tr_read_statement0/4`; the cost
+  below); and the tonic `sí`, which the lesson says never precedes the verb,
+  is an adverb before it (`Pedro sí duerme`, `tr_clitic/2`).
+  It needed these WORDS in `extra/` (the dictionary's own word said again first
+  where it must stay the one written: Spanish `acuerda`, Italian `chiede` asks
+  before it demands): Italian `discorso` (a speech, not an address), `al
+  momento di`, `chiude la porta`, `come si evince da`, `chiede` (demands, and
+  takes the clause), `concorda` (before the dictionary's `accorda`), `auspica
+  di`, `punta` (bets, `su`), `distanzia` (`da`), `critica velata`, and in
+  eng-ita.dix `distanziare`, `antiterrorista`, `schizzinoso`, `tessere`,
+  `disposto`, `potenziare`, `sabotare` for torpedo, `errore`, `sottolineare` and
+  `confronto` (written only); Spanish `a la hora de`, `avisa` (the clause and
+  `de`), `velada crítica`, `conviene` (suits, and the clausal agrees with
+  `en`), `según se desprende de`, `da portazo`, `aboga` (`por`), `apuesta`
+  (`por`), `distancia` (`de`), `confrontación`, the name `Mayor Oreja`, and in
+  eng-spa.dix `distanciar`, `antiterrorista`, `remilgado`, `torpedear`, `tejer`
+  and, read only, `arremeter`, `tremendismo`, `recomponer`, `espetar`, `senda`,
+  `crispación`, `consigna`, `precisar` (specifies), `trasladar` (conveys) and
+  `potenciar`. The first word moved in 7 Italian and 4 Spanish meanings
+  (speech, agrees, bets, boosts, demands, distances and weaves in Italian;
+  boosts, conveys, rebuilds and weaves in Spanish), and the first meaning of
+  5 Spanish words and 1 Italian word moved too (`confrontación`, `potencia`,
+  `precisa`, `teje`, `traslada`; `tesse`).
+  The CONTROLS (cocolog 2.0.0, store KB116, 95 count files, 2 240 sentences:
+  every earlier article, Tatoeba's 400 and the new report, both directions):
+  the last version's translator against this one, on the one store, 4
+  sentences in 2 files read differently (clot 14 in English, `bets on` for
+  `bets for`; tat 69, 222 and 278, `fue` as was and not went: `Tom was`, `It was
+  your idea`), all better -- and the inferences fall 1.273 % (4 574 388 857 to
+  4 516 160 393), 0.0007 % outside the new report (4 253 642 195 to 4 253 610
+  973, the Hotel Arts report in), that report's two files rising 0.012 %. The
+  file that rises most is senegal's, +1.5 % of 123 million (its second
+  sentence, below), and the one that falls most football's, -1.2 % (its tenth,
+  a copula that reported). Bytes and characters read every sentence alike (0
+  differ, the bytes 0.021 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB107, against this one on the new): 14
+  sentences in 6 files, each a word of the report's lines: `reclamar` is
+  `chiedere` (abogacia 1, basque 3, carrefour 4, 5, 6, 14 and 20, clot 20,
+  football 13: `reclamò` is `chiese`, and the clause after it is in the
+  subjunctive now, `chiese che il Tribunale ... intervenga`), `scommette per`
+  is `punta su` (clot 14, and English `bets on`), and the three of `fue` above.
+  THE STATED COSTS: `precisar` is `specifies` before it is `requires` and
+  `trasladar` `conveys` before it is `moves` -- the dictionary's lines marked
+  for reading come first, and the article needs both (`al precisar que`,
+  `trasladará al lehendakari la posición del PSOE`) -- so `La empresa precisa
+  más tiempo` is `L'impresa specifica più tempo` and a man `trasladado` to a
+  hospital is conveyed: no sentence of the controls has either, and a lead;
+  and the dislocation's own cost, FOUND BY TAKING EACH RULE OUT (the fourteen
+  heaviest sentences counted over a copy of the library per rule, two seconds a
+  copy): the first cut, the cut moved after the subject read, cost +21.1 million
+  inferences outside the new report and the Hotel Arts one (+0.52 %), all of it
+  in four sentences (eco 15, 22 and 25, senegal 2). When the words before the phrase read as no
+  subject the clause failed with the condition's choices kept, and the long
+  front was parsed again at every other determiner (eco 25: 2.8 million), and
+  the clauses after it were asked of sentences none of them reads (eco 22,
+  `Che poi queste cose le sapessero i dotti ...`, whose `che poi` has no verb:
+  2.5 million). The first front is taken once now (`once/1`, as the cut did),
+  and the cut stays unless a verb stands among the words before the phrase.
+  What is left is eco 15 and senegal 2, 1.7 million inferences each (a 42 % and
+  a 7 % rise of the sentence), where the words hold a verb and read as no
+  subject and the clauses after the dislocation are asked and read neither.
+  Written and taken out: a test that the words before the phrase end on `que`
+  after a clause (free of cost, and it fixed `Dijo que el perro lo come`, but
+  sentence 20's words end on `a`: `avisó a Ibarretxe de que a su Gobierno ...`);
+  the pronoun's agreement asked before the subject (the cost did not move); and
+  the soft failure for any unreadable subject (+0.14 %, eco 22's `che poi`). **An arm
+  that makes the section RAISE is red with no FAIL line** (the English writer's
+  clause for `upon(cl(...))` taken out: a `type_error` out of reason_translate/4
+  ends the section) -- the arm driver counts `ERROR` lines and reads the last
+  line, `GREEN` or `RED`. The report LEAVES, of the 21 into Italian:
+  `partido` is the match before it is the party (`tutte le partite democratiche`,
+  `la sua partita`); the quotation `se "digan las cosas claras"` loses its
+  opening mark (8); in 5, `di non d'assalire contro il PP` (a second `di`,
+  elided, before the infinitive), `si permise fare` (no `di` before the
+  infinitive of `permitirse`) and the comma after the insertion lost;
+  `avvertì a Ibarretxe` (Italian says `avvertì Ibarretxe`) and English `warned
+  to`; `de haber sido votado` is `d'avere stato votato` (the perfect passive
+  infinitive); `dispuestos a buscar` is `avuti a cercare` (the participle of
+  `dispone`, which has); `fue más lejos` is `fu più lontano` (went further:
+  the copula); `sí` is written last (`non contribuisce ... sì`); `se le acaba`
+  is `si gli finisce` (the idiom is `gli si sta esaurendo`); `digan` and
+  `gobierne` in a clause of `que` are written in the indicative; `unidad de fondo
+  sólidamente arraigada` keeps its Spanish between marks; `senda` is `traiettoria`
+  and English writes `cuidadoso` as `accurate` (12: `showed very accurate`),
+  `aboga` as `advocate` (2: `Advocate to weave a solid unit and of fund`) and
+  `warned to Ibarretxe` (20); English refuses 5, 11 and 13 for the third person
+  nobody names, on purpose (`aunque ... sí se permitió ... al reclamarle que
+  mantenga`; `espetó al presidente que es la hora de que "gobierne"`; `Anunció
+  que trasladará al lehendakari ... pero evitó`).
+  The Tatarella interview (VIT-9714..9749, 36 sentences, Italian into Spanish
+  and English: 36 of 36 and 36 of 36 on a fresh store, 25 and 25 with the new
+  store alone, 16 and 16 before; reasoning 1.0.4). It needed these
+  SHAPES, each with its arm red (test/translate.pl's `newspaper_tatarella`: 34
+  checks, 19 arms and 5 guards, each guard red when its rule is made too wide): a
+  pronoun and a phrase of `of` for a subject (`qualcuno di voi sta giocando con
+  carte truccate`: `qualcuno` is a pronoun and no determiner, as `nessuno`,
+  `uno` and `alcuni` are, and the subject shape wanted a noun, a name or a
+  determiner, `tr_subject_shape/4`'s last alternative); THE PLURAL OF `YOU`,
+  which the IR never had outside a subject (`Hablo de tú`, `te acusa`, `ninguno
+  de tú`, the lead of the Abogacía report): a word of the IR where it is no
+  subject, `you all`, made by `tr_pronoun_across/6` for a pronoun the lesson
+  says is the plural of one that means `you` (`tr_plural_you/1`: `"voi" is the
+  plural of "tu"`, `"vi" is the plural of "ti"`, Spanish `vosotros` and `os`, in
+  corpus/extra), written `you` by English and as the plural of the pronoun the
+  role takes by the lesson's language (`voi`, `vi`), the reflexive of a plural
+  subject (`voi vi lavate`, `tr_personal_object/3`) and the plural subject
+  itself (`voi direte elezioni`, `tr_subject_pronoun/4`) following it -- six
+  arms; a question is no command (`Sembra poco?` has the spelling of an
+  imperative, whose clause took the sentence and, its cut kept every other
+  reading from it, left the question refused, `tr_read/4`); a clause of `that`
+  and nothing else is a fragment (`che è stato un incidente di percorso`, the
+  line after `diciamo che ...`, `tr_that_fragment/4`: asked for the WHOLE piece
+  after every other reading, because as a clause of `tr_read0/4` it took the
+  first half of eco's `Che poi il cane dorma, guardate che ...` apart and the
+  whole case found it) and one left open (`diciamo che ...`, `that_open/0`); a
+  name before a colon is a heading (`Tatarella: i trucchi sono vietati`,
+  `tr_heading_left/3`); a participle and an infinitive with no subject are said
+  of the infinitive (`con un patto: vietato truccare` took the gender of the
+  table before the colon, `prohibida amañar`, `tr_gap_comps_out/3`); an article
+  and a possessive before a noun that is a participle too are no reduced
+  relative (`la loro proposta` was `el ellos propuesta`, `tr_np/3`: asked after
+  the participle test, before it +0.8 % of the heaviest sentences); which with
+  a verb of the first or the second person asks for its object (`Quale libro
+  leggi?`, `fo_question_word/3`); a word the lesson gives `what` asks with the
+  phrase after it as `quale` does (`e che colpa ha se la loro proposta è
+  interpretata ...?` is which fault; `tr_which_asks/2`), with a NOUN OR AN
+  ADJECTIVE at the head of the phrase and no determiner -- `cosa le posso dire?`
+  has `le` for the clause's own, and the first cut, any phrase word, refused
+  sentence 3 of the article and no sentence of the 18 probed with `cosa` showed
+  it (the re-run of the article did; the guard is `cosa il cane vede?`); two
+  questions with a comma between them (`e perché mai, e chi lo dice?`,
+  `tr_question_half/2`); a question with no mark, a comma and a statement
+  (`cosa le posso dire, sarà stato un equivoco`: the question half is marked
+  `qh/1`, and the join writes it as a question -- the first cut wrote any join
+  whose first clause asked for something so, and Cecchi's `che, dicono a Raidue,
+  è raggiante` became `what do they say`, the one text the controls found);
+  `se e in che modo` opens an indirect question (`tr_indirect_word/3`); and THE
+  FORM OF A COMMAND, which Italian's second person plural of the present
+  indicative is (`aprite`, `guardate che ...`, `non pensate che ...`) and
+  Spanish's present subjunctive its negative one (`no miréis`): the builder
+  states a person for every tense of the second person plural now (Italian 9 798
+  lines of `is the second person of` to 17 998, Spanish 14 775 to 27 435)
+  except a form the language commands with (`cb_command_plural/3`), because
+  stated a person too those five commands of the controls became `abrís`,
+  `miráis` and `sois`, and the participle's feminine plural (`proibite`,
+  `studiate`, `annegate`: the same spelling) made three headlines clauses --
+  they are the statement only where the sentence says so: a plural `you` named
+  at the head (`e voi rispondete col presidenzialismo`, whose group is the plural
+  form's with the second person the pronoun gives it) or a form of `stare` with
+  a gerund after it (`state proseguendo nel cosiddetto gioco del cerino`,
+  `state attenti` stays the command), `tr_read_statement0/4`.
+  It needed these WORDS in `extra/` (the dictionary's own word said again first
+  where it must stay the one written: Italian `deputato` and `deputata` for the
+  deputy `onorevole` is read as, `ipocrita` for the hypocrite `doppiogiochista`
+  is read as, and the identity `"con il" is the contraction of "con il"` before
+  `"col" is the contraction of "con il"`, so that `col` is read and the print
+  writes `con il`): Italian `malafede`, `incidente di percorso`, `bacchetta`
+  (rebukes), `aspetta al varco`, `dal momento che`, `perché mai`, `il giorno in
+  cui`, `in che modo`, `se e in che modo`, `a tutela di`, `elezione` (an
+  election first, the dictionary's choice second), `per l'ultima volta`, `voi`
+  and `vi` (the plurals of `tu` and `ti`), and in eng-ita.dix `rig`, `intend`
+  (read only), `trace`, `resign` (`dimettere`: the bilingual dictionary's
+  `dimettire` is no word, and its thirty-six lines of forms are gone from the
+  vocabulary), `bloc`, `hypocrite` and `deputy` (read only); Spanish `mala fe`,
+  `vosotros` and `os`, `acecha` (lies in wait for, before threatens), `si y
+  cómo`, `de forma realista`, `para la protección de`, `por última vez`, and in
+  eng-spa.dix `rig` (`amañar`) and `hypocrite`. The first word moved in 2
+  Italian meanings and 1 Spanish one (bloc is `schieramento` and no `bloc`,
+  traces `traccia` and no `localizza`, rigs `amaña` and no `apareja`), the first
+  meaning of 3 words moved (`elezione` is an election, `acecha` lies in wait,
+  `amaña` rigs and no longer alters: that line is lost, as is Italian
+  `localizza` = traces) and `hypocrite` moved too until `ipocrita` was said
+  again: the read-only line for the word the text had was written first.
+  The CONTROLS (cocolog 2.1.2, store KB126, 97 count files, 2 312 sentences:
+  every earlier article, Tatoeba's 400 and the interview, both directions): the
+  last version's translator against this one, on the one store, 31 sentences in
+  5 files read differently -- 28 in the interview's two files, and 3 elsewhere
+  (eco 16, `no creerte` is `no creeros`; fregene 30, `hablar con tú` is `con
+  vosotros`; tat 346, refused before and `That Dios pays it to him` now), all
+  better -- and the inferences fall 0.267 % (4 589 831 928 to 4 577 556 536),
+  0.038 % more outside the interview (4 516 197 717 to 4 517 921 885, the Hotel
+  Arts report in). The files rise 0.44 % at most (pacifist's, of 5 million; lotr's
+  0.43 % of 71) and the one that falls most is eco's, -1.8 % (its twenty-third,
+  5.3 million to 2.7: a question that was read as a command first). Cecchi 25,
+  the one text the first cut changed (`what do they say`), reads as it did.
+  Bytes and characters read every sentence alike (0 differ, the bytes 0.021 %
+  more). The DATA COLUMN (the last version's translator on its own store, KB116,
+  against this one on the new): 52 sentences in 8 files, 43 of them the
+  interview's and 9 elsewhere -- `elezioni` are `elections` where the dictionary
+  gave `choices` first (bovalino 12 and 14, tempi 38 and 40, wapo 3: English),
+  the three of the code above, and tat 192 (`¿Por qué estáis enfadadas?`, `Why
+  are you angered?`), which the store alone reads now: `estáis` is a person it
+  states. The inferences fall 1.946 % (4 668 389 400 to 4 577 556 536), rise
+  0.039 % outside the interview (4 516 160 393 to 4 517 921 885), and the
+  interview's two files fall 61 % (76 million to 30 each) for the 40 sentences
+  that refused after long searches. THE STORE ALONE COSTS NOTHING outside the
+  interview (the last version's translator on the old store and on the new: 4 516
+  160 393 to 4 516 197 717, +0.0008 %), though it states 8 200 lines of the
+  second person plural more in Italian and 12 660 in Spanish, and that
+  translator reads 25 and 25 of the interview's 36 on it. **A FIRST STORE WAS
+  11.2 % DEARER FOR ONE LINE**: `The word "che" means "which".`, which first
+  made `e che colpa abbiamo se ...` read, cost the last version's translator
+  alone 4 978 433 218 inferences over the 95 files against 4 475 127 352, the
+  six heaviest sentences 2.6 times (cecchi 8, with two `che`, 49.3 to 192.2
+  million; cecchi 9, tempi 17, eco 8 and 22, letter 8 the others), found by
+  teaching a store without each group of the new lines -- the second person
+  lines, the phrases, the verbs and nouns, the plurals of `you`: nothing; this
+  line: all of it -- and the line went out of the data and into the code
+  (`tr_which_asks/2`, above). The binaries of 2.0.0 and 2.1.0 give the same
+  counts to 48 inferences in 4.32 billion, and one text differs (fiat 6); those
+  of 2.1.0 and 2.1.2 give the same counts and texts to the unit, on both
+  translators and both stores (master moved to 2.1.2 while the controls ran, and
+  they were taken again on it).
+  THE STATED COSTS: `col` is read, and written `con il` (the writer takes the
+  first contraction a lesson states, and the identity line first makes `col`
+  read only; the seven sentences of the controls, Spanish into Italian, that
+  came out `col` came back); a command stays a command -- `Siate`, `processate`, `guardate che ...`,
+  `non pensate che ...`, `No miréis`, `State attenti`, which reads as the
+  participle of `essere` as before -- and is a statement only after a plural
+  `you` or as `stare` with a gerund; and the inferences, +0.038 % outside the
+  interview. THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the sixteen
+  heaviest sentences counted over a copy of the library per rule, on the new
+  store): the first cut was +0.457 % of them over the last version's, and four
+  rules were all of it -- the plural of `you` asked of every pronoun that is a
+  subject (0.227 %), the two clauses of the command, each reading the piece's
+  denial again (0.18 %), `that_open` (0.034 %, a lone `che` at the end of a piece
+  read as other things first) and the possessive guard (0.009 %). The plural of
+  `you` is asked of a pronoun that means `you` now (`E == you` before
+  `tr_plural_you/1`), and the two commands are one clause with the form of the
+  command asked first, before the pronoun's lexeme: +0.163 % of the sixteen, 0.096
+  of it the clause's own reading of the denial (`tr_negation/4` walks the whole
+  piece, in every clause of `tr_read_statement0/4`), and every text of the 2 312
+  the same as the first cut's. Its cost outside the interview is a few
+  sentences: e_eco 16 (+0.87 million of 6.5, a sentence English refuses, and the
+  search that refuses is longer), lotr 11 (+0.25 of 31.7) and cecchi 8 (+0.18 of
+  49.3), against eco 23's 2.65 million.
+  The interview LEAVES, of the 36 into Spanish (English alike unless it says):
+  `vi accusa di fare` is `os acusa hacer` and `accuses you to make` (7), and
+  `nell'attesa di vedere` `en la espera ver` (11) -- after a pronoun or a phrase
+  the infinitive loses its `di`, and nothing in a lesson says which verbs take
+  one; `passa di mano` is `happens of hand` and `chi provoca` `al que provoca`
+  (11); `ci siamo basati` is `nos hemos basado` (10), `ci siamo intesi` `nos
+  hemos pretendido` and `il potere` `la fortaleza` (21, and `poteri forti` are
+  `fortalezas fuertes`, 18), `il valore` is `la valentía` (24: `dandogli` is
+  `dandole`, `pare proprio di no` `me parece justamente de no`), `registro` is
+  `récord` and `buoni` `cupones` (13), `il confronto` `la comparación` (31),
+  `fare i nomi` `hacer los nombres` (17); `Null'altro` is `Nada otros` and
+  `nothing others` (25); `ci ha mai creduto` is `nos ha creído nunca` (27: the
+  `ci` that stands for `in it`), and Spanish writes `sulle riforme` as `en las
+  reformas` (English has `on`); `siamo disposti a` is `somos colocados a` (28), `crediamo al`
+  `creemos al` (no `en el`) and `mettiamola` `Pongamosla` (no accent); `non hanno
+  capito ancora cosa` keeps `cosa` as a noun at the end of its clause
+  (`han entendido todavía cosa`, 29: the question word of an indirect question
+  with nothing after it, unread) and `vogliono altro` is `quieren otros`;
+  `se fossi in malafede` is `si estaba en mala fe` and `If I was` (12: the
+  imperfect subjunctive is written as an indicative, as in the PSOE report),
+  `Il giorno in cui Dini si dimetterà` `Cuando Dini se dimitirá` and `When Dini
+  will resign` (33: Spanish wants the subjunctive after `cuando`, English the
+  present); a passive `si` before the verb is lost in English (`il voto non si
+  decide` is `the vote does not decide`, 32; `Le mele si mangiano` `The apples
+  eat`; `Si possono fare le cose` `The things are caned make`; `che
+  realisticamente si possono fare` `that realistically can make`, 15); English
+  writes the clitic of a question as a thing (`what can I say her`, `who says
+  him`, 3 and 6); Italian `te` is no word of the lesson (`Parlo di te` is refused,
+  `Te lo dico io` is `I say it to You I`: the dictionary gives `ti` only);
+  `state attenti` and `state grandi` read as the participle of `essere`, as
+  before (`Cuidadosos han sido sido`); `acecharemos el Pds` has no `al`.
 
 ## Tutorials are documentation that runs
 
