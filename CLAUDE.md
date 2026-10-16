@@ -1265,7 +1265,12 @@ cocolint index offers no import of it.
   they run -- `coco_construct`'s `true`, `coco_bi_unify`, an environment's
   TRUE unit when its functor is `true` (a construct's `$true` stays a step)
   and a SIDES unit of form 0 -- and a new place that runs either counts it
-  there too. What a program reads is `steps - frees`: statistics/2's
+  there too. `coco_bi_unify` is `(static) (inline)` (1.13.5): with the count
+  in it clang stopped inlining it into the builtin switch, about 5
+  instructions a `=/2` more. A slowdown the instructions do not explain may
+  be where the code sits: 1.13.0 moved `coco_clause_run` 32 bytes into a
+  64-byte line and cicili-lang's `=/2` loop ran 8 % slower on the same
+  instructions (STATUS.md, 1.13.5). What a program reads is `steps - frees`: statistics/2's
   `inferences`, call_metered/4's Used, call_limited/3's and call_metered/4's
   limits, `cocolog step`'s budget and its `suspended at`. **A limit in
   inferences is `max_inf`, and the hot loop tests `max_steps` alone**: a

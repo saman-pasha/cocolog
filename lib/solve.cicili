@@ -6403,6 +6403,13 @@
   ;;; compiles a body's `=' inline and counts none for it: still a step of
   ;;; the engine's clock, which the tracer, a window and the recorder number
   ;;; it by, and counted in `frees', which a program's count leaves out.
+  ;;;
+  ;;; ALWAYS INLINED into the builtin switch (1.13.5). Through 1.12.1 the one
+  ;;; line was small enough that clang inlined it there by itself; the count
+  ;;; of `frees' made it a call, and cicili-lang's loop of three `=/2's a turn
+  ;;; ran 15 instructions a turn more for it (39 in the call against 24
+  ;;; inline).
+  (static) (inline)
   (func coco_bi_unify ((coco_engine * e) (size_t g)) (out int)
         (set (-> e frees) (+ (-> e frees) 1))
         (return (? (coco_unify (-> e m) (coco_arg (-> e m) g 0) (coco_arg (-> e m) g 1)) 1 0)))

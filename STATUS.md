@@ -5437,6 +5437,39 @@ load runs and a traced program; the count of step 2 was done in 1.9.4.
 What is left, §8's steps 3 and 4 and §10, is the owner's to choose
 (below).
 
+## `=/2` inline again, and a loop slowed by where its code sits (1.13.5)
+
+cicili-lang reported its loop of three `=/2`s a turn
+(`eq(N) :- X = f(N, a), X = f(_, Y), Y = a, N1 is N - 1, eq(N1).`) at
+1.460 s for ten million turns on 1.12.1, 1.592 s on 1.12.2 and 1.706 s on
+1.13.0. Built here from the three commits and counted beside 1.13.4
+(callgrind, a hundred thousand turns, work less padding as
+`tools/flow/zero.sh` counts it): 2 321.6 instructions a turn on 1.12.1,
+2 335.0 on 1.12.2, 2 335.1 on 1.13.0, 2 336.4 on 1.13.4.
+
+* **1.12.2's 13 instructions were the call.** `coco_bi_unify` was one line
+  through 1.12.1, and clang inlined it into the builtin switch by itself
+  (no instruction of it in the profile; 24 a turn in `coco_builtin_call`).
+  The count of `frees` made it a call: 39 a turn in `coco_bi_unify` and 24
+  fewer in the switch. It is `(static) (inline)` now, always inlined: 2 324.4
+  a turn, 1.12.1's and the three increments of `frees`, which are the two
+  clocks' price. nrev, queens and lookup count the same to the instruction.
+* **1.13.0's time was not in the instructions.** Ten alternating rounds of
+  three million turns: 1.12.1 0.611 s (median), 1.12.2 0.623, 1.13.0 0.673,
+  1.13.4 0.667 -- 8 % at 1.13.0 for the same instructions. 1.13.0 added
+  about 700 lines of functions, and everything after them moved:
+  `coco_clause_run`, a quarter of the loop's instructions, began on a
+  64-byte line through 1.12.2 and 32 bytes into one since. Built with
+  every function on a 64-byte line (`-falign-functions=64`), the loop's best
+  time was 1.12.2's again (0.574 s against 0.577) -- but over the five bench
+  tasks and the loop together, eight rounds, the flag moved nothing past
+  this box's noise (loop -4 %, nrev, queens, lookup and sortnums within
+  2 %), and on this box 1.13.5 is as fast as 1.12.2 or faster on all five
+  (loop -10 %, queens -5 %), so it was not adopted: a placement that helps
+  one loop is another's lottery. Inlining `=/2` buys no time this box can
+  see (its rounds are within the noise); it is shipped for the count, the
+  path 1.12.1 had.
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the
