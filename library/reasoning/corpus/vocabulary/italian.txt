@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16511 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16520 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1754,6 +1754,25 @@ The intransitive verb "va in scena" means "takes place".
 "andate in scena" is the plural of "andata in scena".
 "è" is the auxiliary of "va in scena".
 "avuto luogo" is the participle of "ha luogo".
+The masculine noun "discorso" means "speech".
+"discorsi" is the plural of "discorso".
+The preposition "al momento di" means "at the time of".
+The verb "chiude la porta" means "closes the door".
+"chiudono la porta" is the plural of "chiude la porta".
+"chiudere la porta" is the infinitive of "chiude la porta".
+"chiuse la porta" is the past of "chiude la porta".
+The preposition "come si evince da" means "as shown by".
+The verb "chiede" means "asks".
+The verb "chiede" means "demands".
+The verb "concorda" means "agrees".
+"auspica" takes "di" before the infinitive.
+The verb "punta" means "points".
+The verb "punta" means "bets".
+"punta" takes "su" before the phrase.
+The verb "distanzia" means "distances".
+"distanzia" takes "da" before the phrase.
+The feminine noun "critica velata" means "veiled criticism".
+"critiche velate" is the plural of "critica velata".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -21063,6 +21082,8 @@ The masculine noun "troll" means "troll".
 "troll" is a person.
 The feminine noun "impresa" means "feat".
 The masculine noun "onorario" means "honorarium".
+The masculine noun "errore" means "mistake".
+The masculine noun "confronto" means "confrontation".
 The feminine noun "scimmia" means "ape".
 The feminine noun "catena" means "catena".
 The masculine noun "vantaggio" means "asset".
@@ -24557,6 +24578,149 @@ The verb "remunera" means "remunerates".
 "remunerate" is the plural of "remunerata".
 "remunerare" is the infinitive of "remunera".
 "remunerando" is the gerund of "remunera".
+The verb "distanzia" means "distances".
+"distanziano" is the plural of "distanzia".
+"distanziamo" is the first person of "distanziano".
+"distanzio" is the first person of "distanzia".
+"distanzi" is the second person of "distanzia".
+"distanziò" is the past of "distanzia".
+"distanziarono" is the past of "distanziano".
+"distanziammo" is the first person of "distanziarono".
+"distanziai" is the first person of "distanziò".
+"distanziasti" is the second person of "distanziò".
+"distanziava" is the imperfect of "distanzia".
+"distanziavano" is the imperfect of "distanziano".
+"distanziavamo" is the first person of "distanziavano".
+"distanziavo" is the first person of "distanziava".
+"distanziavi" is the second person of "distanziava".
+"distanzierà" is the future of "distanzia".
+"distanzieranno" is the plural of "distanzierà".
+"distanzieremo" is the first person of "distanzieranno".
+"distanzierò" is the first person of "distanzierà".
+"distanzierai" is the second person of "distanzierà".
+"distanzierebbe" is the conditional of "distanzia".
+"distanzierebbero" is the plural of "distanzierebbe".
+"distanzieremmo" is the first person of "distanzierebbero".
+"distanzierei" is the first person of "distanzierebbe".
+"distanzieresti" is the second person of "distanzierebbe".
+"distanzi" is the subjunctive of "distanzia".
+"distanzino" is the plural of "distanzi".
+"distanziamo" is the first person of "distanzino".
+"distanziasse" is the past subjunctive of "distanzia".
+"distanziassero" is the plural of "distanziasse".
+"distanziassimo" is the first person of "distanziassero".
+"distanziassi" is the first person of "distanziasse".
+"distanziassi" is the second person of "distanziasse".
+"distanzia" is the imperative of "distanzia".
+"distanziare" is the negative imperative of "distanzia".
+"distanziate" is the imperative of "distanziano".
+"distanziamo" is the hortative of "distanzia".
+"distanziato" is the participle of "distanzia".
+"distanziata" is the participle of "distanzia".
+"distanziata" is feminine.
+"distanziati" is the participle of "distanzia".
+"distanziati" is the plural of "distanziato".
+"distanziate" is the participle of "distanzia".
+"distanziate" is feminine.
+"distanziate" is the plural of "distanziata".
+"distanziare" is the infinitive of "distanzia".
+"distanziando" is the gerund of "distanzia".
+The verb "tesse" means "weaves".
+"tessono" is the plural of "tesse".
+"tessiamo" is the first person of "tessono".
+"tesso" is the first person of "tesse".
+"tessi" is the second person of "tesse".
+"tessé" is the past of "tesse".
+"tesserono" is the past of "tessono".
+"tessemmo" is the first person of "tesserono".
+"tessei" is the first person of "tessé".
+"tessesti" is the second person of "tessé".
+"tesseva" is the imperfect of "tesse".
+"tessevano" is the imperfect of "tessono".
+"tessevamo" is the first person of "tessevano".
+"tessevo" is the first person of "tesseva".
+"tessevi" is the second person of "tesseva".
+"tesserà" is the future of "tesse".
+"tesseranno" is the plural of "tesserà".
+"tesseremo" is the first person of "tesseranno".
+"tesserò" is the first person of "tesserà".
+"tesserai" is the second person of "tesserà".
+"tesserebbe" is the conditional of "tesse".
+"tesserebbero" is the plural of "tesserebbe".
+"tesseremmo" is the first person of "tesserebbero".
+"tesserei" is the first person of "tesserebbe".
+"tesseresti" is the second person of "tesserebbe".
+"tessa" is the subjunctive of "tesse".
+"tessano" is the plural of "tessa".
+"tessiamo" is the first person of "tessano".
+"tessesse" is the past subjunctive of "tesse".
+"tessessero" is the plural of "tessesse".
+"tessessimo" is the first person of "tessessero".
+"tessessi" is the first person of "tessesse".
+"tessessi" is the second person of "tessesse".
+"tessi" is the imperative of "tesse".
+"tessere" is the negative imperative of "tesse".
+"tessete" is the imperative of "tessono".
+"tessiamo" is the hortative of "tesse".
+"tessuto" is the participle of "tesse".
+"tessuta" is the participle of "tesse".
+"tessuta" is feminine.
+"tessuti" is the participle of "tesse".
+"tessuti" is the plural of "tessuto".
+"tessute" is the participle of "tesse".
+"tessute" is feminine.
+"tessute" is the plural of "tessuta".
+"tessere" is the infinitive of "tesse".
+"tessendo" is the gerund of "tesse".
+"wove" is the past of "weaves".
+"woven" is the participle of "weaves".
+The verb "potenzia" means "boosts".
+"potenziano" is the plural of "potenzia".
+"potenziamo" is the first person of "potenziano".
+"potenzio" is the first person of "potenzia".
+"potenzi" is the second person of "potenzia".
+"potenziò" is the past of "potenzia".
+"potenziarono" is the past of "potenziano".
+"potenziammo" is the first person of "potenziarono".
+"potenziai" is the first person of "potenziò".
+"potenziasti" is the second person of "potenziò".
+"potenziava" is the imperfect of "potenzia".
+"potenziavano" is the imperfect of "potenziano".
+"potenziavamo" is the first person of "potenziavano".
+"potenziavo" is the first person of "potenziava".
+"potenziavi" is the second person of "potenziava".
+"potenzierà" is the future of "potenzia".
+"potenzieranno" is the plural of "potenzierà".
+"potenzieremo" is the first person of "potenzieranno".
+"potenzierò" is the first person of "potenzierà".
+"potenzierai" is the second person of "potenzierà".
+"potenzierebbe" is the conditional of "potenzia".
+"potenzierebbero" is the plural of "potenzierebbe".
+"potenzieremmo" is the first person of "potenzierebbero".
+"potenzierei" is the first person of "potenzierebbe".
+"potenzieresti" is the second person of "potenzierebbe".
+"potenzi" is the subjunctive of "potenzia".
+"potenzino" is the plural of "potenzi".
+"potenziamo" is the first person of "potenzino".
+"potenziasse" is the past subjunctive of "potenzia".
+"potenziassero" is the plural of "potenziasse".
+"potenziassimo" is the first person of "potenziassero".
+"potenziassi" is the first person of "potenziasse".
+"potenziassi" is the second person of "potenziasse".
+"potenzia" is the imperative of "potenzia".
+"potenziare" is the negative imperative of "potenzia".
+"potenziate" is the imperative of "potenziano".
+"potenziamo" is the hortative of "potenzia".
+"potenziato" is the participle of "potenzia".
+"potenziata" is the participle of "potenzia".
+"potenziata" is feminine.
+"potenziati" is the participle of "potenzia".
+"potenziati" is the plural of "potenziato".
+"potenziate" is the participle of "potenzia".
+"potenziate" is feminine.
+"potenziate" is the plural of "potenziata".
+"potenziare" is the infinitive of "potenzia".
+"potenziando" is the gerund of "potenzia".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -65103,52 +65267,6 @@ The verb "guarda" means "looks".
 "guardare" is the infinitive of "guarda".
 "guardando" is the gerund of "guarda".
 The verb "tesse" means "looms".
-"tessono" is the plural of "tesse".
-"tessiamo" is the first person of "tessono".
-"tesso" is the first person of "tesse".
-"tessi" is the second person of "tesse".
-"tessé" is the past of "tesse".
-"tesserono" is the past of "tessono".
-"tessemmo" is the first person of "tesserono".
-"tessei" is the first person of "tessé".
-"tessesti" is the second person of "tessé".
-"tesseva" is the imperfect of "tesse".
-"tessevano" is the imperfect of "tessono".
-"tessevamo" is the first person of "tessevano".
-"tessevo" is the first person of "tesseva".
-"tessevi" is the second person of "tesseva".
-"tesserà" is the future of "tesse".
-"tesseranno" is the plural of "tesserà".
-"tesseremo" is the first person of "tesseranno".
-"tesserò" is the first person of "tesserà".
-"tesserai" is the second person of "tesserà".
-"tesserebbe" is the conditional of "tesse".
-"tesserebbero" is the plural of "tesserebbe".
-"tesseremmo" is the first person of "tesserebbero".
-"tesserei" is the first person of "tesserebbe".
-"tesseresti" is the second person of "tesserebbe".
-"tessa" is the subjunctive of "tesse".
-"tessano" is the plural of "tessa".
-"tessiamo" is the first person of "tessano".
-"tessesse" is the past subjunctive of "tesse".
-"tessessero" is the plural of "tessesse".
-"tessessimo" is the first person of "tessessero".
-"tessessi" is the first person of "tessesse".
-"tessessi" is the second person of "tessesse".
-"tessi" is the imperative of "tesse".
-"tessere" is the negative imperative of "tesse".
-"tessete" is the imperative of "tessono".
-"tessiamo" is the hortative of "tesse".
-"tessuto" is the participle of "tesse".
-"tessuta" is the participle of "tesse".
-"tessuta" is feminine.
-"tessuti" is the participle of "tesse".
-"tessuti" is the plural of "tessuto".
-"tessute" is the participle of "tesse".
-"tessute" is feminine.
-"tessute" is the plural of "tessuta".
-"tessere" is the infinitive of "tesse".
-"tessendo" is the gerund of "tesse".
 The verb "perde" means "loses".
 "perdono" is the plural of "perde".
 "perdiamo" is the first person of "perdono".
@@ -84117,8 +84235,6 @@ The verb "trama" means "weaves".
 "tramate" is the plural of "tramata".
 "tramare" is the infinitive of "trama".
 "tramando" is the gerund of "trama".
-"wove" is the past of "weaves".
-"woven" is the participle of "weaves".
 The verb "pesa" means "weighs".
 "pesano" is the plural of "pesa".
 "pesiamo" is the first person of "pesano".
@@ -98285,6 +98401,54 @@ The verb "coinvolge" means "involves".
 "coinvolte" is the plural of "coinvolta".
 "coinvolgere" is the infinitive of "coinvolge".
 "coinvolgendo" is the gerund of "coinvolge".
+The verb "sabota" means "torpedoes".
+"sabotano" is the plural of "sabota".
+"sabotiamo" is the first person of "sabotano".
+"saboto" is the first person of "sabota".
+"saboti" is the second person of "sabota".
+"sabotò" is the past of "sabota".
+"sabotarono" is the past of "sabotano".
+"sabotammo" is the first person of "sabotarono".
+"sabotai" is the first person of "sabotò".
+"sabotasti" is the second person of "sabotò".
+"sabotava" is the imperfect of "sabota".
+"sabotavano" is the imperfect of "sabotano".
+"sabotavamo" is the first person of "sabotavano".
+"sabotavo" is the first person of "sabotava".
+"sabotavi" is the second person of "sabotava".
+"saboterà" is the future of "sabota".
+"saboteranno" is the plural of "saboterà".
+"saboteremo" is the first person of "saboteranno".
+"saboterò" is the first person of "saboterà".
+"saboterai" is the second person of "saboterà".
+"saboterebbe" is the conditional of "sabota".
+"saboterebbero" is the plural of "saboterebbe".
+"saboteremmo" is the first person of "saboterebbero".
+"saboterei" is the first person of "saboterebbe".
+"saboteresti" is the second person of "saboterebbe".
+"saboti" is the subjunctive of "sabota".
+"sabotino" is the plural of "saboti".
+"sabotiamo" is the first person of "sabotino".
+"sabotasse" is the past subjunctive of "sabota".
+"sabotassero" is the plural of "sabotasse".
+"sabotassimo" is the first person of "sabotassero".
+"sabotassi" is the first person of "sabotasse".
+"sabotassi" is the second person of "sabotasse".
+"sabota" is the imperative of "sabota".
+"sabotare" is the negative imperative of "sabota".
+"sabotate" is the imperative of "sabotano".
+"sabotiamo" is the hortative of "sabota".
+"sabotato" is the participle of "sabota".
+"sabotata" is the participle of "sabota".
+"sabotata" is feminine.
+"sabotati" is the participle of "sabota".
+"sabotati" is the plural of "sabotato".
+"sabotate" is the participle of "sabota".
+"sabotate" is feminine.
+"sabotate" is the plural of "sabotata".
+"sabotare" is the infinitive of "sabota".
+"sabotando" is the gerund of "sabota".
+The verb "sottolinea" means "emphasizes".
 The verb "pratica" means "practices".
 The verb "ristabilisce" means "reinstates".
 The verb "strappa" means "rips".
@@ -98420,7 +98584,6 @@ The verb "influenza" means "biass".
 "biassing" is the gerund of "biass".
 The verb "lega" means "binds".
 The verb "riserva" means "books".
-The verb "aumenta" means "boosts".
 The verb "molesta" means "bothers".
 The verb "affronta" means "braves".
 The verb "colpisce" means "bumps".
@@ -99703,6 +99866,26 @@ The feminine adjective "corta" means "short".
 "cortissimi" is the superlative of "corti".
 "cortissima" is the superlative of "corta".
 "cortissime" is the superlative of "corte".
+The adjective "antiterrorista" means "antiterrorist".
+"antiterroristi" is the plural of "antiterrorista".
+"antiterroriste" is the plural of "antiterrorista".
+"antiterroriste" is feminine.
+The masculine adjective "schizzinoso" means "squeamish".
+"schizzinosi" is the plural of "schizzinoso".
+The feminine adjective "schizzinosa" means "squeamish".
+"schizzinose" is the plural of "schizzinosa".
+"schizzinosissimo" is the superlative of "schizzinoso".
+"schizzinosissimi" is the superlative of "schizzinosi".
+"schizzinosissima" is the superlative of "schizzinosa".
+"schizzinosissime" is the superlative of "schizzinose".
+The masculine adjective "disposto" means "willing".
+"disposti" is the plural of "disposto".
+The feminine adjective "disposta" means "willing".
+"disposte" is the plural of "disposta".
+"dispostissimo" is the superlative of "disposto".
+"dispostissimi" is the superlative of "disposti".
+"dispostissima" is the superlative of "disposta".
+"dispostissime" is the superlative of "disposte".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

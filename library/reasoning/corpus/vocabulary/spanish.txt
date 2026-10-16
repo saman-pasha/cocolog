@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20405 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20415 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1196,6 +1196,25 @@ The adverb "en absoluto" means "at all".
 The adjective "a doble vuelta" means "two-round".
 "a doble vuelta" is the plural of "a doble vuelta".
 "tenido lugar" is the participle of "tiene lugar".
+The preposition "a la hora de" means "at the time of".
+"avisa" takes the clause.
+"avisa" takes "de" before the clause.
+The feminine noun "velada crítica" means "veiled criticism".
+"veladas críticas" is the plural of "velada crítica".
+The verb "acuerda" means "agrees".
+The verb "conviene" means "suits".
+The clausal verb "conviene" means "agrees".
+"conviene" takes "en" before the clause.
+The preposition "según se desprende de" means "as shown by".
+The verb "da portazo" means "closes the door".
+"dan portazo" is the plural of "da portazo".
+"dar portazo" is the infinitive of "da portazo".
+"dio portazo" is the past of "da portazo".
+"aboga" takes "por" before the infinitive.
+"apuesta" takes "por" before the phrase.
+"distancia" takes "de" before the phrase.
+"mayor oreja" is a name.
+The feminine noun "confrontación" means "confrontation".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -20475,6 +20494,14 @@ The masculine noun "honorario" means "honorarium".
 "honorarios" is the plural of "honorario".
 The masculine noun "enjuiciamiento" means "procedure".
 "enjuiciamientos" is the plural of "enjuiciamiento".
+The masculine noun "tremendismo" means "alarmism".
+"tremendismos" is the plural of "tremendismo".
+The feminine noun "senda" means "path".
+"sendas" is the plural of "senda".
+The feminine noun "crispación" means "tension".
+"crispaciones" is the plural of "crispación".
+The feminine noun "consigna" means "directive".
+"consignas" is the plural of "consigna".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -28490,6 +28517,146 @@ The verb "involucra" means "involves".
 "involucradas" is the plural of "involucrada".
 "involucrar" is the infinitive of "involucra".
 "involucrando" is the gerund of "involucra".
+The verb "distancia" means "distances".
+"distancian" is the plural of "distancia".
+"distanciamos" is the first person of "distancian".
+"distancio" is the first person of "distancia".
+"distancias" is the second person of "distancia".
+"distanció" is the past of "distancia".
+"distanciaron" is the past of "distancian".
+"distanciamos" is the first person of "distanciaron".
+"distancié" is the first person of "distanció".
+"distanciaste" is the second person of "distanció".
+"distanciaba" is the imperfect of "distancia".
+"distanciaban" is the imperfect of "distancian".
+"distanciábamos" is the first person of "distanciaban".
+"distanciabas" is the second person of "distanciaba".
+"distanciará" is the future of "distancia".
+"distanciarán" is the plural of "distanciará".
+"distanciaremos" is the first person of "distanciarán".
+"distanciaré" is the first person of "distanciará".
+"distanciarás" is the second person of "distanciará".
+"distanciaría" is the conditional of "distancia".
+"distanciarían" is the plural of "distanciaría".
+"distanciaríamos" is the first person of "distanciarían".
+"distanciarías" is the second person of "distanciaría".
+"distancie" is the subjunctive of "distancia".
+"distancien" is the plural of "distancie".
+"distanciemos" is the first person of "distancien".
+"distancies" is the second person of "distancie".
+"distanciara" is the past subjunctive of "distancia".
+"distanciaran" is the plural of "distanciara".
+"distanciáramos" is the first person of "distanciaran".
+"distanciaras" is the second person of "distanciara".
+"distancia" is the imperative of "distancia".
+"distancies" is the negative imperative of "distancia".
+"distanciad" is the imperative of "distancian".
+"distanciéis" is the negative imperative of "distancian".
+"distanciemos" is the hortative of "distancia".
+"distanciado" is the participle of "distancia".
+"distanciada" is the participle of "distancia".
+"distanciada" is feminine.
+"distanciados" is the participle of "distancia".
+"distanciados" is the plural of "distanciado".
+"distanciadas" is the participle of "distancia".
+"distanciadas" is feminine.
+"distanciadas" is the plural of "distanciada".
+"distanciar" is the infinitive of "distancia".
+"distanciando" is the gerund of "distancia".
+The verb "torpedea" means "torpedoes".
+"torpedean" is the plural of "torpedea".
+"torpedeamos" is the first person of "torpedean".
+"torpedeo" is the first person of "torpedea".
+"torpedeas" is the second person of "torpedea".
+"torpedeó" is the past of "torpedea".
+"torpedearon" is the past of "torpedean".
+"torpedeamos" is the first person of "torpedearon".
+"torpedeé" is the first person of "torpedeó".
+"torpedeaste" is the second person of "torpedeó".
+"torpedeaba" is the imperfect of "torpedea".
+"torpedeaban" is the imperfect of "torpedean".
+"torpedeábamos" is the first person of "torpedeaban".
+"torpedeabas" is the second person of "torpedeaba".
+"torpedeará" is the future of "torpedea".
+"torpedearán" is the plural of "torpedeará".
+"torpedearemos" is the first person of "torpedearán".
+"torpedearé" is the first person of "torpedeará".
+"torpedearás" is the second person of "torpedeará".
+"torpedearía" is the conditional of "torpedea".
+"torpedearían" is the plural of "torpedearía".
+"torpedearíamos" is the first person of "torpedearían".
+"torpedearías" is the second person of "torpedearía".
+"torpedee" is the subjunctive of "torpedea".
+"torpedeen" is the plural of "torpedee".
+"torpedeemos" is the first person of "torpedeen".
+"torpedees" is the second person of "torpedee".
+"torpedeara" is the past subjunctive of "torpedea".
+"torpedearan" is the plural of "torpedeara".
+"torpedeáramos" is the first person of "torpedearan".
+"torpedearas" is the second person of "torpedeara".
+"torpedea" is the imperative of "torpedea".
+"torpedees" is the negative imperative of "torpedea".
+"torpedead" is the imperative of "torpedean".
+"torpedeéis" is the negative imperative of "torpedean".
+"torpedeemos" is the hortative of "torpedea".
+"torpedeado" is the participle of "torpedea".
+"torpedeada" is the participle of "torpedea".
+"torpedeada" is feminine.
+"torpedeados" is the participle of "torpedea".
+"torpedeados" is the plural of "torpedeado".
+"torpedeadas" is the participle of "torpedea".
+"torpedeadas" is feminine.
+"torpedeadas" is the plural of "torpedeada".
+"torpedear" is the infinitive of "torpedea".
+"torpedeando" is the gerund of "torpedea".
+The verb "teje" means "weaves".
+"tejen" is the plural of "teje".
+"tejemos" is the first person of "tejen".
+"tejo" is the first person of "teje".
+"tejes" is the second person of "teje".
+"tejió" is the past of "teje".
+"tejieron" is the past of "tejen".
+"tejimos" is the first person of "tejieron".
+"tejí" is the first person of "tejió".
+"tejiste" is the second person of "tejió".
+"tejía" is the imperfect of "teje".
+"tejían" is the imperfect of "tejen".
+"tejíamos" is the first person of "tejían".
+"tejías" is the second person of "tejía".
+"tejerá" is the future of "teje".
+"tejerán" is the plural of "tejerá".
+"tejeremos" is the first person of "tejerán".
+"tejeré" is the first person of "tejerá".
+"tejerás" is the second person of "tejerá".
+"tejería" is the conditional of "teje".
+"tejerían" is the plural of "tejería".
+"tejeríamos" is the first person of "tejerían".
+"tejerías" is the second person of "tejería".
+"teja" is the subjunctive of "teje".
+"tejan" is the plural of "teja".
+"tejamos" is the first person of "tejan".
+"tejas" is the second person of "teja".
+"tejiera" is the past subjunctive of "teje".
+"tejieran" is the plural of "tejiera".
+"tejiéramos" is the first person of "tejieran".
+"tejieras" is the second person of "tejiera".
+"teje" is the imperative of "teje".
+"tejas" is the negative imperative of "teje".
+"tejed" is the imperative of "tejen".
+"tejáis" is the negative imperative of "tejen".
+"tejamos" is the hortative of "teje".
+"tejido" is the participle of "teje".
+"tejida" is the participle of "teje".
+"tejida" is feminine.
+"tejidos" is the participle of "teje".
+"tejidos" is the plural of "tejido".
+"tejidas" is the participle of "teje".
+"tejidas" is feminine.
+"tejidas" is the plural of "tejida".
+"tejer" is the infinitive of "teje".
+"tejiendo" is the gerund of "teje".
+"wove" is the past of "weaves".
+"woven" is the participle of "weaves".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -69156,51 +69323,6 @@ The verb "mata" means "kills".
 "matar" is the infinitive of "mata".
 "matando" is the gerund of "mata".
 The verb "teje" means "knits".
-"tejen" is the plural of "teje".
-"tejemos" is the first person of "tejen".
-"tejo" is the first person of "teje".
-"tejes" is the second person of "teje".
-"tejió" is the past of "teje".
-"tejieron" is the past of "tejen".
-"tejimos" is the first person of "tejieron".
-"tejí" is the first person of "tejió".
-"tejiste" is the second person of "tejió".
-"tejía" is the imperfect of "teje".
-"tejían" is the imperfect of "tejen".
-"tejíamos" is the first person of "tejían".
-"tejías" is the second person of "tejía".
-"tejerá" is the future of "teje".
-"tejerán" is the plural of "tejerá".
-"tejeremos" is the first person of "tejerán".
-"tejeré" is the first person of "tejerá".
-"tejerás" is the second person of "tejerá".
-"tejería" is the conditional of "teje".
-"tejerían" is the plural of "tejería".
-"tejeríamos" is the first person of "tejerían".
-"tejerías" is the second person of "tejería".
-"teja" is the subjunctive of "teje".
-"tejan" is the plural of "teja".
-"tejamos" is the first person of "tejan".
-"tejas" is the second person of "teja".
-"tejiera" is the past subjunctive of "teje".
-"tejieran" is the plural of "tejiera".
-"tejiéramos" is the first person of "tejieran".
-"tejieras" is the second person of "tejiera".
-"teje" is the imperative of "teje".
-"tejas" is the negative imperative of "teje".
-"tejed" is the imperative of "tejen".
-"tejáis" is the negative imperative of "tejen".
-"tejamos" is the hortative of "teje".
-"tejido" is the participle of "teje".
-"tejida" is the participle of "teje".
-"tejida" is feminine.
-"tejidos" is the participle of "teje".
-"tejidos" is the plural of "tejido".
-"tejidas" is the participle of "teje".
-"tejidas" is feminine.
-"tejidas" is the plural of "tejida".
-"tejer" is the infinitive of "teje".
-"tejiendo" is the gerund of "teje".
 "knitted" is the past of "knits".
 "knitting" is the gerund of "knits".
 The verb "golpea" means "knocks".
@@ -99875,8 +99997,6 @@ The verb "trama" means "weaves".
 "tramadas" is the plural of "tramada".
 "tramar" is the infinitive of "trama".
 "tramando" is the gerund of "trama".
-"wove" is the past of "weaves".
-"woven" is the participle of "weaves".
 The verb "verifica" means "verifies".
 "verifican" is the plural of "verifica".
 "verificamos" is the first person of "verifican".
@@ -109152,6 +109272,283 @@ The verb "aprovecha" means "exploits".
 "aprovechadas" is the plural of "aprovechada".
 "aprovechar" is the infinitive of "aprovecha".
 "aprovechando" is the gerund of "aprovecha".
+The verb "arremete" means "attacks".
+"arremeten" is the plural of "arremete".
+"arremetemos" is the first person of "arremeten".
+"arremeto" is the first person of "arremete".
+"arremetes" is the second person of "arremete".
+"arremetió" is the past of "arremete".
+"arremetieron" is the past of "arremeten".
+"arremetimos" is the first person of "arremetieron".
+"arremetí" is the first person of "arremetió".
+"arremetiste" is the second person of "arremetió".
+"arremetía" is the imperfect of "arremete".
+"arremetían" is the imperfect of "arremeten".
+"arremetíamos" is the first person of "arremetían".
+"arremetías" is the second person of "arremetía".
+"arremeterá" is the future of "arremete".
+"arremeterán" is the plural of "arremeterá".
+"arremeteremos" is the first person of "arremeterán".
+"arremeteré" is the first person of "arremeterá".
+"arremeterás" is the second person of "arremeterá".
+"arremetería" is the conditional of "arremete".
+"arremeterían" is the plural of "arremetería".
+"arremeteríamos" is the first person of "arremeterían".
+"arremeterías" is the second person of "arremetería".
+"arremeta" is the subjunctive of "arremete".
+"arremetan" is the plural of "arremeta".
+"arremetamos" is the first person of "arremetan".
+"arremetas" is the second person of "arremeta".
+"arremetiera" is the past subjunctive of "arremete".
+"arremetieran" is the plural of "arremetiera".
+"arremetiéramos" is the first person of "arremetieran".
+"arremetieras" is the second person of "arremetiera".
+"arremete" is the imperative of "arremete".
+"arremetas" is the negative imperative of "arremete".
+"arremeted" is the imperative of "arremeten".
+"arremetáis" is the negative imperative of "arremeten".
+"arremetamos" is the hortative of "arremete".
+"arremetido" is the participle of "arremete".
+"arremetida" is the participle of "arremete".
+"arremetida" is feminine.
+"arremetidos" is the participle of "arremete".
+"arremetidos" is the plural of "arremetido".
+"arremetidas" is the participle of "arremete".
+"arremetidas" is feminine.
+"arremetidas" is the plural of "arremetida".
+"arremeter" is the infinitive of "arremete".
+"arremetiendo" is the gerund of "arremete".
+The verb "recompone" means "rebuilds".
+"recomponen" is the plural of "recompone".
+"recomponemos" is the first person of "recomponen".
+"recompongo" is the first person of "recompone".
+"recompones" is the second person of "recompone".
+"recompuso" is the past of "recompone".
+"recompusieron" is the past of "recomponen".
+"recompusimos" is the first person of "recompusieron".
+"recompuse" is the first person of "recompuso".
+"recompusiste" is the second person of "recompuso".
+"recomponía" is the imperfect of "recompone".
+"recomponían" is the imperfect of "recomponen".
+"recomponíamos" is the first person of "recomponían".
+"recomponías" is the second person of "recomponía".
+"recompondrá" is the future of "recompone".
+"recompondrán" is the plural of "recompondrá".
+"recompondremos" is the first person of "recompondrán".
+"recompondré" is the first person of "recompondrá".
+"recompondrás" is the second person of "recompondrá".
+"recompondría" is the conditional of "recompone".
+"recompondrían" is the plural of "recompondría".
+"recompondríamos" is the first person of "recompondrían".
+"recompondrías" is the second person of "recompondría".
+"recomponga" is the subjunctive of "recompone".
+"recompongan" is the plural of "recomponga".
+"recompongamos" is the first person of "recompongan".
+"recompongas" is the second person of "recomponga".
+"recompusiera" is the past subjunctive of "recompone".
+"recompusieran" is the plural of "recompusiera".
+"recompusiéramos" is the first person of "recompusieran".
+"recompusieras" is the second person of "recompusiera".
+"recompón" is the imperative of "recompone".
+"recompongas" is the negative imperative of "recompone".
+"recomponed" is the imperative of "recomponen".
+"recompongáis" is the negative imperative of "recomponen".
+"recompongamos" is the hortative of "recompone".
+"recompuesto" is the participle of "recompone".
+"recompuesta" is the participle of "recompone".
+"recompuesta" is feminine.
+"recompuestos" is the participle of "recompone".
+"recompuestos" is the plural of "recompuesto".
+"recompuestas" is the participle of "recompone".
+"recompuestas" is feminine.
+"recompuestas" is the plural of "recompuesta".
+"recomponer" is the infinitive of "recompone".
+"recomponiendo" is the gerund of "recompone".
+"rebuilt" is the past of "rebuilds".
+The verb "espeta" means "retorts".
+"espetan" is the plural of "espeta".
+"espetamos" is the first person of "espetan".
+"espeto" is the first person of "espeta".
+"espetas" is the second person of "espeta".
+"espetó" is the past of "espeta".
+"espetaron" is the past of "espetan".
+"espetamos" is the first person of "espetaron".
+"espeté" is the first person of "espetó".
+"espetaste" is the second person of "espetó".
+"espetaba" is the imperfect of "espeta".
+"espetaban" is the imperfect of "espetan".
+"espetábamos" is the first person of "espetaban".
+"espetabas" is the second person of "espetaba".
+"espetará" is the future of "espeta".
+"espetarán" is the plural of "espetará".
+"espetaremos" is the first person of "espetarán".
+"espetaré" is the first person of "espetará".
+"espetarás" is the second person of "espetará".
+"espetaría" is the conditional of "espeta".
+"espetarían" is the plural of "espetaría".
+"espetaríamos" is the first person of "espetarían".
+"espetarías" is the second person of "espetaría".
+"espete" is the subjunctive of "espeta".
+"espeten" is the plural of "espete".
+"espetemos" is the first person of "espeten".
+"espetes" is the second person of "espete".
+"espetara" is the past subjunctive of "espeta".
+"espetaran" is the plural of "espetara".
+"espetáramos" is the first person of "espetaran".
+"espetaras" is the second person of "espetara".
+"espeta" is the imperative of "espeta".
+"espetes" is the negative imperative of "espeta".
+"espetad" is the imperative of "espetan".
+"espetéis" is the negative imperative of "espetan".
+"espetemos" is the hortative of "espeta".
+"espetado" is the participle of "espeta".
+"espetada" is the participle of "espeta".
+"espetada" is feminine.
+"espetados" is the participle of "espeta".
+"espetados" is the plural of "espetado".
+"espetadas" is the participle of "espeta".
+"espetadas" is feminine.
+"espetadas" is the plural of "espetada".
+"espetar" is the infinitive of "espeta".
+"espetando" is the gerund of "espeta".
+The verb "precisa" means "specifies".
+"precisan" is the plural of "precisa".
+"precisamos" is the first person of "precisan".
+"preciso" is the first person of "precisa".
+"precisas" is the second person of "precisa".
+"precisó" is the past of "precisa".
+"precisaron" is the past of "precisan".
+"precisamos" is the first person of "precisaron".
+"precisé" is the first person of "precisó".
+"precisaste" is the second person of "precisó".
+"precisaba" is the imperfect of "precisa".
+"precisaban" is the imperfect of "precisan".
+"precisábamos" is the first person of "precisaban".
+"precisabas" is the second person of "precisaba".
+"precisará" is the future of "precisa".
+"precisarán" is the plural of "precisará".
+"precisaremos" is the first person of "precisarán".
+"precisaré" is the first person of "precisará".
+"precisarás" is the second person of "precisará".
+"precisaría" is the conditional of "precisa".
+"precisarían" is the plural of "precisaría".
+"precisaríamos" is the first person of "precisarían".
+"precisarías" is the second person of "precisaría".
+"precise" is the subjunctive of "precisa".
+"precisen" is the plural of "precise".
+"precisemos" is the first person of "precisen".
+"precises" is the second person of "precise".
+"precisara" is the past subjunctive of "precisa".
+"precisaran" is the plural of "precisara".
+"precisáramos" is the first person of "precisaran".
+"precisaras" is the second person of "precisara".
+"precisa" is the imperative of "precisa".
+"precises" is the negative imperative of "precisa".
+"precisad" is the imperative of "precisan".
+"preciséis" is the negative imperative of "precisan".
+"precisemos" is the hortative of "precisa".
+"precisado" is the participle of "precisa".
+"precisada" is the participle of "precisa".
+"precisada" is feminine.
+"precisados" is the participle of "precisa".
+"precisados" is the plural of "precisado".
+"precisadas" is the participle of "precisa".
+"precisadas" is feminine.
+"precisadas" is the plural of "precisada".
+"precisar" is the infinitive of "precisa".
+"precisando" is the gerund of "precisa".
+The verb "traslada" means "conveys".
+"trasladan" is the plural of "traslada".
+"trasladamos" is the first person of "trasladan".
+"traslado" is the first person of "traslada".
+"trasladas" is the second person of "traslada".
+"trasladó" is the past of "traslada".
+"trasladaron" is the past of "trasladan".
+"trasladamos" is the first person of "trasladaron".
+"trasladé" is the first person of "trasladó".
+"trasladaste" is the second person of "trasladó".
+"trasladaba" is the imperfect of "traslada".
+"trasladaban" is the imperfect of "trasladan".
+"trasladábamos" is the first person of "trasladaban".
+"trasladabas" is the second person of "trasladaba".
+"trasladará" is the future of "traslada".
+"trasladarán" is the plural of "trasladará".
+"trasladaremos" is the first person of "trasladarán".
+"trasladaré" is the first person of "trasladará".
+"trasladarás" is the second person of "trasladará".
+"trasladaría" is the conditional of "traslada".
+"trasladarían" is the plural of "trasladaría".
+"trasladaríamos" is the first person of "trasladarían".
+"trasladarías" is the second person of "trasladaría".
+"traslade" is the subjunctive of "traslada".
+"trasladen" is the plural of "traslade".
+"traslademos" is the first person of "trasladen".
+"traslades" is the second person of "traslade".
+"trasladara" is the past subjunctive of "traslada".
+"trasladaran" is the plural of "trasladara".
+"trasladáramos" is the first person of "trasladaran".
+"trasladaras" is the second person of "trasladara".
+"traslada" is the imperative of "traslada".
+"traslades" is the negative imperative of "traslada".
+"trasladad" is the imperative of "trasladan".
+"trasladéis" is the negative imperative of "trasladan".
+"traslademos" is the hortative of "traslada".
+"trasladado" is the participle of "traslada".
+"trasladada" is the participle of "traslada".
+"trasladada" is feminine.
+"trasladados" is the participle of "traslada".
+"trasladados" is the plural of "trasladado".
+"trasladadas" is the participle of "traslada".
+"trasladadas" is feminine.
+"trasladadas" is the plural of "trasladada".
+"trasladar" is the infinitive of "traslada".
+"trasladando" is the gerund of "traslada".
+The verb "potencia" means "boosts".
+"potencian" is the plural of "potencia".
+"potenciamos" is the first person of "potencian".
+"potencio" is the first person of "potencia".
+"potencias" is the second person of "potencia".
+"potenció" is the past of "potencia".
+"potenciaron" is the past of "potencian".
+"potenciamos" is the first person of "potenciaron".
+"potencié" is the first person of "potenció".
+"potenciaste" is the second person of "potenció".
+"potenciaba" is the imperfect of "potencia".
+"potenciaban" is the imperfect of "potencian".
+"potenciábamos" is the first person of "potenciaban".
+"potenciabas" is the second person of "potenciaba".
+"potenciará" is the future of "potencia".
+"potenciarán" is the plural of "potenciará".
+"potenciaremos" is the first person of "potenciarán".
+"potenciaré" is the first person of "potenciará".
+"potenciarás" is the second person of "potenciará".
+"potenciaría" is the conditional of "potencia".
+"potenciarían" is the plural of "potenciaría".
+"potenciaríamos" is the first person of "potenciarían".
+"potenciarías" is the second person of "potenciaría".
+"potencie" is the subjunctive of "potencia".
+"potencien" is the plural of "potencie".
+"potenciemos" is the first person of "potencien".
+"potencies" is the second person of "potencie".
+"potenciara" is the past subjunctive of "potencia".
+"potenciaran" is the plural of "potenciara".
+"potenciáramos" is the first person of "potenciaran".
+"potenciaras" is the second person of "potenciara".
+"potencia" is the imperative of "potencia".
+"potencies" is the negative imperative of "potencia".
+"potenciad" is the imperative of "potencian".
+"potenciéis" is the negative imperative of "potencian".
+"potenciemos" is the hortative of "potencia".
+"potenciado" is the participle of "potencia".
+"potenciada" is the participle of "potencia".
+"potenciada" is feminine.
+"potenciados" is the participle of "potencia".
+"potenciados" is the plural of "potenciado".
+"potenciadas" is the participle of "potencia".
+"potenciadas" is feminine.
+"potenciadas" is the plural of "potenciada".
+"potenciar" is the infinitive of "potencia".
+"potenciando" is the gerund of "potencia".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -109935,51 +110332,6 @@ The verb "incrementa" means "increases".
 "incrementar" is the infinitive of "incrementa".
 "incrementando" is the gerund of "incrementa".
 The verb "potencia" means "improves".
-"potencian" is the plural of "potencia".
-"potenciamos" is the first person of "potencian".
-"potencio" is the first person of "potencia".
-"potencias" is the second person of "potencia".
-"potenció" is the past of "potencia".
-"potenciaron" is the past of "potencian".
-"potenciamos" is the first person of "potenciaron".
-"potencié" is the first person of "potenció".
-"potenciaste" is the second person of "potenció".
-"potenciaba" is the imperfect of "potencia".
-"potenciaban" is the imperfect of "potencian".
-"potenciábamos" is the first person of "potenciaban".
-"potenciabas" is the second person of "potenciaba".
-"potenciará" is the future of "potencia".
-"potenciarán" is the plural of "potenciará".
-"potenciaremos" is the first person of "potenciarán".
-"potenciaré" is the first person of "potenciará".
-"potenciarás" is the second person of "potenciará".
-"potenciaría" is the conditional of "potencia".
-"potenciarían" is the plural of "potenciaría".
-"potenciaríamos" is the first person of "potenciarían".
-"potenciarías" is the second person of "potenciaría".
-"potencie" is the subjunctive of "potencia".
-"potencien" is the plural of "potencie".
-"potenciemos" is the first person of "potencien".
-"potencies" is the second person of "potencie".
-"potenciara" is the past subjunctive of "potencia".
-"potenciaran" is the plural of "potenciara".
-"potenciáramos" is the first person of "potenciaran".
-"potenciaras" is the second person of "potenciara".
-"potencia" is the imperative of "potencia".
-"potencies" is the negative imperative of "potencia".
-"potenciad" is the imperative of "potencian".
-"potenciéis" is the negative imperative of "potencian".
-"potenciemos" is the hortative of "potencia".
-"potenciado" is the participle of "potencia".
-"potenciada" is the participle of "potencia".
-"potenciada" is feminine.
-"potenciados" is the participle of "potencia".
-"potenciados" is the plural of "potenciado".
-"potenciadas" is the participle of "potencia".
-"potenciadas" is feminine.
-"potenciadas" is the plural of "potenciada".
-"potenciar" is the infinitive of "potencia".
-"potenciando" is the gerund of "potencia".
 The verb "descuida" means "neglects".
 "descuidan" is the plural of "descuida".
 "descuidamos" is the first person of "descuidan".
@@ -110257,51 +110609,6 @@ The verb "convalida" means "validates".
 "convalidar" is the infinitive of "convalida".
 "convalidando" is the gerund of "convalida".
 The verb "precisa" means "requires".
-"precisan" is the plural of "precisa".
-"precisamos" is the first person of "precisan".
-"preciso" is the first person of "precisa".
-"precisas" is the second person of "precisa".
-"precisó" is the past of "precisa".
-"precisaron" is the past of "precisan".
-"precisamos" is the first person of "precisaron".
-"precisé" is the first person of "precisó".
-"precisaste" is the second person of "precisó".
-"precisaba" is the imperfect of "precisa".
-"precisaban" is the imperfect of "precisan".
-"precisábamos" is the first person of "precisaban".
-"precisabas" is the second person of "precisaba".
-"precisará" is the future of "precisa".
-"precisarán" is the plural of "precisará".
-"precisaremos" is the first person of "precisarán".
-"precisaré" is the first person of "precisará".
-"precisarás" is the second person of "precisará".
-"precisaría" is the conditional of "precisa".
-"precisarían" is the plural of "precisaría".
-"precisaríamos" is the first person of "precisarían".
-"precisarías" is the second person of "precisaría".
-"precise" is the subjunctive of "precisa".
-"precisen" is the plural of "precise".
-"precisemos" is the first person of "precisen".
-"precises" is the second person of "precise".
-"precisara" is the past subjunctive of "precisa".
-"precisaran" is the plural of "precisara".
-"precisáramos" is the first person of "precisaran".
-"precisaras" is the second person of "precisara".
-"precisa" is the imperative of "precisa".
-"precises" is the negative imperative of "precisa".
-"precisad" is the imperative of "precisan".
-"preciséis" is the negative imperative of "precisan".
-"precisemos" is the hortative of "precisa".
-"precisado" is the participle of "precisa".
-"precisada" is the participle of "precisa".
-"precisada" is feminine.
-"precisados" is the participle of "precisa".
-"precisados" is the plural of "precisado".
-"precisadas" is the participle of "precisa".
-"precisadas" is feminine.
-"precisadas" is the plural of "precisada".
-"precisar" is the infinitive of "precisa".
-"precisando" is the gerund of "precisa".
 The verb "transcurre" means "passes".
 "transcurren" is the plural of "transcurre".
 "transcurrimos" is the first person of "transcurren".
@@ -117552,51 +117859,6 @@ The verb "mienta" means "mentions".
 "mentar" is the infinitive of "mienta".
 "mentando" is the gerund of "mienta".
 The verb "traslada" means "moves".
-"trasladan" is the plural of "traslada".
-"trasladamos" is the first person of "trasladan".
-"traslado" is the first person of "traslada".
-"trasladas" is the second person of "traslada".
-"trasladó" is the past of "traslada".
-"trasladaron" is the past of "trasladan".
-"trasladamos" is the first person of "trasladaron".
-"trasladé" is the first person of "trasladó".
-"trasladaste" is the second person of "trasladó".
-"trasladaba" is the imperfect of "traslada".
-"trasladaban" is the imperfect of "trasladan".
-"trasladábamos" is the first person of "trasladaban".
-"trasladabas" is the second person of "trasladaba".
-"trasladará" is the future of "traslada".
-"trasladarán" is the plural of "trasladará".
-"trasladaremos" is the first person of "trasladarán".
-"trasladaré" is the first person of "trasladará".
-"trasladarás" is the second person of "trasladará".
-"trasladaría" is the conditional of "traslada".
-"trasladarían" is the plural of "trasladaría".
-"trasladaríamos" is the first person of "trasladarían".
-"trasladarías" is the second person of "trasladaría".
-"traslade" is the subjunctive of "traslada".
-"trasladen" is the plural of "traslade".
-"traslademos" is the first person of "trasladen".
-"traslades" is the second person of "traslade".
-"trasladara" is the past subjunctive of "traslada".
-"trasladaran" is the plural of "trasladara".
-"trasladáramos" is the first person of "trasladaran".
-"trasladaras" is the second person of "trasladara".
-"traslada" is the imperative of "traslada".
-"traslades" is the negative imperative of "traslada".
-"trasladad" is the imperative of "trasladan".
-"trasladéis" is the negative imperative of "trasladan".
-"traslademos" is the hortative of "traslada".
-"trasladado" is the participle of "traslada".
-"trasladada" is the participle of "traslada".
-"trasladada" is feminine.
-"trasladados" is the participle of "traslada".
-"trasladados" is the plural of "trasladado".
-"trasladadas" is the participle of "traslada".
-"trasladadas" is feminine.
-"trasladadas" is the plural of "trasladada".
-"trasladar" is the infinitive of "traslada".
-"trasladando" is the gerund of "traslada".
 The verb "traspone" means "moves".
 "trasponen" is the plural of "traspone".
 "trasponemos" is the first person of "trasponen".
@@ -123243,8 +123505,6 @@ The verb "prohíbe" means "bans".
 "banning" is the gerund of "bans".
 The verb "prohíbe" means "prohibits".
 The verb "reserva" means "books".
-The verb "aumenta" means "boosts".
-The verb "estimula" means "boosts".
 The verb "chuta" means "boots".
 The verb "incumple" means "breaches".
 The verb "informa" means "briefs".
@@ -123268,8 +123528,6 @@ The verb "dirige" means "conducts".
 The verb "afronta" means "braves".
 The verb "considera" means "regards".
 The verb "construye" means "constructs".
-The verb "transmite" means "conveys".
-The verb "transporta" means "conveys".
 The verb "condena" means "convicts".
 The verb "soporta" means "copes".
 The verb "soporta" means "abides".
@@ -123618,8 +123876,6 @@ The verb "corre" means "races".
 The verb "valora" means "rates".
 The verb "calcula" means "reckons".
 The verb "considera" means "reckons".
-The verb "reconstruye" means "rebuilds".
-"rebuilt" is the past of "rebuilds".
 The verb "recupera" means "recuperates".
 The verb "restablece" means "reinstates".
 The verb "confía" means "relies".
@@ -124182,6 +124438,12 @@ The feminine adjective "desconfiada" means "distrustful".
 "desconfiadas" is the plural of "desconfiada".
 The adjective "constituyente" means "constituent".
 "constituyentes" is the plural of "constituyente".
+The adjective "antiterrorista" means "antiterrorist".
+"antiterroristas" is the plural of "antiterrorista".
+The masculine adjective "remilgado" means "squeamish".
+"remilgados" is the plural of "remilgado".
+The feminine adjective "remilgada" means "squeamish".
+"remilgadas" is the plural of "remilgada".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

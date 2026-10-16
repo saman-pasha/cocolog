@@ -2990,3 +2990,35 @@ The intransitive verb "va in scena" means "takes place".
 "è" is the auxiliary of "va in scena".
 # `ha avuto luogo': the perfect of `ha luogo'
 "avuto luogo" is the participle of "ha luogo".
+# the PSOE and PNV article (AnCora CESS-CAST-P-20000903-30), Spanish into Italian and English
+# `el duro discurso de Aznar': a speech is a `discorso'; the dictionary's only word for it is `allocuzione'
+The masculine noun "discorso" means "speech".
+"discorsi" is the plural of "discorso".
+# `a la hora de definir una política': at the time of
+The preposition "al momento di" means "at the time of".
+# the PSOE and PNV article, second batch (Spanish into Italian)
+# `dar portazo al PNV': chiudere la porta
+The verb "chiude la porta" means "closes the door".
+"chiudono la porta" is the plural of "chiude la porta".
+"chiudere la porta" is the infinitive of "chiude la porta".
+"chiuse la porta" is the past of "chiude la porta".
+# `según se desprende de las palabras': come si evince da
+The preposition "come si evince da" means "as shown by".
+# `reclamarle que mantenga': demands, written `chiede'; the dictionary's `asks' is said again first
+The verb "chiede" means "asks".
+The verb "chiede" means "demands".
+# `convienen en que': agree that, written `concorda' (it means agrees already, and `accorda' came first)
+The verb "concorda" means "agrees".
+# `aboga por tejer una unidad': `auspica di tessere', never `per'
+"auspica" takes "di" before the infinitive.
+# `apostó por una unidad': puntare su. The dictionary's `points' is said again first
+The verb "punta" means "points".
+The verb "punta" means "bets".
+"punta" takes "su" before the phrase.
+# `se distancia del duro discurso': si distanzia dal. The dictionary's `distances' was `allontana'
+The verb "distanzia" means "distances".
+"distanzia" takes "da" before the phrase.
+# the PSOE and PNV article, third batch (Spanish into Italian)
+# `una velada crítica al tremendismo': a veiled criticism, which the dictionary has no word for
+The feminine noun "critica velata" means "veiled criticism".
+"critiche velate" is the plural of "critica velata".

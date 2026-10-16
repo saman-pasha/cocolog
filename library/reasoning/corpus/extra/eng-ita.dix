@@ -1035,3 +1035,27 @@
 # `la questione del governo non si dibatte': the issue of the government, where the dictionary's
 # question is `pregunta'. Both ways: `questione' is the first Italian word for an issue (it was `affare')
 <e><p><l>issue<s n="n"/></l><r>questione<s n="n"/><s n="f"/></r></p></e>
+# the PSOE and PNV article (AnCora CESS-CAST-P-20000903-30), Spanish into Italian and English: the Italian
+# words for what the Spanish dictionary now says in English
+# `se distancia del discurso': si distanzia
+<e><p><l>distance<s n="vblex"/></l><r>distanziare<s n="vblex"/></r></p></e>
+# `en materia antiterrorista'
+<e><p><l>antiterrorist<s n="adj"/></l><r>antiterrorista<s n="adj"/><s n="mf"/></r></p></e>
+# `fue mucho menos remilgado': squeamish, where the dictionary has no word for it
+<e><p><l>squeamish<s n="adj"/></l><r>schizzinoso<s n="adj"/></r></p></e>
+# `que han estado torpedeando': the Italian has `siluro' and no `silurare'; to sabotage, written for torpedo and never read as it
+<e r="LR"><p><l>torpedo<s n="vblex"/></l><r>sabotare<s n="vblex"/></r></p></e>
+# the PSOE and PNV article, second batch (Spanish into Italian)
+# `aboga por tejer una unidad': weave is `tessere', where the dictionary's only word is `tramare'
+<e><p><l>weave<s n="vblex"/></l><r>tessere<s n="vblex"/></r></p></e>
+# `fue una equivocación': a mistake, written `errore' (read as an error still)
+<e r="LR"><p><l>mistake<s n="n"/></l><r>errore<s n="n"/><s n="m"/></r></p></e>
+# `enfatizó que ...': emphasize, written `sottolineare' (`stresses' is its meaning already)
+<e r="LR"><p><l>emphasize<s n="vblex"/></l><r>sottolineare<s n="vblex"/></r></p></e>
+# the PSOE and PNV article, third batch (Spanish into Italian)
+# `acudirán dispuestos a buscar': willing, where the dictionary has `disposto' as a participle only
+<e><p><l>willing<s n="adj"/></l><r>disposto<s n="adj"/></r></p></e>
+# `no desean potenciar': boost, which the dictionary writes `aumentare'
+<e><p><l>boost<s n="vblex"/></l><r>potenziare<s n="vblex"/></r></p></e>
+# `un mensaje basado en la confrontación': confrontation, written `confronto' (`comparison' is its meaning already)
+<e r="LR"><p><l>confrontation<s n="n"/></l><r>confronto<s n="n"/><s n="m"/></r></p></e>

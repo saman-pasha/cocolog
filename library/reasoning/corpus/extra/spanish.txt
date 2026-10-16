@@ -2223,3 +2223,38 @@ The adjective "a doble vuelta" means "two-round".
 "a doble vuelta" is the plural of "a doble vuelta".
 # `che ieri a Montecitorio sia andato in scena un classico': has taken place -- the perfect of `tiene lugar'
 "tenido lugar" is the participle of "tiene lugar".
+# the PSOE and PNV article (AnCora CESS-CAST-P-20000903-30), Spanish into Italian and English
+# `a la hora de definir una política': at the time of
+The preposition "a la hora de" means "at the time of".
+# `avisó a Ibarretxe de que a su Gobierno el tiempo se le "acaba"': warned him that, as `advierte' does
+"avisa" takes the clause.
+"avisa" takes "de" before the clause.
+# the PSOE and PNV article, second batch (into Italian and English)
+# `una velada crítica al tremendismo': a veiled criticism; `velada' is a noun (an evening) and `crítica' an
+# adjective too, and the order of the phrase made the evening the head
+The feminine noun "velada crítica" means "veiled criticism".
+"veladas críticas" is the plural of "velada crítica".
+# `convienen en que el Estatuto ... es el instrumento': agree that. The dictionary's `suits' is said again
+# first, for `conviene hacerlo'; and its `acuerda' for the meaning, so that the word written for `agrees'
+# stays `acordar' (`han acordado un memorándum', not `han convenido')
+The verb "acuerda" means "agrees".
+The verb "conviene" means "suits".
+The clausal verb "conviene" means "agrees".
+"conviene" takes "en" before the clause.
+# `según se desprende de las palabras de su secretario general': as shown by
+The preposition "según se desprende de" means "as shown by".
+# `dar portazo al PNV': to close the door to somebody
+The verb "da portazo" means "closes the door".
+"dan portazo" is the plural of "da portazo".
+"dar portazo" is the infinitive of "da portazo".
+"dio portazo" is the past of "da portazo".
+# `aboga por tejer', `apostó por una unidad': the word the verb puts before what it governs
+"aboga" takes "por" before the infinitive.
+"apuesta" takes "por" before the phrase.
+# `se distancia del duro discurso de Aznar': distances itself from
+"distancia" takes "de" before the phrase.
+# the PSOE and PNV article, third batch (into Italian and English)
+# `con Mayor Oreja dispuestos a buscar': the minister's surname is two words the lesson knows (bigger, ear)
+"mayor oreja" is a name.
+# `un mensaje basado en la confrontación': confrontation, where the dictionary's `showdown' came first
+The feminine noun "confrontación" means "confrontation".
