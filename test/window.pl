@@ -27,7 +27,7 @@
 :- use_module('test/trace-program.pl').
 
 main :-
-    clock, printed, turns, window, tried, asked, timed, checks_done.
+    clock, printed, turns, window, tried, asked, timed, retried, cpu, checks_done.
 
 %% ---- the programs the windows watch -----------------------------------
 
@@ -607,6 +607,133 @@ timed :-
     win_refused([time(1, -1)], R9),
     check('refused: the clock with a recording, an inference 0 to start from, a negative K',
           [R7, R8, R9], [domain, domain, domain]).
+
+%% ---- a retry under the clock (1.13.7) -----------------------------------
+%%
+%% Backtracking into a clause frame for its next clause works for the call
+%% that made the frame: its heads, the guards of the clause it enters. The
+%% clock reads where the retry begins and records retry(I, Ns, Name/Arity),
+%% Ns of inference I's time -- the step whose failure led there. Held: which
+%% retries are recorded, at which inference and whose, and where the four
+%% places a pending retry can end leave its time.
+
+w_pk(a). w_pk(b). w_pk(c).
+w_rt :- w_pk(X), X == c.
+w_rs :- w_pk(X), numlist(1, 20000, _), X == c.
+w_rtf(L) :- findall(X, ( w_pk(X), X \== a ), L).
+w_pm(X, n) :- between(1, 20000, X).
+w_pm(none, m).
+w_rtb(L) :- findall(X, w_pm(X, n), L).
+w_pq(a, n). w_pq(b, m).
+w_rte :- w_pq(X, n), X == z.
+w_rtn(0) :- !.
+w_rtn(N) :- w_rt, N1 is N - 1, w_rtn(N1).
+
+retried :-
+    section('time(F, K): a retry is the retried predicate''s -- recorded apart, inside the step whose failure led to it (1.13.7)'),
+    w_retries(w_rt, [time(1, 0)], E1, Rs1, In1),
+    check('w_rt: == fails at 3 and 4, each retrying w_pk/1, each retry a part of its step''s time',
+          E1-Rs1-In1, end(answer, 6, [6])-[3-(w_pk/1), 4-(w_pk/1)]-inside),
+    %% the retry ends at the next reading: numlist/3 of 20 000 right after
+    %% it is that step's, not the retry's
+    w_retries(w_rs, [time(1, 0)], _, Rs1b, In1b),
+    check('w_rs: a retry ends where the next step begins -- numlist/3 after it, a thousand times its cost, is no part of it',
+          Rs1b-In1b, [6-(w_pk/1), 10-(w_pk/1)]-inside),
+    %% the next answer findall/3 asks for is a search it makes in its own
+    %% inference, 2, and so is the retry that begins it
+    w_retries(w_rtf(_), [time(1, 0)], _, Rs2, In2),
+    msort(Rs2, SRs2),
+    check('into findall/3: the inner goal''s retry at its failing step, the next answer''s in findall''s own',
+          SRs2-In2, [2-(w_pk/1), 5-(w_pk/1)]-inside),
+    %% w_pm/2's second head does not unify: the retry that tries it is still
+    %% pending when findall/3's search ends, and ends there -- not with the
+    %% list of 20 000 findall/3 builds after it, its own time
+    w_retries(w_rtb(_), [time(1, 0)], _, Rs3, _),
+    findall(I, member(I-(w_pm/2), Rs3), Pm3),
+    length(Rs3, NR3),
+    %% the least of three runs: one preemption inside the retry, 34 us
+    %% against 3.3 ms on a loaded box, crossed the hundredth -- and the list
+    %% is 5 to 8 % of findall/3's time, so the line cannot be drawn higher
+    findall(N-D, ( between(1, 3, _),
+                   '$trace_window'(w_rtb(_), [time(1, 0)], Es3, _),
+                   findall(N0, member(retry(_, N0, w_pm/2), Es3), [N]),
+                   findall(D1, ( member(steps(_, D0), Es3), member(D1, D0) ), [_, D|_]) ),
+            NDs3),
+    msort(NDs3, [N3-D3|_]),
+    ( N3 * 100 < D3 -> R3 = apart ; R3 = N3-D3 ),
+    check('a retry pending as findall/3''s search ends ends there: between/3''s 20 000 and w_pm/2''s last, a hundredth of findall''s time at most (the least of three runs)',
+          NR3-Pm3-R3, 20001-[2]-apart),
+    %% ... and one pending when the run fails ends with the run
+    w_retries(w_rte, [time(1, 0)], E4, Rs4, _),
+    check('a retry pending when the run fails ends with it',
+          E4-Rs4, end(false, 3, [])-[3-(w_pq/2)]),
+    %% the run's last K: a retry is the inference's it ran in, and kept
+    %% only with that inference
+    w_retries(w_rtn(20), [time(1, 20)], E5, Rs5, _),
+    findall(I, member(I-_, Rs5), Is5),
+    check('time(1, 20): only the retries of the last 20 inferences',
+          E5-Is5, end(answer, 143, [143])-[124, 130, 131, 137, 138]),
+    %% ... and DROPPED once their inference has left the ring: two million
+    %% turns of w_rtn/1 are four million retries, 128 MB were each kept, and
+    %% the run's last ten inferences hold two -- which a child under a 150 MB
+    %% ceiling still records, in a second and a half (macOS does not
+    %% enforce ulimit -v)
+    shell('uname -s', Sys7, _),
+    (   Sys7 == 'Darwin'
+    ->  format("   SKIP (macOS does not enforce ulimit -v)~n", [])
+    ;   scratch(D7),
+        atom_concat(D7, '/ring.pl', Ring7),
+        fixture(Ring7, ['w_pk(a). w_pk(b). w_pk(c).', 'w_rt :- w_pk(X), X == c.',
+                        'w_rtn(0) :- !.', 'w_rtn(N) :- w_rt, N1 is N - 1, w_rtn(N1).',
+                        'main :- ''$trace_window''(w_rtn(2000000), [time(1, 10)], Es, E),',
+                        '        findall(I, member(retry(I, _, _), Es), Is), write(E-Is), nl.']),
+        cocolog(C7),
+        atomic_list_concat(['ulimit -v 150000; ulimit -t 60; ', C7, ' -s ', Ring7, ' 2>&1'], Cmd7),
+        shell(Cmd7, T7, _, 120000),
+        check('time(1, 10) over four million retries, in 150 MB: the last ten inferences'' two, the rest dropped as they left the ring',
+              T7, 'end(answer,14000003,[14000003])-[13999997,13999998]')
+    ),
+    %% an untimed probe and a recording keep no clock, and record no retry
+    '$trace_window'(w_rt, [from(1)], Es6, _),
+    findall(R6, ( member(R6, Es6), functor(R6, retry, _) ), Rs6),
+    check('a recording records none', Rs6, []).
+
+%% ---- the CPU clock (1.13.7) ---------------------------------------------
+%%
+%% cpu(Open, Total): the process's CPU clock read as the run starts, where
+%% the window opens and where the run ends, in seconds -- what places a
+%% window in the run's time. Held: what does not depend on how fast the box
+%% is -- none where no window opened, the order of the two, and a run whose
+%% work is all before its window spending nearly all of its CPU there.
+
+w_burn(X) :- numlist(1, 200000, L0), msort(L0, _), w_cnt(3), X = done.
+
+cpu :-
+    section('cpu(Open, Total): the CPU a run took before its window opened, and in all (1.13.7)'),
+    '$trace_window'(w_burn(_), [from(1), cpu(O1, T1)], _, E1),
+    ( float(O1), float(T1), 0.0 =< O1, O1 =< T1, O1 * 2 < T1 -> R1 = early ; R1 = O1-T1 ),
+    check('from(1): the window opens before the work, the run''s CPU after it', E1-R1,
+          end(answer, 15, [15])-early),
+    %% w_burn/1's numlist/3 is inferences 2 to 4, its msort/2 5
+    '$trace_window'(w_burn(_), [from(6), cpu(O2, T2)], _, _),
+    ( float(O2), O2 =< T2, O2 * 2 > T2 -> R2 = late ; R2 = O2-T2 ),
+    check('from(6): the work before the window, the most of the run''s CPU before it opened', R2, late),
+    '$trace_window'(w_burn(_), [cpu(O3, T3)], _, _),
+    '$trace_window'(w_burn(_), [from(99), cpu(O4, _)], _, E4),
+    ( float(T3) -> R3 = O3 ; R3 = T3 ),
+    check('a probe opens no window, and nor does one past the run''s end: none', R3-O4-E4,
+          none-none-end(answer, 15, [15])).
+
+%% a probe of G under OPTS: how it ended, each retry's I-Name/Arity, and
+%% `inside' when every retry's nanoseconds are some of its inference's
+w_retries(G, Opts, E, Rs, In) :-
+    '$trace_window'(G, Opts, Es, E),
+    findall(I-P, member(retry(I, _, P), Es), Rs),
+    findall(I-D, ( member(steps(F, Ds), Es), nth0(K, Ds, D), I is F + K ), IDs),
+    (   forall(member(retry(I, N, _), Es), ( memberchk(I-D, IDs), N > 0, N =< D ))
+    ->  In = inside
+    ;   In = outside
+    ).
 
 %% a probe of G under OPTS: how it ended, its time/4 term, every inference's
 %% nanoseconds from the first timed, and its gc/2 events

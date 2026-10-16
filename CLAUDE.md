@@ -77,7 +77,8 @@ correct the row rather than trusting it.
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
 guard's writer preference, the page list, the chunked grow, the commit clock
-settle). After touching it: rebuild it, then `make schema` here. A change to
+settle, the open's hexmap read a page at a time -- 1.0.1). After touching
+it: rebuild it, then `make schema` here. A change to
 `MVCCS-cicili/mvccs-lib.cicili` also rebuilds cocolog's embedded engine,
 transpiled from the same file through the `embed/mvccs-lib.cicili` symlink.
 `make schema` writes cocolog's Parsi objects into `$ZIGURATIP_HOME/ld` and
@@ -429,9 +430,17 @@ links the engine) and runs the 63 `.pl` cases in `pl_names/1`
   for an older server or store).
 * **A writing process rewrites the whole predicate** (the backend flushes a
   dirty predicate wholesale, ~360 bytes of new store per EXISTING row) and
-  the old rows stay dead; every later process is slower. `cocolog vacuum`
-  after the write bounds it. `garbage_collect/0` is unrelated: it compacts
-  this process's cell array, not the disk.
+  the old rows stay dead; every later process is slower -- a predicate's
+  first call walks its dead rows at ~0.2 us each (1.13.7: five appends of
+  one lesson noun added ~10 ms to its 14-17). `cocolog vacuum` after the
+  write bounds it. `garbage_collect/0` is unrelated: it compacts this
+  process's cell array, not the disk.
+* **The first call of a big predicate under `--embed` is a fetch of all
+  its clauses**, ~12 k instructions a clause after 1.13.7 (the row walk
+  6 k, the parse 4 k): 30-60 ms for a lesson predicate of 10-30 k
+  clauses, ~600 ms of a 680 ms translation. Opening the store cost every
+  process 0.3-0.7 s through ZiguratIP 1.0.0 (its open read the hexmap a
+  byte a chunk); 0.06 s since 1.0.1.
 * **An httpd pool fetches every module predicate per request** unless
   `prewarm/1` ran (`httpd_serve/3` calls it): pre-warm BEFORE spawning
   threads. `library(cowork)` deliberately does not -- the rule is the
@@ -1310,7 +1319,18 @@ cocolint index offers no import of it.
   at each answer and at its end, call_limited/3 and with_output_to/2 at
   theirs), or the starter's copying is charged to the inner goal read last.
   The clock's own work stays out of every inference's time: it reads again
-  after its array grows, and a collection moves its reading on.
+  after its array grows, and a collection moves its reading on. **A retry
+  is read apart** (1.13.7): each reading turns the clause frames pushed
+  since the last into `COCO_CH_CLOCKED` (from `tlow`, lowered by any
+  retry), and backtracking into one reads where the retry begins
+  (`coco_clock_retry`; the next reading, or the end of a findall/3 search
+  or of the run, closes it as `retry(I, Ns, Name/Arity)`). **The invariants
+  it stands on**: every step's reading resets `tlow` to `nchoices`, no step
+  shrinks the choice stack and then pushes, and nothing frozen ever holds
+  a CLOCKED frame (a clock runs only in the engines a builtin starts). **A
+  new frame kind in `coco_backtrack` gets its own equality test**: folded
+  into an `or` with the kinds beside it, it cost the step loop its jump
+  table (queens +0.08 %).
 * **The tracer keeps the untraced clock, and records as well as prints**
   (1.10.12). Taking the `'$trace_exit'` marker gives its step back
   (`coco_construct`), so a traced run counts what an untraced one does, and

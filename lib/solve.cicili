@@ -403,8 +403,19 @@
   ;;; as it drops a DEAD one. Untraced, a cut takes the frame as it always
   ;;; did, and a SPENT frame a thawed or `notrace'd run meets is dropped in
   ;;; silence: the cut has still cut.
+  ;;; CLOCKED is a CLAUSE frame under a window's clock (1.13.7): the clock
+  ;;; relabels the clause frames pushed since its last reading, so
+  ;;; backtracking into one meets a kind of its own (`coco_clock_retry',
+  ;;; out of line), which reads the clock where the retry begins and gives
+  ;;; the frame back as a CLAUSE frame. The retried clause's heads and
+  ;;; guards are then the retried call's time, not the time of the goal
+  ;;; whose failure led there. An untimed run never makes one, and no
+  ;;; freeze meets one: a machine is frozen at a turn's end, its top
+  ;;; engine's frames (lib/state.cicili), and a clock runs only on the
+  ;;; engines a builtin starts, inside the builtin.
   (enum coco_choice_kind (COCO_CH_CLAUSE . 0) (COCO_CH_GOAL . 1) (COCO_CH_CATCH . 2)
-                         (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5))
+                         (COCO_CH_DEAD . 3) (COCO_CH_CATCH_RETRY . 4) (COCO_CH_SPENT . 5)
+                         (COCO_CH_CLOCKED . 6))
 
   (struct coco_choice
     (member int      kind)
@@ -565,7 +576,13 @@
     ;; it stands in for, asked at each reading (`coco_clock_go'). 0 after
     ;; `coco_engine_init', which memsets
     (member u64         rmax)
-    (member int         tclock))
+    (member int         tclock)
+    ;; AND ITS RETRIES (1.13.7): each reading makes CLOCKED the clause
+    ;; frames from TLOW up -- the height the last reading left, or a frame a
+    ;; retry gave back -- once TMARKED says the first reading has marked
+    ;; them all (`coco_clock_mark')
+    (member int         tmarked)
+    (member size_t      tlow))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -769,7 +786,22 @@
     (member size_t       ngc)
     (member size_t       gccap)
     (member u64          caln)
-    (member u64          calns))
+    (member u64          calns)
+    ;; A RETRY UNDER THE CLOCK (1.13.7): RPEND the reading where one began
+    ;; (0, none), in inference RPI, of the predicate named RPNAME/RPARITY;
+    ;; at the next reading RTS gets (RPI, nanoseconds from RPEND, RPNAME,
+    ;; RPARITY), NRT words of them (`coco_clock_rclose')
+    (member u64          rpend)
+    (member u64          rpi)
+    (member u64          rpname)
+    (member u32          rparity)
+    (member u64 *        rts)
+    (member size_t       nrt)
+    (member size_t       rtcap)
+    ;; THE PROCESS'S CPU CLOCK (1.13.7, clock()): at the run's start, and
+    ;; where the window opened (-1, it did not) -- `cpu(Open, Total)'
+    (member i64          cpu0)
+    (member i64          cpuopen))
 
   (decl) (func coco_rec_free ((coco_rec * r)))
 
@@ -1334,15 +1366,18 @@
         (free (-> r arena))
         (free (-> r td))
         (free (-> r gcs))
+        (free (-> r rts))
         (set (-> r evs) nil)
         (set (-> r txs) nil)
         (set (-> r arena) nil)
         (set (-> r td) nil)
         (set (-> r gcs) nil)
+        (set (-> r rts) nil)
         (set (-> r nevs) 0)
         (set (-> r ntxs) 0)
         (set (-> r alen) 0)
-        (set (-> r ngc) 0))
+        (set (-> r ngc) 0)
+        (set (-> r nrt) 0))
 
   ;;; ---- the clock of a window (1.13.3) ------------------------------------
   ;;; What `'$trace_window'/4''s time(F, K) asks of a probe: the time each
@@ -1413,6 +1448,79 @@
         (if (<= (+ i (-> r tring)) (-> r thi)) (return 0))
         (return (nth (bitand i (- (-> r tring) 1)) (-> r td))))
 
+  ;;; A RETRY UNDER THE CLOCK (1.13.7): backtracking that reaches a clause
+  ;;; frame to try its next clause works for the call that made the frame,
+  ;;; not for the goal whose failure led there -- the heads it tries, the
+  ;;; guards of the clause it enters. The retry is timed from the frame
+  ;;; (`coco_clock_retry') to the next reading, and its time stays in the
+  ;;; step it ran in, as every inference's does; what the clock adds is
+  ;;; which part of that step was whose. One that finds no clause ends where
+  ;;; backtracking reaches the next frame, or where the engine's run ends
+  ;;; (`coco_clock_back', `coco_clock_end'). A collection never meets one:
+  ;;; it runs at a step's top, after the reading that ends it.
+
+  ;;; THE RETRY PENDING SINCE RPEND, ended at NOW: (inference, nanoseconds,
+  ;;; name, arity) on RTS, in the order the retries ran -- not always their
+  ;;; inferences' order: the one findall/3 asks for its next answer is in
+  ;;; findall/3's own inference. For the run's last K, the retries at the
+  ;;; front whose inference has left the ring are dropped before the array
+  ;;; grows. Answers 1 when it GREW, which is the clock's own time, as
+  ;;; `coco_clock_charge' says
+  (static)
+  (func coco_clock_rclose ((coco_rec * r) (u64 now)) (out int)
+        (let ((int grew . 0))
+          (if (== (-> r rpend) 0) (return 0))
+          (if (> (+ (-> r nrt) 4) (-> r rtcap))
+              (block
+               (if (!= (-> r tkeep) 0)
+                   (let ((size_t k . 0))
+                     (while (and (< k (-> r nrt))
+                                 (<= (+ (nth k (-> r rts)) (-> r tring)) (-> r thi)))
+                       (set k (+ k 4)))
+                     (if (> k 0)
+                         (block (memmove (-> r rts) (+ (-> r rts) k)
+                                         (* (- (-> r nrt) k) (sizeof u64)))
+                                (set (-> r nrt) (- (-> r nrt) k))))))
+               (if (> (+ (-> r nrt) 4) (-> r rtcap))
+                   (let ((size_t c . #'(? (== (-> r rtcap) 0) 4096 (* (-> r rtcap) 2)))
+                         (u64 * nr . nil))
+                     (set nr (cast (u64 *) (realloc (-> r rts) (* c (sizeof u64)))))
+                     ;; refused: the retry's time stays its step's, as it was
+                     (if (== nr nil) (block (set (-> r rpend) 0) (return 0)))
+                     (set (-> r rts) nr)
+                     (set (-> r rtcap) c)
+                     (set grew 1)))))
+          (set (nth (-> r nrt) (-> r rts)) (-> r rpi))
+          (set (nth (+ (-> r nrt) 1) (-> r rts)) (- now (-> r rpend)))
+          (set (nth (+ (-> r nrt) 2) (-> r rts)) (-> r rpname))
+          (set (nth (+ (-> r nrt) 3) (-> r rts)) (cast u64 (-> r rparity)))
+          (set (-> r nrt) (+ (-> r nrt) 4))
+          (set (-> r rpend) 0)
+          (return grew)))
+
+  ;;; THE CLAUSE FRAMES E PUSHED SINCE THE LAST READING, made CLOCKED, so
+  ;;; that backtracking into one reads the clock (`coco_clock_retry'): the
+  ;;; frames from the height the last reading left. A step never shrinks
+  ;;; the stack and then pushes -- a cut, a backtrack and a catch's exit
+  ;;; each end their step -- so a frame below that height is one marked
+  ;;; already, or one a retry gave back as a clause frame, which lowered
+  ;;; TLOW to it. The first time, every clause frame E has is marked: one
+  ;;; made before the clock started is retried as well. Not under trace,
+  ;;; whose scans take a call's frame by its kind
+  (static)
+  (func coco_clock_mark ((coco_engine * e))
+        (let ((size_t i . 0))
+          (if (-> e trace) (return))
+          (if (not (-> e tmarked))
+              (block (set (-> e tmarked) 1)
+                     (set (-> e tlow) 0)))
+          (set i (-> e tlow))
+          (while (< i (-> e nchoices))
+            (if (== ($ (nth i (-> e choices)) kind) COCO_CH_CLAUSE)
+                (set ($ (nth i (-> e choices)) kind) COCO_CH_CLOCKED))
+            (set i (+ i 1)))
+          (set (-> e tlow) (-> e nchoices))))
+
   ;;; THE CLOCK GOES INTO A NESTED ENGINE (findall/3, call_limited/3,
   ;;; with_output_to/2, from `coco_limit_narrow', which has set SUB's limit
   ;;; in steps): SUB reads at each step too, its limit kept in RMAX. Its
@@ -1429,8 +1537,10 @@
           (set (-> sub tclock) 1)
           (cond
             ((-> r ton)
-             (let ((u64 now . #'(coco_clock_ns)))
-               (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast))) (set now (coco_clock_ns)))
+             (let ((u64 now . #'(coco_clock_ns)) (int grew . 0))
+               (set grew (coco_clock_charge r (-> r tcur) (- now (-> r tlast))))
+               (if (coco_clock_rclose r now) (set grew 1))
+               (if grew (set now (coco_clock_ns)))
                (set (-> r tlast) now)
                (set (-> r tcur) (+ base 1))
                (set (-> sub max_steps) 1)))
@@ -1449,10 +1559,13 @@
   ;;; copying out of findall/3's answers, with_output_to/2's text
   (func coco_clock_back ((coco_engine * e))
         (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
-              (u64 now . 0))
+              (u64 now . 0) (int grew . 0))
           (if (or (== r nil) (not (-> r ton))) (return))
           (set now (coco_clock_ns))
-          (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast))) (set now (coco_clock_ns)))
+          (set grew (coco_clock_charge r (-> r tcur) (- now (-> r tlast))))
+          ;; a retry the inner engine's last backtracking began ends here
+          (if (coco_clock_rclose r now) (set grew 1))
+          (if grew (set now (coco_clock_ns)))
           (set (-> r tlast) now)
           (set (-> r tcur) (coco_rec_abs e r))))
 
@@ -1483,7 +1596,9 @@
   (func coco_clock_end ((coco_rec * r) (u64 used))
         (if (not (-> r ton)) (return))
         (if (<= (-> r tcur) used)
-            (coco_clock_charge r (-> r tcur) (- (coco_clock_ns) (-> r tlast)))))
+            (let ((u64 now . #'(coco_clock_ns)))
+              (coco_clock_charge r (-> r tcur) (- now (-> r tlast)))
+              (coco_clock_rclose r now))))
 
   ;;; ---- the four ports ----------------------------------------------------
   ;;; SWI's line, byte for byte: three spaces, the port, the depth in round
@@ -3273,6 +3388,27 @@
           (if (and (!= (-> tc printr) 0) (== (-> tc exited) 0))
               (coco_trace_port e "Fail" (-> tc depth) (-> tc goal)))))
 
+  ;;; A CLOCKED FRAME BACKTRACKED INTO (1.13.7): a retry begins, read from
+  ;;; the clock here, its predicate kept for the next reading's record
+  ;;; (`coco_clock_rclose'), and the frame is a CLAUSE frame again --
+  ;;; marked once more at the next reading if it still has clauses to try.
+  ;;; (weak), out of `coco_backtrack', as the recorder's functions are
+  (weak)
+  (func coco_clock_retry ((coco_engine * e) (size_t ci))
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec)))
+              (coco_choice * c . #'(aof (nth ci (-> e choices))))
+              (u64 now . 0))
+          (set (-> c kind) COCO_CH_CLAUSE)
+          (if (< ci (-> e tlow)) (set (-> e tlow) ci))
+          (if (or (== r nil) (not (-> r ton))) (return))
+          (set now (coco_clock_ns))
+          ;; one that found no clause ends where this one begins
+          (if (coco_clock_rclose r now) (set now (coco_clock_ns)))
+          (set (-> r rpend) now)
+          (set (-> r rpi) (-> r tcur))
+          (set (-> r rpname) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) name))
+          (set (-> r rparity) ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) arity))))
+
   ;;; `'$catch_exit'(CI)': the goal of the catch frame at CI has EXITED. From
   ;;; here on a throw is somebody else's, so the frame stops being a catch --
   ;;; and starts again the moment anything fails back into the goal, which is
@@ -3598,7 +3734,15 @@
               ;; a catch offers no alternative, and neither does a frame the
               ;; soft cut killed, nor a traced call's frame its cut kept --
               ;; which is that call's Fail, out of line (1.10.24): drop it
-              ;; and keep going down
+              ;; and keep going down. A CLOCKED frame is a clause frame a
+              ;; window's clock marked: its retry is read where it begins,
+              ;; out of line (1.13.7), and it is tried below as any clause
+              ;; frame is. Each kind its own equality, as they were: the
+              ;; kinds stay a jump table, and a clause frame passes them in
+              ;; three instructions -- folded into one test with SPENT
+              ;; (`>= SPENT', or SPENT or CLOCKED) they were a chain of
+              ;; compares, queens +0.08 % (`tools/flow/zero.sh')
+              (if (== kind COCO_CH_CLOCKED) (coco_clock_retry e ci))
               (if (or (== kind COCO_CH_CATCH) (== kind COCO_CH_DEAD) (== kind COCO_CH_SPENT))
                   (block (if (== kind COCO_CH_SPENT) (coco_trace_spent e ci))
                          (set (-> e nchoices) ci) continue))
@@ -5251,6 +5395,7 @@
              (block (set (-> r state) 2) (set ($ sub max_steps) (-> r to))))
             ((== (-> r from) 1)
              (block (set (-> r state) 1)
+                    (set (-> r cpuopen) (cast i64 (clock)))
                     (set ($ sub trace) 2)
                     (set ($ sub max_steps) (-> r to))))
             (#t
@@ -5691,6 +5836,8 @@
               (if (== (cast (void *) x) (-> r root)) break)
               (set x (cast (coco_engine *) (-> x outer)))))
           (set (-> r state) 1)
+          ;; the CPU the run took to get here (1.13.7)
+          (set (-> r cpuopen) (cast i64 (clock)))
           ;; no room for the term: the run stops at the next step's top
           ;; (`coco_k_room'), and the window with it
           (coco_k_flush e)
@@ -5717,14 +5864,17 @@
           (set a (coco_rec_abs e r))
           (set now (coco_clock_ns))
           (cond ((-> r ton)
-                 (block (if (coco_clock_charge r (-> r tcur) (- now (-> r tlast)))
-                            (set now (coco_clock_ns)))
-                        (set (-> r tlast) now)
-                        (set (-> r tcur) a)))
+                 (let ((int grew . #'(coco_clock_charge r (-> r tcur) (- now (-> r tlast)))))
+                   ;; the retry the step's backtracking began ends here
+                   (if (coco_clock_rclose r now) (set grew 1))
+                   (if grew (set now (coco_clock_ns)))
+                   (set (-> r tlast) now)
+                   (set (-> r tcur) a)))
                 ((>= a (-> r tfrom))
                  (block (set (-> r ton) 1)
                         (set (-> r tlast) now)
                         (set (-> r tcur) a))))
+          (if (-> r ton) (coco_clock_mark e))
           (if (and (!= (-> e rmax) 0) (> (-> e steps) (-> e rmax)))
               (block (set (-> e max_steps) (-> e rmax))
                      (if (not (coco_limit_room e))

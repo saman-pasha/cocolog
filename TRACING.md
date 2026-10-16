@@ -279,6 +279,25 @@ steps are numbered as a replay numbers its events, so a recording of
 the same window says whose each one's time was -- `library(flow/debug)`'s
 `time(T)` (DESIGN-flow.md 9.5).
 
+A RETRY IS READ APART (1.13.7). Backtracking into a clause frame for its
+next clause -- the heads tried, the guards of the clause entered -- works
+for the call that made the frame, and it happens inside the step whose
+failure led there. Under the clock each reading marks the clause frames
+pushed since the last (CLOCKED); backtracking into a marked one reads the
+clock where the retry begins, the next reading ends it, and the run's
+events carry `retry(I, Ns, Name/Arity)`: Ns nanoseconds of step I's time
+were the retry of Name/Arity. A retry still pending when findall/3's search
+or the run ends ends there. With `time(F, K)` they are kept only while
+their step is among the last K. A run without the clock makes no CLOCKED
+frame: the kind is tested by its own equality in `coco_backtrack`, beside
+the three it shares a branch with, which kept the step loop's jump table
+(queens -0.04 % and lookup -0.02 % of instructions, `tools/flow/zero.sh`).
+
+`cpu(Open, Total)` (1.13.7) answers the process's CPU clock, in seconds,
+from the run's start to where the window opened (`none` for a probe, or a
+window the run never reached) and to the run's end: where a window lies in
+the run's time, so that one opened over a cold start shows as one.
+
 ## A journal, and a replay answered from it
 
 A run is its clauses and whatever came in from outside. With

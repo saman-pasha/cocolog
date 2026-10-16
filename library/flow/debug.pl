@@ -214,7 +214,11 @@
 %% Base.txt: WHERE IT GOT FURTHEST, at each failed call the clause whose
 %% body got the most calls done, down to the call it failed at
 %% (flow_why_furthest/2) -- in a search that backtracks, the last failure
-%% is its last fallback's, and the cause is where it got furthest. A run
+%% is its last fallback's, and the cause is where it got furthest. Since
+%% 1.13.7 the call a clause failed at is the one that spent the most before
+%% it failed, not the last -- a clause holding a disjunction tries its
+%% branches in order -- and a call that exited and failed only when asked
+%% again is the trail of a later failure, shown exited (dbgwhy.pl). A run
 %% that RAISED has its own (1.11.4): the calls the exception ended, from the
 %% top down, and the failure it answered -- the last call that failed having
 %% tried a clause before the raise, in the deepest body first -- with where
@@ -258,7 +262,8 @@ flow_debug(Goal, Base0, Opts, Out) :-
     flow_dbg_spec(Goal, Spec),
     flow_dbg_chart(Spec, File, Opts, Graph, Fs, Chart),
     flow_dbg_src(File, Opts, Src),
-    flow_dbg_run(Goal, Src, Opts, Run, Clock),
+    flow_dbg_run(Goal, Src, Opts, Run, Clock, Cpu),
+    (   memberchk(cpu(CpuF), Opts) -> CpuF = Cpu ; true ),
     Run = run(_, _, Replay, _, Events, _),
     (   Replay = end(exception(_), _, _)
     ->  flow_dbg_match(Graph, Events, flow_dbg_source_bodies(File), Calls)
@@ -314,11 +319,15 @@ flow_debug(Goal, Base0, Opts, Out) :-
 %% step, end(How, At, Answers), as flow_debug/4's probe learns it --
 %% a child at full speed, nothing recorded.
 flow_run_end(Goal, Opts, End) :-
+    flow_run_end(Goal, Opts, End, _).
+
+%% ... and the seconds of CPU the probe took (1.13.7)
+flow_run_end(Goal, Opts, End, Cpu) :-
     flow_dbg_check(Goal, Opts, File),
     flow_dbg_src(File, Opts, Src),
     (   memberchk(until(answer(K)), Opts) -> true ; K = 1 ),
     flow_option(timeout(Ms), Opts, 600000),
-    flow_dbg_child(Src, Goal, [answers(K)], Ms, End0, _),
+    flow_dbg_child(Src, Goal, [answers(K)], Ms, End0, _, cpu(_, Cpu)),
     flow_dbg_norm_end(End0, End).
 
 %% ======================================================================
@@ -336,7 +345,11 @@ flow_run_end(Goal, Opts, End) :-
 %% machine's processors). Windows is windows(End, Ws): End the probe's
 %% end(How, At, Answers), and Ws a window(K, BaseK, Run, Rows) for each:
 %% Run as flow_debug/4 hands one back, its calls and bindings left out,
-%% Rows its profile_rows (dbgprof.pl), which flow_profile_merge/4 adds up.
+%% Rows its profile_rows (dbgprof.pl), which flow_profile_merge/4 adds up,
+%% and its cpu(Probe, Before) (1.13.7): the CPU its probe took, to the
+%% window's end, and its replay before the window opened, in seconds.
+%% A cpu(Probe) option binds Probe to the CPU of the probe that found
+%% where the run ends.
 %%
 %% WHAT IT COSTS: one probe learns where the run ends; then each window's
 %% process runs the program twice to the window's end (its own probe and
@@ -359,14 +372,15 @@ flow_debug_windows(Goal, Base0, Opts, windows(End, Ws)) :-
         flow_dbg_chart(Spec, File, Opts, _, _, _)
     ;   true
     ),
-    flow_run_end(Goal, Opts, End),
+    flow_run_end(Goal, Opts, End, ECpu),
+    (   memberchk(cpu(ECpuF), Opts) -> ECpuF = ECpu ; true ),
     End = end(_, At, _),
     flow_option(window(W), Opts, 2000),
     (   memberchk(from(I), Opts) -> Lo is max(1, I) ; Lo = 1 ),
     (   memberchk(to(T), Opts) -> Hi is min(T, At) ; Hi = At ),
     flow_dbg_spread(N, W, Lo, Hi, Spans),
     findall(O, ( member(O, Opts),
-                 \+ memberchk(O, [windows(_), jobs(_), from(_), to(_), window(_)]) ),
+                 \+ memberchk(O, [windows(_), jobs(_), from(_), to(_), window(_), cpu(_)]) ),
             COpts),
     findall(t(K, Cmd, Out, Log, BK),
             ( nth1(K, Spans, F-To),
@@ -419,13 +433,15 @@ flow_dbg_window_cmd(Goal, Base, Opts, Out, Log, Cmd) :-
     atomic_list_concat([QExe, ' query ', QG, ' > ', QLog, ' 2>&1'], Cmd).
 
 %% IN THE WINDOW'S PROCESS: the window recorded, and its run -- without its
-%% calls and bindings -- and its profile rows written to Out a term a line
+%% calls and bindings -- and its profile rows and its CPU written to Out a
+%% term a line
 flow_dbg_window_child(Goal, Base, Opts, Out) :-
-    flow_debug(Goal, Base, [profile_rows(Rows)|Opts], Run),
+    flow_debug(Goal, Base, [profile_rows(Rows), cpu(Cpu)|Opts], Run),
     Run = run(H, A, An, W, _, _, Dv, Jr),
     open(Out, write, S),
     format(S, '~q.~n', [run(H, A, An, W, [], [], Dv, Jr)]),
     forall(member(R, Rows), format(S, '~q.~n', [R])),
+    format(S, '~q.~n', [Cpu]),
     close(S).
 
 %% a window's process done: its run and rows, or its failure as
@@ -727,11 +743,16 @@ flow_dbg_names(_, Opts, Names) :-
 %% Replay are '$trace_window'/4's end(How, Used, Answers) for each run;
 %% Journal none, or journal(Entries) when the probe journalled (and the
 %% replay was answered from it). Clock is none, or with time(T) asked the
-%% probe's clock (1.13.3): clock(First, Last, PerReading, Ds, Gcs), each
-%% step's nanoseconds from First to Last as the probe ran untraced,
-%% what a reading of the clock cost, and I-Ns for each collection.
+%% probe's clock (1.13.3): clock(First, Last, PerReading, Ds, Gcs, Rts),
+%% each step's nanoseconds from First to Last as the probe ran untraced,
+%% what a reading of the clock cost, I-Ns for each collection, and
+%% I-Ns-Name/Arity for each retry (1.13.7): Ns of step I's time that went
+%% to backtracking into a clause frame of Name/Arity for its next clause.
+%% Cpu is cpu(Probe, Before) (1.13.7): the seconds of CPU the probe's run
+%% took, and those the replay took before its window opened -- how far
+%% into the run, in time, the window is (none when there was no replay)
 
-flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events, Journal), Clock) :-
+flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events, Journal), Clock, Cpu) :-
     (   memberchk(until(answer(K)), Opts) -> true ; K = 1 ),
     flow_option(timeout(Ms), Opts, 600000),
     flow_option(text(TM), Opts, 60),
@@ -745,7 +766,7 @@ flow_dbg_run(Goal, Src, Opts, run(Goal, Probe, Replay, window(From, To), Events,
     ->  flow_dbg_clock_option(Opts, CO), POpts = [CO|POpts1]
     ;   POpts = POpts1
     ),
-    (   catch(flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock),
+    (   catch(flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock, Cpu),
               E, ( flow_dbg_journal_drop(JFile, Keep), throw(E) ))
     ->  true
     ;   flow_dbg_journal_drop(JFile, Keep), fail
@@ -763,28 +784,29 @@ flow_dbg_clock_option(Opts, time(F, K)) :-
     ).
 
 %% the probe, and the replay of the window it decides
-flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock) :-
-    flow_dbg_child(Src, Goal, POpts, Ms, Probe0, PEs),
+flow_dbg_runs(Src, Goal, POpts, JP, K, TM, Ms, Opts, Probe, Replay, From, To, Events, Clock, cpu(PT, RO)) :-
+    flow_dbg_child(Src, Goal, POpts, Ms, Probe0, PEs, cpu(_, PT)),
     (   memberchk(time(_, _), POpts) -> flow_dbg_clock(PEs, Clock) ; Clock = none ),
     flow_dbg_norm_end(Probe0, Probe),
     Probe = end(_, Used, _),
     flow_dbg_window(Opts, Used, From, To),
     (   From =< To, Used >= 1
     ->  append([from(From), to(To), answers(K), text(TM)], JP, ROpts),
-        flow_dbg_child(Src, Goal, ROpts, Ms, Replay0, Events),
+        flow_dbg_child(Src, Goal, ROpts, Ms, Replay0, Events, cpu(RO, _)),
         flow_dbg_norm_end(Replay0, Replay)
-    ;   Replay = Probe, Events = []
+    ;   Replay = Probe, Events = [], RO = none
     ).
 
 %% the clock's events, as '$trace_window'/4 writes them, as one term: the
 %% steps(I, Ds) come in order, a thousand steps each
-flow_dbg_clock(PEs, clock(First, Last, Per, Ds, Gcs)) :-
+flow_dbg_clock(PEs, clock(First, Last, Per, Ds, Gcs, Rts)) :-
     (   PEs = [time(First, Last, N, Ns)|Rest]
     ->  Per is Ns / max(1, N),
         findall(D0, member(steps(_, D0), Rest), DLs),
         append(DLs, Ds),
-        findall(I-G, member(gc(I, G), Rest), Gcs)
-    ;   First = 1, Last = 0, Per = 0.0, Ds = [], Gcs = []
+        findall(I-G, member(gc(I, G), Rest), Gcs),
+        findall(I-R-P, member(retry(I, R, P), Rest), Rts)
+    ;   First = 1, Last = 0, Per = 0.0, Ds = [], Gcs = [], Rts = []
     ).
 
 %% a divergence's CallTexts as atoms: the child writes them as strings,
@@ -845,18 +867,24 @@ flow_dbg_window(Opts, Used, From, To) :-
 %% over a store (embed(Dir)), `cocolog --embed Dir query' of the file
 %% loaded and the goal (flow_dbg_cmd/3).
 flow_dbg_child(Src, Goal, WOpts, Ms, End, Events) :-
+    flow_dbg_child(Src, Goal, WOpts, Ms, End, Events, _).
+
+%% ... and Cpu, cpu(Open, Total): the child's run in seconds of its CPU
+%% clock where its window opened (none: a probe) and in all (1.13.7)
+flow_dbg_child(Src, Goal, WOpts, Ms, End, Events, Cpu) :-
     tmp_file(flowdebug, Out),
     Driver = ( use_module(library(stream)),
-               '$trace_window'(Goal, WOpts, Es, E),
+               '$trace_window'(Goal, [cpu(CO, CT)|WOpts], Es, E),
                open(Out, write, S),
                format(S, '~q.~n', [E]),
+               format(S, '~q.~n', [cpu(CO, CT)]),
                forall(member(X, Es), format(S, '~q.~n', [X])),
                close(S) ),
     format(atom(GoalText), '~q', [Driver]),
     flow_dbg_cmd(Src, GoalText, Cmd),
     proc_run(Cmd, Ms, OutCodes, Exit),
     (   Exit =:= 0, exists_file(Out)
-    ->  flow_dbg_read_terms(Out, [End|Events]),
+    ->  flow_dbg_read_terms(Out, [End, Cpu|Events]),
         catch(delete_file(Out), _, true)
     ;   catch(delete_file(Out), _, true),
         atom_codes(Said, OutCodes),

@@ -27,7 +27,10 @@
 %%     failed(S, Name/Arity, In)       a call that failed with nothing of its
 %%                                     own to say why: a builtin, a library's
 %%     exited(S, Name/Arity, In, Out)  a call that exited, as it left its
-%%                                     arguments
+%%                                     arguments -- in a clause's body, also
+%%                                     one that exited and failed only when
+%%                                     asked again (1.13.7): the trail of a
+%%                                     later failure, not a cause
 %%     ended(S, Name/Arity, In, Fate)  one still running when the window
 %%                                     closed (open, redo), or ended by an
 %%                                     exception (raised, unwound)
@@ -161,9 +164,18 @@ flow_dbg_why_tries([thrown(_, _)|Cs], Ks, ByS, Kids, Own, Ts) :- !,
 flow_dbg_why_tries([c(K, At)|Cs], Ks, ByS, Kids, Own, [entered(K, Goals)|Ts]) :-
     (   flow_dbg_why_next(Cs, Next) -> true ; Next = inf ),
     findall(G, ( member(S2, Ks), S2 > At, ( Next == inf -> true ; S2 =< Next ),
-                 flow_dbg_why_node(S2, ByS, Kids, Own, G) ),
+                 flow_dbg_why_goal(S2, ByS, Kids, Own, G) ),
             Goals),
     flow_dbg_why_tries(Cs, Ks, ByS, Kids, Own, Ts).
+
+%% a call of a clause's body: one that exited and failed only when asked
+%% again is the trail of a later failure, not a cause (1.13.7) -- it exited
+flow_dbg_why_goal(S, ByS, Kids, Own, W) :-
+    get_assoc(S, ByS, call(S, Pred, _, _, _, _, _, In, Out, Fate)),
+    (   Fate == fail, Out \== none
+    ->  W = exited(S, Pred, In, Out)
+    ;   flow_dbg_why_node(S, ByS, Kids, Own, W)
+    ).
 
 %% the step of the next clause entered (a head that did not unify is
 %% tried on the way to it, at the same step)
@@ -192,12 +204,28 @@ flow_dbg_why_next([_|Cs], At) :-
 %% exited failed at something that is not a call (a unification in its
 %% body). [] when no call of the window's top failed.
 %%
-%% AN EXPLICIT fail/0 OR false/0 IS NOT WHERE A CLAUSE FAILED (1.11.4, from
-%% cicili-lang's report): `( Cond -> ... ; trace(...), fail )' fails because
-%% Cond did, and the path went down into the fail. When the call a clause
-%% failed at is one of the two, the path goes into the last call before it
-%% that failed having tried a clause, else the last that failed, else the
-%% fail itself.
+%% THE CALL A CLAUSE FAILED AT (1.13.7, the reasoning session's report and
+%% rule). Through 1.13.6 it was the last call that did not exit, and a
+%% clause holding a disjunction tries its branches in order: the
+%% translator's tr_read_ir/5 is ONE clause ending `( tr_into_ir(...) ;
+%% tr_byline(...), tr_into_ir(...) )', and 7 of 11 refusals ended in
+%% tr_byline/3, the fallback for a byline, which fails at once -- the
+%% first branch's read had spent 43 302 of the 58 690 steps. Of the
+%% clause's calls that did not exit, the path goes into the one that spent
+%% the most before it failed -- the steps from it to the clause's next
+%% call, the last call's to the last step under it -- the later of two that
+%% spent alike, and never into:
+%%
+%%   - a call that exited and failed only when asked again: the trail of a
+%%     later failure, which the tree shows as exited (above). The rule
+%%     needs it -- such a call spans everything after its exit, and the
+%%     widest span alone went into it;
+%%   - an exception a catch took (ended raised or unwound), unless nothing
+%%     else is left;
+%%   - AN EXPLICIT fail/0 OR false/0 (1.11.4, from cicili-lang's report):
+%%     `( Cond -> ... ; trace(...), fail )' fails because Cond did, and the
+%%     path went down into the fail -- the fail is where it ends only when
+%%     it is all there is.
 flow_why_furthest(Whys, Path) :-
     (   flow_why_last_failed(Whys, W) -> flow_why_path(W, Path) ; Path = [] ).
 
@@ -245,22 +273,45 @@ flow_why_last_unexited(Gs, G) :-
     member(G, Rev),
     \+ G = exited(_, _, _, _), !.
 
-%% the call a clause failed at: the last that did not exit -- past an
-%% explicit fail/0 or false/0, to the failure it stands for
+%% the call a clause failed at (1.13.7, the reasoning session's rule): of
+%% its calls that did not exit, past an explicit fail/0 or false/0 and an
+%% exception a catch took, the one that spent the most before it failed --
+%% the steps from it to the clause's next call, the last's to the last step
+%% under it -- the later of two that spent alike; the caught exceptions
+%% too when nothing else is left; the fail itself when that alone is
 flow_why_failed_at(Gs, G) :-
-    flow_why_last_unexited(Gs, G0),
-    (   flow_why_explicit_fail(G0)
-    ->  reverse(Gs, Rev),
-        append(_, [G0|Before], Rev),
-        (   member(G1, Before), G1 = why(_, _, _, [_|_]) -> G = G1
-        ;   member(G1, Before), ( G1 = why(_, _, _, _) ; G1 = failed(_, _, _) ) -> G = G1
-        ;   G = G0
-        )
-    ;   G = G0
+    findall(I-G0, ( nth1(I, Gs, G0), G0 \= exited(_, _, _, _), \+ flow_why_explicit_fail(G0) ), Cs),
+    findall(I-G0, ( member(I-G0, Cs), \+ flow_why_caught(G0) ), Cs1),
+    (   Cs1 \== [] -> flow_why_widest(Cs1, Gs, G)
+    ;   Cs \== [] -> flow_why_widest(Cs, Gs, G)
+    ;   flow_why_last_unexited(Gs, G)
     ).
 
 flow_why_explicit_fail(failed(_, fail/0, _)).
 flow_why_explicit_fail(failed(_, false/0, _)).
+
+flow_why_caught(ended(_, _, _, raised)).
+flow_why_caught(ended(_, _, _, unwound)).
+
+%% of the I-G candidates among a clause's calls Gs, the one that spent the
+%% most, the later of a tie
+flow_why_widest(Cs, Gs, G) :-
+    findall(NSpan-NI-G0,
+            ( member(I-G0, Cs),
+              flow_why_spent(Gs, I, G0, Span),
+              NSpan is -Span, NI is -I ),
+            Ws),
+    msort(Ws, [_-_-G|_]).
+
+%% the steps the I-th call of a clause spent: to the clause's next call, or
+%% the last's to the last step under it
+flow_why_spent(Gs, I, G, Span) :-
+    arg(1, G, S0),
+    I1 is I + 1,
+    (   nth1(I1, Gs, Next)
+    ->  arg(1, Next, S1), Span is S1 - S0
+    ;   flow_why_maxs(G, M), Span is M - S0 + 1
+    ).
 
 %% ---- why a run raised ---------------------------------------------------
 %%

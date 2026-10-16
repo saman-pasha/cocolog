@@ -5470,6 +5470,83 @@ cicili-lang reported its loop of three `=/2`s a turn
   see (its rounds are within the noise); it is shipped for the count, the
   path 1.12.1 had.
 
+## The time view's last four points, the furthest path's rule, and a store that opens in a tenth (1.13.7)
+
+The reasoning session's report on 1.13.3's time view, over the translator:
+
+* **A retry is the retried predicate's.** Backtracking into a call for its
+  next clause ran inside the step whose failure led there, and the clock
+  charged it to that goal. Under the clock each reading marks the clause
+  frames pushed since the last (`COCO_CH_CLOCKED`; a run without the clock
+  makes none), and backtracking into a marked one reads where the retry
+  begins: `retry(I, Ns, Name/Arity)` among the probe's events. Its first
+  build tested the new kind inside the branch it shares with three others
+  and clang dropped the step loop's jump table: queens +0.08 % of
+  instructions, `coco_backtrack` +32 680. Tested by its own equality, the
+  table came back: against 1.13.6, nrev +24 instructions in all, queens
+  -0.037 %, lookup -0.021 % (`tools/flow/zero.sh`). Eight engine arms (E1-E8)
+  went red on their checks in `test/window.pl`; the last showed the hook
+  in the growth path redundant, and it went.
+* **A load is marked**, `(one call: P %)`, and **`windows=N` writes each
+  window's profile** as `BASE.K.prof`.
+* **The CPU a run took** is on `tools/flow/debug.pl`'s line, each window's
+  with the replay's CPU before it opened (`'$trace_window'/4`'s
+  `cpu(Open, Total)`): thirteen arms, four of them engine builds, each red
+  on its check alone.
+* **`flow_why_furthest/2` goes into the call that spent the most**, not
+  the clause's last that did not exit, and a call that exited and failed
+  only when asked again shows `exited` in the why tree (DESIGN-flow.md
+  9.5): five arms, each red on its own fixture in `test/flowdebug.pl`.
+  Lesson 51 says it over a basket priced as it stands or as a coupon and
+  the rest, and 1.13.6's rule answers the coupon that failed last.
+
+**THE FIRST CALL OF A LESSON PREDICATE, measured on a store taught both
+languages here** (`teach.pl`, 27 s and 24 s; 322 MB, 452 515 live rows).
+A fresh process translating "Cos'altro le devo dire?" spends 0.68 s in its
+probe and ~600 ms of it in the first calls of lesson predicates
+(`'italian:mean'/2` 114 ms, `'italian:person_of'/2` 112, ...), as the
+session saw; 75 % of the run's 2.63 G instructions are `coco_zg_fetch`.
+Its `'italian:noun'/1` was 252 ms against 38 here. The likeliest reading,
+their store not measured here: each wholesale rewrite of a predicate
+leaves its old rows dead, and the fetch walks them at ~0.2 us each (five
+appends of one noun added ~10 ms to its 14-17); `cocolog vacuum` takes
+them back, and a store taught again and again wants one. What was
+changed:
+
+* **The open, in ZiguratIP 1.0.1**: `memory_initialize` read every
+  record's hexmap a byte a chunk through the stream, 3.80 G instructions
+  of a process's 4.32 G before its first fetch -- 0.42-0.69 s of CPU
+  before `main`, paid by every process that opens the store, every
+  `debug.pl` child among them. It reads a page's slice once now: 0.29 G,
+  0.06 s. The hexmaps the old and new engines leave after one workload
+  are byte for byte the same on two taught stores and on four stores whose
+  writer was killed mid-transaction (42-115 MB of rows rolled back at the
+  open), and the engine's suites are green.
+* **The fetch, 481 M instructions for 31 000 clauses down to 381 M**
+  (-21 %): its asserts no longer write each clause out to measure it
+  against a row it came from (`clause_max` set aside around them: -60 M),
+  a row's hexmap chain is read 64 bytes at a time (`pointer_at`, ZiguratIP:
+  41 M to 21 M, every read of every row), and the reader's operator
+  lookup goes by the first byte (18 strcmp calls an atom before: -20 M). A
+  check that skipped the sort when the rows came in order was taken out
+  again: the index hands back a key's rows by address, never in order.
+* **Left, with the numbers**: a fetched clause still costs ~12 k
+  instructions -- the row walk 6.1 k (its row read and unpack, generated
+  Parsi code over the stream, 2.2 k), the parse 4 k, the assert 1 k. The
+  next steps are bigger than this batch: a predicate fetched by the key a
+  call gives rather than whole, or clauses stored in a form that needs no
+  parse.
+
+`test/groups-embed.pl`, run by hand and not by `make test`, was red on
+group b's floor of turns, 19 against 20, every run: `test/groups.pl` moved
+its group b from `ancestor(bob,X)` to `ancestor(X,ann)` at 1.8.42, when the
+floor caught that goal shrinking to 19, and this copy kept the old goal. It
+asks the new one now: 44 turns, green three runs in a row.
+
+The suite on 1.13.7 and ZiguratIP 1.0.1, the server up: 70 lines, red 0,
+5 SKIP (tensors, torch-graph, torch-grad, torch-replay, tensorflow: no
+CUDA on this box).
+
 ## Not started
 
 * Compiling a program to an object file. `DESIGN-compiling.md` is the

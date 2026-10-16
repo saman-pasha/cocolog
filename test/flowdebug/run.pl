@@ -98,6 +98,47 @@ lower(X, Y) :- ( lowerable(X) -> Y = low(X) ; note(X), fail ).
 lowerable(X) :- atom(X), X \== bad.
 note(_).
 
+%% ONE clause holding a disjunction, as the translator's tr_read_ir/5 (1.13.7,
+%% the reasoning session's report): the first branch's read gets furthest
+%% -- three words read, the fourth no word -- and the second branch, the
+%% fallback for a byline, fails at once and last
+read_ir(Ws) :- ( into_ir(Ws) ; byline(Ws, Ws2), into_ir(Ws2) ).
+into_ir(Ws) :- ir_words(Ws, 0).
+ir_words([], _).
+ir_words([W|Ws], N) :- ir_word(W), N1 is N + 1, ir_words(Ws, N1).
+ir_word(the).
+ir_word(dog).
+ir_word(sleeps).
+byline([by|Ws], Ws).
+
+%% a call that exited and failed only when asked again is the trail of a
+%% later failure: tally/0's count_up/0 exits, judge/0 fails, and count_up/0,
+%% asked again, fails -- judge/0 is where its clause failed, though
+%% count_up/0 spent more
+tally :- count_up, judge.
+count_up :- count_down(12), ( yes_once ; no_more ).
+count_down(0) :- !.
+count_down(N) :- N1 is N - 1, count_down(N1).
+yes_once.
+no_more :- fail.
+judge :- verdict(guilty).
+verdict(innocent).
+
+%% an exception a catch took is no stall: the first branch's catch/3 runs
+%% long and its goal raises, the second branch fails at its test -- where
+%% the clause got furthest is the test
+caught_far :- ( catch(long_raise(12), _, fail) ; far_test(1) ).
+long_raise(0) :- throw(gave_up).
+long_raise(N) :- N > 0, N1 is N - 1, long_raise(N1).
+far_test(X) :- X > 5.
+
+%% two branches that spent alike, a step each: the later is where it failed
+tie_far(X) :- ( X > 5 ; X > 7 ).
+
+%% nothing failed but an exception a catch took, and the recovery's fail:
+%% the exception is where it got furthest
+caught_only :- catch(long_raise(3), _, fail).
+
 %% a driver that gives up with an error when a step fails: the run raises,
 %% and the failure it answered is step/1's (1.11.4)
 drive(X) :- ( step(X) -> true ; give_up(X) ).

@@ -678,6 +678,11 @@
   ;;;                           all of them (K 0) or the run's last K --
   ;;;                           what the run did untraced, read from the
   ;;;                           monotonic clock at every step (below)
+  ;;;   cpu(Open, Total)        bound after the run (1.13.7): seconds of the
+  ;;;                           process's CPU clock (clock(), as statistics/2's
+  ;;;                           cputime) the run had taken where the window
+  ;;;                           opened -- `none' for a probe, or a run that
+  ;;;                           ended first -- and the whole run's
   ;;;
   ;;; End is `end(How, Used, Answers)': How is `answer' (the K-th was found),
   ;;; `false', `limit' (stopped past T), `exception(Ball)', `halt(Code)',
@@ -724,6 +729,12 @@
   ;;;                              thousand a term
   ;;;   gc(I, Ns)                  a collection at inference I, which is
   ;;;                              not in I's time
+  ;;;   retry(I, Ns, Name/Arity)   a RETRY in inference I's time (1.13.7):
+  ;;;                              backtracking reached a clause frame of
+  ;;;                              Name/Arity and tried its next clauses,
+  ;;;                              the heads and the guards of the one it
+  ;;;                              entered -- Ns of I's time, which was the
+  ;;;                              retried call's work and not I's goal's
   (static)
   (func coco_b_rec_text ((coco_machine * m) (coco_rec * r) (size_t k)) (out size_t)
         (let ((coco_rtext * x . #'(aof (nth k (-> r txs))))
@@ -789,6 +800,19 @@
                       (set (nth 0 a) (coco_new_int m (cast i64 at)))
                       (set (nth 1 a) (coco_new_int m (cast i64 ns)))
                       (set out (coco_cons m (coco_make m "gc" 2 a) out)))))))
+          ;; the retries, last first (1.13.7)
+          (let ((size_t k . #'(-> r nrt)))
+            (while (>= k 4)
+              (set k (- k 4))
+              (let ((u64 at . #'(nth k (-> r rts))))
+                (if (and (>= at first) (<= at last))
+                    (let ((size_t a [3]) (size_t pa [2]))
+                      (set (nth 0 pa) (coco_new_atom_id m (nth (+ k 2) (-> r rts))))
+                      (set (nth 1 pa) (coco_new_int m (cast i64 (nth (+ k 3) (-> r rts)))))
+                      (set (nth 0 a) (coco_new_int m (cast i64 at)))
+                      (set (nth 1 a) (coco_new_int m (cast i64 (nth (+ k 1) (-> r rts)))))
+                      (set (nth 2 a) (coco_make m "/" 2 pa))
+                      (set out (coco_cons m (coco_make m "retry" 3 a) out)))))))
           ;; the steps, a thousand a term, the last term first
           (if (>= last first)
               (let ((u64 lo . #'(+ first (* (/ (- last first) 1000) 1000))))
@@ -863,7 +887,8 @@
               (int haltcode . 0) (int rc . 0)
               (size_t evs . 0) (size_t how . 0) (size_t al . 0) (size_t end . 0)
               (coco_jrnl jr) (int jmode . 0) (char jpath [1024]) (size_t jopt . 0)
-              (int jbad . 0) (size_t askcell . 0) (i64 askat . -1)
+              (int jbad . 0) (size_t askcell . 0) (i64 askat . -1) (i64 cpuat . -1)
+              (i64 cpu1 . 0)
               (int tk . 0) (i64 tfrom . 0) (i64 tkeep . 0))
           (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
           (if (!= (-> m rec) nil)
@@ -894,6 +919,9 @@
                              (and (coco_m_int e (coco_m_arg e o 1) (aof k))
                                   (and (>= f 1) (>= k 0))))
                         (block (set tk 1) (set tfrom f) (set tkeep k) (set ok 1)))))
+              ;; cpu(Open, Total): the run's CPU, bound after it (1.13.7)
+              (if (and (not ok) (and (!= nm nil) (and (== ar 2) (== 0 (strcmp nm "cpu")))))
+                  (block (set cpuat (cast i64 i)) (set ok 1)))
               (if (not ok)
                   (block (free v)
                          (return (coco_m_domain_error e "trace_window_option" o))))))
@@ -948,8 +976,11 @@
                            (return (coco_m_resource_error e "memory"))))))
           (if (!= jmode 0) (set ($ r jr) (aof jr)))
           (set ($ r ask) askcell)
+          (set ($ r cpuopen) -1)
+          (set ($ r cpu0) (cast i64 (clock)))
           (set rc (coco_engine_window e (coco_m_arg e g 0) (aof r) (cast u64 answers)
                                       (aof used) ats (aof nats) (aof ball) (aof haltcode) (aof g)))
+          (set cpu1 (cast i64 (clock)))
           (if (== jmode 1)
               (if (not (coco_b_spill jpath ($ ($ jr out) s) ($ ($ jr out) len))) (set jbad 1)))
           (if (and (== jmode 2) (and (>= rc 0) (<= rc 4))) (coco_jr_settle (aof jr) used))
@@ -1007,6 +1038,21 @@
                 (let ((size_t o . #'(coco_deref m (nth (cast size_t askat) v))))
                   (free v)
                   (if (not (coco_m_unify e (coco_m_arg e o 1) hv)) (return 0)))))
+          ;; cpu's: where the window opened, or none, and the whole run, in
+          ;; seconds of the process's CPU clock -- found again by its place
+          (if (>= cpuat 0)
+              (let ((size_t ov . 0) (size_t tv . 0))
+                (set ov (? (< ($ r cpuopen) 0) (coco_new_atom m "none")
+                           (coco_new_float m (/ (cast double (- ($ r cpuopen) ($ r cpu0))) 1000000.0))))
+                (set tv (coco_new_float m (/ (cast double (- cpu1 ($ r cpu0))) 1000000.0)))
+                (if (not (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n)))
+                    (return (coco_m_type_error e "list" (coco_m_arg e g 1))))
+                (if (>= (cast size_t cpuat) n)
+                    (block (free v) (return (coco_m_error e "'$trace_window'/4" "the options moved"))))
+                (let ((size_t o . #'(coco_deref m (nth (cast size_t cpuat) v))))
+                  (free v)
+                  (if (not (coco_m_unify e (coco_m_arg e o 0) ov)) (return 0))
+                  (if (not (coco_m_unify e (coco_m_arg e o 1) tv)) (return 0)))))
           (return (coco_m_unify e (coco_m_arg e g 3) end))))
 
   ;;; `forall(C, A)' is `\+ (C, \+ A)', and is written that way rather than by

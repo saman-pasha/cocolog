@@ -45,9 +45,10 @@
 %%                                    BASE.1.*, BASE.2.*, ... -- each by a
 %%                                    process of its own, J at a time (the
 %%                                    machine's processors) -- with BASE.prof of
-%%                                    them all (flow_debug_windows/4); the chart
-%%                                    is built once, into cache=DIR or
-%%                                    BASE.charts
+%%                                    them all (flow_debug_windows/4), and with
+%%                                    profile= each window's own BASE.K.prof
+%%                                    beside it (1.13.7); the chart is built
+%%                                    once, into cache=DIR or BASE.charts
 %%              cache=DIR             the chart kept in DIR, built once for a
 %%                                    goal's call pattern of a file: BASE.xml
 %%                                    is then the run alone, naming the
@@ -167,15 +168,15 @@ main :-
     ),
     fd_answers(Vs, Ans),
     append(Ans, Opts, POs),
-    catch(flow_debug(Goal, Base, [source(File), names(Names)|POs], Run), E, fd_error(E)),
+    catch(flow_debug(Goal, Base, [source(File), names(Names), cpu(Cpu)|POs], Run), E, fd_error(E)),
     fd_files(Goal, File, Base, Opts),
     fd_profile(Vs, Base, Ans),
     flow_term_full(Goal, Names, 999, GT),
-    fd_line(GT, Run).
+    fd_line(GT, Run, Cpu).
 
 %% the run's line: how it ended and where, the window, whether the replay
-%% was the probe's run, and what the journal answered
-fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J)) :-
+%% was the probe's run, what the journal answered, and the CPU it all took
+fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J), Cpu) :-
     fd_how(How, At, HT),
     flow_dbg_div_ends(Div, DT),
     (   J = journal(Es)
@@ -185,7 +186,18 @@ fd_line(GT, run(How, At, _, window(F, T), _, _, Div, J)) :-
         format(atom(JT), '; journal ~d portal calls, ~d answered', [NE, NA])
     ;   JT = ''
     ),
-    format("~w: ~w; recorded ~w to ~w; diverged ~w~w~n", [GT, HT, F, T, DT, JT]).
+    fd_cpu(Cpu, CT),
+    format("~w: ~w; recorded ~w to ~w; diverged ~w~w~w~n", [GT, HT, F, T, DT, JT, CT]).
+
+%% THE CPU A RUN TOOK (1.13.7, the reasoning session's point): the probe's,
+%% the program run untraced to its end or the window's, and the replay's
+%% before its window opened -- where the window lies in the run's time,
+%% so that a window over a cold start shows as one
+fd_cpu(cpu(P, B), T) :- number(P), !,
+    (   number(B) -> format(atom(T), '; CPU: the probe ~3f s, the replay ~3f s before the window opened', [P, B])
+    ;   format(atom(T), '; CPU: the probe ~3f s', [P])
+    ).
+fd_cpu(_, '').
 
 fd_how(How, At, HT) :-
     (   How = exception(B) -> format(atom(HT), 'exception ~q at step ~w', [B, At])
@@ -232,10 +244,11 @@ fd_view_text(repeats, _, _, R, _, T) :- flow_repeats_text(R, T).
 fd_view_text(time, _, _, _, Ti, T) :- flow_time_text(Ti, T).
 
 %% WINDOWS=N: N windows along the run (flow_debug_windows/4), each written
-%% as BASE.K.* and its line said, then BASE.prof of them all when profile=
-%% asks, and a line for the run. The chart is kept in cache=DIR, or in
-%% BASE.charts when none is given, which each window's XML names. The time
-%% view's probes run under the clock, each window's (1.13.3)
+%% as BASE.K.* -- BASE.K.prof too when profile= asks, the window apart, so
+%% a cold window shows apart from a warm one (1.13.7) -- and its line said,
+%% then BASE.prof of them all, and a line for the run. The chart is kept in
+%% cache=DIR, or in BASE.charts when none is given, which each window's XML
+%% names. The time view's probes run under the clock, each window's (1.13.3)
 fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
     (   memberchk(cache(_), Opts0) -> Opts1 = Opts0
     ;   catch(use_module(library(sha)), _, fail)
@@ -244,10 +257,16 @@ fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
     ;   Opts1 = Opts0
     ),
     (   memberchk(time, Vs) -> Opts = [time(_)|Opts1] ; Opts = Opts1 ),
-    catch(flow_debug_windows(Goal, Base, [source(File), names(Names)|Opts], windows(End, Ws)), E, fd_error(E)),
+    catch(flow_debug_windows(Goal, Base, [source(File), names(Names), cpu(ECpu)|Opts], windows(End, Ws)), E, fd_error(E)),
     flow_term_full(Goal, Names, 999, GT),
-    forall(member(window(_, BK, Run, _), Ws),
-           ( fd_files(Goal, File, BK, Opts), fd_line(GT, Run) )),
+    forall(member(window(_, BK, Run, WRows), Ws),
+           ( fd_files(Goal, File, BK, Opts),
+             (   Vs == [] -> true
+             ;   flow_profile_merge([WRows], WP, WC, WR, WTi),
+                 fd_profile_write(Vs, BK, WP, WC, WR, WTi)
+             ),
+             (   memberchk(cpu(WP1, WB1), WRows) -> WCpu = cpu(WP1, WB1) ; WCpu = none ),
+             fd_line(GT, Run, WCpu) )),
     (   Vs == [] -> true
     ;   findall(Rows, member(window(_, _, _, Rows), Ws), RLs),
         flow_profile_merge(RLs, P, C, R, Ti),
@@ -260,7 +279,8 @@ fd_windows(Goal, Names, File, Base, Opts0, Vs) :-
                   format(atom(WT), '~w to ~w', [F, T]) ),
             WTs),
     atomic_list_concat(WTs, ', ', WA),
-    format("~w: ~w; ~d windows: ~w~n", [GT, HT, NW, WA]).
+    fd_cpu(cpu(ECpu, none), CT),
+    format("~w: ~w; ~d windows: ~w~w~n", [GT, HT, NW, WA, CT]).
 
 %% when=COND and diff_goal=GOAL, taken out before the others: each is
 %% Prolog and may hold an =

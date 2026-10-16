@@ -97,7 +97,10 @@ main :-
 env_int(Name, Default, V) :- ( getenv(Name, A), atom_number(A, N) -> V = N ; V = Default ).
 
 group(a, 'ancestor(tom,X)', ['ancestor(tom,ann)', 'ancestor(tom,bob)', 'ancestor(tom,jim)', 'ancestor(tom,liz)', 'ancestor(tom,pat)', 'ancestor(tom,zoe)']).
-group(b, 'ancestor(bob,X)', ['ancestor(bob,ann)', 'ancestor(bob,jim)', 'ancestor(bob,pat)', 'ancestor(bob,zoe)']).
+%% group b asks who ann descends from, as test/groups.pl's has since 1.8.42
+%% (whose comment has the story): `ancestor(bob,X)' does 19 turns, under the
+%% floor, and this copy kept it until 1.13.7
+group(b, 'ancestor(X,ann)', ['ancestor(bob,ann)', 'ancestor(tom,ann)']).
 group(c, 'ancestor(X,zoe)', ['ancestor(bob,zoe)', 'ancestor(jim,zoe)', 'ancestor(pat,zoe)', 'ancestor(tom,zoe)']).
 group(d, 'ancestor(X,jim)', ['ancestor(bob,jim)', 'ancestor(pat,jim)', 'ancestor(tom,jim)']).
 

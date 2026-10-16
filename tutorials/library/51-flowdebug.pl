@@ -198,6 +198,7 @@ main :-
     findall(P-K, ( member(Step, Path), arg(2, Step, P), ( Step = step(_, _, _, K, _, _) -> true ; functor(Step, K, _) ) ), PKs),
     must('where it got furthest: clause 2 twice, then price/2 with no head that unified',
          PKs, [basket_total/2-2, basket_total/2-2, price/2-nohead]),
+    two_ways(Dir),
 
     format("~n-- where the steps went~n"),
     %% profile(P), an answer: each predicate's calls and the steps
@@ -253,6 +254,30 @@ main :-
     raised(Dir),
 
     format("~ndone~n").
+
+%% ONE CLAUSE, TWO WAYS THROUGH: a basket priced as it stands or, failing
+%% that, as a coupon and the rest -- a disjunction in one clause. The
+%% second way fails at once, no coupon, and it fails LAST; the first got
+%% furthest, two items priced and the third a banana. Where a clause failed
+%% is the call of it that spent the most steps without exiting: an explicit
+%% fail/0 stands for the condition before it, and an exception a catch took
+%% is no stall (1.13.7)
+two_ways(Dir) :-
+    format("~n-- one clause, two ways through~n"),
+    atom_concat(Dir, '/basket.pl', Prog),
+    atom_concat(Dir, '/coupon.pl', Prog3),
+    read_file_to_codes(Prog, PC),
+    atom_codes(PA, PC),
+    atomic_list_concat([PA, 'total(Is, T) :- ( basket_total(Is, T) ; coupon(Is, Rest), basket_total(Rest, T) ).\n',
+                        'coupon([coupon|Is], Is).\n'], P3),
+    open(Prog3, write, W), write(W, P3), close(W),
+    atom_concat(Dir, '/coupon', Base),
+    flow_debug(total([apple, pear, banana], T), Base, [source(Prog3), names(['T'=T])], Run),
+    flow_why(Run, Why),
+    flow_why_furthest(Why, Path),
+    findall(P-K, ( member(Step, Path), arg(2, Step, P), ( Step = step(_, _, _, K, _, _) -> true ; functor(Step, K, _) ) ), PKs),
+    must('where it got furthest: into the first way, not the coupon that failed last',
+         PKs, [total/2-1, basket_total/2-2, basket_total/2-2, basket_total/2-2, price/2-nohead]).
 
 %% A RUN THAT RAISES: a checkout that gives up with an error when a basket
 %% has no total. Its why is the calls the exception ended, the branch a

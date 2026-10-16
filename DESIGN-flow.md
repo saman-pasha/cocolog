@@ -1225,13 +1225,48 @@ from a session that used the library on `library/reasoning/translate.pl`:
   MAX_STEPS, which the clock moves to every step, and ran no guard. No
   third process: the default window is the run's last N, which the probe
   keeps in a ring, and with `from(I)` the probe times from I on.
+  **A retry is the retried predicate's** (1.13.7, the reasoning session's
+  point): backtracking into a call for its next clause -- the heads, the
+  guards of the clause entered -- ran inside the step whose failure led
+  there, and its time was that goal's: `==/2` in a generate-and-test loop
+  carried every retry of the generator. Under the clock each reading marks
+  the clause frames pushed since the last (`COCO_CH_CLOCKED`), and
+  backtracking into a marked one reads the clock where the retry begins:
+  `retry(I, Ns, Name/Arity)` among the probe's events, kept with its step
+  in the ring. The view takes Ns out of step I's owner and gives it to the
+  retried predicate, self and inclusive (inclusive only where the retry
+  falls outside a span the predicate already counts), and a predicate
+  only retried in the window is a row of 0 calls. **A load is marked**: a
+  row whose largest call holds P % of its inclusive time, ten times its
+  other calls' mean or more and the others outside it, ends `(one call: P
+  %)` -- the first call of a predicate held in the store, which fetches its
+  clauses (the translator's `'italian:noun'/1`, "5 calls, 252 ms", one of
+  them the load). **Each window is its own profile too** (`windows=N`
+  writes `BASE.K.prof` beside the sum), so a cold window shows apart from
+  a warm one; and **the CPU a run took** is on the command's line (`; CPU:
+  the probe 0.673 s, the replay 0.004 s before the window opened`, the
+  engine's `cpu(Open, Total)`), each window's with the replay's CPU before
+  it opened -- a clock for each position, as the session asked, with no
+  probe of its own.
 * **Where a failed search got furthest** (`flow_why_furthest/2`, 1.10.27):
   the why of a reader that backtracks is the whole trace (2.84 MB for one
   refusal), and following its last failure down leads to the last
   fallback (`tr_byline/3`), not the cause. At each failed call the clause
   whose body got the most calls done, then the most inferences spent, then
   the earlier -- in the XML's `<furthest>`, at the foot of Base.txt and
-  above the why on the picture.
+  above the why on the picture. **Within that clause, the call that spent
+  the most** (1.13.7, the reasoning session's rule): the path went into
+  the clause's LAST call that did not exit, and `tr_read_ir/5` is one
+  clause ending in a disjunction whose second branch, the byline fallback,
+  fails at once -- 7 of 11 refusals ended there, the first branch's read
+  having spent 43 302 of 58 690 steps. Now the call that spent the most
+  before it failed (to the clause's next call, the last to the last step
+  under it; the later of a tie), never a call that exited and failed only
+  when asked again (shown exited in the tree: the trail of a later
+  failure), nor an exception a catch took unless nothing else is left, nor
+  an explicit `fail/0`. The session's 11 sentences: the 4 writer-side
+  refusals keep their path, the 7 reader-side ones go into `tr_into_ir`
+  and `tr_read0`, 4 of them to the missing word or shape.
 * **Clauses not together** (`library(flow/chart)`'s finding
   `discontiguous`, 1.10.27): cocolog joins a predicate's clauses wherever
   they stand, without a word (SWI warns), so a helper given a name already

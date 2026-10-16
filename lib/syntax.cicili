@@ -145,17 +145,32 @@
 ;;; One lookup function per class. Each answers 1 and fills in the priority and
 ;;; the type, or answers 0. Written as a cond over strcmp: the names are known
 ;;; here, so nothing is searched at run time.
+;;;
+;;; BY THE FIRST BYTE FIRST (1.13.7). The reader asks this of every atom it
+;;; reads, and a name that is no operator -- nearly all of them -- went down
+;;; every row: 18 strcmp calls an atom, 4 % of fetching a predicate of 31 000
+;;; clauses out of a store. The rows are grouped by their first byte, in
+;;; their order, and a name is compared only with the rows it could be.
 (DEFMACRO coco-emit-op-lookup (fname class)
-  (LET ((rows (ops-of-class class)))
+  (LET* ((rows (ops-of-class class))
+         (firsts (REMOVE-DUPLICATES (MAPCAR (LAMBDA (row) (CHAR-CODE (CHAR (FIRST row) 0))) rows)
+                                    :FROM-END T)))
     `(func ,fname ((const char * s) (int * prec) (int * type)) (out int)
-       (cond
-         ,@(MAPCAR (LAMBDA (row)
-                     `((== 0 (strcmp s ,(FIRST row)))
-                       (set (cof prec) ,(SECOND row))
-                       (set (cof type) ,(THIRD row))
-                       (return 1)))
-                   rows)
-         (#t (return 0))))))
+       (let ((int c0 . #'(cast int (nth 0 s))))
+         (cond
+           ,@(MAPCAR (LAMBDA (fc)
+                       `((== c0 ,fc)
+                         (cond
+                           ,@(MAPCAR (LAMBDA (row)
+                                       `((== 0 (strcmp s ,(FIRST row)))
+                                         (set (cof prec) ,(SECOND row))
+                                         (set (cof type) ,(THIRD row))
+                                         (return 1)))
+                                     (REMOVE-IF-NOT (LAMBDA (row) (= (CHAR-CODE (CHAR (FIRST row) 0)) fc))
+                                                    rows))
+                           (#t (return 0)))))
+                     firsts)
+           (#t (return 0)))))))
 
 ;;; The whole table again, reachable one row at a time, so that
 ;;; `current_op/3' can enumerate what was built in. TWO macros and not one,

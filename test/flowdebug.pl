@@ -326,7 +326,7 @@ diverged(D) :-
     atomic_list_concat(['-s tools/flow/debug.pl -- "flip(\'', BF11, '\')" ', F11, ' ', B11, ' txt=true'], A11),
     cocolog_run(A11, T11, E11),
     atomic_list_concat(Ls11, '\n', T11),
-    last(Ls11, L11),
+    last(Ls11, L11c), no_cpu(L11c, L11),
     ( sub_atom(L11, _, _, 0, Ends10) -> Y11 = said ; Y11 = L11 ),
     atom_concat(B11, '.txt', TF12),
     read_file_to_codes(TF12, TC12), atom_codes(TA12, TC12),
@@ -643,9 +643,19 @@ command(D) :-
     atom_concat(B, '.xml', XF),
     yes_no(exists_file(XF), Y1),
     atomic_list_concat(Ls1, '\n', T1),
-    ( last(Ls1, L1) -> true ; L1 = '' ),
+    ( last(Ls1, L1c) -> no_cpu(L1c, L1) ; L1c = '', L1 = '' ),
     check('it writes BASE.svg and BASE.xml, says how the run ended, and exits 0',
           E1-Y1-L1, 0-yes-'find(z, V): false at step 7; recorded 1 to 7; diverged no'),
+    %% and the CPU (1.13.7): the probe's, and the replay's before its window
+    %% opened -- seconds, which no two runs share
+    (   atomic_list_concat([_, C1], '; CPU: the probe ', L1c),
+        atomic_list_concat([P1, B1], ' s, the replay ', C1),
+        atom_concat(B1a, ' s before the window opened', B1),
+        atom_number(P1, _), atom_number(B1a, _)
+    ->  Cpu1 = said
+    ;   Cpu1 = L1c
+    ),
+    check('...and the CPU the probe took, and the replay before its window opened', Cpu1, said),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'nosuch(X)\' ', F, ' ', B, ' 2>/dev/null'], A2),
     cocolog_run(A2, _, E2),
     check('a predicate the program does not have is exit 1', E2, 1),
@@ -656,7 +666,7 @@ command(D) :-
     atomic_list_concat(['-s tools/flow/debug.pl -- \'flip(\'\\\'\'', BF4, '\'\\\'\')\' ', F, ' ', B, ' journal=true'], A4),
     cocolog_run(A4, T4, E4),
     atomic_list_concat(Ls4, '\n', T4),
-    ( last(Ls4, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
+    ( last(Ls4, L4c), no_cpu(L4c, L4), atomic_list_concat([_, Tail4], '; diverged no', L4) -> true ; Tail4 = T4 ),
     check('journal=true: the line says how many portal calls the journal held, and how many answered the replay',
           E4-Tail4, 0-'; journal 6 portal calls, 6 answered'),
     atomic_list_concat([D, '/cmdw'], B5),
@@ -787,7 +797,8 @@ kept_(D) :-
     atomic_list_concat([D, '/kept4'], B5),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'find(z, V)\' ', P, ' ', B5, ' cache=', C], A5),
     cocolog_run(A5, T5, E5),
-    atomic_list_concat(Ls5, '\n', T5),
+    atomic_list_concat(Ls5c, '\n', T5),
+    maplist(no_cpu, Ls5c, Ls5),
     atom_concat(B5, '.svg', SF5), atom_concat(B5, '.xml', XF5),
     check('cache=DIR: the command names the chart''s XML after the two files',
           E5-Ls5, 0-[SF5, XF5, XF, 'find(z, V): answer at step 10; recorded 1 to 10; diverged no']).
@@ -1076,7 +1087,8 @@ viewed_command(D) :-
     atomic_list_concat([D, '/viewc'], B5),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'pick(X)\' ', F, ' ', B5, ' profile=all svg=false xml=false'], A5),
     cocolog_run(A5, T5, E5),
-    atomic_list_concat(Ls5, '\n', T5),
+    atomic_list_concat(Ls5c, '\n', T5),
+    maplist(no_cpu, Ls5c, Ls5),
     atom_concat(B5, '.prof', PF5),
     read_file_to_codes(PF5, PC5), atom_codes(PA5, PC5),
     atomic_list_concat(Secs5, '\n\n', PA5),
@@ -1092,7 +1104,8 @@ viewed_command(D) :-
     atomic_list_concat([D, '/vieww'], B6),
     atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
     cocolog_run(A6, T6, E6),
-    atomic_list_concat(Ls6, '\n', T6),
+    atomic_list_concat(Ls6c, '\n', T6),
+    maplist(no_cpu, Ls6c, Ls6),
     atomic_list_concat([B6, '.1.txt'], TF61), atomic_list_concat([B6, '.2.txt'], TF62),
     atom_concat(B6, '.prof', PF6),
     yes_no(( exists_file(TF61), exists_file(TF62), memberchk(PF6, Ls6) ), Y6),
@@ -1108,7 +1121,27 @@ viewed_command(D) :-
           E6-Y6-L6-SH6-Q6-M6,
           0-yes-'go(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
           '% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
-          not_named-timed).
+          not_named-timed),
+    %% ... and each window's own (1.13.7): a cold window apart from a warm one
+    atomic_list_concat([B6, '.1.prof'], PF61), atomic_list_concat([B6, '.2.prof'], PF62),
+    findall(H6, ( member(PF, [PF61, PF62]), memberchk(PF, Ls6),
+                  read_file_to_codes(PF, C6), atom_codes(A6c, C6),
+                  atomic_list_concat([H6a|_], '\n', A6c), sub_atom(H6a, 0, 40, _, H6) ),
+            Hs6),
+    check('...and each window''s own BASE.K.prof, named on the output, of that window alone',
+          Hs6, ['% the 40 steps of the window 211 to 250,', '% the 40 steps of the window 462 to 501,']),
+    %% ... and the CPU each window's replay spent before it opened, which
+    %% places it in the run's time; the run's line, its probe's
+    findall(x, ( member(L, Ls6c), sub_atom(L, _, _, 0, ' s before the window opened') ), BW6),
+    length(BW6, NBW6),
+    ( last(Ls6c, L6c), sub_atom(L6c, _, _, _, '; CPU: the probe ') -> PR6 = said ; PR6 = not_said ),
+    check('...and each window''s line the CPU its replay spent before it opened, the run''s line the probe''s',
+          NBW6-PR6, 2-said).
+
+%% a line of tools/flow/debug.pl without the CPU it ends with (1.13.7),
+%% which no two runs share
+no_cpu(L, C) :-
+    (   atomic_list_concat([C0, _], '; CPU: ', L) -> C = C0 ; C = L ).
 
 %% ---- where the time went (1.13.3) -------------------------------------------------
 %%
@@ -1151,7 +1184,68 @@ timed(D) :-
     ( atom_concat(TP1, _, TH1) -> H1 = header ; H1 = TH1 ),
     ( sub_atom(TD1, _, _, 0, '  t_go/1') -> D1 = t_go ; D1 = TD1 ),
     check('as text: the window''s time, then a row a predicate, the most inclusive first',
-          H1-TC1-D1, header-'% inclusive us       %     self us       %    calls  largest us  predicate'-t_go).
+          H1-TC1-D1, header-'% inclusive us       %     self us       %    calls  largest us  predicate'-t_go),
+    %% A RETRY IS THE RETRIED PREDICATE'S (1.13.7): t_last/1's ==/2 fails
+    %% at each of t_n/2's first 199 clauses, and each failure is a retry of
+    %% t_n/2, whose next head binds twenty arguments. From step 3 the window
+    %% holds the retries and not t_n/2's call
+    atomic_list_concat([D, '/retry.pl'], F2),
+    numlist(1, 20, As2), atomic_list_concat(As2, ',', AA2),
+    findall(L2, ( between(1, 200, K2), format(atom(L2), 't_n(~d, t(~w)).', [K2, AA2]) ), Ns2),
+    append(Ns2, ['t_last(X) :- t_n(X, _), X == 200.'], Ls2),
+    fixture(F2, Ls2),
+    atomic_list_concat([D, '/retry'], B2),
+    flow_debug(t_last(_), B2, [source(F2), from(3), time(T2), svg(false), xml(false)], _),
+    T2 = time(_, _, _, TR2),
+    ( memberchk(t(t_n/2, NN2, IN2, SN2, _), TR2) -> true ; NN2 = none, IN2 = 0, SN2 = 0 ),
+    ( SN2 > 0, IN2 =:= SN2 -> O2 = retried ; O2 = IN2-SN2 ),
+    check('from(3), after t_n/2''s call: its 199 retries in the window, a row of 0 calls whose time, own and inclusive, is theirs',
+          NN2-O2, 0-retried),
+    ( memberchk(t((==)/2, NE2, IE2, SE2, ME2), TR2) -> true ; NE2 = 0, IE2 = 0, SE2 = 0, ME2 = 0 ),
+    ( SE2 - ME2 < SN2 -> E2 = under ; E2 = SE2-ME2-SN2 ),
+    ( IE2 =:= SE2 -> P2 = own ; P2 = IE2-SE2 ),
+    check('==/2''s 200 calls: their own time, less the largest, under the retries'' -- a failure is not charged the retry after it -- and inside them too, each call over at its Fail',
+          NE2-E2-P2, 200-under-own),
+    %% to(10): t_last/1 is still running where the window ends, its last
+    %% call ==/2 at 10 and the retry after it its own -- the query's time is
+    %% the window's, to the nanosecond; and t_n/2's call is in the window,
+    %% over at its Exit at 2, its retries after it its inclusive time too
+    flow_debug(t_last(_), B2, [source(F2), from(1), to(10), time(T3), svg(false), xml(false)], _),
+    T3 = time(_, _, total(Ns3, _, _, _, _), TR3),
+    ( memberchk(t(t_last/1, 1, IL3, _, _), TR3) -> true ; IL3 = none ),
+    ( memberchk(t(t_n/2, 1, IN3, SN3, _), TR3), IN3 =:= SN3 -> N3 = own ; N3 = none ),
+    check('to(10): the window ends inside t_last/1, so the retry at its last step is its, and its time the window''s; t_n/2''s retries after its Exit are in its inclusive time',
+          IL3-N3, Ns3-own),
+    %% A LOAD, NOT A CALL (1.13.7): msort/2 of 20 000 and then of two, and
+    %% t_w/1, whose first call sorts them in its body -- each one call most
+    %% of its time, marked; t_e/1's two calls alike, and t_c/1's outermost
+    %% call holding all its others, are not
+    atomic_list_concat([D, '/load.pl'], F4),
+    fixture(F4, ['t_ms :- t_w(0), t_w(1), msort([b, a], _), t_e(1), t_e(2), t_c(200).',
+                 't_w(0) :- !, numlist(1, 20000, L0), reverse(L0, L), msort(L, _).', 't_w(_).',
+                 't_e(_) :- numlist(1, 300, _).',
+                 't_c(0) :- !.', 't_c(N) :- N1 is N - 1, t_c(N1).']),
+    atomic_list_concat([D, '/load'], B4),
+    flow_debug(t_ms, B4, [source(F4), from(1), time(T4), svg(false), xml(false)], _),
+    flow_time_text(T4, TX4),
+    atomic_list_concat(TL4, '\n', TX4),
+    findall(P4-M4, ( member(P4, ['msort/2', 't_c/1', 't_e/1', 't_w/1']), load_mark(TL4, P4, M4) ), PM4s),
+    check('a load, not a call: msort/2''s 20 000 and t_w/1''s first call marked, t_e/1''s two alike and the recursive t_c/1 not',
+          PM4s, ['msort/2'-load, 't_c/1'-none, 't_e/1'-none, 't_w/1'-load]).
+
+%% P's row among the time view's LINES: `load' when it ends in the mark,
+%% `none' when it ends in P
+load_mark(Lines, P, M) :-
+    member(L, Lines),
+    \+ sub_atom(L, 0, _, _, '%'),
+    sub_atom(L, B, _, A, P),
+    B >= 2, B2 is B - 2,
+    sub_atom(L, B2, 2, _, '  '),
+    sub_atom(L, _, A, 0, Tail), !,
+    (   Tail == '' -> M = none
+    ;   sub_atom(Tail, 0, _, _, '   (one call: ') -> M = load
+    ;   M = Tail
+    ).
 
 %% ---- where a failed search got furthest -------------------------------------------
 
@@ -1208,7 +1302,48 @@ furthest(D) :-
     flow_why_furthest(W7, F7),
     findall(X-P, ( member(S, F7), functor(S, X, _), arg(2, S, P) ), F7s),
     check('lower(bad, Y): past the explicit fail/0, into the condition that failed, lowerable/1',
-          F7s, [step-lower/2, step-lowerable/1, failed-(\==)/2]).
+          F7s, [step-lower/2, step-lowerable/1, failed-(\==)/2]),
+    %% ONE clause holding a disjunction (1.13.7, the reasoning session's
+    %% report, the translator's tr_read_ir/5): the last call that failed is
+    %% the fallback's, which failed at once; the first branch's read spent
+    %% the most, and is where the clause got furthest
+    debugged(D, far8, read_ir([the, dog, sleeps, loudly]), [], [], R8),
+    flow_why(R8, W8),
+    flow_why_furthest(W8, F8),
+    findall(X-P, ( member(S, F8), functor(S, X, _), arg(2, S, P) ), F8s),
+    check('read_ir(...): one clause, two branches -- into the first branch''s read, which spent the most, not the fallback that failed last',
+          F8s, [step-read_ir/1, step-into_ir/1, step-ir_words/2, step-ir_words/2, step-ir_words/2,
+                step-ir_words/2, nohead-ir_word/1]),
+    %% a call that exited and failed only when asked again is the trail of
+    %% a later failure: exited, in the tree, and never where its clause failed
+    debugged(D, far9, tally, [], [], R9),
+    flow_why(R9, W9),
+    ( W9 = [why(_, _, _, [entered(1, G9)])] -> true ; G9 = [] ),
+    findall(X, ( member(N, G9), functor(N, X, _) ), K9),
+    flow_why_furthest(W9, F9),
+    findall(X-P, ( member(S, F9), functor(S, X, _), arg(2, S, P) ), F9s),
+    check('tally: count_up/0 exited and failed only when asked again -- exited in the tree, and the path goes into judge/0, though count_up/0 spent more',
+          K9-F9s, [exited, why]-[step-tally/0, step-judge/0, nohead-verdict/1]),
+    %% an exception a catch took is no stall
+    debugged(D, far10, caught_far, [], [], R10),
+    flow_why(R10, W10),
+    flow_why_furthest(W10, F10),
+    findall(X-P, ( member(S, F10), functor(S, X, _), arg(2, S, P) ), F10s),
+    check('caught_far: past the exception the catch took, though its goal spent the most, into the test that failed',
+          F10s, [step-caught_far/0, step-far_test/1, failed-(>)/2]),
+    %% two that spent alike: the later
+    debugged(D, far11, tie_far(1), [], [], R11),
+    flow_why(R11, W11),
+    flow_why_furthest(W11, F11),
+    ( last(F11, failed(_, _, In11)) -> true ; In11 = F11 ),
+    check('tie_far(1): two tests that spent a step each -- the later', In11, ['1', '7']),
+    %% ... and the exception a catch took when nothing else failed
+    debugged(D, far12, caught_only, [], [], R12),
+    flow_why(R12, W12),
+    flow_why_furthest(W12, F12),
+    findall(X-P, ( member(S, F12), functor(S, X, _), arg(2, S, P) ), F12s),
+    check('caught_only: nothing failed but the exception the catch took and its recovery''s fail -- the exception',
+          F12s, [step-caught_only/0, ended-long_raise/1]).
 
 %% ---- why a run raised ------------------------------------------------------
 
