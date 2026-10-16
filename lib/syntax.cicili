@@ -681,6 +681,11 @@
                               (int quoted) (int ignore_ops)) (out int))
   (decl) (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
 
+  ;;; PRINT/1'S FORM (2.2.4), swipl's print/1 and format's `~p': quoted, and
+  ;;; with numbervars, so `'$VAR'(1)' is written `B' (mode 8,
+  ;;; `coco_write_numbervar'). Through 2.2.3 print/1 was write/1.
+  (decl) (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+
   ;;; THE FORM A CLAUSE IS STORED IN, which is quoted and with operators
   ;;; IGNORED -- `rule(===>(a,b))' and not `rule(a ===> b)'.
   ;;;
@@ -1682,7 +1687,7 @@
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 3))
+        (let ((int first . 1) (int kids . #'(bitand mode 11))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -1708,6 +1713,44 @@
               break)))
         (return (coco_sb_putc b (cast char (coco-ch "]")))))
 
+  ;;; `'$VAR'(N)' WRITTEN AS THE VARIABLE IT NAMES (2.2.4), under print/1's
+  ;;; numbervars (mode 8), as swipl's writer does it: an integer N of 0 or
+  ;;; more is the letter N mod 26, and past the first 26 the count N // 26
+  ;;; after it (`A', `Z', `A1'); a negative one `S_' and its magnitude
+  ;;; (`S_1'); an atom that reads as a variable (A-Z or `_', then letters,
+  ;;; digits and `_', ASCII as the reader takes them) itself, unquoted.
+  ;;; Anything else -- `x', `'Foo bar'', a float, a string, a compound --
+  ;;; answers 0 having written nothing, and is written as the compound it is.
+  (static)
+  (func coco_write_numbervar ((coco_machine * m) (coco_strbuf * b) (size_t a)) (out int)
+        (set a (coco_deref m a))
+        (let ((u64 c . #'(nth a (-> m heap))) (i64 n . 0))
+          (cond ((coco-tag-is INT c) (set n (coco-signed-payload c)))
+                ((coco-tag-is BIG c) (set n (nth (cast size_t (coco-payload c)) (-> m bigs))))
+                ((coco-tag-is ATOM c)
+                 (let ((const char * s . #'(coco_atom_name m (coco_name_of m a))))
+                   (if (not (or (coco-ch-between (nth 0 s) "A" "Z") (== (nth 0 s) (coco-ch "_"))))
+                       (return 0))
+                   (for ((size_t i . 1)) (!= (nth i s) (cast char 0)) ((++ i))
+                     (let ((char ch . #'(nth i s)))
+                       (if (not (or (coco-ch-between ch "a" "z") (coco-ch-between ch "A" "Z")
+                                    (coco-ch-between ch "0" "9") (== ch (coco-ch "_"))))
+                           (return 0))))
+                   (coco_sb_put b s)
+                   (return 1)))
+                (#t (return 0)))
+          (if (< n 0)
+              (block (coco_sb_put b "S_")
+                     ;; the magnitude, negated through u64 (no overflow in
+                     ;; C): the least integer, which has none in i64, comes
+                     ;; out as itself, `S_-9223372036854775808', which is
+                     ;; swipl's text to the letter (its own negation wraps)
+                     (coco_sb_put_i64 b (cast i64 (- (cast u64 0) (cast u64 n))))
+                     (return 1)))
+          (coco_sb_putc b (cast char (+ (coco-ch "A") (cast int (% n 26)))))
+          (if (>= n 26) (coco_sb_put_i64 b (/ n 26)))
+          (return 1)))
+
   ;;; A COMPOUND, written: its own function, inlined where it is called, so
   ;;; that the cycle guard's slow path RETURNS rather than rejoining the
   ;;; write -- a call that rejoined could have moved the heap, as far as the
@@ -1719,8 +1762,15 @@
         (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
               (u32 n . #'(coco_arity m t))
               (int quoted . #'(bitand mode 1))
-              ;; what this write's operands and arguments carry down
-              (int kids . #'(bitand mode 3)))
+              ;; what this write's operands and arguments carry down:
+              ;; quoted 1, ignore_ops 2 and numbervars 8 (the operand's 4
+              ;; is each operand's own)
+              (int kids . #'(bitand mode 11)))
+
+          ;; print/1's numbervars (2.2.4): `'$VAR'(N)' as the variable it names
+          (if (and (!= 0 (bitand mode 8)) (== n 1) (== 0 (strcmp name "$VAR"))
+                   (coco_write_numbervar m b (coco_arg m t 0)))
+              (return 1))
 
           (if (== 0 (bitand mode 2))
               (block
@@ -1948,7 +1998,7 @@
   ;;; is the variable it is.
   (static)
   (func coco_write_cyclic ((coco_machine * m) (coco_strbuf * b) (size_t t)
-                           (int quoted) (int ignore_ops) (int named)) (out int)
+                           (int mode) (int named)) (out int)
         (let ((size_t mark . #'(-> m heap_len))
               (size_t * vars . nil) (size_t nv . 0) (u64 * ids . nil)
               (int rc . 0) (int own . 0)
@@ -1965,7 +2015,7 @@
                        (set (nth i ids) (coco_intern m nm)))
                      (set (-> m wcells) vars) (set (-> m wnames) ids) (set (-> m nwnames) nv)
                      (set own 1)))))
-          (set rc (coco_write_rec m b f (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1200 0))
+          (set rc (coco_write_rec m b f mode 1200 0))
           (if own
               (block (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)))
           (free ids) (free vars)
@@ -1976,18 +2026,19 @@
   ;;; walk met a cycle, what it wrote taken back and the term written in
   ;;; factors. The guard's state is the machine's between writes (WDEEP
   ;;; 1024, WCYC 0) and is put back here, so a write that meets no cycle
-  ;;; pays a load and a branch for it.
+  ;;; pays a load and a branch for it. MODE is the writer's word without the
+  ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8.
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
-                        (int quoted) (int ignore_ops) (int named)) (out int)
+                        (int mode) (int named)) (out int)
         (let ((size_t from . #'(-> b len))
-              (int rc . #'(coco_write_rec m b t (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1200 0)))
+              (int rc . #'(coco_write_rec m b t mode 1200 0)))
           (if (-> m wcyc)
               (block
                (set (-> b len) from)
                (if (!= (-> b s) nil) (set (nth from (-> b s)) (cast char 0)))
                (set (-> m wcyc) 0) (set (-> m wdeep) 1024)
-               (set rc (coco_write_cyclic m b t quoted ignore_ops named))
+               (set rc (coco_write_cyclic m b t mode named))
                ;; the factors hold no cycle; this is for a write that
                ;; could not make them
                (set (-> m wcyc) 0) (set (-> m wdeep) 1024)))
@@ -1995,20 +2046,23 @@
 
   (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int quoted) (int ignore_ops)) (out int)
-        (return (coco_write_top m b t quoted ignore_ops 1)))
+        (return (coco_write_top m b t (bitor (? quoted 1 0) (? ignore_ops 2 0)) 1)))
 
   ;;; What goes into the database: quoted, so it reads back, and with operators
   ;;; kept, so a person looking at the table can see what the clause says.
   (func coco_write_storable ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_top m b t 1 1 0)))
+        (return (coco_write_top m b t 3 0)))
 
   (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_top m b t 1 0 0)))
+        (return (coco_write_top m b t 1 0)))
+
+  (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (return (coco_write_top m b t 9 1)))
 
   (func coco_print_term ((coco_machine * m) (FILE * f) (size_t t))
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_top m (aof b) t 0 0 1)
+          (coco_write_top m (aof b) t 0 1)
           (if (!= ($ b s) nil) (fputs ($ b s) f))
           (coco_sb_free (aof b))))
 

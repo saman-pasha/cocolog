@@ -15,7 +15,9 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `number_codes/2` | `number_codes(N, "3x")` is a `syntax_error` | answers `3`, ignoring what follows the number | check the text first if it may carry trailing characters |
-| `print/1` | quotes, as `writeq/1` does: `print('a b')` is `'a b'` and `print(f('X'))` `f('X')` | writes as `write/1` does, unquoted: `a b` and `f(X)`, which reads back as another term (a prefix operator before a number is spaced as swipl spaces it since 2.2.3: `+1`, `\1`, and `- 1` alone) | `writeq/1` where the text must read back |
+| `write/1` and `writeq/1` of `'$VAR'(N)` | numbervars: `writeq('$VAR'(1))` is `B`, `write('$VAR'('Foo'))` is `Foo` | `'$VAR'(1)` and `$VAR(Foo)`: only `print/1` and format's `~p` take numbervars (since 2.2.4; through 2.2.3 `print/1` was `write/1`, unquoted), and `write_term/2` has no `numbervars` option | `print/1`, or format's `~p` |
+| a quote inside a quoted atom | `writeq('don''t')` is `'don\'t'` | `'don''t'`; both read back as the same atom | — |
+| a `portray/1` hook | `print/1` and `~p` call it for each subterm | not called: `print/1` is `writeq/1` with numbervars | write the term yourself |
 
 ## Loud: an error where SWI enumerates or accepts
 

@@ -463,9 +463,6 @@
            ;; order because keysort put them there.
            "setof(T, G, S) :- bagof(T, G, B), sort(B, S)."
 
-           ;; ---- print/1 is write/1 here; SWI routes it through portray -----
-           "print(X) :- write(X)."
-
            ;; ---- atom_string-free helpers the tests lean on -----------------
            "atom_chars_list(A, L) :- atom_chars(A, L).")))
 
@@ -2057,8 +2054,12 @@
                 (if (not (coco_fmt_arg items n (aof ai) (aof a)))
                     (block (snprintf err errlen "format/2: not enough arguments") (return 0)))
 
-                ;; 119 `~w', 113 `~q', 112 `~p'
-                (if (or (or (== d 119) (== d 113)) (== d 112))
+                ;; 119 `~w', 113 `~q', 112 `~p' -- print/1's, quoted and with
+                ;; numbervars, as swipl's `~p' calls print/1 (2.2.4; through
+                ;; 2.2.3 it was `~w')
+                (if (== d 112)
+                    (block (coco_write_print m b a) continue))
+                (if (or (== d 119) (== d 113))
                     (block (coco_write_term m b a (? (== d 113) 1 0) 0) continue))
 
                 ;; 97 `~a', 115 `~s' -- an atom, or a list of codes, of any

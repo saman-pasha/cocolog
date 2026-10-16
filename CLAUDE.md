@@ -885,8 +885,10 @@ cocolint index offers no import of it.
   variables took 6.8 s). A
   deep TREE overflows the C stack where it always did (~47k levels of
   `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
-  stay in registers**: quoted, ignore_ops and operand are one `mode` word
-  (1, 2, 4), and a compound is `coco_write_fun`, always inlined, so the
+  stay in registers**: quoted, ignore_ops, operand and (2.2.4) numbervars
+  are one `mode` word (1, 2, 4, 8; what a compound hands its arguments is
+  `mode & 11`, the operand's 4 being each operand's own), and a compound
+  is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
 * **A directive is a GOAL.** `coco_directive` answers the ones that act on the
@@ -1503,7 +1505,20 @@ cocolint index offers no import of it.
   symbolic one took it, `+ 1`); a symbol character after any of them takes
   one by the merge rule (`- -1`, `+ +1`), and so does an opening
   parenthesis (`- (a+b)`). `test/files/prefix_write.pl` holds 60 terms to
-  swipl's text, and `test/syntax.cicili` the golden cases.
+  swipl's text, and `test/syntax.cicili` the golden cases. **print/1, and
+  format's `~p` with it (so library(stream)'s print/2), are swipl's print/1**
+  (2.2.4; write/1 and `~w` through 2.2.3): quoted, and with numbervars
+  (`coco_write_print`, mode 9), which writes `'$VAR'(N)` as the variable it
+  names -- an integer of 0 or more the letter N mod 26 and past 25 N // 26
+  after it (`A`, `Z`, `A1`), a negative one `S_` and its magnitude
+  (`S_-9223372036854775808` for the least integer, swipl's text, its own
+  negation wrapping), an atom that reads as a variable (A-Z or `_` first,
+  ASCII) unquoted, anything else the compound it is
+  (`coco_write_numbervar`). Not swipl's yet: print/1 calls no portray/1
+  hook; write/1 and writeq/1 have no numbervars (`writeq('$VAR'(1))` is
+  `'$VAR'(1)`, swipl's `B`); and a quote inside a quoted atom is doubled
+  (`'don''t'`, swipl's `'don\'t'`). `test/files/print.pl` holds 85 lines to
+  swipl's text.
   **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
   `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
   sorts before every other number (`coco_flt_order`, which

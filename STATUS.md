@@ -6482,3 +6482,67 @@ once in a run of 24 cases at once on four vCPUs (its check that a time row
 is marked) and green alone. `make test` has not been run on it.
 `tools/flow/zero.sh` against 2.2.2, the binaries placed alike, both ways
 round: nrev, queens and lookup the same to the instruction, padding too.
+
+## print/1 and `~p`, swipl's (2.2.4)
+
+The owner's ask, after 2.2.3: print/1 too. Through 2.2.3 print/1 was
+write/1 (the engine's row named `coco_bi_write`, and a clause
+`print(X) :- write(X).` under it that the row shadowed) and format's `~p`
+was `~w`, so `print('a b')` wrote `a b`, `print(f('X'))` `f(X)`, and
+neither read back as what it printed; library(stream)'s print/2, which is
+`format(S, '~p', [T])`, the same. swipl's print/1 is
+`write_term(T, [portray(true), numbervars(true), quoted(true)])`, and its
+`~p` calls it.
+
+Now print/1, `~p` and so print/2 write quoted, with numbervars
+(`coco_write_print`): a fourth bit in the writer's mode word, 8, carried to
+every argument with quoted and ignore_ops (`mode & 11`, where it was
+`mode & 3`), asked of each compound of arity 1 named `$VAR` before
+anything else (`coco_write_numbervar`), and taken by the top of the write
+and the cyclic writer, which take the mode word whole where they took two
+flags. swipl's rules, measured: an integer N of 0 or more is the letter
+N mod 26 and, past 25, N // 26 after it (`A`, `Z`, `A1`, `B1`,
+`H354745078340568300`); a negative one `S_` and its magnitude (`S_1`), the
+least integer `S_-9223372036854775808`, which is swipl's own text -- its
+negation wraps; here it goes through u64 and C has no overflow; an atom
+that reads as a variable (A-Z or `_`, then letters, digits and `_`) itself,
+unquoted (`Foo`, `X1_y`, `_`); anything else the compound it is
+(`'$VAR'(x)`, `'$VAR'('Foo bar')`, `'$VAR'("Foo")`, `'$VAR'(1.5)`,
+`'$VAR'(1, 2)`). The dead clause is gone.
+
+`test/files/print.pl` prints 81 terms with print/1, `~p`, and print/1
+inside with_output_to/2 (its length), then a cyclic term holding a `$VAR`
+(`@(S_1,[S_1=f(S_1,B,'a b')])`), a cyclic list and a string: 85 lines,
+byte for byte with swipl; 2.2.3 differs on 58. `test/stream.pl` pins
+print/2 into a stream: `['A b',B]`. Left out of the swipl file, and in
+COMPAT.md: a portray/1 hook, which print/1 does not call here; write/1 and
+writeq/1, which have no numbervars here (`writeq('$VAR'(1))` is
+`'$VAR'(1)`, swipl's `B`); and an atom with a quote in it, written
+`'don''t'` here and `'don\'t'` by swipl (both read back).
+
+Thirteen arms take one rule out each in the generated C, and each goes red
+(lines of the 85 that differ from swipl, and test/stream.pl):
+
+| arm | red |
+|---|---|
+| print/1 as write/1 again | 58 |
+| `~p` as `~w` again | 56, and stream |
+| no numbervars | 36, and stream |
+| a compound not handing numbervars down | 17 |
+| a list not handing it down | 4, and stream |
+| a negative number as a letter | 7 |
+| an atom of any first character a variable | 2 |
+| no atom a variable | 7 |
+| an atom of any later characters a variable | 2 |
+| the cyclic writer without the mode | 2 |
+| `$VAR` of any arity | 1 |
+| the least integer as its true magnitude | 1 |
+| no count after the letter | 5 |
+
+Green on 2.2.4: syntax, term, files (37 swipl-compared files), stream,
+cyclic, trace, backtrace, errors, engine, window, journal, serialize,
+flowchart, flowdebug, lint, directives, argv, string, units, library,
+reconsult, script, repl and gc, and the card check (six cites put right,
+no range left wrong). `make test` has not been run on it. `tools/flow/zero.sh` against
+2.2.3, the binaries placed alike, both ways round, work less padding: nrev
+-68, queens -22, lookup -12 818 instructions (-0.027 %).
