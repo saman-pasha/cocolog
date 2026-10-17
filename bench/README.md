@@ -204,6 +204,16 @@ chose it; `swi`, as installed, stays beside it.
 are not a language, and these five include the ones cocolog is expected
 to lose.
 
+**And a run is a reading of one sitting, not a regression test.** The host
+is the cloud's to choose -- Run U's is not Run T's -- and one box drifts
+about a fifth between runs of one build, so a ratio between two runs speaks
+of two sittings. What a change to the engine is held to is its instruction
+count, the same on any host: `sh tools/flow/zero.sh OLD NEW` counts nrev,
+queens and lookup with the jump padding apart, and an engine change is
+counted with it (CLAUDE.md, Measuring), with alternating pairs of the two
+binaries in one sitting where time is the question. `test/langs.pl` holds
+the benchmark's programs to the same answers, not to any time.
+
 ## The runs, oldest first
 
 ### Run M: the first Linux box, and the dead count -- 1.8.48

@@ -10,7 +10,7 @@ directory in the name:
 | file | what |
 |---|---|
 | `reason.pl` | a paragraph of controlled English in, predicates out -- and, optionally, typed prose in through the shipped tagger (`reason_prose/2`, `reason_ask_prose/2`, loaded on first use): facts, `neg/1` facts, rules, a quantity as a VALUE (`500 euros` is `quantity(500, euros)`, `The rent is 500 euros` an `amount/2`), and a question as a GOAL with a variable where `who`, `what`, `where` or `how much` stood; `truth/2`, four-valued; `reason_ask/2`, a question answered with the fact, the rule or the denial it rests on, and `reason_ask/3` with the EXPLANATION beside it -- `reason_explanation/2`, the whole proof in sentences, every level of it, which a `Why ...?` question answers as `because(Text)`; `reason_concepts/2`, what a text mentions, ranked, and `reason_topics/2` and `reason_outline/2`, what it is ABOUT as an outline by topic with the sub-topics under each -- `Kh8, a king: black; occupies H8; may move to G8, G7 and H7.`; `reason_refused/2`, which sentence would not parse; a word in quotation marks is MENTIONED (`"casa" means "house"` is `mean(casa, house)`, `the noun "casa"` says what it is), a relative clause takes a verb, `is the NOUN of X` is the relation the noun names, `end_in/2` is the library's so that a rule over letters runs (`ends in a vowel` included), and `reason_learn/1` reads and asserts |
-| `translate.pl` | a language lesson as a knowledge base and a translation as a proof over it: `reason_translate/2,3` takes a simple sentence -- a subject, a verb and what follows it; singular or plural, in any person, denied or not, present, past, future or perfect, with a pronoun, a possessive, a number, a prepositional phrase, an adverb or two phrases joined; a statement or a question (yes or no, what, who, whom, where, when, which) -- between English and the language a lesson teaches, asking the knowledge base what a word means, what it is, its gender, its plural, its past, its future, its participle and its persons (stated, or by an ending rule), the word for `not`, whether an adjective follows its noun, whether a pronoun precedes the verb, the word that stands before a person as the object (`The word "a" precedes the person`) and the contractions it states (`"al" is the contraction of "a el"`) -- and knowing no word of the language itself; `reason_learn/3` learns a lesson under its own name so that several languages sit in one knowledge base -- a FACT under the language's own namespace (`'spanish:mean'(casa, house)`) so the first-argument index keys on the word as a plain lesson's does, a rule in `lesson/2` where the body must still be proved through the lesson, with `reason_lesson/2` to read one and `reason_unlearn/1` to forget one -- and `reason_untranslated/2` names the words a lesson left out. AND EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY: `reason_ir/2,3` reads a text INTO an intermediate representation -- `ir(s(Asked, Subject, g(Lexeme, Tense, Aspect, Denied), Complements), Stop)`, the reader's own shape with English words in it -- and `reason_ir_text/3` writes one back out into any language, so `reason_translate/4` takes Italian into Spanish with no English sentence written and none read, three languages are three lessons rather than six paths, and a fourth is a fourth lesson. The SHAPE travels exactly; the vocabulary travels through English, because a lesson says what a word means only as `mean(Word, EnglishWord)`. `reason_languages/1` names them. AND WHAT NEWSPAPER PROSE IS MADE OF, which twelve verbatim Italian sentences named as eleven structures and every one of which turned out to be a SHAPE rather than a vocabulary: several clauses joined by a comma or a connecting word, a passive with its `da` agent, a reflexive that belongs to the verb, a reduced relative (a participle after a noun), an infinitive of purpose, an object complement (`definire illegale la decisione`, which the lesson's language writes before its object and English after), an adjective in the comparative or the superlative (one word in the lesson's language, and the ARTICLE decides which), a subject after its verb where an adjunct is fronted and the lesson calls the verb intransitive, a headline with the copula left out (a passive, never a fragment), a gerund clause with a `that` clause inside it, an IMPERATIVE (no subject, and only a form the lesson calls one -- `"come" is the imperative of "come"' -- so `Come el pan.' is read where `Comia el pan.' keeps its refusal; its denial is a different form in every language that has both, Spanish's subjunctive against Italian's infinitive, and the translator asks the lesson for it by name), and an article before a NAME (`la Tate Gallery`, which Italian writes far more often than English does) -- an ordinary phrase with the name where the noun goes, where the ARTICLE says what a name cannot: its number, and its gender, which travels so the other language agrees with it. Each asks the lesson for what it needs and no more -- `The word "per" begins the purpose`, `The word "più" begins the comparative`, `"domina" is intransitive`, `The conjunction "che" means "that"`, `"ha" is the auxiliary of "es"` -- and the costs are stated: the fronting is not written back, a headline comes out as the sentence it leaves the copula out of, and a subjunctive is read and written back as the indicative, because English marks none |
+| `translate.pl` | a language lesson as a knowledge base and a translation as a proof over it: `reason_translate/2,3` takes a simple sentence -- a subject, a verb and what follows it; singular or plural, in any person, denied or not, present, past, future or perfect, with a pronoun, a possessive, a number, a prepositional phrase, an adverb or two phrases joined; a statement or a question (yes or no, what, who, whom, where, when, which) -- between English and the language a lesson teaches, asking the knowledge base what a word means, what it is, its gender, its plural, its past, its future, its participle and its persons (stated, or by an ending rule), the word for `not`, whether an adjective follows its noun, whether a pronoun precedes the verb, the word that stands before a person as the object (`The word "a" precedes the person`) and the contractions it states (`"al" is the contraction of "a el"`) -- and naming no word of the language's vocabulary itself (the few closed-class words the code does name are listed under What a translation promises, below); `reason_learn/3` learns a lesson under its own name so that several languages sit in one knowledge base -- a FACT under the language's own namespace (`'spanish:mean'(casa, house)`) so the first-argument index keys on the word as a plain lesson's does, a rule in `lesson/2` where the body must still be proved through the lesson, with `reason_lesson/2` to read one and `reason_unlearn/1` to forget one -- and `reason_untranslated/2` names the words a lesson left out. AND EVERY LANGUAGE HAS TWO HALVES AND NO PAIR HAS ANY: `reason_ir/2,3` reads a text INTO an intermediate representation -- `ir(s(Asked, Subject, g(Lexeme, Tense, Aspect, Denied), Complements), Stop)`, the reader's own shape with English words in it -- and `reason_ir_text/3` writes one back out into any language, so `reason_translate/4` takes Italian into Spanish with no English sentence written and none read, three languages are three lessons rather than six paths, and a fourth is a fourth lesson. The SHAPE travels exactly; the vocabulary travels through English, because a lesson says what a word means only as `mean(Word, EnglishWord)`. `reason_languages/1` names them. AND WHAT NEWSPAPER PROSE IS MADE OF, which twelve verbatim Italian sentences named as eleven structures and every one of which turned out to be a SHAPE rather than a vocabulary: several clauses joined by a comma or a connecting word, a passive with its `da` agent, a reflexive that belongs to the verb, a reduced relative (a participle after a noun), an infinitive of purpose, an object complement (`definire illegale la decisione`, which the lesson's language writes before its object and English after), an adjective in the comparative or the superlative (one word in the lesson's language, and the ARTICLE decides which), a subject after its verb where an adjunct is fronted and the lesson calls the verb intransitive, a headline with the copula left out (a passive, never a fragment), a gerund clause with a `that` clause inside it, an IMPERATIVE (no subject, and only a form the lesson calls one -- `"come" is the imperative of "come"' -- so `Come el pan.' is read where `Comia el pan.' keeps its refusal; its denial is a different form in every language that has both, Spanish's subjunctive against Italian's infinitive, and the translator asks the lesson for it by name), and an article before a NAME (`la Tate Gallery`, which Italian writes far more often than English does) -- an ordinary phrase with the name where the noun goes, where the ARTICLE says what a name cannot: its number, and its gender, which travels so the other language agrees with it. Each asks the lesson for what it needs and no more -- `The word "per" begins the purpose`, `The word "più" begins the comparative`, `"domina" is intransitive`, `The conjunction "che" means "that"`, `"ha" is the auxiliary of "es"` -- and the costs are stated: the fronting is not written back, a headline comes out as the sentence it leaves the copula out of, and a subjunctive is written back as one only after a word the lesson says takes it (below) |
 | `normalise.pl` | the training data for the network: the grammar's fifty-five shapes as a generator with gold tags, thirteen noise transforms that carry the tags, and the assembler the round trip holds them to -- over the lexicon files in `lexicon/` and the lessons in `corpus/`, read as needed and never written into the code. Ten of the shapes are a LESSON's, about mentioned words (`The noun "casa" means "house"`, `Every noun that ends in "a" is feminine`), and their tag M is the one the assembler writes something for: the quotation marks, so that `The noun casa means house` typed bare comes back as the lesson's own line (`normalise_bare/2` is the typing) |
 | `lexicon/` | the words, one class a file: 2500 census first names and some seventeen thousand WordNet words ranked by use for the generator (`unit.txt` the four hundred a number counts, WordNet's units of measurement and of time; `language.txt` a hundred and fifty languages, for `Spanish is a language` and the `in Spanish` the normaliser drops), and in `known_*.txt` every SemCor-counted noun, verb, adjective and adverb for the tagger's judge; `SOURCES.md` says where each came from, and `lexicon/build.pl` writes every file but the names from a WordNet 3.0 `dict` directory; `prose.txt` is eight thousand of WordNet's own example sentences, which nothing trains on and `tagger_refused/4` measures against |
 | `generated/` | the training data, as DATA: `training.txt`, the 32768 pairs the shipped model was fitted to, and `evaluation.txt`, the 300 it is measured on -- one `pair(...)` term a line, written by `generate.pl` and read back by `normalise_load/2`; committed, because a seed is not data once a shape or a lexicon line moves under it |
@@ -38,6 +38,65 @@ the three integers a program compares, from one fact at the top of
 commit, and `cocolog --version` stays unless the binary or another library
 changed too. CLAUDE.md, under The version, has the rules.
 
+**What a translation promises, and what it does not.** Each of these was
+checked against the code and a lesson (2026-10-17, reasoning 1.0.8):
+
+* **One text, and no alternatives.** A translation is one sentence out;
+  backtracking offers no other. A word a lesson gives two meanings is
+  settled by the sentence's shape where a shape decides -- `qué` before a
+  noun is `which` -- and otherwise by the order the lesson states the
+  meanings in: the Spanish lesson says `lo` means `him` before it says
+  `it`, so `Maria lo come.` is `Maria eats him.`. Nothing marks such a
+  choice in the result.
+* **A stated gender meets an ending rule by ORDER, not by which is more
+  particular.** The translator asks `feminine/1` before `masculine/1`
+  (`tr_gender/2`), and a rule holds of a word unless the lesson denies it
+  of that word (`tr_holds/1`). So `"leche" is feminine.` beside `Every
+  noun that does not end in "a" is masculine.` writes `la leche` -- while
+  the reasoner, reading the same lesson, holds both genders true
+  (`truth(masculine(leche), true)`); a masculine noun that the feminine
+  rule catches is stated as a denial, `"tema" is not feminine.`, which
+  writes `el tema`; and `"mapa" is masculine.` without the denial loses to
+  the rule and writes `La mapa`. The vocabularies' builder writes the
+  denial after every such noun of the dictionaries (`corpus/build.pl`); a
+  line of `corpus/extra/` is copied as it stands, and four Italian ones
+  state a masculine noun in `a` without it (`caposquadra`, `centro
+  destra`, `centro sinistra`, `microtrauma`), which are written feminine.
+* **The mood does not cross.** The IR has no mood, as English marks none:
+  a subjunctive is read as its verb, and written as a subjunctive only
+  after a word that the lesson of the language being written says takes
+  one (`"chiede" takes the subjunctive.`, twenty-five to thirty a
+  language) -- the indicative elsewhere, after `cuando` or `si`, in a
+  relative clause. A fronted adjunct is written where English puts it (`En
+  la casa el perro come el pan.` is `The dog eats the bread in the
+  house.`), and a headline as the sentence it leaves the copula out of.
+* **An article's count is coverage, not correctness.** `37 of 38` (a
+  sample's count, in its commit and in CLAUDE.md) is the sentences
+  translated rather than refused. Each sample's texts are read by hand and
+  what is wrong in them is listed beside the count, under The reasoning
+  library and the translator in CLAUDE.md. `test/translate.pl` holds the
+  shapes, not the articles: a small sentence for each, its expected text
+  written by hand, and, when the shape was added, a copy of the library
+  with its rule taken out on which that check went red. The controls --
+  every earlier article and four hundred short Tatoeba-style sentences,
+  this translator against the last -- find the texts that CHANGED, which
+  is how a regression is caught and not a measure of quality. There are no
+  reference translations and no measure of whether a meaning survived.
+* **Of Spanish and Italian the code names only closed classes**, each the
+  guard of a shape: surname particles and the articles a name holds (`de`,
+  `di`, `da`, `del`, `d'`; `de la`, `de los`), clitic and article forms
+  (`lo`, `la`, `li`, `le`, `ne`, `los`, `las`; `mi`, `ti`, `ci`, `vi`, `si`
+  and their forms before another clitic), the Italian demonstratives with
+  their copula (`questo è`, `questi sono`), the numeral one (`uno`, `un`,
+  `una`), ten Italian adverbs that may stand inside a verb of two words
+  (`risente invece di`, `tr_plain_adverb_word/1`) and the `di` that ends
+  such a verb, a list of abbreviations (`pag.`, `dott.`, `núm.`), and the
+  gerund endings `-ando` and `-endo`, which pick the words of a sentence
+  the lesson is asked about as gerunds (`tr_gerunds_of/2`: a lesson's
+  gerund that ends otherwise is not among them). Every word's meaning,
+  class, gender and forms, and every rule of the language, is asked of the
+  lesson; English, the IR's language, is the code's own.
+
 The loop is closed: `tagger.pl` trains in about two minutes on four
 cores, over 300 sentences training never saw (seeds past the corpus)
 0.988 of the tags and 0.93 to 0.96 of the sentences are right, a training
@@ -54,8 +113,8 @@ mass(boston) -- because every sentence it had ever seen had a reading.
 Three ways of teaching the network to refuse (an outside tag on every
 token of real prose, a sentence head over the shared states, a second
 network) each cost a tenth of the hand-written sentences it should read.
-What stayed is deterministic: six lexicon rules, `tagger_sane/2`, put to
-every tagging before the assembler sees it, and a twelfth tag X for one
+What stayed is deterministic: lexicon rules, six then and eleven now
+(`tagger_sane/2`), put to every tagging before the assembler sees it, and a twelfth tag X for one
 they contradict, which the assembler refuses. Measured, 0.93 to 0.94 of
 WordNet's example sentences refused where the network alone refused 0.85,
 0.96 of the government prose where it was 0.87, and the forty-three read

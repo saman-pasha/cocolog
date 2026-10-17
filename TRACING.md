@@ -333,7 +333,11 @@ CallText)` or `none`, for another call where the journal holds one,
 another argument, a call the journal holds made early or late, one past
 its last, and a call passed by that nothing made. A run without a journal
 dispatches exactly as before: the module seam's hooks are wrapped only
-while a journal's window runs. `test/journal.pl` holds it to a record and
+while a journal's window runs. The journal is the world's half and no
+more: it records no hash of the program or of the clauses its predicates
+read, so a replay of an edited program is a run of the edited program,
+caught only where one of its portal calls, or the step its run ends at,
+moves. `test/journal.pl` holds it to a record and
 its replay in one process and in two, under collections every 2000 cells,
 and to each divergence; `library(flow/debug)`'s `journal(true)` is the
 same pair, a probe that records and a replay that replays (DESIGN-flow.md

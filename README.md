@@ -1365,6 +1365,15 @@ table exactly as it was, *then* load the knowledge base, whose clauses intern
 against that table. The other order leaves the store's cells referring to atom
 ids the thawed heap does not agree with.
 
+**And a resumed machine assumes the knowledge base it left.** A choice point
+part way through a predicate remembers it by name and arity and the position
+of the next clause to try, so a resume needs the predicate's clauses in the
+order they had. A frozen machine records no revision of the knowledge base,
+and nothing checks one when it resumes: a clause retracted, or asserted in
+front, under a suspended machine resumes it at the wrong clause -- the hazard
+`retract/1` has always had against a running query (`lib/state.cicili`'s
+header).
+
 ## Cicili, used as a Lisp
 
 The interpreter is not C in parentheses. The macro layer does the work a

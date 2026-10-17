@@ -1,7 +1,8 @@
 %% library(reasoning/translate) -- a language lesson as a knowledge base, and
-%% a translation as a proof over it. ONE HUNDRED AND EIGHTY-THREE LINES OF
+%% a translation as a proof over it. ONE HUNDRED AND EIGHTY-NINE LINES OF
 %% SPANISH, read by reason_learn/1 into facts and rules -- no lexicon, no
-%% corpus, no model, nothing in the library that knows a word of Spanish --
+%% corpus, no model, and no Spanish word in the library's code but a few of
+%% the closed classes (library/reasoning/README.md lists them) --
 %% and then simple sentences translated both ways: singular and plural,
 %% denied and not, in every person, present, past, future and perfect,
 %% with a pronoun, a possessive, a number, a prepositional phrase, an
