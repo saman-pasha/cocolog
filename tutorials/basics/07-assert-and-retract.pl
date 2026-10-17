@@ -19,11 +19,12 @@
 %% written through, and another process asking the same question gets it.
 %% That is the whole point of this interpreter, and basics 11 is about it.
 %%
-%% WHAT TO BE CAREFUL OF: asserting inside a loop over the same predicate
-%% you are asserting to. Prolog's "logical update view" says a goal sees
-%% the clauses that existed when it STARTED, so `findall' will not chase
-%% its own tail -- but the code reads as though it might, and the next
-%% reader has to work that out.
+%% WHAT TO BE CAREFUL OF: asserting or retracting inside a loop over the
+%% same predicate. ISO Prolog's "logical update view" says a goal sees the
+%% clauses that existed when it STARTED; cocolog does not keep it yet -- a
+%% retry reads the clauses as they are now, so a loop over `seen/1' that
+%% asserts `seen/1' meets what it added. Loop over a LIST of what was
+%% there (`findall' first), as below.
 
 :- dynamic seen/1.
 :- dynamic counter/1.
@@ -55,15 +56,15 @@ main :-
     counter(N),
     must('after three bumps', N, 3),
 
-    format("~n-- the logical update view: a goal sees the clauses it STARTED with~n"),
+    format("~n-- loop over a LIST of what was there, not the predicate you change~n"),
     findall(S, seen(S), Before),
     must('before', Before, [zeroth, second]),
     forall(member(_, Before), assertz(seen(copied))),
     findall(S2, seen(S2), After),
     must('after copying each one once', After,
          [zeroth, second, copied, copied]),
-    format("   The forall did not chase its own additions. If it saw the~n"),
-    format("   clauses as they grew, it would never have stopped.~n"),
+    format("   The list was made before the first assert, so nothing the~n"),
+    format("   forall added could be met again.~n"),
 
     format("~n-- A DIFFERENCE WORTH KNOWING: builtins here answer ONCE~n"),
     format("   The classic `retract(X), fail' loop iterates by BACKTRACKING~n"),

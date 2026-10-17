@@ -3689,9 +3689,13 @@ is 14000), which is how it has always read and is worth a look.
   wrapped in a clause.
 * **Resuming assumes the clauses have not moved.** A choice point remembers a
   predicate by name and the position of the next clause to try, so retracting
-  from underneath a suspended machine makes it resume at the wrong one. This is
-  the hazard `retract` has always had against a running query; the fix is to hold
-  a transaction over the clause tables.
+  from underneath a suspended machine makes it resume at the wrong one. A frozen
+  machine keeps no revision of the knowledge base, on purpose (the owner,
+  2026-10-17): other machines may use and change a shared base while it is
+  frozen, and an embedded one that nobody else uses resumes exactly where it
+  stopped. A running query has the same hazard here, and that is NOT standard
+  Prolog's (2026-10-17, against swipl 9.0.4): ISO's logical update view, which
+  swipl keeps, gives a call the clauses that stood when it began.
 * **`asserta` rewrites its whole predicate** in the database, because putting a
   clause at the front changes every later clause's ordinal. O(n) per assert and
   always right.

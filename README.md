@@ -1365,14 +1365,22 @@ table exactly as it was, *then* load the knowledge base, whose clauses intern
 against that table. The other order leaves the store's cells referring to atom
 ids the thawed heap does not agree with.
 
-**And a resumed machine assumes the knowledge base it left.** A choice point
-part way through a predicate remembers it by name and arity and the position
-of the next clause to try, so a resume needs the predicate's clauses in the
-order they had. A frozen machine records no revision of the knowledge base,
-and nothing checks one when it resumes: a clause retracted, or asserted in
-front, under a suspended machine resumes it at the wrong clause -- the hazard
-`retract/1` has always had against a running query (`lib/state.cicili`'s
-header).
+**And a resumed machine runs on the knowledge base as it is.** A frozen
+machine records no revision of the knowledge base, on purpose: the base is
+shared, and other machines may use and change it while this one is frozen.
+An embedded store that no other machine uses has nothing to change it, and a
+thaw resumes exactly where the freeze stopped. Where the base did change, a
+choice point part way through a predicate remembers it by name and arity and
+the POSITION of the next clause to try, so a clause retracted, or asserted in
+front, under a suspended machine resumes it at the wrong clause.
+
+**A running query has the same hazard, which ISO Prolog's has not.** A retry
+reads the live clause list, so a retract or an assert while a call on the
+predicate is open moves the clauses that call has still to try: `( q(X),
+write(X), nl, retract(q(1)), fail ; true )` over `q(1). q(2). q(3).` prints 1
+and 3, and `forall(q(X), retract(q(X)))` over five clauses leaves two. ISO's
+logical update view, which swipl keeps, gives a call the clauses that stood
+when it began: swipl 9.0.4 prints 1, 2 and 3 and leaves none.
 
 ## Cicili, used as a Lisp
 

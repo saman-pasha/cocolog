@@ -33,9 +33,13 @@
 ;;; first mentioned -- and the position of the next clause to try. So resuming
 ;;; requires the predicate to still have its clauses in the order it had them.
 ;;; Retracting a clause from underneath a suspended machine will make it resume
-;;; at the wrong one. That is the same hazard Prolog's `retract' has always had
-;;; against a running query, and it is the reason the clause tables are the
-;;; thing a transaction is held over.
+;;; at the wrong one. A running query has the same hazard here, where a retry
+;;; reads the live clause list (ISO's logical update view, swipl's, spares it),
+;;; and it is the reason the clause tables are the thing a transaction is held
+;;; over. The machine records no revision of the database, on purpose: the
+;;; database is shared, other machines may change it while this one is frozen,
+;;; and a resume runs on it as it is; an embedded store nobody else uses
+;;; resumes exactly where it stopped.
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
