@@ -1075,3 +1075,27 @@
 <e r="RL"><p><l>hypocrite<s n="n"/></l><r>doppiogiochista<s n="n"/><s n="mf"/></r></p></e>
 # `Onorevole Tatarella', `l'onorevole di Alleanza Nazionale'
 <e r="RL"><p><l>deputy<s n="n"/></l><r>onorevole<s n="n"/><s n="mf"/></r></p></e>
+# the Barcelona and Unicaja basketball report (AnCora CESS-CAST-P-20001201-176), Spanish into Italian and English: the Italian for what the Italian dictionary has and the bilingual one lacks
+# `una tremenda consistencia', `un tremendo derroche físico': tremendo, where the dictionary's `apoteosico' came first
+<e><p><l>tremendous<s n="adj"/></l><r>tremendo<s n="adj"/></r></p></e>
+# `para descabalgar a los malagueños del liderato': oust
+<e><p><l>oust<s n="vblex"/></l><r>spodestare<s n="vblex"/></r></p></e>
+# `dos personajes antagónicos'
+<e><p><l>antagonistic<s n="adj"/></l><r>antagonistico<s n="adj"/></r></p></e>
+# `después de que el partido acabara empatado a 72'
+<e><p><l>tie<s n="vblex"/></l><r>pareggiare<s n="vblex"/></r></p></e>
+# `El pívot estadounidense del Barcelona': the basketball word is the French one in Italian too
+<e><p><l>pivot<s n="n"/></l><r>pivot<s n="n"/><s n="m"/></r></p></e>
+# `en el segundo cuarto': a quarter of a game (the dictionary's `quartiere' is a district)
+<e><p><l>quarter<s n="n"/></l><r>quarto<s n="n"/><s n="m"/></r></p></e>
+# `salieron vencedores': victorious
+<e><p><l>victorious<s n="adj"/></l><r>vittorioso<s n="adj"/></r></p></e>
+# `dos rebotes ofensivos': a rebound
+<e><p><l>rebound<s n="n"/></l><r>rimbalzo<s n="n"/><s n="m"/></r></p></e>
+# `los pulsos tácticos entre Aíto y Majkovic': tattico
+<e><p><l>tactical<s n="adj"/></l><r>tattico<s n="adj"/></r></p></e>
+# the Barcelona and Unicaja basketball report, second batch (into Italian and English)
+# `por seis supuestas faltas graves': alleged (the dictionary's `presumptive' is how `presunto' reads now)
+<e><p><l>alleged<s n="adj"/></l><r>presunto<s n="adj"/></r></p></e>
+# `un tremendo derroche físico': the effort spent
+<e><p><l>expenditure<s n="n"/></l><r>dispendio<s n="n"/><s n="m"/></r></p></e>

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16526 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16535 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1804,6 +1804,63 @@ The adverb "per l'ultima volta" means "for the last time".
 The masculine noun "deputato" means "deputy".
 The feminine noun "deputata" means "deputy".
 The noun "ipocrita" means "hypocrite".
+The feminine noun "tripla" means "three-pointer".
+"triple" is the plural of "tripla".
+The masculine noun "mordente" means "hitting power".
+"mordenti" is the plural of "mordente".
+The masculine noun "malagueño" means "Malagueño".
+"malagueños" is the plural of "malagueño".
+"malagueño" is a person.
+The masculine noun "blaugrana" means "Barça player".
+"blaugrana" is the plural of "blaugrana".
+"blaugrana" is a person.
+"blaugrana" is not feminine.
+The adjective "blaugrana" means "Barça".
+The preposition "in procinto di" means "on the verge of".
+The preposition "contrariamente a" means "contrary to".
+The verb "spegne" means "switches off".
+The verb "si occupa" means "takes charge of".
+"si occupano" is the plural of "si occupa".
+"si occupò" is the past of "si occupa".
+"si occuparono" is the plural of "si occupò".
+"si occupava" is the imperfect of "si occupa".
+"si occupavano" is the plural of "si occupava".
+"si occuperà" is the future of "si occupa".
+"si occuperanno" is the plural of "si occuperà".
+"occuparsi" is the infinitive of "si occupa".
+"si occupa" takes "di" before the infinitive.
+"si occupa" takes "di" before the phrase.
+The masculine noun "direttivo" means "board of directors".
+"direttivi" is the plural of "direttivo".
+The verb "lascia partire" means "releases".
+"lasciano partire" is the plural of "lascia partire".
+"lasciò partire" is the past of "lascia partire".
+"lasciarono partire" is the plural of "lasciò partire".
+"lasciar partire" is the infinitive of "lascia partire".
+"lasciare partire" is the infinitive of "lascia partire".
+The verb "si impone" means "prevails".
+"si impongono" is the plural of "si impone".
+"si impose" is the past of "si impone".
+"si imposero" is the plural of "si impose".
+"imporsi" is the infinitive of "si impone".
+"si impone" takes "a" before the phrase.
+The masculine noun "overtime" means "overtime".
+"overtime" is the plural of "overtime".
+The verb "tarda a" means "takes long".
+"tardano a" is the plural of "tarda a".
+"tardò a" is the past of "tarda a".
+"tardarono a" is the plural of "tardò a".
+"tardare a" is the infinitive of "tarda a".
+The verb "si riorganizza" means "regroups".
+"si riorganizzano" is the plural of "si riorganizza".
+"riorganizzarsi" is the infinitive of "si riorganizza".
+The masculine noun "protagonismo" means "prominence".
+"protagonismi" is the plural of "protagonismo".
+The masculine noun "compito" means "task".
+"compiti" is the plural of "compito".
+The feminine noun "leadership" means "leadership".
+"leadership" is the plural of "leadership".
+"spodesta" takes "da" before the phrase.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2020,6 +2077,14 @@ The masculine noun "fiammifero" means "matchstick".
 "fiammiferi" is the plural of "fiammifero".
 The feminine noun "questione" means "issue".
 "questioni" is the plural of "questione".
+The masculine noun "pivot" means "pivot".
+"pivot" is the plural of "pivot".
+The masculine noun "quarto" means "quarter".
+"quarti" is the plural of "quarto".
+The masculine noun "rimbalzo" means "rebound".
+"rimbalzi" is the plural of "rimbalzo".
+The masculine noun "dispendio" means "expenditure".
+"dispendi" is the plural of "dispendio".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -21324,7 +21389,6 @@ The masculine noun "esame" means "examination".
 The feminine noun "esalazione" means "exhalation".
 The feminine noun "etichettatura" means "labeling".
 The feminine noun "spedizione" means "expedition".
-The feminine noun "spesa" means "expenditure".
 The feminine noun "scadenza" means "expiration".
 The feminine noun "esposizione" means "exposition".
 The feminine noun "esposizione" means "exposure".
@@ -25221,6 +25285,110 @@ The verb "dimette" means "resigns".
 "dimesse" is the plural of "dimessa".
 "dimettere" is the infinitive of "dimette".
 "dimettendo" is the gerund of "dimette".
+The verb "spodesta" means "ousts".
+"spodestano" is the plural of "spodesta".
+"spodestiamo" is the first person of "spodestano".
+"spodesto" is the first person of "spodesta".
+"spodesti" is the second person of "spodesta".
+"spodestò" is the past of "spodesta".
+"spodestarono" is the past of "spodestano".
+"spodestammo" is the first person of "spodestarono".
+"spodestaste" is the second person of "spodestarono".
+"spodestai" is the first person of "spodestò".
+"spodestasti" is the second person of "spodestò".
+"spodestava" is the imperfect of "spodesta".
+"spodestavano" is the imperfect of "spodestano".
+"spodestavamo" is the first person of "spodestavano".
+"spodestavate" is the second person of "spodestavano".
+"spodestavo" is the first person of "spodestava".
+"spodestavi" is the second person of "spodestava".
+"spodesterà" is the future of "spodesta".
+"spodesteranno" is the plural of "spodesterà".
+"spodesteremo" is the first person of "spodesteranno".
+"spodesterete" is the second person of "spodesteranno".
+"spodesterò" is the first person of "spodesterà".
+"spodesterai" is the second person of "spodesterà".
+"spodesterebbe" is the conditional of "spodesta".
+"spodesterebbero" is the plural of "spodesterebbe".
+"spodesteremmo" is the first person of "spodesterebbero".
+"spodestereste" is the second person of "spodesterebbero".
+"spodesterei" is the first person of "spodesterebbe".
+"spodesteresti" is the second person of "spodesterebbe".
+"spodesti" is the subjunctive of "spodesta".
+"spodestino" is the plural of "spodesti".
+"spodestiamo" is the first person of "spodestino".
+"spodestasse" is the past subjunctive of "spodesta".
+"spodestassero" is the plural of "spodestasse".
+"spodestassimo" is the first person of "spodestassero".
+"spodestaste" is the second person of "spodestassero".
+"spodestassi" is the first person of "spodestasse".
+"spodestassi" is the second person of "spodestasse".
+"spodesta" is the imperative of "spodesta".
+"spodestare" is the negative imperative of "spodesta".
+"spodestate" is the imperative of "spodestano".
+"spodestiamo" is the hortative of "spodesta".
+"spodestato" is the participle of "spodesta".
+"spodestata" is the participle of "spodesta".
+"spodestata" is feminine.
+"spodestati" is the participle of "spodesta".
+"spodestati" is the plural of "spodestato".
+"spodestate" is the participle of "spodesta".
+"spodestate" is feminine.
+"spodestate" is the plural of "spodestata".
+"spodestare" is the infinitive of "spodesta".
+"spodestando" is the gerund of "spodesta".
+The verb "pareggia" means "ties".
+"pareggiano" is the plural of "pareggia".
+"pareggiamo" is the first person of "pareggiano".
+"pareggio" is the first person of "pareggia".
+"pareggi" is the second person of "pareggia".
+"pareggiò" is the past of "pareggia".
+"pareggiarono" is the past of "pareggiano".
+"pareggiammo" is the first person of "pareggiarono".
+"pareggiaste" is the second person of "pareggiarono".
+"pareggiai" is the first person of "pareggiò".
+"pareggiasti" is the second person of "pareggiò".
+"pareggiava" is the imperfect of "pareggia".
+"pareggiavano" is the imperfect of "pareggiano".
+"pareggiavamo" is the first person of "pareggiavano".
+"pareggiavate" is the second person of "pareggiavano".
+"pareggiavo" is the first person of "pareggiava".
+"pareggiavi" is the second person of "pareggiava".
+"pareggerà" is the future of "pareggia".
+"pareggeranno" is the plural of "pareggerà".
+"pareggeremo" is the first person of "pareggeranno".
+"pareggerete" is the second person of "pareggeranno".
+"pareggerò" is the first person of "pareggerà".
+"pareggerai" is the second person of "pareggerà".
+"pareggerebbe" is the conditional of "pareggia".
+"pareggerebbero" is the plural of "pareggerebbe".
+"pareggeremmo" is the first person of "pareggerebbero".
+"pareggereste" is the second person of "pareggerebbero".
+"pareggerei" is the first person of "pareggerebbe".
+"pareggeresti" is the second person of "pareggerebbe".
+"pareggi" is the subjunctive of "pareggia".
+"pareggino" is the plural of "pareggi".
+"pareggiamo" is the first person of "pareggino".
+"pareggiasse" is the past subjunctive of "pareggia".
+"pareggiassero" is the plural of "pareggiasse".
+"pareggiassimo" is the first person of "pareggiassero".
+"pareggiaste" is the second person of "pareggiassero".
+"pareggiassi" is the first person of "pareggiasse".
+"pareggiassi" is the second person of "pareggiasse".
+"pareggia" is the imperative of "pareggia".
+"pareggiare" is the negative imperative of "pareggia".
+"pareggiate" is the imperative of "pareggiano".
+"pareggiamo" is the hortative of "pareggia".
+"pareggiato" is the participle of "pareggia".
+"pareggiata" is the participle of "pareggia".
+"pareggiata" is feminine.
+"pareggiati" is the participle of "pareggia".
+"pareggiati" is the plural of "pareggiato".
+"pareggiate" is the participle of "pareggia".
+"pareggiate" is feminine.
+"pareggiate" is the plural of "pareggiata".
+"pareggiare" is the infinitive of "pareggia".
+"pareggiando" is the gerund of "pareggia".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -107588,7 +107756,6 @@ The verb "termina" means "terminates".
 The verb "testimonia" means "testifies".
 The verb "spinge" means "thrusts".
 "thrust" is the past of "thrusts".
-The verb "lega" means "ties".
 The verb "segue" means "tracks".
 The verb "scambia" means "trades".
 The verb "tratta" means "transacts".
@@ -108253,6 +108420,42 @@ The feminine adjective "disposta" means "willing".
 "dispostissimi" is the superlative of "disposti".
 "dispostissima" is the superlative of "disposta".
 "dispostissime" is the superlative of "disposte".
+The masculine adjective "tremendo" means "tremendous".
+"tremendi" is the plural of "tremendo".
+The feminine adjective "tremenda" means "tremendous".
+"tremende" is the plural of "tremenda".
+"tremendissimo" is the superlative of "tremendo".
+"tremendissimi" is the superlative of "tremendi".
+"tremendissima" is the superlative of "tremenda".
+"tremendissime" is the superlative of "tremende".
+The masculine adjective "antagonistico" means "antagonistic".
+"antagonistici" is the plural of "antagonistico".
+The feminine adjective "antagonistica" means "antagonistic".
+"antagonistiche" is the plural of "antagonistica".
+The masculine adjective "vittorioso" means "victorious".
+"vittoriosi" is the plural of "vittorioso".
+The feminine adjective "vittoriosa" means "victorious".
+"vittoriose" is the plural of "vittoriosa".
+"vittoriosissimo" is the superlative of "vittorioso".
+"vittoriosissimi" is the superlative of "vittoriosi".
+"vittoriosissima" is the superlative of "vittoriosa".
+"vittoriosissime" is the superlative of "vittoriose".
+The masculine adjective "tattico" means "tactical".
+"tattici" is the plural of "tattico".
+The feminine adjective "tattica" means "tactical".
+"tattiche" is the plural of "tattica".
+"tatticissimo" is the superlative of "tattico".
+"tatticissimi" is the superlative of "tattici".
+"tatticissima" is the superlative of "tattica".
+"tatticissime" is the superlative of "tattiche".
+The masculine adjective "presunto" means "alleged".
+"presunti" is the plural of "presunto".
+The feminine adjective "presunta" means "alleged".
+"presunte" is the plural of "presunta".
+"presuntissimo" is the superlative of "presunto".
+"presuntissimi" is the superlative of "presunti".
+"presuntissima" is the superlative of "presunta".
+"presuntissime" is the superlative of "presunte".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -119086,13 +119289,7 @@ The adjective "presumibile" means "presumable".
 "presumibilissima" is the superlative of "presumibile".
 "presumibilissime" is the superlative of "presumibili".
 The masculine adjective "presunto" means "presumptive".
-"presunti" is the plural of "presunto".
 The feminine adjective "presunta" means "presumptive".
-"presunte" is the plural of "presunta".
-"presuntissimo" is the superlative of "presunto".
-"presuntissimi" is the superlative of "presunti".
-"presuntissima" is the superlative of "presunta".
-"presuntissime" is the superlative of "presunte".
 The masculine adjective "preventivo" means "preventive".
 "preventivi" is the plural of "preventivo".
 The feminine adjective "preventiva" means "preventive".

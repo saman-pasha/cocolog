@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20416 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20424 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1228,6 +1228,64 @@ The adverb "de forma realista" means "realistically".
 "os" is the plural of "te".
 The preposition "para la protección de" means "for the protection of".
 The adverb "por última vez" means "for the last time".
+The masculine noun "cuarto" means "quarter".
+"cuartos" is the plural of "cuarto".
+The masculine noun "triple" means "three-pointer".
+"triples" is the plural of "triple".
+The feminine noun "pegada" means "hitting power".
+"pegadas" is the plural of "pegada".
+The masculine noun "malagueño" means "Malagueño".
+"malagueños" is the plural of "malagueño".
+"malagueño" is a person.
+The noun "azulgrana" means "Barça player".
+"azulgrana" is not feminine.
+"azulgranas" is the plural of "azulgrana".
+"azulgrana" is a person.
+The adjective "azulgrana" means "Barça".
+The adjective "con mayúsculas" means "magnificent".
+"con mayúsculas" is the plural of "con mayúsculas".
+"caja san fernando" is a name.
+The preposition "a punto de" means "on the verge of".
+The preposition "en contra de" means "contrary to".
+The masculine noun "pulso" means "duel".
+"pulsos" is the plural of "pulso".
+The verb "apaga" means "switches off".
+The verb "se encarga" means "takes charge of".
+"se encargan" is the plural of "se encarga".
+"se encargó" is the past of "se encarga".
+"se encargaron" is the plural of "se encargó".
+"se encargaba" is the imperfect of "se encarga".
+"se encargaban" is the plural of "se encargaba".
+"se encargará" is the future of "se encarga".
+"se encargarán" is the plural of "se encargará".
+"encargarse" is the infinitive of "se encarga".
+"se encarga" takes "de" before the infinitive.
+"se encarga" takes "de" before the phrase.
+The feminine noun "directiva" means "board of directors".
+"directivas" is the plural of "directiva".
+The verb "deja marchar" means "releases".
+"dejan marchar" is the plural of "deja marchar".
+"dejó marchar" is the past of "deja marchar".
+"dejaron marchar" is the plural of "dejó marchar".
+"dejar marchar" is the infinitive of "deja marchar".
+The verb "se impone" means "prevails".
+"se imponen" is the plural of "se impone".
+"se impuso" is the past of "se impone".
+"se impusieron" is the plural of "se impuso".
+"imponerse" is the infinitive of "se impone".
+"se impone" takes "a" before the phrase.
+The masculine noun "equilibrio" means "equilibrium".
+The verb "tarda en" means "takes long".
+"tardan en" is the plural of "tarda en".
+"tardó en" is the past of "tarda en".
+"tardaron en" is the plural of "tardó en".
+"tardar en" is the infinitive of "tarda en".
+The verb "se rehace" means "regroups".
+"se rehacen" is the plural of "se rehace".
+"rehacerse" is the infinitive of "se rehace".
+The masculine noun "protagonismo" means "prominence".
+"protagonismos" is the plural of "protagonismo".
+"descabalga" takes "de" before the phrase.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1390,6 +1448,14 @@ The noun "hipócrita" means "hypocrite".
 "hipócrita" is not feminine.
 "hipócritas" is the plural of "hipócrita".
 "hipócrita" is a person.
+The masculine noun "tono" means "tone".
+"tonos" is the plural of "tono".
+The masculine noun "derroche" means "expenditure".
+"derroches" is the plural of "derroche".
+The feminine noun "prórroga" means "overtime".
+"prórrogas" is the plural of "prórroga".
+The masculine noun "contrato" means "contract".
+"contratos" is the plural of "contrato".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -1489,7 +1555,6 @@ The masculine noun "hostelero" means "innkeeper".
 The masculine noun "agotamiento" means "exhaustion".
 "agotamientos" is the plural of "agotamiento".
 The feminine noun "prórroga" means "extension".
-"prórrogas" is the plural of "prórroga".
 The masculine noun "batacazo" means "thump".
 "batacazos" is the plural of "batacazo".
 The masculine noun "anfitrión" means "host".
@@ -6183,7 +6248,6 @@ The feminine noun "llave" means "key".
 The feminine noun "tecla" means "key".
 "teclas" is the plural of "tecla".
 The masculine noun "tono" means "key".
-"tonos" is the plural of "tono".
 The masculine noun "teclado" means "keyboard".
 "teclados" is the plural of "teclado".
 The masculine noun "chut" means "kick".
@@ -9814,7 +9878,6 @@ The feminine noun "tomografía" means "tomography".
 "tomografías" is the plural of "tomografía".
 The feminine noun "tonalidad" means "tonality".
 "tonalidades" is the plural of "tonalidad".
-The masculine noun "tono" means "tone".
 The feminine noun "lengua" means "tongue".
 "lenguas" is the plural of "lengua".
 The masculine noun "arqueo" means "tonnage".
@@ -18347,7 +18410,6 @@ The feminine noun "nevada" means "snowfall".
 "nevadas" is the plural of "nevada".
 The masculine noun "hindi" means "hindi".
 The masculine noun "derroche" means "splurge".
-"derroches" is the plural of "derroche".
 The masculine noun "relleno" means "filler".
 "rellenos" is the plural of "relleno".
 The masculine noun "relleno" means "filling".
@@ -20519,6 +20581,8 @@ The feminine noun "crispación" means "tension".
 "crispaciones" is the plural of "crispación".
 The feminine noun "consigna" means "directive".
 "consignas" is the plural of "consigna".
+The noun "pívot" means "pivot".
+"pívots" is the plural of "pívot".
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -20845,8 +20909,6 @@ The masculine noun "agresor" means "aggressor".
 The feminine noun "agresora" means "aggressor".
 "agresoras" is the plural of "agresora".
 "agresora" is a person.
-The masculine noun "contrato" means "agreement".
-"contratos" is the plural of "contrato".
 The masculine noun "convenio" means "agreement".
 "convenios" is the plural of "convenio".
 The masculine noun "agricultor" means "agriculturalist".
@@ -25564,7 +25626,6 @@ The masculine noun "concierto" means "concerto".
 The feminine noun "conducta" means "conduct".
 The feminine noun "conformidad" means "conformity".
 The feminine noun "consulta" means "consultation".
-The masculine noun "contrato" means "contract".
 The feminine noun "comodidad" means "convenience".
 The feminine noun "cocina" means "cooker".
 The masculine noun "cuerpo" means "corps".
@@ -25629,7 +25690,6 @@ The masculine noun "celo" means "estrus".
 The masculine noun "examen" means "exam".
 The feminine noun "exposición" means "exhibit".
 The feminine noun "prueba" means "exhibit".
-The masculine noun "gasto" means "expenditure".
 The masculine noun "alcance" means "extent".
 The feminine noun "extensión" means "extent".
 The feminine noun "facilidad" means "facility".
@@ -29046,6 +29106,58 @@ The verb "amaña" means "rigs".
 "amañando" is the gerund of "amaña".
 "rigged" is the past of "rigs".
 "rigging" is the gerund of "rigs".
+The verb "empata" means "ties".
+"empatan" is the plural of "empata".
+"empatamos" is the first person of "empatan".
+"empatáis" is the second person of "empatan".
+"empato" is the first person of "empata".
+"empatas" is the second person of "empata".
+"empató" is the past of "empata".
+"empataron" is the past of "empatan".
+"empatamos" is the first person of "empataron".
+"empatasteis" is the second person of "empataron".
+"empaté" is the first person of "empató".
+"empataste" is the second person of "empató".
+"empataba" is the imperfect of "empata".
+"empataban" is the imperfect of "empatan".
+"empatábamos" is the first person of "empataban".
+"empatabais" is the second person of "empataban".
+"empatabas" is the second person of "empataba".
+"empatará" is the future of "empata".
+"empatarán" is the plural of "empatará".
+"empataremos" is the first person of "empatarán".
+"empataréis" is the second person of "empatarán".
+"empataré" is the first person of "empatará".
+"empatarás" is the second person of "empatará".
+"empataría" is the conditional of "empata".
+"empatarían" is the plural of "empataría".
+"empataríamos" is the first person of "empatarían".
+"empataríais" is the second person of "empatarían".
+"empatarías" is the second person of "empataría".
+"empate" is the subjunctive of "empata".
+"empaten" is the plural of "empate".
+"empatemos" is the first person of "empaten".
+"empates" is the second person of "empate".
+"empatara" is the past subjunctive of "empata".
+"empataran" is the plural of "empatara".
+"empatáramos" is the first person of "empataran".
+"empatarais" is the second person of "empataran".
+"empataras" is the second person of "empatara".
+"empata" is the imperative of "empata".
+"empates" is the negative imperative of "empata".
+"empatad" is the imperative of "empatan".
+"empatéis" is the negative imperative of "empatan".
+"empatemos" is the hortative of "empata".
+"empatado" is the participle of "empata".
+"empatada" is the participle of "empata".
+"empatada" is feminine.
+"empatados" is the participle of "empata".
+"empatados" is the plural of "empatado".
+"empatadas" is the participle of "empata".
+"empatadas" is feminine.
+"empatadas" is the plural of "empatada".
+"empatar" is the infinitive of "empata".
+"empatando" is the gerund of "empata".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -120406,6 +120518,110 @@ The verb "potencia" means "boosts".
 "potenciadas" is the plural of "potenciada".
 "potenciar" is the infinitive of "potencia".
 "potenciando" is the gerund of "potencia".
+The verb "engrandece" means "dignifies".
+"engrandecen" is the plural of "engrandece".
+"engrandecemos" is the first person of "engrandecen".
+"engrandecéis" is the second person of "engrandecen".
+"engrandezco" is the first person of "engrandece".
+"engrandeces" is the second person of "engrandece".
+"engrandeció" is the past of "engrandece".
+"engrandecieron" is the past of "engrandecen".
+"engrandecimos" is the first person of "engrandecieron".
+"engrandecisteis" is the second person of "engrandecieron".
+"engrandecí" is the first person of "engrandeció".
+"engrandeciste" is the second person of "engrandeció".
+"engrandecía" is the imperfect of "engrandece".
+"engrandecían" is the imperfect of "engrandecen".
+"engrandecíamos" is the first person of "engrandecían".
+"engrandecíais" is the second person of "engrandecían".
+"engrandecías" is the second person of "engrandecía".
+"engrandecerá" is the future of "engrandece".
+"engrandecerán" is the plural of "engrandecerá".
+"engrandeceremos" is the first person of "engrandecerán".
+"engrandeceréis" is the second person of "engrandecerán".
+"engrandeceré" is the first person of "engrandecerá".
+"engrandecerás" is the second person of "engrandecerá".
+"engrandecería" is the conditional of "engrandece".
+"engrandecerían" is the plural of "engrandecería".
+"engrandeceríamos" is the first person of "engrandecerían".
+"engrandeceríais" is the second person of "engrandecerían".
+"engrandecerías" is the second person of "engrandecería".
+"engrandezca" is the subjunctive of "engrandece".
+"engrandezcan" is the plural of "engrandezca".
+"engrandezcamos" is the first person of "engrandezcan".
+"engrandezcas" is the second person of "engrandezca".
+"engrandeciera" is the past subjunctive of "engrandece".
+"engrandecieran" is the plural of "engrandeciera".
+"engrandeciéramos" is the first person of "engrandecieran".
+"engrandecierais" is the second person of "engrandecieran".
+"engrandecieras" is the second person of "engrandeciera".
+"engrandece" is the imperative of "engrandece".
+"engrandezcas" is the negative imperative of "engrandece".
+"engrandeced" is the imperative of "engrandecen".
+"engrandezcáis" is the negative imperative of "engrandecen".
+"engrandezcamos" is the hortative of "engrandece".
+"engrandecido" is the participle of "engrandece".
+"engrandecida" is the participle of "engrandece".
+"engrandecida" is feminine.
+"engrandecidos" is the participle of "engrandece".
+"engrandecidos" is the plural of "engrandecido".
+"engrandecidas" is the participle of "engrandece".
+"engrandecidas" is feminine.
+"engrandecidas" is the plural of "engrandecida".
+"engrandecer" is the infinitive of "engrandece".
+"engrandeciendo" is the gerund of "engrandece".
+The verb "descabalga" means "ousts".
+"descabalgan" is the plural of "descabalga".
+"descabalgamos" is the first person of "descabalgan".
+"descabalgáis" is the second person of "descabalgan".
+"descabalgo" is the first person of "descabalga".
+"descabalgas" is the second person of "descabalga".
+"descabalgó" is the past of "descabalga".
+"descabalgaron" is the past of "descabalgan".
+"descabalgamos" is the first person of "descabalgaron".
+"descabalgasteis" is the second person of "descabalgaron".
+"descabalgué" is the first person of "descabalgó".
+"descabalgaste" is the second person of "descabalgó".
+"descabalgaba" is the imperfect of "descabalga".
+"descabalgaban" is the imperfect of "descabalgan".
+"descabalgábamos" is the first person of "descabalgaban".
+"descabalgabais" is the second person of "descabalgaban".
+"descabalgabas" is the second person of "descabalgaba".
+"descabalgará" is the future of "descabalga".
+"descabalgarán" is the plural of "descabalgará".
+"descabalgaremos" is the first person of "descabalgarán".
+"descabalgaréis" is the second person of "descabalgarán".
+"descabalgaré" is the first person of "descabalgará".
+"descabalgarás" is the second person of "descabalgará".
+"descabalgaría" is the conditional of "descabalga".
+"descabalgarían" is the plural of "descabalgaría".
+"descabalgaríamos" is the first person of "descabalgarían".
+"descabalgaríais" is the second person of "descabalgarían".
+"descabalgarías" is the second person of "descabalgaría".
+"descabalgue" is the subjunctive of "descabalga".
+"descabalguen" is the plural of "descabalgue".
+"descabalguemos" is the first person of "descabalguen".
+"descabalgues" is the second person of "descabalgue".
+"descabalgara" is the past subjunctive of "descabalga".
+"descabalgaran" is the plural of "descabalgara".
+"descabalgáramos" is the first person of "descabalgaran".
+"descabalgarais" is the second person of "descabalgaran".
+"descabalgaras" is the second person of "descabalgara".
+"descabalga" is the imperative of "descabalga".
+"descabalgues" is the negative imperative of "descabalga".
+"descabalgad" is the imperative of "descabalgan".
+"descabalguéis" is the negative imperative of "descabalgan".
+"descabalguemos" is the hortative of "descabalga".
+"descabalgado" is the participle of "descabalga".
+"descabalgada" is the participle of "descabalga".
+"descabalgada" is feminine.
+"descabalgados" is the participle of "descabalga".
+"descabalgados" is the plural of "descabalgado".
+"descabalgadas" is the participle of "descabalga".
+"descabalgadas" is feminine.
+"descabalgadas" is the plural of "descabalgada".
+"descabalgar" is the infinitive of "descabalga".
+"descabalgando" is the gerund of "descabalga".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -137121,6 +137337,18 @@ The masculine adjective "remilgado" means "squeamish".
 "remilgados" is the plural of "remilgado".
 The feminine adjective "remilgada" means "squeamish".
 "remilgadas" is the plural of "remilgada".
+The masculine adjective "presunto" means "alleged".
+"presuntos" is the plural of "presunto".
+The feminine adjective "presunta" means "alleged".
+"presuntas" is the plural of "presunta".
+"presuntísimas" is the superlative of "presuntas".
+"presuntísima" is the superlative of "presunta".
+"presuntísimos" is the superlative of "presuntos".
+"presuntísimo" is the superlative of "presunto".
+The masculine adjective "supuesto" means "alleged".
+"supuestos" is the plural of "supuesto".
+The feminine adjective "supuesta" means "alleged".
+"supuestas" is the plural of "supuesta".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -142171,13 +142399,7 @@ The feminine adjective "prestigiosa" means "prestigious".
 The adjective "presumible" means "presumable".
 "presumibles" is the plural of "presumible".
 The masculine adjective "presunto" means "presumptive".
-"presuntos" is the plural of "presunto".
 The feminine adjective "presunta" means "presumptive".
-"presuntas" is the plural of "presunta".
-"presuntísimas" is the superlative of "presuntas".
-"presuntísima" is the superlative of "presunta".
-"presuntísimos" is the superlative of "presuntos".
-"presuntísimo" is the superlative of "presunto".
 The masculine adjective "preventivo" means "preventive".
 "preventivos" is the plural of "preventivo".
 The feminine adjective "preventiva" means "preventive".
@@ -143235,9 +143457,7 @@ The masculine adjective "suministrador" means "supplying".
 The feminine adjective "suministradora" means "supplying".
 "suministradoras" is the plural of "suministradora".
 The masculine adjective "supuesto" means "supposed".
-"supuestos" is the plural of "supuesto".
 The feminine adjective "supuesta" means "supposed".
-"supuestas" is the plural of "supuesta".
 The masculine adjective "supremo" means "supreme".
 "supremos" is the plural of "supremo".
 The feminine adjective "suprema" means "supreme".
@@ -151522,6 +151742,26 @@ The masculine adjective "confiscatorio" means "confiscatory".
 "confiscatorios" is the plural of "confiscatorio".
 The feminine adjective "confiscatoria" means "confiscatory".
 "confiscatorias" is the plural of "confiscatoria".
+The masculine adjective "tremendo" means "tremendous".
+"tremendos" is the plural of "tremendo".
+The feminine adjective "tremenda" means "tremendous".
+"tremendas" is the plural of "tremenda".
+"tremendísimas" is the superlative of "tremendas".
+"tremendísima" is the superlative of "tremenda".
+"tremendísimos" is the superlative of "tremendos".
+"tremendísimo" is the superlative of "tremendo".
+The masculine adjective "antagónico" means "antagonistic".
+"antagónicos" is the plural of "antagónico".
+The feminine adjective "antagónica" means "antagonistic".
+"antagónicas" is the plural of "antagónica".
+The masculine adjective "seguido" means "consecutive".
+"seguidos" is the plural of "seguido".
+The feminine adjective "seguida" means "consecutive".
+"seguidas" is the plural of "seguida".
+"seguidísimas" is the superlative of "seguidas".
+"seguidísima" is the superlative of "seguida".
+"seguidísimos" is the superlative of "seguidos".
+"seguidísimo" is the superlative of "seguido".
 The masculine adjective "abstemio" means "abstemious".
 "abstemios" is the plural of "abstemio".
 The feminine adjective "abstemia" means "abstemious".
@@ -152730,7 +152970,6 @@ The feminine adjective "dura" means "tough".
 The masculine adjective "transitorio" means "transient".
 The feminine adjective "transitoria" means "transient".
 The adjective "triple" means "treble".
-The adjective "enorme" means "tremendous".
 The masculine adjective "delicado" means "tricky".
 The feminine adjective "delicada" means "tricky".
 The adjective "doble" means "twofold".

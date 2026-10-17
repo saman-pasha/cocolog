@@ -607,3 +607,30 @@
 <e><p><l>rig<s n="vblex"/></l><r>amañar<s n="vblex"/></r></p></e>
 # `D'Alema è doppiogiochista?': a hypocrite
 <e><p><l>hypocrite<s n="n"/></l><r>hipócrita<s n="n"/><s n="mf"/></r></p></e>
+# the Barcelona and Unicaja basketball report (AnCora CESS-CAST-P-20001201-176), Spanish into Italian and English: the English for what the Spanish dictionary has and the bilingual one lacks
+# `Barcelona y Unicaja engrandecieron ayer la Liga': dignified
+<e r="RL"><p><l>dignify<s n="vblex"/></l><r>engrandecer<s n="vblex"/></r></p></e>
+# `una tremenda consistencia', `un tremendo derroche físico': tremendous (the dictionary's `enorme' is the one written)
+<e r="RL"><p><l>tremendous<s n="adj"/></l><r>tremendo<s n="adj"/></r></p></e>
+# `para descabalgar a los malagueños del liderato': oust (the dictionary's `desbancar' is the one written)
+<e r="RL"><p><l>oust<s n="vblex"/></l><r>descabalgar<s n="vblex"/></r></p></e>
+# `dos personajes antagónicos'
+<e r="RL"><p><l>antagonistic<s n="adj"/></l><r>antagónico<s n="adj"/></r></p></e>
+# `después de que el partido acabara empatado a 72'
+<e><p><l>tie<s n="vblex"/></l><r>empatar<s n="vblex"/></r></p></e>
+# `El pívot estadounidense del Barcelona': a basketball pivot (the dictionary's `pivote' is the one written)
+<e r="RL"><p><l>pivot<s n="n"/></l><r>pívot<s n="n"/><s n="mf"/></r></p></e>
+# the Barcelona and Unicaja basketball report, second batch (into Italian and English)
+# `cinco triples seguidos': consecutive (the dictionary has `seguido' as followed only)
+<e r="RL"><p><l>consecutive<s n="adj"/></l><r>seguido<s n="adj"/></r></p></e>
+# `por seis supuestas faltas graves': alleged -- `presunto' is what Spanish writes for it, `supuesto' is the second word for it
+<e><p><l>alleged<s n="adj"/></l><r>presunto<s n="adj"/></r></p></e>
+<e><p><l>alleged<s n="adj"/></l><r>supuesto<s n="adj"/></r></p></e>
+# `un marcado tono ofensivo': tone, where the dictionary's `tono' is a key first
+<e><p><l>tone<s n="n"/></l><r>tono<s n="n"/><s n="m"/></r></p></e>
+# `un tremendo derroche físico': the effort spent (the dictionary has `derroche' as a splurge only)
+<e><p><l>expenditure<s n="n"/></l><r>derroche<s n="n"/><s n="m"/></r></p></e>
+# `sólo cedió el triunfo en la prórroga': overtime
+<e><p><l>overtime<s n="n"/></l><r>prórroga<s n="n"/><s n="f"/></r></p></e>
+# `rescindir su contrato': a contract, where the dictionary's `contrato' is an agreement first
+<e><p><l>contract<s n="n"/></l><r>contrato<s n="n"/><s n="m"/></r></p></e>

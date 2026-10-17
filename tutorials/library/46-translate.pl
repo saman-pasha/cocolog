@@ -361,6 +361,7 @@ main :-
     section_66,
     section_67,
     section_68,
+    section_69,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -7537,6 +7538,202 @@ The auxiliary "sta" means "is". "stanno" is the plural of "sta". "state" is the 
 "dormendo" is the gerund of "dorme". "dormite" is the imperative of "dormono".
 The adjective "grande" means "big". "grandi" is the plural of "grande".
 "dormirà" is the future of "dorme". "dormiranno" is the plural of "dormirà". "dormirete" is the second person of "dormiranno".').
+
+section_69 :-
+    format("~n69. a Spanish basketball report into Italian and English: an adverb and a participle after a name, a name and an adjective after `with', a modal and the reflexive joined, a phrase a comma parts from the clause after it, the dative the phrase of `a' says again, what a thing costs somebody, an ordinal before a noun, a plural in `-ño', two phrases after the copula, an infinitive that takes the gerund after a verb that ends in a preposition, and a purpose that governs the phrase after it~n", []),
+    lesson_69(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of the report''s shapes, under its own name', NS),
+    lesson_69(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    section_69_1, section_69_2, section_69_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_69(L, Text) :- lesson_69(L, 1, Text).
+
+section_69_1 :-
+    reason_translate('Con Pedro excesivamente cansado en la casa, los gatos duermen.', spanish, english, S69A1),
+    must('AN ADVERB AND A PARTICIPLE AFTER A NAME ARE THE SENTENCE''S OWN: `Con Rimac excesivamente apagado en tareas ofensivas, fueron César Sanmartín y Jofresa los jugadores ...'' -- with Rimac excessively switched off; the phrase ended at the name, and the test for the adverb and the participle after it asked for a noun, so the front left a plural clause with no reading and the sentence was refused (tr_adverb_before_participle/3)', S69A1,
+          'With Pedro excessively tired in the house, the cats sleep.'),
+    reason_translate('Con Pedro excesivamente cansado en la casa, los gatos duermen.', spanish, italian, S69A2),
+    must('... and in Italian', S69A2, 'Con Pedro eccessivamente stancato nella casa, i gatti dormono.'),
+    reason_translate('Con Pedro enfermo, los gatos duermen.', spanish, english, S69B1),
+    must('AN ADJECTIVE RIGHT AFTER A NAME THAT `WITH'' GOVERNS IS AN ABSOLUTE PHRASE: `Con Rimac apagado, ...'' is with Rimac subdued, and the adjective after a name belongs to no phrase, so it stood among the complements and no adjunct is one (tr_adjuncts_after/2)', S69B1,
+          'With Pedro ill, the cats sleep.'),
+    reason_translate('Los gatos, con Pedro enfermo, duermen.', spanish, english, S69B2),
+    must('... AND BETWEEN TWO COMMAS, AN INSERTION: `los azulgranas, con Rentzias convaleciente, se vieron obligados'' -- what an insertion may hold is adjuncts, and the name and its adjective are one (tr_insertion_comps/1)', S69B2,
+          'The cats, with Pedro ill, sleep.'),
+    reason_translate('Los gatos, con Pedro enfermo, duermen.', spanish, italian, S69B3),
+    must('... and in Italian', S69B3, 'I gatti, con Pedro malato, dormono.'),
+    reason_translate('El perro duerme, como podía esperarse.', spanish, english, S69C1),
+    must('A MODAL AND AN INFINITIVE WITH THE REFLEXIVE JOINED, NOBODY NAMED, IS THE IMPERSONAL `SE'': `como podía esperarse de los dos equipos'' is as one could expect it of them -- read as it stood it was a third person nobody names, which English refuses (tr_modal_se_fix/3)', S69C1,
+          'The dog sleeps, as one could expect.'),
+    reason_translate('El perro duerme, como podía esperarse.', spanish, italian, S69C2),
+    must('... and Italian wrote it as a second person, `come poteva aspettarsi'', where the impersonal is `si poteva aspettare''', S69C2,
+          'Il cane dorme, come si poteva aspettare.'),
+    reason_translate('Pedro puede esperarse.', spanish, english, S69C3),
+    must('GUARD: a subject that is named keeps its reflexive infinitive, as it did', S69C3, 'Pedro can expect.'),
+    reason_translate('Un libro de pan, y los gatos duermen.', spanish, english, S69D1),
+    must('A PHRASE A COMMA PARTS FROM THE CLAUSE AFTER IT: `Un bloque de una tremenda consistencia, y los azulgranas ... se vieron obligados a un tremendo derroche'' is a phrase with no verb and then a clause; read with the comma taken out the block and the players were one plural subject, the block forced to a splurge (tr_comma_and_parted/2, tr_join_left/5)', S69D1,
+          'A book of bread, and the cats sleep.'),
+    reason_translate('Un libro de pan, y los gatos duermen.', spanish, italian, S69D2),
+    must('... and in Italian', S69D2, 'Un libro di pane, e i gatti dormono.'),
+    reason_translate('El perro, y los gatos, duermen.', spanish, english, S69D3),
+    must('GUARD: a comma after the pair is the aside''s, and the subject stays one of two (`El presidente, y los ministros, firmaron'')', S69D3, 'The dog and the cats sleep.'),
+    reason_translate('Pedro dijo que el gato no es un libro, sino el pan de la casa, y comió.', spanish, english, S69D4),
+    must('GUARD: the right side of a coordination after a statement is no fragment -- `... no es un punto de llegada, sino el inicio de una nueva etapa, y concluyó'' is one statement and a clause, and as a fragment and a clause the last verb had nobody before it (`they concluded'')', S69D4,
+          'Pedro said that the cat is not a book, but the bread of the house, and ate.').
+
+section_69_2 :-
+    reason_translate('Pedro le dio un libro a María.', spanish, english, S69E1),
+    must('A DATIVE PRONOUN THAT THE PHRASE OF `A'' AFTER THE VERB SAYS AGAIN IS SAID ONCE: `Pedro le dio un libro a María'' gave María a book -- read as it stood the pronoun was a second receiver, `gave him a book to María'' (tr_dative_double_fix/3)', S69E1,
+          'Pedro gave a book to María.'),
+    reason_translate('Pedro le dio un libro a María.', spanish, italian, S69E2),
+    must('... and in Italian', S69E2, 'Pedro diede un libro a María.'),
+    reason_translate('Pedro puede darle un libro al gato.', spanish, english, S69E3),
+    must('... THE PRONOUN JOINED TO AN INFINITIVE TOO: `estuvo a punto de complicarle la vida al Joventut'' -- the clitic of the infinitive and the phrase after it', S69E3,
+          'Pedro can give a book to the cat.'),
+    reason_translate('Pedro come sin darle un libro al gato.', spanish, english, S69E5),
+    must('... AND AFTER A PREPOSITION: `sin darle un libro al gato'' is without giving the cat a book, the clitic joined to the infinitive the preposition governs', S69E5,
+          'Pedro eats without giving a book to the cat.'),
+    reason_translate('Pedro le permite dedicarse a la casa.', spanish, english, S69E4),
+    must('GUARD: a phrase of `a'' after an infinitive is the infinitive''s -- `le permitiría dedicarse de lleno a Ona Catalana'' allows HIM to devote himself to it, and `le'' is who is allowed (the first cut, any phrase in the complements, dropped it)', S69E4,
+          'Pedro allows him to devote to the house.'),
+    reason_translate('La casa le cuesta al perro un libro.', spanish, english, S69F1),
+    must('WHAT SOMETHING COSTS SOMEBODY IS THE PERSON AND THE PRICE, WITH NO `TO'': `la operación le ha costado al club 75 millones'' has cost the club 75 million (tr_comps_out/7)', S69F1,
+          'The house costs the dog a book.'),
+    reason_translate('La casa le cuesta al perro un libro.', spanish, italian, S69F2),
+    must('... and Italian says the one who pays once, with its `a'' (the clitic goes, as in English)', S69F2, 'La casa costa al cane un libro.'),
+    reason_translate('La casa cuesta un libro al perro.', spanish, english, S69F3),
+    must('GUARD: the person is bare only BEFORE the price -- after it the phrase of `to'' stands', S69F3, 'The house costs a book to the dog.'),
+    reason_translate('El libro cuesta al perro.', spanish, english, S69F4),
+    must('GUARD: with no price after it, a phrase of `a'' is a phrase of `a'' (`Al Sud le università costano meno che al Nord'' -- the South and the North are no payers)', S69F4,
+          'The book costs to the dog.'),
+    reason_translate('El gato duerme en el segundo cuarto.', spanish, english, S69G1),
+    must('AN ORDINAL BEFORE A NOUN IS ITS ADJECTIVE, THOUGH IT IS A NOUN TOO: `en el segundo cuarto'' is in the second quarter -- `segundo'', a second of time and an ordinal, was the head by position, `the fourth second'' (tr_noun/5)', S69G1,
+          'The cat sleeps in the second quarter.'),
+    reason_translate('Los malagueños duermen.', spanish, english, S69H1),
+    must('A DEMONYM IN `-ÑO'' TAKES `S'' ALONE IN ENGLISH, as the Spanish writes it: `los malagueños'' are the Malagueños, and `o'' made them `Malagueñoes'' (en_irregular_plural/2)', S69H1,
+          'The malagueños sleep.'),
+    reason_translate('El perro se impone al gato.', spanish, english, S69I1),
+    must('THE VERB THAT IMPOSES ITSELF PREVAILS OVER: `el Casademont se impuso al Gijón'' -- English''s `prevails'' takes `over'' (en_governs/2)', S69I1,
+          'The dog prevails over the cat.').
+
+section_69_3 :-
+    reason_translate('Fueron Pedro y María los niños que duermen.', spanish, english, S69J1),
+    must('TWO PHRASES AFTER A COPULA WITH NOBODY NAMED ARE WHAT IS AND WHAT IT IS: `Fueron César Sanmartín y Jofresa los jugadores que asumieron la responsabilidad'' -- César and Jofresa were the players who took it on; the pair was an object, and English, which must name its subject, wrote `They were César Sanmartín and Jofresa the players ...'' (tr_ident_fix/3)', S69J1,
+          'Pedro and María were the children that sleep.'),
+    reason_translate('Fue el niño el gato que duerme.', spanish, english, S69J3),
+    must('... A PHRASE WITH AN ARTICLE FIRST, TOO: the child was the cat that sleeps, the first phrase the subject in the verb''s number', S69J3,
+          'The child was the cat that sleeps.'),
+    reason_translate('Fue un niño el gato que duerme.', spanish, english, S69J2),
+    must('GUARD: an indefinite phrase first says what the second is (`Es una pena la situación''), and the second is the subject of that one', S69J2,
+          'It was a child the cat that sleeps.'),
+    reason_translate('Pedro se encarga de comer el pan.', spanish, english, S69K1),
+    must('AN ENGLISH VERB OF SEVERAL WORDS THAT ENDS IN A PREPOSITION TAKES THE GERUND: `se encargó de llevar el peso del partido'' took charge OF CARRYING it, where `of to carry'' was what the infinitive was (tr_verb_ends_in_preposition/0)', S69K1,
+          'Pedro takes charge of eating the bread.'),
+    reason_translate('Pedro come para descabalgar a María de la casa.', spanish, english, S69L1),
+    must('A PURPOSE CAN GOVERN THE PHRASE AFTER IT: `para descabalgar a los malagueños del liderato'' -- the verb of the purpose is the one that takes `from'', and the clause''s own governed nothing (tr_governing_verb/3)', S69L1,
+          'Pedro eats to oust María from the house.'),
+    reason_translate('Pedro come para descabalgar a María de la casa.', spanish, italian, S69L2),
+    must('... and the lesson''s `takes "da" before the phrase'' is the infinitive''s too in Italian', S69L2,
+          'Pedro mangia per spodestare María da la casa.'),
+    reason_translate('Pedro sabe comer el pan.', spanish, english, N1),
+    must('THE VERB OF KNOWING TAKES `HOW TO'' BEFORE THE INFINITIVE THAT STANDS FIRST AMONG ITS COMPLEMENTS: `el Unicaja supo contrarrestar la apuesta por la velocidad de su rival'' knew how to counter it, where `knew to counter'' was what the infinitive was (tr_write/4)', N1,
+          'Pedro knows how to eat the bread.'),
+    reason_translate('Pedro sa mangiare il pane.', italian, english, N2),
+    must('... and Italian''s `sapere'' the same', N2, 'Pedro knows how to eat the bread.'),
+    reason_translate('Pedro sa cosa mangiare.', italian, english, N3),
+    must('GUARD: a question word between the verb and the infinitive keeps the `to'' (`non so cosa fare''): it is not knowing how', N3,
+          'Pedro knows thing to eat.'),
+    reason_translate('La directiva azulgrana duerme.', spanish, english, M1),
+    must('A WORD THE LESSON SAYS IS NOT FEMININE IS NO HEAD BESIDE A FEMININE ONE: `la directiva azulgrana'' is the Barça board, and `azulgrana'' -- a Barça player, masculine though it ends in `a'' -- was the head as the one person, `the managerial Barça player'' (tr_genders_clash/2)', M1,
+          'The catalan board sleeps.').
+
+lesson_69(spanish, 1, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the".
+"los" is the plural of "el". "las" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "de el". "al" is the contraction of "a el".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "y" means "and". The conjunction "que" means "that". "que" is a relative. The conjunction "como" means "as".
+The preposition "en" means "in". The preposition "de" means "of". The preposition "con" means "with". The preposition "a" means "to". The preposition "para" means "for".
+The word "no" means "not". The adverb "no" means "not". The adverb "excesivamente" means "excessively".
+The masculine noun "perro" means "dog". "perros" is the plural of "perro". The masculine noun "gato" means "cat". "gatos" is the plural of "gato".
+The masculine noun "pan" means "bread". The feminine noun "casa" means "house". "casas" is the plural of "casa".
+The masculine noun "libro" means "book". "libros" is the plural of "libro".
+The verb "duerme" means "sleeps". "duermen" is the plural of "duerme". "dormir" is the infinitive of "duerme".
+The verb "come" means "eats". "comen" is the plural of "come". "comer" is the infinitive of "come".
+The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "da" means "gives". "dar" is the infinitive of "da". "dio" is the past of "da".
+The verb "cansa" means "tires". "cansado" is the participle of "cansa". "cansar" is the infinitive of "cansa".
+The adjective "enfermo" means "ill". "enfermos" is the plural of "enfermo". The feminine adjective "enferma" means "ill".
+The verb "es" means "is". "son" is the plural of "es". "fue" is the past of "es". "fueron" is the plural of "fue".
+The reflexive pronoun "se" means "itself". The impersonal pronoun "se" means "one". The dative pronoun "le" means "him".
+The modal "puede" means "can". "podía" is the past of "puede". "pueden" is the plural of "puede".
+The verb "espera" means "expects". "esperar" is the infinitive of "espera".
+The word "a" precedes the person.
+"gave" is the past of "gives".
+The verb "cuesta" means "costs". "cuestan" is the plural of "cuesta".
+The masculine noun "niño" means "child". "niños" is the plural of "niño".
+The masculine noun "segundo" means "second". "segundos" is the plural of "segundo". The masculine adjective "segundo" means "second". The masculine adjective "cuarto" means "fourth".
+The masculine noun "cuarto" means "quarter". "cuartos" is the plural of "cuarto".
+The masculine noun "malagueño" means "Malagueño". "malagueños" is the plural of "malagueño". "malagueño" is a person.
+The verb "se impone" means "prevails". "se imponen" is the plural of "se impone". "se impone" takes "a" before the phrase.
+The verb "se encarga" means "takes charge of". "se encarga" takes "de" before the infinitive. "se encarga" takes "de" before the phrase.
+The verb "descabalga" means "ousts". "descabalgar" is the infinitive of "descabalga". "descabalga" takes "de" before the phrase.
+The word "para" begins the purpose.
+The verb "permite" means "allows". "permitir" is the infinitive of "permite".
+The verb "dedica" means "devotes". "dedicar" is the infinitive of "dedica".
+The preposition "sin" means "without".
+The conjunction "sino" means "but". The conjunction "pero" means "but".
+The verb "dice" means "says". "dijo" is the past of "dice". "dice" takes the clause. "comió" is the past of "come".
+"said" is the past of "says". "ate" is the past of "eats".
+The pronoun "lo" means "it".
+The feminine noun "directiva" means "board". The feminine adjective "directiva" means "managerial".
+The noun "azulgrana" means "Catalan player". "azulgrana" is not feminine. "azulgrana" is a person. The adjective "azulgrana" means "Catalan".
+The verb "sabe" means "knows". "saber" is the infinitive of "sabe".').
+lesson_69(italian, 1, 'Italian is a language.
+The masculine article "il" means "the". The masculine article "lo" means "the". The feminine article "la" means "the".
+"i" is the plural of "il". "gli" is the plural of "lo". "le" is the plural of "la".
+The masculine article "un" means "a". The feminine article "una" means "a".
+"del" is the contraction of "di il". "al" is the contraction of "a il". "nel" is the contraction of "in il". "nella" is the contraction of "in la". "alla" is the contraction of "a la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun. Every pronoun precedes the verb.
+The conjunction "e" means "and". The conjunction "che" means "that". "che" is a relative. The conjunction "come" means "as".
+The preposition "in" means "in". The preposition "di" means "of". The preposition "con" means "with". The preposition "a" means "to". The preposition "per" means "for".
+The word "non" means "not". The adverb "non" means "not". The adverb "eccessivamente" means "excessively".
+The masculine noun "cane" means "dog". "cani" is the plural of "cane". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".
+The masculine noun "pane" means "bread". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The masculine noun "libro" means "book". "libri" is the plural of "libro".
+The verb "dorme" means "sleeps". "dormono" is the plural of "dorme". "dormire" is the infinitive of "dorme".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". "mangiare" is the infinitive of "mangia".
+The verb "vede" means "sees". "vedono" is the plural of "vede".
+The verb "dà" means "gives". "dare" is the infinitive of "dà". "diede" is the past of "dà".
+The verb "stanca" means "tires". "stancato" is the participle of "stanca". "stancare" is the infinitive of "stanca".
+The adjective "malato" means "ill". "malati" is the plural of "malato". The feminine adjective "malata" means "ill".
+The verb "è" means "is". "sono" is the plural of "è". "fu" is the past of "è". "furono" is the plural of "fu".
+The reflexive pronoun "si" means "itself". The impersonal pronoun "si" means "one". The dative pronoun "gli" means "him".
+The modal "può" means "can". "poteva" is the past of "può". "possono" is the plural of "può".
+The verb "aspetta" means "expects". "aspettare" is the infinitive of "aspetta".
+"gave" is the past of "gives".
+The verb "costa" means "costs". "costano" is the plural of "costa".
+The masculine noun "bambino" means "child". "bambini" is the plural of "bambino".
+The masculine noun "secondo" means "second". "secondi" is the plural of "secondo". The masculine adjective "secondo" means "second". The masculine adjective "quarto" means "fourth".
+The masculine noun "quarto" means "quarter". "quarti" is the plural of "quarto".
+The masculine noun "malagueño" means "Malagueño". "malagueños" is the plural of "malagueño". "malagueño" is a person.
+The verb "si impone" means "prevails". "si impongono" is the plural of "si impone". "si impone" takes "a" before the phrase.
+The verb "si occupa" means "takes charge of". "si occupa" takes "di" before the infinitive. "si occupa" takes "di" before the phrase.
+The verb "spodesta" means "ousts". "spodestare" is the infinitive of "spodesta". "spodesta" takes "da" before the phrase.
+The word "per" begins the purpose.
+The verb "permette" means "allows". "permettere" is the infinitive of "permette".
+The verb "dedica" means "devotes". "dedicare" is the infinitive of "dedica".
+The preposition "senza" means "without".
+The conjunction "ma" means "but".
+The verb "dice" means "says". "disse" is the past of "dice". "dice" takes the clause. "mangiò" is the past of "mangia".
+"said" is the past of "says". "ate" is the past of "eats".
+The verb "sa" means "knows". "sapere" is the infinitive of "sa". The noun "cosa" means "thing".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
