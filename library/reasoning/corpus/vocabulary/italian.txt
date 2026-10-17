@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16552 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16560 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -2012,6 +2012,63 @@ The verb "si vede concedere" means "is granted".
 "si vedono concedere" is the plural of "si vede concedere".
 The feminine noun "libertà provvisoria" means "provisional release".
 The verb "combatte" means "fights".
+The feminine noun "miss" means "beauty queen".
+"miss" is the plural of "miss".
+"miss" is a person.
+The masculine noun "lacrimone" means "big tear".
+"lacrimoni" is the plural of "lacrimone".
+The adjective "senza infamia e senza lode" means "undistinguished".
+The verb "frena" means "curbs".
+"deceduto" is the participle of "decede".
+"deceduta" is the participle of "decede".
+"deceduta" is feminine.
+"deceduti" is the participle of "decede".
+"deceduti" is the plural of "deceduto".
+"decedute" is the participle of "decede".
+"decedute" is feminine.
+"decedute" is the plural of "deceduta".
+The verb "recita in" means "stars in".
+"recitano in" is the plural of "recita in".
+"recitare in" is the infinitive of "recita in".
+"recitato in" is the participle of "recita in".
+"recitando in" is the gerund of "recita in".
+"recitò in" is the past of "recita in".
+"recitava in" is the imperfect of "recita in".
+The conjunction "per quando" means "by the time".
+The adverb "alquanto" means "somewhat".
+The adverb "a testa" means "each".
+The adverb "di passaggio" means "in passing".
+The adverb "per cominciare" means "to begin with".
+"celebra" takes the passive.
+The masculine adjective "detronizzato" means "dethroned".
+The feminine adjective "detronizzata" means "dethroned".
+"detronizzati" is the plural of "detronizzato".
+"detronizzate" is the plural of "detronizzata".
+The adjective "capace" means "capable".
+"capaci" is the plural of "capace".
+The adjective "caritatevole" means "charitable".
+"caritatevoli" is the plural of "caritatevole".
+The feminine noun "prescelta" means "chosen one".
+"prescelta" is a person.
+The masculine noun "concorso" means "contest".
+"concorsi" is the plural of "concorso".
+The adverb "in realtà" means "in reality".
+The verb "parte" means "splits".
+The verb "parte" means "gets going".
+The verb "prende la tintarella" means "gets a tan".
+"prendono la tintarella" is the plural of "prende la tintarella".
+"prendeva la tintarella" is the imperfect of "prende la tintarella".
+"prendevano la tintarella" is the imperfect of "prendono la tintarella".
+"prendere la tintarella" is the infinitive of "prende la tintarella".
+The feminine noun "sala da gioco" means "gambling hall".
+"sale da gioco" is the plural of "sala da gioco".
+The feminine noun "candidata" means "female candidate".
+"candidate" is the plural of "candidata".
+The preposition "a parere di" means "in the opinion of".
+"senza infamia e senza lode" is the plural of "senza infamia e senza lode".
+The adverb "già" follows the verb.
+The verb "porta" means "brings".
+The verb "porta" means "takes along".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2244,6 +2301,10 @@ The feminine noun "controanalisi" means "counteranalysis".
 "controanalisi" is the plural of "controanalisi".
 The feminine noun "rivalsa" means "revenge".
 "rivalse" is the plural of "rivalsa".
+The masculine noun "filone" means "goldmine".
+"filoni" is the plural of "filone".
+The masculine noun "sguardo" means "gaze".
+"sguardi" is the plural of "sguardo".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -25612,6 +25673,214 @@ The verb "riconquista" means "regains".
 "riconquistate" is the plural of "riconquistata".
 "riconquistare" is the infinitive of "riconquista".
 "riconquistando" is the gerund of "riconquista".
+The verb "detronizza" means "dethrones".
+"detronizzano" is the plural of "detronizza".
+"detronizziamo" is the first person of "detronizzano".
+"detronizzo" is the first person of "detronizza".
+"detronizzi" is the second person of "detronizza".
+"detronizzò" is the past of "detronizza".
+"detronizzarono" is the past of "detronizzano".
+"detronizzammo" is the first person of "detronizzarono".
+"detronizzaste" is the second person of "detronizzarono".
+"detronizzai" is the first person of "detronizzò".
+"detronizzasti" is the second person of "detronizzò".
+"detronizzava" is the imperfect of "detronizza".
+"detronizzavano" is the imperfect of "detronizzano".
+"detronizzavamo" is the first person of "detronizzavano".
+"detronizzavate" is the second person of "detronizzavano".
+"detronizzavo" is the first person of "detronizzava".
+"detronizzavi" is the second person of "detronizzava".
+"detronizzerà" is the future of "detronizza".
+"detronizzeranno" is the plural of "detronizzerà".
+"detronizzeremo" is the first person of "detronizzeranno".
+"detronizzerete" is the second person of "detronizzeranno".
+"detronizzerò" is the first person of "detronizzerà".
+"detronizzerai" is the second person of "detronizzerà".
+"detronizzerebbe" is the conditional of "detronizza".
+"detronizzerebbero" is the plural of "detronizzerebbe".
+"detronizzeremmo" is the first person of "detronizzerebbero".
+"detronizzereste" is the second person of "detronizzerebbero".
+"detronizzerei" is the first person of "detronizzerebbe".
+"detronizzeresti" is the second person of "detronizzerebbe".
+"detronizzi" is the subjunctive of "detronizza".
+"detronizzino" is the plural of "detronizzi".
+"detronizziamo" is the first person of "detronizzino".
+"detronizzasse" is the past subjunctive of "detronizza".
+"detronizzassero" is the plural of "detronizzasse".
+"detronizzassimo" is the first person of "detronizzassero".
+"detronizzaste" is the second person of "detronizzassero".
+"detronizzassi" is the first person of "detronizzasse".
+"detronizzassi" is the second person of "detronizzasse".
+"detronizza" is the imperative of "detronizza".
+"detronizzare" is the negative imperative of "detronizza".
+"detronizzate" is the imperative of "detronizzano".
+"detronizziamo" is the hortative of "detronizza".
+"detronizzato" is the participle of "detronizza".
+"detronizzata" is the participle of "detronizza".
+"detronizzata" is feminine.
+"detronizzati" is the participle of "detronizza".
+"detronizzati" is the plural of "detronizzato".
+"detronizzate" is the participle of "detronizza".
+"detronizzate" is feminine.
+"detronizzate" is the plural of "detronizzata".
+"detronizzare" is the infinitive of "detronizza".
+"detronizzando" is the gerund of "detronizza".
+The verb "economizza" means "skimps".
+"economizzano" is the plural of "economizza".
+"economizziamo" is the first person of "economizzano".
+"economizzo" is the first person of "economizza".
+"economizzi" is the second person of "economizza".
+"economizzò" is the past of "economizza".
+"economizzarono" is the past of "economizzano".
+"economizzammo" is the first person of "economizzarono".
+"economizzaste" is the second person of "economizzarono".
+"economizzai" is the first person of "economizzò".
+"economizzasti" is the second person of "economizzò".
+"economizzava" is the imperfect of "economizza".
+"economizzavano" is the imperfect of "economizzano".
+"economizzavamo" is the first person of "economizzavano".
+"economizzavate" is the second person of "economizzavano".
+"economizzavo" is the first person of "economizzava".
+"economizzavi" is the second person of "economizzava".
+"economizzerà" is the future of "economizza".
+"economizzeranno" is the plural of "economizzerà".
+"economizzeremo" is the first person of "economizzeranno".
+"economizzerete" is the second person of "economizzeranno".
+"economizzerò" is the first person of "economizzerà".
+"economizzerai" is the second person of "economizzerà".
+"economizzerebbe" is the conditional of "economizza".
+"economizzerebbero" is the plural of "economizzerebbe".
+"economizzeremmo" is the first person of "economizzerebbero".
+"economizzereste" is the second person of "economizzerebbero".
+"economizzerei" is the first person of "economizzerebbe".
+"economizzeresti" is the second person of "economizzerebbe".
+"economizzi" is the subjunctive of "economizza".
+"economizzino" is the plural of "economizzi".
+"economizziamo" is the first person of "economizzino".
+"economizzasse" is the past subjunctive of "economizza".
+"economizzassero" is the plural of "economizzasse".
+"economizzassimo" is the first person of "economizzassero".
+"economizzaste" is the second person of "economizzassero".
+"economizzassi" is the first person of "economizzasse".
+"economizzassi" is the second person of "economizzasse".
+"economizza" is the imperative of "economizza".
+"economizzare" is the negative imperative of "economizza".
+"economizzate" is the imperative of "economizzano".
+"economizziamo" is the hortative of "economizza".
+"economizzato" is the participle of "economizza".
+"economizzata" is the participle of "economizza".
+"economizzata" is feminine.
+"economizzati" is the participle of "economizza".
+"economizzati" is the plural of "economizzato".
+"economizzate" is the participle of "economizza".
+"economizzate" is feminine.
+"economizzate" is the plural of "economizzata".
+"economizzare" is the infinitive of "economizza".
+"economizzando" is the gerund of "economizza".
+The verb "rivaleggia" means "vies".
+"rivaleggiano" is the plural of "rivaleggia".
+"rivaleggiamo" is the first person of "rivaleggiano".
+"rivaleggio" is the first person of "rivaleggia".
+"rivaleggi" is the second person of "rivaleggia".
+"rivaleggiò" is the past of "rivaleggia".
+"rivaleggiarono" is the past of "rivaleggiano".
+"rivaleggiammo" is the first person of "rivaleggiarono".
+"rivaleggiaste" is the second person of "rivaleggiarono".
+"rivaleggiai" is the first person of "rivaleggiò".
+"rivaleggiasti" is the second person of "rivaleggiò".
+"rivaleggiava" is the imperfect of "rivaleggia".
+"rivaleggiavano" is the imperfect of "rivaleggiano".
+"rivaleggiavamo" is the first person of "rivaleggiavano".
+"rivaleggiavate" is the second person of "rivaleggiavano".
+"rivaleggiavo" is the first person of "rivaleggiava".
+"rivaleggiavi" is the second person of "rivaleggiava".
+"rivaleggerà" is the future of "rivaleggia".
+"rivaleggeranno" is the plural of "rivaleggerà".
+"rivaleggeremo" is the first person of "rivaleggeranno".
+"rivaleggerete" is the second person of "rivaleggeranno".
+"rivaleggerò" is the first person of "rivaleggerà".
+"rivaleggerai" is the second person of "rivaleggerà".
+"rivaleggerebbe" is the conditional of "rivaleggia".
+"rivaleggerebbero" is the plural of "rivaleggerebbe".
+"rivaleggeremmo" is the first person of "rivaleggerebbero".
+"rivaleggereste" is the second person of "rivaleggerebbero".
+"rivaleggerei" is the first person of "rivaleggerebbe".
+"rivaleggeresti" is the second person of "rivaleggerebbe".
+"rivaleggi" is the subjunctive of "rivaleggia".
+"rivaleggino" is the plural of "rivaleggi".
+"rivaleggiamo" is the first person of "rivaleggino".
+"rivaleggiasse" is the past subjunctive of "rivaleggia".
+"rivaleggiassero" is the plural of "rivaleggiasse".
+"rivaleggiassimo" is the first person of "rivaleggiassero".
+"rivaleggiaste" is the second person of "rivaleggiassero".
+"rivaleggiassi" is the first person of "rivaleggiasse".
+"rivaleggiassi" is the second person of "rivaleggiasse".
+"rivaleggia" is the imperative of "rivaleggia".
+"rivaleggiare" is the negative imperative of "rivaleggia".
+"rivaleggiate" is the imperative of "rivaleggiano".
+"rivaleggiamo" is the hortative of "rivaleggia".
+"rivaleggiato" is the participle of "rivaleggia".
+"rivaleggiata" is the participle of "rivaleggia".
+"rivaleggiata" is feminine.
+"rivaleggiati" is the participle of "rivaleggia".
+"rivaleggiati" is the plural of "rivaleggiato".
+"rivaleggiate" is the participle of "rivaleggia".
+"rivaleggiate" is feminine.
+"rivaleggiate" is the plural of "rivaleggiata".
+"rivaleggiare" is the infinitive of "rivaleggia".
+"rivaleggiando" is the gerund of "rivaleggia".
+The verb "incorona" means "crowns".
+"incoronano" is the plural of "incorona".
+"incoroniamo" is the first person of "incoronano".
+"incorono" is the first person of "incorona".
+"incoroni" is the second person of "incorona".
+"incoronò" is the past of "incorona".
+"incoronarono" is the past of "incoronano".
+"incoronammo" is the first person of "incoronarono".
+"incoronaste" is the second person of "incoronarono".
+"incoronai" is the first person of "incoronò".
+"incoronasti" is the second person of "incoronò".
+"incoronava" is the imperfect of "incorona".
+"incoronavano" is the imperfect of "incoronano".
+"incoronavamo" is the first person of "incoronavano".
+"incoronavate" is the second person of "incoronavano".
+"incoronavo" is the first person of "incoronava".
+"incoronavi" is the second person of "incoronava".
+"incoronerà" is the future of "incorona".
+"incoroneranno" is the plural of "incoronerà".
+"incoroneremo" is the first person of "incoroneranno".
+"incoronerete" is the second person of "incoroneranno".
+"incoronerò" is the first person of "incoronerà".
+"incoronerai" is the second person of "incoronerà".
+"incoronerebbe" is the conditional of "incorona".
+"incoronerebbero" is the plural of "incoronerebbe".
+"incoroneremmo" is the first person of "incoronerebbero".
+"incoronereste" is the second person of "incoronerebbero".
+"incoronerei" is the first person of "incoronerebbe".
+"incoroneresti" is the second person of "incoronerebbe".
+"incoroni" is the subjunctive of "incorona".
+"incoronino" is the plural of "incoroni".
+"incoroniamo" is the first person of "incoronino".
+"incoronasse" is the past subjunctive of "incorona".
+"incoronassero" is the plural of "incoronasse".
+"incoronassimo" is the first person of "incoronassero".
+"incoronaste" is the second person of "incoronassero".
+"incoronassi" is the first person of "incoronasse".
+"incoronassi" is the second person of "incoronasse".
+"incorona" is the imperative of "incorona".
+"incoronare" is the negative imperative of "incorona".
+"incoronate" is the imperative of "incoronano".
+"incoroniamo" is the hortative of "incorona".
+"incoronato" is the participle of "incorona".
+"incoronata" is the participle of "incorona".
+"incoronata" is feminine.
+"incoronati" is the participle of "incorona".
+"incoronati" is the plural of "incoronato".
+"incoronate" is the participle of "incorona".
+"incoronate" is feminine.
+"incoronate" is the plural of "incoronata".
+"incoronare" is the infinitive of "incorona".
+"incoronando" is the gerund of "incorona".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -108796,6 +109065,16 @@ The masculine adjective "casereccio" means "homespun".
 "caserecci" is the plural of "casereccio".
 The feminine adjective "casereccia" means "homespun".
 "caserecce" is the plural of "casereccia".
+The adjective "uscente" means "outgoing".
+"uscenti" is the plural of "uscente".
+The masculine adjective "antiquato" means "dated".
+"antiquati" is the plural of "antiquato".
+The feminine adjective "antiquata" means "dated".
+"antiquate" is the plural of "antiquata".
+"antiquatissimo" is the superlative of "antiquato".
+"antiquatissimi" is the superlative of "antiquati".
+"antiquatissima" is the superlative of "antiquata".
+"antiquatissime" is the superlative of "antiquate".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
