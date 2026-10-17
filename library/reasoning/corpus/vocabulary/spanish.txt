@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20430 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20438 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1342,6 +1342,71 @@ The feminine noun "libertad provisional" means "provisional release".
 The verb "falta" means "lacks".
 "faltan" is the plural of "falta".
 The verb "sostiene" means "maintains".
+The feminine noun "miss" means "beauty queen".
+"misses" is the plural of "miss".
+"miss" is a person.
+The masculine noun "lagrimón" means "big tear".
+"lagrimones" is the plural of "lagrimón".
+The masculine noun "circo" means "circus".
+The masculine noun "tinglado" means "circus".
+The feminine determiner "unas cuantas" means "several".
+"unas cuantas" is the plural of "unas cuantas".
+The adjective "sin pena ni gloria" means "undistinguished".
+"vuela" is intransitive.
+The verb "frena" means "curbs".
+The verb "pretende" means "intends".
+The conjunction "para cuando" means "by the time".
+The word "para qué" means "why".
+The adverb "un tanto" means "somewhat".
+The adverb "cada una" means "each".
+The adverb "cada uno" means "each".
+The adverb "de paso" means "in passing".
+The adverb "de entrada" means "to begin with".
+The verb "protagoniza" means "stars in".
+The masculine noun "descubrimiento" means "discovery".
+The masculine noun "hallazgo" means "discovery".
+The feminine noun "capacidad" means "capability".
+"celebra" takes the passive.
+"miss mundo" is a name.
+"miss república checa" is a name.
+"islas maldivas" is a name.
+The feminine noun "elegida" means "chosen one".
+"elegida" is a person.
+The masculine adjective "destronado" means "dethroned".
+The feminine adjective "destronada" means "dethroned".
+"destronados" is the plural of "destronado".
+"destronadas" is the plural of "destronada".
+The adjective "capaz" means "capable".
+"capaces" is the plural of "capaz".
+The adverb "en realidad" means "in reality".
+The verb "echa a rodar" means "gets going".
+"echan a rodar" is the plural of "echa a rodar".
+"echó a rodar" is the past of "echa a rodar".
+"echaron a rodar" is the past of "echan a rodar".
+"echar a rodar" is the infinitive of "echa a rodar".
+The verb "liga bronceado" means "gets a tan".
+"ligan bronceado" is the plural of "liga bronceado".
+"ligaba bronceado" is the imperfect of "liga bronceado".
+"ligaban bronceado" is the imperfect of "ligan bronceado".
+"ligar bronceado" is the infinitive of "liga bronceado".
+The feminine noun "sala de juego" means "gambling hall".
+"salas de juego" is the plural of "sala de juego".
+The feminine noun "candidata" means "female candidate".
+"candidatas" is the plural of "candidata".
+"jurado" is a person.
+The preposition "al parecer de" means "in the opinion of".
+The pronoun "muchos" means "many".
+The pronoun "muchos" does not precede the verb.
+The pronoun "muchas" means "many".
+The pronoun "muchas" does not precede the verb.
+"miss mundo 2000" is a name.
+"sin pena ni gloria" is the plural of "sin pena ni gloria".
+The adverb "ya" precedes the verb.
+The verb "se lleva" means "takes along".
+"se llevan" is the plural of "se lleva".
+"se llevó" is the past of "se lleva".
+"se llevaron" is the past of "se llevan".
+"escatima" takes "en" before the phrase.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1516,6 +1581,14 @@ The feminine noun "positividad" means "positivity".
 "positividades" is the plural of "positividad".
 The masculine noun "microtraumatismo" means "microtrauma".
 "microtraumatismos" is the plural of "microtraumatismo".
+The masculine noun "filón" means "goldmine".
+"filones" is the plural of "filón".
+The feminine noun "caridad" means "charity".
+"caridades" is the plural of "caridad".
+The feminine noun "beneficencia" means "charity".
+"beneficencias" is the plural of "beneficencia".
+The feminine noun "mirada" means "gaze".
+"miradas" is the plural of "mirada".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -3057,8 +3130,6 @@ The masculine noun "cargo" means "charge".
 The masculine noun "carisma" means "charisma".
 "carisma" is not feminine.
 "carismas" is the plural of "carisma".
-The feminine noun "caridad" means "charity".
-"caridades" is the plural of "caridad".
 The masculine noun "encanto" means "charm".
 "encantos" is the plural of "encanto".
 The masculine noun "gráfico" means "chart".
@@ -6570,7 +6641,6 @@ The masculine noun "logotipo" means "logotype".
 The feminine noun "longevidad" means "longevity".
 "longevidades" is the plural of "longevidad".
 The feminine noun "mirada" means "look".
-"miradas" is the plural of "mirada".
 The masculine noun "bucle" means "loop".
 "bucles" is the plural of "bucle".
 The feminine noun "pérdida" means "loss".
@@ -18750,7 +18820,6 @@ The feminine noun "caballería" means "cavalry".
 The feminine noun "caballería" means "chivalry".
 The noun "poética" means "poetics".
 The noun "decoro" means "decorum".
-The feminine noun "mirada" means "gaze".
 The feminine noun "inmediatez" means "immediacy".
 The feminine noun "eurozona" means "eurozone".
 "eurozonas" is the plural of "eurozona".
@@ -29270,6 +29339,214 @@ The verb "salvaguarda" means "safeguards".
 "salvaguardadas" is the plural of "salvaguardada".
 "salvaguardar" is the infinitive of "salvaguarda".
 "salvaguardando" is the gerund of "salvaguarda".
+The verb "destrona" means "dethrones".
+"destronan" is the plural of "destrona".
+"destronamos" is the first person of "destronan".
+"destronáis" is the second person of "destronan".
+"destrono" is the first person of "destrona".
+"destronas" is the second person of "destrona".
+"destronó" is the past of "destrona".
+"destronaron" is the past of "destronan".
+"destronamos" is the first person of "destronaron".
+"destronasteis" is the second person of "destronaron".
+"destroné" is the first person of "destronó".
+"destronaste" is the second person of "destronó".
+"destronaba" is the imperfect of "destrona".
+"destronaban" is the imperfect of "destronan".
+"destronábamos" is the first person of "destronaban".
+"destronabais" is the second person of "destronaban".
+"destronabas" is the second person of "destronaba".
+"destronará" is the future of "destrona".
+"destronarán" is the plural of "destronará".
+"destronaremos" is the first person of "destronarán".
+"destronaréis" is the second person of "destronarán".
+"destronaré" is the first person of "destronará".
+"destronarás" is the second person of "destronará".
+"destronaría" is the conditional of "destrona".
+"destronarían" is the plural of "destronaría".
+"destronaríamos" is the first person of "destronarían".
+"destronaríais" is the second person of "destronarían".
+"destronarías" is the second person of "destronaría".
+"destrone" is the subjunctive of "destrona".
+"destronen" is the plural of "destrone".
+"destronemos" is the first person of "destronen".
+"destrones" is the second person of "destrone".
+"destronara" is the past subjunctive of "destrona".
+"destronaran" is the plural of "destronara".
+"destronáramos" is the first person of "destronaran".
+"destronarais" is the second person of "destronaran".
+"destronaras" is the second person of "destronara".
+"destrona" is the imperative of "destrona".
+"destrones" is the negative imperative of "destrona".
+"destronad" is the imperative of "destronan".
+"destronéis" is the negative imperative of "destronan".
+"destronemos" is the hortative of "destrona".
+"destronado" is the participle of "destrona".
+"destronada" is the participle of "destrona".
+"destronada" is feminine.
+"destronados" is the participle of "destrona".
+"destronados" is the plural of "destronado".
+"destronadas" is the participle of "destrona".
+"destronadas" is feminine.
+"destronadas" is the plural of "destronada".
+"destronar" is the infinitive of "destrona".
+"destronando" is the gerund of "destrona".
+The verb "escatima" means "skimps".
+"escatiman" is the plural of "escatima".
+"escatimamos" is the first person of "escatiman".
+"escatimáis" is the second person of "escatiman".
+"escatimo" is the first person of "escatima".
+"escatimas" is the second person of "escatima".
+"escatimó" is the past of "escatima".
+"escatimaron" is the past of "escatiman".
+"escatimamos" is the first person of "escatimaron".
+"escatimasteis" is the second person of "escatimaron".
+"escatimé" is the first person of "escatimó".
+"escatimaste" is the second person of "escatimó".
+"escatimaba" is the imperfect of "escatima".
+"escatimaban" is the imperfect of "escatiman".
+"escatimábamos" is the first person of "escatimaban".
+"escatimabais" is the second person of "escatimaban".
+"escatimabas" is the second person of "escatimaba".
+"escatimará" is the future of "escatima".
+"escatimarán" is the plural of "escatimará".
+"escatimaremos" is the first person of "escatimarán".
+"escatimaréis" is the second person of "escatimarán".
+"escatimaré" is the first person of "escatimará".
+"escatimarás" is the second person of "escatimará".
+"escatimaría" is the conditional of "escatima".
+"escatimarían" is the plural of "escatimaría".
+"escatimaríamos" is the first person of "escatimarían".
+"escatimaríais" is the second person of "escatimarían".
+"escatimarías" is the second person of "escatimaría".
+"escatime" is the subjunctive of "escatima".
+"escatimen" is the plural of "escatime".
+"escatimemos" is the first person of "escatimen".
+"escatimes" is the second person of "escatime".
+"escatimara" is the past subjunctive of "escatima".
+"escatimaran" is the plural of "escatimara".
+"escatimáramos" is the first person of "escatimaran".
+"escatimarais" is the second person of "escatimaran".
+"escatimaras" is the second person of "escatimara".
+"escatima" is the imperative of "escatima".
+"escatimes" is the negative imperative of "escatima".
+"escatimad" is the imperative of "escatiman".
+"escatiméis" is the negative imperative of "escatiman".
+"escatimemos" is the hortative of "escatima".
+"escatimado" is the participle of "escatima".
+"escatimada" is the participle of "escatima".
+"escatimada" is feminine.
+"escatimados" is the participle of "escatima".
+"escatimados" is the plural of "escatimado".
+"escatimadas" is the participle of "escatima".
+"escatimadas" is feminine.
+"escatimadas" is the plural of "escatimada".
+"escatimar" is the infinitive of "escatima".
+"escatimando" is the gerund of "escatima".
+The verb "rivaliza" means "vies".
+"rivalizan" is the plural of "rivaliza".
+"rivalizamos" is the first person of "rivalizan".
+"rivalizáis" is the second person of "rivalizan".
+"rivalizo" is the first person of "rivaliza".
+"rivalizas" is the second person of "rivaliza".
+"rivalizó" is the past of "rivaliza".
+"rivalizaron" is the past of "rivalizan".
+"rivalizamos" is the first person of "rivalizaron".
+"rivalizasteis" is the second person of "rivalizaron".
+"rivalicé" is the first person of "rivalizó".
+"rivalizaste" is the second person of "rivalizó".
+"rivalizaba" is the imperfect of "rivaliza".
+"rivalizaban" is the imperfect of "rivalizan".
+"rivalizábamos" is the first person of "rivalizaban".
+"rivalizabais" is the second person of "rivalizaban".
+"rivalizabas" is the second person of "rivalizaba".
+"rivalizará" is the future of "rivaliza".
+"rivalizarán" is the plural of "rivalizará".
+"rivalizaremos" is the first person of "rivalizarán".
+"rivalizaréis" is the second person of "rivalizarán".
+"rivalizaré" is the first person of "rivalizará".
+"rivalizarás" is the second person of "rivalizará".
+"rivalizaría" is the conditional of "rivaliza".
+"rivalizarían" is the plural of "rivalizaría".
+"rivalizaríamos" is the first person of "rivalizarían".
+"rivalizaríais" is the second person of "rivalizarían".
+"rivalizarías" is the second person of "rivalizaría".
+"rivalice" is the subjunctive of "rivaliza".
+"rivalicen" is the plural of "rivalice".
+"rivalicemos" is the first person of "rivalicen".
+"rivalices" is the second person of "rivalice".
+"rivalizara" is the past subjunctive of "rivaliza".
+"rivalizaran" is the plural of "rivalizara".
+"rivalizáramos" is the first person of "rivalizaran".
+"rivalizarais" is the second person of "rivalizaran".
+"rivalizaras" is the second person of "rivalizara".
+"rivaliza" is the imperative of "rivaliza".
+"rivalices" is the negative imperative of "rivaliza".
+"rivalizad" is the imperative of "rivalizan".
+"rivalicéis" is the negative imperative of "rivalizan".
+"rivalicemos" is the hortative of "rivaliza".
+"rivalizado" is the participle of "rivaliza".
+"rivalizada" is the participle of "rivaliza".
+"rivalizada" is feminine.
+"rivalizados" is the participle of "rivaliza".
+"rivalizados" is the plural of "rivalizado".
+"rivalizadas" is the participle of "rivaliza".
+"rivalizadas" is feminine.
+"rivalizadas" is the plural of "rivalizada".
+"rivalizar" is the infinitive of "rivaliza".
+"rivalizando" is the gerund of "rivaliza".
+The verb "corona" means "crowns".
+"coronan" is the plural of "corona".
+"coronamos" is the first person of "coronan".
+"coronáis" is the second person of "coronan".
+"corono" is the first person of "corona".
+"coronas" is the second person of "corona".
+"coronó" is the past of "corona".
+"coronaron" is the past of "coronan".
+"coronamos" is the first person of "coronaron".
+"coronasteis" is the second person of "coronaron".
+"coroné" is the first person of "coronó".
+"coronaste" is the second person of "coronó".
+"coronaba" is the imperfect of "corona".
+"coronaban" is the imperfect of "coronan".
+"coronábamos" is the first person of "coronaban".
+"coronabais" is the second person of "coronaban".
+"coronabas" is the second person of "coronaba".
+"coronará" is the future of "corona".
+"coronarán" is the plural of "coronará".
+"coronaremos" is the first person of "coronarán".
+"coronaréis" is the second person of "coronarán".
+"coronaré" is the first person of "coronará".
+"coronarás" is the second person of "coronará".
+"coronaría" is the conditional of "corona".
+"coronarían" is the plural of "coronaría".
+"coronaríamos" is the first person of "coronarían".
+"coronaríais" is the second person of "coronarían".
+"coronarías" is the second person of "coronaría".
+"corone" is the subjunctive of "corona".
+"coronen" is the plural of "corone".
+"coronemos" is the first person of "coronen".
+"corones" is the second person of "corone".
+"coronara" is the past subjunctive of "corona".
+"coronaran" is the plural of "coronara".
+"coronáramos" is the first person of "coronaran".
+"coronarais" is the second person of "coronaran".
+"coronaras" is the second person of "coronara".
+"corona" is the imperative of "corona".
+"corones" is the negative imperative of "corona".
+"coronad" is the imperative of "coronan".
+"coronéis" is the negative imperative of "coronan".
+"coronemos" is the hortative of "corona".
+"coronado" is the participle of "corona".
+"coronada" is the participle of "corona".
+"coronada" is feminine.
+"coronados" is the participle of "corona".
+"coronados" is the plural of "coronado".
+"coronadas" is the participle of "corona".
+"coronadas" is feminine.
+"coronadas" is the plural of "coronada".
+"coronar" is the infinitive of "corona".
+"coronando" is the gerund of "corona".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -98935,57 +99212,6 @@ The verb "tolera" means "tolerates".
 "tolerar" is the infinitive of "tolera".
 "tolerando" is the gerund of "tolera".
 The verb "corona" means "tops".
-"coronan" is the plural of "corona".
-"coronamos" is the first person of "coronan".
-"coronáis" is the second person of "coronan".
-"corono" is the first person of "corona".
-"coronas" is the second person of "corona".
-"coronó" is the past of "corona".
-"coronaron" is the past of "coronan".
-"coronamos" is the first person of "coronaron".
-"coronasteis" is the second person of "coronaron".
-"coroné" is the first person of "coronó".
-"coronaste" is the second person of "coronó".
-"coronaba" is the imperfect of "corona".
-"coronaban" is the imperfect of "coronan".
-"coronábamos" is the first person of "coronaban".
-"coronabais" is the second person of "coronaban".
-"coronabas" is the second person of "coronaba".
-"coronará" is the future of "corona".
-"coronarán" is the plural of "coronará".
-"coronaremos" is the first person of "coronarán".
-"coronaréis" is the second person of "coronarán".
-"coronaré" is the first person of "coronará".
-"coronarás" is the second person of "coronará".
-"coronaría" is the conditional of "corona".
-"coronarían" is the plural of "coronaría".
-"coronaríamos" is the first person of "coronarían".
-"coronaríais" is the second person of "coronarían".
-"coronarías" is the second person of "coronaría".
-"corone" is the subjunctive of "corona".
-"coronen" is the plural of "corone".
-"coronemos" is the first person of "coronen".
-"corones" is the second person of "corone".
-"coronara" is the past subjunctive of "corona".
-"coronaran" is the plural of "coronara".
-"coronáramos" is the first person of "coronaran".
-"coronarais" is the second person of "coronaran".
-"coronaras" is the second person of "coronara".
-"corona" is the imperative of "corona".
-"corones" is the negative imperative of "corona".
-"coronad" is the imperative of "coronan".
-"coronéis" is the negative imperative of "coronan".
-"coronemos" is the hortative of "corona".
-"coronado" is the participle of "corona".
-"coronada" is the participle of "corona".
-"coronada" is feminine.
-"coronados" is the participle of "corona".
-"coronados" is the plural of "coronado".
-"coronadas" is the participle of "corona".
-"coronadas" is feminine.
-"coronadas" is the plural of "coronada".
-"coronar" is the infinitive of "corona".
-"coronando" is the gerund of "corona".
 "topped" is the past of "tops".
 "topping" is the gerund of "tops".
 The verb "tortura" means "tortures".
@@ -137470,6 +137696,12 @@ The masculine adjective "casero" means "homespun".
 "caseros" is the plural of "casero".
 The feminine adjective "casera" means "homespun".
 "caseras" is the plural of "casera".
+The adjective "saliente" means "outgoing".
+"salientes" is the plural of "saliente".
+The masculine adjective "añejo" means "dated".
+"añejos" is the plural of "añejo".
+The feminine adjective "añeja" means "dated".
+"añejas" is the plural of "añeja".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -146032,7 +146264,6 @@ The adjective "heteropolar" means "heteropolar".
 The adjective "reentrante" means "reentrant".
 "reentrantes" is the plural of "reentrante".
 The adjective "saliente" means "salient".
-"salientes" is the plural of "saliente".
 The masculine adjective "malawiano" means "malawian".
 "malawianos" is the plural of "malawiano".
 The feminine adjective "malawiana" means "malawian".

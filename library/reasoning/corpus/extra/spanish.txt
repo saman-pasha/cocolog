@@ -2448,3 +2448,99 @@ The verb "falta" means "lacks".
 # `Colombo sosteneva che la terra è tonda', `sostiene una teoria che ...': maintains. The Italian `sostiene' says it first
 # now, and the Spanish word written for it is its own, not the dictionary's `mantiene'
 The verb "sostiene" means "maintains".
+# the Miss World article (AnCora CESS-CAST-P-20001201-199, 16 sentences), Spanish into Italian and English
+# `el mundo ya tendrá una nueva miss', `esos lagrimones'
+The feminine noun "miss" means "beauty queen".
+"misses" is the plural of "miss".
+"miss" is a person.
+The masculine noun "lagrimón" means "big tear".
+"lagrimones" is the plural of "lagrimón".
+# `este tinglado de princesas': a circus, where the dictionary has a shed (its own `circo' said first)
+The masculine noun "circo" means "circus".
+The masculine noun "tinglado" means "circus".
+# `tras unas cuantas ediciones sin pena ni gloria'
+The feminine determiner "unas cuantas" means "several".
+"unas cuantas" is the plural of "unas cuantas".
+The adjective "sin pena ni gloria" means "undistinguished".
+# `Volaron bombas de harina': flew, with its subject after it
+"vuela" is intransitive.
+# `frenar la controversia': curb, where the dictionary has brake
+The verb "frena" means "curbs".
+# `ha pretendido sacarle lustre a su negocio': intends, where the dictionary has pretends
+The verb "pretende" means "intends".
+# the Miss World article, second batch
+# `Para cuando lean estas líneas': by the time
+The conjunction "para cuando" means "by the time".
+# `para qué engañarnos': why
+The word "para qué" means "why".
+# `un tanto añeja': somewhat
+The adverb "un tanto" means "somewhat".
+# `diez minutos cada una': each
+The adverb "cada una" means "each".
+The adverb "cada uno" means "each".
+# `de paso', `de entrada'
+The adverb "de paso" means "in passing".
+The adverb "de entrada" means "to begin with".
+# `protagonizar un anuncio': stars in, where the dictionary has stars
+The verb "protagoniza" means "stars in".
+# `aquel hallazgo publicitario': a discovery (the dictionary's own `descubrimiento' said first)
+The masculine noun "descubrimiento" means "discovery".
+The masculine noun "hallazgo" means "discovery".
+# `nuestra capacidad': a capability, where the dictionary has a capacity
+The feminine noun "capacidad" means "capability".
+# the Miss World article, third batch
+# `el concurso ... que anoche se celebró en Londres': a thing's reflexive is a passive where the lesson says the verb takes one
+"celebra" takes the passive.
+# `Miss Mundo 2000', `Miss República Checa', `Islas Maldivas': names the paper keeps as they stand
+"miss mundo" is a name.
+"miss república checa" is a name.
+"islas maldivas" is a name.
+# `lagrimones vertidos por la elegida': the chosen one, a participle that stands for a woman
+The feminine noun "elegida" means "chosen one".
+"elegida" is a person.
+# `esa reina destronada y saliente': a participle among adjectives is one
+The masculine adjective "destronado" means "dethroned".
+The feminine adjective "destronada" means "dethroned".
+"destronados" is the plural of "destronado".
+"destronadas" is the plural of "destronada".
+# `una audiencia digna de ...': capable, where the dictionary has able
+The adjective "capaz" means "capable".
+"capaces" is the plural of "capaz".
+# `En realidad lo que quería', `la máquina echó a rodar', `las chicas ligaban bronceado', `salas de juego'
+The adverb "en realidad" means "in reality".
+The verb "echa a rodar" means "gets going".
+"echan a rodar" is the plural of "echa a rodar".
+"echó a rodar" is the past of "echa a rodar".
+"echaron a rodar" is the past of "echan a rodar".
+"echar a rodar" is the infinitive of "echa a rodar".
+The verb "liga bronceado" means "gets a tan".
+"ligan bronceado" is the plural of "liga bronceado".
+"ligaba bronceado" is the imperfect of "liga bronceado".
+"ligaban bronceado" is the imperfect of "ligan bronceado".
+"ligar bronceado" is the infinitive of "liga bronceado".
+The feminine noun "sala de juego" means "gambling hall".
+"salas de juego" is the plural of "sala de juego".
+# `a las candidatas', `convencer al jurado': a woman crosses as a woman, and the jury is who is convinced
+The feminine noun "candidata" means "female candidate".
+"candidatas" is the plural of "candidata".
+"jurado" is a person.
+# `Volaron bombas de harina contra un espectáculo, al parecer de muchas, vulgar': in the opinion of
+The preposition "al parecer de" means "in the opinion of".
+# `al parecer de muchas': many (the women), a pronoun standing alone as `muchos' is (the dictionary's own `muchos' said again first, so that `molti' stays `muchos')
+The pronoun "muchos" means "many".
+The pronoun "muchos" does not precede the verb.
+The pronoun "muchas" means "many".
+The pronoun "muchas" does not precede the verb.
+# `la organización de Miss Mundo 2000': the contest's name, year and all
+"miss mundo 2000" is a name.
+# `ediciones sin pena ni gloria': the adjective has one form
+"sin pena ni gloria" is the plural of "sin pena ni gloria".
+# `el mundo ya tendrá una nueva miss': the adverb stands before the verb
+The adverb "ya" precedes the verb.
+# `De entrada se llevaron a las candidatas a protagonizar un anuncio': took them along, the `se' a part of the verb
+The verb "se lleva" means "takes along".
+"se llevan" is the plural of "se lleva".
+"se llevó" is the past of "se lleva".
+"se llevaron" is the past of "se llevan".
+# `no se ha escatimado en gastos': the phrase after the verb is skimped ON in English
+"escatima" takes "en" before the phrase.

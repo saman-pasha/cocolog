@@ -3359,3 +3359,81 @@ The verb "si vede concedere" means "is granted".
 The feminine noun "libertà provvisoria" means "provisional release".
 # `alla riunione romana dove ha combattuto Parisi': fought
 The verb "combatte" means "fights".
+# the Miss World article (AnCora CESS-CAST-P-20001201-199, 16 sentences), Spanish into Italian and English
+# `una nueva miss', `lagrimones'
+The feminine noun "miss" means "beauty queen".
+"miss" is the plural of "miss".
+"miss" is a person.
+The masculine noun "lacrimone" means "big tear".
+"lacrimoni" is the plural of "lacrimone".
+# `sin pena ni gloria'
+The adjective "senza infamia e senza lode" means "undistinguished".
+# `frenar la controversia': curb
+The verb "frena" means "curbs".
+# `fallecido el pasado noviembre': the participle of `decede' is `deceduto'
+"deceduto" is the participle of "decede".
+"deceduta" is the participle of "decede".
+"deceduta" is feminine.
+"deceduti" is the participle of "decede".
+"deceduti" is the plural of "deceduto".
+"decedute" is the participle of "decede".
+"decedute" is feminine.
+"decedute" is the plural of "deceduta".
+# the Miss World article, second batch
+# `protagonizar un anuncio': stars in
+The verb "recita in" means "stars in".
+"recitano in" is the plural of "recita in".
+"recitare in" is the infinitive of "recita in".
+"recitato in" is the participle of "recita in".
+"recitando in" is the gerund of "recita in".
+"recitò in" is the past of "recita in".
+"recitava in" is the imperfect of "recita in".
+# `Para cuando lean estas líneas': by the time; `un tanto añeja': somewhat; `cada una': each
+The conjunction "per quando" means "by the time".
+The adverb "alquanto" means "somewhat".
+The adverb "a testa" means "each".
+# `de paso', `de entrada'
+The adverb "di passaggio" means "in passing".
+The adverb "per cominciare" means "to begin with".
+# the Miss World article, third batch
+# `il concorso ... che si celebrò': a thing's reflexive is a passive where the lesson says the verb takes one
+"celebra" takes the passive.
+# `quella regina detronizzata e uscente': a participle among adjectives is one
+The masculine adjective "detronizzato" means "dethroned".
+The feminine adjective "detronizzata" means "dethroned".
+"detronizzati" is the plural of "detronizzato".
+"detronizzate" is the plural of "detronizzata".
+# `un'udienza degna di ...': capable, where the dictionary has able
+The adjective "capace" means "capable".
+"capaci" is the plural of "capace".
+# `le azioni caritatevoli': charitable, where the dictionary's first is the welfare one
+The adjective "caritatevole" means "charitable".
+"caritatevoli" is the plural of "caritatevole".
+# `i lagrimoni versati dalla prescelta': the chosen one
+The feminine noun "prescelta" means "chosen one".
+"prescelta" is a person.
+# `il concorso': the contest, where the dictionary's first is an archaic one (its own `agone' stays read)
+The masculine noun "concorso" means "contest".
+"concorsi" is the plural of "concorso".
+# `In realtà', `la macchina partì' (the dictionary's own `splits' said again first, so that every other `parte' stays what it was), `le ragazze prendevano la tintarella', `sale da gioco', `le candidate'
+The adverb "in realtà" means "in reality".
+The verb "parte" means "splits".
+The verb "parte" means "gets going".
+The verb "prende la tintarella" means "gets a tan".
+"prendono la tintarella" is the plural of "prende la tintarella".
+"prendeva la tintarella" is the imperfect of "prende la tintarella".
+"prendevano la tintarella" is the imperfect of "prendono la tintarella".
+"prendere la tintarella" is the infinitive of "prende la tintarella".
+The feminine noun "sala da gioco" means "gambling hall".
+"sale da gioco" is the plural of "sala da gioco".
+The feminine noun "candidata" means "female candidate".
+"candidate" is the plural of "candidata".
+# `al parere di': in the opinion of
+The preposition "a parere di" means "in the opinion of".
+# `edizioni senza infamia e senza lode': the adjective has one form
+"senza infamia e senza lode" is the plural of "senza infamia e senza lode".
+# `il mondo avrà già una nuova miss': the adverb stands with the verb, before its participle
+The adverb "già" follows the verb.
+# `si portarono le candidate' was the passive: took them along (the dictionary's own `brings' said again first)
+The verb "porta" means "brings".
+The verb "porta" means "takes along".

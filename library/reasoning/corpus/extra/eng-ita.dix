@@ -1134,3 +1134,16 @@
 <e r="RL"><p><l>affair<s n="n"/></l><r>vicenda<s n="n"/><s n="f"/></r></p></e>
 # `verdetti alla casereccia': the dictionary's `home-made' has a hyphen, and the builder takes letters alone
 <e><p><l>homespun<s n="adj"/></l><r>casereccio<s n="adj"/></r></p></e>
+# the Miss World article (AnCora CESS-CAST-P-20001201-199, 16 sentences), Spanish into Italian and English: the Italian for the English words the Spanish entries bring in
+# `esa reina destronada y saliente', `un tanto añeja'
+<e><p><l>dethrone<s n="vblex"/></l><r>detronizzare<s n="vblex"/></r></p></e>
+<e><p><l>outgoing<s n="adj"/></l><r>uscente<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>dated<s n="adj"/></l><r>antiquato<s n="adj"/></r></p></e>
+# `no se ha escatimado en gastos', `rivalizando hasta el último minuto'
+<e><p><l>skimp<s n="vblex"/></l><r>economizzare<s n="vblex"/></r></p></e>
+<e><p><l>vie<s n="vblex"/></l><r>rivaleggiare<s n="vblex"/></r></p></e>
+# `encontró un filón'
+<e><p><l>goldmine<s n="n"/></l><r>filone<s n="n"/><s n="m"/></r></p></e>
+# the Miss World article, second batch: `coronando la nueva promesa', `una mirada seductora'
+<e><p><l>crown<s n="vblex"/></l><r>incoronare<s n="vblex"/></r></p></e>
+<e><p><l>gaze<s n="n"/></l><r>sguardo<s n="n"/><s n="m"/></r></p></e>

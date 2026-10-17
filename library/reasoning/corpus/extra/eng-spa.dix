@@ -646,3 +646,19 @@
 <e><p><l>homespun<s n="adj"/></l><r>casero<s n="adj"/></r></p></e>
 # the Rosi report, second batch: `farmaci ... salvaguardano ... i pugili'
 <e><p><l>safeguard<s n="vblex"/></l><r>salvaguardar<s n="vblex"/></r></p></e>
+# the Miss World article (AnCora CESS-CAST-P-20001201-199, 16 sentences), Spanish into Italian and English: the Spanish for the English words the Italian entries bring in
+# `esa reina destronada y saliente', `un tanto añeja'
+<e><p><l>dethrone<s n="vblex"/></l><r>destronar<s n="vblex"/></r></p></e>
+<e><p><l>outgoing<s n="adj"/></l><r>saliente<s n="adj"/><s n="mf"/></r></p></e>
+<e><p><l>dated<s n="adj"/></l><r>añejo<s n="adj"/></r></p></e>
+# `no se ha escatimado en gastos', `rivalizando hasta el último minuto'
+<e><p><l>skimp<s n="vblex"/></l><r>escatimar<s n="vblex"/></r></p></e>
+<e><p><l>vie<s n="vblex"/></l><r>rivalizar<s n="vblex"/></r></p></e>
+# `encontró un filón'
+<e><p><l>goldmine<s n="n"/></l><r>filón<s n="n"/><s n="m"/></r></p></e>
+# `obras de beneficencia': the dictionary's `caridad' first, so that it stays the one written for `charity'
+<e><p><l>charity<s n="n"/></l><r>caridad<s n="n"/><s n="f"/></r></p></e>
+<e><p><l>charity<s n="n"/></l><r>beneficencia<s n="n"/><s n="f"/></r></p></e>
+# the Miss World article, second batch: `coronando la nueva promesa', `una mirada seductora'
+<e><p><l>crown<s n="vblex"/></l><r>coronar<s n="vblex"/></r></p></e>
+<e><p><l>gaze<s n="n"/></l><r>mirada<s n="n"/><s n="f"/></r></p></e>

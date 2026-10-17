@@ -3233,6 +3233,267 @@ read into an English-worded IR and written into any lesson's language),
   the people's (36), and the null third person that English refuses on purpose
   in 20 (`che non si occuperà`), 24 (`così come ha accettato`) and 25 (`che
   liberasse amfetamine`). The next sample's controls take this report in.
+  The Miss World feature (AnCora CESS-CAST-P-20001201-199, 16 sentences,
+  Spanish into Italian and English: 16 of 16 and 15 of 16 on a fresh store, 13
+  and 12 with the new store alone, 7 and 8 with the new code on the old store
+  and before; reasoning 1.0.8).
+  It needed these SHAPES, each with its arm red (test/translate.pl's
+  `newspaper_miss`: 68 checks, 65 arms, the guards among them; an arm is a
+  library directory of symlinks whose reasoning/translate.pl is the edited
+  copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_miss, checks_done"`, under a second a run, and every arm of this
+  sample is run in twenty seconds, three at a time; the one that stays green
+  there, the bytes twin of `tr_skip_inverted/2`, is red in `newspaper_units`,
+  whose probes are 51 now): `lo que` is `what`, not `the one that` (`lo que
+  interesa hoy es la belleza del espíritu`; the word that replaces a noun and
+  says no gender is an article of no lesson, so the crossing keeps `what` and
+  English writes it with its clause and no `that` -- `tr_np/3`,
+  `tr_cross_det/2`, `tr_np_out/5`, an arm each); `lo` and an adjective that
+  judges is what is so (`lo cierto es que las candidatas sólo han tenido 10
+  minutos`, `tr_np/3` and `tr_subject_shape/4`, `en_judging/1`; a guard, `lo
+  mismo` is the same thing and stays unread); a purpose in front keeps what it
+  takes (`Para celebrar este 50 aniversario no se ha escatimado en gastos`: the
+  anniversary was the subject of the rest, `The anniversary did not skimp in
+  costs to celebrate`, `tr_read0/4`; a guard, a rest with nobody named is none
+  for a front with an object, `Para sobrevivir el perro come`); a gerund after
+  a subject's phrase is a relative clause on it (`100 jóvenes de 18 a 25 años
+  rivalizando hasta el último minuto por un título merecen una audiencia`,
+  `tr_subject/6`: the sentence's gerunds are noted when it is read, `$tr_ger`,
+  the phrase before one is twelve words at most, holds no verb of its own and
+  ends on a noun, an adjective, a number or a name, and what the gerund takes
+  is ten words at most -- the first cut asked it of every phrase the search
+  tried and cost the long sentences 5 %, a refusal of 476 million inferences
+  rising 25); an adjective with a phrase of its own stands after its noun in
+  English (`una audiencia digna de una Copa del Mundo`, `tr_comps_out/7`,
+  `tr_adj_takes_phrase/3`, a subject's `tr_with_adj/5`, the writer's
+  `postadj/2`: three arms); a thing's reflexive is a passive where the lesson
+  says `"celebra" takes the passive.` (`el concurso que anoche se celebró en
+  Londres`, `tr_se_passive/2` and, in a relative clause, `tr_se_passive_rc/4`,
+  a name for the thing included, `Miss Mundo`: three arms, and a guard, a
+  person's reflexive is none); a quotation closed before the clause that
+  says it (`¿"Cómo podrán conocer nuestra personalidad ...?", se preguntaba
+  Michaela`: the mark that closes stands at the head of the piece after it,
+  with a comma or none, and was read as the OPENING mark of its first word,
+  `tr_quote_pieces/2`, `tr_closing_comma/3`, `tr_skip_inverted/2`, with its
+  code-point twin: four arms); `by the time` (`en_connector/1`); a decade
+  after a preposition (`en los 70` is `in the 70s` and `negli anni 70`,
+  `tr_cross_decade/2` from `tr_cross_comp/2` and `tr_np_out/5`; a guard, a
+  pair is none, `tra le 70 e le 90 mila lire`, which the controls found at
+  once); `last` and `next` for the adjective of a day, a month or a year
+  (`el año pasado`, `el pasado noviembre`, `tr_np_out/5`, `en_time_noun/1`),
+  the capital of an English day, month or nationality wherever it stands
+  (`en_nationality/1`, `en_calendar_word/1`, `tr_cap/2`) -- SPELLED IN THE
+  WORD, never in its case: the first cut set the case to `upper` and lost the
+  closing mark of a quotation that ended on the word, `"controlará entre el
+  60% y el 70% de los hipermercados catalanes"`, in three sentences of the
+  controls (three arms for the marks), and a word that came with its capital
+  keeps its small letters, `los Juegos Olímpicos` --; a time that says which
+  one after an intransitive verb is when (`Murió la semana pasada`,
+  `tr_time_which/1`), `fallecido el pasado noviembre` is no absolute clause
+  (`tr_time_deictic/1`, `tr_month_which/1`, three arms); who died (`Eric
+  Morley, fallecido el pasado noviembre` is `Eric Morley, who died last
+  November`, `en_active_participle/1` in `tr_comps_out/7`, and the phrases
+  between the person and the comma come after the clause, a guard that the
+  clause has no adverb of its own: three arms); `no longer` is the denial and
+  `più` in the lesson's languages and `simply` stands with the verb
+  (`tr_write/4`, `en_mid_adverb/1`: three arms); `to begin with` and `in
+  reality` stay in front (`en_conjunctive/1`) and `in reality` stands with the
+  verb where the source has it inside the clause (`salvaguardano in realtà dai
+  microtraumi`, which the new line for `in realtà` wrote last, `on the
+  shoulders in reality`: the controls found it); `each` after the count it says
+  how much of and `only` before a count of time (`tr_comps_out/7`); the
+  adverbs after the word for `that` are the clause's own (`Es cierto que las
+  candidatas sólo han tenido 10 minutos`, `tr_advs_into_clause/6`,
+  `tr_adv_in_clause/3`: a guard, an adverb right after the RELATIVE `que` is
+  the sentence's, `Lo que sí reconoció es que ...` put `sí` inside a quotation
+  of the clause, found by the controls) and, of the two clauses a `that`
+  joins, those of the first when they stand before the connector (`que esa
+  unidad sólo será posible si los nacionalistas aceptan ...` wrote its `sólo`
+  at the end of the second, `that never have had the Basques only`,
+  `tr_adv_in_first/4`: two arms, and a guard, one after the connector is the
+  second's); a participle's agent ends at a comma (`lagrimones vertidos por la
+  elegida, en este caso la india Yukta Mookhey`, `tr_phrase_words0/4`); a noun
+  and then adjectives alone are no list (`contra un espectáculo, vulgar y
+  degradante`, `tr_adjectives_after_noun/3`) and the adjectives after a comma
+  agree with the phrase before it (`tr_adj_after_comma/2`, asked once of the
+  clause's complements whole, from `tr_write/4` and from its clause for a
+  subject after the verb, which takes the complements apart: `Volaron bombas
+  de harina contra un espectáculo, al parecer de muchas, vulgar y degradante`
+  was `volgari e degradanti`, the bombs', in the controls' own sentence and in
+  none of the hand lesson's until a check had the subject after the verb; asked
+  of each tail the writer took, the comma before an aside of its own was gone;
+  two guards found by the controls, a phrase between commas of its own, `no
+  son, en consecuencia, reales`, and a source adjective that says its gender
+  for a subject that gives none, `sagr/1`, `Alle spalle ha una vita
+  movimentata, quasi avventurosa`); and the small ones: `medio siglo` is `half
+  a century`, `este 50 aniversario` is `this 50th anniversary`, `el mismo` is
+  not `the same one`, `para qué engañarnos` is `why deceive us`, `escatima en`
+  is `skimps on` (`"escatima" takes "en" before the phrase.`, `en_governs/2`),
+  and the adverb the lesson says goes with the verb stands with it in the
+  lesson's language (`The adverb "ya" precedes the verb.`, `The adverb "già"
+  follows the verb.`; `el mundo ya tendrá una nueva miss` is `il mondo avrà
+  già`, `tr_pull_foreign_adverb/3`, `tr_fo_mid_insert/4`: before the participle
+  of a verb with its auxiliary, after a verb of one word, never between a
+  clitic and its verb, and before the impersonal word too, `ya se puede
+  decir`: three arms).
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader
+  of one language and the writer of the other; the dictionary's own word is
+  said again first where it must stay the one written): Spanish `miss` (a
+  beauty queen, a person), `lagrimón`, `circo` before `tinglado`, `unas
+  cuantas`, `sin pena ni gloria` (undistinguished, with its own plural),
+  `vuela` (intransitive), `frena` (curbs), `pretende` (intends), `para
+  cuando`, `para qué`, `un tanto`, `cada una` and `cada uno` (each), `de
+  paso`, `de entrada`, `protagoniza` (stars in), `descubrimiento` before
+  `hallazgo`, `capacidad` (a capability), `celebra` (takes the passive), the
+  names `miss mundo`, `miss república checa`, `islas maldivas` and `miss mundo
+  2000`, `elegida`, `destronado` and `destronada` with their plurals, `capaz`,
+  `en realidad`, `echa a rodar` (gets going), `liga bronceado` (gets a tan),
+  `sala de juego`, `candidata`, `jurado` (a person), `al parecer de`, `muchas`
+  (a pronoun, with `muchos` said first), `ya` (precedes the verb), `se lleva`
+  (takes along) and `escatima` (takes `en`); Italian the same words (`miss`,
+  `lacrimone`, `senza infamia e senza lode`, `frena`, `recita in`, `per
+  quando`, `alquanto`, `a testa`, `di passaggio`, `per cominciare`,
+  `prescelta`, `detronizzato` and `detronizzata`, `capace`, `caritatevole`,
+  `concorso` first for `contest`, `in realtà`, `parte` (gets going, with the
+  dictionary's own `splits` said first), `prende la tintarella`, `sala da
+  gioco`, `candidata`, `a parere di`, `già` -- it follows the verb --,
+  `deceduto` and its forms, and `porta` (brings, then takes along), said again
+  first where the Spanish `lleva` needs it); and in the dictionaries' extras
+  `dethrone`, `outgoing`, `dated`, `skimp`, `vie`, `goldmine`, `crown`, `gaze`
+  and, for `charity`, `caridad` first and `beneficencia` after it. The first
+  word moved in 10 Spanish meanings and 3 Italian ones (Spanish `capaz` is
+  capable, `saliente` outgoing, `candidata` a female candidate, `capacidad` a
+  capability, `hallazgo` a discovery, `mirada` a gaze, `tinglado` a circus,
+  `corona` crowns, `frena` curbs and `pretende` intends; Italian `alquanto` is
+  somewhat, `candidata` a female candidate and `frena` curbs), and none was
+  lost.
+  The CONTROLS (cocolog 2.2.5, store KB177, 94 count files, 2 670 sentences:
+  the earlier set with the Rosi report in and this one, both directions): the
+  last version's translator against this one, on the one store, 153 sentences
+  in 49 files read differently -- 21 in the report's two files and 132 in 47
+  files elsewhere, 91 of those by a capital alone (an English nationality, day
+  or month: `French`, `Basque`, `Palestinian`, `Sunday`, `September`) and the
+  other 41 all better -- `lo que` as `what` (13: es_19981202-34 10,
+  es_19990802-48 10, es_19990901-75 8, es_19991001-61 7, es_20000903-30 14,
+  es_20020601-51 6, es_20020801-17 9, and six of Tatoeba's, tat 121, 227, 261,
+  334, 339 and 366), `last` and `next` (10: es_19981202-34 11, es_19990701-130
+  4 and 7, es_20000701-80 6, es_20010102-25 2, es_20011202-66 3, es_20020301-125
+  12, it_9816_9850 5, it_9967_9998 4, tat 313), the adverb that goes with the
+  verb, `ya` and `già` (es_20010103-120 5 and 16, es_20020102-112 13,
+  es_20020601-51 6, it_9763_9774 10, it_9926_9946 13 and 14), `no longer`
+  (it_9637_9672 27), `at least` before its count (it_9381_9414 17), `a kit full
+  of photographs` (it_9851_9925 68), the adjectives after a comma
+  (it_9851_9925 49 and 72: `amigo`, `profundas`), a quotation with its adverb
+  inside and `only if` (es_20000903-30 18, in both languages), `anche`
+  (es_20020601-51 19) and `in reality safeguard` (it_9567_9604 21) -- and the
+  inferences fall 0.944 % (5 006 946 087 to 4 959 655 531) and rise 0.115 %
+  outside the report (4 906 098 706 to 4 911 754 432). The file that rises most
+  is it_9775_9780's, +7.1 % of 5.0 million (its second sentence, 0.82 to 1.17),
+  then it_9567_9604's and es_20020301-125's, +0.6 %; the ones that fall most
+  are it_9947_9966's, -1.7 % of 29 million (its twentieth, 4.10 to 3.67
+  million, and its eleventh, 1.17 to 1.05: `il prossimo 24 gennaio` and `il
+  prossimo febbraio`, which the month's guard, `tr_month_which/1`, reads at
+  once), and the report's own; Tempi's twentieth, the sentence that runs to the
+  limit, rises 0.03 % (476.49 to 476.62 million). Bytes and characters read
+  every sentence alike (0 differ, the bytes 0.018 % more). The DATA COLUMN (the
+  last version's translator on its own store, KB170, against this one on the
+  new): 163 sentences, 29 in the report's two files and 134 in 49 files
+  elsewhere, the 132 of the code and three of the words (es_20010202-169 10,
+  `capaz` is `capable`; tat 47, `Devono avere deceduto`, where it was
+  `decesso`; it_9567_9604 21, once more), and the inferences fall 6.881 % (5
+  326 137 108 to 4 959 655 531) and rise 0.160 % outside the report (4 903 910
+  067 to 4 911 754 432). THE STORE ALONE (the last version's translator on the
+  old store and on the new) differs in 26 sentences, 23 of them the report's
+  and 3 elsewhere, +0.045 % outside it (4 903 910 067 to 4 906 098 706), and
+  THE CODE ALONE (the new translator on the old store) in 131, 7 in the
+  report's files and 124 in 43 files elsewhere, +0.115 % outside it (to 4 909
+  564 479), where the report reads 7 and 8 as before. Eleven expectations of
+  the older sections of test/translate.pl and six of lesson 46 were written in
+  the old English and changed with the capitals, `last` and `what` (`saturday`,
+  `sunday morning`, `next february`, `the next year`, `roman`, `the olympic
+  Barcelona`, `the catalan board`, `The one that makes them wished`).
+  THE FIRST CUTS' REGRESSIONS, found by the controls and mended: the capital
+  set as the word's case lost the closing mark of a quotation (above, three
+  sentences) and the small letters of `los Juegos Olímpicos` (`Games Olympic`,
+  `Commission European` -- the order asks whether the lesson knows a word with a
+  capital); `last` and `next` lost the marks a quotation had on their noun; a
+  plural nationality (`los catalanes`) had no capital; `tra le 70 e le 90 mila
+  lire` was a decade (the guard, a pair of counts); `Lo que sí reconoció es que
+  ...` put `sí` inside the quotation of its clause; the adjectives after a comma
+  were the aside's (`no son, en consecuencia, reales`) and a feminine
+  adjective's with nobody named (`quasi avventurosa`: two guards); the gerund
+  rule cost the long sentences 5 %; and the last two, found by the final
+  round, a focus adverb in a clause a `that` joins to another (`sólo` at the
+  end of the sentence, where the last version wrote it after the verb of
+  saying) and `in realtà` written last once the line made it an adverb. One
+  more stayed hidden until the end, in the report's own tenth sentence: the
+  hand lesson's check of the adjectives after a comma had the subject before
+  the verb, and the real sentence has it after, which the writer takes apart
+  (`volgari e degradanti`, the bombs'). THE LINES' OWN REGRESSIONS, found in
+  the store alone (25 sentences outside the report on the first store, 3 on the
+  last): Italian `parte` as `leaves` first wrote every Spanish `dejar` as
+  `partire` and `parte` as `deja` (`nos han dejado` was `ci hanno partito`,
+  `Dejé el país` `Partii il paese`, `Parte martedì il corso` `Deja el martes`:
+  11 sentences) -- the dictionary's `splits` is said first now, and `gets
+  going` after it; the intransitive `espera` (waits) read `esperarse de` as
+  `wait` and `Pedro espera a María` as `waits to María` -- out; the pronouns
+  `muchas` and `molte`, said first, made every Italian `molti` the Spanish
+  `muchas` and read `molte altre cose` as a pronoun and its object (`Many liked
+  him other things`) -- `muchos` is said first now and `muchas` after it, and
+  the Italian `molte` is out.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the five heaviest rises
+  counted over a copy of the library per rule, on the new store): two rules are
+  all of it. The participle's agent ending at a comma is 0.30 of the 0.31
+  million that Rosi's sixth sentence rose, 0.22 of the 0.23 of es_20020301-125 4
+  and 0.47 of the 0.50 of the Hotel Arts tenth (+1.1 %, a refusal of 47
+  million): the whole rest is asked as the agent first and, when it reads as
+  none, the part up to the first comma again. The gerund after a subject's
+  phrase is 0.35 of the 0.35 million of it_9775_9780 2 (+43 % of a sentence of
+  0.82 million, where `il cuore leggendo nella cronaca ...` is asked as a
+  relative clause and the complements of the gerund are read, to be read
+  otherwise). `lo` and the adjective that judges (+1 100 to +32 000 a
+  sentence), the month's guards and the noun's capital are under 250 each. THE
+  STATED COSTS: a first meaning that serves the news and not every text --
+  `tinglado` is a circus (a shed second), `frena` curbs (a car brakes second),
+  `pretende` intends, `capaz` capable, `capacidad` a capability, `hallazgo` a
+  discovery, `mirada` a gaze, `corona` crowns, `candidata` a female candidate,
+  `concorso` a contest (the archaic `agone` stays read only), `alquanto`
+  somewhat -- and the controls' sentences they change are the three of the data
+  column above.
+  The report LEAVES, of the 16 into Italian: `per quando leggono queste linee`
+  (the subjunctive written as an indicative, `righe`), `in Londres` and `Islas
+  Maldivas` (names the lesson knows no city for), `ha rimesso l'immagine`
+  (`riproposto`), `l'indiano Yukta Mookhey` and `a parere di molti` (the IR
+  keeps no gender for an apposition or a pronoun: `l'indiana`, `molte`, the
+  women), `non si è economizzato in costi` (`risparmiato sulle spese`), `50
+  anniversario` (`50º`), `di 18 a 25 anni` (`dai 18 ai 25`), `udienza`
+  (`pubblico`), `nell'inizio` and `per dei giorni` (`all'inizio`, `per qualche
+  giorno`), `il novembre passato` (`lo scorso novembre`), `un eco` (`un'eco`),
+  `decise allocare` (`di destinare`), `lavori di beneficenza` (`opere`),
+  `potettero` (`poterono`), `ha preteso` for `ha pretendido` (`ha cercato di`),
+  `togliere lucentezza al suo affare` for `sacarle lustre a su negocio` (an
+  idiom crosses word by word, with no `di` before the infinitive), `un bel
+  annuncio` (`un bell'annuncio`), `insiste che` (`sul fatto che`), the
+  coordination after `podrán conocer` in 15 (below), `Si chiedeva` with a
+  capital after the closing mark, and `attende ancora` for `aún espera` (16);
+  of the 15 into English: `a Cup of the World of football` (`a football World
+  Cup`), `youngsters of 18 to 25 years` (`aged`), `One has not skimped`
+  (`No expense has been spared`), `in the beginning of` (`at the start of`),
+  `what wanted was` (6; a relative clause nobody names a subject for is
+  written with none, `what he wanted`; `more than what receives`,
+  es_19991001-61 7, is the same), `has returned the image` (`brought back`),
+  `the new promise` (`hopeful`), `a part of the profits` (`some of`), `to remove
+  shine to his business` (`its`), `an ad of bikinis` (`a bikini ad`) and, in 15,
+  `How will our personality and our capability be able to know` (a
+  coordination after a verb group and its infinitive is read as the subject
+  when it agrees with the plural verb, so the infinitive loses its object:
+  with one phrase it reads, `How will they be able to know our personality`;
+  `¿Cómo comen el pan y la casa?` is `How do the bread and the house eat?`, the
+  last version's reading too), `The answer still expects` (16: `espera` is the
+  verb of expecting whether or not it has an object, and the line that made it
+  wait took `esperarse de` and `espera a María` with it); English refuses 7 for
+  the third person nobody names, on purpose (`Pero encontró un filón ...`). The
+  next sample's controls take this feature in.
 
 ## Tutorials are documentation that runs
 
