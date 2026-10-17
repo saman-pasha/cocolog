@@ -2755,6 +2755,169 @@ read into an English-worded IR and written into any lesson's language),
   `Te lo dico io` is `I say it to You I`: the dictionary gives `ti` only);
   `state attenti` and `state grandi` read as the participle of `essere`, as
   before (`Cuidadosos han sido sido`); `acecharemos el Pds` has no `al`.
+  The basketball report (AnCora CESS-CAST-P-20001201-176, 17 sentences, Spanish
+  into Italian and English: 17 of 17 and 17 of 17 on a fresh store, 14 and 15
+  with the new store alone, 10 and 7 with the new code on the old store, 9 and 6
+  before; reasoning 1.0.6). It needed these SHAPES, each with its arm red
+  (test/translate.pl's `newspaper_basket`: 34 checks, 21 arms and 7 guards, each
+  guard red when its rule is made too wide; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM
+  cocolog query "use_module('test/translate.pl'), newspaper_basket,
+  checks_done"`, about a second a run): an adverb and a participle after a name
+  are the clause's own (`Con Rimac excesivamente apagado en tareas ofensivas,
+  fueron César Sanmartín y Jofresa los jugadores ...`:
+  `tr_adverb_before_participle/3` asked for a noun at the end of the front, and
+  the plural clause after it had no reading); an adjective straight after a name
+  that `con` governs is an absolute phrase, at the head (`Con Rimac apagado,
+  ...`, `tr_adjuncts_after/2`) and between commas (`los azulgranas, con Rentzias
+  convaleciente, se vieron ...`, `tr_insertion_comps/1`, with `tr_means_with/1`)
+  -- two arms; a modal and an infinitive with the reflexive joined, nobody
+  named, is the impersonal `se` (`como podía esperarse de los dos equipos`,
+  `tr_modal_se_fix/3`: English refused it and Italian wrote a second person,
+  `come poteva aspettarsi`; the guard is a named subject, `Pedro puede
+  esperarse`); a phrase a comma parts from the clause after it (`Un bloque de
+  una tremenda consistencia, y los azulgranas ... se vieron obligados a un
+  tremendo derroche`: the commas were taken out in two places and block and
+  players were one plural subject -- `tr_comma_and_parted/2` stops both, and
+  `tr_join_left/5` reads the phrase as a heading before `, y`; THREE arms, none
+  green with another out, and two guards: a comma after the pair is an aside's,
+  `El presidente, y los ministros, firmaron`, and the right side of a
+  coordination after a statement is no fragment); the dative pronoun the phrase
+  of `a` says again (`Pedro le dio un libro a María` gave María a book, `estuvo
+  a punto de complicarle la vida al Joventut`: `tr_dative_double_fix/3`, three
+  arms -- the pronoun before the verb, joined to an infinitive and after a
+  preposition, `sin darle un libro al gato` -- and a guard, the phrase of `a`
+  before any infinitive: `le permitiría dedicarse de lleno a Ona Catalana`
+  allows HIM); what something costs somebody is the person and the price with no
+  `to` (`le ha costado al club 75 millones`, a clause of `tr_comps_out/7` that
+  asks for the price after the person; guards: the price before it, and no price
+  at all, `Al Sud le università costano meno che al Nord`); an ordinal before a
+  noun that is a noun too is its adjective (`el segundo cuarto`, `tr_noun/5`);
+  the English plural of a demonym in `-ño` is `-ños` (`en_irregular_plural/2`);
+  `prevails over` and `ousts from` (`en_governs/2`); two phrases after a copula
+  with nobody named are what is and what it is (`Fueron César Sanmartín y
+  Jofresa los jugadores que ...`, `tr_ident_fix/3`, a pair of names or a phrase
+  with its article -- two arms -- and an indefinite phrase first keeps the old
+  reading, a guard); an English verb of several words that ends in a preposition
+  takes the gerund (`took charge OF CARRYING`, `tr_verb_ends_in_preposition/0`);
+  a purpose governs the phrase after it (`para descabalgar a los malagueños del
+  liderato`, `tr_governing_verb/3` looks at `purpose(IL)` too -- which also made
+  Tatoeba's `per partecipare ... alle nozze` `to participate in the wedding`); a
+  word the lesson says is NOT feminine beside a feminine one clashes in the
+  person rule of `tr_noun/5` (`la directiva azulgrana` was `the managerial Barça
+  player`: `azulgrana`, a Barça player, masculine though it ends in `a`, is
+  stated "not feminine" and so has no gender of its own for
+  `tr_genders_differ/2` to set against the feminine `directiva` --
+  `tr_genders_clash/2` asks for the statement too); and the verb of knowing
+  takes `how to` before the infinitive that stands first among its complements
+  (`el Unicaja supo contrarrestar la apuesta` knew HOW TO, `tr_write/4` and
+  `hinf/1`; `non so cosa fare` has the question word first and keeps its `to`, a
+  guard).
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Italian `tripla` (a
+  three-pointer), `mordente` (hitting power), `blaugrana` (the players, and the
+  adjective), `in procinto di`, `contrariamente a`, `spegne` (switches off), `si
+  occupa` (takes charge of, with `di` before the infinitive and the phrase),
+  `direttivo` (the board), `lascia partire` (releases), `si impone` (prevails,
+  `a`), `overtime`, `tarda a` (takes long), `si riorganizza` (regroups),
+  `protagonismo` (prominence), `compito` (a task), `leadership`, and `spodesta`
+  taking `da`; Spanish `cuarto` (a quarter), `triple` (a three-pointer),
+  `pegada`, `malagueño` (a person), `azulgrana` (a Barça player, not feminine, a
+  person, and the adjective), `con mayúsculas` (magnificent), `a punto de` and
+  `en contra de`, `pulso` (a duel, the pulse second), `apaga` (switches off),
+  `se encarga` (takes charge of, `de`), `directiva` (the board), `deja marchar`,
+  `se impone`, `equilibrio` (equilibrium), `tarda en`, `se rehace` (regroups --
+  `recovers` is the other verb's, `recupera`, and a shared pivot made
+  `recuperaron` unwritable in Italian), `protagonismo`, `descabalga` taking `de`
+  and the name `Caja San Fernando`; and in the dictionaries' extras
+  `tremendous`, `oust` (`spodestare`; `descabalgar` read only), `antagonistic`,
+  `tie`, `pivot`, `quarter`/`quarto`, `victorious`, `rebound`, `tactical`,
+  `alleged` (`presunto`, and `supuesto` too in Spanish), `expenditure`
+  (`dispendio`, `derroche`), `dignify` (`engrandecer`, read only), `consecutive`
+  (`seguido`, read only), `tone`, `overtime` (`prórroga`) and `contract`. The
+  first word moved in 15 Spanish meanings and 4 Italian ones (`azulgrana`,
+  `presunta`, `presunto`, `supuesta`, `supuesto`, `contrato`, `cuarto`,
+  `derroche`, `directiva`, `equilibrio`, `protagonismo`, `prórroga`, `pulso`,
+  `tono`, `apaga`; `presunta`, `presunto`, `tripla`, `spegne`), and none was
+  lost.
+  THE CONTROLS ARE A RECONSTRUCTION. The box was reset before this sample and
+  the scratchpad with the 97 count files of the Tatarella round went with it:
+  these are the 22 AnCora documents (CESS-CAST-P-19981202-34, 19990202-16,
+  19990601-13 and 23, 19990701-130 and 83, 19990802-48, 19990901-75,
+  19991001-61, 20000102-120, 20000701-80, 20000802-31, 20000903-30, 20010102-25,
+  20010103-120 and 139, 20010202-169, 20011202-66, 20020102-112, 20020301-125,
+  20020601-51 and 20020801-17, all in the dev file of UD's es_ancora), the 21
+  VIT ranges of UD's it_vit test file (9270..9295, 9381..9414, 9450..9464,
+  9465..9470, 9472..9484, 9540..9566, 9637..9672, 9673..9712, 9714..9749,
+  9750..9762, 9763..9774, 9775..9780, 9781..9791, 9792..9799, 9800..9814,
+  9816..9850, 9851..9925, 9926..9946, 9947..9966, 9967..9998, 10059..10095) and
+  a Tatoeba-style 400 (Spanish sentences of 3 to 8 words of manythings' spa.txt,
+  every (length/400)th): 1 264 lines, 88 count files (the Spanish ones into
+  Italian and English, the Italian ones into Spanish and English), 2 528
+  sentences, so no figure below compares with an earlier sample's, and the
+  baseline is the committed library (reasoning 1.0.5) on a store taught from the
+  committed vocabulary (it reads the Tatarella interview 36 of 36 into both, as
+  sample 41 said). The next sample's controls take this report in. The CONTROLS
+  (cocolog 2.2.5, store KB150): the last version's translator against this one,
+  on the one store, 5 sentences in 3 files read differently (it_9637_9672 13,
+  `The most numerous families are the struckest`; it_9800_9814 4, `to
+  participate in the wedding` and `en la boda`; tat 291, `Algo le ha pasado a mi
+  coche` is `Something has happened to my car` where the clitic had made the
+  verb `spend`), all better -- and the inferences fall 0.063 % (4 689 505 132 to
+  4 686 547 092). The file that rises most is es_20010103-120's, +0.1 % of 23.6
+  million, and the ones that fall most es_19981202-34's, -8.7 % (its eighth, 3.5
+  to 2.3 million), and es_19990601-13's, -3.6 %. Bytes and characters read every
+  sentence alike (0 differ, the bytes 0.018 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB142, against this one on the new): 7
+  sentences, the 5 above and 2 of the words, `liderazgo` as `la leadership`
+  (es_20010102-25, Italian) and `se encargó de demostrarle` as `si occupò`
+  (es_20020601-51, Italian); THE STORE ALONE costs +0.198 % of the inferences (4
+  680 224 596 to 4 689 505 132), all of it the Tempi report's sentence 20, which
+  runs to the inference limit in both stores (468.6 to 472.7 million), and the
+  new code on the old store -0.063 %. THE FIRST CUT'S REGRESSIONS, found by the
+  controls and read from the IR, not bisected (the guess,
+  `tr_comma_and_parted/2`, never fires in them -- a probe on the sentence
+  answered `no`): `... no es un punto de llegada, sino el inicio de una nueva
+  etapa, y concluyó` and `acusó a Aznar de lanzar un "mensaje basado en la
+  confrontación y la ausencia de diálogo", pero aseguró ...` (es_19990701-83 9,
+  es_20000903-30 21) gained a `they`, because the fragment clause of
+  `tr_join_left/5` took the right side of a `sino` or `y` division for a
+  fragment and a clause and the last verb had nobody before it -- the right side
+  of a coordination after a statement is read with `$tr_no_command` set, and the
+  clause now stands down there; `le permitiría dedicarse de lleno a Ona
+  Catalana` (es_19990701-130 6) lost its `le`, the infinitive's `a` taken for
+  the pronoun's phrase; and the bare dative of `costs` turned `all'anno` (11),
+  `al Nord` (27), `a Catania` and `al politecnico` (28) bare (it_9816_9850),
+  which was the writer's clause for any phrase of `to` after the verb and is now
+  the one with the price after it. THE STATED COSTS: a first meaning that serves
+  the news and not every text -- `pulso` is a duel (the pulse is the second),
+  `cuarto` a quarter (a room second), `contrato` a contract (an agreement
+  second), `prórroga` overtime (an extension second), `apaga` and `spegne`
+  switch off (extinguish second), `presunto` and `supuesto` alleged, `tono` a
+  tone (a key second), `directiva` the board (a directive second),
+  `protagonismo` prominence, `derroche` expenditure -- and the controls'
+  sentences with them are the two of the data column above; and `non so cosa
+  fare` is still `I do not know thing to make`. The report LEAVES, of the 17
+  into English: `una sola concesión` is `an alone concession`, `ayer` stands
+  last (1, 14), `todavía` after the names (4), `se vieron obligados` after a
+  long insertion is `they saw obliged` with the subject written twice (4: the
+  subject and an insertion of two phrases, pre-existing), `últimamente` stands
+  last in its clause (5, `two antagonistic characters lately`), `entre` is
+  `among` and `se emplearon` `employed` (5), `apuesta por la velocidad` is `bet
+  for the speed` (6), `alzarse con la victoria` is `heave with the victory`
+  (10), `complicarle la vida al Joventut` is `complicating the life to the
+  Joventut` (11: the pronoun went, the phrase of `a` stayed), `acabara empatado
+  a 72` is `tied to 72`, `llegó a un acuerdo` `arrived to an agreement` and
+  `cantidad cercana a` `a near quantity to` (14), `expedientes` are `files`
+  (16); Italian: `se emplearon` is `si impiegarono`, `efectivos` `effettive`,
+  `esperarse de` `attendere delle` (`da`), `in quelli istanti` (`quegli`),
+  `finiva pareggiata` (the subjunctive written as an indicative), `in Badalona`
+  (`a`), `In altra partita` (`In un'altra`), `Quell'era` (`Quella era`), `fu il
+  primo che` (`la prima`: the Spanish `equipo` is masculine and the Italian
+  `squadra` is not) and `archivi` for `expedientes`; sentence 8 has no `con` in
+  the source (`rehacerse, protagonismo de Digbeu y la eficacia de
+  Jasikevicius`), and it is written as it stands.
 
 ## Tutorials are documentation that runs
 

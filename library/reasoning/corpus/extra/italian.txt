@@ -3070,3 +3070,82 @@ The masculine noun "deputato" means "deputy".
 The feminine noun "deputata" means "deputy".
 # `D'Alema è doppiogiochista?': the dictionary's doppiogiochista is read as a hypocrite; a hypocrite is still written `ipocrita'
 The noun "ipocrita" means "hypocrite".
+# the Barcelona and Unicaja basketball report (AnCora CESS-CAST-P-20001201-176), Spanish into Italian and English
+# `una excepcional racha de cinco triples seguidos': a three-pointer is a `tripla' in Italian
+The feminine noun "tripla" means "three-pointer".
+"triple" is the plural of "tripla".
+# `un equipo ambicioso y con pegada': hitting power is `mordente' in Italian
+The masculine noun "mordente" means "hitting power".
+"mordenti" is the plural of "mordente".
+# `para descabalgar a los malagueños del liderato': the people of Málaga
+The masculine noun "malagueño" means "Malagueño".
+"malagueños" is the plural of "malagueño".
+"malagueño" is a person.
+# `los azulgranas salieron vencedores', `dos meses como azulgrana', `la directiva azulgrana': in Italian the players of Barcelona are the `blaugrana'
+The masculine noun "blaugrana" means "Barça player".
+"blaugrana" is the plural of "blaugrana".
+"blaugrana" is a person.
+"blaugrana" is not feminine.
+The adjective "blaugrana" means "Barça".
+# `estuvo a punto de complicarle la vida al Joventut': on the verge of
+The preposition "in procinto di" means "on the verge of".
+# `En contra de la línea que ha definido ...': contrary to
+The preposition "contrariamente a" means "contrary to".
+# `Karnisovas, apagado durante todo el partido': switched off is `spento', where the dictionary's first verb for
+# extinguishing is `estinguere' (`estinto' is dead)
+The verb "spegne" means "switches off".
+# `Navarro se encargó de llevar el peso del partido': took charge of is `si occupa di'
+The verb "si occupa" means "takes charge of".
+"si occupano" is the plural of "si occupa".
+"si occupò" is the past of "si occupa".
+"si occuparono" is the plural of "si occupò".
+"si occupava" is the imperfect of "si occupa".
+"si occupavano" is the plural of "si occupava".
+"si occuperà" is the future of "si occupa".
+"si occuperanno" is the plural of "si occuperà".
+"occuparsi" is the infinitive of "si occupa".
+"si occupa" takes "di" before the infinitive.
+"si occupa" takes "di" before the phrase.
+# the Barcelona and Unicaja basketball report, second batch (into Italian and English)
+# `la directiva azulgrana': the board of directors is the `direttivo'
+The masculine noun "direttivo" means "board of directors".
+"direttivi" is the plural of "direttivo".
+# `para dejar marchar al jugador': to release is `lasciar partire'
+The verb "lascia partire" means "releases".
+"lasciano partire" is the plural of "lascia partire".
+"lasciò partire" is the past of "lascia partire".
+"lasciarono partire" is the plural of "lasciò partire".
+"lasciar partire" is the infinitive of "lascia partire".
+"lasciare partire" is the infinitive of "lascia partire".
+# `el Casademont Girona se impuso al Gijón': prevailed over
+The verb "si impone" means "prevails".
+"si impongono" is the plural of "si impone".
+"si impose" is the past of "si impone".
+"si imposero" is the plural of "si impose".
+"imporsi" is the infinitive of "si impone".
+"si impone" takes "a" before the phrase.
+# `sólo cedió el triunfo en la prórroga': overtime, the word Italian basketball uses
+The masculine noun "overtime" means "overtime".
+"overtime" is the plural of "overtime".
+# the Barcelona and Unicaja basketball report, third batch (into Italian and English)
+# `no tardaron en rehacerse': non tardarono a riorganizzarsi (the English `regroups' is its own, so that `recupera' stays `recovers')
+The verb "tarda a" means "takes long".
+"tardano a" is the plural of "tarda a".
+"tardò a" is the past of "tarda a".
+"tardarono a" is the plural of "tardò a".
+"tardare a" is the infinitive of "tarda a".
+The verb "si riorganizza" means "regroups".
+"si riorganizzano" is the plural of "si riorganizza".
+"riorganizzarsi" is the infinitive of "si riorganizza".
+# `protagonismo de Digbeu': Italian has the word
+The masculine noun "protagonismo" means "prominence".
+"protagonismi" is the plural of "protagonismo".
+# `en tareas ofensivas': a task is a `compito', where the dictionary's first noun is an `incarico'
+The masculine noun "compito" means "task".
+"compiti" is the plural of "compito".
+# `descabalgar a los malagueños del liderato de la Liga': the leadership of the table, which Italian
+# sports pages call the `leadership' (the dictionary's first noun for it is a direction)
+The feminine noun "leadership" means "leadership".
+"leadership" is the plural of "leadership".
+# `spodestare ... da': ousts takes `da' before the phrase
+"spodesta" takes "da" before the phrase.

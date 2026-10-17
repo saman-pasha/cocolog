@@ -2280,3 +2280,88 @@ The adverb "de forma realista" means "realistically".
 The preposition "para la protección de" means "for the protection of".
 # `per l'ultima volta': for the last time
 The adverb "por última vez" means "for the last time".
+# the Barcelona and Unicaja basketball report (AnCora CESS-CAST-P-20001201-176), Spanish into Italian and English
+# `en el segundo cuarto': a quarter of a game, where the dictionary's noun is a room
+The masculine noun "cuarto" means "quarter".
+"cuartos" is the plural of "cuarto".
+# `una excepcional racha de cinco triples seguidos': a three-pointer, where the dictionary's `triple' is an adjective
+The masculine noun "triple" means "three-pointer".
+"triples" is the plural of "triple".
+# `un equipo ambicioso y con pegada': hitting power, where the dictionary's `pegada' is only a participle
+The feminine noun "pegada" means "hitting power".
+"pegadas" is the plural of "pegada".
+# `para descabalgar a los malagueños del liderato': the people of Málaga (an English word with a letter the dictionary builder does not take)
+The masculine noun "malagueño" means "Malagueño".
+"malagueños" is the plural of "malagueño".
+"malagueño" is a person.
+# `los azulgranas salieron vencedores', `dos meses como azulgrana', `la directiva azulgrana': a player of Barcelona, and Barcelona's;
+# the dictionary has `azulgrana' only as an adjective meaning `barcelona'
+The noun "azulgrana" means "Barça player".
+"azulgrana" is not feminine.
+"azulgranas" is the plural of "azulgrana".
+"azulgrana" is a person.
+The adjective "azulgrana" means "Barça".
+# `un espectáculo con mayúsculas': a show worth the name, where the dictionary's `mayúsculo' is egregious
+The adjective "con mayúsculas" means "magnificent".
+"con mayúsculas" is the plural of "con mayúsculas".
+# `El Caja San Fernando': the team's name is three words the lesson knows (box, saint)
+"caja san fernando" is a name.
+# `estuvo a punto de complicarle la vida al Joventut': on the verge of -- a preposition, so that English
+# writes the gerund after it (`was on the verge of complicating') and the pronoun joined to the infinitive reads
+The preposition "a punto de" means "on the verge of".
+# `En contra de la línea que ha definido ... los pulsos tácticos, el partido tuvo pasión': contrary to
+The preposition "en contra de" means "contrary to".
+# `los pulsos tácticos entre Aíto y Majkovic': the tests of strength between two, said as duels (the dictionary's `pulse' stays the second)
+The masculine noun "pulso" means "duel".
+"pulsos" is the plural of "pulso".
+# `Karnisovas, apagado durante todo el partido', `Rimac excesivamente apagado': a player who is off form is switched off
+The verb "apaga" means "switches off".
+# `Navarro se encargó de llevar el peso del partido': took charge of -- the reflexive verb has a meaning of its own,
+# stated of the two words as `se da cuenta' is, with the forms the sentences need
+The verb "se encarga" means "takes charge of".
+"se encargan" is the plural of "se encarga".
+"se encargó" is the past of "se encarga".
+"se encargaron" is the plural of "se encargó".
+"se encargaba" is the imperfect of "se encarga".
+"se encargaban" is the plural of "se encargaba".
+"se encargará" is the future of "se encarga".
+"se encargarán" is the plural of "se encargará".
+"encargarse" is the infinitive of "se encarga".
+"se encarga" takes "de" before the infinitive.
+"se encarga" takes "de" before the phrase.
+# the Barcelona and Unicaja basketball report, second batch (into Italian and English)
+# `la directiva azulgrana': the board -- the dictionary has `directiva' as an adjective, and read so `la directiva
+# azulgrana' was a managerial Barça player
+The feminine noun "directiva" means "board of directors".
+"directivas" is the plural of "directiva".
+# `para dejar marchar al jugador': to release -- an idiom of two words, one verb
+The verb "deja marchar" means "releases".
+"dejan marchar" is the plural of "deja marchar".
+"dejó marchar" is the past of "deja marchar".
+"dejaron marchar" is the plural of "dejó marchar".
+"dejar marchar" is the infinitive of "deja marchar".
+# `el Casademont Girona se impuso al Gijón': prevailed over -- the reflexive verb has a meaning of its own and takes `a'
+The verb "se impone" means "prevails".
+"se imponen" is the plural of "se impone".
+"se impuso" is the past of "se impone".
+"se impusieron" is the plural of "se impuso".
+"imponerse" is the infinitive of "se impone".
+"se impone" takes "a" before the phrase.
+# the Barcelona and Unicaja basketball report, third batch (into Italian and English)
+# `fue el primero que rompió el equilibrio': the equilibrium, where the dictionary's first noun for `equilibrio' is a balance
+The masculine noun "equilibrio" means "equilibrium".
+# `no tardaron en rehacerse': they did not take long to recover -- `tardar en' is a verb of two words, the
+# preposition its own, and the reflexive `rehacerse' has a meaning of its own, stated of the two words
+The verb "tarda en" means "takes long".
+"tardan en" is the plural of "tarda en".
+"tardó en" is the past of "tarda en".
+"tardaron en" is the plural of "tardó en".
+"tardar en" is the infinitive of "tarda en".
+The verb "se rehace" means "regroups".
+"se rehacen" is the plural of "se rehace".
+"rehacerse" is the infinitive of "se rehace".
+# `protagonismo de Digbeu': prominence, where the dictionary has leadership
+The masculine noun "protagonismo" means "prominence".
+"protagonismos" is the plural of "protagonismo".
+# `descabalgar a los malagueños del liderato': ousts takes `de' before the phrase
+"descabalga" takes "de" before the phrase.
