@@ -8797,10 +8797,10 @@ fo_question_word([w(Q, C)|Ws], Words, Asked) :-
     ( tr_solve(mean(Q, E0)), en_question(E0, _) -> true ; tr_which_form(Q, _) ), !,
     (   tr_which_asks(Q, Ws),
         fo_np_words(Ws, NP, Rest),
-        tr_group(foreign, Rest, [], g(_, _, _, WP, _), _, After)
+        tr_group(foreign, Rest, [], g(_, _, _, WP, WN), _, After)
     %% (a verb of the first or the second person has no which-phrase for its subject: `Quale libro leggi?'
     %% asks for the book, and as the subject it was `which book reads')
-    ->  (   ( fo_lone_subject(After) ; WP \== third ) -> Asked = object(which(NP, C)) ; Asked = subject(which(NP, C)) ),
+    ->  (   ( fo_lone_subject(After) ; WP \== third ; fo_which_object(NP, WN, After) ) -> Asked = object(which(NP, C)) ; Asked = subject(which(NP, C)) ),
         Words = Rest
     %% ... AND `which' STANDING ALONE: `Quale era allora la materia del
     %% contendere ai tempi di Colombo?' is which was the matter, and with no
@@ -8846,6 +8846,43 @@ fo_phrase_word(W) :- ( tr_is(foreign, W, noun) ; tr_is(foreign, W, adjective) ; 
 
 fo_lone_subject([w(W, upper)]) :- \+ tr_known_word(foreign, W), !.
 fo_lone_subject([w(W, _)]) :- tr_subject_pronoun(foreign, W, _, _).
+
+%% A PHRASE THE VERB CANNOT AGREE WITH IS NO SUBJECT, AND A DOER IS: `¿Qué libros
+%% lee el gato?' asks for the books and the cat reads -- `lee' is a singular and
+%% `libros' is not -- where read with the books for its subject it was `which
+%% books read the cat'. Where the number decides nothing, the phrase after the
+%% verb is the doer when it is animate and the one asked for is not: a name, a
+%% pronoun, a noun the lesson calls a person (`"amigo" is a person.') or animate
+%% (`"gato" is animate.'), so `¿Qué libro lee el médico?' asks for the book and
+%% `¿Qué gato lee el libro?' for the cat. Two animate phrases, or none, are read
+%% as they were, the one asked for the subject (`¿Qué perro come el pan?'). The
+%% phrase after the verb must be one the verb agrees with, and no name that
+%% goes on (`Maria Lopez', `Maria y Pedro': the phrase reader ends a bare name at
+%% its first word, and the rest would be an object)
+fo_which_object(NP, WN, After) :-
+    After = [_|_],
+    fo_np_words_after(After, Subject, Rest), Subject \== [],
+    \+ fo_name_goes_on(Subject, Rest),
+    fo_agreeing(Subject, third, WN),
+    (   fo_which_clash(NP, WN)
+    ;   \+ fo_animate_phrase(NP), fo_animate_phrase(Subject)
+    ), !.
+
+fo_name_goes_on([w(_, upper)], [w(X, upper)|_]) :- \+ tr_known_word(foreign, X), !.
+fo_name_goes_on([w(_, upper)], [Co|_]) :- Co = w(_, _), tr_coord(foreign, Co).
+
+%% the phrase asked for has a reading, and none in the verb's number
+fo_which_clash(NP, WN) :-
+    findall(N, ( tr_np(foreign, NP, X), ( fo_np_number(X, N0) -> N = N0 ; N = unknown ) ), Ns),
+    Ns = [_|_],
+    \+ ( member(N, Ns), ( N == WN ; N == unknown ) ).
+
+%% a phrase is animate when it is a name or a pronoun, or by its first noun
+fo_animate_phrase([w(W, upper)|_]) :- \+ tr_known_word(foreign, W), !.
+fo_animate_phrase([w(P, _)|_]) :- tr_subject_pronoun(foreign, P, _, _), !.
+fo_animate_phrase(Ws) :-
+    member(W, Ws), W = w(X, _), atom(X), tr_is(foreign, W, noun), !,
+    tr_lexeme(foreign, X, L, _), ( tr_holds(person(L)) ; tr_holds(animate(L)) ), !.
 
 %% the noun phrase at the head: a name, a pronoun, or a determiner and its
 %% content up to the verb group. THE SHAPE IS TRIED BEFORE THE CUT: a
@@ -22323,17 +22360,21 @@ tr_agree(foreign, Ms, Noun, T) :-
     ).
 
 %% feminine, masculine or none -- feminine asked first, so a word the
-%% lesson said was feminine is, whatever a rule adds; and a denial wins
+%% lesson said was feminine is, whatever a rule adds; a denial wins
 %% over a rule, so `"problema" is not feminine' beside `Every noun that
 %% ends in "a" is feminine' makes the word what the lesson's masculine
-%% says of it, the way `The pronoun "él" does not precede the verb' does
+%% says of it, the way `The pronoun "él" does not precede the verb' does;
+%% and a masculine the lesson STATES wins over the feminine a rule derives
+%% (`"mapa" is masculine.' beside the same rule is `el mapa'), unless the
+%% lesson states the feminine too -- `el capital' and `la capital' -- when
+%% the feminine is asked first, as it was
 %% a phrase whose noun is a NAME carries its gender, because no lesson can be
 %% asked what a name is
 tr_gender(named(G0, _), G) :- !, G = G0.
 tr_gender(elided(G0), G) :- !, G = G0.
 tr_gender(W, G) :-
     (   W == none -> G = none
-    ;   tr_holds(feminine(W)) -> G = feminine
+    ;   tr_holds(feminine(W)) -> ( tr_stated_gender(W, masculine) -> G = masculine ; G = feminine )
     ;   tr_holds(masculine(W)) -> G = masculine
     ;   G = none
     ).

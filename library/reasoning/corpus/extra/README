@@ -26,3 +26,12 @@ italian.txt would have to state each form by hand. An entry marked r="RL"
 is read into English only and comes after every entry both ways; an entry
 both ways is the first meaning of its word and the first word for its
 meaning. Each file says which of its entries is which, and why.
+
+A line may state a CLASS as well as a word: `"gato" is animate.' is no word
+Apertium lacks but a fact it does not carry. WordNet's noun.person says which
+nouns are persons (`lexicon/class.txt', for `build.pl'); the animals, a
+hundred a language at the end of italian.txt and spanish.txt, are stated here,
+the nouns whose meaning in the vocabulary is `cat', `dog', `horse' and so on.
+A question phrase with a noun asks for the object when a doer stands after the
+verb and it is none (`¿Qué libro lee el gato?', fo_which_object/3 in
+translate.pl); an institution (`gobierno') is not stated, and is no doer.

@@ -3495,6 +3495,77 @@ read into an English-worded IR and written into any lesson's language),
   the third person nobody names, on purpose (`Pero encontró un filón ...`). The
   next sample's controls take this feature in.
 
+  The review's fixes (an outside review of 283997b, checked by the engine
+  session; reasoning 1.0.9, cocolog stays 2.2.5; no new article). Four small
+  things, three of them in code or data:
+  WHICH, AND WHO DOES IT. `¿Qué libro lee el gato?` was `Which book reads the
+  cat?`: `fo_question_word/3` took the phrase asked for as the subject unless a
+  name or a pronoun stood alone after the verb, and `¿Qué perro come el pan?`
+  has the same shape. `fo_which_object/3` settles it by two things and no
+  more: the verb's number (`¿Qué libros lee el gato?`, `¿Qué medidas tomará el
+  Gobierno?`: the phrase asked for has no reading in the verb's number and the
+  phrase after the verb is one the verb agrees with) and a doer after the verb
+  when the phrase asked for is none (a name, a pronoun, a noun the lesson calls
+  `person` or `animate`); two doers, or none, are read as before. `animate` is
+  a bare-class line like `"amigo" is a person.`, new here: corpus/extra states
+  119 Spanish and 109 Italian animals, the nouns whose meaning in the
+  vocabulary is `cat`, `dog`, `horse`, ... (found by a script, the false
+  friends out: a calf of the leg, a stamp, a drink, a sip, a bat, a game).
+  corpus/spanish.txt and italian.txt are the tagger's corpus and are untouched,
+  so the hand lesson alone still reads `gato` as no doer; a taught store reads
+  it. On the stores: `¿Qué medidas tomará el Gobierno?` was `Which
+  measures will take the Government?` and is `Which measures will the
+  Government take?`, `¿Qué libro recomienda el autor?` `Which book does the
+  author recommend?`, `¿Qué ley firmó el presidente?` `Which law did the
+  chairman sign?`, Italian `Quale libro consiglia il medico?` `Which book does
+  the doctor advise?`; `¿Qué presidente firmó la ley?`, `¿Qué jugador marcó el
+  gol?` and `¿Qué perro come el pan?` read as they did. `test/translate.pl`'s
+  `question_roles` (17 checks) and lesson 46's section 72 hold it, with an arm
+  for each of the seven rules and five for the guards: a name that goes on is
+  not read (`fo_name_goes_on/2`: `¿Qué libro lee Maria Lopez?` is still `Which
+  book reads Maria Lopez?`, because `fo_np_words_after/3` ends a bare name at
+  its first word -- `¿Qué come Maria Lopez?` is `What does Maria eat Lopez?`
+  by the same fault, older than this), two doers, a verb with no subject
+  after it (`¿Qué libros hay en la casa?` is `Which books there is in the
+  house?`, the old text, which is not a good one). STATED LIMITS: an
+  institution is no doer (`¿Qué medida tomó el Gobierno?` is `Which measure
+  took the Government?`, `¿Qué partido ganó el equipo?` `Which match won the
+  team?`: `"gobierno" is animate.` would mend them, and a list of such nouns
+  is the next step), and a noun with the same form in both numbers
+  (`crisis`) never clashes with a verb.
+  A STATED GENDER MEETS AN ENDING RULE (`tr_gender/2`): feminine was asked
+  first, so `"leche" is feminine.` beat the masculine rule and `"mapa" is
+  masculine.` lost to the feminine one and wrote `La mapa`. A masculine the
+  lesson states now wins unless it states the feminine too (`"mar"`: the
+  feminine, as it always was); a denial still wins over a rule. Only
+  `tr_gender/2` has the order: the 23 other places that ask
+  `tr_holds(feminine(...))` -- participles, adjective forms, a few nouns --
+  still ask the rule, and the reasoner holds both genders true as before. It
+  costs one fact lookup for a word the rule calls feminine (+0.022 % of the
+  inferences of the files into Italian, +0.014 % into Spanish, +0.005 % into
+  English). The `stated_gender` section (10 checks, two
+  arms) also scans both vocabularies for a masculine noun in `a` whose denial
+  is missing: Spanish 166 nouns, none; Italian 90, four, which are
+  `caposquadra`, `centro destra`, `centro sinistra` and `microtrauma`
+  (corpus/extra/italian.txt, copied as they stood by `cb_extra/1`, so
+  `La microtrauma è grande.` was the Italian writer's text): the four lines
+  `"X" is not feminine.` are in, and the Italian vocabulary rebuilt.
+  THE CONTROLS (cocolog 2.2.5, 94 count files, 2 670 sentences, the last
+  version's translator on KB177 against this one; KB178 taught from the
+  rebuilt vocabularies): the CODE ALONE changes no sentence (+0.011 % of the
+  inferences, 4 959 655 531 to 4 960 191 126), the DATA COLUMN none (KB177 and
+  the old code to KB178 and the new: +0.011 %), the STORE ALONE none (with the
+  old code -0.000 %, with the new -0.000 %), and bytes and characters read
+  every sentence alike (the bytes +0.018 % more). The controls cannot see these
+  fixes: not one of their sentences asks `qué` and a noun before a doer, and the
+  vocabularies already fenced every masculine noun in `a` they use. The fixes
+  stand on their sections and on the stores' own sentences above. THE
+  TAGGER'S COMMENT said six rules over eight bullets where the code has
+  eleven (library/reasoning/tagger.pl, above `tagger_sane/2`): it lists the
+  eleven now; a comment, and the reasoning number moves with it as any change
+  under library/reasoning/ does. `lo` is `him` before `it`, as the lesson
+  states them, and stays so (the README says it).
+
 ## Tutorials are documentation that runs
 
 `tutorials/` holds 130 files -- `basics/` 13, `library/` 52, `opencv/` 23,

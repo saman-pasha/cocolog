@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -14125,6 +14125,163 @@ newspaper_miss_checks_5 :-
           'Ya se puede dormir.').
 
 %% <<< miss
+
+%% >>> roles
+%% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb
+%% and a phrase, and either may be the subject: `¿Qué perro come el pan?' asks for the dog, `¿Qué libro
+%% lee el gato?' for the book. The reader took the phrase asked for as the subject unless a name or a
+%% pronoun stood alone after the verb, so the second was `which book reads the cat'
+%% (fo_which_object/3). Two things decide it now: a verb that cannot agree with the phrase asked for
+%% (`¿Qué libros lee el gato?', `¿Qué libro leen los gatos?', two nouns joined by `y'), and a doer after
+%% the verb when the phrase asked for is none -- a name, a pronoun, a noun the lesson calls a person
+%% (`"amigo" is a person.') or animate (`"gato" is animate.'; the vocabularies state a hundred animals
+%% so). Two doers, or none, are read as they were. A name that goes on (`Maria Lopez', `Maria y Omar')
+%% is not read this way: the phrase reader ends a bare name at its first word.
+question_roles :-
+    section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),
+    question_roles_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    question_roles_lesson(italian, IT), reason_learn(IT, italian, _),
+    question_roles_checks,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+question_roles_lesson(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the". "los" is the plural of "el". "las" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every noun that ends in a consonant takes "es" in the plural.
+Every adjective follows the noun.
+The noun "libro" means "book". The noun "perro" means "dog". The noun "gato" means "cat". "gato" is animate. The noun "pan" means "bread".
+The noun "amigo" means "friend". "amigo" is a person. The noun "casa" means "house".
+The verb "come" means "eats". "comen" is the plural of "come". The verb "lee" means "reads". "leen" is the plural of "lee". The verb "ve" means "sees". "ven" is the plural of "ve".
+The verb "hay" means "there is".
+The word "qué" means "what". The word "qué" means "which". The mark "¿" begins the question.
+The preposition "en" means "in". The conjunction "y" means "and". The pronoun "él" means "he".').
+question_roles_lesson(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the". "i" is the plural of "il". "le" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "libro" means "book". "libri" is the plural of "libro". The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto". "gatto" is animate. The noun "pane" means "bread".
+The noun "amico" means "friend". "amici" is the plural of "amico". "amico" is a person.
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". The verb "legge" means "reads". "leggono" is the plural of "legge".
+The word "quale" means "which". The word "quale" means "what". "quali" is the plural of "quale".
+The preposition "in" means "in". The conjunction "e" means "and". Every pronoun precedes the verb. The pronoun "lui" means "he".').
+
+question_roles_checks :-
+    nf_tr('¿Qué libros lee el perro?', spanish, english, A1),
+    check('A VERB THAT CANNOT AGREE WITH THE PHRASE ASKED FOR: `¿Qué libros lee el perro?'' -- `lee'' is a singular and `libros'' is not, so the books are what is read and the dog reads (a dog the lesson never called animate: only the number decides); with the books for its subject it was `which books read the dog''', A1,
+          'Which books does the dog read?'),
+    nf_tr('¿Qué libro leen los perros?', spanish, english, A2),
+    check('... the other way: a singular phrase asked for, a plural verb and a plural phrase after it', A2,
+          'Which book do the dogs read?'),
+    nf_tr('¿Qué libro leen el perro y la casa?', spanish, english, A3),
+    check('... and the phrase after the verb two joined by `y'', which the verb agrees with as a plural (the first of them alone is a singular)', A3,
+          'Which book do the dog and the house read?'),
+    nf_tr('Quali libri legge il cane?', italian, english, A4),
+    check('... in Italian, whose reader is the same', A4,
+          'Which books does the dog read?'),
+    nf_tr('¿Qué libro lee el gato?', spanish, english, B1),
+    check('A DOER AFTER THE VERB WHEN THE PHRASE ASKED FOR IS NONE: the number decides nothing in `¿Qué libro lee el gato?'', and the lesson calls a cat animate -- the book is what is read', B1,
+          'Which book does the cat read?'),
+    nf_tr('¿Qué libro lee el amigo?', spanish, english, B2),
+    check('... a person the lesson calls one is a doer as well', B2,
+          'Which book does the friend read?'),
+    nf_tr('¿Qué libro lee él en la casa?', spanish, english, B3),
+    check('... a pronoun, with more words after it than the pronoun alone, which was the object asked for already', B3,
+          'Which book does he read in the house?'),
+    nf_tr('¿Qué libro lee Maria en la casa?', spanish, english, B4),
+    check('... a name, with more words after it than the name alone, which was the object asked for already', B4,
+          'Which book does Maria read in the house?'),
+    nf_tr('Quale libro legge il gatto?', italian, english, B5),
+    check('... in Italian', B5,
+          'Which book does the cat read?'),
+    nf_tr('¿Qué gato ve el amigo?', spanish, english, G1),
+    check('TWO DOERS ARE READ AS THEY WERE, the phrase asked for the subject: a cat that sees the friend (a guard: the doer after the verb counts only against a phrase asked for that is none)', G1,
+          'Which cat sees the friend?'),
+    nf_tr('¿Qué amigo lee el libro?', spanish, english, G2),
+    check('... and a doer asked for stays the subject, the book after it what is read', G2,
+          'Which friend reads the book?'),
+    nf_tr('¿Qué perro come el pan?', spanish, english, G3),
+    check('... and where neither is a doer, the dog the lesson never called animate', G3,
+          'Which dog eats the bread?'),
+    nf_tr('¿Qué libro lee Maria Lopez?', spanish, english, G4),
+    check('A NAME THAT GOES ON IS NOT READ THIS WAY (a guard): the phrase reader ends a bare name at its first word and `Lopez'' would be an object of its own -- the old reading stays, the subject and the object swapped', G4,
+          'Which book reads Maria Lopez?'),
+    nf_tr('¿Qué libro lee Maria y Pedro?', spanish, english, G5),
+    check('... nor two names joined by `y'' (the old reading stays, the verb a singular for two)', G5,
+          'Which book reads Maria and Pedro?'),
+    nf_tr('¿Qué libros hay en la casa?', spanish, english, G6),
+    check('... nor a verb with no subject after it (a guard: `hay'' is a singular and `libros'' is not, and nothing after it is a phrase it agrees with -- the old text, which is not a good one)', G6,
+          'Which books there is in the house?'),
+    nf_tr('Which book does the cat read?', english, spanish, W1),
+    check('... and back into Spanish, the object asked for and the doer after the verb', W1,
+          '¿Qué libro lee el gato?'),
+    nf_tr('Which cat reads the book?', english, italian, W2),
+    check('... and the subject asked for, in Italian', W2,
+          'Quale gatto legge il libro?').
+%% <<< roles
+
+%% >>> gender
+%% A STATED GENDER MEETS AN ENDING RULE. `"mapa" is masculine.' beside `Every noun that ends in "a" is
+%% feminine.' wrote `la mapa': tr_gender/2 asked feminine first, and a rule holds of a word unless
+%% the lesson denies it of that word. A masculine the lesson STATES wins over the feminine a rule
+%% derives now, unless it states the feminine too (`el mar' and `la mar'), when the feminine is asked
+%% first, as it was. A denial still wins over a rule, and a stated feminine over the masculine rule.
+%% The vocabularies state a denial after every masculine noun in `a' (`"problema" is not feminine.')
+%% and four lines of corpus/extra/italian.txt did not (`caposquadra', `centro destra', `centro
+%% sinistra', `microtrauma'): the section scans both vocabularies for one.
+stated_gender :-
+    section('a stated gender against the ending rule, and the masculine nouns in -a of the vocabularies'),
+    stated_gender_lesson(L), reason_learn(L, spanish, _),
+    nf_tr('The map is big.', english, spanish, G1),
+    check('A MASCULINE THE LESSON STATES WINS OVER THE FEMININE A RULE DERIVES: `"mapa" is masculine.'' beside the rule that a noun in -a is feminine is `el mapa''', G1,
+          'El mapa es grande.'),
+    nf_tr('The red map is big.', english, spanish, G2),
+    check('... and the adjective follows it', G2,
+          'El mapa rojo es grande.'),
+    nf_tr('The maps are big.', english, spanish, G3),
+    check('... and the plural', G3,
+          'Los mapas son grandes.'),
+    nf_tr('The theme is big.', english, spanish, G4),
+    check('a denial wins over the rule, as it did: `"tema" is not feminine.''', G4,
+          'El tema es grande.'),
+    nf_tr('The milk is big.', english, spanish, G5),
+    check('a feminine the lesson states wins over the masculine rule, as it did', G5,
+          'La leche es grande.'),
+    nf_tr('The house is big.', english, spanish, G6),
+    check('and a word the lesson states no gender of takes the rule''s', G6,
+          'La casa es grande.'),
+    nf_tr('The sea is big.', english, spanish, G7),
+    check('BOTH STATED, THE FEMININE IS ASKED FIRST (a guard): `el mar'' and `la mar'' are both the lesson''s, and the writer takes the one it always took', G7,
+          'La mar es grande.'),
+    reason_unlearn(spanish),
+    normalise_corpus_dir(Dir),
+    atom_concat(Dir, '/vocabulary/spanish.txt', EsFile), atom_concat(Dir, '/vocabulary/italian.txt', ItFile),
+    vocabulary_lines(EsFile, EsLines), vocabulary_lines(ItFile, ItLines),
+    vocabulary_unfenced(EsLines, EsBad),
+    check('EVERY MASCULINE NOUN IN -a THE SPANISH VOCABULARY STATES HAS ITS DENIAL', EsBad, []),
+    vocabulary_unfenced(ItLines, ItBad),
+    check('... and the Italian one: `caposquadra'', `centro destra'', `centro sinistra'' and `microtrauma'' were written feminine', ItBad, []),
+    yes_no(( memberchk('"gato" is animate.', EsLines), memberchk('"perro" is animate.', EsLines),
+             memberchk('"gatto" is animate.', ItLines), memberchk('"cane" is animate.', ItLines) ), V1),
+    check('and the vocabularies state the animals as animate', V1, yes).
+
+stated_gender_lesson('Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the". "los" is the plural of "el". "las" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every noun that ends in a consonant takes "es" in the plural.
+Every adjective follows the noun. Every adjective that ends in a vowel takes "s" in the plural.
+The noun "mapa" means "map". "mapa" is masculine. The noun "tema" means "theme". "tema" is masculine. "tema" is not feminine.
+The noun "leche" means "milk". "leche" is feminine. The noun "casa" means "house". The noun "libro" means "book".
+The noun "mar" means "sea". "mar" is masculine. "mar" is feminine.
+The adjective "grande" means "big". The masculine adjective "rojo" means "red". The feminine adjective "roja" means "red". "rojos" is the plural of "rojo".
+The verb "es" means "is". "son" is the plural of "es".').
+
+%% the masculine nouns of a vocabulary that end in `a' and whose denial it does not state
+vocabulary_unfenced(Lines, Bad) :-
+    findall(W, ( member(L, Lines), atom_concat('The masculine noun "', R, L), once(sub_atom(R, B, _, _, '" means')),
+                 sub_atom(R, 0, B, _, W), sub_atom(W, _, 1, 0, a),
+                 atomic_list_concat(['"', W, '" is not feminine.'], D), \+ memberchk(D, Lines) ), Bad0),
+    sort(Bad0, Bad).
+%% <<< gender
 
 %% >>> units
 %% THE SAME ANSWERS UNDER BOTH TEXT UNITS (cocolog 1.13.0). Under bytes a code

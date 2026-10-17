@@ -713,7 +713,8 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
 %% X throughout -- before the assembler sees it. These are the fragments the
 %% grammar would read, because its defaults are positional: `Boston, Mass.'
 %% tagged S D O is mass(boston), `Loan policies' is policies(loan), `This
-%% should be played' is should_played(this). Six rules, each a clause:
+%% should be played' is should_played(this). Eleven rules, a bullet each; the
+%% code is tagger_sane/2 and the clauses of tg_sane_token/4:
 %%
 %%   * a sentence has a relation word, and no token is outside;
 %%   * a relation word is a closed word of the grammar (is, may, will), or
@@ -723,12 +724,20 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
 %%     position, is not a common word of the lexicon unless it is a known
 %%     first name: `Loan', `Small' -- and Rose or Bill, who are both;
 %%   * a subject, an object or an adjective is not a closed word: `This',
-%%     `It', `up';
+%%     `It', `up' -- and a subject or an object in lower case is not a
+%%     word the lexicon knows only as a verb: `Discuss values' (unless
+%%     its base is some other word, as `keys' is `key');
 %%   * an adjective is not a word the lexicon knows only as an adverb:
 %%     `often' after `is';
 %%   * a word between quotation marks is M and nothing else: the marks
 %%     are the reader's own signal, and a tagger that dropped one would
 %%     lose what the text said most plainly;
+%%   * a number, in digits or in words, counts a noun (T), is an object
+%%     (O) or is noise (D);
+%%   * `much' and `many' are the object asked for (O) or noise (D): `how
+%%     much';
+%%   * a question word is a subject or an object: `who' S, `what' and
+%%     `where' O;
 %%   * a sentence with a mention in it is related by `is', or by a verb
 %%     some lesson of the corpus uses -- means, precedes, ends in, takes
 %%     -- because `Boston, Mass.' tagged M R would otherwise be a fact
@@ -736,8 +745,9 @@ tg_decode([seq(Ids, _, _)|Ss], I, N, Got, [Tags|Ts]) :-
 %%     are the corpus's to give, not the network's to guess;
 %%   * and a sentence assembled to nothing -- every token dropped -- is
 %%     refused, not read as nothing (tg_assemble_all/3).
-%% A language's name may head a sentence as a subject (`Spanish is a
-%% language'): it joins the first names in the judge's lexicon.
+%% A subject pronoun tagged S passes (`she' may be a subject: the grammar
+%% resolves it), and a language's name may head a sentence as a subject
+%% (`Spanish is a language'): it joins the first names in the judge's lexicon.
 %%
 %% An unknown word passes every rule, so `Priya snores' and `Zed owns a
 %% bicycle' read as before. (A second network trained to tell generated
