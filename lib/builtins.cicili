@@ -2056,11 +2056,12 @@
 
                 ;; 119 `~w', 113 `~q', 112 `~p' -- print/1's, quoted and with
                 ;; numbervars, as swipl's `~p' calls print/1 (2.2.4; through
-                ;; 2.2.3 it was `~w')
+                ;; 2.2.3 it was `~w'); `~w' and `~q' are write/1's and
+                ;; writeq/1's, numbervars and all (2.2.5)
                 (if (== d 112)
                     (block (coco_write_print m b a) continue))
                 (if (or (== d 119) (== d 113))
-                    (block (coco_write_term m b a (? (== d 113) 1 0) 0) continue))
+                    (block (coco_write_mode m b a (? (== d 113) 25 8) 1) continue))
 
                 ;; 97 `~a', 115 `~s' -- an atom, or a list of codes, of any
                 ;; length (`coco_text_put')
@@ -2960,25 +2961,30 @@
 
   ;;; ---- writing ----------------------------------------------------------
 
+  ;;; writeq/1, swipl's (2.2.5): quoted, numbervars and character escapes
+  ;;; (25: `'$VAR'(1)' is `B', `'don''t'' is `'don\'t''). Through 2.2.4
+  ;;; quoted alone, and `'$VAR'(1)' and `'don''t'' came out as they read.
   (func coco_b_writeq ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_term (coco_m_machine e) (aof b) (coco_m_arg e g 0) 1 0)
+          (coco_write_mode (coco_m_machine e) (aof b) (coco_m_arg e g 0) 25 1)
           (if (!= ($ b s) nil) (fputs ($ b s) stdout))
           (coco_sb_free (aof b))
           (return 1)))
 
-  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)' and
-  ;;; `variable_names(['X'=V, ...])' are the ones the writer has -- the last
-  ;;; since 1.10.6: each named variable still unbound is written as its name,
-  ;;; where through 1.10.5 the option was read past and every variable came
-  ;;; out `_G' and a number. Anything else in the list is ignored rather
-  ;;; than refused, because an option a writer does not implement is not a
-  ;;; reason to fail a program.
+  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)',
+  ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
+  ;;; writer has -- variable_names since 1.10.6: each named variable still
+  ;;; unbound is written as its name, where through 1.10.5 the option was
+  ;;; read past and every variable came out `_G' and a number; numbervars
+  ;;; since 2.2.5, `'$VAR'(N)' as the variable it names, and quoted with
+  ;;; swipl's character escapes since then too (`'don\'t''). Anything else
+  ;;; in the list is ignored rather than refused, because an option a writer
+  ;;; does not implement is not a reason to fail a program.
   (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t * v . nil) (size_t n . 0)
-              (int quoted . 0) (int ignore_ops . 0) (coco_strbuf b)
+              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (coco_strbuf b)
               (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
               (size_t * cells . nil) (u64 * names . nil))
           (if (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n))
@@ -2990,7 +2996,8 @@
                         (if (and (!= val nil) (== 0 (strcmp val "true")))
                             (block
                              (if (== 0 (strcmp nm "quoted")) (set quoted 1))
-                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))))
+                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))
+                             (if (== 0 (strcmp nm "numbervars")) (set numbervars 1))))
                         (if (and (== 0 (strcmp nm "variable_names")) (== cells nil))
                             (if (coco_m_list_array e (coco_arg m o 0) (aof nv) (aof nn))
                                 (block
@@ -3013,7 +3020,8 @@
           (coco_sb_init (aof b))
           (if (and (!= cells nil) (!= names nil))
               (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
-          (coco_write_term m (aof b) (coco_m_arg e g 0) quoted ignore_ops)
+          (coco_write_mode m (aof b) (coco_m_arg e g 0)
+                           (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
           (free cells) (free names)
           (if (!= ($ b s) nil) (fputs ($ b s) stdout))

@@ -7,9 +7,10 @@
 %  reads as a variable is itself, unquoted; anything else is the compound it
 %  is. Through cocolog 2.2.3 print/1 and ~p were write/1 and ~w, and
 %  print('a b') read back as two words. Left out: an atom with a quote in
-%  it, which swipl's writeq/1 writes 'don\'t' and cocolog's 'don''t' (both
-%  read back), non-ASCII text, a portray/1 hook, which cocolog's print/1
-%  does not call, and print/2, which needs library(stream) here.
+%  it, which test/files/write.pl holds (print/1 writes 'don\'t' since
+%  cocolog 2.2.5, 'don''t' through 2.2.4), non-ASCII text, a portray/1
+%  hook, which cocolog's print/1 does not call, and print/2, which needs
+%  library(stream) here.
 
 t('a b'). t('X'). t({}). t(hello). t('Hello'). t('\n'). t(''). t('$VAR').
 t('a b' + 'c d'). t(f(',', '|')). t(f(;)). t(f(:-)). t((a :- b)). t((a ; b)).

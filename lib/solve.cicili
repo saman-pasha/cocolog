@@ -8546,8 +8546,9 @@
         (coco_print_term (-> e m) stdout (coco_arg (-> e m) g 0))
         (return 1))
 
-  ;;; print/1 (2.2.4), swipl's: quoted, with numbervars (`coco_write_print').
-  ;;; Through 2.2.3 it was write/1, and `print('a b')' read back as two words.
+  ;;; print/1 (2.2.4), swipl's: quoted, with numbervars and (2.2.5) its
+  ;;; character escapes (`coco_write_print'). Through 2.2.3 it was write/1,
+  ;;; and `print('a b')' read back as two words.
   (func coco_bi_print ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
@@ -8561,10 +8562,12 @@
         (fputc 10 stdout)
         (return 1))
 
+  ;;; write_canonical/1: quoted, with swipl's character escapes (17, 2.2.5:
+  ;;; `'don\'t''), and no numbervars -- swipl's writes `'$VAR'(1)' as it is
   (func coco_bi_write_canonical ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_canonical (-> e m) (aof b) (coco_arg (-> e m) g 0))
+          (coco_write_mode (-> e m) (aof b) (coco_arg (-> e m) g 0) 17 0)
           (if (!= ($ b s) nil) (fputs ($ b s) stdout))
           (coco_sb_free (aof b))
           (return 1)))

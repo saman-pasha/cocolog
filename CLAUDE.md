@@ -885,9 +885,10 @@ cocolint index offers no import of it.
   variables took 6.8 s). A
   deep TREE overflows the C stack where it always did (~47k levels of
   `coco_write_rec`, ~87k of `coco_arith`). **The writer's six arguments
-  stay in registers**: quoted, ignore_ops, operand and (2.2.4) numbervars
-  are one `mode` word (1, 2, 4, 8; what a compound hands its arguments is
-  `mode & 11`, the operand's 4 being each operand's own), and a compound
+  stay in registers**: quoted, ignore_ops, operand, (2.2.4) numbervars and
+  (2.2.5) swipl's character escapes are one `mode` word (1, 2, 4, 8, 16;
+  what a compound hands its arguments is `mode & 27`, the operand's 4
+  being each operand's own, and what an atom reads `mode & 17`), and a compound
   is `coco_write_fun`, always inlined, so the
   guard's slow path returns rather than rejoining -- rejoined, every
   compound read its tag and functor again (21 instructions each).
@@ -1507,18 +1508,35 @@ cocolint index offers no import of it.
   parenthesis (`- (a+b)`). `test/files/prefix_write.pl` holds 60 terms to
   swipl's text, and `test/syntax.cicili` the golden cases. **print/1, and
   format's `~p` with it (so library(stream)'s print/2), are swipl's print/1**
-  (2.2.4; write/1 and `~w` through 2.2.3): quoted, and with numbervars
-  (`coco_write_print`, mode 9), which writes `'$VAR'(N)` as the variable it
-  names -- an integer of 0 or more the letter N mod 26 and past 25 N // 26
-  after it (`A`, `Z`, `A1`), a negative one `S_` and its magnitude
-  (`S_-9223372036854775808` for the least integer, swipl's text, its own
-  negation wrapping), an atom that reads as a variable (A-Z or `_` first,
-  ASCII) unquoted, anything else the compound it is
-  (`coco_write_numbervar`). Not swipl's yet: print/1 calls no portray/1
-  hook; write/1 and writeq/1 have no numbervars (`writeq('$VAR'(1))` is
-  `'$VAR'(1)`, swipl's `B`); and a quote inside a quoted atom is doubled
-  (`'don''t'`, swipl's `'don\'t'`). `test/files/print.pl` holds 85 lines to
-  swipl's text.
+  (2.2.4; write/1 and `~w` through 2.2.3), **and write/1 and writeq/1
+  swipl's too** (2.2.5): numbervars in write/1, writeln/1, writeq/1,
+  print/1, `~w`, `~q`, `~p` (and so library(stream)'s write/2, writeq/2,
+  print/2) and write_term/2's `numbervars(true)` (mode 8), which writes
+  `'$VAR'(N)` as the variable it names -- an integer of 0 or more the
+  letter N mod 26 and past 25 N // 26 after it (`A`, `Z`, `A1`), a negative
+  one `S_` and its magnitude (`S_-9223372036854775808` for the least
+  integer, swipl's text, its own negation wrapping), an atom that reads as
+  a variable (A-Z or `_` first, ASCII) unquoted, anything else the compound
+  it is (`coco_write_numbervar`); write_canonical/1 has none, as swipl's.
+  **A quoted write a program asks for takes swipl's character escapes**
+  (mode 16, 2.2.5: writeq/1 25, print/1 and `~p` 25, write_canonical/1 17,
+  `~q` 25, write_term/2's `quoted(true)` 17; `coco_write_mode`): a quote
+  inside an atom is `\'` (`'don\'t'`), and a control character with a
+  letter the reader knows is the letter, `\a` `\b` `\v` `\f` and, in a
+  string as in an atom, `\r` (`coco_escape_letter`); through 2.2.4
+  `'don''t'` and the four as they were. **The engine's own quoted writes
+  keep the doubled quote** -- the store, a channel, the journal, a message,
+  the REPL's answer, term_to_atom/2 (swipl's doubles there too) -- all
+  through `coco_write_term`, `coco_write_storable` and
+  `coco_write_canonical`, which set no 16: a new writer a PROGRAM calls
+  goes through `coco_write_mode` with the 16, one the engine reads back
+  does not. Not swipl's yet: print/1 calls no portray/1 hook; a control
+  character with no letter is written as it is (swipl's `\x1\`; this
+  reader has no `\x..\`); listing/1 and the REPL write `'don''t'` and
+  `'$VAR'(1)` (swipl's `'don\'t'`, `B`); and a quoted infix operator after
+  an integer takes no space (`1'x\'y'2`, swipl's `1 'x\'y' 2`), which
+  after a 0 reads back as a character code. `test/files/print.pl` holds 85
+  lines to swipl's text, and `test/files/write.pl` 79.
   **Two floats are one term when their BITS are** (2.1.1, `coco_flt_eq`):
   `0.0 = -0.0` fails, a NaN unifies with itself, `-0.0 @< 0.0`, and a NaN
   sorts before every other number (`coco_flt_order`, which

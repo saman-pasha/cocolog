@@ -683,8 +683,17 @@
 
   ;;; PRINT/1'S FORM (2.2.4), swipl's print/1 and format's `~p': quoted, and
   ;;; with numbervars, so `'$VAR'(1)' is written `B' (mode 8,
-  ;;; `coco_write_numbervar'). Through 2.2.3 print/1 was write/1.
+  ;;; `coco_write_numbervar'), and since 2.2.5 swipl's character escapes
+  ;;; (mode 16, `'don\'t''). Through 2.2.3 print/1 was write/1.
   (decl) (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+
+  ;;; A WRITE IN THE MODE A PROGRAM'S WRITER ASKS FOR (2.2.5), the mode word
+  ;;; whole: quoted 1, ignore_ops 2, numbervars 8, character escapes 16.
+  ;;; NAMED writes a cyclic term's variables S_1, S_2, ... (`coco_write_cyclic').
+  ;;; write/1 is 8, writeq/1 25, write_canonical/1 17 with NAMED 0, write_term/2
+  ;;; what its options say.
+  (decl) (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                              (int mode) (int named)) (out int))
 
   ;;; THE FORM A CLAUSE IS STORED IN, which is quoted and with operators
   ;;; IGNORED -- `rule(===>(a,b))' and not `rule(a ===> b)'.
@@ -1637,22 +1646,49 @@
                    (return 0)))
         (return 1))
 
+  ;;; A CONTROL CHARACTER THE READER HAS A LETTER FOR, under swipl's
+  ;;; character escapes (2.2.5): 7 `\a', 8 `\b', 11 `\v', 12 `\f' and, for a
+  ;;; string, 13 `\r' -- the letter, or 0. The others, which swipl writes
+  ;;; `\x1\', are written as they are: this reader has no `\x..\' escape to
+  ;;; read one back.
+  (static) (inline)
+  (func coco_escape_letter ((int c)) (out int)
+        (cond ((== c 7) (return (coco-ch "a")))
+              ((== c 8) (return (coco-ch "b")))
+              ((== c 11) (return (coco-ch "v")))
+              ((== c 12) (return (coco-ch "f")))
+              ((== c 13) (return (coco-ch "r")))
+              (#t (return 0))))
+
+  ;;; QUOTED is the write's mode word, of which this reads quoted (1) and
+  ;;; swipl's character escapes (16, 2.2.5): with them a quote inside is
+  ;;; `\'' and a control character with a letter is the letter
+  ;;; (`coco_escape_letter') -- writeq/1's `'don\'t'' -- and without, the
+  ;;; quote is doubled, `'don''t'', as term_to_atom/2 writes it in swipl
+  ;;; too and as the store, a channel and a message always have.
   (static)
   (func coco_write_atom ((coco_strbuf * b) (const char * name) (int quoted)) (out int)
-        (if (or (not quoted) (not (coco_atom_needs_quotes name)))
+        (if (or (== 0 (bitand quoted 1)) (not (coco_atom_needs_quotes name)))
             (return (coco_sb_put b name)))
         (if (not (coco_sb_putc b (cast char (coco-ch "'")))) (return 0))
-        (for ((size_t i . 0)) (!= (nth i name) (cast char 0)) ((++ i))
-          (let ((int c . #'(cast int (cast uchar (nth i name)))))
-            (cond
-              ((== c 39) (coco_sb_put b "''"))
-              ;; a backslash is written doubled, and has to be written as two
-              ;; characters: the literal that would say so cannot be spelt
-              ((== c 92) (coco_sb_putc b (cast char 92)) (coco_sb_putc b (cast char 92)))
-              ((== c 10) (coco_sb_put b "\\n"))
-              ((== c 9)  (coco_sb_put b "\\t"))
-              ((== c 13) (coco_sb_put b "\\r"))
-              (#t (coco_sb_putc b (cast char c))))))
+        (let ((int esc . #'(bitand quoted 16)))
+          (for ((size_t i . 0)) (!= (nth i name) (cast char 0)) ((++ i))
+            (let ((int c . #'(cast int (cast uchar (nth i name)))))
+              (cond
+                ((== c 39)
+                 (if esc
+                     (block (coco_sb_putc b (cast char 92)) (coco_sb_putc b (cast char 39)))
+                   (coco_sb_put b "''")))
+                ;; a backslash is written doubled, and has to be written as two
+                ;; characters: the literal that would say so cannot be spelt
+                ((== c 92) (coco_sb_putc b (cast char 92)) (coco_sb_putc b (cast char 92)))
+                ((== c 10) (coco_sb_put b "\\n"))
+                ((== c 9)  (coco_sb_put b "\\t"))
+                ((== c 13) (coco_sb_put b "\\r"))
+                ((and esc (!= 0 (coco_escape_letter c)))
+                 (coco_sb_putc b (cast char 92))
+                 (coco_sb_putc b (cast char (coco_escape_letter c))))
+                (#t (coco_sb_putc b (cast char c)))))))
         (return (coco_sb_putc b (cast char (coco-ch "'")))))
 
   ;;; THE WRITE'S MODE IS ONE WORD (1.10.18): quoted (1), operators ignored
@@ -1687,7 +1723,7 @@
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 11))
+        (let ((int first . 1) (int kids . #'(bitand mode 27))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -1713,8 +1749,9 @@
               break)))
         (return (coco_sb_putc b (cast char (coco-ch "]")))))
 
-  ;;; `'$VAR'(N)' WRITTEN AS THE VARIABLE IT NAMES (2.2.4), under print/1's
-  ;;; numbervars (mode 8), as swipl's writer does it: an integer N of 0 or
+  ;;; `'$VAR'(N)' WRITTEN AS THE VARIABLE IT NAMES (2.2.4), under numbervars
+  ;;; (mode 8: print/1, and since 2.2.5 write/1, writeq/1 and write_term/2's
+  ;;; numbervars(true)), as swipl's writer does it: an integer N of 0 or
   ;;; more is the letter N mod 26, and past the first 26 the count N // 26
   ;;; after it (`A', `Z', `A1'); a negative one `S_' and its magnitude
   ;;; (`S_1'); an atom that reads as a variable (A-Z or `_', then letters,
@@ -1761,13 +1798,14 @@
                         (int mode) (int maxprec) (u32 depth)) (out int)
         (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
               (u32 n . #'(coco_arity m t))
-              (int quoted . #'(bitand mode 1))
+              ;; what an atom of it reads: quoted 1 and escapes 16
+              (int quoted . #'(bitand mode 17))
               ;; what this write's operands and arguments carry down:
-              ;; quoted 1, ignore_ops 2 and numbervars 8 (the operand's 4
-              ;; is each operand's own)
-              (int kids . #'(bitand mode 11)))
+              ;; quoted 1, ignore_ops 2, numbervars 8 and escapes 16 (the
+              ;; operand's 4 is each operand's own)
+              (int kids . #'(bitand mode 27)))
 
-          ;; print/1's numbervars (2.2.4): `'$VAR'(N)' as the variable it names
+          ;; numbervars (2.2.4): `'$VAR'(N)' as the variable it names
           (if (and (!= 0 (bitand mode 8)) (== n 1) (== 0 (strcmp name "$VAR"))
                    (coco_write_numbervar m b (coco_arg m t 0)))
               (return 1))
@@ -1953,6 +1991,13 @@
                             ((== ch (cast char 9))
                              (coco_sb_putc b (cast char 92))
                              (coco_sb_putc b (cast char 116)))
+                            ;; under swipl's character escapes (2.2.5) the
+                            ;; control characters with a letter, 13 `\r'
+                            ;; among them, as in an atom
+                            ((and (!= 0 (bitand mode 16))
+                                  (!= 0 (coco_escape_letter (cast int ch))))
+                             (coco_sb_putc b (cast char 92))
+                             (coco_sb_putc b (cast char (coco_escape_letter (cast int ch)))))
                             (#t (coco_sb_putc b ch)))))
                (coco_sb_putc b (cast char 34))
                (return 1)))
@@ -1976,9 +2021,9 @@
                ;; thrown away for every atom that was not an operand.
                (if (and (!= 0 (bitand mode 4)) (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
-                          (coco_write_atom b name (bitand mode 1))
+                          (coco_write_atom b name (bitand mode 17))
                           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
-               (return (coco_write_atom b name (bitand mode 1)))))
+               (return (coco_write_atom b name (bitand mode 17)))))
 
             ;; a compound, unless it is deep enough to be asked whether it is
             ;; a cycle -- or a cycle was found
@@ -2027,7 +2072,7 @@
   ;;; factors. The guard's state is the machine's between writes (WDEEP
   ;;; 1024, WCYC 0) and is put back here, so a write that meets no cycle
   ;;; pays a load and a branch for it. MODE is the writer's word without the
-  ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8.
+  ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8, character escapes 16.
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)
@@ -2056,13 +2101,21 @@
   (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
         (return (coco_write_top m b t 1 0)))
 
+  ;;; print/1 and `~p': quoted, numbervars and swipl's character escapes
+  ;;; (25; 9 in 2.2.4, `'don''t'')
   (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_top m b t 9 1)))
+        (return (coco_write_top m b t 25 1)))
 
+  (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
+                         (int mode) (int named)) (out int)
+        (return (coco_write_top m b t mode named)))
+
+  ;;; write/1 and writeln/1: numbervars (8, 2.2.5; through 2.2.4 none, and
+  ;;; `write('$VAR'(1))' was `$VAR(1)' where swipl writes `B')
   (func coco_print_term ((coco_machine * m) (FILE * f) (size_t t))
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_top m (aof b) t 0 1)
+          (coco_write_top m (aof b) t 8 1)
           (if (!= ($ b s) nil) (fputs ($ b s) f))
           (coco_sb_free (aof b))))
 

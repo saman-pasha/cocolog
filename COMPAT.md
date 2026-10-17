@@ -15,9 +15,10 @@ an existence error, an instantiation error, a refusal by name.
 |---|---|---|---|
 | `retract/1` | re-executable: `findall(X, retract(p(X)), L)` takes every clause, `[1,2,3]` | **deterministic**: removes the first match and leaves no choice point, `[1]` | `retractall/1` for all of them; or a recursion that retracts one and recurses until `retract/1` fails |
 | `number_codes/2` | `number_codes(N, "3x")` is a `syntax_error` | answers `3`, ignoring what follows the number | check the text first if it may carry trailing characters |
-| `write/1` and `writeq/1` of `'$VAR'(N)` | numbervars: `writeq('$VAR'(1))` is `B`, `write('$VAR'('Foo'))` is `Foo` | `'$VAR'(1)` and `$VAR(Foo)`: only `print/1` and format's `~p` take numbervars (since 2.2.4; through 2.2.3 `print/1` was `write/1`, unquoted), and `write_term/2` has no `numbervars` option | `print/1`, or format's `~p` |
-| a quote inside a quoted atom | `writeq('don''t')` is `'don\'t'` | `'don''t'`; both read back as the same atom | — |
-| a `portray/1` hook | `print/1` and `~p` call it for each subterm | not called: `print/1` is `writeq/1` with numbervars | write the term yourself |
+| `listing/1` and the REPL's answer | `f('don\'t')`, and `f(B)` for `f('$VAR'(1))`, which reads back as a variable | `f('don''t')` and `f('$VAR'(1))`, which read back as the term. writeq/1, print/1, write_canonical/1, `~q`, `~p` and write_term/2's `quoted(true)` write `'don\'t'` as swipl's do since 2.2.5, and write/1, writeq/1 and their kin `B` (through 2.2.4 `'don''t'`, and `'$VAR'(1)` but for print/1); term_to_atom/2 writes `'don''t'` in both | writeq/1 |
+| a control character with no letter of its own (1-6, 14-31, 127) in a quoted atom or string | `writeq('\x1\')` is `'\x1\'`, print/1's `'\u0001'` | the character itself between the quotes, which reads back here; this reader has no `\x..\` escape (cocolint E1). The four with a letter are written `\a` `\b` `\v` `\f` as swipl's since 2.2.5. term_to_atom/2 writes a newline or a tab as it is in swipl, `\n` and `\t` here | — |
+| an integer before an infix operator written quoted | `1 'x\'y' 2` | `1'x\'y'2`, and after a 0 it reads back as a character code (`0'x`) | an unquoted operator name |
+| a `portray/1` hook | `print/1` and `~p` call it for each subterm | not called: `print/1` is `writeq/1` | write the term yourself |
 
 ## Loud: an error where SWI enumerates or accepts
 

@@ -6546,3 +6546,103 @@ reconsult, script, repl and gc, and the card check (six cites put right,
 no range left wrong). `make test` has not been run on it. `tools/flow/zero.sh` against
 2.2.3, the binaries placed alike, both ways round, work less padding: nrev
 -68, queens -22, lookup -12 818 instructions (-0.027 %).
+
+## write/1 and writeq/1, swipl's (2.2.5)
+
+The owner's ask, after 2.2.4: writeq/1 and write/1 too. Through 2.2.4
+only print/1 and `~p` took numbervars, so `write('$VAR'(1))` wrote
+`$VAR(1)` and `writeq('$VAR'('Foo'))` `'$VAR'('Foo')`, where swipl writes
+`B` and `Foo`; and every quoted write doubled a quote inside an atom,
+`'don''t'`, where swipl's writeq/1 writes `'don\'t'` -- both read back as
+the same atom -- and wrote `\a` `\b` `\v` `\f` (and `\r` in a string) as
+the raw characters, where swipl writes the letters. A probe of swipl 9.0.4
+first, over write/1, writeq/1, print/1, write_canonical/1, `~w` `~q` `~p`,
+writeln/1, write_term/2 and term_to_atom/2, before anything was changed.
+
+NUMBERVARS, swipl's: write/1, writeln/1, writeq/1, `~w`, `~q` (so
+library(stream)'s write/2 and writeq/2, which are `~w` and `~q`), and
+write_term/2's `numbervars(true)`, which was read past (2.2.4's rules for
+what `'$VAR'(N)` becomes, unchanged); write_canonical/1 and write_term/2
+without the option write `'$VAR'(1)` as it is, as swipl's do.
+
+CHARACTER ESCAPES, a fifth bit of the writer's mode word (16), carried down
+with quoted, ignore_ops and numbervars (`mode & 27`, where it was 11) and
+read where an atom is written (`mode & 17`): a quote inside an atom is
+`\'`, and 7, 8, 11 and 12 are `\a` `\b` `\v` `\f` in an atom and a string,
+13 `\r` in a string as an atom always had it (`coco_escape_letter`). SET BY
+THE WRITES A PROGRAM ASKS FOR, through `coco_write_mode`: writeq/1 and `~q`
+25, print/1 and `~p` 25, write_canonical/1 17, write_term/2's
+`quoted(true)` 17. NOT by the engine's own: the store's text, a channel's,
+the journal's, a message, the REPL's answer and term_to_atom/2 keep the
+doubled quote -- swipl's term_to_atom/2 doubles it too (and writes a newline
+as it is, where this writes `\n`), and the store reads back unchanged, a
+store written by 2.2.4 and one by 2.2.5 holding the same text. The other
+control characters, which swipl writes `\x1\` (and print/1 `\u0001`), stay
+as they are: this reader has no `\x..\` escape to read one back (cocolint
+E1).
+
+cocolint's X3 matched the text `numbervars(` anywhere, so write_term/2's
+option -- now one -- was a HARD finding: X3 takes numbervars before any
+argument but `true` or `false` (`notword/1`), and still finds numbervars/3.
+W1's text said write_canonical/1 was writeq/1; it is now writeq/1 but for
+numbervars, and its cite moved to `coco_bi_write_canonical`, where its mode
+is chosen (test/lint.pl's ambiguous verdict breaks that cite now, a row and
+a definition in lib/solve.cicili; it broke `coco_write_canonical`'s in
+lib/syntax.cicili). W2 names numbervars(true) among the options read.
+
+`test/files/write.pl` writes 19 terms with `$VAR` through every writer
+(write/1, writeq/1, print/1, the three directives, write_term/2 four ways,
+format/3 into an atom, write/1 into a string, writeln/1), 21 atoms with
+quotes, backslashes and control characters, 8 terms through
+write_canonical/1, 4 through term_to_atom/2, 6 with operators whose names
+hold a quote (a prefix one built by `=../2`: this reader takes no quoted
+atom as a prefix operator), 11 strings, a cyclic term and a cyclic list: 79
+lines, byte for byte with swipl; 2.2.4 differs on 51. Left out of it, and
+in COMPAT.md: write_canonical/1 of an operator (W1), term_to_atom/2 of a
+newline, a control character with no letter, and an integer before a
+quoted infix operator, which swipl spaces, `1 'x\'y' 2`, and this writes
+`1'x\'y'2` -- after a 0 that reads back as a character code, `0'x`, older
+than this and not fixed here. listing/1 and the REPL still write
+`'don''t'` and `'$VAR'(1)` where swipl's write `'don\'t'` and `B`.
+
+Twenty arms take one rule out each in the generated C, and each goes red
+(lines of the 79 that differ from swipl; print.pl's 85 move in none, as
+the quote is not among its terms):
+
+| arm | red |
+|---|---|
+| write/1 and writeln/1 without numbervars | 18 |
+| writeq/1 without numbervars | 18 |
+| `~w` without numbervars | 17 |
+| `~q` without numbervars | 17 |
+| write_term/2's numbervars(true) read past | 15 |
+| the quote doubled | 23 |
+| no letter for a control character in an atom | 8 |
+| no letter in a string | 6 |
+| writeq/1 without the escapes | 28 |
+| print/1 and `~p` without them | 27 |
+| write_canonical/1 without them | 4 |
+| `~q` without them | 28 |
+| write_term/2's quoted(true) without them | 27 |
+| a compound not handing the bit down | 10 |
+| a list not handing it down | 4 |
+| an infix operator's name without it | 2 |
+| a prefix operator's name without it | 1 |
+| a functor without it | 2 |
+| an operand in brackets without it | 2 |
+| an atom without it | 20 |
+
+and the old X3 pattern finds write.pl's two `numbervars(true)`.
+
+Green on 2.2.5: syntax and term (the test binaries), files (38
+swipl-compared files), stream, cyclic, serialize, trace, backtrace,
+window, journal, engine, errors, directives, repl, library, script, argv,
+gc, string, units, reconsult, meter, process, text, os, hex, astar,
+normalise, reason, static, flowchart, translate, thread, cowork, http,
+httpd, websocket, crypto, bigint, tcp, clay, tls, flowdebug, lint and,
+with the server up, kbs, zigurat-lib, vacuum, tunnel, groups, ruler,
+zigurat-tls and httpd-tls (tensors SKIPs, no CUDA); lessons basics 08 and
+09, library 04, 12, 13, 14, 44 and 48; the card check (W1, W2, E1, T2 and
+H1 put right). `make test` has not been run on it. `tools/flow/zero.sh`
+against 2.2.4, the binaries placed alike, both ways round: nrev, queens
+and lookup the same to the instruction, padding and all.
