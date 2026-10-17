@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20424 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20430 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -7,6 +7,7 @@ The masculine noun "derecho" means "right".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
 The word "para" begins the purpose.
+The word "por" begins the cause.
 The word "más" begins the comparative.
 The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
@@ -1286,6 +1287,61 @@ The verb "se rehace" means "regroups".
 The masculine noun "protagonismo" means "prominence".
 "protagonismos" is the plural of "protagonismo".
 "descabalga" takes "de" before the phrase.
+The feminine noun "metilanfetamina" means "methylamphetamine".
+"metilanfetaminas" is the plural of "metilanfetamina".
+The feminine noun "neurotraumatología" means "neurotraumatology".
+The masculine noun "contraanálisis" means "counteranalysis".
+"contraanálisis" is the plural of "contraanálisis".
+The adjective "ko" means "ko".
+The masculine noun "ring" means "boxing ring".
+"rings" is the plural of "ring".
+The adverb "de lo contrario" means "or else".
+The masculine noun "dolo" means "criminal intent".
+The masculine noun "ilícito" means "wrongdoing".
+"ilícitos" is the plural of "ilícito".
+The adverb "a nivel federal" means "at federal level".
+The adverb "por ahora" means "for now".
+The masculine noun "hombre de 38 años" means "38-year-old".
+The verb "huele a" means "smacks of".
+"huelen a" is the plural of "huele a".
+The masculine noun "despido" means "dismissal".
+"despidos" is the plural of "despido".
+The modal "no hace más que" means "does nothing but".
+The masculine noun "antidopaje" means "anti-doping system".
+The masculine noun "médico jefe" means "head physician".
+"médicos jefe" is the plural of "médico jefe".
+"médico jefe" is a person.
+The verb "está a punto de" means "is about".
+"están a punto de" is the plural of "está a punto de".
+"estaba a punto de" is the imperfect of "está a punto de".
+"estaban a punto de" is the plural of "estaba a punto de".
+"estoy a punto de" is the first person of "está a punto de".
+"estás a punto de" is the second person of "está a punto de".
+The adjective "responsable" means "responsible".
+The adjective "al corriente" means "aware".
+The masculine noun "producto de desecho" means "by-product".
+"productos de desecho" is the plural of "producto de desecho".
+The masculine adjective "prohibido" means "forbidden".
+"prohibidos" is the plural of "prohibido".
+The feminine adjective "prohibida" means "forbidden".
+"prohibidas" is the plural of "prohibida".
+The feminine noun "ingesta" means "intake".
+"ingestas" is the plural of "ingesta".
+"gente" is a person.
+The verb "estrecha la mano" means "shakes hands with".
+"estrechan la mano" is the plural of "estrecha la mano".
+The feminine noun "estrategia de defensa" means "defence strategy".
+"estrategias de defensa" is the plural of "estrategia de defensa".
+The verb "hace planes" means "makes plans".
+"hacen planes" is the plural of "hace planes".
+The verb "va a la cárcel" means "goes to jail".
+"van a la cárcel" is the plural of "va a la cárcel".
+The verb "recibe" means "receives".
+The verb "recibe" means "is granted".
+The feminine noun "libertad provisional" means "provisional release".
+The verb "falta" means "lacks".
+"faltan" is the plural of "falta".
+The verb "sostiene" means "maintains".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1456,6 +1512,10 @@ The feminine noun "prórroga" means "overtime".
 "prórrogas" is the plural of "prórroga".
 The masculine noun "contrato" means "contract".
 "contratos" is the plural of "contrato".
+The feminine noun "positividad" means "positivity".
+"positividades" is the plural of "positividad".
+The masculine noun "microtraumatismo" means "microtrauma".
+"microtraumatismos" is the plural of "microtraumatismo".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -29158,6 +29218,58 @@ The verb "empata" means "ties".
 "empatadas" is the plural of "empatada".
 "empatar" is the infinitive of "empata".
 "empatando" is the gerund of "empata".
+The verb "salvaguarda" means "safeguards".
+"salvaguardan" is the plural of "salvaguarda".
+"salvaguardamos" is the first person of "salvaguardan".
+"salvaguardáis" is the second person of "salvaguardan".
+"salvaguardo" is the first person of "salvaguarda".
+"salvaguardas" is the second person of "salvaguarda".
+"salvaguardó" is the past of "salvaguarda".
+"salvaguardaron" is the past of "salvaguardan".
+"salvaguardamos" is the first person of "salvaguardaron".
+"salvaguardasteis" is the second person of "salvaguardaron".
+"salvaguardé" is the first person of "salvaguardó".
+"salvaguardaste" is the second person of "salvaguardó".
+"salvaguardaba" is the imperfect of "salvaguarda".
+"salvaguardaban" is the imperfect of "salvaguardan".
+"salvaguardábamos" is the first person of "salvaguardaban".
+"salvaguardabais" is the second person of "salvaguardaban".
+"salvaguardabas" is the second person of "salvaguardaba".
+"salvaguardará" is the future of "salvaguarda".
+"salvaguardarán" is the plural of "salvaguardará".
+"salvaguardaremos" is the first person of "salvaguardarán".
+"salvaguardaréis" is the second person of "salvaguardarán".
+"salvaguardaré" is the first person of "salvaguardará".
+"salvaguardarás" is the second person of "salvaguardará".
+"salvaguardaría" is the conditional of "salvaguarda".
+"salvaguardarían" is the plural of "salvaguardaría".
+"salvaguardaríamos" is the first person of "salvaguardarían".
+"salvaguardaríais" is the second person of "salvaguardarían".
+"salvaguardarías" is the second person of "salvaguardaría".
+"salvaguarde" is the subjunctive of "salvaguarda".
+"salvaguarden" is the plural of "salvaguarde".
+"salvaguardemos" is the first person of "salvaguarden".
+"salvaguardes" is the second person of "salvaguarde".
+"salvaguardara" is the past subjunctive of "salvaguarda".
+"salvaguardaran" is the plural of "salvaguardara".
+"salvaguardáramos" is the first person of "salvaguardaran".
+"salvaguardarais" is the second person of "salvaguardaran".
+"salvaguardaras" is the second person of "salvaguardara".
+"salvaguarda" is the imperative of "salvaguarda".
+"salvaguardes" is the negative imperative of "salvaguarda".
+"salvaguardad" is the imperative of "salvaguardan".
+"salvaguardéis" is the negative imperative of "salvaguardan".
+"salvaguardemos" is the hortative of "salvaguarda".
+"salvaguardado" is the participle of "salvaguarda".
+"salvaguardada" is the participle of "salvaguarda".
+"salvaguardada" is feminine.
+"salvaguardados" is the participle of "salvaguarda".
+"salvaguardados" is the plural of "salvaguardado".
+"salvaguardadas" is the participle of "salvaguarda".
+"salvaguardadas" is feminine.
+"salvaguardadas" is the plural of "salvaguardada".
+"salvaguardar" is the infinitive of "salvaguarda".
+"salvaguardando" is the gerund of "salvaguarda".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -137349,6 +137461,15 @@ The masculine adjective "supuesto" means "alleged".
 "supuestos" is the plural of "supuesto".
 The feminine adjective "supuesta" means "alleged".
 "supuestas" is the plural of "supuesta".
+The adjective "antidopaje" means "antidoping".
+The masculine adjective "encefálico" means "encephalic".
+"encefálicos" is the plural of "encefálico".
+The feminine adjective "encefálica" means "encephalic".
+"encefálicas" is the plural of "encefálica".
+The masculine adjective "casero" means "homespun".
+"caseros" is the plural of "casero".
+The feminine adjective "casera" means "homespun".
+"caseras" is the plural of "casera".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

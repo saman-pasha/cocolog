@@ -7,6 +7,7 @@ The masculine noun "derecho" means "right".
 The conjunction "porque" means "because".
 The preposition "por" means "by".
 The word "para" begins the purpose.
+The word "por" begins the cause.
 The word "más" begins the comparative.
 The pronoun "uno" means "one".
 The pronoun "uno" does not precede the verb.
@@ -2365,3 +2366,85 @@ The masculine noun "protagonismo" means "prominence".
 "protagonismos" is the plural of "protagonismo".
 # `descabalgar a los malagueños del liderato': ousts takes `de' before the phrase
 "descabalga" takes "de" before the phrase.
+# the Rosi report (VIT-9567..9604), Italian into Spanish and English: the Spanish for what the dictionary lacks
+# `uso di amfetamine e metilamfetamine', `il primario di neurotraumatologia'
+The feminine noun "metilanfetamina" means "methylamphetamine".
+"metilanfetaminas" is the plural of "metilanfetamina".
+The feminine noun "neurotraumatología" means "neurotraumatology".
+# `dopo la prima analisi (e non dopo le controanalisi'
+The masculine noun "contraanálisis" means "counteranalysis".
+"contraanálisis" is the plural of "contraanálisis".
+# `mettermi ko'
+The adjective "ko" means "ko".
+# `riportarlo sul ring'
+The masculine noun "ring" means "boxing ring".
+"rings" is the plural of "ring".
+# the Rosi report, second batch (Italian into Spanish and English)
+# `Altrimenti mi dedicherò ...': or else -- its own gloss, as `otherwise' is `por lo demás''s and Italian's `per il resto'
+The adverb "de lo contrario" means "or else".
+# the Rosi report, third batch (Italian into Spanish and English)
+# `non ci fu dolo', `ogni ipotesi di illecito'
+The masculine noun "dolo" means "criminal intent".
+The masculine noun "ilícito" means "wrongdoing".
+"ilícitos" is the plural of "ilícito".
+# `a livello federale'
+The adverb "a nivel federal" means "at federal level".
+# `ha per ora smentito'
+The adverb "por ahora" means "for now".
+# `un trentottenne': a man of 38
+The masculine noun "hombre de 38 años" means "38-year-old".
+# `una squalifica che sa tanto di benservito': smacks of a dismissal
+The verb "huele a" means "smacks of".
+"huelen a" is the plural of "huele a".
+The masculine noun "despido" means "dismissal".
+"despidos" is the plural of "despido".
+# `una riabilitazione che non fa che complicare il caso': does nothing but complicate (tr_modal_verb/0)
+The modal "no hace más que" means "does nothing but".
+# the Rosi report, fifth batch (Italian into Spanish and English)
+# `modificar el antidoping'
+The masculine noun "antidopaje" means "anti-doping system".
+# `el primario de neurotraumatología'
+The masculine noun "médico jefe" means "head physician".
+"médicos jefe" is the plural of "médico jefe".
+"médico jefe" is a person.
+# `stanno per ricorrere': is about to
+The verb "está a punto de" means "is about".
+"están a punto de" is the plural of "está a punto de".
+"estaba a punto de" is the imperfect of "está a punto de".
+"estaban a punto de" is the plural of "estaba a punto de".
+"estoy a punto de" is the first person of "está a punto de".
+"estás a punto de" is the second person of "está a punto de".
+# `sono l'unico responsabile', `non era al corrente che liberasse amfetamine come prodotto di scarto'
+The adjective "responsable" means "responsible".
+The adjective "al corriente" means "aware".
+The masculine noun "producto de desecho" means "by-product".
+"productos de desecho" is the plural of "producto de desecho".
+# `la sostanza proibita': the adjective, where the dictionary has the verb's participle only
+The masculine adjective "prohibido" means "forbidden".
+"prohibidos" is the plural of "prohibido".
+The feminine adjective "prohibida" means "forbidden".
+"prohibidas" is the plural of "prohibida".
+# the Rosi report, sixth batch: what the fresh store still wrote wrong or refused
+# `la mera assunzione': the intake
+The feminine noun "ingesta" means "intake".
+"ingestas" is the plural of "ingesta".
+"gente" is a person.
+The verb "estrecha la mano" means "shakes hands with".
+"estrechan la mano" is the plural of "estrecha la mano".
+The feminine noun "estrategia de defensa" means "defence strategy".
+"estrategias de defensa" is the plural of "estrategia de defensa".
+The verb "hace planes" means "makes plans".
+"hacen planes" is the plural of "hace planes".
+# `uno che ruba una mela va in galera', `si vede concedere la libertà provvisoria': goes to jail, is granted
+# (the dictionary's own `recibe' is said again first: it stays `receives')
+The verb "va a la cárcel" means "goes to jail".
+"van a la cárcel" is the plural of "va a la cárcel".
+The verb "recibe" means "receives".
+The verb "recibe" means "is granted".
+The feminine noun "libertad provisional" means "provisional release".
+# `l'unico che ancora mi manca': Spanish says `falta' where the dictionary has `carece' (lacks)
+The verb "falta" means "lacks".
+"faltan" is the plural of "falta".
+# `Colombo sosteneva che la terra è tonda', `sostiene una teoria che ...': maintains. The Italian `sostiene' says it first
+# now, and the Spanish word written for it is its own, not the dictionary's `mantiene'
+The verb "sostiene" means "maintains".
