@@ -3,6 +3,7 @@
 The conjunction "perché" means "because".
 The preposition "da" means "by".
 The word "per" begins the purpose.
+The word "per" begins the cause.
 The word "più" begins the comparative.
 The word "di" begins the infinitive.
 The pronoun "uno" means "one".
@@ -2616,6 +2617,26 @@ The adverb "tra gli altri" means "among others".
 "Firenze" is a city.
 "Palermo" is a city.
 "Venezia" is a city.
+"Perugia" is a city.
+"Bari" is a city.
+"Cagliari" is a city.
+"Catania" is a city.
+"Verona" is a city.
+"Padova" is a city.
+"Trieste" is a city.
+"Brescia" is a city.
+"Parma" is a city.
+"Modena" is a city.
+"Pisa" is a city.
+"Ancona" is a city.
+"Pescara" is a city.
+"Trento" is a city.
+"Bolzano" is a city.
+"Livorno" is a city.
+"Taranto" is a city.
+"Messina" is a city.
+"Lecce" is a city.
+"Salerno" is a city.
 # `..., il che, a suo avviso, non basta' (from Spanish's `lo que')
 "il che" is a remark.
 # `Es injusto que los abogados tengan que soportar ...', `piden que la cantidad sea
@@ -3149,3 +3170,192 @@ The feminine noun "leadership" means "leadership".
 "leadership" is the plural of "leadership".
 # `spodestare ... da': ousts takes `da' before the phrase
 "spodesta" takes "da" before the phrase.
+# the Rosi report (VIT-9567..9604), Italian into Spanish and English: words the Italian dictionary lacks
+# `per uso di amfetamine e metilamfetamine'
+The feminine noun "amfetamina" means "amphetamine".
+"amfetamine" is the plural of "amfetamina".
+The feminine noun "metilamfetamina" means "methylamphetamine".
+"metilamfetamine" is the plural of "metilamfetamina".
+# `il primario di neurotraumatologia di Perugia', `dai microtraumi encefalici'
+The feminine noun "neurotraumatologia" means "neurotraumatology".
+The masculine noun "microtrauma" means "microtrauma".
+"microtraumi" is the plural of "microtrauma".
+# `non mi sono dopato per conquistare un mondiale'
+The verb "dopa" means "dopes".
+"dopano" is the plural of "dopa".
+"dopato" is the participle of "dopa".
+"dopare" is the infinitive of "dopa".
+# `le tragiche conseguenze che talvolta funestano la boxe'
+The verb "funesta" means "afflicts".
+"funestano" is the plural of "funesta".
+"funestare" is the infinitive of "funesta".
+# `la squalifica che ... mi fan venire voglia': an apocope of `fanno'
+# (the dictionary's own plural said again first, so that it stays the one written)
+"fanno" is the plural of "fa".
+"fan" is the plural of "fa".
+# `mettermi ko'
+The adjective "ko" means "ko".
+# `riportarlo sul ring'
+The masculine noun "ring" means "boxing ring".
+"ring" is the plural of "ring".
+# `verdetto casareccio': the dictionary has `casereccio' alone
+The masculine adjective "casareccio" means "homespun".
+"casarecci" is the plural of "casareccio".
+The feminine adjective "casareccia" means "homespun".
+"casarecce" is the plural of "casareccia".
+# `davo fastidio ad un sistema'
+The verb "dà fastidio" means "bothers".
+"danno fastidio" is the plural of "dà fastidio".
+"dava fastidio" is the imperfect of "dà fastidio".
+"davo fastidio" is the first person of "dava fastidio".
+"davano fastidio" is the imperfect of "danno fastidio".
+"dato fastidio" is the participle of "dà fastidio".
+"dare fastidio" is the infinitive of "dà fastidio".
+# the Rosi report, second batch (Italian into Spanish and English): the sense the news needs
+# `Rosi, squalifica e beffa': a mockery, where the dictionary's first noun is a fool
+The feminine noun "beffa" means "mockery".
+"beffe" is the plural of "beffa".
+# `Rosi ora è furioso': furious, where the dictionary has raging
+The masculine adjective "furioso" means "furious".
+"furiosi" is the plural of "furioso".
+The feminine adjective "furiosa" means "furious".
+"furiose" is the plural of "furiosa".
+# `I suoi legali': the lawyers, where the dictionary has the adjective only
+# (and the dictionary's own word for a lawyer, first)
+The masculine noun "avvocato" means "lawyer".
+"avvocato" is a person.
+The noun "legale" means "lawyer".
+"legali" is the plural of "legale".
+"legale" is a person.
+# `che strano modo di salutare': a manner, where the dictionary has a mode
+The masculine noun "modo" means "manner".
+"modi" is the plural of "modo".
+# `la coscienza e la volontà di compiere un'azione illecita': a will, and to commit
+The feminine noun "volontà" means "will".
+# (the dictionary's own verb for commits, first)
+The verb "commette" means "commits".
+The verb "compie" means "commits".
+# `Altrimenti mi dedicherò al mondiale Wba': or else -- its own gloss, as `otherwise' is `per il resto''s and Spanish's
+# `por lo demás', whose words the Italian and the Spanish writers keep (en_conjunctive/1 keeps it at the head)
+The adverb "altrimenti" means "or else".
+# `invece che alla commissione federale': an adverb, so that the phrase after it keeps its own `alla'
+The adverb "invece che" means "instead of".
+# `la sostanza dopante assunta': a drug is taken
+The verb "assume" means "takes".
+# the Rosi report, third batch (Italian into Spanish and English)
+# `Vito Giampietro ... dove ha combattuto Parisi': a surname that ends like a plural
+"parisi" is a name.
+# `non ci fu dolo', `C'è stata una grande forzatura': there was
+"ci fu" is the past of "c'è".
+"ci furono" is the plural of "ci fu".
+"c'è stato" is the past of "c'è".
+"c'è stata" is the past of "c'è".
+"ci sono stati" is the plural of "c'è stato".
+"ci sono state" is the plural of "c'è stata".
+# `che non ci fu dolo', `ogni ipotesi di illecito': the nouns of the law
+The masculine noun "dolo" means "criminal intent".
+The masculine noun "illecito" means "wrongdoing".
+"illeciti" is the plural of "illecito".
+# `C'è stata una grande forzatura a livello federale'
+The feminine noun "forzatura" means "abuse".
+"forzature" is the plural of "forzatura".
+The adverb "a livello federale" means "at federal level".
+# `Rosi ha per ora smentito la voce'
+The adverb "per ora" means "for now".
+# `vuole riprendersi il titolo mondiale che la squalifica gli ha tolto'
+The verb "si riprende" means "regains".
+"si riprendono" is the plural of "si riprende".
+"riprendersi" is the infinitive of "si riprende".
+# `un trentottenne': a man of 38, one word of numbers and a hyphen the dictionary builder would not take
+The masculine noun "trentottenne" means "38-year-old".
+# `una squalifica che sa tanto di benservito': smacks of a dismissal
+The verb "sa di" means "smacks of".
+"sanno di" is the plural of "sa di".
+The verb "sa tanto di" means "smacks of".
+"sanno tanto di" is the plural of "sa tanto di".
+# (the dictionary's own word for a dismissal, first: the Spanish `destitución' and `despido' stay `licenziamento')
+The masculine noun "licenziamento" means "dismissal".
+The masculine noun "benservito" means "dismissal".
+# `Il processo al pugile': a trial, where the dictionary's first noun is a process
+The masculine noun "processo" means "trial".
+"processi" is the plural of "processo".
+# `una riabilitazione che non fa che complicare il caso': does nothing but complicate (tr_modal_verb/0)
+The modal "non fa che" means "does nothing but".
+# the Rosi report, fourth batch (Italian into Spanish and English)
+# `per uso di amfetamine': the dictionary has `uso' only as a verb's form
+The masculine noun "uso" means "use".
+"usi" is the plural of "uso".
+The preposition "al termine di" means "at the end of".
+# `Ci vuole ben altro per mettermi ko': much more is needed (the way `serve' is)
+The intransitive verb "ci vuole" means "is needed".
+The masculine noun "ben altro" means "much more".
+# `accompagnata dalla conclusione che non ci fu dolo': the conclusion that ..., a noun that takes its clause
+"conclusione" takes the clause.
+# the Rosi report, fifth batch (Italian into Spanish and English)
+# `Casotto, che ora giura ...': a surname that is a hut
+"casotto" is a name.
+# `sostiene una teoria che, se accettata, ...': maintains, where the dictionary has sustains
+The verb "sostiene" means "maintains".
+# `ha accolto questo principio, così come ha accettato che ...': accepts, where the dictionary has accommodates
+# (the dictionary's own verb for accepts, first)
+The verb "accetta" means "accepts".
+The verb "accoglie" means "accepts".
+# `modificare l'antidoping in Italia': a noun, where the dictionary has the adjective only
+The masculine noun "antidoping" means "anti-doping system".
+# `verdetti alla casereccia come questo', `il primario di neurotraumatologia'
+The adjective "alla casereccia" means "homespun".
+The masculine noun "primario" means "head physician".
+"primari" is the plural of "primario".
+"primario" is a person.
+# `i suoi legali stanno per ricorrere al Tar': is about to, and appeals
+The verb "sta per" means "is about".
+"stanno per" is the plural of "sta per".
+"stava per" is the imperfect of "sta per".
+"stavano per" is the plural of "stava per".
+"sto per" is the first person of "sta per".
+"stai per" is the second person of "sta per".
+"stavo per" is the first person of "stava per".
+The verb "ricorre" means "appeals".
+# `mi fan venire voglia di continuare': inspires me to continue
+The verb "fa venire voglia" means "inspires".
+"fanno venire voglia" is the plural of "fa venire voglia".
+"fan venire voglia" is the plural of "fa venire voglia".
+# `sono l'unico responsabile', `non era al corrente che liberasse amfetamine come prodotto di scarto'
+The adjective "responsabile" means "responsible".
+# (the dictionary's own word for aware, first)
+The adjective "consapevole" means "aware".
+The adjective "al corrente" means "aware".
+The masculine noun "prodotto di scarto" means "by-product".
+"prodotti di scarto" is the plural of "prodotto di scarto".
+The verb "libera" means "releases".
+# the Rosi report, sixth batch: what the fresh store still wrote wrong or refused
+# `Rosi vittima quindi': therefore, where the dictionary's first is `then'
+The adverb "quindi" means "therefore".
+# `la mera assunzione della sostanza proibita': the intake, not the acceptance
+The feminine noun "assunzione" means "intake".
+"assunzioni" is the plural of "assunzione".
+# `L'utilità dell'Egibren ... una delle colonne dell'impianto difensivo'
+The feminine noun "utilità" means "usefulness".
+The masculine noun "impianto difensivo" means "defence strategy".
+"impianti difensivi" is the plural of "impianto difensivo".
+# `la gente che mi stringe la mano ogni giorno, che mi fa coraggio': people, who shake hands with me and encourage me
+"gente" is a person.
+The verb "stringe la mano" means "shakes hands with".
+"stringono la mano" is the plural of "stringe la mano".
+# (the dictionary's own verb for encourages, first: `fomentar' has an infinitive in Italian)
+The verb "incoraggia" means "encourages".
+The verb "fa coraggio" means "encourages".
+"fanno coraggio" is the plural of "fa coraggio".
+# `la voglia di rivalsa di Rosi', `fa progetti sul suo ritorno'
+The feminine noun "voglia" means "desire".
+"voglie" is the plural of "voglia".
+The verb "fa progetti" means "makes plans".
+"fanno progetti" is the plural of "fa progetti".
+# `uno che ruba una mela va in galera, ... chi ruba miliardi si vede concedere la libertà provvisoria'
+The verb "va in galera" means "goes to jail".
+"vanno in galera" is the plural of "va in galera".
+The verb "si vede concedere" means "is granted".
+"si vedono concedere" is the plural of "si vede concedere".
+The feminine noun "libertà provvisoria" means "provisional release".
+# `alla riunione romana dove ha combattuto Parisi': fought
+The verb "combatte" means "fights".

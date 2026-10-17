@@ -1,11 +1,12 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16535 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16552 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
 The conjunction "perché" means "because".
 The preposition "da" means "by".
 The word "per" begins the purpose.
+The word "per" begins the cause.
 The word "più" begins the comparative.
 The word "di" begins the infinitive.
 The pronoun "uno" means "one".
@@ -1493,6 +1494,26 @@ The adverb "tra gli altri" means "among others".
 "Firenze" is a city.
 "Palermo" is a city.
 "Venezia" is a city.
+"Perugia" is a city.
+"Bari" is a city.
+"Cagliari" is a city.
+"Catania" is a city.
+"Verona" is a city.
+"Padova" is a city.
+"Trieste" is a city.
+"Brescia" is a city.
+"Parma" is a city.
+"Modena" is a city.
+"Pisa" is a city.
+"Ancona" is a city.
+"Pescara" is a city.
+"Trento" is a city.
+"Bolzano" is a city.
+"Livorno" is a city.
+"Taranto" is a city.
+"Messina" is a city.
+"Lecce" is a city.
+"Salerno" is a city.
 "il che" is a remark.
 "vuole" takes the subjunctive.
 "desidera" takes the subjunctive.
@@ -1861,6 +1882,136 @@ The masculine noun "compito" means "task".
 The feminine noun "leadership" means "leadership".
 "leadership" is the plural of "leadership".
 "spodesta" takes "da" before the phrase.
+The feminine noun "amfetamina" means "amphetamine".
+"amfetamine" is the plural of "amfetamina".
+The feminine noun "metilamfetamina" means "methylamphetamine".
+"metilamfetamine" is the plural of "metilamfetamina".
+The feminine noun "neurotraumatologia" means "neurotraumatology".
+The masculine noun "microtrauma" means "microtrauma".
+"microtraumi" is the plural of "microtrauma".
+The verb "dopa" means "dopes".
+"dopano" is the plural of "dopa".
+"dopato" is the participle of "dopa".
+"dopare" is the infinitive of "dopa".
+The verb "funesta" means "afflicts".
+"funestano" is the plural of "funesta".
+"funestare" is the infinitive of "funesta".
+"fanno" is the plural of "fa".
+"fan" is the plural of "fa".
+The adjective "ko" means "ko".
+The masculine noun "ring" means "boxing ring".
+"ring" is the plural of "ring".
+The masculine adjective "casareccio" means "homespun".
+"casarecci" is the plural of "casareccio".
+The feminine adjective "casareccia" means "homespun".
+"casarecce" is the plural of "casareccia".
+The verb "dà fastidio" means "bothers".
+"danno fastidio" is the plural of "dà fastidio".
+"dava fastidio" is the imperfect of "dà fastidio".
+"davo fastidio" is the first person of "dava fastidio".
+"davano fastidio" is the imperfect of "danno fastidio".
+"dato fastidio" is the participle of "dà fastidio".
+"dare fastidio" is the infinitive of "dà fastidio".
+The feminine noun "beffa" means "mockery".
+"beffe" is the plural of "beffa".
+The masculine adjective "furioso" means "furious".
+"furiosi" is the plural of "furioso".
+The feminine adjective "furiosa" means "furious".
+"furiose" is the plural of "furiosa".
+The masculine noun "avvocato" means "lawyer".
+"avvocato" is a person.
+The noun "legale" means "lawyer".
+"legali" is the plural of "legale".
+"legale" is a person.
+The masculine noun "modo" means "manner".
+"modi" is the plural of "modo".
+The feminine noun "volontà" means "will".
+The verb "commette" means "commits".
+The verb "compie" means "commits".
+The adverb "altrimenti" means "or else".
+The adverb "invece che" means "instead of".
+The verb "assume" means "takes".
+"parisi" is a name.
+"ci fu" is the past of "c'è".
+"ci furono" is the plural of "ci fu".
+"c'è stato" is the past of "c'è".
+"c'è stata" is the past of "c'è".
+"ci sono stati" is the plural of "c'è stato".
+"ci sono state" is the plural of "c'è stata".
+The masculine noun "dolo" means "criminal intent".
+The masculine noun "illecito" means "wrongdoing".
+"illeciti" is the plural of "illecito".
+The feminine noun "forzatura" means "abuse".
+"forzature" is the plural of "forzatura".
+The adverb "a livello federale" means "at federal level".
+The adverb "per ora" means "for now".
+The verb "si riprende" means "regains".
+"si riprendono" is the plural of "si riprende".
+"riprendersi" is the infinitive of "si riprende".
+The masculine noun "trentottenne" means "38-year-old".
+The verb "sa di" means "smacks of".
+"sanno di" is the plural of "sa di".
+The verb "sa tanto di" means "smacks of".
+"sanno tanto di" is the plural of "sa tanto di".
+The masculine noun "licenziamento" means "dismissal".
+The masculine noun "benservito" means "dismissal".
+The masculine noun "processo" means "trial".
+"processi" is the plural of "processo".
+The modal "non fa che" means "does nothing but".
+The masculine noun "uso" means "use".
+"usi" is the plural of "uso".
+The preposition "al termine di" means "at the end of".
+The intransitive verb "ci vuole" means "is needed".
+The masculine noun "ben altro" means "much more".
+"conclusione" takes the clause.
+"casotto" is a name.
+The verb "sostiene" means "maintains".
+The verb "accetta" means "accepts".
+The verb "accoglie" means "accepts".
+The masculine noun "antidoping" means "anti-doping system".
+The adjective "alla casereccia" means "homespun".
+The masculine noun "primario" means "head physician".
+"primari" is the plural of "primario".
+"primario" is a person.
+The verb "sta per" means "is about".
+"stanno per" is the plural of "sta per".
+"stava per" is the imperfect of "sta per".
+"stavano per" is the plural of "stava per".
+"sto per" is the first person of "sta per".
+"stai per" is the second person of "sta per".
+"stavo per" is the first person of "stava per".
+The verb "ricorre" means "appeals".
+The verb "fa venire voglia" means "inspires".
+"fanno venire voglia" is the plural of "fa venire voglia".
+"fan venire voglia" is the plural of "fa venire voglia".
+The adjective "responsabile" means "responsible".
+The adjective "consapevole" means "aware".
+The adjective "al corrente" means "aware".
+The masculine noun "prodotto di scarto" means "by-product".
+"prodotti di scarto" is the plural of "prodotto di scarto".
+The verb "libera" means "releases".
+The adverb "quindi" means "therefore".
+The feminine noun "assunzione" means "intake".
+"assunzioni" is the plural of "assunzione".
+The feminine noun "utilità" means "usefulness".
+The masculine noun "impianto difensivo" means "defence strategy".
+"impianti difensivi" is the plural of "impianto difensivo".
+"gente" is a person.
+The verb "stringe la mano" means "shakes hands with".
+"stringono la mano" is the plural of "stringe la mano".
+The verb "incoraggia" means "encourages".
+The verb "fa coraggio" means "encourages".
+"fanno coraggio" is the plural of "fa coraggio".
+The feminine noun "voglia" means "desire".
+"voglie" is the plural of "voglia".
+The verb "fa progetti" means "makes plans".
+"fanno progetti" is the plural of "fa progetti".
+The verb "va in galera" means "goes to jail".
+"vanno in galera" is the plural of "va in galera".
+The verb "si vede concedere" means "is granted".
+"si vedono concedere" is the plural of "si vede concedere".
+The feminine noun "libertà provvisoria" means "provisional release".
+The verb "combatte" means "fights".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2085,6 +2236,14 @@ The masculine noun "rimbalzo" means "rebound".
 "rimbalzi" is the plural of "rimbalzo".
 The masculine noun "dispendio" means "expenditure".
 "dispendi" is the plural of "dispendio".
+The feminine noun "testimonianza" means "testimony".
+"testimonianze" is the plural of "testimonianza".
+The feminine noun "positività" means "positivity".
+"positività" is the plural of "positività".
+The feminine noun "controanalisi" means "counteranalysis".
+"controanalisi" is the plural of "controanalisi".
+The feminine noun "rivalsa" means "revenge".
+"rivalse" is the plural of "rivalsa".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -17245,6 +17404,18 @@ The noun "doppiogiochista" means "hypocrite".
 The noun "onorevole" means "deputy".
 "onorevoli" is the plural of "onorevole".
 "onorevole" is a person.
+The feminine noun "squalifica" means "suspension".
+"squalifiche" is the plural of "squalifica".
+The masculine noun "match" means "match".
+"match" is the plural of "match".
+The masculine noun "boxe" means "boxing".
+"boxe" is the plural of "boxe".
+The feminine noun "prestazione" means "performance".
+"prestazioni" is the plural of "prestazione".
+The feminine noun "galera" means "jail".
+"galere" is the plural of "galera".
+The feminine noun "vicenda" means "affair".
+"vicende" is the plural of "vicenda".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -25389,6 +25560,58 @@ The verb "pareggia" means "ties".
 "pareggiate" is the plural of "pareggiata".
 "pareggiare" is the infinitive of "pareggia".
 "pareggiando" is the gerund of "pareggia".
+The verb "riconquista" means "regains".
+"riconquistano" is the plural of "riconquista".
+"riconquistiamo" is the first person of "riconquistano".
+"riconquisto" is the first person of "riconquista".
+"riconquisti" is the second person of "riconquista".
+"riconquistò" is the past of "riconquista".
+"riconquistarono" is the past of "riconquistano".
+"riconquistammo" is the first person of "riconquistarono".
+"riconquistaste" is the second person of "riconquistarono".
+"riconquistai" is the first person of "riconquistò".
+"riconquistasti" is the second person of "riconquistò".
+"riconquistava" is the imperfect of "riconquista".
+"riconquistavano" is the imperfect of "riconquistano".
+"riconquistavamo" is the first person of "riconquistavano".
+"riconquistavate" is the second person of "riconquistavano".
+"riconquistavo" is the first person of "riconquistava".
+"riconquistavi" is the second person of "riconquistava".
+"riconquisterà" is the future of "riconquista".
+"riconquisteranno" is the plural of "riconquisterà".
+"riconquisteremo" is the first person of "riconquisteranno".
+"riconquisterete" is the second person of "riconquisteranno".
+"riconquisterò" is the first person of "riconquisterà".
+"riconquisterai" is the second person of "riconquisterà".
+"riconquisterebbe" is the conditional of "riconquista".
+"riconquisterebbero" is the plural of "riconquisterebbe".
+"riconquisteremmo" is the first person of "riconquisterebbero".
+"riconquistereste" is the second person of "riconquisterebbero".
+"riconquisterei" is the first person of "riconquisterebbe".
+"riconquisteresti" is the second person of "riconquisterebbe".
+"riconquisti" is the subjunctive of "riconquista".
+"riconquistino" is the plural of "riconquisti".
+"riconquistiamo" is the first person of "riconquistino".
+"riconquistasse" is the past subjunctive of "riconquista".
+"riconquistassero" is the plural of "riconquistasse".
+"riconquistassimo" is the first person of "riconquistassero".
+"riconquistaste" is the second person of "riconquistassero".
+"riconquistassi" is the first person of "riconquistasse".
+"riconquistassi" is the second person of "riconquistasse".
+"riconquista" is the imperative of "riconquista".
+"riconquistare" is the negative imperative of "riconquista".
+"riconquistate" is the imperative of "riconquistano".
+"riconquistiamo" is the hortative of "riconquista".
+"riconquistato" is the participle of "riconquista".
+"riconquistata" is the participle of "riconquista".
+"riconquistata" is feminine.
+"riconquistati" is the participle of "riconquista".
+"riconquistati" is the plural of "riconquistato".
+"riconquistate" is the participle of "riconquista".
+"riconquistate" is feminine.
+"riconquistate" is the plural of "riconquistata".
+"riconquistare" is the infinitive of "riconquista".
+"riconquistando" is the gerund of "riconquista".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -102264,6 +102487,110 @@ The verb "intende" means "intends".
 "intese" is the plural of "intesa".
 "intendere" is the infinitive of "intende".
 "intendendo" is the gerund of "intende".
+The verb "squalifica" means "suspends".
+"squalificano" is the plural of "squalifica".
+"squalifichiamo" is the first person of "squalificano".
+"squalifico" is the first person of "squalifica".
+"squalifichi" is the second person of "squalifica".
+"squalificò" is the past of "squalifica".
+"squalificarono" is the past of "squalificano".
+"squalificammo" is the first person of "squalificarono".
+"squalificaste" is the second person of "squalificarono".
+"squalificai" is the first person of "squalificò".
+"squalificasti" is the second person of "squalificò".
+"squalificava" is the imperfect of "squalifica".
+"squalificavano" is the imperfect of "squalificano".
+"squalificavamo" is the first person of "squalificavano".
+"squalificavate" is the second person of "squalificavano".
+"squalificavo" is the first person of "squalificava".
+"squalificavi" is the second person of "squalificava".
+"squalificherà" is the future of "squalifica".
+"squalificheranno" is the plural of "squalificherà".
+"squalificheremo" is the first person of "squalificheranno".
+"squalificherete" is the second person of "squalificheranno".
+"squalificherò" is the first person of "squalificherà".
+"squalificherai" is the second person of "squalificherà".
+"squalificherebbe" is the conditional of "squalifica".
+"squalificherebbero" is the plural of "squalificherebbe".
+"squalificheremmo" is the first person of "squalificherebbero".
+"squalifichereste" is the second person of "squalificherebbero".
+"squalificherei" is the first person of "squalificherebbe".
+"squalificheresti" is the second person of "squalificherebbe".
+"squalifichi" is the subjunctive of "squalifica".
+"squalifichino" is the plural of "squalifichi".
+"squalifichiamo" is the first person of "squalifichino".
+"squalificasse" is the past subjunctive of "squalifica".
+"squalificassero" is the plural of "squalificasse".
+"squalificassimo" is the first person of "squalificassero".
+"squalificaste" is the second person of "squalificassero".
+"squalificassi" is the first person of "squalificasse".
+"squalificassi" is the second person of "squalificasse".
+"squalifica" is the imperative of "squalifica".
+"squalificare" is the negative imperative of "squalifica".
+"squalificate" is the imperative of "squalificano".
+"squalifichiamo" is the hortative of "squalifica".
+"squalificato" is the participle of "squalifica".
+"squalificata" is the participle of "squalifica".
+"squalificata" is feminine.
+"squalificati" is the participle of "squalifica".
+"squalificati" is the plural of "squalificato".
+"squalificate" is the participle of "squalifica".
+"squalificate" is feminine.
+"squalificate" is the plural of "squalificata".
+"squalificare" is the infinitive of "squalifica".
+"squalificando" is the gerund of "squalifica".
+The verb "somministra" means "administers".
+"somministrano" is the plural of "somministra".
+"somministriamo" is the first person of "somministrano".
+"somministro" is the first person of "somministra".
+"somministri" is the second person of "somministra".
+"somministrò" is the past of "somministra".
+"somministrarono" is the past of "somministrano".
+"somministrammo" is the first person of "somministrarono".
+"somministraste" is the second person of "somministrarono".
+"somministrai" is the first person of "somministrò".
+"somministrasti" is the second person of "somministrò".
+"somministrava" is the imperfect of "somministra".
+"somministravano" is the imperfect of "somministrano".
+"somministravamo" is the first person of "somministravano".
+"somministravate" is the second person of "somministravano".
+"somministravo" is the first person of "somministrava".
+"somministravi" is the second person of "somministrava".
+"somministrerà" is the future of "somministra".
+"somministreranno" is the plural of "somministrerà".
+"somministreremo" is the first person of "somministreranno".
+"somministrerete" is the second person of "somministreranno".
+"somministrerò" is the first person of "somministrerà".
+"somministrerai" is the second person of "somministrerà".
+"somministrerebbe" is the conditional of "somministra".
+"somministrerebbero" is the plural of "somministrerebbe".
+"somministreremmo" is the first person of "somministrerebbero".
+"somministrereste" is the second person of "somministrerebbero".
+"somministrerei" is the first person of "somministrerebbe".
+"somministreresti" is the second person of "somministrerebbe".
+"somministri" is the subjunctive of "somministra".
+"somministrino" is the plural of "somministri".
+"somministriamo" is the first person of "somministrino".
+"somministrasse" is the past subjunctive of "somministra".
+"somministrassero" is the plural of "somministrasse".
+"somministrassimo" is the first person of "somministrassero".
+"somministraste" is the second person of "somministrassero".
+"somministrassi" is the first person of "somministrasse".
+"somministrassi" is the second person of "somministrasse".
+"somministra" is the imperative of "somministra".
+"somministrare" is the negative imperative of "somministra".
+"somministrate" is the imperative of "somministrano".
+"somministriamo" is the hortative of "somministra".
+"somministrato" is the participle of "somministra".
+"somministrata" is the participle of "somministra".
+"somministrata" is feminine.
+"somministrati" is the participle of "somministra".
+"somministrati" is the plural of "somministrato".
+"somministrate" is the participle of "somministra".
+"somministrate" is feminine.
+"somministrate" is the plural of "somministrata".
+"somministrare" is the infinitive of "somministra".
+"somministrando" is the gerund of "somministra".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -108456,6 +108783,19 @@ The feminine adjective "presunta" means "alleged".
 "presuntissimi" is the superlative of "presunti".
 "presuntissima" is the superlative of "presunta".
 "presuntissime" is the superlative of "presunte".
+The adjective "antidoping" means "antidoping".
+The masculine adjective "encefalico" means "encephalic".
+"encefalici" is the plural of "encefalico".
+The feminine adjective "encefalica" means "encephalic".
+"encefaliche" is the plural of "encefalica".
+"encefalicissimo" is the superlative of "encefalico".
+"encefalicissimi" is the superlative of "encefalici".
+"encefalicissima" is the superlative of "encefalica".
+"encefalicissime" is the superlative of "encefaliche".
+The masculine adjective "casereccio" means "homespun".
+"caserecci" is the plural of "casereccio".
+The feminine adjective "casereccia" means "homespun".
+"caserecce" is the plural of "casereccia".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -124498,6 +124838,8 @@ The adjective "diffidente" means "distrustful".
 "diffidentissimi" is the superlative of "diffidenti".
 "diffidentissima" is the superlative of "diffidente".
 "diffidentissime" is the superlative of "diffidenti".
+The adjective "dopante" means "doping".
+"dopanti" is the plural of "dopante".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

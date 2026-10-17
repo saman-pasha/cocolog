@@ -1099,3 +1099,38 @@
 <e><p><l>alleged<s n="adj"/></l><r>presunto<s n="adj"/></r></p></e>
 # `un tremendo derroche físico': the effort spent
 <e><p><l>expenditure<s n="n"/></l><r>dispendio<s n="n"/><s n="m"/></r></p></e>
+# the Rosi report (VIT-9567..9604), Italian into Spanish and English: the English for what the Italian dictionary has and the bilingual one lacks
+# `Due anni al pugile positivo per amfetamine': a suspension (the dictionary's `sospensione' stays the one written)
+<e r="RL"><p><l>suspension<s n="n"/></l><r>squalifica<s n="n"/><s n="f"/></r></p></e>
+# `il pugile squalificato per due anni per doping': suspended
+<e r="RL"><p><l>suspend<s n="vblex"/></l><r>squalificare<s n="vblex"/></r></p></e>
+# `al controllo antidoping'
+<e><p><l>antidoping<s n="adj"/></l><r>antidoping<s n="adj"/></r></p></e>
+# `la sostanza dopante': a doping substance
+<e r="RL"><p><l>doping<s n="adj"/></l><r>dopante<s n="adj"/></r></p></e>
+# `il match mondiale Wbo': the dictionary has `match' as a pairing and a lucifer only
+<e r="RL"><p><l>match<s n="n"/></l><r>match<s n="n"/><s n="m"/></r></p></e>
+# `dalla testimonianza del primario'
+<e><p><l>testimony<s n="n"/></l><r>testimonianza<s n="n"/><s n="f"/></r></p></e>
+# `farmaci ... salvaguardano ... i pugili': the sport
+<e r="RL"><p><l>boxing<s n="n"/></l><r>boxe<s n="n"/><s n="f"/></r></p></e>
+# `annunciato la positività del pugile'
+<e><p><l>positivity<s n="n"/></l><r>positività<s n="n"/><s n="f"/></r></p></e>
+# `dai microtraumi encefalici'
+<e><p><l>encephalic<s n="adj"/></l><r>encefalico<s n="adj"/></r></p></e>
+# `il suo impianto difensivo ... migliorare la prestazione di Rosi'
+<e r="RL"><p><l>performance<s n="n"/></l><r>prestazione<s n="n"/><s n="f"/></r></p></e>
+# `il farmaco che gli somministravo'
+<e r="RL"><p><l>administer<s n="vblex"/></l><r>somministrare<s n="vblex"/></r></p></e>
+# `dopo la prima analisi (e non dopo le controanalisi'
+<e><p><l>counteranalysis<s n="n"/></l><r>controanalisi<s n="n"/><s n="f"/></r></p></e>
+# `la voglia di rivalsa di Rosi'
+<e><p><l>revenge<s n="n"/></l><r>rivalsa<s n="n"/><s n="f"/></r></p></e>
+# `riconquistare il titolo'
+<e><p><l>regain<s n="vblex"/></l><r>riconquistare<s n="vblex"/></r></p></e>
+# `uno che ruba una mela va in galera'
+<e r="RL"><p><l>jail<s n="n"/></l><r>galera<s n="n"/><s n="f"/></r></p></e>
+# `la vicenda del pugile squalificato'
+<e r="RL"><p><l>affair<s n="n"/></l><r>vicenda<s n="n"/><s n="f"/></r></p></e>
+# `verdetti alla casereccia': the dictionary's `home-made' has a hyphen, and the builder takes letters alone
+<e><p><l>homespun<s n="adj"/></l><r>casereccio<s n="adj"/></r></p></e>

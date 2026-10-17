@@ -634,3 +634,15 @@
 <e><p><l>overtime<s n="n"/></l><r>prórroga<s n="n"/><s n="f"/></r></p></e>
 # `rescindir su contrato': a contract, where the dictionary's `contrato' is an agreement first
 <e><p><l>contract<s n="n"/></l><r>contrato<s n="n"/><s n="m"/></r></p></e>
+# the Rosi report (VIT-9567..9604), Italian into Spanish and English: the Spanish for the English words the Italian entries brought in
+# `al controllo antidoping'
+<e><p><l>antidoping<s n="adj"/></l><r>antidopaje<s n="adj"/><s n="mf"/></r></p></e>
+# `annunciato la positività del pugile'
+<e><p><l>positivity<s n="n"/></l><r>positividad<s n="n"/><s n="f"/></r></p></e>
+# `dai microtraumi encefalici'
+<e><p><l>microtrauma<s n="n"/></l><r>microtraumatismo<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>encephalic<s n="adj"/></l><r>encefálico<s n="adj"/></r></p></e>
+# `verdetto casareccio'
+<e><p><l>homespun<s n="adj"/></l><r>casero<s n="adj"/></r></p></e>
+# the Rosi report, second batch: `farmaci ... salvaguardano ... i pugili'
+<e><p><l>safeguard<s n="vblex"/></l><r>salvaguardar<s n="vblex"/></r></p></e>
