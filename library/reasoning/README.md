@@ -39,7 +39,7 @@ commit, and `cocolog --version` stays unless the binary or another library
 changed too. CLAUDE.md, under The version, has the rules.
 
 **What a translation promises, and what it does not.** Each of these was
-checked against the code and a lesson (2026-10-17, reasoning 1.0.8):
+checked against the code and a lesson (2026-10-17, reasoning 1.0.8; the second and third bullets changed in 1.0.9):
 
 * **One text, and no alternatives.** A translation is one sentence out;
   backtracking offers no other. A word a lesson gives two meanings is
@@ -48,20 +48,40 @@ checked against the code and a lesson (2026-10-17, reasoning 1.0.8):
   meanings in: the Spanish lesson says `lo` means `him` before it says
   `it`, so `Maria lo come.` is `Maria eats him.`. Nothing marks such a
   choice in the result.
-* **A stated gender meets an ending rule by ORDER, not by which is more
-  particular.** The translator asks `feminine/1` before `masculine/1`
-  (`tr_gender/2`), and a rule holds of a word unless the lesson denies it
-  of that word (`tr_holds/1`). So `"leche" is feminine.` beside `Every
-  noun that does not end in "a" is masculine.` writes `la leche` -- while
-  the reasoner, reading the same lesson, holds both genders true
-  (`truth(masculine(leche), true)`); a masculine noun that the feminine
-  rule catches is stated as a denial, `"tema" is not feminine.`, which
-  writes `el tema`; and `"mapa" is masculine.` without the denial loses to
-  the rule and writes `La mapa`. The vocabularies' builder writes the
-  denial after every such noun of the dictionaries (`corpus/build.pl`); a
-  line of `corpus/extra/` is copied as it stands, and four Italian ones
-  state a masculine noun in `a` without it (`caposquadra`, `centro
-  destra`, `centro sinistra`, `microtrauma`), which are written feminine.
+* **Which phrase is asked for, and who does it.** `qué`, `quale` and the
+  like before a noun ask for a phrase that is the subject or the object,
+  and the word order says no more than the verb and the phrase after it:
+  `¿Qué libro lee el gato?` and `¿Qué gato lee el libro?` read alike. The
+  reader settles it so (`fo_which_object/3`). A verb that cannot agree
+  with the phrase asked for says it is the object (`¿Qué libros lee el
+  gato?`, `¿Qué medidas tomará el Gobierno?`). Where the number decides
+  nothing, the phrase after the verb is the doer when it is animate and
+  the one asked for is not: a name, a pronoun, a noun the lesson calls a
+  person (`"amigo" is a person.`, which the vocabularies state from
+  WordNet's `noun.person`) or animate (`"gato" is animate.`, which they
+  state of about a hundred animals); two doers, or none, are read as
+  before, the phrase asked for the subject (`¿Qué perro come el pan?`).
+  An institution is no doer unless the lesson says so (`¿Qué medida tomó
+  el Gobierno?` is `Which measure took the Government?`), and a name of
+  several words after the verb is not read this way (`¿Qué libro lee
+  Maria Lopez?` still swaps the two).
+* **A stated gender beats an ending rule, and a denial beats a rule.**
+  `tr_gender/2` asks `feminine/1` first, and a rule holds of a word unless
+  the lesson denies it of that word (`tr_holds/1`). A feminine the lesson
+  states (`"leche" is feminine.`) wins over `Every noun that does not end
+  in "a" is masculine.` and writes `la leche`; a masculine it states
+  (`"mapa" is masculine.`) wins over `Every noun that ends in "a" is
+  feminine.` and writes `el mapa` -- unless it states the feminine too
+  (`"mar"`: `el mar` and `la mar`), when the feminine is asked first, as
+  it always was. A denial (`"tema" is not feminine.`) wins over a rule
+  as well. The reasoner, reading the same lesson, has no order and holds
+  both genders true (`truth(masculine(leche), true)`). The vocabularies'
+  builder writes the denial after every masculine noun in `a` of the
+  dictionaries (`corpus/build.pl`); a line of `corpus/extra/` is copied as
+  it stands, and four Italian ones lacked it (`caposquadra`, `centro
+  destra`, `centro sinistra`, `microtrauma`: written feminine, until
+  reasoning 1.0.9) -- `test/translate.pl` scans both vocabularies for a
+  masculine noun in `a` without it.
 * **The mood does not cross.** The IR has no mood, as English marks none:
   a subjunctive is read as its verb, and written as a subjunctive only
   after a word that the lesson of the language being written says takes

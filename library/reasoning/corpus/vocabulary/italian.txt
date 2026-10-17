@@ -1310,6 +1310,7 @@ The feminine adjective "confusa" means "confused".
 The adverb "moltissimo" means "very much".
 The adverb "teneramente" means "tenderly".
 The masculine noun "caposquadra" means "foreman".
+"caposquadra" is not feminine.
 "capisquadra" is the plural of "caposquadra".
 The feminine noun "colonna" means "column".
 The masculine noun "corsivo" means "column".
@@ -1674,7 +1675,9 @@ The feminine noun "melina" means "stalling".
 "polo" is a name.
 "olivo" is a name.
 The masculine noun "centro destra" means "centre-right".
+"centro destra" is not feminine.
 The masculine noun "centro sinistra" means "centre-left".
+"centro sinistra" is not feminine.
 The feminine noun "distinzione" means "distinction".
 The masculine noun "distinguo" means "distinction".
 "distinguo" is the plural of "distinguo".
@@ -1888,6 +1891,7 @@ The feminine noun "metilamfetamina" means "methylamphetamine".
 "metilamfetamine" is the plural of "metilamfetamina".
 The feminine noun "neurotraumatologia" means "neurotraumatology".
 The masculine noun "microtrauma" means "microtrauma".
+"microtrauma" is not feminine.
 "microtraumi" is the plural of "microtrauma".
 The verb "dopa" means "dopes".
 "dopano" is the plural of "dopa".
@@ -2069,6 +2073,115 @@ The preposition "a parere di" means "in the opinion of".
 The adverb "già" follows the verb.
 The verb "porta" means "brings".
 The verb "porta" means "takes along".
+"agnellino" is animate.
+"agnello" is animate.
+"anatra" is animate.
+"anguilla" is animate.
+"antilope" is animate.
+"ape" is animate.
+"aquila" is animate.
+"asino" is animate.
+"balena" is animate.
+"bisonte" is animate.
+"bue" is animate.
+"bufalo" is animate.
+"cagnetto" is animate.
+"cagnolino" is animate.
+"calamaro" is animate.
+"cammello" is animate.
+"cane" is animate.
+"cangna" is animate.
+"canguro" is animate.
+"capitone" is animate.
+"capra" is animate.
+"castoro" is animate.
+"cavallo" is animate.
+"cervo" is animate.
+"chiocciola" is animate.
+"cicogna" is animate.
+"cigno" is animate.
+"coccinella" is animate.
+"coccodrillo" is animate.
+"colomba" is animate.
+"colombo" is animate.
+"columba" is animate.
+"coniglio" is animate.
+"corvo" is animate.
+"cucciola" is animate.
+"cucciolo" is animate.
+"delfino" is animate.
+"elefante" is animate.
+"falco" is animate.
+"falena" is animate.
+"farfalla" is animate.
+"foca" is animate.
+"formica" is animate.
+"gallina" is animate.
+"gallo" is animate.
+"gatta" is animate.
+"gattino" is animate.
+"gatto" is animate.
+"gazzella" is animate.
+"giraffa" is animate.
+"gorilla" is animate.
+"granchio" is animate.
+"gufo" is animate.
+"ippopotamo" is animate.
+"leone" is animate.
+"leopardo" is animate.
+"lepre" is animate.
+"lombrico" is animate.
+"lontra" is animate.
+"lucertola" is animate.
+"lupa" is animate.
+"lupo" is animate.
+"mosca" is animate.
+"mucca" is animate.
+"mulo" is animate.
+"oca" is animate.
+"orso" is animate.
+"ostrica" is animate.
+"pantera" is animate.
+"pappagallo" is animate.
+"passero" is animate.
+"pecora" is animate.
+"pesce" is animate.
+"picciona" is animate.
+"piccione" is animate.
+"pinguino" is animate.
+"pipistrello" is animate.
+"pollo" is animate.
+"polpo" is animate.
+"pony" is animate.
+"porco" is animate.
+"puledro" is animate.
+"ragno" is animate.
+"rana" is animate.
+"riccio" is animate.
+"rondine" is animate.
+"rospo" is animate.
+"scarabeo" is animate.
+"scimmia" is animate.
+"scimpanzé" is animate.
+"scoiattolo" is animate.
+"scrofa" is animate.
+"serpente" is animate.
+"squalo" is animate.
+"struzzo" is animate.
+"tacchino" is animate.
+"tartaruga" is animate.
+"tasso" is animate.
+"tigre" is animate.
+"tonno" is animate.
+"topo" is animate.
+"toro" is animate.
+"uccello" is animate.
+"usignolo" is animate.
+"vespa" is animate.
+"volatile" is animate.
+"volpe" is animate.
+"zanzara" is animate.
+"zebra" is animate.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

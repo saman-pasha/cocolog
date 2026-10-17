@@ -364,6 +364,7 @@ main :-
     section_69,
     section_70,
     section_71,
+    section_72,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -8433,6 +8434,79 @@ The masculine noun "catalano" means "catalan". "catalani" is the plural of "cata
 The verb "riconosce" means "acknowledges". "riconobbe" is the past of "riconosce".
 The pronoun "sé" means "itself". The pronoun "sé" does not precede the verb.
 The masculine noun "gioco" means "game". "giochi" is the plural of "gioco". The masculine adjective "olimpico" means "olympic". "olimpici" is the plural of "olimpico".').
+
+%% 72. The review's fixes: which and who does it, and a stated gender against the ending rule
+section_72 :-
+    format("~n72. which, and who does it: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it; and a gender the lesson states against the ending rule~n", []),
+    lesson_72(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('a Spanish lesson of a few nouns, under its own name', NS),
+    lesson_72(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and an Italian one', NI),
+    section_72_1, section_72_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_72(spanish, 'Spanish is a language.
+The masculine article "el" means "the". The feminine article "la" means "the". "los" is the plural of "el". "las" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every noun that ends in a vowel takes "s" in the plural. Every noun that ends in a consonant takes "es" in the plural.
+Every adjective follows the noun. Every adjective that ends in a vowel takes "s" in the plural.
+The noun "libro" means "book". The noun "perro" means "dog". The noun "gato" means "cat". "gato" is animate. The noun "pan" means "bread".
+The noun "amigo" means "friend". "amigo" is a person. The noun "casa" means "house".
+The noun "mapa" means "map". "mapa" is masculine. The noun "tema" means "theme". "tema" is masculine. "tema" is not feminine.
+The noun "leche" means "milk". "leche" is feminine. The noun "mar" means "sea". "mar" is masculine. "mar" is feminine.
+The adjective "grande" means "big". The verb "es" means "is". "son" is the plural of "es".
+The verb "come" means "eats". "comen" is the plural of "come". The verb "lee" means "reads". "leen" is the plural of "lee". The verb "ve" means "sees". "ven" is the plural of "ve".
+The word "qué" means "what". The word "qué" means "which". The mark "¿" begins the question.').
+lesson_72(italian, 'Italian is a language.
+The masculine article "il" means "the". The feminine article "la" means "the". "i" is the plural of "il". "le" is the plural of "la".
+Every noun that ends in "a" is feminine. Every noun that does not end in "a" is masculine.
+Every adjective follows the noun.
+The noun "libro" means "book". "libri" is the plural of "libro". The noun "cane" means "dog". "cani" is the plural of "cane". The noun "gatto" means "cat". "gatti" is the plural of "gatto". "gatto" is animate. The noun "pane" means "bread".
+The verb "mangia" means "eats". "mangiano" is the plural of "mangia". The verb "legge" means "reads". "leggono" is the plural of "legge".
+The word "quale" means "which". The word "quale" means "what". "quali" is the plural of "quale".').
+
+section_72_1 :-
+    reason_translate('¿Qué libros lee el perro?', spanish, english, S72A1),
+    must('A VERB THAT CANNOT AGREE WITH THE PHRASE ASKED FOR: `lee'' is a singular and `libros'' is not, so the books are what is read and the dog reads; with the books for its subject it was `which books read the dog''', S72A1,
+          'Which books does the dog read?'),
+    reason_translate('¿Qué libro leen los perros?', spanish, english, S72A2),
+    must('... the other way: a singular phrase asked for, a plural verb and a plural phrase after it', S72A2,
+          'Which book do the dogs read?'),
+    reason_translate('¿Qué libro lee el gato?', spanish, english, S72B1),
+    must('A DOER AFTER THE VERB WHEN THE PHRASE ASKED FOR IS NONE: the number decides nothing in `¿Qué libro lee el gato?'', and the lesson says a cat is animate -- the book is what is read', S72B1,
+          'Which book does the cat read?'),
+    reason_translate('¿Qué libro lee el amigo?', spanish, english, S72B2),
+    must('... a person the lesson calls one is a doer as well', S72B2,
+          'Which book does the friend read?'),
+    reason_translate('¿Qué gato ve el amigo?', spanish, english, S72C1),
+    must('TWO DOERS ARE READ AS THEY WERE, the phrase asked for the subject', S72C1,
+          'Which cat sees the friend?'),
+    reason_translate('¿Qué perro come el pan?', spanish, english, S72C2),
+    must('... and where neither is a doer, the dog the lesson never called animate', S72C2,
+          'Which dog eats the bread?'),
+    reason_translate('Quale libro legge il gatto?', italian, english, S72D1),
+    must('... in Italian, whose reader is the same', S72D1,
+          'Which book does the cat read?'),
+    reason_translate('Which book does the cat read?', english, spanish, S72D2),
+    must('... and back into Spanish, the object asked for and the doer after the verb', S72D2,
+          '¿Qué libro lee el gato?').
+
+section_72_2 :-
+    reason_translate('The map is big.', english, spanish, S72E1),
+    must('A MASCULINE THE LESSON STATES WINS OVER THE FEMININE A RULE DERIVES: `"mapa" is masculine.'' beside the rule that a noun in -a is feminine is `el mapa''', S72E1,
+          'El mapa es grande.'),
+    reason_translate('The theme is big.', english, spanish, S72E2),
+    must('a denial wins over the rule, as it did: `"tema" is not feminine.''', S72E2,
+          'El tema es grande.'),
+    reason_translate('The milk is big.', english, spanish, S72E3),
+    must('a feminine the lesson states wins over the masculine rule, as it did', S72E3,
+          'La leche es grande.'),
+    reason_translate('The house is big.', english, spanish, S72E4),
+    must('and a word the lesson states no gender of takes the rule''s', S72E4,
+          'La casa es grande.'),
+    reason_translate('The sea is big.', english, spanish, S72E5),
+    must('BOTH STATED, THE FEMININE IS ASKED FIRST: `el mar'' and `la mar'' are both the lesson''s, and the writer takes the one it always took', S72E5,
+          'La mar es grande.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
