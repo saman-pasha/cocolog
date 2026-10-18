@@ -3626,8 +3626,10 @@ read into an English-worded IR and written into any lesson's language),
   and English: 28 of 29 and 26 of 29 on a fresh store, 21 and 20 with the new
   store alone, 14 and 13 with the new code on the old store, 13 and 12 before;
   reasoning 1.0.10). The sample was taken on the cocolog 2.3.0 binary, as the
-  owner asked, and cocolog stays 2.3.0: master has moved to 2.4.0 since and was
-  not merged in. The article's sentences fall from 209.5 to 24.9 million
+  owner asked, and every figure below is that binary's. Master's 2.4.0 was
+  merged into the branch after the sample; the merge touched nothing under
+  library/reasoning/, and the next sample's controls are taken on 2.4.0. The
+  article's sentences fall from 209.5 to 24.9 million
   inferences in each language (a refusal is a long search).
   It needed these SHAPES, each with its arm red (test/translate.pl's
   `newspaper_lazio`: 77 checks, 59 arms, the guards among them; an arm is a
