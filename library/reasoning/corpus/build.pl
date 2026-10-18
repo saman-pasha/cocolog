@@ -468,7 +468,13 @@ cb_order(Entries, Ordered) :-
     findall(E, ( member(Class, [noun, verb, modal, existential, adjective, adverb, preposition, number, det, pronoun, conjunction]),
                  member(E, ByDirection), E = e(_, Class, _, _, _) ),
             Ordered0),
-    cb_dedupe(Ordered0, Ordered).
+    cb_dedupe(Ordered0, Ordered1),
+    findall(E, ( member(E, Ordered1), \+ cb_stray_adverb(E, Ordered1) ), Ordered).
+
+%% AN ADVERB THAT MEANS ITSELF, FOR A WORD THAT IS AN ADJECTIVE, is a musical term the English dictionary
+%% carries (`largo', `allegro') and no adverb of the lesson's language: `un periodo largo para Moratti'
+%% read `largo' as that adverb, which the writer gave back untranslated (`a period for Moratti largo')
+cb_stray_adverb(e(_, adverb, W, W, _), Es) :- memberchk(e(_, adjective, _, W, _), Es).
 
 %% one entry per class, English word and lesson word: the dictionary gives
 %% `another' and `otro' three times, once a direction and gender, and the

@@ -1619,7 +1619,7 @@ The article "el" takes the day.
 # its noun where the Italian had it before
 The adjective "directo" does not precede the noun.
 # `ha avuto a che fare con' -- `ha tenido que ver con'
-The verb "tiene que ver" means "has dealings".
+The verb "tiene que ver" means "has to do".
 "tienen que ver" is the plural of "tiene que ver".
 "tener que ver" is the infinitive of "tiene que ver".
 "tenido que ver" is the participle of "tiene que ver".
@@ -2799,3 +2799,102 @@ The feminine adjective "maliciosa" means "malicious".
 The word "para luego" begins the purpose.
 # `avendo mantenuto solo il progetto': the gerund of the auxiliary, for `habiendo mantenido'
 "habiendo" is the gerund of "ha".
+# `un ataque con el que sueñan los interistas': the fans of Inter, a person (the dictionary has `interista' as an adjective only)
+The noun "interista" means "Inter fan".
+"interista" is not feminine.
+"interistas" is the plural of "interista".
+"interista" is a person.
+# `un club que no gana el scudetto desde 1989': the Italian word, a title; the dictionary's own `título' is said again first, the word written for `title'
+The masculine noun "título" means "title".
+The masculine noun "scudetto" means "title".
+"scudettos" is the plural of "scudetto".
+# `una delantera sorprendente y eficaz': the forward line, an attack; `ataque' is said again first, the word written for `attack'
+The masculine noun "ataque" means "attack".
+The feminine noun "delantera" means "attack".
+# `En su lugar, Cúper se ha inventado ...': instead; `en cambio' is said again first, the word written for `instead'
+The adverb "en cambio" means "instead".
+The adverb "en su lugar" means "instead".
+# `el delantero de Sierra Leona': the country keeps its name, as `Italia' does
+"sierra leona" is a name.
+# `un vestuario convulsionado': the changing room, where the dictionary's only meaning is the wardrobe
+The masculine noun "vestuario" means "changing room".
+"vestuarios" is the plural of "vestuario".
+# `un delantero forjado en la cantera del Inter': the youth academy, where the dictionary has the quarry
+The feminine noun "cantera" means "youth academy".
+"canteras" is the plural of "cantera".
+# `la sensatez que ha traído Cúper': good sense (the dictionary has the noun with no English)
+The feminine noun "sensatez" means "good sense".
+"sensateces" is the plural of "sensatez".
+# `el equipo neriazzurro': black and blue, the colours of Inter -- the right spelling first, then AnCora's
+The masculine adjective "nerazzurro" means "black-and-blue".
+"nerazzurros" is the plural of "nerazzurro".
+The feminine adjective "nerazzurra" means "black-and-blue".
+"nerazzurras" is the plural of "nerazzurra".
+The masculine adjective "neriazzurro" means "black-and-blue".
+"neriazzurros" is the plural of "neriazzurro".
+The feminine adjective "neriazzurra" means "black-and-blue".
+"neriazzurras" is the plural of "neriazzurra".
+# `el primer puesto en el calcio': the football of Italy, where the dictionary has calcium
+The masculine noun "calcio" means "Italian football".
+# `triunfó en el Mallorca y en el Valencia': the club, a name (the dictionary has the valency)
+"valencia" is a name.
+# `Cúper no trata de convencer a nadie': tries to, where the dictionary's first meaning for `trata' is treats; the plain meaning is said again first, the one
+# everywhere else (`se trata de un perro'), or the infinitival one becomes the default
+The verb "trata" means "treats".
+The infinitival verb "trata" means "tries".
+# `lo que hace el equipo', `las medidas que tomó el Gobierno': a group does what a verb says -- the doers a relative clause
+# and a question phrase (fo_which_object/3, tr_rc_role/7) take for a subject, as they take a person or an animal. NOT `partido': it is a match, and `¿Qué partido ganó el equipo?' asks for it
+"gobierno" is a group.
+"equipo" is a group.
+"club" is a group.
+"empresa" is a group.
+"compañía" is a group.
+"sociedad" is a group.
+"federación" is a group.
+"comisión" is a group.
+"comité" is a group.
+"organización" is a group.
+"asociación" is a group.
+"parlamento" is a group.
+"congreso" is a group.
+"senado" is a group.
+"ministerio" is a group.
+"administración" is a group.
+"ayuntamiento" is a group.
+"selección" is a group.
+"plantilla" is a group.
+"consejo" is a group.
+"junta" is a group.
+"agencia" is a group.
+"banco" is a group.
+"sindicato" is a group.
+"universidad" is a group.
+"policía" is a group.
+"ejército" is a group.
+"fiscalía" is a group.
+"tribunal" is a group.
+"multitud" is a group.
+"público" is a group.
+"familia" is a group.
+"grupo" is a group.
+"entidad" is a group.
+"institución" is a group.
+"patronal" is a group.
+"oposición" is a group.
+"mayoría" is a group.
+"minoría" is a group.
+"afición" is a group.
+"directiva" is a group.
+"dirección" is a group.
+# `no trata de convencer a nadie': the word before a person goes before these as well (`no vio a nadie'); `quien' is the relative
+"nadie" is a person.
+"alguien" is a person.
+# `los fracasos con Lippi y Tardelli': failure is a fracaso, where the dictionary's first Spanish noun for it is `fallo' (a fault)
+The masculine noun "fracaso" means "failure".
+# `avalan la trayectoria del nuevo Inter': a trajectory, where the dictionary has the path
+The feminine noun "trayectoria" means "trajectory".
+"trayectorias" is the plural of "trayectoria".
+# `un largo periodo para su propietario y máximo accionista': a shareholder is a person, as the owner is -- the word `para' (a verb too) is the preposition before a person (`para su propietario y accionista' was the verb halting them)
+"accionista" is a person.
+# `Cuatro victorias y un empate': the draw is the tie (eng-ita.dix gives `pareggio' the English `tie' first), so the necktie is one word of its own in both languages
+The feminine noun "corbata" means "necktie".

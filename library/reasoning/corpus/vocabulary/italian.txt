@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16569 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16571 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -398,6 +398,7 @@ The verb "va avanti" means "goes ahead".
 "andò avanti" is the past of "va avanti".
 "andato avanti" is the participle of "va avanti".
 "andare avanti" is the infinitive of "va avanti".
+The verb "appare" means "appears".
 The verb "figura" means "appears".
 "figurano" is the plural of "figura".
 "figurò" is the past of "figura".
@@ -1197,7 +1198,7 @@ The masculine noun "superiore" means "boss".
 The masculine noun "passaggio" means "transfer".
 The adverb "per esempio" means "for example".
 The adverb "per dirne una" means "for example".
-The verb "ha a che fare" means "has dealings".
+The verb "ha a che fare" means "has to do".
 "hanno a che fare" is the plural of "ha a che fare".
 "avere a che fare" is the infinitive of "ha a che fare".
 "avuto a che fare" is the participle of "ha a che fare".
@@ -1949,6 +1950,7 @@ The feminine noun "forzatura" means "abuse".
 "forzature" is the plural of "forzatura".
 The adverb "a livello federale" means "at federal level".
 The adverb "per ora" means "for now".
+The verb "riconquista" means "regains".
 The verb "si riprende" means "regains".
 "si riprendono" is the plural of "si riprende".
 "riprendersi" is the infinitive of "si riprende".
@@ -2332,6 +2334,75 @@ The feminine adjective "maliziosa" means "malicious".
 The masculine noun "lato" means "side".
 "lati" is the plural of "lato".
 The word "per poi" begins the purpose.
+The masculine noun "spogliatoio" means "changing room".
+"spogliatoi" is the plural of "spogliatoio".
+The adverb "tatticamente" means "tactically".
+The noun "interista" means "Inter fan".
+"interista" is not feminine.
+"interisti" is the plural of "interista".
+"interista" is a person.
+The adverb "invece" means "instead".
+The adverb "al suo posto" means "instead".
+The masculine noun "vivaio" means "youth academy".
+"vivai" is the plural of "vivaio".
+The feminine noun "sensatezza" means "good sense".
+"sensatezze" is the plural of "sensatezza".
+The masculine adjective "nerazzurro" means "black-and-blue".
+"nerazzurri" is the plural of "nerazzurro".
+The feminine adjective "nerazzurra" means "black-and-blue".
+"nerazzurre" is the plural of "nerazzurra".
+The masculine noun "calcio" means "football".
+The masculine noun "calcio" means "Italian football".
+"governo" is a group.
+"squadra" is a group.
+"club" is a group.
+"società" is a group.
+"impresa" is a group.
+"azienda" is a group.
+"compagnia" is a group.
+"federazione" is a group.
+"commissione" is a group.
+"comitato" is a group.
+"organizzazione" is a group.
+"associazione" is a group.
+"parlamento" is a group.
+"congresso" is a group.
+"senato" is a group.
+"ministero" is a group.
+"amministrazione" is a group.
+"comune" is a group.
+"nazionale" is a group.
+"rosa" is a group.
+"consiglio" is a group.
+"giunta" is a group.
+"agenzia" is a group.
+"banca" is a group.
+"sindacato" is a group.
+"università" is a group.
+"polizia" is a group.
+"esercito" is a group.
+"procura" is a group.
+"tribunale" is a group.
+"giuria" is a group.
+"folla" is a group.
+"pubblico" is a group.
+"famiglia" is a group.
+"gruppo" is a group.
+"ente" is a group.
+"istituzione" is a group.
+"maggioranza" is a group.
+"minoranza" is a group.
+"tifoseria" is a group.
+"dirigenza" is a group.
+"direzione" is a group.
+"opposizione" is a group.
+"nessuno" is a person.
+"qualcuno" is a person.
+The masculine noun "fallimento" means "failure".
+The feminine noun "traiettoria" means "trajectory".
+"traiettorie" is the plural of "traiettoria".
+The masculine noun "acquisto" means "signing".
+The feminine noun "cravatta" means "necktie".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2568,6 +2639,8 @@ The masculine noun "filone" means "goldmine".
 "filoni" is the plural of "filone".
 The masculine noun "sguardo" means "gaze".
 "sguardi" is the plural of "sguardo".
+The masculine noun "pareggio" means "tie".
+"pareggi" is the plural of "pareggio".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -14191,8 +14264,6 @@ The feminine noun "marea" means "tide".
 "maree" is the plural of "marea".
 The feminine noun "cravatta" means "tie".
 "cravatte" is the plural of "cravatta".
-The masculine noun "pareggio" means "tie".
-"pareggi" is the plural of "pareggio".
 The feminine noun "tigre" means "tiger".
 "tigri" is the plural of "tigre".
 "tigre" is a person.
@@ -26207,6 +26278,162 @@ The verb "migliora" means "improves".
 "migliorate" is the plural of "migliorata".
 "migliorare" is the infinitive of "migliora".
 "migliorando" is the gerund of "migliora".
+The verb "sconvolge" means "convulses".
+"sconvolgono" is the plural of "sconvolge".
+"sconvolgiamo" is the first person of "sconvolgono".
+"sconvolgo" is the first person of "sconvolge".
+"sconvolgi" is the second person of "sconvolge".
+"sconvolse" is the past of "sconvolge".
+"sconvolsero" is the past of "sconvolgono".
+"sconvolgemmo" is the first person of "sconvolsero".
+"sconvolgeste" is the second person of "sconvolsero".
+"sconvolsi" is the first person of "sconvolse".
+"sconvolgesti" is the second person of "sconvolse".
+"sconvolgeva" is the imperfect of "sconvolge".
+"sconvolgevano" is the imperfect of "sconvolgono".
+"sconvolgevamo" is the first person of "sconvolgevano".
+"sconvolgevate" is the second person of "sconvolgevano".
+"sconvolgevo" is the first person of "sconvolgeva".
+"sconvolgevi" is the second person of "sconvolgeva".
+"sconvolgerà" is the future of "sconvolge".
+"sconvolgeranno" is the plural of "sconvolgerà".
+"sconvolgeremo" is the first person of "sconvolgeranno".
+"sconvolgerete" is the second person of "sconvolgeranno".
+"sconvolgerò" is the first person of "sconvolgerà".
+"sconvolgerai" is the second person of "sconvolgerà".
+"sconvolgerebbe" is the conditional of "sconvolge".
+"sconvolgerebbero" is the plural of "sconvolgerebbe".
+"sconvolgeremmo" is the first person of "sconvolgerebbero".
+"sconvolgereste" is the second person of "sconvolgerebbero".
+"sconvolgerei" is the first person of "sconvolgerebbe".
+"sconvolgeresti" is the second person of "sconvolgerebbe".
+"sconvolga" is the subjunctive of "sconvolge".
+"sconvolgano" is the plural of "sconvolga".
+"sconvolgiamo" is the first person of "sconvolgano".
+"sconvolgesse" is the past subjunctive of "sconvolge".
+"sconvolgessero" is the plural of "sconvolgesse".
+"sconvolgessimo" is the first person of "sconvolgessero".
+"sconvolgeste" is the second person of "sconvolgessero".
+"sconvolgessi" is the first person of "sconvolgesse".
+"sconvolgessi" is the second person of "sconvolgesse".
+"sconvolgi" is the imperative of "sconvolge".
+"sconvolgere" is the negative imperative of "sconvolge".
+"sconvolgete" is the imperative of "sconvolgono".
+"sconvolgiamo" is the hortative of "sconvolge".
+"sconvolto" is the participle of "sconvolge".
+"sconvolta" is the participle of "sconvolge".
+"sconvolta" is feminine.
+"sconvolti" is the participle of "sconvolge".
+"sconvolti" is the plural of "sconvolto".
+"sconvolte" is the participle of "sconvolge".
+"sconvolte" is feminine.
+"sconvolte" is the plural of "sconvolta".
+"sconvolgere" is the infinitive of "sconvolge".
+"sconvolgendo" is the gerund of "sconvolge".
+The verb "avalla" means "endorses".
+"avallano" is the plural of "avalla".
+"avalliamo" is the first person of "avallano".
+"avallo" is the first person of "avalla".
+"avalli" is the second person of "avalla".
+"avallò" is the past of "avalla".
+"avallarono" is the past of "avallano".
+"avallammo" is the first person of "avallarono".
+"avallaste" is the second person of "avallarono".
+"avallai" is the first person of "avallò".
+"avallasti" is the second person of "avallò".
+"avallava" is the imperfect of "avalla".
+"avallavano" is the imperfect of "avallano".
+"avallavamo" is the first person of "avallavano".
+"avallavate" is the second person of "avallavano".
+"avallavo" is the first person of "avallava".
+"avallavi" is the second person of "avallava".
+"avallerà" is the future of "avalla".
+"avalleranno" is the plural of "avallerà".
+"avalleremo" is the first person of "avalleranno".
+"avallerete" is the second person of "avalleranno".
+"avallerò" is the first person of "avallerà".
+"avallerai" is the second person of "avallerà".
+"avallerebbe" is the conditional of "avalla".
+"avallerebbero" is the plural of "avallerebbe".
+"avalleremmo" is the first person of "avallerebbero".
+"avallereste" is the second person of "avallerebbero".
+"avallerei" is the first person of "avallerebbe".
+"avalleresti" is the second person of "avallerebbe".
+"avalli" is the subjunctive of "avalla".
+"avallino" is the plural of "avalli".
+"avalliamo" is the first person of "avallino".
+"avallasse" is the past subjunctive of "avalla".
+"avallassero" is the plural of "avallasse".
+"avallassimo" is the first person of "avallassero".
+"avallaste" is the second person of "avallassero".
+"avallassi" is the first person of "avallasse".
+"avallassi" is the second person of "avallasse".
+"avalla" is the imperative of "avalla".
+"avallare" is the negative imperative of "avalla".
+"avallate" is the imperative of "avallano".
+"avalliamo" is the hortative of "avalla".
+"avallato" is the participle of "avalla".
+"avallata" is the participle of "avalla".
+"avallata" is feminine.
+"avallati" is the participle of "avalla".
+"avallati" is the plural of "avallato".
+"avallate" is the participle of "avalla".
+"avallate" is feminine.
+"avallate" is the plural of "avallata".
+"avallare" is the infinitive of "avalla".
+"avallando" is the gerund of "avalla".
+The verb "forgia" means "forges".
+"forgiano" is the plural of "forgia".
+"forgiamo" is the first person of "forgiano".
+"forgio" is the first person of "forgia".
+"forgi" is the second person of "forgia".
+"forgiò" is the past of "forgia".
+"forgiarono" is the past of "forgiano".
+"forgiammo" is the first person of "forgiarono".
+"forgiaste" is the second person of "forgiarono".
+"forgiai" is the first person of "forgiò".
+"forgiasti" is the second person of "forgiò".
+"forgiava" is the imperfect of "forgia".
+"forgiavano" is the imperfect of "forgiano".
+"forgiavamo" is the first person of "forgiavano".
+"forgiavate" is the second person of "forgiavano".
+"forgiavo" is the first person of "forgiava".
+"forgiavi" is the second person of "forgiava".
+"forgerà" is the future of "forgia".
+"forgeranno" is the plural of "forgerà".
+"forgeremo" is the first person of "forgeranno".
+"forgerete" is the second person of "forgeranno".
+"forgerò" is the first person of "forgerà".
+"forgerai" is the second person of "forgerà".
+"forgerebbe" is the conditional of "forgia".
+"forgerebbero" is the plural of "forgerebbe".
+"forgeremmo" is the first person of "forgerebbero".
+"forgereste" is the second person of "forgerebbero".
+"forgerei" is the first person of "forgerebbe".
+"forgeresti" is the second person of "forgerebbe".
+"forgi" is the subjunctive of "forgia".
+"forgino" is the plural of "forgi".
+"forgiamo" is the first person of "forgino".
+"forgiasse" is the past subjunctive of "forgia".
+"forgiassero" is the plural of "forgiasse".
+"forgiassimo" is the first person of "forgiassero".
+"forgiaste" is the second person of "forgiassero".
+"forgiassi" is the first person of "forgiasse".
+"forgiassi" is the second person of "forgiasse".
+"forgia" is the imperative of "forgia".
+"forgiare" is the negative imperative of "forgia".
+"forgiate" is the imperative of "forgiano".
+"forgiamo" is the hortative of "forgia".
+"forgiato" is the participle of "forgia".
+"forgiata" is the participle of "forgia".
+"forgiata" is feminine.
+"forgiati" is the participle of "forgia".
+"forgiati" is the plural of "forgiato".
+"forgiate" is the participle of "forgia".
+"forgiate" is feminine.
+"forgiate" is the plural of "forgiata".
+"forgiare" is the infinitive of "forgia".
+"forgiando" is the gerund of "forgia".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -108308,7 +108535,6 @@ The verb "autorizza" means "empowers".
 The verb "autorizza" means "enables".
 The verb "cifra" means "enciphers".
 The verb "trova" means "encounters".
-The verb "firma" means "endorses".
 The verb "amplia" means "enlarges".
 The verb "assicura" means "ensures".
 The verb "autorizza" means "entitles".
@@ -109557,6 +109783,20 @@ The feminine adjective "antiquata" means "dated".
 "antiquatissimi" is the superlative of "antiquati".
 "antiquatissima" is the superlative of "antiquata".
 "antiquatissime" is the superlative of "antiquate".
+The masculine adjective "indisciplinato" means "unruly".
+"indisciplinati" is the plural of "indisciplinato".
+The feminine adjective "indisciplinata" means "unruly".
+"indisciplinate" is the plural of "indisciplinata".
+"indisciplinatissimo" is the superlative of "indisciplinato".
+"indisciplinatissimi" is the superlative of "indisciplinati".
+"indisciplinatissima" is the superlative of "indisciplinata".
+"indisciplinatissime" is the superlative of "indisciplinate".
+The adjective "efficace" means "effective".
+"efficaci" is the plural of "efficace".
+"efficacissimo" is the superlative of "efficace".
+"efficacissimi" is the superlative of "efficaci".
+"efficacissima" is the superlative of "efficace".
+"efficacissime" is the superlative of "efficaci".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -125660,12 +125900,6 @@ The feminine adjective "diplomata" means "diplomatic".
 "diplomatissima" is the superlative of "diplomata".
 "diplomatissime" is the superlative of "diplomate".
 The adjective "cresta" means "dorsal".
-The adjective "efficace" means "effective".
-"efficaci" is the plural of "efficace".
-"efficacissimo" is the superlative of "efficace".
-"efficacissimi" is the superlative of "efficaci".
-"efficacissima" is the superlative of "efficace".
-"efficacissime" is the superlative of "efficaci".
 The masculine adjective "deserto" means "empty".
 "deserti" is the plural of "deserto".
 The feminine adjective "deserta" means "empty".
@@ -126731,7 +126965,6 @@ The adverb "ieri" means "yesterday".
 The adverb "anormalmente" means "abnormally".
 The adverb "ugualmente" means "alike".
 The adverb "allegretto" means "allegretto".
-The adverb "allegro" means "allegro".
 The adverb "furiosamente" means "angrily".
 The adverb "fantasticamente" means "beautifully".
 The adverb "largamente" means "extensively".

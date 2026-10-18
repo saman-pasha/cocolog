@@ -3843,6 +3843,331 @@ read into an English-worded IR and written into any lesson's language),
   `intentos`; English refuses 23 and 24, the third person nobody names, on
   purpose, and writes `each federation has his regulations` in 25. The next
   sample's controls take this report in.
+  The Inter feature (AnCora CESS-CAST-P-20011002-160, 14 sentences, Spanish into
+  Italian and English: 14 of 14 and 13 of 14 on a fresh store, 10 and 8 with the
+  new store alone, 5 and 6 with the new code on the old store, 3 and 4 before;
+  reasoning 1.0.11). The sample was taken on the cocolog 2.4.0 binary, master's
+  (the Lazio report is in master with it), and cocolog stays 2.4.0. The
+  article's sentences fall from 587.7 to 46.0 million inferences into Italian
+  and from 587.3 to 45.3 into English (a refusal is a long search: the first
+  sentence alone was 527 million inferences and refused); its second sentence is
+  20 million of the 46.
+  It needed these SHAPES, each with its arm red (test/translate.pl's
+  `newspaper_inter`: 64 checks, 67 arms, the guards among them, and one rule,
+  `nothing-of-shape`, with no arm that goes red, below; an arm is a library
+  directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_inter, checks_done"`, three seconds a run, and every arm is run in
+  under a minute, three at a time): the doer after a relative clause's verb (`el
+  pan que come el perro` is the bread the dog eats, and read with the relative
+  word for the subject it was `the bread that eats the dog`: Spanish marks an
+  animate object with `a`, so a definite phrase right after the verb that names
+  a doer -- a name, a team's name, a noun the lesson calls a person, an animal
+  or a group -- and no `a` in the clause is the clause's subject and the
+  relative word its object, tr_rc_role/7's clause for tr_rel_doer/2; `"equipo"
+  is a group.` is new, 42 Spanish and 43 Italian nouns of the kind, the next
+  step the review's stated limit of reasoning 1.0.9 named, and `partido` is no
+  group: it is a match; the guards, one arm each: an `a` in the clause, an
+  indefinite phrase (`un jugador que busca un entrenador`), a name where the
+  phrase it hangs on is a doer itself (`el técnico que dirige el Inter`), a
+  copula for any relative word but `lo que` (`la ciudad que es la capital`), an
+  infinitive before the phrase (`Craxi che minaccia di regolare i conti con i
+  magistrati`: `conti` are also counts, persons, and the sentence was refused),
+  the phrase of a pronoun before it (`cuenta con 19 emisoras de toda Catalunya`
+  made Catalunya the doer), and for a lesson with no word before a person,
+  Italian's, the rule only where the phrase it hangs on is no doer: `il pane che
+  mangia il cane` is the bread the dog eats, `una madre che ha perso la figlia`
+  still lost her daughter; with the copula, `lo que hoy es el equipo` is what
+  the team is today; the question words take a group for a doer too, `¿Qué
+  medida tomó el Gobierno?`, fo_animate_phrase/1); an adverb before the verb of
+  an object relative is one of its complements (`el pan que siempre come el
+  perro`, tr_relative_clause/4); a verb of saying with nothing after it has its
+  object in the relative word (`con lo que dice`, tr_rc_role/7 and
+  tr_object_verb/1, English writes `they`; `hace` is not one of them: `lo que
+  hace es "desacreditar"` is what the insistence does, and with a null subject
+  English refused Conyers' sentence of the controls); a connector of three words
+  with no comma before it and a verb straight after it is a preposition and its
+  relative (`no convence a nadie con lo que dice`, tr_unjoin_relative/3 in
+  tr_joined_words/3, tr_comma_connector/1; the comma keeps the consequence,
+  `Pedro duerme, con lo que dice`, and so does a phrase and its verb, `...
+  estuvieron en Gandía con lo que esa elección resulta más que cuestionable`),
+  and `de lo que` after a word of quantity is not the `than what` of a
+  comparison (`nada de lo que`, tr_quantity_word/1); `pero sí` before a
+  preposition is a contrast and the stress is dropped (tr_drop_contrast_yes/3),
+  and a relative clause ends at the comma of a contrast with no verb
+  (tr_contrast_cut/4); a verb before an infinitive crosses by the meaning the
+  lesson gives it there (`The infinitival verb "trata" means "tries".`, with the
+  plain `The verb "trata" means "treats".` said first, tr_mean_links/3,
+  tr_verb_across/5; before a phrase it is `treats` still, `se trata de un
+  perro`); an animal is a person for the word before one -- a definite animal
+  only, `preparar un "cocodrilo"` is an obituary (`coccodrillo`) and takes none
+  (tr_of_class/2, tr_marker/3), and `nadie`, `alguien`, `nessuno`, `qualcuno`
+  are persons; `desde` and a date is since, and a present that has gone on is
+  the perfect in English (`no gana el scudetto desde 1989` has not won the title
+  since 1989, tr_cross_comp/2, tr_since_phrase/1, en_since_comp/1): a year, a
+  month, a day of the week or a time with a PAST adjective, never a place, a
+  range (`dal 24 luglio al 25 agosto` is from July 24 to August 25,
+  tr_cross_comps/2, tr_date_range/1), a time to come (`dalla settimana prossima`
+  is from next week, and the lesson's own `since` keeps the present, `fin dalla
+  prossima riunione`) or a phrase after a comma, which is the aside's (`Pratesi,
+  amico da anni della coppia` is a friend for years, and the interview had not
+  `paralysed` for years); `todo lo que`, all that (tr_np/3's all/2 with ell/4,
+  tr_subject_shape/4, tr_np_out/5), `nada de lo que`, nothing of what (tr_np/3
+  -- with the verb `nada` swims in the hand lesson, or a lesson that has it
+  reads the verb -- and tr_subject_shape/4, the one rule with no arm that goes
+  red: without it the text is the same and the Inter's eighth sentence costs 7.5
+  % more) and `lo más ADJ de ...`, the most ... thing ABOUT it (tr_np/3 over the
+  unfolded words of a subject and over the degree the complements fold, `colocar
+  al club en lo más alto`, tr_subject_shape/4, tr_with_adj/5; a lesson in which
+  `lo` is no pronoun after a preposition, `"lo" means "him"`, is what shows the
+  folded one; the six clauses of the three, in tr_np/3 and tr_subject_shape/4,
+  are asked in a sentence that has a word that replaces a noun with a relative
+  word or a degree word right after it and in no other, `$tr_replacer`,
+  tr_replacer_note/1: each asked the lexicon first at every phrase, which was
+  1.2 million of the 2.1 million inferences the fourteen heaviest risers of the
+  controls rose, and the note makes the arm `replacer-note` red by always saying
+  no); a capital name the lesson states after an article that is not its noun's
+  gender is the name (`el Valencia`, tr_np/3; `la Valencia` keeps the noun), and
+  a noun of several words that opens on a nationality has its capital (`Italian
+  football`, tr_np_out/5, en_nationality/1); `must` has no perfect, `has had to`
+  (en_group/9); `Hace dos años que el Inter no ocupaba ...` is `It has been two
+  years since ...` (tr_write/4); the doer after a preposition's relative (`un
+  ataque con el que sueñan los interistas`, tr_rel_doer_fix/3, and the
+  preposition is the English verb's own, `dream OF`, en_governs/2), and a second
+  relative clause joined to the first by a coordinator whose doer follows its
+  verb (`... Y QUE han truncado las constantes lesiones`, tr_np/3's nrc/3 with
+  ro/2, tr_nrc_head/2, tr_np_out/5; inside a clause of `that` the whole is one
+  clause, tr_second_relative/4; the reader runs in a sentence that has the
+  pattern only, `$tr_second_rel`, tr_second_rel_note/1); the phrase that is not
+  `of` after the participle of a predicate is the participle's (`un delantero
+  forjado en la cantera del Inter`, tr_participle_predicate/3); a relative
+  clause with two fronts, each set off by commas (`la gestión que ahora, con su
+  noveno proyecto, parece ...`, tr_relative_clause/4) and the aside after the
+  word right after the opener (tr_clause_mids/4: set apart first and, if the
+  sentence then reads nothing, left among the words); the second of two
+  adjectives before their noun (`un largo y duro periodo`, tr_phrase_words0/4);
+  a word that is a preposition and a verb (`para`) is the preposition before a
+  person (`un largo periodo para su propietario y accionista`,
+  tr_read_generic/4; `"accionista" is a person.` is a line of corpus/extra); an
+  adverb of manner right after a participle stays with it (`organizado
+  tácticamente y unido`, tr_comps_out/7) and the participles and adjectives
+  after the comma agree with the noun written (`una squadra compatta,
+  organizzata ... e unita`, tr_adj_after_comma/2, tr_agreeing_run/3, only after
+  an object: after the phrase of a preposition they are the subject's, `in piena
+  libertà, regolamentate`); and the builder's: an adverb that is its adjective
+  written again (the dictionary's musical `largo` and `allegro`) is no entry
+  (corpus/build.pl's cb_stray_adverb/2: `un largo y duro periodo` read `largo`
+  as the adverb).
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Spanish `interista` (an Inter
+  fan, a person, not feminine), `scudetto` (a title, with the dictionary's
+  `título` said first before it, or every Italian `titolo` was written
+  `scudetto`), `ataque` (said again first) and `delantera` (an attack), `en
+  cambio` (said again first) and `en su lugar` (instead), `vestuario` (a
+  changing room), `cantera` (a youth academy), `sensatez` (good sense),
+  `nerazzurro` and the paper's `neriazzurro` (black-and-blue), `calcio` (Italian
+  football), the names `Valencia` and `Sierra Leona`, `trata` before an
+  infinitive (tries, with the plain `treats` said first before it, or `se trata
+  de un perro` was `one tries of a dog`), 42 groups (`equipo`, `club`,
+  `gobierno`, `empresa`, ...), `nadie`, `alguien` and `accionista` (persons),
+  `fracaso` (a failure, where the dictionary's first Spanish noun for it is
+  `fallo`), `trayectoria` (a trajectory), `corbata` (a necktie, below) and
+  `tiene que ver` (has to do); Italian `appare` and `riconquista` (said again
+  first), `ha a che fare` (has to do), `spogliatoio` (a changing room),
+  `tatticamente`, `interista`, `invece` (said again first) and `al suo posto`
+  (instead), `vivaio` (a youth academy), `sensatezza` (good sense),
+  `nerazzurro`, `calcio` (the football said again first, the Italian football
+  after it, the kick last), 43 groups, `nessuno` and `qualcuno` (persons),
+  `fallimento` (a failure), `traiettoria` (a trajectory), `acquisto` (the
+  purchase first, the signing after it, the shopping last) and `cravatta` (a
+  necktie); and in the dictionaries' extras, for Italian `sconvolgere`
+  (convulse), `indisciplinato` (unruly), `avallare` (endorse), `pareggio` (a
+  tie, where the dictionary's first Italian noun for it is the necktie),
+  `efficace` (effective) and `forgiare` (forge), and for Spanish `convulsionar`,
+  `díscolo`, `taciturno`, `tácticamente` and, read only, `recobrar` (regain).
+  The first word moved in 7 Spanish meanings and 5 Italian ones (Spanish
+  `calcio` Italian football, `cantera` a youth academy, `corbata` a necktie,
+  `delantera` an attack, `trayectoria` a trajectory, `vestuario` a changing room
+  and `tiene que ver` has to do; Italian `cravatta` a necktie, `fallimento` a
+  failure, `traiettoria` a trajectory, `vivaio` a youth academy and `ha a che
+  fare` has to do), and two were lost, the adverbs `largo` and `allegro`, the
+  dictionary's musical ones that mean themselves (the builder's rule, above).
+  THE CONTROLS (cocolog 2.4.0, store KB195, 96 count files, 2 728 sentences: the
+  earlier set with the Lazio report in, both directions; this report is not
+  among them): the last version's translator against this one, on the one store,
+  21 sentences in 14 files read differently, all better -- the doer after the
+  verb of a relative clause (es_19990601-23 5, es_20000802-31 3, es_20000903-30
+  10 and 18, es_20001201-176 10, es_20010103-120 4, es_20020801-17 8, and
+  Tatoeba's 227, 334 and 339: `the majority backing that Solana has obtained`,
+  `what Tom said was certain`, `what they were saying`), `since` (es_20010102-25
+  4 and it_9750_9762 3: `Since Sunday`, `since 1992`), `had to` for `musted`
+  (it_10059_10095 2), a participle and its phrase (es_20010202-169 6, `a
+  stradivarius known like Golden Bell`; it_9637_9672 8, `the dramatic picture
+  contained in the report`), `definitively` before the date (it_9926_9946 12),
+  the capital of `Christian` (it_9673_9712 16) and the animal that needs no
+  second reading as a phrase of `to` (tat 107, `The cat ate the mouse`, in both
+  languages) -- but one of them, es_20010102-25 4 into Italian, only different:
+  `Fin da domenica` for `Da domenica`, the Italian writer's first word for
+  `since` -- and the inferences rise 0.177 % (5 000 350 488 to 5 009 219 484).
+  The sentences that rise most are Tempi's twentieth, the one that runs to the
+  limit in both languages (476.70 to 477.02 million, +0.07 %), es_20020301-125 1
+  (+0.25 million of 1.29: the doer after `que encabeza Jordi Porta`, the clause
+  read both ways), es_20000903-30 18 (+0.13 of 79.2) and es_20001201-176 10
+  (+0.12 of 4.4, a better reading: `el aire que necesitaba el equipo de Aíto`);
+  the files that rise most are es_20020301-125's, +0.7 % of 44 million, then
+  it_9465_9470's (2.5), es_20010103-139's (9) and Tatoeba's (43), +0.4 %; no
+  file falls, and the one sentence that does is tat 107 (134 509 inferences to
+  102 471, the animal). Bytes and characters read every sentence alike (0
+  differ, the bytes 0.018 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB188, against this one on the new): 31 sentences
+  in 18 files, the 21 of the code and 10 of the words, and the inferences rise
+  0.199 % (4 999 257 736 to 5 009 219 484). THE CODE ALONE (this translator on
+  the old store): 19 sentences in 12 files, the same 19, +0.172 %. THE STORE
+  ALONE (the last version's translator on the old store and on the new) differs
+  in 10 sentences in 9 files, +0.022 % of the inferences (4 999 257 736 to 5 000
+  350 488), each a word of the report's lines and one of them worse: `tiene que
+  ver` and `ha a che fare` have to do (es_19981202-34 9 and it_9270_9295 17,
+  English), `aparecer` is `apparire` where the dictionary's first Italian verb
+  for it was `figurare` (es_19981202-34 7, es_20000102-120 7, es_20010102-25 16,
+  es_20020102-112 2), `trayectoria` a trajectory (es_20000903-30 14, English),
+  `efficace` for `effettive` (es_20001201-176 5), `corbata` a necktie (tat 50,
+  English) -- and `no figuran ni Rivaldo` is `non appaiono` (es_20010103-120 5),
+  where `figurano` was right.
+  THE LINES' OWN REGRESSIONS, found in the store-alone column of the first store
+  (25 sentences, 14 of them worse) and mended: `The masculine noun "scudetto"
+  means "title".` came first for the Spanish writer, so every Italian `titolo`
+  was written `scudetto` (`el scudetto mundial`, `los scudettos` for the
+  headlines: it_9567_9604 8, 30 and 32, it_9637_9672 15, it_9714_9749 4 and 10)
+  -- the dictionary's own `título` is said again first; the English `tie` for
+  `pareggio` came first for the Italian writer, so `su corbata` was `il suo
+  pareggio` (tat 50) -- the necktie has a word of its own in both languages
+  (`corbata`, `cravatta`) and the draw keeps the tie; and `The infinitival verb
+  "trata" means "tries".` said first made `tries` the verb's meaning anywhere,
+  so `se trató de unos 10 kilos` (es_20010102-25 7 and 9, es_20000802-31 9, both
+  languages) was `one tried of about 10 kilos` and `si tentò di circa 10 chili`
+  -- the plain `treats` is said first, as the hand lesson of the section had it
+  all along (the vocabulary check had the order backwards, and the section was
+  green). It is the reason to read the texts of the store alone, not its count:
+  +0.022 % of the inferences hid 14 worse sentences in 25.
+  THE FIRST CUTS' REGRESSIONS, found by the controls (the texts of every
+  sentence that differs, not the counts) and mended: the first pass changed 42
+  sentences, refused 3 that the last version read (es_19981202-34 10,
+  it_9781_9791 6 and it_9967_9998 32, all into English) and cost +1.019 % of the
+  inferences (5 000 357 282 to 5 051 321 327; it_9270_9295 rose 9.7 % of 137
+  million). `hace` among the verbs that leave their object in the relative word
+  refused Conyers' sentence (`lo que hace es "desacreditar"`, the insistence
+  does it); an infinitive after the verb was not looked at, so `Craxi che
+  minaccia di regolare i conti con i magistrati` had `conti` for the doer of the
+  threat; the aside right after a clause's opener was kept among the words only
+  when nothing else read, and `Salvo che lui, a differenza di Agostino, era
+  disposto ...` read `lui` as the pronoun of a clause with no verb (the
+  extraction is the first try now, and the unextracted words the fallback: a cut
+  in the else branch of a condition cuts the clause in cocolog, so the condition
+  decides it, tr_clause_mids/4) -- the first cut of that rule moved the aside of
+  `Quest'Uomo che una volta, a fianco di Marco Pannella, si batteva`
+  (it_9775_9780 3) and lost the comment between the dashes of `Gallo - continua
+  - mi ha lasciato` (it_9540_9566 21); `desde` made every phrase since -- `dal
+  24 luglio al 25 agosto` (it_9472_9484 12), `dalla settimana prossima`
+  (it_9270_9295 10), `fin dalla prossima riunione` (it_9673_9712 18), `desde el
+  primer momento` (es_20000903-30 16) and `amico da anni della coppia`, whose
+  friend had paralysed the interview for years (it_9851_9925 49); `preparare un
+  coccodrillo` (it_10059_10095 4) was a man's crocodile; a connector of three
+  words took a phrase and its verb after it (`Rivaldo y Overmars tampoco
+  estuvieron en Gandía con lo que esa elección resulta más que cuestionable`,
+  es_20010103-120 8); the doer was the name in the phrase of a pronoun (`cuenta
+  con 19 emisoras de toda Catalunya`, es_19990701-130 6) and the daughter of a
+  mother who lost her (`una madre che ha perso la figlia`, it_9851_9925 6); the
+  participles after a comma agreed with the nearest noun after a phrase of a
+  preposition (`in piena libertà, regolamentate`, it_9792_9799 2) and `fallecido
+  el pasado noviembre` with the days before it (`deceduti`, es_20001201-199 4).
+  The cost was one rule, the second relative clause, asked of every long
+  sentence with a coordinator: +12 million in two sentences of it_9270_9295
+  alone. `$tr_second_rel` is set once a sentence from a test of its words (a
+  coordinator, a relative word and a doer after a verb, tr_second_rel_note/1)
+  and the reader asks only where it is `yes`; its first test took the verb form
+  of `truncado`, which is a noun too, and the section's own sentence lost its
+  second relative clause (tr_verb_form_any/1 asks the participles as well).
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (a copy of the library per
+  rule, on KB195: first the 14 heaviest risers of the controls, then 56
+  sentences of 0.2 to 2 million inferences, every k-th of the class, 28 of each
+  language, into English): the second cut was +0.319 % of the controls (5 000
+  350 488 to 5 016 313 242), and the 14 rose 2.1 million of 399.5 (+0.528 %), 58
+  % of it six clauses of three rules -- `todo lo que` (tr_np/3 395 thousand
+  inferences, tr_subject_shape/4 103), `nada de lo que` (287 and 85) and `lo más
+  ADJ` (156 and 199) -- each asking the lexicon first, at every phrase of every
+  sentence (a memo hit is 11 to 13 inferences), and the rest the doer after a
+  relative clause's verb (365: es_20020301-125 1 is read both ways, 1.29 to 1.54
+  million, and es_20001201-176 10 reads `que necesitaba el equipo` as it should,
+  +0.12), the two fronts (228), a participle's phrase (96), a preposition that
+  is a verb (50) and a name's gender (35). What paid was a note made once a
+  sentence: `$tr_replacer` (a word that replaces a noun with a relative word or
+  a degree word right after it, tr_replacer_note/1) is asked first by the six
+  clauses, one inference where it says no, and costs its own scan, 218
+  inferences in a sentence of five words and 2 700 in fifty -- every sentence
+  read alike (0 differ), -0.133 % of the controls, so +0.186 % -- and three
+  idioms: `sub_atom/5`, which walks every position, asked of every noun English
+  writes for a nationality (`atomic_list_concat/3` splits it), and two walks of
+  every word for `sí` and for a connector (`memberchk/2` and the connector
+  facts): -0.009 %, so +0.177 %. What is left is no rule: over the 56 sentences
+  +0.353 % (47.74 to 47.91 million), the largest `desde` (tr_since_phrase/1
+  asked of every phrase of a preposition: 0.033 % in tr_cross_comp/2 and 0.029 %
+  in tr_cross_comps/2, some 300 inferences a sentence each), a participle's
+  phrase 0.017 %, a preposition that is a verb 0.016 %, a name's gender 0.016 %
+  and the two fronts 0.012 %, no other over 0.01 %. The notes, measured on a
+  copy that prints the inferences each one spends: `$tr_replacer` 1 149 a
+  sentence (0.139 % of these 56), `$tr_second_rel` 384 (0.046 %) and
+  `$tr_comma_rel` 55, beside the older ones' 4 242 (the agent first, 0.495 %), 1
+  153 (a participle after a determiner, 0.140 %) and 1 115 (a coordinator with
+  an adjunct, 0.135 %). The arms of a rule written too wide
+  (`named-gender-wide`, `participle-predicate-wide`, `animal-person-wide`) are
+  no measure of its cost: the clause they leave open reads other sentences or
+  refuses them sooner (the first spends 417 thousand inferences less in
+  it_9673_9712 17, which is refused both ways).
+  THE STATED COSTS: a first meaning that serves the news and not every text --
+  `calcio` is Italian football (a Spanish text on calcium is football),
+  `vestuario` a changing room, `cantera` a youth academy, `delantera` an attack,
+  `trayectoria` a trajectory (the Italian vocabulary has one noun for a path,
+  `traiettoria`, so `en el buen camino` is `nella buona traiettoria`), `fracaso`
+  a failure, `corbata` a necktie, `tiene que ver` has to do, `appare` appears
+  (the four sentences it mends, and `no figuran ni Rivaldo` it does not),
+  `valencia` a name, `trata` tries before an infinitive (and `treats` still
+  everywhere else); the draw is the tie, so every Spanish noun for a tie but the
+  necktie (`lazo`) is `pareggio` in Italian; `desde` and a date is the Italian
+  writer's first word for since, `fin da`; the stray-adverb rule drops the
+  dictionary's two musical adverbs and nothing else; the 42 and 43 nouns of the
+  group are an institution first (`dirección`, `banco`, `junta` and `rosa` have
+  other senses, which matter only straight after the verb of a relative clause
+  with no `a` and no other doer); `nothing-of-shape` has no arm that goes red
+  (the eighth sentence of the article costs 510 783 inferences with it into
+  English and 550 827 without, 535 499 and 575 543 into Italian, the text the
+  same); the article's second sentence is 20 million inferences, 2.96 with the
+  arm `mids-open-skip` (the aside after the word right after the opener is set
+  apart first and the unextracted words are the fallback, as `Salvo che lui, a
+  differenza di Agostino, era disposto ...` and `Quest'Uomo che una volta, a
+  fianco di Marco Pannella, si batteva` need, while `la gestión que ahora, con
+  su noveno proyecto, parece ...` reads only in the fallback, after the
+  extraction has failed on a long sentence; with no fallback, `mids-open`, it is
+  refused); and the doer rule reads a relative clause twice where its shape
+  allows both (es_20020301-125 1 rises 19 %). The article LEAVES, of the 14 into
+  Italian: `primo luogo` for `primer puesto` (1), `una lunga e dura epoca` for
+  `periodo`, `l'olio imprenditore` for the oil man, `porta quasi un decennio
+  versando denaro` for `da quasi un decennio versa`, `disporre al club nella
+  cosa più alta` (`colocar` is `disporre`, and the lesson has no `ai vertici`),
+  `con quelle che trionfò` for `con le quali ha trionfato` (3), `in Milán` (a
+  name the lesson has no city for), `ha agito il miracolo` (4), `adesso` last
+  (5), `in cinque giorni` for the rounds (6), `nel campo` (7), `ha arrivato`
+  (10: the auxiliary of a verb of arriving), `e efficace` (11), `quest'anno
+  dell'Atalanta` for `dall'Atalanta` (12) and `altro tempo` for `un'altra volta`
+  (13); of the 13 into English: `his proprietary and maximum shareholder` (1:
+  `propietario` read as the adjective before the noun it is), `the oil richest
+  employer`, `place to the club in the highest thing`, `form her` (12: the
+  clitic `la` of a thing is written `her`), `the Turkishes` and `the own Kallon`
+  (13), `now` and `today` last (13 and 14), `inter fans` in small letters (10:
+  `Inter` is a name, `interista` is not) and `with what they say` (7: the third
+  person nobody names, written `they`); the third sentence is refused, on
+  purpose, for the null third person of `con las que triunfó`. The next sample's
+  controls take this feature in.
 
 ## Tutorials are documentation that runs
 

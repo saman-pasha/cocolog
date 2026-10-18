@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20441 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20445 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -848,7 +848,7 @@ The masculine noun "quiosquero" means "newsagent".
 The masculine noun "traslado" means "transfer".
 The article "el" takes the day.
 The adjective "directo" does not precede the noun.
-The verb "tiene que ver" means "has dealings".
+The verb "tiene que ver" means "has to do".
 "tienen que ver" is the plural of "tiene que ver".
 "tener que ver" is the infinitive of "tiene que ver".
 "tenido que ver" is the participle of "tiene que ver".
@@ -1640,6 +1640,85 @@ The feminine adjective "maliciosa" means "malicious".
 "maliciosas" is the plural of "maliciosa".
 The word "para luego" begins the purpose.
 "habiendo" is the gerund of "ha".
+The noun "interista" means "Inter fan".
+"interista" is not feminine.
+"interistas" is the plural of "interista".
+"interista" is a person.
+The masculine noun "título" means "title".
+The masculine noun "scudetto" means "title".
+"scudettos" is the plural of "scudetto".
+The masculine noun "ataque" means "attack".
+The feminine noun "delantera" means "attack".
+The adverb "en cambio" means "instead".
+The adverb "en su lugar" means "instead".
+"sierra leona" is a name.
+The masculine noun "vestuario" means "changing room".
+"vestuarios" is the plural of "vestuario".
+The feminine noun "cantera" means "youth academy".
+"canteras" is the plural of "cantera".
+The feminine noun "sensatez" means "good sense".
+"sensateces" is the plural of "sensatez".
+The masculine adjective "nerazzurro" means "black-and-blue".
+"nerazzurros" is the plural of "nerazzurro".
+The feminine adjective "nerazzurra" means "black-and-blue".
+"nerazzurras" is the plural of "nerazzurra".
+The masculine adjective "neriazzurro" means "black-and-blue".
+"neriazzurros" is the plural of "neriazzurro".
+The feminine adjective "neriazzurra" means "black-and-blue".
+"neriazzurras" is the plural of "neriazzurra".
+The masculine noun "calcio" means "Italian football".
+"valencia" is a name.
+The verb "trata" means "treats".
+The infinitival verb "trata" means "tries".
+"gobierno" is a group.
+"equipo" is a group.
+"club" is a group.
+"empresa" is a group.
+"compañía" is a group.
+"sociedad" is a group.
+"federación" is a group.
+"comisión" is a group.
+"comité" is a group.
+"organización" is a group.
+"asociación" is a group.
+"parlamento" is a group.
+"congreso" is a group.
+"senado" is a group.
+"ministerio" is a group.
+"administración" is a group.
+"ayuntamiento" is a group.
+"selección" is a group.
+"plantilla" is a group.
+"consejo" is a group.
+"junta" is a group.
+"agencia" is a group.
+"banco" is a group.
+"sindicato" is a group.
+"universidad" is a group.
+"policía" is a group.
+"ejército" is a group.
+"fiscalía" is a group.
+"tribunal" is a group.
+"multitud" is a group.
+"público" is a group.
+"familia" is a group.
+"grupo" is a group.
+"entidad" is a group.
+"institución" is a group.
+"patronal" is a group.
+"oposición" is a group.
+"mayoría" is a group.
+"minoría" is a group.
+"afición" is a group.
+"directiva" is a group.
+"dirección" is a group.
+"nadie" is a person.
+"alguien" is a person.
+The masculine noun "fracaso" means "failure".
+The feminine noun "trayectoria" means "trajectory".
+"trayectorias" is the plural of "trayectoria".
+"accionista" is a person.
+The feminine noun "corbata" means "necktie".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -29936,6 +30015,58 @@ The verb "eclipsa" means "overshadows".
 "eclipsadas" is the plural of "eclipsada".
 "eclipsar" is the infinitive of "eclipsa".
 "eclipsando" is the gerund of "eclipsa".
+The verb "convulsiona" means "convulses".
+"convulsionan" is the plural of "convulsiona".
+"convulsionamos" is the first person of "convulsionan".
+"convulsionáis" is the second person of "convulsionan".
+"convulsiono" is the first person of "convulsiona".
+"convulsionas" is the second person of "convulsiona".
+"convulsionó" is the past of "convulsiona".
+"convulsionaron" is the past of "convulsionan".
+"convulsionamos" is the first person of "convulsionaron".
+"convulsionasteis" is the second person of "convulsionaron".
+"convulsioné" is the first person of "convulsionó".
+"convulsionaste" is the second person of "convulsionó".
+"convulsionaba" is the imperfect of "convulsiona".
+"convulsionaban" is the imperfect of "convulsionan".
+"convulsionábamos" is the first person of "convulsionaban".
+"convulsionabais" is the second person of "convulsionaban".
+"convulsionabas" is the second person of "convulsionaba".
+"convulsionará" is the future of "convulsiona".
+"convulsionarán" is the plural of "convulsionará".
+"convulsionaremos" is the first person of "convulsionarán".
+"convulsionaréis" is the second person of "convulsionarán".
+"convulsionaré" is the first person of "convulsionará".
+"convulsionarás" is the second person of "convulsionará".
+"convulsionaría" is the conditional of "convulsiona".
+"convulsionarían" is the plural of "convulsionaría".
+"convulsionaríamos" is the first person of "convulsionarían".
+"convulsionaríais" is the second person of "convulsionarían".
+"convulsionarías" is the second person of "convulsionaría".
+"convulsione" is the subjunctive of "convulsiona".
+"convulsionen" is the plural of "convulsione".
+"convulsionemos" is the first person of "convulsionen".
+"convulsiones" is the second person of "convulsione".
+"convulsionara" is the past subjunctive of "convulsiona".
+"convulsionaran" is the plural of "convulsionara".
+"convulsionáramos" is the first person of "convulsionaran".
+"convulsionarais" is the second person of "convulsionaran".
+"convulsionaras" is the second person of "convulsionara".
+"convulsiona" is the imperative of "convulsiona".
+"convulsiones" is the negative imperative of "convulsiona".
+"convulsionad" is the imperative of "convulsionan".
+"convulsionéis" is the negative imperative of "convulsionan".
+"convulsionemos" is the hortative of "convulsiona".
+"convulsionado" is the participle of "convulsiona".
+"convulsionada" is the participle of "convulsiona".
+"convulsionada" is feminine.
+"convulsionados" is the participle of "convulsiona".
+"convulsionados" is the plural of "convulsionado".
+"convulsionadas" is the participle of "convulsiona".
+"convulsionadas" is feminine.
+"convulsionadas" is the plural of "convulsionada".
+"convulsionar" is the infinitive of "convulsiona".
+"convulsionando" is the gerund of "convulsiona".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -121349,6 +121480,58 @@ The verb "descabalga" means "ousts".
 "descabalgadas" is the plural of "descabalgada".
 "descabalgar" is the infinitive of "descabalga".
 "descabalgando" is the gerund of "descabalga".
+The verb "recobra" means "regains".
+"recobran" is the plural of "recobra".
+"recobramos" is the first person of "recobran".
+"recobráis" is the second person of "recobran".
+"recobro" is the first person of "recobra".
+"recobras" is the second person of "recobra".
+"recobró" is the past of "recobra".
+"recobraron" is the past of "recobran".
+"recobramos" is the first person of "recobraron".
+"recobrasteis" is the second person of "recobraron".
+"recobré" is the first person of "recobró".
+"recobraste" is the second person of "recobró".
+"recobraba" is the imperfect of "recobra".
+"recobraban" is the imperfect of "recobran".
+"recobrábamos" is the first person of "recobraban".
+"recobrabais" is the second person of "recobraban".
+"recobrabas" is the second person of "recobraba".
+"recobrará" is the future of "recobra".
+"recobrarán" is the plural of "recobrará".
+"recobraremos" is the first person of "recobrarán".
+"recobraréis" is the second person of "recobrarán".
+"recobraré" is the first person of "recobrará".
+"recobrarás" is the second person of "recobrará".
+"recobraría" is the conditional of "recobra".
+"recobrarían" is the plural of "recobraría".
+"recobraríamos" is the first person of "recobrarían".
+"recobraríais" is the second person of "recobrarían".
+"recobrarías" is the second person of "recobraría".
+"recobre" is the subjunctive of "recobra".
+"recobren" is the plural of "recobre".
+"recobremos" is the first person of "recobren".
+"recobres" is the second person of "recobre".
+"recobrara" is the past subjunctive of "recobra".
+"recobraran" is the plural of "recobrara".
+"recobráramos" is the first person of "recobraran".
+"recobrarais" is the second person of "recobraran".
+"recobraras" is the second person of "recobrara".
+"recobra" is the imperative of "recobra".
+"recobres" is the negative imperative of "recobra".
+"recobrad" is the imperative of "recobran".
+"recobréis" is the negative imperative of "recobran".
+"recobremos" is the hortative of "recobra".
+"recobrado" is the participle of "recobra".
+"recobrada" is the participle of "recobra".
+"recobrada" is feminine.
+"recobrados" is the participle of "recobra".
+"recobrados" is the plural of "recobrado".
+"recobradas" is the participle of "recobra".
+"recobradas" is feminine.
+"recobradas" is the plural of "recobrada".
+"recobrar" is the infinitive of "recobra".
+"recobrando" is the gerund of "recobra".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -138091,6 +138274,18 @@ The masculine adjective "añejo" means "dated".
 "añejos" is the plural of "añejo".
 The feminine adjective "añeja" means "dated".
 "añejas" is the plural of "añeja".
+The masculine adjective "díscolo" means "unruly".
+"díscolos" is the plural of "díscolo".
+The feminine adjective "díscola" means "unruly".
+"díscolas" is the plural of "díscola".
+The masculine adjective "taciturno" means "taciturn".
+"taciturnos" is the plural of "taciturno".
+The feminine adjective "taciturna" means "taciturn".
+"taciturnas" is the plural of "taciturna".
+"taciturnísimas" is the superlative of "taciturnas".
+"taciturnísima" is the superlative of "taciturna".
+"taciturnísimos" is the superlative of "taciturnos".
+"taciturnísimo" is the superlative of "taciturno".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -154010,6 +154205,7 @@ The masculine adjective "hinchado" means "puffy".
 The feminine adjective "hinchada" means "puffy".
 The masculine adjective "melancólico" means "gloomy".
 The feminine adjective "melancólica" means "gloomy".
+The adverb "tácticamente" means "tactically".
 The adverb "desgraciadamente" means "alas".
 The adverb "exitosamente" means "successfully".
 The adverb "accesoriamente" means "accessorily".
@@ -154600,7 +154796,6 @@ The adverb "andantino" means "andantino".
 The adverb "axialmente" means "axially".
 The adverb "crescendo" means "crescendo".
 The adverb "fortissimo" means "fortissimo".
-The adverb "largo" means "largo".
 The adverb "pizzicato" means "pizzicato".
 The adverb "presto" means "presto".
 The adverb "scherzando" means "scherzando".
