@@ -70,6 +70,19 @@ main :-
     format("                  'application/json', Payload,~n"),
     format("                  Status, Reply).~n"),
     format("~n"),
+    format("     ?- curl_get('http://localhost/status',~n"),
+    format("                 [unix_socket('/run/app/http.sock')], Status, Body).~n"),
+    format("~n"),
+    format("   unix_socket(Path) is curl's --unix-socket: the request goes~n"),
+    format("   to the socket file, and the URL still names the Host header~n"),
+    format("   and the path -- httpd_serve(unix(Path), ...) is such a~n"),
+    format("   server (lesson 16). A file nobody made fails at once:~n"),
+    (   curl_get('http://localhost/status', [unix_socket('/nonexistent/coco/http.sock')], _, _)
+    ->  U = fetched
+    ;   U = failed
+    ),
+    must('a socket file that is not there', U, failed),
+    format("~n"),
 
     format("-- AND THE ONE IT COMPOSES WITH, which is the point~n"),
     format("   A JSON API is two libraries and no glue:~n"),
@@ -89,7 +102,7 @@ main :-
     format("   carries bytes carries them as codes, for the reason~n"),
     format("   library(http) gives at length.~n"),
 
-    format("~n-- BEWARE `insecure(true)'. It turns OFF certificate~n"),
+    format("~n-- BEWARE `verify_peer(false)'. It turns OFF certificate~n"),
     format("   verification, which is the whole of what TLS buys you.~n"),
     format("   It exists because a self-signed certificate in a test~n"),
     format("   harness is a real situation; it is not a way to make a~n"),

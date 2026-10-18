@@ -323,7 +323,7 @@ links the engine) and runs the 63 `.pl` cases in `pl_names/1`
   code is the verdict**. A line beginning `SKIP` at column 0 skips the case; a
   skipped SECTION says so indented. `test/prelude.pl` has `answer/3`,
   `written/3`, `yes_no/2`, `skip/1`, `scratch/1`, `fixture/2`,
-  `cocolog_out/2` and `spawn/2`. A check is a second process only when it
+  `cocolog_out/2`, `spawn/2` and `unix_listening/1`. A check is a second process only when it
   genuinely must be (a consult's stderr, a store read back by another
   cocolog, a server, a goal that must be killable).
 * **A spawned server must be `exec`'d** (`spawn/2` does it), or `proc_stop/1`
@@ -331,7 +331,9 @@ links the engine) and runs the 63 `.pl` cases in `pl_names/1`
   next run.
 * **Wait for a port with `lsof -iTCP:PORT -sTCP:LISTEN`**, never a probe
   connection: a server that accepts N times counts it, and `httpd`'s accept
-  loop ends on a failed accept.
+  loop ends on a failed accept. A socket file the same way,
+  `unix_listening/1` (`lsof -U`'s `type=STREAM (LISTEN)`): the file is
+  there from the bind, and a connect before the listen is refused.
 * **`proc_run/4`'s deadline is the monotonic clock's** (1.11.0). Through
   1.10.28 each poll was charged its whole 200 ms step though a poll with
   data waiting returns at once with one 4096-byte read: a child printing
@@ -394,7 +396,11 @@ links the engine) and runs the 63 `.pl` cases in `pl_names/1`
   cannot run these three.
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
-  recycled PID fail a section silently. Not fixed.
+  recycled PID fail a section silently. Not fixed. After a container restart
+  (PIDs start low again) it took httpd-tls, whose `main` calls `scratch/1`
+  before it prints a line: the runner showed `httpd-tls    0s`, red with no
+  output (2.4.0). `find /tmp -maxdepth 1 -name 'coco_cocolog_test_*' -mmin
+  +30 -exec rm -rf {} +` with no case running clears them.
 * **Before saying something works**, with the owner's go-ahead: `make test`
   with a server up, read every line, count the SKIPs. A change to the
   knowledge base also wants proving **across processes** -- one cocolog
@@ -678,6 +684,20 @@ cocolint index offers no import of it.
 * **A handle is an integer index into the module's own table** (tcp, tls,
   ray, stream), so losing one leaks what it names silently. Probe by
   exhausting the table before and after the code you suspect.
+* **A unix socket is `unix(Path)` where a port stands** (2.4.0, library(tcp);
+  STATUS.md): `tcp_listen/2`, `tcp_connect/2` (with `Host:Port` too),
+  `httpd_serve(unix(Path), _)`, and the clients' `unix_socket(Path)` (curl,
+  `ws_open/3`). What bites: a listen on a taken name CONNECTS to ask whether
+  anybody listens, so a live server sees a connection that closes at once
+  -- one of an httpd's counted accepts; a leftover is replaced only once that
+  connect is refused, so a test that needs one kills the cocolog ITSELF (9,
+  no `timeout` in front: killing the wrapper leaves the server listening);
+  the listener's close unlinks its file by inode, a connection's never; and
+  `exists_file/1` is false of a socket (a regular file only, as SWI's) --
+  ask `access_file(P, exist)`. `struct sockaddr_un` and
+  `CURLOPT_UNIX_SOCKET_PATH` are declared in `modules/tcp/binding.cicili`
+  and `modules/curl/binding.cicili`, Cicili's std and curl binding having
+  neither.
 * **`$`-prefixed names must be QUOTED in a module's Prolog half**
   (`'$x509_issue'`), or the half "would not consult".
 * **Which library holds a symbol is not guessable, and a miss links fine**:

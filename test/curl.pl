@@ -147,7 +147,15 @@ two_halves(D) :-
     served(Server, 18842,
            ( curl_post('http://127.0.0.1:18842/caf%C3%A9', 'text/plain', 'crème', St3, B3),
              atom_codes(A3, B3), atomic_list_concat([St3, ' ', A3], X3) ), X3, G3),
-    check('and text past ASCII goes round whole', G3, W3).
+    check('and text past ASCII goes round whole', G3, W3),
+    %% OVER A SOCKET FILE (2.4.0): the same server, listening on unix(Path),
+    %% and curl told the file with unix_socket(Path) while the URL still names
+    %% the Host header and the target -- what `curl --unix-socket' does
+    atom_concat(D, '/curl.sock', Sock4),
+    served_unix(Server, Sock4,
+                ( curl_get('http://localhost/over/a/file', [unix_socket(Sock4)], St4, B4),
+                  atom_codes(A4, B4), atomic_list_concat([St4, ' ', A4], X4) ), X4, G4),
+    check('and fetches it over a socket file, unix_socket(Path)', G4, '200 served get /over/a/file 0').
 
 %% raise the one-shot server on Port, wait for the port, prove the client
 %% goal here, reap the server
@@ -157,5 +165,14 @@ served(Server, Port, Goal, Template, Got) :-
     spawn(Cmd, Pid),
     sh_join(['lsof -iTCP:', Port, ' -sTCP:LISTEN >/dev/null 2>&1'], Listening),
     ( proc_until(sh_exit(Listening, 0), 5000, 100) -> true ; true ),
+    written(Goal, Template, Got),
+    ( proc_wait(Pid, 10000, _) -> true ; proc_stop(Pid) ).
+
+%% the same on a socket file: `serve(unix(Path))', waited for through lsof
+served_unix(Server, Path, Goal, Template, Got) :-
+    cocolog(C),
+    sh_join(['timeout 25 ', C, ' run ', Server, ' "serve(unix(''', Path, '''))" >/dev/null 2>&1'], Cmd),
+    spawn(Cmd, Pid),
+    unix_listening(Path),
     written(Goal, Template, Got),
     ( proc_wait(Pid, 10000, _) -> true ; proc_stop(Pid) ).

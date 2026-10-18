@@ -1,0 +1,28 @@
+;;;; Cicili declarations for the libcurl option library(curl) sets that
+;;;; ../cicili/lib/net/curl.cicili does not name: CURLOPT_UNIX_SOCKET_PATH
+;;;; (libcurl 7.40.0), the request made over a socket file rather than to
+;;;; the URL's host and port -- curl's `--unix-socket'.
+;;;; Import in target: (import "./binding.cicili"); requires (include <curl/curl.h>).
+;;;;
+;;;; THE DECLARATION EMITS NOTHING. It names the constant to Cicili, the way
+;;;; lib/net/curl.cicili declares CURLOPT_URL and lib/std/c declares EOF, and
+;;;; the value still comes from curl.h. A (typedef ...) outside an
+;;;; init-macro would EMIT one, and `typedef int CURLOPT_UNIX_SOCKET_PATH'
+;;;; over curl.h's enum constant does not compile. Written here because
+;;;; Cicili's tree is frozen from this side, as the line its options table
+;;;; lacks: its own comment says such a constant is declared so that a
+;;;; caller can reach curl_easy_setopt for what (cu.set ...) does not name,
+;;;; which is what curl.cicili does with it -- a string option, passed as
+;;;; one.
+;;;;
+;;;; A PACKAGE OF ITS OWN, not the binding's `:curl': two DEFPACKAGEs of
+;;;; one name that do not say the same thing is a variance SBCL reports.
+(DEFPACKAGE :curl-extra
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :curl-extra)
+
+(DEFMACRO init-macro ()
+  `($$$
+     (typedef int CURLOPT_UNIX_SOCKET_PATH)))

@@ -27,6 +27,7 @@ main :-
     sessions(D),
     pooled(D),
     secure(D),
+    over_a_file(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -489,3 +490,33 @@ secure(D) :-
         reap(Pid)
     ;   format("     (skipped: wss:// -- no library(tls) or no ZiguratIP certificate directory)~n")
     ).
+
+%% ---- a socket file -----------------------------------------------------------
+
+%% ws:// TO A SERVER ON A SOCKET FILE (2.4.0): unix_socket(Path) says where
+%% to connect, and the URL still names the Host header and the path.
+over_a_file(D) :-
+    section('ws:// over a socket file, unix_socket(Path)'),
+    atom_concat(D, '/ws.sock', Sock),
+    atom_concat(D, '/file.pl', Server),
+    sh_join(['serve :- httpd_serve(unix(''', Sock, '''), [accept_timeout(20000)], 1).'], Serve),
+    server_lines(Serve, Lines),
+    fixture(Server, Lines),
+    cocolog(C),
+    sh_join(['timeout 120 ', C, ' run ', Server, ' serve >/dev/null 2>&1'], Cmd),
+    spawn(Cmd, Pid),
+    unix_listening(Sock),
+    (   ws_open('ws://localhost/echo', WS, [unix_socket(Sock)])
+    ->  sent(WS, text('through a file')), recv(WS, [format(atom)], M1),
+        check('a message over a socket file comes back', M1, text('through a file')),
+        ws_close(WS)
+    ;   ws_why(W1), check('ws_open over a socket file', W1, opened)
+    ),
+    reap(Pid),
+    atom_concat(D, '/none.sock', None),
+    ( ws_open('ws://localhost/echo', _, [unix_socket(None)]) -> G2 = opened ; ws_why(G2) ),
+    atomic_list_concat(['cannot connect to unix:', None, ' (No such file or directory)'], W2),
+    check('a socket file nobody made: ws_why/1 names the file and the reason', G2, W2),
+    ( catch(ws_open('wss://localhost/echo', _, [unix_socket(Sock)]), error(E3, _), true) -> true ; E3 = failed ),
+    check('wss:// over a socket file is refused, by name', E3,
+          domain_error(websocket_url, 'wss://localhost/echo')).

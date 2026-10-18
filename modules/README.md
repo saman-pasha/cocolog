@@ -11,12 +11,12 @@ still builds and still runs.
 
 | | is | needs |
 |---|---|---|
-| `tcp` | the socket seam: a handle is an index into this module's own table, never a descriptor | nothing |
+| `tcp` | the socket seam: a handle is an index into this module's own table, never a descriptor; TCP, and Unix domain sockets as `unix(Path)` where a port stands (2.4.0), the socket file made by the listen and removed by its close | nothing |
 | `thread` | threads and channels, sharing nothing -- plus mutexes and condition variables for what they DO share, which is everything outside the interpreter | nothing |
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
 | `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
 | `os` | which operating system, who am I, how many cores, what is in the environment, where is a tool -- the questions a suite used to put to `uname`, `command -v`, `nproc` and `$TMPDIR`, answered by libc | nothing |
-| `curl` | an HTTP client | libcurl |
+| `curl` | an HTTP client, to a URL or down a socket file (`unix_socket(Path)`) | libcurl |
 | `bigint` | `Zigurat::BigInt` — integers that do not wrap | a built ZiguratIP |
 | `torch` | Prolog that trains | libtorch |
 | `sha` | SHA-1/224/256/384/512 and HMAC | a built ZiguratIP |
@@ -67,7 +67,13 @@ that declaring the struct would define it twice; it does not, and there
 is no `(code …)` left in either module but a `(@define (code
 "CLAY_IMPLEMENTATION"))`. A binding is written as the `lib/c/<lib>.cicili`
 it would be in the Cicili tree and kept here because that tree is frozen
-from this side.
+from this side. Two more are a line each (2.4.0): `modules/tcp/binding.cicili`
+declares `struct sockaddr_un`, the one struct of `<sys/un.h>` that
+`lib/std/c/posix` has not got, and `modules/curl/binding.cicili` the constant
+`CURLOPT_UNIX_SOCKET_PATH`, which `lib/net/curl.cicili`'s option words do not
+name -- set through the raw `curl_easy_setopt` that binding declares for exactly
+that. Each has a package of its own (`:tcp`, `:curl-extra`): two `DEFPACKAGE`s
+of one name that say different things is a variance SBCL reports.
 
 ## Three things that bite a `:cpp #t` module
 

@@ -72,12 +72,18 @@
 ;;;;
 ;;;; Status is the HTTP code and Body is CODES, as the program counts text. Opts is a list drawn from
 ;;;; timeout(Seconds), follow(Bool), verify_peer(Bool), ca_info(Path),
-;;;; max_size(Bytes), body(Codes or Atom) and header(Line), each with the safe
-;;;; default -- 30 s, not followed, verified, the system roots, 16 MB -- and a
-;;;; transfer that fails binds nothing.
+;;;; max_size(Bytes), body(Codes or Atom), header(Line) and unix_socket(Path),
+;;;; each with the safe default -- 30 s, not followed, verified, the system
+;;;; roots, 16 MB, TCP -- and a transfer that fails binds nothing.
+;;;;
+;;;; unix_socket(Path) (2.4.0) is curl's `--unix-socket': the request goes to
+;;;; the socket file at Path, and the URL still names the Host header and the
+;;;; target, `http://localhost/status' -- how a client reaches a server that
+;;;; listens on a file, library(httpd)'s `httpd_serve(unix(Path), ...)' among
+;;;; them. libcurl does it for http:// and https:// alike.
 
 (DEFPARAMETER *curl-predicates*
-  '(("$curl_do"    11 cl_p_do)
+  '(("$curl_do"    12 cl_p_do)
     ("curl_ssl"     1 cl_p_ssl)
     ("curl_version" 1 cl_p_version)))
 
@@ -105,7 +111,7 @@
            ;; the defaults are the safe ones: verification ON, redirects
            ;; NOT followed (a client that follows by default can be walked
            ;; somewhere it did not ask to go), and a timeout that exists.
-           "curl_request(Method, Url, Opts, Status, Body) :- curl_opt(Opts, timeout, 30, T), curl_opt(Opts, follow, 0, F), curl_opt(Opts, verify_peer, 1, V), curl_opt(Opts, ca_info, '', CA), curl_opt(Opts, max_size, 16777216, MX), curl_body(Opts, Data), curl_headers(Opts, HL), '$curl_do'(Method, Url, HL, Data, T, F, V, CA, MX, Status, Body)."
+           "curl_request(Method, Url, Opts, Status, Body) :- curl_opt(Opts, timeout, 30, T), curl_opt(Opts, follow, 0, F), curl_opt(Opts, verify_peer, 1, V), curl_opt(Opts, ca_info, '', CA), curl_opt(Opts, max_size, 16777216, MX), curl_opt(Opts, unix_socket, '', US), curl_body(Opts, Data), curl_headers(Opts, HL), '$curl_do'(Method, Url, HL, Data, T, F, V, CA, MX, US, Status, Body)."
 
            ;; A named option, or a default. `curl_opt' rather than a
            ;; general lookup because the option's NAME is its functor and
@@ -160,6 +166,8 @@
   ;;; CLAUSE. Importing with no prefix would register those names for every
   ;;; Cicili file in the process. `:cu' is what its own examples use.
   (import "lib/net/curl.cicili" :cu)
+  ;;; CURLOPT_UNIX_SOCKET_PATH, which that binding does not name (2.4.0)
+  (import "./binding.cicili")
 
   (import "./sdk.cicili")
   (coco-sdk)
@@ -198,9 +206,10 @@
           (return hs)))
 
   ;;; '$curl_do'(+Method, +Url, +HeaderLines, +BodyCodes, +Timeout,
-  ;;;            +Follow, +VerifyPeer, +CaInfo, +MaxSize, -reply(Status, Codes))
+  ;;;            +Follow, +VerifyPeer, +CaInfo, +MaxSize, +UnixSocket,
+  ;;;            -Status, -Codes)
   ;;;
-  ;;; TEN ARGUMENTS, and every one of them is here because the option
+  ;;; TWELVE ARGUMENTS, and every one of them is here because the option
   ;;; words are macros: `cu.set' decides at TRANSPILE time which
   ;;; curl_easy_setopt to emit and with which cast, so there is no runtime
   ;;; option list to pass. The Coco half is what makes that bearable.
@@ -215,7 +224,7 @@
   ;;; lists, and everything else is unified into an argument.)
   (func cl_p_do ((coco_engine * e) (size_t g)) (out int)
         (let ((char method [16]) (char url [4096]) (char hdrs [8192])
-              (char ca [4096])
+              (char ca [4096]) (char usock [4096])
               (i64 timeout . 30) (i64 follow . 0) (i64 verify . 1)
               (i64 maxsize . 16777216) (i64 httpcode . 0)
               (ubyte_t * data . nil) (size_t dlen . 0)
@@ -230,6 +239,8 @@
               (set (nth 0 hdrs) (cast char 0)))
           (if (not (coco_m_text e (coco_m_arg e g 7) ca (sizeof ca)))
               (set (nth 0 ca) (cast char 0)))
+          (if (not (coco_m_text e (coco_m_arg e g 9) usock (sizeof usock)))
+              (set (nth 0 usock) (cast char 0)))
           (if (not (coco_m_int e (coco_m_arg e g 4) (aof timeout))) (set timeout 30))
           (if (not (coco_m_int e (coco_m_arg e g 5) (aof follow)))  (set follow 0))
           (if (not (coco_m_int e (coco_m_arg e g 6) (aof verify)))  (set verify 1))
@@ -275,6 +286,12 @@
               ;; path would turn verification off by accident.
               (if (and (== rc CURLE_OK) (!= (nth 0 ca) (cast char 0)))
                   (set rc (cu.set h (ca-info ca))))
+              ;; THE SOCKET FILE, through the raw setopt the binding declares
+              ;; for an option (cu.set ...) does not name. A string option,
+              ;; which libcurl copies; '' leaves the URL's host and port.
+              (if (and (== rc CURLE_OK) (!= (nth 0 usock) (cast char 0)))
+                  (set rc (curl_easy_setopt h CURLOPT_UNIX_SOCKET_PATH
+                                            (cast (const char *) usock))))
               (if (and (== rc CURLE_OK) (== 0 (strcmp method "post")))
                   (set rc (cu.set h (post-fields (cast (const char *) data))
                                     (post-size (cast i64 dlen)))))
@@ -321,8 +338,8 @@
               (if ok
                   (let ((size_t lst . #'(coco_m_codes_of e (cast (const char *) ($ body data))
                                                          ($ body len) 0 (coco_m_nil e))))
-                    (if (coco_m_unify_int e (coco_m_arg e g 9) httpcode)
-                        (set ok (coco_m_unify e (coco_m_arg e g 10) lst))
+                    (if (coco_m_unify_int e (coco_m_arg e g 10) httpcode)
+                        (set ok (coco_m_unify e (coco_m_arg e g 11) lst))
                       (set ok 0))))
 
               (cu.free-headers hs)

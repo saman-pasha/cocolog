@@ -148,7 +148,16 @@ t49_shapes :-
     format("   server with sessions wants workers(N); and a session is one~n"),
     format("   transaction, as a connection always is in library(httpd).~n"),
     format("   wss:// is library(tls): httpd's tls(...) option on the server,~n"),
-    format("   ws_open's tls(Creds) on the client.~n").
+    format("   ws_open's tls(Creds) on the client.~n"),
+    format("   ON A SOCKET FILE: httpd_serve(unix(Path), ...) on the server,~n"),
+    format("   ws_open's unix_socket(Path) on the client, the URL still naming~n"),
+    format("   the Host header and the path, as curl --unix-socket does:~n"),
+    format("     ws_open('ws://localhost/echo', WS, [unix_socket('/run/app.sock')])~n"),
+    format("   ws:// only -- library(tls) dials TCP -- and refused by name:~n"),
+    ( catch(ws_open('wss://localhost/echo', _, [unix_socket('/nonexistent/ws.sock')]),
+            error(E, _), true)
+    -> true ; E = none ),
+    must('wss:// over a socket file', E, domain_error(websocket_url, 'wss://localhost/echo')).
 
 must(What, Got, Want) :-
     (   Got == Want

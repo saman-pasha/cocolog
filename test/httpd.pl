@@ -40,7 +40,7 @@ main :-
     atom_concat(D, '/root', Root),
     a_file(Root), every_byte(Root), path_rules(Root), never_served(Root), methods(Root),
     the_builtin, the_fence, outer_budget(D), head(Root), no_root,
-    pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root),
+    pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root), over_a_file(D, Root),
     the_timings, the_pool(D, Root),
     module_registry(D), knowledge_base(D, Root), the_prewarm(D),
     shl(['rm -rf ', D]),
@@ -498,6 +498,46 @@ keep_alive(D, Root) :-
 ka_server(Server, Goal, Port, Pid) :-
     sh_join(['run ', Server, ' "', Goal, '(', Port, ')"'], Args),
     serving(Args, Port, Pid).
+
+%% ON A SOCKET FILE (2.4.0): `httpd_serve(unix(Path), ...)', which
+%% library(tcp) binds where a port would be. Raw bytes and the system's
+%% `curl --unix-socket' reach it, two requests share one connection, and
+%% the file goes with the server.
+over_a_file(D, Root) :-
+    section('on a socket file: httpd_serve(unix(Path), ...)'),
+    atom_concat(D, '/web.sock', Sock),
+    atom_concat(D, '/file-server.pl', Server),
+    atom_concat(D, '/pages/hello.pl', Hello),
+    sh_join([':- use_module(''', Hello, ''').'], UseHello),
+    %% THREE ACCEPTS: the raw request, the kept connection, the system's curl
+    sh_join(['serve :- httpd_serve(unix(''', Sock, '''), [root(''', Root, ''')], 3).'], Serve),
+    fixture(Server, [':- use_module(library(httpd)).', UseHello, Serve]),
+    cocolog(C),
+    sh_join(['timeout 120 ', C, ' run ', Server, ' serve >/dev/null 2>&1'], Cmd),
+    spawn(Cmd, Pid),
+    unix_listening(Sock),
+    use_module(library(tcp)),
+    written(( tcp_connect(unix(Sock), S1),
+              atom_codes('GET /a.txt HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n', Q1),
+              tcp_write(S1, Q1), tcp_read_all(S1, R1), tcp_close(S1), atom_codes(A1, R1),
+              sub_atom(A1, 9, 3, _, St1),
+              ( sub_atom(A1, _, _, _, 'plain text here') -> X1 = body ; X1 = none ) ), St1/X1, G1),
+    check('a raw request down the socket file is answered', G1, '200/body'),
+    written(( tcp_connect(unix(Sock), S2),
+              atom_codes('GET /hello HTTP/1.1\r\nHost: localhost\r\n\r\n', Q2),
+              tcp_write(S2, Q2), tcp_read(S2, 65536, 3000, R2a),
+              tcp_write(S2, Q2), tcp_read(S2, 65536, 3000, R2b), tcp_close(S2),
+              atom_codes(A2a, R2a), atom_codes(A2b, R2b),
+              sub_atom(A2a, 9, 3, _, St2a), sub_atom(A2b, 9, 3, _, St2b) ), St2a/St2b, G2),
+    check('two requests share one connection to it', G2, '200/200'),
+    shl_atom(['timeout 30 curl -s --unix-socket ', Sock, ' http://localhost/hello'], B3),
+    check('and the system''s curl --unix-socket reaches a page', B3, 'hi from a clause'),
+    ( proc_wait(Pid, 5000, _) -> E4 = ended ; proc_stop(Pid), E4 = stopped ),
+    ( access_file(Sock, exist) -> F4 = left ; F4 = removed ),
+    check('the server stops after its three, and its socket file goes with it', E4/F4, ended/removed),
+    atom_concat(D, '/tls.sock', Sock5),
+    ( catch(httpd_serve(unix(Sock5), [tls([])], 1), error(E5, _), true) -> true ; E5 = failed ),
+    check('tls(...) on a socket file is refused, by name', E5, domain_error(tcp_port, unix(Sock5))).
 
 the_pool(D, Root) :-
     section('the worker pool: a slow request no longer holds everybody'),

@@ -41,11 +41,11 @@ written anywhere in this repository.
 | 13-xml | `library/xml.pl` | an element tree, both directions | — |
 | 14-html | `library/html.pl` | a page as a term, both directions | — |
 | 15-http | `library/http.pl` | HTTP/1.1 as a grammar | — |
-| 16-httpd | `library/httpd.pl` | a server whose pages are clauses | `tcp`, `thread` |
-| 17-tcp | `library/tcp.so` | the socket seam | `sh modules/tcp/build.sh` |
+| 16-httpd | `library/httpd.pl` | a server whose pages are clauses, on a port or a socket file | `tcp`, `thread` |
+| 17-tcp | `library/tcp.so` | the socket seam: TCP, and a Unix domain socket as `unix(Path)` | `sh modules/tcp/build.sh` |
 | 18-thread | `library/thread.so` | threads and channels sharing nothing, and locks for what they do | `sh modules/thread/build.sh` |
 | 19-zigurat | `zigurat` | the database connection, steered from Prolog | a running server |
-| 20-curl | `library/curl.so` | an HTTP client | libcurl |
+| 20-curl | `library/curl.so` | an HTTP client, to a URL or down a socket file | libcurl |
 | 21-bigint | `library/bigint.so` | integers past 64 bits | a built ZiguratIP |
 | 22-torch | `library/torch.so` | Prolog that trains | libtorch |
 | 23-sha | `library/sha.so` | digests and HMAC | a built ZiguratIP |

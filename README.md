@@ -838,15 +838,15 @@ code.
 
 | | | |
 |---|---|---|
-| `library(tcp)` | `.so` | sockets: listen, connect, accept, read, write |
+| `library(tcp)` | `.so` | sockets: listen, connect, accept, read, write — TCP, and Unix domain sockets as `unix(Path)` where a port stands |
 | `library(thread)` | `.so` | threads that share nothing, channels that copy |
-| `library(curl)` | `.so` | an HTTP client, over libcurl |
+| `library(curl)` | `.so` | an HTTP client, over libcurl; `unix_socket(Path)` sends a request down a socket file, as `curl --unix-socket` does |
 | `library(bigint)` | `.so` | arbitrary-precision integers |
 | `library(torch)` | `.so` | libtorch: tensors, nets, training, GPU |
 | `library(tensorflow)` | `.so` | TensorFlow's C library as the second backend of the `tensor_*` predicates, behind `tensor_execution(tensorflow, eager\|graph, cpu\|cuda\|auto)` |
 | `library(http)` | `.pl` | HTTP/1.1 as a DCG over the bytes tcp gives back |
-| `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool |
-| `library(websocket)` | `.pl` | RFC 6455: a client (`ws://`, and `wss://` over `library(tls)`), and the server half as an httpd page |
+| `library(httpd)` | `.pl` | a server whose pages are clauses, with a worker pool, on a port or a socket file (`httpd_serve(unix(Path), Options)`) |
+| `library(websocket)` | `.pl` | RFC 6455: a client (`ws://`, also over a socket file with `unix_socket(Path)`, and `wss://` over `library(tls)`), and the server half as an httpd page |
 | `library(json)` | `.pl` | a term as JSON, and JSON as a term |
 | `library(xml)` | `.pl` | the same for XML |
 | `library(html)` | `.pl` | the same for HTML |
@@ -949,6 +949,19 @@ added.
 The sockets are `library(tcp)`'s C, the parse is `library(http)`'s grammar,
 and everything between them — routing, path safety, content types, keep-alive,
 the loop — is Prolog, where it can be read and tested a predicate at a time.
+
+**The port may be a socket file** (2.4.0): `httpd_serve(unix('/run/app/http.sock'),
+Options)` serves behind nginx's `proxy_pass http://unix:/run/app/http.sock;`, or
+to whoever may open the file, and nothing above the transport knows — pages,
+keep-alive, the pool and websocket pages are the same. `library(tcp)` makes the
+file; a leftover of a server that died without closing it is replaced, but only
+once a connect to it is refused, so a live server's file is never taken and a
+regular file of that name is never touched; and the listener's close removes the
+file, while the name is still the socket it bound. The clients reach one the way
+`curl --unix-socket` does, the URL naming the Host header and the path:
+`curl_get('http://localhost/status', [unix_socket(Path)], S, B)`, and
+`ws_open('ws://localhost/chat', WS, [unix_socket(Path)])`. `tls(...)` is refused
+on a socket file, whose permissions are its access control.
 
 **`workers(N)` is a pool over `library(thread)`.** One thread accepts and
 posts connections down a channel; N workers each take one and hold it for the
