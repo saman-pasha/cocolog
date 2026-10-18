@@ -987,7 +987,9 @@ cocolint index offers no import of it.
   of 8 clauses, with the call's first argument unbound, or the longest
   key's chain and the variable heads together over 4) a table per
   argument 2 to 8 (`coco_argix`), built the first time a call wants one,
-  kept by `assertz`, dropped by `asserta`, `retract` and a reconsult. The
+  kept by `assertz` and by a retract that leaves the clause dead in place
+  (below), dropped by `asserta`, a retract that takes the clause out, a
+  sweep of the dead and a reconsult. The
   argument with the fewest candidates wins (`coco_pred_select`), once per
   call, and the choice rides in the choice frame (`ixpos`, never frozen: a
   thawed frame is keyed on the first argument, which is always sound); a
@@ -996,6 +998,40 @@ cocolint index offers no import of it.
   argument still walks the whole predicate**; a hit hides it, a miss or a
   `findall` pays it. To read a predicate's heads, `clause/2` enumerates
   them; calling the goal proves it.
+* **A call sees the clauses that stood when it began** (ISO's logical update
+  view, swipl's; through 2.2.5 a retry read the live list). A clause frame
+  carries `cend`, the clause count at its push (both push sites), so what is
+  asserted while it is open lies past its end, and asserta moves the open
+  frames on (`coco_frames_on` act 2: `clause_ix`, `cend`). A retract while a
+  frame is open on the predicate marks the clause DEAD IN PLACE (`tomb[i]`,
+  the death's number, `tera` the last given; `ntomb` counts them) and the
+  index keeps it; a frame sees a dead clause when it lived through the death
+  -- `fera`, the first death it lived through, stamped at the death
+  (`coco_tomb_open`, act 1), never at the push -- and a new call sees none.
+  The probe reads `nprobe`, the count while nothing is dead and 0 otherwise,
+  so its one test of its count also sends a predicate with dead clauses out
+  of line (`coco_pred_probe_cold`, weak): a test of `ntomb` beside it was two
+  instructions a call, nrev +0.64 % of 2.2.5's work where this is +0.32 %.
+  The clock is placement's here (STATUS.md): nrev +10 % as built and +1.9 %
+  with every function on a 64-byte line, queens +0.1 % and +5.3 %.
+  The dead are taken out (`coco_pred_sweep`) when no frame is open on the
+  predicate: a retract, assert or reconsult then, every 256th out-of-line
+  probe, `'$pred_count'`, and every query's start (`coco_tomb_sweep_all`
+  over the store's `tpreds`). `coco_frames_on` walks `m->eng` and each
+  engine's `outer` over the same store, the predicate's `framed` saying
+  whether a frame may be open (set at every push and restore, cleared by a
+  walk that finds none). **A new reader of the clause list skips
+  `coco_pred_dead`** (listing, the backends' sync, clause/2 by live ordinal
+  through `coco_pred_live_at`, predicate_property/2's counts), **a new writer
+  of `nclauses` or `ntomb` calls `coco_pred_nprobe`**, and **a new push of a
+  clause frame sets `cend` and `framed`**. A freeze writes a frame's next
+  clause and its end as counts of LIVE clauses (`C`, `L`), the knowledge base
+  a thaw reloads holding no others; a frame thawed from a blob with no `L`
+  has `cend` 4294967295 until the run's first step binds it to the reloaded
+  base (`cunbound`, `coco_frames_bound`, after the module clauses load:
+  bound at the restore, member/2's frames saw an empty store).
+  `test/files/update_view.pl` holds 34 cases to swipl, `test/engine.pl`'s
+  last section the freeze and a second process.
 * **A global is found by a hash of its name (1.9.4), copied AS ITS BLOCK,
   and a GROUND one's copy handed out shared while it lives (1.12.1)**
   (`nb_getval/2`, `b_getval/2`, `nb_current/2`; `coco_b_global_term`).
@@ -1443,10 +1479,11 @@ cocolint index offers no import of it.
   `coco_trace_cut`): the Fail port is printed from the call's frame, and
   through 1.10.22 the cut took it, so a clause that cut and then failed
   printed no Fail (and a window's call never ended, `fate="open"`). A
-  frame's kind is asked in five places -- `coco_backtrack`'s drop test,
+  frame's kind is asked in six places -- `coco_backtrack`'s drop test,
   the `$trace_exit` marker's search, the `;` Redo's search,
-  `coco_trace_reopen` and `$catch_exit`'s scan -- and a new kind goes to
-  all five. **A frame is a call's by its depth (> 0), never by its goal**:
+  `coco_trace_reopen`, `$catch_exit`'s scan and `coco_frames_on`'s walk
+  (the update view's) -- and a new kind goes to all six. **A frame is a
+  call's by its depth (> 0), never by its goal**:
   a goal can be heap cell 0, and `--trace run F t` printed no Fail for an
   atom goal written first. A Redo reopens only the calls it is inside
   (the nearest shallower frame, then the next), not every shallower one.

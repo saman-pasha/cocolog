@@ -477,8 +477,11 @@
                     ;; Skipped on BOTH sides of the window, because a clause
                     ;; that was never sent has no answer to wait for and the
                     ;; two counters would drift apart by exactly the muted
-                    ;; clauses between them.
-                    (if (nth head (-> p muted))
+                    ;; clauses between them. AND SO IS A DEAD ONE: retracted
+                    ;; while a call on it is open, it stays in the store for
+                    ;; that call (the logical update view, lib/kb.cicili) and
+                    ;; is gone from the knowledge base now.
+                    (if (or (nth head (-> p muted)) (coco_pred_dead p head))
                         (set head (+ head 1))
                     (let ((size_t mark . #'(-> m heap_len))
                           (size_t t . #'(coco_store_get m st (nth head (-> p clauses))))
@@ -510,7 +513,7 @@
                       (coco_sb_free (aof b))
                       (set (-> m heap_len) mark)
                       (set head (+ head 1))))
-                  (if (nth tail (-> p muted))
+                  (if (or (nth tail (-> p muted)) (coco_pred_dead p tail))
                       (set tail (+ tail 1))
                     (block
                       (if (not (zg_call_wait (-> z db) "cocolog::assert_clause"))

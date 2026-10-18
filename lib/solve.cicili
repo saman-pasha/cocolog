@@ -430,6 +430,17 @@
 
   (struct coco_choice
     (member int      kind)
+    ;; THE LOGICAL UPDATE VIEW (lib/kb.cicili, `tomb' on the predicate): a
+    ;; clause frame's CEND is how many clauses its predicate had when the
+    ;; call began, the end of what it may try -- an assertz since is past
+    ;; it, an asserta moves it on (`coco_frames_on') -- and FERA the first
+    ;; death of a clause of the predicate it lived through, 0 for none,
+    ;; given at the death (`coco_tomb_open'): the dead it may still try are
+    ;; the ones from that one on. Each u32 sits where the alignment left
+    ;; four bytes, so the frame is no bigger.
+    ;; A frozen machine keeps CEND as a count of live clauses (section `L',
+    ;; lib/state.cicili) and no FERA: a thawed store holds no dead clause.
+    (member u32      cend)
     (member size_t   goals)        ; the continuation to put back
     (member size_t   trail_mark)
     (member size_t   heap_mark)
@@ -442,7 +453,8 @@
     ;; first argument will do for -- not part of a frozen machine, whose
     ;; atoms are another process's: a thawed frame is keyed on the first
     ;; argument, which is slower and exactly as right
-    (member u32      ixpos))
+    (member u32      ixpos)
+    (member u32      fera))
 
   ;;; THE TRACER'S SHADOW of a choice frame. One per frame, index-aligned,
   ;;; and DELIBERATELY NOT part of the frozen state: the frames travel in a
@@ -598,7 +610,12 @@
     ;; run_time(R)): the key of the step this engine was running when a
     ;; nested engine took the clock (`coco_clock_narrow'), the clock's
     ;; again where the starter's own work goes on (`coco_clock_back')
-    (member u64         tkey))
+    (member u64         tkey)
+    ;; THAWED CLAUSE FRAMES NOT BOUNDED YET (the logical update view): a
+    ;; restored frame's `cend' waits at 4294967295 for the run that thawed
+    ;; it to load the modules' own clauses back (`coco_engine_run'), and is
+    ;; then the count its predicate has (`coco_frames_bound')
+    (member int         cunbound))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -3340,6 +3357,51 @@
   ;;; not a position in an index -- because a frozen machine's choice frames
   ;;; carry it (lib/state.cicili) and a machine thawed by another process
   ;;; must resume where it stopped.
+  ;;; THE NEXT CLAUSE A FRAME MAY TRY in a predicate with dead clauses: a
+  ;;; candidate from FROM on, short of the frame's end (CEND), and dead only
+  ;;; if it died while the frame was open (FERA the first death it lived
+  ;;; through, 0 for none, so a death of FERA or after). The dead of before
+  ;;; are not its.
+  (static)
+  (func coco_frame_next ((coco_store * st) (coco_machine * m) (coco_pred * p) (u32 kpos)
+                         (u64 key) (size_t from) (u32 cend) (u32 fera)) (out size_t)
+        (let ((size_t ix . #'(? (== kpos 0) (coco_pred_next_clause st p key from)
+                                 (coco_pred_next_at st m p kpos key from))))
+          (while (and (< ix (cast size_t cend)) (!= (nth ix (-> p tomb)) 0)
+                      (or (== fera 0) (< (nth ix (-> p tomb)) fera)))
+            (set ix (? (== kpos 0) (coco_pred_next_clause st p key (+ ix 1))
+                       (coco_pred_next_at st m p kpos key (+ ix 1)))))
+          (return ix)))
+
+  ;;; THE SELECTION OF A PREDICATE WITH DEAD CLAUSES (the logical update
+  ;;; view, lib/kb.cicili), out of line: `coco_select_clause' with each
+  ;;; candidate asked of `coco_frame_next'. No sweep can take the dead while
+  ;;; this frame is open on the predicate, so they are still there at every
+  ;;; turn of the loop. WEAK, so never inlined: inlined into the selection
+  ;;; it cost every retry its registers (queens +1.3 % of its work).
+  (weak)
+  (func coco_select_dead ((coco_engine * e) (size_t ci)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st)))
+          (while 1
+            (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
+                  (coco_pred * p . #'(aof (nth (-> c pred) (-> st preds))))
+                  (u32 kpos . #'(-> c ixpos))
+                  (u64 key . 0) (size_t ix . 0) (int last . 0)
+                  (size_t call . #'(-> c call)) (size_t goals . #'(-> c goals)))
+              (set key (? (== kpos 0) (coco_arg_key m call) (coco_call_arg_key m call kpos)))
+              (set ix (coco_frame_next st m p kpos key (-> c clause_ix) (-> c cend) (-> c fera)))
+              (if (>= ix (cast size_t (-> c cend)))
+                  (block (set (-> e nchoices) ci) (return 0)))
+              (set (-> c clause_ix) (+ ix 1))
+              (set last (>= (coco_frame_next st m p kpos key (-> c clause_ix) (-> c cend) (-> c fera))
+                            (cast size_t (-> c cend))))
+              (if (coco_try_clause e p ix call nil goals ci)
+                  (block
+                   (if (and last (== (-> e trace) 0)) (set (-> e nchoices) ci))
+                   (return 1)))))
+          (return 0)))
+
   (static)
   (func coco_select_clause ((coco_engine * e) (size_t ci)) (out int)
         (let ((coco_machine * m . #'(-> e m))
@@ -3347,6 +3409,12 @@
           (while 1
             (let ((coco_choice * c . #'(aof (nth ci (-> e choices))))
                   (coco_pred * p . #'(aof (nth (-> c pred) (-> st preds)))))
+              ;; THE LOGICAL UPDATE VIEW: a predicate with dead clauses
+              ;; selects out of line, and every other bounds what it tries by
+              ;; the clause count its call began with (`cend'), past which
+              ;; `coco_no_clause' lies too -- one compare where the end was
+              ;; asked before
+              (if (!= (-> p ntomb) 0) (return (coco_select_dead e ci)))
               ;; THE ARGUMENT THE CALL IS INDEXED ON is the frame's, chosen
               ;; when the call was made (`coco_pred_select', the engine's
               ;; probe) and read here at every retry; its key is read again
@@ -3361,7 +3429,7 @@
                             (coco_call_arg_key m (-> c call) kpos)))
                 (set ix (? (== kpos 0) (coco_pred_next_clause st p key (-> c clause_ix))
                            (coco_pred_next_at st m p kpos key (-> c clause_ix))))
-                (if (== ix (coco_no_clause))
+                (if (>= ix (cast size_t (-> c cend)))
                     (block (set (-> e nchoices) ci) (return 0)))
               (let ((size_t call . #'(-> c call))
                     (size_t goals . #'(-> c goals))
@@ -3372,9 +3440,9 @@
                 ;; which is what makes an indexed lookup deterministic where
                 ;; the walk used to keep a frame alive to the end of the
                 ;; table.
-                (set last (? (== (? (== kpos 0) (coco_pred_next_clause st p key (-> c clause_ix))
+                (set last (? (>= (? (== kpos 0) (coco_pred_next_clause st p key (-> c clause_ix))
                                     (coco_pred_next_at st m p kpos key (-> c clause_ix)))
-                                 (coco_no_clause))
+                                 (cast size_t (-> c cend)))
                              1 0))
                 ;; one clause, compiled or matched in the store -- see
                 ;; `coco_try_clause'. A `!' in the body cuts back to before
@@ -3440,10 +3508,14 @@
               (size_t upto . 0)
               (size_t ix . 0))
           (if (or (== r nil) (!= (-> r state) 1)) (return))
-          (set upto (? entered (- (-> c clause_ix) 1) (-> p nclauses)))
+          ;; the heads the call could see: short of its end, and none that
+          ;; died before it was made (the logical update view)
+          (set upto (? entered (- (-> c clause_ix) 1) (cast size_t (-> c cend))))
           (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) start))
           (while (and (!= ix (coco_no_clause)) (< ix upto))
-            (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1))
+            (if (not (and (!= (-> p ntomb) 0) (!= (nth ix (-> p tomb)) 0)
+                          (or (== (-> c fera) 0) (< (nth ix (-> p tomb)) (-> c fera)))))
+                (coco_rec_mark e COCO_REV_NOHEAD depth (-> c call) (+ ix 1)))
             (set ix (coco_pred_next_at st m p (-> c ixpos) (-> r hkey) (+ ix 1))))
           (if entered (coco_rec_mark e COCO_REV_CLAUSE depth (-> c call) (+ upto 1)))))
 
@@ -3630,6 +3702,11 @@
             (set ($ (nth ci (-> e choices)) pred) pi)
             (set ($ (nth ci (-> e choices)) clause_ix) ix0)
             (set ($ (nth ci (-> e choices)) ixpos) 0)
+            ;; what the call may try: the clauses there are now (the logical
+            ;; update view)
+            (let ((coco_pred * p . #'(aof (nth pi ($ (cof (-> e st)) preds)))))
+              (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> p nclauses)))
+              (set (-> p framed) 1))
             (return (? (coco_select_clause e ci) 1 0)))))
 
   ;;; THE BUILTINS IN PLACE (Stage 7): unit U of the environment at ENV
@@ -4050,7 +4127,7 @@
           (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
             (if (!= (-> p codes) nil)
                 (for ((size_t j . 0)) (and (< j (-> p nclauses)) (< j (-> p codes_cap))) ((++ j))
-                  (if (== (nth j (-> p codes)) cd)
+                  (if (and (== (nth j (-> p codes)) cd) (not (coco_pred_dead p j)))
                       (block (set (cof pi) i) (set (cof ci) (+ j 1)) (return 1)))))))
         (return 0))
 
@@ -5230,6 +5307,10 @@
         ;; clause retired is named by nothing that can run again
         (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) retired) nil))
             (coco_code_retired_free (-> e st)))
+        ;; NOR ANY DEAD CLAUSE (the logical update view): with nothing
+        ;; running there is no frame open on any predicate to want one
+        (if (and (-> e gc) (== (-> (-> e m) running) 0) (!= (-> (-> e st) ntpreds) 0))
+            (coco_tomb_sweep_all (-> e st) (-> e m)))
         (set (-> e goals) (coco_k_push e goal 0 (coco_k_empty e))))
 
   ;;; A SEARCH A BUILTIN STARTS COLLECTS ONLY ONCE IT HAS GROWN BY THE FLOOR
@@ -6178,6 +6259,20 @@
           (coco_k_flush e)
           (return 0)))
 
+  ;;; A THAWED ENGINE'S CLAUSE FRAMES BOUNDED (the logical update view): each
+  ;;; one `coco_choice_restore' left unbounded tries the clauses its
+  ;;; predicate has now, the modules' own among them -- the run has just
+  ;;; loaded those back into the store a thaw emptied. Weak, so the step
+  ;;; loop's function does not take it in.
+  (weak)
+  (func coco_frames_bound ((coco_engine * e))
+        (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
+          (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
+            (if (and (== (-> c kind) COCO_CH_CLAUSE) (== (-> c cend) 4294967295))
+                (set (-> c cend)
+                     (cast u32 ($ (nth (-> c pred) ($ (cof (-> e st)) preds)) nclauses))))))
+        (set (-> e cunbound) 0))
+
   (func coco_engine_run ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st)))
@@ -6213,6 +6308,9 @@
                                    (-> st load_err))
                        (snprintf (-> e err) 512 "a module's clauses would not load"))
                      (return -1)))))
+          ;; and a thawed machine's calls bounded, now that the store holds
+          ;; what they may try
+          (if (-> e cunbound) (coco_frames_bound e))
 
           ;; THE VOCABULARY, INTERNED ONCE PER MACHINE. Here rather than in
           ;; `coco_engine_ask' for the same reason the hook above is: a
@@ -6330,7 +6428,7 @@
                                                                        (-> e areg))))
                                      (size_t ix0 . 0) (int det . -1))
                                  (if (coco_pred_first_enough p key)
-                                     (set det (coco_pred_probe st p key (aof ix0))))
+                                     (set det (coco_pred_probe st p key (aof ix0) m)))
                                  (cond
                                    ((== det 0) (set r 0))
                                    ;; one: tried from the bank the call is
@@ -6572,7 +6670,7 @@
                                    (let ((coco_pred * pp . #'(aof (nth pi ($ (cof st) preds))))
                                          (u64 key . #'(coco_arg_key m g)))
                                      (if (coco_pred_first_enough pp key)
-                                         (set det (coco_pred_probe st pp key (aof ix0)))
+                                         (set det (coco_pred_probe st pp key (aof ix0) m))
                                          (let ((coco_ixsel sel . #'(coco_pred_select st m pp g)))
                                            (set kpos ($ sel pos))
                                            (set det (coco_pred_probe_at st m pp kpos ($ sel key) (aof ix0)))))))
@@ -6604,6 +6702,11 @@
                                   (set ($ (nth ci (-> e choices)) clause_ix) (? (== det 2) ix0 0))
                                   ;; and the argument it was found on
                                   (set ($ (nth ci (-> e choices)) ixpos) kpos)
+                                  ;; and what the call may try: the clauses
+                                  ;; there are now (the logical update view)
+                                  (let ((coco_pred * cp . #'(aof (nth pi ($ (cof st) preds)))))
+                                    (set ($ (nth ci (-> e choices)) cend) (cast u32 (-> cp nclauses)))
+                                    (set (-> cp framed) 1))
                                   ;; this frame IS the traced call; a window
                                   ;; keeps the key its selection reads
                                   (if tport
@@ -8767,13 +8870,15 @@
                 (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
                 (int dyn . #'($ (nth pi (-> st preds)) dynamic)))
 
-            (if (and (not dyn) (== (-> p nclauses) 0)) (return 0))
+            (if (and (not dyn) (== (coco_pred_live p) 0)) (return 0))
 
             (if dyn
                 (printf ":- dynamic %s/%u.\n\n" nm
                         (cast unsigned ($ (nth pi (-> st preds)) arity))))
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+              ;; a clause retracted under a call still open is gone
+              (if (coco_pred_dead p i) continue)
               (let ((size_t mark . #'(-> m heap_len))
                     (size_t t . #'(coco_store_get m st (nth i (-> p clauses)))))
                 (coco_sb_init (aof b))
@@ -8787,7 +8892,7 @@
                 (set (-> m heap_len) mark)))
             ;; the blank line separates predicates. A declared predicate with no
             ;; clauses has already had one after its `:- dynamic' line.
-            (if (or (> (-> p nclauses) 0) (not dyn)) (fputs "\n" stdout))
+            (if (or (> (coco_pred_live p) 0) (not dyn)) (fputs "\n" stdout))
             (return 1))))
 
   ;;; `listing' with no argument is the PROGRAM, not everything reachable. A
@@ -8904,9 +9009,59 @@
                 ;; frame is next tried: `clause_ix' is a position in its clause
                 ;; list, and a list that has not been fetched yet is empty
                 (coco_pred_ensure (-> e st) pi)
-                (set (-> c pred) pi)))
+                (set (-> c pred) pi)
+                ;; A RESUMED CALL RUNS ON THE KNOWLEDGE BASE AS IT IS (the
+                ;; owner's design, README.md's `What is stored, and how'), and
+                ;; how far it may go there is the blob's `L' section: the live
+                ;; clauses before the end it began with (lib/state.cicili).
+                ;; A blob without one leaves the end unsettled here, and the
+                ;; run binds it to the clauses there are once it has loaded
+                ;; the modules' own clauses back (`coco_frames_bound'): a
+                ;; library predicate is empty until then.
+                (set (-> c cend) 4294967295)
+                (set (-> e cunbound) 1)
+                (set ($ (nth pi ($ (cof (-> e st)) preds)) framed) 1)))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
           (return 1)))
+
+  ;;; THE FRAMES OPEN ON PREDICATE PI of ST -- see the declaration in
+  ;;; lib/kb.cicili. A clause frame or a clocked one (a clause frame a
+  ;;; window's clock marked); a spent one tries nothing more, and a frame of
+  ;;; any other kind keeps something else in `pred' and `clause_ix'. The
+  ;;; engines of the chain are every one a program can still fail back
+  ;;; into: no builtin leaves a choice point behind, so a nested engine is
+  ;;; on the chain for as long as it has frames anybody may try, and a
+  ;;; host's engine waiting for its next answer runs no goal meanwhile.
+  ;;; Each engine is read from the top, where a loop's own frame is.
+  (func coco_frames_on ((coco_machine * m) (coco_store * st) (size_t pi)
+                        (int act) (u32 era)) (out size_t)
+        (if (or (== m nil) (>= pi (-> st npreds))) (return 0))
+        (if (not ($ (nth pi (-> st preds)) framed)) (return 0))
+        (let ((size_t n . 0)
+              (coco_engine * e . #'(cast (coco_engine *) (-> m eng))))
+          (while (!= e nil)
+            (if (== (-> e st) st)
+                (let ((size_t i . #'(-> e nchoices)))
+                  (while (> i 0)
+                    (set i (- i 1))
+                    (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
+                      (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED))
+                               (== (-> c pred) pi))
+                          (block
+                           (set n (+ n 1))
+                           (cond
+                             ((== act 0) (return n))
+                             ;; a death it lives through, the first it has
+                             ((== act 1) (if (== (-> c fera) 0) (set (-> c fera) era)))
+                             (#t
+                              (set (-> c clause_ix) (+ (-> c clause_ix) 1))
+                              ;; a thawed frame not bounded yet stays so
+                              (if (!= (-> c cend) 4294967295)
+                                  (set (-> c cend) (+ (-> c cend) 1)))))))))))
+            (set e (cast (coco_engine *) (-> e outer))))
+          ;; none open: no walk until a frame is pushed on it again
+          (if (== n 0) (set ($ (nth pi (-> st preds)) framed) 0))
+          (return n)))
 
   ;;; The dispatcher comes last because it names every builtin above it, and a
   ;;; call needs the definition to have been seen.

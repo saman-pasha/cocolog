@@ -1365,22 +1365,29 @@ table exactly as it was, *then* load the knowledge base, whose clauses intern
 against that table. The other order leaves the store's cells referring to atom
 ids the thawed heap does not agree with.
 
+**A running query keeps ISO Prolog's logical update view, as swipl does**: a
+call sees the clauses that stood when it began, whatever is asserted or
+retracted while it is open, and a NEW call sees them as they are. `( q(X),
+write(X), nl, retract(q(1)), fail ; true )` over `q(1). q(2). q(3).` prints 1,
+2 and 3, and `forall(q(X), retract(q(X)))` over five clauses leaves none --
+swipl 9.0.4's answers; through cocolog 2.2.5 a retry read the live clause list,
+and they printed 1 and 3 and left two. A clause retracted under an open call
+is marked dead where it stands, seen by the calls that were open and by no
+other, and taken out once no call is open on its predicate; an asserted one
+lies past the end every open call began with. `test/files/update_view.pl`
+holds 34 cases to swipl's text.
+
 **And a resumed machine runs on the knowledge base as it is.** A frozen
 machine records no revision of the knowledge base, on purpose: the base is
 shared, and other machines may use and change it while this one is frozen.
-An embedded store that no other machine uses has nothing to change it, and a
-thaw resumes exactly where the freeze stopped. Where the base did change, a
-choice point part way through a predicate remembers it by name and arity and
-the POSITION of the next clause to try, so a clause retracted, or asserted in
+A choice point part way through a predicate remembers it by name and arity,
+the next clause to try and how many clauses the call may try, both counted
+among the LIVE clauses, because the base a thaw reloads holds no others. An
+embedded store that no other machine uses then resumes where the freeze
+stopped, but for one thing a run never frozen does: a clause retracted AHEAD
+of an open call is gone from the store, so the thawed call does not meet it.
+Where another machine did change the base, a clause retracted, or asserted in
 front, under a suspended machine resumes it at the wrong clause.
-
-**A running query has the same hazard, which ISO Prolog's has not.** A retry
-reads the live clause list, so a retract or an assert while a call on the
-predicate is open moves the clauses that call has still to try: `( q(X),
-write(X), nl, retract(q(1)), fail ; true )` over `q(1). q(2). q(3).` prints 1
-and 3, and `forall(q(X), retract(q(X)))` over five clauses leaves two. ISO's
-logical update view, which swipl keeps, gives a call the clauses that stood
-when it began: swipl 9.0.4 prints 1, 2 and 3 and leaves none.
 
 ## Cicili, used as a Lisp
 

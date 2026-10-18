@@ -3687,15 +3687,17 @@ is 14000), which is how it has always read and is worth a look.
   is the one MODULES.md states: nondeterministic goes in the Coco half, the
   outside world goes in the C half, and both means a `$`-prefixed primitive
   wrapped in a clause.
-* **Resuming assumes the clauses have not moved.** A choice point remembers a
-  predicate by name and the position of the next clause to try, so retracting
-  from underneath a suspended machine makes it resume at the wrong one. A frozen
-  machine keeps no revision of the knowledge base, on purpose (the owner,
-  2026-10-17): other machines may use and change a shared base while it is
-  frozen, and an embedded one that nobody else uses resumes exactly where it
-  stopped. A running query has the same hazard here, and that is NOT standard
-  Prolog's (2026-10-17, against swipl 9.0.4): ISO's logical update view, which
-  swipl keeps, gives a call the clauses that stood when it began.
+* **Resuming assumes the live clauses have not moved.** A choice point
+  remembers a predicate by name, and the next clause to try and how many the
+  call may try as counts of the predicate's live clauses, so another machine
+  retracting from underneath a suspended one makes it resume at the wrong one.
+  A frozen machine keeps no revision of the knowledge base, on purpose (the
+  owner, 2026-10-17): other machines may use and change a shared base while it
+  is frozen, and an embedded one that nobody else uses resumes where it
+  stopped -- but a clause retracted ahead of an open call is gone from the
+  store, so the thawed call does not meet it where a run never frozen would. A
+  running query keeps ISO's logical update view, swipl's (section "The logical
+  update view", below; through 2.2.5 a retry read the live clause list).
 * **`asserta` rewrites its whole predicate** in the database, because putting a
   clause at the front changes every later clause's ordinal. O(n) per assert and
   always right.
@@ -6650,3 +6652,178 @@ zigurat-tls and httpd-tls (tensors SKIPs, no CUDA); lessons basics 08 and
 H1 put right). `make test` has not been run on it. `tools/flow/zero.sh`
 against 2.2.4, the binaries placed alike, both ways round: nrev, queens
 and lookup the same to the instruction, padding and all.
+
+## A call sees the clauses that stood when it began (2.3.0)
+
+An outside review (2026-10-17) found README.md claiming what the engine did
+not do, and 0614894 made the claims true of 2.2.5: a retry read the live
+clause list. The owner chose to fix the engine. Through 2.2.5 a retract or an
+assert while a call on its predicate was open moved the clauses that call had
+still to try: `( q(X), write(X), nl, retract(q(1)), fail ; true )` over
+`q(1). q(2). q(3).` printed 1 and 3, `forall(q(X), retract(q(X)))` over five
+clauses left two, and `forall(seen(_), assertz(seen(copied)))` never ended,
+the open call meeting every clause it asserted. ISO's logical update view,
+which swipl keeps, gives a call the clauses that stood when it began, whatever
+is asserted or retracted while it is open, and a NEW call the clauses as they
+are. It is this engine's now.
+
+THE END OF WHAT A CALL MAY TRY. A clause frame keeps `cend`, its predicate's
+clause count when the call began, in four bytes the alignment had left free
+(the frame is no bigger), set at both pushes (`coco_regs_choice`, and the
+step's own in `coco_engine_run`). A selection takes no candidate at or past
+it -- one compare, where the old one asked for `coco_no_clause` -- so an
+assertz lies past every open call's end. An asserta moves every open frame on
+by a clause, its next clause and its end (`coco_frames_on`, act 2), as it
+moves the clauses.
+
+A CLAUSE RETRACTED UNDER AN OPEN CALL DIES IN PLACE. With a frame open on its
+predicate a retract takes nothing out: the clause keeps its position, marked
+with the number of its death (`tomb[i]`, one past the last, `tera`), and each
+open frame that has lived through no death is given that number as its first
+(`fera`, stamped at the death by `coco_tomb_open`; not at the push, which every
+call that leaves a choice makes, where a death under an open call is rare). A
+frame tries a dead clause that died at or after its first, and a new call
+tries none. The index keeps the position, as it keeps every other; the
+database loses the clause at once (the backend's sync skips the dead,
+`coco_zg_sync_pred`). The dead are swept out -- the positions closed up, the
+index dropped (`coco_pred_sweep`) -- once no frame is open on the predicate:
+at its next retract, assert or reconsult, at every 256th call that meets them,
+in `'$pred_count'`, and at the start of each query a host starts with nothing
+running and the collector on (`coco_tomb_sweep_all`, over the store's list of
+the predicates that have dead, `tpreds`), the collector's own vouch that
+nothing else on the machine is waiting to go on. Which frames are open is a
+walk of the engines on the machine's chain over the same store, `m->eng` and
+each `outer` -- every engine a program can still fail back into, as no
+builtin leaves a choice point behind -- and a predicate no frame was pushed
+on since a walk found none walks nothing (`framed`). A reconsult would do the
+same with a file's clauses, the new ones after the dead, but none runs under
+an open call: a reconsult is a command.
+
+THE PROBE STILL TESTS ITS COUNT ONCE. Every call that may be deterministic
+asks the probe for its first candidate and whether there is a second, and a
+predicate with dead clauses must answer from the live ones. A test of
+`ntomb` beside the probe's test of its count was a load and a branch a call,
+nrev +0.64 % of 2.2.5's instructions. The probe reads `nprobe` instead, a
+copy of the count in the four bytes after `arity` while no clause is dead and
+0 while one is (`coco_pred_nprobe`, after every write of either count), so its
+one test of its count sends an empty predicate and one with dead clauses
+alike out of line (`coco_pred_probe_cold`, weak). The selection asks `ntomb`
+once a retry and takes a predicate with dead clauses out of line too
+(`coco_select_dead`, weak: inlined, it cost every retry its registers, queens
++1.3 %).
+
+THE READERS of the clause list as the predicate's clauses skip the dead:
+listing/1, clause/2 (by live ordinal, `coco_pred_live_at`, which keeps where
+its last answer was, so an enumeration among dead clauses takes a step a
+clause and not a walk), predicate_property/2's counts, the recorder's tried
+heads, the backtrace's search for a clause by its code, and the store's sync.
+
+THE FREEZE keeps the owner's design (2026-10-17): a frozen machine records no
+revision of the knowledge base, which other machines may use and change while
+it is frozen. A frame's next clause and its end are written as counts of LIVE
+clauses -- the next clause in section `C` as before, the end in a new section
+`L`, after `N` -- because the base a thaw reloads holds no dead
+(`coco_pred_live_before`). A blob without `L`, 2.2.5's, leaves each end at
+4294967295 until the resumed run has loaded the modules' own clauses back, and
+the run then binds it to the clauses there are (`coco_frames_bound`): bound at
+the restore, member/2's frames met an empty predicate. An embedded store that
+no other machine uses resumes where it stopped but for one thing: a clause
+retracted AHEAD of an open call is gone from the store, so the thawed call
+does not meet it where a run never frozen would.
+
+`test/files/update_view.pl` holds 34 cases to swipl 9.0.4, 55 lines byte for
+byte -- a retract ahead of an open call and behind it, an assertz and an
+asserta under one, a new call, the same clause retracted twice, a cut and a
+throw through an open call, a retracted rule that still runs for the call
+that saw it, a worklist read by a loop and by a recursion, a counter beside an
+open call, a table indexed on its first argument and on its second, 300
+deaths with sweeps between them and the predicate filled again, an outer
+search open while an inner one changes the predicate, a call's own clause
+retracted from its body, a new call whose key leaves one candidate and that
+one dead, and the last clause retracted and then asked for by its key. Run
+one at a time, 2.2.5 writes another text for 24 of them and runs one for ever
+(u07, an asserta under an open call, which met its own clause again at every
+retry). `test/engine.pl`'s new section runs three programs whole and thawed
+at every 50 inferences, each turn a process (a clause retracted behind the
+call, one ahead of it, the clauses the call asserts itself), and a clause
+retracted under a call the run then cuts away read by a second process. Lesson
+basics/07 says it and checks it, and through 2.2.5 its new section ran for
+ever.
+
+An arm takes one rule out each, and each goes red:
+
+| arm | red |
+|---|---|
+| no end at the push (`cend`) | files, engine, lesson 07 (runs for ever) |
+| no first death a frame lived through (`fera`) | files, engine, lesson 07 |
+| an asserta that moves no open frame | files |
+| an asserta that moves the next clause and not the end | files |
+| a sync that writes the dead | engine (stepped, and the cut read by a second process) |
+| a freeze that writes the next clause as a position | engine (stepped) |
+| clause/2 by position, not by live ordinal | files |
+| a probe that takes a dead candidate | files (u32, u33) |
+| a selection that takes the dead | files, engine, lesson 07 |
+| a push that leaves `framed` clear | files, engine, lesson 07 |
+| a restore that leaves `framed` clear | engine (stepped) |
+| no `L` section | engine (stepped) |
+| a retract that takes a clause out and leaves `nprobe` | files (u34) |
+
+and two more, read by hand from machines 2.2.5 froze part way through and
+this binary thawed and stepped to the end: an end bound at the restore, before
+the run has loaded the modules' own clauses back, leaves a member/2 open over
+a list nothing more to try (the fixture prints `a` where its run prints
+`g(3)`), and an end never bound lets a call meet the clauses it asserted under
+itself (`1 2 3 4 6 7 8 9`, where the bound end stops at the `6` that 2.2.5's
+turns had asserted before the freeze). Three are costs, and measured: `nprobe`
+not kept by an assert sends every call's probe out of line (zero.sh, work less
+padding: nrev +13.7 %, queens +6.7 %, lookup +5.9 %); no sweep at every 256th
+call that meets the dead leaves a predicate read after one death paying for it
+at every call (`k(1)` called 200 000 times after `k(2)` died under a call then
+cut away: 312 136 538 instructions to 333 360 235); and no sweep at a query's
+start leaves the dead to the next query's calls (the REPL, the same death and
+200 calls in the next query: 20 612 429 to 20 654 836). No arm:
+`'$pred_count'`'s sweep (no answer depends on it), the reconsult's dead in
+place (no program can reach it: a reconsult is a command, and `use_module/1`
+and `ensure_loaded/1` load a file once), and the dead skipped by listing/1,
+the recorder, the backtrace and predicate_property/2, each read by hand.
+
+THE COST. `tools/flow/zero.sh` against 2.2.5, work less padding: nrev
+66 480 221 to 66 694 337 instructions (+0.32 %; by callgrind's counts per
+function the step loop +111 206 and the probe +105 061, about one
+instruction each a call, the probe being handed the machine), queens
+41 777 200 to 42 211 708 (+1.04 %: the selection +101 285, `ntomb` read at
+every retry, and the step loop +164 146, the end and `framed` stored at every
+push), lookup 47 590 133 to 47 682 815 (+0.19 %). The clock, eleven alternating
+rounds of user time, medians: as built, nrev +10.3 %, queens +0.1 %, lookup
++3.3 %; built with every function on a 64-byte line (`-falign-functions=64`,
+2.2.5 and this alike, scratch builds), nrev +1.9 %, queens +5.3 %, lookup
++1.8 %. So nrev's 10 % is placement, as 1.9.5's and 1.13.0's were, and the
+alignment, which moves queens as much the other way, is not proposed. Two
+diagnostic builds of the first cut, which tested `ntomb` in the probe, say the
+same: with the test taken out (wrong, and timed only) nrev ran at 2.2.5's
+time, and with the probe's new argument taken out instead and the test left
+in, 8 % slower.
+
+A PREDICATE CHANGED OVER AND OVER UNDER ONE CALL OPEN ON IT keeps its dead
+until that call ends, and every retract or new call of it walks them: `w(X)`
+left open over two clauses while `retract(w(_)), assertz(w(N))` runs 40 000
+times takes 0.643 s, where 2.2.5 took 0.015 s (handing the open call the wrong
+clauses) and swipl 9.0.4 takes 6.646 s, walking its erased clauses the same
+way -- and with no call open as well, where it takes 6.127 s, this binary
+0.016 s and 2.2.5 0.025 s. 10 000 and 20 000 rounds take 0.037 s and 0.226 s
+here (one run each, the process's CPU time).
+
+NOT SWI's: clause/2 holds no call open on the predicate it reads -- it is
+`'$pred_count'/3`, between/3 and `'$clause'/3`, the count taken once and each
+clause read by its live ordinal -- so a change it makes to the predicate
+during its own enumeration moves what it reads next: a retract of the first
+clause as it is read gives `[1,3]` over `q(1). q(2). q(3).` and an asserta
+`[1,1,1]`, swipl's `[1,2,3]` both (COMPAT.md). A clause/2 that only reads, or
+reads a predicate another call changes, is right.
+
+Green on 2.3.0: the test binaries (state, solve, module, term, syntax,
+zigurat, shared), engine, errors, gc, trace, window, journal, backtrace,
+cyclic, reconsult, repl, script, directives, library, static, meter, thread,
+cowork, flowdebug, files (39 swipl-compared files), translate and lint, and
+with the server up vacuum, kbs and zigurat-lib; lesson basics 07; the card
+check (ten cites renumbered). `make test` has not been run on it.

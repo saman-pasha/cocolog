@@ -19,15 +19,18 @@
 %% written through, and another process asking the same question gets it.
 %% That is the whole point of this interpreter, and basics 11 is about it.
 %%
-%% WHAT TO BE CAREFUL OF: asserting or retracting inside a loop over the
-%% same predicate. ISO Prolog's "logical update view" says a goal sees the
-%% clauses that existed when it STARTED; cocolog does not keep it yet -- a
-%% retry reads the clauses as they are now, so a loop over `seen/1' that
-%% asserts `seen/1' meets what it added. Loop over a LIST of what was
-%% there (`findall' first), as below.
+%% A CALL SEES THE CLAUSES THAT STOOD WHEN IT STARTED -- ISO Prolog's
+%% "logical update view". While a call still has clauses of its predicate
+%% to try, a clause asserted to that predicate is not among them and a
+%% clause retracted from it still is; a NEW call sees the predicate as it
+%% is now. So a loop over `seen/1' that asserts `seen/1' meets only what
+%% was there when it began, as below. Through cocolog 2.2.5 a retry read
+%% the clauses as they stood at that moment, and such a loop met what it
+%% had added.
 
 :- dynamic seen/1.
 :- dynamic counter/1.
+:- dynamic todo/1.
 
 main :-
     format("~n-- a declared dynamic predicate is empty, not unknown~n"),
@@ -56,15 +59,20 @@ main :-
     counter(N),
     must('after three bumps', N, 3),
 
-    format("~n-- loop over a LIST of what was there, not the predicate you change~n"),
+    format("~n-- a call sees the clauses that stood when it STARTED~n"),
     findall(S, seen(S), Before),
     must('before', Before, [zeroth, second]),
-    forall(member(_, Before), assertz(seen(copied))),
+    forall(seen(_), assertz(seen(copied))),
     findall(S2, seen(S2), After),
     must('after copying each one once', After,
          [zeroth, second, copied, copied]),
-    format("   The list was made before the first assert, so nothing the~n"),
-    format("   forall added could be met again.~n"),
+    format("   The forall's call to seen/1 began with two clauses, and the two~n"),
+    format("   it added are not among the ones it tried: it ran twice.~n"),
+    assertz(todo(a)), assertz(todo(b)), assertz(todo(c)),
+    findall(T, ( todo(T), ( T == a -> retract(todo(c)) ; true ) ), Met),
+    must('a clause retracted while the call is open is still met', Met, [a, b, c]),
+    findall(T2, todo(T2), Left2),
+    must('and gone for the next call', Left2, [a, b]),
 
     format("~n-- A DIFFERENCE WORTH KNOWING: builtins here answer ONCE~n"),
     format("   The classic `retract(X), fail' loop iterates by BACKTRACKING~n"),
@@ -85,6 +93,9 @@ main :-
     findall(S3, seen(S3), Gone),
     must('emptied', Gone, []),
     retract(counter(_)),
+    retractall(todo(_)),
+    findall(T3, todo(T3), NoTodo),
+    must('todo emptied', NoTodo, []),
     format("~ndone~n").
 
 bump :- retract(counter(C)), D is C + 1, assertz(counter(D)).

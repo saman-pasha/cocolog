@@ -36,6 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
+    update_view(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1684,3 +1685,65 @@ i6_builtins :-
 
 sg_spin(0) :- !.
 sg_spin(N) :- M is N - 1, sg_spin(M).
+
+%% ---- the logical update view across a freeze and across processes --------
+%%
+%% A CALL OPEN OVER A PREDICATE KEEPS ITS PLACE AND ITS HORIZON THROUGH A
+%% FREEZE, both counted among the LIVE clauses: the knowledge base a thaw
+%% reloads holds no clause the call saw die, so the freeze writes the next
+%% clause and the end of what the call sees as the live clauses before them
+%% (lib/state.cicili). A run frozen and thawed at every 50 inferences then
+%% answers what the whole run does for a clause retracted behind the call
+%% and for the clauses the call asserts itself; a clause retracted AHEAD of
+%% it is gone from the knowledge base it thaws on, as the owner's design has
+%% it (README.md, `What is stored, and how'), so the whole run meets it and
+%% the stepped one does not. And a clause retracted under a call the run
+%% then cuts away is gone for the next process: the dead are not written.
+update_view(D) :-
+    section('the logical update view across a freeze and across processes'),
+    atom_concat(D, '/view.pl', F1),
+    fixture(F1, [
+        ':- dynamic q/1.',
+        'q(1). q(2). q(3). q(4).',
+        'behind :- ( q(X), write(X), nl, ( X == 2 -> retract(q(1)) ; true ), uv_spin(300), fail ; true ),',
+        '          findall(Y, q(Y), L), write(L), nl.',
+        'ahead :- ( q(X), write(X), nl, ( X == 1 -> retract(q(3)) ; true ), uv_spin(300), fail ; true ),',
+        '         findall(Y, q(Y), L), write(L), nl.',
+        'grow :- ( q(X), write(X), nl, ( X < 5 -> Y is X + 5, assertz(q(Y)) ; true ), uv_spin(300), fail ; true ),',
+        '        findall(Z, q(Z), L), write(L), nl.',
+        'cut :- q(X), retract(q(2)), X == 1, !.',
+        'uv_spin(0) :- !.',
+        'uv_spin(N) :- M is N - 1, uv_spin(M).'
+    ]),
+    cocolog(C),
+    findall(G1-O1, ( member(G1, [behind, ahead, grow]), uv_whole(C, D, F1, G1, O1) ), L1),
+    check('a whole run keeps the view: a clause retracted behind or ahead is met, an asserted one is not', L1,
+          [behind-'1\n2\n3\n4\n[2,3,4]\n', ahead-'1\n2\n3\n4\n[1,2,4]\n',
+           grow-'1\n2\n3\n4\n[1,2,3,4,6,7,8,9]\n']),
+    findall(G2-O2, ( member(G2, [behind, ahead, grow]), uv_stepped(C, D, F1, G2, O2) ), L2),
+    check('thawed at every 50 inferences: the place and the horizon among the live clauses, and the clause retracted ahead gone', L2,
+          [behind-'1\n2\n3\n4\n[2,3,4]\n', ahead-'1\n2\n4\n[1,2,4]\n',
+           grow-'1\n2\n3\n4\n[1,2,3,4,6,7,8,9]\n']),
+    atom_concat(D, '/view-cut', K3),
+    sh_join([C, ' --embed ', K3, ' run ', F1, ' cut >/dev/null 2>&1; ',
+             C, ' --embed ', K3, ' query ''findall(X, q(X), L), write(L), nl'' 2>&1 | head -n 1'], Cmd3),
+    proc_run(Cmd3, 60000, Out3, _), atom_codes(O3, Out3),
+    check('a clause retracted under a call the run cuts away is gone for the next process', O3, '[1,3,4]\n').
+
+%% the goal run whole, on an embedded store of its own
+uv_whole(C, D, F, G, O) :-
+    atomic_list_concat([D, '/view-', G, '-whole'], K),
+    sh_join([C, ' --embed ', K, ' run ', F, ' ', G, ' 2>&1'], Cmd),
+    proc_run(Cmd, 60000, Out, _), atom_codes(O, Out).
+
+%% the goal started and stepped 50 inferences a turn, each turn a process
+%% that thaws the machine and freezes it again; what the program wrote, the
+%% start's and each turn's own lines left out
+uv_stepped(C, D, F, G, O) :-
+    atomic_list_concat([D, '/view-', G, '-kb'], K),
+    sh_join([C, ' --embed ', K, ' consult ', F, ' >/dev/null 2>&1; ',
+             'o=$(', C, ' --embed ', K, ' --steps 50 start m ', G, ' 2>&1); i=0; ',
+             'while :; do printf ''%s\\n'' "$o" | grep -v ''^m: \\|^  [0-9]*\\. \\|^started ''; ',
+             'case "$o" in *finished*) break;; esac; [ $i -lt 400 ] || break; i=$((i+1)); ',
+             'o=$(', C, ' --embed ', K, ' --steps 50 step m 2>&1); done'], Cmd),
+    proc_run(Cmd, 300000, Out, _), atom_codes(O, Out).

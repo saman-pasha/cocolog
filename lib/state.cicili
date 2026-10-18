@@ -30,16 +30,19 @@
 ;;; WHAT A RESUMED MACHINE ASSUMES ABOUT THE DATABASE. A choice point that was
 ;;; part way through a predicate remembers the predicate by NAME and arity --
 ;;; not by its index in the store, which depends on the order predicates were
-;;; first mentioned -- and the position of the next clause to try. So resuming
-;;; requires the predicate to still have its clauses in the order it had them.
-;;; Retracting a clause from underneath a suspended machine will make it resume
-;;; at the wrong one. A running query has the same hazard here, where a retry
-;;; reads the live clause list (ISO's logical update view, swipl's, spares it),
-;;; and it is the reason the clause tables are the thing a transaction is held
-;;; over. The machine records no revision of the database, on purpose: the
-;;; database is shared, other machines may change it while this one is frozen,
-;;; and a resume runs on it as it is; an embedded store nobody else uses
-;;; resumes exactly where it stopped.
+;;; first mentioned -- and, counted among the predicate's LIVE clauses, the
+;;; next clause to try and how many it may try (`C' and `L'): a running call
+;;; keeps ISO's logical update view (lib/kb.cicili), a clause retracted under
+;;; it dead in place and one asserted past its end, and the knowledge base a
+;;; thaw reloads holds only the live. So resuming requires the predicate to
+;;; still have its live clauses in the order it had them; another machine
+;;; retracting one from underneath a suspended machine makes it resume at the
+;;; wrong one. The machine records no revision of the database, on purpose:
+;;; the database is shared, other machines may change it while this one is
+;;; frozen, and a resume runs on it as it is. An embedded store nobody else
+;;; uses resumes where it stopped, but for one thing a run never frozen does:
+;;; a clause retracted AHEAD of an open call is gone from the store, so the
+;;; thawed call does not meet it.
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -165,7 +168,16 @@
               (coco_sb_put_sz b (-> c trail_mark))               (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c heap_mark))                (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c call))                     (coco_sb_putc b (cast char 32))
-              (coco_sb_put_sz b (-> c clause_ix))                (coco_sb_putc b (cast char 32))
+              ;; a clause frame's next clause by its ordinal among the LIVE
+              ;; clauses: the knowledge base a thaw reloads holds none of
+              ;; the dead the frame kept open (the logical update view,
+              ;; lib/kb.cicili), and the call goes on where it stood in it
+              (coco_sb_put_sz b (? (== (-> c kind) COCO_CH_CLAUSE)
+                                   (coco_pred_live_before
+                                    (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
+                                    (-> c clause_ix))
+                                   (-> c clause_ix)))
+              (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (-> c barrier))                  (coco_sb_putc b (cast char 32))
               (coco_sb_put_sz b (cast size_t parity))            (coco_sb_putc b (cast char 32))
               (if (== (-> c kind) COCO_CH_CLAUSE)
@@ -220,6 +232,24 @@
           ;; functors'.
           (coco_sb_put b "N ")
           (coco_sb_put_sz b (cast size_t (-> m fflags))) (coco_sb_putc b (cast char 10))
+
+          ;; HOW FAR EACH CALL OPEN OVER A PREDICATE MAY GO (the logical
+          ;; update view): the live clauses before the end it began with, as
+          ;; its next clause is written among the live in `C' -- so a thawed
+          ;; call does not meet the clauses it asserted itself, which the
+          ;; knowledge base it reloads holds -- in the order of the frames,
+          ;; 0 for a frame that is no call's, and 4294967295 for one whose
+          ;; end a thaw had not settled yet. Last, as `N' is.
+          (coco_sb_put b "L ") (coco_sb_put_sz b (-> e nchoices)) (coco_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
+            (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
+              (coco_sb_put_sz b (? (!= (-> c kind) COCO_CH_CLAUSE) 0
+                                   (? (== (-> c cend) 4294967295) 4294967295
+                                      (coco_pred_live_before
+                                       (aof (nth (-> c pred) ($ (cof (-> e st)) preds)))
+                                       (cast size_t (-> c cend))))))
+              (coco_sb_putc b (cast char (? (== 15 (% i 16)) 10 32)))))
+          (coco_sb_putc b (cast char 10))
 
           (return (? (== ($ (cof b) s) nil) 0 1))))
 
@@ -474,6 +504,21 @@
                (set (-> m fflags) 0)
                (if (coco_scan_section (aof z) 78)          ; `N'
                    (set (-> m fflags) (bitand (cast int (coco_scan_u64 (aof z) 10)) 15)))))
+
+          ;; ---- how far each open call may go (the logical update view), if
+          ;; it says: the end among the clauses the knowledge base will hold.
+          ;; A frame it does not settle keeps the mark `coco_choice_restore'
+          ;; left, and is given what that knowledge base holds when the run
+          ;; starts (`coco_frames_bound'), as a blob from before has each ----
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 76)          ; `L'
+                  (let ((size_t nl . #'(cast size_t (coco_scan_u64 (aof z) 10))))
+                    (for ((size_t i . 0)) (and ok (< i nl)) ((++ i))
+                      (let ((u64 v . #'(coco_scan_u64 (aof z) 10)))
+                        (if (and (< i (-> e nchoices))
+                                 (== ($ (nth i (-> e choices)) kind) COCO_CH_CLAUSE)
+                                 (< v 4294967295))
+                            (set ($ (nth i (-> e choices)) cend) (cast u32 v))))))))
 
           (coco_sb_free (aof nm))
           (if (or (not ok) ($ z bad))

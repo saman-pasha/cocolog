@@ -708,6 +708,12 @@
   (struct coco_pred
     (member u64      name)
     (member u32      arity)
+    ;; THE COUNT A PROBE READS: `nclauses' while no clause is dead, 0 while
+    ;; one is (or past 32 bits), so the probe's one test of its count also
+    ;; sends a predicate with dead clauses out of line (`coco_pred_probe').
+    ;; Kept by `coco_pred_nprobe' after every write of `nclauses' or `ntomb'.
+    ;; In the hole after ARITY: no other member moves.
+    (member u32      nprobe)
     (member size_t * clauses)          ; indices into the store's cells
     (member size_t   nclauses)
     (member size_t   clause_cap)
@@ -838,7 +844,51 @@
     ;; share, is indexed on the bound argument that leaves the fewest
     ;; candidates -- `edge(X, b)', or `word(es, casa, M)' in a table of
     ;; one language. nil until then.
-    (member coco_argix * aix))
+    (member coco_argix * aix)
+
+    ;; ---- the logical update view (ISO's, swipl's) ---------------------
+    ;;
+    ;; A CALL SEES THE CLAUSES THAT STOOD WHEN IT BEGAN. Its choice frame
+    ;; keeps the clause count of that moment (`cend', lib/solve.cicili), so
+    ;; an assertz made while it is open is beyond it, and an asserta moves
+    ;; it on a clause (`coco_frames_on'). A RETRACT WHILE A CALL ON THIS
+    ;; PREDICATE IS OPEN TAKES NOTHING OUT: the clause stays where it is,
+    ;; DEAD, its slot in TOMB the death it was, counted in TERA -- and
+    ;; each frame open then that had lived through none keeps it as the
+    ;; first (`fera', `coco_frames_on'), so the dead a frame may still try
+    ;; are the ones from its first on, and a new call tries none. Kept at
+    ;; the death and not at the push: a push is every call that leaves a
+    ;; choice, a death under an open call is rare. The dead go when no
+    ;; frame on the predicate is left (`coco_pred_sweep'), which sets TERA
+    ;; back to 0: at the next change of it, at a new call now and then, and
+    ;; when a query starts with nothing running. Through 2.2.5 a retry read
+    ;; the live list, and a retract under an open call moved the clauses it
+    ;; had still to try. TOMB is parallel to CLAUSES when it is not nil,
+    ;; and nil whenever NTOMB is 0. Everything that reads the clause list
+    ;; as the predicate's clauses skips a slot `coco_pred_dead' names.
+    (member u32 *    tomb)
+    (member size_t   tomb_cap)
+    (member size_t   ntomb)
+    (member u32      tera)
+    ;; new calls that met the dead, counted to ask now and then whether
+    ;; they may go (`coco_pred_probe_dead'), and whether the predicate is
+    ;; on the store's list of those with dead clauses (`tpreds')
+    (member u32      tprobe)
+    (member int      tlisted)
+    ;; A CLAUSE FRAME MAY BE OPEN ON IT: set by every push of one, and
+    ;; cleared by a walk of the frames that found none (`coco_frames_on'),
+    ;; so a predicate no call left a choice on -- a counter, a flag --
+    ;; walks no frames when it is changed
+    (member int      framed)
+    ;; WHERE THE LAST LIVE CLAUSE ASKED FOR BY ITS ORDINAL WAS (`clause/2'
+    ;; reads them so, `coco_pred_live_at'): the LORDth live one at LPOS, as
+    ;; long as LVER is TVER, which every change of the clause list or of a
+    ;; clause's life moves on -- so an enumeration with dead clauses about
+    ;; takes a step a clause and not a walk
+    (member u32      tver)
+    (member u32      lver)
+    (member size_t   lord)
+    (member size_t   lpos))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -924,6 +974,11 @@
     (member coco_pred * preds)
     (member size_t    npreds)
     (member size_t    pred_cap)
+    ;; THE PREDICATES WITH DEAD CLAUSES (`tomb' on the predicate), by index,
+    ;; for the sweep a query makes when it starts with nothing running
+    (member size_t *  tpreds)
+    (member size_t    ntpreds)
+    (member size_t    tpred_cap)
     ;; which store this is, for a cache keyed by store: a number no store
     ;; made in this process before it had, given at init (`coco_store_init')
     (member u64       serial)
@@ -1531,8 +1586,46 @@
   (decl) (func coco_pred_next_clause ((coco_store * st) (coco_pred * p)
                                     (u64 key) (size_t from)) (out size_t))
   ;; the first candidate and whether a second exists: 0 none, 1 one, 2 more
+  ;; -- of the LIVE clauses, a new call's (`coco_pred_dead')
   (decl) (func coco_pred_probe ((coco_store * st) (coco_pred * p)
-                              (u64 key) (size_t * ix)) (out int))
+                              (u64 key) (size_t * ix) (coco_machine * m)) (out int))
+
+  ;;; ---- the logical update view ------------------------------------------
+  ;;;
+  ;;; THE FRAMES OPEN ON PREDICATE PI of ST, on every engine of M's chain
+  ;;; that runs over ST (`m->eng', each engine's `outer' -- every engine a
+  ;;; program can still fail back into, as no builtin leaves a choice point
+  ;;; behind): with ACT 0 whether there is one (1 or 0, the walk stopping
+  ;;; at the first); with ACT 1 how many, each given death ERA as the first
+  ;;; it lives through when it has none (`fera'); with ACT 2 how many, each
+  ;;; moved one clause on, as an asserta just moved every clause
+  ;;; (`clause_ix', `cend'). No walk at all for a predicate no frame was
+  ;;; pushed on since the last walk found none (`framed'). Defined in
+  ;;; lib/solve.cicili, which knows what a frame is.
+  (decl) (func coco_frames_on ((coco_machine * m) (coco_store * st) (size_t pi)
+                               (int act) (u32 era)) (out size_t))
+  ;;; How many of P's clauses before position IX are live: IX itself when
+  ;;; none is dead -- the ordinal a frame's next clause has in a list that
+  ;;; holds no dead (a frozen machine's, `coco_freeze').
+  (decl) (func coco_pred_live_before ((coco_pred * p) (size_t ix)) (out size_t))
+  ;;; The position of P's Nth live clause (from 0), `coco_no_clause' past
+  ;;; the last: N itself when none is dead (`clause/2''s `'$clause'/3').
+  (decl) (func coco_pred_live_at ((coco_pred * p) (size_t n)) (out size_t))
+  ;;; The dead of predicate PI taken out if no frame is open on it: 1 when
+  ;;; they went (or there were none), 0 when a frame may still try one.
+  (decl) (func coco_tomb_try_sweep ((coco_store * st) (coco_machine * m) (size_t pi)) (out int))
+  ;;; Whether clause I of P is dead: retracted while a call on P was open
+  ;;; and kept for the calls open then.
+  (decl) (func coco_pred_dead ((coco_pred * p) (size_t i)) (out int))
+  ;;; How many of P's clauses are live.
+  (decl) (func coco_pred_live ((coco_pred * p)) (out size_t))
+  ;;; The dead clauses of PI taken out, as a retract with no call open
+  ;;; would have taken them: the caller has made sure no frame is open on
+  ;;; it. And the same for every predicate on the store's list, by a
+  ;;; caller that knows no frame is open anywhere (a query starting with
+  ;;; nothing running).
+  (decl) (func coco_pred_sweep ((coco_store * st) (coco_machine * m) (size_t pi)))
+  (decl) (func coco_tomb_sweep_all ((coco_store * st) (coco_machine * m)))
 
   ;;; THE ARGUMENT A CALL IS INDEXED ON, and its key. The first, as it
   ;;; always was, when its key leaves few candidates; else the bound one,
@@ -1869,6 +1962,7 @@
           (free ($ (nth i (-> st preds)) origins))
           (free ($ (nth i (-> st preds)) muted))
           (free (cast (void *) ($ (nth i (-> st preds)) codes)))
+          (free (cast (void *) ($ (nth i (-> st preds)) tomb)))
           ;; the index's three arrays go with the clause list they describe,
           ;; and so do the other arguments' tables
           (free ($ (nth i (-> st preds)) keys))
@@ -1883,6 +1977,7 @@
                    (free (cast (void *) ($ (nth j x) slots))))
                  (free (cast (void *) x))))))
         (free (-> st preds))
+        (free (-> st tpreds))
         (free (-> st pred_buckets))
         (coco_code_table_clear st)
         (coco_code_retired_free st)
@@ -5609,16 +5704,200 @@
           (if (== b (coco_no_clause)) (return a))
           (return (? (< a b) a b))))
 
+  ;;; EVERY INDEX OF A PREDICATE, dropped: what renumbers the clauses --
+  ;;; asserta, retract, a reconsult, a sweep of the dead -- leaves the chains
+  ;;; naming the wrong positions, and the next call that wants a table
+  ;;; rebuilds it.
+  (static)
+  (func coco_pred_unindex ((coco_pred * p))
+        (set (-> p indexed) 0)
+        (if (!= (-> p aix) nil)
+            (for ((u32 j . 0)) (< j (coco_aix_count)) ((++ j))
+              (set ($ (nth j (-> p aix)) indexed) 0))))
+
+  ;;; ---- the logical update view ------------------------------------------
+
+  ;;; P's `nprobe' from its counts, after every write of either.
+  (static) (inline)
+  (func coco_pred_nprobe ((coco_pred * p))
+        (set (-> p nprobe) (? (and (== (-> p ntomb) 0) (<= (-> p nclauses) 4294967295))
+                              (cast u32 (-> p nclauses)) 0)))
+
+  (func coco_pred_dead ((coco_pred * p) (size_t i)) (out int)
+        (return (and (!= (-> p ntomb) 0) (!= (nth i (-> p tomb)) 0))))
+
+  (func coco_pred_live ((coco_pred * p)) (out size_t)
+        (return (- (-> p nclauses) (-> p ntomb))))
+
+  (func coco_pred_live_before ((coco_pred * p) (size_t ix)) (out size_t)
+        (if (== (-> p ntomb) 0) (return ix))
+        (let ((size_t n . 0))
+          (for ((size_t i . 0)) (and (< i ix) (< i (-> p nclauses))) ((++ i))
+            (if (== (nth i (-> p tomb)) 0) (set n (+ n 1))))
+          (return n)))
+
+  (func coco_pred_live_at ((coco_pred * p) (size_t n)) (out size_t)
+        (if (== (-> p ntomb) 0) (return (? (< n (-> p nclauses)) n (coco_no_clause))))
+        (let ((size_t i . 0) (size_t k . 0))
+          ;; on from the last answer, when nothing changed since and N is
+          ;; not before it
+          (if (and (== (-> p lver) (-> p tver)) (<= (-> p lord) n) (< (-> p lpos) (-> p nclauses)))
+              (block (set i (-> p lpos)) (set k (-> p lord))))
+          (while (< i (-> p nclauses))
+            (if (== (nth i (-> p tomb)) 0)
+                (block
+                 (if (== k n)
+                     (block (set (-> p lord) n) (set (-> p lpos) i)
+                            (set (-> p lver) (-> p tver))
+                            (return i)))
+                 (set k (+ k 1))))
+            (set i (+ i 1)))
+          (return (coco_no_clause))))
+
+  ;;; PI READY TO KEEP DEAD CLAUSES: its TOMB made the first time, as long
+  ;;; as the clause list's capacity, and the predicate put on the store's
+  ;;; list. Answers 0 with no memory for either, and the caller takes the
+  ;;; clause out as a retract always did.
+  (static)
+  (func coco_tomb_ready ((coco_store * st) (size_t pi)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (== (-> p tomb) nil)
+              (let ((size_t cap . #'(? (> (-> p clause_cap) 0) (-> p clause_cap) 1)))
+                (set (-> p tomb) (cast (u32 *) (calloc cap (sizeof u32))))
+                (if (== (-> p tomb) nil) (return 0))
+                (set (-> p tomb_cap) cap)))
+          (if (not (-> p tlisted))
+              (block
+               (if (not (coco_store_grow st (cast (void **) (aof (-> st tpreds)))
+                                       (aof (-> st tpred_cap)) (+ (-> st ntpreds) 1)
+                                       (sizeof size_t)))
+                   (return 0))
+               (set (nth (-> st ntpreds) (-> st tpreds)) pi)
+               (set (-> st ntpreds) (+ (-> st ntpreds) 1))
+               (set (-> p tlisted) 1)))
+          (return 1)))
+
+  ;;; Clause I of P dies as death ERA, P ready (`coco_tomb_ready').
+  (static)
+  (func coco_tomb_set ((coco_pred * p) (size_t i) (u32 era))
+        (set (nth i (-> p tomb)) era)
+        (set (-> p ntomb) (+ (-> p ntomb) 1))
+        (coco_pred_nprobe p)
+        (set (-> p tver) (+ (-> p tver) 1)))
+
+  ;;; A DEATH ON PI UNDER AN OPEN CALL: the count it is given, one past the
+  ;;; last, when a frame is open on PI -- each open one that has lived
+  ;;; through no death given it as its first (`fera', `coco_frames_on') --
+  ;;; and PI is ready to keep its dead (`coco_tomb_ready'); 0 when no frame
+  ;;; is open, or there is no memory for the dead, and the caller takes the
+  ;;; clause out as a retract always did. (A frame given a count no death
+  ;;; then took sees the next death as its first, which it lives through.)
+  (static)
+  (func coco_tomb_open ((coco_store * st) (coco_machine * m) (size_t pi)) (out u32)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (u32 era . #'(+ (-> p tera) 1)))
+          (if (== (coco_frames_on m st pi 1 era) 0) (return 0))
+          (if (not (coco_tomb_ready st pi)) (return 0))
+          (set (-> p tera) era)
+          (return era)))
+
+  (func coco_pred_sweep ((coco_store * st) (coco_machine * m) (size_t pi))
+        (if (>= pi (-> st npreds)) (return))
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t kept . 0))
+          (if (== (-> p ntomb) 0) (return))
+          (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+            (if (!= (nth i (-> p tomb)) 0)
+                ;; the cells to the next compaction and the program now
+                ;; (`coco_store_orphan'), as a retract would have done when
+                ;; the clause died
+                (coco_store_orphan st m (nth i (-> p clauses)))
+              (block
+                (if (!= kept i)
+                    (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
+                           (set (nth kept (-> p keys)) (nth i (-> p keys)))
+                           (set (nth kept (-> p origins)) (nth i (-> p origins)))
+                           (set (nth kept (-> p muted)) (nth i (-> p muted)))
+                           (set (nth kept (-> p codes)) (nth i (-> p codes)))))
+                (set kept (+ kept 1)))))
+          (set (-> p nclauses) kept)
+          (set (-> p ntomb) 0)
+          (coco_pred_nprobe p)
+          (free (cast (void *) (-> p tomb)))
+          (set (-> p tomb) nil)
+          (set (-> p tomb_cap) 0)
+          (set (-> p tprobe) 0)
+          ;; no frame is open on it, so the count of deaths starts again
+          (set (-> p tera) 0)
+          ;; the positions after each dead one have moved
+          (set (-> p tver) (+ (-> p tver) 1))
+          (coco_pred_unindex p)))
+
+  (func coco_tomb_sweep_all ((coco_store * st) (coco_machine * m))
+        (for ((size_t i . 0)) (< i (-> st ntpreds)) ((++ i))
+          (let ((size_t pi . #'(nth i (-> st tpreds))))
+            (coco_pred_sweep st m pi)
+            (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) tlisted) 0))))
+        (set (-> st ntpreds) 0))
+
+  (func coco_tomb_try_sweep ((coco_store * st) (coco_machine * m) (size_t pi)) (out int)
+        (if (== ($ (nth pi (-> st preds)) ntomb) 0) (return 1))
+        ;; a sweep measures what it orphans on a machine's heap
+        (if (== m nil) (return 0))
+        (if (!= (coco_frames_on m st pi 0 0) 0) (return 0))
+        (coco_pred_sweep st m pi)
+        (return 1))
+
+  ;;; THE PROBE OF A PREDICATE WITH DEAD CLAUSES, out of line: the first
+  ;;; LIVE candidate and whether there is a second, a new call seeing none
+  ;;; of the dead. And now and then -- every 256th such call -- the dead
+  ;;; are taken out first if no frame is open on the predicate any more,
+  ;;; so that a predicate read and no longer changed after a death does
+  ;;; not pay for its dead for ever. Weak, so never inlined into the probe
+  ;;; every call makes.
+  (weak)
+  (func coco_pred_probe_dead ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix)
+                              (coco_machine * m) (u32 pos)) (out int)
+        (set (-> p tprobe) (+ (-> p tprobe) 1))
+        (if (and (!= (-> p ntomb) 0) (== (bitand (-> p tprobe) 255) 0) (!= m nil))
+            (let ((size_t pi . #'(cast size_t (- p (-> st preds)))))
+              (if (coco_tomb_try_sweep st m pi)
+                  (return (coco_pred_probe_at st m p pos key ix)))))
+        (let ((size_t a . #'(coco_pred_next_at st m p pos key 0))
+              (size_t b . 0))
+          (while (and (!= a (coco_no_clause)) (coco_pred_dead p a))
+            (set a (coco_pred_next_at st m p pos key (+ a 1))))
+          (if (== a (coco_no_clause)) (return 0))
+          (set (cof ix) a)
+          (set b (coco_pred_next_at st m p pos key (+ a 1)))
+          (while (and (!= b (coco_no_clause)) (coco_pred_dead p b))
+            (set b (coco_pred_next_at st m p pos key (+ b 1))))
+          (return (? (== b (coco_no_clause)) 1 2))))
+
+  ;;; WHERE A PROBE GOES WHEN `nprobe' IS 0: no clause, or a dead one, or
+  ;;; more clauses than 32 bits count -- each asked here, out of line, so
+  ;;; the probe every call makes tests its count once.
+  (weak)
+  (func coco_pred_probe_cold ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix)
+                              (coco_machine * m) (u32 pos)) (out int)
+        (if (== (-> p nclauses) 0) (return 0))
+        (return (coco_pred_probe_dead st p key ix m pos)))
+
   ;;; THE FIRST CANDIDATE AND WHETHER THERE IS A SECOND, in one ask: 0 for
   ;;; no clause that can match, 1 for exactly one (its position in IX), 2
   ;;; for more, with IX the first -- what a call needs to know to go
   ;;; without a choice frame (`coco_engine_run', 1.8.46). A small
   ;;; predicate's scan finds both in one pass over its keys where two asks
   ;;; of `coco_pred_next_clause' made two passes and two calls; an indexed
-  ;;; one still asks twice.
-  (func coco_pred_probe ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix)) (out int)
-        (let ((size_t n . #'(-> p nclauses)))
-          (if (== n 0) (return 0))
+  ;;; one still asks twice. A predicate with dead clauses asks out of line.
+  ;;;
+  ;;; ITS COUNT IS `nprobe', and that one test is the dead clauses' too: a
+  ;;; test of `ntomb' beside it was a load and a branch more a call, nrev
+  ;;; +0.64 % of 2.2.5's work where this is +0.32 % (STATUS.md, the logical
+  ;;; update view).
+  (func coco_pred_probe ((coco_store * st) (coco_pred * p) (u64 key) (size_t * ix) (coco_machine * m)) (out int)
+        (let ((size_t n . #'(cast size_t (-> p nprobe))))
+          (if (== n 0) (return (coco_pred_probe_cold st p key ix m 0)))
           (if (== key 0)
               (block (set (cof ix) 0) (return (? (== n 1) 1 2))))
           (if (or (< n (coco_index_floor))
@@ -5835,29 +6114,28 @@
 
   (func coco_pred_probe_at ((coco_store * st) (coco_machine * m) (coco_pred * p)
                             (u32 pos) (u64 key) (size_t * ix)) (out int)
-        (if (or (== pos 0) (== key 0)) (return (coco_pred_probe st p key ix)))
+        (if (or (== pos 0) (== key 0)) (return (coco_pred_probe st p key ix m)))
+        (if (== (-> p nprobe) 0) (return (coco_pred_probe_cold st p key ix m pos)))
         (let ((size_t a . #'(coco_pred_next_at st m p pos key 0)))
           (if (== a (coco_no_clause)) (return 0))
           (set (cof ix) a)
           (return (? (== (coco_pred_next_at st m p pos key (+ a 1)) (coco_no_clause)) 1 2))))
 
-  ;;; EVERY INDEX OF A PREDICATE, dropped: what renumbers the clauses --
-  ;;; asserta, retract, a reconsult -- leaves the chains naming the wrong
-  ;;; positions, and the next call that wants a table rebuilds it.
-  (static)
-  (func coco_pred_unindex ((coco_pred * p))
-        (set (-> p indexed) 0)
-        (if (!= (-> p aix) nil)
-            (for ((u32 j . 0)) (< j (coco_aix_count)) ((++ j))
-              (set ($ (nth j (-> p aix)) indexed) 0))))
-
   (static)
   (func coco_pred_add_clause ((coco_store * st) (coco_machine * m) (size_t pi) (size_t clause)
                             (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          ;; the dead gone first if no frame is open to want them
+          (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p origins)))
                                   (aof (-> p origin_cap)) (+ (-> p nclauses) 1)
                                   (sizeof u64)))
+              (return 0))
+          ;; and the dead's own list grows with the others while there is one
+          (if (and (!= (-> p tomb) nil)
+                   (not (coco_store_grow st (cast (void **) (aof (-> p tomb)))
+                                         (aof (-> p tomb_cap)) (+ (-> p nclauses) 1)
+                                         (sizeof u32))))
               (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
                                   (aof (-> p clause_cap)) (+ (-> p nclauses) 1)
@@ -5887,7 +6165,8 @@
                      (set (nth (-> p nclauses) (-> p keys)) key)
                      (set (nth (-> p nclauses) (-> p origins)) origin)
                      (set (nth (-> p nclauses) (-> p muted)) muted)
-                     (set (nth (-> p nclauses) (-> p codes)) nil))
+                     (set (nth (-> p nclauses) (-> p codes)) nil)
+                     (if (!= (-> p tomb) nil) (set (nth (-> p nclauses) (-> p tomb)) 0)))
             ;; asserta: shift the rest up by one and put this first. Every
             ;; clause after it is renumbered, and the chains hold POSITIONS,
             ;; so the index is dropped rather than patched.
@@ -5898,14 +6177,23 @@
                        (set (nth i (-> p origins)) (nth (- i 1) (-> p origins)))
                        (set (nth i (-> p muted)) (nth (- i 1) (-> p muted)))
                        (set (nth i (-> p codes)) (nth (- i 1) (-> p codes)))
+                       (if (!= (-> p tomb) nil) (set (nth i (-> p tomb)) (nth (- i 1) (-> p tomb))))
                        (set i (- i 1))))
                    (set (nth 0 (-> p clauses)) clause)
                    (set (nth 0 (-> p keys)) key)
                    (set (nth 0 (-> p origins)) origin)
                    (set (nth 0 (-> p muted)) muted)
                    (set (nth 0 (-> p codes)) nil)
+                   (if (!= (-> p tomb) nil) (set (nth 0 (-> p tomb)) 0))
                    (coco_pred_unindex p)))
           (set (-> p nclauses) (+ (-> p nclauses) 1))
+          (coco_pred_nprobe p)
+          (set (-> p tver) (+ (-> p tver) 1))
+          ;; THE LOGICAL UPDATE VIEW: every frame open on the predicate is
+          ;; moved on with the clauses it was going to try, and the one in
+          ;; front is before where it stands -- a call open now never meets
+          ;; it (`coco_frames_on')
+          (if (not at_end) (coco_frames_on m st pi 2 0))
           ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
           ;; new clause is the highest position there is, so linking it onto
           ;; the tail of its chain leaves every chain ascending. Rebuilding
@@ -5961,12 +6249,30 @@
   (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
         (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-              (size_t kept . 0) (int gone . 0))
+              (size_t kept . 0) (int gone . 0) (size_t swept . 0))
+          ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate, the
+          ;; file's clauses die where they stand and stay for it, and what
+          ;; the file says now comes after every one of them
+          (let ((u32 era . #'(coco_tomb_open st m pi)))
+            (if (!= era 0)
+                (block
+                  (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p tomb)) 0))
+                        (block (coco_tomb_set p i era) (set gone (+ gone 1)))))
+                  (if (== gone 0) (return 0))
+                  (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
+                      ((-> st on_retract) st (-> st ctx) pi))
+                  (return gone))))
+          ;; no call open: taken out, and the dead of an earlier change with them
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-            (if (== (nth i (-> p origins)) origin)
-                (block (set gone (+ gone 1))
-                       (coco_store_orphan st m (nth i (-> p clauses))))
-              (block
+            (cond
+              ((coco_pred_dead p i)
+               (set swept (+ swept 1))
+               (coco_store_orphan st m (nth i (-> p clauses))))
+              ((== (nth i (-> p origins)) origin)
+               (set gone (+ gone 1))
+               (coco_store_orphan st m (nth i (-> p clauses))))
+              (#t
                 (if (!= kept i)
                     (block (set (nth kept (-> p clauses)) (nth i (-> p clauses)))
                            (set (nth kept (-> p keys)) (nth i (-> p keys)))
@@ -5974,9 +6280,16 @@
                            (set (nth kept (-> p muted)) (nth i (-> p muted)))
                            (set (nth kept (-> p codes)) (nth i (-> p codes)))))
                 (set kept (+ kept 1)))))
-          (if (== gone 0) (return 0))
+          (if (and (== gone 0) (== swept 0)) (return 0))
           (set (-> p nclauses) kept)
+          (set (-> p tver) (+ (-> p tver) 1))
+          (if (!= (-> p tomb) nil)
+              (block (free (cast (void *) (-> p tomb)))
+                     (set (-> p tomb) nil) (set (-> p tomb_cap) 0)
+                     (set (-> p ntomb) 0) (set (-> p tprobe) 0) (set (-> p tera) 0)))
+          (coco_pred_nprobe p)
           (coco_pred_unindex p)
+          (if (== gone 0) (return 0))
           (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
               ((-> st on_retract) st (-> st ctx) pi))
           (return gone)))
@@ -6607,6 +6920,8 @@
                 (if (and (!= hkey 0) (!= (nth i (-> p keys)) 0)
                          (!= hkey (nth i (-> p keys))))
                     continue)
+                ;; a clause that died under an open call is retracted already
+                (if (coco_pred_dead p i) continue)
                 (let ((size_t mark . #'(-> m heap_len))
                       (size_t tmark . #'(-> m trail_len))
                       ;; SPAN is the clause's cells in the store, which the
@@ -6642,6 +6957,29 @@
                        (set ok (coco_unify m body cbody))))
                   (if ok
                       (block
+                       ;; THE LOGICAL UPDATE VIEW: with a call open on the
+                       ;; predicate the clause dies where it stands, for the
+                       ;; calls open now to try still and no later call to
+                       ;; see (`coco_tomb_set'); the database loses it now
+                       (let ((u32 era . #'(coco_tomb_open st m pi)))
+                         (if (!= era 0)
+                             (block
+                               (coco_tomb_set p i era)
+                               (set (-> p dynamic) 1)
+                               (if (and (not (coco_store_is_muted st))
+                                        (!= (-> st on_retract) nil))
+                                   ((-> st on_retract) st (-> st ctx) pi))
+                               (return 1))))
+                       ;; none open, and the dead of an earlier change go with it
+                       (if (!= (-> p ntomb) 0)
+                           (block
+                            (coco_tomb_set p i 1)
+                            (coco_pred_sweep st m pi)
+                            (set (-> p dynamic) 1)
+                            (if (and (not (coco_store_is_muted st))
+                                     (!= (-> st on_retract) nil))
+                                ((-> st on_retract) st (-> st ctx) pi))
+                            (return 1)))
                        ;; drop it from the predicate; the cells are orphaned
                        ;; until the next compaction (`coco_store_compact'),
                        ;; and its compiled program goes now
@@ -6658,6 +6996,8 @@
                          (set (nth j (-> p muted)) (nth (+ j 1) (-> p muted)))
                          (set (nth j (-> p codes)) (nth (+ j 1) (-> p codes))))
                        (set (-> p nclauses) (- (-> p nclauses) 1))
+                       (coco_pred_nprobe p)
+                       (set (-> p tver) (+ (-> p tver) 1))
                        (coco_pred_unindex p)
                        ;; anything retractable is dynamic by definition, whether
                        ;; or not anybody said so
