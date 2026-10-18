@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -7509,10 +7509,10 @@ newspaper_fregene_checks_1 :-
 newspaper_fregene_checks_2 :-
     nf_tr('Se ci sarà una causa non voglio una lira.', italian, spanish, G1),
     check('`there is'' has nobody for its subject, and a main clause may open on its denial: `se ci sarà una causa non voglio una lira'' took `non'' into the condition, which then said there would be none', G1,
-          'Si habrá una causa no quiero una lira.'),
+          'Si hay una causa no quiero una lira.'),
     nf_tr('Comunque se ci sarà una causa non voglio una lira.', italian, spanish, G2),
     check('a connecting adverb before a subordinate clause goes in front of the main clause: read as one clause the piece had two verbs, and was refused', G2,
-          'Si habrá una causa de todos modos no quiero una lira.'),
+          'Si hay una causa de todos modos no quiero una lira.'),
     nf_tr('Non chiede il pane, Carolyn.', italian, spanish, G3),
     check('a name after the last comma of a clause whose subject nobody named is that subject, set at the end: read as an object it took the word before a person, `a Carolyn''', G3,
           'No pide el pan, Carolyn.'),
@@ -14125,6 +14125,309 @@ newspaper_miss_checks_5 :-
           'Ya se puede dormir.').
 
 %% <<< miss
+
+%% >>> lazio
+%% ---- an Italian report on a football club's summer, into Spanish and English (VIT-9511..9539) ----------
+%% The two hand lessons are the beauty contest's (newspaper_miss_part/3) and a third part: the words the checks below need.
+
+newspaper_lazio :-
+    section('an Italian report on a football club''s summer, into Spanish and English: `if not'' and a phrase, an adverb before a purpose in front, a purpose in front inside a clause, `when'' and `how'' after a verb that asks nothing, a name and an adjective, an absolute front and its subject, the emphasis of a reflexive pronoun, a headline after the section''s name, a question after an infinitive, three names and an adverb, `not only'', `while'' as a connector, the future after `if'', `according to me'', `says it'', the partitive, the perfect gerund, `without him'', a team named by `we are'', `one of the four or five teams'', `neither ... nor'' and the verb of a relative clause''s object'),
+    newspaper_lazio_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_lazio_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_lazio_checks_1, newspaper_lazio_checks_2, newspaper_lazio_checks_3, newspaper_lazio_checks_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_lazio_lesson(L, Text) :-
+    newspaper_miss_part(L, 1, A), newspaper_miss_part(L, 2, B), newspaper_lazio_part(L, 3, C),
+    atomic_list_concat([A, ' ', B, ' ', C], Text).
+
+% the third part of each hand lesson of the football-club section
+newspaper_lazio_part(spanish, 3, 'The conjunction "mientras" means "while". The adverb "en cambio" means "instead". The adverb "etcétera" means "etcetera".
+The word "cuándo" means "when". The conjunction "cuando" means "when". The conjunction "o" means "or". The conjunction "ni" means "neither". The conjunction "ni" means "nor".
+The conjunction "dado que" means "given that". The conjunction "tanto es así que" means "so much so that".
+The preposition "según" means "according to". The pronoun "mí" means "me". The pronoun "mí" does not precede the verb.
+The preposition "sin" means "without". The pronoun "él" means "him". The pronoun "él" does not precede the verb.
+The verb "tiene" means "has". "tienen" is the plural of "tiene". The verb "habla" means "speaks". The verb "pesca" means "fishes". The feminine noun "pesca" means "peach".
+The verb "empieza" means "begins". "empieza" takes "a" before the infinitive. "empezar" is the infinitive of "empieza".
+The verb "se atormenta" means "agonises". "atormentarse" is the infinitive of "se atormenta". "se atormenta" takes "por" before the question.
+"beber" is the infinitive of "bebe". "dicen" is the plural of "dice". "somos" is the first person of "son".
+The verb "termina" means "finishes". "terminado" is the participle of "termina". "finished" is the participle of "finishes".
+The masculine noun "equipo" means "team". "equipos" is the plural of "equipo".
+The number "cuatro" means "four". The number "cinco" means "five".
+The masculine noun "bohemio" means "bohemian". "bohemio" is a person.
+The masculine adjective "optimista" means "optimistic". The masculine adjective "venenoso" means "poisonous".
+The masculine noun "fútbol" means "football". The feminine noun "declaración" means "statement". "declaraciones" is the plural of "declaración".
+The feminine adjective "varia" means "various". "varias" is the plural of "varia". The verb "varía" means "ranges". "varían" is the plural of "varía".
+The verb "sabe" means "knows". The transitive verb "conoce" means "knows". "conocen" is the plural of "conoce". "conocemos" is the first person of "conocen".
+"habiendo" is the gerund of "ha".
+The adverb "bien" means "well". The verb "se limita" means "limits". The number "tres" means "three".
+The feminine noun "duda" means "doubt". "comerá" is the future of "come". "dormirá" is the future of "duerme".
+The verb "está de acuerdo" means "is in agreement". "estoy de acuerdo" is the first person of "está de acuerdo". "está de acuerdo" takes "con" before the phrase.').
+newspaper_lazio_part(italian, 3, 'The conjunction "mentre" means "while". The adverb "mentre" means "meanwhile". The adverb "invece" means "instead". The adverb "eccetera" means "etcetera".
+The word "quando" means "when". The conjunction "o" means "or". The conjunction "né" means "neither". The conjunction "né" means "nor".
+The conjunction "premesso che" means "given that". The conjunction "tanto è vero che" means "so much so that".
+The preposition "secondo" means "according to". The pronoun "me" means "me". The pronoun "me" does not precede the verb.
+The preposition "senza" means "without". "senza" takes "di" before the pronoun. The pronoun "lui" means "him". The pronoun "lui" does not precede the verb.
+The pronoun "lo" means "him".
+The verb "ha" means "has". "hanno" is the plural of "ha". "dei" is the contraction of "di i". "delle" is the contraction of "di le". "dei" is the plural of "un".
+The verb "parla" means "speaks". The verb "pesca" means "fishes". The feminine noun "pesca" means "peach".
+The verb "comincia" means "begins". "comincia" takes "a" before the infinitive. "cominciare" is the infinitive of "comincia".
+The verb "si macera" means "agonises". "macerarsi" is the infinitive of "si macera". "si macera" takes "su" before the question.
+"bere" is the infinitive of "beve". "mangerà" is the future of "mangia". "dicono" is the plural of "dice".
+The verb "finisce" means "finishes". "finito" is the participle of "finisce". "finished" is the participle of "finishes".
+"siamo" is the first person of "sono". The feminine noun "squadra" means "team". "squadre" is the plural of "squadra".
+The number "quattro" means "four". The number "cinque" means "five". The feminine article "una" means "one".
+The masculine noun "boemo" means "bohemian". "boemo" is a person.
+The masculine adjective "ottimista" means "optimistic". The masculine adjective "velenoso" means "poisonous".
+The masculine noun "calcio" means "football". The feminine noun "dichiarazione" means "statement". "dichiarazioni" is the plural of "dichiarazione".
+The feminine adjective "varia" means "various". "varie" is the plural of "varia". The verb "varia" means "ranges". "variano" is the plural of "varia".
+The transitive verb "conosce" means "knows". "conoscono" is the plural of "conosce". "conosciamo" is the first person of "conoscono".
+"avendo" is the gerund of "ha".
+The adverb "bene" means "well". The verb "si limita" means "limits". The dative pronoun "gli" means "him". The number "tre" means "three".
+The masculine noun "dubbio" means "doubt". "dormirà" is the future of "dorme".
+"dice" takes "di" before the infinitive.
+The verb "è d''accordo" means "is in agreement". "sono d''accordo" is the first person of "è d''accordo". "è d''accordo" takes "su" before the phrase.').
+
+newspaper_lazio_checks_1 :-
+    nf_tr('Il gatto dorme, se non il cane.', italian, english, L1),
+    check('`IF NOT'', AND A PHRASE: `una curiosità maliziosa, se non una vera e propria pressione'' is a malicious curiosity, if not a genuine pressure -- the word for `if'' and a denial before a PHRASE (not a verb''s form) travel as they do before an adjunct, the denial and its phrase one complement (tr_complements0/4, neg/1); read as a condition the clause had no verb, and the sentence was refused', L1,
+          'The cat sleeps, if not the dog.'),
+    nf_tr('Il gatto dorme, se non il cane.', italian, spanish, L2),
+    check('... and in Spanish', L2,
+          'El gato duerme, si no el perro.'),
+    nf_tr('Il cane dorme, se non pesca.', italian, spanish, L3),
+    check('GUARD: a verb''s form after the denial is a clause, however much a noun it is too -- `se non pesca'' is if it does not fish, and `pesca'' the peach would make it `if not a peach''', L3,
+          'El perro duerme, si no pesca.'),
+    nf_tr('Invece per bere il cane mangia il pane.', italian, english, L4),
+    check('AN ADVERB BEFORE A PURPOSE IN FRONT: `quando invece per contestare arrivano in tanti'' -- the front is the adverb and the purpose, with no comma, and the rest names its subject; the front was the purpose alone (tr_front_skip_adverbs/2)', L4,
+          'Instead the dog eats the bread to drink.'),
+    nf_tr('Invece per bere il cane mangia il pane.', italian, spanish, L5),
+    check('... and in Spanish', L5,
+          'En cambio el perro come el pan para beber.'),
+    nf_tr('Il cane dorme quando per bere il gatto mangia.', italian, english, L6),
+    check('A PURPOSE IN FRONT INSIDE A CLAUSE: the top of a sentence read it, and a nested clause did not -- `il cane dorme quando per bere il gatto mangia'' is the dog sleeping when the cat eats, to drink (tr_nested_front/3)', L6,
+          'The dog sleeps when the cat eats to drink.'),
+    nf_tr('Il cane dorme quando per bere il gatto mangia.', italian, spanish, L7),
+    check('... and in Spanish, with the relative `cuando'' of the next check', L7,
+          'El perro duerme cuando el gato come para beber.'),
+    nf_tr('Il cane dorme quando invece per bere il gatto mangia.', italian, spanish, L8),
+    check('... AND AN ADVERB BEFORE THE PURPOSE THERE AS AT THE TOP: `quando invece per contestare arrivano in tanti'' -- the adverb stays before the purpose in Spanish, `come en cambio para beber'' (tr_front_skip_adverbs/2 in tr_nested_front/3)', L8,
+          'El perro duerme cuando el gato come en cambio para beber.'),
+    nf_tr('Il cane dorme quando il gatto mangia.', italian, spanish, L9),
+    check('`WHEN'' AFTER A VERB THAT ASKS NOTHING IS THE RELATIVE WORD: `il cane dorme quando il gatto mangia'' is `duerme cuando'', never the question''s `cuándo'' (tr_relative_wh/3: the word after the verb was always the indirect question it can be)', L9,
+          'El perro duerme cuando el gato come.'),
+    nf_tr('Il cane sa quando il gatto mangia.', italian, spanish, L10),
+    check('GUARD: a verb that takes the question keeps it -- `il cane sa quando il gatto mangia'' asks, `sabe cuándo''', L10,
+          'El perro sabe cuándo el gato come.'),
+    nf_tr('Il cane vede quando il gatto mangia.', italian, spanish, L11),
+    check('... and so does a verb of asking, seeing or finding out the lesson does not say takes it -- `il cane vede quando il gatto mangia'' is `ve cuándo'' (tr_asks_question_here/0, en_asks/1)', L11,
+          'El perro ve cuándo el gato come.'),
+    nf_tr('Il cane dorme come dicono i gatti.', italian, english, L12),
+    check('`HOW'' AND A VERB OF SAYING IS `AS'': `se "cambiare è migliorare" come dicono i giocatori all''unisono'' -- as the players say; right after a verb that asks nothing the word is the `as'' of a comment (cmtc/1), and read as the indirect question it was `how the cats say'' (tr_how_as_saying/2)', L12,
+          'The dog sleeps as the cats say.'),
+    nf_tr('Il cane dorme come dicono i gatti.', italian, spanish, L13),
+    check('... and in Spanish, `como'' and not `cómo''', L13,
+          'El perro duerme como dicen los gatos.'),
+    nf_tr('Il cane sa come dicono i gatti.', italian, english, L14),
+    check('GUARD: after a verb that takes the question it is the question -- `il cane sa come dicono i gatti'' is how', L14,
+          'The dog knows how the cats say.'),
+    nf_tr('Il cane dorme bene come dicono i gatti.', italian, english, L15),
+    check('... AND AFTER A COMPLEMENT OF THE VERB, not only straight after it: `il cane dorme bene come dicono i gatti'' is still as the cats say (tr_relative_wh_after/3 goes on past the complements the verb has read)', L15,
+          'The dog sleeps well as the cats say.'),
+    nf_tr('Il cane dorme bene come dicono i gatti.', italian, spanish, L16),
+    check('... and in Spanish', L16,
+          'El perro duerme bien como dicen los gatos.').
+
+newspaper_lazio_checks_2 :-
+    nf_tr('Zeman ottimista.', italian, english, L1),
+    check('A NAME AND AN ADJECTIVE, THE COPULA LEFT OUT: `Signori ottimista, Zeman velenoso'' -- Signori optimistic, Zeman poisonous, a headline''s line that says how a man is; a capitalised word the lesson does not know, an adjective that is no verb''s form after it, and nothing else (tr_verbless0/3)', L1,
+          'Zeman optimistic.'),
+    nf_tr('Zeman ottimista.', italian, spanish, L2),
+    check('... and in Spanish', L2,
+          'Zeman optimista.'),
+    nf_tr('Zeman ottimista, Balbo velenoso.', italian, english, L3),
+    check('... and a second one after a comma', L3,
+          'Zeman optimistic, Balbo poisonous.'),
+    nf_tr('Dopo un gatto finito il cane dorme.', italian, english, L4),
+    check('A FRONT THAT ENDS ON AN ABSOLUTE CLAUSE WITH NO COMMA LEAVES THE REST ITS SUBJECT: `Dopo una rivoluzione mancata la Lazio si è ritrovata uguale a sé stessa'' -- longest first the front took `finito il cane'' for a clause of its own and left the verb with nobody named, `after a cat finished the dog, sleeps''', L4,
+          'The dog sleeps after a finished cat.'),
+    nf_tr('Dopo un gatto finito il cane si mangia il pane.', italian, english, L5),
+    check('... and the rest names its subject, not the impersonal `si'': `il cane si mangia il pane'' after the front is the dog''s, where `si mangia il pane'' alone read as one eats, and the front gave up its noun to the absolute clause (the subject read must not be the impersonal one)', L5,
+          'The dog eats the bread after a finished cat.'),
+    nf_tr('Il cane dorme per sé stesso.', italian, english, L6),
+    check('THE WORD FOR `SAME'' AFTER A REFLEXIVE PRONOUN IS ITS EMPHASIS: `uguale a sé stessa'' is equal to itself, English having it in the pronoun -- `to itself same'' was the second word of the IR, written (tr_comps_out/7)', L6,
+          'The dog sleeps for itself.'),
+    nf_tr('Il cane dorme per sé stesso.', italian, spanish, L7),
+    check('... and Spanish keeps both words', L7,
+          'El perro duerme para sí mismo.'),
+    nf_tr('Calcio - dichiarazioni varie del cane.', italian, english, L8),
+    check('A HEADLINE THAT OPENS ON A PLURAL NOUN AND ITS ADJECTIVE, AFTER THE SECTION''S NAME AND A DASH, IS THE NOUN FIRST: `Calcio - dichiarazioni varie del giocatore'' -- `varie'' is what `variare'' says as well, and read with a verb the statements ranged, `statements range of the player'' (tr_read0/4, as the headline alone is)', L8,
+          'Football – various statements of the dog.'),
+    nf_tr('Calcio - dichiarazioni varie del cane.', italian, spanish, L9),
+    check('... and in Spanish', L9,
+          'Fútbol – declaraciones varias del perro.'),
+    nf_tr('Il cane comincia a macerarsi su chi mangia.', italian, english, L10),
+    check('A QUESTION AFTER AN INFINITIVE THAT TAKES IT: `si è limitata a macerarsi su chi dovesse vendere'' -- the question word asks as it asks after a verb, and the word the infinitive puts before it (`"si macera" takes "su" before the question.'') is written for the infinitive''s verb, `agonise OVER who'', and not for the clause''s (tr_relative_wh_after/3, tr_wh_verb_set/1)', L10,
+          'The dog begins to agonise over who eats.'),
+    nf_tr('Il cane comincia a macerarsi su chi mangia.', italian, spanish, L11),
+    check('... and in Spanish, `por quien''', L11,
+          'El perro empieza a atormentarse por quien come.'),
+    nf_tr('Il cane si limita a macerarsi su chi mangia.', italian, english, L12),
+    check('... AND AFTER THE PREPOSITION A VERB PUTS BEFORE ITS INFINITIVE (`si limita a macerarsi su chi ...'' -- the infinitive is the one the verb takes with `a'', and the question is asked after it all the same, tr_question_after_inf/4)', L12,
+          'The dog limits to agonise over who eats.'),
+    nf_tr('Il cane si limita a macerarsi su chi mangia.', italian, spanish, L13),
+    check('... and in Spanish', L13,
+          'El perro se limita a atormentarse por quien come.'),
+    nf_tr('Il cane si macera su chi mangia.', italian, english, L14),
+    check('... and after the finite verb', L14,
+          'The dog agonises over who eats.'),
+    nf_tr('Il cane non sa chi mangia.', italian, english, L15),
+    check('`CHI'' AFTER A VERB THAT TAKES THE QUESTION ASKS: `non so chi vende'' is I do not know who sells, and not the one who does -- the question word is the subject of the clause after it, a gap (tr_who_gap/2)', L15,
+          'The dog does not know who eats.'),
+    nf_tr('Il cane non sa chi mangia.', italian, spanish, L16),
+    check('... and in Spanish', L16,
+          'El perro no sabe quien come.').
+
+newspaper_lazio_checks_3 :-
+    nf_tr('Il gatto vede Stoichkov, Baggio, Zola eccetera.', italian, english, L1),
+    check('THREE NAMES AND AN ADVERB THAT CLOSES THEM: `Stoichkov, Baggio, Lombardo eccetera'' -- a list of names with no coordinator is one list to the end of the piece, and now to an adverb at its end; with the adverb after the last name the middle one was apposed to the first and the sentence refused (tr_list_closer/2)', L1,
+          'The cat sees Stoichkov, Baggio, Zola etcetera.'),
+    nf_tr('Il gatto vede Stoichkov, Baggio, Zola eccetera.', italian, spanish, L2),
+    check('... and in Spanish', L2,
+          'El gato ve a Stoichkov, Baggio, Zola etcétera.'),
+    nf_tr('Mentre il gatto vede Stoichkov, Baggio, Zola eccetera, il cane dorme.', italian, english, L3),
+    check('... and the adverb and a comma, the clause of the main verb after them', L3,
+          'While the cat sees Stoichkov, Baggio, Zola etcetera, the dog sleeps.'),
+    nf_tr('Non solo, mentre il gatto mangia, il cane dorme.', italian, english, L4),
+    check('`NOT ONLY'', A COMMA AND A CLAUSE, WITH NO PARTNER SAID: `non solo, mentre le altre squadre si sono accaparrate Stoichkov, la Lazio si è limitata a macerarsi'' -- the two words are an adverb of the clause after the comma; read as the denial and the word for `only'' the clause was `Only the dog does not sleep'' (tr_read0/4, nonly/0)', L4,
+          'Not only, while the cat eats, the dog sleeps.'),
+    nf_tr('Non solo, mentre il gatto mangia, il cane dorme.', italian, spanish, L5),
+    check('... and in Spanish', L5,
+          'No sólo, mientras el gato come, el perro duerme.'),
+    nf_tr('Mentre il gatto mangia.', italian, english, L6),
+    check('A WORD THAT SUBORDINATES IS NOT LIFTED AS THE ADVERB IT IS TOO: `Mentre le squadre hanno comprato Stoichkov, Baggio e Zola'' is while the teams bought them, not `the teams bought them while'' -- `mentre'' is an adverb as well, and the whole piece read with its adverbs lifted before the connector''s reading (tr_head_connector_lifted/3)', L6,
+          'While the cat eats.'),
+    nf_tr('Se il gatto mangerà, il cane dorme.', italian, english, L7),
+    check('THE FUTURE AFTER `IF'' IS THE PRESENT: `se riusciremo a giocare'' is if we succeed in playing, `si logramos'' -- not `if we will succeed'', `si lograremos'' (tr_if_future/4), the condition in front of the clause', L7,
+          'If the cat eats, the dog sleeps.'),
+    nf_tr('Se il gatto mangerà, il cane dorme.', italian, spanish, L8),
+    check('... and in Spanish', L8,
+          'Si el gato come, el perro duerme.'),
+    nf_tr('Il cane dorme se il gatto mangerà.', italian, english, L9),
+    check('... and after it: `possiamo vincere se riusciremo a giocare il nostro calcio''', L9,
+          'The dog sleeps if the cat eats.'),
+    nf_tr('Il cane dorme se il gatto mangerà.', italian, spanish, L10),
+    check('... and in Spanish', L10,
+          'El perro duerme si el gato come.'),
+    nf_tr('Se il gatto mangerà e dormirà, il cane parla.', italian, english, L11),
+    check('... and both clauses of a condition joined by `and'' (tr_clause_present/2)', L11,
+          'If the cat eats and sleeps, the dog speaks.'),
+    nf_tr('Il cane non sa se il gatto mangerà.', italian, english, L12),
+    check('GUARD: whether is no if -- an indirect question keeps its future', L12,
+          'The dog does not know whether the cat will eat.'),
+    nf_tr('Il cane chiede se il gatto mangerà.', italian, english, L13),
+    check('... nor is an `if'' joined to a clause that asks, a verb of asking, seeing or saying the lesson does not say takes the question: `il cane chiede se il gatto mangerà'' asks if the cat WILL eat (tr_whether_governor/1, en_asks/1)', L13,
+          'The dog asks if the cat will eat.'),
+    nf_tr('Il dubbio è se il gatto mangerà o se il cane dormirà.', italian, english, L14),
+    check('... nor a copula with nothing after it, and the `or'' clause after it is a question as well: `il dubbio è se il gatto mangerà o se il cane dormirà'' is the doubt is if the cat WILL eat or if the dog WILL sleep (tr_write_second/4)', L14,
+          'The doubt is if the cat will eat or if the dog will sleep.'),
+    nf_tr('Il dubbio è se il gatto mangerà o se il cane dormirà.', italian, spanish, L15),
+    check('... and in Spanish', L15,
+          'La duda es si el gato comerá o si el perro dormirá.'),
+    nf_tr('Si el gato comerá, el perro duerme.', spanish, italian, L16),
+    check('GUARD: a text in Spanish writes no condition with the future, `si comerá'' is a question and keeps it (tr_future_protasis_language/1)', L16,
+          'Se il gatto mangerà, il cane dorme.'),
+    nf_tr('Secondo me il gatto dorme.', italian, spanish, L17),
+    check('THE PRONOUN AFTER `SEGÚN'' IS THE SUBJECT''S IN SPANISH: `secondo me'' is `según yo'' and not `según mí'' (tr_subject_form_preposition/1)', L17,
+          'El gato duerme según yo.'),
+    nf_tr('Secondo me il gatto dorme.', italian, english, L18),
+    check('... and English has its `me''', L18,
+          'The cat sleeps according to me.'),
+    nf_tr('Lo dice il gatto.', italian, english, L19),
+    check('`LO'' AFTER A VERB OF SAYING IS WHAT IS SAID: `A dirlo è Giuseppe Signori'' is Signori says IT, never `says him''', L19,
+          'The cat says it.'),
+    nf_tr('Lo vede il gatto.', italian, english, L20),
+    check('GUARD: after another verb it is a person', L20,
+          'The cat sees him.'),
+    nf_tr('Il gatto gli dice il pane.', italian, english, L21),
+    check('GUARD: nor is a dative the thing said -- `gli ho chiesto'' is I asked HIM', L21,
+          'The cat says him the bread.'),
+    nf_tr('Il cane dice di essere lui.', italian, english, L22),
+    check('A PRONOUN AFTER AN INFINITIVE IS THE INFINITIVE''S, not what the verb of saying says: `una amichetta le ha detto di essere stata lei ad avvertire'' is she said to be HER, where the pronoun after `essere'' was written `it'' (tr_comps_out/7)', L22,
+          'The dog says to be him.').
+
+newspaper_lazio_checks_4 :-
+    nf_tr('Il cane ha dei pani.', italian, english, L1),
+    check('THE PARTITIVE AFTER A VERB OF HAVING: `il torneo ha delle novità'' has novelties, `compro dei libri'' I buy books -- `di'' and the article before a noun, with no object before them, are no phrase of `of'' but what the verb has (tr_complements0/4, tr_partitive_verb/1)', L1,
+          'The dog has breads.'),
+    nf_tr('Il cane ha dei pani.', italian, spanish, L2),
+    check('... and in Spanish', L2,
+          'El perro tiene panes.'),
+    nf_tr('Il cane parla dei gatti.', italian, english, L3),
+    check('GUARD: a verb that is none of those keeps its `of'' -- `parla dei gatti'' is of the cats', L3,
+          'The dog speaks of the cats.'),
+    nf_tr('El perro tiene del pan.', spanish, english, L4),
+    check('GUARD: Spanish''s `del'' is no article that a noun takes after a verb of having -- the rule is Italian''s (tr_partitive_language/0)', L4,
+          'The dog has of the bread.'),
+    nf_tr('Il cane dorme, avendo mangiato il pane.', italian, spanish, L5),
+    check('THE PERFECT GERUND IS THE AUXILIARY''S: `avendo mantenuto solo il progetto'' is `habiendo mantenido'' -- the lesson''s auxiliary and not the verb that means `has'' (`teniendo''), and a participle that agrees with nobody', L5,
+          'El perro duerme, habiendo comido el pan.'),
+    nf_tr('Il gatto dorme senza di lui.', italian, english, L6),
+    check('A PRONOUN AFTER `DI'' THAT A PREPOSITION TAKES: `senza di lui'' is without him (`"senza" takes "di" before the pronoun.'')', L6,
+          'The cat sleeps without him.'),
+    nf_tr('Il gatto dorme senza di lui.', italian, spanish, L7),
+    check('... and in Spanish', L7,
+          'El gato duerme sin él.'),
+    nf_tr('Siamo una squadra.', italian, english, L8),
+    check('A PLURAL OF THE FIRST PERSON NAMES A TEAM IN THE SINGULAR: `Siamo una squadra'' is we are a team, and `siamo'' is no one else''s (it is `sono'' that is I and they alike, tr_null_copula_agrees/4)', L8,
+          'We are a team.'),
+    nf_tr('Siamo una squadra.', italian, spanish, L9),
+    check('... and in Spanish', L9,
+          'Somos un equipo.'),
+    nf_tr('Siamo una delle quattro squadre.', italian, english, L10),
+    check('`ONE OF THE FOUR TEAMS'' IS NO RATIO: `una delle quattro squadre'' with the article for the word that would be `in'' split the phrase at `delle'' (tr_phrase_words0/4), and Spanish has the gender of the noun the phrase names -- `uno de los cuatro equipos'', never `una de los'' (tr_ell_gender/2)', L10,
+          'We are one of the four teams.'),
+    nf_tr('Siamo una delle quattro squadre.', italian, spanish, L11),
+    check('... and in Spanish', L11,
+          'Somos uno de los cuatro equipos.'),
+    nf_tr('Siamo una delle quattro - cinque squadre.', italian, english, L12),
+    check('TWO NEXT NUMBERS WITH A DASH BETWEEN THEM ARE EITHER: `una delle quattro - cinque squadre'' is one of the four or five teams (tr_number_ranges/2)', L12,
+          'We are one of the four or five teams.'),
+    nf_tr('Siamo una delle quattro - cinque squadre.', italian, spanish, L13),
+    check('... and in Spanish, the first count in the gender of the noun after the coordinator (`los cuatro o cinco equipos'', not `las'', tr_elided_count/2)', L13,
+          'Somos uno de los cuatro o cinco equipos.'),
+    nf_tr('Il cane vede due stanche e tre gatti.', italian, spanish, L14),
+    check('GUARD: a count with an adjective of its own keeps it -- `due stanche e tre gatti'' are two tired ones and three cats, and the count''s gender is not the noun''s (tr_elided_count/2)', L14,
+          'El perro ve dos cansadas y tres gatos.'),
+    nf_tr('Il cane vede una delle squadre.', italian, spanish, L15),
+    check('ONE OF THE TEAMS IS NO PERSON: `ho visto una delle squadre'' has no `a'' before it (tr_of_class/2)', L15,
+          'El perro ve uno de los equipos.'),
+    nf_tr('Il cane non è né stanco né caldo.', italian, english, L16),
+    check('`NÉ ... NÉ'' IS `NEITHER ... NOR'' AND ONE DENIAL IN ENGLISH: `non è né bello né brutto'' is neither beautiful nor ugly, where the second `né'' was `neither'' and the clause was denied as well (tr_nor_list/3)', L16,
+          'The dog is neither tired nor warm.'),
+    nf_tr('Il cane non dorme né con il gatto né con il pane.', italian, english, L17),
+    check('... AND THE SECOND `NÉ'' OF TWO PHRASES IS `NOR'' AS WELL, a complement list''s own (tr_nor_list/3): `non dorme né con il gatto né con il pane'' was neither ... neither', L17,
+          'The dog sleeps neither with the cat nor with the bread.'),
+    nf_tr('Premesso che il gatto dorme, il cane mangia.', italian, english, L18),
+    check('TWO CONNECTORS OF SEVERAL WORDS (en_connector/1): `premesso che'' is given that', L18,
+          'Given that the cat sleeps, the dog eats.'),
+    nf_tr('Il cane dorme, tanto è vero che il gatto mangia.', italian, english, L19),
+    check('... and `tanto è vero che'' so much so that', L19,
+          'The dog sleeps, so much so that the cat eats.'),
+    nf_tr('Il boemo dorme.', italian, english, L20),
+    check('A BOHEMIAN HAS HIS CAPITAL (en_nationality/1)', L20,
+          'The Bohemian sleeps.'),
+    nf_tr('Il cane che conosciamo dorme.', italian, spanish, L21),
+    check('THE VERB OF A RELATIVE CLAUSE WHOSE WORD IS ITS OBJECT HAS AN OBJECT: `l''allenatore che ora conosciamo'' is `conocemos'', the verb that takes a phrase, and not `sabemos'' (the clause''s object is not among its complements, tr_passive_object/3)', L21,
+          'El perro que conocemos duerme.'),
+    nf_tr('Il cane è stanco, sono d''accordo, ma il gatto dorme.', italian, english, L22),
+    check('A VERB OF SEVERAL WORDS THAT BEGINS WITH THE COPULA IS NO COMMENT: `in un certo senso sono troppi, sono d''accordo, ma non pensate che ...'' -- `"è d''accordo" means "is in agreement".'' says what the speaker is, as the copula does, and between two commas a verb in the first person was the writer''s own comment (tr_asides/3), which left the sentence refused (tr_copula_group/1)', L22,
+          'The dog is tired, I am in agreement, but the cat sleeps.'),
+    nf_tr('Il cane è stanco, sono d''accordo, ma il gatto dorme.', italian, spanish, L23),
+    check('... and in Spanish', L23,
+          'El perro es cansado, estoy de acuerdo, pero el gato duerme.').
+
+%% <<< lazio
 
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb

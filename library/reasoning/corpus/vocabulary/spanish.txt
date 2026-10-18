@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20438 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20441 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1526,6 +1526,120 @@ The verb "se lleva" means "takes along".
 "venado" is animate.
 "zorro" is animate.
 "águila" is animate.
+The feminine noun "autocrítica" means "self-criticism".
+"autocríticas" is the plural of "autocrítica".
+The adverb "al unísono" means "in unison".
+The masculine noun "bohemio" means "bohemian".
+"bohemios" is the plural of "bohemio".
+"bohemio" is a person.
+The verb "parte" means "departs".
+The number "veintiuno" means "twenty-one".
+The number "veintidós" means "twenty-two".
+The number "veintitrés" means "twenty-three".
+The number "veinticuatro" means "twenty-four".
+The number "veinticinco" means "twenty-five".
+The number "veintiséis" means "twenty-six".
+The number "veintisiete" means "twenty-seven".
+The number "veintiocho" means "twenty-eight".
+The number "veintinueve" means "twenty-nine".
+The number "treinta y uno" means "thirty-one".
+The number "treinta y dos" means "thirty-two".
+The number "treinta y tres" means "thirty-three".
+The number "treinta y cuatro" means "thirty-four".
+The number "treinta y cinco" means "thirty-five".
+The number "treinta y seis" means "thirty-six".
+The number "treinta y siete" means "thirty-seven".
+The number "treinta y ocho" means "thirty-eight".
+The number "treinta y nueve" means "thirty-nine".
+The number "cuarenta y uno" means "forty-one".
+The number "cuarenta y dos" means "forty-two".
+The number "cuarenta y tres" means "forty-three".
+The number "cuarenta y cuatro" means "forty-four".
+The number "cuarenta y cinco" means "forty-five".
+The number "cuarenta y seis" means "forty-six".
+The number "cuarenta y siete" means "forty-seven".
+The number "cuarenta y ocho" means "forty-eight".
+The number "cuarenta y nueve" means "forty-nine".
+The number "cincuenta y uno" means "fifty-one".
+The number "cincuenta y dos" means "fifty-two".
+The number "cincuenta y tres" means "fifty-three".
+The number "cincuenta y cuatro" means "fifty-four".
+The number "cincuenta y cinco" means "fifty-five".
+The number "cincuenta y seis" means "fifty-six".
+The number "cincuenta y siete" means "fifty-seven".
+The number "cincuenta y ocho" means "fifty-eight".
+The number "cincuenta y nueve" means "fifty-nine".
+The number "sesenta y uno" means "sixty-one".
+The number "sesenta y dos" means "sixty-two".
+The number "sesenta y tres" means "sixty-three".
+The number "sesenta y cuatro" means "sixty-four".
+The number "sesenta y cinco" means "sixty-five".
+The number "sesenta y seis" means "sixty-six".
+The number "sesenta y siete" means "sixty-seven".
+The number "sesenta y ocho" means "sixty-eight".
+The number "sesenta y nueve" means "sixty-nine".
+The number "setenta y uno" means "seventy-one".
+The number "setenta y dos" means "seventy-two".
+The number "setenta y tres" means "seventy-three".
+The number "setenta y cuatro" means "seventy-four".
+The number "setenta y cinco" means "seventy-five".
+The number "setenta y seis" means "seventy-six".
+The number "setenta y siete" means "seventy-seven".
+The number "setenta y ocho" means "seventy-eight".
+The number "setenta y nueve" means "seventy-nine".
+The number "ochenta y uno" means "eighty-one".
+The number "ochenta y dos" means "eighty-two".
+The number "ochenta y tres" means "eighty-three".
+The number "ochenta y cuatro" means "eighty-four".
+The number "ochenta y cinco" means "eighty-five".
+The number "ochenta y seis" means "eighty-six".
+The number "ochenta y siete" means "eighty-seven".
+The number "ochenta y ocho" means "eighty-eight".
+The number "ochenta y nueve" means "eighty-nine".
+The number "noventa y dos" means "ninety-two".
+The number "noventa y tres" means "ninety-three".
+The number "noventa y cuatro" means "ninety-four".
+The number "noventa y seis" means "ninety-six".
+The number "noventa y siete" means "ninety-seven".
+The number "noventa y ocho" means "ninety-eight".
+The number "noventa y nueve" means "ninety-nine".
+The verb "se atormenta" means "agonises".
+"se atormentan" is the plural of "se atormenta".
+"atormentarse" is the infinitive of "se atormenta".
+"se atormenta" takes "por" before the question.
+The conjunction "dado que" means "given that".
+The conjunction "tanto es así que" means "so much so that".
+The verb "está de acuerdo" means "is in agreement".
+"están de acuerdo" is the plural of "está de acuerdo".
+"estoy de acuerdo" is the first person of "está de acuerdo".
+"estás de acuerdo" is the second person of "está de acuerdo".
+"estamos de acuerdo" is the first person of "están de acuerdo".
+"estáis de acuerdo" is the second person of "están de acuerdo".
+"estaba de acuerdo" is the past of "está de acuerdo".
+"estaban de acuerdo" is the past of "están de acuerdo".
+"estaba de acuerdo" is the first person of "estaba de acuerdo".
+"estará de acuerdo" is the future of "está de acuerdo".
+"estarán de acuerdo" is the plural of "estará de acuerdo".
+"estar de acuerdo" is the infinitive of "está de acuerdo".
+"está de acuerdo" takes "con" before the phrase.
+"conmigo" is the contraction of "con mí".
+"contigo" is the contraction of "con ti".
+The masculine adjective "fallido" means "failed".
+"fallidos" is the plural of "fallido".
+The feminine adjective "fallida" means "failed".
+"fallidas" is the plural of "fallida".
+The adverb "en gran número" means "in large numbers".
+The adverb "en mayor número" means "in greater numbers".
+The adjective "de primera línea" means "first-rate".
+"de primera línea" is the plural of "de primera línea".
+The adjective "de primer nivel" means "top".
+"de primer nivel" is the plural of "de primer nivel".
+The masculine adjective "malicioso" means "malicious".
+"maliciosos" is the plural of "malicioso".
+The feminine adjective "maliciosa" means "malicious".
+"maliciosas" is the plural of "maliciosa".
+The word "para luego" begins the purpose.
+"habiendo" is the gerund of "ha".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1708,6 +1822,8 @@ The feminine noun "beneficencia" means "charity".
 "beneficencias" is the plural of "beneficencia".
 The feminine noun "mirada" means "gaze".
 "miradas" is the plural of "mirada".
+The feminine noun "primavera" means "spring".
+"primaveras" is the plural of "primavera".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -9582,8 +9698,6 @@ The masculine noun "secuestro" means "kidnapping".
 The masculine noun "esguince" means "sprain".
 "esguinces" is the plural of "esguince".
 The masculine noun "muelle" means "spring".
-The feminine noun "primavera" means "spring".
-"primaveras" is the plural of "primavera".
 The masculine noun "trampolín" means "springboard".
 "trampolines" is the plural of "trampolín".
 The noun "espía" means "spy".
@@ -29666,6 +29780,162 @@ The verb "corona" means "crowns".
 "coronadas" is the plural of "coronada".
 "coronar" is the infinitive of "corona".
 "coronando" is the gerund of "corona".
+The verb "desmembra" means "dismembers".
+"desmembran" is the plural of "desmembra".
+"desmembramos" is the first person of "desmembran".
+"desmembráis" is the second person of "desmembran".
+"desmembro" is the first person of "desmembra".
+"desmembras" is the second person of "desmembra".
+"desmembró" is the past of "desmembra".
+"desmembraron" is the past of "desmembran".
+"desmembramos" is the first person of "desmembraron".
+"desmembrasteis" is the second person of "desmembraron".
+"desmembré" is the first person of "desmembró".
+"desmembraste" is the second person of "desmembró".
+"desmembraba" is the imperfect of "desmembra".
+"desmembraban" is the imperfect of "desmembran".
+"desmembrábamos" is the first person of "desmembraban".
+"desmembrabais" is the second person of "desmembraban".
+"desmembrabas" is the second person of "desmembraba".
+"desmembrará" is the future of "desmembra".
+"desmembrarán" is the plural of "desmembrará".
+"desmembraremos" is the first person of "desmembrarán".
+"desmembraréis" is the second person of "desmembrarán".
+"desmembraré" is the first person of "desmembrará".
+"desmembrarás" is the second person of "desmembrará".
+"desmembraría" is the conditional of "desmembra".
+"desmembrarían" is the plural of "desmembraría".
+"desmembraríamos" is the first person of "desmembrarían".
+"desmembraríais" is the second person of "desmembrarían".
+"desmembrarías" is the second person of "desmembraría".
+"desmembre" is the subjunctive of "desmembra".
+"desmembren" is the plural of "desmembre".
+"desmembremos" is the first person of "desmembren".
+"desmembres" is the second person of "desmembre".
+"desmembrara" is the past subjunctive of "desmembra".
+"desmembraran" is the plural of "desmembrara".
+"desmembráramos" is the first person of "desmembraran".
+"desmembrarais" is the second person of "desmembraran".
+"desmembraras" is the second person of "desmembrara".
+"desmembra" is the imperative of "desmembra".
+"desmembres" is the negative imperative of "desmembra".
+"desmembrad" is the imperative of "desmembran".
+"desmembréis" is the negative imperative of "desmembran".
+"desmembremos" is the hortative of "desmembra".
+"desmembrado" is the participle of "desmembra".
+"desmembrada" is the participle of "desmembra".
+"desmembrada" is feminine.
+"desmembrados" is the participle of "desmembra".
+"desmembrados" is the plural of "desmembrado".
+"desmembradas" is the participle of "desmembra".
+"desmembradas" is feminine.
+"desmembradas" is the plural of "desmembrada".
+"desmembrar" is the infinitive of "desmembra".
+"desmembrando" is the gerund of "desmembra".
+The verb "recomenza" means "recommences".
+"recomenzan" is the plural of "recomenza".
+"recomenzamos" is the first person of "recomenzan".
+"recomenzáis" is the second person of "recomenzan".
+"recomenzo" is the first person of "recomenza".
+"recomenzas" is the second person of "recomenza".
+"recomenzó" is the past of "recomenza".
+"recomenzaron" is the past of "recomenzan".
+"recomenzamos" is the first person of "recomenzaron".
+"recomenzasteis" is the second person of "recomenzaron".
+"recomencé" is the first person of "recomenzó".
+"recomenzaste" is the second person of "recomenzó".
+"recomenzaba" is the imperfect of "recomenza".
+"recomenzaban" is the imperfect of "recomenzan".
+"recomenzábamos" is the first person of "recomenzaban".
+"recomenzabais" is the second person of "recomenzaban".
+"recomenzabas" is the second person of "recomenzaba".
+"recomenzará" is the future of "recomenza".
+"recomenzarán" is the plural of "recomenzará".
+"recomenzaremos" is the first person of "recomenzarán".
+"recomenzaréis" is the second person of "recomenzarán".
+"recomenzaré" is the first person of "recomenzará".
+"recomenzarás" is the second person of "recomenzará".
+"recomenzaría" is the conditional of "recomenza".
+"recomenzarían" is the plural of "recomenzaría".
+"recomenzaríamos" is the first person of "recomenzarían".
+"recomenzaríais" is the second person of "recomenzarían".
+"recomenzarías" is the second person of "recomenzaría".
+"recomence" is the subjunctive of "recomenza".
+"recomencen" is the plural of "recomence".
+"recomencemos" is the first person of "recomencen".
+"recomences" is the second person of "recomence".
+"recomenzara" is the past subjunctive of "recomenza".
+"recomenzaran" is the plural of "recomenzara".
+"recomenzáramos" is the first person of "recomenzaran".
+"recomenzarais" is the second person of "recomenzaran".
+"recomenzaras" is the second person of "recomenzara".
+"recomenza" is the imperative of "recomenza".
+"recomences" is the negative imperative of "recomenza".
+"recomenzad" is the imperative of "recomenzan".
+"recomencéis" is the negative imperative of "recomenzan".
+"recomencemos" is the hortative of "recomenza".
+"recomenzado" is the participle of "recomenza".
+"recomenzada" is the participle of "recomenza".
+"recomenzada" is feminine.
+"recomenzados" is the participle of "recomenza".
+"recomenzados" is the plural of "recomenzado".
+"recomenzadas" is the participle of "recomenza".
+"recomenzadas" is feminine.
+"recomenzadas" is the plural of "recomenzada".
+"recomenzar" is the infinitive of "recomenza".
+"recomenzando" is the gerund of "recomenza".
+The verb "eclipsa" means "overshadows".
+"eclipsan" is the plural of "eclipsa".
+"eclipsamos" is the first person of "eclipsan".
+"eclipsáis" is the second person of "eclipsan".
+"eclipso" is the first person of "eclipsa".
+"eclipsas" is the second person of "eclipsa".
+"eclipsó" is the past of "eclipsa".
+"eclipsaron" is the past of "eclipsan".
+"eclipsamos" is the first person of "eclipsaron".
+"eclipsasteis" is the second person of "eclipsaron".
+"eclipsé" is the first person of "eclipsó".
+"eclipsaste" is the second person of "eclipsó".
+"eclipsaba" is the imperfect of "eclipsa".
+"eclipsaban" is the imperfect of "eclipsan".
+"eclipsábamos" is the first person of "eclipsaban".
+"eclipsabais" is the second person of "eclipsaban".
+"eclipsabas" is the second person of "eclipsaba".
+"eclipsará" is the future of "eclipsa".
+"eclipsarán" is the plural of "eclipsará".
+"eclipsaremos" is the first person of "eclipsarán".
+"eclipsaréis" is the second person of "eclipsarán".
+"eclipsaré" is the first person of "eclipsará".
+"eclipsarás" is the second person of "eclipsará".
+"eclipsaría" is the conditional of "eclipsa".
+"eclipsarían" is the plural of "eclipsaría".
+"eclipsaríamos" is the first person of "eclipsarían".
+"eclipsaríais" is the second person of "eclipsarían".
+"eclipsarías" is the second person of "eclipsaría".
+"eclipse" is the subjunctive of "eclipsa".
+"eclipsen" is the plural of "eclipse".
+"eclipsemos" is the first person of "eclipsen".
+"eclipses" is the second person of "eclipse".
+"eclipsara" is the past subjunctive of "eclipsa".
+"eclipsaran" is the plural of "eclipsara".
+"eclipsáramos" is the first person of "eclipsaran".
+"eclipsarais" is the second person of "eclipsaran".
+"eclipsaras" is the second person of "eclipsara".
+"eclipsa" is the imperative of "eclipsa".
+"eclipses" is the negative imperative of "eclipsa".
+"eclipsad" is the imperative of "eclipsan".
+"eclipséis" is the negative imperative of "eclipsan".
+"eclipsemos" is the hortative of "eclipsa".
+"eclipsado" is the participle of "eclipsa".
+"eclipsada" is the participle of "eclipsa".
+"eclipsada" is feminine.
+"eclipsados" is the participle of "eclipsa".
+"eclipsados" is the plural of "eclipsado".
+"eclipsadas" is the participle of "eclipsa".
+"eclipsadas" is feminine.
+"eclipsadas" is the plural of "eclipsada".
+"eclipsar" is the infinitive of "eclipsa".
+"eclipsando" is the gerund of "eclipsa".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16560 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16569 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -2057,6 +2057,7 @@ The feminine noun "prescelta" means "chosen one".
 The masculine noun "concorso" means "contest".
 "concorsi" is the plural of "concorso".
 The adverb "in realtà" means "in reality".
+The verb "parte" means "departs".
 The verb "parte" means "splits".
 The verb "parte" means "gets going".
 The verb "prende la tintarella" means "gets a tan".
@@ -2182,6 +2183,155 @@ The verb "porta" means "takes along".
 "volpe" is animate.
 "zanzara" is animate.
 "zebra" is animate.
+The feminine noun "buriana" means "storm".
+"buriane" is the plural of "buriana".
+The verb "offusca" means "overshadows".
+"offuscano" is the plural of "offusca".
+"offuscato" is the participle of "offusca".
+"offuscata" is the participle of "offusca".
+"offuscata" is feminine.
+"offuscati" is the participle of "offusca".
+"offuscati" is the plural of "offuscato".
+"offuscate" is the participle of "offusca".
+"offuscate" is feminine.
+"offuscate" is the plural of "offuscata".
+"offuscare" is the infinitive of "offusca".
+The adverb "a l'unisono" means "in unison".
+The feminine noun "autocritica" means "self-criticism".
+"autocritiche" is the plural of "autocritica".
+"boemo" is a person.
+The number "ventuno" means "twenty-one".
+The number "ventidue" means "twenty-two".
+The number "ventitré" means "twenty-three".
+The number "ventiquattro" means "twenty-four".
+The number "venticinque" means "twenty-five".
+The number "ventisei" means "twenty-six".
+The number "ventisette" means "twenty-seven".
+The number "ventotto" means "twenty-eight".
+The number "ventinove" means "twenty-nine".
+The number "trentuno" means "thirty-one".
+The number "trentadue" means "thirty-two".
+The number "trentatré" means "thirty-three".
+The number "trentaquattro" means "thirty-four".
+The number "trentacinque" means "thirty-five".
+The number "trentasei" means "thirty-six".
+The number "trentasette" means "thirty-seven".
+The number "trentotto" means "thirty-eight".
+The number "trentanove" means "thirty-nine".
+The number "quarantuno" means "forty-one".
+The number "quarantadue" means "forty-two".
+The number "quarantatré" means "forty-three".
+The number "quarantaquattro" means "forty-four".
+The number "quarantacinque" means "forty-five".
+The number "quarantasei" means "forty-six".
+The number "quarantasette" means "forty-seven".
+The number "quarantotto" means "forty-eight".
+The number "quarantanove" means "forty-nine".
+The number "cinquantuno" means "fifty-one".
+The number "cinquantadue" means "fifty-two".
+The number "cinquantatré" means "fifty-three".
+The number "cinquantaquattro" means "fifty-four".
+The number "cinquantacinque" means "fifty-five".
+The number "cinquantasei" means "fifty-six".
+The number "cinquantasette" means "fifty-seven".
+The number "cinquantotto" means "fifty-eight".
+The number "cinquantanove" means "fifty-nine".
+The number "sessantuno" means "sixty-one".
+The number "sessantadue" means "sixty-two".
+The number "sessantatré" means "sixty-three".
+The number "sessantaquattro" means "sixty-four".
+The number "sessantacinque" means "sixty-five".
+The number "sessantasei" means "sixty-six".
+The number "sessantasette" means "sixty-seven".
+The number "sessantotto" means "sixty-eight".
+The number "sessantanove" means "sixty-nine".
+The number "settantuno" means "seventy-one".
+The number "settantadue" means "seventy-two".
+The number "settantatré" means "seventy-three".
+The number "settantaquattro" means "seventy-four".
+The number "settantacinque" means "seventy-five".
+The number "settantasei" means "seventy-six".
+The number "settantasette" means "seventy-seven".
+The number "settantotto" means "seventy-eight".
+The number "settantanove" means "seventy-nine".
+The number "ottantuno" means "eighty-one".
+The number "ottantadue" means "eighty-two".
+The number "ottantatré" means "eighty-three".
+The number "ottantaquattro" means "eighty-four".
+The number "ottantacinque" means "eighty-five".
+The number "ottantasei" means "eighty-six".
+The number "ottantasette" means "eighty-seven".
+The number "ottantotto" means "eighty-eight".
+The number "ottantanove" means "eighty-nine".
+The number "novantadue" means "ninety-two".
+The number "novantatré" means "ninety-three".
+The number "novantaquattro" means "ninety-four".
+The number "novantasei" means "ninety-six".
+The number "novantasette" means "ninety-seven".
+The number "novantotto" means "ninety-eight".
+The number "novantanove" means "ninety-nine".
+The masculine noun "valore" means "value".
+"valori" is the plural of "valore".
+The verb "si macera" means "agonises".
+"si macerano" is the plural of "si macera".
+"macerarsi" is the infinitive of "si macera".
+"si macera" takes "su" before the question.
+The conjunction "premesso che" means "given that".
+The conjunction "tanto è vero che" means "so much so that".
+The verb "è d'accordo" means "is in agreement".
+"sono d'accordo" is the plural of "è d'accordo".
+"sono d'accordo" is the first person of "è d'accordo".
+"siamo d'accordo" is the first person of "sono d'accordo".
+"sei d'accordo" is the second person of "è d'accordo".
+"siete d'accordo" is the second person of "sono d'accordo".
+"era d'accordo" is the past of "è d'accordo".
+"erano d'accordo" is the past of "sono d'accordo".
+"ero d'accordo" is the first person of "era d'accordo".
+"sarà d'accordo" is the future of "è d'accordo".
+"saranno d'accordo" is the plural of "sarà d'accordo".
+"essere d'accordo" is the infinitive of "è d'accordo".
+"è d'accordo" takes "su" before the phrase.
+"senza" takes "di" before the pronoun.
+"contro" takes "di" before the pronoun.
+"verso" takes "di" before the pronoun.
+"su" takes "di" before the pronoun.
+"sopra" takes "di" before the pronoun.
+"sotto" takes "di" before the pronoun.
+"dentro" takes "di" before the pronoun.
+"fuori" takes "di" before the pronoun.
+"dietro" takes "di" before the pronoun.
+"tra" takes "di" before the pronoun.
+"fra" takes "di" before the pronoun.
+"signori" is a name.
+"scala" is a name.
+The masculine adjective "mancato" means "failed".
+"mancati" is the plural of "mancato".
+The feminine adjective "mancata" means "failed".
+"mancate" is the plural of "mancata".
+The masculine adjective "vero e proprio" means "genuine".
+"veri e propri" is the plural of "vero e proprio".
+The feminine adjective "vera e propria" means "genuine".
+"vere e proprie" is the plural of "vera e propria".
+The adverb "in tanti" means "in large numbers".
+The adverb "in tanti di più" means "in greater numbers".
+The masculine noun "allenatore" means "coach".
+"allenatori" is the plural of "allenatore".
+The masculine noun "ct" means "coach".
+"ct" is a person.
+"lombardo" is a name.
+"romano" is a name.
+"esposito" is a name.
+The adjective "di primo piano" means "first-rate".
+"di primo piano" is the plural of "di primo piano".
+The adjective "di vertice" means "top".
+"di vertice" is the plural of "di vertice".
+The masculine adjective "malizioso" means "malicious".
+"maliziosi" is the plural of "malizioso".
+The feminine adjective "maliziosa" means "malicious".
+"maliziose" is the plural of "maliziosa".
+The masculine noun "lato" means "side".
+"lati" is the plural of "lato".
+The word "per poi" begins the purpose.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -17590,6 +17740,17 @@ The feminine noun "galera" means "jail".
 "galere" is the plural of "galera".
 The feminine noun "vicenda" means "affair".
 "vicende" is the plural of "vicenda".
+The masculine noun "rinforzo" means "reinforcement".
+"rinforzi" is the plural of "rinforzo".
+The masculine noun "tifoso" means "supporter".
+"tifosi" is the plural of "tifoso".
+"tifoso" is a person.
+The masculine noun "pregio" means "merit".
+"pregi" is the plural of "pregio".
+The masculine noun "rinnovamento" means "renewal".
+"rinnovamenti" is the plural of "rinnovamento".
+The masculine noun "boemo" means "bohemian".
+"boemi" is the plural of "boemo".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -25994,6 +26155,58 @@ The verb "incorona" means "crowns".
 "incoronate" is the plural of "incoronata".
 "incoronare" is the infinitive of "incorona".
 "incoronando" is the gerund of "incorona".
+The verb "migliora" means "improves".
+"migliorano" is the plural of "migliora".
+"miglioriamo" is the first person of "migliorano".
+"miglioro" is the first person of "migliora".
+"migliori" is the second person of "migliora".
+"migliorò" is the past of "migliora".
+"migliorarono" is the past of "migliorano".
+"migliorammo" is the first person of "migliorarono".
+"miglioraste" is the second person of "migliorarono".
+"migliorai" is the first person of "migliorò".
+"migliorasti" is the second person of "migliorò".
+"migliorava" is the imperfect of "migliora".
+"miglioravano" is the imperfect of "migliorano".
+"miglioravamo" is the first person of "miglioravano".
+"miglioravate" is the second person of "miglioravano".
+"miglioravo" is the first person of "migliorava".
+"miglioravi" is the second person of "migliorava".
+"migliorerà" is the future of "migliora".
+"miglioreranno" is the plural of "migliorerà".
+"miglioreremo" is the first person of "miglioreranno".
+"migliorerete" is the second person of "miglioreranno".
+"migliorerò" is the first person of "migliorerà".
+"migliorerai" is the second person of "migliorerà".
+"migliorerebbe" is the conditional of "migliora".
+"migliorerebbero" is the plural of "migliorerebbe".
+"miglioreremmo" is the first person of "migliorerebbero".
+"migliorereste" is the second person of "migliorerebbero".
+"migliorerei" is the first person of "migliorerebbe".
+"miglioreresti" is the second person of "migliorerebbe".
+"migliori" is the subjunctive of "migliora".
+"migliorino" is the plural of "migliori".
+"miglioriamo" is the first person of "migliorino".
+"migliorasse" is the past subjunctive of "migliora".
+"migliorassero" is the plural of "migliorasse".
+"migliorassimo" is the first person of "migliorassero".
+"miglioraste" is the second person of "migliorassero".
+"migliorassi" is the first person of "migliorasse".
+"migliorassi" is the second person of "migliorasse".
+"migliora" is the imperative of "migliora".
+"migliorare" is the negative imperative of "migliora".
+"migliorate" is the imperative of "migliorano".
+"miglioriamo" is the hortative of "migliora".
+"migliorato" is the participle of "migliora".
+"migliorata" is the participle of "migliora".
+"migliorata" is feminine.
+"migliorati" is the participle of "migliora".
+"migliorati" is the plural of "migliorato".
+"migliorate" is the participle of "migliora".
+"migliorate" is feminine.
+"migliorate" is the plural of "migliorata".
+"migliorare" is the infinitive of "migliora".
+"migliorando" is the gerund of "migliora".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -55639,57 +55852,6 @@ The verb "ingaggia" means "engages".
 "ingaggiare" is the infinitive of "ingaggia".
 "ingaggiando" is the gerund of "ingaggia".
 The verb "migliora" means "enhances".
-"migliorano" is the plural of "migliora".
-"miglioriamo" is the first person of "migliorano".
-"miglioro" is the first person of "migliora".
-"migliori" is the second person of "migliora".
-"migliorò" is the past of "migliora".
-"migliorarono" is the past of "migliorano".
-"migliorammo" is the first person of "migliorarono".
-"miglioraste" is the second person of "migliorarono".
-"migliorai" is the first person of "migliorò".
-"migliorasti" is the second person of "migliorò".
-"migliorava" is the imperfect of "migliora".
-"miglioravano" is the imperfect of "migliorano".
-"miglioravamo" is the first person of "miglioravano".
-"miglioravate" is the second person of "miglioravano".
-"miglioravo" is the first person of "migliorava".
-"miglioravi" is the second person of "migliorava".
-"migliorerà" is the future of "migliora".
-"miglioreranno" is the plural of "migliorerà".
-"miglioreremo" is the first person of "miglioreranno".
-"migliorerete" is the second person of "miglioreranno".
-"migliorerò" is the first person of "migliorerà".
-"migliorerai" is the second person of "migliorerà".
-"migliorerebbe" is the conditional of "migliora".
-"migliorerebbero" is the plural of "migliorerebbe".
-"miglioreremmo" is the first person of "migliorerebbero".
-"migliorereste" is the second person of "migliorerebbero".
-"migliorerei" is the first person of "migliorerebbe".
-"miglioreresti" is the second person of "migliorerebbe".
-"migliori" is the subjunctive of "migliora".
-"migliorino" is the plural of "migliori".
-"miglioriamo" is the first person of "migliorino".
-"migliorasse" is the past subjunctive of "migliora".
-"migliorassero" is the plural of "migliorasse".
-"migliorassimo" is the first person of "migliorassero".
-"miglioraste" is the second person of "migliorassero".
-"migliorassi" is the first person of "migliorasse".
-"migliorassi" is the second person of "migliorasse".
-"migliora" is the imperative of "migliora".
-"migliorare" is the negative imperative of "migliora".
-"migliorate" is the imperative of "migliorano".
-"miglioriamo" is the hortative of "migliora".
-"migliorato" is the participle of "migliora".
-"migliorata" is the participle of "migliora".
-"migliorata" is feminine.
-"migliorati" is the participle of "migliora".
-"migliorati" is the plural of "migliorato".
-"migliorate" is the participle of "migliora".
-"migliorate" is feminine.
-"migliorate" is the plural of "migliorata".
-"migliorare" is the infinitive of "migliora".
-"migliorando" is the gerund of "migliora".
 The verb "intrattiene" means "entertains".
 "intrattengono" is the plural of "intrattiene".
 "intratteniamo" is the first person of "intrattengono".
@@ -102973,6 +103135,214 @@ The verb "somministra" means "administers".
 "somministrate" is the plural of "somministrata".
 "somministrare" is the infinitive of "somministra".
 "somministrando" is the gerund of "somministra".
+The verb "smembra" means "dismembers".
+"smembrano" is the plural of "smembra".
+"smembriamo" is the first person of "smembrano".
+"smembro" is the first person of "smembra".
+"smembri" is the second person of "smembra".
+"smembrò" is the past of "smembra".
+"smembrarono" is the past of "smembrano".
+"smembrammo" is the first person of "smembrarono".
+"smembraste" is the second person of "smembrarono".
+"smembrai" is the first person of "smembrò".
+"smembrasti" is the second person of "smembrò".
+"smembrava" is the imperfect of "smembra".
+"smembravano" is the imperfect of "smembrano".
+"smembravamo" is the first person of "smembravano".
+"smembravate" is the second person of "smembravano".
+"smembravo" is the first person of "smembrava".
+"smembravi" is the second person of "smembrava".
+"smembrerà" is the future of "smembra".
+"smembreranno" is the plural of "smembrerà".
+"smembreremo" is the first person of "smembreranno".
+"smembrerete" is the second person of "smembreranno".
+"smembrerò" is the first person of "smembrerà".
+"smembrerai" is the second person of "smembrerà".
+"smembrerebbe" is the conditional of "smembra".
+"smembrerebbero" is the plural of "smembrerebbe".
+"smembreremmo" is the first person of "smembrerebbero".
+"smembrereste" is the second person of "smembrerebbero".
+"smembrerei" is the first person of "smembrerebbe".
+"smembreresti" is the second person of "smembrerebbe".
+"smembri" is the subjunctive of "smembra".
+"smembrino" is the plural of "smembri".
+"smembriamo" is the first person of "smembrino".
+"smembrasse" is the past subjunctive of "smembra".
+"smembrassero" is the plural of "smembrasse".
+"smembrassimo" is the first person of "smembrassero".
+"smembraste" is the second person of "smembrassero".
+"smembrassi" is the first person of "smembrasse".
+"smembrassi" is the second person of "smembrasse".
+"smembra" is the imperative of "smembra".
+"smembrare" is the negative imperative of "smembra".
+"smembrate" is the imperative of "smembrano".
+"smembriamo" is the hortative of "smembra".
+"smembrato" is the participle of "smembra".
+"smembrata" is the participle of "smembra".
+"smembrata" is feminine.
+"smembrati" is the participle of "smembra".
+"smembrati" is the plural of "smembrato".
+"smembrate" is the participle of "smembra".
+"smembrate" is feminine.
+"smembrate" is the plural of "smembrata".
+"smembrare" is the infinitive of "smembra".
+"smembrando" is the gerund of "smembra".
+The verb "ricomincia" means "recommences".
+"ricominciano" is the plural of "ricomincia".
+"ricominciamo" is the first person of "ricominciano".
+"ricomincio" is the first person of "ricomincia".
+"ricominci" is the second person of "ricomincia".
+"ricominciò" is the past of "ricomincia".
+"ricominciarono" is the past of "ricominciano".
+"ricominciammo" is the first person of "ricominciarono".
+"ricominciaste" is the second person of "ricominciarono".
+"ricominciai" is the first person of "ricominciò".
+"ricominciasti" is the second person of "ricominciò".
+"ricominciava" is the imperfect of "ricomincia".
+"ricominciavano" is the imperfect of "ricominciano".
+"ricominciavamo" is the first person of "ricominciavano".
+"ricominciavate" is the second person of "ricominciavano".
+"ricominciavo" is the first person of "ricominciava".
+"ricominciavi" is the second person of "ricominciava".
+"ricomincerà" is the future of "ricomincia".
+"ricominceranno" is the plural of "ricomincerà".
+"ricominceremo" is the first person of "ricominceranno".
+"ricomincerete" is the second person of "ricominceranno".
+"ricomincerò" is the first person of "ricomincerà".
+"ricomincerai" is the second person of "ricomincerà".
+"ricomincerebbe" is the conditional of "ricomincia".
+"ricomincerebbero" is the plural of "ricomincerebbe".
+"ricominceremmo" is the first person of "ricomincerebbero".
+"ricomincereste" is the second person of "ricomincerebbero".
+"ricomincerei" is the first person of "ricomincerebbe".
+"ricominceresti" is the second person of "ricomincerebbe".
+"ricominci" is the subjunctive of "ricomincia".
+"ricomincino" is the plural of "ricominci".
+"ricominciamo" is the first person of "ricomincino".
+"ricominciasse" is the past subjunctive of "ricomincia".
+"ricominciassero" is the plural of "ricominciasse".
+"ricominciassimo" is the first person of "ricominciassero".
+"ricominciaste" is the second person of "ricominciassero".
+"ricominciassi" is the first person of "ricominciasse".
+"ricominciassi" is the second person of "ricominciasse".
+"ricomincia" is the imperative of "ricomincia".
+"ricominciare" is the negative imperative of "ricomincia".
+"ricominciate" is the imperative of "ricominciano".
+"ricominciamo" is the hortative of "ricomincia".
+"ricominciato" is the participle of "ricomincia".
+"ricominciata" is the participle of "ricomincia".
+"ricominciata" is feminine.
+"ricominciati" is the participle of "ricomincia".
+"ricominciati" is the plural of "ricominciato".
+"ricominciate" is the participle of "ricomincia".
+"ricominciate" is feminine.
+"ricominciate" is the plural of "ricominciata".
+"ricominciare" is the infinitive of "ricomincia".
+"ricominciando" is the gerund of "ricomincia".
+The verb "accaparra" means "hoards".
+"accaparrano" is the plural of "accaparra".
+"accaparriamo" is the first person of "accaparrano".
+"accaparro" is the first person of "accaparra".
+"accaparri" is the second person of "accaparra".
+"accaparrò" is the past of "accaparra".
+"accaparrarono" is the past of "accaparrano".
+"accaparrammo" is the first person of "accaparrarono".
+"accaparraste" is the second person of "accaparrarono".
+"accaparrai" is the first person of "accaparrò".
+"accaparrasti" is the second person of "accaparrò".
+"accaparrava" is the imperfect of "accaparra".
+"accaparravano" is the imperfect of "accaparrano".
+"accaparravamo" is the first person of "accaparravano".
+"accaparravate" is the second person of "accaparravano".
+"accaparravo" is the first person of "accaparrava".
+"accaparravi" is the second person of "accaparrava".
+"accaparrerà" is the future of "accaparra".
+"accaparreranno" is the plural of "accaparrerà".
+"accaparreremo" is the first person of "accaparreranno".
+"accaparrerete" is the second person of "accaparreranno".
+"accaparrerò" is the first person of "accaparrerà".
+"accaparrerai" is the second person of "accaparrerà".
+"accaparrerebbe" is the conditional of "accaparra".
+"accaparrerebbero" is the plural of "accaparrerebbe".
+"accaparreremmo" is the first person of "accaparrerebbero".
+"accaparrereste" is the second person of "accaparrerebbero".
+"accaparrerei" is the first person of "accaparrerebbe".
+"accaparreresti" is the second person of "accaparrerebbe".
+"accaparri" is the subjunctive of "accaparra".
+"accaparrino" is the plural of "accaparri".
+"accaparriamo" is the first person of "accaparrino".
+"accaparrasse" is the past subjunctive of "accaparra".
+"accaparrassero" is the plural of "accaparrasse".
+"accaparrassimo" is the first person of "accaparrassero".
+"accaparraste" is the second person of "accaparrassero".
+"accaparrassi" is the first person of "accaparrasse".
+"accaparrassi" is the second person of "accaparrasse".
+"accaparra" is the imperative of "accaparra".
+"accaparrare" is the negative imperative of "accaparra".
+"accaparrate" is the imperative of "accaparrano".
+"accaparriamo" is the hortative of "accaparra".
+"accaparrato" is the participle of "accaparra".
+"accaparrata" is the participle of "accaparra".
+"accaparrata" is feminine.
+"accaparrati" is the participle of "accaparra".
+"accaparrati" is the plural of "accaparrato".
+"accaparrate" is the participle of "accaparra".
+"accaparrate" is feminine.
+"accaparrate" is the plural of "accaparrata".
+"accaparrare" is the infinitive of "accaparra".
+"accaparrando" is the gerund of "accaparra".
+The verb "contraria" means "upsets".
+"contrariano" is the plural of "contraria".
+"contrariamo" is the first person of "contrariano".
+"contrario" is the first person of "contraria".
+"contrari" is the second person of "contraria".
+"contrariò" is the past of "contraria".
+"contrariarono" is the past of "contrariano".
+"contrariammo" is the first person of "contrariarono".
+"contrariaste" is the second person of "contrariarono".
+"contrariai" is the first person of "contrariò".
+"contrariasti" is the second person of "contrariò".
+"contrariava" is the imperfect of "contraria".
+"contrariavano" is the imperfect of "contrariano".
+"contrariavamo" is the first person of "contrariavano".
+"contrariavate" is the second person of "contrariavano".
+"contrariavo" is the first person of "contrariava".
+"contrariavi" is the second person of "contrariava".
+"contrarierà" is the future of "contraria".
+"contrarieranno" is the plural of "contrarierà".
+"contrarieremo" is the first person of "contrarieranno".
+"contrarierete" is the second person of "contrarieranno".
+"contrarierò" is the first person of "contrarierà".
+"contrarierai" is the second person of "contrarierà".
+"contrarierebbe" is the conditional of "contraria".
+"contrarierebbero" is the plural of "contrarierebbe".
+"contrarieremmo" is the first person of "contrarierebbero".
+"contrariereste" is the second person of "contrarierebbero".
+"contrarierei" is the first person of "contrarierebbe".
+"contrarieresti" is the second person of "contrarierebbe".
+"contrari" is the subjunctive of "contraria".
+"contrarino" is the plural of "contrari".
+"contrariamo" is the first person of "contrarino".
+"contrariasse" is the past subjunctive of "contraria".
+"contrariassero" is the plural of "contrariasse".
+"contrariassimo" is the first person of "contrariassero".
+"contrariaste" is the second person of "contrariassero".
+"contrariassi" is the first person of "contrariasse".
+"contrariassi" is the second person of "contrariasse".
+"contraria" is the imperative of "contraria".
+"contrariare" is the negative imperative of "contraria".
+"contrariate" is the imperative of "contrariano".
+"contrariamo" is the hortative of "contraria".
+"contrariato" is the participle of "contraria".
+"contrariata" is the participle of "contraria".
+"contrariata" is feminine.
+"contrariati" is the participle of "contraria".
+"contrariati" is the plural of "contrariato".
+"contrariate" is the participle of "contraria".
+"contrariate" is feminine.
+"contrariate" is the plural of "contrariata".
+"contrariare" is the infinitive of "contraria".
+"contrariando" is the gerund of "contraria".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -108046,7 +108416,6 @@ The verb "nasconde" means "hides".
 "hidden" is the participle of "hides".
 The verb "impaccia" means "hinders".
 The verb "importa" means "imports".
-The verb "migliora" means "improves".
 The verb "inclina" means "inclines".
 The verb "causa" means "inflicts".
 The verb "informa" means "informs".
@@ -125232,6 +125601,14 @@ The adjective "diffidente" means "distrustful".
 "diffidentissime" is the superlative of "diffidenti".
 The adjective "dopante" means "doping".
 "dopanti" is the plural of "dopante".
+The masculine adjective "bizzarro" means "bizarre".
+"bizzarri" is the plural of "bizzarro".
+The feminine adjective "bizzarra" means "bizarre".
+"bizzarre" is the plural of "bizzarra".
+"bizzarrissimo" is the superlative of "bizzarro".
+"bizzarrissimi" is the superlative of "bizzarri".
+"bizzarrissima" is the superlative of "bizzarra".
+"bizzarrissime" is the superlative of "bizzarre".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".
@@ -125534,8 +125911,6 @@ The adjective "terribile" means "awful".
 The adjective "grande" means "grand".
 The masculine adjective "obbligatorio" means "binding".
 The feminine adjective "obbligatoria" means "binding".
-The masculine adjective "strano" means "bizarre".
-The feminine adjective "strana" means "bizarre".
 The adjective "inferiore" means "bottom".
 The adjective "brillante" means "bright".
 The adjective "brillante" means "shiny".
