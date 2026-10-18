@@ -3602,6 +3602,225 @@ read into an English-worded IR and written into any lesson's language),
   eleven now; a comment, and the reasoning number moves with it as any change
   under library/reasoning/ does. `lo` is `him` before `it`, as the lesson
   states them, and stays so (the README says it).
+  The Lazio football report (VIT-9511..9539, 29 sentences, Italian into Spanish
+  and English: 28 of 29 and 26 of 29 on a fresh store, 21 and 20 with the new
+  store alone, 14 and 13 with the new code on the old store, 13 and 12 before;
+  reasoning 1.0.10). The sample was taken on the cocolog 2.3.0 binary, as the
+  owner asked, and cocolog stays 2.3.0: master has moved to 2.4.0 since and was
+  not merged in. The article's sentences fall from 209.5 to 24.9 million
+  inferences in each language (a refusal is a long search).
+  It needed these SHAPES, each with its arm red (test/translate.pl's
+  `newspaper_lazio`: 77 checks, 59 arms, the guards among them; an arm is a
+  library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_lazio, checks_done"`, under a second a run, and every arm is run in
+  24 seconds, three at a time): `if not` and a phrase (`una curiosità maliziosa,
+  se non una vera e propria pressione`: the word for `if` and a denial before a
+  phrase travel as they do before an adjunct, the denial and its phrase one
+  complement, neg/1, tr_complements0/4; read as a condition the clause had no
+  verb and the sentence was refused); an adverb before a purpose in front, at
+  the top of a sentence and inside a clause (`quando invece per contestare
+  arrivano in tanti`: tr_front_skip_adverbs/2, and a clause of tr_nested_front/3
+  for the purpose, which a nested front did not read -- three arms); `when` and
+  `where` right after a verb that asks nothing are the relative words (`il cane
+  dorme quando il gatto mangia` is `duerme cuando`, where it was the question's
+  `cuándo`, tr_relative_wh/3, rwh/2), and `how` with a verb of saying and its
+  speaker is `as` (`se "cambiare è migliorare" come dicono i giocatori
+  all'unisono`, tr_how_as_saying/2, cmtc/1, past a complement of the verb as
+  well, tr_relative_wh_after/3), a verb that takes the question keeping it --
+  whether the lesson says so (`"sa" takes the question.`) or not, for the verbs
+  of asking, seeing, finding out and saying (tr_asks_question_here/0, en_asks/1:
+  `vede quando il gatto mangia` is `ve cuándo`) -- six arms; a name and an
+  adjective with the copula left out (`Signori ottimista, Zeman velenoso`,
+  tr_verbless0/3); a front that ends on an absolute clause with no comma leaves
+  the rest its subject (`Dopo una rivoluzione mancata la Lazio si è ritrovata
+  uguale a sé stessa`: longest first the front took `mancata la Lazio` for a
+  clause of its own and the `si` of the rest was the impersonal one, `One has
+  found equal to itself after a revolution lacked the Lazio` -- two arms, the
+  rule and its guard against an impersonal subject, whose check is `il cane si
+  mangia il pane`); the word for `same` after a reflexive pronoun is its
+  emphasis in English (`equal to itself`, tr_comps_out/7); a headline after a
+  section's name and a dash that opens on a plural noun and its adjective is the
+  noun first (`Calcio - dichiarazioni varie del giocatore e del Ct della Lazio`:
+  `varie` is what `variare` says as well, tr_read0/4); a question after an
+  infinitive that takes it, and the word the infinitive puts before it (`si è
+  limitata a macerarsi su chi dovesse vendere` is agonises OVER who:
+  tr_relative_wh_after/3, tr_question_after_inf/4 for the infinitives with `a`
+  and the bare ones, tr_wh_verb_set/1, tr_wh_preposition/2, en_governs/2 -- six
+  arms), and `chi` after a verb that takes the question asks (`non so chi
+  vende`, tr_who_gap/2 -- two arms); three names and an adverb that closes them
+  (`Stoichkov, Baggio, Lombardo eccetera`, tr_list_closer/2, and a comma after
+  the adverb); `non solo,` a comma and a clause with no partner said (the two
+  words are an adverb of the clause after the comma, nonly/0, read, written and
+  crossed -- three arms); `mentre` as a connector is not lifted as the adverb it
+  is also (tr_head_connector_lifted/3); the future after `if` (`se riusciremo a
+  giocare` is `if we succeed in playing`, `si logramos`: tr_if_future/4, and
+  tr_clause_present/2 for both clauses of a condition joined by `and`; of an
+  Italian text only, because Spanish's `si vendrá` is a question and keeps its
+  future, tr_future_protasis_language/1; and never of the clause an `if` joins
+  to a clause that asks, a copula with nothing after it or a verb of asking,
+  saying and knowing, tr_whether_governor/1: `Il dubbio è se il cane verrà o se
+  il gatto dormirà` is the doubt is if the dog WILL come, and the `or` clause
+  after it is a question as well, '$tr_whether', tr_write_second/4 -- six arms);
+  `secondo me` is `según yo` in Spanish (tr_subject_form_preposition/1); `lo`
+  after a verb of saying is what is said (`A dirlo è Giuseppe Signori` is
+  Signori says IT) -- never a dative (`gli ho chiesto` is I asked HIM) and never
+  the pronoun after an infinitive (`le ha detto di essere stata lei` is said to
+  her to have been HER), three arms; the partitive after a verb of having,
+  buying and eating (`il torneo ha delle novità` has novelties: Italian only,
+  the first complement, a definite article and a common noun, after the verbs of
+  tr_partitive_verb/1 -- `parla dei gatti` is of the cats, and `della piccola
+  Sofia` and `di una domenica` are phrases of `of` -- three arms); the perfect
+  gerund is the auxiliary's (`avendo mantenuto` is `habiendo mantenido`, not
+  `teniendo`, and the participle agrees with nobody -- two arms); a pronoun
+  after `di` that a preposition takes (`senza di lui`, the lesson line `"senza"
+  takes "di" before the pronoun.`); a plural of the first person names a team in
+  the singular (`Siamo una squadra`, tr_null_copula_agrees/4); `una delle
+  quattro squadre` is no ratio (tr_phrase_words0/4) and Spanish has the gender
+  of the noun the phrase names (`uno de los cuatro equipos`, tr_ell_gender/2);
+  two next numbers with a dash between them are either (`una delle quattro -
+  cinque squadre`, tr_number_ranges/2, and `los cuatro o cinco equipos`,
+  tr_elided_count/2, which leaves `21 nuove e 12 rinnovi` alone); one of the
+  teams is no person (tr_of_class/2); `né ... né` is `neither ... nor` and one
+  denial in English (`non è né stanco né caldo`, `non dorme né con il gatto né
+  con il pane`, tr_nor_list/3); two connectors of several words (`premesso che`,
+  `tanto è vero che`, en_connector/1); a Bohemian has his capital
+  (en_nationality/1); the verb of a relative clause whose word is its object has
+  an object (`l'allenatore che ora conosciamo` is `conocemos`, not `sabemos`,
+  tr_passive_object/3); and a verb of several words that begins with the copula
+  is no comment (`in un certo senso sono troppi, sono d'accordo, ma non pensate
+  che ...`: between two commas a verb in the first person is the writer's own
+  comment, tr_asides/3, "never the copula", and `sono d'accordo`, stated as the
+  verb `è d'accordo`, took the sentence away -- the data column found it,
+  tr_copula_group/1).
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Italian `buriana` (storm),
+  `offusca` (overshadows, with its forms), `a l'unisono`, `autocritica`, `boemo`
+  (a person), every number from twenty-one to ninety-nine the lesson lacked (70
+  lines), `valore` (a value, where the dictionary's first meaning is courage),
+  `si macera` (agonises, `su` before the question), `premesso che` and `tanto è
+  vero che`, `è d'accordo` (is in agreement, with its forms and `su` before the
+  phrase), the prepositions that take `di` before a pronoun (`senza`, `contro`,
+  `verso`, `su`, `sopra`, `sotto`, `dentro`, `fuori`, `dietro`, `tra`, `fra`),
+  the names `signori`, `scala`, `lombardo`, `romano` and `esposito`, `mancato`
+  (failed, where the participle read as lacked), `vero e proprio`, `in tanti`
+  and `in tanti di più`, `allenatore` and `ct` (a coach, a person), `di primo
+  piano` and `di vertice`, `malizioso`, `lato` (a side, not a canton), `per poi`
+  (begins the purpose) and `parte` (departs, where the dictionary's first is
+  splits); Spanish the same (`autocrítica`, `al unísono`, `bohemio`, `se
+  atormenta` with `por`, `dado que`, `tanto es así que`, `está de acuerdo` with
+  `con`, `conmigo` and `contigo` as contractions, `fallido`, `en gran número`
+  and `en mayor número`, `de primera línea` and `de primer nivel`, `malicioso`,
+  `para luego`, and `habiendo` as the gerund of the auxiliary); and in the
+  dictionaries' extras `reinforcement`, `bizarre`, `supporter`, `merit`,
+  `renewal`, `dismember`, `recommence`, `hoard`, `upset`, `Bohemian` and
+  `improve` (`migliorare`, both ways: the dictionary's first English for it is
+  `enhance`) for Italian, and `dismember`, `recommence`, `overshadow` and
+  `spring` (`primavera`: the dictionary's first Spanish noun for it is a coil)
+  for Spanish. The first word moved in 6 Italian meanings and 3 Spanish ones
+  (Italian `maliziosa` and `malizioso` malicious, `lato` side, `valore` value,
+  `migliora` improves, `parte` departs; Spanish `maliciosa`, `malicioso` and
+  `parte`), and none was lost.
+  THE CONTROLS (cocolog 2.3.0, store KB187, 94 count files, 2 670 sentences:
+  every earlier article and Tatoeba's 400, both directions; this report is not
+  among them): the last version's translator against this one, on the one store,
+  20 sentences in 12 files read differently, all better -- `it` for `him` after
+  a verb of saying (es_20000701-80 20, it_9465_9470 4, it_9714_9749 6 and
+  it_9926_9946 6, English), the future after `if` (it_9567_9604 30, it_9800_9814
+  10, it_9851_9925 57, it_9947_9966 11 and 15), `for itself` for `for itself
+  same` (es_20000903-30 19), `conocido` for `sabido` (it_10059_10095 35),
+  `hacemos errores` for `hacemos de los errores` (it_9816_9850 25), and three
+  sentences the last version's translator did not read on this store:
+  it_9816_9850 11 in both languages (below) and es_20020601-51 13 into English
+  -- and the inferences fall 1.472 % (5 023 520 002 to 4 949 559 324) and rise
+  0.077 % outside the four sentences that fall by over a million (3.77 million
+  of 4.89 billion). The files that rise most are it_9781_9791's, it_9763_9774's
+  and it_9450_9464's, +0.2 %, and the sentences that rise most it_9673_9712 27
+  (+75 thousand of 20.4 million), it_9967_9998 22 and 25 (+74 thousand each) and
+  it_9270_9295 8 (+40 thousand); the ones that fall are it_9816_9850 11 (37.6
+  million to 4.6, read) and 25 (30.3 to 24.4). Bytes and characters read every
+  sentence alike (0 differ, the bytes 0.018 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB179, against this one on the new): 33
+  sentences, the 20 of the code and 13 of the words -- `valore` is `value`
+  (it_10059_10095 30, it_9714_9749 24), `parte` departs where it split
+  (it_9967_9998 32, it_9714_9749 28), `migliorare` improves (it_9567_9604 24
+  into Spanish), `sono d'accordo` is `estoy de acuerdo` (it_9816_9850 15),
+  `conmigo` (tat 380, into both) -- and the inferences fall 0.214 % (4 960 189
+  446 to 4 949 559 324) and rise 0.076 % outside the four. THE CODE ALONE (this
+  translator on the old store): 18 sentences, -0.162 %, +0.077 % outside the two
+  falls. THE STORE ALONE (the last version's translator on the old store and on
+  the new): 15 sentences, +1.277 % of the inferences (4 960 189 446 to 5 023 520
+  002), all of it one sentence: it_9816_9850 11, 5.3 million inferences on the
+  old store and refused after 37.6 on the new (+64.5 million in the two
+  languages, the rest of the files falling by 1.2 million together) -- the one
+  sentence of the data column that went from read to refused, found by teaching
+  the old store with each group of the new Italian lines (19 groups, 13 seconds
+  a store). The line `"sono d'accordo" is the first person of "è d'accordo".`
+  makes `sono d'accordo` a verb in the first person, which the writer's-comment
+  clause of tr_asides/3 took between its two commas (it leaves the copula alone
+  by name, and its comment says why: this very sentence), and this translator
+  reads it in 4.6 million (tr_copula_group/1).
+  THE FIRST CUTS' REGRESSIONS, found by the controls and mended: the partitive
+  took the contraction of every kind (Spanish `El perro tiene del pan`, `di una
+  domenica`, `della piccola Sofia`, `in compagnia della moglie`, `dare del
+  sentimentale`), and is Italian's alone now, the first complement, a definite
+  article and a common noun, after a short list of verbs; `it` after a verb of
+  saying changed three datives (`gli ho chiesto`, `se lo pide`, `le ha detto`: a
+  dative sets '$tr_opron_dat'); the count in its noun's gender regendered `21
+  nuove e 12 rinnovi` (a number and no adjective now); a trial round found `lei`
+  after an infinitive written `it` (`le ha detto di essere stata lei ad
+  avvertire il bagnino`), and `La duda es si el portero recuperará hoy mismo la
+  titularidad o si el técnico optará` and `El perro pregunta si el gato vendrá`
+  read as conditions (the future after `if` is Italian's alone now, and a clause
+  that asks keeps its future); the first cut of `when` made `Il cane chiede
+  quando arriva il gatto`, `Vedremo quando arriva il treno` and `Mi chiedo
+  quando il cane mangia` relatives -- the whole case's old guard (`Il cane vede
+  quando il gatto dorme`) found one and the real vocabulary the rest, because
+  the lessons say a verb takes the question for a handful of verbs only; and the
+  second cut of the future after `if`, restricted to the condition in front,
+  lost the article's own sentence 21 (`Possiamo vincere se riusciremo a giocare
+  il nostro calcio`), which the clause that asks decides now. Four guards were
+  taken out because their arms moved nothing in the controls, in the article or
+  in the section: the verb-form guard of `se non` and a phrase and of a name and
+  an adjective (tr_denied_verb_form/1), and the capital guard of the noun-first
+  headline and of the headline after a dash. THE COST OF THE CODE, FOUND BY
+  TAKING EACH RULE OUT (the five heaviest rises counted over a copy of the
+  library per rule, on the new store): three rules are 98 % of the 299 thousand
+  inferences the five rose -- the clause of tr_nested_front/3 for a purpose,
+  asked at every nested clause (217 thousand, 73 %), `chi` after a verb that
+  takes the question (46 thousand) and a pronoun after `di` (30 thousand); every
+  other rule is under a thousand.
+  THE STATED COSTS: es_20020601-51 13 is read into English (`Step by step, one
+  shows proud to the elite, without asking who has in front`: the `se` of `se
+  asoma` is the impersonal one, and the sentence was refused); the first meaning
+  that serves the news and not every text -- `parte` departs (`partido` is the
+  participle of `partir`, `departed` where it was `split`, es_20010102-25 11,
+  and `parte civile` is `departs civil`, it_9926_9946 9: a noun the lesson does
+  not state), `valore` a value, `lato` a side, `malizioso` malicious,
+  `migliorare` improves; and the verbs of asking, seeing, finding out and saying
+  keep the question after them (`Ricordo quando eravamo giovani` is still
+  `Recuerdo cuándo`: `ricorda` is a verb of saying), a short table and not a
+  measure of the verb. The report LEAVES, of the 29 into Spanish: 2, the
+  headline `Signori ottimista, Zeman velenoso: assurdo, Balbo italiano"` (a lone
+  adjective, a comma and a name with its adjective: `Zeman velenoso, assurdo,
+  Balbo italiano` reads, `Assurdo, Balbo italiano` is refused, in both
+  languages); `Giappone` and `Italia` stay (no lesson states a country), and 4
+  writes `vederne` as `verlo los lados` (the clitic `ne`); 7 `gran parte` is
+  `grandes parte` (and English puts the relative clause before `says it`); 8
+  `che ne è seguita` is `que lo es seguida`; 10 the marks of `se "cambiare sia
+  davvero migliorare"` are moved and its subjunctive written as an indicative;
+  11 `Lo stesso` is `El mismo`, `di questi molti sono` `muchos son ... desde
+  cerca de éstos` and `si porta dietro` `se trae atrás`; 14 `secondo me` is last
+  and `non sono cambiati molto` is `no son cambiados muy`; 16 `lo meritava di
+  più Beppe` is `lo merecía más a Beppe`; 17 `per la prima volta` stands last;
+  18 `essendosi trovato` is `siendose encontrado` (the perfect gerund of a
+  reflexive verb); 21 `riuscire a` is `attain to` in English; 24 and 26 write
+  the subjunctive as an indicative, and `giochi` is the noun in 26 (`juegos para
+  el Argentino`); 27 `ha fatto sapere` is `ha hecho conocer` and `offerte`
+  `intentos`; English refuses 23 and 24, the third person nobody names, on
+  purpose, and writes `each federation has his regulations` in 25. The next
+  sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

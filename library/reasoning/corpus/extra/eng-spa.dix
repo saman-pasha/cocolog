@@ -662,3 +662,10 @@
 # the Miss World article, second batch: `coronando la nueva promesa', `una mirada seductora'
 <e><p><l>crown<s n="vblex"/></l><r>coronar<s n="vblex"/></r></p></e>
 <e><p><l>gaze<s n="n"/></l><r>mirada<s n="n"/><s n="f"/></r></p></e>
+# the Lazio article (VIT-9511..9539), Italian into Spanish and English: the Spanish for the English words the Italian entries bring in
+# `non ci siamo smembrati', `ricominciamo a lavorare', `è stato offuscato dalla buriana'
+<e><p><l>dismember<s n="vblex"/></l><r>desmembrar<s n="vblex"/></r></p></e>
+<e><p><l>recommence<s n="vblex"/></l><r>recomenzar<s n="vblex"/></r></p></e>
+<e><p><l>overshadow<s n="vblex"/></l><r>eclipsar<s n="vblex"/></r></p></e>
+# `i ragazzi della primavera', `In primavera fa caldo': the dictionary's first Spanish noun for `spring' is a coil
+<e><p><l>spring<s n="n"/></l><r>primavera<s n="n"/><s n="f"/></r></p></e>

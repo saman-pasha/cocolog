@@ -2670,3 +2670,132 @@ The verb "se lleva" means "takes along".
 "venado" is animate.
 "zorro" is animate.
 "águila" is animate.
+# the Lazio article (VIT-9511..9539), Italian into Spanish and English: the Spanish for what the dictionaries lack
+# `ha fatto numerose autocritiche', `dicono i giocatori all'unisono'
+The feminine noun "autocrítica" means "self-criticism".
+"autocríticas" is the plural of "autocrítica".
+The adverb "al unísono" means "in unison".
+# `Il boemo sente che ...': a Czech coach's nickname
+The masculine noun "bohemio" means "bohemian".
+"bohemios" is the plural of "bohemio".
+"bohemio" is a person.
+# the Lazio article (VIT-9511..9539), second batch, Italian into Spanish and English
+# `La Squadra, che parte questa mattina da Fiumicino': departs
+The verb "parte" means "departs".
+# `fino al novantanove': every number from twenty-one to ninety-nine
+The number "veintiuno" means "twenty-one".
+The number "veintidós" means "twenty-two".
+The number "veintitrés" means "twenty-three".
+The number "veinticuatro" means "twenty-four".
+The number "veinticinco" means "twenty-five".
+The number "veintiséis" means "twenty-six".
+The number "veintisiete" means "twenty-seven".
+The number "veintiocho" means "twenty-eight".
+The number "veintinueve" means "twenty-nine".
+The number "treinta y uno" means "thirty-one".
+The number "treinta y dos" means "thirty-two".
+The number "treinta y tres" means "thirty-three".
+The number "treinta y cuatro" means "thirty-four".
+The number "treinta y cinco" means "thirty-five".
+The number "treinta y seis" means "thirty-six".
+The number "treinta y siete" means "thirty-seven".
+The number "treinta y ocho" means "thirty-eight".
+The number "treinta y nueve" means "thirty-nine".
+The number "cuarenta y uno" means "forty-one".
+The number "cuarenta y dos" means "forty-two".
+The number "cuarenta y tres" means "forty-three".
+The number "cuarenta y cuatro" means "forty-four".
+The number "cuarenta y cinco" means "forty-five".
+The number "cuarenta y seis" means "forty-six".
+The number "cuarenta y siete" means "forty-seven".
+The number "cuarenta y ocho" means "forty-eight".
+The number "cuarenta y nueve" means "forty-nine".
+The number "cincuenta y uno" means "fifty-one".
+The number "cincuenta y dos" means "fifty-two".
+The number "cincuenta y tres" means "fifty-three".
+The number "cincuenta y cuatro" means "fifty-four".
+The number "cincuenta y cinco" means "fifty-five".
+The number "cincuenta y seis" means "fifty-six".
+The number "cincuenta y siete" means "fifty-seven".
+The number "cincuenta y ocho" means "fifty-eight".
+The number "cincuenta y nueve" means "fifty-nine".
+The number "sesenta y uno" means "sixty-one".
+The number "sesenta y dos" means "sixty-two".
+The number "sesenta y tres" means "sixty-three".
+The number "sesenta y cuatro" means "sixty-four".
+The number "sesenta y cinco" means "sixty-five".
+The number "sesenta y seis" means "sixty-six".
+The number "sesenta y siete" means "sixty-seven".
+The number "sesenta y ocho" means "sixty-eight".
+The number "sesenta y nueve" means "sixty-nine".
+The number "setenta y uno" means "seventy-one".
+The number "setenta y dos" means "seventy-two".
+The number "setenta y tres" means "seventy-three".
+The number "setenta y cuatro" means "seventy-four".
+The number "setenta y cinco" means "seventy-five".
+The number "setenta y seis" means "seventy-six".
+The number "setenta y siete" means "seventy-seven".
+The number "setenta y ocho" means "seventy-eight".
+The number "setenta y nueve" means "seventy-nine".
+The number "ochenta y uno" means "eighty-one".
+The number "ochenta y dos" means "eighty-two".
+The number "ochenta y tres" means "eighty-three".
+The number "ochenta y cuatro" means "eighty-four".
+The number "ochenta y cinco" means "eighty-five".
+The number "ochenta y seis" means "eighty-six".
+The number "ochenta y siete" means "eighty-seven".
+The number "ochenta y ocho" means "eighty-eight".
+The number "ochenta y nueve" means "eighty-nine".
+The number "noventa y dos" means "ninety-two".
+The number "noventa y tres" means "ninety-three".
+The number "noventa y cuatro" means "ninety-four".
+The number "noventa y seis" means "ninety-six".
+The number "noventa y siete" means "ninety-seven".
+The number "noventa y ocho" means "ninety-eight".
+The number "noventa y nueve" means "ninety-nine".
+# `la Lazio si è limitata a macerarsi su chi dovesse vendere': agonises over
+The verb "se atormenta" means "agonises".
+"se atormentan" is the plural of "se atormenta".
+"atormentarse" is the infinitive of "se atormenta".
+"se atormenta" takes "por" before the question.
+# `Premesso che ...', `..., tanto è vero che siamo arrivati secondi'
+The conjunction "dado que" means "given that".
+The conjunction "tanto es así que" means "so much so that".
+# `non sono d'accordo sulla decisione presa': agrees
+The verb "está de acuerdo" means "is in agreement".
+"están de acuerdo" is the plural of "está de acuerdo".
+"estoy de acuerdo" is the first person of "está de acuerdo".
+"estás de acuerdo" is the second person of "está de acuerdo".
+"estamos de acuerdo" is the first person of "están de acuerdo".
+"estáis de acuerdo" is the second person of "están de acuerdo".
+"estaba de acuerdo" is the past of "está de acuerdo".
+"estaban de acuerdo" is the past of "están de acuerdo".
+"estaba de acuerdo" is the first person of "estaba de acuerdo".
+"estará de acuerdo" is the future of "está de acuerdo".
+"estarán de acuerdo" is the plural of "estará de acuerdo".
+"estar de acuerdo" is the infinitive of "está de acuerdo".
+"está de acuerdo" takes "con" before the phrase.
+# `Viene con me': the pronoun that joins `con'
+"conmigo" is the contraction of "con mí".
+"contigo" is the contraction of "con ti".
+# `dopo una rivoluzione mancata', `il mancato rinnovamento'
+The masculine adjective "fallido" means "failed".
+"fallidos" is the plural of "fallido".
+The feminine adjective "fallida" means "failed".
+"fallidas" is the plural of "fallida".
+# `arrivano in tanti di più'
+The adverb "en gran número" means "in large numbers".
+The adverb "en mayor número" means "in greater numbers".
+# `alcuni atleti non di primo piano', `le altre squadre di vertice', `una curiosità maliziosa'
+The adjective "de primera línea" means "first-rate".
+"de primera línea" is the plural of "de primera línea".
+The adjective "de primer nivel" means "top".
+"de primer nivel" is the plural of "de primer nivel".
+The masculine adjective "malicioso" means "malicious".
+"maliciosos" is the plural of "malicioso".
+The feminine adjective "maliciosa" means "malicious".
+"maliciosas" is the plural of "maliciosa".
+# `per poi prendere alcuni atleti': to then take
+The word "para luego" begins the purpose.
+# `avendo mantenuto solo il progetto': the gerund of the auxiliary, for `habiendo mantenido'
+"habiendo" is the gerund of "ha".

@@ -3421,6 +3421,8 @@ The masculine noun "concorso" means "contest".
 "concorsi" is the plural of "concorso".
 # `In realtà', `la macchina partì' (the dictionary's own `splits' said again first, so that every other `parte' stays what it was), `le ragazze prendevano la tintarella', `sale da gioco', `le candidate'
 The adverb "in realtà" means "in reality".
+# `La Squadra, che parte questa mattina da Fiumicino': departs, where the dictionary has splits (said first for every other `parte')
+The verb "parte" means "departs".
 The verb "parte" means "splits".
 The verb "parte" means "gets going".
 The verb "prende la tintarella" means "gets a tan".
@@ -3557,3 +3559,172 @@ The verb "porta" means "takes along".
 "volpe" is animate.
 "zanzara" is animate.
 "zebra" is animate.
+# the Lazio article (VIT-9511..9539), Italian into Spanish and English: words the Italian dictionary lacks altogether
+# `il secondo posto ... è stato offuscato dalla buriana che ne è seguita'
+The feminine noun "buriana" means "storm".
+"buriane" is the plural of "buriana".
+The verb "offusca" means "overshadows".
+"offuscano" is the plural of "offusca".
+"offuscato" is the participle of "offusca".
+"offuscata" is the participle of "offusca".
+"offuscata" is feminine.
+"offuscati" is the participle of "offusca".
+"offuscati" is the plural of "offuscato".
+"offuscate" is the participle of "offusca".
+"offuscate" is feminine.
+"offuscate" is the plural of "offuscata".
+"offuscare" is the infinitive of "offusca".
+# `dicono i giocatori all'unisono'
+The adverb "a l'unisono" means "in unison".
+# `ha fatto numerose autocritiche'
+The feminine noun "autocritica" means "self-criticism".
+"autocritiche" is the plural of "autocritica".
+# `Il boemo sente che ...': a nickname, a person
+"boemo" is a person.
+# the Lazio article (VIT-9511..9539), second batch, Italian into Spanish and English
+# `fino al novantanove': a year said in words -- every number from twenty-one to ninety-nine
+The number "ventuno" means "twenty-one".
+The number "ventidue" means "twenty-two".
+The number "ventitré" means "twenty-three".
+The number "ventiquattro" means "twenty-four".
+The number "venticinque" means "twenty-five".
+The number "ventisei" means "twenty-six".
+The number "ventisette" means "twenty-seven".
+The number "ventotto" means "twenty-eight".
+The number "ventinove" means "twenty-nine".
+The number "trentuno" means "thirty-one".
+The number "trentadue" means "thirty-two".
+The number "trentatré" means "thirty-three".
+The number "trentaquattro" means "thirty-four".
+The number "trentacinque" means "thirty-five".
+The number "trentasei" means "thirty-six".
+The number "trentasette" means "thirty-seven".
+The number "trentotto" means "thirty-eight".
+The number "trentanove" means "thirty-nine".
+The number "quarantuno" means "forty-one".
+The number "quarantadue" means "forty-two".
+The number "quarantatré" means "forty-three".
+The number "quarantaquattro" means "forty-four".
+The number "quarantacinque" means "forty-five".
+The number "quarantasei" means "forty-six".
+The number "quarantasette" means "forty-seven".
+The number "quarantotto" means "forty-eight".
+The number "quarantanove" means "forty-nine".
+The number "cinquantuno" means "fifty-one".
+The number "cinquantadue" means "fifty-two".
+The number "cinquantatré" means "fifty-three".
+The number "cinquantaquattro" means "fifty-four".
+The number "cinquantacinque" means "fifty-five".
+The number "cinquantasei" means "fifty-six".
+The number "cinquantasette" means "fifty-seven".
+The number "cinquantotto" means "fifty-eight".
+The number "cinquantanove" means "fifty-nine".
+The number "sessantuno" means "sixty-one".
+The number "sessantadue" means "sixty-two".
+The number "sessantatré" means "sixty-three".
+The number "sessantaquattro" means "sixty-four".
+The number "sessantacinque" means "sixty-five".
+The number "sessantasei" means "sixty-six".
+The number "sessantasette" means "sixty-seven".
+The number "sessantotto" means "sixty-eight".
+The number "sessantanove" means "sixty-nine".
+The number "settantuno" means "seventy-one".
+The number "settantadue" means "seventy-two".
+The number "settantatré" means "seventy-three".
+The number "settantaquattro" means "seventy-four".
+The number "settantacinque" means "seventy-five".
+The number "settantasei" means "seventy-six".
+The number "settantasette" means "seventy-seven".
+The number "settantotto" means "seventy-eight".
+The number "settantanove" means "seventy-nine".
+The number "ottantuno" means "eighty-one".
+The number "ottantadue" means "eighty-two".
+The number "ottantatré" means "eighty-three".
+The number "ottantaquattro" means "eighty-four".
+The number "ottantacinque" means "eighty-five".
+The number "ottantasei" means "eighty-six".
+The number "ottantasette" means "eighty-seven".
+The number "ottantotto" means "eighty-eight".
+The number "ottantanove" means "eighty-nine".
+The number "novantadue" means "ninety-two".
+The number "novantatré" means "ninety-three".
+The number "novantaquattro" means "ninety-four".
+The number "novantasei" means "ninety-six".
+The number "novantasette" means "ninety-seven".
+The number "novantotto" means "ninety-eight".
+The number "novantanove" means "ninety-nine".
+# `i valori non sono cambiati molto': a value, where the dictionary's first meaning of `valore' is courage
+The masculine noun "valore" means "value".
+"valori" is the plural of "valore".
+# `la Lazio si è limitata a macerarsi su chi dovesse vendere': agonises over
+The verb "si macera" means "agonises".
+"si macerano" is the plural of "si macera".
+"macerarsi" is the infinitive of "si macera".
+"si macera" takes "su" before the question.
+# `Premesso che ogni federazione ha i suoi regolamenti, ...', `..., tanto è vero che siamo arrivati secondi'
+The conjunction "premesso che" means "given that".
+The conjunction "tanto è vero che" means "so much so that".
+# `non sono d'accordo sulla decisione presa': agrees, where the copula with an adjective said `soy de acuerdo'
+The verb "è d'accordo" means "is in agreement".
+"sono d'accordo" is the plural of "è d'accordo".
+"sono d'accordo" is the first person of "è d'accordo".
+"siamo d'accordo" is the first person of "sono d'accordo".
+"sei d'accordo" is the second person of "è d'accordo".
+"siete d'accordo" is the second person of "sono d'accordo".
+"era d'accordo" is the past of "è d'accordo".
+"erano d'accordo" is the past of "sono d'accordo".
+"ero d'accordo" is the first person of "era d'accordo".
+"sarà d'accordo" is the future of "è d'accordo".
+"saranno d'accordo" is the plural of "sarà d'accordo".
+"essere d'accordo" is the infinitive of "è d'accordo".
+"è d'accordo" takes "su" before the phrase.
+# `La Juventus ha vinto anche senza di lui': a preposition that takes `di' before a pronoun
+"senza" takes "di" before the pronoun.
+"contro" takes "di" before the pronoun.
+"verso" takes "di" before the pronoun.
+"su" takes "di" before the pronoun.
+"sopra" takes "di" before the pronoun.
+"sotto" takes "di" before the pronoun.
+"dentro" takes "di" before the pronoun.
+"fuori" takes "di" before the pronoun.
+"dietro" takes "di" before the pronoun.
+"tra" takes "di" before the pronoun.
+"fra" takes "di" before the pronoun.
+# `Signori ottimista, Zeman velenoso: assurdo, Balbo italiano', `Scala si sbaglia': names the lesson knows as common words
+"signori" is a name.
+"scala" is a name.
+# `dopo una rivoluzione mancata', `il mancato rinnovamento': failed, where the participle read as lacked
+The masculine adjective "mancato" means "failed".
+"mancati" is the plural of "mancato".
+The feminine adjective "mancata" means "failed".
+"mancate" is the plural of "mancata".
+# `se non una vera e propria pressione'
+The masculine adjective "vero e proprio" means "genuine".
+"veri e propri" is the plural of "vero e proprio".
+The feminine adjective "vera e propria" means "genuine".
+"vere e proprie" is the plural of "vera e propria".
+# `arrivano in tanti di più'
+The adverb "in tanti" means "in large numbers".
+The adverb "in tanti di più" means "in greater numbers".
+# `del Ct della Lazio': the coach of a team; the dictionary's own word is said again first, so that it stays the one written
+The masculine noun "allenatore" means "coach".
+"allenatori" is the plural of "allenatore".
+The masculine noun "ct" means "coach".
+"ct" is a person.
+# `Stoichkov, Baggio, Lombardo eccetera', `(Esposito, Piovanelli, Gottardi, Cacciapuoti, Romano)': players whose surnames are common words
+"lombardo" is a name.
+"romano" is a name.
+"esposito" is a name.
+# `alcuni atleti non di primo piano', `le altre squadre di vertice', `una curiosità maliziosa', `i lati positivi'
+The adjective "di primo piano" means "first-rate".
+"di primo piano" is the plural of "di primo piano".
+The adjective "di vertice" means "top".
+"di vertice" is the plural of "di vertice".
+The masculine adjective "malizioso" means "malicious".
+"maliziosi" is the plural of "malizioso".
+The feminine adjective "maliziosa" means "malicious".
+"maliziose" is the plural of "maliziosa".
+The masculine noun "lato" means "side".
+"lati" is the plural of "lato".
+# `per poi prendere alcuni atleti': to then take -- the purpose word of two words
+The word "per poi" begins the purpose.

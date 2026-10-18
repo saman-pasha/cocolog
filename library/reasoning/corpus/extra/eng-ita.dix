@@ -1147,3 +1147,19 @@
 # the Miss World article, second batch: `coronando la nueva promesa', `una mirada seductora'
 <e><p><l>crown<s n="vblex"/></l><r>incoronare<s n="vblex"/></r></p></e>
 <e><p><l>gaze<s n="n"/></l><r>sguardo<s n="n"/><s n="m"/></r></p></e>
+# the Lazio article (VIT-9511..9539), Italian into Spanish and English: words the Italian dictionary has with a paradigm and no English
+# `pochi rinforzi', `il progetto più bizzarro', `i cortei dei tifosi', `i nostri pregi e difetti', `il mancato rinnovamento'
+<e r="RL"><p><l>reinforcement<s n="n"/></l><r>rinforzo<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>bizarre<s n="adj"/></l><r>bizzarro<s n="adj"/></r></p></e>
+<e r="RL"><p><l>supporter<s n="n"/></l><r>tifoso<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>merit<s n="n"/></l><r>pregio<s n="n"/><s n="m"/></r></p></e>
+<e r="RL"><p><l>renewal<s n="n"/></l><r>rinnovamento<s n="n"/><s n="m"/></r></p></e>
+# `non ci siamo smembrati', `ricominciamo a lavorare', `si sono accaparrate Stoichkov', `È contrariato invece dalla vicenda Balbo'
+<e r="RL"><p><l>dismember<s n="vblex"/></l><r>smembrare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>recommence<s n="vblex"/></l><r>ricominciare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>hoard<s n="vblex"/></l><r>accaparrare<s n="vblex"/></r></p></e>
+<e r="RL"><p><l>upset<s n="vblex"/></l><r>contrariare<s n="vblex"/></r></p></e>
+# `Il boemo sente che ...': the nickname of a Czech coach
+<e r="RL"><p><l>Bohemian<s n="n"/></l><r>boemo<s n="n"/><s n="m"/></r></p></e>
+# `possiamo migliorare': the dictionary's first English for `migliorare' is `enhance'; both ways, as each is the Italian for its English word too
+<e><p><l>improve<s n="vblex"/></l><r>migliorare<s n="vblex"/></r></p></e>
