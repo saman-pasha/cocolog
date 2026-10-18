@@ -1163,3 +1163,14 @@
 <e r="RL"><p><l>Bohemian<s n="n"/></l><r>boemo<s n="n"/><s n="m"/></r></p></e>
 # `possiamo migliorare': the dictionary's first English for `migliorare' is `enhance'; both ways, as each is the Italian for its English word too
 <e><p><l>improve<s n="vblex"/></l><r>migliorare<s n="vblex"/></r></p></e>
+# `uno spogliatoio sconvolto dai continui cambiamenti', `un giocatore indisciplinato', `avallano la traiettoria':
+# each word has its forms in apertium-ita.ita.dix and no English (`avallare' is the dictionary's `endorse' too, before its `firmare')
+<e><p><l>convulse<s n="vblex"/></l><r>sconvolgere<s n="vblex"/></r></p></e>
+<e><p><l>unruly<s n="adj"/></l><r>indisciplinato<s n="adj"/></r></p></e>
+<e><p><l>endorse<s n="vblex"/></l><r>avallare<s n="vblex"/></r></p></e>
+# `Quattro vittorie e un pareggio': a tie is a draw, where the dictionary's first Italian noun for it is the necktie
+<e><p><l>tie<s n="n"/></l><r>pareggio<s n="n"/><s n="m"/></r></p></e>
+# `un attacco sorprendente ed efficace': effective is efficace, where the dictionary writes effettivo
+<e><p><l>effective<s n="adj"/></l><r>efficace<s n="adj"/><s n="mf"/></r></p></e>
+# `un attaccante forgiato nel vivaio dell'Inter': forgiare has its forms in apertium-ita.ita.dix and no English
+<e><p><l>forge<s n="vblex"/></l><r>forgiare<s n="vblex"/></r></p></e>

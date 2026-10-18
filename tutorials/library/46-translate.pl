@@ -366,6 +366,7 @@ main :-
     section_71,
     section_72,
     section_73,
+    section_74,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -5841,7 +5842,7 @@ section_62_7 :-
     reason_translate('Il gatto lavora da lunedì.', italian, spanish, S62g2),
     must('... and a day with no count stays since: `da lunedì'' is `desde el lunes''', S62g2, 'El gato trabaja desde el lunes.'),
     reason_translate('Il gatto lavora da 15 anni.', italian, english, S62g3),
-    must('... and English writes the lesson''s `for the past'' as it stands', S62g3, 'The cat works for the past 15 years.'),
+    must('... and English writes the lesson''s `for the past'' as it stands -- and a present that has gone on that long is the perfect', S62g3, 'The cat has worked for the past 15 years.'),
     reason_translate('Il gatto dorme giovedì 20.', italian, spanish, S62g4),
     must('a day and its number are one phrase: `un convegno (giovedì 20)''', S62g4, 'El gato duerme el jueves 20.'),
     ( reason_translate('Il gatto vede casa 20.', italian, spanish, _) -> RG5 = translated ; RG5 = refused ),
@@ -8804,6 +8805,242 @@ The adverb "bene" means "well". The verb "si limita" means "limits". The dative 
 The masculine noun "dubbio" means "doubt". "dormirà" is the future of "dorme".
 "dice" takes "di" before the infinitive.
 The verb "è d''accordo" means "is in agreement". "sono d''accordo" is the first person of "è d''accordo". "è d''accordo" takes "su" before the phrase.').
+
+section_74 :-
+    format("~n74. a Spanish football feature on a club's turnaround, into Italian and English: the doer after a relative clause's verb, a connector of three words and a contrast, a verb before an infinitive, an animal after the word for a person, since, all that and nothing of what, the most ... thing, a name after its article, has had to, it has been two years since, a second relative clause joined by a coordinator, a doer in a prepositional relative, the participle of a predicate, two fronts in a relative clause, adjectives before and after a noun, a verb that is a preposition~n", []),
+    lesson_74(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the football club''s Spanish lesson and a fourth part, under its own name', NS),
+    lesson_74(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_74_1, section_74_2, section_74_3, section_74_4, section_74_5,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_74(L, Text) :- lesson_73(L, A), lesson_74(L, 4, B), atomic_list_concat([A, ' ', B], Text).
+
+section_74_1 :-
+    reason_translate('El pan que come el perro es bueno.', spanish, english, S74A1),
+    must('THE DOER AFTER A RELATIVE CLAUSE''S VERB IS ITS SUBJECT, THE RELATIVE WORD ITS OBJECT: `el pan que come el perro'' is the bread the dog eats -- read with the relative word for the subject it was `the bread that eats the dog''; Spanish marks an animate object with `a'', so a definite phrase that does what the verb says and no `a'' in the clause is the doer (tr_rc_role/7, tr_rel_doer/2)', S74A1,
+          'The bread that the dog eats is good.'),
+    reason_translate('Lo que come el perro es bueno.', spanish, english, S74A2),
+    must('... and after the word that replaces a noun: `lo que dice el técnico'' is what the coach says, and it was `what says the coach'' (tr_np/3''s ell/4, asked of tr_rc_role/7)', S74A2,
+          'What the dog eats is good.'),
+    reason_translate('Lo que come el equipo es bueno.', spanish, english, S74A3),
+    must('... a group does what a verb says as a person or an animal does: `"equipo" is a group.'' is a doer (tr_doer_noun/1)', S74A3,
+          'What the team eats is good.'),
+    reason_translate('El pan que ve a Pedro es bueno.', spanish, english, S74A4),
+    must('GUARD: with an `a'' in the clause the phrase after the verb is its object, as before -- `el hombre que ve a Pedro'' is the man who sees Pedro (tr_rc_role/7)', S74A4,
+          'The bread that sees Pedro is good.'),
+    reason_translate('El médico que ve a Pedro duerme.', spanish, english, S74A5),
+    must('... and after a head that is a doer itself, where a name is the object (tr_rel_doer/2)', S74A5,
+          'The doctor that sees Pedro sleeps.'),
+    reason_translate('El médico que ve un perro duerme.', spanish, english, S74A6),
+    must('GUARD: nor an indefinite phrase, which looks for one rather than does -- `un jugador que busca un entrenador'' (tr_rel_doer/2)', S74A6,
+          'The doctor that sees a dog sleeps.'),
+    reason_translate('El médico que dirige el Inter duerme.', spanish, english, S74A7),
+    must('GUARD: nor a name where the phrase the clause hangs on is a doer itself -- `el técnico que dirige el Inter'': the team is the object of the man who leads it (tr_rel_doer/2, tr_named_doer/1)', S74A7,
+          'The doctor that leads the Inter sleeps.'),
+    reason_translate('Lo que hoy es el equipo es bueno.', spanish, english, S74A8),
+    must('... AND AFTER A COPULA: `lo que hoy es el equipo'' is what the team is today, the phrase after `lo que es'' what is spoken of and the relative word what it is -- with `hoy'' before the verb (tr_rc_role/7, tr_relative_clause/4''s adverb before the verb of an object relative)', S74A8,
+          'What the team is today is good.'),
+    reason_translate('El gato que es el perro duerme.', spanish, english, S74A9),
+    must('GUARD: only for `lo que'': `la ciudad que es la capital'' is the city that IS the capital (tr_rel_doer/2)', S74A9,
+          'The cat that is the dog sleeps.'),
+    reason_translate('El gato que trata de comer el perro duerme.', spanish, english, S74A10),
+    must('GUARD: an infinitive between the verb and the phrase makes the phrase ITS object, not the clause''s doer: `Craxi que amenaza con arreglar las cuentas con los magistrados'' threatens to settle the accounts -- `conti'' is also the plural of a count, a person, and was the doer of the threat, and the sentence was refused (tr_rel_doer/2)', S74A10,
+          'The cat that tries to eat the dog sleeps.'),
+    reason_translate('El pan que come de todo Pedro es bueno.', spanish, english, S74A11),
+    must('GUARD: nor after the phrase of a pronoun, which belongs to the verb''s: `cadena que cuenta con 19 emisoras de toda Catalunya'' -- `toda'' was read as a phrase of its own and the name after it was the doer of `cuenta'', the station counting on Catalunya (tr_rel_doer/2)', S74A11,
+          'The bread that eats of all Pedro is good.'),
+    reason_translate('Il gatto che mangia il cane dorme.', italian, english, S74A12),
+    must('A LESSON WITH NO WORD BEFORE A PERSON HAS THE RULE WHERE THE PHRASE IT HANGS ON IS NO DOER: Italian marks no object, and `una madre che ha perso la figlia'' lost her daughter -- read as Spanish reads it, the daughter was the doer and the mother what she lost (tr_rc_role/7)', S74A12,
+          'The cat that eats the dog sleeps.'),
+    reason_translate('Il pane che mangia il cane è buono.', italian, english, S74A13),
+    must('... and the bread is no doer: `il pane che mangia il cane'' is the bread the dog eats (tr_rc_role/7)', S74A13,
+          'The bread that the dog eats is good.'),
+    reason_translate('El pan que siempre come el perro es bueno.', spanish, english, S74A14),
+    must('AN ADVERB BEFORE THE VERB OF A RELATIVE CLAUSE WHOSE GAP IS ITS OBJECT: the clause is read without it and the adverb is one of its complements, so English writes it after the subject (tr_relative_clause/4)', S74A14,
+          'The bread that the dog always eats is good.'),
+    reason_translate('¿Qué pan come el equipo?', spanish, english, S74A15),
+    must('A GROUP IS A DOER IN A QUESTION TOO: `¿Qué medida tomó el Gobierno?'' asks for the measure, and a group was no doer for the question phrase (fo_animate_phrase/1)', S74A15,
+          'Which bread does the team eat?').
+
+section_74_2 :-
+    reason_translate('Pedro come con lo que dice Maria.', spanish, english, S74B1),
+    must('A CONNECTOR OF THREE WORDS THAT NO COMMA OPENS IS A PREPOSITION AND ITS RELATIVE: `no convence a nadie con lo que dice'' is with what he says, and joined it was `so he says'' (tr_unjoin_relative/3)', S74B1,
+          'Pedro eats with what Maria says.'),
+    reason_translate('Pedro duerme, con lo que dice.', spanish, english, S74B2),
+    must('GUARD: with a comma before it the connector stays what it was, the consequence (tr_unjoin_relative0/3)', S74B2,
+          'Pedro sleeps, so they say.'),
+    reason_translate('Pedro duerme con lo que el perro es bueno.', spanish, english, S74B3),
+    must('GUARD: with a phrase and its verb after it and no gap, the connector is the consequence still, comma or none -- `Rivaldo y Overmars tampoco estuvieron en Gandía con lo que esa elección resulta más que cuestionable'' (tr_unjoin_relative0/3: a verb straight after it)', S74B3,
+          'Pedro sleeps so the dog is good.'),
+    reason_translate('Pedro no come con lo que dice.', spanish, english, S74B4),
+    must('A VERB OF SAYING WITH NOTHING AFTER IT HAS ITS OBJECT IN THE RELATIVE WORD: `con lo que dice'' is with what he says -- read with the relative word for the subject it was `with what says'', a verb with nobody to do it; the subject is nobody named, and English writes the singular `they'' for a verb of saying (tr_rc_role/7, tr_object_verb/1)', S74B4,
+          'Pedro does not eat with what they say.'),
+    reason_translate('Pedro no come con el gato, pero sí con el perro.', spanish, english, S74B5),
+    must('`PERO SI'' BEFORE A PREPOSITION IS A CONTRAST AND NOTHING ELSE: `no convence con lo que dice, pero sí con lo que hace'' is but with what he does -- `sí'' is the stress the verb left out would have carried, and read as a word it was `itself'' (tr_drop_contrast_yes/3)', S74B5,
+          'Pedro does not eat with the cat, but with the dog.'),
+    reason_translate('Pedro no come con lo que dice, pero sí con lo que come el perro.', spanish, english, S74B6),
+    must('A RELATIVE CLAUSE ENDS AT THE COMMA OF A CONTRAST THAT HAS NO VERB: the second `con'' phrase is the sentence''s, set against the first, and read to the end of the clause it was the relative clause''s (tr_contrast_cut/4)', S74B6,
+          'Pedro does not eat with what they say, but with what the dog eats.'),
+    reason_translate('Pedro trata de comer el pan.', spanish, english, S74B7),
+    must('A VERB BEFORE AN INFINITIVE CROSSES BY THE MEANING THE LESSON GIVES IT THERE: `trata de convencer'' tries to convince, and `trata'' is `treats'' first -- `The infinitival verb "trata" means "tries".'' (tr_mean_links/3, tr_verb_across/5)', S74B7,
+          'Pedro tries to eat the bread.'),
+    reason_translate('Pedro trata de la casa.', spanish, english, S74B8),
+    must('GUARD: before a phrase it is the first meaning still (tr_verb_across/5)', S74B8,
+          'Pedro treats of the house.'),
+    reason_translate('Pedro ve al perro.', spanish, english, S74B9),
+    must('AN ANIMAL IS A PERSON FOR THE WORD BEFORE ONE: `Pedro ve al perro'' sees the dog, and read as a phrase of `to'' it was `sees to the dog'' (`"perro" is animate.'', tr_of_class/2)', S74B9,
+          'Pedro sees the dog.'),
+    reason_translate('Pedro vede il cane.', italian, spanish, S74B10),
+    must('... AND WRITTEN: `Pedro vede il cane'' is `Pedro ve al perro'', the Spanish lesson''s word for a dog an animal (tr_marker/3, tr_of_class/2)', S74B10,
+          'Pedro ve al perro.'),
+    reason_translate('Pedro vede un cane.', italian, spanish, S74B11),
+    must('GUARD: an indefinite one takes no word before it -- `preparare un coccodrillo'' is `preparar un cocodrilo'' (a crocodile is an obituary too), and with an `a'' it was a man''s crocodile (tr_of_class/2)', S74B11,
+          'Pedro ve un perro.'),
+    reason_translate('Pedro no ve a nadie.', spanish, english, S74B12),
+    must('... and `nadie'', which the lesson calls a person: `no convence a nadie'' (`"nadie" is a person.'')', S74B12,
+          'Pedro does not see anybody.').
+
+section_74_3 :-
+    reason_translate('Pedro no come el pan desde 1989.', spanish, english, S74C1),
+    must('A DATE AFTER THE WORD THE LESSON GIVES `SINCE'' IS SINCE THEN, AND A PRESENT THAT HAS GONE ON IS THE PERFECT: `no gana el scudetto desde 1989'' was `does not win the title from 1989'' (tr_cross_comp/2, tr_since_phrase/1, en_since_comp/1)', S74C1,
+          'Pedro has not eaten the bread since 1989.'),
+    reason_translate('Pedro come desde la casa.', spanish, english, S74C2),
+    must('GUARD: a place after the word stays from, and the present stays', S74C2,
+          'Pedro eats from the house.'),
+    reason_translate('Pedro come el pan desde 1989 a 1990.', spanish, english, S74C3),
+    must('NOR A RANGE OF DATES SINCE: `vietato dal 24 luglio al 25 agosto'' is forbidden from July 24 to August 25, and with the perfect made of it `has been forbidden since July 24 to August 25'' (tr_cross_comps/2, tr_date_range/1)', S74C3,
+          'Pedro eats the bread from 1989 to 1990.'),
+    reason_translate('Pedro come el pan desde la próxima semana.', spanish, english, S74C4),
+    must('NOR A TIME TO COME: `comincerò ad occuparmene dalla settimana prossima'' is from next week, and a present that has gone on since then is not one that has not begun (tr_since_phrase/1)', S74C4,
+          'Pedro eats the bread from next week.'),
+    reason_translate('Pedro mangia il pane fin dal prossimo anno.', italian, english, S74C5),
+    must('... and the lesson''s own `since'' (`"fin da" means "since".''): no perfect for a time to come either -- `Attendiamo di conoscere fin dalla prossima riunione'' were `We have expected to know since the forthcoming meeting'' (en_since_comp/1)', S74C5,
+          'Pedro eats the bread since next year.'),
+    reason_translate('Pedro come el pan, bueno desde 1989.', spanish, english, S74C6),
+    must('NOR AFTER A COMMA, where the phrase is the aside''s: `che paralizza il cronista e il critico d''arte Ludovico Pratesi, amico da anni della coppia'' -- the friend for years is Pratesi, and the interview had not `paralysed'' for years (en_since_comp/1)', S74C6,
+          'Pedro eats the bread, good since 1989.'),
+    reason_translate('Todo lo que come el perro es bueno.', spanish, english, S74C7),
+    must('ALL THAT A CLAUSE SAYS: `todo lo que dice Pedro'' is all that Pedro says -- read as the pronoun `everything'' and a second phrase it was `eats everything what there is'' (tr_np/3''s all/2 with ell/4, tr_subject_shape/4)', S74C7,
+          'All that the dog eats is good.'),
+    reason_translate('Nada de lo que come el perro es bueno.', spanish, english, S74C8),
+    must('... AND NOTHING OF IT: `nada de lo que hoy es el equipo'' -- the pronoun and its phrase of `of''; joined, `de lo que'' was the `than what'' of `más de lo que recibe'' (tr_unjoin_relative0/3, tr_np/3)', S74C8,
+          'Nothing of what the dog eats is good.'),
+    reason_translate('Nada de lo que hoy es el equipo es bueno.', spanish, english, S74C9),
+    must('... and with the copula, `Y nada de lo que hoy es el equipo neriazzurro tiene que ver con el pasado'' (tr_np/3, tr_rc_role/7)', S74C9,
+          'Nothing of what the team is today is good.'),
+    reason_translate('Lo más grande de este perro es bueno.', spanish, english, S74C10),
+    must('THE WORD FOR `MORE'' AND AN ADJECTIVE BETWEEN THE WORD THAT REPLACES A NOUN AND ITS `OF'' PHRASE: `Lo más formidable de esta rápida transformación'' is the most formidable THING ABOUT it -- read as `what is more formidable'' it was `what is important is more that ...'' (tr_np/3, tr_subject_shape/4, tr_with_adj/5)', S74C10,
+          'The biggest thing about this dog is good.'),
+    reason_translate('El gato come el pan en lo más grande.', spanish, english, S74C11),
+    must('... AND AFTER A PREPOSITION, WHERE THE COMPLEMENTS HAVE FOLDED THE DEGREE: `colocar al club en lo más alto'' puts the club at the top -- `más alto'' is the adjective with its degree by then, and after an object the phrase was refused or `lo'' was a pronoun, `in the big one more'' (tr_np/3''s phrase of the folded degree; the lesson says `"lo" means "him"'', which is no subject, so `lo'' is no pronoun after a preposition)', S74C11,
+          'The cat eats the bread in the biggest thing.'),
+    reason_translate('El gato come en el Valencia.', spanish, english, S74C12),
+    must('A CAPITAL NAME THE LESSON STATES AFTER AN ARTICLE THAT IS NOT ITS NOUN''S GENDER IS THE NAME: `triunfó en el Valencia'' is the club, and `valencia'' is a FEMININE noun that a masculine `el'' cannot be the article of (`"valencia" is a name.'', tr_np/3)', S74C12,
+          'The cat eats in the Valencia.'),
+    reason_translate('El gato come en la Valencia.', spanish, english, S74C13),
+    must('GUARD: `la Valencia'' keeps the noun, the article of its gender', S74C13,
+          'The cat eats in the Valency.'),
+    reason_translate('El gato come en el calcio.', spanish, english, S74C14),
+    must('A NOUN OF SEVERAL WORDS THAT OPENS ON A NATIONALITY HAS ITS CAPITAL: `Italian football'' is the lesson''s noun for `el calcio'' (tr_np_out/5, en_nationality/1)', S74C14,
+          'The cat eats in the Italian football.'),
+    reason_translate('El gato ha debido comer el pan.', spanish, english, S74C15),
+    must('`MUST'' HAS NO PERFECT, AND `HAS HAD TO'' SAYS IT: `un equipo que ha debido asimilar 17 nuevos fichajes'' was `has musted assimilate'' (en_group/9)', S74C15,
+          'The cat has had to eat the bread.'),
+    reason_translate('El gato debe comer el pan.', spanish, english, S74C16),
+    must('GUARD: the present of the modal is the modal', S74C16,
+          'The cat must eat the bread.'),
+    reason_translate('Hace dos años que el gato no come el pan.', spanish, english, S74C17),
+    must('`HACE DOS AÑOS QUE NO ...'' IS `IT HAS BEEN TWO YEARS SINCE ...'': the verb `hace'' with a time, a denied clause of `that'' and nobody named for its subject -- English refused it, and `ago two years that the cat did not eat'' was no sentence (tr_write/4)', S74C17,
+          'It has been two years since the cat ate the bread.').
+
+section_74_4 :-
+    reason_translate('El perro tiene una casa con la que sueñan los gatos.', spanish, english, S74D1),
+    must('THE DOER AFTER THE VERB OF A CLAUSE ON A PREPOSITION''S RELATIVE IS ITS SUBJECT: `un ataque con el que sueñan los interistas'' is the attack the fans dream of -- read with nobody named it was `with which they dream the inter fans'' (tr_rel_doer_fix/3); and the preposition is the English verb''s own where it governs one, `dream OF'' (`en_governs(dreams, of)'')', S74D1,
+          'The dog has a house of which the cats dream.'),
+    reason_translate('El perro tiene una casa en la que duermen los gatos.', spanish, english, S74D2),
+    must('GUARD: a verb that governs nothing keeps the preposition it had, `in which''', S74D2,
+          'The dog has a house in which the cats sleep.'),
+    reason_translate('El perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, english, S74D3),
+    must('A SECOND RELATIVE CLAUSE JOINED TO THE FIRST BY A COORDINATOR, no comma: `un ataque con el que sueñan los interistas Y QUE han truncado las constantes lesiones'' -- the injuries have truncated the attack; the second `que'' is a relative word on the same phrase, with the role the doer rule gives it (tr_np/3''s nrc/3 with ro/2, tr_nrc_head/2, tr_np_out/5)', S74D3,
+          'The dog has a house of which the cats dream and which the dogs eat.'),
+    reason_translate('Pedro dice que el perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, english, S74D4),
+    must('... AND INSIDE A CLAUSE OF `THAT'': the first clause ends in a phrase with a relative clause and the second has no subject of its own, so the whole is one clause -- taken for a clause of `that'' of its own it had nobody for its subject (`and that they have truncated the constant injuries'', tr_second_relative/4)', S74D4,
+          'Pedro says that the dog has a house of which the cats dream and which the dogs eat.'),
+    reason_translate('El perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, italian, S74D5),
+    must('... and in Italian, where the doer stays after the verb as the source has it', S74D5,
+          'Il cane ha una casa con cui sognano i gatti e che mangiano i cani.'),
+    reason_translate('Pedro es un gato comido en la casa.', spanish, english, S74D6),
+    must('A PHRASE THAT IS NOT `OF'' AFTER THE PARTICIPLE OF A PREDICATE IS THE PARTICIPLE''S: `Ventola es un delantero forjado en la cantera del Inter'' is a forward forged in the youth academy -- taken for the clause''s phrase the participle stood in front of its noun, `a forged forward in the youth academy'' (tr_participle_predicate/3)', S74D6,
+          'Pedro is a cat eaten in the house.'),
+    reason_translate('Pedro come un gato comido en la casa.', spanish, english, S74D7),
+    must('GUARD: after any other verb the phrase may be the verb''s (`compró un coche usado en Madrid''), and the participle keeps its place', S74D7,
+          'Pedro eats an eaten cat in the house.'),
+    reason_translate('El perro come la casa que ahora, con su gato, duerme.', spanish, english, S74D8),
+    must('A RELATIVE CLAUSE WITH TWO FRONTS, EACH SET OFF BY COMMAS: `la gestión que ahora, con su noveno proyecto, parece estar en el buen camino'' -- a front stops at its first comma, so the second began a part with no verb and the clause had no reading; and the commas are not an aside of the sentence (tr_relative_clause/4, tr_clause_mids/4)', S74D8,
+          'The dog eats the house that now, with his cat, sleeps.'),
+    reason_translate('El perro come la casa que ahora, con su gato, duerme.', spanish, italian, S74D9),
+    must('... and in Italian', S74D9,
+          'Il cane mangia la casa che ora, con il suo gatto, dorme.').
+
+section_74_5 :-
+    reason_translate('El perro come el pan, un largo y duro periodo.', spanish, english, S74E1),
+    must('NOR THE SECOND OF TWO ADJECTIVES BEFORE THEIR NOUN, right after the coordinator that joins them: `un largo y duro periodo'' is a long and hard period, and `duro'' is an adverb too (hard) -- the phrase ended at `y'', `un largo'' was a long one, and `duro'' the clause''s adverb (tr_phrase_words0/4)', S74E1,
+          'The dog eats the bread, a long and hard period.'),
+    reason_translate('El perro come el pan, un largo periodo para el gato.', spanish, english, S74E2),
+    must('A VERB THAT IS A PREPOSITION TOO HAS NO PERSON FOR ITS OBJECT with nothing before him, as the verb''s object has: `..., un largo periodo PARA su propietario'' is a long period for its owner, and `para'' the verb (it stops) made of the period a clause that stopped him (tr_read_generic/4)', S74E2,
+          'The dog eats the bread, a long period for the cat.'),
+    reason_translate('Hace dos años que el gato no come el pan, un largo periodo para el perro.', spanish, english, S74E3),
+    must('... also after a clause the sentence divides at the comma (`Hace dos años que ..., un largo periodo para su propietario''), where the second half read as a clause of its own', S74E3,
+          'It has been two years since the cat ate the bread, a long period for the dog.'),
+    reason_translate('El perro para el pan.', spanish, english, S74E4),
+    must('GUARD: a verb whose object is no person is still the verb', S74E4,
+          'The dog stops the bread.'),
+    reason_translate('Salvo che lui, a differenza di Pedro, mangia il pane.', italian, english, S74E5),
+    must('THE WORD RIGHT AFTER A CLAUSE''S OPENER AND THE ASIDE THAT FOLLOWS IT: `Salvo che lui, a differenza di Agostino, era disposto ...'' -- the aside is the clause''s own, set apart first, and left among the words the pronoun was `him'' and the sentence was refused (tr_clause_mids/4)', S74E5,
+          'Except that he, unlike Pedro, eats the bread.'),
+    reason_translate('El perro que ahora, en la casa, duerme es bueno.', spanish, english, S74E6),
+    must('... also after a relative word, where the aside stays with its commas: `Quest''Uomo che una volta, a fianco di Marco Pannella, si batteva'' was `that beat ... beside Marco Pannella once'' with the aside left among the words (tr_clause_mids/4); and the relative clause with two fronts below reads only where nothing is set apart', S74E6,
+          'The dog that now sleeps, in the house, is good.'),
+    reason_translate('El perro come el pan, un largo y duro periodo para el gato.', spanish, italian, S74E7),
+    must('... and in Italian', S74E7,
+          'Il cane mangia il pane, un lungo e duro periodo per il gatto.'),
+    reason_translate('Este perro duerme: un gato grande, comido rápidamente y bonito.', spanish, english, S74E8),
+    must('AN ADVERB OF MANNER RIGHT AFTER A PARTICIPLE STAYS WITH IT: `un equipo compacto, organizado tácticamente y unido'' is organised tactically and united, never `organised and united ... tactically'' (tr_comps_out/7)', S74E8,
+          'This dog sleeps: a big cat, eaten quickly and beautiful.'),
+    reason_translate('Este perro duerme: un equipo grande, comido rápidamente y bonito.', spanish, italian, S74E9),
+    must('... AND THE PARTICIPLES AND ADJECTIVES AFTER THE COMMA AGREE WITH THE NOUN WRITTEN, as in a clause: `un equipo compacto, organizado tácticamente y unido'' is `una squadra compatta, organizzata ... e unita'', the Spanish noun masculine and the Italian one not (tr_write/4''s gap, tr_adj_after_comma/2)', S74E9,
+          'Questo cane dorme: una squadra grande, mangiata rapidamente e bella.'),
+    reason_translate('El perro come el pan en la casa, comido rápidamente y bonito.', spanish, italian, S74E10),
+    must('GUARD: only after an object -- after the phrase of a preposition the participle is said of the subject, as before: `podrán actuarse en llena libertad, regulada con juicio'' were `regulada'', the freedom''s, and `reguladas'' the activities'' (tr_adj_after_comma/2)', S74E10,
+          'Il cane mangia il pane nella casa, mangiato rapidamente e bello.'),
+    reason_translate('El gato ha debido comer el pan.', spanish, italian, S74E11),
+    must('... and the Italian of the perfect of the modal', S74E11,
+          'Il gatto ha dovuto mangiare il pane.').
+
+lesson_74(spanish, 4, 'The masculine adjective "bueno" means "good". The adverb "hoy" means "today". The adverb "ahora" means "now".
+"equipo" is a group. "perro" is animate. "gato" is animate. The pronoun "nadie" means "nobody". "nadie" is a person. The pronoun "nadie" means "anybody". The pronoun "nadie" does not precede the verb.
+The verb "dirige" means "leads". The verb "sueña" means "dreams". "sueñan" is the plural of "sueña". "duermen" is the plural of "duerme".
+The conjunction "con lo que" means "so". The conjunction "de lo que" means "than what". The pronoun "todo" means "all".
+The verb "trata" means "treats". The infinitival verb "trata" means "tries". "trata" takes "de" before the infinitive. "tratar" is the infinitive of "trata".
+The preposition "desde" means "since". The feminine noun "valencia" means "valency". "valencia" is a name.
+The masculine noun "periodo" means "period". The masculine adjective "largo" means "long". The masculine adjective "duro" means "hard". The adverb "duro" means "hard".
+The verb "para" means "stops". The modal "debe" means "must". "debido" is the participle of "debe". "deber" is the infinitive of "debe".
+The verb "hace" means "makes". The adverb "hace" means "ago". The masculine noun "calcio" means "Italian football".
+The adverb "rápidamente" means "quickly". The masculine adjective "rápido" means "quick".
+The word "más" begins the comparative. The adverb "más" means "more". "ate" is the past of "eats".
+The preposition "sobre" means "about".
+The verb "nada" means "swims". "nada" is intransitive. The pronoun "lo" means "him". The feminine adjective "próxima" means "next".').
+lesson_74(italian, 4, 'The verb "sogna" means "dreams". "sognano" is the plural of "sogna". "mangiano" is the plural of "mangia". "gatti" is the plural of "gatto".
+The masculine adjective "buono" means "good". The masculine adjective "grande" means "big". The masculine adjective "bello" means "beautiful". The masculine adjective "lungo" means "long". The masculine adjective "duro" means "hard". The masculine noun "periodo" means "period".
+The adverb "ora" means "now". The possessive "suo" means "his". The word "più" begins the comparative. The adverb "più" means "more".
+The modal "deve" means "must". "dovuto" is the participle of "deve". "dovere" is the infinitive of "deve". "mangiato" is the participle of "mangia". "eaten" is the participle of "eats".
+The adverb "rapidamente" means "quickly". The masculine determiner "questo" means "this".
+The feminine adjective "bella" means "beautiful". "mangiata" is the participle of "mangia". "mangiata" is feminine.
+The conjunction "salvo che" means "except that". The pronoun "lui" means "he". The preposition "a differenza di" means "unlike".
+The preposition "fin da" means "since". The masculine adjective "prossimo" means "next".
+"cane" is animate. "gatto" is animate.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

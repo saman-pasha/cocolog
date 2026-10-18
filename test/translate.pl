@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -11273,8 +11273,8 @@ newspaper_quartieri_checks_7 :-
     check('a GUARD: a day with no count stays since -- `da lunedì'' is `desde el lunes''', G2,
           'El gato trabaja desde el lunes.'),
     nf_tr('Il gatto lavora da 15 anni.', italian, english, G3),
-    check('... and in English, where the lesson''s `for the past'' is written as it stands', G3,
-          'The cat works for the past 15 years.'),
+    check('... and in English, where the lesson''s `for the past'' is written as it stands -- and a present that has gone on that long is the perfect (en_since_comp/1, since reasoning 1.0.11)', G3,
+          'The cat has worked for the past 15 years.'),
     nf_tr('Il gatto dorme giovedì 20.', italian, spanish, G4),
     check('A DAY AND ITS NUMBER ARE ONE PHRASE: `Inoltre un convegno (giovedì 20)'' -- a bare noun the lesson calls a time and the number that labels it', G4,
           'El gato duerme el jueves 20.'),
@@ -14429,6 +14429,248 @@ newspaper_lazio_checks_4 :-
 
 %% <<< lazio
 
+%% >>> inter
+%% ---- a Spanish football feature on a club's turnaround, into Italian and English (AnCora CESS-CAST-P-20011002-160) ----------
+%% The hand lessons are the football-club section's (newspaper_lazio_lesson/2) and a fourth part: the words the checks below need.
+
+newspaper_inter :-
+    section('a Spanish football feature on a club''s turnaround, into Italian and English: the doer after a relative clause''s verb, a connector of three words and a contrast, a verb before an infinitive, an animal after the word for a person, since, all that and nothing of what, the most ... thing, a name after its article, has had to, it has been two years since, a second relative clause joined by a coordinator, a doer in a prepositional relative, the participle of a predicate, two fronts in a relative clause, adjectives before and after a noun, a verb that is a preposition'),
+    newspaper_inter_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_inter_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_inter_checks_1, newspaper_inter_checks_2, newspaper_inter_checks_3, newspaper_inter_checks_4, newspaper_inter_checks_5,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_inter_lesson(L, Text) :-
+    newspaper_lazio_lesson(L, A), newspaper_inter_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the fourth part of each hand lesson of the football-club section
+newspaper_inter_part(spanish, 'The masculine adjective "bueno" means "good". The adverb "hoy" means "today". The adverb "ahora" means "now".
+"equipo" is a group. "perro" is animate. "gato" is animate. The pronoun "nadie" means "nobody". "nadie" is a person. The pronoun "nadie" means "anybody". The pronoun "nadie" does not precede the verb.
+The verb "dirige" means "leads". The verb "sueña" means "dreams". "sueñan" is the plural of "sueña". "duermen" is the plural of "duerme".
+The conjunction "con lo que" means "so". The conjunction "de lo que" means "than what". The pronoun "todo" means "all".
+The verb "trata" means "treats". The infinitival verb "trata" means "tries". "trata" takes "de" before the infinitive. "tratar" is the infinitive of "trata".
+The preposition "desde" means "since". The feminine noun "valencia" means "valency". "valencia" is a name.
+The masculine noun "periodo" means "period". The masculine adjective "largo" means "long". The masculine adjective "duro" means "hard". The adverb "duro" means "hard".
+The verb "para" means "stops". The modal "debe" means "must". "debido" is the participle of "debe". "deber" is the infinitive of "debe".
+The verb "hace" means "makes". The adverb "hace" means "ago". The masculine noun "calcio" means "Italian football".
+The adverb "rápidamente" means "quickly". The masculine adjective "rápido" means "quick".
+The word "más" begins the comparative. The adverb "más" means "more". "ate" is the past of "eats".
+The preposition "sobre" means "about".
+The verb "nada" means "swims". "nada" is intransitive. The pronoun "lo" means "him". The feminine adjective "próxima" means "next".').
+newspaper_inter_part(italian, 'The verb "sogna" means "dreams". "sognano" is the plural of "sogna". "mangiano" is the plural of "mangia". "gatti" is the plural of "gatto".
+The masculine adjective "buono" means "good". The masculine adjective "grande" means "big". The masculine adjective "bello" means "beautiful". The masculine adjective "lungo" means "long". The masculine adjective "duro" means "hard". The masculine noun "periodo" means "period".
+The adverb "ora" means "now". The possessive "suo" means "his". The word "più" begins the comparative. The adverb "più" means "more".
+The modal "deve" means "must". "dovuto" is the participle of "deve". "dovere" is the infinitive of "deve". "mangiato" is the participle of "mangia". "eaten" is the participle of "eats".
+The adverb "rapidamente" means "quickly". The masculine determiner "questo" means "this".
+The feminine adjective "bella" means "beautiful". "mangiata" is the participle of "mangia". "mangiata" is feminine.
+The conjunction "salvo che" means "except that". The pronoun "lui" means "he". The preposition "a differenza di" means "unlike".
+The preposition "fin da" means "since". The masculine adjective "prossimo" means "next".
+"cane" is animate. "gatto" is animate.').
+
+newspaper_inter_checks_1 :-
+    nf_tr('El pan que come el perro es bueno.', spanish, english, A1),
+    check('THE DOER AFTER A RELATIVE CLAUSE''S VERB IS ITS SUBJECT, THE RELATIVE WORD ITS OBJECT: `el pan que come el perro'' is the bread the dog eats -- read with the relative word for the subject it was `the bread that eats the dog''; Spanish marks an animate object with `a'', so a definite phrase that does what the verb says and no `a'' in the clause is the doer (tr_rc_role/7, tr_rel_doer/2)', A1,
+          'The bread that the dog eats is good.'),
+    nf_tr('Lo que come el perro es bueno.', spanish, english, A2),
+    check('... and after the word that replaces a noun: `lo que dice el técnico'' is what the coach says, and it was `what says the coach'' (tr_np/3''s ell/4, asked of tr_rc_role/7)', A2,
+          'What the dog eats is good.'),
+    nf_tr('Lo que come el equipo es bueno.', spanish, english, A3),
+    check('... a group does what a verb says as a person or an animal does: `"equipo" is a group.'' is a doer (tr_doer_noun/1)', A3,
+          'What the team eats is good.'),
+    nf_tr('El pan que ve a Pedro es bueno.', spanish, english, A4),
+    check('GUARD: with an `a'' in the clause the phrase after the verb is its object, as before -- `el hombre que ve a Pedro'' is the man who sees Pedro (tr_rc_role/7)', A4,
+          'The bread that sees Pedro is good.'),
+    nf_tr('El médico que ve a Pedro duerme.', spanish, english, A5),
+    check('... and after a head that is a doer itself, where a name is the object (tr_rel_doer/2)', A5,
+          'The doctor that sees Pedro sleeps.'),
+    nf_tr('El médico que ve un perro duerme.', spanish, english, A6),
+    check('GUARD: nor an indefinite phrase, which looks for one rather than does -- `un jugador que busca un entrenador'' (tr_rel_doer/2)', A6,
+          'The doctor that sees a dog sleeps.'),
+    nf_tr('El médico que dirige el Inter duerme.', spanish, english, A7),
+    check('GUARD: nor a name where the phrase the clause hangs on is a doer itself -- `el técnico que dirige el Inter'': the team is the object of the man who leads it (tr_rel_doer/2, tr_named_doer/1)', A7,
+          'The doctor that leads the Inter sleeps.'),
+    nf_tr('Lo que hoy es el equipo es bueno.', spanish, english, A8),
+    check('... AND AFTER A COPULA: `lo que hoy es el equipo'' is what the team is today, the phrase after `lo que es'' what is spoken of and the relative word what it is -- with `hoy'' before the verb (tr_rc_role/7, tr_relative_clause/4''s adverb before the verb of an object relative)', A8,
+          'What the team is today is good.'),
+    nf_tr('El gato que es el perro duerme.', spanish, english, A9),
+    check('GUARD: only for `lo que'': `la ciudad que es la capital'' is the city that IS the capital (tr_rel_doer/2)', A9,
+          'The cat that is the dog sleeps.'),
+    nf_tr('El gato que trata de comer el perro duerme.', spanish, english, A10),
+    check('GUARD: an infinitive between the verb and the phrase makes the phrase ITS object, not the clause''s doer: `Craxi que amenaza con arreglar las cuentas con los magistrados'' threatens to settle the accounts -- `conti'' is also the plural of a count, a person, and was the doer of the threat, and the sentence was refused (tr_rel_doer/2)', A10,
+          'The cat that tries to eat the dog sleeps.'),
+    nf_tr('El pan que come de todo Pedro es bueno.', spanish, english, A11),
+    check('GUARD: nor after the phrase of a pronoun, which belongs to the verb''s: `cadena que cuenta con 19 emisoras de toda Catalunya'' -- `toda'' was read as a phrase of its own and the name after it was the doer of `cuenta'', the station counting on Catalunya (tr_rel_doer/2)', A11,
+          'The bread that eats of all Pedro is good.'),
+    nf_tr('Il gatto che mangia il cane dorme.', italian, english, A12),
+    check('A LESSON WITH NO WORD BEFORE A PERSON HAS THE RULE WHERE THE PHRASE IT HANGS ON IS NO DOER: Italian marks no object, and `una madre che ha perso la figlia'' lost her daughter -- read as Spanish reads it, the daughter was the doer and the mother what she lost (tr_rc_role/7)', A12,
+          'The cat that eats the dog sleeps.'),
+    nf_tr('Il pane che mangia il cane è buono.', italian, english, A13),
+    check('... and the bread is no doer: `il pane che mangia il cane'' is the bread the dog eats (tr_rc_role/7)', A13,
+          'The bread that the dog eats is good.'),
+    nf_tr('El pan que siempre come el perro es bueno.', spanish, english, A14),
+    check('AN ADVERB BEFORE THE VERB OF A RELATIVE CLAUSE WHOSE GAP IS ITS OBJECT: the clause is read without it and the adverb is one of its complements, so English writes it after the subject (tr_relative_clause/4)', A14,
+          'The bread that the dog always eats is good.'),
+    nf_tr('¿Qué pan come el equipo?', spanish, english, A15),
+    check('A GROUP IS A DOER IN A QUESTION TOO: `¿Qué medida tomó el Gobierno?'' asks for the measure, and a group was no doer for the question phrase (fo_animate_phrase/1)', A15,
+          'Which bread does the team eat?').
+
+newspaper_inter_checks_2 :-
+    nf_tr('Pedro come con lo que dice Maria.', spanish, english, B1),
+    check('A CONNECTOR OF THREE WORDS THAT NO COMMA OPENS IS A PREPOSITION AND ITS RELATIVE: `no convence a nadie con lo que dice'' is with what he says, and joined it was `so he says'' (tr_unjoin_relative/3)', B1,
+          'Pedro eats with what Maria says.'),
+    nf_tr('Pedro duerme, con lo que dice.', spanish, english, B2),
+    check('GUARD: with a comma before it the connector stays what it was, the consequence (tr_unjoin_relative0/3)', B2,
+          'Pedro sleeps, so they say.'),
+    nf_tr('Pedro duerme con lo que el perro es bueno.', spanish, english, B3),
+    check('GUARD: with a phrase and its verb after it and no gap, the connector is the consequence still, comma or none -- `Rivaldo y Overmars tampoco estuvieron en Gandía con lo que esa elección resulta más que cuestionable'' (tr_unjoin_relative0/3: a verb straight after it)', B3,
+          'Pedro sleeps so the dog is good.'),
+    nf_tr('Pedro no come con lo que dice.', spanish, english, B4),
+    check('A VERB OF SAYING WITH NOTHING AFTER IT HAS ITS OBJECT IN THE RELATIVE WORD: `con lo que dice'' is with what he says -- read with the relative word for the subject it was `with what says'', a verb with nobody to do it; the subject is nobody named, and English writes the singular `they'' for a verb of saying (tr_rc_role/7, tr_object_verb/1)', B4,
+          'Pedro does not eat with what they say.'),
+    nf_tr('Pedro no come con el gato, pero sí con el perro.', spanish, english, B5),
+    check('`PERO SI'' BEFORE A PREPOSITION IS A CONTRAST AND NOTHING ELSE: `no convence con lo que dice, pero sí con lo que hace'' is but with what he does -- `sí'' is the stress the verb left out would have carried, and read as a word it was `itself'' (tr_drop_contrast_yes/3)', B5,
+          'Pedro does not eat with the cat, but with the dog.'),
+    nf_tr('Pedro no come con lo que dice, pero sí con lo que come el perro.', spanish, english, B6),
+    check('A RELATIVE CLAUSE ENDS AT THE COMMA OF A CONTRAST THAT HAS NO VERB: the second `con'' phrase is the sentence''s, set against the first, and read to the end of the clause it was the relative clause''s (tr_contrast_cut/4)', B6,
+          'Pedro does not eat with what they say, but with what the dog eats.'),
+    nf_tr('Pedro trata de comer el pan.', spanish, english, B7),
+    check('A VERB BEFORE AN INFINITIVE CROSSES BY THE MEANING THE LESSON GIVES IT THERE: `trata de convencer'' tries to convince, and `trata'' is `treats'' first -- `The infinitival verb "trata" means "tries".'' (tr_mean_links/3, tr_verb_across/5)', B7,
+          'Pedro tries to eat the bread.'),
+    nf_tr('Pedro trata de la casa.', spanish, english, B8),
+    check('GUARD: before a phrase it is the first meaning still (tr_verb_across/5)', B8,
+          'Pedro treats of the house.'),
+    nf_tr('Pedro ve al perro.', spanish, english, B9),
+    check('AN ANIMAL IS A PERSON FOR THE WORD BEFORE ONE: `Pedro ve al perro'' sees the dog, and read as a phrase of `to'' it was `sees to the dog'' (`"perro" is animate.'', tr_of_class/2)', B9,
+          'Pedro sees the dog.'),
+    nf_tr('Pedro vede il cane.', italian, spanish, B10),
+    check('... AND WRITTEN: `Pedro vede il cane'' is `Pedro ve al perro'', the Spanish lesson''s word for a dog an animal (tr_marker/3, tr_of_class/2)', B10,
+          'Pedro ve al perro.'),
+    nf_tr('Pedro vede un cane.', italian, spanish, B11),
+    check('GUARD: an indefinite one takes no word before it -- `preparare un coccodrillo'' is `preparar un cocodrilo'' (a crocodile is an obituary too), and with an `a'' it was a man''s crocodile (tr_of_class/2)', B11,
+          'Pedro ve un perro.'),
+    nf_tr('Pedro no ve a nadie.', spanish, english, B12),
+    check('... and `nadie'', which the lesson calls a person: `no convence a nadie'' (`"nadie" is a person.'')', B12,
+          'Pedro does not see anybody.').
+
+newspaper_inter_checks_3 :-
+    nf_tr('Pedro no come el pan desde 1989.', spanish, english, C1),
+    check('A DATE AFTER THE WORD THE LESSON GIVES `SINCE'' IS SINCE THEN, AND A PRESENT THAT HAS GONE ON IS THE PERFECT: `no gana el scudetto desde 1989'' was `does not win the title from 1989'' (tr_cross_comp/2, tr_since_phrase/1, en_since_comp/1)', C1,
+          'Pedro has not eaten the bread since 1989.'),
+    nf_tr('Pedro come desde la casa.', spanish, english, C2),
+    check('GUARD: a place after the word stays from, and the present stays', C2,
+          'Pedro eats from the house.'),
+    nf_tr('Pedro come el pan desde 1989 a 1990.', spanish, english, C3),
+    check('NOR A RANGE OF DATES SINCE: `vietato dal 24 luglio al 25 agosto'' is forbidden from July 24 to August 25, and with the perfect made of it `has been forbidden since July 24 to August 25'' (tr_cross_comps/2, tr_date_range/1)', C3,
+          'Pedro eats the bread from 1989 to 1990.'),
+    nf_tr('Pedro come el pan desde la próxima semana.', spanish, english, C4),
+    check('NOR A TIME TO COME: `comincerò ad occuparmene dalla settimana prossima'' is from next week, and a present that has gone on since then is not one that has not begun (tr_since_phrase/1)', C4,
+          'Pedro eats the bread from next week.'),
+    nf_tr('Pedro mangia il pane fin dal prossimo anno.', italian, english, C5),
+    check('... and the lesson''s own `since'' (`"fin da" means "since".''): no perfect for a time to come either -- `Attendiamo di conoscere fin dalla prossima riunione'' were `We have expected to know since the forthcoming meeting'' (en_since_comp/1)', C5,
+          'Pedro eats the bread since next year.'),
+    nf_tr('Pedro come el pan, bueno desde 1989.', spanish, english, C6),
+    check('NOR AFTER A COMMA, where the phrase is the aside''s: `che paralizza il cronista e il critico d''arte Ludovico Pratesi, amico da anni della coppia'' -- the friend for years is Pratesi, and the interview had not `paralysed'' for years (en_since_comp/1)', C6,
+          'Pedro eats the bread, good since 1989.'),
+    nf_tr('Todo lo que come el perro es bueno.', spanish, english, C7),
+    check('ALL THAT A CLAUSE SAYS: `todo lo que dice Pedro'' is all that Pedro says -- read as the pronoun `everything'' and a second phrase it was `eats everything what there is'' (tr_np/3''s all/2 with ell/4, tr_subject_shape/4)', C7,
+          'All that the dog eats is good.'),
+    nf_tr('Nada de lo que come el perro es bueno.', spanish, english, C8),
+    check('... AND NOTHING OF IT: `nada de lo que hoy es el equipo'' -- the pronoun and its phrase of `of''; joined, `de lo que'' was the `than what'' of `más de lo que recibe'' (tr_unjoin_relative0/3, tr_np/3)', C8,
+          'Nothing of what the dog eats is good.'),
+    nf_tr('Nada de lo que hoy es el equipo es bueno.', spanish, english, C9),
+    check('... and with the copula, `Y nada de lo que hoy es el equipo neriazzurro tiene que ver con el pasado'' (tr_np/3, tr_rc_role/7)', C9,
+          'Nothing of what the team is today is good.'),
+    nf_tr('Lo más grande de este perro es bueno.', spanish, english, C10),
+    check('THE WORD FOR `MORE'' AND AN ADJECTIVE BETWEEN THE WORD THAT REPLACES A NOUN AND ITS `OF'' PHRASE: `Lo más formidable de esta rápida transformación'' is the most formidable THING ABOUT it -- read as `what is more formidable'' it was `what is important is more that ...'' (tr_np/3, tr_subject_shape/4, tr_with_adj/5)', C10,
+          'The biggest thing about this dog is good.'),
+    nf_tr('El gato come el pan en lo más grande.', spanish, english, C11),
+    check('... AND AFTER A PREPOSITION, WHERE THE COMPLEMENTS HAVE FOLDED THE DEGREE: `colocar al club en lo más alto'' puts the club at the top -- `más alto'' is the adjective with its degree by then, and after an object the phrase was refused or `lo'' was a pronoun, `in the big one more'' (tr_np/3''s phrase of the folded degree; the lesson says `"lo" means "him"'', which is no subject, so `lo'' is no pronoun after a preposition)', C11,
+          'The cat eats the bread in the biggest thing.'),
+    nf_tr('El gato come en el Valencia.', spanish, english, C12),
+    check('A CAPITAL NAME THE LESSON STATES AFTER AN ARTICLE THAT IS NOT ITS NOUN''S GENDER IS THE NAME: `triunfó en el Valencia'' is the club, and `valencia'' is a FEMININE noun that a masculine `el'' cannot be the article of (`"valencia" is a name.'', tr_np/3)', C12,
+          'The cat eats in the Valencia.'),
+    nf_tr('El gato come en la Valencia.', spanish, english, C13),
+    check('GUARD: `la Valencia'' keeps the noun, the article of its gender', C13,
+          'The cat eats in the Valency.'),
+    nf_tr('El gato come en el calcio.', spanish, english, C14),
+    check('A NOUN OF SEVERAL WORDS THAT OPENS ON A NATIONALITY HAS ITS CAPITAL: `Italian football'' is the lesson''s noun for `el calcio'' (tr_np_out/5, en_nationality/1)', C14,
+          'The cat eats in the Italian football.'),
+    nf_tr('El gato ha debido comer el pan.', spanish, english, C15),
+    check('`MUST'' HAS NO PERFECT, AND `HAS HAD TO'' SAYS IT: `un equipo que ha debido asimilar 17 nuevos fichajes'' was `has musted assimilate'' (en_group/9)', C15,
+          'The cat has had to eat the bread.'),
+    nf_tr('El gato debe comer el pan.', spanish, english, C16),
+    check('GUARD: the present of the modal is the modal', C16,
+          'The cat must eat the bread.'),
+    nf_tr('Hace dos años que el gato no come el pan.', spanish, english, C17),
+    check('`HACE DOS AÑOS QUE NO ...'' IS `IT HAS BEEN TWO YEARS SINCE ...'': the verb `hace'' with a time, a denied clause of `that'' and nobody named for its subject -- English refused it, and `ago two years that the cat did not eat'' was no sentence (tr_write/4)', C17,
+          'It has been two years since the cat ate the bread.').
+
+newspaper_inter_checks_4 :-
+    nf_tr('El perro tiene una casa con la que sueñan los gatos.', spanish, english, D1),
+    check('THE DOER AFTER THE VERB OF A CLAUSE ON A PREPOSITION''S RELATIVE IS ITS SUBJECT: `un ataque con el que sueñan los interistas'' is the attack the fans dream of -- read with nobody named it was `with which they dream the inter fans'' (tr_rel_doer_fix/3); and the preposition is the English verb''s own where it governs one, `dream OF'' (`en_governs(dreams, of)'')', D1,
+          'The dog has a house of which the cats dream.'),
+    nf_tr('El perro tiene una casa en la que duermen los gatos.', spanish, english, D2),
+    check('GUARD: a verb that governs nothing keeps the preposition it had, `in which''', D2,
+          'The dog has a house in which the cats sleep.'),
+    nf_tr('El perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, english, D3),
+    check('A SECOND RELATIVE CLAUSE JOINED TO THE FIRST BY A COORDINATOR, no comma: `un ataque con el que sueñan los interistas Y QUE han truncado las constantes lesiones'' -- the injuries have truncated the attack; the second `que'' is a relative word on the same phrase, with the role the doer rule gives it (tr_np/3''s nrc/3 with ro/2, tr_nrc_head/2, tr_np_out/5)', D3,
+          'The dog has a house of which the cats dream and which the dogs eat.'),
+    nf_tr('Pedro dice que el perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, english, D4),
+    check('... AND INSIDE A CLAUSE OF `THAT'': the first clause ends in a phrase with a relative clause and the second has no subject of its own, so the whole is one clause -- taken for a clause of `that'' of its own it had nobody for its subject (`and that they have truncated the constant injuries'', tr_second_relative/4)', D4,
+          'Pedro says that the dog has a house of which the cats dream and which the dogs eat.'),
+    nf_tr('El perro tiene una casa con la que sueñan los gatos y que comen los perros.', spanish, italian, D5),
+    check('... and in Italian, where the doer stays after the verb as the source has it', D5,
+          'Il cane ha una casa con cui sognano i gatti e che mangiano i cani.'),
+    nf_tr('Pedro es un gato comido en la casa.', spanish, english, D6),
+    check('A PHRASE THAT IS NOT `OF'' AFTER THE PARTICIPLE OF A PREDICATE IS THE PARTICIPLE''S: `Ventola es un delantero forjado en la cantera del Inter'' is a forward forged in the youth academy -- taken for the clause''s phrase the participle stood in front of its noun, `a forged forward in the youth academy'' (tr_participle_predicate/3)', D6,
+          'Pedro is a cat eaten in the house.'),
+    nf_tr('Pedro come un gato comido en la casa.', spanish, english, D7),
+    check('GUARD: after any other verb the phrase may be the verb''s (`compró un coche usado en Madrid''), and the participle keeps its place', D7,
+          'Pedro eats an eaten cat in the house.'),
+    nf_tr('El perro come la casa que ahora, con su gato, duerme.', spanish, english, D8),
+    check('A RELATIVE CLAUSE WITH TWO FRONTS, EACH SET OFF BY COMMAS: `la gestión que ahora, con su noveno proyecto, parece estar en el buen camino'' -- a front stops at its first comma, so the second began a part with no verb and the clause had no reading; and the commas are not an aside of the sentence (tr_relative_clause/4, tr_clause_mids/4)', D8,
+          'The dog eats the house that now, with his cat, sleeps.'),
+    nf_tr('El perro come la casa que ahora, con su gato, duerme.', spanish, italian, D9),
+    check('... and in Italian', D9,
+          'Il cane mangia la casa che ora, con il suo gatto, dorme.').
+
+newspaper_inter_checks_5 :-
+    nf_tr('El perro come el pan, un largo y duro periodo.', spanish, english, E1),
+    check('NOR THE SECOND OF TWO ADJECTIVES BEFORE THEIR NOUN, right after the coordinator that joins them: `un largo y duro periodo'' is a long and hard period, and `duro'' is an adverb too (hard) -- the phrase ended at `y'', `un largo'' was a long one, and `duro'' the clause''s adverb (tr_phrase_words0/4)', E1,
+          'The dog eats the bread, a long and hard period.'),
+    nf_tr('El perro come el pan, un largo periodo para el gato.', spanish, english, E2),
+    check('A VERB THAT IS A PREPOSITION TOO HAS NO PERSON FOR ITS OBJECT with nothing before him, as the verb''s object has: `..., un largo periodo PARA su propietario'' is a long period for its owner, and `para'' the verb (it stops) made of the period a clause that stopped him (tr_read_generic/4)', E2,
+          'The dog eats the bread, a long period for the cat.'),
+    nf_tr('Hace dos años que el gato no come el pan, un largo periodo para el perro.', spanish, english, E3),
+    check('... also after a clause the sentence divides at the comma (`Hace dos años que ..., un largo periodo para su propietario''), where the second half read as a clause of its own', E3,
+          'It has been two years since the cat ate the bread, a long period for the dog.'),
+    nf_tr('El perro para el pan.', spanish, english, E4),
+    check('GUARD: a verb whose object is no person is still the verb', E4,
+          'The dog stops the bread.'),
+    nf_tr('Salvo che lui, a differenza di Pedro, mangia il pane.', italian, english, E5),
+    check('THE WORD RIGHT AFTER A CLAUSE''S OPENER AND THE ASIDE THAT FOLLOWS IT: `Salvo che lui, a differenza di Agostino, era disposto ...'' -- the aside is the clause''s own, set apart first, and left among the words the pronoun was `him'' and the sentence was refused (tr_clause_mids/4)', E5,
+          'Except that he, unlike Pedro, eats the bread.'),
+    nf_tr('El perro que ahora, en la casa, duerme es bueno.', spanish, english, E6),
+    check('... also after a relative word, where the aside stays with its commas: `Quest''Uomo che una volta, a fianco di Marco Pannella, si batteva'' was `that beat ... beside Marco Pannella once'' with the aside left among the words (tr_clause_mids/4); and the relative clause with two fronts below reads only where nothing is set apart', E6,
+          'The dog that now sleeps, in the house, is good.'),
+    nf_tr('El perro come el pan, un largo y duro periodo para el gato.', spanish, italian, E7),
+    check('... and in Italian', E7,
+          'Il cane mangia il pane, un lungo e duro periodo per il gatto.'),
+    nf_tr('Este perro duerme: un gato grande, comido rápidamente y bonito.', spanish, english, E8),
+    check('AN ADVERB OF MANNER RIGHT AFTER A PARTICIPLE STAYS WITH IT: `un equipo compacto, organizado tácticamente y unido'' is organised tactically and united, never `organised and united ... tactically'' (tr_comps_out/7)', E8,
+          'This dog sleeps: a big cat, eaten quickly and beautiful.'),
+    nf_tr('Este perro duerme: un equipo grande, comido rápidamente y bonito.', spanish, italian, E9),
+    check('... AND THE PARTICIPLES AND ADJECTIVES AFTER THE COMMA AGREE WITH THE NOUN WRITTEN, as in a clause: `un equipo compacto, organizado tácticamente y unido'' is `una squadra compatta, organizzata ... e unita'', the Spanish noun masculine and the Italian one not (tr_write/4''s gap, tr_adj_after_comma/2)', E9,
+          'Questo cane dorme: una squadra grande, mangiata rapidamente e bella.'),
+    nf_tr('El perro come el pan en la casa, comido rápidamente y bonito.', spanish, italian, E10),
+    check('GUARD: only after an object -- after the phrase of a preposition the participle is said of the subject, as before: `podrán actuarse en llena libertad, regulada con juicio'' were `regulada'', the freedom''s, and `reguladas'' the activities'' (tr_adj_after_comma/2)', E10,
+          'Il cane mangia il pane nella casa, mangiato rapidamente e bello.'),
+    nf_tr('El gato ha debido comer el pan.', spanish, italian, E11),
+    check('... and the Italian of the perfect of the modal', E11,
+          'Il gatto ha dovuto mangiare il pane.').
+
+%% <<< inter
+
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb
 %% and a phrase, and either may be the subject: `¿Qué perro come el pan?' asks for the dog, `¿Qué libro
@@ -14942,6 +15184,7 @@ vocabulary :-
     vocabulary_tempi(EsLines, ItLines),
     vocabulary_psoe(EsLines, ItLines),
     vocabulary_tatarella(EsLines, ItLines),
+    vocabulary_inter(EsLines, ItLines),
     reason_translate('El profesor lee el periódico en la casa.', T4),
     check('a noun that is an adjective too is the noun where the sentence puts it', T4, 'The professor reads the newspaper in the house.'),
     reason_translate('El gato negro duerme.', T5),
@@ -15067,6 +15310,43 @@ vocabulary_tatarella(EsLines, ItLines) :-
     check('and the words of the Tatarella interview, Italian: the second person plural of every tense but the one that is the command (the builder stated an imperative for it and nothing else: `voi direte elezioni'', `aprirete questo tavolo''; `aprite'' and `state'' stay the imperative, a person too they made `Guardate che ...'' a statement and `Auto proibite'' a clause), `vi'' the plural of `ti'' as `voi'' is of `tu'', an election before a choice, the verb of rigging and the one of lying in wait, whether and how, the day when, why on earth, since, for the protection of, for the last time, and the contraction of `con il''', V6a, yes),
     check('... and Spanish: the second person plural of every tense but the present subjunctive, which is the negative command (`coméis'' was no word), `os'' the plural of `te'' and `vosotros'' of `tú'', the verb of rigging, lying in wait said before the dictionary''s threatens, whether and how, realistically, for the protection of, for the last time, and bad faith', V6b, yes).
 
+%% the words of the Inter feature, in a clause of their own (cocolint Z1)
+vocabulary_inter(EsLines, ItLines) :-
+    yes_no(( nth1(I1a, EsLines, 'The masculine noun "calcio" means "Italian football".'), nth1(I1b, EsLines, 'The masculine noun "calcio" means "calcium".'), I1a < I1b,
+             nth1(I1c, EsLines, 'The masculine noun "vestuario" means "changing room".'), nth1(I1d, EsLines, 'The masculine noun "vestuario" means "wardrobe".'), I1c < I1d,
+             nth1(I1e, EsLines, 'The feminine noun "cantera" means "youth academy".'), nth1(I1f, EsLines, 'The feminine noun "cantera" means "quarry".'), I1e < I1f,
+             nth1(I1g, EsLines, 'The feminine noun "trayectoria" means "trajectory".'), nth1(I1h, EsLines, 'The feminine noun "trayectoria" means "path".'), I1g < I1h,
+             once(nth1(I1j, EsLines, 'The verb "trata" means "treats".')), nth1(I1i, EsLines, 'The infinitival verb "trata" means "tries".'), I1j < I1i,
+             memberchk('"trata" takes "de" before the infinitive.', EsLines),
+             once(nth1(I1k, EsLines, 'The masculine noun "título" means "title".')), nth1(I1l, EsLines, 'The masculine noun "scudetto" means "title".'), I1k < I1l,
+             once(nth1(I1m, EsLines, 'The feminine noun "corbata" means "necktie".')), nth1(I1n, EsLines, 'The feminine noun "corbata" means "tie".'), I1m < I1n,
+             memberchk('The feminine noun "sensatez" means "good sense".', EsLines),
+             memberchk('The masculine noun "fracaso" means "failure".', EsLines), memberchk('The feminine noun "delantera" means "attack".', EsLines),
+             memberchk('The adverb "en su lugar" means "instead".', EsLines), memberchk('The masculine adjective "neriazzurro" means "black-and-blue".', EsLines),
+             memberchk('"valencia" is a name.', EsLines), memberchk('"sierra leona" is a name.', EsLines),
+             memberchk('"accionista" is a person.', EsLines), memberchk('"interista" is a person.', EsLines), memberchk('"nadie" is a person.', EsLines),
+             memberchk('"equipo" is a group.', EsLines), memberchk('"gobierno" is a group.', EsLines), \+ memberchk('"partido" is a group.', EsLines) ), V3m),
+    check('and the words of the Inter feature, Spanish: the first meaning for the news (`el calcio'' is Italian football, `vestuario'' a changing room, `cantera'' a youth academy, `trayectoria'' a trajectory, `trata de'' tries to -- with the plain `treats'' said first, or `se trata de un perro'' tried), the Italian title after the dictionary''s own `título'' (said first, or every Italian `titolo'' was written `scudetto''), the necktie before the tie (the draw is the tie), the good sense, the failure, the attack of a forward line, a place `instead'', the club and the country as names, `accionista'', `interista'' and `nadie'' persons (`para su propietario y accionista'': the word before a person is the preposition, and the verb halting them was the first reading) and the groups that do what a verb says -- but `partido'' is a match, and no group', V3m, yes),
+    yes_no(( nth1(I2a, ItLines, 'The masculine noun "calcio" means "football".'), nth1(I2b, ItLines, 'The masculine noun "calcio" means "Italian football".'),
+             nth1(I2c, ItLines, 'The masculine noun "calcio" means "kick".'), I2a < I2b, I2b < I2c,
+             nth1(I2d, ItLines, 'The masculine noun "vivaio" means "youth academy".'), nth1(I2e, ItLines, 'The masculine noun "vivaio" means "nursery".'), I2d < I2e,
+             nth1(I2f, ItLines, 'The feminine noun "traiettoria" means "trajectory".'), nth1(I2g, ItLines, 'The feminine noun "traiettoria" means "path".'), I2f < I2g,
+             nth1(I2h, ItLines, 'The masculine noun "acquisto" means "purchase".'), nth1(I2i, ItLines, 'The masculine noun "acquisto" means "signing".'),
+             nth1(I2j, ItLines, 'The masculine noun "acquisto" means "shopping".'), I2h < I2i, I2i < I2j,
+             memberchk('The masculine noun "spogliatoio" means "changing room".', ItLines), memberchk('The adverb "tatticamente" means "tactically".', ItLines),
+             memberchk('The feminine noun "sensatezza" means "good sense".', ItLines), memberchk('The masculine noun "fallimento" means "failure".', ItLines),
+             memberchk('The verb "appare" means "appears".', ItLines), memberchk('The verb "riconquista" means "regains".', ItLines),
+             memberchk('The adverb "al suo posto" means "instead".', ItLines), memberchk('The masculine adjective "nerazzurro" means "black-and-blue".', ItLines),
+             memberchk('"interista" is a person.', ItLines), memberchk('"nessuno" is a person.', ItLines), memberchk('"qualcuno" is a person.', ItLines),
+             memberchk('"squadra" is a group.', ItLines), memberchk('"governo" is a group.', ItLines), \+ memberchk('"partita" is a group.', ItLines),
+             once(nth1(I2k, ItLines, 'The feminine noun "cravatta" means "necktie".')), nth1(I2l, ItLines, 'The feminine noun "cravatta" means "tie".'), I2k < I2l,
+             once(nth1(I2m, ItLines, 'The masculine noun "pareggio" means "tie".')), nth1(I2n, ItLines, 'The feminine noun "cravatta" means "tie".'), I2m < I2n ), V3n),
+    check('... and Italian: the signings of a club (`acquisto'' after the purchase and before the shopping), the football of Italy after the football, a youth academy and a trajectory first, the changing room, tactically, good sense, a failure, `appare'' and `riconquista'' said again first, the persons and the groups, the draw the tie and the necktie a word of its own (`su corbata'' was `il suo pareggio'')', V3n, yes),
+    yes_no(( memberchk('The masculine adjective "largo" means "long".', EsLines), \+ memberchk('The adverb "largo" means "largo".', EsLines),
+             memberchk('The masculine adjective "allegro" means "merry".', ItLines), \+ memberchk('The adverb "allegro" means "allegro".', ItLines),
+             memberchk('The adverb "duro" means "hard".', EsLines) ), V3o),
+    check('AN ADVERB THAT IS ITS ADJECTIVE WRITTEN AGAIN IS NO ENTRY: the dictionary lists the musical `largo'' and `allegro'' as adverbs that mean themselves, and `un largo y duro periodo'' read the adjective after its noun as the adverb (corpus/build.pl''s cb_stray_adverb/2); an adverb that means another word, `duro'' for hard, stays', V3o, yes).
+
 vocabulary_lines(File, Lines) :-
     read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Ss),
     findall(L, ( member(S, Ss), S \== "", \+ sub_string(S, 0, 1, _, "#"), atom_string(L, S) ), Lines).
@@ -15145,7 +15425,7 @@ shapes :-
     reason_translate('These houses are big.', S20),
     check('and back, estas by the noun''s gender', S20, 'Estas casas son grandes.'),
     reason_translate('Maria sees that dog.', S21),
-    check('that is aquel', S21, 'Maria ve aquel perro.'),
+    check('that is aquel (and an animal takes the word before a person: `"perro" is animate.'', since the Inter report)', S21, 'Maria ve a aquel perro.'),
     reason_translate('Each dog eats.', S22),
     check('a determiner the vocabulary gives', S22, 'Cada perro come.'),
     reason_translate('Maria tiene otros perros.', S23),

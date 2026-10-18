@@ -669,3 +669,11 @@
 <e><p><l>overshadow<s n="vblex"/></l><r>eclipsar<s n="vblex"/></r></p></e>
 # `i ragazzi della primavera', `In primavera fa caldo': the dictionary's first Spanish noun for `spring' is a coil
 <e><p><l>spring<s n="n"/></l><r>primavera<s n="n"/><s n="f"/></r></p></e>
+# `un vestuario convulsionado por los constantes cambios', `un jugador díscolo como pocos', `Solitario y taciturno', `organizado tácticamente':
+# each word has its forms in apertium-spa.spa.dix and no English
+<e><p><l>convulse<s n="vblex"/></l><r>convulsionar<s n="vblex"/></r></p></e>
+<e><p><l>unruly<s n="adj"/></l><r>díscolo<s n="adj"/></r></p></e>
+<e><p><l>taciturn<s n="adj"/></l><r>taciturno<s n="adj"/></r></p></e>
+<e><p><l>tactically<s n="adv"/></l><r>tácticamente<s n="adv"/></r></p></e>
+# `que ha recobrado su mejor nivel': regained; read only, `recuperar' stays the word written for `regain'
+<e r="RL"><p><l>regain<s n="vblex"/></l><r>recobrar<s n="vblex"/></r></p></e>

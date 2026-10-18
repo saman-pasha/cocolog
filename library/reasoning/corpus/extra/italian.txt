@@ -496,6 +496,8 @@ The verb "va avanti" means "goes ahead".
 "andò avanti" is the past of "va avanti".
 "andato avanti" is the participle of "va avanti".
 "andare avanti" is the infinitive of "va avanti".
+# `Quest'Inter appare con il profilo che chiede Cúper': the dictionary's own word for appears is said again first, the one written
+The verb "appare" means "appears".
 # `non figurano né Rivaldo né Overmars': the dictionary's words for appears
 # are `appare' and `compare', and a name in a list figures
 The verb "figura" means "appears".
@@ -2139,8 +2141,8 @@ The masculine noun "passaggio" means "transfer".
 The adverb "per esempio" means "for example".
 The adverb "per dirne una" means "for example".
 # `l'unico che finora ha avuto a che fare con l'informazione su rete 4' -- has
-# had dealings: one verb of several words, as `se ne va' is
-The verb "ha a che fare" means "has dealings".
+# had to do with: one verb of several words, as `se ne va' is
+The verb "ha a che fare" means "has to do".
 "hanno a che fare" is the plural of "ha a che fare".
 "avere a che fare" is the infinitive of "ha a che fare".
 "avuto a che fare" is the participle of "ha a che fare".
@@ -3266,6 +3268,8 @@ The feminine noun "forzatura" means "abuse".
 The adverb "a livello federale" means "at federal level".
 # `Rosi ha per ora smentito la voce'
 The adverb "per ora" means "for now".
+# `Seedorf ha recobrado su mejor nivel': the dictionary's own word for regains is said again first, the one written
+The verb "riconquista" means "regains".
 # `vuole riprendersi il titolo mondiale che la squalifica gli ha tolto'
 The verb "si riprende" means "regains".
 "si riprendono" is the plural of "si riprende".
@@ -3728,3 +3732,87 @@ The masculine noun "lato" means "side".
 "lati" is the plural of "lato".
 # `per poi prendere alcuni atleti': to then take -- the purpose word of two words
 The word "per poi" begins the purpose.
+# `uno spogliatoio sconvolto': the changing room (the dictionary has no `spogliatoio')
+The masculine noun "spogliatoio" means "changing room".
+"spogliatoi" is the plural of "spogliatoio".
+# `la sensatezza', `tatticamente organizzato': the adverb in -mente has no entry
+The adverb "tatticamente" means "tactically".
+# `un attacco con cui sognano gli interisti': the fans of Inter, a person
+The noun "interista" means "Inter fan".
+"interista" is not feminine.
+"interisti" is the plural of "interista".
+"interista" is a person.
+# `Al suo posto, Cúper ha inventato ...': instead; `invece' is said again first, the word written for `instead'
+The adverb "invece" means "instead".
+The adverb "al suo posto" means "instead".
+# `un attaccante cresciuto nel vivaio dell'Inter': the youth academy, where the dictionary has the nursery
+The masculine noun "vivaio" means "youth academy".
+"vivai" is the plural of "vivaio".
+# `la sensatezza di Cúper': good sense (the dictionary has the noun with no English)
+The feminine noun "sensatezza" means "good sense".
+"sensatezze" is the plural of "sensatezza".
+# `la squadra nerazzurra': black and blue, the colours of Inter
+The masculine adjective "nerazzurro" means "black-and-blue".
+"nerazzurri" is the plural of "nerazzurro".
+The feminine adjective "nerazzurra" means "black-and-blue".
+"nerazzurre" is the plural of "nerazzurra".
+# `il primo posto nel calcio' for Spanish `el calcio': the football of Italy; the football is said again first
+The masculine noun "calcio" means "football".
+The masculine noun "calcio" means "Italian football".
+# `quello che fa la squadra', `le misure che ha preso il governo': a group does what a verb says -- the doers a relative clause
+# and a question phrase take for a subject, as they take a person or an animal. NOT `partito' or `partita': a match, and `Quale partita ha vinto la squadra?' asks for it
+"governo" is a group.
+"squadra" is a group.
+"club" is a group.
+"società" is a group.
+"impresa" is a group.
+"azienda" is a group.
+"compagnia" is a group.
+"federazione" is a group.
+"commissione" is a group.
+"comitato" is a group.
+"organizzazione" is a group.
+"associazione" is a group.
+"parlamento" is a group.
+"congresso" is a group.
+"senato" is a group.
+"ministero" is a group.
+"amministrazione" is a group.
+"comune" is a group.
+"nazionale" is a group.
+"rosa" is a group.
+"consiglio" is a group.
+"giunta" is a group.
+"agenzia" is a group.
+"banca" is a group.
+"sindacato" is a group.
+"università" is a group.
+"polizia" is a group.
+"esercito" is a group.
+"procura" is a group.
+"tribunale" is a group.
+"giuria" is a group.
+"folla" is a group.
+"pubblico" is a group.
+"famiglia" is a group.
+"gruppo" is a group.
+"ente" is a group.
+"istituzione" is a group.
+"maggioranza" is a group.
+"minoranza" is a group.
+"tifoseria" is a group.
+"dirigenza" is a group.
+"direzione" is a group.
+"opposizione" is a group.
+# `non vede nessuno', `non convince nessuno': Italian puts no word before these -- the pronouns are persons all the same
+"nessuno" is a person.
+"qualcuno" is a person.
+# `i fallimenti con Lippi e Tardelli': failure is a fallimento, where the dictionary's first Italian noun for it is `fallo' (a fault, a foul)
+The masculine noun "fallimento" means "failure".
+# `avallano la traiettoria del nuovo Inter': a trajectory, where the dictionary has the path
+The feminine noun "traiettoria" means "trajectory".
+"traiettorie" is the plural of "traiettoria".
+# `17 nuevos fichajes': the signings of a club are its `acquisti' (17 nuovi acquisti); the purchase, said earlier in this file, stays the first meaning
+The masculine noun "acquisto" means "signing".
+# `Quattro vittorie e un pareggio': the draw is the tie (eng-ita.dix), so the necktie is one word of its own in both languages (`su corbata' was `il suo pareggio')
+The feminine noun "cravatta" means "necktie".
