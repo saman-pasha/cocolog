@@ -212,6 +212,17 @@ cocolog_out(Args, Out) :-
 %% end on its own.
 spawn(Cmd, Pid) :- sh_join(['exec ', Cmd], Exec), proc_spawn(Exec, Pid).
 
+%% unix_listening(+Path): up to eight seconds' wait for a listener on the
+%% socket file at Path -- a unix socket's `lsof -iTCP:PORT -sTCP:LISTEN',
+%% and for the same reason never a probe connection: a server that counts
+%% its accepts would count it. The file alone will not do, because it is
+%% there from the bind, and a connect before the listen is refused. lsof
+%% prints such a socket's path and `type=STREAM (LISTEN)'; where it prints
+%% no state (macOS), this waits its eight seconds and goes on.
+unix_listening(Path) :-
+    sh_join(['lsof -U 2>/dev/null | grep -F -q ''', Path, ' type=STREAM (LISTEN)'''], Listening),
+    ( proc_until(sh_exit(Listening, 0), 8000, 100) -> true ; true ).
+
 %% shell(+Cmd, -Text, -Exit): /bin/sh -c Cmd with two minutes' grace, its
 %% stdout (and whatever Cmd redirected into it) as an atom with the last
 %% newline taken off -- what `$(...)' handed a .sh -- and the exit status,

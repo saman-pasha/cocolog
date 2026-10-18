@@ -122,6 +122,21 @@ main :-
     format("   from ending the service; keep_alive(Bool) and~n"),
     format("   max_keep_alive(N) bound a persistent connection.~n"),
 
+    format("~n-- OR ON A SOCKET FILE: unix(Path) where the port stands~n"),
+    format("~n"),
+    format("     main :- httpd_serve(unix('/run/app/http.sock'), [workers(4)]).~n"),
+    format("~n"),
+    format("   behind nginx's  proxy_pass http://unix:/run/app/http.sock;~n"),
+    format("   or for  curl --unix-socket /run/app/http.sock http://localhost/~n"),
+    format("   -- and nothing above the transport knows. library(tcp) makes~n"),
+    format("   the file, replaces one a dead server left behind, never takes~n"),
+    format("   a live one's, and removes it when the server stops (lesson 17).~n"),
+    format("   Who may connect is the file's permissions, so tls(...) is~n"),
+    format("   refused there, before anything listens:~n"),
+    ( catch(httpd_serve(unix('/nonexistent/http.sock'), [tls([])], 1), error(E, _), true)
+    -> true ; E = none ),
+    must('tls(...) on a socket file', E, domain_error(tcp_port, unix('/nonexistent/http.sock'))),
+
     format("~n-- AND EACH REQUEST IS ITS OWN TURN, under a pool~n"),
     format("   A worker's goal runs for the life of the server and a~n"),
     format("   store CACHES, so two workers answering writes would hold~n"),

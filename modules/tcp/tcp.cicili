@@ -42,18 +42,57 @@
 ;;; accepts either, because writing a literal string is what every caller
 ;;; does first.
 ;;;
+;;; A UNIX DOMAIN SOCKET IS AN ADDRESS, NOT A SECOND MODULE (2.4.0).
+;;; `unix(Path)' stands where a port stands -- `tcp_listen(unix(Path), S)',
+;;; `tcp_connect(unix(Path), C)' -- and everything after it is the same:
+;;; a slot, the same reads and writes, the same close. So library(httpd)
+;;; serves on one with no change of its own. The socket is a FILE, and
+;;; three decisions follow from that:
+;;;
+;;;   A LEFTOVER IS REPLACED, A LIVE ONE IS NOT. A server killed without
+;;;   closing its listener leaves its socket file behind, and binding the
+;;;   path again is EADDRINUSE: the restart that fails for no reason the
+;;;   user can see. So a bind that meets the name asks first. If it is a
+;;;   SOCKET and a connect to it is refused, nobody listens, and the file
+;;;   is unlinked and bound again; if anybody answers, or the name is a
+;;;   regular file, a directory or a link, the listen fails and nothing is
+;;;   touched. (Python's asyncio unlinks any socket it finds, a live
+;;;   server's too; Go unlinks nothing and fails.) The question is a
+;;;   connect, so a live server sees it as a connection that closes at
+;;;   once, and it does not wait: on Linux a listener whose backlog is
+;;;   full answers EAGAIN, and is alive. BSD and macOS answer such a
+;;;   listener ECONNREFUSED, as they answer a dead one, so there one
+;;;   that busy at that moment can lose its file to a second listen.
+;;;
+;;;   THE LISTENER'S CLOSE REMOVES ITS FILE, as Go's does: unlinked before
+;;;   the descriptor closes, and only while the name is still the socket
+;;;   this module bound -- its device and its inode -- so a server that
+;;;   has taken the path since keeps its own.
+;;;
+;;;   WHO MAY CONNECT IS THE FILE'S BUSINESS: the umask the process has
+;;;   when it listens, and the directory's permissions. A peer accepted on
+;;;   one is the atom 'unix:', the word nginx logs for it, and the path
+;;;   the client bound after it, which a client seldom does.
+;;;
+;;; The path is text of one byte to 107 (103 on macOS, whose struct is
+;;; smaller): longer is a domain error, never a path cut short.
+;;;
 ;;; NOT HERE, DELIBERATELY: TLS (the tunnel and any real deployment
-;;; terminate it in front), UDP, and non-blocking connect. Each is a
+;;; terminate it in front), UDP, and non-blocking connect; and on a unix
+;;; socket Linux's abstract names (`@name'), descriptors passed over it
+;;; (SCM_RIGHTS) and the peer's credentials (SO_PEERCRED). Each is a
 ;;; separate decision and none of them is needed to serve a page.
 ;;;
 ;;; THE SURFACE. A Sock or a Conn is a slot index, Codes is a list of
 ;;; bytes, every timeout is milliseconds, and one expiring is a failure:
 ;;;
 ;;;   tcp_listen(+Port, -Sock)                         bind with SO_REUSEADDR, listen
+;;;   tcp_listen(+unix(Path), -Sock)                   a socket file at Path
 ;;;   tcp_connect(+Host, +Port, -Conn)                 by name, through getaddrinfo
+;;;   tcp_connect(+Address, -Conn)                     unix(Path), or Host:Port
 ;;;   tcp_accept(+Sock, -Conn)                         an hour's patience, not forever
 ;;;   tcp_accept(+Sock, -Conn, -Peer)
-;;;   tcp_accept(+Sock, +TimeoutMs, -Conn, -Peer)      Peer is 'host:port'
+;;;   tcp_accept(+Sock, +TimeoutMs, -Conn, -Peer)      Peer is 'host:port', or 'unix:'
 ;;;   tcp_read(+Conn, -Codes)                          one chunk: 64 KB, 30 s
 ;;;   tcp_read(+Conn, +MaxBytes, +TimeoutMs, -Codes)
 ;;;   tcp_read_all(+Conn, -Codes)                      until the peer closes
@@ -63,7 +102,8 @@
 ;;;   tcp_with(+Sock, +Goal)                           closed whatever Goal did
 ;;;   tcp_sockets(-Slots)                              what is open: the leak test
 ;;;   tcp_peer(+Conn, -Peer)                           '' for one this side opened
-;;;   tcp_why(-Reason)                                 why the last read failed
+;;;   tcp_why(-Reason)                                 why the last read, connect or
+;;;                                                    listen failed
 
 ;;; NO `DEFPACKAGE' HERE, and that is not an omission. A file compiled as
 ;;; PART of cocolog.cicili is read inside the :cocolog package that file
@@ -82,6 +122,7 @@
 ;;; cannot drift apart.
 (DEFPARAMETER *tcp-predicates*
   '(("tcp_listen"   2 coco_t_listen)
+    ("tcp_connect"  2 coco_t_connect_to)
     ("tcp_connect"  3 coco_t_connect)
     ("tcp_accept"   4 coco_t_accept)
     ("tcp_read"     4 coco_t_read)
@@ -174,6 +215,12 @@
   (@define (code "sockaddr struct sockaddr"))
   (@define (code "sockaddr_in struct sockaddr_in"))
   (@define (code "addrinfo struct addrinfo"))
+  ;;; `sockaddr_un' is the one struct here that std does not declare -- it
+  ;;; has no <sys/un.h> -- so binding.cicili beside this file teaches
+  ;;; Cicili its members, and this is its C name, as for the others.
+  ;;; `stat_t' is lib/files.cicili's, for a socket file's device and inode.
+  (@define (code "sockaddr_un struct sockaddr_un"))
+  (@define (code "stat_t struct stat"))
 
   ;;; THE HEADERS ARE THE TARGET'S, not this file's. A lib/*.cicili module
   ;;; is compiled into the one cocolog.c, so its includes live in
@@ -218,8 +265,21 @@
   ;;; dying with `The value 0 is not of type SEQUENCE' and the array was the
   ;;; suspect, when the real cause was a `for' written C-style. The array
   ;;; was innocent, and a peer address is a row rather than an offset.
-  (static) (var char coco_t_peer_s [256][64])
+  ;;; 128 wide since 2.4.0, for `unix:' and a path.
+  (static) (var char coco_t_peer_s [256][128])
+  ;;; FOUR MORE ROWS FOR A UNIX LISTENER (2.4.0): that the slot is one, which
+  ;;; its accept reads to know what a peer's address is, and the file's
+  ;;; name, device and inode -- what its close removes, and how the close
+  ;;; knows the name is still its own.
+  (static) (var int coco_t_unix [256])
+  (static) (var char * coco_t_path [256])
+  (static) (var dev_t coco_t_dev [256])
+  (static) (var ino_t coco_t_ino [256])
   (static) (var int coco_t_ready . 0)
+
+  ;;; The reason tcp_why/1 answers (see `coco_t_why'), declared with the
+  ;;; table because a connect and a listen set it as well as a read.
+  (var const char * coco_t_why_s . "")
 
   ;;; -1 means "free". Zero would be a legal descriptor, and a table that
   ;;; starts full of legal descriptors is a table that closes stdin.
@@ -229,7 +289,9 @@
           (if coco_t_ready (return))
           (for ((int i . 0)) (< i 256) ((++ i))
                (set (nth i coco_t_fd) -1)
-               (set (nth 0 (nth i coco_t_peer_s)) 0))
+               (set (nth 0 (nth i coco_t_peer_s)) 0)
+               (set (nth i coco_t_unix) 0)
+               (set (nth i coco_t_path) nil))
           (set coco_t_ready 1)))
 
   (static)
@@ -297,47 +359,187 @@
           (if (< n 0) (return -1))
           (return (? (> n 0) 1 0))))
 
+  ;;; ---- a unix socket's address, and its file ----------------------------
+
+  ;;; Is T the term unix(_)? The address a port, or a Host:Port, can be
+  ;;; given as instead.
+  (static)
+  (func coco_t_is_unix ((coco_engine * e) (size_t t)) (out int)
+        (let ((u32 ar . 0) (const char * f . nil))
+          (if (coco_m_is_var e t) (return 0))
+          (set f (coco_m_functor e t (aof ar)))
+          (return (and (!= f nil) (and (== ar 1) (== 0 (strcmp f "unix")))))))
+
+  ;;; unix(Path) into A, the path's bytes into PATH. Answers 1, or 0 with RC
+  ;;; what the caller returns: an instantiation error for an unbound path, a
+  ;;; type error for one that is not text, and a domain error for one that
+  ;;; is empty or that the struct cannot hold -- never a path cut short,
+  ;;; which would bind or reach some other file.
+  (static)
+  (func coco_t_unix_addr ((coco_engine * e) (size_t t) (sockaddr_un * a)
+                          (char * path) (size_t cap) (int * rc)) (out int)
+        (let ((size_t p . #'(coco_m_arg e t 0)) (size_t n . 0))
+          (if (coco_m_is_var e p)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_text e p path cap))
+              (block (set (cof rc) (? (coco_m_is_atom e p)
+                                      (coco_m_domain_error e "socket_path" p)
+                                      (coco_m_type_error e "atom" p)))
+                     (return 0)))
+          (set n (strlen path))
+          (if (or (== n 0) (>= n (sizeof (-> a sun_path))))
+              (block (set (cof rc) (coco_m_domain_error e "socket_path" p)) (return 0)))
+          (memset a 0 (sizeof (cof a)))
+          (set (-> a sun_family) AF_UNIX)
+          (memcpy (-> a sun_path) path n)
+          (return 1)))
+
+  ;;; Is the socket file at PATH one nobody listens on? Only a SOCKET is
+  ;;; asked: a regular file, a directory or a link of that name is never
+  ;;; touched. The question is a connect that does not wait -- on Linux a
+  ;;; listener whose backlog is full answers EAGAIN, and is alive (BSD and
+  ;;; macOS refuse it, the header says) -- and refused is the answer that
+  ;;; says the server that made the file has gone. A name
+  ;;; that has vanished since the bind found it taken is free as well.
+  (static)
+  (func coco_t_stale ((const char * path) (sockaddr_un * a)) (out int)
+        (let ((stat_t sb) (int p . -1) (int r . 0) (int err . 0))
+          (if (!= 0 (lstat path (aof sb))) (return (== errno ENOENT)))
+          (if (not (S_ISSOCK ($ sb st_mode))) (return 0))
+          (set p (socket AF_UNIX SOCK_STREAM 0))
+          (if (< p 0) (return 0))
+          (fcntl p F_SETFL (bitor (fcntl p F_GETFL 0) O_NONBLOCK))
+          (set r (connect p (cast (sockaddr *) a) (sizeof (cof a))))
+          (set err errno)
+          (close p)
+          (return (and (< r 0) (== err ECONNREFUSED)))))
+
+  ;;; A listener's own file, removed: unlinked only while the name is still
+  ;;; the socket this module bound there, by device and inode, so a server
+  ;;; that has taken the path since keeps its own. The name is forgotten
+  ;;; either way.
+  (static)
+  (func coco_t_unlink_own ((int slot)) (out void)
+        (let ((char * p . #'(nth slot coco_t_path)) (stat_t sb))
+          (if (== p nil) (return))
+          (if (and (== 0 (lstat p (aof sb)))
+                   (and (S_ISSOCK ($ sb st_mode))
+                        (and (== ($ sb st_dev) (nth slot coco_t_dev))
+                             (== ($ sb st_ino) (nth slot coco_t_ino)))))
+              (unlink p))
+          (free p)
+          (set (nth slot coco_t_path) nil)))
+
+  ;;; A slot given back: a listener's socket file removed FIRST, as Go's
+  ;;; Close does, then the descriptor closed and every row emptied.
+  (static)
+  (func coco_t_drop ((int slot)) (out void)
+        (coco_t_unlink_own slot)
+        (close (nth slot coco_t_fd))
+        (set (nth slot coco_t_fd) -1)
+        (set (nth 0 (nth slot coco_t_peer_s)) 0)
+        (set (nth slot coco_t_unix) 0))
+
+  ;;; A descriptor DIAL answered, into a slot and the caller's variable. A
+  ;;; slot the variable will not take is given back at once, so a call that
+  ;;; fails leaves nothing open behind it.
+  (static)
+  (func coco_t_take ((coco_engine * e) (int fd) (size_t out)) (out int)
+        (let ((int slot . -1))
+          (if (< fd 0) (return 0))
+          (set slot (coco_t_slot_new fd))
+          (if (< slot 0)
+              (block (set coco_t_why_s "no free slot: 256 sockets are open")
+                     (close fd) (return 0)))
+          (if (coco_m_unify_int e out (cast i64 slot)) (return 1))
+          (coco_t_drop slot)
+          (return 0)))
+
   ;;; ---- listen ----------------------------------------------------------
+
+  ;;; tcp_listen(unix(Path), -Sock): a socket file at Path -- a leftover of
+  ;;; a server that has gone replaced, a live one's refused, as the header
+  ;;; says -- and its name kept for the close to remove.
+  (static)
+  (func coco_t_listen_unix ((coco_engine * e) (size_t g) (size_t t)) (out int)
+        (let ((int rc . 0) (int fd . -1) (int r . 0) (int err . 0) (int slot . -1)
+              (char path [4096]) (sockaddr_un a) (stat_t sb))
+          (if (not (coco_t_unix_addr e t (aof a) path (sizeof path) (aof rc))) (return rc))
+          (set coco_t_why_s "")
+          (set fd (socket AF_UNIX SOCK_STREAM 0))
+          (if (< fd 0) (block (set coco_t_why_s (strerror errno)) (return 0)))
+          (set r (bind fd (cast (sockaddr *) (aof a)) (sizeof a)))
+          (set err errno)
+          (if (and (< r 0) (== err EADDRINUSE))
+              (if (coco_t_stale path (aof a))
+                  (block
+                    (unlink path)
+                    (set r (bind fd (cast (sockaddr *) (aof a)) (sizeof a)))
+                    (set err errno))))
+          (if (< r 0) (block (set coco_t_why_s (strerror err)) (close fd) (return 0)))
+          (if (< (listen fd 64) 0)
+              (block (set coco_t_why_s (strerror errno)) (unlink path) (close fd) (return 0)))
+          (set slot (coco_t_slot_new fd))
+          (if (< slot 0)
+              (block (set coco_t_why_s "no free slot: 256 sockets are open")
+                     (unlink path) (close fd) (return 0)))
+          (set (nth slot coco_t_unix) 1)
+          (if (== 0 (lstat path (aof sb)))
+              (block
+                (set (nth slot coco_t_dev) ($ sb st_dev))
+                (set (nth slot coco_t_ino) ($ sb st_ino))
+                (set (nth slot coco_t_path) (strdup path))))
+          (if (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 slot)) (return 1))
+          (coco_t_drop slot)
+          (return 0)))
 
   ;;; SO_REUSEADDR, because without it a server restarted inside the
   ;;; TIME_WAIT window cannot bind its own port -- which on a test suite
   ;;; that starts and stops a server repeatedly is not an edge case, it is
   ;;; every run after the first.
   (func coco_t_listen ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1)
+        (let ((int rc . 0) (i64 port . 0) (int fd . -1)
               (int on . 1) (sockaddr_in a))
+          (if (coco_t_is_unix e (coco_m_arg e g 0))
+              (return (coco_t_listen_unix e g (coco_m_arg e g 0))))
           (if (not (coco_t_int e g 0 (aof port) (aof rc))) (return rc))
           (if (or (< port 0) (> port 65535))
               (return (coco_m_domain_error e "port" (coco_m_arg e g 0))))
+          (set coco_t_why_s "")
           (set fd (socket AF_INET SOCK_STREAM 0))
-          (if (< fd 0) (return 0))
+          (if (< fd 0) (block (set coco_t_why_s (strerror errno)) (return 0)))
           (setsockopt fd SOL_SOCKET SO_REUSEADDR (cast (void *) (aof on)) (sizeof on))
           (memset (aof a) 0 (sizeof a))
           (set ($ a sin_family) AF_INET)
           (set ($ a sin_addr s_addr) (htonl INADDR_ANY))
           (set ($ a sin_port) (htons (cast uint16_t port)))
           (if (< (bind fd (cast (sockaddr *) (aof a)) (sizeof a)) 0)
-              (block (close fd) (return 0)))
-          (if (< (listen fd 64) 0) (block (close fd) (return 0)))
-          (set slot (coco_t_slot_new fd))
-          (if (< slot 0) (block (close fd) (return 0)))
-          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 slot)))))
+              (block (set coco_t_why_s (strerror errno)) (close fd) (return 0)))
+          (if (< (listen fd 64) 0)
+              (block (set coco_t_why_s (strerror errno)) (close fd) (return 0)))
+          (return (coco_t_take e fd (coco_m_arg e g 1)))))
 
   ;;; ---- connect ---------------------------------------------------------
 
-  ;;; getaddrinfo rather than inet_addr, so a peer can be named rather than
-  ;;; numbered -- which is what talking to another instance by hostname
-  ;;; needs, and what a tunnel hands you.
-  (func coco_t_connect ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (i64 port . 0) (int fd . -1) (int slot . -1)
-              (char host [256]) (char svc [16])
+  ;;; Argument I of T as a host name, with the errors tcp_connect/3 always
+  ;;; raised. Answers 1, or 0 with RC filled in.
+  (static)
+  (func coco_t_host ((coco_engine * e) (size_t t) (u32 i) (char * host) (size_t cap)
+                     (int * rc)) (out int)
+        (let ((size_t h . #'(coco_m_arg e t i)))
+          (if (coco_m_is_var e h)
+              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+          (if (not (coco_m_text e h host cap))
+              (block (set (cof rc) (coco_m_type_error e "atom" h)) (return 0)))
+          (return 1)))
+
+  ;;; A descriptor connected to HOST:PORT, or -1 with tcp_why/1's reason:
+  ;;; getaddrinfo's own for a name it could not find, the last address's
+  ;;; errno for one nobody answered.
+  (static)
+  (func coco_t_dial_inet ((const char * host) (i64 port)) (out int)
+        (let ((int fd . -1) (int gai . 0) (int err . 0) (char svc [16])
               (addrinfo hints) (addrinfo * res . nil))
-          (let ((size_t t . #'(coco_m_arg e g 0)))
-            (if (coco_m_is_var e t)
-                (return (coco_m_instantiation_error e)))
-            (if (not (coco_m_text e t host (sizeof host)))
-                (return (coco_m_type_error e "atom" t))))
-          (if (not (coco_t_int e g 1 (aof port) (aof rc))) (return rc))
           (snprintf svc (sizeof svc) "%d" (cast int port))
           ;; getaddrinfo rather than inet_addr, so a peer can be NAMED --
           ;; which is what a tunnel hands you and what one instance calling
@@ -345,18 +547,61 @@
           (memset (aof hints) 0 (sizeof hints))
           (set ($ hints ai_family) AF_INET)
           (set ($ hints ai_socktype) SOCK_STREAM)
-          (if (!= 0 (getaddrinfo host svc (aof hints) (aof res))) (return 0))
+          (set gai (getaddrinfo host svc (aof hints) (aof res)))
+          (if (!= 0 gai) (block (set coco_t_why_s (gai_strerror gai)) (return -1)))
           (for ((addrinfo * it . res)) (!= it nil) ((set it (-> it ai_next)))
                (set fd (socket (-> it ai_family) (-> it ai_socktype) (-> it ai_protocol)))
-               (if (< fd 0) continue)
+               (if (< fd 0) (block (set err errno) continue))
                (if (== 0 (connect fd (-> it ai_addr) (-> it ai_addrlen))) break)
+               (set err errno)
                (close fd)
                (set fd -1))
           (freeaddrinfo res)
-          (if (< fd 0) (return 0))
-          (set slot (coco_t_slot_new fd))
-          (if (< slot 0) (block (close fd) (return 0)))
-          (return (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot)))))
+          (if (< fd 0) (set coco_t_why_s (strerror err)))
+          (return fd)))
+
+  ;;; A descriptor connected to the socket file A names, or -1 with the
+  ;;; reason: `No such file or directory' for a socket nobody made,
+  ;;; `Connection refused' for one nobody listens on any more.
+  (static)
+  (func coco_t_dial_unix ((sockaddr_un * a)) (out int)
+        (let ((int fd . #'(socket AF_UNIX SOCK_STREAM 0)))
+          (if (< fd 0) (block (set coco_t_why_s (strerror errno)) (return -1)))
+          (if (< (connect fd (cast (sockaddr *) a) (sizeof (cof a))) 0)
+              (block (set coco_t_why_s (strerror errno)) (close fd) (return -1)))
+          (return fd)))
+
+  ;;; getaddrinfo rather than inet_addr, so a peer can be named rather than
+  ;;; numbered -- which is what talking to another instance by hostname
+  ;;; needs, and what a tunnel hands you.
+  (func coco_t_connect ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 port . 0) (char host [256]))
+          (if (not (coco_t_host e g 0 host (sizeof host) (aof rc))) (return rc))
+          (if (not (coco_t_int e g 1 (aof port) (aof rc))) (return rc))
+          (set coco_t_why_s "")
+          (return (coco_t_take e (coco_t_dial_inet host port) (coco_m_arg e g 2)))))
+
+  ;;; tcp_connect(+Address, -Conn): unix(Path), a socket file, or Host:Port,
+  ;;; which is tcp_connect/3 spelt as one term. Anything else is a domain
+  ;;; error naming the address; failing is still the network's answer --
+  ;;; nobody listening, no such file -- and tcp_why/1 says which.
+  (func coco_t_connect_to ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (i64 port . 0) (u32 ar . 0) (const char * f . nil)
+              (char host [256]) (char path [4096]) (sockaddr_un a)
+              (size_t t . #'(coco_m_arg e g 0)))
+          (if (coco_m_is_var e t) (return (coco_m_instantiation_error e)))
+          (if (coco_t_is_unix e t)
+              (block
+                (if (not (coco_t_unix_addr e t (aof a) path (sizeof path) (aof rc))) (return rc))
+                (set coco_t_why_s "")
+                (return (coco_t_take e (coco_t_dial_unix (aof a)) (coco_m_arg e g 1)))))
+          (set f (coco_m_functor e t (aof ar)))
+          (if (or (== f nil) (or (!= ar 2) (!= 0 (strcmp f ":"))))
+              (return (coco_m_domain_error e "socket_address" t)))
+          (if (not (coco_t_host e t 0 host (sizeof host) (aof rc))) (return rc))
+          (if (not (coco_t_int e t 1 (aof port) (aof rc))) (return rc))
+          (set coco_t_why_s "")
+          (return (coco_t_take e (coco_t_dial_inet host port) (coco_m_arg e g 1)))))
 
   ;;; ---- accept ----------------------------------------------------------
 
@@ -364,41 +609,64 @@
   ;;; not an error: a server loop asks this over and over and "nobody yet"
   ;;; is the ordinary answer.
   (func coco_t_accept ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (int fd . -1) (i64 ms . 0) (int c . -1) (int slot . -1)
-              (int w . 0) (char peer [64]) (int on . 1)
-              (sockaddr_in a) (socklen_t alen . 0))
-          (if (not (coco_t_sock e g 0 (aof fd) (aof rc))) (return rc))
+        (let ((int rc . 0) (i64 v . 0) (int fd . -1) (i64 ms . 0) (int c . -1)
+              (int slot . -1) (int w . 0) (int un . 0) (char peer [128]) (int on . 1)
+              (sockaddr_in a) (sockaddr_un u) (socklen_t alen . 0))
+          (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
+          (set fd (coco_t_slot_fd (cast int v)))
+          (if (< fd 0) (return 0))
+          (set un (nth (cast int v) coco_t_unix))
           (if (not (coco_t_int e g 1 (aof ms) (aof rc))) (return rc))
           (set w (coco_t_wait fd 0 (cast int ms)))
           (if (<= w 0) (return 0))
-          (set alen (sizeof a))
-          (memset (aof a) 0 (sizeof a))
-          (set c (accept fd (cast (sockaddr *) (aof a)) (aof alen)))
+          ;; A UNIX LISTENER'S PEER IS A PATH, read into the struct that holds
+          ;; one, zeroed first: an unbound client -- nearly every client --
+          ;; reads as no path at all.
+          (if un
+              (block
+                (set alen (sizeof u))
+                (memset (aof u) 0 (sizeof u))
+                (set c (accept fd (cast (sockaddr *) (aof u)) (aof alen))))
+              (block
+                (set alen (sizeof a))
+                (memset (aof a) 0 (sizeof a))
+                (set c (accept fd (cast (sockaddr *) (aof a)) (aof alen)))))
           (if (< c 0) (return 0))
           ;; Nagle off: a reply is one small write, and waiting 40ms to see
           ;; whether another follows is exactly wrong for request/response.
-          (setsockopt c IPPROTO_TCP TCP_NODELAY (cast (void *) (aof on)) (sizeof on))
+          ;; A unix socket has no Nagle to turn off.
+          (if (not un)
+              (setsockopt c IPPROTO_TCP TCP_NODELAY (cast (void *) (aof on)) (sizeof on)))
           (set slot (coco_t_slot_new c))
           (if (< slot 0) (block (close c) (return 0)))
-          (snprintf peer (sizeof peer) "%s:%d"
-                    (inet_ntoa ($ a sin_addr)) (cast int (ntohs ($ a sin_port))))
-          (snprintf (nth slot coco_t_peer_s) 64 "%s" peer)
-          (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot))) (return 0))
-          (return (coco_m_unify_atom e (coco_m_arg e g 3) peer))))
+          (if un
+              (snprintf peer (sizeof peer) "unix:%.*s"
+                        (cast int (sizeof ($ u sun_path))) ($ u sun_path))
+              (snprintf peer (sizeof peer) "%s:%d"
+                        (inet_ntoa ($ a sin_addr)) (cast int (ntohs ($ a sin_port)))))
+          (snprintf (nth slot coco_t_peer_s) 128 "%s" peer)
+          ;; A connection the caller's variables will not take is closed
+          ;; again, rather than left open in a slot nobody holds.
+          (if (and (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 slot))
+                   (coco_m_unify_atom e (coco_m_arg e g 3) peer))
+              (return 1))
+          (coco_t_drop slot)
+          (return 0)))
 
-  ;;; Who is at the other end of a socket this module accepted. Empty for
-  ;;; one it opened itself, which is the honest answer rather than a guess.
   ;;; ---- why ------------------------------------------------------------
   ;;; tcp_why(-Reason): why the last tcp_read failed -- `timeout', `end of
   ;;; stream', or the errno text. A read that fails is a plain failure, as
   ;;; it always was; a caller pumping bytes between two sockets (a TLS
   ;;; terminator, CivV's test/tls-term.pl) has to know which of the two it
-  ;;; got, and library(tls)'s tls_why/1 answers the same words.
-  (var const char * coco_t_why_s . "")
-
+  ;;; got, and library(tls)'s tls_why/1 answers the same words. Since 2.4.0
+  ;;; it is why the last connect or listen failed as well: the errno text,
+  ;;; or getaddrinfo's for a name it could not find. ws_open/3 builds its
+  ;;; reason from it, and read what the last READ had left there before.
   (func coco_t_why ((coco_engine * e) (size_t g)) (out int)
         (return (coco_m_unify_atom e (coco_m_arg e g 0) coco_t_why_s)))
 
+  ;;; Who is at the other end of a socket this module accepted. Empty for
+  ;;; one it opened itself, which is the honest answer rather than a guess.
   (func coco_t_peer ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (i64 v . 0))
           (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
@@ -506,17 +774,15 @@
 
   ;;; ---- close -----------------------------------------------------------
 
-  ;;; Closing frees the slot as well as the descriptor, and closing
+  ;;; Closing frees the slot as well as the descriptor -- and a unix
+  ;;; listener's socket file, which this module made -- and closing
   ;;; something this module did not open is a failure rather than a close.
   ;;; That is the whole reason the table exists.
   (func coco_t_close ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (i64 v . 0) (int fd))
+        (let ((int rc . 0) (i64 v . 0))
           (if (not (coco_t_int e g 0 (aof v) (aof rc))) (return rc))
-          (set fd (coco_t_slot_fd (cast int v)))
-          (if (< fd 0) (return 0))
-          (close fd)
-          (set (nth (cast int v) coco_t_fd) -1)
-          (set (nth 0 (nth (cast int v) coco_t_peer_s)) 0)
+          (if (< (coco_t_slot_fd (cast int v)) 0) (return 0))
+          (coco_t_drop (cast int v))
           (return 1)))
 
   ;;; What is open, so a test can prove there is no leak. A library that
@@ -562,7 +828,13 @@
   (include <poll.h>)
   (include <unistd.h>)
   (include <errno.h>)
+  ;;; a unix socket's address, and the file it is (2.4.0)
+  (include <sys/un.h>)
+  (include <sys/stat.h>)
+  (include <fcntl.h>)
 
+  ;;; `sockaddr_un', which ../cicili/lib/std/c/posix does not declare
+  (import "./binding.cicili")
   (import "./sdk.cicili")
   (coco-sdk)
 

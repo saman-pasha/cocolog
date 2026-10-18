@@ -183,6 +183,12 @@
 %%     protocols(List)     subprotocols to offer, in order of preference
 %%     tls(Creds)          library(tls)'s credentials, for wss://
 %%     timeout(Ms)         per read while the handshake answers (default 30000)
+%%     unix_socket(Path)   connect to the socket file at Path, not to the
+%%                         URL's host and port (2.4.0), as curl's
+%%                         --unix-socket does: the URL still names the Host
+%%                         header and the path, `ws://localhost/chat'. ws://
+%%                         only -- library(tls) dials TCP -- and with wss://
+%%                         a domain error
 %%
 %% FAILS, as tcp_connect/3 and tls_connect/4 do, when there is nobody to
 %% talk to or the server will not upgrade; `ws_why/1' says which. A URL
@@ -192,11 +198,21 @@ ws_open(URL, WS) :- ws_open(URL, WS, []).
 
 ws_open(URL, WS, Options) :-
     ws_parse_url(URL, Scheme, Host, Port, Target),
+    (   Scheme == wss, memberchk(unix_socket(_), Options)
+    ->  throw(error(domain_error(websocket_url, URL),
+                    context(ws_open/3, 'unix_socket(Path) carries ws:// only')))
+    ;   true
+    ),
     ws_option(timeout(T), Options, 30000),
     (   ws_connect(Scheme, Host, Port, Options, C)
     ->  true
     ;   ws_sock_scheme_why(Scheme, Why0),
-        atomic_list_concat(['cannot connect to ', Host, ':', Port, ' (', Why0, ')'], Why),
+        (   memberchk(unix_socket(Path), Options)
+        ->  Where = ['unix:', Path]
+        ;   Where = [Host, ':', Port]
+        ),
+        append([['cannot connect to '], Where, [' (', Why0, ')']], Parts),
+        atomic_list_concat(Parts, Why),
         ws_set_why(Why),
         fail
     ),
@@ -244,8 +260,11 @@ ws_split_authority([0'/|T], [], [0'/|T]) :- !.
 ws_split_authority([0'?|T], [], [0'/, 0'?|T]) :- !.
 ws_split_authority([C|Cs], [C|As], T) :- ws_split_authority(Cs, As, T).
 
-ws_connect(ws, Host, Port, _, plain(C)) :-
-    tcp_connect(Host, Port, C).
+ws_connect(ws, Host, Port, Options, plain(C)) :-
+    (   memberchk(unix_socket(Path), Options)
+    ->  tcp_connect(unix(Path), C)
+    ;   tcp_connect(Host, Port, C)
+    ).
 ws_connect(wss, Host, Port, Options, secure(C)) :-
     ws_option(tls(Creds), Options, []),
     atom_number(Service, Port),             % a service, as tls_connect/4 names it

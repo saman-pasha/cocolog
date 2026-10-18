@@ -1,0 +1,29 @@
+;;;; Cicili declarations for <sys/un.h>: the one struct library(tcp) reaches
+;;;; that ../cicili/lib/std/c/posix does not declare.
+;;;; Import in target: (import "./binding.cicili"); requires (include <sys/un.h>).
+;;;;
+;;;; THE DECLARATION EMITS NOTHING, as modules/clay/binding.cicili's do. It
+;;;; tells Cicili's inference what a `sockaddr_un' holds, and the struct
+;;;; still comes from <sys/un.h>, which stays the only definition. std
+;;;; declares AF_UNIX beside AF_INET in posix/socket.cicili, and
+;;;; `sockaddr_in' member by member, but has no <sys/un.h>. Written here,
+;;;; as a posix/sys-un.cicili for Cicili's own tree, because that tree is
+;;;; frozen from this side: it is offered to the owner as it stands, and
+;;;; moves by one import path.
+;;;;
+;;;; THE PATH'S LENGTH IS THE HEADER'S, NOT THIS FILE'S: 108 bytes on
+;;;; Linux, 104 on macOS, whose struct has a `sun_len' byte before the
+;;;; family as well. tcp.cicili asks `sizeof' of the member, which the C
+;;;; compiler answers from the real struct, so the 108 below teaches
+;;;; inference an array and is never a size anything computes with.
+(DEFPACKAGE :tcp
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :tcp)
+
+(DEFMACRO init-macro ()
+  `($$$
+     (decl) (struct sockaddr_un
+              (member sa_family_t sun_family)
+              (member char sun_path [108]))))

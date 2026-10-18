@@ -6827,3 +6827,96 @@ cyclic, reconsult, repl, script, directives, library, static, meter, thread,
 cowork, flowdebug, files (39 swipl-compared files), translate and lint, and
 with the server up vacuum, kbs and zigurat-lib; lesson basics 07; the card
 check (ten cites renumbered). `make test` has not been run on it.
+
+## A Unix domain socket is an address (2.4.0)
+
+Asked by the owner (2026-10-18): the HTTP libraries over a Unix domain socket.
+None of them held a socket of its own -- library(http) is a grammar over bytes,
+library(httpd) five transport predicates over library(tcp) or library(tls),
+library(websocket) clauses over the same two, library(curl) libcurl's -- so the
+work is the socket seam's, and two client options.
+
+THE ADDRESS. `unix(Path)` stands where a port stands: `tcp_listen(unix(Path), S)`,
+and a new `tcp_connect(+Address, -Conn)` takes `unix(Path)` or `Host:Port` (which
+is `tcp_connect/3` spelt as one term). Everything after is the same slot, the
+same reads and writes, the same close, so `httpd_serve(unix(Path), Options)`
+serves -- pages, keep-alive, the pool, websocket pages -- with no change to
+library(httpd) but a refusal of `tls(...)` there, by name (a socket file's
+permissions are its access control, and library(tls) dials TCP). The clients go
+as `curl --unix-socket` does, the URL naming the Host header and the path:
+library(curl)'s `unix_socket(Path)` (CURLOPT_UNIX_SOCKET_PATH, libcurl 7.40) and
+`ws_open/3`'s, ws:// only (with wss:// a domain error). A peer accepted on one is
+the atom `'unix:'` -- nginx's `$remote_addr` for it -- and the path the client
+bound after the colon, which a client seldom does.
+
+THE FILE, three decisions. A bind that meets the name (EADDRINUSE) asks whether
+anybody listens: only if the name is a SOCKET (lstat, never followed) and a
+non-blocking connect to it is refused is the file a leftover, unlinked and bound
+again; a live server's file is refused and left alone (its server sees the
+question as a connection that closes at once), and so is a regular file, a
+directory or a link of that name. Python's asyncio unlinks any socket it finds,
+a live server's too, and Go unlinks nothing and fails. On Linux a listener whose
+backlog is full answers the non-blocking connect EAGAIN, and is alive; BSD and
+macOS answer it ECONNREFUSED, as they answer a dead one (`sonewconn` failing in
+`unp_connect`), so there a listener that busy at that moment can lose its file
+to a second listen. Not tested here: this box is Linux. The listener's close
+removes its file first, as Go's does, then closes -- and only while the name is
+still the socket it bound, by device and inode (`coco_t_dev`, `coco_t_ino`), so a
+server that has taken the path since keeps its own. Who may connect is the
+file's business: the umask the process has when it listens, and the
+directory's permissions. Not here, and said in the module's header: Linux's
+abstract names (`@name`), descriptors passed over a socket (SCM_RIGHTS) and the
+peer's credentials (SO_PEERCRED).
+
+THE BINDINGS, both a line, neither pasted C. Cicili's std declares AF_UNIX beside
+AF_INET but has no `<sys/un.h>`, so `modules/tcp/binding.cicili` declares `struct
+sockaddr_un` in an init-macro that emits nothing, as `modules/clay/binding.cicili`
+does Clay's; the struct is the header's, and the module asks `sizeof` of its
+`sun_path` (108 bytes on Linux, 104 on macOS: a path of one to 107 or 103, longer
+a domain error, never cut short). `lib/net/curl.cicili` names no unix-socket
+option word and declares `curl_easy_setopt` for exactly such an option, so
+`modules/curl/binding.cicili` names the constant and `cl_p_do` sets it through
+that call. Both are written as the files Cicili's tree would hold, and kept here
+because that tree is frozen from this side.
+
+TWO SMALL THINGS IN THE SAME FILE, found on the way. tcp_why/1 answers why a
+connect or a listen failed as well as a read (the errno text, or getaddrinfo's
+for a name it could not find): ws_open/3 builds its reason from it, and through
+2.3.0 said `cannot connect to 127.0.0.1:18799 ()`, the reason being the last
+read's, here none; now `(Connection refused)`. And a connect, an accept or a
+listen whose variable will not take the slot gives it back: through 2.3.0 the
+socket stayed open in a slot nobody held (`tcp_connect(H, P, 99)` that failed,
+one more slot gone a call). Lesson 20 named an option `insecure(true)` that
+library(curl) has not got; it is `verify_peer(false)`.
+
+PROVED: test/tcp.pl's three new sections, 16 checks -- a round trip over a socket
+file with a NUL and 0xFF both ways, the file made by the listen and kept by a
+connection's close and removed by the listener's, the errors by name, a live
+server refused and still serving, a regular file refused and unchanged, a name
+taken over left to its new server, and a second cocolog killed (9) while it
+listened, whose file this process then replaces -- with thirteen arms, one rule
+out each, all red at their check: no leftover replaced, any file taken for a
+leftover, any socket taken for one, no unlink at the close, no inode check, the
+take's and the accept's slot kept, the length check out (the struct overflowed),
+the peer's `unix:`, the unix connect's reason, the TCP connect's reason, the
+`Host:Port` form. test/httpd.pl: httpd on a socket file reached by raw bytes,
+two requests down one connection, and the system's `curl --unix-socket`, the
+file gone with the server, and `tls(...)` refused; test/curl.pl: library(curl)'s
+`unix_socket(Path)` to a server on a socket file; test/websocket.pl: a session
+over one, the reason naming the file, wss:// refused -- five arms more, each
+red: httpd's refusal out, ws_open's option, its wss:// refusal, its reason's
+`unix:`, curl's option. NOT ARMED: the probe's O_NONBLOCK (only a listener whose
+backlog is full shows it; blocking, the second listen would wait for the first
+to accept) and TCP_NODELAY left off a unix socket (the setsockopt fails, and
+nothing reads its answer). Lessons 16, 17, 20 and 49 say it and check it.
+
+THE COST is the module's, none the engine's (lib/ is untouched): an address
+shape asked at each listen and connect/2, a flag read at each accept, nothing at
+a read or a write; and tcp.so's static table, four rows more a slot and the
+peer's row 128 bytes wide, 17 432 bytes of bss to 40 984.
+
+Green on 2.4.0's modules, with the server up: tcp, http, httpd, httpd-tls, curl,
+websocket, tunnel, units, zigurat-tls, flowchart (its tables rebuilt) and lint;
+lessons 16, 17, 20 and 49. The suite on 2.4.0, the server up: 70 lines, red 0,
+5 SKIP (tensors, torch-graph, torch-grad, torch-replay, tensorflow: no CUDA on
+this box).

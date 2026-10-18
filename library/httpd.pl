@@ -28,6 +28,15 @@
 %% every routing decision without opening one. The loop is four clauses
 %% over it.
 %%
+%% PORT MAY BE A SOCKET FILE, `unix(Path)' (2.4.0), which library(tcp)
+%% binds where a port would be: the server behind nginx's
+%% `proxy_pass http://unix:/run/app.sock', or one only the processes that
+%% may open the file can reach. Nothing above the transport knows --
+%% routing, keep-alive, the pool and websocket pages are the same -- and
+%% library(tcp) replaces a socket file a dead server left behind and
+%% removes this one's when the server stops. `tls(...)' there is refused
+%% by name: on a socket file the file's permissions are the access control.
+%%
 %% OPTIONS, all with defaults, none required:
 %%
 %%     root(Dir)          serve static files from here. ABSENT MEANS NO
@@ -242,6 +251,9 @@ httpd_transport(Options, Transport) :-
 
 httpd_sock_listen(plain, Port, plain(S)) :-
     tcp_listen(Port, S).
+httpd_sock_listen(secure(_), unix(Path), _) :- !,
+    throw(error(domain_error(tcp_port, unix(Path)),
+                'httpd: tls(...) listens on a TCP port, and a socket file''s permissions are its access control')).
 httpd_sock_listen(secure(Creds), Port, secure(S, Creds)) :-
     %% A CLEARER FAILURE THAN `unknown procedure'. Without tls.so the
     %% directive above stayed quiet, so the first sign would be

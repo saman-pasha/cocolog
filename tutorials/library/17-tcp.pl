@@ -19,18 +19,24 @@
 %%
 %% THE SURFACE:
 %%
-%%     tcp_listen(+Port, -Socket)
+%%     tcp_listen(+Port, -Socket)       tcp_listen(+unix(Path), -Socket)
 %%     tcp_accept(+Socket, +TimeoutMs, -Conn, -Peer)
-%%     tcp_connect(+Host, +Port, -Conn)
+%%     tcp_connect(+Host, +Port, -Conn) tcp_connect(+unix(Path), -Conn)
+%%                                      tcp_connect(+Host:Port, -Conn)
 %%     tcp_read(+Conn, +MaxBytes, +TimeoutMs, -Codes)
 %%     tcp_write(+Conn, +Text)
 %%     tcp_close(+Conn)
+%%     tcp_why(-Reason)                 why the last read, connect or listen failed
 %%
 %% IT READS AND WRITES CODES, for the reason library(http) gives: an atom
 %% stops at the first NUL and a body is not text.
 %%
-%% THIS FILE TALKS TO ITSELF over the loopback interface, which needs no
-%% network and no other program.
+%% A UNIX DOMAIN SOCKET IS AN ADDRESS (2.4.0): `unix(Path)' where a port
+%% stands, and everything after it the same. The socket is a file, which
+%% the listen makes and the listener's close removes.
+%%
+%% THIS FILE TALKS TO ITSELF over the loopback interface and over a socket
+%% file in /tmp, which need no network and no other program.
 
 :- use_module(library(tcp)).
 
@@ -92,11 +98,50 @@ main :-
     must('tcp_accept with nobody there', A, timed_out),
     tcp_close(S2),
 
+    unix_socket,
+
     format("~n-- WHAT TO BUILD ON THIS: library(http) parses what you~n"),
     format("   read, library(httpd) is the server loop, and~n"),
     format("   library(curl) is the client for when you want one that~n"),
     format("   already speaks TLS and redirects.~n~n"),
     format("done~n").
+
+%% A SOCKET FILE, from its listen to its close -- its own predicate, for
+%% the reason lesson 46 gives: a `main' longer than a page is one cocolint
+%% asks to be split.
+unix_socket :-
+    format("~n-- a UNIX SOCKET: unix(Path) where the port stood~n"),
+    tmp_file(lesson17, T0), atom_concat(T0, '.sock', Path),
+    tcp_listen(unix(Path), Server),
+    ( access_file(Path, exist) -> F1 = made ; F1 = none ),
+    must('the listen makes a socket file', F1, made),
+    tcp_connect(unix(Path), Client),
+    tcp_accept(Server, 2000, Conn, Peer),
+    %% NGINX'S WORD for a peer on a socket file: a client seldom binds a
+    %% path of its own, and one that does has it after the colon
+    must('a peer on a socket file', Peer, 'unix:'),
+    tcp_write(Client, 'through a file'),
+    tcp_read(Conn, 1024, 2000, Codes), atom_codes(Got, Codes),
+    must('and the same bytes cross', Got, 'through a file'),
+    format("   Same slots, same reads and writes, same close -- so~n"),
+    format("   library(httpd) serves on one as httpd_serve(unix(Path), Opts).~n"),
+    tcp_close(Client), tcp_close(Conn),
+
+    format("~n-- a live server's file is not taken from it~n"),
+    ( tcp_listen(unix(Path), _) -> L2 = bound ; tcp_why(L2) ),
+    must('a second listen on the path', L2, 'Address already in use'),
+    %% THE LISTEN ASKED BY CONNECTING, and the server saw it: a connection
+    %% that closed at once. Nobody answering is what lets a listen replace
+    %% the leftover file of a server that died without closing.
+    ( tcp_accept(Server, 2000, Q, _) -> tcp_close(Q), Saw = a_connection ; Saw = nothing ),
+    must('what the first server saw of the question', Saw, a_connection),
+
+    format("~n-- the listener's close removes its file~n"),
+    tcp_close(Server),
+    ( access_file(Path, exist) -> F2 = left ; F2 = removed ),
+    must('after the close', F2, removed),
+    ( tcp_connect(unix(Path), _) -> W = connected ; tcp_why(W) ),
+    must('and a connect to a file nobody made fails, saying why', W, 'No such file or directory').
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and
