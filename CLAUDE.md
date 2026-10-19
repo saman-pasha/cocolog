@@ -313,8 +313,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 63 `.pl` cases in `pl_names/1`
--- **70 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 64 `.pl` cases in `pl_names/1`
+-- **71 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -655,7 +655,7 @@ where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
 then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
-xml, html, ca, kbs, cowork, main, astar, hex, clay_ray, tensor_expr, llm,
+xml, html, ca, kbs, cowork, main, astar, hex, template, clay_ray, tensor_expr, llm,
 and `library/reasoning/` and `library/flow/`: `flow/chart` and
 `flow/debug`, each with its parts beside it, `dbg*.pl` the debugger's);
 `library/*.so` are modules built from `modules/`. A file whose first line
@@ -4171,7 +4171,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 130 files -- `basics/` 13, `library/` 52, `opencv/` 23,
+`tutorials/` holds 131 files -- `basics/` 13, `library/` 53, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a

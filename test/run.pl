@@ -170,7 +170,7 @@ pl_names([files, trace, backtrace, cyclic, window, journal, vacuum, repl, script
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, flowdebug, httpd, 'httpd-tls', websocket, crypto,
           cowork, reason, normalise, tagger, translate,
           tls, 'zigurat-tls', tutorials, colab, lint, static, argv, string, units, langs,
-          directives, groups, ruler]).
+          directives, groups, ruler, template]).
 
 pl_cases(Only, Red0, Red) :-
     pl_names(All),

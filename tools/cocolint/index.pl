@@ -562,6 +562,10 @@ ix_capability('an embedded store', [embedded, 'single file', 'no server', 'local
               [], ['bulk KB write'], embed).
 ix_capability('a grammar or parser', [parse, grammar, dcg, tokenize, lexer],
               [], [grammar, 'parser: dispatch'], local).
+ix_capability('templating or rendering a page',
+              [template, templating, render, placeholder, 'fill in', 'mail merge',
+               'output document', 'page from data', 'text with holes'],
+              [template], ['tier-2 library'], local).
 ix_capability('search or pathfinding', ['shortest path', 'a*', astar, route, search, graph],
               [astar], ['tier-2 library'], local).
 ix_capability('text to predicates',

@@ -194,7 +194,10 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        its parts in flow/dbg*.pl (what a query did, drawn
                        over its chart: the path, the failures, the values
                        that crossed), kbs.pl, cowork.pl,
-                       main.pl, astar.pl, hex.pl, clay_ray.pl and llm.pl,
+                       main.pl, astar.pl, hex.pl, template.pl (text with
+                       holes: values, conditions, loops, ranges and
+                       queries, escaped for text, HTML, XML or JSON),
+                       clay_ray.pl and llm.pl,
                        reasoning/ (controlled English, a tagger and a
                        translator), and the .so's and flow/tables.pl that
                        `make modules' builds
@@ -247,7 +250,7 @@ tutorials/             DOCUMENTATION THAT RUNS -- four categories, and
                        every claim outside tensor/ is a `must/3' that
                        fails the file when it stops being true:
                        basics/ (thirteen lessons, the language itself),
-                       library/ (fifty-two: the library path, ONE PER
+                       library/ (fifty-three: the library path, ONE PER
                        LIBRARY that ships, and the linter), tensor/
                        (forty-two networks, three processes each),
                        opencv/ (twenty-three lessons of image
@@ -558,10 +561,10 @@ rather than three solutions (08); an integer stops at 64 bits,
 where a program asks, which SWI has no flag for (08, 13); and 11 is the
 claim the whole project exists to make, in four lines of Prolog.
 
-### `library/` — fifty-two lessons: the path, then one per library that ships
+### `library/` — fifty-three lessons: the path, then one per library that ships
 
 Tier 1 first — the twelve that answer with no import at all — then the
-thirty-eight on the library path, cocolint's lesson among them though it is
+thirty-nine on the library path, cocolint's lesson among them though it is
 a tool rather than a library.
 
 | | | |
@@ -588,6 +591,7 @@ a tool rather than a library.
 | [49-websocket](tutorials/library/49-websocket.pl) | tier 2 | `websocket`: RFC 6455 — the handshake's arithmetic, a frame byte by byte as the RFC prints one, masking, and a session talking to itself over loopback; a server is an httpd page that answers `websocket(Goal)`, a client is `ws_open/2` |
 | [50-flowchart](tutorials/library/50-flowchart.pl) | tier 2 | `flow/chart`: a word count by a grammar, charted without running it — each predicate's modes and how it can end, a call pattern a panel, where every failure goes; the `is det` its comment promises, found broken and the goal that breaks it named; the XML an agent reads, naming each goal's line and the box the SVG draws for it; the picture cut to a depth, every builtin a box of its own that the chart does not go inside, while the XML keeps everything; and a worker thread fed down a channel: a lane for each thread, what each copies, the channel followed into the thread and its receive, and the thread nobody joins; then a question sent down one channel with the channel for its answer, followed into the thread that answers, a join that waits for a thread made in another clause, and each send tied to the receive that takes it; a clause given a name already taken, apart from its predicate's others (the `discontiguous` finding); a predicate defined twice, an error; and a file of a several-file program charted with `load(Files)`, its sibling's predicates defined |
 | [51-flowdebug](tutorials/library/51-flowdebug.pl) | tier 2 | `flow/debug`: a basket total that fails, run and drawn over its chart — each call the box it is, no clause even tried for a banana nothing prices, the values that crossed by their source names, the call the failure began at; then 402 inferences seen through a window of the last 20, and a visit counter in a file replayed without a journal (a second visit, diverged) and with one (the probe's visit, the file written once); the basket's failure read back by `flow_why/2`, and when a list of squares first held a 16 (`flow_when/4`, inference 12, `is/2` making 16 of 4*4); the basket's run as text, a line a call (`txt(true)`); where its failure got furthest, where 402 inferences went (`profile(P)`), where a run's time went (`time(T)`: a sort of 20 000 one inference of eight hundred and the most time of any, at the step its call was made, and count/1's two outermost calls of 402), the whole run's own time by predicate (`flow_run_time/3`: the sort again on top, and no row for a guard), and the basket against a program that prices a banana (`flow_diff/3`: the first difference is price/2) |
+| [52-template](tutorials/library/52-template.pl) | tier 2 | `template`: text with holes — `{{ expression }}` for a value, `if`/`else`, `for` with a `loop` object and `range`, functions (`upper`, `join`, `default`, …), and a `query` that runs the program's own predicates once per solution; escaped for text, HTML, XML or JSON; a compiled template parsed once, and `template_file/3,4`; a missing name is false in a condition and an error in an output, and every syntax error names what it was reading |
 
 **The numbering is one per library, so a gap is visible** — a library
 with no `NN-name.pl` beside it is one nobody has demonstrated end to
@@ -608,7 +612,7 @@ under *Prolog that trains* below.
 ### EVERY CLAIM IN THE FIRST TWO IS A TEST
 
 A lesson does not print what it computed. It asserts what the answer
-must be, through one helper repeated at the bottom of all sixty-three
+must be, through one helper repeated at the bottom of all sixty-six
 files:
 
 ```prolog
@@ -862,6 +866,7 @@ code.
 | `library(main)` | `.pl` | SWI's `main/0`: an entry point, and argv as option terms |
 | `library(astar)` | `.pl` | A* shortest paths over a graph given as two goals |
 | `library(hex)` | `.pl` | hexagonal-grid arithmetic |
+| `library(template)` | `.pl` | text with holes: values, conditions, loops, ranges and queries, escaped for text, HTML, XML or JSON |
 | `library(cowork)` | `.pl` | a crew of worker threads that outlives a turn |
 | `library(llm)` | `.pl` | a language model as a goal: a chat completion over `library(curl)` and `library(json)` |
 | `library(reasoning/...)` | `.pl` | controlled English read into predicates and explained (`reason`); the generator and the tagger that turn typed prose into it (`normalise`, `tagger`); a translator whose lessons are knowledge bases (`translate`, with the `teach.pl` and `page.pl` programs) |
