@@ -463,6 +463,33 @@
            ;; order because keysort put them there.
            "setof(T, G, S) :- bagof(T, G, B), sort(B, S)."
 
+           ;; ---- random/1 ---------------------------------------------------
+           ;; SWI's `random/1' predicate binds a float in (0.0, 1.0); the
+           ;; arithmetic function `random/1' is a different name in a
+           ;; different table (`is/2''s), so the two never meet.
+           "random(R) :- R is random_float."
+
+           ;; ---- atom_concat/3 and string_concat/3 -------------------------
+           ;; Four modes, all of them now (2.5.0): the deterministic three
+           ;; are the C helper's, and (-,-,+) enumerates every split over
+           ;; between/3 and the splitter, which is where the choice point
+           ;; belongs -- a C builtin cannot hold one.
+           "atom_concat(A, B, C) :- nonvar(A), !, '$atom_concat'(A, B, C)."
+           "atom_concat(A, B, C) :- nonvar(B), !, '$atom_concat'(A, B, C)."
+           "atom_concat(A, B, C) :- nonvar(C), !, atom_length(C, N), between(0, N, K), '$text_split_at'(C, K, 0, A, B)."
+           "atom_concat(_, _, _) :- throw(error(instantiation_error, _))."
+           "string_concat(A, B, C) :- nonvar(A), !, '$string_concat'(A, B, C)."
+           "string_concat(A, B, C) :- nonvar(B), !, '$string_concat'(A, B, C)."
+           "string_concat(A, B, C) :- nonvar(C), !, string_length(C, N), between(0, N, K), '$text_split_at'(C, K, 1, A, B)."
+           "string_concat(_, _, _) :- throw(error(instantiation_error, _))."
+
+           ;; ---- string_code/3 and atom_prefix/2 ---------------------------
+           ;; string_code/3 enumerates with its index unbound; the C half
+           ;; decides one index and fails at 0 or past the end.
+           "string_code(I, S, C) :- nonvar(I), !, '$string_code_at'(I, S, C)."
+           "string_code(I, S, C) :- string_length(S, N), between(1, N, I), '$string_code_at'(I, S, C)."
+           "atom_prefix(A, P) :- sub_atom(A, 0, _, _, P)."
+
            ;; ---- atom_string-free helpers the tests lean on -----------------
            "atom_chars_list(A, L) :- atom_chars(A, L).")))
 
@@ -1746,12 +1773,61 @@
           (return (coco_m_instantiation_error e))))
 
   ;;; Like atom_chars but the atom has to read back as a number.
+  ;;; NUMBER_CHARS/2 TAKES CODES OR CHARACTERS, but not one of each: the
+  ;;; first element decides and the rest must be of its kind, as swipl's
+  ;;; type_error(character, X) says (2.5.0).
+  (static)
+  (func coco_b_nchars_text ((coco_engine * e) (size_t l) (coco_strbuf * b) (int * rc)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * v . nil) (size_t n . 0) (size_t bad . 0)
+              (int why . 0) (int kind . -1) (int ch . #'(-> m text_chars)))
+          (if (not (coco_m_list_array e l (aof v) (aof n)))
+              (block
+               (if (coco_list_cyclic m l)
+                   (set (cof rc) (coco_m_type_error e "list" l))
+                 (set (cof rc) (coco_m_instantiation_error e)))
+               (return 0)))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((size_t x . #'(nth i v)))
+              (let ((u64 xc . #'(nth (coco_deref m x) (-> m heap))))
+                (cond
+                  ((coco-tag-is REF xc)
+                   (block (set why 1) (set bad x) break))
+                  ((coco-is-int xc)
+                   (if (== kind 0) (block (set why 2) (set bad x) break))
+                   (set kind 1)
+                   (let ((i64 code . #'(coco_int_val m xc)))
+                     (if (or (< code 0) (> code 1114111))
+                         (block (set why 2) (set bad x) break))
+                     (if ch
+                         (if (not (coco_utf8_put b code))
+                             (block (set why 3) break))
+                       (if (> code 255)
+                           (block (set why 2) (set bad x) break)
+                         (coco_sb_putc b (cast char code))))))
+                  ((coco-tag-is ATOM xc)
+                   (if (== kind 1) (block (set why 2) (set bad x) break))
+                   (set kind 0)
+                   (let ((const char * s . #'(coco_m_atom e x)))
+                     (if (or (== s nil) (not (coco_b_is_char m s)))
+                         (block (set why 2) (set bad x) break))
+                     (coco_sb_put b s)))
+                  (#t (block (set why 2) (set bad x) break))))))
+          (free v)
+          (cond
+            ((== why 1) (set (cof rc) (coco_m_instantiation_error e)))
+            ((== why 2) (set (cof rc) (coco_m_type_error e "character" bad)))
+            ((== why 3) (set (cof rc) (coco_m_resource_error e "memory"))))
+          (return (== why 0))))
+
   (func coco_b_number_chars ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (char buf [4096]))
           ;; number -> chars
-          (let ((i64 iv . 0) (double d . 0.0))
-            (if (or (coco_m_int e (coco_m_arg e g 0) (aof iv))
-                    (coco_m_float e (coco_m_arg e g 0) (aof d)))
+          (let ((i64 iv . 0) (double d . 0.0)
+                (size_t t0 . #'(coco_deref m (coco_m_arg e g 0))))
+            (if (or (coco_m_int e t0 (aof iv))
+                    (or (coco_m_float e t0 (aof d))
+                        (coco-rat-p (nth t0 (-> m heap)))))
                 (let ((coco_strbuf b) (size_t lst . #'(coco_m_nil e)))
                   (coco_sb_init (aof b))
                   (coco_write_term m (aof b) (coco_m_arg e g 0) 0 0)
@@ -1763,14 +1839,18 @@
                       (set (nth 1 one) (cast char 0))
                       (set lst (coco_cons m (coco_new_atom m one) lst))))
                   (return (coco_m_unify e (coco_m_arg e g 1) lst)))))
-          ;; chars -> number (the list read as atom_chars/2 reads it)
-          (let ((coco_strbuf b) (int rc . 0))
+          ;; chars -> number (the list read as atom_chars/2 reads it). The
+          ;; whole text must be the number: SWI's syntax_error(illegal_number)
+          ;; for anything after it (2.5.0)
+          (let ((coco_strbuf b) (int rc . 0) (int got . 0))
             (coco_sb_init (aof b))
-            (if (not (coco_b_chars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
+            (if (not (coco_b_nchars_text e (coco_m_arg e g 1) (aof b) (aof rc)))
                 (block (coco_sb_free (aof b)) (return rc)))
-            (set rc (coco_b_atom_to_number e (? (== ($ b s) nil) "" ($ b s)) (coco_m_arg e g 0)))
+            (set got (coco_b_atom_to_number e (? (== ($ b s) nil) "" ($ b s))
+                                            (coco_m_arg e g 0)))
             (coco_sb_free (aof b))
-            (return rc))))
+            (if (== got 0) (return (coco_syntax_err e "illegal_number")))
+            (return (? (== got 1) 1 0)))))
 
   ;;; Reads TEXT as a Prolog term and insists it is a number. Going through the
   ;;; reader rather than `strtod' is what makes `0xff' and `0'a' work here
@@ -1779,19 +1859,20 @@
   (func coco_b_atom_to_number ((coco_engine * e) (const char * text) (size_t to)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (size_t t . 0)
               (size_t mark . #'(-> (coco_m_machine e) heap_len)))
-          (if (not (coco_read_term_from m text (aof t)))
+          ;; 1: a number, unified. 0: no number -- the whole text must be one
+          ;; (2.5.0), and atom_number/2 and number_chars/2 read the 0 their
+          ;; own way. -1: a number that did not unify.
+          (if (not (coco_read_number_text m text (aof t)))
               (block (set (-> m heap_len) mark) (return 0)))
-          (let ((i64 iv . 0) (double d . 0.0))
-            (if (or (coco_m_int e t (aof iv)) (coco_m_float e t (aof d)))
-                (return (coco_m_unify e to t))))
-          (set (-> m heap_len) mark)
-          (return 0)))
+          (return (? (coco_m_unify e to t) 1 -1))))
 
   (func coco_b_atom_number ((coco_engine * e) (size_t g)) (out int)
-        (let ((char buf [4096]) (i64 iv . 0) (double d . 0.0))
+        (let ((char buf [4096]) (i64 iv . 0) (double d . 0.0)
+              (size_t t1 . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 1))))
           ;; number -> atom
-          (if (or (coco_m_int e (coco_m_arg e g 1) (aof iv))
-                  (coco_m_float e (coco_m_arg e g 1) (aof d)))
+          (if (or (coco_m_int e t1 (aof iv))
+                  (or (coco_m_float e t1 (aof d))
+                      (coco-rat-p (nth t1 (-> (coco_m_machine e) heap)))))
               (let ((coco_strbuf b) (int rc))
                 (coco_sb_init (aof b))
                 (coco_write_term (coco_m_machine e) (aof b) (coco_m_arg e g 1) 0 0)

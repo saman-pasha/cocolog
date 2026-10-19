@@ -287,13 +287,16 @@
       ;; saturated at the largest, a radix literal wrapped -- and the cell kept
       ;; the low 61 of them, without a word; through 1.15.0 the range was the
       ;; cell's, -2^60 .. 2^60 - 1. Since 2.0.0 it is 64 bits, -2^63 .. 2^63 - 1,
-      ;; a value past the cell boxed in the machine's integer table; the
-      ;; magnitude of a negative literal may be one more than a positive's, and
-      ;; the least integer's, 2^63, has no i64 of its own: the lexer counts the
-      ;; digits in u64 and the reader negates.
-      (trip (aof m) "1152921504606846975"  "1152921504606846975")    ; 2^60 - 1, the cell's largest
-      (trip (aof m) "1152921504606846976"  "1152921504606846976")    ; 2^60, boxed
-      (trip (aof m) "-1152921504606846977" "-1152921504606846977")   ; -2^60 - 1, boxed
+      ;; a value past the cell boxed in the machine's integer table. The cell
+      ;; keeps a 60-bit payload since 2.5.0 (the four-bit tag), so the largest
+      ;; it holds inline is 2^59 - 1; the magnitude of a negative literal may
+      ;; be one more than a positive's, and the least integer's, 2^63, has no
+      ;; i64 of its own: the lexer counts the digits in u64 and the reader
+      ;; negates.
+      (trip (aof m) "576460752303423487"   "576460752303423487")    ; 2^59 - 1, the cell's largest
+      (trip (aof m) "576460752303423488"   "576460752303423488")    ; 2^59, boxed
+      (trip (aof m) "-576460752303423489"  "-576460752303423489")   ; one past -2^59, boxed
+      (trip (aof m) "1152921504606846975"  "1152921504606846975")    ; 2^60 - 1, boxed
       (trip (aof m) "9223372036854775807"  "9223372036854775807")    ; 2^63 - 1
       (trip (aof m) "-9223372036854775808" "-9223372036854775808")   ; -2^63
       (trip (aof m) "0x7fffffffffffffff"   "9223372036854775807")

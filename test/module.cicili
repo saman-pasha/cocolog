@@ -31,6 +31,10 @@
   (include <math.h>)
   ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
   (include <time.h>)
+  ;; getpid, for the generator's lazy seed, and the rounding modes for
+  ;; roundtoward/2 (2.5.0)
+  (include <unistd.h>)
+  (include <fenv.h>)
   (include <zigurat.h>)
   (include <zeytun.h>)
 

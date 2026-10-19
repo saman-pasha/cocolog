@@ -313,8 +313,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 64 `.pl` cases in `pl_names/1`
--- **71 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 65 `.pl` cases in `pl_names/1`
+-- **72 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -334,6 +334,17 @@ links the engine) and runs the 64 `.pl` cases in `pl_names/1`
   loop ends on a failed accept. A socket file the same way,
   `unix_listening/1` (`lsof -U`'s `type=STREAM (LISTEN)`): the file is
   there from the bind, and a connect before the listen is refused.
+* **The suite loads `library/*.so` and does not build them**: run `make
+  modules` after pulling, or when a module's source is newer than its
+  `.so`. A stale `library/tcp.so` predating `unix(Path)` failed tcp, httpd,
+  websocket and curl in one run; the modules are build output nobody
+  commits, so this is a property of the checkout, not of the tree.
+* **`proc_until/3`'s budget is wall-clock** (2.5.0): it reads `get_time/1`
+  and ends when the budget has elapsed, not after that many sleeps. The old
+  form counted only `proc_sleep`, so `unix_listening/1` -- whose `lsof`
+  prints no unix-socket state on macOS -- spent each try's own time on top
+  and took ~26 s against its eight, outlasting the ten-second accepts in
+  the tcp, websocket and curl fixtures.
 * **`proc_run/4`'s deadline is the monotonic clock's** (1.11.0). Through
   1.10.28 each poll was charged its whole 200 ms step though a poll with
   data waiting returns at once with one 4096-byte read: a child printing
@@ -1695,9 +1706,10 @@ cocolint index offers no import of it.
   a shift calls the two helpers**; neither `(>> a b)` nor `(<< a b)` on
   values a program gave is sound.
 * **Integers are 64 bits** (2.0.0; 61 through 1.15, past which arithmetic
-  wrapped in silence). A cell holds 61 (INT, tag 2, `coco-fits-cell`); a
-  value past them is BOXED, a BIG cell (tag 7) whose payload indexes
-  `m->bigs`, i64 (`coco_big_entry`). `coco_new_int` boxes only past the 61
+  wrapped in silence). An INT cell holds a 60-bit payload (tag 2, four tag
+  bits since 2.5.0, `coco-fits-cell`), -2^59 .. 2^59-1; a value past it is
+  BOXED, a BIG cell (tag 7) whose payload indexes `m->bigs`, i64
+  (`coco_big_entry`). `coco_new_int` boxes only past the 60
   and `coco_int_val` reads either kind: **canonical by range**, so an INT
   never equals a BIG and two INT cells still compare by word, while two
   BIGs compare by value, as floats do. **A new reader of an integer asks
@@ -1716,20 +1728,79 @@ cocolint index offers no import of it.
   such a numeral. **The guards stop where they cannot decide** -- a result
   past 64 bits, the least integer // -1, its negation, a shift that loses
   a bit, a BIG operand -- and AG_ISF/AG_ISV hand a result past the cell's
-  61 bits to the step, which boxes it; GUARDX (`coco_env_guardx`) works on
+  60 bits to the step, which boxes it; GUARDX (`coco_env_guardx`) works on
   the CELLS (A+B is CA-2+CB, A-B CA-CB+2, A*B (CA-2)*B+2), where a 64-bit
-  overflow is exactly a result past the 61. The index keys a BIG as 0, as
-  FLT and STR (`coco_arg_key`, `coco_cell_key`, `coco_store_arg_key`); the
-  tables reclaim `bigs` with the floats and strings (`bb`, `bfree`); a
-  frozen machine carries them in a `B` section after `U`, each entry in hex;
-  two integers are ordered exactly and an integer and a float as doubles,
-  the float first when they are equal (`coco_num_order`, swipl 9.0.4's).
-  `bounded` is `true`, `max_integer`/`min_integer` ±2^63 (less one above),
-  `max_tagged_integer`/`min_tagged_integer` the cell's 2^60-1 and -2^60. A
+  overflow is exactly a result past the 60. The index keys a BIG or a RAT
+  as 0, as FLT and STR (`coco_arg_key`, `coco_cell_key`,
+  `coco_store_arg_key`); the tables reclaim `bigs` with the floats and
+  strings (`bb`, `bfree`); a frozen machine carries them in a `B` section
+  after `U`, each entry in hex; two integers are ordered exactly and an
+  integer and a float as doubles, the float first when they are equal
+  (`coco_num_order`, swipl 9.0.4's). `bounded` is `true`,
+  `max_integer`/`min_integer` ±2^63 (less one above),
+  `max_tagged_integer`/`min_tagged_integer` the cell's 2^59-1 and -2^59. A
   module reads either kind with `coco_m_int` and raises with
   `coco_m_evaluation_error`. `test/engine.pl`'s `integers_64` (and the
   shifts) hold it; twelve arms red; tools/flow/zero.sh against 1.15.0:
   nrev -0.16 %, queens +0.26 %, lookup +0.38 %.
+* **A rational is its own cell tag** (2.5.0). The cell layout gives four
+  bits to the tag and 60 to the payload, so the ninth tag exists: RAT, 8.
+  Its payload names `m->rats`, `coco_rat {i64 n, i64 d}`, reduced with
+  d > 1 (`coco_new_rat`; d = 1 is an integer). `coco-rat-p` and
+  `coco-rat-index` are the readers; `coco-is-int` is an INT or a BIG,
+  never a RAT, and every tag switch has its RAT arm beside the BIG one
+  (unify's two walks, the store's matcher, `cc_match_const`, the writer,
+  the numbervar writer, the evaluator, the table mark). **The four-bit tag
+  moved every payload from bit 3 to bit 4**: an INT keeps 60 bits and the
+  largest inline integer is 2^59-1. A frozen machine's header is
+  `cocolog 2`; a format-1 blob (the three-bit layout, through 2.4.1) is
+  upgraded as it thaws (`coco_thaw_upgrade`): its tags are re-encoded,
+  a BIG with bit 63 set was a rational, and an INT that no longer fits is
+  boxed after the `B` and `R` sections are read, so old indices still
+  name what they named. A literal `1r2` is one lexer token
+  (`COCO_TK_RAT`), the writer prints `N r D` in every mode, and `1r0` is
+  `illegal_number`. Order is exact (cross-products in i128); equal values
+  tie float < rational < integer; a RAT never equals an integer, canonical
+  form making one impossible. Arithmetic is exact -- `+ - * / rdiv`, `**`
+  over an integer exponent, `rational/1`, `rationalize/1`, numerator and
+  denominator, the roundings, the float parts, `abs`, `sign` -- and
+  anything past 64 bits raises int_overflow; an integer-only operator names
+  the rational (`coco_not_integer_rat`). The evaluator reports a rational as
+  `isf` 2 with the pair in `m->arith_n`/`m->arith_d`, NOT as out-parameters:
+  `coco_arith` recurses seven times for one `is`, and the old signature is
+  the hot path. The table is reclaimed with the floats (`coco_tables_mark`'s
+  `rb`, `rfree`) and a frozen machine carries it in an `R` section after
+  `B`. **The machine's new fields are APPENDED**, never inserted: a field in
+  the middle moves every offset after it, and this file's record has that
+  costing a build before. (Appending changed nothing measurable on this
+  occasion; it is the rule, not this measurement's cure.) The residual cost,
+  five alternating pairs of user time against the released 2.4.1 binary in
+  one sitting: nrev +4.7 % (1.258 s to 1.317 s), queens -0.1 % and lookup
+  -1.3 %; a rational-only build before the four-bit tag refactor measured
+  +4.0 % on nrev, so the refactor's own share is under one pair's noise. The
+  clause runners' addresses moved with the new code before them, and a move
+  of 32 bytes has cost more than this before (`lib/kb.cicili`, 1.13.0).
+* **The arithmetic and text surface closed to SWI's** (2.5.0): `atan/2`,
+  `atan2/2`, `sinh cosh tanh asinh acosh atanh log10 lgamma erf erfc`,
+  `copysign`, `nexttoward`, `ceil`, `lcm`, `lsb`, `popcount`, `getbit`,
+  `powm`, `eval`, `roundtoward` (the C rounding mode around its first
+  argument, read before its arguments are), `cputime`, `random/1` and
+  `random_float/0` with `set_random/1` and `random_property/1`
+  (xoshiro128**, lazily seeded; the state is `'$rng_state'(A,B,C,D)` hex
+  atoms, and it is not frozen), and the text predicates `atom_to_term/3`,
+  `read_term_from_atom/3`, `term_string/3`, `text_to_string/2`,
+  `atomics_to_string/2,3`, `atomic_concat/3` and `get_string_code/3`.
+  `atom_concat/3` and `string_concat/3` are CLAUSES now, over the
+  `$atom_concat`/`$string_concat` C helpers, so (-,-,+) enumerates every
+  split through `'$text_split_at'/5`; each helper also decides (+,-,+) and
+  (-,+,+) itself, a prefix test or a suffix test. `test/string.pl` holds the
+  public modes; test/solve.cicili's bare engine loads no builtins module and
+  tests the private helpers. `number_codes/2` and
+  `number_chars/2` read with `coco_read_number_text`, which insists the
+  whole text is the number: a trailing space, a `.` or any junk is
+  `syntax_error(illegal_number)`. `test/rationals.pl` and
+  `test/files/rationals.pl` hold the new surface (the second runs under
+  both systems).
 * **A refused allocation raises resource_error(memory)** (1.10.28). A
   doubling refused is tried again with what is needed and a sixteenth
   (`coco_grow_short` for the machine's arrays, `coco_eng_grow` for the

@@ -274,8 +274,11 @@ socket_files(D) :-
 %% file and echoes, and is killed (9) while it listens, as a crash would
 %% be. Its file stays; nobody answers on it, so this process's listen
 %% replaces it. Spawned with no `timeout' in front, because the kill has to
-%% reach the cocolog itself; it stops listening on its own after twenty
-%% seconds in any case.
+%% reach the cocolog itself; it stops listening on its own after a minute
+%% (or twenty seconds once the round trip is done) in any case. THE FIRST
+%% ACCEPT WAITS A MINUTE because `unix_listening' has no lsof state to find
+%% on macOS: it spends its whole budget and goes on, and the ten seconds
+%% this fixture used to allow had run out before the connect.
 a_leftover(D) :-
     section('a leftover: the socket file of a server that was killed is replaced'),
     atom_concat(D, '/left.sock', P),
@@ -285,7 +288,7 @@ a_leftover(D) :-
               '',
               'serve(P) :-',
               '    tcp_listen(unix(P), S),',
-              '    tcp_accept(S, 10000, C, _),',
+              '    tcp_accept(S, 60000, C, _),',
               '    tcp_read(C, 4096, 5000, Codes),',
               '    append(Codes, [32,98,97,99,107], Reply),   % " back"',
               '    tcp_write(C, Reply),',

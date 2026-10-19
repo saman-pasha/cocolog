@@ -130,9 +130,14 @@
 
            ;; Wait for a condition, the until-loop of every server
            ;; start: try the goal every StepMs until it proves or the
-           ;; budget runs out. The goal is retried, not the world --
-           ;; polling is the caller's stated intent here.
-           "proc_until(Goal, BudgetMs, StepMs) :- ( BudgetMs =< 0 -> fail ; call(Goal) -> true ; proc_sleep(StepMs), B1 is BudgetMs - StepMs, proc_until(Goal, B1, StepMs) )."
+           ;; budget has run out. The goal is retried, not the world --
+           ;; polling is the caller's stated intent here. THE BUDGET IS
+           ;; WALL-CLOCK (2.5.0), not a sum of the sleeps: the old one
+           ;; counted only proc_sleep, so on macOS -- where lsof prints
+           ;; no unix-socket state -- `unix_listening''s eight seconds
+           ;; spent each try's own time on top and took twenty-six.
+           "proc_until(Goal, BudgetMs, StepMs) :- get_time(T0), proc_until(Goal, T0, BudgetMs, StepMs)."
+           "proc_until(Goal, T0, BudgetMs, StepMs) :- get_time(T), ( (T - T0) * 1000 >= BudgetMs -> fail ; call(Goal) -> true ; proc_sleep(StepMs), proc_until(Goal, T0, BudgetMs, StepMs) )."
 
            ;; Kill and reap, the suite-teardown pair: 15 first, a
            ;; moment to die well, then 9 -- and always the wait, so a

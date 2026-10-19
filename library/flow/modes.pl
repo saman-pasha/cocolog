@@ -25,6 +25,7 @@ flow_test(var, 1).
 flow_test(nonvar, 1).
 flow_test(atom, 1).
 flow_test(number, 1).
+flow_test(rational, 1).
 flow_test(integer, 1).
 flow_test(float, 1).
 flow_test(atomic, 1).
@@ -68,6 +69,7 @@ flow_mode(atom_number, 2, ['-', '+'], det).
 flow_mode(number_codes, 2, ['+', '-'], det).
 flow_mode(number_codes, 2, ['-', '+'], det).
 flow_mode(atom_concat, 3, ['+', '+', '-'], det).
+flow_mode(atom_concat, 3, ['-', '-', '+'], nondet).
 flow_mode(atom_concat, 3, ['?', '?', '?'], semidet).
 flow_mode(sub_atom, 5, ['+', '?', '?', '?', '?'], nondet).
 flow_mode(atomic_list_concat, 2, ['+', '-'], det).
@@ -181,12 +183,31 @@ flow_mode(string_bytes, 3, ['-', '+', '+'], det).
 flow_mode(string_to_atom, 2, ['+', '-'], det).
 flow_mode(string_to_atom, 2, ['-', '+'], det).
 flow_mode(string_concat, 3, ['+', '+', '-'], det).
+flow_mode(string_concat, 3, ['-', '-', '+'], nondet).
 flow_mode(string_length, 2, ['+', '-'], det).
 flow_mode(string_lower, 2, ['+', '-'], det).
 flow_mode(string_upper, 2, ['+', '-'], det).
 flow_mode(split_string, 4, ['+', '+', '+', '-'], det).
 flow_mode(term_string, 2, ['+', '-'], det).
 flow_mode(term_string, 2, ['-', '+'], det).
+%% ---- the text predicates added with the rationals (2.5.0) ---------------
+flow_mode(term_string, 3, ['+', '-', '+'], det).
+flow_mode(term_string, 3, ['-', '+', '+'], det).
+flow_mode(atom_to_term, 3, ['+', '-', '-'], det).
+flow_mode(read_term_from_atom, 3, ['+', '-', '+'], det).
+flow_mode(text_to_string, 2, ['+', '-'], det).
+flow_mode(text_to_string, 2, ['+', '+'], semidet).
+flow_mode(atomics_to_string, 2, ['+', '-'], det).
+flow_mode(atomics_to_string, 2, ['+', '+'], semidet).
+flow_mode(atomics_to_string, 3, ['+', '+', '-'], det).
+flow_mode(atomics_to_string, 3, ['+', '+', '+'], semidet).
+flow_mode(atomic_concat, 3, ['+', '+', '-'], det).
+flow_mode(atomic_concat, 3, ['+', '+', '+'], semidet).
+flow_mode(get_string_code, 3, ['+', '+', '-'], det).
+flow_mode(get_string_code, 3, ['+', '+', '+'], semidet).
+flow_mode(rational, 3, ['?', '-', '-'], det).
+flow_mode(set_random, 1, ['+'], det).
+flow_mode(random_property, 1, ['?'], semidet).
 flow_mode(text_concat, 3, ['+', '+', '-'], det).
 flow_mode(text_concat, 3, ['?', '?', '?'], nondet).
 flow_mode(write_term, 2, ['+', '+'], det).

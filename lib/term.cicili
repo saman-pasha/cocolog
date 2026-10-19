@@ -14,23 +14,25 @@
 ;;; walker, and it is why the tag lives in the low bits of a word instead of in
 ;;; a struct with a pointer in it.
 ;;;
-;;; THE CELL. Low 3 bits are the tag, the remaining 61 are the payload:
+;;; THE CELL. Low 4 bits are the tag, the remaining 60 are the payload:
 ;;;
 ;;;   REF   payload is the cell this one points at; pointing at ITSELF is what
 ;;;         "unbound variable" means, so a fresh variable needs no separate
 ;;;         flag and dereferencing needs no null check.
 ;;;   ATOM  payload is an atom id -- an index into the machine's name table.
-;;;   INT   payload IS the value, shifted; 61 bits signed, recovered with an
+;;;   INT   payload IS the value, shifted; 60 bits signed, recovered with an
 ;;;         arithmetic shift so the sign comes back with it.
 ;;;   FUN   payload is a functor id -- an index into the functor table, which
 ;;;         holds {name atom, arity}. The arity is therefore not squeezed into
 ;;;         the cell and is not bounded by it.
 ;;;   FLT   payload indexes the float table, because a double does not fit in
-;;;         61 bits and pretending otherwise would silently lose the mantissa.
+;;;         60 bits and pretending otherwise would silently lose the mantissa.
 ;;;   BIG   payload indexes the integer table (2.0.0): an integer of 64 bits
-;;;         that the 61 an INT keeps cannot hold. CANONICAL BY RANGE -- a value
+;;;         that the 60 an INT keeps cannot hold. CANONICAL BY RANGE -- a value
 ;;;         that fits an INT is never boxed -- so two INTs are equal exactly
 ;;;         when their words are, and an INT never equals a BIG.
+;;;   RAT   payload indexes the rational table (2.5.0): N/D in lowest terms,
+;;;         D > 1. A denominator of 1 is the integer, never a RAT.
 ;;;
 ;;; A COMPOUND TERM IS ITS HEADER. If the cell at index t is a FUN, the term is
 ;;; a compound and its arguments are the cells at t+1 .. t+arity. There is no
@@ -63,16 +65,19 @@
 (DEFPARAMETER *cell-tags*
   '((REF  0 "the cell this one points at; itself when unbound")
     (ATOM 1 "an atom id -- an index into the name table")
-    (INT  2 "the value itself, shifted left by 3")
+    (INT  2 "the value itself, shifted left by 4")
     (FUN  3 "a functor id -- an index into the functor table")
     (FLT  4 "an index into the float table")
     (STR  5 "an index into the string table -- SWI's string type")
     ;; never part of a term a program can reach: a cell of a clause's
     ;; environment that a continuation names (Stage 5, `coco_env_take')
     (POS  6 "a goal of an environment: the distance back to its header over bit 16, the goal's index under it")
-    ;; an integer past the 61 bits an INT keeps (2.0.0), boxed as a float
+    ;; an integer past the 60 bits an INT keeps (2.0.0), boxed as a float
     ;; is: never a value an INT could hold, so the two kinds never meet
-    (BIG  7 "an index into the integer table -- a value past the 61 bits a cell holds")))
+    (BIG  7 "an index into the integer table -- a value past the 60 bits a cell holds")
+    ;; a rational (2.5.0), N/D in lowest terms with D > 1: the ninth tag the
+    ;; 3-bit layout had no room for
+    (RAT  8 "an index into the rational table -- N/D, reduced, D > 1")))
 
 (DEFUN tag-value (name)
   "The numeric tag NAME stands for, at macro-expansion time."
@@ -100,33 +105,43 @@
 ;;; once, so they are macros -- and `tag-is' folds to a literal comparison.
 
 ;;; the tag of a cell
-(DEFMACRO coco-tag (c) `(cast int (bitand ,c 7)))
+(DEFMACRO coco-tag (c) `(cast int (bitand ,c 15)))
 
 ;;; is this cell tagged NAME? NAME is a tag-table name, resolved here.
-(DEFMACRO coco-tag-is (name c) `(== (cast int (bitand ,c 7)) ,(tag-value name)))
+(DEFMACRO coco-tag-is (name c) `(== (cast int (bitand ,c 15)) ,(tag-value name)))
 
 ;;; the raw payload, unsigned
-(DEFMACRO coco-payload (c) `(>> ,c 3))
+(DEFMACRO coco-payload (c) `(>> ,c 4))
 
 ;;; the payload of an INT cell, signed -- an arithmetic shift, so the sign of a
 ;;; negative integer survives the round trip. C leaves >> on a signed type
 ;;; implementation-defined for negatives in the standard and arithmetic in
 ;;; every compiler this targets; the cast makes which one is meant explicit.
-(DEFMACRO coco-signed-payload (c) `(>> (cast i64 ,c) 3))
+(DEFMACRO coco-signed-payload (c) `(>> (cast i64 ,c) 4))
 
 ;;; build a cell of tag NAME with payload V
-(DEFMACRO coco-cell (name v) `(bitor (<< (cast u64 ,v) 3) ,(tag-value name)))
+(DEFMACRO coco-cell (name v) `(bitor (<< (cast u64 ,v) 4) ,(tag-value name)))
 
 ;;; build an INT cell from a signed value
-(DEFMACRO coco-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 3) ,(tag-value 'INT)))
+(DEFMACRO coco-int-cell (v) `(bitor (<< (cast u64 (cast i64 ,v)) 4) ,(tag-value 'INT)))
 
-;;; DOES V FIT THE 61 BITS AN INT CELL KEEPS (2.0.0)? Shifted up and back
+;;; DOES V FIT THE 60 BITS AN INT CELL KEEPS (2.0.0)? Shifted up and back
 ;;; down arithmetically, a value that fits comes back itself. V is read
 ;;; twice: a variable, never a call.
-(DEFMACRO coco-fits-cell (v) `(== (>> (cast i64 (<< (cast u64 ,v) 3)) 3) (cast i64 ,v)))
+(DEFMACRO coco-fits-cell (v) `(== (>> (cast i64 (<< (cast u64 ,v) 4)) 4) (cast i64 ,v)))
 
 ;;; an integer of either kind: in the cell (INT) or boxed (BIG)
 (DEFMACRO coco-is-int (c) `(or (coco-tag-is INT ,c) (coco-tag-is BIG ,c)))
+
+;;; A RATIONAL HAS ITS OWN TAG (2.5.0). Four tag bits make room for the
+;;; ninth; the payload names an entry of `m->rats', a reduced N/D with
+;;; D > 1. It is a number in the index keys' eyes, so both a RAT and a BIG
+;;; key as 0 (`coco_arg_key', `coco_cell_key', `coco_store_arg_key').
+(DEFMACRO coco-rat-p (c) `(coco-tag-is RAT ,c))
+(DEFMACRO coco-big-p (c) `(coco-tag-is BIG ,c))
+(DEFMACRO coco-rat-index (c) `(coco-payload ,c))
+;;; build a rational cell from a table index
+(DEFMACRO coco-rat-cell (v) `(coco-cell RAT ,v))
 
 ;;; THE TRAIL'S PAIR BIT (1.12.0): a trail word with it set is one of the
 ;;; two words of a VALUE entry, `setarg/3''s -- the cell holding the old
@@ -305,6 +320,15 @@
     (member char *   p)
     (member size_t   n))
 
+  ;;; A RATIONAL NUMBER (2.5.0): N/D, always reduced with D > 0, and never
+  ;;; with D = 1 -- that is an integer. Both fit 64 bits, as every other
+  ;;; integer here does; a numerator or denominator past them raises
+  ;;; `evaluation_error(int_overflow)' where SWI would go on in a bignum.
+  ;;; The table is reclaimed with the floats and strings.
+  (struct coco_rat
+    (member i64      n)
+    (member i64      d))
+
   ;;; {name, arity}. Interned, so two compounds with the same functor share an
   ;;; id and comparing functors is comparing integers.
   (struct coco_functor
@@ -403,13 +427,19 @@
     (member size_t     floats_len)
     (member size_t     floats_cap)
 
-    ;; INTEGERS PAST THE 61 BITS A CELL KEEPS (2.0.0), boxed as the
+    ;; INTEGERS PAST THE 60 BITS A CELL KEEPS (2.0.0), boxed as the
     ;; doubles above are: a BIG cell names an entry, made by
     ;; `coco_new_int' for a value no INT holds, and reclaimed with the
     ;; floats (`coco_tables_reclaim')
     (member i64 *      bigs)
     (member size_t     bigs_len)
     (member size_t     bigs_cap)
+
+    ;; RATIONAL NUMBERS (2.5.0), boxed as the integers above are: a RAT cell
+    ;; names an entry, made by `coco_new_rat', and reclaimed with the floats.
+    (member coco_rat * rats)
+    (member size_t     rats_len)
+    (member size_t     rats_cap)
 
     ;; HOW THE READER TURNS `"..."' INTO A TERM: 0 codes, 1 chars, 2 atom,
     ;; 3 string -- SWI's four `double_quotes' values. It lives on the MACHINE
@@ -582,6 +612,10 @@
     (member size_t *   bfree)
     (member size_t     nbfree)
     (member size_t     bfree_cap)
+    ;; ...and the rational table's (2.5.0), `coco_new_rat''s
+    (member size_t *   rfree)
+    (member size_t     nrfree)
+    (member size_t     rfree_cap)
     ;; entries made since the last reclamation. The reclamation runs only
     ;; once `tlimit' of them and half the heap's length were made, or
     ;; garbage_collect/0 asked -- its own cost is the words it looks at,
@@ -646,7 +680,23 @@
     ;; memberchk/2's countdown of the cells of its list, armed from the
     ;; heap's length (1.10.19): a list that is its own tail reaches 0. Here
     ;; for cbudget's reason -- a local cost the loop two spills a cell
-    (member size_t     lbudget))
+    (member size_t     lbudget)
+
+    ;; THE RATIONAL PAIR THE EVALUATOR LAST MADE (2.5.0). `coco_arith' hands
+    ;; a rational back as `isf' 2 and these two cells rather than as two more
+    ;; out-parameters: it recurses seven times for one `is', and three more
+    ;; pointers cost every call its prologue. APPENDED, never inserted: the
+    ;; machine is read on every step, and a field put in the middle moves
+    ;; every offset after it. (Appending did not move the 4 % naive reverse
+    ;; showed; it is prudence, not the cure.)
+    (member i64        arith_n)
+    (member i64        arith_d)
+
+    ;; THE PSEUDO-RANDOM GENERATOR (2.5.0): xoshiro128**, seeded on its first
+    ;; draw or by set_random/1. Deliberately not part of a frozen machine --
+    ;; the state is not computation a thaw should go on with. Appended too.
+    (member u32        rng [4])
+    (member int        rng_ready))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -1060,12 +1110,14 @@
         (free (-> m functor_buckets))
         (free (-> m floats))
         (free (-> m bigs))
+        (free (-> m rats))
         (for ((size_t i . 0)) (< i (-> m strings_len)) ((++ i))
           (free ($ (nth i (-> m strings)) p)))
         (free (-> m strings))
         (free (-> m ffree))
         (free (-> m sfree))
         (free (-> m bfree))
+        (free (-> m rfree))
         (free (-> m trail))
         (free (-> m heap))
         (free (-> m hroots))
@@ -1860,7 +1912,7 @@
           (if (== i (cast size_t -1)) (return 0))
           (return (coco_push m (coco-cell BIG i)))))
 
-  ;;; ANY 64-BIT INTEGER AS A TERM (2.0.0): in the cell when the 61 bits an
+  ;;; ANY 64-BIT INTEGER AS A TERM (2.0.0): in the cell when the 60 bits an
   ;;; INT keeps hold it, boxed otherwise -- canonical by range, which is
   ;;; what lets unification compare two INTs as words.
   (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t)
@@ -1873,6 +1925,188 @@
   (func coco_int_val ((coco_machine * m) (u64 c)) (out i64)
         (if (coco-tag-is INT c) (return (coco-signed-payload c)))
         (return (nth (cast size_t (coco-payload c)) (-> m bigs))))
+
+  ;;; ---- rational numbers (2.5.0) ----------------------------------------
+  ;;;
+  ;;; N/D in lowest terms, D > 0, and D = 1 is never a RAT: SWI's canonical
+  ;;; form, which is what makes `1r2 == 2r4' and what makes `1r1' the
+  ;;; integer 1. Both fit 64 bits; a value past them fails here and the
+  ;;; arithmetic raises `evaluation_error(int_overflow)' where SWI bignums.
+
+  (static)
+  (func coco_rat_gcd ((u64 a) (u64 b)) (out u64)
+        (while (!= b 0)
+          (let ((u64 t . b))
+            (set b (% a b))
+            (set a t)))
+        (return a))
+
+  ;;; N and D reduced in place. 0 when D is zero or a sign change would step
+  ;;; outside 64 bits (only D = -2^63, or N = -2^63 under it).
+  (static)
+  (func coco_rat_reduce ((i64 * n) (i64 * d)) (out int)
+        (if (== (cof d) 0) (return 0))
+        (if (< (cof d) 0)
+            (block
+             (if (== (cof d) (- -9223372036854775807 1)) (return 0))
+             (if (== (cof n) (- -9223372036854775807 1)) (return 0))
+             (set (cof n) (- 0 (cof n)))
+             (set (cof d) (- 0 (cof d)))))
+        (let ((u64 a . #'(cast u64 (cof n)))
+              (u64 b . #'(cast u64 (cof d)))
+              (u64 g . 0))
+          (if (< (cof n) 0) (set a (- 0 a)))
+          (set g (coco_rat_gcd a b))
+          (set (cof n) (/ (cof n) (cast i64 g)))
+          (set (cof d) (/ (cof d) (cast i64 g)))
+          (return 1)))
+
+  ;;; AN ENTRY OF THE RATIONAL TABLE, a free one first as a float takes its
+  ;;; own; (size_t) -1 when the table cannot grow.
+  (func coco_rat_entry ((coco_machine * m) (i64 n) (i64 d)) (out size_t)
+        (let ((size_t i))
+          (if (> (-> m nrfree) 0)
+              (block
+               (set (-> m nrfree) (- (-> m nrfree) 1))
+               (set i (nth (-> m nrfree) (-> m rfree))))
+            (block
+             (if (not (coco_grow m (cast (void **) (aof (-> m rats)))
+                               (aof (-> m rats_cap)) (+ (-> m rats_len) 1)
+                               (sizeof coco_rat)))
+                 (return (cast size_t -1)))
+             (set i (-> m rats_len))
+             (set (-> m rats_len) (+ (-> m rats_len) 1))))
+          (set ($ (nth i (-> m rats)) n) n)
+          (set ($ (nth i (-> m rats)) d) d)
+          (coco_table_made m)
+          (return i)))
+
+  ;;; N/D AS A TERM (2.5.0): an integer when the denominator is 1, else a
+  ;;; RAT cell. Answers (size_t) -1 when the pair is not representable in 64
+  ;;; bits or the table cannot grow -- 0 is a heap cell like any other -- and
+  ;;; the caller raises (int_overflow or memory).
+  (func coco_new_rat ((coco_machine * m) (i64 n) (i64 d)) (out size_t)
+        (let ((i64 nn . n) (i64 dd . d))
+          (if (not (coco_rat_reduce (aof nn) (aof dd)))
+              (return (cast size_t -1)))
+          (if (== dd 1) (return (coco_new_int m nn)))
+          (let ((size_t i . #'(coco_rat_entry m nn dd)))
+            (if (== i (cast size_t -1)) (return (cast size_t -1)))
+            (return (coco_push m (coco-rat-cell i))))))
+
+  ;;; THE NUMERATOR AND DENOMINATOR A RAT CELL NAMES.
+  (static) (inline)
+  (func coco_rat_nd ((coco_machine * m) (u64 c) (i64 * n) (i64 * d)) (out void)
+        (let ((size_t i . #'(coco-rat-index c)))
+          (set (cof n) ($ (nth i (-> m rats)) n))
+          (set (cof d) ($ (nth i (-> m rats)) d))))
+
+  ;;; TWO RAT CELLS ARE ONE TERM WHEN THEIR PAIRS ARE (reduced at the entry,
+  ;;; so the pair IS the value, as a float's bits are its identity).
+  (func coco_rat_eq ((coco_machine * m) (u64 ca) (u64 cb)) (out int)
+        (let ((size_t ia . #'(coco-rat-index ca))
+              (size_t ib . #'(coco-rat-index cb)))
+          (return (? (and (== ($ (nth ia (-> m rats)) n) ($ (nth ib (-> m rats)) n))
+                          (== ($ (nth ia (-> m rats)) d) ($ (nth ib (-> m rats)) d)))
+                     1 0))))
+
+  ;;; THE EXACT RATIONAL A DOUBLE IS (SWI's `rational/1'), by its bits and
+  ;;; without <math.h>: value = mant * 2^E, E from the exponent field, the
+  ;;; mantissa stripped of its trailing zeros, then shifted into N and D.
+  ;;; 0 when N or D would not fit i64 (a NaN or an infinity included), which
+  ;;; is where SWI bignums and the caller raises int_overflow, or falls back
+  ;;; to comparing doubles.
+  (static)
+  (func coco_double_rat ((double x) (i64 * n) (i64 * d)) (out int)
+        (let ((i64 bits . 0) (int neg . 0) (int ex . 0) (u64 man . 0)
+              (i64 e2 . 0) (i64 nn . 0) (i64 dd . 1) (i64 lim . 9223372036854775807))
+          (memcpy (aof bits) (aof x) (sizeof double))
+          (set neg (? (< bits 0) 1 0))
+          (set ex (cast int (bitand (>> (cast u64 bits) 52) 2047)))
+          (set man (bitand (cast u64 bits) 4503599627370495))
+          (if (== ex 2047) (return 0))
+          (if (== ex 0)
+              (block
+               ;; subnormal: man * 2^-1074
+               (if (== man 0) (block (set (cof n) 0) (set (cof d) 1) (return 1)))
+               (set e2 -1074))
+            (block
+             ;; normal: (2^52 + man) * 2^(ex - 1075)
+             (set man (+ man 4503599627370496))
+             (set e2 (cast i64 (- ex 1075)))))
+          ;; strip the trailing zeros, so N and D are coprime from here
+          (while (and (> man 0) (== 0 (bitand man 1)))
+            (set man (>> man 1))
+            (set e2 (+ e2 1)))
+          (if (>= e2 0)
+              (block
+               (if (> e2 62) (return 0))
+               (if (> man (cast u64 (>> lim e2))) (return 0))
+               (set nn (cast i64 (<< man (cast u64 e2))))
+               (set dd 1))
+            (block
+             (if (> (- 0 e2) 62) (return 0))
+             (set nn (cast i64 man))
+             (set dd (cast i64 (<< (cast u64 1) (cast u64 (- 0 e2)))))))
+          (if neg (set nn (- 0 nn)))
+          (set (cof n) nn)
+          (set (cof d) dd)
+          (return 1)))
+
+  ;;; A NUMBER CELL AS AN EXACT N/D: a RAT's pair, an integer over 1, or the
+  ;;; exact value of a float. 0 for a float that is no number or one whose
+  ;;; exact fraction exceeds i64.
+  (static)
+  (func coco_rat_side ((coco_machine * m) (u64 c) (i64 * n) (i64 * d)) (out int)
+        (cond
+          ((coco-rat-p c)
+           (block (coco_rat_nd m c n d) (return 1)))
+          ((coco-is-int c)
+           (block (set (cof n) (coco_int_val m c)) (set (cof d) 1) (return 1)))
+          ((coco-tag-is FLT c)
+           (return (coco_double_rat (nth (cast size_t (coco-payload c)) (-> m floats)) n d)))
+          (#t (return 0))))
+
+  ;;; THE SIMPLEST RATIONAL NEAR A DOUBLE (SWI's `rationalize/1'), by its
+  ;;; continued fraction; the convergent whose terms leave 64 bits is not
+  ;;; taken, so an answer always fits. Answers 0 for a number that is no
+  ;;; number, or whose integer part alone leaves 64 bits (SWI bignums).
+  (static)
+  (func coco_rat_approx ((double x) (i64 * n) (i64 * d)) (out int)
+        (let ((int neg . #'(? (< x 0.0) 1 0))
+              (double v . #'(? (< x 0.0) (- 0 x) x))
+              (i128 lo . #'(- 0 (cast i128 9223372036854775807)))
+              (i128 hi . #'(cast i128 9223372036854775807))
+              (i128 h0 . 0) (i128 h1 . 1) (i128 k0 . 1) (i128 k1 . 0)
+              (i128 h2 . 0) (i128 k2 . 0)
+              (i64 a . 0) (int round . 0) (int done . 0))
+          (if (or (!= v v) (>= v 9223372036854775807.0)) (return 0))
+          ;; v is non-negative and below 2^63, so a cast truncates to the
+          ;; floor; the engine test compiles this file alone, with no math.h
+          (set a (cast i64 v))
+          (while (and (not done) (< round 200))
+            (set round (+ round 1))
+            (set h2 (+ (* (cast i128 a) h1) h0))
+            (set k2 (+ (* (cast i128 a) k1) k0))
+            (if (or (< h2 lo) (> h2 hi))
+                (set done 1)
+              (if (or (< k2 0) (> k2 hi))
+                  (set done 1)
+                (block
+                 (set h0 h1) (set h1 h2)
+                 (set k0 k1) (set k1 k2)
+                 (if (== v (cast double a))
+                     (set done 1)
+                   (block
+                    (set v (/ 1.0 (- v (cast double a))))
+                    (if (or (!= v v) (>= v 9223372036854775807.0))
+                        (set done 1)
+                      (set a (cast i64 v)))))))))
+          ;; the last convergent that fit is h1/k1
+          (if (or (== k1 0) (< h1 lo) (> h1 hi)) (return 0))
+          (set (cof n) (? neg (- 0 (cast i64 h1)) (cast i64 h1)))
+          (set (cof d) (cast i64 k1))
+          (return 1)))
 
   (func coco_open_struct ((coco_machine * m) (const char * name) (u32 arity)) (out size_t)
         (let ((u64 f . #'(coco_functor_id m (coco_intern m name) arity)))
@@ -2259,11 +2493,17 @@
                                      (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
                                                                (coco_arg m a j) (coco_arg m b j)))
                                          (set ok 0)))))))))
+                    ;; a rational is its reduced pair (2.5.0)
+                    ((coco-tag-is RAT ca)
+                     (if (not (and (coco-tag-is RAT cb) (coco_rat_eq m ca cb)))
+                         (set ok 0)))
                     ;; two boxed integers, by value (2.0.0), as floats are
                     ((coco-tag-is BIG ca)
-                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
-                             (nth (cast size_t (coco-payload cb)) (-> m bigs)))
-                         (set ok 0)))
+                     (if (not (coco-big-p cb))
+                         (set ok 0)
+                       (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                               (nth (cast size_t (coco-payload cb)) (-> m bigs)))
+                           (set ok 0))))
                     (#t (set ok 0)))))
             (if (or (== ok 0) (== wlen 0))
                 (set running 0)
@@ -2353,13 +2593,20 @@
                                    (if (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
                                                              (coco_arg m a j) (coco_arg m b j)))
                                        (set ok 0))))))))
+                    ;; A RATIONAL UNIFIES WITH A RATIONAL OF THE SAME PAIR
+                    ;; (2.5.0); its tag keeps it from ever meeting an INT
+                    ((coco-tag-is RAT ca)
+                     (if (not (and (coco-tag-is RAT cb) (coco_rat_eq m ca cb)))
+                         (set ok 0)))
                     ;; TWO BOXED INTEGERS UNIFY WHEN THEIR VALUES DO (2.0.0):
                     ;; the table is not interned, as the floats' is not, and
                     ;; an INT never meets a BIG -- the tags differ above
                     ((coco-tag-is BIG ca)
-                     (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
-                             (nth (cast size_t (coco-payload cb)) (-> m bigs)))
-                         (set ok 0)))
+                     (if (not (coco-big-p cb))
+                         (set ok 0)
+                       (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                               (nth (cast size_t (coco-payload cb)) (-> m bigs)))
+                           (set ok 0))))
                     (#t (set ok 0)))))
             (if (or (== ok 0) (== wlen 0))
                 (set running 0)
@@ -3055,12 +3302,17 @@
                 ((coco-tag-is ATOM c) (return 2))
                 ((coco-tag-is STR c)  (return 3))
                 ((coco-tag-is BIG c)  (return 1))
+                ((coco-tag-is RAT c)  (return 1))
                 (#t              (return 4)))))
 
   (static)
   (func coco_num_value ((coco_machine * m) (size_t t)) (out double)
         (let ((u64 c . #'(nth t (-> m heap))))
           (if (coco-tag-is FLT c) (return (nth (cast size_t (coco-payload c)) (-> m floats))))
+          (if (coco-rat-p c)
+              (let ((i64 n . 0) (i64 d . 1))
+                (coco_rat_nd m c (aof n) (aof d))
+                (return (/ (cast double n) (cast double d)))))
           (return (cast double (coco_int_val m c)))))
 
   ;;; TWO FLOATS THAT DO NOT ORDER AS NUMBERS (2.1.1), in swipl 9.0.4's
@@ -3089,6 +3341,29 @@
           (if (and (coco-is-int ca) (coco-is-int cb))
               (let ((i64 x . #'(coco_int_val m ca)) (i64 y . #'(coco_int_val m cb)))
                 (return (? (< x y) -1 (? (> x y) 1 0)))))
+          ;; A RATIONAL ON EITHER SIDE IS COMPARED EXACTLY (2.5.0): the
+          ;; cross-products fit i128, and a float becomes the exact fraction
+          ;; its bits are, so `1r2' and `0.5' are seen for the equal numbers
+          ;; they are and the float keeps the first place, as swipl orders
+          ;; them. A float that is no number, or whose fraction will not fit
+          ;; i64, falls through to the doubles below.
+          (if (or (coco-rat-p ca) (coco-rat-p cb))
+              (let ((int oka . 0) (int okb . 0)
+                    (i64 na . 0) (i64 da . 1) (i64 nb . 0) (i64 db . 1))
+                (set oka (coco_rat_side m ca (aof na) (aof da)))
+                (set okb (coco_rat_side m cb (aof nb) (aof db)))
+                (if (and oka okb)
+                    (let ((i128 l . #'(* (cast i128 na) (cast i128 db)))
+                          (i128 r . #'(* (cast i128 nb) (cast i128 da))))
+                      (if (< l r) (return -1))
+                      (if (> l r) (return 1))
+                      ;; equal in value: swipl's tie order is float, then
+                      ;; rational, then integer -- a RAT is never an integer
+                      ;; in its canonical form, so only the float can tie it
+                      (let ((int fa . #'(? (coco-tag-is FLT ca) 1 0))
+                            (int fb . #'(? (coco-tag-is FLT cb) 1 0)))
+                        (if (== fa fb) (return 0))
+                        (return (? fa -1 1)))))))
           (let ((double x . #'(coco_num_value m a)) (double y . #'(coco_num_value m b)))
             (if (< x y) (return -1))
             (if (> x y) (return 1))

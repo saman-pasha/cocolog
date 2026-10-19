@@ -109,7 +109,11 @@
   (static)
   (func coco_freeze_image ((coco_engine * e) (coco_strbuf * b)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
-          (coco_sb_put b "cocolog 1\n")
+          ;; THE FORMAT'S VERSION (2, since the four-bit tag of 2.5.0): the
+          ;; heap below is a run of raw cell words, so the layout is part of
+          ;; the format. A format-1 blob is upgraded as it is read
+          ;; (`coco_thaw_upgrade').
+          (coco_sb_put b "cocolog 2\n")
 
           (coco_sb_put b "A ") (coco_sb_put_sz b (-> m atoms_len)) (coco_sb_putc b (cast char 10))
           (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
@@ -218,12 +222,23 @@
           (coco_sb_put b "U ")
           (coco_sb_put_sz b (cast size_t (-> m text_chars))) (coco_sb_putc b (cast char 10))
 
-          ;; THE INTEGERS PAST 61 BITS (2.0.0): the table a BIG cell names,
+          ;; THE INTEGERS PAST 60 BITS (2.0.0): the table a BIG cell names,
           ;; every entry in order -- a free one too -- so the heap's cells
           ;; name what they named; each its 64 bits in hex. Last, as `U' is.
           (coco_sb_put b "B ") (coco_sb_put_sz b (-> m bigs_len)) (coco_sb_putc b (cast char 10))
           (for ((size_t i . 0)) (< i (-> m bigs_len)) ((++ i))
             (coco_sb_put_hex b (cast u64 (nth i (-> m bigs))))
+            (coco_sb_putc b (cast char 10)))
+
+          ;; THE RATIONAL NUMBERS (2.5.0): the table a RAT cell names, every
+          ;; entry in order -- a free one too -- as their two 64-bit halves
+          ;; in hex, so the heap's cells name what they named. Last, as `B'
+          ;; is, and before `N' as both are.
+          (coco_sb_put b "R ") (coco_sb_put_sz b (-> m rats_len)) (coco_sb_putc b (cast char 10))
+          (for ((size_t i . 0)) (< i (-> m rats_len)) ((++ i))
+            (coco_sb_put_hex b (cast u64 ($ (nth i (-> m rats)) n)))
+            (coco_sb_putc b (cast char 32))
+            (coco_sb_put_hex b (cast u64 ($ (nth i (-> m rats)) d)))
             (coco_sb_putc b (cast char 10)))
 
           ;; WHAT A FLOAT THAT IS NO NUMBER BECOMES (2.2.2): the four float
@@ -356,8 +371,40 @@
               (set (-> z pos) (+ (-> z pos) 2))))
           (return 1)))
 
+  ;;; THE HEAP OF A THREE-BIT-TAG MACHINE, UPGRADED IN PLACE (2.5.0). A
+  ;;; format-1 cell's tag is its old tag number and its payload is read at
+  ;;; bit 3; the new word puts the same payload at bit 4. An INT the 60-bit
+  ;;; payload no longer holds is boxed, and a BIG that set payload bit 60
+  ;;; (cell bit 63) was the old encoding's rational. The B and R sections
+  ;;; are already read when this runs, so a boxed entry appends behind them
+  ;;; and every old index still names what it named.
+  (static)
+  (func coco_thaw_upgrade ((coco_machine * m)) (out int)
+        (for ((size_t i . 0)) (< i (-> m heap_len)) ((++ i))
+          (let ((u64 w . #'(nth i (-> m heap)))
+                (u64 tag . 0) (u64 p . 0) (u64 nw . 0))
+            (set tag (bitand w 7))
+            (set p (>> w 3))
+            (cond
+              ((== tag 2)
+               (let ((i64 v . #'(>> (cast i64 w) 3)))
+                 (if (coco-fits-cell v)
+                     (set nw (coco-int-cell v))
+                   (let ((size_t k . #'(coco_big_entry m v)))
+                     (if (== k (cast size_t -1)) (return 0))
+                     (set nw (coco-cell BIG k))))))
+              ((== tag 7)
+               (if (== 0 (bitand p (<< (cast u64 1) 60)))
+                   (set nw (coco-cell BIG p))
+                 (set nw (coco-rat-cell (bitand p (- (<< (cast u64 1) 60) 1))))))
+              ;; no table or heap of either era holds 2^60 entries
+              ((> p 1152921504606846975) (return 0))
+              (#t (set nw (bitor (<< p 4) tag))))
+            (set (nth i (-> m heap)) nw)))
+        (return 1))
+
   (func coco_thaw ((coco_engine * e) (coco_machine * m) (coco_store * st) (const char * text)) (out int)
-        (let ((coco_scan z) (coco_strbuf nm) (int ok . 1))
+        (let ((coco_scan z) (coco_strbuf nm) (int ok . 1) (int ver . 0))
           (memset (aof z) 0 (sizeof coco_scan))
           (set ($ z s) text)
           (set ($ z len) (strlen text))
@@ -385,7 +432,10 @@
             (set (-> e gc) gc))
 
           (if (not (coco_scan_word (aof z) "cocolog")) (set ok 0))
-          (if (!= 1 (cast int (coco_scan_u64 (aof z) 10))) (set ok 0))
+          (if ok (set ver (cast int (coco_scan_u64 (aof z) 10))))
+          ;; 1 is the three-bit-tag layout of every build through 2.4.1 and
+          ;; is upgraded below; 2 is this one
+          (if (and ok (and (!= ver 1) (!= ver 2))) (set ok 0))
 
           ;; ---- atoms, in order, so ids are preserved ----
           (if ok (coco_scan_word (aof z) "A"))
@@ -487,7 +537,7 @@
                (if (coco_scan_section (aof z) 85)          ; `U'
                    (set (-> m text_chars) (? (!= 0 (coco_scan_u64 (aof z) 10)) 1 0)))))
 
-          ;; ---- the integers past 61 bits (2.0.0), if it has any: appended
+          ;; ---- the integers past 60 bits (2.0.0), if it has any: appended
           ;; in order to the table `coco_machine_init' left empty, so entry I
           ;; is entry I again ----
           (if (and ok (not ($ z bad)))
@@ -496,6 +546,22 @@
                     (for ((size_t i . 0)) (and ok (< i nb)) ((++ i))
                       (if (== (coco_big_entry m (cast i64 (coco_scan_u64 (aof z) 16))) (cast size_t -1))
                           (block (set ok 0) break))))))
+
+          ;; ---- the rational numbers (2.5.0), if it has any: appended in
+          ;; order to the table `coco_machine_init' left empty, as `B' is ----
+          (if (and ok (not ($ z bad)))
+              (if (coco_scan_section (aof z) 82)          ; `R'
+                  (let ((size_t nr . #'(cast size_t (coco_scan_u64 (aof z) 10))))
+                    (for ((size_t i . 0)) (and ok (< i nr)) ((++ i))
+                      (let ((i64 nn . #'(cast i64 (coco_scan_u64 (aof z) 16)))
+                            (i64 dd . #'(cast i64 (coco_scan_u64 (aof z) 16))))
+                        (if (== (coco_rat_entry m nn dd) (cast size_t -1))
+                            (block (set ok 0) break)))))))
+
+          ;; ---- a three-bit-tag heap (format 1), upgraded once B and R are
+          ;; in place so the indices it names are the entries read ----
+          (if (and ok (== ver 1))
+              (if (not (coco_thaw_upgrade m)) (set ok 0)))
 
           ;; ---- the float flags (2.2.2), if it has them; swipl's defaults
           ;; before, which every machine frozen until then reckoned by ----

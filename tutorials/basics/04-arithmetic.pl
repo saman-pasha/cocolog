@@ -91,6 +91,24 @@ main :-
     format("   wrapped. (Through 1.15.0 it wrapped, in silence, to~n"),
     format("   875820019684212736.) For numbers that large use~n"),
     format("   library(bigint), lesson 21, or The Coco's library(u256).~n~n"),
+
+    format("~n-- RATIONALS: exact, 1r2, and an integer when they can be~n"),
+    R1 is 1r2 + 1r3, must('1r2 + 1r3', R1, 5r6),
+    R2 is 1r2 * 2, must('1r2 * 2 -- 1, an integer', R2, 1),
+    R3 is 1r2 + 0.5, must('a rational and a float make a float', R3, 1.0),
+    ( 1r2 =:= 0.5 -> R4 = true ; R4 = false ),
+    must('1r2 =:= 0.5   (the same number)', R4, true),
+    ( 1r2 == 0.5 -> R5 = true ; R5 = false ),
+    must('1r2 == 0.5   (not the same term)', R5, false),
+    ( catch(_ is 1r2 // 2, error(R6, _), true) -> true ; R6 = none ),
+    must('1r2 // 2   (the bit operations take integers)', R6,
+         type_error(integer, 1r2)),
+    R7 is rational(0.5), must('rational(0.5)', R7, 1r2),
+    R8 is rationalize(0.1), must('rationalize(0.1)', R8, 1r10),
+    format("   1r2 * 2 is the INTEGER 1: a rational is always kept in lowest~n"),
+    format("   terms, and a denominator of 1 is not a rational. The whole of~n"),
+    format("   SWI's arithmetic -- the hyperbolic functions, lcm, popcount,~n"),
+    format("   powm, atan/2, roundtoward/2 and the rest -- is beside it.~n~n"),
     format("done~n").
 
 %% ---- the two helpers every lesson here carries ------------------------

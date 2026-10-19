@@ -116,7 +116,7 @@
     ;; stops with the rest of the term unread -- `X is 12 /\ 10' quietly
     ;; became `X is 12'.
     (500  yfx "+" "-" ,*op-and* "\/" "xor")
-    (400  yfx "*" "/" "//" "div" "mod" "rem" "<<" ">>")
+    (400  yfx "*" "/" "//" "div" "mod" "rem" "<<" ">>" "rdiv")
     (200  xfx "**")
     (200  xfy "^")
     ;; `\' is the bitwise complement, prefix, sharing 200 fy with unary
@@ -340,6 +340,12 @@
         (if ,P (coco_pos_leaf r (-> r tstart) (-> r pos)))
         (return (coco_next_token r)))
 
+       ((== (-> r tok) COCO_TK_RAT)
+        (set (cof out) (coco_new_rat (-> r m) (-> r rval_n) (-> r rval_d)))
+        (if (== (cof out) (cast size_t -1)) (return (coco_fail r "out of memory")))
+        (if ,P (coco_pos_leaf r (-> r tstart) (-> r pos)))
+        (return (coco_next_token r)))
+
        ((== (-> r tok) COCO_TK_VAR)
         (set (cof out) (coco_var_for r ($ (-> r text) s)))
         (if ,P (coco_pos_leaf r (-> r tstart) (-> r pos)))
@@ -422,6 +428,11 @@
                                                   (? (== (-> r iwide) 1)
                                                      (- -9223372036854775807 1)
                                                      (- 0 (-> r ival)))))
+                     (if ,P (coco_pos_leaf r nf (-> r pos)))
+                     (return (coco_next_token r))))
+          (if (== (-> r tok) COCO_TK_RAT)
+              (block (set (cof out) (coco_new_rat (-> r m) (- 0 (-> r rval_n)) (-> r rval_d)))
+                     (if (== (cof out) (cast size_t -1)) (return (coco_fail r "out of memory")))
                      (if ,P (coco_pos_leaf r nf (-> r pos)))
                      (return (coco_next_token r))))
           (if (== (-> r tok) COCO_TK_FLOAT)
@@ -529,7 +540,8 @@
     (COCO_TK_FLOAT  . 4)
     (COCO_TK_STRING . 5)
     (COCO_TK_PUNCT  . 6)
-    (COCO_TK_END    . 7))
+    (COCO_TK_END    . 7)
+    (COCO_TK_RAT    . 8))
 
   ;;; Operator types, matching *op-types* above.
   (enum coco_optype
@@ -601,6 +613,9 @@
     ;; 1 it is 2^63 (only the least integer, negated, takes it), 2 more
     (member int          iwide)
     (member double       fval)
+    ;; A RATIONAL TOKEN'S PAIR (2.5.0), `digits r digits' as one token
+    (member i64          rval_n)
+    (member i64          rval_d)
     (member int          layout_before)   ; was there space before this token?
 
     ;; Was this NAME written in quotes? A QUOTED ATOM IS NOT AN OPERATOR:
@@ -672,6 +687,12 @@
   ;;; trailing `.'. This is what the KB backends use on text out of the
   ;;; database, and what the REPL uses on a line typed at it.
   (decl) (func coco_read_term_from ((coco_machine * m) (const char * src) (size_t * out)) (out int))
+
+  ;;; Reads a NUMBER and nothing else, for number_codes/2, number_chars/2
+  ;;; and atom_number/2 (2.5.0): leading layout and a sign written against
+  ;;; the digits are allowed, and anything after the number -- even a space
+  ;;; -- answers 0, as SWI's illegal_number rule does.
+  (decl) (func coco_read_number_text ((coco_machine * m) (const char * src) (size_t * out)) (out int))
 
   ;;; The writer. QUOTED puts quotes round an atom that needs them, so the
   ;;; output reads back; IGNORE_OPS writes `+(1,2)' instead of `1+2'. Canonical
@@ -1116,10 +1137,37 @@
                            (if (== n 0) (return (coco_fail r "digits expected after radix prefix")))
                            (coco_mag_token r v wide)
                            (return 1))))))
-        ;; plain decimal, possibly a float
+        ;; plain decimal, possibly a float, or a rational `N r D' (2.5.0):
+        ;; SWI's one-token form, no spaces and no sign after the r
         (coco_sb_reset (aof (-> r text)))
         (while (coco_is_digit (coco_peek r))
           (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+        (if (and (== (coco_peek r) (coco-ch "r")) (coco_is_digit (coco_peek_at r 1)))
+            (block
+              (coco_bump r)
+              (let ((u64 dv . 0) (int dwide . 0) (int nd . 0))
+                (while (coco_is_digit (coco_peek r))
+                  (set dwide (coco_mag_digit (aof dv) 10
+                                             (cast u64 (- (coco_peek r) (coco-ch "0")))))
+                  (set nd (+ nd 1))
+                  (coco_bump r))
+                (let ((u64 nv . 0) (int nwide . 0)
+                      (const char * ds . #'($ (-> r text) s)))
+                  (for ((size_t i . 0)) (and (not nwide) (!= (nth i ds) 0)) ((++ i))
+                    (set nwide (coco_mag_digit (aof nv) 10
+                                               (cast u64 (- (cast int (nth i ds))
+                                                            (coco-ch "0"))))))
+                  ;; a denominator of zero, or either side past 64 bits, is
+                  ;; SWI's `illegal number' here
+                  (if (or (== nd 0) (or dwide (== dv 0)))
+                      (return (coco_fail r "illegal number")))
+                  (if (or nwide (or (> nv 9223372036854775807)
+                                    (> dv 9223372036854775807)))
+                      (return (coco_fail r "integer out of range")))
+                  (set (-> r rval_n) (cast i64 nv))
+                  (set (-> r rval_d) (cast i64 dv))
+                  (set (-> r tok) COCO_TK_RAT)
+                  (return 1)))))
         (let ((int isfloat . 0) (int tag . 0))
           (if (and (== (coco_peek r) (coco-ch ".")) (coco_is_digit (coco_peek_at r 1)))
               (block (set isfloat 1)
@@ -1451,6 +1499,7 @@
   (func coco_starts_term ((coco_reader * r)) (out int)
         (cond ((== (-> r tok) COCO_TK_INT)    (return 1))
               ((== (-> r tok) COCO_TK_FLOAT)  (return 1))
+              ((== (-> r tok) COCO_TK_RAT)    (return 1))
               ((== (-> r tok) COCO_TK_VAR)    (return 1))
               ((== (-> r tok) COCO_TK_STRING) (return 1))
               ;; A NAME USUALLY STARTS A TERM, and an operator name usually
@@ -1617,6 +1666,48 @@
           (coco_reader_free (aof r))
           (return rc)))
 
+  ;;; A NUMBER AND NOTHING ELSE (2.5.0), for number_codes/2 and its kin.
+  ;;; Leading layout is allowed and a sign written against the digits; the
+  ;;; number must end the text -- a trailing space, a newline or a `.` is
+  ;;; SWI's illegal_number, which the callers raise.
+  (func coco_read_number_text ((coco_machine * m) (const char * src) (size_t * out)) (out int)
+        (let ((coco_reader r) (int ok . 0) (int neg . 0))
+          (coco_reader_init (aof r) m src)
+          (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
+          (if (== ($ r tok) COCO_TK_NAME)
+              (let ((const char * nm . #'($ r text s)))
+                (if (and (or (== 0 (strcmp nm "+")) (== 0 (strcmp nm "-")))
+                         (== 0 ($ r layout_before)))
+                    (block
+                      (set neg (? (== (nth 0 nm) (coco-ch "-")) 1 0))
+                      (if (not (coco_next_token (aof r)))
+                          (block (coco_reader_free (aof r)) (return 0))))
+                  (block (coco_reader_free (aof r)) (return 0)))))
+          (if (and (!= ($ r tok) COCO_TK_INT)
+                   (and (!= ($ r tok) COCO_TK_FLOAT) (!= ($ r tok) COCO_TK_RAT)))
+              (block (coco_reader_free (aof r)) (return 0)))
+          ;; nothing follows the number, not even layout
+          (if (!= ($ r pos) (strlen src))
+              (block (coco_reader_free (aof r)) (return 0)))
+          (cond
+            ((== ($ r tok) COCO_TK_INT)
+             ;; iwide 1 is 2^63, which only the negative literal reaches
+             (if (> ($ r iwide) (? neg 1 0))
+                 (block (coco_reader_free (aof r)) (return 0)))
+             (if (and neg (== ($ r iwide) 1))
+                 (set (cof out) (coco_new_int m (- -9223372036854775807 1)))
+               (set (cof out) (coco_new_int m (? neg (- 0 ($ r ival)) ($ r ival)))))
+             (set ok 1))
+            ((== ($ r tok) COCO_TK_FLOAT)
+             (set (cof out) (coco_new_float m (? neg (- 0 ($ r fval)) ($ r fval))))
+             (set ok 1))
+            (#t
+             (set (cof out) (coco_new_rat m (cast i64 (? neg (- 0 ($ r rval_n)) ($ r rval_n)))
+                                          (cast i64 ($ r rval_d))))
+             (if (!= (cof out) (cast size_t -1)) (set ok 1))))
+          (coco_reader_free (aof r))
+          (return ok)))
+
   ;;; ---- the writer -------------------------------------------------------
 
   ;;; An atom needs no quotes when it is a lower-case alphanumeric word, a run
@@ -1763,6 +1854,8 @@
         (set a (coco_deref m a))
         (let ((u64 c . #'(nth a (-> m heap))) (i64 n . 0))
           (cond ((coco-tag-is INT c) (set n (coco-signed-payload c)))
+                ;; a rational is no integer and names none here (2.5.0)
+                ((coco-rat-p c) (return 0))
                 ((coco-tag-is BIG c) (set n (nth (cast size_t (coco-payload c)) (-> m bigs))))
                 ((coco-tag-is ATOM c)
                  (let ((const char * s . #'(coco_atom_name m (coco_name_of m a))))
@@ -1945,7 +2038,18 @@
              (return (coco_sb_put_i64 b (cast i64 t))))
 
             ((coco-tag-is INT c) (return (coco_sb_put_i64 b (coco-signed-payload c))))
-            ;; an integer past the 61 bits a cell keeps, from its table (2.0.0)
+
+            ;; a rational is `N r D' in every write mode, as SWI writes it
+            ;; (2.5.0); the pair is already reduced and D > 1, and the tag
+            ;; keeps it apart from the boxed integers (four tag bits, 2.5.0)
+            ((coco-rat-p c)
+             (let ((i64 n . 0) (i64 d . 1))
+               (coco_rat_nd m c (aof n) (aof d))
+               (coco_sb_put_i64 b n)
+               (coco_sb_putc b (cast char (coco-ch "r")))
+               (return (coco_sb_put_i64 b d))))
+
+            ;; an integer past the 60 bits a cell keeps, from its table (2.0.0)
             ((coco-tag-is BIG c)
              (return (coco_sb_put_i64 b (nth (cast size_t (coco-payload c)) (-> m bigs)))))
 

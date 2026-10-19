@@ -34,6 +34,10 @@
   (include <math.h>)
   ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
   (include <time.h>)
+  ;; getpid, for the generator's lazy seed, and the rounding modes for
+  ;; roundtoward/2 (2.5.0)
+  (include <unistd.h>)
+  (include <fenv.h>)
 
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
@@ -210,7 +214,7 @@
       (first_binding (aof e) "X is 3037000501 mod 5000000000" buf (sizeof buf))
       (check_str "the product just past 2^63" buf "3037000501")
       (first_binding (aof e) "X is 1152921504606846975 mod -1152921504606846974" buf (sizeof buf))
-      (check_str "and at the top of the cell's 61 bits" buf "-1152921504606846973")
+      (check_str "and past the cell's 60 bits (a boxed integer)" buf "-1152921504606846973")
       (first_binding (aof e) "X is 9223372036854775807 mod -9223372036854775806" buf (sizeof buf))
       (check_str "and at the top of 64 bits (2.0.0)" buf "-9223372036854775805")
       (first_binding (aof e) "X is max(3, 4.5)" buf (sizeof buf))
@@ -271,28 +275,32 @@
       (check_str "=.. takes apart"            buf "[foo,1,2]")
       (first_binding (aof e) "atom_length(hello, N)" buf (sizeof buf))
       (check_str "atom_length/2"              buf "5")
-      (first_binding (aof e) "atom_concat(foo, bar, X)" buf (sizeof buf))
-      (check_str "atom_concat/3"              buf "foobar")
+      ;; THE PRIVATE HELPER, because this bare engine loads no modules: the
+      ;; public atom_concat/3 is a clause of the builtins module (2.5.0),
+      ;; whose modes test/string.pl holds against the binary. The helper
+      ;; has the three deterministic modes the clause calls it for.
+      (first_binding (aof e) "'$atom_concat'(foo, bar, X)" buf (sizeof buf))
+      (check_str "$atom_concat/3"              buf "foobar")
       ;; The two modes where the WHOLE is known and one part is not.
       ;; ISO 8.16.6 requires both; refusing them made a prefix test throw
       ;; where every other Prolog answers, and a namespace check written
       ;; the obvious way is exactly that test.
-      (first_binding (aof e) "atom_concat(psi_, X, psi_valid)" buf (sizeof buf))
-      (check_str "atom_concat/3 splits off a prefix"  buf "valid")
-      (first_binding (aof e) "atom_concat(X, valid, psi_valid)" buf (sizeof buf))
-      (check_str "atom_concat/3 splits off a suffix"  buf "psi_")
-      (first_binding (aof e) "atom_concat(abc, X, abc)" buf (sizeof buf))
-      (check_str "atom_concat/3 leaves nothing over"  buf "")
-      (first_binding (aof e) "atom_concat('', X, abc)" buf (sizeof buf))
-      (check_str "atom_concat/3 takes nothing off"    buf "abc")
+      (first_binding (aof e) "'$atom_concat'(psi_, X, psi_valid)" buf (sizeof buf))
+      (check_str "$atom_concat/3 splits off a prefix"  buf "valid")
+      (first_binding (aof e) "'$atom_concat'(X, valid, psi_valid)" buf (sizeof buf))
+      (check_str "$atom_concat/3 splits off a suffix"  buf "psi_")
+      (first_binding (aof e) "'$atom_concat'(abc, X, abc)" buf (sizeof buf))
+      (check_str "$atom_concat/3 leaves nothing over"  buf "")
+      (first_binding (aof e) "'$atom_concat'('', X, abc)" buf (sizeof buf))
+      (check_str "$atom_concat/3 takes nothing off"    buf "abc")
       ;; A prefix that is not one FAILS, and does not raise: a wrong
       ;; guess about an atom's shape is an ordinary answer.
-      (check "atom_concat/3 refuses a wrong prefix"
-             (cast llong (count (aof e) "atom_concat(psi_, _, zeta_valid)" 10)) 0)
-      (check "atom_concat/3 refuses a wrong suffix"
-             (cast llong (count (aof e) "atom_concat(_, xyz, psi_valid)" 10)) 0)
-      (check "atom_concat/3 refuses a prefix longer than the whole"
-             (cast llong (count (aof e) "atom_concat(abcd, _, abc)" 10)) 0)
+      (check "$atom_concat/3 refuses a wrong prefix"
+             (cast llong (count (aof e) "'$atom_concat'(psi_, _, zeta_valid)" 10)) 0)
+      (check "$atom_concat/3 refuses a wrong suffix"
+             (cast llong (count (aof e) "'$atom_concat'(_, xyz, psi_valid)" 10)) 0)
+      (check "$atom_concat/3 refuses a prefix longer than the whole"
+             (cast llong (count (aof e) "'$atom_concat'(abcd, _, abc)" 10)) 0)
       (first_binding (aof e) "atom_codes(ab, X)" buf (sizeof buf))
       (check_str "atom_codes/2 forwards"      buf "[97,98]")
       (first_binding (aof e) "atom_codes(X, [97,98])" buf (sizeof buf))

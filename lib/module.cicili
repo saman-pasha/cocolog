@@ -821,7 +821,7 @@
         (if (not (coco_m_is_atom e t)) (return nil))
         (return (coco_atom_name (-> e m) (coco_name_of (-> e m) t))))
 
-  ;;; Either kind of integer (2.0.0): in the cell, or boxed past 61 bits.
+  ;;; Either kind of integer (2.0.0): in the cell, or boxed past 60 bits.
   (func coco_m_int ((coco_engine * e) (size_t t) (i64 * out)) (out int)
         (set t (coco_deref (-> e m) t))
         (if (not (coco-is-int (nth t ($ (cof (-> e m)) heap)))) (return 0))

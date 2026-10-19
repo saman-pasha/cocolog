@@ -5,8 +5,8 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0` over **71 case lines** — seven `.cicili` binaries
-and sixty-four Prolog scripts, each line with its seconds. The database
+`make test` ends `red: 0` over **72 case lines** — seven `.cicili` binaries
+and sixty-five Prolog scripts, each line with its seconds. The database
 suites **skip** rather than fail when there is no server, because "no server
 here" and "the backend is wrong" are different findings, so **count the
 SKIPs**: `red: 0` is printed over a run where nothing happened just as
@@ -15,7 +15,7 @@ happily as over a real one.
 | suite | what it establishes |
 |---|---|
 | `test/term.cicili` | interning, unification, the trail undoing exactly, copying that renames consistently, the standard order, and the term DSL — 27 checks |
-| `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting (since 1.10.10 a lone `.` and a run of symbol characters beginning `/*` are quoted, as SWI quotes them, so they read back), radix and character literals, integers past 61 bits refused, names of any length; since 1.10.26 the empty atom `''` as the reader's first token, which through 1.10.25 copied from a buffer never allocated and ended the process (`term_to_atom(T, '''''')` did; library(flow/debug) met it reading an argument a call exited with) — 110 checks |
+| `test/syntax.cicili` | the reader and the writer against each other: precedence, associativity, the spacing that decides whether `-(1)` reads back as a compound or an integer, lists, curly terms, quoting (since 1.10.10 a lone `.` and a run of symbol characters beginning `/*` are quoted, as SWI quotes them, so they read back), radix and character literals, integers past 64 bits refused (and the 2^59-1 boundary of the cell's 60-bit payload since 2.5.0), names of any length; since 1.10.26 the empty atom `''` as the reader's first token, which through 1.10.25 copied from a buffer never allocated and ended the process (`term_to_atom(T, '''''')` did; library(flow/debug) met it reading an argument a call exited with) — 110 checks |
 | `test/solve.cicili` | backtracking, cut, negation, if-then-else, arithmetic, lists, term inspection, assert/retract, `:- dynamic` in all three spec shapes and as a goal, `listing`, a 50000-deep deterministic recursion that must leave no choice points, a failing goal that must not grow the heap, and the store's matcher over two cyclic terms, the same and different (1.10.19: it walked them for ever) |
 | `test/module.cicili` | the module seam itself: no modules behaves as before modules, three at once, a module's Coco half calling its own C half, a module that is only clauses, precedence against both builtins and the knowledge base, a failing module predicate leaving no binding, and the Coco half coming back after the store is emptied — 22 checks |
 | `test/files/*.pl` | the Files, Lists, Apply, Builtins and DCG libraries — and SWI's own `dcg/basics` and `dcg/high_order`, unedited — run by **both swipl and cocolog** in the same fresh directory and compared byte for byte. 788 lines of agreement across twenty-eight cases (1.10.7) |
@@ -26,6 +26,7 @@ happily as over a real one.
 | `test/ruler.pl` | **one interpreter writing the knowledge base while eight read it** — below |
 | `client/probe.c` | the C client against a real server, including a clause made of nothing but the five HTML-escapable characters, asserted over the binary protocol and read back through a page unchanged |
 | `test/engine.pl` | the engine's COMPLEXITY, which nothing else here checks: 100 000 solutions from `between/3`, a `findall` over the same range, ten times the work in far less than a hundred times the time, and a 500 000-deep deterministic recursion — with the answers still right, because a representation change that made everything fast and one thing wrong would pass every timing check. And since 1.12.0, `setarg/3`, `nb_setarg/3` and `nb_current/2` (the reasoning session's point 3), against SWI 9.0.4's answers: each error in SWI's order for both writers -- the index before the term, an atom a failure and `[]` a type error; backtracking out of `;`, `findall/3`, `\+` and a throw taking back setarg/3's writes newest first (the trail's value entries) and leaving nb_setarg/3's, its copy's variable fresh; each solution of `member/2` seeing its own write and none after; a counter kept across a thousand failures and SWI's `aggregate_all(max(X), ...)` keeping its state in `state(X)` while X is bound and unbound; setarg/3 linking its value, nb_setarg/3 copying a compound and linking a variable; the argument cell written and not a variable it names (`T = f(X), setarg(1, T, z)` leaves X unbound, where SWI made X in the argument and binds it -- the one difference) and a term made to hold itself; nb_current/2 answering, failing for no global, naming a key that is no atom, enumerating with its key unbound in the order made, and one inference as nb_getval/2 is; and in children, the writes the same with no collection forced, under the collector at every 2000 cells and under the freeze's torture, and a machine stepped 50 inferences at a time, frozen and thawed some sixty times, putting each write back. Each of eight arms goes red: the undo blind to a value entry (4 checks), no entry pushed (4), the collector not keeping the saved cells (1), keeping a pair unrenumbered (1), nb_setarg/3 raising no marks (3), raising the choice points' and not a nested engine's (2), nb_current/2 not declining an unbound key (1), `[]` an atom with no argument (2). And since 1.12.1, a global read as its block and a ground one's copy shared while it lives (the reasoning session's point 5): setarg/3 and nb_setarg/3 on what nb_getval/2 handed out changing the global, as SWI 9.0.4's do, and SWI's counter idiom over it; a value with a variable in it a fresh copy at every read (SWI shares that too -- the difference); a value read as its block, its variables shared as they were set, a float, a string, an integer, a cyclic term; a copy first read in findall/3, `\+`, a failed branch, a throw or a window's question, or after a choice point, a collection and backtracking to it, read again as the value after new cells and a collection; a counter whose copy a collection moved, written in a failure-driven loop; a copy read before a collection the term read after it; nb_setarg/3 in a window's question into a term older than the window outliving its wind-back; a read one inference; in children, a copy read in one directive and kept through the next, and three hundred turns of reads, settings and a counter, the same plain, under the collector at every 2000 cells and under the freeze's torture; 200 000 reads of 3 000 entries in under ten seconds (1.12.0 took about 20). Each of eleven arms goes red: the read never asking whether the sentinel stands (the copies read in findall/3, `\+`, a failed branch, a throw and a window's question), the collector dropping every sentinel (1), not moving a copy's range (1) or its sentinel's position (1), nb_setarg/3 pinning nothing (2), no position raised at a copy (the children), the question's mark not handed back (1), the block copy moving no reference (2, then the case stops), a value with a variable shared (1), the put never noting a variable (1), a setting leaving the version (4). And since 1.12.2, one step for a small builtin and none for `true` and `=/2` (the reasoning session's point 4): length/2, nth0/3, nth1/3, last/2, reverse/2 and atomic_list_concat/2,3 in each of twelve modes that answer once cost what atom/1 costs, and the modes that can answer again enumerate as their clauses did; a literal `true` and `=/2` are no inference called, in a body, in an environment and in a nested engine (statistics/2 says 2, 2, 4, 7 and 15 where 1.12.1 said 3, 3, 8, 10 and 27); a limit in inferences lets them by, the least limit that succeeds being the count call_metered/4 and call_limited/3 report; a nested engine spends its caller's inferences, not its steps. The counts this case pinned since 1.9.0 are each less by the `true`s and `=/2`s they took, and stop where they stopped. Each of ten arms goes red: `=/2` counted as a step (7 checks), the construct `true` (6), an environment's `true` (11), an environment's unification in place (11), no room past the step limit (8), a nested engine's frees not given back (8), a nested engine narrowed in steps (2), the list predicates as their clauses (1: all eight of its goals), atomic_list_concat/2,3 as its clauses (1: all four), the enumerating modes failing instead of declining (1: all five). Measured against 1.12.1 built the same way: the untraced engine's instructions less their padding (tools/flow/zero.sh) nrev -326, queens -8 049, lookup +24 044 (+0.05 %), with the limit's cold path one call out of line (three calls there moved the loop's registers: lookup +164 000); test/translate.pl's user time 23.65 s to 22.69 s, the medians of five alternating pairs, each pair faster. 110 checks |
+| `test/rationals.pl` | SWI's rationals where cocolog's 64-bit policy meets SWI's bignums, and the paths a rational term takes (2.5.0): `1r2 ** 100`, `1r2 + max_integer`, an exact `rdiv` taken one past 64 bits, `lcm(max_integer, 2)`, `rational(1.0e308)` raise int_overflow; `rational(1.0Inf)` is rational_overflow and `rational(1.5NaN)`, `rationalize(1.0Inf)`'s kinds are named; `1r0` and `1r2 ` are `syntax_error(illegal_number)` through `atom_to_term/3` and `number_codes/2`; a rational through a clause head (by value: `2r4` matches `1r2`, a float does not), findall/3, copy_term/2, a global, a retract, a compiled constant and a body; `number(X)` accepts one as a guard and the step answers exactly; and `garbage_collect/0` keeps the table entry the heap names — 30 checks. `test/files/rationals.pl` runs the arithmetic matrix, the roundings, the order, the writer and the errors under BOTH systems, 143 lines compared byte for byte |
 | `test/meter.pl` | `call_metered/4`, a goal under a ceiling and WHAT IT COST — the engine's own inference count, which it has always kept and never handed to a program. Checked as a PRICE rather than as a number: it measures rather than echoing the ceiling (a tiny goal under a huge one costs a tiny number; ten times the work costs strictly more), it answers for a goal that FAILED because a search is work, and two processes sharing nothing but the goal report the same number — 14 checks |
 | `test/cowork.pl` | `library(cowork)`: a crew of long-lived workers over `library(thread)`, held to the claim that matters — parallelism is INVISIBLE in the answer. Jobs of deliberately unequal cost finish out of order and the answers stay in INPUT order, because a crew that gathered by completion would make the same match replay differently on a busier machine. Proved, failed and threw stay three answers; an untold predicate RAISES rather than quietly saying no; a worker sees the module registry and never the caller's store; and one crew survives ten turns of tell, ask and forget. Four jobs took 1418 ms on one worker and 418 ms on four. Then the pipeline: a posted job comes back through `cowork_poll/2`, and a `map` cannot take a posted answer nor a poll a map's, because they are different channels. And nothing survives a dead wait: a worker that cannot assert says so where it used to vanish, a wait that cannot be answered raises `timeout_error(cowork, Missing)`, acknowledgements have a channel of their own, and every wait drains first — because a pattern receive CONSUMES what it dequeues, so one stale result made the next `tell` fail silently and the next `map` answer a question it had not been asked — 32 checks |
 | `test/thread.pl` | `library(thread)`: what a thread can see and what it cannot, what a closed channel does, backpressure, and the two claims that cannot be checked by reading — eight senders putting 800 terms through one channel with all 800 arriving, and four threads doing four times the work in 1.7× the time. Then the locks: exclusion proved without a stopwatch, `with_mutex/2` releasing on all three ways out, and one broadcast waking four waiters — 34 checks |
@@ -5839,6 +5840,64 @@ Not SWI's, and staying so:
 * past 64 bits cocolog raises where swipl goes on in a bignum;
 * `2**63 - 1` raises, its `2**63` coming first;
 * atom_number/2 and number_codes/2 fail for a numeral past 64 bits.
+
+### Rationals, and the rest of swipl's arithmetic and text (2.5.0)
+
+A rational is a numerator and a denominator, each 64 bits, reduced with a
+positive denominator and never with 1 (that is an integer). A result past
+them raises `evaluation_error(int_overflow)` where swipl makes a bignum --
+`X is 1r2 ** 100`, `X is rational(1.0e308)`, `lcm(9223372036854775807, 2)`
+-- `rational(1.0Inf)` is `rational_overflow`, `rational(1.5NaN)` and
+`rationalize(1.5NaN)` `undefined`, and a value whose exact fraction does not
+fit (a subnormal) is int_overflow too. The reader takes `N r D` as one
+token; `1r0` is `syntax_error(illegal_number)`.
+
+**A rational has a tag of its own, and that moved every cell.** Since 2.5.0
+the tag field is four bits and the payload 60: RAT is tag 8, so a rational
+is no longer a BIG cell with bit 63 set, an INT holds -2^59 .. 2^59-1
+inline (2^59 and past are boxed), and `max_tagged_integer` is 2^59-1. A
+frozen machine's header is `cocolog 2`; a format-1 blob (every build through
+2.4.1) is upgraded as it thaws (`coco_thaw_upgrade`): the old tags are
+re-encoded, a BIG that set bit 63 was a rational, and an INT that no longer
+fits is boxed after the `B` and `R` sections are read, so every old index
+still names what it named. Proved against two machines frozen by the 2.4.1
+binary -- one at `start`, one stepped three times -- holding 2^59,
+-2^59-1, `5r6` and a small integer; both resumed under the new binary to
+the same answer (`576460752303423488/-576460752303423489/5r6/12345/
+576460752303423489/7r6`).
+
+**The suite's wait helper is a wall clock** (2.5.0): `proc_until/3` used to
+count only its own sleeps, so `unix_listening/1` -- whose `lsof` prints no
+unix-socket state on macOS -- spent each try's own time on top and took
+about 26 s against its stated eight, outlasting the ten-second accepts in
+the tcp, websocket and curl fixtures. It now ends at the budget with
+`get_time/1`; the tcp fixture's first accept waits a minute for margin.
+**The suite loads `library/*.so` and does not build them**: a stale
+`library/tcp.so` that predated the `unix(Path)` source failed tcp, httpd,
+websocket and curl in one run. `make modules` before the suite.
+
+Not SWI's, and staying so:
+
+* the random generator is xoshiro128**, not Mersenne Twister: the API is
+  swipl's, the sequence is not, and `random_property(state(S))` answers
+  `'$rng_state'(A,B,C,D)`, four hex atoms. `set_random(seed(N))` repeats
+  within cocolog and not across systems;
+* swipl 10's `cmpr/2`, `maxr/2` and `minr/2` are absent (the reference is
+  9.0.4), and so are `random_between/3` and the rest of `library(random)`,
+  `library(strings)` and the stream string predicates (`read_string/3,5`,
+  `open_string/2`).
+
+The measured cost, five alternating pairs of user time against the
+released 2.4.1 binary (the Mac, release, one sitting; nrev `main(1000,50)`,
+queens `main(8,500)`, lookup `main(2000,8000)`): naive reverse +4.7 %
+(1.258 s to 1.317 s), queens -0.1 %, lookup -1.3 %. A rational-only build,
+measured before the four-bit tag refactor, was +4.0 % on nrev with queens
+and lookup unchanged, so the refactor's own share of the +4.7 % is under
+the noise of one pair. The new code before `lib/kb.cicili`'s clause runners
+moved them by some 3.5 KB, and the owner's record already has a 32-byte
+move costing 8 % -- so the figure is the price of the code's PLACEMENT as
+much as of its tests. The machine's own new fields were appended on that
+account, though appending changed nothing measurable.
 
 ### Text is characters by default, and the wire is bytes
 

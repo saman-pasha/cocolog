@@ -9,7 +9,7 @@
 %%
 %%     cocolog -s test/string.pl        from the checkout root
 %%
-%% ONE PROCESS FOR FORTY-TWO CHECKS. This was test/string.sh, forty
+%% ONE PROCESS FOR EVERY CHECK. This was test/string.sh, forty
 %% cocolog invocations at ~120 ms each, 4.9 s for the case; it is under a
 %% second now. The questions are the same and the answers are read as
 %% terms rather than grepped out of a pipe. The double_quotes checks that
@@ -22,7 +22,7 @@
 
 main :-
     scratch(D),
-    types, nul, order, conversions, splitting, substrings, code_lists,
+    types, nul, order, conversions, concat_modes, splitting, substrings, code_lists,
     writer, indexed, flag_files(D), flag_modules(D), char_lists, refused(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -75,6 +75,54 @@ conversions :-
     check('string_upper', G4, 'ABC'),
     yes_no((term_string(T5, "g(2)"), T5 = g(2)), A5),
     check('term_string reads back', A5, yes).
+
+%% ---- atom_concat/3 and string_concat/3, every mode ------------------------
+%%
+%% Since 2.5.0 both are CLAUSES over a C helper, so all three modes answer
+%% and (-,-,+) enumerates, as SWI's do; through 2.4.1 they were C builtins
+%% with the concatenate mode and, for atom_concat alone, two splits. The
+%% enumeration order is SWI's: the shortest left part first.
+concat_modes :-
+    answer(atom_concat(foo, bar, A1), A1, foobar),
+    check('atom_concat/3 concatenates', A1, foobar),
+    answer(atom_concat(psi_, A2, psi_valid), A2, valid),
+    check('atom_concat/3 splits off a prefix', A2, valid),
+    answer(atom_concat(A3, valid, psi_valid), A3, psi_),
+    check('atom_concat/3 splits off a suffix', A3, psi_),
+    answer(atom_concat(abc, A4, abc), A4, ''),
+    check('atom_concat/3 leaves nothing over', A4, ''),
+    answer(atom_concat('', A5, abc), A5, abc),
+    check('atom_concat/3 takes nothing off', A5, abc),
+    findall(X6-Y6, atom_concat(X6, Y6, ab), L6),
+    check('atom_concat/3 enumerates every split, shortest left first', L6,
+          [''-ab, a-b, ab-'']),
+    yes_no(atom_concat(psi_, _, zeta_valid), N7),
+    check('atom_concat/3 refuses a wrong prefix', N7, no),
+    yes_no(atom_concat(_, xyz, psi_valid), N8),
+    check('atom_concat/3 refuses a wrong suffix', N8, no),
+    string_codes(S9, "ab"), string_codes(S9a, "a"), string_codes(S9b, "b"),
+    answer((string_concat(S9a, S9b, S10), atom_string(A10, S10)), A10, ab),
+    check('string_concat/3 concatenates', A10, ab),
+    answer((string_concat(S9a, S11, S9), atom_string(A11, S11)), A11, b),
+    check('string_concat/3 splits off a prefix', A11, b),
+    answer((string_concat(S12, S9b, S9), atom_string(A12, S12)), A12, a),
+    check('string_concat/3 splits off a suffix', A12, a),
+    answer((string_concat(S9, S14, S9), atom_string(A14, S14)), A14, ''),
+    check('string_concat/3 leaves nothing over', A14, ''),
+    answer((string_concat(S15, S9, S9), atom_string(A15, S15)), A15, ''),
+    check('string_concat/3 takes nothing off', A15, ''),
+    string_codes(S16, "x"),
+    yes_no(string_concat(S16, _, S9), N16),
+    check('string_concat/3 refuses a wrong prefix', N16, no),
+    yes_no(string_concat(_, S16, S9), N17),
+    check('string_concat/3 refuses a wrong suffix', N17, no),
+    findall(X13-Y13, string_concat(X13, Y13, S9), L13),
+    maplist(concat_pair_atoms, L13, L13b),
+    check('string_concat/3 enumerates every split, shortest left first', L13b,
+          [''-ab, a-b, ab-'']).
+
+concat_pair_atoms(S-A, X-Y) :-
+    atom_string(X, S), atom_string(Y, A).
 
 %% ---- split_string, including the two rules everybody trips over -----------
 splitting :-

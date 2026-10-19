@@ -118,6 +118,7 @@
         ;; too and are loadable modules now.
 
   (include <math.h>)
+  (include <fenv.h>)
   ;; the swarm command's worker threads
   (include <pthread.h>)
   ;; usleep, for the worker that waits its turn on a machine another worker
@@ -385,7 +386,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.4.1"))
+  (func coco_version_text () (out const char *) (return "2.5.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"

@@ -1269,11 +1269,11 @@ integers_only :-
           error(type_error(integer, 2.5))-error(type_error(integer, 2.5))).
 
 
-%% 64-BIT INTEGERS (2.0.0). A cell keeps 61 bits; an integer past them is
-%% BOXED, a cell of its own tag naming an entry of the machine's integer
-%% table, as a float is -- canonical by range, so two INT cells are equal
-%% exactly when their words are and an INT never equals a BIG. Arithmetic
-%% is 64 bits on every path, and a result past them raises
+%% 64-BIT INTEGERS (2.0.0). A cell's payload keeps 60 bits (59 and a sign);
+%% an integer past them is BOXED, a cell of its own tag naming an entry of
+%% the machine's integer table, as a float is -- canonical by range, so two
+%% INT cells are equal exactly when their words are and an INT never equals
+%% a BIG. Arithmetic is 64 bits on every path, and a result past them raises
 %% evaluation_error(int_overflow) where swipl, unbounded, makes a bignum:
 %% that is the one answer here (`ovf') that is not swipl 9.0.4's own.
 %% Through 1.15.0 a result wrapped at 61 bits with no word said
@@ -1640,7 +1640,21 @@ i6_kept(D) :-
              'case "$o" in *finished*) break;; esac; i=$((i+1)); done'], Cmd5),
     proc_run(Cmd5, 300000, Out5, _), atom_codes(O5, Out5),
     check('a machine frozen and thawed with a boxed integer on its heap reads it back', O5,
-          '4611686018427387916/ -4611686018427387917\n').
+          '4611686018427387916/ -4611686018427387917\n'),
+    %% and the same walk with a rational: the table travels in the blob's R
+    %% section, and the cells that name it are the heap's own (2.5.0)
+    atom_concat(D, '/r_frozen.pl', F6), atom_concat(D, '/r-kb', K6),
+    fixture(F6, [ 'count(0) :- !.',
+                  'count(N) :- M is N - 1, count(M).',
+                  'go :- X = 5r6, count(50), Y is X + 1r3, Z is Y * 2, writeq(Z), nl.' ]),
+    sh_join([C4, ' --embed ', K6, ' consult ', F6, ' >/dev/null 2>&1; ',
+             C4, ' --embed ', K6, ' --steps 20 start m go >/dev/null 2>&1; i=0; ',
+             'while [ $i -lt 100 ]; do o=$(', C4, ' --embed ', K6, ' --steps 20 step m 2>&1); ',
+             'printf ''%s\\n'' "$o" | grep -v ''^m: \\|^  [0-9]*\\. ''; ',
+             'case "$o" in *finished*) break;; esac; i=$((i+1)); done'], Cmd6),
+    proc_run(Cmd6, 300000, Out6, _), atom_codes(O6, Out6),
+    check('a machine frozen and thawed with a rational on its heap reads it back', O6,
+          '7r3\n').
 
 %% succ/2, plus/3, sum_list/2, numlist/3 and between/3 at the ends; the
 %% flags that say how wide an integer is
@@ -1674,7 +1688,7 @@ i6_builtins :-
     findall(V3, ( member(F3, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer]),
                   current_prolog_flag(F3, V3) ), L3),
     check('the flags say so', L3,
-          [true, 9223372036854775807, -9223372036854775808, 1152921504606846975, -1152921504606846976]),
+          [true, 9223372036854775807, -9223372036854775808, 576460752303423487, -576460752303423488]),
     ( integer(4611686018427387904), number(4611686018427387904), atomic(4611686018427387904),
       \+ float(4611686018427387904), \+ compound(4611686018427387904) -> T4 = ok ; T4 = wrong ),
     functor(9223372036854775807, N4, A4),

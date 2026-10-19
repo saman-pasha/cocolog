@@ -596,7 +596,11 @@ json_number_in(N) -->
 %% -- the caller got neither a value nor a syntax error, and test/serialize.pl
 %% and lesson 12 went red for it. An integer has no fraction and no
 %% exponent; a float whose numeral the reader refuses still fails, as it did.
-json_numeral(Cs, _, _, N) :- number_codes(N, Cs), !.
+%% SINCE 2.5.0 `number_codes/2' RAISES `syntax_error(illegal_number)' where
+%% it used to fail, so the failure is asked for here, catchably, and an
+%% integer this machine cannot hold still reaches json_oops below.
+json_numeral(Cs, _, _, N) :-
+    catch(number_codes(N, Cs), error(syntax_error(_), _), fail), !.
 json_numeral(Cs, [], [], _) :- json_oops('an integer this machine can hold -- 64 bits', Cs).
 
 json_minus_in([0'-]) --> [0'-], !.

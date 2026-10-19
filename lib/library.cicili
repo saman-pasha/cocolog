@@ -222,7 +222,7 @@
   ;;; about its integers -- `bounded' is true, `max_integer' and
   ;;; `min_integer' are 64 bits' ends, past which arithmetic raises
   ;;; evaluation_error(int_overflow), and `max_tagged_integer' and
-  ;;; `min_tagged_integer' the 61 bits' a cell keeps without a table.
+  ;;; `min_tagged_integer' the 60 bits' a cell keeps without a table.
   ;;;
   ;;; `executable' FAILS rather than answering '' where the path could not
   ;;; be found, because a program about to spawn that path had better know.
@@ -271,9 +271,9 @@
           (if (== 0 (strcmp flag "min_integer"))
               (return (coco_m_unify_int e (coco_m_arg e g 1) (- -9223372036854775807 1))))
           (if (== 0 (strcmp flag "max_tagged_integer"))
-              (return (coco_m_unify_int e (coco_m_arg e g 1) 1152921504606846975)))
+              (return (coco_m_unify_int e (coco_m_arg e g 1) 576460752303423487)))
           (if (== 0 (strcmp flag "min_tagged_integer"))
-              (return (coco_m_unify_int e (coco_m_arg e g 1) -1152921504606846976)))
+              (return (coco_m_unify_int e (coco_m_arg e g 1) -576460752303423488)))
           ;; THE FLOATS (2.2.2): what a float that is no number becomes, as
           ;; set_prolog_flag/2 left it for this machine (`fflags'), and
           ;; swipl's three read-only bounds -- the least normal double, the
