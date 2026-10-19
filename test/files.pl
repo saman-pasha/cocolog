@@ -12,7 +12,18 @@
 %% is wrong" are different findings -- the same rule the database suites
 %% follow.
 %%
-%%   apt-get install swi-prolog-nox     # or your system's equivalent
+%% IT ALSO SKIPS WHEN THE SWIPL IS NOT THE REFERENCE 9.0.4. These cases are
+%% 9.0.4's answers (the repository's target), and SWI 10 answers differently
+%% in ways no case can agree with both: the text of a float
+%% (`9007199254740992.0' for `9.007199254740992e+15'), a NaN's order and
+%% what max/min pick, `float/1' of a NaN, the float flags' default checks,
+%% `print/1''s numbervars for a huge integer, quoted writes (`\'` where the
+%% engine writes `'''), and the deprecation warning a load of a file found
+%% through the working directory now prints. "A different SWI here" is a
+%% fact about the machine, as no SWI is.
+%%
+%%   apt-get install swi-prolog-nox     # or your system's equivalent;
+%%                                      # 9.0.4 for the comparison
 %%
 %% The sandbox is the same path for both runs so that anything derived from
 %% the working directory -- absolute_file_name/2, working_directory/2 --
@@ -34,6 +45,7 @@ main :-
     ->  true
     ;   sh_join(['no ', Swipl, ' to compare against'], Why), skip(Why)
     ),
+    swipl_reference(Swipl),
     ( getenv('TMPDIR', Tmp) -> true ; Tmp = '/tmp' ),
     atom_concat(Tmp, '/cocolog_files_sandbox', Sandbox),
     (   current_prolog_flag(argv, [_, One|_])
@@ -43,6 +55,18 @@ main :-
     forall(member(C, Cases), one_case(Swipl, Sandbox, C)),
     shl(['rm -rf ', Sandbox]),
     checks_done.
+
+%% THE SWIPL IS 9.0.4, or the case stops by name: a 10.x answers some of
+%% these differently (the header says which), and a comparison with it would
+%% report the reference's answers as a failure of cocolog. Answered by the
+%% version line swipl itself prints, so `SWIPL' may name any path.
+swipl_reference(Swipl) :-
+    sh_join([Swipl, ' --version'], Cmd),
+    shell(Cmd, Ver, _),
+    (   sub_atom(Ver, _, _, _, ' version 9.0.4 ')
+    ->  true
+    ;   atom_concat('not the reference SWI 9.0.4: ', Ver, Why), skip(Why)
+    ).
 
 cases(Cases) :-
     directory_files('test/files', Fs),

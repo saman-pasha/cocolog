@@ -374,7 +374,11 @@ links the engine) and runs the 65 `.pl` cases in `pl_names/1`
   `zigurat-lib`, `kbs`, `zigurat-tls`, `groups`, `ruler` -- and others SKIP
   for a missing tool (`files` and `trace` want `swipl`, `ray` raylib and a
   live screen, `tensorflow`, `numpy`, `opencv` their libraries,
-  `torch-replay` a CUDA toolkit). **Count the SKIPs and run
+  `torch-replay` a CUDA toolkit). **`files` wants the REFERENCE swipl
+  9.0.4** and SKIPs by name on another: 10.x writes a float
+  (`9007199254740992.0`), orders a NaN and picks it in max/min, checks a
+  float flag and quotes a write differently, so the 9.0.4 answers the cases
+  hold would be reported as cocolog's failures. **Count the SKIPs and run
   `pgrep ziguratip`** before believing a green run; the number of SKIPs is a
   fact about the machine.
 * **A red run of `test/translate.pl` prints two reports and only the first is
@@ -4276,6 +4280,12 @@ than its cause:
 * **Ask `library(os)`, not a shell** (`os_is/1`, `os_has/1`,
   `os_lib_path_var/1`, `os_tmp/1`, `os_cpus/1`). No `setsid`, BSD `date`
   has no `%N`, BSD `wc` pads, BSD `sed` ignores `\|`.
+* **Darwin's `clock_gettime(CLOCK_MONOTONIC)` is a MICROSECOND clock**
+  (96.6 % of a million back-to-back readings repeat): every engine step
+  under 1 us read 0 and a retry's few hundred nanoseconds none, so
+  `test/window.pl` and `test/flowdebug.pl` were red on every fast step.
+  `coco_clock_ns` uses `clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)` there
+  (2.5.1); Linux keeps the vDSO's `CLOCK_MONOTONIC`.
 * A server's READY line comes ~1.4 s before its port opens, and a page that
   warms a store is ~4x slower than on the Linux box.
 

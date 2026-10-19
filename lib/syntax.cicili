@@ -1699,7 +1699,13 @@
                (set (cof out) (coco_new_int m (? neg (- 0 ($ r ival)) ($ r ival)))))
              (set ok 1))
             ((== ($ r tok) COCO_TK_FLOAT)
-             (set (cof out) (coco_new_float m (? neg (- 0 ($ r fval)) ($ r fval))))
+             ;; -0.0 KEEPS ITS SIGN, and a NaN its bits, as the reader's
+             ;; own sign does (2.2.2): `0 - X' is +0.0 when X is 0.0,
+             ;; and `-NaN' flips the sign bit SWI keeps
+             (set (cof out) (coco_new_float m
+                              (? neg
+                                 (? (!= ($ r fval) ($ r fval)) ($ r fval) (- ($ r fval)))
+                                 ($ r fval))))
              (set ok 1))
             (#t
              (set (cof out) (coco_new_rat m (cast i64 (? neg (- 0 ($ r rval_n)) ($ r rval_n)))

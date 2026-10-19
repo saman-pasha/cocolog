@@ -1482,12 +1482,25 @@
   ;;; it stood for kept in RMAX, so a run that did not ask pays nothing.
 
   ;;; NANOSECONDS ON THE MONOTONIC CLOCK, which no change to the time of
-  ;;; day moves: a vDSO call on Linux, 29 ns on the four-vCPU box
+  ;;; day moves: a vDSO call on Linux, 29 ns on the four-vCPU box.
+  ;;; DARWIN'S `CLOCK_MONOTONIC' IS A MICROSECOND CLOCK (96.6 % of a
+  ;;; million back-to-back readings repeat, measured 2026-10-19): every
+  ;;; step under a microsecond read 0, and a retry's few hundred
+  ;;; nanoseconds none at all, so the clock said nothing about the fast
+  ;;; steps a window is asked about. `clock_gettime_nsec_np' is the
+  ;;; nanosecond one (macOS 10.12), returning the count whole.
   (static)
   (func coco_clock_ns () (out u64)
+        (@ifdef (code "__APPLE__"))
+        ;; not declared in Cicili's std, so it goes through the raw-C escape
+        ;; as files.cicili's realpath does
+        (code "return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)")
+        (@else)
         (let ((timespec ts))
           (clock_gettime CLOCK_MONOTONIC (aof ts))
-          (return (+ (* (cast u64 ($ ts tv_sec)) 1000000000) (cast u64 ($ ts tv_nsec))))))
+          (return (+ (* (cast u64 ($ ts tv_sec)) 1000000000) (cast u64 ($ ts tv_nsec)))))
+        (@endif)
+        )
 
   ;;; ---- the whole run's clock, by predicate (1.15.0) ----------------------
   ;;; What run_time(R) asks of a probe (cicilang's: "self time alone, by
