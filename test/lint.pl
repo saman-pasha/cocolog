@@ -23,6 +23,10 @@
 %%      library(websocket), which loads it -- by a directive or by a goal
 %%   3e. an acknowledgement covers its own line, or the next when it stands
 %%      alone; one with no reason, or whose finding has gone, is a U1
+%%   3f. auto mode reads git, in a fixture repository of its own: --auto
+%%      lints the working tree, --staged the index after the file on disk
+%%      is clean, --quiet is silent with nothing staged, and a .cicili and
+%%      a vendored .pl are named rather than passed
 %%   4. every rule still fires on selftest/traps.pl, its acknowledgements
 %%      ignored, and the file lints clean with them read
 %%   5. the whole tree lints clean, and the blocklist still matches what the
@@ -51,6 +55,7 @@ main :-
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
     the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_lifts(Agent), the_acks(Agent),
+    the_auto(Agent),
     the_findings(Agent),
     checks_done.
 
@@ -295,6 +300,75 @@ the_acks(Agent) :-
     check('ignored: every finding is back, and no U1', Ignored,
           ['1:8 S1R1', '3:8 S1R1', '4:8 S1R1', '4:46 S1F1', '5:8 S1R1']),
     shl(['rm -rf ', T]).
+
+%% ---- auto mode: the changes, not a file list -----------------------------
+%%
+%% THE SUITE OWNS A REPOSITORY OF ITS OWN for this, because --auto reads git
+%% and a test that changed this checkout would be testing the developer's
+%% working tree. --repo DIR points the scan at the fixture; the linter, its
+%% blocklist and its traps remain this checkout's. The two checks worth the
+%% fixture are the ones a shell implementation gets wrong: --staged must read
+%% the INDEX after the working file is clean, and --auto must read the
+%% working tree, not the index. A .cicili and a vendored .pl are named and do
+%% not fail the run; silence would make a module look checked.
+the_auto(Agent) :-
+    section('auto mode: changes, not a file list'),
+    scratch(S),
+    git_at(S, 'init -q'),
+    git_at(S, 'config user.email cocolint@example.invalid'),
+    git_at(S, 'config user.name cocolint'),
+    auto_at(S, 'a.pl', A1),
+    fixture(A1, ['good(a).']),
+    git_at(S, 'add a.pl'),
+    git_at(S, '-c commit.gpgsign=false commit -qm one'),
+    lint_at(Agent, S, '--auto', Out1, Rc1),
+    check('a clean repository has nothing to lint', Rc1, 0),
+    has('...and says so', 'no changed .pl file', Out1),
+    auto_at(S, 'bad.pl', B1),
+    fixture(B1, ['bad :- retract(x), fail.']),
+    lint_at(Agent, S, '--auto', Out2, Rc2),
+    check('an untracked .pl is linted', Rc2, 1),
+    has('...and the finding names it', 'bad.pl', Out2),
+    has('...and names the rule', 'HARD S1 [R1]', Out2),
+    git_at(S, 'add bad.pl'),
+    lint_at(Agent, S, '--staged', Out3, Rc3),
+    check('--staged lints the index', Rc3, 1),
+    has('...and the finding names it', 'bad.pl', Out3),
+    fixture(B1, ['bad(x).']),
+    lint_at(Agent, S, '--staged', Out4, Rc4),
+    check('--staged checks the staged content, not the file on disk', Rc4, 1),
+    lint_at(Agent, S, '--auto', Out5, Rc5),
+    check('...while --auto checks the working tree', Rc5, 0),
+    git_at(S, 'reset -q'),
+    lint_at(Agent, S, '--staged --quiet', Out6, Rc6),
+    check('--quiet leaves a commit with no staged .pl silent', Rc6-Out6, 0-''),
+    auto_at(S, 'm.cicili', M1),
+    fixture(M1, ['x.']),
+    lint_at(Agent, S, '--auto', Out7, Rc7),
+    check('a changed module does not fail the run', Rc7, 0),
+    has('...and is named as not linted', 'Cicili, not Prolog', Out7),
+    auto_at(S, 'lib', L1),
+    make_directory(L1),
+    auto_at(S, 'lib/swipl', W1),
+    make_directory(W1),
+    auto_at(S, 'lib/swipl/v.pl', V1),
+    fixture(V1, ['vendor(a).']),
+    lint_at(Agent, S, '--auto', Out8, Rc8),
+    check('a vendored file does not fail the run', Rc8, 0),
+    has('...and is named vendored', 'vendored, not read', Out8),
+    shl(['rm -rf ', S]).
+
+git_at(Dir, Args) :-
+    sh_join(['git -C ', Dir, ' ', Args, ' >/dev/null 2>&1'], Cmd),
+    shell(Cmd, _, 0).
+
+lint_at(Agent, Repo, Flags, Out, Rc) :-
+    sh_join(['sh ', Agent, '/lint.sh ', Flags, ' --repo ', Repo, ' 2>&1'], Cmd),
+    shell(Cmd, Out, Rc).
+
+auto_at(Dir, Rel, Path) :-
+    atom_concat(Dir, '/', D),
+    atom_concat(D, Rel, Path).
 
 %% ---- 5. the whole tree, 4. every rule fires, and the probe ----------------
 the_findings(Agent) :-

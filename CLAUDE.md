@@ -733,7 +733,11 @@ cocolint index offers no import of it.
   on the line before; U1 reports one whose finding has gone or that gives no
   reason, and `COCO_LINT_NO_ACK=1` reads none. `lib/swipl/` is not read.
   Lint a new or changed `.pl` before a commit: `sh tools/cocolint/lint.sh
-  FILE.pl`.
+  FILE.pl`. `--auto` lints every changed `.pl` (working tree, staged,
+  untracked), `--staged` the index alone, and both also check the dialect
+  card; `make lint` with no `FILES` is `--auto`. A changed `.cicili` is
+  named and skipped (a module is Cicili, its Prolog half is not a file),
+  and `lib/swipl/` is named vendored.
 * **The dialect card cites engine lines by range** (`tools/cocolint/
   traps.jsonl`). An edit ANYWHERE above a cited site moves it; a cite whose
   anchor is unique is accepted as moved, one whose anchor repeats in its file

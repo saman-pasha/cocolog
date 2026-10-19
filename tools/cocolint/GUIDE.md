@@ -53,14 +53,41 @@ do before the first run.
 sh tools/cocolint/lint.sh FILE.pl [FILE.pl ...]
 ```
 
-Exit **0** with no HARD finding, **1** with one, **2** for a usage error, no
-binary, or an index that would not build. WARN findings do not change the
-exit status.
+Exit **0** with no HARD finding, **1** with one (or with the dialect card's
+check failing in an auto mode), **2** for a usage error, no binary, a
+`--repo` that is not a git repository, or an index that would not build.
+WARN findings do not change the exit status.
 
 Before linting it runs `tool.sh build --if-stale` and `tool.sh card --facts
 --if-stale`, so the blocklist and the S1 patterns are this checkout's own
 and current. A cold rebuild is about five seconds; warm it is a quarter of
 one.
+
+### Auto mode: the changes, not a file list
+
+```sh
+sh tools/cocolint/lint.sh --auto              # working tree against HEAD:
+                                              # staged, unstaged, untracked
+sh tools/cocolint/lint.sh --staged            # the index alone, staged content
+sh tools/cocolint/lint.sh --auto --quiet      # with nothing to lint, silence
+```
+
+`--auto` asks git what changed and lints every `.pl`; `--staged` checks the
+content the next commit will hold (`git show :FILE`), not the working tree.
+Both also run the dialect card's citation check, because a commit to `lib/`,
+`library/json.pl`, `parsi/` or `client/` can move a cited line without
+touching a `.pl`.
+
+A changed `.cicili` is NAMED and skipped: a module is Cicili, and its Prolog
+half is strings inside it, which does not lint as a file (library(stream)'s
+half implements the ISO stream names the X2 trap warns about, and answers 58
+HARD findings for doing its job). `lib/swipl/` is named `vendored, not
+read`. Neither fails the run. `make lint` with no `FILES` is
+`lint.sh --auto`.
+
+`--repo DIR` scans another checkout's changes with this checkout's linter:
+a worktree, or the suite's fixture. The card check is this checkout's and
+runs only when `DIR` is this checkout.
 
 ### A finding
 
@@ -355,8 +382,8 @@ a file that already exists, which is what a repair iteration is.
 ln -s ../../tools/cocolint/pre-commit .git/hooks/pre-commit
 ```
 
-Nothing installs it for you. On every commit it checks the card's
-citations and lints the `.pl` files the commit stages, with a built binary;
+Nothing installs it for you. It delegates to `lint.sh --staged --quiet`: the
+card's citations and the `.pl` files the commit stages, with a built binary;
 without one it says SKIPPED rather than passing quietly. `git commit
 --no-verify` skips it once.
 

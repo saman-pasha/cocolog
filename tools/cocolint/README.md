@@ -21,8 +21,10 @@ recipes. This file is why they are the way they are.
 ```sh
 sh tools/cocolint/verify.sh myprogram.pl   # every gate, in order
 sh tools/cocolint/lint.sh   myprogram.pl   # G1 alone
+sh tools/cocolint/lint.sh   --auto         # G1 over what changed (git)
 sh tools/cocolint/oracle.sh myprogram.pl   # G2+G3 alone
 make lint FILES=myprogram.pl               # G1, through make
+make lint                                  # G1 over what changed
 make index                                 # rebuild the blocklist and index
 make dialect-check                         # every citation still resolves
 cocolog -s test/lint.pl                            # the suite case

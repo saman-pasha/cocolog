@@ -257,9 +257,12 @@ schema:
 # `index' regenerates blocklist.json, surface.jsonl, exemplars.jsonl and
 # capabilities.json -- all gitignored, all remade in seconds. `dialect-check'
 # proves every citation in traps.jsonl still points at the code it claims,
-# which is the thing that rots. `lint' runs the linter over files you name:
+# which is the thing that rots. `lint' lints the files you name, and with
+# none named it lints what changed -- the working tree against HEAD, staged,
+# unstaged and untracked:
 #
 #     make lint FILES="myprogram.pl"
+#     make lint
 
 index:
 	sh tools/cocolint/tool.sh build
@@ -269,7 +272,7 @@ dialect-check:
 	sh tools/cocolint/tool.sh card --check
 
 lint: index
-	@sh tools/cocolint/lint.sh $(FILES)
+	@sh tools/cocolint/lint.sh $(if $(strip $(FILES)),$(FILES),--auto)
 
 # ---- tests -------------------------------------------------------------------
 

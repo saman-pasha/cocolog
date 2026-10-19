@@ -225,7 +225,8 @@ tools/cocolint/        THE DIALECT LINTER, and the deterministic half of the
                        whose citations are checked rather than trusted, the
                        retrieval index, the collision oracle and the gates.
                        Every line of it is cocolog: `sh tools/cocolint/lint.sh
-                       FILE.pl', or `make lint FILES=FILE.pl'. Named for the
+                       FILE.pl', `sh tools/cocolint/lint.sh --auto' for what
+                       changed, or `make lint FILES=FILE.pl'. Named for the
                        part a person runs by hand
 
 client/                the two protocols, in C. No C++, no ZiguratIP headers:
