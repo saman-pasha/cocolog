@@ -1917,41 +1917,56 @@ cocolint index offers no import of it.
   async coroutines are on by default. A green thread is a MACHINE of its
   own in a WORLD
   of eight workers (2.8.0): the caller's thread is worker 0 and seven OS
-  threads are workers 1..7. Each worker owns a STORE and a BASE MACHINE, the
-  base built once at `async_run/1,2` by consulting a snapshot of the
-  caller's store (worker 0's is the caller's own machine and store).
-  **THE NAME TABLES ARE SHARED (2.8.1)**: all eight bases alias the host's
-  ONE atom/functor/string/float/big/rat table under a world names mutex --
-  the six mutations take it, sync a machine's fields by generation
-  (`tgen`, `coco_tbl_set/sync/begin/end/grow`) and publish to the root;
-  value reads are lock-free from the run-start sync; while shared, growth
-  allocates a new array and never frees the old (a stated leak); the alias
-  list is under the same mutex. A task is PINNED to the worker it was born
-  on; its tables are the shared names, and a run starts with
-  `coco_tbl_sync`. A spawn copies nothing: a heap, a trail, a choice stack
-  and an engine. A WRITE IS REPLICATED: `assertz/1`, `asserta/1`,
-  `retract/1`, `dynamic/1`, `abolish/1` and `nb_setval/2` call
-  `coco_g_note_write` (declared in solve and builtins, defined in
-  lib/green.cicili; its prototype takes `void *` because the decls are
-  emitted before the engine type) after the local store has it; the writer
-  builds the goal as canonical text and waits at a world barrier while
-  every other worker applies it with a scratch engine on its base
-  (`applying` stops a copy's broadcast), so the builtin returns with every
-  store holding it. **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the
-  block was set under the world lock but the task's state only later, in
-  the run's rc-0 handler, so a target finishing in the window woke nobody
-  and the waiter slept on a done task -- a false deadlock in the light
-  lane; and with the host as the single root the alias list was unlocked,
-  so a lost link left a freed machine on it -- a use-after-free or a cycle.
-  The state is set inside the builtin's lock, the link/unlink take the
-  names mutex, a per-worker wake generation is checked under the lock, and
-  the deadlock is asked after any block, not only when a pick finds
-  nothing. b_setval/2, a consult or load, a backend's fetch and a
-  module's own C state stay per worker. The store's frame walks visit every
-  machine the store lists, a suspended task's engine through `keep_eng` --
-  NEVER `m->eng`: pre-setting it made the engine its own `outer`. No table
-  reclamation (`tshared`) or store compaction (`st->machines`) runs while a
-  world does. THE QUANTUM: the run sets `max_steps` to the task's steps +
+  threads are workers 1..7. **ONE STORE (2.9.0)**: every worker, and so
+  every task's machine, runs over the caller's own store and machine
+  (`(-> wi st)` the host's, `(-> wi base)` the host machine); a spawn
+  copies nothing but its goal. **THE NAME TABLES ARE SHARED (2.8.1)**:
+  all eight bases alias the host's ONE atom/functor/string/float/big/rat
+  table under a world names mutex -- the six mutations take it, sync a
+  machine's fields by generation (`tgen`,
+  `coco_tbl_set/sync/begin/end/grow`) and publish to the root; value reads
+  are lock-free from the run-start sync; while shared, growth allocates a
+  new array and never frees the old (a stated leak); the alias list is
+  under the same mutex. A task is PINNED to the worker it was born on. A
+  WRITE STOPS THE WORLD (2.9.0): every store mutation -- assertz/asserta,
+  retract, dynamic, abolish, nb_setval -- and every piece of metadata a
+  first call makes (a predicate created, a clause compiled, an argument
+  index built, a sweep) binds the barrier's let variable
+  `(defer () coco_g_write_end_cleanup)` to `coco_g_write_begin`: the
+  writer publishes an op (the world's `op`, writer, seq, acks), pokes every
+  worker and waits for `nworkers - 1` acks; a worker acks at its loop's
+  top, or inside `write_begin` while it waits for the op in flight (a
+  task inside a store call cannot reach its loop top, and without that ack
+  a writer and a writer's task deadlocked); the writer changes the store
+  with no lock held, and `coco_g_write_end` frees the op and broadcasts.
+  **Three bugs this cost, each with a test**: (1) the waiting worker
+  compared the op by POINTER, and calloc handed a freed op's address back
+  -- the worker read the NEW op's sequence through it and slept instead of
+  acknowledging (an ABA; capture the seq as an int); (2) every cleanup
+  called `coco_g_write_end` regardless of its `began`, so a metadata call
+  nested inside `assertz`'s barrier freed the OUTER op and let the rest of
+  the write run beside other writers (lost asserts; end only when
+  `began[0] == 1`); (3) `coco_pred_make` is a double-checked lock and had
+  no second find inside the barrier, so a reader's CALL to a name the
+  store lacked (a call interns it too) and a writer's first assert each
+  created the entry -- the second creation hid the first and its clauses
+  (`coco_clause_code` has the same recheck). `test/async.pl`'s last
+  section makes the third likely by shape and goes red without the
+  recheck. **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the block was
+  set under the world lock but the task's state only later, in the run's
+  rc-0 handler, so a target finishing in the window woke nobody and the
+  waiter slept on a done task -- a false deadlock in the light lane; and
+  with the host as the single root the alias list was unlocked, so a lost
+  link left a freed machine on it -- a use-after-free or a cycle. The
+  state is set inside the builtin's lock, the link/unlink take the names
+  mutex, a per-worker wake generation is checked under the lock, and the
+  deadlock is asked after any block, not only when a pick finds nothing.
+  A consult or load a task runs and a module's own C state stay per
+  worker. The store's frame walks visit every machine the store lists, a
+  suspended task's engine through `keep_eng` -- NEVER `m->eng`:
+  pre-setting it made the engine its own `outer`. No table reclamation
+  (`tshared`) or store compaction (`st->machines`) runs while a world
+  does. THE QUANTUM: the run sets `max_steps` to the task's steps +
   10,000; `coco_limit_go`'s GREENQ branch sets GSTOP, flushes the
   continuation and stops -- the engine reports its limit (-1), so the run
   checks GSTOP BEFORE rc and keeps the task ready (an rc-only check made

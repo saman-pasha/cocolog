@@ -43,22 +43,38 @@ where the program can catch it. Everything runs under `async_run/1,2`; a
 
 A green thread is a **machine of its own in a world of eight workers**
 (2.8.0): the caller's thread is worker 0 and seven OS threads are workers
-1..7. Each worker owns a STORE and a base machine of its own, built once
-at `async_run/1,2` from a snapshot of the caller's knowledge base; a task
-is pinned to the worker it was born on. THE NAME TABLES ARE SHARED
-(2.8.1): all eight base machines alias the HOST'S ONE atom, functor,
-string, float, big and rat table. A world names mutex serializes the six
-table mutations, which sync a machine's fields by generation (`tgen`) and
-publish to the root; value reads stay lock-free from the run-start sync;
-while the tables are shared, a growth allocates a new array and never frees
-the old one, so a synced pointer stays valid (a stated leak); the alias
-list the tasks link into is under the same mutex. A spawn copies
-nothing: it is a heap, a trail, a choice stack and an engine. A write a
-task makes — `assertz/1`, `asserta/1`, `retract/1`, `dynamic/1`,
-`abolish/1` and `nb_setval/2` — is REPLICATED to every other worker's
-store before the builtin returns, so the caller, the main thread and the
-host see it. Terms cross in canonical text through a channel, and a
-result crosses as the goal term.
+1..7. THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): every worker,
+and so every task's machine, is over the store and the machine the host
+owns, so a write a task makes — `assertz/1`, `asserta/1`, `retract/1`,
+`dynamic/1`, `abolish/1`, `nb_setval/2` — is the caller's, the main
+thread's and the host's, with no copy and no replication. A task is pinned
+to the worker it was born on. THE NAME TABLES ARE SHARED (2.8.1): all
+eight base machines alias the HOST'S ONE atom, functor, string, float, big
+and rat table. A world names mutex serializes the six table mutations,
+which sync a machine's fields by generation (`tgen`) and publish to the
+root; value reads stay lock-free from the run-start sync; while the tables
+are shared, a growth allocates a new array and never frees the old one, so
+a synced pointer stays valid (a stated leak); the alias list the tasks
+link into is under the same mutex. A spawn copies nothing: it is a heap, a
+trail, a choice stack and an engine.
+
+**A WRITE STOPS THE WORLD.** The store is one, and a reader walks it with
+no lock, so a store mutation — the asserts and the retract, `dynamic`,
+`abolish`, `nb_setval`, and the metadata a first call makes (a predicate
+created, a clause compiled, an argument index built, a sweep) — takes the
+pre-write barrier FIRST: every other worker acknowledges at its safe point
+(its loop's top, or the wait inside a write of its own) and stops; the
+writer changes the store with no lock held; the end releases the world.
+The writer's own `coco_pred_make` and `coco_clause_code` re-check their
+lock-free finds once the world is stopped (the predicate a reader's call
+may have created meanwhile). A write nested inside another's barrier is
+covered by the outer one. The store's frame walk visits every machine the
+store lists, so a suspended task's open call counts as an open call for
+the logical update view. The cost is a stop and a wake per write; the work
+lane below measures the shape.
+
+Terms cross in canonical text through a channel, and a result crosses as
+the goal term.
 
 The scheduler is **M:N at a step quantum**: each worker picks the ready
 tasks pinned to it, and a task that never yields is stopped at 10,000
@@ -104,9 +120,11 @@ The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
 steps each, on a 16-core Intel Mac, cocolog 2.8.0 (Concurrency Run C, the
-M:N world -- the figures are 2.8.0's; a 2.8.1 within-run pair is owed for
-the shared names' run-start sync; Run B's 2.7.0 shared-store, one-scheduler model and Run A's
-2.6.0 snapshot model are in bench/README.md):
+M:N world -- the figures are 2.8.0's; the world's setup and its write path
+changed in 2.8.1 (the shared names) and 2.9.0 (the one store, and the
+barrier a write takes), and a within-run pair is owed for them; Run B's
+2.7.0 shared-store, one-scheduler model and Run A's 2.6.0 snapshot model
+are in bench/README.md):
 
 | lane | wall |
 |---|---|
@@ -232,20 +250,17 @@ staged engine-concurrency project, and the stages are:
    must use the cores, the light lane must keep its per-task cost, and the
    full suite (with a server) must be green.
 
-The tree NOW holds stage 3 as built here (2.8.0) and the FIRST ITEM OF
-STAGE 1 (2.8.1): eight workers, each with a store and a base machine
-cloned from the caller's at `async_run/1`, the bases all aliasing the
-host's one names table under the world names mutex; tasks pinned and
-preempted at the step quantum; and the write replication of `assertz`,
-`asserta`, `retract`, `dynamic`, `abolish` and `nb_setval` across the
-stores before the builtin returns. The SHARED STORE and stage 2 are NOT
-in: the clones, the snapshots and the replication remain, and a naive
-store lock deadlocks with the world barrier (the writer would hold it while
-waiting for acks from tasks that cannot reach a quantum). The per-task
-heaps and the cloned stores answer the shared-heap question without a
-relocating heap; the tables' reclamation and the store's compaction are
-suspended while a world runs. 2.6.0's released library was the per-spawn-snapshot model and
-2.7.0's the shared-store single scheduler.
+The tree NOW holds stages 1-3: eight workers (2.8.0), the shared names
+table (2.8.1), and the ONE SHARED STORE with the pre-write barrier
+(2.9.0). A spawn copies only its goal; the caller's store is every task's
+store; every store mutation and every piece of metadata a first call makes
+stops the other workers at their safe points, changes the store, and
+releases them. The per-task heaps answer the shared-heap question without
+a relocating heap; the tables' reclamation and the store's compaction stay
+suspended while a world runs. Stage 4 is the proof: the suite, and a
+benchmark of the work and light lanes on this model. 2.6.0's released
+library was the per-spawn-snapshot model, 2.7.0's the shared-store single
+scheduler, and 2.8.0's the cloned M:N world.
 
 ## Limits, stated where a reader meets them
 
@@ -258,22 +273,27 @@ suspended while a world runs. 2.6.0's released library was the per-spawn-snapsho
   alias list, lock-free value reads from the run-start sync. While shared,
   a table growth allocates a new array and never frees the old one -- one
   old array leaks per growth per world.
-* Each worker's store is a CLONE of the caller's at `async_run/1,2`, and
-  `assertz/1`, `asserta/1`, `retract/1`, `dynamic/1`, `abolish/1` and
-  `nb_setval/2` are replicated to every worker before they return.
-  `b_setval/2`, a consult or load, a backend's fetch and a module's own C
-  state belong to the worker that ran them. No reclamation or store
-  compaction runs while a world does.
+* ONE STORE (2.9.0): the caller's, for every worker and every task; a
+  write is seen by all as soon as it lands, and it stops the world while
+  it lands. A consult or load a task runs and a module's own C state stay
+  the worker's. No table reclamation or store compaction runs while a
+  world does. A write waits for every worker to reach a safe point: a task
+  inside a long foreign call holds it until the call returns. A write a
+  task makes after the main task has ended is not stopped for -- the world
+  is ending and the workers are breaking -- so a program that lets its
+  main task end while others still write, and then reads the store from
+  the host, may race itself.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
   the world's error.
-* The world is M:N: the caller's thread and seven OS threads, eight stores.
+* The world is M:N: the caller's thread and seven OS threads, one store.
 * A library predicate with a choice point per answer (`between/3`) is slow
   in a green store; the benchmark's work is a recursion (`bench/spin.pl`),
   and `test/async.pl` says so.
 * A goal is read in the new machine's module; a module-qualified goal is
   not carried as one.
 
-`cocolog 2.8.1`, the M:N world with the shared names table and the 2.8.0
-scheduler fixes: eight workers, cloned stores, replicated writes and the
-step quantum. The shared store and stage 2 are the next rung. Reasoning
-stays 1.0.11.
+`cocolog 2.9.0`, the M:N world over ONE SHARED STORE: eight workers, the
+caller's store for every task, the pre-write barrier that stops the world
+for a write and releases it after, the shared names table and the step
+quantum. Stage 4 -- the suite and the benchmark on this model -- is the
+next rung. Reasoning stays 1.0.11.

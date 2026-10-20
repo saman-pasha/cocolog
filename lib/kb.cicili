@@ -1177,6 +1177,9 @@
   ;;; Moves a term from the machine's heap into the store, and back. Both
   ;;; rename variables consistently -- see coco_varmap in term.cicili.
   (decl) (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t))
+  (decl) (func coco_g_write_begin ((void * e)) (out int))
+  (decl) (func coco_g_write_end () (out void))
+  (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
   (decl) (func coco_store_get ((coco_machine * m) (coco_store * st) (size_t t)) (out size_t))
   ;;; WHAT A PROGRAM PUT, READ BACK (1.10.19): `coco_store_get', and -- once
   ;;; a cyclic term has been put as its factors (`cyc_puts' on the machine)
@@ -2157,14 +2160,16 @@
           (return r)))
 
   (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
-        (let ((size_t base . #'(-> st len))
-              (size_t r . 0))
-          (set (-> st put_vars) 0)
-          (set (-> m wceil) (+ base (+ (* (-> m heap_len) 2) 64)))
-          (set r (coco_store_put_walk st m t))
-          (if (== (-> m wceil) 0) (set r (coco_store_put_over st m t base)))
-          (if (-> st memreq) (coco_store_memreq st m))
-          (return r)))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin nil)))
+          (let ((size_t base . #'(-> st len))
+                (size_t r . 0))
+            (set (-> st put_vars) 0)
+            (set (-> m wceil) (+ base (+ (* (-> m heap_len) 2) 64)))
+            (set r (coco_store_put_walk st m t))
+            (if (== (-> m wceil) 0) (set r (coco_store_put_over st m t base)))
+            (if (-> st memreq) (coco_store_memreq st m))
+            (return r))))
 
   ;;; The store's own dereference: a reserved argument slot is a REF to
   ;;; where the argument was put, and an unbound store variable points at
@@ -4065,6 +4070,15 @@
   (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))
+          ;; THE FIRST COMPILE (2.9.0) changes the one store's code table.
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin nil)))
+          ;; THE FIND AGAIN UNDER THE BARRIER: the find above is lock-free,
+          ;; and a task on another worker may have compiled this clause
+          ;; between it and this barrier. Its program is the one the
+          ;; predicate already holds; compile nothing and use it.
+          (let ((coco_code * cd2 . #'(coco_code_find st clause)))
+            (if (!= cd2 nil) (return cd2)))
           (let ((coco_varmap vm . '{ nil nil 0 0 0 })
                 (coco_cbuf hb . '{ nil 0 0 }) (coco_cbuf bb . '{ nil 0 0 })
                 (coco_cbuf rb . '{ nil 0 0 }) (coco_cbuf gb . '{ nil 0 0 })
@@ -4136,7 +4150,7 @@
             (set (-> cd ex) (+ (? (> ngd 0) 1 0) (? (!= (-> cd env) 0) 2 0)))
             (if (not (coco_code_put st clause cd))
                 (block (coco_code_free cd) (return nil)))
-            (return cd))))
+            (return cd)))))
 
   ;;; A constant against a dereferenced heap cell: bound to a copy when the
   ;;; cell is unbound, else the same comparison `coco_unify' makes.
@@ -5111,6 +5125,22 @@
   (func coco_pred_make ((coco_store * st) (u64 name) (u32 arity)) (out size_t)
         (let ((size_t i . #'(coco_pred_find st name arity)))
           (if (< i (-> st npreds)) (return i))
+          ;; THE FIRST CALL CREATES IT (2.9.0): the one store is changed
+          ;; with every other worker stopped at its safe point.
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin nil)))
+          ;; THE FIND AGAIN, NOW THAT THE OTHER WORKERS ARE STOPPED. The
+          ;; find above is lock-free and this is a double-checked lock: a
+          ;; reader's call creates a predicate too (`coco_pred_of'), and
+          ;; one may have made the entry between that find and this
+          ;; barrier. Creating a SECOND entry for the same name overwrites
+          ;; the bucket slot, and the clauses already attached to the
+          ;; first become unreachable -- a concurrent stress lost each
+          ;; writer's first one or two asserts that way. Under the barrier
+          ;; the recheck sees the stable state, the world lock having
+          ;; ordered the two creations.
+          (let ((size_t j . #'(coco_pred_find st name arity)))
+            (if (< j (-> st npreds)) (return j)))
           ;; under half full before the probe that places it
           (if (> (* (+ (-> st npreds) 1) 2) (-> st pred_bucket_cap))
               (if (not (coco_preds_rehash st)) (return (-> st npreds))))
@@ -5123,7 +5153,7 @@
           (set ($ (nth (-> st npreds) (-> st preds)) arity) arity)
           (set (nth (coco_pred_slot st name arity) (-> st pred_buckets)) (+ (-> st npreds) 1))
           (set (-> st npreds) (+ (-> st npreds) 1))
-          (return (- (-> st npreds) 1))))
+          (return (- (-> st npreds) 1)))))
 
   (func coco_pred_of ((coco_store * st) (coco_machine * m) (size_t goal)) (out size_t)
         (set goal (coco_deref m goal))
@@ -5136,8 +5166,11 @@
   (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int)
         (if (>= pi (-> st npreds)) (return 0))
         (if ($ (nth pi (-> st preds)) loaded) (return 1))
-        (set ($ (nth pi (-> st preds)) loaded) 1)
-        (if (== (-> st fetch) nil) (return 1))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin nil)))
+          (if ($ (nth pi (-> st preds)) loaded) (return 1))
+          (set ($ (nth pi (-> st preds)) loaded) 1)
+          (if (== (-> st fetch) nil) (return 1))
         ;; WHETHER THE BACKEND HAD ANYTHING, recorded where it can be seen:
         ;; the fetch is the only moment the difference shows, because a module's
         ;; predicate has its own clauses either way. `coco_store_prewarm' reads it.
@@ -5147,7 +5180,7 @@
                                             ($ (nth pi (-> st preds)) arity))))
           (if (== ($ (nth pi (-> st preds)) nclauses) before)
               (set ($ (nth pi (-> st preds)) empty_fetch) 1))
-          (return rc)))
+          (return rc))))
 
   ;;; ------------------------------------------------------------------
   ;;; PRE-WARM: the predicates a MODULE owns that the knowledge base has no
@@ -5835,6 +5868,8 @@
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
               (size_t kept . 0))
           (if (== (-> p ntomb) 0) (return))
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin nil)))
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
             (if (!= (nth i (-> p tomb)) 0)
                 ;; the cells to the next compaction and the program now
@@ -5860,22 +5895,26 @@
           (set (-> p tera) 0)
           ;; the positions after each dead one have moved
           (set (-> p tver) (+ (-> p tver) 1))
-          (coco_pred_unindex p)))
+          (coco_pred_unindex p))))
 
   (func coco_tomb_sweep_all ((coco_store * st) (coco_machine * m))
-        (for ((size_t i . 0)) (< i (-> st ntpreds)) ((++ i))
-          (let ((size_t pi . #'(nth i (-> st tpreds))))
-            (coco_pred_sweep st m pi)
-            (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) tlisted) 0))))
-        (set (-> st ntpreds) 0))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin nil)))
+          (for ((size_t i . 0)) (< i (-> st ntpreds)) ((++ i))
+            (let ((size_t pi . #'(nth i (-> st tpreds))))
+              (coco_pred_sweep st m pi)
+              (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) tlisted) 0))))
+          (set (-> st ntpreds) 0)))
 
   (func coco_tomb_try_sweep ((coco_store * st) (coco_machine * m) (size_t pi)) (out int)
         (if (== ($ (nth pi (-> st preds)) ntomb) 0) (return 1))
         ;; a sweep measures what it orphans on a machine's heap
         (if (== m nil) (return 0))
-        (if (!= (coco_frames_on m st pi 0 0) 0) (return 0))
-        (coco_pred_sweep st m pi)
-        (return 1))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin nil)))
+          (if (!= (coco_frames_on m st pi 0 0) 0) (return 0))
+          (coco_pred_sweep st m pi)
+          (return 1)))
 
   ;;; THE PROBE OF A PREDICATE WITH DEAD CLAUSES, out of line: the first
   ;;; LIVE candidate and whether there is a second, a new call seeing none
@@ -6051,34 +6090,46 @@
   (func coco_aix_get ((coco_store * st) (coco_machine * m) (coco_pred * p) (u32 pos)) (out coco_argix *)
         (let ((coco_argix * x . nil) (size_t n . #'(-> p nclauses)) (size_t want . 16)
               (u64 neck . 0))
+          ;; THE FIRST CALL MAKES THE INDEX ARRAY (2.9.0); the barrier
+          ;; stops the other workers while the one store changes.
           (if (== (-> p aix) nil)
               (block
-               (set (-> p aix) (cast (coco_argix *) (calloc (coco_aix_count) (sizeof coco_argix))))
-               (if (== (-> p aix) nil) (block (set (-> st oom) 1) (return nil)))))
+               (let ((defer () coco_g_write_end_cleanup)
+                     (int began . #'(coco_g_write_begin nil)))
+                 (if (== (-> p aix) nil)
+                     (block
+                      (set (-> p aix) (cast (coco_argix *) (calloc (coco_aix_count) (sizeof coco_argix))))
+                      (if (== (-> p aix) nil) (block (set (-> st oom) 1) (return nil))))))))
           (set x (aof (nth (- pos 1) (-> p aix))))
           (if (-> x indexed) (return x))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
-                                    (+ n 1) (sizeof u64)))
-              (return nil))
-          (if (not (coco_store_grow st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
-                                    (+ n 1) (sizeof size_t)))
-              (return nil))
-          (while (< want (* (+ n 1) 2)) (set want (* want 2)))
-          (if (!= (-> x nslots) want)
-              (let ((void * ns . #'(realloc (cast (void *) (-> x slots)) (* want (sizeof coco_kslot)))))
-                (if (== ns nil) (block (set (-> st oom) 1) (return nil)))
-                (set (-> x slots) (cast (coco_kslot *) ns))
-                (set (-> x nslots) want)))
-          (memset (cast (void *) (-> x slots)) 0 (* (-> x nslots) (sizeof coco_kslot)))
-          (set (-> x varhead) (coco_no_clause))
-          (set (-> x vartail) (coco_no_clause))
-          (set (-> x nvar) 0)
-          (set neck (coco_intern m ":-"))
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (set (nth i (-> x keys)) (coco_store_arg_key st m (nth i (-> p clauses)) neck pos))
-            (coco_aix_add x (nth i (-> x keys)) i))
-          (set (-> x indexed) 1)
-          (return x)))
+          ;; THE FIRST BUILD OF POS'S INDEX, under the barrier, with the
+          ;; recheck inside: another worker's build may have finished while
+          ;; this one waited.
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin nil)))
+            (if (-> x indexed) (return x))
+            (if (not (coco_store_grow st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
+                                      (+ n 1) (sizeof u64)))
+                (return nil))
+            (if (not (coco_store_grow st (cast (void **) (aof (-> x chain))) (aof (-> x chain_cap))
+                                      (+ n 1) (sizeof size_t)))
+                (return nil))
+            (while (< want (* (+ n 1) 2)) (set want (* want 2)))
+            (if (!= (-> x nslots) want)
+                (let ((void * ns . #'(realloc (cast (void *) (-> x slots)) (* want (sizeof coco_kslot)))))
+                  (if (== ns nil) (block (set (-> st oom) 1) (return nil)))
+                  (set (-> x slots) (cast (coco_kslot *) ns))
+                  (set (-> x nslots) want)))
+            (memset (cast (void *) (-> x slots)) 0 (* (-> x nslots) (sizeof coco_kslot)))
+            (set (-> x varhead) (coco_no_clause))
+            (set (-> x vartail) (coco_no_clause))
+            (set (-> x nvar) 0)
+            (set neck (coco_intern m ":-"))
+            (for ((size_t i . 0)) (< i n) ((++ i))
+              (set (nth i (-> x keys)) (coco_store_arg_key st m (nth i (-> p clauses)) neck pos))
+              (coco_aix_add x (nth i (-> x keys)) i))
+            (set (-> x indexed) 1)
+            (return x))))
 
   ;;; THE ARGUMENT TO INDEX ON -- see the declaration. A predicate under the
   ;;; floor scans its first argument's keys as it always did, and pays a

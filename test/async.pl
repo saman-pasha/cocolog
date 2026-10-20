@@ -17,11 +17,12 @@
 %%   ball; the scheduler reports a deadlock when every task is blocked and
 %%   the main has not ended).
 %%
-%%   THE STORE IS SHARED: a child asserts into the caller's knowledge base,
-%%   and the main green thread and the host see the clause; terms still
-%%   cross between threads in canonical text. In the world a write is
-%%   REPLICATED across the workers' stores before the builtin returns, so a
-%%   child's assert or retract is seen by the main and the host.
+%%   THE STORE IS THE CALLER'S OWN (2.9.0): a child asserts into the
+%%   knowledge base, and the main green thread and the host see the clause
+%%   because it is their store; a write stops the world before it lands and
+%%   releases it after. Terms still cross between threads in canonical
+%%   text. The last section is the predicate-creation race, made likely by
+%%   shape: a writer's first assert and a call both intern a predicate.
 %%
 %%     cocolog -s test/async.pl        from the checkout root
 %%
@@ -130,6 +131,7 @@ main :-
     channels,
     failures,
     shared_store,
+    shared_store_concurrent,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -185,3 +187,57 @@ shared_store :-
     check('and so does the host', G2, host_sees),
     answer(result(case_retract(R3), R3), R3, G3),
     check('a child\'s retract is the main\'s', G3, gone).
+
+%% ---- the one store: a writer and a call create the same predicate -------
+%%
+%% THE CREATE RACE. Both an assert and a CALL intern a predicate
+%% (`coco_pred_make'): a call to a name the store does not have creates the
+%% entry, so `coco_pred_of' may find it absent. `coco_pred_make' is a
+%% double-checked lock -- a lock-free find, then the barrier, then the
+%% create -- and it had no second find: a writer and a call could both see
+%% the name absent, and the second creation overwrote the bucket slot,
+%% hiding the first and every clause already attached to it. The build
+%% that made the one store lost each writer's first one or two asserts to
+%% it in a stress of eight tasks, about once in four runs.
+%%
+%% THIS SHAPE MAKES THE RACE LIKELY rather than leaving it to timing: the
+%% writer's barrier must wait for four spinners to reach their quantum, and
+%% two readers woken by a channel call the name during that wait. Without
+%% the recheck the reader's entry is the one the bucket keeps and the
+%% writer's clause is on the hidden one; the call below then raises, or
+%% sees nothing, and the checks go red on every run of the arm.
+
+gsc_spin(0) :- !.
+gsc_spin(N) :- M is N - 1, gsc_spin(M).
+
+gsc_writer(P) :- G =.. [P, writer], assertz(G).
+
+gsc_reader(0, _) :- !.
+gsc_reader(N, P) :-
+    catch(( call(P, _) -> true ; true ), _, true),
+    M is N - 1, gsc_reader(M, P).
+
+gsc_round(P, L) :-
+    channel(2, C),
+    go(gsc_spin(20000), S1), go(gsc_spin(20000), S2),
+    go(gsc_spin(20000), S3), go(gsc_spin(20000), S4),
+    go(gsc_writer(P), A),
+    go(( channel_recv(C, go), gsc_reader(200, P) ), R1),
+    go(( channel_recv(C, go), gsc_reader(200, P) ), R2),
+    channel_send(C, go), channel_send(C, go),
+    await_all([S1,S2,S3,S4,A,R1,R2]),
+    findall(X, call(P, X), L).
+
+gsc_go(P, L) :-
+    async_run(gsc_round(P, L), W),
+    arg(2, W, L).
+
+shared_store_concurrent :-
+    section('the one store: a writer and a call create the same predicate'),
+    answer(gsc_go(gsc_f1, L1), L1, G1),
+    check('the clause the writer asserted is the predicate the call sees',
+          G1, [writer]),
+    answer(gsc_go(gsc_f2, L2), L2, G2),
+    check('... in a second world', G2, [writer]),
+    answer(gsc_go(gsc_f3, L3), L3, G3),
+    check('... and a third', G3, [writer]).

@@ -396,8 +396,9 @@
 (generic decl-solve
   ()
 
-  ;; the green world's write hook (lib/green.cicili), one no-op outside it
-  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void))
+  (decl) (func coco_g_write_begin ((void * e)) (out int))
+  (decl) (func coco_g_write_end () (out void))
+  (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
 
   ;;; clock_gettime(2) is std/c/time's, whose struct needs the one-token name
   ;;; a Cicili type must be: a window's clock reads it (1.13.3)
@@ -10345,21 +10346,20 @@
           ;; is the whole point: the alternative was a commit that took every
           ;; other clause of the transaction with it. A cyclic clause is told
           ;; by the count of cycles put moving (`coco_assert_from').
-          (let ((size_t cp . #'(-> m cyc_puts)))
-            (if (not (coco_assert (-> e st) m c at_end))
-                (block
-                 (if (!= cp (-> m cyc_puts)) (return (coco_cyclic_error e)))
-                 (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
-                     (return (coco_raise e (coco_make1 m "resource_error"
-                                                       (coco_new_atom m "clause_length")))))
-                 (return 0))))
-          (if (coco_is_callable m head)
-              (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
-          (coco_store_maybe_compact (-> e st) m)
-          ;; THE GREEN WORLD HEARS EVERY WRITE (2.8.0): the local store has
-          ;; it; the other workers' clones wait for its replication.
-          (coco_g_note_write e (? (== at_end 0) 2 1) (coco_arg m g 0) 0)
-          (return 1)))
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin e)))
+            (let ((size_t cp . #'(-> m cyc_puts)))
+              (if (not (coco_assert (-> e st) m c at_end))
+                  (block
+                   (if (!= cp (-> m cyc_puts)) (return (coco_cyclic_error e)))
+                   (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
+                       (return (coco_raise e (coco_make1 m "resource_error"
+                                                         (coco_new_atom m "clause_length")))))
+                   (return 0))))
+            (if (coco_is_callable m head)
+                (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
+            (coco_store_maybe_compact (-> e st) m)
+            (return 1))))
 
   (func coco_bi_asserta ((coco_engine * e) (size_t g)) (out int)
         (return (coco_assert_goal e g 0)))
@@ -10370,21 +10370,22 @@
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
           (if (!= bad 0) (return bad)))
-        (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
-          (coco_store_maybe_compact (-> e st) (-> e m))
-          (if (== ok 1)
-              (coco_g_note_write e 3 (coco_arg (-> e m) g 0) 0))
-          (return (? ok 1 0))))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin e)))
+          (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
+            (coco_store_maybe_compact (-> e st) (-> e m))
+            (return (? ok 1 0)))))
 
   ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
   ;;; does when a file is consulted -- one implementation, reached two ways.
   (func coco_bi_dynamic ((coco_engine * e) (size_t g)) (out int)
-        (let ((char err [192]))
-          (if (not (coco_dynamic_spec (-> e st) (-> e m) (coco_arg (-> e m) g 0)
-                                    err (sizeof err)))
-              (return (coco_fail_err e err)))
-          (coco_g_note_write e 4 (coco_arg (-> e m) g 0) 0)
-          (return 1)))
+        (let ((defer () coco_g_write_end_cleanup)
+              (int began . #'(coco_g_write_begin e)))
+          (let ((char err [192]))
+            (if (not (coco_dynamic_spec (-> e st) (-> e m) (coco_arg (-> e m) g 0)
+                                      err (sizeof err)))
+                (return (coco_fail_err e err)))
+            (return 1))))
 
   ;;; A NO-OP FOR A BINARY THAT LINKS THE ENGINE WITHOUT THE GREEN MODULE
   ;;; (2.8.0): test/solve.cicili and test/shared.cicili have no
@@ -10393,8 +10394,9 @@
   ;;; binaries a SIGSEGV). cocolog.cicili compiles with -DCOCO_GREEN and
   ;;; gets the green module's definition instead.
   (@ifndef (code "COCO_GREEN"))
-  (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void)
-        (return))
+  (func coco_g_write_begin ((void * e)) (out int) (return 0))
+  (func coco_g_write_end () (return))
+  (func coco_g_write_end_cleanup ((int * began)) (return))
   (@endif)
 
   ;;; ---- listing ------------------------------------------------------------

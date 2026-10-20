@@ -21,15 +21,16 @@
 %%
 %% A GREEN THREAD IS NOT library(thread)'s. This one is a machine of its
 %% own, run by a world of EIGHT WORKERS (2.8.0): the caller's thread is
-%% worker 0 and seven OS threads are workers 1..7. Each worker owns a
-%% store cloned from the caller's at async_run/1; a task is pinned to the
-%% worker it was born on, aliases that worker's name and value tables, and
-%% is preempted at a 10,000-step quantum; a foreign call holds its worker.
-%% A write a task makes -- assertz/1, asserta/1, retract/1, dynamic/1,
-%% abolish/1 and nb_setval/2 -- is REPLICATED to every other worker's
-%% store before the builtin returns, so the caller, the main thread and the
-%% host see it. A term crosses in canonical text through a channel, and
-%% the result of a goal is the goal itself, instantiated:
+%% worker 0 and seven OS threads are workers 1..7. THE WORLD RUNS OVER THE
+%% CALLER'S OWN STORE (2.9.0): a write a task makes -- assertz/1,
+%% asserta/1, retract/1, dynamic/1, abolish/1, nb_setval/2 -- is seen by
+%% every other task and by the host as soon as it lands, because it IS
+%% their store; before it lands the world is stopped for it (the barrier in
+%% lib/green.cicili). A task is pinned to the worker it was born on,
+%% aliases the caller's name and value tables, and is preempted at a
+%% 10,000-step quantum; a foreign call holds its worker. A term crosses in
+%% canonical text through a channel, and the result of a goal is the goal
+%% itself, instantiated:
 %%
 %%     ?- async_run((go(member(X, [a,b,c]), F), await(F, R)), Answer).
 %%     Answer = (go(member(a,[a,b,c]),0), await(0,member(a,[a,b,c]))).

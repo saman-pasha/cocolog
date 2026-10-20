@@ -10,24 +10,26 @@
 ;;;
 ;;;; THE WORLD (2.8.0) IS M:N. `async_run/1,2' starts a world of N workers
 ;;;; (8): the caller's own thread is worker 0 and seven pthreads are
-;;;; workers 1..7. Each worker owns a STORE and a BASE MACHINE of its own,
-;;;; built once from a snapshot of the caller's knowledge base at
-;;;; async_run/1; a task is pinned to the worker it was born on and its
-;;;; machine aliases that worker's base machine (the 2.7.0 shared name and
-;;;; value tables). The caller's machine is worker 0's base, so the main
-;;;; task and the host share one store; every other worker has a clone.
+;;;; workers 1..7. ONE STORE (2.9.0): every worker -- and so every task's
+;;;; machine -- runs over the caller's own store and the caller's own
+;;;; machine, whose name and value tables all the machines alias (2.8.1).
+;;;; A task is pinned to the worker it was born on; a spawn copies nothing
+;;;; but its goal; a write a task makes is seen by every other as soon as
+;;;; it lands.
 ;;;;
-;;;; WRITES ARE REPLICATED SYNCHRONOUSLY. assertz/1, asserta/1, retract/1,
-;;;; dynamic/1, abolish/1 and nb_setval/2 run locally on the writer's
-;;;; machine and then cross a world barrier: the writer builds the goal as
-;;;; canonical text and waits while every other worker applies it with a
-;;;; scratch engine on ITS base machine and acknowledges. When the builtin
-;;;; returns, every store in the world holds the write, so a reader never
-;;;; sees an earlier world for a later write. Replication is suppressed on
-;;;; an applier (`applying'), so a copy does not broadcast again. b_setval/2
-;;;; is the same non-backtrackable global here and is NOT replicated (it is
-;;;; stated in library/async/README.md): the write-through backend, a
-;;;; consult/load a task runs and a module's own C state stay per-worker.
+;;;; A WRITE STOPS THE WORLD BEFORE IT LANDS (2.9.0). There is one store,
+;;;; the one every reader walks, so a store mutation -- assertz and
+;;;; asserta, retract, dynamic and abolish, nb_setval, and the metadata a
+;;;; first call makes (a predicate created, a clause compiled, an
+;;;; argument index built, a sweep) -- takes `coco_g_write_begin' FIRST:
+;;;; every other worker acknowledges at its safe point (its loop's top, or
+;;;; the wait inside a write of its own) and stops; the writer changes the
+;;;; store with no lock held; `coco_g_write_end' releases the world. A
+;;;; read takes no lock: a read runs only while no write is in flight.
+;;;; `coco_frames_on' walks every machine the store lists, so a suspended
+;;;; task's open call counts as an open call for the logical update view.
+;;;; A write nested inside another's barrier (`coco_pred_dynamic' inside
+;;;; `assertz''s) is covered by the outer one and ends nothing.
 ;;;;
 ;;;; THE QUANTUM IS THE ENGINE'S OWN STEP LIMIT (2.8.0). `max_steps' is
 ;;;; set to the task's step count plus the quantum; the limit's cold path
@@ -38,7 +40,7 @@
 ;;;; THE SCHEDULER. Each worker picks the next ready task pinned to it,
 ;;;; round robin from a per-worker cursor; a worker with nothing to do
 ;;;; waits on its own condition variable, signalled by a spawn, a finish,
-;;;; a wake, a replicated write or the world's stop. The main task is id 0
+;;;; a wake or the world's stop. The main task is id 0
 ;;;; on worker 0; when it ends the world stops and the host collects its
 ;;;; status. A deadlock is every task blocked and no main end.
 ;;;;
@@ -48,9 +50,9 @@
 ;;;; writes the status into that cell before the waiter resumes.
 ;;;;
 ;;;; THE LIMITS, stated where a reader meets them: 1024 threads and 64
-;;;; channels a world; each worker's store is a clone made at async_run/1
-;;;; (a spawn copies nothing); a consult, a load, b_setval/2 and a
-;;;; backend's fetch are the worker's own; a channel and a thread list are
+;;;; channels a world; the world runs over the caller's own store (2.9.0;
+;;;; a spawn copies nothing); a consult or load a task runs and a module's
+;;;; own C state stay the worker's; a channel and a thread list are
 ;;;; shared under the world lock; a task that blocks on a channel closed
 ;;;; under it or on a thread that never ends is a deadlock; and a goal runs
 ;;;; in the machine's module, so a module-qualified goal is not transported
@@ -115,11 +117,10 @@
     (member int    receivers [64])
     (member int    nreceivers))
 
-  ;; ONE REPLICATED WRITE AT A TIME. The writer names itself, the sequence
-  ;; keeps a worker from applying one write twice, and ACKS counts the
-  ;; workers other than the writer that have applied it.
+  ;; ONE WRITE AT A TIME. The writer names itself, the sequence keeps a
+  ;; worker from acknowledging one write twice, and ACKS counts the
+  ;; workers other than the writer that have stopped for it.
   (struct green_op
-    (member char * text)
     (member int    writer)
     (member int    seq)
     (member int    acks))
@@ -131,7 +132,6 @@
     (member coco_machine * base)       ; the tables every task aliases
     (member int            cur)        ; the task it is running, -1
     (member int            cursor)     ; the round-robin start
-    (member int            applying)   ; a replication is running here
     (member int            applied_seq)
     ;; A WAKE GENERATION: every signal to this worker bumps it, and the
     ;; loop's cond wait refuses to sleep when it moved since the last
@@ -160,10 +160,9 @@
     (member int               next_worker)
     (member coco_store *      host_st)
     (member coco_machine *    host)
-    ;; THE SHARED NAMES' MUTEX (the shared-store work's stage 1): every
-    ;; worker's base aliases the host's atom, functor, string, float, big and
-    ;; rat tables, and the table mutations take this lock. The stores are
-    ;; still the 2.8.0 clones; the shared STORE is the next stage.
+    ;; THE NAMES' MUTEX (2.8.1): every worker's base aliases the host's
+    ;; atom, functor, string, float, big and rat tables, and the table
+    ;; mutations take this lock. Since 2.9.0 there is ONE store as well.
     (member pthread_mutex_t   tbl_mx))
 
   (decl) (func coco_green_module () (out int))
@@ -176,11 +175,10 @@
   (decl) (func coco_g_async_send ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_recv ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_close ((coco_engine * e) (size_t g)) (out int))
-  ;; The write hook: lib/solve.cicili and lib/builtins.cicili call it after
-  ;; a local write; it is one no-op outside a green world and one no-op on
-  ;; an applier (whose scratch engine must not broadcast the copy again).
-  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b))
-        (out void))
+  ;; The pre-write barrier (2.9.0): a store write takes it before the call.
+  (decl) (func coco_g_write_begin ((void * e)) (out int))
+  (decl) (func coco_g_write_end () (out void))
+  (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
 
   ) ; decl-green
 
@@ -189,9 +187,10 @@
   ()
 
   ;; THE WORLD AND THE WORKER ARE PER OS THREAD. A task's builtins run on
-  ;; its worker's thread; the hook and the builtins read these.
+  ;; its worker's thread; the barrier and the builtins read these.
   (thread-local) (var green_world * green_now)
   (thread-local) (var green_worker * green_me)
+  (thread-local) (var int green_in_write . 0)
 
   ;;; ---- text and status -------------------------------------------------
 
@@ -270,35 +269,6 @@
               (block (set prev cur)
                      (set cur (cast (coco_machine *) (-> cur st_next))))))))
 
-  ;;; THE SNAPSHOT: every live clause and every dynamic declaration of the
-  ;;; host's store as a program text. A worker's store is built by
-  ;;; consulting one, once, at async_run/1. The host's heap is not wound
-  ;;; back: the store's cells are read onto it above whatever the host
-  ;;; engine holds.
-  (static)
-  (func coco_g_snapshot ((coco_machine * m) (coco_store * st)) (out char *)
-        (let ((coco_strbuf b) (char * out . nil))
-          (coco_sb_init (aof b))
-          (for ((size_t pi . 0)) (< pi (-> st npreds)) ((++ pi))
-            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
-              (if (== (-> p dynamic) 1)
-                  (block
-                   (coco_sb_put (aof b) ":- dynamic ")
-                   (let ((size_t na . #'(coco_new_atom m (coco_atom_name m (-> p name)))))
-                     (coco_write_term m (aof b) na 1 1))
-                   (coco_sb_put (aof b) "/")
-                   (coco_sb_put_i64 (aof b) (cast i64 (-> p arity)))
-                   (coco_sb_put (aof b) ".\n")))
-              (for ((size_t ci . 0)) (< ci (-> p nclauses)) ((++ ci))
-                (if (not (coco_pred_dead p ci))
-                    (block
-                     (let ((size_t t . #'(coco_store_read m st (nth ci (-> p clauses)))))
-                       (coco_write_term m (aof b) t 1 1))
-                     (coco_sb_put (aof b) ".\n"))))))
-          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-          (coco_sb_free (aof b))
-          (return out)))
-
   ;;; ---- a task's machines -----------------------------------------------
 
   (static)
@@ -312,9 +282,9 @@
         (set (-> t m) nil) (set (-> t st) nil) (set (-> t e) nil))
 
   ;;; MAKE A TASK'S MACHINE on its worker's base and ask its goal. Runs on
-  ;;; the task's own worker, outside the world lock: the base and the store
-  ;;; are that worker's alone. 0 means the goal did not read; the status is
-  ;;; set and the caller finishes the task.
+  ;;; the task's own worker, outside the world lock: the base is that
+  ;;; worker's alone, and the store is the world's one (2.9.0). 0 means the
+  ;;; goal did not read; the status is set and the caller finishes the task.
   (static)
   (func coco_g_prepare ((green_worker * w) (green_thread * t)) (out int)
         (let ((coco_machine * m . #'(cast (coco_machine *) (malloc (sizeof coco_machine))))
@@ -393,8 +363,7 @@
   (func coco_g_deadlock ((green_world * wd))
         (if (== (-> wd main_done) 1) (return))
         ;; NO TASK AT ALL YET: the workers start before the main task is
-        ;; made (the clones are theirs to consult), and an empty world is
-        ;; not a deadlock.
+        ;; made, and an empty world is not a deadlock.
         (if (== (-> wd nthreads) 0) (return))
         (if (!= (-> wd op) nil) (return))
         (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
@@ -403,89 +372,84 @@
         (coco_g_finish wd (aof (nth 0 (-> wd threads)))
                        (strdup "'$async'(error,error(resource_error(deadlock),_))")))
 
-  ;;; ---- the replicated write --------------------------------------------
+  ;;; ---- the pre-write barrier --------------------------------------------
 
-  ;;; Apply one replicated write on THIS worker's base machine with a
-  ;;; scratch engine, then wind the base's heap and trail back. The lock
-  ;;; is held, so the base is nobody else's while the copy runs, and
-  ;;; `applying' keeps the copy's own builtins from broadcasting again.
-  (static)
-  (func coco_g_apply ((green_worker * w) (const char * text))
-        (let ((coco_machine * b . #'(-> w base))
-              (coco_store * st . #'(-> w st))
-              (size_t h . #'(-> b heap_len))
-              (size_t tr . #'(-> b trail_len))
-              (size_t goal . 0)
-              (coco_engine * en . #'(cast (coco_engine *) (malloc (sizeof coco_engine)))))
-          (if (!= en nil)
-              (block
-               (if (coco_read_term_from b text (aof goal))
-                   (block
-                    (coco_engine_init en b st)
-                    (set (-> en gc) 0)
-                    (coco_engine_ask en goal)
-                    (coco_engine_next en)
-                    (coco_engine_free en)))
-               (free en)))
-          (set (-> b heap_len) h)
-          (set (-> b trail_len) tr)))
-
-  ;;; THE BARRIER. Queue the write, wake every worker, and wait for every
-  ;;; other worker's acknowledgement; the writer's own store already has
-  ;;; it. One write at a time; the next writer waits on OP_DONE.
-  (static)
-  (func coco_g_broadcast ((green_world * wd) (green_worker * w) (char * text))
-        (pthread_mutex_lock (aof (-> wd lock)))
-        (while (!= (-> wd op) nil)
-          (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
-        (let ((green_op * op . #'(cast (green_op *) (calloc 1 (sizeof green_op)))))
-          (set (-> op text) text)
-          (set (-> op writer) (-> w id))
-          (set (-> wd op_seq) (+ (-> wd op_seq) 1))
-          (set (-> op seq) (-> wd op_seq))
+  ;;; THE PRE-WRITE BARRIER (2.9.0). A store write takes it BEFORE the
+  ;;; store call: every other worker acknowledges at its safe point and
+  ;;; WAITS; the writer changes the one shared store with no lock held;
+  ;;; the end releases them. A nested write is already inside it and
+  ;;; skips. The end is a let's `(defer () ...)', so a failed write or a
+  ;;; raise inside it still releases the world.
+  (func coco_g_write_begin ((void * ev)) (out int)
+        (if (or (== green_now nil) (== green_me nil)) (return 0))
+        (if (or (!= (-> green_now stop) 0) (!= (-> green_now main_done) 0))
+            (return 0))
+        (if (!= green_in_write 0) (return 0))
+        (pthread_mutex_lock (aof (-> green_now lock)))
+        (while (!= (-> green_now op) nil)
+          ;; ACKNOWLEDGE WHAT IS IN FLIGHT BEFORE WAITING FOR IT TO CLEAR.
+          ;; A task that is inside a store call can not reach the worker
+          ;; loop's ack, and the op's writer may be waiting for exactly
+          ;; this worker's acknowledgement -- the two-writer deadlock
+          ;; test/async.pl found: worker 0 in the acks wait, worker 1's
+          ;; task at this wait. Acking here is honest: this thread has not
+          ;; touched the store and waits for the op to end before it does.
+          (let ((green_op * opx . #'(-> green_now op)))
+            (if (and (!= (-> opx writer) (-> green_me id))
+                     (!= (-> green_me applied_seq) (-> opx seq)))
+                (block
+                 (let ((int oseq . #'(-> opx seq)))
+                   (set (-> green_me applied_seq) oseq)
+                   (set (-> opx acks) (+ (-> opx acks) 1))
+                   (if (>= (-> opx acks) (- (-> green_now nworkers) 1))
+                       (pthread_cond_broadcast (aof (-> green_now op_done))))))))
+          (pthread_cond_wait (aof (-> green_now op_done))
+                             (aof (-> green_now lock))))
+        (let ((green_op * op . #'(cast (green_op *)
+                                       (calloc 1 (sizeof green_op)))))
+          (set (-> op writer) (-> green_me id))
+          (set (-> green_now op_seq) (+ (-> green_now op_seq) 1))
+          (set (-> op seq) (-> green_now op_seq))
           (set (-> op acks) 0)
-          (set (-> wd op) op)
-          (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
-            (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+          (set (-> green_now op) op)
+          (for ((int i . 0)) (< i (-> green_now nworkers)) ((++ i))
+            (let ((green_worker * wi . #'(aof (nth i (-> green_now workers)))))
               (coco_g_poke wi)))
-          (while (< (-> op acks) (- (-> wd nworkers) 1))
-            (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
-          (set (-> wd op) nil)
-          (free op)
-          (pthread_cond_broadcast (aof (-> wd op_done)))
-          (pthread_mutex_unlock (aof (-> wd lock)))))
+          (while (< (-> op acks) (- (-> green_now nworkers) 1))
+            (pthread_cond_wait (aof (-> green_now op_done))
+                               (aof (-> green_now lock))))
+          (pthread_mutex_unlock (aof (-> green_now lock))))
+        (set green_in_write 1)
+        (return 1))
 
-  ;;; A LOCAL WRITE'S HOOK. No world, no replication. An applier's scratch
-  ;;; engine is a copy. The kinds are lib/solve.cicili's and
-  ;;; lib/builtins.cicili's: 1 assertz, 2 asserta, 3 retract, 4 dynamic,
-  ;;; 5 nb_setval (B is the value), 7 abolish.
-  (func coco_g_note_write ((void * ev) (int kind) (size_t a) (size_t b)) (out void)
-        (if (or (== green_now nil) (== green_me nil)) (return))
-        (if (!= (-> green_me applying) 0) (return))
-        (if (or (== (-> green_now stop) 1) (== (-> green_now main_done) 1)) (return))
-        (let ((coco_engine * e . #'(cast (coco_engine *) ev))
-              (coco_machine * m . #'(-> e m))
-              (coco_strbuf sb) (char * text . nil))
-          (coco_sb_init (aof sb))
-          (cond
-            ((== kind 1) (coco_sb_put (aof sb) "assertz("))
-            ((== kind 2) (coco_sb_put (aof sb) "asserta("))
-            ((== kind 3) (coco_sb_put (aof sb) "retract("))
-            ((== kind 4) (coco_sb_put (aof sb) "dynamic("))
-            ((== kind 5) (coco_sb_put (aof sb) "nb_setval("))
-            ((== kind 7) (coco_sb_put (aof sb) "abolish("))
-            (#t (coco_sb_free (aof sb)) (return)))
-          (coco_write_term m (aof sb) a 1 1)
-          (if (== kind 5)
-              (block (coco_sb_put (aof sb) ",")
-                     (coco_write_term m (aof sb) b 1 1)))
-          (coco_sb_put (aof sb) ")")
-          (if (!= ($ sb s) nil) (set text (strdup ($ sb s))))
-          (coco_sb_free (aof sb))
-          (if (!= text nil)
-              (block
-               (coco_g_broadcast green_now green_me text)
-               (free text)))))
+  (func coco_g_write_end () (out void)
+        (if (== green_in_write 0) (return))
+        (set green_in_write 0)
+        (if (== green_now nil) (return))
+        (pthread_mutex_lock (aof (-> green_now lock)))
+        (if (!= (-> green_now op) nil)
+            (block
+             (free (cast (void *) (-> green_now op)))
+             (set (-> green_now op) nil)
+             (pthread_cond_broadcast (aof (-> green_now op_done)))))
+        (pthread_mutex_unlock (aof (-> green_now lock))))
+
+  ;;; THE CLEANUP-ATTRIBUTE FORM: bound with `(defer () ...)' on the
+  ;;; barrier's let variable, the C runs it on EVERY exit from the scope,
+  ;;; the early returns included; the plain `(defer () (forms))' form ran
+  ;;; only at the block's normal end, and a failed store or a `return 1'
+  ;;; left the world stopped (found by test/async.pl's first case).
+  ;;;
+  ;;; ONLY THE SCOPE THAT BECAME THE WRITER ENDS THE BARRIER. A store
+  ;;; call nested inside another's barrier -- `coco_pred_dynamic' inside
+  ;;; `assertz''s, a predicate's creation inside its put -- got `began' 0
+  ;;; from `coco_g_write_begin' and used to call the end anyway: it freed
+  ;;; the OUTER op, woke every worker, and the rest of the outer write ran
+  ;;; beside other writers (six of 480 asserts lost, a whole predicate
+  ;;; sometimes, found by a concurrent stress).
+  (func coco_g_write_end_cleanup ((int * began)) (out void)
+        (if (or (== began nil) (== (nth 0 began) 0)) (return))
+        (coco_g_write_end))
 
   ;;; ---- the scheduler ---------------------------------------------------
 
@@ -563,7 +527,7 @@
                      (coco_g_finish wd t (strdup "'$async'(error,error(system_error,_))"))))))
               (pthread_mutex_unlock (aof (-> wd lock)))))))
 
-  ;;; ONE WORKER'S LOOP: a pending replicated write first, then a task of
+  ;;; ONE WORKER'S LOOP: a pending write first, then a task of
   ;;; its own, then sleep until somebody wakes it. The main's end or the
   ;;; stop ends it.
   (static)
@@ -579,13 +543,26 @@
               (if (and (!= op nil) (!= (-> op writer) (-> w id))
                        (!= (-> w applied_seq) (-> op seq)))
                   (block
-                   (set (-> w applying) 1)
-                   (coco_g_apply w (-> op text))
-                   (set (-> w applying) 0)
-                   (set (-> w applied_seq) (-> op seq))
-                   (set (-> op acks) (+ (-> op acks) 1))
-                   (if (>= (-> op acks) (- (-> wd nworkers) 1))
-                       (pthread_cond_broadcast (aof (-> wd op_done))))
+                   ;; THE PRE-WRITE BARRIER: acknowledge and WAIT until the
+                   ;; writer has finished its change to the one store.
+                   ;; THE SEQUENCE IS TAKEN AS AN INT, never read again
+                   ;; through the op pointer: the writer frees the op after
+                   ;; its last ack, and the next calloc hands the same
+                   ;; address back -- a captured pointer then reads the NEW
+                   ;; op's sequence, and the wait below (comparing that
+                   ;; pointer with wd->op) sleeps through the new op instead
+                   ;; of acknowledging it (the ABA that hung the light lane,
+                   ;; found by the barrier's trace: seq 2 published, zero
+                   ;; acks, every worker at the ack wait).
+                   (let ((int oseq . #'(-> op seq)))
+                     (set (-> w applied_seq) oseq)
+                     (set (-> op acks) (+ (-> op acks) 1))
+                     (if (>= (-> op acks) (- (-> wd nworkers) 1))
+                         (pthread_cond_broadcast (aof (-> wd op_done))))
+                     (while (and (!= (-> wd op) nil)
+                                 (== (-> (-> wd op) seq) oseq))
+                       (pthread_cond_wait (aof (-> wd op_done))
+                                          (aof (-> wd lock)))))
                    (pthread_mutex_unlock (aof (-> wd lock)))
                    (continue))))
             (let ((int ti . #'(coco_g_pick w)))
@@ -612,7 +589,12 @@
                      (block
                       ;; A SIGNAL MAY HAVE ARRIVED SINCE THE PICK: do not
                       ;; sleep on it -- the generation is under the lock.
-                      (if (!= (-> w wgen) (-> w wseen))
+                      ;; NEVER SLEEP WITH A WRITE IN FLIGHT: the op may
+                      ;; be published between the loop's check and this
+                      ;; wait, and its signal then targets a sleeping
+                      ;; worker that never acks (the light-lane hang).
+                      (if (or (!= (-> w wgen) (-> w wseen))
+                              (!= (-> wd op) nil))
                           (block (set (-> w wseen) (-> w wgen))
                                  (pthread_mutex_unlock (aof (-> wd lock))))
                         (block
@@ -737,8 +719,7 @@
               (int nw . 8))
           (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
           (let ((green_world * wd . #'(cast (green_world *)
-                                           (calloc 1 (sizeof green_world))))
-                (char * snap . nil))
+                                           (calloc 1 (sizeof green_world)))))
             (set (-> wd threads) (cast (green_thread *)
                                        (calloc 1024 (sizeof green_thread))))
             (set (-> wd chans) (cast (green_chan *)
@@ -765,26 +746,17 @@
                 (set (-> wi cursor) -1)
                 (set (-> wi applied_seq) 0)
                 (pthread_cond_init (aof (-> wi wake)) nil)))
-            ;; worker 0: the host's own machine and store
+            ;; ONE STORE (2.9.0): every worker is over the host's store and
+            ;; the host's machine; its tasks alias the host's names there.
             (let ((green_worker * w0 . #'(aof (nth 0 (-> wd workers)))))
               (set (-> w0 st) hs)
               (set (-> w0 base) hm))
             (coco_g_store_link hs hm)
             (set (-> hm tshared) 1)
-            ;; the snapshot, once, on the host's machine
-            (set snap (coco_g_snapshot hm hs))
-            ;; workers 1..nw-1: a store and a base machine each, and a thread
             (for ((int i . 1)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                (set (-> wi st) (cast (coco_store *) (malloc (sizeof coco_store))))
-                (set (-> wi base) (cast (coco_machine *) (malloc (sizeof coco_machine))))
-                (coco_store_init (-> wi st))
-                (coco_machine_init_alias (-> wi base) hm)
-                (if (!= snap nil)
-                    (let ((char err [256]))
-                      (coco_consult (-> wi st) (-> wi base) snap
-                                    "async_worker" err (sizeof err))))
-                (coco_g_store_link (-> wi st) (-> wi base))
+                (set (-> wi st) hs)
+                (set (-> wi base) hm)
                 (pthread_create (aof (-> wi tid)) nil coco_g_worker_body
                                 (cast (void *) wi))))
             ;; the main task, id 0, on worker 0
@@ -818,7 +790,7 @@
                   (coco_g_resume hm outc (-> mt status))))
             (set green_now nil)
             (set green_me nil)
-            ;; free every task, every cloned store and the world
+            ;; free every task and the world
             (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
               (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
                 (coco_g_thread_free t)
@@ -837,13 +809,6 @@
                      (free (cast (void *) (-> c buf)))))))
             (coco_g_store_unlink hs hm)
             (set (-> hm tshared) 0)
-            (for ((int i . 1)) (< i (-> wd nworkers)) ((++ i))
-              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                (coco_g_store_unlink (-> wi st) (-> wi base))
-                (if (!= (-> wi base) nil) (coco_machine_free (-> wi base)))
-                (if (!= (-> wi st) nil) (coco_store_free (-> wi st)))
-                (if (!= (-> wi base) nil) (free (-> wi base)))
-                (if (!= (-> wi st) nil) (free (-> wi st)))))
             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (pthread_cond_destroy (aof (-> wi wake)))))
@@ -851,7 +816,6 @@
             (pthread_cond_destroy (aof (-> wd op_done)))
             (pthread_mutex_destroy (aof (-> wd lock)))
             (pthread_mutex_destroy (aof (-> wd tbl_mx)))
-            (if (!= snap nil) (free snap))
             (free (cast (void *) (-> wd threads)))
             (free (cast (void *) (-> wd chans)))
             (free (cast (void *) (-> wd workers)))

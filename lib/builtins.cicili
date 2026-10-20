@@ -497,7 +497,9 @@
   ()
 
   ;; the green world's write hook (lib/green.cicili), one no-op outside it
-  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void))
+  (decl) (func coco_g_write_begin ((void * e)) (out int))
+  (decl) (func coco_g_write_end () (out void))
+  (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
 
   (decl) (func coco_builtins_module () (out int))
 
@@ -3331,7 +3333,9 @@
                 (return (coco_m_type_error e "atom" nm)))
             (if (not (coco_m_int e ar (aof arity)))
                 (return (coco_m_type_error e "integer" ar)))
-            (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
+            (let ((defer () coco_g_write_end_cleanup)
+                  (int began . #'(coco_g_write_begin e)))
+             (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
               (if (>= pi ($ (cof st) npreds)) (return 1))
               (coco_pred_ensure st pi)
               ;; retract the first clause until there is none, so that the
@@ -3348,8 +3352,7 @@
                   (set (-> m heap_len) mark)
                   (if (not ok) break)))
               (coco_store_maybe_compact st m)
-              (coco_g_note_write e 7 (coco_arg m g 0) 0)
-              (return 1)))))
+              (return 1))))))
 
   ;;; ---- global variables -------------------------------------------------
   ;;;
@@ -3451,20 +3454,12 @@
         (coco_global_place st i)
         (return 1))
 
-  ;;; NB_SETVAL IS REPLICATED and b_setval is not (2.8.0): a green world's
-  ;;; stores are clones, and a global a task sets must be seen by the
-  ;;; others as a predicate write is. b_setval is the same global here and
-  ;;; is stated as a worker's own.
-  (static)
-  (func coco_b_setval_note ((coco_engine * e) (size_t g))
-        (let ((coco_machine * m . #'(coco_m_machine e)))
-          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m g)) "nb_setval"))
-              (coco_g_note_write e 5 (coco_arg m g 0) (coco_arg m g 1)))))
-
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((defer () coco_g_write_end_cleanup)
+                (int began . #'(coco_g_write_begin e)))
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
                 (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))
@@ -3484,7 +3479,6 @@
                   (set ($ (nth i (-> st globals)) ver) (-> st gver))
                   (set ($ (nth i (-> st globals)) ground) ground)
                   (coco_store_maybe_compact st m)
-                  (coco_b_setval_note e g)
                   (return 1)))
             (if (>= (-> st nglobals) (-> st gcap))
                 (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
@@ -3502,8 +3496,7 @@
             (if (not (coco_global_hash st (-> st nglobals))) (return 0))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
             (coco_store_maybe_compact st m)
-            (coco_b_setval_note e g)
-            (return 1))))
+            (return 1)))))
 
   ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value
   ;;; as its block (`coco_store_read_block'): through 1.12.0 a read walked
