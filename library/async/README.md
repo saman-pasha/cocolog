@@ -45,8 +45,14 @@ A green thread is a **machine of its own in a world of eight workers**
 (2.8.0): the caller's thread is worker 0 and seven OS threads are workers
 1..7. Each worker owns a STORE and a base machine of its own, built once
 at `async_run/1,2` from a snapshot of the caller's knowledge base; a task
-is pinned to the worker it was born on, and its atom, functor, string,
-float, big and rat tables alias that worker's base. A spawn copies
+is pinned to the worker it was born on. THE NAME TABLES ARE SHARED
+(2.8.1): all eight base machines alias the HOST'S ONE atom, functor,
+string, float, big and rat table. A world names mutex serializes the six
+table mutations, which sync a machine's fields by generation (`tgen`) and
+publish to the root; value reads stay lock-free from the run-start sync;
+while the tables are shared, a growth allocates a new array and never frees
+the old one, so a synced pointer stays valid (a stated leak); the alias
+list the tasks link into is under the same mutex. A spawn copies
 nothing: it is a heap, a trail, a choice stack and an engine. A write a
 task makes — `assertz/1`, `asserta/1`, `retract/1`, `dynamic/1`,
 `abolish/1` and `nb_setval/2` — is REPLICATED to every other worker's
@@ -69,6 +75,17 @@ continuation and stops the run, and the scheduler resumes by calling
 `coco_engine_next` again. The continuation is on the machine's heap, not the
 C stack, so a green thread needs no stack copying.
 
+THE 2.8.0 SCHEDULER BUGS (2.8.1). `await`/`send`/`recv` set a task's
+block and wait_on under the world lock but its state only later, in the
+run's rc-0 handler: a target finishing in that window woke nobody, and the
+waiter slept on a done task -- a false `resource_error(deadlock)` in the
+light lane. The state is set with the block inside the builtin's lock now,
+and an already-woken task is left alone. And with the host as the single
+root the alias list was unlocked: a lost link left a freed machine on it,
+and a later `coco_frames_on`/free walk over it was a use-after-free or a
+cycle. It takes the names mutex. A per-worker wake generation and a
+deadlock check after any block are in as well.
+
 The status of a thread is a text term the scheduler carries:
 
     '$async'(ok, Goal)   first solution, the goal instantiated
@@ -87,7 +104,8 @@ The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
 steps each, on a 16-core Intel Mac, cocolog 2.8.0 (Concurrency Run C, the
-M:N world; Run B's 2.7.0 shared-store, one-scheduler model and Run A's
+M:N world -- the figures are 2.8.0's; a 2.8.1 within-run pair is owed for
+the shared names' run-start sync; Run B's 2.7.0 shared-store, one-scheduler model and Run A's
 2.6.0 snapshot model are in bench/README.md):
 
 | lane | wall |
@@ -214,14 +232,19 @@ staged engine-concurrency project, and the stages are:
    must use the cores, the light lane must keep its per-task cost, and the
    full suite (with a server) must be green.
 
-The tree NOW holds stage 3 as built here: eight workers, each with a
-store and a base machine cloned from the caller's at `async_run/1`, tasks
-pinned and preempted at the step quantum, and the write replication of
-`assertz`, `asserta`, `retract`, `dynamic`, `abolish` and `nb_setval`
-across the stores before the builtin returns. The per-task heaps and the
-cloned stores answer the shared-heap question without a relocating heap;
-the tables' reclamation and the store's compaction are suspended while a
-world runs. 2.6.0's released library was the per-spawn-snapshot model and
+The tree NOW holds stage 3 as built here (2.8.0) and the FIRST ITEM OF
+STAGE 1 (2.8.1): eight workers, each with a store and a base machine
+cloned from the caller's at `async_run/1`, the bases all aliasing the
+host's one names table under the world names mutex; tasks pinned and
+preempted at the step quantum; and the write replication of `assertz`,
+`asserta`, `retract`, `dynamic`, `abolish` and `nb_setval` across the
+stores before the builtin returns. The SHARED STORE and stage 2 are NOT
+in: the clones, the snapshots and the replication remain, and a naive
+store lock deadlocks with the world barrier (the writer would hold it while
+waiting for acks from tasks that cannot reach a quantum). The per-task
+heaps and the cloned stores answer the shared-heap question without a
+relocating heap; the tables' reclamation and the store's compaction are
+suspended while a world runs. 2.6.0's released library was the per-spawn-snapshot model and
 2.7.0's the shared-store single scheduler.
 
 ## Limits, stated where a reader meets them
@@ -230,6 +253,11 @@ world runs. 2.6.0's released library was the per-spawn-snapshot model and
   engine cell; a blocking foreign call defers the signal until it returns.
 * A task is preempted at a 10,000-step quantum; a foreign call holds its
   worker.
+* The NAME TABLES are shared (2.8.1): one atom/functor/string/float/big/rat
+  table for all workers, a world names mutex around the mutations and the
+  alias list, lock-free value reads from the run-start sync. While shared,
+  a table growth allocates a new array and never frees the old one -- one
+  old array leaks per growth per world.
 * Each worker's store is a CLONE of the caller's at `async_run/1,2`, and
   `assertz/1`, `asserta/1`, `retract/1`, `dynamic/1`, `abolish/1` and
   `nb_setval/2` are replicated to every worker before they return.
@@ -245,5 +273,7 @@ world runs. 2.6.0's released library was the per-spawn-snapshot model and
 * A goal is read in the new machine's module; a module-qualified goal is
   not carried as one.
 
-`cocolog 2.8.0`, the M:N world: eight workers, cloned stores, replicated
-writes and the step quantum. Reasoning stays 1.0.11.
+`cocolog 2.8.1`, the M:N world with the shared names table and the 2.8.0
+scheduler fixes: eight workers, cloned stores, replicated writes and the
+step quantum. The shared store and stage 2 are the next rung. Reasoning
+stays 1.0.11.

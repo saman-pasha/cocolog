@@ -26,6 +26,7 @@
         :link ("-lterm.o" "-o" "cocolog_term_test"))
 
   ;; sig_atomic_t, for the engine's halted cell (2.6.0)
+  (include <pthread.h>)
   (include <signal.h>)
   (import "../lib/term.cicili")
 

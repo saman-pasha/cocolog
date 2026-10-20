@@ -16,6 +16,7 @@
         :link ("-lsyntax.o" "-o" "cocolog_syntax_test"))
 
   ;; sig_atomic_t, for the engine's halted cell (2.6.0)
+  (include <pthread.h>)
   (include <signal.h>)
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")

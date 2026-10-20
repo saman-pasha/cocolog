@@ -1919,11 +1919,16 @@ cocolint index offers no import of it.
   of eight workers (2.8.0): the caller's thread is worker 0 and seven OS
   threads are workers 1..7. Each worker owns a STORE and a BASE MACHINE, the
   base built once at `async_run/1,2` by consulting a snapshot of the
-  caller's store (worker 0's is the caller's own machine and store). A task
-  is PINNED to the worker it was born on; its atom, functor, string, float,
-  big and rat fields alias that worker's base, every table mutation copies
-  them back (`coco_tupdate`) and a machine takes them again before it runs
-  (`coco_tsync`). A spawn copies nothing: a heap, a trail, a choice stack
+  caller's store (worker 0's is the caller's own machine and store).
+  **THE NAME TABLES ARE SHARED (2.8.1)**: all eight bases alias the host's
+  ONE atom/functor/string/float/big/rat table under a world names mutex --
+  the six mutations take it, sync a machine's fields by generation
+  (`tgen`, `coco_tbl_set/sync/begin/end/grow`) and publish to the root;
+  value reads are lock-free from the run-start sync; while shared, growth
+  allocates a new array and never frees the old (a stated leak); the alias
+  list is under the same mutex. A task is PINNED to the worker it was born
+  on; its tables are the shared names, and a run starts with
+  `coco_tbl_sync`. A spawn copies nothing: a heap, a trail, a choice stack
   and an engine. A WRITE IS REPLICATED: `assertz/1`, `asserta/1`,
   `retract/1`, `dynamic/1`, `abolish/1` and `nb_setval/2` call
   `coco_g_note_write` (declared in solve and builtins, defined in
@@ -1932,7 +1937,16 @@ cocolint index offers no import of it.
   builds the goal as canonical text and waits at a world barrier while
   every other worker applies it with a scratch engine on its base
   (`applying` stops a copy's broadcast), so the builtin returns with every
-  store holding it. b_setval/2, a consult or load, a backend's fetch and a
+  store holding it. **THE 2.8.0 SCHEDULER BUGS ARE FIXED (2.8.1)**: the
+  block was set under the world lock but the task's state only later, in
+  the run's rc-0 handler, so a target finishing in the window woke nobody
+  and the waiter slept on a done task -- a false deadlock in the light
+  lane; and with the host as the single root the alias list was unlocked,
+  so a lost link left a freed machine on it -- a use-after-free or a cycle.
+  The state is set inside the builtin's lock, the link/unlink take the
+  names mutex, a per-worker wake generation is checked under the lock, and
+  the deadlock is asked after any block, not only when a pick finds
+  nothing. b_setval/2, a consult or load, a backend's fetch and a
   module's own C state stay per worker. The store's frame walks visit every
   machine the store lists, a suspended task's engine through `keep_eng` --
   NEVER `m->eng`: pre-setting it made the engine its own `outer`. No table

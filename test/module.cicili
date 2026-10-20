@@ -28,6 +28,7 @@
         :link ("-lmodule.o" "-L../build" "-lcocologc" "-lm"
                "-o" "cocolog_module_test"))
 
+  (include <pthread.h>)
   (include <math.h>)
   ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
   (include <time.h>)

@@ -133,6 +133,12 @@
     (member int            cursor)     ; the round-robin start
     (member int            applying)   ; a replication is running here
     (member int            applied_seq)
+    ;; A WAKE GENERATION: every signal to this worker bumps it, and the
+    ;; loop's cond wait refuses to sleep when it moved since the last
+    ;; check -- a signal that arrives while the worker is between its pick
+    ;; and its wait is then not lost.
+    (member int            wgen)
+    (member int            wseen)
     (member pthread_t      tid)
     (member pthread_cond_t wake))
 
@@ -153,7 +159,12 @@
     (member int               main_done)
     (member int               next_worker)
     (member coco_store *      host_st)
-    (member coco_machine *    host))
+    (member coco_machine *    host)
+    ;; THE SHARED NAMES' MUTEX (the shared-store work's stage 1): every
+    ;; worker's base aliases the host's atom, functor, string, float, big and
+    ;; rat tables, and the table mutations take this lock. The stores are
+    ;; still the 2.8.0 clones; the shared STORE is the next stage.
+    (member pthread_mutex_t   tbl_mx))
 
   (decl) (func coco_green_module () (out int))
   (decl) (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int))
@@ -342,6 +353,11 @@
   ;;; ---- the world's shared state (the caller holds the lock) -------------
 
   (static)
+  (func coco_g_poke ((green_worker * w))
+        (set (-> w wgen) (+ (-> w wgen) 1))
+        (pthread_cond_signal (aof (-> w wake))))
+
+  (static)
   (func coco_g_wake ((green_world * wd) (int ti))
         (let ((green_thread * f . #'(aof (nth ti (-> wd threads)))))
           (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
@@ -354,7 +370,7 @@
                    (set (-> t block) 0)
                    (set (-> t wait_on) -1)
                    (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
-                     (pthread_cond_signal (aof (-> tw wake))))))))))
+                     (coco_g_poke tw))))))))
 
   (static)
   (func coco_g_finish ((green_world * wd) (green_thread * t) (char * status))
@@ -368,7 +384,7 @@
              (set (-> wd main_done) 1)
              (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
                (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                 (pthread_cond_signal (aof (-> wi wake))))))))
+                 (coco_g_poke wi))))))
 
   ;;; EVERY TASK BLOCKED AND THE MAIN NOT ENDED: a deadlock. A task that
   ;;; is ready is somebody's next step; one that is running has a worker
@@ -431,7 +447,7 @@
           (set (-> wd op) op)
           (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
             (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-              (pthread_cond_signal (aof (-> wi wake)))))
+              (coco_g_poke wi)))
           (while (< (-> op acks) (- (-> wd nworkers) 1))
             (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
           (set (-> wd op) nil)
@@ -501,7 +517,7 @@
                    (return))))
           (let ((coco_machine * m . #'(-> t m))
                 (coco_engine * en . #'(-> t e)))
-            (coco_tsync m)
+            (coco_tbl_sync m)
             (set (-> en max_steps) (+ (-> en steps) (-> wd quantum)))
             (if (!= (-> t resume_text) nil)
                 (block
@@ -522,12 +538,23 @@
                   ((== rc 1)
                    (coco_g_finish wd t (coco_g_ok_text m (-> en query))))
                   ((== rc 0)
-                   (if (!= (-> t block) 0)
-                       (block
-                        (if (== (-> t block) 4)
-                            (block (set (-> t state) 0) (set (-> t block) 0))
-                          (set (-> t state) 1)))
-                     (coco_g_finish wd t (coco_g_failed_text))))
+                   ;; A WAKER MAY HAVE GOT HERE BETWEEN THE BUILTIN'S
+                   ;; UNLOCK AND THIS LOCK: it set resume_text, the state 0
+                   ;; and the block 0. Leave the task ready for its next
+                   ;; run (which applies the text); do NOT read the cleared
+                   ;; block as a failed goal.
+                   (if (!= (-> t resume_text) nil)
+                       (set (-> t state) (-> t state))
+                     (if (!= (-> t block) 0)
+                         (block
+                          (if (== (-> t block) 4)
+                              (block (set (-> t state) 0) (set (-> t block) 0))
+                            (block
+                             (set (-> t state) 1)
+                             ;; A BLOCK CAN LEAVE THE WORLD DEAD and no pick
+                             ;; may find it: ask here too.
+                             (coco_g_deadlock wd))))
+                       (coco_g_finish wd t (coco_g_failed_text)))))
                   (#t
                    (if (-> en has_ball)
                        (let ((size_t ball . #'(coco_store_read m (-> t st)
@@ -583,8 +610,15 @@
                    (if (== (-> wd main_done) 1)
                        (block (pthread_mutex_unlock (aof (-> wd lock))) (break))
                      (block
-                      (pthread_cond_wait (aof (-> w wake)) (aof (-> wd lock)))
-                      (pthread_mutex_unlock (aof (-> wd lock))))))))))))
+                      ;; A SIGNAL MAY HAVE ARRIVED SINCE THE PICK: do not
+                      ;; sleep on it -- the generation is under the lock.
+                      (if (!= (-> w wgen) (-> w wseen))
+                          (block (set (-> w wseen) (-> w wgen))
+                                 (pthread_mutex_unlock (aof (-> wd lock))))
+                        (block
+                         (pthread_cond_wait (aof (-> w wake)) (aof (-> wd lock)))
+                         (set (-> w wseen) (-> w wgen))
+                         (pthread_mutex_unlock (aof (-> wd lock))))))))))))))
 
   (static)
   (func coco_g_worker_body ((void * arg)) (out void *)
@@ -609,7 +643,7 @@
             (set (-> t goal) text)
             (set (-> wd nthreads) (+ (-> wd nthreads) 1))
             (let ((green_worker * tw . #'(aof (nth target (-> wd workers)))))
-              (pthread_cond_signal (aof (-> tw wake))))
+              (coco_g_poke tw))
             (return id))))
 
   ;;; ---- channels (the caller holds the world lock) ----------------------
@@ -651,7 +685,7 @@
             (if (!= (-> t send_text) nil)
                 (block (free (-> t send_text)) (set (-> t send_text) nil)))
             (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
-              (pthread_cond_signal (aof (-> tw wake))))))
+              (coco_g_poke tw))))
         (set (-> c nsenders) 0)
         (for ((int i . 0)) (< i (-> c nreceivers)) ((++ i))
           (let ((green_thread * t . #'(aof (nth (nth i (-> c receivers)) (-> wd threads)))))
@@ -660,7 +694,7 @@
             (set (-> t block) 0)
             (set (-> t chan) -1)
             (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
-              (pthread_cond_signal (aof (-> tw wake))))))
+              (coco_g_poke tw))))
         (set (-> c nreceivers) 0))
 
   ;;; A sender waiting on a full buffer takes the slot a receive freed.
@@ -681,7 +715,7 @@
                (set (-> st block) 0)
                (set (-> st chan) -1)
                (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
-                 (pthread_cond_signal (aof (-> sw wake))))))
+                 (coco_g_poke sw))))
              (coco_g_chan_remove_sender c 0))))
 
   ;;; ---- the builtins ----------------------------------------------------
@@ -721,6 +755,8 @@
             (set (-> wd next_worker) 1)
             (pthread_mutex_init (aof (-> wd lock)) nil)
             (pthread_cond_init (aof (-> wd op_done)) nil)
+            (pthread_mutex_init (aof (-> wd tbl_mx)) nil)
+            (coco_tbl_set (aof (-> wd tbl_mx)))
             (for ((int i . 0)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (set (-> wi id) i)
@@ -743,7 +779,7 @@
                 (set (-> wi st) (cast (coco_store *) (malloc (sizeof coco_store))))
                 (set (-> wi base) (cast (coco_machine *) (malloc (sizeof coco_machine))))
                 (coco_store_init (-> wi st))
-                (coco_machine_init (-> wi base))
+                (coco_machine_init_alias (-> wi base) hm)
                 (if (!= snap nil)
                     (let ((char err [256]))
                       (coco_consult (-> wi st) (-> wi base) snap
@@ -771,7 +807,7 @@
             (set (-> wd stop) 1)
             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
-                (pthread_cond_signal (aof (-> wi wake)))))
+                (coco_g_poke wi)))
             (pthread_mutex_unlock (aof (-> wd lock)))
             (for ((int i . 1)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
@@ -811,8 +847,10 @@
             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
                 (pthread_cond_destroy (aof (-> wi wake)))))
+            (coco_tbl_set nil)
             (pthread_cond_destroy (aof (-> wd op_done)))
             (pthread_mutex_destroy (aof (-> wd lock)))
+            (pthread_mutex_destroy (aof (-> wd tbl_mx)))
             (if (!= snap nil) (free snap))
             (free (cast (void *) (-> wd threads)))
             (free (cast (void *) (-> wd chans)))
@@ -870,6 +908,12 @@
                 (let ((green_thread * t . #'(aof (nth (-> green_me cur)
                                                       (-> wd threads)))))
                   (set (-> t block) 1)
+                  ;; THE STATE IS SET HERE, WITH THE BLOCK, UNDER THE LOCK: a
+                  ;; target that finishes between this unlock and the run's
+                  ;; rc-0 handler must find a waiter its wake can see. Set
+                  ;; later, the wake missed it and the waiter slept on a
+                  ;; done task -- the false deadlock light_green found.
+                  (set (-> t state) 1)
                   (set (-> t wait_on) (cast int id))
                   (set (-> t resume_cell) sc)
                   (set (-> e halted) 128)
@@ -935,7 +979,7 @@
                      (set (-> r block) 0)
                      (set (-> r chan) -1)
                      (let ((green_worker * rw . #'(aof (nth (-> r worker) (-> wd workers)))))
-                       (pthread_cond_signal (aof (-> rw wake))))))
+                       (coco_g_poke rw))))
                    (coco_g_chan_remove_receiver c 0)
                    (free text)
                    (pthread_mutex_unlock (aof (-> wd lock)))
@@ -950,6 +994,7 @@
               (let ((green_thread * t . #'(aof (nth (-> green_me cur)
                                                     (-> wd threads)))))
                 (set (-> t block) 2)
+                (set (-> t state) 1)
                 (set (-> t chan) (cast int cid))
                 (set (-> t send_text) text)
                 (set (nth (-> c nsenders) (-> c senders)) (-> t id))
@@ -1008,7 +1053,7 @@
                     (set (-> st block) 0)
                     (set (-> st chan) -1)
                     (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
-                      (pthread_cond_signal (aof (-> sw wake))))
+                      (coco_g_poke sw))
                     (if (!= text nil)
                         (block
                          (let ((size_t t . 0))
@@ -1039,6 +1084,7 @@
                   (let ((green_thread * t . #'(aof (nth (-> green_me cur)
                                                         (-> wd threads)))))
                     (set (-> t block) 3)
+                    (set (-> t state) 1)
                     (set (-> t chan) (cast int cid))
                     (set (-> t resume_cell) sc)
                     (set (nth (-> c nreceivers) (-> c receivers)) (-> t id))

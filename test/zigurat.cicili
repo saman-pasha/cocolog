@@ -28,6 +28,7 @@
                "-L../build"
                "-lcocologc" "-o" "cocolog_zigurat_test"))
 
+  (include <pthread.h>)
   (include <zigurat.h>)
 
   (import "../lib/zigurat.cicili" :zg)

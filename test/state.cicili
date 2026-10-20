@@ -21,6 +21,7 @@
         :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "state.c")
         :link ("-lstate.o" "-lm" "-o" "cocolog_state_test"))
 
+  (include <pthread.h>)
   (include <math.h>)
   ;; clock_gettime, for a window's clock (lib/solve.cicili, 1.13.3)
   (include <time.h>)
