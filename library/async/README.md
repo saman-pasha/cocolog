@@ -33,19 +33,21 @@ where the program can catch it. Everything runs under `async_run/1,2`; a
 
 ## The model
 
-A green thread is a **machine and a store of its own**, stepped by a
-cooperative scheduler in the process — no OS thread per task. At spawn the
-store is filled from a **snapshot** of the caller's knowledge base, because
-a store belongs to one machine (its atom and functor tables are the store's)
-and `coco_thaw` empties the store it thaws into. What one green thread
-asserts stays its own; the main green thread and the host do not see it.
-Terms cross in canonical text through a channel, and a result crosses as
-the goal term.
+A green thread is a **machine of its own over the caller's knowledge
+base**: its atom, functor, string, float, big and rat tables alias the
+caller machine's, and its engine runs on the caller's store. A spawn
+copies NO store — it is a heap, a trail, a choice stack and an engine —
+and a write one thread makes is seen by every thread and the host when the
+scheduler runs it. (2.6.0 filled each spawn from a snapshot; the shared
+model is the first stage of the Go-goroutine work below.) Terms still
+cross in canonical text through a channel, and a result crosses as the
+goal term.
 
 The scheduler is **cooperative**: a thread runs until `yield/0`, `await/2`,
 a channel block, or its end. A tight loop holds the scheduler — a green
-thread is not preempted (see the step-limit note below). A scheduler holds
-**64 threads and 64 channels**.
+thread is not preempted (see the step-limit note below) — and the one
+scheduler is one OS thread, so the model is shared-memory but not yet
+multi-core. A scheduler holds **64 threads and 64 channels**.
 
 The engine's side is small: a thread is a `coco_machine` + `coco_engine` +
 `coco_store`; a cooperative stop writes 128 into the engine's `halted` cell
@@ -71,21 +73,23 @@ ring of the size asked.
 The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
-steps each, on a 16-core Intel Mac, cocolog 2.6.0 (the numbers were taken on
-its 2.5.2 build; 2.6.0 changes the version and this plan):
+steps each, on a 16-core Intel Mac, cocolog 2.7.0 (Concurrency Run B, the shared-store
+model; the 2.6.0 snapshot model's Run A is in bench/README.md):
 
 | lane | wall |
 |---|---|
-| serial | 474.3 ms |
-| real threads (library(thread), 8 OS threads) | 180.7 ms |
-| green threads (library(async), 8 green threads) | 1305.3 ms |
-| goroutines (Go, 8) | 95.8 ms |
-| coroutines (asyncio, 8) | 573.9 ms |
+| serial | 487.8 ms |
+| real threads (library(thread), 8 OS threads) | 184.0 ms |
+| green threads (library(async), 8 green threads) | 505.1 ms |
+| goroutines (Go, 8) | 99.6 ms |
+| coroutines (asyncio, 8) | 576.3 ms |
 
 This is the CPU-bound wall. Real threads use the cores and win; green runs
-on one core and is 2.75x *slower* than serial — the work itself plus eight
-per-spawn store snapshots. For CPU-bound work on many cores, green threads
-cannot beat OS threads; that is Amdahl, not a defect.
+on one core and is 3.5 % slower than serial (505.1 against 487.8) — the
+work itself, the one scheduler and the shared-table sync, and no per-spawn
+snapshot (the 2.6.0 snapshot model was 1305.3 ms, 2.75x serial). For
+CPU-bound work on many cores, green threads still cannot beat OS threads;
+that is Amdahl, and M:N is the next stage.
 
 **Light lanes** — many short tasks that do `true` and are joined, then the
 same with a yield each round. This is creation and switch cost, where green
@@ -93,23 +97,25 @@ is supposed to win:
 
 | lane | per task | per yield |
 |---|---|---|
-| real threads (1,000) | 121.21 us | 16.25 us (mutex handoff) |
-| green threads (10,000) | 32.16 us | 3.28 us (`yield/0`) |
-| goroutines (Go, 10,000) | 10.56 us | 1.24 us (`Gosched`) |
-| coroutines (asyncio, 10,000) | 24.81 us | 3.66 us (`sleep(0)`) |
+| real threads (1,000) | 117.62 us | 16.12 us (mutex handoff) |
+| green threads (10,000) | 10.64 us | 1.07 us (`yield/0`) |
+| goroutines (Go, 10,000) | 10.45 us | 1.24 us (`Gosched`) |
+| coroutines (asyncio, 10,000) | 23.04 us | 3.58 us (`sleep(0)`) |
 
-Green is **~3.8x cheaper per task** than a cocolog OS thread and **~5x
-cheaper per yield** — the snapshot included. The counts differ by lane (the
-OS lane is capped at 1,000 on this Mac, whose user-process limit is 2,784,
-and a cocolog thread carries a machine and a store), so the per-task and
-per-yield columns are the comparison, not the wall alone. Go's goroutines
-are cheaper still; they are the same green idea in a runtime that shares
-its heap.
+Green is **~11x cheaper per task** than a cocolog OS thread (10.64 against
+117.62 us) and level with Go's goroutines (10.45), and **~15x cheaper per
+yield** (1.07 against 16.12), faster than Go's 1.24. The 2.6.0 snapshot
+model was 32.16 us a task and 3.28 a yield; the shared store and the spawn
+that copies nothing are the difference. The counts differ by lane (the OS
+lane is capped at 1,000 on this Mac, whose user-process limit is 2,784, and
+a cocolog thread carries a machine and a store), so the per-task and
+per-yield columns are the comparison, not the wall alone.
 
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with green. The Mac has no taskset
 and the lane says SKIP. On the Mac, `green` is one core already; its work
-number above is that comparison with the per-spawn snapshot added.
+number above is that comparison, and one scheduler is one OS thread until
+the M:N stage (stage 3).
 
 The harness rebuilds the Go binary once, resolves the Python behind a pyenv
 shim (the shim alone is ~1.7 s), throws the first run of each lane away, and
@@ -190,9 +196,12 @@ staged engine-concurrency project, and the stages are:
    must use the cores, the light lane must keep its per-task cost, and the
    full suite (with a server) must be green.
 
-The tree released as 2.6.0 is the per-store-snapshot model. The shared
-names and store, the concurrency-safe store and M:N are the stages above,
-and they follow this release.
+The tree NOW holds stage 1: the shared store and the shared name/value
+tables, one scheduler (the caller's thread). The store's writes and its
+frame walks already cross machines; the tables' reclamation and the
+store's compaction are suspended while a world runs. Stage 2 (a store and
+tables safe across OS threads) and stage 3 (M:N workers) are the next
+work; 2.6.0's released green library was the per-store-snapshot model.
 
 ## Limits, stated where a reader meets them
 
@@ -200,16 +209,18 @@ and they follow this release.
   engine cell; a blocking foreign call defers the signal until it returns.
 * A green thread is cooperative (no preemption yet); a tight loop holds the
   scheduler.
-* The store is a snapshot: a child does not see another's writes, nor the
-  host's after spawn.
-* 64 threads and 64 channels a scheduler; a spawn pays the snapshot; a
+* The store and the name tables are shared: a child's write is seen by the
+  main thread and the host. The tables grow in the caller's machine, and
+  no reclamation or store compaction runs while a world does.
+* 64 threads and 64 channels a scheduler; a spawn copies no store; a
   deadlock is the scheduler's error.
+* One scheduler is one OS thread: multi-core (M:N) is stage 3, not in this
+  tree yet.
 * A library predicate with a choice point per answer (`between/3`) is slow
   in a green store; the benchmark's work is a recursion (`bench/spin.pl`),
   and `test/async.pl` says so.
 * A goal is read in the new machine's module; a module-qualified goal is
   not carried as one.
 
-`cocolog 2.6.0`. The shared-store multi-core model is the plan above, not
-this release: 2.6.0's green library is the per-store-snapshot model. The
-stages are the next work. Reasoning stays 1.0.11.
+`cocolog 2.7.0`, the shared-store model. The tree implements stage 1;
+stages 2 and 3 are the next work. Reasoning stays 1.0.11.

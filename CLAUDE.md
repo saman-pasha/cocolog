@@ -221,7 +221,9 @@ the default**: bump it for every change to the binary or to a library other
 than `library/reasoning/` (which has a number of its own, below), in the
 same commit, never afterwards. A minor (something new reachable from a
 program) or a major (a program that worked stopping) is PROPOSED with what
-changed observably, and the owner takes it. **A documentation-only commit does
+changed observably, **and the owner's rule of 2026-10-20 is that the
+version proposed is USED** -- set it in the source and commit it with the
+change; do not wait for a separate answer. **A documentation-only commit does
 not bump** (there is no new binary for the number to describe); say "cocolog
 stays X.Y.Z" in its message. `--help` goes to stderr. `test/argv.pl` pins the
 shape of the answer, deliberately not the number.
@@ -235,7 +237,8 @@ it as an atom (`'X.Y.Z'`). A change to anything under `library/reasoning/`
 number, in the same commit, and not cocolog's; a change to the binary or to
 any other library bumps cocolog's; a commit that changes both bumps both. The
 rules are the same ones: the patch is the default, a minor or a major is
-PROPOSED and the owner takes it, a documentation-only commit does not bump
+PROPOSED and (the owner's rule of 2026-10-20) used by the proposer, a
+documentation-only commit does not bump
 (say "reasoning stays X.Y.Z" in its message), and a message names the number
 that moved (`reasoning 1.0.1`, `cocolog 1.13.4`). Before a bump read master's:
 `git show origin/master:library/reasoning/reason.pl | grep -E '^reason_version\([0-9]'`.
@@ -420,6 +423,11 @@ links the engine) and runs the 67 `.pl` cases in `pl_names/1`
   with a server up, read every line, count the SKIPs. A change to the
   knowledge base also wants proving **across processes** -- one cocolog
   writing, a second that consulted nothing reading.
+* **The lint case comes BEFORE the full suite, and a red case fixed is
+  rerun ALONE** (owner, 2026-10-20): run `./cocolog -s test/run.pl -- lint`
+  (or `cocolog -s test/lint.pl`) first, so a card cite the engine edits moved
+  is settled before the whole run; and when a case goes red and is fixed,
+  rerun that case -- do not run the suite again for it.
 
 ## Hazards, each of which has already cost a day
 
@@ -1898,22 +1906,31 @@ cocolint index offers no import of it.
   that machine's cell. `test/signal.pl`, lesson 53.
 * **Green threads are a compiled-in module** (2.6.0, `lib/green.cicili`,
   registered as `green` in `setup`), and `library(async)` is the clauses
-  over its `$async_*` C. Each green thread is a machine and a STORE of its
-  own, filled at spawn from a snapshot of the caller's store: a store's
-  atom and functor tables belong to one machine, and `coco_thaw` empties
-  the store it thaws into (the `cocolog step` scheduler reloads after every
-  thaw), so a shared store is not a choice. The scheduler is COOPERATIVE
-  (yield, await, a channel block, or the goal's end): a green thread is not
-  preempted. The engine's step limit is the freeze scheduler's stop; a
-  direct continuation after "inference limit reached" restarts the clause,
-  so the quantum is not used (found by `test/async.pl`'s first
+  over its `$async_*` C. A green thread is a MACHINE of its own over the
+  CALLER'S store and name/value tables (2.7.0's first stage): the machine's
+  atom, functor, string, float, big and rat fields alias the caller's (the
+  ROOT machine), every table mutation copies them back (`coco_tupdate`)
+  before the run returns, and a machine takes them again from the root
+  before it runs (`coco_tsync`). THERE IS NO PER-SPAWN SNAPSHOT: a spawn is
+  a heap, a trail, a choice stack and an engine, and a write one thread
+  makes is seen by every thread and the host. The store's frame walks visit
+  every machine the store lists (the host's and the green threads'), a
+  suspended thread's engine through its machine's `keep_eng` -- NEVER
+  `m->eng`, which is set only while it runs: pre-setting it made the engine
+  its own `outer` and `coco_bt_caught` walked for ever. No table
+  reclamation (`tshared`) or store compaction (`st->machines`) runs while a
+  world does. The scheduler is COOPERATIVE and one OS thread (yield, await,
+  a channel block, or the goal's end): a green thread is not preempted, and
+  M:N is the next stage. The engine's step limit is the freeze scheduler's
+  stop; a direct continuation after "inference limit reached" restarts the
+  clause, so the quantum is not used (found by `test/async.pl`'s first
   `between(1,2000,_), fail`). A result is the goal as instantiated, in
   canonical text; a throw is rethrown by `await/2`; a deadlock is the
   scheduler's, raised at `async_run/1`. 64 threads and 64 channels.
-  `test/async.pl`, lesson 54, `bench/concurrency.sh`, `library/async/README.md`. A library predicate
-  with a choice point per answer (`between/3`) is slow in a green store --
-  the concurrency benchmark's workload is a recursion, and the finding is
-  recorded there.
+  `test/async.pl`, lesson 54, `bench/concurrency.sh`,
+  `library/async/README.md`. A library predicate with a choice point per
+  answer (`between/3`) is slow -- the concurrency benchmark's workload is a
+  recursion, and the finding is recorded there.
 * **A `{}` or `[]` FUNCTOR is written quoted** (2.6.0): `coco_write_atom`
   grew bit 32, the functor's force, used for those two names in the
   canonical application path, so `{}(X)` is `'{}'(X)` and reads back. The

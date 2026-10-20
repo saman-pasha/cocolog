@@ -1768,3 +1768,37 @@ choice point per answer takes seconds there, against a recursion's
 milliseconds, so `bench/spin.pl` is a recursion. That is a fact about the
 green store's copied library clauses, not about the scheduler; it is why
 `test/async.pl` works in `spin/1` too.
+
+
+**CONCURRENCY RUN B** -- 2026-10-20, the shared-store model (cocolog 2.7.0's
+first stage: no per-spawn store snapshot, one scheduler), the same command
+`sh bench/concurrency.sh` and the same defaults as Run A, a 16-core Intel
+Mac. The green lane's tasks now share the caller's store and name tables
+and a spawn copies nothing; the scheduler is still one OS thread.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 487.8 ms |
+| real threads (8 OS threads) | 184.0 ms |
+| green threads (8 green threads) | 505.1 ms |
+| goroutines (Go, 8) | 99.6 ms |
+| coroutines (asyncio, 8) | 576.3 ms |
+
+Light lanes (10,000 tasks; 1,000 OS threads):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 117.62 us | 16.12 us (mutex handoff) |
+| green threads | 10.64 us | 1.07 us (`yield/0`) |
+| goroutines | 10.45 us | 1.24 us (`Gosched`) |
+| coroutines | 23.04 us | 3.58 us (`sleep(0)`) |
+
+The green work lane is now 505.1 ms against serial's 487.8 (one core; Run
+A's snapshot model was 1305.3). The light lane is 10.64 us a task against
+the OS thread's 117.62 (~11x) and level with Go's 10.45, and 1.07 us a
+yield against 16.12 (~15x) and Go's 1.24. The multi-core half (M:N, worker
+threads over one store) is not in this run: the scheduler is still one OS
+thread, which is why the work lane is the serial lane plus overhead while
+Run A's per-spawn snapshots are gone.

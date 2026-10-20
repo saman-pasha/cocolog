@@ -1147,7 +1147,11 @@
 
     (member int       oom)
     ;; a growth given less than it asked (`coco_store_grow', 1.10.28)
-    (member int       memreq))
+    (member int       memreq)
+    ;; THE MACHINES THAT SHARE THIS STORE (2.7.0): the host's and the green
+    ;; threads' while a green world runs; the frame walks visit every one,
+    ;; so the logical update view sees a suspended green thread's frames.
+    (member void *    machines))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -4876,6 +4880,10 @@
   ;;; a consult. Each one asks; the policy lives here.
 
   (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int)
+        ;; A GREEN WORLD HOLDS OTHER MACHINES' FRAMES (2.7.0): the compaction
+        ;; moves cells those machines' engines name, and its roots are the
+        ;; writing machine's. Leave the store grown until the world ends.
+        (if (!= (-> st machines) nil) (return 0))
         (let ((coco_store tmp)
               (size_t nroots . 0) (size_t * roots . nil) (size_t k . 0)
               (size_t hmark . #'(-> m heap_len)))
@@ -5010,6 +5018,7 @@
           (return 1)))
 
   (func coco_store_maybe_compact ((coco_store * st) (coco_machine * m)) (out int)
+        (if (!= (-> st machines) nil) (return 0))
         (let ((size_t growth . #'(- (-> st len) (-> st mark)))
               (size_t dead . #'(-> st dead))
               (size_t live . #'(? (> (-> st len) (-> st dead)) (- (-> st len) (-> st dead)) 0)))

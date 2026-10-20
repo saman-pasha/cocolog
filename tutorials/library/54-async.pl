@@ -14,11 +14,12 @@
 %%
 %% A GREEN THREAD IS A MACHINE OF ITS OWN, run by a scheduler in the
 %% process: no OS thread, no preemption (it runs until it yields, awaits,
-%% blocks on a channel, or ends), and its own knowledge base -- a snapshot
-%% of the caller's store taken at spawn, because a store belongs to one
-%% machine. What it asserts stays its own; terms cross in canonical text
-%% through a channel, and the answer of a goal is the goal as instantiated.
-%% The caller's variables are NOT bound: the answer is a copy.
+%% blocks on a channel, or ends). It shares the caller's KNOWLEDGE BASE:
+%% its atom and functor tables are the caller's, and a write one thread
+%% makes is seen by every thread and the host when the scheduler runs it.
+%% Terms cross in canonical text through a channel, and the answer of a
+%% goal is the goal as instantiated. The caller's variables are NOT bound:
+%% the answer is a copy.
 %%
 %% Everything runs under async_run/1,2. The scheduler reports a deadlock
 %% (every thread blocked, the main one not ended) from async_run, where the
@@ -62,7 +63,7 @@ case_deadlock :-
     go(await(0, _), F),
     await(F, _).
 
-case_private(R) :-
+case_shared(R) :-
     channel(C),
     go((assertz(q(1)), q(X), channel_send(C, X)), F),
     channel_recv(C, X),
@@ -88,7 +89,7 @@ lesson_values :-
     must('go and await carry a value', R1, member(a, [a,b,c])),
     format("     (the caller's own X is not bound: the answer is a copy)~n"),
     async_run(spin(2000), W2),
-    must('a recursion in the snapshot runs to its end', W2, spin(2000)),
+    must('a recursion in the shared store runs to its end', W2, spin(2000)),
     result(case_fail(R3), R3),
     must('await of a failed thread fails', R3, no).
 
@@ -113,20 +114,20 @@ lesson_failures :-
 
 %% ---- the store ----------------------------------------------------------
 lesson_store :-
-    format("~n-- a green thread's store is its own~n"),
-    result(case_private(R1), R1),
-    must('the main green thread does not see a child\'s assert', R1, main_not),
+    format("~n-- the knowledge base is shared~n"),
+    result(case_shared(R1), R1),
+    must('the main green thread sees a child\'s assert', R1, main_sees),
     ( catch(q(_), _, fail) -> W2 = host_sees ; W2 = host_not ),
-    must('nor does the host', W2, host_not).
+    must('and so does the host', W2, host_sees).
 
 %% ---- the limits ---------------------------------------------------------
 lesson_limits :-
     format("~n-- what this is, and what it is not~n"),
     format("   COOPERATIVE: a thread runs until yield/0, await/2, a channel~n"),
     format("   block or its end. A tight loop holds the scheduler.~n"),
-    format("   A SNAPSHOT: each spawn fills its store from the caller's, so~n"),
-    format("   a spawn costs what the knowledge base weighs, and a write~n"),
-    format("   stays in the thread that made it.~n"),
+    format("   A SHARED STORE: a spawn copies no knowledge base, and a~n"),
+    format("   write is seen by every thread and the host. The machine is~n"),
+    format("   a heap, trail and engine over the caller's tables.~n"),
     format("   SMALL: 64 threads and 64 channels a scheduler.~n"),
     must('the lesson is still running', yes, yes).
 

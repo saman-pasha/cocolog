@@ -4920,6 +4920,11 @@
   ;;; NOT STATIC: inlined into `coco_heap_collect', its one caller, it made
   ;;; the collector's own loops dearer even when it returned at once.
   (func coco_tables_reclaim ((coco_engine * e) (int asked))
+        ;; THE TABLES ARE SHARED (2.7.0): an entry no one machine's heap
+        ;; names may be named by another's, and the store's, so the mark
+        ;; below cannot prove one dead. Green machines allocate and never
+        ;; reclaim; the host reclaims again when the world ends.
+        (if (-> (-> e m) tshared) (return))
         (let ((coco_machine * m . #'(-> e m))
               (size_t nf . #'(-> m floats_len))
               (size_t ns . #'(-> m strings_len))
@@ -10547,27 +10552,35 @@
         (if (or (== m nil) (>= pi (-> st npreds))) (return 0))
         (if (not ($ (nth pi (-> st preds)) framed)) (return 0))
         (let ((size_t n . 0)
-              (coco_engine * e . #'(cast (coco_engine *) (-> m eng))))
-          (while (!= e nil)
-            (if (== (-> e st) st)
-                (let ((size_t i . #'(-> e nchoices)))
-                  (while (> i 0)
-                    (set i (- i 1))
-                    (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
-                      (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED))
-                               (== (-> c pred) pi))
-                          (block
-                           (set n (+ n 1))
-                           (cond
-                             ((== act 0) (return n))
-                             ;; a death it lives through, the first it has
-                             ((== act 1) (if (== (-> c fera) 0) (set (-> c fera) era)))
-                             (#t
-                              (set (-> c clause_ix) (+ (-> c clause_ix) 1))
-                              ;; a thawed frame not bounded yet stays so
-                              (if (!= (-> c cend) 4294967295)
-                                  (set (-> c cend) (+ (-> c cend) 1)))))))))))
-            (set e (cast (coco_engine *) (-> e outer))))
+              (coco_machine * mm . #'(cast (coco_machine *) (-> st machines))))
+          ;; ONE MACHINE'S FRAMES, OR EVERY MACHINE THE STORE LISTS (2.7.0):
+          ;; a green world links the host and every green thread's machine,
+          ;; so a suspended thread's open call counts as an open call.
+          (if (== mm nil) (set mm m))
+          (while (!= mm nil)
+            (let ((coco_engine * e . #'(cast (coco_engine *) (-> mm eng))))
+              (if (== e nil) (set e (cast (coco_engine *) (-> mm keep_eng))))
+              (while (!= e nil)
+                (if (== (-> e st) st)
+                    (let ((size_t i . #'(-> e nchoices)))
+                      (while (> i 0)
+                        (set i (- i 1))
+                        (let ((coco_choice * c . #'(aof (nth i (-> e choices)))))
+                          (if (and (or (== (-> c kind) COCO_CH_CLAUSE) (== (-> c kind) COCO_CH_CLOCKED))
+                                   (== (-> c pred) pi))
+                              (block
+                               (set n (+ n 1))
+                               (cond
+                                 ((== act 0) (return n))
+                                 ;; a death it lives through, the first it has
+                                 ((== act 1) (if (== (-> c fera) 0) (set (-> c fera) era)))
+                                 (#t
+                                  (set (-> c clause_ix) (+ (-> c clause_ix) 1))
+                                  ;; a thawed frame not bounded yet stays so
+                                  (if (!= (-> c cend) 4294967295)
+                                      (set (-> c cend) (+ (-> c cend) 1)))))))))))
+                (set e (cast (coco_engine *) (-> e outer)))))
+            (set mm (cast (coco_machine *) (-> mm st_next))))
           ;; none open: no walk until a frame is pushed on it again
           (if (== n 0) (set ($ (nth pi (-> st preds)) framed) 0))
           (return n)))

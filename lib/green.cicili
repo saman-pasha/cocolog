@@ -103,7 +103,12 @@
     (member int            nchans)
     (member int            quantum)
     (member int            cur)
-    (member char *         snapshot))
+    ;; THE STORE AND THE MACHINE THE TABLES COME FROM (2.7.0): every green
+    ;; thread's machine aliases this machine's name/value tables and shares
+    ;; this store, so a spawn copies no knowledge base.
+    (member coco_store *   st)
+    (member coco_machine * host)
+    (member int            linked))
 
   (decl) (func coco_green_module () (out int))
   (decl) (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int))
@@ -181,75 +186,60 @@
           (return (coco_raise e (coco_make1 m "cocolog_error"
                                              (coco_new_atom m msg))))))
 
-  ;;; ---- the snapshot ----------------------------------------------------
-  ;;;
-  ;;; THE HOST STORE'S CLAUSES, as text a fresh store can consult. The
-  ;;; store's cells share the host machine's atom and functor tables, so
-  ;;; each clause is read into the host's heap and written canonically;
-  ;;; a dynamic predicate's declaration is written first, or a green
-  ;;; thread could not assert into it. Dead clauses are skipped.
-  (static)
-  (func coco_g_snapshot ((coco_engine * e)) (out char *)
-        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
-              (coco_strbuf b) (char * out . nil))
-          (coco_sb_init (aof b))
-          (for ((size_t pi . 0)) (< pi (-> st npreds)) ((++ pi))
-            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
-              (if (== (-> p dynamic) 1)
-                  (block
-                   (coco_sb_put (aof b) ":- dynamic ")
-                   (let ((size_t na . #'(coco_new_atom m (coco_atom_name m (-> p name)))))
-                     (coco_write_term m (aof b) na 1 1))
-                   (coco_sb_put (aof b) "/")
-                   (coco_sb_put_sz (aof b) (cast size_t (-> p arity)))
-                   (coco_sb_put (aof b) ".\n")))
-              (for ((size_t ci . 0)) (< ci (-> p nclauses)) ((++ ci))
-                (if (not (coco_pred_dead p ci))
-                    (block
-                     (let ((size_t t . #'(coco_store_read m st (nth ci (-> p clauses)))))
-                       (coco_write_term m (aof b) t 1 1))
-                     (coco_sb_put (aof b) ".\n"))))))
-          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-          (coco_sb_free (aof b))
-          (return out)))
-
   ;;; ---- threads ---------------------------------------------------------
 
   (static)
+  (func coco_g_store_unlink ((coco_store * st) (coco_machine * m))
+        (let ((coco_machine * prev . nil)
+              (coco_machine * cur . #'(cast (coco_machine *) (-> st machines))))
+          (while (!= cur nil)
+            (if (== cur m)
+                (block
+                 (if (== prev nil) (set (-> st machines) (-> m st_next))
+                     (set (-> prev st_next) (-> m st_next)))
+                 (return))
+              (block (set prev cur)
+                     (set cur (cast (coco_machine *) (-> cur st_next))))))))
+
+  (static)
   (func coco_g_thread_free ((green_thread * t))
-        (if (!= (-> t m) nil) (coco_machine_free (-> t m)))
-        (if (!= (-> t st) nil) (coco_store_free (-> t st)))
+        (if (and (!= (-> t st) nil) (!= (-> t m) nil))
+            (coco_g_store_unlink (-> t st) (-> t m)))
         (if (!= (-> t e) nil) (coco_engine_free (-> t e)))
-        (if (!= (-> t m) nil) (free (-> t m)))
-        (if (!= (-> t st) nil) (free (-> t st)))
+        (if (!= (-> t m) nil) (coco_machine_free (-> t m)))
         (if (!= (-> t e) nil) (free (-> t e)))
+        (if (!= (-> t m) nil) (free (-> t m)))
         (set (-> t m) nil) (set (-> t st) nil) (set (-> t e) nil))
 
   (static)
   (func coco_g_spawn ((green_sched * s) (const char * text)) (out int)
         (if (>= (-> s nthreads) 64) (return -1))
         (let ((green_thread * t . #'(aof (nth (-> s nthreads) (-> s threads))))
-              (char err [256]) (int ok . 1))
+              (int ok . 1))
           (memset t 0 (sizeof green_thread))
           (set (-> t id) (-> s nthreads))
           (set (-> t state) 0)
           (set (-> t wait_on) -1)
           (set (-> t chan) -1)
+          (set (-> t st) (-> s st))
           (set (-> t m) (cast (coco_machine *) (malloc (sizeof coco_machine))))
-          (set (-> t st) (cast (coco_store *) (malloc (sizeof coco_store))))
           (set (-> t e) (cast (coco_engine *) (malloc (sizeof coco_engine))))
-          (coco_machine_init (-> t m))
-          (coco_store_init (-> t st))
-          (if (< (coco_consult (-> t st) (-> t m) (-> s snapshot) nil err 256) 0)
-              (set ok 0))
-          (coco_engine_init (-> t e) (-> t m) (-> t st))
+          (coco_machine_init_alias (-> t m) (-> s host))
+          (coco_engine_init (-> t e) (-> t m) (-> s st))
+          ;; THE STORE'S FRAME WALK FINDS A SUSPENDED TASK'S FRAMES FROM
+          ;; KEEP_ENG; `eng' is the engine's while it runs only, and setting
+          ;; it here made the engine its own `outer' (`coco_bt_caught' then
+          ;; walked for ever).
+          (set (-> (-> t m) keep_eng) (cast (void *) (-> t e)))
+          (set (-> (-> t m) st_next) (-> (-> s st) machines))
+          (set (-> (-> s st) machines) (cast (void *) (-> t m)))
           (let ((coco_engine * en . #'(-> t e)))
             (set (-> en gc) 1)
             (if (and ok (not (coco_engine_ask_text en text)))
                 (set ok 0)))
           (if (not ok)
               (block
-               (debug! (fprintf stderr "green: spawn failed: %s\n" err))
+               (debug! (fprintf stderr "green: spawn failed\n"))
                (set (-> t status) (strdup "'$async'(error,error(system_error,_))"))
                (set (-> t state) 2)
                (coco_g_thread_free t)))
@@ -274,7 +264,10 @@
                        (free (nth (% (+ (-> c head) k) (-> c cap))
                                   (-> c buf)))))
                  (free (cast (void *) (-> c buf)))))))
-        (if (!= (-> s snapshot) nil) (free (-> s snapshot)))
+        (if (and (!= (-> s host) nil) (== (-> s linked) 1))
+            (block
+             (coco_g_store_unlink (-> s st) (-> s host))
+             (set (-> (-> s host) tshared) 0)))
         (if (!= (-> s threads) nil) (free (-> s threads)))
         (if (!= (-> s chans) nil) (free (-> s chans)))
         (free s))
@@ -288,7 +281,16 @@
                (cast (green_chan *) (calloc 64 (sizeof green_chan))))
           (set (-> s quantum) 10000)
           (set (-> s cur) -1)
-          (set (-> s snapshot) (coco_g_snapshot e))
+          (set (-> s st) (-> e st))
+          (set (-> s host) (-> e m))
+          ;; THE HOSTIS LINKED ONCE. A nested async_run runs on a green
+          ;; thread's machine, already in the store's list.
+          (if (== (-> (-> s host) tbase) nil)
+              (block
+               (set (-> (-> s host) tshared) 1)
+               (set (-> (-> s host) st_next) (-> (-> s st) machines))
+               (set (-> (-> s st) machines) (cast (void *) (-> s host)))
+               (set (-> s linked) 1)))
           (return s)))
 
   (static)
@@ -330,6 +332,9 @@
          (let ((coco_machine * m . #'(-> t m))
                (coco_engine * en . #'(-> t e)))
           (set (-> s cur) ti)
+          ;; THE TABLES MAY HAVE GROWN IN ANOTHER TASK'S RUN: take the
+          ;; root's fields before this machine reads or writes them.
+          (coco_tsync m)
           (if (!= (-> t resume_text) nil)
               (block
                (coco_g_resume m (-> t resume_cell) (-> t resume_text))
@@ -341,9 +346,6 @@
           ;; freeze; a direct continuation after it restarts the clause, so
           ;; a green thread is not preempted here (the tutorial says so).
           (let ((int rc . #'(coco_engine_next en)))
-            (debug!
-                (fprintf stderr "green: run %d rc=%d steps=%llu\n"
-                         ti rc (cast ullong (-> en steps))))
             (cond
               ((== rc 1)
                (coco_g_finish t (coco_g_ok_text m (-> en query)))
@@ -446,9 +448,9 @@
           (set gtext (coco_g_write m goal))
           (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
           (set s (coco_g_sched_new e))
-          (if (== (-> s snapshot) nil)
-              (block (free gtext) (coco_g_sched_free s)
-                     (return (coco_g_raise e "library(async): the snapshot could not be made"))))
+          (if (== s nil)
+              (block (free gtext)
+                     (return (coco_g_raise e "library(async): no memory"))))
           (let ((green_sched * old . green_now))
             (set green_now s)
             (let ((int id . #'(coco_g_spawn s gtext)))

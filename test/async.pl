@@ -15,14 +15,15 @@
 %%   ball; the scheduler reports a deadlock from async_run/1, not from
 %%   inside the main goal (the main goal is not running then).
 %%
-%%   THE SNAPSHOT is the boundary: a child can assert and read its own
-%%   predicate, and neither the main green thread nor the host sees it.
+%%   THE STORE IS SHARED: a child asserts into the caller's knowledge base,
+%%   and the main green thread and the host see the clause; terms still
+%%   cross between threads in canonical text.
 %%
 %%     cocolog -s test/async.pl        from the checkout root
 %%
 %% The work is a recursion (spin/1), not between/3: a library predicate
-%% with a choice point per answer is slow in a green store (recorded in
-%% bench/README.md), and this case is about the scheduler.
+%% with a choice point per answer is slow (recorded in bench/README.md),
+%% and this case is about the scheduler.
 
 :- use_module('test/prelude.pl').
 
@@ -86,7 +87,7 @@ case_deadlock :-
     go(await(0, _), F),
     await(F, _).
 
-case_private(R) :-
+case_shared(R) :-
     channel(C),
     go((assertz(q(1)), q(X), channel_send(C, X)), F),
     channel_recv(C, X),
@@ -103,7 +104,7 @@ main :-
     joining,
     channels,
     failures,
-    private_store,
+    shared_store,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -115,7 +116,7 @@ values :-
            W2, G2),
     check('the caller\'s own variables are not bound by it', G2, unbound),
     answer(async_run(spin(2000), R3), R3, G3),
-    check('a recursion in the snapshot runs to its end', G3, spin(2000)).
+    check('a recursion in the shared store runs to its end', G3, spin(2000)).
 
 %% ---- go and await -------------------------------------------------------
 joining :-
@@ -150,10 +151,10 @@ failures :-
                  error(resource_error(deadlock), _), true), yes, G3),
     check('a deadlock is the scheduler\'s, caught at async_run/1', G3, yes).
 
-%% ---- the snapshot ---------------------------------------------------------
-private_store :-
-    section('a green thread\'s store is its own'),
-    answer(result(case_private(R1), R1), R1, G1),
-    check('the main green thread does not see a child\'s assert', G1, main_not),
+%% ---- the shared store ----------------------------------------------------
+shared_store :-
+    section('the knowledge base is shared'),
+    answer(result(case_shared(R1), R1), R1, G1),
+    check('the main green thread sees a child\'s assert', G1, main_sees),
     answer(( catch(q(_), _, fail) -> W2 = host_sees ; W2 = host_not ), W2, G2),
-    check('nor does the host', G2, host_not).
+    check('and so does the host', G2, host_sees).

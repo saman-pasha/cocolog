@@ -704,7 +704,24 @@
     ;; draw or by set_random/1. Deliberately not part of a frozen machine --
     ;; the state is not computation a thaw should go on with. Appended too.
     (member u32        rng [4])
-    (member int        rng_ready))
+    (member int        rng_ready)
+    ;; THE GREEN WORLD'S SHARED TABLES (2.7.0): a green thread's machine
+    ;; ALIASES the host machine's atom, functor, string, float, big and rat
+    ;; tables rather than cloning them. TBASE is the root machine whose
+    ;; tables these fields point to; TNEXT chains the root's aliases; the
+    ;; root's TSHARED says the tables are shared, so the reclamation leaves
+    ;; them alone; ST_NEXT chains the machines a store's frame walks visit
+    ;; (the logical update view across green machines). Appended, as every
+    ;; new machine field is.
+    (member void *     tbase)
+    (member void *     tnext)
+    (member int        tshared)
+    (member void *     st_next)
+    ;; THE ENGINE A STOPPED GREEN MACHINE OWNS (2.7.0): `eng' is set only
+    ;; while the engine runs (and its `outer' chain is live then); a
+    ;; suspended thread's frames are found from this one, whose `outer' is
+    ;; nil. Never `m->eng': pre-setting it made the engine its own outer.
+    (member void *     keep_eng))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -802,6 +819,16 @@
   ;; ---- lifecycle ----
   (decl) (func coco_machine_init ((coco_machine * m)) (out int))
   (decl) (func coco_machine_free ((coco_machine * m)))
+  ;; A MACHINE OVER ANOTHER MACHINE'S TABLES: a green thread's, with its
+  ;; own heap, trail and choices and the root's names. It links itself into
+  ;; the root's alias list; freeing it unlinks and leaves the tables.
+  (decl) (func coco_machine_init_alias ((coco_machine * m) (coco_machine * base)) (out int))
+  ;; the root of an alias chain, and the two directions of the table copy:
+  ;; the root's fields to an alias before it runs, an alias's after it has
+  ;; grown the tables.
+  (decl) (func coco_troot ((coco_machine * m)) (out coco_machine *))
+  (decl) (func coco_tsync ((coco_machine * m)))
+  (decl) (func coco_tupdate ((coco_machine * m)))
 
   ;; ---- names ----
   (decl) (func coco_intern ((coco_machine * m) (const char * name)) (out u64))
@@ -1109,7 +1136,103 @@
         (set (-> m fflags) (coco_fflags_default))
         (return 1))
 
+  (func coco_troot ((coco_machine * m)) (out coco_machine *)
+        (while (!= (-> m tbase) nil)
+          (set m (cast (coco_machine *) (-> m tbase))))
+        (return m))
+
+  (static)
+  (func coco_tcopy ((coco_machine * to) (coco_machine * from))
+        (set (-> to atoms) (-> from atoms))
+        (set (-> to atoms_len) (-> from atoms_len))
+        (set (-> to atoms_cap) (-> from atoms_cap))
+        (set (-> to atom_buckets) (-> from atom_buckets))
+        (set (-> to atom_bucket_cap) (-> from atom_bucket_cap))
+        (set (-> to functors) (-> from functors))
+        (set (-> to functors_len) (-> from functors_len))
+        (set (-> to functors_cap) (-> from functors_cap))
+        (set (-> to functor_buckets) (-> from functor_buckets))
+        (set (-> to functor_bucket_cap) (-> from functor_bucket_cap))
+        (set (-> to floats) (-> from floats))
+        (set (-> to floats_len) (-> from floats_len))
+        (set (-> to floats_cap) (-> from floats_cap))
+        (set (-> to bigs) (-> from bigs))
+        (set (-> to bigs_len) (-> from bigs_len))
+        (set (-> to bigs_cap) (-> from bigs_cap))
+        (set (-> to rats) (-> from rats))
+        (set (-> to rats_len) (-> from rats_len))
+        (set (-> to rats_cap) (-> from rats_cap))
+        (set (-> to strings) (-> from strings))
+        (set (-> to strings_len) (-> from strings_len))
+        (set (-> to strings_cap) (-> from strings_cap))
+        (set (-> to ffree) (-> from ffree))
+        (set (-> to nffree) (-> from nffree))
+        (set (-> to ffree_cap) (-> from ffree_cap))
+        (set (-> to sfree) (-> from sfree))
+        (set (-> to nsfree) (-> from nsfree))
+        (set (-> to sfree_cap) (-> from sfree_cap))
+        (set (-> to bfree) (-> from bfree))
+        (set (-> to nbfree) (-> from nbfree))
+        (set (-> to bfree_cap) (-> from bfree_cap))
+        (set (-> to rfree) (-> from rfree))
+        (set (-> to nrfree) (-> from nrfree))
+        (set (-> to rfree_cap) (-> from rfree_cap)))
+
+  (func coco_tsync ((coco_machine * m))
+        (let ((coco_machine * b . #'(coco_troot m)))
+          (if (== b m) (return))
+          (coco_tcopy m b)))
+
+  (func coco_tupdate ((coco_machine * m))
+        (let ((coco_machine * b . #'(coco_troot m)))
+          (if (== b m) (return))
+          (coco_tcopy b m)))
+
+  (func coco_machine_init_alias ((coco_machine * m) (coco_machine * base)) (out int)
+        (memset m 0 (sizeof coco_machine))
+        (set (-> m tlimit) 65536)
+        (set (-> m treq) 65536)
+        (set (-> m wdeep) 1024)
+        (set (-> m wceil) (cast size_t -1))
+        (set (-> m ubudget) 1048576)
+        (set (-> m text_chars) (coco_text_default))
+        (set (-> m fflags) (coco_fflags_default))
+        (set (-> m tshared) 1)
+        (let ((coco_machine * root . #'(coco_troot base)))
+          (set (-> m tbase) (cast (void *) root))
+          (set (-> m tnext) (-> root tnext))
+          (set (-> root tnext) (cast (void *) m))
+          (set (-> root tshared) 1)
+          (coco_tsync m))
+        (return 1))
+
   (func coco_machine_free ((coco_machine * m))
+        (if (!= (-> m tbase) nil)
+            (block
+             (let ((coco_machine * root . #'(coco_troot m))
+                   (coco_machine * prev . nil)
+                   (coco_machine * cur . #'(cast (coco_machine *) (-> root tnext))))
+               (while (!= cur nil)
+                 (if (== cur m)
+                     (block
+                      (if (== prev nil) (set (-> root tnext) (-> m tnext))
+                          (set (-> prev tnext) (-> m tnext)))
+                      (break))
+                   (block (set prev cur)
+                          (set cur (cast (coco_machine *) (-> cur tnext)))))))
+             (free (-> m trail))
+             (free (-> m heap))
+             (free (-> m hroots))
+             (free (-> m gcache))
+             (free (-> m wframes))
+             (free (-> m wpairs))
+             (free (-> m vmap_from))
+             (free (-> m vmap_to))
+             (free (-> m cmask))
+             (free (-> m cslots))
+             (free (-> m bt))
+             (memset m 0 (sizeof coco_machine))
+             (return)))
         (for ((size_t i . 0)) (< i (-> m atoms_len)) ((++ i))
           (free ($ (nth i (-> m atoms)) name)))
         (free (-> m atoms))
@@ -1691,6 +1814,7 @@
               ;; keep the table under half full, so probes stay short
               (if (>= (* (-> m atoms_len) 2) (-> m atom_bucket_cap))
                   (coco_atoms_rehash m))
+              (coco_tupdate m)
               (return (cast u64 id))))))
 
   (func coco_intern ((coco_machine * m) (const char * name)) (out u64)
@@ -1743,6 +1867,7 @@
         ;; when the rehash has failed for want of memory.
         (if (> (* (+ (-> m functors_len) 1) 2) (-> m functor_bucket_cap))
             (if (not (coco_functors_rehash m)) (return 0)))
+        (coco_tupdate m)
         (let ((size_t mask . #'(- (-> m functor_bucket_cap) 1))
               (size_t j . 0))
           (set j (cast size_t (bitand (coco_name_arity_hash name arity) (cast u64 mask))))
@@ -1768,6 +1893,7 @@
             (set ($ (nth id (-> m functors)) fgen) 0)
             (set (-> m functors_len) (+ id 1))
             (set (nth j (-> m functor_buckets)) (+ id 1))
+            (coco_tupdate m)
             (return (cast u64 id)))))
 
   ;;; ---- heap ---------------------------------------------------------
@@ -1856,6 +1982,7 @@
           (set ($ (nth i (-> m strings)) p) copy)
           (set ($ (nth i (-> m strings)) n) n)
           (coco_table_made m)
+          (coco_tupdate m)
           (return (coco_push m (coco-cell STR i)))))
 
   (func coco_is_string ((coco_machine * m) (size_t t)) (out int)
@@ -1889,6 +2016,7 @@
              (set (-> m floats_len) (+ (-> m floats_len) 1))))
           (set (nth i (-> m floats)) v)
           (coco_table_made m)
+          (coco_tupdate m)
           (return (coco_push m (coco-cell FLT i)))))
 
   ;;; AN ENTRY OF THE INTEGER TABLE (2.0.0) holding V, a free one first as
@@ -1909,6 +2037,7 @@
              (set (-> m bigs_len) (+ (-> m bigs_len) 1))))
           (set (nth i (-> m bigs)) v)
           (coco_table_made m)
+          (coco_tupdate m)
           (return i)))
 
   ;;; AN INTEGER NO INT HOLDS, as a BIG cell (2.0.0). Out of line and weak,
@@ -1987,6 +2116,7 @@
           (set ($ (nth i (-> m rats)) n) n)
           (set ($ (nth i (-> m rats)) d) d)
           (coco_table_made m)
+          (coco_tupdate m)
           (return i)))
 
   ;;; N/D AS A TERM (2.5.0): an integer when the denominator is 1, else a

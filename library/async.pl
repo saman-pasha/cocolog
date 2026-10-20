@@ -17,13 +17,12 @@
 %% A GREEN THREAD IS NOT library(thread)'s. This one is a machine of its
 %% own, stepped for a quantum by a cooperative scheduler in the engine
 %% (lib/green.cicili): go/2 starts one, yield/0 and await/2 give way, and
-%% a thread that blocks on a channel gives way too. The knowledge base it
-%% reads is a SNAPSHOT of the caller's at async_run/1, taken into its own
-%% store at spawn -- the store belongs to one machine, and the freeze/thaw
-%% scheduler of `cocolog step' empties the store on every thaw, so a
-%% shared one is not a choice. What one green thread asserts another does
-%% not see; a term crosses in canonical text through a channel, and the
-%% result of a goal is the goal itself, instantiated:
+%% a thread that blocks on a channel gives way too. Its knowledge base is
+%% the CALLER'S (2.7.0): the machine's atom, functor, string, float, big
+%% and rat tables ALIAS the caller's -- a spawn copies no store -- and a
+%% write one thread makes is seen by every thread and the host. A term
+%% crosses in canonical text through a channel, and the result of a goal
+%% is the goal itself, instantiated:
 %%
 %%     ?- async_run((go(member(X, [a,b,c]), F), await(F, R)), Answer).
 %%     Answer = (go(member(a,[a,b,c]),0), await(0,member(a,[a,b,c]))).
@@ -35,11 +34,11 @@
 %% own and is not reported. Everything must run under async_run/1,2 -- a
 %% go/1 outside it says so by name.
 %%
-%% THE LIMITS: 64 threads and 64 channels a scheduler; a spawn pays for a
-%% snapshot of the knowledge base (each thread's store is filled from it);
-%% the scheduler reports a deadlock when every thread is blocked and the
-%% main one has not ended; and a goal is read in the new machine's module,
-%% so a module-qualified goal is not carried as one.
+%% THE LIMITS: 64 threads and 64 channels a scheduler; the shared tables
+%% grow in the caller's machine and the reclamation leaves them alone
+%% while a world runs; the scheduler reports a deadlock when every thread
+%% is blocked and the main one has not ended; and a goal is read in the
+%% new machine's module, so a module-qualified goal is not carried as one.
 %%
 %% library/async/README.md has the model, the benchmark against OS threads,
 %% Go goroutines and asyncio, and the shared-heap design note.
