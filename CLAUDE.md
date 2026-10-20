@@ -1927,7 +1927,14 @@ cocolint index offers no import of it.
   `coco_tbl_set/sync/begin/end/grow`) and publish to the root; value reads
   are lock-free from the run-start sync; while shared, growth allocates a
   new array and never frees the old (a stated leak); the alias list is
-  under the same mutex. A task is PINNED to the worker it was born on. A
+  under the same mutex. **AN INTERN HIT TAKES NO LOCK (2.9.2)**:
+  `coco_tbl_sync` returns on a matching generation without the mutex,
+  `coco_intern_len` probes a hit without the lock and publishes nothing,
+  and only a miss locks, syncs and looks again (`coco_tbl_done` unlocks
+  without moving the generation, which an intern hit used to move for
+  every other machine); the lock and that publish, paid on every spawned
+  goal's text read, were the light lane's 3.6x. A task is PINNED to the
+  worker it was born on. A
   WRITE STOPS THE WORLD (2.9.0): every store mutation -- assertz/asserta,
   retract, dynamic, abolish, nb_setval -- and every piece of metadata a
   first call makes (a predicate created, a clause compiled, an argument
@@ -4451,7 +4458,7 @@ than its cause:
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
-| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs. And the concurrency benchmark (`sh bench/concurrency.sh`): real threads, green threads, Go goroutines and Python asyncio on the spin workload, the light spawn/switch lanes, and the one-core real lane under `taskset`; answer-gated, the first run of each lane thrown away. `library/async/README.md` has the model, the numbers and the shared-heap design note |
+| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs. And the concurrency benchmark (`sh bench/concurrency.sh`): real threads, green threads, Go goroutines, Rust threads and Python asyncio on the spin workload, the light spawn/switch lanes, and the one-core real lane under `taskset`; answer-gated, the first run of each lane thrown away. `library/async/README.md` has the model, the numbers and the shared-heap design note |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`

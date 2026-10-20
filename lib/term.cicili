@@ -842,6 +842,9 @@
   (decl) (func coco_tbl_sync ((coco_machine * m)))
   (decl) (func coco_tbl_begin ((coco_machine * m)))
   (decl) (func coco_tbl_end ((coco_machine * m)))
+  ;; unlock without publishing: a look under the lock that found what it
+  ;; wanted changed nothing, so the generation must not move
+  (decl) (func coco_tbl_done ((coco_machine * m)))
   (decl) (func coco_tbl_grow ((coco_machine * m) (void ** buf) (size_t * cap)
                               (size_t need) (size_t esize)) (out int))
 
@@ -1218,6 +1221,12 @@
 
   (func coco_tbl_sync ((coco_machine * m))
         (if (== coco_tbl_mx nil) (return))
+        ;; THE COMMON CASE IS NO WORK AND NO LOCK (2.9.2). A generation is a
+        ;; word; while the tables are shared the old arrays are never freed,
+        ;; so a machine one generation behind reads valid memory and its next
+        ;; mutation's begin syncs it under the lock. The lock here was taken
+        ;; by EVERY run of a green task, for nothing.
+        (if (== (-> m tgen) coco_tbl_gen) (return))
         (pthread_mutex_lock coco_tbl_mx)
         (if (!= (-> m tgen) coco_tbl_gen)
             (block (coco_tsync m) (set (-> m tgen) coco_tbl_gen)))
@@ -1235,6 +1244,13 @@
         (coco_tupdate m)
         (set coco_tbl_gen (+ coco_tbl_gen 1))
         (set (-> m tgen) coco_tbl_gen)
+        (pthread_mutex_unlock coco_tbl_mx))
+
+  ;; A LOOK THAT FOUND THE NAME UNDER THE LOCK CHANGED NOTHING: unlock, and
+  ;; move no generation -- a bump here would make every other machine resync
+  ;; for the next run, which is what an intern hit used to do.
+  (func coco_tbl_done ((coco_machine * m))
+        (if (== coco_tbl_mx nil) (return))
         (pthread_mutex_unlock coco_tbl_mx))
 
   ;;; THE SHARED TABLES GROW WITHOUT FREEING the old array: a machine that
@@ -1863,38 +1879,57 @@
           (return 1)))
 
   (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64)
-        (coco_tbl_begin m)
-        (let ((u64 h . #'(coco_hash name len))
-              (size_t j))
-          (set j (cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1)))))
-          ;; probe: an occupied slot whose hash and bytes both match is the one
-          (while (!= (nth j (-> m atom_buckets)) 0)
-            (let ((size_t id . #'(- (nth j (-> m atom_buckets)) 1)))
-              (if (and (== ($ (nth id (-> m atoms)) hash) h)
-                       (and (== ($ (nth id (-> m atoms)) len) len)
-                            (== (memcmp ($ (nth id (-> m atoms)) name) name len) 0)))
-                  (block (coco_tbl_end m) (return (cast u64 id)))))
-            (set j (bitand (+ j 1) (- (-> m atom_bucket_cap) 1))))
-          ;; not there: append it
-          (if (not (coco_tbl_grow m (cast (void **) (aof (-> m atoms)))
-                            (aof (-> m atoms_cap)) (+ (-> m atoms_len) 1)
-                            (sizeof coco_atom)))
-              (block (coco_tbl_end m) (return 0)))
-          (let ((char * copy . #'(cast (char *) (malloc (+ len 1)))))
-            (if (== copy nil) (block (set (-> m oom) 1) (coco_tbl_end m) (return 0)))
-            (memcpy copy name len)
-            (set (nth len copy) (cast char 0))
-            (let ((size_t id . #'(-> m atoms_len)))
-              (set ($ (nth id (-> m atoms)) name) copy)
-              (set ($ (nth id (-> m atoms)) len)  len)
-              (set ($ (nth id (-> m atoms)) hash) h)
-              (set (-> m atoms_len) (+ id 1))
-              (set (nth j (-> m atom_buckets)) (+ id 1))
-              ;; keep the table under half full, so probes stay short
-              (if (>= (* (-> m atoms_len) 2) (-> m atom_bucket_cap))
-                  (coco_atoms_rehash m))
-              (coco_tbl_end m)
-              (return (cast u64 id))))))
+        ;; THE HIT IS LOCK-FREE (2.9.2). Most interns are of a name already
+        ;; in the table -- the goal text read for every spawned task, a
+        ;; repeated functor -- and each one took the world names mutex AND
+        ;; PUBLISHED at the end, which moved the generation and made every
+        ;; other machine resync for its next run. That pair was the light
+        ;; lane's 3.6x. The probe reads the arrays this machine synced; while
+        ;; the tables are shared a growth never frees an old array, so a
+        ;; probe one generation behind is sound. A miss takes the lock,
+        ;; syncs, and looks AGAIN: another thread may have appended the name
+        ;; meanwhile (the double-checked lock the predicate table needed).
+        (coco_tbl_sync m)
+        (let ((u64 h . #'(coco_hash name len)))
+          (let ((size_t fj . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
+            (while (!= (nth fj (-> m atom_buckets)) 0)
+              (let ((size_t fid . #'(- (nth fj (-> m atom_buckets)) 1)))
+                (if (and (== ($ (nth fid (-> m atoms)) hash) h)
+                         (and (== ($ (nth fid (-> m atoms)) len) len)
+                              (== (memcmp ($ (nth fid (-> m atoms)) name) name len) 0)))
+                    (return (cast u64 fid))))
+              (set fj (bitand (+ fj 1) (- (-> m atom_bucket_cap) 1)))))
+          (coco_tbl_begin m)
+          (let ((size_t j . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
+            ;; probe again: an occupied slot whose hash and bytes both match
+            ;; is the one
+            (while (!= (nth j (-> m atom_buckets)) 0)
+              (let ((size_t id . #'(- (nth j (-> m atom_buckets)) 1)))
+                (if (and (== ($ (nth id (-> m atoms)) hash) h)
+                         (and (== ($ (nth id (-> m atoms)) len) len)
+                              (== (memcmp ($ (nth id (-> m atoms)) name) name len) 0)))
+                    (block (coco_tbl_done m) (return (cast u64 id)))))
+              (set j (bitand (+ j 1) (- (-> m atom_bucket_cap) 1))))
+            ;; not there: append it
+            (if (not (coco_tbl_grow m (cast (void **) (aof (-> m atoms)))
+                              (aof (-> m atoms_cap)) (+ (-> m atoms_len) 1)
+                              (sizeof coco_atom)))
+                (block (coco_tbl_end m) (return 0)))
+            (let ((char * copy . #'(cast (char *) (malloc (+ len 1)))))
+              (if (== copy nil) (block (set (-> m oom) 1) (coco_tbl_end m) (return 0)))
+              (memcpy copy name len)
+              (set (nth len copy) (cast char 0))
+              (let ((size_t id . #'(-> m atoms_len)))
+                (set ($ (nth id (-> m atoms)) name) copy)
+                (set ($ (nth id (-> m atoms)) len)  len)
+                (set ($ (nth id (-> m atoms)) hash) h)
+                (set (-> m atoms_len) (+ id 1))
+                (set (nth j (-> m atom_buckets)) (+ id 1))
+                ;; keep the table under half full, so probes stay short
+                (if (>= (* (-> m atoms_len) 2) (-> m atom_bucket_cap))
+                    (coco_atoms_rehash m))
+                (coco_tbl_end m)
+                (return (cast u64 id)))))))
 
   (func coco_intern ((coco_machine * m) (const char * name)) (out u64)
         (return (coco_intern_len m name (strlen name))))

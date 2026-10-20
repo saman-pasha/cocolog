@@ -1,5 +1,5 @@
 #!/bin/sh
-# Real threads, green threads, goroutines and coroutines, the same spin/1
+# Real threads, green threads, goroutines, Rust threads and coroutines, the same spin/1
 # work -- and the light lanes: many short tasks, then the same with a yield
 # each round, where creation and switch cost is the question.
 #
@@ -17,11 +17,12 @@
 #               to a worker and preempted at a 10,000-step quantum.
 #   goroutine   N Go goroutines: Go's runtime schedules them M:N over the OS
 #               threads, so this lane may use the cores.
+#   rust        N std::threads: an OS thread each, as the real lane.
 #   python      N asyncio tasks (when python3 is).
 #
 # THE LIGHT LANES (LIGHT_N tasks each doing true, joined):
 #
-#   light-real / light-green / light-goroutine / light-python
+#   light-real / light-green / light-goroutine / light-rust / light-python
 #   light-y-*  the same, each task yielding LIGHT_YIELDS times (a mutex
 #               handoff for the OS threads, yield/0 for green, Gosched for
 #               Go, sleep(0) for asyncio)
@@ -32,7 +33,8 @@
 # 1024 tasks and 64 channels, so its light lane runs in batches of 1023
 # children plus the main, each batch one async_run -- the world's eight
 # workers clone the caller's store once, and a spawn after that copies
-# nothing. That is the model the benchmark measures.
+# nothing. That is the model the benchmark measures. The Rust light lanes
+# take OS_LIGHT_N too: std::thread is one OS thread a task.
 #
 # THE ONE-CORE LANE: real1 is the real-thread work lane under `taskset -c 0`
 # (Linux), the like-for-like scheduler comparison with green. A Mac has no
@@ -112,9 +114,19 @@ fi
 STORE_DIR=${TMPDIR:-/tmp}/cocolog-concurrency-store.$$
 STORE_DB=$STORE_DIR/f.sqlite3
 STORE_EMB=$STORE_DIR/embed
+# THE RUST BINARY is built once too, release mode: rustc -O, the check
+# release optimization level.
+RUSTBIN=
+if command -v rustc >/dev/null 2>&1; then
+    RUSTBIN=${TMPDIR:-/tmp}/cocolog-concurrency-rust.$$
+    if ! rustc -O -o "$RUSTBIN" bench/concurrency.rs >/dev/null 2>&1; then
+        RUSTBIN=
+    fi
+fi
 cleanup() {
     if [ -n "$GOBIN" ]; then rm -f "$GOBIN"; fi
     if [ -n "$GO_STORE" ]; then rm -f "$GO_STORE"; fi
+    if [ -n "$RUSTBIN" ]; then rm -f "$RUSTBIN"; fi
     rm -rf "$STORE_DIR"
 }
 trap cleanup EXIT
@@ -171,6 +183,11 @@ if [ -n "$GOBIN" ]; then
     lane goroutine 0 "$GOBIN" work "$N" "$M"
 else
     printf '%-15s SKIP (no go)\n' goroutine
+fi
+if [ -n "$RUSTBIN" ]; then
+    lane rust 0 "$RUSTBIN" work "$N" "$M"
+else
+    printf '%-15s SKIP (no rust)\n' rust
 fi
 if command -v "$PY" >/dev/null 2>&1; then
     lane python 0 "$PY" bench/concurrency.py work "$N" "$M"
@@ -253,6 +270,11 @@ if [ -n "$GOBIN" ]; then
 else
     printf '%-15s SKIP (no go)\n' light-goroutine
 fi
+if [ -n "$RUSTBIN" ]; then
+    lane light-rust "$OS_LIGHT_N" "$RUSTBIN" light "$OS_LIGHT_N"
+else
+    printf '%-15s SKIP (no rust)\n' light-rust
+fi
 if command -v "$PY" >/dev/null 2>&1; then
     lane light-python "$LIGHT_N" "$PY" bench/concurrency.py light "$LIGHT_N"
 else
@@ -269,6 +291,11 @@ if [ -n "$GOBIN" ]; then
     lane light-y-goroutine "$_y_green" "$GOBIN" lightyield "$LIGHT_N" "$LIGHT_YIELDS"
 else
     printf '%-15s SKIP (no go)\n' light-y-goroutine
+fi
+if [ -n "$RUSTBIN" ]; then
+    lane light-y-rust "$_y_real" "$RUSTBIN" lightyield "$OS_LIGHT_N" "$LIGHT_YIELDS"
+else
+    printf '%-15s SKIP (no rust)\n' light-y-rust
 fi
 if command -v "$PY" >/dev/null 2>&1; then
     lane light-y-python "$_y_green" "$PY" bench/concurrency.py lightyield "$LIGHT_N" "$LIGHT_YIELDS"

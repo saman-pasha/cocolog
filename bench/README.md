@@ -1675,17 +1675,19 @@ the shape of the lookup gap -- a thousand probes, three sizes:
 
 `bench/concurrency.sh` puts the concurrency models through two questions in
 one repository. The **work lanes** run the same `spin` work (`M` steps) in
-`N` units: serial, real threads, green threads, Go goroutines and Python
-asyncio. The **light lanes** run many short tasks (10,000, or 1,000 OS
-threads) that do `true` and are joined, then the same with a yield each
-round -- creation and switch cost, where green is supposed to win. A
-**one-core** lane runs the real work lane under `taskset` where the system
-has it. Every lane prints `answer(done)`; a lane that fails, throws or
-answers anything else is REFUSED and no number appears; the first run of
-each lane is the warm-up, and the minimum of three timed runs is printed.
+`N` units: serial, real threads, green threads, Go goroutines, Rust
+threads and Python asyncio. The **light lanes** run many short tasks
+(10,000, or 1,000 OS threads) that do `true` and are joined, then the same
+with a yield each round -- creation and switch cost, where green is
+supposed to win. A **one-core** lane runs the real work lane under
+`taskset` where the system has it. Every lane prints `answer(done)`; a
+lane that fails, throws or answers anything else is REFUSED and no number
+appears; the first run of each lane is the warm-up, and the minimum of
+three timed runs is printed.
 The wall is around the whole process, as in the language benchmark; real
-threads and Go goroutines may use the cores, green threads and the Python
-coroutines share one, and the core count is printed by the harness.
+threads, Go goroutines and Rust threads may use the cores, green threads
+and the Python coroutines share one, and the core count is printed by the
+harness.
 
 **CONCURRENCY RUN A** -- 2026-10-20, the working tree's build (cocolog
 2.6.0; the numbers were taken on its 2.5.2 build, a version-only
@@ -1911,10 +1913,7 @@ long run (102,300 tasks) put 3,300 of its ~4,900 samples in
 `coco_intern_len` on every goal text read even when the atom is already
 in the table -- a spawned `true` reads `true` in its task, so every task
 pays the lock. Run C predates the shared names (2.8.1) and interned into
-a per-worker table. The cure is a lock-free HIT path in `coco_intern_len`
-(a miss takes the mutex and looks again; growth allocates a new array and
-never frees the old while shared, so a racing reader's stale array is
-safe); open.
+a per-worker table. FIXED in 2.9.2 -- Run E below.
 
 Two findings from standing the lanes up. THE MACHINE LIST (2.9.1): one
 run in twelve of the light lane hung -- a worker spinning in
@@ -1937,3 +1936,94 @@ the worker's synced row uncommitted, so a second process saw nothing. A
 worker now fetches AND writes under `--embed` (proved by a cold fetch and
 a cross-process write); the lanes warm `skv` in the host
 (`store_warm`) so their walls are the probes alone, not the fetch.
+
+**CONCURRENCY RUN E** -- 2026-10-21, the lock-free intern hit (cocolog
+2.9.2: `coco_tbl_sync` returns on a matching generation without the
+mutex, `coco_intern_len` probes a hit without the lock and publishes
+nothing, and only a miss takes the mutex, syncs and rechecks), the same
+command and defaults, the same 16-core Intel Mac.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 505.7 ms |
+| real threads (8 OS threads) | 233.0 ms |
+| green threads (8 green threads on 8 workers) | 198.7 ms |
+| goroutines (Go, 8) | 101.2 ms |
+| coroutines (asyncio, 8) | 626.3 ms |
+
+Store lanes, 8 units x 20,000 keyed lookups over 10,000 rows:
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 connections, one transaction each) | 153.1 ms | 0.96 us |
+| green threads over `--embed` | 1134.1 ms | 7.09 us |
+| green threads over `--kb` | 1149.2 ms | 7.18 us |
+
+Light lanes (10,000 tasks; 1,000 OS threads):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 127.06 us | 20.05 us |
+| green threads | 23.31 us | 5.86 us |
+| goroutines | 10.75 us | 1.44 us |
+| coroutines | 25.14 us | 4.20 us |
+
+**THE LIGHT LANE'S REGRESSION IS GONE**: 49.52 -> 23.31 us a task and
+10.00 -> 5.86 us a yield (Run C: 13.89 and 5.83), with the lane's CPU
+down from ~550 % to ~265 %. The per-yield figure is Run C's to the
+hundredth; the per-task one carries this box's ~70 ms process start over
+10,000 tasks and light-real's own rise to 127.06 in the same run. Five
+alternating pairs of the lanes alone, the 2.9.1 binary against this one:
+light_green 10000 0.541-0.594 s -> 0.195-0.215 s, light_green_yield
+10000 10 1.125-1.170 s -> 0.599-0.612 s.
+
+**CONCURRENCY RUN F** -- 2026-10-21, the Rust lanes added
+(`bench/concurrency.rs`: `std::thread`, built once by `rustc -O`, modes
+`work N M`, `light N` and `lightyield N K` -- one OS thread a task, the
+real lane's model, and `thread::yield_now()` for the yield), the same
+command and defaults, the same 16-core Intel Mac and the 2.9.2 binary.
+The lane SKIPs by name without `rustc`.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 552.6 ms |
+| real threads (8 OS threads) | 220.6 ms |
+| green threads (8 green threads on 8 workers) | 199.5 ms |
+| goroutines (Go, 8) | 115.5 ms |
+| rust threads (std::thread, 8) | 109.2 ms |
+| coroutines (asyncio, 8) | 642.3 ms |
+
+Store lanes, 8 units x 20,000 keyed lookups over 10,000 rows:
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 connections, one transaction each) | 183.1 ms | 1.14 us |
+| green threads over `--embed` | 1185.0 ms | 7.41 us |
+| green threads over `--kb` | 1242.5 ms | 7.77 us |
+
+Light lanes (10,000 tasks, 1,000 OS threads, 10 yields):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 154.53 us | 18.79 us (mutex handoff) |
+| green threads | 26.43 us | 6.36 us |
+| goroutines | 12.54 us | 1.51 us |
+| rust threads | 125.65 us | 13.58 us (`yield_now`) |
+| coroutines | 24.89 us | 4.40 us |
+
+**THE RUST WORK LANE'S WALL IS ITS LOOP'S, NOT A SCHEDULER'S**: LLVM
+compiles `spin(M)` to about a cycle a step, and the binary alone answers
+`work 8 1000000` in 0.05 s -- process start and eight thread creations --
+so 109.2 ms is the harness's process wall around that, no cores
+comparison, as Goroutine's is (Go's loop is a few nanoseconds an
+iteration). Its light lanes are the comparison, and std::thread is one OS
+thread a task: 125.65 us a task, below the real lane's 154.53 because a
+cocolog thread carries a machine and a store, and 13.58 us a yield
+against the mutex handoff's 18.79. Green is ~5x cheaper a task than Rust's
+threads and ~2x cheaper a yield. This run's other lanes drifted up from
+Run E (serial 505.7 -> 552.6, SQLite 153.1 -> 183.1), so the numbers
+compare within the run.

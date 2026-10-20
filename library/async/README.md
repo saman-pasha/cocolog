@@ -123,27 +123,32 @@ ring of the size asked.
 The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
-steps each, on a 16-core Intel Mac, cocolog 2.9.1 (Concurrency Run D, the
-ONE STORE: every worker over the caller's store, a write stops the world
-before it lands, reads take no lock; Runs A-C, the 2.6.0 snapshot, the
-2.7.0 shared-store single scheduler and the 2.8.0 clone-and-replicate
-world, are in bench/README.md):
+steps each, on a 16-core Intel Mac, cocolog 2.9.2 (Concurrency Run F, with
+the Rust lanes; Runs A-E are in bench/README.md -- the ONE STORE with a
+lock-free name intern: every worker over the caller's store, a write
+stops the world before it lands, reads take no lock, and an
+intern HIT takes no mutex and moves no generation; Runs A-D, the 2.6.0
+snapshot, the 2.7.0 shared-store single scheduler, the 2.8.0
+clone-and-replicate world and 2.9.1's, are there too):
 
 | lane | wall |
 |---|---|
-| serial | 530.3 ms |
-| real threads (library(thread), 8 OS threads) | 205.0 ms |
-| green threads (library(async), 8 green threads on 8 workers) | 182.8 ms |
-| goroutines (Go, 8) | 99.6 ms |
-| coroutines (asyncio, 8) | 582.4 ms |
+| serial | 552.6 ms |
+| real threads (library(thread), 8 OS threads) | 220.6 ms |
+| green threads (library(async), 8 green threads on 8 workers) | 199.5 ms |
+| goroutines (Go, 8) | 115.5 ms |
+| rust threads (std::thread, 8) | 109.2 ms |
+| coroutines (asyncio, 8) | 642.3 ms |
 
-The green lane now EQUALS the real threads' (182.8 against 205.0; Run C:
-440.7 against 173.0): the cloned stores are gone and a read takes no lock.
+The green lane EQUALS and beats the real threads' (199.5 against 220.6;
+Run C: 440.7 against 173.0): the cloned stores are gone and a read takes
+no lock.
 `time` reports about 415 % CPU, and one unit takes 0.119 s against eight
 units' 0.149 s -- nearly flat, so the work is parallel; eight serial units
-take 0.461 s. Goroutine's 99.6 is not a cores comparison: Go's loop is a
-few nanoseconds an iteration and its lane runs at about one core, so the
-wall measures the loop, not the scheduler. Real threads and goroutines win a
+take 0.461 s. Goroutine's and Rust's walls are not cores comparisons:
+both compile the loop to a few nanoseconds an iteration, so their lanes
+measure their loops and process starts (Rust's binary alone answers the
+work in 0.05 s). Real threads, goroutines and Rust threads win a
 CPU-bound wall; the M:N model's win is that a blocking task no longer
 holds every other task's core.
 
@@ -155,9 +160,9 @@ inside `--embed`/`--kb` crashes, below):
 
 | lane | wall | per lookup |
 |---|---|---|
-| goroutines over SQLite (8 connections, PRIMARY KEY) | 155.0 ms | 0.97 us |
-| green over `--embed` (MVCCS in the process) | 1092.5 ms | 6.83 us |
-| green over `--kb` (MVCCS over TCP) | 1152.2 ms | 7.20 us |
+| goroutines over SQLite (8 connections, PRIMARY KEY) | 183.1 ms | 1.14 us |
+| green over `--embed` (MVCCS in the process) | 1185.0 ms | 7.41 us |
+| green over `--kb` (MVCCS over TCP) | 1242.5 ms | 7.77 us |
 
 All three summed to 79,920,000. EACH UNIT'S PROBES RUN IN ONE TRANSACTION
 on both sides -- a task's thread has a session with its transaction open
@@ -173,29 +178,33 @@ is supposed to win:
 
 | lane | per task | per yield |
 |---|---|---|
-| real threads (1,000) | 113.08 us | 16.74 us (mutex handoff) |
-| green threads (10,000; batches of 1023) | 49.52 us | 10.00 us (`yield/0`) |
-| goroutines (Go, 10,000) | 10.12 us | 1.23 us (`Gosched`) |
-| coroutines (asyncio, 10,000) | 22.28 us | 3.79 us (`sleep(0)`) |
+| real threads (1,000) | 154.53 us | 18.79 us (mutex handoff) |
+| green threads (10,000; batches of 1023) | 26.43 us | 6.36 us (`yield/0`) |
+| goroutines (Go, 10,000) | 12.54 us | 1.51 us (`Gosched`) |
+| rust threads (std::thread, 1,000) | 125.65 us | 13.58 us (`yield_now`) |
+| coroutines (asyncio, 10,000) | 24.89 us | 4.40 us (`sleep(0)`) |
 
-The green light lane is 3.6x Run C's 13.89 us a task and 1.7x its 5.83 a
-yield, and it is not the machine (light-real matches Run C). A sample of
-102,300 tasks is almost all `__psynch_mutexwait`/`__psynch_mutexdrop`:
-the world NAMES mutex, taken by `coco_intern_len` on every goal text read
-even when the atom is already in the table -- each spawned `true` reads
-`true`, so every task pays it. Run C predates the shared names (2.8.1),
-which interned into a per-worker table. A lock-free hit path in
-`coco_intern_len` is the cure (a miss takes the mutex and rechecks; while
-the tables are shared growth never frees the old array, so a racing
-reader's stale pointer is safe); it is open.
+Run D's light-green lane was 3.6x Run C's 13.89 us a task: `coco_intern_len`
+took the world names mutex on every goal text read even when the atom was
+already in the table, and its end PUBLISHED, moving the generation so
+every other machine resynced. 2.9.2 made the hit lock-free (a miss takes
+the mutex and rechecks, and unlocking a look that found the name moves no
+generation): 26.43 us a task and 6.36 a yield in Run F, Run C's 5.83 a
+yield within this box's drift, with the lane's CPU down from ~550 % to
+~265 %.
 
-Green is **~7.8x cheaper per task** than a cocolog OS thread (13.89
-against 108.56 us) and 1.4x Go's goroutines (9.75), and **~2.2x cheaper
-per yield** (5.83 against 12.72); Go's `Gosched` is 4.9x cheaper than
-`yield/0` now, where the 2.7.0 one-scheduler model measured 1.07 us. The
+Rust's std::thread is one OS thread a task, the real lane's model:
+125.65 us a task, below the real lane's 154.53 because a cocolog thread
+carries a machine and a store, and 13.58 us a yield (`thread::yield_now`)
+against the mutex handoff's 18.79. Green is **~4.8x cheaper per task** than
+a Rust thread (26.43 against 125.65) and 5.8x than a cocolog OS thread,
+and **~2.1x cheaper per yield** than Rust's and 2.9x than the mutex
+handoff; Go's goroutine is 2.1x cheaper a task than green's still, and
+`Gosched` 4.2x cheaper than `yield/0` now, where the 2.7.0 one-scheduler
+model measured 1.07 us. The
 world pays a lock at every yield and every spawn; the 1023-task batch
 makes the seven cloned stores' cost small per task but not nothing. The
-counts differ by lane (the OS lane is capped at 1,000 on this Mac, whose
+counts differ by lane (the OS lanes are capped at 1,000 on this Mac, whose
 user-process limit is 2,784, and a cocolog thread carries a machine and a
 store), so the per-task and per-yield columns are the comparison, not the
 wall alone.
@@ -205,9 +214,10 @@ the like-for-like scheduler comparison with the world's workers. The Mac
 has no taskset and the lane says SKIP; the green work lane above is the
 eight-worker number, and its CPU (450 %) says the cores are used.
 
-The harness rebuilds the Go binary once, resolves the Python behind a pyenv
-shim (the shim alone is ~1.7 s), throws the first run of each lane away, and
-refuses a lane whose answer is not `answer(done)`.
+The harness rebuilds the Go and Rust binaries once (`go build`; `rustc
+-O`, and the Rust lane SKIPs by name without it), resolves the Python
+behind a pyenv shim (the shim alone is ~1.7 s), throws the first run of
+each lane away, and refuses a lane whose answer is not `answer(done)`.
 
 ## Toward Go's small-stack shared-heap goroutine
 
