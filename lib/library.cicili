@@ -708,6 +708,15 @@
                          (if (== kind 2)
                              (if (lb_load_pl path name err 512)
                                  (set n (+ n 1))))))))
+          ;; LIBRARY(ASYNC) IS TIER 1 SINCE 2.8.0: cocolog's green threads,
+          ;; preloaded from the binary's library path so async coroutines
+          ;; are on by default (async_run/1,2, go/2, yield/0, await/2 and
+          ;; the channels), and use_module(library(async)) is a no-op.
+          (if (== (coco_module_find "async") nil)
+              (if (lb_find "async" path 1024 (aof kind))
+                  (if (== kind 2)
+                      (if (lb_load_pl path "async" err 512)
+                          (set n (+ n 1))))))
           (return n)))
 
   ;;; ---- the module and the directive hook -------------------------------

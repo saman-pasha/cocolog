@@ -670,7 +670,14 @@ page (machine state travels in 4000-byte chunks).
 writes**: the compiled-in `apply builtins dcg files library lists zigurat`
 and SWI's own `assoc pairs ordsets yall aggregate ugraphs dcg_basics
 dcg_high_order`, vendored unmodified in `lib/swipl` and read at start-up (do
-not edit them). Only files swipl also runs (`test/files/*.pl`,
+not edit them), and since 2.8.0 `async` (`library/async.pl`, the green
+threads, preloaded by `lb_always` from the binary's library path: ASYNC
+COROUTINES ARE ON BY DEFAULT, and `use_module(library(async))` is a no-op);
+its names are GLOBAL (`go/1,2`, `yield/0`, `await/1,2`, `await_all/1`,
+`async/2`, `future_ready/1`, `channel/1,2,3`, `channel_send/2`,
+`channel_recv/2`, `channel_close/1`), so a program's own predicate of one is
+shadowed by the library's -- the 2.8.0 suite found test/window.pl's and
+test/flowdebug.pl's `go` fixtures that way, and they are `rec` now). Only files swipl also runs (`test/files/*.pl`,
 `emacs/test/conformance.pl`) and `test/library.pl` keep such a directive,
 where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
 
@@ -1906,31 +1913,50 @@ cocolint index offers no import of it.
   that machine's cell. `test/signal.pl`, lesson 53.
 * **Green threads are a compiled-in module** (2.6.0, `lib/green.cicili`,
   registered as `green` in `setup`), and `library(async)` is the clauses
-  over its `$async_*` C. A green thread is a MACHINE of its own over the
-  CALLER'S store and name/value tables (2.7.0's first stage): the machine's
-  atom, functor, string, float, big and rat fields alias the caller's (the
-  ROOT machine), every table mutation copies them back (`coco_tupdate`)
-  before the run returns, and a machine takes them again from the root
-  before it runs (`coco_tsync`). THERE IS NO PER-SPAWN SNAPSHOT: a spawn is
-  a heap, a trail, a choice stack and an engine, and a write one thread
-  makes is seen by every thread and the host. The store's frame walks visit
-  every machine the store lists (the host's and the green threads'), a
-  suspended thread's engine through its machine's `keep_eng` -- NEVER
-  `m->eng`, which is set only while it runs: pre-setting it made the engine
-  its own `outer` and `coco_bt_caught` walked for ever. No table
+  over its `$async_*` C -- TIER 1 since 2.8.0, preloaded at start-up, so
+  async coroutines are on by default. A green thread is a MACHINE of its
+  own in a WORLD
+  of eight workers (2.8.0): the caller's thread is worker 0 and seven OS
+  threads are workers 1..7. Each worker owns a STORE and a BASE MACHINE, the
+  base built once at `async_run/1,2` by consulting a snapshot of the
+  caller's store (worker 0's is the caller's own machine and store). A task
+  is PINNED to the worker it was born on; its atom, functor, string, float,
+  big and rat fields alias that worker's base, every table mutation copies
+  them back (`coco_tupdate`) and a machine takes them again before it runs
+  (`coco_tsync`). A spawn copies nothing: a heap, a trail, a choice stack
+  and an engine. A WRITE IS REPLICATED: `assertz/1`, `asserta/1`,
+  `retract/1`, `dynamic/1`, `abolish/1` and `nb_setval/2` call
+  `coco_g_note_write` (declared in solve and builtins, defined in
+  lib/green.cicili; its prototype takes `void *` because the decls are
+  emitted before the engine type) after the local store has it; the writer
+  builds the goal as canonical text and waits at a world barrier while
+  every other worker applies it with a scratch engine on its base
+  (`applying` stops a copy's broadcast), so the builtin returns with every
+  store holding it. b_setval/2, a consult or load, a backend's fetch and a
+  module's own C state stay per worker. The store's frame walks visit every
+  machine the store lists, a suspended task's engine through `keep_eng` --
+  NEVER `m->eng`: pre-setting it made the engine its own `outer`. No table
   reclamation (`tshared`) or store compaction (`st->machines`) runs while a
-  world does. The scheduler is COOPERATIVE and one OS thread (yield, await,
-  a channel block, or the goal's end): a green thread is not preempted, and
-  M:N is the next stage. The engine's step limit is the freeze scheduler's
-  stop; a direct continuation after "inference limit reached" restarts the
-  clause, so the quantum is not used (found by `test/async.pl`'s first
-  `between(1,2000,_), fail`). A result is the goal as instantiated, in
-  canonical text; a throw is rethrown by `await/2`; a deadlock is the
-  scheduler's, raised at `async_run/1`. 64 threads and 64 channels.
+  world does. THE QUANTUM: the run sets `max_steps` to the task's steps +
+  10,000; `coco_limit_go`'s GREENQ branch sets GSTOP, flushes the
+  continuation and stops -- the engine reports its limit (-1), so the run
+  checks GSTOP BEFORE rc and keeps the task ready (an rc-only check made
+  every preempted task a system_error) -- and a task that never yields
+  cannot hold its worker; a foreign call still can. A worker picks its
+  ready tasks round robin and waits on its own condition variable; the
+  deadlock is asked when a worker's pick finds nothing (NOT after every
+  run: 1024 tasks, 10,000 runs cost 18 us a task that way and 14 this; and
+  NOT before the main task exists -- the workers start first and
+  `nthreads` 0 is not a deadlock). The main is task 0 on worker 0; the
+  caller runs worker 0's loop; the world waits for a pending write and then
+  stops. 1024 tasks and 64 channels a world. A result is the goal as
+  instantiated, in canonical text; a throw is rethrown by `await/2`; a
+  deadlock is raised as resource_error(deadlock) at `async_run/1,2`.
   `test/async.pl`, lesson 54, `bench/concurrency.sh`,
-  `library/async/README.md`. A library predicate with a choice point per
-  answer (`between/3`) is slow -- the concurrency benchmark's workload is a
-  recursion, and the finding is recorded there.
+  `library/async/README.md` (the model, the Run C numbers and the limits).
+  A library predicate with a choice point per answer (`between/3`) is slow
+  -- the concurrency benchmark's workload is a recursion, and the finding
+  is recorded there.
 * **A `{}` or `[]` FUNCTOR is written quoted** (2.6.0): `coco_write_atom`
   grew bit 32, the functor's force, used for those two names in the
   canonical application path, so `{}(X)` is `'{}'(X)` and reads back. The

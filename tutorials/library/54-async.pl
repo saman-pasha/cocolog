@@ -2,8 +2,10 @@
 %%
 %%     ./cocolog run tutorials/library/54-async.pl main
 %%
-%% TIER 2: `use_module(library(async))', clauses in library/async.pl over
-%% the compiled-in green module (lib/green.cicili, no .so to build).
+%% TIER 1 SINCE 2.8.0: `library(async)' is preloaded at start-up (async
+%% coroutines are on by default), so there is no use_module here; its
+%% clauses are in library/async.pl over the compiled-in green module
+%% (lib/green.cicili, no .so to build).
 %%
 %%     async_run(:Goal)   async_run(:Goal, -Result)
 %%     go(:Goal)          go(:Goal, -Id)
@@ -12,21 +14,23 @@
 %%     channel(-C)        channel(+Size, -C)
 %%     channel_send(+C, +Term)          channel_recv(+C, -Term)   channel_close(+C)
 %%
-%% A GREEN THREAD IS A MACHINE OF ITS OWN, run by a scheduler in the
-%% process: no OS thread, no preemption (it runs until it yields, awaits,
-%% blocks on a channel, or ends). It shares the caller's KNOWLEDGE BASE:
-%% its atom and functor tables are the caller's, and a write one thread
-%% makes is seen by every thread and the host when the scheduler runs it.
-%% Terms cross in canonical text through a channel, and the answer of a
-%% goal is the goal as instantiated. The caller's variables are NOT bound:
-%% the answer is a copy.
+%% A GREEN THREAD IS A MACHINE OF ITS OWN, run by a world of 8 WORKERS --
+%% the caller's thread and seven OS threads (2.8.0). Each worker owns a
+%% store cloned from the caller's at async_run/1; a task is pinned to the
+%% worker it was born on and is preempted at a 10,000-step quantum, so a
+%% task that never yields cannot hold a worker. A write a task makes is
+%% REPLICATED to every other worker's store before the builtin returns
+%% (assertz/1, asserta/1, retract/1, dynamic/1, abolish/1 and nb_setval/2),
+%% so the caller, the main thread and the host see it. Terms cross in
+%% canonical text through a channel, and the answer of a goal is the goal
+%% as instantiated. The caller's variables are NOT bound: the answer is a
+%% copy.
 %%
-%% Everything runs under async_run/1,2. The scheduler reports a deadlock
-%% (every thread blocked, the main one not ended) from async_run, where the
+%% Everything runs under async_run/1,2. The world reports a deadlock
+%% (every task blocked, the main one not ended) from async_run, where the
 %% program can catch it; a thread that fails makes await fail, and one that
 %% throws makes await throw the same ball.
 
-:- use_module(library(async)).
 
 spin(0) :- !.
 spin(N) :- N > 0, M is N - 1, spin(M).
@@ -70,12 +74,32 @@ case_shared(R) :-
     await(F, _),
     ( catch(q(_), _, fail) -> R = main_sees ; R = main_not ).
 
+case_retract(R) :-
+    assertz(q(2)),
+    channel(C),
+    go((retract(q(2)), channel_send(C, gone)), F),
+    channel_recv(C, X),
+    await(F, _),
+    ( catch(q(2), _, fail) -> R = still ; R = gone ).
+
+%% Eight children fill workers 1..7 and then worker 0, the main's own; H
+%% shares worker 0, so after the main's yield it has been stopped at its
+%% 10,000-step quantum and is not done.
+case_preempt(R) :-
+    go(spin(20000), A), go(spin(20000), B), go(spin(20000), C),
+    go(spin(20000), D), go(spin(20000), E), go(spin(20000), F),
+    go(spin(20000), G), go(spin(20000), H),
+    yield,
+    ( future_ready(H) -> R = done ; R = not_done ),
+    await_all([A,B,C,D,E,F,G,H]).
+
 result(Goal, R) :-
     async_run(Goal, W),
     arg(1, W, R).
 
 main :-
     lesson_values,
+    lesson_preempt,
     lesson_channels,
     lesson_failures,
     lesson_store,
@@ -92,6 +116,13 @@ lesson_values :-
     must('a recursion in the shared store runs to its end', W2, spin(2000)),
     result(case_fail(R3), R3),
     must('await of a failed thread fails', R3, no).
+
+%% ---- the quantum --------------------------------------------------------
+lesson_preempt :-
+    format("~n-- a task that never yields is stopped at the quantum~n"),
+    result(case_preempt(R1), R1),
+    must('the eighth child shares worker 0 and is not done yet', R1, not_done),
+    format("     (yield/0 let the main run; the child went on at 10,000 steps)~n").
 
 %% ---- channels -----------------------------------------------------------
 lesson_channels :-
@@ -118,17 +149,20 @@ lesson_store :-
     result(case_shared(R1), R1),
     must('the main green thread sees a child\'s assert', R1, main_sees),
     ( catch(q(_), _, fail) -> W2 = host_sees ; W2 = host_not ),
-    must('and so does the host', W2, host_sees).
+    must('and so does the host', W2, host_sees),
+    result(case_retract(R3), R3),
+    must('a child\'s retract is the main\'s', R3, gone).
 
 %% ---- the limits ---------------------------------------------------------
 lesson_limits :-
     format("~n-- what this is, and what it is not~n"),
-    format("   COOPERATIVE: a thread runs until yield/0, await/2, a channel~n"),
-    format("   block or its end. A tight loop holds the scheduler.~n"),
-    format("   A SHARED STORE: a spawn copies no knowledge base, and a~n"),
-    format("   write is seen by every thread and the host. The machine is~n"),
-    format("   a heap, trail and engine over the caller's tables.~n"),
-    format("   SMALL: 64 threads and 64 channels a scheduler.~n"),
+    format("   M:N: 8 workers, 1024 tasks and 64 channels a world. A task is~n"),
+    format("   preempted at 10,000 steps; a foreign call holds its worker.~n"),
+    format("   A SHARED STORE, CLONED: each worker has a store built from~n"),
+    format("   the caller's at async_run/1; assertz, asserta, retract,~n"),
+    format("   dynamic, abolish and nb_setval are replicated across the~n"),
+    format("   workers before they return. b_setval, a consult or load, a~n"),
+    format("   backend's fetch and a module's own C state stay the worker's.~n"),
     must('the lesson is still running', yes, yes).
 
 %% ---- the helpers every lesson here carries -----------------------------

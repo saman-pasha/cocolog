@@ -496,6 +496,9 @@
 (generic decl-builtins
   ()
 
+  ;; the green world's write hook (lib/green.cicili), one no-op outside it
+  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void))
+
   (decl) (func coco_builtins_module () (out int))
 
   ) ; decl-builtins
@@ -3345,6 +3348,7 @@
                   (set (-> m heap_len) mark)
                   (if (not ok) break)))
               (coco_store_maybe_compact st m)
+              (coco_g_note_write e 7 (coco_arg m g 0) 0)
               (return 1)))))
 
   ;;; ---- global variables -------------------------------------------------
@@ -3447,6 +3451,16 @@
         (coco_global_place st i)
         (return 1))
 
+  ;;; NB_SETVAL IS REPLICATED and b_setval is not (2.8.0): a green world's
+  ;;; stores are clones, and a global a task sets must be seen by the
+  ;;; others as a predicate write is. b_setval is the same global here and
+  ;;; is stated as a worker's own.
+  (static)
+  (func coco_b_setval_note ((coco_engine * e) (size_t g))
+        (let ((coco_machine * m . #'(coco_m_machine e)))
+          (if (== 0 (strcmp (coco_atom_name m (coco_name_of m g)) "nb_setval"))
+              (coco_g_note_write e 5 (coco_arg m g 0) (coco_arg m g 1)))))
+
   (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
@@ -3470,6 +3484,7 @@
                   (set ($ (nth i (-> st globals)) ver) (-> st gver))
                   (set ($ (nth i (-> st globals)) ground) ground)
                   (coco_store_maybe_compact st m)
+                  (coco_b_setval_note e g)
                   (return 1)))
             (if (>= (-> st nglobals) (-> st gcap))
                 (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
@@ -3487,6 +3502,7 @@
             (if (not (coco_global_hash st (-> st nglobals))) (return 0))
             (set (-> st nglobals) (+ (-> st nglobals) 1))
             (coco_store_maybe_compact st m)
+            (coco_b_setval_note e g)
             (return 1))))
 
   ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value

@@ -97,7 +97,8 @@
 
 (source "cocolog.c"
   (make :std #t
-        :compile ("-Iclient"
+        :compile ("-DCOCO_GREEN"
+                  "-Iclient"
                   ;; two clang-only complaints about the transpiler's
                   ;; correct emission: the paren-wrapped while condition
                   ;; and the unbraced else-if chain. gcc ignores unknown
@@ -390,7 +391,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.7.0"))
+  (func coco_version_text () (out const char *) (return "2.8.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"

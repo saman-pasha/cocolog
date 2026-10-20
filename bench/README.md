@@ -1802,3 +1802,44 @@ yield against 16.12 (~15x) and Go's 1.24. The multi-core half (M:N, worker
 threads over one store) is not in this run: the scheduler is still one OS
 thread, which is why the work lane is the serial lane plus overhead while
 Run A's per-spawn snapshots are gone.
+
+
+**CONCURRENCY RUN C** -- 2026-10-20, the M:N world (cocolog 2.8.0: the
+caller's thread and seven OS threads as eight workers, a store and base
+machine cloned per worker at `async_run/1`, tasks pinned and preempted at
+a 10,000-step quantum, and `assertz/1`, `asserta/1`, `retract/1`,
+`dynamic/1`, `abolish/1` and `nb_setval/2` replicated to every worker
+before they return), the same command `sh bench/concurrency.sh` and the
+same defaults as Run B, a 16-core Intel Mac.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 458.9 ms |
+| real threads (8 OS threads) | 173.0 ms |
+| green threads (8 green threads on 8 workers) | 440.7 ms |
+| goroutines (Go, 8) | 92.7 ms |
+| coroutines (asyncio, 8) | 555.5 ms |
+
+Light lanes (10,000 tasks; 1,000 OS threads; green in batches of 1023
+children plus the main):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 108.56 us | 12.72 us (mutex handoff) |
+| green threads | 13.89 us | 5.83 us (`yield/0`) |
+| goroutines | 9.75 us | 1.20 us (`Gosched`) |
+| coroutines | 21.12 us | 3.43 us (`sleep(0)`) |
+
+The green work lane now uses the cores: `time` on the lane alone reports
+about 450 % CPU, and the wall is 440.7 against Run B's one-core 505.1 and
+serial's 458.9. The real threads' 173.0 and Go's 92.7 still win a
+CPU-bound wall: the green engine pays the world's setup (seven cloned
+stores), the quantum's stop and flush every 10,000 steps, and a lock at
+every run boundary -- about 3.7 times the CPU per task. The light lane is
+13.89 us a task (Run B: 10.64) and 5.83 a yield (1.07): an eight-worker
+world pays a lock at every spawn and every yield, where Run B's one
+scheduler was a straight line; the 1023-task batch makes the seven clones
+small per task but not nothing. The deadlock scan moved from every run to
+the idle pick for this run (18.02 to 13.89 us a task).

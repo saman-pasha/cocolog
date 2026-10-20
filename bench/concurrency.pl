@@ -23,7 +23,6 @@
 
 :- use_module('bench/spin.pl').
 :- use_module(library(thread)).
-:- use_module(library(async)).
 
 main :-
     current_prolog_flag(argv, [_, Mode|Rest]),
@@ -103,7 +102,7 @@ yield_real_goal(K, (mutex_lock(bench_light_mutex),
     K1 is K - 1,
     yield_real_goal(K1, Rest).
 
-%% ---- light green: 64 to a scheduler, in batches ------------------------
+%% ---- light green: 1023 children + the main to a world, in batches ------
 light_green(N) :-
     light_green_batches(N, true).
 
@@ -114,7 +113,7 @@ light_green_yield(N, K) :-
 light_green_batches(0, _) :- !.
 light_green_batches(N, Goal) :-
     N > 0,
-    ( N > 64 -> B = 64 ; B = N ),
+    ( N > 1023 -> B = 1023 ; B = N ),
     numlist(1, B, Units),
     async_run(( light_green_start(Goal, Units, Ids),
                 await_all(Ids) ), _),

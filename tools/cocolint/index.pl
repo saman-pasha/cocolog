@@ -71,6 +71,11 @@ ix_bin(Bin) :-
 ix_tier_dir(2, 'library').
 ix_tier_dir(1, 'lib/swipl').
 
+%% PRELOADED AT START-UP (2.8.0): library(async) sits in library/ but
+%% lib/library.cicili's lb_always loads it at boot, so it is tier 1 -- no
+%% import to offer, and `use_module(library(async))' is a no-op.
+ix_preloaded(async).
+
 %% ---- the surface --------------------------------------------------------
 
 %% THE .pl LIBRARIES FIRST, THEN THE LOADABLE MODULES, in that order, so a
@@ -132,8 +137,9 @@ ix_module_of(Dir, Rel, Mod) :-
     !,
     atom_codes(Mod, M).
 
-ix_surface_row(Tier, Dir, Rel, Abs, json(Row)) :-
+ix_surface_row(Tier0, Dir, Rel, Abs, json(Row)) :-
     ix_module_of(Dir, Rel, Mod),
+    (   ix_preloaded(Mod) -> Tier = 1 ; Tier = Tier0 ),
     read_file_to_codes(Abs, Src),
     ix_header_block(Src, Header),
     length(Header, HB),

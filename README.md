@@ -198,7 +198,8 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        holes: values, conditions, loops, ranges and
                        queries, escaped for text, HTML, XML or JSON),
                        async.pl (Go's go, yield, await and channels as
-                       green threads, each with a store of its own),
+                       green threads on eight workers over one shared
+                       store -- tier 1 since 2.8.0, preloaded),
                        clay_ray.pl and llm.pl,
                        reasoning/ (controlled English, a tagger and a
                        translator), and the .so's and flow/tables.pl that
@@ -820,13 +821,16 @@ things that would otherwise have shipped looking right.
 ### Two tiers, and which one a thing belongs in
 
 **TIER 1 — always present, and no `use_module` needed.** Registered before
-the first goal runs: the five above plus `library` and `zigurat`, and the
+the first goal runs: the five above plus `library` and `zigurat`, the
 eight of SWI's own that are vendored in `lib/swipl` and read from disk at
-start-up. They are part of Prolog here, not an optional extra — a program
-that must say `use_module(library(assoc))` before it can use an association
-list is doing the interpreter's bookkeeping. **So an import for any of the
-fifteen is a line that does nothing**, and so is one for `library(error)`,
-whose predicates are builtins; nothing in this repository needs one.
+start-up, and since 2.8.0 `async` (`library/async.pl`, cocolog's green
+threads, loaded from the binary's library path at start-up: async
+coroutines are on by default). They are part of Prolog here, not an
+optional extra — a program that must say `use_module(library(assoc))`
+before it can use an association list is doing the interpreter's
+bookkeeping. **So an import for any of the sixteen is a line that does
+nothing**, and so is one for `library(error)`, whose predicates are
+builtins; nothing in this repository needs one.
 
 **TIER 2 — on the library path, loaded when asked.** `$COCOLOG_LIBRARY`
 first, then `./library`, then `library/` and `lib/swipl/` beside the

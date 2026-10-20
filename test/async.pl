@@ -9,15 +9,19 @@
 %%   reads that argument from the whole term async_run/1 answers. The
 %%   caller's own variables are not bound: the term is a copy.
 %%
-%%   THE SCHEDULER is the thread that runs: go/2 starts one, await/2 joins
-%%   it, yield/0 gives way, and a channel send or receive blocks. A thread
-%%   that fails makes await/2 fail; one that throws makes it throw the same
-%%   ball; the scheduler reports a deadlock from async_run/1, not from
-%%   inside the main goal (the main goal is not running then).
+%%   THE SCHEDULER is the world's: eight workers (the caller's thread is
+%%   worker 0), each with a store cloned at async_run/1; a task is pinned
+%%   to the worker it was born on and gives way when it yields, awaits,
+%%   blocks on a channel or spends its 10,000-step quantum. A thread that
+%%   fails makes await/2 fail; one that throws makes it throw the same
+%%   ball; the scheduler reports a deadlock when every task is blocked and
+%%   the main has not ended).
 %%
 %%   THE STORE IS SHARED: a child asserts into the caller's knowledge base,
 %%   and the main green thread and the host see the clause; terms still
-%%   cross between threads in canonical text.
+%%   cross between threads in canonical text. In the world a write is
+%%   REPLICATED across the workers' stores before the builtin returns, so a
+%%   child's assert or retract is seen by the main and the host.
 %%
 %%     cocolog -s test/async.pl        from the checkout root
 %%
@@ -40,14 +44,24 @@ case_all(R) :-
     await_all([A,B]),
     R = done.
 
+%% A JOINED TASK IS READY. What a bare `future_ready' says right after a
+%% go/2 is a race in the M:N world -- the child may be on another worker.
 case_future(R) :-
     go(spin(1000), F),
+    await(F, _),
     ( future_ready(F) -> R = ready ; R = waiting ).
 
-case_yielded(R) :-
-    go(spin(1000), F),
+%% THE QUANTUM. Eight children take workers 1..7 and then 0 (the main's
+%% own); H, the eighth, shares worker 0 with the main, so after the main's
+%% yield it is stopped at its 10,000-step quantum -- a task that never
+%% yields cannot hold its worker.
+case_quantum(R) :-
+    go(spin(20000), A), go(spin(20000), B), go(spin(20000), C),
+    go(spin(20000), D), go(spin(20000), E), go(spin(20000), F),
+    go(spin(20000), G), go(spin(20000), H),
     yield,
-    ( future_ready(F) -> R = ready ; R = waiting ).
+    ( future_ready(H) -> R = done ; R = not_done ),
+    await_all([A,B,C,D,E,F,G,H]).
 
 case_chan(R) :-
     channel(C),
@@ -94,6 +108,17 @@ case_shared(R) :-
     await(F, _),
     ( catch(q(_), _, fail) -> R = main_sees ; R = main_not ).
 
+%% AND A RETRACT CROSSES THE OTHER WAY: the main asserts q(2) on worker 0,
+%% the child (worker 1) retracts it, and the main no longer has it.
+case_retract(R) :-
+    assertz(q(2)),
+    channel(C),
+    go((retract(q(2)), channel_send(C, gone)), F),
+    channel_recv(C, X),
+    await(F, _),
+    ( catch(q(2), _, fail) -> R = still ; R = gone ),
+    X = gone.
+
 result(Goal, R) :-
     async_run(Goal, W),
     arg(1, W, R).
@@ -124,9 +149,9 @@ joining :-
     answer(result(case_all(R1), R1), R1, G1),
     check('await_all waits for each', G1, done),
     answer(result(case_future(R2), R2), R2, G2),
-    check('future_ready is not ready before the scheduler ran it', G2, waiting),
-    answer(result(case_yielded(R3), R3), R3, G3),
-    check('after a yield it has been run', G3, ready).
+    check('a joined thread is ready', G2, ready),
+    answer(result(case_quantum(R3), R3), R3, G3),
+    check('a task that never yields is stopped at the quantum', G3, not_done).
 
 %% ---- channels ------------------------------------------------------------
 channels :-
@@ -157,4 +182,6 @@ shared_store :-
     answer(result(case_shared(R1), R1), R1, G1),
     check('the main green thread sees a child\'s assert', G1, main_sees),
     answer(( catch(q(_), _, fail) -> W2 = host_sees ; W2 = host_not ), W2, G2),
-    check('and so does the host', G2, host_sees).
+    check('and so does the host', G2, host_sees),
+    answer(result(case_retract(R3), R3), R3, G3),
+    check('a child\'s retract is the main\'s', G3, gone).

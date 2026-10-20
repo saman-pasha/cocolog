@@ -1,43 +1,60 @@
-;;;; cocolog -- green threads: Go's go, yield and channels, cooperatively
-;;;; scheduled inside one process by the engine's step limit.
+;;;; cocolog -- green threads: Go's go, yield and channels, on M:N workers
+;;;; (cocolog 2.8.0).
 ;;;
 ;;;; WHY THIS IS NOT library(thread). A thread of library(thread) has its
 ;;;; own OS thread and runs at the same time as the others; a green thread
-;;;; runs for a quantum of steps and is then put aside while the next one
-;;;; runs -- a context switch the program asks for (yield, await, a channel)
-;;;; or the scheduler takes at a fixed number of steps. The shape is Go's:
+;;;; is a machine of its own, stepped by a worker, that gives way when it
+;;;; yields, awaits, blocks on a channel or spends its 10,000-step quantum.
 ;;;; go/2 starts one, await/2 joins it, and channels carry terms between
-;;;; them. What a green thread does NOT share is the knowledge base: the
-;;;; engine's store belongs to one machine (its atom and functor tables are
-;;;; the store's), and `coco_thaw' EMPTIES the store it thaws into -- the
-;;;; step scheduler of `cocolog step' reloads the knowledge base after every
-;;;; thaw for exactly that reason. So each green thread gets its own machine
-;;;; and its own store, filled once at spawn from a snapshot of the host's
-;;;; knowledge base, and its writes stay its own. Terms cross in canonical
-;;;; text, as a channel's do; the knowledge base crosses as that snapshot.
+;;;; them.
+;;;
+;;;; THE WORLD (2.8.0) IS M:N. `async_run/1,2' starts a world of N workers
+;;;; (8): the caller's own thread is worker 0 and seven pthreads are
+;;;; workers 1..7. Each worker owns a STORE and a BASE MACHINE of its own,
+;;;; built once from a snapshot of the caller's knowledge base at
+;;;; async_run/1; a task is pinned to the worker it was born on and its
+;;;; machine aliases that worker's base machine (the 2.7.0 shared name and
+;;;; value tables). The caller's machine is worker 0's base, so the main
+;;;; task and the host share one store; every other worker has a clone.
 ;;;;
-;;;; THE SCHEDULER IS THE ENGINE'S OWN STEP LIMIT. `max_steps' is set to
-;;;; the thread's step count plus a quantum; `coco_engine_next' answers -1
-;;;; with "inference limit reached" when the quantum is spent, and the
-;;;; engine's continuation is intact, so the next call goes on -- the same
-;;;; property `cocolog step' uses, without the freeze. A cooperative stop
-;;;; (yield, a block) writes 128 into the engine's `halted' cell, which
-;;;; `coco_halted_step' flushes and stops without an error.
+;;;; WRITES ARE REPLICATED SYNCHRONOUSLY. assertz/1, asserta/1, retract/1,
+;;;; dynamic/1, abolish/1 and nb_setval/2 run locally on the writer's
+;;;; machine and then cross a world barrier: the writer builds the goal as
+;;;; canonical text and waits while every other worker applies it with a
+;;;; scratch engine on ITS base machine and acknowledges. When the builtin
+;;;; returns, every store in the world holds the write, so a reader never
+;;;; sees an earlier world for a later write. Replication is suppressed on
+;;;; an applier (`applying'), so a copy does not broadcast again. b_setval/2
+;;;; is the same non-backtrackable global here and is NOT replicated (it is
+;;;; stated in library/async/README.md): the write-through backend, a
+;;;; consult/load a task runs and a module's own C state stay per-worker.
+;;;;
+;;;; THE QUANTUM IS THE ENGINE'S OWN STEP LIMIT (2.8.0). `max_steps' is
+;;;; set to the task's step count plus the quantum; the limit's cold path
+;;;; sees GREENQ and stops with GSTOP, the continuation flushed as a yield
+;;;; flushes it, and the worker runs the next ready task and comes back.
+;;;; A task may still hold a worker inside a foreign call.
+;;;;
+;;;; THE SCHEDULER. Each worker picks the next ready task pinned to it,
+;;;; round robin from a per-worker cursor; a worker with nothing to do
+;;;; waits on its own condition variable, signalled by a spawn, a finish,
+;;;; a wake, a replicated write or the world's stop. The main task is id 0
+;;;; on worker 0; when it ends the world stops and the host collects its
+;;;; status. A deadlock is every task blocked and no main end.
 ;;;;
 ;;;; THE STATUS OF A THREAD is a text term `'$async'(ok, Goal)' for its
 ;;;; first solution, `'$async'(failed)', or `'$async'(error, Ball)'. A
-;;;; waiter's call to await/2 records the cell its status argument stands
-;;;; in; when the target ends, the scheduler writes the status into that
-;;;; cell before the waiter resumes, and library(async)'s wrapper turns the
-;;;; status into the result, a failure, or a rethrow.
+;;;; waiter records the cell its status argument stands in; the waker
+;;;; writes the status into that cell before the waiter resumes.
 ;;;;
-;;;; THE LIMITS, stated where a reader meets them: the snapshot copies the
-;;;; host store's clauses at async_run/1, so a spawn costs what the
-;;;; knowledge base weighs (and a thread does not see another's writes);
-;;;; a channel and a thread list hold 64 each; a thread that blocks on a
-;;;; channel closed under it or on a thread that never ends is a deadlock
-;;;; the scheduler reports; and a goal runs in the machine's module, so a
-;;;; module-qualified goal is not transported as one.
+;;;; THE LIMITS, stated where a reader meets them: 1024 threads and 64
+;;;; channels a world; each worker's store is a clone made at async_run/1
+;;;; (a spawn copies nothing); a consult, a load, b_setval/2 and a
+;;;; backend's fetch are the worker's own; a channel and a thread list are
+;;;; shared under the world lock; a task that blocks on a channel closed
+;;;; under it or on a thread that never ends is a deadlock; and a goal runs
+;;;; in the machine's module, so a module-qualified goal is not transported
+;;;; as one.
 
 (IN-PACKAGE :cocolog)
 
@@ -62,8 +79,7 @@
 (generic decl-green
   ()
 
-  ;; 64 threads and 64 channels, a fixed table each; a green thread's
-  ;; machine, engine and store live for as long as the thread does.
+  ;; 1024 tasks and 64 channels a world; 8 workers, a fixed array.
   ;; a member's type is one token, so the two-step typedef: a char * is
   ;; coco_charp, and the ring is a coco_charp *.
   (typedef char * coco_charp)
@@ -71,6 +87,7 @@
 
   (struct green_thread
     (member int           id)
+    (member int           worker)      ; pinned at spawn
     (member int           state)       ; 0 ready, 1 blocked, 2 done
     (member int           block)       ; 0 none, 1 await, 2 send, 3 recv,
                                        ; 4 yield
@@ -80,6 +97,8 @@
     (member size_t        resume_cell) ; where the status goes on resume
     (member char *        resume_text) ; the status, from the waker
     (member char *        status)      ; done: the status text
+    (member char *        goal)        ; until the machine is made
+    (member int           made)
     (member coco_machine * m)
     (member coco_engine *  e)
     (member coco_store *   st))
@@ -96,19 +115,45 @@
     (member int    receivers [64])
     (member int    nreceivers))
 
-  (struct green_sched
-    (member green_thread * threads)
-    (member int            nthreads)
-    (member green_chan *   chans)
-    (member int            nchans)
-    (member int            quantum)
-    (member int            cur)
-    ;; THE STORE AND THE MACHINE THE TABLES COME FROM (2.7.0): every green
-    ;; thread's machine aliases this machine's name/value tables and shares
-    ;; this store, so a spawn copies no knowledge base.
+  ;; ONE REPLICATED WRITE AT A TIME. The writer names itself, the sequence
+  ;; keeps a worker from applying one write twice, and ACKS counts the
+  ;; workers other than the writer that have applied it.
+  (struct green_op
+    (member char * text)
+    (member int    writer)
+    (member int    seq)
+    (member int    acks))
+
+  (struct green_worker
+    (member int            id)
+    (member void *         w)          ; its world
     (member coco_store *   st)
-    (member coco_machine * host)
-    (member int            linked))
+    (member coco_machine * base)       ; the tables every task aliases
+    (member int            cur)        ; the task it is running, -1
+    (member int            cursor)     ; the round-robin start
+    (member int            applying)   ; a replication is running here
+    (member int            applied_seq)
+    (member pthread_t      tid)
+    (member pthread_cond_t wake))
+
+  (struct green_world
+    (member green_thread *    threads)
+    (member int               nthreads)
+    (member int               cap)
+    (member green_chan *      chans)
+    (member int               nchans)
+    (member int               quantum)
+    (member green_worker *    workers)
+    (member int               nworkers)
+    (member pthread_mutex_t   lock)
+    (member pthread_cond_t    op_done)
+    (member green_op *        op)
+    (member int               op_seq)
+    (member int               stop)
+    (member int               main_done)
+    (member int               next_worker)
+    (member coco_store *      host_st)
+    (member coco_machine *    host))
 
   (decl) (func coco_green_module () (out int))
   (decl) (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int))
@@ -120,6 +165,11 @@
   (decl) (func coco_g_async_send ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_recv ((coco_engine * e) (size_t g)) (out int))
   (decl) (func coco_g_async_close ((coco_engine * e) (size_t g)) (out int))
+  ;; The write hook: lib/solve.cicili and lib/builtins.cicili call it after
+  ;; a local write; it is one no-op outside a green world and one no-op on
+  ;; an applier (whose scratch engine must not broadcast the copy again).
+  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b))
+        (out void))
 
   ) ; decl-green
 
@@ -127,7 +177,10 @@
 (generic impl-green
   ()
 
-  (static) (var green_sched * green_now)
+  ;; THE WORLD AND THE WORKER ARE PER OS THREAD. A task's builtins run on
+  ;; its worker's thread; the hook and the builtins read these.
+  (thread-local) (var green_world * green_now)
+  (thread-local) (var green_worker * green_me)
 
   ;;; ---- text and status -------------------------------------------------
 
@@ -186,7 +239,12 @@
           (return (coco_raise e (coco_make1 m "cocolog_error"
                                              (coco_new_atom m msg))))))
 
-  ;;; ---- threads ---------------------------------------------------------
+  ;;; ---- the world's stores ----------------------------------------------
+
+  (static)
+  (func coco_g_store_link ((coco_store * st) (coco_machine * m))
+        (set (-> m st_next) (-> st machines))
+        (set (-> st machines) (cast (void *) m)))
 
   (static)
   (func coco_g_store_unlink ((coco_store * st) (coco_machine * m))
@@ -201,6 +259,37 @@
               (block (set prev cur)
                      (set cur (cast (coco_machine *) (-> cur st_next))))))))
 
+  ;;; THE SNAPSHOT: every live clause and every dynamic declaration of the
+  ;;; host's store as a program text. A worker's store is built by
+  ;;; consulting one, once, at async_run/1. The host's heap is not wound
+  ;;; back: the store's cells are read onto it above whatever the host
+  ;;; engine holds.
+  (static)
+  (func coco_g_snapshot ((coco_machine * m) (coco_store * st)) (out char *)
+        (let ((coco_strbuf b) (char * out . nil))
+          (coco_sb_init (aof b))
+          (for ((size_t pi . 0)) (< pi (-> st npreds)) ((++ pi))
+            (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+              (if (== (-> p dynamic) 1)
+                  (block
+                   (coco_sb_put (aof b) ":- dynamic ")
+                   (let ((size_t na . #'(coco_new_atom m (coco_atom_name m (-> p name)))))
+                     (coco_write_term m (aof b) na 1 1))
+                   (coco_sb_put (aof b) "/")
+                   (coco_sb_put_i64 (aof b) (cast i64 (-> p arity)))
+                   (coco_sb_put (aof b) ".\n")))
+              (for ((size_t ci . 0)) (< ci (-> p nclauses)) ((++ ci))
+                (if (not (coco_pred_dead p ci))
+                    (block
+                     (let ((size_t t . #'(coco_store_read m st (nth ci (-> p clauses)))))
+                       (coco_write_term m (aof b) t 1 1))
+                     (coco_sb_put (aof b) ".\n"))))))
+          (if (!= ($ b s) nil) (set out (strdup ($ b s))))
+          (coco_sb_free (aof b))
+          (return out)))
+
+  ;;; ---- a task's machines -----------------------------------------------
+
   (static)
   (func coco_g_thread_free ((green_thread * t))
         (if (and (!= (-> t st) nil) (!= (-> t m) nil))
@@ -211,194 +300,332 @@
         (if (!= (-> t m) nil) (free (-> t m)))
         (set (-> t m) nil) (set (-> t st) nil) (set (-> t e) nil))
 
+  ;;; MAKE A TASK'S MACHINE on its worker's base and ask its goal. Runs on
+  ;;; the task's own worker, outside the world lock: the base and the store
+  ;;; are that worker's alone. 0 means the goal did not read; the status is
+  ;;; set and the caller finishes the task.
   (static)
-  (func coco_g_spawn ((green_sched * s) (const char * text)) (out int)
-        (if (>= (-> s nthreads) 64) (return -1))
-        (let ((green_thread * t . #'(aof (nth (-> s nthreads) (-> s threads))))
-              (int ok . 1))
-          (memset t 0 (sizeof green_thread))
-          (set (-> t id) (-> s nthreads))
-          (set (-> t state) 0)
-          (set (-> t wait_on) -1)
-          (set (-> t chan) -1)
-          (set (-> t st) (-> s st))
-          (set (-> t m) (cast (coco_machine *) (malloc (sizeof coco_machine))))
-          (set (-> t e) (cast (coco_engine *) (malloc (sizeof coco_engine))))
-          (coco_machine_init_alias (-> t m) (-> s host))
-          (coco_engine_init (-> t e) (-> t m) (-> s st))
+  (func coco_g_prepare ((green_worker * w) (green_thread * t)) (out int)
+        (let ((coco_machine * m . #'(cast (coco_machine *) (malloc (sizeof coco_machine))))
+              (coco_engine * en . #'(cast (coco_engine *) (malloc (sizeof coco_engine)))))
+          (if (or (== m nil) (== en nil))
+              (block
+               (if (!= m nil) (free m))
+               (if (!= en nil) (free en))
+               (set (-> t status) (strdup "'$async'(error,error(resource_error(memory),_))"))
+               (set (-> t made) 1)
+               (return 0)))
+          (set (-> t m) m)
+          (set (-> t e) en)
+          (set (-> t st) (-> w st))
+          (coco_machine_init_alias m (-> w base))
+          (coco_engine_init en m (-> w st))
+          (set (-> en gc) 1)
+          (set (-> en greenq) 1)
           ;; THE STORE'S FRAME WALK FINDS A SUSPENDED TASK'S FRAMES FROM
-          ;; KEEP_ENG; `eng' is the engine's while it runs only, and setting
-          ;; it here made the engine its own `outer' (`coco_bt_caught' then
-          ;; walked for ever).
-          (set (-> (-> t m) keep_eng) (cast (void *) (-> t e)))
-          (set (-> (-> t m) st_next) (-> (-> s st) machines))
-          (set (-> (-> s st) machines) (cast (void *) (-> t m)))
-          (let ((coco_engine * en . #'(-> t e)))
-            (set (-> en gc) 1)
-            (if (and ok (not (coco_engine_ask_text en text)))
-                (set ok 0)))
-          (if (not ok)
-              (block
-               (debug! (fprintf stderr "green: spawn failed\n"))
-               (set (-> t status) (strdup "'$async'(error,error(system_error,_))"))
-               (set (-> t state) 2)
-               (coco_g_thread_free t)))
-          (set (-> s nthreads) (+ (-> s nthreads) 1))
-          (return (-> t id))))
-
-  (static)
-  (func coco_g_sched_free ((green_sched * s))
-        (for ((int i . 0)) (< i (-> s nthreads)) ((++ i))
-          (let ((green_thread * t . #'(aof (nth i (-> s threads)))))
-            (coco_g_thread_free t)
-            (if (!= (-> t status) nil) (free (-> t status)))
-            (if (!= (-> t send_text) nil) (free (-> t send_text)))
-            (if (!= (-> t resume_text) nil) (free (-> t resume_text)))))
-        (for ((int i . 0)) (< i (-> s nchans)) ((++ i))
-          (let ((green_chan * c . #'(aof (nth i (-> s chans)))))
-            (if (!= (-> c buf) nil)
+          ;; KEEP_ENG; `eng' is the engine's while it runs only.
+          (set (-> m keep_eng) (cast (void *) en))
+          (coco_g_store_link (-> w st) m)
+          (set (-> t made) 1)
+          (let ((int ok . 1))
+            (if (and (!= (-> t goal) nil)
+                     (not (coco_engine_ask_text en (-> t goal))))
+                (set ok 0))
+            (if (!= (-> t goal) nil) (free (-> t goal)))
+            (set (-> t goal) nil)
+            (if (not ok)
                 (block
-                 (for ((int k . 0)) (< k (-> c count)) ((++ k))
-                   (if (!= (nth (% (+ (-> c head) k) (-> c cap))
-                                (-> c buf)) nil)
-                       (free (nth (% (+ (-> c head) k) (-> c cap))
-                                  (-> c buf)))))
-                 (free (cast (void *) (-> c buf)))))))
-        (if (and (!= (-> s host) nil) (== (-> s linked) 1))
-            (block
-             (coco_g_store_unlink (-> s st) (-> s host))
-             (set (-> (-> s host) tshared) 0)))
-        (if (!= (-> s threads) nil) (free (-> s threads)))
-        (if (!= (-> s chans) nil) (free (-> s chans)))
-        (free s))
+                 (set (-> t status) (strdup "'$async'(error,error(system_error,_))"))
+                 (return 0))))
+          (return 1)))
+
+  ;;; ---- the world's shared state (the caller holds the lock) -------------
 
   (static)
-  (func coco_g_sched_new ((coco_engine * e)) (out green_sched *)
-        (let ((green_sched * s . #'(cast (green_sched *) (calloc 1 (sizeof green_sched)))))
-          (set (-> s threads)
-               (cast (green_thread *) (calloc 64 (sizeof green_thread))))
-          (set (-> s chans)
-               (cast (green_chan *) (calloc 64 (sizeof green_chan))))
-          (set (-> s quantum) 10000)
-          (set (-> s cur) -1)
-          (set (-> s st) (-> e st))
-          (set (-> s host) (-> e m))
-          ;; THE HOSTIS LINKED ONCE. A nested async_run runs on a green
-          ;; thread's machine, already in the store's list.
-          (if (== (-> (-> s host) tbase) nil)
-              (block
-               (set (-> (-> s host) tshared) 1)
-               (set (-> (-> s host) st_next) (-> (-> s st) machines))
-               (set (-> (-> s st) machines) (cast (void *) (-> s host)))
-               (set (-> s linked) 1)))
-          (return s)))
-
-  (static)
-  (func coco_g_pick ((green_sched * s)) (out int)
-        (for ((int k . 1)) (<= k (-> s nthreads)) ((++ k))
-          (let ((int i . #'(% (+ (-> s cur) k) (-> s nthreads)))
-                (green_thread * t . #'(aof (nth i (-> s threads)))))
-            (if (== (-> t state) 0) (return i))))
-        (return -1))
-
-  (static)
-  (func coco_g_finish ((green_thread * t) (char * status))
-        (set (-> t status) status)
-        (set (-> t state) 2)
-        (set (-> t block) 0)
-        (coco_g_thread_free t))
-
-  ;;; A DONE THREAD WAKES EVERY WAITER with a copy of its status.
-  (static)
-  (func coco_g_wake ((green_sched * s) (int ti))
-        (let ((green_thread * f . #'(aof (nth ti (-> s threads)))))
-          (for ((int i . 0)) (< i (-> s nthreads)) ((++ i))
-            (let ((green_thread * t . #'(aof (nth i (-> s threads)))))
+  (func coco_g_wake ((green_world * wd) (int ti))
+        (let ((green_thread * f . #'(aof (nth ti (-> wd threads)))))
+          (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
+            (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
               (if (and (== (-> t state) 1) (== (-> t block) 1)
                        (== (-> t wait_on) ti))
                   (block
                    (set (-> t resume_text) (strdup (-> f status)))
                    (set (-> t state) 0)
                    (set (-> t block) 0)
-                   (set (-> t wait_on) -1)))))))
+                   (set (-> t wait_on) -1)
+                   (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
+                     (pthread_cond_signal (aof (-> tw wake))))))))))
 
-  ;;; RUN ONE THREAD FOR ONE QUANTUM. The engine's limit is not an error;
-  ;;; a cooperative stop is 128, which `coco_halted_step' clears and
-  ;;; flushes. On a real error the ball is the status; on a solution the
-  ;;; goal as instantiated is.
   (static)
-  (func coco_g_run ((green_sched * s) (int ti)) (out int)
-        (let ((green_thread * t . #'(aof (nth ti (-> s threads)))))
-         (let ((coco_machine * m . #'(-> t m))
-               (coco_engine * en . #'(-> t e)))
-          (set (-> s cur) ti)
-          ;; THE TABLES MAY HAVE GROWN IN ANOTHER TASK'S RUN: take the
-          ;; root's fields before this machine reads or writes them.
-          (coco_tsync m)
-          (if (!= (-> t resume_text) nil)
+  (func coco_g_finish ((green_world * wd) (green_thread * t) (char * status))
+        (set (-> t status) status)
+        (set (-> t state) 2)
+        (set (-> t block) 0)
+        (coco_g_thread_free t)
+        (coco_g_wake wd (-> t id))
+        (if (== (-> t id) 0)
+            (block
+             (set (-> wd main_done) 1)
+             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                 (pthread_cond_signal (aof (-> wi wake))))))))
+
+  ;;; EVERY TASK BLOCKED AND THE MAIN NOT ENDED: a deadlock. A task that
+  ;;; is ready is somebody's next step; one that is running has a worker
+  ;;; inside it and its state is still 0.
+  (static)
+  (func coco_g_deadlock ((green_world * wd))
+        (if (== (-> wd main_done) 1) (return))
+        ;; NO TASK AT ALL YET: the workers start before the main task is
+        ;; made (the clones are theirs to consult), and an empty world is
+        ;; not a deadlock.
+        (if (== (-> wd nthreads) 0) (return))
+        (if (!= (-> wd op) nil) (return))
+        (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
+          (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
+            (if (== (-> t state) 0) (return))))
+        (coco_g_finish wd (aof (nth 0 (-> wd threads)))
+                       (strdup "'$async'(error,error(resource_error(deadlock),_))")))
+
+  ;;; ---- the replicated write --------------------------------------------
+
+  ;;; Apply one replicated write on THIS worker's base machine with a
+  ;;; scratch engine, then wind the base's heap and trail back. The lock
+  ;;; is held, so the base is nobody else's while the copy runs, and
+  ;;; `applying' keeps the copy's own builtins from broadcasting again.
+  (static)
+  (func coco_g_apply ((green_worker * w) (const char * text))
+        (let ((coco_machine * b . #'(-> w base))
+              (coco_store * st . #'(-> w st))
+              (size_t h . #'(-> b heap_len))
+              (size_t tr . #'(-> b trail_len))
+              (size_t goal . 0)
+              (coco_engine * en . #'(cast (coco_engine *) (malloc (sizeof coco_engine)))))
+          (if (!= en nil)
               (block
-               (coco_g_resume m (-> t resume_cell) (-> t resume_text))
-               (free (-> t resume_text))
-               (set (-> t resume_text) nil)))
-          ;; COOPERATIVE ONLY: a thread runs until it yields, awaits,
-          ;; blocks on a channel or ends. The engine's step limit is the
-          ;; `cocolog step' scheduler's stop, designed to be followed by a
-          ;; freeze; a direct continuation after it restarts the clause, so
-          ;; a green thread is not preempted here (the tutorial says so).
-          (let ((int rc . #'(coco_engine_next en)))
-            (cond
-              ((== rc 1)
-               (coco_g_finish t (coco_g_ok_text m (-> en query)))
-               (coco_g_wake s ti))
-              ((== rc 0)
-               (if (!= (-> t block) 0)
+               (if (coco_read_term_from b text (aof goal))
                    (block
-                    (if (== (-> t block) 4)
-                        (block (set (-> t state) 0) (set (-> t block) 0))
-                      (set (-> t state) 1)))
-                 (block
-                  (coco_g_finish t (coco_g_failed_text))
-                  (coco_g_wake s ti))))
-              (#t
-               (if (and (!= (-> en err) nil)
-                        (== 0 (strcmp (-> en err) "inference limit reached")))
-                   (block)   ; out of quantum: still ready
-                 (block
-                  (if (-> en has_ball)
-                      (let ((size_t ball . #'(coco_store_read m (-> t st)
-                                                            (-> en ball_cell))))
-                        (coco_g_finish t (coco_g_error_text m ball)))
-                    (coco_g_finish t (strdup "'$async'(error,error(system_error,_))")))
-                  (coco_g_wake s ti))))))
-          (return 1))))
+                    (coco_engine_init en b st)
+                    (set (-> en gc) 0)
+                    (coco_engine_ask en goal)
+                    (coco_engine_next en)
+                    (coco_engine_free en)))
+               (free en)))
+          (set (-> b heap_len) h)
+          (set (-> b trail_len) tr)))
+
+  ;;; THE BARRIER. Queue the write, wake every worker, and wait for every
+  ;;; other worker's acknowledgement; the writer's own store already has
+  ;;; it. One write at a time; the next writer waits on OP_DONE.
+  (static)
+  (func coco_g_broadcast ((green_world * wd) (green_worker * w) (char * text))
+        (pthread_mutex_lock (aof (-> wd lock)))
+        (while (!= (-> wd op) nil)
+          (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
+        (let ((green_op * op . #'(cast (green_op *) (calloc 1 (sizeof green_op)))))
+          (set (-> op text) text)
+          (set (-> op writer) (-> w id))
+          (set (-> wd op_seq) (+ (-> wd op_seq) 1))
+          (set (-> op seq) (-> wd op_seq))
+          (set (-> op acks) 0)
+          (set (-> wd op) op)
+          (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+            (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+              (pthread_cond_signal (aof (-> wi wake)))))
+          (while (< (-> op acks) (- (-> wd nworkers) 1))
+            (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
+          (set (-> wd op) nil)
+          (free op)
+          (pthread_cond_broadcast (aof (-> wd op_done)))
+          (pthread_mutex_unlock (aof (-> wd lock)))))
+
+  ;;; A LOCAL WRITE'S HOOK. No world, no replication. An applier's scratch
+  ;;; engine is a copy. The kinds are lib/solve.cicili's and
+  ;;; lib/builtins.cicili's: 1 assertz, 2 asserta, 3 retract, 4 dynamic,
+  ;;; 5 nb_setval (B is the value), 7 abolish.
+  (func coco_g_note_write ((void * ev) (int kind) (size_t a) (size_t b)) (out void)
+        (if (or (== green_now nil) (== green_me nil)) (return))
+        (if (!= (-> green_me applying) 0) (return))
+        (if (or (== (-> green_now stop) 1) (== (-> green_now main_done) 1)) (return))
+        (let ((coco_engine * e . #'(cast (coco_engine *) ev))
+              (coco_machine * m . #'(-> e m))
+              (coco_strbuf sb) (char * text . nil))
+          (coco_sb_init (aof sb))
+          (cond
+            ((== kind 1) (coco_sb_put (aof sb) "assertz("))
+            ((== kind 2) (coco_sb_put (aof sb) "asserta("))
+            ((== kind 3) (coco_sb_put (aof sb) "retract("))
+            ((== kind 4) (coco_sb_put (aof sb) "dynamic("))
+            ((== kind 5) (coco_sb_put (aof sb) "nb_setval("))
+            ((== kind 7) (coco_sb_put (aof sb) "abolish("))
+            (#t (coco_sb_free (aof sb)) (return)))
+          (coco_write_term m (aof sb) a 1 1)
+          (if (== kind 5)
+              (block (coco_sb_put (aof sb) ",")
+                     (coco_write_term m (aof sb) b 1 1)))
+          (coco_sb_put (aof sb) ")")
+          (if (!= ($ sb s) nil) (set text (strdup ($ sb s))))
+          (coco_sb_free (aof sb))
+          (if (!= text nil)
+              (block
+               (coco_g_broadcast green_now green_me text)
+               (free text)))))
+
+  ;;; ---- the scheduler ---------------------------------------------------
 
   (static)
-  (func coco_g_loop ((green_sched * s))
-        (let ((green_thread * main . #'(aof (nth 0 (-> s threads)))))
-          (while (and (> (-> s nthreads) 0) (!= (-> main state) 2))
-            (let ((int next . #'(coco_g_pick s)))
-              (if (< next 0)
-                  (if (!= (-> main state) 2)
-                      (block
-                       (coco_g_finish main
-                        (strdup "'$async'(error,error(resource_error(deadlock),_))"))
-                       (coco_g_wake s 0)))
-                (coco_g_run s next))))))
+  (func coco_g_pick ((green_worker * w)) (out int)
+        (let ((green_world * wd . #'(cast (green_world *) (-> w w))))
+          (for ((int k . 1)) (<= k (-> wd nthreads)) ((++ k))
+            (let ((int i . #'(% (+ (-> w cursor) k) (-> wd nthreads)))
+                  (green_thread * t . #'(aof (nth i (-> wd threads)))))
+              (if (and (== (-> t state) 0) (== (-> t worker) (-> w id)))
+                  (block (set (-> w cursor) i) (return i)))))
+          (return -1)))
 
-  ;;; ---- channels --------------------------------------------------------
+  ;;; RUN ONE TASK FOR ONE QUANTUM. The engine's limit is not an error: the
+  ;;; GREENQ path stopped it with GSTOP and its continuation is intact. On
+  ;;; a real error the ball is the status; on a solution the goal as
+  ;;; instantiated is. The world lock is TAKEN ONLY after the engine stops;
+  ;;; the tasks run in parallel.
+  (static)
+  (func coco_g_run ((green_worker * w) (int ti))
+        (let ((green_world * wd . #'(cast (green_world *) (-> w w)))
+              (green_thread * t . #'(aof (nth ti (-> wd threads)))))
+          (if (== (-> t made) 0)
+              (if (not (coco_g_prepare w t))
+                  (block
+                   (pthread_mutex_lock (aof (-> wd lock)))
+                   (coco_g_finish wd t (-> t status))
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (return))))
+          (let ((coco_machine * m . #'(-> t m))
+                (coco_engine * en . #'(-> t e)))
+            (coco_tsync m)
+            (set (-> en max_steps) (+ (-> en steps) (-> wd quantum)))
+            (if (!= (-> t resume_text) nil)
+                (block
+                 (coco_g_resume m (-> t resume_cell) (-> t resume_text))
+                 (free (-> t resume_text))
+                 (set (-> t resume_text) nil)))
+            (let ((int rc . #'(coco_engine_next en)))
+              (pthread_mutex_lock (aof (-> wd lock)))
+              ;; THE QUANTUM'S STOP IS NOT AN ERROR: the limit path saw
+              ;; GREENQ and set GSTOP, and the engine reports it as its
+              ;; limit (-1). The continuation is intact; the task is ready.
+              (if (== (-> en gstop) 1)
+                  (block
+                   (set (-> en gstop) 0)
+                   (set (-> t state) 0)
+                   (set (-> t block) 0))
+                (cond
+                  ((== rc 1)
+                   (coco_g_finish wd t (coco_g_ok_text m (-> en query))))
+                  ((== rc 0)
+                   (if (!= (-> t block) 0)
+                       (block
+                        (if (== (-> t block) 4)
+                            (block (set (-> t state) 0) (set (-> t block) 0))
+                          (set (-> t state) 1)))
+                     (coco_g_finish wd t (coco_g_failed_text))))
+                  (#t
+                   (if (-> en has_ball)
+                       (let ((size_t ball . #'(coco_store_read m (-> t st)
+                                                             (-> en ball_cell))))
+                         (coco_g_finish wd t (coco_g_error_text m ball)))
+                     (coco_g_finish wd t (strdup "'$async'(error,error(system_error,_))"))))))
+              (pthread_mutex_unlock (aof (-> wd lock)))))))
+
+  ;;; ONE WORKER'S LOOP: a pending replicated write first, then a task of
+  ;;; its own, then sleep until somebody wakes it. The main's end or the
+  ;;; stop ends it.
+  (static)
+  (func coco_g_worker_loop ((green_worker * w))
+        (let ((green_world * wd . #'(cast (green_world *) (-> w w))))
+          (set green_me w)
+          (set green_now wd)
+          (while 1
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (== (-> wd stop) 1)
+                (block (pthread_mutex_unlock (aof (-> wd lock))) (break)))
+            (let ((green_op * op . #'(-> wd op)))
+              (if (and (!= op nil) (!= (-> op writer) (-> w id))
+                       (!= (-> w applied_seq) (-> op seq)))
+                  (block
+                   (set (-> w applying) 1)
+                   (coco_g_apply w (-> op text))
+                   (set (-> w applying) 0)
+                   (set (-> w applied_seq) (-> op seq))
+                   (set (-> op acks) (+ (-> op acks) 1))
+                   (if (>= (-> op acks) (- (-> wd nworkers) 1))
+                       (pthread_cond_broadcast (aof (-> wd op_done))))
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (continue))))
+            (let ((int ti . #'(coco_g_pick w)))
+              (if (>= ti 0)
+                  (block
+                   (set (-> w cur) ti)
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (coco_g_run w ti)
+                   (pthread_mutex_lock (aof (-> wd lock)))
+                   (set (-> w cur) -1)
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (continue))
+                (if (== (-> wd main_done) 1)
+                    (block (pthread_mutex_unlock (aof (-> wd lock))) (break))
+                  (block
+                   ;; NOTHING READY ANYWHERE: the deadlock, if every task
+                   ;; is blocked and the main has not ended. Asked HERE,
+                   ;; not after each run: a run ends with a task ready or
+                   ;; blocked, and the world is only dead when no worker
+                   ;; can find a task at all.
+                   (coco_g_deadlock wd)
+                   (if (== (-> wd main_done) 1)
+                       (block (pthread_mutex_unlock (aof (-> wd lock))) (break))
+                     (block
+                      (pthread_cond_wait (aof (-> w wake)) (aof (-> wd lock)))
+                      (pthread_mutex_unlock (aof (-> wd lock))))))))))))
 
   (static)
-  (func coco_g_chan_new ((green_sched * s) (int size)) (out int)
-        (if (>= (-> s nchans) 64) (return -1))
-        (let ((green_chan * c . #'(aof (nth (-> s nchans) (-> s chans)))))
+  (func coco_g_worker_body ((void * arg)) (out void *)
+        (coco_g_worker_loop (cast (green_worker *) arg))
+        (return nil))
+
+  ;;; ---- spawning --------------------------------------------------------
+
+  (static)
+  (func coco_g_spawn ((green_world * wd) (char * text)) (out int)
+        (if (>= (-> wd nthreads) (-> wd cap)) (return -1))
+        (let ((int id . #'(-> wd nthreads))
+              (int target . #'(-> wd next_worker)))
+          (set (-> wd next_worker) (% (+ target 1) (-> wd nworkers)))
+          (let ((green_thread * t . #'(aof (nth id (-> wd threads)))))
+            (memset t 0 (sizeof green_thread))
+            (set (-> t id) id)
+            (set (-> t worker) target)
+            (set (-> t state) 0)
+            (set (-> t wait_on) -1)
+            (set (-> t chan) -1)
+            (set (-> t goal) text)
+            (set (-> wd nthreads) (+ (-> wd nthreads) 1))
+            (let ((green_worker * tw . #'(aof (nth target (-> wd workers)))))
+              (pthread_cond_signal (aof (-> tw wake))))
+            (return id))))
+
+  ;;; ---- channels (the caller holds the world lock) ----------------------
+
+  (static)
+  (func coco_g_chan_new ((green_world * wd) (int size)) (out int)
+        (if (>= (-> wd nchans) 64) (return -1))
+        (let ((green_chan * c . #'(aof (nth (-> wd nchans) (-> wd chans)))))
           (memset c 0 (sizeof green_chan))
           (if (< size 0) (set size 0))
           (set (-> c size) size)
           (set (-> c cap) size)
           (if (> size 0)
               (set (-> c buf) (cast coco_strptr (calloc size (sizeof (char *))))))
-          (set (-> s nchans) (+ (-> s nchans) 1))
-          (return (- (-> s nchans) 1))))
+          (set (-> wd nchans) (+ (-> wd nchans) 1))
+          (return (- (-> wd nchans) 1))))
 
   (static)
   (func coco_g_chan_remove_sender ((green_chan * c) (int at))
@@ -413,24 +640,49 @@
         (set (-> c nreceivers) (- (-> c nreceivers) 1)))
 
   (static)
-  (func coco_g_chan_close ((green_sched * s) (green_chan * c))
+  (func coco_g_chan_close ((green_world * wd) (green_chan * c))
         (set (-> c closed) 1)
         (for ((int i . 0)) (< i (-> c nsenders)) ((++ i))
-          (let ((green_thread * t . #'(aof (nth (nth i (-> c senders)) (-> s threads)))))
+          (let ((green_thread * t . #'(aof (nth (nth i (-> c senders)) (-> wd threads)))))
             (set (-> t resume_text) (coco_g_closed_send_text))
             (set (-> t state) 0)
             (set (-> t block) 0)
             (set (-> t chan) -1)
             (if (!= (-> t send_text) nil)
-                (block (free (-> t send_text)) (set (-> t send_text) nil)))))
+                (block (free (-> t send_text)) (set (-> t send_text) nil)))
+            (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
+              (pthread_cond_signal (aof (-> tw wake))))))
         (set (-> c nsenders) 0)
         (for ((int i . 0)) (< i (-> c nreceivers)) ((++ i))
-          (let ((green_thread * t . #'(aof (nth (nth i (-> c receivers)) (-> s threads)))))
+          (let ((green_thread * t . #'(aof (nth (nth i (-> c receivers)) (-> wd threads)))))
             (set (-> t resume_text) (coco_g_closed_text))
             (set (-> t state) 0)
             (set (-> t block) 0)
-            (set (-> t chan) -1)))
+            (set (-> t chan) -1)
+            (let ((green_worker * tw . #'(aof (nth (-> t worker) (-> wd workers)))))
+              (pthread_cond_signal (aof (-> tw wake))))))
         (set (-> c nreceivers) 0))
+
+  ;;; A sender waiting on a full buffer takes the slot a receive freed.
+  (static)
+  (func coco_g_move_sender ((green_world * wd) (green_chan * c))
+        (if (and (> (-> c nsenders) 0) (> (-> c cap) 0)
+                 (< (-> c count) (-> c cap)))
+            (block
+             (let ((int si . #'(nth 0 (-> c senders))))
+              (let ((green_thread * st . #'(aof (nth si (-> wd threads)))))
+               (set (nth (% (+ (-> c head) (-> c count)) (-> c cap))
+                         (-> c buf))
+                    (-> st send_text))
+               (set (-> c count) (+ (-> c count) 1))
+               (set (-> st send_text) nil)
+               (set (-> st resume_text) (coco_g_ok_send_text))
+               (set (-> st state) 0)
+               (set (-> st block) 0)
+               (set (-> st chan) -1)
+               (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
+                 (pthread_cond_signal (aof (-> sw wake))))))
+             (coco_g_chan_remove_sender c 0))))
 
   ;;; ---- the builtins ----------------------------------------------------
 
@@ -441,28 +693,131 @@
           (return 1)))
 
   (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(-> e m))
-              (size_t goal . #'(coco_deref m (coco_arg m g 0)))
-              (size_t outc . #'(coco_deref m (coco_arg m g 1)))
-              (char * gtext . nil) (green_sched * s . nil))
-          (set gtext (coco_g_write m goal))
+        (if (!= green_now nil)
+            (return (coco_g_raise e "library(async): async_run inside a green thread is not supported")))
+        (let ((coco_machine * hm . #'(-> e m))
+              (coco_store * hs . #'(-> e st))
+              (size_t goal . #'(coco_deref hm (coco_arg hm g 0)))
+              (size_t outc . #'(coco_deref hm (coco_arg hm g 1)))
+              (char * gtext . #'(coco_g_write hm goal))
+              (int nw . 8))
           (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
-          (set s (coco_g_sched_new e))
-          (if (== s nil)
-              (block (free gtext)
-                     (return (coco_g_raise e "library(async): no memory"))))
-          (let ((green_sched * old . green_now))
-            (set green_now s)
-            (let ((int id . #'(coco_g_spawn s gtext)))
-              (free gtext)
-              (coco_g_loop s)
-              (let ((green_thread * mt . #'(aof (nth 0 (-> s threads)))))
-                (let ((char * status . #'(? (== id 0)
-                                           (-> mt status)
-                                           "'$async'(error,error(system_error,_))")))
-                  (coco_g_resume m outc status)))
-              (set green_now old)
-              (coco_g_sched_free s))))
+          (let ((green_world * wd . #'(cast (green_world *)
+                                           (calloc 1 (sizeof green_world))))
+                (char * snap . nil))
+            (set (-> wd threads) (cast (green_thread *)
+                                       (calloc 1024 (sizeof green_thread))))
+            (set (-> wd chans) (cast (green_chan *)
+                                     (calloc 64 (sizeof green_chan))))
+            (set (-> wd workers) (cast (green_worker *)
+                                       (calloc nw (sizeof green_worker))))
+            (set (-> wd cap) 1024)
+            (set (-> wd quantum) 10000)
+            (set (-> wd nworkers) nw)
+            (set (-> wd host_st) hs)
+            (set (-> wd host) hm)
+            ;; the caller's own worker is 0; the first child goes to 1, so a
+            ;; world of eight spreads its children over seven plus the host.
+            (set (-> wd next_worker) 1)
+            (pthread_mutex_init (aof (-> wd lock)) nil)
+            (pthread_cond_init (aof (-> wd op_done)) nil)
+            (for ((int i . 0)) (< i nw) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (set (-> wi id) i)
+                (set (-> wi w) (cast (void *) wd))
+                (set (-> wi cur) -1)
+                (set (-> wi cursor) -1)
+                (set (-> wi applied_seq) 0)
+                (pthread_cond_init (aof (-> wi wake)) nil)))
+            ;; worker 0: the host's own machine and store
+            (let ((green_worker * w0 . #'(aof (nth 0 (-> wd workers)))))
+              (set (-> w0 st) hs)
+              (set (-> w0 base) hm))
+            (coco_g_store_link hs hm)
+            (set (-> hm tshared) 1)
+            ;; the snapshot, once, on the host's machine
+            (set snap (coco_g_snapshot hm hs))
+            ;; workers 1..nw-1: a store and a base machine each, and a thread
+            (for ((int i . 1)) (< i nw) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (set (-> wi st) (cast (coco_store *) (malloc (sizeof coco_store))))
+                (set (-> wi base) (cast (coco_machine *) (malloc (sizeof coco_machine))))
+                (coco_store_init (-> wi st))
+                (coco_machine_init (-> wi base))
+                (if (!= snap nil)
+                    (let ((char err [256]))
+                      (coco_consult (-> wi st) (-> wi base) snap
+                                    "async_worker" err (sizeof err))))
+                (coco_g_store_link (-> wi st) (-> wi base))
+                (pthread_create (aof (-> wi tid)) nil coco_g_worker_body
+                                (cast (void *) wi))))
+            ;; the main task, id 0, on worker 0
+            (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
+              (memset mt 0 (sizeof green_thread))
+              (set (-> mt id) 0)
+              (set (-> mt worker) 0)
+              (set (-> mt state) 0)
+              (set (-> mt wait_on) -1)
+              (set (-> mt chan) -1)
+              (set (-> mt goal) gtext)
+              (set (-> wd nthreads) 1))
+            ;; the host is worker 0
+            (set green_now wd)
+            (coco_g_worker_loop (aof (nth 0 (-> wd workers))))
+            ;; a write still in flight finishes before the world stops
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (while (!= (-> wd op) nil)
+              (pthread_cond_wait (aof (-> wd op_done)) (aof (-> wd lock))))
+            (set (-> wd stop) 1)
+            (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (pthread_cond_signal (aof (-> wi wake)))))
+            (pthread_mutex_unlock (aof (-> wd lock)))
+            (for ((int i . 1)) (< i (-> wd nworkers)) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (pthread_join (-> wi tid) nil)))
+            ;; the main task's status
+            (let ((green_thread * mt . #'(aof (nth 0 (-> wd threads)))))
+              (if (!= (-> mt status) nil)
+                  (coco_g_resume hm outc (-> mt status))))
+            (set green_now nil)
+            (set green_me nil)
+            ;; free every task, every cloned store and the world
+            (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
+              (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
+                (coco_g_thread_free t)
+                (if (!= (-> t status) nil) (free (-> t status)))
+                (if (!= (-> t send_text) nil) (free (-> t send_text)))
+                (if (!= (-> t resume_text) nil) (free (-> t resume_text)))
+                (if (!= (-> t goal) nil) (free (-> t goal)))))
+            (for ((int i . 0)) (< i (-> wd nchans)) ((++ i))
+              (let ((green_chan * c . #'(aof (nth i (-> wd chans)))))
+                (if (!= (-> c buf) nil)
+                    (block
+                     (for ((int k . 0)) (< k (-> c count)) ((++ k))
+                       (let ((int at . #'(% (+ (-> c head) k) (-> c cap))))
+                         (if (!= (nth at (-> c buf)) nil)
+                             (free (nth at (-> c buf))))))
+                     (free (cast (void *) (-> c buf)))))))
+            (coco_g_store_unlink hs hm)
+            (set (-> hm tshared) 0)
+            (for ((int i . 1)) (< i (-> wd nworkers)) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (coco_g_store_unlink (-> wi st) (-> wi base))
+                (if (!= (-> wi base) nil) (coco_machine_free (-> wi base)))
+                (if (!= (-> wi st) nil) (coco_store_free (-> wi st)))
+                (if (!= (-> wi base) nil) (free (-> wi base)))
+                (if (!= (-> wi st) nil) (free (-> wi st)))))
+            (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
+              (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
+                (pthread_cond_destroy (aof (-> wi wake)))))
+            (pthread_cond_destroy (aof (-> wd op_done)))
+            (pthread_mutex_destroy (aof (-> wd lock)))
+            (if (!= snap nil) (free snap))
+            (free (cast (void *) (-> wd threads)))
+            (free (cast (void *) (-> wd chans)))
+            (free (cast (void *) (-> wd workers)))
+            (free wd)))
         (return 1))
 
   (func coco_g_async_go ((coco_engine * e) (size_t g)) (out int)
@@ -473,18 +828,24 @@
               (size_t idc . #'(coco_deref m (coco_arg m g 1))))
           (let ((char * gtext . #'(coco_g_write m goal)))
             (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
-            (let ((int id . #'(coco_g_spawn green_now gtext)))
-              (free gtext)
+            (let ((green_world * wd . green_now) (int id . -1))
+              (pthread_mutex_lock (aof (-> wd lock)))
+              (set id (coco_g_spawn wd gtext))
+              (pthread_mutex_unlock (aof (-> wd lock)))
               (if (< id 0)
-                  (return (coco_g_raise e "library(async): 64 green threads already")))
+                  (block (free gtext)
+                         (return (coco_g_raise e "library(async): 1024 green threads already"))))
               (return (coco_unify m idc (coco_new_int m (cast i64 id))))))))
 
   (func coco_g_async_yield ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
-        (let ((green_thread * t . #'(aof (nth (-> green_now cur) (-> green_now threads)))))
-          (set (-> t block) 4)
-          (set (-> e halted) 128)
+        (let ((green_world * wd . green_now))
+          (pthread_mutex_lock (aof (-> wd lock)))
+          (let ((green_thread * t . #'(aof (nth (-> green_me cur) (-> wd threads)))))
+            (set (-> t block) 4)
+            (set (-> e halted) 128))
+          (pthread_mutex_unlock (aof (-> wd lock)))
           (return 1)))
 
   (func coco_g_async_await ((coco_engine * e) (size_t g)) (out int)
@@ -495,34 +856,49 @@
               (size_t sc . #'(coco_deref m (coco_arg m g 1))))
           (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof id)))
               (return (coco_g_raise e "library(async): await/2 wants a thread id")))
-          (if (or (< id 0) (>= id (-> green_now nthreads)))
-              (return (coco_g_raise e "library(async): no such green thread")))
-          (let ((green_thread * target . #'(aof (nth id (-> green_now threads)))))
-            (if (== (-> target state) 2)
-                (return (coco_g_resume m sc (-> target status))))
-            (let ((green_thread * t . #'(aof (nth (-> green_now cur) (-> green_now threads)))))
-              (set (-> t block) 1)
-              (set (-> t wait_on) (cast int id))
-              (set (-> t resume_cell) sc)
-              (set (-> e halted) 128)
-              (return 1)))))
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (or (< id 0) (>= id (-> wd nthreads)))
+                (block (pthread_mutex_unlock (aof (-> wd lock)))
+                       (return (coco_g_raise e "library(async): no such green thread")))
+            (let ((green_thread * target . #'(aof (nth id (-> wd threads)))))
+              (if (== (-> target state) 2)
+                  (block
+                   (coco_g_resume m sc (-> target status))
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (return 1))
+                (let ((green_thread * t . #'(aof (nth (-> green_me cur)
+                                                      (-> wd threads)))))
+                  (set (-> t block) 1)
+                  (set (-> t wait_on) (cast int id))
+                  (set (-> t resume_cell) sc)
+                  (set (-> e halted) 128)
+                  (pthread_mutex_unlock (aof (-> wd lock)))
+                  (return 1))))))))
 
   (func coco_g_async_ready ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
-        (let ((coco_machine * m . #'(-> e m)) (i64 id . -1))
+        (let ((coco_machine * m . #'(-> e m)) (i64 id . -1) (int ready . 0))
           (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof id)))
               (return 0))
-          (if (or (< id 0) (>= id (-> green_now nthreads))) (return 0))
-          (let ((green_thread * t . #'(aof (nth id (-> green_now threads)))))
-            (return (? (== (-> t state) 2) 1 0)))))
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (and (>= id 0) (< id (-> wd nthreads)))
+                (let ((green_thread * t . #'(aof (nth id (-> wd threads)))))
+                  (set ready (? (== (-> t state) 2) 1 0))))
+            (pthread_mutex_unlock (aof (-> wd lock))))
+          (return ready)))
 
   (func coco_g_async_channel ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
-        (let ((coco_machine * m . #'(-> e m)) (i64 n . 0) (int id . 0))
+        (let ((coco_machine * m . #'(-> e m)) (i64 n . 0) (int id . -1))
           (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof n))) (set n 0))
-          (set id (coco_g_chan_new green_now (cast int n)))
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (set id (coco_g_chan_new wd (cast int n)))
+            (pthread_mutex_unlock (aof (-> wd lock))))
           (if (< id 0) (return (coco_g_raise e "library(async): 64 channels already")))
           (return (coco_unify m (coco_deref m (coco_arg m g 1))
                               (coco_new_int m (cast i64 id))))))
@@ -535,60 +911,52 @@
               (size_t sc . #'(coco_deref m (coco_arg m g 2))))
           (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof cid)))
               (return (coco_g_raise e "library(async): channel_send/2 wants a channel")))
-          (if (or (< cid 0) (>= cid (-> green_now nchans)))
-              (return (coco_g_raise e "library(async): no such channel")))
-          (let ((green_chan * c . #'(aof (nth cid (-> green_now chans))))
-                (char * text . #'(coco_g_write m term)))
-            (if (== text nil) (return (coco_g_raise e "library(async): the term is too wide")))
-            (if (== (-> c closed) 1)
-                (block (free text)
-                       (return (coco_g_resume m sc (coco_g_closed_send_text)))))
-            (if (> (-> c nreceivers) 0)
-                (block
-                 (let ((int si . #'(nth 0 (-> c receivers))))
-                  (let ((green_thread * r . #'(aof (nth si (-> green_now threads))))
-                        (char * status . #'(coco_g_ok_text m term)))
-                   (set (-> r resume_text) status)
-                   (set (-> r state) 0)
-                   (set (-> r block) 0)
-                   (set (-> r chan) -1)))
-                 (coco_g_chan_remove_receiver c 0)
-                 (free text)
-                 (return (coco_g_resume m sc (coco_g_ok_send_text)))))
-            (if (and (> (-> c cap) 0) (< (-> c count) (-> c cap)))
-                (block
-                 (set (nth (% (+ (-> c head) (-> c count)) (-> c cap))
-                           (-> c buf)) text)
-                 (set (-> c count) (+ (-> c count) 1))
-                 (return (coco_g_resume m sc (coco_g_ok_send_text)))))
-            ;; THE SENDER BLOCKS: the term waits in its own text.
-            (let ((green_thread * t . #'(aof (nth (-> green_now cur) (-> green_now threads)))))
-              (set (-> t block) 2)
-              (set (-> t chan) (cast int cid))
-              (set (-> t send_text) text)
-              (set (nth (-> c nsenders) (-> c senders)) (-> t id))
-              (set (-> c nsenders) (+ (-> c nsenders) 1))
-              (set (-> e halted) 128)
-              (return 1)))))
-
-  ;;; A sender waiting on a full buffer takes the slot a receive freed.
-  (static)
-  (func coco_g_move_sender ((green_chan * c))
-        (if (and (> (-> c nsenders) 0) (> (-> c cap) 0)
-                 (< (-> c count) (-> c cap)))
-            (block
-             (let ((int si . #'(nth 0 (-> c senders))))
-              (let ((green_thread * st . #'(aof (nth si (-> green_now threads)))))
-               (set (nth (% (+ (-> c head) (-> c count)) (-> c cap))
-                         (-> c buf))
-                    (-> st send_text))
-               (set (-> c count) (+ (-> c count) 1))
-               (set (-> st send_text) nil)
-               (set (-> st resume_text) (coco_g_ok_send_text))
-               (set (-> st state) 0)
-               (set (-> st block) 0)
-               (set (-> st chan) -1)))
-             (coco_g_chan_remove_sender c 0))))
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (or (< cid 0) (>= cid (-> wd nchans)))
+                (block (pthread_mutex_unlock (aof (-> wd lock)))
+                       (return (coco_g_raise e "library(async): no such channel")))
+            (let ((green_chan * c . #'(aof (nth cid (-> wd chans))))
+                  (char * text . #'(coco_g_write m term)))
+              (if (== text nil)
+                  (block (pthread_mutex_unlock (aof (-> wd lock)))
+                         (return (coco_g_raise e "library(async): the term is too wide"))))
+              (if (== (-> c closed) 1)
+                  (block (free text)
+                         (pthread_mutex_unlock (aof (-> wd lock)))
+                         (return (coco_g_resume m sc (coco_g_closed_send_text)))))
+              (if (> (-> c nreceivers) 0)
+                  (block
+                   (let ((int si . #'(nth 0 (-> c receivers))))
+                    (let ((green_thread * r . #'(aof (nth si (-> wd threads))))
+                          (char * status . #'(coco_g_ok_text m term)))
+                     (set (-> r resume_text) status)
+                     (set (-> r state) 0)
+                     (set (-> r block) 0)
+                     (set (-> r chan) -1)
+                     (let ((green_worker * rw . #'(aof (nth (-> r worker) (-> wd workers)))))
+                       (pthread_cond_signal (aof (-> rw wake))))))
+                   (coco_g_chan_remove_receiver c 0)
+                   (free text)
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (return (coco_g_resume m sc (coco_g_ok_send_text)))))
+              (if (and (> (-> c cap) 0) (< (-> c count) (-> c cap)))
+                  (block
+                   (set (nth (% (+ (-> c head) (-> c count)) (-> c cap))
+                             (-> c buf)) text)
+                   (set (-> c count) (+ (-> c count) 1))
+                   (pthread_mutex_unlock (aof (-> wd lock)))
+                   (return (coco_g_resume m sc (coco_g_ok_send_text)))))
+              (let ((green_thread * t . #'(aof (nth (-> green_me cur)
+                                                    (-> wd threads)))))
+                (set (-> t block) 2)
+                (set (-> t chan) (cast int cid))
+                (set (-> t send_text) text)
+                (set (nth (-> c nsenders) (-> c senders)) (-> t id))
+                (set (-> c nsenders) (+ (-> c nsenders) 1))
+                (set (-> e halted) 128)
+                (pthread_mutex_unlock (aof (-> wd lock)))
+                (return 1)))))))
 
   (func coco_g_async_recv ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
@@ -597,76 +965,87 @@
               (size_t sc . #'(coco_deref m (coco_arg m g 1))))
           (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof cid)))
               (return (coco_g_raise e "library(async): channel_recv/2 wants a channel")))
-          (if (or (< cid 0) (>= cid (-> green_now nchans)))
-              (return (coco_g_raise e "library(async): no such channel")))
-          (let ((green_chan * c . #'(aof (nth cid (-> green_now chans)))))
-            (cond
-              ((> (-> c count) 0)
-               (block
-                (let ((char * text . #'(nth (-> c head) (-> c buf))))
-                  (set (-> c head) (% (+ (-> c head) 1) (-> c cap)))
-                  (set (-> c count) (- (-> c count) 1))
-                  (if (!= text nil)
-                      (block
-                       (let ((size_t t . 0))
-                         (if (coco_read_term_from m text (aof t))
-                             (block
-                              (let ((coco_strbuf b) (char * out . nil))
-                                (coco_sb_init (aof b))
-                                (coco_sb_put (aof b) "'$async'(ok,")
-                                (coco_write_term m (aof b) t 1 1)
-                                (coco_sb_put (aof b) ")")
-                                (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-                                (coco_sb_free (aof b))
-                                (coco_g_resume m sc out)
-                                (if (!= out nil) (free out))))
-                           (coco_g_resume m sc
-                            (strdup "'$async'(error,error(system_error,_))"))))
-                       (free text))))
-                (coco_g_move_sender c)
-                (return 1)))
-              ((> (-> c nsenders) 0)
-               (block
-                (let ((int si . #'(nth 0 (-> c senders))))
-                 (let ((green_thread * st . #'(aof (nth si (-> green_now threads))))
-                       (char * text . #'(-> st send_text)))
-                  (set (-> st send_text) nil)
-                  (set (-> st resume_text) (coco_g_ok_send_text))
-                  (set (-> st state) 0)
-                  (set (-> st block) 0)
-                  (set (-> st chan) -1)
-                  (if (!= text nil)
-                      (block
-                       (let ((size_t t . 0))
-                         (if (coco_read_term_from m text (aof t))
-                             (block
-                              (let ((coco_strbuf b) (char * out . nil))
-                                (coco_sb_init (aof b))
-                                (coco_sb_put (aof b) "'$async'(ok,")
-                                (coco_write_term m (aof b) t 1 1)
-                                (coco_sb_put (aof b) ")")
-                                (if (!= ($ b s) nil) (set out (strdup ($ b s))))
-                                (coco_sb_free (aof b))
-                                (coco_g_resume m sc out)
-                                (if (!= out nil) (free out))))
-                           (coco_g_resume m sc
-                            (strdup "'$async'(error,error(system_error,_))"))))
-                       (free text)))))
-                (coco_g_chan_remove_sender c 0)
-                (return 1)))
-              ((== (-> c closed) 1)
-               (block (return (coco_g_resume m sc (coco_g_closed_text)))))
-              (#t
-               (block
-                (let ((green_thread * t . #'(aof (nth (-> green_now cur)
-                                                      (-> green_now threads)))))
-                  (set (-> t block) 3)
-                  (set (-> t chan) (cast int cid))
-                  (set (-> t resume_cell) sc)
-                  (set (nth (-> c nreceivers) (-> c receivers)) (-> t id))
-                  (set (-> c nreceivers) (+ (-> c nreceivers) 1))
-                  (set (-> e halted) 128))
-                (return 1)))))))
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (or (< cid 0) (>= cid (-> wd nchans)))
+                (block (pthread_mutex_unlock (aof (-> wd lock)))
+                       (return (coco_g_raise e "library(async): no such channel")))
+            (let ((green_chan * c . #'(aof (nth cid (-> wd chans)))))
+              (cond
+                ((> (-> c count) 0)
+                 (block
+                  (let ((char * text . #'(nth (-> c head) (-> c buf))))
+                    (set (-> c head) (% (+ (-> c head) 1) (-> c cap)))
+                    (set (-> c count) (- (-> c count) 1))
+                    (if (!= text nil)
+                        (block
+                         (let ((size_t t . 0))
+                           (if (coco_read_term_from m text (aof t))
+                               (block
+                                (let ((coco_strbuf b) (char * out . nil))
+                                  (coco_sb_init (aof b))
+                                  (coco_sb_put (aof b) "'$async'(ok,")
+                                  (coco_write_term m (aof b) t 1 1)
+                                  (coco_sb_put (aof b) ")")
+                                  (if (!= ($ b s) nil) (set out (strdup ($ b s))))
+                                  (coco_sb_free (aof b))
+                                  (coco_g_resume m sc out)
+                                  (if (!= out nil) (free out))))
+                             (coco_g_resume m sc
+                              (strdup "'$async'(error,error(system_error,_))"))))
+                         (free text))))
+                  (coco_g_move_sender wd c)
+                  (pthread_mutex_unlock (aof (-> wd lock)))
+                  (return 1)))
+                ((> (-> c nsenders) 0)
+                 (block
+                  (let ((int si . #'(nth 0 (-> c senders))))
+                   (let ((green_thread * st . #'(aof (nth si (-> wd threads))))
+                         (char * text . #'(-> st send_text)))
+                    (set (-> st send_text) nil)
+                    (set (-> st resume_text) (coco_g_ok_send_text))
+                    (set (-> st state) 0)
+                    (set (-> st block) 0)
+                    (set (-> st chan) -1)
+                    (let ((green_worker * sw . #'(aof (nth (-> st worker) (-> wd workers)))))
+                      (pthread_cond_signal (aof (-> sw wake))))
+                    (if (!= text nil)
+                        (block
+                         (let ((size_t t . 0))
+                           (if (coco_read_term_from m text (aof t))
+                               (block
+                                (let ((coco_strbuf b) (char * out . nil))
+                                  (coco_sb_init (aof b))
+                                  (coco_sb_put (aof b) "'$async'(ok,")
+                                  (coco_write_term m (aof b) t 1 1)
+                                  (coco_sb_put (aof b) ")")
+                                  (if (!= ($ b s) nil) (set out (strdup ($ b s))))
+                                  (coco_sb_free (aof b))
+                                  (coco_g_resume m sc out)
+                                  (if (!= out nil) (free out))))
+                             (coco_g_resume m sc
+                              (strdup "'$async'(error,error(system_error,_))"))))
+                         (free text)))))
+                  (coco_g_chan_remove_sender c 0)
+                  (pthread_mutex_unlock (aof (-> wd lock)))
+                  (return 1)))
+                ((== (-> c closed) 1)
+                 (block
+                  (coco_g_resume m sc (coco_g_closed_text))
+                  (pthread_mutex_unlock (aof (-> wd lock)))
+                  (return 1)))
+                (#t
+                 (block
+                  (let ((green_thread * t . #'(aof (nth (-> green_me cur)
+                                                        (-> wd threads)))))
+                    (set (-> t block) 3)
+                    (set (-> t chan) (cast int cid))
+                    (set (-> t resume_cell) sc)
+                    (set (nth (-> c nreceivers) (-> c receivers)) (-> t id))
+                    (set (-> c nreceivers) (+ (-> c nreceivers) 1))
+                    (set (-> e halted) 128))
+                  (pthread_mutex_unlock (aof (-> wd lock)))
+                  (return 1)))))))))
 
   (func coco_g_async_close ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
@@ -674,11 +1053,16 @@
         (let ((i64 cid . -1))
           (if (not (coco_m_int e (coco_deref (-> e m) (coco_arg (-> e m) g 0)) (aof cid)))
               (return (coco_g_raise e "library(async): channel_close/1 wants a channel")))
-          (if (or (< cid 0) (>= cid (-> green_now nchans)))
-              (return (coco_g_raise e "library(async): no such channel")))
-          (coco_g_chan_close green_now (aof (nth cid (-> green_now chans))))
-          (return 1)))
-
+          (let ((green_world * wd . green_now))
+            (pthread_mutex_lock (aof (-> wd lock)))
+            (if (or (< cid 0) (>= cid (-> wd nchans)))
+                (block
+                 (pthread_mutex_unlock (aof (-> wd lock)))
+                 (return (coco_g_raise e "library(async): no such channel")))
+              (block
+               (coco_g_chan_close wd (aof (nth cid (-> wd chans))))
+               (pthread_mutex_unlock (aof (-> wd lock)))))
+            (return 1))))
   (static) (coco-emit-module-dispatch coco_g_dispatch *green-predicates*)
 
   (coco-defmodule coco_green_module "green" coco_g_dispatch *green-prolog*)

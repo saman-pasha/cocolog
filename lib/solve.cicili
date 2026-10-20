@@ -396,6 +396,9 @@
 (generic decl-solve
   ()
 
+  ;; the green world's write hook (lib/green.cicili), one no-op outside it
+  (decl) (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void))
+
   ;;; clock_gettime(2) is std/c/time's, whose struct needs the one-token name
   ;;; a Cicili type must be: a window's clock reads it (1.13.3)
   (@define (code "timespec struct timespec"))
@@ -646,7 +649,14 @@
     ;; restored frame's `cend' waits at 4294967295 for the run that thawed
     ;; it to load the modules' own clauses back (`coco_engine_run'), and is
     ;; then the count its predicate has (`coco_frames_bound')
-    (member int         cunbound))
+    (member int         cunbound)
+    ;; THE GREEN QUANTUM (2.8.0): GREENQ marks an engine a green
+    ;; scheduler runs; at MAX_STEPS `coco_limit_go' stops it cleanly with
+    ;; GSTOP set, the continuation flushed as a yield flushes it, and the
+    ;; scheduler resumes the task. NOT the inference-limit path: a direct
+    ;; resume after that one restarts the clause. Appended.
+    (member int         greenq)
+    (member int         gstop))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -6243,6 +6253,15 @@
   ;;; every step comes here, and the clock asks them (1.13.3).
   (weak)
   (func coco_limit_go ((coco_engine * e)) (out int)
+        ;; A GREEN QUANTUM (2.8.0): stop at this step, the continuation
+        ;; flushed as a yield's stop flushes it, and let the scheduler run
+        ;; the task again. NOT the inference-limit path: a direct resume
+        ;; after "inference limit reached" restarts the clause.
+        (if (-> e greenq)
+            (block
+             (set (-> e gstop) 1)
+             (coco_k_flush e)
+             (return 0)))
         (if (-> e tclock) (return (coco_clock_go e)))
         (if (coco_limit_room e) (return 1))
         (if (coco_step_free e) (return 1))
@@ -10337,6 +10356,9 @@
           (if (coco_is_callable m head)
               (coco_pred_dynamic (-> e st) (coco_name_of m head) (coco_arity m head)))
           (coco_store_maybe_compact (-> e st) m)
+          ;; THE GREEN WORLD HEARS EVERY WRITE (2.8.0): the local store has
+          ;; it; the other workers' clones wait for its replication.
+          (coco_g_note_write e (? (== at_end 0) 2 1) (coco_arg m g 0) 0)
           (return 1)))
 
   (func coco_bi_asserta ((coco_engine * e) (size_t g)) (out int)
@@ -10350,6 +10372,8 @@
           (if (!= bad 0) (return bad)))
         (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
           (coco_store_maybe_compact (-> e st) (-> e m))
+          (if (== ok 1)
+              (coco_g_note_write e 3 (coco_arg (-> e m) g 0) 0))
           (return (? ok 1 0))))
 
   ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
@@ -10359,7 +10383,19 @@
           (if (not (coco_dynamic_spec (-> e st) (-> e m) (coco_arg (-> e m) g 0)
                                     err (sizeof err)))
               (return (coco_fail_err e err)))
+          (coco_g_note_write e 4 (coco_arg (-> e m) g 0) 0)
           (return 1)))
+
+  ;;; A NO-OP FOR A BINARY THAT LINKS THE ENGINE WITHOUT THE GREEN MODULE
+  ;;; (2.8.0): test/solve.cicili and test/shared.cicili have no
+  ;;; lib/green.cicili, and Darwin's -undefined,dynamic_lookup would make
+  ;;; every write hook a jump to address 0 (found by the 2.8.0 suite, both
+  ;;; binaries a SIGSEGV). cocolog.cicili compiles with -DCOCO_GREEN and
+  ;;; gets the green module's definition instead.
+  (@ifndef (code "COCO_GREEN"))
+  (func coco_g_note_write ((void * e) (int kind) (size_t a) (size_t b)) (out void)
+        (return))
+  (@endif)
 
   ;;; ---- listing ------------------------------------------------------------
 

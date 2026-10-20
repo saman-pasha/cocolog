@@ -44,7 +44,7 @@ app([H|T], L, [H|R]) :- app(T, L, R).
 nrev([], []).
 nrev([H|T], R) :- nrev(T, RT), app(RT, [H], R).
 
-go(N, R) :- numlist(1, N, L), nrev(L, R).
+rec(N, R) :- numlist(1, N, L), nrev(L, R).
 
 %% each run adds a byte to the file F, and answers only when the file then
 %% holds an odd number of them: a probe on a fresh file answers, and the

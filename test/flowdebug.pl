@@ -21,8 +21,8 @@
 %%                 refuse(5), a clause that cuts and then fails
 %%   parse(a)      a reader whose first clause gets furthest and whose
 %%                 fallback fails last
-%%   go(30, R)     a recursion seen through a window of its last 100
-%%                 inferences, and go(12, R) drawn as a tree
+%%   rec(30, R)     a recursion seen through a window of its last 100
+%%                 inferences, and rec(12, R) drawn as a tree
 %%   flip(F)       a run that is not the same twice -- and with a journal is
 %%   grow(F)       a run that loads a file it then appends to, which leaves
 %%                 its journal
@@ -244,11 +244,11 @@ failing(D) :-
 
 window(D) :-
     section('a window of the last 100 steps of a recursion'),
-    debugged(D, nrevw, go(30, R8), ['R'=R8], [window(100)], Run8),
+    debugged(D, nrevw, rec(30, R8), ['R'=R8], [window(100)], Run8),
     Run8 = run(How8, At8, _, window(F8, T8), Calls8, _, _, _),
-    metered(go(30, _), U8),
+    metered(rec(30, _), U8),
     F8x is U8 - 99,
-    check('go(30, R): it answers where the untraced run does, and the window is its last 100 steps',
+    check('rec(30, R): it answers where the untraced run does, and the window is its last 100 steps',
           How8-At8-F8-T8, answer-U8-F8x-U8),
     findall(B, ( member(call(_, _, _, _, B, _, _, _, _, _), Calls8), B \== none ), Bs0),
     sort(Bs0, Bs8),
@@ -282,7 +282,7 @@ window(D) :-
 
 tree(D) :-
     section('view(tree): the calls themselves, a recursion''s middle left out'),
-    debugged(D, nrevt, go(12, R9), ['R'=R9], [view(tree)], _),
+    debugged(D, nrevt, rec(12, R9), ['R'=R9], [view(tree)], _),
     atom_concat(D, '/nrevt.svg', SF9),
     read_file_to_codes(SF9, SC9),
     xml_parse(SC9, S9),
@@ -962,11 +962,11 @@ profiled(D) :-
     debugged(D, prof1, pick(X1), ['X'=X1], [profile(P1)], _),
     check('pick(X): member/2 spends to its first Exit -- the 1 > 1 its redo comes back past is pick''s',
           P1, profile(1, 6, 5, [prof(pick/1, 5, 1, 5), prof((>)/2, 2, 2, 1), prof(member/2, 2, 2, 1)])),
-    debugged(D, prof2, go(6, R2), ['R'=R2], [from(1), profile(P2)], _),
+    debugged(D, prof2, rec(6, R2), ['R'=R2], [from(1), profile(P2)], _),
     P2 = profile(_, _, Spent2, Rows2),
     findall(P-I-N, ( member(prof(P, I, N, _), Rows2), memberchk(P, [nrev/2, app/3]) ), NA2),
     findall(P, ( member(prof(P, I, _, _), Rows2), I > Spent2 ), Over2),
-    memberchk(prof(go/2, IG2, _, _), Rows2),
+    memberchk(prof(rec/2, IG2, _, _), Rows2),
     check('a recursion is counted once over its nested calls: nrev/2''s seven calls spend what the outermost does, and no predicate more than the window''s calls',
           IG2-NA2-Over2, Spent2-[nrev/2-28-7, app/3-21-21]-[]),
     flow_profile_text(P1, PT1),
@@ -1040,9 +1040,9 @@ viewed(D) :-
           Bs1-YS1-YX1, []-no-no),
     %% two windows of one run: the calls of each predicate are the whole
     %% run's, and a call whose caller is in the other window is outside its
-    debugged(D, merge0, go(6, R2), ['R'=R2], [from(1), profile(P2), svg(false), xml(false)], Run2),
-    debugged(D, merge1, go(6, R3), ['R'=R3], [from(1), to(20), profile_rows(Rs3), svg(false), xml(false)], _),
-    debugged(D, merge2, go(6, R4), ['R'=R4], [from(21), profile_rows(Rs4), svg(false), xml(false)], _),
+    debugged(D, merge0, rec(6, R2), ['R'=R2], [from(1), profile(P2), svg(false), xml(false)], Run2),
+    debugged(D, merge1, rec(6, R3), ['R'=R3], [from(1), to(20), profile_rows(Rs3), svg(false), xml(false)], _),
+    debugged(D, merge2, rec(6, R4), ['R'=R4], [from(21), profile_rows(Rs4), svg(false), xml(false)], _),
     flow_profile_merge([Rs3, Rs4], MP, MC, _),
     P2 = profile(_, T2, _, PR2),
     MP = profile(MW, _, _, MPR),
@@ -1071,10 +1071,10 @@ viewed(D) :-
     %% a window that closes on calls still running: each spends up to the
     %% last inference under it
     P3 = profile(_, _, _, PR3),
-    debugged(D, open20, go(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
-    findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [go/2, nrev/2]) ), Open3),
-    check('a call the window closed on spends up to the last step made under it: go/2 the whole window, nrev/2 from step 5',
-          Open3, [go/2-20, nrev/2-16]),
+    debugged(D, open20, rec(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
+    findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [rec/2, nrev/2]) ), Open3),
+    check('a call the window closed on spends up to the last step made under it: rec/2 the whole window, nrev/2 from step 5',
+          Open3, [rec/2-20, nrev/2-16]),
     statistics(inferences, I0), flow_dbg_text_spaces(1000, S1000), statistics(inferences, I1),
     atom_length(S1000, L1000), DI is I1 - I0,
     ( DI < 20 -> Cost = constant ; Cost = DI ),
@@ -1103,7 +1103,7 @@ viewed_command(D) :-
              '% the goals the window 1 to 6 asked more than once, by predicate (0), the most repeats fi',
              '% the 6 steps of the window 1 to 6, 6 of them inferences (true/0 and =/2 are none), took ']),
     atomic_list_concat([D, '/vieww'], B6),
-    atomic_list_concat(['-s tools/flow/debug.pl -- \'go(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
+    atomic_list_concat(['-s tools/flow/debug.pl -- \'rec(30, R)\' ', F, ' ', B6, ' window=40 windows=2 jobs=2 profile=steps,callers,time svg=false xml=false txt=true'], A6),
     cocolog_run(A6, T6, E6),
     atomic_list_concat(Ls6c, '\n', T6),
     maplist(no_cpu, Ls6c, Ls6),
@@ -1120,7 +1120,7 @@ viewed_command(D) :-
     ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
     check('windows=2: two windows of 40 steps, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
           E6-Y6-L6-SH6-Q6-M6,
-          0-yes-'go(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
+          0-yes-'rec(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
           '% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
           not_named-timed),
     %% ... and each window's own (1.13.7): a cold window apart from a warm one

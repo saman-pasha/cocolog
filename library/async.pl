@@ -1,6 +1,11 @@
 %% library(async) -- Go's go, yield and channels, as green threads inside
 %% one cocolog process.
 %%
+%% TIER 1 SINCE 2.8.0: lib/library.cicili preloads this file at start-up, so
+%% ASYNC COROUTINES ARE ON BY DEFAULT -- async_run/1,2, go/2, yield/0,
+%% await/2, the futures and the channels are there without a use_module,
+%% and `use_module(library(async))' is a no-op.
+%%
 %%     async_run(:Goal)                 run Goal as green thread 0
 %%     async_run(:Goal, -Result)        ... and answer the goal as instantiated
 %%     go(:Goal) / go(:Goal, -Id)       start a green thread
@@ -15,14 +20,16 @@
 %%     channel_close(+C)
 %%
 %% A GREEN THREAD IS NOT library(thread)'s. This one is a machine of its
-%% own, stepped for a quantum by a cooperative scheduler in the engine
-%% (lib/green.cicili): go/2 starts one, yield/0 and await/2 give way, and
-%% a thread that blocks on a channel gives way too. Its knowledge base is
-%% the CALLER'S (2.7.0): the machine's atom, functor, string, float, big
-%% and rat tables ALIAS the caller's -- a spawn copies no store -- and a
-%% write one thread makes is seen by every thread and the host. A term
-%% crosses in canonical text through a channel, and the result of a goal
-%% is the goal itself, instantiated:
+%% own, run by a world of EIGHT WORKERS (2.8.0): the caller's thread is
+%% worker 0 and seven OS threads are workers 1..7. Each worker owns a
+%% store cloned from the caller's at async_run/1; a task is pinned to the
+%% worker it was born on, aliases that worker's name and value tables, and
+%% is preempted at a 10,000-step quantum; a foreign call holds its worker.
+%% A write a task makes -- assertz/1, asserta/1, retract/1, dynamic/1,
+%% abolish/1 and nb_setval/2 -- is REPLICATED to every other worker's
+%% store before the builtin returns, so the caller, the main thread and the
+%% host see it. A term crosses in canonical text through a channel, and
+%% the result of a goal is the goal itself, instantiated:
 %%
 %%     ?- async_run((go(member(X, [a,b,c]), F), await(F, R)), Answer).
 %%     Answer = (go(member(a,[a,b,c]),0), await(0,member(a,[a,b,c]))).
@@ -34,9 +41,10 @@
 %% own and is not reported. Everything must run under async_run/1,2 -- a
 %% go/1 outside it says so by name.
 %%
-%% THE LIMITS: 64 threads and 64 channels a scheduler; the shared tables
-%% grow in the caller's machine and the reclamation leaves them alone
-%% while a world runs; the scheduler reports a deadlock when every thread
+%% THE LIMITS: 1024 threads and 64 channels a world; a task is preempted
+%% at a 10,000-step quantum (a foreign call holds its worker); a consult or
+%% load, b_setval/2, a backend's fetch and a module's own C state belong to
+%% the worker that ran them; the world reports a deadlock when every task
 %% is blocked and the main one has not ended; and a goal is read in the
 %% new machine's module, so a module-qualified goal is not carried as one.
 %%
