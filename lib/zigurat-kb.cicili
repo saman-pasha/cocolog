@@ -539,10 +539,18 @@
                 (let ((size_t pi . #'(coco_pred_find (-> z st) (coco_name_of m head)
                                                    (coco_arity m head))))
                   (if (< pi ($ (cof (-> z st)) npreds))
-                      (if (-> z batch)
+                      ;; A THREAD THAT IS NOT THE STORE'S NEVER BATCHES: its
+                      ;; session's transaction is committed where the write
+                      ;; is made (below), and a dirty list it left behind
+                      ;; would be flushed on its thread and never committed
+                      ;; -- the row it wrote stayed uncommitted and a second
+                      ;; process could not see it.
+                      (if (and (-> z batch) (zg_owns (-> z db)))
                           (set rc (coco_zg_mark_dirty z pi))
                         (set rc (coco_zg_sync_pred z pi))))))
             (set (-> m heap_len) mark)
+            (if (and (== rc 1) (not (zg_owns (-> z db))))
+                (if (not (zg_commit (-> z db))) (return (coco_zg_fail z "commit"))))
             (return rc))))
 
   ;;; Notes a predicate as changed while a batch is open. Deduplicated, so
@@ -562,6 +570,10 @@
         (return 1))
 
   (func coco_zg_flush ((coco_zg * z)) (out int)
+        ;; THE OWNER'S LIST IS THE OWNER'S TO WRITE: another thread's session
+        ;; would write the batch into a transaction it then ends, and the
+        ;; rows would never be committed.
+        (if (not (zg_owns (-> z db))) (return 1))
         (let ((int ok . 1))
           ;; the count is cleared FIRST, and that is not tidiness: a sync
           ;; writes clauses through `zg_call', and anything the write path
@@ -691,6 +703,11 @@
               (return (coco_zg_fail z "arity")))
           (if (not (coco_zg_finish z (aof wrote)))
               (return (coco_zg_fail z "declare_dynamic")))
+          ;; A THREAD THAT IS NOT THE STORE'S COMMITS ITS OWN WRITE: its
+          ;; session has a transaction of its own (a green worker's), and
+          ;; the load's commit runs on the owner's.
+          (if (not (zg_owns (-> z db)))
+              (if (not (zg_commit (-> z db))) (return (coco_zg_fail z "commit"))))
           (return 1)))
 
   ;;; The reclaim pass, `cocolog::vacuum' on the other end: TRUNCATE over the
@@ -801,8 +818,12 @@
   (func coco_zg_on_retract ((coco_store * st) (void * ctx) (size_t pi)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx)))
           (if (not (-> z write_through)) (return 1))
-          (if (-> z batch) (return (coco_zg_mark_dirty z pi)))
-          (return (coco_zg_sync_pred z pi))))
+          (if (and (-> z batch) (zg_owns (-> z db)))
+              (return (coco_zg_mark_dirty z pi)))
+          (if (not (coco_zg_sync_pred z pi)) (return 0))
+          (if (not (zg_owns (-> z db)))
+              (if (not (zg_commit (-> z db))) (return (coco_zg_fail z "commit"))))
+          (return 1)))
 
   (func coco_zg_consult ((coco_zg * z) (const char * text)) (out int)
         (let ((char err [256]) (int n))

@@ -163,7 +163,16 @@
     ;; THE NAMES' MUTEX (2.8.1): every worker's base aliases the host's
     ;; atom, functor, string, float, big and rat tables, and the table
     ;; mutations take this lock. Since 2.9.0 there is ONE store as well.
-    (member pthread_mutex_t   tbl_mx))
+    (member pthread_mutex_t   tbl_mx)
+    ;; THE MACHINE LIST'S MUTEX (2.9.1). The one store lists every task's
+    ;; machine for the frame walk (`st->machines'), and a link (a task
+    ;; prepared on its worker, OUTSIDE the world lock) used to run beside
+    ;; an unlink (a task finished, sometimes under it): a lost node, or a
+    ;; freed machine's address linked back -- a cycle the walk spun in
+    ;; under the world lock, or a freed read (the light lane's hang and
+    ;; SIGSEGV, one run in twelve). The list has its own mutex, never held
+    ;; across anything else, and the world lock is never taken under it.
+    (member pthread_mutex_t   mmx))
 
   (decl) (func coco_green_module () (out int))
   (decl) (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int))
@@ -252,12 +261,15 @@
   ;;; ---- the world's stores ----------------------------------------------
 
   (static)
-  (func coco_g_store_link ((coco_store * st) (coco_machine * m))
+  (func coco_g_store_link ((green_world * wd) (coco_store * st) (coco_machine * m))
+        (pthread_mutex_lock (aof (-> wd mmx)))
         (set (-> m st_next) (-> st machines))
-        (set (-> st machines) (cast (void *) m)))
+        (set (-> st machines) (cast (void *) m))
+        (pthread_mutex_unlock (aof (-> wd mmx))))
 
   (static)
-  (func coco_g_store_unlink ((coco_store * st) (coco_machine * m))
+  (func coco_g_store_unlink ((green_world * wd) (coco_store * st) (coco_machine * m))
+        (pthread_mutex_lock (aof (-> wd mmx)))
         (let ((coco_machine * prev . nil)
               (coco_machine * cur . #'(cast (coco_machine *) (-> st machines))))
           (while (!= cur nil)
@@ -265,16 +277,18 @@
                 (block
                  (if (== prev nil) (set (-> st machines) (-> m st_next))
                      (set (-> prev st_next) (-> m st_next)))
+                 (pthread_mutex_unlock (aof (-> wd mmx)))
                  (return))
               (block (set prev cur)
-                     (set cur (cast (coco_machine *) (-> cur st_next))))))))
+                     (set cur (cast (coco_machine *) (-> cur st_next)))))))
+        (pthread_mutex_unlock (aof (-> wd mmx))))
 
   ;;; ---- a task's machines -----------------------------------------------
 
   (static)
-  (func coco_g_thread_free ((green_thread * t))
+  (func coco_g_thread_free ((green_world * wd) (green_thread * t))
         (if (and (!= (-> t st) nil) (!= (-> t m) nil))
-            (coco_g_store_unlink (-> t st) (-> t m)))
+            (coco_g_store_unlink wd (-> t st) (-> t m)))
         (if (!= (-> t e) nil) (coco_engine_free (-> t e)))
         (if (!= (-> t m) nil) (coco_machine_free (-> t m)))
         (if (!= (-> t e) nil) (free (-> t e)))
@@ -306,7 +320,7 @@
           ;; THE STORE'S FRAME WALK FINDS A SUSPENDED TASK'S FRAMES FROM
           ;; KEEP_ENG; `eng' is the engine's while it runs only.
           (set (-> m keep_eng) (cast (void *) en))
-          (coco_g_store_link (-> w st) m)
+          (coco_g_store_link (cast (green_world *) (-> w w)) (-> w st) m)
           (set (-> t made) 1)
           (let ((int ok . 1))
             (if (and (!= (-> t goal) nil)
@@ -347,7 +361,7 @@
         (set (-> t status) status)
         (set (-> t state) 2)
         (set (-> t block) 0)
-        (coco_g_thread_free t)
+        (coco_g_thread_free wd t)
         (coco_g_wake wd (-> t id))
         (if (== (-> t id) 0)
             (block
@@ -737,6 +751,7 @@
             (pthread_mutex_init (aof (-> wd lock)) nil)
             (pthread_cond_init (aof (-> wd op_done)) nil)
             (pthread_mutex_init (aof (-> wd tbl_mx)) nil)
+            (pthread_mutex_init (aof (-> wd mmx)) nil)
             (coco_tbl_set (aof (-> wd tbl_mx)))
             (for ((int i . 0)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
@@ -751,7 +766,7 @@
             (let ((green_worker * w0 . #'(aof (nth 0 (-> wd workers)))))
               (set (-> w0 st) hs)
               (set (-> w0 base) hm))
-            (coco_g_store_link hs hm)
+            (coco_g_store_link wd hs hm)
             (set (-> hm tshared) 1)
             (for ((int i . 1)) (< i nw) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
@@ -793,7 +808,7 @@
             ;; free every task and the world
             (for ((int i . 0)) (< i (-> wd nthreads)) ((++ i))
               (let ((green_thread * t . #'(aof (nth i (-> wd threads)))))
-                (coco_g_thread_free t)
+                (coco_g_thread_free wd t)
                 (if (!= (-> t status) nil) (free (-> t status)))
                 (if (!= (-> t send_text) nil) (free (-> t send_text)))
                 (if (!= (-> t resume_text) nil) (free (-> t resume_text)))
@@ -807,7 +822,7 @@
                          (if (!= (nth at (-> c buf)) nil)
                              (free (nth at (-> c buf))))))
                      (free (cast (void *) (-> c buf)))))))
-            (coco_g_store_unlink hs hm)
+            (coco_g_store_unlink wd hs hm)
             (set (-> hm tshared) 0)
             (for ((int i . 0)) (< i (-> wd nworkers)) ((++ i))
               (let ((green_worker * wi . #'(aof (nth i (-> wd workers)))))
@@ -816,6 +831,7 @@
             (pthread_cond_destroy (aof (-> wd op_done)))
             (pthread_mutex_destroy (aof (-> wd lock)))
             (pthread_mutex_destroy (aof (-> wd tbl_mx)))
+            (pthread_mutex_destroy (aof (-> wd mmx)))
             (free (cast (void *) (-> wd threads)))
             (free (cast (void *) (-> wd chans)))
             (free (cast (void *) (-> wd workers)))

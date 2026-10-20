@@ -191,6 +191,11 @@ int zg_serialise(zg_conn *c, const char *path, int wait_seconds);
  * tensor hooks needs to know not to on an embedded store. */
 int zg_embedded(zg_conn *c);
 
+/* Is the calling thread the one that opened this connection? Always true for
+ * a socket handle; on an embedded one, every other thread has a session (and
+ * a transaction) of its own, which IT commits. */
+int zg_owns(zg_conn *c);
+
 /* The page a row has to fit inside, or 0 when this end cannot know it --
  * which is every connection over the wire, because a server's page is its
  * store's, on its own machine, and no call in the protocol asks. The

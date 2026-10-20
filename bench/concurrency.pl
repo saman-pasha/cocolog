@@ -31,6 +31,9 @@ main :-
     ;   Mode == green  -> two(Rest, N3, M3), green(N3, M3)
     ;   Mode == light_real -> one(Rest, N4), light_real(N4)
     ;   Mode == light_real_yield -> two(Rest, N5, K5), light_real_yield(N5, K5)
+    ;   Mode == store_green -> three(Rest, N8, K8, M8), store_green(N8, K8, M8)
+    ;   Mode == store_seed -> one(Rest, K9), store_build(K9)
+    ;   Mode == store_run -> three(Rest, N9, K9b, M9), store_run(N9, K9b, M9)
     ;   Mode == light_green -> one(Rest, N6), light_green(N6)
     ;   Mode == light_green_yield -> two(Rest, N7, K7), light_green_yield(N7, K7)
     ;   fail
@@ -39,6 +42,8 @@ main :-
 
 one([A], N) :- atom_number(A, N).
 two([A,B], N, M) :- atom_number(A, N), atom_number(B, M).
+three([A,B,C], N, K, M) :-
+    atom_number(A, N), atom_number(B, K), atom_number(C, M).
 
 %% ---- the serial baseline ------------------------------------------------
 serial(0, _) :- !.
@@ -130,3 +135,62 @@ yield_green_goal(K, (yield, Rest)) :-
     K > 0,
     K1 is K - 1,
     yield_green_goal(K1, Rest).
+
+%% ---- green over the embedded store -------------------------------------
+%%
+%% The store lanes of bench/langs.sh in the world: K keyed facts built
+%% once, then M keys probed by each of N green threads at once, over the
+%% one store they share (the 2.9.0 model -- the reads take no lock).
+%% bench/concurrency_store.go runs the same probes as N goroutines over
+%% SQLite, the key arithmetic and the answer's sum identical, so the two
+%% walls are one question: the store against a file. The world's writes
+%% (the build) stop it, the reads do not; SQLite's PRIMARY KEY is an
+%% index, cocolog's first argument an index.
+%%
+%%   run bench/concurrency.pl "store_green(N, K, M)"   under --embed DIR
+
+store_green(N, K, M) :-
+    store_build(K),
+    store_run(N, K, M).
+
+store_run(N, K, M) :-
+    store_warm,
+    numlist(1, N, Units),
+    async_run(( store_start(K, M, Units, Ids),
+                store_sum(Ids, 0, Total),
+                format("total(~w)~n", [Total]) ), _).
+
+%% THE PREDICATE IS LOADED BEFORE THE WORLD STARTS, so the timed wall is
+%% the probes alone rather than one task's fetch of 10,000 rows. A
+%% worker's first fetch works since 2.9.1 (the client keeps a session per
+%% thread; before, it crashed in MVCCS's `visible()'); a host call here
+%% reads the rows once and the world's tasks find them in memory, the
+%% shape httpd's `prewarm' gives its pool.
+store_warm :-
+    catch(ignore(skv(_, _)), _, true).
+
+store_build(0) :- !.
+store_build(K) :-
+    V is (K * 7) mod 1000,
+    assertz(skv(K, V)),
+    K1 is K - 1,
+    store_build(K1).
+
+store_start(_, _, [], []).
+store_start(K, M, [_|Units], [Id|Ids]) :-
+    go(store_probe(M, K, 0, _), Id),
+    store_start(K, M, Units, Ids).
+
+store_sum([], A, A).
+store_sum([Id|Ids], A0, A) :-
+    await(Id, G),
+    arg(4, G, S),
+    A1 is A0 + S,
+    store_sum(Ids, A1, A).
+
+store_probe(0, _, A, A) :- !.
+store_probe(M, K, A0, A) :-
+    Key is ((M * 37) mod K) + 1,
+    ( skv(Key, V) -> A1 is A0 + V ; A1 = A0 ),
+    M1 is M - 1,
+    store_probe(M1, K, A1, A).

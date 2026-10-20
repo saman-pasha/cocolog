@@ -54,6 +54,27 @@ REPS=${REPS:-3}
 LIGHT_N=${LIGHT_N:-10000}
 OS_LIGHT_N=${OS_LIGHT_N:-1000}
 LIGHT_YIELDS=${LIGHT_YIELDS:-10}
+STORE_N=${STORE_N:-$N}
+STORE_K=${STORE_K:-10000}
+STORE_M=${STORE_M:-20000}
+ZIGURAT_HOST=${ZIGURAT_HOST:-127.0.0.1}
+ZIGURAT_PORT=${ZIGURAT_PORT:-2160}
+STORE_KB=${STORE_KB:-bench_concurrency}
+STORE_DIAL="--kb $STORE_KB --host $ZIGURAT_HOST --tcp $ZIGURAT_PORT --timeout 120"
+
+# THE SERVER LANE WANTS A timeout(1); a stock Mac has none, and perl's
+# alarm survives exec (bench/langs.sh's fallback, the same).
+if ! command -v timeout >/dev/null 2>&1; then
+    if command -v gtimeout >/dev/null 2>&1; then
+        timeout() { gtimeout "$@"; }
+    else
+        timeout() { _t=$1; shift; perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$_t" "$@"; }
+    fi
+fi
+HAVE_STORE=
+if timeout 20 "$COCO" $STORE_DIAL list >/dev/null 2>&1; then
+    HAVE_STORE=1
+fi
 
 # the nanosecond clock: date where it has one, perl where it does not
 if date +%N 2>/dev/null | grep -q '^[0-9]'; then
@@ -75,15 +96,27 @@ case "$_pypath" in
     ?*) PY=$_pypath ;;
 esac
 
-# THE GO BINARY IS BUILT ONCE, before any timing.
+# THE GO BINARIES ARE BUILT ONCE, before any timing.
 GOBIN=
+GO_STORE=
 if command -v go >/dev/null 2>&1; then
     GOBIN=${TMPDIR:-/tmp}/cocolog-concurrency-go.$$
     if ! go build -o "$GOBIN" bench/concurrency.go >/dev/null 2>&1; then
         GOBIN=
     fi
+    GO_STORE=${TMPDIR:-/tmp}/cocolog-concurrency-sqlite.$$
+    if ! go build -o "$GO_STORE" bench/concurrency_store.go >/dev/null 2>&1; then
+        GO_STORE=
+    fi
 fi
-cleanup() { if [ -n "$GOBIN" ]; then rm -f "$GOBIN"; fi; }
+STORE_DIR=${TMPDIR:-/tmp}/cocolog-concurrency-store.$$
+STORE_DB=$STORE_DIR/f.sqlite3
+STORE_EMB=$STORE_DIR/embed
+cleanup() {
+    if [ -n "$GOBIN" ]; then rm -f "$GOBIN"; fi
+    if [ -n "$GO_STORE" ]; then rm -f "$GO_STORE"; fi
+    rm -rf "$STORE_DIR"
+}
 trap cleanup EXIT
 
 # one timed run of a lane, its output kept for the gate
@@ -143,6 +176,72 @@ if command -v "$PY" >/dev/null 2>&1; then
     lane python 0 "$PY" bench/concurrency.py work "$N" "$M"
 else
     printf '%-15s SKIP (no python3)\n' python
+fi
+
+# ---- the store lanes: goroutines over SQLite against green over --embed -
+#
+# The store lanes of bench/langs.sh, in the world: K keyed rows, then M
+# probes by each of N units at once. SQLite's is a file with a PRIMARY
+# KEY, committed at the build; cocolog's is the MVCCS engine linked in
+# (--embed), the rows asserted once and read by every task from the one
+# store (2.9.0) with no lock. The store and the file are RESET outside
+# the timed region, as langs.sh does, and the process that seeds and
+# probes is the timed one: both sides pay their build.
+mkdir -p "$STORE_DIR"
+store_lane() {
+    _name=$1
+    _kind=$2
+    _units=$3
+    _best=
+    _i=0
+    while [ "$_i" -lt "$REPS" ]; do
+        _i=$((_i + 1))
+        rm -rf "$STORE_EMB" "$STORE_DB"
+        mkdir -p "$STORE_EMB"
+        case "$_kind" in
+            sqlite) "$GO_STORE" build "$STORE_DB" "$STORE_K" >/dev/null 2>&1 || true ;;
+            green)  "$COCO" --embed "$STORE_EMB" -s "$ROOT/bench/concurrency.pl" \
+                        -- store_seed "$STORE_K" >/dev/null 2>&1 || true ;;
+            zigurat)
+                "$COCO" $STORE_DIAL forget >/dev/null 2>&1 || true
+                "$COCO" $STORE_DIAL run "$ROOT/bench/concurrency.pl" \
+                    "store_build($STORE_K)" >/dev/null 2>&1 || true ;;
+        esac
+        _t0=$(now)
+        case "$_kind" in
+            sqlite) _out=$("$GO_STORE" store "$STORE_DB" "$STORE_N" "$STORE_K" "$STORE_M" 2>&1) || true ;;
+            green)  _out=$("$COCO" --embed "$STORE_EMB" -s "$ROOT/bench/concurrency.pl" \
+                               -- store_run "$STORE_N" "$STORE_K" "$STORE_M" 2>&1) || true ;;
+            zigurat) _out=$("$COCO" $STORE_DIAL -s "$ROOT/bench/concurrency.pl" \
+                                -- store_run "$STORE_N" "$STORE_K" "$STORE_M" 2>&1) || true ;;
+        esac
+        _t1=$(now)
+        case "$_out" in
+            *"answer(done)"*) ;;
+            *) printf '%-15s REFUSED: %s\n' "$_name" "$(printf '%s' "$_out" | head -1)"; return 0 ;;
+        esac
+        _dt=$((_t1 - _t0))
+        if [ -z "$_best" ] || [ "$_dt" -lt "$_best" ]; then
+            _best=$_dt
+        fi
+    done
+    _ms=$(awk "BEGIN { printf \"%.1f\", $_best / 1000000 }")
+    _us=$(awk "BEGIN { printf \"%.2f\", $_best / ($_units * 1000) }")
+    printf '%-15s %10s ms %10s us/lookup\n' "$_name" "$_ms" "$_us"
+}
+
+printf '\nstore: %s units x %s keyed lookups over %s rows\n' "$STORE_N" "$STORE_M" "$STORE_K"
+printf '%-15s %10s %14s\n' lane wall per-lookup
+if [ -n "$GO_STORE" ]; then
+    store_lane store-sqlite sqlite $((STORE_N * STORE_M))
+else
+    printf '%-15s SKIP (no go with cgo and libsqlite3)\n' store-sqlite
+fi
+store_lane store-green green $((STORE_N * STORE_M))
+if [ -n "$HAVE_STORE" ]; then
+    store_lane store-zigurat zigurat $((STORE_N * STORE_M))
+else
+    printf '%-15s SKIP (no server at %s:%s)\n' store-zigurat "$ZIGURAT_HOST" "$ZIGURAT_PORT"
 fi
 
 printf '\nlight: %s tasks (OS threads %s), each true, joined\n' "$LIGHT_N" "$OS_LIGHT_N"

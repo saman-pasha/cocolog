@@ -1843,3 +1843,97 @@ world pays a lock at every spawn and every yield, where Run B's one
 scheduler was a straight line; the 1023-task batch makes the seven clones
 small per task but not nothing. The deadlock scan moved from every run to
 the idle pick for this run (18.02 to 13.89 us a task).
+
+**CONCURRENCY RUN D** -- 2026-10-20, the M:N world over ONE SHARED STORE
+(cocolog 2.9.1: every worker, and every task's machine, over the caller's
+own store; a store write stops the other workers at a safe point before it
+and releases them after; reads take no lock; the store's machine list has
+a mutex of its own), the same command `sh bench/concurrency.sh` and the
+same defaults as Run C, the same 16-core Intel Mac.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 530.3 ms |
+| real threads (8 OS threads) | 205.0 ms |
+| green threads (8 green threads on 8 workers) | 182.8 ms |
+| goroutines (Go, 8) | 99.6 ms |
+| coroutines (asyncio, 8) | 582.4 ms |
+
+The green lane now EQUALS the real threads' (182.8 against 205.0; Run C:
+440.7 against 173.0): the seven cloned stores' setup is gone and a read
+takes no lock. It uses the cores: `time` reports about 415 % CPU, and one
+green unit takes 0.119 s against eight units' 0.149 s (nearly flat -- the
+world, not the work, is the difference), where eight serial units take
+0.461 s. Subtracting the ~0.07 s of process start both pay, the work
+phase is ~0.08 s against serial's ~0.39 s, about 5x. **Goroutine's 99.6
+is not a cores comparison**: Go's spin loop is a few nanoseconds an
+iteration and its lane runs at about one core, so the wall measures the
+loop, not the scheduler. The like-for-like lane is the real threads',
+and green matches it.
+
+Store lanes (new; N=8 units x 20,000 keyed lookups over 10,000 rows; the
+file or store RESET and SEEDED outside the timed region, the timed
+process fetching the rows once -- a host warm, below -- and probing):
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 goroutines, 8 connections, PRIMARY KEY) | 155.0 ms | 0.97 us |
+| green threads over `--embed` (the MVCCS engine linked in) | 1092.5 ms | 6.83 us |
+| green threads over `--kb` (the same engine over TCP, 127.0.0.1:2160) | 1152.2 ms | 7.20 us |
+
+Each lane's probes summed to 79,920,000 -- the same answer from all three.
+EACH UNIT'S PROBES RUN IN ONE TRANSACTION ON BOTH SIDES: a green task's
+thread owns a session with its transaction open across the unit's reads,
+and the SQLite partner opens a transaction too -- autocommit, one implicit
+transaction per SELECT, was a different measurement and 2.5x dearer in
+this lane (391.6 against 155.0 ms in the first run). The two green lanes'
+walls are nearly equal because the same two costs make them: the fetch of
+the 10,000 rows (through the embedded engine, or over the socket) and the
+world's setup, then 160,000 clause reads in memory with no lock. SQLite
+reads its index per probe from the page cache. The rows survive the
+process in both cases and a second process reads them.
+
+Light lanes (10,000 tasks; 1,000 OS threads; green in batches of 1023):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 113.08 us | 16.74 us (mutex handoff) |
+| green threads | 49.52 us | 10.00 us (`yield/0`) |
+| goroutines | 10.12 us | 1.23 us (`Gosched`) |
+| coroutines | 22.28 us | 3.79 us (`sleep(0)`) |
+
+**THE LIGHT LANE IS 3.6x RUN C's 13.89 us A TASK, AND IT IS NOT THE
+MACHINE**: light-real matches Run C (113.08 against 108.56). A sample of a
+long run (102,300 tasks) put 3,300 of its ~4,900 samples in
+`__psynch_mutexwait`/`__psynch_mutexdrop`: the world names mutex, taken by
+`coco_intern_len` on every goal text read even when the atom is already
+in the table -- a spawned `true` reads `true` in its task, so every task
+pays the lock. Run C predates the shared names (2.8.1) and interned into
+a per-worker table. The cure is a lock-free HIT path in `coco_intern_len`
+(a miss takes the mutex and looks again; growth allocates a new array and
+never frees the old while shared, so a racing reader's stale array is
+safe); open.
+
+Two findings from standing the lanes up. THE MACHINE LIST (2.9.1): one
+run in twelve of the light lane hung -- a worker spinning in
+`coco_g_thread_free` while it held the world lock, everything else
+waiting -- or died SIGSEGV; the one store's list of machines was linked
+by a preparing task outside the world lock and unlinked by a finishing
+one, sometimes under it, and a freed machine's address came back on the
+list. The list has its own mutex now; 30 light-lane runs, 0 failures.
+THE FIRST FETCH ON A WORKER (fixed in 2.9.1): standing the green lane up
+found that a worker's first call to a predicate the process had not read
+yet fetched it through the embedded engine with no transaction on that
+thread -- a SIGSEGV in MVCCS's `visible()` with a null `Memory *`, one
+unit as surely as eight. The client kept one session per connection, made
+on the host, and the engine's transaction is thread-local. It keeps a
+session PER THREAD now (freed by a pthread key's destructor on the
+exiting thread), and a thread that is not the connection's owner syncs
+and commits its own write in the store's hook instead of joining the
+owner's batch -- the first cut committed an empty transaction and left
+the worker's synced row uncommitted, so a second process saw nothing. A
+worker now fetches AND writes under `--embed` (proved by a cold fetch and
+a cross-process write); the lanes warm `skv` in the host
+(`store_warm`) so their walls are the probes alone, not the fetch.

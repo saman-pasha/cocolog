@@ -1964,7 +1964,30 @@ cocolint index offers no import of it.
   A consult or load a task runs and a module's own C state stay per
   worker. The store's frame walks visit every machine the store lists, a
   suspended task's engine through `keep_eng` -- NEVER `m->eng`:
-  pre-setting it made the engine its own `outer`. No table reclamation
+  pre-setting it made the engine its own `outer`. **THE MACHINE LIST HAS
+  ITS OWN MUTEX (2.9.1)**: `st->machines` is linked by `coco_g_prepare`
+  on a task's worker OUTSIDE the world lock and unlinked by
+  `coco_g_thread_free` as a task finishes, sometimes under it; unsynchronized,
+  a link raced an unlink and a freed machine's address came back on the
+  list -- a cycle the unlink walk spun in under the world lock (the light
+  lane's hang), or a freed read (a SIGSEGV, one run in twelve). The world
+  lock is never taken under `mmx`. **A SESSION IS A THREAD'S (2.9.1)**:
+  the engine's transaction is thread-local, and the client kept ONE
+  session per connection made on the host, so a green task's first call
+  to a predicate the process had not read yet fetched through the
+  backend on the worker's thread with no transaction there -- a SIGSEGV
+  in MVCCS's `visible()`, one unit as surely as eight. `client/zigurat.c`
+  now keeps a session PER THREAD per connection (a registry keyed by the
+  connection in a thread-local, freed by a pthread key's destructor on
+  the exiting thread, where the rollback belongs; `zg_close` frees the
+  caller's). A thread that is not the connection's OWNER (`zg_owns`,
+  true for every socket handle) never batches: its write syncs the
+  predicate in the hook and commits its own session there
+  (`lib/zigurat-kb.cicili`), and it never flushes the owner's dirty
+  list; the owner's batching is unchanged. A green task may now fetch
+  AND write under `--embed`; the server arrangement's socket is still
+  one connection for all threads, and a task's write through it is
+  untested. No table reclamation
   (`tshared`) or store compaction (`st->machines`) runs while a world
   does. THE QUANTUM: the run sets `max_steps` to the task's steps +
   10,000; `coco_limit_go`'s GREENQ branch sets GSTOP, flushes the

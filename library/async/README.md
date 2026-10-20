@@ -68,7 +68,11 @@ writer changes the store with no lock held; the end releases the world.
 The writer's own `coco_pred_make` and `coco_clause_code` re-check their
 lock-free finds once the world is stopped (the predicate a reader's call
 may have created meanwhile). A write nested inside another's barrier is
-covered by the outer one. The store's frame walk visits every machine the
+covered by the outer one. THE STORE'S MACHINE LIST (2.9.1) -- every task's
+machine, listed for the frame walk -- has a mutex of its own: a link runs
+on a task's worker outside the world lock and an unlink runs as a task
+finishes, sometimes under it, and the two raced the list into a cycle (a
+hang) or onto a freed machine (a SIGSEGV). The store's frame walk visits every machine the
 store lists, so a suspended task's open call counts as an open call for
 the logical update view. The cost is a stop and a wake per write; the work
 lane below measures the shape.
@@ -119,29 +123,49 @@ ring of the size asked.
 The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
-steps each, on a 16-core Intel Mac, cocolog 2.8.0 (Concurrency Run C, the
-M:N world -- the figures are 2.8.0's; the world's setup and its write path
-changed in 2.8.1 (the shared names) and 2.9.0 (the one store, and the
-barrier a write takes), and a within-run pair is owed for them; Run B's
-2.7.0 shared-store, one-scheduler model and Run A's 2.6.0 snapshot model
-are in bench/README.md):
+steps each, on a 16-core Intel Mac, cocolog 2.9.1 (Concurrency Run D, the
+ONE STORE: every worker over the caller's store, a write stops the world
+before it lands, reads take no lock; Runs A-C, the 2.6.0 snapshot, the
+2.7.0 shared-store single scheduler and the 2.8.0 clone-and-replicate
+world, are in bench/README.md):
 
 | lane | wall |
 |---|---|
-| serial | 458.9 ms |
-| real threads (library(thread), 8 OS threads) | 173.0 ms |
-| green threads (library(async), 8 green threads on 8 workers) | 440.7 ms |
-| goroutines (Go, 8) | 92.7 ms |
-| coroutines (asyncio, 8) | 555.5 ms |
+| serial | 530.3 ms |
+| real threads (library(thread), 8 OS threads) | 205.0 ms |
+| green threads (library(async), 8 green threads on 8 workers) | 182.8 ms |
+| goroutines (Go, 8) | 99.6 ms |
+| coroutines (asyncio, 8) | 582.4 ms |
 
-This is the CPU-bound wall, and the green lane now USES THE CORES: `time`
-reports 450 % CPU, against the 2.7.0 one-scheduler 505.1 ms on one core.
-The wall is still 440.7 against the real threads' 173.0, because the
-green engine pays the world's setup (seven cloned stores), the quantum's
-stop and flush every 10,000 steps, and a lock at every run boundary: the
-same work is about 3.7 times the CPU per task. Real threads and goroutines
-win a CPU-bound wall; the M:N model's win is that a blocking task no
-longer holds every other task's core.
+The green lane now EQUALS the real threads' (182.8 against 205.0; Run C:
+440.7 against 173.0): the cloned stores are gone and a read takes no lock.
+`time` reports about 415 % CPU, and one unit takes 0.119 s against eight
+units' 0.149 s -- nearly flat, so the work is parallel; eight serial units
+take 0.461 s. Goroutine's 99.6 is not a cores comparison: Go's loop is a
+few nanoseconds an iteration and its lane runs at about one core, so the
+wall measures the loop, not the scheduler. Real threads and goroutines win a
+CPU-bound wall; the M:N model's win is that a blocking task no longer
+holds every other task's core.
+
+**Store lanes** — N green threads probing one durable store, against Go
+goroutines over SQLite: 8 units x 20,000 keyed lookups over 10,000 rows,
+the store seeded outside the timed region and the rows fetched once by
+the host before the world starts (`store_warm`; a worker's first fetch
+inside `--embed`/`--kb` crashes, below):
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 connections, PRIMARY KEY) | 155.0 ms | 0.97 us |
+| green over `--embed` (MVCCS in the process) | 1092.5 ms | 6.83 us |
+| green over `--kb` (MVCCS over TCP) | 1152.2 ms | 7.20 us |
+
+All three summed to 79,920,000. EACH UNIT'S PROBES RUN IN ONE TRANSACTION
+on both sides -- a task's thread has a session with its transaction open
+across the unit's reads, and the SQLite goroutine opens one too
+(autocommit was 391.6 ms in the first run). The green lanes' walls are
+the fetch of the 10,000 rows plus the world, then 160,000 in-memory
+clause reads with no lock; SQLite reads its index per probe from the page
+cache.
 
 **Light lanes** — many short tasks that do `true` and are joined, then the
 same with a yield each round. This is creation and switch cost, where green
@@ -149,10 +173,21 @@ is supposed to win:
 
 | lane | per task | per yield |
 |---|---|---|
-| real threads (1,000) | 108.56 us | 12.72 us (mutex handoff) |
-| green threads (10,000; batches of 1023) | 13.89 us | 5.83 us (`yield/0`) |
-| goroutines (Go, 10,000) | 9.75 us | 1.20 us (`Gosched`) |
-| coroutines (asyncio, 10,000) | 21.12 us | 3.43 us (`sleep(0)`) |
+| real threads (1,000) | 113.08 us | 16.74 us (mutex handoff) |
+| green threads (10,000; batches of 1023) | 49.52 us | 10.00 us (`yield/0`) |
+| goroutines (Go, 10,000) | 10.12 us | 1.23 us (`Gosched`) |
+| coroutines (asyncio, 10,000) | 22.28 us | 3.79 us (`sleep(0)`) |
+
+The green light lane is 3.6x Run C's 13.89 us a task and 1.7x its 5.83 a
+yield, and it is not the machine (light-real matches Run C). A sample of
+102,300 tasks is almost all `__psynch_mutexwait`/`__psynch_mutexdrop`:
+the world NAMES mutex, taken by `coco_intern_len` on every goal text read
+even when the atom is already in the table -- each spawned `true` reads
+`true`, so every task pays it. Run C predates the shared names (2.8.1),
+which interned into a per-worker table. A lock-free hit path in
+`coco_intern_len` is the cure (a miss takes the mutex and rechecks; while
+the tables are shared growth never frees the old array, so a racing
+reader's stale pointer is safe); it is open.
 
 Green is **~7.8x cheaper per task** than a cocolog OS thread (13.89
 against 108.56 us) and 1.4x Go's goroutines (9.75), and **~2.2x cheaper
@@ -282,7 +317,15 @@ scheduler, and 2.8.0's the cloned M:N world.
   task makes after the main task has ended is not stopped for -- the world
   is ending and the workers are breaking -- so a program that lets its
   main task end while others still write, and then reads the store from
-  the host, may race itself.
+  the host, may race itself. A task's FIRST call to a predicate the
+  process has not read yet fetches it through the backend on the worker's
+  thread; before 2.9.1 that crashed under `--embed` (the client kept one
+  session, made on the host, and the engine's transaction is
+  thread-local). The client keeps a session per thread now, and a thread
+  that is not the connection's owner commits its own write in the
+  store's hook, so a task may fetch and write under `--embed`; against a
+  server the one socket is still shared, and a task's write through it
+  is untested.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
   the world's error.
 * The world is M:N: the caller's thread and seven OS threads, one store.
