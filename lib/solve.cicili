@@ -530,7 +530,10 @@
     (member u64         max_inf)
     (member u64         tcap)
     (member int         resume)    ; a solution has been reported; go back first
-    (member int         halted)
+    ;; 0 none, 1 halt, 2 memory; 4 + SIGNO a POSIX signal (2.6.0), which a
+    ;; signal handler writes through the machine's `haltp'. Volatile
+    ;; sig_atomic_t: the only object an asynchronous handler may assign.
+    (member coco_sig_halt halted)
     (member int         halt_code)
 
     ;; the four-port tracer: on or off, the shadow frames, and the current
@@ -4536,6 +4539,15 @@
                        (snprintf out len "Syntax error: %s" a1)
                        (return)))
 
+            ;; A SIGNAL (2.6.0): SWI's sentence, the number then the name.
+            ;; Its Context is a fresh variable here, as every cocolog
+            ;; error's is, so there is no predicate to put in front.
+            (if (and (== fa 2) (== 0 (strcmp fn "signal")))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                       (snprintf out len "Caught signal %s (%s)" a2 a1)
+                       (return)))
+
             ;; cocolog's own ball, which carries a sentence and not a term:
             ;; `cocolog_error('use_module: p.pl: no such file')' is already
             ;; the message, and wrapping it in "Unknown error term" would
@@ -6294,7 +6306,58 @@
           (if (and (!= (-> sub rmax) 0) (> (-> sub max_steps) (-> sub rmax)))
               (set (-> sub max_steps) (-> sub rmax)))))
 
-  ;;; THE RUN STOPPED AT A STEP'S TOP (`halted'): 1 is a halt, 2 memory.
+  ;;; THE PROLOG NAME OF A SIGNAL (2.6.0): SWI's spelling, the POSIX name
+  ;;; lowercased without SIG. Both the ball `coco_halted_step' raises and
+  ;;; the list `coco_m_signal_pairs' hands a module read this one table.
+  (func coco_signal_name ((int n)) (out const char *)
+        (if (== n SIGHUP) (return "hup"))
+        (if (== n SIGINT) (return "int"))
+        (if (== n SIGQUIT) (return "quit"))
+        (if (== n SIGILL) (return "ill"))
+        (if (== n SIGTRAP) (return "trap"))
+        (if (== n SIGABRT) (return "abrt"))
+        (if (== n SIGBUS) (return "bus"))
+        (if (== n SIGFPE) (return "fpe"))
+        (if (== n SIGKILL) (return "kill"))
+        (if (== n SIGUSR1) (return "usr1"))
+        (if (== n SIGSEGV) (return "segv"))
+        (if (== n SIGUSR2) (return "usr2"))
+        (if (== n SIGPIPE) (return "pipe"))
+        (if (== n SIGALRM) (return "alrm"))
+        (if (== n SIGTERM) (return "term"))
+        (if (== n SIGCHLD) (return "chld"))
+        (if (== n SIGCONT) (return "cont"))
+        (if (== n SIGSTOP) (return "stop"))
+        (if (== n SIGTSTP) (return "tstp"))
+        (if (== n SIGTTIN) (return "ttin"))
+        (if (== n SIGTTOU) (return "ttou"))
+        (if (== n SIGURG) (return "urg"))
+        (if (== n SIGXCPU) (return "xcpu"))
+        (if (== n SIGXFSZ) (return "xfsz"))
+        (if (== n SIGVTALRM) (return "vtalrm"))
+        (if (== n SIGPROF) (return "prof"))
+        (if (== n SIGWINCH) (return "winch"))
+        (if (== n SIGSYS) (return "sys"))
+        (return nil))
+
+  ;;; A SIGNAL'S BALL, at the safe point: error(signal(Name, Num), _).
+  ;;; `coco_raise' wraps it and answers 2 caught / -1 not.
+  (static)
+  (func coco_signal_raise ((coco_engine * e) (int signo)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (const char * nm . #'(coco_signal_name signo))
+              (size_t a . #'(coco_new_atom m (? (== nm nil) "signal" nm)))
+              (size_t b . #'(coco_new_int m signo)))
+          (return (coco_raise e (coco_make2 m "signal" a b)))))
+
+  ;;; THE RUN STOPPED AT A STEP'S TOP (`halted'): 1 is a halt, 2 memory,
+  ;;; 3 + SIGNO a POSIX signal (2.6.0).
+  ;;;
+  ;;; A SIGNAL IS RAISED AS error(signal(Name, Num), _), SWI's shape, so a
+  ;;; catch/3 takes it at the next step; a handler only wrote the cell, and
+  ;;; the ball is built here, in normal context. A growth that cannot flush
+  ;;; the continuation stops the run with 2, as the memory branch does.
+  ;;;
   ;;; MEMORY IS RAISED (1.10.28) when the refusal left nothing written
   ;;; wrong: a doubling refused and a smaller growth given
   ;;; (`coco_grow_short', `coco_eng_grow'), which stopped the run with room
@@ -6308,6 +6371,23 @@
   (weak)
   (func coco_halted_step ((coco_engine * e)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
+          ;; A GREEN THREAD'S STOP (2.6.0, library(async)): 128 is a
+          ;; cooperative yield or a block, written by the green module's
+          ;; builtins in normal context. It is no error: flush the
+          ;; continuation and stop the run, which the scheduler freezes.
+          ;; The signal range stops below it (POSIX's numbers are under 65).
+          (if (== (-> e halted) 128)
+              (block (set (-> e halted) 0)
+                     (coco_k_flush e)
+                     (return 0)))
+          (if (and (> (-> e halted) 3) (< (-> e halted) 128))
+              (let ((int signo . #'(- (-> e halted) 3)))
+                (set (-> e halted) 0)
+                (if (coco_k_flush e)
+                    (block
+                      (set (-> e kcall) 0)
+                      (return (coco_signal_raise e signo)))
+                  (block (set (-> e halted) 2) (return 0)))))
           (if (and (== (-> e halted) 2) (not (-> m oom)))
               (block
                 (set (-> e halted) 0)

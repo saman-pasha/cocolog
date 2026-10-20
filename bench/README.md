@@ -1670,3 +1670,101 @@ the shape of the lookup gap -- a thousand probes, three sizes:
       20000         0.19         0.25         0.19         1x
 
 ```
+
+## The concurrency benchmark
+
+`bench/concurrency.sh` puts the concurrency models through two questions in
+one repository. The **work lanes** run the same `spin` work (`M` steps) in
+`N` units: serial, real threads, green threads, Go goroutines and Python
+asyncio. The **light lanes** run many short tasks (10,000, or 1,000 OS
+threads) that do `true` and are joined, then the same with a yield each
+round -- creation and switch cost, where green is supposed to win. A
+**one-core** lane runs the real work lane under `taskset` where the system
+has it. Every lane prints `answer(done)`; a lane that fails, throws or
+answers anything else is REFUSED and no number appears; the first run of
+each lane is the warm-up, and the minimum of three timed runs is printed.
+The wall is around the whole process, as in the language benchmark; real
+threads and Go goroutines may use the cores, green threads and the Python
+coroutines share one, and the core count is printed by the harness.
+
+**CONCURRENCY RUN A** -- 2026-10-20, the working tree's build (cocolog
+2.6.0; the numbers were taken on its 2.5.2 build, a version-only
+change), a 16-core Intel Mac running Darwin 25.6.0. The
+command `sh bench/concurrency.sh` with its defaults: work N=8, M=1,000,000;
+light 10,000 tasks (1,000 OS threads), 10 yields each; REPS=3. Go 1.27.1;
+the Go binary is built once before the timing. Python is the interpreter
+behind the pyenv shim (the shim alone spends ~1.7 s and would be the lane).
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 474.3 ms |
+| real threads (`library(thread)`, 8 OS threads) | 180.7 ms |
+| green threads (`library(async)`, 8 green threads) | 1305.3 ms |
+| goroutines (Go, 8 goroutines) | 95.8 ms |
+| coroutines (`asyncio`, 8 tasks) | 573.9 ms |
+
+Light lanes, tasks that do `true` and are joined (10,000 green/Go/Python,
+1,000 OS threads -- the Mac's user-process limit is 2,784, and a cocolog
+thread carries a machine and a store):
+
+| lane | wall | per task |
+|---|---|---|
+| light-real (1,000 OS threads) | 121.2 ms | 121.21 us |
+| light-green (10,000, 64 to a scheduler) | 321.6 ms | 32.16 us |
+| light-goroutine (10,000) | 105.6 ms | 10.56 us |
+| light-python (10,000 asyncio tasks) | 248.1 ms | 24.81 us |
+
+Light + yield, 10 yields each:
+
+| lane | wall | per yield |
+|---|---|---|
+| light-y-real (1,000 x 10, mutex handoff) | 162.5 ms | 16.25 us |
+| light-y-green (10,000 x 10, `yield/0`) | 328.2 ms | 3.28 us |
+| light-y-goroutine (10,000 x 10, `Gosched`) | 123.8 ms | 1.24 us |
+| light-y-python (10,000 x 10, `sleep(0)`) | 365.9 ms | 3.66 us |
+
+One core: `real1` says SKIP on this Mac -- there is no `taskset`; on Linux
+it runs the real work lane under `taskset -c 0`.
+
+What the columns say, and what they do not:
+
+- **work lanes**: the CPU-bound wall. **serial** is the work alone (8,000,000
+  steps on one core); **real threads** are 2.6x faster (eight OS threads
+  over 16 cores); **green threads** are 2.75x SLOWER -- one core,
+  cooperative, plus eight per-spawn store snapshots; **goroutines** are
+  4.9x faster than serial and 1.9x faster than the real lane (Go schedules
+  M:N over the cores; its loop is a tight Go loop, not the Prolog
+  recursion, so this is not a like-for-like engine comparison); **asyncio**
+  is 1.2x serial (one core, the GIL; the real interpreter, not the shim).
+- **light lanes**: creation and join. Here green is what it is for:
+  **32.16 us a task against the OS thread's 121.21** (~3.8x cheaper), and
+  **3.28 us a yield against the mutex handoff's 16.25** (~5x cheaper),
+  snapshot included. Go's goroutines are cheaper still (10.56 us a task,
+  1.24 us a yield); Python's asyncio sits between. The counts differ by
+  lane (the OS lane is capped at 1,000), which is why the table prints the
+  per-task and per-yield cost rather than the wall alone.
+- The green lane's per-spawn snapshot is the model's fixed cost: a green
+  thread is a machine and a store of its own, filled from the caller's
+  knowledge base, because a store belongs to one machine. It is the reason
+  the work lane is slower and the light lane is still competitive.
+- **one core**: without `taskset` the Mac cannot pin an OS thread; the
+  lane is written and says SKIP. On Linux it is the fair scheduler
+  comparison with green: the real work lane on one core against the green
+  work lane.
+
+So "is green faster than an OS thread?" depends on the question: **no**
+for CPU-bound wall time on many cores, **yes** per task and per switch --
+the light lanes measure that, and the work lane measures the other. The
+green thread is a cocolog machine with a cocolog store, its writes its own;
+the Python coroutine shares one interpreter's memory; the Go goroutines
+share the Go runtime and may use the cores; the real threads share nothing
+but the process.
+
+A workload note found on the way: `between(1, 2000, _), fail` in a green
+store is not a benchmark of the scheduler -- a library predicate with a
+choice point per answer takes seconds there, against a recursion's
+milliseconds, so `bench/spin.pl` is a recursion. That is a fact about the
+green store's copied library clauses, not about the scheduler; it is why
+`test/async.pl` works in `spin/1` too.

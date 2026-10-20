@@ -551,8 +551,9 @@ ix_capability('hashing or ciphers', [sha, hash, hmac, aes, encrypt],
               [sha, aes], ['tier-2 library'], local).
 ix_capability(sockets, [socket, tcp, listen, connect, port],
               [tcp], ['tier-2 library'], local).
-ix_capability(threads, [thread, concurrent, worker, parallel, channel, crew, pool],
-              [thread, cowork], ['bulk KB write'], local).
+ix_capability(threads, [thread, concurrent, worker, parallel, channel, crew, pool,
+                        'green thread', goroutine, async, await, yield, cooperative],
+              [thread, cowork, async], ['bulk KB write'], local).
 ix_capability(processes, [subprocess, spawn, exec, 'shell out'],
               [process], ['tier-2 library'], local).
 ix_capability('the knowledge base',
@@ -614,8 +615,9 @@ ix_capability('files and paths', [file, directory, path, 'read a file'],
               [], ['self-checking program'], local).
 ix_capability('text and atoms', [string, text, atom, split, join, case],
               [text], ['self-checking program'], local).
-ix_capability('the operating system', [platform, 'which os', cpus, 'temp dir', environment],
-              [os], ['self-checking program'], local).
+ix_capability('the operating system', [platform, 'which os', cpus, 'temp dir', environment,
+                                       signal, signals, sigint, 'ctrl-c', interrupt, handler],
+              [os, signal], ['self-checking program'], local).
 ix_capability('assert and retract', [assert, retract, remember, counter, mutable],
               [], ['assert/retract'], local).
 ix_capability('a command line', [argv, 'command line', flag, option, usage, script],

@@ -223,7 +223,7 @@ cocolog: check-cicili cocolog.cicili $(LIB_SOURCES) $(CLIENT_LIB) $(BUILD)/tls.o
 # after a `make' that stopped -- was otherwise said only by running the
 # script by hand.
 modules:
-	@for m in tcp thread process text os curl bigint torch tensorflow sha aes der x509 tls ray numpy opencv clay stream; do \
+	@for m in tcp thread process text os signal curl bigint torch tensorflow sha aes der x509 tls ray numpy opencv clay stream; do \
 	  printf '%-8s ' "$$m"; \
 	  if CICILI="$(CICILI)" ZIGURATIP="$(ZIGURATIP)" sh modules/$$m/build.sh >/dev/null 2>&1; then \
 	    echo "built"; \

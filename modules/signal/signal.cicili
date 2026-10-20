@@ -1,0 +1,202 @@
+;;;; cocolog -- POSIX signals, as a module: SWI's on_signal/3,
+;;;; current_signal/3 and raise_signal/1, and the names and numbers.
+;;;
+;;;; WHY THIS EXISTS. Every shell script that must stop a runaway goal,
+;;;; reload a configuration on SIGHUP, or clean up on SIGTERM starts by
+;;;; writing a C file with a handler that sets a flag and a loop that
+;;;; polls it. The flag is the point: a handler may assign only a
+;;;; volatile sig_atomic_t and call nothing, so the work happens at a
+;;;; safe point in ordinary code. cocolog already has the safe point --
+;;;; the engine's `halted' cell, tested once at the top of every step --
+;;;; so a handler writes 3 + SIGNO there and the next step raises
+;;;; error(signal(Name, Num), _), SWI's ball, which catch/3 can take.
+;;;;
+;;;; THE SPLIT IS THE USUAL ONE. The C half is the calls Prolog cannot
+;;;; make -- signal(2), raise(2), and the one safe write -- each a thin
+;;;; answer; the Prolog half is the validation, the errors, and the
+;;;; enumeration, in clauses a reader can query.
+;;;;
+;;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit;
+;;;; modules/tcp/tcp.cicili says why at its top.
+;;;
+;;;; THE SURFACE:
+;;;
+;;;;   on_signal(+Sig, -Old, +New)     New = default | ignore | throw
+;;;;   on_signal(+Sig, -Old, -New)     query: Old and New are the current
+;;;;   current_signal(?Name, ?Id, ?H)  enumerate the named signals
+;;;;   raise_signal(+Sig)              raise(2), through the OS
+;;;;   signal_name(+Sig, -Name)
+;;;;   signal_number(+Sig, -Number)
+;;;
+;;;; Sig is a name atom (`int', `usr1', `term', ... -- SIG lowercased,
+;;;; SWI's spelling) or a number. `throw' is the catcher: the signal is
+;;;; delivered at the next engine step as error(signal(Name, Num), _).
+;;;; `default' restores the OS disposition, `ignore' SIG_IGN.
+;;;
+;;;; THE LIMITS, stated where a reader meets them. A signal is delivered
+;;;; at the next STEP; a blocking foreign call (read, accept, sleep)
+;;;; defers it until the call returns, and `throw' is installed with
+;;;; signal(2), whose BSD semantics -- glibc's and Darwin's -- keep the
+;;;; handler and restart interrupted calls. The handler writes the
+;;;; innermost engine's `halted' cell through the machine's `haltp'; a
+;;;; program that runs goals in another machine (library(thread) gives
+;;;; each thread one) must install its signals in that machine's own
+;;;; process, and a signal delivered to another thread stops the machine
+;;;; that installed it. The tests use one machine, as the REPL does.
+;;;;
+;;;; The REPL installs SIGINT throw at start-up, so Ctrl+C during a goal
+;;;; is a catchable error(signal(int, 2), _) and the prompt returns; at
+;;;; the prompt the line editor's raw mode owns Ctrl+C and Ctrl+D, as it
+;;;; always did.
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *signal-predicates*
+  '(("$signal_pairs"   1 coco_signal_pairs_pred)
+    ("$signal_current" 2 coco_signal_current)
+    ("$signal_set"     2 coco_signal_set)
+    ("$signal_raise"   1 coco_signal_raise_pred)))
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half
+;;;; ------------------------------------------------------------------
+;;; Joined with spaces -- a Cicili string literal cannot carry a newline.
+;;; Every `$'-prefixed head is quoted: a module's Prolog half would not
+;;; consult it otherwise.
+(DEFPARAMETER *signal-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; The table's names and numbers, and the two directions.
+           "signal_name(S, Name) :- signal_number(S, N), '$signal_pairs'(P), member(Name-N, P), !."
+           "signal_number(S, N) :- integer(S), '$signal_pairs'(P), member(_-S, P), !, N = S."
+           "signal_number(S, N) :- atom(S), '$signal_pairs'(P), member(S-N0, P), !, N = N0."
+           "signal_number(S, _) :- integer(S), !, throw(error(type_error(signal, S), _))."
+           "signal_number(S, _) :- atom(S), !, throw(error(domain_error(signal, S), _))."
+           "signal_number(S, _) :- var(S), !, throw(error(instantiation_error, _))."
+           "signal_number(S, _) :- throw(error(type_error(signal_name, S), _))."
+
+           ;; The enumeration: every named signal with its current
+           ;; handler. A bound name or number narrows it.
+           "current_signal(Name, N, H) :- '$signal_pairs'(P), member(Name-N, P), '$signal_current'(N, H)."
+
+           ;; The query and the setter. A variable New asks only; both
+           ;; Old and New answer the current handler. A given New is
+           ;; validated before anything is changed, and the old answer is
+           ;; read before the new is installed.
+           "on_signal(S, Old, New) :- signal_number(S, N), ( var(New) -> '$signal_current'(N, Old), New = Old ; signal_handler(New), '$signal_current'(N, Old), ( '$signal_set'(N, New) -> true ; throw(error(system_error, _)) ) )."
+           ;; ONE CLAUSE, not three facts and a catch-all: a module's
+           ;; Prolog half is muted, and a first-argument index built on the
+           ;; first atom key answers a later different key with the
+           ;; variable-head clause alone (found by this very test: ignore
+           ;; then default threw). A variable head keeps the call walking
+           ;; the one clause, and the comparisons decide.
+           "signal_handler(X) :- ( X == default -> true ; X == ignore -> true ; X == throw -> true ; var(X) -> throw(error(instantiation_error, _)) ; throw(error(domain_error(signal_handler, X), _)) )."
+
+           ;; raise(2) of the OS, not the engine's ball: SIGTERM ends
+           ;; the process, SIGUSR1 reaches our own handler, and a
+           ;; `throw' handler turns the latter into the catchable error.
+           "raise_signal(S) :- signal_number(S, N), ( '$signal_raise'(N) -> true ; throw(error(system_error, _)) ).")))
+
+(generic impl-signal
+  ()
+
+  ;; THE ACTION TABLE. 0 default, 1 ignore, 2 throw; index 1..64 so the
+  ;; signal number is the index. The OS disposition is set by $signal_set;
+  ;; this table is what current_signal/3 reports, since signal(2) has no
+  ;; portable way to read the handler back.
+  (static) (var int sigs [65])
+
+  ;; THE CELL A HANDLER WRITES. `coco_m_signal_cell' answers the calling
+  ;; engine's `halted' as a sig_atomic_t *; a handler writes through it and
+  ;; calls nothing. The std's sig_atomic_t is the type; the engine's cell is
+  ;; volatile, and the write is the one assignment C allows in a handler.
+  (static) (var sig_atomic_t * sig_cell)
+
+  (static)
+  (func coco_signal_atom ((int n)) (out const char *)
+        (let ((int h . #'(nth n sigs)))
+          (cond ((== h 2) (return "throw"))
+                ((== h 1) (return "ignore"))
+                (#t (return "default")))))
+
+  ;;; THE HANDLER. Only a volatile sig_atomic_t may be assigned in an
+  ;;; asynchronous handler: no Prolog, no term, no malloc, no stdio. A
+  ;;; second signal while one is pending is dropped (the cell is already
+  ;;; non-zero), which is the coalescing POSIX promises.
+  (static)
+  (func coco_signal_catch ((int signo)) (out void)
+        (if (== sig_cell nil) (return))
+        (if (== (cof sig_cell) 0)
+            (set (cof sig_cell) (+ 3 signo))))
+
+  ;;; ---- $signal_pairs(-Pairs): Name-Number, from the engine's table ---
+  (func coco_signal_pairs_pred ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_m_unify e (coco_m_arg e g 0) (coco_m_signal_pairs e))))
+
+  ;;; ---- $signal_current(+N, -Handler) ---------------------------------
+  (func coco_signal_current ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (or (< n 1) (> n 64)) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 1)
+                                     (coco_signal_atom (cast int n))))))
+
+  ;;; ---- $signal_set(+N, +Handler) -------------------------------------
+  ;;; signal(2), not sigaction(2): glibc and Darwin both give it BSD
+  ;;; semantics, so the handler stays installed and interrupted calls
+  ;;; restart. The disposition constants are #defines, which is the one
+  ;;; corner of this call the Cicili std cannot type (it declares SIG_DFL
+  ;;; and SIG_IGN as int), so the call itself is written in the escape --
+  ;;; the same licence modules/os takes for uname and sysconf.
+  (func coco_signal_set ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0) (char h [32]))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (or (< n 1) (> n 64)) (return 0))
+          (if (not (coco_m_text e (coco_m_arg e g 1) h (sizeof h))) (return 0))
+          (cond
+            ((== 0 (strcmp h "default"))
+             (code "{ signal((int) n, SIG_DFL); }")
+             (set (nth (cast int n) sigs) 0))
+            ((== 0 (strcmp h "ignore"))
+             (code "{ signal((int) n, SIG_IGN); }")
+             (set (nth (cast int n) sigs) 1))
+            ((== 0 (strcmp h "throw"))
+             (block
+              (set sig_cell (cast (sig_atomic_t *) (coco_m_signal_cell e)))
+              (code "{ signal((int) n, coco_signal_catch); }")
+              (set (nth (cast int n) sigs) 2)))
+            (#t (return 0)))
+          (return 1)))
+
+  ;;; ---- $signal_raise(+N): raise(2) -----------------------------------
+  (func coco_signal_raise_pred ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n))) (return 0))
+          (if (!= 0 (raise (cast int n))) (return 0))
+          (return 1)))
+
+  (static) (coco-emit-module-dispatch coco_signal_dispatch *signal-predicates*)
+
+  ) ; impl-signal
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "signal.c"
+  (make :std #t :compile #f)
+
+  (include <signal.h>)
+  (include <string.h>)
+
+  (import "./sdk.cicili")
+  (coco-sdk)
+
+  ;; The handler writes the engine's `volatile sig_atomic_t' through the
+  ;; machine's `haltp'; the one line is raw because that is the object,
+  ;; and a module that never includes <signal.h> must not need it.
+
+  (impl-signal)
+
+  (coco-deflibrary "signal" coco_signal_dispatch *signal-prolog*))

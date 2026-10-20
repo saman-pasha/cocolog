@@ -63,6 +63,8 @@ modules/stream/stream.c
 modules/stream/sdk.cicili
 modules/os/os.c
 modules/os/sdk.cicili
+modules/signal/signal.c
+modules/signal/sdk.cicili
 modules/numpy/numpy.c
 modules/numpy/sdk.cicili
 modules/opencv/coco-opencv.cpp

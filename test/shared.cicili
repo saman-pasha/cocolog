@@ -44,6 +44,8 @@
 
   (import "../lib/zigurat.cicili" :zg)
   (import "../lib/zeytun.cicili" :zt)
+  ;; sig_atomic_t, for the engine's halted cell (2.6.0)
+  (include <signal.h>)
   (import "../lib/term.cicili")
   (import "../lib/syntax.cicili")
   (import "../lib/dcg.cicili")

@@ -143,6 +143,14 @@
 ;;; engine's lifetime is the interpreter's; pthreads and queues are the
 ;;; module's. Answers 1 succeeded, 0 failed, -1 raised with ERR filled in.
 (decl) (func coco_m_run_isolated ((const char * src) (char * err) (size_t errlen)) (out int))
+
+;;; SIGNALS (2.6.0), for library(signal). The first answers the calling
+;;; engine's `halted' cell as a `void *': a handler writes `3 + signo'
+;;; there and calls nothing. The second answers the named signals as
+;;; Name-Number pairs (SWI's names), the list the library enumerates.
+(decl) (func coco_m_signal_cell ((coco_engine * e)) (out void *))
+(decl) (func coco_m_signal_pairs ((coco_engine * e)) (out size_t))
+
 (decl) (func coco_m_new_float ((coco_engine * e) (double v)) (out size_t))
 (decl) (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t))
 

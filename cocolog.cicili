@@ -181,6 +181,8 @@
 
   (import "./lib/zigurat.cicili" :zg)
   (import "./lib/zeytun.cicili" :zt)
+  ;; sig_atomic_t, for the engine's halted cell and the signal library
+  (include <signal.h>)
   (import "./lib/term.cicili")
   (import "./lib/syntax.cicili")
   (import "./lib/dcg.cicili")
@@ -193,6 +195,7 @@
   (import "./lib/builtins.cicili")
   (import "./lib/library.cicili")
   (import "./lib/state.cicili")
+  (import "./lib/green.cicili")
   (import "./lib/zigurat-kb.cicili")
   (import "./lib/zigurat-mod.cicili")
   (import "./lib/zeytun-kb.cicili")
@@ -216,6 +219,7 @@
   ;; ...and the half that needs an engine comes after there is one
   (decl-dcg-module) (impl-dcg-module)
   (decl-state)  (impl-state)
+  (decl-green)  (impl-green)
   (decl-zigurat-kb) (impl-zigurat-kb)
   (decl-zigurat-mod) (impl-zigurat-mod)
   (decl-zeytun-kb)  (impl-zeytun-kb)
@@ -386,7 +390,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.5.1"))
+  (func coco_version_text () (out const char *) (return "2.6.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -1351,11 +1355,30 @@
   ;;; one committed transaction, exactly as `query' has it. Prompts appear
   ;;; only at a terminal, and piped input has its unechoed `;' restored on
   ;;; the way out, so a transcript reads as a terminal session does.
+  ;;; THE REPL'S SIGINT, WITHOUT A MODULE (2.6.0). Ctrl+C during a goal is a
+  ;;; real SIGINT -- the line editor's raw mode is off while a goal runs --
+  ;;; so the default action would end the session. The handler writes the
+  ;;; main machine's live `halted' cell, the one write a signal handler may
+  ;;; make, and the engine's next step raises error(signal(int, 2), _).
+  ;;; library(signal)'s `throw' handler, loaded just below when its .so is
+  ;;; on the library path, writes the same cell and also answers
+  ;;; current_signal/3; this fallback keeps a checkout with no modules
+  ;;; usable. The pointer is the ADDRESS of `m.haltp', stable for the
+  ;;; session; the pointer in it is the running engine's cell, nil between
+  ;;; goals (coco_engine_next).
+  (static) (var sig_atomic_t * coco_repl_cell)
+  (static)
+  (func coco_repl_sigint ((int signo)) (out void)
+        (if (== coco_repl_cell nil) (return))
+        (if (== (cof coco_repl_cell) 0)
+            (set (cof coco_repl_cell) (+ 3 signo))))
+
   (func cmd_repl () (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
               (int tty . #'(isatty 0)) (int quit . 0) (int session_rc . 0)
               (int batched . 0)
-              (char histpath [512]) (const char * hf . nil))
+              (char histpath [512]) (const char * hf . nil)
+              (char libpath [1024]) (int lkind . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))
@@ -1371,6 +1394,22 @@
           ;; asserted has to be in the database by the time its own commit
           ;; runs, and the next goal starts a fresh one.
           (set batched (batch_open (aof z)))
+
+          ;; The fallback first, so a session in a checkout without
+          ;; library/signal.so still catches Ctrl+C; the module, when it is
+          ;; on the path, is loaded and asked for its `throw' handler, which
+          ;; writes the same cell and makes current_signal(int,_,throw) say
+          ;; what the session does. Both answers are ignored: a missing or
+          ;; broken module leaves the fallback in place, and the next goal
+          ;; re-asks the engine anyway.
+          (set coco_repl_cell (cast (sig_atomic_t *) (aof ($ e halted))))
+          (code "{ signal(SIGINT, coco_repl_sigint); }")
+          (if (and (lb_find "signal" libpath (sizeof libpath) (aof lkind))
+                   (== lkind 1))
+              (if (coco_engine_ask_text (aof e)
+                      "use_module(library(signal)), catch(on_signal(int,_,throw), _, true)")
+                  (coco_engine_next (aof e))
+                (block)))
 
           (if tty
               (block
@@ -2314,6 +2353,9 @@
                    (return 0)))
         (if (not (coco_zigurat_module))
             (block (fprintf stderr "cocolog: the zigurat module would not register\n")
+                   (return 0)))
+        (if (not (coco_green_module))
+            (block (fprintf stderr "cocolog: the green module would not register\n")
                    (return 0)))
         (return 1))
 

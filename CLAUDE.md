@@ -313,8 +313,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 65 `.pl` cases in `pl_names/1`
--- **72 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 67 `.pl` cases in `pl_names/1`
+-- **74 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -670,6 +670,7 @@ where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
 then `./library`, then `<exedir>/library`, then `<exedir>/lib/swipl` -- the
 path is anchored to the binary, so an installed cocolog loads its own
 libraries. `library/*.pl` are clauses only (http, httpd, websocket, json,
+async (green threads over the compiled-in green module),
 xml, html, ca, kbs, cowork, main, astar, hex, template, clay_ray, tensor_expr, llm,
 and `library/reasoning/` and `library/flow/`: `flow/chart` and
 `flow/debug`, each with its parts beside it, `dbg*.pl` the debugger's);
@@ -681,7 +682,7 @@ cocolint index offers no import of it.
 `.cicili`, a `build.sh` (`sh modules/NAME/build.sh`), output nobody commits
 -- and **none of them is part of `make`**:
 
-| needs nothing | `tcp` `thread` `process` `text` `os` `clay` (Clay vendored, one header) `stream` |
+| needs nothing | `tcp` `thread` `process` `text` `os` `signal` `clay` (Clay vendored, one header) `stream` |
 |---|---|
 | a BUILT ZiguratIP | `sha` `aes` `der` (libEncoding only) `x509` `tls` `bigint` |
 | an external library | `curl` (libcurl), `torch` (libtorch), `tensorflow` (its C API), `ray` (raylib), `numpy` (python3 with numpy and a shared libpython), `opencv` (OpenCV 4 with dnn) |
@@ -1879,6 +1880,46 @@ cocolint index offers no import of it.
   `subterm_positions` on a pipe too; a seek or a write to an update stream
   leaves the counters behind `ftell`, and `st_pos_sync` counts again from
   the start.
+
+* **A signal is a halt code** (2.6.0): a handler in `modules/signal` writes
+  `4 + SIGNO` into the engine's `halted` cell (the one object a handler may
+  assign), and `coco_halted_step` (lib/solve.cicili) flushes the
+  continuation, builds `signal(Name, Num)` from `coco_signal_name`'s one
+  name table, and raises `error(signal(Name,Num), _)`; codes are below 128.
+  The module's handler is a Cicili function writing a `sig_atomic_t *`
+  (`coco_m_signal_cell` answers the calling engine's cell); the raw C left
+  in that module is the `signal(2)` dispositions, because the std's
+  `SIG_DFL`/`SIG_IGN` are ints and its handler is a function pointer.
+  `coco_m_signal_pairs` answers the names. `coco_error_text` prints SWI's
+  `Caught signal N (Name)`. The REPL installs a core SIGINT fallback over
+  the same cell before it tries `library(signal)`'s throw, and the plan's
+  limits hold: delivery is at the next step, a blocking foreign call
+  defers it, and a handler installed in a green thread's machine writes
+  that machine's cell. `test/signal.pl`, lesson 53.
+* **Green threads are a compiled-in module** (2.6.0, `lib/green.cicili`,
+  registered as `green` in `setup`), and `library(async)` is the clauses
+  over its `$async_*` C. Each green thread is a machine and a STORE of its
+  own, filled at spawn from a snapshot of the caller's store: a store's
+  atom and functor tables belong to one machine, and `coco_thaw` empties
+  the store it thaws into (the `cocolog step` scheduler reloads after every
+  thaw), so a shared store is not a choice. The scheduler is COOPERATIVE
+  (yield, await, a channel block, or the goal's end): a green thread is not
+  preempted. The engine's step limit is the freeze scheduler's stop; a
+  direct continuation after "inference limit reached" restarts the clause,
+  so the quantum is not used (found by `test/async.pl`'s first
+  `between(1,2000,_), fail`). A result is the goal as instantiated, in
+  canonical text; a throw is rethrown by `await/2`; a deadlock is the
+  scheduler's, raised at `async_run/1`. 64 threads and 64 channels.
+  `test/async.pl`, lesson 54, `bench/concurrency.sh`, `library/async/README.md`. A library predicate
+  with a choice point per answer (`between/3`) is slow in a green store --
+  the concurrency benchmark's workload is a recursion, and the finding is
+  recorded there.
+* **A `{}` or `[]` FUNCTOR is written quoted** (2.6.0): `coco_write_atom`
+  grew bit 32, the functor's force, used for those two names in the
+  canonical application path, so `{}(X)` is `'{}'(X)` and reads back. The
+  atom `{}` alone still writes unquoted. A snapshot of SWI's yall library
+  found it: `lambda_free({}(_G))` would not consult until the writer
+  quoted it.
 
 ## The document libraries
 
@@ -4250,7 +4291,7 @@ read into an English-worded IR and written into any lesson's language),
 
 ## Tutorials are documentation that runs
 
-`tutorials/` holds 131 files -- `basics/` 13, `library/` 53, `opencv/` 23,
+`tutorials/` holds 133 files -- `basics/` 13, `library/` 55, `opencv/` 23,
 `tensor/` 42 -- and `test/tutorials.pl` runs them all (300 s a lesson, 600 s
 for opencv, 900 s for `library/45-tagger`). **Every claim is a `must/3`**,
 repeated at the bottom of each file so a lesson can be copied anywhere; a
@@ -4315,7 +4356,7 @@ than its cause:
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
-| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs |
+| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs. And the concurrency benchmark (`sh bench/concurrency.sh`): real threads, green threads, Go goroutines and Python asyncio on the spin workload, the light spawn/switch lanes, and the one-core real lane under `taskset`; answer-gated, the first run of each lane thrown away. `library/async/README.md` has the model, the numbers and the shared-heap design note |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`

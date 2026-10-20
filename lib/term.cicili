@@ -394,6 +394,12 @@
     (member size_t hi)
     (member int    pinned))
 
+  ;;; A SIGNAL'S HANDLER WRITES THE ENGINE'S `halted' CELL, and nothing
+  ;;; else (2.6.0): C allows an asynchronous handler to assign only a
+  ;;; `volatile sig_atomic_t', which is what every `halted' now is. The
+  ;;; alias is one Cicili type token, so a member can name it.
+  (@define (code "coco_sig_halt volatile sig_atomic_t"))
+
   ;;; The machine. Everything in it is either a plain array of words or a
   ;;; length -- which is the whole point, and what `state.cicili' relies on.
   (struct coco_machine
@@ -579,8 +585,10 @@
     ;; ITS `halted', for a growth that was refused and then given less
     ;; (`coco_grow_short') to stop the run with, which raises
     ;; resource_error(memory) at its next step (1.10.28). Set and put back
-    ;; beside `eng'; nil when no engine runs.
-    (member int *      haltp)
+    ;; beside `eng'; nil when no engine runs. A signal handler writes the
+    ;; same cell, through the address `coco_m_signal_cell' gives a module
+    ;; (2.6.0), so it is `volatile sig_atomic_t'.
+    (member coco_sig_halt *      haltp)
     ;; `coco_gc_floor', read by the first run on the machine (0 until then),
     ;; for a builtin that starts a nested engine to raise the threshold by
     ;; (`coco_gc_nested_begin')

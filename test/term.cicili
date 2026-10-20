@@ -25,6 +25,8 @@
         :compile ("-Wno-parentheses-equality" "-Wno-dangling-else" "-c" "term.c")
         :link ("-lterm.o" "-o" "cocolog_term_test"))
 
+  ;; sig_atomic_t, for the engine's halted cell (2.6.0)
+  (include <signal.h>)
   (import "../lib/term.cicili")
 
   (decl-term)

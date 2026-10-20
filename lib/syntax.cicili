@@ -1765,7 +1765,12 @@
   ;;; too and as the store, a channel and a message always have.
   (static)
   (func coco_write_atom ((coco_strbuf * b) (const char * name) (int quoted)) (out int)
-        (if (or (== 0 (bitand quoted 1)) (not (coco_atom_needs_quotes name)))
+        ;; 32 is the functor's force: `{}` and `[]` stand alone unquoted,
+        ;; but as a FUNCTOR they must be `'{}'(X)` and `'[]'(X)`, or the
+        ;; reader takes the brace for the construct and stops. A snapshot
+        ;; of SWI's yall library found it (2.6.0).
+        (if (or (== 0 (bitand quoted 1))
+                (and (== 0 (bitand quoted 32)) (not (coco_atom_needs_quotes name))))
             (return (coco_sb_put b name)))
         (if (not (coco_sb_putc b (cast char (coco-ch "'")))) (return 0))
         (let ((int esc . #'(bitand quoted 16)))
@@ -2006,7 +2011,9 @@
                        (return 1))))))
 
           ;; canonical application
-          (coco_write_atom b name quoted)
+          (if (or (== 0 (strcmp name "{}")) (== 0 (strcmp name "[]")))
+              (coco_write_atom b name (bitor quoted 32))
+            (coco_write_atom b name quoted))
           (coco_sb_putc b (cast char (coco-ch "(")))
           (for ((u32 i . 0)) (< i n) ((++ i))
             (if (> i 0) (coco_sb_putc b (cast char (coco-ch ","))))

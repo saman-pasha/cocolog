@@ -1,4 +1,4 @@
-# `modules/` — the seventeen loadable modules
+# `modules/` — the twenty loadable modules
 
 One directory each, all the same shape: a `.cicili`, a `build.sh`, and
 output nobody commits. **None of them is part of `make`**, which is the
@@ -16,6 +16,7 @@ still builds and still runs.
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
 | `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
 | `os` | which operating system, who am I, how many cores, what is in the environment, where is a tool -- the questions a suite used to put to `uname`, `command -v`, `nproc` and `$TMPDIR`, answered by libc | nothing |
+| `signal` | POSIX signals as SWI's `on_signal/3`, `current_signal/3` and `raise_signal/1`: a handler writes the engine's `halted` cell and nothing else, and the next step raises `error(signal(Name, Num), _)`, which `catch/3` takes. The REPL installs SIGINT throw, so Ctrl+C stops a goal and returns to the prompt | nothing |
 | `curl` | an HTTP client, to a URL or down a socket file (`unix_socket(Path)`) | libcurl |
 | `bigint` | `Zigurat::BigInt` — integers that do not wrap | a built ZiguratIP |
 | `torch` | Prolog that trains | libtorch |

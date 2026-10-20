@@ -780,6 +780,26 @@
 
   (func coco_m_machine ((coco_engine * e)) (out coco_machine *) (return (-> e m)))
 
+  ;;; SIGNALS (2.6.0). The first is what a loadable module's signal handler
+  ;;; writes: the calling engine's own `halted' cell, as a `void *'. A
+  ;;; handler installed in a goal writes that goal's engine; a signal that
+  ;;; arrives while a nested engine runs is raised when the outer engine
+  ;;; next steps (the limit of this simpler cell, stated in the library).
+  ;;; The second is the engine's one name table as Name-Number pairs, which
+  ;;; the module's Prolog half enumerates.
+  (func coco_m_signal_cell ((coco_engine * e)) (out void *)
+        (return (cast (void *) (aof (-> e halted)))))
+
+  (func coco_m_signal_pairs ((coco_engine * e)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m)) (size_t lst . #'(coco_m_nil e)))
+          (for ((int n . 1)) (<= n 64) ((++ n))
+            (let ((const char * nm . #'(coco_signal_name n)))
+              (if (!= nm nil)
+                  (set lst (coco_m_cons e
+                             (coco_make2 m "-" (coco_new_atom m nm) (coco_new_int m n))
+                             lst)))))
+          (return lst)))
+
   (func coco_m_tensor_put ((coco_engine * e) (const char * name) (i64 seq)
                          (const double * v) (u32 n)) (out int)
         (let ((coco_store * st . #'(-> e st)))

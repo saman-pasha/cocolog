@@ -197,16 +197,20 @@ library/               THE LIBRARY PATH, and what ships on it: http.pl
                        main.pl, astar.pl, hex.pl, template.pl (text with
                        holes: values, conditions, loops, ranges and
                        queries, escaped for text, HTML, XML or JSON),
+                       async.pl (Go's go, yield, await and channels as
+                       green threads, each with a store of its own),
                        clay_ray.pl and llm.pl,
                        reasoning/ (controlled English, a tagger and a
                        translator), and the .so's and flow/tables.pl that
                        `make modules' builds
-modules/               the LOADABLE modules, nineteen, one directory each --
-                       tcp, thread, process, text, os, curl, bigint, torch,
-                       tensorflow, numpy, opencv, ray, clay (a user
-                       interface as a term, laid out by Clay), stream (files
-                       as streams: bytes, text, terms, formatted) and
-                       ZiguratIP's cryptography: sha, aes, der, x509, tls.
+modules/               the LOADABLE modules, twenty, one directory each --
+                       tcp, thread, process, text, os, signal (POSIX
+                       signals as catchable errors at the next step),
+                       curl, bigint, torch, tensorflow, numpy, opencv,
+                       ray, clay (a user interface as a term, laid out by
+                       Clay), stream (files as streams: bytes, text,
+                       terms, formatted) and ZiguratIP's cryptography:
+                       sha, aes, der, x509, tls.
                        None is part of
                        `make': a cocolog with no libtorch, no libcurl and no
                        OpenCV still builds and still runs. `make' DOES need a
@@ -290,7 +294,7 @@ two images, built together by `make docker`:**
 
 | image | what is in it |
 |---|---|
-| `cocolog` (tags `VERSION`, `latest`) | cocolog, its fourteen loadable modules, ZiguratIP — and no Python |
+| `cocolog` (tags `VERSION`, `latest`) | cocolog, its fifteen loadable modules, ZiguratIP — and no Python |
 | `cocolog:ray-torch-numpy` (tags `VERSION-ray-torch-numpy`, `ray-torch-numpy`) | the same, and `library(ray)` with `library(clay_ray)` (raylib 6.0, drawing on Xvfb's screen when there is no other), `library(torch)` (PyTorch's CPU libraries) and `library(numpy)` — torch's pip brings Python into this one anyway, and numpy embeds it |
 
 Any other mix is a build argument away — `WITH_NUMPY`, `WITH_OPENCV`,
