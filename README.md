@@ -3,10 +3,10 @@
 ![cocolog, the bridge between the three](art/banner.svg)
 **Computation become durable knowledge.**
 
-cocolog is a Prolog -- SWI's language, and SWI's answers except where one
-table says otherwise -- and a **state machine**, whose running proofs are data
-that can be suspended into a database and finished by another process, on
-another machine, a day later.
+cocolog is a Prolog -- the ISO core, the everyday conveniences, and a checked
+table for the few places it deliberately differs -- and a **state machine**,
+whose running proofs are data that can be suspended into a database and
+finished by another process, on another machine, a day later.
 
 It is written in [Cicili](https://github.com/saman-pasha/cicili) and keeps its
 knowledge base in [ZiguratIP](https://github.com/saman-pasha/ziguratip), and it
@@ -46,7 +46,7 @@ it. See [The flow libraries](#the-flow-libraries) below.
 
 | | |
 |---|---|
-| **A language** | SWI's Prolog: the ISO core, DCGs, exceptions, `format`, SWI's own eight libraries read at start-up. Where it differs from SWI and ISO, one table says so, and every row was checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
+| **A language** | A Prolog: the ISO core, DCGs, exceptions, `format`, eight classic libraries read at start-up. The places it deliberately differs from the reference implementations are one table, every row checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
 | **A state machine** | A proof is a term. Freeze it, store it, read it back in another process, go on. The store is MVCC (ZiguratIP's MVCCS), transactional by the turn, and a clause is a row. |
 | **A concurrency model** | Green threads as in Go -- `go`, `yield`, `await`, channels -- over ONE shared store, one worker a core, preempted at 10,000 steps. Real threads, which share nothing and copy terms. |
 | **A bridge** | Twenty loadable modules over C and C++ libraries, each declared in a Cicili binding and called as Prolog: sockets, TLS, HTTP, WebSocket, OpenCV, raylib, libtorch, TensorFlow, curl, cryptography. No C pasted into Prolog strings. |
@@ -81,12 +81,13 @@ states in the code why it does not.
 
 ## Philosophy
 
-* **The letter of SWI, where it matters.** Not "familiar": the same text, the
-  same errors, the same exit statuses. Floats are written as swipl 9 writes
-  them, to the digit; `catch/3` stops catching once its goal exits; a cyclic
-  term prints `@(S_1,[S_1=f(S_1)])`. `test/files/*.pl` runs the same files under
-  both systems and compares every answer, and [COMPAT.md](COMPAT.md) is the one
-  table of the places cocolog does not agree.
+* **The letter of the language, where it matters.** Not "familiar": the same
+  text, the same errors, the same exit statuses. A float is written as the
+  shortest text that reads back as the same double; `catch/3` stops catching
+  once its goal exits; a cyclic term prints `@(S_1,[S_1=f(S_1)])`.
+  `test/files/*.pl` runs the same files under a reference Prolog and compares
+  every answer, and [COMPAT.md](COMPAT.md) is the one table of the places
+  cocolog does not agree.
 * **Measure, then claim.** No sentence in the benchmark claims a number that has
   not been printed by a run, and every lane's answers are checked against every
   other lane's before a time may print. The comparison pages keep cocolog's
@@ -96,11 +97,11 @@ states in the code why it does not.
   `must/3` checks; the suite runs all 133 lessons. A lesson that stops being
   true fails and names both answers. The whole tree lints clean, held there by
   `cocolint` and `test/lint.pl`.
-* **One mechanism, not two.** Errors are catchable and carry SWI's ball; a
+* **One mechanism, not two.** Errors are catchable and carry the raised ball; a
   module is a C API bound in Cicili; a library is clauses; a server page is a
   clause; a grammar is compiled in the engine. There is no second language
   hiding under the first.
-* **Nothing rewritten that can be imported.** SWI's own eight libraries,
+* **Nothing rewritten that can be imported.** Eight classic Prolog libraries,
   unmodified in `lib/swipl/`; OpenSSL for crypto and TLS; libcurl for curl;
   ZiguratIP for the durable store; cicili for the language. The repository owns
   what it must -- the engine, the state format, the seam -- and borrows the rest.
@@ -111,8 +112,8 @@ states in the code why it does not.
 
 ## Assets
 
-**The engine** (`lib/`) -- cells and the trail; a reader and a writer at SWI's
-text; compiled clauses (head and body programs keyed by the clause's cell);
+**The engine** (`lib/`) -- cells and the trail; a reader and a writer that
+agree with the standard text; compiled clauses (head and body programs keyed by the clause's cell);
 guards that run a body's leading arithmetic as its clause is entered;
 environments for bodies with constructs; a sliding mark-compact heap collector;
 a tracer and recorder that record exactly what they print; limits in inferences
@@ -133,8 +134,9 @@ that stops the world, channels, futures, deadlock detection. Tier 1: there with
 no import.
 
 **The libraries** -- tier 1 always present: `apply builtins dcg files library
-lists zigurat`, SWI's `assoc pairs ordsets yall aggregate ugraphs dcg_basics
-dcg_high_order`, and `async`. Tier 2 loaded on demand from `$COCOLOG_LIBRARY`:
+lists zigurat`, the eight classics (`assoc pairs ordsets yall aggregate
+ugraphs dcg_basics dcg_high_order`), and `async`. Tier 2 is loaded on demand
+from `$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
 two families below -- `library/flow/` and `library/reasoning/`.
@@ -150,8 +152,8 @@ two families below -- `library/flow/` and `library/reasoning/`.
 `library(flow/chart)` and `library(flow/debug)` (below); `tools/compile/`
 (which clauses nothing changes while a program runs); `tools/cc/` (the clang
 wrappers every build uses); `bench/langs.sh` and `bench/concurrency.sh` (the
-benchmarks against CPython, SWI, Go, Rust and asyncio); `tutorials/` (133
-lessons that run); `test/` (the suite).
+benchmarks against CPython, Go, Rust, asyncio and the reference Prolog);
+`tutorials/` (133 lessons that run); `test/` (the suite).
 
 ## Solutions to real problems
 
@@ -223,11 +225,30 @@ this repository for anyone who writes Prolog.**
   -- the clock, a file, a stream, a thread, the knowledge base -- so the replay
   is the run it explains and does nothing twice.
 
+## The Emacs mode
+
+[emacs/](emacs/README.md) holds **cocolog-mode**, a Prolog major mode with two
+ideas of its own: a variable can be a **colour** instead of a name -- same
+colour, same variable, which is how Prolog scopes them anyway -- and a test
+case lives in a comment beside its rule, where `C-c C-t` runs it and draws the
+whole execution graph underneath, every clause tried, as comments that survive
+git and any other editor.
+
+The mode carries its own Prolog engine in Emacs Lisp, so all of that works with
+nothing installed -- and that engine is a deliberate shadow of this interpreter,
+held to it twice over: offline, `make coco` in `emacs/` asks both the same 234
+queries and compares; live, every graph drawn on a machine with a cocolog binary
+is certified against it on the spot, with the four-port trace of the rule
+refreshing alongside. Pickers insert goals, grammar pieces and torch rules
+(`C-c C-i`, `C-c C-g`), and `C-c C-e` traces a goal under the real interpreter
+in any of the four knowledge-base arrangements.
+
 ## Best libraries and tools
 
 | what you want | reach for |
 |---|---|
 | understand a program, or one run of it | `library(flow/chart)`, `library(flow/debug)` -- lessons 50 and 51 |
+| write Prolog in Emacs | `cocolog-mode` in [emacs/](emacs/): colour variables, tests in comments with execution graphs, an embedded shadow engine |
 | catch the traps of this dialect before they bite | `sh tools/cocolint/lint.sh FILE.pl`; the card, the index, `make lint` |
 | Go-style concurrency inside one process | `library(async)`, tier 1: `async_run`, `go`, `yield`, `await`, channels |
 | an HTTP server whose pages are clauses | `library(httpd)` -- `concurrency(none/thread/green)`; lesson 16 |
@@ -258,8 +279,9 @@ binary without ZiguratIP.
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
 **74 lines: seven Cicili test binaries (term, syntax, solve, module, state,
 zigurat, shared) and sixty-seven Prolog cases**. Cases that need a server,
-swipl 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP` by name rather
-than failing, so read the lines and count the SKIPs, not only the verdict.
+a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
+by name rather than failing, so read the lines and count the SKIPs, not only
+the verdict.
 
 ## Where to read next
 
@@ -267,12 +289,15 @@ than failing, so read the lines and count the SKIPs, not only the verdict.
   arrangement, the store's design, twelve interpreters in four states, the
   tracer, the Emacs mode, the measurements in full.
 * [STATUS.md](STATUS.md) -- what is proved, what it cost, what is known missing.
-* [COMPAT.md](COMPAT.md) -- the one table of every difference from SWI and ISO,
-  each row checked by running the same goal on both.
+* [COMPAT.md](COMPAT.md) -- the one table of every difference from the
+  reference Prologs and ISO, each row checked by running the same goal on
+  both.
 * [MODULES.md](MODULES.md) -- how to write a module in Cicili.
 * [bench/README.md](bench/README.md) -- the runs, the method, and the losses.
 * [library/async/README.md](library/async/README.md) -- the green world: the
   model, the barrier, the benchmarks and the limits.
+* [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
+  reading, the in-comment tests, the shadow engine and its checks.
 
 cocolog 2.9.4. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.
