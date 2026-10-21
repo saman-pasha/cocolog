@@ -936,6 +936,24 @@
             (pthread_mutex_unlock (aof (-> wd lock))))
           (return ready)))
 
+  ;;; A GREEN CHANNEL'S HANDLE IS ITS SLOT PLUS 1024 (2.9.4). library(thread)
+  ;;; keeps its channels in a table of its own, 256 integer slots, and BOTH
+  ;;; modules register channel_send/2, channel_recv/2,3 and channel_close/1:
+  ;;; an integer handle from one is indistinguishable from the other's, and
+  ;;; nothing in dispatch could tell them apart -- a green send could land in
+  ;;; whatever thread channel held the same slot number. The thread module
+  ;;; declines a channel that is not one of its own now (`:declines'), and
+  ;;; that test needs handles it can tell apart: green's live above its
+  ;;; table. ONE PLACE HERE converts, so the world's own code keeps using
+  ;;; slots.
+  (static)
+  (func coco_g_chan_slot ((coco_engine * e) (size_t t)) (out int)
+        (let ((i64 cid . -1))
+          (if (not (coco_m_int e t (aof cid))) (return -1))
+          (if (or (< cid 1024) (>= cid (+ 1024 (cast i64 (-> green_now nchans)))))
+              (return -2))
+          (return (cast int (- cid 1024)))))
+
   (func coco_g_async_channel ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
@@ -947,7 +965,7 @@
             (pthread_mutex_unlock (aof (-> wd lock))))
           (if (< id 0) (return (coco_g_raise e "library(async): 64 channels already")))
           (return (coco_unify m (coco_deref m (coco_arg m g 1))
-                              (coco_new_int m (cast i64 id))))))
+                              (coco_new_int m (+ 1024 (cast i64 id)))))))
 
   (func coco_g_async_send ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
@@ -955,13 +973,14 @@
         (let ((coco_machine * m . #'(-> e m)) (i64 cid . -1)
               (size_t term . #'(coco_deref m (coco_arg m g 1)))
               (size_t sc . #'(coco_deref m (coco_arg m g 2))))
-          (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof cid)))
-              (return (coco_g_raise e "library(async): channel_send/2 wants a channel")))
+          (let ((int slot . #'(coco_g_chan_slot e (coco_deref m (coco_arg m g 0)))))
+            (if (== slot -1)
+                (return (coco_g_raise e "library(async): channel_send/2 wants a channel")))
+            (if (== slot -2)
+                (return (coco_g_raise e "library(async): no such channel")))
+            (set cid slot))
           (let ((green_world * wd . green_now))
             (pthread_mutex_lock (aof (-> wd lock)))
-            (if (or (< cid 0) (>= cid (-> wd nchans)))
-                (block (pthread_mutex_unlock (aof (-> wd lock)))
-                       (return (coco_g_raise e "library(async): no such channel")))
             (let ((green_chan * c . #'(aof (nth cid (-> wd chans))))
                   (char * text . #'(coco_g_write m term)))
               (if (== text nil)
@@ -1003,20 +1022,21 @@
                 (set (-> c nsenders) (+ (-> c nsenders) 1))
                 (set (-> e halted) 128)
                 (pthread_mutex_unlock (aof (-> wd lock)))
-                (return 1)))))))
+                (return 1))))))
 
   (func coco_g_async_recv ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
         (let ((coco_machine * m . #'(-> e m)) (i64 cid . -1)
               (size_t sc . #'(coco_deref m (coco_arg m g 1))))
-          (if (not (coco_m_int e (coco_deref m (coco_arg m g 0)) (aof cid)))
-              (return (coco_g_raise e "library(async): channel_recv/2 wants a channel")))
+          (let ((int slot . #'(coco_g_chan_slot e (coco_deref m (coco_arg m g 0)))))
+            (if (== slot -1)
+                (return (coco_g_raise e "library(async): channel_recv/2 wants a channel")))
+            (if (== slot -2)
+                (return (coco_g_raise e "library(async): no such channel")))
+            (set cid slot))
           (let ((green_world * wd . green_now))
             (pthread_mutex_lock (aof (-> wd lock)))
-            (if (or (< cid 0) (>= cid (-> wd nchans)))
-                (block (pthread_mutex_unlock (aof (-> wd lock)))
-                       (return (coco_g_raise e "library(async): no such channel")))
             (let ((green_chan * c . #'(aof (nth cid (-> wd chans)))))
               (cond
                 ((> (-> c count) 0)
@@ -1093,23 +1113,22 @@
                     (set (-> c nreceivers) (+ (-> c nreceivers) 1))
                     (set (-> e halted) 128))
                   (pthread_mutex_unlock (aof (-> wd lock)))
-                  (return 1)))))))))
+                  (return 1))))))))
 
   (func coco_g_async_close ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . #'(coco_g_need e)))
           (if (!= rc 1) (return rc)))
         (let ((i64 cid . -1))
-          (if (not (coco_m_int e (coco_deref (-> e m) (coco_arg (-> e m) g 0)) (aof cid)))
-              (return (coco_g_raise e "library(async): channel_close/1 wants a channel")))
+          (let ((int slot . #'(coco_g_chan_slot e (coco_deref (-> e m) (coco_arg (-> e m) g 0)))))
+            (if (== slot -1)
+                (return (coco_g_raise e "library(async): channel_close/1 wants a channel")))
+            (if (== slot -2)
+                (return (coco_g_raise e "library(async): no such channel")))
+            (set cid slot))
           (let ((green_world * wd . green_now))
             (pthread_mutex_lock (aof (-> wd lock)))
-            (if (or (< cid 0) (>= cid (-> wd nchans)))
-                (block
-                 (pthread_mutex_unlock (aof (-> wd lock)))
-                 (return (coco_g_raise e "library(async): no such channel")))
-              (block
-               (coco_g_chan_close wd (aof (nth cid (-> wd chans))))
-               (pthread_mutex_unlock (aof (-> wd lock)))))
+            (coco_g_chan_close wd (aof (nth cid (-> wd chans))))
+            (pthread_mutex_unlock (aof (-> wd lock)))
             (return 1))))
   (static) (coco-emit-module-dispatch coco_g_dispatch *green-predicates*)
 

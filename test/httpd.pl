@@ -41,7 +41,7 @@ main :-
     a_file(Root), every_byte(Root), path_rules(Root), never_served(Root), methods(Root),
     the_builtin, the_fence, outer_budget(D), head(Root), no_root,
     pages(D, Root), over_a_socket(D, Root), keep_alive(D, Root), over_a_file(D, Root),
-    the_timings, the_pool(D, Root),
+    the_timings, the_pool(D, Root), green_pool(D, Root),
     module_registry(D), knowledge_base(D, Root), the_prewarm(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -560,9 +560,11 @@ the_pool(D, Root) :-
         atom_concat(D, '/pool.pl', Pool),
         sh_join([':- use_module(''', Pages2, ''').'], UsePages2),
         %% page_limit: the slow page must FINISH -- see `slow_steps/1'
-        sh_join(['pool(Port, N, Accepts) :- httpd_serve(Port, [root(''', Root, '''), workers(N), page_limit(', Limit, ')], Accepts).'], PoolClause),
+        sh_join(['pool(Port, N, Accepts) :- httpd_serve(Port, [root(''', Root, '''), concurrency(thread(N)), page_limit(', Limit, ')], Accepts).'], PoolClause),
         sh_join(['alone(Port, Accepts)   :- httpd_serve(Port, [root(''', Root, '''), page_limit(', Limit, ')], Accepts).'], AloneClause),
-        fixture(Pool, [':- use_module(library(httpd)).', UsePages2, '', PoolClause, AloneClause]),
+        %% THE OLDER SPELLING IS THE SAME POOL: workers(N) is thread(N).
+        sh_join(['legacy(Port, Accepts)  :- httpd_serve(Port, [root(''', Root, '''), workers(2), page_limit(', Limit, ')], Accepts).'], LegacyClause),
+        fixture(Pool, [':- use_module(library(httpd)).', UsePages2, '', PoolClause, AloneClause, LegacyClause]),
         %% It serves at all, through a worker rather than the accepting thread.
         pool_server(Pool, 'pool(18910, 4, 2)', 18910, Pid1),
         hit('http://127.0.0.1:18910/a.txt', C1),
@@ -570,6 +572,10 @@ the_pool(D, Root) :-
         hit('http://127.0.0.1:18910/fast', C2),
         check('and so does a page', C2, '200'),
         reap(Pid1),
+        pool_server(Pool, 'legacy(18915, 1)', 18915, Pid0),
+        hit('http://127.0.0.1:18915/fast', C0),
+        check('workers(N) is the older spelling of concurrency(thread(N))', C0, '200'),
+        reap(Pid0),
         %% ONE SLOW REQUEST, three times, for the ratios below to mean
         %% anything -- and it has to be the page RUNNING, so every answer is
         %% checked too.
@@ -615,6 +621,85 @@ the_pool(D, Root) :-
         %% A case that renamed a .so and put it back would fail dirty if the
         %% run died in between, and would be testing the rename.
     ).
+
+%% CONCURRENCY(GREEN) IS THE SAME POOL OVER library(async), over the ONE
+%% store the world shares: a CONSULTED page answers too (the thread pool
+%% serves only module-registered pages), a slow request still does not hold
+%% the server, and a page that throws costs its answer and nothing else.
+%% The acceptor polls -- accept_poll -- because a store write waits for its
+%% acknowledgement at the barrier; the library's header says why.
+green_pool(D, Root) :-
+    section('concurrency(green): a pool over library(async), over the one store'),
+    (   catch(httpd_mode(green, green(W)), _, fail)
+    ->  true
+    ;   W = 0
+    ),
+    (   W < 1
+    ->  format("     (skipped: a green world of this size has no worker beside the acceptor)~n", [])
+    ;   atom_concat(D, '/pages3.pl', Pages3),
+        slow_steps(Steps), Limit is Steps * 20,
+        sh_join(['httpd_page(''/slow'', _, reply(200, [], done)) :- ( between(1, ', Steps, ', _), fail ; true ).'], SlowPage3),
+        fixture(Pages3,
+                [ '%% The slow page and a broken one, for the green pool as for the',
+                  '%% thread pool.',
+                  SlowPage3,
+                  'httpd_page(''/fast'', _, reply(200, [], quick)).',
+                  'httpd_page(''/boom3'', _, _) :- X is 1/0, write(X).' ]),
+        atom_concat(D, '/green.pl', Green),
+        sh_join([':- use_module(''', Pages3, ''').'], UsePages3),
+        sh_join(['green(Port, N, Accepts) :- httpd_serve(Port, [root(''', Root, '''), concurrency(green(N)), page_limit(', Limit, ')], Accepts).'], GreenClause),
+        fixture(Green,
+                [ ':- use_module(library(httpd)).',
+                  UsePages3,
+                  %% CONSULTED, not loaded: green mode must serve it, and thread
+                  %% mode cannot.
+                  'httpd_page(''/consulted'', _, reply(200, [], consulted)).',
+                  '',
+                  GreenClause ]),
+        green_server(Green, 'green(18950, 3, 3)', 18950, Pid1),
+        hit('http://127.0.0.1:18950/a.txt', GC1),
+        check('a static file comes back through the green pool', GC1, '200'),
+        hit('http://127.0.0.1:18950/fast', GC2),
+        check('and a page from the module registry', GC2, '200'),
+        hit('http://127.0.0.1:18950/consulted', GC3),
+        check('and a CONSULTED page, which the thread pool cannot serve: one store', GC3, '200'),
+        reap(Pid1),
+        green_one_slow(Green, GOnes, GCodes),
+        check('the slow page finishes through green: 200, not cut off', GCodes, ['200', '200', '200']),
+        (   W >= 4
+        ->  green_four(Green, GPooleds),
+            timing_overlapped(GOnes, GPooleds, GP),
+            (   GP == overlapped
+            ->  GPC = parallel
+            ;   GPC = serial
+            ),
+            parallel_check('four at once through green take about one', GPC)
+        ;   format("     (skipped: four at once -- this world has ~w worker(s) beside the acceptor)~n", [W])
+        ),
+        green_server(Green, 'green(18951, 2, 2)', 18951, Pid2),
+        hit('http://127.0.0.1:18951/boom3', GC4),
+        check('a page that throws is 500, from a green worker', GC4, '500'),
+        hit('http://127.0.0.1:18951/fast', GC5),
+        check('and the green pool serves the next request anyway', GC5, '200'),
+        reap(Pid2)
+    ).
+
+green_server(Green, Goal, Port, Pid) :-
+    sh_join(['run ', Green, ' "', Goal, '"'], Args),
+    serving(Args, Port, Pid).
+
+green_one_slow(Green, Ones, Codes) :-
+    green_server(Green, 'green(18952, 3, 4)', 18952, Pid),
+    findall(Ms-Code,
+            ( between(1, 3, _), timed_hit('http://127.0.0.1:18952/slow', Ms, Code) ),
+            Samples),
+    reap(Pid),
+    pairs_keys_values(Samples, Ones, Codes).
+
+green_four(Green, Pooleds) :-
+    green_server(Green, 'green(18953, 4, 12)', 18953, Pid),
+    findall(Ms, ( between(1, 3, _), timed_four(18953, Ms) ), Pooleds),
+    reap(Pid).
 
 %% THE SLOW PAGE FINISHES, AND IS SLOW BY THE CLOCK. It was
 %% `pool_spin(4000000)', a recursion of eight million inferences, and a page

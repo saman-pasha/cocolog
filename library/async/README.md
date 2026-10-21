@@ -334,7 +334,10 @@ scheduler, and 2.8.0's the cloned M:N world.
   old array leaks per growth per world.
 * ONE STORE (2.9.0): the caller's, for every worker and every task; a
   write is seen by all as soon as it lands, and it stops the world while
-  it lands. A consult or load a task runs and a module's own C state stay
+  it lands. A nested search inside a task -- `findall/3`, `call_limited/3`,
+  `call_metered/4` -- is fenced by ITS limit and not by the quantum
+  (2.9.4): a task's engine always carries `max_steps`, and narrowing used
+  to read it as an outer step budget. A consult or load a task runs and a module's own C state stay
   the worker's. No table reclamation or store compaction runs while a
   world does. A write waits for every worker to reach a safe point: a task
   inside a long foreign call holds it until the call returns. A write a

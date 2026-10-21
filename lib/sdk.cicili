@@ -202,8 +202,16 @@
             (LAMBDA (n)
               `((== arity ,n)
                 (cond
+                  ;; A ROW THAT ENDS IN `:declines' is handed `found' and
+                  ;; may turn the goal down itself, `coco_m_decline' and
+                  ;; found 0 -- library(async) and library(thread) share
+                  ;; channel_send/2 and the rest, and each answers only for
+                  ;; its own channel (2.9.4; lib/module.cicili's emitter,
+                  ;; for the compiled-in modules, already did this).
                   ,@(MAPCAR (LAMBDA (row) `((== 0 (strcmp name ,(FIRST row)))
-                                            (return (,(THIRD row) e g))))
+                                            (return ,(IF (FOURTH row)
+                                                         `(,(THIRD row) e g found)
+                                                         `(,(THIRD row) e g)))))
                             (REMOVE-IF-NOT (LAMBDA (r) (= (SECOND r) n)) rows))
                   (#t (set (cof found) 0) (return 0)))))
             arities)

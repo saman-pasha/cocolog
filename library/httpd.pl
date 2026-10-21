@@ -44,8 +44,21 @@
 %%                        should not have a document root by accident
 %%     index(Name)        what a directory answers with  (default index.html)
 %%     pages(Bool)        consult httpd_page/3 first     (default true)
-%%     workers(N)         hand each connection to one of N threads
-%%                        (default 0 -- accept and answer on this one)
+%%     concurrency(Mode)  who answers a connection -- one of
+%%                          none       accept and answer on this thread
+%%                                     (the default)
+%%                          thread     one OS thread a connection, each an
+%%                                     ISOLATED proof (library/thread)
+%%                          thread(N)  N such threads
+%%                          green      one green task a connection in the
+%%                                     async world (library(async),
+%%                                     one store shared by all)
+%%                          green(N)   N such tasks
+%%                        Bare `thread' and `green' take one worker a core.
+%%                        `workers(N)' is the older spelling: workers(0)
+%%                        is none, workers(N) is thread(N).
+%%     accept_poll(Ms)    green mode's accept wait, default 2: see THE
+%%                        ACCEPTOR AND THE BARRIER below
 %%     keep_alive(Bool)   persistent connections           (default true)
 %%     max_keep_alive(N)  requests one connection may make (default 100)
 %%     keep_alive_timeout(Ms)  idle wait for the next request  (default 2000)
@@ -80,21 +93,80 @@
 %% would be saved into the database, come back on every fetch, and be
 %% listed as somebody's own program.
 %%
-%% WITH `workers(N)' IT IS NOT ADVICE, IT IS THE ONLY WAY THAT WORKS, and
-%% the failure is silent: a plain 404. A worker answers each request as an
-%% ISOLATED PROOF -- fresh machine, fresh store -- and a fresh store is
-%% filled from the process-wide MODULE REGISTRY, which `use_module' writes
-%% and a consult does not. So a page that was consulted, or asserted, or
-%% written in the file handed to `cocolog run' lives in the parent's store
-%% only, and a worker looking for `httpd_page/3' finds nothing there.
-%% `workers(0)' -- the default -- serves it perfectly well, which is what
-%% makes this easy to meet in a demo and lose the moment a pool is added.
+%% THE TWO POOLED MODES DIFFER IN WHAT A REQUEST IS, and that is the whole
+%% choice between them.
+%%
+%% `concurrency(thread(N))' -- and the older `workers(N)' -- gives each
+%% connection an ISOLATED PROOF: fresh machine, fresh store, its own
+%% database connection, one transaction. THAT IS ALSO ITS PRICE: a fresh
+%% store is filled from the process-wide MODULE REGISTRY, which
+%% `use_module' writes and a consult does not, so a page that was
+%% consulted, or asserted, or written in the file handed to `cocolog run'
+%% lives in the parent's store only and a worker looking for
+%% `httpd_page/3' finds nothing -- a silent 404, in a server that served
+%% the page a moment before with no pool. `workers(0)' and
+%% `concurrency(none)' serve it perfectly well, which is what makes this
+%% easy to meet in a demo and lose the moment a pool is added.
+%%
+%% `concurrency(green(N))' runs the SAME pool over library(async): the
+%% accept loop is the world's main task and each connection is a green
+%% task, all over the ONE store the world shares (2.9.0). The consequences
+%% are the shared store's, and are stated so nobody has to discover them:
+%%
+%%   * a page may be consulted, asserted or loaded -- anything the parent
+%%     can see, the tasks see, because it is the same store;
+%%   * a request is NOT a transaction. There is no fresh store and no
+%%     per-request commit or rollback: a write a page makes is the world's
+%%     write, visible as it lands, and a page that throws after writing
+%%     leaves the write. Thread mode (or no pool) is the mode for a
+%%     request that must be all-or-nothing;
+%%   * a task that BLOCKS, in a socket read or a slow page, holds its
+%%     worker -- a green task's foreign call is not preemptible, and
+%%     keep-alive gives every idle connection a task sitting in a read.
+%%     A pool of N can be held by N idle keep-alive clients; N is worth
+%%     more than the number of long polling or websocket pages expected;
+%%   * the acceptor is the world's main task, on worker 0, and a green
+%%     task is pinned to the worker it was born on: the pool's tasks are
+%%     born on the workers beside it, so N must leave that one out (bare
+%%     `green' is the world's count minus one, and green(N) is refused,
+%%     by name, for N at or above the world's count). A page that spawns
+%%     tasks of its own with `go/1,2' can pin one to worker 0, where it
+%%     waits for the next connection.
+%%
+%% THE ACCEPTOR AND THE BARRIER -- why `accept_poll' exists. A store write
+%% takes the world's barrier and waits for every worker's acknowledgement
+%% (lib/green.cicili), and a worker acknowledges only at its loop's top: a
+%% task inside a foreign call holds its worker and its ack. The acceptor's
+%% whole life is a foreign call, `tcp_accept', so an acceptor that waited
+%% out the hour-long default would stop every write in the world -- a
+%% page's assert, and far more often the FIRST COMPILE of a clause a
+%% worker selects (a compile is a write in the one store). Measured: with
+%% an hour's accept the first request of every worker hung until the NEXT
+%% client connected and released the acceptor. So green mode accepts with
+%% `accept_poll' milliseconds of patience (2 by default) and YIELDS after
+%% every accept and every expiry: the worker reaches its loop top,
+%% acknowledges a barrier waiting on it, and the task is picked up again.
+%% THE POLL IS THE PRICE OF A WRITE: a request's first selection of each
+%% clause compiles it, and every compile waits up to one poll for the
+%% acceptor's ack, so the first request to a fresh store costs about a
+%% poll a clause it compiles -- measured on this box, 3.85 s at 100 ms,
+%% 0.36 at 5, 0.28 at 2 and 0.25 at 1 (a warmed request is 0.18-0.2 at
+%% every setting), and the server is idle-polled 1/accept_poll of a
+%% second. A page's own ASSERTS wait the same way. Thread mode has no such
+%% coupling, which is the reason to choose it for a write-heavy server.
+%%
+%% A REQUEST THAT WRITES still waits for any OTHER worker held in a
+%% foreign call -- an idle keep-alive read is one, up to keep_alive_timeout
+%% -- which is the green model's stated limit, not this library's. The
+%% thread pool has no such coupling.
 %%
 %% REGISTER THE PAGES BEFORE THE POOL STARTS, for the reason
 %% library(thread) gives: `use_module' writes that registry, and a thread
 %% reading it while another writes is the one unguarded thing there. A
 %% directive at the top of the file that calls `httpd_serve/2' is exactly
-%% the right place.
+%% the right place. (Green mode does not read the registry -- its tasks
+%% share the parent's store -- but registering pages before any pool
+%% starts keeps one program the same program in all three modes.)
 %%
 %% ONE NAMESPACE IS THE DISPATCH MECHANISM, not a problem to work around.
 %% Every page adds clauses to the same `httpd_page/3', each guarded by its
@@ -171,7 +243,7 @@
 %%                               key('node.key'),
 %%                               authority('ca.crt'),
 %%                               client_auth(none) ]),
-%%                         workers(4) ]).
+%%                         concurrency(thread(4)) ]).
 %%
 %% Everything above the socket is untouched -- routing, keep-alive, the
 %% path rules, `httpd_answer/3' -- because a connection became a TAGGED
@@ -218,10 +290,15 @@
 %% it, still loads this file and still serves plaintext. Asking for
 %% `tls(...)' without it throws, by name, at the first listen.
 :- use_module(library(tls)).
-%% Only `workers(N)' needs it, and a cocolog with no thread.so reports it,
-%% still loads this and still serves, single-threaded. Asking for workers
-%% without it throws, by name, rather than failing.
+%% Only `concurrency(thread...)' needs it, and a cocolog with no thread.so
+%% reports it, still loads this and still serves, single-threaded. Asking
+%% for a thread pool without it throws, by name, rather than failing.
 :- use_module(library(thread)).
+%% `concurrency(thread)' and `concurrency(green)' with no count take one
+%% worker a core, and the core count is library(os)'s (os_cpus/1). Without
+%% os.so the load reports it and the pool falls back to four; an explicit
+%% count needs neither.
+:- use_module(library(os)).
 %% A page that answers `websocket(Goal)' is handed the connection: clauses
 %% only, always present, so this one is never missing.
 :- use_module(library(websocket)).
@@ -342,14 +419,92 @@ httpd_identify(C, request(M, P, Q, V, Hs, B), request(M, P, Q, V, Out, B)) :-
 httpd_serve(Port, Options) :- httpd_serve(Port, Options, -1).
 
 httpd_serve(Port, Options, Count) :-
-    httpd_option(workers(W), Options, 0),
-    (   W > 0
-    ->  prewarm(_),
-        httpd_pool(Port, Options, Count, W)
-    ;   httpd_alone(Port, Options, Count)
+    httpd_concurrency(Options, Mode),
+    httpd_serve_mode(Mode, Port, Options, Count).
+
+%% THE MODE, RESOLVED ONCE: `concurrency(...)' is the name, `workers(N)' the
+%% older spelling for the same thing, and giving both is refused by name
+%% rather than letting one win silently.
+httpd_concurrency(Options, Mode) :-
+    (   memberchk(concurrency(M0), Options)
+    ->  (   memberchk(workers(_), Options)
+        ->  throw(error(domain_error(httpd_concurrency, concurrency),
+                        'httpd: give concurrency(...) or workers(N), not both'))
+        ;   httpd_mode(M0, Mode)
+        )
+    ;   httpd_option(workers(W), Options, 0),
+        (   W > 0
+        ->  Mode = thread(W)
+        ;   Mode = none
+        )
     ).
 
-%% PRE-WARMED BEFORE THE POOL STARTS, AND ONLY FOR THE POOL. Every request
+httpd_mode(none, none) :- !.
+httpd_mode(thread, thread(W)) :- !,
+    httpd_cores(W).
+httpd_mode(thread(N), thread(N)) :- !,
+    httpd_count(N, 'concurrency(thread(N))').
+httpd_mode(green, green(W)) :- !,
+    httpd_world_workers(World),
+    W is World - 1,
+    httpd_green_count(W).
+httpd_mode(green(N), green(N)) :- !,
+    httpd_count(N, 'concurrency(green(N))'),
+    httpd_green_count(N).
+httpd_mode(M, _) :-
+    throw(error(domain_error(httpd_concurrency, M),
+                'httpd: concurrency(none | thread | thread(N) | green | green(N))')).
+
+httpd_count(N, _) :- integer(N), N > 0, !.
+httpd_count(N, Which) :-
+    throw(error(domain_error(httpd_concurrency, N),
+                'httpd: the worker count of concurrency/1 is a positive integer')).
+
+%% A GREEN TASK IS PINNED TO THE WORKER IT WAS BORN ON and the acceptor is
+%% the world's main task on worker 0, so a pool of N tasks needs N workers
+%% BESIDE that one. At or above the world's count, one of the pool's tasks
+%% lands on worker 0 and waits out the accept -- refused here, where it can
+%% be said, rather than hanging a connection later.
+httpd_green_count(N) :-
+    httpd_world_workers(World),
+    (   N >= World
+    ->  throw(error(domain_error(httpd_concurrency, green(N)),
+                    'httpd: concurrency(green(N)) needs N below the green world''s worker count; the acceptor owns one worker'))
+    ;   N > 0
+    ->  true
+    ;   throw(error(domain_error(httpd_concurrency, green(N)),
+                    'httpd: a one-worker green world has no worker beside the acceptor'))
+    ).
+
+%% THE MACHINE'S CORES, the same source library(async) sizes its world
+%% from. library(os) is a loadable module; without it, a modest pool.
+httpd_cores(W) :-
+    (   catch(os_cpus(N), _, fail)
+    ->  W = N
+    ;   W = 4
+    ).
+
+%% THE WORLD'S COUNT IS NOT THE CORE COUNT when COCOLOG_GREEN_WORKERS says
+%% otherwise (lib/green.cicili), and the pinning rule above is about the
+%% world, not the machine.
+httpd_world_workers(W) :-
+    (   catch(getenv('COCOLOG_GREEN_WORKERS', V), _, fail),
+        atom_number(V, W0),
+        integer(W0),
+        W0 > 0
+    ->  W = W0
+    ;   httpd_cores(W)
+    ).
+
+httpd_serve_mode(none, Port, Options, Count) :-
+    httpd_alone(Port, Options, Count).
+httpd_serve_mode(thread(W), Port, Options, Count) :-
+    prewarm(_),
+    httpd_pool(Port, Options, Count, W).
+httpd_serve_mode(green(W), Port, Options, Count) :-
+    httpd_green_pool(Port, Options, Count, W).
+
+%% PRE-WARMED BEFORE THE THREAD POOL STARTS, AND ONLY FOR IT. Every request
 %% through `httpd_pool/4' is a `run_isolated/2' proof on a FRESH store, and a
 %% fresh store asks the backend once per predicate the proof calls. Measured
 %% over the binary protocol on a page that reads one row: 52 predicates asked
@@ -419,7 +574,7 @@ httpd_pool(Port, Options, Count, W) :-
     ->  true
     ;   httpd_sock_close(S),
         throw(error(existence_error(procedure, channel_new/2),
-                    'httpd: workers(N) needs library(thread) -- sh modules/thread/build.sh'))
+                    'httpd: concurrency(thread(N)) needs library(thread) -- sh modules/thread/build.sh'))
     ),
     thread_pool(W, httpd_worker(Ch, Options), Ids),
     (   httpd_accept_loop(S, Ch, Options, Count) -> true ; true ),
@@ -481,6 +636,98 @@ httpd_worker(Ch, Options) :-
     catch(run_isolated(httpd_one(C, Options), _), _, true),
     httpd_worker(Ch, Options).
 httpd_worker(_, _).
+
+%% ---- the green pool ---------------------------------------------------
+
+%% THE SAME SHAPE OVER library(async): the accept loop is the world's MAIN
+%% TASK and N green tasks receive connections from a green channel. The
+%% sockets are library(tcp)'s process-wide handles, so a handle crosses
+%% into the world as an integer and the tasks read and write it exactly as
+%% a thread would; the tag `conn(plain(7))' survives the channel's copy.
+%%
+%% WHAT IS DIFFERENT FROM THE THREAD POOL IS THE STORE (2.9.0): there is
+%% ONE, the parent's, and every task runs over it. So a request is not an
+%% isolated proof -- no fresh machine, no per-request transaction, no
+%% rollback -- and pages may be consulted as well as loaded, because the
+%% store a task sees is the store the page was written into. The header
+%% states the consequences where a reader meets them; this is the code.
+%%
+%% WHY A CHANNEL AND NOT go/1 PER CONNECTION: a pool bounds the tasks a
+%% server runs. `go/1' per connection would let a thousand keep-alive
+%% clients become a thousand blocked tasks, 1024 is the world's ceiling,
+%% and a task blocked in a read holds its worker either way.
+%%
+%% AND WHY IT IS ONE async_run: channels, tasks and the world itself exist
+%% only inside it -- `channel/1,2' outside one says "needs async_run/1" --
+%% so the whole server, acceptor and workers, is the main goal of a world
+%% whose end is the server's end.
+
+httpd_green_pool(Port, Options, Count, W) :-
+    httpd_transport(Options, T),
+    httpd_sock_listen(T, Port, S),
+    (   catch(async_run(httpd_green_world(S, Options, Count, W)), E,
+              ( httpd_sock_close(S), throw(E) ))
+    ->  httpd_sock_close(S)
+    ;   httpd_sock_close(S),
+        fail
+    ).
+
+httpd_green_world(S, Options, Count, W) :-
+    channel(64, Ch),
+    httpd_green_spawn(W, Ch, Options, Ids),
+    %% THE ACCEPTOR IS THIS TASK, and its end is the world's: when the
+    %% accept loop returns, the channel closes, the workers drain what they
+    %% hold and end, and await_all joins them -- as thread mode closes its
+    %% channel and joins.
+    catch(httpd_green_accept(S, Ch, Options, Count), _, true),
+    channel_close(Ch),
+    catch(await_all(Ids), _, true).
+
+httpd_green_spawn(0, _, _, []) :- !.
+httpd_green_spawn(W, Ch, Options, [Id|Ids]) :-
+    W > 0,
+    go(httpd_green_worker(Ch, Options), Id),
+    W1 is W - 1,
+    httpd_green_spawn(W1, Ch, Options, Ids).
+
+httpd_green_accept(_, _, _, 0) :- !.
+httpd_green_accept(S, Ch, Options, Count) :-
+    httpd_option(accept_poll(Poll), Options, 2),
+    httpd_sock_accept(S, Poll, C, _Peer),
+    !,
+    catch(channel_send(Ch, conn(C)), _, true),
+    %% A TURN FOR THE WORKER: it acknowledges a write barrier at its loop's
+    %% top, and a task that never leaves the loop never gets there.
+    yield,
+    (   Count < 0
+    ->  N1 = Count
+    ;   N1 is Count - 1
+    ),
+    httpd_green_accept(S, Ch, Options, N1).
+httpd_green_accept(S, Ch, Options, Count) :-
+    %% THE POLL EXPIRED. No client, and the worker is still wanted: yield,
+    %% then wait again -- see THE ACCEPTOR AND THE BARRIER in the header.
+    yield,
+    httpd_green_accept(S, Ch, Options, Count).
+
+%% A green worker: recv, answer the whole conversation, close, recv again.
+%% `channel_send' fails when the channel was closed under it, which is how
+%% the accept loop's end reaches a worker that was between requests.
+httpd_green_worker(Ch, Options) :-
+    channel_recv(Ch, conn(C)),
+    !,
+    catch(httpd_green_one(C, Options), _, true),
+    httpd_green_worker(Ch, Options).
+httpd_green_worker(_, _).
+
+%% HTTPD_SETTLE IS DELIBERATELY NOT CALLED HERE. The world has one store
+%% and its writes are its own as they land (lib/green.cicili's barrier);
+%% a commit from this task would settle its WORKER THREAD's session, which
+%% a sibling task, preempted mid-request, may share. A request that must be
+%% one transaction is thread mode's or none mode's.
+httpd_green_one(C, Options) :-
+    catch(httpd_transact(C, Options), _, true),
+    catch(httpd_sock_close(C), _, true).
 
 %% One connection, from inside its own turn. FAILING IS HOW THE ROLLBACK
 %% IS ASKED FOR: run_isolated tells the connection whether the goal proved,
@@ -647,7 +894,8 @@ httpd_connection_is(Request, Token) :-
 %%
 %% THE SESSION RUNS ON THIS CONNECTION, in this conversation's turn: the
 %% single-threaded loop is held for as long as it lasts, and a worker of
-%% `workers(N)' is -- so a server with sessions that last wants a pool.
+%% `concurrency(thread(N))' and `concurrency(green(N))' are -- so a server
+%% with sessions that last wants a pool.
 %% Nothing fences a session the way page_limit fences a page: a session is
 %% long by nature, and it ends when its goal returns.
 %%

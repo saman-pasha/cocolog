@@ -1437,7 +1437,14 @@ cocolint index offers no import of it.
   narrows through `coco_limit_narrow`** (findall/3, call_metered/4 and
   call_limited/3, with_output_to/2): in inferences for an inference limit,
   in steps for a step limit, and its starter adds back its `frees` with its
-  `steps`. A frozen machine keeps both (`I frees max_inf` in
+  `steps`. **A GREEN QUANTUM IS NOT A BUDGET (2.9.4)**: a green task's
+  engine always carries `max_steps` -- the end of its slice -- so narrowing
+  read it as an outer step limit and capped EVERY nested engine at the
+  quantum. httpd's `page_limit` runs a page through call_limited, and under
+  green every page stopped at the first 10,000 steps with "page exceeded
+  its inference limit"; `emax` is 0 when `e->greenq` is set, and the sub
+  keeps its own limits (the task yields when the search returns -- a nested
+  search is not preemptible either way). A frozen machine keeps both (`I frees max_inf` in
   lib/state.cicili, after the operators, so an older blob reads as none),
   and `coco_engine_ask` starts both again (the REPL's engine, asked once a
   goal, read -2 for a goal after one with three free steps when only the
@@ -1934,7 +1941,16 @@ cocolint index offers no import of it.
   and only a miss locks, syncs and looks again (`coco_tbl_done` unlocks
   without moving the generation, which an intern hit used to move for
   every other machine); the lock and that publish, paid on every spawned
-  goal's text read, were the light lane's 3.6x. A task is PINNED to the
+  goal's text read, were the light lane's 3.6x. **A GREEN CHANNEL'S HANDLE
+  IS ITS SLOT PLUS 1024 (2.9.4)**, and library(thread)'s channels (integer
+  slots 0..255) DECLINE a goal whose channel is not one of theirs (its four
+  channel rows end in `:declines`, and `th_chan_at_d` declines a
+  non-integer or an id past 255): both modules register channel_send/2 and
+  the rest, and before this a green send could land in whatever thread
+  channel held the same slot number -- silently, when that slot was live.
+  **The module SDK's dispatcher emits `:declines` as lib/module.cicili's
+  does** (it did not until 2.9.4, so a loadable module could not decline at
+  all; lib/sdk.cicili is the one place). A task is PINNED to the
   worker it was born on. A
   WRITE STOPS THE WORLD (2.9.0): every store mutation -- assertz/asserta,
   retract, dynamic, abolish, nb_setval -- and every piece of metadata a

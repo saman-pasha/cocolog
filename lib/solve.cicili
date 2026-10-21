@@ -6122,8 +6122,15 @@
   ;;; is spent, as before. MAX_STEPS, which the loop tests, is set last.
   (func coco_limit_narrow ((coco_engine * e) (coco_engine * sub))
         ;; E's limit in steps: RMAX under a window's clock, whose MAX_STEPS
-        ;; is only the next reading (1.13.3), and SUB reads it as well
-        (let ((u64 emax . #'(? (-> e tclock) (-> e rmax) (-> e max_steps))))
+        ;; is only the next reading (1.13.3), and SUB reads it as well.
+        ;; A GREEN QUANTUM IS NOT A BUDGET (2.9.4): a task's engine always
+        ;; carries MAX_STEPS -- the end of its slice -- so narrowing read
+        ;; it as an outer step limit and capped EVERY nested engine at the
+        ;; quantum's remainder. httpd's page_limit runs a page through
+        ;; call_limited, and under green every page stopped at the first
+        ;; 10,000 steps with "page exceeded its inference limit". The sub
+        ;; keeps its own limits; the task yields when the search returns.
+        (let ((u64 emax . #'(? (-> e greenq) 0 (? (-> e tclock) (-> e rmax) (-> e max_steps)))))
           (if (!= (-> e max_inf) 0)
               (let ((u64 spent . #'(- (-> e steps) (-> e frees))) (u64 left . 0))
                 (set left (? (>= spent (-> e max_inf)) 1 (- (-> e max_inf) spent)))

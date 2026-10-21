@@ -147,10 +147,10 @@
 
     ("channel_new"    1 th_chan_new1)
     ("channel_new"    2 th_chan_new2)
-    ("channel_send"   2 th_chan_send)
-    ("channel_recv"   2 th_chan_recv2)
-    ("channel_recv"   3 th_chan_recv3)
-    ("channel_close"  1 th_chan_close)
+    ("channel_send"   2 th_chan_send :declines)
+    ("channel_recv"   2 th_chan_recv2 :declines)
+    ("channel_recv"   3 th_chan_recv3 :declines)
+    ("channel_close"  1 th_chan_close :declines)
     ("channel_size"   2 th_chan_size)
 
     ("mutex_create"   1 th_mutex_create)
@@ -300,6 +300,27 @@
           (if (not ($ (nth (cast size_t id) th_chans) live)) (return nil))
           (return (aof (nth (cast size_t id) th_chans)))))
 
+  ;;; A CHANNEL THAT IS NOT THIS MODULE'S IS TURNED DOWN, NOT FAILED (2.9.4).
+  ;;; library(async) registers the same channel_send/2, channel_recv/2,3 and
+  ;;; channel_close/1 and hands out integer handles too -- above 255 since
+  ;;; 2.9.4, which is what makes this test possible. Without the decline the
+  ;;; module the walk reaches first answers for the other's channel, and a
+  ;;; green send whose slot number matched a live thread channel would land
+  ;;; in the wrong queue. A non-integer, or an id outside this table, is
+  ;;; another module's goal: decline it and let the walk go on. An id IN
+  ;;; range that is not live stays this module's answer, a plain failure,
+  ;;; as it always was.
+  (func th_chan_at_d ((coco_engine * e) (size_t t) (int * rc) (int * found)) (out th_chan *)
+        (let ((i64 id . 0))
+          (set (cof rc) 0)
+          (if (or (not (coco_m_int e t (aof id))) (< id 0) (>= id 256))
+              (block
+               (coco_m_decline e)
+               (set (cof found) 0)
+               (return nil)))
+          (if (not ($ (nth (cast size_t id) th_chans) live)) (return nil))
+          (return (aof (nth (cast size_t id) th_chans)))))
+
   ;;; Grows the ring. Only ever called with the channel's lock held, and only
   ;;; for an UNBOUNDED channel -- a bounded one blocks instead, which is the
   ;;; whole difference between them.
@@ -378,8 +399,8 @@
   ;;; SEND COPIES, and the copy is made BEFORE the lock is taken: writing a
   ;;; term walks the sender's heap, which is the sender's business and no
   ;;; reason to hold up a queue.
-  (func th_chan_send ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc)))
+  (func th_chan_send ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
               (char * text . nil))
           (if (== c nil) (return rc))
           (set text (coco_m_term_text e (coco_m_arg e g 1)))
@@ -435,8 +456,8 @@
           (return text)))
 
   (static)
-  (func th_recv ((coco_engine * e) (size_t g) (i64 wait) (uint32_t out)) (out int)
-        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc)))
+  (func th_recv ((coco_engine * e) (size_t g) (i64 wait) (uint32_t out) (int * found)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
               (char * text . nil) (size_t t . 0))
           (if (== c nil) (return rc))
           (set text (th_take_one c wait))
@@ -447,21 +468,21 @@
               (return (coco_m_error e "channel_recv" "what came back would not read")))
           (return (coco_m_unify e (coco_m_arg e g out) t))))
 
-  (func th_chan_recv2 ((coco_engine * e) (size_t g)) (out int)
-        (return (th_recv e g -1 1)))
+  (func th_chan_recv2 ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (return (th_recv e g -1 1 found)))
 
-  (func th_chan_recv3 ((coco_engine * e) (size_t g)) (out int)
+  (func th_chan_recv3 ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((i64 ms . 0))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof ms)))
               (return (coco_m_type_error e "integer" (coco_m_arg e g 1))))
-          (return (th_recv e g ms 2))))
+          (return (th_recv e g ms 2 found))))
 
   ;;; CLOSE WAKES EVERYBODY, on both condition variables: a receiver waiting
   ;;; for an item that will never come, and a sender waiting for room in a
   ;;; channel nobody will drain. Neither should be left blocked, and neither
   ;;; can tell it should stop without being woken to look.
-  (func th_chan_close ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (th_chan * c . #'(th_chan_at e (coco_m_arg e g 0) (aof rc))))
+  (func th_chan_close ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found)))
           (if (== c nil) (return rc))
           (pthread_mutex_lock (aof (-> c lock)))
           (set (-> c closed) 1)

@@ -37,13 +37,47 @@
 %% the shared knowledge base. A page consulted instead would be saved into
 %% the database and listed as somebody's own program.
 %%
-%% AND WITH `workers(N)' IT IS THE ONLY THING THAT WORKS, with a silent
-%% 404 as the failure. A worker answers each request as an ISOLATED PROOF
-%% -- fresh machine, fresh store -- and a fresh store is filled from the
+%% AND IN THREAD MODE (`concurrency(thread(N))', the older `workers(N)')
+%% IT IS THE ONLY THING THAT WORKS, with a silent 404 as the failure. A
+%% thread worker answers each request as an ISOLATED PROOF -- fresh
+%% machine, fresh store -- and a fresh store is filled from the
 %% process-wide MODULE REGISTRY, which `use_module' writes and a consult
-%% does not.
+%% does not. GREEN MODE (`concurrency(green(N))') has no such rule: its
+%% tasks run over the parent's ONE store, so a consulted page answers
+%% there as it does with no pool at all.
 
 :- use_module(library(httpd)).
+
+%% THE THREE MODES, in a predicate of their own: main/0 must fit one page
+%% (cocolint Z1), and this block is what pushed it over.
+concurrency_modes :-
+    format("-- THREE CONCURRENCY MODES, one name: concurrency(Mode)~n"),
+    format("~n"),
+    format("     concurrency(none)        this thread answers, one at a time~n"),
+    format("                              (the default)~n"),
+    format("     concurrency(thread(N))   N OS threads, an ISOLATED proof a~n"),
+    format("                              request: fresh machine and store,~n"),
+    format("                              one transaction, pages must be~n"),
+    format("                              MODULES~n"),
+    format("     concurrency(green(N))    N green tasks over library(async),~n"),
+    format("                              over the ONE store the world shares~n"),
+    format("~n"),
+    format("   Bare `thread' and `green' take one worker a core. workers(N)~n"),
+    format("   is the older spelling of thread(N) (workers(0) is none).~n"),
+    format("~n"),
+    format("   GREEN MODE IS THE SHARED STORE'S, in what it gives and what~n"),
+    format("   it costs: a consulted page answers (no module-registry rule),~n"),
+    format("   and a request is NOT a transaction -- a write lands as the~n"),
+    format("   page makes it, and a page that throws after writing leaves~n"),
+    format("   the write. Its acceptor POLLS (accept_poll, 2 ms by default):~n"),
+    format("   a store write takes the world's barrier and waits for every~n"),
+    format("   worker's acknowledgement, and a worker acknowledges at its~n"),
+    format("   loop's top, so an acceptor parked in an hour-long accept~n"),
+    format("   would hold every write -- and a request's FIRST compile of~n"),
+    format("   each clause is such a write. A request that writes can also~n"),
+    format("   wait for another worker held in a foreign call; thread mode~n"),
+    format("   has no such coupling, which is why a write-heavy server~n"),
+    format("   wants it.~n").
 
 %% Pages, as clauses. In a real program these live in their own file and
 %% are loaded with use_module -- see the note above.
@@ -111,20 +145,21 @@ main :-
     format("     %% server.pl~n"),
     format("     :- use_module(library(httpd)).~n"),
     format("     :- use_module('pages.pl').        %% a MODULE, not a consult~n"),
-    format("     main :- httpd_serve(8080, [root('./public'), workers(4)]).~n"),
+    format("     main :- httpd_serve(8080, [root('./public'), concurrency(thread(4))]).~n"),
     format("~n"),
     format("     $ ./cocolog run server.pl main~n"),
     format("~n"),
     format("   THE OPTIONS worth knowing: root(Dir) serves static files~n"),
-    format("   under it; workers(N) is a pool over library(thread);~n"),
-    format("   page_limit(N) is how many inferences ONE page may spend~n"),
-    format("   before it is a 500, which is what keeps a looping page~n"),
+    format("   under it; page_limit(N) is how many inferences ONE page may~n"),
+    format("   spend before it is a 500, which is what keeps a looping page~n"),
     format("   from ending the service; keep_alive(Bool) and~n"),
     format("   max_keep_alive(N) bound a persistent connection.~n"),
+    format("~n"),
+    concurrency_modes,
 
     format("~n-- OR ON A SOCKET FILE: unix(Path) where the port stands~n"),
     format("~n"),
-    format("     main :- httpd_serve(unix('/run/app/http.sock'), [workers(4)]).~n"),
+    format("     main :- httpd_serve(unix('/run/app/http.sock'), [concurrency(thread(4))]).~n"),
     format("~n"),
     format("   behind nginx's  proxy_pass http://unix:/run/app/http.sock;~n"),
     format("   or for  curl --unix-socket /run/app/http.sock http://localhost/~n"),
@@ -137,20 +172,22 @@ main :-
     -> true ; E = none ),
     must('tls(...) on a socket file', E, domain_error(tcp_port, unix('/nonexistent/http.sock'))),
 
-    format("~n-- AND EACH REQUEST IS ITS OWN TURN, under a pool~n"),
+    format("~n-- AND EACH REQUEST IS ITS OWN TURN, under the THREAD pool~n"),
     format("   A worker's goal runs for the life of the server and a~n"),
     format("   store CACHES, so two workers answering writes would hold~n"),
     format("   two pictures of the same predicate and the second commit~n"),
     format("   would overwrite the first. Measured, before the fix:~n"),
     format("   three sequential POSTs through a pool of three left TWO~n"),
-    format("   facts in the database. So a request runs isolated: fresh~n"),
-    format("   machine, fresh store, fresh connection, one commit.~n~n"),
+    format("   facts in the database. So a THREAD worker runs each request~n"),
+    format("   isolated: fresh machine, fresh store, fresh connection, one~n"),
+    format("   commit. Green mode shares one store by design and gives that~n"),
+    format("   up; the price is stated above.~n~n"),
     format("~n-- HTTPS IS ONE OPTION, and only the transport changes~n"),
     format("~n"),
     format("     httpd_serve(9443, [ tls([ certificate('node.crt'),~n"),
     format("                               key('node.key'),~n"),
     format("                               authority('ca.crt') ]),~n"),
-    format("                         workers(4) ]).~n"),
+    format("                         concurrency(thread(4)) ]).~n"),
     format("~n"),
     format("   A connection became a TAGGED TERM -- plain(S) or~n"),
     format("   secure(S) -- and five predicates dispatch on it. Routing,~n"),
