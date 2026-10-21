@@ -41,15 +41,16 @@ where the program can catch it. Everything runs under `async_run/1,2`; a
 
 ## The model
 
-A green thread is a **machine of its own in a world of eight workers**
-(2.8.0): the caller's thread is worker 0 and seven OS threads are workers
-1..7. THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): every worker,
+A green thread is a **machine of its own in a world of one worker a
+core** (2.9.3, as Go's GOMAXPROCS defaults to NumCPU; `COCOLOG_GREEN_WORKERS`
+overrides it -- it was eight workers through 2.9.2): the caller's thread
+is worker 0 and the other N-1 are OS threads. THE WORLD RUNS OVER THE CALLER'S ONE STORE (2.9.0): every worker,
 and so every task's machine, is over the store and the machine the host
 owns, so a write a task makes — `assertz/1`, `asserta/1`, `retract/1`,
 `dynamic/1`, `abolish/1`, `nb_setval/2` — is the caller's, the main
 thread's and the host's, with no copy and no replication. A task is pinned
 to the worker it was born on. THE NAME TABLES ARE SHARED (2.8.1): all
-eight base machines alias the HOST'S ONE atom, functor, string, float, big
+the base machines alias the HOST'S ONE atom, functor, string, float, big
 and rat table. A world names mutex serializes the six table mutations,
 which sync a machine's fields by generation (`tgen`) and publish to the
 root; value reads stay lock-free from the run-start sync; while the tables
@@ -123,29 +124,27 @@ ring of the size asked.
 The answer depends on the question, and `bench/concurrency.sh` asks both.
 
 **Work lanes** — the same `spin` (M steps) in N units, 8 units, 1,000,000
-steps each, on a 16-core Intel Mac, cocolog 2.9.2 (Concurrency Run F, with
-the Rust lanes; Runs A-E are in bench/README.md -- the ONE STORE with a
-lock-free name intern: every worker over the caller's store, a write
-stops the world before it lands, reads take no lock, and an
-intern HIT takes no mutex and moves no generation; Runs A-D, the 2.6.0
-snapshot, the 2.7.0 shared-store single scheduler, the 2.8.0
-clone-and-replicate world and 2.9.1's, are there too):
+steps each, on a 16-core Intel Mac, cocolog 2.9.3 (Concurrency Run G: a
+world of one worker a core -- 16 here, as Go's GOMAXPROCS -- and the store
+lanes' first compiles warmed; Runs A-F are in bench/README.md -- the ONE
+STORE with a lock-free name intern: every worker over the caller's store,
+a write stops the world before it lands, reads take no lock, and an
+intern HIT takes no mutex and moves no generation):
 
 | lane | wall |
 |---|---|
-| serial | 552.6 ms |
-| real threads (library(thread), 8 OS threads) | 220.6 ms |
-| green threads (library(async), 8 green threads on 8 workers) | 199.5 ms |
-| goroutines (Go, 8) | 115.5 ms |
-| rust threads (std::thread, 8) | 109.2 ms |
-| coroutines (asyncio, 8) | 642.3 ms |
+| serial | 444.9 ms |
+| real threads (library(thread), 8 OS threads) | 174.3 ms |
+| green threads (library(async), 8 green threads on 16 workers) | 172.6 ms |
+| goroutines (Go, 8) | 98.0 ms |
+| rust threads (std::thread, 8) | 94.9 ms |
+| coroutines (asyncio, 8) | 588.8 ms |
 
-The green lane EQUALS and beats the real threads' (199.5 against 220.6;
-Run C: 440.7 against 173.0): the cloned stores are gone and a read takes
-no lock.
-`time` reports about 415 % CPU, and one unit takes 0.119 s against eight
-units' 0.149 s -- nearly flat, so the work is parallel; eight serial units
-take 0.461 s. Goroutine's and Rust's walls are not cores comparisons:
+The green lane EQUALS the real threads' (172.6 against 174.3; Run C: 440.7
+against 173.0): the cloned stores are gone and a read takes no lock.
+`time` reports about 415 % CPU and one unit takes 0.119 s against eight
+units' 0.149 s (Run D, eight workers) -- nearly flat, so the work is
+parallel; eight serial units take 0.461 s. Goroutine's and Rust's walls are not cores comparisons:
 both compile the loop to a few nanoseconds an iteration, so their lanes
 measure their loops and process starts (Rust's binary alone answers the
 work in 0.05 s). Real threads, goroutines and Rust threads win a
@@ -154,23 +153,35 @@ holds every other task's core.
 
 **Store lanes** — N green threads probing one durable store, against Go
 goroutines over SQLite: 8 units x 20,000 keyed lookups over 10,000 rows,
-the store seeded outside the timed region and the rows fetched once by
-the host before the world starts (`store_warm`; a worker's first fetch
-inside `--embed`/`--kb` crashes, below):
+the store seeded outside the timed region and the rows fetched AND
+COMPILED once by the host before the world starts (`store_warm`; a
+worker's first fetch inside `--embed`/`--kb` crashes, below):
 
 | lane | wall | per lookup |
 |---|---|---|
-| goroutines over SQLite (8 connections, PRIMARY KEY) | 183.1 ms | 1.14 us |
-| green over `--embed` (MVCCS in the process) | 1185.0 ms | 7.41 us |
-| green over `--kb` (MVCCS over TCP) | 1242.5 ms | 7.77 us |
+| goroutines over SQLite (8 connections, PRIMARY KEY) | 164.9 ms | 1.03 us |
+| green over `--embed` (MVCCS in the process) | 160.6 ms | 1.00 us |
+| green over `--kb` (MVCCS over TCP) | 187.7 ms | 1.17 us |
 
 All three summed to 79,920,000. EACH UNIT'S PROBES RUN IN ONE TRANSACTION
 on both sides -- a task's thread has a session with its transaction open
 across the unit's reads, and the SQLite goroutine opens one too
-(autocommit was 391.6 ms in the first run). The green lanes' walls are
-the fetch of the 10,000 rows plus the world, then 160,000 in-memory
-clause reads with no lock; SQLite reads its index per probe from the page
-cache.
+(autocommit was 391.6 ms in the first run). A KEYED LOOKUP COSTS THE SAME
+IN GREEN AS IN SQLITE (1.00 against 1.03 us); the green lane's wall is
+the fetch and compile of the 10,000 rows plus the world, then 160,000
+in-memory clause reads with no lock, and SQLite reads its index per probe
+from the page cache.
+
+**RUN G'S CORRECTION, and why Runs D-F's store lanes are not comparable to
+it**: `store_warm` took ONE solution of `skv(_, _)` (`ignore'), so the
+host fetched the 10,000 rows but compiled one clause; each task's first
+selection of each of the other 9,999 compiled it under the write barrier,
+with every worker acknowledging -- a cost of the worker count, not of a
+lookup (the lane was 1.17 s at 8 workers and 2.7 s at 16 before the fix;
+the barrier writes of one 16,000-probe run fell from 7,571 to 26). The
+warm now takes every solution (`forall'), so the compiles happen on the
+host before the world, as SQLite's PRIMARY KEY is built at the seed, and
+the lane measures the probes.
 
 **Light lanes** — many short tasks that do `true` and are joined, then the
 same with a yield each round. This is creation and switch cost, where green
@@ -178,32 +189,32 @@ is supposed to win:
 
 | lane | per task | per yield |
 |---|---|---|
-| real threads (1,000) | 154.53 us | 18.79 us (mutex handoff) |
-| green threads (10,000; batches of 1023) | 26.43 us | 6.36 us (`yield/0`) |
-| goroutines (Go, 10,000) | 12.54 us | 1.51 us (`Gosched`) |
-| rust threads (std::thread, 1,000) | 125.65 us | 13.58 us (`yield_now`) |
-| coroutines (asyncio, 10,000) | 24.89 us | 4.40 us (`sleep(0)`) |
+| real threads (1,000) | 125.97 us | 16.11 us (mutex handoff) |
+| green threads (10,000; batches of 1023) | 25.99 us | 6.54 us (`yield/0`) |
+| goroutines (Go, 10,000) | 10.02 us | 1.25 us (`Gosched`) |
+| rust threads (std::thread, 1,000) | 120.17 us | 12.10 us (`yield_now`) |
+| coroutines (asyncio, 10,000) | 22.84 us | 3.70 us (`sleep(0)`) |
 
 Run D's light-green lane was 3.6x Run C's 13.89 us a task: `coco_intern_len`
 took the world names mutex on every goal text read even when the atom was
 already in the table, and its end PUBLISHED, moving the generation so
 every other machine resynced. 2.9.2 made the hit lock-free (a miss takes
 the mutex and rechecks, and unlocking a look that found the name moves no
-generation): 26.43 us a task and 6.36 a yield in Run F, Run C's 5.83 a
+generation): 25.99 us a task and 6.54 a yield in Run G, Run C's 5.83 a
 yield within this box's drift, with the lane's CPU down from ~550 % to
 ~265 %.
 
 Rust's std::thread is one OS thread a task, the real lane's model:
-125.65 us a task, below the real lane's 154.53 because a cocolog thread
-carries a machine and a store, and 13.58 us a yield (`thread::yield_now`)
-against the mutex handoff's 18.79. Green is **~4.8x cheaper per task** than
-a Rust thread (26.43 against 125.65) and 5.8x than a cocolog OS thread,
-and **~2.1x cheaper per yield** than Rust's and 2.9x than the mutex
-handoff; Go's goroutine is 2.1x cheaper a task than green's still, and
-`Gosched` 4.2x cheaper than `yield/0` now, where the 2.7.0 one-scheduler
+120.17 us a task, below the real lane's 125.97 because a cocolog thread
+carries a machine and a store, and 12.10 us a yield (`thread::yield_now`)
+against the mutex handoff's 16.11. Green is **~4.6x cheaper per task** than
+a Rust thread (25.99 against 120.17) and 4.8x than a cocolog OS thread,
+and **~1.9x cheaper per yield** than Rust's and 2.5x than the mutex
+handoff; Go's goroutine is 2.6x cheaper a task than green's still, and
+`Gosched` 5.2x cheaper than `yield/0` now, where the 2.7.0 one-scheduler
 model measured 1.07 us. The
 world pays a lock at every yield and every spawn; the 1023-task batch
-makes the seven cloned stores' cost small per task but not nothing. The
+makes the world's setup cost small per task but not nothing. The
 counts differ by lane (the OS lanes are capped at 1,000 on this Mac, whose
 user-process limit is 2,784, and a cocolog thread carries a machine and a
 store), so the per-task and per-yield columns are the comparison, not the
@@ -212,12 +223,15 @@ wall alone.
 **One core**: `real1` runs the real work lane under `taskset -c 0` on Linux,
 the like-for-like scheduler comparison with the world's workers. The Mac
 has no taskset and the lane says SKIP; the green work lane above is the
-eight-worker number, and its CPU (450 %) says the cores are used.
+sixteen-worker number on this box, and its CPU says the cores are used.
 
 The harness rebuilds the Go and Rust binaries once (`go build`; `rustc
 -O`, and the Rust lane SKIPs by name without it), resolves the Python
 behind a pyenv shim (the shim alone is ~1.7 s), throws the first run of
 each lane away, and refuses a lane whose answer is not `answer(done)`.
+The green world's size is the machine's (`COCOLOG_GREEN_WORKERS` overrides
+it); the harness prints the core count it ran on, and the Go and Rust
+lanes take the same cores, so the work lanes compare like with like.
 
 ## Toward Go's small-stack shared-heap goroutine
 
@@ -295,9 +309,9 @@ staged engine-concurrency project, and the stages are:
    must use the cores, the light lane must keep its per-task cost, and the
    full suite (with a server) must be green.
 
-The tree NOW holds stages 1-3: eight workers (2.8.0), the shared names
-table (2.8.1), and the ONE SHARED STORE with the pre-write barrier
-(2.9.0). A spawn copies only its goal; the caller's store is every task's
+The tree NOW holds stages 1-3: the M:N world (2.8.0, one worker a core
+since 2.9.3), the shared names table (2.8.1), and the ONE SHARED STORE
+with the pre-write barrier (2.9.0). A spawn copies only its goal; the caller's store is every task's
 store; every store mutation and every piece of metadata a first call makes
 stops the other workers at their safe points, changes the store, and
 releases them. The per-task heaps answer the shared-heap question without
@@ -338,15 +352,17 @@ scheduler, and 2.8.0's the cloned M:N world.
   is untested.
 * 1024 tasks and 64 channels a world; a spawn copies nothing; a deadlock is
   the world's error.
-* The world is M:N: the caller's thread and seven OS threads, one store.
+* The world is M:N: the caller's thread and N-1 OS threads (N the online
+  cores; `COCOLOG_GREEN_WORKERS` sets it), one store. A write waits for
+  every worker, so a first touch that writes once an item is O(N) -- warm
+  it on the host before `async_run/1` (bench/concurrency.pl's `store_warm`).
 * A library predicate with a choice point per answer (`between/3`) is slow
   in a green store; the benchmark's work is a recursion (`bench/spin.pl`),
   and `test/async.pl` says so.
 * A goal is read in the new machine's module; a module-qualified goal is
   not carried as one.
 
-`cocolog 2.9.0`, the M:N world over ONE SHARED STORE: eight workers, the
-caller's store for every task, the pre-write barrier that stops the world
-for a write and releases it after, the shared names table and the step
-quantum. Stage 4 -- the suite and the benchmark on this model -- is the
+`cocolog 2.9.0`, the M:N world over ONE SHARED STORE: the caller's store
+for every task, the pre-write barrier that stops the world for a write and
+releases it after, the shared names table and the step quantum. Stage 4 -- the suite and the benchmark on this model -- is the
 next rung. Reasoning stays 1.0.11.

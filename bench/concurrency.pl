@@ -165,9 +165,13 @@ store_run(N, K, M) :-
 %% worker's first fetch works since 2.9.1 (the client keeps a session per
 %% thread; before, it crashed in MVCCS's `visible()'); a host call here
 %% reads the rows once and the world's tasks find them in memory, the
-%% shape httpd's `prewarm' gives its pool.
+%% shape httpd's `prewarm' gives its pool. EVERY solution is taken
+%% (`forall', not `ignore'): one solution compiles one clause, and the
+%% other 9,999 would be compiled by the first task that selects them,
+%% each under the write barrier with every worker acknowledging -- a cost
+%% that grows with the worker count and is no part of a lookup.
 store_warm :-
-    catch(ignore(skv(_, _)), _, true).
+    catch(forall(skv(_, _), true), _, true).
 
 store_build(0) :- !.
 store_build(K) :-

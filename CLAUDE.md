@@ -1915,9 +1915,10 @@ cocolint index offers no import of it.
   registered as `green` in `setup`), and `library(async)` is the clauses
   over its `$async_*` C -- TIER 1 since 2.8.0, preloaded at start-up, so
   async coroutines are on by default. A green thread is a MACHINE of its
-  own in a WORLD
-  of eight workers (2.8.0): the caller's thread is worker 0 and seven OS
-  threads are workers 1..7. **ONE STORE (2.9.0)**: every worker, and so
+  own in a WORLD of one worker a CORE (2.9.3, Go's GOMAXPROCS rule: the
+  caller's thread is worker 0 and N-1 OS threads are workers 1..N-1,
+  `COCOLOG_GREEN_WORKERS` overriding N for a benchmark arm or a narrow
+  affinity; it was eight through 2.9.2). **ONE STORE (2.9.0)**: every worker, and so
   every task's machine, runs over the caller's own store and machine
   (`(-> wi st)` the host's, `(-> wi base)` the host machine); a spawn
   copies nothing but its goal. **THE NAME TABLES ARE SHARED (2.8.1)**:
@@ -1941,7 +1942,12 @@ cocolint index offers no import of it.
   index built, a sweep) binds the barrier's let variable
   `(defer () coco_g_write_end_cleanup)` to `coco_g_write_begin`: the
   writer publishes an op (the world's `op`, writer, seq, acks), pokes every
-  worker and waits for `nworkers - 1` acks; a worker acks at its loop's
+  worker and waits for `nworkers - 1` acks -- so a write is O(nworkers)
+  apart, and a first touch that writes once an item (a clause's first
+  compile) must not be left in a loop: bench/concurrency.pl's `store_warm`
+  compiles every clause on the host before the world -- taking one
+  solution only (`ignore') left 10,000 compiles each a barrier, and the
+  lane was 1.17 s at 8 workers and 2.7 s at 16, 0.10 s warmed either way; a worker acks at its loop's
   top, or inside `write_begin` while it waits for the op in flight (a
   task inside a store call cannot reach its loop top, and without that ack
   a writer and a writer's task deadlocked); the writer changes the store
@@ -2012,7 +2018,7 @@ cocolint index offers no import of it.
   instantiated, in canonical text; a throw is rethrown by `await/2`; a
   deadlock is raised as resource_error(deadlock) at `async_run/1,2`.
   `test/async.pl`, lesson 54, `bench/concurrency.sh`,
-  `library/async/README.md` (the model, the Run C numbers and the limits).
+  `library/async/README.md` (the model, the Run G numbers and the limits).
   A library predicate with a choice point per answer (`between/3`) is slow
   -- the concurrency benchmark's workload is a recursion, and the finding
   is recorded there.

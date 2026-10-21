@@ -2027,3 +2027,70 @@ against the mutex handoff's 18.79. Green is ~5x cheaper a task than Rust's
 threads and ~2x cheaper a yield. This run's other lanes drifted up from
 Run E (serial 505.7 -> 552.6, SQLite 153.1 -> 183.1), so the numbers
 compare within the run.
+
+**CONCURRENCY RUN G** -- 2026-10-21, cocolog 2.9.3: THE WORLD'S SIZE IS
+THE MACHINE'S. `async_run/1,2` used to start eight workers on any box;
+it now starts one worker an ONLINE CORE, Go's GOMAXPROCS rule
+(`sysconf(_SC_NPROCESSORS_ONLN)`, 16 here; `COCOLOG_GREEN_WORKERS`
+overrides it), and the work lanes compare the same 16 cores on the Go,
+Rust and green sides. The same command and defaults as Run F, the same
+16-core Intel Mac.
+
+Work lanes, N=8, M=1,000,000:
+
+| lane | wall |
+|---|---|
+| serial | 444.9 ms |
+| real threads (8 OS threads) | 174.3 ms |
+| green threads (8 green threads on 16 workers) | 172.6 ms |
+| goroutines (Go, 8) | 98.0 ms |
+| rust threads (std::thread, 8) | 94.9 ms |
+| coroutines (asyncio, 8) | 588.8 ms |
+
+Store lanes, 8 units x 20,000 keyed lookups over 10,000 rows, WITH THE
+WARM UNDERNEATH THEM FIXED (below):
+
+| lane | wall | per lookup |
+|---|---|---|
+| goroutines over SQLite (8 connections, one transaction each) | 164.9 ms | 1.03 us |
+| green threads over `--embed` | 160.6 ms | 1.00 us |
+| green threads over `--kb` | 187.7 ms | 1.17 us |
+
+Light lanes (10,000 tasks, 1,000 OS threads, 10 yields):
+
+| lane | per task | per yield |
+|---|---|---|
+| real threads | 125.97 us | 16.11 us (mutex handoff) |
+| green threads | 25.99 us | 6.54 us |
+| goroutines | 10.02 us | 1.25 us |
+| rust threads | 120.17 us | 12.10 us (`yield_now`) |
+| coroutines | 22.84 us | 3.70 us |
+
+**A KEYED LOOKUP COSTS A GREEN TASK WHAT IT COSTS A SQLITE GOROUTINE**
+(1.00 against 1.03 us): cocolog's in-memory store read with no lock. The
+green work lane ties the OS threads (172.6 against 174.3) and the light
+lanes are Run F's within drift (25.99 against 26.43 us a task, 6.54
+against 6.36 a yield).
+
+**THE STORE LANES' PREVIOUS FIGURES WERE THE FIRST COMPILES.** The world
+had been eight workers on this 16-core box, and `store_warm` took ONE
+solution of `skv(_, _)` (`ignore'), so the host fetched the 10,000 rows
+but compiled one clause: each task's first selection of each of the other
+9,999 compiled it under the write barrier, with every worker
+acknowledging. That is a cost of the worker count, not of a lookup, and
+running the world at the cores without mending the warm would have
+doubled it: the same lane, before the fix, was 1.17-1.21 s at 8 workers
+and 2.66-2.84 s at 16 (three alternating pairs, 6.44 s of system time at
+16 against 1.42 at 8); instrumented, a 16,000-probe run made 7,571
+barrier writes. The warm now takes every solution (`forall'), so the
+10,000 compiles happen on the host before the world as SQLite's PRIMARY
+KEY is built at the seed: 26 barrier writes in the same run, and the lane
+0.10 s at either worker count. Runs D-F's store lanes (SQLite 153.1-183.1,
+`--embed` 1134-1185, `--kb` 1149-1243 ms) measured the compiles; they are
+not comparable to Run G's and are kept as what they were.
+
+**THE WORLD'S SIZE AND THE BARRIER**: a write waits for
+`nworkers - 1` acknowledgements, so a store write is O(workers) apart;
+reads are unaffected (the work and light lanes and every store lane here).
+A program that warms a store before `async_run/1` should take every
+solution it means to warm, not one.

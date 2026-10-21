@@ -13,8 +13,10 @@
 #   real        N threads of library(thread): an OS thread each, free to use
 #               N cores.
 #   green       N green threads of library(async): one process, a world of
-#               eight workers (the caller and seven OS threads), tasks pinned
-#               to a worker and preempted at a 10,000-step quantum.
+#               N_CPU workers (the caller and N_CPU-1 OS threads, as Go's
+#               GOMAXPROCS defaults to NumCPU; COCOLOG_GREEN_WORKERS
+#               overrides), tasks pinned to a worker and preempted at a
+#               10,000-step quantum.
 #   goroutine   N Go goroutines: Go's runtime schedules them M:N over the OS
 #               threads, so this lane may use the cores.
 #   rust        N std::threads: an OS thread each, as the real lane.
@@ -31,9 +33,9 @@
 # cocolog thread carries a machine and a store, and 10,000 of them is past
 # what this Mac's user-process limit (2784) will start. A green world holds
 # 1024 tasks and 64 channels, so its light lane runs in batches of 1023
-# children plus the main, each batch one async_run -- the world's eight
-# workers clone the caller's store once, and a spawn after that copies
-# nothing. That is the model the benchmark measures. The Rust light lanes
+# children plus the main, each batch one async_run -- the world's workers
+# clone the caller's store once, and a spawn after that copies nothing.
+# That is the model the benchmark measures. The Rust light lanes
 # take OS_LIGHT_N too: std::thread is one OS thread a task.
 #
 # THE ONE-CORE LANE: real1 is the real-thread work lane under `taskset -c 0`

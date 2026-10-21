@@ -9,8 +9,8 @@
 %%   reads that argument from the whole term async_run/1 answers. The
 %%   caller's own variables are not bound: the term is a copy.
 %%
-%%   THE SCHEDULER is the world's: eight workers (the caller's thread is
-%%   worker 0), each with a store cloned at async_run/1; a task is pinned
+%%   THE SCHEDULER is the world's: one worker a core (2.9.3; the caller's
+%%   thread is worker 0), one store shared by all (2.9.0); a task is pinned
 %%   to the worker it was born on and gives way when it yields, awaits,
 %%   blocks on a channel or spends its 10,000-step quantum. A thread that
 %%   fails makes await/2 fail; one that throws makes it throw the same
@@ -52,10 +52,11 @@ case_future(R) :-
     await(F, _),
     ( future_ready(F) -> R = ready ; R = waiting ).
 
-%% THE QUANTUM. Eight children take workers 1..7 and then 0 (the main's
-%% own); H, the eighth, shares worker 0 with the main, so after the main's
-%% yield it is stopped at its 10,000-step quantum -- a task that never
-%% yields cannot hold its worker.
+%% THE QUANTUM. Children take the workers beside the host round robin
+%% (1, 2, ... and, past the last, 0, the main's own); each spins 20,000
+%% steps, so after the main's yield the last is stopped at its
+%% 10,000-step quantum -- a task that never yields cannot hold its
+%% worker.
 case_quantum(R) :-
     go(spin(20000), A), go(spin(20000), B), go(spin(20000), C),
     go(spin(20000), D), go(spin(20000), E), go(spin(20000), F),

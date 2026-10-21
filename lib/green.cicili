@@ -8,9 +8,11 @@
 ;;;; go/2 starts one, await/2 joins it, and channels carry terms between
 ;;;; them.
 ;;;
-;;;; THE WORLD (2.8.0) IS M:N. `async_run/1,2' starts a world of N workers
-;;;; (8): the caller's own thread is worker 0 and seven pthreads are
-;;;; workers 1..7. ONE STORE (2.9.0): every worker -- and so every task's
+;;;; THE WORLD (2.8.0) IS M:N. `async_run/1,2' starts a world of N workers,
+;;;; N the machine's online cores (2.9.3; GOMAXPROCS's rule, and
+;;;; COCOLOG_GREEN_WORKERS overrides it): the caller's own thread is worker
+;;;; 0 and N-1 pthreads are workers 1..N-1. ONE STORE (2.9.0): every worker
+;;;; -- and so every task's
 ;;;; machine -- runs over the caller's own store and the caller's own
 ;;;; machine, whose name and value tables all the machines alias (2.8.1).
 ;;;; A task is pinned to the worker it was born on; a spawn copies nothing
@@ -81,7 +83,7 @@
 (generic decl-green
   ()
 
-  ;; 1024 tasks and 64 channels a world; 8 workers, a fixed array.
+  ;; 1024 tasks and 64 channels a world; a worker a core, allocated.
   ;; a member's type is one token, so the two-step typedef: a char * is
   ;; coco_charp, and the ring is a coco_charp *.
   (typedef char * coco_charp)
@@ -722,6 +724,26 @@
             (return (coco_g_raise e "library(async): this needs async_run/1"))
           (return 1)))
 
+  ;;; THE WORLD'S SIZE IS THE MACHINE'S (2.9.3): one worker a core, as Go's
+  ;;; GOMAXPROCS defaults to NumCPU. `_SC_NPROCESSORS_ONLN' is a #define,
+  ;;; invisible to Cicili, so it is spelled in the escape. The workers are
+  ;;; allocated to the count (the task slots are not); COCOLOG_GREEN_WORKERS
+  ;;; overrides it -- a benchmark arm, or a box whose affinity is narrower
+  ;;; than its online cores. 256 is the ceiling: each worker is an OS thread
+  ;;; and a condition variable, and past that the world buys no more cores.
+  (static)
+  (func coco_g_nworkers () (out int)
+        (let ((const char * env . #'(getenv "COCOLOG_GREEN_WORKERS")))
+          (if (!= env nil)
+              (let ((llong n . #'(atoll env)))
+                (if (> n 0)
+                    (return (cast int (? (> n 256) 256 n)))))))
+        (let ((long n . 0))
+          (set n (code "sysconf(_SC_NPROCESSORS_ONLN)"))
+          (if (< n 1) (set n 1))
+          (if (> n 256) (set n 256))
+          (return (cast int n))))
+
   (func coco_g_async_run ((coco_engine * e) (size_t g)) (out int)
         (if (!= green_now nil)
             (return (coco_g_raise e "library(async): async_run inside a green thread is not supported")))
@@ -730,7 +752,7 @@
               (size_t goal . #'(coco_deref hm (coco_arg hm g 0)))
               (size_t outc . #'(coco_deref hm (coco_arg hm g 1)))
               (char * gtext . #'(coco_g_write hm goal))
-              (int nw . 8))
+              (int nw . #'(coco_g_nworkers)))
           (if (== gtext nil) (return (coco_g_raise e "library(async): the goal is too wide")))
           (let ((green_world * wd . #'(cast (green_world *)
                                            (calloc 1 (sizeof green_world)))))
@@ -746,7 +768,7 @@
             (set (-> wd host_st) hs)
             (set (-> wd host) hm)
             ;; the caller's own worker is 0; the first child goes to 1, so a
-            ;; world of eight spreads its children over seven plus the host.
+            ;; world of N spreads its children over the N-1 beside the host.
             (set (-> wd next_worker) 1)
             (pthread_mutex_init (aof (-> wd lock)) nil)
             (pthread_cond_init (aof (-> wd op_done)) nil)

@@ -20,8 +20,10 @@
 %%     channel_close(+C)
 %%
 %% A GREEN THREAD IS NOT library(thread)'s. This one is a machine of its
-%% own, run by a world of EIGHT WORKERS (2.8.0): the caller's thread is
-%% worker 0 and seven OS threads are workers 1..7. THE WORLD RUNS OVER THE
+%% own, run by a world of one worker a CORE (2.9.3, as Go's GOMAXPROCS
+%% defaults to NumCPU; COCOLOG_GREEN_WORKERS overrides it): the caller's
+%% thread is worker 0 and the others are OS threads, 1..N-1. THE WORLD
+%% RUNS OVER THE
 %% CALLER'S OWN STORE (2.9.0): a write a task makes -- assertz/1,
 %% asserta/1, retract/1, dynamic/1, abolish/1, nb_setval/2 -- is seen by
 %% every other task and by the host as soon as it lands, because it IS
