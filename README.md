@@ -46,7 +46,7 @@ it. See [The flow libraries](#the-flow-libraries) below.
 
 | | |
 |---|---|
-| **A language** | A Prolog: the ISO core, DCGs, exceptions, `format`, eight classic libraries read at start-up. The places it deliberately differs from the reference implementations are one table, every row checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
+| **A language** | A Prolog: the ISO core, DCGs, exceptions, `format`, eight libraries copied unmodified from SWI and read at start-up. The places it deliberately differs from the reference implementations are one table, every row checked by running the same goal on both: [COMPAT.md](COMPAT.md). |
 | **A state machine** | A proof is a term. Freeze it, store it, read it back in another process, go on. The store is MVCC (ZiguratIP's MVCCS), transactional by the turn, and a clause is a row. |
 | **A concurrency model** | Green threads as in Go -- `go`, `yield`, `await`, channels -- over ONE shared store, one worker a core, preempted at 10,000 steps. Real threads, which share nothing and copy terms. |
 | **A bridge** | Twenty loadable modules over C and C++ libraries, each declared in a Cicili binding and called as Prolog: sockets, TLS, HTTP, WebSocket, OpenCV, raylib, libtorch, TensorFlow, curl, cryptography. No C pasted into Prolog strings. |
@@ -101,10 +101,11 @@ states in the code why it does not.
   module is a C API bound in Cicili; a library is clauses; a server page is a
   clause; a grammar is compiled in the engine. There is no second language
   hiding under the first.
-* **Nothing rewritten that can be imported.** Eight classic Prolog libraries,
-  unmodified in `lib/swipl/`; OpenSSL for crypto and TLS; libcurl for curl;
-  ZiguratIP for the durable store; cicili for the language. The repository owns
-  what it must -- the engine, the state format, the seam -- and borrows the rest.
+* **Nothing rewritten that can be imported.** Eight of SWI's libraries, copied
+  unmodified (BSD-2) into `lib/swipl/`; OpenSSL for crypto and TLS; libcurl for
+  curl; ZiguratIP for the durable store; cicili for the language. The repository
+  owns what it must -- the engine, the state format, the seam -- and borrows the
+  rest.
 * **The store is a seam, not a dependency.** The same feature is considered in
   every arrangement -- local, embedded, server, Zeytun -- and the differences
   are documented where they matter (a turn is a transaction; an httpd worker
@@ -134,9 +135,11 @@ that stops the world, channels, futures, deadlock detection. Tier 1: there with
 no import.
 
 **The libraries** -- tier 1 always present: `apply builtins dcg files library
-lists zigurat`, the eight classics (`assoc pairs ordsets yall aggregate
-ugraphs dcg_basics dcg_high_order`), and `async`. Tier 2 is loaded on demand
-from `$COCOLOG_LIBRARY`:
+lists zigurat`; **eight of SWI's own libraries, copied unmodified under their
+BSD-2 headers into `lib/swipl/` and read at start-up**, so they need no import:
+`assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg_basics` and
+`dcg_high_order`; and `async`. Tier 2 is loaded on demand from
+`$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
 two families below -- `library/flow/` and `library/reasoning/`.
