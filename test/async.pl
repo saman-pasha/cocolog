@@ -65,6 +65,40 @@ case_quantum(R) :-
     ( future_ready(H) -> R = done ; R = not_done ),
     await_all([A,B,C,D,E,F,G,H]).
 
+%% A NESTED ENGINE CANNOT BE SUSPENDED (2.10.1): findall/3, forall/2 and
+%% the rest run a goal on a sub-engine whose search lives on a C stack a
+%% green yield does not carry. await inside one used to come back as "no
+%% more solutions"; it waits inside the builtin now. The same for a
+%% channel that blocks, and yield is a no-op there.
+case_findall_awaits(R) :-
+    findall(F, (between(1, 40, _), go(true, F)), Fs),
+    findall(F, (member(F, Fs), await(F, _)), Done),
+    length(Done, R).
+
+case_forall_awaits(R) :-
+    findall(F, (between(1, 40, _), go(true, F)), Fs),
+    forall(member(F, Fs), await(F, true)),
+    R = done.
+
+case_findall_recv(R) :-
+    channel(C),
+    go((spin(1000), channel_send(C, hello)), F),
+    findall(X, channel_recv(C, X), Xs),
+    await(F, _),
+    R = Xs.
+
+case_findall_send(R) :-
+    channel(C),
+    go((spin(1000), channel_recv(C, X), channel_send(C, X-ack)), F),
+    findall(ok, channel_send(C, hello), L),
+    channel_recv(C, Back),
+    await(F, _),
+    R = L-Back.
+
+case_findall_yield(R) :-
+    findall(X, (member(X, [a,b,c]), yield), Xs),
+    R = Xs.
+
 case_chan(R) :-
     channel(C),
     go((channel_send(C, hello), yield), F),
@@ -129,6 +163,10 @@ main :-
     catch(use_module(library(async)), _, fail),
     values,
     joining,
+    nested_engines,
+    one_worker,
+    foreign_write,
+    foreign_thread,
     channels,
     failures,
     shared_store,
@@ -155,6 +193,78 @@ joining :-
     check('a joined thread is ready', G2, ready),
     answer(result(case_quantum(R3), R3), R3, G3),
     check('a task that never yields is stopped at the quantum', G3, not_done).
+
+%% ---- a blocking call inside findall/forall -------------------------------
+%%
+%% THE NESTED ENGINE has no yield: its search is a C stack. A block there
+%% used to truncate the search and lose the answer; the answer is waited
+%% for inside the builtin now, with the worker's own ready tasks run.
+nested_engines :-
+    section('awaits and channels inside findall/forall'),
+    answer(result(case_findall_awaits(R1), R1), R1, G1),
+    check('await inside findall joins every one', G1, 40),
+    answer(result(case_forall_awaits(R2), R2), R2, G2),
+    check('await inside forall joins every one', G2, done),
+    answer(result(case_findall_recv(R3), R3), R3, G3),
+    check('a blocking receive inside findall gets its term', G3, [hello]),
+    answer(result(case_findall_send(R4), R4), R4, G4),
+    check('a blocking send inside findall moves its term', G4, [ok]-(hello-ack)),
+    answer(result(case_findall_yield(R5), R5), R5, G5),
+    check('yield there is a no-op, not a lost answer', G5, [a,b,c]).
+
+%% A WORLD OF ONE WORKER is the case a container has. The first child used
+%% to be placed on worker 1, which does not exist there: a crash, not a
+%% slow path. One child needs that world, so it is a child process.
+one_worker :-
+    section('a world of one worker'),
+    scratch(D),
+    atom_concat(D, '/one.pl', Path),
+    fixture(Path,
+            [ 'main :- async_run(probe, _).',
+              'probe :- findall(F, (between(1, 8, _), go(true, F)), Fs), forall(member(F, Fs), await(F, true)), write(done), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=1 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit),
+    check('one worker: go, await and done', Out-Exit, done-0),
+    shl(['rm -rf ', D]).
+
+%% A WRITE MUST NOT WAIT FOR A WORKER IN A FOREIGN CALL. The main task is
+%% asleep in a declared non-store call; a child on worker 1 writes a
+%% global. Before the handshake the child waited for the main to leave the
+%% call, so the main read the old value. Two workers are enough, and a
+%% container has one, so it is a child process.
+foreign_write :-
+    section('a write does not wait for a foreign call'),
+    scratch(D),
+    atom_concat(D, '/foreign.pl', Path),
+    fixture(Path,
+            [ 'main :- async_run(probe, _).',
+              'probe :- nb_setval(green_sync, no), channel(C), go((channel_send(C, ready), nb_setval(green_sync, yes)), F), channel_recv(C, ready), ''$green_foreign_sleep''(100), nb_getval(green_sync, V), await(F, _), write(V), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=2 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit),
+    check('the write lands during the call', Out-Exit, yes-0),
+    shl(['rm -rf ', D]).
+
+%% THE SAME SHAPE WITH library(thread)'s channel, which is what CivV
+%% measured: the main task waits in channel_recv/3, a child writes a global,
+%% and a writer that waited for the wait would time out first. Two workers.
+foreign_thread :-
+    section('a thread channel wait does not hold a write'),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  scratch(D),
+        atom_concat(D, '/thread-wait.pl', Path),
+        fixture(Path,
+                [ ':- use_module(library(thread)).',
+                  'main :- async_run(probe, _).',
+                  'probe :- nb_setval(green_sync, no), channel_new(Start), channel_new(Done), go((channel_recv(Start, ready), ''$green_foreign_sleep''(20), nb_setval(green_sync, yes), channel_send(Done, done)), F), channel_send(Start, ready), ( channel_recv(Done, 200, _) -> R = got ; R = timeout ), nb_getval(green_sync, V), await(F, _), write(R-V), nl.' ]),
+        cocolog(C),
+        sh_join(['COCOLOG_GREEN_WORKERS=2 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+        shell(Cmd, Out, Exit),
+        check('the write lands while the channel waits', Out-Exit, 'got-yes'-0),
+        shl(['rm -rf ', D])
+    ;   format("     (skipped: no thread module)~n")
+    ).
 
 %% ---- channels ------------------------------------------------------------
 channels :-

@@ -357,6 +357,27 @@ table) is a portal's answer like any other: a replay that answered the call that
 made it from the journal answers every call that uses it so too, which is why a
 module whose predicates share a table is named whole. 1.10.15 or later.
 
+### A blocking C call that touches no store: `coco_g_foreign_*`
+
+A module predicate that spends its time in a C call which may block and reads
+no part of the store -- raylib's `EndDrawing`, which waits for the frame, or
+`library(thread)`'s channel and mutex waits -- says so around the call:
+
+```lisp
+(coco_g_foreign_begin)
+(EndDrawing)
+(coco_g_foreign_end)
+```
+
+A green task's store write then need not wait for this worker at its pre-write
+barrier: the worker is left out of the count while it is inside the call. When
+the call returns, `coco_g_foreign_end` acknowledges any write still in flight
+and waits for it before the worker reads the store again. **Only a call that
+reads and writes no part of the store may use the pair**; one that does must not
+name itself this way, and a worker in an undeclared long foreign call still
+holds the barrier. 2.10.1 or later, and a loadable module built with it needs
+an interpreter that exports the two symbols.
+
 `coco-mod-args` binds arguments by position and is sugar for the `let` of
 `coco_m_arg` calls that every predicate starts with.
 

@@ -85,6 +85,14 @@
 ;;;; unbounded queue between a fast producer and a slow consumer is not a
 ;;;; queue, it is a memory leak with a scheduler attached.
 ;;;;
+;;;; THE WAITS ARE FOREIGN CALLS THAT TOUCH NO STORE (2.10.1). A full
+;;;; channel's send, a receive, a mutex lock and a condition wait bracket
+;;;; the blocking call with coco_g_foreign_begin/end: a green task's store
+;;;; write need not wait for a worker asleep in one, and the worker syncs
+;;;; with a write still in flight before it reads the store again. This is
+;;;; the shape CivV measured at 81 seconds -- the main task in a
+;;;; channel_recv/3 while a green worker wrote a cache.
+;;;;
 ;;;; RECEIVING FROM A CLOSED, EMPTY CHANNEL FAILS. It does not block and it
 ;;;; does not raise: "there will be no more" is an ordinary answer, and it
 ;;;; is what lets a consumer be written as a failure-driven loop rather than
@@ -400,12 +408,17 @@
   ;;; term walks the sender's heap, which is the sender's business and no
   ;;; reason to hold up a queue.
   (func th_chan_send ((coco_engine * e) (size_t g) (int * found)) (out int)
-        (let ((int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
+        (let ((defer () coco_g_foreign_end_cleanup)
+              (int foreign_on . 1)
+              (int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
               (char * text . nil))
           (if (== c nil) (return rc))
           (set text (coco_m_term_text e (coco_m_arg e g 1)))
           (if (== text nil)
               (return (coco_m_error e "channel_send" "the term would not write")))
+          ;; A FULL CHANNEL WAITS HERE. The queue is not the store, so a
+          ;; green write need not wait for this worker (2.10.1).
+          (coco_g_foreign_begin)
           (pthread_mutex_lock (aof (-> c lock)))
           ;; A CLOSED CHANNEL TAKES NOTHING MORE. Failing rather than raising:
           ;; a producer racing a consumer's close is ordinary, and the
@@ -457,9 +470,15 @@
 
   (static)
   (func th_recv ((coco_engine * e) (size_t g) (i64 wait) (uint32_t out) (int * found)) (out int)
-        (let ((int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
+        (let ((defer () coco_g_foreign_end_cleanup)
+              (int foreign_on . 1)
+              (int rc . 0) (th_chan * c . #'(th_chan_at_d e (coco_m_arg e g 0) (aof rc) found))
               (char * text . nil) (size_t t . 0))
           (if (== c nil) (return rc))
+          ;; A WAIT IS THE SHAPE OF A FRAME LOOP: the main task sleeps on a
+          ;; channel while a green worker writes. The queue is not the store;
+          ;; the write need not wait for this worker (2.10.1).
+          (if (!= wait 0) (coco_g_foreign_begin))
           (set text (th_take_one c wait))
           (if (== text nil) (return 0))
           (set t (coco_m_read_term e text))
@@ -665,7 +684,10 @@
         (let ((int rc . 0) (int s . #'(th_mutex_arg e (coco_m_arg e g 0) (aof rc))))
           (if (< s 0) (return rc))
           (let ((th_mutex * mx . #'(aof (nth (cast size_t s) th_mutexes))))
+            ;; a lock can block, and it reads no store
+            (coco_g_foreign_begin)
             (pthread_mutex_lock (aof (-> mx m)))
+            (coco_g_foreign_end)
             (set (-> mx owner) (pthread_self))
             (set (-> mx depth) (+ (-> mx depth) 1))
             (return 1))))
@@ -759,9 +781,12 @@
                         (return (coco_m_domain_error e "not_less_than_zero" (coco_m_arg e g 2))))
                     (th_deadline (aof ts) ms)))
               (set (-> mx depth) 0)
+              ;; the wait releases the caller's mutex; it reads no store
+              (coco_g_foreign_begin)
               (if timed
                   (set wrc (pthread_cond_timedwait (aof (-> c c)) (aof (-> mx m)) (aof ts)))
                 (set wrc (pthread_cond_wait (aof (-> c c)) (aof (-> mx m)))))
+              (coco_g_foreign_end)
               (set (-> mx owner) (pthread_self))
               (set (-> mx depth) 1)
               ;; a timeout is an ANSWER: the mutex is back and the goal fails

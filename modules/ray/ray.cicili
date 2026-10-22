@@ -492,8 +492,16 @@
   (func ray_p_begin ((coco_engine * e) (size_t g)) (out int)
         (BeginDrawing) (return 1))
 
+  ;; EndDrawing is where a frame WAITS -- vsync, the swap, the event pump --
+  ;; and it reads nothing of the knowledge base. The foreign-call pair says
+  ;; so: a green task's store write need not wait for this worker, and this
+  ;; worker syncs with any write still in flight before it reads the store
+  ;; again. ray is the first module to declare one.
   (func ray_p_end ((coco_engine * e) (size_t g)) (out int)
-        (EndDrawing) (return 1))
+        (coco_g_foreign_begin)
+        (EndDrawing)
+        (coco_g_foreign_end)
+        (return 1))
 
   (func ray_p_clear ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 c [4]))

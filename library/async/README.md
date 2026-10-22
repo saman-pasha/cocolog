@@ -107,6 +107,14 @@ and a later `coco_frames_on`/free walk over it was a use-after-free or a
 cycle. It takes the names mutex. A per-worker wake generation and a
 deadlock check after any block are in as well.
 
+**A WAITER'S CELL IS ROOTED (2.10.1).** `coco_g_resume` read the status text
+while the waiter's cell was an unrooted heap index. A collection during that
+read could move the cell, so a deadlock -- whose status is the largest term
+the scheduler builds -- occasionally resumed with "failed" instead of its
+ball: 3 runs in 100 of `test/async.pl` on the 2.10.0 binary, and one of them
+a SIGSEGV. The cell is a heap root across the read now; 100 runs of the case
+are green, and the case `test/async.pl` has the deadlock check it always had.
+
 The status of a thread is a text term the scheduler carries:
 
     '$async'(ok, Goal)   first solution, the goal instantiated
@@ -321,6 +329,45 @@ benchmark of the work and light lanes on this model. 2.6.0's released
 library was the per-spawn-snapshot model, 2.7.0's the shared-store single
 scheduler, and 2.8.0's the cloned M:N world.
 
+## What CivV measured (2026-10-22)
+
+CivV's `ASKS.md` §4 ran this library on a real turn, `saves/default`, round 10,
+`--local`, on a 16-core Intel Mac, and the numbers decide where green
+threads are useful:
+
+| work (one process) | unthreaded | green |
+|---|---|---|
+| 20,000 `nb_setval/2` | 6 ms | 1,785 ms (16 workers), 337 ms (4), 163 ms (2) |
+| 4 x `spin(2,000,000)`, no writes | 322 ms | 103 ms (4+ workers) |
+| the same 23 `ai_order/2` decisions | 4 ms | 7 ms |
+
+**Reading is where green wins** -- 3x across four workers. **A write stops
+the world**, and a CivV decision writes its caches, so the same decisions
+are slower in a green task than one at a time. With the main task inside a
+blocking foreign call (a `channel_recv/3` with a timeout, the shape of a
+raylib frame in `EndDrawing`), 20,000 writes took **81 seconds**: a worker
+inside a foreign call does not reach a safe point until it returns, and
+the writer waits for it. **That was before 2.10.1's foreign-call handshake.**
+A module wraps a blocking C call that touches no part of the store in
+`coco_g_foreign_begin` / `coco_g_foreign_end`; the writer need not wait for
+that worker, and the call's end acknowledges and waits for any write still
+in flight before the worker reads the store again. `library(ray)` marks
+`EndDrawing`, the frame's wait, and `library(thread)` marks its channel
+sends and receives, mutex locks and condition waits, so a green write now
+runs during the wait instead of after it. A call that does touch the store
+must not declare itself this way.
+
+The `await/2` failure CivV found in the same section is fixed (2.10.1).
+`findall/3` and `forall/2` run their goal on a nested engine whose search
+cannot be suspended; a blocking `await` there used to return as "no more
+solutions", so every task placed back on worker 0 after the other
+workers had taken one each failed to join. A blocking call inside a
+nested search now waits inside the builtin, running the worker's ready
+tasks, and returns its answer. The exact repro -- 10, 15, 16, 23 and 40
+tasks, spawned and awaited -- answers all of them, on 1, 4 and 16
+workers (measured); `test/async.pl` holds the nested-await case and a
+world of one worker.
+
 ## Limits, stated where a reader meets them
 
 * A signal delivered to a green thread's machine writes that machine's
@@ -337,10 +384,19 @@ scheduler, and 2.8.0's the cloned M:N world.
   it lands. A nested search inside a task -- `findall/3`, `call_limited/3`,
   `call_metered/4` -- is fenced by ITS limit and not by the quantum
   (2.9.4): a task's engine always carries `max_steps`, and narrowing used
-  to read it as an outer step budget. A consult or load a task runs and a module's own C state stay
+  to read it as an outer step budget. **A nested search cannot carry a
+  yield** (2.10.1): `await`, a blocking send/receive and a `yield` inside
+  one wait in the builtin and run the worker's ready tasks, because the
+  search's C stack is not part of the machine; `yield` there is a no-op.
+  A consult or load a task runs and a module's own C state stay
   the worker's. No table reclamation or store compaction runs while a
-  world does. A write waits for every worker to reach a safe point: a task
-  inside a long foreign call holds it until the call returns. A write a
+  world does. A write waits for every worker to reach a safe point --
+  except a worker that has declared itself inside a non-store foreign call
+  with `coco_g_foreign_begin`/`_end` (2.10.1): its count is left out, and
+  its return acknowledges and waits for any write still in flight before
+  it reads the store. A call that touches the store must not declare itself
+  this way, and a worker in an undeclared long foreign call still holds
+  the barrier. A write a
   task makes after the main task has ended is not stopped for -- the world
   is ending and the workers are breaking -- so a program that lets its
   main task end while others still write, and then reads the store from

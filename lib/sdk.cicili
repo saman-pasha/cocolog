@@ -137,6 +137,17 @@
 ;;; outlive the process. A module that needs 1.10.15 or later.
 (decl) (func coco_m_portal ((const char * module) (const char * name) (int arity)) (out int))
 
+;;; A BLOCKING FOREIGN CALL that does NOT read or write the store may say
+;;; so around the call. The green scheduler then need not wait for this
+;;; worker at a store write's barrier; on return the call acknowledges any
+;;; write still in flight and waits for it, so the worker does not read the
+;;; store while it changes. raylib's EndDrawing is the first caller. A call
+;;; that touches the store must NOT use this pair. A module built with these
+;;; needs an interpreter that exports them (2.10.1 or later).
+(decl) (func coco_g_foreign_begin ())
+(decl) (func coco_g_foreign_end ())
+(decl) (func coco_g_foreign_end_cleanup ((int * began)) (out void))
+
 ;;; A GOAL ON A MACHINE OF ITS OWN -- what library(thread) runs on a new
 ;;; thread. Here rather than in a module because `coco_engine' is opaque to
 ;;; one: a module cannot declare an engine, let alone make three. The

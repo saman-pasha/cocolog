@@ -229,6 +229,22 @@ one real turn — is now the blocking step rather than a formality. Rung 180's y
 the better first candidate on today's evidence, and this document should not choose
 between them from a commit title again.
 
+**AND THE REAL TURN SAYS NO (CivV `ASKS.md` §4, rung 192.237, 2026-10-22).** The
+per-unit decisions were measured on one save, one by one against the crew:
+
+| | one by one | crew |
+|---|---|---|
+| 3 units | 66 ms | 117 ms |
+| 23 units | 140 ms | 185 ms |
+
+The crew lost in every case. The visibility walk above is a **shape** test -- pure
+compute, no store -- and a real `ai_order/2` decision reads the match and writes its
+cache, so the worker's copy, the tell, the poll and the answer cost more than the
+decision they divide. CivV leaves the crew opt-in (`CIVV_CREW=1`) and takes the
+decisions sequentially. That is the honest Stage-0 answer this document asked for:
+a crew is for a job that is compute rather than lookup, and CivV's turn does not
+have one at this size.
+
 ---
 
 ## 6. The latency model: one frame behind
