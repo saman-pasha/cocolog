@@ -13,6 +13,13 @@
 %%       the same with the zero heuristic -- Dijkstra, and the oracle
 %%       the tests hold astar's costs to.
 %%
+%%   astar(+Start, +Goal, :Neighbor, :Heuristic, +Mark-Seen, -Path, -Cost)
+%%       the same search with the caller's closed set: call(Mark, Node)
+%%       records an expanded node, call(Seen, Node) succeeds when it is
+%%       already recorded. The caller resets that state before a search;
+%%       astar never clears it. A game can then use the same indexed rows
+%%       it uses for its map instead of the ordered list astar/6 keeps.
+%%
 %% Path includes BOTH endpoints, Start first; Cost is the sum of the
 %% step costs. Start == Goal answers [Start] and 0. No path FAILS --
 %% unreachable is an ordinary no, not an error.
@@ -31,17 +38,31 @@
 %% is) the first pop of a node is its cheapest, which is what the
 %% closed-set skip relies on.
 %%
-%% HONEST LIMITS: the open list is a sorted LIST (insertion is linear),
-%% the closed set an ordset (membership is linear too). For maps of
-%% thousands of nodes that is fine and simple; for millions it is not,
-%% and a heap would be the day-two change. No node in the graph may be
-%% unifiable with another (use ground nodes), and step costs must be
-%% non-negative -- A* is not Bellman-Ford.
+%% HONEST LIMITS: the open list is a sorted LIST (insertion is linear).
+%% astar/6's closed set is an ordset (membership linear too); astar/7
+%% takes the caller's Mark-Seen pair, which can be indexed, but the
+%% caller owns its lifetime and must reset it. For maps of thousands of
+%% nodes the list is fine and simple; for millions it is not, and a heap
+%% would be the day-two change. No node in the graph may be unifiable
+%% with another (use ground nodes), and step costs must be non-negative
+%% -- A* is not Bellman-Ford.
 
 astar(Start, Goal, Neighbor, Heuristic, Path, Cost) :-
     call(Heuristic, Start, H0),
     astar_loop([f(H0, 0, Start, [Start])], [], Goal, Neighbor, Heuristic,
                RevPath, Cost),
+    reverse(RevPath, Path).
+
+%% THE CALLER'S CLOSED SET. Mark-Seen is a pair of callable terms, not
+%% a state threaded through the search: call(Mark, Node) records the
+%% node and call(Seen, Node) asks whether one was recorded. The open
+%% list, the tiebreak and the answer are exactly astar/6's; only the
+%% membership test and the insert are the caller's. The caller resets
+%% the set between searches.
+astar(Start, Goal, Neighbor, Heuristic, Mark-Seen, Path, Cost) :-
+    call(Heuristic, Start, H0),
+    astar_loop_seen([f(H0, 0, Start, [Start])], Goal, Neighbor, Heuristic,
+                    Mark, Seen, RevPath, Cost),
     reverse(RevPath, Path).
 
 shortest_path(Start, Goal, Neighbor, Path, Cost) :-
@@ -72,6 +93,29 @@ astar_loop([f(_, G, Node, Rev)|Open], Closed, Goal, Neighbor, Heuristic,
             Kids),
     insert_all(Kids, Open, Open1),
     astar_loop(Open1, Closed1, Goal, Neighbor, Heuristic, Path, Cost).
+
+%% The same loop over a caller-supplied closed set. The goal test comes
+%% first, as in astar/6: a goal already marked by the caller is still
+%% allowed to end the search if it is the start node.
+astar_loop_seen([f(_, G, Node, Rev)|_], Goal, _, _, _, _,
+                Rev, G) :-
+    Node == Goal, !.
+astar_loop_seen([f(_, _, Node, _)|Open], Goal, Neighbor, Heuristic,
+                Mark, Seen, Path, Cost) :-
+    call(Seen, Node), !,
+    astar_loop_seen(Open, Goal, Neighbor, Heuristic, Mark, Seen, Path, Cost).
+astar_loop_seen([f(_, G, Node, Rev)|Open], Goal, Neighbor, Heuristic,
+                Mark, Seen, Path, Cost) :-
+    call(Mark, Node),
+    findall(f(F2, G2, Next, [Next|Rev]),
+            ( call(Neighbor, Node, Next, Step),
+              \+ call(Seen, Next),
+              G2 is G + Step,
+              call(Heuristic, Next, H),
+              F2 is G2 + H ),
+            Kids),
+    insert_all(Kids, Open, Open1),
+    astar_loop_seen(Open1, Goal, Neighbor, Heuristic, Mark, Seen, Path, Cost).
 
 insert_all([], Open, Open).
 insert_all([K|Ks], Open, Out) :-

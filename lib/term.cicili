@@ -1261,6 +1261,12 @@
                        (size_t need) (size_t esize)) (out int)
         (if (== coco_tbl_mx nil)
             (return (coco_grow m buf cap need esize)))
+        ;; THE ROOM ALREADY THERE IS NOT GROWN. Without this the shared
+        ;; path allocated and COPIED the whole table at every new entry --
+        ;; cap entries for a need of len+1 -- so 20,000 floats (or strings,
+        ;; bigs, rats) were quadratic: CivV measured float_new at 21.5 s
+        ;; and float_same at 21.6 s in a green world, 8 ms outside it.
+        (if (<= need (cof cap)) (return 1))
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))
               (void * nbuf . nil))
           (while (< ncap need) (set ncap (* ncap 2)))

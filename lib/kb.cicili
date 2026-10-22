@@ -1151,7 +1151,13 @@
     ;; THE MACHINES THAT SHARE THIS STORE (2.7.0): the host's and the green
     ;; threads' while a green world runs; the frame walks visit every one,
     ;; so the logical update view sees a suspended green thread's frames.
-    (member void *    machines))
+    (member void *    machines)
+    ;; THE ROOT MACHINE whose name table names this store's predicates. A
+    ;; `run_isolated' store is a fresh machine; the global declaration
+    ;; cache (`coco_dynamic_known') needs a table to turn a predicate's
+    ;; name id back into the string the cache holds. Set by
+    ;; `coco_engine_init'; nil where no engine has run -- a bare consult.
+    (member void *    name_m))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -5160,6 +5166,77 @@
         (if (not (coco_is_callable m goal)) (return (-> st npreds)))
         (return (coco_pred_make st (coco_name_of m goal) (coco_arity m goal))))
 
+  ;;; THE DECLARATIONS A BACKEND HAS ALREADY SHOWN US, for the next store.
+  ;;;
+  ;;; A `run_isolated/2' half is a fresh store. A call to a predicate the
+  ;;; backend DECLARED dynamic but never wrote to has no clauses to fetch,
+  ;;; so the store does not know it is dynamic and the engine asks the
+  ;;; backend for every declaration (`coco_store_warm'). The first half pays
+  ;;; that scan once; every later half paid it again, because the knowledge
+  ;;; -- "this name/arity is dynamic even with no rows" -- lived only in the
+  ;;; store that had just died. Measured from CivV: three empty dynamics,
+  ;;; one per computer half, 64, 62 and 66 ms; one seeded row cured each
+  ;;; half because then the fetch had a clause.
+  ;;;
+  ;;; The declaration is program text, not a row: it cannot be withdrawn,
+  ;;; and it is the same in every store of one backend. Remembering it here
+  ;;; lets `coco_pred_ensure' mark a fresh store's empty predicate dynamic
+  ;;; after its one per-predicate fetch, with no whole-store warm. Only a
+  ;;; store WITH a backend consults it, so a local store keeps raising for
+  ;;; a name nobody declared.
+  (struct coco_dynamic_ent
+    (member char * name)
+    (member u32    arity))
+
+  (static) (var coco_dynamic_ent * coco_dynamic_tab . nil)
+  (static) (var size_t coco_dynamic_n . 0)
+  (static) (var size_t coco_dynamic_cap . 0)
+  ;; written by a `run_isolated' half and read by the next, possibly on
+  ;; different OS threads; the declaration is monotonic, the table is not
+  (static) (var pthread_mutex_t coco_dynamic_mx . PTHREAD_MUTEX_INITIALIZER)
+
+  (static)
+  (func coco_dynamic_has_locked ((const char * name) (u32 arity)) (out int)
+        (for ((size_t i . 0)) (< i coco_dynamic_n) ((++ i))
+          (if (and (== arity ($ (nth i coco_dynamic_tab) arity))
+                   (== 0 (strcmp name ($ (nth i coco_dynamic_tab) name))))
+              (return 1)))
+        (return 0))
+
+  (func coco_dynamic_known ((const char * name) (u32 arity)) (out int)
+        (if (== name nil) (return 0))
+        (pthread_mutex_lock (aof coco_dynamic_mx))
+        (let ((int has . #'(coco_dynamic_has_locked name arity)))
+          (pthread_mutex_unlock (aof coco_dynamic_mx))
+          (return has)))
+
+  (func coco_dynamic_remember ((const char * name) (u32 arity)) (out int)
+        (if (== name nil) (return 0))
+        (pthread_mutex_lock (aof coco_dynamic_mx))
+        (let ((int answer . 0) (size_t len . 0) (char * copy . nil))
+          (if (coco_dynamic_has_locked name arity)
+              (block (pthread_mutex_unlock (aof coco_dynamic_mx)) (return 0)))
+          (if (>= coco_dynamic_n coco_dynamic_cap)
+              (let ((size_t ncap . #'(? (== coco_dynamic_cap 0) 64 (* coco_dynamic_cap 2)))
+                    (void * nb))
+                (set nb (realloc (cast (void *) coco_dynamic_tab)
+                                 (* ncap (sizeof coco_dynamic_ent))))
+                (if (== nb nil)
+                    (block (pthread_mutex_unlock (aof coco_dynamic_mx)) (return 0)))
+                (set coco_dynamic_tab (cast (coco_dynamic_ent *) nb))
+                (set coco_dynamic_cap ncap)))
+          (set len (+ (strlen name) 1))
+          (set copy (cast (char *) (malloc len)))
+          (if (!= copy nil)
+              (block
+               (memcpy (cast (void *) copy) (cast (const void *) name) len)
+               (set ($ (nth coco_dynamic_n coco_dynamic_tab) name) copy)
+               (set ($ (nth coco_dynamic_n coco_dynamic_tab) arity) arity)
+               (set coco_dynamic_n (+ coco_dynamic_n 1))
+               (set answer 1)))
+          (pthread_mutex_unlock (aof coco_dynamic_mx))
+          (return answer)))
+
   ;;; The backend is asked once per predicate and the answer is remembered
   ;;; whether or not it produced clauses -- otherwise a call to an undefined
   ;;; predicate inside a loop is a database round trip per iteration.
@@ -5180,6 +5257,21 @@
                                             ($ (nth pi (-> st preds)) arity))))
           (if (== ($ (nth pi (-> st preds)) nclauses) before)
               (set ($ (nth pi (-> st preds)) empty_fetch) 1))
+          ;; A DECLARATION AN EARLIER STORE ALREADY FOUND: mark this empty
+          ;; predicate dynamic and let the call fail here. The alternative
+          ;; is the whole-store warm on the existence-error path below,
+          ;; every fresh `run_isolated' half. A NAME the backend has rows
+          ;; for never reaches this test, because the fetch added them.
+          (if (and (!= rc 0)
+                   (!= (-> st warm) nil)
+                   (== ($ (nth pi (-> st preds)) nclauses) before)
+                   (not ($ (nth pi (-> st preds)) dynamic))
+                   (!= (-> st name_m) nil)
+                   (coco_dynamic_known
+                    (coco_atom_name (cast (coco_machine *) (-> st name_m))
+                                    ($ (nth pi (-> st preds)) name))
+                    ($ (nth pi (-> st preds)) arity)))
+              (set ($ (nth pi (-> st preds)) dynamic) 1))
           (return rc))))
 
   ;;; ------------------------------------------------------------------
@@ -5260,6 +5352,10 @@
   (func coco_store_prewarm ((coco_store * st) (coco_machine * m)) (out size_t)
         (let ((size_t added . 0))
           (if (== (-> st fetch) nil) (return 0))
+          ;; the names this pass interns are the root's; the declaration
+          ;; cache in `coco_pred_ensure' resolves through the same table
+          (if (== (-> st name_m) nil)
+              (set (-> st name_m) (cast (void *) (coco_troot m))))
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
             (if ($ (nth i (-> st preds)) library)
                 (block
@@ -5280,7 +5376,17 @@
 
   (func coco_store_warm ((coco_store * st)) (out int)
         (if (== (-> st warm) nil) (return 1))
-        (return ((-> st warm) st (-> st ctx))))
+        (let ((int ok . #'((-> st warm) st (-> st ctx))))
+          ;; KEEP WHAT THE WARM TAUGHT THE NEXT STORE: the declarations it
+          ;; loaded, name by name. `run_isolated' dies; this table does not.
+          (if (and (!= ok 0) (!= (-> st name_m) nil))
+              (let ((coco_machine * nm . #'(cast (coco_machine *) (-> st name_m))))
+                (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+                  (if ($ (nth i (-> st preds)) dynamic)
+                      (coco_dynamic_remember
+                       (coco_atom_name nm ($ (nth i (-> st preds)) name))
+                       ($ (nth i (-> st preds)) arity))))))
+          (return ok)))
 
   ;;; `:- dynamic name/arity'. The predicate is INTERNED and not merely looked
   ;;; up: declaring one is how a program says it exists, and a dynamic
@@ -5351,6 +5457,9 @@
                 (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
             (if (not (coco_pred_dynamic st (coco_name_of m nm) (cast u32 n)))
                 (block (snprintf err errlen "dynamic: out of memory") (return 0)))
+            ;; the declaration is program text, not a row: keep it for the
+            ;; fresh stores `run_isolated/2' will make
+            (coco_dynamic_remember (coco_atom_name m (coco_name_of m nm)) (cast u32 n))
             (return 1))))
 
   ;;; Is F one of the three flags a directive answers itself, the ones that

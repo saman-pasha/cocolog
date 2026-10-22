@@ -5366,7 +5366,10 @@
         (memset e 0 (sizeof coco_engine))
         (set (-> e m) m)
         (set (-> e st) st)
-        (set (-> e trace) coco_trace_default))
+        (set (-> e trace) coco_trace_default)
+        ;; the root's names are the store's names; a green alias points at
+        ;; the host, which outlives every task's machine
+        (set (-> st name_m) (cast (void *) (coco_troot m))))
 
   (func coco_engine_free ((coco_engine * e))
         (free (-> e choices))

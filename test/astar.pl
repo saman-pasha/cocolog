@@ -15,7 +15,7 @@
 %%
 %%     cocolog -s test/astar.pl        from the checkout root
 %%
-%% ONE PROCESS FOR SEVEN CHECKS, where test/astar.sh spawned one per
+%% ONE PROCESS FOR NINE CHECKS, where test/astar.sh spawned one per
 %% check, each re-asserting the stage. The stage is this file's own
 %% clauses now.
 
@@ -36,8 +36,16 @@ heur(N, H) :- hex_distance(N, hex(3, 0), H).
 %% the island, for the check that must fail
 island_step(A, B, C) :- step(A, B, C), hex_distance(hex(0, 0), B, D), D =< 1.
 
+%% The caller's closed set: dynamic rows, first argument indexed, as the
+%% game has them. `astar/7' calls these; it never clears them, so the
+%% test does.
+:- dynamic astar_seen/1.
+seen_mark(Node) :- assertz(astar_seen(Node)).
+seen_there(Node) :- astar_seen(Node).
+seen_reset :- retractall(astar_seen(_)).
+
 main :-
-    laws, oracle, tiebreak,
+    laws, oracle, tiebreak, seen_pair,
     checks_done.
 
 laws :-
@@ -77,3 +85,19 @@ tiebreak :-
               astar(hex(-3, 2), hex(3, -2), step, heur, P2, _),
               ( P1 == P2 -> X = same ; X = differ ) ), X, G),
     check('the same question twice is the same path', G, same).
+
+seen_pair :-
+    section('the caller supplies the closed set'),
+    seen_reset,
+    written(( astar(hex(-3, 2), hex(3, -2), step, heur,
+                    seen_mark-seen_there, P1, C1),
+              astar(hex(-3, 2), hex(3, -2), step, heur, P0, C0),
+              ( P1 == P0, C1 =:= C0 -> X = agree ; X = differ ) ), X, G1),
+    check('astar/7 answers what astar/6 answers', G1, agree),
+    seen_reset,
+    assertz(astar_seen(hex(0, 0))),
+    written(( astar(hex(0, 0), hex(3, 0), step, heur,
+                    seen_mark-seen_there, _, _)
+              -> X2 = reached ; X2 = blocked ), X2, G2),
+    check('a pre-seen node is not searched again', G2, blocked),
+    seen_reset.

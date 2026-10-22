@@ -368,6 +368,31 @@ tasks, spawned and awaited -- answers all of them, on 1, 4 and 16
 workers (measured); `test/async.pl` holds the nested-await case and a
 world of one worker.
 
+## Floats in a green world were quadratic (2.11.0)
+
+CivV's float benchmark (`ASKS.md` §4, Ask 3) makes a fresh float each
+iteration; on 2.10.1 it measured **21,864 ms** for 20,000 `float_new` terms and
+**21,395 ms** for 20,000 `float_same` terms in a green child, against 8 ms
+outside a green world. The cause was not floats: the green world's shared
+table growth, `coco_tbl_grow`, lacked the ordinary `coco_grow` test that the
+requested entry already fits. Every new float therefore allocated a new
+array and copied the whole table -- `cap` entries for a need of `len + 1` --
+so 20,000 entries copied 20,000 arrays. Strings, big integers and rationals
+took the same path.
+
+The capacity test is back. The same benchmark on 2.11.0:
+
+| work (20,000 iterations) | outside | green main task | green child task |
+|---|---|---|---|
+| `int` | 8 ms | 8 ms | 7 ms |
+| `float_new` | 8 ms | 9 ms | 8 ms |
+| `float_same` | 7 ms | 8 ms | 7 ms |
+| `round_float` | 7 ms | 7 ms | 7 ms |
+
+`test/async.pl` now creates 20,000 floats in a green task and fails if it
+takes over 5 s; the copy-every-entry path took over 7 s, and the fixed path
+takes about 10 ms.
+
 ## Limits, stated where a reader meets them
 
 * A signal delivered to a green thread's machine writes that machine's

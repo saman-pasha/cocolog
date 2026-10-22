@@ -167,6 +167,7 @@ main :-
     one_worker,
     foreign_write,
     foreign_thread,
+    table_growth,
     channels,
     failures,
     shared_store,
@@ -265,6 +266,28 @@ foreign_thread :-
         shl(['rm -rf ', D])
     ;   format("     (skipped: no thread module)~n")
     ).
+
+%% A SHARED TABLE GROWS BY DOUBLING, NOT BY COPYING EVERY ENTRY. The float
+%% table took the green world's shared-growth path at every new float, and
+%% that path lacked the ordinary "the room is already there" test: each
+%% entry allocated and copied the whole table, so 20,000 floats were
+%% quadratic. CivV measured 21.5 s for float_new and 21.6 s for float_same
+%% in a green child; the fixed case is ~10 ms, and the 5 s bound leaves a
+%% slow machine plenty of room while still failing the copy-every-entry
+%% path.
+table_growth :-
+    section('a shared table grows by doubling'),
+    get_time(T0),
+    ( async_run(forall(between(1, 20000, I), _ is I * 2.5 + 1), _)
+    ->  Ran = yes
+    ;   Ran = no
+    ),
+    get_time(T1),
+    Ms is round((T1 - T0) * 1000),
+    format("     (~w ms)~n", [Ms]),
+    ( Ms < 5000 -> Speed = fast ; Speed = slow ),
+    check('20,000 floats in a green task', Ran, yes),
+    check('the table did not copy itself at every float', Speed, fast).
 
 %% ---- channels ------------------------------------------------------------
 channels :-

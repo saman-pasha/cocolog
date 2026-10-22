@@ -13,6 +13,12 @@
 %%         the zero heuristic -- Dijkstra, and the oracle astar's
 %%         answers are held to in test/astar.pl
 %%
+%%     astar(+Start, +Goal, :Neighbor, :Heuristic, +Mark-Seen, -Path, -Cost)
+%%         the same with a closed set the caller owns: Mark(Node) records,
+%%         Seen(Node) tests. The set is not reset by the search, so the
+%%         caller clears it first; an indexed game table can replace the
+%%         ordered list astar/6 keeps.
+%%
 %% Path carries both endpoints, Start first; Cost is the sum of the
 %% steps; Start == Goal answers [Start] and 0; unreachable FAILS, an
 %% ordinary no. Ties in the open list break by the standard order of
