@@ -2403,6 +2403,78 @@ The feminine noun "traiettoria" means "trajectory".
 "traiettorie" is the plural of "traiettoria".
 The masculine noun "acquisto" means "signing".
 The feminine noun "cravatta" means "necktie".
+The masculine noun "intreccio" means "interweaving".
+"intrecci" is the plural of "intreccio".
+The feminine noun "holding" means "holding".
+"holding" is the plural of "holding".
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidenti" is the plural of "vicepresidente".
+"vicepresidente" is a person.
+The masculine noun "oligopolio" means "oligopoly".
+"oligopoli" is the plural of "oligopolio".
+The preposition "a favore di" means "in favour of".
+The preposition "pro" means "in favour of".
+The verb "cassa" means "quashes".
+"cassano" is the plural of "cassa".
+"cassare" is the infinitive of "cassa".
+"cassò" is the past of "cassa".
+"cassato" is the participle of "cassa".
+The masculine noun "consorzio" means "consortium".
+The feminine noun "cordata" means "consortium".
+"cordate" is the plural of "cordata".
+The noun "votante" means "voter".
+"votanti" is the plural of "votante".
+"votante" is a person.
+The feminine noun "quota azionaria" means "shareholding".
+"quote azionarie" is the plural of "quota azionaria".
+The verb "influenza" means "influences".
+The verb "incide" means "influences".
+"incidono" is the plural of "incide".
+"incidere" is the infinitive of "incide".
+"incide" takes "su" before the phrase.
+The masculine noun "management" means "management".
+"management" is the plural of "management".
+The feminine noun "televisione" means "television".
+The feminine noun "tivù" means "television".
+"tivù" is the plural of "tivù".
+The verb "tenta" means "attempts".
+The verb "tenta" means "tries".
+The verb "cerca" means "searches".
+The infinitival verb "cerca" means "tries".
+The feminine noun "misura" means "measure".
+The masculine noun "provvedimento" means "measure".
+"provvedimenti" is the plural of "provvedimento".
+The adjective "via etere" means "terrestrial".
+The preposition "sulla base di" means "on the basis of".
+The conjunction "nella misura in cui" means "insofar as".
+The verb "sceglie" means "chooses".
+The verb "elegge" means "elects".
+The masculine noun "potere" means "power".
+"poteri" is the plural of "potere".
+The masculine noun "disegno" means "drawing".
+The masculine noun "interlocutore" means "interlocutor".
+The feminine noun "rete" means "network".
+"reti" is the plural of "rete".
+The feminine noun "rete" means "net".
+The verb "prende di mira" means "targets".
+"prendono di mira" is the plural of "prende di mira".
+"prendere di mira" is the infinitive of "prende di mira".
+The verb "ha in mano" means "holds".
+"hanno in mano" is the plural of "ha in mano".
+"avere in mano" is the infinitive of "ha in mano".
+The verb "mantiene" means "keeps".
+The verb "si tiene" means "keeps".
+"si tengono" is the plural of "si tiene".
+"tenersi" is the infinitive of "si tiene".
+The adverb "più di" means "more than".
+The adverb "meno di" means "less than".
+"sceglie" takes the question.
+The masculine adjective "sbagliato" means "wrong".
+"sbagliati" is the plural of "sbagliato".
+The feminine adjective "sbagliata" means "wrong".
+"sbagliate" is the plural of "sbagliata".
+The adverb "a suo rischio" means "at his own risk".
+The conjunction "a meno che" means "unless".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

@@ -1719,6 +1719,25 @@ The feminine noun "trayectoria" means "trajectory".
 "trayectorias" is the plural of "trayectoria".
 "accionista" is a person.
 The feminine noun "corbata" means "necktie".
+The masculine noun "entramado" means "interweaving".
+"entramados" is the plural of "entramado".
+The preposition "a favor de" means "in favour of".
+The verb "anula" means "cancels".
+The verb "anula" means "quashes".
+The feminine noun "participación accionarial" means "shareholding".
+"participaciones accionariales" is the plural of "participación accionarial".
+The preposition "sobre la base de" means "on the basis of".
+The conjunction "en la medida en que" means "insofar as".
+The masculine noun "interlocutor" means "interlocutor".
+"interlocutores" is the plural of "interlocutor".
+The adverb "menos de" means "less than".
+"elige" takes the question.
+"escoge" takes the question.
+The verb "tiene" means "has".
+The verb "tiene" means "holds".
+The adverb "a su riesgo" means "at his own risk".
+The masculine noun "sujeto" means "subject".
+The conjunction "a menos que" means "unless".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

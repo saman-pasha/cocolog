@@ -4412,6 +4412,275 @@ read into an English-worded IR and written into any lesson's language),
   person nobody names, written `they`); the third sentence is refused, on
   purpose, for the null third person of `con las que triunfó`. The next sample's
   controls take this feature in.
+  The Rognoni interview (VIT-9605..9636, 32 sentences, Italian into Spanish and
+  English: 31 of 32 and 31 of 32 on a fresh store, 26 and 25 with the new store
+  alone, 19 and 19 with the new code on the old store, 18 and 17 before;
+  reasoning 1.0.12). The sample was taken on the cocolog 2.11.0 binary,
+  master's, and cocolog stays 2.11.0. THE BINARIES OF 2.4.0 AND 2.11.0 give the
+  same texts on the controls (96 count files, 2 728 sentences: 0 differ) and
+  2.11.0 counts 5.896 % more inferences (5 009 219 484 to 5 304 565 743): since
+  2.5.0 `atom_concat/3` is a clause over `$atom_concat`, four or five inferences
+  a call where it was one, and the translator calls it often; the clock does not
+  move (three alternating pairs of one control file, medians 16.99 s on 2.3.0,
+  whose texts and counts are 2.4.0's, and 16.55 s on 2.11.0). So no count of
+  this sample compares with the Inter's, and the baseline is the committed
+  library on KB195 on 2.11.0. The article's sentences fall from 872.7 to 807.5
+  million inferences in each language, and 773.1 million of them are its
+  nineteenth, refused (below).
+  It needed these SHAPES, each with its arm red (test/translate.pl's
+  `newspaper_rognoni`: 40 checks, 31 arms, the guards among them; an arm is a
+  library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_rognoni, checks_done"`, two seconds a run, and every arm is run in
+  under a minute, three at a time): a name apposed to a name between commas is
+  no word of the subject's shape (`Carlo Rognoni, Pds, parla dell'intreccio ...`
+  is a man and his party, tr_subject_shape/4, as an aside, a bracket and a dash
+  are), and in a reporting clause the apposed name is the speaker's (`Commenta
+  Carlo Rognoni, Pds, vicepresidente del senato:` was `Comenta a Carlo Rognoni`,
+  tr_reporting/3), and English writes what the speaker is with the speaker,
+  before the verb (`Carlo Rognoni, Pds, vice-president of the senate,
+  comments:`, where it was `Carlo Rognoni comments, vice-president of the
+  senate`, tr_write/4 -- the controls' `Claude Lebet, one of the most
+  acknowledged luthiers, said` and `Filippo Graziani, dean of the school ...,
+  underlines` with it); `among` before a pair of phrases joined by `and` is
+  `between` (`l'intreccio tra le nuove regole e le trattative`, tr_comp_out/7;
+  among three it stays `among`, a guard); `more than` and `less than` before a
+  count (`di cui nessuno abbia più di una rete` is more than one network -- read
+  as the adverb and a phrase of `of`, English wrote `has of a net more`, and
+  denied `anymore`: the lesson states `più di` and `meno di` as one adverb, as
+  Spanish's `más de`, and where the second word is also the lesson's word for
+  `than`, Italian's `di`, the reader takes the pair apart again unless a number,
+  an indefinite article or an article and a number follows, tr_than_split/3, a
+  guard `mangia più di me`; and `more than` before `a` is before `one`,
+  tr_comps_out/7 -- three arms); `very` before a comparative is `much` (`Molto
+  meglio, pensare con intelligenza al futuro` is much better, `basta assai meno
+  del 50,1%` much less than it, `molto più grande` much bigger: tr_much_before/3
+  in the crossing of an intensified adverb and of an intensified comparative,
+  which the crossing folds into the adjective, and the English writer puts `much
+  less than` before the object it says how much of -- three arms, and the guard
+  `molto grande` is very big); `makes` with nothing made is `does` (`chi compra
+  ... lo fa a suo rischio` does it, `Che dovrebbe fare Berlusconi?` what should
+  he do, `non fa niente` does nothing: the lesson's `fa` and `hace` mean makes,
+  and English says that only of a thing made -- an object, an infinitive, a
+  predicate -- tr_makes_does/3, with `lo` as `it` there, and its past and
+  participle are `did` and `done`, en_past_of/2 and en_participle_of/2: the
+  controls' first round wrote `they have doed it` -- four arms, two guards); an
+  adverb between a question's verb and its subject stays where it is (`Che
+  dovrebbe fare, allora, Berlusconi?` -- nothing agreed after the verb,
+  Berlusconi was the object and the subject a third person nobody named, `¿Qué
+  debería hacer entonces a Berlusconi?`, and refused in English:
+  fo_adverb_subject/5, asked only by fo_unfront/3, the question's reader -- in
+  fo_subject_after/5, which the statements' readers ask too, it changed four
+  inverted statements of the controls, below); no phrase with its phrases of
+  `of` before `there is` is what there is (`Dopo la sentenza della corte c'è
+  stato il referendum` was `The judgment of the court thered is the referendum
+  after`, tr_read_generic/4's guard, with/2 as np/5); a preposition before an
+  article and a phrase that runs to a comma governs it and is not lifted as an
+  adverb (`Secondo la corte, è necessario un vero pluralismo` -- `secondo` is
+  also the adverb `second`, and lifted it left the court for the subject and the
+  copula's own subject an object, `The court, is necessary a true pluralism
+  second`: tr_governs_adverb/3, and the reader that lifts the adverbs of a piece
+  with its commas taken out asks it of the head word with the commas, two arms);
+  an infinitive after the copula and its adjective is written after them in
+  English, with `it` before (`è necessario evitare che ...` was `To avoid that
+  ... is necessary`, tr_write/4, where the source had the subject after the
+  copula: `Mangiare il pane è facile` keeps its order, a guard); `insofar as`
+  and `unless` are English connectors (en_connector/1), and the denial before
+  the first verb of a clause of `unless` denies nothing (`a meno che non si
+  liberi` is unless he frees himself, Italian's expletive `non`:
+  tr_expletive_off/3 in tr_joined_words/3 -- three arms); a verb the lesson's
+  language governs with a preposition takes its phrase bare in English where the
+  English verb does (`incidere sulle scelte` is influencing the choices,
+  en_bare_object/1); `whether` and an infinitive (`dovrà scegliere se fare
+  l'uomo di governo o mantenere il controllo delle sue tv` is choose whether to
+  be ... or to keep, and with no clause after `se` there was no question:
+  whinf/1, read after a verb that takes the question and after the bare
+  infinitive of one, `"sceglie" takes the question.`, and written with `to`
+  under a modal, whose infinitive English writes bare -- three arms); a day or
+  an adverb alone between a participle and its agent (`il disegno ... varato
+  giovedì dal senato` was `desde el senado`, tr_reduced_agent/3); two
+  prepositions joined before one phrase (`leggere tutto pro o contro
+  Berlusconi`, `con o senza il gatto`: pp2/4, read, crossed and written, the
+  first a word the lesson gives an English preposition for -- `colocados cerca o
+  dentro de un vehículo` has `cerca`, a wall as a noun, and the controls' first
+  round wrote `placed wall or within`; two arms); the word that begins the
+  relative and its clause have a subject's shape (`Chi dorme mangia` was
+  refused: with no noun in the clause, `chi dorme bene` read only because `bene`
+  is a noun, tr_subject_shape/4); and a denial after a relative clause inside a
+  clause of `that` is that clause's (`prevede che chi ha partecipazioni ... non
+  possa essere membro del governo` -- the relative clause's verb was counted as
+  the clause's, the denial went to `prevede`, and the sentence was refused:
+  tr_negation/4 and tr_relative_opener/1; a guard, `Il cane che mangia non
+  dorme`).
+  It needed these WORDS in `extra/` (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Italian `intreccio` (an
+  interweaving, Spanish `entramado`), `holding` (the holding company, feminine,
+  as Spanish's masculine `holding`), `vicepresidente` (a person), `oligopolio`,
+  `pro` (in favour of, a preposition, with `a favore di` said first and Spanish
+  `a favor de`), `cassa` (quashes, with its forms -- the dictionary has the noun
+  only -- and Spanish `anula`, its plain `cancels` said first), `cordata` (a
+  consortium, `consorzio` said first), `votante` (a voter, a person), `quota
+  azionaria` (a shareholding, Spanish `participación accionarial`), `incide`
+  (influences, `su` before the phrase, `influenza` said first), `management`,
+  `tivù` (`televisione` said first), `cerca` before an infinitive (tries,
+  `tenta` said first as the word written for it and its plain `searches` first),
+  `provvedimento` (a measure, `misura` said first), `via etere` (terrestrial, an
+  adjective of two words), `sulla base di` (on the basis of, Spanish `sobre la
+  base de`), `nella misura in cui` (insofar as, Spanish `en la medida en que`),
+  `elegge` (elects, where the dictionary's first was chooses, `sceglie` said
+  first), `potere` (power, where the dictionary's first was a fortress -- the
+  Tatarella interview's `poteri forti` were `fortalezas fuertes`), `disegno` (a
+  drawing before the dictionary's cartoonist, a person: `il disegno sul
+  conflitto d'interessi` was `el dibujante`), `interlocutore` and Spanish
+  `interlocutor` (an interlocutor, where both dictionaries have a speaker),
+  `rete` (a network first, the net after it: the controls' `rete 4`, `la rete
+  commerciale`), `prende di mira` (targets), `ha in mano` (holds), `si tiene`
+  (keeps, `mantiene` said first), `sbagliato` (wrong, an adjective; the
+  dictionary has the participle only), `a suo rischio` (at his own risk, Spanish
+  `a su riesgo`), `più di` and `meno di` (more than, less than, one adverb, as
+  Spanish's `más de`; Spanish `menos de`), `a meno che` (unless, Spanish `a
+  menos que`), and `"sceglie" takes the question.` (Spanish `elige` and
+  `escoge`); and Spanish `tiene` (holds, its plain `has` said first: the
+  writer's first Spanish verb for it was `aguanta`, endures) and `sujeto` (a
+  subject, said again first: the writer's first Spanish noun for it was `tema`,
+  a topic). The first meaning moved in 6 Italian words and 1 Spanish one
+  (Italian `disegno` a drawing, `interlocutore` an interlocutor, `potere` power,
+  `provvedimento` a measure, `rete` a network, `elegge` elects; Spanish
+  `interlocutor`), and none was lost.
+  THE CONTROLS (cocolog 2.11.0, store KB201, 98 count files, 2 756 sentences:
+  the earlier set with the Inter feature in, es_20011002-160, both directions;
+  this interview is not among them): the last version's translator against this
+  one, on the one store, 38 sentences in 19 files read differently, all better
+  -- `between` for a pair (21: `the fusion between Carrefour and Promodès`,
+  `between Meridiana and Aragó`, `between the three and the five of the
+  afternoon`, `asymmetries between accusation and defence`), the speaker's
+  apposition with the speaker (5: es_20010202-169 12, `Claude Lebet, one of the
+  most acknowledged luthiers, said`; es_20020601-51 14, a piece of a sentence
+  refused, `Roger Lemerre, the French technician, said`; it_9851_9925 2,
+  it_9926_9946 16, it_9947_9966 14), `does it` and `did it` for `makes him` (5:
+  es_19990802-48 9, `they have done it`; it_10059_10095 7 and 8, `I do it
+  voluntarily`; it_9967_9998 25; tat 283), `It is not possible to make a
+  replica` (es_20010202-169 11) and `it was crazy to attempt` (it_9967_9998 28),
+  `whether it is legitimate to write` (it_9775_9780 1), the agents of
+  it_9637_9672 8 (`presided by Pierre Carniti and presented by the minister`, in
+  both languages; English writes the sentence `The dramatic picture ... is
+  this.`, where the last version wrote `It is this the dramatic picture ...`),
+  and it_9637_9672 7, refused before and read now in both languages (`menos de
+  la mitad de lo que gasta`) -- and the inferences rise 0.050 % (5 403 216 416
+  to 5 405 933 404). The sentences that rise most are it_9567_9604 20 (+0.78
+  million of 6.26 in each language), it_9851_9925 32 (+0.14 of 38.2),
+  it_9673_9712 20 (the one that runs to the limit, +0.07 of 516.7), it_9472_9484
+  10 and it_9270_9295 9 (+0.06 each); the ones that fall most are it_9637_9672 7
+  (8.67 million to 6.26, read) and 8 (1.70 to 0.55). Bytes and characters read
+  every sentence alike (0 differ, the bytes 0.018 % more). The DATA COLUMN (the
+  last version's translator on its own store, KB195, against this one on the
+  new): 59 sentences in 26 files, the 38 of the code and those of the words, and
+  the inferences rise 0.096 % (5 400 766 799 to 5 405 933 404). THE CODE ALONE
+  (this translator on the old store): 36 sentences in 19 files, +0.112 %. THE
+  STORE ALONE (the last version's translator on the old store and on the new)
+  differs in 25 sentences in 12 files, +0.045 % of the inferences, each a word
+  of the interview's lines, all better but one: `potere` is power (it_9714_9749
+  18 and 21, `the strong powers`, `los poderes fuertes`, where they were
+  fortresses), `rete` a network (it_9270_9295 11 and 26), `provvedimento` a
+  measure (it_9750_9762 10, `ninguna otra medida`), `cerca di` tries
+  (it_9673_9712 13, it_9781_9791 5, it_9511_9539 4: `has tried to close the
+  games`), `più di` more than before a count (it_9637_9672 13 and 17, `more than
+  65 years`; es_19990901-75 17 has Spanish's `menos de`), `a favor de` in favour
+  of (es_19991001-61 20), Italian `teneva` and `tenere` as `tenía` and `tener`
+  where they were `aguantaba` and `aguantar` (it_9851_9925 55 and 65,
+  it_9947_9966 6 and 20) -- and it_9637_9672 7, refused with the old code: the
+  line joins `meno di` and only the new code takes it apart before `la metà`.
+  THE FIRST ROUND'S REGRESSIONS, found by reading the texts of every column and
+  mended. Of the store alone (42 sentences): four of the interview's lines came
+  first for the writer of the other language -- `si tiene` (keeps) made every
+  Spanish `mantener` the Italian `tenersi` (`mantener a Reina` was `tenersi
+  Reina`, `la posición que mantiene` `che si tiene`) and three sentences of the
+  controls were refused (es_19990601-23 1, es_20000802-31 4, es_20010103-139 7),
+  `pro` was the Italian for `a favor de` (`si votò pro la proposta`), `tivù` for
+  `televisión` and `cerca di` for `trata de` (`non cerca di convincere`, where
+  it was `tenta di`) -- and the dictionary's own word is said again first for
+  each: `mantiene`, `a favore di`, `televisione`, `tenta`; a line for `soggetto`
+  as an entity was taken out, because an earlier sample's line says it is a
+  subject first (the people of `molto attento verso i soggetti`), and `sujeto`
+  is the Spanish writer's word for a subject now. Of the code (49 sentences):
+  the question's adverb before its subject, first written in fo_subject_after/5,
+  changed four inverted statements its other readers read with it -- `Fue
+  entonces el momento de homenajear a dos personajes ...` was `The moment went
+  moment of honouring` (es_19990701-83 7, both languages), `si chiama infatti
+  assistente ai bagnanti` (`se llama ayudante a ayudante`, it_9381_9414 11),
+  `deve finire in tribunale l'arcivescovo di Monreale` (`the archbishop must
+  finish of Monreale ... in court`, it_9465_9470 3), `Godranno ... soltanto
+  quelli che hanno scelto` (`Those will enjoy ... only that they have chosen`,
+  it_9472_9484 9) -- and it stands in fo_unfront/3 now, the question's reader,
+  where the comma form of it went (a question is read with its commas out, and
+  its arm was green); `does` had no past and no participle of its own, `they
+  have doed it`; and the pair of prepositions took `cerca` for one, `placed wall
+  or within a vehicle` (es_20010102-25 6). A clause for `whether` after an
+  infinitive that takes the question (tr_complements_after_inf/5) had no arm
+  that went red, nor changed a sentence, and is gone.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the nine sentences that
+  rose most on the one store, into English, over a copy of the library per rule
+  on KB201): they rose 1.25 million inferences, and three rules are 90 % of it
+  -- the taking apart of `più di` (0.77 million, 0.75 of it in it_9567_9604 20,
+  `Casotto, che ora giura che non si occuperà mai più di boxe, sostiene una
+  teoria ...`: 7.01 million inferences on the old store, 6.26 with the new line,
+  which joins `più di`, and 7.04 now, the two words read as they were before the
+  line -- +0.4 % against the old cost, and refused all the way), a denial after
+  a relative clause inside a clause of `that` (0.23 million: it_9851_9925 32
+  +0.12 of 38.2, it_9472_9484 10 and it_9673_9712 10 +0.05 each, where the
+  denial stays with the clause and more readings are tried) and `whether` and an
+  infinitive (0.16 million, a few thousand a sentence, asked at every word for
+  `if` after a verb that takes the question); the rest is under 0.02 million
+  each (`unless`'s expletive 18 thousand, a day before the agent 13 thousand).
+  THE STATED COSTS: a first meaning that serves the news and not every text --
+  `rete` is a network (a football report's goal is a net second), `disegno` a
+  drawing (the bill is `disegno di legge`, and a bare `disegno` for it is still
+  `dibujo`), `potere` power, `provvedimento` a measure, `elegge` elects,
+  `interlocutore` an interlocutor, Spanish `tiene` the writer's word for holds
+  (`teneva` is `tenía`, and `si terrà un'iniziativa` is `se tendrá`); the
+  inferences, +0.050 % on the one store; and the nineteenth sentence, refused
+  after 773.1 million inferences in each language as it was (`bisognerà
+  impegnarsi per una legge che disciplini il mondo ... tenendo conto sia della
+  corte costituzionale, sia dell'esito dei referendum sia infine delle reali
+  condizioni del mercato, ..., figuriamoci se potrà farlo per 15.`): `tenere
+  conto di` is no word of the lesson, `sia ... sia ... sia infine` is three, and
+  `figuriamoci se` is an idiom; a line for `tiene conto di` read `tenendo conto
+  del gatto` and left the sentence refused, so it is not in -- the next sample's
+  controls carry its 1.5 billion inferences. The interview LEAVES, of the 31
+  into Spanish (English alike unless it says): `rapporto` is a report, never the
+  relationship between two things (3); `Nei giorni "caldi" delle trattative` is
+  `"Calienten" de las negociaciones ... en los días` (4: an adjective in
+  quotation marks after its noun is read as a verb); `il disegno sul conflitto
+  ... varato giovedì dal senato` after the verb is `el dibujo en el conflicto
+  ... desde el senado` (5: with the subject after the verb the agent is not
+  read); `grande esperto di media` is `gran experto de media` and `big expert of
+  average` (6), and `definire delle regole` keeps the partitive (`definir de las
+  reglas`); `com'è naturale` stands last and `chi ha in mano` is `de quién
+  tiene` (7); `Sarebbe sbagliato leggere` is `To read ... would be erred` in
+  English (8: the participle is read before the adjective); `pensare ... al
+  futuro` is `pensar al futuro` and `think to the future` (9), and `valori
+  democratici` `valores demócratas`; 10 (`Generali per quanto siano, le regole
+  investono adesso proprio le tv Fininvest`) is word by word, `Generales para
+  cuanto son ... invierten ... propias`; `ci siano, nelle mani di un unico
+  soggetto, tre reti` is `hay` and `they there is` (13); `un vero pluralismo` is
+  `un cierto pluralismo` (15); `tanti soggetti` is `so much subjects` (16); `c'è
+  stato` is `había` (17); 20 moves `come suggerisce il "progetto Bogi"` to the
+  end in English; `lo fa a suo rischio` puts `at his own risk` last (22); `lo
+  risolverebbe` is `resolve him` (24, the clitic of a thing); `resta azionista`
+  is `queda a accionista` and `influencing on the choices` (26: the infinitive
+  is a noun's complement there, and the governing verb is not found);
+  `continuare a controllare` is `continuar a controlar` (27) and `una società` a
+  society; `¿Qué debería Berlusconi hacer entonces?` (28) and `hacer al hombre
+  de gobierno` (29); `entro un anno` is `I enter a year` in English and `entro
+  un año` in Spanish (30: in the long sentence `entro` is read as the verb,
+  where `si liberi entro un anno` alone reads it as the preposition), and `si
+  liberi` is the impersonal `one releases`; `eletto` is `elegida` and
+  `segretario di partito` `secretario de fiesta` (31: the Spanish writer's first
+  noun for a party is a fiesta, and `partido` is a match first); and
+  `l'Antitrust proyecto de ley`, `iniciadas desde el presidente` (32: the agent
+  after a coordinated object is not read). The next sample's controls take this
+  interview in.
 
 ## Tutorials are documentation that runs
 

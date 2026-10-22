@@ -2898,3 +2898,37 @@ The feminine noun "trayectoria" means "trajectory".
 "accionista" is a person.
 # `Cuatro victorias y un empate': the draw is the tie (eng-ita.dix gives `pareggio' the English `tie' first), so the necktie is one word of its own in both languages
 The feminine noun "corbata" means "necktie".
+# `parla dell'intreccio tra le nuove regole e le trattative': an interweaving (the Italian line), written `entramado'
+The masculine noun "entramado" means "interweaving".
+"entramados" is the plural of "entramado".
+# `leggere tutto pro o contro Berlusconi': in favour of
+The preposition "a favor de" means "in favour of".
+# `la corte costituzionale che ha cassato parte della legge': quashed, written `anula'; the plain meaning is said first
+The verb "anula" means "cancels".
+The verb "anula" means "quashes".
+# `con una forte quota azionaria': a shareholding
+The feminine noun "participación accionarial" means "shareholding".
+"participaciones accionariales" is the plural of "participación accionarial".
+# `sulla base della sentenza': on the basis of
+The preposition "sobre la base de" means "on the basis of".
+# `nella misura in cui Berlusconi resta azionista': insofar as
+The conjunction "en la medida en que" means "insofar as".
+# `interlocutori internazionali e italiani': interlocutors, where the dictionary has speakers
+The masculine noun "interlocutor" means "interlocutor".
+"interlocutores" is the plural of "interlocutor".
+# `basta assai meno del 50,1%': less than, as `más de' is more than
+The adverb "menos de" means "less than".
+# `Berlusconi deberá elegir si hacer de hombre de gobierno o mantener el control': choose whether
+"elige" takes the question.
+"escoge" takes the question.
+# `chi ha in mano leve fondamentali' is who holds them, written `tiene'; the dictionary's first Spanish verb for holds
+# is `aguanta' (endures). `tiene' is said first as `has', which it stays to the reader
+The verb "tiene" means "has".
+The verb "tiene" means "holds".
+# `lo fa a suo rischio': at his own risk
+The adverb "a su riesgo" means "at his own risk".
+# `nelle mani di un unico soggetto', `tanti soggetti': the subject is `sujeto', where the writer's first Spanish noun
+# for it was `tema' (a topic: `en las manos de un único tema'); it is the reader's first meaning of `sujeto' already
+The masculine noun "sujeto" means "subject".
+# `a meno che non si liberi entro un anno': unless
+The conjunction "a menos que" means "unless".

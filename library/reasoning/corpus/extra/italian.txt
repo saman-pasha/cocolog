@@ -3816,3 +3816,111 @@ The feminine noun "traiettoria" means "trajectory".
 The masculine noun "acquisto" means "signing".
 # `Quattro vittorie e un pareggio': the draw is the tie (eng-ita.dix), so the necktie is one word of its own in both languages (`su corbata' was `il suo pareggio')
 The feminine noun "cravatta" means "necktie".
+# `parla dell'intreccio tra le nuove regole e le trattative di Berlusconi': an interweaving (the dictionary has the word and no English)
+The masculine noun "intreccio" means "interweaving".
+"intrecci" is the plural of "intreccio".
+# `la holding delle sue tv': the holding company, as the Spanish `el holding'
+The feminine noun "holding" means "holding".
+"holding" is the plural of "holding".
+# `vicepresidente del senato'
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidenti" is the plural of "vicepresidente".
+"vicepresidente" is a person.
+# `l'oligopolio tv'
+The masculine noun "oligopolio" means "oligopoly".
+"oligopoli" is the plural of "oligopolio".
+# `leggere tutto pro o contro Berlusconi'; `a favore di' is said first and stays the word written (`se votó a favor
+# de la propuesta' was `si votò pro la proposta')
+The preposition "a favore di" means "in favour of".
+The preposition "pro" means "in favour of".
+# `la corte costituzionale che ha cassato parte della legge Mammì': quashed (the dictionary has the noun `cassa' only)
+The verb "cassa" means "quashes".
+"cassano" is the plural of "cassa".
+"cassare" is the infinitive of "cassa".
+"cassò" is the past of "cassa".
+"cassato" is the participle of "cassa".
+# `una cordata d'operatori internazionali': a consortium; `consorzio' is said first and stays the word written
+The masculine noun "consorzio" means "consortium".
+The feminine noun "cordata" means "consortium".
+"cordate" is the plural of "cordata".
+# `la maggioranza dei votanti'
+The noun "votante" means "voter".
+"votanti" is the plural of "votante".
+"votante" is a person.
+# `con una forte quota azionaria': a shareholding
+The feminine noun "quota azionaria" means "shareholding".
+"quote azionarie" is the plural of "quota azionaria".
+# `la possibilità di incidere sulle scelte del management': to influence; `influenza' is said first and stays the word written
+The verb "influenza" means "influences".
+The verb "incide" means "influences".
+"incidono" is the plural of "incide".
+"incidere" is the infinitive of "incide".
+"incide" takes "su" before the phrase.
+# `le scelte del management': the management, with `gestione' said first (above) as the word written
+The masculine noun "management" means "management".
+"management" is the plural of "management".
+# `la holding delle sue tivù': the television, as `tv'; `televisione' is said first and stays the word written
+The feminine noun "televisione" means "television".
+The feminine noun "tivù" means "television".
+"tivù" is the plural of "tivù".
+# `cercano di definire delle regole': they try to; the plain meaning is said first and stays it everywhere else (`cerca il cane'),
+# and `tenta' is said first as the word written for tries (`no trata de convencer' was `non cerca di convincere')
+The verb "tenta" means "attempts".
+The verb "tenta" means "tries".
+The verb "cerca" means "searches".
+The infinitival verb "cerca" means "tries".
+# `i provvedimenti in discussione in parlamento': the measures; `misura' is said first and stays the word written
+The feminine noun "misura" means "measure".
+The masculine noun "provvedimento" means "measure".
+"provvedimenti" is the plural of "provvedimento".
+# `per le tv via etere', `due reti via etere': terrestrial, as broadcast over the air
+The adjective "via etere" means "terrestrial".
+# `sulla base della sentenza della corte costituzionale', `vanno avanti sulla base di partecipazioni'
+The preposition "sulla base di" means "on the basis of".
+# `nella misura in cui Berlusconi resta azionista di riferimento'
+The conjunction "nella misura in cui" means "insofar as".
+# `Può essere, certo, eletto in parlamento': elected, where the dictionary's first is chooses (`sceglie' stays the word written for chooses)
+The verb "sceglie" means "chooses".
+The verb "elegge" means "elects".
+# `leve fondamentali del potere economico': power, where the dictionary's first is a fortress (`poteri forti' were `fortalezas fuertes')
+The masculine noun "potere" means "power".
+"poteri" is the plural of "potere".
+# `il disegno sul conflitto d'interessi': a drawing before a cartoonist (the dictionary's `disegno' is a cartoonist first; `disegno di legge' is the bill)
+The masculine noun "disegno" means "drawing".
+# `interlocutori internazionali e italiani': interlocutors, where the dictionary has speakers
+The masculine noun "interlocutore" means "interlocutor".
+# `le reti della Fininvest', `rete 4': a network first (television), the net after it
+The feminine noun "rete" means "network".
+"reti" is the plural of "rete".
+The feminine noun "rete" means "net".
+# `non prendono di mira casi personali': target
+The verb "prende di mira" means "targets".
+"prendono di mira" is the plural of "prende di mira".
+"prendere di mira" is the infinitive of "prende di mira".
+# `chi ha in mano leve fondamentali': holds
+The verb "ha in mano" means "holds".
+"hanno in mano" is the plural of "ha in mano".
+"avere in mano" is the infinitive of "ha in mano".
+# `la Fininvest può tenersi tre reti': keeps; `mantiene' is said first and stays the word written (`mantener' was `tenersi',
+# and three sentences of the controls were refused)
+The verb "mantiene" means "keeps".
+The verb "si tiene" means "keeps".
+"si tengono" is the plural of "si tiene".
+"tenersi" is the infinitive of "si tiene".
+# `nessuno abbia più di una rete', `basta assai meno del 50,1%': more than, less than -- one adverb before a count
+# (as Spanish's `más de'); before anything else the reader takes the two words apart again, the comparison
+# `più di me' (tr_than_split/3)
+The adverb "più di" means "more than".
+The adverb "meno di" means "less than".
+# `Berlusconi dovrà scegliere se fare l'uomo di governo o mantenere il controllo': choose whether
+"sceglie" takes the question.
+# `Sarebbe sbagliato leggere tutto pro o contro Berlusconi': wrong, an adjective (the dictionary has the participle of `sbaglia' only, which erred)
+The masculine adjective "sbagliato" means "wrong".
+"sbagliati" is the plural of "sbagliato".
+The feminine adjective "sbagliata" means "wrong".
+"sbagliate" is the plural of "sbagliata".
+# `chi compra oggi le tv Fininvest lo fa a suo rischio': at his own risk
+The adverb "a suo rischio" means "at his own risk".
+# `non possa essere membro del governo a meno che non si liberi entro un anno': unless (its `non' denies nothing,
+# tr_expletive_off/3)
+The conjunction "a meno che" means "unless".

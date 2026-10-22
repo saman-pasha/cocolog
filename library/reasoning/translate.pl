@@ -1393,9 +1393,62 @@ tr_joined_words(Side, Words0, Words) :-
     tr_enclitic_multi(Side, Words4, Words5),
     tr_particles(Side, Words5, Words6),
     tr_name_links(Side, Words6, Words7),
-    tr_number_ranges(Side, Words7, Words8),
+    tr_number_ranges(Side, Words7, Words7t),
+    tr_than_split(Side, Words7t, Words7u),
+    tr_expletive_off(Side, Words7u, Words8),
     tr_unjoin_relative(Side, Words8, Words9),
     tr_drop_contrast_yes(Side, Words9, Words).
+
+%% `MORE THAN' BEFORE A COUNT AND THE COMPARISON ANYWHERE ELSE: `nessuno abbia
+%% più di una rete' is more than one network and `basta assai meno del 50,1%'
+%% less than 50.1% -- read as the adverb and a phrase of `of', English wrote
+%% `has of a net more', and in a denied clause `anymore'. The lesson states the
+%% two words as one adverb (`The adverb "più di" means "more than".', as
+%% Spanish's `más de'), which the reader joins wherever they stand; but where
+%% the second word is also the lesson's word for `than' (`The word "di" means
+%% "than".', Italian's and not Spanish's) the pair is the comparison too:
+%% `mangia più di me', `dorme più di prima'. So the adverb is taken apart
+%% again unless a count follows it: a number, an indefinite article, or an
+%% article and a number or a percentage
+tr_than_split(foreign, Ws0, Ws) :-
+    once(( member(w(J, _), Ws0), atom(J), tr_than_adverb(J, _, _) )), !,
+    tr_than_split0(Ws0, Ws).
+tr_than_split(_, Ws, Ws).
+tr_than_split0([], []).
+tr_than_split0([w(J, C)|Ws0], [w(A, C), w(D, lower)|Ws]) :-
+    atom(J), tr_than_adverb(J, A, D), \+ tr_count_next(Ws0), !,
+    tr_than_split0(Ws0, Ws).
+tr_than_split0([W|Ws0], [W|Ws]) :- tr_than_split0(Ws0, Ws).
+%% an adverb of two words that means `more than' or `less than' and ends on
+%% the lesson's word for `than'
+tr_than_adverb(J, A, D) :-
+    sub_atom(J, _, 1, _, ' '), atomic_list_concat([A, D], ' ', J),
+    tr_lexeme(foreign, J, L, _), tr_class_of(L, adverb),
+    ( tr_solve(mean(L, 'more than')) ; tr_solve(mean(L, 'less than')) ),
+    tr_lexeme(foreign, D, DL, _), tr_solve(mean(DL, than)), !.
+tr_count_next([N|_]) :- tr_count_word(foreign, N), !.
+tr_count_next([N|_]) :- tr_indefinite(foreign, N), !.
+tr_count_next([D, N|_]) :- tr_determiner(foreign, D, _, article), tr_count_word(foreign, N), !.
+
+%% THE DENIAL RIGHT AFTER `UNLESS' DENIES NOTHING: `non possa essere membro del
+%% governo a meno che non si liberi entro un anno' is unless he frees himself --
+%% Italian's `a meno che' takes the `non' its clause does not mean, and read as a
+%% denial it was `unless one does not release'. A connector of several words that
+%% means `unless', and the word for `not' before its clause's first verb
+tr_expletive_off(foreign, Ws0, Ws) :-
+    once(( member(w(K, _), Ws0), atom(K), sub_atom(K, _, 1, _, ' '), tr_unless_word(K) )), !,
+    tr_expletive_off0(Ws0, Ws).
+tr_expletive_off(_, Ws, Ws).
+tr_expletive_off0([], []).
+tr_expletive_off0([w(K, C)|Ws0], [w(K, C)|Ws]) :-
+    atom(K), tr_unless_word(K),
+    %% (after the clause's subject too: `a meno che il gatto non mangi', the
+    %% denial before the clause's first verb)
+    append(Pre, [w(N, _)|Post], Ws0), atom(N), tr_negation_word(N),
+    \+ ( member(w(V, _), Pre), atom(V), tr_verb_form_word(V) ), \+ memberchk(comma, Pre), !,
+    append(Pre, Post, Ws1), tr_expletive_off0(Ws1, Ws).
+tr_expletive_off0([W|Ws0], [W|Ws]) :- tr_expletive_off0(Ws0, Ws).
+tr_unless_word(K) :- tr_lexeme(foreign, K, L, _), tr_solve(mean(L, unless)), !.
 
 %% `PERO SÍ' BEFORE A PREPOSITION IS A CONTRAST AND NOTHING ELSE: `no convence con lo que dice,
 %% pero sí con lo que hace' is but with what he does -- `sí' there is the stress the verb left
@@ -3016,6 +3069,15 @@ tr_cities_in([X|Cs0], [X|Cs]) :- tr_cities_in(Cs0, Cs).
 tr_cities_nested([], []).
 tr_cities_nested([that(S0)|Cs0], [that(S)|Cs]) :- !, tr_city_in(foreign, S0, S), tr_cities_nested(Cs0, Cs).
 tr_cities_nested([X|Cs0], [X|Cs]) :- tr_cities_nested(Cs0, Cs).
+%% (tr_write/4's `does': the question asks for the object, or the clitic `lo' or
+%% a word for nothing is all the verb takes)
+tr_makes_does(object(_), Cs, Cs) :- \+ ( member(C, Cs), tr_makes_made(C) ), !.
+tr_makes_does(none, [opron(w(him, C))|Cs], [opron(w(it, C))|Cs]) :- \+ ( member(X, Cs), tr_makes_made(X) ), !.
+tr_makes_does(none, [opron(w(W, C))|Cs], [opron(w(W, C))|Cs]) :-
+    memberchk(W, [nothing, everything, something, anything]), \+ ( member(X, Cs), tr_makes_made(X) ), !.
+tr_makes_made(C) :- functor(C, F, _), memberchk(F, [obj, opron, inf, pred, adj, that, purpose, ger, part]).
+%% (tr_write/4's copula of `it is easy to')
+en_copula_lexeme(is).
 %% the English verbs of going and sending, and of taking and bringing somewhere
 tr_motion_verb(L) :- atom(L), memberchk(L, [goes, comes, arrives, returns, travels, leaves, flies, moves, runs, drives, walks, heads, sends, brings, takes, carries, transfers, emigrates, reaches, departs, goes_back, drives_up]).
 
@@ -4862,10 +4924,11 @@ tr_cross_adjective(nmodp(w(W, C)), nmodp(w(T, C))) :- !,
     tr_lexeme_here(W, WL), tr_meanings_of(WL, english, noun, [T|_]).
 tr_cross_adjective(w(W, appos), w(W, appos)) :- !.
 tr_cross_adjective(int(w(A0, C), J0), int(w(A, C), J)) :- !,
-    (   tr_intensifier_meaning(A0, A) -> true
-    ;   tr_adjectival_meaning(A0, A) -> true
-    ;   tr_word_across(w(A0, lower), english, adverb, A)
+    (   tr_intensifier_meaning(A0, A1) -> true
+    ;   tr_adjectival_meaning(A0, A1) -> true
+    ;   tr_word_across(w(A0, lower), english, adverb, A1)
     ),
+    ( J0 = deg(comparative, _) -> tr_much_before(A1, more, A) ; A = A1 ),   % (`molto più grande', much bigger)
     tr_cross_adjective(J0, J).
 tr_cross_adjective(w(W, C), T) :- tr_side_here(Side), tr_coord(Side, w(W, C)), !, tr_cross_coord(Side, w(W, C), T).
 %% A NAME APPOSED TO A NOUN CROSSES AS ITSELF -- `il presidente Scalfaro' --
@@ -4950,6 +5013,12 @@ tr_cross_comps([pp(w(P, C), NP0)|Cs0], [pp(w(PT, C), NP)|Cs]) :-
 tr_cross_comps([adv(w(A, C)), P|Cs0], [adv(w(E, C))|Cs]) :-
     ( P = pred(_) ; P = adj(_) ), tr_adjectival_meaning(A, E), !,
     tr_cross_comps([P|Cs0], Cs).
+%% ... AND AN INTENSIFIER BEFORE A COMPARATIVE IS THE COMPARATIVE'S, `much':
+%% `il cane è molto più grande' is much bigger, where the adverb stood apart
+%% and came out `bigger very', `muy mayor' (tr_much_before/3)
+tr_cross_comps([adv(w(A, C)), adj([deg(comparative, W)|Js])|Cs0], Cs) :-
+    tr_side_here(foreign), atom(A), tr_intensifier_meaning(A, very), !,
+    tr_cross_comps([adj([int(w(A, C), deg(comparative, W))|Js])|Cs0], Cs).
 tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs).
 
 tr_role_range([pp(w(Q, _), np(none, none, [], N, singular))|_]) :-
@@ -5000,9 +5069,13 @@ tr_cross_comp(agr(G), agr(G)) :- !.
 %% and the degree adverb before a participle (tr_clause_post/4), which
 %% crosses by its degree meaning as an intensifier does
 tr_cross_comp(sagr(G), sagr(G)) :- !.
+tr_cross_comp(whinf(Cs0), whinf(Cs)) :- !, tr_cross_comps(Cs0, Cs).
+tr_cross_comp(pp2(w(P1, C1), Co0, w(P2, C2), NP0), pp2(w(T1, C1), Co, w(T2, C2), NP)) :- !,
+    tr_prep_across(P1, T1), tr_cross_coord(foreign, Co0, Co), tr_prep_across(P2, T2), tr_cross_np(NP0, NP).
 tr_cross_comp(iadv(w(A, C), w(B, BC)), iadv(w(AT, C), w(BT, BC))) :- !,
-    ( tr_intensifier_meaning(A, AT) -> true ; tr_word_across(w(A, lower), english, adverb, AT) ),
-    tr_word_across(w(B, lower), english, adverb, BT).
+    ( tr_intensifier_meaning(A, AT0) -> true ; tr_word_across(w(A, lower), english, adverb, AT0) ),
+    tr_word_across(w(B, lower), english, adverb, BT),
+    tr_much_before(AT0, BT, AT).
 tr_cross_comp(gadv(w(A, C)), gadv(w(AT, C))) :- !,
     (   tr_intensifier_meaning(A, AT) -> true
     ;   tr_adjectival_meaning(A, AT) -> true
@@ -5152,6 +5225,14 @@ tr_cross_comp(cpart(w(C, CC), L0, Cs0), cpart(w(CT, CC), L, Cs)) :- !,
 tr_cross_comp(opron(w(W, C)), opron(dat(w(T, C)))) :-
     tr_lexeme(foreign, W, L, _), tr_solve(dative(L)), !, tr_pronoun_across(english, object, w(W, C), _, _, T).
 tr_cross_comp(opron(w(W, C)), opron(w(T, C))) :- tr_pronoun_across(english, object, w(W, C), _, _, T).
+
+%% `VERY' BEFORE A COMPARATIVE IS `MUCH': `Molto meglio, pensare con intelligenza al
+%% futuro' is much better, and `basta assai meno del 50,1%' much less than it --
+%% the lesson's `molto' and `assai' mean `very', which English and Spanish say
+%% only of a word that is no comparison (`very better', `muy menos')
+tr_much_before(very, B, much) :- en_comparative_adverb(B), !.
+tr_much_before(A, _, A).
+en_comparative_adverb(B) :- memberchk(B, [better, worse, more, less, 'more than', 'less than']).
 %% (the phrase of a count of time after `da': a noun the lesson calls a time, in
 %% the plural or with a count)
 tr_duration_phrase(np(_, Num, _, w(W, _), Number)) :-
@@ -6671,6 +6752,9 @@ tr_read0(Side, Kind, Words0, S) :-
         %% teams bought them, not `the teams bought them while' -- `mentre'
         %% is an adverb too, and lifted it was written last)
         \+ tr_head_connector_lifted(Side, Words, Advs0),
+        %% (nor the preposition that opens a phrase and its comma, which the commas
+        %% taken out hid: `Secondo la corte, è necessario ...', tr_governs_adverb/3)
+        \+ ( Words0 = [HW|HR], Advs0 = [adv(HW0)|_], HW0 = w(HN, _), HW = w(HN, _), tr_governs_adverb(Side, HW, HR) ),
         tr_read_after_head_adverb(Side, Words, Advs0, Rest, Asked, S0), S0 = s(A, Su, G, Comps0),
         \+ ( Side == foreign, tr_ago_time_subject(Su, Advs0) )
     ), !,
@@ -8442,6 +8526,16 @@ tr_governs_adverb(Side, W, [N|Ns]) :-
 %% mangiato il pane' to be the subject of `tace'
 tr_governs_adverb(foreign, W, [w(R, _)|_]) :-
     atom(R), tr_is(foreign, W, preposition), tr_solve(infinitive_of(R, _)), !.
+%% ... AND BEFORE AN ARTICLE AND ITS PHRASE TO A COMMA: `Secondo la corte, è
+%% necessario un vero pluralismo' is according to the court, `Dopo la sentenza
+%% della corte, però, c'è stato il referendum' after it -- lifted as the adverb
+%% (`secondo' is also `second'), the preposition left the court for the subject
+%% and the copula's own subject after it an object, `The court, is necessary a
+%% true pluralism second'. A phrase with no verb in it, and the comma after it
+tr_governs_adverb(foreign, W, [D|Ns]) :-
+    tr_determiner(foreign, D, _, article), tr_is(foreign, W, preposition),
+    append(NP, [comma|_], Ns), NP = [_|_], \+ memberchk(comma, NP),
+    \+ ( member(w(X, _), NP), atom(X), tr_verb_form_word(X) ), !.
 
 %% the first division whose two sides both read: a connecting word the
 %% lesson gives (`e', `ma', `perche'), or a bare comma. The connector
@@ -8653,7 +8747,11 @@ tr_reporting(Who, Words0, S) :-
     %% `Anderson' telling the rest
     \+ ( SubjPost = [w(_, upper)|_], append(_, [D|Ns], Pre), Ns \== [], tr_determiner(foreign, D, _, _),
          forall(member(N, Ns), N = w(_, upper)) ),
-    tr_report_subject(SubjPost, FP, FN, SW, Post0),
+    tr_report_subject(SubjPost, FP, FN, SW0, Post00),
+    %% (a name apposed to the speaker's name between commas is the speaker's:
+    %% `Commenta Carlo Rognoni, Pds, vicepresidente del senato' is the man and
+    %% his party, and left after the name the party's word was no complement)
+    ( Post00 = [w(AP, appos)|Post0] -> append(SW0, [w(AP, appos)], SW) ; SW = SW0, Post0 = Post00 ),
     %% (where a quotation mark is all that says something was said, what
     %% stands between the verb and the speaker is read BEFORE the speaker: it
     %% has no object, and most of the places a speaker could stand leave one
@@ -8884,6 +8982,8 @@ en_connector(whenever).                                  % `ogni volta che andav
 en_connector('by the time').                             % `Para cuando lean estas líneas, el mundo ya tendrá una nueva miss'
 en_connector('given that').                              % `Premesso che ogni federazione ha i suoi regolamenti, non sono d'accordo'
 en_connector('so much so that').                         % `..., tanto è vero che siamo arrivati secondi'
+en_connector('insofar as').                              % `non risolve il problema, nella misura in cui Berlusconi resta azionista'
+en_connector(unless).                                    % `non possa essere membro del governo a meno che non si liberi entro un anno'
 
 tr_normalise(_, statement, Words, Words, none) :- !.
 tr_normalise(english, question, Words0, Words, Asked) :-
@@ -9128,10 +9228,24 @@ fo_unfront(_, Words, Words1) :-
     tr_negation(foreign, Words, W1, Neg),
     tr_group(foreign, W1, Before, g(_, _, _, P, N), Group, After),
     tr_split_clitics(foreign, Before, fronted, _, _, [], Clitics), !,
-    fo_subject_after(After, P, N, Subject, Rest),
+    fo_subject_after(After, P, N, Subject0, Rest0),
+    ( Subject0 == [], fo_adverb_subject(After, P, N, Subject, Rest) -> true ; Subject = Subject0, Rest = Rest0 ),
     append(Subject, Clitics, S1), append(S1, Group, S2), append(S2, Rest, W2),
     ( Neg == yes -> tr_negation_word(No), Words1 = [w(No, lower)|W2] ; Words1 = W2 ).
 fo_unfront(_, Ws, Ws).
+
+%% A QUESTION'S ADVERB BETWEEN THE VERB AND ITS SUBJECT STAYS WHERE IT IS:
+%% `Che dovrebbe fare, allora, Berlusconi?' is what should Berlusconi do, then
+%% -- with the adverb in the way nothing agreed after the verb, and Berlusconi
+%% was the object, `¿Qué debería hacer entonces a Berlusconi?', a third person
+%% nobody named that English refused. Only where a subject that agrees follows
+%% it, and only in a question (fo_unfront/3): a statement's inverted subject
+%% after an adverb is read by its own readers, `Fue entonces el momento de
+%% homenajear ...', and with this rule there `the moment went moment of honouring'
+fo_adverb_subject([w(V, C)|After], P, N, Subject, [w(V, C)|Rest]) :-
+    atom(V), tr_solve(infinitive_of(V, F)), tr_known(foreign, F), !, fo_adverb_subject(After, P, N, Subject, Rest).
+fo_adverb_subject([A|After], P, N, Subject, [A|Rest]) :-
+    fo_adverb_word(A), After = [_|_], fo_subject_after(After, P, N, Subject, Rest), Subject \== [], !.
 
 %% what follows the verb is its subject only when it agrees with it: after
 %% `¿Comes ...?' nothing does, and the verb says who
@@ -9146,6 +9260,9 @@ fo_subject_after(After, P, N, Subject, Rest) :-
     Subject = Subject0, Rest = Rest0.
 fo_subject_after(After, _, _, [], After).
 
+%% (an adverb the lesson knows as nothing else)
+fo_adverb_word(w(X, _)) :- atom(X), tr_is(foreign, w(X, lower), adverb), \+ tr_is(foreign, w(X, lower), noun),
+    \+ tr_is(foreign, w(X, lower), adjective), \+ tr_verb_form_word(X), !.
 fo_agreeing([w(W, _)], P, N) :- tr_subject_pronoun(foreign, W, P1, N1), !, P1 == P, N1 == N.
 fo_agreeing([w(W, upper)], P, N) :- \+ tr_known_word(foreign, W), !, P == third, N == singular.
 fo_agreeing(Words, third, N) :- tr_np(foreign, Words, NP), !, fo_np_number(NP, N1), N1 == N.
@@ -10175,7 +10292,12 @@ tr_read_generic(Side, Words0, Asked, S) :-
     %% behind the voices there are many boys, and with `le voci' for what there
     %% is, the boys were a second thing there was -- `Hay las voces a muchos
     %% niños atrás'. The front phrase reads
-    \+ ( Side == foreign, Subject2 = np(_, _, _, _, _), atom(LV2), tr_solve(mean(LV2, 'there is')), memberchk(obj(_), Comps0) ),
+    %% (a phrase with its phrases of `of' too: `Dopo la sentenza della corte, però, c'è
+    %% stato il referendum' is after the judgment there was the referendum, and with
+    %% the judgment of the court for what there was, `dopo' was left an adverb, `the
+    %% judgment of the court thered is the referendum after')
+    \+ ( Side == foreign, ( Subject2 = np(_, _, _, _, _) ; Subject2 = with(_, _) ), atom(LV2), tr_solve(mean(LV2, 'there is')),
+         memberchk(obj(_), Comps0) ),
     tr_existential_fix(Side, s(Asked, Subject2, g(LV2, T, A1, Neg), Comps), S).
 %% A WORD THAT BEGINS THE PURPOSE, RIGHT BEFORE AN INFINITIVE AND AFTER A NOUN
 %% OR AN ADJECTIVE, IS NO VERB. `Un edificio anexo y un solar apto para levantar
@@ -11586,6 +11708,7 @@ tr_perf_tail([X|Xs]) :- ( tr_adjunct(X) ; X = adj(_) ; X = obj(NP), tr_date_phra
 tr_adjunct(sep).
 tr_adjunct(adv(_)).
 tr_adjunct(pp(_, _)).
+tr_adjunct(pp2(_, _, _, _)).
 tr_adjunct(at_time(_)).
 tr_adjunct(pinf(_, _)).                               % `invece di andare da una parte, ...'
 tr_adjunct(cnj(_)).                                   % `nella vita di ogni grande organizzazione E delle sue persone'
@@ -11662,8 +11785,12 @@ tr_negation(foreign, Words, Rest, yes) :-
     %% la fusión entre Carrefour y Promodès no es buena' -- `entre' is also
     %% the subjunctive of `entrar', and counted as the clause's verb it
     %% gave the denial to `manifestó' and left the clause without it)
+    %% (nor the verb of a relative clause there, which is the subject's: `prevede che
+    %% chi ha partecipazioni ... non possa essere membro' -- whoever has them may not
+    %% be, and with `ha' counted the denial went to `prevede')
     \+ ( append(_, [w(X, XC)|Between], A), tr_opens_clause(w(X, XC)),
-         \+ ( member(w(V, VC), Between), tr_verb_form_word(V), \+ tr_is(foreign, w(V, VC), preposition) ) ),
+         \+ ( append(B1, [w(V, VC)|_], Between), tr_verb_form_word(V), \+ tr_is(foreign, w(V, VC), preposition),
+              \+ ( member(w(RW, _), B1), atom(RW), tr_relative_opener(RW) ) ) ),
     %% NOR A DENIAL BEFORE `only' AND A `but' AFTER IT: `vede non solo il
     %% gatto ma anche la casa' sees not only the cat but the house too, and
     %% taken as the sentence's it said he did not see them (nonly/3)
@@ -11673,6 +11800,9 @@ tr_negation(foreign, Words, Rest, yes) :-
 tr_negation(_, Words, Words, no).
 
 tr_negation_word(N) :- once(tr_solve(mean(N, not))).
+%% a word that begins a relative clause, `che' or `chi'
+tr_relative_opener(W) :- tr_relative_word(foreign, W), !.
+tr_relative_opener(W) :- tr_lexeme(foreign, W, L, _), tr_solve(begin(L, relative)), !.
 
 %% A DENIAL STANDS BEFORE THE VERB IT DENIES: `credo si cominci a vedere
 %% qualche risultato ma non posso garantirlo' is I believe one begins to see
@@ -11970,8 +12100,11 @@ tr_subject_shape(_, [], P, N) :- !, ( P \== third ; N == plural ).
 %% Westendorp, Alto Representante Civil en Bosnia, ...' is a name and what
 %% it is, and the name's shape is the name's alone -- with the aside's key
 %% counted as a word the phrase had no noun and the sentence was refused
+%% -- and a name apposed to a name between commas (tr_list_commas/3): `Carlo
+%% Rognoni, Pds, parla dell'intreccio ...' is a man and his party, and with the
+%% party's word counted the two names had no shape
 tr_subject_shape(A, Words, P, N) :-
-    append(Core, [w(_, Kind)], Words), memberchk(Kind, [aside, paren, dashed]), Core = [_|_], !,
+    append(Core, [w(_, Kind)], Words), memberchk(Kind, [aside, paren, dashed, appos]), Core = [_|_], !,
     tr_subject_shape(A, Core, P, N).
 %% ... AND THE WORD FOR `all' BEFORE THE SHAPE OF A PHRASE HAS ITS SHAPE:
 %% `Tutti gli altri hanno perplessità' -- `gli altri' is a determiner and a
@@ -12136,6 +12269,11 @@ tr_subject_shape(_, Words, _, _) :-
     ;   append(NWs, [P1|_], Words), NWs \== [], tr_is(foreign, P1, preposition),
         forall(member(N1, NWs), tr_name_word(foreign, N1)) -> true
     ;   Words = [D, _|_], ( tr_determiner(foreign, D, _, _) ; tr_is(foreign, D, number) )
+    %% ... or a WORD THAT BEGINS THE RELATIVE and its clause (tr_subject/6): `Chi
+    %% dorme mangia', `che chi ha partecipazioni di rilievo non possa essere
+    %% membro del governo' -- whoever sleeps; with no noun in its clause the
+    %% subject had no shape, and `Chi dorme bene' read only because `bene' is a noun
+    ;   Words = [w(RW, _), _|_], atom(RW), tr_lexeme(foreign, RW, RL, _), tr_solve(begin(RL, relative))
     %% ... or a PRONOUN AND A PHRASE OF `of' AFTER IT, which has no noun of its
     %% own but its object's: `Qualcuno di voi sta giocando' is somebody of you,
     %% as `Nessuno di voi' and `Uno di loro' are, whose heads are determiners
@@ -14518,6 +14656,16 @@ tr_reduced_agent(Side, Ws, Cs) :-
     tr_complements(Side, Pre, Cs1), Cs1 \== [], forall(member(C, Cs1), tr_adjunct(C)), \+ memberchk(sep, Cs1),
     tr_reduced_agent(Side, [P|Rest], Cs2), Cs2 = [by(_)|_], !,
     append(Cs1, Cs2, Cs).
+%% ... AND A DAY OR AN ADVERB ALONE BEFORE THE AGENT: `il disegno sul conflitto
+%% d'interessi varato giovedì dal senato' was passed on Thursday by the senate
+%% -- with a word between the participle and the word for `by' the agent was not
+%% read, and `dal senato' was a phrase of `from', `desde el senado'
+tr_reduced_agent(foreign, [T, P|Rest], Cs) :-
+    T = w(_, _), P = w(_, _), Rest = [_|_], tr_is(foreign, P, preposition), tr_means_by(foreign, P),
+    \+ tr_is(foreign, T, preposition),
+    tr_complements(foreign, [T], Cs1), Cs1 = [C1], ( C1 = at_time(_) ; C1 = adv(_) ),
+    tr_reduced_agent(foreign, [P|Rest], Cs2), Cs2 = [by(_)|_], !,
+    append(Cs1, Cs2, Cs).
 %% ... AND A TIME: `los hechos ocurridos el pasado domingo arrastran la
 %% situación' -- the day they happened. A phrase that names a day or a month is
 %% nobody's agent and no object of the verb after it, so it is the participle's
@@ -15070,6 +15218,19 @@ tr_token_atom(T, T) :- atom(T).
 %% OBJECT's (`Maria ve a Omar' is Omar); after an object it is the
 %% preposition it is (`Maria da el libro a Omar' is to Omar)
 tr_complements0(_, [], _, []) :- !.
+%% TWO PREPOSITIONS JOINED BEFORE ONE PHRASE: `leggere tutto pro o contro
+%% Berlusconi' is in favour of or against him, `dorme con o senza il gatto' with
+%% or without it -- the first preposition had no phrase of its own, and the
+%% sentence was refused. The second is read with its phrase, and the pair travels
+%% as pp2(First, Coordinator, Second, Phrase)
+%% (each a word the lesson gives an English preposition for: `colocados cerca o dentro
+%% de un vehículo' has `cerca', near as an adverb and a wall as a noun, whose
+%% preposition is `cerca de', and taken for one it was `placed wall or within')
+tr_complements0(foreign, [P1, Co, P2|Ws], Seen, [pp2(P1, Co, P, NP)|Cs]) :-
+    P1 = w(P1W, _), Co = w(CW, _), atom(CW), tr_coord(foreign, Co), P2 = w(_, _), atom(P1W),
+    tr_is(foreign, P1, preposition), tr_is(foreign, P2, preposition),
+    tr_prep_across(P1W, T1), atom(T1), ( en_preposition(T1) -> true ; sub_atom(T1, _, 1, _, ' ') ),   % (`in favour of')
+    tr_complements(foreign, [P2|Ws], Seen, [pp(P, NP)|Cs]), !.
 %% A CLAUSE BETWEEN DASHES AFTER A COMPLEMENT THAT IS NO PHRASE stays where it
 %% stood, as it does at the head of a sentence (dsh/1): `ogni volta che
 %% andavamo a mangiare insieme - o meglio: io mangiavo, lui testava piccoli
@@ -15377,10 +15538,23 @@ tr_complements0(foreign, [w(P, _), W|Ws], _, [wh(E, S)]) :-
     tr_global('$tr_read_group', G), atom(G), tr_solve(take_before(G, P, question)), Ws \== [],
     tr_question_word(W, E),
     tr_read_nested(foreign, Ws, none, S0), ( E == who -> tr_who_gap(S0, S) ; S = S0 ), !.
+%% ... AND AN INFINITIVE AFTER THE WORD FOR `if': `dovrà scegliere se fare l'uomo
+%% di governo o mantenere il controllo delle sue tv' is choose WHETHER TO be the
+%% man of government or to keep the control -- no clause, so the question was no
+%% question, and the sentence was refused. It travels as whinf(Complements), the
+%% infinitive first among them, after the verb or after the infinitive the verb is
+%% (the clause after this one's)
+tr_complements0(foreign, [w(W, _), w(V, VC)|Ws], _, [whinf(Cs)]) :-
+    tr_if_word(W),
+    tr_global('$tr_read_group', G), atom(G), tr_solve(take(G, question)),
+    tr_whether_infinitive([w(V, VC)|Ws], Cs), !.
 tr_complements0(foreign, [w(W, _)|Ws], _, [wh(whether, S)]) :-
     Ws \== [], tr_if_word(W),
     tr_global('$tr_read_group', G), atom(G), tr_solve(take(G, question)),
     tr_read_nested(foreign, Ws, none, S), !.
+tr_complements0(foreign, [w(V, _), w(W, _)|Ws], _, [inf(F), whinf(Cs)]) :-
+    tr_if_word(W), tr_solve(infinitive_of(V, F)), tr_solve(take(F, question)),
+    tr_whether_infinitive(Ws, Cs), !.
 tr_complements0(foreign, [w(V, _), w(W, _)|Ws], _, [inf(F), wh(whether, S)]) :-
     Ws \== [], tr_if_word(W),
     tr_solve(infinitive_of(V, F)), tr_solve(take(F, question)),
@@ -16133,6 +16307,16 @@ tr_question_after_inf(F, [w(P, _), W|Ws], _, [wh(E, S)]) :-
     tr_read_nested(foreign, Ws, none, S0), ( E == who -> tr_who_gap(S0, S) ; S = S0 ), !.
 tr_question_after_inf(_, Ws, Seen, Cs) :- tr_complements(foreign, Ws, Seen, Cs).
 
+%% (the infinitive and what it takes, read under the infinitive: the first word one, known to
+%% the lesson, and the complements beginning with it)
+tr_whether_infinitive([w(V, VC)|Ws], Cs) :-
+    atom(V), tr_solve(infinitive_of(V, F)), tr_known(foreign, F),
+    tr_global('$tr_read_group', G0), tr_global('$tr_read_aspect', A0),
+    nb_setval('$tr_read_group', F), nb_setval('$tr_read_aspect', simple),
+    (   tr_complements(foreign, [w(V, VC)|Ws], Cs), Cs = [inf(_)|_]
+    ->  nb_setval('$tr_read_group', G0), nb_setval('$tr_read_aspect', A0)
+    ;   nb_setval('$tr_read_group', G0), nb_setval('$tr_read_aspect', A0), fail
+    ).
 tr_indirect_questions(Ws, [wh(whether, S1), cnj(C), wh(whether, S2)]) :-
     append(W1, [C, w(W2, _)|Ws2], Ws), W1 \== [], Ws2 \== [], C = w(_, _), tr_coord(foreign, C), tr_if_word(W2),
     tr_read_nested(foreign, W1, none, S1), tr_read_nested(foreign, Ws2, none, S2), !.
@@ -19188,6 +19372,45 @@ tr_predicate_word(Side, W) :- tr_coord(Side, W).
 
 %% ---- writing ------------------------------------------------------------------
 
+%% WHAT THE SPEAKER IS, AFTER THE SPEAKER: `Commenta Carlo Rognoni, Pds,
+%% vicepresidente del senato e grande esperto di media: ...' (tr_report_appos/2)
+%% stands after the name in the lesson's languages, where the verb comes first;
+%% English puts the speaker before the verb and his apposition with him,
+%% between commas -- written after the verb it was `Carlo Rognoni comments,
+%% vice-president of the senate:'
+tr_write(english, Kind, s(A, Su, G, Comps0), Outs) :-
+    append(Pre, [subj_here, sep, appos(NP)|Tail], Comps0), forall(member(T, Tail), T = pp(_, _)),
+    Su \= null(_, _), Su \== none, !,
+    append(Pre, [subj_here], Comps),
+    tr_write(english, Kind, s(A, app(Su, aside, comps([obj(NP)|Tail])), G, Comps), Outs).
+%% AN INFINITIVE AFTER THE COPULA AND ITS ADJECTIVE IS SAID AFTER THEM, WITH `it'
+%% BEFORE: `è necessario evitare che ci siano ... tre reti' is it is necessary to
+%% avoid that there are three networks, and `È facile mangiare il pane' it is
+%% easy to eat the bread -- the lesson's languages put such a subject after the
+%% copula, and English, which writes its subject first, wrote `To avoid that
+%% there are three nets is necessary'. Only where the source had it after
+%% (subj_here); `Mangiare il pane è facile' keeps its order
+tr_write(english, Kind, s(A, infs(L, ICs), g(Is, T, Asp, N), Comps0), Outs) :-
+    atom(Is), en_copula_lexeme(Is), memberchk(subj_here, Comps0), append(Pre, [adj(J)|Post0], Comps0), !,
+    subtract(Post0, [subj_here], Post), subtract(Pre, [subj_here], Pre1),
+    append([Pre1, [adj(J), inf(L)|ICs], Post], Comps),
+    tr_write(english, Kind, s(A, null(third, singular), g(Is, T, Asp, N), Comps), Outs).
+%% `MAKES' WITH NOTHING MADE IS `DOES': `Che dovrebbe fare Berlusconi?' is what
+%% should he DO, `chi compra ... lo fa a suo rischio' does it at his own risk
+%% and `non fa niente' does nothing -- the lesson's `fa' and `hace' mean
+%% `makes', which English says only of something made: an object, an
+%% infinitive (`lo fa piangere', makes him cry) or a predicate. The clitic
+%% `lo' is `it' then, the thing done, where the lesson's first word for it is
+%% `him'
+tr_write(english, Kind, s(A, Su, g(makes, T, Asp, N), Comps0), Outs) :-
+    tr_makes_does(A, Comps0, Comps), !,
+    tr_write(english, Kind, s(A, Su, g(does, T, Asp, N), Comps), Outs).
+%% (and its infinitive after a modal: `Che dovrebbe fare Berlusconi?')
+tr_write(english, Kind, s(A, Su, G, Comps0), Outs) :-
+    append(Pre, [inf(makes)|Post0], Comps0), \+ ( member(C, Pre), tr_makes_made(C) ),
+    tr_makes_does(A, Post0, Post), !,
+    append(Pre, [inf(does)|Post], Comps),
+    tr_write(english, Kind, s(A, Su, G, Comps), Outs).
 %% `there is': English's `there', the copula in the number of what there is
 %% (`There are dogs') and `no' for the denial with the article dropped
 %% (`There is no dog'); the lesson's verb and the phrase, no subject
@@ -21574,6 +21797,19 @@ tr_comps_out(english, [adv(w(A, C)), pp(P, NP)|Cs], Noun, Number, Clitics, [o(AT
 %% ... and an adverb that says how much of the object, `more than', `about',
 %% `almost', is written before it in English: `reciben más de 5 perros'
 %% receive more than 5 dogs, where it came last, `receive 5 dogs more than'
+%% (and `more than' or `less than' before `a' is before `one': `más de una
+%% casa' is more than one house, never `more than a house')
+%% (and with its degree adverb before it: `basta assai meno del 50,1%' is much less than 50.1%)
+tr_comps_out(english, [iadv(w(I, IC), w(A, C)), C1|Cs], Noun, Number, Clitics, [o(IT, IC), o(AT, C)|Outs], Advs) :-
+    en_object_adverb(A), C1 = obj(_), !,
+    tr_word_across(w(I, lower), english, adverb, IT), tr_word_across(w(A, lower), english, adverb, AT),
+    tr_comps_out(english, [C1|Cs], Noun, Number, Clitics, Outs, Advs).
+tr_comps_out(english, [adv(w(A, C)), obj(np(det(article, a, W), none, Adjs, N, singular))|Cs], Noun, Number, Clitics,
+             [o(AT, C)|Outs], Advs) :-
+    ( A == 'more than' ; A == 'less than' ), !,
+    tr_word_across(w(A, lower), english, adverb, AT),
+    W = w(_, WC),
+    tr_comps_out(english, [obj(np(none, w(one, WC), Adjs, N, singular))|Cs], Noun, Number, Clitics, Outs, Advs).
 tr_comps_out(english, [adv(w(A, C)), C1|Cs], Noun, Number, Clitics, [o(AT, C)|Outs], Advs) :-
     en_object_adverb(A), ( C1 = obj(_) ; C1 = at_time(np(_, w(_, _), _, _, _)) ), !,     % (a count of time: `sólo ... 10 minutos')
     tr_word_across(w(A, lower), english, adverb, AT),
@@ -21924,6 +22160,24 @@ tr_comp_out(To, fpart(L, G, N, Cs), _, _, [], Outs, []) :- !,
 %% ... and one whose subject is a relative clause's gap, with no word for
 %% `that' (tr_relative_clause/4): `che spero si concretizzi'
 tr_comp_out(To, thatg(S), _, _, [], SOut, []) :- !, tr_write_nested(To, S, SOut).
+%% (two prepositions joined before one phrase, tr_complements0/4's pp2/4)
+tr_comp_out(To, pp2(w(P1, C1), w(K, KC), w(P2, C2), NP), _, _, [], [o(T1, C1), o(KT, KC), o(T2, C2)|NPOut], []) :- !,
+    ( To == english -> T1 = P1, T2 = P2, KT = K
+    ; tr_word_across(w(P1, lower), To, preposition, T1), tr_word_across(w(P2, lower), To, preposition, T2),
+      tr_word_across(w(K, lower), To, conjunction, KT)
+    ),
+    tr_np_out(To, NP, NPOut, _, _).
+%% (`whether' and an infinitive: `scegliere se fare ... o mantenere ...', whether
+%% to be ... or to keep, and the lesson's `se' before its infinitive)
+tr_comp_out(To, whinf(Cs), Noun, Number, [], [o(W, lower)|COut], []) :- !,
+    ( To == english -> W = whether ; once(( tr_solve(mean(W, if)), tr_class_of(W, conjunction) )) ),
+    %% (under no verb of the clause's: after a modal English's infinitive is bare, and
+    %% `whether' takes `to', `must choose whether to sleep')
+    tr_global('$tr_verb', V0), nb_setval('$tr_verb', none),
+    (   tr_comps_out(To, Cs, Noun, Number, _, CO, CA) -> nb_setval('$tr_verb', V0)
+    ;   nb_setval('$tr_verb', V0), fail
+    ),
+    append(CO, CA, COut).
 %% (`whether' is English's own, and the lesson's word for `if' says it)
 tr_comp_out(To, wh(whether, S), _, _, [], [o(W, lower)|SOut], []) :- !,
     ( To == english -> W = whether ; once(( tr_solve(mean(W, if)), tr_class_of(W, conjunction) )) ),
@@ -22070,6 +22324,11 @@ tr_comp_out(foreign, pp(w(to, C), name(N)), _, _, [], [o(PT, C)|NPOut], []) :-
     tr_word_across(w(in, lower), foreign, preposition, PT), tr_np_out(foreign, name(N), NPOut, _, _).
 %% ... AND A PHRASE THE VERB GOVERNS (gov/1) TAKES THE PREPOSITION THE VERB BEING
 %% WRITTEN TAKES BEFORE A PHRASE, where the lesson states one
+%% -- and NONE where the English verb takes its object bare: `la possibilità di
+%% incidere sulle scelte' is of influencing the choices (`"incide" takes "su"
+%% before the phrase.'), never `influencing on' them
+tr_comp_out(english, pp(w(_, _), gov(V, NP)), _, _, [], NPOut, []) :- en_bare_object(V), !,
+    tr_np_out(english, NP, NPOut, _, _).
 tr_comp_out(english, pp(w(P, C), gov(V, NP)), _, _, [], [o(PT, C)|NPOut], []) :- !,
     ( en_governs(V, Q) -> PT = Q ; PT = P ),
     tr_np_out(english, NP, NPOut, _, _).
@@ -22087,6 +22346,14 @@ en_bare_dative(costs).
 %% millones' is between them, and English wrote `among'
 tr_comp_out(english, pp(w(among, C), NP), _, _, [], [o(between, C)|NPOut], []) :-
     NP = np(_, nums(_, _, _), _, _, _), !,
+    tr_np_out(english, NP, NPOut, _, _).
+%% ... AND SO IS A PAIR OF PHRASES JOINED BY `and': `l'intreccio tra le nuove
+%% regole e le trattative' is the interweaving BETWEEN the rules and the
+%% negotiations, and `tra' is the lesson's word for `among' (said first, as
+%% `in mezzo a' would take it otherwise). Two phrases, neither of them a pair
+%% itself: among three or more English says `among' still
+tr_comp_out(english, pp(w(among, C), NP), _, _, [], [o(between, C)|NPOut], []) :-
+    NP = co(w(and, _), A, B), A \= co(_, _, _), B \= co(_, _, _), !,
     tr_np_out(english, NP, NPOut, _, _).
 tr_comp_out(foreign, pp(w(P, C), gov(V, NP)), _, _, [], [o(PT, C)|NPOut], []) :- !,
     (   tr_lexeme_across(V, foreign, VT), atom(VT), tr_solve(take_before(VT, Q, phrase)) -> PT = Q
@@ -22933,9 +23200,13 @@ en_phrasal(V, V1, P) :- atom(V), sub_atom(V, Bf, 1, _, ' '), !, sub_atom(V, 0, B
 %% lived, carried, walked; the participle stated, or the past
 en_past_of(V, P) :- tr_solve(past_of(P0, V)), !, P = P0.
 en_past_of(has, had) :- !.
+en_past_of(does, did) :- !.                      % (`lo hizo', he did it: tr_write/4's `does')
 en_past_of(V, P) :- en_phrasal(V, V1, Pt), !, en_past_of(V1, P1), atomic_list_concat([P1, Pt], ' ', P).
 en_past_of(V, P) :- en_base(V, B), tr_english_ed(B, P).
 
+%% (`does', which the reader never makes and tr_write/4's `makes' with nothing
+%% made does: `lo han hecho' is they have DONE it)
+en_participle_of(does, done) :- !.
 en_participle_of(V, PP) :- tr_solve(participle_of(P0, V)), !, PP = P0.
 en_participle_of(V, PP) :- en_phrasal(V, V1, Pt), !, en_participle_of(V1, P1), atomic_list_concat([P1, Pt], ' ', PP).
 en_participle_of(V, PP) :- en_past_of(V, PP).
@@ -24113,6 +24384,8 @@ en_governs(believes, in).       en_governs(trusts, in).         en_governs(think
 en_governs(skimps, on).         % `no se ha escatimado en gastos'
 en_governs(agonises, over).       % `si è limitata a macerarsi su chi dovesse vendere'
 en_governs(dreams, of).           % `un ataque con el que sueñan los interistas'
+%% (the English verbs that take bare a phrase the lesson's verb governs with a preposition)
+en_bare_object(influences).      % `la possibilità di incidere sulle scelte del management'
 %% the preposition an English verb takes before the phrase that is its object
 %% in the other languages (tr_comp_out/7)
 en_object_with(listens, to).    en_object_with(looks, at).      en_object_with(searches, for).

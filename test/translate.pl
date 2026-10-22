@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -8194,7 +8194,7 @@ newspaper_ciampi_checks_5 :-
           'The dog sees green code.'),
     nf_tr('Il cane mangia "pane tra cane e gatto" e il gatto dorme.', italian, english, E6),
     check('a word that closes a quotation begins no clause: `accusa e difesa" e le posizioni ... assumono'' divided at the first `e'', and the defence was a subject beside the positions', E6,
-          'The dog eats "bread among dog and cat" and the cat sleeps.'),
+          'The dog eats "bread between dog and cat" and the cat sleeps.'),
     nf_tr('Este gato duerme.', spanish, english, E7),
     check('GUARD: and never a determiner that is a noun too: `este'' is this and east, and `este gato'' is this cat, where the compound took the east for the noun and the cat for what kind, `cat east''', E7,
           'This cat sleeps.').
@@ -9494,10 +9494,10 @@ newspaper_eco_checks_7 :-
           'The authors know these things and not the cats.'),
     nf_tr('È pazzesco mangiare il pane.', italian, english, G4),
     check('an infinitive after the predicate is what the predicate says of it (infs/2): `e quindi fosse pazzesco tentare di raggiungere il levante ...'' -- read left to right the infinitive had nothing to be and the piece was refused', G4,
-          'To eat the bread is crazy.'),
+          'It is crazy to eat the bread.'),
     nf_tr('Il cane crede che il gatto sia stanco, e quindi sia pazzesco mangiare il pane.', italian, english, G5),
     check('... as a second clause of `che'' with its word left out, joined by a coordinator whose clause is in the subjunctive: 1.8.30 wrote `and then is crazy to eat the bread''', G5,
-          'The dog believes that the cat is tired, and then to eat the bread is crazy.').
+          'The dog believes that the cat is tired, and then it is crazy to eat the bread.').
 
 newspaper_eco_checks_8 :-
     nf_tr('Ci si lava.', italian, spanish, H1),
@@ -13987,7 +13987,7 @@ newspaper_miss_checks_2 :-
           'Il cane dorme negli anni 70.'),
     nf_tr('El perro duerme entre los 70 y los 90 años.', spanish, english, B11),
     check('GUARD: a pair of counts is no decade -- `tra le 70 e le 90 mila lire'' is between 70 and 90 thousand, the first with its noun left out; the phrase of the preposition is the pair, and it was `among the 70s and the 90 thousand lyres'' (tr_cross_np/2)', B11,
-          'The dog sleeps among the 70 and the 90 years.').
+          'The dog sleeps between the 70 and the 90 years.').
 
 newspaper_miss_checks_3 :-
     nf_tr('El gato dice que el perro "duerme el año pasado".', spanish, english, C1),
@@ -14670,6 +14670,173 @@ newspaper_inter_checks_5 :-
           'Il gatto ha dovuto mangiare il pane.').
 
 %% <<< inter
+
+%% >>> rognoni
+%% ---- an Italian interview on television and the rules, into Spanish and English (VIT-9605..9636) ---------------------------
+%% The hand lessons are the Inter section's (newspaper_inter_lesson/2) and a fifth part: the words the checks below need.
+
+newspaper_rognoni :-
+    section('an Italian interview on television and the rules, into Spanish and English: a name apposed to a name, between for a pair, more than a count, much before a comparative, the speaker''s apposition, makes as does, an adverb before a question''s subject, a phrase before there is, a preposition before its phrase and comma, it is easy to, insofar as and unless, a verb that takes its object bare, whether and an infinitive, a day before the agent, two prepositions before one phrase, whoever, a denial after a relative clause'),
+    newspaper_rognoni_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_rognoni_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_rognoni_checks_1, newspaper_rognoni_checks_2, newspaper_rognoni_checks_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_rognoni_lesson(L, Text) :-
+    newspaper_inter_lesson(L, A), newspaper_rognoni_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the fifth part of each hand lesson of the football-club section
+newspaper_rognoni_part(spanish, 'The verb "habla" means "speaks". The preposition "entre" means "among". The preposition "entre" means "between".
+The adverb "más de" means "more than". The adverb "menos de" means "less than". The adverb "mucho" means "much". The adverb "muy" means "very". The adverb "mejor" means "better".
+The verb "comenta" means "comments". The masculine noun "presidente" means "president". "presidente" is a person. The masculine noun "senado" means "senate".
+The adverb "entonces" means "then". The masculine adjective "necesario" means "necessary". The masculine adjective "fácil" means "easy".
+The conjunction "en la medida en que" means "insofar as". The conjunction "a menos que" means "unless". The verb "influye" means "influences". "influye" takes "en" before the phrase.
+The feminine noun "elección" means "choice". "elecciones" is the plural of "elección". The conjunction "si" means "if". The verb "elige" means "chooses". "elige" takes the question. "sabe" takes the question.
+The feminine noun "cerca" means "wall". The preposition "cerca" means "near". The preposition "cerca de" means "near". The preposition "dentro de" means "within".
+The preposition "con" means "with". The preposition "sin" means "without". "jueves" is a time. The masculine noun "jueves" means "thursday". The preposition "por" means "by". "comido" is the participle of "come".
+The feminine noun "casa" means "house". "casas" is the plural of "casa". The modal "puede" means "can". "tener" is the infinitive of "tiene".
+The preposition "según" means "according to". The masculine noun "tribunal" means "court". The masculine noun "pluralismo" means "pluralism".').
+newspaper_rognoni_part(italian, 'The verb "parla" means "speaks". The preposition "tra" means "among". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The adverb "più di" means "more than". The adverb "meno di" means "less than". The word "di" means "than". The adverb "molto" means "very". The adverb "molto" means "much". "pani" is the plural of "pane". The adverb "meglio" means "better". The pronoun "me" means "me". "avere" is the infinitive of "ha".
+The verb "commenta" means "comments". The masculine noun "presidente" means "president". "presidente" is a person. The masculine noun "senato" means "senate".
+"fatto" is the participle of "fa". "fece" is the past of "fa". The verb "fa" means "makes". The verb "piange" means "cries". "piangere" is the infinitive of "piange". "fare" is the infinitive of "fa". The pronoun "lo" means "him". The conjunction "che" means "what".
+The adverb "allora" means "then". The preposition "dopo" means "after". The adverb "dopo" means "afterwards". The feminine noun "sentenza" means "judgment". The feminine noun "corte" means "court".
+The verb "c''è" means "there is". The masculine noun "referendum" means "referendum". The preposition "secondo" means "according to". The masculine adjective "secondo" means "second". The adverb "secondo" means "second".
+The masculine adjective "necessario" means "necessary". The masculine adjective "facile" means "easy". The masculine noun "pluralismo" means "pluralism".
+The conjunction "nella misura in cui" means "insofar as". The conjunction "a meno che" means "unless". "mangi" is the subjunctive of "mangia".
+The verb "incide" means "influences". "incide" takes "su" before the phrase. The feminine noun "scelta" means "choice". "scelte" is the plural of "scelta".
+The conjunction "se" means "if". The verb "sceglie" means "chooses". "scegliere" is the infinitive of "sceglie". "sceglie" takes the question. "sa" takes the question. The modal "deve" means "must".
+The preposition "con" means "with". The preposition "senza" means "without". "giovedì" is a time. The masculine noun "giovedì" means "thursday". The preposition "da" means "by".
+The preposition "su" means "on". "sul" is the contraction of "su il". "sulla" is the contraction of "su la". "sulle" is the contraction of "su le".
+The word "chi" begins the relative. "ha" means "has".').
+
+newspaper_rognoni_checks_1 :-
+    nf_tr('Carlo Rognoni, Pds, parla del cane.', italian, english, R1),
+    check('A NAME APPOSED TO A NAME BETWEEN COMMAS IS NO WORD OF THE SUBJECT''S SHAPE: `Carlo Rognoni, Pds, parla dell''intreccio ...'' is a man and his party, and with the party''s word counted the two names had no shape -- refused (tr_subject_shape/4, appos as aside, paren and dashed are)', R1,
+          'Carlo Rognoni, Pds, speaks of the dog.'),
+    nf_tr('Il cane parla tra il gatto e la casa.', italian, english, R2),
+    check('`AMONG'' BEFORE A PAIR OF PHRASES JOINED BY `and'' IS `between'': `l''intreccio tra le nuove regole e le trattative'' -- `tra'' is the lesson''s `among'' first (tr_comp_out/7)', R2,
+          'The dog speaks between the cat and the house.'),
+    nf_tr('Il cane parla tra il gatto, la casa e il pane.', italian, english, R3),
+    check('GUARD: among three it is `among'' still (tr_comp_out/7)', R3,
+          'The dog speaks among the cat, the house and the bread.'),
+    nf_tr('Il cane non può avere più di due case.', italian, english, R4),
+    check('`MORE THAN'' BEFORE A COUNT: `nessuno abbia più di una rete'' is more than one network -- read as the adverb and a phrase of `of'' it was `has of a net more'', denied `anymore''; `"più di" means "more than".'' joins the two words, and they are taken apart again unless a count follows (tr_than_split/3)', R4,
+          'The dog cannot have more than two houses.'),
+    nf_tr('Il cane non può avere più di due case.', italian, spanish, R5),
+    check('... and in Spanish', R5,
+          'El perro no puede tener más de dos casas.'),
+    nf_tr('Il cane mangia più di me.', italian, spanish, R6),
+    check('GUARD: before anything else the two words are the comparison, `di'' the lesson''s word for `than'': `mangia più di me'' (tr_than_split/3)', R6,
+          'El perro come más de mí.'),
+    nf_tr('Il cane ha più di una casa.', italian, english, R7),
+    check('... and `more than'' before `a'' is before `one'': `más de una casa'', more than one house (tr_comps_out/7)', R7,
+          'The dog has more than one house.'),
+    nf_tr('Il cane dorme molto meglio.', italian, english, R8),
+    check('`VERY'' BEFORE A COMPARATIVE IS `much'': `Molto meglio, pensare con intelligenza al futuro'' is much better, and it was `very better'' -- `muy mejor'' in Spanish (tr_much_before/3)', R8,
+          'The dog sleeps much better.'),
+    nf_tr('Il cane dorme molto meglio.', italian, spanish, R9),
+    check('... and in Spanish', R9,
+          'El perro duerme mucho mejor.'),
+    nf_tr('Il cane è molto più grande.', italian, english, R10),
+    check('... and before a comparative adjective, which the adverb stood apart from: `bigger very'' (tr_cross_comps/2 folds it into the adjective, int/2)', R10,
+          'The dog is much bigger.'),
+    nf_tr('Il cane è molto grande.', italian, english, R11),
+    check('GUARD: before a word that is no comparison it is `very'' still', R11,
+          'The dog is very big.'),
+    nf_tr('Il cane mangia molto meno di due pani.', italian, english, R12),
+    check('... and `much less than'' before the object it says how much of, where English wrote `very less than'' last: `basta assai meno del 50,1%'' (tr_comps_out/7''s iadv/2 before an object)', R12,
+          'The dog eats much less than two breads.').
+
+newspaper_rognoni_checks_2 :-
+    nf_tr('Commenta Carlo Rognoni, Pds, presidente del senato: "il cane dorme".', italian, spanish, S1),
+    check('A NAME APPOSED TO THE SPEAKER''S NAME IS THE SPEAKER''S: `Commenta Carlo Rognoni, Pds, vicepresidente del senato:'' -- left after the name the party''s word was no complement, the reporting clause failed and the speaker was the verb''s object, `Comenta a Carlo Rognoni'' (tr_reporting/3)', S1,
+          'Comenta Carlo Rognoni, Pds, presidente del senado: "El perro duerme".'),
+    nf_tr('Commenta Carlo Rognoni, Pds, presidente del senato: "il cane dorme".', italian, english, S2),
+    check('... AND ENGLISH WRITES WHAT THE SPEAKER IS WITH THE SPEAKER, before the verb: `Carlo Rognoni comments, vice-president of the senate'' was what it wrote (tr_write/4)', S2,
+          'Carlo Rognoni, Pds, president of the senate, comments: "The dog sleeps".'),
+    nf_tr('Il cane lo fa.', italian, english, S3),
+    check('`MAKES'' WITH NOTHING MADE IS `DOES'': `chi compra ... lo fa a suo rischio'' does it, and `lo'' is `it'' there (tr_makes_does/3)', S3,
+          'The dog does it.'),
+    nf_tr('Che deve fare il cane?', italian, english, S4),
+    check('... and the infinitive after a modal, the object asked for: `Che dovrebbe fare Berlusconi?'' is what should he DO (tr_write/4)', S4,
+          'What must the dog do?'),
+    nf_tr('Il cane fa una casa.', italian, english, S5),
+    check('GUARD: with something made it makes', S5,
+          'The dog makes a house.'),
+    nf_tr('Il cane lo fa piangere.', italian, english, S6),
+    check('GUARD: and with an infinitive, which is what it makes him do', S6,
+          'The dog makes him to cry.'),
+    nf_tr('Il cane lo ha fatto.', italian, english, S6a),
+    check('... and its participle is `done'' and its past `did'': `lo han hecho'' was `they have doed it'' (en_participle_of/2)', S6a,
+          'The dog has done it.'),
+    nf_tr('Il cane lo fece.', italian, english, S6b),
+    check('... `did'' (en_past_of/2)', S6b,
+          'The dog did it.'),
+    nf_tr('Che deve fare, allora, il cane?', italian, english, S7),
+    check('AN ADVERB BETWEEN THE VERB AND ITS SUBJECT IN A QUESTION STAYS WHERE IT IS: `Che dovrebbe fare, allora, Berlusconi?'' -- with the adverb in the way nothing agreed after the verb, Berlusconi was the object and the subject a third person nobody named, refused (fo_subject_after/5)', S7,
+          'What must the dog do then?'),
+    nf_tr('Che deve fare allora il cane?', italian, english, S8),
+    check('... and with no commas round it (fo_subject_after/5)', S8,
+          'What must the dog do then?'),
+    nf_tr('Dopo la casa del cane c''è il referendum.', italian, english, S9),
+    check('NO PHRASE WITH ITS PHRASES OF `of'' BEFORE `there is'' IS WHAT THERE IS: `Dopo la sentenza della corte c''è stato il referendum'' -- with the judgment of the court for what there was, `dopo'' was an adverb, `The judgment of the court thered is the referendum after'' (tr_read_generic/4, with/2 as np/5)', S9,
+          'There is the referendum after the house of the dog.'),
+    nf_tr('Secondo la corte, è necessario un pluralismo.', italian, english, S10),
+    check('A PREPOSITION BEFORE AN ARTICLE AND ITS PHRASE TO A COMMA GOVERNS IT: `Secondo la corte, è necessario un vero pluralismo'' -- lifted as an adverb (`secondo'' is `second'' too), it left the court for the subject, `The court, is necessary a true pluralism second'' (tr_governs_adverb/3)', S10,
+          'According to the court, a pluralism is necessary.'),
+    nf_tr('Secondo la corte, è necessario un pluralismo.', italian, spanish, S11),
+    check('... and in Spanish', S11,
+          'Según el tribunal, es necesario un pluralismo.'),
+    nf_tr('È facile mangiare il pane.', italian, english, S12),
+    check('AN INFINITIVE AFTER THE COPULA AND ITS ADJECTIVE IS WRITTEN AFTER THEM, WITH `it'' BEFORE: `è necessario evitare che ...'' was `To avoid that ... is necessary'' (tr_write/4)', S12,
+          'It is easy to eat the bread.'),
+    nf_tr('Mangiare il pane è facile.', italian, english, S13),
+    check('GUARD: where the source had it first it keeps its place (subj_here)', S13,
+          'To eat the bread is easy.').
+
+newspaper_rognoni_checks_3 :-
+    nf_tr('Il cane dorme, nella misura in cui il gatto mangia.', italian, english, T1),
+    check('`INSOFAR AS'': `non risolve il problema, nella misura in cui Berlusconi resta azionista'' -- with no English connector for it the sentence was refused (en_connector/1)', T1,
+          'The dog sleeps, insofar as the cat eats.'),
+    nf_tr('Il cane non dorme a meno che il gatto non mangi.', italian, english, T2),
+    check('`UNLESS'', AND THE DENIAL AFTER IT DENIES NOTHING: `a meno che non si liberi'' is unless he frees himself -- refused, and read as a denial `unless one does not release'' (en_connector/1, tr_expletive_off/3)', T2,
+          'The dog does not sleep unless the cat eats.'),
+    nf_tr('Il cane incide sulle scelte del gatto.', italian, english, T3),
+    check('A VERB THAT TAKES ITS PHRASE BARE IN ENGLISH: `la possibilità di incidere sulle scelte'' -- `"incide" takes "su" before the phrase.'', and `influences'' takes no `on'' (en_bare_object/1)', T3,
+          'The dog influences the choices of the cat.'),
+    nf_tr('Il cane non sa se mangiare.', italian, english, T4),
+    check('`WHETHER'' AND AN INFINITIVE: `dovrà scegliere se fare l''uomo di governo o mantenere il controllo'' is choose whether to be ... or to keep -- no clause after `se'', so no question, and refused (whinf/1)', T4,
+          'The dog does not know whether to eat.'),
+    nf_tr('Il cane non sa se mangiare.', italian, spanish, T5),
+    check('... and in Spanish', T5,
+          'El perro no sabe si comer.'),
+    nf_tr('Il cane deve scegliere se dormire o mangiare.', italian, english, T6),
+    check('... and after an infinitive the verb is, under a modal, whose infinitive English writes bare: `whether to sleep'', never `whether sleep'' (whinf/1)', T6,
+          'The dog must choose whether to sleep or to eat.'),
+    nf_tr('Il pane mangiato giovedì dal cane è buono.', italian, spanish, T7),
+    check('A DAY BETWEEN A PARTICIPLE AND ITS AGENT: `il disegno ... varato giovedì dal senato'' was passed on Thursday by the senate, and the agent unread it was `desde el senado'' (tr_reduced_agent/3)', T7,
+          'El pan comido jueves por el perro es bueno.'),
+    nf_tr('Il cane dorme con o senza il gatto.', italian, english, T8),
+    check('TWO PREPOSITIONS JOINED BEFORE ONE PHRASE: `leggere tutto pro o contro Berlusconi'' -- the first had no phrase of its own, refused (pp2/4)', T8,
+          'The dog sleeps with or without the cat.'),
+    nf_tr('Il cane dorme con o senza il gatto.', italian, spanish, T9),
+    check('... and in Spanish', T9,
+          'El perro duerme con o sin el gato.'),
+    nf_tr('El perro duerme cerca o dentro de la casa.', spanish, english, T9a),
+    check('GUARD: the first is a word the lesson gives an English preposition for: `colocados cerca o dentro de un vehículo'' has `cerca'', a wall as a noun and near as the preposition `cerca de'', and read as one it was `placed wall or within'' -- with no preposition for it the pair is not read, and this sentence is refused (pp2/4)', T9a,
+          'refused'),
+    nf_tr('Chi dorme mangia.', italian, english, T10),
+    check('THE WORD THAT BEGINS THE RELATIVE AND ITS CLAUSE HAVE A SUBJECT''S SHAPE: `che chi ha partecipazioni ... non possa essere membro'' -- with no noun in its clause `chi dorme'' had none, refused (tr_subject_shape/4)', T10,
+          'The one that sleeps eats.'),
+    nf_tr('Il cane dice che chi ha un gatto non può dormire.', italian, english, T11),
+    check('A DENIAL AFTER A RELATIVE CLAUSE INSIDE A CLAUSE OF `that'' IS THAT CLAUSE''S: `prevede che chi ha partecipazioni ... non possa'' -- the relative clause''s verb was counted as the clause''s, and the denial went to `prevede'', refused (tr_negation/4, tr_relative_opener/1)', T11,
+          'The dog says that the one that has a cat cannot sleep.'),
+    nf_tr('Il cane che mangia non dorme.', italian, english, T12),
+    check('GUARD: the denial after a relative clause on the subject is the sentence''s', T12,
+          'The dog that eats does not sleep.').
+
+%% <<< rognoni
 
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb

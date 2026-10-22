@@ -367,6 +367,7 @@ main :-
     section_72,
     section_73,
     section_74,
+    section_75,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -4066,7 +4067,7 @@ section_50 :-
     reason_translate('Il cane vede legge codice.', italian, spanish, S50v),
     must('TWO BARE NOUNS are a compound, the second after the first as it stood: a headline''s', S50v, 'El perro ve ley código.'),
     reason_translate('Il cane mangia "pane tra cane e gatto" e il gatto dorme.', italian, english, S50w),
-    must('a word that CLOSES A QUOTATION begins no clause', S50w, 'The dog eats "bread among dog and cat" and the cat sleeps.'),
+    must('a word that CLOSES A QUOTATION begins no clause', S50w, 'The dog eats "bread between dog and cat" and the cat sleeps.'),
     reason_translate('Il cane ha visto la casa dei gatti, lavata.', italian, spanish, S50x),
     must('a participle after the comma of a perfect clause takes the FORM THE SOURCE GAVE IT where that is not the masculine singular', S50x, 'El perro ha visto la casa de los gatos, lavada.'),
     reason_translate('Il cane ritorna nella casa, e il pane.', italian, spanish, S50y),
@@ -4723,7 +4724,7 @@ section_54 :-
     reason_translate('Queste cose le sanno gli autori e i gatti no.', italian, english, S54l),
     must('a PHRASE IN FRONT taken up by a pronoun, and a second half with its no', S54l, 'The authors know these things and not the cats.'),
     reason_translate('È pazzesco mangiare il pane.', italian, english, S54m),
-    must('an INFINITIVE is what the predicate is said of', S54m, 'To eat the bread is crazy.'),
+    must('an INFINITIVE is what the predicate is said of', S54m, 'It is crazy to eat the bread.'),
     reason_translate('Non è mangiando il pane che ci si salva.', italian, spanish, S54n),
     must('CI SI, and a GERUND CLEFT', S54n, 'No es comiendo el pan que uno se salva.'),
     reason_translate('Lo sanno non solo Maria, ma anche Carla.', italian, english, S54o),
@@ -8173,7 +8174,7 @@ section_71_2 :-
           'Il cane dorme negli anni 70.'),
     reason_translate('El perro duerme entre los 70 y los 90 años.', spanish, english, S71B11),
     must('GUARD: a pair of counts is no decade -- `tra le 70 e le 90 mila lire'' is between 70 and 90 thousand, the first with its noun left out; the phrase of the preposition is the pair, and it was `among the 70s and the 90 thousand lyres'' (tr_cross_np/2)', S71B11,
-          'The dog sleeps among the 70 and the 90 years.').
+          'The dog sleeps between the 70 and the 90 years.').
 
 section_71_3 :-
     reason_translate('El gato dice que el perro "duerme el año pasado".', spanish, english, S71C1),
@@ -9041,6 +9042,167 @@ The feminine adjective "bella" means "beautiful". "mangiata" is the participle o
 The conjunction "salvo che" means "except that". The pronoun "lui" means "he". The preposition "a differenza di" means "unlike".
 The preposition "fin da" means "since". The masculine adjective "prossimo" means "next".
 "cane" is animate. "gatto" is animate.').
+
+section_75 :-
+    format("~n75. an Italian interview on television and the rules, into Spanish and English: a name apposed to a name, between for a pair, more than a count, much before a comparative, the speaker's apposition, makes as does, an adverb before a question's subject, a phrase before there is, a preposition before its phrase and comma, it is easy to, insofar as and unless, a verb that takes its object bare, whether and an infinitive, a day before the agent, two prepositions before one phrase, whoever, a denial after a relative clause~n", []),
+    lesson_75(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the football club''s Spanish lesson and a fifth part, under its own name', NS),
+    lesson_75(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_75_1, section_75_2, section_75_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_75(L, Text) :- lesson_74(L, A), lesson_75(L, 5, B), atomic_list_concat([A, ' ', B], Text).
+
+section_75_1 :-
+    reason_translate('Carlo Rognoni, Pds, parla del cane.', italian, english, S75R1),
+    must('A NAME APPOSED TO A NAME BETWEEN COMMAS IS NO WORD OF THE SUBJECT''S SHAPE: `Carlo Rognoni, Pds, parla dell''intreccio ...'' is a man and his party, and with the party''s word counted the two names had no shape -- refused (tr_subject_shape/4, appos as aside, paren and dashed are)', S75R1,
+          'Carlo Rognoni, Pds, speaks of the dog.'),
+    reason_translate('Il cane parla tra il gatto e la casa.', italian, english, S75R2),
+    must('`AMONG'' BEFORE A PAIR OF PHRASES JOINED BY `and'' IS `between'': `l''intreccio tra le nuove regole e le trattative'' -- `tra'' is the lesson''s `among'' first (tr_comp_out/7)', S75R2,
+          'The dog speaks between the cat and the house.'),
+    reason_translate('Il cane parla tra il gatto, la casa e il pane.', italian, english, S75R3),
+    must('GUARD: among three it is `among'' still (tr_comp_out/7)', S75R3,
+          'The dog speaks among the cat, the house and the bread.'),
+    reason_translate('Il cane non può avere più di due case.', italian, english, S75R4),
+    must('`MORE THAN'' BEFORE A COUNT: `nessuno abbia più di una rete'' is more than one network -- read as the adverb and a phrase of `of'' it was `has of a net more'', denied `anymore''; `"più di" means "more than".'' joins the two words, and they are taken apart again unless a count follows (tr_than_split/3)', S75R4,
+          'The dog cannot have more than two houses.'),
+    reason_translate('Il cane non può avere più di due case.', italian, spanish, S75R5),
+    must('... and in Spanish', S75R5,
+          'El perro no puede tener más de dos casas.'),
+    reason_translate('Il cane mangia più di me.', italian, spanish, S75R6),
+    must('GUARD: before anything else the two words are the comparison, `di'' the lesson''s word for `than'': `mangia più di me'' (tr_than_split/3)', S75R6,
+          'El perro come más de mí.'),
+    reason_translate('Il cane ha più di una casa.', italian, english, S75R7),
+    must('... and `more than'' before `a'' is before `one'': `más de una casa'', more than one house (tr_comps_out/7)', S75R7,
+          'The dog has more than one house.'),
+    reason_translate('Il cane dorme molto meglio.', italian, english, S75R8),
+    must('`VERY'' BEFORE A COMPARATIVE IS `much'': `Molto meglio, pensare con intelligenza al futuro'' is much better, and it was `very better'' -- `muy mejor'' in Spanish (tr_much_before/3)', S75R8,
+          'The dog sleeps much better.'),
+    reason_translate('Il cane dorme molto meglio.', italian, spanish, S75R9),
+    must('... and in Spanish', S75R9,
+          'El perro duerme mucho mejor.'),
+    reason_translate('Il cane è molto più grande.', italian, english, S75R10),
+    must('... and before a comparative adjective, which the adverb stood apart from: `bigger very'' (tr_cross_comps/2 folds it into the adjective, int/2)', S75R10,
+          'The dog is much bigger.'),
+    reason_translate('Il cane è molto grande.', italian, english, S75R11),
+    must('GUARD: before a word that is no comparison it is `very'' still', S75R11,
+          'The dog is very big.'),
+    reason_translate('Il cane mangia molto meno di due pani.', italian, english, S75R12),
+    must('... and `much less than'' before the object it says how much of, where English wrote `very less than'' last: `basta assai meno del 50,1%'' (tr_comps_out/7''s iadv/2 before an object)', S75R12,
+          'The dog eats much less than two breads.').
+
+section_75_2 :-
+    reason_translate('Commenta Carlo Rognoni, Pds, presidente del senato: "il cane dorme".', italian, spanish, S75S1),
+    must('A NAME APPOSED TO THE SPEAKER''S NAME IS THE SPEAKER''S: `Commenta Carlo Rognoni, Pds, vicepresidente del senato:'' -- left after the name the party''s word was no complement, the reporting clause failed and the speaker was the verb''s object, `Comenta a Carlo Rognoni'' (tr_reporting/3)', S75S1,
+          'Comenta Carlo Rognoni, Pds, presidente del senado: "El perro duerme".'),
+    reason_translate('Commenta Carlo Rognoni, Pds, presidente del senato: "il cane dorme".', italian, english, S75S2),
+    must('... AND ENGLISH WRITES WHAT THE SPEAKER IS WITH THE SPEAKER, before the verb: `Carlo Rognoni comments, vice-president of the senate'' was what it wrote (tr_write/4)', S75S2,
+          'Carlo Rognoni, Pds, president of the senate, comments: "The dog sleeps".'),
+    reason_translate('Il cane lo fa.', italian, english, S75S3),
+    must('`MAKES'' WITH NOTHING MADE IS `DOES'': `chi compra ... lo fa a suo rischio'' does it, and `lo'' is `it'' there (tr_makes_does/3)', S75S3,
+          'The dog does it.'),
+    reason_translate('Che deve fare il cane?', italian, english, S75S4),
+    must('... and the infinitive after a modal, the object asked for: `Che dovrebbe fare Berlusconi?'' is what should he DO (tr_write/4)', S75S4,
+          'What must the dog do?'),
+    reason_translate('Il cane fa una casa.', italian, english, S75S5),
+    must('GUARD: with something made it makes', S75S5,
+          'The dog makes a house.'),
+    reason_translate('Il cane lo fa piangere.', italian, english, S75S6),
+    must('GUARD: and with an infinitive, which is what it makes him do', S75S6,
+          'The dog makes him to cry.'),
+    reason_translate('Il cane lo ha fatto.', italian, english, S75S6a),
+    must('... and its participle is `done'' and its past `did'': `lo han hecho'' was `they have doed it'' (en_participle_of/2)', S75S6a,
+          'The dog has done it.'),
+    reason_translate('Il cane lo fece.', italian, english, S75S6b),
+    must('... `did'' (en_past_of/2)', S75S6b,
+          'The dog did it.'),
+    reason_translate('Che deve fare, allora, il cane?', italian, english, S75S7),
+    must('AN ADVERB BETWEEN THE VERB AND ITS SUBJECT IN A QUESTION STAYS WHERE IT IS: `Che dovrebbe fare, allora, Berlusconi?'' -- with the adverb in the way nothing agreed after the verb, Berlusconi was the object and the subject a third person nobody named, refused (fo_subject_after/5)', S75S7,
+          'What must the dog do then?'),
+    reason_translate('Che deve fare allora il cane?', italian, english, S75S8),
+    must('... and with no commas round it (fo_subject_after/5)', S75S8,
+          'What must the dog do then?'),
+    reason_translate('Dopo la casa del cane c''è il referendum.', italian, english, S75S9),
+    must('NO PHRASE WITH ITS PHRASES OF `of'' BEFORE `there is'' IS WHAT THERE IS: `Dopo la sentenza della corte c''è stato il referendum'' -- with the judgment of the court for what there was, `dopo'' was an adverb, `The judgment of the court thered is the referendum after'' (tr_read_generic/4, with/2 as np/5)', S75S9,
+          'There is the referendum after the house of the dog.'),
+    reason_translate('Secondo la corte, è necessario un pluralismo.', italian, english, S75S10),
+    must('A PREPOSITION BEFORE AN ARTICLE AND ITS PHRASE TO A COMMA GOVERNS IT: `Secondo la corte, è necessario un vero pluralismo'' -- lifted as an adverb (`secondo'' is `second'' too), it left the court for the subject, `The court, is necessary a true pluralism second'' (tr_governs_adverb/3)', S75S10,
+          'According to the court, a pluralism is necessary.'),
+    reason_translate('Secondo la corte, è necessario un pluralismo.', italian, spanish, S75S11),
+    must('... and in Spanish', S75S11,
+          'Según el tribunal, es necesario un pluralismo.'),
+    reason_translate('È facile mangiare il pane.', italian, english, S75S12),
+    must('AN INFINITIVE AFTER THE COPULA AND ITS ADJECTIVE IS WRITTEN AFTER THEM, WITH `it'' BEFORE: `è necessario evitare che ...'' was `To avoid that ... is necessary'' (tr_write/4)', S75S12,
+          'It is easy to eat the bread.'),
+    reason_translate('Mangiare il pane è facile.', italian, english, S75S13),
+    must('GUARD: where the source had it first it keeps its place (subj_here)', S75S13,
+          'To eat the bread is easy.').
+
+section_75_3 :-
+    reason_translate('Il cane dorme, nella misura in cui il gatto mangia.', italian, english, S75T1),
+    must('`INSOFAR AS'': `non risolve il problema, nella misura in cui Berlusconi resta azionista'' -- with no English connector for it the sentence was refused (en_connector/1)', S75T1,
+          'The dog sleeps, insofar as the cat eats.'),
+    reason_translate('Il cane non dorme a meno che il gatto non mangi.', italian, english, S75T2),
+    must('`UNLESS'', AND THE DENIAL AFTER IT DENIES NOTHING: `a meno che non si liberi'' is unless he frees himself -- refused, and read as a denial `unless one does not release'' (en_connector/1, tr_expletive_off/3)', S75T2,
+          'The dog does not sleep unless the cat eats.'),
+    reason_translate('Il cane incide sulle scelte del gatto.', italian, english, S75T3),
+    must('A VERB THAT TAKES ITS PHRASE BARE IN ENGLISH: `la possibilità di incidere sulle scelte'' -- `"incide" takes "su" before the phrase.'', and `influences'' takes no `on'' (en_bare_object/1)', S75T3,
+          'The dog influences the choices of the cat.'),
+    reason_translate('Il cane non sa se mangiare.', italian, english, S75T4),
+    must('`WHETHER'' AND AN INFINITIVE: `dovrà scegliere se fare l''uomo di governo o mantenere il controllo'' is choose whether to be ... or to keep -- no clause after `se'', so no question, and refused (whinf/1)', S75T4,
+          'The dog does not know whether to eat.'),
+    reason_translate('Il cane non sa se mangiare.', italian, spanish, S75T5),
+    must('... and in Spanish', S75T5,
+          'El perro no sabe si comer.'),
+    reason_translate('Il cane deve scegliere se dormire o mangiare.', italian, english, S75T6),
+    must('... and after an infinitive the verb is, under a modal, whose infinitive English writes bare: `whether to sleep'', never `whether sleep'' (whinf/1)', S75T6,
+          'The dog must choose whether to sleep or to eat.'),
+    reason_translate('Il pane mangiato giovedì dal cane è buono.', italian, spanish, S75T7),
+    must('A DAY BETWEEN A PARTICIPLE AND ITS AGENT: `il disegno ... varato giovedì dal senato'' was passed on Thursday by the senate, and the agent unread it was `desde el senado'' (tr_reduced_agent/3)', S75T7,
+          'El pan comido jueves por el perro es bueno.'),
+    reason_translate('Il cane dorme con o senza il gatto.', italian, english, S75T8),
+    must('TWO PREPOSITIONS JOINED BEFORE ONE PHRASE: `leggere tutto pro o contro Berlusconi'' -- the first had no phrase of its own, refused (pp2/4)', S75T8,
+          'The dog sleeps with or without the cat.'),
+    reason_translate('Il cane dorme con o senza il gatto.', italian, spanish, S75T9),
+    must('... and in Spanish', S75T9,
+          'El perro duerme con o sin el gato.'),
+    ( reason_translate('El perro duerme cerca o dentro de la casa.', spanish, english, _) -> R75T9a = translated ; R75T9a = refused ),
+    must('GUARD: the first is a word the lesson gives an English preposition for: `colocados cerca o dentro de un vehículo'' has `cerca'', a wall as a noun and near as the preposition `cerca de'', and read as one it was `placed wall or within'' -- with no preposition for it the pair is not read, and this sentence is refused (pp2/4)', R75T9a,
+         refused),
+    reason_translate('Chi dorme mangia.', italian, english, S75T10),
+    must('THE WORD THAT BEGINS THE RELATIVE AND ITS CLAUSE HAVE A SUBJECT''S SHAPE: `che chi ha partecipazioni ... non possa essere membro'' -- with no noun in its clause `chi dorme'' had none, refused (tr_subject_shape/4)', S75T10,
+          'The one that sleeps eats.'),
+    reason_translate('Il cane dice che chi ha un gatto non può dormire.', italian, english, S75T11),
+    must('A DENIAL AFTER A RELATIVE CLAUSE INSIDE A CLAUSE OF `that'' IS THAT CLAUSE''S: `prevede che chi ha partecipazioni ... non possa'' -- the relative clause''s verb was counted as the clause''s, and the denial went to `prevede'', refused (tr_negation/4, tr_relative_opener/1)', S75T11,
+          'The dog says that the one that has a cat cannot sleep.'),
+    reason_translate('Il cane che mangia non dorme.', italian, english, S75T12),
+    must('GUARD: the denial after a relative clause on the subject is the sentence''s', S75T12,
+          'The dog that eats does not sleep.').
+
+lesson_75(spanish, 5, 'The verb "habla" means "speaks". The preposition "entre" means "among". The preposition "entre" means "between".
+The adverb "más de" means "more than". The adverb "menos de" means "less than". The adverb "mucho" means "much". The adverb "muy" means "very". The adverb "mejor" means "better".
+The verb "comenta" means "comments". The masculine noun "presidente" means "president". "presidente" is a person. The masculine noun "senado" means "senate".
+The adverb "entonces" means "then". The masculine adjective "necesario" means "necessary". The masculine adjective "fácil" means "easy".
+The conjunction "en la medida en que" means "insofar as". The conjunction "a menos que" means "unless". The verb "influye" means "influences". "influye" takes "en" before the phrase.
+The feminine noun "elección" means "choice". "elecciones" is the plural of "elección". The conjunction "si" means "if". The verb "elige" means "chooses". "elige" takes the question. "sabe" takes the question.
+The feminine noun "cerca" means "wall". The preposition "cerca" means "near". The preposition "cerca de" means "near". The preposition "dentro de" means "within".
+The preposition "con" means "with". The preposition "sin" means "without". "jueves" is a time. The masculine noun "jueves" means "thursday". The preposition "por" means "by". "comido" is the participle of "come".
+The feminine noun "casa" means "house". "casas" is the plural of "casa". The modal "puede" means "can". "tener" is the infinitive of "tiene".
+The preposition "según" means "according to". The masculine noun "tribunal" means "court". The masculine noun "pluralismo" means "pluralism".').
+lesson_75(italian, 5, 'The verb "parla" means "speaks". The preposition "tra" means "among". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The adverb "più di" means "more than". The adverb "meno di" means "less than". The word "di" means "than". The adverb "molto" means "very". The adverb "molto" means "much". "pani" is the plural of "pane". The adverb "meglio" means "better". The pronoun "me" means "me". "avere" is the infinitive of "ha".
+The verb "commenta" means "comments". The masculine noun "presidente" means "president". "presidente" is a person. The masculine noun "senato" means "senate".
+"fatto" is the participle of "fa". "fece" is the past of "fa". The verb "fa" means "makes". The verb "piange" means "cries". "piangere" is the infinitive of "piange". "fare" is the infinitive of "fa". The pronoun "lo" means "him". The conjunction "che" means "what".
+The adverb "allora" means "then". The preposition "dopo" means "after". The adverb "dopo" means "afterwards". The feminine noun "sentenza" means "judgment". The feminine noun "corte" means "court".
+The verb "c''è" means "there is". The masculine noun "referendum" means "referendum". The preposition "secondo" means "according to". The masculine adjective "secondo" means "second". The adverb "secondo" means "second".
+The masculine adjective "necessario" means "necessary". The masculine adjective "facile" means "easy". The masculine noun "pluralismo" means "pluralism".
+The conjunction "nella misura in cui" means "insofar as". The conjunction "a meno che" means "unless". "mangi" is the subjunctive of "mangia".
+The verb "incide" means "influences". "incide" takes "su" before the phrase. The feminine noun "scelta" means "choice". "scelte" is the plural of "scelta".
+The conjunction "se" means "if". The verb "sceglie" means "chooses". "scegliere" is the infinitive of "sceglie". "sceglie" takes the question. "sa" takes the question. The modal "deve" means "must".
+The preposition "con" means "with". The preposition "senza" means "without". "giovedì" is a time. The masculine noun "giovedì" means "thursday". The preposition "da" means "by".
+The preposition "su" means "on". "sul" is the contraction of "su il". "sulla" is the contraction of "su la". "sulle" is the contraction of "su le".
+The word "chi" begins the relative. "ha" means "has".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
