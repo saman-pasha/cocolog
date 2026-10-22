@@ -2070,6 +2070,10 @@ tr_unelided_word(W) :- tr_solve(mean(W, E)), en_question(E, _), !.
 %% as well as a pronoun, so it was joined to the conjunction, `tutto quest'e'.
 %% Nothing an elided word belongs to begins with one.
 tr_opens_next(_, W2) :- tr_coord(foreign, w(W2, lower)), !.
+%% ... AND A PREPOSITION IS NEVER ELIDED BEFORE A DEFINITE ARTICLE: `sin el
+%% gato' is `senza il gatto', and `"senz'" is the elision of "senza".' wrote
+%% `senz'il gatto' -- before an indefinite one it is, `d'un buon stradivari'
+tr_opens_next(_, W2) :- tr_determiner(foreign, w(W2, lower), L, article), tr_solve(mean(L, the)), !.
 tr_opens_next(W1, W2) :-
     ( tr_determiner(foreign, w(W2, lower), _, article) -> true ; tr_is(foreign, w(W2, lower), preposition) ),
     \+ tr_is(foreign, w(W1, lower), preposition).
@@ -4482,6 +4486,9 @@ tr_list_word(Side, W) :-
 %% two clauses joined: the connector crosses to English as the word it is,
 %% and each side crosses as the sentence it is
 tr_cross(_, none, none) :- !.
+tr_cross(_, gap(F0, B0), gap(F, B)) :-
+    append(F1, [obj(NP0)], F0), B0 = [PP|_], tr_relational_np(NP0, PP, NP), !,
+    tr_cross_comps(F1, Fa), append(Fa, [obj(NP)], F), tr_cross_comps(B0, B).
 tr_cross(_, gap(F0, B0), gap(F, B)) :- !, tr_cross_comps(F0, F), tr_cross_comps(B0, B).
 tr_cross(Side, q(S0), q(S)) :- !, tr_cross(Side, S0, S).
 tr_cross(Side, qh(S0), qh(S)) :- !, tr_cross(Side, S0, S).
@@ -4712,7 +4719,7 @@ tr_cross_subject(A, one(Co0), one(Co)) :- !, tr_cross_subject(A, Co0, Co).
 tr_cross_subject(A, co(both, S1, S2), co(both, T1, T2)) :- !, tr_cross_subject(A, S1, T1), tr_cross_subject(A, S2, T2).
 tr_cross_subject(A, co(C0, S1, S2), co(C, T1, T2)) :- !,
     tr_side_here(Side), tr_cross_connector(Side, C0, C), tr_cross_subject(A, S1, T1), tr_cross_subject(A, S2, T2).
-tr_cross_subject(_, with(NP0, PPs0), with(NP, PPs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(PPs0, PPs).
+tr_cross_subject(_, with(NP0, PPs0), with(NP, PPs)) :- !, tr_cross_np(with(NP0, PPs0), with(NP, PPs)).
 tr_cross_subject(_, infs(L0, Cs0), infs(state(L), Cs)) :- tr_state_lexeme(L0), !,    % `stare in mezzo alla gente'
     tr_lexeme_across(L0, english, L), tr_cross_comps(Cs0, Cs).
 tr_cross_subject(_, infs(cl(L0, Cls0), Cs0), infs(cl(L, Cls), Cs)) :- !,
@@ -4726,7 +4733,9 @@ tr_cross_subject(_, NP0, NP) :- tr_cross_np(NP0, NP).
 %% word of its kind (never the form -- the number inflects it on the way
 %% out), a number word, and each adjective's first meaning
 tr_cross_np(gov(V0, NP0), gov(V, NP)) :- !, tr_lexeme_across(V0, english, V), tr_cross_np(NP0, NP).
-tr_cross_np(with(NP0, PPs0), with(NP, PPs)) :- !, tr_cross_np(NP0, NP), tr_cross_comps(PPs0, PPs).
+tr_cross_np(with(NP0, PPs0), with(NP, PPs)) :- !,
+    ( PPs0 = [PP|_], tr_relational_np(NP0, PP, NP) -> true ; tr_cross_np(NP0, NP) ),
+    tr_cross_comps(PPs0, PPs).
 tr_cross_np(ncl(NP0, S0), ncl(NP, S)) :- !,
     tr_cross_np(NP0, NP), tr_side_here(Side), tr_cross(Side, S0, S).
 tr_cross_np(nrc(NP0, ro(Co0, Role0), S0), nrc(NP, ro(Co, Role), S)) :- !,
@@ -5019,7 +5028,25 @@ tr_cross_comps([adv(w(A, C)), P|Cs0], [adv(w(E, C))|Cs]) :-
 tr_cross_comps([adv(w(A, C)), adj([deg(comparative, W)|Js])|Cs0], Cs) :-
     tr_side_here(foreign), atom(A), tr_intensifier_meaning(A, very), !,
     tr_cross_comps([adj([int(w(A, C), deg(comparative, W))|Js])|Cs0], Cs).
+%% A NOUN THAT CAN SAY A RELATION SAYS ONE BEFORE `BETWEEN' OR `WITH':
+%% `il rapporto tra il cane e il gatto' is the relationship between them, and
+%% `rapporto' is a report first -- `el informe entre el perro y el gato'. A
+%% noun whose first meaning is no relation and that has one among its others
+%% (tr_relational_np/3) crosses by it before such a phrase, in the
+%% complements, in a phrase with its phrases (tr_cross_np/2's with/2) and in
+%% a headline's two halves (tr_cross/3's gap/2)
+tr_cross_comps([obj(NP0), PP|Cs0], [obj(NP)|Cs]) :-
+    tr_relational_np(NP0, PP, NP), !, tr_cross_comps([PP|Cs0], Cs).
 tr_cross_comps([C0|Cs0], [C|Cs]) :- tr_cross_comp(C0, C), tr_cross_comps(Cs0, Cs).
+
+tr_relational_np(NP0, pp(w(P, _), _), NP) :-
+    NP0 = np(_, _, _, w(NW, _), _), atom(NW), atom(P), tr_side_here(foreign),
+    tr_prep_across(P, PT), memberchk(PT, [among, between, with]),
+    tr_lexeme(foreign, NW, L, _), atom(L), tr_meanings_of(L, english, noun, [M1|Ms]),
+    \+ en_relational_noun(M1), member(E, Ms), en_relational_noun(E), !,
+    tr_cross_np(NP0, NP1), NP1 = np(D, N, A, w(_, NC), Nb), NP = np(D, N, A, w(E, NC), Nb).
+en_relational_noun(relationship).
+en_relational_noun(relation).
 
 tr_role_range([pp(w(Q, _), np(none, none, [], N, singular))|_]) :-
     atom(Q), tr_means_to(Q), N = w(_, _), tr_person_word(N), !.
@@ -7935,6 +7962,11 @@ tr_main_object_in_front(foreign, [w(V, _)|R], s(_, null(_, _), _, _)) :-
 %% the gross product and the research in the main clause, where `del' is
 %% also the partitive article -- or a subject pronoun before a verb group:
 %% `... noi siamo solo all'1,4' is we are only at 1.4
+%% ... and never at a word that is a preposition too: `a meno che non si
+%% liberi entro un anno' is within a year, and `entro', I enter, made `entro
+%% un anno' the main clause after the clause of `unless' -- `y a menos que se
+%% deja marchar entro un año'
+tr_main_start(Side, [w(RW, _)|_]) :- atom(RW), tr_is(Side, w(RW, lower), preposition), !, fail.
 tr_main_start(Side, Right) :- tr_group_at(Side, Right, _, _), !.
 %% ... and its denial before any of those: `se mai ci sarà una causa NON
 %% voglio una lira' is if there is a lawsuit, I do not want a lira. The main
@@ -19111,7 +19143,7 @@ tr_nested_join(Side, Ws, J) :-
     tr_read_statement(Side, L, none, S1),
     (   tr_coord(Side, w(W, WC)), S1 = s(_, _, g(_, _, A1, _), _), A1 \== imperative
     ->  tr_global('$tr_no_command', F0), nb_setval('$tr_no_command', yes),
-        (   tr_read_nested(Side, R, none, S20) -> nb_setval('$tr_no_command', F0)
+        (   tr_nested_right(Side, R, S20) -> nb_setval('$tr_no_command', F0)
         ;   nb_setval('$tr_no_command', F0), fail
         ),
         tr_shared_subject(Side, S1, R, S20, S21)
@@ -19119,6 +19151,19 @@ tr_nested_join(Side, Ws, J) :-
     ), !,
     tr_nested_connective(Side, R, S21, S2),
     ( Comma == yes -> J = join(comma, S1, join(w(W, WC), none, S2)) ; J = join(w(W, WC), S1, S2) ).
+%% ... AND THE RIGHT SIDE OF A COORDINATOR MAY BE A SUBORDINATE CLAUSE ALONE:
+%% `prevede che chi ha partecipazioni non possa essere membro del governo e a
+%% meno che non si liberi entro un anno' -- and unless he frees himself within
+%% a year. With no main clause after it the clause of `unless' had no reading
+%% inside the clause of `that' (tr_main_start/2 no longer takes `entro un
+%% anno' for one), and the whole sentence was read again from the top
+%% (never at a word that asks as well: `può essere che Margherita abbia avuto
+%% un malore ma perché nessuno le ha viste?' asks why, and read so `perché'
+%% was because, `can it be ... but because nobody has seen her?')
+tr_nested_right(Side, R, S) :- tr_read_nested(Side, R, none, S), !.
+tr_nested_right(Side, [w(C, CC)|R], join(w(C, CC), none, S)) :-
+    R = [_|_], atom(C), tr_connector(Side, C), \+ tr_coord(Side, w(C, CC)), \+ tr_asking_word(Side, w(C, lower)),
+    tr_read_nested(Side, R, none, S), !.
 tr_nested_connective(foreign, [W|_], s(As, Su, G, Cs0), s(As, Su, G, [frn(adv(W))|Cs])) :-
     W = w(A, _), atom(A), selectchk(adv(W), Cs0, Cs),
     tr_lexeme(foreign, A, L, _), once(tr_solve(mean(L, E))), en_conjunctive(E), !.
@@ -19567,6 +19612,10 @@ tr_write(To, Kind, join(C, S1, S20), Outs) :- !,
         ;   C == comma, S2 = join(comma, _, S2b), tr_first_statement(S2b, s(_, null(third, _), _, _))
         ;   C == comma, tr_global('$tr_chain', yes)
         ),
+        %% (never of a subordinate clause standing alone: `prevede che il cane non
+        %% possa dormire e a meno che non mangi entro un anno' is and unless IT eats,
+        %% and elided it was `and unless eats')
+        \+ ( S2 = join(w(SW, _), none, _), \+ memberchk(SW, [and, or, but]) ),
         %% (the subject the LAST clause before named: `Al inicio, cuando Gandalf
         %% lleva a Frodo en el carro, la pipa del mago aparece y desaparece')
         tr_last_statement(S1, S1L), S1L = s(_, Su1, _, _),

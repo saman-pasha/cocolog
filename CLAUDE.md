@@ -4681,6 +4681,74 @@ read into an English-worded IR and written into any lesson's language),
   `l'Antitrust proyecto de ley`, `iniciadas desde el presidente` (32: the agent
   after a coordinated object is not read). The next sample's controls take this
   interview in.
+  The Rognoni interview's faults (reasoning 1.0.13; cocolog stays 2.11.0; no new
+  article). Four faults the interview left, fixed in code and data, each with
+  its arm red (test/translate.pl's `rognoni_faults`: 14 checks, 7 arms that go
+  red and 3 rules that have none, below; lesson 46's section 76): A NOUN THAT
+  CAN SAY A RELATION SAYS ONE BEFORE `between` OR `with` (`Milano - rapporto
+  difficile, tra Berlusconi e le regole` was `difficult report`, `informe
+  difícil`: a noun whose first meaning is no relation and that has
+  `relationship` or `relation` among its other meanings, en_relational_noun/1,
+  crosses by it before a phrase of `among`, `between` or `with`,
+  tr_relational_np/3 -- in the complements, tr_cross_comps/2, in a phrase with
+  its phrases, with/2, a subject's too, and in a headline's two halves,
+  tr_cross/3's gap/2: four arms, and the first meaning's own guard has none; `Il
+  rapporto della commissione` is the report still); A PREPOSITION IS NEVER
+  ELIDED BEFORE A DEFINITE ARTICLE (`sin el gato` was `senz'il gatto`: `"senz'"
+  is the elision of "senza".` in the vocabulary, and a preposition elides before
+  any article, `d'un buon stradivari`, which stays; tr_opens_next/2); A MAIN
+  CLAUSE NEVER STARTS AT A WORD THAT IS A PREPOSITION TOO (sentence 30's `e a
+  meno che non si liberi entro un anno` took `entro`, I enter, for the main
+  clause after the clause of `unless` with no comma, `I enter a year` and `entro
+  un año`: tr_main_start/2, which both readers of that shape ask, the sentence's
+  and a nested clause's), and the right side of a coordinator inside a clause
+  may be a subordinate clause alone (tr_nested_right/3: with no main clause
+  after it the clause of `unless` had no reading inside the clause of `that`,
+  and the sentence was read again from the top, 11.0 million inferences where it
+  is 3.5 -- the rule has no arm that goes red and stays for that cost, as the
+  text is the same; its guard, a word that asks as well, `perché`, was found by
+  the controls: `può essere che Margherita abbia avuto un malore ma perché
+  nessuno le ha viste?` became `can it be ... but because nobody has seen her?`,
+  it_9851_9925 56, and no hand lesson reproduces it, so the guard stays for what
+  the controls showed); English elides no subject of a subordinate clause
+  standing alone after `and` (`and unless eats`: tr_write/4's elision, and
+  English refuses the third person nobody names, on purpose); and THE PARTY'S
+  WORD, data: the Spanish writer's first noun for a party was `fiesta` (`hacer
+  política como secretario de fiesta`, 31) -- `"partido" means "match".` said
+  again first, so that it stays a match to the reader, and `"partido" means
+  "party".` after it, so that it is the party's word (Italian news has `partito`
+  115 times in UD's VIT training file and `festa` 22, and every `festa` is a
+  `partido` now, a STATED COST; the Spanish reader still reads `el secretario
+  del partido` as `della partita`, `partido` being a match in half of AnCora's
+  sentences and a party in the other half, a lead). Two lines more: the writer's
+  first Spanish verb for releases was the idiom `deja marchar` (`a menos que se
+  deja marchar`, and the Rosi report's `non era al corrente che liberasse
+  amfetamine` was `dejó marchar`), and `"libera" means "frees".` and `...
+  "releases".` are said first; and `"a menos que" takes the subjunctive.` and
+  `"a meno che" takes the subjunctive.`, as the lessons say of `antes de que`
+  and `prima che`, so that the clause is read and written in the subjunctive (`a
+  menos que se libere`). The vocabularies lost no line and moved no word's first
+  meaning; the writer's first Spanish word moved for two meanings (party,
+  releases). THE CONTROLS (cocolog 2.11.0, store KB203, 100 count files, 2 820
+  sentences: the earlier set with the Rognoni interview in, it_9605_9636): the
+  last version's translator against this one, on the one store, 4 sentences read
+  differently, all the interview's and all better -- the headline's
+  `relationship` and `relación` (3), sentence 30's `before a year` and `a menos
+  que se libere antes de un año` (where it was `I enter` and `entro un año`) --
+  and the inferences rise 0.016 % (7 020 760 360 to 7 021 882 676), 0.006 %
+  outside the interview (5 406 061 909 to 5 406 388 556): sentence 30 is 3.14
+  million inferences and 3.54 now, in each language, the rest of the rises under
+  2 500 a sentence. Bytes and characters read every sentence alike (0 differ,
+  the bytes 0.014 % more). THE STORE ALONE (the last version's translator on
+  KB201 and on KB203) differs in 3 sentences, all better, +0.0004 %: `secretario
+  de partido` (it_9605_9636 31), `a menos que se lib...` (30) and the Rosi
+  report's `liberaba anfetaminas` (it_9567_9604 25); THE CODE ALONE (this
+  translator on KB201) in the 4 of the controls, +0.016 %; THE DATA COLUMN in 6,
+  +0.016 %. The interview reads 31 of 32 into both, as it did; its nineteenth
+  sentence is still refused after 773.1 million inferences in each. What is left
+  of sentence 30: `si liberi` is the impersonal `one releases` in English,
+  `dall'assunzione della carica` is `from the intake of the charge` and `de la
+  ingesta del cargo`, and `eletto` is still `elegida` in 31.
 
 ## Tutorials are documentation that runs
 

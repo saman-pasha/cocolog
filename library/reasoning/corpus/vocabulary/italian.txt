@@ -2475,6 +2475,7 @@ The feminine adjective "sbagliata" means "wrong".
 "sbagliate" is the plural of "sbagliata".
 The adverb "a suo rischio" means "at his own risk".
 The conjunction "a meno che" means "unless".
+"a meno che" takes the subjunctive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

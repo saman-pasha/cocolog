@@ -1264,6 +1264,8 @@ The verb "se encarga" means "takes charge of".
 "se encarga" takes "de" before the phrase.
 The feminine noun "directiva" means "board of directors".
 "directivas" is the plural of "directiva".
+The verb "libera" means "frees".
+The verb "libera" means "releases".
 The verb "deja marchar" means "releases".
 "dejan marchar" is the plural of "deja marchar".
 "dejó marchar" is the past of "deja marchar".
@@ -1738,6 +1740,9 @@ The verb "tiene" means "holds".
 The adverb "a su riesgo" means "at his own risk".
 The masculine noun "sujeto" means "subject".
 The conjunction "a menos que" means "unless".
+"a menos que" takes the subjunctive.
+The masculine noun "partido" means "match".
+The masculine noun "partido" means "party".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

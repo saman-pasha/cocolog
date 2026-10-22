@@ -368,6 +368,7 @@ main :-
     section_73,
     section_74,
     section_75,
+    section_76,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -9203,6 +9204,62 @@ The conjunction "se" means "if". The verb "sceglie" means "chooses". "scegliere"
 The preposition "con" means "with". The preposition "senza" means "without". "giovedì" is a time. The masculine noun "giovedì" means "thursday". The preposition "da" means "by".
 The preposition "su" means "on". "sul" is the contraction of "su il". "sulla" is the contraction of "su la". "sulle" is the contraction of "su le".
 The word "chi" begins the relative. "ha" means "has".').
+
+section_76 :-
+    format("~n76. the faults the Rognoni interview left: a noun that says a relation before between and with, no elision before a definite article, a main clause never at a preposition, a lone clause of unless after and, and the party's word~n", []),
+    lesson_76(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the interview''s Spanish lesson and a sixth part, under its own name', NS),
+    lesson_76(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_76_1, section_76_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_76(L, Text) :- lesson_75(L, A), lesson_76(L, 6, B), atomic_list_concat([A, ' ', B], Text).
+
+section_76_1 :-
+    reason_translate('Il rapporto tra il cane e il gatto è difficile.', italian, english, S76F1),
+    must('A NOUN THAT CAN SAY A RELATION SAYS ONE BEFORE `between'': `Milano - rapporto difficile, tra Berlusconi e le regole'' -- `rapporto'' is a report first, and the report between them was written (tr_relational_np/3, here in a subject''s with/2)', S76F1,
+          'The relationship between the dog and the cat is difficult.'),
+    reason_translate('Il rapporto tra il cane e il gatto è difficile.', italian, spanish, S76F2),
+    must('... and in Spanish', S76F2,
+          'La relación entre el perro y el gato es difícil.'),
+    reason_translate('Il cane ha un rapporto difficile con il gatto.', italian, english, S76F3),
+    must('... and `with'', after a verb (tr_cross_comps/2)', S76F3,
+          'The dog has a difficult relationship with the cat.'),
+    reason_translate('Rapporto difficile, tra il cane e il gatto.', italian, english, S76F4),
+    must('... and the headline, the phrase between commas before its phrase of `among'' (tr_cross/3''s gap/2)', S76F4,
+          'Difficult relationship, between the dog and the cat.'),
+    reason_translate('Il rapporto della commissione è pronto.', italian, english, S76F5),
+    must('GUARD: before any other phrase it is the report', S76F5,
+          'The report of the committee is ready.'),
+    reason_translate('El perro duerme sin el gato.', spanish, italian, S76F6),
+    must('A PREPOSITION IS NEVER ELIDED BEFORE A DEFINITE ARTICLE: `sin el gato'' -- `"senz''" is the elision of "senza".'' wrote `senz''il gatto'' (tr_opens_next/2)', S76F6,
+          'Il cane dorme senza il gatto.'),
+    reason_translate('El perro duerme sin agua.', spanish, italian, S76F7),
+    must('GUARD: before a noun it is', S76F7,
+          'Il cane dorme senz''acqua.').
+
+section_76_2 :-
+    reason_translate('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi entro un anno.', italian, english, S76F8),
+    must('A MAIN CLAUSE NEVER STARTS AT A WORD THAT IS A PREPOSITION TOO: `e a meno che non si liberi entro un anno'' -- `entro'', I enter, began the main clause after the clause of `unless'', `I enter a year'' (tr_main_start/2), and the clause of `unless'' alone is the right side of `and'' inside the clause of `that'' (tr_nested_right/3)', S76F8,
+          'The law foresees that the dog cannot sleep and unless the cat eats within a year.'),
+    reason_translate('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi entro un anno.', italian, spanish, S76F9),
+    must('... and in Spanish, the clause of `unless'' in the subjunctive (`"a menos que" takes the subjunctive.'', as `antes de que'' does)', S76F9,
+          'La ley prevé que el perro no puede dormir y a menos que el gato coma dentro de un año.'),
+    reason_translate('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi.', italian, english, S76F10),
+    must('GUARD: with nothing after the clause of `unless'' it is read as it was', S76F10,
+          'The law foresees that the dog cannot sleep and unless the cat eats.'),
+    ( reason_translate('La legge prevede che il cane non possa dormire e a meno che non mangi entro un anno.', italian, english, _) -> R76F11 = translated ; R76F11 = refused ),
+    must('ENGLISH LEAVES OUT NO SUBJECT OF A SUBORDINATE CLAUSE STANDING ALONE AFTER `and'': with nobody named it was `and unless eats''; English refuses the third person nobody names, on purpose (tr_write/4''s elision)', R76F11,
+         refused).
+
+lesson_76(spanish, 6, 'The masculine noun "informe" means "report". The feminine noun "relación" means "relationship". "relaciones" is the plural of "relación".
+The masculine adjective "difícil" means "difficult". The masculine adjective "listo" means "ready". The feminine noun "agua" means "water". The feminine noun "comisión" means "committee".
+The verb "come" means "eats". "coma" is the subjunctive of "come". The feminine noun "ley" means "law". The verb "prevé" means "foresees". The masculine noun "año" means "year". "a menos que" takes the subjunctive.').
+lesson_76(italian, 6, 'The masculine noun "rapporto" means "report". "rapporti" is the plural of "rapporto". The masculine noun "rapporto" means "relationship".
+The masculine adjective "difficile" means "difficult". The masculine adjective "pronto" means "ready". The feminine noun "acqua" means "water". The feminine noun "commissione" means "committee".
+"senz''" is the elision of "senza". The feminine noun "legge" means "law". The verb "prevede" means "foresees". The masculine noun "anno" means "year".
+The preposition "entro" means "within". The verb "entra" means "enters". "entro" is the first person of "entra". "possa" is the subjunctive of "può". "a meno che" takes the subjunctive.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

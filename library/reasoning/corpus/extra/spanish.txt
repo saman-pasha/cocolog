@@ -2335,6 +2335,10 @@ The verb "se encarga" means "takes charge of".
 # azulgrana' was a managerial Barça player
 The feminine noun "directiva" means "board of directors".
 "directivas" is the plural of "directiva".
+# `a meno che non si liberi entro un anno': the writer's first Spanish verb for releases was the idiom below,
+# `a menos que se deja marchar'; the dictionary's `libera' is said first, as `frees' first, which it stays to the reader
+The verb "libera" means "frees".
+The verb "libera" means "releases".
 # `para dejar marchar al jugador': to release -- an idiom of two words, one verb
 The verb "deja marchar" means "releases".
 "dejan marchar" is the plural of "deja marchar".
@@ -2932,3 +2936,9 @@ The adverb "a su riesgo" means "at his own risk".
 The masculine noun "sujeto" means "subject".
 # `a meno che non si liberi entro un anno': unless
 The conjunction "a menos que" means "unless".
+"a menos que" takes the subjunctive.
+# `fare politica da segretario di partito' is a party's secretary, and the writer's first Spanish noun for a party
+# was `fiesta' (`secretario de fiesta'); `partido' is a match first to the reader, said again first, and the
+# party's word after it
+The masculine noun "partido" means "match".
+The masculine noun "partido" means "party".

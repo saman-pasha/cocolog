@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -14837,6 +14837,82 @@ newspaper_rognoni_checks_3 :-
           'The dog that eats does not sleep.').
 
 %% <<< rognoni
+
+%% >>> faults48
+%% ---- the faults the Rognoni interview left: a relationship, a definite article after `senza', a preposition that is a verb too, the party ----
+%% The hand lessons are the Rognoni section's (newspaper_rognoni_lesson/2) and a sixth part: the words the checks below need.
+
+rognoni_faults :-
+    section('the faults the Rognoni interview left: a noun that says a relation before between and with, no elision before a definite article, a main clause never at a preposition, a lone clause of unless after and, and the party''s word'),
+    rognoni_faults_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    rognoni_faults_lesson(italian, IT), reason_learn(IT, italian, _),
+    rognoni_faults_checks_1, rognoni_faults_checks_2,
+    reason_unlearn(spanish), reason_unlearn(italian),
+    rognoni_faults_vocabulary.
+
+rognoni_faults_lesson(L, Text) :-
+    newspaper_rognoni_lesson(L, A), rognoni_faults_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the sixth part of each hand lesson of the football-club section
+rognoni_faults_part(spanish, 'The masculine noun "informe" means "report". The feminine noun "relación" means "relationship". "relaciones" is the plural of "relación".
+The masculine adjective "difícil" means "difficult". The masculine adjective "listo" means "ready". The feminine noun "agua" means "water". The feminine noun "comisión" means "committee".
+The verb "come" means "eats". "coma" is the subjunctive of "come". The feminine noun "ley" means "law". The verb "prevé" means "foresees". The masculine noun "año" means "year". "a menos que" takes the subjunctive.').
+rognoni_faults_part(italian, 'The masculine noun "rapporto" means "report". "rapporti" is the plural of "rapporto". The masculine noun "rapporto" means "relationship".
+The masculine adjective "difficile" means "difficult". The masculine adjective "pronto" means "ready". The feminine noun "acqua" means "water". The feminine noun "commissione" means "committee".
+"senz''" is the elision of "senza". The feminine noun "legge" means "law". The verb "prevede" means "foresees". The masculine noun "anno" means "year".
+The preposition "entro" means "within". The verb "entra" means "enters". "entro" is the first person of "entra". "possa" is the subjunctive of "può". "a meno che" takes the subjunctive.').
+
+rognoni_faults_checks_1 :-
+    nf_tr('Il rapporto tra il cane e il gatto è difficile.', italian, english, F1),
+    check('A NOUN THAT CAN SAY A RELATION SAYS ONE BEFORE `between'': `Milano - rapporto difficile, tra Berlusconi e le regole'' -- `rapporto'' is a report first, and the report between them was written (tr_relational_np/3, here in a subject''s with/2)', F1,
+          'The relationship between the dog and the cat is difficult.'),
+    nf_tr('Il rapporto tra il cane e il gatto è difficile.', italian, spanish, F2),
+    check('... and in Spanish', F2,
+          'La relación entre el perro y el gato es difícil.'),
+    nf_tr('Il cane ha un rapporto difficile con il gatto.', italian, english, F3),
+    check('... and `with'', after a verb (tr_cross_comps/2)', F3,
+          'The dog has a difficult relationship with the cat.'),
+    nf_tr('Rapporto difficile, tra il cane e il gatto.', italian, english, F4),
+    check('... and the headline, the phrase between commas before its phrase of `among'' (tr_cross/3''s gap/2)', F4,
+          'Difficult relationship, between the dog and the cat.'),
+    nf_tr('Il rapporto della commissione è pronto.', italian, english, F5),
+    check('GUARD: before any other phrase it is the report', F5,
+          'The report of the committee is ready.'),
+    nf_tr('El perro duerme sin el gato.', spanish, italian, F6),
+    check('A PREPOSITION IS NEVER ELIDED BEFORE A DEFINITE ARTICLE: `sin el gato'' -- `"senz''" is the elision of "senza".'' wrote `senz''il gatto'' (tr_opens_next/2)', F6,
+          'Il cane dorme senza il gatto.'),
+    nf_tr('El perro duerme sin agua.', spanish, italian, F7),
+    check('GUARD: before a noun it is', F7,
+          'Il cane dorme senz''acqua.').
+
+rognoni_faults_checks_2 :-
+    nf_tr('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi entro un anno.', italian, english, F8),
+    check('A MAIN CLAUSE NEVER STARTS AT A WORD THAT IS A PREPOSITION TOO: `e a meno che non si liberi entro un anno'' -- `entro'', I enter, began the main clause after the clause of `unless'', `I enter a year'' (tr_main_start/2), and the clause of `unless'' alone is the right side of `and'' inside the clause of `that'' (tr_nested_right/3)', F8,
+          'The law foresees that the dog cannot sleep and unless the cat eats within a year.'),
+    nf_tr('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi entro un anno.', italian, spanish, F9),
+    check('... and in Spanish, the clause of `unless'' in the subjunctive (`"a menos que" takes the subjunctive.'', as `antes de que'' does)', F9,
+          'La ley prevé que el perro no puede dormir y a menos que el gato coma dentro de un año.'),
+    nf_tr('La legge prevede che il cane non possa dormire e a meno che il gatto non mangi.', italian, english, F10),
+    check('GUARD: with nothing after the clause of `unless'' it is read as it was', F10,
+          'The law foresees that the dog cannot sleep and unless the cat eats.'),
+    nf_tr('La legge prevede che il cane non possa dormire e a meno che non mangi entro un anno.', italian, english, F11),
+    check('ENGLISH LEAVES OUT NO SUBJECT OF A SUBORDINATE CLAUSE STANDING ALONE AFTER `and'': with nobody named it was `and unless eats''; English refuses the third person nobody names, on purpose (tr_write/4''s elision)', F11,
+          'refused').
+
+%% the party's word and the release's in the Spanish vocabulary: the first noun the writer finds for a party
+rognoni_faults_vocabulary :-
+    normalise_corpus_dir(Dir), atom_concat(Dir, '/vocabulary/spanish.txt', EsFile), vocabulary_lines(EsFile, Lines),
+    ( member(L1, Lines), sub_atom(L1, _, _, 0, ' means "party".') -> true ; L1 = none ),
+    check('THE SPANISH WRITER''S FIRST NOUN FOR A PARTY IS `partido'': `fare politica da segretario di partito'' was `secretario de fiesta''', L1,
+          'The masculine noun "partido" means "party".'),
+    ( member(L2, Lines), sub_atom(L2, 0, _, _, 'The masculine noun "partido" means ') -> true ; L2 = none ),
+    check('... and `partido'' is a match first to the reader, as it was', L2,
+          'The masculine noun "partido" means "match".'),
+    ( member(L3, Lines), sub_atom(L3, _, _, 0, ' means "releases".') -> true ; L3 = none ),
+    check('... and its first verb for releases is `libera'', where it was the idiom `deja marchar'' (`a menos que se deja marchar'')', L3,
+          'The verb "libera" means "releases".').
+
+%% <<< faults48
 
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb

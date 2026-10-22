@@ -3924,3 +3924,4 @@ The adverb "a suo rischio" means "at his own risk".
 # `non possa essere membro del governo a meno che non si liberi entro un anno': unless (its `non' denies nothing,
 # tr_expletive_off/3)
 The conjunction "a meno che" means "unless".
+"a meno che" takes the subjunctive.
