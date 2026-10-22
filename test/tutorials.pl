@@ -2,7 +2,7 @@
 %%
 %%   basics/   eleven files, one process each, goal `main'. No library, no
 %%             database, no build flag.
-%%   library/  fifty-three files, one process each, goal `main'. Tier 2
+%%   library/  fifty-six files, one process each, goal `main'. Tier 2
 %%             needs $COCOLOG_LIBRARY, which the runner sets.
 %%   opencv/   twenty-three files, one process each, goal `main', from the
 %%             repo root; the dnn two end early without their models.
@@ -74,6 +74,8 @@ main :-
     %% Clay lays out with no window at all; loadable is the whole question.
     loadable('use_module(library(clay))', Clay),
     loadable('use_module(library(stream))', Stream),
+    %% PCRE2, the full engine beside library(text)'s POSIX one
+    loadable('use_module(library(regex))', Regex),
     %% the signal module needs nothing but a C compiler, and its lesson
     %% raises only its own signals
     loadable('use_module(library(signal))', Signal),
@@ -85,7 +87,7 @@ main :-
     %% predicate, so loadable is asked with one, not with use_module alone.
     loadable('use_module(library(numpy)), np_zeros([1], A), np_free(A)', Numpy),
     loadable('use_module(library(opencv)), cv_new(1, 1, ''8u'', I), cv_free(I)', Opencv),
-    basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow),
+    basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow, Regex),
     opencv(Opencv),
     tensor(D, Torch, Cuda),
     shl(['rm -rf ', D]),
@@ -135,7 +137,7 @@ one_lesson(Name, Path, TimeoutMs) :-
         forall(member(T, Tail), ( atom_codes(TA, T), format("      ~w~n", [TA]) ))
     ).
 
-basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow) :-
+basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow, Regex) :-
     section('basics and library: one process, goal `main'''),
     lessons('tutorials/basics', Basics), lessons('tutorials/library', Library),
     append(Basics, Library, All),
@@ -159,6 +161,8 @@ basics_and_library(Torch, Crypto, Ray, Numpy, Opencv, Clay, Stream, Signal, Flow
              ->  skip_lesson(Name, 'no stream module')
              ;   Name == 'tutorials/library/53-signal', Signal == no
              ->  skip_lesson(Name, 'no signal module')
+             ;   Name == 'tutorials/library/55-regex', Regex == no
+             ->  skip_lesson(Name, 'no regex module')
              ;   Name == 'tutorials/library/50-flowchart', Flow == no
              ->  skip_lesson(Name, 'no stream module, or no flow tables (make modules)')
              ;   %% FROM THE REPO ROOT, which `library/03-files.pl' depends on:

@@ -41,8 +41,8 @@ say "$(${CICILI_CXX:-clang++} --version | head -1)"
 if [ "${NO_PACKAGES:-0}" != 1 ]; then
   step "Homebrew packages"
   command -v brew >/dev/null 2>&1 || die "Homebrew is not installed: https://brew.sh"
-  brew list --formula sbcl libtool openssl@3 gnupg >/dev/null 2>&1 || brew install sbcl libtool openssl@3 gnupg
-  say "sbcl libtool openssl@3 gnupg"
+  brew list --formula sbcl libtool openssl@3 gnupg pcre2 >/dev/null 2>&1 || brew install sbcl libtool openssl@3 gnupg pcre2
+  say "sbcl libtool openssl@3 gnupg pcre2"
   if [ "${WITH_TORCH:-0}" = 1 ]; then
     brew list --formula pytorch >/dev/null 2>&1 || { say "WITH_TORCH=1: brew install pytorch (this is large)"; brew install pytorch; }
     say "pytorch"

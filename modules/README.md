@@ -1,4 +1,4 @@
-# `modules/` — the twenty loadable modules
+# `modules/` — the twenty-one loadable modules
 
 One directory each, all the same shape: a `.cicili`, a `build.sh`, and
 output nobody commits. **None of them is part of `make`**, which is the
@@ -15,6 +15,7 @@ still builds and still runs.
 | `thread` | threads and channels, sharing nothing -- plus mutexes and condition variables for what they DO share, which is everything outside the interpreter | nothing |
 | `process` | run, capture, spawn, wait, kill -- the test-suite vocabulary (`timeout ... \| grep`, check/3, the sleep-poll loop) as predicates, so a suite can be a .pl file | nothing |
 | `text` | grep, sed and the line tools as clauses over libc's own POSIX regex (`re_match`, `re_first`, `re_replace` with & and \1..\9; lines, head, tail, chomp in the Prolog half) | nothing |
+| `regex` | PCRE2 10.x, the full Perl-compatible engine: lookahead and lookbehind, backreferences, named groups, lazy and possessive quantifiers, atomic groups, conditionals, recursion and Unicode properties. `rx_match`, `rx_first`, `rx_captures`, `rx_named`, `rx_all`, `rx_all_captures`, `rx_replace` (`$1` `${name}` `&` `\1`), `rx_split`, `rx_escape`, `rx_version`; every match is codes, with atom forms in the Prolog half, and options are a list (`caseless`, `multiline`, `dotall`, `utf`, `bytes`, `start(N)`, `first`, ...) | libpcre2 (found through `pkg-config libpcre2-8`); `apt-get install libpcre2-dev`, `dnf install pcre2-devel`, or `brew install pcre2` |
 | `os` | which operating system, who am I, how many cores, what is in the environment, where is a tool -- the questions a suite used to put to `uname`, `command -v`, `nproc` and `$TMPDIR`, answered by libc | nothing |
 | `signal` | POSIX signals as SWI's `on_signal/3`, `current_signal/3` and `raise_signal/1`: a handler writes the engine's `halted` cell and nothing else, and the next step raises `error(signal(Name, Num), _)`, which `catch/3` takes. The REPL installs SIGINT throw, so Ctrl+C stops a goal and returns to the prompt | nothing |
 | `curl` | an HTTP client, to a URL or down a socket file (`unix_socket(Path)`) | libcurl |

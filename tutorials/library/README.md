@@ -80,6 +80,7 @@ written anywhere in this repository.
 | 52-template | `library/template.pl` | text with holes: `{{ expression }}` for a value, `if`/`else`, `for` with its `loop` object, `range` in three arities, `upper`/`lower`/`trim`/`length`/`join`/`default`/`str`, and a `query` that runs the program's own predicates once per solution; escaped for text, HTML, XML or JSON; a page compiled once and rendered twice, and a template read from a file; a missing name false in a condition and an error in an output, with every refusal named | — |
 | 53-signal | `library/signal.so` | POSIX signals as SWI's `on_signal/3`, `current_signal/3` and `raise_signal/1`: the names and numbers, the handler table, `throw` as a catchable `error(signal(Name, Num), _)` at the engine's next step, `ignore` and `default`, and the REPL's Ctrl+C | `sh modules/signal/build.sh` (nothing else) |
 | 54-async | `library/async.pl` | Go's go, yield, await and channels as green threads: a machine sharing the caller's store and name tables, so a child's write is seen by the main thread and the host, a result as the goal instantiated, channels that carry terms, failure and a rethrown exception, and a deadlock the scheduler reports | nothing to build (the green module is compiled in; `library(async)` is tier 1 since 2.8.0, preloaded); `library/async/README.md` |
+| 55-regex | `library/regex.so` | PCRE2, the full Perl-compatible engine: lookbehind, named groups and their values, captures with `null` for an unset group, every match, `$1` `${name}` `&` `\1` replacement, split, escape, UTF-8 and UCP, `caseless` and `dotall`, and PCRE2's own compile error in a `catch/3` | `sh modules/regex/build.sh` (needs libpcre2; `pkg-config libpcre2-8`) |
 
 22 is the introduction to torch; `../tensor/` is the collection. 37 is the
 odd one out and says so in its header: cocolint is a TOOL under
@@ -92,7 +93,7 @@ path instead.
 **A new library gets a file here in the same commit.** The numbering is
 one per library and a gap is visible, which is the point: a library with
 no tutorial is a library nobody has demonstrated end to end. Each of the
-fifty-five above found something while being written — a predicate that
+fifty-six above found something while being written — a predicate that
 did not exist, an arity that was wrong, a return value documented as
 `-1/0/1` and actually `<`/`=`/`>`. 37 found an arithmetic slip in its own
 claim: it asserted that `halt' begins at offset 3 of `"x halt y"' and the

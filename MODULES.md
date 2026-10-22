@@ -967,6 +967,126 @@ these is a place where two implementations disagree about the same bytes:
 That last one is the only place the round trip is not total, and it is
 one-directional: the writer can still emit a NUL that arrived some other way.
 
+## The Regex library: PCRE2, which is the syntax people mean
+
+`modules/regex`, loaded as `use_module(library(regex))`, and `library/text`
+is still the grep/sed library it was. The two are deliberately different
+engines and different names:
+
+* `library(text)` binds POSIX `regcomp`/`regexec` — extended regular
+  expressions, which is what a shell's `grep -E` and `sed -E` write.
+* `library(regex)` binds **PCRE2 10.x** — lookahead and lookbehind,
+  backreferences, named groups, lazy and possessive quantifiers, atomic
+  groups, conditionals, recursion, and Unicode properties.
+
+**Why PCRE2 and not the other C engines.** It is the one the world runs:
+PHP, R, Apache httpd, nginx, `grep -P`, Qt and KDE all match with it, and
+it is the reference for the Perl syntax people mean by "regular
+expression". Oniguruma is the other widely embedded C engine with those
+features; PCRE2 is the more widely deployed and the one still actively
+released. RE2 is C++ and by design has no backreferences or lookaround.
+POSIX regex is already here as `library(text)` and is the wrong tool for
+the same job.
+
+### The surface
+
+A pattern and a text are an atom, a string, an integer, or a list of codes
+— `coco_m_text`'s own set. A match comes back as **codes**, the document
+libraries' rule, with atom spellings in the Prolog half.
+
+| | |
+|---|---|
+| `rx_match/2,3` | any match, like `grep -qP` |
+| `rx_first/3,4` | the first match, as codes |
+| `rx_captures/3,4` | `[Whole, G1, ...]`; a group that did not take is `null` |
+| `rx_named/4,5` | two parallel lists, `Names` and `Values`, in PCRE2's alphabetical order |
+| `rx_all/3,4` | every non-overlapping match |
+| `rx_all_captures/3,4` | every match's group list |
+| `rx_replace/4,5` | every match replaced |
+| `rx_split/3,4` | the text between matches, an empty segment included |
+| `rx_escape/2` | literal text as a pattern |
+| `rx_version/1` | PCRE2's own version string |
+
+The shorter arity of each matching predicate is a clause in the Prolog
+half that passes `[]`; there is one implementation of each predicate. In Prolog also:
+`rx_first_atom/3,4`, `rx_replace_atom/4,5`, `rx_replace_first/4,5`,
+`rx_replace_first_atom/4,5`, `rx_capture_atom/4`,
+`rx_captures_atoms/3`, `rx_all_atoms/3`, `rx_all_captures_atoms/3`,
+`rx_split_atoms/3`, `rx_named_atoms/4`.
+
+### Options are a list
+
+Compile flags and match flags are spelled alike, and `start(N)` and
+`first` are the two non-flags:
+
+| option | means |
+|---|---|
+| `caseless` | `PCRE2_CASELESS` |
+| `multiline` | `^` and `$` at line ends |
+| `dotall` | `.` matches a newline |
+| `extended` | free spacing and `#` comments in the pattern |
+| `ungreedy` | swap the meaning of `*` and `*?` |
+| `dollar_endonly` | `$` matches only at the very end |
+| `no_auto_capture` | parentheses do not capture unless `(?<...)` |
+| `dupnames` | the same name may be used by several groups |
+| `literal` | the whole pattern is literal text |
+| `utf` / `bytes` | UTF-8 with UCP, or PCRE2's byte semantics |
+| `ucp` / `no_ucp` | Unicode classes for `\w`, `\d`, `\b`, or ASCII ones |
+| `anchored` / `endanchored` | the match must start / end at the given place |
+| `notbol` / `noteol` / `notempty` | the usual PCRE2 match flags |
+| `start(N)` | begin matching at **byte** offset N; `rx_split`'s first part still runs from 0 (the text before N is not split on), and `rx_replace` copies the text before N through unchanged |
+| `first` | `rx_replace/5` only: replace the first match, then stop |
+
+**The default is UTF-8 and UCP when the program counts text in characters**
+(the default since 2.0.0), and byte semantics when it counts in bytes:
+`rx_match('^.$', 'é')` is true and `rx_match('^..$', 'é')` is false, while
+`[bytes]` gives the other two answers. `[utf]` and `[bytes]` override the
+default either way. `start(N)` is a byte offset even in UTF-8 mode, because
+that is the offset PCRE2 matches with; one that lands inside a character is
+the `regex match` error below.
+
+### Replacement
+
+`rx_replace` understands Perl's and sed's spellings together:
+
+```
+$0 .. $99     a group            ${name}   a named group
+$&            the whole match    $$        a dollar sign
+\1 .. \9      a group            &         the whole match
+\& \\ \$      the literal character
+\n \t \r      newline, tab, carriage return
+```
+
+An unset group expands to nothing. `rx_replace_first/4,5` is the same call
+with `[first]`.
+
+**An empty match advances by one character and never by zero bytes.**
+`rx_all` and `rx_split` walk a zero-length match forward by one UTF-8
+character, so a pattern like `x*` terminates; `rx_replace` applies sed's
+own rule — an empty match touching the previous match's end is not a match
+— so `rx_replace('x*', '-', 'axa', Out)` answers `-a-a-`, not `-a--a-`.
+
+### Errors and the things it does not do
+
+A pattern that will not compile raises
+`error(cocolog_error(Message), _)` with **PCRE2's own words and the byte
+offset**; a match PCRE2 refuses — invalid UTF-8, a match or depth limit —
+raises the same way with `regex match: ...`. An unbound pattern, text or
+option list is an `instantiation_error`; an unknown option is
+`domain_error(regex_option, Option)`; a bad `start` is
+`domain_error(regex_offset, start(N))`; a text that is neither atom, string,
+integer nor codes is `type_error(text, T)`.
+
+**No compiled-pattern table.** A pattern is compiled per call and freed
+before the answer, `library(text)`'s rule: a module's handle table is state
+a frozen machine cannot carry, and a leak is silent. **No JIT**: a JIT
+stack is per-process state under a library whose contract is suspend and
+thaw. The bytecode matcher runs.
+
+`sh modules/regex/build.sh`, then `test/regex.pl` and
+`tutorials/library/55-regex.pl`; the module is not part of `make`, like
+every other loadable module.
+
 ## The Builtins library
 
 `lib/builtins.cicili`. SWI has **655** built-in predicates. Most cannot exist

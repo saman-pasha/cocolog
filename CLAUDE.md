@@ -316,8 +316,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 67 `.pl` cases in `pl_names/1`
--- **74 lines**, each with its seconds. There is no `.sh` under `test/`.
+links the engine) and runs the 68 `.pl` cases in `pl_names/1`
+-- **75 lines**, each with its seconds. There is no `.sh` under `test/`.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -700,7 +700,7 @@ cocolint index offers no import of it.
 | needs nothing | `tcp` `thread` `process` `text` `os` `signal` `clay` (Clay vendored, one header) `stream` |
 |---|---|
 | a BUILT ZiguratIP | `sha` `aes` `der` (libEncoding only) `x509` `tls` `bigint` |
-| an external library | `curl` (libcurl), `torch` (libtorch), `tensorflow` (its C API), `ray` (raylib), `numpy` (python3 with numpy and a shared libpython), `opencv` (OpenCV 4 with dnn) |
+| an external library | `curl` (libcurl), `regex` (libpcre2), `torch` (libtorch), `tensorflow` (its C API), `ray` (raylib), `numpy` (python3 with numpy and a shared libpython), `opencv` (OpenCV 4 with dnn) |
 
 * **A module holds the engine as an OPAQUE pointer** (`coco_m_new_int e V`,
   never `(-> e m)`). Its entry is `coco-deflibrary`, or for C++ a

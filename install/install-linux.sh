@@ -44,8 +44,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # ---- Debian, Ubuntu ------------------------------------------------
     export DEBIAN_FRONTEND=noninteractive
     $SUDO apt-get -qq update
-    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev >/dev/null
-    say "build-essential make git curl gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev"
+    $SUDO apt-get -qq install -y build-essential make git curl ca-certificates gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev libpcre2-dev >/dev/null
+    say "build-essential make git curl gnupg sbcl libtool-bin libssl-dev zlib1g-dev libcurl4-openssl-dev libpcre2-dev"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
       $SUDO apt-get -qq install -y python3 python3-dev python3-numpy python3-pip >/dev/null
       say "WITH_NUMPY=1: python3 python3-dev python3-numpy python3-pip"
@@ -92,8 +92,8 @@ if [ "${NO_PACKAGES:-0}" != 1 ]; then
     # Fedora's clang is 17 or newer, so it is taken as is. gcc-c++ is here
     # for libstdc++'s headers and runtime, which clang compiles and links
     # against; nothing is compiled by gcc.
-    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config >/dev/null
-    say "gcc gcc-c++ make git curl gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel redhat-rpm-config"
+    $SUDO dnf -q install -y gcc gcc-c++ make git curl ca-certificates gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel pcre2-devel redhat-rpm-config >/dev/null
+    say "gcc gcc-c++ make git curl gnupg2 clang sbcl libtool openssl-devel zlib-devel libcurl-devel pcre2-devel redhat-rpm-config"
     if [ "${WITH_NUMPY:-0}" = 1 ]; then
       $SUDO dnf -q install -y python3 python3-devel python3-numpy python3-pip >/dev/null
       say "WITH_NUMPY=1: python3 python3-devel python3-numpy python3-pip"

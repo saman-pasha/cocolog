@@ -5,8 +5,8 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0` over **72 case lines** — seven `.cicili` binaries
-and sixty-five Prolog scripts, each line with its seconds. The database
+`make test` ends `red: 0` over **75 case lines** — seven `.cicili` binaries
+and sixty-eight Prolog scripts, each line with its seconds. The database
 suites **skip** rather than fail when there is no server, because "no server
 here" and "the backend is wrong" are different findings, so **count the
 SKIPs**: `red: 0` is printed over a run where nothing happened just as
@@ -67,6 +67,7 @@ happily as over a real one.
 | `test/tcp.pl` | the socket seam and the three claims its header makes, the first being that A HANDLE IS NOT A FILE DESCRIPTOR — an integer this module did not hand out is not a connection, which is the difference between a failed call and a closed stdout |
 | `test/process.pl` | `library(process)`: run, capture, spawn, wait, kill — and a timeout that KILLS and answers 124, coreutils' own number, with the partial output kept; since 1.11.0 the deadline is the monotonic clock's: a megabyte read whole inside five seconds (through 1.10.28 every poll was charged 200 ms, a read of 4096 bytes, and it was killed with 102 400 kept in 6 ms; the prelude's `shell/3` stopped near 2.4 MB -- reported from the reasoning session), and a child writing every 100 ms killed at its one-second deadline, not before |
 | `test/text.pl` | `library(text)`: grep, sed and the line tools over libc's POSIX EXTENDED regex, so a `grep -E` from the old shell suite moves across unchanged |
+| `test/regex.pl` | `library(regex)`: PCRE2's lookbehind, named groups, captures with `null` for an unset group, every match, `$1` `${name}` `&` `\1` replacement, split, escape, UTF-8/UCP against `[bytes]`, the options, and PCRE2's own compile error as a catchable ball |
 | `test/os.pl` | `library(os)`, and nearly every answer is held against the SHELL's own — `uname -s`, `id -u`, `hostname`, `$HOME` — because a fact both can state is a fact that can be checked rather than asserted |
 | `test/kbs.pl` | `library(kbs)`: two bases seeded from one script and DIFFERENT answers read back from each, every `kb_*` goal a process-proof over the wire |
 | `test/http.pl` | `library(http)`, HTTP/1.1 as a grammar: percent- and form-decoding held to WRITTEN-OUT answers rather than to the file's opinion of itself, and to `curl` where there is one |

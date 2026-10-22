@@ -120,7 +120,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # `make modules' answers 0 whether or not a module built, so every module
 # this build asked for is checked by name: the ones every image has, and
 # each optional one whose argument was 1. tensorflow is never built here.
-RUN mods="tcp thread process text os signal curl bigint sha aes der x509 tls clay stream"; \
+RUN mods="tcp thread process text regex os signal curl bigint sha aes der x509 tls clay stream"; \
     if [ "$WITH_NUMPY" = 1 ]; then mods="$mods numpy"; fi; \
     if [ "$WITH_OPENCV" = 1 ]; then mods="$mods opencv"; fi; \
     if [ "$WITH_RAY" = 1 ]; then mods="$mods ray"; fi; \

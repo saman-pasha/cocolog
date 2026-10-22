@@ -1,0 +1,98 @@
+;;;; Cicili declarations for PCRE2's 8-bit library.
+;;;;
+;;;; Import in target: (import "./binding.cicili")
+;;;; Requires in target:
+;;;;
+;;;;   (@define (code "PCRE2_CODE_UNIT_WIDTH 8"))
+;;;;   (include <pcre2.h>)
+;;;;
+;;;; and libpcre2-8 on the link line.
+;;;;
+;;;; THE DECLARATIONS EMIT NOTHING. They exist so Cicili's inference knows
+;;;; what pcre2_code and its friends are and what each entry point takes and
+;;;; answers; the header stays the only definition. This is the shape
+;;;; modules/ray/binding.cicili and modules/clay/binding.cicili have, and the
+;;;; one curl's binding uses for the one constant it names.
+;;;;
+;;;; PCRE2 SPELLS ITS TYPES THROUGH MACROS. With PCRE2_CODE_UNIT_WIDTH 8
+;;;; pcre2.h makes `pcre2_code' a macro for `pcre2_code_8', `PCRE2_SIZE' one
+;;;; for `size_t', and `PCRE2_SPTR' one for `const uint8_t *'. Cicili emits
+;;;; the unsuffixed names and the preprocessor resolves them, which is why
+;;;; the signatures below are written exactly as pcre2.h writes them: a
+;;;; declaration that disagrees -- `const char *' where PCRE2_SPTR is
+;;;; `const uint8_t *' -- is a conflicting declaration to the C compiler,
+;;;; not a conversion.
+;;;;
+;;;; THE CONSTANTS ARE (typedef int ...) INSIDE init-macro, which EMITS
+;;;; NOTHING: the name is taught to Cicili and the value still comes from
+;;;; pcre2.h. Put one outside and the typedef is emitted, over a macro, and
+;;;; does not compile -- modules/curl/binding.cicili says the same at length.
+(DEFPACKAGE :pcre2
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :pcre2)
+
+(DEFMACRO init-macro ()
+  `($$$
+     ;;; ---- compilation ----
+     (decl) (func pcre2_compile ((const uchar * pattern) (size_t length)
+                                 (u32 options) (int * errorcode)
+                                 (size_t * erroroffset)
+                                 (pcre2_compile_context * ccontext))
+             (out pcre2_code *))
+     (decl) (func pcre2_code_free ((pcre2_code * code)))
+
+     ;;; ---- matching ----
+     (decl) (func pcre2_match_data_create_from_pattern
+                  ((const pcre2_code * code) (pcre2_general_context * gcontext))
+             (out pcre2_match_data *))
+     (decl) (func pcre2_match_data_free ((pcre2_match_data * md)))
+     (decl) (func pcre2_match ((const pcre2_code * code)
+                               (const uchar * subject) (size_t length)
+                               (size_t startoffset) (u32 options)
+                               (pcre2_match_data * md)
+                               (pcre2_match_context * mcontext))
+             (out int))
+     (decl) (func pcre2_get_ovector_pointer ((pcre2_match_data * md))
+             (out size_t *))
+     (decl) (func pcre2_get_ovector_count ((pcre2_match_data * md))
+             (out u32))
+
+     ;;; ---- what a pattern is made of, and what a refusal means ----
+     (decl) (func pcre2_pattern_info ((const pcre2_code * code) (u32 what)
+                                      (void * where)) (out int))
+     (decl) (func pcre2_get_error_message ((int errorcode) (uchar * buffer)
+                                           (size_t size)) (out int))
+     (decl) (func pcre2_config ((u32 what) (void * where)) (out int))
+
+     ;;; ---- compile options: a NAME, and pcre2.h has the value ----
+     (typedef int PCRE2_CASELESS)
+     (typedef int PCRE2_MULTILINE)
+     (typedef int PCRE2_DOTALL)
+     (typedef int PCRE2_EXTENDED)
+     (typedef int PCRE2_UNGREEDY)
+     (typedef int PCRE2_DOLLAR_ENDONLY)
+     (typedef int PCRE2_UTF)
+     (typedef int PCRE2_UCP)
+     (typedef int PCRE2_NO_AUTO_CAPTURE)
+     (typedef int PCRE2_DUPNAMES)
+     (typedef int PCRE2_LITERAL)
+
+     ;;; ---- match options ----
+     (typedef int PCRE2_ANCHORED)
+     (typedef int PCRE2_ENDANCHORED)
+     (typedef int PCRE2_NOTBOL)
+     (typedef int PCRE2_NOTEOL)
+     (typedef int PCRE2_NOTEMPTY)
+
+     ;;; ---- pattern_info() requests ----
+     (typedef int PCRE2_INFO_NAMECOUNT)
+     (typedef int PCRE2_INFO_NAMEENTRYSIZE)
+     (typedef int PCRE2_INFO_NAMETABLE)
+
+     ;;; ---- config() requests ----
+     (typedef int PCRE2_CONFIG_VERSION)
+
+     ;;; ---- and the one match answer that is not a failure ----
+     (typedef int PCRE2_ERROR_NOMATCH)))

@@ -699,6 +699,7 @@ worse.
 | `library(process)` | `check/3` and `checks_done` -- the harness every shell suite re-implements, once. `sh/1,2`, `sh_exit/2`, `sh_atom/2`, and `shl/1,2` for a command built out of values, because cocolog has no string interpolation and the LIST is the interpolation. `proc_spawn/2`, `proc_wait/3`, `proc_stop/1` (15, a moment, then 9, and always the wait, so a case leaves no zombie for the next one), `proc_until/3` for the wait-for-the-server loop. |
 | `library(thread)` | `run_isolated/2`: a proof on a **fresh machine with a fresh store**, in this process. It is what most spawning in a shell suite was actually buying -- isolation -- at none of the price. |
 | `library(text)` | `re_match/2`, `re_first/3`, `re_replace/4`, `re_lines/3` -- grep and sed as clauses, over libc's own regex. |
+| `library(regex)` | PCRE2: `rx_match`, `rx_first`, `rx_captures`, `rx_named`, `rx_all`, `rx_replace`, `rx_split`, `rx_escape` -- lookbehind, named groups, Unicode properties and `$1` `${name}` replacement, with atom spellings beside the code-list ones. |
 | `library(os)` | `os_is/1`, `os_has/1`, `os_which/2`, `os_lib_path_var/1`. One answer on Linux and macOS, where `uname -s` and `command -v` gave two. |
 | `library(kbs)` | many knowledge bases from one SCRIPT -- seed one, grind another, read both back. Every `kb_*` goal is one process-proof over the wire, deliberately: a store half exists to show a SECOND process sees the rows, and a library that proved it in-process would quietly stop making that claim. |
 

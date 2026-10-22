@@ -1,0 +1,1218 @@
+;;;; cocolog -- library(regex): PCRE2, the full Perl-compatible regex
+;;;; engine, as a loadable module.
+;;;
+;;;; WHY PCRE2. Of the regex libraries a C program can link, PCRE2 is the
+;;;; one the world runs: PHP, R, Apache httpd, nginx, grep -P, Qt and KDE
+;;;; all match with it, and it is the reference implementation
+;;;; of the syntax people mean when they say "regular expression" --
+;;;; lookahead and lookbehind, backreferences, named groups, lazy and
+;;;; possessive quantifiers, atomic groups, conditionals, recursion,
+;;;; Unicode properties, \p{L}, and the rest. POSIX regcomp -- which
+;;;; library(text) already binds -- has none of those. Oniguruma is the
+;;;; other C engine with them; PCRE2 is the more widely deployed, the
+;;;; better documented and the one still actively released. RE2 is C++
+;;;; and deliberately has no backreferences or lookaround. So this is
+;;;; PCRE2 10.x, the 8-bit library.
+;;;
+;;;; WHAT CROSSES. A pattern and a text are an atom, a string, an integer
+;;;; or a list of codes -- coco_m_text's own set -- and a MATCH COMES BACK
+;;;; AS CODES, the document libraries' rule, with atom spellings in the
+;;;; Prolog half. In characters mode (the default since 2.0.0) text is
+;;;; UTF-8, so PCRE2 is compiled with UTF and UCP by default: `.` is one
+;;;; character rather than one byte, \w and \d know Unicode, and \p{L}
+;;;; works. [bytes] turns both off and the same pattern is byte-shaped;
+;;;; [utf] and [ucp] turn them back on one at a time.
+;;;
+;;;; THE OPTIONS are a list, compile flags and match flags together:
+;;;
+;;;;   caseless multiline dotall extended ungreedy dollar_endonly
+;;;;   utf bytes ucp no_ucp
+;;;;   no_auto_capture dupnames literal
+;;;;   anchored endanchored notbol noteol notempty
+;;;;   start(N)          begin matching at BYTE offset N; split's first
+;;;;                     part still runs from 0, and replace copies the
+;;;;                     text before N through unchanged
+;;;;   first             replace only the first match (rx_replace/5)
+;;;
+;;;; An unknown option is domain_error(regex_option, Option), as an
+;;;; unbound one is instantiation_error.
+;;;
+;;;; THE SURFACE. Every predicate that matches has an options-taking form;
+;;;; the shorter forms are clauses in the Prolog half that pass [].
+;;;
+;;;;   rx_match(+Pat, +Text)                    any match, like grep -qP
+;;;;   rx_match(+Pat, +Text, +Options)
+;;;;   rx_first(+Pat, +Text, -Match)            the first match, as codes
+;;;;   rx_first(+Pat, +Text, -Match, +Options)
+;;;;   rx_captures(+Pat, +Text, -Groups)        [Whole, G1, ...]; null when unset
+;;;;   rx_captures(+Pat, +Text, -Groups, +Options)
+;;;;   rx_named(+Pat, +Text, -Names, -Values)   named groups, alphabetical
+;;;;   rx_named(+Pat, +Text, -Names, -Values, +Options)
+;;;;   rx_all(+Pat, +Text, -Matches)            every non-overlapping match
+;;;;   rx_all(+Pat, +Text, -Matches, +Options)
+;;;;   rx_all_captures(+Pat, +Text, -GroupsList)
+;;;;   rx_all_captures(+Pat, +Text, -GroupsList, +Options)
+;;;;   rx_replace(+Pat, +Rep, +Text, -Out)      every match; $1 ${name} & \1
+;;;;   rx_replace(+Pat, +Rep, +Text, -Out, +Options)
+;;;;   rx_split(+Pat, +Text, -Parts)
+;;;;   rx_split(+Pat, +Text, -Parts, +Options)
+;;;;   rx_escape(+Text, -Quoted)                literal text as a pattern
+;;;;   rx_version(-Version)                     PCRE2's own string
+;;;
+;;;; and in Prolog: rx_first_atom/3,4, rx_replace_atom/4,5,
+;;;; rx_replace_first/4,5, rx_replace_first_atom/4,5, rx_capture_atom/4,
+;;;; rx_captures_atoms/3, rx_all_atoms/3, rx_all_captures_atoms/3,
+;;;; rx_split_atoms/3, rx_named_atoms/4.
+;;;
+;;;; REPLACEMENT SYNTAX is Perl's and sed's together: $0..$99 and ${name}
+;;;; for a group, $& for the whole match, $$ for a dollar; \1..\9 for a
+;;;; group, & for the whole match, \& \\ \$ for the literal character, and
+;;;; \n \t \r for a newline, tab and carriage return. An unset group
+;;;; expands to nothing.
+;;;
+;;;; EMPTY MATCHES ADVANCE BY ONE CHARACTER, never zero bytes: rx_all and
+;;;; rx_split walk a zero-length match forward by a UTF-8 character, and
+;;;; rx_replace applies sed's rule -- an empty match touching the previous
+;;;; match's end is not a match -- so s/x*/-/g on axa answers -a-a- and
+;;;; terminates.
+;;;
+;;;; A PATTERN THAT WILL NOT COMPILE raises error(cocolog_error(Message), _)
+;;;; with PCRE2's own words and the byte offset. A match that PCRE2 refuses
+;;;; -- a UTF error, a match or depth limit -- raises the same way with
+;;;; "regex match: ...". Everything else is a plain failure.
+;;;
+;;;; NO COMPILED-PATTERN TABLE. A pattern is compiled per call and freed
+;;;; before the answer, library(text)'s rule: a loadable module's handle
+;;;; table is state a frozen machine cannot carry, and a leak is silent.
+;;;; The cost is one compile per call, which is what a program that does
+;;;; not keep a pattern around was paying anyway.
+;;;
+;;;; NO JIT. pcre2_jit_compile is deliberately not called: a JIT stack is
+;;;; per-process state under a library whose contract is suspend and thaw,
+;;;; and the interpreter is not the place to find out what a compiled
+;;;; pattern does across a fork. The bytecode matcher is what runs.
+
+;;; NO DEFPACKAGE -- a file compiled on its own is the whole unit.
+
+;;;; ------------------------------------------------------------------
+;;;; The C half, as a table
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *regex-predicates*
+  '(("rx_match"         3 rx_p_match)      ; rx_match(+Pat, +Text, +Options)
+    ("rx_first"         4 rx_p_first)      ; rx_first(+Pat, +Text, -Match, +Options)
+    ("rx_captures"      4 rx_p_captures)   ; rx_captures(+Pat, +Text, -Groups, +Options)
+    ("rx_named"         5 rx_p_named)      ; rx_named(+Pat, +Text, -Names, -Values, +Options)
+    ("rx_all"           4 rx_p_all)        ; rx_all(+Pat, +Text, -Matches, +Options)
+    ("rx_all_captures"  4 rx_p_all_caps)   ; rx_all_captures(+Pat, +Text, -GroupsList, +Options)
+    ("rx_replace"       5 rx_p_replace)    ; rx_replace(+Pat, +Rep, +Text, -Out, +Options)
+    ("rx_split"         4 rx_p_split)      ; rx_split(+Pat, +Text, -Parts, +Options)
+    ("rx_escape"        2 rx_p_escape)     ; rx_escape(+Text, -Quoted)
+    ("rx_version"       1 rx_p_version)))  ; rx_version(-Version)
+
+;;;; ------------------------------------------------------------------
+;;;; The Coco half: the arities nobody needs options on, and atoms
+;;;; ------------------------------------------------------------------
+(DEFPARAMETER *regex-prolog*
+  (FORMAT NIL "~{~A ~}"
+          (LIST
+           ;; the short arities are clauses, not C rows: one implementation
+           ;; of each predicate, with [] filled in at the door
+           "rx_match(P, T) :- rx_match(P, T, [])."
+           "rx_first(P, T, M) :- rx_first(P, T, M, [])."
+           "rx_captures(P, T, Gs) :- rx_captures(P, T, Gs, [])."
+           "rx_named(P, T, Ns, Vs) :- rx_named(P, T, Ns, Vs, [])."
+           "rx_all(P, T, Ms) :- rx_all(P, T, Ms, [])."
+           "rx_all_captures(P, T, Gs) :- rx_all_captures(P, T, Gs, [])."
+           "rx_replace(P, R, T, O) :- rx_replace(P, R, T, O, [])."
+           "rx_split(P, T, Ps) :- rx_split(P, T, Ps, [])."
+
+           ;; replace-once is the same call with Perl's own word
+           "rx_replace_first(P, R, T, O) :- rx_replace(P, R, T, O, [first])."
+           "rx_replace_first(P, R, T, O, Os) :- rx_replace(P, R, T, O, [first|Os])."
+
+           ;; atoms, for the short answers a caller usually wants
+           "rx_first_atom(P, T, A) :- rx_first(P, T, Cs), atom_codes(A, Cs)."
+           "rx_first_atom(P, T, A, Os) :- rx_first(P, T, Cs, Os), atom_codes(A, Cs)."
+           "rx_replace_atom(P, R, T, A) :- rx_replace(P, R, T, Cs), atom_codes(A, Cs)."
+           "rx_replace_atom(P, R, T, A, Os) :- rx_replace(P, R, T, Cs, Os), atom_codes(A, Cs)."
+           "rx_replace_first_atom(P, R, T, A) :- rx_replace_first(P, R, T, Cs), atom_codes(A, Cs)."
+           "rx_replace_first_atom(P, R, T, A, Os) :- rx_replace_first(P, R, T, Cs, Os), atom_codes(A, Cs)."
+           "rx_capture_atom(P, T, N, A) :- rx_captures(P, T, Gs), nth0(N, Gs, Cs), Cs \\== null, atom_codes(A, Cs)."
+           "rx_captures_atoms(P, T, As) :- rx_captures(P, T, Gs), rx_codes_atoms_(Gs, As)."
+           "rx_all_atoms(P, T, As) :- rx_all(P, T, Cs), rx_codes_atoms_(Cs, As)."
+           "rx_split_atoms(P, T, As) :- rx_split(P, T, Cs), rx_codes_atoms_(Cs, As)."
+           "rx_named_atoms(P, T, Ns, As) :- rx_named(P, T, Ns, Vs), rx_codes_atoms_(Vs, As)."
+           "rx_all_captures_atoms(P, T, Ass) :- rx_all_captures(P, T, Gss), rx_codes_lists_(Gss, Ass)."
+
+           ;; one null-tolerant map, shared by all of them
+           "rx_codes_atoms_([], [])."
+           "rx_codes_atoms_([null|Cs], [null|As]) :- !, rx_codes_atoms_(Cs, As)."
+           "rx_codes_atoms_([C|Cs], [A|As]) :- atom_codes(A, C), rx_codes_atoms_(Cs, As)."
+           "rx_codes_lists_([], [])."
+           "rx_codes_lists_([Cs|Gss], [As|Ass]) :- rx_codes_atoms_(Cs, As), rx_codes_lists_(Gss, Ass).")))
+
+
+;;;; ------------------------------------------------------------------
+;;;; The declarations the module needs beyond the SDK
+;;;; ------------------------------------------------------------------
+(generic decl-regex
+  ()
+  ;; A growable byte buffer, for a replacement whose length is not known
+  ;; before it is built. It is a struct rather than three locals so the
+  ;; helpers below can share it without a pointer triple.
+  (struct rx_buf
+    (member char * p)
+    (member size_t n)
+    (member size_t cap))
+  ) ; decl-regex
+
+
+(generic impl-regex
+  ()
+
+  ;;;; ---- buffers ------------------------------------------------------
+
+  (static)
+  (func rx_buf_init ((rx_buf * b)) (out int)
+        (set (-> b p) (cast (char *) (malloc 256)))
+        (if (not (-> b p)) (return 0))
+        (set (-> b cap) 256)
+        (set (-> b n) 0)
+        (set (nth 0 (-> b p)) (cast char 0))
+        (return 1))
+
+  (static)
+  (func rx_buf_need ((rx_buf * b) (size_t k)) (out int)
+        (if (<= (+ (-> b n) k 1) (-> b cap)) (return 1))
+        (let ((size_t nc . #'(* (-> b cap) 2)))
+          (while (< nc (+ (-> b n) k 1)) (set nc (* nc 2)))
+          (let ((char * np . #'(cast (char *) (realloc (cast (void *) (-> b p)) nc))))
+            (if (not np) (return 0))
+            (set (-> b p) np)
+            (set (-> b cap) nc)))
+        (return 1))
+
+  (static)
+  (func rx_buf_put ((rx_buf * b) (const char * s) (size_t k)) (out int)
+        (if (not (rx_buf_need b k)) (return 0))
+        (memcpy (+ (-> b p) (-> b n)) s k)
+        (set (-> b n) (+ (-> b n) k))
+        (set (nth (-> b n) (-> b p)) (cast char 0))
+        (return 1))
+
+  (static)
+  (func rx_buf_putc ((rx_buf * b) (char c)) (out int)
+        (if (not (rx_buf_need b 1)) (return 0))
+        (set (nth (-> b n) (-> b p)) c)
+        (set (-> b n) (+ (-> b n) 1))
+        (set (nth (-> b n) (-> b p)) (cast char 0))
+        (return 1))
+
+  ;;;; ---- text in: an atom, a string, an integer, or codes ------------
+  ;;;
+  ;;; The atom path does not go through coco_m_text, so an atom of any
+  ;;; length crosses whole. A code list is converted exactly: one byte per
+  ;;; code in bytes mode, one UTF-8 character per code in characters mode,
+  ;;; which is what atom_codes/2 would have answered. A string or integer
+  ;;; goes through coco_m_text with a buffer that grows to 16 MB; a string
+  ;;; holding NUL is refused there, and the code-list form is the way to
+  ;;; hand one in (as it is everywhere else in this tree).
+
+  (static)
+  (func rx_text ((coco_engine * e) (size_t t) (char ** out) (size_t * len)
+                 (int * rc)) (out int)
+        (if (coco_m_is_var e t)
+            (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+        ;; an atom, by its own name -- no fixed buffer and no NUL limit
+        (let ((const char * a . #'(coco_m_atom e t)))
+          (if a
+              (let ((size_t n . #'(strlen a))
+                    (char * b . #'(cast (char *) (malloc (+ n 1)))))
+                (if (not b)
+                    (block (set (cof rc) (coco_m_resource_error e "memory")) (return 0)))
+                (memcpy b a n)
+                (set (nth n b) (cast char 0))
+                (set (cof out) b)
+                (set (cof len) n)
+                (return 1))))
+        ;; a proper list of codes
+        (let ((size_t * items . nil) (size_t n . 0))
+          (if (coco_m_list_array e t (aof items) (aof n))
+              (let ((int chars . #'(coco_m_text_chars e))
+                    (char * b . #'(cast (char *) (malloc (+ (* n 4) 1))))
+                    (size_t at . 0)
+                    (int ok . 1))
+                (if (not b)
+                    (block (free items)
+                           (set (cof rc) (coco_m_resource_error e "memory"))
+                           (return 0)))
+                (for ((size_t i . 0)) (< i n) ((++ i))
+                     (block
+                       (let ((i64 v . 0))
+                         (if (not (coco_m_int e (nth i items) (aof v)))
+                             (block (set ok 0)
+                                    (set (cof rc) (coco_m_type_error e "integer"
+                                                                      (nth i items))))
+                           (if chars
+                               (if (or (< v 0) (> v 1114111))
+                                   (block (set ok 0)
+                                          (set (cof rc) (coco_m_domain_error e "text" t)))
+                                 (let ((int k . #'(coco_m_utf8_enc (+ b at) v)))
+                                   (if (== k 0)
+                                       (block (set ok 0)
+                                              (set (cof rc) (coco_m_domain_error e "text" t)))
+                                     (set at (+ at (cast size_t k))))))
+                             (if (or (< v 0) (> v 255))
+                                 (block (set ok 0)
+                                        (set (cof rc) (coco_m_domain_error e "byte"
+                                                                            (nth i items))))
+                               (block (set (nth at b) (cast char v))
+                                      (set at (+ at 1)))))))
+                       (if (not ok) break)))
+                (free items)
+                (if (not ok)
+                    (block (free b) (return 0)))
+                (set (nth at b) (cast char 0))
+                (set (cof out) b)
+                (set (cof len) at)
+                (return 1)))
+        ;; a string, an integer, or something coco_m_text knows; the
+        ;; buffer grows because a failed call cannot say whether it was a
+        ;; type error or a short buffer
+        (let ((size_t cap . 256))
+          (while (<= cap 16777216)
+            (let ((char * b . #'(cast (char *) (malloc cap))))
+              (if (not b)
+                  (block (set (cof rc) (coco_m_resource_error e "memory")) (return 0)))
+              (if (coco_m_text e t b cap)
+                  (block (set (cof out) b)
+                         (set (cof len) (strlen b))
+                         (return 1)))
+              (free b))
+            (set cap (* cap 4))))
+        (set (cof rc) (coco_m_type_error e "text" t))
+        (return 0)))
+
+  ;;;; ---- options ------------------------------------------------------
+  ;;;
+  ;;; A list of atoms, plus start(N) and (in a replace) first. The default
+  ;;; follows the program's text_units: characters means UTF-8 subject and
+  ;;; UCP classes; bytes means the byte semantics PCRE2 has by default.
+
+  (static)
+  (func rx_options ((coco_engine * e) (size_t opt) (u32 * cflags) (u32 * mflags)
+                    (size_t * start) (int * first) (int allow_first)
+                    (int * rc)) (out int)
+        (set (cof cflags) (? (coco_m_text_chars e) (bitor PCRE2_UTF PCRE2_UCP) 0))
+        (set (cof mflags) 0)
+        (set (cof start) 0)
+        (set (cof first) 0)
+        (if (coco_m_is_var e opt)
+            (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
+        (let ((size_t * items . nil) (size_t n . 0))
+          (if (not (coco_m_list_array e opt (aof items) (aof n)))
+              (block (set (cof rc) (coco_m_type_error e "list" opt)) (return 0)))
+          (for ((size_t i . 0)) (< i n) ((++ i))
+               (let ((size_t it . #'(nth i items))
+                     (u32 arity . 0)
+                     (const char * nm . nil))
+                 (if (coco_m_is_var e it)
+                     (block (free items)
+                            (set (cof rc) (coco_m_instantiation_error e))
+                            (return 0)))
+                 (set nm (coco_m_functor e it (aof arity)))
+                 (if (== nm nil)
+                     (block (free items)
+                            (set (cof rc) (coco_m_type_error e "regex_option" it))
+                            (return 0)))
+                 (cond
+                   ;; a bare atom
+                   ((== arity 0)
+                    (cond
+                      ((== 0 (strcmp nm "caseless")) (set (cof cflags) (bitor (cof cflags) PCRE2_CASELESS)))
+                      ((== 0 (strcmp nm "multiline")) (set (cof cflags) (bitor (cof cflags) PCRE2_MULTILINE)))
+                      ((== 0 (strcmp nm "dotall")) (set (cof cflags) (bitor (cof cflags) PCRE2_DOTALL)))
+                      ((== 0 (strcmp nm "extended")) (set (cof cflags) (bitor (cof cflags) PCRE2_EXTENDED)))
+                      ((== 0 (strcmp nm "ungreedy")) (set (cof cflags) (bitor (cof cflags) PCRE2_UNGREEDY)))
+                      ((== 0 (strcmp nm "dollar_endonly")) (set (cof cflags) (bitor (cof cflags) PCRE2_DOLLAR_ENDONLY)))
+                      ((== 0 (strcmp nm "no_auto_capture")) (set (cof cflags) (bitor (cof cflags) PCRE2_NO_AUTO_CAPTURE)))
+                      ((== 0 (strcmp nm "dupnames")) (set (cof cflags) (bitor (cof cflags) PCRE2_DUPNAMES)))
+                      ((== 0 (strcmp nm "literal")) (set (cof cflags) (bitor (cof cflags) PCRE2_LITERAL)))
+                      ((== 0 (strcmp nm "utf")) (set (cof cflags) (bitor (cof cflags) (bitor PCRE2_UTF PCRE2_UCP))))
+                      ((== 0 (strcmp nm "bytes")) (set (cof cflags) (bitand (cof cflags) (~ (bitor PCRE2_UTF PCRE2_UCP)))))
+                      ((== 0 (strcmp nm "ucp")) (set (cof cflags) (bitor (cof cflags) PCRE2_UCP)))
+                      ((== 0 (strcmp nm "no_ucp")) (set (cof cflags) (bitand (cof cflags) (~ PCRE2_UCP))))
+                      ((== 0 (strcmp nm "anchored")) (set (cof mflags) (bitor (cof mflags) PCRE2_ANCHORED)))
+                      ((== 0 (strcmp nm "endanchored")) (set (cof mflags) (bitor (cof mflags) PCRE2_ENDANCHORED)))
+                      ((== 0 (strcmp nm "notbol")) (set (cof mflags) (bitor (cof mflags) PCRE2_NOTBOL)))
+                      ((== 0 (strcmp nm "noteol")) (set (cof mflags) (bitor (cof mflags) PCRE2_NOTEOL)))
+                      ((== 0 (strcmp nm "notempty")) (set (cof mflags) (bitor (cof mflags) PCRE2_NOTEMPTY)))
+                      ((and allow_first (== 0 (strcmp nm "first"))) (set (cof first) 1))
+                      (#t (free items)
+                          (set (cof rc) (coco_m_domain_error e "regex_option" it))
+                          (return 0))))
+                   ;; start(N)
+                   ((and (== arity 1) (== 0 (strcmp nm "start")))
+                    (let ((size_t arg . #'(coco_m_arg e it 0))
+                          (i64 v . 0))
+                      (if (not (coco_m_int e arg (aof v)))
+                          (block (free items)
+                                 (set (cof rc) (coco_m_type_error e "integer" arg))
+                                 (return 0)))
+                      (if (< v 0)
+                          (block (free items)
+                                 (set (cof rc) (coco_m_domain_error e "regex_offset" it))
+                                 (return 0)))
+                      (set (cof start) (cast size_t v))))
+                   (#t (free items)
+                       (set (cof rc) (coco_m_domain_error e "regex_option" it))
+                       (return 0)))))
+          (free items)
+          ;; PCRE2_LITERAL permits only a short list of other flags -- UTF
+          ;; and CASELESS among them -- and refuses UCP, EXTENDED,
+          ;; NO_AUTO_CAPTURE and the rest. Everything else a caller wrote
+          ;; is meaningless once the pattern is literal, so keep the two
+          ;; that still mean something and drop the others.
+          (if (!= (bitand (cof cflags) PCRE2_LITERAL) 0)
+              (set (cof cflags)
+                   (bitor PCRE2_LITERAL
+                          (bitand (cof cflags) (bitor PCRE2_UTF PCRE2_CASELESS)))))
+          (return 1)))
+
+  ;;;; ---- compile and match -------------------------------------------
+
+  (static)
+  (func rx_compile ((coco_engine * e) (const char * pat) (size_t plen)
+                    (u32 cflags) (pcre2_code ** out) (int * rc)) (out int)
+        (let ((int errcode . 0)
+              (size_t erroff . 0)
+              (pcre2_code * code . nil))
+          (set code (pcre2_compile (cast (const uchar *) pat) plen cflags
+                                   (aof errcode) (aof erroff) nil))
+          (if (not code)
+              (block
+                (let ((char msg [256]))
+                  (if (< (pcre2_get_error_message errcode (cast (uchar *) msg) 256) 0)
+                      (snprintf msg 256 "error %d" errcode))
+                  (let ((char detail [320]))
+                    (snprintf detail 320 "%s at offset %zu" msg erroff)
+                    (set (cof rc) (coco_m_error e "regex compile" detail))))
+                (return 0)))
+          (set (cof out) code)
+          (return 1)))
+
+  (static)
+  (func rx_run ((coco_engine * e) (pcre2_code * code) (const char * subj)
+                (size_t len) (size_t start) (u32 mflags)
+                (pcre2_match_data ** out) (u32 * ngroups) (int * rc)) (out int)
+        (let ((pcre2_match_data * md
+               . #'(pcre2_match_data_create_from_pattern code nil))
+              (int r . 0))
+          (if (not md)
+              (block (set (cof rc) (coco_m_resource_error e "memory")) (return -1)))
+          (set r (pcre2_match code (cast (const uchar *) subj) len start
+                              mflags md nil))
+          (if (== r PCRE2_ERROR_NOMATCH)
+              (block (pcre2_match_data_free md) (return 0)))
+          (if (< r 0)
+              (block
+                (let ((char msg [256]))
+                  (if (< (pcre2_get_error_message r (cast (uchar *) msg) 256) 0)
+                      (snprintf msg 256 "match error %d" r))
+                  (set (cof rc) (coco_m_error e "regex match" msg)))
+                (pcre2_match_data_free md)
+                (return -1)))
+          (set (cof out) md)
+          (set (cof ngroups) (pcre2_get_ovector_count md))
+          (return 1)))
+
+  ;;; compile, match once, and hand back the compiled code and match data
+  ;;; (1), no match (0 -- both freed), or a raised error (-1, *rc set)
+  (static)
+  (func rx_first_match ((coco_engine * e) (const char * pat) (size_t plen)
+                        (const char * txt) (size_t tlen) (u32 cflags)
+                        (u32 mflags) (size_t start) (pcre2_code ** codeout)
+                        (pcre2_match_data ** mdout) (u32 * ngroups)
+                        (int * rc)) (out int)
+        (let ((pcre2_code * code . nil) (int st . 0))
+          (if (not (rx_compile e pat plen cflags (aof code) rc)) (return -1))
+          (set st (rx_run e code txt tlen start mflags mdout ngroups rc))
+          (if (!= st 1) (pcre2_code_free code))
+          (if (== st 1) (set (cof codeout) code))
+          (return st)))
+
+  ;;; one group as codes, or the atom null when the group did not take
+  (static)
+  (func rx_group_text ((coco_engine * e) (const char * subj) (size_t * ov)
+                       (u32 ngroups) (u32 gi)) (out size_t)
+        (if (or (>= gi ngroups)
+                (== (nth (* gi 2) ov) (cast size_t -1)))
+            (return (coco_m_new_atom e "null")))
+        (let ((size_t s . #'(nth (* gi 2) ov))
+              (size_t en . #'(nth (+ (* gi 2) 1) ov)))
+          (return (coco_m_codes_of e (+ subj s) (- en s) 0 (coco_m_nil e)))))
+
+  ;;; one character forward, for an empty match; UTF-8-aware when UTF is on
+  (static)
+  (func rx_advance ((const char * subj) (size_t len) (size_t pos)
+                    (int utf)) (out size_t)
+        (if (>= pos len) (return len))
+        (if (not utf) (return (+ pos 1)))
+        (let ((size_t i . #'pos))
+          (coco_m_utf8_get subj len (aof i))
+          (if (<= i pos) (return (+ pos 1)))
+          (return i)))
+
+  ;;; a growable array of TERM INDICES, used to build a list in one go
+  (static)
+  (func rx_push ((size_t ** v) (size_t * n) (size_t * cap) (size_t t)) (out int)
+        (if (>= (cof n) (cof cap))
+            (let ((size_t nc . #'(? (== (cof cap) 0) 8 (* (cof cap) 2)))
+                  (size_t * nv . #'(cast (size_t *)
+                                          (realloc (cast (void *) (cof v))
+                                                   (* nc (sizeof size_t))))))
+              (if (not nv) (return 0))
+              (set (cof v) nv)
+              (set (cof cap) nc)))
+        (set (nth (cof n) (cof v)) t)
+        (set (cof n) (+ (cof n) 1))
+        (return 1))
+
+  ;;; every group of one match as a list, 0 first, null for a group that
+  ;;; did not take. *ok is 0 when the array could not be had.
+  (static)
+  (func rx_groups_list ((coco_engine * e) (const char * subj) (size_t * ov)
+                        (u32 ng) (int * ok)) (out size_t)
+        (set (cof ok) 1)
+        (if (== ng 0) (return (coco_m_nil e)))
+        (let ((size_t * vals . #'(cast (size_t *) (malloc (* ng (sizeof size_t))))))
+          (if (not vals)
+              (block (set (cof ok) 0) (return (coco_m_nil e))))
+          (for ((u32 i . 0)) (< i ng) ((++ i))
+               (set (nth i vals) (rx_group_text e subj ov ng i)))
+          (let ((size_t lst . #'(coco_m_list e vals ng)))
+            (free vals)
+            (return lst))))
+
+  ;;; append group G -- empty when it did not take
+  (static)
+  (func rx_add_group ((rx_buf * b) (const char * subj) (size_t * ov)
+                      (u32 ng) (u32 g)) (out int)
+        (if (or (>= g ng) (== (nth (* g 2) ov) (cast size_t -1)))
+            (return 1))
+        (let ((size_t s . #'(nth (* g 2) ov))
+              (size_t en . #'(nth (+ (* g 2) 1) ov)))
+          (return (rx_buf_put b (+ subj s) (- en s)))))
+
+  ;;; a named group's number, from PCRE2's own table -- or -1
+  (static)
+  (func rx_group_number ((pcre2_code * code) (const char * name)
+                         (size_t n)) (out int)
+        (let ((u32 count . 0) (u32 esize . 0) (const uchar * table . nil))
+          (if (!= (pcre2_pattern_info code PCRE2_INFO_NAMECOUNT
+                                      (cast (void *) (aof count))) 0)
+              (return -1))
+          (if (== count 0) (return -1))
+          (pcre2_pattern_info code PCRE2_INFO_NAMEENTRYSIZE
+                              (cast (void *) (aof esize)))
+          (pcre2_pattern_info code PCRE2_INFO_NAMETABLE
+                              (cast (void *) (aof table)))
+          (for ((u32 i . 0)) (< i count) ((++ i))
+               (let ((const uchar * ent . #'(+ table (* i esize)))
+                     (char * nm . #'(cast (char *) (+ ent 2))))
+                 (if (and (== (strlen nm) n) (== 0 (strncmp nm name n)))
+                     (return (cast int
+                                   (bitor (<< (cast u32 (nth 0 ent)) 8)
+                                          (cast u32 (nth 1 ent))))))))
+          (return -1)))
+
+  ;;; the replacement, with $1 ${name} $& $$ and \1..\9 & \n \t \r
+  (static)
+  (func rx_expand ((coco_engine * e) (rx_buf * b) (pcre2_code * code)
+                   (const char * rep) (size_t rlen)
+                   (const char * subj) (size_t * ov) (u32 ng)
+                   (int * rc)) (out int)
+        (let ((size_t i . 0))
+          (while (< i rlen)
+            (let ((int c . #'(cast int (nth i rep))))
+              (cond
+                ;; &
+                ((== c 38)
+                 (if (not (rx_add_group b subj ov ng 0))
+                     (block (set (cof rc) (coco_m_resource_error e "memory"))
+                            (return 0)))
+                 (set i (+ i 1)))
+                ;; \x
+                ((and (== c 92) (< (+ i 1) rlen))
+                 (let ((int d . #'(cast int (nth (+ i 1) rep))))
+                   (cond
+                     ((and (>= d 48) (<= d 57))
+                      (if (not (rx_add_group b subj ov ng
+                                             (cast u32 (- d 48))))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0))))
+                     ((== d 110)
+                      (if (not (rx_buf_putc b (cast char 10)))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0))))
+                     ((== d 116)
+                      (if (not (rx_buf_putc b (cast char 9)))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0))))
+                     ((== d 114)
+                      (if (not (rx_buf_putc b (cast char 13)))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0))))
+                     (#t
+                      (if (not (rx_buf_putc b (cast char d)))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0)))))
+                   (set i (+ i 2))))
+                ;; $...
+                ((== c 36)
+                 (cond
+                   ;; $$
+                   ((and (< (+ i 1) rlen)
+                         (== (cast int (nth (+ i 1) rep)) 36))
+                    (if (not (rx_buf_putc b (cast char 36)))
+                        (block (set (cof rc) (coco_m_resource_error e "memory"))
+                               (return 0)))
+                    (set i (+ i 2)))
+                   ;; $&
+                   ((and (< (+ i 1) rlen)
+                         (== (cast int (nth (+ i 1) rep)) 38))
+                    (if (not (rx_add_group b subj ov ng 0))
+                        (block (set (cof rc) (coco_m_resource_error e "memory"))
+                               (return 0)))
+                    (set i (+ i 2)))
+                   ;; ${name}
+                   ((and (< (+ i 1) rlen)
+                         (== (cast int (nth (+ i 1) rep)) 123))
+                    (let ((size_t j . #'(+ i 2)))
+                      (while (and (< j rlen)
+                                  (!= (cast int (nth j rep)) 125))
+                             (set j (+ j 1)))
+                      (if (< j rlen)
+                          (block
+                            (let ((int g . #'(rx_group_number code
+                                                             (+ rep (+ i 2))
+                                                             (- j (+ i 2)))))
+                              (if (and (>= g 0)
+                                       (not (rx_add_group b subj ov ng
+                                                          (cast u32 g))))
+                                  (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                         (return 0))))
+                            (set i (+ j 1)))
+                        (block
+                          (if (not (rx_buf_putc b (cast char 36)))
+                              (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                     (return 0)))
+                          (set i (+ i 1))))))
+                   ;; $1 .. $99
+                   ((and (< (+ i 1) rlen)
+                         (>= (cast int (nth (+ i 1) rep)) 48)
+                         (<= (cast int (nth (+ i 1) rep)) 57))
+                    (let ((int g . 0) (size_t j . #'(+ i 1)))
+                      (while (and (< j rlen)
+                                  (>= (cast int (nth j rep)) 48)
+                                  (<= (cast int (nth j rep)) 57))
+                             (set g (+ (* g 10)
+                                       (- (cast int (nth j rep)) 48)))
+                             (if (> g 100000) (set g 100000))
+                             (set j (+ j 1)))
+                      (if (not (rx_add_group b subj ov ng (cast u32 g)))
+                          (block (set (cof rc) (coco_m_resource_error e "memory"))
+                                 (return 0)))
+                      (set i j)))
+                   ;; a bare $
+                   (#t
+                    (if (not (rx_buf_putc b (cast char 36)))
+                        (block (set (cof rc) (coco_m_resource_error e "memory"))
+                               (return 0)))
+                    (set i (+ i 1)))))
+                ;; anything else, verbatim
+                (#t
+                 (if (not (rx_buf_putc b (cast char c)))
+                     (block (set (cof rc) (coco_m_resource_error e "memory"))
+                            (return 0)))
+                 (set i (+ i 1))))))
+          (return 1)))
+
+  ;;;; ---- the predicates ----------------------------------------------
+
+  ;;; rx_match(+Pat, +Text, +Options)
+  (func rx_p_match ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (u32 ng . 0) (int st . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 2) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set st (rx_first_match e pat plen txt tlen cflags mflags start
+                                  (aof code) (aof md) (aof ng) (aof rc)))
+          (free pat)
+          (free txt)
+          (cond
+            ((== st 1)
+             (pcre2_match_data_free md)
+             (pcre2_code_free code)
+             (return 1))
+            ((== st -1) (return rc))
+            (#t (return 0)))))
+
+  ;;; rx_first(+Pat, +Text, -Match, +Options)
+  (func rx_p_first ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (u32 ng . 0) (int st . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 3) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set st (rx_first_match e pat plen txt tlen cflags mflags start
+                                  (aof code) (aof md) (aof ng) (aof rc)))
+          (cond
+            ((== st 1)
+             (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                   (size_t lst . #'(rx_group_text e txt ov ng 0))
+                   (int r . 0))
+               (set r (coco_m_unify e (coco_m_arg e g 2) lst))
+               (pcre2_match_data_free md)
+               (pcre2_code_free code)
+               (free pat)
+               (free txt)
+               (return r)))
+            ((== st -1)
+             (free pat)
+             (free txt)
+             (return rc))
+            (#t
+             (free pat)
+             (free txt)
+             (return 0)))))
+
+  ;;; rx_captures(+Pat, +Text, -Groups, +Options)
+  (func rx_p_captures ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (u32 ng . 0) (int st . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 3) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set st (rx_first_match e pat plen txt tlen cflags mflags start
+                                  (aof code) (aof md) (aof ng) (aof rc)))
+          (cond
+            ((== st 1)
+             (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                   (size_t * vals . #'(cast (size_t *)
+                                            (malloc (* ng (sizeof size_t)))))
+                   (int r . 0))
+               (if (not vals)
+                   (block (pcre2_match_data_free md)
+                          (pcre2_code_free code)
+                          (free pat) (free txt)
+                          (return (coco_m_resource_error e "memory"))))
+               (for ((u32 i . 0)) (< i ng) ((++ i))
+                    (set (nth i vals) (rx_group_text e txt ov ng i)))
+               (let ((size_t lst . #'(coco_m_list e vals ng)))
+                 (free vals)
+                 (set r (coco_m_unify e (coco_m_arg e g 2) lst))
+                 (pcre2_match_data_free md)
+                 (pcre2_code_free code)
+                 (free pat)
+                 (free txt)
+                 (return r))))
+            ((== st -1)
+             (free pat)
+             (free txt)
+             (return rc))
+            (#t
+             (free pat)
+             (free txt)
+             (return 0)))))
+
+  ;;; rx_named(+Pat, +Text, -Names, -Values, +Options)
+  ;;;
+  ;;; PCRE2's name table is sorted alphabetically, and this keeps that
+  ;;; order: Names and Values are parallel lists, and a group that did not
+  ;;; take has null in Values. Parallel lists rather than Name-Value pairs
+  ;;; because a module cannot build a compound term; the Prolog half can,
+  ;;; and does where it is useful.
+  (func rx_p_named ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (u32 ng . 0) (int st . 0)
+              ;; TWO OUTPUTS ARE UNIFIED BELOW, so a failure of the second
+              ;; has to take the first back: a builtin that fails is not a
+              ;; choice point, and the engine will not wind the trail for it.
+              (size_t mark . #'(coco_m_mark e)))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 4) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set st (rx_first_match e pat plen txt tlen cflags mflags start
+                                  (aof code) (aof md) (aof ng) (aof rc)))
+          (cond
+            ((== st 1)
+             (let ((u32 count . 0) (u32 esize . 0)
+                   (const uchar * table . nil)
+                   (size_t * ov . #'(pcre2_get_ovector_pointer md))
+                   (int r1 . 0) (int r2 . 0))
+               (pcre2_pattern_info code PCRE2_INFO_NAMECOUNT
+                                   (cast (void *) (aof count)))
+               (pcre2_pattern_info code PCRE2_INFO_NAMEENTRYSIZE
+                                   (cast (void *) (aof esize)))
+               (pcre2_pattern_info code PCRE2_INFO_NAMETABLE
+                                   (cast (void *) (aof table)))
+               (if (== count 0)
+                   (block
+                     (set r1 (coco_m_unify e (coco_m_arg e g 2) (coco_m_nil e)))
+                     (if (== r1 1)
+                         (set r2 (coco_m_unify e (coco_m_arg e g 3) (coco_m_nil e)))
+                       (set r2 1))
+                     (pcre2_match_data_free md)
+                     (pcre2_code_free code)
+                     (free pat) (free txt)
+                     (if (and (== r1 1) (== r2 1)) (return 1))
+                     (coco_m_undo e mark)
+                     (return 0))
+                 (let ((char ** names . #'(cast (char **)
+                                                 (malloc (* count (sizeof char *)))))
+                       (size_t * vals . #'(cast (size_t *)
+                                                (malloc (* count (sizeof size_t))))))
+                   (if (or (not names) (not vals))
+                       (block (if names (free names))
+                              (if vals (free vals))
+                              (pcre2_match_data_free md)
+                              (pcre2_code_free code)
+                              (free pat) (free txt)
+                              (return (coco_m_resource_error e "memory"))))
+                   (for ((u32 i . 0)) (< i count) ((++ i))
+                        (let ((const uchar * ent . #'(+ table (* i esize)))
+                              (u32 num . 0))
+                          (set num (bitor (<< (cast u32 (nth 0 ent)) 8)
+                                          (cast u32 (nth 1 ent))))
+                          (set (nth i names) (cast (char *) (+ ent 2)))
+                          (set (nth i vals) (rx_group_text e txt ov ng num))))
+                   (let ((size_t nlst . #'(coco_m_atom_list e names count))
+                         (size_t vlst . #'(coco_m_list e vals count)))
+                     (free names)
+                     (free vals)
+                     (set r1 (coco_m_unify e (coco_m_arg e g 2) nlst))
+                     (if (== r1 1)
+                         (set r2 (coco_m_unify e (coco_m_arg e g 3) vlst))
+                       (set r2 1))
+                     (pcre2_match_data_free md)
+                     (pcre2_code_free code)
+                     (free pat) (free txt)
+                     (if (and (== r1 1) (== r2 1)) (return 1))
+                     (coco_m_undo e mark)
+                     (return 0))))))
+            ((== st -1)
+             (free pat)
+             (free txt)
+             (return rc))
+            (#t
+             (free pat)
+             (free txt)
+             (return 0)))))
+
+  ;;; rx_all(+Pat, +Text, -Matches, +Options)
+  (func rx_p_all ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (size_t * vals . nil) (size_t n . 0) (size_t cap . 0)
+              (size_t scan . 0) (int bad . 0) (int utf . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 3) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (if (not (rx_compile e pat plen cflags (aof code) (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set md (pcre2_match_data_create_from_pattern code nil))
+          (if (not md)
+              (block (pcre2_code_free code) (free pat) (free txt)
+                     (return (coco_m_resource_error e "memory"))))
+          (set utf (? (== (bitand cflags PCRE2_UTF) 0) 0 1))
+          (set scan (? (> start tlen) (+ tlen 1) start))
+          (while (and (== bad 0) (<= scan tlen))
+            (let ((int r . #'(pcre2_match code (cast (const uchar *) txt)
+                                           tlen scan mflags md nil)))
+              (cond
+                ((== r PCRE2_ERROR_NOMATCH) break)
+                ((< r 0)
+                 (let ((char msg [256]))
+                   (if (< (pcre2_get_error_message r (cast (uchar *) msg) 256) 0)
+                       (snprintf msg 256 "match error %d" r))
+                   (set rc (coco_m_error e "regex match" msg))
+                   (set bad 1)))
+                (#t
+                 (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                       (u32 ng . #'(pcre2_get_ovector_count md))
+                       (size_t en . 0))
+                   (set en (nth 1 ov))
+                   (if (not (rx_push (aof vals) (aof n) (aof cap)
+                                     (rx_group_text e txt ov ng 0)))
+                       (block (set rc (coco_m_resource_error e "memory"))
+                              (set bad 1))
+                     (if (> en scan)
+                         (set scan en)
+                       (if (>= en tlen)
+                           (set scan (+ tlen 1))
+                         (set scan (rx_advance txt tlen en utf))))))))))
+          (pcre2_match_data_free md)
+          (pcre2_code_free code)
+          (free pat)
+          (free txt)
+          (if (!= bad 0)
+              (block (if vals (free vals)) (return rc)))
+          (let ((size_t lst . #'(? (== n 0) (coco_m_nil e)
+                                   (coco_m_list e vals n))))
+            (if vals (free vals))
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; rx_all_captures(+Pat, +Text, -GroupsList, +Options)
+  (func rx_p_all_caps ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (size_t * vals . nil) (size_t n . 0) (size_t cap . 0)
+              (size_t scan . 0) (int bad . 0) (int utf . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 3) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (if (not (rx_compile e pat plen cflags (aof code) (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set md (pcre2_match_data_create_from_pattern code nil))
+          (if (not md)
+              (block (pcre2_code_free code) (free pat) (free txt)
+                     (return (coco_m_resource_error e "memory"))))
+          (set utf (? (== (bitand cflags PCRE2_UTF) 0) 0 1))
+          (set scan (? (> start tlen) (+ tlen 1) start))
+          (while (and (== bad 0) (<= scan tlen))
+            (let ((int r . #'(pcre2_match code (cast (const uchar *) txt)
+                                           tlen scan mflags md nil)))
+              (cond
+                ((== r PCRE2_ERROR_NOMATCH) break)
+                ((< r 0)
+                 (let ((char msg [256]))
+                   (if (< (pcre2_get_error_message r (cast (uchar *) msg) 256) 0)
+                       (snprintf msg 256 "match error %d" r))
+                   (set rc (coco_m_error e "regex match" msg))
+                   (set bad 1)))
+                (#t
+                 (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                       (u32 ng . #'(pcre2_get_ovector_count md))
+                       (size_t en . 0)
+                       (int ok . 1)
+                       (size_t gl . #'(rx_groups_list e txt ov ng (aof ok))))
+                   (set en (nth 1 ov))
+                   (if (== ok 0)
+                       (block (set rc (coco_m_resource_error e "memory"))
+                              (set bad 1))
+                     (if (not (rx_push (aof vals) (aof n) (aof cap) gl))
+                         (block (set rc (coco_m_resource_error e "memory"))
+                                (set bad 1))
+                       (if (> en scan)
+                           (set scan en)
+                         (if (>= en tlen)
+                             (set scan (+ tlen 1))
+                           (set scan (rx_advance txt tlen en utf)))))))))))
+          (pcre2_match_data_free md)
+          (pcre2_code_free code)
+          (free pat)
+          (free txt)
+          (if (!= bad 0)
+              (block (if vals (free vals)) (return rc)))
+          (let ((size_t lst . #'(? (== n 0) (coco_m_nil e)
+                                   (coco_m_list e vals n))))
+            (if vals (free vals))
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; rx_replace(+Pat, +Rep, +Text, -Out, +Options)
+  (func rx_p_replace ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * rep . nil) (size_t rlen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (rx_buf b)
+              (size_t scan . 0) (size_t prev . 0) (size_t prev_me . 0)
+              (int had . 0) (int bad . 0) (int utf . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof rep) (aof rlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_text e (coco_m_arg e g 2) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (free rep) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 4) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 1 (aof rc)))
+              (block (free pat) (free rep) (free txt) (return rc)))
+          (if (not (rx_compile e pat plen cflags (aof code) (aof rc)))
+              (block (free pat) (free rep) (free txt) (return rc)))
+          (set md (pcre2_match_data_create_from_pattern code nil))
+          (if (not md)
+              (block (pcre2_code_free code)
+                     (free pat) (free rep) (free txt)
+                     (return (coco_m_resource_error e "memory"))))
+          (if (not (rx_buf_init (aof b)))
+              (block (pcre2_match_data_free md) (pcre2_code_free code)
+                     (free pat) (free rep) (free txt)
+                     (return (coco_m_resource_error e "memory"))))
+          (set utf (? (== (bitand cflags PCRE2_UTF) 0) 0 1))
+          (set scan (? (> start tlen) (+ tlen 1) start))
+          (set prev (? (> start tlen) tlen start))
+          (if (> prev 0)
+              (if (not (rx_buf_put (aof b) txt prev))
+                  (block (set bad 1)
+                         (set rc (coco_m_resource_error e "memory")))))
+          (while (and (== bad 0) (<= scan tlen))
+            (let ((int r . #'(pcre2_match code (cast (const uchar *) txt)
+                                           tlen scan mflags md nil)))
+              (cond
+                ((== r PCRE2_ERROR_NOMATCH) break)
+                ((< r 0)
+                 (let ((char msg [256]))
+                   (if (< (pcre2_get_error_message r (cast (uchar *) msg) 256) 0)
+                       (snprintf msg 256 "match error %d" r))
+                   (set rc (coco_m_error e "regex match" msg))
+                   (set bad 1)))
+                (#t
+                 (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                       (u32 ng . #'(pcre2_get_ovector_count md))
+                       (size_t s . 0) (size_t en . 0))
+                   (set s (nth 0 ov))
+                   (set en (nth 1 ov))
+                   (cond
+                     ;; sed's rule: an empty match touching the previous
+                     ;; match's end is not a match
+                     ((and (== s en) (!= had 0) (== s prev_me))
+                      (if (>= scan tlen)
+                          (set scan (+ tlen 1))
+                        (let ((size_t nx . #'(rx_advance txt tlen scan utf)))
+                          (if (not (rx_buf_put (aof b) (+ txt scan)
+                                               (- nx scan)))
+                              (block (set bad 1)
+                                     (set rc (coco_m_resource_error e "memory")))
+                            (block (set scan nx)
+                                   (set prev nx))))))
+                     (#t
+                      (if (not (rx_buf_put (aof b) (+ txt prev) (- s prev)))
+                          (block (set bad 1)
+                                 (set rc (coco_m_resource_error e "memory")))
+                        (if (not (rx_expand e (aof b) code rep rlen txt ov ng
+                                            (aof rc)))
+                            (set bad 1)
+                          (block
+                            (set prev en)
+                            (set prev_me en)
+                            (set had 1)
+                            (if (!= first 0)
+                                (set scan (+ tlen 1))
+                              (if (> en scan)
+                                  (set scan en)
+                                (if (>= en tlen)
+                                    (set scan (+ tlen 1))
+                                  (let ((size_t nx . #'(rx_advance txt tlen
+                                                                   en utf)))
+                                    (if (not (rx_buf_put (aof b)
+                                                         (+ txt en)
+                                                         (- nx en)))
+                                        (block (set bad 1)
+                                               (set rc (coco_m_resource_error
+                                                        e "memory")))
+                                      (block (set scan nx)
+                                             (set prev nx)))))))))))))))))
+          (if (== bad 0)
+              (if (not (rx_buf_put (aof b) (+ txt prev) (- tlen prev)))
+                  (block (set bad 1)
+                         (set rc (coco_m_resource_error e "memory")))))
+          (pcre2_match_data_free md)
+          (pcre2_code_free code)
+          (free pat)
+          (free rep)
+          (free txt)
+          (if (!= bad 0)
+              (block (free ($ b p)) (return rc)))
+          (let ((size_t lst . #'(coco_m_codes_of e ($ b p) ($ b n) 0
+                                                   (coco_m_nil e))))
+            (free ($ b p))
+            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
+
+  ;;; rx_split(+Pat, +Text, -Parts, +Options)
+  (func rx_p_split ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * pat . nil) (size_t plen . 0)
+              (char * txt . nil) (size_t tlen . 0)
+              (u32 cflags . 0) (u32 mflags . 0)
+              (size_t start . 0) (int first . 0)
+              (pcre2_code * code . nil) (pcre2_match_data * md . nil)
+              (size_t * vals . nil) (size_t n . 0) (size_t cap . 0)
+              (size_t scan . 0) (size_t prev . 0)
+              (int bad . 0) (int utf . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof pat) (aof plen) (aof rc)))
+              (return rc))
+          (if (not (rx_text e (coco_m_arg e g 1) (aof txt) (aof tlen) (aof rc)))
+              (block (free pat) (return rc)))
+          (if (not (rx_options e (coco_m_arg e g 3) (aof cflags) (aof mflags)
+                                (aof start) (aof first) 0 (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (if (not (rx_compile e pat plen cflags (aof code) (aof rc)))
+              (block (free pat) (free txt) (return rc)))
+          (set md (pcre2_match_data_create_from_pattern code nil))
+          (if (not md)
+              (block (pcre2_code_free code) (free pat) (free txt)
+                     (return (coco_m_resource_error e "memory"))))
+          (set utf (? (== (bitand cflags PCRE2_UTF) 0) 0 1))
+          (set scan (? (> start tlen) (+ tlen 1) start))
+          (set prev 0)
+          (while (and (== bad 0) (<= scan tlen))
+            (let ((int r . #'(pcre2_match code (cast (const uchar *) txt)
+                                           tlen scan mflags md nil)))
+              (cond
+                ((== r PCRE2_ERROR_NOMATCH) break)
+                ((< r 0)
+                 (let ((char msg [256]))
+                   (if (< (pcre2_get_error_message r (cast (uchar *) msg) 256) 0)
+                       (snprintf msg 256 "match error %d" r))
+                   (set rc (coco_m_error e "regex match" msg))
+                   (set bad 1)))
+                (#t
+                 (let ((size_t * ov . #'(pcre2_get_ovector_pointer md))
+                       (size_t s . 0) (size_t en . 0))
+                   (set s (nth 0 ov))
+                   (set en (nth 1 ov))
+                   (if (not (rx_push (aof vals) (aof n) (aof cap)
+                                     (coco_m_codes_of e (+ txt prev) (- s prev)
+                                                      0 (coco_m_nil e))))
+                       (block (set bad 1)
+                              (set rc (coco_m_resource_error e "memory")))
+                     (block
+                       (set prev en)
+                       (if (> en scan)
+                           (set scan en)
+                         (if (>= en tlen)
+                             (set scan (+ tlen 1))
+                           (set scan (rx_advance txt tlen en utf)))))))))))
+          (if (== bad 0)
+              (if (not (rx_push (aof vals) (aof n) (aof cap)
+                                (coco_m_codes_of e (+ txt prev) (- tlen prev)
+                                                 0 (coco_m_nil e))))
+                  (block (set bad 1)
+                         (set rc (coco_m_resource_error e "memory")))))
+          (pcre2_match_data_free md)
+          (pcre2_code_free code)
+          (free pat)
+          (free txt)
+          (if (!= bad 0)
+              (block (if vals (free vals)) (return rc)))
+          (let ((size_t lst . #'(coco_m_list e vals n)))
+            (free vals)
+            (return (coco_m_unify e (coco_m_arg e g 2) lst)))))
+
+  ;;; rx_escape(+Text, -Quoted)
+  (func rx_p_escape ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0)
+              (char * txt . nil) (size_t tlen . 0))
+          (if (not (rx_text e (coco_m_arg e g 0) (aof txt) (aof tlen) (aof rc)))
+              (return rc))
+          (let ((char * out . #'(cast (char *) (malloc (+ (* tlen 2) 1))))
+                (size_t j . 0))
+            (if (not out)
+                (block (free txt)
+                       (return (coco_m_resource_error e "memory"))))
+            (for ((size_t i . 0)) (< i tlen) ((++ i))
+                 (let ((int c . #'(cast int (nth i txt))))
+                   (if (or (== c 92) (== c 94) (== c 36) (== c 46)
+                           (== c 91) (== c 93) (== c 124) (== c 40)
+                           (== c 41) (== c 63) (== c 42) (== c 43)
+                           (== c 123) (== c 125) (== c 35) (== c 45))
+                       (block (set (nth j out) (cast char 92))
+                              (set j (+ j 1))))
+                   (set (nth j out) (cast char c))
+                   (set j (+ j 1))))
+            (set (nth j out) (cast char 0))
+            (free txt)
+            (let ((size_t lst . #'(coco_m_codes_of e out j 0 (coco_m_nil e))))
+              (free out)
+              (return (coco_m_unify e (coco_m_arg e g 1) lst))))))
+
+  ;;; rx_version(-Version)
+  (func rx_p_version ((coco_engine * e) (size_t g)) (out int)
+        (let ((char buf [64])
+              (int n . 0))
+          (set n (pcre2_config PCRE2_CONFIG_VERSION (cast (void *) buf)))
+          (if (< n 0) (return 0))
+          (return (coco_m_unify_atom e (coco_m_arg e g 0) buf))))
+
+  (static) (coco-emit-module-dispatch rx_dispatch *regex-predicates*)
+
+  ) ; impl-regex
+
+
+;;;; ------------------------------------------------------------------
+;;;; The target
+;;;; ------------------------------------------------------------------
+(source "regex.c"
+  (make :std #t :compile #f)
+
+  (@define (code "PCRE2_CODE_UNIT_WIDTH 8"))
+  (include <pcre2.h>)
+  (include <string.h>)
+  (include <stdlib.h>)
+  (include <stdio.h>)
+
+  (import "./sdk.cicili")
+  (import "./binding.cicili")
+  (coco-sdk)
+
+  (decl-regex)
+  (impl-regex)
+
+  (coco-deflibrary "regex" rx_dispatch *regex-prolog*))

@@ -6,7 +6,7 @@
 %%
 %% THE COCOLOG REWRITE OF index.py, and the Python is gone.
 %%
-%% Nothing here is written by hand except the thirty-six capability rows and
+%% Nothing here is written by hand except the thirty-eight capability rows and
 %% the eight exemplar rows, and the builder validates every path and every
 %% anchor those name. IN PYTHON THEY WERE LIST-OF-DICT LITERALS; here they are
 %% CLAUSES, which is the shape they should always have had -- `listing(ix_capability/5)'
@@ -621,6 +621,11 @@ ix_capability('files and paths', [file, directory, path, 'read a file'],
               [], ['self-checking program'], local).
 ix_capability('text and atoms', [string, text, atom, split, join, case],
               [text], ['self-checking program'], local).
+ix_capability('regular expressions',
+              [regex, 'regular expression', 'pattern match', matching, pcre, pcre2,
+               grep, sed, lookbehind, lookahead, backreference, 'named group',
+               capture, 'capture group', replace, substitution],
+              [regex, text], ['tier-2 library'], local).
 ix_capability('the operating system', [platform, 'which os', cpus, 'temp dir', environment,
                                        signal, signals, sigint, 'ctrl-c', interrupt, handler],
               [os, signal], ['self-checking program'], local).

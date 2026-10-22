@@ -55,6 +55,8 @@ modules/process/process.c
 modules/process/sdk.cicili
 modules/text/text.c
 modules/text/sdk.cicili
+modules/regex/regex.c
+modules/regex/sdk.cicili
 modules/ray/ray.c
 modules/ray/sdk.cicili
 modules/clay/clay.c

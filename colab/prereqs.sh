@@ -45,7 +45,7 @@ apt-get -qq update
 #                  invokes is in libtool-bin. Installing the wrong one
 #                  succeeds and leaves the build with no libtool.
 # gnupg            gpg and gpgv, which verify quicklisp.lisp below
-apt-get -qq install -y build-essential sbcl libtool-bin curl gnupg libcurl4-openssl-dev
+apt-get -qq install -y build-essential sbcl libtool-bin curl gnupg libcurl4-openssl-dev libpcre2-dev
 
 # clang++ 16 OR NEWER. ZiguratIP and cocolog compile through
 # tools/cc/cxx, which passes --gcc-install-dir so clang borrows a

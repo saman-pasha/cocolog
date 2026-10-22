@@ -259,7 +259,7 @@ in any of the four knowledge-base arrangements.
 | frames, images, vision, ML | `library(opencv)`, `library(ray)`, `library(torch)`, `library(tensorflow)`, `library(tensor_expr)` |
 | documents in and out | `library(json)`, `library(xml)`, `library(html)`; the round trip is the test |
 | cryptography and TLS | `library(ca)`, `library(tls)`, and the `sha`/`aes`/`der`/`x509` modules |
-| sockets, processes, streams, text | `library(tcp)`, `library(process)`, `library(stream)`, `library(text)`, `library(os)`, `library(signal)` |
+| sockets, processes, streams, text, regex | `library(tcp)`, `library(process)`, `library(stream)`, `library(text)`, `library(regex)`, `library(os)`, `library(signal)` |
 | graphs, paths, hex grids | `library(astar)`, `library(hex)` |
 | a whole proof captured and resumed | `cocolog start`, `step`, `run`; `lib/state.cicili` |
 | knowing how fast it is, honestly | `sh bench/langs.sh`, `sh bench/concurrency.sh`, [bench/README.md](bench/README.md) |
@@ -280,8 +280,8 @@ image and a macOS section are in the long tour. `make EMBED=0` builds the same
 binary without ZiguratIP.
 
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
-**74 lines: seven Cicili test binaries (term, syntax, solve, module, state,
-zigurat, shared) and sixty-seven Prolog cases**. Cases that need a server,
+**75 lines: seven Cicili test binaries (term, syntax, solve, module, state,
+zigurat, shared) and sixty-eight Prolog cases**. Cases that need a server,
 a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
 by name rather than failing, so read the lines and count the SKIPs, not only
 the verdict.
@@ -302,5 +302,5 @@ the verdict.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 2.9.4. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 2.10.0. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.
