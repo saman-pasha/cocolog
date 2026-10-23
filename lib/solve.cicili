@@ -657,7 +657,18 @@
     ;; scheduler resumes the task. NOT the inference-limit path: a direct
     ;; resume after that one restarts the clause. Appended.
     (member int         greenq)
-    (member int         gstop))
+    (member int         gstop)
+
+    ;; TWO STORES THIS ENGINE ALONE CAN SEE. FINDALL puts each solution in
+    ;; PST so the search's heap can be wound back without touching the
+    ;; shared store, and a ball a catch in this engine will take goes in
+    ;; BST for the same reason. Both are lazily initialised, hold terms only,
+    ;; and are freed with the engine. A private store's put does not take
+    ;; the green world's write barrier (`coco_store_put').
+    (member coco_store  pst)
+    (member int         pst_ready)
+    (member coco_store  bst)
+    (member int         bst_ready))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -4436,16 +4447,40 @@
           (set (-> m cyc_puts) (+ (-> m cyc_puts) 1))
           (return f)))
 
+  ;; defined with the engine's private stores, below `coco_engine_free'
+  (decl) (func coco_engine_bstore ((coco_engine * e)) (out coco_store *))
+
   (static)
   (func coco_throw ((coco_engine * e) (size_t ball)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
-              (size_t cell . #'(coco_store_put (-> e st) (-> e m) (coco_ball_storable (-> e m) ball)))
-              (size_t size . #'(- ($ (cof (-> e st)) len) cell))
+              ;; A CATCH IN THIS ENGINE takes the ball here, in this
+              ;; engine's private store: no other worker can see it, and
+              ;; the put must not stop the world. A ball nothing here
+              ;; catches is put in the shared store, where an OUTER engine
+              ;; can read it -- see `coco_engine_call_limited'.
+              (int hascatch . 0)
+              (coco_store * bst . st)
+              (size_t pmark . 0)
+              (size_t cell . 0) (size_t size . 0)
               ;; a builtin throwing again a ball its engine raised keeps the
               ;; lines that first throw wrote (1.10.17)
               (int keep . #'(-> m btkeep)))
           (set (-> m btkeep) 0)
+
+          ;; IS THERE A CATCH FRAME AT ALL? Only its presence matters for
+          ;; where the ball goes; whether its catcher unifies is the scan
+          ;; below.
+          (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
+            (if (== ($ (nth i (-> e choices)) kind) COCO_CH_CATCH)
+                (set hascatch 1)))
+          (if hascatch
+              (block
+               (set bst (coco_engine_bstore e))
+               (set pmark (-> bst len))))
+
+          (set cell (coco_store_put bst m (coco_ball_storable m ball)))
+          (set size (- (-> bst len) cell))
 
           ;; a window records the raise, and a journal keeps a portal call's,
           ;; before anything unwinds (1.10.12, 1.10.15)
@@ -4472,7 +4507,7 @@
               ;; `'$catch'(Catcher, Recovery)', built before the frame was
               ;; pushed and so below its heap mark -- it survived the unwinding
               (let ((size_t mark . #'($ (cof m) trail_len))
-                    (size_t fresh . #'(coco_store_read m st cell))
+                    (size_t fresh . #'(coco_store_read m bst cell))
                     (size_t catcher . #'(coco_arg m call 0))
                     (size_t recovery . #'(coco_arg m call 1)))
                 (if (coco_unify m catcher fresh)
@@ -4488,16 +4523,30 @@
                      (set (-> e nchoices) ci)
                      (set (-> e goals) (coco_k_push e recovery barrier goals))
                      ;; the ball is on the heap and its cell an orphan
-                     (set (-> st dead) (+ (-> st dead) size))
-                     (coco_store_maybe_compact st m)
+                     (if (== bst st)
+                         (block
+                          (set (-> st dead) (+ (-> st dead) size))
+                          (coco_store_maybe_compact st m))
+                       ;; the private cell can go with the recovered term
+                       (set (-> bst len) pmark))
                      (return 1)))
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))
 
-          ;; nothing caught it. The cell is kept so an OUTER engine can throw
-          ;; this same ball again -- see `coco_engine_call_limited' -- and the
-          ;; ball is read back one last time so that the message can name it,
-          ;; which is the difference between a report a person can act on and
+          ;; NOTHING HERE CAUGHT IT. If the ball is private, copy it to the
+          ;; shared store now -- the outer engine's catch (or the message)
+          ;; must be able to read it. This is the one write an uncaught
+          ;; throw pays, as it always did.
+          (if (!= bst st)
+              (block
+               (set cell (coco_store_put st m (coco_store_read m bst cell)))
+               (set size (- (-> st len) cell))
+               (set (-> bst len) pmark)))
+
+          ;; The cell is kept so an OUTER engine can throw this same ball
+          ;; again -- see `coco_engine_call_limited' -- and the ball is read
+          ;; back one last time so that the message can name it, which is the
+          ;; difference between a report a person can act on and
           ;; `an error occurred'.
           (set (-> e has_ball) 1)
           (set (-> e ball_cell) cell)
@@ -5035,6 +5084,15 @@
                 (block
                  (set last (-> x st))
                  (set seen (+ seen (coco_tables_mark_store m fb sb bb rb last)))))
+            ;; A FINDALL'S PRIVATE ANSWERS AND A CAUGHT BALL'S PRIVATE COPY
+            ;; name floats, strings, bigs and rats too; a table entry only
+            ;; they name is not dead.
+            (if (-> x pst_ready)
+                (set seen (+ seen (coco_tables_mark_store
+                                   m fb sb bb rb (aof (-> x pst))))))
+            (if (-> x bst_ready)
+                (set seen (+ seen (coco_tables_mark_store
+                                   m fb sb bb rb (aof (-> x bst))))))
             (set x (cast (coco_engine *) (-> x outer))))
           ;; the dead: a string's bytes go, the tail is cut off
           (for ((size_t i . 0)) (< i ns) ((++ i))
@@ -5443,9 +5501,33 @@
         (set (-> st name_m) (cast (void *) (coco_troot m))))
 
   (func coco_engine_free ((coco_engine * e))
+        (if (-> e pst_ready) (coco_store_free (aof (-> e pst))))
+        (if (-> e bst_ready) (coco_store_free (aof (-> e bst))))
         (free (-> e choices))
         (free (-> e tchoices))
         (memset e 0 (sizeof coco_engine)))
+
+  ;;; THE ENGINE'S OWN TERM STORE FOR FINDALL RESULTS. Made on first use;
+  ;;; no backend, no predicates, one machine's terms. `private' is what
+  ;;; makes `coco_store_put' skip the shared write barrier.
+  (func coco_engine_pstore ((coco_engine * e)) (out coco_store *)
+        (if (not (-> e pst_ready))
+            (let ((coco_store * p . #'(aof (-> e pst))))
+              (coco_store_init p)
+              (set (-> p private) 1)
+              (set (-> e pst_ready) 1)))
+        (return (aof (-> e pst))))
+
+  ;;; AND THE SAME FOR A BALL A CATCH IN THIS ENGINE WILL TAKE. Separate
+  ;;; from PST so a findall's half-built answer is not reset by an error
+  ;;; thrown and caught inside its goal.
+  (func coco_engine_bstore ((coco_engine * e)) (out coco_store *)
+        (if (not (-> e bst_ready))
+            (let ((coco_store * b . #'(aof (-> e bst))))
+              (coco_store_init b)
+              (set (-> b private) 1)
+              (set (-> e bst_ready) 1)))
+        (return (aof (-> e bst))))
 
   (func coco_engine_ask ((coco_engine * e) (size_t goal))
         (set (-> e nchoices) 0)
@@ -5513,16 +5595,21 @@
                           (size_t * out) (size_t * gp)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
+              ;; FINDALL'S OWN STORE: its answers are private to this
+              ;; engine, so copying them out of the search's heap is not a
+              ;; shared write and does not stop the other workers.
+              (coco_store * fst . #'(coco_engine_pstore e))
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
-              (size_t ball_size . 0) (size_t kept_cells . 0) (int nomem . 0)
+              (size_t ball_size . 0) (int nomem . 0)
               ;; WHAT THIS FRAME HOLDS ON THE HEAP, told to the collector for
               ;; the search (1.9.4): the template, the goal, and the caller's
               ;; own goal cell (GP, nil when it keeps none), each read back
               ;; from here after the search
               (size_t hold [3]) (size_t * holdp . nil) (size_t nhold . 3) (int held . 0)
-              (size_t gsaved . 0))
+              (size_t gsaved . 0)
+              (size_t pstart . 0))
           (set (nth 0 hold) template)
           (set (nth 1 hold) goal)
           (set (nth 2 hold) (? (== gp nil) 0 (cof gp)))
@@ -5538,10 +5625,9 @@
           (let ((size_t tmark . #'($ (cof m) trail_len))
                 (size_t hmark . #'($ (cof m) heap_len)))
 
-          ;; `kept' holds cell indices of its own until they are read back
-          ;; below, so the store is told where they are: a compaction during
-          ;; the search -- a `forall/2' IS one -- moves them with the rest
-          (coco_store_root_push st (aof kept) (aof n))
+          ;; `kept' holds PRIVATE cell indices; the private store never
+          ;; compacts, so the shared store knows nothing about them.
+          (set pstart (-> fst len))
           (set held (coco_heap_root_push m (aof holdp) (aof nhold)))
           (coco_engine_init (aof sub) m st)
           ;; the inner search spends the outer one's remaining budget, so a
@@ -5600,10 +5686,10 @@
                       (block (set nomem 1) (set ok 0) break))
                   (set kept nb)
                   (set cap ncap)))
-            ;; into the STORE, because the heap under us is about to be wound
-            ;; back past this point -- the template where the collector left it
-            (set (nth n kept) (coco_store_put st m (nth 0 hold)))
-            (set kept_cells (+ kept_cells (- (-> st len) (nth n kept))))
+            ;; into THIS ENGINE'S store, because the heap under us is about
+            ;; to be wound back past this point -- the template where the
+            ;; collector left it
+            (set (nth n kept) (coco_store_put fst m (nth 0 hold)))
             (set n (+ n 1))
             ;; THE STORE GIVEN LESS THAN IT ASKED stops this engine
             ;; (`coco_store_memreq'), whose next step is after the search
@@ -5642,9 +5728,9 @@
           (if threw
               (block (coco_undo_to m tmark)
                      (set ($ (cof m) heap_len) hmark)
-                     (coco_store_root_pop st)
                      (free kept)
-                     (set (-> st dead) (+ (-> st dead) (+ kept_cells ball_size)))
+                     (set (-> fst len) pstart)
+                     (set (-> st dead) (+ (-> st dead) ball_size))
                      ;; the backtrace the inner throw wrote, from inside the
                      ;; goal out through this engine, is the one kept
                      (set (-> m btkeep) 1)
@@ -5652,9 +5738,8 @@
 
           (if (not ok) (block (coco_undo_to m tmark)
                               (set ($ (cof m) heap_len) hmark)
-                              (coco_store_root_pop st)
                               (free kept)
-                              (set (-> st dead) (+ (-> st dead) kept_cells))
+                              (set (-> fst len) pstart)
                               (if nomem (return (? (== 2 (coco_mem_error e)) 2 0)))
                               (return 0)))
 
@@ -5664,17 +5749,15 @@
           (coco_undo_to m tmark)
           (set ($ (cof m) heap_len) hmark)
 
-          ;; back out of the store, in order, and on to the list
+          ;; back out of the private store, in order, and on to the list
           (let ((size_t lst . #'(coco_new_atom m "[]")))
             (for ((size_t i . n)) (> i 0) ((-- i))
-              (set lst (coco_cons m (coco_store_read m st (nth (- i 1) kept)) lst)))
-            (coco_store_root_pop st)
+              (set lst (coco_cons m (coco_store_read m fst (nth (- i 1) kept)) lst)))
             (free kept)
             (set (cof out) lst))
-          ;; the solutions are on the heap now and their store copies are
-          ;; orphans: a safe point, and one that produces garbage
-          (set (-> st dead) (+ (-> st dead) kept_cells))
-          (coco_store_maybe_compact st m)
+          ;; the solutions are on the heap now; the private cells go back
+          ;; with the len, and the next findall reuses the array
+          (set (-> fst len) pstart)
           (return 1))))
 
   (func coco_engine_call_limited ((coco_engine * e) (size_t goal)

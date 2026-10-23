@@ -153,6 +153,8 @@ the_loop(Run) :-
     section('the loop''s questions answer'),
     wq(Run, 'ray_open(64, 64, coco), ( ray_closing -> X = closing ; X = open ), ray_close, write(answer(X)), nl', R1),
     check('closing is false while nobody asked to close', R1, open),
+    wq(Run, 'ray_open(64, 64, coco), ray_exit_key(none), ray_exit_key(escape), ray_exit_key(none), ray_close, write(answer(exit_key)), nl', R7),
+    check('the exit key can be moved off Escape and turned off', R7, exit_key),
     wq(Run, 'ray_open(64, 64, coco), ray_fps(60), ray_begin, ray_clear(black), ray_end, ray_frame_time(T), ( ( T >= 0.0 ; T =:= 0 ) -> X = numeric ; X = odd(T) ), ray_close, write(answer(X)), nl', R2),
     check('frame time is a number after a frame', R2, numeric),
     wq(Run, 'ray_open(64, 64, coco), ray_mouse(X, Y), ( integer(X), integer(Y) -> R = ints ; R = odd ), ray_close, write(answer(R)), nl', R3),

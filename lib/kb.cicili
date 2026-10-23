@@ -1171,7 +1171,12 @@
     ;; cache (`coco_dynamic_known') needs a table to turn a predicate's
     ;; name id back into the string the cache holds. Set by
     ;; `coco_engine_init'; nil where no engine has run -- a bare consult.
-    (member void *    name_m))
+    (member void *    name_m)
+    ;; A STORE ONLY THIS ENGINE CAN SEE: findall's solutions and a caught
+    ;; ball live here, so copying them is not a write to the one shared
+    ;; store and does not stop the other workers. It holds terms only --
+    ;; no predicates, hooks or globals -- and its growth needs no barrier.
+    (member int       private))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -2191,7 +2196,12 @@
 
   (func coco_store_put ((coco_store * st) (coco_machine * m) (size_t t)) (out size_t)
         (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin nil)))
+              (int began . 0))
+          ;; A PRIVATE STORE IS ONE ENGINE'S OWN: its cells are read by that
+          ;; engine and no other, so a put is not a stop-the-world write.
+          ;; The shared store keeps the barrier it has always had.
+          (if (== (-> st private) 0)
+              (set began (coco_g_write_begin nil)))
           (let ((size_t base . #'(-> st len))
                 (size_t r . 0))
             (set (-> st put_vars) 0)
@@ -5063,6 +5073,7 @@
 
   (func coco_store_maybe_compact ((coco_store * st) (coco_machine * m)) (out int)
         (if (!= (-> st machines) nil) (return 0))
+        (if (!= (-> st private) 0) (return 0))
         (let ((size_t growth . #'(- (-> st len) (-> st mark)))
               (size_t dead . #'(-> st dead))
               (size_t live . #'(? (> (-> st len) (-> st dead)) (- (-> st len) (-> st dead)) 0)))

@@ -393,6 +393,37 @@ The capacity test is back. The same benchmark on 2.11.0:
 takes over 5 s; the copy-every-entry path took over 7 s, and the fixed path
 takes about 10 ms.
 
+## A task's reads and caught errors are private (2.11.4)
+
+CivV's Ask 4: `findall/3` copied every solution into the one shared store,
+and `coco_throw` put a caught ball there too, so in a world of two or more
+workers a read that wrote nothing the program could see paid the write
+barrier. At two workers 200,000 findall solutions cost 1,463 ms and 2,000
+caught raises 15 ms; at sixteen, 17,948 ms and 198 ms.
+
+Each engine now has two private term stores, made on first use and freed
+with the engine:
+
+* `pst` holds `findall/3`'s solutions while the search's heap is wound back;
+* `bst` holds a ball when a catch frame in that same engine will take it.
+
+A private store's put skips the green barrier (`coco_store_put`), because
+no other machine can see it. The table reclaimer marks both stores, so a
+float or string that only a findall result or a private ball names is not
+freed. A ball nothing in the engine catches is copied to the shared store
+before the engine reports it, where an outer engine can read it.
+
+The same benchmark on 2.11.4:
+
+| 2,000 iterations | one worker | two workers | sixteen workers |
+|---|---:|---:|---:|
+| `findall`, 3 solutions | 3 ms | 3 ms | 3 ms |
+| `findall`, 100 solutions | 55 ms | 56 ms | 67 ms |
+| a caught undefined goal | 2 ms | 2 ms | 2 ms |
+
+`test/async.pl` holds a two-worker ceiling over 200,000 solutions and 2,000
+caught raises.
+
 ## Limits, stated where a reader meets them
 
 * A signal delivered to a green thread's machine writes that machine's
