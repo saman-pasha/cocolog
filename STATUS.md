@@ -7336,3 +7336,7 @@ PROVED:
   binaries.
 - The dialect card's cites check, with two ranges the edit moved corrected
   (I1, W1).
+- The suite on 2.11.3, with the server up: 75 lines, red 0, in 20 minutes.
+  The 5 SKIPs are tensors, torch-graph, torch-grad, torch-replay and
+  tensorflow (no CUDA on this box). The lint case ran alone first, green in
+  173 s.
