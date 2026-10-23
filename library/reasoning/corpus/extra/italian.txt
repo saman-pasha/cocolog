@@ -4329,3 +4329,204 @@ The name "cremlino" means "Kremlin".
 # `la campaña militar', `la cúpula militar rusa': `militare' is the noun for a soldier in both genders, and so the
 # adjective agrees with either (the dictionary's first adjective for military is `bellico', a warlike one)
 "militare" is feminine.
+# The islands report (VIT-9485..9510, Italian into Spanish and English).
+# `le auto con targa estera': a number plate
+The feminine noun "targa" means "number plate".
+"targhe" is the plural of "targa".
+# `quelle per il trasporto merci': freight transport, one noun of two, and `merce' a commodity -- the
+# dictionary has the old `mercanzia' alone, and the Spanish `mercancía' is written `merce' now
+The masculine noun "trasporto merci" means "freight transport".
+"trasporti merci" is the plural of "trasporto merci".
+The feminine noun "merce" means "commodity".
+"merci" is the plural of "merce".
+# `un bel pò di gente': the source's spelling of `po'' (`un bel po' di quattrini' is the line before)
+The masculine noun "bel pò" means "good deal".
+# `la proposta ... suscitò un vespaio': an uproar
+The masculine noun "vespaio" means "uproar".
+"vespai" is the plural of "vespaio".
+# `delle macchinette che distribuiscono sacchetti di plastica': a machine -- `macchina' said again
+# first, so that it stays the word written for one (and a car before it, as the line above says)
+The feminine noun "macchina" means "machine".
+The feminine noun "macchinetta" means "machine".
+"macchinette" is the plural of "macchinetta".
+# `e paletta per raccogliere gli escrementi dei cani': a shovel, where the dictionary's is a bricklayer
+The feminine noun "paletta" means "shovel".
+"paletta" is not a person.
+# `contenitori automatici per la segatura': sawdust
+The feminine noun "segatura" means "sawdust".
+"segature" is the plural of "segatura".
+# `i clacson dei turisti': car horns, the same word in both numbers
+The masculine noun "clacson" means "car horn".
+"clacson" is the plural of "clacson".
+# `si sono rassegnati a muoversi': resigned to it, a reflexive sense of its own (the plain verb hands in
+# a resignation, `rassegnare le dimissioni', which the dictionary's entry gives)
+# (the plain verb said first, after the dictionary's own word for resigns, so that the reflexive sense is no
+# default of the word and `dimette' stays the word written: a reflexive meaning said first is the word's)
+The verb "dimette" means "resigns".
+The verb "rassegna" means "resigns".
+The reflexive verb "rassegna" means "becomes resigned to".
+# `muoversi in minitaxi': the same word in both numbers, and in Spanish
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxi" is the plural of "minitaxi".
+# `quelle strane vetturette a tre ruote': a small car, three-wheeled
+The feminine noun "vetturetta" means "small car".
+"vetturette" is the plural of "vetturetta".
+The adjective "a tre ruote" means "three-wheeled".
+"a tre ruote" is the plural of "a tre ruote".
+# `i mezzi a motore': motor vehicles, as `veicolo a motore' is
+The masculine noun "mezzo a motore" means "motor vehicle".
+"mezzi a motore" is the plural of "mezzo a motore".
+# `la tassa per la nettezza urbana': street cleaning
+The feminine noun "nettezza urbana" means "street cleaning".
+# `di pernottamenti in albergo': overnight stays
+The masculine noun "pernottamento" means "overnight stay".
+"pernottamenti" is the plural of "pernottamento".
+# `da depennare sul budget vacanze': to cross off
+The verb "depenna" means "crosses off".
+"depennano" is the plural of "depenna".
+"depennare" is the infinitive of "depenna".
+"depennato" is the participle of "depenna".
+# `dai prefetti', `130 mila milanesi': persons (eng-ita.dix gives the words)
+"prefetto" is a person.
+"milanese" is a person.
+# `soltanto nel week end', `per questo fine settimana': a weekend, the Italian word first
+The masculine noun "fine settimana" means "weekend".
+"fine settimana" is the plural of "fine settimana".
+"fine settimana" is not feminine.
+The masculine noun "week end" means "weekend".
+"week end" is the plural of "week end".
+# `con dovizia di cifre': abundance -- `abbondanza' said again first, so that it stays the word written
+The feminine noun "abbondanza" means "abundance".
+The feminine noun "dovizia" means "abundance".
+"dovizie" is the plural of "dovizia".
+# `290 mila vetture, tra cui 40 mila di stranieri': among them, one preposition of two
+The preposition "tra cui" means "among them".
+# `della zona montana bellunese': of Belluno (the monolingual dictionary has the noun alone)
+The adjective "bellunese" means "bellunese".
+"bellunesi" is the plural of "bellunese".
+# `e Via Krupp, resa più agibile': a street's name, the word and a capitalised word after it
+The word "via" begins the name.
+The word "viale" begins the name.
+The word "piazza" begins the name.
+The word "corso" begins the name.
+The word "vicolo" begins the name.
+# `540 mila lire': the currency, before the dictionary's lyre
+The feminine noun "lira" means "lira".
+# `Presto avremo anche contenitori automatici': soon, before the dictionary's early
+The adverb "presto" means "soon".
+# `vacanze a tutti i costi': at all costs
+The adverb "a tutti i costi" means "at all costs".
+# `più o meno 290 mila vetture': more or less, one adverb of three
+The adverb "più o meno" means "more or less".
+# `comporterà forti disagi agli automobilisti': entails, where the dictionary's is `comports'
+The verb "comporta" means "entails".
+# `l'analisi svolta dall'osservatorio': carried out, before the dictionary's `performs'; with its pronoun,
+# `si svolge', it takes place
+The verb "svolge" means "carries out".
+The reflexive verb "svolge" means "takes place".
+# `la Contravvenzione ... potrà oscillare da un minimo di 540 mila lire': ranges
+The verb "oscilla" means "ranges".
+# `Dovrebbero transitare più o meno 290 mila vetture': transit, where the dictionary's `passes' is
+# Spanish's `transcurre', time passing
+The verb "transita" means "transits".
+"transita" is intransitive.
+# `uno per nucleo familiare': a household, one noun of two
+The masculine noun "nucleo familiare" means "household".
+"nuclei familiari" is the plural of "nucleo familiare".
+# `sul budget vacanze': the holiday budget, one noun of two
+The masculine noun "budget vacanze" means "holiday budget".
+# `la probabilità di farla franca': getting away with it, the verb with its pronoun
+The verb "la fa franca" means "gets away with it".
+"farla franca" is the infinitive of "la fa franca".
+# `nel caso delle Eolie': the Aeolian Islands
+The name "eolie" means "Aeolian Islands".
+# `Nessun caso a parte, invece, a Ponza': a special case, one noun of three
+The masculine noun "caso a parte" means "special case".
+"casi a parte" is the plural of "caso a parte".
+# `a Ponza', `a Ischia e Procida', `a Linate e Malpensa': places that take `a' for `in', as a city does
+"capri" is a city.
+"ischia" is a city.
+"procida" is a city.
+"ponza" is a city.
+"linate" is a city.
+"malpensa" is a city.
+# `80 mila partenze e 70 mila arrivi': departures, before the dictionary's exit
+The feminine noun "partenza" means "departure".
+# `si aspettano, tra oggi e domani, 80 mila partenze': between today and tomorrow, one adverb
+The adverb "tra oggi e domani" means "between today and tomorrow".
+The adverb "fra oggi e domani" means "between today and tomorrow".
+# `130 mila milanesi partiranno senz'altro per le ferie': certainly, one adverb, where `senz'' and
+# `altro' were without others
+The adverb "senz'altro" means "certainly".
+# `Per il momento sono solo stime': for the moment, one adverb, where Spanish wrote `para el momento'
+The adverb "per il momento" means "for the moment".
+# `non subirà alcun calo di presenze': a decline, where the dictionary has `calo' only as the first
+# person of `cala'
+The masculine noun "calo" means "decline".
+"cali" is the plural of "calo".
+# `off limits per i "motorizzati"': motorists, where the dictionary has `motorizzati' only as the
+# participle of `motorizza' (the dictionary's `automobilista' said again first, so that it stays the
+# word written for a motorist)
+The noun "automobilista" means "motorist".
+The masculine noun "motorizzato" means "motorist".
+"motorizzati" is the plural of "motorizzato".
+"motorizzato" is a person.
+# `messe da parte le idee di ferree ordinanze': put aside, one verb of three words, where `messe' was
+# the masses and `da parte' the part
+The verb "mette da parte" means "puts aside".
+"mettono da parte" is the plural of "mette da parte".
+"mettere da parte" is the infinitive of "mette da parte".
+"messo da parte" is the participle of "mette da parte".
+"messa da parte" is the participle of "mette da parte".
+"messa da parte" is feminine.
+"messi da parte" is the participle of "mette da parte".
+"messi da parte" is the plural of "messo da parte".
+"messe da parte" is the participle of "mette da parte".
+"messe da parte" is feminine.
+"messe da parte" is the plural of "messa da parte".
+# `il sindaco si è dato ai servizi di pubblica utilità': has dedicated himself to them, the reflexive
+# verb's meaning of its own (the dictionary's `dedica' said again first, so that it stays the word
+# written for dedicates)
+The verb "dedica" means "dedicates".
+# (the plain `gives' said first: said after the reflexive sense, every `dare' was `dedicates' -- `dargli questa
+# soddisfazione' was `dedicate him this satisfaction', `darò tutto' `I will dedicate everything')
+The verb "dà" means "gives".
+The reflexive verb "dà" means "dedicates".
+# `si sono placati almeno i clacson dei turisti': calmed down, the reflexive verb's meaning of its own,
+# where it was `they have appeased the car horns'
+The verb "placa" means "appeases".
+The reflexive verb "placa" means "calms down".
+# `(avete presente quelle strane vetturette a tre ruote ...)': you know them, one verb of two words
+# (the dictionary's `sa' said again first, so that it stays the word written for knows)
+The verb "sa" means "knows".
+The verb "ha presente" means "knows".
+"hanno presente" is the plural of "ha presente".
+"ho presente" is the first person of "ha presente".
+"hai presente" is the second person of "ha presente".
+"abbiamo presente" is the first person of "hanno presente".
+"avete presente" is the second person of "hanno presente".
+"avere presente" is the infinitive of "ha presente".
+# `i cellulari non smettono di trillare': stop ringing, where the dictionary's `quits' is the word
+The verb "smette" means "stops".
+# `Le isole in questione non diventeranno certo aree pedonali': in question, an adjective of two words,
+# where `questione' was the issue
+The adjective "in questione" means "in question".
+"in questione" is the plural of "in questione".
+# `possono circolare i veicoli dei residenti': the vehicles circulate, the verb takes no object; and the
+# residents, a noun, where the dictionary has the adjective alone
+"circola" is intransitive.
+The noun "residente" means "resident".
+"residenti" is the plural of "residente".
+"residente" is a person.
+# `le macchine utilizzate da invalidi': the cars of the disabled, a noun, where the dictionary has
+# `invalidi' only as what `invalida' says
+The masculine noun "invalido" means "invalid".
+"invalidi" is the plural of "invalido".
+"invalido" is a person.
+# `i servizi di pubblica utilità', `quelle per il trasporto merci e di pubblica utilità': public utility,
+# one noun of two, where it was `public usefulness'
+The feminine noun "pubblica utilità" means "public utility".
+# `una frana ... è caduta ieri pomeriggio sulla statale 51': yesterday afternoon, one adverb of two words, as
+# `ieri sera' is last night
+The adverb "ieri pomeriggio" means "yesterday afternoon".
+The adverb "ieri mattina" means "yesterday morning".

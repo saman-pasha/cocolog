@@ -689,3 +689,12 @@
 <e><p><l>discharge<s n="n"/></l><r>vertido<s n="n"/><s n="m"/></r></p></e>
 # `i curatori dell'indagine': the curators
 <e><p><l>curator<s n="n"/></l><r>curador<s n="n"/><s n="m"/></r></p></e>
+# The islands report (VIT-9485..9510): `si sono rassegnati' is `se han resignado' -- the verb's forms (its
+# reflexive sense is a line of spanish.txt), read only: `dimitir' stays the Spanish for resign
+<e r="RL"><p><l>resign<s n="vblex"/></l><r>resignar<s n="vblex"/></r></p></e>
+# `Dovrebbero transitare ... 290 mila vetture': transit, where the Italian dictionary's `passes' is
+# `transcurre', time passing
+<e><p><l>transit<s n="vblex"/></l><r>transitar<s n="vblex"/></r></p></e>
+# `le idee di ferree ordinanze come quella dell'estate scorsa': an ordinance, which the bilingual
+# dictionary lacks (the Spanish one has `ordenanza')
+<e><p><l>ordinance<s n="n"/></l><r>ordenanza<s n="n"/><s n="f"/></r></p></e>

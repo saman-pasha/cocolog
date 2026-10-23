@@ -1211,3 +1211,32 @@
 # `El ministro de Defensa ... enfrió ayer el optimismo' (the Yeltsin report, into Italian): cooled -- the dictionary's
 # Italian verb for it is `rinfrescare', to refresh
 <e><p><l>cool<s n="vblex"/></l><r>raffreddare<s n="vblex"/></r></p></e>
+# The islands report (VIT-9485..9510): `in piazzetta', a square, read only -- `piazza' stays the Italian for one
+<e r="RL"><p><l>square<s n="n"/></l><r>piazzetta<s n="n"/><s n="f"/></r></p></e>
+# `Via Krupp, resa più agibile': accessible, read only -- `accessibile' stays the Italian for it
+<e r="RL"><p><l>accessible<s n="adj"/></l><r>agibile<s n="adj"/><s n="mf"/></r></p></e>
+# `sacchetti di plastica': bags, read only -- `borsa' stays the Italian for a bag
+<e r="RL"><p><l>bag<s n="n"/></l><r>sacchetto<s n="n"/><s n="m"/></r></p></e>
+# `i cellulari non smettono di trillare': ring, read only
+<e r="RL"><p><l>ring<s n="vblex"/></l><r>trillare<s n="vblex"/></r></p></e>
+# `si sono rassegnati a muoversi': the verb's forms (its reflexive sense is a line of italian.txt), read only --
+# `dimettere' stays the Italian for resign
+<e r="RL"><p><l>resign<s n="vblex"/></l><r>rassegnare<s n="vblex"/></r></p></e>
+# `dal divieto di sbarco': disembarkment, the Spanish `desembarco'
+<e><p><l>disembarkment<s n="n"/></l><r>sbarco<s n="n"/><s n="m"/></r></p></e>
+# `auto, moto e motorini': mopeds, read only -- `ciclomotore' stays the Italian for one
+<e r="RL"><p><l>moped<s n="n"/></l><r>motorino<s n="n"/><s n="m"/></r></p></e>
+# `ci saranno multe, addirittura "salate"': steep, said of a price, read only as expensive -- `caro' stays
+# the Italian for it (and salty water reads as expensive: the dictionary has no `salato' at all)
+<e r="RL"><p><l>expensive<s n="adj"/></l><r>salato<s n="adj"/></r></p></e>
+# `è assicurato dai prefetti': prefects
+<e><p><l>prefect<s n="n"/></l><r>prefetto<s n="n"/><s n="m"/></r></p></e>
+# `il popolare ritornello': a refrain
+<e><p><l>refrain<s n="n"/></l><r>ritornello<s n="n"/><s n="m"/></r></p></e>
+# `130 mila milanesi': the Milanese, the noun and the adjective
+<e><p><l>Milanese<s n="n"/></l><r>milanese<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>Milanese<s n="adj"/></l><r>milanese<s n="adj"/><s n="mf"/></r></p></e>
+# `290 mila vetture': cars, read only -- `macchina' stays the Italian for a car
+<e r="RL"><p><l>car<s n="n"/></l><r>vettura<s n="n"/><s n="f"/></r></p></e>
+# `della zona montana bellunese': mountainous, read only -- `montagnoso' stays the Italian for it
+<e r="RL"><p><l>mountainous<s n="adj"/></l><r>montano<s n="adj"/></r></p></e>

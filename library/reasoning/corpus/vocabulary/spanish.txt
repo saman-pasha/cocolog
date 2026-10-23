@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20449 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20452 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -1990,6 +1990,80 @@ The name "cerdeña" means "Sardinia".
 The name "sicilia" means "Sicily".
 The name "israel" means "Israel".
 The name "kremlin" means "Kremlin".
+The feminine noun "matrícula" means "number plate".
+"matrículas" is the plural of "matrícula".
+The masculine noun "transporte de mercancías" means "freight transport".
+"transportes de mercancías" is the plural of "transporte de mercancías".
+The feminine noun "bolsa" means "bag".
+The verb "suena" means "sounds".
+The verb "suena" means "rings".
+The masculine noun "claxon" means "car horn".
+"cláxones" is the plural of "claxon".
+The verb "dimite" means "resigns".
+The verb "resigna" means "resigns".
+The reflexive verb "resigna" means "becomes resigned to".
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxis" is the plural of "minitaxi".
+The masculine noun "cochecito" means "pram".
+The masculine noun "cochecito" means "small car".
+The adjective "de tres ruedas" means "three-wheeled".
+"de tres ruedas" is the plural of "de tres ruedas".
+The feminine noun "limpieza urbana" means "street cleaning".
+The feminine noun "pernoctación" means "overnight stay".
+"pernoctaciones" is the plural of "pernoctación".
+The verb "tacha" means "crosses off".
+The masculine noun "prefecto" means "prefect".
+"prefectos" is the plural of "prefecto".
+"prefecto" is a person.
+The masculine noun "estribillo" means "refrain".
+The masculine noun "milanés" means "milanese".
+"milaneses" is the plural of "milanés".
+"milanés" is a person.
+The masculine adjective "milanés" means "milanese".
+The feminine adjective "milanesa" means "milanese".
+"milanesas" is the plural of "milanesa".
+The masculine adjective "bellunés" means "bellunese".
+The feminine adjective "bellunesa" means "bellunese".
+"belluneses" is the plural of "bellunés".
+"bellunesas" is the plural of "bellunesa".
+The masculine noun "fin de semana" means "weekend".
+"fines de semana" is the plural of "fin de semana".
+"fin de semana" is not feminine.
+The preposition "entre los cuales" means "among them".
+The feminine noun "lira" means "lira".
+The adverb "a toda costa" means "at all costs".
+The adverb "más o menos" means "more or less".
+The verb "conlleva" means "entails".
+The masculine noun "medio ambiente" means "environment".
+The verb "realiza" means "realises".
+The verb "realiza" means "carries out".
+The verb "recoge" means "collects".
+The masculine noun "núcleo familiar" means "household".
+"núcleos familiares" is the plural of "núcleo familiar".
+The masculine noun "presupuesto de vacaciones" means "holiday budget".
+The verb "se sale con la suya" means "gets away with it".
+"salirse con la suya" is the infinitive of "se sale con la suya".
+The name "islas eolias" means "Aeolian Islands".
+The masculine noun "caso especial" means "special case".
+"casos especiales" is the plural of "caso especial".
+The adverb "entre hoy y mañana" means "between today and tomorrow".
+The masculine noun "peaje" means "toll".
+The masculine noun "peaje" means "tollgate".
+The adverb "por el momento" means "for the moment".
+The word "de" begins the range.
+The verb "aparta" means "puts aside".
+The masculine adjective "férreo" means "iron".
+"férreos" is the plural of "férreo".
+The feminine adjective "férrea" means "iron".
+"férreas" is the plural of "férrea".
+The verb "calma" means "calms".
+The reflexive verb "calma" means "calms down".
+"para" takes "de" before the infinitive.
+The adjective "en cuestión" means "in question".
+"en cuestión" is the plural of "en cuestión".
+The feminine noun "utilidad pública" means "public utility".
+The adverb "ayer por la tarde" means "yesterday afternoon".
+The adverb "ayer por la mañana" means "yesterday morning".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -2184,6 +2258,8 @@ The masculine noun "vertido" means "discharge".
 The masculine noun "curador" means "curator".
 "curadores" is the plural of "curador".
 "curador" is a person.
+The feminine noun "ordenanza" means "ordinance".
+"ordenanzas" is the plural of "ordenanza".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -30346,6 +30422,58 @@ The verb "convulsiona" means "convulses".
 "convulsionadas" is the plural of "convulsionada".
 "convulsionar" is the infinitive of "convulsiona".
 "convulsionando" is the gerund of "convulsiona".
+The verb "transita" means "transits".
+"transitan" is the plural of "transita".
+"transitamos" is the first person of "transitan".
+"transitáis" is the second person of "transitan".
+"transito" is the first person of "transita".
+"transitas" is the second person of "transita".
+"transitó" is the past of "transita".
+"transitaron" is the past of "transitan".
+"transitamos" is the first person of "transitaron".
+"transitasteis" is the second person of "transitaron".
+"transité" is the first person of "transitó".
+"transitaste" is the second person of "transitó".
+"transitaba" is the imperfect of "transita".
+"transitaban" is the imperfect of "transitan".
+"transitábamos" is the first person of "transitaban".
+"transitabais" is the second person of "transitaban".
+"transitabas" is the second person of "transitaba".
+"transitará" is the future of "transita".
+"transitarán" is the plural of "transitará".
+"transitaremos" is the first person of "transitarán".
+"transitaréis" is the second person of "transitarán".
+"transitaré" is the first person of "transitará".
+"transitarás" is the second person of "transitará".
+"transitaría" is the conditional of "transita".
+"transitarían" is the plural of "transitaría".
+"transitaríamos" is the first person of "transitarían".
+"transitaríais" is the second person of "transitarían".
+"transitarías" is the second person of "transitaría".
+"transite" is the subjunctive of "transita".
+"transiten" is the plural of "transite".
+"transitemos" is the first person of "transiten".
+"transites" is the second person of "transite".
+"transitara" is the past subjunctive of "transita".
+"transitaran" is the plural of "transitara".
+"transitáramos" is the first person of "transitaran".
+"transitarais" is the second person of "transitaran".
+"transitaras" is the second person of "transitara".
+"transita" is the imperative of "transita".
+"transites" is the negative imperative of "transita".
+"transitad" is the imperative of "transitan".
+"transitéis" is the negative imperative of "transitan".
+"transitemos" is the hortative of "transita".
+"transitado" is the participle of "transita".
+"transitada" is the participle of "transita".
+"transitada" is feminine.
+"transitados" is the participle of "transita".
+"transitados" is the plural of "transitado".
+"transitadas" is the participle of "transita".
+"transitadas" is feminine.
+"transitadas" is the plural of "transitada".
+"transitar" is the infinitive of "transita".
+"transitando" is the gerund of "transita".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -121811,6 +121939,58 @@ The verb "recobra" means "regains".
 "recobradas" is the plural of "recobrada".
 "recobrar" is the infinitive of "recobra".
 "recobrando" is the gerund of "recobra".
+The verb "resigna" means "resigns".
+"resignan" is the plural of "resigna".
+"resignamos" is the first person of "resignan".
+"resignáis" is the second person of "resignan".
+"resigno" is the first person of "resigna".
+"resignas" is the second person of "resigna".
+"resignó" is the past of "resigna".
+"resignaron" is the past of "resignan".
+"resignamos" is the first person of "resignaron".
+"resignasteis" is the second person of "resignaron".
+"resigné" is the first person of "resignó".
+"resignaste" is the second person of "resignó".
+"resignaba" is the imperfect of "resigna".
+"resignaban" is the imperfect of "resignan".
+"resignábamos" is the first person of "resignaban".
+"resignabais" is the second person of "resignaban".
+"resignabas" is the second person of "resignaba".
+"resignará" is the future of "resigna".
+"resignarán" is the plural of "resignará".
+"resignaremos" is the first person of "resignarán".
+"resignaréis" is the second person of "resignarán".
+"resignaré" is the first person of "resignará".
+"resignarás" is the second person of "resignará".
+"resignaría" is the conditional of "resigna".
+"resignarían" is the plural of "resignaría".
+"resignaríamos" is the first person of "resignarían".
+"resignaríais" is the second person of "resignarían".
+"resignarías" is the second person of "resignaría".
+"resigne" is the subjunctive of "resigna".
+"resignen" is the plural of "resigne".
+"resignemos" is the first person of "resignen".
+"resignes" is the second person of "resigne".
+"resignara" is the past subjunctive of "resigna".
+"resignaran" is the plural of "resignara".
+"resignáramos" is the first person of "resignaran".
+"resignarais" is the second person of "resignaran".
+"resignaras" is the second person of "resignara".
+"resigna" is the imperative of "resigna".
+"resignes" is the negative imperative of "resigna".
+"resignad" is the imperative of "resignan".
+"resignéis" is the negative imperative of "resignan".
+"resignemos" is the hortative of "resigna".
+"resignado" is the participle of "resigna".
+"resignada" is the participle of "resigna".
+"resignada" is feminine.
+"resignados" is the participle of "resigna".
+"resignados" is the plural of "resignado".
+"resignadas" is the participle of "resigna".
+"resignadas" is feminine.
+"resignadas" is the plural of "resignada".
+"resignar" is the infinitive of "resigna".
+"resignando" is the gerund of "resigna".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".

@@ -3282,3 +3282,124 @@ The name "sicilia" means "Sicily".
 The name "israel" means "Israel".
 # `El Kremlin confirmó ayer oficialmente los temores': the Kremlin, Italian's `il Cremlino'
 The name "kremlin" means "Kremlin".
+# The islands report (VIT-9485..9510, Italian into Spanish): the words its English needs written.
+# `le auto con targa estera': a number plate
+The feminine noun "matrícula" means "number plate".
+"matrículas" is the plural of "matrícula".
+# `il trasporto merci': freight transport
+The masculine noun "transporte de mercancías" means "freight transport".
+"transportes de mercancías" is the plural of "transporte de mercancías".
+# `sacchetti di plastica': bags -- the dictionary's first is `bolso', a handbag
+The feminine noun "bolsa" means "bag".
+# `i cellulari non smettono di trillare': rings, the verb, said after `sounds' so that it stays the reading
+The verb "suena" means "sounds".
+The verb "suena" means "rings".
+# `i clacson dei turisti': car horns
+The masculine noun "claxon" means "car horn".
+"cláxones" is the plural of "claxon".
+# `si sono rassegnati a muoversi': resigned to it, a reflexive sense (eng-spa.dix gives the verb's forms)
+# (the plain verb said first, after the dictionary's own word for resigns, so that the reflexive sense is no
+# default of the word and `dimite' stays the word written)
+The verb "dimite" means "resigns".
+The verb "resigna" means "resigns".
+The reflexive verb "resigna" means "becomes resigned to".
+# `in minitaxi'
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxis" is the plural of "minitaxi".
+# `quelle strane vetturette a tre ruote': a small car, `pram' said again first so that it stays the reading
+The masculine noun "cochecito" means "pram".
+The masculine noun "cochecito" means "small car".
+The adjective "de tres ruedas" means "three-wheeled".
+"de tres ruedas" is the plural of "de tres ruedas".
+# `la tassa per la nettezza urbana': street cleaning
+The feminine noun "limpieza urbana" means "street cleaning".
+# `di pernottamenti in albergo': overnight stays
+The feminine noun "pernoctación" means "overnight stay".
+"pernoctaciones" is the plural of "pernoctación".
+# `da depennare sul budget vacanze': to cross off
+The verb "tacha" means "crosses off".
+# `dai prefetti': prefects, persons
+The masculine noun "prefecto" means "prefect".
+"prefectos" is the plural of "prefecto".
+"prefecto" is a person.
+# `il popolare ritornello': a refrain, before the dictionary's chorus
+The masculine noun "estribillo" means "refrain".
+# `130 mila milanesi': the Milanese, persons, and the adjective
+The masculine noun "milanés" means "milanese".
+"milaneses" is the plural of "milanés".
+"milanés" is a person.
+The masculine adjective "milanés" means "milanese".
+The feminine adjective "milanesa" means "milanese".
+"milanesas" is the plural of "milanesa".
+# `della zona montana bellunese': of Belluno
+The masculine adjective "bellunés" means "bellunese".
+The feminine adjective "bellunesa" means "bellunese".
+"belluneses" is the plural of "bellunés".
+"bellunesas" is the plural of "bellunesa".
+# `soltanto nel week end': a weekend
+The masculine noun "fin de semana" means "weekend".
+"fines de semana" is the plural of "fin de semana".
+"fin de semana" is not feminine.
+# `290 mila vetture, tra cui 40 mila di stranieri': among them, `entre los cuales', one preposition of three -- `entre
+# ellos' joined was read as one word, and `cuatro palestinos, entre ellos un niño de 10 años, y dos israelís' lost its commas
+The preposition "entre los cuales" means "among them".
+# `540 mila lire': the currency, before the dictionary's lyre
+The feminine noun "lira" means "lira".
+# `vacanze a tutti i costi': at all costs
+The adverb "a toda costa" means "at all costs".
+# `più o meno 290 mila vetture': more or less
+The adverb "más o menos" means "more or less".
+# `comporterà forti disagi agli automobilisti': entails (the dictionary's first is `comports')
+The verb "conlleva" means "entails".
+# `del Ministero dell'Ambiente': the environment, before the dictionary's `entorno', the surroundings
+The masculine noun "medio ambiente" means "environment".
+# `l'analisi svolta dall'osservatorio': carried out, `realises' said again first so that it stays the reading
+The verb "realiza" means "realises".
+The verb "realiza" means "carries out".
+# `per raccogliere gli escrementi': collects, the word written -- the dictionary's first is `colecciona',
+# a collector's
+The verb "recoge" means "collects".
+# `uno per nucleo familiare': a household
+The masculine noun "núcleo familiar" means "household".
+"núcleos familiares" is the plural of "núcleo familiar".
+# `sul budget vacanze': the holiday budget
+The masculine noun "presupuesto de vacaciones" means "holiday budget".
+# `la probabilità di farla franca': getting away with it, `salirse con la suya'
+The verb "se sale con la suya" means "gets away with it".
+"salirse con la suya" is the infinitive of "se sale con la suya".
+# `nel caso delle Eolie': the Aeolian Islands
+The name "islas eolias" means "Aeolian Islands".
+# `Nessun caso a parte': a special case
+The masculine noun "caso especial" means "special case".
+"casos especiales" is the plural of "caso especial".
+# `tra oggi e domani': between today and tomorrow
+The adverb "entre hoy y mañana" means "between today and tomorrow".
+# `ai caselli intorno al capoluogo lombardo': the tollgates, `toll' said again first so that it stays the reading
+The masculine noun "peaje" means "toll".
+The masculine noun "peaje" means "tollgate".
+# `Per il momento sono solo stime': for the moment, one adverb
+The adverb "por el momento" means "for the moment".
+# `dal 10 marzo al 31 ottobre', `da un minimo di 540 mila lire ai due milioni': a range is `de ... a',
+# where the lesson's word for `from', `desde', wrote `desde el 10 de marzo al 31 de octubre'
+The word "de" begins the range.
+# `messe da parte le idee': put aside, `apartadas las ideas'
+The verb "aparta" means "puts aside".
+# `le idee di ferree ordinanze': iron, the adjective, where Spanish wrote the noun `planchas', the iron
+# for clothes
+The masculine adjective "férreo" means "iron".
+"férreos" is the plural of "férreo".
+The feminine adjective "férrea" means "iron".
+"férreas" is the plural of "férrea".
+# `si sono placati almeno i clacson': `se han calmado', the reflexive verb's meaning of its own
+The verb "calma" means "calms".
+The reflexive verb "calma" means "calms down".
+# `i cellulari non smettono di trillare': `no paran de sonar', where `abandonan sonar' was the text
+"para" takes "de" before the infinitive.
+# `Le isole in questione': `las islas en cuestión'
+The adjective "en cuestión" means "in question".
+"en cuestión" is the plural of "en cuestión".
+# `di pubblica utilità': `de utilidad pública'
+The feminine noun "utilidad pública" means "public utility".
+# `ieri pomeriggio', `ieri mattina': `ayer por la tarde', `ayer por la mañana'
+The adverb "ayer por la tarde" means "yesterday afternoon".
+The adverb "ayer por la mañana" means "yesterday morning".
