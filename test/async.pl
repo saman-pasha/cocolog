@@ -168,6 +168,7 @@ main :-
     foreign_write,
     foreign_thread,
     table_growth,
+    private_reads,
     channels,
     failures,
     shared_store,
@@ -288,6 +289,27 @@ table_growth :-
     ( Ms < 5000 -> Speed = fast ; Speed = slow ),
     check('20,000 floats in a green task', Ran, yes),
     check('the table did not copy itself at every float', Speed, fast).
+
+%% A FINDALL'S SOLUTIONS AND A CAUGHT BALL ARE THE TASK'S OWN. Before
+%% 2.11.4 they were copied into the one shared store, and each copy was a
+%% write that stopped the other workers: 200,000 solutions cost 1.4 s at
+%% two workers and 18 s at sixteen, against 64 ms on one. A caught raise
+%% paid the same at 15/198 ms. They now live in private per-engine stores
+%% (`coco_engine_pstore'/`bst'); this is the ASK 4 ceiling, loose enough
+%% for a slow box and impossible for the shared-store path.
+private_reads :-
+    section('reads and caught raises stay local to the task'),
+    scratch(D),
+    atom_concat(D, '/private-reads.pl', Path),
+    fixture(Path,
+            [ 'main :- async_run(probe, _).',
+              'probe :- get_time(T0), forall(between(1, 2000, _), findall(X, between(1, 100, X), _)), get_time(T1), Ms is round((T1-T0)*1000), ( Ms < 1000 -> F = fast ; F = slow(Ms) ), get_time(T2), forall(between(1, 2000, _), (catch(nope_undefined(_), _, fail) -> true ; true)), get_time(T3), Es is round((T3-T2)*1000), ( Es < 1000 -> E = fast ; E = slow(Es) ), findall(V, (between(1, 20000, I), V is I * 1.5, (I mod 5000 =:= 0 -> garbage_collect ; true)), Vs), length(Vs, VL), last(Vs, VLast), ( VL =:= 20000, VLast =:= 30000.0 -> V = floats_ok ; V = floats_bad ), write(answer(F-E-V)), nl.' ]),
+    cocolog(C),
+    sh_join(['COCOLOG_GREEN_WORKERS=2 ', C, ' run ', Path, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Exit),
+    check('200,000 findall solutions, 2,000 caught raises and 20,000 floats at two workers',
+          Out-Exit, 'answer(fast-fast-floats_ok)'-0),
+    shl(['rm -rf ', D]).
 
 %% ---- channels ------------------------------------------------------------
 channels :-

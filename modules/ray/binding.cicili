@@ -69,6 +69,7 @@
      (decl) (func GetScreenWidth () (out int))
      (decl) (func GetScreenHeight () (out int))
      (decl) (func SetTargetFPS ((int fps)))
+     (decl) (func SetExitKey ((int key)))
      (decl) (func SetTraceLogLevel ((int logLevel)))
      (decl) (func BeginDrawing ())
      (decl) (func EndDrawing ())

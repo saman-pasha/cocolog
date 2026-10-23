@@ -78,6 +78,7 @@
 ;;;;   ray_open(+Width, +Height, +Title)                  InitWindow; fails if no window came
 ;;;;   ray_close/0
 ;;;;   ray_closing/0                                      WindowShouldClose: the loop's exit
+;;;;   ray_exit_key(+Key)                                 SetExitKey: which key raises closing; `none' turns it off
 ;;;;   ray_ready/0
 ;;;;   ray_screen_size(-W, -H)                            GetScreenWidth/Height: the window's, in the units ray_rect draws in
 ;;;;   ray_fps(+Target)                                   SetTargetFPS
@@ -141,6 +142,7 @@
   '(("ray_open"        3 ray_p_open)
     ("ray_close"       0 ray_p_close)
     ("ray_closing"     0 ray_p_closing)
+    ("$ray_exit_key"   1 ray_p_exit_key)
     ("ray_ready"       0 ray_p_ready)
     ("ray_screen_size" 2 ray_p_screen_size)
     ("ray_fps"         1 ray_p_fps)
@@ -285,6 +287,10 @@
            "ray_keycode(K, C) :- atom_codes(K, [X]), ( X >= 0'a, X =< 0'z -> C is X - 32 ; C = X )."
            "ray_key_down(K) :- ray_keycode(K, C), '$ray_key_down'(C)."
            "ray_key_pressed(K) :- ray_keycode(K, C), '$ray_key_pressed'(C)."
+           ;; raylib's KEY_NULL is 0, which turns the exit key off; `none'
+           ;; names that rather than making a caller know the number.
+           "ray_exit_key(none) :- '$ray_exit_key'(0)."
+           "ray_exit_key(K) :- ray_keycode(K, C), '$ray_exit_key'(C)."
 
            ;; ---- mouse buttons and log levels, same shape ----
            "ray_button(left, 0). ray_button(right, 1). ray_button(middle, 2)."
@@ -470,6 +476,16 @@
 
   (func ray_p_closing ((coco_engine * e) (size_t g)) (out int)
         (return (ray_yes (WindowShouldClose))))
+
+  ;;; raylib's WindowShouldClose is the close button AND the exit key; this
+  ;;; moves the second, so a game that uses Escape for a menu can still hear
+  ;;; the button. `none' is KEY_NULL (0), the off switch.
+  (func ray_p_exit_key ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 k . 0))
+          (let ((int rc . #'(ray_iarg e g 0 (aof k))))
+            (if (!= rc 1) (return rc)))
+          (SetExitKey (cast int k))
+          (return 1)))
 
   (func ray_p_ready ((coco_engine * e) (size_t g)) (out int)
         (return (ray_yes (IsWindowReady))))
