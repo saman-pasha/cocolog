@@ -370,6 +370,7 @@ main :-
     section_75,
     section_76,
     section_77,
+    section_78,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -9390,6 +9391,322 @@ The masculine noun "sabato" means "saturday". The adverb "attualmente" means "cu
 The adjective "simile" means "similar". The verb "riesce" means "attains". "riesce" takes "a" before the infinitive. The conjunction "che" means "than".
 "nelle" is the contraction of "in le". The word "quello" replaces the noun. The masculine pronoun "quello" means "that".
 The masculine noun "occhio" means "eye". The verb "tiene" means "holds". "d''" is the elision of "di".').
+
+section_78 :-
+    format("~n78. an Italian report on the Venice canals, into Spanish and English: of a name, a phrase that is a connector, a verb of seeming, ends up, appears, turns out, a verb of several words, per cent, from and to, ago, as many as, the bottom of, the copula left out, the partitive after si, a concession, the passive's perfect, made of, even than, there, not so much as, even and also before a phrase, therefore, a participle and its adverb, that of, nearby, the plural in -os, no definite phrase after hay, an adverb after a quotation, from and until, to after a modal, many of which~n", []),
+    lesson_78(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the banks section''s Spanish lesson and an eighth part, under its own name', NS),
+    lesson_78(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_78_1, section_78_2, section_78_3, section_78_4, section_78_5, section_78_6, section_78_7,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_78(L, Text) :- lesson_77(L, A), lesson_78(L, 8, B), atomic_list_concat([A, ' ', B], Text).
+
+section_78_1 :-
+    reason_translate('Roberto Zonta del Cnr dorme.', italian, english, S78V1),
+    must('`DEL'' AFTER A FIRST NAME AND A SURNAME IS THE PREPOSITION AND ITS ARTICLE: `secondo i curatori dell''indagine, Roberto Zonta del Cnr e Mario Scattolin del comune'' are of the Cnr and of the town council, and joined it was one name, `Roberto Zonta del Cnr'' (tr_particle_names/4)', S78V1,
+          'Roberto Zonta of the Cnr sleeps.'),
+    reason_translate('Joseph Guarnerius del Gesù dorme.', italian, english, S78V2),
+    must('GUARD: ... before an acronym only (tr_acronym_word/1): `su constructor, Joseph Guarnerius del Gesù, de Cremona'' keeps the luthier''s name, and it was `Joseph Guarnerius of the Gesù''', S78V2,
+          'Joseph Guarnerius del Gesù sleeps.'),
+    reason_translate('E infatti conferma le voci.', italian, english, S78V3),
+    must('A WORD THAT IS A NOUN TOO IS NO COMMAND WHERE A THIRD PERSON IS READ: `E infatti conferma indirettamente le voci'' tells what he does, and with `conferma'' a noun as well (the line `La conferma di un sospetto'' needs) the third person was turned down and the command took it, `And in fact confirm the voices'' (tr_third_person_command/3, tr_verb_form_any/1)', S78V3,
+          'And in fact they confirm the voices.'),
+    reason_translate('Il cane dorme - conferma Casotto - Rosi mangia.', italian, english, S78V4),
+    must('... and no two names are joined across a dash after it: `l''Egibren - conferma Casotto - Rosi sapeva del farmaco'' is Casotto confirming, and after `conferma'' as a noun the two names were one, `Casotto - Rosi'', and the sentence was refused (tr_dash_names/3)', S78V4,
+          'The dog sleeps – Casotto confirms – Rosi eats.'),
+    reason_translate('Ricordo il giorno in cui il cane mangiava.', italian, english, S78V5),
+    must('A CONNECTOR THAT IS A PHRASE AND ITS RELATIVE IS THE PHRASE AFTER A VERB: `il giorno in cui'' is the lesson''s connector `when'', and joined after `sembra'' it was `Still seem, far anyway when one will be able''; taken apart after a verb (tr_unjoin_when/3) it is the day and its relative clause, which English writes `when'' after a time (tr_relative_out/5), and the time''s reader leaves the relative to the phrase''s readers (tr_complements0/4)', S78V5,
+          'I remember the day when the dog ate.'),
+    reason_translate('Il giorno in cui il cane dorme, il gatto mangia.', italian, english, S78V6),
+    must('GUARD: at the head of a clause it is the connector still (`Il giorno in cui Dini si dimetterà, ...'', the Tatarella interview)', S78V6,
+          'When the dog sleeps, the cat eats.'),
+    reason_translate('Il cane dorme e il giorno in cui il gatto mangia, il cane beve.', italian, english, S78V7),
+    must('GUARD: ... and after a conjunction', S78V7,
+          'The dog sleeps and when the cat eats, the dog drinks.'),
+    reason_translate('Sembra lontano il giorno in cui il cane dorme.', italian, english, S78V8),
+    must('A VERB OF SEEMING WITH ITS PREDICATE BEFORE ITS SUBJECT: `Sembra ancora lontano, comunque, il giorno in cui ...'' -- read left to right `sembra'' was the command, seem, and the day its object (tr_read_statement0/4)', S78V8,
+          'The day when the dog sleeps seems far.'),
+    reason_translate('Sembra lontano, comunque, il giorno in cui il cane dorme.', italian, english, S78V9),
+    must('... with an adverb between commas after the predicate, which English writes last with its comma: it was `seems, far anyway'' (tr_comps_out/7)', S78V9,
+          'The day when the dog sleeps seems far, anyway.'),
+    reason_translate('Sembra lontano il giorno in cui il cane dorme.', italian, spanish, S78V10),
+    must('... and Spanish keeps the subject where it stood', S78V10,
+          'Parece lejos el día en el que el perro duerme.'),
+    reason_translate('Le sorprese non finiscono qui.', italian, english, S78V11),
+    must('`ENDS UP'' WITH NOWHERE TO END UP IS `ENDS'': `Ma le sorprese non finiscono qui'' -- the lesson''s intransitive `finisce'' is `ends up'', and it was `do not end up here'' (tr_write/4, tr_ends_up_where/1)', S78V11,
+          'The surprises do not end here.'),
+    reason_translate('Il vescovo deve finire in tribunale.', italian, english, S78V12),
+    must('GUARD: an adverb of place of several words is where a thing ends up (`deve finire in tribunale l''arcivescovo di Monreale'')', S78V12,
+          'The bishop must end up in court.').
+
+section_78_2 :-
+    reason_translate('Il cane finisce nella casa.', italian, english, S78V13),
+    must('GUARD: ... and so is a phrase of a preposition', S78V13,
+          'The dog ends up in the house.'),
+    reason_translate('Il vescovo non deve finire qui.', italian, english, S78V14),
+    must('... and the infinitive too ends where it ends up nowhere', S78V14,
+          'The bishop must not end here.'),
+    reason_translate('I tecnici si mostrano ottimisti.', italian, english, S78V15),
+    must('A VERB THAT SHOWS WHAT ONE IS, WITH ITS OWN PRONOUN AND A PREDICATE, IS `APPEARS'': `i Tecnici ... si mostrano ottimisti per il futuro'' appear optimistic, and it was `display optimistic'' (tr_write/4)', S78V15,
+          'The technicians appear optimistic.'),
+    reason_translate('I tecnici dormono e si mostrano ottimisti.', italian, english, S78V16),
+    must('... and with nobody named after `e'' it is no passive: read with the bare adjective for its subject, it was `optimists are displayed'' (tr_predicate_after_reflexive/2)', S78V16,
+          'The technicians sleep and appear optimistic.'),
+    reason_translate('I canali esitano inquinati.', italian, english, S78V17),
+    must('`RESULTS'' BEFORE A PREDICATE IS `TURNS OUT'': `i canali di Venezia, i quali risultano più inquinati'' turn out more polluted, and it was `which result more polluted'' (tr_write/4; the hand lesson''s `risulta'' is `turns out'' already, so `esita'' says `results'' here)', S78V17,
+          'The canals turn out polluted.'),
+    reason_translate('Il gruppo si occupa della casa.', italian, english, S78V18),
+    must('A VERB OF SEVERAL WORDS THAT ENDS IN A PREPOSITION TAKES ITS PHRASE BARE: `il gruppo "Insula", che si occupa della sistemazione dei canali'' takes charge of the arrangement, and it was `takes charge of of the arrangement'' (en_bare_object/1)', S78V18,
+          'The group takes charge of the house.'),
+    reason_translate('Il cane, in un momento di forma, si occupa della casa.', italian, english, S78V19),
+    must('GUARD: ... and a phrase of an insertion is none the verb governs (tr_ungoverned/2): `Navarro, en un momento de forma excepcional, se encargó de llevar el peso'' was `in a moment exceptional form''', S78V19,
+          'The dog, in a moment of form, takes charge of the house.'),
+    reason_translate('Il cane mangia l''87 per cento del pane.', italian, english, S78V20),
+    must('NO ARTICLE BEFORE A PERCENTAGE IN WORDS: `pari all''87 per cento del totale'' is equal to 87 per cent of it, and it was `the 87 per cent'' (tr_det_out/6)', S78V20,
+          'The dog eats 87 per cent of the bread.'),
+    reason_translate('Il cane, dal 1994 al 2004, ha dormito.', italian, english, S78V21),
+    must('A RANGE OF YEARS BETWEEN TWO COMMAS IS FROM AND TO: `i cui tecnici per dieci anni, dal 1994 al 2004, hanno scavato'' dug from 1994 to 2004, and it was `since 1994 to 2004'' (tr_cross_comps/2)', S78V21,
+          'The dog, from 1994 to 2004, has slept.'),
+    reason_translate('Il cane dorme come quarant''anni fa, quando c''era il gatto.', italian, english, S78V22),
+    must('A COUNT OF TIME AFTER A PREPOSITION TAKES ITS `ago'' WITH IT: `come quarant''anni fa, quando c''era persino una piscina'' is like forty years ago, and the adverb stood apart from the phrase, `like forty years, ago when there was'' (tr_ago_phrase/2, ago/2)', S78V22,
+          'The dog sleeps like forty years ago, when there was the cat.'),
+    reason_translate('Il cane dorme come quarant''anni fa.', italian, spanish, S78V23),
+    must('... and Spanish, whose `hace'' begins the time (tr_ago_first/0), writes it first: it was `como cuarenta años hace''', S78V23,
+          'El perro duerme como hace cuarenta años.'),
+    reason_translate('L''inquinamento è inferiore a quello di trenta anni fa.', italian, english, S78V24),
+    must('... and in the phrase of `of'' of a phrase whose noun is left out, which English writes `that of'' (tr_ago_inside/3, tr_np_out/5): `l''inquinamento "è inferiore a quello di trenta anni fa"'' was `inferior to the one of thirty years ago''', S78V24,
+          'The pollution is inferior to that of thirty years ago.').
+
+section_78_3 :-
+    reason_translate('L''inquinamento è inferiore a quello di trenta anni fa.', italian, spanish, S78V25),
+    must('... and in Spanish: it was `al de treinta años hace''', S78V25,
+          'La contaminación es inferior al de hace treinta años.'),
+    reason_translate('Il cane trova ben 11 veleni.', italian, english, S78V26),
+    must('`BEN'' BEFORE A COUNT SAYS HOW MANY: `vi hanno trovato la presenza di ben 11 veleni diversi'' is the presence of as many as 11 different poisons -- `ben'' is the apocope of `bene'', and read as its noun the presence was of a good and the poisons a second object (tr_complements0/4, tr_count_adverb/1, advp/2)', S78V26,
+          'The dog finds as many as 11 poisons.'),
+    reason_translate('Il cane trova ben 11 veleni.', italian, spanish, S78V27),
+    must('... and the lesson''s language writes its own word for it (`nada menos que'', the line of corpus/extra)', S78V27,
+          'El perro encuentra nada menos que 11 venenos.'),
+    reason_translate('Il cane parla di ben 11 veleni.', italian, english, S78V28),
+    must('... and so in the phrase of a preposition', S78V28,
+          'The dog speaks of as many as 11 poisons.'),
+    reason_translate('El perro encuentra nada menos que 11 venenos.', spanish, english, S78V29),
+    must('... and so is an adverb the lesson says means `as many as'' (tr_count_adverb/1): Spanish''s `nada menos que'' was `finds 11 poisons as many as''', S78V29,
+          'The dog finds as many as 11 poisons.'),
+    reason_translate('El perro encuentra nada menos que 11 venenos.', spanish, italian, S78V30),
+    must('... and a lesson that states no word for it writes the count alone', S78V30,
+          'Il cane trova 11 veleni.'),
+    reason_translate('Il tesoro giace sul fondo dei canali.', italian, english, S78V31),
+    must('A NOUN THAT CAN SAY THE BOTTOM OF A THING SAYS IT BEFORE A PHRASE OF `of'' WITH A DETERMINER: `un tesoro avvelenato che giace sul fondo dei canali'' rests on the bottom of the canals -- `fondo'' is a fund first, and it was `rests on the fund of the canals'' (tr_relational_np/3, tr_cross_comps/2)', S78V31,
+          'The treasure rests on the bottom of the canals.'),
+    reason_translate('Il fondo nazionale è grande.', italian, english, S78V32),
+    must('GUARD: with no phrase of `of'' it is the first meaning, a fund', S78V32,
+          'The national fund is big.'),
+    reason_translate('Il gruppo vede il fondo di canali.', italian, english, S78V33),
+    must('GUARD: ... and before a phrase of `of'' with no determiner, which says what fund it is (`il fondo di investimento'')', S78V33,
+          'The group sees the fund of canals.'),
+    reason_translate('La superficie è quella del fondo dei canali.', italian, english, S78V34),
+    must('... and in the phrase of `of'' of a phrase whose noun is left out: `qual''è quella del fondo dei rii'' is that of the bottom of the canals (tr_cross_comps/2)', S78V34,
+          'The surface is that of the bottom of the canals.'),
+    reason_translate('Il tesoro giace sul fondo dei canali, i quali sono inquinati.', italian, english, S78V35),
+    must('... and the phrase of `of'' is definite with its relative clause too: `sul fondo dei canali di Venezia, i quali risultano più inquinati'' (tr_head_definite/1)', S78V35,
+          'The treasure rests on the bottom of the canals, which are polluted.'),
+    reason_translate('Il cane è grande, il gatto piccolo.', italian, english, S78V36),
+    must('THE COPULA LEFT OUT AFTER A COMMA: `i motori sono più efficienti, le benzine senza piombo, gli antivegetativi meno dannosi, i detersivi quasi tutti biodegradabili'' -- read as phrases among the copula''s complements, English wrote them as objects and turned the adjectives round, `the least harmful antifouling paints'', `the detergents everyone biodegradable almost'' (tr_gapping/2, gapc/2)', S78V36,
+          'The dog is big, the cat small.').
+
+section_78_4 :-
+    reason_translate('I cani sono più grandi, i gatti meno grandi.', italian, english, S78V37),
+    must('... with a degree in the predicate', S78V37,
+          'The dogs are bigger, the cats less big.'),
+    reason_translate('I cani sono grandi, le case senza pane.', italian, english, S78V38),
+    must('... and a phrase of a preposition for the predicate', S78V38,
+          'The dogs are big, the houses without bread.'),
+    reason_translate('I cani sono grandi, i gatti quasi tutti piccoli.', italian, english, S78V39),
+    must('... and an adverb and `tutti'', which is all of them, before it: `i detersivi quasi tutti biodegradabili'' (tr_gapc_preds/5)', S78V39,
+          'The dogs are big, the cats almost all small.'),
+    reason_translate('Si installano delle fosse.', italian, english, S78V40),
+    must('THE PARTITIVE AFTER THE IMPERSONAL `SI'' IS WHAT IS DONE: `in molte zone della città si stanno installando delle fosse settiche'' are septic tanks being installed, and read as a phrase of `of'' it was `are installing of the septic tanks'' (tr_si_partitive/2)', S78V40,
+          'They install tanks.'),
+    reason_translate('Si installano delle fosse.', italian, spanish, S78V41),
+    must('... and Spanish has no partitive', S78V41,
+          'Se instalan fosas.'),
+    reason_translate('I cani sono grandi, i gatti piccoli e si vendono delle case.', italian, english, S78V42),
+    must('... and its subject is never elided after `e'': the detergents were installing septic tanks (tr_write/4)', S78V42,
+          'The dogs are big, the cats small and they sell houses.'),
+    reason_translate('Per strano che possa apparire, il cane dorme.', italian, english, S78V43),
+    must('THE WORD THAT BEGINS THE CAUSE, AN ADJECTIVE AND A CLAUSE OF `CHE'' ARE A CONCESSION: `Per strano che possa apparire, l''accumulo di veleni deriverebbe ...'' is however strange it may appear, and read as the preposition and a relative clause on the adjective it was `For strange that can appear'' (tr_cross_comp/2, conc/3)', S78V43,
+          'However strange it may appear, the dog sleeps.'),
+    reason_translate('Per strano che possa apparire, il cane dorme.', italian, spanish, S78V44),
+    must('... and the lesson''s language writes it as it stood, the clause in the subjunctive', S78V44,
+          'Por extraño que pueda aparecer, el perro duerme.'),
+    reason_translate('Il cane vede i veleni che si sono depositati.', italian, english, S78V45),
+    must('A THING''S REFLEXIVE IN THE PERFECT IS THE PASSIVE''S PERFECT: `tonnellate di piombo ... che si sono depositati nel corso degli anni'' have been deposited, and `have deposited'' said they had put something down (tr_se_passive_rc/4)', S78V45,
+          'The dog sees the poisons that have been deposited.'),
+    reason_translate('Il cane vede i veleni che si sono depositati.', italian, spanish, S78V46),
+    must('... and the lesson''s language writes the reflexive''s perfect (fo_group/8)', S78V46,
+          'El perro ve los venenos que se han depositado.'),
+    reason_translate('Il cane mangia il pane, che si è depositato.', italian, english, S78V47),
+    must('... and after a comma (tr_phrase_nrc/3): `e persino di arsenico e di pesticidi, che si sono depositati''', S78V47,
+          'The dog eats the bread, which has been deposited.'),
+    reason_translate('Il cane visita le città dotate di canali.', italian, english, S78V48),
+    must('A PHRASE OF `of'' RIGHT AFTER A PARTICIPLE THAT ENGLISH WRITES WITH ONE IS THE PARTICIPLE''S: `altre città europee dotate di canali'' are cities endowed WITH canals -- taken for the clause''s, the participle had no complement and English wrote it before the noun (tr_of_participle/2, en_of_participle/1, en_governs/2)', S78V48,
+          'The dog visits the cities endowed with canals.').
+
+section_78_5 :-
+    reason_translate('Il cane mangia un pane fatto di farina.', italian, english, S78V49),
+    must('... and made of: `è un "tesoro" tossico fatto di tonnellate di piombo'' was `a made toxic treasure of tons of lead''', S78V49,
+          'The dog eats a bread made of flour.'),
+    reason_translate('Un pane fatto di farina dorme.', italian, english, S78V50),
+    must('... and in a subject''s phrase (tr_participle_adjunct/4)', S78V50,
+          'A bread made of flour sleeps.'),
+    reason_translate('I canali sono più inquinati persino di quelli della zona.', italian, english, S78V51),
+    must('AN ADVERB BEFORE THE WORD FOR `than'': `i quali risultano più inquinati persino di quelli della vicina zona industriale'' are more polluted EVEN THAN those of the industrial zone, and it was `more polluted of those ... even'' (tr_comparison_seps/3)', S78V51,
+          'The canals are more polluted even than those of the zone.'),
+    reason_translate('Il cane scava la casa e vi trova il pane.', italian, english, S78V52),
+    must('`VI'' BEFORE A VERB WITH AN OBJECT OF ITS OWN IS `THERE'': `hanno scavato 295mila metri cubi di sedimenti, ... e vi hanno trovato la presenza di ben 11 veleni'' found the poisons THERE, and read as the plural of `ti'' it was `have found you the presence'' (tr_there_clitic/4)', S78V52,
+          'The dog digs the house and finds the bread there.'),
+    reason_translate('Il cane vi dà un libro.', italian, english, S78V53),
+    must('GUARD: a verb of giving or telling has `vi'' for the person given to (en_dative_verb/1)', S78V53,
+          'The dog gives you a book.'),
+    reason_translate('Il cane vi vede.', italian, english, S78V54),
+    must('GUARD: ... and a verb with no object of its own has it for its object', S78V54,
+          'The dog sees you.'),
+    reason_translate('Il cane non dorme tanto nella casa quanto nel giardino.', italian, english, S78V55),
+    must('IN A DENIED CLAUSE THE PAIR SAYS WHICH OF THE TWO IT IS: `non deriverebbe tanto dagli scarichi delle industrie ... quanto da un inquinamento di tipo "urbano"'' would derive not so much from the discharges as from an urban pollution, and `would not derive both from ... and from'' said that it came from neither (tr_both_pair/3)', S78V55,
+          'The dog does not sleep so much in the house as in the garden.'),
+    reason_translate('Il cane dorme tanto nella casa quanto nel giardino.', italian, english, S78V56),
+    must('GUARD: with no denial it is both', S78V56,
+          'The dog sleeps both in the house and in the garden.'),
+    reason_translate('L''inquinamento non deriva tanto dagli scarichi quanto dall''inquinamento.', italian, spanish, S78V57),
+    must('... AND THE TWO HALVES ARE THE VERB''S WHEN EACH OPENS ON THE PREPOSITION IT TAKES: Spanish wrote `desde'', the first `from'' (tr_governed/3)', S78V57,
+          'La contaminación no deriva tanto de los vertidos como de la contaminación.'),
+    reason_translate('Il pane è fatto di farina, e persino di sale.', italian, english, S78V58),
+    must('`EVEN'' BEFORE A PHRASE OF A PREPOSITION IS SAID OF IT: `fatto di tonnellate di piombo, ..., e persino di arsenico e di pesticidi'' is and even of arsenic, and it was written last (tr_comps_out/7)', S78V58,
+          'The bread is made of flour, and even of salt.'),
+    reason_translate('La casa tende, anche con l''aiuto del cane, a dormire.', italian, english, S78V59),
+    must('`ALSO'' THAT OPENS AN INSERTION ON A PHRASE OF A PREPOSITION IS SAID OF IT: `la struttura urbana della città tende, anche con l''aiuto dell''acqua salmastra, a facilitare'' tends, also with the help of the water, and pulled to the verb it was `also tends, with the help'' (tr_pull_adverb/3, tr_comps_out/7)', S78V59,
+          'The house tends, also with the help of the dog, to sleep.'),
+    reason_translate('Il cane dormirebbe quindi nella casa.', italian, english, S78V60),
+    must('`therefore'' stands with the verb: `deriverebbe quindi'' is would therefore derive, where it was written last (en_mid_adverb/1)', S78V60,
+          'The dog would therefore sleep in the house.').
+
+section_78_6 :-
+    reason_translate('Il cane è una superficie sostanzialmente limitata.', italian, english, S78V61),
+    must('A PARTICIPLE AND THE ADVERB THAT SAYS HOW STAND BEFORE THE NOUN IN ENGLISH: `su una superficie sostanzialmente limitata'' is on a substantially limited surface, where it was `a surface substantially limited'' (tr_np_out/5, tr_pre_participle_adverb/2)', S78V61,
+          'The dog is a substantially limited surface.'),
+    reason_translate('Il cane vede la casa più grande mai vista.', italian, english, S78V62),
+    must('GUARD: never `well'', `ever'' or `never'', which English writes after the noun: `el Mundial más exótico jamás organizado'' was `the most exotic never organised World cup'', and `75 anni ben portati'' `75 well brought years''', S78V62,
+          'The dog sees the biggest house ever seen.'),
+    reason_translate('La casa è simile a quella del gatto.', italian, english, S78V63),
+    must('A PHRASE WHOSE NOUN IS LEFT OUT, WITH A PHRASE OF `of'', IS `that of'', as `those of'' is: `del tutto simile a quello di altre città europee'' was `the one of'' (tr_np_out/5)', S78V63,
+          'The house is similar to that of the cat.'),
+    reason_translate('Il cane mangia un pane del tutto simile a quello del gatto.', italian, english, S78V64),
+    must('AN ADJECTIVE WITH ITS PHRASE, THE WORD THAT SAYS HOW MUCH BEFORE IT, STANDS AFTER ITS NOUN: `di tipo "urbano" del tutto simile a quello di altre città'' is completely similar to that of other cities (tr_adj_takes_phrase/3, tr_adj_with_intensifier/2)', S78V64,
+          'The dog eats a bread completely similar to that of the cat.'),
+    reason_translate('Il cane dorme nella vicina zona.', italian, english, S78V65),
+    must('`close'' BEFORE A NOUN IS `nearby'': `la vicina zona industriale di Porto Marghera'' is the nearby industrial zone, and `close'' before a noun is intimate (tr_adjective_out/5)', S78V65,
+          'The dog sleeps in the nearby zone.'),
+    reason_translate('Il cane mangia 8.737 chili di nichel, 7.496 di cromo.', italian, english, S78V66),
+    must('A NUMBER THAT IS THE PHRASE''S HEAD, ITS NOUN LEFT OUT, IS WRITTEN IN ENGLISH''S STYLE: `8.737 chili di nichel, 7.496 di cromo'' is 8,737 kilos and 7,496 of chromium, where the second stayed `7.496'' (tr_percent_style/3)', S78V66,
+          'The dog eats 8,737 kilos of nickel, 7,496 of chromium.'),
+    reason_translate('Il cane mangia 8 chili di pane.', italian, english, S78V67),
+    must('A NOUN IN `o'' TAKES `s'' IN THE PLURAL: it was `8,737 kiloes'', and `gli studi'' `the studioes'' (en_irregular_plural/2)', S78V67,
+          'The dog eats 8 kilos of bread.'),
+    reason_translate('Il cane mangia 8 patate.', italian, english, S78V68),
+    must('GUARD: ... but for the few English writes with `es'' (en_oes_plural/1)', S78V68,
+          'The dog eats 8 potatoes.'),
+    reason_translate('Non c''è più il carbone.', italian, spanish, S78V69),
+    must('A LANGUAGE WHOSE `there is'' TAKES NO DEFINITE PHRASE SAYS THE THING IS THERE WITH ITS STATE COPULA: `non c''è più il carbone'' was `no hay más el carbón'', which is no Spanish (`"hay" takes the indefinite.'', tr_write/4)', S78V69,
+          'No está más el carbón.'),
+    reason_translate('C''è un carbone.', italian, spanish, S78V70),
+    must('GUARD: an indefinite phrase keeps `hay''', S78V70,
+          'Hay un carbón.'),
+    reason_translate('C''è stato il gatto.', italian, spanish, S78V71),
+    must('GUARD: ... and nor does the past, where what there was is an event: `Dopo la sentenza della corte, però, c''è stato il referendum'' was `estuvo el referéndum''', S78V71,
+          'Hubo el gato.'),
+    reason_translate('Il cane dice che oggi il gatto "è inferiore a quello di trenta anni fa".', italian, english, S78V72),
+    must('AN ADVERB THE IR HAS AFTER THE COMPLEMENT THAT CLOSES A QUOTATION STOOD OUTSIDE IT: `mentre oggi l''inquinamento "è inferiore a quello di trenta anni fa"'' is `... ago" today'', and it was `... ago today"'' (tr_write/4)', S78V72,
+          'The dog says that the cat "is inferior to that of thirty years ago" today.').
+
+section_78_7 :-
+    reason_translate('Il cane dice che oggi il gatto "è inferiore a quello di trenta anni fa".', italian, spanish, S78V73),
+    must('... and in Spanish, the mark that closes on the time''s last word and `hace'' first: it was `al de hace" treinta años''', S78V73,
+          'El perro dice que el gato "es inferior al de hace treinta años" hoy.'),
+    reason_translate('Il cane nuota dal lido fino a San Marco.', italian, english, S78V74),
+    must('`UNTIL'' AFTER `FROM'' IS `TO'' IN ENGLISH: `dal lido fino a San Marco'' is from the Lido to San Marco, and it was `from the shore until San Marco'' (tr_comps_out/7)', S78V74,
+          'The dog swims from the shore to San Marco.'),
+    reason_translate('Il cane sembra lontano, comunque.', italian, english, S78V75),
+    must('AN ADVERB BETWEEN COMMAS AT THE END OF A CLAUSE IS WRITTEN AFTER THE OTHER ADVERBS, ITS COMMA BEFORE IT: it was `seems, far anyway'' (tr_comps_out/7)', S78V75,
+          'The dog seems far, anyway.'),
+    reason_translate('Il cane potrà tornare a mangiare.', italian, english, S78V76),
+    must('AN INFINITIVE THE ONE BEFORE IT TAKES WITH ITS WORD IS `to'' AND THE VERB, UNDER A MODAL TOO: `si potrà tornare a fare il bagno'' will be able to return TO swim, and it was `return swim'' (tr_comp_out/7)', S78V76,
+          'The dog will be able to return to eat.'),
+    reason_translate('Il cane vede i canali, molti dei quali non erano ripuliti.', italian, english, S78V77),
+    must('`MANY OF WHICH'' IS ITS CLAUSE''S SUBJECT: `lo scavo dei rii, molti dei quali non venivano ripuliti da trent''anni'' -- many of which were not cleaned, and with nobody named in the clause English wrote `many of which they were not cleaned'' (tr_quantity_gap/4)', S78V77,
+          'The dog sees the canals, many of which were not cleaned.').
+
+lesson_78(spanish, 8, 'The masculine noun "tesoro" means "treasure". The masculine noun "fondo" means "fund". The masculine noun "fondo" means "bottom". The masculine noun "canal" means "canal". "canales" is the plural of "canal".
+The adverb "hace" means "ago". The number "cuarenta" means "forty". The number "treinta" means "thirty". The masculine noun "año" means "year". "años" is the plural of "año".
+The adverb "nada menos que" means "as many as". The masculine noun "veneno" means "poison". "venenos" is the plural of "veneno". The verb "encuentra" means "finds". The adverb "allí" means "there".
+The verb "instala" means "installs". "instalando" is the gerund of "instala". The feminine noun "fosa" means "tank". "fosas" is the plural of "fosa".
+The verb "deposita" means "deposits". "depositado" is the participle of "deposita". "deposita" takes the passive.
+The masculine noun "carbón" means "coal". "hay" takes the indefinite. The auxiliary "está" marks the state. The verb "está" means "is". "están" is the plural of "está".
+The masculine adjective "extraño" means "strange". The verb "aparece" means "appears". "aparecer" is the infinitive of "aparece". "pueda" is the subjunctive of "puede".
+The verb "deriva" means "derives". "deriva" takes "de" before the phrase. The masculine noun "vertido" means "discharge". "vertidos" is the plural of "vertido". The feminine noun "contaminación" means "pollution".
+The adverb "hoy" means "today". The adjective "inferior" means "inferior".
+The conjunction "tanto" means "both". "como" is the partner of "tanto".
+The word "hace" begins the time. "instalan" is the plural of "instala". The verb "parece" means "seems". The adverb "lejos" means "far".
+"han" is the plural of "ha". The masculine noun "día" means "day". "día" is a time.
+"hubo" is the past of "hay". "estaba" is the imperfect of "está". "estuvo" is the past of "está". The masculine noun "gato" means "cat".').
+lesson_78(italian, 8, 'The masculine noun "tesoro" means "treasure". The verb "giace" means "rests". The masculine noun "fondo" means "fund". The masculine noun "fondo" means "bottom". The masculine noun "canale" means "canal". "canali" is the plural of "canale". The adjective "nazionale" means "national".
+The verb "dota" means "endows". "dotato" is the participle of "dota". "dotata" is the participle of "dota". "dotata" is feminine. "dotati" is the participle of "dota". "dotati" is the plural of "dotato". "dotate" is the participle of "dota". "dotate" is feminine. "dotate" is the plural of "dotata". The feminine noun "città" means "city". "città" is the plural of "città". The verb "visita" means "visits".
+The masculine adjective "inquinato" means "polluted". "inquinati" is the plural of "inquinato". The adverb "persino" means "even". The feminine noun "zona" means "zone". "zone" is the plural of "zona".
+The masculine noun "chilo" means "kilo". "chili" is the plural of "chilo". The masculine noun "nichel" means "nickel". The masculine noun "cromo" means "chromium".
+The feminine noun "sorpresa" means "surprise". "sorprese" is the plural of "sorpresa". The intransitive verb "finisce" means "ends up". "finiscono" is the plural of "finisce". "finire" is the infinitive of "finisce". The adverb "qui" means "here". The masculine noun "vescovo" means "bishop". The adverb "in tribunale" means "in court".
+The verb "si occupa" means "takes charge of". "si occupa" takes "di" before the phrase. The masculine noun "gruppo" means "group".
+The masculine noun "per cento" means "per cent". "per cento" is the plural of "per cento". The preposition "da" means "since".
+The adverb "fa" means "ago". The number "quaranta" means "forty". "quarant''" is the elision of "quaranta". The number "trenta" means "thirty".
+The word "il giorno in cui" means "when". The masculine noun "giorno" means "day". "giorno" is a time. The verb "ricorda" means "remembers". "ricordo" is the first person of "ricorda". "dormiva" is the imperfect of "dorme".
+The verb "sembra" means "seems". The adverb "lontano" means "far". The adverb "comunque" means "anyway".
+The verb "torna" means "returns". "tornare" is the infinitive of "torna". "torna" takes "a" before the infinitive. "potrà" is the future of "può".
+The verb "nuota" means "swims". The masculine noun "lido" means "shore". The preposition "fino a" means "until".
+The verb "esita" means "results". "esitano" is the plural of "esita".
+The verb "scava" means "digs". The verb "trova" means "finds". The pronoun "ti" means "you". The pronoun "vi" means "you". "vi" is the plural of "ti". "danno" is the plural of "dà". The masculine noun "libro" means "book". The adverb "lì" means "there".
+"ben" is the apocope of "bene". The masculine noun "veleno" means "poison". "veleni" is the plural of "veleno".
+The verb "installa" means "installs". "installando" is the gerund of "installa". The feminine noun "fossa" means "tank". "fosse" is the plural of "fossa".
+The conjunction "tanto" means "both". "quanto" is the partner of "tanto". The masculine noun "giardino" means "garden".
+The feminine noun "farina" means "flour". The masculine noun "sale" means "salt".
+The verb "deposita" means "deposits". "depositato" is the participle of "deposita". "depositati" is the plural of "depositato". "deposita" takes the passive.
+The adverb "del tutto" means "completely".
+The masculine noun "carbone" means "coal".
+The feminine adjective "vicina" means "close".
+The feminine noun "superficie" means "surface". The adverb "sostanzialmente" means "substantially". The verb "limita" means "limits". "limitata" is the participle of "limita". "limitata" is feminine.
+The masculine noun "tecnico" means "technician". "tecnici" is the plural of "tecnico". The verb "mostra" means "shows". "mostrano" is the plural of "mostra". "ottimisti" is the plural of "ottimista". The masculine noun "ottimista" means "optimist".
+"dormirebbe" is the conditional of "dorme".
+The pronoun "molti" means "many". The relative "quali" means "which". The verb "ripulisce" means "cleans". "ripulito" is the participle of "ripulisce". "ripuliti" is the plural of "ripulito".
+The masculine adjective "strano" means "strange". The verb "appare" means "appears". "apparire" is the infinitive of "appare".
+The masculine adjective "piccolo" means "small". "piccoli" is the plural of "piccolo". "grandi" is the plural of "grande".
+"vendono" is the plural of "vende". The feminine noun "casa" means "house". "case" is the plural of "casa".
+The verb "deriva" means "derives". "deriva" takes "da" before the phrase. The masculine noun "scarico" means "discharge". "scarichi" is the plural of "scarico". The masculine noun "inquinamento" means "pollution".
+The adverb "oggi" means "today". The adjective "inferiore" means "inferior".
+The word "quella" replaces the noun. The masculine demonstrative "quello" means "that". "quelli" is the plural of "quello". The feminine demonstrative "quella" means "that". "quelle" is the plural of "quella".
+"made" is the past of "makes". "slept" is the past of "sleeps". "ate" is the past of "eats".
+"dormito" is the participle of "dorme". The auxiliary "sta" means "is". "stanno" is the plural of "sta".
+The article "il" takes the year. "installano" is the plural of "installa".
+"dagli" is the contraction of "da gli". "dallo" is the contraction of "da lo". The adverb "meno" means "less". "era" is the imperfect of "è". "erano" is the imperfect of "sono". "c''era" is the past of "c''è". "depositano" is the plural of "deposita". "depositati" is the participle of "deposita". The verb "tende" means "tends". "tende" takes "a" before the infinitive. The masculine noun "aiuto" means "help".
+"è" is the auxiliary of the reflexive. "ripuliti" is the participle of "ripulisce".
+"dalla" is the contraction of "da la".
+"dall''" is the elision of "dallo". "dello" is the contraction of "di lo". "dell''" is the elision of "dello".
+The feminine noun "patata" means "potato". "patate" is the plural of "patata".
+"mangiava" is the imperfect of "mangia". "quali" is a relative. The relative "i quali" means "who".
+"si occupano" is the plural of "si occupa". The pronoun "tu" means "you". The pronoun "voi" means "you". The pronoun "voi" does not precede the verb. "voi" is the plural of "tu". "lavano" is the plural of "lava". "lavate" is the second person of "lavano". The feminine noun "mano" means "hand". "mani" is the plural of "mano".
+The adverb "quasi" means "almost". The pronoun "tutti" means "everyone". The pronoun "tutti" does not precede the verb. The masculine noun "antivegetativo" means "antifouling paint". "antivegetativi" is the plural of "antivegetativo". The masculine adjective "dannoso" means "harmful". "dannosi" is the plural of "dannoso". The masculine noun "motore" means "engine". "motori" is the plural of "motore".
+The masculine noun "momento" means "moment". The feminine noun "forma" means "form". "visto" is the participle of "vede". "vista" is the participle of "vede". "vista" is feminine. "seen" is the participle of "sees". "c''è stato" is the past of "c''è".
+The verb "conferma" means "confirms". The feminine noun "conferma" means "confirmation". The feminine noun "voce" means "voice". "voci" is the plural of "voce". The adverb "infatti" means "in fact".
+"conferma" is the imperative of "conferma".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

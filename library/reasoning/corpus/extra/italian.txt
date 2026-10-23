@@ -2418,9 +2418,11 @@ The adverb "in questo modo" means "in this way".
 The masculine noun "traffico veicolare" means "road traffic".
 The preposition "insieme a" means "together with".
 # the Clot street report, third batch: `una facciata' is a facade, `lo scarico'
-# is the unloading
+# is the unloading -- and to the reader a discharge first, said before it since the
+# Venice canals report (`dagli scarichi delle industrie di Porto Marghera')
 The feminine noun "facciata" means "facade".
 "facciate" is the plural of "facciata".
+The masculine noun "scarico" means "discharge".
 The masculine noun "scarico" means "unloading".
 "scarichi" is the plural of "scarico".
 # `abogar por que' into Italian: what a newspaper says of one who asks that
@@ -3962,3 +3964,88 @@ The adverb "di mattina" means "in the mornings".
 # `la mesa de negociación': `il tavolo delle trattative'
 The masculine noun "tavolo delle trattative" means "negotiating table".
 "tavoli delle trattative" is the plural of "tavolo delle trattative".
+# the Venice canals report (VIT-9999..10010, Italian into Spanish and English): the words the dictionary has no paradigm for
+# `un "progetto integrato rii" confezionato d'intesa tra il comune, la regione e il Ministero': prepared -- the
+# dictionary's own `prepara' said again first, so that `prepares' is still written `prepara'
+The verb "prepara" means "prepares".
+The verb "confeziona" means "prepares".
+"confezionano" is the plural of "confeziona".
+"confezionare" is the infinitive of "confeziona".
+"confezionato" is the participle of "confeziona".
+"confezionata" is the participle of "confeziona".
+"confezionata" is feminine.
+"confezionati" is the participle of "confeziona".
+"confezionati" is the plural of "confezionato".
+"confezionate" is the participle of "confeziona".
+"confezionate" is feminine.
+"confezionate" is the plural of "confezionata".
+# `145 di policlorobifenili'
+The masculine noun "policlorobifenile" means "polychlorinated biphenyl".
+"policlorobifenili" is the plural of "policlorobifenile".
+# `gli antivegetativi meno dannosi': the antifouling paints of the boats
+The masculine noun "antivegetativo" means "antifouling paint".
+"antivegetativi" is the plural of "antivegetativo".
+# `con bracciate possenti': a swimmer's stroke (the Spanish `trazo', no word of the controls, is written `bracciata' too)
+The feminine noun "bracciata" means "stroke".
+"bracciate" is the plural of "bracciata".
+# `sulla riva delle zattere': the dictionary has the raft with no gender and no plural
+The feminine noun "zattera" means "raft".
+"zattere" is the plural of "zattera".
+# `si stanno installando delle fosse settiche'
+The feminine noun "fossa settica" means "septic tank".
+"fosse settiche" is the plural of "fossa settica".
+# `non venivano ripuliti da trent'anni': the elision
+"trent'" is the elision of "trenta".
+# `qual'è quella del fondo dei rii': the source's apostrophe for `qual è'
+"qual'" is the elision of "quale".
+# `sulle orme di lord Byron': in the footsteps of
+The preposition "sulle orme di" means "in the footsteps of".
+# `uno studio del Consiglio Nazionale delle Ricerche', `del gruppo "Insula"': a study, research and a group are the
+# news's first meanings, said first (the dictionary's are a studio, a search and a cluster), and a fund is `fondo''s
+# (its first was the background: the controls' `i fondi necessari ... attraverso un fondo nazionale' were the
+# necessary backgrounds); `sul fondo dei canali' is the bottom, tr_relational_np/3
+The masculine noun "studio" means "study".
+The feminine noun "ricerca" means "research".
+The masculine noun "gruppo" means "group".
+The masculine noun "fondo" means "fund".
+# `C'è un tesoro avvelenato che giace sul fondo dei canali di Venezia': the canals, with the dictionary's channel second
+The masculine noun "canale" means "canal".
+The masculine noun "canale" means "channel".
+# `in fondo, c'erano più argomenti' (a control): after all; with research first, `alla ricerca di' is in search of
+The adverb "in fondo" means "after all".
+The preposition "alla ricerca di" means "in search of".
+# `un sospetto che alcuni Veneziani avevano da tempo': for a long time
+The adverb "da tempo" means "for a long time".
+# `che si sono depositati nel corso degli anni': over the years, and a thing deposited
+The adverb "nel corso degli anni" means "over the years".
+"deposita" takes the passive.
+# `295mila metri cubi di sedimenti': cubic metres
+The masculine noun "metro cubo" means "cubic metre".
+"metri cubi" is the plural of "metro cubo".
+# `confezionato d'intesa tra il comune, la regione e il Ministero': in agreement between
+The preposition "d'intesa tra" means "in agreement between".
+# `si potrà tornare a fare il bagno nei canali': swim -- the dictionary's own `nuota' said again first, so that
+# `swims' is still written `nuota'
+The verb "nuota" means "swims".
+The verb "fa il bagno" means "swims".
+"fanno il bagno" is the plural of "fa il bagno".
+"fare il bagno" is the infinitive of "fa il bagno".
+# the National Research Council, an institution's name kept as it stands
+"Consiglio Nazionale delle Ricerche" is a name.
+# `un "progetto integrato rii"': a project, said first (the dictionary's first is a blueprint: the controls' `the "blueprint
+# Bogi"', `a rejected blueprint at birth'); `ben 11 veleni diversi': the adjective after its noun is different, said first
+# (it was `diverse', and the controls' `two diverse people'), the determiner before it several, as it was
+The masculine noun "progetto" means "project".
+The masculine adjective "diverso" means "different".
+The feminine adjective "diversa" means "different".
+# `un inquinamento di tipo "urbano" del tutto simile a quello di altre città europee': similar, said first (the
+# dictionary's first is alike, which English writes after a verb only: `an alike pollution to that')
+The adjective "simile" means "similar".
+# `l'avvelenamento dei canali non deriverebbe tanto dagli scarichi ... quanto da un inquinamento', `La conferma ... è
+# venuta da uno studio': what a thing derives and comes from is the phrase the verb governs, which Spanish writes `de'
+# (it was `desde', the first word for `from')
+"deriva" takes "da" before the phrase.
+"viene" takes "da" before the phrase.
+# `lascia le sue tracce' (a control): traces, said first -- the dictionary's first is a stroke, and with the
+# Spanish writer's word for a swimmer's stroke, `brazada' (the report's `bracciate possenti'), it was `deja sus brazadas'
+The feminine noun "traccia" means "trace".

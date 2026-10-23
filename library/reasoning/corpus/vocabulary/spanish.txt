@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20445 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20449 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -231,6 +231,7 @@ The impersonal modal "hay que" means "must".
 The feminine noun "precaución" means "precaution".
 The adjective "anterior" means "previous".
 The masculine noun "entrenador" means "coach".
+The masculine noun "desastre" means "disaster".
 The masculine noun "descalabro" means "disaster".
 The feminine noun "trampa" means "trap".
 The feminine noun "plantilla" means "squad".
@@ -1790,6 +1791,28 @@ The feminine noun "mesa de negociación" means "negotiating table".
 "mesas de negociación" is the plural of "mesa de negociación".
 The verb "consigue" means "achieves".
 The infinitival verb "consigue" means "attains".
+The masculine adjective "contaminado" means "polluted".
+The feminine adjective "contaminada" means "polluted".
+"contaminados" is the plural of "contaminado".
+"contaminadas" is the plural of "contaminada".
+The masculine noun "policlorobifenilo" means "polychlorinated biphenyl".
+"policlorobifenilos" is the plural of "policlorobifenilo".
+The masculine noun "antiincrustante" means "antifouling paint".
+"antiincrustantes" is the plural of "antiincrustante".
+The feminine noun "fosa séptica" means "septic tank".
+"fosas sépticas" is the plural of "fosa séptica".
+The preposition "tras las huellas de" means "in the footsteps of".
+The masculine noun "grupo" means "group".
+The adverb "desde hace tiempo" means "for a long time".
+The adverb "a lo largo de los años" means "over the years".
+The masculine noun "metro cúbico" means "cubic metre".
+"metros cúbicos" is the plural of "metro cúbico".
+The preposition "de acuerdo entre" means "in agreement between".
+The adverb "nada menos que" means "as many as".
+The feminine noun "extensión" means "extension".
+"hay" takes the indefinite.
+"deriva" takes "de" before the phrase.
+"viene" takes "de" before the phrase.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -1974,6 +1997,16 @@ The feminine noun "mirada" means "gaze".
 "miradas" is the plural of "mirada".
 The feminine noun "primavera" means "spring".
 "primaveras" is the plural of "primavera".
+The masculine noun "pesticida" means "pesticide".
+"pesticida" is not feminine.
+"pesticidas" is the plural of "pesticida".
+The feminine noun "brazada" means "stroke".
+"brazadas" is the plural of "brazada".
+The masculine noun "vertido" means "discharge".
+"vertidos" is the plural of "vertido".
+The masculine noun "curador" means "curator".
+"curadores" is the plural of "curador".
+"curador" is a person.
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -25858,8 +25891,6 @@ The masculine noun "mercadeo" means "marketing".
 The noun "lumbre" means "fire".
 The masculine noun "canónigo" means "canon".
 "canónigos" is the plural of "canónigo".
-The feminine noun "brazada" means "stroke".
-"brazadas" is the plural of "brazada".
 The masculine noun "mejoramiento" means "improvement".
 "mejoramientos" is the plural of "mejoramiento".
 The masculine noun "cuentakilómetros" means "odometer".
@@ -138357,6 +138388,10 @@ The feminine adjective "taciturna" means "taciturn".
 "taciturnísima" is the superlative of "taciturna".
 "taciturnísimos" is the superlative of "taciturnos".
 "taciturnísimo" is the superlative of "taciturno".
+The masculine adjective "impávido" means "fearless".
+"impávidos" is the plural of "impávido".
+The feminine adjective "impávida" means "fearless".
+"impávidas" is the plural of "impávida".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".

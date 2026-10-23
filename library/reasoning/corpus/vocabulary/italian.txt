@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16571 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16588 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1374,6 +1374,7 @@ The masculine noun "traffico veicolare" means "road traffic".
 The preposition "insieme a" means "together with".
 The feminine noun "facciata" means "facade".
 "facciate" is the plural of "facciata".
+The masculine noun "scarico" means "discharge".
 The masculine noun "scarico" means "unloading".
 "scarichi" is the plural of "scarico".
 The verb "auspica" means "hopes".
@@ -2500,6 +2501,57 @@ The adverb "di pomeriggio" means "in the afternoons".
 The adverb "di mattina" means "in the mornings".
 The masculine noun "tavolo delle trattative" means "negotiating table".
 "tavoli delle trattative" is the plural of "tavolo delle trattative".
+The verb "prepara" means "prepares".
+The verb "confeziona" means "prepares".
+"confezionano" is the plural of "confeziona".
+"confezionare" is the infinitive of "confeziona".
+"confezionato" is the participle of "confeziona".
+"confezionata" is the participle of "confeziona".
+"confezionata" is feminine.
+"confezionati" is the participle of "confeziona".
+"confezionati" is the plural of "confezionato".
+"confezionate" is the participle of "confeziona".
+"confezionate" is feminine.
+"confezionate" is the plural of "confezionata".
+The masculine noun "policlorobifenile" means "polychlorinated biphenyl".
+"policlorobifenili" is the plural of "policlorobifenile".
+The masculine noun "antivegetativo" means "antifouling paint".
+"antivegetativi" is the plural of "antivegetativo".
+The feminine noun "bracciata" means "stroke".
+"bracciate" is the plural of "bracciata".
+The feminine noun "zattera" means "raft".
+"zattere" is the plural of "zattera".
+The feminine noun "fossa settica" means "septic tank".
+"fosse settiche" is the plural of "fossa settica".
+"trent'" is the elision of "trenta".
+"qual'" is the elision of "quale".
+The preposition "sulle orme di" means "in the footsteps of".
+The masculine noun "studio" means "study".
+The feminine noun "ricerca" means "research".
+The masculine noun "gruppo" means "group".
+The masculine noun "fondo" means "fund".
+The masculine noun "canale" means "canal".
+The masculine noun "canale" means "channel".
+The adverb "in fondo" means "after all".
+The preposition "alla ricerca di" means "in search of".
+The adverb "da tempo" means "for a long time".
+The adverb "nel corso degli anni" means "over the years".
+"deposita" takes the passive.
+The masculine noun "metro cubo" means "cubic metre".
+"metri cubi" is the plural of "metro cubo".
+The preposition "d'intesa tra" means "in agreement between".
+The verb "nuota" means "swims".
+The verb "fa il bagno" means "swims".
+"fanno il bagno" is the plural of "fa il bagno".
+"fare il bagno" is the infinitive of "fa il bagno".
+"Consiglio Nazionale delle Ricerche" is a name.
+The masculine noun "progetto" means "project".
+The masculine adjective "diverso" means "different".
+The feminine adjective "diversa" means "different".
+The adjective "simile" means "similar".
+"deriva" takes "da" before the phrase.
+"viene" takes "da" before the phrase.
+The feminine noun "traccia" means "trace".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2738,6 +2790,18 @@ The masculine noun "sguardo" means "gaze".
 "sguardi" is the plural of "sguardo".
 The masculine noun "pareggio" means "tie".
 "pareggi" is the plural of "pareggio".
+The masculine noun "pesticida" means "pesticide".
+"pesticida" is not feminine.
+"pesticidi" is the plural of "pesticida".
+The masculine noun "nuotatore" means "swimmer".
+"nuotatori" is the plural of "nuotatore".
+The feminine noun "conferma" means "confirmation".
+"conferme" is the plural of "conferma".
+The masculine noun "accumulo" means "accumulation".
+"accumuli" is the plural of "accumulo".
+The masculine noun "curatore" means "curator".
+"curatori" is the plural of "curatore".
+"curatore" is a person.
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -16490,8 +16554,6 @@ The masculine noun "cablaggio" means "wiring".
 The masculine noun "cupolone" means "cupola".
 "cupoloni" is the plural of "cupolone".
 The masculine noun "curatore" means "guardian".
-"curatori" is the plural of "curatore".
-"curatore" is a person.
 The masculine noun "cuscino" means "cushion".
 "cuscini" is the plural of "cuscino".
 The masculine noun "custode" means "keeper".
@@ -17919,6 +17981,14 @@ The masculine noun "rinnovamento" means "renewal".
 "rinnovamenti" is the plural of "rinnovamento".
 The masculine noun "boemo" means "bohemian".
 "boemi" is the plural of "boemo".
+The masculine noun "rio" means "canal".
+"rii" is the plural of "rio".
+The feminine noun "prosecuzione" means "continuation".
+"prosecuzioni" is the plural of "prosecuzione".
+The masculine noun "detersivo" means "detergent".
+"detersivi" is the plural of "detersivo".
+The feminine noun "orma" means "footprint".
+"orme" is the plural of "orma".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -26531,6 +26601,58 @@ The verb "forgia" means "forges".
 "forgiate" is the plural of "forgiata".
 "forgiare" is the infinitive of "forgia".
 "forgiando" is the gerund of "forgia".
+The verb "inquina" means "pollutes".
+"inquinano" is the plural of "inquina".
+"inquiniamo" is the first person of "inquinano".
+"inquino" is the first person of "inquina".
+"inquini" is the second person of "inquina".
+"inquinò" is the past of "inquina".
+"inquinarono" is the past of "inquinano".
+"inquinammo" is the first person of "inquinarono".
+"inquinaste" is the second person of "inquinarono".
+"inquinai" is the first person of "inquinò".
+"inquinasti" is the second person of "inquinò".
+"inquinava" is the imperfect of "inquina".
+"inquinavano" is the imperfect of "inquinano".
+"inquinavamo" is the first person of "inquinavano".
+"inquinavate" is the second person of "inquinavano".
+"inquinavo" is the first person of "inquinava".
+"inquinavi" is the second person of "inquinava".
+"inquinerà" is the future of "inquina".
+"inquineranno" is the plural of "inquinerà".
+"inquineremo" is the first person of "inquineranno".
+"inquinerete" is the second person of "inquineranno".
+"inquinerò" is the first person of "inquinerà".
+"inquinerai" is the second person of "inquinerà".
+"inquinerebbe" is the conditional of "inquina".
+"inquinerebbero" is the plural of "inquinerebbe".
+"inquineremmo" is the first person of "inquinerebbero".
+"inquinereste" is the second person of "inquinerebbero".
+"inquinerei" is the first person of "inquinerebbe".
+"inquineresti" is the second person of "inquinerebbe".
+"inquini" is the subjunctive of "inquina".
+"inquinino" is the plural of "inquini".
+"inquiniamo" is the first person of "inquinino".
+"inquinasse" is the past subjunctive of "inquina".
+"inquinassero" is the plural of "inquinasse".
+"inquinassimo" is the first person of "inquinassero".
+"inquinaste" is the second person of "inquinassero".
+"inquinassi" is the first person of "inquinasse".
+"inquinassi" is the second person of "inquinasse".
+"inquina" is the imperative of "inquina".
+"inquinare" is the negative imperative of "inquina".
+"inquinate" is the imperative of "inquinano".
+"inquiniamo" is the hortative of "inquina".
+"inquinato" is the participle of "inquina".
+"inquinata" is the participle of "inquina".
+"inquinata" is feminine.
+"inquinati" is the participle of "inquina".
+"inquinati" is the plural of "inquinato".
+"inquinate" is the participle of "inquina".
+"inquinate" is feminine.
+"inquinate" is the plural of "inquinata".
+"inquinare" is the infinitive of "inquina".
+"inquinando" is the gerund of "inquina".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -103667,6 +103789,110 @@ The verb "contraria" means "upsets".
 "contrariate" is the plural of "contrariata".
 "contrariare" is the infinitive of "contraria".
 "contrariando" is the gerund of "contraria".
+The verb "giace" means "rests".
+"giacciono" is the plural of "giace".
+"giacciamo" is the first person of "giacciono".
+"giaccio" is the first person of "giace".
+"giaci" is the second person of "giace".
+"giacque" is the past of "giace".
+"giacquero" is the past of "giacciono".
+"giacemmo" is the first person of "giacquero".
+"giaceste" is the second person of "giacquero".
+"giacqui" is the first person of "giacque".
+"giacesti" is the second person of "giacque".
+"giaceva" is the imperfect of "giace".
+"giacevano" is the imperfect of "giacciono".
+"giacevamo" is the first person of "giacevano".
+"giacevate" is the second person of "giacevano".
+"giacevo" is the first person of "giaceva".
+"giacevi" is the second person of "giaceva".
+"giacerà" is the future of "giace".
+"giaceranno" is the plural of "giacerà".
+"giaceremo" is the first person of "giaceranno".
+"giacerete" is the second person of "giaceranno".
+"giacerò" is the first person of "giacerà".
+"giacerai" is the second person of "giacerà".
+"giacerebbe" is the conditional of "giace".
+"giacerebbero" is the plural of "giacerebbe".
+"giaceremmo" is the first person of "giacerebbero".
+"giacereste" is the second person of "giacerebbero".
+"giacerei" is the first person of "giacerebbe".
+"giaceresti" is the second person of "giacerebbe".
+"giaccia" is the subjunctive of "giace".
+"giacciano" is the plural of "giaccia".
+"giacciamo" is the first person of "giacciano".
+"giacesse" is the past subjunctive of "giace".
+"giacessero" is the plural of "giacesse".
+"giacessimo" is the first person of "giacessero".
+"giaceste" is the second person of "giacessero".
+"giacessi" is the first person of "giacesse".
+"giacessi" is the second person of "giacesse".
+"giaci" is the imperative of "giace".
+"giacere" is the negative imperative of "giace".
+"giacete" is the imperative of "giacciono".
+"giacciamo" is the hortative of "giace".
+"giaciuto" is the participle of "giace".
+"giaciuta" is the participle of "giace".
+"giaciuta" is feminine.
+"giaciuti" is the participle of "giace".
+"giaciuti" is the plural of "giaciuto".
+"giaciute" is the participle of "giace".
+"giaciute" is feminine.
+"giaciute" is the plural of "giaciuta".
+"giacere" is the infinitive of "giace".
+"giacendo" is the gerund of "giace".
+The verb "ripulisce" means "cleans".
+"ripuliscono" is the plural of "ripulisce".
+"ripuliamo" is the first person of "ripuliscono".
+"ripulisco" is the first person of "ripulisce".
+"ripulisci" is the second person of "ripulisce".
+"ripulì" is the past of "ripulisce".
+"ripulirono" is the past of "ripuliscono".
+"ripulimmo" is the first person of "ripulirono".
+"ripuliste" is the second person of "ripulirono".
+"ripulii" is the first person of "ripulì".
+"ripulisti" is the second person of "ripulì".
+"ripuliva" is the imperfect of "ripulisce".
+"ripulivano" is the imperfect of "ripuliscono".
+"ripulivamo" is the first person of "ripulivano".
+"ripulivate" is the second person of "ripulivano".
+"ripulivo" is the first person of "ripuliva".
+"ripulivi" is the second person of "ripuliva".
+"ripulirà" is the future of "ripulisce".
+"ripuliranno" is the plural of "ripulirà".
+"ripuliremo" is the first person of "ripuliranno".
+"ripulirete" is the second person of "ripuliranno".
+"ripulirò" is the first person of "ripulirà".
+"ripulirai" is the second person of "ripulirà".
+"ripulirebbe" is the conditional of "ripulisce".
+"ripulirebbero" is the plural of "ripulirebbe".
+"ripuliremmo" is the first person of "ripulirebbero".
+"ripulireste" is the second person of "ripulirebbero".
+"ripulirei" is the first person of "ripulirebbe".
+"ripuliresti" is the second person of "ripulirebbe".
+"ripulisca" is the subjunctive of "ripulisce".
+"ripuliscano" is the plural of "ripulisca".
+"ripuliamo" is the first person of "ripuliscano".
+"ripulisse" is the past subjunctive of "ripulisce".
+"ripulissero" is the plural of "ripulisse".
+"ripulissimo" is the first person of "ripulissero".
+"ripuliste" is the second person of "ripulissero".
+"ripulissi" is the first person of "ripulisse".
+"ripulissi" is the second person of "ripulisse".
+"ripulisci" is the imperative of "ripulisce".
+"ripulire" is the negative imperative of "ripulisce".
+"ripulite" is the imperative of "ripuliscono".
+"ripuliamo" is the hortative of "ripulisce".
+"ripulito" is the participle of "ripulisce".
+"ripulita" is the participle of "ripulisce".
+"ripulita" is feminine.
+"ripuliti" is the participle of "ripulisce".
+"ripuliti" is the plural of "ripulito".
+"ripulite" is the participle of "ripulisce".
+"ripulite" is feminine.
+"ripulite" is the plural of "ripulita".
+"ripulire" is the infinitive of "ripulisce".
+"ripulendo" is the gerund of "ripulisce".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -109894,6 +110120,36 @@ The adjective "efficace" means "effective".
 "efficacissimi" is the superlative of "efficaci".
 "efficacissima" is the superlative of "efficace".
 "efficacissime" is the superlative of "efficaci".
+The masculine adjective "inquinato" means "polluted".
+"inquinati" is the plural of "inquinato".
+The feminine adjective "inquinata" means "polluted".
+"inquinate" is the plural of "inquinata".
+"inquinatissimo" is the superlative of "inquinato".
+"inquinatissimi" is the superlative of "inquinati".
+"inquinatissima" is the superlative of "inquinata".
+"inquinatissime" is the superlative of "inquinate".
+The masculine adjective "salmastro" means "brackish".
+"salmastri" is the plural of "salmastro".
+The feminine adjective "salmastra" means "brackish".
+"salmastre" is the plural of "salmastra".
+"salmastrissimo" is the superlative of "salmastro".
+"salmastrissimi" is the superlative of "salmastri".
+"salmastrissima" is the superlative of "salmastra".
+"salmastrissime" is the superlative of "salmastre".
+The masculine adjective "impavido" means "fearless".
+"impavidi" is the plural of "impavido".
+The feminine adjective "impavida" means "fearless".
+"impavide" is the plural of "impavida".
+"impavidissimo" is the superlative of "impavido".
+"impavidissimi" is the superlative of "impavidi".
+"impavidissima" is the superlative of "impavida".
+"impavidissime" is the superlative of "impavide".
+The adjective "possente" means "mighty".
+"possenti" is the plural of "possente".
+"possentissimo" is the superlative of "possente".
+"possentissimi" is the superlative of "possenti".
+"possentissima" is the superlative of "possente".
+"possentissime" is the superlative of "possenti".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -125946,6 +126202,14 @@ The feminine adjective "bizzarra" means "bizarre".
 "bizzarrissimi" is the superlative of "bizzarri".
 "bizzarrissima" is the superlative of "bizzarra".
 "bizzarrissime" is the superlative of "bizzarre".
+The masculine adjective "dannoso" means "harmful".
+"dannosi" is the plural of "dannoso".
+The feminine adjective "dannosa" means "harmful".
+"dannose" is the plural of "dannosa".
+"dannosissimo" is the superlative of "dannoso".
+"dannosissimi" is the superlative of "dannosi".
+"dannosissima" is the superlative of "dannosa".
+"dannosissime" is the superlative of "dannose".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

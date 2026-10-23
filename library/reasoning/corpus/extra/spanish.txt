@@ -313,9 +313,11 @@ The impersonal modal "hay que" means "must".
 The feminine noun "precaución" means "precaution".
 # senses the dictionary puts second, or gives in a way the other language
 # cannot use: the previous round, a coach (whose first Spanish word is a
-# bus), a disaster, a trap, a squad, a concession, since
+# bus), a disaster (`desastre' first, the writer's word since the Venice canals report, `Un disastro ambientale'), a trap,
+# a squad, a concession, since
 The adjective "anterior" means "previous".
 The masculine noun "entrenador" means "coach".
+The masculine noun "desastre" means "disaster".
 The masculine noun "descalabro" means "disaster".
 The feminine noun "trampa" means "trap".
 The feminine noun "plantilla" means "squad".
@@ -3016,3 +3018,43 @@ The feminine noun "mesa de negociación" means "negotiating table".
 # as Italian's `riesce a' does (English says `manages to', tr_verb_out/4); the plain meaning said first
 The verb "consigue" means "achieves".
 The infinitival verb "consigue" means "attains".
+# the Venice canals report (VIT-9999..10010, Italian into Spanish): the Spanish words its English needs, with no paradigm in the dictionary
+# `i canali ... risultano più inquinati': polluted (the dictionary has it as the participle of `contaminar' alone)
+The masculine adjective "contaminado" means "polluted".
+The feminine adjective "contaminada" means "polluted".
+"contaminados" is the plural of "contaminado".
+"contaminadas" is the plural of "contaminada".
+# `145 di policlorobifenili'
+The masculine noun "policlorobifenilo" means "polychlorinated biphenyl".
+"policlorobifenilos" is the plural of "policlorobifenilo".
+# `gli antivegetativi meno dannosi'
+The masculine noun "antiincrustante" means "antifouling paint".
+"antiincrustantes" is the plural of "antiincrustante".
+# `si stanno installando delle fosse settiche'
+The feminine noun "fosa séptica" means "septic tank".
+"fosas sépticas" is the plural of "fosa séptica".
+# `sulle orme di lord Byron'
+The preposition "tras las huellas de" means "in the footsteps of".
+# `del gruppo "Insula"': a group is a `grupo', said again first (the dictionary's first Spanish for it is `conjunto')
+The masculine noun "grupo" means "group".
+# `un sospetto che alcuni Veneziani avevano da tempo': for a long time
+The adverb "desde hace tiempo" means "for a long time".
+# `si sono depositati nel corso degli anni': over the years
+The adverb "a lo largo de los años" means "over the years".
+# `295mila metri cubi di sedimenti': cubic metres
+The masculine noun "metro cúbico" means "cubic metre".
+"metros cúbicos" is the plural of "metro cúbico".
+# `confezionato d'intesa tra il comune, la regione e il Ministero': in agreement between
+The preposition "de acuerdo entre" means "in agreement between".
+# `la presenza di ben 11 veleni diversi': as many as, the word for it before a count
+The adverb "nada menos que" means "as many as".
+# `che rappresenta appena il dieci per cento dell'estensione totale della città': the extension is an
+# `extensión', said first (the writer's first word for it was `prórroga', the overtime of a match)
+The feminine noun "extensión" means "extension".
+# `non c'è più il carbone e non c'è più il gasolio': `hay' takes no definite phrase, and with one the thing is there,
+# `ya no está el carbón' -- `no hay más el carbón' is no Spanish
+"hay" takes the indefinite.
+# `deriverebbe dagli scarichi', `è venuta da uno studio': `deriva de', `viene de' -- the phrase the verb governs, and
+# `desde' was the first word for `from'
+"deriva" takes "de" before the phrase.
+"viene" takes "de" before the phrase.

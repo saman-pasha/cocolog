@@ -5009,6 +5009,351 @@ read into an English-worded IR and written into any lesson's language),
   managers of banking` and `have summoned a next appointment`; English refuses
   12 for the third person nobody names, on purpose. The next sample's controls
   take this report in.
+  The Venice canals report (VIT-9999..10010, 12 sentences, Italian into Spanish
+  and English: 12 of 12 and 12 of 12 on a fresh store, 12 and 12 with the new
+  store alone, 3 and 3 with the new code on the old store, 3 and 3 before;
+  reasoning 1.0.15). The sample was taken on the cocolog 2.11.2 binary, master's
+  dd53f69 merged as d67fb41 with Cicili pulled to 3.1.0 (cc24ae0), which its
+  `(cold)` needs, and cocolog stays 2.11.2: the binaries of 2.11.1 and 2.11.2
+  give the same texts and counts to the unit on the controls (7 022 430 135
+  inferences, 0 differ); master's next two commits, documentation only (97445a2,
+  STATUS.md; 6f1f18d, bench/README.md), were merged as 7498830 and c989b20. The
+  new store alone reads every sentence -- its words were all that refused them
+  -- and with the old code writes 10 of the English texts and 7 of the Spanish
+  wrong in the ways the shapes below mend (`rests on the fund of the canals,
+  which result more polluted of those of the close industrial zone ... even`,
+  `have found you the presence of good 11 different poisons: 8,737 kiloes of
+  nickel, 7.496 of chromium`, `Still seem, far anyway when one will be able to
+  return swim in the canals like forty years, ago when`; `como cuarenta años
+  hace`, `os han encontrado la presencia de bien 11 venenos`). The article's
+  sentences fall from 3 872.8 million inferences in each language (the base
+  capped at 3 billion a sentence: its eighth ran past 25 billion uncapped and
+  was refused) to 603.0 into Spanish and 602.8 into English, of which the eighth
+  is 394.2 million and the fourth 124.4. It needed these SHAPES, each with its
+  arm red (test/translate.pl's `newspaper_venice`: 77 checks, 79 arms, the
+  guards among them; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_venice, checks_done"`, a second a
+  run, and every arm is run in two minutes, four at a time): `del` after a first
+  name and a surname, before an acronym, is the preposition and its article
+  (`Roberto Zonta del Cnr e Mario Scattolin del comune` are of the Cnr and of
+  the town council, and joined it was one name, tr_particle_names/4; before a
+  word with a vowel after its capital it stays the name's, a guard, `Joseph
+  Guarnerius del Gesù`, tr_acronym_word/1); a connector the lesson states as an
+  article, a noun, a preposition and the relative (`il giorno in cui`, `el día
+  en que`, the lesson's `when`) is taken apart after a verb into the phrase and
+  its relative clause (`Sembra ancora lontano, comunque, il giorno in cui si
+  potrà tornare a fare il bagno` was `Still seem, far anyway when one will be
+  able`, tr_unjoin_when/3), never at the head of a clause or after a conjunction
+  (two guards), and the time's reader leaves the relative to the phrase's
+  readers (tr_complements0/4) -- four arms; English writes `when` after a time
+  for `in which` (tr_relative_out/5); a verb of seeming with its predicate, and
+  an adverb between commas, before its subject (`Sembra lontano, comunque, il
+  giorno ...` seems far, anyway: a clause of tr_read_statement0/4, and the
+  adverb with its comma written last, tr_comps_out/7 -- three arms); `ends up`
+  with nowhere to end up is `ends` (`le sorprese non finiscono qui` do not END
+  here, the lesson's intransitive `finisce` being `ends up`, which `deve finire
+  in tribunale` needs: tr_write/4 for the verb and its infinitive,
+  tr_ends_up_where/1 for a phrase, a predicate, an adverb of place of several
+  words -- four arms, two of them guards); a reflexive verb that shows what one
+  is, with a predicate, is `appears` (`i Tecnici ... si mostrano ottimisti` was
+  `display optimistic`), and with nobody named after `e` no passive whose
+  subject is the bare adjective (`optimists are displayed`,
+  tr_predicate_after_reflexive/2) -- two arms; `results` before a predicate is
+  `turns out` (`i quali risultano più inquinati`); a verb of several words that
+  ends in a preposition takes its phrase bare (`si occupa della sistemazione`
+  was `takes charge of of the arrangement`, en_bare_object/1), and no phrase of
+  an insertion is one the clause's verb governs (a guard the controls found:
+  `Navarro, en un momento de forma excepcional, se encargó de` was `in a moment
+  exceptional form`, tr_ungoverned/2); no article before a percentage in words
+  (`pari all'87 per cento del totale`, tr_det_out/6); a range of years between
+  two commas is from and to (`per dieci anni, dal 1994 al 2004, hanno scavato`
+  was `since 1994 to 2004`, tr_cross_comps/2); a count of time after a
+  preposition takes its `ago` with it (`come quarant'anni fa, quando c'era` was
+  `like forty years, ago when there was`, and Spanish, whose `hace` begins the
+  time, `como cuarenta años hace`: tr_ago_phrase/2, ago/2, crossed and written
+  by each language, the marks of a quotation that closes on the time moved to
+  its last word -- six arms), in the phrase of `of` of a phrase whose noun is
+  left out too (`inferiore a quello di trenta anni fa`, `al de hace treinta
+  años`); `ben` before a count says how many (`la presenza di ben 11 veleni
+  diversi` is as many as 11, and read as the noun `bene` the presence was of a
+  good: tr_complements0/4 for an object and for the phrase of a preposition,
+  tr_count_adverb/1, advp/2 -- an adverb the lesson says means `as many as` too,
+  Spanish's `nada menos que`, which was `finds 11 poisons as many as` -- crossed
+  as `as many as` and written by the lesson's word for it, or the count alone
+  where it states none: six arms); a noun that can say the bottom of a thing
+  says it before a phrase of `of` with a determiner (`giace sul fondo dei
+  canali` rests on the BOTTOM of the canals, `fondo` a fund first:
+  tr_relational_np/3 in the phrase of a preposition and in the phrase of `of` of
+  a phrase whose noun is left out, `qual'è quella del fondo dei rii`, and the
+  phrase of `of` definite with its relative clause, tr_head_definite/1 -- five
+  arms, one a guard: `il fondo di investimento`, with no determiner, is a fund);
+  the copula left out after a comma (`i motori sono più efficienti, le benzine
+  senza piombo, gli antivegetativi meno dannosi, i detersivi quasi tutti
+  biodegradabili` -- read as the copula's objects, English wrote `the least
+  harmful antifouling paints` and `the detergents everyone biodegradable
+  almost`: tr_gapping/2, gapc/2, the last adjective of a phrase with nothing
+  after it its predicate and its superlative the comparative it says, `tutti`
+  all of them -- four arms); the partitive after the impersonal `si` is what is
+  done (`si stanno installando delle fosse settiche` was `are installing of the
+  septic tanks`, tr_si_partitive/2), and English elides no subject before such a
+  clause after `e` (`the detergents were installing septic tanks`, tr_write/4)
+  -- two arms; the word that begins the cause, an adjective and a clause of
+  `che` are a concession (`Per strano che possa apparire` was `For strange that
+  can appear`: conc/3, crossed by tr_cross_comp/2, English `however strange it
+  may appear` with the modal `may`, the lesson's language as it stood with the
+  clause in the subjunctive, `Por extraño que pueda aparecer` -- two arms); a
+  thing's reflexive in the perfect is the passive's perfect, in a relative
+  clause and after a comma (`tonnellate di piombo ... che si sono depositati`
+  was `have deposited`: tr_se_passive_rc/4, tr_phrase_nrc/3, and fo_group/8
+  writes the reflexive's perfect, `se han depositado` -- three arms); a phrase
+  of `of` right after a participle English writes with one is the participle's
+  (`altre città europee dotate di canali` are endowed WITH canals, `un "tesoro"
+  tossico fatto di tonnellate di piombo` was `a made toxic treasure of tons of
+  lead`: tr_of_participle/2, en_of_participle/1, tr_participle_adjunct/4 for a
+  subject's phrase, en_governs/2 -- three arms); an adverb before the word for
+  `than` (`più inquinati persino di quelli della vicina zona` was `more polluted
+  of those ... even`, tr_comparison_seps/3); `vi` before a verb with an object
+  of its own is `there` (`e vi hanno trovato la presenza di ben 11 veleni` was
+  `have found you the presence`: tr_there_clitic/3, never with a verb of giving
+  or telling, en_dative_verb/1, nor with no object -- three arms, two of them
+  guards); in a denied clause `tanto ... quanto` is `not so much ... as` (`would
+  not derive both from ... and from` said it came from neither, tr_both_pair/3),
+  and the two halves are the verb's when each opens on the preposition it takes
+  (`no derivaría tanto de los vertidos como de una contaminación`, where Spanish
+  wrote `desde`, tr_governed/3) -- two arms; `even` before the phrase of a
+  preposition is said of it (`e persino di arsenico`, tr_comps_out/7), and so is
+  `also` that opens an insertion on one (`tende, anche con l'aiuto dell'acqua
+  salmastra, a facilitare` was `also tends, with the help`: tr_pull_adverb/3 and
+  a clause of tr_comps_out/7 -- two arms); `therefore` stands with the verb
+  (en_mid_adverb/1); a participle and the adverb that says how stand before the
+  noun (`su una superficie sostanzialmente limitata`,
+  tr_pre_participle_adverb/2), an adverb in `-ly` or `already`, `newly`,
+  `often`, never `well`, `ever` or `never` (a guard the controls and the whole
+  case found: `el Mundial más exótico jamás organizado` was `the most exotic
+  never organised World cup`, and the Salvini report's `75 anni ben portati` `75
+  well brought years`); a phrase whose noun is left out with a phrase of `of` is
+  `that of` (`del tutto simile a quello di altre città` was `the one of`,
+  tr_np_out/5), and an adjective with its phrase and the word that says how much
+  before it stands after its noun (`completely similar to that of`,
+  tr_adj_with_intensifier/2); `close` before a noun is `nearby` (`la vicina zona
+  industriale`, tr_adjective_out/5); a number that is the phrase's head, its
+  noun left out, takes English's marks (`7.496 di cromo` stayed `7.496`,
+  tr_percent_style/3); a noun in `o` takes `s` (`8,737 kiloes`, `the studioes`),
+  but for the few English writes with `es` (en_oes_plural/1, a guard); a
+  language whose `there is` takes no definite phrase says the thing is there
+  with its state copula (`non c'è più il carbone` was `no hay más el carbón`:
+  `"hay" takes the indefinite.`, the writer of tr_write/4 -- three arms, two of
+  them guards: an indefinite phrase keeps `hay`, and so does the past, `c'è
+  stato il referendum`, which the controls found as `estuvo el referéndum`); an
+  adverb the IR has after the complement that closes a quotation stood outside
+  it (`mentre oggi l'inquinamento "è inferiore a quello di trenta anni fa"` was
+  `... ago today"`, tr_write/4); `until` after `from` is `to` in English (`dal
+  lido fino a San Marco`, tr_comps_out/7); an infinitive the one before it takes
+  with its word is `to` and the verb under a modal too (`si potrà tornare a fare
+  il bagno` was `return swim`, tr_comp_out/7); `many of which` is its clause's
+  subject (`molti dei quali non venivano ripuliti` was `many of which they were
+  not cleaned`, tr_quantity_gap/4); and two rules the store-alone column found,
+  below: a word that is a noun too is no command where a third person is read
+  (tr_third_person_command/3 asks tr_verb_form_any/1), and no two names are
+  joined across a dash after a verb's third person (tr_dash_names/3). Three
+  pieces of code written for the article had arms that stayed green and are
+  gone: an English writer's clause for an adverb in a clause with its copula
+  left out (the general one writes it in place), a guard that the impersonal
+  partitive's verb takes no `di` (a verb that takes it has the phrase it
+  governs, gov/2, which the rule's pattern does not match) and a guard against a
+  subject in the second person plural for `vi` as `there` (its `vi` is read as
+  its reflexive before the rule); a guard that kept `results` before a phrase of
+  `from` was taken out unmeasured, `turns out polluted by` being the better
+  text. It needed these WORDS in `extra/` (the two readers: a line moves the
+  reader of one language and the writer of the other; the dictionary's own word
+  is said again first where it must stay the one written): Italian `confeziona`
+  (prepares, with its forms; `prepara` said again first), `policlorobifenile`,
+  `antivegetativo` (an antifouling paint), `bracciata` (a swimmer's stroke),
+  `zattera` (a raft, with its gender and plural), `fossa settica`, the elisions
+  `trent'` and `qual'` (the source's `qual'è`), `sulle orme di` (in the
+  footsteps of), `studio`, `ricerca` and `gruppo` (a study, research and a
+  group, where the dictionary's first were a studio, a search and a cluster),
+  `fondo` (a fund, where its first was the background; the bottom of a thing is
+  the code's), `canale` (a canal, the channel second), `in fondo` (after all),
+  `alla ricerca di`, `da tempo` (for a long time), `nel corso degli anni` (over
+  the years), `"deposita" takes the passive.`, `metro cubo`, `d'intesa tra` (in
+  agreement between), `fa il bagno` (swims; `nuota` said again first), the name
+  `Consiglio Nazionale delle Ricerche`, `progetto` (a project, not a blueprint),
+  `diverso` and `diversa` (different), `simile` (similar, not alike), `scarico`
+  (a discharge, before the unloading), `"deriva" takes "da" before the phrase.`
+  and `"viene" takes "da" before the phrase.` (so that Spanish writes `de`,
+  where it wrote `desde`), and `traccia` (a trace, before the dictionary's
+  stroke: below); Spanish `desastre` (said first, before `descalabro`),
+  `contaminado` and its forms (polluted), `policlorobifenilo`,
+  `antiincrustante`, `fosa séptica`, `tras las huellas de`, `grupo` (said again
+  first, before `conjunto`), `desde hace tiempo`, `a lo largo de los años`,
+  `metro cúbico`, `de acuerdo entre`, `nada menos que` (as many as), `extensión`
+  (said first, where the writer's word was `prórroga`, a match's overtime),
+  `"hay" takes the indefinite.`, and `"deriva"` and `"viene"` taking `de` before
+  the phrase; and in the dictionaries' extras, for Italian `rest` (`giacere`,
+  read only: English's `lie` is also to tell one), `pollute` and `polluted`
+  (`inquinare`, `inquinato`, both ways), `pesticide`, `canal` (`rio`, read
+  only), `brackish`, `continuation` (`prosecuzione`), `clean` (`ripulire`),
+  `harmful` (`dannoso`), `detergent` (`detersivo`) and `footprint` (`orma`), the
+  five read only, `fearless` (`impavido`), `swimmer` (`nuotatore`), `mighty`
+  (`possente`), `confirmation` (`conferma`), `accumulation` (`accumulo`) and
+  `curator` (`curatore`), and for Spanish `pesticide`, `fearless` (`impávido`),
+  `stroke` (`brazada`), `discharge` (`vertido`) and `curator` (`curador`). The
+  first meaning moved for 12 Italian words and no Spanish one (Italian `diverso`
+  and `diversa` different, `simile` similar, `canale` a canal, `curatore` a
+  curator, `fondo` a fund, `gruppo` a group, `progetto` a project, `ricerca`
+  research, `scarico` a discharge, `studio` a study, `traccia` a trace), the
+  writer's first word for 8 Italian meanings and 6 Spanish ones (Italian
+  different `diverso`, fearless `impavido`, accumulation `accumulo`,
+  confirmation `conferma`, discharge `scarico`, stroke `bracciata`, swimmer
+  `nuotatore`, pollutes `inquina`; Spanish fearless `impávido`, disaster
+  `desastre`, discharge `vertido`, extension `extensión`, group `grupo`, stroke
+  `brazada`), and none was lost. THE CONTROLS (cocolog 2.11.2, store KB212, 102
+  count files, 2 844 sentences: the earlier set with the banks' Saturdays report
+  in, es_19990601-98, both directions; this report is not among them): the last
+  version's translator against this one, on the one store, 52 sentences in 28
+  files read differently, all better but three that are no worse -- `that of`
+  for `the one of` (9: `that of the lifeguard`, `that of Berlusconi`, `That of
+  the Tuscan archipelago`), the English plural in `-os` (7: `kilos`, `videos`,
+  `virtuosos`, `violoncellos`, `euros`, `photos`), `therefore`, `also` and
+  `even` where they stand (10: `would therefore transfer`, `has the right duty
+  of favouring, also with coercive measures`, `even inside the roof`), no
+  article before a percentage in words (`they represent 11.5 per cent`, `only 1
+  per cent`, `assigns 2 per cent`), `appeared` (`the Spanish Government has
+  appeared cold and reluctant`, `Rodríguez Zapatero appeared very accurate`),
+  `turned out injured`, `has not ended`, `to obtain`, `to intervene`, `to
+  judge`, `the bottom of the hole`, `2,000` and `2.3`, `for the first time,
+  yesterday` with the source's comma, `the recently constituted town councils`,
+  `moments when`, `from the day when` (`dal giorno in cui`, both languages), `or
+  they lose`, `And in fact they confirm`, Spanish `están las voces`, `No están
+  las sillas altas` and `"Está el jefe del estado afortunadamente"` (the state
+  copula, three), and the Rosi report's 25th, refused by the last version on
+  this store and read -- and the three no worse: `they have dumped him to the
+  last world cups down, for this reason where` for `... cups, down for this
+  reason where` (it_9540_9566 14, the adverb between commas at the end of a
+  clause: the IR has `per questo` after its comma, a misreading both texts
+  carry), Spanish `ni siquiera si está el asentimiento` and `¿No está el riesgo
+  de discriminaciones?` for `hay el` (it_9450_9464 12, it_9816_9850 14: Spanish
+  says `¿No hay riesgo ...?`, with no article). The inferences fall 0.216 % (7
+  075 042 579 to 7 059 726 041) and rise 0.096 % outside the four sentences the
+  code reads faster (the Rosi report's 25th, 9.9 million inferences to 1.6, and
+  29th, 3.4 to 0.6, in each language). Bytes and characters read every sentence
+  alike (0 differ, the bytes 0.014 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB206, against this one on the new): 78 sentences
+  in 32 files, +0.110 % (7 051 992 814 to 7 059 726 041). THE CODE ALONE (this
+  translator on KB206): 45 sentences in 28 files, every one among the 52, +0.016
+  % (to 7 053 094 325); the seven left need the new lines (`"hay" takes the
+  indefinite.`, `conferma` as a noun). THE STORE ALONE (the last version's
+  translator on KB206 and on KB212): 34 sentences in 14 files, +0.327 % (to 7
+  075 042 579), all better but the two of `conferma`, below -- `project` (6:
+  `the "project Bogi"`, `a rejected project at birth`, where they were
+  blueprints), `different` (6: `two different people`, `the different souls of
+  the pole`), `research` and `study` (8: `the Scientific Research`, `bags of
+  study`), `funds` (`with own funds`, `the necessary funds ... through a
+  national fund`, where they were backgrounds), `group` for a cluster, `after
+  all` and `al fin y al cabo` for `in background` and `en fondo`, `similares`,
+  `wanted to swim` and `quería nadar` (`fare il bagno`), `si deriva
+  dall'accordo` (`deriva` takes `da`, where Italian wrote `dell'accordo`),
+  `diverse proposte`, and `leaves its traces` and `deja sus rastros`
+  (`traccia`). Its cost is two sentences: the Rosi report's 25th (+8.3 million
+  inferences in each language, to its refusal) and it_9270_9295 9, `Cecchi Paone
+  conferma che ...` (+3.0 million, 41.9 to 44.9, the text the same), both
+  `conferma` read as a noun too. THE FIRST ROUND'S REGRESSIONS, found by reading
+  the texts of every column and mended. Of the code (the one store): an
+  insertion's phrase was governed by the clause's verb, which English now wrote
+  bare after a verb of several words that ends in its preposition (`Navarro, en
+  un momento de forma excepcional, se encargó de llevar el peso` was `in a
+  moment exceptional form`: no phrase of an insertion is governed now,
+  tr_ungoverned/2, a guard); `del` before a capitalised word split a name (`su
+  constructor, Joseph Guarnerius del Gesù, de Cremona` was `his builder Joseph
+  Guarnerius of the Gesù`: only before an acronym now, tr_acronym_word/1, a
+  guard); `ever` and `never` went before the noun with their participle (`el
+  Mundial más exótico jamás organizado` was `the most exotic never organised
+  World cup`), and so did `well`, which the whole case found in an older check
+  (`75 anni ben portati`, `75 well brought years`: none of the three now, a
+  guard); and the state copula wrote a past event (`c'è stato il referendum` was
+  `estuvo el referéndum`: never in the past now, a guard). Of the store (the
+  store-alone column): `lascia le sue tracce` was `deja sus brazadas`, the
+  writer's word for a swimmer's stroke being Spanish's word for any stroke now
+  and `traccia` a stroke first in the dictionary (`traccia` is a trace first
+  now, a line of corpus/extra, and the sentence is `deja sus rastros`); and the
+  dictionary line that gives the report's `La conferma di un sospetto` its noun
+  made `conferma` a noun everywhere, so that `E infatti conferma indirettamente
+  le voci` was `And in fact confirm the voices` -- the third person was turned
+  down where a form is a noun too, and the command, read after it, took the
+  sentence (tr_third_person_command/3 asks tr_verb_form_any/1 now) -- and the
+  Rosi report's `l'Egibren - conferma Casotto - Rosi sapeva del farmaco` was
+  refused, `Casotto - Rosi` read as one name after the noun (tr_dash_names/3
+  refuses a word that is a verb's third person too): two rules, each with its
+  arm red. THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (thirteen
+  sentences of the controls into English, eleven of 0.2 to 3 million inferences
+  picked at random and two risers of 12 and 52 million, over a copy of the
+  library per rule on the new store): the first cut was +0.297 % of the controls
+  outside the four sentences it reads faster, and 2 840 of the 2 844 sentences
+  rose, a few thousand inferences each -- a cost every reading pays, +0.74 % of
+  the sentences under 0.2 million. The statement reader's clause for a verb of
+  seeming was 18 % of what the thirteen rose, tr_complements0/4's two clauses
+  for `ben` and a count 16 %, and the crossing's two for the bottom of a thing 5
+  %: the first asked tr_form/5 of the first word of every piece (300 to 650
+  inferences a call) and the second two the lexicon at every complement. What
+  paid was a list made once a sentence (tr_into_ir/4): the lexemes whose meaning
+  is `seems` or `appears` and those whose meaning is `well` or `as many as`,
+  found by their meanings (52 inferences: the store keys the call on its second
+  argument), each clause asking the word's lexeme against its list first
+  (tr_count_lexeme/1). Two notes tried before it -- whether a sentence has a
+  verb of seeming, or a count adverb before a count, asked of every word -- cost
+  more than they saved (10 000 inferences a sentence for the first, tr_form/5 at
+  every word), and the cheaper question first inside each clause saved nothing:
+  the cost was the clauses being entered. The bottom clause asks the noun's
+  meaning before its phrase's determiner, which moves nothing measurable. The
+  final cut is +0.096 % outside the four (7 048 448 093 to 7 055 197 021, the
+  first 7 069 393 361), every text of the 2 844 the first cut's: +0.36 % of the
+  sentences under 0.2 million, +0.27 % of 0.2 to 1 million, +0.18 % of 1 to 5
+  million, +0.10 % of 5 to 20 million; the largest rises are the Rognoni
+  interview's nineteenth (+0.23 million of 773, refused both ways) and
+  it_9714_9749 24 (+0.13 million of 3.7, `we must learn to judge`). THE STATED
+  COSTS: the dictionary's line that gives the report's `La conferma di un
+  sospetto` its noun makes `conferma` a noun everywhere, and `Cecchi Paone
+  conferma che ...` (it_9270_9295 9) costs 3.0 million inferences more in each
+  language, its text the same (the two readings it broke are mended by the two
+  rules above); a first meaning that serves the news and not every text --
+  `fondo` is a fund (the background second; the bottom of a thing is the
+  code's), `canale` a canal (a television channel is one now; no sentence of the
+  controls has it), `progetto` a project, `studio` a study, `ricerca` research,
+  `gruppo` a group, `scarico` a discharge, `diverso` different, `simile`
+  similar, `traccia` a trace, Spanish `desastre` a disaster, `extensión` an
+  extension, `grupo` a group, and the writer's `bracciata` and `brazada` for any
+  stroke and `impavido` and `impávido` for fearless -- and the controls'
+  sentences they change are the store's 34 above; Spanish's state copula after
+  `c'è` and a definite phrase in a question (`¿No está el riesgo de
+  discriminaciones?`, as wrong as the `hay el riesgo` it was); the adverb
+  between commas at the end of a clause moves the comma of a misread sentence
+  (it_9540_9566 14); and the inferences, +0.096 % outside the four sentences the
+  code reads faster, and the store's +0.327 %. The report LEAVES, of the 12 into
+  English: `Venezia`, `Stoccolma` and `Porto Marghera` as the source spells them
+  (no lesson states a city's English name); `the ambient direction of the town
+  council` (the environment department) and `the muds of the numerous canals`
+  (3); `the group "Insula" that takes charge` (the comma before the relative
+  clause lost) and `an "integrated project prepared canals"` (4: a title in
+  quotation marks read as the lesson's words, `rii` as canals, and its
+  participle after it); `that, represent just ten per cent` (8: the comma after
+  the relative word, and the verb in the plural where its subject is the
+  bottom); `the Technicians therefore, that they promise to remove "all the
+  remaining poisons"` (9: a quotation that closes before the comma ending the
+  subject's relative clause leaves the clause with nobody named, where `who
+  promise` is the text); `while the pollution "is inferior to that of thirty
+  years ago" today` (10: `oggi`, before the subject in the source, is written
+  last in both languages); of the 12 into Spanish: `desde 1994 a 2004` (3, `de
+  1994 a 2004`) and `los barros` (`los lodos`); `el Ministerio del Entorno` (4,
+  `del Medio Ambiente`); `Y entonces` (5, `Y luego`); `ciudades europeas dotado
+  de canales` (8: the participle after its noun's phrase agrees with nothing,
+  `dotadas`) and `y desde el hecho de que` (8: the third `da` after
+  `deriverebbe` is no half of the pair the verb governs, `del hecho`); `muchos
+  de los que` (9, `de los cuales`); `los estudios en los sedimentos ya
+  consideran el pasado` (10, `sobre`, `se refieren al pasado`); and `no está más
+  el carbón` (11, `ya no hay carbón`). The next sample's controls take this
+  report in.
 
 ## Tutorials are documentation that runs
 
