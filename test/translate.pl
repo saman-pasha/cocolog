@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -769,7 +769,7 @@ phrases :-
     reason_translate('The red dog and the big cat eat.', R13),
     check('two phrases with adjectives, each after its noun', R13, 'El perro rojo y el gato grande comen.'),
     reason_translate('The big red house is small.', R14),
-    check('two adjectives on one noun, both after it', R14, 'La casa grande roja es pequeña.'),
+    check('two adjectives on one noun, both after it, the one nearest the noun nearest it in both languages (tr_foreign_adj_order/3)', R14, 'La casa roja grande es pequeña.'),
     reason_translate('The dogs of Maria eat.', R15),
     check('a phrase inside the subject', R15, 'Los perros de Maria comen.'),
     reason_translate('Maria eats bread.', R16),
@@ -798,7 +798,7 @@ phrases :-
     check('two bare objects', E10, 'Maria eats bread and eggs.'),
     reason_translate('El perro rojo y el gato grande comen.', E11),
     check('each adjective back before its noun', E11, 'The red dog and the big cat eat.'),
-    reason_translate('La casa grande roja es pequeña.', E12),
+    reason_translate('La casa roja grande es pequeña.', E12),
     check('two adjectives, in order', E12, 'The big red house is small.'),
     reason_translate('Los perros de Maria comen.', E13),
     check('of Maria', E13, 'The dogs of Maria eat.'),
@@ -1929,7 +1929,7 @@ adjuncts :-
     reason_translate('En la casa el perro come el pan.', A4),
     check('a fronted adjunct before the subject', A4, 'The dog eats the bread in the house.'),
     reason_translate('Sábado el perro come el pan.', A5),
-    check('a bare time phrase, which the lesson says is one', A5, 'The dog eats the bread Saturday.'),
+    check('a bare time phrase, which the lesson says is one', A5, 'The dog eats the bread on Saturday.'),
     reason_translate('El perro come el pan para siempre.', A6),
     check('a preposition whose object is an adverb', A6, 'The dog eats the bread for always.'),
     reason_translate('El todo es grande.', A7),
@@ -10663,7 +10663,7 @@ newspaper_israel_checks_2 :-
           'I cani comprati domenica mangiano il pane.'),
     nf_tr('Los perros comprados el domingo comen el pan.', spanish, english, B2),
     check('... and in English', B2,
-          'The dogs bought Sunday eat the bread.'),
+          'The dogs bought on Sunday eat the bread.'),
     nf_tr('Los perros vistos el domingo duermen.', spanish, italian, B3),
     check('... with a participle of another verb', B3,
           'I cani visti domenica dormono.').
@@ -10702,7 +10702,7 @@ newspaper_israel_checks_5 :-
           'Il cane che domenica mangia il pane dorme.'),
     nf_tr('El perro que el domingo come el pan duerme.', spanish, english, E2),
     check('... and in English', E2,
-          'The dog that Sunday eats the bread sleeps.'),
+          'The dog that on Sunday eats the bread sleeps.'),
     reason_ir('El perro de las casas que el domingo duerme come el pan.', spanish, E3),
     check('and never the day for the subject of an object reading: `un niño de 10 años que el domingo había resultado gravemente herido'' hangs the clause on the years, which its singular gap does not agree with, and read as an object `el domingo'' was the one hurt, `che domenica era risultata ferita''', E3,
           [ir(s(none, with(np(det(article, the, w(the, lower)), none, [], w(dog, lower), singular),
@@ -12759,7 +12759,7 @@ newspaper_tempi_checks_4 :-
     check('A DAY AND A PHRASE THAT NAMES, THE VERB LEFT OUT: `Martedì tutti attorno al tavolo.'', `Martedì il vertice.'' -- a headline says when and what, as `Incerto il futuro'' says how and what; the day is an adjunct and the rest is a heading''s phrase', D3,
           'El martes la cumbre.'),
     nf_tr('Martedì il vertice.', italian, english, D4),
-    check('... and in English', D4, 'Tuesday the summit.'),
+    check('... and in English', D4, 'On Tuesday the summit.'),
     nf_tr('Il cane risente invece del pane.', italian, spanish, D5),
     check('A VERB AND ITS PREPOSITION, A WORD OF TWO, WITH AN ADVERB BETWEEN THEM: `risente invece del punto di vista di AN'' is `risente di'' and `invece'' -- the longest join from the adverb took `invece di'' for the preposition it is before an infinitive, and the verb had none of its own (tr_multi/2)', D5,
           'El perro refleja en cambio el pan.'),
@@ -14914,6 +14914,142 @@ rognoni_faults_vocabulary :-
 
 %% <<< faults48
 
+%% >>> bank
+%% ---- a Spanish report on the banks' Saturdays, into Italian and English (CESS-CAST-P-19990601-98) -------------------------
+%% The hand lessons are the Rognoni faults section's (rognoni_faults_lesson/2) and a seventh part: the words the checks below need.
+
+newspaper_bank :-
+    section('a Spanish report on the banks'' Saturdays, into Italian and English: a reflexive verb''s own meaning, a comparison''s adverb, an absolute clause in English, on Saturdays, the employers, an intransitive verb in a relative clause, an aside after an adverb, manages to, similar to the one that, a quotation''s adverbs, the order of adjectives in English, an object before its phrase, a week'),
+    newspaper_bank_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_bank_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_bank_checks_1, newspaper_bank_checks_2, newspaper_bank_checks_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_bank_lesson(L, Text) :-
+    rognoni_faults_lesson(L, A), newspaper_bank_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the seventh part of each hand lesson of the football-club section
+newspaper_bank_part(spanish, 'The verb "convierte" means "converts". The reflexive verb "convierte" means "becomes". "convierte" takes "en" before the phrase. "convertido" is the participle of "convierte".
+The masculine noun "problema" means "problem". "problema" is not feminine. The feminine noun "agua" means "water". The masculine noun "vino" means "wine".
+The adverb "en la actualidad" means "currently". The masculine adjective "mismo" means "same". The feminine adjective "misma" means "same". "mismas" is the plural of "misma". The feminine noun "condición" means "condition". "condiciones" is the plural of "condición".
+The verb "mantiene" means "keeps". "bloqueado" is the participle of "bloquea". The verb "bloquea" means "blocks". The masculine noun "convenio" means "agreement". The masculine noun "sector" means "sector".
+The masculine noun "sábado" means "saturday". "sábados" is the plural of "sábado". "sábado" is a time. The feminine noun "patronal" means "employers". The feminine noun "hora" means "hour". The masculine noun "encuentro" means "meeting". The verb "dura" means "lasts". "duró" is the past of "dura". "dura" is intransitive. The feminine adjective "larga" means "long".
+The verb "abre" means "opens". The adverb "por las tardes" means "in the afternoons". The feminine noun "iniciativa" means "initiative". The verb "pacta" means "agrees".
+The verb "consigue" means "achieves". The infinitival verb "consigue" means "attains". The adjective "similar" means "similar".
+The conjunction "por lo que" means "so". The adverb "bien" means "well". The masculine adjective "laboral" means "labour". The masculine adjective "colectivo" means "collective". The masculine noun "acuerdo" means "agreement".
+The verb "da" means "gives". "dio" is the past of "da". The masculine noun "hijo" means "son". The masculine noun "libro" means "book". The feminine noun "tarde" means "afternoon". "tarde" is a time. The feminine noun "semana" means "week". "semana" is a time. The verb "va" means "goes".
+The conjunction "que" means "than". "became" is the past of "becomes". "become" is the participle of "becomes". "gave" is the past of "gives". "given" is the participle of "gives".
+The verb "centra" means "centres". "centra" takes "en" before the phrase. The feminine noun "petición" means "request". "dado" is the participle of "da". "dada" is the participle of "da". "dada" is feminine. The feminine noun "situación" means "situation".
+The feminine demonstrative "esa" means "that". The verb "ocurre" means "occurs". "ocurrirá" is the future of "ocurre". "ocurre" is intransitive. The feminine noun "fecha" means "date".
+The masculine adjective "nuevo" means "new". The adverb "tan" means "so". The determiner "poco" means "little". The masculine noun "tiempo" means "time". The feminine noun "asociación" means "association". The adjective "nacional" means "national". The masculine noun "magistrado" means "magistrate". "magistrados" is the plural of "magistrado". The adverb "por su parte" means "for its part".').
+newspaper_bank_part(italian, 'The verb "diventa" means "becomes". "diventato" is the participle of "diventa". "diventata" is the participle of "diventa". "diventata" is feminine. "è" is the auxiliary of "diventa".
+The masculine noun "problema" means "problem". "problema" is not feminine. The verb "converte" means "converts". The masculine noun "vino" means "wine".
+The masculine noun "sabato" means "saturday". The adverb "attualmente" means "currently". The feminine adjective "stessa" means "same". "stesse" is the plural of "stessa". The feminine noun "condizione" means "condition". "condizioni" is the plural of "condizione".
+The adjective "simile" means "similar". The verb "riesce" means "attains". "riesce" takes "a" before the infinitive. The conjunction "che" means "than".
+"nelle" is the contraction of "in le". The word "quello" replaces the noun. The masculine pronoun "quello" means "that".
+The masculine noun "occhio" means "eye". The verb "tiene" means "holds". "d''" is the elision of "di".').
+
+newspaper_bank_checks_1 :-
+    nf_tr('La casa se ha convertido en un problema.', spanish, english, B1),
+    check('A VERB WITH ITS OWN PRONOUN CROSSES BY THE MEANING THE LESSON GIVES IT SO: `la apertura se ha convertido en el elemento negociador'' has become it -- `convierte'' is `converts'', and it was `has converted in'' (`The reflexive verb "convierte" means "becomes".'', tr_mean_links/3, tr_verb_across/5); the phrase it governs is that meaning''s, which English writes bare (tr_cross/3''s ''$tr_gov_sense'', en_bare_object/1)', B1,
+          'The house has become a problem.'),
+    nf_tr('La casa se ha convertido en un problema.', spanish, italian, B2),
+    check('... and in Italian, with no preposition where the verb written states none (tr_comp_out/7): it was `è diventata in un problema''', B2,
+          'La casa è diventata un problema.'),
+    nf_tr('El perro convierte el agua en vino.', spanish, english, B3),
+    check('GUARD: with no pronoun it is the plain meaning, and `converts'' governs `into'' (en_governs/2)', B3,
+          'The dog converts the water into wine.'),
+    nf_tr('El perro duerme en las mismas condiciones que en la actualidad.', spanish, english, B4),
+    check('A COMPARISON WHOSE SECOND TERM IS AN ADVERB: `en las mismas condiciones que en la actualidad'' -- `en la actualidad'' is one adverb, and with no preposition after `que'' the comparison had no reading; the division before a main clause took `condiciones'' for a verb of the second person, `you condition that currently'' (tr_complements0/4, cmpp/3 with adv/1, and English writes the adverb where it stands)', B4,
+          'The dog sleeps in the same conditions as currently.'),
+    nf_tr('El perro duerme en las mismas condiciones que en la actualidad.', spanish, italian, B5),
+    check('... and in Italian', B5,
+          'Il cane dorme nelle stesse condizioni che attualmente.'),
+    nf_tr('El perro mantiene bloqueado el convenio.', spanish, english, B6),
+    check('AN ABSOLUTE CLAUSE IS ITS PHRASE AND THEN THE PARTICIPLE IN ENGLISH: `mantiene bloqueado el convenio'' keeps the agreement blocked, never `keeps blocked the agreement'' (tr_comp_out/7''s abs/2)', B6,
+          'The dog keeps the agreement blocked.'),
+    nf_tr('El perro mantiene bloqueado el convenio del sector.', spanish, english, B7),
+    check('... and the phrases of `of'' after its phrase are the phrase''s: `keeps the agreement of the sector blocked'', never `blocked of the sector'' (tr_comps_out/7, tr_of_run/3)', B7,
+          'The dog keeps the agreement of the sector blocked.').
+
+newspaper_bank_checks_2 :-
+    nf_tr('El perro duerme los sábados.', spanish, english, B8),
+    check('A DAY OF THE WEEK ALONE IS `on'' IT IN ENGLISH: `la apertura de las sucursales los sábados'' is the opening on Saturdays, where it was `the Saturdays'' (tr_comp_out/7''s at_time/1)', B8,
+          'The dog sleeps on Saturdays.'),
+    nf_tr('La patronal duerme.', spanish, english, B9),
+    check('`the employers'' takes the plural verb: `la patronal bancaria española aboga'' was `the employers advocates'' (en_collective_plural/1)', B9,
+          'The employers sleep.'),
+    nf_tr('La hora que duró el encuentro es larga.', spanish, english, B10),
+    check('A VERB THE LESSON CALLS INTRANSITIVE HAS ITS SUBJECT AFTER IT IN A RELATIVE CLAUSE: `la hora y media que duró el encuentro'' is the hour and a half the meeting lasted, and it was `that lasted the meeting'' (tr_rel_doer/2, `"dura" is intransitive.'')', B10,
+          'The hour that the meeting lasted is long.'),
+    nf_tr('El perro abre la casa por las tardes - - iniciativa que pacta con el gato - -.', spanish, english, B11),
+    check('AN ASIDE BETWEEN DASHES THAT ENDS THE SENTENCE MAY FOLLOW AN ADVERB: `de forma que se abran las oficinas por las tardes - - iniciativa que consiguió pactar con la dirección - -'' -- `por las tardes'' is one adverb, no phrase for the aside, and the sentence was refused (tr_asides/3, dsh/1)', B11,
+          'The dog opens the house in the afternoons – initiative that agrees with the cat –.'),
+    nf_tr('El perro consigue comer el pan.', spanish, english, B12),
+    check('`ATTAINS'' BEFORE AN INFINITIVE IS `manages'': `iniciativa que consiguió pactar'' managed to agree, and it was `achieved to agree'' (`The infinitival verb "consigue" means "attains".'', the pivot Italian''s `riesce a'' crosses as; tr_verb_out/4)', B12,
+          'The dog manages to eat the bread.'),
+    nf_tr('El perro consigue comer el pan.', spanish, italian, B13),
+    check('... and Italian''s verb for it', B13,
+          'Il cane riesce a mangiare il pane.'),
+    nf_tr('El perro come un pan similar al que come el gato.', spanish, english, B14),
+    check('`AL QUE'' AFTER AN ADJECTIVE THAT TAKES THE WORD FOR `to'' IS THE ADJECTIVE''S PHRASE: `un horario similar al que desarrollan las cajas de ahorros'' is similar TO THE ONE the savings banks keep, and it was `a similar schedule to which they develop'' (tr_np/3, en_adj_takes/2, ell/4)', B14,
+          'The dog eats a bread similar to the one that the cat eats.'),
+    nf_tr('El perro come un pan similar al que come el gato.', spanish, italian, B15),
+    check('... and in Italian', B15,
+          'Il cane mangia un pane simile a quello che mangia il gatto.'),
+    nf_tr('La casa a la que va el perro es grande.', spanish, english, B16),
+    check('GUARD: after a noun it is the preposition and the relative word, `to which''', B16,
+          'The house to which the dog goes is big.').
+
+newspaper_bank_checks_3 :-
+    nf_tr('"El gato come muy bien el pan", por lo que el perro duerme.', spanish, english, B17),
+    check('THE ADVERBS ENGLISH WRITES LAST STAY INSIDE A QUOTATION THAT CLOSES ON THE LAST COMPLEMENT: `"los clientes valoran muy positivamente la oportunidad ... por la mañana"'' came out `... Saturday morning" very positively'' (tr_close_after_advs/3)', B17,
+          '"The cat eats the bread very well", so the dog sleeps.'),
+    nf_tr('El acuerdo laboral colectivo es grande.', spanish, english, B18),
+    check('THE ADJECTIVES THE SOURCE PUT AFTER ITS NOUN ARE WRITTEN THE OTHER WAY ROUND IN ENGLISH: `la patronal bancaria española'' is the Spanish banking employers, and it was `the banking Spanish employers'' (tr_order/4, en_adj_order/2)', B18,
+          'The collective labour agreement is big.'),
+    nf_tr('El perro dio a su hijo un libro.', spanish, english, B19),
+    check('AN OBJECT AFTER THE PHRASE OF A PREPOSITION, LAST IN ITS CLAUSE, COMES BEFORE IT IN ENGLISH: `que denunció ante la Audiencia Nacional este acuerdo'' denounced this agreement before it (tr_comps_out/7)', B19,
+          'The dog gave a book to his son.'),
+    nf_tr('El perro come una tarde a la semana.', spanish, english, B20),
+    check('A UNIT OF TIME AFTER A TIME IS HOW OFTEN: `que abren una tarde a la semana'' open one afternoon a week, and it was `to the week'' (tr_comps_out/7)', B20,
+          'The dog eats an afternoon a week.'),
+    newspaper_bank_checks_4.
+
+newspaper_bank_checks_4 :-
+    nf_tr('El perro centra su petición en el pan.', spanish, english, B21),
+    check('`centres'' governs `on'': `centraron sus peticiones en el cierre de los sábados'' centred their requests on the closing (en_governs/2)', B21,
+          'The dog centres his request on the bread.'),
+    nf_tr('El perro come dada la situación.', spanish, english, B22),
+    check('GUARD: a participle English puts before a phrase as a preposition keeps its place right after the verb as well -- `given the situation'', never `the situation given'' (en_prepositional_participle/1)', B22,
+          'The dog eats given the situation.'),
+    nf_tr('Il cane dorme dopo aver mangiato il pane.', italian, english, B23),
+    check('GUARD: the participle and its phrase say how the verb leaves the phrase only as the clause''s first complement (tr_abs_first/2): after `dopo aver'' they are the perfect infinitive''s, `after having eaten the bread'', and the controls'' `dopo aver mandato in onda l''ultimo punto'' came out `after having the last dot broadcasted''', B23,
+          'The dog sleeps after having eaten the bread.'),
+    nf_tr('El perro come lo que ocurrirá esa fecha.', spanish, english, B24),
+    check('GUARD: after `lo que'' an intransitive verb has `what'' for its subject: `lo que ocurrirá esa fecha'' is what will occur that date, and it was `what that date will occur'' (tr_rel_doer/2)', B24,
+          'The dog eats what will occur that date.'),
+    nf_tr('El perro tiene un nuevo acuerdo laboral colectivo.', spanish, english, B25),
+    check('... and an adjective the source put before its noun comes first, as it stood, before the ones written the other way round: a new collective labour agreement (en_adj_order/3)', B25,
+          'The dog has a new collective labour agreement.'),
+    nf_tr('La asociación nacional magistrados duerme.', spanish, english, B26),
+    check('GUARD: an adjective that keeps a number of its own (agrd/3) says it of another word, and the list keeps its order: the controls'' `l''associazione nazionale magistrati'' is the national magistrate association, and it was `the magistrate national association''', B26,
+          'The national magistrate association sleeps.'),
+    nf_tr('El perro come el pan en tan poco tiempo.', spanish, english, B27),
+    check('GUARD: the object moves before a phrase of a preposition only where the preposition has a phrase or a name after it: `en tan poco tiempo'' has an adverb, and the controls'' `¿Cómo podrán conocer nuestra personalidad en tan poco tiempo?'' came out `able to know little time in so'' (tr_comps_out/7)', B27,
+          'The dog eats the bread in so little time.'),
+    nf_tr('Il cane tiene d''occhio la casa.', italian, english, B28),
+    check('GUARD: ... never before a phrase of `of'', which says more of the word before it: the controls'' `tenere d''occhio le piscine'' came out `to hold the pools of eye'', and `Di Corrado Sannucci Roma'' `Roma of Corrado Sannucci''', B28,
+          'The dog holds of eye the house.'),
+    nf_tr('El perro va al Tg 4.', spanish, english, B29),
+    check('GUARD: ... and only an object with a determiner or a count: a bare number is no object of its own, and the controls'' `non andrò al Tg 4'' came out `I will not go 4 to the Tg''', B29,
+          'The dog goes to the Tg 4.'),
+    nf_tr('El perro, Pedro, por su parte, come el pan.', spanish, english, B30),
+    check('AN ADVERB BETWEEN COMMAS RIGHT AFTER AN APPOSITION IS AN INSERTION: `El portavoz demócrata, John Conyers, por su parte, criticó a los republicanos'' -- the apposition took the comma that opens it, and `por su parte'', one adverb now, went to the end of the clause (tr_insertion_off/4)', B30,
+          'The dog, Pedro, for its part, eats the bread.').
+
+%% <<< bank
+
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb
 %% and a phrase, and either may be the subject: `¿Qué perro come el pan?' asks for the dog, `¿Qué libro
@@ -15622,7 +15758,7 @@ shapes :-
     reason_translate('Maria quiere comer el pan y ver el gato.', N2),
     check('a conjunction between two complements, not inside a phrase (querer means wants since 1.8.0, whose extra line comes before the dictionary''s loves)', N2, 'Maria wants to eat the bread and to see the cat.'),
     reason_translate('Maria quiere poner en peligro la casa.', N3),
-    check('a phrase ends at a determiner once it has its noun: `en peligro'' and then the object', N3, 'Maria wants to put in danger the house.'),
+    check('a phrase ends at a determiner once it has its noun: `en peligro'' and then the object', N3, 'Maria wants to put the house in danger.'),
     reason_translate('La casa es considerada concluida.', N4),
     check('a participle predicated of the subject, after a passive that spent the copula', N4, 'The house is considered concluded.'),
     reason_translate('The house is considered concluded.', N5),

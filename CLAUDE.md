@@ -4783,6 +4783,211 @@ read into an English-worded IR and written into any lesson's language),
   of sentence 30: `si liberi` is the impersonal `one releases` in English,
   `dall'assunzione della carica` is `from the intake of the charge` and `de la
   ingesta del cargo`, and `eletto` is still `elegida` in 31.
+  The banks' Saturdays report (AnCora CESS-CAST-P-19990601-98, 12 sentences,
+  Spanish into Italian and English: 12 of 12 and 11 of 12 on a fresh store, 11
+  and 10 with the new store alone, 9 and 9 with the new code on the old store, 9
+  and 9 before; reasoning 1.0.14). The sample was taken on the cocolog 2.11.1
+  binary, master's 870bcb9 merged as 3e3e83a, and cocolog stays 2.11.1: the
+  binaries of 2.11.0 and 2.11.1 give the same texts and counts to the unit on
+  the controls (7 021 882 676 inferences, 0 differ). Master's 2.11.2 (dd53f69,
+  Cicili 3.1.0's `(cold)`) came during the sample; it needs Cicili 3.1.0, the
+  checkout here is 3.0.0 and cicili is frozen, so it is not merged, and the next
+  sample takes it. The article's sentences fall from 26.0 to 15.0 million
+  inferences into Italian and from 25.5 to 14.5 into English.
+  It needed these SHAPES, each with its arm red (test/translate.pl's
+  `newspaper_bank`: 30 checks, 33 arms, the guards among them, and two arms more
+  that are red in the whole case alone, below; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM
+  cocolog query "use_module('test/translate.pl'), newspaper_bank, checks_done"`,
+  three seconds a run): a verb with its own pronoun crosses by the meaning the
+  lesson gives it so (`la apertura se ha convertido en el elemento negociador`
+  has BECOME it, and it was `has converted in`: `The reflexive verb "convierte"
+  means "becomes".`, the class linked in tr_mean_links/3 as the infinitival and
+  adjectival ones are, tr_verb_across/5), and the phrase it governs is that
+  meaning's (tr_cross/3's `$tr_gov_sense`), which English writes bare
+  (en_bare_object/1) and Italian with no preposition where the verb written
+  states none (`è diventata un problema`, tr_comp_out/7) -- five arms;
+  `converts` governs `into` and `centres` `on` (en_governs/2); a comparison
+  whose second term is an adverb (`en las mismas condiciones que en la
+  actualidad` is in the same conditions as currently: `en la actualidad` is one
+  adverb, and with no preposition after `que` the comparison had no reading,
+  tr_complements0/4 and cmpp/3 with adv/1, two arms); a participle and its
+  phrase right after the verb say how the verb leaves the phrase (`que mantiene
+  bloqueado el convenio colectivo del sector bancario` keeps the collective
+  agreement OF THE BANKING SECTOR blocked, `una estatua tiene levantado el brazo
+  izquierdo` has the left arm raised: tr_abs_first/2 makes the clause's first
+  absolute clause abso/2, which English writes phrase first, its phrases of `of`
+  with it, tr_of_run/3 -- three arms, and two guards: the first complement only,
+  or `dopo aver mandato in onda l'ultimo punto` is `after having the last dot
+  broadcasted`, and never a participle English puts before a phrase as a
+  preposition, en_prepositional_participle/1, `given`, `seen`); a day of the
+  week alone is `on` it (`los sábados`, tr_comp_out/7's at_time/1); `the
+  employers` take the plural verb (en_collective_plural/1); an intransitive verb
+  has its subject after it in a relative clause (`la hora y media que duró el
+  encuentro` is the hour and a half the meeting lasted, tr_rel_doer/2, `"dura"
+  is intransitive.`), never after `lo que`, the subject itself (`lo que ocurrirá
+  esa fecha`, a guard the controls found); an aside between dashes that ends the
+  sentence may follow an adverb (`por las tardes - - iniciativa que consiguió
+  pactar con la dirección - -`, tr_asides/3); `attains` before an infinitive is
+  `manages` (`consiguió pactar`, `riesce a giocare`, tr_verb_out/4); `al que`
+  after an adjective that takes the word for `to` is the adjective's phrase (`un
+  horario similar al que desarrollan las cajas de ahorros` is similar to the one
+  the savings banks keep, tr_np/3 with ell/4, and a guard, `la casa a la que va
+  el perro`); the adverbs English writes last stay inside a quotation that
+  closes on the last complement (tr_close_after_advs/3); the adjectives the
+  source put after its noun are written the other way round in English (`la
+  patronal bancaria española` is the Spanish banking employers, en_adj_order/3:
+  a degree and an adjective the source put before its noun come first, as they
+  stood, `un mejor trato fiscal`, `un nuevo acuerdo laboral colectivo`, and a
+  list with a name, a coordinator, a quoted word, a noun that says what kind or
+  an adjective that keeps a number of its own keeps its order -- three arms, the
+  guards the controls found), and the lesson's language writes the plain
+  adjectives an ENGLISH source put before its noun the other way round, so that
+  a round trip comes back as it went (`the big red house` is `la casa roja
+  grande`, which is the big red house again, where `la casa grande roja` was the
+  red big house: tr_foreign_adj_order/3, an arm red in the whole case) -- asked
+  of the side the text was READ on, `$tr_read_side`, because every writer finds
+  `$tr_from` set to english, and asked of that the first cut turned 25 sentences
+  of the controls round between Spanish and Italian (`la televisione catalana
+  pubblica`, `la terapia psiquiátrica médica`); an object after the phrase of a
+  preposition, last in its clause, comes before it (`que denunció ante la
+  Audiencia Nacional este acuerdo`, tr_comps_out/7: a phrase or a name after the
+  preposition, never `of`, and an object with a determiner or a count -- four
+  arms, three of them the guards the controls found, and a fifth red in the
+  whole case: never after the phrase of `to` of a verb English writes with a
+  bare dative, or the basketball report's rule, `costs the dog a book`, wrote
+  `costs a book to the dog`); a unit of time after a time is how often (`una
+  tarde a la semana` is an afternoon a week); and an adverb between commas right
+  after an apposition is an insertion (`El portavoz demócrata, John Conyers, por
+  su parte, criticó`: the apposition took the comma that opens it, and `por su
+  parte`, one adverb now, went to the end of the clause, tr_insertion_off/4 --
+  found in the store-alone column). A guard for a linking verb's auxiliary
+  (en_linking_verb/1) had a green arm and changed no text and no count on the
+  store, and was taken out.
+  It needed these WORDS in `extra/`: Spanish `convierte` (converts, and becomes
+  with its pronoun; `en` before the phrase), `negociador` (negotiating),
+  `sucursal` (a branch office), `sindicato` (a trade union), `caja de ahorros`
+  (a savings bank, a group), `flexibiliza`, `pacta` (agrees), `no obstante`
+  (nevertheless), `por su parte` (for its part), `así` (thus), `cuenta con`
+  (has, with its forms), `denuncia` (denounces), the name `Audiencia Nacional`,
+  `centra` taking `en`, `dura` (intransitive), `de forma que` (so that, with the
+  subjunctive), `por las tardes`, `por las mañanas`, `por las noches`, `mesa de
+  negociación` (a negotiating table) and `consigue` (achieves, and attains
+  before an infinitive); Italian `negoziale`, `negoziatore` and `negoziatrice`,
+  `filiale` (a subsidiary said again first, then a branch office), `sindacato`,
+  `cassa di risparmio`, `flessibilizza`, `da parte sua`, `centra` taking `su`,
+  `in modo che` and `senza che` with the subjunctive, `di pomeriggio`, `di
+  mattina` and `tavolo delle trattative`. The first meaning moved for 4 Spanish
+  words and 1 Italian one (Spanish `así` thus, `sindicato` a trade union,
+  `sucursal` a branch office, `denuncia` denounces; Italian `sindacato`), the
+  writer's first word for no meaning, and none was lost.
+  THE CONTROLS (cocolog 2.11.1, store KB206, 100 count files, 2 820 sentences:
+  the earlier set with the Rognoni interview in, both directions; this report is
+  not among them): the last version's translator against this one, on the one
+  store, 55 sentences in 37 files read differently, 47 better and 8 no worse --
+  the English adjective order (29, 22 better: `the Catalan public television`,
+  `the free juridical assistance`, `the already existent pedestrian zone`, `the
+  Basque socialist leader`, `the German financial institution`, `the European
+  Space Agency`, `the American daily newspaper`, `the French nuclear
+  experiments`, `a frightful public debt`, `the richest oil employer`), `on`
+  before a day (7: `begins on Thursday`, `celebrated on Monday at night`, `On
+  Tuesday everyone around the table`), the object before a phrase (7, 6 better:
+  `will watch this operation "with special attention"`, `has demanded the
+  maximum concentration from the players`, `would have accepted the defensive
+  line in full`), the adverbs inside their marks (2), `manages to` (4), `has the
+  left arm raised`, `convert into`, `will become a ballast` and `diventeranno
+  una zavorra`, and `John Conyers, for its part, criticised` in both languages
+  -- and the inferences rise 0.002 % (7 022 280 308 to 7 022 430 135). No worse,
+  and no better (8): a participle with its phrase reversed with the adjectives
+  (`the realised murderous crimes against`, `a priced economic value in`, `an
+  addrest symbolic initiative to`, `the proprietary French groups of Pryca`),
+  `the norman Arab cathedral`, `the psychiatric medical therapy`, `the medicine
+  jurisprudence university didactic improvement`, and tat 350, `You should give
+  him your son more freedom` (`more freedom your son`). Bytes and characters
+  read every sentence alike (0 differ, the bytes 0.014 % more). The DATA COLUMN
+  (the last version's translator on its own store, KB203, against this one on
+  the new): 84 sentences in 54 files, +0.008 % (7 021 882 676 to 7 022 430 135).
+  THE CODE ALONE (this translator on KB203): 50 sentences in 34 files, +0.037 %
+  (to 7 024 469 047), every one of them among the 55; the five left need the new
+  lines (`por su parte`, `convierte`). THE STORE ALONE (the last version's
+  translator on KB203 and on KB206): 31 sentences in 23 files, +0.006 % (to 7
+  022 280 308) -- the subjunctive after `para que` and `sin que` (`acceleri`,
+  `possa`, `causi`, `noti`, `apparissero`), `thus` for `así` where it was
+  `thereby`, `While the jobs last`, `the trade union of the togas`, `has 3,000
+  subscribers` and `will have bonuses` (es_20000701-80 18, read into English
+  now), the Spanish writer's `conseguir` for Italian's `riuscire` where it was
+  `lograr` (8, no better and no worse), and two worse: `por su parte` after an
+  apposition went to the end of its clause (es_19981202-34 9, both languages:
+  the shape above mends it) and `pueden contar con su colaboración` is `they can
+  have their collaboration` and `possono avere` (es_19991001-61 17, a stated
+  cost).
+  Seven expectations of the older sections of test/translate.pl and two of
+  lesson 46 were written in the old English or the old order and changed with
+  the rules (`on Saturday` in both files, `bought on Sunday`, `that on Sunday
+  eats`, `On Tuesday the summit.` in both files, `put the house in danger`, and
+  the round trip's `la casa roja grande`, twice).
+  THE FIRST CUTS' REGRESSIONS, found by reading the texts of the controls and
+  mended: the object before a phrase took the phrase of `of` (`Roma of Corrado
+  Sannucci`, five bylines; `to hold the pools of eye`; `for the leader an
+  important stage of the olive`), a bare number (`I will not go 4 to the Tg`,
+  three) and a bare noun (`without more company`, `knew how to face serenity
+  with more`) and an adverb after the preposition (`be able to know little time
+  in so`); the adjectives reversed with a degree (`a fiscal better treatment`,
+  `his liceistic best nights`) and with a noun that says what kind (`the
+  magistrate national association`); the absolute clause written phrase first
+  anywhere (`advances the choices in Euskadi the situation of minority of his
+  Executive given`, `the very critical opinion seen`, `after having the last dot
+  broadcasted`); and the intransitive doer after `lo que` (`what that date will
+  occur`). THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the seven
+  heaviest rises of the controls, into English, over a copy of the library per
+  rule): the first cut was +0.693 % of the controls, and one rule was all of it
+  -- the clause of tr_np/3 for `al que` after an adjective, whose search for a
+  preposition, an article and a relative word walked every phrase it was asked
+  and parsed the words before them as a phrase (the seven 52.98 million
+  inferences to 60.41; without the clause 52.99). A note made once a sentence,
+  `$tr_adj_rel` (an adjective, a preposition, an article and a relative word,
+  tr_adj_rel_note/1), and the adjective's test before the parse leave the seven
+  at 53.01 million (+0.04 %), the note itself and the clause in the one sentence
+  that has the pattern (`con el grupo social al que pertenece`: 1.20 million to
+  1.21) and the comparison with an adverb most of it (10 thousand). The second
+  cut was +0.027 %, and nearly half of it one sentence that the seven did not
+  hold, found by the same arms over it: es_20000903-30 18 rose 0.88 million
+  inferences of 85 in each language, the comparison with an adverb read in a
+  piece cut after `que jamás` (`el instrumento más amplio de convivencia que
+  jamás han tenido los vascos`), a reading the long search then gives up, the
+  text the same. An adverb that a verb follows in the piece is no term now (a
+  guard with no arm that goes red, which stays for its cost; a guard on the
+  words after the adverb in the cut piece moved nothing, as there were none),
+  and the sentence is +0.011 %. What is left is +0.002 % on the new store and
+  +0.037 % on the old: every sentence rises, by 12 inferences at least and by 36
+  thousand at most (it_9605_9636 19, a refusal of 773 million), 2.58 million in
+  all, and on the new store es_19981202-34 9 falls 1.21 and 1.22 million in the
+  two languages (`por su parte` read at once).
+  THE STATED COSTS: `contar con` is `has` (the newspaper's sense: `cuenta con
+  3.000 abonados`, `cuenta con la oposición de la UGT`), so where it relies on
+  someone it is `can have their collaboration`, and English refuses
+  es_20000102-120 6, which it read as the imperative `count on` (now the third
+  person nobody names); `for its part` for a person too; the Spanish writer's
+  `conseguir` for attains; and the inferences, +0.002 % on the new store and
+  +0.037 % on the old.
+  The report LEAVES, of the 12 into Italian: `i sabati` (il sabato),
+  `mantennero` (tennero), `il beneficio del servizio` (la prestazione), `auspica
+  per la situazione` and `che attualmente`, `la sua volontà a flessibilizzare`
+  (di), `in España`, `Eppure` (Tuttavia), `un prossimo appuntamento ... per l'8
+  giugno prossimo`, `risposta positiva alcuno` (an adjective after its noun with
+  `alguna` does not agree), `fino al momento` and `dall'inizio delle trattative`
+  written after the purpose; of the 11 into English: `Thus one checked in the
+  meeting ... yesterday` (the impersonal `se`, and `ayer` last), `the editorial
+  of a new labour agreement` (the drafting), `the closure of the Saturdays`,
+  `the benefit of the service`, `for the banking`, `realising their managements
+  ... Saturday morning`, `advocate for the situation`, `like alternative to
+  close`, `the instauration`, `the one that develop the savings banks` (the doer
+  after a relative clause with a comma before it), `his willingness` (CCOO's),
+  `the labour schedule`, `initiative that managed to agree` (the relative word
+  is the infinitive's object), `in front of the Audiencia Nacional`, `The
+  managers of banking` and `have summoned a next appointment`; English refuses
+  12 for the third person nobody names, on purpose. The next sample's controls
+  take this report in.
 
 ## Tutorials are documentation that runs
 

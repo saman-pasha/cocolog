@@ -3925,3 +3925,40 @@ The adverb "a suo rischio" means "at his own risk".
 # tr_expletive_off/3)
 The conjunction "a meno che" means "unless".
 "a meno che" takes the subjunctive.
+# the banking report (CESS-CAST-P-19990601-98, Spanish into Italian and English): the words the writer needs
+# `el elemento negociador': `l'elemento negoziale', and the negotiator, which the dictionary does not have
+The adjective "negoziale" means "negotiating".
+"negoziali" is the plural of "negoziale".
+The masculine noun "negoziatore" means "negotiator".
+"negoziatori" is the plural of "negoziatore".
+The feminine noun "negoziatrice" means "negotiator".
+"negoziatrici" is the plural of "negoziatrice".
+# `las sucursales bancarias': `le filiali bancarie' -- `filiale' is a subsidiary first to the reader, said again
+# first, and a bank's branch after it
+The feminine noun "filiale" means "subsidiary".
+The feminine noun "filiale" means "branch office".
+# `los sindicatos CCOO y UGT': `i sindacati'
+The masculine noun "sindacato" means "trade union".
+# `las cajas de ahorros': `le casse di risparmio'
+The feminine noun "cassa di risparmio" means "savings bank".
+"casse di risparmio" is the plural of "cassa di risparmio".
+"cassa di risparmio" is a group.
+# `flexibilizar el horario laboral': `flessibilizzare l'orario'
+The verb "flessibilizza" means "flexibilises".
+"flessibilizzano" is the plural of "flessibilizza".
+"flessibilizzò" is the past of "flessibilizza".
+"flessibilizzare" is the infinitive of "flessibilizza".
+# `por su parte': for its part
+The adverb "da parte sua" means "for its part".
+# `centraron sus peticiones en el cierre': `centrarono le loro richieste sulla chiusura'
+"centra" takes "su" before the phrase.
+# `de forma que se abran las oficinas': `in modo che si aprano gli uffici'; `sin que haya obtenido': `senza che
+# abbia ottenuto' -- the clause in the subjunctive
+"in modo che" takes the subjunctive.
+"senza che" takes the subjunctive.
+# `por las tardes': `di pomeriggio'
+The adverb "di pomeriggio" means "in the afternoons".
+The adverb "di mattina" means "in the mornings".
+# `la mesa de negociación': `il tavolo delle trattative'
+The masculine noun "tavolo delle trattative" means "negotiating table".
+"tavoli delle trattative" is the plural of "tavolo delle trattative".

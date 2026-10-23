@@ -2476,6 +2476,30 @@ The feminine adjective "sbagliata" means "wrong".
 The adverb "a suo rischio" means "at his own risk".
 The conjunction "a meno che" means "unless".
 "a meno che" takes the subjunctive.
+The adjective "negoziale" means "negotiating".
+"negoziali" is the plural of "negoziale".
+The masculine noun "negoziatore" means "negotiator".
+"negoziatori" is the plural of "negoziatore".
+The feminine noun "negoziatrice" means "negotiator".
+"negoziatrici" is the plural of "negoziatrice".
+The feminine noun "filiale" means "subsidiary".
+The feminine noun "filiale" means "branch office".
+The masculine noun "sindacato" means "trade union".
+The feminine noun "cassa di risparmio" means "savings bank".
+"casse di risparmio" is the plural of "cassa di risparmio".
+"cassa di risparmio" is a group.
+The verb "flessibilizza" means "flexibilises".
+"flessibilizzano" is the plural of "flessibilizza".
+"flessibilizzò" is the past of "flessibilizza".
+"flessibilizzare" is the infinitive of "flessibilizza".
+The adverb "da parte sua" means "for its part".
+"centra" takes "su" before the phrase.
+"in modo che" takes the subjunctive.
+"senza che" takes the subjunctive.
+The adverb "di pomeriggio" means "in the afternoons".
+The adverb "di mattina" means "in the mornings".
+The masculine noun "tavolo delle trattative" means "negotiating table".
+"tavoli delle trattative" is the plural of "tavolo delle trattative".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

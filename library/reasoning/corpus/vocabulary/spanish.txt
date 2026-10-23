@@ -1743,6 +1743,53 @@ The conjunction "a menos que" means "unless".
 "a menos que" takes the subjunctive.
 The masculine noun "partido" means "match".
 The masculine noun "partido" means "party".
+The verb "convierte" means "converts".
+The reflexive verb "convierte" means "becomes".
+"convierte" takes "en" before the phrase.
+The masculine adjective "negociador" means "negotiating".
+The feminine adjective "negociadora" means "negotiating".
+"negociadoras" is the plural of "negociadora".
+The feminine noun "sucursal" means "branch office".
+The masculine noun "sindicato" means "trade union".
+The feminine noun "caja de ahorros" means "savings bank".
+"cajas de ahorros" is the plural of "caja de ahorros".
+"caja de ahorros" is a group.
+The verb "flexibiliza" means "flexibilises".
+"flexibilizan" is the plural of "flexibiliza".
+"flexibilizó" is the past of "flexibiliza".
+"flexibilizaron" is the plural of "flexibilizó".
+"flexibilizar" is the infinitive of "flexibiliza".
+The verb "pacta" means "agrees".
+"pactan" is the plural of "pacta".
+"pactó" is the past of "pacta".
+"pactaron" is the plural of "pactó".
+"pactar" is the infinitive of "pacta".
+"pactado" is the participle of "pacta".
+The adverb "no obstante" means "nevertheless".
+The adverb "por su parte" means "for its part".
+The adverb "así" means "thus".
+The verb "cuenta con" means "has".
+"cuentan con" is the plural of "cuenta con".
+"contó con" is the past of "cuenta con".
+"contaron con" is the plural of "contó con".
+"contaba con" is the imperfect of "cuenta con".
+"contaban con" is the plural of "contaba con".
+"contará con" is the future of "cuenta con".
+"contarán con" is the plural of "contará con".
+"contar con" is the infinitive of "cuenta con".
+The verb "denuncia" means "denounces".
+"audiencia nacional" is a name.
+"centra" takes "en" before the phrase.
+"dura" is intransitive.
+The conjunction "de forma que" means "so that".
+"de forma que" takes the subjunctive.
+The adverb "por las tardes" means "in the afternoons".
+The adverb "por las mañanas" means "in the mornings".
+The adverb "por las noches" means "at night".
+The feminine noun "mesa de negociación" means "negotiating table".
+"mesas de negociación" is the plural of "mesa de negociación".
+The verb "consigue" means "achieves".
+The infinitival verb "consigue" means "attains".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

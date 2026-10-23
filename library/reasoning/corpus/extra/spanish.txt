@@ -2942,3 +2942,77 @@ The conjunction "a menos que" means "unless".
 # party's word after it
 The masculine noun "partido" means "match".
 The masculine noun "partido" means "party".
+# the banking report (CESS-CAST-P-19990601-98, Spanish into Italian and English): the words the sentences need
+# `la apertura se ha convertido en el elemento negociador': has become -- the verb with its own pronoun has a
+# meaning of its own (tr_verb_across/5), said after the plain one, which stays the first; the phrase after `en'
+# is what it becomes, written with no preposition where the verb written states none
+The verb "convierte" means "converts".
+The reflexive verb "convierte" means "becomes".
+"convierte" takes "en" before the phrase.
+# `el elemento negociador': the negotiating element -- the dictionary has `negociador' only as the noun, the
+# negotiator, and read so it was a noun after a noun, which the Italian writer had no word for
+The masculine adjective "negociador" means "negotiating".
+The feminine adjective "negociadora" means "negotiating".
+"negociadoras" is the plural of "negociadora".
+# `las sucursales bancarias': a bank's branches -- `branch' is a tree's to the Italian writer (`rami')
+The feminine noun "sucursal" means "branch office".
+# `los sindicatos CCOO y UGT': the trade unions -- `union' is `unione' to the Italian writer
+The masculine noun "sindicato" means "trade union".
+# `las cajas de ahorros, que abren una tarde a la semana': the savings banks (`the boxes of savings')
+The feminine noun "caja de ahorros" means "savings bank".
+"cajas de ahorros" is the plural of "caja de ahorros".
+"caja de ahorros" is a group.
+# `CCOO también mostró su disposición a flexibilizar el horario laboral': to make the hours flexible
+The verb "flexibiliza" means "flexibilises".
+"flexibilizan" is the plural of "flexibiliza".
+"flexibilizó" is the past of "flexibiliza".
+"flexibilizaron" is the plural of "flexibilizó".
+"flexibilizar" is the infinitive of "flexibiliza".
+# `iniciativa que consiguió pactar con la dirección': to agree
+The verb "pacta" means "agrees".
+"pactan" is the plural of "pacta".
+"pactó" is the past of "pacta".
+"pactaron" is the plural of "pactó".
+"pactar" is the infinitive of "pacta".
+"pactado" is the participle of "pacta".
+# `No obstante, los representantes ... han convocado una próxima cita': nevertheless
+The adverb "no obstante" means "nevertheless".
+# `La AEB ha recordado, por su parte, que ...': for its part -- read as a phrase, `parte' took the clause of `que'
+# for a relative clause on it
+The adverb "por su parte" means "for its part".
+# `Así se comprobó en la reunión': thus, before the dictionary's `thereby', which no reader keeps in front
+The adverb "así" means "thus".
+# `Esta fórmula, sin embargo, cuenta con la oposición de la UGT': has -- `contar con' is a verb of two words,
+# `counts on' only where it means relying, and the newspaper's is having (`cuenta con 19 emisoras', `cuenta con el
+# apoyo')
+The verb "cuenta con" means "has".
+"cuentan con" is the plural of "cuenta con".
+"contó con" is the past of "cuenta con".
+"contaron con" is the plural of "contó con".
+"contaba con" is the imperfect of "cuenta con".
+"contaban con" is the plural of "contaba con".
+"contará con" is the future of "cuenta con".
+"contarán con" is the plural of "contará con".
+"contar con" is the infinitive of "cuenta con".
+# `que denunció ante la Audiencia Nacional este acuerdo': denounced (the dictionary's verb is `reports', which the
+# Italian writer wrote `fece sapere'), and the court's name
+The verb "denuncia" means "denounces".
+"audiencia nacional" is a name.
+# `centraron sus peticiones en el cierre de los sábados': centred them ON it
+"centra" takes "en" before the phrase.
+# `la hora y media que duró el encuentro': the meeting lasted -- the phrase after the verb is its subject
+"dura" is intransitive.
+# `de forma que se abran las oficinas por las tardes': so that, and the clause in the subjunctive
+The conjunction "de forma que" means "so that".
+"de forma que" takes the subjunctive.
+# `por las tardes': in the afternoons (the plural is a habit; `el sábado por la mañana' is the day's part)
+The adverb "por las tardes" means "in the afternoons".
+The adverb "por las mañanas" means "in the mornings".
+The adverb "por las noches" means "at night".
+# `una próxima cita de la mesa de negociación': the negotiating table
+The feminine noun "mesa de negociación" means "negotiating table".
+"mesas de negociación" is the plural of "mesa de negociación".
+# `iniciativa que consiguió pactar con la dirección': managed to agree -- before an infinitive the verb attains,
+# as Italian's `riesce a' does (English says `manages to', tr_verb_out/4); the plain meaning said first
+The verb "consigue" means "achieves".
+The infinitival verb "consigue" means "attains".
