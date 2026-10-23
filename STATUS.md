@@ -7230,4 +7230,9 @@ PROVED:
   growths' refused path; `gc`; `engine`; `meter`; and the `term`, `solve`
   and `state` binaries.
 - The dialect card's cites check.
-- The full suite was not run for this change.
+- The suite on 2.11.2, the server up: 75 lines, red 0, 5 SKIP (tensors,
+  torch-graph, torch-grad, torch-replay, tensorflow: no CUDA on this box), in
+  21 minutes; the lint case alone first, green in 190 s. `library/ray.so` was
+  rebuilt before the run: it was older than 2.10.1's change to
+  `modules/ray/ray.cicili`, so 2.11.1's run had loaded the module from before
+  that change.
