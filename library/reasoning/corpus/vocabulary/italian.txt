@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16571 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16603 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -1374,6 +1374,7 @@ The masculine noun "traffico veicolare" means "road traffic".
 The preposition "insieme a" means "together with".
 The feminine noun "facciata" means "facade".
 "facciate" is the plural of "facciata".
+The masculine noun "scarico" means "discharge".
 The masculine noun "scarico" means "unloading".
 "scarichi" is the plural of "scarico".
 The verb "auspica" means "hopes".
@@ -2403,6 +2404,536 @@ The feminine noun "traiettoria" means "trajectory".
 "traiettorie" is the plural of "traiettoria".
 The masculine noun "acquisto" means "signing".
 The feminine noun "cravatta" means "necktie".
+The masculine noun "intreccio" means "interweaving".
+"intrecci" is the plural of "intreccio".
+The feminine noun "holding" means "holding".
+"holding" is the plural of "holding".
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidenti" is the plural of "vicepresidente".
+"vicepresidente" is a person.
+The masculine noun "oligopolio" means "oligopoly".
+"oligopoli" is the plural of "oligopolio".
+The preposition "a favore di" means "in favour of".
+The preposition "pro" means "in favour of".
+The verb "cassa" means "quashes".
+"cassano" is the plural of "cassa".
+"cassare" is the infinitive of "cassa".
+"cassò" is the past of "cassa".
+"cassato" is the participle of "cassa".
+The masculine noun "consorzio" means "consortium".
+The feminine noun "cordata" means "consortium".
+"cordate" is the plural of "cordata".
+The noun "votante" means "voter".
+"votanti" is the plural of "votante".
+"votante" is a person.
+The feminine noun "quota azionaria" means "shareholding".
+"quote azionarie" is the plural of "quota azionaria".
+The verb "influenza" means "influences".
+The verb "incide" means "influences".
+"incidono" is the plural of "incide".
+"incidere" is the infinitive of "incide".
+"incide" takes "su" before the phrase.
+The masculine noun "management" means "management".
+"management" is the plural of "management".
+The feminine noun "televisione" means "television".
+The feminine noun "tivù" means "television".
+"tivù" is the plural of "tivù".
+The verb "tenta" means "attempts".
+The verb "tenta" means "tries".
+The verb "cerca" means "searches".
+The infinitival verb "cerca" means "tries".
+The feminine noun "misura" means "measure".
+The masculine noun "provvedimento" means "measure".
+"provvedimenti" is the plural of "provvedimento".
+The adjective "via etere" means "terrestrial".
+The preposition "sulla base di" means "on the basis of".
+The conjunction "nella misura in cui" means "insofar as".
+The verb "sceglie" means "chooses".
+The verb "elegge" means "elects".
+The masculine noun "potere" means "power".
+"poteri" is the plural of "potere".
+The masculine noun "disegno" means "drawing".
+The masculine noun "interlocutore" means "interlocutor".
+The feminine noun "rete" means "network".
+"reti" is the plural of "rete".
+The feminine noun "rete" means "net".
+The verb "prende di mira" means "targets".
+"prendono di mira" is the plural of "prende di mira".
+"prendere di mira" is the infinitive of "prende di mira".
+The verb "ha in mano" means "holds".
+"hanno in mano" is the plural of "ha in mano".
+"avere in mano" is the infinitive of "ha in mano".
+The verb "mantiene" means "keeps".
+The verb "si tiene" means "keeps".
+"si tengono" is the plural of "si tiene".
+"tenersi" is the infinitive of "si tiene".
+The adverb "più di" means "more than".
+The adverb "meno di" means "less than".
+"sceglie" takes the question.
+The masculine adjective "sbagliato" means "wrong".
+"sbagliati" is the plural of "sbagliato".
+The feminine adjective "sbagliata" means "wrong".
+"sbagliate" is the plural of "sbagliata".
+The adverb "a suo rischio" means "at his own risk".
+The conjunction "a meno che" means "unless".
+"a meno che" takes the subjunctive.
+The adjective "negoziale" means "negotiating".
+"negoziali" is the plural of "negoziale".
+The masculine noun "negoziatore" means "negotiator".
+"negoziatori" is the plural of "negoziatore".
+The feminine noun "negoziatrice" means "negotiator".
+"negoziatrici" is the plural of "negoziatrice".
+The feminine noun "filiale" means "subsidiary".
+The feminine noun "filiale" means "branch office".
+The masculine noun "sindacato" means "trade union".
+The feminine noun "cassa di risparmio" means "savings bank".
+"casse di risparmio" is the plural of "cassa di risparmio".
+"cassa di risparmio" is a group.
+The verb "flessibilizza" means "flexibilises".
+"flessibilizzano" is the plural of "flessibilizza".
+"flessibilizzò" is the past of "flessibilizza".
+"flessibilizzare" is the infinitive of "flessibilizza".
+The adverb "da parte sua" means "for its part".
+"centra" takes "su" before the phrase.
+"in modo che" takes the subjunctive.
+"senza che" takes the subjunctive.
+The adverb "di pomeriggio" means "in the afternoons".
+The adverb "di mattina" means "in the mornings".
+The masculine noun "tavolo delle trattative" means "negotiating table".
+"tavoli delle trattative" is the plural of "tavolo delle trattative".
+The verb "prepara" means "prepares".
+The verb "confeziona" means "prepares".
+"confezionano" is the plural of "confeziona".
+"confezionare" is the infinitive of "confeziona".
+"confezionato" is the participle of "confeziona".
+"confezionata" is the participle of "confeziona".
+"confezionata" is feminine.
+"confezionati" is the participle of "confeziona".
+"confezionati" is the plural of "confezionato".
+"confezionate" is the participle of "confeziona".
+"confezionate" is feminine.
+"confezionate" is the plural of "confezionata".
+The masculine noun "policlorobifenile" means "polychlorinated biphenyl".
+"policlorobifenili" is the plural of "policlorobifenile".
+The masculine noun "antivegetativo" means "antifouling paint".
+"antivegetativi" is the plural of "antivegetativo".
+The feminine noun "bracciata" means "stroke".
+"bracciate" is the plural of "bracciata".
+The feminine noun "zattera" means "raft".
+"zattere" is the plural of "zattera".
+The feminine noun "fossa settica" means "septic tank".
+"fosse settiche" is the plural of "fossa settica".
+"trent'" is the elision of "trenta".
+"qual'" is the elision of "quale".
+The preposition "sulle orme di" means "in the footsteps of".
+The masculine noun "studio" means "study".
+The feminine noun "ricerca" means "research".
+The masculine noun "gruppo" means "group".
+The masculine noun "fondo" means "fund".
+The masculine noun "canale" means "canal".
+The masculine noun "canale" means "channel".
+The adverb "in fondo" means "after all".
+The preposition "alla ricerca di" means "in search of".
+The adverb "da tempo" means "for a long time".
+The adverb "nel corso degli anni" means "over the years".
+"deposita" takes the passive.
+The masculine noun "metro cubo" means "cubic metre".
+"metri cubi" is the plural of "metro cubo".
+The preposition "d'intesa tra" means "in agreement between".
+The verb "nuota" means "swims".
+The verb "fa il bagno" means "swims".
+"fanno il bagno" is the plural of "fa il bagno".
+"fare il bagno" is the infinitive of "fa il bagno".
+"Consiglio Nazionale delle Ricerche" is a name.
+The masculine noun "progetto" means "project".
+The masculine adjective "diverso" means "different".
+The feminine adjective "diversa" means "different".
+The adjective "simile" means "similar".
+"deriva" takes "da" before the phrase.
+"viene" takes "da" before the phrase.
+The feminine noun "traccia" means "trace".
+The verb "fissa" means "sets".
+The masculine noun "primo turno" means "first round".
+"primi turni" is the plural of "primo turno".
+The masculine noun "secondo turno" means "second round".
+"secondi turni" is the plural of "secondo turno".
+The feminine noun "elezione presidenziale" means "presidential election".
+"elezioni presidenziali" is the plural of "elezione presidenziale".
+"acidificazione" is feminine.
+"affissazione" is feminine.
+"apposizione" is feminine.
+"arbitrarietà" is feminine.
+"auscultazione" is feminine.
+"automozione" is feminine.
+"biiezione" is feminine.
+"bilateralità" is feminine.
+"bioaccumulazione" is feminine.
+"biodegradazione" is feminine.
+"bisezione" is feminine.
+"calcinazione" is feminine.
+"carbonatazione" is feminine.
+"carburazione" is feminine.
+"cauterizzazione" is feminine.
+"cementazione" is feminine.
+"clorazione" is feminine.
+"coeducazione" is feminine.
+"cogenerazione" is feminine.
+"confidenzialità" is feminine.
+"conflagrazione" is feminine.
+"consanguineità" is feminine.
+"controprogrammazione" is feminine.
+"coprecipitazione" is feminine.
+"costipazione" is feminine.
+"culpabilità" is feminine.
+"deconcentrazione" is feminine.
+"defogliazione" is feminine.
+"deidrogenazione" is feminine.
+"deionizzazione" is feminine.
+"delineazione" is feminine.
+"demineralizzazione" is feminine.
+"demodulazione" is feminine.
+"demoralizzazione" is feminine.
+"denitrificazione" is feminine.
+"denotazione" is feminine.
+"denudazione" is feminine.
+"depalatalizzazione" is feminine.
+"depolimerizzazione" is feminine.
+"desessualizzazione" is feminine.
+"desolforazione" is feminine.
+"desquamazione" is feminine.
+"disgiunzione" is feminine.
+"disumanizzazione" is feminine.
+"domiciliazione" is feminine.
+"durabilità" is feminine.
+"elettrocuzione" is feminine.
+"elettronegatività" is feminine.
+"eruttazione" is feminine.
+"espettorazione" is feminine.
+"essudazione" is feminine.
+"esterificazione" is feminine.
+"estrusione" is feminine.
+"esumazione" is feminine.
+"eutrofizzazione" is feminine.
+"flocculazione" is feminine.
+"fluorizzazione" is feminine.
+"fonazione" is feminine.
+"fosforilazione" is feminine.
+"fossilizzazione" is feminine.
+"fotocomposizione" is feminine.
+"fotoincisione" is feminine.
+"fumigazione" is feminine.
+"galvanizzazione" is feminine.
+"gassazione" is feminine.
+"gassificazione" is feminine.
+"gastrulazione" is feminine.
+"gelificazione" is feminine.
+"gemmazione" is feminine.
+"grammaticalizzazione" is feminine.
+"granulazione" is feminine.
+"humanità" is feminine.
+"idratazione" is feminine.
+"immunosoppressione" is feminine.
+"inaccessibilità" is feminine.
+"inazione" is feminine.
+"indottrinazione" is feminine.
+"infibulazione" is feminine.
+"inoculazione" is feminine.
+"insonorizzazione" is feminine.
+"intercalazione" is feminine.
+"intercomunicazione" is feminine.
+"inumidificazione" is feminine.
+"invaginazione" is feminine.
+"istituzionalizzazione" is feminine.
+"liofilizzazione" is feminine.
+"malleabilità" is feminine.
+"microiniezione" is feminine.
+"microminiaturizzazione" is feminine.
+"minzione" is feminine.
+"mitigazione" is feminine.
+"nasalizzazione" is feminine.
+"nitratazione" is feminine.
+"oggettivazione" is feminine.
+"ospedalizzazione" is feminine.
+"palatalizzazione" is feminine.
+"parametrizzazione" is feminine.
+"passivazione" is feminine.
+"pastorizzazione" is feminine.
+"percolazione" is feminine.
+"permettività" is feminine.
+"plastificazione" is feminine.
+"postproduzione" is feminine.
+"prefissazione" is feminine.
+"procrastinazione" is feminine.
+"proletarizzazione" is feminine.
+"proscrizione" is feminine.
+"prosternazione" is feminine.
+"quantizzazione" is feminine.
+"radiocomunicazione" is feminine.
+"redistribuzione" is feminine.
+"reificazione" is feminine.
+"reticolazione" is feminine.
+"riassegnazione" is feminine.
+"riconfigurazione" is feminine.
+"ruralizzazione" is feminine.
+"salivazione" is feminine.
+"scarificazione" is feminine.
+"sedazione" is feminine.
+"simbolizzazione" is feminine.
+"sinterizzazione" is feminine.
+"sismicità" is feminine.
+"sopraelevazione" is feminine.
+"sottoccupazione" is feminine.
+"sovralimentazione" is feminine.
+"sovrasaturazione" is feminine.
+"spiritualizzazione" is feminine.
+"stagflazione" is feminine.
+"stigmatizzazione" is feminine.
+"suffissazione" is feminine.
+"superfluidità" is feminine.
+"surrogazione" is feminine.
+"tabulazione" is feminine.
+"telediffusione" is feminine.
+"terraformazione" is feminine.
+"territorialità" is feminine.
+"torrefazione" is feminine.
+"traslocazione" is feminine.
+"trisezione" is feminine.
+"ulcerazione" is feminine.
+"umificazione" is feminine.
+"vaporizzazione" is feminine.
+"vasodilatazione" is feminine.
+"vitrificazione" is feminine.
+"vocalizzazione" is feminine.
+"volatilizzazione" is feminine.
+"zonazione" is feminine.
+"zonificazione" is feminine.
+The masculine adjective "semilavorativo" means "semi-working".
+The feminine adjective "semilavorativa" means "semi-working".
+"semilavorativi" is the plural of "semilavorativo".
+"semilavorative" is the plural of "semilavorativa".
+The masculine noun "stretto collaboratore" means "close associate".
+"stretti collaboratori" is the plural of "stretto collaboratore".
+"stretto collaboratore" is a person.
+The feminine noun "stretta collaboratrice" means "close associate".
+"strette collaboratrici" is the plural of "stretta collaboratrice".
+"stretta collaboratrice" is a person.
+The masculine noun "procuratore generale" means "prosecutor general".
+"procuratori generali" is the plural of "procuratore generale".
+"procuratore generale" is a person.
+The masculine noun "incarico" means "task".
+The masculine noun "incarico" means "post".
+The masculine noun "alto funzionario" means "senior official".
+"alti funzionari" is the plural of "alto funzionario".
+"alto funzionario" is a person.
+The feminine noun "vicenda" means "affair".
+The adverb "più tardi" means "later".
+"avrà luogo" is the future of "ha luogo".
+"avranno luogo" is the plural of "avrà luogo".
+"aveva luogo" is the imperfect of "ha luogo".
+"avevano luogo" is the plural of "aveva luogo".
+"avrebbe luogo" is the conditional of "ha luogo".
+"avrebbero luogo" is the plural of "avrebbe luogo".
+"abbia luogo" is the subjunctive of "ha luogo".
+"abbiano luogo" is the plural of "abbia luogo".
+The adverb "entro la fine dell'anno" means "by the end of the year".
+The masculine adjective "guerrigliero" means "guerrilla".
+The feminine adjective "guerrigliera" means "guerrilla".
+"guerriglieri" is the plural of "guerrigliero".
+"guerrigliere" is the plural of "guerrigliera".
+The masculine adjective "ceceno" means "chechen".
+The feminine adjective "cecena" means "chechen".
+"ceceni" is the plural of "ceceno".
+"cecene" is the plural of "cecena".
+The feminine noun "rete televisiva" means "television network".
+"reti televisive" is the plural of "rete televisiva".
+The masculine possessive "suo" means "its".
+The feminine possessive "sua" means "its".
+"spera" takes "di" before the infinitive.
+The verb "solleva" means "poses".
+The verb "solleva" means "relieves".
+"solleva" takes "da" before the phrase.
+The masculine noun "spionaggio" means "espionage".
+The feminine noun "spia" means "spy".
+The masculine noun "ministero degli esteri" means "foreign ministry".
+"ministeri degli esteri" is the plural of "ministero degli esteri".
+"descrive" takes "come" before the phrase.
+The name "mosca" means "Moscow".
+"mosca" is a city.
+The name "russia" means "Russia".
+The name "cecenia" means "Chechnya".
+The name "grozny" means "Grozny".
+"grozny" is a city.
+The name "londra" means "London".
+"londra" is a city.
+The name "roma" means "Rome".
+The name "milano" means "Milan".
+The name "napoli" means "Naples".
+The name "firenze" means "Florence".
+The name "genova" means "Genoa".
+The name "venezia" means "Venice".
+The name "stoccolma" means "Stockholm".
+"stoccolma" is a city.
+The name "siviglia" means "Seville".
+"siviglia" is a city.
+The name "bruxelles" means "Brussels".
+"bruxelles" is a city.
+The name "atene" means "Athens".
+"atene" is a city.
+The name "new york" means "New York".
+"new york" is a city.
+The name "seul" means "Seoul".
+"seul" is a city.
+The name "barcellona" means "Barcelona".
+"barcellona" is a city.
+The name "lisbona" means "Lisbon".
+"lisbona" is a city.
+The name "parigi" means "Paris".
+"parigi" is a city.
+The name "berlino" means "Berlin".
+"berlino" is a city.
+The name "tokyo" means "Tokyo".
+"tokyo" is a city.
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "germania" means "Germany".
+The name "inghilterra" means "England".
+The name "spagna" means "Spain".
+The name "giappone" means "Japan".
+The name "brasile" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "catalogna" means "Catalonia".
+The name "sardegna" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israele" means "Israel".
+The name "cremlino" means "Kremlin".
+"militare" is feminine.
+The feminine noun "targa" means "number plate".
+"targhe" is the plural of "targa".
+The masculine noun "trasporto merci" means "freight transport".
+"trasporti merci" is the plural of "trasporto merci".
+The feminine noun "merce" means "commodity".
+"merci" is the plural of "merce".
+The masculine noun "bel pò" means "good deal".
+The masculine noun "vespaio" means "uproar".
+"vespai" is the plural of "vespaio".
+The feminine noun "macchina" means "machine".
+The feminine noun "macchinetta" means "machine".
+"macchinette" is the plural of "macchinetta".
+The feminine noun "paletta" means "shovel".
+"paletta" is not a person.
+The feminine noun "segatura" means "sawdust".
+"segature" is the plural of "segatura".
+The masculine noun "clacson" means "car horn".
+"clacson" is the plural of "clacson".
+The verb "dimette" means "resigns".
+The verb "rassegna" means "resigns".
+The reflexive verb "rassegna" means "becomes resigned to".
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxi" is the plural of "minitaxi".
+The feminine noun "vetturetta" means "small car".
+"vetturette" is the plural of "vetturetta".
+The adjective "a tre ruote" means "three-wheeled".
+"a tre ruote" is the plural of "a tre ruote".
+The masculine noun "mezzo a motore" means "motor vehicle".
+"mezzi a motore" is the plural of "mezzo a motore".
+The feminine noun "nettezza urbana" means "street cleaning".
+The masculine noun "pernottamento" means "overnight stay".
+"pernottamenti" is the plural of "pernottamento".
+The verb "depenna" means "crosses off".
+"depennano" is the plural of "depenna".
+"depennare" is the infinitive of "depenna".
+"depennato" is the participle of "depenna".
+"prefetto" is a person.
+"milanese" is a person.
+The masculine noun "fine settimana" means "weekend".
+"fine settimana" is the plural of "fine settimana".
+"fine settimana" is not feminine.
+The masculine noun "week end" means "weekend".
+"week end" is the plural of "week end".
+The feminine noun "abbondanza" means "abundance".
+The feminine noun "dovizia" means "abundance".
+"dovizie" is the plural of "dovizia".
+The preposition "tra cui" means "among them".
+The adjective "bellunese" means "bellunese".
+"bellunesi" is the plural of "bellunese".
+The word "via" begins the name.
+The word "viale" begins the name.
+The word "piazza" begins the name.
+The word "corso" begins the name.
+The word "vicolo" begins the name.
+The feminine noun "lira" means "lira".
+The adverb "presto" means "soon".
+The adverb "a tutti i costi" means "at all costs".
+The adverb "più o meno" means "more or less".
+The verb "comporta" means "entails".
+The verb "svolge" means "carries out".
+The reflexive verb "svolge" means "takes place".
+The verb "oscilla" means "ranges".
+The verb "transita" means "transits".
+"transita" is intransitive.
+The masculine noun "nucleo familiare" means "household".
+"nuclei familiari" is the plural of "nucleo familiare".
+The masculine noun "budget vacanze" means "holiday budget".
+The verb "la fa franca" means "gets away with it".
+"farla franca" is the infinitive of "la fa franca".
+The name "eolie" means "Aeolian Islands".
+The masculine noun "caso a parte" means "special case".
+"casi a parte" is the plural of "caso a parte".
+"capri" is a city.
+"ischia" is a city.
+"procida" is a city.
+"ponza" is a city.
+"linate" is a city.
+"malpensa" is a city.
+The feminine noun "partenza" means "departure".
+The adverb "tra oggi e domani" means "between today and tomorrow".
+The adverb "fra oggi e domani" means "between today and tomorrow".
+The adverb "senz'altro" means "certainly".
+The adverb "per il momento" means "for the moment".
+The masculine noun "calo" means "decline".
+"cali" is the plural of "calo".
+The noun "automobilista" means "motorist".
+The masculine noun "motorizzato" means "motorist".
+"motorizzati" is the plural of "motorizzato".
+"motorizzato" is a person.
+The verb "mette da parte" means "puts aside".
+"mettono da parte" is the plural of "mette da parte".
+"mettere da parte" is the infinitive of "mette da parte".
+"messo da parte" is the participle of "mette da parte".
+"messa da parte" is the participle of "mette da parte".
+"messa da parte" is feminine.
+"messi da parte" is the participle of "mette da parte".
+"messi da parte" is the plural of "messo da parte".
+"messe da parte" is the participle of "mette da parte".
+"messe da parte" is feminine.
+"messe da parte" is the plural of "messa da parte".
+The verb "dedica" means "dedicates".
+The verb "dà" means "gives".
+The reflexive verb "dà" means "dedicates".
+The verb "placa" means "appeases".
+The reflexive verb "placa" means "calms down".
+The verb "sa" means "knows".
+The verb "ha presente" means "knows".
+"hanno presente" is the plural of "ha presente".
+"ho presente" is the first person of "ha presente".
+"hai presente" is the second person of "ha presente".
+"abbiamo presente" is the first person of "hanno presente".
+"avete presente" is the second person of "hanno presente".
+"avere presente" is the infinitive of "ha presente".
+The verb "smette" means "stops".
+The adjective "in questione" means "in question".
+"in questione" is the plural of "in questione".
+"circola" is intransitive.
+The noun "residente" means "resident".
+"residenti" is the plural of "residente".
+"residente" is a person.
+The masculine noun "invalido" means "invalid".
+"invalidi" is the plural of "invalido".
+"invalido" is a person.
+The feminine noun "pubblica utilità" means "public utility".
+The adverb "ieri pomeriggio" means "yesterday afternoon".
+The adverb "ieri mattina" means "yesterday morning".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -2641,6 +3172,26 @@ The masculine noun "sguardo" means "gaze".
 "sguardi" is the plural of "sguardo".
 The masculine noun "pareggio" means "tie".
 "pareggi" is the plural of "pareggio".
+The masculine noun "pesticida" means "pesticide".
+"pesticida" is not feminine.
+"pesticidi" is the plural of "pesticida".
+The masculine noun "nuotatore" means "swimmer".
+"nuotatori" is the plural of "nuotatore".
+The feminine noun "conferma" means "confirmation".
+"conferme" is the plural of "conferma".
+The masculine noun "accumulo" means "accumulation".
+"accumuli" is the plural of "accumulo".
+The masculine noun "curatore" means "curator".
+"curatori" is the plural of "curatore".
+"curatore" is a person.
+The masculine noun "sbarco" means "disembarkment".
+"sbarchi" is the plural of "sbarco".
+The masculine noun "prefetto" means "prefect".
+"prefetti" is the plural of "prefetto".
+The masculine noun "ritornello" means "refrain".
+"ritornelli" is the plural of "ritornello".
+The noun "milanese" means "milanese".
+"milanesi" is the plural of "milanese".
 The noun "etiope" means "ethiopian".
 "etiopi" is the plural of "etiope".
 "etiope" is a person.
@@ -16393,8 +16944,6 @@ The masculine noun "cablaggio" means "wiring".
 The masculine noun "cupolone" means "cupola".
 "cupoloni" is the plural of "cupolone".
 The masculine noun "curatore" means "guardian".
-"curatori" is the plural of "curatore".
-"curatore" is a person.
 The masculine noun "cuscino" means "cushion".
 "cuscini" is the plural of "cuscino".
 The masculine noun "custode" means "keeper".
@@ -17822,6 +18371,22 @@ The masculine noun "rinnovamento" means "renewal".
 "rinnovamenti" is the plural of "rinnovamento".
 The masculine noun "boemo" means "bohemian".
 "boemi" is the plural of "boemo".
+The masculine noun "rio" means "canal".
+"rii" is the plural of "rio".
+The feminine noun "prosecuzione" means "continuation".
+"prosecuzioni" is the plural of "prosecuzione".
+The masculine noun "detersivo" means "detergent".
+"detersivi" is the plural of "detersivo".
+The feminine noun "orma" means "footprint".
+"orme" is the plural of "orma".
+The feminine noun "piazzetta" means "square".
+"piazzette" is the plural of "piazzetta".
+The masculine noun "sacchetto" means "bag".
+"sacchetti" is the plural of "sacchetto".
+The masculine noun "motorino" means "moped".
+"motorini" is the plural of "motorino".
+The feminine noun "vettura" means "car".
+"vetture" is the plural of "vettura".
 The masculine noun "ricattatore" means "blackmailer".
 "ricattatori" is the plural of "ricattatore".
 "ricattatore" is a person.
@@ -26434,6 +26999,110 @@ The verb "forgia" means "forges".
 "forgiate" is the plural of "forgiata".
 "forgiare" is the infinitive of "forgia".
 "forgiando" is the gerund of "forgia".
+The verb "inquina" means "pollutes".
+"inquinano" is the plural of "inquina".
+"inquiniamo" is the first person of "inquinano".
+"inquino" is the first person of "inquina".
+"inquini" is the second person of "inquina".
+"inquinò" is the past of "inquina".
+"inquinarono" is the past of "inquinano".
+"inquinammo" is the first person of "inquinarono".
+"inquinaste" is the second person of "inquinarono".
+"inquinai" is the first person of "inquinò".
+"inquinasti" is the second person of "inquinò".
+"inquinava" is the imperfect of "inquina".
+"inquinavano" is the imperfect of "inquinano".
+"inquinavamo" is the first person of "inquinavano".
+"inquinavate" is the second person of "inquinavano".
+"inquinavo" is the first person of "inquinava".
+"inquinavi" is the second person of "inquinava".
+"inquinerà" is the future of "inquina".
+"inquineranno" is the plural of "inquinerà".
+"inquineremo" is the first person of "inquineranno".
+"inquinerete" is the second person of "inquineranno".
+"inquinerò" is the first person of "inquinerà".
+"inquinerai" is the second person of "inquinerà".
+"inquinerebbe" is the conditional of "inquina".
+"inquinerebbero" is the plural of "inquinerebbe".
+"inquineremmo" is the first person of "inquinerebbero".
+"inquinereste" is the second person of "inquinerebbero".
+"inquinerei" is the first person of "inquinerebbe".
+"inquineresti" is the second person of "inquinerebbe".
+"inquini" is the subjunctive of "inquina".
+"inquinino" is the plural of "inquini".
+"inquiniamo" is the first person of "inquinino".
+"inquinasse" is the past subjunctive of "inquina".
+"inquinassero" is the plural of "inquinasse".
+"inquinassimo" is the first person of "inquinassero".
+"inquinaste" is the second person of "inquinassero".
+"inquinassi" is the first person of "inquinasse".
+"inquinassi" is the second person of "inquinasse".
+"inquina" is the imperative of "inquina".
+"inquinare" is the negative imperative of "inquina".
+"inquinate" is the imperative of "inquinano".
+"inquiniamo" is the hortative of "inquina".
+"inquinato" is the participle of "inquina".
+"inquinata" is the participle of "inquina".
+"inquinata" is feminine.
+"inquinati" is the participle of "inquina".
+"inquinati" is the plural of "inquinato".
+"inquinate" is the participle of "inquina".
+"inquinate" is feminine.
+"inquinate" is the plural of "inquinata".
+"inquinare" is the infinitive of "inquina".
+"inquinando" is the gerund of "inquina".
+The verb "raffredda" means "cools".
+"raffreddano" is the plural of "raffredda".
+"raffreddiamo" is the first person of "raffreddano".
+"raffreddo" is the first person of "raffredda".
+"raffreddi" is the second person of "raffredda".
+"raffreddò" is the past of "raffredda".
+"raffreddarono" is the past of "raffreddano".
+"raffreddammo" is the first person of "raffreddarono".
+"raffreddaste" is the second person of "raffreddarono".
+"raffreddai" is the first person of "raffreddò".
+"raffreddasti" is the second person of "raffreddò".
+"raffreddava" is the imperfect of "raffredda".
+"raffreddavano" is the imperfect of "raffreddano".
+"raffreddavamo" is the first person of "raffreddavano".
+"raffreddavate" is the second person of "raffreddavano".
+"raffreddavo" is the first person of "raffreddava".
+"raffreddavi" is the second person of "raffreddava".
+"raffredderà" is the future of "raffredda".
+"raffredderanno" is the plural of "raffredderà".
+"raffredderemo" is the first person of "raffredderanno".
+"raffredderete" is the second person of "raffredderanno".
+"raffredderò" is the first person of "raffredderà".
+"raffredderai" is the second person of "raffredderà".
+"raffredderebbe" is the conditional of "raffredda".
+"raffredderebbero" is the plural of "raffredderebbe".
+"raffredderemmo" is the first person of "raffredderebbero".
+"raffreddereste" is the second person of "raffredderebbero".
+"raffredderei" is the first person of "raffredderebbe".
+"raffredderesti" is the second person of "raffredderebbe".
+"raffreddi" is the subjunctive of "raffredda".
+"raffreddino" is the plural of "raffreddi".
+"raffreddiamo" is the first person of "raffreddino".
+"raffreddasse" is the past subjunctive of "raffredda".
+"raffreddassero" is the plural of "raffreddasse".
+"raffreddassimo" is the first person of "raffreddassero".
+"raffreddaste" is the second person of "raffreddassero".
+"raffreddassi" is the first person of "raffreddasse".
+"raffreddassi" is the second person of "raffreddasse".
+"raffredda" is the imperative of "raffredda".
+"raffreddare" is the negative imperative of "raffredda".
+"raffreddate" is the imperative of "raffreddano".
+"raffreddiamo" is the hortative of "raffredda".
+"raffreddato" is the participle of "raffredda".
+"raffreddata" is the participle of "raffredda".
+"raffreddata" is feminine.
+"raffreddati" is the participle of "raffredda".
+"raffreddati" is the plural of "raffreddato".
+"raffreddate" is the participle of "raffredda".
+"raffreddate" is feminine.
+"raffreddate" is the plural of "raffreddata".
+"raffreddare" is the infinitive of "raffredda".
+"raffreddando" is the gerund of "raffredda".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -103570,6 +104239,215 @@ The verb "contraria" means "upsets".
 "contrariate" is the plural of "contrariata".
 "contrariare" is the infinitive of "contraria".
 "contrariando" is the gerund of "contraria".
+The verb "giace" means "rests".
+"giacciono" is the plural of "giace".
+"giacciamo" is the first person of "giacciono".
+"giaccio" is the first person of "giace".
+"giaci" is the second person of "giace".
+"giacque" is the past of "giace".
+"giacquero" is the past of "giacciono".
+"giacemmo" is the first person of "giacquero".
+"giaceste" is the second person of "giacquero".
+"giacqui" is the first person of "giacque".
+"giacesti" is the second person of "giacque".
+"giaceva" is the imperfect of "giace".
+"giacevano" is the imperfect of "giacciono".
+"giacevamo" is the first person of "giacevano".
+"giacevate" is the second person of "giacevano".
+"giacevo" is the first person of "giaceva".
+"giacevi" is the second person of "giaceva".
+"giacerà" is the future of "giace".
+"giaceranno" is the plural of "giacerà".
+"giaceremo" is the first person of "giaceranno".
+"giacerete" is the second person of "giaceranno".
+"giacerò" is the first person of "giacerà".
+"giacerai" is the second person of "giacerà".
+"giacerebbe" is the conditional of "giace".
+"giacerebbero" is the plural of "giacerebbe".
+"giaceremmo" is the first person of "giacerebbero".
+"giacereste" is the second person of "giacerebbero".
+"giacerei" is the first person of "giacerebbe".
+"giaceresti" is the second person of "giacerebbe".
+"giaccia" is the subjunctive of "giace".
+"giacciano" is the plural of "giaccia".
+"giacciamo" is the first person of "giacciano".
+"giacesse" is the past subjunctive of "giace".
+"giacessero" is the plural of "giacesse".
+"giacessimo" is the first person of "giacessero".
+"giaceste" is the second person of "giacessero".
+"giacessi" is the first person of "giacesse".
+"giacessi" is the second person of "giacesse".
+"giaci" is the imperative of "giace".
+"giacere" is the negative imperative of "giace".
+"giacete" is the imperative of "giacciono".
+"giacciamo" is the hortative of "giace".
+"giaciuto" is the participle of "giace".
+"giaciuta" is the participle of "giace".
+"giaciuta" is feminine.
+"giaciuti" is the participle of "giace".
+"giaciuti" is the plural of "giaciuto".
+"giaciute" is the participle of "giace".
+"giaciute" is feminine.
+"giaciute" is the plural of "giaciuta".
+"giacere" is the infinitive of "giace".
+"giacendo" is the gerund of "giace".
+The verb "ripulisce" means "cleans".
+"ripuliscono" is the plural of "ripulisce".
+"ripuliamo" is the first person of "ripuliscono".
+"ripulisco" is the first person of "ripulisce".
+"ripulisci" is the second person of "ripulisce".
+"ripulì" is the past of "ripulisce".
+"ripulirono" is the past of "ripuliscono".
+"ripulimmo" is the first person of "ripulirono".
+"ripuliste" is the second person of "ripulirono".
+"ripulii" is the first person of "ripulì".
+"ripulisti" is the second person of "ripulì".
+"ripuliva" is the imperfect of "ripulisce".
+"ripulivano" is the imperfect of "ripuliscono".
+"ripulivamo" is the first person of "ripulivano".
+"ripulivate" is the second person of "ripulivano".
+"ripulivo" is the first person of "ripuliva".
+"ripulivi" is the second person of "ripuliva".
+"ripulirà" is the future of "ripulisce".
+"ripuliranno" is the plural of "ripulirà".
+"ripuliremo" is the first person of "ripuliranno".
+"ripulirete" is the second person of "ripuliranno".
+"ripulirò" is the first person of "ripulirà".
+"ripulirai" is the second person of "ripulirà".
+"ripulirebbe" is the conditional of "ripulisce".
+"ripulirebbero" is the plural of "ripulirebbe".
+"ripuliremmo" is the first person of "ripulirebbero".
+"ripulireste" is the second person of "ripulirebbero".
+"ripulirei" is the first person of "ripulirebbe".
+"ripuliresti" is the second person of "ripulirebbe".
+"ripulisca" is the subjunctive of "ripulisce".
+"ripuliscano" is the plural of "ripulisca".
+"ripuliamo" is the first person of "ripuliscano".
+"ripulisse" is the past subjunctive of "ripulisce".
+"ripulissero" is the plural of "ripulisse".
+"ripulissimo" is the first person of "ripulissero".
+"ripuliste" is the second person of "ripulissero".
+"ripulissi" is the first person of "ripulisse".
+"ripulissi" is the second person of "ripulisse".
+"ripulisci" is the imperative of "ripulisce".
+"ripulire" is the negative imperative of "ripulisce".
+"ripulite" is the imperative of "ripuliscono".
+"ripuliamo" is the hortative of "ripulisce".
+"ripulito" is the participle of "ripulisce".
+"ripulita" is the participle of "ripulisce".
+"ripulita" is feminine.
+"ripuliti" is the participle of "ripulisce".
+"ripuliti" is the plural of "ripulito".
+"ripulite" is the participle of "ripulisce".
+"ripulite" is feminine.
+"ripulite" is the plural of "ripulita".
+"ripulire" is the infinitive of "ripulisce".
+"ripulendo" is the gerund of "ripulisce".
+The verb "trilla" means "rings".
+"trillano" is the plural of "trilla".
+"trilliamo" is the first person of "trillano".
+"trillo" is the first person of "trilla".
+"trilli" is the second person of "trilla".
+"trillò" is the past of "trilla".
+"trillarono" is the past of "trillano".
+"trillammo" is the first person of "trillarono".
+"trillaste" is the second person of "trillarono".
+"trillai" is the first person of "trillò".
+"trillasti" is the second person of "trillò".
+"trillava" is the imperfect of "trilla".
+"trillavano" is the imperfect of "trillano".
+"trillavamo" is the first person of "trillavano".
+"trillavate" is the second person of "trillavano".
+"trillavo" is the first person of "trillava".
+"trillavi" is the second person of "trillava".
+"trillerà" is the future of "trilla".
+"trilleranno" is the plural of "trillerà".
+"trilleremo" is the first person of "trilleranno".
+"trillerete" is the second person of "trilleranno".
+"trillerò" is the first person of "trillerà".
+"trillerai" is the second person of "trillerà".
+"trillerebbe" is the conditional of "trilla".
+"trillerebbero" is the plural of "trillerebbe".
+"trilleremmo" is the first person of "trillerebbero".
+"trillereste" is the second person of "trillerebbero".
+"trillerei" is the first person of "trillerebbe".
+"trilleresti" is the second person of "trillerebbe".
+"trilli" is the subjunctive of "trilla".
+"trillino" is the plural of "trilli".
+"trilliamo" is the first person of "trillino".
+"trillasse" is the past subjunctive of "trilla".
+"trillassero" is the plural of "trillasse".
+"trillassimo" is the first person of "trillassero".
+"trillaste" is the second person of "trillassero".
+"trillassi" is the first person of "trillasse".
+"trillassi" is the second person of "trillasse".
+"trilla" is the imperative of "trilla".
+"trillare" is the negative imperative of "trilla".
+"trillate" is the imperative of "trillano".
+"trilliamo" is the hortative of "trilla".
+"trillato" is the participle of "trilla".
+"trillata" is the participle of "trilla".
+"trillata" is feminine.
+"trillati" is the participle of "trilla".
+"trillati" is the plural of "trillato".
+"trillate" is the participle of "trilla".
+"trillate" is feminine.
+"trillate" is the plural of "trillata".
+"trillare" is the infinitive of "trilla".
+"trillando" is the gerund of "trilla".
+"rung" is the past of "rings".
+The verb "rassegna" means "resigns".
+"rassegnano" is the plural of "rassegna".
+"rassegniamo" is the first person of "rassegnano".
+"rassegno" is the first person of "rassegna".
+"rassegni" is the second person of "rassegna".
+"rassegnò" is the past of "rassegna".
+"rassegnarono" is the past of "rassegnano".
+"rassegnammo" is the first person of "rassegnarono".
+"rassegnaste" is the second person of "rassegnarono".
+"rassegnai" is the first person of "rassegnò".
+"rassegnasti" is the second person of "rassegnò".
+"rassegnava" is the imperfect of "rassegna".
+"rassegnavano" is the imperfect of "rassegnano".
+"rassegnavamo" is the first person of "rassegnavano".
+"rassegnavate" is the second person of "rassegnavano".
+"rassegnavo" is the first person of "rassegnava".
+"rassegnavi" is the second person of "rassegnava".
+"rassegnerà" is the future of "rassegna".
+"rassegneranno" is the plural of "rassegnerà".
+"rassegneremo" is the first person of "rassegneranno".
+"rassegnerete" is the second person of "rassegneranno".
+"rassegnerò" is the first person of "rassegnerà".
+"rassegnerai" is the second person of "rassegnerà".
+"rassegnerebbe" is the conditional of "rassegna".
+"rassegnerebbero" is the plural of "rassegnerebbe".
+"rassegneremmo" is the first person of "rassegnerebbero".
+"rassegnereste" is the second person of "rassegnerebbero".
+"rassegnerei" is the first person of "rassegnerebbe".
+"rassegneresti" is the second person of "rassegnerebbe".
+"rassegni" is the subjunctive of "rassegna".
+"rassegnino" is the plural of "rassegni".
+"rassegniamo" is the first person of "rassegnino".
+"rassegnasse" is the past subjunctive of "rassegna".
+"rassegnassero" is the plural of "rassegnasse".
+"rassegnassimo" is the first person of "rassegnassero".
+"rassegnaste" is the second person of "rassegnassero".
+"rassegnassi" is the first person of "rassegnasse".
+"rassegnassi" is the second person of "rassegnasse".
+"rassegna" is the imperative of "rassegna".
+"rassegnare" is the negative imperative of "rassegna".
+"rassegnate" is the imperative of "rassegnano".
+"rassegniamo" is the hortative of "rassegna".
+"rassegnato" is the participle of "rassegna".
+"rassegnata" is the participle of "rassegna".
+"rassegnata" is feminine.
+"rassegnati" is the participle of "rassegna".
+"rassegnati" is the plural of "rassegnato".
+"rassegnate" is the participle of "rassegna".
+"rassegnate" is feminine.
+"rassegnate" is the plural of "rassegnata".
+"rassegnare" is the infinitive of "rassegna".
+"rassegnando" is the gerund of "rassegna".
 The verb "candida" means "nominates".
 "candidano" is the plural of "candida".
 "candidiamo" is the first person of "candidano".
@@ -109797,6 +110675,38 @@ The adjective "efficace" means "effective".
 "efficacissimi" is the superlative of "efficaci".
 "efficacissima" is the superlative of "efficace".
 "efficacissime" is the superlative of "efficaci".
+The masculine adjective "inquinato" means "polluted".
+"inquinati" is the plural of "inquinato".
+The feminine adjective "inquinata" means "polluted".
+"inquinate" is the plural of "inquinata".
+"inquinatissimo" is the superlative of "inquinato".
+"inquinatissimi" is the superlative of "inquinati".
+"inquinatissima" is the superlative of "inquinata".
+"inquinatissime" is the superlative of "inquinate".
+The masculine adjective "salmastro" means "brackish".
+"salmastri" is the plural of "salmastro".
+The feminine adjective "salmastra" means "brackish".
+"salmastre" is the plural of "salmastra".
+"salmastrissimo" is the superlative of "salmastro".
+"salmastrissimi" is the superlative of "salmastri".
+"salmastrissima" is the superlative of "salmastra".
+"salmastrissime" is the superlative of "salmastre".
+The masculine adjective "impavido" means "fearless".
+"impavidi" is the plural of "impavido".
+The feminine adjective "impavida" means "fearless".
+"impavide" is the plural of "impavida".
+"impavidissimo" is the superlative of "impavido".
+"impavidissimi" is the superlative of "impavidi".
+"impavidissima" is the superlative of "impavida".
+"impavidissime" is the superlative of "impavide".
+The adjective "possente" means "mighty".
+"possenti" is the plural of "possente".
+"possentissimo" is the superlative of "possente".
+"possentissimi" is the superlative of "possenti".
+"possentissima" is the superlative of "possente".
+"possentissime" is the superlative of "possenti".
+The adjective "milanese" means "milanese".
+"milanesi" is the plural of "milanese".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".
@@ -125849,6 +126759,36 @@ The feminine adjective "bizzarra" means "bizarre".
 "bizzarrissimi" is the superlative of "bizzarri".
 "bizzarrissima" is the superlative of "bizzarra".
 "bizzarrissime" is the superlative of "bizzarre".
+The masculine adjective "dannoso" means "harmful".
+"dannosi" is the plural of "dannoso".
+The feminine adjective "dannosa" means "harmful".
+"dannose" is the plural of "dannosa".
+"dannosissimo" is the superlative of "dannoso".
+"dannosissimi" is the superlative of "dannosi".
+"dannosissima" is the superlative of "dannosa".
+"dannosissime" is the superlative of "dannose".
+The adjective "agibile" means "accessible".
+"agibili" is the plural of "agibile".
+"agibilissimo" is the superlative of "agibile".
+"agibilissimi" is the superlative of "agibili".
+"agibilissima" is the superlative of "agibile".
+"agibilissime" is the superlative of "agibili".
+The masculine adjective "salato" means "expensive".
+"salati" is the plural of "salato".
+The feminine adjective "salata" means "expensive".
+"salate" is the plural of "salata".
+"salatissimo" is the superlative of "salato".
+"salatissimi" is the superlative of "salati".
+"salatissima" is the superlative of "salata".
+"salatissime" is the superlative of "salate".
+The masculine adjective "montano" means "mountainous".
+"montani" is the plural of "montano".
+The feminine adjective "montana" means "mountainous".
+"montane" is the plural of "montana".
+"montanissimo" is the superlative of "montano".
+"montanissimi" is the superlative of "montani".
+"montanissima" is the superlative of "montana".
+"montanissime" is the superlative of "montane".
 The adjective "castiglionese" means "castilian".
 "castiglionesi" is the plural of "castiglionese".
 The adjective "acclamante" means "applauding".

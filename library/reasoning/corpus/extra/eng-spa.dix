@@ -677,3 +677,24 @@
 <e><p><l>tactically<s n="adv"/></l><r>tácticamente<s n="adv"/></r></p></e>
 # `que ha recobrado su mejor nivel': regained; read only, `recuperar' stays the word written for `regain'
 <e r="RL"><p><l>regain<s n="vblex"/></l><r>recobrar<s n="vblex"/></r></p></e>
+# the Venice canals report (VIT-9999..10010), Italian into Spanish: the Spanish words its English needs, each with its paradigm in the dictionary
+# `di arsenico e di pesticidi'
+<e><p><l>pesticide<s n="n"/></l><r>pesticida<s n="n"/><s n="m"/></r></p></e>
+# `impavidi nuotatori': fearless is `impávido' (the dictionary's first Spanish for it is `osado', daring)
+<e><p><l>fearless<s n="adj"/></l><r>impávido<s n="adj"/></r></p></e>
+# `con bracciate possenti': a swimmer's stroke is a `brazada', both ways (the dictionary has it read only, after `trazo')
+<e><p><l>stroke<s n="n"/></l><r>brazada<s n="n"/><s n="f"/></r></p></e>
+# `dagli scarichi delle industrie': industrial discharges are `vertidos' (the dictionary's first Spanish for a discharge is
+# `caudal', a flow)
+<e><p><l>discharge<s n="n"/></l><r>vertido<s n="n"/><s n="m"/></r></p></e>
+# `i curatori dell'indagine': the curators
+<e><p><l>curator<s n="n"/></l><r>curador<s n="n"/><s n="m"/></r></p></e>
+# The islands report (VIT-9485..9510): `si sono rassegnati' is `se han resignado' -- the verb's forms (its
+# reflexive sense is a line of spanish.txt), read only: `dimitir' stays the Spanish for resign
+<e r="RL"><p><l>resign<s n="vblex"/></l><r>resignar<s n="vblex"/></r></p></e>
+# `Dovrebbero transitare ... 290 mila vetture': transit, where the Italian dictionary's `passes' is
+# `transcurre', time passing
+<e><p><l>transit<s n="vblex"/></l><r>transitar<s n="vblex"/></r></p></e>
+# `le idee di ferree ordinanze come quella dell'estate scorsa': an ordinance, which the bilingual
+# dictionary lacks (the Spanish one has `ordenanza')
+<e><p><l>ordinance<s n="n"/></l><r>ordenanza<s n="n"/><s n="f"/></r></p></e>

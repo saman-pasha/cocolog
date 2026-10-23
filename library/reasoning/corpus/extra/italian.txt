@@ -2418,9 +2418,11 @@ The adverb "in questo modo" means "in this way".
 The masculine noun "traffico veicolare" means "road traffic".
 The preposition "insieme a" means "together with".
 # the Clot street report, third batch: `una facciata' is a facade, `lo scarico'
-# is the unloading
+# is the unloading -- and to the reader a discharge first, said before it since the
+# Venice canals report (`dagli scarichi delle industrie di Porto Marghera')
 The feminine noun "facciata" means "facade".
 "facciate" is the plural of "facciata".
+The masculine noun "scarico" means "discharge".
 The masculine noun "scarico" means "unloading".
 "scarichi" is the plural of "scarico".
 # `abogar por que' into Italian: what a newspaper says of one who asks that
@@ -3816,3 +3818,715 @@ The feminine noun "traiettoria" means "trajectory".
 The masculine noun "acquisto" means "signing".
 # `Quattro vittorie e un pareggio': the draw is the tie (eng-ita.dix), so the necktie is one word of its own in both languages (`su corbata' was `il suo pareggio')
 The feminine noun "cravatta" means "necktie".
+# `parla dell'intreccio tra le nuove regole e le trattative di Berlusconi': an interweaving (the dictionary has the word and no English)
+The masculine noun "intreccio" means "interweaving".
+"intrecci" is the plural of "intreccio".
+# `la holding delle sue tv': the holding company, as the Spanish `el holding'
+The feminine noun "holding" means "holding".
+"holding" is the plural of "holding".
+# `vicepresidente del senato'
+The masculine noun "vicepresidente" means "vice-president".
+"vicepresidenti" is the plural of "vicepresidente".
+"vicepresidente" is a person.
+# `l'oligopolio tv'
+The masculine noun "oligopolio" means "oligopoly".
+"oligopoli" is the plural of "oligopolio".
+# `leggere tutto pro o contro Berlusconi'; `a favore di' is said first and stays the word written (`se votó a favor
+# de la propuesta' was `si votò pro la proposta')
+The preposition "a favore di" means "in favour of".
+The preposition "pro" means "in favour of".
+# `la corte costituzionale che ha cassato parte della legge Mammì': quashed (the dictionary has the noun `cassa' only)
+The verb "cassa" means "quashes".
+"cassano" is the plural of "cassa".
+"cassare" is the infinitive of "cassa".
+"cassò" is the past of "cassa".
+"cassato" is the participle of "cassa".
+# `una cordata d'operatori internazionali': a consortium; `consorzio' is said first and stays the word written
+The masculine noun "consorzio" means "consortium".
+The feminine noun "cordata" means "consortium".
+"cordate" is the plural of "cordata".
+# `la maggioranza dei votanti'
+The noun "votante" means "voter".
+"votanti" is the plural of "votante".
+"votante" is a person.
+# `con una forte quota azionaria': a shareholding
+The feminine noun "quota azionaria" means "shareholding".
+"quote azionarie" is the plural of "quota azionaria".
+# `la possibilità di incidere sulle scelte del management': to influence; `influenza' is said first and stays the word written
+The verb "influenza" means "influences".
+The verb "incide" means "influences".
+"incidono" is the plural of "incide".
+"incidere" is the infinitive of "incide".
+"incide" takes "su" before the phrase.
+# `le scelte del management': the management, with `gestione' said first (above) as the word written
+The masculine noun "management" means "management".
+"management" is the plural of "management".
+# `la holding delle sue tivù': the television, as `tv'; `televisione' is said first and stays the word written
+The feminine noun "televisione" means "television".
+The feminine noun "tivù" means "television".
+"tivù" is the plural of "tivù".
+# `cercano di definire delle regole': they try to; the plain meaning is said first and stays it everywhere else (`cerca il cane'),
+# and `tenta' is said first as the word written for tries (`no trata de convencer' was `non cerca di convincere')
+The verb "tenta" means "attempts".
+The verb "tenta" means "tries".
+The verb "cerca" means "searches".
+The infinitival verb "cerca" means "tries".
+# `i provvedimenti in discussione in parlamento': the measures; `misura' is said first and stays the word written
+The feminine noun "misura" means "measure".
+The masculine noun "provvedimento" means "measure".
+"provvedimenti" is the plural of "provvedimento".
+# `per le tv via etere', `due reti via etere': terrestrial, as broadcast over the air
+The adjective "via etere" means "terrestrial".
+# `sulla base della sentenza della corte costituzionale', `vanno avanti sulla base di partecipazioni'
+The preposition "sulla base di" means "on the basis of".
+# `nella misura in cui Berlusconi resta azionista di riferimento'
+The conjunction "nella misura in cui" means "insofar as".
+# `Può essere, certo, eletto in parlamento': elected, where the dictionary's first is chooses (`sceglie' stays the word written for chooses)
+The verb "sceglie" means "chooses".
+The verb "elegge" means "elects".
+# `leve fondamentali del potere economico': power, where the dictionary's first is a fortress (`poteri forti' were `fortalezas fuertes')
+The masculine noun "potere" means "power".
+"poteri" is the plural of "potere".
+# `il disegno sul conflitto d'interessi': a drawing before a cartoonist (the dictionary's `disegno' is a cartoonist first; `disegno di legge' is the bill)
+The masculine noun "disegno" means "drawing".
+# `interlocutori internazionali e italiani': interlocutors, where the dictionary has speakers
+The masculine noun "interlocutore" means "interlocutor".
+# `le reti della Fininvest', `rete 4': a network first (television), the net after it
+The feminine noun "rete" means "network".
+"reti" is the plural of "rete".
+The feminine noun "rete" means "net".
+# `non prendono di mira casi personali': target
+The verb "prende di mira" means "targets".
+"prendono di mira" is the plural of "prende di mira".
+"prendere di mira" is the infinitive of "prende di mira".
+# `chi ha in mano leve fondamentali': holds
+The verb "ha in mano" means "holds".
+"hanno in mano" is the plural of "ha in mano".
+"avere in mano" is the infinitive of "ha in mano".
+# `la Fininvest può tenersi tre reti': keeps; `mantiene' is said first and stays the word written (`mantener' was `tenersi',
+# and three sentences of the controls were refused)
+The verb "mantiene" means "keeps".
+The verb "si tiene" means "keeps".
+"si tengono" is the plural of "si tiene".
+"tenersi" is the infinitive of "si tiene".
+# `nessuno abbia più di una rete', `basta assai meno del 50,1%': more than, less than -- one adverb before a count
+# (as Spanish's `más de'); before anything else the reader takes the two words apart again, the comparison
+# `più di me' (tr_than_split/3)
+The adverb "più di" means "more than".
+The adverb "meno di" means "less than".
+# `Berlusconi dovrà scegliere se fare l'uomo di governo o mantenere il controllo': choose whether
+"sceglie" takes the question.
+# `Sarebbe sbagliato leggere tutto pro o contro Berlusconi': wrong, an adjective (the dictionary has the participle of `sbaglia' only, which erred)
+The masculine adjective "sbagliato" means "wrong".
+"sbagliati" is the plural of "sbagliato".
+The feminine adjective "sbagliata" means "wrong".
+"sbagliate" is the plural of "sbagliata".
+# `chi compra oggi le tv Fininvest lo fa a suo rischio': at his own risk
+The adverb "a suo rischio" means "at his own risk".
+# `non possa essere membro del governo a meno che non si liberi entro un anno': unless (its `non' denies nothing,
+# tr_expletive_off/3)
+The conjunction "a meno che" means "unless".
+"a meno che" takes the subjunctive.
+# the banking report (CESS-CAST-P-19990601-98, Spanish into Italian and English): the words the writer needs
+# `el elemento negociador': `l'elemento negoziale', and the negotiator, which the dictionary does not have
+The adjective "negoziale" means "negotiating".
+"negoziali" is the plural of "negoziale".
+The masculine noun "negoziatore" means "negotiator".
+"negoziatori" is the plural of "negoziatore".
+The feminine noun "negoziatrice" means "negotiator".
+"negoziatrici" is the plural of "negoziatrice".
+# `las sucursales bancarias': `le filiali bancarie' -- `filiale' is a subsidiary first to the reader, said again
+# first, and a bank's branch after it
+The feminine noun "filiale" means "subsidiary".
+The feminine noun "filiale" means "branch office".
+# `los sindicatos CCOO y UGT': `i sindacati'
+The masculine noun "sindacato" means "trade union".
+# `las cajas de ahorros': `le casse di risparmio'
+The feminine noun "cassa di risparmio" means "savings bank".
+"casse di risparmio" is the plural of "cassa di risparmio".
+"cassa di risparmio" is a group.
+# `flexibilizar el horario laboral': `flessibilizzare l'orario'
+The verb "flessibilizza" means "flexibilises".
+"flessibilizzano" is the plural of "flessibilizza".
+"flessibilizzò" is the past of "flessibilizza".
+"flessibilizzare" is the infinitive of "flessibilizza".
+# `por su parte': for its part
+The adverb "da parte sua" means "for its part".
+# `centraron sus peticiones en el cierre': `centrarono le loro richieste sulla chiusura'
+"centra" takes "su" before the phrase.
+# `de forma que se abran las oficinas': `in modo che si aprano gli uffici'; `sin que haya obtenido': `senza che
+# abbia ottenuto' -- the clause in the subjunctive
+"in modo che" takes the subjunctive.
+"senza che" takes the subjunctive.
+# `por las tardes': `di pomeriggio'
+The adverb "di pomeriggio" means "in the afternoons".
+The adverb "di mattina" means "in the mornings".
+# `la mesa de negociación': `il tavolo delle trattative'
+The masculine noun "tavolo delle trattative" means "negotiating table".
+"tavoli delle trattative" is the plural of "tavolo delle trattative".
+# the Venice canals report (VIT-9999..10010, Italian into Spanish and English): the words the dictionary has no paradigm for
+# `un "progetto integrato rii" confezionato d'intesa tra il comune, la regione e il Ministero': prepared -- the
+# dictionary's own `prepara' said again first, so that `prepares' is still written `prepara'
+The verb "prepara" means "prepares".
+The verb "confeziona" means "prepares".
+"confezionano" is the plural of "confeziona".
+"confezionare" is the infinitive of "confeziona".
+"confezionato" is the participle of "confeziona".
+"confezionata" is the participle of "confeziona".
+"confezionata" is feminine.
+"confezionati" is the participle of "confeziona".
+"confezionati" is the plural of "confezionato".
+"confezionate" is the participle of "confeziona".
+"confezionate" is feminine.
+"confezionate" is the plural of "confezionata".
+# `145 di policlorobifenili'
+The masculine noun "policlorobifenile" means "polychlorinated biphenyl".
+"policlorobifenili" is the plural of "policlorobifenile".
+# `gli antivegetativi meno dannosi': the antifouling paints of the boats
+The masculine noun "antivegetativo" means "antifouling paint".
+"antivegetativi" is the plural of "antivegetativo".
+# `con bracciate possenti': a swimmer's stroke (the Spanish `trazo', no word of the controls, is written `bracciata' too)
+The feminine noun "bracciata" means "stroke".
+"bracciate" is the plural of "bracciata".
+# `sulla riva delle zattere': the dictionary has the raft with no gender and no plural
+The feminine noun "zattera" means "raft".
+"zattere" is the plural of "zattera".
+# `si stanno installando delle fosse settiche'
+The feminine noun "fossa settica" means "septic tank".
+"fosse settiche" is the plural of "fossa settica".
+# `non venivano ripuliti da trent'anni': the elision
+"trent'" is the elision of "trenta".
+# `qual'è quella del fondo dei rii': the source's apostrophe for `qual è'
+"qual'" is the elision of "quale".
+# `sulle orme di lord Byron': in the footsteps of
+The preposition "sulle orme di" means "in the footsteps of".
+# `uno studio del Consiglio Nazionale delle Ricerche', `del gruppo "Insula"': a study, research and a group are the
+# news's first meanings, said first (the dictionary's are a studio, a search and a cluster), and a fund is `fondo''s
+# (its first was the background: the controls' `i fondi necessari ... attraverso un fondo nazionale' were the
+# necessary backgrounds); `sul fondo dei canali' is the bottom, tr_relational_np/3
+The masculine noun "studio" means "study".
+The feminine noun "ricerca" means "research".
+The masculine noun "gruppo" means "group".
+The masculine noun "fondo" means "fund".
+# `C'è un tesoro avvelenato che giace sul fondo dei canali di Venezia': the canals, with the dictionary's channel second
+The masculine noun "canale" means "canal".
+The masculine noun "canale" means "channel".
+# `in fondo, c'erano più argomenti' (a control): after all; with research first, `alla ricerca di' is in search of
+The adverb "in fondo" means "after all".
+The preposition "alla ricerca di" means "in search of".
+# `un sospetto che alcuni Veneziani avevano da tempo': for a long time
+The adverb "da tempo" means "for a long time".
+# `che si sono depositati nel corso degli anni': over the years, and a thing deposited
+The adverb "nel corso degli anni" means "over the years".
+"deposita" takes the passive.
+# `295mila metri cubi di sedimenti': cubic metres
+The masculine noun "metro cubo" means "cubic metre".
+"metri cubi" is the plural of "metro cubo".
+# `confezionato d'intesa tra il comune, la regione e il Ministero': in agreement between
+The preposition "d'intesa tra" means "in agreement between".
+# `si potrà tornare a fare il bagno nei canali': swim -- the dictionary's own `nuota' said again first, so that
+# `swims' is still written `nuota'
+The verb "nuota" means "swims".
+The verb "fa il bagno" means "swims".
+"fanno il bagno" is the plural of "fa il bagno".
+"fare il bagno" is the infinitive of "fa il bagno".
+# the National Research Council, an institution's name kept as it stands
+"Consiglio Nazionale delle Ricerche" is a name.
+# `un "progetto integrato rii"': a project, said first (the dictionary's first is a blueprint: the controls' `the "blueprint
+# Bogi"', `a rejected blueprint at birth'); `ben 11 veleni diversi': the adjective after its noun is different, said first
+# (it was `diverse', and the controls' `two diverse people'), the determiner before it several, as it was
+The masculine noun "progetto" means "project".
+The masculine adjective "diverso" means "different".
+The feminine adjective "diversa" means "different".
+# `un inquinamento di tipo "urbano" del tutto simile a quello di altre città europee': similar, said first (the
+# dictionary's first is alike, which English writes after a verb only: `an alike pollution to that')
+The adjective "simile" means "similar".
+# `l'avvelenamento dei canali non deriverebbe tanto dagli scarichi ... quanto da un inquinamento', `La conferma ... è
+# venuta da uno studio': what a thing derives and comes from is the phrase the verb governs, which Spanish writes `de'
+# (it was `desde', the first word for `from')
+"deriva" takes "da" before the phrase.
+"viene" takes "da" before the phrase.
+# `lascia le sue tracce' (a control): traces, said first -- the dictionary's first is a stroke, and with the
+# Spanish writer's word for a swimmer's stroke, `brazada' (the report's `bracciate possenti'), it was `deja sus brazadas'
+The feminine noun "traccia" means "trace".
+# the Yeltsin report (AnCora CESS-CAST-P-19991202-35), into Italian: the words its Spanish needs written
+# `La Duma fija la primera vuelta de las presidenciales para el 4 de junio': sets a date, said before the
+# dictionary's `fixes' (a repair is `ripara'); the rounds of an election; the presidential elections
+The verb "fissa" means "sets".
+The masculine noun "primo turno" means "first round".
+"primi turni" is the plural of "primo turno".
+The masculine noun "secondo turno" means "second round".
+"secondi turni" is the plural of "secondo turno".
+The feminine noun "elezione presidenziale" means "presidential election".
+"elezioni presidenziali" is the plural of "elezione presidenziale".
+# `la segunda hospitalización': a noun in `-zione', `-sione' or `-tà' is feminine, which the dictionary leaves
+# unsaid for 148 (`ospedalizzazione' was `il secondo ospedalizzazione'). Each is stated: three rules, asked of
+# every noun's gender, were most of what the store cost the translation into Italian
+"acidificazione" is feminine.
+"affissazione" is feminine.
+"apposizione" is feminine.
+"arbitrarietà" is feminine.
+"auscultazione" is feminine.
+"automozione" is feminine.
+"biiezione" is feminine.
+"bilateralità" is feminine.
+"bioaccumulazione" is feminine.
+"biodegradazione" is feminine.
+"bisezione" is feminine.
+"calcinazione" is feminine.
+"carbonatazione" is feminine.
+"carburazione" is feminine.
+"cauterizzazione" is feminine.
+"cementazione" is feminine.
+"clorazione" is feminine.
+"coeducazione" is feminine.
+"cogenerazione" is feminine.
+"confidenzialità" is feminine.
+"conflagrazione" is feminine.
+"consanguineità" is feminine.
+"controprogrammazione" is feminine.
+"coprecipitazione" is feminine.
+"costipazione" is feminine.
+"culpabilità" is feminine.
+"deconcentrazione" is feminine.
+"defogliazione" is feminine.
+"deidrogenazione" is feminine.
+"deionizzazione" is feminine.
+"delineazione" is feminine.
+"demineralizzazione" is feminine.
+"demodulazione" is feminine.
+"demoralizzazione" is feminine.
+"denitrificazione" is feminine.
+"denotazione" is feminine.
+"denudazione" is feminine.
+"depalatalizzazione" is feminine.
+"depolimerizzazione" is feminine.
+"desessualizzazione" is feminine.
+"desolforazione" is feminine.
+"desquamazione" is feminine.
+"disgiunzione" is feminine.
+"disumanizzazione" is feminine.
+"domiciliazione" is feminine.
+"durabilità" is feminine.
+"elettrocuzione" is feminine.
+"elettronegatività" is feminine.
+"eruttazione" is feminine.
+"espettorazione" is feminine.
+"essudazione" is feminine.
+"esterificazione" is feminine.
+"estrusione" is feminine.
+"esumazione" is feminine.
+"eutrofizzazione" is feminine.
+"flocculazione" is feminine.
+"fluorizzazione" is feminine.
+"fonazione" is feminine.
+"fosforilazione" is feminine.
+"fossilizzazione" is feminine.
+"fotocomposizione" is feminine.
+"fotoincisione" is feminine.
+"fumigazione" is feminine.
+"galvanizzazione" is feminine.
+"gassazione" is feminine.
+"gassificazione" is feminine.
+"gastrulazione" is feminine.
+"gelificazione" is feminine.
+"gemmazione" is feminine.
+"grammaticalizzazione" is feminine.
+"granulazione" is feminine.
+"humanità" is feminine.
+"idratazione" is feminine.
+"immunosoppressione" is feminine.
+"inaccessibilità" is feminine.
+"inazione" is feminine.
+"indottrinazione" is feminine.
+"infibulazione" is feminine.
+"inoculazione" is feminine.
+"insonorizzazione" is feminine.
+"intercalazione" is feminine.
+"intercomunicazione" is feminine.
+"inumidificazione" is feminine.
+"invaginazione" is feminine.
+"istituzionalizzazione" is feminine.
+"liofilizzazione" is feminine.
+"malleabilità" is feminine.
+"microiniezione" is feminine.
+"microminiaturizzazione" is feminine.
+"minzione" is feminine.
+"mitigazione" is feminine.
+"nasalizzazione" is feminine.
+"nitratazione" is feminine.
+"oggettivazione" is feminine.
+"ospedalizzazione" is feminine.
+"palatalizzazione" is feminine.
+"parametrizzazione" is feminine.
+"passivazione" is feminine.
+"pastorizzazione" is feminine.
+"percolazione" is feminine.
+"permettività" is feminine.
+"plastificazione" is feminine.
+"postproduzione" is feminine.
+"prefissazione" is feminine.
+"procrastinazione" is feminine.
+"proletarizzazione" is feminine.
+"proscrizione" is feminine.
+"prosternazione" is feminine.
+"quantizzazione" is feminine.
+"radiocomunicazione" is feminine.
+"redistribuzione" is feminine.
+"reificazione" is feminine.
+"reticolazione" is feminine.
+"riassegnazione" is feminine.
+"riconfigurazione" is feminine.
+"ruralizzazione" is feminine.
+"salivazione" is feminine.
+"scarificazione" is feminine.
+"sedazione" is feminine.
+"simbolizzazione" is feminine.
+"sinterizzazione" is feminine.
+"sismicità" is feminine.
+"sopraelevazione" is feminine.
+"sottoccupazione" is feminine.
+"sovralimentazione" is feminine.
+"sovrasaturazione" is feminine.
+"spiritualizzazione" is feminine.
+"stagflazione" is feminine.
+"stigmatizzazione" is feminine.
+"suffissazione" is feminine.
+"superfluidità" is feminine.
+"surrogazione" is feminine.
+"tabulazione" is feminine.
+"telediffusione" is feminine.
+"terraformazione" is feminine.
+"territorialità" is feminine.
+"torrefazione" is feminine.
+"traslocazione" is feminine.
+"trisezione" is feminine.
+"ulcerazione" is feminine.
+"umificazione" is feminine.
+"vaporizzazione" is feminine.
+"vasodilatazione" is feminine.
+"vitrificazione" is feminine.
+"vocalizzazione" is feminine.
+"volatilizzazione" is feminine.
+"zonazione" is feminine.
+"zonificazione" is feminine.
+# `un régimen calificado de "semilaboral" por sus allegados'
+The masculine adjective "semilavorativo" means "semi-working".
+The feminine adjective "semilavorativa" means "semi-working".
+"semilavorativi" is the plural of "semilavorativo".
+"semilavorative" is the plural of "semilavorativa".
+The masculine noun "stretto collaboratore" means "close associate".
+"stretti collaboratori" is the plural of "stretto collaboratore".
+"stretto collaboratore" is a person.
+The feminine noun "stretta collaboratrice" means "close associate".
+"strette collaboratrici" is the plural of "stretta collaboratrice".
+"stretta collaboratrice" is a person.
+# `Yuri Skuratov, el fiscal general'
+The masculine noun "procuratore generale" means "prosecutor general".
+"procuratori generali" is the plural of "procuratore generale".
+"procuratore generale" is a person.
+# `relevado de su cargo': a post -- `incarico', a task first (the dictionary's word for a post is `carico', a load)
+The masculine noun "incarico" means "task".
+The masculine noun "incarico" means "post".
+# `altos funcionarios', `asuntos de corrupción': senior officials, and affairs (`vicenda', where `affare' is a deal)
+The masculine noun "alto funzionario" means "senior official".
+"alti funzionari" is the plural of "alto funzionario".
+"alto funzionario" is a person.
+The feminine noun "vicenda" means "affair".
+# `tres semanas más tarde', `tendrá lugar', `para fin de año'
+The adverb "più tardi" means "later".
+"avrà luogo" is the future of "ha luogo".
+"avranno luogo" is the plural of "avrà luogo".
+"aveva luogo" is the imperfect of "ha luogo".
+"avevano luogo" is the plural of "aveva luogo".
+"avrebbe luogo" is the conditional of "ha luogo".
+"avrebbero luogo" is the plural of "avrebbe luogo".
+"abbia luogo" is the subjunctive of "ha luogo".
+"abbiano luogo" is the plural of "abbia luogo".
+The adverb "entro la fine dell'anno" means "by the end of the year".
+# `El jefe guerrillero checheno ... en una cadena de televisión chechena'
+The masculine adjective "guerrigliero" means "guerrilla".
+The feminine adjective "guerrigliera" means "guerrilla".
+"guerriglieri" is the plural of "guerrigliero".
+"guerrigliere" is the plural of "guerrigliera".
+The masculine adjective "ceceno" means "chechen".
+The feminine adjective "cecena" means "chechen".
+"ceceni" is the plural of "ceceno".
+"cecene" is the plural of "cecena".
+The feminine noun "rete televisiva" means "television network".
+"reti televisive" is the plural of "rete televisiva".
+# the Yeltsin report, continued: `la vida política en Moscú continúa su curso' continues ITS course
+The masculine possessive "suo" means "its".
+The feminine possessive "sua" means "its".
+# `que esperaba finalizar la operación militar': hoped TO complete it, `sperava di completare'
+"spera" takes "di" before the infinitive.
+# `Este fue relevado de su cargo': relieved of his post, `sollevato dal suo incarico' (`solleva' poses first:
+# `solleva una questione'; the dictionary's word for relieves is `rileva', which takes over)
+The verb "solleva" means "poses".
+The verb "solleva" means "relieves".
+"solleva" takes "da" before the phrase.
+# `bajo acusación de espionaje': espionage, where the dictionary's first noun for it is `spia', a spy
+The masculine noun "spionaggio" means "espionage".
+The feminine noun "spia" means "spy".
+# `el Ministerio de Exteriores ruso': the foreign ministry
+The masculine noun "ministero degli esteri" means "foreign ministry".
+"ministeri degli esteri" is the plural of "ministero degli esteri".
+# `un régimen calificado de "semilaboral"': described AS one, `descritto come'
+"descrive" takes "come" before the phrase.
+# the Yeltsin report's places, each by its Italian name (`a Mosca', a city; `in Russia', `in Cecenia')
+The name "mosca" means "Moscow".
+"mosca" is a city.
+The name "russia" means "Russia".
+The name "cecenia" means "Chechnya".
+The name "grozny" means "Grozny".
+"grozny" is a city.
+# the cities and countries the controls name, each by its Italian name, and the cities that take `a' for `in'
+The name "londra" means "London".
+"londra" is a city.
+The name "roma" means "Rome".
+The name "milano" means "Milan".
+The name "napoli" means "Naples".
+The name "firenze" means "Florence".
+The name "genova" means "Genoa".
+The name "venezia" means "Venice".
+The name "stoccolma" means "Stockholm".
+"stoccolma" is a city.
+The name "siviglia" means "Seville".
+"siviglia" is a city.
+The name "bruxelles" means "Brussels".
+"bruxelles" is a city.
+The name "atene" means "Athens".
+"atene" is a city.
+The name "new york" means "New York".
+"new york" is a city.
+The name "seul" means "Seoul".
+"seul" is a city.
+The name "barcellona" means "Barcelona".
+"barcellona" is a city.
+The name "lisbona" means "Lisbon".
+"lisbona" is a city.
+The name "parigi" means "Paris".
+"parigi" is a city.
+The name "berlino" means "Berlin".
+"berlino" is a city.
+The name "tokyo" means "Tokyo".
+"tokyo" is a city.
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "germania" means "Germany".
+The name "inghilterra" means "England".
+The name "spagna" means "Spain".
+The name "giappone" means "Japan".
+The name "brasile" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "catalogna" means "Catalonia".
+The name "sardegna" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israele" means "Israel".
+# `El Kremlin confirmó ayer ...': `il Cremlino'
+The name "cremlino" means "Kremlin".
+# `la campaña militar', `la cúpula militar rusa': `militare' is the noun for a soldier in both genders, and so the
+# adjective agrees with either (the dictionary's first adjective for military is `bellico', a warlike one)
+"militare" is feminine.
+# The islands report (VIT-9485..9510, Italian into Spanish and English).
+# `le auto con targa estera': a number plate
+The feminine noun "targa" means "number plate".
+"targhe" is the plural of "targa".
+# `quelle per il trasporto merci': freight transport, one noun of two, and `merce' a commodity -- the
+# dictionary has the old `mercanzia' alone, and the Spanish `mercancía' is written `merce' now
+The masculine noun "trasporto merci" means "freight transport".
+"trasporti merci" is the plural of "trasporto merci".
+The feminine noun "merce" means "commodity".
+"merci" is the plural of "merce".
+# `un bel pò di gente': the source's spelling of `po'' (`un bel po' di quattrini' is the line before)
+The masculine noun "bel pò" means "good deal".
+# `la proposta ... suscitò un vespaio': an uproar
+The masculine noun "vespaio" means "uproar".
+"vespai" is the plural of "vespaio".
+# `delle macchinette che distribuiscono sacchetti di plastica': a machine -- `macchina' said again
+# first, so that it stays the word written for one (and a car before it, as the line above says)
+The feminine noun "macchina" means "machine".
+The feminine noun "macchinetta" means "machine".
+"macchinette" is the plural of "macchinetta".
+# `e paletta per raccogliere gli escrementi dei cani': a shovel, where the dictionary's is a bricklayer
+The feminine noun "paletta" means "shovel".
+"paletta" is not a person.
+# `contenitori automatici per la segatura': sawdust
+The feminine noun "segatura" means "sawdust".
+"segature" is the plural of "segatura".
+# `i clacson dei turisti': car horns, the same word in both numbers
+The masculine noun "clacson" means "car horn".
+"clacson" is the plural of "clacson".
+# `si sono rassegnati a muoversi': resigned to it, a reflexive sense of its own (the plain verb hands in
+# a resignation, `rassegnare le dimissioni', which the dictionary's entry gives)
+# (the plain verb said first, after the dictionary's own word for resigns, so that the reflexive sense is no
+# default of the word and `dimette' stays the word written: a reflexive meaning said first is the word's)
+The verb "dimette" means "resigns".
+The verb "rassegna" means "resigns".
+The reflexive verb "rassegna" means "becomes resigned to".
+# `muoversi in minitaxi': the same word in both numbers, and in Spanish
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxi" is the plural of "minitaxi".
+# `quelle strane vetturette a tre ruote': a small car, three-wheeled
+The feminine noun "vetturetta" means "small car".
+"vetturette" is the plural of "vetturetta".
+The adjective "a tre ruote" means "three-wheeled".
+"a tre ruote" is the plural of "a tre ruote".
+# `i mezzi a motore': motor vehicles, as `veicolo a motore' is
+The masculine noun "mezzo a motore" means "motor vehicle".
+"mezzi a motore" is the plural of "mezzo a motore".
+# `la tassa per la nettezza urbana': street cleaning
+The feminine noun "nettezza urbana" means "street cleaning".
+# `di pernottamenti in albergo': overnight stays
+The masculine noun "pernottamento" means "overnight stay".
+"pernottamenti" is the plural of "pernottamento".
+# `da depennare sul budget vacanze': to cross off
+The verb "depenna" means "crosses off".
+"depennano" is the plural of "depenna".
+"depennare" is the infinitive of "depenna".
+"depennato" is the participle of "depenna".
+# `dai prefetti', `130 mila milanesi': persons (eng-ita.dix gives the words)
+"prefetto" is a person.
+"milanese" is a person.
+# `soltanto nel week end', `per questo fine settimana': a weekend, the Italian word first
+The masculine noun "fine settimana" means "weekend".
+"fine settimana" is the plural of "fine settimana".
+"fine settimana" is not feminine.
+The masculine noun "week end" means "weekend".
+"week end" is the plural of "week end".
+# `con dovizia di cifre': abundance -- `abbondanza' said again first, so that it stays the word written
+The feminine noun "abbondanza" means "abundance".
+The feminine noun "dovizia" means "abundance".
+"dovizie" is the plural of "dovizia".
+# `290 mila vetture, tra cui 40 mila di stranieri': among them, one preposition of two
+The preposition "tra cui" means "among them".
+# `della zona montana bellunese': of Belluno (the monolingual dictionary has the noun alone)
+The adjective "bellunese" means "bellunese".
+"bellunesi" is the plural of "bellunese".
+# `e Via Krupp, resa più agibile': a street's name, the word and a capitalised word after it
+The word "via" begins the name.
+The word "viale" begins the name.
+The word "piazza" begins the name.
+The word "corso" begins the name.
+The word "vicolo" begins the name.
+# `540 mila lire': the currency, before the dictionary's lyre
+The feminine noun "lira" means "lira".
+# `Presto avremo anche contenitori automatici': soon, before the dictionary's early
+The adverb "presto" means "soon".
+# `vacanze a tutti i costi': at all costs
+The adverb "a tutti i costi" means "at all costs".
+# `più o meno 290 mila vetture': more or less, one adverb of three
+The adverb "più o meno" means "more or less".
+# `comporterà forti disagi agli automobilisti': entails, where the dictionary's is `comports'
+The verb "comporta" means "entails".
+# `l'analisi svolta dall'osservatorio': carried out, before the dictionary's `performs'; with its pronoun,
+# `si svolge', it takes place
+The verb "svolge" means "carries out".
+The reflexive verb "svolge" means "takes place".
+# `la Contravvenzione ... potrà oscillare da un minimo di 540 mila lire': ranges
+The verb "oscilla" means "ranges".
+# `Dovrebbero transitare più o meno 290 mila vetture': transit, where the dictionary's `passes' is
+# Spanish's `transcurre', time passing
+The verb "transita" means "transits".
+"transita" is intransitive.
+# `uno per nucleo familiare': a household, one noun of two
+The masculine noun "nucleo familiare" means "household".
+"nuclei familiari" is the plural of "nucleo familiare".
+# `sul budget vacanze': the holiday budget, one noun of two
+The masculine noun "budget vacanze" means "holiday budget".
+# `la probabilità di farla franca': getting away with it, the verb with its pronoun
+The verb "la fa franca" means "gets away with it".
+"farla franca" is the infinitive of "la fa franca".
+# `nel caso delle Eolie': the Aeolian Islands
+The name "eolie" means "Aeolian Islands".
+# `Nessun caso a parte, invece, a Ponza': a special case, one noun of three
+The masculine noun "caso a parte" means "special case".
+"casi a parte" is the plural of "caso a parte".
+# `a Ponza', `a Ischia e Procida', `a Linate e Malpensa': places that take `a' for `in', as a city does
+"capri" is a city.
+"ischia" is a city.
+"procida" is a city.
+"ponza" is a city.
+"linate" is a city.
+"malpensa" is a city.
+# `80 mila partenze e 70 mila arrivi': departures, before the dictionary's exit
+The feminine noun "partenza" means "departure".
+# `si aspettano, tra oggi e domani, 80 mila partenze': between today and tomorrow, one adverb
+The adverb "tra oggi e domani" means "between today and tomorrow".
+The adverb "fra oggi e domani" means "between today and tomorrow".
+# `130 mila milanesi partiranno senz'altro per le ferie': certainly, one adverb, where `senz'' and
+# `altro' were without others
+The adverb "senz'altro" means "certainly".
+# `Per il momento sono solo stime': for the moment, one adverb, where Spanish wrote `para el momento'
+The adverb "per il momento" means "for the moment".
+# `non subirà alcun calo di presenze': a decline, where the dictionary has `calo' only as the first
+# person of `cala'
+The masculine noun "calo" means "decline".
+"cali" is the plural of "calo".
+# `off limits per i "motorizzati"': motorists, where the dictionary has `motorizzati' only as the
+# participle of `motorizza' (the dictionary's `automobilista' said again first, so that it stays the
+# word written for a motorist)
+The noun "automobilista" means "motorist".
+The masculine noun "motorizzato" means "motorist".
+"motorizzati" is the plural of "motorizzato".
+"motorizzato" is a person.
+# `messe da parte le idee di ferree ordinanze': put aside, one verb of three words, where `messe' was
+# the masses and `da parte' the part
+The verb "mette da parte" means "puts aside".
+"mettono da parte" is the plural of "mette da parte".
+"mettere da parte" is the infinitive of "mette da parte".
+"messo da parte" is the participle of "mette da parte".
+"messa da parte" is the participle of "mette da parte".
+"messa da parte" is feminine.
+"messi da parte" is the participle of "mette da parte".
+"messi da parte" is the plural of "messo da parte".
+"messe da parte" is the participle of "mette da parte".
+"messe da parte" is feminine.
+"messe da parte" is the plural of "messa da parte".
+# `il sindaco si è dato ai servizi di pubblica utilità': has dedicated himself to them, the reflexive
+# verb's meaning of its own (the dictionary's `dedica' said again first, so that it stays the word
+# written for dedicates)
+The verb "dedica" means "dedicates".
+# (the plain `gives' said first: said after the reflexive sense, every `dare' was `dedicates' -- `dargli questa
+# soddisfazione' was `dedicate him this satisfaction', `darò tutto' `I will dedicate everything')
+The verb "dà" means "gives".
+The reflexive verb "dà" means "dedicates".
+# `si sono placati almeno i clacson dei turisti': calmed down, the reflexive verb's meaning of its own,
+# where it was `they have appeased the car horns'
+The verb "placa" means "appeases".
+The reflexive verb "placa" means "calms down".
+# `(avete presente quelle strane vetturette a tre ruote ...)': you know them, one verb of two words
+# (the dictionary's `sa' said again first, so that it stays the word written for knows)
+The verb "sa" means "knows".
+The verb "ha presente" means "knows".
+"hanno presente" is the plural of "ha presente".
+"ho presente" is the first person of "ha presente".
+"hai presente" is the second person of "ha presente".
+"abbiamo presente" is the first person of "hanno presente".
+"avete presente" is the second person of "hanno presente".
+"avere presente" is the infinitive of "ha presente".
+# `i cellulari non smettono di trillare': stop ringing, where the dictionary's `quits' is the word
+The verb "smette" means "stops".
+# `Le isole in questione non diventeranno certo aree pedonali': in question, an adjective of two words,
+# where `questione' was the issue
+The adjective "in questione" means "in question".
+"in questione" is the plural of "in questione".
+# `possono circolare i veicoli dei residenti': the vehicles circulate, the verb takes no object; and the
+# residents, a noun, where the dictionary has the adjective alone
+"circola" is intransitive.
+The noun "residente" means "resident".
+"residenti" is the plural of "residente".
+"residente" is a person.
+# `le macchine utilizzate da invalidi': the cars of the disabled, a noun, where the dictionary has
+# `invalidi' only as what `invalida' says
+The masculine noun "invalido" means "invalid".
+"invalidi" is the plural of "invalido".
+"invalido" is a person.
+# `i servizi di pubblica utilità', `quelle per il trasporto merci e di pubblica utilità': public utility,
+# one noun of two, where it was `public usefulness'
+The feminine noun "pubblica utilità" means "public utility".
+# `una frana ... è caduta ieri pomeriggio sulla statale 51': yesterday afternoon, one adverb of two words, as
+# `ieri sera' is last night
+The adverb "ieri pomeriggio" means "yesterday afternoon".
+The adverb "ieri mattina" means "yesterday morning".

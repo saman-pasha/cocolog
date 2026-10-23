@@ -313,9 +313,11 @@ The impersonal modal "hay que" means "must".
 The feminine noun "precaución" means "precaution".
 # senses the dictionary puts second, or gives in a way the other language
 # cannot use: the previous round, a coach (whose first Spanish word is a
-# bus), a disaster, a trap, a squad, a concession, since
+# bus), a disaster (`desastre' first, the writer's word since the Venice canals report, `Un disastro ambientale'), a trap,
+# a squad, a concession, since
 The adjective "anterior" means "previous".
 The masculine noun "entrenador" means "coach".
+The masculine noun "desastre" means "disaster".
 The masculine noun "descalabro" means "disaster".
 The feminine noun "trampa" means "trap".
 The feminine noun "plantilla" means "squad".
@@ -594,8 +596,10 @@ The masculine noun "pib" means "GDP".
 "pib" is an acronym.
 # `la lista de las prioridades fijada por el gobierno': `arregla' is the
 # first Spanish verb for `fixes', and it repairs; Italian's `fissare' comes
-# across as `fixes' and is what Spanish says with `fijar'
-The verb "fija" means "fixes".
+# across as `sets' and is what Spanish says with `fijar' (and `La Duma fija la
+# primera vuelta ... para el 4 de junio', the Yeltsin report, sets a date --
+# `fixes' was a repair to Italian's writer, `ripara')
+The verb "fija" means "sets".
 # `¿qué habría de malo?': there would be -- the conditional of `hay', as
 # `habrá' is its future
 "habría" is the conditional of "hay".
@@ -1862,8 +1866,13 @@ The feminine noun "autorregulación" means "self-regulation".
 # `El president recalcó que ...': the Catalan word for the head of the
 # Generalitat, in the dictionary's first meaning for `presidente' (a chairman).
 # `presidente' said first, or `president' would be the first Spanish word for a
-# chairman and every Italian `presidente' would be written in Catalan
+# chairman and every Italian `presidente' would be written in Catalan; and a
+# president first of all, as Italian's `presidente' is (the Yeltsin report: `El
+# presidente padece de nuevo una "neumonía"' is the head of a state)
+The masculine noun "presidente" means "president".
+The feminine noun "presidenta" means "president".
 The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "president".
 The masculine noun "president" means "chairman".
 "president" is a person.
 # `la consellera de Justícia': the feminine of `conseller', an adviser; the
@@ -2334,7 +2343,13 @@ The verb "se encarga" means "takes charge of".
 # `la directiva azulgrana': the board -- the dictionary has `directiva' as an adjective, and read so `la directiva
 # azulgrana' was a managerial Barça player
 The feminine noun "directiva" means "board of directors".
+# `El pívot estadounidense del Barcelona Rony Seikaly ... rescindir su contrato': a player, whose contract is his
+"pívot" is a person.
 "directivas" is the plural of "directiva".
+# `a meno che non si liberi entro un anno': the writer's first Spanish verb for releases was the idiom below,
+# `a menos que se deja marchar'; the dictionary's `libera' is said first, as `frees' first, which it stays to the reader
+The verb "libera" means "frees".
+The verb "libera" means "releases".
 # `para dejar marchar al jugador': to release -- an idiom of two words, one verb
 The verb "deja marchar" means "releases".
 "dejan marchar" is the plural of "deja marchar".
@@ -2898,3 +2913,493 @@ The feminine noun "trayectoria" means "trajectory".
 "accionista" is a person.
 # `Cuatro victorias y un empate': the draw is the tie (eng-ita.dix gives `pareggio' the English `tie' first), so the necktie is one word of its own in both languages
 The feminine noun "corbata" means "necktie".
+# `parla dell'intreccio tra le nuove regole e le trattative': an interweaving (the Italian line), written `entramado'
+The masculine noun "entramado" means "interweaving".
+"entramados" is the plural of "entramado".
+# `leggere tutto pro o contro Berlusconi': in favour of
+The preposition "a favor de" means "in favour of".
+# `la corte costituzionale che ha cassato parte della legge': quashed, written `anula'; the plain meaning is said first
+The verb "anula" means "cancels".
+The verb "anula" means "quashes".
+# `con una forte quota azionaria': a shareholding
+The feminine noun "participación accionarial" means "shareholding".
+"participaciones accionariales" is the plural of "participación accionarial".
+# `sulla base della sentenza': on the basis of
+The preposition "sobre la base de" means "on the basis of".
+# `nella misura in cui Berlusconi resta azionista': insofar as
+The conjunction "en la medida en que" means "insofar as".
+# `interlocutori internazionali e italiani': interlocutors, where the dictionary has speakers
+The masculine noun "interlocutor" means "interlocutor".
+"interlocutores" is the plural of "interlocutor".
+# `basta assai meno del 50,1%': less than, as `más de' is more than
+The adverb "menos de" means "less than".
+# `Berlusconi deberá elegir si hacer de hombre de gobierno o mantener el control': choose whether
+"elige" takes the question.
+"escoge" takes the question.
+# `chi ha in mano leve fondamentali' is who holds them, written `tiene'; the dictionary's first Spanish verb for holds
+# is `aguanta' (endures). `tiene' is said first as `has', which it stays to the reader
+The verb "tiene" means "has".
+The verb "tiene" means "holds".
+# `lo fa a suo rischio': at his own risk
+The adverb "a su riesgo" means "at his own risk".
+# `nelle mani di un unico soggetto', `tanti soggetti': the subject is `sujeto', where the writer's first Spanish noun
+# for it was `tema' (a topic: `en las manos de un único tema'); it is the reader's first meaning of `sujeto' already
+The masculine noun "sujeto" means "subject".
+# `a meno che non si liberi entro un anno': unless
+The conjunction "a menos que" means "unless".
+"a menos que" takes the subjunctive.
+# `fare politica da segretario di partito' is a party's secretary, and the writer's first Spanish noun for a party
+# was `fiesta' (`secretario de fiesta'); `partido' is a match first to the reader, said again first, and the
+# party's word after it
+The masculine noun "partido" means "match".
+The masculine noun "partido" means "party".
+# the banking report (CESS-CAST-P-19990601-98, Spanish into Italian and English): the words the sentences need
+# `la apertura se ha convertido en el elemento negociador': has become -- the verb with its own pronoun has a
+# meaning of its own (tr_verb_across/5), said after the plain one, which stays the first; the phrase after `en'
+# is what it becomes, written with no preposition where the verb written states none
+The verb "convierte" means "converts".
+The reflexive verb "convierte" means "becomes".
+"convierte" takes "en" before the phrase.
+# `el elemento negociador': the negotiating element -- the dictionary has `negociador' only as the noun, the
+# negotiator, and read so it was a noun after a noun, which the Italian writer had no word for
+The masculine adjective "negociador" means "negotiating".
+The feminine adjective "negociadora" means "negotiating".
+"negociadoras" is the plural of "negociadora".
+# `las sucursales bancarias': a bank's branches -- `branch' is a tree's to the Italian writer (`rami')
+The feminine noun "sucursal" means "branch office".
+# `los sindicatos CCOO y UGT': the trade unions -- `union' is `unione' to the Italian writer
+The masculine noun "sindicato" means "trade union".
+# `las cajas de ahorros, que abren una tarde a la semana': the savings banks (`the boxes of savings')
+The feminine noun "caja de ahorros" means "savings bank".
+"cajas de ahorros" is the plural of "caja de ahorros".
+"caja de ahorros" is a group.
+# `CCOO también mostró su disposición a flexibilizar el horario laboral': to make the hours flexible
+The verb "flexibiliza" means "flexibilises".
+"flexibilizan" is the plural of "flexibiliza".
+"flexibilizó" is the past of "flexibiliza".
+"flexibilizaron" is the plural of "flexibilizó".
+"flexibilizar" is the infinitive of "flexibiliza".
+# `iniciativa que consiguió pactar con la dirección': to agree
+The verb "pacta" means "agrees".
+"pactan" is the plural of "pacta".
+"pactó" is the past of "pacta".
+"pactaron" is the plural of "pactó".
+"pactar" is the infinitive of "pacta".
+"pactado" is the participle of "pacta".
+# `No obstante, los representantes ... han convocado una próxima cita': nevertheless
+The adverb "no obstante" means "nevertheless".
+# `La AEB ha recordado, por su parte, que ...': for its part -- read as a phrase, `parte' took the clause of `que'
+# for a relative clause on it
+The adverb "por su parte" means "for its part".
+# `Así se comprobó en la reunión': thus, before the dictionary's `thereby', which no reader keeps in front
+The adverb "así" means "thus".
+# `Esta fórmula, sin embargo, cuenta con la oposición de la UGT': has -- `contar con' is a verb of two words,
+# `counts on' only where it means relying, and the newspaper's is having (`cuenta con 19 emisoras', `cuenta con el
+# apoyo')
+The verb "cuenta con" means "has".
+"cuentan con" is the plural of "cuenta con".
+"contó con" is the past of "cuenta con".
+"contaron con" is the plural of "contó con".
+"contaba con" is the imperfect of "cuenta con".
+"contaban con" is the plural of "contaba con".
+"contará con" is the future of "cuenta con".
+"contarán con" is the plural of "contará con".
+"contar con" is the infinitive of "cuenta con".
+# `que denunció ante la Audiencia Nacional este acuerdo': denounced (the dictionary's verb is `reports', which the
+# Italian writer wrote `fece sapere'), and the court's name
+The verb "denuncia" means "denounces".
+"audiencia nacional" is a name.
+# `centraron sus peticiones en el cierre de los sábados': centred them ON it
+"centra" takes "en" before the phrase.
+# `la hora y media que duró el encuentro': the meeting lasted -- the phrase after the verb is its subject
+"dura" is intransitive.
+# `de forma que se abran las oficinas por las tardes': so that, and the clause in the subjunctive
+The conjunction "de forma que" means "so that".
+"de forma que" takes the subjunctive.
+# `por las tardes': in the afternoons (the plural is a habit; `el sábado por la mañana' is the day's part)
+The adverb "por las tardes" means "in the afternoons".
+The adverb "por las mañanas" means "in the mornings".
+The adverb "por las noches" means "at night".
+# `una próxima cita de la mesa de negociación': the negotiating table
+The feminine noun "mesa de negociación" means "negotiating table".
+"mesas de negociación" is the plural of "mesa de negociación".
+# `iniciativa que consiguió pactar con la dirección': managed to agree -- before an infinitive the verb attains,
+# as Italian's `riesce a' does (English says `manages to', tr_verb_out/4); the plain meaning said first
+The verb "consigue" means "achieves".
+The infinitival verb "consigue" means "attains".
+# the Venice canals report (VIT-9999..10010, Italian into Spanish): the Spanish words its English needs, with no paradigm in the dictionary
+# `i canali ... risultano più inquinati': polluted (the dictionary has it as the participle of `contaminar' alone)
+The masculine adjective "contaminado" means "polluted".
+The feminine adjective "contaminada" means "polluted".
+"contaminados" is the plural of "contaminado".
+"contaminadas" is the plural of "contaminada".
+# `145 di policlorobifenili'
+The masculine noun "policlorobifenilo" means "polychlorinated biphenyl".
+"policlorobifenilos" is the plural of "policlorobifenilo".
+# `gli antivegetativi meno dannosi'
+The masculine noun "antiincrustante" means "antifouling paint".
+"antiincrustantes" is the plural of "antiincrustante".
+# `si stanno installando delle fosse settiche'
+The feminine noun "fosa séptica" means "septic tank".
+"fosas sépticas" is the plural of "fosa séptica".
+# `sulle orme di lord Byron'
+The preposition "tras las huellas de" means "in the footsteps of".
+# `del gruppo "Insula"': a group is a `grupo', said again first (the dictionary's first Spanish for it is `conjunto')
+The masculine noun "grupo" means "group".
+# `un sospetto che alcuni Veneziani avevano da tempo': for a long time
+The adverb "desde hace tiempo" means "for a long time".
+# `si sono depositati nel corso degli anni': over the years
+The adverb "a lo largo de los años" means "over the years".
+# `295mila metri cubi di sedimenti': cubic metres
+The masculine noun "metro cúbico" means "cubic metre".
+"metros cúbicos" is the plural of "metro cúbico".
+# `confezionato d'intesa tra il comune, la regione e il Ministero': in agreement between
+The preposition "de acuerdo entre" means "in agreement between".
+# `la presenza di ben 11 veleni diversi': as many as, the word for it before a count
+The adverb "nada menos que" means "as many as".
+# `che rappresenta appena il dieci per cento dell'estensione totale della città': the extension is an
+# `extensión', said first (the writer's first word for it was `prórroga', the overtime of a match)
+The feminine noun "extensión" means "extension".
+# `non c'è più il carbone e non c'è più il gasolio': `hay' takes no definite phrase, and with one the thing is there,
+# `ya no está el carbón' -- `no hay más el carbón' is no Spanish
+"hay" takes the indefinite.
+# `deriverebbe dagli scarichi', `è venuta da uno studio': `deriva de', `viene de' -- the phrase the verb governs, and
+# `desde' was the first word for `from'
+"deriva" takes "de" before the phrase.
+"viene" takes "de" before the phrase.
+# the Yeltsin report (AnCora CESS-CAST-P-19991202-35), into Italian and English
+# `La Duma fija la primera vuelta de las presidenciales para el 4 de junio': the rounds of an election (`fija' sets
+# it, above); the presidential elections, with the noun left out
+The feminine noun "primera vuelta" means "first round".
+"primeras vueltas" is the plural of "primera vuelta".
+The feminine noun "segunda vuelta" means "second round".
+"segundas vueltas" is the plural of "segunda vuelta".
+The feminine noun "elección presidencial" means "presidential election".
+"elecciones presidenciales" is the plural of "elección presidencial".
+The feminine noun "presidencial" means "presidential election".
+"presidenciales" is the plural of "presidencial".
+# `de la que se recupera satisfactoriamente': the verb takes `se' as its own pronoun, and nobody is the impersonal `one'
+"recupera" is reflexive.
+# `un régimen calificado de "semilaboral" por sus allegados': described AS one, by those close to him
+The adjective "semilaboral" means "semi-working".
+"semilaborales" is the plural of "semilaboral".
+The masculine noun "allegado" means "close associate".
+"allegados" is the plural of "allegado".
+"allegado" is a person.
+The feminine noun "allegada" means "close associate".
+"allegadas" is the plural of "allegada".
+"allegada" is a person.
+"califica" takes "de" before the phrase.
+# `El Kremlin recibió ayer un espaldarazo': a boost (`impulso' is the word written for one, said above)
+The masculine noun "espaldarazo" means "boost".
+"espaldarazos" is the plural of "espaldarazo".
+# `Yuri Skuratov, el fiscal general'
+The masculine noun "fiscal general" means "prosecutor general".
+"fiscales generales" is the plural of "fiscal general".
+"fiscal general" is a person.
+# `Este fue relevado de su cargo ... entre familiares de Yeltsin y altos funcionarios del Kremlin': a post, the
+# relatives (`pariente' said again first, the word written for one), senior officials; and `asuntos de corrupción'
+# are affairs, where the dictionary's first meaning is a subject
+The masculine noun "cargo" means "post".
+# ... and `hacerse cargo de' takes charge of it, two words and a reflexive as `se encarga' (`la posibilidad de que se
+# haga cargo de Paral.lel' was `makes post of')
+The verb "se hace cargo" means "takes charge of".
+"se hacen cargo" is the plural of "se hace cargo".
+"se hizo cargo" is the past of "se hace cargo".
+"se hicieron cargo" is the plural of "se hizo cargo".
+"se hacía cargo" is the imperfect of "se hace cargo".
+"se hacían cargo" is the plural of "se hacía cargo".
+"se hará cargo" is the future of "se hace cargo".
+"se harán cargo" is the plural of "se hará cargo".
+"se haga cargo" is the subjunctive of "se hace cargo".
+"se hagan cargo" is the plural of "se haga cargo".
+"hacerse cargo" is the infinitive of "se hace cargo".
+"se hace cargo" takes "de" before the infinitive.
+"se hace cargo" takes "de" before the phrase.
+The masculine noun "pariente" means "relative".
+The masculine noun "familiar" means "relative".
+"familiares" is the plural of "familiar".
+"familiar" is a person.
+The masculine noun "alto funcionario" means "senior official".
+"altos funcionarios" is the plural of "alto funcionario".
+"alto funcionario" is a person.
+The masculine noun "asunto" means "affair".
+# `la diplomática norteamericana Cheri Leberknight': a diplomat, and an American (`americano' said again first, the
+# word written for one)
+The masculine noun "diplomático" means "diplomat".
+"diplomáticos" is the plural of "diplomático".
+"diplomático" is a person.
+The feminine noun "diplomática" means "diplomat".
+"diplomáticas" is the plural of "diplomática".
+"diplomática" is a person.
+The masculine adjective "americano" means "american".
+The feminine adjective "americana" means "american".
+The masculine noun "americano" means "american".
+The masculine adjective "norteamericano" means "american".
+The feminine adjective "norteamericana" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericanas" is the plural of "norteamericana".
+The masculine noun "norteamericano" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericano" is a person.
+# `la segunda vuelta, tres semanas más tarde': later; `tendrá lugar': the future of `tiene lugar'
+The adverb "más tarde" means "later".
+"tendrá lugar" is the future of "tiene lugar".
+"tendrán lugar" is the plural of "tendrá lugar".
+"tenía lugar" is the imperfect of "tiene lugar".
+"tenían lugar" is the plural of "tenía lugar".
+"tendría lugar" is the conditional of "tiene lugar".
+"tendrían lugar" is the plural of "tendría lugar".
+"tenga lugar" is the subjunctive of "tiene lugar".
+"tengan lugar" is the plural of "tenga lugar".
+# `la campaña militar en Chechenia también prosigue, ajena a las noticias': indifferent to them, where `indiferente'
+# stays the word written for indifferent
+The adjective "indiferente" means "indifferent".
+The masculine adjective "ajeno" means "indifferent".
+The feminine adjective "ajena" means "indifferent".
+# `la cúpula militar rusa': its leadership, where `liderazgo' stays the word written for one
+The masculine noun "liderazgo" means "leadership".
+The feminine noun "cúpula" means "leadership".
+# `para fin de año': by the end of the year
+The adverb "para fin de año" means "by the end of the year".
+# `Las operaciones militares se prolongarán "entre uno y tres meses"': they will last (`dura' said again first, the
+# word written for lasts, and the plain verb's own meaning before the reflexive one's)
+The verb "dura" means "lasts".
+The verb "prolonga" means "prolongs".
+The reflexive verb "prolonga" means "lasts".
+# `El jefe guerrillero checheno Chamil Basayev ... en una cadena de televisión chechena' (`guerrilla' said again
+# first, the word written for one)
+The feminine noun "guerrilla" means "guerrilla".
+The masculine adjective "guerrillero" means "guerrilla".
+The feminine adjective "guerrillera" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrilleras" is the plural of "guerrillera".
+The masculine noun "guerrillero" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrillero" is a person.
+The masculine adjective "checheno" means "chechen".
+The feminine adjective "chechena" means "chechen".
+"chechenos" is the plural of "checheno".
+"chechenas" is the plural of "chechena".
+The masculine noun "checheno" means "chechen".
+"chechenos" is the plural of "checheno".
+"checheno" is a person.
+The feminine noun "cadena de televisión" means "television network".
+"cadenas de televisión" is the plural of "cadena de televisión".
+# `El jefe guerrillero ... lanzó ayer un llamamiento al inicio de una nueva ola de atentados': an appeal, where the
+# dictionary has a call (`apelación' said again first, the word written for one)
+The feminine noun "apelación" means "appeal".
+The masculine noun "llamamiento" means "appeal".
+# a noun in `-ción', `-sión', `-dad', `-tud' or `-umbre' is feminine, which the dictionary leaves unsaid for 24.
+# Each is stated: five rules, asked of every noun's gender, were most of what the store cost the translation from
+# Spanish
+"axiomatización" is feminine.
+"biomagnificación" is feminine.
+"computabilidad" is feminine.
+"comunicabilidad" is feminine.
+"conmunicabilidad" is feminine.
+"cremosidad" is feminine.
+"decrepitud" is feminine.
+"defecación" is feminine.
+"desforestación" is feminine.
+"discretización" is feminine.
+"fotodegradación" is feminine.
+"fotoionización" is feminine.
+"garrulidad" is feminine.
+"georreferenciación" is feminine.
+"laicidad" is feminine.
+"laxidad" is feminine.
+"liposucción" is feminine.
+"lumbre" is feminine.
+"permitividad" is feminine.
+"principalidad" is feminine.
+"reproducibilidad" is feminine.
+"semioscuridad" is feminine.
+"trasmisión" is feminine.
+"triplicidad" is feminine.
+# `El ministro de Defensa', `el Ministerio de Exteriores': common nouns a newspaper capitalises (as `estado' above)
+"defensa" is an institution.
+"exteriores" is an institution.
+# `recibe correo y estudia documentos': the mail, where the dictionary's first meaning is the British post (and the
+# post is `cargo', above: with both one English word, Italian's writer took the mail for `incarico')
+The masculine noun "correo" means "mail".
+# `que esperaba finalizar la operación militar': hoped to complete it -- before an infinitive the verb hopes, the
+# plain meaning said first; and `finalizar' completes, where the dictionary's `finalises' has no Italian, and with
+# no object it ends
+The verb "espera" means "expects".
+The infinitival verb "espera" means "hopes".
+The verb "finaliza" means "completes".
+The intransitive verb "finaliza" means "ends".
+# `el Ministerio de Exteriores ruso': the foreign ministry -- read word by word it was a ministry of the outside
+The masculine noun "ministerio de exteriores" means "foreign ministry".
+"ministerios de exteriores" is the plural of "ministerio de exteriores".
+The masculine noun "ministerio de asuntos exteriores" means "foreign ministry".
+"ministerios de asuntos exteriores" is the plural of "ministerio de asuntos exteriores".
+# `El jefe guerrillero checheno': a chief, where the dictionary's first meaning is a boss
+The masculine noun "jefe" means "chief".
+The feminine noun "jefa" means "chief".
+# `Este fue relevado de su cargo': relieved OF it
+"releva" takes "de" before the phrase.
+# `la vida política en Moscú', `atentados en Rusia', `la campaña militar en Chechenia', `la capital, Grozni': a name
+# the lesson gives a meaning crosses by it, and each language writes its own (extra/italian.txt has Italian's)
+The name "moscú" means "Moscow".
+The name "rusia" means "Russia".
+The name "chechenia" means "Chechnya".
+The name "grozni" means "Grozny".
+# the cities and countries the controls name, each by its English name (`en Londres' is in London, and Italian's
+# `a Londra'); `Cataluña' said before `Catalunya', the Catalan spelling the papers print, so that it is the one written
+The name "londres" means "London".
+The name "roma" means "Rome".
+The name "milán" means "Milan".
+The name "nápoles" means "Naples".
+The name "florencia" means "Florence".
+The name "génova" means "Genoa".
+The name "venecia" means "Venice".
+The name "estocolmo" means "Stockholm".
+The name "sevilla" means "Seville".
+The name "bruselas" means "Brussels".
+The name "atenas" means "Athens".
+The name "nueva york" means "New York".
+The name "seúl" means "Seoul".
+The name "barcelona" means "Barcelona".
+The name "lisboa" means "Lisbon".
+The name "parís" means "Paris".
+The name "berlín" means "Berlin".
+The name "tokio" means "Tokyo".
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "alemania" means "Germany".
+The name "inglaterra" means "England".
+The name "españa" means "Spain".
+The name "japón" means "Japan".
+The name "brasil" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "cataluña" means "Catalonia".
+The name "catalunya" means "Catalonia".
+The name "cerdeña" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israel" means "Israel".
+# `El Kremlin confirmó ayer oficialmente los temores': the Kremlin, Italian's `il Cremlino'
+The name "kremlin" means "Kremlin".
+# The islands report (VIT-9485..9510, Italian into Spanish): the words its English needs written.
+# `le auto con targa estera': a number plate
+The feminine noun "matrícula" means "number plate".
+"matrículas" is the plural of "matrícula".
+# `il trasporto merci': freight transport
+The masculine noun "transporte de mercancías" means "freight transport".
+"transportes de mercancías" is the plural of "transporte de mercancías".
+# `sacchetti di plastica': bags -- the dictionary's first is `bolso', a handbag
+The feminine noun "bolsa" means "bag".
+# `i cellulari non smettono di trillare': rings, the verb, said after `sounds' so that it stays the reading
+The verb "suena" means "sounds".
+The verb "suena" means "rings".
+# `i clacson dei turisti': car horns
+The masculine noun "claxon" means "car horn".
+"cláxones" is the plural of "claxon".
+# `si sono rassegnati a muoversi': resigned to it, a reflexive sense (eng-spa.dix gives the verb's forms)
+# (the plain verb said first, after the dictionary's own word for resigns, so that the reflexive sense is no
+# default of the word and `dimite' stays the word written)
+The verb "dimite" means "resigns".
+The verb "resigna" means "resigns".
+The reflexive verb "resigna" means "becomes resigned to".
+# `in minitaxi'
+The masculine noun "minitaxi" means "minitaxi".
+"minitaxis" is the plural of "minitaxi".
+# `quelle strane vetturette a tre ruote': a small car, `pram' said again first so that it stays the reading
+The masculine noun "cochecito" means "pram".
+The masculine noun "cochecito" means "small car".
+The adjective "de tres ruedas" means "three-wheeled".
+"de tres ruedas" is the plural of "de tres ruedas".
+# `la tassa per la nettezza urbana': street cleaning
+The feminine noun "limpieza urbana" means "street cleaning".
+# `di pernottamenti in albergo': overnight stays
+The feminine noun "pernoctación" means "overnight stay".
+"pernoctaciones" is the plural of "pernoctación".
+# `da depennare sul budget vacanze': to cross off
+The verb "tacha" means "crosses off".
+# `dai prefetti': prefects, persons
+The masculine noun "prefecto" means "prefect".
+"prefectos" is the plural of "prefecto".
+"prefecto" is a person.
+# `il popolare ritornello': a refrain, before the dictionary's chorus
+The masculine noun "estribillo" means "refrain".
+# `130 mila milanesi': the Milanese, persons, and the adjective
+The masculine noun "milanés" means "milanese".
+"milaneses" is the plural of "milanés".
+"milanés" is a person.
+The masculine adjective "milanés" means "milanese".
+The feminine adjective "milanesa" means "milanese".
+"milanesas" is the plural of "milanesa".
+# `della zona montana bellunese': of Belluno
+The masculine adjective "bellunés" means "bellunese".
+The feminine adjective "bellunesa" means "bellunese".
+"belluneses" is the plural of "bellunés".
+"bellunesas" is the plural of "bellunesa".
+# `soltanto nel week end': a weekend
+The masculine noun "fin de semana" means "weekend".
+"fines de semana" is the plural of "fin de semana".
+"fin de semana" is not feminine.
+# `290 mila vetture, tra cui 40 mila di stranieri': among them, `entre los cuales', one preposition of three -- `entre
+# ellos' joined was read as one word, and `cuatro palestinos, entre ellos un niño de 10 años, y dos israelís' lost its commas
+The preposition "entre los cuales" means "among them".
+# `540 mila lire': the currency, before the dictionary's lyre
+The feminine noun "lira" means "lira".
+# `vacanze a tutti i costi': at all costs
+The adverb "a toda costa" means "at all costs".
+# `più o meno 290 mila vetture': more or less
+The adverb "más o menos" means "more or less".
+# `comporterà forti disagi agli automobilisti': entails (the dictionary's first is `comports')
+The verb "conlleva" means "entails".
+# `del Ministero dell'Ambiente': the environment, before the dictionary's `entorno', the surroundings
+The masculine noun "medio ambiente" means "environment".
+# `l'analisi svolta dall'osservatorio': carried out, `realises' said again first so that it stays the reading
+The verb "realiza" means "realises".
+The verb "realiza" means "carries out".
+# `per raccogliere gli escrementi': collects, the word written -- the dictionary's first is `colecciona',
+# a collector's
+The verb "recoge" means "collects".
+# `uno per nucleo familiare': a household
+The masculine noun "núcleo familiar" means "household".
+"núcleos familiares" is the plural of "núcleo familiar".
+# `sul budget vacanze': the holiday budget
+The masculine noun "presupuesto de vacaciones" means "holiday budget".
+# `la probabilità di farla franca': getting away with it, `salirse con la suya'
+The verb "se sale con la suya" means "gets away with it".
+"salirse con la suya" is the infinitive of "se sale con la suya".
+# `nel caso delle Eolie': the Aeolian Islands
+The name "islas eolias" means "Aeolian Islands".
+# `Nessun caso a parte': a special case
+The masculine noun "caso especial" means "special case".
+"casos especiales" is the plural of "caso especial".
+# `tra oggi e domani': between today and tomorrow
+The adverb "entre hoy y mañana" means "between today and tomorrow".
+# `ai caselli intorno al capoluogo lombardo': the tollgates, `toll' said again first so that it stays the reading
+The masculine noun "peaje" means "toll".
+The masculine noun "peaje" means "tollgate".
+# `Per il momento sono solo stime': for the moment, one adverb
+The adverb "por el momento" means "for the moment".
+# `dal 10 marzo al 31 ottobre', `da un minimo di 540 mila lire ai due milioni': a range is `de ... a',
+# where the lesson's word for `from', `desde', wrote `desde el 10 de marzo al 31 de octubre'
+The word "de" begins the range.
+# `messe da parte le idee': put aside, `apartadas las ideas'
+The verb "aparta" means "puts aside".
+# `le idee di ferree ordinanze': iron, the adjective, where Spanish wrote the noun `planchas', the iron
+# for clothes
+The masculine adjective "férreo" means "iron".
+"férreos" is the plural of "férreo".
+The feminine adjective "férrea" means "iron".
+"férreas" is the plural of "férrea".
+# `si sono placati almeno i clacson': `se han calmado', the reflexive verb's meaning of its own
+The verb "calma" means "calms".
+The reflexive verb "calma" means "calms down".
+# `i cellulari non smettono di trillare': `no paran de sonar', where `abandonan sonar' was the text
+"para" takes "de" before the infinitive.
+# `Le isole in questione': `las islas en cuestión'
+The adjective "en cuestión" means "in question".
+"en cuestión" is the plural of "en cuestión".
+# `di pubblica utilità': `de utilidad pública'
+The feminine noun "utilidad pública" means "public utility".
+# `ieri pomeriggio', `ieri mattina': `ayer por la tarde', `ayer por la mañana'
+The adverb "ayer por la tarde" means "yesterday afternoon".
+The adverb "ayer por la mañana" means "yesterday morning".

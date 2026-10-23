@@ -1174,3 +1174,69 @@
 <e><p><l>effective<s n="adj"/></l><r>efficace<s n="adj"/><s n="mf"/></r></p></e>
 # `un attaccante forgiato nel vivaio dell'Inter': forgiare has its forms in apertium-ita.ita.dix and no English
 <e><p><l>forge<s n="vblex"/></l><r>forgiare<s n="vblex"/></r></p></e>
+# the Venice canals report (VIT-9999..10010), Italian into Spanish and English: words the Italian dictionary has with a paradigm and no English
+# `un tesoro avvelenato che giace sul fondo dei canali': it rests there -- English's `lie' is also to tell a lie, so the pivot
+# is `rest', as for the Spanish `yacer', and read only into English, so that `rests' is still written `riposa'
+<e r="RL"><p><l>rest<s n="vblex"/></l><r>giacere<s n="vblex"/></r></p></e>
+# `risultano più inquinati', `un inquinamento di tipo urbano': pollute and polluted, both ways (the dictionary's `contaminare' is contaminate as well)
+<e><p><l>pollute<s n="vblex"/></l><r>inquinare<s n="vblex"/></r></p></e>
+<e><p><l>polluted<s n="adj"/></l><r>inquinato<s n="adj"/></r></p></e>
+# `di arsenico e di pesticidi'
+<e><p><l>pesticide<s n="n"/></l><r>pesticida<s n="n"/><s n="m"/></r></p></e>
+# `i fanghi dei numerosi rii': a rio is one of Venice's small canals, read only -- `canale' stays the Italian for a canal
+<e r="RL"><p><l>canal<s n="n"/></l><r>rio<s n="n"/><s n="m"/></r></p></e>
+# `con l'aiuto dell'acqua salmastra'
+<e><p><l>brackish<s n="adj"/></l><r>salmastro<s n="adj"/></r></p></e>
+# `con la prosecuzione dello scavo dei rii': read only, `continuazione' stays the Italian for continuation
+<e r="RL"><p><l>continuation<s n="n"/></l><r>prosecuzione<s n="n"/><s n="f"/></r></p></e>
+# `non venivano ripuliti da trent'anni': read only, `pulire' stays the Italian for clean
+<e r="RL"><p><l>clean<s n="vblex"/></l><r>ripulire<s n="vblex"/></r></p></e>
+# `gli antivegetativi meno dannosi': read only, `nocivo' stays the Italian for harmful
+<e r="RL"><p><l>harmful<s n="adj"/></l><r>dannoso<s n="adj"/></r></p></e>
+# `i detersivi quasi tutti biodegradabili': read only, `detergente' stays the Italian for detergent
+<e r="RL"><p><l>detergent<s n="n"/></l><r>detersivo<s n="n"/><s n="m"/></r></p></e>
+# `impavidi nuotatori attraversavano il bacino con bracciate possenti': fearless (the dictionary's first Italian for it is
+# `osato', dared), a swimmer (its first is `bagnante', a bather) and mighty, both ways
+<e><p><l>fearless<s n="adj"/></l><r>impavido<s n="adj"/></r></p></e>
+<e><p><l>swimmer<s n="n"/></l><r>nuotatore<s n="n"/><s n="m"/></r></p></e>
+<e><p><l>mighty<s n="adj"/></l><r>possente<s n="adj"/><s n="mf"/></r></p></e>
+# `sulle orme di lord Byron': a footprint, read only -- `impronta' stays the Italian for it
+<e r="RL"><p><l>footprint<s n="n"/></l><r>orma<s n="n"/><s n="f"/></r></p></e>
+# `La conferma di un sospetto': the dictionary's confirmation is `confermazione' and `caso', and its noun `conferma' has no English
+<e><p><l>confirmation<s n="n"/></l><r>conferma<s n="n"/><s n="f"/></r></p></e>
+# `l'accumulo dei sedimenti': accumulation (the dictionary's Italian for it is `accumulazione', and its noun `accumulo' has no English)
+<e><p><l>accumulation<s n="n"/></l><r>accumulo<s n="n"/><s n="m"/></r></p></e>
+# `i curatori dell'indagine': the curators (the dictionary's is a guardian)
+<e><p><l>curator<s n="n"/></l><r>curatore<s n="n"/><s n="m"/></r></p></e>
+# `El ministro de Defensa ... enfrió ayer el optimismo' (the Yeltsin report, into Italian): cooled -- the dictionary's
+# Italian verb for it is `rinfrescare', to refresh
+<e><p><l>cool<s n="vblex"/></l><r>raffreddare<s n="vblex"/></r></p></e>
+# The islands report (VIT-9485..9510): `in piazzetta', a square, read only -- `piazza' stays the Italian for one
+<e r="RL"><p><l>square<s n="n"/></l><r>piazzetta<s n="n"/><s n="f"/></r></p></e>
+# `Via Krupp, resa più agibile': accessible, read only -- `accessibile' stays the Italian for it
+<e r="RL"><p><l>accessible<s n="adj"/></l><r>agibile<s n="adj"/><s n="mf"/></r></p></e>
+# `sacchetti di plastica': bags, read only -- `borsa' stays the Italian for a bag
+<e r="RL"><p><l>bag<s n="n"/></l><r>sacchetto<s n="n"/><s n="m"/></r></p></e>
+# `i cellulari non smettono di trillare': ring, read only
+<e r="RL"><p><l>ring<s n="vblex"/></l><r>trillare<s n="vblex"/></r></p></e>
+# `si sono rassegnati a muoversi': the verb's forms (its reflexive sense is a line of italian.txt), read only --
+# `dimettere' stays the Italian for resign
+<e r="RL"><p><l>resign<s n="vblex"/></l><r>rassegnare<s n="vblex"/></r></p></e>
+# `dal divieto di sbarco': disembarkment, the Spanish `desembarco'
+<e><p><l>disembarkment<s n="n"/></l><r>sbarco<s n="n"/><s n="m"/></r></p></e>
+# `auto, moto e motorini': mopeds, read only -- `ciclomotore' stays the Italian for one
+<e r="RL"><p><l>moped<s n="n"/></l><r>motorino<s n="n"/><s n="m"/></r></p></e>
+# `ci saranno multe, addirittura "salate"': steep, said of a price, read only as expensive -- `caro' stays
+# the Italian for it (and salty water reads as expensive: the dictionary has no `salato' at all)
+<e r="RL"><p><l>expensive<s n="adj"/></l><r>salato<s n="adj"/></r></p></e>
+# `è assicurato dai prefetti': prefects
+<e><p><l>prefect<s n="n"/></l><r>prefetto<s n="n"/><s n="m"/></r></p></e>
+# `il popolare ritornello': a refrain
+<e><p><l>refrain<s n="n"/></l><r>ritornello<s n="n"/><s n="m"/></r></p></e>
+# `130 mila milanesi': the Milanese, the noun and the adjective
+<e><p><l>Milanese<s n="n"/></l><r>milanese<s n="n"/><s n="mf"/></r></p></e>
+<e><p><l>Milanese<s n="adj"/></l><r>milanese<s n="adj"/><s n="mf"/></r></p></e>
+# `290 mila vetture': cars, read only -- `macchina' stays the Italian for a car
+<e r="RL"><p><l>car<s n="n"/></l><r>vettura<s n="n"/><s n="f"/></r></p></e>
+# `della zona montana bellunese': mountainous, read only -- `montagnoso' stays the Italian for it
+<e r="RL"><p><l>mountainous<s n="adj"/></l><r>montano<s n="adj"/></r></p></e>
