@@ -7132,3 +7132,102 @@ PROVED:
 
 The suite on 2.11.1, the server up: 75 lines, red 0, 5 SKIP (tensors,
 torch-graph, torch-grad, torch-replay, tensorflow: no CUDA on this box).
+
+## A growth is cold, and the clause runner is faster for it (2.11.2)
+
+The owner's word: add `(cold)` to Cicili and fix the slowdown. The slowdown
+is one 1.10.28 recorded and 2.11.1 met again. A rare path's call in a hot
+function weighs, in clang's eyes, what its guess gives the test in front of
+it. 1.10.28 put the growth fallback out of line and weak, so that a push
+would not inline a refused doubling's second try. The block that calls it
+was still weighed as clang guesses a comparison, and naive reverse paid
++0.63 %, all of it in `coco_clause_run_r`, whose heap tests now carried a
+call. 2.11.1's first cut of the failed read cost queens +3.1 % the same
+way. The C has an answer, the attribute on the callee, and Cicili had no
+word for it.
+
+CICILI 3.1.0 (`cc24ae0`, let in by name) writes `__attribute__((cold))` for
+`(cold)`, before a definition and before a `(decl)` prototype.
+
+- Clang takes a block that calls a cold function as unlikely. It lays the
+  caller's hot path out without it, and weighs the caller's other calls for
+  inlining without its weight.
+- The function itself is optimised for size, inlined only if it is tiny, and
+  put in `.text.unlikely`.
+- `(weak) (cold)` is allowed; `(inline) (cold)` is refused.
+- cocolog 2.11.1, which writes no `(cold)`, transpiles byte for byte as it
+  did under 3.0.0. 2.11.2 needs 3.1.0: an older Cicili stops at `unknown
+  symbol: cold`.
+
+THE ARMS. Each arm is 2.11.1's emitted `cocolog.c` with
+`__attribute__((cold))` put before the named functions' definitions and
+prototypes -- what 3.1.0 writes for `(cold)` -- compiled and linked as the
+Makefile does, 12 s an arm. Each is measured against the same C unmarked,
+in work less padding (`tools/flow/zero.sh`):
+
+| arm | marked cold | nrev | queens | lookup |
+|---|---|---|---|---|
+| G | the growths: `coco_grow_slow`, `coco_eng_grow_slow`, `coco_grow_short` | −1.22 % | −0.30 % | −0.58 % |
+| G2 | G without `coco_grow_short` | −1.20 % | −0.30 % | −0.58 % |
+| E | the raisers: `coco_raise`, `coco_throw`, `coco_fail_err`, `coco_mem_error`, `coco_bt_capture`, the six `coco_*_error`s, the three integer errors, the failed read's three, `coco_halted_step` (18) | −0.00 % | −0.05 % | +0.82 % |
+| F | the failed read's three raisers and `coco_halted_step` | −0.16 % | −0.25 % | +0.17 % |
+| T | the tracer and the recorder (16) | −0.17 % | −0.50 % | +0.17 % |
+| L | `coco_limit_go` | −0.16 % | −0.32 % | +0.17 % |
+| GT | G and T | −1.37 % | −0.93 % | −0.41 % |
+| GL | G and L | −1.37 % | −0.97 % | −0.41 % |
+| GF | G and F | −1.19 % | −0.21 % | −0.58 % |
+| GE | G and E | −1.20 % | −0.43 % | +0.21 % |
+| GTLF | G, T, L and F | −1.22 % | −0.29 % | −0.58 % |
+| GD | G and the dead-clause paths (`coco_pred_probe_cold`, `coco_pred_probe_dead`, `coco_select_dead`) | −1.20 % | −0.30 % | −0.58 % |
+
+G is shipped, and nothing else:
+
+- **G moves all three programs the same way, and it is the slowdown asked
+  about.** The per-function count says where: `coco_clause_run_r` ran 2.0 %
+  fewer instructions on naive reverse (45 298 362 to 44 381 102), and the
+  step loop the same to 71 instructions. 1.10.28's +0.63 % is taken back and
+  more.
+- **E made lookup dearer**, all of it in the step loop: `coco_engine_run` ran
+  3.3 % more instructions (16 392 247 to 16 928 080).
+- **T, L and F alone each moved nrev about −0.17 % and lookup +0.17 % alike.**
+  Three unrelated sets of functions giving the same numbers is the step
+  loop's registers and layout moving, not anything the markings say.
+- **GT and GL are a trade that does not survive the next edit.** Each beat G
+  on nrev and on queens (queens's step loop ran 6 333 064 instructions to
+  6 023 041 under GL, −4.9 %) and lost to it on lookup. With F beside them
+  (GTLF) the gain was gone: G's numbers to within 0.02 %.
+- **D moved nothing.** The dead-clause paths were already out of line and
+  weak.
+
+THE FIRST CUT AGAIN. 2.11.1's first cut tested `coco_pred_ensure`'s answer in
+the step loop, and clang left `coco_push_choice` and `coco_arg_key` out of
+line. Rebuilt from its saved C and measured against 2.11.1, in work less
+padding:
+
+| | nrev | queens | lookup |
+|---|---|---|---|
+| the first cut | +2.02 % | +3.30 % | +1.28 % |
+| its raise cold (F) | +2.01 % | +0.70 % | +1.36 % |
+| its raise and the growths cold | +0.79 % | +0.38 % | +0.78 % |
+
+- With its raise cold, both helpers are inline again: `objdump` finds no
+  call of either in `coco_engine_run`, where the first cut has one of each.
+- Queens's cost is then down to 0.70 %, but nrev and lookup keep theirs.
+  Against G alone the first cut still costs +2.0 %, +0.7 % and +1.4 %.
+- 2.11.1's fold stays. A test folded into one the loop already makes costs
+  nothing; `(cold)` is for the call that cannot be folded.
+
+THE CLOCK says nothing either way. The same binary against itself, in seven
+alternating pairs of user time, read 0.959, 0.954 and 1.085 (nrev, queens,
+lookup). G against the unmarked C read 0.936, 0.938 and 0.970 one way round,
+and 1.005, 0.986 and 1.013 the other. The counts are the record.
+
+PROVED:
+
+- The built 2.11.2 counts G's numbers (`zero.sh`: within 433 instructions of
+  the arm).
+- Green: `errors`, whose four cases under `ulimit -v 600000` reach the
+  growths' refused path; `gc`; `engine`; `meter`; and the `term`, `solve`
+  and `state` binaries.
+- The dialect card's cites check.
+- The full suite was not run for this change.

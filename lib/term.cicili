@@ -1075,8 +1075,9 @@
   ;;; written wrong on the way, because this growth succeeded. Only when
   ;;; that is refused too is the machine finished: `oom', as before. Through
   ;;; 1.10.27 the doubling was all there was, and its refusal ended the run
-  ;;; with `out of memory', which nothing could catch. Out of line: only a
-  ;;; refusal comes here.
+  ;;; with `out of memory', which nothing could catch. Out of line, and
+  ;;; cold: only a refusal comes here.
+  (cold)
   (func coco_grow_short ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (let ((size_t ncap . #'(+ need (+ (/ need 16) 64)))
@@ -1094,7 +1095,14 @@
   ;;; to `coco_grow_short' made each copy big enough that clang stopped
   ;;; inlining `coco_new_var' -- lookup ran 4.2 % more instructions, 1.66
   ;;; million of them in calls to it (1.10.28, callgrind).
-  (weak)
+  ;;; AND COLD (2.11.2, Cicili 3.1.0's `(cold)'): weak kept it out of line,
+  ;;; but each block that calls it still weighed what clang's guess gave
+  ;;; the test before it, and a hot function laid out its path and its
+  ;;; registers around a growth that happens once a doubling. Cold, the
+  ;;; block is unlikely: `coco_clause_run_r' ran 2.0 % fewer instructions
+  ;;; on naive reverse, the cost 1.10.28 recorded (+0.63 % of nrev, all of
+  ;;; it there) taken back and more (STATUS.md).
+  (weak) (cold)
   (func coco_grow_slow ((coco_machine * m) (void ** buf) (size_t * cap) (size_t need) (size_t esize))
         (out int)
         (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (cof cap)))

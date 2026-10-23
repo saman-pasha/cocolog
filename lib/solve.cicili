@@ -1219,8 +1219,8 @@
 
   ;;; The choice stack's growth, out of line (weak), as `coco_grow_slow' is:
   ;;; inlined into `coco_push_choice', its refused doubling's second try
-  ;;; would have cost every push (1.10.28)
-  (weak)
+  ;;; would have cost every push (1.10.28) -- and cold as it is (2.11.2)
+  (weak) (cold)
   (func coco_eng_grow_slow ((coco_engine * e) (size_t need)) (out int)
         (let ((size_t ncap . #'(? (== (-> e choice_cap) 0) 64 (-> e choice_cap)))
               (coco_choice * nb)
