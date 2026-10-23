@@ -1886,10 +1886,18 @@ cocolint index offers no import of it.
   back whole, and through 2.11.0 a write over a partial read deleted the
   unread rows from the database (an outside review's finding, reproduced on
   the server).
-* **The step asks `coco_pred_ready` (weak)**, which answers the clause count,
-  or 0 after a failed read. The step tests it where it always tested the
-  count, and catches the failure on the no-clauses path, ahead of the dynamic
-  arm.
+* **The step asks `coco_pred_count` (inline, 2.11.3)**: a predicate read
+  already answers its clause count there, and one not read yet calls
+  `coco_pred_ready` (weak, cold), which answers the count, or 0 after a
+  failed read. The step tests it where it always tested the count, and
+  catches the failure on the no-clauses path, ahead of the dynamic arm.
+* **A barrier, a lock or a `defer` in a function the step calls can take it
+  out of line.** 2.9.0's write barrier in `coco_pred_ensure` did, and every
+  call of a plain predicate paid a call of 19 instructions. That was the
+  green world's whole cost to the untraced engine (nrev +2.53 %, queens
+  +1.39 %, lookup +1.13 %), and it ran uncounted through eight releases,
+  2.9.0 to 2.11.0 (STATUS.md, 2.11.3). Before and after a change to anything the step loop
+  reaches, count `tools/flow/zero.sh`, and callgrind's calls per function.
 * **A branch added to the step loop moves clang's estimate of every block
   after it.** The first cut tested `coco_pred_ensure`'s answer in the loop,
   and the zero heuristic gave the failure 3/8 of each call's path. The loop's

@@ -2805,7 +2805,8 @@
   ;;; `coco_fetch_error_goal' are (weak), never inlined, so the step loop
   ;;; holds a call where it would hold the ball's construction; the step
   ;;; reaches them only from its way for a predicate with no clauses
-  ;;; (`coco_pred_ready' in lib/kb.cicili says why there).
+  ;;; (`coco_pred_ready' and `coco_pred_count' in lib/kb.cicili say why
+  ;;; there).
   (weak)
   (func coco_fetch_error_regs ((coco_engine * e)) (out int)
         (let ((size_t gt . #'(coco_areg_term e)))
@@ -6679,8 +6680,10 @@
                              (int r . -1))
                          (set (-> e nset) 0)
                          ;; the clauses, read first where they were not; 0 for a
-                         ;; read that failed (`coco_pred_ready', 2.11.1)
-                         (let ((size_t pn . #'(coco_pred_ready st pi))
+                         ;; read that failed (`coco_pred_ready', 2.11.1), and
+                         ;; a predicate read already answered inline
+                         ;; (`coco_pred_count', 2.11.3)
+                         (let ((size_t pn . #'(coco_pred_count st pi))
                                (coco_pred * p . #'(aof (nth pi ($ (cof st) preds)))))
                            ;; A READ THAT FAILED RAISES (2.11.1): `loaded' 0
                            ;; after the ask, the call built as its term to be
@@ -6913,8 +6916,9 @@
                           (#t
                            (cond
                             ;; the clauses, read first where they were not; 0
-                            ;; for a read that failed (`coco_pred_ready', 2.11.1)
-                            ((> (coco_pred_ready st pi) 0)
+                            ;; for a read that failed (`coco_pred_ready', 2.11.1),
+                            ;; inline once read (`coco_pred_count', 2.11.3)
+                            ((> (coco_pred_count st pi) 0)
                              (let ((int det . -1) (size_t ix0 . 0) (u32 kpos . 0))
                                ;; A DETERMINISTIC CALL GETS NO FRAME. The index is
                                ;; asked for the first candidate and whether there

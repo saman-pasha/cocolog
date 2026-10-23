@@ -212,7 +212,9 @@ loop (3.7x), 2.2 times on nrev (1.6x) and 1.6 times on sortnums (1.6x), and
 on lookup, less the jump padding: the green world, 2.6.0 to 2.10.1, cost it
 1.1-2.3 % and nobody counted it as it landed, and 2.11.1 and 2.11.2 took
 2.4 % of nrev's back. In ten alternating pairs it takes 0.95-1.10 times
-2.2.5's time (Run W's section).
+2.2.5's time (Run W's section). The green world's cost was 2.9.0's alone,
+and 2.11.3 takes it back: nrev 1.10 % below 2.2.5, queens 1.64 % and lookup
+0.48 % above it (STATUS.md, 2.11.3).
 
 ## The rules
 
@@ -1802,7 +1804,10 @@ in it:
   counted it when it landed.** 2.6.0 to 2.10.1 recorded their own lanes --
   the concurrency benchmark, the write barrier -- and no zero.sh, and the
   work here is a run's own, start-up and the async library's preload taken
-  out. Which of those releases it was is not split here.
+  out. Which of those releases it was is not split here. (It was 2.9.0
+  alone: its write barrier took `coco_pred_ensure` out of the step loop, a
+  call of 19 instructions for every call. 2.11.3 answers the count inline
+  again; STATUS.md, 2.11.3.)
 * **2.3.0's figures are its own.** It recorded nrev +0.32 %, queens +1.04 %
   and lookup +0.19 % against 2.2.5, and the step from 2.2.5 to 2.4.1 reads
   the same to the hundredth, so 2.4.0 and 2.4.1 moved nothing.
