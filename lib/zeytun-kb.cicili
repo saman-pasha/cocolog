@@ -207,6 +207,20 @@
           (free body)
           (return ok)))
 
+  ;;; A FETCH THAT FAILED, where the store reads it (2.11.1): said out loud
+  ;;; as `coco_zt_fail' says it, and the same words on the store's
+  ;;; `fetch_err', `fetch_oom' set when memory was what ran out. Answers 0,
+  ;;; which `coco_pred_ensure' turns into a read that never happened and the
+  ;;; caller into resource_error -- where through 2.11.0 the engine read it
+  ;;; as a predicate with no clauses.
+  (static)
+  (func coco_zt_fetch_fail ((coco_store * st) (coco_zt * z) (const char * what)
+                            (const char * detail) (int oom)) (out int)
+        (coco_zt_fail z what detail)
+        (snprintf (-> st fetch_err) 256 "%s" (-> z err))
+        (if oom (set (-> st fetch_oom) 1))
+        (return 0))
+
   ;;; The page answers
   ;;;
   ;;;   COCOLOG 1
@@ -216,6 +230,14 @@
   ;;; with every arity of the name, because a query string cannot be compared
   ;;; against an Int column on the far side -- so the arity is filtered here,
   ;;; where there is a type to filter it with.
+  ;;;
+  ;;; ALL OF IT OR NONE (2.11.1), as the binary backend's fetch: an answer
+  ;;; with no END line was cut short, and the first row that fails -- no
+  ;;; memory for its copy, a clause that will not read or will not go into
+  ;;; the store -- is the fetch's failure, and `coco_pred_ensure' takes back
+  ;;; what this call had added. Through 2.11.0 a bad row was passed over and
+  ;;; the rest kept, and `rows' set straight from `realloc' was nil when the
+  ;;; growth was refused, so the cleanup walked N bodies through it.
   (func coco_zt_fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int)
         (let ((coco_zt * z . #'(cast (coco_zt *) ctx))
               (coco_machine * m)
@@ -223,16 +245,19 @@
               (char * body . nil)
               (coco_zt_row * rows . nil)
               (size_t n . 0) (size_t cap . 0)
-              (int ok . 1))
+              (int ok . 1) (int oom . 0) (int ended . 0)
+              (char why [192]))
           (set m (-> z m))
+          (set (nth 0 why) (cast char 0))
 
           (if (not (coco_zt_path path (sizeof path) "kb" "kb" (-> z kb)
                                "name" (coco_atom_name m name)))
-              (return (coco_zt_fail z "the request path is too long" (coco_atom_name m name))))
+              (return (coco_zt_fetch_fail st z "the request path is too long"
+                                          (coco_atom_name m name) 0)))
 
           (if (not (zt_get (-> z host) (-> z port) path (-> z timeout)
                            (aof body) nil err (sizeof err)))
-              (return (coco_zt_fail z "fetching clauses" err)))
+              (return (coco_zt_fetch_fail st z "fetching clauses" err 0)))
 
           ;; Walk the body a line at a time, in place: each line's terminator
           ;; is replaced by a NUL and put back afterwards, so nothing is copied
@@ -241,6 +266,7 @@
             (while (and ok (!= (cast char 0) (nth 0 p)))
               (let ((char * eol . #'(strchr p 10)))
                 (if (!= eol nil) (set (nth 0 eol) (cast char 0)))
+                (if (== 0 (strcmp p "END")) (set ended 1))
                 ;; a record is "C <arity> <ordinal> <text>"
                 (if (and (== (nth 0 p) (cast char 67)) (== (nth 1 p) (cast char 32)))
                     (let ((char * cur . #'(+ p 2))
@@ -254,34 +280,54 @@
                           (block
                            (zt_unescape cur)
                            (if (>= n cap)
-                               (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
-                                 (set rows (cast (coco_zt_row *)
-                                                 (realloc rows (* ncap (sizeof coco_zt_row)))))
-                                 (if (== rows nil) (set ok 0))
-                                 (set cap ncap)))
+                               (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
+                                     (void * grown . #'(realloc (cast (void *) rows)
+                                                                (* ncap (sizeof coco_zt_row)))))
+                                 (if (== grown nil)
+                                     (block (snprintf why 192 "%s" "no memory for the rows")
+                                            (set ok 0) (set oom 1))
+                                   (block (set rows (cast (coco_zt_row *) grown))
+                                          (set cap ncap)))))
                            (if ok
-                               (block (set ($ (nth n rows) ordinal) (cast i64 ord))
-                                      (set ($ (nth n rows) body) (strdup cur))
-                                      (set n (+ n 1))))))))
+                               (let ((char * copy . #'(strdup cur)))
+                                 (if (== copy nil)
+                                     (block (snprintf why 192 "%s" "no memory for a row's clause")
+                                            (set ok 0) (set oom 1))
+                                   (block (set ($ (nth n rows) ordinal) (cast i64 ord))
+                                          (set ($ (nth n rows) body) copy)
+                                          (set n (+ n 1))))))))))
                 (if (== eol nil) break)
                 (set (nth 0 eol) (cast char 10))
                 (set p (+ eol 1)))))
 
           (free body)
+          (if (and ok (not ended))
+              (block (snprintf why 192 "%s" "the answer ends before its END line")
+                     (set ok 0)))
 
           (if ok
               (block
                (qsort rows n (sizeof coco_zt_row) coco_zt_row_cmp)
-               (for ((size_t i . 0)) (< i n) ((++ i))
-                 (let ((size_t t) (size_t mark . #'(-> m heap_len)))
-                   (if (coco_read_term_from m ($ (nth i rows) body) (aof t))
-                       (coco_assert_stored st m t)
-                     (set ok 0))
-                   (set (-> m heap_len) mark)))))
+               (let ((int oom0 . #'(-> st oom)))
+                 (for ((size_t i . 0)) (< i n) ((++ i))
+                   (let ((size_t t) (size_t mark . #'(-> m heap_len)))
+                     (cond
+                       ((not (coco_read_term_from m ($ (nth i rows) body) (aof t)))
+                        (snprintf why 192 "the row at ordinal %lld does not read as a clause"
+                                  (cast llong ($ (nth i rows) ordinal)))
+                        (set ok 0))
+                       ((not (coco_assert_stored st m t))
+                        (snprintf why 192 "the row at ordinal %lld did not go into the store"
+                                  (cast llong ($ (nth i rows) ordinal)))
+                        (if (and (== oom0 0) (!= (-> st oom) 0)) (set oom 1))
+                        (set ok 0))
+                       (#t (block)))
+                     (set (-> m heap_len) mark)
+                     (if (not ok) break))))))
 
           (for ((size_t i . 0)) (< i n) ((++ i)) (free ($ (nth i rows) body)))
-          (free rows)
-          (if (not ok) (return (coco_zt_fail z "reading clauses" "malformed answer")))
+          (free (cast (void *) rows))
+          (if (not ok) (return (coco_zt_fetch_fail st z "reading clauses" why oom)))
           (return 1)))
 
   ;;; One piece of one tensor, off the tensor page -- and only one: the page

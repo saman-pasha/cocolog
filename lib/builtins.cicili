@@ -3172,7 +3172,9 @@
           (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
                                                (coco_arity m head))))
             (if (>= pi ($ (cof st) npreds)) (return 0))
-            (coco_pred_ensure st pi)
+            ;; a predicate the knowledge base could not hand over raises,
+            ;; as its call does (2.11.1)
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
             (coco_tomb_try_sweep st m pi)
             (let ((size_t mark . #'(coco_m_mark e)))
               (if (not (coco_m_unify_int e (coco_m_arg e g 1)
@@ -3196,7 +3198,7 @@
           (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
                                                (coco_arity m head))))
             (if (>= pi ($ (cof st) npreds)) (return 0))
-            (coco_pred_ensure st pi)
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
             (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
                   (size_t at . 0))
               (if (< want 1) (return 0))
@@ -3291,7 +3293,7 @@
                 (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
           (let ((size_t pi . #'(coco_pred_intern st nid ar)))
             (if (>= pi ($ (cof st) npreds)) (return 0))
-            (coco_pred_ensure st pi)
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
             (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
                   (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
                   (u64 tid . #'(coco_intern m "true")))
@@ -3337,7 +3339,9 @@
                   (int began . #'(coco_g_write_begin e)))
              (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
               (if (>= pi ($ (cof st) npreds)) (return 1))
-              (coco_pred_ensure st pi)
+              ;; unread, the rows it would leave in the database are not
+              ;; known, and rewriting the predicate empty would take them
+              (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
               ;; retract the first clause until there is none, so that the
               ;; backend hears once per removal exactly as it would from a
               ;; program doing the same thing -- the first LIVE one: one
@@ -3350,6 +3354,7 @@
                                                   (nth at ($ (nth pi ($ (cof st) preds)) clauses))))
                       (int ok . #'(coco_retract st m t)))
                   (set (-> m heap_len) mark)
+                  (if (< ok 0) (return (coco_fetch_error e)))
                   (if (not ok) break)))
               (coco_store_maybe_compact st m)
               (return 1))))))

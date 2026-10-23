@@ -200,6 +200,26 @@
   ;;; replacement understands & and \\0..\\9; a literal & or backslash
   ;;; is sed's own \\& and \\\\. Empty matches advance by one, the way
   ;;; sed does, so s/x*/-/g terminates.
+  ;;; OUT GROWN TO NCAP BYTES THROUGH A SECOND POINTER (2.11.1): 0 when
+  ;;; memory was refused, with OUT and CAP as they were. Through 2.11.0 each
+  ;;; growth set OUT from `realloc' itself and wrote on through nil.
+  (static)
+  (func cx_grow ((char ** out) (size_t * cap) (size_t ncap)) (out int)
+        (let ((void * grown . #'(realloc (cast (void *) (cof out)) ncap)))
+          (if (== grown nil) (return 0))
+          (set (cof out) (cast (char *) grown))
+          (set (cof cap) ncap)
+          (return 1)))
+
+  ;;; re_replace/4 out of memory: everything it holds freed, and memory's
+  ;;; error raised (`coco_m_resource_error') -- never a failure that reads
+  ;;; as "no match"
+  (static)
+  (func cx_oom ((coco_engine * e) (char * pat) (char * rep) (char * txt) (char * out)) (out int)
+        (free (cast (void *) pat)) (free (cast (void *) rep))
+        (free (cast (void *) txt)) (free (cast (void *) out))
+        (return (coco_m_resource_error e "memory")))
+
   (func coco_x_replace ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char * pat . nil) (char * rep . nil) (char * txt . nil)
               (char * out . nil) (size_t cap . 4096) (size_t n . 0)
@@ -214,9 +234,7 @@
           (set tlen (strlen txt))
           (set rlen (strlen rep))
           (set out (cast (char *) (malloc cap)))
-          (if (not out)
-              (block (free (cast (void *) pat)) (free (cast (void *) rep))
-                     (free (cast (void *) txt)) (return 0)))
+          (if (not out) (return (cx_oom e pat rep txt out)))
           (while (<= pos tlen)
             (let ((int m . #'(cx_exec pat (+ txt pos) (? (> pos 0) 1 0) offs)))
               (if (!= m 0) break)
@@ -230,8 +248,8 @@
                       (if (< pos tlen)
                           (block
                             (if (>= (+ n 2) cap)
-                                (block (set cap (* cap 2))
-                                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                                (if (not (cx_grow (aof out) (aof cap) (* cap 2)))
+                                    (return (cx_oom e pat rep txt out))))
                             (set (nth n out) (nth pos txt))
                             (set n (+ n 1))))
                       (set pos (+ pos 1))
@@ -239,16 +257,16 @@
                 ;; the stretch before the match, verbatim
                 (for ((size_t i . pos)) (< i ms) ((++ i))
                      (if (>= (+ n 2) cap)
-                         (block (set cap (* cap 2))
-                                (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                         (if (not (cx_grow (aof out) (aof cap) (* cap 2)))
+                             (return (cx_oom e pat rep txt out))))
                      (set (nth n out) (nth i txt))
                      (set n (+ n 1)))
                 ;; the replacement, & and \\N expanded against offs
                 (let ((size_t ri . 0))
                   (while (< ri rlen)
                     (if (>= (+ n tlen 2) cap)
-                        (block (set cap (* (+ cap tlen) 2))
-                               (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                        (if (not (cx_grow (aof out) (aof cap) (* (+ cap tlen) 2)))
+                            (return (cx_oom e pat rep txt out))))
                     (let ((char c . #'(nth ri rep)))
                       (if (== (cast int c) 38)               ; the ampersand
                           (block
@@ -283,8 +301,8 @@
                       (if (< pos tlen)
                           (block
                             (if (>= (+ n 2) cap)
-                                (block (set cap (* cap 2))
-                                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                                (if (not (cx_grow (aof out) (aof cap) (* cap 2)))
+                                    (return (cx_oom e pat rep txt out))))
                             (set (nth n out) (nth pos txt))
                             (set n (+ n 1))))
                       (set pos (+ pos 1)))
@@ -292,8 +310,8 @@
           ;; the tail after the last match
           (while (< pos tlen)
             (if (>= (+ n 2) cap)
-                (block (set cap (* cap 2))
-                       (set out (cast (char *) (realloc (cast (void *) out) cap)))))
+                (if (not (cx_grow (aof out) (aof cap) (* cap 2)))
+                    (return (cx_oom e pat rep txt out))))
             (set (nth n out) (nth pos txt))
             (set n (+ n 1))
             (set pos (+ pos 1)))

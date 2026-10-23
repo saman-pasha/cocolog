@@ -24,8 +24,32 @@
 main :-
     scratch(D),
     green(D), red(D), thrown(D), missing(D), options_first(D),
+    binary_verdicts,
     shl(['rm -rf ', D]),
     checks_done.
+
+%% THE SUITE'S OTHER HALF READS ITS BINARIES THE SAME WAY (2.11.1): a
+%% test/*.cicili binary's last line says GREEN or SKIP, and that counts only
+%% when it also exited 0 -- `binary_verdict/3' in the prelude, which
+%% test/run.pl asks. Through 2.11.0 the runner read the line alone, so a
+%% binary that printed GREEN and then crashed on its way out was green. The
+%% child here is a shell that does exactly that, so what is pinned is also
+%% that a death by a signal reaches the verdict as a status that is not 0.
+binary_verdicts :-
+    section('a test binary is green only when it also exits 0'),
+    binary_verdict('ok   one\nGREEN: 0 failure(s)', 0, V1),
+    check('GREEN and exit 0 is green', V1, green),
+    binary_verdict('ok   one\nGREEN: 0 failure(s)', 139, V2),
+    check('GREEN and then a crash is red', V2, red),
+    binary_verdict('SKIP no Zigurat server at 127.0.0.1:2160 (refused)', 0, V3),
+    check('a SKIP that exits 0 skips', V3, skip),
+    binary_verdict('SKIP no Zigurat server at 127.0.0.1:2160 (refused)', 1, V4),
+    check('a SKIP that exits 1 is red', V4, red),
+    binary_verdict('FAIL one\n\nRED: 1 failure(s)', 1, V5),
+    check('RED is red', V5, red),
+    shell('sh -c \'echo "GREEN: 0 failure(s)"; kill -SEGV $$\'', Out, Exit),
+    binary_verdict(Out, Exit, V6),
+    check('a child that says GREEN and dies by a signal is red', V6, red).
 
 green(D) :-
     section('a green main: the output is the script''s, the exit is 0'),

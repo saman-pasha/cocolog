@@ -63,6 +63,7 @@ SWI 9.0.4's arithmetic; `random_between/3` and the rest of
 | modules | separate namespaces; `use_module/2` imports a list | one namespace; the import list is accepted and ignored | MODULES.md |
 | a predicate's clauses split across a file | joined, with a warning | joined, silently | — |
 | a clause in a database-backed store | any size | must fit one page, about 8 000 characters; past it `assertz/1` raises `resource_error(clause_length)` | a row is one page; STATUS.md |
+| a predicate a database-backed store cannot read | no such case: the clauses are in memory | every reader of it raises `error(resource_error(knowledge_base), context(Name/Arity, Why))` (a call, `clause/2`, `predicate_property/2`, `listing`, `abolish/1`, `retract/1`, `assertz/1`), nothing of the failed read is kept, and the next call asks again (2.11.1) | a predicate is written back whole, so a write over part of one would delete the rest; MORE.md, "The knowledge base is a seam" |
 | the heap | collected, atoms too | collected since 1.8.36, inside the engines a builtin starts (`findall/3`, `forall/2`, `aggregate_all/3`, ...) since 1.9.4, and the float and string tables reclaimed in place since 1.9.6; the atom table is never reclaimed | `lib/solve.cicili`, `coco_heap_gc` and `coco_tables_reclaim` |
 
 ## Where to report one

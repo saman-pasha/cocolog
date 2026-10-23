@@ -64,7 +64,73 @@ main :-
     list_cell_is_dot_2,
     data_under_a_builtin_name,
     memory_refused,
+    read_that_failed,
     checks_done.
+
+%% ---- a read of the knowledge base that failed (2.11.1) ----------------------
+%%
+%% A READ IS ALL OF THE PREDICATE OR NONE, AND ONE THAT FAILED RAISES. Through
+%% 2.11.0 the store marked a predicate read before it asked the backend, kept
+%% what the read had put in, and nobody looked at the answer: a row this
+%% binary could not read was passed over, the predicate answered with the
+%% rest, and the next write rewrote it whole from that copy -- the row was gone
+%% from the database (an outside review's finding; test/zigurat-lib.pl counts
+%% the rows on a server). The row here is one no clause is ever written as,
+%% `p(' at ordinal 1000, put in through the procedure the store's own writes
+%% use. Every way a program reaches p/1 raises
+%% error(resource_error(knowledge_base), context(p/1, Why)) -- a call as a
+%% term, a call from a clause's body, the builtins that read a predicate
+%% -- and so does a call of p/1 declared dynamic, which an empty predicate's
+%% failure would hide, and of p/1 with a clause of the file's own, which
+%% would answer that clause alone; a second call asks again rather than
+%% remembering the failure; and a write refuses before it touches the
+%% predicate. A process each, because the row has to be in the store before
+%% anything reads it.
+read_that_failed :-
+    section('a read of the knowledge base that failed raises, and writes nothing'),
+    scratch(D),
+    atom_concat(D, '/KB', KB),
+    atom_concat(D, '/write.pl', W),
+    fixture(W, ['main :- assertz(p(1)), assertz(p(2)), assertz(p(3)).']),
+    atom_concat(D, '/plant.pl', P),
+    fixture(P, ['main :- zigurat_call(\'cocolog::assert_clause\', [main, p, int(1), 1000, text(\'p(\')]).']),
+    Try = 'try(G) :- catch((G, B = none), error(F, C), B = error(F, C)), print(B), nl.',
+    atom_concat(D, '/read.pl', R),
+    fixture(R, [Try, 'q(X) :- p(X).',
+                'main :- try(findall(X, p(X), _)), try(findall(X, p(X), _)), try(q(_)),',
+                '        try(assertz(p(4))), try(retract(p(1))), try(clause(p(_), _)),',
+                '        try(predicate_property(p(_), _)), try(abolish(p/1)), try(listing(p/1)).']),
+    atom_concat(D, '/dyn.pl', Dy),
+    fixture(Dy, [':- dynamic p/1.', Try, 'q(X) :- p(X).', 'main :- try(p(_)), try(q(_)).']),
+    atom_concat(D, '/own.pl', O),
+    fixture(O, ['p(0).', Try, 'q(X) :- p(X).', 'main :- try(p(_)), try(q(_)).']),
+    atom_concat(D, '/uncaught.pl', U),
+    fixture(U, ['main :- p(X), write(X), nl.']),
+    atomic_list_concat(['--embed ', KB, ' -s ', W, ' 2>&1'], A1),
+    cocolog_run(A1, _, X1),
+    check('three clauses go in', X1, 0),
+    atomic_list_concat(['--embed ', KB, ' -s ', P, ' 2>&1'], A2),
+    cocolog_run(A2, _, X2),
+    check('and a row no clause reads as goes in beside them', X2, 0),
+    atomic_list_concat(['--embed ', KB, ' -s ', R, ' 2>&1'], A3),
+    cocolog_run(A3, T3, _),
+    Ball = 'error(resource_error(knowledge_base),context(p/1,\'the row at ordinal 1000 does not read as a clause\'))',
+    atomic_list_concat([Ball, Ball, Ball, Ball, Ball, Ball, Ball, Ball, Ball], '\n', Nine),
+    check('a call, a second call, a call from a body, assertz, retract, clause/2, predicate_property/2, abolish/1 and listing/1 each raise it',
+          T3, Nine),
+    atomic_list_concat([Ball, Ball], '\n', Two),
+    atomic_list_concat(['--embed ', KB, ' -s ', Dy, ' 2>&1'], A5),
+    cocolog_run(A5, T5, _),
+    check('declared dynamic, it still raises, as a call and from a body', T5, Two),
+    atomic_list_concat(['--embed ', KB, ' -s ', O, ' 2>&1'], A6),
+    cocolog_run(A6, T6, _),
+    check('with a clause of the file\'s own, it raises rather than answer that clause alone', T6, Two),
+    atomic_list_concat(['--embed ', KB, ' -s ', U, ' 2>&1'], A4),
+    cocolog_run(A4, T4, X4),
+    has('uncaught, it is SWI\'s sentence with its context',
+        'ERROR: -s main: p/1: Not enough resources: knowledge_base (the row at ordinal 1000 does not read as a clause)', T4),
+    check('and the exit status of an error', X4, 2),
+    shl(['rm -rf ', D]).
 
 %% ---- a refused allocation raises resource_error(memory) (1.10.28) -----------
 %%

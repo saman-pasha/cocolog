@@ -741,7 +741,7 @@ from.
 
 | hook | when | what it is for |
 |---|---|---|
-| `fetch` | at most once per predicate, when something calls it | clauses arrive as the proof reaches them |
+| `fetch` | once per predicate, when something calls it; again after a read that failed | clauses arrive as the proof reaches them, all of a predicate or none |
 | `on_assert` | a clause was added | write it through |
 | `on_retract` | a clause was removed | write that through too |
 | `on_dynamic` | a predicate was declared `dynamic` | a declaration is about the knowledge base, so it has to outlive the process |
@@ -751,6 +751,17 @@ from.
 stored by ordinal, and `asserta` puts one at the front — which changes the
 ordinal of every clause after it — so writing back only what changed would
 leave two clauses both claiming to be first. O(n) per assert, and always right.
+
+Always right only over a predicate read whole, which is why a read that failed
+is all-or-nothing and raises (2.11.1). Through 2.11.0 a row the backend could
+not read was passed over, the predicate answered with the rest, and the next
+write rewrote it from that copy, so the database lost the row. Now the read
+keeps nothing of what it got, the next call asks again, and every reader of
+the predicate (a call, `clause/2`, `predicate_property/2`, `listing`,
+`abolish/1`, `retract/1`) raises
+`error(resource_error(knowledge_base), context(Name/Arity, Why))`, or
+`resource_error(memory)` when memory is what ran out. An `assertz/1` raises it
+too, before it touches the predicate, and a consult reports it and goes on.
 
 `warm` exists because the laziness that makes a shared knowledge base
 affordable also means a fresh interpreter knows of no predicate it has not

@@ -423,6 +423,8 @@
           ;; with no backend behind it stays empty. The machine came back
           ;; holding its choice points and then proved nothing.
           (coco_store_reset st)
+          ;; and a read of one that fails is said at the end (2.11.1)
+          (set (nth 0 (-> st fetch_err)) (cast char 0))
 
           ;; the engine is rebuilt too, keeping what its HOST decided: whether
           ;; the heap collector may run under it (see `gc' on the engine)
@@ -587,6 +589,14 @@
                             (set ($ (nth i (-> e choices)) cend) (cast u32 v))))))))
 
           (coco_sb_free (aof nm))
+          ;; AN OPEN CALL WHOSE PREDICATE COULD NOT BE READ BACK (2.11.1):
+          ;; its frame names positions in a clause list the knowledge base
+          ;; did not hand over, so the machine is not resumed on it
+          (if (and (not ok) (!= (nth 0 (-> st fetch_err)) (cast char 0)))
+              (block (snprintf (-> e err) 512
+                               "the frozen machine's open calls could not be read back: %s"
+                               (-> st fetch_err))
+                     (return 0)))
           (if (or (not ok) ($ z bad))
               (block (snprintf (-> e err) 192
                                "the frozen machine could not be read (at offset %llu)"

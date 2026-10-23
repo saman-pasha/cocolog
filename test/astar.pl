@@ -44,9 +44,52 @@ seen_mark(Node) :- assertz(astar_seen(Node)).
 seen_there(Node) :- astar_seen(Node).
 seen_reset :- retractall(astar_seen(_)).
 
+%% AN ADMISSIBLE HEURISTIC THAT IS NOT CONSISTENT (2.11.1). s -3-> a -2-> g
+%% and s -1-> b -1-> a: the cheapest way is s-b-a-g, at 4. h(b) = 3 never
+%% overestimates (b is 3 from g) and is not consistent (h(b) = 3 is more
+%% than b's step to a plus h(a)), so a is reached first by s-a at 3 and
+%% expanded, and only then by s-b-a at 2. Through 2.11.0 the expanded a
+%% was closed for good and the answer was s-a-g at 5 (an outside review's
+%% graph); b also has a dear way out, so a node the caller marks before
+%% the search can force it.
+ab_edge(s, a, 3).
+ab_edge(a, g, 2).
+ab_edge(s, b, 1).
+ab_edge(b, a, 1).
+ab_edge(b, g, 10).
+ab_h(s, 0).
+ab_h(a, 0).
+ab_h(b, 3).
+ab_h(g, 0).
+%% a cycle that costs nothing, which a search that reopens must not go
+%% round for ever
+zc_edge(x, y, 0).
+zc_edge(y, x, 0).
+zc_edge(x, z, 5).
+zc_edge(y, z, 1).
+
 main :-
-    laws, oracle, tiebreak, seen_pair,
+    laws, oracle, tiebreak, seen_pair, reopened,
     checks_done.
+
+reopened :-
+    section('a node reached more cheaply after it was expanded is expanded again'),
+    written(astar(s, g, ab_edge, ab_h, P1, C1), P1-C1, G1),
+    check('an admissible heuristic that is not consistent finds the cheapest', G1, '[s,b,a,g]-4'),
+    written(shortest_path(s, g, ab_edge, P2, C2), P2-C2, G2),
+    check('which is the oracle''s answer', G2, '[s,b,a,g]-4'),
+    seen_reset,
+    written(astar(s, g, ab_edge, ab_h, seen_mark-seen_there, P3, C3), P3-C3, G3),
+    check('astar/7 finds it too', G3, '[s,b,a,g]-4'),
+    written(( findall(N4, astar_seen(N4), Ns4), msort(Ns4, S4) ), S4, G4),
+    check('and marks each node it expanded once, though it expanded a twice', G4, '[a,b,s]'),
+    seen_reset,
+    assertz(astar_seen(a)),
+    written(astar(s, g, ab_edge, ab_h, seen_mark-seen_there, P5, C5), P5-C5, G5),
+    check('a node the caller marked first is never searched, however cheap', G5, '[s,b,g]-11'),
+    seen_reset,
+    written(astar(x, z, zc_edge, astar_zero, P6, C6), P6-C6, G6),
+    check('a cycle that costs nothing ends, at the cheapest way out', G6, '[x,y,z]-1').
 
 laws :-
     section('the laws'),
