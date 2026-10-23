@@ -250,7 +250,9 @@ section).
    `embed` is the MVCCS engine linked in, `zigurat` the same store over a
    socket, `sqlite` a CPython with a committed, indexed file.
 4. **The clock is the wall**, around the whole process.
-5. **The calibration runs are the warm-up**; the timed runs come after.
+5. **The first runs are the warm-up**: one run of each lane on each task
+   is thrown away unread before its calibration (since Run X), the
+   calibration's runs come next, and the timed runs after them.
 6. **Every lane is measured at R and 2R**, so a fixed cost can be told
    from a per-rep one; `2R/R` near 2.0 is linear. A lane that calibrates
    to ONE rep prints its wall time instead of a rate.
@@ -2033,8 +2035,13 @@ the row prints the lane's wall time at one rep (0.06 s) and no rate, and the
 rows below it have nothing to be read against. Dropping the page cache
 afterwards made swipl's next one-rep run 0.11 s, so the guest's page cache
 does not account for it. The calibration is the warm-up (rule 5), and a
-first run slowed by something outside the work ends it; one run thrown away
-before the calibration would close that. The second sitting has the column.
+first run slowed by something outside the work ends it. Since Run X the
+harness throws one run of each lane on each task away, unread, before its
+calibration:
+with a stand-in python whose first program waits 1.5 s, the old harness put
+the python lane at one rep and every other lane's `vs py` at 0.0x, and the
+new one calibrated it as usual, to 128 reps and to 256 in a second run. The
+second sitting has the column.
 
 **Both sittings are noisy, as Run W's were, and the box was not stealing
 the time**: steal was 0.52 % and 0.53 % of their CPU time (1 353 of 262 444

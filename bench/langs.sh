@@ -33,8 +33,9 @@
 #      is the same store over a socket. Three different claims.
 #   4. THE CLOCK IS THE WALL, around the whole process, which is what a
 #      person waiting for an answer actually experiences.
-#   5. THE FIRST RUNS ARE THROWN AWAY -- the calibration runs are the
-#      warm-up, and the timed runs come after.
+#   5. THE FIRST RUNS ARE THROWN AWAY -- one run of each lane on each
+#      task, unread, before its calibration, and then the calibration runs
+#      are the warm-up; the timed runs come after.
 #
 # AND ONE MORE, WHICH THIS COMPARISON NEEDS AND THE TPS HARNESS DOES NOT:
 # EVERY LANE IS MEASURED AT TWO SIZES, R and 2R, so a fixed cost can be
@@ -223,9 +224,15 @@ arr_name() {
 median3() { printf '%s\n%s\n%s\n' "$1" "$2" "$3" | sort -n | sed -n 2p; }
 
 # Double the reps until the run clears the floor. The runs spent here are
-# the warm-up the fifth rule asks for.
+# the warm-up the fifth rule asks for, AND ONE RUN BEFORE THEM IS THROWN
+# AWAY UNREAD: the calibration stops at the first run past the floor, so a
+# first run slowed by something outside the work would stop it at one rep.
+# Run X's first sitting lost its nrev `vs swi-O' that way -- the first
+# program swipl ran since the VM came up took over 1.2 s, where a warm one
+# takes 0.05 (bench/README.md, Run X).
 calibrate() {
   _lane=$1; _task=$2; _n=$3
+  run_once "$_lane" "$_task" "$_n" 1 > /dev/null
   _r=1
   while : ; do
     set -- $(run_once "$_lane" "$_task" "$_n" "$_r")

@@ -492,10 +492,16 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 
 ## Measuring
 
-* **A within-run pair or nothing.** This box drifts ~20 % between runs of one
-  build. Compare two builds in ONE round, back to back, and settle a few per
-  cent with five alternating pairs; a ratio under ~3x from medians alone
-  means nothing on the pooled rigs.
+* **A within-run pair or nothing, and even that is coarse.** This box drifts
+  ~20 % between runs of one build. Compare two builds in ONE round, back to
+  back, alternating or in rotation. Even then, ten rounds settle a ratio no
+  closer than about a tenth, and thirty about 5 % (Run X,
+  bench/README.md: a round of ten read 2.11.2 at 1.13 times 2.2.5 on nrev and
+  2.11.3 at 0.87 of 2.11.2, and the round of thirty after it 1.01 and 0.95).
+  A change of a few per cent is settled by its counts (`tools/flow/zero.sh`,
+  callgrind's calls per function); the clock only shows that nothing larger
+  moved. A ratio under ~3x from medians alone means nothing on the pooled
+  rigs.
 * **An inference count is not a clock, and a clock is not a count.** Count
   inferences (`statistics/2`, `call_metered/4`) to find a cost, time to
   confirm it; a lookup with its first argument unbound is one call in the
