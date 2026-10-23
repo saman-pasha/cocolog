@@ -5345,13 +5345,34 @@
   ;;; threshold for a cold call site, and left them out of line (queens
   ;;; +3.1 % of its work, tools/flow/zero.sh). A predicate read already is
   ;;; answered here, without the call of `coco_pred_ensure' (two calls a
-  ;;; call cost naive reverse 2.6 % of its work).
-  (weak)
+  ;;; call cost naive reverse 2.6 % of its work). AND COLD (2.11.3): the
+  ;;; step calls it only for a predicate not read yet (`coco_pred_count').
+  (weak) (cold)
   (func coco_pred_ready ((coco_store * st) (size_t pi)) (out size_t)
         (if ($ (nth pi (-> st preds)) loaded)
             (return ($ (nth pi (-> st preds)) nclauses)))
         (if (not (coco_pred_ensure st pi)) (return 0))
         (return ($ (nth pi (-> st preds)) nclauses)))
+
+  ;;; THE COUNT THE STEP TESTS (2.11.3): a predicate read already answers
+  ;;; its clause count here, inline, and only one not read yet -- its first
+  ;;; call, or the next one after a read that failed -- goes to
+  ;;; `coco_pred_ready'. THE CALL WAS THE GREEN WORLD'S WHOLE COST TO THE
+  ;;; UNTRACED ENGINE: through 2.8.1 clang inlined `coco_pred_ensure' into
+  ;;; the step, whose price a call was its first two tests; 2.9.0's write
+  ;;; barrier made its body too big to inline, and every call of a plain
+  ;;; predicate paid a call of 19 instructions (nrev +2.53 % of its work,
+  ;;; queens +1.39 %, lookup +1.13 %), which no release counted; 2.11.1's
+  ;;; `coco_pred_ready' made it 12. Answered inline, the test costs the
+  ;;; loop nothing that counts -- `coco_engine_run' ran a few instructions
+  ;;; FEWER -- and against 2.11.2 nrev runs 1.87 % fewer instructions,
+  ;;; queens 0.73 %, lookup 0.98 % (tools/flow/zero.sh) and the loop 1.52 %
+  ;;; (STATUS.md, 2.11.3).
+  (static) (inline)
+  (func coco_pred_count ((coco_store * st) (size_t pi)) (out size_t)
+        (if ($ (nth pi (-> st preds)) loaded)
+            (return ($ (nth pi (-> st preds)) nclauses)))
+        (return (coco_pred_ready st pi)))
 
   ;;; ------------------------------------------------------------------
   ;;; PRE-WARM: the predicates a MODULE owns that the knowledge base has no

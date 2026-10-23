@@ -492,10 +492,16 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 
 ## Measuring
 
-* **A within-run pair or nothing.** This box drifts ~20 % between runs of one
-  build. Compare two builds in ONE round, back to back, and settle a few per
-  cent with five alternating pairs; a ratio under ~3x from medians alone
-  means nothing on the pooled rigs.
+* **A within-run pair or nothing, and even that is coarse.** This box drifts
+  ~20 % between runs of one build. Compare two builds in ONE round, back to
+  back, alternating or in rotation. Even then, ten rounds settle a ratio no
+  closer than about a tenth, and thirty about 5 % (Run X,
+  bench/README.md: a round of ten read 2.11.2 at 1.13 times 2.2.5 on nrev and
+  2.11.3 at 0.87 of 2.11.2, and the round of thirty after it 1.01 and 0.95).
+  A change of a few per cent is settled by its counts (`tools/flow/zero.sh`,
+  callgrind's calls per function); the clock only shows that nothing larger
+  moved. A ratio under ~3x from medians alone means nothing on the pooled
+  rigs.
 * **An inference count is not a clock, and a clock is not a count.** Count
   inferences (`statistics/2`, `call_metered/4`) to find a cost, time to
   confirm it; a lookup with its first argument unbound is one call in the
@@ -1886,10 +1892,18 @@ cocolint index offers no import of it.
   back whole, and through 2.11.0 a write over a partial read deleted the
   unread rows from the database (an outside review's finding, reproduced on
   the server).
-* **The step asks `coco_pred_ready` (weak)**, which answers the clause count,
-  or 0 after a failed read. The step tests it where it always tested the
-  count, and catches the failure on the no-clauses path, ahead of the dynamic
-  arm.
+* **The step asks `coco_pred_count` (inline, 2.11.3)**: a predicate read
+  already answers its clause count there, and one not read yet calls
+  `coco_pred_ready` (weak, cold), which answers the count, or 0 after a
+  failed read. The step tests it where it always tested the count, and
+  catches the failure on the no-clauses path, ahead of the dynamic arm.
+* **A barrier, a lock or a `defer` in a function the step calls can take it
+  out of line.** 2.9.0's write barrier in `coco_pred_ensure` did, and every
+  call of a plain predicate paid a call of 19 instructions. That was the
+  green world's whole cost to the untraced engine (nrev +2.53 %, queens
+  +1.39 %, lookup +1.13 %), and it ran uncounted through eight releases,
+  2.9.0 to 2.11.0 (STATUS.md, 2.11.3). Before and after a change to anything the step loop
+  reaches, count `tools/flow/zero.sh`, and callgrind's calls per function.
 * **A branch added to the step loop moves clang's estimate of every block
   after it.** The first cut tested `coco_pred_ensure`'s answer in the loop,
   and the zero heuristic gave the failure 3/8 of each call's path. The loop's

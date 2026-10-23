@@ -7236,3 +7236,107 @@ PROVED:
   rebuilt before the run: it was older than 2.10.1's change to
   `modules/ray/ray.cicili`, so 2.11.1's run had loaded the module from before
   that change.
+
+## The green world's cost was one call, and the step answers it inline (2.11.3)
+
+The owner's word: find the slowness root. Run W (bench/README.md) counted
+2.2.5 to 2.11.2 and found that the green world, 2.6.0 to 2.10.1, had cost
+the single-threaded engine 1.1-2.3 % of its instructions, which no release
+had counted as it landed.
+
+THE BISECTION. All twelve releases from 2.5.1 to 2.10.1 were built from
+their release commits, each in a worktree of its own, by this box's clang
+and Cicili 3.1.0. They were counted in one invocation of
+`tools/flow/zero.sh`, with 2.2.5, 2.11.1, 2.11.2 and this release beside
+them. Work less padding:
+
+| step | nrev | queens | lookup |
+|---|---|---|---|
+| 2.5.1 to 2.6.0, and 2.6.0 to 2.7.0 | −0.00 % | +0.00 % | +0.00 % |
+| 2.7.0 to 2.8.0 | −0.34 % | +0.00 % | +0.01 % |
+| 2.8.0 to 2.8.1 | +0.00 % | +0.00 % | +0.03 % |
+| **2.8.1 to 2.9.0** | **+2.53 %** | **+1.39 %** | **+1.13 %** |
+| 2.9.0 to 2.10.1, six releases | −0.00 % | −0.00 % | −0.03 % |
+| 2.10.1 to 2.11.1 | −1.21 % | −0.22 % | −0.60 % |
+| 2.11.1 to 2.11.2 | −1.22 % | −0.30 % | −0.60 % |
+| **2.11.2 to 2.11.3** | **−1.87 %** | **−0.73 %** | **−0.98 %** |
+
+The cost is one release. 2.8.0's −0.34 % on nrev is `memcpy` alone, two
+calls fewer in the reps (−229 408), not the step loop.
+
+THE ROOT, read per function: callgrind's self instructions and the calls
+into each function, the reps less none, as zero.sh counts the whole.
+
+- **Through 2.8.1, `coco_pred_ensure` costs nothing of its own and is never
+  called.** Clang inlined it into `coco_engine_run`, so a call of a plain
+  predicate paid only its first two tests: out of range, and loaded.
+- **2.9.0 put the write barrier into it**, `coco_g_write_begin` bound with a
+  `defer` of `coco_g_write_end_cleanup` after those two tests. The bigger
+  body was no longer inlined. It is called once for every call of a plain
+  predicate, at 19 instructions:
+  - nrev: 105 060 calls, 1 996 140 instructions;
+  - queens: 28 885 calls;
+  - lookup: 40 040 calls;
+  - the counting loop: 400 008 calls, 7 600 152 instructions.
+
+  The step loop itself ran a few fewer instructions with the body gone
+  (nrev −96 972).
+- **Nothing else of 2.9.0 counts.** The barrier on findall's puts
+  (`coco_store_put`: 92 a search of queens, 37 instructions each) and on a
+  clause's first compile (1 003 in lookup) cost thousands of instructions,
+  not millions.
+- **2.11.1 made the step's call `coco_pred_ready` (weak)**, 12 instructions
+  a call: its −1.21 %, −0.22 % and −0.60 % above. It was still a call for
+  every call.
+
+THE FIX. `coco_pred_count` (lib/kb.cicili) is `(static) (inline)`. A
+predicate read already answers its clause count there, inline. One not read
+yet -- its first call, or the next after a read that failed -- calls
+`coco_pred_ready`, now `(weak) (cold)`. The step's two sites call
+`coco_pred_count`, and what each answers is what `coco_pred_ready` answered.
+Against 2.11.2, per function:
+
+- `coco_pred_ready`'s whole cost goes. On nrev it was 1 260 720
+  instructions; on queens 346 630 become 34, the two calls of a first read.
+- `coco_engine_run` runs a few instructions FEWER: nrev −2 044, lookup
+  −40 043, queens's nested engine −55 783, the loop 0.
+- Nothing new is called out of line. `coco_push_choice` and `coco_arg_key`,
+  the two 2.11.1 saw pushed out, stay inline.
+
+The counting loop, `main(100000,4)` less `main(100000,0)` with its padding,
+falls from 78 740 972 instructions a rep on 2.11.2 to 77 540 938 (−1.52 %).
+2.8.1 ran 77 940 935.
+
+WHERE IT STANDS:
+
+- Against 2.8.1, the last release before the barrier: nrev −1.83 %, queens
+  +0.12 %, lookup −1.07 %, the loop −0.51 %.
+- Against Run U's 2.2.5: nrev −1.10 %, queens +1.64 %, lookup +0.48 %, the
+  loop −0.24 %. What is left above 2.2.5 is 2.3.0's update view and 2.5.0's
+  rational tag (2.2.5 to 2.5.1: +1.09 %, +1.52 %, +1.53 %), each counted
+  when it landed.
+
+THE CLOCK says nothing either way. Ten alternating pairs of user time,
+2.11.3 against 2.11.2 at the bench's reps, read 0.951 (nrev), 0.990
+(queens), 1.042 (the loop), 0.956 (lookup) and 1.060 (sortnums). The counts
+are the record.
+
+THE LESSON. A barrier, a lock or a `defer` added to a function the step loop
+calls can take that function out of line. The cost then lands in every call,
+while the function's own code reads as unchanged. 2.9.0 proved its barrier
+with cases, a concurrency stress and the full suite, and counted no zero.sh.
+CLAUDE.md now says to count it.
+
+PROVED:
+
+- The built 2.11.3 counts the arm's numbers to within 0.02 %.
+- Green: `errors`; `zigurat-lib` (the failed read over the server, and a
+  write over it refused); `kbs`; `async`; `engine`; `gc`; `window`;
+  `flowdebug`; and the `solve`, `module`, `state`, `zigurat` and `shared`
+  binaries.
+- The dialect card's cites check, with two ranges the edit moved corrected
+  (I1, W1).
+- The suite on 2.11.3, with the server up: 75 lines, red 0, in 20 minutes.
+  The 5 SKIPs are tensors, torch-graph, torch-grad, torch-replay and
+  tensorflow (no CUDA on this box). The lint case ran alone first, green in
+  173 s.
