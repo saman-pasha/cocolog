@@ -62,14 +62,14 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `9d74a5e` (3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` (3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let four in by name: 2.0.0's split, 2026-10-11,
+not an applied one (the owner let five in by name: 2.0.0's split, 2026-10-11,
 2.0.1's and 2.0.2's arrow through a call and 3.0.0's double literals,
-2026-10-12).
+2026-10-12, and 3.1.0's `(cold)`, 2026-10-23).
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
@@ -655,6 +655,17 @@ much later.
   inlines, and with `(static)` no C at all (`weak declaration cannot have
   internal linkage`). A helper two hot callers share and clang leaves out of
   line is an `(inline)` (the reader's three, 1.10.7).
+* **`(cold)` is seldom called** (Cicili 3.1.0, `cc24ae0`): it writes
+  `__attribute__((cold))` before the definition and before a `(decl)`
+  prototype, where a caller in another file learns it. Clang takes a block
+  that calls it as unlikely, lays the caller's hot path out without it, and
+  weighs the caller's other calls for inlining without its weight; the
+  function is optimised for size, inlined only if it is tiny, and put in
+  `.text.unlikely`. `(weak) (cold)` is a slow path kept out of line whose
+  callers know it (the growths, 2.11.2); `(inline) (cold)` is refused. A hot
+  function's rare call that clang's guess weighs as common is what it is
+  for -- measured, as everything here: marking every error raiser cold made
+  lookup dearer (STATUS.md, 2.11.2).
 * **The macro tables emit several things that must not drift apart**
   (`*cell-tags*`, `*operators*`, `*builtins*`, `*turn-outcomes*`,
   `*construct-names*`): **add to the table, never to the generated code.** A
@@ -1858,7 +1869,10 @@ cocolint index offers no import of it.
   calls to it), and `(static)` lets clang inline it back the same way.
   Weak, against 1.10.27 (`tools/flow/zero.sh`, work less padding): nrev
   +0.63 % (all of it `coco_clause_run_r`, whose heap tests now carry a
-  call), queens -2.5 %, lookup -1.6 %.
+  call), queens -2.5 %, lookup -1.6 %. **And cold since 2.11.2**
+  (`(weak) (cold)`, and `coco_grow_short` `(cold)`): against 2.11.1 nrev
+  -1.22 %, queens -0.30 %, lookup -0.58 %, and `coco_clause_run_r` 2.0 %
+  fewer instructions on nrev -- 1.10.28's +0.63 % taken back and more.
 * **A read of the knowledge base is all of a predicate or none, and one
   that failed raises** (2.11.1; STATUS.md). `coco_pred_ensure` answers 0,
   takes back what the fetch put in (`coco_pred_cut_back`), leaves `loaded`
@@ -1885,7 +1899,14 @@ cocolint index offers no import of it.
   - moving the cold code out of line (identical counts);
   - `__builtin_expect` in an inline helper (it is lowered before inlining).
 
-  Fold the test into one the loop already makes.
+  `(cold)` on the raise (Cicili 3.1.0, 2.11.2's arms) brought both back
+  inline -- the first cut's queens +3.30 % against 2.11.1 became +0.70 % --
+  but left nrev +2.0 % and lookup +1.4 %. Fold the test into one the loop
+  already makes, and make cold what cannot be folded. Marking the loop's
+  other rare callees cold is placement's lottery, not a rule: the tracer's,
+  the limit's and the failed read's each moved nrev about -0.17 % and
+  lookup +0.17 % alike, and the three with the growths gave the growths'
+  own numbers to within 0.02 % (STATUS.md).
 * **A growth goes through a second pointer** (`grown`), never
   `x = realloc(x, n)`, which loses the block on a refusal and writes on
   through null. 2.11.1 found fifteen such sites, the Zigurat fetch's among
