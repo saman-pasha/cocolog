@@ -1000,9 +1000,11 @@
     (member size_t *  pred_buckets)       ; open addressing, index+1, 0 is empty
     (member size_t    pred_bucket_cap)
 
-    ;; The backend. Called at most once per predicate, with the store to fill
-    ;; in; answers 1 if it looked (whether or not it found anything) and 0 if
-    ;; it could not. A null hook is a purely local knowledge base.
+    ;; The backend. Called once per predicate, with the store to fill in;
+    ;; answers 1 if it looked (whether or not it found anything) and 0 if it
+    ;; could not, with the reason in `fetch_err' and `fetch_oom' set when the
+    ;; reason was memory. A fetch that answers 0 is asked again by the next
+    ;; call (`coco_pred_ensure'). A null hook is a purely local knowledge base.
     (member func fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int))
     (member void *    ctx)
 
@@ -1035,6 +1037,18 @@
     ;; under `use_module' and under the engine's ask, neither of which sees
     ;; the consult's own buffer; each reads this and says it.
     (member char      load_err [512])
+
+    ;; WHY THE LAST READ OF A PREDICATE FROM THE BACKEND FAILED (2.11.1), as
+    ;; a sentence, or empty; the predicate it was for; and whether memory
+    ;; was what it lacked. `coco_pred_ensure' runs below the engine and has
+    ;; no ball to throw, so it leaves the three here for the caller that
+    ;; does -- `coco_fetch_error' (lib/solve.cicili) raises
+    ;; error(resource_error(knowledge_base), context(Name/Arity, Why)) from
+    ;; them, or resource_error(memory). The backend's fetch writes the
+    ;; sentence; a fetch that fails without one gets a plain one.
+    (member char      fetch_err [256])
+    (member size_t    fetch_pi)
+    (member int       fetch_oom)
 
     ;; Set when a clause is asserted, so a backend can write through. Null for
     ;; a store that is not backed by anything.
@@ -1696,7 +1710,15 @@
                                 (size_t * head) (size_t * body)))
 
   ;;; Makes sure a predicate's clauses are present, asking the backend once.
+  ;;; 0 when the read failed (2.11.1): nothing of it is kept, the reason is on
+  ;;; the store (`fetch_err'), and the caller refuses -- raising through
+  ;;; `coco_fetch_error' (lib/solve.cicili) -- rather than read on.
   (decl) (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int))
+
+  ;;; The same, answering the clauses the predicate has -- 0 when the read
+  ;;; failed, which `loaded' left 0 tells from a predicate with none: the
+  ;;; step's form of the question (2.11.1).
+  (decl) (func coco_pred_ready ((coco_store * st) (size_t pi)) (out size_t))
 
   ;;; Brings every predicate the backend holds into the store, by name only.
   ;;; Answers 1 whether or not there was a backend to ask.
@@ -1717,7 +1739,9 @@
   ;;; interpreter, and declaring it here must not stop the backend being asked.
   (decl) (func coco_pred_dynamic ((coco_store * st) (u64 name) (u32 arity)) (out int))
 
-  ;;; Removes the first clause whose head and body unify with the given term.
+  ;;; Removes the first clause whose head and body unify with the given term:
+  ;;; 1 when one went, 0 when none matched, -1 when the predicate could not be
+  ;;; read from the backend (the reason in `fetch_err', 2.11.1).
   (decl) (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int))
 
   ;;; Declares every predicate a `dynamic' spec names. SPEC is a predicate
@@ -5240,21 +5264,57 @@
   ;;; The backend is asked once per predicate and the answer is remembered
   ;;; whether or not it produced clauses -- otherwise a call to an undefined
   ;;; predicate inside a loop is a database round trip per iteration.
+  ;;;
+  ;;; A READ THAT FAILED IS NO ANSWER (2.11.1), and is not remembered as one.
+  ;;; It answers 0 with the reason on the store (`fetch_err', `fetch_pi',
+  ;;; `fetch_oom') and leaves nothing behind: the clauses the fetch had added
+  ;;; before it failed are taken out again, the predicate is not marked
+  ;;; loaded, so the next call asks the backend again, and `empty_fetch'
+  ;;; stays unset, so the pre-warm never takes a failure for an absence.
+  ;;; Through 2.11.0 the predicate was marked loaded before the fetch and
+  ;;; kept whatever arrived, and every caller ignored the answer: one row
+  ;;; this binary could not read and the predicate answered the others in
+  ;;; silence -- and the next `assertz' rewrote it whole from that copy, and
+  ;;; the database lost the row (an outside review's finding, reproduced on
+  ;;; the server). Every caller now raises on the 0 (`coco_fetch_error' in
+  ;;; lib/solve.cicili), and a write refuses before it touches the predicate.
+  ;;;
+  ;;; Out of range answers 1: there is nothing to ask about, and the caller's
+  ;;; own test of the index is what refuses it.
+  (static) (decl) (func coco_pred_cut_back ((coco_store * st) (size_t pi) (size_t keep)))
+
   (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int)
-        (if (>= pi (-> st npreds)) (return 0))
+        (if (>= pi (-> st npreds)) (return 1))
         (if ($ (nth pi (-> st preds)) loaded) (return 1))
         (let ((defer () coco_g_write_end_cleanup)
               (int began . #'(coco_g_write_begin nil)))
           (if ($ (nth pi (-> st preds)) loaded) (return 1))
+          ;; loaded BEFORE the hook runs: the clauses it asserts find the
+          ;; predicate loaded, and do not ask the backend again
           (set ($ (nth pi (-> st preds)) loaded) 1)
           (if (== (-> st fetch) nil) (return 1))
+          (set (nth 0 (-> st fetch_err)) (cast char 0))
+          (set (-> st fetch_oom) 0)
         ;; WHETHER THE BACKEND HAD ANYTHING, recorded where it can be seen:
         ;; the fetch is the only moment the difference shows, because a module's
         ;; predicate has its own clauses either way. `coco_store_prewarm' reads it.
         (let ((size_t before . #'($ (nth pi (-> st preds)) nclauses))
+              (size_t len0 . #'(-> st len))
               (int rc . #'((-> st fetch) st (-> st ctx)
                                             ($ (nth pi (-> st preds)) name)
                                             ($ (nth pi (-> st preds)) arity))))
+          (if (== rc 0)
+              (block
+                (coco_pred_cut_back st pi before)
+                ;; the cells those clauses were put into belong to nothing
+                ;; now; counted, the next compaction takes them
+                (if (> (-> st len) len0)
+                    (set (-> st dead) (+ (-> st dead) (- (-> st len) len0))))
+                (set ($ (nth pi (-> st preds)) loaded) 0)
+                (set (-> st fetch_pi) pi)
+                (if (== (nth 0 (-> st fetch_err)) (cast char 0))
+                    (snprintf (-> st fetch_err) 256 "%s" "the knowledge base did not answer"))
+                (return 0)))
           (if (== ($ (nth pi (-> st preds)) nclauses) before)
               (set ($ (nth pi (-> st preds)) empty_fetch) 1))
           ;; A DECLARATION AN EARLIER STORE ALREADY FOUND: mark this empty
@@ -5262,8 +5322,7 @@
           ;; is the whole-store warm on the existence-error path below,
           ;; every fresh `run_isolated' half. A NAME the backend has rows
           ;; for never reaches this test, because the fetch added them.
-          (if (and (!= rc 0)
-                   (!= (-> st warm) nil)
+          (if (and (!= (-> st warm) nil)
                    (== ($ (nth pi (-> st preds)) nclauses) before)
                    (not ($ (nth pi (-> st preds)) dynamic))
                    (!= (-> st name_m) nil)
@@ -5273,6 +5332,26 @@
                     ($ (nth pi (-> st preds)) arity)))
               (set ($ (nth pi (-> st preds)) dynamic) 1))
           (return rc))))
+
+  ;;; THE CLAUSES PI HAS, READ FROM THE BACKEND FIRST WHERE THEY WERE NOT
+  ;;; (2.11.1): `coco_pred_ensure', answering the count the step tests next
+  ;;; anyway, and 0 when the read failed. So a failed read takes the step's
+  ;;; way for a predicate with no clauses, where `loaded' (0 only after a
+  ;;; failed read) tells it from one and the step raises it, and the way for
+  ;;; a predicate with clauses has no test it did not have through 2.11.0.
+  ;;; (weak), never inlined: a test of the answer in the step loop itself
+  ;;; gave the failure 3/8 of every call's path in clang's estimate, which put
+  ;;; the loop's calls of `coco_push_choice' and `coco_arg_key' under its
+  ;;; threshold for a cold call site, and left them out of line (queens
+  ;;; +3.1 % of its work, tools/flow/zero.sh). A predicate read already is
+  ;;; answered here, without the call of `coco_pred_ensure' (two calls a
+  ;;; call cost naive reverse 2.6 % of its work).
+  (weak)
+  (func coco_pred_ready ((coco_store * st) (size_t pi)) (out size_t)
+        (if ($ (nth pi (-> st preds)) loaded)
+            (return ($ (nth pi (-> st preds)) nclauses)))
+        (if (not (coco_pred_ensure st pi)) (return 0))
+        (return ($ (nth pi (-> st preds)) nclauses)))
 
   ;;; ------------------------------------------------------------------
   ;;; PRE-WARM: the predicates a MODULE owns that the knowledge base has no
@@ -5894,6 +5973,24 @@
         (set (-> p nprobe) (? (and (== (-> p ntomb) 0) (<= (-> p nclauses) 4294967295))
                               (cast u32 (-> p nclauses)) 0)))
 
+  ;;; THE CLAUSES OF PI PAST THE FIRST KEEP, TAKEN BACK (2.11.1): what a
+  ;;; fetch had added when it failed (`coco_pred_ensure'). They are the last
+  ;;; ones -- a fetch appends, and nothing else touches the predicate while
+  ;;; it runs -- and no call has seen them, so they are simply dropped: their
+  ;;; programs, if any were made, the count, and every index, which named
+  ;;; their positions. Their cells the caller counts dead.
+  (static)
+  (func coco_pred_cut_back ((coco_store * st) (size_t pi) (size_t keep))
+        (if (>= pi (-> st npreds)) (return))
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (if (<= (-> p nclauses) keep) (return))
+          (for ((size_t i . keep)) (< i (-> p nclauses)) ((++ i))
+            (coco_code_drop st (nth i (-> p clauses))))
+          (set (-> p nclauses) keep)
+          (set (-> p tver) (+ (-> p tver) 1))
+          (coco_pred_nprobe p)
+          (coco_pred_unindex p)))
+
   (func coco_pred_dead ((coco_pred * p) (size_t i)) (out int)
         (return (and (!= (-> p ntomb) 0) (!= (nth i (-> p tomb)) 0))))
 
@@ -6502,6 +6599,8 @@
                           (int at_end) (u64 origin) (coco_origin_seen * seen)) (out int)
         (set clause (coco_deref m clause))
         (set (nth 0 (-> st assert_err)) (cast char 0))
+        ;; and the last read's reason, so a refusal below is this one's
+        (set (nth 0 (-> st fetch_err)) (cast char 0))
 
         ;; A GRAMMAR RULE IS REWRITTEN HERE AND NOWHERE ELSE. Everything that
         ;; puts a clause in the store comes through this function -- consulting
@@ -6637,7 +6736,22 @@
             ;; was asking the database about a predicate per library clause,
             ;; every start-up, in an arrangement where a predicate is a page
             ;; over the network.
-            (if (not (coco_store_is_muted st)) (coco_pred_ensure st pi))
+            ;;
+            ;; AND A PREDICATE THAT COULD NOT BE READ IS NOT WRITTEN (2.11.1).
+            ;; The backend writes a predicate back whole (`coco_zg_sync_pred'),
+            ;; so a clause added over a read that failed -- or over the part
+            ;; of it that arrived -- took every unread row out of the
+            ;; database. The clause is refused, the store's `fetch_err' says
+            ;; why, `coco_assert_goal' raises it, and a consult reports it as
+            ;; it reports a clause too long for a row and goes on.
+            (if (not (coco_store_is_muted st))
+                (if (not (coco_pred_ensure st pi))
+                    (block
+                      (snprintf (-> st assert_err) 256
+                                "%s/%u: the knowledge base could not be read, so the clause was not added: %s"
+                                (coco_atom_name m (coco_name_of m head)) (coco_arity m head)
+                                (-> st fetch_err))
+                      (return 0))))
             ;; THE RECONSULT: the first clause this consult adds to the
             ;; predicate first takes out what the same file put there last
             ;; time -- after the fetch, so the rows are here to be taken out,
@@ -7096,7 +7210,9 @@
           (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
                                                (coco_arity m head))))
             (if (>= pi (-> st npreds)) (return 0))
-            (coco_pred_ensure st pi)
+            ;; a predicate that could not be read is not written either
+            ;; (`coco_assert_from' says why): -1, and nothing is taken
+            (if (not (coco_pred_ensure st pi)) (return -1))
             (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
                   ;; the head's first-argument key, the same cell the index keeps
                   ;; per clause: two different non-zero keys cannot unify, so a

@@ -13,7 +13,8 @@
 %%   .cicili   seven test BINARIES -- term syntax solve module state zigurat
 %%             shared -- each transpiled by Cicili from test/<c>.cicili and
 %%             built through tools/cc, then run; the last line of what it
-%%             prints is GREEN, SKIP, or the failure.
+%%             prints is GREEN, SKIP, or the failure, and it counts only
+%%             from a binary that exited 0 (`binary_verdict/3').
 %%   .pl       every other case, `cocolog -s test/<c>.pl' from this checkout
 %%             root: THE EXIT CODE IS THE VERDICT, 0 exactly when its main
 %%             proved, which checks_done withholds on any red check; a line
@@ -100,11 +101,16 @@ cicili_each([C|Cs], Cicili, Sbcl, Red0, Red) :-
     shell(Build, BuildOut, BuildRc),
     (   BuildRc =:= 0
     ->  sh_join([Root, '/test/cocolog_', C, '_test 2>&1'], Run),
-        shell(Run, Out, _),
+        shell(Run, Out, RunRc),
         last_line(Out, Last),
-        (   sub_atom(Last, 0, _, _, 'GREEN') -> format("GREEN~n", []), Red1 = Red0
-        ;   sub_atom(Last, 0, _, _, 'SKIP') -> format("SKIP~n", []), Red1 = Red0
-        ;   sub_atom(Out, 0, _, _, 'SKIP') -> format("SKIP~n", []), Red1 = Red0
+        %% the exit status is half the verdict (`binary_verdict/3' in the
+        %% prelude): a binary that said GREEN and then died is red, and
+        %% the line says how it ended
+        binary_verdict(Out, RunRc, V),
+        (   V == green -> format("GREEN~n", []), Red1 = Red0
+        ;   V == skip -> format("SKIP~n", []), Red1 = Red0
+        ;   RunRc =\= 0 -> format("~w (exit status ~w)~n", [Last, RunRc]),
+                          fail_lines(Out), Red1 is Red0 + 1
         ;   format("~w~n", [Last]), fail_lines(Out), Red1 is Red0 + 1
         )
     ;   format("BUILD FAILED~n", []),

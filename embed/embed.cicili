@@ -52,6 +52,7 @@
   (include <cstdlib>)
   (include <string>)
   (include <vector>)
+  (include <new>)
   (include <pthread.h>)
   (include <unistd.h>)
   (include <time.h>)
@@ -206,13 +207,21 @@
         (set i (+ i 1))))
     (set (-> s argc) 0))
 
+  ;; A REFUSED ALLOCATION FAILS THE CALL (2.11.1): it throws
+  ;; std::bad_alloc, which `ce_exec' catches as it catches a refusal of the
+  ;; store's. Through 2.11.0 the token array was set from `realloc'
+  ;; whatever it answered and written through nil, a text field was a null
+  ;; one when `strdup' failed, and a vector field's doubles were left out
+  ;; with their count kept -- a crash, a clause read as no clause, a vector
+  ;; read as whatever the caller's buffer held.
   (func ce_tok ((CeSess * s)) (out CeTok *)
     (if (>= (-> s ntoks) (-> s captoks))
         (block
-          (let ((int grown . #'(? (== (-> s captoks) 0) 64 (* (-> s captoks) 2))))
-            (set (-> s toks)
-                 (cast (CeTok *) (realloc (cast (void *) (-> s toks))
+          (let ((int grown . #'(? (== (-> s captoks) 0) 64 (* (-> s captoks) 2)))
+                (void * more . #'(realloc (cast (void *) (-> s toks))
                                           (* (cast size_t grown) (sizeof CeTok)))))
+            (if (== more nil) (throw* (std::bad_alloc)))
+            (set (-> s toks) (cast (CeTok *) more))
             (set (-> s captoks) grown))))
     (let ((CeTok * t . #'(aof (nth (-> s ntoks) (-> s toks)))))
       (set (-> s ntoks) (+ (-> s ntoks) 1))
@@ -240,7 +249,8 @@
     (let ((CeTok * t . #'(ce_tok s)))
       (set (-> t kind) CE_FIELD)
       (set (-> t tag) tag)
-      (set (-> t str) (strdup v))))
+      (set (-> t str) (strdup v))
+      (if (== (-> t str) nil) (throw* (std::bad_alloc)))))
 
   ;; a Vector<Double> field: the doubles copied whole into the token, so
   ;; the row under the cursor may go out of scope before the read
@@ -252,9 +262,9 @@
       (if (> n 0)
           (block
             (set (-> t vec) (cast (double *) (malloc (* (cast size_t n) (sizeof double)))))
-            (if (!= (-> t vec) nil)
-                (memcpy (cast (void *) (-> t vec)) (cast (const void *) v)
-                        (* (cast size_t n) (sizeof double))))))))
+            (if (== (-> t vec) nil) (throw* (std::bad_alloc)))
+            (memcpy (cast (void *) (-> t vec)) (cast (const void *) v)
+                    (* (cast size_t n) (sizeof double)))))))
 
   ;; a cursor's header: the OPEN byte and the column list its reader
   ;; takes off the stream right after it
@@ -292,13 +302,17 @@
     (member int n)
     (member int cap))
 
+  ;; refused, the call fails before it deletes anything (`ce_tok' says
+  ;; how): an id dropped here was a row the delete then left in place, and
+  ;; a predicate written back over it held the clause twice
   (func ce_ids_push ((CeIds * ids) (int64_t id)) (out void)
     (if (>= (-> ids n) (-> ids cap))
         (block
-          (let ((int grown . #'(? (== (-> ids cap) 0) 32 (* (-> ids cap) 2))))
-            (set (-> ids v)
-                 (cast (int64_t *) (realloc (cast (void *) (-> ids v))
-                                            (* (cast size_t grown) (sizeof int64_t)))))
+          (let ((int grown . #'(? (== (-> ids cap) 0) 32 (* (-> ids cap) 2)))
+                (void * more . #'(realloc (cast (void *) (-> ids v))
+                                          (* (cast size_t grown) (sizeof int64_t)))))
+            (if (== more nil) (throw* (std::bad_alloc)))
+            (set (-> ids v) (cast (int64_t *) more))
             (set (-> ids cap) grown))))
     (set (nth (-> ids n) (-> ids v)) id)
     (set (-> ids n) (+ (-> ids n) 1)))
@@ -1136,6 +1150,19 @@
           (try (rollback_transaction (aof ce_mem))
                (catch ((const ZiguratException & e2)) (cast void e2)))
           (begin_transaction (aof ce_mem))
+          (set ok 0))
+        ;; MEMORY REFUSED, by this file (`ce_tok') or by the engine's own
+        ;; strings: the call fails as a refused one does, its half-made
+        ;; answer dropped and its half-made writes with the transaction.
+        ;; Through 2.11.0 nothing caught it and the process ended.
+        (catch ((const std::bad_alloc & e))
+          (cast void e)
+          (ce_toks_clear s)
+          (snprintf (-> s err) 512 "%s"
+                    "out of memory: the call was not answered, and its transaction was rolled back")
+          (try (rollback_transaction (aof ce_mem))
+               (catch ((const ZiguratException & e2)) (cast void e2)))
+          (begin_transaction (aof ce_mem))
           (set ok 0)))
       (ce_args_clear s)
       (return ok)))
@@ -1445,6 +1472,10 @@
         (set (nth (-> s argc) (-> s atag)) (cast uint8_t tag))
         (set (nth (-> s argc) (-> s anum)) 0)
         (set (nth (-> s argc) (-> s astr)) (strdup v))
+        ;; refused, the parameter is not taken: through 2.11.0 it was a null
+        ;; one, which `arg_str' reads as "" -- a forget of the empty name
+        (if (== (nth (-> s argc) (-> s astr)) nil)
+            (return (ce_fail s "out of memory taking a string parameter")))
         (set (nth (-> s argc) (-> s avec)) nil)
         (set (nth (-> s argc) (-> s avecn)) 0)
         (set (-> s argc) (+ (-> s argc) 1))
@@ -1527,7 +1558,13 @@
           (if (or (!= (-> t kind) CE_FIELD) (== (-> t str) nil))
               (return (ce_fail s "no text field here")))
           (set (-> s rtok) (+ (-> s rtok) 1))
-          (if (!= out nil) (set (cof out) (strdup (-> t str))))
+          ;; the field is taken off either way, so the reading stays in
+          ;; step; a copy refused is a failure, never a null text read as
+          ;; a good one (the client's own reader says the same words)
+          (if (!= out nil)
+              (block
+                (set (cof out) (strdup (-> t str)))
+                (if (== (cof out) nil) (return (ce_fail s "out of memory reading a Text")))))
           (if (!= len nil) (set (cof len) (strlen (-> t str))))
           (return 1))))
 

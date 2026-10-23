@@ -329,6 +329,9 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   `cocolog_out/2`, `spawn/2` and `unix_listening/1`. A check is a second process only when it
   genuinely must be (a consult's stderr, a store read back by another
   cocolog, a server, a goal that must be killable).
+* **A test binary is green only when it also exits 0** (`binary_verdict/3`
+  in the prelude, 2.11.1): through 2.11.0 the runner read its last line
+  alone, and a binary that printed GREEN and then crashed was green.
 * **A spawned server must be `exec`'d** (`spawn/2` does it), or `proc_stop/1`
   kills the shell and orphans the server, which then holds its port for the
   next run.
@@ -1856,6 +1859,37 @@ cocolint index offers no import of it.
   Weak, against 1.10.27 (`tools/flow/zero.sh`, work less padding): nrev
   +0.63 % (all of it `coco_clause_run_r`, whose heap tests now carry a
   call), queens -2.5 %, lookup -1.6 %.
+* **A read of the knowledge base is all of a predicate or none, and one
+  that failed raises** (2.11.1; STATUS.md). `coco_pred_ensure` answers 0,
+  takes back what the fetch put in (`coco_pred_cut_back`), leaves `loaded`
+  0 so the next call asks again, and leaves the reason on the store
+  (`fetch_err`, `fetch_pi`, `fetch_oom`). `coco_fetch_error`
+  (lib/solve.cicili) raises `error(resource_error(knowledge_base),
+  context(Name/Arity, Why))` from it, or `resource_error(memory)`. **A new
+  caller of `coco_pred_ensure` reads its 0**: it raises through
+  `coco_fetch_error`, or answers -1 to a caller that does. **A new writer
+  refuses before it touches the predicate**: the backend writes a predicate
+  back whole, and through 2.11.0 a write over a partial read deleted the
+  unread rows from the database (an outside review's finding, reproduced on
+  the server).
+* **The step asks `coco_pred_ready` (weak)**, which answers the clause count,
+  or 0 after a failed read. The step tests it where it always tested the
+  count, and catches the failure on the no-clauses path, ahead of the dynamic
+  arm.
+* **A branch added to the step loop moves clang's estimate of every block
+  after it.** The first cut tested `coco_pred_ensure`'s answer in the loop,
+  and the zero heuristic gave the failure 3/8 of each call's path. The loop's
+  calls of `coco_push_choice` and `coco_arg_key` fell under the cold call-site
+  threshold (45; `-Rpass-missed=inline` on the emitted `cocolog.c` names it)
+  and went out of line: queens +3.1 % of its work. Neither of these helps:
+  - moving the cold code out of line (identical counts);
+  - `__builtin_expect` in an inline helper (it is lowered before inlining).
+
+  Fold the test into one the loop already makes.
+* **A growth goes through a second pointer** (`grown`), never
+  `x = realloc(x, n)`, which loses the block on a refusal and writes on
+  through null. 2.11.1 found fifteen such sites, the Zigurat fetch's among
+  them, which crashed.
 * **A window asks where it stopped** (1.10.16, D4): `'$trace_window'/4`'s
   `ask(Cond, Holds)` proves Cond in an engine of its own (ten million
   inferences, no collection) between the run's end and the undo, over the

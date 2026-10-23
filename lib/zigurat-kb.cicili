@@ -332,15 +332,63 @@
           (return (? (< (-> x ordinal) (-> y ordinal)) -1
                      (? (> (-> x ordinal) (-> y ordinal)) 1 0)))))
 
+  ;;; A FETCH THAT FAILED, said where the store reads it (2.11.1): WHAT on
+  ;;; the store's `fetch_err' -- followed by the connection's own words when
+  ;;; WIRE says the connection is what failed -- and `fetch_oom' set when
+  ;;; memory was what ran out. Answers 0, the fetch's answer, which
+  ;;; `coco_pred_ensure' turns into a read that never happened and the
+  ;;; caller into resource_error.
+  (static)
+  (func coco_zg_fetch_fail ((coco_store * st) (coco_zg * z) (const char * what)
+                            (int wire) (int oom)) (out int)
+        (if wire
+            (coco_zg_fail z what)
+          (snprintf (-> z err) 256 "%s" what))
+        (snprintf (-> st fetch_err) 256 "%s" (-> z err))
+        (if oom (set (-> st fetch_oom) 1))
+        (return 0))
+
+  ;;; WHETHER THE CONNECTION'S LAST REFUSAL WAS MEMORY: the client's words
+  ;;; for a Text it had no room for (client/zigurat.c) and the embedded
+  ;;; store's (embed/embed.cicili), both cocolog's own.
+  (static)
+  (func coco_zg_was_memory ((coco_zg * z)) (out int)
+        (if (== (-> z db) nil) (return 0))
+        (return (!= (strstr (zg_error (-> z db)) "out of memory") nil)))
+
+  ;;; ONE PREDICATE OUT OF THE DATABASE, ALL OF IT OR NONE (2.11.1). Through
+  ;;; 2.11.0 a row that would not read was passed over and the rest of the
+  ;;; predicate went into the store anyway, with an answer of failure that
+  ;;; nobody read: the program saw a predicate a clause short, and the next
+  ;;; write rewrote the predicate from that copy (`coco_zg_sync_pred') and
+  ;;; the database lost the row. Now the first row that fails -- a Text
+  ;;; with no room to land in, a clause that is null, a clause that will not
+  ;;; read or will not go into the store -- is the fetch's failure, the
+  ;;; clauses this call had added are taken back by `coco_pred_ensure', and
+  ;;; the predicate is asked again by its next call.
+  ;;;
+  ;;; THE ANSWER IS READ TO ITS END whatever happened to a row: the rows
+  ;;; after a failed one are read past, so the connection stands where the
+  ;;; next call expects it. Only a connection that is gone (the client closes
+  ;;; it on a read that broke, `zg_is_open') stops the reading where it is.
+  ;;;
+  ;;; AND THE ROWS' ARRAY GROWS THROUGH A SECOND POINTER: `rows' set from
+  ;;; `realloc' was nil when the growth was refused, and the cleanup then
+  ;;; walked N bodies through it -- a crash where memory ran short.
   (func coco_zg_fetch ((coco_store * st) (void * ctx) (u64 name) (u32 arity)) (out int)
         (let ((coco_zg * z . #'(cast (coco_zg *) ctx))
               (coco_machine * m)
               (coco_zg_row * rows . nil)
               (size_t n . 0) (size_t cap . 0)
-              (int ok . 1)
+              ;; OK until the first failure; WHY says it, WIRE when the
+              ;; connection is what failed, OOM when memory did; GONE when the
+              ;; connection is closed and nothing more can be read
+              (int ok . 1) (int wire . 0) (int oom . 0) (int gone . 0)
+              (char why [192])
               (zg_result_t r)
               (char cols [256]))
           (set m (-> z m))
+          (set (nth 0 why) (cast char 0))
 
           ;; LEVEL WITH THE DATABASE BEFORE READING IT. Under a batch open
           ;; across a whole turn the store holds writes the database has not
@@ -351,35 +399,72 @@
           (coco_zg_flush z)
 
           (if (not (zg_call (-> z db) "cocolog::clauses_of"))
-              (return (coco_zg_fail z "clauses_of")))
-          (if (not (zg_write_string (-> z db) (-> z kb))) (return (coco_zg_fail z "kb")))
+              (return (coco_zg_fetch_fail st z "calling cocolog::clauses_of" 1 0)))
+          (if (not (zg_write_string (-> z db) (-> z kb)))
+              (return (coco_zg_fetch_fail st z "sending the knowledge base's name" 1 0)))
           (if (not (zg_write_string (-> z db) (coco_atom_name m name)))
-              (return (coco_zg_fail z "name")))
+              (return (coco_zg_fetch_fail st z "sending the predicate's name" 1 0)))
           (if (not (zg_write_int (-> z db) (cast i32 arity)))
-              (return (coco_zg_fail z "arity")))
+              (return (coco_zg_fetch_fail st z "sending the predicate's arity" 1 0)))
 
-          (while ok
-            (if (not (zg_result (-> z db) (aof r))) (block (set ok 0) break))
+          (while (not gone)
+            (if (not (zg_result (-> z db) (aof r)))
+                (block
+                  (if ok (block (snprintf why 192 "%s" "reading the answer") (set wire 1)))
+                  (set ok 0) (set gone 1) break))
             (if (== r ZG_SUCCESSFUL_DONE) break)
             (cond
               ((== r ZG_CURSOR_OPEN)
-               (if (not (zg_columns (-> z db) cols 256)) (set ok 0)))
+               (if (not (zg_columns (-> z db) cols 256))
+                   (block
+                     (if ok (block (snprintf why 192 "%s" "reading the answer's columns")
+                                   (set wire 1)))
+                     (set ok 0)
+                     (if (not (zg_is_open (-> z db))) (set gone 1)))))
               ((== r ZG_CURSOR_FETCH)
-               (let ((i64 ord . 0) (char * body . nil))
-                 (if (not (zg_read_long (-> z db) (aof ord) nil)) (block (set ok 0) break))
-                 (if (not (zg_read_text_alloc (-> z db) (aof body) nil nil))
-                     (block (set ok 0) break))
-                 (if (>= n cap)
-                     (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2))))
-                       (set rows (cast (coco_zg_row *)
-                                       (realloc rows (* ncap (sizeof coco_zg_row)))))
-                       (if (== rows nil) (block (set ok 0) (free body) break))
-                       (set cap ncap)))
-                 (set ($ (nth n rows) ordinal) ord)
-                 (set ($ (nth n rows) body) body)
-                 (set n (+ n 1))))
+               (if (not ok)
+                   ;; PAST A ROW THAT FAILED: this one is read past, its
+                   ;; two fields, so the answer still ends where it should
+                   (if (not (and (zg_skip_field (-> z db)) (zg_skip_field (-> z db))))
+                       (set gone 1))
+                 (let ((i64 ord . 0) (char * body . nil))
+                   (cond
+                     ((not (zg_read_long (-> z db) (aof ord) nil))
+                      (snprintf why 192 "%s" "reading a row's ordinal")
+                      (set ok 0) (set wire 1)
+                      (if (zg_is_open (-> z db))
+                          (if (not (zg_skip_field (-> z db))) (set gone 1))
+                        (set gone 1)))
+                     ((not (zg_read_text_alloc (-> z db) (aof body) nil nil))
+                      (snprintf why 192 "%s" "reading a row's clause")
+                      (set ok 0) (set wire 1)
+                      (if (coco_zg_was_memory z) (set oom 1))
+                      (if (not (zg_is_open (-> z db))) (set gone 1)))
+                     ((== body nil)
+                      (snprintf why 192 "the row at ordinal %lld has no clause" (cast llong ord))
+                      (set ok 0))
+                     (#t
+                      (if (>= n cap)
+                          (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
+                                (void * grown . #'(realloc (cast (void *) rows)
+                                                           (* ncap (sizeof coco_zg_row)))))
+                            (if (== grown nil)
+                                (block (snprintf why 192 "%s" "no memory for the rows")
+                                       (set ok 0) (set oom 1))
+                              (block (set rows (cast (coco_zg_row *) grown))
+                                     (set cap ncap)))))
+                      (if ok
+                          (block (set ($ (nth n rows) ordinal) ord)
+                                 (set ($ (nth n rows) body) body)
+                                 (set n (+ n 1)))
+                        (free (cast (void *) body))))))))
               ((== r ZG_RETURN_VALUE)
-               (if (not (zg_skip_field (-> z db))) (set ok 0)))
+               (if (not (zg_skip_field (-> z db)))
+                   (block
+                     (if ok (block (snprintf why 192 "%s" "reading the answer's return value")
+                                   (set wire 1)))
+                     (set ok 0)
+                     (if (not (zg_is_open (-> z db))) (set gone 1)))))
               (#t (block))))
 
           (if ok
@@ -395,23 +480,33 @@
                ;; 12 % of the first call of a lesson predicate of 31 000
                ;; clauses, every clause written to be measured and dropped.
                (let ((int was . #'(-> z write_through))
-                     (size_t fit . #'(-> st clause_max)))
+                     (size_t fit . #'(-> st clause_max))
+                     (int oom0 . #'(-> st oom)))
                  (set (-> z write_through) 0)
                  (set (-> st clause_max) 0)
                  (for ((size_t i . 0)) (< i n) ((++ i))
                    (let ((size_t t) (size_t mark . #'(-> m heap_len)))
-                     (if (coco_read_term_from m ($ (nth i rows) body) (aof t))
-                         (coco_assert_stored st m t)
-                       (set ok 0))
+                     (cond
+                       ((not (coco_read_term_from m ($ (nth i rows) body) (aof t)))
+                        (snprintf why 192 "the row at ordinal %lld does not read as a clause"
+                                  (cast llong ($ (nth i rows) ordinal)))
+                        (set ok 0))
+                       ((not (coco_assert_stored st m t))
+                        (snprintf why 192 "the row at ordinal %lld did not go into the store"
+                                  (cast llong ($ (nth i rows) ordinal)))
+                        (if (and (== oom0 0) (!= (-> st oom) 0)) (set oom 1))
+                        (set ok 0))
+                       (#t (block)))
                      ;; the clause now lives in the store, so the copy that was
                      ;; parsed on to the heap is not needed
-                     (set (-> m heap_len) mark)))
+                     (set (-> m heap_len) mark)
+                     (if (not ok) break)))
                  (set (-> st clause_max) fit)
                  (set (-> z write_through) was))))
 
           (for ((size_t i . 0)) (< i n) ((++ i)) (free ($ (nth i rows) body)))
-          (free rows)
-          (if (not ok) (return (coco_zg_fail z "reading clauses")))
+          (free (cast (void *) rows))
+          (if (not ok) (return (coco_zg_fetch_fail st z why wire oom)))
           (return 1)))
 
   ;;; ---- writing a predicate back ----------------------------------------

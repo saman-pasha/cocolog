@@ -14,15 +14,18 @@
 %%         answers are held to in test/astar.pl
 %%
 %%     astar(+Start, +Goal, :Neighbor, :Heuristic, +Mark-Seen, -Path, -Cost)
-%%         the same with a closed set the caller owns: Mark(Node) records,
-%%         Seen(Node) tests. The set is not reset by the search, so the
-%%         caller clears it first; an indexed game table can replace the
-%%         ordered list astar/6 keeps.
+%%         the same with a closed set the caller can see: Mark(Node)
+%%         records each node expanded, once; Seen(Node) tests, and a node
+%%         the caller recorded before the search is never searched -- a
+%%         wall kept in the game's own rows. The set is not reset by the
+%%         search, so the caller clears it first.
 %%
 %% Path carries both endpoints, Start first; Cost is the sum of the
 %% steps; Start == Goal answers [Start] and 0; unreachable FAILS, an
 %% ordinary no. Ties in the open list break by the standard order of
-%% terms, so the same question is always the same path.
+%% terms, so the same question is always the same path. The cost is the
+%% least whenever the heuristic never overestimates: a node reached more
+%% cheaply after it was expanded is expanded again (since cocolog 2.11.1).
 %%
 %% The neighbor goal is where this belongs to Prolog: it is
 %% NONDETERMINISTIC, and for a game it is the game's own movement rule
@@ -41,6 +44,15 @@ wall(hex(-1, 0)).
 
 step(A, B, 1) :- hex_neighbor(A, _, B), on_map(B), \+ wall(B).
 toward_goal(N, H) :- hex_distance(N, hex(0, -3), H).
+
+%% A graph where the estimate never overestimates and still misleads: h(b)
+%% is the true 3, and it makes b look worse than it is on the way to a.
+road(s, a, 3).
+road(a, g, 2).
+road(s, b, 1).
+road(b, a, 1).
+guess(b, 3).
+guess(N, 0) :- N \== b.
 
 main :-
     format("~n-- a path, around the wall~n"),
@@ -65,6 +77,12 @@ main :-
     ->  must('unreachable fails', reached, no_path)
     ;   must('unreachable fails', no_path, no_path)
     ),
+
+    format("~n-- an estimate that never overestimates is enough~n"),
+    %% s-a is reached first (3 + 0 looks better than 1 + 3), and a is only
+    %% later reached more cheaply through b -- so a is expanded again
+    astar(s, g, road, guess, Way, WayCost),
+    must('the cheapest way, though a was expanded first the dear way', Way-WayCost, [s, b, a, g]-4),
 
     format("~ndone~n").
 

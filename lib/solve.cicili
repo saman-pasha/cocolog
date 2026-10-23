@@ -1986,6 +1986,32 @@
               (size_t k . #'(coco_new_int m (cast i64 n))))
           (return (coco_make2 m "/" a k))))
 
+  ;;; WHAT A READ OF THE KNOWLEDGE BASE THAT FAILED RAISES (2.11.1):
+  ;;; error(resource_error(knowledge_base), context(Name/Arity, Why)) -- the
+  ;;; predicate the read was for and the backend's sentence -- or, when
+  ;;; memory is what ran out, error(resource_error(memory), _), as every
+  ;;; refused allocation raises (`coco_mem_error'). `coco_pred_ensure' runs
+  ;;; below the engine and leaves the three on the store (`fetch_err',
+  ;;; `fetch_pi', `fetch_oom'); every caller that gets its 0 comes here,
+  ;;; where through 2.11.0 they all read the predicate as it stood -- empty
+  ;;; or a clause short -- and went on. (weak), never inlined, for the step
+  ;;; loop's sake (`coco_fetch_error_regs').
+  (weak)
+  (func coco_fetch_error ((coco_engine * e)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st)))
+          (if (-> st fetch_oom) (return (coco_mem_error e)))
+          (let ((size_t ind . 0) (size_t why . 0) (size_t ball . 0))
+            (if (< (-> st fetch_pi) (-> st npreds))
+                (set ind (coco_indicator m ($ (nth (-> st fetch_pi) (-> st preds)) name)
+                                         ($ (nth (-> st fetch_pi) (-> st preds)) arity)))
+              (set ind (coco_new_var m)))
+            (set why (coco_new_atom m (-> st fetch_err)))
+            (set ball (coco_make2 m "error"
+                                  (coco_make1 m "resource_error" (coco_new_atom m "knowledge_base"))
+                                  (coco_make2 m "context" ind why)))
+            (return (? (== 1 (coco_throw e ball)) 2 -1)))))
+
   ;;; ---- the journal (1.10.15) ----------------------------------------------
   ;;; `coco_jrnl' in the declarations says what it is. All of it runs only
   ;;; while `'$trace_window'/4' holds a journal: the module seam's three
@@ -2770,6 +2796,28 @@
           (for ((u32 i . 0)) (< i n) ((++ i))
             (set (nth (+ h (+ (cast size_t i) 1)) (-> m heap)) (coco-cell REF (nth i a))))
           (return h)))
+
+  ;;; A READ OF THE KNOWLEDGE BASE THAT FAILED, FOR A CALL IN THE REGISTERS
+  ;;; (2.11.1): the call built as its term, to be named as the goal in
+  ;;; flight, and `coco_fetch_error' raised over it -- 0 when the heap had no
+  ;;; room for the term (`coco_k_room' set `halted', and the run stops at the
+  ;;; next step's top), else what the raise answers. It and
+  ;;; `coco_fetch_error_goal' are (weak), never inlined, so the step loop
+  ;;; holds a call where it would hold the ball's construction; the step
+  ;;; reaches them only from its way for a predicate with no clauses
+  ;;; (`coco_pred_ready' in lib/kb.cicili says why there).
+  (weak)
+  (func coco_fetch_error_regs ((coco_engine * e)) (out int)
+        (let ((size_t gt . #'(coco_areg_term e)))
+          (if (== gt 0) (return 0))
+          (set (-> e kcall) gt)
+          (return (coco_fetch_error e))))
+
+  ;;; the same for a call that is a term already
+  (weak)
+  (func coco_fetch_error_goal ((coco_engine * e) (size_t g)) (out int)
+        (set (-> e kcall) g)
+        (return (coco_fetch_error e)))
 
   ;;; THE HANDED-OVER GOAL BACK ON THE CONTINUATION, as the frame
   ;;; `coco_try_clause' did not build for it (`ngoal' on the engine). Called
@@ -4540,10 +4588,32 @@
                        (snprintf out len "Cannot represent due to `%s'" a1)
                        (return)))
 
+            ;; AND WHAT THE BALL SAYS BESIDES (2.11.1), in SWI's shape, when
+            ;; its context is context(P, Why) -- "P: Not enough resources: K
+            ;; (Why)", Why unquoted -- which is how a read of the knowledge base
+            ;; that failed says which predicate and why (`coco_fetch_error').
+            ;; The other formals do not read their context yet.
             (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
-                       (snprintf out len "Not enough resources: %s" a1)
-                       (return)))
+                (let ((size_t cx . #'(coco_deref m (coco_arg m b 1)))
+                      (int has_p . 0) (int has_w . 0))
+                  (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                  (if (coco_is_compound2 m cx "context")
+                      (let ((size_t cp . #'(coco_deref m (coco_arg m cx 0)))
+                            (size_t cw . #'(coco_deref m (coco_arg m cx 1))))
+                        (if (not (coco-tag-is REF (nth cp (-> m heap))))
+                            (block (coco_err_say m cp a2 (sizeof a2)) (set has_p 1)))
+                        (if (not (coco-tag-is REF (nth cw (-> m heap))))
+                            (let ((coco_strbuf wb))
+                              (coco_sb_init (aof wb))
+                              (coco_write_term m (aof wb) cw 0 0)
+                              (snprintf a3 (sizeof a3) "%s" (? (== ($ wb s) nil) "?" ($ wb s)))
+                              (coco_sb_free (aof wb))
+                              (set has_w 1)))))
+                  (snprintf out len "%s%sNot enough resources: %s%s%s%s"
+                            (? has_p (cast (const char *) a2) "") (? has_p ": " "") a1
+                            (? has_w " (" "") (? has_w (cast (const char *) a3) "")
+                            (? has_w ")" ""))
+                  (return)))
 
             (if (and (== fa 1) (== 0 (strcmp fn "syntax_error")))
                 (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
@@ -6608,9 +6678,19 @@
                        (let ((size_t pi . #'($ (nth (cast size_t (-> e afid)) (-> m functors)) pidx))
                              (int r . -1))
                          (set (-> e nset) 0)
-                         (coco_pred_ensure st pi)
-                         (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds)))))
-                           (if (> (-> p nclauses) 0)
+                         ;; the clauses, read first where they were not; 0 for a
+                         ;; read that failed (`coco_pred_ready', 2.11.1)
+                         (let ((size_t pn . #'(coco_pred_ready st pi))
+                               (coco_pred * p . #'(aof (nth pi ($ (cof st) preds)))))
+                           ;; A READ THAT FAILED RAISES (2.11.1): `loaded' 0
+                           ;; after the ask, the call built as its term to be
+                           ;; named as the goal in flight; a caught raise, or no
+                           ;; room for the term, goes round
+                           (if (and (== pn 0) (not (-> p loaded)))
+                               (block
+                                 (if (< (coco_fetch_error_regs e) 0) (return -1))
+                                 continue))
+                           (if (> pn 0)
                                (let ((u64 key . #'(coco_cell_key m (nth (* (cast size_t (-> e acur)) 8)
                                                                        (-> e areg))))
                                      (size_t ix0 . 0) (int det . -1))
@@ -6831,9 +6911,10 @@
                            ;; caller reads as success.
                            (if (!= 2 (coco_type_error e "callable" g)) (return -1)))
                           (#t
-                           (coco_pred_ensure st pi)
                            (cond
-                            ((> ($ (nth pi ($ (cof st) preds)) nclauses) 0)
+                            ;; the clauses, read first where they were not; 0
+                            ;; for a read that failed (`coco_pred_ready', 2.11.1)
+                            ((> (coco_pred_ready st pi) 0)
                              (let ((int det . -1) (size_t ix0 . 0) (u32 kpos . 0))
                                ;; A DETERMINISTIC CALL GETS NO FRAME. The index is
                                ;; asked for the first candidate and whether there
@@ -6914,6 +6995,15 @@
                                         (block (set (-> e trace_goal) g)
                                                (set (-> e trace_depth) tD)
                                                (coco_rec_heads e ci 0 1))))))))))
+                            ;; A READ OF THE KNOWLEDGE BASE THAT FAILED IS NOT AN
+                            ;; EMPTY PREDICATE (2.11.1): `loaded' 0 after the
+                            ;; ask, and the call raises it -- before the dynamic
+                            ;; arm, or an empty dynamic predicate would hide it.
+                            ;; Through 2.11.0 the call went on over what the
+                            ;; read had left: an existence error, a silent
+                            ;; failure, or a predicate a clause short.
+                            ((not ($ (nth pi ($ (cof st) preds)) loaded))
+                             (if (< (coco_fetch_error_goal e g) 0) (return -1)))
                             ;; NO CLAUSES IS NOT THE SAME AS UNDEFINED. A
                             ;; predicate the program declared dynamic -- or that
                             ;; an `assert' brought into being and a `retract'
@@ -10362,6 +10452,11 @@
               (if (not (coco_assert (-> e st) m c at_end))
                   (block
                    (if (!= cp (-> m cyc_puts)) (return (coco_cyclic_error e)))
+                   ;; the predicate could not be read first, and a write over
+                   ;; what was read would have rewritten it without the rest
+                   ;; (2.11.1): `coco_assert_from' left the reason
+                   (if (!= (nth 0 ($ (cof (-> e st)) fetch_err)) (cast char 0))
+                       (return (coco_fetch_error e)))
                    (if (!= (nth 0 ($ (cof (-> e st)) assert_err)) (cast char 0))
                        (return (coco_raise e (coco_make1 m "resource_error"
                                                          (coco_new_atom m "clause_length")))))
@@ -10383,6 +10478,8 @@
         (let ((defer () coco_g_write_end_cleanup)
               (int began . #'(coco_g_write_begin e)))
           (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
+            ;; -1: the predicate could not be read, and nothing was taken
+            (if (< ok 0) (return (coco_fetch_error e)))
             (coco_store_maybe_compact (-> e st) (-> e m))
             (return (? ok 1 0)))))
 
@@ -10422,12 +10519,14 @@
   ;;; nor has any clauses is one this store merely has a name for -- interned by
   ;;; a call that failed, or left behind by retracting the last clause of
   ;;; something never declared -- and listing a blank line for it says nothing.
+  ;;; A predicate that could not be read answers -1, with the reason on the
+  ;;; store for the caller to raise (2.11.1).
   (static)
   (func coco_listing_pred ((coco_engine * e) (size_t pi)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (coco_store * st . #'(-> e st))
               (coco_strbuf b))
-          (coco_pred_ensure st pi)
+          (if (not (coco_pred_ensure st pi)) (return -1))
           (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
                 (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
                 (int dyn . #'($ (nth pi (-> st preds)) dynamic)))
@@ -10472,7 +10571,7 @@
         (for ((size_t i . 0)) (< i ($ (cof (-> e st)) npreds)) ((++ i))
           (if (or (not ($ (nth i ($ (cof (-> e st)) preds)) library))
                   ($ (nth i ($ (cof (-> e st)) preds)) own))
-              (coco_listing_pred e i)))
+              (if (< (coco_listing_pred e i) 0) (return (coco_fetch_error e)))))
         (return 1))
 
   ;;; `listing(Name)' lists every arity of that name; `listing(Name/Arity)' the
@@ -10506,7 +10605,9 @@
                                                      (cast u32 (coco-signed-payload
                                                                 (nth ar (-> m heap)))))))
                   (if (>= pi (-> st npreds)) (return 0))
-                  (return (coco_listing_pred e pi)))))
+                  (let ((int shown1 . #'(coco_listing_pred e pi)))
+                    (if (< shown1 0) (return (coco_fetch_error e)))
+                    (return shown1)))))
 
           (if (not (coco-tag-is ATOM (nth spec (-> m heap))))
               (return (coco_fail_err e "listing/1 needs a name or Name/Arity")))
@@ -10515,7 +10616,9 @@
           ;; its arities, so this is a walk -- over what warming put there.
           (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
             (if (== ($ (nth i (-> st preds)) name) (coco_name_of m spec))
-                (if (coco_listing_pred e i) (set shown 1))))
+                (let ((int one . #'(coco_listing_pred e i)))
+                  (if (< one 0) (return (coco_fetch_error e)))
+                  (if one (set shown 1)))))
           (return shown)))
 
   (func coco_bi_halt ((coco_engine * e) (size_t g)) (out int)
@@ -10569,8 +10672,10 @@
                 (if (>= pi ($ (cof (-> e st)) npreds)) (return 0))
                 ;; ask the backend for this predicate NOW rather than when the
                 ;; frame is next tried: `clause_ix' is a position in its clause
-                ;; list, and a list that has not been fetched yet is empty
-                (coco_pred_ensure (-> e st) pi)
+                ;; list, and a list that has not been fetched yet is empty --
+                ;; and one whose read failed is no list at all: the thaw
+                ;; refuses, saying why (`coco_thaw', 2.11.1)
+                (if (not (coco_pred_ensure (-> e st) pi)) (return 0))
                 (set (-> c pred) pi)
                 ;; A RESUMED CALL RUNS ON THE KNOWLEDGE BASE AS IT IS (the
                 ;; owner's design, README.md's `What is stored, and how'), and

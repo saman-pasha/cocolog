@@ -321,7 +321,12 @@
           (if (< pid 0) (return (coco_m_error e "proc_run: could not spawn a child" (strerror coco_p_spawn_errno))))
           (set deadline (+ (coco_p_now_ms) tmo))
           (set buf (cast (ubyte_t *) (malloc cap)))
-          (if (not buf) (block (close fd) (return 0)))
+          ;; NO ROOM FOR THE OUTPUT IS MEMORY'S ERROR, AND THE CHILD IS STOPPED
+          ;; (2.11.1): through 2.11.0 the call failed as though the command
+          ;; had, and the child ran on with nobody to reap it
+          (if (not buf)
+              (block (close fd) (kill (- 0 pid) 9) (waitpid pid (aof status) 0)
+                     (return (coco_m_resource_error e "memory"))))
           (while 1
             (let ((pollfd p) (int pr . 0) (ssize_t r . 0)
                   (i64 step . #'(- deadline (coco_p_now_ms))))
@@ -337,11 +342,17 @@
                     (if (== errno EINTR) continue)
                     break))
               (if (== pr 0) continue)
+              ;; grown through a second pointer: set from `realloc' itself, a
+              ;; refusal lost the output read so far as well (2.11.1)
               (if (>= (+ n 4096) cap)
-                  (block
-                    (set cap (* cap 2))
-                    (set buf (cast (ubyte_t *) (realloc (cast (void *) buf) cap)))
-                    (if (not buf) (block (close fd) (return 0)))))
+                  (let ((size_t ncap . #'(* cap 2))
+                        (void * grown . #'(realloc (cast (void *) buf) ncap)))
+                    (if (== grown nil)
+                        (block (close fd) (kill (- 0 pid) 9) (waitpid pid (aof status) 0)
+                               (free (cast (void *) buf))
+                               (return (coco_m_resource_error e "memory"))))
+                    (set buf (cast (ubyte_t *) grown))
+                    (set cap ncap)))
               (set r (read fd (+ buf n) 4096))
               (if (< r 0)
                   (block

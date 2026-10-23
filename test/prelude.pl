@@ -45,6 +45,8 @@
 %%                                   newline off, and the exit status
 %%   cocolog_run(+Args, -Text, -Exit) shell/3 over `cocolog ARGS'
 %%   has(+Label, +Needle, +Text)     a check that Needle occurs in Text
+%%   binary_verdict(+Out, +Exit, -V) a test BINARY's verdict, as run.pl
+%%                                   reads it: green, skip or red
 %%
 %% A `SKIP' AT COLUMN 0 SKIPS THE WHOLE CASE -- run.sh greps for it, the
 %% way CivV's does -- so a SECTION that cannot run says so indented:
@@ -283,6 +285,25 @@ has(Label, Needle, Text) :-
     (   sub_atom(Text, _, _, _, Needle)
     ->  check(Label, found, found)
     ;   check(Label, Text, Needle)
+    ).
+
+%% binary_verdict(+Out, +Exit, -Verdict): what one of the test/*.cicili
+%% binaries said -- its whole output and its exit status -- as test/run.pl
+%% counts it. GREEN on the last line, or a SKIP on the last line or the
+%% first, is that verdict only from a binary that EXITED 0, as a .pl case's
+%% colour is its exit status alone: one that printed GREEN and then died
+%% (a destructor, a free at exit: 139) is red. Through 2.11.0 the runner read
+%% the last line and nothing else, and a SIGSEGV after GREEN was green (an
+%% outside review's finding). Every binary exits 0 when it is green or
+%% skips, and 1 when a check failed.
+binary_verdict(Out, Exit, Verdict) :-
+    atom_codes(Out, Cs),
+    (   codes_lines(Cs, Ls), Ls \== [], last(Ls, L) -> atom_codes(Last, L) ; Last = '' ),
+    (   Exit =\= 0 -> Verdict = red
+    ;   sub_atom(Last, 0, _, _, 'GREEN') -> Verdict = green
+    ;   sub_atom(Last, 0, _, _, 'SKIP') -> Verdict = skip
+    ;   sub_atom(Out, 0, _, _, 'SKIP') -> Verdict = skip
+    ;   Verdict = red
     ).
 
 %% ONE LINE, not the rest of the transcript: libc's `.' matches a newline,

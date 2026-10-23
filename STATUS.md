@@ -6981,3 +6981,154 @@ websocket, tunnel, units, zigurat-tls, flowchart (its tables rebuilt) and lint;
 lessons 16, 17, 20 and 49. The suite on 2.4.0, the server up: 70 lines, red 0,
 5 SKIP (tensors, torch-graph, torch-grad, torch-replay, tensorflow: no CUDA on
 this box).
+
+## A read that failed raises, A* reopens, and two quieter faults (2.11.1)
+
+An outside review of 885f9b7 (2.11.0) made four findings, and each held when it
+was checked against the code and reproduced where it could be. The owner's
+word: fix them all, and raise `resource_error` for the failed read.
+
+THE READ. A predicate's clauses come from the backend the first time
+something asks for them (`coco_pred_ensure`). Through 2.11.0 the store marked
+the predicate read BEFORE it asked, kept whatever the fetch had put in when it
+stopped, and no caller looked at the answer. The Zigurat fetch passed over a
+row it could not read, so the predicate answered from the rest in silence, and
+the next write -- the backend writes a predicate back whole
+(`coco_zg_sync_pred`) -- rewrote it from that copy. The database lost the row.
+Reproduced on the server with two clauses and a row beside them that reads as
+no clause: one `assertz`, and the row was gone. A read is now all of a
+predicate or none:
+
+- **Nothing of a failed read is kept.** The clauses the fetch added are cut
+  back (`coco_pred_cut_back`: their programs, the count, the index), their
+  cells counted dead, `loaded` set back so the next call asks again, and
+  `empty_fetch` left alone, so the pre-warm never takes a failure for an
+  absence.
+- **The reason travels on the store** (`fetch_err`, `fetch_pi`, `fetch_oom`),
+  and `coco_fetch_error` raises `error(resource_error(knowledge_base),
+  context(Name/Arity, Why))` from it, or `error(resource_error(memory), _)`
+  when memory is what ran out.
+- **Every reader raises it**: a call, from either of the step's paths;
+  `clause/2`, `predicate_property/2`, `listing/0,1`, `abolish/1`, `retract/1`
+  and the clause count.
+- **Every writer refuses before it touches the predicate**: `assertz/1` and
+  `asserta/1` raise it, and a consult reports it as it reports a clause too
+  long for a row and goes on.
+- **A thaw refuses, saying why.**
+- **The text is SWI's shape for a resource error with a context**:
+  `p/1: Not enough resources: knowledge_base (the row at ordinal 1000 does not
+  read as a clause)`.
+
+Both backends say which row. The Zigurat fetch reads the whole answer before
+it puts a clause in, and names what failed: the call, the answer, a row's
+ordinal or its clause, memory for the rows, a row that does not read, a row
+the store would not take. Zeytun's requires its `END` line and stops at the
+first row it cannot read. And the embedded store, which wrote through a null
+pointer when an allocation was refused inside a procedure, throws
+`std::bad_alloc` there and rolls back in `ce_exec`, as it does for any refusal.
+
+THE STEP, AND WHAT A BRANCH IN IT COST. The first cut tested
+`coco_pred_ensure`'s answer in the step loop. Clang's estimate gave the
+failure 3/8 of every call's path (the zero heuristic). That put the loop's
+calls of `coco_push_choice` and `coco_arg_key` under its threshold for a cold
+call site, 45 against the 225 a hot one gets (`-Rpass-missed=inline` on the
+emitted `cocolog.c` names it), and left both out of line. In work less
+padding (`tools/flow/zero.sh`) that was queens +3.1 %, nrev +0.8 % and lookup
++0.7 % against 2.11.0. Two attempts changed nothing:
+
+- Moving the raise out of line (`coco_fetch_error_regs` and `_goal`, weak):
+  the counts were identical to the instruction.
+- `__builtin_expect` in an inline helper: it is lowered before inlining, so
+  there was no branch left to carry it.
+
+What paid is `coco_pred_ready` (weak). It answers the clause count, or 0 after
+a failed read, and the step tests it where it always tested the count, so the
+path for a predicate with clauses has no branch it did not have. The failure
+is caught on the path for a predicate with no clauses, ahead of the dynamic
+arm, by `loaded` being 0. Its first build called `coco_pred_ensure` from
+inside, two calls a call: nrev +2.6 %. Answering a predicate read already
+itself, against 2.11.0 the work less padding is lower on all three:
+
+| program | 2.11.0 | 2.11.1 | change |
+|---|---|---|---|
+| nrev | 68 667 404 | 67 832 595 | −1.22 % |
+| queens | 43 004 563 | 42 908 436 | −0.22 % |
+| lookup | 48 879 636 | 48 579 793 | −0.61 % |
+
+The step compares the count the call returned instead of loading it, and the
+fast path has no bound test.
+
+THE GROWTHS. Fifteen places in the source set a pointer straight from
+`realloc` (`x = realloc(x, n)`). A refused growth then lost the block and the
+code went on through null. The Zigurat fetch crashed so, which is the
+review's case. The others were:
+
+- Zeytun's fetch;
+- the reader's list and argument buffers, four sites each emitted twice, which
+  now fail the read with `out of memory reading a list` or `... an argument
+  list`;
+- library(text)'s output buffer, five sites that are one grow function now;
+- torch's CSV reader;
+- library(process)'s output buffer;
+- the embedded store's token and id arrays.
+
+Each grows through a second pointer and raises memory. NOT TESTED by a check:
+one site's growth cannot be refused from Prolog without the engine's own
+growths being refused first (the `ulimit -v` cases of test/errors.pl reach
+those).
+
+THE RUNNER. Through 2.11.0, test/run.pl gave a test binary its verdict from
+the last line it printed, so a binary that printed GREEN and then crashed on
+its way out was green. Now GREEN or SKIP counts only with exit status 0
+(`binary_verdict/3` in the prelude), and a red line names the status.
+
+A*. `astar/6` and `astar/7` closed an expanded node for good, which is right
+only for a CONSISTENT heuristic. An admissible one that was not consistent got
+a dearer path than `shortest_path/5` gives: the review's graph answered s-a-g
+at 5, where s-b-a-g costs 4. The search now reopens: it keeps the cheapest
+cost found for each node (`Best`) and the cost each was expanded at (`Done`).
+A node popped at a cost below the one it was expanded at is expanded again,
+and a child no cheaper than the best known is not put on the open list.
+`astar/7` marks each node once, however many times it is expanded, and a node
+the caller marked before the search is never searched. Measured over 1444
+pairs on a costed hex disk of radius 5 with five walls:
+
+- **A consistent heuristic (`hex_distance`) gives exactly 2.11.0's answers.**
+  Four searches a pair (costed, unit, `astar/7` with the caller's set, and
+  `shortest_path/5`) give the same paths and costs byte for byte, in fewer
+  inferences: 22 195 537 against 29 484 760 for the costed search over all
+  pairs. 2.11.0 pushed entries a cheaper one had already beaten and threw
+  them away at the pop; without the pruning, the new search takes 33 590 471.
+- **An admissible heuristic that is not consistent** (the distance halved on
+  odd columns): 2.11.0 answered a dearer cost than `shortest_path/5` for 2 of
+  the 1444 pairs, and 2.11.1 for none, in 62 147 750 inferences against
+  86 775 417 (each search and its oracle).
+
+PROVED:
+
+- **test/errors.pl `read_that_failed`**, 9 checks over `--embed`, one process
+  a step. The row is planted through the procedure the store's own writes use.
+  Nine ways in raise: a call, a second call, a call from a clause's body,
+  `assertz`, `retract`, `clause/2`, `predicate_property/2`, `abolish/1` and
+  `listing/1`. So does p/1 declared dynamic, and p/1 with a clause of the
+  file's own, which 2.11.0 answered with that clause alone (`none none`). The
+  uncaught message is SWI's, and exits 2.
+  - Red on 2.11.0 in five checks.
+  - Three arms, each red at its own checks: no raise on the term path (five
+    checks), the raise after the dynamic arm (the dynamic check), and
+    `coco_pred_ready` answering the count after a failed read (the own-clause
+    check).
+  - The register path's raise has no check that can arm it, because the term
+    path would raise too. It saves a second read of the predicate, measured
+    with callgrind: 4 backend reads in that run against 5 without it.
+- **test/zigurat-lib.pl** on the server, 3 checks: the unread row is kept, a
+  write over it raises, and a second process finds all three rows.
+- **test/script.pl `binary_verdicts`**, 6 checks, one a child that prints
+  GREEN and dies by SIGSEGV.
+- **test/astar.pl `reopened`**, 6 checks, with three arms red: no reopening,
+  `astar/7` marking a node again, and the caller's set not asked of a child.
+  The fourth arm, no best-cost pruning, answers alike and costs the
+  inferences above. Lesson 31 says it and checks it.
+
+The suite on 2.11.1, the server up: 75 lines, red 0, 5 SKIP (tensors,
+torch-graph, torch-grad, torch-replay, tensorflow: no CUDA on this box).

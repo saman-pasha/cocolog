@@ -191,6 +191,7 @@
   (code "int coco_m_list_array(struct coco_engine*, size_t, size_t**, size_t*);")
   (code "int coco_m_type_error(struct coco_engine*, const char*, size_t); int coco_m_domain_error(struct coco_engine*, const char*, size_t);")
   (code "int coco_m_existence_error(struct coco_engine*, const char*, size_t); int coco_m_permission_error(struct coco_engine*, const char*, const char*, size_t);")
+  (code "int coco_m_resource_error(struct coco_engine*, const char*);")
   (code "size_t coco_deref(struct coco_machine*, size_t); int coco_is_callable(struct coco_machine*, size_t);")
   (code "int coco_m_tensor_put(struct coco_engine*, const char*, int64_t, const double*, uint32_t);")
   (code "int coco_m_tensor_row(struct coco_engine*, const char*, int64_t, double*, uint32_t, uint32_t*);")
@@ -234,6 +235,7 @@
                                     (size_t culprit)) (out int))
   (decl) (func coco_m_existence_error ((coco_engine * e) (const char * kind) (size_t what)) (out int))
   (decl) (func coco_m_permission_error ((coco_engine * e) (const char * action) (const char * type) (size_t culprit)) (out int))
+  (decl) (func coco_m_resource_error ((coco_engine * e) (const char * resource)) (out int))
   (decl) (func coco_deref ((coco_machine * m) (size_t t)) (out size_t))
   (decl) (func coco_is_callable ((coco_machine * m) (size_t t)) (out int))
   (decl) (func coco_arity ((coco_machine * m) (size_t t)) (out uint32_t))
@@ -1381,12 +1383,20 @@
                 (let ((double v . #'(strtod p (aof endp))))
                   (if (== endp p) (block (set bad 1) break))
                   (set p endp)
+                  ;; GROWN THROUGH A SECOND POINTER (2.11.1): set from
+                  ;; `realloc' itself, a refusal was nil written through on
+                  ;; the next line. Refused, the numbers read so far are let
+                  ;; go and memory is the error
                   (if (>= ndata cap)
-                      (block
-                        (set cap (? (== cap 0) 4096 (* cap 2)))
-                        (set data (cast (double *)
-                                        (realloc (cast (void *) data)
-                                                 (* (cast size_t cap) (sizeof double)))))))
+                      (let ((int64_t ncap . #'(? (== cap 0) 4096 (* cap 2)))
+                            (void * grown . #'(realloc (cast (void *) data)
+                                                       (* (cast size_t ncap) (sizeof double)))))
+                        (if (== grown nil)
+                            (block (fclose f)
+                                   (if (!= data nil) (free (cast (void *) data)))
+                                   (return (coco_m_resource_error e "memory"))))
+                        (set data (cast (double *) grown))
+                        (set cap ncap)))
                   (set (nth ndata data) v)
                   (set ndata (+ ndata 1))
                   (set line_cols (+ line_cols 1)))))

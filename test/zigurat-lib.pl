@@ -54,7 +54,7 @@ main :-
     port_is_tcp(Host, Port),
     sh_join([W, ' forget >/dev/null 2>&1'], Forget),
     cocolog_run(Forget, _, _),
-    the_verbs(W), commit(W), rollback(W), dml(W), ddl(W),
+    the_verbs(W), commit(W), rollback(W), dml(W), lost_nothing(W), ddl(W),
     cocolog_run(Forget, _, _),
     checks_done.
 
@@ -116,6 +116,28 @@ dml(W) :-
     sh_join([W, ' query "zigurat_call(''cocolog::clauses_of'', [ziglib_test, zlib_q, int(1)], [[_, B] | _]), write(B), nl"'], A3),
     lines(A3, 'zlib_q\\(41\\)', N3),
     check('with the fields readable in place', N3, 1).
+
+%% A ROW THIS BINARY CANNOT READ IS NO REASON TO LOSE IT (2.11.1). The backend
+%% writes a predicate back whole -- every row out, every clause the store
+%% holds back in -- so through 2.11.0, which read a predicate as far as its
+%% first bad row and kept what it had, the next assertz rewrote zlib_b/1
+%% without the row, and a second process found it gone. Now the read fails,
+%% the write raises before it touches the predicate, and the row is still in
+%% the database for a binary that can read it (or a person who can mend it).
+%% test/errors.pl holds every way a program reaches such a predicate to the
+%% same ball under --embed.
+lost_nothing(W) :-
+    section('a row the store cannot read is kept, and a write over it refused'),
+    sh_join([W, ' query "assert(zlib_b(1)), assert(zlib_b(2))" >/dev/null 2>&1'], A0), cocolog_run(A0, _, _),
+    sh_join([W, ' query "zigurat_call(''cocolog::assert_clause'', [ziglib_test, zlib_b, int(1), 1000, text(''zlib_b('')]), write(planted), nl"'], A1),
+    lines(A1, '^planted$', N1),
+    check('a row no clause reads as goes in beside two clauses', N1, 1),
+    sh_join([W, ' query "catch(assert(zlib_b(3)), error(F, _), true), write(F), nl"'], A2),
+    lines(A2, '^resource_error\\(knowledge_base\\)$', N2),
+    check('a write over the predicate raises resource_error(knowledge_base)', N2, 1),
+    sh_join([W, ' query "zigurat_call(''cocolog::clauses_of'', [ziglib_test, zlib_b, int(1)], Rows), msort(Rows, S), write(S), nl"'], A3),
+    lines(A3, '^\\[\\[0,zlib_b\\(1\\)\\],\\[1,zlib_b\\(2\\)\\],\\[1000,zlib_b\\(\\]\\]$', N3),
+    check('and a second process finds all three rows, the unread one too', N3, 1).
 
 ddl(W) :-
     section('DDL: the compiler''s gate answers as an error'),
