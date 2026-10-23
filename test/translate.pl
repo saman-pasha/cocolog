@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -13557,7 +13557,7 @@ newspaper_rosi_checks_2 :-
           'Culpable de haber resultado cansado.'),
     nf_tr('Colpevole di essere risultato stanco il 17 gennaio.', italian, english, B5),
     check('A DATE AFTER THE ADJECTIVE IS WHEN, NEVER WHAT IT IS SAID OF: `esser risultato positivo il 17 maggio'' is positive on the 17th of May -- the day was the thing called positive, an object that an adjective is said of, and the sentence was refused (tr_complements0/4)', B5,
-          'Guilty of having turned out tired January 17.'),
+          'Guilty of having turned out tired on January 17.'),
     nf_tr('Colpevole di essere risultato stanco il 17 gennaio.', italian, spanish, B6),
     check('... and the day in Spanish', B6,
           'Culpable de haber resultado cansado el 17 de enero.'),
@@ -15371,6 +15371,217 @@ newspaper_venice_checks_7 :-
           'The dog sees the canals, many of which were not cleaned.').
 
 %% <<< venice
+
+%% >>> yeltsin
+%% ---- a Spanish report on Yeltsin, the Duma and Chechnya, into Italian and English (AnCora CESS-CAST-P-19991202-35) ----
+%% The hand lessons are the Venice section's (newspaper_venice_lesson/2) and a ninth part: the words the checks below need.
+
+newspaper_yeltsin :-
+    section('a Spanish report on Yeltsin, the Duma and Chechnya, into Italian and English: se trata de, its, a connector that is an adverb, a name apposed at the end, yesterday before the verb, a manner adverb with the verb, an adverb that ends the subject, the side after a colon, a date that is when, a verb left out with a time, a name among the adjectives, the phrase a participle governs, the names of places, a woman across, a word in both genders, a preposition said again, a name not crossed, a city''s club, a name in quotation marks, the gender of a name, an animal, its and his, a pronoun that owns, a person in both genders, today after a copula, certainly before a denial, awfully'),
+    newspaper_yeltsin_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_yeltsin_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_yeltsin_checks_1, newspaper_yeltsin_checks_2, newspaper_yeltsin_checks_3, newspaper_yeltsin_checks_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_yeltsin_lesson(L, Text) :-
+    newspaper_venice_lesson(L, A), newspaper_yeltsin_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the ninth part of each hand lesson
+newspaper_yeltsin_part(spanish, 'The verb "pierde" means "loses". The feminine noun "puerta" means "door". "puertas" is the plural of "puerta".
+The conjunction "mientras" means "while". The adverb "mientras" means "meanwhile".
+The adverb "ayer" means "yesterday". "comió" is the past of "come". The feminine noun "abuela" means "grandmother". "abuela" is a person. The masculine noun "jardín" means "garden".
+The masculine noun "diplomático" means "diplomat". "diplomático" is a person. The feminine noun "diplomática" means "diplomat". "diplomática" is a person.
+The name "moscú" means "Moscow". The name "grozni" means "Grozny". The name "kremlin" means "Kremlin".
+The feminine noun "capital" means "capital".
+The adverb "oficialmente" means "officially". The verb "confirma" means "confirms". The feminine noun "noticia" means "news". The adverb "tranquilamente" means "quietly".
+The masculine adjective "checheno" means "chechen". The feminine adjective "chechena" means "chechen".
+The verb "califica" means "describes". "calificado" is the participle of "califica". "califica" takes "de" before the phrase.
+The verb "fija" means "sets". The masculine noun "junio" means "june". "junio" is a month. The masculine noun "martes" means "tuesday". "martes" is a time.
+The feminine noun "campaña" means "campaign". The adjective "militar" means "military". The masculine noun "ataque" means "attack". "ataques" is the plural of "ataque". The feminine noun "artillería" means "artillery". The feminine noun "aviación" means "aviation".
+The feminine noun "vida" means "life". The verb "continúa" means "continues". The masculine noun "curso" means "course".
+The possessive "su" means "its". The feminine noun "reunión" means "meeting". The intransitive verb "tiene lugar" means "takes place". The masculine noun "amigo" means "friend". "amigo" is a person. The adverb "mucho" means "a lot". The verb "tiene" means "has".
+The masculine noun "jefe" means "chief". "jefe" is a person. The masculine adjective "guerrillero" means "guerrilla".
+The verb "recibe" means "receives". "recibe" is the imperative of "recibe".
+The name "nápoles" means "Naples". The name "italia" means "Italy".
+The masculine noun "tigre" means "tiger". "tigre" is a person. "tigre" is animate. The feminine noun "tigresa" means "tiger". "tigresa" is a person. "tigresa" is animate.
+The feminine noun "aeronáutica" means "aeronautics". The masculine adjective "aeronáutico" means "aeronautical". The feminine adjective "aeronáutica" means "aeronautical". The masculine noun "soldado" means "soldier". "soldado" is a person.
+The adverb "a corto plazo" means "in the short term". The adverb "terriblemente" means "awfully".
+"diplomáticos" is the plural of "diplomático". The name "nueva york" means "New York".').
+newspaper_yeltsin_part(italian, 'The verb "perde" means "loses". The feminine noun "porta" means "door". "porte" is the plural of "porta".
+The adverb "intanto" means "meanwhile". The adverb "ieri" means "yesterday". The feminine noun "nonna" means "grandmother". The masculine noun "giardino" means "garden".
+The name "mosca" means "Moscow". "mosca" is a city. The name "grozny" means "Grozny". The name "cremlino" means "Kremlin".
+The feminine noun "capitale" means "capital".
+The masculine noun "diplomatico" means "diplomat". "diplomatico" is a person. The feminine noun "diplomatica" means "diplomat". "diplomatica" is a person.
+The verb "conferma" means "confirms". The adverb "ufficialmente" means "officially". The feminine noun "notizia" means "news".
+The masculine adjective "ceceno" means "chechen". The feminine adjective "cecena" means "chechen".
+The verb "descrive" means "describes". "descritto" is the participle of "descrive". "descrive" takes "come" before the phrase.
+The feminine noun "campagna" means "campaign". The masculine noun "militare" means "soldier". "militare" is feminine. The adjective "militare" means "military". The masculine adjective "bellico" means "military". The feminine adjective "bellica" means "military".
+The masculine noun "attacco" means "attack". "attacchi" is the plural of "attacco". The feminine noun "artiglieria" means "artillery". The feminine noun "aviazione" means "aviation".
+The feminine noun "vita" means "life". The verb "continua" means "continues". The masculine noun "corso" means "course". The masculine possessive "suo" means "its".
+The verb "fissa" means "sets". The masculine noun "giugno" means "june". "giugno" is a month.
+The feminine noun "riunione" means "meeting". The intransitive verb "ha luogo" means "takes place". The masculine noun "amico" means "friend". "amico" is a person. The adverb "molto" means "a lot".
+The masculine noun "capo" means "chief". "capo" is a person. The masculine adjective "guerrigliero" means "guerrilla".
+The verb "tratta" means "treats". The verb "riceve" means "receives". "ricevi" is the imperative of "riceve".
+The name "napoli" means "Naples". "napoli" is a city. The name "milano" means "Milan". "milano" is a city. The name "italia" means "Italy". "italia" is feminine.
+The feminine noun "tigre" means "tiger". "tigre" is a person. "tigre" is animate.
+The feminine noun "aeronautica" means "aeronautics". The feminine adjective "aeronautica" means "aeronautical". The masculine adjective "aeronautico" means "aeronautical". "militare" is a person.
+The adverb "a breve termine" means "in the short term". The adverb "certo" means "certainly". The feminine possessive "sua" means "his".
+"diplomatici" is the plural of "diplomatico". "diplomatiche" is the plural of "diplomatica". The name "new york" means "New York". "new york" is a city.').
+
+newspaper_yeltsin_checks_1 :-
+    nf_tr('Se trata de la casa.', spanish, english, Y1),
+    check('`SE TRATA DE'' IS `IT IS'': `Se trata de la segunda hospitalización del líder del Kremlin'' is the second one, and read as the impersonal `one'' and the verb''s own lexeme it was `One treats of the second hospitalisation'' (tr_write/4)', Y1,
+          'It is the house.'),
+    nf_tr('Si tratta della casa.', italian, english, Y2),
+    check('... and Italian''s `si tratta di'' the same', Y2,
+          'It is the house.'),
+    nf_tr('La casa pierde su puerta.', spanish, english, Y3),
+    check('A SINGULAR SUBJECT THAT IS NO PERSON OWNS WHAT ITS COMPLEMENTS'' POSSESSIVE NAMES, `its'': `la vida política en Moscú continúa su curso'' continues ITS course, and with the lesson''s first meaning it came out `his course'' (tr_thing_possessor/2, tr_cross_det/2)', Y3,
+          'The house loses its door.'),
+    nf_tr('La casa ve a Pedro con su perro.', spanish, english, Y4),
+    check('GUARD: ... and not where a person or a name stands among the clause''s complements, whose own the possessive may be', Y4,
+          'The house sees Pedro with his dog.'),
+    nf_tr('Mientras, el perro duerme.', spanish, english, Y5),
+    check('A CONNECTING WORD THE LESSON ALSO GIVES AS AN ADVERB THAT STAYS IN FRONT, WITH A COMMA STRAIGHT AFTER IT AT THE HEAD, IS THE ADVERB: `Mientras, la campaña militar en Chechenia también prosigue'' is Meanwhile, and read as the connector it was `While the military campaign continues'', its comma lost (tr_read0/4)', Y5,
+          'Meanwhile, the dog sleeps.'),
+    nf_tr('Mientras el perro duerme, el gato come.', spanish, english, Y6),
+    check('GUARD: with no comma after it the word is the connector', Y6,
+          'While the dog sleeps, the cat eats.'),
+    nf_tr('El perro duerme tranquilamente en la capital, Grozni.', spanish, english, Y7),
+    check('A NAME OF ONE WORD THAT ENDS THE PIECE AFTER A NOUN IN SMALL LETTERS IS APPOSED TO IT: `continuaron ayer los ataques ... sobre la capital, Grozni.'' is the capital that is Grozny, and with the comma the city was an object of the verb of its own, so what the clause wrote last ran on from the name, `on the capital, Grozni yesterday'' -- a name the lesson states (tr_list_commas/5; `Non chiede il pane, Carolyn'' keeps its subject)', Y7,
+          'The dog sleeps in the capital, Grozny, quietly.'),
+    nf_tr('El perro duerme en la capital, Moscú.', spanish, italian, Y8),
+    check('... and the name apposed crosses by its meaning, and Italian writes its own: `Mosca'', not `Moscow'' (tr_cross_adjective/2, tr_adjective_out/5)', Y8,
+          'Il cane dorme nella capitale, Mosca.'),
+    nf_tr('El perro comió ayer el pan de la casa de la abuela del gato en el jardín.', spanish, english, Y9),
+    check('A DAY''S ADVERB THE SOURCE PUT RIGHT AFTER ITS VERB STANDS BEFORE THE VERB WHERE THE CLAUSE RUNS LONG, as a newspaper writes it: `El jefe guerrillero ... lanzó ayer un llamamiento ... según la cadena de televisión pública rusa RTR'' YESTERDAY launched an appeal, and written last it came after the network that told of it (tr_write/4, en_day_adverb/1, en_long_tail/1)', Y9,
+          'The dog yesterday ate the bread of the house of the grandmother of the cat in the garden.'),
+    nf_tr('El perro comió ayer el pan.', spanish, english, Y10),
+    check('GUARD: a clause of a few words keeps it last', Y10,
+          'The dog ate the bread yesterday.'),
+    nf_tr('El perro confirma oficialmente la noticia.', spanish, english, Y11),
+    check('A MANNER ADVERB IN `-ly'' THE SOURCE PUT RIGHT AFTER ITS VERB, BEFORE AN OBJECT OR A CLAUSE, GOES WITH THE VERB: `el Kremlin confirmó ayer oficialmente los temores'' officially confirmed them, and written last it came after the object and its phrases, `confirmed the initial fears of the doctors of Boris Yeltsin yesterday officially'' (tr_pull_adverb/3)', Y11,
+          'The dog officially confirms the news.'),
+    nf_tr('El perro duerme tranquilamente.', spanish, english, Y12),
+    check('GUARD: with nothing after it to cross it stays where English puts it', Y12,
+          'The dog sleeps quietly.').
+
+newspaper_yeltsin_checks_2 :-
+    nf_tr('La casa en Moscú también duerme.', spanish, italian, Y13),
+    check('AN ADVERB THAT ENDS THE SUBJECT''S WORDS, RIGHT BEFORE THE VERB, IS THE CLAUSE''S: `la campaña militar en Chechenia también prosigue'' -- the subject''s phrase took `también'' among its phrases, and Italian wrote it there, before the verb, `in Cecenia anche continua'' (tr_subject_adverb_out/4)', Y13,
+          'La casa a Mosca dorme anche.'),
+    nf_tr('Pedro tiene un perro: recibe el pan.', spanish, italian, Y14),
+    check('THE SIDE AFTER THE COLON GOES ON SAYING WHAT THE SUBJECT BEFORE IT DOES: `Yeltsin mantiene un régimen ...: recibe correo y estudia documentos'' is what Yeltsin does, and read as commands they were `receive post and study documents'' (tr_read_after_colon/5; `"recibe" is the imperative of "recibe".'')', Y14,
+          'Pedro ha un cane: riceve il pane.'),
+    nf_tr('Recibe el pan.', spanish, italian, Y14b),
+    check('GUARD: ... and alone the form is the command it is too', Y14b,
+          'Ricevi il pane.'),
+    nf_tr('La reunión tiene lugar el 4 de junio.', spanish, english, Y15),
+    check('A DATE IS WHEN AFTER A VERB THAT TAKES NO OBJECT: `la primera vuelta tendrá lugar el 4 de junio'' takes place ON June 4, and read as the verb''s object it was `will take place June 4'' (tr_complements0/4, tr_date_adjunct_here/1; tr_comp_out/7 writes the `on'')', Y15,
+          'The meeting takes place on June 4.'),
+    nf_tr('La Duma fija el 4 de junio.', spanish, english, Y16),
+    check('GUARD: ... where the verb takes one, the date is its object: `la Duma fijó el 4 de junio'' sets the date itself', Y16,
+          'The Duma sets June 4.'),
+    nf_tr('El perro duerme el lunes y el gato, el martes.', spanish, english, Y17),
+    check('A VERB LEFT OUT AFTER ITS COORDINATOR, WITH A TIME FOR WHAT IS SAID: `la primera vuelta ... tendrá lugar el 4 de junio y la segunda vuelta, tres semanas más tarde'' -- read as one clause, the date and the round were one object and the time after the comma the verb''s; the coordinator, the phrase and its times are a clause of the same verb, cnj/1 and gapc/2 (tr_gap_time/2)', Y17,
+          'The dog sleeps on Monday and the cat, on Tuesday.'),
+    nf_tr('El jefe guerrillero checheno Chamil Basayev duerme.', spanish, english, Y18),
+    check('A NAME THE SOURCE APPOSED TO THE NOUN AMONG ITS ADJECTIVES STAYS AFTER THEM, and English turns the adjectives round: `El jefe guerrillero checheno Chamil Basayev'' is the Chechen guerrilla chief, and with the name in the list the source''s order stood, `the guerrilla chechen boss'' (en_adj_order/3); `chechen'' a nationality with its capital (en_nationality/1)', Y18,
+          'The Chechen guerrilla chief Chamil Basayev sleeps.'),
+    nf_tr('Pedro tiene un perro calificado de amigo por el gato.', spanish, english, Y19),
+    check('THE PHRASE A PARTICIPLE''S VERB GOVERNS IS MARKED, as a clause''s is: `un régimen calificado de "semilaboral" por sus allegados'' is described AS one (`"califica" takes "de" before the phrase.''), and with the clause''s verb asked it was `described of "semi-working"'' (tr_ptc_governed/4, en_governs/2)', Y19,
+          'Pedro has a dog described as friend by the cat.'),
+    nf_tr('Pedro tiene un perro calificado de amigo por el gato.', spanish, italian, Y20),
+    check('... and Italian says its own (`"descrive" takes "come" before the phrase.'')', Y20,
+          'Pedro ha un cane descritto come amico dal gatto.'),
+    nf_tr('El perro come en Moscú.', spanish, english, Y21),
+    check('A NAME THE LESSON GIVES A MEANING CROSSES BY IT, and every language writes its own: `la vida política en Moscú'' is in Moscow (`The name "moscú" means "Moscow".'', mean_as/3 under the class name; tr_cross_np/2)', Y21,
+          'The dog eats in Moscow.'),
+    nf_tr('El perro come en Moscú.', spanish, italian, Y22),
+    check('... and Italian''s `a Mosca'', a city of its own lesson (`The name "mosca" means "Moscow".'', `"mosca" is a city.''; tr_np_out/5, tr_city_name/1)', Y22,
+          'Il cane mangia a Mosca.'),
+    nf_tr('Moscú es grande.', spanish, english, Y23),
+    check('... and a subject (tr_cross_subject/3)', Y23,
+          'Moscow is big.'),
+    nf_tr('Moscú es grande.', spanish, italian, Y24),
+    check('... which Italian writes as its own (tr_subject_out/6)', Y24,
+          'Mosca è grande.').
+
+newspaper_yeltsin_checks_3 :-
+    nf_tr('El Kremlin duerme.', spanish, italian, Y25),
+    check('... and a named thing of one word, with its article: `il Cremlino'' (tr_cross_np/2, tr_named_words/3)', Y25,
+          'Il Cremlino dorme.'),
+    nf_tr('La diplomática duerme.', spanish, italian, Y26),
+    check('A PERSON THE SOURCE NAMES IN THE FEMININE IS ONE IN THE OTHER LANGUAGE TOO: `la diplomática norteamericana Cheri Leberknight'' is a woman, and with one English word for both Italian wrote `il diplomatico americano'' (tr_fem_person_note/3, tr_noun_lexeme0/5)', Y26,
+          'La diplomatica dorme.'),
+    nf_tr('El ataque militar duerme.', spanish, italian, Y27),
+    check('A WORD THE LESSON STATES IN BOTH GENDERS AGREES WITH EITHER: `militare'' is the noun for a soldier, and as the adjective it was masculine only to the writer, `la campagna bellica'' (tr_stated_both/1)', Y27,
+          'L''attacco militare dorme.'),
+    nf_tr('El perro ve los ataques de la artillería y la aviación.', spanish, italian, Y28),
+    check('A PREPOSITION THAT CONTRACTS WITH THE ARTICLE IS SAID AGAIN BEFORE THE SECOND OF TWO DEFINITE PHRASES: `los ataques de la artillería y la aviación'' are `gli attacchi dell''artiglieria e dell''aviazione'', and with one `di'' Italian wrote `e l''aviazione'' (tr_comp_out/7, tr_prep_contracts/1)', Y28,
+          'Il cane vede gli attacchi della artiglieria e della aviazione.').
+
+%% what the controls' first round found, and the rules that mend it
+newspaper_yeltsin_checks_4 :-
+    nf_tr('El perro come con Milan.', spanish, italian, Y29),
+    check('A NAME THE SOURCE DID NOT CROSS IS WRITTEN AS IT STANDS, though it is spelled as an English name a lesson states: `los argentinos Guglielminpietro (Milan)'' is the club, and with the IR''s `Milan'' taken for the city it was `(Milano)'' -- the names a sentence crossed are noted as it is read (tr_name_word_out/2)', Y29,
+          'Il cane mangia con Milan.'),
+    nf_tr('Il cane vede il Napoli.', italian, spanish, Y30),
+    check('A CITY''S NAME AFTER AN ARTICLE IS THE CLUB NAMED AFTER IT, and crosses as itself: `contro il Napoli'' was `contra el Nápoles'', `against the Naples'' (tr_cross_np/2)', Y30,
+          'El perro ve el Napoli.'),
+    nf_tr('Il cane mangia a Napoli.', italian, spanish, Y31),
+    check('GUARD: ... and with no article it is the city', Y31,
+          'El perro come en Nápoles.'),
+    nf_tr('Pedro dice que "Moscú ve la casa".', spanish, english, Y32),
+    check('A WORD THE LESSON KNOWS AS A NAME AND AS NOTHING ELSE IS A NAME IN QUOTATION MARKS TOO: `señaló que "España ve con simpatía la candidatura"'' -- read in small letters, as a common word is, the sentence was refused once `España'' was a name the lesson states (tr_only_name/2)', Y32,
+          'Pedro says that "Moscow sees the house".'),
+    nf_tr('Pedro dice que "Moscú ve la casa".', spanish, italian, Y33),
+    check('... and its marks come off for the lesson''s word and go back on it (tr_unmark/4)', Y33,
+          'Pedro dice che "Mosca vede la casa".'),
+    nf_tr('Il cane dice: "il gatto vede il Napoli".', italian, spanish, Y45),
+    check('... AND KEEPS ITS CAPITAL WHERE A QUOTATION CLOSES ON IT: `potrebbe cancellare il Napoli".'' was `could erase the naples'', the word the lesson knows read as a common noun once its mark came off (tr_tail_mark/5)', Y45,
+          'El perro dice: "El gato ve el Napoli".'),
+    nf_tr('Il cane mangia a New York.', italian, spanish, Y46),
+    check('A NAME OF SEVERAL WORDS HAS A CAPITAL ON EACH: `(New York, 1991)'' was `(Nueva york, 1991)'', the capital a name is written with set on its first word alone (tr_cap_words/2)', Y46,
+          'El perro come en Nueva York.'),
+    nf_tr('Il cane mangia a New York.', italian, english, Y47),
+    check('... and in English', Y47,
+          'The dog eats in New York.'),
+    nf_tr('L''Italia dorme.', italian, spanish, Y34),
+    check('A NAME AFTER AN ELIDED ARTICLE TAKES THE GENDER THE LESSON STATES OF IT, asked in small letters: a name the lesson knows travels with its capital, and `L''Italia che soffre'' was `El Italia que padece'' (tr_name_gender/5)', Y34,
+          'La Italia duerme.'),
+    nf_tr('Los diplomáticos duermen y la diplomática come.', spanish, italian, Y44),
+    check('... AND IN ITS NUMBER: `dai 70 studenti iscritti ...: una studentessa che indossa la tuta'' has the students and one female student, and with the noun noted alone the 70 were `las 70 alumnas inscritas'' (tr_fem_person_note/3)', Y44,
+          'I diplomatici dormono e la diplomatica mangia.'),
+    nf_tr('Il cane vede una tigre.', italian, spanish, Y35),
+    check('AN ANIMAL''S GENDER IS ITS WORD''S AND SAYS NO SEX: `è come cavalcare una tigre'' was `cabalgar a una tigresa'', a woman across (tr_fem_person_note/3)', Y35,
+          'El perro ve a un tigre.'),
+    nf_tr('La casa pierde su puerta.', spanish, italian, Y36),
+    check('`ITS'' TAKES THE WORDS FOR `HIS'' AFTER ITS OWN where the lesson has none of the noun''s gender: the lesson''s languages say both with one word, and with the masculine alone it was `la suo porta'' (tr_det_meanings/3)', Y36,
+          'La casa perde la sua porta.'),
+    nf_tr('La casa me dio su libro.', spanish, english, Y37),
+    check('GUARD: A PRONOUN THAT STANDS FOR A PERSON MAY OWN WHAT THE POSSESSIVE NAMES: `El viento le voló su sombrero'' blew HIS hat, and `its hat'' was the thing''s (tr_person_clitic/1)', Y37,
+          'The house gave me his book.'),
+    nf_tr('Il cane vede l''aeronautica militare.', italian, spanish, Y38),
+    check('AMONG NOUNS THAT ARE ADJECTIVES TOO, A PERSON THE LESSON STATES IN BOTH GENDERS IS NO HEAD BY BEING ONE: `militare'' is a soldier of either sex, and `l''aeronautica militare'' was `el aeronáutico soldado'' (tr_noun/5)', Y38,
+          'El perro ve la aeronáutica militar.'),
+    nf_tr('La casa di Pedro a breve termine non è grande.', italian, spanish, Y39),
+    check('GUARD: AN ADVERB OF SEVERAL WORDS THAT ENDS THE SUBJECT''S WORDS IS THE PHRASE''S: `Las previsiones de evolución de este mercado a corto-medio plazo no son optimistas'', and set among the clause''s complements Italian wrote it between the copula and its adjective (tr_subject_adverb_out/4)', Y39,
+          'La casa de Pedro a corto plazo no es grande.'),
+    nf_tr('La casa de Pedro ya no es grande.', spanish, italian, Y43),
+    check('... AND ONE OF SEVERAL WORDS THAT ENGLISH WRITES WITH THE VERB IS THE CLAUSE''S: `la posesión del aparato ya no es sinónimo de distinción'' is no longer synonymous, and kept in the phrase Italian wrote `non più è sinonimo'' (en_mid_adverb/1)', Y43,
+          'La casa di Pedro non è più grande.'),
+    nf_tr('Pedro y el perro, de cuatro años, son hoy el amigo de la casa de la abuela del gato en el jardín.', spanish, english, Y40),
+    check('A DAY''S ADVERB STANDS AFTER A COPULA THAT IS ALONE: `Kallon de 21 años y Ventola, de 23, son hoy el exponente'' ARE today the exponent, and before it it was `today are'' (tr_write/4)', Y40,
+          'Pedro and the dog, of four years, are today the friend of the house of the grandmother of the cat in the garden.'),
+    nf_tr('Il cane non mangia certo il pane.', italian, english, Y41),
+    check('AN ADVERB OF HOW SURE STANDS BEFORE A DENIED GROUP: `non pensavo certo di incontrare'' is I certainly did not think, and before the verb it was `I did not certainly think'' (tr_mid_insert/3, en_sentence_adverb/1)', Y41,
+          'The dog certainly does not eat the bread.'),
+    nf_tr('El perro come terriblemente el pan.', spanish, english, Y42),
+    check('`AWFULLY'' IS A DEGREE AND NO MANNER, and stays where English writes its adverbs: `No, sería mucho pedir'' was `it would awfully be to ask'' (en_not_manner_ly/1)', Y42,
+          'The dog eats the bread awfully.').
+
+%% <<< yeltsin
 
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb

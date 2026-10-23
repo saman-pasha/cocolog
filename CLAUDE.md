@@ -5354,6 +5354,273 @@ read into an English-worded IR and written into any lesson's language),
   consideran el pasado` (10, `sobre`, `se refieren al pasado`); and `no está más
   el carbón` (11, `ya no hay carbón`). The next sample's controls take this
   report in.
+  The Yeltsin report (AnCora CESS-CAST-P-19991202-35, 16 sentences, Spanish into
+  Italian and English: 16 of 16 and 13 of 16 on a fresh store, 16 and 14 with
+  the new store alone, 8 and 11 with the new code on the old store, 8 and 11
+  before; reasoning 1.0.16). The sample was taken on the cocolog 2.11.2 binary,
+  and cocolog stays 2.11.2; master's 2.11.3 (5164d48, the step answers a read
+  predicate's clause count inline, and inference counts do not move) came during
+  the sample and is not merged: the next sample takes it. The article's
+  sentences fall from 15.7 million inferences into Italian and 15.1 into English
+  to 6.8 and 6.1. The new store alone reads 14 into English where the new code
+  reads 13: its old reading of the colon's side (`Yeltsin mantiene un régimen
+  ...: recibe correo y estudia documentos`) was the commands `receive mail and
+  study documents`, and the new reading is Yeltsin's own present, which English
+  refuses for the third person nobody names, on purpose (3, 4 and 9). It needed
+  these SHAPES, each with its arm red (test/translate.pl's `newspaper_yeltsin`:
+  48 checks, 51 arms, the guards among them; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM
+  cocolog query "use_module('test/translate.pl'), newspaper_yeltsin,
+  checks_done"`, two seconds a run, and every arm is run in two minutes, four at
+  a time): `se trata de` is `it is` (`Se trata de la segunda hospitalización del
+  líder del Kremlin` was `One treats of`, tr_write/4); a singular subject that
+  is no person owns what its complements' possessive names, `its` (`la vida
+  política en Moscú continúa su curso` continues ITS course,
+  tr_thing_possessor/2, tr_cross_det/2), and not where a person or a name stands
+  among the clause's complements, nor where a pronoun stands for a person (`El
+  viento le voló su sombrero` blew HIS hat, `avisó a Ibarretxe de que a su
+  Gobierno el tiempo se le acaba` is his Government: tr_person_clitic/1, both
+  found by the controls), and the writer takes the words for `his` after the
+  lesson's words for `its` where none has the noun's gender (tr_det_meanings/3:
+  a store taught before `"suo" means "its".` wrote no sentence that had it --
+  the code alone on the old store refused 8 of the controls -- and one with the
+  masculine alone wrote `la suo porta`); a connecting word the lesson also gives
+  as an adverb that stays in front, with a comma straight after it at the head,
+  is the adverb (`Mientras, la campaña militar en Chechenia también prosigue` is
+  Meanwhile, tr_read0/4); a name of one word that ends the piece after a noun in
+  small letters, a name the lesson states, is apposed to it (`sobre la capital,
+  Grozni`, and with the comma the city was an object of the verb of its own, `on
+  the capital, Grozni yesterday`: tr_list_commas/5), crosses by its meaning and
+  is written in each language's word (tr_cross_adjective/2, tr_adjective_out/5);
+  a day's adverb the source put right after its verb stands before the verb
+  where the clause runs long (`El jefe guerrillero ... lanzó ayer un llamamiento
+  ..., según la cadena ... RTR` YESTERDAY launched an appeal, and written last
+  it came after the network that told of it: tr_write/4, en_day_adverb/1,
+  en_long_tail/1), and after a copula that stands alone (`son hoy el exponente`
+  ARE today the exponent, found by the controls); a manner adverb in `-ly` right
+  after its verb, before an object, a clause or an infinitive, goes with the
+  verb (`el Kremlin confirmó ayer oficialmente los temores` officially confirmed
+  them, tr_pull_adverb/3), never `awfully`, a degree (`No, sería mucho pedir`
+  was `it would awfully be to ask`, en_not_manner_ly/1), and an adverb of how
+  sure stands before a denied group (`non pensavo certo di incontrare` is I
+  certainly did not think, and it was `I did not certainly think`:
+  tr_mid_insert/3, en_sentence_adverb/1); an adverb that ends the subject's
+  words, right before the verb, is the clause's (`la campaña militar en
+  Chechenia también prosigue` -- Italian wrote it before the verb, `in Cecenia
+  anche continua`: tr_subject_adverb_out/4), an adverb of one word or one
+  English writes with the verb (`ya no`, no longer), never one of several words
+  that is the phrase's own (`Las previsiones de evolución de este mercado a
+  corto-medio plazo no son optimistas` was `non sono a breve-medio termine
+  ottimiste`) and never the word that denies (`Un dato confortante del quale non
+  ci si può rallegrare` was `se nos puede no alegrar`: a guard with no arm that
+  goes red, which no hand lesson reproduces and which stays for what the
+  controls showed); the side after a colon goes on saying what the subject
+  before it does (`Yeltsin mantiene un régimen ...: recibe correo y estudia
+  documentos` is what Yeltsin does, and read as commands it was `receive post
+  and study documents`: tr_read_after_colon/5); a date is when after a verb that
+  takes no object (`la primera vuelta tendrá lugar el 4 de junio` takes place ON
+  June 4: tr_complements0/4, tr_date_adjunct_here/1); a verb left out after its
+  coordinator, with a time for what is said (`la primera vuelta ... tendrá lugar
+  el 4 de junio y la segunda vuelta, tres semanas más tarde`, cnj/1 and gapc/2,
+  tr_gap_time/2); a name the source apposed to the noun among its adjectives
+  stays after them, and English turns the adjectives round (`El jefe guerrillero
+  checheno Chamil Basayev` is the Chechen guerrilla chief, en_adj_order/3,
+  en_nationality/1); the phrase a participle's verb governs is marked as a
+  clause's is (`un régimen calificado de "semilaboral"` is described AS one,
+  `"califica" takes "de" before the phrase.`, tr_ptc_governed/4, en_governs/2);
+  a name the lesson gives a meaning crosses by it and each language writes its
+  own (`The name "moscú" means "Moscow".`, mean_as/3 under the class name; `en
+  Moscú` is in Moscow and `a Mosca`: tr_cross_np/2, tr_cross_subject/3,
+  tr_subject_out/6, tr_np_out/5, tr_named_words/3, tr_city_name/1) -- and the
+  controls' first round found five faults of it, each mended with its arm red:
+  the lesson's word is written only for a name the source crossed (`los
+  argentinos Guglielminpietro (Milan)` is the club, a name the Spanish lesson
+  does not state, and the IR's `Milan`, spelled as the English city is, came out
+  `(Milano)`: tr_name_word_out/2, the names a sentence crossed noted as it is
+  read, '$tr_xnames'); a city's name after an article is the club named after it
+  and crosses as itself (`contro il Napoli` was `against the Naples`, `contra el
+  Nápoles`); a word the lesson knows as a name and as nothing else is a name in
+  quotation marks too, its marks off for the lesson and back on its word
+  (`señaló que "España ve con simpatía la candidatura"` was refused once
+  `España` was a word the lesson knows, and `analizado por Bruselas".` was `by
+  brussels`: tr_only_name/2, tr_quote_names/3, tr_tail_mark/5, tr_unmark/4); a
+  name after an elided article takes the gender the lesson states of it, asked
+  in small letters (`L'Italia che soffre` was `El Italia que padece`,
+  tr_name_gender/5); and a name of several words has a capital on each (`(New
+  York, 1991)` was `(Nueva york, 1991)`, tr_cap_words/2); a person the source
+  names in the feminine is one in the other language too (`la diplomática
+  norteamericana Cheri Leberknight` was `il diplomatico americano`:
+  tr_fem_person_note/3, tr_noun_lexeme0/5), never an animal, whose gender is its
+  word's (`è come cavalcare una tigre` was `cabalgar a una tigresa`), and noted
+  with its number (`dai 70 studenti iscritti ...: una studentessa che indossa la
+  tuta` -- noted by the noun alone the 70 were `las 70 alumnas inscritas`); a
+  word the lesson states in both genders agrees with either (`militare` is a
+  soldier of either sex, and as the adjective it was masculine to the writer,
+  `la campagna bellica`: tr_stated_both/1), and among nouns that are adjectives
+  too a person stated in both genders is no head by being one (`l'aeronautica
+  militare` was `el aeronáutico soldado`, tr_noun/5); and a preposition that
+  contracts with the article is said again before the second of two definite
+  phrases (`los ataques de la artillería y la aviación` are `gli attacchi
+  dell'artiglieria e dell'aviazione`, tr_comp_out/7, tr_prep_contracts/1). It
+  needed these WORDS in `extra/` (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Spanish `fija` (sets, where
+  it was fixes, which Italian's writer took for a repair, `ripara`),
+  `presidente`, `presidenta` and `president` (a president first, as Italian's
+  `presidente` is), `primera vuelta` and `segunda vuelta`, `elección
+  presidencial` and the noun `presidencial` (the presidential election, the noun
+  left out), `"recupera" is reflexive.`, `semilaboral`, `allegado` and
+  `allegada` (close associates, persons), `"califica" takes "de" before the
+  phrase.`, `espaldarazo` (a boost), `fiscal general`, `cargo` (a post, where
+  its first meaning was a charge) and `se hace cargo` (takes charge of, with its
+  forms and `de`), `pariente` (said again first) and `familiar` (relatives),
+  `alto funcionario`, `asunto` (an affair, where it was a subject),
+  `diplomático` and `diplomática`, `americano` (said again first) and
+  `norteamericano`, `más tarde`, the tenses of `tiene lugar`, `indiferente`
+  (said again first) and `ajeno` (indifferent), `liderazgo` (said again first)
+  and `cúpula` (the leadership, where it was a dome), `para fin de año`, `dura`
+  (lasts, said again first) and `prolonga` (prolongs, and lasts as a reflexive),
+  `guerrilla` (said again first) and `guerrillero`, `checheno`, `cadena de
+  televisión`, `apelación` (said again first) and `llamamiento` (an appeal,
+  where it was a call), `defensa` and `exteriores` (institutions), `correo`
+  (mail, where it was the British post), `espera` (expects, and hopes before an
+  infinitive), `finaliza` (completes, and ends with no object), `ministerio de
+  exteriores` and `ministerio de asuntos exteriores`, `jefe` and `jefa` (a
+  chief, where it was a boss), `"releva" takes "de" before the phrase.`,
+  `"pívot" is a person.`, the 24 nouns in `-ción`, `-sión`, `-dad`, `-tud` and
+  `-umbre` whose gender the dictionary leaves unsaid, each stated feminine, and
+  37 names with their English meaning (`Moscú`, `Rusia`, `Chechenia`, `Grozni`,
+  `Kremlin`, and the cities and countries the controls name, `Londres` to
+  `Israel`, `Cataluña` said before `Catalunya`); Italian `fissa` (sets), `primo
+  turno` and `secondo turno`, `elezione presidenziale`, `semilavorativo`,
+  `stretto collaboratore` and `stretta collaboratrice`, `procuratore generale`,
+  `incarico` (a task, then a post, where the writer's word for a post was
+  `carico`, a load), `alto funzionario`, `vicenda` (an affair), `più tardi`, the
+  tenses of `ha luogo`, `entro la fine dell'anno`, `guerrigliero`, `ceceno`,
+  `rete televisiva`, `suo` and `sua` (its), `"spera" takes "di" before the
+  infinitive.`, `solleva` (poses, and relieves, taking `da`), `spionaggio`
+  (espionage, where the first noun for it was `spia`, a spy), `ministero degli
+  esteri`, `"descrive" takes "come" before the phrase.`, `"militare" is
+  feminine.`, the 148 nouns in `-zione`, `-sione` and `-tà` whose gender the
+  dictionary leaves unsaid, each stated feminine (`il secondo
+  ospedalizzazione`), and 36 names, the 14 cities that take `a` stated so
+  (`mosca`, `russia`, `cecenia`, `grozny`, `cremlino`, and the controls' cities
+  and countries); and in eng-ita.dix `cool` (`raffreddare`, where the
+  dictionary's verb was `rinfrescare`). The first meaning moved for 14 Spanish
+  words and 2 Italian ones (Spanish `ajeno` and `ajena` indifferent, `asunto` an
+  affair, `cargo` a post, `correo` mail, `cúpula` the leadership, `jefe` and
+  `jefa` a chief, `llamamiento` an appeal, `president`, `presidente` and
+  `presidenta` a president, `fija` sets, `finaliza` completes; Italian `spia` a
+  spy, `fissa` sets), the writer's first word for 6 Spanish meanings and 7
+  Italian ones (Spanish later `más tarde`, mail `correo`, post `cargo`,
+  completes `finaliza`, fixes `arregla`, sets `fija`; Italian later `più tardi`,
+  affair `vicenda`, espionage `spionaggio`, post `incarico`, cools `raffredda`,
+  relieves `solleva`, sets `fissa`), and none was lost. THE CONTROLS (cocolog
+  2.11.2, store KB219, 104 count files, 2 868 sentences: the earlier set with
+  the Venice report in, it_9999_10010, both directions; this report is not among
+  them): the last version's translator against this one, on the one store, 194
+  sentences in 75 files read differently, all better but the stated costs below
+  -- the names a lesson now gives a meaning (`England`, `Germany`, `Spain`,
+  `Catalonia`, `London`, `Florence`, `Seoul`, `Rome`, `Milan`, `Italy`, `Japan`,
+  `Europe`, `Brussels`; Italian `Inghilterra`, `Germania`, `Spagna`,
+  `Catalogna`, `Barcellona`, `a Londra`, `a Firenze`, `a Seul`; Spanish `Milán`,
+  `Cerdeña`, `Japón`, `Atenas`, `Nápoles` for the city and `el Napoli` for the
+  club), `yesterday`, `today` and `last night` before the verb of a long clause,
+  `its` (`the Unicaja ... confirmed its enormous potential`, `the compact disk
+  continues increasing its penetration`, `each federation has its regulations`,
+  `the organisation of Miss Mundo 2000 ... its business`), the adverbs in `-ly`
+  with the verb (`officially`, `recently approved`, `radically exclude`,
+  `normally have need`, `indirectly confirm`, `I certainly did not think`), `it
+  was about 10 kilos` (`se trata de`), `is no longer synonymous` and `non è più
+  sinonimo`, `risultarono anche ferite` and `caricò anche`, the women
+  (`l'incaricata del Governo, Julia García-Valdecasas`, `presidentessa`, `su
+  compañera de otoño`, `L'infermiera gli raccomandò`), `dall'impegno e dalla
+  volontà` and `sull'industria e sul settore agricolo`, `the military
+  aeronautics` and `la aeronáutica militar`, `L'Italia che soffre` as `La Italia
+  que padece`, and the Matutes sentence, which the last version refuses on this
+  store and this one reads (es_19990601-23 10, `"Spagna vede con simpatia la
+  candidatura"`) -- and the inferences fall 0.026 % (8 269 449 520 to 8 267 295
+  355) and rise 0.013 % outside four sentences: the Matutes sentence, 2.2
+  million inferences fewer in each language, and `l'aeronautica militare`
+  (it_9947_9966 9), 0.62 million more in each, the reading the person rule mends
+  being the longer one. Bytes and characters read every sentence alike (0
+  differ, the bytes 0.012 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB212, against this one on the new): 219
+  sentences in 76 files, +0.022 % (8 265 461 199 to 8 267 295 355), +0.036 %
+  outside es_20020601-51 6, which the store reads 0.56 million inferences faster
+  in each language. THE CODE ALONE (this translator on KB212): 45 sentences in
+  34 files, +0.015 % (to 8 266 667 554), and it reads every sentence the last
+  version reads. THE STORE ALONE (the last version's translator on KB212 and on
+  KB219): 53 sentences in 30 files, +0.048 % (to 8 269 449 520), +0.023 %
+  outside six sentences, each a word of the report's lines (`president`,
+  `affair`, `posts`, `mail`, `Defence`, `Difesa`, `set`, `a Tokyo`, `si occupa
+  di Paral.lel` for `se haga cargo de`) or a fault of the old code on the new
+  store that the new code mends (`El Italia que padece`, `by brussels`, `the
+  naples`, `el aeronáutico soldado`, and the Matutes sentence refused). A FIRST
+  STORE WAS 0.124 % DEARER FOR EIGHT LINES: the rules `Every noun that ends in
+  "zione" is feminine.` (and `"sione"`, `"tà"`, Spanish's `"ción"`, `"sión"`,
+  `"dad"`, `"tud"`, `"umbre"`), asked of the gender of every noun, cost the old
+  translator on that store +0.172 % where this one costs +0.048 %, the
+  translation from Spanish into Italian +0.57 % of it -- found by teaching a
+  store without each group of the new lines and counting twenty of the controls'
+  risers whose texts were the same (the Italian rules were 78 % of what the
+  store cost into Italian, the Spanish ones 83 % into English, the names
+  nothing) -- and they decide the gender of 148 Italian nouns and 24 Spanish
+  ones, which are each stated now: the same texts, every one of the 2 868, for
+  0.124 % fewer inferences. THE FIRST ROUNDS' REGRESSIONS, found by reading the
+  texts of every column (three rounds and a word-by-word scan of the last data
+  column) and mended, each with its arm red: `its` for a person (`El viento le
+  voló su sombrero` was `its hat`, `avisó a Ibarretxe de que a su Gobierno` `its
+  Government`, `Rony Seikaly ... rescindir su contrato` `its contract`, which
+  wanted `"pívot" is a person.`); `its` where the lesson has no word for it (the
+  code alone refused 8 sentences into Italian); the club (`against the Naples`,
+  `contra el Nápoles` in 12 sentences); the uncrossed `Milan` (`(Milano)`); a
+  stated name in quotation marks (the Matutes sentence refused, `by brussels`,
+  and a closing mark on a name, `could erase the naples`); `El Italia que
+  padece`, `del Italia`, `al Italia` (5); `una tigresa`; `las 70 alumnas
+  inscritas`; `el aeronáutico soldado` and `the aeronautical soldier`, from
+  `"militare" is feminine.`; `ha prolongado tan poco`, `que prolonga 5 años`,
+  `Prolonga 6 meses` and `si prolongaba indefinidamente`, from the reflexive
+  `prolonga` said first; `se haga cargo de` as `one makes post of` and `si fa
+  incarico di`; the subject's adverb of several words (`non sono a breve-medio
+  termine ottimiste`) and its denial (`se nos puede no alegrar`), and the guard
+  for one word that lost `ya no` (`non più è sinonimo`, the second round);
+  `today are the exponent`; `I did not certainly think`; `it would awfully be to
+  ask` and `One awfully seems his parent`; and `(Nueva york, 1991)`. THE COST OF
+  THE CODE, FOUND BY TAKING EACH RULE OUT (the twenty heaviest risers of 0.2 to
+  3 million inferences on the one store, ten from Spanish and ten from Italian,
+  into English, over a copy of the library per rule on KB218): the ten from
+  Spanish rose 21 717 inferences of 10.3 million (+0.21 %), of which the
+  feminine-person note was 9 173 and the `its` rule 8 248, each asked at every
+  phrase the crossing meets, and the colon's rule 1 201; the ten from Italian
+  rose 648 540 of 15.9 million, 620 233 of it the person rule in `l'aeronautica
+  militare` (above), the `its` rule 12 376 and the note 9 161; no other rule
+  over 2 600. THE STATED COSTS: `cargo` is a post, so `buscar otros cargos para
+  fortalecer el proceso` is `other posts`, where it was the charges, and
+  `actuales cargos de RTVE` `current posts`; `presidente` is a president, and
+  `su presidente, Henry Hyde` of the judicial committee is `his president`;
+  `asunto` is an affair (`in this affair`, `una vicenda`); `fissa` and `fija`
+  set, so `le due delegazioni fissate per martedì` are `the two set
+  delegations`; the preposition said again shows a misreading that the old text
+  hid (`Dove è l'imperturbabile signore della bombetta e dell'ironico umorismo`,
+  the gentleman of the bowler hat and the ironic humour read inside one phrase
+  of `of`); `se haga cargo de Paral.lel` is refused into English, a third person
+  nobody names (on purpose; it was `one makes charge of`); and a feminine person
+  noted by its noun and number makes every woman of that noun and number in the
+  sentence one (`la diplomática ... la diplomática` is right, two such of
+  different sexes are not). The report LEAVES, of the 16 into Italian: `soffre
+  di nuovo una "polmonite"` (`di una`), `di cui si recupera soddisfacentemente`
+  (`da cui si sta riprendendo`), `continua il suo andamento` (`corso`), `d'EEUU`
+  (`degli Stati Uniti`), `sott'accusa di spionaggio` (`con l'accusa di`), `il
+  ministro di Difesa` (`della Difesa`), `un appello all'inizio d'una nuova
+  ondata` (`per l'inizio`); of the 13 into English: `the embassy of EEUU`,
+  `under accusation of espionage`, `the minister of Defence`, `an appeal to the
+  beginning of a new wave`, `a boost on the part of the Constitutional Court, on
+  considering compatible ...`, and `has officially asked the diplomat to abandon
+  the country` (to leave it); English refuses 3, 4 and 9 for the third person
+  nobody names, on purpose (`de la que se recupera`, `recibe correo y estudia
+  documentos`, `Este fue relevado de su cargo en el momento en que
+  investigaba`). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

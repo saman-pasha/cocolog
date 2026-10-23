@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16588 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16589 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -2552,6 +2552,262 @@ The adjective "simile" means "similar".
 "deriva" takes "da" before the phrase.
 "viene" takes "da" before the phrase.
 The feminine noun "traccia" means "trace".
+The verb "fissa" means "sets".
+The masculine noun "primo turno" means "first round".
+"primi turni" is the plural of "primo turno".
+The masculine noun "secondo turno" means "second round".
+"secondi turni" is the plural of "secondo turno".
+The feminine noun "elezione presidenziale" means "presidential election".
+"elezioni presidenziali" is the plural of "elezione presidenziale".
+"acidificazione" is feminine.
+"affissazione" is feminine.
+"apposizione" is feminine.
+"arbitrarietà" is feminine.
+"auscultazione" is feminine.
+"automozione" is feminine.
+"biiezione" is feminine.
+"bilateralità" is feminine.
+"bioaccumulazione" is feminine.
+"biodegradazione" is feminine.
+"bisezione" is feminine.
+"calcinazione" is feminine.
+"carbonatazione" is feminine.
+"carburazione" is feminine.
+"cauterizzazione" is feminine.
+"cementazione" is feminine.
+"clorazione" is feminine.
+"coeducazione" is feminine.
+"cogenerazione" is feminine.
+"confidenzialità" is feminine.
+"conflagrazione" is feminine.
+"consanguineità" is feminine.
+"controprogrammazione" is feminine.
+"coprecipitazione" is feminine.
+"costipazione" is feminine.
+"culpabilità" is feminine.
+"deconcentrazione" is feminine.
+"defogliazione" is feminine.
+"deidrogenazione" is feminine.
+"deionizzazione" is feminine.
+"delineazione" is feminine.
+"demineralizzazione" is feminine.
+"demodulazione" is feminine.
+"demoralizzazione" is feminine.
+"denitrificazione" is feminine.
+"denotazione" is feminine.
+"denudazione" is feminine.
+"depalatalizzazione" is feminine.
+"depolimerizzazione" is feminine.
+"desessualizzazione" is feminine.
+"desolforazione" is feminine.
+"desquamazione" is feminine.
+"disgiunzione" is feminine.
+"disumanizzazione" is feminine.
+"domiciliazione" is feminine.
+"durabilità" is feminine.
+"elettrocuzione" is feminine.
+"elettronegatività" is feminine.
+"eruttazione" is feminine.
+"espettorazione" is feminine.
+"essudazione" is feminine.
+"esterificazione" is feminine.
+"estrusione" is feminine.
+"esumazione" is feminine.
+"eutrofizzazione" is feminine.
+"flocculazione" is feminine.
+"fluorizzazione" is feminine.
+"fonazione" is feminine.
+"fosforilazione" is feminine.
+"fossilizzazione" is feminine.
+"fotocomposizione" is feminine.
+"fotoincisione" is feminine.
+"fumigazione" is feminine.
+"galvanizzazione" is feminine.
+"gassazione" is feminine.
+"gassificazione" is feminine.
+"gastrulazione" is feminine.
+"gelificazione" is feminine.
+"gemmazione" is feminine.
+"grammaticalizzazione" is feminine.
+"granulazione" is feminine.
+"humanità" is feminine.
+"idratazione" is feminine.
+"immunosoppressione" is feminine.
+"inaccessibilità" is feminine.
+"inazione" is feminine.
+"indottrinazione" is feminine.
+"infibulazione" is feminine.
+"inoculazione" is feminine.
+"insonorizzazione" is feminine.
+"intercalazione" is feminine.
+"intercomunicazione" is feminine.
+"inumidificazione" is feminine.
+"invaginazione" is feminine.
+"istituzionalizzazione" is feminine.
+"liofilizzazione" is feminine.
+"malleabilità" is feminine.
+"microiniezione" is feminine.
+"microminiaturizzazione" is feminine.
+"minzione" is feminine.
+"mitigazione" is feminine.
+"nasalizzazione" is feminine.
+"nitratazione" is feminine.
+"oggettivazione" is feminine.
+"ospedalizzazione" is feminine.
+"palatalizzazione" is feminine.
+"parametrizzazione" is feminine.
+"passivazione" is feminine.
+"pastorizzazione" is feminine.
+"percolazione" is feminine.
+"permettività" is feminine.
+"plastificazione" is feminine.
+"postproduzione" is feminine.
+"prefissazione" is feminine.
+"procrastinazione" is feminine.
+"proletarizzazione" is feminine.
+"proscrizione" is feminine.
+"prosternazione" is feminine.
+"quantizzazione" is feminine.
+"radiocomunicazione" is feminine.
+"redistribuzione" is feminine.
+"reificazione" is feminine.
+"reticolazione" is feminine.
+"riassegnazione" is feminine.
+"riconfigurazione" is feminine.
+"ruralizzazione" is feminine.
+"salivazione" is feminine.
+"scarificazione" is feminine.
+"sedazione" is feminine.
+"simbolizzazione" is feminine.
+"sinterizzazione" is feminine.
+"sismicità" is feminine.
+"sopraelevazione" is feminine.
+"sottoccupazione" is feminine.
+"sovralimentazione" is feminine.
+"sovrasaturazione" is feminine.
+"spiritualizzazione" is feminine.
+"stagflazione" is feminine.
+"stigmatizzazione" is feminine.
+"suffissazione" is feminine.
+"superfluidità" is feminine.
+"surrogazione" is feminine.
+"tabulazione" is feminine.
+"telediffusione" is feminine.
+"terraformazione" is feminine.
+"territorialità" is feminine.
+"torrefazione" is feminine.
+"traslocazione" is feminine.
+"trisezione" is feminine.
+"ulcerazione" is feminine.
+"umificazione" is feminine.
+"vaporizzazione" is feminine.
+"vasodilatazione" is feminine.
+"vitrificazione" is feminine.
+"vocalizzazione" is feminine.
+"volatilizzazione" is feminine.
+"zonazione" is feminine.
+"zonificazione" is feminine.
+The masculine adjective "semilavorativo" means "semi-working".
+The feminine adjective "semilavorativa" means "semi-working".
+"semilavorativi" is the plural of "semilavorativo".
+"semilavorative" is the plural of "semilavorativa".
+The masculine noun "stretto collaboratore" means "close associate".
+"stretti collaboratori" is the plural of "stretto collaboratore".
+"stretto collaboratore" is a person.
+The feminine noun "stretta collaboratrice" means "close associate".
+"strette collaboratrici" is the plural of "stretta collaboratrice".
+"stretta collaboratrice" is a person.
+The masculine noun "procuratore generale" means "prosecutor general".
+"procuratori generali" is the plural of "procuratore generale".
+"procuratore generale" is a person.
+The masculine noun "incarico" means "task".
+The masculine noun "incarico" means "post".
+The masculine noun "alto funzionario" means "senior official".
+"alti funzionari" is the plural of "alto funzionario".
+"alto funzionario" is a person.
+The feminine noun "vicenda" means "affair".
+The adverb "più tardi" means "later".
+"avrà luogo" is the future of "ha luogo".
+"avranno luogo" is the plural of "avrà luogo".
+"aveva luogo" is the imperfect of "ha luogo".
+"avevano luogo" is the plural of "aveva luogo".
+"avrebbe luogo" is the conditional of "ha luogo".
+"avrebbero luogo" is the plural of "avrebbe luogo".
+"abbia luogo" is the subjunctive of "ha luogo".
+"abbiano luogo" is the plural of "abbia luogo".
+The adverb "entro la fine dell'anno" means "by the end of the year".
+The masculine adjective "guerrigliero" means "guerrilla".
+The feminine adjective "guerrigliera" means "guerrilla".
+"guerriglieri" is the plural of "guerrigliero".
+"guerrigliere" is the plural of "guerrigliera".
+The masculine adjective "ceceno" means "chechen".
+The feminine adjective "cecena" means "chechen".
+"ceceni" is the plural of "ceceno".
+"cecene" is the plural of "cecena".
+The feminine noun "rete televisiva" means "television network".
+"reti televisive" is the plural of "rete televisiva".
+The masculine possessive "suo" means "its".
+The feminine possessive "sua" means "its".
+"spera" takes "di" before the infinitive.
+The verb "solleva" means "poses".
+The verb "solleva" means "relieves".
+"solleva" takes "da" before the phrase.
+The masculine noun "spionaggio" means "espionage".
+The feminine noun "spia" means "spy".
+The masculine noun "ministero degli esteri" means "foreign ministry".
+"ministeri degli esteri" is the plural of "ministero degli esteri".
+"descrive" takes "come" before the phrase.
+The name "mosca" means "Moscow".
+"mosca" is a city.
+The name "russia" means "Russia".
+The name "cecenia" means "Chechnya".
+The name "grozny" means "Grozny".
+"grozny" is a city.
+The name "londra" means "London".
+"londra" is a city.
+The name "roma" means "Rome".
+The name "milano" means "Milan".
+The name "napoli" means "Naples".
+The name "firenze" means "Florence".
+The name "genova" means "Genoa".
+The name "venezia" means "Venice".
+The name "stoccolma" means "Stockholm".
+"stoccolma" is a city.
+The name "siviglia" means "Seville".
+"siviglia" is a city.
+The name "bruxelles" means "Brussels".
+"bruxelles" is a city.
+The name "atene" means "Athens".
+"atene" is a city.
+The name "new york" means "New York".
+"new york" is a city.
+The name "seul" means "Seoul".
+"seul" is a city.
+The name "barcellona" means "Barcelona".
+"barcellona" is a city.
+The name "lisbona" means "Lisbon".
+"lisbona" is a city.
+The name "parigi" means "Paris".
+"parigi" is a city.
+The name "berlino" means "Berlin".
+"berlino" is a city.
+The name "tokyo" means "Tokyo".
+"tokyo" is a city.
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "germania" means "Germany".
+The name "inghilterra" means "England".
+The name "spagna" means "Spain".
+The name "giappone" means "Japan".
+The name "brasile" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "catalogna" means "Catalonia".
+The name "sardegna" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israele" means "Israel".
+The name "cremlino" means "Kremlin".
+"militare" is feminine.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -26653,6 +26909,58 @@ The verb "inquina" means "pollutes".
 "inquinate" is the plural of "inquinata".
 "inquinare" is the infinitive of "inquina".
 "inquinando" is the gerund of "inquina".
+The verb "raffredda" means "cools".
+"raffreddano" is the plural of "raffredda".
+"raffreddiamo" is the first person of "raffreddano".
+"raffreddo" is the first person of "raffredda".
+"raffreddi" is the second person of "raffredda".
+"raffreddò" is the past of "raffredda".
+"raffreddarono" is the past of "raffreddano".
+"raffreddammo" is the first person of "raffreddarono".
+"raffreddaste" is the second person of "raffreddarono".
+"raffreddai" is the first person of "raffreddò".
+"raffreddasti" is the second person of "raffreddò".
+"raffreddava" is the imperfect of "raffredda".
+"raffreddavano" is the imperfect of "raffreddano".
+"raffreddavamo" is the first person of "raffreddavano".
+"raffreddavate" is the second person of "raffreddavano".
+"raffreddavo" is the first person of "raffreddava".
+"raffreddavi" is the second person of "raffreddava".
+"raffredderà" is the future of "raffredda".
+"raffredderanno" is the plural of "raffredderà".
+"raffredderemo" is the first person of "raffredderanno".
+"raffredderete" is the second person of "raffredderanno".
+"raffredderò" is the first person of "raffredderà".
+"raffredderai" is the second person of "raffredderà".
+"raffredderebbe" is the conditional of "raffredda".
+"raffredderebbero" is the plural of "raffredderebbe".
+"raffredderemmo" is the first person of "raffredderebbero".
+"raffreddereste" is the second person of "raffredderebbero".
+"raffredderei" is the first person of "raffredderebbe".
+"raffredderesti" is the second person of "raffredderebbe".
+"raffreddi" is the subjunctive of "raffredda".
+"raffreddino" is the plural of "raffreddi".
+"raffreddiamo" is the first person of "raffreddino".
+"raffreddasse" is the past subjunctive of "raffredda".
+"raffreddassero" is the plural of "raffreddasse".
+"raffreddassimo" is the first person of "raffreddassero".
+"raffreddaste" is the second person of "raffreddassero".
+"raffreddassi" is the first person of "raffreddasse".
+"raffreddassi" is the second person of "raffreddasse".
+"raffredda" is the imperative of "raffredda".
+"raffreddare" is the negative imperative of "raffredda".
+"raffreddate" is the imperative of "raffreddano".
+"raffreddiamo" is the hortative of "raffredda".
+"raffreddato" is the participle of "raffredda".
+"raffreddata" is the participle of "raffredda".
+"raffreddata" is feminine.
+"raffreddati" is the participle of "raffredda".
+"raffreddati" is the plural of "raffreddato".
+"raffreddate" is the participle of "raffredda".
+"raffreddate" is feminine.
+"raffreddate" is the plural of "raffreddata".
+"raffreddare" is the infinitive of "raffredda".
+"raffreddando" is the gerund of "raffredda".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".

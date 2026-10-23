@@ -596,8 +596,10 @@ The masculine noun "pib" means "GDP".
 "pib" is an acronym.
 # `la lista de las prioridades fijada por el gobierno': `arregla' is the
 # first Spanish verb for `fixes', and it repairs; Italian's `fissare' comes
-# across as `fixes' and is what Spanish says with `fijar'
-The verb "fija" means "fixes".
+# across as `sets' and is what Spanish says with `fijar' (and `La Duma fija la
+# primera vuelta ... para el 4 de junio', the Yeltsin report, sets a date --
+# `fixes' was a repair to Italian's writer, `ripara')
+The verb "fija" means "sets".
 # `¿qué habría de malo?': there would be -- the conditional of `hay', as
 # `habrá' is its future
 "habría" is the conditional of "hay".
@@ -1864,8 +1866,13 @@ The feminine noun "autorregulación" means "self-regulation".
 # `El president recalcó que ...': the Catalan word for the head of the
 # Generalitat, in the dictionary's first meaning for `presidente' (a chairman).
 # `presidente' said first, or `president' would be the first Spanish word for a
-# chairman and every Italian `presidente' would be written in Catalan
+# chairman and every Italian `presidente' would be written in Catalan; and a
+# president first of all, as Italian's `presidente' is (the Yeltsin report: `El
+# presidente padece de nuevo una "neumonía"' is the head of a state)
+The masculine noun "presidente" means "president".
+The feminine noun "presidenta" means "president".
 The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "president".
 The masculine noun "president" means "chairman".
 "president" is a person.
 # `la consellera de Justícia': the feminine of `conseller', an adviser; the
@@ -2336,6 +2343,8 @@ The verb "se encarga" means "takes charge of".
 # `la directiva azulgrana': the board -- the dictionary has `directiva' as an adjective, and read so `la directiva
 # azulgrana' was a managerial Barça player
 The feminine noun "directiva" means "board of directors".
+# `El pívot estadounidense del Barcelona Rony Seikaly ... rescindir su contrato': a player, whose contract is his
+"pívot" is a person.
 "directivas" is the plural of "directiva".
 # `a meno che non si liberi entro un anno': the writer's first Spanish verb for releases was the idiom below,
 # `a menos que se deja marchar'; the dictionary's `libera' is said first, as `frees' first, which it stays to the reader
@@ -3058,3 +3067,218 @@ The feminine noun "extensión" means "extension".
 # `desde' was the first word for `from'
 "deriva" takes "de" before the phrase.
 "viene" takes "de" before the phrase.
+# the Yeltsin report (AnCora CESS-CAST-P-19991202-35), into Italian and English
+# `La Duma fija la primera vuelta de las presidenciales para el 4 de junio': the rounds of an election (`fija' sets
+# it, above); the presidential elections, with the noun left out
+The feminine noun "primera vuelta" means "first round".
+"primeras vueltas" is the plural of "primera vuelta".
+The feminine noun "segunda vuelta" means "second round".
+"segundas vueltas" is the plural of "segunda vuelta".
+The feminine noun "elección presidencial" means "presidential election".
+"elecciones presidenciales" is the plural of "elección presidencial".
+The feminine noun "presidencial" means "presidential election".
+"presidenciales" is the plural of "presidencial".
+# `de la que se recupera satisfactoriamente': the verb takes `se' as its own pronoun, and nobody is the impersonal `one'
+"recupera" is reflexive.
+# `un régimen calificado de "semilaboral" por sus allegados': described AS one, by those close to him
+The adjective "semilaboral" means "semi-working".
+"semilaborales" is the plural of "semilaboral".
+The masculine noun "allegado" means "close associate".
+"allegados" is the plural of "allegado".
+"allegado" is a person.
+The feminine noun "allegada" means "close associate".
+"allegadas" is the plural of "allegada".
+"allegada" is a person.
+"califica" takes "de" before the phrase.
+# `El Kremlin recibió ayer un espaldarazo': a boost (`impulso' is the word written for one, said above)
+The masculine noun "espaldarazo" means "boost".
+"espaldarazos" is the plural of "espaldarazo".
+# `Yuri Skuratov, el fiscal general'
+The masculine noun "fiscal general" means "prosecutor general".
+"fiscales generales" is the plural of "fiscal general".
+"fiscal general" is a person.
+# `Este fue relevado de su cargo ... entre familiares de Yeltsin y altos funcionarios del Kremlin': a post, the
+# relatives (`pariente' said again first, the word written for one), senior officials; and `asuntos de corrupción'
+# are affairs, where the dictionary's first meaning is a subject
+The masculine noun "cargo" means "post".
+# ... and `hacerse cargo de' takes charge of it, two words and a reflexive as `se encarga' (`la posibilidad de que se
+# haga cargo de Paral.lel' was `makes post of')
+The verb "se hace cargo" means "takes charge of".
+"se hacen cargo" is the plural of "se hace cargo".
+"se hizo cargo" is the past of "se hace cargo".
+"se hicieron cargo" is the plural of "se hizo cargo".
+"se hacía cargo" is the imperfect of "se hace cargo".
+"se hacían cargo" is the plural of "se hacía cargo".
+"se hará cargo" is the future of "se hace cargo".
+"se harán cargo" is the plural of "se hará cargo".
+"se haga cargo" is the subjunctive of "se hace cargo".
+"se hagan cargo" is the plural of "se haga cargo".
+"hacerse cargo" is the infinitive of "se hace cargo".
+"se hace cargo" takes "de" before the infinitive.
+"se hace cargo" takes "de" before the phrase.
+The masculine noun "pariente" means "relative".
+The masculine noun "familiar" means "relative".
+"familiares" is the plural of "familiar".
+"familiar" is a person.
+The masculine noun "alto funcionario" means "senior official".
+"altos funcionarios" is the plural of "alto funcionario".
+"alto funcionario" is a person.
+The masculine noun "asunto" means "affair".
+# `la diplomática norteamericana Cheri Leberknight': a diplomat, and an American (`americano' said again first, the
+# word written for one)
+The masculine noun "diplomático" means "diplomat".
+"diplomáticos" is the plural of "diplomático".
+"diplomático" is a person.
+The feminine noun "diplomática" means "diplomat".
+"diplomáticas" is the plural of "diplomática".
+"diplomática" is a person.
+The masculine adjective "americano" means "american".
+The feminine adjective "americana" means "american".
+The masculine noun "americano" means "american".
+The masculine adjective "norteamericano" means "american".
+The feminine adjective "norteamericana" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericanas" is the plural of "norteamericana".
+The masculine noun "norteamericano" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericano" is a person.
+# `la segunda vuelta, tres semanas más tarde': later; `tendrá lugar': the future of `tiene lugar'
+The adverb "más tarde" means "later".
+"tendrá lugar" is the future of "tiene lugar".
+"tendrán lugar" is the plural of "tendrá lugar".
+"tenía lugar" is the imperfect of "tiene lugar".
+"tenían lugar" is the plural of "tenía lugar".
+"tendría lugar" is the conditional of "tiene lugar".
+"tendrían lugar" is the plural of "tendría lugar".
+"tenga lugar" is the subjunctive of "tiene lugar".
+"tengan lugar" is the plural of "tenga lugar".
+# `la campaña militar en Chechenia también prosigue, ajena a las noticias': indifferent to them, where `indiferente'
+# stays the word written for indifferent
+The adjective "indiferente" means "indifferent".
+The masculine adjective "ajeno" means "indifferent".
+The feminine adjective "ajena" means "indifferent".
+# `la cúpula militar rusa': its leadership, where `liderazgo' stays the word written for one
+The masculine noun "liderazgo" means "leadership".
+The feminine noun "cúpula" means "leadership".
+# `para fin de año': by the end of the year
+The adverb "para fin de año" means "by the end of the year".
+# `Las operaciones militares se prolongarán "entre uno y tres meses"': they will last (`dura' said again first, the
+# word written for lasts, and the plain verb's own meaning before the reflexive one's)
+The verb "dura" means "lasts".
+The verb "prolonga" means "prolongs".
+The reflexive verb "prolonga" means "lasts".
+# `El jefe guerrillero checheno Chamil Basayev ... en una cadena de televisión chechena' (`guerrilla' said again
+# first, the word written for one)
+The feminine noun "guerrilla" means "guerrilla".
+The masculine adjective "guerrillero" means "guerrilla".
+The feminine adjective "guerrillera" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrilleras" is the plural of "guerrillera".
+The masculine noun "guerrillero" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrillero" is a person.
+The masculine adjective "checheno" means "chechen".
+The feminine adjective "chechena" means "chechen".
+"chechenos" is the plural of "checheno".
+"chechenas" is the plural of "chechena".
+The masculine noun "checheno" means "chechen".
+"chechenos" is the plural of "checheno".
+"checheno" is a person.
+The feminine noun "cadena de televisión" means "television network".
+"cadenas de televisión" is the plural of "cadena de televisión".
+# `El jefe guerrillero ... lanzó ayer un llamamiento al inicio de una nueva ola de atentados': an appeal, where the
+# dictionary has a call (`apelación' said again first, the word written for one)
+The feminine noun "apelación" means "appeal".
+The masculine noun "llamamiento" means "appeal".
+# a noun in `-ción', `-sión', `-dad', `-tud' or `-umbre' is feminine, which the dictionary leaves unsaid for 24.
+# Each is stated: five rules, asked of every noun's gender, were most of what the store cost the translation from
+# Spanish
+"axiomatización" is feminine.
+"biomagnificación" is feminine.
+"computabilidad" is feminine.
+"comunicabilidad" is feminine.
+"conmunicabilidad" is feminine.
+"cremosidad" is feminine.
+"decrepitud" is feminine.
+"defecación" is feminine.
+"desforestación" is feminine.
+"discretización" is feminine.
+"fotodegradación" is feminine.
+"fotoionización" is feminine.
+"garrulidad" is feminine.
+"georreferenciación" is feminine.
+"laicidad" is feminine.
+"laxidad" is feminine.
+"liposucción" is feminine.
+"lumbre" is feminine.
+"permitividad" is feminine.
+"principalidad" is feminine.
+"reproducibilidad" is feminine.
+"semioscuridad" is feminine.
+"trasmisión" is feminine.
+"triplicidad" is feminine.
+# `El ministro de Defensa', `el Ministerio de Exteriores': common nouns a newspaper capitalises (as `estado' above)
+"defensa" is an institution.
+"exteriores" is an institution.
+# `recibe correo y estudia documentos': the mail, where the dictionary's first meaning is the British post (and the
+# post is `cargo', above: with both one English word, Italian's writer took the mail for `incarico')
+The masculine noun "correo" means "mail".
+# `que esperaba finalizar la operación militar': hoped to complete it -- before an infinitive the verb hopes, the
+# plain meaning said first; and `finalizar' completes, where the dictionary's `finalises' has no Italian, and with
+# no object it ends
+The verb "espera" means "expects".
+The infinitival verb "espera" means "hopes".
+The verb "finaliza" means "completes".
+The intransitive verb "finaliza" means "ends".
+# `el Ministerio de Exteriores ruso': the foreign ministry -- read word by word it was a ministry of the outside
+The masculine noun "ministerio de exteriores" means "foreign ministry".
+"ministerios de exteriores" is the plural of "ministerio de exteriores".
+The masculine noun "ministerio de asuntos exteriores" means "foreign ministry".
+"ministerios de asuntos exteriores" is the plural of "ministerio de asuntos exteriores".
+# `El jefe guerrillero checheno': a chief, where the dictionary's first meaning is a boss
+The masculine noun "jefe" means "chief".
+The feminine noun "jefa" means "chief".
+# `Este fue relevado de su cargo': relieved OF it
+"releva" takes "de" before the phrase.
+# `la vida política en Moscú', `atentados en Rusia', `la campaña militar en Chechenia', `la capital, Grozni': a name
+# the lesson gives a meaning crosses by it, and each language writes its own (extra/italian.txt has Italian's)
+The name "moscú" means "Moscow".
+The name "rusia" means "Russia".
+The name "chechenia" means "Chechnya".
+The name "grozni" means "Grozny".
+# the cities and countries the controls name, each by its English name (`en Londres' is in London, and Italian's
+# `a Londra'); `Cataluña' said before `Catalunya', the Catalan spelling the papers print, so that it is the one written
+The name "londres" means "London".
+The name "roma" means "Rome".
+The name "milán" means "Milan".
+The name "nápoles" means "Naples".
+The name "florencia" means "Florence".
+The name "génova" means "Genoa".
+The name "venecia" means "Venice".
+The name "estocolmo" means "Stockholm".
+The name "sevilla" means "Seville".
+The name "bruselas" means "Brussels".
+The name "atenas" means "Athens".
+The name "nueva york" means "New York".
+The name "seúl" means "Seoul".
+The name "barcelona" means "Barcelona".
+The name "lisboa" means "Lisbon".
+The name "parís" means "Paris".
+The name "berlín" means "Berlin".
+The name "tokio" means "Tokyo".
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "alemania" means "Germany".
+The name "inglaterra" means "England".
+The name "españa" means "Spain".
+The name "japón" means "Japan".
+The name "brasil" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "cataluña" means "Catalonia".
+The name "catalunya" means "Catalonia".
+The name "cerdeña" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israel" means "Israel".
+# `El Kremlin confirmó ayer oficialmente los temores': the Kremlin, Italian's `il Cremlino'
+The name "kremlin" means "Kremlin".

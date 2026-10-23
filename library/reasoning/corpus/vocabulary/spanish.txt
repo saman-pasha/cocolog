@@ -404,7 +404,7 @@ The feminine adjective "bloqueada" means "jammed".
 The masculine noun "pib" means "GDP".
 "pib" is the plural of "pib".
 "pib" is an acronym.
-The verb "fija" means "fixes".
+The verb "fija" means "sets".
 "habría" is the conditional of "hay".
 The adverb "a puerta cerrada" means "behind closed doors".
 The adverb "por todos los medios" means "by every means".
@@ -975,7 +975,10 @@ The pronoun "mucho más" means "much more". The pronoun "mucho más" does not pr
 The masculine noun "amajica performing arts project" means "amajica performing arts project".
 The feminine noun "autorregulación" means "self-regulation".
 "autorregulaciones" is the plural of "autorregulación".
+The masculine noun "presidente" means "president".
+The feminine noun "presidenta" means "president".
 The masculine noun "presidente" means "chairman".
+The masculine noun "president" means "president".
 The masculine noun "president" means "chairman".
 "president" is a person.
 The masculine noun "conseller" means "adviser".
@@ -1264,6 +1267,7 @@ The verb "se encarga" means "takes charge of".
 "se encarga" takes "de" before the infinitive.
 "se encarga" takes "de" before the phrase.
 The feminine noun "directiva" means "board of directors".
+"pívot" is a person.
 "directivas" is the plural of "directiva".
 The verb "libera" means "frees".
 The verb "libera" means "releases".
@@ -1813,6 +1817,179 @@ The feminine noun "extensión" means "extension".
 "hay" takes the indefinite.
 "deriva" takes "de" before the phrase.
 "viene" takes "de" before the phrase.
+The feminine noun "primera vuelta" means "first round".
+"primeras vueltas" is the plural of "primera vuelta".
+The feminine noun "segunda vuelta" means "second round".
+"segundas vueltas" is the plural of "segunda vuelta".
+The feminine noun "elección presidencial" means "presidential election".
+"elecciones presidenciales" is the plural of "elección presidencial".
+The feminine noun "presidencial" means "presidential election".
+"presidenciales" is the plural of "presidencial".
+"recupera" is reflexive.
+The adjective "semilaboral" means "semi-working".
+"semilaborales" is the plural of "semilaboral".
+The masculine noun "allegado" means "close associate".
+"allegados" is the plural of "allegado".
+"allegado" is a person.
+The feminine noun "allegada" means "close associate".
+"allegadas" is the plural of "allegada".
+"allegada" is a person.
+"califica" takes "de" before the phrase.
+The masculine noun "espaldarazo" means "boost".
+"espaldarazos" is the plural of "espaldarazo".
+The masculine noun "fiscal general" means "prosecutor general".
+"fiscales generales" is the plural of "fiscal general".
+"fiscal general" is a person.
+The masculine noun "cargo" means "post".
+The verb "se hace cargo" means "takes charge of".
+"se hacen cargo" is the plural of "se hace cargo".
+"se hizo cargo" is the past of "se hace cargo".
+"se hicieron cargo" is the plural of "se hizo cargo".
+"se hacía cargo" is the imperfect of "se hace cargo".
+"se hacían cargo" is the plural of "se hacía cargo".
+"se hará cargo" is the future of "se hace cargo".
+"se harán cargo" is the plural of "se hará cargo".
+"se haga cargo" is the subjunctive of "se hace cargo".
+"se hagan cargo" is the plural of "se haga cargo".
+"hacerse cargo" is the infinitive of "se hace cargo".
+"se hace cargo" takes "de" before the infinitive.
+"se hace cargo" takes "de" before the phrase.
+The masculine noun "pariente" means "relative".
+The masculine noun "familiar" means "relative".
+"familiares" is the plural of "familiar".
+"familiar" is a person.
+The masculine noun "alto funcionario" means "senior official".
+"altos funcionarios" is the plural of "alto funcionario".
+"alto funcionario" is a person.
+The masculine noun "asunto" means "affair".
+The masculine noun "diplomático" means "diplomat".
+"diplomáticos" is the plural of "diplomático".
+"diplomático" is a person.
+The feminine noun "diplomática" means "diplomat".
+"diplomáticas" is the plural of "diplomática".
+"diplomática" is a person.
+The masculine adjective "americano" means "american".
+The feminine adjective "americana" means "american".
+The masculine noun "americano" means "american".
+The masculine adjective "norteamericano" means "american".
+The feminine adjective "norteamericana" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericanas" is the plural of "norteamericana".
+The masculine noun "norteamericano" means "american".
+"norteamericanos" is the plural of "norteamericano".
+"norteamericano" is a person.
+The adverb "más tarde" means "later".
+"tendrá lugar" is the future of "tiene lugar".
+"tendrán lugar" is the plural of "tendrá lugar".
+"tenía lugar" is the imperfect of "tiene lugar".
+"tenían lugar" is the plural of "tenía lugar".
+"tendría lugar" is the conditional of "tiene lugar".
+"tendrían lugar" is the plural of "tendría lugar".
+"tenga lugar" is the subjunctive of "tiene lugar".
+"tengan lugar" is the plural of "tenga lugar".
+The adjective "indiferente" means "indifferent".
+The masculine adjective "ajeno" means "indifferent".
+The feminine adjective "ajena" means "indifferent".
+The masculine noun "liderazgo" means "leadership".
+The feminine noun "cúpula" means "leadership".
+The adverb "para fin de año" means "by the end of the year".
+The verb "dura" means "lasts".
+The verb "prolonga" means "prolongs".
+The reflexive verb "prolonga" means "lasts".
+The feminine noun "guerrilla" means "guerrilla".
+The masculine adjective "guerrillero" means "guerrilla".
+The feminine adjective "guerrillera" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrilleras" is the plural of "guerrillera".
+The masculine noun "guerrillero" means "guerrilla".
+"guerrilleros" is the plural of "guerrillero".
+"guerrillero" is a person.
+The masculine adjective "checheno" means "chechen".
+The feminine adjective "chechena" means "chechen".
+"chechenos" is the plural of "checheno".
+"chechenas" is the plural of "chechena".
+The masculine noun "checheno" means "chechen".
+"chechenos" is the plural of "checheno".
+"checheno" is a person.
+The feminine noun "cadena de televisión" means "television network".
+"cadenas de televisión" is the plural of "cadena de televisión".
+The feminine noun "apelación" means "appeal".
+The masculine noun "llamamiento" means "appeal".
+"axiomatización" is feminine.
+"biomagnificación" is feminine.
+"computabilidad" is feminine.
+"comunicabilidad" is feminine.
+"conmunicabilidad" is feminine.
+"cremosidad" is feminine.
+"decrepitud" is feminine.
+"defecación" is feminine.
+"desforestación" is feminine.
+"discretización" is feminine.
+"fotodegradación" is feminine.
+"fotoionización" is feminine.
+"garrulidad" is feminine.
+"georreferenciación" is feminine.
+"laicidad" is feminine.
+"laxidad" is feminine.
+"liposucción" is feminine.
+"lumbre" is feminine.
+"permitividad" is feminine.
+"principalidad" is feminine.
+"reproducibilidad" is feminine.
+"semioscuridad" is feminine.
+"trasmisión" is feminine.
+"triplicidad" is feminine.
+"defensa" is an institution.
+"exteriores" is an institution.
+The masculine noun "correo" means "mail".
+The verb "espera" means "expects".
+The infinitival verb "espera" means "hopes".
+The verb "finaliza" means "completes".
+The intransitive verb "finaliza" means "ends".
+The masculine noun "ministerio de exteriores" means "foreign ministry".
+"ministerios de exteriores" is the plural of "ministerio de exteriores".
+The masculine noun "ministerio de asuntos exteriores" means "foreign ministry".
+"ministerios de asuntos exteriores" is the plural of "ministerio de asuntos exteriores".
+The masculine noun "jefe" means "chief".
+The feminine noun "jefa" means "chief".
+"releva" takes "de" before the phrase.
+The name "moscú" means "Moscow".
+The name "rusia" means "Russia".
+The name "chechenia" means "Chechnya".
+The name "grozni" means "Grozny".
+The name "londres" means "London".
+The name "roma" means "Rome".
+The name "milán" means "Milan".
+The name "nápoles" means "Naples".
+The name "florencia" means "Florence".
+The name "génova" means "Genoa".
+The name "venecia" means "Venice".
+The name "estocolmo" means "Stockholm".
+The name "sevilla" means "Seville".
+The name "bruselas" means "Brussels".
+The name "atenas" means "Athens".
+The name "nueva york" means "New York".
+The name "seúl" means "Seoul".
+The name "barcelona" means "Barcelona".
+The name "lisboa" means "Lisbon".
+The name "parís" means "Paris".
+The name "berlín" means "Berlin".
+The name "tokio" means "Tokyo".
+The name "italia" means "Italy".
+The name "francia" means "France".
+The name "alemania" means "Germany".
+The name "inglaterra" means "England".
+The name "españa" means "Spain".
+The name "japón" means "Japan".
+The name "brasil" means "Brazil".
+The name "grecia" means "Greece".
+The name "europa" means "Europe".
+The name "cataluña" means "Catalonia".
+The name "catalunya" means "Catalonia".
+The name "cerdeña" means "Sardinia".
+The name "sicilia" means "Sicily".
+The name "israel" means "Israel".
+The name "kremlin" means "Kremlin".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
