@@ -743,9 +743,9 @@
           (set n (readlink p raw (- (sizeof raw) 1)))
           (if (< n 0) (return 0))
           (set (nth n raw) (cast char 0))
-          ;; `realpath' is another the std POSIX declarations do not carry, so
-          ;; it goes the same way glob does.
-          (if (== 0 (code "(realpath(p, full) != NULL)")) (return 0))
+          ;; `realpath' is in <stdlib.h>, but not in the std POSIX
+          ;; declarations; it is declared beside this module.
+          (if (== nil (realpath p full)) (return 0))
           (let ((size_t mark . #'(coco_m_mark e)))
             (if (not (coco_m_unify_atom e (coco_m_arg e g 1) raw))
                 (block (coco_m_undo e mark) (return 0)))

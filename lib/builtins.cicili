@@ -3335,8 +3335,7 @@
                 (return (coco_m_type_error e "atom" nm)))
             (if (not (coco_m_int e ar (aof arity)))
                 (return (coco_m_type_error e "integer" ar)))
-            (let ((defer () coco_g_write_end_cleanup)
-                  (int began . #'(coco_g_write_begin e)))
+            (with-green-write e
              (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
               (if (>= pi ($ (cof st) npreds)) (return 1))
               ;; unread, the rows it would leave in the database are not
@@ -3463,8 +3462,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t k . #'(coco_m_arg e g 0)))
           (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin e)))
+          (with-green-write e
           (let ((coco_store * st . #'(-> e st))
                 (u64 name . #'(coco_name_of m k))
                 (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))

@@ -10533,8 +10533,7 @@
           ;; is the whole point: the alternative was a commit that took every
           ;; other clause of the transaction with it. A cyclic clause is told
           ;; by the count of cycles put moving (`coco_assert_from').
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin e)))
+          (with-green-write e
             (let ((size_t cp . #'(-> m cyc_puts)))
               (if (not (coco_assert (-> e st) m c at_end))
                   (block
@@ -10562,8 +10561,7 @@
   (func coco_bi_retract ((coco_engine * e) (size_t g)) (out int)
         (let ((int bad . #'(coco_clause_check e (coco_arg (-> e m) g 0) 0)))
           (if (!= bad 0) (return bad)))
-        (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin e)))
+        (with-green-write e
           (let ((int ok . #'(coco_retract (-> e st) (-> e m) (coco_arg (-> e m) g 0))))
             ;; -1: the predicate could not be read, and nothing was taken
             (if (< ok 0) (return (coco_fetch_error e)))
@@ -10573,8 +10571,7 @@
   ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
   ;;; does when a file is consulted -- one implementation, reached two ways.
   (func coco_bi_dynamic ((coco_engine * e) (size_t g)) (out int)
-        (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin e)))
+        (with-green-write e
           (let ((char err [192]))
             (if (not (coco_dynamic_spec (-> e st) (-> e m) (coco_arg (-> e m) g 0)
                                       err (sizeof err)))

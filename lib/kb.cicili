@@ -34,6 +34,14 @@
 
 (IN-PACKAGE :cocolog)
 
+;;; THE ONE SHAPE OF A STORE WRITE: begin the green barrier, let the body run,
+;;; and release it on every exit, including a failed return. The `defer'
+;;; attribute is what makes the second half true; spelling it at each call
+;;; site was fifteen copies of the same three lines.
+(DEFMACRO with-green-write (e &REST body)
+  `(let ((defer () coco_g_write_end_cleanup)
+         (int began . #'(coco_g_write_begin ,e)))
+     ,@body))
 
 ;;; THE CLAUSE COMPILER'S OPCODES, one table read two ways -- the `cc_NAME'
 ;;; functions the compiler calls (emitted beside it), and `(cc-op "NAME")',
@@ -4111,8 +4119,7 @@
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))
           ;; THE FIRST COMPILE (2.9.0) changes the one store's code table.
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin nil)))
+          (with-green-write nil
           ;; THE FIND AGAIN UNDER THE BARRIER: the find above is lock-free,
           ;; and a task on another worker may have compiled this clause
           ;; between it and this barrier. Its program is the one the
@@ -5168,8 +5175,7 @@
           (if (< i (-> st npreds)) (return i))
           ;; THE FIRST CALL CREATES IT (2.9.0): the one store is changed
           ;; with every other worker stopped at its safe point.
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin nil)))
+          (with-green-write nil
           ;; THE FIND AGAIN, NOW THAT THE OTHER WORKERS ARE STOPPED. The
           ;; find above is lock-free and this is a double-checked lock: a
           ;; reader's call creates a predicate too (`coco_pred_of'), and
@@ -5297,8 +5303,7 @@
   (func coco_pred_ensure ((coco_store * st) (size_t pi)) (out int)
         (if (>= pi (-> st npreds)) (return 1))
         (if ($ (nth pi (-> st preds)) loaded) (return 1))
-        (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin nil)))
+        (with-green-write nil
           (if ($ (nth pi (-> st preds)) loaded) (return 1))
           ;; loaded BEFORE the hook runs: the clauses it asserts find the
           ;; predicate loaded, and do not ask the backend again
@@ -6106,8 +6111,7 @@
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
               (size_t kept . 0))
           (if (== (-> p ntomb) 0) (return))
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin nil)))
+          (with-green-write nil
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
             (if (!= (nth i (-> p tomb)) 0)
                 ;; the cells to the next compaction and the program now
@@ -6136,8 +6140,7 @@
           (coco_pred_unindex p))))
 
   (func coco_tomb_sweep_all ((coco_store * st) (coco_machine * m))
-        (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin nil)))
+        (with-green-write nil
           (for ((size_t i . 0)) (< i (-> st ntpreds)) ((++ i))
             (let ((size_t pi . #'(nth i (-> st tpreds))))
               (coco_pred_sweep st m pi)
@@ -6148,8 +6151,7 @@
         (if (== ($ (nth pi (-> st preds)) ntomb) 0) (return 1))
         ;; a sweep measures what it orphans on a machine's heap
         (if (== m nil) (return 0))
-        (let ((defer () coco_g_write_end_cleanup)
-              (int began . #'(coco_g_write_begin nil)))
+        (with-green-write nil
           (if (!= (coco_frames_on m st pi 0 0) 0) (return 0))
           (coco_pred_sweep st m pi)
           (return 1)))
@@ -6332,8 +6334,7 @@
           ;; stops the other workers while the one store changes.
           (if (== (-> p aix) nil)
               (block
-               (let ((defer () coco_g_write_end_cleanup)
-                     (int began . #'(coco_g_write_begin nil)))
+               (with-green-write nil
                  (if (== (-> p aix) nil)
                      (block
                       (set (-> p aix) (cast (coco_argix *) (calloc (coco_aix_count) (sizeof coco_argix))))
@@ -6343,8 +6344,7 @@
           ;; THE FIRST BUILD OF POS'S INDEX, under the barrier, with the
           ;; recheck inside: another worker's build may have finished while
           ;; this one waited.
-          (let ((defer () coco_g_write_end_cleanup)
-                (int began . #'(coco_g_write_begin nil)))
+          (with-green-write nil
             (if (-> x indexed) (return x))
             (if (not (coco_store_grow st (cast (void **) (aof (-> x keys))) (aof (-> x key_cap))
                                       (+ n 1) (sizeof u64)))
@@ -6905,9 +6905,10 @@
           (memset (aof seen) 0 (sizeof coco_origin_seen))
           (if (and (!= origin nil) (not (coco_store_is_muted st)))
               (let ((char full [4096]))
-                ;; `realpath' is not among the std POSIX declarations, so it
-                ;; is reached the way files.cicili reaches it
-                (if (!= 0 (code "(realpath(origin, full) != NULL)"))
+                ;; `realpath' is in <stdlib.h> but not in the std POSIX
+                ;; declarations; it is declared beside this one so the call
+                ;; is checked like any other.
+                (if (!= nil (realpath origin full))
                     (set oid (+ (coco_intern m full) 1))
                   (set oid (+ (coco_intern m origin) 1)))))
           ;; the loop registers its `initialization/1' goals as roots and
