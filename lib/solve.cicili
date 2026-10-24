@@ -559,6 +559,10 @@
     (member int         has_ball)
     (member size_t      ball_cell)
     (member size_t      ball_size)    ; cells it occupies, for the store's count of the dead
+    ;; WHERE A BALL THAT CROSSES AN ENGINE BOUNDARY LIVES, and the private
+    ;; store's len before it was put there. SHARED is the engine's st.
+    (member void *      ball_st)
+    (member size_t      ball_mark)
 
     ;; MAY THE HEAP COLLECTOR RUN UNDER THIS ENGINE? Off unless the host
     ;; that made the engine turns it on, because a collection moves cells and
@@ -846,6 +850,10 @@
     (member int          holds)
     (member size_t       hball)
     (member size_t       hbsize)
+    ;; where HBALL lives, and the private store's len before it was put
+    ;; there; NIL is the engine's shared store
+    (member void *       hbst)
+    (member size_t       hbmark)
     ;; THE CLOCK (1.13.3): with TK a probe (STATE 2) reads the monotonic
     ;; clock at each step from inference TFROM on, and charges what passed
     ;; since the last reading (TLAST) to the inference that was running
@@ -4460,6 +4468,7 @@
               ;; catches is put in the shared store, where an OUTER engine
               ;; can read it -- see `coco_engine_call_limited'.
               (int hascatch . 0)
+              (coco_engine * catcher . nil)
               (coco_store * bst . st)
               (size_t pmark . 0)
               (size_t cell . 0) (size_t size . 0)
@@ -4473,10 +4482,24 @@
           ;; below.
           (for ((size_t i . 0)) (< i (-> e nchoices)) ((++ i))
             (if (== ($ (nth i (-> e choices)) kind) COCO_CH_CATCH)
-                (set hascatch 1)))
-          (if hascatch
+                (block (set hascatch 1) (set catcher e))))
+          ;; A FINDALL'S GOAL RUNS ON A NESTED ENGINE. If this engine has no
+          ;; catcher, look at its IMMEDIATE outer engine -- the one whose
+          ;; builtin started this search -- and put the ball in that
+          ;; engine's private store, so the crossing does not stop the world.
+          ;; Do NOT walk further out: each nested builtin has its own
+          ;; semantics for a ball (a window records it, with_output_to puts
+          ;; stdout back first), and the outer engine's own throw will look
+          ;; past itself when its builtin has done that work.
+          (if (== catcher nil)
+              (let ((coco_engine * x . #'(cast (coco_engine *) (-> e outer))))
+                (if (!= x nil)
+                    (for ((size_t i . 0)) (< i (-> x nchoices)) ((++ i))
+                      (if (== ($ (nth i (-> x choices)) kind) COCO_CH_CATCH)
+                          (set catcher x))))))
+          (if (!= catcher nil)
               (block
-               (set bst (coco_engine_bstore e))
+               (set bst (coco_engine_bstore catcher))
                (set pmark (-> bst len))))
 
           (set cell (coco_store_put bst m (coco_ball_storable m ball)))
@@ -4528,20 +4551,33 @@
                           (set (-> st dead) (+ (-> st dead) size))
                           (coco_store_maybe_compact st m))
                        ;; the private cell can go with the recovered term
-                       (set (-> bst len) pmark))
+                       (block (set (-> bst len) pmark)
+                              (coco_store_shrink_empty bst)))
                      (return 1)))
                 (coco_undo_to m mark))
               (set (-> e nchoices) ci)))
 
-          ;; NOTHING HERE CAUGHT IT. If the ball is private, copy it to the
-          ;; shared store now -- the outer engine's catch (or the message)
-          ;; must be able to read it. This is the one write an uncaught
-          ;; throw pays, as it always did.
+          ;; NOTHING IN THIS ENGINE CAUGHT IT. If the catcher is THIS
+          ;; engine (a frame whose catcher missed), the private cell is an
+          ;; orphan and the ball goes to the shared store for the next
+          ;; engine. If the catcher is an OUTER engine, keep it in that
+          ;; engine's private store and carry the store with the cell; the
+          ;; findall/call_limited rethrow reads it from there.
           (if (!= bst st)
-              (block
-               (set cell (coco_store_put st m (coco_store_read m bst cell)))
-               (set size (- (-> st len) cell))
-               (set (-> bst len) pmark)))
+              (if ( == catcher e)
+                  (block
+                   (set cell (coco_store_put st m (coco_store_read m bst cell)))
+                   (set size (- (-> st len) cell))
+                   (set (-> bst len) pmark)
+                   (coco_store_shrink_empty bst)
+                   (set (-> e ball_st) (cast (void *) st))
+                   (set (-> e ball_mark) 0))
+                (block
+                 (set (-> e ball_st) (cast (void *) bst))
+                 (set (-> e ball_mark) pmark)))
+            (block
+             (set (-> e ball_st) (cast (void *) st))
+             (set (-> e ball_mark) 0)))
 
           ;; The cell is kept so an OUTER engine can throw this same ball
           ;; again -- see `coco_engine_call_limited' -- and the ball is read
@@ -4551,9 +4587,10 @@
           (set (-> e has_ball) 1)
           (set (-> e ball_cell) cell)
           (set (-> e ball_size) size)
-          (let ((coco_strbuf b))
+          (let ((coco_strbuf b)
+                (coco_store * rst . #'(cast (coco_store *) (-> e ball_st))))
             (coco_sb_init (aof b))
-            (coco_write_term m (aof b) (coco_store_read m st cell) 1 0)
+            (coco_write_term m (aof b) (coco_store_read m rst cell) 1 0)
             (snprintf (-> e err) 512 "uncaught exception: %s"
                       (? (== ($ b s) nil) "?" ($ b s)))
             (coco_sb_free (aof b)))
@@ -4697,9 +4734,12 @@
 
   (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len)) (out int)
         (if (not (-> e has_ball)) (return 0))
-        (coco_error_text (-> e m)
-                         (coco_store_read (-> e m) (-> e st) (-> e ball_cell))
-                         out len)
+        (let ((coco_store * bs . #'(? (== (-> e ball_st) nil)
+                                      (-> e st)
+                                      (cast (coco_store *) (-> e ball_st)))))
+          (coco_error_text (-> e m)
+                           (coco_store_read (-> e m) bs (-> e ball_cell))
+                           out len))
         (return 1))
 
   ;;; ---- calling ------------------------------------------------------------
@@ -5548,9 +5588,15 @@
         ;; is an orphan by now: counted, never touched, since a compaction in
         ;; between may already have taken it
         (if (-> e has_ball)
-            (let ((coco_store * bst . #'(-> e st)))
-              (set (-> bst dead) (+ (-> bst dead) (-> e ball_size)))))
+            (let ((coco_store * bst . #'(? (== (-> e ball_st) nil)
+                                          (-> e st)
+                                          (cast (coco_store *) (-> e ball_st)))))
+              (if (== bst (-> e st))
+                  (set (-> bst dead) (+ (-> bst dead) (-> e ball_size)))
+                (block (set (-> bst len) (-> e ball_mark))
+                       (coco_store_shrink_empty bst)))))
         (set (-> e has_ball) 0)
+        (set (-> e ball_st) nil)
         (set (nth 0 (-> e err)) (cast char 0))
         (set (-> e query) goal)
         (set (-> e trace_depth) 0)
@@ -5602,7 +5648,8 @@
               (coco_engine sub)
               (size_t * kept . nil) (size_t n . 0) (size_t cap . 0)
               (int ok . 1) (int rc . 0) (int threw . 0) (size_t ball_cell . 0)
-              (size_t ball_size . 0) (int nomem . 0)
+              (size_t ball_size . 0) (void * ball_store . nil) (size_t ball_mark . 0)
+              (int nomem . 0)
               ;; WHAT THIS FRAME HOLDS ON THE HEAP, told to the collector for
               ;; the search (1.9.4): the template, the goal, and the caller's
               ;; own goal cell (GP, nil when it keeps none), each read back
@@ -5669,7 +5716,9 @@
                        ;; below, once the machine is back where it was.
                        (if ($ sub has_ball)
                            (block (set threw 1) (set ball_cell ($ sub ball_cell))
-                                  (set ball_size ($ sub ball_size))))
+                                  (set ball_size ($ sub ball_size))
+                                  (set ball_store ($ sub ball_st))
+                                  (set ball_mark ($ sub ball_mark))))
                        (set ok 0) break))
             (if (== rc 0) break)
             ;; a window's clock: what this answer's copy into the store
@@ -5730,16 +5779,24 @@
                      (set ($ (cof m) heap_len) hmark)
                      (free kept)
                      (set (-> fst len) pstart)
-                     (set (-> st dead) (+ (-> st dead) ball_size))
-                     ;; the backtrace the inner throw wrote, from inside the
-                     ;; goal out through this engine, is the one kept
-                     (set (-> m btkeep) 1)
-                     (return (? (== 1 (coco_throw e (coco_store_read m st ball_cell))) 2 0))))
+                     (coco_store_shrink_empty fst)
+                     (let ((coco_store * bst . #'(? (== ball_store nil)
+                                                   st
+                                                   (cast (coco_store *) ball_store))))
+                       (if (== bst st)
+                           (set (-> st dead) (+ (-> st dead) ball_size)))
+                       ;; the backtrace the inner throw wrote, from inside the
+                       ;; goal out through this engine, is the one kept
+                       (set (-> m btkeep) 1)
+                       (let ((int rr . #'(? (== 1 (coco_throw e (coco_store_read m bst ball_cell))) 2 0)))
+                         (if (!= bst st) (set (-> bst len) ball_mark))
+                         (return rr)))))
 
           (if (not ok) (block (coco_undo_to m tmark)
                               (set ($ (cof m) heap_len) hmark)
                               (free kept)
                               (set (-> fst len) pstart)
+                              (coco_store_shrink_empty fst)
                               (if nomem (return (? (== 2 (coco_mem_error e)) 2 0)))
                               (return 0)))
 
@@ -5756,8 +5813,9 @@
             (free kept)
             (set (cof out) lst))
           ;; the solutions are on the heap now; the private cells go back
-          ;; with the len, and the next findall reuses the array
+          ;; with the len, and the next findall reuses or reallocates it
           (set (-> fst len) pstart)
+          (coco_store_shrink_empty fst)
           (return 1))))
 
   (func coco_engine_call_limited ((coco_engine * e) (size_t goal)
@@ -5801,7 +5859,8 @@
           (if (-> e tclock) (coco_clock_back e))
           (set (-> e steps) (+ (-> e steps) ($ sub steps)))
           (set (-> e frees) (+ (-> e frees) ($ sub frees)))
-          (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0))
+          (let ((int threw . 0) (size_t cell . 0) (size_t bsize . 0)
+                (void * bstor . nil) (size_t bmark . 0))
             (if (== rc 1) (set out 1))
             (if (== rc 0) (set out 0))
             (if (== rc -1)
@@ -5811,7 +5870,9 @@
                    ;; read the ball's cell BEFORE the free, which memsets it
                    (if ($ sub has_ball)
                        (block (set threw 1) (set cell ($ sub ball_cell))
-                              (set bsize ($ sub ball_size))))
+                              (set bsize ($ sub ball_size))
+                              (set bstor ($ sub ball_st))
+                              (set bmark ($ sub ball_mark))))
                    (snprintf (-> e err) 512 "%s" ($ sub err))
                    (set out -1))))
             (coco_engine_free (aof sub))
@@ -5826,11 +5887,16 @@
             ;; is back where it was -- `coco_throw' unwinds from here to
             ;; whatever catch frame matches, which is at or below this mark
             (if threw
-                (block (set (-> st dead) (+ (-> st dead) bsize))
-                       ;; and the inner throw's backtrace with it
-                       (set (-> m btkeep) 1)
-                       (set out (? (== 1 (coco_throw e (coco_store_read m st cell)))
-                                   3 -1)))))
+                (let ((coco_store * bst . #'(? (== bstor nil)
+                                               st (cast (coco_store *) bstor))))
+                  (if (== bst st) (set (-> st dead) (+ (-> st dead) bsize)))
+                  ;; and the inner throw's backtrace with it
+                  (set (-> m btkeep) 1)
+                  (set out (? (== 1 (coco_throw e (coco_store_read m bst cell)))
+                              3 -1))
+                  (if (!= bst st)
+                      (block (set (-> bst len) bmark)
+                             (coco_store_shrink_empty bst))))))
           (return out)))
 
   ;;; THE QUESTION A WINDOW ASKS WHERE ITS RUN STOPPED (1.10.16): COND
@@ -5861,7 +5927,9 @@
                 (($ sub has_ball)
                  (block (set (-> r holds) 3)
                         (set (-> r hball) ($ sub ball_cell))
-                        (set (-> r hbsize) ($ sub ball_size))))
+                        (set (-> r hbsize) ($ sub ball_size))
+                        (set (-> r hbst) ($ sub ball_st))
+                        (set (-> r hbmark) ($ sub ball_mark))))
                 (#t (set (-> r holds) -1)))
           (coco_engine_free (aof sub))))
 

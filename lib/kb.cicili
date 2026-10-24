@@ -2042,6 +2042,20 @@
         (free (-> st gbuckets))
         (memset st 0 (sizeof coco_store)))
 
+  ;;; A PRIVATE ENGINE STORE'S HIGH-WATER MARK. `pst'/`bst' are reused
+  ;;; between calls, so their length is enough for correctness -- but a
+  ;;; findall that once held three million solutions would otherwise keep
+  ;;; that array until the engine dies. Past a small threshold, an empty
+  ;;; store gives its cell array back; the next put allocates a fresh one.
+  (func coco_store_shrink_empty ((coco_store * st))
+        (if (and (== (-> st len) 0) (> (-> st cap) 65536))
+            (block
+             (free (-> st cells))
+             (set (-> st cells) nil)
+             (set (-> st cap) 0)
+             (set (-> st mark) 0)
+             (set (-> st dead) 0))))
+
   (func coco_store_mute ((coco_store * st))   (set (-> st muted) (+ (-> st muted) 1)))
   (func coco_store_unmute ((coco_store * st)) (if (> (-> st muted) 0)
                                               (set (-> st muted) (- (-> st muted) 1))))

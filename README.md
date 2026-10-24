@@ -302,5 +302,5 @@ the verdict.
 * [emacs/README.md](emacs/README.md) -- cocolog-mode: the colour-variable
   reading, the in-comment tests, the shadow engine and its checks.
 
-cocolog 2.11.5. README.md says what it is, STATUS.md what is proven, MODULES.md
+cocolog 2.11.6. README.md says what it is, STATUS.md what is proven, MODULES.md
 how a module is written.
