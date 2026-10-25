@@ -66,7 +66,9 @@
     ("upcase_atom"             2 coco_b_upcase)
     ("downcase_atom"           2 coco_b_downcase)
     ("term_to_atom"            2 coco_b_term_to_atom)
-    ("$sub_atom"               5 coco_b_sub_atom_at)
+    ("$sub_atom"               6 coco_b_sub_atom_at)
+    ("$sub_atom_positions"     4 coco_b_sub_atom_positions)
+    ("$atom_byte_length"       2 coco_b_atom_byte_length)
     ("atomic_list_concat"      2 coco_b_alc2)
     ("atomic_list_concat"      3 coco_b_alc3)
     ("$atom_split"             3 coco_b_atom_split)
@@ -358,13 +360,13 @@
            "retractall(_)."
 
            ;; ---- sub_atom/5, which enumerates every substring ---------------
-           ;; The C half answers ONE substring given where it starts and how
-           ;; long it is; the enumeration is here, where the engine can make
-           ;; the choice points. The bound-Sub case is separated out because
+           ;; The C half has two shapes: the positions a KNOWN substring
+           ;; occurs at, in one scan, and one substring given where it starts
+           ;; and how long it is. The bound-Sub case is separated out because
            ;; enumerating every B and L to find a known substring is O(n^2)
            ;; when a search is O(n).
-           "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_atom'(A, B, L, Aft, Sub)."
-           "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub)."
+           "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
+           "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
 
            ;; ---- sub_string/5 ------------------------------------------------
            ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
@@ -2843,6 +2845,69 @@
             (coco_sb_free (aof tb))
             (return (coco_m_unify e (coco_m_arg e g 0) t)))))
 
+  ;;; The byte length of the text `atom_length/2' measured in characters.
+  ;;;
+  ;;; It is asked once per `sub_atom/5' call, before the candidate loop; the
+  ;;; candidate loop used to ask `strlen' for every prefix. A number is
+  ;;; rendered into the same 64-byte buffer `coco_b_sub_atom_at' uses.
+  (func coco_b_atom_byte_length ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * s . #'(coco_m_atom e (coco_m_arg e g 0)))
+              (char num [64]))
+          (if (== s nil)
+              (block
+               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
+                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+               (set s num)))
+          (return (coco_m_unify_int e (coco_m_arg e g 1)
+                                    (cast i64 (strlen s))))))
+
+  ;;; THE POSITIONS A BOUND SUBSTRING OCCUPIES, in one scan. `sub_atom/5''s
+  ;;; first clause used to call the single-substring builtin once per B;
+  ;;; besides the byte length, every failed candidate bound Aft and had to
+  ;;; undo it, and at 100 KB that was seconds. The scan returns the
+  ;;; character offsets, ascending, as a list; the Coco half enumerates it.
+  ;;;
+  ;;; B is in characters under `text_units = characters', as atom_length/2
+  ;;; and sub_atom/5 are. The byte scan only starts a match on a UTF-8 lead
+  ;;; byte (or ASCII), so it cannot land inside a character.
+  (func coco_b_sub_atom_positions ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * s . nil) (const char * sub . nil) (char num [64])
+              (i64 nbytes . 0) (size_t n . 0) (size_t sl . 0)
+              (size_t * pos . nil) (size_t np . 0)
+              (size_t p . 0) (size_t bchar . 0) (int chars . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 2) (aof nbytes))) (return 0))
+          (if (< nbytes 0) (return 0))
+          (set n (cast size_t nbytes))
+          (set s (coco_m_atom e (coco_m_arg e g 0)))
+          (if (== s nil)
+              (block
+               (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
+                   (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+               (set s num)))
+          (set sub (coco_m_atom e (coco_m_arg e g 1)))
+          (if (== sub nil) (return 0))
+          (set sl (strlen sub))
+          (set chars (-> (coco_m_machine e) text_chars))
+          (set pos (cast (size_t *) (malloc (* (+ n 1) (sizeof size_t)))))
+          (if (== pos nil) (return 0))
+          (while (<= p n)
+            (if (and (<= (+ p sl) n)
+                     (or (not chars)
+                         (!= 128 (bitand (cast int (nth p s)) 192)))
+                     (== 0 (memcmp (+ s p) sub sl)))
+                (block
+                 (set (nth np pos) (? chars bchar p))
+                 (set np (+ np 1))))
+            (if (and chars (< p n)
+                     (!= 128 (bitand (cast int (nth p s)) 192)))
+                (set bchar (+ bchar 1)))
+            (set p (+ p 1)))
+          (let ((size_t lst . #'(coco_m_nil e)))
+            (for ((size_t i . np)) (> i 0) ((-- i))
+              (set lst (coco_m_cons e (coco_m_new_int e (cast i64 (nth (- i 1) pos))) lst)))
+            (free pos)
+            (return (coco_m_unify e (coco_m_arg e g 3) lst)))))
+
   ;;; One substring, at a known place and length. The enumeration is in the
   ;;; Coco half, where the engine can make the choice points.
   ;;; THIS HAD A 4096-BYTE CLIFF and reported it as the wrong error entirely.
@@ -2863,12 +2928,20 @@
   ;;; ORDER MATTERS ON THE NEXT FOUR LINES: the integers are read BEFORE the
   ;;; pointer is taken, because anything that allocates can move the atom
   ;;; table under it. Nothing between `coco_m_atom' and the `memcpy' does.
+  ;;;
+  ;;; THE BYTE LENGTH COMES FROM THE CALLER (2.12.0). `sub_atom/5''s bound-Sub
+  ;;; path asks about every prefix of a long atom; a `strlen' here made that
+  ;;; search O(n^2) -- 0.09 s at 10 KB, 0.84 s at 40 KB and 5.5 s at 100 KB
+  ;;; on 2.11.6, where splitting with `atomic_list_concat/3' was flat. The
+  ;;; Coco half asks once with `$atom_byte_length'/2 and passes NB here.
   (func coco_b_sub_atom_at ((coco_engine * e) (size_t g)) (out int)
-        (let ((const char * s . nil) (char num [64]) (char * out . nil)
-              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1) (i64 aft . 0))
+        (let ((const char * s . nil) (const char * sub . nil) (char num [64]) (char * out . nil)
+              (i64 before . 0) (i64 len . 0) (size_t n . 0) (int rc . 1) (i64 aft . 0)
+              (i64 nbytes . 0))
           (if (not (coco_m_int e (coco_m_arg e g 1) (aof before))) (return 0))
           (if (not (coco_m_int e (coco_m_arg e g 2) (aof len))) (return 0))
-          (if (or (< before 0) (< len 0)) (return 0))
+          (if (not (coco_m_int e (coco_m_arg e g 5) (aof nbytes))) (return 0))
+          (if (or (< before 0) (< len 0) (< nbytes 0)) (return 0))
           (set s (coco_m_atom e (coco_m_arg e g 0)))
           ;; Not an atom: an integer, which is the only other thing the Coco
           ;; half's `atom_length' lets through, and 64 bytes is more than any
@@ -2878,7 +2951,7 @@
                (if (not (coco_m_text e (coco_m_arg e g 0) num (sizeof num)))
                    (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
                (set s num)))
-          (set n (strlen s))
+          (set n (cast size_t nbytes))
           ;; UNDER `text_units = characters' (1.13.0) BEFORE and LEN count
           ;; characters: they become the bytes they cover, and what is after
           ;; is counted in characters again -- sub_atom('dár', 1, 1, A, S)
@@ -2894,6 +2967,16 @@
               (block
                (if (> (cast size_t (+ before len)) n) (return 0))
                (set aft (cast i64 (- n (cast size_t (+ before len)))))))
+          ;; A BOUND SUBSTRING IS A TEST, NOT A TERM TO BUILD. The first
+          ;; clause of sub_atom/5 asks about every prefix of a long atom;
+          ;; allocating and unifying a candidate there made a failed search
+          ;; O(n^2) even after the byte length stopped being strlen'd. A
+          ;; memcmp, with no mark, allocation or undo, is the ordinary case.
+          (set sub (coco_m_atom e (coco_m_arg e g 4)))
+          (if (!= sub nil)
+              (if (or (!= (strlen sub) (cast size_t len))
+                      (!= 0 (memcmp (+ s before) sub (cast size_t len))))
+                  (return 0)))
           (set out (cast (char *) (malloc (+ (cast size_t len) 1))))
           (if (== out nil) (return 0))
           (memcpy out (+ s before) (cast size_t len))

@@ -39,7 +39,8 @@ main :-
     %% Mac with its screen asleep read as a RED ray, five checks at once.)
     (   display_runner(Run), the_glass(Run)
     ->  scratch(D),
-        a_frame(Run, D), the_third_dimension(Run, D), the_loop(Run), the_textures(Run, D),
+        a_frame(Run, D), the_third_dimension(Run, D), the_loop(Run),
+        the_window_changes(Run), the_textures(Run, D),
         shl(['rm -rf ', D])
     ;   true
     ),
@@ -178,6 +179,21 @@ the_loop(Run) :-
     check('an untouched button did not go down this frame', R5, quiet),
     wq(Run, 'ray_open(64, 64, coco), ray_begin, ray_clear(black), ray_end, findall(B, ( member(B, [left, right, middle]), ray_button(B, _), \\+ ray_mouse_pressed(B) ), Bs), ray_close, write(answer(Bs)), nl', R6),
     check('and it knows all three buttons by name', R6, '[left,right,middle]').
+
+%% THE WINDOW CAN CHANGE AFTER IT OPENS. The resize test reads the screen
+%% before and after rather than naming the requested number: a HiDPI window
+%% or a window manager may report a different scale, but it cannot report
+%% the old dimensions after a larger SetWindowSize. Fullscreen is checked
+%% by the same shape -- enter it twice (the second is idempotent), then
+%% leave it and see the old window size come back.
+the_window_changes(Run) :-
+    section('the window changes under the hand'),
+    wq(Run, 'ray_open(64, 64, coco), ray_screen_size(W0, H0), ray_window_size(96, 80), ray_screen_size(W1, H1), ( W1 > W0, H1 > H0 -> X = resized ; X = odd(W0, H0, W1, H1) ), ray_close, write(answer(X)), nl', R8),
+    check('the open window can be resized', R8, resized),
+    wq(Run, 'ray_open(64, 64, coco), ray_screen_size(W0, H0), ray_fullscreen(true), ray_fullscreen(true), ray_screen_size(W1, H1), ray_fullscreen(false), ray_screen_size(W2, H2), ( W1 > W0, H1 > H0, W2 =:= W0, H2 =:= H0 -> X = fullscreen ; X = odd(W0, H0, W1, H1, W2, H2) ), ray_close, write(answer(X)), nl', R9),
+    check('fullscreen enters idempotently and leaves the old size', R9, fullscreen),
+    wq(Run, 'ray_open(64, 64, coco), ray_display_bounds(X, Y, W, H), ( integer(X), integer(Y), W > 0, H > 0 -> B = bounds ; B = odd(X, Y, W, H) ), ray_close, write(answer(B)), nl', R10),
+    check('the current monitor answers bounds', R10, bounds).
 
 %% A TEXTURE IS HELD TO THE PIXEL, LITERALLY: `ray_screen_pixel/6' reads
 %% the framebuffer back as four numbers, so what a clause drew is a check
