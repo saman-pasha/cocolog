@@ -424,6 +424,48 @@ The same benchmark on 2.11.4:
 `test/async.pl` holds a two-worker ceiling over 200,000 solutions and 2,000
 caught raises.
 
+## A ball crossing a nested engine (2.11.6)
+
+A catch outside a nested search is in the engine that started the search,
+not in the search's own engine. `coco_throw` now looks at that immediate
+outer engine: when it has a catch frame, the ball goes into the outer
+engine's private `bst`, and the findall/`call_limited`/`with_output_to`
+rethrow carries that store with the cell. Nothing writes the shared store.
+`test/errors.pl` checks `statistics(store_used, _)` is unchanged around
+`catch(findall(_, (member(X, [1,2]), throw(f(X))), _), E, true)`, and
+around two thousand `catch(nb_getval(never_set_key, _), _, true)` misses.
+
+A private store is reused between calls, but it does not keep its
+high-water mark for ever: when its length returns to zero and its array is
+larger than 65,536 cells, it frees the array and the next put allocates a
+fresh one. A single huge findall therefore does not pin that memory to a
+long-lived green task.
+
+Each nested builtin still owns its own boundary semantics: a window records
+a ball instead of letting an outer catch take it, and `with_output_to/2`
+restores stdout before the outer throw. The ball's store is carried across
+those boundaries rather than assumed to be the shared one.
+
+## What a finished `async_run` leaves in its host
+
+Nothing runnable and nothing locked. By the time `async_run/1,2` returns it
+has joined every worker thread, stopped the world, waited for any write in
+flight, unlinked the store's machines, cleared `tshared`, freed every task's
+engine and machine and every channel buffer, destroyed the world's mutexes
+and condition variables, cleared `green_now`/`green_me`, and cleared the
+shared-table pointer with `coco_tbl_set(nil)`. The environment (including
+`COCOLOG_GREEN_WORKERS`) is read, never written, by the runtime.
+
+What deliberately remains is what the goal did to the one shared store: its
+asserts and other writes are the caller's, as in any query, and name/code
+tables may have grown. The shared tables grow without freeing the old array
+(see the limits below), so a process that repeats `async_run` many times can
+carry that memory even though no task does. The answer is copied into the
+host's machine before the world is freed. A stall in *later* host work is
+therefore not a green task or a held barrier that `async_run` intentionally
+left; it needs a reduction that reaches it, because the runtime has no other
+host state to leave.
+
 ## Limits, stated where a reader meets them
 
 * A signal delivered to a green thread's machine writes that machine's

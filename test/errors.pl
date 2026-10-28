@@ -268,8 +268,12 @@ cl7(N) :- catch(true, _, true), N1 is N - 1, cl7(N1).
 all_solutions_throw :-
     section('a throw inside findall/forall/aggregate_all is catchable'),
 
+    statistics(store_used, U1),
     answer(catch(findall(_, (member(X1, [1,2]), throw(f(X1))), _), E1, true), E1, G1),
+    statistics(store_used, U2),
+    D1 is U2 - U1,
     check('findall/3 lets the ball out to the catch around it', G1, f(1)),
+    check('and does it without a write to the shared store', D1, 0),
 
     answer(catch(forall(member(X2, [1,2,3]), (X2 < 3 -> true ; throw(t(X2)))), E2, true),
            E2, G2),
@@ -593,7 +597,14 @@ the_sub_engine :-
     written(( nb_setval(sub, 0),
               forall(member(N1, [1, 2, 3]), nb_setval(sub, N1)),
               nb_getval(sub, G1) ), G1, X1),
-    check('a global set inside forall/2 survives it', X1, '3').
+    check('a global set inside forall/2 survives it', X1, '3'),
+    %% ASKS section 1: a caught raise is private too. Two thousand misses
+    %% answer no cells more than before; only an uncaught ball is shared.
+    statistics(store_used, U1),
+    forall(between(1, 2000, _), catch(nb_getval(never_set_key, _), _, true)),
+    statistics(store_used, U2),
+    D1 is U2 - U1,
+    check('a caught global read that raised writes no store cell', D1, 0).
 
 the_isolated_boundary :-
     %% THE REPRODUCTION, and before 1.2.8 the inner read answered whatever

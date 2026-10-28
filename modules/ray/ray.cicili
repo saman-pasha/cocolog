@@ -79,8 +79,11 @@
 ;;;;   ray_close/0
 ;;;;   ray_closing/0                                      WindowShouldClose: the loop's exit
 ;;;;   ray_exit_key(+Key)                                 SetExitKey: which key raises closing; `none' turns it off
+;;;;   ray_window_size(+W, +H)                            SetWindowSize: a window that is already open
+;;;;   ray_fullscreen(+On)                                ToggleFullscreen: true/on or false/off, idempotent
 ;;;;   ray_ready/0
 ;;;;   ray_screen_size(-W, -H)                            GetScreenWidth/Height: the window's, in the units ray_rect draws in
+;;;;   ray_display_bounds(-X, -Y, -W, -H)                 current monitor's position and size
 ;;;;   ray_fps(+Target)                                   SetTargetFPS
 ;;;;   ray_begin/0                                        a frame is what happens between
 ;;;;   ray_end/0                                          ... these two
@@ -143,8 +146,11 @@
     ("ray_close"       0 ray_p_close)
     ("ray_closing"     0 ray_p_closing)
     ("$ray_exit_key"   1 ray_p_exit_key)
+    ("ray_window_size" 2 ray_p_window_size)
+    ("$ray_fullscreen" 1 ray_p_fullscreen)
     ("ray_ready"       0 ray_p_ready)
     ("ray_screen_size" 2 ray_p_screen_size)
+    ("ray_display_bounds" 4 ray_p_display_bounds)
     ("ray_fps"         1 ray_p_fps)
     ("ray_begin"       0 ray_p_begin)
     ("ray_end"         0 ray_p_end)
@@ -291,6 +297,10 @@
            ;; names that rather than making a caller know the number.
            "ray_exit_key(none) :- '$ray_exit_key'(0)."
            "ray_exit_key(K) :- ray_keycode(K, C), '$ray_exit_key'(C)."
+           "ray_fullscreen(true) :- '$ray_fullscreen'(1)."
+           "ray_fullscreen(on) :- '$ray_fullscreen'(1)."
+           "ray_fullscreen(false) :- '$ray_fullscreen'(0)."
+           "ray_fullscreen(off) :- '$ray_fullscreen'(0)."
 
            ;; ---- mouse buttons and log levels, same shape ----
            "ray_button(left, 0). ray_button(right, 1). ray_button(middle, 2)."
@@ -466,6 +476,49 @@
               (return (coco_m_type_error e "atom" (coco_m_arg e g 2))))
           (InitWindow (cast int w) (cast int h) title)
           (return (ray_yes (IsWindowReady)))))
+
+  ;;; SetWindowSize after the window is open. A window manager may clamp it,
+  ;;; which ray_screen_size/2 then reports; the call itself cannot fail in
+  ;;; raylib, so this answers 1 when there is a window.
+  (func ray_p_window_size ((coco_engine * e) (size_t g)) (out int)
+        (if (not (IsWindowReady)) (return 0))
+        (let ((i64 w . 0) (i64 h . 0))
+          (let ((int rc6 . #'(ray_iarg e g 0 (aof w))))
+            (if (!= rc6 1) (return rc6)))
+          (let ((int rc7 . #'(ray_iarg e g 1 (aof h))))
+            (if (!= rc7 1) (return rc7)))
+          (SetWindowSize (cast int w) (cast int h))
+          (return 1)))
+
+  ;;; Fullscreen is a mode, not a one-shot toggle: `On' is 1 for
+  ;;; true/on and 0 for false/off from the Coco half. Toggle only when the
+  ;;; requested state differs, so entering twice does not leave the mode.
+  (func ray_p_fullscreen ((coco_engine * e) (size_t g)) (out int)
+        (if (not (IsWindowReady)) (return 0))
+        (let ((i64 on . 0))
+          (let ((int rc8 . #'(ray_iarg e g 0 (aof on))))
+            (if (!= rc8 1) (return rc8)))
+          (if (!= on 0) (set on 1) (set on 0))
+          (if (!= (ray_yes (IsWindowFullscreen)) (cast int on))
+              (ToggleFullscreen))
+          (return 1)))
+
+  ;;; The current monitor's position and size. Raylib 6 has monitor bounds,
+  ;;; not a desktop work-area inset; this is the "fit to screen" rectangle a
+  ;;; caller needs, measured on the display the window is on.
+  (func ray_p_display_bounds ((coco_engine * e) (size_t g)) (out int)
+        (if (not (IsWindowReady)) (return 0))
+        (let ((int mon . #'(GetCurrentMonitor)))
+          (if (< mon 0) (return 0))
+          (let ((Vector2 p . #'(GetMonitorPosition mon)))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 0)
+                                       (cast i64 (cast int ($ p x))))) (return 0))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 1)
+                                       (cast i64 (cast int ($ p y))))) (return 0))
+            (if (not (coco_m_unify_int e (coco_m_arg e g 2)
+                                       (cast i64 (GetMonitorWidth mon)))) (return 0))
+            (return (coco_m_unify_int e (coco_m_arg e g 3)
+                                      (cast i64 (GetMonitorHeight mon)))))))
 
   ;;; The GL context goes with the window, and every texture with it: the
   ;;; slots are freed FIRST, while unloading is still a thing that can be
