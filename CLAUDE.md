@@ -78,11 +78,13 @@ correct the row rather than trusting it.
 pulled** (the owner, 2026-10-28: "No pull cicili. Rebuild all with last Cicili
 commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-9b825b7`
 and a detached checkout of the commit there, the clone reading the objects the
-checkout already fetched. `CICILI` names the copy, and
-`CL_SOURCE_REGISTRY=/home/user/saman-pasha/cicili-9b825b7/:` must name it too -- cicili.lisp
+checkout already fetched (a checkout that lacks the commit fetches it first).
+`CICILI` names the copy, and `CL_SOURCE_REGISTRY="$CICILI/:"` must name it too,
+an absolute path whatever the box -- cicili.lisp
 loads the system with `asdf:load-system`, and `~/common-lisp/cicili`, the box's
 link to `../cicili`, answers first: without the variable a run from the copy
-said `--version` 3.1.0, the checkout's system under the copy's script.
+said `--version` 3.1.0, the checkout's system under the copy's script, and
+2.12.2's build stopped at `unknown member: st_mtim`.
 
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
