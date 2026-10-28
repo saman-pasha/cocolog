@@ -62,7 +62,7 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` (3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `a9e2dcf` from a copy beside it (below: 3.2.0, `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
@@ -73,6 +73,15 @@ not an applied one (the owner let five in by name: 2.0.0's split, 2026-10-11,
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
+**The builds take the last Cicili commit from a copy, and the checkout is not
+pulled** (the owner, 2026-10-28: "No pull cicili. Rebuild all with last Cicili
+commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-a9e2dcf`
+and a detached checkout of the commit there, the clone reading the objects the
+checkout already fetched. `CICILI` names the copy, and
+`CL_SOURCE_REGISTRY=/home/user/cicili-a9e2dcf/:` must name it too -- cicili.lisp
+loads the system with `asdf:load-system`, and `~/common-lisp/cicili`, the box's
+link to `../cicili`, answers first: without the variable a run from the copy
+said `--version` 3.1.0, the checkout's system under the copy's script.
 
 **ZiguratIP is the owner's.** It was unfrozen for engine fixes
 (`TCP_NODELAY`, the unmap resume mark, rollback-on-disconnect, the streams
@@ -2304,6 +2313,28 @@ read into an English-worded IR and written into any lesson's language),
   memo table COPIED out of its global at every hit (below) and not a step.
   tools/flow/chart.pl finds the clauses an insertion splits (`not together`:
   tr_time_phrase/1, tr_comps_out/7 were found so, 38 old ones remain).
+* **Find which piece of a refused sentence fails with the flow record**
+  (the owner's ask, 2026-10-28). Run `cocolog -s tools/flow/debug.pl --
+  "reason_translate('TEXT', spanish, english, T)"
+  library/reasoning/translate.pl BASE embed=STORE cache=DIR svg=false
+  xml=false txt=true` once, which says `false at step N`, and again with
+  `from=1 to=N`: the window then holds the whole run. The satanic report's
+  17th sentence, 1 532 822 steps, took 7 minutes, 8.8 GB and a BASE.txt of
+  144 MB; a refusal of 8 million steps does not fit this box. **The
+  furthest path at the foot of BASE.txt can name a scan**: it ranks a
+  clause by the calls of its body that exited, and tr_read0/4's clause for
+  a quotation that opens inside the sentence walks every position with
+  append/3, three calls exiting at each, so it was the path (58 calls) and
+  had read nothing. **Rank by the steps each clause spent** (a script over
+  BASE.txt: a line a call, its depth the indent) and read the arguments on
+  the way: the colon's clause spent 648 153 of 1 297 196 steps, its left
+  side read and its right side did not, and the right side's words held
+  `'$aside1'` where `, Templo Tezcat,` stood -- tr_asides/3's comment of a
+  verb in the first person, taken from a name's first word (`templo`, I
+  temper), so `Los Satanistas Setumismo` was one phrase. The steps alone do
+  not name a cause either: in the right side the most went to the front
+  search of tr_read0/4's clause 56. Two probes settle it: without the name
+  the sentence reads.
 * **Memory**: a teach sat at 4-9 GB resident before the heap collector of
   1.8.36 and peaks near 1 GB since (the Spanish pass, measured on 1.8.40), a
   tagger training is near 10 GB, `test/tagger.pl` alone; on a 14-16 GB box run
