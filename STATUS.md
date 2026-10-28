@@ -7497,3 +7497,15 @@ PROVED:
   shared, zigurat) are green.
 - **Lint clean.** The card's eight moved cites are corrected, and all 42
   are anchored.
+- **The suite on 2.13.0**, with a freshly restarted server up, and the
+  lint case first (green, 2 minutes): 75 lines in 17 minutes.
+  - Five SKIPs: tensors, torch-graph, torch-grad, torch-replay and
+    tensorflow. This box has no libtorch and no TensorFlow.
+  - One red, window's run-time check "findall/3's own over a hundred
+    times member/2's". Probed 40 times alone, w_copy/1's copies cost
+    findall/3 some 0.85 ms and member/2's three steps 1.4 to 2.4 us, a
+    ratio of 361 to 798. One interruption of those steps fails it: a VM
+    exit here is some 18 us.
+  - The check now takes the best of five probes. A copy charged to
+    member/2 is red in all five, and an arm with the comparison reversed
+    goes red. The case is green alone, three runs out of three.

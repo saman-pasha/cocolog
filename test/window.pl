@@ -765,9 +765,15 @@ run_timed :-
     ( memberchk(between/3-S3-T3, Ks3) -> true ; S3 = 0, T3 = 0 ),
     check('findall/3''s copies are its own, not the answers'': its time over none''s, between/3''s 20 000 steps retried',
           C3-S3-T3-Sum3, own-20000-retried-adds_up),
-    w_rt_rows(w_copy(_), _, R4, _, _),
-    w_rt_ns(R4, findall/3, F4), w_rt_ns(R4, member/2, M4),
-    ( F4 > 100 * M4 -> C4 = own ; C4 = F4-M4 ),
+    %% THE BEST OF FIVE PROBES: findall/3's copies are some 0.85 ms and
+    %% member/2's three steps some 1.5 us, so one interruption of those
+    %% steps -- a VM exit is some 18 us on the four-vCPU box -- takes the
+    %% ratio under a hundred. The suite's first run of 2.13.0 met one; a
+    %% copy charged to member/2 is red in all five.
+    (   between(1, 5, _), w_copy_ns(F4, M4), F4 > 100 * M4
+    ->  C4 = own
+    ;   w_copy_ns(F4, M4), C4 = F4-M4
+    ),
     check('...and each answer''s copy as it is made: findall/3''s own over a hundred times member/2''s', C4, own),
     w_rt_rows(w_rtn(200), _, _, Ks5, Sum5),
     check('a retry is the retried predicate''s: w_pk/1''s 200 calls retried for their next clauses, ==/2''s 600 steps none, an is/2 after a body''s first goal a step of its own',
@@ -802,6 +808,11 @@ w_rt_rows(G, E, R, Ks, Sum) :-
 w_rt_ns(R, K, Ns) :-
     R = run_time(_, _, _, _, _, _, Rows),
     (   memberchk(r(K, _, Ns, _), Rows) -> true ; Ns = 0 ).
+
+%% findall/3's and member/2's nanoseconds in one run_time probe of w_copy/1
+w_copy_ns(F, M) :-
+    w_rt_rows(w_copy(_), _, R, _, _),
+    w_rt_ns(R, findall/3, F), w_rt_ns(R, member/2, M).
 
 %% a probe of G under OPTS: how it ended, its time/4 term, every inference's
 %% nanoseconds from the first timed, and its gc/2 events
