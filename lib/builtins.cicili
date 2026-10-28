@@ -1594,7 +1594,7 @@
               (size_t b . #'(coco_m_arg e g 1)))
           (if (not (coco_m_unify e a b)) (block (coco_m_undo e mark) (return 0)))
           (for ((size_t i . mark)) (< i (-> m trail_len)) ((++ i))
-            (let ((size_t v . #'(nth i (-> m trail)))
+            (let ((u64 v . #'(nth i (-> m trail)))
                   (u64 keep . #'(nth v (-> m heap)))
                   (int occ . 0))
               (set (nth v (-> m heap)) (coco-cell REF v))
