@@ -1240,3 +1240,9 @@
 <e r="RL"><p><l>car<s n="n"/></l><r>vettura<s n="n"/><s n="f"/></r></p></e>
 # `della zona montana bellunese': mountainous, read only -- `montagnoso' stays the Italian for it
 <e r="RL"><p><l>mountainous<s n="adj"/></l><r>montano<s n="adj"/></r></p></e>
+# the Corsica report (AnCora CESS-CAST-P-20000802-26): `sacudida desde hace años por los atentados', shaken -- the
+# dictionary has no Italian verb for shake
+<e><p><l>shake<s n="vblex"/></l><r>scuotere<s n="vblex"/></r></p></e>
+# `la isla "sufre deficiencias económicas"': `carenze', written only -- the dictionary has no Italian noun for a
+# deficiency, and `carenza' stays a lack to the reader
+<e r="LR"><p><l>deficiency<s n="n"/></l><r>carenza<s n="n"/><s n="f"/></r></p></e>

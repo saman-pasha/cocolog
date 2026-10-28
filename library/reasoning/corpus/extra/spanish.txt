@@ -831,6 +831,9 @@ The adverb "aquí entre nosotros" means "here among us".
 The conjunction "incluso antes de que" means "even before".
 # `Si tratta, semmai, di stabilire se ...': `Se trata, en todo caso, de
 # establecer si ...' -- the idiom takes `de' before its infinitive
+# (and in any case first, its meaning in a statement: `pero que, en todo caso, las medidas que se adopten
+# "deben respetar ..."' -- the line of a meaning alone teaches no class a second time)
+"en todo caso" means "in any case".
 The adverb "en todo caso" means "if anything".
 "trata" takes "de" before the infinitive.
 # `i presìdi addetti alla pulizia ambientale': assigned, which the dictionary
@@ -3453,3 +3456,198 @@ The masculine noun "tablón" means "noticeboard".
 "publica" takes the passive.
 "ofrece" takes the passive.
 "lee" takes the passive.
+# the Veloso interview (VIT-9225..9269, Italian into Spanish and English): the words the Spanish writer needs
+The preposition "del brazo de" means "arm in arm with".
+The adverb "de forma molesta" means "annoyingly".
+The masculine noun "triunfador" means "victor".
+"triunfadores" is the plural of "triunfador".
+"triunfador" is a person.
+The adjective "indiscutible" means "undisputed".
+"indiscutibles" is the plural of "indiscutible".
+The masculine noun "traspuntín" means "folding seat".
+"traspuntines" is the plural of "traspuntín".
+The masculine noun "cantautor" means "singer-songwriter".
+"cantautores" is the plural of "cantautor".
+"cantautor" is a person.
+The masculine noun "club de fans" means "fan club".
+"clubes de fans" is the plural of "club de fans".
+The feminine noun "prostituta callejera" means "streetwalker".
+"prostitutas callejeras" is the plural of "prostituta callejera".
+"prostituta callejera" is a person.
+The masculine adjective "napolitano" means "Neapolitan".
+"napolitanos" is the plural of "napolitano".
+The feminine adjective "napolitana" means "Neapolitan".
+"napolitanas" is the plural of "napolitana".
+The masculine noun "napolitano" means "Neapolitan".
+The masculine adjective "tragicómico" means "tragicomic".
+"tragicómicos" is the plural of "tragicómico".
+The feminine adjective "tragicómica" means "tragicomic".
+"tragicómicas" is the plural of "tragicómica".
+The masculine adjective "exiliado" means "exiled".
+"exiliados" is the plural of "exiliado".
+The feminine adjective "exiliada" means "exiled".
+"exiliadas" is the plural of "exiliada".
+The adjective "providencial" means "providential".
+"providenciales" is the plural of "providencial".
+The masculine adjective "majestuoso" means "majestic".
+"majestuosos" is the plural of "majestuoso".
+The feminine adjective "majestuosa" means "majestic".
+"majestuosas" is the plural of "majestuosa".
+The adverb "a última hora de la tarde" means "in the late afternoon".
+The adverb "por segunda vez" means "for the second time".
+The adverb "por tercera vez" means "for the third time".
+The pronoun "tantos" means "so many".
+The pronoun "tantos" does not precede the verb.
+The adverb "quién sabe" means "who knows".
+The adjective "libre" means "free".
+"libres" is the plural of "libre".
+The masculine noun "corresponsal" means "correspondent".
+"corresponsales" is the plural of "corresponsal".
+"corresponsal" is a person.
+The preposition "en nombre de" means "on behalf of".
+The adverb "de memoria" means "by heart".
+# `quel po' d'italiano che so': a bit, `esa pizca de italiano' -- never the noun `poco', whose plural made
+# `como pocos' a phrase of its own and refused a sentence of the controls
+The feminine noun "pizca" means "bit".
+# `torneranno ad incontrarsi', `incontrare gli studenti': the writer's verb for meets is `encuentra', where the
+# dictionary's first is `conoce' (knows a person); its own first meaning, finds, said first, so that the reader
+# keeps it -- lines of a meaning alone, which teach no class a second time
+"encuentra" means "finds".
+"encuentra" means "meets".
+# `La Italia es una sensación': Italy takes no article in Spanish -- a country, a region or a continent the lesson
+# names (extra/italian.txt has Italian's, with its article)
+"italia" is a country.
+"francia" is a country.
+"alemania" is a country.
+"inglaterra" is a country.
+"españa" is a country.
+"japón" is a country.
+"brasil" is a country.
+"grecia" is a country.
+"rusia" is a country.
+"israel" is a country.
+"chechenia" is a region.
+"cataluña" is a region.
+"catalunya" is a region.
+"cerdeña" is a region.
+"sicilia" is a region.
+"europa" is a continent.
+The name "asia" means "Asia".
+"asia" is a continent.
+The name "áfrica" means "Africa".
+"áfrica" is a continent.
+The name "américa" means "America".
+"américa" is a continent.
+# `soprattutto di ladri di biciclette': thieves, the dictionary having the feminine `ladrona' alone
+The masculine noun "ladrón" means "thief".
+"ladrones" is the plural of "ladrón".
+"ladrón" is a person.
+# `nel natio borgo di Santo Amaro': the native village, `pueblo natal' (the writer's first was `indígena')
+The adjective "natal" means "native".
+"natales" is the plural of "natal".
+# `passeggiando di sera': in the evening
+The adverb "por la noche" means "in the evening".
+# the upstream verb table's past of `sing' is `sung', its participle (extra/italian.txt says the same)
+"sang" is the past of "sings".
+# `la polizia ci chiese i documenti': the police, `la policía' -- the dictionary gives the noun no gender of its own and
+# the builder denies the feminine, so the force was `el policía', the man; each sense with its gender
+The feminine noun "policía" means "police".
+The masculine noun "policía" means "policeman".
+# The Corsica report (AnCora CESS-CAST-P-20000802-26, Spanish into Italian and English).
+# `el gaullista Jacques Chirac': a Gaullist, a person
+The noun "gaullista" means "Gaullist".
+"gaullista" is not feminine.
+"gaullistas" is the plural of "gaullista".
+"gaullista" is a person.
+# `las reformas preconizadas para Córcega': recommended (the dictionary's `recomienda' said again first, so that it stays
+# the word written for recommends)
+"recomienda" means "recommends".
+The verb "preconiza" means "recommends".
+"preconizan" is the plural of "preconiza".
+"preconizó" is the past of "preconiza".
+"preconizaron" is the plural of "preconizó".
+"preconizar" is the infinitive of "preconiza".
+"preconizado" is the participle of "preconiza".
+"preconizada" is the participle of "preconiza".
+"preconizada" is feminine.
+"preconizados" is the participle of "preconiza".
+"preconizados" is the plural of "preconizado".
+"preconizadas" is the participle of "preconiza".
+"preconizadas" is feminine.
+"preconizadas" is the plural of "preconizada".
+# `para Córcega', `la Asamblea de Córcega': Corsica, a region; and the Élysée, the French presidency
+The name "córcega" means "Corsica".
+"córcega" is a region.
+The name "elíseo" means "Elysée".
+# `durante la reunión del Consejo de Ministros', `bajo un eventual control del Consejo Constitucional'
+The name "consejo de ministros" means "Council of Ministers".
+The name "consejo constitucional" means "Constitutional Council".
+# `los corsos', `la Asamblea corsa', `los representantes corsos': Corsican, the adjective and the people
+The masculine adjective "corso" means "Corsican".
+"corsos" is the plural of "corso".
+The feminine adjective "corsa" means "Corsican".
+"corsas" is the plural of "corsa".
+The masculine noun "corso" means "Corsican".
+"corso" is a person.
+# `de la que el presidente es garante': the guarantor, a person of either sex
+The noun "garante" means "guarantor".
+"garante" is not feminine.
+"garantes" is the plural of "garante".
+"garante" is a person.
+# `el restablecimiento "duradero" de una paz civil': re-establishment (Italian's `ristabilimento')
+The masculine noun "restablecimiento" means "re-establishment".
+"restablecimientos" is the plural of "restablecimiento".
+# `la unidad del país', `su unidad': unity, before the dictionary's unit (whose plural English writes `units')
+The feminine noun "unidad" means "unity".
+# `hasta la vuelta de las vacaciones': the return, before the dictionary's turn (and `regreso' said again first, so that
+# it stays the word written for a return)
+"regreso" means "return".
+The feminine noun "vuelta" means "return".
+# `El futuro de Chevènement ... está en suspenso': pending, an adjective of two words
+The adjective "en suspenso" means "pending".
+"en suspenso" is the plural of "en suspenso".
+# `a fin de que los corsos puedan desempeñar ...': so that, and the clause in the subjunctive
+The conjunction "a fin de que" means "so that".
+"a fin de que" takes the subjunctive.
+# `prevé de cara al 2004', `las transferencias de competencias de aquí al 2002', `En el transcurso del Consejo' (the
+# dictionary's `durante' said again first, so that it stays the word written for during)
+The preposition "de cara a" means "with a view to".
+The preposition "de aquí a" means "until".
+"durante" means "during".
+The preposition "en el transcurso de" means "during".
+# `bajo un eventual control': possible, the Spanish word's sense, before the dictionary's `eventual'; the
+# dictionary's `posible' said again first, so that it stays the word written for possible
+"posible" means "possible".
+The adjective "eventual" means "possible".
+# `los elegidos de la Asamblea de Córcega': the elected representatives
+The masculine noun "elegido" means "elected representative".
+# `ha hecho saber que no defenderá el proyecto': announces
+The verb "hace saber" means "announces".
+"hacen saber" is the plural of "hace saber".
+"hizo saber" is the past of "hace saber".
+"hicieron saber" is the plural of "hizo saber".
+"hacer saber" is the infinitive of "hace saber".
+"hecho saber" is the participle of "hace saber".
+# `Estas medidas están sujetas al restablecimiento': subject TO it
+The masculine adjective "sujeto" means "subject".
+The feminine adjective "sujeta" means "subject".
+# `las medidas que se adopten': adopted, a thing's reflexive is a passive where the lesson says so
+"adopta" takes the passive.
+# `que "se imponen" una serie de reformas': the series is what prevails, the phrase after the verb its subject
+"se impone" is intransitive.
+# `el buen uso que haga la Asamblea corsa de las transferencias': the Assembly does it, a body of people
+"asamblea" is a group.
+# `el restablecimiento "duradero"': lasting, before the dictionary's `durable'
+"duradero" means "lasting".
+"duradera" means "lasting".
+# `el presidente francés señaló que el Gobierno ha dialogado ...': indicated, before a clause of `that' (the
+# dictionary's verb is `signals', and the plain meaning is said first)
+"señala" means "signals".
+The clausal verb "señala" means "indicates".
+# `a fin de que los corsos puedan desempeñar "todo su papel"': to perform their role -- the newspaper's role before the
+# dictionary's paper, and the verb's performing before its exerting (`desempeña sus funciones'; Italian's `svolge')
+The masculine noun "papel" means "role".
+"desempeña" means "performs".
+# `precisó en este sentido que "se imponen" una serie de reformas': in this respect, one adverb -- read as words,
+# the clause of `que' was a relative clause on the sense, and the reforms nobody's
+The adverb "en este sentido" means "in this respect".

@@ -508,6 +508,7 @@ The word "quien" begins the relative.
 The verb "amenaza" means "threatens".
 The adverb "aquí entre nosotros" means "here among us".
 The conjunction "incluso antes de que" means "even before".
+"en todo caso" means "in any case".
 The adverb "en todo caso" means "if anything".
 "trata" takes "de" before the infinitive.
 The masculine adjective "asignado" means "assigned".
@@ -2102,6 +2103,156 @@ The masculine noun "tablón" means "noticeboard".
 "publica" takes the passive.
 "ofrece" takes the passive.
 "lee" takes the passive.
+The preposition "del brazo de" means "arm in arm with".
+The adverb "de forma molesta" means "annoyingly".
+The masculine noun "triunfador" means "victor".
+"triunfadores" is the plural of "triunfador".
+"triunfador" is a person.
+The adjective "indiscutible" means "undisputed".
+"indiscutibles" is the plural of "indiscutible".
+The masculine noun "traspuntín" means "folding seat".
+"traspuntines" is the plural of "traspuntín".
+The masculine noun "cantautor" means "singer-songwriter".
+"cantautores" is the plural of "cantautor".
+"cantautor" is a person.
+The masculine noun "club de fans" means "fan club".
+"clubes de fans" is the plural of "club de fans".
+The feminine noun "prostituta callejera" means "streetwalker".
+"prostitutas callejeras" is the plural of "prostituta callejera".
+"prostituta callejera" is a person.
+The masculine adjective "napolitano" means "Neapolitan".
+"napolitanos" is the plural of "napolitano".
+The feminine adjective "napolitana" means "Neapolitan".
+"napolitanas" is the plural of "napolitana".
+The masculine noun "napolitano" means "Neapolitan".
+The masculine adjective "tragicómico" means "tragicomic".
+"tragicómicos" is the plural of "tragicómico".
+The feminine adjective "tragicómica" means "tragicomic".
+"tragicómicas" is the plural of "tragicómica".
+The masculine adjective "exiliado" means "exiled".
+"exiliados" is the plural of "exiliado".
+The feminine adjective "exiliada" means "exiled".
+"exiliadas" is the plural of "exiliada".
+The adjective "providencial" means "providential".
+"providenciales" is the plural of "providencial".
+The masculine adjective "majestuoso" means "majestic".
+"majestuosos" is the plural of "majestuoso".
+The feminine adjective "majestuosa" means "majestic".
+"majestuosas" is the plural of "majestuosa".
+The adverb "a última hora de la tarde" means "in the late afternoon".
+The adverb "por segunda vez" means "for the second time".
+The adverb "por tercera vez" means "for the third time".
+The pronoun "tantos" means "so many".
+The pronoun "tantos" does not precede the verb.
+The adverb "quién sabe" means "who knows".
+The adjective "libre" means "free".
+"libres" is the plural of "libre".
+The masculine noun "corresponsal" means "correspondent".
+"corresponsales" is the plural of "corresponsal".
+"corresponsal" is a person.
+The preposition "en nombre de" means "on behalf of".
+The adverb "de memoria" means "by heart".
+The feminine noun "pizca" means "bit".
+"encuentra" means "finds".
+"encuentra" means "meets".
+"italia" is a country.
+"francia" is a country.
+"alemania" is a country.
+"inglaterra" is a country.
+"españa" is a country.
+"japón" is a country.
+"brasil" is a country.
+"grecia" is a country.
+"rusia" is a country.
+"israel" is a country.
+"chechenia" is a region.
+"cataluña" is a region.
+"catalunya" is a region.
+"cerdeña" is a region.
+"sicilia" is a region.
+"europa" is a continent.
+The name "asia" means "Asia".
+"asia" is a continent.
+The name "áfrica" means "Africa".
+"áfrica" is a continent.
+The name "américa" means "America".
+"américa" is a continent.
+The masculine noun "ladrón" means "thief".
+"ladrones" is the plural of "ladrón".
+"ladrón" is a person.
+The adjective "natal" means "native".
+"natales" is the plural of "natal".
+The adverb "por la noche" means "in the evening".
+"sang" is the past of "sings".
+The feminine noun "policía" means "police".
+The masculine noun "policía" means "policeman".
+The noun "gaullista" means "Gaullist".
+"gaullista" is not feminine.
+"gaullistas" is the plural of "gaullista".
+"gaullista" is a person.
+"recomienda" means "recommends".
+The verb "preconiza" means "recommends".
+"preconizan" is the plural of "preconiza".
+"preconizó" is the past of "preconiza".
+"preconizaron" is the plural of "preconizó".
+"preconizar" is the infinitive of "preconiza".
+"preconizado" is the participle of "preconiza".
+"preconizada" is the participle of "preconiza".
+"preconizada" is feminine.
+"preconizados" is the participle of "preconiza".
+"preconizados" is the plural of "preconizado".
+"preconizadas" is the participle of "preconiza".
+"preconizadas" is feminine.
+"preconizadas" is the plural of "preconizada".
+The name "córcega" means "Corsica".
+"córcega" is a region.
+The name "elíseo" means "Elysée".
+The name "consejo de ministros" means "Council of Ministers".
+The name "consejo constitucional" means "Constitutional Council".
+The masculine adjective "corso" means "Corsican".
+"corsos" is the plural of "corso".
+The feminine adjective "corsa" means "Corsican".
+"corsas" is the plural of "corsa".
+The masculine noun "corso" means "Corsican".
+"corso" is a person.
+The noun "garante" means "guarantor".
+"garante" is not feminine.
+"garantes" is the plural of "garante".
+"garante" is a person.
+The masculine noun "restablecimiento" means "re-establishment".
+"restablecimientos" is the plural of "restablecimiento".
+The feminine noun "unidad" means "unity".
+"regreso" means "return".
+The feminine noun "vuelta" means "return".
+The adjective "en suspenso" means "pending".
+"en suspenso" is the plural of "en suspenso".
+The conjunction "a fin de que" means "so that".
+"a fin de que" takes the subjunctive.
+The preposition "de cara a" means "with a view to".
+The preposition "de aquí a" means "until".
+"durante" means "during".
+The preposition "en el transcurso de" means "during".
+"posible" means "possible".
+The adjective "eventual" means "possible".
+The masculine noun "elegido" means "elected representative".
+The verb "hace saber" means "announces".
+"hacen saber" is the plural of "hace saber".
+"hizo saber" is the past of "hace saber".
+"hicieron saber" is the plural of "hizo saber".
+"hacer saber" is the infinitive of "hace saber".
+"hecho saber" is the participle of "hace saber".
+The masculine adjective "sujeto" means "subject".
+The feminine adjective "sujeta" means "subject".
+"adopta" takes the passive.
+"se impone" is intransitive.
+"asamblea" is a group.
+"duradero" means "lasting".
+"duradera" means "lasting".
+"señala" means "signals".
+The clausal verb "señala" means "indicates".
+The masculine noun "papel" means "role".
+"desempeña" means "performs".
+The adverb "en este sentido" means "in this respect".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
