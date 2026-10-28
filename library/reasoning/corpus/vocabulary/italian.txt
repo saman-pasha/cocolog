@@ -2934,6 +2934,41 @@ The masculine noun "invalido" means "invalid".
 The feminine noun "pubblica utilità" means "public utility".
 The adverb "ieri pomeriggio" means "yesterday afternoon".
 The adverb "ieri mattina" means "yesterday morning".
+The masculine adjective "satanico" means "satanic".
+"satanici" is the plural of "satanico".
+The feminine adjective "satanica" means "satanic".
+"sataniche" is the plural of "satanica".
+The noun "satanista" means "satanist".
+"satanista" is not feminine.
+"satanisti" is the plural of "satanista".
+"satanista" is a person.
+The masculine noun "satanismo" means "satanism".
+The adverb "sempre più" means "increasingly".
+The masculine adjective "ispanofono" means "Spanish-speaking".
+"ispanofoni" is the plural of "ispanofono".
+The feminine adjective "ispanofona" means "Spanish-speaking".
+"ispanofone" is the plural of "ispanofona".
+The masculine adjective "luciferino" means "Luciferian".
+"luciferini" is the plural of "luciferino".
+The feminine adjective "luciferina" means "Luciferian".
+"luciferine" is the plural of "luciferina".
+The interjection "ciao" means "hello".
+The interjection "benvenuto" means "welcome".
+The masculine noun "sito web" means "website".
+"siti web" is the plural of "sito web".
+The verb "visita" means "visits".
+The masculine noun "punto di incontro" means "meeting point".
+"punti di incontro" is the plural of "punto di incontro".
+The feminine noun "chat" means "chat".
+"chat" is the plural of "chat".
+The feminine noun "bacheca" means "noticeboard".
+"bacheche" is the plural of "bacheca".
+The feminine noun "rivista" means "magazine".
+"definisce" takes the passive.
+"definisce" takes "come" before the phrase.
+"pubblica" takes the passive.
+"offre" takes the passive.
+"legge" takes the passive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

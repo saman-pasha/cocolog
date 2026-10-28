@@ -4530,3 +4530,47 @@ The feminine noun "pubblica utilità" means "public utility".
 # `ieri sera' is last night
 The adverb "ieri pomeriggio" means "yesterday afternoon".
 The adverb "ieri mattina" means "yesterday morning".
+# `Los grupos satánicos españoles': satanic, a satanist (a person) and satanism
+The masculine adjective "satanico" means "satanic".
+"satanici" is the plural of "satanico".
+The feminine adjective "satanica" means "satanic".
+"sataniche" is the plural of "satanica".
+The noun "satanista" means "satanist".
+"satanista" is not feminine.
+"satanisti" is the plural of "satanista".
+"satanista" is a person.
+The masculine noun "satanismo" means "satanism".
+The adverb "sempre più" means "increasingly".
+# `los satanistas hispanohablantes': Spanish-speaking
+The masculine adjective "ispanofono" means "Spanish-speaking".
+"ispanofoni" is the plural of "ispanofono".
+The feminine adjective "ispanofona" means "Spanish-speaking".
+"ispanofone" is the plural of "ispanofona".
+# `organizaciones luciferinas': Luciferian
+The masculine adjective "luciferino" means "Luciferian".
+"luciferini" is the plural of "luciferino".
+The feminine adjective "luciferina" means "Luciferian".
+"luciferine" is the plural of "luciferina".
+# `Hola, mi nombre es...', `"Bienvenido, ..."': the greetings at the head of the sentence
+The interjection "ciao" means "hello".
+The interjection "benvenuto" means "welcome".
+# `Una de las webs más visitadas': a website, the most visited, where the dictionary's `visita' tours and `ricorre' visits
+The masculine noun "sito web" means "website".
+"siti web" is the plural of "sito web".
+The verb "visita" means "visits".
+The masculine noun "punto di incontro" means "meeting point".
+"punti di incontro" is the plural of "punto di incontro".
+# `pueden encontrarse chats': a chat, one word in both numbers, before the dictionary's chatter
+The feminine noun "chat" means "chat".
+"chat" is the plural of "chat".
+# `un tablón donde dejar anuncios': a noticeboard
+The feminine noun "bacheca" means "noticeboard".
+"bacheche" is the plural of "bacheca".
+# `una revista para sus adeptos': a magazine, where the dictionary's first is a gun's
+The feminine noun "rivista" means "magazine".
+# `que se define como', `se publica', `se ofrecen', `que se lee': what is defined, published, offered and read
+"definisce" takes the passive.
+"definisce" takes "come" before the phrase.
+"pubblica" takes the passive.
+"offre" takes the passive.
+"legge" takes the passive.
