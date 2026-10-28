@@ -376,6 +376,7 @@ main :-
     section_81,
     section_82,
     section_83,
+    section_84,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -10817,6 +10818,171 @@ The verb "include" means "includes". "incluso" is the participle of "include". "
 The masculine noun "momento" means "moment". The word "da" begins the gerundive. The pronoun "niente" means "nothing".
 The verb "afferma" means "affirms". "affermare" is the infinitive of "afferma". "affermando" is the gerund of "afferma". The feminine noun "riunione" means "meeting". The masculine noun "consiglio" means "council".
 The verb "si impone" means "prevails". "si impone" is intransitive. The feminine noun "serie" means "series". The feminine noun "riforma" means "reform". "riforme" is the plural of "riforma".').
+
+section_84 :-
+    format("~n84. an Italian report on what a child costs, into Spanish and English: naturally, another, otro, a month, take into account, make it soar, born of, it becomes, it costs, feed, the infinitive of a verb that takes no object as a clause of as, then if, a line that opens on an adverb, the age, the post and the children, two things a person is, the adjective that is no verb, the others, between two, rises by, at 16, the second phrase a verb governs, spends on~n", []),
+    lesson_84(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the corsica section''s Spanish lesson and a fourteenth part, under its own name', NS),
+    lesson_84(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_84_1, section_84_2, section_84_3, section_84_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_84(L, Text) :- lesson_83(L, A), lesson_84(L, 14, B), atomic_list_concat([A, ' ', B], Text).
+
+section_84_1 :-
+    ( reason_translate('Naturalmente il cane dorme.', italian, english, X84V1) -> S84V1 = X84V1 ; S84V1 = refused ),
+    must('A WORD THAT SAYS HOW PLAIN THE SENTENCE IS STAYS IN FRONT: `Naturalmente il conto sale con l''aumentare del reddito'' is naturally the bill rises, and put after the verb it came out `The account rises ... naturally'' (en_head_maybe/1)', S84V1,
+         'Naturally the dog sleeps.'),
+    ( reason_translate('Il cane mangia un altro pane.', italian, spanish, X84V2) -> S84V2 = X84V2 ; S84V2 = refused ),
+    must('A WORD THE LESSON SAYS DOES NOT FOLLOW AN ARTICLE TAKES ITS PLACE: `su un altro campione'' is `en otro campeón'', and the Spanish writer wrote `un otro'' (`"otro" does not follow "un".'', tr_contract/3)', S84V2,
+         'El perro come otro pan.'),
+    ( reason_translate('Il cane mangia un altro pane.', italian, english, X84V3) -> S84V3 = X84V3 ; S84V3 = refused ),
+    must('... and English''s `an other'' is `another'' (en_another/2)', S84V3,
+         'The dog eats another bread.'),
+    ( reason_translate('Il cane mangia 3 pani al mese.', italian, english, X84V4) -> S84V4 = X84V4 ; S84V4 = refused ),
+    must('A UNIT OF TIME AFTER `TO'' AND ITS ARTICLE IS HOW OFTEN: `una famiglia che guadagna 3.500 euro netti al mese'' earns them A MONTH, where English wrote `to the month'' (tr_comp_out/7)', S84V4,
+         'The dog eats 3 breads a month.'),
+    ( reason_translate('Il cane mangia 3 pani al mese (pane escluso).', italian, english, X84V5) -> S84V5 = X84V5 ; S84V5 = refused ),
+    must('... with a bracket after the unit too, and a bare noun and its participle alone in a bracket are said noun first: `circa 580 euro al mese (baby sitter esclusa)'' is a month (babysitter excluded), where it was `to the month (excluded babysitter)'' (tr_aside_out/6)', S84V5,
+         'The dog eats 3 breads a month (bread excluded).'),
+    ( reason_translate('Non tengono conto del pane.', italian, english, X84V6) -> S84V6 = X84V6 ; S84V6 = refused ),
+    must('`takes into account'' TAKES ITS PHRASE BARE: `Non tengono conto per esempio della mancanza cronica di posti'' does not take into account the lack, and the governed `of'' came out `take into account of'' (en_bare_object/1)', S84V6,
+         'They do not take into account the bread.'),
+    ( reason_translate('Non tengono conto del pane.', italian, spanish, X84V7) -> S84V7 = X84V7 ; S84V7 = refused ),
+    must('... and so does Spanish''s `tener en cuenta'', which the lesson states with no preposition', S84V7,
+         'No tienen en cuenta el pan.'),
+    ( reason_translate('Non tengono conto del pane o del vino.', italian, english, X84V8) -> S84V8 = X84V8 ; S84V8 = refused ),
+    must('... AND SO IS A SECOND PHRASE JOINED TO THE FIRST ON THE SAME PREPOSITION: `della mancanza ... o della distanza dei nonni'' takes into account the lack or the distance, and the second kept its `of'' (tr_gov_second/4)', S84V8,
+         'They do not take into account the bread or the wine.'),
+    ( reason_translate('Il cane fa impennare il conto.', italian, english, X84V9) -> S84V9 = X84V9 ; S84V9 = refused ),
+    must('`MAKES'' AND AN INFINITIVE BEFORE ITS OBJECT ARE THE OBJECT AND THE BARE INFINITIVE: `tutti fattori che fanno impennare la bolletta figlio'' make the bill soar, where English wrote `make to soar the son bill'' (tr_comps_out/7)', S84V9,
+         'The dog makes the account soar.'),
+    ( reason_translate('Le idee nate da un cane dormono.', italian, english, X84V10) -> S84V10 = X84V10 ; S84V10 = refused ),
+    must('THE PARTICIPLE OF A VERB ENGLISH SAYS WITH `IS'' IS ITS SECOND WORD after a noun: `Cifre nate da un''''indagine'' are figures born of a survey, and it was `been born from'' (en_reduced_participle/2)', S84V10,
+         'The ideas born from a dog sleep.'),
+    ( reason_translate('Le idee nate da un cane dormono.', italian, spanish, X84V11) -> S84V11 = X84V11 ; S84V11 = refused ),
+    must('... and the phrase its verb governs is marked after a participle whose perfect takes the copula, as after any other: Spanish''s `nacidas de'', where the lesson''s `from'' wrote `desde'' (tr_ptc_complements/4)', S84V11,
+         'Las ideas nacidas de un perro duermen.'),
+    ( reason_translate('Ma diventa fondamentale mangiare il pane.', italian, english, X84V12) -> S84V12 = X84V12 ; S84V12 = refused ),
+    must('`IT BECOMES'' AN ADJECTIVE TO DO SOMETHING: `in questo progetto diventa fondamentale stabilire quanto costa'' -- it becomes essential to establish it, and with nobody named English refused it (en_null_it/2)', S84V12,
+         'But it becomes fundamental to eat the bread.').
+
+section_84_2 :-
+    ( reason_translate('Quanto costa mangiare un pane?', italian, english, X84V13) -> S84V13 = X84V13 ; S84V13 = refused ),
+    must('A VERB WHOSE SUBJECT IS AN INFINITIVE HAS NONE AFTER IT: `Quanto costa mantenere un figlio?'' is how much does it cost to keep a son, and the phrase after the infinitive was the verb''s subject, `How much does a son cost to keep?'' (fo_inf_subject_verb/1, en_null_it/2)', S84V13,
+         'How much does it cost to eat a bread?'),
+    ( reason_translate('Quanto costa mangiare un pane?', italian, spanish, X84V14) -> S84V14 = X84V14 ; S84V14 = refused ),
+    must('... where Spanish says it as Italian does', S84V14,
+         '¿Cuánto cuesta comer un pan?'),
+    ( reason_translate('Il cane dà da mangiare al gatto.', italian, english, X84V15) -> S84V15 = X84V15 ; S84V15 = refused ),
+    must('THE ONE WHO IS FED IS THE OBJECT OF `FEEDS'': `per dare da mangiare al bambino'' is to feed the child, and the lesson''s `to'' came out `to feed to the boy'' (tr_comp_out/7)', S84V15,
+         'The dog feeds the cat.'),
+    ( reason_translate('Il cane dorme per dare da mangiare al gatto.', italian, english, X84V16) -> S84V16 = X84V16 ; S84V16 = refused ),
+    must('... after a purpose that is the verb as well (tr_comps_out/7)', S84V16,
+         'The dog sleeps to feed the cat.'),
+    ( reason_translate('Il conto sale con l''aumentare del reddito.', italian, english, X84V17) -> S84V17 = X84V17 ; S84V17 = refused ),
+    must('THE INFINITIVE OF A VERB THAT TAKES NO OBJECT, WITH ITS PHRASE OF `OF'', IS A CLAUSE OF `AS'': `con l''''aumentare del reddito familiare cresce la spesa'' as the income increases, and read as a phrase it was `with increasing of the income'' (tr_as_inf_fix/3)', S84V17,
+         'The account rises as the income increases.'),
+    ( reason_translate('Il conto sale con l''aumentare del reddito.', italian, spanish, X84V18) -> S84V18 = X84V18 ; S84V18 = refused ),
+    must('... which Spanish writes with its word for `as''', S84V18,
+         'La cuenta sube a medida que el ingreso aumenta.'),
+    ( reason_translate('E al crescere del reddito il conto sale.', italian, english, X84V19) -> S84V19 = X84V19 ; S84V19 = refused ),
+    must('... after the word for `to'' as well: `al crescere del reddito'' as the income grows, where it was `to the growing of the income''', S84V19,
+         'And the account rises as the income grows.'),
+    ( reason_translate('Poi se il cane dorme, il gatto mangia.', italian, english, X84V20) -> S84V20 = X84V20 ; S84V20 = refused ),
+    must('AN ADVERB AT THE HEAD BEFORE A CLAUSE OF `IF'': `Poi se c''''è bisogno della baby sitter, il conto sale'' -- then, if there is need of one, the bill rises; the condition''s reader wants its word first, and the sentence was refused (tr_read0/4)', S84V20,
+         'Then, if the dog sleeps, the cat eats.'),
+    ( reason_translate('In particolare al nord.', italian, spanish, X84V21) -> S84V21 = X84V21 ; S84V21 = refused ),
+    must('AN ADVERB BEFORE A LINE OF ADJUNCTS: `In particolare al Nord.'' -- in particular in the North, after the sentence that said what; an adverb and a phrase of a preposition were refused (tr_verbless0/3)', S84V21,
+         'En particular al norte.'),
+    ( reason_translate('In media 230 euro per mangiare.', italian, spanish, X84V22) -> S84V22 = X84V22 ; S84V22 = refused ),
+    must('... OR BEFORE A PHRASE THAT SAYS SOMETHING: `in media 230 mila euro per mantenerlo fino a 24 anni'' -- on average that much to keep him, the headline (tr_verbless0/3, tr_predicated/2)', S84V22,
+         'En promedio 230 euros para comer.'),
+    ( reason_translate('In media 230 euro.', italian, spanish, X84V23) -> S84V23 = X84V23 ; S84V23 = refused ),
+    must('... an adverb and a phrase alone stay refused', S84V23,
+         refused),
+    ( reason_translate('Il lavoro di Marino Rossi, 64 anni, docente di fisica, due figli.', italian, english, X84V24) -> S84V24 = X84V24 ; S84V24 = refused ),
+    must('WHAT A MAN IS AND HOW MANY CHILDREN HE HAS, AFTER THE AGE: `il lavoro di Marino Maglietta, 64 anni, docente di fisica all''''università di Firenze, due figli'' -- his age, his post and his two children, and read as the clause''s own the post was refused (tr_asides/3, tr_count_tail/2)', S84V24,
+         'The work of Marino Rossi, 64 years, lecturer of physics, two sons.').
+
+section_84_3 :-
+    ( reason_translate('Secondo Enrico Finzi, sociologo e presidente della società Astra, è così.', italian, english, X84V25) -> S84V25 = X84V25 ; S84V25 = refused ),
+    must('TWO THINGS A PERSON IS, JOINED, AFTER THE NAME: `Secondo Enrico Finzi, sociologo e presidente della società Astra, è così'' -- according to him, a sociologist and president, it is so; read as the clause''s own, the two were its subject and the copula plural (tr_roles_apposition/1); the preposition before a name and its comma is not lifted as the adverb `second'' (tr_governs_adverb/3), and `it is so'' (en_null_it/2)', S84V25,
+         'According to Enrico Finzi, sociologist and president of the society Astra, it is thus.'),
+    ( reason_translate('Secondo Enrico Finzi, sociologo e presidente della società Astra, è così.', italian, spanish, X84V26) -> S84V26 = X84V26 ; S84V26 = refused ),
+    must('... and the copula agrees with nobody plural in Spanish', S84V26,
+         'Según Enrico Finzi, sociólogo y presidente de la sociedad Astra, es así.'),
+    ( reason_translate('Una spesa media, per una famiglia.', italian, english, X84V27) -> S84V27 = X84V27 ; S84V27 = refused ),
+    must('A WORD AFTER A NOUN THAT IS ITS ADJECTIVE AS WELL AS A VERB, WITH NOTHING AFTER IT BUT A COMMA, IS THE ADJECTIVE: `Una spesa media, per una famiglia ...'' is an average expense, and read as the verb `media'' the expense mediated (tr_adjective_not_verb/3)', S84V27,
+         'An average expense, for a family.'),
+    ( reason_translate('E per cinque buone ragioni: il cane dorme.', italian, english, X84V28) -> S84V28 = X84V28 ; S84V28 = refused ),
+    must('... AND A LAST WORD THAT IS A NOUN AS WELL AS A VERB, AFTER AN ADJECTIVE IT AGREES WITH, IS THE NOUN: `E per almeno cinque buone ragioni:'' is five good reasons, and read as `ragioni'' (you reason) the five were goods', S84V28,
+         'And for five good reasons: the dog sleeps.'),
+    ( reason_translate('Il cane mangia, ma cambia la sua composizione.', italian, spanish, X84V29) -> S84V29 = X84V29 ; S84V29 = refused ),
+    must('... the verb''s own last word only: `cambia la sua composizione'' ends on its object, which agrees with the possessive before it', S84V29,
+         'El perro come, pero cambia su composición.'),
+    ( reason_translate('Il cane dorme, ma mangia cinque buone ragioni.', italian, spanish, X84V30) -> S84V30 = X84V30 ; S84V30 = refused ),
+    must('... and `ma mangia cinque buone ragioni'' ends on its object, a noun that is a verb too, after an adjective it agrees with', S84V30,
+         'El perro duerme, pero come cinco buenos motivos.'),
+    ( reason_translate('Il cane compra quello che hanno anche gli altri.', italian, english, X84V31) -> S84V31 = X84V31 ; S84V31 = refused ),
+    must('THE OTHERS DO WHAT A RELATIVE CLAUSE SAYS: `comprare "quello che hanno anche gli altri"'' is to buy what the others have too, and read with the relative word for the subject it was `what also have the other ones'' (tr_doer_np/1)', S84V31,
+         'The dog buys what the other ones also have.'),
+    ( reason_translate('Le differenze tra il pane e il vino sono belle.', italian, spanish, X84V32) -> S84V32 = X84V32 ; S84V32 = refused ),
+    must('THE FIRST COORDINATOR AFTER THE WORD FOR `AMONG'' JOINS THE TWO IT TAKES: `Le differenze tra Nord e Sud sono limitate'' are between the two, and split at `e'' the South was a second subject beside the differences, whose participle took the masculine (`limitados'', tr_conjunction_split/5)', S84V32,
+         'Las diferencias entre el pan y el vino son bonitas.'),
+    ( reason_translate('Il conto sale di 130 euro.', italian, english, X84V33) -> S84V33 = X84V33 ; S84V33 = refused ),
+    must('AN AMOUNT AFTER A VERB OF RISING OR FALLING IS WHAT IT CHANGES BY: `il conto sale di circa 130 euro al mese'' rises BY about 130 euros, and it was `rises of'' (tr_comp_out/7, tr_amount_np/1)', S84V33,
+         'The account rises by 130 euros.'),
+    ( reason_translate('A 16 anni il cane dorme.', italian, english, X84V34) -> S84V34 = X84V34 ; S84V34 = refused ),
+    must('A COUNT OF YEARS AFTER `TO'' IS AN AGE: `a 16 anni il conto mensile è di 200 euro in più'' -- at 16, where English wrote `to 16 years'' (tr_comp_out/7)', S84V34,
+         'The dog sleeps at 16.'),
+    ( reason_translate('Il cane, che mangia il pane.', italian, english, X84V35) -> S84V35 = X84V35 ; S84V35 = refused ),
+    must('A PHRASE WITH ONE RELATIVE CLAUSE AFTER ITS COMMA: `il crescente conformismo sociale, che obbliga i figli e i genitori a comprare ...'' is the conformism, which obliges them, and divided at the comma the clause was one of `that'' with nobody named, which English refused (tr_verbless0/3)', S84V35,
+         'The dog, who eats the bread.'),
+    ( reason_translate('Le idee, nate da un cane.', italian, english, X84V36) -> S84V36 = X84V36 ; S84V36 = refused ),
+    must('A PARTICIPLE STANDING ALONE AFTER A COMMA IS `born'', the second word of `is born'': `Cifre impressionanti, nate da un''''indagine'' was `been born from'' (tr_comp_out/7, en_reduced_participle/2)', S84V36,
+         'The ideas, born from a dog.').
+
+section_84_4 :-
+    ( reason_translate('Le idee, nate da un cane.', italian, spanish, X84V37) -> S84V37 = X84V37 ; S84V37 = refused ),
+    must('... and the phrase it governs is marked, Spanish''s `nacidas de'' (tr_pred_governed/3)', S84V37,
+         'Las ideas, nacidas de un perro.'),
+    ( reason_translate('Il cane spende in vino.', italian, english, X84V38) -> S84V38 = X84V38 ; S84V38 = refused ),
+    must('`spends'' GOVERNS `on'': `spende in svaghi e vacanze per il figlio'' spends on leisure and holidays, where English wrote `spends in'' (`"spende" takes "in" before the phrase.'', en_governs/2)', S84V38,
+         'The dog spends on wine.'),
+    ( reason_translate('Il cane fa mangiare il pane.', italian, english, X84V39) -> S84V39 = X84V39 ; S84V39 = refused ),
+    must('... `MAKES'' AND AN INFINITIVE OF A VERB THAT TAKES AN OBJECT KEEP THE LESSON''S ORDER: `Le ho fatto recapitare il disco a casa da un amico'' had the disc delivered, and English wrote `made her the disc deliver''; the infinitive''s verb, or one with its meaning, must be one the lesson calls intransitive or whose perfect takes the copula (en_causee_infinitive/1)', S84V39,
+         'The dog makes to eat the bread.'),
+    ( reason_translate('Il cane fa crescere il conto del gatto.', italian, english, X84V40) -> S84V40 = X84V40 ; S84V40 = refused ),
+    must('... and the phrases of `of'' after the phrase go with it: `ha fatto passare la protezione di questa malattia dal 30 al 90%'' made the protection of this disease pass, where it was `the protection happen of this disease'' (tr_en_of_run/3)', S84V40,
+         'The dog makes the account of the cat grow.'),
+    ( reason_translate('Il cane dorme da 18 a 25 anni.', italian, english, X84V41) -> S84V41 = X84V41 ; S84V41 = refused ),
+    must('A COUNT OF YEARS AFTER `TO'' IS NO AGE IN A RANGE: `100 jóvenes de 18 a 25 años'' are of 18 to 25 years, and with the age it was `of 18 at 25'' (tr_comps_out/7, rng/1)', S84V41,
+         'The dog sleeps from 18 to 25 years.').
+
+lesson_84(spanish, 14, 'The adverb "naturalmente" means "naturally". The adjective "otro" means "other". "otro" does not follow "un". "otra" does not follow "una". The masculine noun "mes" means "month".
+The verb "tiene en cuenta" means "takes into account". "tienen en cuenta" is the plural of "tiene en cuenta". The verb "hace" means "makes". The verb "se dispara" means "soars". "dispararse" is the infinitive of "se dispara".
+The intransitive verb "nace" means "is born". "nacida" is the participle of "nace". "nacida" is feminine. "nacidas" is the participle of "nace". "nacidas" is feminine. "nacidas" is the plural of "nacida". "nace" takes "de" before the phrase. The feminine noun "idea" means "idea".
+The verb "llega a ser" means "becomes". The adjective "fundamental" means "fundamental". The word "cuánto" means "how much". The verb "cuesta" means "costs". The verb "alimenta" means "feeds". "alimentar" is the infinitive of "alimenta".
+The feminine noun "cuenta" means "account". The intransitive verb "sube" means "rises". The masculine noun "ingreso" means "income". The intransitive verb "aumenta" means "increases". The intransitive verb "crece" means "grows". The conjunction "a medida que" means "as".
+The adverb "entonces" means "then". The conjunction "si" means "if". The adverb "en particular" means "in particular". The name "norte" means "North". The adverb "en promedio" means "on average". The masculine noun "euro" means "euro".
+The masculine noun "trabajo" means "work". The masculine noun "docente" means "lecturer". The feminine noun "física" means "physics". The masculine noun "hijo" means "son".
+The preposition "según" means "according to". The masculine noun "sociólogo" means "sociologist". The masculine noun "presidente" means "president". The feminine noun "sociedad" means "society". The adverb "así" means "thus".
+The masculine noun "gasto" means "expense". The masculine adjective "medio" means "average". The feminine noun "familia" means "family". The masculine noun "motivo" means "reason". "motivos" is the plural of "motivo". The masculine adjective "bueno" means "good". "buenos" is the plural of "bueno". The number "cinco" means "five".
+The verb "compra" means "buys". The masculine noun "otro" means "other". The feminine noun "diferencia" means "difference". "diferencias" is the plural of "diferencia". The masculine noun "vino" means "wine". The verb "limita" means "limits". "limitada" is the participle of "limita". "limitadas" is the participle of "limita". "limitadas" is the plural of "limitada". "limitada" is feminine. "limitadas" is feminine.
+The masculine noun "año" means "year". "años" is the plural of "año". The preposition "entre" means "among". "bonitas" is the plural of "bonita". The feminine noun "composición" means "composition". The verb "cambia" means "changes". The mark "¿" begins the question.').
+lesson_84(italian, 14, 'The adverb "naturalmente" means "naturally". The adjective "altro" means "other". The masculine noun "mese" means "month".
+The verb "tiene conto" means "takes into account". "tengono conto" is the plural of "tiene conto". "tiene conto" takes "di" before the phrase. The verb "fa" means "makes". The intransitive verb "impenna" means "soars". "impennare" is the infinitive of "impenna".
+The intransitive verb "nasce" means "is born". "nata" is the participle of "nasce". "nata" is feminine. "nate" is the participle of "nasce". "nate" is feminine. "nate" is the plural of "nata". "è" is the auxiliary of "nasce". "nasce" takes "da" before the phrase. The feminine noun "idea" means "idea". "idee" is the plural of "idea".
+The verb "diventa" means "becomes". The adjective "fondamentale" means "fundamental". The word "quanto" means "how much". The verb "costa" means "costs". The verb "dà da mangiare" means "feeds". "dare da mangiare" is the infinitive of "dà da mangiare".
+The masculine noun "conto" means "account". The intransitive verb "sale" means "rises". The masculine noun "reddito" means "income". The verb "aumenta" means "increases". "è" is the auxiliary of "aumenta". "aumentare" is the infinitive of "aumenta". The intransitive verb "cresce" means "grows". "crescere" is the infinitive of "cresce". The conjunction "man mano che" means "as".
+The adverb "poi" means "then". The conjunction "se" means "if". The adverb "in particolare" means "in particular". The name "nord" means "North". The adverb "in media" means "on average". The masculine noun "euro" means "euro". "euro" is the plural of "euro".
+The masculine noun "lavoro" means "work". The masculine noun "docente" means "lecturer". The feminine noun "fisica" means "physics". The masculine noun "figlio" means "son". "figli" is the plural of "figlio".
+The preposition "secondo" means "according to". The adjective "secondo" means "second". The masculine noun "sociologo" means "sociologist". The masculine noun "presidente" means "president". The feminine noun "società" means "society". The adverb "così" means "thus".
+The feminine noun "spesa" means "expense". The feminine adjective "media" means "average". The verb "media" means "mediates". The feminine noun "famiglia" means "family". The feminine noun "ragione" means "reason". "ragioni" is the plural of "ragione". The verb "ragiona" means "reasons". "ragioni" is the second person of "ragiona". The feminine adjective "buona" means "good". "buone" is the plural of "buona". The number "cinque" means "five".
+The verb "compra" means "buys". The feminine noun "differenza" means "difference". "differenze" is the plural of "differenza". The preposition "tra" means "among". The masculine noun "vino" means "wine". The verb "limita" means "limits". "limitata" is the participle of "limita". "limitate" is the participle of "limita". "limitate" is the plural of "limitata". "limitata" is feminine. "limitate" is feminine.
+The masculine noun "anno" means "year". "anni" is the plural of "anno". "belle" is the plural of "bella". The verb "cambia" means "changes". The feminine noun "composizione" means "composition". The verb "spende" means "spends". "spende" takes "in" before the phrase.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

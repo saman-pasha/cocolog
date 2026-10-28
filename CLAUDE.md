@@ -6972,6 +6972,215 @@ read into an English-worded IR and written into any lesson's language),
   guard refuses on purpose. English refuses 11 (`que no tenía "nada que
   añadir"') and 12 (`ha hecho saber que no defenderá') for the third person
   nobody names, on purpose. The next sample's controls take this report in.
+  The child-cost report (VIT-10011..10058, 48 sentences, Panorama's report on what a child costs, Italian into Spanish
+  and English: 38 of 48 and 39 of 48 on a fresh store, 33 and 32 with the new store alone, 24 and 24 with the new code
+  on the old store, 20 and 20 before; reasoning 1.0.21). The sample was taken on the cocolog 2.13.0 binary, built with
+  Cicili 9b825b7 from a copy (master's b208233, and the owner's merge of the Corsica report, dd8b35f, the same tree),
+  and cocolog stays 2.13.0. The article's sentences fall from 312.6 million inferences into Spanish and 312.5 into
+  English to 238.4 and 238.1, of which the forty-third, refused, is 66.5 million in each. It needed these SHAPES, each
+  with its arm red (test/translate.pl's `newspaper_figli': 41 checks, 45 arms, 40 of them red and five guards of cost
+  that stay green, below; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_figli, checks_done"', two seconds a
+  run, and every arm is run in twenty seconds, four at a time): a word that says how plain the sentence is stays in
+  front (`Naturalmente il conto sale con l'aumentare del reddito' is naturally the bill rises, and put after the verb it
+  came out `The account rises ... naturally': en_head_maybe/1, `obviously' with it); a word the lesson says does not
+  follow an article takes its place (`su un altro campione' is `en otro campeón', and the Spanish writer wrote `un
+  otro': `"otro" does not follow "un".', tr_contract/3), and English's `an other' is `another' (en_another/2) -- two
+  arms; a unit of time after `to' and its article is how often (`una famiglia che guadagna 3.500 euro netti al mese'
+  earns them A MONTH, where English wrote `to the month': tr_comp_out/7), with a bracket after the unit too, and a bare
+  noun and its participle alone in a bracket are said noun first (`circa 580 euro al mese (baby sitter esclusa)' is a
+  month (babysitter excluded), where it was `to the month (excluded babysitter)': tr_aside_out/6) -- three arms; `takes
+  into account' takes its phrase bare (`Non tengono conto per esempio della mancanza cronica di posti' does not take
+  into account the lack, and the governed `of' came out `take into account of': en_bare_object/1), and so does Spanish's
+  `tener en cuenta', which the lesson states with no preposition, and so is a second phrase joined to the first on the
+  same preposition (`del pane o del vino' takes into account the bread or the wine, and the second kept its `of':
+  tr_gov_second/4) -- two arms; `MAKES' AND AN INFINITIVE BEFORE ITS OBJECT ARE THE OBJECT AND THE BARE INFINITIVE
+  (`tutti fattori che fanno impennare la bolletta figlio' make the bill soar, where English wrote `make to soar the son
+  bill': tr_comps_out/7, binf/1), where the phrase is the one that does it -- the infinitive's verb, or one with its
+  meaning, is one the lesson calls intransitive or whose perfect takes the copula (`fanno scattare la positività', `ha
+  fatto passare la protezione'; `Le ho fatto recapitare il disco a casa da un amico' had the disc delivered, and the
+  controls' first round wrote `made her the disc deliver': en_causee_infinitive/1, `The intransitive verb "impenna"
+  means "soars".') -- and the phrases of `of' after the phrase go with it (`made the protection of this disease happen',
+  where it was `the protection happen of this disease': tr_en_of_run/3) -- three arms; the participle of a verb English
+  says with `is' is its second word, after a noun (`Cifre nate da un'indagine' are figures born of a survey, and it was
+  `been born from': en_reduced_participle/2) and alone after a comma (`Cifre impressionanti, nate da un'indagine lunga e
+  affidabile'), and the phrase its verb governs is marked after a participle whose perfect takes the copula, as after
+  any other (Spanish's `nacidas de', where the lesson's `from' wrote `desde': tr_ptc_complements/4), and after the
+  participle alone (tr_pred_governed/3) -- four arms; `it becomes' an adjective to do something (`in questo progetto
+  diventa fondamentale stabilire quanto costa' -- it becomes essential to establish it, and with nobody named English
+  refused it: en_null_it/2); a verb whose subject is an infinitive has none after it (`Quanto costa mantenere un
+  figlio?' is how much does it cost to keep a son, and the phrase after the infinitive was the verb's subject, `How much
+  does a son cost to keep?': fo_inf_subject_verb/1, en_null_it/2), where Spanish says it as Italian does -- three arms;
+  the one who is fed is the object of `feeds' (`per dare da mangiare al bambino' is to feed the child, and the lesson's
+  `to' came out `to feed to the boy': tr_comp_out/7), after a purpose that is the verb as well (tr_comps_out/7) -- two
+  arms; THE INFINITIVE OF A VERB THAT TAKES NO OBJECT, WITH ITS PHRASE OF `OF', IS A CLAUSE OF `AS' (`con l'aumentare
+  del reddito familiare cresce la spesa' as the family income increases, and read as a phrase it was `with increasing of
+  the income'; `al crescere del reddito' as the income grows, where it was `to the growing of the income':
+  tr_as_inf_fix/3, asked of the sentence's own clauses as the polite wish is, tr_into_ir/4), a verb the lesson calls
+  intransitive or whose auxiliary is the copula, which every writer puts after the main clause with its word for `as'
+  (`a medida que', `man mano che') -- two arms; an adverb at the head before a clause of `if' (`Poi se c'è bisogno della
+  baby sitter, il conto sale' -- then, if there is need of one, the bill rises; the condition's reader wants its word
+  first, and the sentence was refused: tr_read0/4); an adverb before a line of adjuncts (`In particolare al Nord.' -- in
+  particular in the North, after the sentence that said what; an adverb and a phrase of a preposition were refused:
+  tr_verbless0/3), or before a phrase that says something (`in media 230 mila euro per mantenerlo fino a 24 anni', the
+  headline: tr_predicated/2), and an adverb and a phrase alone stay refused (`In media 230 euro.') -- two arms; what a
+  man is and how many children he has, after the age (`il lavoro di Marino Maglietta, 64 anni, docente di fisica
+  all'università di Firenze, due figli' -- his age, his post and his two children, and read as the clause's own the post
+  was refused: tr_asides/3, tr_count_tail/2) -- two arms; two things a person is, joined, after the name (`Secondo
+  Enrico Finzi, sociologo e presidente della società Astra, è così' -- according to him, a sociologist and president, it
+  is so; read as the clause's own the two were its subject and the copula plural: tr_roles_apposition/1), the
+  preposition before a name and its comma is not lifted as the adverb `second' (tr_governs_adverb/3), and the copula
+  with nobody named before `thus' is `it is thus' (en_null_it/2) -- three arms; a word after a noun that is its
+  adjective as well as a verb, with nothing after it but a comma, is the adjective (`Una spesa media, per una famiglia
+  dell'Italia centrale ...' is an average expense, and read as the verb `media', mediates, the expense mediated:
+  tr_adjective_not_verb/3, which asks the piece with its commas, '$tr_piece'), and a last word that is a noun as well as
+  a verb, after an adjective it agrees with, is the noun (`E per almeno cinque buone ragioni:' is five good reasons, and
+  read as `ragioni', you reason, the five were goods), where that word is the reading's own verb (a guard: `ma cambia la
+  sua composizione' and `ma mangia cinque buone ragioni' end on their objects) -- three arms; the others do what a
+  relative clause says (`comprare "quello che hanno anche gli altri"' is to buy what the others have too, and read with
+  the relative word for the subject it was `what also have the other ones': tr_doer_np/1); the first coordinator after
+  the word for `among' joins the two it takes (`Le differenze tra Nord e Sud sono tutto sommato limitate' are between
+  the two, and split at `e' the South was a second subject beside the differences, whose participle took the masculine,
+  `limitados': tr_conjunction_split/5), after a word of the phrase's own and in a sentence with such a word (two guards
+  of cost, below); an amount after a verb of rising or falling is what it changes by (`il conto sale di circa 130 euro
+  al mese' rises BY about 130 euros, and it was `rises of': tr_comp_out/7, tr_amount_np/1); a count of years after `to'
+  is an age (`a 16 anni il conto mensile è di 200 euro in più' -- at 16, where English wrote `to 16 years':
+  tr_comp_out/7), never in a range (`100 jóvenes de 18 a 25 años' are of 18 to 25 years, and the controls' first round
+  wrote `of 18 at 25': tr_comps_out/7, rng/1) -- two arms; a phrase with one relative clause after its comma (`il
+  crescente conformismo sociale, che obbliga i figli e i genitori a comprare ...' is the conformism, which obliges them,
+  and divided at the comma the clause was one of `that' with nobody named, which English refused: tr_verbless0/3); and
+  `spends' governs `on' (`spende in svaghi e vacanze per il figlio', where English wrote `spends in': `"spende" takes
+  "in" before the phrase.', en_governs/2). The five guards of cost, their arms green: the `among' guard asked in a
+  sentence with a word for `among' only ('$tr_among', tr_among_note/1) and never where the word opens the words before
+  the coordinator, and the heading rule's phrase that opens on a determiner, holds no comma and has a verb in its clause
+  (the cost, below). A guard that the adjective before the last word is no determiner had a green arm (`cambia la sua
+  composizione' is kept by the verb's own word alone) and is gone. It needed these WORDS in `extra/' (the two readers: a
+  line moves the reader of one language and the writer of the other; the dictionary's own word is said again first where
+  it must stay the one written): Italian `in media' and `mediamente' (on average), the full infinitives `crescere' and
+  `provenire' (the dictionary marks them read only and gives the cut forms for writing), `crescente' (increasing: the
+  builder wrote it `crescee'), `mal' (badly, `male' said again first), `tutto sommato' (all in all), `fin qui' (so far),
+  `di parecchio' (considerably, `considerevolmente' said again first), `aumenta' (rises, said again as a line of its
+  meaning alone: the entry for `salire' in eng-ita.dix drops the dictionary's own), `retta' (a fee, with `costo' said
+  again first, its own first meaning and then the fee), `porta a casa' (takes home), `riparatorio' (reparative),
+  `videogioco' and `telefonino' (a form of `telefona' alone before), `metter' (the cut infinitive, the full one said
+  first), `studioso' and `studiosa' (scholars, persons: the dictionary has the adjective alone), `affidamento' (custody,
+  where the dictionary's first is trust; `custodia' said again first), `mancanza' (a lack, where its first is a fault;
+  `carenza' said again first), `trasporto' (transport, before the carriage), `risorsa' (a resource, before the resort),
+  `statistica' (statistics, the noun), `tabella' (a chart, where its first is a picture and a table is a piece of
+  furniture to the Spanish writer, `mesas'; `grafico' said again first), `punto di riferimento', `fuori sede' (away from
+  home), `asilo nido' (a nursery: the writer's nursery was `vivaio', a nursery of plants), `tiene conto' (takes into
+  account, with `di' before the phrase), `tira su' (raises, `alza' said again first), `dà da mangiare' (feeds,
+  `alimenta' said again first), `al primo posto' (in first place, `in primo luogo' said first), `sempre meno' (less and
+  less), `"nasce" takes "da" before the phrase.', `svizzera' and `danimarca' (countries), `eventuale' (possible, where
+  its first is eventual, a line of its meaning alone: the writer, which takes an adjective's word from a line of its
+  class, wrote `sólo será posible' as `sarà soltanto eventuale' with one, passing over `possibile' for a feminine noun
+  as the dictionary states it a masculine noun too), `sul campo' (in the field), `cresce' (grows with no object, and
+  brings up), `uniforme' (the adjective: the dictionary has the noun alone), the association's name `crescere insieme',
+  `nord' and `sud' (names that cross by their meanings), `cambia' (intransitive, and the transitive verb as well:
+  below), `sale' and `impenna' (intransitive), `familiare' (family, where its first is familiar, and the noun, a
+  relative, with `parente' said again first), `"spende" takes "in" before the phrase.', `nel tempo' (over time), `mette
+  al lavoro' (puts to work, and sets to work with its pronoun), `tiene duro' (holds out) and `in meno' (less); Spanish
+  `se dispara' (soars), `videojuego', `teléfono móvil', `en definitiva', `en promedio', `hasta aquí', `reparador',
+  `lleva a casa', `tiene en cuenta', `sobre el terreno', `correctivo', `suiza' and `dinamarca', `cada vez menos', `en
+  primer lugar', `punto de referencia', `fuera de casa', `"nace" takes "de" before the phrase.', `"otro" does not follow
+  "un".' and `"otra" does not follow "una".', `cría' (brings up, where its first is a pup), `norte' and `sur', `con el
+  tiempo', `pone a trabajar' (puts to work, and sets to work with its pronoun) and `aguanta' (holds out, its own `holds'
+  said again first); and in eng-ita.dix `rise' (`salire'), `digest' (`digerire'), `mediator' (`mediatore'), `compile'
+  (`compilare'), `soar' (`impennare') and `kid' (`ragazzino': `capretto', a young goat, was the Italian written for
+  one), and, read only, `minor' (`minorenne'), `objective' (`oggettivo'), `suppose' (`presumere'), `house' (`ospitare')
+  and `prove' (`provare'). The first meaning moved for 16 Italian words and 4 Spanish ones (Italian `affidamento'
+  custody, `alza' raises, `eventuale' possible, `familiare' family, `male' badly, `mancanza' a lack, `nord' and `sud'
+  North and South, `risorsa' a resource, `statistica' statistics, `studioso' and `studiosa' a scholar, `svizzera'
+  Switzerland, `tabella' a chart, `trasporto' transport, and the verb `cresce' brings up beside its intransitive grows;
+  Spanish `cría' brings up, `norte' and `sur', `suiza' Switzerland), the writer's first word for 4 Italian meanings and
+  no Spanish one (Italian increasing `crescente', kid `ragazzino', nursery `asilo nido', scholar `studioso', where it
+  was `dotto'), and none was lost (the Italian vocabulary lost `The verb "aumenta" means "rises".', which `extra/' says
+  as a line of its meaning alone). THE CONTROLS (cocolog 2.13.0, store KB254, 114 count files, 3 102 sentences: the
+  earlier set with the Corsica report in, es_20000802-26, both directions; this report is not among them): the last
+  version's translator against this one, on the one store, 18 sentences in 16 files read differently, all better -- `a
+  month', `a week' and `a year' (4: `an article a week', `500 thousand lire a month', `the twenty million a year',
+  `6,000 traditional shops a year'), `another' and `otro' (6: `another million of poor', `otro millón', `otro
+  continente', `otro holocausto', `one finds it another one', `se lo encuentra a otra'), `at 15' for `to 15 years',
+  `obviously' and `naturally' in front (5, both languages: `Obviously one will have to read the motivations',
+  `Evidentemente habrá que leer', `and naturally Vittori will be one of the lecturers', `Naturalmente ni Colombo ni sus
+  enemigos'), `spends on consumptions', the causative (`which make the positivity start', `which has made the protection
+  of this disease happen'), and es_20020601-51 18, refused by the last version and read now (`They thought that there is
+  life without Zidane, but Senegal took charge of showing him that it is not thus') -- and the inferences rise 0.041 %
+  (7 937 885 155 to 7 941 149 072). Bytes and characters read every sentence alike (0 differ, the bytes 0.009 % more).
+  The DATA COLUMN (the last version's translator on its own store, KB244, against this one on the new): 34 sentences in
+  24 files, -0.641 % (7 992 419 484 to 7 941 149 072). THE CODE ALONE (this translator on KB244): 15 sentences in 14
+  files, every one among the 18, +0.041 % (to 7 995 685 260); the three left need the new lines (`"otro" does not follow
+  "un".'). THE STORE ALONE (the last version's translator on KB244 and on KB254): 16 sentences in 14 files, all better,
+  -0.682 % (to 7 937 885 155), each a word of the report's lines: `telefonino' for a mobile phone, where it was
+  `telefono mobile', `over time' and `nel tempo' for `con el tiempo', `tenendo conto' for `teniendo en cuenta', where it
+  was `avendo in conto', `to raise a person' and `levantar' for `tirar su', where they were `pull on' and `estirar en',
+  `his relatives' and `sus parientes' for `dei suoi familiari', `the family cheques', `on average', `between North and
+  South' and `entre Norte y Sur', `in the field' and `sobre el terreno' for `sul campo', where it was `on the
+  countryside', and `nace del hecho'; the Rognoni interview's nineteenth sentence, refused both ways, falls 26.5 million
+  inferences in each language (`tenendo conto' is a verb of the lesson now), `En primer lugar, todavía no sé si ...' 3.7
+  million (one adverb now), and `con el tiempo' costs `Como prueba de que los violines ...' 1.4 million more in each,
+  read as the adverb it is. THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column and mended. Of the
+  code (the one store, the first round, 20 sentences, +0.164 %): the age in a range (`100 jóvenes de 18 a 25 años' was
+  `of 18 at 25'), the causative with a verb that takes an object (`Le ho fatto recapitare il disco a casa da un amico'
+  was `I have made her the disc deliver') and its phrases of `of' (`made the protection happen of this disease'), each
+  now with its arm red. Of the store (the store alone of the second round, 22 sentences): `cambiare' was `capsize' in
+  four sentences (`must have made him capsiz idea', `The football capsized its rules', `the values are not capsized') --
+  the intransitive line made `changes' the intransitive meaning, and a use with an object took the next one, so `The
+  transitive verb "cambia" means "changes".' says it, as `firma''s line does for `signs'; `En primer lugar, todavía no
+  sé si ...' was `Al primo posto' (`in primo luogo' said first); `dei suoi familiari' was `his families' and `sus
+  familias' (the noun, a relative); and `sólo será posible' was `sarà soltanto eventuale' (the line of its meaning
+  alone, above). A name line, `"mezzogiorno" is a name.', changed nothing (`rispetto al Mezzogiorno' stays the noun
+  after its article, and is `frente al Mediodía' and `compared with the Midday') and is gone. THE COST OF THE CODE,
+  FOUND BY TAKING EACH RULE OUT (the heaviest risers of the first round and a dozen sentences picked at random, into
+  English, over a copy of the library per rule): the first cut was +0.164 % of the controls, and two rules were most of
+  it -- the `among' guard, whose split blocked at `Entre la Meridiana y la calle del Coronel Sanfeliu habrá dos carriles
+  ...' had failed at once, and blocked, the split at the next coordinator read left words that held the verb (2.6
+  million inferences more in each language, to the same refusal in English and the same text in Italian), and whose walk
+  of every preposition at every split cost long sentences 0.1 to 0.2 million; and the heading with one relative clause,
+  which read every piece with a comma and a relative word after it as one phrase (0.6 million in `Ma come è accaduto, si
+  dirà, che tutte le rappresentazioni ...', 0.19 in `Casotto, che ora giura ...', and `Mio dio, che tristezza!' at 1.6
+  times its cost). What paid was the note made once a sentence, no guard where the word for `among' opens the left
+  words, and the heading's three cheap questions first. The final cut is +0.041 %: the adverb before `if' 0.28 and 0.09
+  million in two sentences (`Comunque se mai ci sarà una causa ...', a failed search before the old reading, the text
+  the same), the `among' guard's changed search 0.11 and 0.05 million (`crea "delle asimmetrie tra accusa e difesa"',
+  `Melina tra Polo e Olivo e il voto è più vicino'), the heading rule 0.1 million in `Lo stesso per Zdenek Zeman, che si
+  dice soddisfatto ...', the adjective rule 40 thousand in a sentence of 39 million, the two roles after a name 43
+  thousand, and 100 to 800 inferences a sentence elsewhere (twelve sentences picked at random). THE STATED COSTS: a
+  first meaning that serves the news and not every text -- `affidamento' is custody (trust second), `mancanza' a lack (a
+  fault second), `tabella' a chart (a picture second), `risorsa' a resource, `trasporto' transport, `familiare' family
+  and a relative, `eventuale' possible, `studioso' a scholar, `cría' brings up (a pup second) -- and the writer's
+  `ragazzino' for a kid and `studioso' for a scholar; the inferences, +0.041 % on the one store; and `tenendo conto la
+  sua scarsa altezza', which Italian says `tenendo conto della' (the writer puts no `di' before the object of a verb the
+  lesson says takes it, a lead). The report LEAVES, of the 38 into Spanish (English alike unless it says): `Lo pone en
+  evidencia' (3: `lo revela'); `Caros niños' and `Expensive boys' (5: dear children, the pun lost); `¿Se hace pronto a
+  decirlo, pero son "caros" los niños cuanto exactamente?' and `Does one make to say him soon' (6: the idiom `si fa
+  presto a dirlo', it is easy to say, crosses word by word, and `quanto' is `as much'); `de la Italia central' and `of
+  the central Italy' (9); `entradas netas para 5.200 euros' and `net entrances for' (11: income of); `son la fruta del
+  trabajo' (15: `el fruto') and `docente de física a la universidad' and `to the university'; `who involves 40 thousand
+  families' (21: the survey's clause hung on the Italians); `They add a proof on another champion of 3 thousand families
+  in the field' (22: a test on another sample) and `Compare the own ones' and `Apply several statistical correctives'
+  (23, 24: read as commands, and Spanish `Compara a las propias'); `the heaviest voice ... is the feeding, while there
+  is the house among the indirect costs in first place, that one supposes it must be bigger' (27: the item, and `which
+  is supposed to'); `asciende de aproximadamente 130 euros' (28: `en'); `the monthly account is of 200 euros compared
+  with a child of 3 years at 16 extra' (29: the order of `a 16 anni' and `in più'); `brought up to the North ...
+  compared with the Midday on average extra' and `criado al Norte' (31: in the North, the Mezzogiorno); `or of the
+  distance of the grandfathers' (33: the second phrase after phrases of the first's own keeps its `of'), and Spanish
+  `hacen dispararse el proyecto de ley hijo' (a parliamentary bill: `la factura'); `To the North in particular' (34);
+  `his composition' (35: its); `while the costs of the transports rise, of the vacations, of the instruction quickly'
+  (36: the phrases of `of' parted by the verb); `the parents invest you being a scarce resource more' and `os invierten'
+  (42: `vi', there, read as you); and `in favour of giving to the sons too' (45: too much) and `"what the other" ones
+  also have'. Into both languages 8, 17, 38, 43, 44, 46, 47 and 48 are refused: 8, the second person plural's commands
+  and conditions (`Beh, se state programmando ... preparatevi a investire ... se dovrete affidarvi'); 17, a heading and
+  its infinitives (`Obiettivo: modificare la normativa e introdurre in Italia ...'); 38, two sentences the source runs
+  together with no full stop (`ne spende oltre 150 fin qui la fotografia, anzi il conto'); 43, the idiom `non ce la si
+  fa' (refused at `ce'); 44, `Ancora e: siamo in una cultura del nuovo' (the source's `e'); 46 and 47, a colon's long
+  right side (`non solo godono di ... ma hanno anche ...', `Quindi tenete duro, non spaventatevi, possibilmente non
+  fermatevi a un figlio:'); and 48, Churchill's quotation (`"non c'è per nessuna comunità investimento migliore del
+  metter latte dentro ai bambini"'), after `Y recordados de eso que decía Winston Churchill:' for the source's
+  `ricordatevi vi'. Spanish refuses 18 and 19 as well (`diventa fondamentale stabilire quanto costa davvero crescere un
+  bambino: una richiesta avanzata ...', `E un'esigenza sentita da tutti quelli che lavorano ...', which English reads),
+  and English refuses 25 for the third person nobody names, on purpose (`E alla fine mette a punto un sistema ...'). The
+  next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

@@ -2253,6 +2253,52 @@ The clausal verb "señala" means "indicates".
 The masculine noun "papel" means "role".
 "desempeña" means "performs".
 The adverb "en este sentido" means "in this respect".
+The verb "se dispara" means "soars".
+"se disparan" is the plural of "se dispara".
+"dispararse" is the infinitive of "se dispara".
+The masculine noun "videojuego" means "video game".
+"videojuegos" is the plural of "videojuego".
+The masculine noun "teléfono móvil" means "mobile phone".
+"teléfonos móviles" is the plural of "teléfono móvil".
+The adverb "en definitiva" means "all in all".
+The adverb "en promedio" means "on average".
+The adverb "hasta aquí" means "so far".
+The masculine adjective "reparador" means "reparative".
+"reparadores" is the plural of "reparador".
+The feminine adjective "reparadora" means "reparative".
+"reparadoras" is the plural of "reparadora".
+The verb "lleva a casa" means "takes home".
+"llevan a casa" is the plural of "lleva a casa".
+The verb "tiene en cuenta" means "takes into account".
+"tienen en cuenta" is the plural of "tiene en cuenta".
+"tener en cuenta" is the infinitive of "tiene en cuenta".
+"teniendo en cuenta" is the gerund of "tiene en cuenta".
+The adverb "sobre el terreno" means "in the field".
+The masculine noun "correctivo" means "corrective".
+"correctivos" is the plural of "correctivo".
+The name "suiza" means "Switzerland".
+The name "dinamarca" means "Denmark".
+"suiza" is a country.
+"dinamarca" is a country.
+The adverb "cada vez menos" means "less and less".
+The adverb "en primer lugar" means "in first place".
+The masculine noun "punto de referencia" means "reference point".
+"puntos de referencia" is the plural of "punto de referencia".
+"punto de referencia" is not feminine.
+The adverb "fuera de casa" means "away from home".
+"nace" takes "de" before the phrase.
+"otro" does not follow "un".
+"otra" does not follow "una".
+The verb "cría" means "brings up".
+The name "norte" means "North".
+The name "sur" means "South".
+The adverb "con el tiempo" means "over time".
+The verb "pone a trabajar" means "puts to work".
+"ponen a trabajar" is the plural of "pone a trabajar".
+"poner a trabajar" is the infinitive of "pone a trabajar".
+The reflexive verb "pone a trabajar" means "sets to work".
+"aguanta" means "holds".
+The verb "aguanta" means "holds out".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
