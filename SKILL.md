@@ -17,7 +17,8 @@ Read, in this order:
 3. [`README.md`](README.md) and [`MORE.md`](MORE.md) — what it is and how to use it.
 4. [`MODULES.md`](MODULES.md) — the module seam and how to write one.
 5. [`COMPAT.md`](COMPAT.md) — every deliberate Prolog divergence.
-6. [`../cicili/SKILL.md`](../cicili/SKILL.md) — **the language you write the C half in**.
+6. [`../cicili/SKILL.md`](../cicili/SKILL.md) — **the language you write the C half in**
+   (Cicili 3.2.0 and later; a 3.1.0 checkout has no `SKILL.md`).
 7. [`../cicili/lib/README.md`](../cicili/lib/README.md) — **the declaration source**.
 
 When this file and `CLAUDE.md` disagree, `CLAUDE.md` has the owner's current
@@ -72,6 +73,8 @@ module's library-specific `binding.cicili`.
 | [`client/`](client) | the Zigurat binary/TLS client in plain C |
 | [`embed/`](embed) | the embedded MVCCS engine and its C++ bridge |
 | [`library/`](library) | tier-2 Prolog libraries |
+| [`library/reasoning/`](library/reasoning) | controlled English and the translator: a version of its own (`reason_version/3` in `reason.pl`), the cases `test/{reason,normalise,tagger,translate}.pl` and lesson 46; its sample loop and record are in `CLAUDE.md`'s reasoning section |
+| [`library/flow/`](library/flow), [`tools/flow/`](tools/flow) | flowcharts, the run debugger and profiles; `tools/flow/chart.pl` and `tools/flow/debug.pl` from a shell (§9) |
 | [`modules/`](modules) | loadable C/C++ modules and their build scripts |
 | [`tools/cocolint/`](tools/cocolint) | the repository-aware linter and dialect card |
 | [`test/`](test) | the suite, one `.pl`/`.cicili` case per family |
@@ -90,6 +93,30 @@ Every change must preserve that property or state why it does not.
 The build uses Cicili at `$(CICILI)` (default `$HOME/cicili`) and ZiguratIP at
 `$(ZIGURATIP)`. Everything is Clang; `CICILI_CC`/`CICILI_CXX` choose which
 Clang, and `tools/cc` is the single wrapper all layers use.
+
+**This tree needs Cicili 3.2.0 or later**: since cocolog 2.11.5 `realpath` comes
+from Cicili's `lib/std/c/stdlib.cicili`, and since 2.11.2 the growths are
+`(cold)` (Cicili 3.1.0).
+
+**`CICILI` does not choose the Cicili that runs; ASDF does.** `cicili.lisp`
+loads the system with `asdf:load-system "cicili"`, which takes the first
+`cicili.asd` in ASDF's source registry. The install scripts make
+`~/common-lisp/cicili` a link to the checkout that `CICILI` named at install
+time, and ASDF finds that link first. A build from another checkout (a newer
+commit, a copy kept beside a frozen one) needs
+`CL_SOURCE_REGISTRY=/path/to/that/checkout/:` too, or it runs one Cicili's Lisp
+under the other's script and `lib/`. Ask before you trust a build:
+`cd "$CICILI" && sbcl --script cicili.lisp --version` answers from the system
+that ASDF found.
+
+**After a new Cicili or a ZiguratIP change, rebuild in this order**: ZiguratIP
+first (`make clean && make MODE=Release` in `$ZIGURATIP`, which also runs its
+engine tests and builds its System objects; `demo/build.sh` again where the
+demo was built), then here `make clean && make`, `make schema` (the Parsi
+objects for the new engine) and `make modules` (`make clean` removes
+`library/*.so`). The `.o` files must name only clang (`readelf -p .comment`;
+the `GCC:` line in a `.so` is the system's `crtbeginS.o`), and `git status`
+must stay empty in both repositories.
 
 ```sh
 make                    # C client + one cocolog binary (embedded store)
@@ -270,13 +297,24 @@ Read the relevant `CLAUDE.md` section before changing any of these.
   full suite for an engine/store/scheduler change.
 - **Run `git diff --check` and `make lint`**; cocolint's dialect citations must
   still resolve after moving source lines.
-- **Bump the version** in `cocolog.cicili` (`coco_version_text`) and `README.md`
-  in the same commit: patch by default, minor for a reachable feature, major
-  for a source/behavior break. Never bump in a later commit.
+- **Bump the version** in the same commit, never in a later one: cocolog's in
+  `cocolog.cicili` (`coco_version_text`) and `README.md` for a change to the
+  binary or to a library; the reasoning library's own, `reason_version/3` in
+  `library/reasoning/reason.pl`, for a change under `library/reasoning/` (and
+  then not cocolog's); both when a commit changes both. Patch by default,
+  minor for a reachable feature, major for a source/behavior break; a minor or
+  a major is proposed and used in the same commit (`CLAUDE.md`). A
+  documentation-only commit bumps nothing and says `cocolog stays X.Y.Z` in
+  its message. Read master's number first
+  (`git show origin/master:cocolog.cicili | grep coco_version_text`): two lines
+  of work bump the same number.
 - **Do not commit build outputs.** Check `git status --short` for generated
   `.c/.cpp`, `.so`, `.o`, symlinks and test binaries.
 - **A red case is not a pass.** Rerun it alone; distinguish a missing optional
   dependency (SKIP), a flaky window test, and a real regression.
+- **Wait for a background job by what it writes** (a `DONE` line in its log),
+  not by `pgrep -f` of its script's name: the pattern matches the waiting
+  shell's own command line, and the wait never ends.
 
 ---
 
@@ -292,6 +330,48 @@ Read the relevant `CLAUDE.md` section before changing any of these.
 | a compilers/build message | `CLAUDE.md`'s build section, `tools/cc/README`, then the generated C |
 | a linter citation drift | `tools/cocolint/traps.jsonl`, the named source line, rerun `test/lint.pl` |
 | a test is SKIP | the case's own guard; count it and report it, do not call it green |
+| a goal fails, or a sentence is refused, and you do not know where | `tools/flow/debug.pl` with `txt=true` and the whole run recorded (§9) |
+| a build behaves like an older Cicili | `cd "$CICILI" && sbcl --script cicili.lisp --version`, then `CL_SOURCE_REGISTRY` (§3) |
 
 The authoritative test record is [`STATUS.md`](STATUS.md), but the current
 suite is the only verdict: `make test`, all case lines, all SKIP reasons.
+
+---
+
+## 9. Why a proof failed: `library(flow/debug)`
+
+`tools/flow/debug.pl` runs a goal twice, each time in a child process: a probe
+at full speed, then a replay that records a window. It can write the run as
+text, `BASE.txt`, one line a call:
+
+```sh
+cocolog -s tools/flow/debug.pl -- GOAL FILE BASE svg=false xml=false txt=true
+#   over a store: embed=STORE (and kb=NAME); a big program: cache=DIR (its chart is built once)
+```
+
+- **Debug the entry goal** (`reason_translate/4` for the translator). Each
+  child starts afresh, so a goal from the middle of a program does not have
+  the globals and facts that an earlier call set.
+- **Record the whole run.** The first run's line says `false at step N`, and
+  its window is the last 2 000 steps, whose why is only the last fallbacks.
+  Run it again with `from=1 to=N`: the window then holds the top call, and the
+  foot of `BASE.txt` says `% where it got furthest:` -- at each failed call the
+  clause that got furthest, down to the call it failed at.
+- **The furthest path can name a scan.** It ranks a clause by the calls of its
+  body that exited, and it counts every exit. A clause that walks every
+  position with `append/3` and tests each one (three exits a position) beats
+  the clauses that did the work, and it has read nothing. When the path ends
+  in such a clause, rank the clauses by the steps they spent, and read the
+  arguments on the way. `BASE.txt` has what that needs: each line is
+  `S INDENT GOAL FATE [CLAUSES] BOX WHERE`, the depth is the indent (two spaces
+  a level), `cK` is a clause entered and `hK` a head that did not unify, and
+  `pP.cK.gN` names the clause a call was made in. A long argument is cut
+  (`...[318]`); `text=N` writes it whole up to N characters. The most steps
+  is not always the cause either (a search over every split spends the most).
+  The arguments usually show the cause (a marker, a word list that lost its
+  commas), and a probe without the suspect words settles it.
+- **A whole-run record is held in memory**: about 6 KB a step (1.5 million
+  steps: 8.8 GB and 7 minutes, and a `BASE.txt` of 144 MB). For a run of
+  several million steps, debug the entry goal over a shorter input.
+- `own=all` explains the failed calls of every predicate with clauses, not
+  only those of the chart's panels (a program of several files).
