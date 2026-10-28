@@ -286,6 +286,24 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   any load commits what was written through before the process ends (the
   store's `on_halt`; until 1.8.57 it kept nothing). `-s` also puts
   `library(main)`'s `main/0` first where `run` puts the file's.
+* **`consult/1`, `load_files/2` and `[File]` as goals CONSULT** (2.13.0,
+  SWI's; `lib/library.cicili`, a Coco half over `'$lf_file'/2`), as `run`
+  does: written through, the file's clauses from last time replaced. Their
+  `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
+  are `library(X)`. **The store keeps the files read into it** (`loads`,
+  their real path and `time_file/2`, noted before the read by every host's
+  consult too, `coco_library_note_load`): `if(changed)` compares the time,
+  and ensure_loaded/1 of a file the store holds loads nothing -- through
+  2.12 it loaded a module beside it, every clause twice. A file loaded as
+  a module (under any spelling) is that load to consult/1 as well. **The
+  goal unmutes the store around its own read** (`lb_load_file`): inside a
+  module's load -- an `-s` file's initialization/1 -- the store is muted,
+  and a muted consult kept no origins, so a second consult appended
+  (`[1,1]`). **The table is the process's, not the database's**: a file
+  `run F` wrote into a store, loaded by a second process as a module (`-s
+  F`, ensure_loaded/1), is there twice, the rows beside the module
+  (`[1,2,1,2]`, as through 2.12). Hiding those rows at the fetch would
+  delete them at the next whole-predicate write.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,

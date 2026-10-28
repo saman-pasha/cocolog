@@ -90,6 +90,12 @@ fixtures(stat, Sandbox) :- !,
 fixtures(loaded, Sandbox) :- !,
     atom_concat(Sandbox, '/sib.pl', Sib),
     fixture(Sib, ['sib_a(1).', 'sib_b(X) :- sib_a(X).']).
+fixtures(consult, Sandbox) :- !,
+    atom_concat(Sandbox, '/a.pl', A), fixture(A, ['a(1).', 'a(2).']),
+    atom_concat(Sandbox, '/b.pl', B), fixture(B, ['b(x).']),
+    atom_concat(Sandbox, '/d.pl', D),
+    fixture(D, [':- initialization(writeln(init_d)).', ':- writeln(directive_d).', 'd(1).']),
+    atom_concat(Sandbox, '/e.pl', E), fixture(E, [':- [b].', 'e(1).']).
 fixtures(_, _).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on

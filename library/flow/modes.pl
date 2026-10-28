@@ -224,6 +224,10 @@ flow_mode((dynamic), 1, ['+'], det).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).
+flow_mode(consult, 1, ['+'], det).
+flow_mode(load_files, 2, ['+', '+'], det).
+flow_mode('$lf_file', 2, ['+', '+'], det).
+flow_mode('$lf_say', 1, ['+'], det).
 flow_mode(prewarm, 1, ['+'], det).
 flow_mode(trace, 0, [], det).
 flow_mode(notrace, 0, [], det).

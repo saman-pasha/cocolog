@@ -78,6 +78,32 @@ clauses shared across processes consults them into the knowledge base;
 the two are different acts and stay so, and `test/library.pl` proves
 the difference across processes.
 
+**`consult/1`, `load_files/2` and `[File]` are the other act, as goals**
+(2.13.0, SWI's; through 2.12 none of them existed). The file is consulted
+into the knowledge base — written through, as `cocolog run` writes it —
+and its clauses from the last time are replaced, SWI's reconsult; its
+directives run again. So does a consult that a module's own load runs (an
+`-s` file's `initialization/1`): the file is the program's, not the
+module's. `library(Name)` is the library loader's either way.
+`load_files/2` takes `if(true)` (the default), `if(changed)` (the file's
+`time_file/2` against the one the store read it at), `if(exists)`,
+`if(not_loaded)` and `must_be_module(true)` — the last two load through
+the module loader, as `ensure_loaded/1` and `use_module/1`, which SWI
+says they are — and ignores the options it has nothing to do with, as
+SWI ignores one it does not know. **A file is not loaded twice by two
+roads in one process**: the store keeps the files read into it (their
+real paths), so `ensure_loaded/1` of a file `run` or `consult/1` read is a
+no-op, and a file loaded as a module — `use_module/1` under any spelling
+of its path, or `-s` — is that load to `consult/1` too. The record is the
+process's: a second process that loads, as a module, a file the first
+consulted into the store holds it twice, the rows beside the module, as
+through 2.12. Where SWI and cocolog differ
+(`test/files/consult.pl` holds the rest to swipl 9.0.4): a syntax error
+ends the consult, where swipl reads on; `must_be_module(true)` asks no
+module header, cocolog having none; a code list is one file's name, which
+is what `"file"` reads as under the `codes` default; and a file loaded as a
+module is not read again by `consult/1`, where swipl reloads it.
+
 The two spellings differ in one place: as a **goal**, a library that
 cannot be found or loaded throws a catchable error; as a **directive**,
 it is reported in SWI's two lines on stderr — `source_sink ... does not

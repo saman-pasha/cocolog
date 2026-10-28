@@ -923,6 +923,12 @@
     (member size_t ** cells)
     (member size_t *  len))
 
+  ;;; ONE FILE CONSULTED INTO A STORE (2.13.0): its real path and its
+  ;;; time_file/2 when it was read. See `loads'.
+  (struct coco_loaded
+    (member char *   path)
+    (member double   time))
+
   ;;; The clause store. `cells' is a second flat term array with the same
   ;;; encoding as the heap -- it shares the machine's atom and functor tables,
   ;;; so an atom id means the same thing in both.
@@ -1184,10 +1190,27 @@
     ;; ball live here, so copying them is not a write to the one shared
     ;; store and does not stop the other workers. It holds terms only --
     ;; no predicates, hooks or globals -- and its growth needs no barrier.
-    (member int       private))
+    (member int       private)
+    ;; THE FILES CONSULTED INTO THIS STORE (2.13.0) -- by consult/1,
+    ;; load_files/2 and `[File]', by `run' and the toplevel -- each with its
+    ;; time_file/2 when it was read: what `load_files(F, [if(changed)])'
+    ;; compares, and what keeps ensure_loaded/1 from loading a file this
+    ;; store already holds as a module beside it, every clause twice. A
+    ;; reset takes them with the clauses (`coco_store_free').
+    (member coco_loaded * loads)
+    (member size_t    nloads)
+    (member size_t    load_cap))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
+
+  ;;; The files consulted into ST (2.13.0, `loads'): whether the file at
+  ;;; real path PATH was, and when it was written then (*T, when T is not
+  ;;; null); and the note that it is being read now, its time_file/2 being
+  ;;; T -- the time replaced for a file read before. The note answers 0
+  ;;; when there was no memory for it.
+  (decl) (func coco_store_loaded ((coco_store * st) (const char * path) (double * t)) (out int))
+  (decl) (func coco_store_note_load ((coco_store * st) (const char * path) (double t)) (out int))
 
   ;; Stops the write-through hooks firing, and starts them again. A module's
   ;; clauses belong to the BUILD and not to the knowledge base: written
@@ -2040,7 +2063,37 @@
         ;; hash that finds them
         (free (-> st globals))
         (free (-> st gbuckets))
+        ;; and the files read into it, whose clauses are gone with it
+        (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
+          (free ($ (nth i (-> st loads)) path)))
+        (free (cast (void *) (-> st loads)))
         (memset st 0 (sizeof coco_store)))
+
+  (func coco_store_loaded ((coco_store * st) (const char * path) (double * t)) (out int)
+        (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
+          (if (== 0 (strcmp ($ (nth i (-> st loads)) path) path))
+              (block (if (!= t nil) (set (cof t) ($ (nth i (-> st loads)) time)))
+                     (return 1))))
+        (return 0))
+
+  ;;; A WRITE TO THE ONE STORE, so it takes the green barrier (2.9.0): two
+  ;;; tasks consulting at once would otherwise grow the array under each
+  ;;; other.
+  (func coco_store_note_load ((coco_store * st) (const char * path) (double t)) (out int)
+        (with-green-write nil
+          (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
+            (if (== 0 (strcmp ($ (nth i (-> st loads)) path) path))
+                (block (set ($ (nth i (-> st loads)) time) t) (return 1))))
+          (let ((char * copy . #'(strdup path)))
+            (if (== copy nil) (return 0))
+            (if (not (coco_store_grow st (cast (void **) (aof (-> st loads)))
+                                    (aof (-> st load_cap)) (+ (-> st nloads) 1)
+                                    (sizeof coco_loaded)))
+                (block (free copy) (return 0)))
+            (set ($ (nth (-> st nloads) (-> st loads)) path) copy)
+            (set ($ (nth (-> st nloads) (-> st loads)) time) t)
+            (set (-> st nloads) (+ (-> st nloads) 1))
+            (return 1))))
 
   ;;; A PRIVATE ENGINE STORE'S HIGH-WATER MARK. `pst'/`bst' are reused
   ;;; between calls, so their length is enough for correctness -- but a

@@ -37,7 +37,8 @@ main :-
     scratch(D),
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
-    a_librarys_clauses(D), over_the_wire(F),
+    a_librarys_clauses(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
+    over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -128,6 +129,123 @@ a_librarys_clauses(D) :-
              ' query "findall(A-B-Cc, clause(http_header(A,B,Cc), _), L), length(L, N), write(answer(N)), nl"'], R3),
     cocolog_answer(R3, G3),
     check('a tier-2 library''s clause is not written either', G3, answer(1)).
+
+%% CONSULT/1 AS A GOAL IS A CONSULT (2.13.0). A running program reads the
+%% file into the knowledge base as `run' reads it: written through, so a
+%% second process that consulted nothing finds the clauses, and replaced
+%% the next time rather than appended. Through 2.12 none of consult/1,
+%% load_files/2 and `[File]' was a goal (cicilang's report).
+as_a_goal(D) :-
+    section('consult/1, load_files/2 and [File] as goals write through, and replace'),
+    atom_concat(D, '/goal.pl', G), atom_concat(D, '/gstore', S),
+    fixture(G, ['gfact(1).', 'gfact(2).']),
+    sh_join(['--kb goals --embed ', S, ' query "consult(''', G,
+             '''), findall(X, gfact(X), L), write(answer(L)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('consult/1 as a goal reads the file', G1, answer([1,2])),
+    sh_join(['--kb goals --embed ', S, ' query "findall(X, gfact(X), L), write(answer(L)), nl"'], A2),
+    cocolog_answer(A2, G2),
+    check('a second process that consulted nothing finds its clauses', G2, answer([1,2])),
+    sh_join(['--kb goals --embed ', S, ' query "load_files(''', G, ''', []), [''', G,
+             '''], findall(X, gfact(X), L), write(answer(L)), nl"'], A3),
+    cocolog_answer(A3, G3),
+    check('load_files/2 and [File] read it again, and replace it', G3, answer([1,2])).
+
+%% NO FILE IS LOADED TWICE BY TWO ROADS (2.13.0). Through 2.12 a file that
+%% `run' had consulted and the program then ensure_loaded/1'd, or one
+%% use_module/1'd under two spellings, was read a second time -- into the
+%% store and as a module, or as two modules -- and each of its clauses
+%% answered twice. The file counts its reads in a global, so a read that
+%% should not happen shows even where it would add nothing new.
+loaded_once(D) :-
+    section('one file, loaded by two roads, is loaded once'),
+    atom_concat(D, '/once.pl', O), atom_concat(D, '/once', Ob),
+    fixture(O, [':- ( nb_current(oreads, N) -> M is N + 1 ; M = 1 ), nb_setval(oreads, M).',
+                'ofact(1).', 'ofact(2).']),
+    Count = 'findall(X, ofact(X), L), nb_getval(oreads, N), write(answer(L-N)), nl',
+    sh_join(['--local run ', O, ' "ensure_loaded(''', Ob, '''), ', Count, '"'], A1),
+    cocolog_answer(A1, G1),
+    check('run consults it; ensure_loaded/1 of it then reads nothing', G1, answer([1,2]-1)),
+    sh_join(['--local query "consult(''', O, '''), ensure_loaded(''', Ob, '''), load_files(''', O,
+             ''', [if(not_loaded)]), load_files(''', O, ''', [if(changed)]), ', Count, '"'], A2),
+    cocolog_answer(A2, G2),
+    check('after consult/1: ensure_loaded/1, if(not_loaded) and if(changed) read nothing', G2, answer([1,2]-1)),
+    sh_join(['--local query "consult(''', O, '''), consult(''', O, '''), ', Count, '"'], A3),
+    cocolog_answer(A3, G3),
+    check('consult/1 twice reads it twice and holds it once', G3, answer([1,2]-2)),
+    sh_join(['--local query "use_module(''', Ob, '''), use_module(''', O, '''), consult(''', O,
+             '''), ', Count, '"'], A4),
+    cocolog_answer(A4, G4),
+    check('use_module/1 under two spellings, then consult/1: the module stands', G4, answer([1,2]-1)),
+    atom_concat(D, '/self.pl', Self),
+    fixture(Self, ['sfact(1).',
+                   'main :- consult(''self.pl''), findall(X, sfact(X), L), write(answer(L)), nl.']),
+    cocolog(C),
+    sh_join(['cd ', D, ' && ', C, ' -s self.pl 2>&1'], Cmd5),
+    proc_run(Cmd5, 60000, Out5, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out5, T5) -> term_to_atom(G5, T5) ; G5 = none ),
+    check('a -s program that consults itself is the module it already is', G5, answer([1])),
+    %% a consult INSIDE a module's load -- an `-s' file's initialization/1,
+    %% run while the store is muted for that file -- is the program's: it
+    %% owns its clauses, so the second consult replaces the first
+    atom_concat(D, '/inmod.pl', IM), atom_concat(D, '/dm.pl', DM),
+    fixture(DM, ['dm(1).']),
+    fixture(IM, [':- initialization((consult(dm), consult(dm), findall(X, dm(X), L), write(answer(L)), nl)).',
+                 'main.']),
+    sh_join(['cd ', D, ' && ', C, ' -s inmod.pl 2>&1'], Cmd6),
+    proc_run(Cmd6, 60000, Out6, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out6, T6) -> term_to_atom(G6, T6) ; G6 = none ),
+    check('consult/1 inside a module''s load: the second replaces the first', G6, answer([1])).
+
+%% IF(CHANGED) ASKS THE FILE'S TIME, TO THE NANOSECOND (2.12.2, 2.13.0): the
+%% file's stamp moves a quarter of a second, inside one whole second, and
+%% the file is read again -- with time_file/2's whole seconds of 2.12.1 it
+%% would not have been. The same stamp reads nothing.
+when_changed(D) :-
+    section('load_files(F, [if(changed)]) reads a file again only when its time moved'),
+    atom_concat(D, '/chg.pl', F), atom_concat(D, '/chgprog.pl', P),
+    fixture(F, [':- ( nb_current(creads, N) -> M is N + 1 ; M = 1 ), nb_setval(creads, M).', 'cfact(1).']),
+    shl(['touch -d 2026-10-28T12:00:00.25Z ', F]),
+    sh_join(['touch -d 2026-10-28T12:00:00.50Z ', F], Touch),
+    atomic_list_concat(['main :- step(A), step(B), proc_run(''', Touch,
+                        ''', 10000, _, _), step(C), step(E),'], MainLine),
+    fixture(P, [':- use_module(library(process)).',
+                'step(N) :- load_files(''chg.pl'', [if(changed)]), nb_getval(creads, N).',
+                MainLine,
+                '    findall(X, cfact(X), L), write(answer([A, B, C, E]-L)), nl.']),
+    cocolog(C),
+    sh_join(['cd ', D, ' && ', C, ' -s chgprog.pl 2>&1'], Cmd),
+    proc_run(Cmd, 60000, Out, _),
+    ( re_first_atom('answer\\([^\n]*\\)', Out, T) -> term_to_atom(G1, T) ; G1 = none ),
+    check('read, not again, again once its stamp moved a quarter second, then not', G1,
+          answer([1, 1, 2, 2]-[1])).
+
+%% WHAT WILL NOT LOAD (2.13.0), as swipl 9.0.4 has it: a missing file alone
+%% raises; one in a list is reported on stderr and the next file loads; a
+%% syntax error is reported and the goal succeeds. The consult ends at the
+%% error, so the clause after it is not read -- where SWI reads it.
+reports(D) :-
+    section('what will not load: raised alone, reported in a list or for a syntax error'),
+    atom_concat(D, '/nofile', NF), atom_concat(D, '/fine.pl', Fine), atom_concat(D, '/bad.pl', Bad),
+    fixture(Fine, ['ffact(1).']),
+    fixture(Bad, ['bfact(1).', 'broken( .', 'bfact(2).']),
+    sh_join(['--local query "catch(consult(''', NF, '''), error(E, _), true), writeq(answer(E)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('a missing file alone raises existence_error(source_sink, F)', G1,
+          answer(existence_error(source_sink, NF))),
+    sh_join(['--local query "consult([''', NF, ''', ''', Fine, ''']), findall(X, ffact(X), L), write(answer(L)), nl"'], A2),
+    cocolog_out(A2, Out2),
+    ( re_first_atom('answer\\([^\n]*\\)', Out2, T2) -> term_to_atom(G2, T2) ; G2 = none ),
+    check('in a list, the next file loads', G2, answer([1])),
+    ( re_first_atom('ERROR: [^\n]*', Out2, E2) -> true ; E2 = none ),
+    format(atom(Want2), "ERROR: source_sink `~q' does not exist", [NF]),
+    check('and the missing one is reported in SWI''s words', E2, Want2),
+    sh_join(['--local query "consult(''', Bad, '''), findall(X, bfact(X), L), write(answer(L)), nl"'], A3),
+    cocolog_out(A3, Out3),
+    ( re_first_atom('answer\\([^\n]*\\)', Out3, T3) -> term_to_atom(G3, T3) ; G3 = none ),
+    check('a syntax error: the goal succeeds with what came before it', G3, answer([1])),
+    ( re_first_atom('ERROR: [^\n]*Syntax error[^\n]*', Out3, E3) -> R3 = reported ; R3 = silent ),
+    check('and the error is reported', R3, reported).
 
 over_the_wire(F) :-
     section('and the same three claims over the wire, when a server answers'),

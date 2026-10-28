@@ -7375,3 +7375,125 @@ PROVED:
   - lesson 03 ends `done`;
   - the two changed files lint clean;
   - the card's cites are all anchored.
+
+## consult/1, load_files/2 and `[File]` as goals (2.13.0)
+
+cicilang's feedback, item 3: a program that loaded a file at run time
+stopped at `existence_error(procedure, consult/1)`. None of SWI's three
+loading goals existed. cicilang loads with ensure_loaded/1, so for it this
+is compatibility only.
+
+WHAT THEY DO:
+
+- **They consult.** The file goes into the knowledge base, written through
+  as `cocolog run` writes it, and its clauses from the last time are
+  replaced (SWI's reconsult). Its directives run each time it is read.
+- **`library(Name)`** is the library loader's, whatever the call.
+- **`load_files/2`'s options:**
+  - `if(true)` is the default.
+  - `if(changed)` compares the file's `time_file/2` with the one the store
+    read it at.
+  - `if(exists)` loads nothing for a file that is not there.
+  - `if(not_loaded)` and `must_be_module(true)` go through the module
+    loader, as ensure_loaded/1 and use_module/1 do; SWI says they are those.
+  - Any other option is ignored, as SWI ignores one it does not know.
+- **SWI's shapes, read off swipl 9.0.4:**
+  - An unbound file and a partial option list are instantiation errors.
+  - An option list that is no list is a type error naming its tail.
+  - A missing file is `existence_error(source_sink, F)`, and a directory
+    `existence_error(file, F)`.
+  - A single file's error is raised. In a list, each file's error is
+    printed and the next file loads. A ball that is no `error/2`, and a
+    signal (cocolog delivers one as `error(signal(Name, Num), _)`), are
+    thrown on, so a Ctrl-C stops a list of loads.
+- **The shape.** A Coco half in `lib/library.cicili` walks the list and
+  reads the options over one C row, `'$lf_file'/2`. The files still to load
+  ride on the engine's continuation, which a collection in one file's
+  directives moves, rather than in a C frame's cells.
+
+NO FILE IS LOADED TWICE BY TWO ROADS, a fault older than this release:
+
+- `run F` and then ensure_loaded/1 of F read F twice, into the store and
+  as a module.
+- So did use_module/1 under two spellings of one path.
+- Every clause then answered twice.
+
+The fix:
+
+- The store keeps the files read into it (`loads`: the real path and
+  `time_file/2`). Every consult a host makes notes its file before the
+  read: `run`, the `consult` command, the toplevel, the goals.
+- The module loader answers a file the store holds, or one a module was
+  read from under another spelling, as loaded.
+- consult/1 of a file loaded as a module is that load. This includes a
+  `-s` program consulting itself.
+- A consult that a module's own load runs is the program's. Inside a
+  module's load (an `-s` file's initialization/1) the store is muted, and
+  a muted read keeps no origins: the first build's second consult there
+  appended, `[1,1]`. The goal now unmutes the store around its own read
+  and puts it back after.
+
+WHERE IT DIFFERS FROM swipl, by choice:
+
+- A syntax error ends the consult (the one thing that does), so the
+  clauses after it are not read; swipl reads on. Both report it and succeed.
+- `must_be_module(true)` asks no module header. cocolog has none.
+- A code list is one file's name, which is what `"file"` reads as under
+  the `codes` default. swipl takes a list of codes as a list of files.
+- A list inside the list is walked, so `consult(["a","b"])` loads two
+  files under `codes`.
+- A file loaded as a module is not read again by consult/1; swipl reloads
+  it.
+
+NOT FIXED: ACROSS PROCESSES A FILE CAN STILL BE THERE TWICE, as it was
+through 2.12. The table of loaded files is the process's, not the
+database's.
+
+- **The fault.** One process consults a file into a store (`run F`). A
+  second process then loads F as a module: `-s F`, use_module/1 or
+  ensure_loaded/1. The second process holds the store's rows beside the
+  module's clauses, and every clause answers twice (`[1,2,1,2]`, probed on
+  `--embed`).
+- **Where 2.13.0 helps.** consult/1 in the second process replaces its
+  own rows (`[1,2]`).
+- **The first thought for a fix is wrong.** Hiding those rows when the
+  predicate is fetched would lose them: the backend writes a predicate back
+  whole, so the next write would delete the rows the read left out
+  (2.11.1's partial read).
+- **Where a fix must look.** It touches all three arrangements, and is a
+  proposal for the owner.
+
+PROVED:
+
+- **`test/files/consult.pl`** agrees with swipl 9.0.4 over 38 lines: the
+  reconsult, lists, `[F]`, a directive `:- [b].`, every option and error
+  shape above, `if(not_loaded)`/`if(changed)`/ensure_loaded/1 after a
+  consult, and directives and initialization/1 run again.
+- **`test/reconsult.pl`'s four new sections:**
+  - A goal-level consult writes through, and a second process that
+    consulted nothing reads it (`--embed`).
+  - One file by two roads is loaded once, five ways, and two consults
+    inside a module's load leave one copy.
+  - `if(changed)` reads a file again when only the fraction of its stamp
+    moved (12:00:00.25 to .50), which 2.12.2's nanosecond time makes
+    possible.
+  - What will not load: raised alone, reported in a list in SWI's words,
+    and a syntax error reported.
+  - The case is green, with the wire half against the server.
+- **An arm per duplicate rule, each red.** Each is a build with the rule
+  taken out:
+  - the store's record in the module loader: `run` and then
+    ensure_loaded/1 answer `[1,2,1,2]`;
+  - the module under another spelling: use_module/1 twice doubles;
+  - the module check in `'$lf_file'`: the `-s` program consulting itself
+    answers `[1,1]`;
+  - the store unmuted around the goal's read: two consults in an `-s`
+    file's initialization/1 answer `[1,1]`.
+- **Lesson 00** says it and checks it, and ends `done`.
+- **Narrow cases green:** flowchart (with `'$lf_file'/2` and `'$lf_say'/1`
+  in `library/flow/modes.pl`), library, directives, files, repl, script,
+  engine, errors.
+- **The five test binaries that compile the store** (solve, module, state,
+  shared, zigurat) are green.
+- **Lint clean.** The card's eight moved cites are corrected, and all 42
+  are anchored.

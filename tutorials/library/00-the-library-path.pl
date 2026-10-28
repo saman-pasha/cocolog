@@ -79,6 +79,8 @@ main :-
     format("   this is the loader's own failure and there is no ISO~n"),
     format("   formal that fits it. Match on error(cocolog_error(_), _).~n"),
 
+    own_files,
+
     format("~n-- HOW TO CHECK WHICH TIER SOMETHING IS IN, rather than~n"),
     format("   remembering. Copy the binary somewhere with no library/~n"),
     format("   beside it, point COCOLOG_LIBRARY at nothing, and see what~n"),
@@ -96,6 +98,33 @@ main :-
     format("   Your directories are searched first, then ./library, then~n"),
     format("   what shipped beside the binary.~n~n"),
     format("done~n").
+
+%% A FILE OF YOUR OWN, LOADED AT RUN TIME (2.13.0): consult/1, load_files/2
+%% and [File] are SWI's, and they CONSULT -- the other act from use_module/1.
+own_files :-
+    format("~n-- a file of your own: consult/1 reads it into the knowledge base~n"),
+    tmp_file(lesson00, Base), atom_concat(Base, '.pl', F),
+    write_file_from_codes(F, "lesson00_fact(1).\nlesson00_fact(2).\n"),
+    consult(F),
+    findall(X1, lesson00_fact(X1), L1),
+    must('consult/1 as a goal', L1, [1,2]),
+    consult(F),
+    findall(X2, lesson00_fact(X2), L2),
+    must('consulted again: replaced, not added to', L2, [1,2]),
+    ( load_files(F, [if(not_loaded)]) -> R3 = succeeded ; R3 = failed ),
+    must('load_files(F, [if(not_loaded)]) of a file that is', R3, succeeded),
+    findall(X4, lesson00_fact(X4), L4),
+    must('...and read nothing more', L4, [1,2]),
+    catch(consult(no_such_file_here), error(E5, _), true),
+    must('a file that is not there', E5, existence_error(source_sink, no_such_file_here)),
+    delete_file(F),
+    format("   The file goes into the KNOWLEDGE BASE, written through as~n"),
+    format("   `cocolog run' writes it, and replaces what it put there the~n"),
+    format("   last time: SWI's reconsult. use_module/1 is the other act --~n"),
+    format("   the file's clauses are this process's, muted, and another~n"),
+    format("   process on the same store never sees them. A file loaded one~n"),
+    format("   way is not loaded again the other: that would answer every~n"),
+    format("   clause twice.~n").
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and
