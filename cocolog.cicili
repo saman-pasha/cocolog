@@ -391,7 +391,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.12.1"))
+  (func coco_version_text () (out const char *) (return "2.13.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -635,6 +635,7 @@
               ;; a directive's goal may collect the heap: this host holds no
               ;; cell (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
+              (coco_library_note_load (aof st) (nth i argv))
               (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
               (set ($ m dgc) 0)
               (free text)
@@ -1209,6 +1210,7 @@
                    (set path withpl)))
           (set text (slurp path))
           (if (== text nil) (return 0))
+          (coco_library_note_load st path)
           (set n (coco_consult st m text path err (sizeof err)))
           (free text)
           (if (< n 0)
@@ -2398,6 +2400,9 @@
               ;; cell yet -- the goal is read after the consults
               ;; (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
+              ;; the store knows it holds the file (2.13.0): the program's
+              ;; ensure_loaded/1 of it is then a no-op, not a second copy
+              (coco_library_note_load (aof st) (nth i argv))
               (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
               (set ($ m dgc) 0)
               (if (< n 0)

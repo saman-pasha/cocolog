@@ -25,6 +25,11 @@ main :-
     yn(float(T1), time_is_float),
     yn(T1 > 0.0, time_is_positive),
 
+    %  ...and to the nanosecond. This time does not vary: the harness stamps
+    %  frac.txt at 2026-10-28T12:00:00.75Z for both runs (a whole second on
+    %  Darwin, where swipl reads no fraction), so it is printed whole
+    time_file('frac.txt', T3), s(frac_time, T3),
+
     %  a symbolic link, also made by the harness
     yn(exists_file('link.txt'), link_looks_like_a_file),
     yn(same_file('five.txt', 'link.txt'), link_is_the_same_file),

@@ -146,6 +146,11 @@
   ;;; Registers the module. A target calls this after `coco_module_init'.
   (decl) (func coco_files_module () (out int))
 
+  ;;; A file's time_file/2 -- when it was last written, in seconds since the
+  ;;; epoch to the nanosecond (2.12.2) -- into *T: 1, or 0 for a path stat(2)
+  ;;; cannot read. load_files/2's `if(changed)' compares it (2.13.0).
+  (decl) (func coco_file_mtime ((const char * path) (double * t)) (out int))
+
   ) ; decl-files
 
 
@@ -229,12 +234,32 @@
 
   ;;; A FLOAT, because SWI's is a float and a program comparing two of them
   ;;; would otherwise get a different answer on each system.
+  ;;;
+  ;;; TO THE NANOSECOND (2.12.2). It was `st_mtime', whole seconds, so two
+  ;;; writes inside one second had the same time and a tool asking which
+  ;;; file is newer -- a build's "is the output stale", cicilang's -- got
+  ;;; "neither". swipl 9.0.4 answers tv_sec + tv_nsec / 1e9 of `st_mtim',
+  ;;; and this is that sum, to the last digit on this box's probes.
+  ;;; Darwin names the field `st_mtimespec' and has no `st_mtim', which is
+  ;;; the one member swipl's configure looks for: swipl there answers whole
+  ;;; seconds, and this the nanoseconds still (Cicili 3.3.0 declares both).
+  (func coco_file_mtime ((const char * path) (double * t)) (out int)
+        (let ((stat_t sb))
+          (if (!= 0 (stat path (aof sb))) (return 0))
+          (@ifdef (code "__APPLE__"))
+          (set (cof t) (+ (cast double ($ sb st_mtimespec tv_sec))
+                          (/ (cast double ($ sb st_mtimespec tv_nsec)) 1000000000.0)))
+          (@else)
+          (set (cof t) (+ (cast double ($ sb st_mtim tv_sec))
+                          (/ (cast double ($ sb st_mtim tv_nsec)) 1000000000.0)))
+          (@endif)
+          (return 1)))
+
   (func coco_f_time_file ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char p [4096]) (stat_t sb))
+        (let ((int rc . 0) (char p [4096]) (double t . 0.0))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (if (!= 0 (stat p (aof sb))) (return 0))
-          (return (coco_m_unify_float e (coco_m_arg e g 1)
-                                    (cast double ($ sb st_mtime))))))
+          (if (not (coco_file_mtime p (aof t))) (return 0))
+          (return (coco_m_unify_float e (coco_m_arg e g 1) t))))
 
   ;;; `get_time/1' -- THE WALL CLOCK, WHICH WAS SIMPLY NOT THERE. Nothing
   ;;; in cocolog could ask what time it is: `time_file/2' answered when a

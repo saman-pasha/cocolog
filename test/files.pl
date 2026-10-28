@@ -79,10 +79,23 @@ cases(Cases) :-
 fixtures(stat, Sandbox) :- !,
     atom_concat(Sandbox, '/five.txt', Five), write_file_from_codes(Five, "hello"),
     atom_concat(Sandbox, '/empty.txt', Empty), write_file_from_codes(Empty, []),
-    shl(['cd ', Sandbox, ' && ln -s five.txt link.txt']).
+    shl(['cd ', Sandbox, ' && ln -s five.txt link.txt']),
+    %% a time with a fraction, the same instant for both runs (GNU and BSD
+    %% touch both read this form). swipl reads the fraction only where
+    %% `struct stat' has `st_mtim', which Darwin's has not, so there the
+    %% fixture is a whole second and the two still compare
+    shl_atom(['uname -s'], Sys),
+    ( Sys == 'Darwin' -> When = '2026-10-28T12:00:00Z' ; When = '2026-10-28T12:00:00.75Z' ),
+    shl(['cd ', Sandbox, ' && touch -d ', When, ' frac.txt']).
 fixtures(loaded, Sandbox) :- !,
     atom_concat(Sandbox, '/sib.pl', Sib),
     fixture(Sib, ['sib_a(1).', 'sib_b(X) :- sib_a(X).']).
+fixtures(consult, Sandbox) :- !,
+    atom_concat(Sandbox, '/a.pl', A), fixture(A, ['a(1).', 'a(2).']),
+    atom_concat(Sandbox, '/b.pl', B), fixture(B, ['b(x).']),
+    atom_concat(Sandbox, '/d.pl', D),
+    fixture(D, [':- initialization(writeln(init_d)).', ':- writeln(directive_d).', 'd(1).']),
+    atom_concat(Sandbox, '/e.pl', E), fixture(E, [':- [b].', 'e(1).']).
 fixtures(_, _).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on

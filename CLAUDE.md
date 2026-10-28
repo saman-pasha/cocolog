@@ -62,23 +62,24 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `a9e2dcf` from a copy beside it (below: 3.2.0, `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `9b825b7` from a copy beside it (below: 3.3.0, `stat_t`'s three times to the nanosecond, `st_mtim` and Darwin's `st_mtimespec` in `lib/std/c/posix/sys-stat.cicili`, which 2.12.2's `time_file/2` needs -- an older Cicili stops at `unknown member: st_mtim of type: stat_t`; 3.2.0: `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let five in by name: 2.0.0's split, 2026-10-11,
+not an applied one (the owner let six in by name: 2.0.0's split, 2026-10-11,
 2.0.1's and 2.0.2's arrow through a call and 3.0.0's double literals,
-2026-10-12, and 3.1.0's `(cold)`, 2026-10-23).
+2026-10-12, 3.1.0's `(cold)`, 2026-10-23, and 3.3.0's file times with its
+suite's skips for an absent libpq or libtorch, 2026-10-28: "fix Cicili").
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
 **The builds take the last Cicili commit from a copy, and the checkout is not
 pulled** (the owner, 2026-10-28: "No pull cicili. Rebuild all with last Cicili
-commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-a9e2dcf`
+commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-9b825b7`
 and a detached checkout of the commit there, the clone reading the objects the
 checkout already fetched. `CICILI` names the copy, and
-`CL_SOURCE_REGISTRY=/home/user/cicili-a9e2dcf/:` must name it too -- cicili.lisp
+`CL_SOURCE_REGISTRY=/home/user/saman-pasha/cicili-9b825b7/:` must name it too -- cicili.lisp
 loads the system with `asdf:load-system`, and `~/common-lisp/cicili`, the box's
 link to `../cicili`, answers first: without the variable a run from the copy
 said `--version` 3.1.0, the checkout's system under the copy's script.
@@ -285,6 +286,24 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   any load commits what was written through before the process ends (the
   store's `on_halt`; until 1.8.57 it kept nothing). `-s` also puts
   `library(main)`'s `main/0` first where `run` puts the file's.
+* **`consult/1`, `load_files/2` and `[File]` as goals CONSULT** (2.13.0,
+  SWI's; `lib/library.cicili`, a Coco half over `'$lf_file'/2`), as `run`
+  does: written through, the file's clauses from last time replaced. Their
+  `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
+  are `library(X)`. **The store keeps the files read into it** (`loads`,
+  their real path and `time_file/2`, noted before the read by every host's
+  consult too, `coco_library_note_load`): `if(changed)` compares the time,
+  and ensure_loaded/1 of a file the store holds loads nothing -- through
+  2.12 it loaded a module beside it, every clause twice. A file loaded as
+  a module (under any spelling) is that load to consult/1 as well. **The
+  goal unmutes the store around its own read** (`lb_load_file`): inside a
+  module's load -- an `-s` file's initialization/1 -- the store is muted,
+  and a muted consult kept no origins, so a second consult appended
+  (`[1,1]`). **The table is the process's, not the database's**: a file
+  `run F` wrote into a store, loaded by a second process as a module (`-s
+  F`, ensure_loaded/1), is there twice, the rows beside the module
+  (`[1,2,1,2]`, as through 2.12). Hiding those rows at the fetch would
+  delete them at the next whole-predicate write.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
