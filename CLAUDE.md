@@ -62,23 +62,24 @@ full story goes in its commit message or STATUS.md.
 
 | repo | role | last seen |
 |---|---|---|
-| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `a9e2dcf` from a copy beside it (below: 3.2.0, `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
+| `../cicili` | the language cocolog is written in; BUILD time | `cc24ae0` here, and the builds take `9b825b7` from a copy beside it (below: 3.3.0, `stat_t`'s three times to the nanosecond, `st_mtim` and Darwin's `st_mtimespec` in `lib/std/c/posix/sys-stat.cicili`, which 2.12.2's `time_file/2` needs -- an older Cicili stops at `unknown member: st_mtim of type: stat_t`; 3.2.0: `realpath` in `lib/std/c/stdlib.cicili`, which 2.11.5's needs; 3.1.0: `(cold)`, which 2.11.2's growths need -- an older Cicili stops at `unknown symbol: cold`; 3.0.0: a float literal is a double, every digit of it; 2.0.1 and 2.0.2 let `->` and `=>` through any call; 2.0.0 split `(inline)` and `(weak)`, which 1.10.7's reader needs) |
 | `../ZiguratIP` | the database; RUN time and `make schema` | the owner's |
 
 **cicili is frozen**: no edits, commits, pushes, branch changes or `git add`.
 A problem that traces to the transpiler gets a diagnosis and a proposed patch,
-not an applied one (the owner let five in by name: 2.0.0's split, 2026-10-11,
+not an applied one (the owner let six in by name: 2.0.0's split, 2026-10-11,
 2.0.1's and 2.0.2's arrow through a call and 3.0.0's double literals,
-2026-10-12, and 3.1.0's `(cold)`, 2026-10-23).
+2026-10-12, 3.1.0's `(cold)`, 2026-10-23, and 3.3.0's file times with its
+suite's skips for an absent libpq or libtorch, 2026-10-28: "fix Cicili").
 The SHA above is an observation, not a pin -- the owner moves cicili; check it
 with `git -C ../cicili log --oneline -1` when a build behaves oddly, and
 correct the row rather than trusting it.
 **The builds take the last Cicili commit from a copy, and the checkout is not
 pulled** (the owner, 2026-10-28: "No pull cicili. Rebuild all with last Cicili
-commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-a9e2dcf`
+commit"): `git clone --no-hardlinks --no-checkout ../cicili ../cicili-9b825b7`
 and a detached checkout of the commit there, the clone reading the objects the
 checkout already fetched. `CICILI` names the copy, and
-`CL_SOURCE_REGISTRY=/home/user/cicili-a9e2dcf/:` must name it too -- cicili.lisp
+`CL_SOURCE_REGISTRY=/home/user/saman-pasha/cicili-9b825b7/:` must name it too -- cicili.lisp
 loads the system with `asdf:load-system`, and `~/common-lisp/cicili`, the box's
 link to `../cicili`, answers first: without the variable a run from the copy
 said `--version` 3.1.0, the checkout's system under the copy's script.

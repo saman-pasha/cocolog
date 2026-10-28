@@ -7340,3 +7340,38 @@ PROVED:
   The 5 SKIPs are tensors, torch-graph, torch-grad, torch-replay and
   tensorflow (no CUDA on this box). The lint case ran alone first, green in
   173 s.
+
+## A file's time to the nanosecond (2.12.2)
+
+cicilang's feedback, item 1 of three: `time_file/2` answered whole seconds,
+`st_mtime` cast to a float. Two writes inside one second had the same time,
+and a tool asking which of two files is newer (a build's "is the output
+stale") got "neither". swipl 9.0.4 answers `tv_sec + tv_nsec / 1e9` of
+`st_mtim` (`LastModifiedFile` in its `pl-files.c`), and so does this now.
+
+Darwin's `struct stat` names the field `st_mtimespec` and has no `st_mtim`
+(xnu's `bsd/sys/stat.h`), and `st_mtim` is the one member swipl's configure
+looks for (`HAVE_STRUCT_STAT_ST_MTIM`). So swipl on a Mac answers whole
+seconds and cocolog the nanoseconds: a difference by choice, the reason the
+feedback gave holding there as well.
+
+The fields are Cicili 3.3.0's (49d0f12, pushed with the owner's leave):
+`stat_t` declares `st_atim`, `st_mtim`, `st_ctim` and Darwin's three
+`st_*timespec`. A declaration emits nothing, and a target picks its spelling
+under `@ifdef __APPLE__`. cocolog needs it from here on: 3.2.0 stops at
+`unknown member: st_mtim of type: stat_t`. On 3.3.0, 2.12.1's source emitted
+the same C as on 3.2.0, all 23 files byte for byte, and coco's 10 too.
+
+PROVED:
+
+- Five files, swipl 9.0.4 and cocolog to the last digit:
+  - a file touched at `2026-10-28T12:00:00.75Z` is `1793188800.75` in both;
+  - four real files carry their nine or ten digits of fraction.
+- `test/files/stat.pl` prints that fixture's time, which the harness stamps
+  for both runs (a whole second on Darwin, where swipl reads none). Result:
+  agrees with SWI, 16 lines. 2.12.1 answered `1793188800.0` there.
+- The rest:
+  - `test/files.pl` is green over all its cases;
+  - lesson 03 ends `done`;
+  - the two changed files lint clean;
+  - the card's cites are all anchored.
