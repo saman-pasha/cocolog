@@ -6088,6 +6088,265 @@ read into an English-worded IR and written into any lesson's language),
   settembre, si sono rassegnati a muoversi in minitaxi (...) o in autobus`; a
   reading through tr_subject/6 was tried and did not help). The next sample's
   controls take this report in.
+  The satanic groups report (AnCora CESS-CAST-P-19991102-2, 17 sentences, Spanish
+  into Italian and English: 15 of 17 and 13 of 17 on a fresh store, 13 and 11
+  with the new store alone, 11 and 10 with the new code on the old store, 9 and
+  8 before; reasoning 1.0.18). The sample was taken on the cocolog 2.11.4
+  binary, master's fbda058 merged as 57f9ff2, and cocolog stays 2.11.4: the
+  binaries of 2.11.3 and 2.11.4 give the same texts and counts to the unit on
+  the controls (8 287 552 417 inferences, 0 differ). Master's 2.11.5, 2.11.6 and
+  2.12.0 (a27ea39 to d71af1e) came during the sample; from 2.11.5 they take
+  `realpath` from Cicili 3.2.0 (a9e2dcf), the checkout here is 3.1.0 (cc24ae0)
+  and cicili is frozen, so they are not merged, and the next sample takes them
+  when the owner moves cicili. The article's sentences fall from 59.5 million
+  inferences into Italian and 59.3 into English to 20.2 and 19.9, of which the
+  thirteenth, refused, is 8.2 million in each. It needed these SHAPES, each with
+  its arm red (test/translate.pl's `newspaper_satan`: 37 checks, 43 arms, the
+  guards among them; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_satan, checks_done"`, under a
+  second a run, and every arm is run in eleven seconds, four at a time; 39 are
+  red in the section, and the four that stay green are guards that stay for
+  their cost, below): a participle and its agent after a noun and a phrase of
+  the noun's own agree with the noun (`En la Red existen páginas en castellano
+  abiertas por miembros de estas sectas` are pages in Spanish opened by members
+  -- hung on the nearest noun, the language was what the members opened, the
+  subject after `existen` had no reading, and the sentence was refused: tr_np/3
+  with with/2 as the participle's head, and fo_np_number/2 reads its number from
+  the noun), asked where the sentence has a noun or an adjective right before a
+  participle with the word for `by` after it, the two disagreeing in number or
+  gender (`$tr_ptc_agent`, tr_ptc_agent_note/1) -- three arms, and the note's two
+  tests are guards of cost; a second agent joined to the first (`abiertas por
+  miembros de estas sectas o por las mismas hermandades` -- read on as the first
+  agent's adjuncts, the second was a phrase of `for`: tr_reduced_agent/3), and a
+  day's adverb right after the participle stays before both agents (`il
+  drammatico quadro ... presentato ieri dal ministro della famiglia ... Adriano
+  Ossicini e dal direttore generale del dicastero` was `... Adriano Ossicini
+  yesterday and by the general director`, tr_ptc_day_first/4, found by the
+  controls) -- two arms; a modal and an infinitive with the reflexive joined, in
+  the plural, with a bare phrase after it, is the reflexive's passive (`En
+  algunas de ellas pueden encontrarse chats` -- chats can be found there, and it
+  was `they` who could find chats:
+  tr_modal_se_fix/3), never with a phrase with its article (`pueden lavarse las
+  manos` is their own hands, tr_bare_head/2, a guard), and English writes a
+  modal's reflexive passive as the modal and the passive infinitive (`Se pueden
+  encontrar chats` -- written as the passive of the modal it was `Chats are
+  caned find`: tr_write/4) -- three arms; the clause of `where` of the phrase
+  after the verb, and a second phrase joined to it, are the subject's too
+  (`chats (páginas de conversación) donde los adeptos se comunican y un tablón
+  donde dejar anuncios diversos` can be found, each phrase with its clause:
+  rc(Phrase, where, Clause), tr_where_rc/4, tr_bare_head/2 for the pair), a
+  phrase's clause of `where` with an infinitive is English's `in which`
+  (tr_np_out/5), and the lesson's language writes its own relative word for it,
+  `dove` (tr_relative_out/5) -- six arms; a clause of `where` ends at a
+  coordinator and a phrase after it (`donde los adeptos se comunican y un
+  tablón`: read to the end of the words, the clause had `y un tablón` in it and
+  nothing read, tr_complements0/4, cnj/1), asked where the sentence has the word
+  for `where` with no comma after it and a coordinator after that
+  (`$tr_where_co`, tr_where_co_note/1) and the phrase after the coordinator has
+  four words at most or ends at its own word for `where` (tr_where_tail/1) --
+  one arm, and the note and the tail are guards of cost; a question word before
+  an infinitive asks with it (`No sé dónde dormir` is where to sleep, and read
+  as the adverb `where` beside an infinitive it was `I do not know to sleep
+  where`: tr_complements0/4), after a phrase English says it with `in which`
+  (`un tablón donde dejar anuncios diversos` is a noticeboard in which to leave
+  ads, tr_comp_out/7), and the word for `how` is the word for `like` too, and
+  asks only after a verb that takes the question (`Ma parlare con Diego era
+  come parlare con due persone diverse` was LIKE speaking with two different
+  people, and read as the question it came out `how to speak` and `cómo
+  hablar`: tr_asks_question_here/0, found by the controls; a guard, `Il cane non
+  sa come dormire` is how to sleep, where it was `like sleeping`) -- four arms;
+  the word for `for` after an infinitive and before one is the purpose, no verb
+  (`quisiera saber qué hacer para iniciarme en el satanismo` is what to do in
+  order to begin, and with `hacer` the subject and `para` the verb of `parar` it
+  was `what to do stops beginning`: tr_purpose_as_verb/3), `makes` with nothing
+  made is what to DO (tr_comp_out/7), and the word that asks with no phrase,
+  before an infinitive, is `what` (the lesson's `qué` is `which` and `what`, and
+  the infinitive's question was `which to eat`: tr_what_to/4) -- three arms; an
+  infinitive with no object takes the verb of no object, where the lesson gives
+  the meaning a transitive word of its own (`quisiera saber qué hacer` is
+  `sapere cosa fare`, as the clause `sabe qué hace` is `sa cosa fa` -- the
+  infinitive took `conoscere` whatever followed: tr_inf_lexeme/2); the past
+  subjunctive of the verb of wanting, as a sentence's own verb, is a polite wish
+  (`quisiera saber qué hacer` is I would like to know, and read as the imperfect
+  it stands for after `si` it was he wanted to: tr_polite_wish/4), its first
+  person spelled as its third (tr_form0/5), and the first person where the
+  sentence names it by another word, a verb in the first person (`pues siento
+  que me atrae`), English's wish `would like` (tr_write/4) and Italian's
+  `vorrei`, never after a word that opens a clause (`Si quisiera dormir` is if
+  he wanted, a guard) -- five arms; an adverb of time or focus after what there
+  is stands with the verb (`También hay escritos de personas de Barcelona` --
+  there are also writings, where `There are writings ... also` was written, and
+  `ci sono anche scritti`: tr_write/4); `defines` governs `as` (`Aquelarre
+  Infernal, que se define como "un punto de encuentro"` is defined AS one,
+  en_governs/2), with the passive the lesson states (`"define" takes the
+  passive.`); the impersonal `se` with a thing after its verb is the passive,
+  where the lesson says the verb takes one (`En Internet se publica una revista
+  para sus adeptos` -- a magazine is published, and English had somebody nobody
+  named publish it, `One publishes a magazine`: tr_se_passive/2); English says
+  what is on the Internet, a page or a site with `on` (`En esta página se
+  ofrecen textos` are offered on this page, `En la Red existen páginas` exist on
+  the Net: tr_comp_out/7, en_on_noun/1), and English's `the Internet`, which the
+  lesson's languages name with no article (tr_np_out/5) -- two arms; an abstract
+  noun in `-ism` is English's with no article (`con links contra el nazismo y el
+  racismo` are links against nazism and racism, where `the nazism and the
+  racism` was written: tr_write/4, en_ism_np/2), and a phrase of `of` after it
+  keeps the article (`the optimism of the Russian military`, a guard) -- two
+  arms; a word of two joined by a hyphen that opens on a nationality has its
+  capital (`los satanistas hispanohablantes` are the Spanish-speaking satanists,
+  en_nationality/1); `has` and a count of years is an age (`Tengo 14 años` is I
+  am 14 years old, where English wrote `I have 14 years`: tr_write/4, age/1);
+  `lleva` and a count of time is how long one has been somewhere (`Blackefer
+  lleva tres años en la Red` has been on the Net for three years -- the lesson's
+  `lleva` is `carries`, and English wrote `Blackefer carries three years in the
+  Net`: tr_carries_time/3, the phrase of `for the past` that `desde hace`
+  crosses to), and the lesson's language writes the copula and its own word for
+  it (`è nella Rete da tre anni`, where it was `porta tre anni`); and a relative
+  clause's plural phrase owns what its possessive names (`organizaciones
+  luciferinas que tienen sus propias páginas oficiales` have THEIR own pages,
+  and the lesson's first meaning wrote `his own official pages`:
+  tr_plural_possessor/1). It needed these WORDS in `extra/` (the two readers: a
+  line moves the reader of one language and the writer of the other; the
+  dictionary's own word is said again first where it must stay the one
+  written): Spanish `satánico` and `satánica` (satanic, and a satanist, a
+  person), `satanista` (a satanist, a person, not feminine), `satanismo`, `cada
+  vez más` (increasingly), `hispanohablante` (Spanish-speaking), `luciferino`
+  and `luciferina`, `u` (or, the word for `or` before an o), `adepto` (a
+  follower, a person; the dictionary has the adjective alone), with `seguidor`
+  said again first, its own first meaning (a fan) and then the follower, so that
+  it stays the word written for one, `hola` and `bienvenido` (the greetings, as
+  interjections), `pues` (since, the conjunction, first), `web` (a website, where
+  the dictionary's web is a spider's), `punto de encuentro` (a meeting point),
+  `tablón` (a noticeboard, before the plank), `"define" takes "como" before the
+  phrase.`, and the passive of `define`, `publica`, `ofrece` and `lee`; Italian
+  `satanico` and `satanica`, `satanista` (not feminine, a person), `satanismo`,
+  `sempre più` (increasingly), `ispanofono` and `ispanofona`, `luciferino` and
+  `luciferina`, `ciao` and `benvenuto`, `sito web`, `visita` (visits, where the
+  dictionary's verb tours), `punto di incontro`, `chat` (one word in both
+  numbers, where the dictionary's plural was `chats` and its first noun for a
+  chat `ciarla`), `bacheca`, `rivista` (a magazine, where the dictionary's first
+  noun for one was a gun's, `caricatore`), `"definisce" takes "come" before the
+  phrase.`, and the passive of `definisce`, `pubblica`, `offre` and `legge`. The
+  first meaning moved for 2 Spanish words and 2 Italian ones (Spanish `tablón` a
+  noticeboard, `web` a website; Italian `rivista` a magazine, `visita` visits),
+  the writer's first word for 1 Spanish meaning and 4 Italian ones (Spanish
+  website `web`; Italian chat `chat`, magazine `rivista`, visits `visita`,
+  increasingly `sempre più`, where it was `vieppiù`), and none was lost.
+  THE CONTROLS (cocolog 2.11.4, store KB230, 108 count files, 2 952 sentences:
+  the earlier set with the islands report in, it_9485_9510, both directions;
+  this report is not among them): the last version's translator against this
+  one, on the one store, 29 sentences in 19 files read differently, all better
+  but two that are no worse -- a noun in `-ism` with no article (10:
+  `terrorism`, `francoism`, `nazism` and six `presidentialism`: `you answer with
+  presidentialism`, `like an opening to presidentialism`), `which restated their
+  basic agreement` and `il loro accordo basico` (es_20000802-31 8), the verb of
+  knowing for an infinitive with no object (`ha hecho saber`, `Esperamos saber`,
+  `Necessito sapere più`, `Vuoi sapere se il tuo matrimonio avrà successo?`, and
+  Tatoeba's `Neither I know what to do` and `Neanche io so cosa fare`), the
+  polite wish (`neither I would like to trample the feet to nobody`, Italian
+  `Vorrebbe una coppa di caffè`, English `They would want`), `their problems
+  can be understood only speaking with the common people` and `Can the names be
+  changed of user?`, `there is also disparity` and `hay también disparidad`
+  (it_9926_9946 9), `I have ended up on first page`, and the second agent with
+  its day (`presented yesterday by the minister ... and by the general director`
+  and `y por el director general`, where it was `desde`, it_9637_9672 8) -- and
+  the two no worse: `Non posso cessare` for `No puedo parar` (Tatoeba 6, where
+  `Non posso fermare` was written; neither is `fermarmi`) and `sapere` in the
+  Miss World report's fifteenth sentence, whose misreading takes the object for
+  the subject in both texts (`Come potranno la nostra personalità e la nostra
+  capacità sapere`). The inferences rise 0.115 % (7 701 216 890 to 7 710 041
+  276), 0.125 % outside the two sentences the new store reads faster (below);
+  every sentence rises but four, and the largest rises are the Hotel Arts
+  report's tenth (+0.19 million of 49.98, refused both ways), the Rognoni
+  interview's nineteenth (+0.10 of 387.29, refused) and the Venice report's
+  eighth (+0.07 of 394.36); the files that rise most are Tatoeba's into English,
+  +0.46 % of 45.5 million, and the Yeltsin report's into English, +0.45 % of 6.2,
+  and the sentences that fall most are the Rosi report's 26th (8.17 million to
+  8.10) and it_9637_9672 14 (0.28 to 0.24). Bytes and characters read every
+  sentence alike (0 differ, the bytes 0.014 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB226, against this one on the new): 32
+  sentences in 20 files, -9.164 % (8 487 898 521 to 7 710 041 276), +0.146 %
+  outside the two sentences the new store reads faster. THE CODE ALONE (this
+  translator on KB226): the same 29 sentences, +0.106 % (to 8 496 894 113),
+  +0.125 % outside the two. THE STORE ALONE (the last version's translator on
+  KB226 and on KB230): 3 sentences in 3 files, -9.268 % (to 7 701 216 890),
+  +0.021 % outside the two -- `sempre più` is one adverb now, increasingly: the
+  Rognoni interview's nineteenth sentence (`il mondo sempre più complesso delle
+  tv`), refused both ways, falls from 773.61 million inferences to 387.29 in
+  each language, and it_9637_9672 19 from 18.2 million to 10.5, where `la
+  maggioranza dei poveri sta andando sempre più sotto` is `is going ...
+  increasingly below` and `está yendo cada vez más abajo`, where it was `always
+  ... more below` and `siempre más abajo`; and `visited` for `toured`
+  (it_9947_9966 16).
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column and
+  mended, each with its arm red. Of the code (the first round, 32 sentences in 21
+  files, +0.519 %): the word for `how` before an infinitive asked after any verb,
+  and Italian's `come`, which is `like` as well, turned two similes into
+  questions (`Ma parlare con Diego era come parlare con due persone diverse` was
+  `was how to speak` and `era cómo hablar`, and `È come cavalcare una tigre` `Es
+  cómo cabalgar`, it_9540_9566 8 and 15: a verb that takes the question now,
+  tr_asks_question_here/0); and the second agent wrote the day's adverb after
+  the first (`presented by the minister ... Adriano Ossicini yesterday and by the
+  general director`, it_9637_9672 8: tr_ptc_day_first/4). Of the store (a
+  first store, KB229): the line that keeps `seguidor` the Spanish writer's word
+  for a follower, said first, made the follower its first meaning to the reader,
+  and every `seguidores` was followers (`the English followers` and `gli adepti
+  inglesi` for the English fans, es_19990601-13 5; `In front of followers of the
+  match` and `Davanti a adepti della partita`, es_20020801-17 5): its own first
+  meaning, a fan, is said first now, and the follower after it. THE COST OF THE
+  CODE, FOUND BY TAKING EACH RULE OUT (the twelve heaviest risers of the first
+  round, six from Spanish and six from Italian, into English, over a copy of the
+  library per rule): the first cut rose 15.04 million inferences of 232.42
+  (+6.47 %), and two rules were 98 % of it -- the participle and its agent after
+  a noun and its phrase, asked of every phrase with a participle in it (13.43
+  million: the Hotel Arts report's tenth sentence rose 8.14 million, 49.98 to
+  58.13, and its fourteenth 3.27, both refusals), and the clause of `where`
+  that ends at a coordinator, asked of every word for `where` (1.25
+  million: it_9472_9484 10 rose 1.19 of 5.00). What paid was a note made once a
+  sentence for each (`$tr_ptc_agent`, `$tr_where_co`) and two cheap tests first:
+  the participle's clause is asked only where a noun or an adjective right before
+  a participle disagrees with it in number or gender (12.48 million of the
+  13.43; the first note took any noun before a participle, and `debería ser
+  refrendada por` fired it, so an infinitive is no noun there: 0.69 million),
+  and the clause of `where` only where no comma comes after the word and the
+  phrase after the coordinator has four words at most or ends at its own word
+  for `where` (2.05 million; the note 0.60). The four arms that take the tests
+  out stay green in the section, as a guard of cost does. The final cut rises
+  0.39 million of the twelve (232.42 to 232.81, +0.17 %), the second agent most
+  of it (the Hotel Arts tenth sentence +0.19 million of 49.98, its refusal the
+  same). THE STATED COSTS: a first meaning that serves the news and not every
+  text -- `web` is a website (a spider's web second), `tablón` a noticeboard (a
+  plank second), `rivista` a magazine (a journal second), `visita` visits (tours
+  second) -- and the writer's `web`, `chat`, `rivista`, `visita` and `sempre
+  più` for those meanings; Italian `Non posso cessare` for Tatoeba's `No puedo
+  parar` (`fermare`, the transitive word, was the one written: neither says
+  `fermarmi`); `sapere` in the Miss World report's fifteenth sentence, whose
+  misreading takes the object for the subject in both texts; and the inferences,
+  +0.115 % on the one store and +0.106 % on the old. The report LEAVES, of the 15
+  into Italian (English alike unless it says): `dalle stesse fratellanze` and
+  `the same fraternities` (2: the fraternities themselves); `in alcuni di loro`
+  for the pages (3: `in alcune di esse`, the pronoun's gender is the phrase's it
+  stands for, which the IR does not keep), written last where the source has it
+  first, and `diverse ads`; `Vorrei` with a capital after the dots (4); `Vivo`
+  read as a name (5: the source has the capital); `in uno di quelli assi` and
+  `that one reads in one of those boards` (6: `quelle bacheche`, that is read on
+  one of those noticeboards); `scritture` for `escritos` (7: `scritti`);
+  `allacciare` for `enlazar` and `in questa pagina` written last (10: link, and
+  in English `curiously` last and `nazism` in small letters); `prega il suo
+  androne` and `his entrance prays` for what its entrance reads, and `qui`
+  written last (12); `in Internet` (14: `su Internet`) and English's `his
+  followers` (its); `La Hermandad di Satán` and `His title is Pulp Fiction ...
+  of La Hermandad of Satán` (15: a name of two words with its article, kept in
+  Spanish, and its title); and in 16 `della Chiesa del Virus` for the third of
+  the list and `Rilascio` for the liberation, English `luciferian` in small
+  letters, `who has 20,000 followers` and `Release`. Into English, 8 is `who is
+  defined` (which). Into English 4 and 9 are refused for the third person nobody
+  names, on purpose (`me atrae poderosamente la atención` takes the attention for
+  its object, and `Está abierta por un miembro` names the page by nothing), and
+  into both languages 13 and 17: 13, a list with `además de` and a bracket that
+  holds a clause (`(uno de ellos es de Catalunya)`), and 17, a list of names
+  after a colon (`Otras webs sobre el tema son: Los Satanistas, Templo Tezcat,
+  ...`). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

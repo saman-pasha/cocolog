@@ -373,6 +373,7 @@ main :-
     section_78,
     section_79,
     section_80,
+    section_81,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -10202,6 +10203,167 @@ The masculine noun "milanese" means "milanese". "milanese" is a person. "milanes
 The name "roma" means "Rome". "roma" is a city. The name "linate" means "Linate". "linate" is a city. The name "malpensa" means "Malpensa". "malpensa" is a city.
 The verb "rende" means "renders". "resa" is the participle of "rende". "resa" is feminine. The masculine noun "restauro" means "restoration". The verb "chiude" means "closes". "chiuso" is the participle of "chiude". "chiusi" is the participle of "chiude". "chiusi" is the plural of "chiuso". The verb "viene" means "comes". "vengono" is the plural of "viene". The verb "viene" marks the passive. "giardini" is the plural of "giardino". The masculine determiner "altro" means "another". "altri" is the plural of "altro". The determiner "nessun" means "no". The feminine determiner "nessuna" means "no". The adverb "ieri pomeriggio" means "yesterday afternoon". The masculine noun "giglio" means "lily". The verb "sosta" means "pauses". "sosta" is intransitive. "sostare" is the infinitive of "sosta". "lavare" is the infinitive of "lava". The verb "muove" means "moves". "muovere" is the infinitive of "muove". "rassegnano" is the plural of "rassegna".
 The verb "permette" means "allows". "permettere" is the infinitive of "permette". The masculine noun "centinaio" means "hundred". The feminine noun "isola" means "island". "isole" is the plural of "isola".').
+
+section_81 :-
+    format("~n81. a Spanish report on the satanic groups on the Internet, into Italian and English: a participle and its agent after a noun and its phrase, a second agent and a day's adverb before both, a modal's reflexive passive in the plural, the subject's clauses of where, a clause of where to a coordinator, a question word before an infinitive and how only after a verb that takes the question, in which to, a purpose after an infinitive, what to, what to do, the infinitive of no object, a polite wish, also after there is, defined as, the impersonal passive, on the Internet, the Internet, a noun in -ism, Spanish-speaking, an age, how long one has been somewhere, their own~n", []),
+    lesson_81(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the islands section''s Spanish lesson and an eleventh part, under its own name', NS),
+    lesson_81(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_81_1, section_81_2, section_81_3, section_81_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_81(L, Text) :- lesson_80(L, A), lesson_81(L, 11, B), atomic_list_concat([A, ' ', B], Text).
+
+section_81_1 :-
+    reason_translate('Existen páginas en castellano abiertas por miembros.', spanish, english, S81V1),
+    must('A PARTICIPLE AND ITS AGENT AFTER A NOUN AND A PHRASE OF THE NOUN''S OWN AGREE WITH THE NOUN: `En la Red existen páginas en castellano abiertas por miembros de estas sectas'' are pages in Spanish opened by members -- hung on the nearest noun, the language was what the members opened, the subject after `existen'' had no reading, and the sentence was refused (tr_np/3, with/2 as the participle''s head, fo_np_number/2)', S81V1,
+         'Pages in Spanish opened by members exist.'),
+    reason_translate('Existen páginas en castellano abiertas por miembros.', spanish, italian, S81V2),
+    must('... and the participle agrees with the pages, `aperte'' (tr_np_out/5)', S81V2,
+         'Esistono pagine in spagnolo aperte da membri.'),
+    reason_translate('Existen páginas abiertas por miembros o por hermandades.', spanish, english, S81V3),
+    must('A SECOND AGENT JOINED TO THE FIRST: `abiertas por miembros de estas sectas o por las mismas hermandades'' -- read on as the first agent''s adjuncts, the second was a phrase of `for'' (tr_reduced_agent/3)', S81V3,
+         'Pages opened by members or by fraternities exist.'),
+    reason_translate('La pagina aperta ieri dal cane e dal gatto esiste.', italian, english, S81V4),
+    must('... AND A DAY''S ADVERB RIGHT AFTER THE PARTICIPLE STAYS BEFORE BOTH AGENTS: `presentato ieri dal ministro ... e dal direttore generale del ministero'' is presented yesterday by the minister and by the general director, and with the agents joined `yesterday'' was written between them (tr_ptc_day_first/4, found by the controls)', S81V4,
+         'The page opened yesterday by the dog and by the cat exists.'),
+    reason_translate('Pueden utilizarse chats.', spanish, english, S81V5),
+    must('A MODAL AND AN INFINITIVE WITH THE REFLEXIVE JOINED, IN THE PLURAL, WITH A BARE PHRASE AFTER IT, IS THE REFLEXIVE''S PASSIVE: `En algunas de ellas pueden encontrarse chats'' -- chats can be found there, and it was `they'' who could find chats (tr_modal_se_fix/3)', S81V5,
+         'Chats can be used.'),
+    reason_translate('Pueden lavarse las manos.', spanish, english, S81V6),
+    must('... BUT NEVER A PHRASE WITH ITS ARTICLE: `pueden lavarse las manos'' is their own hands, which they can wash (tr_bare_head/2)', S81V6,
+         'They can wash the hands.'),
+    reason_translate('Se pueden utilizar chats.', spanish, english, S81V7),
+    must('A MODAL''S REFLEXIVE PASSIVE IS THE MODAL AND THE PASSIVE INFINITIVE: `Se pueden encontrar chats'' -- chats can be found, and written as the passive of the modal itself it was `Chats are caned find'' (tr_write/4)', S81V7,
+         'Chats can be used.'),
+    reason_translate('Pueden utilizarse chats donde los adeptos se comunican y un tablón.', spanish, english, S81V8),
+    must('... AND ITS CLAUSE OF `where'' AND A SECOND PHRASE JOINED TO IT ARE THE SUBJECT''S TOO: `chats (páginas de conversación) donde los adeptos se comunican y un tablón donde dejar anuncios diversos'' can be found, each phrase with its clause (rc(Phrase, where, Clause), tr_where_rc/4)', S81V8,
+         'Chats where the followers communicate and a noticeboard can be used.'),
+    reason_translate('Pueden utilizarse chats donde los adeptos se comunican y un tablón.', spanish, italian, S81V9),
+    must('... `si possono trovare chat dove gli adepti si comunicano e una bacheca''', S81V9,
+         'Si possono utilizzare chat dove gli adepti si comunicano e una bacheca.'),
+    reason_translate('Pueden utilizarse chats y un tablón donde dejar anuncios.', spanish, english, S81V10),
+    must('... AND A PHRASE''S CLAUSE OF `where'' WITH AN INFINITIVE IS ENGLISH''S `in which'' (tr_np_out/5): `un tablón donde dejar anuncios diversos'' in the subject', S81V10,
+         'Chats and a noticeboard in which to leave ads can be used.'),
+    reason_translate('Pueden utilizarse chats y un tablón donde dejar anuncios.', spanish, italian, S81V11),
+    must('... and the lesson''s language writes its own relative word for it, `dove'' (tr_relative_out/5), the subject kept where it stood', S81V11,
+         'Si possono utilizzare chat e una bacheca dove lasciare annunci.'),
+    reason_translate('Hay chats donde los adeptos se comunican y un tablón.', spanish, english, S81V12),
+    must('A CLAUSE OF `where'' ENDS AT A COORDINATOR AND A PHRASE AFTER IT: read to the end of the words, the clause had `y un tablón'' in it and nothing read (tr_complements0/4, cnj/1)', S81V12,
+         'There are chats where the followers communicate and a noticeboard.').
+
+section_81_2 :-
+    reason_translate('No sé dónde dormir.', spanish, english, S81V13),
+    must('A QUESTION WORD BEFORE AN INFINITIVE ASKS WITH IT: `No sé dónde dormir'' is where to sleep, and read as the adverb `where'' beside an infinitive it was `I do not know to sleep where'' (tr_complements0/4)', S81V13,
+         'I do not know where to sleep.'),
+    reason_translate('Hay un tablón donde dejar anuncios.', spanish, english, S81V14),
+    must('... and after a phrase English says it with `in which'': `un tablón donde dejar anuncios diversos'' is a noticeboard in which to leave ads, where it was `where to leave'' (tr_comp_out/7)', S81V14,
+         'There is a noticeboard in which to leave ads.'),
+    reason_translate('Mangiare con il cane è come mangiare con il gatto.', italian, english, S81V15),
+    must('... BUT THE WORD FOR `how'' IS THE WORD FOR `like'' TOO, AND IT ASKS ONLY AFTER A VERB THAT TAKES THE QUESTION: `Parlare con Diego era come parlare con due persone diverse'' was LIKE speaking with two different people, and read as the question it came out `how to speak'' and `cómo hablar'' (tr_complements0/4, tr_asks_question_here/0, found by the controls)', S81V15,
+         'To eat with the dog is like eating with the cat.'),
+    reason_translate('Mangiare con il cane è come mangiare con il gatto.', italian, spanish, S81V16),
+    must('... `come mangiare'' is `como comer''', S81V16,
+         'Comer con el perro es como comer con el gato.'),
+    reason_translate('Il cane non sa come dormire.', italian, english, S81V17),
+    must('GUARD: after a verb that takes the question it asks: `Il cane non sa come dormire'' is how to sleep, where it was `like sleeping''', S81V17,
+         'The dog does not know how to sleep.'),
+    reason_translate('Quiero saber qué hacer para dormir.', spanish, english, S81V18),
+    must('THE WORD FOR `for'' AFTER AN INFINITIVE AND BEFORE ONE IS THE PURPOSE, NO VERB: `quisiera saber qué hacer para iniciarme en el satanismo'' is what to do in order to begin, and with `hacer'' the subject and `para'' the verb of `parar'' it was `what to do stops beginning'' (tr_purpose_as_verb/3); and `makes'' with nothing made is what to DO (tr_comp_out/7)', S81V18,
+         'I want to know what to do to sleep.'),
+    reason_translate('No sé qué comer.', spanish, english, S81V19),
+    must('THE WORD THAT ASKS WITH NO PHRASE, BEFORE AN INFINITIVE, IS `what'': the lesson''s `qué'' is `which'' and `what'', and the infinitive''s question was `which to eat'' (tr_what_to/4)', S81V19,
+         'I do not know what to eat.'),
+    reason_translate('Quiero averiguar qué hacer.', spanish, italian, S81V20),
+    must('AN INFINITIVE WITH NO OBJECT TAKES THE VERB OF NO OBJECT, where the lesson gives the meaning a transitive word of its own: `quisiera saber qué hacer'' is `sapere cosa fare'', as the clause `sabe qué hace'' is `sa cosa fa'' -- the infinitive took `conoscere'' whatever followed (tr_inf_lexeme/2; here `appurare'', the transitive word the lesson states first)', S81V20,
+         'Voglio accertare cosa fare.'),
+    reason_translate('Yo quisiera dormir.', spanish, english, S81V21),
+    must('THE PAST SUBJUNCTIVE OF THE VERB OF WANTING, AS A SENTENCE''S OWN VERB, IS A POLITE WISH: `quisiera saber qué hacer'' is I would like to know, and read as the imperfect it stands for after `si'' it was he wanted to (tr_polite_wish/4); its first person is spelled as its third (tr_form0/5), and English''s wish is `would like'' (tr_write/4)', S81V21,
+         'I would like to sleep.'),
+    reason_translate('Yo quisiera dormir.', spanish, italian, S81V22),
+    must('... `vorrei'', the conditional''s first person', S81V22,
+         'Io vorrei dormire.'),
+    reason_translate('Quisiera comer, pues duermo.', spanish, italian, S81V23),
+    must('... and the first person where the sentence names it by another word, a verb in the first person (`pues siento que me atrae'')', S81V23,
+         'Vorrei mangiare, poiché dormo.'),
+    reason_translate('Si quisiera dormir, duermo.', spanish, italian, S81V24),
+    must('... BUT NEVER AFTER A WORD THAT OPENS A CLAUSE: `Si quisiera dormir'' is if he wanted, the imperfect it stands for', S81V24,
+         'Se voleva dormire, dormo.').
+
+section_81_3 :-
+    reason_translate('También hay perros.', spanish, english, S81V25),
+    must('AN ADVERB OF TIME OR FOCUS AFTER WHAT THERE IS STANDS WITH THE VERB: `También hay escritos de personas de Barcelona'' -- there are also writings, where `There are writings ... also'' was written (tr_write/4)', S81V25,
+         'There are also dogs.'),
+    reason_translate('También hay perros.', spanish, italian, S81V26),
+    must('... `ci sono anche scritti''', S81V26,
+         'Ci sono anche cani.'),
+    reason_translate('La página se define como un chat.', spanish, english, S81V27),
+    must('`DEFINES'' GOVERNS `as'': `Aquelarre Infernal, que se define como "un punto de encuentro"'' is defined AS one (`"define" takes "como" before the phrase.'', en_governs/2), the passive the lesson states (`"define" takes the passive.'')', S81V27,
+         'The page is defined as a chat.'),
+    reason_translate('Se publica una revista.', spanish, english, S81V28),
+    must('THE IMPERSONAL `se'' WITH A THING AFTER ITS VERB IS THE PASSIVE, where the lesson says the verb takes one: `En Internet se publica una revista para sus adeptos'' -- a magazine is published, and English had somebody nobody named publish it, `One publishes a magazine'' (tr_se_passive/2)', S81V28,
+         'A magazine is published.'),
+    reason_translate('Se publica una revista en Internet.', spanish, english, S81V29),
+    must('ENGLISH SAYS WHAT IS ON THE INTERNET, A PAGE OR A SITE WITH `on'': `En esta página se ofrecen textos'' are offered on this page, `En la Red existen páginas'' exist on the Net, and `in'' was written (tr_comp_out/7, en_on_noun/1)', S81V29,
+         'A magazine is published on the Internet.'),
+    reason_translate('Los perros utilizan Internet.', spanish, english, S81V30),
+    must('... and English''s `the Internet'', which the lesson''s languages name with no article (tr_np_out/5)', S81V30,
+         'The dogs use the Internet.'),
+    reason_translate('El perro duerme contra el racismo.', spanish, english, S81V31),
+    must('AN ABSTRACT NOUN IN `-ism'' IS ENGLISH''S WITH NO ARTICLE: `con links contra el nazismo y el racismo'' are links against Nazism and racism, where `the nazism and the racism'' was written (tr_write/4, en_ism_np/2)', S81V31,
+         'The dog sleeps against racism.'),
+    reason_translate('El perro duerme contra el optimismo de los gatos.', spanish, english, S81V32),
+    must('... BUT A PHRASE OF `of'' AFTER IT KEEPS THE ARTICLE: `the optimism of the Russian military''', S81V32,
+         'The dog sleeps against the optimism of the cats.'),
+    reason_translate('Los satanistas hispanohablantes duermen.', spanish, english, S81V33),
+    must('A WORD OF TWO JOINED BY A HYPHEN THAT OPENS ON A NATIONALITY HAS ITS CAPITAL: `los satanistas hispanohablantes'' are the Spanish-speaking satanists, where `spanish-speaking'' was written (en_nationality/1)', S81V33,
+         'The Spanish-speaking satanists sleep.'),
+    reason_translate('Tengo 14 años.', spanish, english, S81V34),
+    must('`HAS'' AND A COUNT OF YEARS IS AN AGE: `Tengo 14 años'' is I am 14 years old, where English wrote `I have 14 years'' (tr_write/4, age/1)', S81V34,
+         'I am 14 years old.'),
+    reason_translate('Pedro lleva tres años en la casa.', spanish, english, S81V35),
+    must('`LLEVA'' AND A COUNT OF TIME IS HOW LONG ONE HAS BEEN SOMEWHERE: `Blackefer lleva tres años en la Red'' has been on the Net for three years -- the lesson''s `lleva'' is `carries'', and English wrote `Blackefer carries three years in the Net'' (tr_carries_time/3, the phrase of `for the past'' that `desde hace'' crosses to)', S81V35,
+         'Pedro has been in the house for the past three years.'),
+    reason_translate('Pedro lleva tres años en la casa.', spanish, italian, S81V36),
+    must('... and the lesson''s language writes the copula and its own word for it, where it was `porta tre anni''', S81V36,
+         'Pedro è nella casa da tre anni.').
+
+section_81_4 :-
+    reason_translate('Hay organizaciones que tienen sus propias páginas.', spanish, english, S81V37),
+    must('A RELATIVE CLAUSE''S PLURAL PHRASE OWNS WHAT ITS POSSESSIVE NAMES: `organizaciones luciferinas que tienen sus propias páginas oficiales'' have THEIR own pages, and the lesson''s first meaning wrote `his own official pages'' (tr_plural_possessor/1)', S81V37,
+         'There are organisations that have their own pages.').
+
+lesson_81(spanish, 11, 'The verb "existe" means "exists". "existe" is intransitive. "existen" is the plural of "existe".
+The feminine noun "página" means "page". "páginas" is the plural of "página". The masculine noun "castellano" means "Spanish".
+The verb "abre" means "opens". "abierto" is the participle of "abre". "abierta" is the participle of "abre". "abierta" is feminine. "abiertas" is the participle of "abre". "abiertas" is feminine. "abiertas" is the plural of "abierta".
+The masculine noun "miembro" means "member". "miembros" is the plural of "miembro". "miembro" is a person. The feminine noun "hermandad" means "fraternity". "hermandades" is the plural of "hermandad".
+The modal "puede" means "can". "pueden" is the plural of "puede". The verb "encuentra" means "finds". "encontrar" is the infinitive of "encuentra". The masculine noun "chat" means "chat". "chats" is the plural of "chat".
+The verb "lava" means "washes". "lavar" is the infinitive of "lava". The feminine noun "mano" means "hand". "manos" is the plural of "mano".
+The word "donde" means "where". The masculine noun "adepto" means "follower". "adeptos" is the plural of "adepto". "adepto" is a person. The verb "comunica" means "communicates". "comunican" is the plural of "comunica". The masculine noun "tablón" means "noticeboard".
+The verb "sabe" means "knows". "sé" is the first person of "sabe". "saber" is the infinitive of "sabe". The word "dónde" means "where". "dormir" is the infinitive of "duerme".
+The verb "deja" means "leaves". "dejar" is the infinitive of "deja". The masculine noun "anuncio" means "ad". "anuncios" is the plural of "anuncio".
+The verb "quiere" means "wants". "quiero" is the first person of "quiere". "quisiera" is the past subjunctive of "quiere". The conjunction "pues" means "since". The word "qué" means "what". The verb "hace" means "makes". "hacer" is the infinitive of "hace". "comer" is the infinitive of "come".
+The adverb "también" means "also". The verb "define" means "defines". "define" takes the passive. "define" takes "como" before the phrase.
+The verb "publica" means "publishes". "publica" takes the passive. The feminine noun "revista" means "magazine". The verb "utiliza" means "uses". "utilizan" is the plural of "utiliza".
+The masculine noun "racismo" means "racism". The preposition "contra" means "against". The masculine noun "optimismo" means "optimism".
+The noun "satanista" means "satanist". "satanista" is not feminine. "satanistas" is the plural of "satanista". "satanista" is a person. The adjective "hispanohablante" means "Spanish-speaking". "hispanohablantes" is the plural of "hispanohablante".
+The verb "tiene" means "has". "tengo" is the first person of "tiene". "tienen" is the plural of "tiene". The number "tres" means "three". The masculine noun "año" means "year". "años" is the plural of "año". The verb "lleva" means "carries". The preposition "desde hace" means "for the past". "utilizar" is the infinitive of "utiliza".
+The possessive "su" means "their". The word "qué" means "which". The feminine noun "organización" means "organisation". "organizaciones" is the plural of "organización". The masculine adjective "propio" means "own". The feminine adjective "propia" means "own". "propias" is the plural of "propia". "sus" is the plural of "su".
+The verb "averigua" means "ascertains". "averiguar" is the infinitive of "averigua". "averigua" takes the question.').
+lesson_81(italian, 11, 'The verb "esiste" means "exists". "esiste" is intransitive. "esistono" is the plural of "esiste".
+The feminine noun "pagina" means "page". "pagine" is the plural of "pagina". The masculine noun "spagnolo" means "Spanish".
+The verb "apre" means "opens". "aperto" is the participle of "apre". "aperta" is the participle of "apre". "aperta" is feminine. "aperte" is the participle of "apre". "aperte" is feminine. "aperte" is the plural of "aperta".
+The masculine noun "membro" means "member". "membri" is the plural of "membro". "membro" is a person.
+The transitive verb "conosce" means "knows". The verb "sa" means "knows". "sapere" is the infinitive of "sa". "conoscere" is the infinitive of "conosce". The word "cosa" means "what". The verb "fa" means "makes". "fare" is the infinitive of "fa". "voglio" is the first person of "vuole". "vorrebbe" is the conditional of "vuole". "vorrei" is the first person of "vorrebbe". "volesse" is the past subjunctive of "vuole". "voleva" is the imperfect of "vuole". "dormire" is the infinitive of "dorme".
+The adverb "anche" means "also". The verb "definisce" means "defines".
+The masculine noun "anno" means "year". "anni" is the plural of "anno". The number "tre" means "three".
+The preposition "da" means "for the past". The masculine noun "cane" means "dog". "cani" is the plural of "cane".
+The conjunction "poiché" means "since".
+The verb "utilizza" means "uses". "utilizzare" is the infinitive of "utilizza". "utilizzano" is the plural of "utilizza". The feminine noun "chat" means "chat". "chat" is the plural of "chat". The masculine noun "adepto" means "follower". "adepti" is the plural of "adepto". "adepto" is a person. The verb "comunica" means "communicates". "comunicano" is the plural of "comunica". The feminine noun "bacheca" means "noticeboard". The word "dove" means "where".
+The modal "può" means "can". "possono" is the plural of "può".
+The verb "lascia" means "leaves". "lasciare" is the infinitive of "lascia". The masculine noun "annuncio" means "ad". "annunci" is the plural of "annuncio".
+The transitive verb "appura" means "ascertains". The verb "accerta" means "ascertains". "appurare" is the infinitive of "appura". "accertare" is the infinitive of "accerta". The masculine noun "gatto" means "cat". "gatti" is the plural of "gatto".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

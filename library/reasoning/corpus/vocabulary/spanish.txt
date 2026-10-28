@@ -2064,6 +2064,44 @@ The adjective "en cuestión" means "in question".
 The feminine noun "utilidad pública" means "public utility".
 The adverb "ayer por la tarde" means "yesterday afternoon".
 The adverb "ayer por la mañana" means "yesterday morning".
+The masculine adjective "satánico" means "satanic".
+"satánicos" is the plural of "satánico".
+The feminine adjective "satánica" means "satanic".
+"satánicas" is the plural of "satánica".
+The masculine noun "satánico" means "satanist".
+"satánico" is a person.
+The noun "satanista" means "satanist".
+"satanista" is not feminine.
+"satanistas" is the plural of "satanista".
+"satanista" is a person.
+The masculine noun "satanismo" means "satanism".
+The adverb "cada vez más" means "increasingly".
+The adjective "hispanohablante" means "Spanish-speaking".
+"hispanohablantes" is the plural of "hispanohablante".
+The masculine adjective "luciferino" means "Luciferian".
+"luciferinos" is the plural of "luciferino".
+The feminine adjective "luciferina" means "Luciferian".
+"luciferinas" is the plural of "luciferina".
+The conjunction "u" means "or".
+The masculine noun "seguidor" means "fan".
+The masculine noun "seguidor" means "follower".
+The masculine noun "adepto" means "follower".
+"adepto" is a person.
+The interjection "hola" means "hello".
+The interjection "bienvenido" means "welcome".
+The interjection "bienvenida" means "welcome".
+The conjunction "pues" means "since".
+The feminine noun "web" means "website".
+"webs" is the plural of "web".
+The masculine noun "punto de encuentro" means "meeting point".
+"puntos de encuentro" is the plural of "punto de encuentro".
+The masculine noun "tablón" means "noticeboard".
+"tablones" is the plural of "tablón".
+"define" takes the passive.
+"define" takes "como" before the phrase.
+"publica" takes the passive.
+"ofrece" takes the passive.
+"lee" takes the passive.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

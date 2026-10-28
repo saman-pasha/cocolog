@@ -3403,3 +3403,53 @@ The feminine noun "utilidad pública" means "public utility".
 # `ieri pomeriggio', `ieri mattina': `ayer por la tarde', `ayer por la mañana'
 The adverb "ayer por la tarde" means "yesterday afternoon".
 The adverb "ayer por la mañana" means "yesterday morning".
+# `Los grupos satánicos españoles utilizan cada vez más Internet': satanic, and a satanist, a person
+The masculine adjective "satánico" means "satanic".
+"satánicos" is the plural of "satánico".
+The feminine adjective "satánica" means "satanic".
+"satánicas" is the plural of "satánica".
+The masculine noun "satánico" means "satanist".
+"satánico" is a person.
+The noun "satanista" means "satanist".
+"satanista" is not feminine.
+"satanistas" is the plural of "satanista".
+"satanista" is a person.
+The masculine noun "satanismo" means "satanism".
+The adverb "cada vez más" means "increasingly".
+# `para los satanistas hispanohablantes': Spanish-speaking
+The adjective "hispanohablante" means "Spanish-speaking".
+"hispanohablantes" is the plural of "hispanohablante".
+# `organizaciones luciferinas', `la Iglesia del Virus u Ordo Sinistra Vivendi': the word for `or' before an o
+The masculine adjective "luciferino" means "Luciferian".
+"luciferinos" is the plural of "luciferino".
+The feminine adjective "luciferina" means "Luciferian".
+"luciferinas" is the plural of "luciferina".
+The conjunction "u" means "or".
+# `una revista para sus adeptos': a follower, a person (the dictionary has the adjective alone), `seguidor' said
+# again first, so that it stays the word written for one -- and its own first meaning, a fan, before it, or the
+# reader took every `seguidores' for followers (`los seguidores ingleses', `Ante seguidores del partido')
+The masculine noun "seguidor" means "fan".
+The masculine noun "seguidor" means "follower".
+The masculine noun "adepto" means "follower".
+"adepto" is a person.
+# `Hola, mi nombre es...', `"Bienvenido, aquí tu alma ..."': a greeting at the head of the sentence
+The interjection "hola" means "hello".
+The interjection "bienvenido" means "welcome".
+The interjection "bienvenida" means "welcome".
+# `pues siento que me atrae poderosamente la atención': since, the conjunction, first
+The conjunction "pues" means "since".
+# `Una de las webs más visitadas': a website, where the dictionary's web is a spider's
+The feminine noun "web" means "website".
+"webs" is the plural of "web".
+The masculine noun "punto de encuentro" means "meeting point".
+"puntos de encuentro" is the plural of "punto de encuentro".
+# `un tablón donde dejar anuncios diversos': a noticeboard, before the plank
+The masculine noun "tablón" means "noticeboard".
+"tablones" is the plural of "tablón".
+# `que se define como "un punto de encuentro"': is defined as one
+"define" takes the passive.
+"define" takes "como" before the phrase.
+# `En Internet se publica una revista', `se ofrecen textos', `que se lee': what is published, offered and read
+"publica" takes the passive.
+"ofrece" takes the passive.
+"lee" takes the passive.
