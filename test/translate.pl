@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -8152,11 +8152,11 @@ newspaper_ciampi_checks_4 :-
     check('an impersonal modal has no subject before it: `secondo il cane'' is according to the dog and `bisogna'' is one must, where the dog was the subject of `debe'' and `secondo'' the adverb `second''', D1,
           'Hay que comer el pan según el perro.'),
     nf_tr('Anche secondo il cane, "bisogna mangiare il pane".', italian, spanish, D2),
-    check('... and with a comma and a quotation, where the front is `también según el perro'' and what is said is one needing, the dog having been the one that needed', D2,
-          'También según el perro, "se necesita comer el pan".'),
-    nf_tr('Il cane dice che "bisogna mangiare il pane".', italian, spanish, D3),
-    check('a quotation that opens on a verb written with the impersonal `se'' opens on the `se'': the mark stood after it, `se "necesita comer el pan"''', D3,
-          'El perro dice que "se necesita comer el pan".'),
+    check('... and with a comma and a quotation, where the front is `también según el perro'' and what is said is one needing, the dog having been the one that needed (the modal, `hay que'', as without the marks since reasoning 1.0.20: the mark that opens on the verb hid its infinitive, and it was `se necesita comer'')', D2,
+          'También según el perro, "hay que comer el pan".'),
+    nf_tr('Il cane dice che "bisogna il pane".', italian, spanish, D3),
+    check('a quotation that opens on a verb written with the impersonal `se'' opens on the `se'': the mark stood after it, `se "necesita el pan"''', D3,
+          'El perro dice que "se necesita el pan".'),
     nf_tr('Un aumento certo dei tempi.', italian, spanish, D4),
     check('an adjective that is an adverb too, right after the noun it agrees with and before an `of'' phrase, is the noun''s: `certo'' is certain, where the phrase ended at `aumento'' and it was `ciertamente''', D4,
           'Un aumento cierto de los tiempos.'),
@@ -15872,7 +15872,7 @@ newspaper_isole_checks_6 :-
           'The bread for dogs, cats and houses is good.'),
     nf_tr('Il cane mangia il pane nelle isole di Capri, Procida, Ischia, Giglio.', italian, english, I75),
     check('... AND NAMES TO THE END OF THE PIECE WITH NO COORDINATOR: `nelle isole di Capri, Procida, Ischia, Giglio, Eolie'' -- one by one the names after the first were objects of the verb, and the sentence was refused here (tr_bare_tail/4, tr_bare_item/2)', I75,
-          'The dog eats the bread in the islands of Capri, Procida, Ischia, Giglio.'),
+          'The dog eats the bread on the islands of Capri, Procida, Ischia, Giglio.'),
     nf_tr('Il cane mangia il pane nelle isole di Capri, Procida, Ischia, Giglio.', italian, spanish, I76),
     check('... which Spanish wrote with the `a'' of a person, `a Procida, a Ischia''', I76,
           'El perro come el pan en las islas de Capri, Procida, Ischia, Giglio.').
@@ -16338,6 +16338,176 @@ newspaper_veloso_checks_6 :-
           '"The dog sleeps", it is the bread that has eaten with the cat.').
 
 %% <<< veloso
+
+%% >>> corsica
+%% ---- a Spanish report on Chirac and Corsica, into Italian and English (AnCora CESS-CAST-P-20000802-26) ----
+%% The hand lessons are the veloso section's (newspaper_veloso_lesson/2) and a thirteenth part: the words the checks below need.
+
+newspaper_corsica :-
+    section('a Spanish report on Chirac and Corsica, into Italian and English: an apposition that ends on a name, Corsican, a country''s article, a participle''s agent between commas, a quotation that opens on the modal, a name''s small words, a share of a plural after the verb, two participles and their agents, the comma before a second clause of that, a participle that is the head''s, a verb of saying and a phrase set in, nothing to add, a year, including, for years, at this moment, on the island'),
+    newspaper_corsica_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_corsica_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_corsica_checks_1, newspaper_corsica_checks_2, newspaper_corsica_checks_3, newspaper_corsica_checks_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_corsica_lesson(L, Text) :-
+    newspaper_veloso_lesson(L, A), newspaper_corsica_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+%% the thirteenth part of each hand lesson
+newspaper_corsica_part(spanish, 'The masculine adjective "francés" means "French". The noun "gaullista" means "Gaullist". "gaullista" is not feminine. "gaullista" is a person.
+The masculine adjective "corso" means "Corsican". The feminine adjective "corsa" means "Corsican".
+The name "córcega" means "Corsica". "córcega" is a region. The name "israel" means "Israel". "israel" is a country. The name "francia" means "France". "francia" is a country. The verb "va" means "goes". "va" is intransitive.
+The verb "sacude" means "shakes". "sacudida" is the participle of "sacude". "sacudida" is feminine. The feminine noun "sacudida" means "shake". "shaken" is the participle of "shakes". The masculine noun "atentado" means "attack". "atentados" is the plural of "atentado". The feminine adjective "bonita" means "pretty".
+The feminine noun "medida" means "measure". "medidas" is the plural of "medida". The modal "debe" means "must". "deben" is the plural of "debe". The verb "debe" means "owes". The verb "respeta" means "respects". "respetar" is the infinitive of "respeta". The feminine noun "unidad" means "unity".
+The preposition "durante" means "during". The name "consejo de ministros" means "Council of Ministers".
+The masculine noun "plan" means "plan". The verb "propone" means "proposes". "propuesto" is the participle of "propone". The verb "aprueba" means "approves". "aprobado" is the participle of "aprueba". The masculine adjective "bueno" means "good".
+The preposition "hasta" means "until".
+The verb "incluye" means "includes". "incluido" is the participle of "incluye". "incluidos" is the participle of "incluye". "incluidos" is the plural of "incluido".
+"slept" is the participle of "sleeps". The masculine noun "momento" means "moment". The feminine noun "paz" means "peace".
+The word "al" begins the moment. The verb "afirma" means "affirms". "afirmar" is the infinitive of "afirma". The feminine noun "reunión" means "meeting". The masculine noun "consejo" means "council".
+The verb "se impone" means "prevails". "se impone" is intransitive. "se imponen" is the plural of "se impone". The feminine noun "serie" means "series". The feminine noun "reforma" means "reform". "reformas" is the plural of "reforma".').
+newspaper_corsica_part(italian, 'The masculine adjective "francese" means "French". The noun "gollista" means "Gaullist". "gollista" is not feminine. "gollista" is a person.
+The masculine adjective "corso" means "Corsican". The feminine adjective "corsa" means "Corsican".
+The name "corsica" means "Corsica". "corsica" is a region. "corsica" is feminine. The name "israele" means "Israel". "israele" is a country. The name "francia" means "France". "francia" is a country. "francia" is feminine.
+The verb "scuote" means "shakes". "scossa" is the participle of "scuote". "scossa" is feminine. The masculine noun "attentato" means "attack". "attentati" is the plural of "attentato". The feminine adjective "bella" means "pretty".
+The feminine noun "misura" means "measure". "misure" is the plural of "misura". "devono" is the plural of "deve". The verb "rispetta" means "respects". "rispettare" is the infinitive of "rispetta". The feminine noun "unità" means "unity".
+The preposition "durante" means "during". The name "consiglio dei ministri" means "Council of Ministers".
+The masculine noun "piano" means "plan". The verb "propone" means "proposes". "proposto" is the participle of "propone". "proposta" is the participle of "propone". "proposta" is feminine. The verb "approva" means "approves". "approvato" is the participle of "approva". The masculine adjective "buono" means "good".
+The preposition "fino a" means "until".
+The verb "include" means "includes". "incluso" is the participle of "include". "inclusi" is the participle of "include". "inclusi" is the plural of "incluso".
+The masculine noun "momento" means "moment". The word "da" begins the gerundive. The pronoun "niente" means "nothing".
+The verb "afferma" means "affirms". "affermare" is the infinitive of "afferma". "affermando" is the gerund of "afferma". The feminine noun "riunione" means "meeting". The masculine noun "consiglio" means "council".
+The verb "si impone" means "prevails". "si impone" is intransitive. The feminine noun "serie" means "series". The feminine noun "riforma" means "reform". "riforme" is the plural of "riforma".').
+
+newspaper_corsica_checks_1 :-
+    nf_tr('El presidente francés, el gaullista Jacques Chirac, duerme.', spanish, english, V1),
+    check('AN APPOSITION WITH AN ARTICLE THAT ENDS ON A NAME, AFTER A NOUN OR AN ADJECTIVE IN SMALL LETTERS: `El presidente francés, el gaullista Jacques Chirac, lanzó ayer una seria advertencia'' -- the president is the Gaullist Jacques Chirac, and with the phrase before the first comma read as a heading the clause had nobody named, which English refused (tr_asides/3); `Gaullist'' takes its capital (en_nationality/1)', V1,
+          'The French president, the Gaullist Jacques Chirac, sleeps.'),
+    nf_tr('El perro, el gato, duerme.', spanish, english, V2),
+    check('... the name at the end of the phrase is what says it is the person the noun names (tr_asides/3): two phrases with no name are no apposition', V2,
+          refused),
+    nf_tr('El perro corso duerme.', spanish, english, V3),
+    check('`la Asamblea corsa'', `los representantes corsos'': Corsican takes its capital, and so do Mediterranean and Gaullist (en_nationality/1)', V3,
+          'The Corsican dog sleeps.'),
+    nf_tr('Pedro habla de Córcega.', spanish, italian, V4),
+    check('A COUNTRY OR A REGION TAKES ITS ARTICLE IN A LESSON''S LANGUAGE THAT SAYS IT DOES: `las reformas preconizadas para Córcega'' are `per la Corsica'' -- Spanish names it with none, and written as the bare name it came in as it was `per Corsica'' (tr_country_articles/2, `"il" takes the country.'')', V4,
+          'Pedro parla della Corsica.'),
+    nf_tr('Pedro duerme en Córcega.', spanish, italian, V5),
+    check('... never after `in'', which Italian says with none (tr_country_articles0/2)', V5,
+          'Pedro dorme in Corsica.'),
+    nf_tr('Pedro habla de Israel.', spanish, italian, V6),
+    check('... and only for a name whose gender the lesson states (`"corsica" is feminine.''): `Israele'' takes none (tr_country_gender/2)', V6,
+          'Pedro parla d''Israele.'),
+    nf_tr('Pedro habla de Córcega.', spanish, english, V7),
+    check('... and English keeps the bare name', V7,
+          'Pedro speaks of Corsica.'),
+    nf_tr('Pedro duerme en Córcega y Francia.', spanish, italian, V8),
+    check('... never after `in'' before names joined either (`in Francia e Germania'', which was `nella Francia e nella Germania'', tr_names_only/1)', V8,
+          'Pedro dorme in Corsica e Francia.'),
+    nf_tr('Pedro va a Francia.', spanish, italian, V9),
+    check('... and after a verb of going its `to'' is Italian''s `in'', the name bare (`va in Francia'', where it was `va alla Francia'', tr_country_motion/2)', V9,
+          'Pedro va in Francia.'),
+    nf_tr('Pedro da un libro a Francia.', spanish, italian, V10),
+    check('... a verb of going only: a thing given to a country is given to it with its article (tr_motion_verb/1)', V10,
+          'Pedro dà un libro alla Francia.'),
+    nf_tr('El Consejo de Francia duerme.', spanish, italian, V11),
+    check('... after a phrase whose noun has its capital, a name''s own, the country keeps no article (`el 50 aniversario de Radio Nacional de España'' is `di Radio Nazionale di Spagna'', `los elegidos de la Asamblea de Córcega'' of the `Assemblea di Corsica'', tr_country_seq/3, tr_capital_head/1)', V11,
+          'Il Consiglio di Francia dorme.'),
+    nf_tr('La casa es la más grande de Francia.', spanish, italian, V12),
+    check('... nor after a superlative (`el empresario petrolero más rico de Italia'' is `l''''imprenditore più ricco d''''Italia'', tr_superlative_head/1)', V12,
+          'La casa è la più grande di Francia.').
+
+newspaper_corsica_checks_2 :-
+    nf_tr('El consejo de Francia duerme.', spanish, italian, V13),
+    check('... and after a common noun it has one (`la capitale della Francia'')', V13,
+          'Il consiglio della Francia dorme.'),
+    nf_tr('Pedro, de Lyon (Francia), duerme.', spanish, italian, V14),
+    check('... nor alone in a bracket (`su constructor, Joseph Guarnerius del Gesù, de Cremona (Italia)'', where it was `(l''''Italia)'')', V14,
+          'Pedro, di Lyon (Francia), dorme.'),
+    nf_tr('Pedro dice que "Francia duerme".', spanish, italian, V15),
+    check('... and a quotation that opens on the name opens on the article (`sólo señaló que "España ve con simpatía la candidatura"'' is `che "la Spagna vede ..."'', where it was `che la "Spagna vede'')', V15,
+          'Pedro dice che "la Francia dorme".'),
+    nf_tr('La isla, sacudida por los atentados, es bonita.', spanish, english, V16),
+    check('A PARTICIPLE BETWEEN COMMAS WITH ITS AGENT: `Córcega, sacudida desde hace años por los atentados nacionalistas, ...'' was shaken BY them -- `sacudida'' is a noun too, and read as an adjunct the agent was `for the attacks'', `per gli attentati'' (tr_aside_inner0/2, tr_reduced_agent/3)', V16,
+          'The island, shaken by the attacks, is beautiful.'),
+    nf_tr('La isla, sacudida por los atentados, es bonita.', spanish, italian, V17),
+    check('... `dagli attentati''', V17,
+          'L''isola, scossa dagli attacchi, è bella.'),
+    nf_tr('Las medidas "deben respetar la unidad".', spanish, english, V18),
+    check('A QUOTATION THAT OPENS ON THE MODAL: `las medidas que se adopten "deben respetar los principios"'' must respect them, and with the mark first English said the measures owed to respect them (tr_inf_after_advs/2)', V18,
+          'The measures "must respect the unity".'),
+    nf_tr('El perro duerme durante el Consejo de Ministros.', spanish, english, V19),
+    check('A SMALL WORD AFTER THE FIRST OF A NAME OF SEVERAL STAYS SMALL: `durante la reunión del Consejo de Ministros'' is the Council of Ministers, and every word with its capital it was `Council Of Ministers'' (tr_cap_words/2)', V19,
+          'The dog sleeps during the Council of Ministers.'),
+    nf_tr('El perro duerme durante el Consejo de Ministros.', spanish, italian, V20),
+    check('... and `Consiglio dei Ministri'', where it was `Consiglio Dei Ministri''', V20,
+          'Il cane dorme durante il Consiglio dei Ministri.'),
+    nf_tr('Pedro dice que se imponen una serie de reformas.', spanish, english, V21),
+    check('A SHARE OF A PLURAL AFTER THE VERB AGREES WITH THE PLURAL VERB: `que "se imponen" una serie de reformas'' is a series of them, and with the plural verb the subject after it had no reading -- English said `they prevail a series of reforms'' (tr_subject_after/5)', V21,
+          'Pedro says that a series of reforms prevails.'),
+    nf_tr('El plan propuesto por el amigo de Pedro y aprobado por el gato es bueno.', spanish, english, V22),
+    check('TWO PARTICIPLES AND THEIR AGENTS, THE FIRST AGENT WITH PHRASES OF ITS OWN: `El plan ..., propuesto por el Gobierno de Jospin y aprobado por la Asamblea corsa el pasado viernes, prevé ...'' -- read as one phrase the agent and its `of'' were no phrase, and the sentence was refused (tr_reduced_agent/3)', V22,
+          'The plan proposed by the friend of Pedro and approved by the cat is good.'),
+    nf_tr('Pedro dice que se imponen una serie de reformas, pero que el gato come.', spanish, english, V23),
+    check('TWO CLAUSES OF `that'' JOINED BY A COORDINATOR KEEP THE COMMA BEFORE IT: `precisó en este sentido que "se imponen" una serie de reformas, pero que, en todo caso, ...'' was `a series of reforms prevails but that'', the comma lost with the first clause''s words (tr_complements0/4)', V23,
+          'Pedro says that a series of reforms prevails, but that the cat eats.'),
+    nf_tr('El plan de la casa, propuesto por el gato, es bueno.', spanish, italian, V24),
+    check('A PARTICIPLE BETWEEN COMMAS AFTER A PHRASE AND ITS PHRASES OF `of'' IS THE HEAD''S, where it agrees with the head and not with the last noun: `El plan de autonomía para Córcega, propuesto por el Gobierno de Jospin ...'' -- the plan was proposed, and hung on Corsica the Italian participle agreed with it, `la Corsica, proposta dal Governo'' (tr_aside_head_fix/3, tr_ptc_fits/2)', V24,
+          'Il piano della casa, proposto dal gatto, è buono.').
+
+newspaper_corsica_checks_3 :-
+    nf_tr('Pedro afirma, durante la reunión del consejo, que duerme.', spanish, english, V25),
+    check('A VERB OF SAYING, ITS COMMA AND ONE PHRASE SET IN, THEN THE CLAUSE OF `que'': `al afirmar, durante la reunión del Consejo de Ministros, que no tenía "nada que añadir"'' affirmed that he had nothing to add -- read left to right, the clause after the second comma was a relative clause on the council, and English wrote `who did not have''; the clause is the verb''s, with nobody named for its subject, which English refuses on purpose (tr_saying_that_fix/3)', V25,
+          refused),
+    nf_tr('Pedro afirma, durante la reunión del consejo, que duerme.', spanish, italian, V26),
+    check('... and Italian writes it as it stood', V26,
+          'Pedro afferma, durante la riunione del consiglio, che dorme.'),
+    nf_tr('Pedro afirma, durante la reunión del consejo, que el perro duerme.', spanish, english, V27),
+    check('... and a clause with a subject of its own, which was read as an object''s relative clause, `which the dog sleeps'' (tr_saying_that_clause/3)', V27,
+          'Pedro affirms, during the meeting of the council, that the dog sleeps.'),
+    nf_tr('Pedro duerme al afirmar, durante la reunión del consejo, que el gato come.', spanish, english, V28),
+    check('... and after `al'' and the infinitive (upon/2)', V28,
+          'Pedro sleeps on affirming, during the meeting of the council, that the cat eats.'),
+    nf_tr('Pedro duerme, durante la reunión del consejo, que el perro come.', spanish, english, V29),
+    check('... and only after a verb of saying: after any other the clause is the council''s (tr_saying_verb/1)', V29,
+          'Pedro sleeps, during the meeting of the council, which the dog eats.'),
+    nf_tr('El perro no tiene nada que comer.', spanish, english, V30),
+    check('AN OBJECT''S CLAUSE WITH AN INFINITIVE AND NOBODY IN IT IS `to'': `no tenía "nada que añadir"'' had nothing to add, and English wrote `anything that to add'' (tr_np_out/5)', V30,
+          'The dog does not have anything to eat.'),
+    nf_tr('El perro no tiene nada que comer.', spanish, italian, V31),
+    check('... and the lesson''s language begins it with the word it states (`The word "da" begins the gerundive.''): `niente da aggiungere'', where it was `niente che aggiungere''', V31,
+          'Il cane non ha niente da mangiare.'),
+    nf_tr('El perro duerme hasta el 2004.', spanish, english, V32),
+    check('A YEAR TAKES NO ARTICLE IN ENGLISH: `de aquí al 2002'', `prevé de cara al 2004'' are until 2002 and with a view to 2004, and English wrote `until the 2002'' (tr_np_out/5, tr_year_word/1)', V32,
+          'The dog sleeps until 2004.'),
+    nf_tr('El perro duerme hasta el 2004.', spanish, italian, V33),
+    check('... where Italian keeps it', V33,
+          'Il cane dorme fino al 2004.'),
+    nf_tr('Pedro duerme con los perros, incluidos los gatos.', spanish, english, V34),
+    check('`included'' AND `excluded'' BEFORE THEIR PHRASE ARE `including'' AND `excluding'': `a los representantes corsos, incluidos los nacionalistas'' is including the nationalists, and it was `included the nationalists'' (tr_comp_out/7, en_participle_preposition/2)', V34,
+          'Pedro sleeps with the dogs, including the cats.'),
+    nf_tr('Pedro duerme con los perros, incluidos los gatos.', spanish, italian, V35),
+    check('... where Italian keeps the participle, agreeing with the phrase', V35,
+          'Pedro dorme con i cani, inclusi i gatti.'),
+    nf_tr('El perro duerme desde hace años.', spanish, english, V36),
+    check('`for the past'' BEFORE A BARE PLURAL IS `for'': `Córcega, sacudida desde hace años'' is shaken for years, and English said `for the past years'' (tr_comp_out/7)', V36,
+          'The dog has slept for years.').
+
+newspaper_corsica_checks_4 :-
+    nf_tr('El perro duerme desde hace tres años.', spanish, english, V37),
+    check('... with a count it stays', V37,
+          'The dog has slept for the past three years.'),
+    nf_tr('El perro duerme en este momento.', spanish, english, V38),
+    check('A MOMENT TAKES `at'': `no tenía "nada que añadir en este momento"'' had nothing to add at this moment, and `in this moment'' was written (tr_comp_out/7)', V38,
+          'The dog sleeps at this moment.'),
+    nf_tr('El perro duerme en un momento de paz.', spanish, english, V39),
+    check('... this moment, that one or the one, never a moment of something (`Navarro, en un momento de forma excepcional'' is in a moment of exceptional form)', V39,
+          'The dog sleeps in a moment of peace.'),
+    nf_tr('El perro duerme en la isla.', spanish, english, V40),
+    check('AN ISLAND TAKES `on'': `el restablecimiento "duradero" de una paz civil en la isla'' is a peace on the island (en_on_noun/1)', V40,
+          'The dog sleeps on the island.').
+
+%% <<< corsica
 
 %% >>> roles
 %% WHICH, AND WHO DOES IT. A question phrase with a noun after `qué' or `quale' stands before a verb

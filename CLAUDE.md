@@ -6735,6 +6735,243 @@ read into an English-worded IR and written into any lesson's language),
   purpose (`Va sottobraccio ...`, `Ha vinto anche ...`, `Era stato anche
   proibito ...`, `Sorride ricordando:`, `perché è stata la prima che ho
   sentito`). The next sample's controls take this interview in.
+  The Corsica report (AnCora CESS-CAST-P-20000802-26, 13 sentences, Spanish into
+  Italian and English: 10 of 13 and 8 of 13 on a fresh store, 8 and 6 with the
+  new store alone, 4 and 4 with the new code on the old store, 4 and 5 before;
+  reasoning 1.0.20). The sample was taken on the cocolog 2.13.0 binary, built
+  with Cicili 9b825b7 from a copy (master's b208233 merged as 6d98d68), and
+  cocolog stays 2.13.0: the controls read every sentence alike on 2.12.1 and
+  2.13.0 (3 076 sentences, 0 differ, 7 922 477 800 inferences on both). The
+  article's sentences fall from 107.0 million inferences into Italian and 106.6
+  into English to 37.9 and 37.5, of which the sixth, refused, is 13.4 million in
+  each and the fifth, refused, 9.7. The new code on the old store reads one
+  English sentence fewer than the old code, the eleventh: its clause of `that'
+  is the verb's with nobody named now, which English refuses on purpose, where
+  the old text was `who did not have "anything that to add"'. It needed these
+  SHAPES, each with its arm red (test/translate.pl's `newspaper_corsica': 40
+  checks, 34 arms, the guards among them -- 33 red, and one guard of cost that
+  stays green, below; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_corsica, checks_done"', under a
+  second a run, and every arm is run in four seconds, four at a time): AN
+  APPOSITION WITH AN ARTICLE THAT ENDS ON A NAME, AFTER A NOUN OR AN ADJECTIVE
+  IN SMALL LETTERS (`El presidente francés, el gaullista Jacques Chirac, lanzó
+  ayer una seria advertencia' -- read as a heading up to the first comma, the
+  clause had nobody named, which English refused: tr_asides/3), the name at its
+  end what makes it one (`El perro, el gato, duerme.' stays refused, a guard),
+  and `Gaullist', `Corsican' and `Mediterranean' take their capitals
+  (en_nationality/1) -- three arms; A COUNTRY OR A REGION TAKES ITS ARTICLE IN A
+  LESSON'S LANGUAGE THAT SAYS IT DOES (`"il" takes the country.'): `las reformas
+  preconizadas para Córcega' are `per la Corsica' and `entre Inglaterra y
+  Alemania' `tra l'Inghilterra e la Germania', where the bare name the source
+  gave was written (tr_country_articles/2, from tr_from_ir/5 into the lesson's
+  language), only for a name whose gender the lesson states (`"corsica" is
+  feminine.'; `Israele' takes none), never after `in', names joined there too
+  (`in Francia e Germania', which the first cut wrote `nella Francia e nella
+  Germania'), after a verb of going its `to' is `in' and the name bare (`va in
+  Francia', where it was `va a Francia' and the first cut wrote `va alla
+  Francia'; a thing given keeps the article, `dà un libro alla Francia':
+  tr_country_motion/2), the name stays bare after a phrase whose noun has its
+  capital, a name's own (`el 50 aniversario de Radio Nacional de España' is `di
+  Radio Nazionale di Spagna', `los elegidos de la Asamblea de Córcega' are of
+  the `Assemblea di Corsica'; after a common noun it has one, `la capitale della
+  Francia'), after a superlative (`el empresario petrolero más rico de Italia'
+  is the `più ricco d'Italia') and alone in a bracket (`de Cremona (Italia)':
+  tr_country_seq/3, tr_bare_country_after/1), and a quotation that opens on the
+  name opens on the article (`sólo señaló que "España ve con simpatía la
+  candidatura"' is `che "la Spagna vede', where the first cut wrote `che la
+  "Spagna') -- ten arms, the guards among them; the rule is asked only of a
+  sentence that crossed a name the lesson gives a meaning ('$tr_xnames'), a
+  guard of cost whose arm stays green: an English text reads `Italy' as a noun
+  and never meets the rule (`Italy is beautiful' is `Italia è bella' still, a
+  lead); a participle between commas with its agent (`Córcega, sacudida desde
+  hace años por los atentados nacionalistas, ...' was shaken BY them --
+  `sacudida' is a noun too, and read as an adjunct the agent was `for the
+  attacks', `per gli attentati': tr_aside_inner0/2) -- two arms; a participle
+  between commas after a phrase and its phrases of `of' is the head's where it
+  agrees with the head (`El plan de autonomía para Córcega, propuesto por el
+  Gobierno de Jospin ...' was proposed, and hung on Corsica it was `la Corsica,
+  proposta': tr_aside_head_fix/3, tr_ptc_fits/2; a guard that it must not agree
+  with the last noun as well had a green arm and is gone); a quotation that
+  opens on the modal (`las medidas que se adopten "deben respetar los
+  principios"' must respect them, where English said they `owe to respect', and
+  Italian's `"bisogna leggere ..."' is `"hay que leer"', as with no marks:
+  tr_inf_after_advs/2); a small word after the first of a name of several stays
+  small (`durante la reunión del Consejo de Ministros' is the Council of
+  Ministers and the `Consiglio dei Ministri', where every word took its capital:
+  tr_cap_words/2) -- two arms; a share of a plural after the verb agrees with a
+  plural verb (`que "se imponen" una serie de reformas', which had no reading:
+  tr_subject_after/5); two participles and their agents, the first agent with
+  phrases of its own (`propuesto por el Gobierno de Jospin y aprobado por la
+  Asamblea corsa el pasado viernes', which was refused: tr_reduced_agent/3); two
+  clauses of `that' joined by a coordinator keep the comma before it (`que "se
+  imponen" una serie de reformas, pero que, en todo caso, ...' lost it:
+  tr_complements0/4); A VERB OF SAYING, ITS COMMA AND ONE PHRASE SET IN, THEN
+  THE CLAUSE OF `que' (`al afirmar, durante la reunión del Consejo de Ministros,
+  que no tenía "nada que añadir"' affirmed that he had nothing to add -- read
+  left to right, the clause was the council's relative clause, `who did not
+  have': tr_saying_that_fix/3), a clause with nobody named (which English
+  refuses, on purpose) or with a subject of its own (`que el perro duerme' was
+  `which the dog sleeps', tr_saying_that_clause/3), after `al' and its
+  infinitive too, and only after a verb of saying -- four arms; an object's
+  clause with an infinitive and nobody in it is `to' (`no tenía "nada que
+  añadir"' has nothing to add, where English wrote `anything that to add', and
+  Tatoeba's `Tom does not have anything that to lose'), and the lesson's
+  language begins it with the word it states (`The word "da" begins the
+  gerundive.': `niente da aggiungere', `certi lavori da fare'; tr_np_out/5) --
+  two arms; a year takes no article in English (`de aquí al 2002', `hasta el
+  2019' are until 2002 and until 2019: tr_year_word/1); `included' and
+  `excluded' before their phrase are `including' and `excluding' (`a los
+  representantes corsos, incluidos los nacionalistas':
+  en_participle_preposition/2); `for the past' before a bare plural is `for'
+  (`desde hace años' is for years, it_9851_9925's `amico da anni' a friend for
+  years; with a count it stays, `for the past three years'); this moment, that
+  one or the one takes `at' (`en este momento' is at this moment; `Navarro, en
+  un momento de forma excepcional' stays in a moment of it, which the first cut
+  wrote `at a moment') -- two arms; and an island takes `on' (`en la isla',
+  `nelle isole del sole': en_on_noun/1).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of
+  one language and the writer of the other; the dictionary's own word is said
+  again first where it must stay the one written): Spanish `gaullista' (a
+  Gaullist, a person of either sex), `preconiza' (recommends, with its forms;
+  `recomienda' said again first), `córcega' (Corsica, a region) and `elíseo',
+  `consejo de ministros' and `consejo constitucional' (names), `corso' and
+  `corsa' (Corsican, the adjective and the person), `garante' (a guarantor),
+  `restablecimiento' (a re-establishment), `unidad' (unity, before the unit),
+  `vuelta' (a return, before the turn; `regreso' said again first), `en
+  suspenso' (pending), `a fin de que' (so that, with the subjunctive), `de cara
+  a' (with a view to), `de aquí a' (until), `en el transcurso de' (during;
+  `durante' said again first), `eventual' (possible; `posible' said again
+  first), `elegido' (an elected representative), `hace saber' (announces, with
+  its forms), `sujeto' and `sujeta' (subject to), `"adopta" takes the passive.',
+  `"se impone" is intransitive.', `"asamblea" is a group.', `duradero' and
+  `duradera' (lasting), `señala' (signals, and indicates before a clause),
+  `papel' (a role, before the paper), `desempeña' (performs, before exerts), `en
+  este sentido' (in this respect) and `en todo caso' (in any case, before if
+  anything); Italian `gollista', `corsica' (a region), `eliseo', `consiglio dei
+  ministri' and `consiglio costituzionale', `corso' and `corsa' (Corsican; the
+  dictionary's `corso', a course, said again first), `garante',
+  `ristabilimento', `unità' (unity), `in sospeso' (pending), `in vista di',
+  `eletto', the genders of the countries, the regions and the continents the
+  lessons name (`corsica', `francia', `germania', `inghilterra', `spagna',
+  `grecia', `russia', `cecenia', `catalogna', `sardegna', `sicilia', `europa',
+  `asia', `africa' and `america' feminine, `giappone' and `brasile' masculine),
+  `"promette" takes "di" before the infinitive.', `in ogni caso', `The word "da"
+  begins the gerundive.', `in questo senso', `avvertimento' (a warning, said
+  first: the dictionary's first is `ammonizione', a reprimand) and
+  `trasferimento' (a transfer, before the house removal `trasloco'); and in
+  eng-ita.dix `shake' (`scuotere') and, written only, `deficiency' (`carenza').
+  The first meaning moved for 10 Spanish words and 2 Italian ones (Spanish
+  `desempeña' performs, `duradero' and `duradera' lasting, `elegido' an elected
+  representative, `en todo caso' in any case, `eventual' possible, `papel' a
+  role, `sujeta' subject, `unidad' unity, `vuelta' a return; Italian `eletto' an
+  elected representative, `unità' unity), the writer's first word for 3 Spanish
+  meanings and 4 Italian ones (Spanish pending `en suspenso', role `papel',
+  performs `desempeña'; Italian pending `in sospeso', course `corso', transfer
+  `trasferimento', warning `avvertimento'), and none was lost.
+  THE CONTROLS (cocolog 2.13.0, store KB244, 112 count files, 3 076 sentences:
+  the earlier set with the Caetano Veloso interview in, it_9225_9269, both
+  directions; this report is not among them): the last version's translator
+  against this one, on the one store, 33 sentences in 20 files read differently,
+  all better but one that is no worse -- the countries' articles (15: `tra
+  l'Inghilterra e la Germania', `L'Inghilterra, il paese che ha prodotto la
+  minigonna', `con il fermo sostegno della Germania e della Francia', `che "la
+  Spagna vede con simpatia la candidatura"', `Paesi come la Germania', `altri
+  luoghi della Spagna', `Anche l'Africa esiste nel calcio', `fino all'Asia',
+  `svestirono la Francia', `la crescita dell'Africa', `La Francia era
+  affondata', `il calcio è arrivato anche in Africa', `Con la Francia', `che ha
+  vinto la Francia', Tatoeba's `La Francia confina con la Spagna'), an object's
+  clause with an infinitive (5: `the temptations to resist', Tatoeba's `anything
+  to lose', `some works to make', `niente da perdere', `certi lavori da fare'),
+  the year with no article (3: `of 2000', `in 2001', `until 2019'), `on the
+  islands' (3), `"must read"' and `"hay que leer"' for `"bisogna leggere"',
+  `"must not affect"' for `"no debe afectar"', `Mediterranean', `for years' and
+  `at this moment' -- and the one no worse, es_19990701-130 6, `di tutto la
+  Catalogna': `de toda Catalunya' is read as `of everything' and an object, as
+  before, and the object takes its article now. The inferences rise 0.006 % (7
+  916 542 512 to 7 917 044 053): 2 919 sentences rise, by 80 to 200 inferences
+  each, and +0.037 % of the sentences under one million; the largest rises are
+  the Venice report's eighth (+16 093 of 394.5 million in each language) and
+  Italian sentences with a country (es_19990601-13 1, +12 502 of 0.41 million;
+  Tatoeba's 298, +10 154 of 31 263), whose cost is the articles written: counted
+  over the rule's arm, six such sentences come back to within 0.02 % of the old
+  counts, and writing any Italian article costs 4 500 inferences (`la') to 12
+  500 (`il') -- the walk of the IR costs about 200, the writer's article the
+  rest, as it costs `la casa' (a lead: tr_det_out/6 for an article is the price
+  of every Italian phrase that has one). The sentences that fall most are
+  it_9270_9295 9 and 24 (-25 thousand of 46 million and -17 of 14). Bytes and
+  characters read every sentence alike (0 differ, the bytes 0.008 % more). The
+  DATA COLUMN (the last version's translator on its own store, KB236, against
+  this one on the new): 50 sentences, -0.069 % (7 922 477 800 to 7 917 044 053).
+  THE CODE ALONE (this translator on KB236): 16 sentences, all better and all
+  among the 33 but `anche in Africa' (the old store states no gender for a
+  country, so the articles need the new lines), +0.005 % (to 7 922 890 869). THE
+  STORE ALONE (the last version's translator on KB236 and on KB244): 18
+  sentences, -0.075 % (to 7 916 542 512), each a word of the report's lines:
+  `indicated' and `indicarono' for `señalaron que' (3), `unity' for `unidad'
+  (3), `In this respect' for `En este sentido' (2), `In any case' and `En todo
+  caso' for `"in ogni caso"' (2), `il suo corso' for `su curso', `le competenze
+  in sospeso', `papel' for `ruolo' (2), `señalarle un quiosco' for `indicargli',
+  Tatoeba's `of return' (`de vuelta') and `Mi prometteresti di seguire', and one
+  worse, es_20010103-139 5, `the figure of sold unities ... 61.9 million
+  unities' (a lesson line gives a word one sense in both numbers, and `unidades'
+  are units); es_19990901-75 falls 6 % in each language for `en este sentido'
+  read at once. THE STORE'S FIRST ROUNDS' REGRESSIONS, found by reading the
+  texts of the store alone and mended: the Italian line that makes the noun
+  `corso' Corsican came first for the reader, and `in corso', `nel corso della
+  conferenza', `il corso di laurea' were `in Corsican' and `en corso' (13
+  sentences; the dictionary's `corso' is said again first now); `"desempeña"
+  means "plays".' made `desempeñar' the Spanish writer's word for every play
+  (`conseguimos desempeñar nuestro fútbol', `está desempeñando con cartas', six
+  sentences): the meaning is performs now, which Italian writes `svolgere'
+  (`possano svolgere tutto il loro ruolo', where it was `giocare') and English
+  `perform'; `en el transcurso de' was the Spanish writer's word for during (`en
+  el transcurso del juicio', two sentences), and the writers' first words found
+  `preconiza' the word for recommends (`El médico preconiza el descanso') and
+  `vuelta' the word for a return: `durante', `recomienda' and `regreso' are said
+  again first; and a line that said `pendiente' again first changed no text and
+  is gone. THE CODE'S FIRST ROUNDS' REGRESSIONS, found by the one store and by
+  probes of the rule, and mended, each with its arm red: the country's article
+  stood outside the mark of a quotation that opened on the name (`che la "Spagna
+  vede'), took the bracket of a place (`di Cremona (l'Italia)'), a name's own
+  phrase (`di Radio Nazionale della Spagna'), a superlative's (`più ricco
+  dell'Italia'), names joined after `in' (`nella Francia e nella Germania') and
+  a verb of going's `to' (`va alla Francia'); and `at' took an indefinite moment
+  (`at a moment of exceptional form', es_20001201-176 6). Two clauses of
+  tr_names_only/1 in the first cut repeated an existing definition word for
+  word, which the load joins to it: the arm builder found them, the edit it was
+  to make occurring twice. THE COST OF THE CODE is +0.006 % on the one store,
+  and its largest part is the articles the country rule writes (above); the rest
+  is 80 to 200 inferences a sentence, the readers' new clauses asked and
+  failing. THE STATED COSTS: a first meaning that serves the news and not every
+  text -- `papel' is a role (`El papel es blanco' is `The role is white', and
+  `Pedro lleva papel' `Pedro carries role'), `unidad' unity (`unidades vendidas'
+  are `sold unities'), `vuelta' a return, `eventual' possible, `elegido' an
+  elected representative (the participle is still `chosen') -- and the writers'
+  `en suspenso' and `in sospeso' for pending (`Le questioni pendenti' is `Los
+  asuntos en suspenso'), `papel' for a role and `desempeña' for performs; the
+  eleventh sentence is refused into English, on purpose; and the inferences,
+  +0.006 % on the one store and -0.069 % in the data column. The report LEAVES,
+  of the 10 into Italian: `non devono questionare l'unità' (2: `mettere in
+  discussione'); `si impone una serie di riforme' with the marks of `"se
+  imponen"' lost (3, both languages: the subject read after the quoted verb
+  takes it out of its marks); `rimarrà entro lei' and `remain within her' (4:
+  `dentro di essa', the pronoun of a thing written as a woman's); `venerdì
+  passato' (8: `lo scorso venerdì') and English `an only territorial
+  collectivity' (a single); `il buon uso che fa l'Assemblea corsa dei
+  trasferimenti' is right in Italian, and English writes the transfers inside
+  the Assembly's phrase, `the good use that the Corsican Assembly of the
+  transfers of competences makes' (9); `ai rappresentanti corsi inclusi i
+  nazionalisti ha annunciato' (12: the commas around the absolute clause and the
+  relative clause's close are lost -- the apposition took the comma before
+  `quien', and the clause was read as a restrictive one). Into both languages 5,
+  6 and 7 are refused: 5, a phrase of a preposition clefted with `es al
+  Parlamento ... al que deberán ser sometidas' and `a emprender'; 6, `para ser
+  deseables y necesarias' inside the quoted subject; and 7, `Poder
+  legislativo.', a bare noun and an adjective, which the pinned `Big house.'
+  guard refuses on purpose. English refuses 11 (`que no tenía "nada que
+  añadir"') and 12 (`ha hecho saber que no defenderá') for the third person
+  nobody names, on purpose. The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

@@ -2103,6 +2103,9 @@ The adverb "macché" means "no way".
 # word, `giornalaio' and `trasloco'
 The masculine noun "giornalaio" means "newsagent".
 "giornalai" is the plural of "giornalaio".
+# (the transfer of a power is a `trasferimento', said first so that it is the word written for one: `las
+# transferencias de competencias' were `i traslochi di competenze', a house removal)
+"trasferimento" means "transfer".
 The masculine noun "trasloco" means "transfer".
 "traslochi" is the plural of "trasloco".
 # `dopo aver mandato in onda l'ultimo "punto di svolta"' -- broadcast: the
@@ -4780,3 +4783,71 @@ The name "america" means "America".
 The adverb "di sera" means "in the evening".
 # `mia madre mi cantava le canzoni napoletane': the upstream verb table's past of `sing' is `sung', its participle
 "sang" is the past of "sings".
+# The Corsica report (AnCora CESS-CAST-P-20000802-26, Spanish into Italian and English): the words its Italian needs
+# written. `el gaullista Jacques Chirac': a Gaullist, `il gollista'
+The noun "gollista" means "Gaullist".
+"gollista" is not feminine.
+"gollisti" is the plural of "gollista".
+"gollista" is a person.
+# `para Córcega': Corsica, a region with its article in Italian (`per la Corsica'); and the Élysée
+The name "corsica" means "Corsica".
+"corsica" is a region.
+The name "eliseo" means "Elysée".
+# `del Consejo de Ministros', `del Consejo Constitucional'
+The name "consiglio dei ministri" means "Council of Ministers".
+The name "consiglio costituzionale" means "Constitutional Council".
+# `los corsos', `la Asamblea corsa': Corsican, the adjective and the people -- the dictionary's `corso', the course,
+# said again first, so that it stays the first noun read (`nel corso della conferenza', `in corso')
+"corso" means "course".
+The masculine adjective "corso" means "Corsican".
+The feminine adjective "corsa" means "Corsican".
+The masculine noun "corso" means "Corsican".
+# `de la que el presidente es garante': the guarantor, of either sex
+The noun "garante" means "guarantor".
+"garante" is not feminine.
+"garanti" is the plural of "garante".
+"garante" is a person.
+# `el restablecimiento "duradero"': `il ristabilimento'
+The masculine noun "ristabilimento" means "re-establishment".
+"ristabilimenti" is the plural of "ristabilimento".
+# `la unidad del país': unity, before the dictionary's unit (whose plural English writes `units')
+The feminine noun "unità" means "unity".
+# `está en suspenso': `è in sospeso', an adjective of two words
+The adjective "in sospeso" means "pending".
+"in sospeso" is the plural of "in sospeso".
+# `prevé de cara al 2004': `in vista del 2004'
+The preposition "in vista di" means "with a view to".
+# `los elegidos de la Asamblea de Córcega': `gli eletti'
+The masculine noun "eletto" means "elected representative".
+# `para Córcega', `Italia es bonita': Italian names a country, a region or a continent with its article (`per la
+# Corsica', `L'Italia è bella') where Spanish and English give none, and the article takes the gender the lesson
+# states of the name; a name with none stated (`Israele') is written with none, as Italian writes it
+"corsica" is feminine.
+"francia" is feminine.
+"germania" is feminine.
+"inghilterra" is feminine.
+"spagna" is feminine.
+"grecia" is feminine.
+"russia" is feminine.
+"cecenia" is feminine.
+"catalogna" is feminine.
+"sardegna" is feminine.
+"sicilia" is feminine.
+"europa" is feminine.
+"asia" is feminine.
+"africa" is feminine.
+"america" is feminine.
+"giappone" is masculine.
+"brasile" is masculine.
+# `ha prometido presentar al Parlamento un proyecto': `ha promesso di presentare'
+"promette" takes "di" before the infinitive.
+# `en todo caso, las medidas ...': in any case
+The adverb "in ogni caso" means "in any case".
+# `no tenía "nada que añadir"', `las modalidades de reformas a emprender': `niente da aggiungere', `riforme da
+# intraprendere' -- the word before the infinitive of a thing to be done, a gerundive (`di' begins the infinitive)
+The word "da" begins the gerundive.
+# `en este sentido': `in questo senso'
+The adverb "in questo senso" means "in this respect".
+# `lanzó ayer una seria advertencia': `un serio avvertimento', said first -- the dictionary's first noun for a warning
+# is `ammonizione', a reprimand
+"avvertimento" means "warning".

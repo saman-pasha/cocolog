@@ -375,6 +375,7 @@ main :-
     section_80,
     section_81,
     section_82,
+    section_83,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -10162,7 +10163,7 @@ section_80_6 :-
          'The bread for dogs, cats and houses is good.'),
     reason_translate('Il cane mangia il pane nelle isole di Capri, Procida, Ischia, Giglio.', italian, english, S80V75),
     must('... AND NAMES TO THE END OF THE PIECE WITH NO COORDINATOR: `nelle isole di Capri, Procida, Ischia, Giglio, Eolie'' -- one by one the names after the first were objects of the verb, and the sentence was refused here (tr_bare_tail/4, tr_bare_item/2)', S80V75,
-         'The dog eats the bread in the islands of Capri, Procida, Ischia, Giglio.'),
+         'The dog eats the bread on the islands of Capri, Procida, Ischia, Giglio.'),
     reason_translate('Il cane mangia il pane nelle isole di Capri, Procida, Ischia, Giglio.', italian, spanish, S80V76),
     must('... which Spanish wrote with the `a'' of a person, `a Procida, a Ischia''', S80V76,
          'El perro come el pan en las islas de Capri, Procida, Ischia, Giglio.').
@@ -10652,6 +10653,170 @@ The preposition "sottobraccio a" means "arm in arm with". The feminine noun "mog
 "rimase" is the past of "rimane".
 The verb "circola" means "circulates". "circola" is intransitive. The feminine noun "versione" means "version". The name "brasile" means "Brazil". "brasile" is a country.
 The adjective "fedele" means "faithful". The feminine noun "repubblica" means "republic". The masculine noun "tema" means "topic". "tema" is not feminine.').
+
+section_83 :-
+    format("~n83. a Spanish report on Chirac and Corsica, into Italian and English: an apposition that ends on a name, Corsican, a country's article, a participle's agent between commas, a quotation that opens on the modal, a name's small words, a share of a plural after the verb, two participles and their agents, the comma before a second clause of that, a participle that is the head's, a verb of saying and a phrase set in, nothing to add, a year, including, for years, at this moment, on the island~n", []),
+    lesson_83(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the veloso section''s Spanish lesson and a thirteenth part, under its own name', NS),
+    lesson_83(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_83_1, section_83_2, section_83_3, section_83_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_83(L, Text) :- lesson_82(L, A), lesson_83(L, 13, B), atomic_list_concat([A, ' ', B], Text).
+
+section_83_1 :-
+    ( reason_translate('El presidente francés, el gaullista Jacques Chirac, duerme.', spanish, english, X83V1) -> S83V1 = X83V1 ; S83V1 = refused ),
+    must('AN APPOSITION WITH AN ARTICLE THAT ENDS ON A NAME, AFTER A NOUN OR AN ADJECTIVE IN SMALL LETTERS: `El presidente francés, el gaullista Jacques Chirac, lanzó ayer una seria advertencia'' -- the president is the Gaullist Jacques Chirac, and with the phrase before the first comma read as a heading the clause had nobody named, which English refused (tr_asides/3); `Gaullist'' takes its capital (en_nationality/1)', S83V1,
+         'The French president, the Gaullist Jacques Chirac, sleeps.'),
+    ( reason_translate('El perro, el gato, duerme.', spanish, english, X83V2) -> S83V2 = X83V2 ; S83V2 = refused ),
+    must('... the name at the end of the phrase is what says it is the person the noun names (tr_asides/3): two phrases with no name are no apposition', S83V2,
+         refused),
+    ( reason_translate('El perro corso duerme.', spanish, english, X83V3) -> S83V3 = X83V3 ; S83V3 = refused ),
+    must('`la Asamblea corsa'', `los representantes corsos'': Corsican takes its capital, and so do Mediterranean and Gaullist (en_nationality/1)', S83V3,
+         'The Corsican dog sleeps.'),
+    ( reason_translate('Pedro habla de Córcega.', spanish, italian, X83V4) -> S83V4 = X83V4 ; S83V4 = refused ),
+    must('A COUNTRY OR A REGION TAKES ITS ARTICLE IN A LESSON''S LANGUAGE THAT SAYS IT DOES: `las reformas preconizadas para Córcega'' are `per la Corsica'' -- Spanish names it with none, and written as the bare name it came in as it was `per Corsica'' (tr_country_articles/2, `"il" takes the country.'')', S83V4,
+         'Pedro parla della Corsica.'),
+    ( reason_translate('Pedro duerme en Córcega.', spanish, italian, X83V5) -> S83V5 = X83V5 ; S83V5 = refused ),
+    must('... never after `in'', which Italian says with none (tr_country_articles0/2)', S83V5,
+         'Pedro dorme in Corsica.'),
+    ( reason_translate('Pedro habla de Israel.', spanish, italian, X83V6) -> S83V6 = X83V6 ; S83V6 = refused ),
+    must('... and only for a name whose gender the lesson states (`"corsica" is feminine.''): `Israele'' takes none (tr_country_gender/2)', S83V6,
+         'Pedro parla d''Israele.'),
+    ( reason_translate('Pedro habla de Córcega.', spanish, english, X83V7) -> S83V7 = X83V7 ; S83V7 = refused ),
+    must('... and English keeps the bare name', S83V7,
+         'Pedro speaks of Corsica.'),
+    ( reason_translate('Pedro duerme en Córcega y Francia.', spanish, italian, X83V8) -> S83V8 = X83V8 ; S83V8 = refused ),
+    must('... never after `in'' before names joined either (`in Francia e Germania'', which was `nella Francia e nella Germania'', tr_names_only/1)', S83V8,
+         'Pedro dorme in Corsica e Francia.'),
+    ( reason_translate('Pedro va a Francia.', spanish, italian, X83V9) -> S83V9 = X83V9 ; S83V9 = refused ),
+    must('... and after a verb of going its `to'' is Italian''s `in'', the name bare (`va in Francia'', where it was `va alla Francia'', tr_country_motion/2)', S83V9,
+         'Pedro va in Francia.'),
+    ( reason_translate('Pedro da un libro a Francia.', spanish, italian, X83V10) -> S83V10 = X83V10 ; S83V10 = refused ),
+    must('... a verb of going only: a thing given to a country is given to it with its article (tr_motion_verb/1)', S83V10,
+         'Pedro dà un libro alla Francia.'),
+    ( reason_translate('El Consejo de Francia duerme.', spanish, italian, X83V11) -> S83V11 = X83V11 ; S83V11 = refused ),
+    must('... after a phrase whose noun has its capital, a name''s own, the country keeps no article (`el 50 aniversario de Radio Nacional de España'' is `di Radio Nazionale di Spagna'', `los elegidos de la Asamblea de Córcega'' of the `Assemblea di Corsica'', tr_country_seq/3, tr_capital_head/1)', S83V11,
+         'Il Consiglio di Francia dorme.'),
+    ( reason_translate('La casa es la más grande de Francia.', spanish, italian, X83V12) -> S83V12 = X83V12 ; S83V12 = refused ),
+    must('... nor after a superlative (`el empresario petrolero más rico de Italia'' is `l''''imprenditore più ricco d''''Italia'', tr_superlative_head/1)', S83V12,
+         'La casa è la più grande di Francia.').
+
+section_83_2 :-
+    ( reason_translate('El consejo de Francia duerme.', spanish, italian, X83V13) -> S83V13 = X83V13 ; S83V13 = refused ),
+    must('... and after a common noun it has one (`la capitale della Francia'')', S83V13,
+         'Il consiglio della Francia dorme.'),
+    ( reason_translate('Pedro, de Lyon (Francia), duerme.', spanish, italian, X83V14) -> S83V14 = X83V14 ; S83V14 = refused ),
+    must('... nor alone in a bracket (`su constructor, Joseph Guarnerius del Gesù, de Cremona (Italia)'', where it was `(l''''Italia)'')', S83V14,
+         'Pedro, di Lyon (Francia), dorme.'),
+    ( reason_translate('Pedro dice que "Francia duerme".', spanish, italian, X83V15) -> S83V15 = X83V15 ; S83V15 = refused ),
+    must('... and a quotation that opens on the name opens on the article (`sólo señaló que "España ve con simpatía la candidatura"'' is `che "la Spagna vede ..."'', where it was `che la "Spagna vede'')', S83V15,
+         'Pedro dice che "la Francia dorme".'),
+    ( reason_translate('La isla, sacudida por los atentados, es bonita.', spanish, english, X83V16) -> S83V16 = X83V16 ; S83V16 = refused ),
+    must('A PARTICIPLE BETWEEN COMMAS WITH ITS AGENT: `Córcega, sacudida desde hace años por los atentados nacionalistas, ...'' was shaken BY them -- `sacudida'' is a noun too, and read as an adjunct the agent was `for the attacks'', `per gli attentati'' (tr_aside_inner0/2, tr_reduced_agent/3)', S83V16,
+         'The island, shaken by the attacks, is beautiful.'),
+    ( reason_translate('La isla, sacudida por los atentados, es bonita.', spanish, italian, X83V17) -> S83V17 = X83V17 ; S83V17 = refused ),
+    must('... `dagli attentati''', S83V17,
+         'L''isola, scossa dagli attacchi, è bella.'),
+    ( reason_translate('Las medidas "deben respetar la unidad".', spanish, english, X83V18) -> S83V18 = X83V18 ; S83V18 = refused ),
+    must('A QUOTATION THAT OPENS ON THE MODAL: `las medidas que se adopten "deben respetar los principios"'' must respect them, and with the mark first English said the measures owed to respect them (tr_inf_after_advs/2)', S83V18,
+         'The measures "must respect the unity".'),
+    ( reason_translate('El perro duerme durante el Consejo de Ministros.', spanish, english, X83V19) -> S83V19 = X83V19 ; S83V19 = refused ),
+    must('A SMALL WORD AFTER THE FIRST OF A NAME OF SEVERAL STAYS SMALL: `durante la reunión del Consejo de Ministros'' is the Council of Ministers, and every word with its capital it was `Council Of Ministers'' (tr_cap_words/2)', S83V19,
+         'The dog sleeps during the Council of Ministers.'),
+    ( reason_translate('El perro duerme durante el Consejo de Ministros.', spanish, italian, X83V20) -> S83V20 = X83V20 ; S83V20 = refused ),
+    must('... and `Consiglio dei Ministri'', where it was `Consiglio Dei Ministri''', S83V20,
+         'Il cane dorme durante il Consiglio dei Ministri.'),
+    ( reason_translate('Pedro dice que se imponen una serie de reformas.', spanish, english, X83V21) -> S83V21 = X83V21 ; S83V21 = refused ),
+    must('A SHARE OF A PLURAL AFTER THE VERB AGREES WITH THE PLURAL VERB: `que "se imponen" una serie de reformas'' is a series of them, and with the plural verb the subject after it had no reading -- English said `they prevail a series of reforms'' (tr_subject_after/5)', S83V21,
+         'Pedro says that a series of reforms prevails.'),
+    ( reason_translate('El plan propuesto por el amigo de Pedro y aprobado por el gato es bueno.', spanish, english, X83V22) -> S83V22 = X83V22 ; S83V22 = refused ),
+    must('TWO PARTICIPLES AND THEIR AGENTS, THE FIRST AGENT WITH PHRASES OF ITS OWN: `El plan ..., propuesto por el Gobierno de Jospin y aprobado por la Asamblea corsa el pasado viernes, prevé ...'' -- read as one phrase the agent and its `of'' were no phrase, and the sentence was refused (tr_reduced_agent/3)', S83V22,
+         'The plan proposed by the friend of Pedro and approved by the cat is good.'),
+    ( reason_translate('Pedro dice que se imponen una serie de reformas, pero que el gato come.', spanish, english, X83V23) -> S83V23 = X83V23 ; S83V23 = refused ),
+    must('TWO CLAUSES OF `that'' JOINED BY A COORDINATOR KEEP THE COMMA BEFORE IT: `precisó en este sentido que "se imponen" una serie de reformas, pero que, en todo caso, ...'' was `a series of reforms prevails but that'', the comma lost with the first clause''s words (tr_complements0/4)', S83V23,
+         'Pedro says that a series of reforms prevails, but that the cat eats.'),
+    ( reason_translate('El plan de la casa, propuesto por el gato, es bueno.', spanish, italian, X83V24) -> S83V24 = X83V24 ; S83V24 = refused ),
+    must('A PARTICIPLE BETWEEN COMMAS AFTER A PHRASE AND ITS PHRASES OF `of'' IS THE HEAD''S, where it agrees with the head and not with the last noun: `El plan de autonomía para Córcega, propuesto por el Gobierno de Jospin ...'' -- the plan was proposed, and hung on Corsica the Italian participle agreed with it, `la Corsica, proposta dal Governo'' (tr_aside_head_fix/3, tr_ptc_fits/2)', S83V24,
+         'Il piano della casa, proposto dal gatto, è buono.').
+
+section_83_3 :-
+    ( reason_translate('Pedro afirma, durante la reunión del consejo, que duerme.', spanish, english, X83V25) -> S83V25 = X83V25 ; S83V25 = refused ),
+    must('A VERB OF SAYING, ITS COMMA AND ONE PHRASE SET IN, THEN THE CLAUSE OF `que'': `al afirmar, durante la reunión del Consejo de Ministros, que no tenía "nada que añadir"'' affirmed that he had nothing to add -- read left to right, the clause after the second comma was a relative clause on the council, and English wrote `who did not have''; the clause is the verb''s, with nobody named for its subject, which English refuses on purpose (tr_saying_that_fix/3)', S83V25,
+         refused),
+    ( reason_translate('Pedro afirma, durante la reunión del consejo, que duerme.', spanish, italian, X83V26) -> S83V26 = X83V26 ; S83V26 = refused ),
+    must('... and Italian writes it as it stood', S83V26,
+         'Pedro afferma, durante la riunione del consiglio, che dorme.'),
+    ( reason_translate('Pedro afirma, durante la reunión del consejo, que el perro duerme.', spanish, english, X83V27) -> S83V27 = X83V27 ; S83V27 = refused ),
+    must('... and a clause with a subject of its own, which was read as an object''s relative clause, `which the dog sleeps'' (tr_saying_that_clause/3)', S83V27,
+         'Pedro affirms, during the meeting of the council, that the dog sleeps.'),
+    ( reason_translate('Pedro duerme al afirmar, durante la reunión del consejo, que el gato come.', spanish, english, X83V28) -> S83V28 = X83V28 ; S83V28 = refused ),
+    must('... and after `al'' and the infinitive (upon/2)', S83V28,
+         'Pedro sleeps on affirming, during the meeting of the council, that the cat eats.'),
+    ( reason_translate('Pedro duerme, durante la reunión del consejo, que el perro come.', spanish, english, X83V29) -> S83V29 = X83V29 ; S83V29 = refused ),
+    must('... and only after a verb of saying: after any other the clause is the council''s (tr_saying_verb/1)', S83V29,
+         'Pedro sleeps, during the meeting of the council, which the dog eats.'),
+    ( reason_translate('El perro no tiene nada que comer.', spanish, english, X83V30) -> S83V30 = X83V30 ; S83V30 = refused ),
+    must('AN OBJECT''S CLAUSE WITH AN INFINITIVE AND NOBODY IN IT IS `to'': `no tenía "nada que añadir"'' had nothing to add, and English wrote `anything that to add'' (tr_np_out/5)', S83V30,
+         'The dog does not have anything to eat.'),
+    ( reason_translate('El perro no tiene nada que comer.', spanish, italian, X83V31) -> S83V31 = X83V31 ; S83V31 = refused ),
+    must('... and the lesson''s language begins it with the word it states (`The word "da" begins the gerundive.''): `niente da aggiungere'', where it was `niente che aggiungere''', S83V31,
+         'Il cane non ha niente da mangiare.'),
+    ( reason_translate('El perro duerme hasta el 2004.', spanish, english, X83V32) -> S83V32 = X83V32 ; S83V32 = refused ),
+    must('A YEAR TAKES NO ARTICLE IN ENGLISH: `de aquí al 2002'', `prevé de cara al 2004'' are until 2002 and with a view to 2004, and English wrote `until the 2002'' (tr_np_out/5, tr_year_word/1)', S83V32,
+         'The dog sleeps until 2004.'),
+    ( reason_translate('El perro duerme hasta el 2004.', spanish, italian, X83V33) -> S83V33 = X83V33 ; S83V33 = refused ),
+    must('... where Italian keeps it', S83V33,
+         'Il cane dorme fino al 2004.'),
+    ( reason_translate('Pedro duerme con los perros, incluidos los gatos.', spanish, english, X83V34) -> S83V34 = X83V34 ; S83V34 = refused ),
+    must('`included'' AND `excluded'' BEFORE THEIR PHRASE ARE `including'' AND `excluding'': `a los representantes corsos, incluidos los nacionalistas'' is including the nationalists, and it was `included the nationalists'' (tr_comp_out/7, en_participle_preposition/2)', S83V34,
+         'Pedro sleeps with the dogs, including the cats.'),
+    ( reason_translate('Pedro duerme con los perros, incluidos los gatos.', spanish, italian, X83V35) -> S83V35 = X83V35 ; S83V35 = refused ),
+    must('... where Italian keeps the participle, agreeing with the phrase', S83V35,
+         'Pedro dorme con i cani, inclusi i gatti.'),
+    ( reason_translate('El perro duerme desde hace años.', spanish, english, X83V36) -> S83V36 = X83V36 ; S83V36 = refused ),
+    must('`for the past'' BEFORE A BARE PLURAL IS `for'': `Córcega, sacudida desde hace años'' is shaken for years, and English said `for the past years'' (tr_comp_out/7)', S83V36,
+         'The dog has slept for years.').
+
+section_83_4 :-
+    ( reason_translate('El perro duerme desde hace tres años.', spanish, english, X83V37) -> S83V37 = X83V37 ; S83V37 = refused ),
+    must('... with a count it stays', S83V37,
+         'The dog has slept for the past three years.'),
+    ( reason_translate('El perro duerme en este momento.', spanish, english, X83V38) -> S83V38 = X83V38 ; S83V38 = refused ),
+    must('A MOMENT TAKES `at'': `no tenía "nada que añadir en este momento"'' had nothing to add at this moment, and `in this moment'' was written (tr_comp_out/7)', S83V38,
+         'The dog sleeps at this moment.'),
+    ( reason_translate('El perro duerme en un momento de paz.', spanish, english, X83V39) -> S83V39 = X83V39 ; S83V39 = refused ),
+    must('... this moment, that one or the one, never a moment of something (`Navarro, en un momento de forma excepcional'' is in a moment of exceptional form)', S83V39,
+         'The dog sleeps in a moment of peace.'),
+    ( reason_translate('El perro duerme en la isla.', spanish, english, X83V40) -> S83V40 = X83V40 ; S83V40 = refused ),
+    must('AN ISLAND TAKES `on'': `el restablecimiento "duradero" de una paz civil en la isla'' is a peace on the island (en_on_noun/1)', S83V40,
+         'The dog sleeps on the island.').
+
+lesson_83(spanish, 13, 'The masculine adjective "francés" means "French". The noun "gaullista" means "Gaullist". "gaullista" is not feminine. "gaullista" is a person.
+The masculine adjective "corso" means "Corsican". The feminine adjective "corsa" means "Corsican".
+The name "córcega" means "Corsica". "córcega" is a region. The name "israel" means "Israel". "israel" is a country. The name "francia" means "France". "francia" is a country. The verb "va" means "goes". "va" is intransitive.
+The verb "sacude" means "shakes". "sacudida" is the participle of "sacude". "sacudida" is feminine. The feminine noun "sacudida" means "shake". "shaken" is the participle of "shakes". The masculine noun "atentado" means "attack". "atentados" is the plural of "atentado". The feminine adjective "bonita" means "pretty".
+The feminine noun "medida" means "measure". "medidas" is the plural of "medida". The modal "debe" means "must". "deben" is the plural of "debe". The verb "debe" means "owes". The verb "respeta" means "respects". "respetar" is the infinitive of "respeta". The feminine noun "unidad" means "unity".
+The preposition "durante" means "during". The name "consejo de ministros" means "Council of Ministers".
+The masculine noun "plan" means "plan". The verb "propone" means "proposes". "propuesto" is the participle of "propone". The verb "aprueba" means "approves". "aprobado" is the participle of "aprueba". The masculine adjective "bueno" means "good".
+The preposition "hasta" means "until".
+The verb "incluye" means "includes". "incluido" is the participle of "incluye". "incluidos" is the participle of "incluye". "incluidos" is the plural of "incluido".
+"slept" is the participle of "sleeps". The masculine noun "momento" means "moment". The feminine noun "paz" means "peace".
+The word "al" begins the moment. The verb "afirma" means "affirms". "afirmar" is the infinitive of "afirma". The feminine noun "reunión" means "meeting". The masculine noun "consejo" means "council".
+The verb "se impone" means "prevails". "se impone" is intransitive. "se imponen" is the plural of "se impone". The feminine noun "serie" means "series". The feminine noun "reforma" means "reform". "reformas" is the plural of "reforma".').
+lesson_83(italian, 13, 'The masculine adjective "francese" means "French". The noun "gollista" means "Gaullist". "gollista" is not feminine. "gollista" is a person.
+The masculine adjective "corso" means "Corsican". The feminine adjective "corsa" means "Corsican".
+The name "corsica" means "Corsica". "corsica" is a region. "corsica" is feminine. The name "israele" means "Israel". "israele" is a country. The name "francia" means "France". "francia" is a country. "francia" is feminine.
+The verb "scuote" means "shakes". "scossa" is the participle of "scuote". "scossa" is feminine. The masculine noun "attentato" means "attack". "attentati" is the plural of "attentato". The feminine adjective "bella" means "pretty".
+The feminine noun "misura" means "measure". "misure" is the plural of "misura". "devono" is the plural of "deve". The verb "rispetta" means "respects". "rispettare" is the infinitive of "rispetta". The feminine noun "unità" means "unity".
+The preposition "durante" means "during". The name "consiglio dei ministri" means "Council of Ministers".
+The masculine noun "piano" means "plan". The verb "propone" means "proposes". "proposto" is the participle of "propone". "proposta" is the participle of "propone". "proposta" is feminine. The verb "approva" means "approves". "approvato" is the participle of "approva". The masculine adjective "buono" means "good".
+The preposition "fino a" means "until".
+The verb "include" means "includes". "incluso" is the participle of "include". "inclusi" is the participle of "include". "inclusi" is the plural of "incluso".
+The masculine noun "momento" means "moment". The word "da" begins the gerundive. The pronoun "niente" means "nothing".
+The verb "afferma" means "affirms". "affermare" is the infinitive of "afferma". "affermando" is the gerund of "afferma". The feminine noun "riunione" means "meeting". The masculine noun "consiglio" means "council".
+The verb "si impone" means "prevails". "si impone" is intransitive. The feminine noun "serie" means "series". The feminine noun "riforma" means "reform". "riforme" is the plural of "riforma".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
