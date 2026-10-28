@@ -5320,7 +5320,7 @@
           ;; from if backtracking comes back past the entry. A global's
           ;; sentinel (1.12.1) names none
           (for ((size_t p . 0)) (and ok (< p (-> m trail_len))) ((++ p))
-            (let ((size_t v . #'(nth p (-> m trail))))
+            (let ((u64 v . #'(nth p (-> m trail))))
               (if (!= (bitand v (coco-trail-pair)) 0)
                   (block
                    (if (and (== (coco-trail-tag v) 0) (< (coco-trail-cell v) n))
@@ -5380,7 +5380,7 @@
               (while (and (< f nbar) (<= (cof (nth f tmp)) p))
                 (set (cof (nth f tmp)) kept)
                 (set f (+ f 1)))
-              (let ((size_t v . #'(nth p (-> m trail))))
+              (let ((u64 v . #'(nth p (-> m trail))))
                 (if (== (bitand v (coco-trail-pair)) 0)
                     (if (and (> f 0) (< v n) (< v (cof (nth (- f 1) hmp)))
                              (coco_gc_marked bits v))
