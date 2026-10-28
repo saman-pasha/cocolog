@@ -6378,6 +6378,342 @@ read into an English-worded IR and written into any lesson's language),
   holds a clause (`(uno de ellos es de Catalunya)`), and 17, a list of names
   after a colon (`Otras webs sobre el tema son: Los Satanistas, Templo Tezcat,
   ...`). The next sample's controls take this report in.
+  The Caetano Veloso interview (VIT-9225..9269, 45 sentences, Italian into
+  Spanish and English: 45 of 45 and 40 of 45 on a fresh store, 34 and 31 with
+  the new store alone, 18 and 18 with the new code on the old store, 17 and 16
+  before; reasoning 1.0.19). The sample was taken on the cocolog 2.12.0 binary,
+  master's d71af1e merged as 1fe7ecb and built with Cicili a9e2dcf from a copy
+  (the owner, 2026-10-28: no pull of ../cicili, the last Cicili commit), and
+  cocolog stays 2.12.0: the controls read every sentence alike on 2.11.4 and
+  2.12.0 (2 952, 0 differ), 0.292 % fewer inferences (sub_atom/5's one scan).
+  The article's sentences fall from 245.0 million inferences in each language to
+  91.1 into Spanish and 91.2 into English, of which the fourth (`Va sottobraccio
+  ...`) is 14.6 and 14.7 million. It needed these SHAPES, each with its arm red
+  (test/translate.pl's `newspaper_veloso`: 71 checks, 78 arms, the guards among
+  them -- 75 red in the section, one red in newspaper_units, and two guards of
+  cost that stay green, below; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_veloso, checks_done"`, three
+  seconds a run, and every arm is run in a minute, four at a time): a byline
+  before its dateline (`Dal nostro inviato Giacomo Pellicciotti Perugia -
+  passeggiando di sera ...` is the correspondent who signs the report and the
+  city it comes from, with no comma between them, and the city was read as the
+  name's third word: tr_byline/3); a street's name whose first word the paper
+  writes small, right after a preposition (`per corso Vannucci`, where `corso`
+  was the course: tr_stated_names0/2, `The word "corso" begins the name.`), and
+  a name in small letters right after a common noun, which takes its capital
+  (`al teatro morlacchi`); any capitalised word the lesson states as a
+  contraction begins a surname before a capital (`il generale Dalla Chiesa`,
+  where `de`, `del`, `di` and `da` alone did) and ends one after a first name
+  (`Lucio Dalla mi ha invitato a Napoli` -- read as `da la`, from the, with
+  nothing after it, the sentence was refused: tr_particle_names/4), never inside
+  a title the paper writes in capitals (`il Presidente Della Repubblica` is the
+  president of the Republic, a guard the controls found); an article and the
+  word for `first` before the relative are a phrase and its clause (`è stata la
+  prima che ho sentito` is the first one I heard, and `prima che` was the
+  conjunction: tr_unjoin_ordinal/3); a phrase with no article that opens on a
+  focus adverb, between two commas after a noun, is an aside, the adverb at its
+  head in every language (`il boss della compagnia discografica Paramount, anche
+  produttore cinematografico, ...` is the boss, also a film producer:
+  tr_asides/3, advnp/2, tr_aside_out/6) -- three arms; the copula and a subject
+  pronoun alone are no comment between commas (`ed è lui, senza dubbio, il
+  trionfatore incontrastato del festival` says who the victor is), and a third
+  person's pronoun after the copula, before a phrase with its article, is the
+  subject (`è lui il trionfatore`); the word for `all` before a phrase is a
+  list's word (`Pinelli, Flaiano, Zavattini e tutti gli sceneggiatori di quei
+  film` is one list of four), and opens a phrase of its own number (`tutti il
+  pane` is none); with nothing before the phrase a pronoun takes up again, the
+  words after the verb may be its subject (`l'italiano me l'hanno insegnato
+  Pinelli, Flaiano, ...` is they taught me Italian); a partitive pronoun beside
+  a subject of quantity is said once (`Oggi non ce n'è rimasto più nessuno`,
+  where `ne` crossed as `it`); a person named by a noun with no gender of its
+  own, after a feminine article or possessive, is a woman (`la versione di una
+  cantante`, `una nostra collega`); a decade named in words (`alla fine degli
+  anni cinquanta` is the end of the 50s, where it was `the fifty years`); a name
+  the source kept as itself is written as it stood, though English knows the
+  word (`la compagnia discografica Paramount`, `kept/1`); a pronoun of quantity
+  after the verb, with the partitive said once (`ne ho visti tanti fino
+  all'ossessione` is I have seen so many), and the determiner `tanti` is `so
+  many`; a name after the word for `with` and a bare noun for a person right
+  after it say what the ones named are (`con Lucio Dalla, Fiorella Mannoia,
+  Renzo Arbore e lo stilista Romeo Gigli promotori di un immaginario fanclub`
+  are the promoters, role/1); a word that says how likely the sentence is stays
+  in front (`Forse non le era piaciuto` is maybe she had not liked it); a
+  subject before the question word, and a phrase set in front and its subject
+  (`Ma la musica italiana Caetano come l'ha scoperta?` is how Caetano discovered
+  Italian music, where the music, the name apposed to it, had discovered him:
+  tr_dislocation_fix/3); a phrase with its relative clause set in front has the
+  phrase's number (`il pane che ho, l'ho mangiato`, tr_fronted_np_number/2 --
+  asked there alone: a phrase's number through its clause everywhere, the first
+  cut, let `es el mensaje que ha repetido con insistencia` have the message for
+  the subject of `es`, `the message that they have repeated is with insistence`,
+  and read three more sentences of the controls wrong, a guard), and a phrase,
+  its phrase of `of` and a relative clause said of the whole (`quel po'
+  d'italiano che so, l'ho imparato al cinema`, tr_front_phrase/3); the verb of
+  being about to takes its infinitive as a modal does, and the phrase after an
+  intransitive one is its subject (`stava per uscire Transa` is the record that
+  was about to come out) -- never between an article with its adjective and
+  their noun, nor at a name apposed to a person's noun, nor at an article right
+  after a name (`Va sottobraccio alla bella moglie Paola`, `con Gilda l'ex
+  compagna di Vinicius De Moraes al fianco`), and only for a phrase for a
+  person, as an apposition is (`circolava in Brasile la versione di una
+  cantante`) -- three guards; the pronoun of the verb's own person right after
+  the copula is the subject (`Ero io il re`, `decise che dovevo assolutamente
+  essere io il San Francesco del film di Zeffirelli`); a count above one makes
+  plural a noun that is its own plural (`Tre recital di straordinaria malia`),
+  never the unit of a percentage (`pari all'87 per cento`, a guard the whole
+  case found); a relative clause after the comma that closes a participle's
+  aside is the phrase's (`con quella sua voce lieve, sussurrata, che è già
+  musica`); a language after a verb of learning, teaching or speaking takes no
+  article in English (`l'italiano me l'hanno insegnato` taught me Italian) and
+  no `a` in Spanish; a verb that says what its subject remains takes no `a`
+  before the phrase (`Il regista favorito resta comunque Federico Fellini`,
+  `queda Federico Fellini`, en_copular/1); the word for `all` after the verb of
+  a plural subject nobody names is the subject's (`Così partimmo tutti` is so we
+  all left); THE ONE WHO LIKES IS ENGLISH'S SUBJECT (`Forse non le era piaciuto`
+  is maybe she had not liked it, `Il cane mi piace` I like the dog: the lesson's
+  languages make the thing liked the subject, and English wrote `The dog pleases
+  me` or refused a clause with nobody named), the person a phrase of `to` names
+  being the one the pronoun says again (`A Tom le gustan las morenas` is Tom
+  likes them, where it was `He likes the dark ones to Tom`: tr_liker_phrase/2,
+  found by the controls), and an infinitive liked written after `likes` (`a me
+  piace stare in mezzo alla gente` is I like to be among the people -- refused,
+  the infinitive having no writer as an object -- and with nobody named no `it`,
+  `Me gusta comer` is I like to eat) -- five arms; A COUNTRY TAKES NO ARTICLE IN
+  ENGLISH (`l'Italia è un sentimento` is Italy is a feeling, `"italia" is a
+  country.`, tr_country_det/4) nor in Spanish, whose lesson does not say its
+  article takes the country, as Italian's does (`"il" takes the country.`), and
+  a country a relative clause hangs on keeps it (`l'Italia che soffre`,
+  '$tr_keep_det'); a possessive after its noun is the phrase's determiner (`a
+  casa sua`), and after another determiner `of` and the pronoun (`quella sua
+  voce` is that voice of his, Spanish `esa voz suya`, tr_poss_after/3); `not
+  even` stands before the phrase it is said of (`neanche uno strapuntino
+  libero`), and before the object of a denied clause it is `even` (`non si trova
+  nemmeno un trafiletto` does not find even a snippet, the controls' double
+  denial); `big` and `small` said of a brother or a sister are `older` and
+  `younger` (`mia sorella più grande`); THE PLACE ONE ARRIVES OR STAYS AT IS A
+  PHRASE OF `at` (`arrivammo nel tardo pomeriggio all'Excelsior`, `i passaporti
+  erano rimasti all'Excelsior`; a city or a country `in`), never a number, a
+  time or a person (`rimase dal 1990 al 1995` is a range), `time` (`Tom llegó a
+  tiempo`) and the phrase of the adjective of `remains` (`era rimasto ignoto al
+  medioevo occidentale` is unknown TO the Middle Ages) -- guards the controls
+  found; an adverb that comments on the whole clause after it is set off by its
+  comma (`..., chissà`, who knows); `can` has no perfect, `has been able to`
+  says it, and its participle is `been able` (`non ho potuto mangiare per un
+  giorno intero`, `di non aver mai potuto incontrare Fellini`, where it was
+  `caned`); `attests` governs `to`, `answers` takes its phrase bare (`ha
+  risposto al telefono` answered the phone), never a bare singular noun, which
+  says how (`abbiamo risposto a tema` answered to the point, a guard both
+  writers keep); and `asks` takes `for` before its object (`chiedeva una copia
+  del mio disco`), never before the one asked (`el gato pide que Pedro duerma`,
+  a guard the whole case found) nor before the object of an infinitive after it
+  (`mi ha chiesto di indicargli un'edicola` asked me to indicate a kiosk, and
+  with the verb of asking still the one written it came out `to indicate him for
+  a kiosk`: tr_comps_out/7 writes the object after an infinitive under the
+  infinitive's verb, a rule the controls found). It needed these WORDS in
+  `extra/` (the two readers: a line moves the reader of one language and the
+  writer of the other; the dictionary's own word is said again first where it
+  must stay the one written): Italian `natio` (native), `paesino` (a village),
+  the names `Santo Amaro`, `morlacchi` and `Luna Rossa` (the song, `rossa` being
+  the colour), `sottobraccio a` (arm in arm with), `incrocia` and `incontra`
+  (meets, before finds), `fastidiosamente`, `trionfatore` (a victor, a person),
+  `incontrastato`, `incanto` and `malia` (charm), `strapuntino` (a folding
+  seat), `cantautore` (a singer-songwriter), `fanclub`, `sussurra` (whispers)
+  and its participles, `sceneggiatore` (a screenwriter), `indimenticabile`,
+  `regista` (a director, not feminine), `capita` (happens, intransitive, its
+  perfect with the copula), `auditorio`, the copula as the auxiliary of `piace`
+  and `dispiace`, `recapita` (delivers), `passeggiatrice` (a streetwalker),
+  `gradisce` (appreciates), `napoletano` (Neapolitan, the adjective and the
+  noun), `tragicomico`, `esule`, `boss`, `schiaffa` (throws), `mattino`,
+  `provvidenziale`, `maestoso`, `cogli` (the contraction of `con gli`, read and
+  not written: the identity first), the adverbs `nel tardo pomeriggio`, `per la
+  seconda volta`, `per la terza volta`, `chissà` (who knows, before the
+  dictionary's maybe), `a memoria` (by heart) and `di sera` (in the evening),
+  the pronouns `tanti` and `tante` (so many, after the verb), `recital` (its own
+  plural), `inviato` (a correspondent, a person), `per conto di` (on behalf of),
+  `ce` the particle of `è`, `n'` the elision of `ne`, `po` (a bit: the tokeniser
+  drops the apostrophe of `po'`), the countries, regions and continents
+  (`italia`, `francia`, `germania`, `inghilterra`, `spagna`, `giappone`,
+  `brasile`, `grecia`, `russia`, `israele`; `cecenia`, `catalogna`, `sardegna`,
+  `sicilia`; `europa`, and `asia`, `africa` and `america` with their English
+  names), `"il" takes the country.`, `"risponde" takes "a" before the phrase.`,
+  `"testimonia" takes "di" before the phrase.` and `"sang" is the past of
+  "sings".` (the upstream verb table's past of sing is `sung`); Spanish `del
+  brazo de`, `de forma molesta`, `triunfador`, `indiscutible`, `traspuntín`,
+  `cantautor`, `club de fans`, `prostituta callejera`, `napolitano`,
+  `tragicómico`, `exiliado`, `providencial`, `majestuoso`, `a última hora de la
+  tarde`, `por segunda vez`, `por tercera vez`, the pronoun `tantos`, `quién
+  sabe`, `libre`, `corresponsal`, `en nombre de`, `de memoria`, `poco` (a bit),
+  the same countries, regions and continents (`catalunya` too, and `áfrica` and
+  `américa`), `ladrón` (a thief: the dictionary has the feminine `ladrona`
+  alone), `natal` (native, where the writer's first was `indígena`), `por la
+  noche` (in the evening), `"sang" is the past of "sings".`, and `policía` with
+  a gender per sense (the police, feminine, and the policeman, masculine: the
+  dictionary gives the noun no gender of its own and the builder denied the
+  feminine, so the force was `el policía`). The first meaning moved for 5
+  Italian words and 3 Spanish ones (Italian `chissà` who knows, `incanto` a
+  charm, `inviato` a correspondent, `incontra` meets, in a line of its meaning
+  alone, and `consegna` delivers, the verb's meaning said again first, its
+  noun's links keeping `the delivery`; Spanish `indiscutible` undisputed,
+  `natal` native, `pizca` a bit), the writer's first word for 3 Italian meanings
+  and 6 Spanish ones (Italian exiled `esule`, charm `incanto`, meets `incontra`;
+  Spanish free `libre`, as an adjective and as an adverb, native `natal`, bit
+  `pizca`, thief `ladrón`, meets `encuentra`), and none was lost. Said again
+  first, each in a line of its meaning alone, so that they stay the words
+  written: Italian `nativo`, `borgo`, `bisbiglia`, `direttore`, `auditorium`,
+  `consegna`, `apprezza`, `getta`, `mattina`, `corrispondente` and `pezzetto`;
+  and Spanish `encuentra`, finds and then meets, so that the writer's verb for
+  meets is no longer the dictionary's `conoce`; and `pizca`, not `poco`, is the
+  Spanish bit. THE CONTROLS (cocolog 2.12.0, store KB236, 110 count files, 2 986
+  sentences: the earlier set with the satanic report in, es_19991102-2, both
+  directions; this interview is not among them): the last version's translator
+  against this one, on the one store, 62 sentences in 24 files read differently,
+  all better but five that are no worse -- a country, a region or a continent
+  with no article (19: `Italy has had four governments`, `if Europe, in name of
+  a "peace"`, `while France assigns 2 per cent ... and Germany between`, `of
+  Sardinia`, `The discovery of America`, Spanish `Italia está viviendo`, `entre
+  Europa y Asia`, `El descubrimiento de América`), `asks for` and the object of
+  an infinitive written under the infinitive's own verb (8: `You should ask for
+  the repayment`, `is also asking for the vote`, `has asked ... for a new
+  deliberation`, `must search for a cause`, `I will search to illustrate a space
+  mission`, where it was `to illustrate for`), the one who likes as English's
+  subject (9: `he likes the good football`, `He liked this, I must say`, `Do you
+  like the music?`, `She likes the freezing ones`, `Tom likes the dark ones`, `I
+  like to be among the people`, `I like to walk in train`), `so many` (4),
+  `arrived at` (4: `arrived at an agreement`, `if one arrives at the
+  signature`), `Al Fatah` (2, where it was `To the Fatah`), `would have been
+  able to` (2, where it was `caned`), `maybe` and `perhaps` in front (4), `they
+  all took it`, `one does not find even a snippet` (where it was `a snippet not
+  even`), and Spanish `esta negociación mía`, `queda accionista`, `nuestra
+  colega` and Italian `un'applicazione Android` -- and the five no worse: `su
+  asistenta de siempre` and `la boda de su parienta` (it_10059_10095 22,
+  it_9800_9814 4: a woman the source names in the feminine, where `ayudante` and
+  `pariente` were written), `return to his house` (it_9851_9925 48, `hers house`
+  before, where `her` is the text), `I like solo only` and `Would you like the
+  White House White some day?` (tat 118 and 394, as wrong as `Solo pleases me
+  only` and `Would the White House please you White`). The inferences rise 0.109
+  % (7 731 781 045 to 7 740 206 054); the sentence that rises most is
+  it_9967_9998 22 (+1.28 million of 38.4 in each language, below), then Tempi's
+  twentieth (+0.14 of 517.2, refused both ways), and the files that rise most
+  are es_19991202-35's and Tatoeba's, +0.6 %. Bytes and characters read every
+  sentence alike (0 differ, the bytes 0.009 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB230, against this one on the new): 76
+  sentences in 27 files, +0.165 % (7 727 434 145 to 7 740 206 054). THE CODE
+  ALONE (this translator on KB230): 44 sentences in 20 files, every one among
+  the 62, +0.109 % (to 7 735 859 984). THE STORE ALONE (the last version's
+  translator on KB230 and on KB236): 15 sentences in 8 files, +0.056 % (to 7 731
+  781 045), all better but one -- `Africa` for `África` (5, both languages),
+  `meet` for `find` (4, English: `to meet the students`, `will return to meet on
+  Tuesday`, `I certainly did not think to meet the professor`, `Then I meet him
+  with Cesare`), `the correspondents of "La Repubblica"` and `los
+  corresponsales`, where they were envoys, `el tiempo libre`, where it was
+  `gratuito`, and `del América` -- and `alle otto di sera di una domenica`, now
+  `to the eight of a Sunday ... now in the evening` (it_10059_10095 7: the line
+  that makes `di sera` one adverb lifts it out of the time), a stated cost. A
+  FIRST STORE WAS 2.36 % DEARER FOR ONE LINE: `The article "il" takes the
+  country.` teaches `article(il)` beside `take(il, country)`, and the store held
+  `article(il)` three times already (the lines of the possessive and the year
+  among them); tr_class_of/2 asks `G =.. [C, W], tr_solve(G)` with no once/1, so
+  each copy of a class fact is one more whole reading of every `il` -- found by
+  teaching KB230 with each of 17 groups of the new Italian lines and counting
+  six heavy sentences of the store's risers (+20.6 % for that line, +0.8 % for
+  the pronouns `tanti` and `tante`, nothing for the rest), and the line is `"il"
+  takes the country.` now, which teaches `take(il, country)` alone. The words
+  said again first are lines of a meaning alone for the same reason
+  (`"direttore" means "director".`: no class taught twice). AN OPEN LEAD:
+  tr_class_of/2 made deterministic for a bound word, and the store's two other
+  copies of `article(il)` taken out, would take a large part of the cost of
+  every Italian sentence away; it changes every count, and is a commit of its
+  own. THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column
+  and mended, each with its arm red (test/translate.pl's 11 checks at the end of
+  the section): the number of a phrase through its relative clause, asked
+  everywhere (a clause of fo_np_number/2), made `es el mensaje que ha repetido
+  con insistencia` `the message that they have repeated is with insistence`
+  (es_20010103-120 16), Millàs' `a quien ... está "abierto"` `aperta` and an
+  English with the quotation's halves out of order (es_20020301-125 13), `qué
+  consecuencias` `cose conseguenze` (9) and `promesse ingannevoli` `have been
+  promised` (it_9800_9814 14), and is asked of the phrase set in front alone now
+  (tr_fronted_np_number/2, a guard); the liking rule wrote `He likes the dark
+  ones to Tom` and refused `a me piace stare in mezzo alla gente` and `Me gusta
+  andar en tren`, the infinitive liked having no writer as an object
+  (tr_liker_phrase/2, an infinitive subject, and with nobody named no `it`:
+  three arms); `asks for` came before the object of the infinitive after it
+  (`asked me to indicate him for a kiosk`, it_9800_9814 4: tr_comps_out/7 writes
+  that object under the infinitive's verb); `answers` took a bare singular noun
+  bare (`we have answered topic`, `hemos contestado tema`, it_9714_9749 4: both
+  writers keep its preposition, two arms); `at` after `remains` took the
+  adjective's phrase (`remained unknown at the western middle ages`,
+  it_9967_9998 14) and a time (`Tom arrived at time`, tat 76); `does not find
+  not even a snippet` (it_9851_9925 32); a capitalised contraction inside a
+  title was a name (`the president Della Repubblica`, it_9926_9946 5, both
+  languages); the store's words came first for the writers -- Italian `regista`
+  for every director, `incrocia` for meets, `schiaffare` for throws (which
+  refused `No nos echaremos al monte`, es_20020801-17 11), `paesino` for a
+  village and the bare `po` for a bit, Spanish `poco` as a noun (which refused
+  es_20011002-160 5, `como pocos`) and `conoce` for meets once `incontra` meant
+  it (`regresarán a conocerse`) -- now the dictionary's words said again first,
+  `pizca` for the bit and `encuentra` for meets; and bytes and characters read
+  five sentences apart, downcase_atom/2 leaving the accented capital of `África`
+  alone under bytes (tr_downcase_units/2, and a probe in newspaper_units, its
+  arm red there). THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the
+  thirteen sentences of 0.3 to 3.6 million inferences that rose most, Italian
+  into English, over a copy of the library per rule on KB230): the second cut
+  was +0.566 % of the controls, and the thirteen rose 415 thousand inferences of
+  12.7 million (+3.26 %), 90 % of it one rule, the pronoun of the first or the
+  second person after the copula (`Ero io il re`), a clause of
+  tr_read_statement0/4 that walked every piece it was asked; with a note made
+  once a sentence (`$tr_pron_copula`, tr_pron_copula_note/1: the copula, such a
+  pronoun and a determiner) they rose +0.47 %, and with the inverted subject of
+  a phrase set in front asked only on a subject's first word
+  (tr_subject_opener/1) and for sixteen words at most +0.32 % (the note's own
+  scan 18 thousand of the 40 thousand left, the unjoined ordinal 8, the role
+  after `with` 6). The cap was found by it_9967_9998 22, `Che poi queste cose le
+  sapessero i dotti e i semplici no, guardate che ...`, whose 28 words after the
+  verb were parsed for a subject at every reading: +3.14 million inferences of
+  38.4 in each language, and +1.28 with the cap, the shorter pieces, the text
+  the same. Both guards stay for their cost, their arms green in the section.
+  THE STATED COSTS: `di sera` lifted out of a time of day (above); `"encuentra"
+  means "meets".` writes `incontrare Fellini` as `encontrar a Fellini`, where it
+  was `conocer`, right for a first meeting; the pronouns `tanti` and `tante`
+  (+0.67 million inferences on it_9851_9925 32, `tanti altri nel nostro campo`);
+  and the inferences, +0.109 % for the code and +0.056 % for the store. Master's
+  2.12.1 (1c25b57, the trail and the variable map's words widened to 64 bits, in
+  master as 8e63396) came during the sample; the next sample takes it. The
+  interview LEAVES, of the 45 into Spanish (English alike unless it says): `amor
+  para el cine` (1: `por`); `paseando por la noche para Corso Vannucci` and
+  `strolling for` (3: `por`), `se encuentra a casa suya` and `finds to his
+  house` (at home), `en el natal pueblo` (`en su pueblo natal`); `con Gilda a la
+  ex compañera` (4: no `a`), `encuentra cariciosamente el amigo` (`saluda con
+  cariño a su amigo`) and `a esposa y niños`; `like an old and expensive friend
+  ever annoyingly` (5: `mai fastidiosamente` is never annoyingly, and `caro`
+  dear); `al teatro Morlacchi` and `to the theatre` (7: `en el`), `tantas
+  personas quedadas fuera` and `so many remained people away`; `del criticismo`
+  (8: `de la crítica`); `ha sido siempre presente` and `since boy` (9); `los he
+  visto todas estas películas` and `I, then, I have seen them all these films`
+  (12: the object said twice); `que conozco` (14: `que sé`), `al cine` and `to
+  the cinema`, `listening the dialogs`; `A 15 años` and `To 15 years` (17: `a
+  los 15`), and `La strada`, a film, read as the road; 18, `Le notti di Cabiria
+  è una delle cose più belle`, a film's title read as a plural phrase and set
+  last (`que ha visto nunca las noches de Cabiria`); `El único grueso dolor` and
+  `thick pain` (19); 20 out of order (`"Time Zones" me ha pasado cantar ... en
+  Bari para el festival`); `destination` for `destino` (21); `A Voice of woman
+  ... to her dedicated` (23); `Le he hecho entregar el disco a casa desde un
+  amigo` and `I have made her to deliver the disc to house from a friend` (24: I
+  had a friend deliver it to her home); `he sentido` and `felt` for heard (29,
+  31); 33 out of order in both (`La canto aquí desde vosotros antes en Nápoles
+  ... por eso hoy`, `a hopelessly mine song`); `The tale ... curious and
+  tragicomic` (34: the predicate set first in the source); `the discographic
+  Paramount company` (35); `desde un par de horas` and `from a pair of hours`
+  (38: for a couple of hours), `quedado al Excelsior` (`en el`); `They put us to
+  the six of the morning ... away` (40: let us out at six); `en Nápoles` (41:
+  `a`), `they would also want` (he would like), `adesso` last; `Soy como en
+  cielo` (42: `Estoy como en el cielo`); `devuelvo a niño` and `I return boy`
+  (43: `vuelvo a ser niño`); `arranca al mismo` (44: `salta igualmente`); and
+  `atestigua de su gran amor para Italia` (45). Into English 4, 8, 26, 28 (its
+  reporting clause) and 29 are refused for the third person nobody names, on
+  purpose (`Va sottobraccio ...`, `Ha vinto anche ...`, `Era stato anche
+  proibito ...`, `Sorride ricordando:`, `perché è stata la prima che ho
+  sentito`). The next sample's controls take this interview in.
 
 ## Tutorials are documentation that runs
 

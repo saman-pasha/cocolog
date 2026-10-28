@@ -2969,6 +2969,170 @@ The feminine noun "rivista" means "magazine".
 "pubblica" takes the passive.
 "offre" takes the passive.
 "legge" takes the passive.
+"nativo" means "native".
+The masculine adjective "natio" means "native".
+"natii" is the plural of "natio".
+The feminine adjective "natia" means "native".
+"natie" is the plural of "natia".
+"borgo" means "village".
+The masculine noun "paesino" means "village".
+"paesini" is the plural of "paesino".
+"Santo Amaro" is a name.
+The preposition "sottobraccio a" means "arm in arm with".
+"incontra" means "meets".
+The verb "incrocia" means "meets".
+"incrociano" is the plural of "incrocia".
+"incrociare" is the infinitive of "incrocia".
+"incrociato" is the participle of "incrocia".
+"incrociò" is the past of "incrocia".
+"incrociava" is the imperfect of "incrocia".
+The adverb "fastidiosamente" means "annoyingly".
+The masculine noun "trionfatore" means "victor".
+"trionfatori" is the plural of "trionfatore".
+"trionfatore" is a person.
+The masculine adjective "incontrastato" means "undisputed".
+"incontrastati" is the plural of "incontrastato".
+The feminine adjective "incontrastata" means "undisputed".
+"incontrastate" is the plural of "incontrastata".
+The masculine noun "incanto" means "charm".
+The feminine noun "malia" means "charm".
+"malie" is the plural of "malia".
+"morlacchi" is a name.
+The masculine noun "strapuntino" means "folding seat".
+"strapuntini" is the plural of "strapuntino".
+The masculine noun "cantautore" means "singer-songwriter".
+"cantautori" is the plural of "cantautore".
+"cantautore" is a person.
+The masculine noun "fanclub" means "fan club".
+"fanclub" is the plural of "fanclub".
+"bisbiglia" means "whispers".
+The verb "sussurra" means "whispers".
+"sussurrano" is the plural of "sussurra".
+"sussurrare" is the infinitive of "sussurra".
+"sussurrato" is the participle of "sussurra".
+"sussurrata" is the participle of "sussurra".
+"sussurrata" is feminine.
+"sussurrati" is the participle of "sussurra".
+"sussurrati" is the plural of "sussurrato".
+"sussurrate" is the participle of "sussurra".
+"sussurrate" is feminine.
+"sussurrate" is the plural of "sussurrata".
+The masculine noun "sceneggiatore" means "screenwriter".
+"sceneggiatori" is the plural of "sceneggiatore".
+"sceneggiatore" is a person.
+The adjective "indimenticabile" means "unforgettable".
+"indimenticabili" is the plural of "indimenticabile".
+"direttore" means "director".
+The noun "regista" means "director".
+"regista" is not feminine.
+"registi" is the plural of "regista".
+"regista" is a person.
+The intransitive verb "capita" means "happens".
+"capitano" is the plural of "capita".
+"capitare" is the infinitive of "capita".
+"capitato" is the participle of "capita".
+"capitò" is the past of "capita".
+"capitava" is the imperfect of "capita".
+"è" is the auxiliary of "capita".
+"auditorium" means "auditorium".
+The masculine noun "auditorio" means "auditorium".
+"auditori" is the plural of "auditorio".
+"è" is the auxiliary of "piace".
+"è" is the auxiliary of "dispiace".
+"consegna" means "delivers".
+The verb "recapita" means "delivers".
+"recapitano" is the plural of "recapita".
+"recapitare" is the infinitive of "recapita".
+"recapitato" is the participle of "recapita".
+The feminine noun "passeggiatrice" means "streetwalker".
+"passeggiatrici" is the plural of "passeggiatrice".
+"passeggiatrice" is a person.
+"apprezza" means "appreciates".
+The verb "gradisce" means "appreciates".
+"gradiscono" is the plural of "gradisce".
+"gradire" is the infinitive of "gradisce".
+"gradito" is the participle of "gradisce".
+"gradita" is the participle of "gradisce".
+"gradita" is feminine.
+"gradì" is the past of "gradisce".
+The masculine adjective "napoletano" means "Neapolitan".
+"napoletani" is the plural of "napoletano".
+The feminine adjective "napoletana" means "Neapolitan".
+"napoletane" is the plural of "napoletana".
+The masculine noun "napoletano" means "Neapolitan".
+The masculine adjective "tragicomico" means "tragicomic".
+"tragicomici" is the plural of "tragicomico".
+The feminine adjective "tragicomica" means "tragicomic".
+"tragicomiche" is the plural of "tragicomica".
+The adjective "esule" means "exiled".
+"esuli" is the plural of "esule".
+The masculine noun "boss" means "boss".
+"boss" is the plural of "boss".
+"boss" is a person.
+"getta" means "throws".
+The verb "schiaffa" means "throws".
+"schiaffano" is the plural of "schiaffa".
+"schiaffare" is the infinitive of "schiaffa".
+"schiaffò" is the past of "schiaffa".
+"schiaffarono" is the past of "schiaffano".
+"schiaffato" is the participle of "schiaffa".
+"mattina" means "morning".
+The masculine noun "mattino" means "morning".
+"mattini" is the plural of "mattino".
+The adjective "provvidenziale" means "providential".
+"provvidenziali" is the plural of "provvidenziale".
+The masculine adjective "maestoso" means "majestic".
+"maestosi" is the plural of "maestoso".
+The feminine adjective "maestosa" means "majestic".
+"maestose" is the plural of "maestosa".
+"con gli" is the contraction of "con gli".
+"cogli" is the contraction of "con gli".
+The adverb "nel tardo pomeriggio" means "in the late afternoon".
+The adverb "per la seconda volta" means "for the second time".
+The adverb "per la terza volta" means "for the third time".
+The pronoun "tanti" means "so many".
+The pronoun "tanti" does not precede the verb.
+The pronoun "tante" means "so many".
+The pronoun "tante" does not precede the verb.
+The adverb "chissà" means "who knows".
+"recital" is the plural of "recital".
+"corrispondente" means "correspondent".
+The masculine noun "inviato" means "correspondent".
+"inviati" is the plural of "inviato".
+"inviato" is a person.
+The preposition "per conto di" means "on behalf of".
+The adverb "a memoria" means "by heart".
+"ce" is the particle of "è".
+"n'" is the elision of "ne".
+"pezzetto" means "bit".
+The masculine noun "po" means "bit".
+"italia" is a country.
+"francia" is a country.
+"germania" is a country.
+"inghilterra" is a country.
+"spagna" is a country.
+"giappone" is a country.
+"brasile" is a country.
+"grecia" is a country.
+"russia" is a country.
+"israele" is a country.
+"cecenia" is a region.
+"catalogna" is a region.
+"sardegna" is a region.
+"sicilia" is a region.
+"europa" is a continent.
+The name "asia" means "Asia".
+"asia" is a continent.
+The name "africa" means "Africa".
+"africa" is a continent.
+The name "america" means "America".
+"america" is a continent.
+"il" takes the country.
+"Luna Rossa" is a name.
+"risponde" takes "a" before the phrase.
+"testimonia" takes "di" before the phrase.
+The adverb "di sera" means "in the evening".
+"sang" is the past of "sings".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

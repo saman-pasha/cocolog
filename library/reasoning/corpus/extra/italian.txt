@@ -4574,3 +4574,209 @@ The feminine noun "rivista" means "magazine".
 "pubblica" takes the passive.
 "offre" takes the passive.
 "legge" takes the passive.
+# the Veloso interview (VIT-9225..9269, Italian into Spanish and English): the words the dictionary lacks or gets wrong
+# (the dictionary's own word is said again before a new one wherever the new one must not become the word the
+# Italian writer takes for the meaning: `direttore' stays the director, `getta' throws, `pezzetto' a bit -- in a
+# line of its meaning alone, `"direttore" means "director".', which teaches no class a second time: every class
+# fact said again is a second reading of every `il', `direttore', ..., tr_class_of/2 not being deterministic)
+# `nel natio borgo di Santo Amaro, un paesino nello stato di Bahia': native, a small village, and the town's name
+"nativo" means "native".
+The masculine adjective "natio" means "native".
+"natii" is the plural of "natio".
+The feminine adjective "natia" means "native".
+"natie" is the plural of "natia".
+"borgo" means "village".
+The masculine noun "paesino" means "village".
+"paesini" is the plural of "paesino".
+"Santo Amaro" is a name.
+# `Va sottobraccio alla bella moglie Paola': arm in arm with
+The preposition "sottobraccio a" means "arm in arm with".
+# `incrocia affettuosamente l'amico Gilberto Gil': meets; and `incontrare Fellini', meets before it finds
+"incontra" means "meets".
+The verb "incrocia" means "meets".
+"incrociano" is the plural of "incrocia".
+"incrociare" is the infinitive of "incrocia".
+"incrociato" is the participle of "incrocia".
+"incrociò" is the past of "incrocia".
+"incrociava" is the imperfect of "incrocia".
+# `mai fastidiosamente': annoyingly
+The adverb "fastidiosamente" means "annoyingly".
+# `il trionfatore incontrastato del festival': the victor, undisputed
+The masculine noun "trionfatore" means "victor".
+"trionfatori" is the plural of "trionfatore".
+"trionfatore" is a person.
+The masculine adjective "incontrastato" means "undisputed".
+"incontrastati" is the plural of "incontrastato".
+The feminine adjective "incontrastata" means "undisputed".
+"incontrastate" is the plural of "incontrastata".
+# `Tre recital di straordinaria malia al teatro morlacchi, neanche uno strapuntino libero': charm, the theatre's name, a folding seat
+The masculine noun "incanto" means "charm".
+The feminine noun "malia" means "charm".
+"malie" is the plural of "malia".
+"morlacchi" is a name.
+The masculine noun "strapuntino" means "folding seat".
+"strapuntini" is the plural of "strapuntino".
+# `il cantautore di Bahia', `un immaginario fanclub': a singer-songwriter, a fan club
+The masculine noun "cantautore" means "singer-songwriter".
+"cantautori" is the plural of "cantautore".
+"cantautore" is a person.
+The masculine noun "fanclub" means "fan club".
+"fanclub" is the plural of "fanclub".
+# `quella sua voce lieve, sussurrata': whispered
+"bisbiglia" means "whispers".
+The verb "sussurra" means "whispers".
+"sussurrano" is the plural of "sussurra".
+"sussurrare" is the infinitive of "sussurra".
+"sussurrato" is the participle of "sussurra".
+"sussurrata" is the participle of "sussurra".
+"sussurrata" is feminine.
+"sussurrati" is the participle of "sussurra".
+"sussurrati" is the plural of "sussurrato".
+"sussurrate" is the participle of "sussurra".
+"sussurrate" is feminine.
+"sussurrate" is the plural of "sussurrata".
+# `tutti gli sceneggiatori di quei film indimenticabili', `Il regista favorito': screenwriters, unforgettable, the director
+The masculine noun "sceneggiatore" means "screenwriter".
+"sceneggiatori" is the plural of "sceneggiatore".
+"sceneggiatore" is a person.
+The adjective "indimenticabile" means "unforgettable".
+"indimenticabili" is the plural of "indimenticabile".
+"direttore" means "director".
+The noun "regista" means "director".
+"regista" is not feminine.
+"registi" is the plural of "regista".
+"regista" is a person.
+# `mi è capitato di cantare all'auditorio Nino Rota': happens, the perfect taking the copula; an auditorium
+The intransitive verb "capita" means "happens".
+"capitano" is the plural of "capita".
+"capitare" is the infinitive of "capita".
+"capitato" is the participle of "capita".
+"capitò" is the past of "capita".
+"capitava" is the imperfect of "capita".
+"è" is the auxiliary of "capita".
+"auditorium" means "auditorium".
+The masculine noun "auditorio" means "auditorium".
+"auditori" is the plural of "auditorio".
+# `Forse non le era piaciuto': the perfect of `piace' takes the copula
+"è" is the auxiliary of "piace".
+"è" is the auxiliary of "dispiace".
+# `Le ho fatto recapitare il disco a casa': delivers
+"consegna" means "delivers".
+The verb "recapita" means "delivers".
+"recapitano" is the plural of "recapita".
+"recapitare" is the infinitive of "recapita".
+"recapitato" is the participle of "recapita".
+# `parlava delle passeggiatrici di Cabiria, magari Giulietta non ha gradito': streetwalkers, appreciates
+The feminine noun "passeggiatrice" means "streetwalker".
+"passeggiatrici" is the plural of "passeggiatrice".
+"passeggiatrice" is a person.
+"apprezza" means "appreciates".
+The verb "gradisce" means "appreciates".
+"gradiscono" is the plural of "gradisce".
+"gradire" is the infinitive of "gradisce".
+"gradito" is the participle of "gradisce".
+"gradita" is the participle of "gradisce".
+"gradita" is feminine.
+"gradì" is the past of "gradisce".
+# `le canzoni napoletane', `in dialetto napoletano', `non era italiano, ma napoletano': Neapolitan
+The masculine adjective "napoletano" means "Neapolitan".
+"napoletani" is the plural of "napoletano".
+The feminine adjective "napoletana" means "Neapolitan".
+"napoletane" is the plural of "napoletana".
+The masculine noun "napoletano" means "Neapolitan".
+# `Curioso e tragicomico il racconto', `vivevo esule a Londra': tragicomic, exiled
+The masculine adjective "tragicomico" means "tragicomic".
+"tragicomici" is the plural of "tragicomico".
+The feminine adjective "tragicomica" means "tragicomic".
+"tragicomiche" is the plural of "tragicomica".
+The adjective "esule" means "exiled".
+"esuli" is the plural of "esule".
+# `il boss della compagnia discografica Paramount': the boss
+The masculine noun "boss" means "boss".
+"boss" is the plural of "boss".
+"boss" is a person.
+# `ci schiaffarono in cella': throws
+"getta" means "throws".
+The verb "schiaffa" means "throws".
+"schiaffano" is the plural of "schiaffa".
+"schiaffare" is the infinitive of "schiaffa".
+"schiaffò" is the past of "schiaffa".
+"schiaffarono" is the past of "schiaffano".
+"schiaffato" is the participle of "schiaffa".
+# `alle sei del mattino, per l'intervento provvidenziale': the morning, providential
+"mattina" means "morning".
+The masculine noun "mattino" means "morning".
+"mattini" is the plural of "mattino".
+The adjective "provvidenziale" means "providential".
+"provvidenziali" is the plural of "provvidenziale".
+# `le vecchie chiese di Bahia non sono proprio così maestose': majestic
+The masculine adjective "maestoso" means "majestic".
+"maestosi" is the plural of "maestoso".
+The feminine adjective "maestosa" means "majestic".
+"maestose" is the plural of "maestosa".
+# `parlare in italiano cogli italiani': the contraction of `con gli', read and not written -- the identity first
+"con gli" is the contraction of "con gli".
+"cogli" is the contraction of "con gli".
+# `Arrivammo nel tardo pomeriggio', `per la terza volta': adverbs of several words
+The adverb "nel tardo pomeriggio" means "in the late afternoon".
+The adverb "per la seconda volta" means "for the second time".
+The adverb "per la terza volta" means "for the third time".
+# `ne ho visti tanti fino all'ossessione': so many, a pronoun of quantity, the partitive `ne' said with it once
+The pronoun "tanti" means "so many".
+The pronoun "tanti" does not precede the verb.
+The pronoun "tante" means "so many".
+The pronoun "tante" does not precede the verb.
+# `Forse non le era piaciuto, chissà': who knows, before the dictionary's maybe
+The adverb "chissà" means "who knows".
+# `Tre recital di straordinaria malia': a recital, one word in both numbers
+"recital" is the plural of "recital".
+# `la prima notte in Italia chiuso in cella', `Dal nostro inviato Giacomo Pellicciotti': a correspondent
+"corrispondente" means "correspondent".
+The masculine noun "inviato" means "correspondent".
+"inviati" is the plural of "inviato".
+"inviato" is a person.
+# `una copia ... per conto della Masina', `imparare a memoria le parole', `da un paio d'ore': on behalf of, by heart, a couple of
+The preposition "per conto di" means "on behalf of".
+The adverb "a memoria" means "by heart".
+# `Oggi non ce n'è rimasto più nessuno': `ce' is the `ci' that `è' takes before a pronoun (tr_particles/3), and `n''
+# the elided partitive `ne'
+"ce" is the particle of "è".
+"n'" is the elision of "ne".
+# `quel po' d'italiano che so': a bit, the tokeniser dropping the apostrophe of `po'' before a blank
+"pezzetto" means "bit".
+The masculine noun "po" means "bit".
+# `l'Italia è un sentimento', `il mio rapporto ... con l'Italia': Italy, with no article in English or Spanish -- a
+# country, a region or a continent the lesson names -- and Italian's own article before one
+"italia" is a country.
+"francia" is a country.
+"germania" is a country.
+"inghilterra" is a country.
+"spagna" is a country.
+"giappone" is a country.
+"brasile" is a country.
+"grecia" is a country.
+"russia" is a country.
+"israele" is a country.
+"cecenia" is a region.
+"catalogna" is a region.
+"sardegna" is a region.
+"sicilia" is a region.
+"europa" is a continent.
+The name "asia" means "Asia".
+"asia" is a continent.
+The name "africa" means "Africa".
+"africa" is a continent.
+The name "america" means "America".
+"america" is a continent.
+# (said of the word and not of the article: `The article "il" ...' also states that "il" is an article, a second
+# reading of every `il', and cost the translator 20 % of a heavy Italian sentence)
+"il" takes the country.
+# `la mia canzone preferita è Luna Rossa': the song's name, `rossa' being the colour
+"Luna Rossa" is a name.
+# `ha risposto al telefono': answered the phone; `testimonia del suo grande amore': testifies to it
+"risponde" takes "a" before the phrase.
+"testimonia" takes "di" before the phrase.
+# `passeggiando di sera per corso Vannucci': in the evening, an adverb of two words
+The adverb "di sera" means "in the evening".
+# `mia madre mi cantava le canzoni napoletane': the upstream verb table's past of `sing' is `sung', its participle
+"sang" is the past of "sings".
