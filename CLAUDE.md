@@ -651,6 +651,13 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   padding apart; a function's own count, per function, is the same parse
   (its header). And a source change in the step loop moves the loop's
   register allocation whatever it says (DESIGN-flow.md 9.1).
+* **A process's speed can depend on where the kernel loads it.** 2.14.1's
+  counting loop runs about 30 % slower whenever the binary's base has
+  address bits 12 and 13 both set -- one load in four, 60 runs of 60 sorted
+  by that alone -- and 2.2.5's does not (bench/README.md, Run Z). Two single
+  runs can land in different modes: look at twenty runs of each build for
+  two clusters before reading a pair, or time both with `setarch -R`, which
+  fixes one layout for each (a placement of its own, to be named).
 * **Find a cost with the hunk bisection**: take each hunk of the diff against
   the last version out in a copy of the library and count the sentences that
   rose, several copies at a time (counts do not depend on load). A hunk that
