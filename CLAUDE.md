@@ -420,14 +420,20 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
   every push to master and pull request into master (not one that changes
   only the top-level `*.md` or the Docker files), and by hand with Cicili's
-  and ZiguratIP's refs. Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
+  and ZiguratIP's refs, or with the Intel Mac's sbcl built from source
+  (`sbcl_from_source`, below). Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
   16 GB) by `install/install-linux.sh`, and two Macs by
   `install/install-macos.sh`, macos-15 (Apple silicon, 3 CPUs, 7 GB) and
   macos-26-intel (x86-64, 4 CPUs, 14 GB), the owner's arrangement. Homebrew
   builds no Intel bottles since 2026-09 and SBCL ships no x86-64 Darwin
   binary: the Intel job pours what the image's own formula data names
-  (`HOMEBREW_NO_AUTO_UPDATE`), and where no bottle pours sbcl builds
-  through ECL, in the install step's two hours. Each raises a server
+  (`HOMEBREW_NO_AUTO_UPDATE`). The image of 2026-08-24 (macOS 26.6.1,
+  Apple clang 21) poured every package, sbcl 2.6.7 from its sonoma
+  bottle, and the job took 50 minutes, 17 of them ZiguratIP's build (run
+  40856551321). An image whose formulas have no Intel bottle would build
+  sbcl through ECL, inside the install step's two hours; a run by hand with
+  `sbcl_from_source` builds it so before the install, from today's formula
+  data (`brew update`, nothing else upgraded). Each raises a server
   on 2160, runs the lint case and then `test/run.pl`, and
   `tools/ci/verdict.sh` reads every case's line: a red case, a case with no
   line, or a SKIP outside the job's `allowed_skips` (tensors, the three
@@ -7544,10 +7550,10 @@ than its cause:
   `wc` and `sed` as they are.
 * **There is no `/proc/self/exe`**: `lb_exedir` asks `_NSGetExecutablePath`;
   programs read `current_prolog_flag(executable, P)`.
-* **`make schema` builds as it stands on Apple clang 17** (macos-15, CI,
-  2026-10-29: 38 objects, no flag): nothing in either tree names
-  `std::binary_function` now. It once died in libc++, which removes that
-  name under C++17. Were that back: copy the home config, add
+* **`make schema` builds as it stands on Apple clang 17 and 21** (macos-15
+  and macos-26-intel, CI, 2026-10-29: 38 objects, no flag): nothing in
+  either tree names `std::binary_function` now. It once died in libc++,
+  which removes that name under C++17. Were that back: copy the home config, add
   `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to `CPP_FLAGS`, run
   `ZIGURATIP_CONF=that-file make schema`.
 * **A raylib photograph is one frame behind**: draw a frame twice before a
