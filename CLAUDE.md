@@ -417,6 +417,18 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   hold would be reported as cocolog's failures. **Count the SKIPs and run
   `pgrep ziguratip`** before believing a green run; the number of SKIPs is a
   fact about the machine.
+* **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
+  every push to master and pull request into master (not one that changes
+  only the top-level `*.md` or the Docker files), and by hand with Cicili's
+  and ZiguratIP's refs. A fresh ubuntu-24.04 runner (4 vCPU, 16 GB, NOT
+  root) installs by `install/install-linux.sh`, raises a server on 2160,
+  runs the lint case and then `test/run.pl`, and `tools/ci/verdict.sh` reads
+  every case's line: a red case, a case with no line, or a SKIP outside the
+  workflow's `ALLOWED_SKIPS` (tensors, the three torch cases, tensorflow,
+  ray, numpy, opencv: no library built there) is red. **A case that may now SKIP on a plain install goes
+  into `ALLOWED_SKIPS` in the same commit.** Each red case is run again alone
+  (its whole output: the runner keeps five FAIL lines and no SKIP reason),
+  and the logs are the run's artifact for 14 days.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -7036,6 +7048,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
+| `tools/ci/`, `.github/workflows/` | `verdict.sh`: the suite's verdict on a CI runner (`ci.yml` runs it); `docker-image.yml`: a release's images, by hand |
 | `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flow/chart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
