@@ -2342,6 +2342,63 @@ The feminine noun "falta" means "fault".
 The feminine noun "falta" means "lack".
 The adverb "en vano" means "in vain".
 The masculine noun "trabajador" means "worker".
+The feminine noun "misa de réquiem" means "requiem mass".
+"misas de réquiem" is the plural of "misa de réquiem".
+The adverb "mañana por la noche" means "tomorrow evening".
+The masculine noun "limpiacristales" means "windscreen washer".
+"limpiacristales" is the plural of "limpiacristales".
+"limpiacristales" is a person.
+The masculine noun "semáforo" means "traffic light".
+The verb "se gana la vida" means "earns a living".
+"se ganan la vida" is the plural of "se gana la vida".
+"ganarse la vida" is the infinitive of "se gana la vida".
+The masculine adjective "quinceañero" means "fifteen-year-old".
+The feminine adjective "quinceañera" means "fifteen-year-old".
+"quinceañeros" is the plural of "quinceañero".
+"quinceañeras" is the plural of "quinceañera".
+The masculine noun "hermanito" means "little brother".
+"hermanitos" is the plural of "hermanito".
+"hermanito" is a person.
+The verb "tiene cuidado" means "takes care".
+"tienen cuidado" is the plural of "tiene cuidado".
+"tener cuidado" is the infinitive of "tiene cuidado".
+The intransitive verb "derrapa" means "skids".
+"derrapan" is the plural of "derrapa".
+"derrapar" is the infinitive of "derrapa".
+"derrapando" is the gerund of "derrapa".
+"derrapó" is the past of "derrapa".
+"derrapado" is the participle of "derrapa".
+The verb "atropella" means "runs over".
+"atropellan" is the plural of "atropella".
+"atropellar" is the infinitive of "atropella".
+"atropelló" is the past of "atropella".
+"atropellaron" is the plural of "atropelló".
+"atropellaba" is the imperfect of "atropella".
+"atropellará" is the future of "atropella".
+"atropellado" is the participle of "atropella".
+"atropellada" is the participle of "atropella".
+"atropellada" is feminine.
+"atropellados" is the participle of "atropella".
+"atropellados" is the plural of "atropellado".
+"atropelladas" is the participle of "atropella".
+"atropelladas" is feminine.
+"atropelladas" is the plural of "atropellada".
+"atropellando" is the gerund of "atropella".
+The feminine noun "audiencia" means "audience".
+The feminine noun "audiencia" means "hearing".
+The adverb "no por casualidad" means "not by chance".
+The masculine noun "concierto de clausura" means "closing concert".
+"conciertos de clausura" is the plural of "concierto de clausura".
+"concierto de clausura" is not feminine.
+The name "colonia" means "Cologne".
+The verb "da los primeros pasos" means "takes the first steps".
+"dan los primeros pasos" is the plural of "da los primeros pasos".
+"dar los primeros pasos" is the infinitive of "da los primeros pasos".
+"dio los primeros pasos" is the past of "da los primeros pasos".
+"dado los primeros pasos" is the participle of "da los primeros pasos".
+The feminine noun "desaceleración" means "deceleration".
+"desaceleraciones" is the plural of "desaceleración".
+The adverb "poco antes" means "shortly before".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

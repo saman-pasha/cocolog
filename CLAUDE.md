@@ -7393,6 +7393,126 @@ read into an English-worded IR and written into any lesson's language),
   (were of little use), read with `servir' transitive and nobody named. English refuses 3 for the third person nobody
   names, on purpose: the subject after the verb (`Tampoco ayudó el dispositivo de Mantenimiento y Servicios, que ...')
   is read as its object. The next sample's controls take this report in.
+  The Spoleto and Torvaianica reports (VIT-9205..9224, 20 sentences: the Spoleto festival's closing concert and a
+  hearing of the trial for a girl run over in Torvaianica, Italian into Spanish and English: 17 of 20 and 14 of 20 on a
+  fresh store, 15 and 12 with the new store alone, 10 and 8 with the new code on the old store, 8 and 7 before;
+  reasoning 1.0.23). The sample was taken on the cocolog 2.13.0 binary, master's 450b7a0 merged as 50e0b01 (CI, its
+  verdict script and the install scripts, no change to the binary), and cocolog stays 2.13.0; master's b8812f4 and
+  d06692a (the Intel Mac's CI job and its record, no change to the binary) came during the sample and are merged after
+  it. The article's sentences fall from 35.1 million inferences in each language to 10.8 into Spanish and 10.9 into
+  English, of which the tenth, refused, is 4.0 million in each.
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_spoleto': 21 checks, 19 arms, 17 red in
+  the section, one in newspaper_wapo and one guard of cost that stays green, below; an arm is a library directory of
+  symlinks whose reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query
+  "use_module('test/translate.pl'), newspaper_spoleto, checks_done"', two seconds a run): A VERB WITH A PERSON FOR ITS
+  OBJECT CROSSES BY THE MEANING THE LESSON GIVES IT THERE (`la Bx ha investito la ragazza' ran the girl over, and with
+  `investe' `invests' first it was `has invested the girl' and `ha invertido la niña': `The personal verb "investe"
+  means "runs over".', a class linked as the infinitival one is, tr_mean_links/3, tr_verb_across/5, the lesson's verbs
+  that have one found once a sentence, '$tr_personal'), never with a thing for its object (`Il dottore investe il
+  denaro' invests it, tr_person_object/1, a guard), and the participle said of a person crosses so too (`la ragazza
+  investita a Torvaianica', tr_cross_np/2) -- four arms; English writes the participle of a verb of several words after
+  its noun (`the girl run over in Torvaianica', where it was `the run over girl': tr_np_out/5); a phrase with its
+  participle after it is of its head's class, so the person keeps the `a' Spanish puts before one (`ha atropellado a la
+  niña quinceañera molestada poco antes': tr_of_class/2), never a word that replaces the noun (`ve el conducido por el
+  gato', which the whole case found as `al conducido', its arm red in newspaper_wapo) -- two arms; ITALIAN'S ORDINAL IN
+  DIGITS IS ONE WORD WITH ITS SIGN (`la 38-ma edizione del festival' is the 38th edition, and the tokeniser dropped the
+  hyphen and left `ma', the word for `but', `el 38 pero edición': tr_number_written/4, `-ma' and `-me' `ª', `-mo' and
+  `-mi' `º', the sign's codes the atom's own in each unit, a probe in newspaper_units); the word for `more' between an
+  article and a participle, in a phrase of a preposition, the noun left out (`è stata fra le più eseguite' is among the
+  most performed, and the phrase of `fra' ended at its article: tr_phrase_words0/4); A RUN OF CAPITALISED WORDS THAT
+  OPENS ON A NAME IS ONE NAME, whatever the words after it are (`La Spoleto Festival Orchestra sarà diretta da ...',
+  refused, `orchestra' a noun of the determiner: tr_np/3), the name first a guard of cost (an arm that takes any run of
+  capitals reads every sentence of the controls alike for 0.35 % more inferences) and the second word's capital asked
+  before the name's lookup (below); the copula with `thus' alone in front and nobody named is `it is thus' in English
+  (`se così fosse stato, la Bx ... avrebbe subìto una decelerazione' is if it had been thus, and with the front written
+  apart English refused it: tr_write/4); a verb of saying with a person's pronoun and an infinitive right after it is
+  `tells' (`il mio fratellino mi disse di stare attento' told me to take care, where it was `said me to'); THE AGENT
+  BEFORE ITS PARTICIPLE, WITH NO PHRASE BEFORE THEM, IS A FRAGMENT (`C'era la ragazza. da me vista troppo tardi".' --
+  seen by me too late, and read as a statement `vista' was what `vistare' says, `Aprueba demasiado tarde desde mí':
+  tr_read0/4 asks it first for such a piece, tr_verbless0/3 takes the participle by its form, `vista' the view too) --
+  two arms; a capitalised word after a title is the name's though the lesson knows it (`il dottor Lombardi' is the
+  doctor, `lombardi' the plural of `lombardo', and it was `the Lombard doctor': tr_stated_names0/2, `"dottore" is a
+  title.'); a phrase after the comma that closes the subject set after a passive verb is the subject's apposition (`Sarà
+  ascoltato il dottor Lombardi, il primo medico ad intervenire dopo la tragedia' -- a passive takes no object, and read
+  as one it was `al primer médico' and `to the first doctor', and `la tesi del perito della difesa, a Italo Fainelli':
+  tr_passive_subject_fix/3, appos/1); and the event one is at is a phrase of `at' (`Al processo di Torvajanica smentito
+  Said' was denied AT the trial, where it was `to the trial': tr_comp_out/7, en_event_noun/1), never after a verb that
+  goes there (`va al concerto', tr_motion_verb/1, a guard).
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `messa da requiem'
+  (a requiem mass, one noun of three words: as two the mass was the dough, `la masa desde réquiem'), `domani sera'
+  (tomorrow evening), `imponenza' (magnificence), `lavavetri' (a windscreen washer, a person, its own plural),
+  `semaforo' (a traffic light, where it was a semaphore), `si guadagna da vivere' (earns a living), `quindicenne'
+  (fifteen-year-old), `fratellino' (a little brother), `sta attento' (takes care), `perito' (an expert, a person;
+  `esperto' said again first), `stritola' (crushes, with its forms; `schiaccia' said again first), `in aula' (in court),
+  `sbanda' (skids, intransitive), `ribatte' (retorts; `replica' said again first), `urto' (an impact; `impatto' said
+  again first), `subìto' (the participle of `subisce' with its accent), `dottor' (the apocope of `dottore') and
+  `"dottore" is a title.', `prossimo' and `prossima' (next before forthcoming), `udienza' (a hearing before an audience;
+  `udito' said again first), `The personal verb "investe" means "runs over".' (`invests' said first), `nel momento in
+  cui' (when), `non a caso' (not by chance), `concerto di chiusura' (a closing concert, not feminine), `muove i primi
+  passi' (takes the first steps), `poco prima' (shortly before), the cities `Spoleto', `Torvajanica', `Torvaianica' and
+  `Casalpalocco', and the name `colonia' (Cologne, a city); Spanish `misa de réquiem', `mañana por la noche',
+  `limpiacristales', `semáforo' (a traffic light), `se gana la vida', `quinceañero' and `quinceañera', `hermanito',
+  `tiene cuidado', `derrapa' (skids), `atropella' (runs over, with its forms: the dictionary's entry is of two English
+  words, which the builder takes none of), `audiencia' (a hearing, after the audience), `no por casualidad', `concierto
+  de clausura' (not feminine), `da los primeros pasos', `desaceleración' (the dictionary has none), `poco antes' and the
+  name `colonia' (Cologne; Spanish states no city). The first meaning moved for 5 Italian words and 2 Spanish ones
+  (`colonia' Cologne, `prossimo' and `prossima' next, `semaforo' a traffic light, `udienza' a hearing; `colonia' and
+  `semáforo'), the writer's first word for 1 Spanish meaning (a hearing, `audiencia', where it was `oído'), and none was
+  lost.
+  THE CONTROLS (cocolog 2.13.0, store KB265, 118 count files, 3 238 sentences: the earlier set with the New Year's Eve
+  report in, es_20010103-85, both directions; these reports are not among them): the last version's translator against
+  this one, on the one store, 1 sentence reads differently, and better (it_9567_9604 10, `at the Roman meeting where
+  Parisi has fought', where it was `to the Roman meeting') -- and the inferences rise 0.025 % (8 463 428 563 to 8 465
+  515 390). Bytes and characters read every sentence alike (0 differ, the bytes 0.008 % more). The DATA COLUMN (the last
+  version's translator on its own store, KB260, against this one on the new): 17 sentences in 8 files, +0.035 % (8 462
+  547 227 to 8 465 515 390). THE CODE ALONE (this translator on KB260): 1 sentence, the one above, +0.025 % (8 462 547
+  227 to 8 464 630 962), the largest rises Tempi's twentieth (+0.28 million of 517.5, refused both ways), the Venice
+  report's eighth (+0.10 of 394.6) and it_9816_9850 25 (+0.05 of 26.6), the 3 232 others under 50 000 each. THE STORE
+  ALONE (the last version's translator on KB260 and on KB265): 16 sentences in 7 files, +0.010 % (to 8 463 428 563), all
+  better: `next' for `forthcoming' (14: `from next week', `in the next weeks', `to the next tournament in Japan', `in
+  the next days', `from the next legislature', `before the next elections', `next Tuesday', `next February', `until the
+  next "invitation"', `next January 24') and `Cologne' (es_19990601-23 3, `the European summit of Cologne', and
+  it_9947_9966 14, `in Cologne', where it was `to Colonia').
+  THE FIRST ROUNDS' REGRESSIONS, found by the whole case and by reading the texts of every column, and mended: the
+  marker through a participle gave a word that replaces the noun its `a' (`El perro ve al conducido por el gato',
+  newspaper_wapo), and `concierto de clausura' and `concerto di chiusura' end in `a' with no denial, so the ending rule
+  made them feminine (stated_gender's scan of the vocabularies); `"colonia" is a city.' in Spanish, where no city is
+  stated, wrote `duerme a Colonia' for in Cologne, and is out; and `udienza' said first for a hearing made it the
+  writer's word for the sense, `tengo dos oídos' (Tatoeba 377) `ho due udienze' where it was `due uditi', until `udito'
+  was said again first.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (four risers of the first round, then 40 control sentences of 0.1
+  to 2 million inferences, 20 from each language, into English, over a copy of the library per rule on KB262): the first
+  round was +0.058 % on the one store, and 0.74 of the 0.81 million inferences the four rose was the name run, which
+  asked the name's lookup of every phrase that opens on a name word (`L'Italia ha avuto quattro governi ...' +9.4 %);
+  every capital asked first cost three control files +0.84 % (a run with a name first and small letters after), the
+  second word's capital first +0.09 %, which is the rule now. The 40 sentences rise 3 130 inferences (+0.026 %), no rule
+  over 700: the title 654, the marker through a participle 361, the superlative participle 336, the verb before a person
+  128, the fragment 80, and the name run saves 163.
+  THE STATED COSTS: a first meaning that serves the news and not every text -- `prossimo' is next (forthcoming second:
+  the store alone's 16 texts of `next'), `udienza' a hearing (an audience second), `semaforo' a traffic light, the
+  writer's `audiencia' for a hearing of a trial -- and `colonia' with a capital is Cologne (`a Colonia' in Italian is in
+  Cologne); and the inferences, +0.025 % on the one store.
+  The reports LEAVE, of the 17 into Spanish (English alike unless it says): 1 (`38 Spoleto festival.', a count, a name
+  and a noun) and 7 (`Bianca nera.', two adjectives) are refused, and 10 (`riesce a contraddire sé stesso e le parole
+  dell'imputato': a pronoun and a phrase joined, which no phrase reads; and `accusato di aver investito e ucciso Sara
+  Folino', `acusado haber matado' with no `de' and English refused); `en la plaza Catedral' (2: `piazza Duomo' is a
+  name, which the street rule takes only after a preposition), `tomorrow evening' last in English (2); `para la
+  magnificencia' and the comma after `El Réquiem' lost (3: `per' says why, `por'), `intencionadamente' (`a propósito');
+  `entre las más ejecutadas' (4: `interpretadas'), English refused for the third person nobody names, on purpose (3, 4,
+  17); `toca' for `suona' is `juega' (5, the probes), `a Spoleto' kept after `che proprio a Spoleto ha mosso i primi
+  passi' (5: the city rule does not go into a relative clause of a phrase's apposition, `to Spoleto precisely'); `negado
+  al juicio' (8: smentito is proved wrong, `en el juicio'); `haciendo al limpiacristales a los semáforos' and `making
+  the windscreen washer to the traffic lights' (9: `fare il' and a trade is working as one, and `14 years' old);
+  `molestada' and `annoyed' (11: harassed), `para miedo' (`por miedo'), the quotation's opening mark lost and `says to
+  have closed the eyes'; `me dijo tener cuidado' (12: `que tuviera'); `Había la niña' (13: `c'era' is the past of `c'è'
+  in the vocabulary, so the state copula, which no past takes, is not written: `Estaba'); `ante los tribunales' last and
+  `ha golpeado la niña' (15: `la ragazza' read as the subject after the verb, `the girl has struck', where two fronts
+  with their commas stand before it), `The first car' (`prima' the adverb) and `skiding' (English's verb table has no
+  `skid'); `Si así había sido' (16: `hubiera'); `a 70 a la hora' (17: `por hora'); `el médico Lombardi' (19: the title
+  `doctor') and `will be listened' (`heard'); and `Proceso para la muerta de Folino, a la niña atropellada' and `I
+  process for the dead one' (20: a heading read as the first person of `processa'). The next sample's controls take
+  these reports in.
 
 ## Tutorials are documentation that runs
 

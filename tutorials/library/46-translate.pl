@@ -378,6 +378,7 @@ main :-
     section_83,
     section_84,
     section_85,
+    section_86,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -11129,6 +11130,96 @@ The verb "genera" means "generates". "generare" is the infinitive of "genera". "
 The modal "può" means "can". "potè" is the past of "può". "mangiare" is the infinitive of "mangia". The masculine adjective "attrezzato" means "equipped". "attrezzati" is the plural of "attrezzato". The adjective "pronto" means "ready". The pronoun "tutto" means "everything".
 The verb "colpisce" means "affects". "colpita" is the participle of "colpisce". "colpita" is feminine. The masculine noun "incidente" means "accident". The feminine noun "pulizia" means "cleaning". The verb "chiede" means "asks". The preposition "davanti a" means "in front of". The masculine noun "dispiegamento" means "deployment". The adverb "persino" means "even". The masculine noun "rappresentante" means "representative". "rappresentanti" is the plural of "rappresentante". "rappresentante" is a person. The adjective "municipale" means "municipal". "municipali" is the plural of "municipale". The verb "mostra" means "shows". "mostrano" is the plural of "mostra". "mostrarono" is the past of "mostrano".
 "vide" is the past of "vede". The feminine noun "disapprovazione" means "disapproval". The adjective "continua" means "continuous".').
+
+section_86 :-
+    format("~n86. an Italian report on the Spoleto festival and the Torvaianica trial, into Spanish and English: a verb that means another thing before a person, its participle, a participle of two words after its noun, the person marker through a participle, an ordinal in digits, the most performed after a preposition, a name that opens a run of capitals, it is thus, tells somebody to, the agent before its participle, a name after a title, the apposition of a passive's subject, at an event~n", []),
+    lesson_86(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the noche section''s Spanish lesson and a sixteenth part, under its own name', NS),
+    lesson_86(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_86_1, section_86_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_86(L, Text) :- lesson_85(L, A), lesson_86(L, 16, B), atomic_list_concat([A, ' ', B], Text).
+
+section_86_1 :-
+    ( reason_translate('La macchina ha investito la ragazza.', italian, spanish, X86V1) -> S86V1 = X86V1 ; S86V1 = refused ),
+    must('A VERB WITH A PERSON FOR ITS OBJECT CROSSES BY THE MEANING THE LESSON GIVES IT THERE: `la Bx ha investito la ragazza'' ran the girl over, and `investe'' is `invests'' first, the money''s -- Spanish''s `ha invertido la niña''. `The personal verb "investe" means "runs over".'' is the line (tr_mean_links/3, tr_verb_across/5)', S86V1,
+         'La máquina ha atropellado a la chica.'),
+    ( reason_translate('La macchina ha investito la ragazza.', italian, english, X86V2) -> S86V2 = X86V2 ; S86V2 = refused ),
+    must('... and English writes the verb of two words by its first', S86V2,
+         'The machine has run over the girl.'),
+    ( reason_translate('Il dottore investe il denaro.', italian, english, X86V3) -> S86V3 = X86V3 ; S86V3 = refused ),
+    must('... and the plain meaning stays where no person is the object (tr_person_object/1)', S86V3,
+         'The doctor invests the money.'),
+    ( reason_translate('La ragazza investita dorme.', italian, spanish, X86V4) -> S86V4 = X86V4 ; S86V4 = refused ),
+    must('... AND THE PARTICIPLE SAID OF A PERSON CROSSES SO TOO: `la ragazza investita a Torvaianica'' is the girl run over, where it was `la niña invertida'' (tr_cross_np/2)', S86V4,
+         'La chica atropellada duerme.'),
+    ( reason_translate('La ragazza investita dorme.', italian, english, X86V5) -> S86V5 = X86V5 ; S86V5 = refused ),
+    must('... AND ENGLISH WRITES THE PARTICIPLE OF A VERB OF SEVERAL WORDS AFTER ITS NOUN, where a bare participle goes before it: `the run over girl'' (tr_np_out/5)', S86V5,
+         'The girl run over sleeps.'),
+    ( reason_translate('Il cane vede la ragazza investita.', italian, spanish, X86V6) -> S86V6 = X86V6 ; S86V6 = refused ),
+    must('A PHRASE WITH ITS PARTICIPLE AFTER IT IS OF ITS HEAD''S CLASS: the person run over takes the `a'' the lesson puts before a person, and with the participle the phrase was of no class, `ve la chica'' (tr_of_class/2)', S86V6,
+         'El perro ve a la chica atropellada.'),
+    ( reason_translate('La 38-ma casa è grande.', italian, english, X86V7) -> S86V7 = X86V7 ; S86V7 = refused ),
+    must('ITALIAN''S ORDINAL IN DIGITS IS ONE WORD WITH ITS SIGN: `la 38-ma edizione del festival'' is the 38th edition, and the tokeniser dropped the hyphen and left `ma'', the word for `but'' (`el 38 pero edición'') -- tr_number_written/4', S86V7,
+         'The 38th house is big.'),
+    ( reason_translate('La 38-ma casa è grande.', italian, spanish, X86V8) -> S86V8 = X86V8 ; S86V8 = refused ),
+    must('... and Spanish writes it with the sign, `38ª''', S86V8,
+         'La 38ª casa es grande.'),
+    ( reason_translate('Il 3mo cane dorme.', italian, english, X86V9) -> S86V9 = X86V9 ; S86V9 = refused ),
+    must('... with no hyphen too, and the masculine ending is `º''', S86V9,
+         'The 3rd dog sleeps.'),
+    ( reason_translate('La musica è fra le più vendute.', italian, english, X86V10) -> S86V10 = X86V10 ; S86V10 = refused ),
+    must('THE WORD FOR `more'' BETWEEN AN ARTICLE AND A PARTICIPLE IN A PHRASE OF A PREPOSITION, THE NOUN LEFT OUT: `è stata fra le più eseguite'' is among the most performed, and the phrase of `fra'' ended at its article, which read as nothing (tr_phrase_words0/4)', S86V10,
+         'The music is among the ones most sold.'),
+    ( reason_translate('La Spoleto Festival Orchestra dorme.', italian, english, X86V11) -> S86V11 = X86V11 ; S86V11 = refused ),
+    must('A RUN OF CAPITALISED WORDS THAT OPENS ON A NAME IS ONE NAME, whatever the words after it are: `La Spoleto Festival Orchestra sarà diretta da ...'', where with `orchestra'' a noun of this determiner the run was no name and the sentence was refused (tr_np/3)', S86V11,
+         'The Spoleto Festival Orchestra sleeps.'),
+    ( reason_translate('La Casa Bianca dorme.', italian, english, X86V12) -> S86V12 = X86V12 ; S86V12 = refused ),
+    must('... and a run that opens on a noun keeps the ordinary reading', S86V12,
+         'The White House sleeps.').
+
+section_86_2 :-
+    ( reason_translate('Así ha sido.', spanish, english, X86V13) -> S86V13 = X86V13 ; S86V13 = refused ),
+    must('THE COPULA WITH `thus'' ALONE IN FRONT AND NOBODY NAMED IS `it is thus'' IN ENGLISH: `se così fosse stato, la Bx ... avrebbe subìto una decelerazione'' is if it had been thus, and with the front written apart English refused it (tr_write/4)', S86V13,
+         'It has been thus.'),
+    ( reason_translate('Si así ha sido, el perro duerme.', spanish, english, X86V14) -> S86V14 = X86V14 ; S86V14 = refused ),
+    must('... in the clause of a condition too', S86V14,
+         'If it has been thus, the dog sleeps.'),
+    ( reason_translate('Il cane mi disse di dormire.', italian, english, X86V15) -> S86V15 = X86V15 ; S86V15 = refused ),
+    must('A VERB OF SAYING WITH A PERSON''S PRONOUN AND AN INFINITIVE RIGHT AFTER IT IS `TELLS'': `il mio fratellino mi disse di stare attento'' told me to take care, and English wrote `said me to'' (tr_write/4)', S86V15,
+         'The dog told me to sleep.'),
+    ( reason_translate('da me vista troppo tardi.', italian, english, X86V16) -> S86V16 = X86V16 ; S86V16 = refused ),
+    must('THE AGENT BEFORE ITS PARTICIPLE, WITH NO PHRASE BEFORE THEM, IS A FRAGMENT: `C''era la ragazza. da me vista troppo tardi'' -- seen by me too late; read as a statement `vista'' was what `vistare'' says, approves (tr_read0/4, tr_verbless0/3)', S86V16,
+         'Seen by me too late.'),
+    ( reason_translate('da me vista troppo tardi.', italian, spanish, X86V17) -> S86V17 = X86V17 ; S86V17 = refused ),
+    must('... and Spanish writes the agent after the participle, where it was `Aprueba demasiado tarde desde mí''', S86V17,
+         'Vista por mí demasiado tarde.'),
+    ( reason_translate('Il dottor Lombardi dorme.', italian, english, X86V18) -> S86V18 = X86V18 ; S86V18 = refused ),
+    must('A CAPITALISED WORD AFTER A TITLE IS THE NAME''S, though the lesson knows it: `il dottor Lombardi'' is the doctor called that, and `lombardi'' is the plural of `lombardo'' -- `the Lombard doctor'' (tr_stated_names0/2, `"dottore" is a title.'')', S86V18,
+         'The doctor Lombardi sleeps.'),
+    ( reason_translate('È ascoltato il dottor Lombardi, il mio amico.', italian, spanish, X86V19) -> S86V19 = X86V19 ; S86V19 = refused ),
+    must('A PHRASE AFTER THE COMMA THAT CLOSES THE SUBJECT SET AFTER A PASSIVE VERB IS THE SUBJECT''S APPOSITION: `Sarà ascoltato il dottor Lombardi, il primo medico ad intervenire'' -- a passive takes no object, and read as one the apposition came out `al primer médico'' (tr_passive_subject_fix/3)', S86V19,
+         'Es escuchado el médico Lombardi, mi amigo.'),
+    ( reason_translate('Il cane canta al concerto.', italian, english, X86V20) -> S86V20 = X86V20 ; S86V20 = refused ),
+    must('THE EVENT ONE IS AT IS A PHRASE OF `AT'': `Al processo di Torvajanica smentito Said'' was denied AT the trial, where English wrote `to the trial'' (tr_comp_out/7)', S86V20,
+         'The dog sings at the concert.'),
+    ( reason_translate('Il cane va al concerto.', italian, english, X86V21) -> S86V21 = X86V21 ; S86V21 = refused ),
+    must('... after a verb that does not go there: one that goes keeps `to''', S86V21,
+         'The dog goes to the concert.').
+
+lesson_86(spanish, 16, 'The verb "atropella" means "runs over". "atropellado" is the participle of "atropella". "atropellada" is the participle of "atropella". "atropellada" is feminine. The verb "invierte" means "invests". The feminine noun "chica" means "girl". "chicas" is the plural of "chica". "chica" is a person.
+The masculine noun "doctor" means "doctor". "doctor" is a person. The masculine noun "dinero" means "money".
+The preposition "entre" means "among". The verb "vende" means "sells". "vendida" is the participle of "vende". "vendida" is feminine. "vendidas" is the participle of "vende". "vendidas" is feminine. "vendidas" is the plural of "vendida".
+"vista" is the participle of "ve". "vista" is feminine. The adverb "demasiado tarde" means "too late".
+The verb "escucha" means "listens". "escuchado" is the participle of "escucha". The verb "canta" means "sings". The masculine noun "concierto" means "concert". "sido" is the participle of "es". The possessive "mi" means "my".').
+lesson_86(italian, 16, 'The verb "investe" means "invests". The personal verb "investe" means "runs over". "investito" is the participle of "investe". "investita" is the participle of "investe". "investita" is feminine. The feminine noun "ragazza" means "girl". "ragazze" is the plural of "ragazza". "ragazza" is a person.
+The masculine noun "dottore" means "doctor". "dottore" is a person. "dottore" is a title. "dottor" is the apocope of "dottore". The masculine adjective "lombardo" means "Lombard". "lombardi" is the plural of "lombardo". The masculine noun "denaro" means "money".
+The preposition "fra" means "among". The verb "vende" means "sells". "venduta" is the participle of "vende". "venduta" is feminine. "vendute" is the participle of "vende". "vendute" is feminine. "vendute" is the plural of "venduta".
+The masculine noun "festival" means "festival". The feminine noun "orchestra" means "orchestra". The feminine adjective "bianca" means "white".
+"stato" is the participle of "è". "avrebbe" is the conditional of "ha". "disse" is the past of "dice". The adverb "troppo tardi" means "too late". The verb "vista" means "approves".
+The verb "ascolta" means "listens". "ascoltato" is the participle of "ascolta". The verb "canta" means "sings". The masculine noun "concerto" means "concert". The masculine possessive "mio" means "my". "ran" is the past of "runs". "run" is the participle of "runs". "told" is the past of "tells".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

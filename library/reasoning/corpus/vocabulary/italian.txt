@@ -3309,6 +3309,84 @@ The feminine noun "raccolta" means "collection".
 The masculine noun "incidente" means "accident".
 The verb "rivela" means "reveals".
 The reflexive verb "rivela" means "turns out".
+The feminine noun "messa da requiem" means "requiem mass".
+"messe da requiem" is the plural of "messa da requiem".
+The adverb "domani sera" means "tomorrow evening".
+The feminine noun "imponenza" means "magnificence".
+The masculine noun "lavavetri" means "windscreen washer".
+"lavavetri" is the plural of "lavavetri".
+"lavavetri" is a person.
+The masculine noun "semaforo" means "traffic light".
+The verb "si guadagna da vivere" means "earns a living".
+"si guadagnano da vivere" is the plural of "si guadagna da vivere".
+"guadagnarsi da vivere" is the infinitive of "si guadagna da vivere".
+The adjective "quindicenne" means "fifteen-year-old".
+The masculine noun "fratellino" means "little brother".
+"fratellini" is the plural of "fratellino".
+"fratellino" is a person.
+The verb "sta attento" means "takes care".
+"stanno attenti" is the plural of "sta attento".
+"stare attento" is the infinitive of "sta attento".
+The masculine noun "esperto" means "expert".
+The masculine noun "perito" means "expert".
+"periti" is the plural of "perito".
+"perito" is a person.
+The verb "schiaccia" means "crushes".
+The verb "stritola" means "crushes".
+"stritolano" is the plural of "stritola".
+"stritolare" is the infinitive of "stritola".
+"stritolato" is the participle of "stritola".
+"stritolata" is the participle of "stritola".
+"stritolata" is feminine.
+"stritolati" is the participle of "stritola".
+"stritolati" is the plural of "stritolato".
+"stritolate" is the participle of "stritola".
+"stritolate" is feminine.
+"stritolate" is the plural of "stritolata".
+The adverb "in aula" means "in court".
+The intransitive verb "sbanda" means "skids".
+"sbandano" is the plural of "sbanda".
+"sbandare" is the infinitive of "sbanda".
+"sbandando" is the gerund of "sbanda".
+"sbandò" is the past of "sbanda".
+"sbandato" is the participle of "sbanda".
+The verb "replica" means "retorts".
+The verb "ribatte" means "retorts".
+"ribattono" is the plural of "ribatte".
+"ribattere" is the infinitive of "ribatte".
+"ribatté" is the past of "ribatte".
+"ribattuto" is the participle of "ribatte".
+The masculine noun "impatto" means "impact".
+The masculine noun "urto" means "impact".
+"urti" is the plural of "urto".
+"subìto" is the participle of "subisce".
+"subìta" is the participle of "subisce".
+"subìta" is feminine.
+"dottor" is the apocope of "dottore".
+The masculine adjective "prossimo" means "next".
+The feminine adjective "prossima" means "next".
+The masculine noun "udito" means "hearing".
+The feminine noun "udienza" means "hearing".
+The verb "investe" means "invests".
+The personal verb "investe" means "runs over".
+The word "nel momento in cui" means "when".
+The adverb "non a caso" means "not by chance".
+The masculine noun "concerto di chiusura" means "closing concert".
+"concerti di chiusura" is the plural of "concerto di chiusura".
+"concerto di chiusura" is not feminine.
+"Spoleto" is a city.
+"Torvajanica" is a city.
+"Torvaianica" is a city.
+"Casalpalocco" is a city.
+The name "colonia" means "Cologne".
+"colonia" is a city.
+The verb "muove i primi passi" means "takes the first steps".
+"muovono i primi passi" is the plural of "muove i primi passi".
+"muovere i primi passi" is the infinitive of "muove i primi passi".
+"mosse i primi passi" is the past of "muove i primi passi".
+"mosso i primi passi" is the participle of "muove i primi passi".
+"dottore" is a title.
+The adverb "poco prima" means "shortly before".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

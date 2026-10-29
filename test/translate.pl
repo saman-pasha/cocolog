@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -16832,6 +16832,96 @@ newspaper_noche_checks_3 :-
     check('A VERB ALONE BETWEEN DASHES IS NO PARTICIPLE OR ADJECTIVE OF THE PHRASE, THOUGH IT IS ONE TOO: `Gallo - continua - mi ha lasciato'' reports the sentence, and read as the adjective `continuous'' the comment was lost (tr_asides/3, tr_form/5)', N35,
           'El perro duerme – continúa –.').
 
+newspaper_spoleto :-
+    section('an Italian report on the Spoleto festival and the Torvaianica trial, into Spanish and English: a verb that means another thing before a person, its participle, a participle of two words after its noun, the person marker through a participle, an ordinal in digits, the most performed after a preposition, a name that opens a run of capitals, it is thus, tells somebody to, the agent before its participle, a name after a title, the apposition of a passive''s subject, at an event'),
+    newspaper_spoleto_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_spoleto_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_spoleto_checks_1, newspaper_spoleto_checks_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_spoleto_lesson(L, Text) :-
+    newspaper_noche_lesson(L, A), newspaper_spoleto_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the sixteenth part of each hand lesson
+newspaper_spoleto_part(spanish, 'The verb "atropella" means "runs over". "atropellado" is the participle of "atropella". "atropellada" is the participle of "atropella". "atropellada" is feminine. The verb "invierte" means "invests". The feminine noun "chica" means "girl". "chicas" is the plural of "chica". "chica" is a person.
+The masculine noun "doctor" means "doctor". "doctor" is a person. The masculine noun "dinero" means "money".
+The preposition "entre" means "among". The verb "vende" means "sells". "vendida" is the participle of "vende". "vendida" is feminine. "vendidas" is the participle of "vende". "vendidas" is feminine. "vendidas" is the plural of "vendida".
+"vista" is the participle of "ve". "vista" is feminine. The adverb "demasiado tarde" means "too late".
+The verb "escucha" means "listens". "escuchado" is the participle of "escucha". The verb "canta" means "sings". The masculine noun "concierto" means "concert". "sido" is the participle of "es". The possessive "mi" means "my".').
+newspaper_spoleto_part(italian, 'The verb "investe" means "invests". The personal verb "investe" means "runs over". "investito" is the participle of "investe". "investita" is the participle of "investe". "investita" is feminine. The feminine noun "ragazza" means "girl". "ragazze" is the plural of "ragazza". "ragazza" is a person.
+The masculine noun "dottore" means "doctor". "dottore" is a person. "dottore" is a title. "dottor" is the apocope of "dottore". The masculine adjective "lombardo" means "Lombard". "lombardi" is the plural of "lombardo". The masculine noun "denaro" means "money".
+The preposition "fra" means "among". The verb "vende" means "sells". "venduta" is the participle of "vende". "venduta" is feminine. "vendute" is the participle of "vende". "vendute" is feminine. "vendute" is the plural of "venduta".
+The masculine noun "festival" means "festival". The feminine noun "orchestra" means "orchestra". The feminine adjective "bianca" means "white".
+"stato" is the participle of "è". "avrebbe" is the conditional of "ha". "disse" is the past of "dice". The adverb "troppo tardi" means "too late". The verb "vista" means "approves".
+The verb "ascolta" means "listens". "ascoltato" is the participle of "ascolta". The verb "canta" means "sings". The masculine noun "concerto" means "concert". The masculine possessive "mio" means "my". "ran" is the past of "runs". "run" is the participle of "runs". "told" is the past of "tells".').
+
+newspaper_spoleto_checks_1 :-
+    nf_tr('La macchina ha investito la ragazza.', italian, spanish, S1),
+    check('A VERB WITH A PERSON FOR ITS OBJECT CROSSES BY THE MEANING THE LESSON GIVES IT THERE: `la Bx ha investito la ragazza'' ran the girl over, and `investe'' is `invests'' first, the money''s -- Spanish''s `ha invertido la niña''. `The personal verb "investe" means "runs over".'' is the line (tr_mean_links/3, tr_verb_across/5)', S1,
+          'La máquina ha atropellado a la chica.'),
+    nf_tr('La macchina ha investito la ragazza.', italian, english, S2),
+    check('... and English writes the verb of two words by its first', S2,
+          'The machine has run over the girl.'),
+    nf_tr('Il dottore investe il denaro.', italian, english, S3),
+    check('... and the plain meaning stays where no person is the object (tr_person_object/1)', S3,
+          'The doctor invests the money.'),
+    nf_tr('La ragazza investita dorme.', italian, spanish, S4),
+    check('... AND THE PARTICIPLE SAID OF A PERSON CROSSES SO TOO: `la ragazza investita a Torvaianica'' is the girl run over, where it was `la niña invertida'' (tr_cross_np/2)', S4,
+          'La chica atropellada duerme.'),
+    nf_tr('La ragazza investita dorme.', italian, english, S5),
+    check('... AND ENGLISH WRITES THE PARTICIPLE OF A VERB OF SEVERAL WORDS AFTER ITS NOUN, where a bare participle goes before it: `the run over girl'' (tr_np_out/5)', S5,
+          'The girl run over sleeps.'),
+    nf_tr('Il cane vede la ragazza investita.', italian, spanish, S6),
+    check('A PHRASE WITH ITS PARTICIPLE AFTER IT IS OF ITS HEAD''S CLASS: the person run over takes the `a'' the lesson puts before a person, and with the participle the phrase was of no class, `ve la chica'' (tr_of_class/2)', S6,
+          'El perro ve a la chica atropellada.'),
+    nf_tr('La 38-ma casa è grande.', italian, english, S7),
+    check('ITALIAN''S ORDINAL IN DIGITS IS ONE WORD WITH ITS SIGN: `la 38-ma edizione del festival'' is the 38th edition, and the tokeniser dropped the hyphen and left `ma'', the word for `but'' (`el 38 pero edición'') -- tr_number_written/4', S7,
+          'The 38th house is big.'),
+    nf_tr('La 38-ma casa è grande.', italian, spanish, S8),
+    check('... and Spanish writes it with the sign, `38ª''', S8,
+          'La 38ª casa es grande.'),
+    nf_tr('Il 3mo cane dorme.', italian, english, S9),
+    check('... with no hyphen too, and the masculine ending is `º''', S9,
+          'The 3rd dog sleeps.'),
+    nf_tr('La musica è fra le più vendute.', italian, english, S10),
+    check('THE WORD FOR `more'' BETWEEN AN ARTICLE AND A PARTICIPLE IN A PHRASE OF A PREPOSITION, THE NOUN LEFT OUT: `è stata fra le più eseguite'' is among the most performed, and the phrase of `fra'' ended at its article, which read as nothing (tr_phrase_words0/4)', S10,
+          'The music is among the ones most sold.'),
+    nf_tr('La Spoleto Festival Orchestra dorme.', italian, english, S11),
+    check('A RUN OF CAPITALISED WORDS THAT OPENS ON A NAME IS ONE NAME, whatever the words after it are: `La Spoleto Festival Orchestra sarà diretta da ...'', where with `orchestra'' a noun of this determiner the run was no name and the sentence was refused (tr_np/3)', S11,
+          'The Spoleto Festival Orchestra sleeps.'),
+    nf_tr('La Casa Bianca dorme.', italian, english, S12),
+    check('... and a run that opens on a noun keeps the ordinary reading', S12,
+          'The White House sleeps.').
+
+newspaper_spoleto_checks_2 :-
+    nf_tr('Así ha sido.', spanish, english, S13),
+    check('THE COPULA WITH `thus'' ALONE IN FRONT AND NOBODY NAMED IS `it is thus'' IN ENGLISH: `se così fosse stato, la Bx ... avrebbe subìto una decelerazione'' is if it had been thus, and with the front written apart English refused it (tr_write/4)', S13,
+          'It has been thus.'),
+    nf_tr('Si así ha sido, el perro duerme.', spanish, english, S14),
+    check('... in the clause of a condition too', S14,
+          'If it has been thus, the dog sleeps.'),
+    nf_tr('Il cane mi disse di dormire.', italian, english, S15),
+    check('A VERB OF SAYING WITH A PERSON''S PRONOUN AND AN INFINITIVE RIGHT AFTER IT IS `TELLS'': `il mio fratellino mi disse di stare attento'' told me to take care, and English wrote `said me to'' (tr_write/4)', S15,
+          'The dog told me to sleep.'),
+    nf_tr('da me vista troppo tardi.', italian, english, S16),
+    check('THE AGENT BEFORE ITS PARTICIPLE, WITH NO PHRASE BEFORE THEM, IS A FRAGMENT: `C''era la ragazza. da me vista troppo tardi'' -- seen by me too late; read as a statement `vista'' was what `vistare'' says, approves (tr_read0/4, tr_verbless0/3)', S16,
+          'Seen by me too late.'),
+    nf_tr('da me vista troppo tardi.', italian, spanish, S17),
+    check('... and Spanish writes the agent after the participle, where it was `Aprueba demasiado tarde desde mí''', S17,
+          'Vista por mí demasiado tarde.'),
+    nf_tr('Il dottor Lombardi dorme.', italian, english, S18),
+    check('A CAPITALISED WORD AFTER A TITLE IS THE NAME''S, though the lesson knows it: `il dottor Lombardi'' is the doctor called that, and `lombardi'' is the plural of `lombardo'' -- `the Lombard doctor'' (tr_stated_names0/2, `"dottore" is a title.'')', S18,
+          'The doctor Lombardi sleeps.'),
+    nf_tr('È ascoltato il dottor Lombardi, il mio amico.', italian, spanish, S19),
+    check('A PHRASE AFTER THE COMMA THAT CLOSES THE SUBJECT SET AFTER A PASSIVE VERB IS THE SUBJECT''S APPOSITION: `Sarà ascoltato il dottor Lombardi, il primo medico ad intervenire'' -- a passive takes no object, and read as one the apposition came out `al primer médico'' (tr_passive_subject_fix/3)', S19,
+          'Es escuchado el médico Lombardi, mi amigo.'),
+    nf_tr('Il cane canta al concerto.', italian, english, S20),
+    check('THE EVENT ONE IS AT IS A PHRASE OF `AT'': `Al processo di Torvajanica smentito Said'' was denied AT the trial, where English wrote `to the trial'' (tr_comp_out/7)', S20,
+          'The dog sings at the concert.'),
+    nf_tr('Il cane va al concerto.', italian, english, S21),
+    check('... after a verb that does not go there: one that goes keeps `to''', S21,
+          'The dog goes to the concert.').
+
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),
     question_roles_lesson(spanish, ES), reason_learn(ES, spanish, _),
@@ -17081,6 +17171,8 @@ newspaper_units_probe('AN ORDINAL IS ONE WORD WITH ITS SIGN: U+00BA after digits
                       '50º').
 newspaper_units_probe('... and U+00AA', T-( atom_codes('50', N0), atom_codes('ª casa', P0), tr_number_written(N0, P0, NCs, _), atom_codes(T, NCs) ),
                       '50ª').
+newspaper_units_probe('... AND ITALIAN''S ORDINAL IN DIGITS WITH ITS ENDING, `38-ma'', IS THE ORDINAL WITH ITS SIGN: the sign''s codes are the atom''s own in each unit', T-( atom_codes('38', N0), atom_codes('-ma edizione', P0), tr_number_written(N0, P0, NCs, _), atom_codes(T, NCs) ),
+                      '38ª').
 newspaper_units_probe('A DASH IN THE CODES: an en dash', T-( atom_codes('a – b', Cs), ( tr_has_dash(Cs) -> T = yes ; T = no ) ),
                       yes).
 newspaper_units_probe('... an em dash', T-( atom_codes('a — b', Cs), ( tr_has_dash(Cs) -> T = yes ; T = no ) ),

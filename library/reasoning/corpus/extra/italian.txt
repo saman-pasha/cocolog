@@ -5070,3 +5070,115 @@ The masculine noun "incidente" means "accident".
 # `el operativo de limpieza se reveló descompensado': turned out (`si rivelò'; the plain `reveals' said first)
 The verb "rivela" means "reveals".
 The reflexive verb "rivela" means "turns out".
+# The Spoleto festival and Torvaianica trial reports (VIT-9205..9224, Italian into Spanish and English): the words
+# they need. `la messa da requiem di Giuseppe Verdi': a requiem mass, one noun of three words (read as two, the mass
+# was the dough, `la masa desde réquiem')
+The feminine noun "messa da requiem" means "requiem mass".
+"messe da requiem" is the plural of "messa da requiem".
+# `domani sera alle 19:45': tomorrow evening
+The adverb "domani sera" means "tomorrow evening".
+# `per l'imponenza della musica': its magnificence
+The feminine noun "imponenza" means "magnificence".
+# `facendo il lavavetri ai semafori di Casalpalocco': a windscreen washer, a person, the word its own plural; and
+# traffic lights, where the dictionary has a semaphore
+The masculine noun "lavavetri" means "windscreen washer".
+"lavavetri" is the plural of "lavavetri".
+"lavavetri" is a person.
+The masculine noun "semaforo" means "traffic light".
+# `si guadagna da vivere': earns a living
+The verb "si guadagna da vivere" means "earns a living".
+"si guadagnano da vivere" is the plural of "si guadagna da vivere".
+"guadagnarsi da vivere" is the infinitive of "si guadagna da vivere".
+# `la ragazza quindicenne': fifteen-year-old
+The adjective "quindicenne" means "fifteen-year-old".
+# `il mio fratellino': a little brother, a person
+The masculine noun "fratellino" means "little brother".
+"fratellini" is the plural of "fratellino".
+"fratellino" is a person.
+# `mi disse di stare attento': to take care
+The verb "sta attento" means "takes care".
+"stanno attenti" is the plural of "sta attento".
+"stare attento" is the infinitive of "sta attento".
+# `la tesi del perito della difesa': an expert, a person (the dictionary's own `esperto' said again first, so that it
+# stays the word written for one)
+The masculine noun "esperto" means "expert".
+The masculine noun "perito" means "expert".
+"periti" is the plural of "perito".
+"perito" is a person.
+# `In aula viene stritolata la tesi': crushed (the dictionary has no `stritolare'; `schiaccia' said again first, so
+# that it stays the word written for crushes)
+The verb "schiaccia" means "crushes".
+The verb "stritola" means "crushes".
+"stritolano" is the plural of "stritola".
+"stritolare" is the infinitive of "stritola".
+"stritolato" is the participle of "stritola".
+"stritolata" is the participle of "stritola".
+"stritolata" is feminine.
+"stritolati" is the participle of "stritola".
+"stritolati" is the plural of "stritolato".
+"stritolate" is the participle of "stritola".
+"stritolate" is feminine.
+"stritolate" is the plural of "stritolata".
+# `In aula': in court
+The adverb "in aula" means "in court".
+# `poi, sbandando, ha colpito la ragazza': skidding (the dictionary has the word and no English for it)
+The intransitive verb "sbanda" means "skids".
+"sbandano" is the plural of "sbanda".
+"sbandare" is the infinitive of "sbanda".
+"sbandando" is the gerund of "sbanda".
+"sbandò" is the past of "sbanda".
+"sbandato" is the participle of "sbanda".
+# `Il presidente Severino Santiapichi ribatte:': retorts (`replica' said again first, so that it stays the word
+# written for retorts)
+The verb "replica" means "retorts".
+The verb "ribatte" means "retorts".
+"ribattono" is the plural of "ribatte".
+"ribattere" is the infinitive of "ribatte".
+"ribatté" is the past of "ribatte".
+"ribattuto" is the participle of "ribatte".
+# `la Bx con l'urto avrebbe subìto una decelerazione': the impact (`impatto' said again first), and the participle of
+# `subisce' with its accent
+The masculine noun "impatto" means "impact".
+The masculine noun "urto" means "impact".
+"urti" is the plural of "urto".
+"subìto" is the participle of "subisce".
+"subìta" is the participle of "subisce".
+"subìta" is feminine.
+# `il dottor Lombardi': the doctor, before a name
+"dottor" is the apocope of "dottore".
+# `Prossima udienza, lunedì.': next before forthcoming, and a hearing of a trial before an audience (the dictionary's
+# own `udito' said again first, so that it stays the word written for the sense: `tengo dos oídos' was `due udienze')
+The masculine adjective "prossimo" means "next".
+The feminine adjective "prossima" means "next".
+The masculine noun "udito" means "hearing".
+The feminine noun "udienza" means "hearing".
+# `ha investito la ragazza', `accusato di aver investito e ucciso Sara Folino': runs over, before a person (the plain
+# `invests' said first, so that it stays the meaning anywhere else)
+The verb "investe" means "invests".
+The personal verb "investe" means "runs over".
+# `nel momento in cui la Bx ha investito la ragazza': when
+The word "nel momento in cui" means "when".
+# `E non a caso': not by chance
+The adverb "non a caso" means "not by chance".
+# `il concerto di chiusura': the closing concert
+The masculine noun "concerto di chiusura" means "closing concert".
+"concerti di chiusura" is the plural of "concerto di chiusura".
+"concerto di chiusura" is not feminine.
+# the places: `a Spoleto', `a Torvajanica', `ai semafori di Casalpalocco', `dell'opera di Colonia'
+"Spoleto" is a city.
+"Torvajanica" is a city.
+"Torvaianica" is a city.
+"Casalpalocco" is a city.
+The name "colonia" means "Cologne".
+"colonia" is a city.
+# `che proprio a Spoleto ha mosso i primi passi sul podio': took his first steps there (as words, `has moved the first
+# paces', and with a verb of motion the city kept its `to')
+The verb "muove i primi passi" means "takes the first steps".
+"muovono i primi passi" is the plural of "muove i primi passi".
+"muovere i primi passi" is the infinitive of "muove i primi passi".
+"mosse i primi passi" is the past of "muove i primi passi".
+"mosso i primi passi" is the participle of "muove i primi passi".
+# `il dottor Lombardi': a title before a name (`Lombardi' is the plural of `lombardo' too)
+"dottore" is a title.
+# `la ragazza quindicenne molestata poco prima': shortly before (as two adverbs, `little before')
+The adverb "poco prima" means "shortly before".
