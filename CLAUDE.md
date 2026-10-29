@@ -420,17 +420,20 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
   every push to master and pull request into master (not one that changes
   only the top-level `*.md` or the Docker files), and by hand with Cicili's
-  and ZiguratIP's refs. Two jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
-  16 GB) by `install/install-linux.sh`, and macos-15 (Apple silicon, 3 CPUs,
-  7 GB) by `install/install-macos.sh` -- arm64, not the owner's Intel,
-  because Homebrew builds no Intel bottles since 2026-09 (sbcl would build
-  through ECL) and SBCL ships no x86-64 Darwin binary. Each raises a server
+  and ZiguratIP's refs. Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
+  16 GB) by `install/install-linux.sh`, and two Macs by
+  `install/install-macos.sh`, macos-15 (Apple silicon, 3 CPUs, 7 GB) and
+  macos-26-intel (x86-64, 4 CPUs, 14 GB), the owner's arrangement. Homebrew
+  builds no Intel bottles since 2026-09 and SBCL ships no x86-64 Darwin
+  binary: the Intel job pours what the image's own formula data names
+  (`HOMEBREW_NO_AUTO_UPDATE`), and where no bottle pours sbcl builds
+  through ECL, in the install step's two hours. Each raises a server
   on 2160, runs the lint case and then `test/run.pl`, and
   `tools/ci/verdict.sh` reads every case's line: a red case, a case with no
   line, or a SKIP outside the job's `allowed_skips` (tensors, the three
   torch cases, tensorflow, ray, numpy, opencv: no library built there; on
-  the Mac files and trace too, as no Mac package is the reference swipl
-  9.0.4 and the Mac has none) is red. **A case that may now SKIP on a plain
+  the Macs files and trace too, as no Mac package is the reference swipl
+  9.0.4 and the Macs have none) is red. **A case that may now SKIP on a plain
   install goes into `allowed_skips` in the same commit.** Each red case is
   run again alone (its whole output: the runner keeps five FAIL lines and
   no SKIP reason), and the logs are the run's artifact for 14 days.
@@ -438,7 +441,7 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   world has a worker a core and the acceptor holds one, so
   `concurrency(green(N))` wants N + 1 cores and is refused past that
   (`httpd_green_count/1`). Ask `httpd_mode(green, green(W))` and take
-  `min(N, W)`. GitHub's Mac has three cores. test/httpd.pl's fixed
+  `min(N, W)`. GitHub's Apple silicon Mac has three cores. test/httpd.pl's fixed
   `green(3)` was refused there: the server never listened, and the section
   failed with no FAIL line, because `hit/2` fails when curl does (878b17a).
   `COCOLOG_GREEN_WORKERS=3` gives any box that world.

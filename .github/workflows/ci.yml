@@ -7,16 +7,18 @@
 #         push or pull request that changes nothing but the documents at the top
 #         of the tree, or only the Docker files, starts nothing.
 #
-# TWO JOBS, ONE PER OPERATING SYSTEM, each the same steps:
+# THREE JOBS, each the same steps:
 #
-#   linux   ubuntu-24.04 (x86-64, 4 CPUs, 16 GB)   install/install-linux.sh
-#   macos   macos-15 (Apple silicon, 3 CPUs, 7 GB)  install/install-macos.sh
+#   linux        ubuntu-24.04 (x86-64, 4 CPUs, 16 GB)    install/install-linux.sh
+#   macos        macos-15 (Apple silicon, 3 CPUs, 7 GB)   install/install-macos.sh
+#   macos-intel  macos-26-intel (x86-64, 4 CPUs, 14 GB)   install/install-macos.sh
 #
-# The Mac is arm64 and not the Intel the owner's Mac is: Homebrew has built no
-# Intel bottles since September 2026 (Tier 3 there; sbcl, openssl@3, gnupg and
-# pcre2 would all build from source, sbcl through ECL), and SBCL publishes no
-# x86-64 Darwin binary. GitHub's Intel images are `macos-15-intel' and
-# `macos-26-intel' for when that changes.
+# The Intel Mac is the owner's arrangement, macOS 26 on x86-64. Homebrew has
+# built no Intel bottles since September 2026 (Tier 3 there), and SBCL
+# publishes no x86-64 Darwin binary, so where no bottle pours, sbcl builds from
+# source through ECL -- which is what the install step's two hours allow for.
+# HOMEBREW_NO_AUTO_UPDATE keeps the formula data the runner image was built
+# with, whose versions may still have Intel bottles.
 #
 # THE INSTALL IS THE INSTALLER, as the Dockerfile runs it, not a copy of its
 # steps: packages, Quicklisp (kept in the Actions cache between runs), ZiguratIP
@@ -31,11 +33,11 @@
 # server, files and trace without swipl, a module's case without its module --
 # and the runner prints `red: 0' over all of it. tools/ci/verdict.sh reads every
 # case's line: a red case, a case with no line, or a SKIP not in the job's
-# allowed_skips makes the run red. Allowed on both: the cases whose library no
-# plain install builds (libtorch, TensorFlow's C API, raylib and a screen,
-# NumPy, OpenCV). Allowed on the Mac besides: files and trace, which compare
+# allowed_skips makes the run red. Allowed on all three: the cases whose library
+# no plain install builds (libtorch, TensorFlow's C API, raylib and a screen,
+# NumPy, OpenCV). Allowed on the Macs besides: files and trace, which compare
 # with the reference swipl 9.0.4 -- Ubuntu 24.04's swi-prolog-nox is it, and no
-# Mac package is, so the Mac has no swipl at all and the comparison is Linux's.
+# Mac package is, so the Macs have no swipl at all and the comparison is Linux's.
 #
 # Each case that is red, or skipped where it should not have been, is then run
 # again alone, because the runner keeps only five FAIL lines of a case and none
@@ -86,6 +88,11 @@ jobs:
           - os: macos
             name: macOS 15 (Apple silicon), the suite with a server
             runner: macos-15
+            install: install/install-macos.sh
+            allowed_skips: tensors torch-graph torch-grad torch-replay tensorflow ray numpy opencv files trace
+          - os: macos-intel
+            name: macOS 26 (Intel), the suite with a server
+            runner: macos-26-intel
             install: install/install-macos.sh
             allowed_skips: tensors torch-graph torch-grad torch-replay tensorflow ray numpy opencv files trace
     env:
