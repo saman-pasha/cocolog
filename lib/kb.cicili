@@ -1604,6 +1604,26 @@
   ;;; clause.
   (decl) (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int))
 
+  ;;; A PREDICATE A RE-READ PLACES AS SWI'S RELOAD DOES (2.14.1): the
+  ;;; clauses it held when the file's first clause of it came -- O, in
+  ;;; order -- and how far the file's clauses have got through them. See
+  ;;; `coco_reload_begin' in the implementation.
+  (struct coco_reload
+    (member size_t   n)              ; O's length
+    (member size_t * cell)           ; each one's clause cell
+    ;; 0 another's, there (a candidate never); 1 the file's own, taken out
+    ;; at the first clause and a candidate; 2 asserted, there and a
+    ;; candidate (a read that is not muted adopts one); 3 passed or gone
+    (member u8 *     kind)
+    (member u64 *    hash)           ; a candidate's shape (`coco_reload_hash')
+    (member size_t * bnext)          ; the next candidate of its bucket, plus one
+    (member size_t * bhead)          ; each bucket's first candidate not passed, plus one
+    (member size_t   nb)             ; how many buckets, a power of two
+    (member size_t   ptr)            ; swipl's pointer: O's first clause not passed
+    (member size_t   anc)            ; O's first clause from PTR that is still there
+    (member size_t   at)             ; where that one was found last
+    (member size_t   ncomp))         ; the store's compactions when CELL was taken
+
   ;;; The predicates one consult has already reset, so each is reset ONCE
   ;;; per consult -- at its first clause -- however many clauses the file
   ;;; holds for it and however they are scattered. A frame of the consult,
@@ -1611,12 +1631,22 @@
   (struct coco_origin_seen
     (member size_t * pis)
     (member size_t   n)
-    (member size_t   cap))
+    (member size_t   cap)
+    ;; EACH ONE'S RELOAD (2.14.1), parallel to PIS: nil for a predicate
+    ;; whose clauses are appended, as a first read's are; AGAIN, whether
+    ;; the file is read into this store again; LAST, the index in PIS of
+    ;; the predicate the last clause went to, plus one
+    (member coco_reload ** rls)
+    (member size_t   rcap)
+    (member int      again)
+    (member size_t   last))
 
   ;;; `coco_assert' with a PROVENANCE. ORIGIN is the interned real path of
   ;;; the file the clause was read from plus one, 0 for none. With SEEN given and an
   ;;; origin, the first clause of each predicate first drops every clause
-  ;;; that predicate already holds from the same origin: the reconsult.
+  ;;; that predicate already holds from the same origin: the reconsult. And
+  ;;; a re-read places each clause as swipl's reload does (2.14.1,
+  ;;; `coco_reload_begin'), where a first read appends.
   (decl) (func coco_assert_from ((coco_store * st) (coco_machine * m) (size_t clause)
                                (int at_end) (u64 origin) (coco_origin_seen * seen)) (out int))
 
@@ -1661,12 +1691,16 @@
   ;;; behind): with ACT 0 whether there is one (1 or 0, the walk stopping
   ;;; at the first); with ACT 1 how many, each given death ERA as the first
   ;;; it lives through when it has none (`fera'); with ACT 2 how many, each
-  ;;; moved one clause on, as an asserta just moved every clause
-  ;;; (`clause_ix', `cend'). No walk at all for a predicate no frame was
-  ;;; pushed on since the last walk found none (`framed'). Defined in
-  ;;; lib/solve.cicili, which knows what a frame is.
+  ;;; at or past position AT moved one clause on, as a clause put in at AT
+  ;;; just moved every clause from there -- AT 0 for an asserta, which moved
+  ;;; them all (`clause_ix', `cend'); with ACT 3 how many would see a clause
+  ;;; put in at AT, having a clause before it still to try and one after it
+  ;;; inside their end (2.14.1, a re-read's place for a clause). No walk at
+  ;;; all for a predicate no frame was pushed on since the last walk found
+  ;;; none (`framed'). Defined in lib/solve.cicili, which knows what a frame
+  ;;; is.
   (decl) (func coco_frames_on ((coco_machine * m) (coco_store * st) (size_t pi)
-                               (int act) (u32 era)) (out size_t))
+                               (int act) (u32 era) (size_t at)) (out size_t))
   ;;; How many of P's clauses before position IX are live: IX itself when
   ;;; none is dead -- the ordinal a frame's next clause has in a list that
   ;;; holds no dead (a frozen machine's, `coco_freeze').
@@ -1732,6 +1766,27 @@
   (decl) (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                            (const char * origin)
                            (char * err) (size_t errlen)) (out int))
+
+  ;;; THE SAME, WITH THE CLAUSES' OWNER NAMED (2.14.0): OWNER is the real
+  ;;; path of the file the text is, and the clauses carry it even in a
+  ;;; muted store -- which is how a module's clauses (`coco_module_load')
+  ;;; are told from another module's, so that consulting the file again
+  ;;; replaces them. Null owns nothing. REREAD 0 is a first read, which
+  ;;; has nothing to replace and asks nothing; 1 replaces what OWNER put
+  ;;; in this store before, as `coco_consult' does for the program's file.
+  (decl) (func coco_consult_owner ((coco_store * st) (coco_machine * m) (const char * text)
+                                 (const char * origin) (const char * owner) (int reread)
+                                 (char * err) (size_t errlen)) (out int))
+
+  ;;; `coco_consult', SAYING WHETHER THE FILE IS READ INTO THIS STORE AGAIN
+  ;;; (2.14.1): the host knows, from the files it noted (`loads') before it
+  ;;; noted this read. AGAIN places every clause as swipl's reload places
+  ;;; it, beside what the program asserted and other files put there --
+  ;;; and a predicate that holds the file's clauses from before is placed
+  ;;; so whatever AGAIN says; anything else of a first read is appended.
+  (decl) (func coco_consult_again ((coco_store * st) (coco_machine * m) (const char * text)
+                                 (const char * origin) (int again)
+                                 (char * err) (size_t errlen)) (out int))
 
   ;;; Splits a clause ON THE HEAP into head and body. A fact has no body and
   ;;; BODY is left 0; the engine reads that as `true' rather than building one.
@@ -6168,7 +6223,7 @@
   (func coco_tomb_open ((coco_store * st) (coco_machine * m) (size_t pi)) (out u32)
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
               (u32 era . #'(+ (-> p tera) 1)))
-          (if (== (coco_frames_on m st pi 1 era) 0) (return 0))
+          (if (== (coco_frames_on m st pi 1 era 0) 0) (return 0))
           (if (not (coco_tomb_ready st pi)) (return 0))
           (set (-> p tera) era)
           (return era)))
@@ -6219,7 +6274,7 @@
         ;; a sweep measures what it orphans on a machine's heap
         (if (== m nil) (return 0))
         (with-green-write nil
-          (if (!= (coco_frames_on m st pi 0 0) 0) (return 0))
+          (if (!= (coco_frames_on m st pi 0 0 0) 0) (return 0))
           (coco_pred_sweep st m pi)
           (return 1)))
 
@@ -6508,45 +6563,53 @@
           (set (cof ix) a)
           (return (? (== (coco_pred_next_at st m p pos key (+ a 1)) (coco_no_clause)) 1 2))))
 
+  ;;; ROOM FOR MORE CLAUSES in every array parallel to P's clause list: 0
+  ;;; when one would not grow, and nothing is added
   (static)
-  (func coco_pred_add_clause ((coco_store * st) (coco_machine * m) (size_t pi) (size_t clause)
-                            (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
-        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
-          ;; the dead gone first if no frame is open to want them
-          (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
+  (func coco_pred_room ((coco_store * st) (coco_pred * p) (size_t more)) (out int)
+        (let ((size_t need . #'(+ (-> p nclauses) more)))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p origins)))
-                                  (aof (-> p origin_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p origin_cap)) need
                                   (sizeof u64)))
               (return 0))
           ;; and the dead's own list grows with the others while there is one
           (if (and (!= (-> p tomb) nil)
                    (not (coco_store_grow st (cast (void **) (aof (-> p tomb)))
-                                         (aof (-> p tomb_cap)) (+ (-> p nclauses) 1)
+                                         (aof (-> p tomb_cap)) need
                                          (sizeof u32))))
               (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p clauses)))
-                                  (aof (-> p clause_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p clause_cap)) need
                                   (sizeof size_t)))
               (return 0))
           ;; the two parallel arrays grow with it, each with a cap of its own
           ;; -- three caps that always agree, rather than one the grower would
           ;; have to be taught to share
           (if (not (coco_store_grow st (cast (void **) (aof (-> p keys)))
-                                  (aof (-> p key_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p key_cap)) need
                                   (sizeof u64)))
               (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p chain)))
-                                  (aof (-> p chain_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p chain_cap)) need
                                   (sizeof size_t)))
               (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p muted)))
-                                  (aof (-> p muted_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p muted_cap)) need
                                   (sizeof int)))
               (return 0))
           (if (not (coco_store_grow st (cast (void **) (aof (-> p codes)))
-                                  (aof (-> p codes_cap)) (+ (-> p nclauses) 1)
+                                  (aof (-> p codes_cap)) need
                                   (sizeof size_t)))
               (return 0))
+          (return 1)))
+
+  (static)
+  (func coco_pred_add_clause ((coco_store * st) (coco_machine * m) (size_t pi) (size_t clause)
+                            (int at_end) (u64 key) (u64 origin) (int muted)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          ;; the dead gone first if no frame is open to want them
+          (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
+          (if (not (coco_pred_room st p 1)) (return 0))
           (if at_end
               (block (set (nth (-> p nclauses) (-> p clauses)) clause)
                      (set (nth (-> p nclauses) (-> p keys)) key)
@@ -6580,7 +6643,7 @@
           ;; moved on with the clauses it was going to try, and the one in
           ;; front is before where it stands -- a call open now never meets
           ;; it (`coco_frames_on')
-          (if (not at_end) (coco_frames_on m st pi 2 0))
+          (if (not at_end) (coco_frames_on m st pi 2 0 0))
           ;; ASSERTZ KEEPS THE INDEX, and that is the case worth keeping: the
           ;; new clause is the highest position there is, so linking it onto
           ;; the tail of its chain leaves every chain ascending. Rebuilding
@@ -6613,29 +6676,514 @@
                           (set (-> x indexed) 0)))))))
           (return 1)))
 
+  ;;; CLAUSE PUT IN AT POSITION K OF PI, the clauses from K moved up one:
+  ;;; the clause list, every array beside it, and every call open at or
+  ;;; past K (`coco_frames_on' act 2) -- its caller has asked that no call
+  ;;; open before K would see it (act 3). The positions moved, so every
+  ;;; index goes, as an asserta's does.
   (static)
-  (func coco_origin_seen_has ((coco_origin_seen * s) (size_t pi)) (out int)
-        (for ((size_t i . 0)) (< i (-> s n)) ((++ i))
-          (if (== (nth i (-> s pis)) pi) (return 1)))
-        (return 0))
+  (func coco_pred_insert_at ((coco_store * st) (coco_machine * m) (size_t pi) (size_t k)
+                             (size_t clause) (u64 key) (u64 origin) (int muted)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t i . 0))
+          (if (not (coco_pred_room st p 1)) (return 0))
+          (set i (-> p nclauses))
+          (while (> i k)
+            (set (nth i (-> p clauses)) (nth (- i 1) (-> p clauses)))
+            (set (nth i (-> p keys)) (nth (- i 1) (-> p keys)))
+            (set (nth i (-> p origins)) (nth (- i 1) (-> p origins)))
+            (set (nth i (-> p muted)) (nth (- i 1) (-> p muted)))
+            (set (nth i (-> p codes)) (nth (- i 1) (-> p codes)))
+            (if (!= (-> p tomb) nil) (set (nth i (-> p tomb)) (nth (- i 1) (-> p tomb))))
+            (set i (- i 1)))
+          (set (nth k (-> p clauses)) clause)
+          (set (nth k (-> p keys)) key)
+          (set (nth k (-> p origins)) origin)
+          (set (nth k (-> p muted)) muted)
+          (set (nth k (-> p codes)) nil)
+          (if (!= (-> p tomb) nil) (set (nth k (-> p tomb)) 0))
+          (set (-> p nclauses) (+ (-> p nclauses) 1))
+          (coco_pred_nprobe p)
+          (set (-> p tver) (+ (-> p tver) 1))
+          (coco_pred_unindex p)
+          (coco_frames_on m st pi 2 0 k)
+          (return 1)))
+
+  ;;; Whether PI holds a live clause ORIGIN put there, of the store's mute
+  ;;; MUTE.
+  (static)
+  (func coco_pred_holds ((coco_store * st) (size_t pi) (u64 origin) (int mute)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+          (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+            (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute)
+                     (not (coco_pred_dead p i)))
+                (return 1)))
+          (return 0)))
+
+  ;;; ---- a re-read in swipl's order (2.14.1) --------------------------------
+  ;;;
+  ;;; SWI'S RELOAD KEEPS WHAT DID NOT CHANGE WHERE IT STOOD, and puts what
+  ;;; is new beside it. Probed against swipl 9.0.4 (test/files/
+  ;;; reload_order.pl): a pointer starts at the predicate's first clause,
+  ;;; and each clause the file says now looks from it for one equal to it
+  ;;; -- a variant, whatever its variables are called -- that the file put
+  ;;; there before or that no file did (asserted). Found, that one stays
+  ;;; where it stands (an asserted one becomes the file's) and the pointer
+  ;;; moves past it; not found, the new clause goes in before the pointer.
+  ;;; What the file put there and does not say again goes. Another file's
+  ;;; clause is never a candidate, nor anything behind the pointer, and a
+  ;;; file read for the first time appends. So `[asserted]' re-read with
+  ;;; `[file2, file3]' is `[file2, file3, asserted]', where through 2.14.0
+  ;;; the new clauses went after it.
+  ;;;
+  ;;; HERE THE FILE'S OLD CLAUSES STILL GO AT ITS FIRST CLAUSE, as through
+  ;;; 2.14.0 (`coco_pred_forget_from', which keeps the logical update view):
+  ;;; between the clauses of the read they are out of sight, as swipl's are,
+  ;;; erased until a clause matches them. A match puts the new clause where
+  ;;; the old one stood -- the same clause in the same place. A candidate is
+  ;;; looked up by its shape (`coco_reload_hash') and told by a walk of it
+  ;;; beside the new clause (`coco_reload_variant'). The pointer is
+  ;;; an ordinal into the clauses the predicate held at the first clause
+  ;;; (O, `coco_reload'), and "before the pointer" is before the first of
+  ;;; them from it that is still there, found by its cell. A predicate that
+  ;;; held nothing but the file's own clauses needs none of it: every clause
+  ;;; goes after the last, which is that order, and it has no state.
+  ;;;
+  ;;; What differs, and is stated: a muted read (a module read again) adopts
+  ;;; no asserted clause, whose rows the knowledge base keeps; a directive
+  ;;; that asserts at the end of the predicate being read puts it before
+  ;;; the read's next clauses where swipl puts it after them when the pointer
+  ;;; still stands on a clause of the file's; and a compaction while the
+  ;;; read runs (a directive's four million cells of garbage) moves every
+  ;;; cell O holds, after which the read's clauses of the predicate go after
+  ;;; its last clause.
 
   (static)
-  (func coco_origin_seen_add ((coco_store * st) (coco_origin_seen * s) (size_t pi)) (out int)
+  (func coco_reload_free ((coco_reload * rl))
+        (if (== rl nil) (return))
+        (free (cast (void *) (-> rl cell)))
+        (free (cast (void *) (-> rl kind)))
+        (free (cast (void *) (-> rl hash)))
+        (free (cast (void *) (-> rl bnext)))
+        (free (cast (void *) (-> rl bhead)))
+        (free (cast (void *) rl)))
+
+  ;;; A TERM'S CELL, past its references, on the heap or -- IN -- in the
+  ;;; store, which lays a compound out as the heap does and shares the
+  ;;; machine's tables of floats, strings and numbers: T's index is
+  ;;; answered and its cell put in C.
+  (static) (inline)
+  (func coco_reload_at ((coco_machine * m) (coco_store * st) (size_t t) (int in)
+                        (u64 * c)) (out size_t)
+        (if in
+            (block (set t (coco_store_deref st t)) (set (cof c) (nth t (-> st cells))))
+          (block (set t (coco_deref m t)) (set (cof c) (nth t (-> m heap)))))
+        (return t))
+
+  ;;; THE SHAPE A RELOAD LOOKS UP A CLAUSE BY: a hash of the term T, on the
+  ;;; heap or IN the store, that two variants share -- each functor, atom
+  ;;; and number, the bytes of each string, in the order a walk from the
+  ;;; left meets them, and a variable as a variable, whichever it is. One
+  ;;; term hashes alike in either place. Two clauses of one hash are told
+  ;;; apart by `coco_reload_variant'. A walk, not the text the store
+  ;;; writes, and of the clause where it lies: written out, a re-read beside
+  ;;; the program's clauses cost three times the read (2.14.1's first cut).
+  (static)
+  (func coco_reload_hash ((coco_machine * m) (coco_store * st) (size_t t) (int in)) (out u64)
+        (let ((u64 h . 1469598103934665603) (size_t * wl . nil) (size_t wlen . 0)
+              (size_t wcap . 0) (int ok . 1) (int running . 1))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (while running
+            (let ((u64 c . 0) (u64 v . 0) (size_t a . #'(coco_reload_at m st t in (aof c))))
+              (set h (* (xor h (cast u64 (coco-tag c))) 1099511628211))
+              (cond
+                ((coco-tag-is REF c) (set v 0))
+                ((coco-tag-is FLT c)
+                 (let ((double x . #'(nth (cast size_t (coco-payload c)) (-> m floats))))
+                   (memcpy (aof v) (aof x) (sizeof double))))
+                ((coco-tag-is STR c)
+                 (let ((size_t i . #'(cast size_t (coco-payload c))))
+                   (set v (cast u64 ($ (nth i (-> m strings)) n)))
+                   (for ((size_t j . 0)) (< j ($ (nth i (-> m strings)) n)) ((++ j))
+                     (set h (* (xor h (cast u64 (bitand (cast int (nth j ($ (nth i (-> m strings)) p))) 255)))
+                               1099511628211)))))
+                ((coco-tag-is BIG c)
+                 (set v (cast u64 (nth (cast size_t (coco-payload c)) (-> m bigs)))))
+                ((coco-tag-is RAT c)
+                 (let ((size_t i . #'(coco-rat-index c)))
+                   (set v (xor (cast u64 ($ (nth i (-> m rats)) n))
+                               (* (cast u64 ($ (nth i (-> m rats)) d)) 1099511628211)))))
+                ;; an atom, an integer, a functor: the cell is the identity
+                (#t (set v c)))
+              (set h (* (xor h v) 1099511628211))
+              ;; a compound's arguments are the cells after its header
+              (if (coco-tag-is FUN c)
+                  (let ((u32 n . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+                    (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                      (if (and ok (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
+                                                        (+ a (cast size_t i)) 0)))
+                          (set ok 0))))))
+            ;; no memory for the walk: the hash so far, which only costs a
+            ;; variant its match
+            (if (or (not ok) (== wlen 0))
+                (set running 0)
+              (block
+               (set t (nth (- wlen 2) wl))
+               (set wlen (- wlen 2)))))
+          (coco_wpairs_give m wl wcap)
+          (return h)))
+
+  ;;; WHETHER THE HEAP TERM A AND THE STORE'S TERM S ARE VARIANTS: one
+  ;;; shape, and each variable of one where one variable of the other
+  ;;; stands. The map holds both ways, A's variable to S's and S's to A's,
+  ;;; a store index keyed past every heap one (2^39 on). 0 too when there
+  ;;; was no memory for the walk.
+  (static)
+  (func coco_reload_variant ((coco_machine * m) (coco_store * st) (size_t a) (size_t s))
+        (out int)
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (int ok . 1) (int running . 1) (coco_varmap vm)
+              (size_t far . #'(<< (cast size_t 1) 39)))
+          (set wl (coco_wpairs_take m (aof wcap)))
+          (coco_varmap_take m (aof vm))
+          (while running
+            (let ((u64 ca . 0) (u64 cs . 0))
+              (set a (coco_reload_at m st a 0 (aof ca)))
+              (set s (coco_reload_at m st s 1 (aof cs)))
+              (cond
+                ((coco-tag-is REF ca)
+                 (if (not (coco-tag-is REF cs))
+                     (set ok 0)
+                   (let ((size_t x . 0))
+                     (if (coco_varmap_get (aof vm) a (aof x))
+                         (if (!= x s) (set ok 0))
+                       (if (coco_varmap_get (aof vm) (+ s far) (aof x))
+                           (set ok 0)
+                         (if (not (and (coco_varmap_put (aof vm) a s)
+                                       (coco_varmap_put (aof vm) (+ s far) a)))
+                             (set ok 0)))))))
+                ((coco-tag-is REF cs) (set ok 0))
+                ((!= (coco-tag ca) (coco-tag cs)) (set ok 0))
+                ((coco-tag-is FLT ca) (if (not (coco_flt_eq m ca cs)) (set ok 0)))
+                ((coco-tag-is STR ca) (if (not (coco_str_eq m ca cs)) (set ok 0)))
+                ((coco-tag-is RAT ca) (if (not (coco_rat_eq m ca cs)) (set ok 0)))
+                ((coco-tag-is BIG ca)
+                 (if (!= (nth (cast size_t (coco-payload ca)) (-> m bigs))
+                         (nth (cast size_t (coco-payload cs)) (-> m bigs)))
+                     (set ok 0)))
+                ;; an atom, an integer, a functor: the cells, and a functor's
+                ;; arguments after it, in both places
+                ((!= ca cs) (set ok 0))
+                ((coco-tag-is FUN ca)
+                 (let ((u32 n . #'($ (nth (cast size_t (coco-payload ca)) (-> m functors)) arity)))
+                   (for ((u32 i . n)) (> i 0) ((set i (- i 1)))
+                     (if (and ok (not (coco_pairs_push m (aof wl) (aof wlen) (aof wcap)
+                                                       (+ a (cast size_t i)) (+ s (cast size_t i)))))
+                         (set ok 0)))))
+                (#t (block))))
+            (if (or (== ok 0) (== wlen 0))
+                (set running 0)
+              (block
+               (set s (nth (- wlen 1) wl))
+               (set a (nth (- wlen 2) wl))
+               (set wlen (- wlen 2)))))
+          (coco_varmap_give m (aof vm))
+          (coco_wpairs_give m wl wcap)
+          (return ok)))
+
+  ;;; THE RELOAD OF PI, begun at the file's first clause of it: O, the
+  ;;; clauses PI holds then, each one's kind -- the file's own (ORIGIN, of
+  ;;; the store's mute MUTE), asserted (no file, no module: a candidate
+  ;;; only in a read that is not muted, whose adoption the knowledge base
+  ;;; can be told), or another's -- and the candidates in buckets by their
+  ;;; shapes (`coco_reload_hash'). Taken BEFORE the file's old clauses go;
+  ;;; their cells stay in the store, orphaned, until it compacts. Nil when
+  ;;; O holds nothing but the file's own clauses, the new ones then going
+  ;;; after the last in the order the file says them, or when there is no
+  ;;; memory, which places them as a first read does.
+  (static)
+  (func coco_reload_begin ((coco_store * st) (coco_machine * m) (size_t pi)
+                           (u64 origin) (int mute)) (out coco_reload *)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t n . 0) (size_t present . 0) (size_t ncand . 0) (size_t k . 0)
+              (coco_reload * rl . nil))
+          (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+            (if (not (coco_pred_dead p i))
+                (block
+                 (set n (+ n 1))
+                 (if (not (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute)))
+                     (set present (+ present 1))))))
+          (if (== present 0) (return nil))
+          (set rl (cast (coco_reload *) (calloc 1 (sizeof coco_reload))))
+          (if (== rl nil) (return nil))
+          (set (-> rl n) n)
+          (set (-> rl cell) (cast (size_t *) (calloc n (sizeof size_t))))
+          (set (-> rl kind) (cast (u8 *) (calloc n 1)))
+          (set (-> rl hash) (cast (u64 *) (calloc n (sizeof u64))))
+          (set (-> rl bnext) (cast (size_t *) (calloc n (sizeof size_t))))
+          (if (or (== (-> rl cell) nil) (== (-> rl kind) nil) (== (-> rl hash) nil)
+                  (== (-> rl bnext) nil))
+              (block (coco_reload_free rl) (return nil)))
+          (set (-> rl ncomp) (-> st ncompacts))
+          ;; O in order, each candidate's shape read where it lies in the store
+          (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
+            (if (not (coco_pred_dead p i))
+                (let ((u64 o . #'(nth i (-> p origins))) (int mu . #'(nth i (-> p muted))))
+                  (set (nth k (-> rl cell)) (nth i (-> p clauses)))
+                  (cond
+                    ((and (== o origin) (== mu mute)) (set (nth k (-> rl kind)) 1))
+                    ((and (not mute) (== o 0) (== mu 0)) (set (nth k (-> rl kind)) 2))
+                    (#t (set (nth k (-> rl kind)) 0)))
+                  (if (!= (nth k (-> rl kind)) 0)
+                      (block
+                       (set (nth k (-> rl hash)) (coco_reload_hash m st (nth i (-> p clauses)) 1))
+                       (set ncand (+ ncand 1))))
+                  (set k (+ k 1)))))
+          ;; the buckets, each one's chain in ascending order
+          (set (-> rl nb) 8)
+          (while (< (-> rl nb) (* ncand 2)) (set (-> rl nb) (* (-> rl nb) 2)))
+          (set (-> rl bhead) (cast (size_t *) (calloc (-> rl nb) (sizeof size_t))))
+          (if (== (-> rl bhead) nil) (block (coco_reload_free rl) (return nil)))
+          (set k n)
+          (while (> k 0)
+            (set k (- k 1))
+            (if (!= (nth k (-> rl kind)) 0)
+                (let ((size_t b . #'(cast size_t (bitand (nth k (-> rl hash))
+                                                         (cast u64 (- (-> rl nb) 1))))))
+                  (set (nth k (-> rl bnext)) (nth b (-> rl bhead)))
+                  (set (nth b (-> rl bhead)) (+ k 1)))))
+          (return rl)))
+
+  ;;; THE CANDIDATE FOR THE NEW CLAUSE CLAUSE, of shape H: O's first from
+  ;;; the pointer that is the file's own or asserted and a variant of it
+  ;;; (`coco_reload_variant', where it lies in the store), or O's length
+  ;;; for none. A bucket's chain is ascending, and what the pointer
+  ;;; has passed is dropped from its head for good.
+  (static)
+  (func coco_reload_find ((coco_store * st) (coco_machine * m) (coco_reload * rl)
+                          (size_t clause) (u64 h)) (out size_t)
+        (let ((size_t b . #'(cast size_t (bitand h (cast u64 (- (-> rl nb) 1)))))
+              (size_t j . 0))
+          (while (and (!= (nth b (-> rl bhead)) 0)
+                      (< (- (nth b (-> rl bhead)) 1) (-> rl ptr)))
+            (set (nth b (-> rl bhead)) (nth (- (nth b (-> rl bhead)) 1) (-> rl bnext))))
+          (set j (nth b (-> rl bhead)))
+          (while (!= j 0)
+            (let ((size_t i . #'(- j 1)))
+              (if (and (or (== (nth i (-> rl kind)) 1) (== (nth i (-> rl kind)) 2))
+                       (== (nth i (-> rl hash)) h))
+                  (if (coco_reload_variant m st clause (nth i (-> rl cell))) (return i)))
+              (set j (nth i (-> rl bnext)))))
+          (return (-> rl n))))
+
+  ;;; WHERE O'S CLAUSE I IS NOW, one that was there: where it was found
+  ;;; last, or after, or before -- live, by its cell -- or nowhere, and it
+  ;;; is passed for good (retracted, or taken by another read).
+  (static)
+  (func coco_reload_locate ((coco_reload * rl) (coco_pred * p) (size_t i)) (out size_t)
+        (let ((size_t c . #'(nth i (-> rl cell))) (size_t at . #'(-> rl at)))
+          (for ((size_t k . at)) (< k (-> p nclauses)) ((++ k))
+            (if (and (== (nth k (-> p clauses)) c) (not (coco_pred_dead p k)))
+                (block (set (-> rl at) k) (return k))))
+          (for ((size_t k . 0)) (and (< k at) (< k (-> p nclauses))) ((++ k))
+            (if (and (== (nth k (-> p clauses)) c) (not (coco_pred_dead p k)))
+                (block (set (-> rl at) k) (return k))))
+          (set (nth i (-> rl kind)) 3)
+          (return (coco_no_clause))))
+
+  ;;; WHERE A CLAUSE GOES IN BEFORE THE POINTER: before O's first clause
+  ;;; from it that is still there, or after P's last when none is.
+  (static)
+  (func coco_reload_pos ((coco_reload * rl) (coco_pred * p)) (out size_t)
+        (if (< (-> rl anc) (-> rl ptr)) (set (-> rl anc) (-> rl ptr)))
+        (while (< (-> rl anc) (-> rl n))
+          (let ((u8 kd . #'(nth (-> rl anc) (-> rl kind))))
+            (if (or (== kd 0) (== kd 2))
+                (let ((size_t k . #'(coco_reload_locate rl p (-> rl anc))))
+                  (if (!= k (coco_no_clause)) (return k)))))
+          (set (-> rl anc) (+ (-> rl anc) 1)))
+        (return (-> p nclauses)))
+
+  ;;; THE CLAUSE THE FILE SAYS NOW, CLAUSE on the heap, looked for among O
+  ;;; from the pointer (`coco_reload_find'). One the program asserted
+  ;;; becomes the file's where it stands, the pointer past it -- 1, and the
+  ;;; caller adds nothing; the file's own old one, gone at the first
+  ;;; clause, moves the pointer past it, and the caller puts the new one
+  ;;; where it stood (`coco_reload_insert', before the next that is still
+  ;;; there); none leaves the pointer where it is, and the new one goes in
+  ;;; before it. A compaction since the reload began has moved every cell
+  ;;; O holds, the file's old clauses' among them: none is a candidate or
+  ;;; a place any more, and the read's clauses of PI go after its last.
+  (static)
+  (func coco_reload_adopt ((coco_store * st) (coco_machine * m) (coco_reload * rl)
+                           (size_t pi) (size_t clause) (u64 origin)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (u64 h . 0) (size_t q . 0))
+          (if (!= (-> st ncompacts) (-> rl ncomp))
+              (block
+               (for ((size_t i . 0)) (< i (-> rl n)) ((++ i))
+                 (set (nth i (-> rl kind)) 3))
+               (set (-> rl ncomp) (-> st ncompacts))))
+          (set h (coco_reload_hash m st clause 0))
+          (while 1
+            (set q (coco_reload_find st m rl clause h))
+            (if (>= q (-> rl n)) break)
+            (if (== (nth q (-> rl kind)) 1)
+                ;; the file's own: the new clause stands where it stood
+                (block (set (nth q (-> rl kind)) 3) (set (-> rl ptr) (+ q 1)) break))
+            ;; asserted: the file's now, if it is still there
+            (let ((size_t k . #'(coco_reload_locate rl p q)))
+              (if (!= k (coco_no_clause))
+                  (block
+                   (set (nth q (-> rl kind)) 3)
+                   (set (-> rl ptr) (+ q 1))
+                   (with-green-write nil
+                     (set (nth k (-> p origins)) origin))
+                   ;; and the knowledge base writes it again, with its
+                   ;; file's name (`coco_zg_sync_pred')
+                   (if (and (not (coco_store_is_muted st)) (!= (-> st on_assert) nil))
+                       ((-> st on_assert) st (-> st ctx) (nth k (-> p clauses))))
+                   (return 1)))))
+          (return 0)))
+
+  ;;; EVERY LIVE CLAUSE OF PI FROM POSITION K DIES WHERE IT STANDS -- one
+  ;;; death, which the calls open on PI live through and still see -- and
+  ;;; comes again after CLAUSE, a copy each, in order: a call open sees what
+  ;;; it saw when it began, and a new call the order the file says. O's
+  ;;; clauses among them are their copies from now on. The copies and the
+  ;;; room for them are made BEFORE anything dies, so that no memory for
+  ;;; them changes nothing and puts CLAUSE after the last, as an assertz
+  ;;; goes; 0 only when that would not grow either.
+  (static)
+  (func coco_reload_relocate ((coco_store * st) (coco_machine * m) (coco_reload * rl)
+                              (size_t pi) (size_t k) (size_t clause) (u64 key)
+                              (u64 origin) (int muted)) (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t n0 . #'(-> p nclauses)) (size_t nl . 0) (size_t * ls . nil)
+              (size_t * cps . nil) (u32 era . 0) (size_t j . #'(-> rl anc)) (int ok . 1))
+          (for ((size_t i . k)) (< i n0) ((++ i))
+            (if (not (coco_pred_dead p i)) (set nl (+ nl 1))))
+          ;; the positions, and after them the copies
+          (set ls (cast (size_t *) (malloc (* (+ (* nl 2) 1) (sizeof size_t)))))
+          (if (== ls nil) (return (coco_pred_add_clause st m pi clause 1 key origin muted)))
+          (set cps (+ ls nl))
+          (set nl 0)
+          (for ((size_t i . k)) (< i n0) ((++ i))
+            (if (not (coco_pred_dead p i))
+                (block (set (nth nl ls) i) (set nl (+ nl 1)))))
+          (for ((size_t x . 0)) (and ok (< x nl)) ((++ x))
+            (let ((size_t mark . #'(-> m heap_len))
+                  (size_t h . #'(coco_store_get m st (nth (nth x ls) (-> p clauses)))))
+              (if (-> m oom)
+                  (set ok 0)
+                (block
+                 (set (nth x cps) (coco_store_put st m h))
+                 (if (-> st oom) (set ok 0))))
+              (set (-> m heap_len) mark)))
+          (if ok (set ok (coco_pred_room st p (+ nl 1))))
+          (if ok
+              (block (set era (coco_tomb_open st m pi))
+                     (if (== era 0) (set ok 0))))
+          (if (not ok)
+              (block (free (cast (void *) ls))
+                     (return (coco_pred_add_clause st m pi clause 1 key origin muted))))
+          (for ((size_t x . 0)) (< x nl) ((++ x))
+            (coco_tomb_set p (nth x ls) era))
+          (if (not (coco_pred_add_clause st m pi clause 1 key origin muted))
+              (block (free (cast (void *) ls)) (return 0)))
+          (for ((size_t x . 0)) (< x nl) ((++ x))
+            (let ((size_t i . #'(nth x ls))
+                  (size_t old . #'(nth i (-> p clauses))))
+              (coco_pred_add_clause st m pi (nth x cps) 1 (nth i (-> p keys))
+                                    (nth i (-> p origins)) (nth i (-> p muted)))
+              ;; O's clause, if this is one, is the copy from now on
+              (while (and (< j (-> rl n))
+                          (not (or (== (nth j (-> rl kind)) 0) (== (nth j (-> rl kind)) 2))))
+                (set j (+ j 1)))
+              (if (and (< j (-> rl n)) (== (nth j (-> rl cell)) old))
+                  (block (set (nth j (-> rl cell)) (nth x cps)) (set j (+ j 1))))))
+          (free (cast (void *) ls))
+          (set (-> rl at) (+ n0 1))
+          (return 1)))
+
+  ;;; THE NEW CLAUSE PUT IN BEFORE THE POINTER (`coco_reload_pos'), or
+  ;;; after the last when nothing from the pointer is still there, which is
+  ;;; where an assertz goes, the index kept. A call open on PI that has a
+  ;;; clause before that place still to try and one after it would see the
+  ;;; new one, which came after it began: then the clauses from the place
+  ;;; come again after the new one (`coco_reload_relocate').
+  (static)
+  (func coco_reload_insert ((coco_store * st) (coco_machine * m) (coco_reload * rl)
+                            (size_t pi) (size_t clause) (u64 key) (u64 origin) (int muted))
+        (out int)
+        (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (size_t k . 0))
+          ;; the dead gone first if no frame is open to want them, so the
+          ;; place found below is where the clause goes
+          (if (!= (-> p ntomb) 0) (coco_tomb_try_sweep st m pi))
+          (set k (coco_reload_pos rl p))
+          (if (>= k (-> p nclauses))
+              (return (coco_pred_add_clause st m pi clause 1 key origin muted)))
+          (with-green-write nil
+            (if (!= (coco_frames_on m st pi 3 0 k) 0)
+                (return (coco_reload_relocate st m rl pi k clause key origin muted)))
+            (if (not (coco_pred_insert_at st m pi k clause key origin muted)) (return 0))
+            (set (-> rl at) (+ k 1))
+            (return 1))))
+
+  ;;; PI'S PLACE IN THE CONSULT'S SEEN SET S, and at the file's first clause
+  ;;; of it the reconsult: the reload begun -- for a file read into this
+  ;;; store again, or a predicate that holds the file's clauses from before
+  ;;; -- and then what the file put there last time taken out. *RL is the
+  ;;; predicate's reload, nil for clauses that are appended. 0 when the set
+  ;;; would not grow.
+  (static)
+  (func coco_reload_for ((coco_store * st) (coco_machine * m) (coco_origin_seen * s)
+                         (size_t pi) (u64 origin) (coco_reload ** rl)) (out int)
+        (set (cof rl) nil)
+        ;; a file's clauses of one predicate come together, mostly
+        (if (and (!= (-> s last) 0) (== (nth (- (-> s last) 1) (-> s pis)) pi))
+            (block (set (cof rl) (nth (- (-> s last) 1) (-> s rls))) (return 1)))
+        (for ((size_t i . 0)) (< i (-> s n)) ((++ i))
+          (if (== (nth i (-> s pis)) pi)
+              (block (set (-> s last) (+ i 1))
+                     (set (cof rl) (nth i (-> s rls)))
+                     (return 1))))
         (if (not (coco_store_grow st (cast (void **) (aof (-> s pis)))
                                 (aof (-> s cap)) (+ (-> s n) 1) (sizeof size_t)))
             (return 0))
-        (set (nth (-> s n) (-> s pis)) pi)
-        (set (-> s n) (+ (-> s n) 1))
-        (return 1))
+        (if (not (coco_store_grow st (cast (void **) (aof (-> s rls)))
+                                (aof (-> s rcap)) (+ (-> s n) 1) (sizeof size_t)))
+            (return 0))
+        (let ((coco_reload * r . nil) (int mute . #'(coco_store_is_muted st)))
+          (if (or (-> s again) (coco_pred_holds st pi origin mute))
+              (set r (coco_reload_begin st m pi origin mute)))
+          (set (nth (-> s n) (-> s pis)) pi)
+          (set (nth (-> s n) (-> s rls)) r)
+          (set (-> s n) (+ (-> s n) 1))
+          (set (-> s last) (-> s n))
+          (coco_pred_forget_from st m pi origin)
+          (set (cof rl) r)
+          (return 1)))
 
   ;;; THE RECONSULT, as one predicate at a time: the clauses of PI that
   ;;; ORIGIN put there are taken out, in place, and the rest close up. The
   ;;; cells stay in the store, orphaned, as a retract leaves them; the
   ;;; positions have shifted, so the index is dropped; and the backend hears
   ;;; once, through the retract hook, which rewrites the predicate whole.
+  ;;;
+  ;;; ONLY THE CLAUSES OF THE STORE'S OWN MUTE (2.14.0): a muted forget --
+  ;;; a module read again -- takes the module's clauses, which never reached
+  ;;; the knowledge base, and tells the backend nothing; an unmuted one
+  ;;; takes the program's, and tells it. A module's clauses carry their
+  ;;; file's path too since 2.14.0, and a forget that took the other kind
+  ;;; would leave the knowledge base and this store holding different
+  ;;; things -- or, unmuted over a predicate never read, rewrite it from
+  ;;; nothing.
   (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
         (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (int mute . #'(coco_store_is_muted st))
               (size_t kept . 0) (int gone . 0) (size_t swept . 0))
           ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate, the
           ;; file's clauses die where they stand and stay for it, and what
@@ -6644,7 +7192,8 @@
             (if (!= era 0)
                 (block
                   (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p tomb)) 0))
+                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute)
+                             (== (nth i (-> p tomb)) 0))
                         (block (coco_tomb_set p i era) (set gone (+ gone 1)))))
                   (if (== gone 0) (return 0))
                   (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
@@ -6656,7 +7205,7 @@
               ((coco_pred_dead p i)
                (set swept (+ swept 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
-              ((== (nth i (-> p origins)) origin)
+              ((and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute))
                (set gone (+ gone 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
               (#t
@@ -6806,7 +7355,7 @@
                          (return 0)))))))
 
           (let ((size_t pi . #'(coco_pred_make st (coco_name_of m head) (coco_arity m head)))
-                (size_t stored))
+                (size_t stored) (coco_reload * rl . nil))
             (if (>= pi (-> st npreds)) (return 0))
             ;; THE PREDICATE IS FETCHED BEFORE THE CLAUSE IS ADDED, and that is
             ;; not an optimisation -- it is what makes `assertz' mean append
@@ -6854,12 +7403,15 @@
             ;; THE RECONSULT: the first clause this consult adds to the
             ;; predicate first takes out what the same file put there last
             ;; time -- after the fetch, so the rows are here to be taken out,
-            ;; and before the add, so this consult's own clauses stay.
+            ;; and before the add, so this consult's own clauses stay. A
+            ;; re-read places each clause as swipl's reload does (2.14.1,
+            ;; `coco_reload_for'): where the clause it is a variant of stood,
+            ;; or before swipl's pointer -- and one the program asserted that
+            ;; it is a variant of becomes the file's, and nothing is added.
             (if (and (!= origin 0) (!= seen nil))
-                (if (not (coco_origin_seen_has seen pi))
-                    (block
-                      (if (not (coco_origin_seen_add st seen pi)) (return 0))
-                      (coco_pred_forget_from st m pi origin))))
+                (if (not (coco_reload_for st m seen pi origin (aof rl))) (return 0)))
+            (if (and (!= rl nil) (coco_reload_adopt st m rl pi clause origin))
+                (return 1))
             ;; A CYCLIC CLAUSE IS REFUSED (1.10.19), as SWI refuses one with
             ;; `representation_error(cyclic_term)' (`coco_assert_goal' says
             ;; so): the put stores a cycle as its factors, which no clause
@@ -6876,8 +7428,11 @@
             ;; is a copy of exactly this term. Doing it on the way in is what
             ;; keeps the index free -- nothing ever walks the clauses to
             ;; work out what they are keyed on.
-            (if (not (coco_pred_add_clause st m pi stored at_end (coco_arg_key m head) origin
-                                           (? (coco_store_is_muted st) 1 0)))
+            (if (not (? (!= rl nil)
+                        (coco_reload_insert st m rl pi stored (coco_arg_key m head) origin
+                                            (? (coco_store_is_muted st) 1 0))
+                        (coco_pred_add_clause st m pi stored at_end (coco_arg_key m head) origin
+                                              (? (coco_store_is_muted st) 1 0))))
                 (return 0))
             ;; muted means this is a module's clause, not the program's.
             ;; ON THE FIRST CLAUSE ONLY, because that is where the pre-warm
@@ -6958,18 +7513,22 @@
   ;;; is untouched: the store used to APPEND, so the second of the three
   ;;; processes a tutorial runs against one store held two copies of every
   ;;; clause, and a generator without a cut answered once per copy. A
-  ;;; module's text (muted) and a caller naming no file own nothing, as
-  ;;; before.
+  ;;; caller naming no file owns nothing, and a module's text (muted) is
+  ;;; owned only when its loader names the file (`coco_consult_owner',
+  ;;; 2.14.0).
   (static) (decl) (func coco_consult_owned ((coco_store * st) (coco_machine * m)
                                            (const char * text) (const char * origin)
                                            (u64 oid) (coco_origin_seen * seen)
                                            (char * err) (size_t errlen)) (out int))
+  (static) (decl) (func coco_consult_oid ((coco_store * st) (coco_machine * m)
+                                         (const char * text) (const char * origin)
+                                         (u64 oid) (int reread) (int again)
+                                         (char * err) (size_t errlen)) (out int))
 
-  (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
-                    (const char * origin)
-                    (char * err) (size_t errlen)) (out int)
-        (let ((u64 oid . 0) (coco_origin_seen seen) (int n . 0))
-          (memset (aof seen) 0 (sizeof coco_origin_seen))
+  (func coco_consult_again ((coco_store * st) (coco_machine * m) (const char * text)
+                            (const char * origin) (int again)
+                            (char * err) (size_t errlen)) (out int)
+        (let ((u64 oid . 0))
           (if (and (!= origin nil) (not (coco_store_is_muted st)))
               (let ((char full [4096]))
                 ;; `realpath' is in <stdlib.h> but not in the std POSIX
@@ -6978,17 +7537,73 @@
                 (if (!= nil (realpath origin full))
                     (set oid (+ (coco_intern m full) 1))
                   (set oid (+ (coco_intern m origin) 1)))))
+          (return (coco_consult_oid st m text origin oid 1 again err errlen))))
+
+  (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
+                    (const char * origin)
+                    (char * err) (size_t errlen)) (out int)
+        (return (coco_consult_again st m text origin 0 err errlen)))
+
+  ;;; a module's text read again is a file read again (`lb_reread'), and
+  ;;; its first read places nothing
+  (func coco_consult_owner ((coco_store * st) (coco_machine * m) (const char * text)
+                          (const char * origin) (const char * owner) (int reread)
+                          (char * err) (size_t errlen)) (out int)
+        (return (coco_consult_oid st m text origin
+                                  (? (== owner nil) 0 (+ (coco_intern m owner) 1))
+                                  reread reread err errlen)))
+
+  ;;; WHAT THE FILE NO LONGER SAYS GOES TOO (2.14.0), as SWI's reload takes
+  ;;; out a predicate the new text does not define. The first clause of
+  ;;; each predicate the consult reads replaced the file's old clauses of
+  ;;; it (`coco_assert_from'); a predicate it did not read keeps them --
+  ;;; through 2.13, every one of them, so a file edited to drop `q/1' went
+  ;;; on answering `q/1' from its last read. Every predicate SEEN did not
+  ;;; mark loses OID's clauses of the store's mute here, and one left with
+  ;;; none is unknown, as in swipl. Asked only of a consult that read its
+  ;;; text to the end: one a syntax error stopped did not read what came
+  ;;; after the error, and what it did not read is not the file's absence.
+  (static)
+  (func coco_consult_forget_rest ((coco_store * st) (coco_machine * m) (u64 oid)
+                                  (coco_origin_seen * seen))
+        (let ((int mute . #'(coco_store_is_muted st)) (size_t np . #'(-> st npreds))
+              (char * mark . nil))
+          (if (== np 0) (return))
+          (set mark (cast (char *) (calloc np 1)))
+          (if (== mark nil) (return))
+          (for ((size_t i . 0)) (< i (-> seen n)) ((++ i))
+            (if (< (nth i (-> seen pis)) np) (set (nth (nth i (-> seen pis)) mark) 1)))
+          (for ((size_t pi . 0)) (< pi np) ((++ pi))
+            (if (and (== (nth pi mark) 0) (coco_pred_holds st pi oid mute))
+                (coco_pred_forget_from st m pi oid)))
+          (free mark)))
+
+  (func coco_consult_oid ((coco_store * st) (coco_machine * m) (const char * text)
+                          (const char * origin) (u64 oid) (int reread) (int again)
+                          (char * err) (size_t errlen)) (out int)
+        (let ((coco_origin_seen seen) (int n . 0))
+          (memset (aof seen) 0 (sizeof coco_origin_seen))
+          (set ($ seen again) again)
           ;; the loop registers its `initialization/1' goals as roots and
           ;; leaves on several paths, so the registration is dropped HERE,
           ;; whichever way it came out -- and so are the heap roots it holds
           ;; around a goal that may collect, and the word that let it (`dgc',
-          ;; which the loop takes for itself and gives back to nobody)
+          ;; which the loop takes for itself and gives back to nobody).
+          ;; A FIRST READ (a module's into a new store) has nothing of its
+          ;; own to replace, and passes no SEEN: a module's clauses each
+          ;; looked their predicate up in it, a walk per clause.
           (let ((size_t depth . #'(-> st nroots)) (size_t hdepth . #'(-> m nhroots))
                 (int dgc . #'(-> m dgc)))
-            (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
+            (set n (coco_consult_owned st m text origin oid (? reread (aof seen) nil) err errlen))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)
             (set (-> m dgc) dgc))
+          (if (and reread (!= oid 0) (>= n 0))
+              (coco_consult_forget_rest st m oid (aof seen)))
+          (if (!= ($ seen rls) nil)
+              (for ((size_t i . 0)) (< i ($ seen n)) ((++ i))
+                (coco_reload_free (nth i ($ seen rls)))))
+          (free (cast (void *) ($ seen rls)))
           (free (cast (void *) ($ seen pis)))
           ;; a reconsult has just orphaned the file's previous clauses
           (coco_store_maybe_compact st m)

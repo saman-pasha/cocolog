@@ -101,6 +101,7 @@ main :-
 
 %% A FILE OF YOUR OWN, LOADED AT RUN TIME (2.13.0): consult/1, load_files/2
 %% and [File] are SWI's, and they CONSULT -- the other act from use_module/1.
+%% A file use_module/1 loaded, consult/1 reads again AS THAT MODULE (2.14.0).
 own_files :-
     format("~n-- a file of your own: consult/1 reads it into the knowledge base~n"),
     tmp_file(lesson00, Base), atom_concat(Base, '.pl', F),
@@ -122,9 +123,25 @@ own_files :-
     format("   `cocolog run' writes it, and replaces what it put there the~n"),
     format("   last time: SWI's reconsult. use_module/1 is the other act --~n"),
     format("   the file's clauses are this process's, muted, and another~n"),
-    format("   process on the same store never sees them. A file loaded one~n"),
-    format("   way is not loaded again the other: that would answer every~n"),
-    format("   clause twice.~n").
+    format("   process on the same store never sees them.~n"),
+    format("~n-- a module's file, edited, consult/1 reads again as the module~n"),
+    tmp_file(lesson00m, MBase), atom_concat(MBase, '.pl', M),
+    write_file_from_codes(M, "lesson00_mod(1).\nlesson00_gone(1).\n"),
+    use_module(M),
+    write_file_from_codes(M, "lesson00_mod(2).\n"),
+    consult(M),
+    findall(X6, lesson00_mod(X6), L6),
+    must('use_module/1, the file edited, then consult/1', L6, [2]),
+    catch(( lesson00_gone(_) -> G7 = yes ; G7 = no ),
+          error(existence_error(procedure, _), _), G7 = unknown),
+    must('...and what the new text no longer defines', G7, unknown),
+    delete_file(M),
+    format("   The second load does not add the file beside the module, which~n"),
+    format("   would answer every clause twice: the module's text is read again,~n"),
+    format("   its clauses replaced and still this process's own, as SWI~n"),
+    format("   reloads a file. load_files/2's if(changed) reads it again only~n"),
+    format("   when the file is newer than what was read; if(not_loaded) and~n"),
+    format("   ensure_loaded/1 never do.~n").
 
 %% ---- the two helpers every lesson here carries ------------------------
 %% REPEATED ON PURPOSE, in every file. A tutorial you can copy anywhere and

@@ -103,6 +103,34 @@
           (coco_reader_free (aof r))
           (return (? (== rc 1) 1 0))))
 
+  ;; Every solution's binding for the first variable of GOAL, up to LIMIT,
+  ;; written out and joined by commas: the order a call meets the clauses
+  ;; in, which this engine can say without findall/3. -1 for an error.
+  (func all_bindings ((coco_engine * e) (const char * goal) (char * out) (size_t cap)
+                      (int limit))
+        (out int)
+        (let ((coco_reader r) (size_t t) (int rc . 1) (int n . 0) (size_t used . 0))
+          (set (nth 0 out) (cast char 0))
+          (coco_reader_init (aof r) ($ (cof e) m) goal)
+          (if (not (coco_read_goal (aof r) (aof t)))
+              (block (coco_reader_free (aof r)) (return -1)))
+          (if (== ($ r nvars) 0) (block (coco_reader_free (aof r)) (return -1)))
+          (coco_engine_ask e t)
+          (while (< n limit)
+            (set rc (coco_engine_next e))
+            (if (!= rc 1) break)
+            (let ((coco_strbuf b))
+              (coco_sb_init (aof b))
+              (coco_write_term ($ (cof e) m) (aof b) (nth 0 ($ r var_cells)) 0 0)
+              (set used (+ used (cast size_t (snprintf (+ out used) (- cap used) "%s%s"
+                                                       (? (== n 0) "" ",")
+                                                       (? (== ($ b s) nil) "" ($ b s))))))
+              (coco_sb_free (aof b)))
+            (if (>= used cap) (set used (- cap 1)))
+            (set n (+ n 1)))
+          (coco_reader_free (aof r))
+          (return (? (== rc -1) -1 n))))
+
   ;; what a directive's goal runs through in a program: here every goal is
   ;; proved, so a consult can run an initialization goal without an engine
   (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (char * err) (size_t errlen))
@@ -558,7 +586,54 @@
         (check "consulted again, only the new clause answers"
                (cast llong (count (aof e) "rc(X)" 10)) 1)
         (check "and the replaced clauses' programs went with them"
-               (cast llong (- ($ st code_len) before)) 1))
+               (cast llong (- ($ st code_len) before)) 1)
+        ;; A FILE READ AGAIN TAKES ITS CLAUSES OUT OF A PREDICATE IT NO
+        ;; LONGER DEFINES (2.14.0), as swipl's reload does; through 2.13 rq/1
+        ;; went on answering from the file's last read
+        (coco_consult (aof st) (aof m) "rd(1). rq(1)." "rd.pl" err (sizeof err))
+        (coco_consult (aof st) (aof m) "rd(2)." "rd.pl" err (sizeof err))
+        (check "a predicate the file no longer defines has none of its clauses"
+               (cast llong (count (aof e) "catch(rq(_), _, fail)" 10)) 0)
+        ;; ...AND A MUTED READ, a module's, takes only the module's: the
+        ;; program's written clauses under the same owner stay, as the
+        ;; backend, which a muted forget never tells, still holds them
+        (coco_store_mute (aof st))
+        (coco_consult_owner (aof st) (aof m) "rd(3)." "rd.pl" "rd.pl" 1 err (sizeof err))
+        (coco_store_unmute (aof st))
+        (check "a muted read again leaves the written clauses of its owner"
+               (cast llong (count (aof e) "rd(X)" 10)) 2)
+        ;; A FILE READ AGAIN PUTS ITS CLAUSES IN SWIPL'S ORDER (2.14.1), the
+        ;; reload's rule (test/files/reload_order.pl): the new clause goes
+        ;; where the old one stood, before what the program asserted after
+        ;; it -- through 2.14.0 it went after
+        (coco_consult (aof st) (aof m) "rs(1). rs(2)." "rs.pl" err (sizeof err))
+        (check "the program asserts after the file's clauses"
+               (cast llong (count (aof e) "assertz(rs(a))" 10)) 1)
+        (coco_consult_again (aof st) (aof m) "rs(3). rs(1)." "rs.pl" 1 err (sizeof err))
+        (all_bindings (aof e) "rs(X)" buf (sizeof buf) 10)
+        (check_str "read again, the file's clauses stand before what was asserted" buf "3,1,a")
+        ;; a first read appends, beside an asserted clause equal to one of the
+        ;; file's own; read again, the file takes that one for its own
+        (check "the program asserts before the file is read"
+               (cast llong (count (aof e) "assertz(rf(a))" 10)) 1)
+        (coco_consult_again (aof st) (aof m) "rf(a). rf(b)." "rf.pl" 0 err (sizeof err))
+        (all_bindings (aof e) "rf(X)" buf (sizeof buf) 10)
+        (check_str "a first read appends" buf "a,a,b")
+        (coco_consult_again (aof st) (aof m) "rf(a). rf(b)." "rf.pl" 1 err (sizeof err))
+        (all_bindings (aof e) "rf(X)" buf (sizeof buf) 10)
+        (check_str "read again, the asserted clause is the file's, held once" buf "a,b")
+        ;; ...but a muted read again, a module's, adopts no written clause,
+        ;; whose rows the knowledge base keeps: its own goes in beside it
+        (coco_store_mute (aof st))
+        (coco_consult_owner (aof st) (aof m) "rm(b)." "rm.pl" "rm.pl" 0 err (sizeof err))
+        (coco_store_unmute (aof st))
+        (check "the program asserts into a module's predicate"
+               (cast llong (count (aof e) "assertz(rm(a))" 10)) 1)
+        (coco_store_mute (aof st))
+        (coco_consult_owner (aof st) (aof m) "rm(a). rm(b)." "rm.pl" "rm.pl" 1 err (sizeof err))
+        (coco_store_unmute (aof st))
+        (all_bindings (aof e) "rm(X)" buf (sizeof buf) 10)
+        (check_str "a muted read again puts its clause beside the asserted one" buf "a,b,a"))
 
       ;; A HEAD STRUCTURE WITH 65 536 ARGUMENTS OR MORE (1.8.45): GET_STRUCT
       ;; packed its argument index and the structure's arity into sixteen

@@ -85,24 +85,35 @@ and its clauses from the last time are replaced, SWI's reconsult; its
 directives run again. So does a consult that a module's own load runs (an
 `-s` file's `initialization/1`): the file is the program's, not the
 module's. `library(Name)` is the library loader's either way.
-`load_files/2` takes `if(true)` (the default), `if(changed)` (the file's
-`time_file/2` against the one the store read it at), `if(exists)`,
-`if(not_loaded)` and `must_be_module(true)` — the last two load through
-the module loader, as `ensure_loaded/1` and `use_module/1`, which SWI
-says they are — and ignores the options it has nothing to do with, as
-SWI ignores one it does not know. **A file is not loaded twice by two
-roads in one process**: the store keeps the files read into it (their
-real paths), so `ensure_loaded/1` of a file `run` or `consult/1` read is a
-no-op, and a file loaded as a module — `use_module/1` under any spelling
-of its path, or `-s` — is that load to `consult/1` too. The record is the
-process's: a second process that loads, as a module, a file the first
-consulted into the store holds it twice, the rows beside the module, as
-through 2.12. Where SWI and cocolog differ
-(`test/files/consult.pl` holds the rest to swipl 9.0.4): a syntax error
-ends the consult, where swipl reads on; `must_be_module(true)` asks no
-module header, cocolog having none; a code list is one file's name, which
-is what `"file"` reads as under the `codes` default; and a file loaded as a
-module is not read again by `consult/1`, where swipl reloads it.
+`load_files/2` takes `if(true)` (the default), `if(changed)` and
+`if(exists)` (each reads again only a file NEWER than the time the store
+read it at, as swipl's), `if(not_loaded)` and `must_be_module(true)` — the
+last two load through the module loader, as `ensure_loaded/1` and
+`use_module/1`, which SWI says they are — and ignores the options it has
+nothing to do with, as SWI ignores one it does not know. A single `[File]`
+is `consult/1` of it, so a missing file raises. **A file is not loaded
+twice by two roads in one process**: the store keeps the files read into
+it (their real paths), so `ensure_loaded/1` of a file `run` or `consult/1`
+read is a no-op. **A file loaded as a module** — `use_module/1` under any
+spelling of its path, or `-s` — **is read again AS THAT MODULE** by
+`consult/1`, `[File]` and `if(true)`, and by `if(changed)` once it is newer
+(2.14.0, swipl's reload): muted as its load was, so its clauses stay this
+process's, owned by the file and held once. Every read of a file drops
+the file's clauses from the predicates its new text no longer defines,
+as swipl's reload does. The record is the process's: a second process
+that loads, as a module, a file the first consulted into the store holds
+it twice, the rows beside the module, as through 2.12. Where SWI and
+cocolog differ (`test/files/consult.pl` and `test/files/reload.pl` hold
+the rest to swipl 9.0.4): a syntax error ends the consult, where swipl
+reads on; `must_be_module(true)` asks no module header, cocolog having
+none; a code list is one file's name, which is what `"file"` reads as
+under the `codes` default; a file of no clauses counts as loaded, where
+swipl reads it again each time; and a module's file read again (muted)
+takes no clause the program asserted for its own, where swipl's reload
+does. Otherwise a file read again puts its clauses where swipl's reload
+does (2.14.1, `test/files/reload_order.pl`): each where the old clause it
+is a variant of stood, before what the program asserted after it --
+through 2.14.0 they went after every asserted clause.
 
 The two spellings differ in one place: as a **goal**, a library that
 cannot be found or loaded throws a catchable error; as a **directive**,

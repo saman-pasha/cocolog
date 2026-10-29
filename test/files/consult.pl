@@ -22,6 +22,8 @@ main :-
     p(empty, consult([])),
     p(bracket, call([b])),
     p(bracket_list, call([a,b])),
+    %  one file in brackets is consult/1 of it: a missing one raises (2.14.0)
+    p(bracket_missing, call([nofile])),
     p(lf_plain, load_files(a, [])),
     p(lf_list, load_files([a,b], [])),
     p(lf_unknown_option, load_files(a, [bogus(1)])),

@@ -15,8 +15,10 @@
 %%
 %%   WHAT THE PROGRAM ASSERTED STAYS. An assertz into a predicate the file
 %%   defines survives the next consult of the file, beside the file's own
-%%   clauses -- and comes first, since the file's are added again after it.
-%%   A model saved into the store is exactly this, under other names.
+%%   clauses -- where it stood, the file's coming back where theirs stood
+%%   and a new one of the file's going in before it, as swipl's reload puts
+%%   them (2.14.1; through 2.14.0 it came first, the file's after it). A
+%%   model saved into the store is exactly this, under other names.
 %%
 %%   AN EDITED FILE IS THE NEW FILE. The previous version's clauses go with
 %%   it; a reused store no longer answers with the file as it was.
@@ -38,7 +40,7 @@ main :-
     atom_concat(D, '/prog.pl', F),
     twice(D, F), survives(D, F), edited(D, F), two_spellings(D, F),
     a_librarys_clauses(D), as_a_goal(D), loaded_once(D), when_changed(D), reports(D),
-    over_the_wire(F),
+    module_reread(D), over_the_wire(F),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -72,12 +74,13 @@ survives(D, F) :-
     check('and is still there after the file is consulted again', G2, answer(3)).
 
 edited(D, F) :-
-    section('an edited file is the new file; the asserted clause stays and comes first'),
+    section('an edited file is the new file; the asserted clause stays where it stood'),
     three(F),
     q(D, F, 'count(N), write(answer(N)), nl', G1),
     check('three from the file now, and the asserted one', G1, answer(4)),
     q(D, F, 'facts(L), write(answer(L)), nl', G2),
-    check('the old version''s clauses are gone, the asserted one is kept ahead', G2, answer([9,1,2,3])).
+    check('the old version''s clauses are gone, the new one goes in before the asserted one', G2,
+          answer([1,2,3,9])).
 
 two_spellings(D, _) :-
     section('one file under two spellings of its path is one file'),
@@ -173,18 +176,21 @@ loaded_once(D) :-
     sh_join(['--local query "consult(''', O, '''), consult(''', O, '''), ', Count, '"'], A3),
     cocolog_answer(A3, G3),
     check('consult/1 twice reads it twice and holds it once', G3, answer([1,2]-2)),
+    %% A MODULE IS READ AGAIN BY consult/1 (2.14.0), as swipl reloads it,
+    %% and held once; through 2.13 the module stood and nothing was read
     sh_join(['--local query "use_module(''', Ob, '''), use_module(''', O, '''), consult(''', O,
              '''), ', Count, '"'], A4),
     cocolog_answer(A4, G4),
-    check('use_module/1 under two spellings, then consult/1: the module stands', G4, answer([1,2]-1)),
+    check('use_module/1 under two spellings, then consult/1: read again as the module, held once', G4, answer([1,2]-2)),
     atom_concat(D, '/self.pl', Self),
-    fixture(Self, ['sfact(1).',
-                   'main :- consult(''self.pl''), findall(X, sfact(X), L), write(answer(L)), nl.']),
+    fixture(Self, [':- ( nb_current(sreads, N) -> M is N + 1 ; M = 1 ), nb_setval(sreads, M).',
+                   'sfact(1).',
+                   'main :- consult(''self.pl''), findall(X, sfact(X), L), nb_getval(sreads, N), write(answer(L-N)), nl.']),
     cocolog(C),
     sh_join(['cd ', D, ' && ', C, ' -s self.pl 2>&1'], Cmd5),
     proc_run(Cmd5, 60000, Out5, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out5, T5) -> term_to_atom(G5, T5) ; G5 = none ),
-    check('a -s program that consults itself is the module it already is', G5, answer([1])),
+    check('a -s program that consults itself reads itself again, and holds it once', G5, answer([1]-2)),
     %% a consult INSIDE a module's load -- an `-s' file's initialization/1,
     %% run while the store is muted for that file -- is the program's: it
     %% owns its clauses, so the second consult replaces the first
@@ -247,6 +253,29 @@ reports(D) :-
     ( re_first_atom('ERROR: [^\n]*Syntax error[^\n]*', Out3, E3) -> R3 = reported ; R3 = silent ),
     check('and the error is reported', R3, reported).
 
+%% A FILE LOADED AS A MODULE IS READ AGAIN AS THAT MODULE (2.14.0). The
+%% re-read is the process's, as the first read was: the module's clauses
+%% never reach the knowledge base, so a second process that consulted
+%% nothing finds none of them -- and what the program ASSERTED into the
+%% module's dynamic predicate is the program's, written through, kept by
+%% the re-read and found by that second process. Through 2.13 consult/1 of
+%% the edited file kept its old clauses (cicilang 0.223's report).
+module_reread(D) :-
+    section('a module read again by consult/1 is the process''s, and what the program asserted stays'),
+    atom_concat(D, '/mod.pl', M), atom_concat(D, '/mod2.pl', M2), atom_concat(D, '/mstore', S),
+    fixture(M, [':- dynamic mlog/1.', 'mfact(1).', 'mfact(2).', 'mgone(1).']),
+    fixture(M2, [':- dynamic mlog/1.', 'mfact(3).']),
+    Facts = 'catch(findall(X, mfact(X), L), error(existence_error(procedure, _), _), L = unknown), findall(Y, mlog(Y), G), catch((mgone(_) -> Z = yes ; Z = no), error(existence_error(procedure, _), _), Z = unknown)',
+    sh_join(['--kb modre --embed ', S, ' query "use_module(''', M, '''), assertz(mlog(asserted)), rename_file(''',
+             M2, ''', ''', M, '''), consult(''', M, '''), ', Facts, ', write(answer(L-G-Z)), nl"'], A1),
+    cocolog_answer(A1, G1),
+    check('the edited file read again: its new clause, the dropped predicate unknown, the assert kept', G1,
+          answer([3]-[asserted]-unknown)),
+    sh_join(['--kb modre --embed ', S, ' query "', Facts, ', write(answer(L-G-Z)), nl"'], A2),
+    cocolog_answer(A2, G2),
+    check('a second process finds the program''s assert and none of the module''s clauses', G2,
+          answer(unknown-[asserted]-unknown)).
+
 over_the_wire(F) :-
     section('and the same three claims over the wire, when a server answers'),
     ( getenv('ZIGURAT_HOST', Host) -> true ; Host = '127.0.0.1' ),
@@ -265,7 +294,7 @@ over_the_wire(F) :-
         check('wire: an asserted fact survives the third', G3, answer(3)),
         three(F),
         wire(Host, Port, F, 'facts(L), write(answer(L)), nl', G4),
-        check('wire: the edited file replaces its own, keeps the asserted', G4, answer([9,1,2,3])),
+        check('wire: the edited file replaces its own, keeps the asserted', G4, answer([1,2,3,9])),
         sh_exit(Forget, _)
     ;   format("     (skipped: no Zigurat server at ~w:~w -- the wire half not run)~n", [Host, Port])
     ).

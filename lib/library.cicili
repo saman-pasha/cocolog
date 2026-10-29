@@ -70,6 +70,10 @@
   (FORMAT NIL "~{~A ~}"
           (LIST
            "consult(Files) :- '$lf_load'(Files, true)."
+           ;; ONE FILE IN BRACKETS IS consult/1 OF THE FILE (2.14.0), swipl's
+           ;; `[X] :- !, consult(X).': a missing one raises, as consult(F)
+           ;; does, where a longer list reports it and goes on
+           "[File] :- !, '$lf_load'(File, true)."
            "[File|Files] :- '$lf_load'([File|Files], true)."
            "load_files(Files, Options) :- '$lf_list'(Options), '$lf_if'(Options, If), '$lf_load'(Files, If)."
 
@@ -135,8 +139,10 @@
   ;;; Every consult a host makes calls it before the read -- `run', the
   ;;; `consult' command, the toplevel -- as consult/1 and load_files/2 do,
   ;;; so ensure_loaded/1 knows the file is there and `if(changed)' when it
-  ;;; was read.
-  (decl) (func coco_library_note_load ((coco_store * st) (const char * path)))
+  ;;; was read. Answers whether ST had noted it before (2.14.1), which is
+  ;;; the read's AGAIN (`coco_consult_again'): a file read into the store
+  ;;; again places its clauses as swipl's reload does.
+  (decl) (func coco_library_note_load ((coco_store * st) (const char * path)) (out int))
 
   ) ; decl-library
 
@@ -579,9 +585,11 @@
   (static)
   (func lb_load_pl ((const char * path) (const char * name)
                     (char * err) (size_t errlen)) (out int)
-        (let ((char * text . #'(lb_slurp path)))
+        (let ((char * text . #'(lb_slurp path)) (double t . 0.0))
           (if (== text nil)
               (block (snprintf err errlen "cannot read %s" path) (return 0)))
+          ;; the time the text was read at, which if(changed) asks (2.14.0)
+          (if (not (coco_file_mtime path (aof t))) (set t 0.0))
           (let ((char * nm . #'(strdup name)))
             (if (or (== nm nil)
                     (not (coco_module_register nm nil text nil)))
@@ -590,7 +598,8 @@
                        (return 0)))
             ;; the file it came from, which its load names (1.11.9): the
             ;; registry keeps the copy, as it keeps the name and the text
-            (coco_module_set_file nm (strdup path)))
+            (coco_module_set_file nm (strdup path))
+            (coco_module_set_text nm text t))
           (return 1)))
 
   ;;; ---- lending the operators -------------------------------------------
@@ -653,22 +662,28 @@
 
   ;;; The registered module whose text was read from the file at real path
   ;;; FULL, by whatever spelling it was named -- `use_module(f)' and
-  ;;; `use_module('./f.pl')' are one file -- or null.
+  ;;; `use_module('./f.pl')' are one file -- or null. By the real path the
+  ;;; registry resolved when the file was named (2.14.0), and by its name
+  ;;; resolved now for one whose path would not resolve then.
   (static)
   (func lb_module_of ((const char * full)) (out const coco_module *)
         (let ((char rp [4096]))
           (for ((size_t i . 0)) (< i (coco_module_count)) ((++ i))
             (let ((const coco_module * mod . #'(coco_module_at i)))
-              (if (and (!= (-> mod file) nil) (!= nil (realpath (-> mod file) rp))
-                       (== 0 (strcmp rp full)))
-                  (return mod))))
+              (if (!= (-> mod real) nil)
+                  (block (if (== 0 (strcmp (-> mod real) full)) (return mod)))
+                (if (and (!= (-> mod file) nil) (!= nil (realpath (-> mod file) rp))
+                         (== 0 (strcmp rp full)))
+                    (return mod)))))
           (return nil)))
 
-  (func coco_library_note_load ((coco_store * st) (const char * path))
-        (let ((char full [4096]) (double t . 0.0))
-          (if (== nil (realpath path full)) (return))
+  (func coco_library_note_load ((coco_store * st) (const char * path)) (out int)
+        (let ((char full [4096]) (double t . 0.0) (int was . 0))
+          (if (== nil (realpath path full)) (return 0))
           (coco_file_mtime full (aof t))
-          (coco_store_note_load st full t)))
+          (set was (coco_store_loaded st full nil))
+          (coco_store_note_load st full t)
+          (return was)))
 
   ;;; ---- resolution ------------------------------------------------------
 
@@ -897,21 +912,64 @@
   ;;; `run', the `consult' command and the toplevel's `[File]' write it:
   ;;; its clauses from the last time are replaced (SWI's reconsult), and
   ;;; its directives run again, as SWI's do. IF says when. `true': always.
-  ;;; `changed': unless this store read it and its time_file/2 is still
-  ;;; the one it had then. `not_loaded' and `module' (must_be_module(true)):
+  ;;; `changed', and `exists' for a file that is there: unless this store
+  ;;; read it and its time_file/2 is no later than the one it had then (an
+  ;;; older stamp reads nothing, as in swipl). `not_loaded' and `module' (must_be_module(true)):
   ;;; unless the store read it, and then by the module loader, as
   ;;; ensure_loaded/1 and use_module/1 load -- which SWI says they are.
   ;;;
   ;;; A FILE THIS PROCESS LOADED AS A MODULE (use_module/1, ensure_loaded/1,
-  ;;; `-s') IS THAT LOAD, whatever IF says: its clauses stand, and a consult
-  ;;; beside them would answer each of them twice. SWI reads it again; a
-  ;;; module's text is the registry's, and is not read again here.
+  ;;; `-s') IS READ AGAIN AS THAT MODULE (2.14.0), as SWI reloads it, under
+  ;;; `true', `exists', and `changed' once its time moved (`lb_reread');
+  ;;; `not_loaded' and `module' load nothing. Through 2.13 such a file was
+  ;;; its first load whatever IF said, and a consult of the edited file
+  ;;; kept the old clauses (cicilang's report).
   ;;;
   ;;; A FILE THAT WILL NOT READ WHOLE IS REPORTED, AND THE GOAL SUCCEEDS, as
   ;;; SWI's load reports a syntax error and goes on -- but the consult here
   ;;; ends at the error (the one thing that ends a consult), so what comes
   ;;; after it is not read. A library(Name) that will not load raises, as
   ;;; use_module/1 raises.
+
+  ;;; A FILE LOADED AS A MODULE, READ AGAIN (2.14.0), as SWI's consult/1
+  ;;; reloads one. The registry takes the new text, so a store made after
+  ;;; this -- a thread's, run_isolated/2's -- loads it, and THIS store's
+  ;;; clauses of the module are replaced by the new text's, consulted as
+  ;;; `coco_module_load' consults a module: MUTED, because they are this
+  ;;; process's and are never written through; `double_quotes' as its
+  ;;; author wrote it; its predicates the program's own where the file is
+  ;;; (`own'); its directives run again; owned by its real path, so that
+  ;;; the first clause of each predicate takes the module's old clauses of
+  ;;; it out, and a predicate the new text no longer defines loses them
+  ;;; (`coco_consult_owner'). What the program asserted into one of its
+  ;;; predicates stays, as it stays in swipl. A store another thread made
+  ;;; before keeps what it loaded: threads share nothing. Answers 0 for a
+  ;;; file that cannot be read.
+  (static)
+  (func lb_reread ((coco_engine * e) (const coco_module * mod) (const char * path)
+                   (double now)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
+              (char * text . #'(lb_slurp path)) (char err [512]) (int r . 0)
+              (int dq . #'(-> m double_quotes)) (int own . #'(-> st ownload))
+              (int was . #'(-> m dgc)))
+          (if (== text nil) (return 0))
+          (coco_module_set_text (-> mod name) text now)
+          (coco_store_mute st)
+          (set (-> m double_quotes) 0)
+          (set (-> st ownload) (-> mod own))
+          ;; its directives may collect when this engine may: nothing of
+          ;; the heap is read after the consult, and the spec was read before
+          (set (-> m dgc) (? (-> e gc) 1 0))
+          (set r (coco_consult_owner st m text
+                                     (? (== (-> mod file) nil) (-> mod name) (-> mod file))
+                                     (-> mod real) 1 err (sizeof err)))
+          (set (-> m dgc) was)
+          (set (-> st ownload) own)
+          (set (-> m double_quotes) dq)
+          (coco_store_unmute st)
+          (if (< r 0) (lb_say_text err))
+          (return 1)))
+
   (static)
   (func lb_load_file ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0) (how 1))
@@ -919,7 +977,7 @@
                 (char name [1024]) (char path [1040]) (char full [4096]) (char err [512])
                 (const char * mode . #'(coco_m_atom e how)) (u32 ar . 0)
                 (const char * fn . #'(coco_m_functor e spec (aof ar)))
-                (int exists . 0) (int r . 0) (int was . 0) (size_t culprit . spec)
+                (int exists . 0) (int r . 0) (int was . 0) (int again . 0) (size_t culprit . spec)
                 (i64 iv . 0) (double then . 0.0) (double now . 0.0) (char * text . nil))
             (if (== mode nil) (set mode "true"))
             (set exists (== 0 (strcmp mode "exists")))
@@ -950,8 +1008,19 @@
                           (return (coco_m_existence_error e "file" culprit)))
                       (return (coco_m_existence_error e "source_sink" culprit))))))
             (if (== nil (realpath path full)) (snprintf full (sizeof full) "%s" path))
-            ;; loaded as a module: that load stands
-            (if (!= (lb_module_of full) nil) (return 1))
+            (if (not (coco_file_mtime full (aof now))) (set now 0.0))
+            ;; LOADED AS A MODULE: read again as that module (2.14.0), unless
+            ;; IF says it is loaded, or it is no newer than its text was
+            (let ((const coco_module * mod . #'(lb_module_of full)))
+              (if (!= mod nil)
+                  (block
+                   (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
+                       (return 1))
+                   (if (and (or (== 0 (strcmp mode "changed")) exists) (<= now (-> mod time)))
+                       (return 1))
+                   (if (not (lb_reread e mod path now))
+                       (return (coco_m_existence_error e "source_sink" culprit)))
+                   (return 1))))
             (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
                 (block
                  (if (coco_store_loaded st full nil) (return 1))
@@ -961,14 +1030,22 @@
                  (set (-> m dgc) was)
                  (if (!= r 1) (lb_say_text err))
                  (return 1)))
-            (if (not (coco_file_mtime full (aof now))) (set now 0.0))
-            (if (and (== 0 (strcmp mode "changed"))
-                     (coco_store_loaded st full (aof then)) (== now then))
+            ;; NEWER, NOT ONLY OTHER (2.14.0): swipl 9.0.4 reads the file
+            ;; again only when its time is past the one its last read had
+            ;; ('$noload'/3: Modified @=< LoadTime loads nothing), and
+            ;; if(exists) is if(changed) for a file that is there. Through
+            ;; 2.13 an older time read it again too, and if(exists) read it
+            ;; always.
+            (if (and (or (== 0 (strcmp mode "changed")) exists)
+                     (coco_store_loaded st full (aof then)) (<= now then))
                 (return 1))
             (set text (lb_slurp path))
             (if (== text nil) (return (coco_m_existence_error e "source_sink" culprit)))
             ;; NOTED BEFORE THE READ, as SWI marks a file loading: a directive
-            ;; in it that ensure_loaded/1s it finds it there
+            ;; in it that ensure_loaded/1s it finds it there. Noted before,
+            ;; it is read AGAIN, and its clauses placed as swipl's reload
+            ;; places them (2.14.1)
+            (set again (coco_store_loaded st full nil))
             (coco_store_note_load st full now)
             ;; ITS DIRECTIVES MAY COLLECT when this engine may (`dgc'): the
             ;; spec is read before the consult and nothing of the heap after.
@@ -982,7 +1059,7 @@
               (set (-> st ownload) 0)
               (set was (-> m dgc))
               (set (-> m dgc) (? (-> e gc) 1 0))
-              (set r (coco_consult st m text path err (sizeof err)))
+              (set r (coco_consult_again st m text path again err (sizeof err)))
               (set (-> m dgc) was)
               (set (-> st muted) muted)
               (set (-> st ownload) own))

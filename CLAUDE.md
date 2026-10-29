@@ -294,14 +294,39 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
   are `library(X)`. **The store keeps the files read into it** (`loads`,
   their real path and `time_file/2`, noted before the read by every host's
-  consult too, `coco_library_note_load`): `if(changed)` compares the time,
-  and ensure_loaded/1 of a file the store holds loads nothing -- through
-  2.12 it loaded a module beside it, every clause twice. A file loaded as
-  a module (under any spelling) is that load to consult/1 as well. **The
-  goal unmutes the store around its own read** (`lb_load_file`): inside a
-  module's load -- an `-s` file's initialization/1 -- the store is muted,
-  and a muted consult kept no origins, so a second consult appended
-  (`[1,1]`). **The table is the process's, not the database's**: a file
+  consult too, `coco_library_note_load`): `if(changed)` and `if(exists)`
+  read a file again only when it is NEWER than that time (swipl's; through
+  2.13 any other time, older too), and ensure_loaded/1 of a file the store
+  holds loads nothing -- through 2.12 it loaded a module beside it, every
+  clause twice. **A file loaded as a module is READ AGAIN AS THAT MODULE**
+  (2.14.0, swipl's reload; `lb_reread`) by consult/1, `[File]` and
+  `if(true)`: muted as its load was, its clauses owned by its real path
+  (`coco_consult_owner`, the registry's `real` and `time`), each held once.
+  **A forget takes only the clauses of the store's own mute**
+  (`coco_pred_forget_from`), so a muted re-read never takes a written
+  clause and a consult never a module's. **A completed read drops the
+  file's clauses from every predicate its new text no longer defines**
+  (`coco_consult_forget_rest`, a consult's and a module's alike): a dropped
+  predicate raises existence_error, as swipl's. **A file read again puts
+  its clauses in swipl's order** (2.14.1, `coco_reload_begin`; through
+  2.14.0 after any the program asserted): a pointer from the predicate's
+  first clause, each new clause where its variant stood (the file's old
+  one, or an asserted one, which becomes the file's), else in before the
+  pointer; another file's clause and what the pointer passed are no
+  candidates, and a first read appends. **The hosts say whether the store
+  read the file before** (`coco_consult_again`'s AGAIN, from `loads`), as
+  swipl decides it per file: in a re-read, a predicate new to the file is
+  placed too. A muted read adopts no asserted clause (stated). A call open
+  on the predicate keeps its view: an insert it would see moves the
+  clauses after it (`coco_reload_relocate`, `coco_frames_on` act 3). The
+  registry keeps the old texts (a stated leak). A single `[File]` is
+  consult/1 of it, so a missing file raises, and the toplevel's `[F].` and
+  `consult(F).` are the goals (through 2.13 it consulted beside the
+  module, every clause twice). **The goal unmutes the store around its own
+  read** (`lb_load_file`): inside a module's load -- an `-s` file's
+  initialization/1 -- the store is muted, and a muted consult kept no
+  origins, so a second consult appended (`[1,1]`). **The table is the
+  process's, not the database's**: a file
   `run F` wrote into a store, loaded by a second process as a module (`-s
   F`, ensure_loaded/1), is there twice, the rows beside the module
   (`[1,2,1,2]`, as through 2.12). Hiding those rows at the fetch would
@@ -1155,7 +1180,9 @@ cocolint index offers no import of it.
   view, swipl's; through 2.2.5 a retry read the live list). A clause frame
   carries `cend`, the clause count at its push (both push sites), so what is
   asserted while it is open lies past its end, and asserta moves the open
-  frames on (`coco_frames_on` act 2: `clause_ix`, `cend`). A retract while a
+  frames on (`coco_frames_on` act 2: `clause_ix`, `cend`, of each frame at
+  or past AT -- 0 for asserta, a re-read's insert its own place, 2.14.1;
+  act 3 counts the frames an insert at AT would show a clause to). A retract while a
   frame is open on the predicate marks the clause DEAD IN PLACE (`tomb[i]`,
   the death's number, `tera` the last given; `ntomb` counts them) and the
   index keeps it; a frame sees a dead clause when it lived through the death
@@ -1375,8 +1402,9 @@ cocolint index offers no import of it.
   clause's program pointer** (`coco_pred.codes`, since 1.8.46), a fifth
   array parallel to `clauses`: every site that shifts, drops or renumbers
   the clause list moves it too -- asserta, retract, `coco_pred_forget_from`,
-  the compaction's second pass (which nils it: the table is about to be
-  cleared) -- and a sixth array would go to the same five places. **The
+  a re-read's insert at a place (`coco_pred_insert_at`, 2.14.1), the
+  compaction's second pass (which nils it: the table is about to be
+  cleared) -- and a sixth array would go to the same six places. **The
   body program is a layout** (1.8.46): a goal's root word carries the
   cells the goal takes, each ARG word the offset of its slot (K) and of
   the cell it fills (N), the executor reserves the goal once and keeps no

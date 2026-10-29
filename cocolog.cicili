@@ -391,7 +391,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.13.0"))
+  (func coco_version_text () (out const char *) (return "2.14.1"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -635,8 +635,11 @@
               ;; a directive's goal may collect the heap: this host holds no
               ;; cell (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
-              (coco_library_note_load (aof st) (nth i argv))
-              (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
+              ;; noted before, the file is read AGAIN (2.14.1): its clauses
+              ;; placed as swipl's reload places them
+              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
+                                         (coco_library_note_load (aof st) (nth i argv))
+                                         err (sizeof err)))
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
@@ -1198,68 +1201,6 @@
             (set n (- n 1)))
           (return (? (and (> n 0) (== (nth (- n 1) s) (cast char 46))) 1 0)))) ; `.'
 
-  ;;; Consults one file into the session's store, trying `NAME.pl' when NAME
-  ;;; itself is not on disk -- `[family].' reads family.pl, as SWI has it.
-  (func repl_consult_one ((coco_store * st) (coco_machine * m) (const char * name)) (out int)
-        (let ((char withpl [512]) (const char * path . name) (FILE * probe . nil)
-              (char err [512]) (char * text . nil) (int n . 0))
-          (set probe (fopen name "rb"))
-          (if (!= probe nil)
-              (fclose probe)
-            (block (snprintf withpl (sizeof withpl) "%s.pl" name)
-                   (set path withpl)))
-          (set text (slurp path))
-          (if (== text nil) (return 0))
-          (coco_library_note_load st path)
-          (set n (coco_consult st m text path err (sizeof err)))
-          (free text)
-          (if (< n 0)
-              (block (fprintf stderr "ERROR: %s\n" err)
-                     (return 0)))
-          (return 1)))
-
-  ;;; `[family, jobs].' and `consult(family).' at the toplevel, SWI's reading:
-  ;;; a list of atoms consults files. Answers 1 consulted, 0 tried and failed,
-  ;;; -1 not a consult at all -- a bare atom is a goal, so only the two
-  ;;; wrapped forms reach the disk.
-  (func repl_consult_goal ((coco_store * st) (coco_machine * m) (size_t goal)) (out int)
-        (let ((size_t t . #'(coco_deref m goal)) (int wrapped . 0))
-          (if (and (coco-tag-is FUN (nth t (-> m heap)))
-                   (== (coco_arity m t) 1)
-                   (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "consult")))
-              (block (set wrapped 1)
-                     (set t (coco_deref m (coco_arg m t 0)))))
-          (if (and wrapped (coco-tag-is ATOM (nth t (-> m heap)))
-                   (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
-              (return (? (repl_consult_one st m (coco_atom_name m (coco_name_of m t))) 1 0)))
-          ;; from here T means something only as a proper list of atoms --
-          ;; checked WHOLE before any file is opened, so `[good, 3]' does not
-          ;; consult half of itself and then turn out not to be a consult
-          (let ((size_t p . t) (int shape . 1))
-            (while 1
-              (if (coco-tag-is ATOM (nth p (-> m heap)))
-                  (block (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]"))
-                             (set shape 0))
-                         break))
-              (if (not (and (coco-tag-is FUN (nth p (-> m heap)))
-                            (== (coco_arity m p) 2)
-                            (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "."))))
-                  (block (set shape 0) break))
-              (if (not (coco-tag-is ATOM (nth (coco_deref m (coco_arg m p 0)) (-> m heap))))
-                  (block (set shape 0) break))
-              (set p (coco_deref m (coco_arg m p 1))))
-            (if (not shape)
-                (block (if (not wrapped) (return -1))
-                       (fprintf stderr "cocolog: consult wants a file name or a list of them\n")
-                       (return 0))))
-          (let ((size_t p . t))
-            (while (not (coco-tag-is ATOM (nth p (-> m heap))))
-              (if (not (repl_consult_one st m
-                         (coco_atom_name m (coco_name_of m (coco_deref m (coco_arg m p 0))))))
-                  (return 0))
-              (set p (coco_deref m (coco_arg m p 1)))))
-          (return 1)))
-
   ;;; One completed goal into the history, its newlines flattened to spaces
   ;;; -- the history is a list of lines -- and the file brought up to date
   ;;; at once, so a session that dies keeps what was typed.
@@ -1472,11 +1413,14 @@
                   (cond
                     ((== prc -1) (fprintf stderr "cocolog: %s\n" ($ r err)))
                     ((== prc 1)
-                     (let ((int consulted . #'(repl_consult_goal (aof st) (aof m) g)))
-                       (cond
-                         ((== consulted 1) (printf "true.\n"))
-                         ((== consulted 0) (set grc -1))
-                         (#t
+                     ;; `[File].' AND `consult(File).' ARE THE GOALS' (2.14.0),
+                     ;; lib/library.cicili's: a file loaded as a module is read
+                     ;; again as that module, if(changed) asks its time, and a
+                     ;; missing one is SWI's error. Through 2.13 the toplevel
+                     ;; consulted the file itself, as the program's, whatever
+                     ;; had loaded it -- one use_module/1 and then `[File].'
+                     ;; held each of its clauses twice.
+                     (block
                           (coco_engine_ask (aof e) g)
                           ;; THE VARIABLES ARE CELL INDICES the reader holds,
                           ;; read back after every answer to print the
@@ -1516,7 +1460,7 @@
                                       (if more
                                           (block (if (not tty) (printf ";\n")))
                                         (block (printf ".\n") (set stop 1))))))))))
-                          (coco_heap_root_pop (aof m))))
+                          (coco_heap_root_pop (aof m))
                        ;; one goal, one transaction -- as `query' has it
                        (if (!= db nil)
                            (block
@@ -2401,9 +2345,12 @@
               ;; (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
               ;; the store knows it holds the file (2.13.0): the program's
-              ;; ensure_loaded/1 of it is then a no-op, not a second copy
-              (coco_library_note_load (aof st) (nth i argv))
-              (set n (coco_consult (aof st) (aof m) text (nth i argv) err (sizeof err)))
+              ;; ensure_loaded/1 of it is then a no-op, not a second copy.
+              ;; Noted before, it is read AGAIN (2.14.1): its clauses placed
+              ;; as swipl's reload places them
+              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
+                                         (coco_library_note_load (aof st) (nth i argv))
+                                         err (sizeof err)))
               (set ($ m dgc) 0)
               (if (< n 0)
                   (block (fprintf stderr "ERROR: %s\n" err)
