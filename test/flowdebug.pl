@@ -1172,7 +1172,14 @@ timed(D) :-
     ( memberchk(t(is/2, NI1, _, SI1, _, _, _), TR1) -> true ; NI1 = 0, SI1 = none ),
     check('is/2, a guard its clause runs as it is entered: 400 calls and no time of its own -- it is t_count/1''s',
           NI1-SI1, 400-0),
-    findall(Se-Pr, member(t(Pr, _, _, Se, _, _, _), TR1), SPs1), max_member(_-Top1, SPs1),
+    %% the time the most of three probes', each predicate's least
+    %% (least_own_top/2)
+    flow_debug(t_go(_), B, [source(F), from(1), time(T1b), svg(false), xml(false)], _),
+    flow_debug(t_go(_), B, [source(F), from(1), time(T1c), svg(false), xml(false)], _),
+    findall(Run1, ( member(time(_, _, _, TRk1), [T1, T1b, T1c]),
+                    findall(Prk1-Sek1, member(t(Prk1, _, _, Sek1, _, _, _), TRk1), Run1) ),
+            Runs1),
+    least_own_top(Runs1, Top1),
     ( memberchk(prof(msort/2, IM1, NM1, _), PR1) -> true ; IM1 = 0, NM1 = 0 ),
     check('msort/2: one step in the profile, and in time the most of any predicate''s own',
           Top1-IM1-NM1, (msort/2)-1-1),
@@ -1297,7 +1304,14 @@ run_timed(D) :-
                  'rt_p(a).', 'rt_p(b).', 'rt_p(c).']),
     flow_run_time(rt_go(_), [source(F1)], RT1),
     RT1 = run_time(end(How1, _, _), total(Ns1, Rd1, _, _, _), Rows1),
-    ( Rows1 = [rt(Top1, _, _, _)|_] -> true ; Top1 = none ),
+    %% the time the most of three runs', each predicate's least
+    %% (least_own_top/2)
+    flow_run_time(rt_go(_), [source(F1)], run_time(_, _, Rows1b)),
+    flow_run_time(rt_go(_), [source(F1)], run_time(_, _, Rows1c)),
+    findall(Run1, ( member(Rk1, [Rows1, Rows1b, Rows1c]),
+                    findall(Pk1-Ok1, ( member(rt(Pk1, _, Sek1, Rek1), Rk1), Ok1 is Sek1 + Rek1 ), Run1) ),
+            Runs1),
+    least_own_top(Runs1, Top1),
     findall(P1-S1, ( member(P1, [rt_c/1, rt_z/0, rt_p/1, (==)/2, (is)/2]),
                      ( memberchk(rt(P1, S1, _, _), Rows1) -> true ; S1 = none ) ),
             PS1),
@@ -1312,9 +1326,10 @@ run_timed(D) :-
     flow_run_time_text(RT1, TX1),
     atomic_list_concat([H1, _, C1|Ls1], '\n', TX1),
     ( sub_atom(H1, 0, _, _, '% the whole run, answer at step ') -> HH1 = header ; HH1 = H1 ),
-    ( Ls1 = [L1|_], sub_atom(L1, _, _, 0, '  msort/2') -> LL1 = msort ; LL1 = Ls1 ),
-    check('as text: how the run ended and what the clock read, then a row a predicate, msort/2''s first',
-          HH1-C1-LL1, header-'%    self us       %    retry us       %       steps  predicate'-msort),
+    ( Rows1 = [rt(First1, _, _, _)|_] -> format(atom(FT1), '  ~q', [First1]) ; FT1 = none ),
+    ( Ls1 = [L1|_], sub_atom(L1, _, _, 0, FT1) -> LL1 = first ; LL1 = Ls1 ),
+    check('as text: how the run ended and what the clock read, then a row a predicate, the run''s first row first',
+          HH1-C1-LL1, header-'%    self us       %    retry us       %       steps  predicate'-first),
     %% the shell's profile=run: the window's views and then the run's, one
     %% BASE.prof
     atomic_list_concat([D, '/runtime'], B2),
@@ -1327,6 +1342,22 @@ run_timed(D) :-
     ( sub_atom(O2, _, _, _, 'runtime.prof') -> N2 = named ; N2 = O2 ),
     check('tools/flow/debug.pl profile=time,run: BASE.prof holds the window''s time and then the whole run''s, and is named',
           E2-V2-N2, 0-both-named).
+
+%% THE PREDICATE WHOSE LEAST OWN TIME IS THE MOST, over some runs' P-Own
+%% pairs, `none' for no rows. The clock reads wall time, so a step the
+%% scheduler stopped is charged the pause: in one suite on GitHub's 3-CPU Mac
+%% msort/2 was not the most, and was when the case ran again alone (run
+%% 40882388548), and beside six busy loops on four cores a step of rt_c/1 or
+%% last/2 was charged a pause of 4 or 13 ms, one run in forty. A pause only
+%% ever adds, so a predicate's least over three runs is its own time, as a
+%% benchmark takes its fastest round
+least_own_top(Runs, Top) :-
+    Runs = [Run|_],
+    findall(T-P, ( member(P-_, Run),
+                   findall(O, ( member(R, Runs), memberchk(P-O, R) ), Os),
+                   min_list(Os, T) ),
+            TPs),
+    (   max_member(_-Top0, TPs) -> Top = Top0 ; Top = none ).
 
 %% P's row among the time view's LINES: `load' when it ends in the mark,
 %% `none' when it ends in P -- past the ` @W:S' that says where its

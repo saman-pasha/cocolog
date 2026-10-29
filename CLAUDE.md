@@ -486,6 +486,13 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   timed request checks its status too.** A change to the engine is gated
   with the modules built and a server up; `make EMBED=0` without them
   cannot run these three.
+* **A check of which predicate the clock charged the most takes each
+  predicate's least over three runs** (`least_own_top/2` in
+  test/flowdebug.pl). The clock reads wall time, and a step the scheduler
+  stopped is charged the pause: in one suite on GitHub's 3-CPU Mac msort/2
+  was not the most (run 40882388548), and beside six busy loops on four
+  cores one run in forty was so. A pause only adds, so the least is the
+  predicate's own time.
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
   recycled PID fail a section silently. Not fixed. After a container restart
