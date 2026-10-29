@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20452 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20461 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -2253,6 +2253,152 @@ The clausal verb "señala" means "indicates".
 The masculine noun "papel" means "role".
 "desempeña" means "performs".
 The adverb "en este sentido" means "in this respect".
+The verb "se dispara" means "soars".
+"se disparan" is the plural of "se dispara".
+"dispararse" is the infinitive of "se dispara".
+The masculine noun "videojuego" means "video game".
+"videojuegos" is the plural of "videojuego".
+The masculine noun "teléfono móvil" means "mobile phone".
+"teléfonos móviles" is the plural of "teléfono móvil".
+The adverb "en definitiva" means "all in all".
+The adverb "en promedio" means "on average".
+The adverb "hasta aquí" means "so far".
+The masculine adjective "reparador" means "reparative".
+"reparadores" is the plural of "reparador".
+The feminine adjective "reparadora" means "reparative".
+"reparadoras" is the plural of "reparadora".
+The verb "lleva a casa" means "takes home".
+"llevan a casa" is the plural of "lleva a casa".
+The verb "tiene en cuenta" means "takes into account".
+"tienen en cuenta" is the plural of "tiene en cuenta".
+"tener en cuenta" is the infinitive of "tiene en cuenta".
+"teniendo en cuenta" is the gerund of "tiene en cuenta".
+The adverb "sobre el terreno" means "in the field".
+The masculine noun "correctivo" means "corrective".
+"correctivos" is the plural of "correctivo".
+The name "suiza" means "Switzerland".
+The name "dinamarca" means "Denmark".
+"suiza" is a country.
+"dinamarca" is a country.
+The adverb "cada vez menos" means "less and less".
+The adverb "en primer lugar" means "in first place".
+The masculine noun "punto de referencia" means "reference point".
+"puntos de referencia" is the plural of "punto de referencia".
+"punto de referencia" is not feminine.
+The adverb "fuera de casa" means "away from home".
+"nace" takes "de" before the phrase.
+"otro" does not follow "un".
+"otra" does not follow "una".
+The verb "cría" means "brings up".
+The name "norte" means "North".
+The name "sur" means "South".
+The adverb "con el tiempo" means "over time".
+The verb "pone a trabajar" means "puts to work".
+"ponen a trabajar" is the plural of "pone a trabajar".
+"poner a trabajar" is the infinitive of "pone a trabajar".
+The reflexive verb "pone a trabajar" means "sets to work".
+"aguanta" means "holds".
+The verb "aguanta" means "holds out".
+The feminine noun "fiesta" means "celebration".
+"fiestas" is the plural of "fiesta".
+The masculine noun "sarao" means "celebration".
+"saraos" is the plural of "sarao".
+The feminine noun "concesionaria" means "contractor".
+"concesionarias" is the plural of "concesionaria".
+The feminine noun "barredora" means "sweeper".
+"barredoras" is the plural of "barredora".
+The preposition "a la vista de" means "in view of".
+"aparte de" means "apart from".
+The preposition "al margen de" means "apart from".
+The feminine noun "operación" means "operation".
+The masculine noun "operativo" means "operation".
+"operativos" is the plural of "operativo".
+The verb "revela" means "reveals".
+The reflexive verb "revela" means "turns out".
+The masculine noun "grueso" means "bulk".
+The adverb "hasta última hora" means "until the last moment".
+The adverb "según lo previsto" means "as planned".
+The adverb "en la práctica" means "in practice".
+The masculine adjective "movido" means "eventful".
+The feminine adjective "movida" means "eventful".
+The masculine adjective "accidentado" means "eventful".
+The feminine adjective "accidentada" means "eventful".
+The masculine adjective "roto" means "broken".
+The feminine adjective "rota" means "broken".
+The feminine noun "concejala" means "councilwoman".
+"concejalas" is the plural of "concejala".
+"concejala" is a person.
+The reflexive verb "agrava" means "worsens".
+The verb "activa" means "activates".
+"desalojase" is the past subjunctive of "desaloja".
+"cuerpo nacional de policía" is a name.
+The feminine noun "emisora de radio" means "radio station".
+"emisoras de radio" is the plural of "emisora de radio".
+The feminine noun "recogida" means "collection".
+"recogidas" is the plural of "recogida".
+"desaloja" takes the passive.
+The feminine noun "culpa" means "fault".
+The feminine noun "falta" means "fault".
+The feminine noun "falta" means "lack".
+The adverb "en vano" means "in vain".
+The masculine noun "trabajador" means "worker".
+The feminine noun "misa de réquiem" means "requiem mass".
+"misas de réquiem" is the plural of "misa de réquiem".
+The adverb "mañana por la noche" means "tomorrow evening".
+The masculine noun "limpiacristales" means "windscreen washer".
+"limpiacristales" is the plural of "limpiacristales".
+"limpiacristales" is a person.
+The masculine noun "semáforo" means "traffic light".
+The verb "se gana la vida" means "earns a living".
+"se ganan la vida" is the plural of "se gana la vida".
+"ganarse la vida" is the infinitive of "se gana la vida".
+The masculine adjective "quinceañero" means "fifteen-year-old".
+The feminine adjective "quinceañera" means "fifteen-year-old".
+"quinceañeros" is the plural of "quinceañero".
+"quinceañeras" is the plural of "quinceañera".
+The masculine noun "hermanito" means "little brother".
+"hermanitos" is the plural of "hermanito".
+"hermanito" is a person.
+The verb "tiene cuidado" means "takes care".
+"tienen cuidado" is the plural of "tiene cuidado".
+"tener cuidado" is the infinitive of "tiene cuidado".
+The intransitive verb "derrapa" means "skids".
+"derrapan" is the plural of "derrapa".
+"derrapar" is the infinitive of "derrapa".
+"derrapando" is the gerund of "derrapa".
+"derrapó" is the past of "derrapa".
+"derrapado" is the participle of "derrapa".
+The verb "atropella" means "runs over".
+"atropellan" is the plural of "atropella".
+"atropellar" is the infinitive of "atropella".
+"atropelló" is the past of "atropella".
+"atropellaron" is the plural of "atropelló".
+"atropellaba" is the imperfect of "atropella".
+"atropellará" is the future of "atropella".
+"atropellado" is the participle of "atropella".
+"atropellada" is the participle of "atropella".
+"atropellada" is feminine.
+"atropellados" is the participle of "atropella".
+"atropellados" is the plural of "atropellado".
+"atropelladas" is the participle of "atropella".
+"atropelladas" is feminine.
+"atropelladas" is the plural of "atropellada".
+"atropellando" is the gerund of "atropella".
+The feminine noun "audiencia" means "audience".
+The feminine noun "audiencia" means "hearing".
+The adverb "no por casualidad" means "not by chance".
+The masculine noun "concierto de clausura" means "closing concert".
+"conciertos de clausura" is the plural of "concierto de clausura".
+"concierto de clausura" is not feminine.
+The name "colonia" means "Cologne".
+The verb "da los primeros pasos" means "takes the first steps".
+"dan los primeros pasos" is the plural of "da los primeros pasos".
+"dar los primeros pasos" is the infinitive of "da los primeros pasos".
+"dio los primeros pasos" is the past of "da los primeros pasos".
+"dado los primeros pasos" is the participle of "da los primeros pasos".
+The feminine noun "desaceleración" means "deceleration".
+"desaceleraciones" is the plural of "desaceleración".
+The adverb "poco antes" means "shortly before".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -2449,6 +2595,8 @@ The masculine noun "curador" means "curator".
 "curador" is a person.
 The feminine noun "ordenanza" means "ordinance".
 "ordenanzas" is the plural of "ordenanza".
+The feminine noun "cisterna" means "cistern".
+"cisternas" is the plural of "cisterna".
 The feminine noun "morada" means "abode".
 "moradas" is the plural of "morada".
 The feminine noun "brusquedad" means "abruptness".
@@ -21570,6 +21718,12 @@ The feminine noun "consigna" means "directive".
 "consignas" is the plural of "consigna".
 The noun "pívot" means "pivot".
 "pívots" is the plural of "pívot".
+The masculine noun "operario" means "worker".
+"operarios" is the plural of "operario".
+"operario" is a person.
+The feminine noun "operaria" means "worker".
+"operarias" is the plural of "operaria".
+"operaria" is a person.
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -30663,6 +30817,58 @@ The verb "transita" means "transits".
 "transitadas" is the plural of "transitada".
 "transitar" is the infinitive of "transita".
 "transitando" is the gerund of "transita".
+The verb "desborda" means "overwhelms".
+"desbordan" is the plural of "desborda".
+"desbordamos" is the first person of "desbordan".
+"desbordáis" is the second person of "desbordan".
+"desbordo" is the first person of "desborda".
+"desbordas" is the second person of "desborda".
+"desbordó" is the past of "desborda".
+"desbordaron" is the past of "desbordan".
+"desbordamos" is the first person of "desbordaron".
+"desbordasteis" is the second person of "desbordaron".
+"desbordé" is the first person of "desbordó".
+"desbordaste" is the second person of "desbordó".
+"desbordaba" is the imperfect of "desborda".
+"desbordaban" is the imperfect of "desbordan".
+"desbordábamos" is the first person of "desbordaban".
+"desbordabais" is the second person of "desbordaban".
+"desbordabas" is the second person of "desbordaba".
+"desbordará" is the future of "desborda".
+"desbordarán" is the plural of "desbordará".
+"desbordaremos" is the first person of "desbordarán".
+"desbordaréis" is the second person of "desbordarán".
+"desbordaré" is the first person of "desbordará".
+"desbordarás" is the second person of "desbordará".
+"desbordaría" is the conditional of "desborda".
+"desbordarían" is the plural of "desbordaría".
+"desbordaríamos" is the first person of "desbordarían".
+"desbordaríais" is the second person of "desbordarían".
+"desbordarías" is the second person of "desbordaría".
+"desborde" is the subjunctive of "desborda".
+"desborden" is the plural of "desborde".
+"desbordemos" is the first person of "desborden".
+"desbordes" is the second person of "desborde".
+"desbordara" is the past subjunctive of "desborda".
+"desbordaran" is the plural of "desbordara".
+"desbordáramos" is the first person of "desbordaran".
+"desbordarais" is the second person of "desbordaran".
+"desbordaras" is the second person of "desbordara".
+"desborda" is the imperative of "desborda".
+"desbordes" is the negative imperative of "desborda".
+"desbordad" is the imperative of "desbordan".
+"desbordéis" is the negative imperative of "desbordan".
+"desbordemos" is the hortative of "desborda".
+"desbordado" is the participle of "desborda".
+"desbordada" is the participle of "desborda".
+"desbordada" is feminine.
+"desbordados" is the participle of "desborda".
+"desbordados" is the plural of "desbordado".
+"desbordadas" is the participle of "desborda".
+"desbordadas" is feminine.
+"desbordadas" is the plural of "desbordada".
+"desbordar" is the infinitive of "desborda".
+"desbordando" is the gerund of "desborda".
 The verb "retransmite" means "broadcasts".
 "retransmiten" is the plural of "retransmite".
 "retransmitimos" is the first person of "retransmiten".
@@ -122180,6 +122386,214 @@ The verb "resigna" means "resigns".
 "resignadas" is the plural of "resignada".
 "resignar" is the infinitive of "resigna".
 "resignando" is the gerund of "resigna".
+The verb "propicia" means "favours".
+"propician" is the plural of "propicia".
+"propiciamos" is the first person of "propician".
+"propiciáis" is the second person of "propician".
+"propicio" is the first person of "propicia".
+"propicias" is the second person of "propicia".
+"propició" is the past of "propicia".
+"propiciaron" is the past of "propician".
+"propiciamos" is the first person of "propiciaron".
+"propiciasteis" is the second person of "propiciaron".
+"propicié" is the first person of "propició".
+"propiciaste" is the second person of "propició".
+"propiciaba" is the imperfect of "propicia".
+"propiciaban" is the imperfect of "propician".
+"propiciábamos" is the first person of "propiciaban".
+"propiciabais" is the second person of "propiciaban".
+"propiciabas" is the second person of "propiciaba".
+"propiciará" is the future of "propicia".
+"propiciarán" is the plural of "propiciará".
+"propiciaremos" is the first person of "propiciarán".
+"propiciaréis" is the second person of "propiciarán".
+"propiciaré" is the first person of "propiciará".
+"propiciarás" is the second person of "propiciará".
+"propiciaría" is the conditional of "propicia".
+"propiciarían" is the plural of "propiciaría".
+"propiciaríamos" is the first person of "propiciarían".
+"propiciaríais" is the second person of "propiciarían".
+"propiciarías" is the second person of "propiciaría".
+"propicie" is the subjunctive of "propicia".
+"propicien" is the plural of "propicie".
+"propiciemos" is the first person of "propicien".
+"propicies" is the second person of "propicie".
+"propiciara" is the past subjunctive of "propicia".
+"propiciaran" is the plural of "propiciara".
+"propiciáramos" is the first person of "propiciaran".
+"propiciarais" is the second person of "propiciaran".
+"propiciaras" is the second person of "propiciara".
+"propicia" is the imperative of "propicia".
+"propicies" is the negative imperative of "propicia".
+"propiciad" is the imperative of "propician".
+"propiciéis" is the negative imperative of "propician".
+"propiciemos" is the hortative of "propicia".
+"propiciado" is the participle of "propicia".
+"propiciada" is the participle of "propicia".
+"propiciada" is feminine.
+"propiciados" is the participle of "propicia".
+"propiciados" is the plural of "propiciado".
+"propiciadas" is the participle of "propicia".
+"propiciadas" is feminine.
+"propiciadas" is the plural of "propiciada".
+"propiciar" is the infinitive of "propicia".
+"propiciando" is the gerund of "propicia".
+The verb "descompensa" means "unbalances".
+"descompensan" is the plural of "descompensa".
+"descompensamos" is the first person of "descompensan".
+"descompensáis" is the second person of "descompensan".
+"descompenso" is the first person of "descompensa".
+"descompensas" is the second person of "descompensa".
+"descompensó" is the past of "descompensa".
+"descompensaron" is the past of "descompensan".
+"descompensamos" is the first person of "descompensaron".
+"descompensasteis" is the second person of "descompensaron".
+"descompensé" is the first person of "descompensó".
+"descompensaste" is the second person of "descompensó".
+"descompensaba" is the imperfect of "descompensa".
+"descompensaban" is the imperfect of "descompensan".
+"descompensábamos" is the first person of "descompensaban".
+"descompensabais" is the second person of "descompensaban".
+"descompensabas" is the second person of "descompensaba".
+"descompensará" is the future of "descompensa".
+"descompensarán" is the plural of "descompensará".
+"descompensaremos" is the first person of "descompensarán".
+"descompensaréis" is the second person of "descompensarán".
+"descompensaré" is the first person of "descompensará".
+"descompensarás" is the second person of "descompensará".
+"descompensaría" is the conditional of "descompensa".
+"descompensarían" is the plural of "descompensaría".
+"descompensaríamos" is the first person of "descompensarían".
+"descompensaríais" is the second person of "descompensarían".
+"descompensarías" is the second person of "descompensaría".
+"descompense" is the subjunctive of "descompensa".
+"descompensen" is the plural of "descompense".
+"descompensemos" is the first person of "descompensen".
+"descompenses" is the second person of "descompense".
+"descompensara" is the past subjunctive of "descompensa".
+"descompensaran" is the plural of "descompensara".
+"descompensáramos" is the first person of "descompensaran".
+"descompensarais" is the second person of "descompensaran".
+"descompensaras" is the second person of "descompensara".
+"descompensa" is the imperative of "descompensa".
+"descompenses" is the negative imperative of "descompensa".
+"descompensad" is the imperative of "descompensan".
+"descompenséis" is the negative imperative of "descompensan".
+"descompensemos" is the hortative of "descompensa".
+"descompensado" is the participle of "descompensa".
+"descompensada" is the participle of "descompensa".
+"descompensada" is feminine.
+"descompensados" is the participle of "descompensa".
+"descompensados" is the plural of "descompensado".
+"descompensadas" is the participle of "descompensa".
+"descompensadas" is feminine.
+"descompensadas" is the plural of "descompensada".
+"descompensar" is the infinitive of "descompensa".
+"descompensando" is the gerund of "descompensa".
+The verb "desaloja" means "evacuates".
+"desalojan" is the plural of "desaloja".
+"desalojamos" is the first person of "desalojan".
+"desalojáis" is the second person of "desalojan".
+"desalojo" is the first person of "desaloja".
+"desalojas" is the second person of "desaloja".
+"desalojó" is the past of "desaloja".
+"desalojaron" is the past of "desalojan".
+"desalojamos" is the first person of "desalojaron".
+"desalojasteis" is the second person of "desalojaron".
+"desalojé" is the first person of "desalojó".
+"desalojaste" is the second person of "desalojó".
+"desalojaba" is the imperfect of "desaloja".
+"desalojaban" is the imperfect of "desalojan".
+"desalojábamos" is the first person of "desalojaban".
+"desalojabais" is the second person of "desalojaban".
+"desalojabas" is the second person of "desalojaba".
+"desalojará" is the future of "desaloja".
+"desalojarán" is the plural of "desalojará".
+"desalojaremos" is the first person of "desalojarán".
+"desalojaréis" is the second person of "desalojarán".
+"desalojaré" is the first person of "desalojará".
+"desalojarás" is the second person of "desalojará".
+"desalojaría" is the conditional of "desaloja".
+"desalojarían" is the plural of "desalojaría".
+"desalojaríamos" is the first person of "desalojarían".
+"desalojaríais" is the second person of "desalojarían".
+"desalojarías" is the second person of "desalojaría".
+"desaloje" is the subjunctive of "desaloja".
+"desalojen" is the plural of "desaloje".
+"desalojemos" is the first person of "desalojen".
+"desalojes" is the second person of "desaloje".
+"desalojara" is the past subjunctive of "desaloja".
+"desalojaran" is the plural of "desalojara".
+"desalojáramos" is the first person of "desalojaran".
+"desalojarais" is the second person of "desalojaran".
+"desalojaras" is the second person of "desalojara".
+"desaloja" is the imperative of "desaloja".
+"desalojes" is the negative imperative of "desaloja".
+"desalojad" is the imperative of "desalojan".
+"desalojéis" is the negative imperative of "desalojan".
+"desalojemos" is the hortative of "desaloja".
+"desalojado" is the participle of "desaloja".
+"desalojada" is the participle of "desaloja".
+"desalojada" is feminine.
+"desalojados" is the participle of "desaloja".
+"desalojados" is the plural of "desalojado".
+"desalojadas" is the participle of "desaloja".
+"desalojadas" is feminine.
+"desalojadas" is the plural of "desalojada".
+"desalojar" is the infinitive of "desaloja".
+"desalojando" is the gerund of "desaloja".
+The verb "ralentiza" means "slows".
+"ralentizan" is the plural of "ralentiza".
+"ralentizamos" is the first person of "ralentizan".
+"ralentizáis" is the second person of "ralentizan".
+"ralentizo" is the first person of "ralentiza".
+"ralentizas" is the second person of "ralentiza".
+"ralentizó" is the past of "ralentiza".
+"ralentizaron" is the past of "ralentizan".
+"ralentizamos" is the first person of "ralentizaron".
+"ralentizasteis" is the second person of "ralentizaron".
+"ralenticé" is the first person of "ralentizó".
+"ralentizaste" is the second person of "ralentizó".
+"ralentizaba" is the imperfect of "ralentiza".
+"ralentizaban" is the imperfect of "ralentizan".
+"ralentizábamos" is the first person of "ralentizaban".
+"ralentizabais" is the second person of "ralentizaban".
+"ralentizabas" is the second person of "ralentizaba".
+"ralentizará" is the future of "ralentiza".
+"ralentizarán" is the plural of "ralentizará".
+"ralentizaremos" is the first person of "ralentizarán".
+"ralentizaréis" is the second person of "ralentizarán".
+"ralentizaré" is the first person of "ralentizará".
+"ralentizarás" is the second person of "ralentizará".
+"ralentizaría" is the conditional of "ralentiza".
+"ralentizarían" is the plural of "ralentizaría".
+"ralentizaríamos" is the first person of "ralentizarían".
+"ralentizaríais" is the second person of "ralentizarían".
+"ralentizarías" is the second person of "ralentizaría".
+"ralentice" is the subjunctive of "ralentiza".
+"ralenticen" is the plural of "ralentice".
+"ralenticemos" is the first person of "ralenticen".
+"ralentices" is the second person of "ralentice".
+"ralentizara" is the past subjunctive of "ralentiza".
+"ralentizaran" is the plural of "ralentizara".
+"ralentizáramos" is the first person of "ralentizaran".
+"ralentizarais" is the second person of "ralentizaran".
+"ralentizaras" is the second person of "ralentizara".
+"ralentiza" is the imperative of "ralentiza".
+"ralentices" is the negative imperative of "ralentiza".
+"ralentizad" is the imperative of "ralentizan".
+"ralenticéis" is the negative imperative of "ralentizan".
+"ralenticemos" is the hortative of "ralentiza".
+"ralentizado" is the participle of "ralentiza".
+"ralentizada" is the participle of "ralentiza".
+"ralentizada" is feminine.
+"ralentizados" is the participle of "ralentiza".
+"ralentizados" is the plural of "ralentizado".
+"ralentizadas" is the participle of "ralentiza".
+"ralentizadas" is feminine.
+"ralentizadas" is the plural of "ralentizada".
+"ralentizar" is the infinitive of "ralentiza".
+"ralentizando" is the gerund of "ralentiza".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".
@@ -138512,7 +138926,6 @@ The verb "somete" means "tables".
 The verb "toca" means "taps".
 "tapped" is the past of "taps".
 "tapping" is the gerund of "taps".
-The verb "retrasa" means "slows".
 The verb "apunta" means "targets".
 The verb "derrite" means "thaws".
 The verb "echa" means "chucks".
@@ -138938,6 +139351,18 @@ The masculine adjective "impávido" means "fearless".
 "impávidos" is the plural of "impávido".
 The feminine adjective "impávida" means "fearless".
 "impávidas" is the plural of "impávida".
+The masculine adjective "barredor" means "sweeping".
+"barredores" is the plural of "barredor".
+The feminine adjective "barredora" means "sweeping".
+"barredoras" is the plural of "barredora".
+The masculine adjective "provisto" means "equipped".
+"provistos" is the plural of "provisto".
+The feminine adjective "provista" means "equipped".
+"provistas" is the plural of "provista".
+"provistísimas" is the superlative of "provistas".
+"provistísima" is the superlative of "provista".
+"provistísimos" is the superlative of "provistos".
+"provistísimo" is the superlative of "provisto".
 The masculine adjective "abyecto" means "abject".
 "abyectos" is the plural of "abyecto".
 The feminine adjective "abyecta" means "abject".
@@ -154858,6 +155283,7 @@ The feminine adjective "hinchada" means "puffy".
 The masculine adjective "melancólico" means "gloomy".
 The feminine adjective "melancólica" means "gloomy".
 The adverb "tácticamente" means "tactically".
+The adverb "duramente" means "harshly".
 The adverb "desgraciadamente" means "alas".
 The adverb "exitosamente" means "successfully".
 The adverb "accesoriamente" means "accessorily".
@@ -155518,6 +155944,7 @@ The adverb "temáticamente" means "thematically".
 The adverb "culturalmente" means "culturally".
 The adverb "anónimamente" means "anonymously".
 The adverb "furtivamente" means "furtively".
+The adverb "escalonadamente" means "gradually".
 The adverb "pues" means "then".
 The adverb "íntegramente" means "entirely".
 The adverb "colectivamente" means "collectively".
@@ -155802,7 +156229,6 @@ The adverb "muy" means "mighty".
 The adverb "popularmente" means "popularly".
 The adverb "sinceramente" means "heartily".
 The adverb "incansablemente" means "unwearyingly".
-The adverb "severamente" means "harshly".
 The preposition "contra" means "against".
 The preposition "entre" means "among".
 The preposition "entre" means "between".

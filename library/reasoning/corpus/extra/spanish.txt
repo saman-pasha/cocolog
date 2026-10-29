@@ -3651,3 +3651,224 @@ The masculine noun "papel" means "role".
 # `precisó en este sentido que "se imponen" una serie de reformas': in this respect, one adverb -- read as words,
 # the clause of `que' was a relative clause on the sense, and the reforms nobody's
 The adverb "en este sentido" means "in this respect".
+# The child-cost report (VIT-10011..10058, Italian into Spanish and English): the words its Spanish needs written.
+# `fanno impennare la bolletta figlio': hacen dispararse, soars
+The verb "se dispara" means "soars".
+"se disparan" is the plural of "se dispara".
+"dispararse" is the infinitive of "se dispara".
+# `(videogiochi, telefonini)': video games and mobile phones
+The masculine noun "videojuego" means "video game".
+"videojuegos" is the plural of "videojuego".
+The masculine noun "teléfono móvil" means "mobile phone".
+"teléfonos móviles" is the plural of "teléfono móvil".
+# `tutto sommato', `in media', `fin qui la fotografia'
+The adverb "en definitiva" means "all in all".
+The adverb "en promedio" means "on average".
+The adverb "hasta aquí" means "so far".
+# `la spesa per i bambini diventa riparatoria': reparative
+The masculine adjective "reparador" means "reparative".
+"reparadores" is the plural of "reparador".
+The feminine adjective "reparadora" means "reparative".
+"reparadoras" is the plural of "reparadora".
+# `porta a casa 2 mila euro': takes home
+The verb "lleva a casa" means "takes home".
+"llevan a casa" is the plural of "lleva a casa".
+# `Non tengono conto ... della mancanza': no tienen en cuenta, the phrase after it bare
+The verb "tiene en cuenta" means "takes into account".
+"tienen en cuenta" is the plural of "tiene en cuenta".
+"tener en cuenta" is the infinitive of "tiene en cuenta".
+"teniendo en cuenta" is the gerund of "tiene en cuenta".
+# `una prova sul campo': sobre el terreno, in the field
+The adverb "sobre el terreno" means "in the field".
+# `Applica vari correttivi statistici': correctives (the dictionary has none)
+The masculine noun "correctivo" means "corrective".
+"correctivos" is the plural of "correctivo".
+# `in Germania, Svizzera, Danimarca'
+The name "suiza" means "Switzerland".
+The name "dinamarca" means "Denmark".
+"suiza" is a country.
+"dinamarca" is a country.
+# `i bambini sono sempre meno': cada vez menos, less and less
+The adverb "cada vez menos" means "less and less".
+# `al primo posto c'è la casa': en primer lugar
+The adverb "en primer lugar" means "in first place".
+# `un punto di riferimento oggettivo': a reference point
+The masculine noun "punto de referencia" means "reference point".
+"puntos de referencia" is the plural of "punto de referencia".
+"punto de referencia" is not feminine.
+# `il mantenimento fuori sede': away from home
+The adverb "fuera de casa" means "away from home".
+# `nate da un'indagine': nacidas de
+"nace" takes "de" before the phrase.
+# `Aggiunge una prova su un altro campione': otro, with no article before it (the writer wrote `un otro')
+"otro" does not follow "un".
+"otra" does not follow "una".
+# `quanto costa davvero crescere un bambino': criar, brings up (the dictionary's first is breeds)
+The verb "cría" means "brings up".
+# `Le differenze tra Nord e Sud': the names of the parts of a country
+The name "norte" means "North".
+The name "sur" means "South".
+# `hanno modificato nel tempo la spesa': con el tiempo, over time
+The adverb "con el tiempo" means "over time".
+# `Maglietta si mette al lavoro': se pone a trabajar, sets to work
+The verb "pone a trabajar" means "puts to work".
+"ponen a trabajar" is the plural of "pone a trabajar".
+"poner a trabajar" is the infinitive of "pone a trabajar".
+The reflexive verb "pone a trabajar" means "sets to work".
+# `Quindi tenete duro': aguantad, hold out (its own first meaning said again first)
+"aguanta" means "holds".
+The verb "aguanta" means "holds out".
+# The New Year's Eve report (AnCora CESS-CAST-P-20010103-85, Spanish into Italian and English): the words it needs.
+# `el accidentado fin de fiesta de Nochevieja', `el sarao transcurrió de forma "intensa y alegre"': a celebration --
+# the dictionary's party is the political one to the Italian writer (`Después de la fiesta' was `Dopo il partito')
+The feminine noun "fiesta" means "celebration".
+"fiestas" is the plural of "fiesta".
+The masculine noun "sarao" means "celebration".
+"saraos" is the plural of "sarao".
+# `la concesionaria FCC': the contractor (the dictionary has `concesionario' the adjective and the dealer)
+The feminine noun "concesionaria" means "contractor".
+"concesionarias" is the plural of "concesionaria".
+# `dos barredoras': sweepers, the machines (`dos máquinas barredoras' is the adjective, extra/eng-spa.dix)
+The feminine noun "barredora" means "sweeper".
+"barredoras" is the plural of "barredora".
+# `a la vista de los numerosos hurtos': in view of them (where it was `from the sight of')
+The preposition "a la vista de" means "in view of".
+# `Al margen de los incidentes': apart from them (`aparte de' said again first, so that it stays the one written)
+"aparte de" means "apart from".
+The preposition "al margen de" means "apart from".
+# `el operativo de limpieza': the operation, a noun (it was read as the adjective, `the operative one'; `operación' said
+# again first, so that it stays the word written for one)
+The feminine noun "operación" means "operation".
+The masculine noun "operativo" means "operation".
+"operativos" is the plural of "operativo".
+# `el operativo de limpieza se reveló descompensado': turned out unbalanced (the plain `reveals' said first, so that
+# `revelar el nombre' stays it; as `results' it was the word written for every `risulta', `se me revela')
+The verb "revela" means "reveals".
+The reflexive verb "revela" means "turns out".
+# `la llegada del grueso de las brigadas': the bulk of them (where it was the thickness)
+The masculine noun "grueso" means "bulk".
+# `La falta de agentes hasta última hora': until the last moment
+The adverb "hasta última hora" means "until the last moment".
+# `el plan funcionó según lo previsto': as planned
+The adverb "según lo previsto" means "as planned".
+# `En la práctica, los trabajadores llegaron escalonadamente': in practice
+The adverb "en la práctica" means "in practice".
+# `El accidentado fin de fiesta de Nochevieja': eventful, the adjective (the dictionary's `rugged', of ground, which
+# Italian has no word for; `movido' said again first, so that it stays the word written for eventful)
+The masculine adjective "movido" means "eventful".
+The feminine adjective "movida" means "eventful".
+The masculine adjective "accidentado" means "eventful".
+The feminine adjective "accidentada" means "eventful".
+# `cubierta de botellas rotas utilizadas como arma': broken, the adjective of the participle (read as the participle,
+# the bottles took no second one, `utilizadas', after it)
+The masculine adjective "roto" means "broken".
+The feminine adjective "rota" means "broken".
+# `La concejala de Seguridad y Movilidad': a councilwoman (the dictionary's `alderwoman', which Italian has no word for)
+The feminine noun "concejala" means "councilwoman".
+"concejalas" is the plural of "concejala".
+"concejala" is a person.
+# `se agravó por la nula presencia de agentes': worsened, its reflexive (the dictionary's `aggravates')
+The reflexive verb "agrava" means "worsens".
+# `la limpieza no se activó': activated (before the dictionary's `actuates')
+The verb "activa" means "activates".
+# `cuando ésta se desalojase': the past subjunctive in `-se', which the dictionary gives for reading only and the
+# builder leaves out
+"desalojase" is the past subjunctive of "desaloja".
+# `agentes del Cuerpo Nacional de Policía': the police force's name
+"cuerpo nacional de policía" is a name.
+# `A través de emisoras de radio': radio stations (where they were `stations of radio')
+The feminine noun "emisora de radio" means "radio station".
+"emisoras de radio" is the plural of "emisora de radio".
+# `la recogida también se vio afectada', `dos camiones de recogida': the collection, a noun (the dictionary has the
+# participle of `recoger' alone, and `la recogida' had no reading)
+The feminine noun "recogida" means "collection".
+"recogidas" is the plural of "recogida".
+# `cuando ésta se desalojase': a thing's reflexive is the passive, `when it was evacuated'
+"desaloja" takes the passive.
+# `La falta de agentes hasta última hora': a lack, before a phrase of `de' with no determiner (translate.pl); the
+# dictionary's `fault' said again first, so that it stays the noun's meaning elsewhere (`faltas graves'), and `culpa'
+# before it, so that it stays the word written for a fault (`e che colpa abbiamo' was `qué falta tenemos')
+The feminine noun "culpa" means "fault".
+The feminine noun "falta" means "fault".
+The feminine noun "falta" means "lack".
+# `la Guardia Urbana solicitó en vano la presencia de la policía': in vain, one adverb (read as `en' and the adjective
+# `vano', it was a phrase of `in' with its noun left out, which Italian could not write)
+The adverb "en vano" means "in vain".
+# `los operarios llegaron': workers (`trabajador' said again first, so that it stays the word written for one: the
+# lavoratori autonomi were `operarios autónomos')
+The masculine noun "trabajador" means "worker".
+# The Spoleto festival and Torvaianica trial reports (VIT-9205..9224, Italian into Spanish and English): the words
+# their Spanish needs written. `la messa da requiem': a requiem mass
+The feminine noun "misa de réquiem" means "requiem mass".
+"misas de réquiem" is the plural of "misa de réquiem".
+# `domani sera': tomorrow evening
+The adverb "mañana por la noche" means "tomorrow evening".
+# `il lavavetri ai semafori': a windscreen washer, a person, and traffic lights
+The masculine noun "limpiacristales" means "windscreen washer".
+"limpiacristales" is the plural of "limpiacristales".
+"limpiacristales" is a person.
+The masculine noun "semáforo" means "traffic light".
+# `si guadagna da vivere': earns a living
+The verb "se gana la vida" means "earns a living".
+"se ganan la vida" is the plural of "se gana la vida".
+"ganarse la vida" is the infinitive of "se gana la vida".
+# `la ragazza quindicenne': fifteen-year-old
+The masculine adjective "quinceañero" means "fifteen-year-old".
+The feminine adjective "quinceañera" means "fifteen-year-old".
+"quinceañeros" is the plural of "quinceañero".
+"quinceañeras" is the plural of "quinceañera".
+# `il mio fratellino': a little brother, a person
+The masculine noun "hermanito" means "little brother".
+"hermanitos" is the plural of "hermanito".
+"hermanito" is a person.
+# `mi disse di stare attento': to take care
+The verb "tiene cuidado" means "takes care".
+"tienen cuidado" is the plural of "tiene cuidado".
+"tener cuidado" is the infinitive of "tiene cuidado".
+# `poi, sbandando, ha colpito la ragazza': skidding
+The intransitive verb "derrapa" means "skids".
+"derrapan" is the plural of "derrapa".
+"derrapar" is the infinitive of "derrapa".
+"derrapando" is the gerund of "derrapa".
+"derrapó" is the past of "derrapa".
+"derrapado" is the participle of "derrapa".
+# `ha investito la ragazza': runs over (the dictionary's entry is of two English words, which the builder takes no
+# entry of)
+The verb "atropella" means "runs over".
+"atropellan" is the plural of "atropella".
+"atropellar" is the infinitive of "atropella".
+"atropelló" is the past of "atropella".
+"atropellaron" is the plural of "atropelló".
+"atropellaba" is the imperfect of "atropella".
+"atropellará" is the future of "atropella".
+"atropellado" is the participle of "atropella".
+"atropellada" is the participle of "atropella".
+"atropellada" is feminine.
+"atropellados" is the participle of "atropella".
+"atropellados" is the plural of "atropellado".
+"atropelladas" is the participle of "atropella".
+"atropelladas" is feminine.
+"atropelladas" is the plural of "atropellada".
+"atropellando" is the gerund of "atropella".
+# `Prossima udienza': a hearing, after the audience
+The feminine noun "audiencia" means "audience".
+The feminine noun "audiencia" means "hearing".
+# `E non a caso': not by chance
+The adverb "no por casualidad" means "not by chance".
+# `il concerto di chiusura': the closing concert
+The masculine noun "concierto de clausura" means "closing concert".
+"conciertos de clausura" is the plural of "concierto de clausura".
+"concierto de clausura" is not feminine.
+# the places: `dell'opera di Colonia'
+The name "colonia" means "Cologne".
+# `che proprio a Spoleto ha mosso i primi passi sul podio': took his first steps
+The verb "da los primeros pasos" means "takes the first steps".
+"dan los primeros pasos" is the plural of "da los primeros pasos".
+"dar los primeros pasos" is the infinitive of "da los primeros pasos".
+"dio los primeros pasos" is the past of "da los primeros pasos".
+"dado los primeros pasos" is the participle of "da los primeros pasos".
+# `la Bx con l'urto avrebbe subìto una decelerazione': a deceleration (the dictionary has none)
+The feminine noun "desaceleración" means "deceleration".
+"desaceleraciones" is the plural of "desaceleración".
+# `molestata poco prima': shortly before
+The adverb "poco antes" means "shortly before".

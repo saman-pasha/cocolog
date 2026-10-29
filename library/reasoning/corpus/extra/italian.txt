@@ -4851,3 +4851,334 @@ The adverb "in questo senso" means "in this respect".
 # `lanzó ayer una seria advertencia': `un serio avvertimento', said first -- the dictionary's first noun for a warning
 # is `ammonizione', a reprimand
 "avvertimento" means "warning".
+# The child-cost report (VIT-10011..10058, Panorama's `cari bambini', Italian into Spanish and English).
+# `in media 230 mila euro', `costa mediamente appena il 6 per cento in più': on average
+The adverb "in media" means "on average".
+The adverb "mediamente" means "on average".
+# `al crescere del reddito': the infinitive in full -- the dictionary marks `crescere' and `provenire' read only and
+# gives the cut forms `crescer' and `provenir' for writing, which the builder keeps alone
+"crescere" is the infinitive of "cresce".
+"provenire" is the infinitive of "proviene".
+# `il crescente conformismo sociale': increasing -- the dictionary's first entry for it spells the stem short, and the
+# builder wrote it `crescee'
+The adjective "crescente" means "increasing".
+"crescenti" is the plural of "crescente".
+# `una separazione mal digerita': badly, the short form of `male' -- `male' said again first, so that it stays the one
+# written
+"male" means "badly".
+The adverb "mal" means "badly".
+# `tutto sommato limitate': all in all; `fin qui la fotografia': so far; `cambia di parecchio': considerably
+# (`considerevolmente' said again first, so that it stays the one written)
+The adverb "tutto sommato" means "all in all".
+The adverb "fin qui" means "so far".
+"considerevolmente" means "considerably".
+The adverb "di parecchio" means "considerably".
+# `che salgono a 230 mila': the entry for `salire' in extra/eng-ita.dix drops the dictionary's English-to-Italian
+# `aumenta' for rises -- said again here, so that it stays the one written
+"aumenta" means "rises".
+# `rette di università': fees -- `costo' said again first, its own first meaning and then the fee, so that it stays
+# the one written for a fee (the dictionary's line for it is English to Italian alone, and goes last)
+"costo" means "cost".
+"costo" means "fee".
+The feminine noun "retta" means "fee".
+"rette" is the plural of "retta".
+# `una famiglia che porta a casa 2 mila euro netti di stipendio': takes home
+The verb "porta a casa" means "takes home".
+"portano a casa" is the plural of "porta a casa".
+# `la spesa per i bambini diventa riparatoria': reparative (the dictionary has no `riparatorio')
+The masculine adjective "riparatorio" means "reparative".
+"riparatori" is the plural of "riparatorio".
+The feminine adjective "riparatoria" means "reparative".
+"riparatorie" is the plural of "riparatoria".
+# `(videogiochi, telefonini)': video games, mobile phones (`telefonino' was a form of `telefona' alone)
+The masculine noun "videogioco" means "video game".
+"videogiochi" is the plural of "videogioco".
+The masculine noun "telefonino" means "mobile phone".
+"telefonini" is the plural of "telefonino".
+# `del metter latte dentro ai bambini': `metter', the cut infinitive -- the full one said first, so that it stays the
+# one written
+"mettere" is the infinitive of "mette".
+"metter" is the infinitive of "mette".
+# `la ricerca di un gruppo di studiosi di Firenze': scholars, persons (the dictionary has the adjective alone)
+The masculine noun "studioso" means "scholar".
+"studiosi" is the plural of "studioso".
+"studioso" is a person.
+The feminine noun "studiosa" means "scholar".
+"studiose" is the plural of "studiosa".
+"studiosa" is a person.
+# `la legge sull'affidamento dei minorenni', `l'affidamento condiviso': custody, where the dictionary's first is trust
+# (`custodia' said again first, so that it stays the one written)
+"custodia" means "custody".
+The masculine noun "affidamento" means "custody".
+# `della mancanza cronica di posti': a lack, where the dictionary's first is a fault (`carenza' said again first)
+"carenza" means "lack".
+The feminine noun "mancanza" means "lack".
+# `i costi dei trasporti': transport, before the dictionary's carriage
+The masculine noun "trasporto" means "transport".
+# `essendo una risorsa scarsa': a resource, before the dictionary's resort
+The feminine noun "risorsa" means "resource".
+# `la facoltà di statistica': statistics, the noun (the dictionary has the adjective alone)
+The feminine noun "statistica" means "statistics".
+# `analoghe tabelle compilate in Germania': charts of figures, where the dictionary's first is a picture -- a table
+# is a piece of furniture to the Spanish writer, `mesas' (`grafico' said again first, so that it stays the one written
+# for a chart)
+"grafico" means "chart".
+The feminine noun "tabella" means "chart".
+# `un punto di riferimento oggettivo e uniforme': a reference point
+The masculine noun "punto di riferimento" means "reference point".
+"punti di riferimento" is the plural of "punto di riferimento".
+# `il mantenimento fuori sede': away from home
+The adverb "fuori sede" means "away from home".
+# `negli asili nido pubblici': nurseries (the writer's nursery was `vivaio', a nursery of plants)
+The masculine noun "asilo nido" means "nursery".
+"asili nido" is the plural of "asilo nido".
+# `Non tengono conto per esempio della mancanza': take into account, with `di' before the phrase
+The verb "tiene conto" means "takes into account".
+"tengono conto" is the plural of "tiene conto".
+"tenere conto" is the infinitive of "tiene conto".
+"tenendo conto" is the gerund of "tiene conto".
+"tiene conto" takes "di" before the phrase.
+# `per tirar su un figlio': raises (`alza' said again first, so that it stays the one written)
+"alza" means "raises".
+The verb "tira su" means "raises".
+"tirano su" is the plural of "tira su".
+"tirare su" is the infinitive of "tira su".
+"tirar su" is the infinitive of "tira su".
+# `per dare da mangiare al bambino': feeds (`alimenta' said again first, so that it stays the one written)
+"alimenta" means "feeds".
+The verb "dà da mangiare" means "feeds".
+"danno da mangiare" is the plural of "dà da mangiare".
+"dare da mangiare" is the infinitive of "dà da mangiare".
+# `al primo posto c'è la casa': in first place (`in primo luogo' said first, so that it stays the one written:
+# `En primer lugar, todavía no sé si ...' is `In primo luogo, non so ancora se ...')
+The adverb "in primo luogo" means "in first place".
+The adverb "al primo posto" means "in first place".
+# `i bambini sono sempre meno': less and less
+The adverb "sempre meno" means "less and less".
+# `nate da un'indagine lunga': born from (Spanish `nacidas de')
+"nasce" takes "da" before the phrase.
+# `in Germania, Svizzera, Danimarca'
+The name "svizzera" means "Switzerland".
+The name "danimarca" means "Denmark".
+"svizzera" is a country.
+"danimarca" is a country.
+"danimarca" is feminine.
+# `numero di eventuali fratelli': possible, where the dictionary's first is eventual -- a line of the meaning alone,
+# which the reader takes and the writer does not: an adjective's word is the first with a line of its class, and with
+# one `sólo será posible' was `sarà soltanto eventuale' (the writer passes over `possibile' for a feminine noun, the
+# dictionary stating it a masculine noun too)
+"eventuale" means "possible".
+"eventuali" is the plural of "eventuale".
+# `una prova sul campo': in the field
+The adverb "sul campo" means "in the field".
+# `con l'aumentare del reddito familiare cresce la spesa per i figli': grows, with no object -- the phrase after it is
+# its subject; `quanto costa davvero crescere un bambino', `un figlio cresciuto al Nord': brings up, with one
+The intransitive verb "cresce" means "grows".
+The verb "cresce" means "brings up".
+# `un punto di riferimento oggettivo e uniforme': uniform, the adjective (the dictionary has the noun alone, and the
+# two adjectives were read as the point and a uniform)
+The adjective "uniforme" means "uniform".
+"uniformi" is the plural of "uniforme".
+# `fondò l'associazione Crescere Insieme': the association's name, kept as itself (it was `to grow Together')
+"crescere insieme" is a name.
+# `Le differenze tra Nord e Sud', the parts of the country as names, crossing by their meanings (with an article, `al
+# Nord', the noun's)
+The name "nord" means "North".
+The name "sud" means "South".
+# `ma cambia di parecchio la sua composizione': changes, with no object -- the phrase after it is its subject; and
+# with one it changes as well (`cambiare idea', `cambiò le sue regole': passed over as the intransitive's, the meaning
+# left was `capsizes')
+The intransitive verb "cambia" means "changes".
+The transitive verb "cambia" means "changes".
+# `con l'aumentare del reddito familiare': the family income, where the dictionary's first is familiar; and the noun,
+# `con il consenso del malato e dei suoi familiari' -- of his relatives, which with the adjective first were `his
+# families' and `sus familias' (`parente' said again first, so that it stays the one written)
+The adjective "familiare" means "family".
+The noun "parente" means "relative".
+The masculine noun "familiare" means "relative".
+# `mentre salgono rapidamente i costi dei trasporti': rise, with no object -- the phrase after it is its subject
+The intransitive verb "sale" means "rises".
+# `spende in svaghi e vacanze': spends on them
+"spende" takes "in" before the phrase.
+# `fanno impennare la bolletta figlio': soars, with no object -- the phrase after the causative's infinitive is the
+# one that soars, `make the bill soar'
+The intransitive verb "impenna" means "soars".
+# `hanno modificato nel tempo la spesa': over time
+The adverb "nel tempo" means "over time".
+# `Maglietta si mette al lavoro nel 2000': sets to work, with its own pronoun
+The verb "mette al lavoro" means "puts to work".
+"mettono al lavoro" is the plural of "mette al lavoro".
+"mettere al lavoro" is the infinitive of "mette al lavoro".
+The reflexive verb "mette al lavoro" means "sets to work".
+# `Quindi tenete duro, non spaventatevi': hold out
+The verb "tiene duro" means "holds out".
+"tengono duro" is the plural of "tiene duro".
+"tenere duro" is the infinitive of "tiene duro".
+"tenete duro" is the imperative of "tengono duro".
+# `costa il 30 per cento in meno del primo': less
+The adverb "in meno" means "less".
+# The New Year's Eve report (AnCora CESS-CAST-P-20010103-85, Spanish into Italian and English): the words its Italian
+# needs written. `Después de la fiesta', `el sarao transcurrió': a celebration is `festa' (said first: the writer's
+# word for it was `celebrazione', and for the party the dictionary gives `festa', the political `partito' is first)
+The feminine noun "festa" means "celebration".
+"feste" is the plural of "festa".
+# `dos barredoras', `dos máquinas barredoras': sweepers, the machines, and sweeping (the dictionary has the person
+# alone, `spazzino')
+The feminine noun "spazzatrice" means "sweeper".
+"spazzatrici" is the plural of "spazzatrice".
+The feminine adjective "spazzatrice" means "sweeping".
+# `a la vista de', `hasta última hora', `según lo previsto', `en la práctica', `el grueso de': the words for them
+The preposition "alla luce di" means "in view of".
+The adverb "fino all'ultimo momento" means "until the last moment".
+The adverb "come previsto" means "as planned".
+The adverb "in pratica" means "in practice".
+The masculine noun "grosso" means "bulk".
+# `solicitó en vano la presencia de la policía': in vain (the dictionary gives `invano' for reading only, and writes
+# `in inutile')
+The adverb "invano" means "in vain".
+# `agentes del Cuerpo Nacional de Policía': agents (the dictionary's `officer' said again first, so that it stays
+# the reader's; the writer's agent was `concessionario', a dealer)
+The noun "agente" means "officer".
+The noun "agente" means "agent".
+# `se agravó': worsened, its reflexive (`si aggravò'; `peggiora' said again first, so that it stays the word written
+# for worsens: `potrebbe peggiorare le cose' was `aggravare')
+The verb "peggiora" means "worsens".
+The reflexive verb "aggrava" means "worsens".
+# `el sarao transcurrió de forma "intensa y alegre"', `Pásame el cuchillo': passes is `passa' (the dictionary's only
+# verb for `passes' was `transita', which wrote `la festa transitò'); its `happens' said again first, so that it stays
+# the reader's (as `trascorre', said first, it was `Trascorrimi il coltello', and the Italian `trascorre le ferie' passed
+# them in English)
+The verb "passa" means "happens".
+The verb "passa" means "passes".
+# `A través de emisoras de radio': radio stations
+The feminine noun "stazione radio" means "radio station".
+"stazioni radio" is the plural of "stazione radio".
+# `la limpieza no se activó': activates (the dictionary's `actuates' after it)
+The verb "attiva" means "activates".
+# `botellas rotas utilizadas como arma': broken, the adjective of the participle
+The masculine adjective "rotto" means "broken".
+The feminine adjective "rotta" means "broken".
+# `de forma "intensa y alegre"': cheerful (the dictionary's first is an adjective `allegre' of no gender, which wrote
+# `in modo allegre')
+The masculine adjective "allegro" means "cheerful".
+The feminine adjective "allegra" means "cheerful".
+# `la recogida también se vio afectada': the collection, of waste (the writer's was `collezione', an art collection)
+The feminine noun "raccolta" means "collection".
+"raccolte" is the plural of "raccolta".
+# `por el accidente de un camión de basuras': an accident (the writer's was `accidente', a stroke of bad luck)
+The masculine noun "incidente" means "accident".
+# `el operativo de limpieza se reveló descompensado': turned out (`si rivelò'; the plain `reveals' said first)
+The verb "rivela" means "reveals".
+The reflexive verb "rivela" means "turns out".
+# The Spoleto festival and Torvaianica trial reports (VIT-9205..9224, Italian into Spanish and English): the words
+# they need. `la messa da requiem di Giuseppe Verdi': a requiem mass, one noun of three words (read as two, the mass
+# was the dough, `la masa desde réquiem')
+The feminine noun "messa da requiem" means "requiem mass".
+"messe da requiem" is the plural of "messa da requiem".
+# `domani sera alle 19:45': tomorrow evening
+The adverb "domani sera" means "tomorrow evening".
+# `per l'imponenza della musica': its magnificence
+The feminine noun "imponenza" means "magnificence".
+# `facendo il lavavetri ai semafori di Casalpalocco': a windscreen washer, a person, the word its own plural; and
+# traffic lights, where the dictionary has a semaphore
+The masculine noun "lavavetri" means "windscreen washer".
+"lavavetri" is the plural of "lavavetri".
+"lavavetri" is a person.
+The masculine noun "semaforo" means "traffic light".
+# `si guadagna da vivere': earns a living
+The verb "si guadagna da vivere" means "earns a living".
+"si guadagnano da vivere" is the plural of "si guadagna da vivere".
+"guadagnarsi da vivere" is the infinitive of "si guadagna da vivere".
+# `la ragazza quindicenne': fifteen-year-old
+The adjective "quindicenne" means "fifteen-year-old".
+# `il mio fratellino': a little brother, a person
+The masculine noun "fratellino" means "little brother".
+"fratellini" is the plural of "fratellino".
+"fratellino" is a person.
+# `mi disse di stare attento': to take care
+The verb "sta attento" means "takes care".
+"stanno attenti" is the plural of "sta attento".
+"stare attento" is the infinitive of "sta attento".
+# `la tesi del perito della difesa': an expert, a person (the dictionary's own `esperto' said again first, so that it
+# stays the word written for one)
+The masculine noun "esperto" means "expert".
+The masculine noun "perito" means "expert".
+"periti" is the plural of "perito".
+"perito" is a person.
+# `In aula viene stritolata la tesi': crushed (the dictionary has no `stritolare'; `schiaccia' said again first, so
+# that it stays the word written for crushes)
+The verb "schiaccia" means "crushes".
+The verb "stritola" means "crushes".
+"stritolano" is the plural of "stritola".
+"stritolare" is the infinitive of "stritola".
+"stritolato" is the participle of "stritola".
+"stritolata" is the participle of "stritola".
+"stritolata" is feminine.
+"stritolati" is the participle of "stritola".
+"stritolati" is the plural of "stritolato".
+"stritolate" is the participle of "stritola".
+"stritolate" is feminine.
+"stritolate" is the plural of "stritolata".
+# `In aula': in court
+The adverb "in aula" means "in court".
+# `poi, sbandando, ha colpito la ragazza': skidding (the dictionary has the word and no English for it)
+The intransitive verb "sbanda" means "skids".
+"sbandano" is the plural of "sbanda".
+"sbandare" is the infinitive of "sbanda".
+"sbandando" is the gerund of "sbanda".
+"sbandò" is the past of "sbanda".
+"sbandato" is the participle of "sbanda".
+# `Il presidente Severino Santiapichi ribatte:': retorts (`replica' said again first, so that it stays the word
+# written for retorts)
+The verb "replica" means "retorts".
+The verb "ribatte" means "retorts".
+"ribattono" is the plural of "ribatte".
+"ribattere" is the infinitive of "ribatte".
+"ribatté" is the past of "ribatte".
+"ribattuto" is the participle of "ribatte".
+# `la Bx con l'urto avrebbe subìto una decelerazione': the impact (`impatto' said again first), and the participle of
+# `subisce' with its accent
+The masculine noun "impatto" means "impact".
+The masculine noun "urto" means "impact".
+"urti" is the plural of "urto".
+"subìto" is the participle of "subisce".
+"subìta" is the participle of "subisce".
+"subìta" is feminine.
+# `il dottor Lombardi': the doctor, before a name
+"dottor" is the apocope of "dottore".
+# `Prossima udienza, lunedì.': next before forthcoming, and a hearing of a trial before an audience (the dictionary's
+# own `udito' said again first, so that it stays the word written for the sense: `tengo dos oídos' was `due udienze')
+The masculine adjective "prossimo" means "next".
+The feminine adjective "prossima" means "next".
+The masculine noun "udito" means "hearing".
+The feminine noun "udienza" means "hearing".
+# `ha investito la ragazza', `accusato di aver investito e ucciso Sara Folino': runs over, before a person (the plain
+# `invests' said first, so that it stays the meaning anywhere else)
+The verb "investe" means "invests".
+The personal verb "investe" means "runs over".
+# `nel momento in cui la Bx ha investito la ragazza': when
+The word "nel momento in cui" means "when".
+# `E non a caso': not by chance
+The adverb "non a caso" means "not by chance".
+# `il concerto di chiusura': the closing concert
+The masculine noun "concerto di chiusura" means "closing concert".
+"concerti di chiusura" is the plural of "concerto di chiusura".
+"concerto di chiusura" is not feminine.
+# the places: `a Spoleto', `a Torvajanica', `ai semafori di Casalpalocco', `dell'opera di Colonia'
+"Spoleto" is a city.
+"Torvajanica" is a city.
+"Torvaianica" is a city.
+"Casalpalocco" is a city.
+The name "colonia" means "Cologne".
+"colonia" is a city.
+# `che proprio a Spoleto ha mosso i primi passi sul podio': took his first steps there (as words, `has moved the first
+# paces', and with a verb of motion the city kept its `to')
+The verb "muove i primi passi" means "takes the first steps".
+"muovono i primi passi" is the plural of "muove i primi passi".
+"muovere i primi passi" is the infinitive of "muove i primi passi".
+"mosse i primi passi" is the past of "muove i primi passi".
+"mosso i primi passi" is the participle of "muove i primi passi".
+# `il dottor Lombardi': a title before a name (`Lombardi' is the plural of `lombardo' too)
+"dottore" is a title.
+# `la ragazza quindicenne molestata poco prima': shortly before (as two adverbs, `little before')
+The adverb "poco prima" means "shortly before".

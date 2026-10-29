@@ -698,3 +698,26 @@
 # `le idee di ferree ordinanze come quella dell'estate scorsa': an ordinance, which the bilingual
 # dictionary lacks (the Spanish one has `ordenanza')
 <e><p><l>ordinance<s n="n"/></l><r>ordenanza<s n="n"/><s n="f"/></r></p></e>
+# The New Year's Eve report (AnCora CESS-CAST-P-20010103-85): verbs, adjectives and adverbs the bilingual dictionary
+# lacks, whose forms the Spanish one has. `la Guardia Urbana - - desbordada - -': overwhelmed
+<e><p><l>overwhelm<s n="vblex"/></l><r>desbordar<s n="vblex"/></r></p></e>
+# `La falta de agentes hasta última hora propició disputas': favoured, read only (`favorecer' stays the one written)
+<e r="RL"><p><l>favour<s n="vblex"/></l><r>propiciar<s n="vblex"/></r></p></e>
+# `el operativo de limpieza se reveló descompensado': unbalanced, the participle of `descompensar'
+<e r="RL"><p><l>unbalance<s n="vblex"/></l><r>descompensar<s n="vblex"/></r></p></e>
+# `sólo seis operarios llegaron': workers, read only (`trabajador' stays the one written)
+<e r="RL"><p><l>worker<s n="n"/></l><r>operario<s n="n"/><s n="GD"/></r></p></e>
+# `con dos máquinas barredoras': sweeping
+<e><p><l>sweeping<s n="adj"/></l><r>barredor<s n="adj"/></r></p></e>
+# `cuando ésta se desalojase': evacuated, read only (`evacuar' stays the one written)
+<e r="RL"><p><l>evacuate<s n="vblex"/></l><r>desalojar<s n="vblex"/></r></p></e>
+# `provistos de dos camiones de recogida': equipped
+<e><p><l>equipped<s n="adj"/></l><r>provisto<s n="adj"/></r></p></e>
+# `dos cisternas de limpieza': cisterns
+<e><p><l>cistern<s n="n"/></l><r>cisterna<s n="n"/><s n="f"/></r></p></e>
+# `los trabajadores llegaron escalonadamente': gradually, read only (`gradualmente' stays the one written)
+<e r="RL"><p><l>gradually<s n="adv"/></l><r>escalonadamente<s n="adv"/></r></p></e>
+# `la operación se ralentizó': slowed, read only
+<e r="RL"><p><l>slow<s n="vblex"/></l><r>ralentizar<s n="vblex"/></r></p></e>
+# `criticó ayer duramente la organización': harshly
+<e><p><l>harshly<s n="adv"/></l><r>duramente<s n="adv"/></r></p></e>

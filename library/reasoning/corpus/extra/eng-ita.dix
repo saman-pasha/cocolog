@@ -1246,3 +1246,34 @@
 # `la isla "sufre deficiencias económicas"': `carenze', written only -- the dictionary has no Italian noun for a
 # deficiency, and `carenza' stays a lack to the reader
 <e r="LR"><p><l>deficiency<s n="n"/></l><r>carenza<s n="n"/><s n="f"/></r></p></e>
+# the child-cost report (VIT-10011..10058, Panorama): verbs and nouns the bilingual dictionary lacks, whose forms the
+# Italian one has. `il conto sale', `che salgono a 230 mila': rises (`aumenta' stays the one written: extra/italian.txt
+# says it again first, as this entry drops the dictionary's own, which is English to Italian alone)
+<e><p><l>rise<s n="vblex"/></l><r>salire<s n="vblex"/></r></p></e>
+# `una separazione mal digerita': digested
+<e><p><l>digest<s n="vblex"/></l><r>digerire<s n="vblex"/></r></p></e>
+# `la legge sull'affidamento dei minorenni': minors, read only (`minore' stays the one written)
+<e r="RL"><p><l>minor<s n="n"/></l><r>minorenne<s n="n"/><s n="mf"/></r></p></e>
+# `mediatori, avvocati, i genitori stessi'
+<e><p><l>mediator<s n="n"/></l><r>mediatore<s n="n"/><s n="m"/></r></p></e>
+# `un punto di riferimento oggettivo', `dati oggettivi': read only (`obiettivo' stays the one written)
+<e r="RL"><p><l>objective<s n="adj"/></l><r>oggettivo<s n="adj"/></r></p></e>
+# `analoghe tabelle compilate in Germania': compiled
+<e><p><l>compile<s n="vblex"/></l><r>compilare<s n="vblex"/></r></p></e>
+# `che si presume debba essere più grande': one supposes, read only (`suppone' stays the one written; Spanish writes
+# `supone')
+<e r="RL"><p><l>suppose<s n="vblex"/></l><r>presumere<s n="vblex"/></r></p></e>
+# `per ospitare il nuovo membro della famiglia': to house it, read only (`alberga' stays the one written)
+<e r="RL"><p><l>house<s n="vblex"/></l><r>ospitare<s n="vblex"/></r></p></e>
+# `fanno impennare la bolletta figlio': make it soar
+<e><p><l>soar<s n="vblex"/></l><r>impennare<s n="vblex"/></r></p></e>
+# `il potere contrattuale più forte dei ragazzini': kids (`capretto', a young goat, was the Italian written for one)
+<e><p><l>kid<s n="n"/></l><r>ragazzino<s n="n"/><s n="m"/></r></p></e>
+# `come provano le tabelle del professor Maglietta': prove, read only (`comprova' stays the one written)
+<e r="RL"><p><l>prove<s n="vblex"/></l><r>provare<s n="vblex"/></r></p></e>
+# the New Year's Eve report (AnCora CESS-CAST-P-20010103-85): `provistos de dos camiones de recogida' is equipped
+<e><p><l>equipped<s n="adj"/></l><r>attrezzato<s n="adj"/></r></p></e>
+# `al generarse un círculo vicioso': vicious (`circolo vizioso')
+<e><p><l>vicious<s n="adj"/></l><r>vizioso<s n="adj"/></r></p></e>
+# `el operativo de limpieza se reveló descompensado': unbalanced, the participle of `squilibrare'
+<e><p><l>unbalance<s n="vblex"/></l><r>squilibrare<s n="vblex"/></r></p></e>
