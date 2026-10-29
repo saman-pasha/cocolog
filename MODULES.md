@@ -108,9 +108,12 @@ the rest to swipl 9.0.4): a syntax error ends the consult, where swipl
 reads on; `must_be_module(true)` asks no module header, cocolog having
 none; a code list is one file's name, which is what `"file"` reads as
 under the `codes` default; a file of no clauses counts as loaded, where
-swipl reads it again each time; and a file read again puts its clauses
-after any the program asserted to the same predicate, where swipl puts
-them where the old ones stood.
+swipl reads it again each time; and a module's file read again (muted)
+takes no clause the program asserted for its own, where swipl's reload
+does. Otherwise a file read again puts its clauses where swipl's reload
+does (2.14.1, `test/files/reload_order.pl`): each where the old clause it
+is a variant of stood, before what the program asserted after it --
+through 2.14.0 they went after every asserted clause.
 
 The two spellings differ in one place: as a **goal**, a library that
 cannot be found or loaded throws a catchable error; as a **directive**,

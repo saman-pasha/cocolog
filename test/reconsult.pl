@@ -15,8 +15,10 @@
 %%
 %%   WHAT THE PROGRAM ASSERTED STAYS. An assertz into a predicate the file
 %%   defines survives the next consult of the file, beside the file's own
-%%   clauses -- and comes first, since the file's are added again after it.
-%%   A model saved into the store is exactly this, under other names.
+%%   clauses -- where it stood, the file's coming back where theirs stood
+%%   and a new one of the file's going in before it, as swipl's reload puts
+%%   them (2.14.1; through 2.14.0 it came first, the file's after it). A
+%%   model saved into the store is exactly this, under other names.
 %%
 %%   AN EDITED FILE IS THE NEW FILE. The previous version's clauses go with
 %%   it; a reused store no longer answers with the file as it was.
@@ -72,12 +74,13 @@ survives(D, F) :-
     check('and is still there after the file is consulted again', G2, answer(3)).
 
 edited(D, F) :-
-    section('an edited file is the new file; the asserted clause stays and comes first'),
+    section('an edited file is the new file; the asserted clause stays where it stood'),
     three(F),
     q(D, F, 'count(N), write(answer(N)), nl', G1),
     check('three from the file now, and the asserted one', G1, answer(4)),
     q(D, F, 'facts(L), write(answer(L)), nl', G2),
-    check('the old version''s clauses are gone, the asserted one is kept ahead', G2, answer([9,1,2,3])).
+    check('the old version''s clauses are gone, the new one goes in before the asserted one', G2,
+          answer([1,2,3,9])).
 
 two_spellings(D, _) :-
     section('one file under two spellings of its path is one file'),
@@ -291,7 +294,7 @@ over_the_wire(F) :-
         check('wire: an asserted fact survives the third', G3, answer(3)),
         three(F),
         wire(Host, Port, F, 'facts(L), write(answer(L)), nl', G4),
-        check('wire: the edited file replaces its own, keeps the asserted', G4, answer([9,1,2,3])),
+        check('wire: the edited file replaces its own, keeps the asserted', G4, answer([1,2,3,9])),
         sh_exit(Forget, _)
     ;   format("     (skipped: no Zigurat server at ~w:~w -- the wire half not run)~n", [Host, Port])
     ).

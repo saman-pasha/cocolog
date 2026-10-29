@@ -110,7 +110,78 @@ fixtures(reload, Sandbox) :- !,
                     'g2.pl'-[':- writeln(read_g_v2).', ':- dynamic gd/1.', 'gd(file2).']-'2026-10-28T12:00:01Z' ]),
            ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines),
              shl(['touch -d ', When, ' ', P]) )).
+%% each file and the versions the case renames in its place, a version a
+%% list of lines (`ro/2')
+fixtures(reload_order, Sandbox) :- !,
+    forall(ro(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+ro('s1.pl', [':- dynamic s1/1.', 's1(1).', 's1(2).']).
+ro('s1.v2.pl', [':- dynamic s1/1.', 's1(3).', 's1(4).']).
+ro('s2.pl', [':- dynamic s2/1.', 's2(1).', 's2(2).']).
+ro('s2.v2.pl', [':- dynamic s2/1.', 's2(3).', 's2(4).']).
+ro('s3.pl', [':- dynamic s3/1.', 's3(1).', 's3(2).']).
+ro('s3.v2.pl', [':- dynamic s3/1.', 's3(1).', 's3(2).', 's3(3).']).
+ro('s4.pl', [':- dynamic s4/1.', 's4(1).', 's4(2).']).
+ro('s4.v2.pl', [':- dynamic s4/1.', 's4(0).', 's4(1).', 's4(2).']).
+ro('s5.pl', [':- dynamic s5/1.', 's5(1).', 's5(2).', 's5(3).']).
+ro('s5.v2.pl', [':- dynamic s5/1.', 's5(2).']).
+ro('s6.pl', [':- dynamic s6/1.', 's6(1).', 's6(2).']).
+ro('s6.v2.pl', [':- dynamic s6/1.', 's6(2).', 's6(1).']).
+ro('s7.pl', [':- dynamic s7/1.', 's7(1).']).
+ro('s7.v2.pl', [':- dynamic s7/1.', 's7(1).', 's7(2).']).
+ro('s7.v3.pl', [':- dynamic s7/1.', 's7(3).']).
+ro('s8.pl', [':- dynamic s8/1.', 's8(1).', 's8(2).']).
+ro('s8.v2.pl', [':- dynamic s8/1.', 's8(2).', 's8(5).']).
+ro('s9.pl', [':- dynamic s9/1.', 's9(1).', 's9(2).', 's9(3).']).
+ro('s9.v2.pl', [':- dynamic s9/1.', 's9(1).', 's9(9).', 's9(3).']).
+ro('s10.pl', [':- dynamic s10/1.', 's10(1).', 's10(2).']).
+ro('s10.v2.pl', [':- dynamic s10/1.', 's10(3).']).
+ro('d.pl', [':- dynamic d/1.', 'd(1).', 'd(1).']).
+ro('d.v2.pl', [':- dynamic d/1.', 'd(1).', 'd(2).', 'd(1).', 'd(1).']).
+ro('v.pl', [':- dynamic v/2.', 'v(X, Y) :- Y = f(X).', 'v(2, two).']).
+ro('v.v2.pl', [':- dynamic v/2.', 'v(A, B) :- B = f(A).', 'v(3, three).']).
+ro('st.pl', ['st(1).', 'st(2).']).
+ro('st.v2.pl', ['st(2).', 'st(3).']).
+ro('sp.pl', [':- dynamic sp/1.', 'sp(1).']).
+ro('sp.v2.pl', [':- dynamic sp/1.', 'sp(2).', 'sp(1).']).
+ro('sp.v3.pl', [':- dynamic sp/1.', 'sp(2).', 'sp(1).']).
+ro('sp.v4.pl', [':- dynamic sp/1.', 'sp(1).', 'sp(2).']).
+ro('k.pl', [':- dynamic k/1.', 'k(1).']).
+ro('k.v2.pl', [':- dynamic k/1.', 'k(9).']).
+ro('m.pl', [':- dynamic m/1.', 'm(1).', 'm(2).']).
+ro('m.v2.pl', [':- dynamic m/1.', 'm(3).', ':- findall(X, m(X), L), format("mid: ~q~n", [L]).', 'm(4).']).
+ro('e.pl', [':- dynamic e/1.', 'e(1).', 'e(2).']).
+ro('e.v2.pl', [':- dynamic e/1.', 'e(1).', 'e(2).', 'e(3).']).
+ro('e.v3.pl', [':- dynamic e/1.', 'e(1).', 'e(2).']).
+ro('e2.pl', [':- dynamic e2/1.', 'e2(1).', 'e2(2).']).
+ro('e2.v2.pl', [':- dynamic e2/1.', 'e2(1).', 'e2(2).', 'e2(3).']).
+ro('n.pl', [':- dynamic np/1, nq/1, nr/1.', 'np(1).']).
+ro('n.v2.pl', [':- dynamic np/1, nq/1, nr/1.', 'np(1).', 'nq(a).', 'nq(b).', 'nr(1).']).
+ro('fresh.pl', [':- dynamic fq/1, fr/1.', 'fq(a).', 'fq(b).', 'fr(1).']).
+ro('q.pl', [':- dynamic q/1.', 'q(a).', 'q(1).']).
+ro('q.v2.pl', [':- dynamic q/1.', 'q(2).']).
+ro('f1.pl', [':- multifile mf/1.', ':- dynamic mf/1.', 'mf(1).']).
+ro('f1.v2.pl', [':- multifile mf/1.', ':- dynamic mf/1.', 'mf(3).']).
+ro('f1.v3.pl', [':- multifile mf/1.', ':- dynamic mf/1.', 'mf(9).']).
+ro('f2.pl', [':- multifile mf/1.', ':- dynamic mf/1.', 'mf(2).']).
+ro('of.pl', [':- dynamic of/1.', 'of(1).', 'of(2).']).
+ro('of.v2.pl', [':- dynamic of/1.', 'of(0).', 'of(1).', 'of(2).']).
+ro('w.pl', [':- dynamic w/1.', 'w(X) :- X = 1.']).
+ro('w.v2.pl', [':- dynamic w/1.', 'w(Y) :- Y = 1.', 'w(2).']).
+ro('wq.pl', [':- dynamic wq/1.', 'wq(1).']).
+ro('wq.v2.pl', [':- dynamic wq/1.', 'wq(''_G7'').']).
+ro('wb.pl', [':- dynamic wb/1.', 'wb(1).']).
+ro('wb.v2.pl', [':- dynamic wb/1.', 'wb(a_G7).']).
+ro('bp.pl', [':- dynamic bp/1.', 'bp(1).']).
+ro('bp.v2.pl', [':- dynamic bp/1.', 'bp(1).', 'bp(z).']).
+ro('ba.pl', [':- dynamic ba/1.', 'ba(1).']).
+ro('ba.v2.pl', [':- dynamic ba/1.', 'ba(x).', 'ba(w).']).
+ro('sh.pl', [':- dynamic sh/2.', 'sh(1, 2).']).
+ro('sh.v2.pl', [':- dynamic sh/2.', 'sh(_A, _B).']).
+ro('g1.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(1).']).
+ro('g1.v2.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(2).', 'mg(1).']).
+ro('g2.pl', [':- multifile mg/1.', ':- dynamic mg/1.', 'mg(2).']).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on
 %% its own library path from the `:- use_module' line in the case; cocolog

@@ -13,10 +13,11 @@
 %
 %  WHAT IS LEFT OUT, because the two answer differently by design (STATUS.md,
 %  2.14.0): a file with no clause in it, which swipl does not count as
-%  loaded at all, so that even if(not_loaded) reads it again; and the order
-%  of a predicate's clauses once the program asserted into it -- swipl puts
-%  the file's new clause where its old one stood, cocolog after what the
-%  program asserted -- so the last check sorts.
+%  loaded at all, so that even if(not_loaded) reads it again. The order of
+%  a predicate's clauses once the program asserted into it is swipl's since
+%  2.14.1 -- the file's new clause where its old one stood, before what the
+%  program asserted -- and test/files/reload_order.pl holds its rule; the
+%  last check here holds it for a module's file read again.
 
 p(Name, G) :- catch((G -> R = yes ; R = no), error(F, _), R = raised(F)), format("~w: ~q~n", [Name, R]).
 rs(L) :- findall(X, rp(X), L).
@@ -64,4 +65,4 @@ main :-
     p(g_assert, assertz(gd(asserted))),
     p(swap_g, rename_file('g2.pl', 'g.pl')),
     p(g_consult, consult(g)),
-    p(g_both, (findall(W, gd(W), Ws), msort(Ws, S), S == [asserted, file2])).
+    p(g_both, (findall(W, gd(W), Ws), Ws == [file2, asserted])).
