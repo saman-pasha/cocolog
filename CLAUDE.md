@@ -420,7 +420,8 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
   every push to master and pull request into master (not one that changes
   only the top-level `*.md` or the Docker files), and by hand with Cicili's
-  and ZiguratIP's refs. Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
+  and ZiguratIP's refs, or with the Intel Mac's sbcl built from source
+  (`sbcl_from_source`, below). Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
   16 GB) by `install/install-linux.sh`, and two Macs by
   `install/install-macos.sh`, macos-15 (Apple silicon, 3 CPUs, 7 GB) and
   macos-26-intel (x86-64, 4 CPUs, 14 GB), the owner's arrangement. Homebrew
@@ -430,7 +431,9 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   Apple clang 21) poured every package, sbcl 2.6.7 from its sonoma
   bottle, and the job took 50 minutes, 17 of them ZiguratIP's build (run
   40856551321). An image whose formulas have no Intel bottle would build
-  sbcl through ECL, inside the install step's two hours. Each raises a server
+  sbcl through ECL, inside the install step's two hours; a run by hand with
+  `sbcl_from_source` builds it so before the install, from today's formula
+  data (`brew update`, nothing else upgraded). Each raises a server
   on 2160, runs the lint case and then `test/run.pl`, and
   `tools/ci/verdict.sh` reads every case's line: a red case, a case with no
   line, or a SKIP outside the job's `allowed_skips` (tensors, the three

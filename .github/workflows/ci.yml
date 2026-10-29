@@ -3,9 +3,10 @@
 #
 # File:   .github/workflows/ci.yml
 # Starts: a push to master, a pull request into master, or by hand (Actions ->
-#         CI -> Run workflow, which can name Cicili's and ZiguratIP's refs). A
-#         push or pull request that changes nothing but the documents at the top
-#         of the tree, or only the Docker files, starts nothing.
+#         CI -> Run workflow, which can name Cicili's and ZiguratIP's refs, and
+#         build the Intel Mac's sbcl from source). A push or pull request that
+#         changes nothing but the documents at the top of the tree, or only the
+#         Docker files, starts nothing.
 #
 # THREE JOBS, each the same steps:
 #
@@ -18,7 +19,10 @@
 # publishes no x86-64 Darwin binary, so where no bottle pours, sbcl builds from
 # source through ECL -- which is what the install step's two hours allow for.
 # HOMEBREW_NO_AUTO_UPDATE keeps the formula data the runner image was built
-# with, whose versions may still have Intel bottles.
+# with, whose versions may still have Intel bottles. A run by hand with
+# sbcl_from_source takes today's formula data and builds sbcl that way before
+# the install, so the path an up-to-date Homebrew takes on Intel is proved on
+# demand, through the whole install and suite.
 #
 # THE INSTALL IS THE INSTALLER, as the Dockerfile runs it, not a copy of its
 # steps: packages, Quicklisp (kept in the Actions cache between runs), ZiguratIP
@@ -62,6 +66,10 @@ on:
         description: "ZiguratIP branch, tag or commit to build against"
         type: string
         default: "master"
+      sbcl_from_source:
+        description: "Intel Mac: build sbcl from source through ECL, from today's formula data, before the install"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -72,9 +80,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 240
     # per job: a new push to a pull request stops its last run, master's runs
-    # each finish, and one operating system never waits for the other
+    # each finish, one operating system never waits for the other, and a run by
+    # hand never waits behind a push's
     concurrency:
-      group: ci-${{ matrix.os }}-${{ github.event.pull_request.number || github.ref }}
+      group: ci-${{ matrix.os }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
@@ -187,6 +196,45 @@ jobs:
           path: ~/quicklisp
           key: quicklisp-${{ runner.os }}-${{ hashFiles('cocolog/install/common.sh') }}
           restore-keys: quicklisp-${{ runner.os }}-
+
+      # by hand only (Run workflow, sbcl_from_source): the sbcl an Intel Mac gets
+      # where no bottle pours. sbcl's formula builds it from source with ECL as
+      # the host compiler (SBCL publishes no x86-64 Darwin binary to start from),
+      # and ECL pours. Today's formula data, not the image's, as a Mac whose
+      # Homebrew is up to date has it, and nothing else upgraded: no outdated
+      # formula named, no dependents checked (gcc would build for hours). The
+      # install step then finds sbcl installed, and the build, the lint case and
+      # the suite run on the sbcl built here
+      - name: sbcl from source, through ECL (Intel, by hand)
+        if: inputs.sbcl_from_source && matrix.os == 'macos-intel'
+        timeout-minutes: 150
+        env:
+          HOMEBREW_NO_INSTALL_UPGRADE: 1
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
+        run: |
+          brew update --quiet
+          brew --version | head -1
+          if command -v jq > /dev/null 2>&1; then
+            brew info --json=v2 sbcl ecl | jq -r '.formulae[] | "\(.name) \(.versions.stable): bottles \((.bottle.stable.files // {}) | keys | join(" ")); build dependencies: \(.build_dependencies | join(" "))"'
+          else
+            brew info sbcl ecl
+          fi
+          start=$(date +%s)
+          rc=0
+          brew install --build-from-source sbcl 2>&1 | tee "$LOGS/sbcl-source.out" || rc=$?
+          mins=$(( ($(date +%s) - start + 59) / 60 ))
+          # Homebrew keeps each build command's output apart: the tail of each
+          mkdir -p "$LOGS/sbcl-build"
+          for f in "$HOME/Library/Logs/Homebrew/sbcl"/*; do
+            if [ -f "$f" ]; then tail -c 200000 "$f" > "$LOGS/sbcl-build/${f##*/}"; fi
+          done
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=sbcl::brew install --build-from-source sbcl failed after $mins minutes (exit status $rc)"
+            exit "$rc"
+          fi
+          sbcl --version
+          brew list --versions sbcl ecl
+          echo "sbcl $(sbcl --version | cut -d' ' -f2), built from source through $(brew list --versions ecl) in $mins minutes." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install (${{ matrix.install }})
         id: install
