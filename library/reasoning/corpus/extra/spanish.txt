@@ -3872,3 +3872,6 @@ The feminine noun "desaceleración" means "deceleration".
 "desaceleraciones" is the plural of "desaceleración".
 # `molestata poco prima': shortly before
 The adverb "poco antes" means "shortly before".
+# the Spoleto faults: `accusato di aver investito e ucciso Sara Folino' is `acusado de haber atropellado y matado a Sara
+# Folino', and written with no word before the infinitive it was `acusado haber matado'
+"acusa" takes "de" before the infinitive.

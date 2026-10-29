@@ -7519,6 +7519,121 @@ read into an English-worded IR and written into any lesson's language),
   `doctor') and `will be listened' (`heard'); and `Proceso para la muerta de Folino, a la niña atropellada' and `I
   process for the dead one' (20: a heading read as the first person of `processa'). The next sample's controls take
   these reports in.
+  The Spoleto faults (reasoning 1.0.24; cocolog stays 2.13.0; no new article). The three sentences of the Spoleto and
+  Torvaianica reports that both languages refused -- 1 (`38 Spoleto festival.'), 7 (`Bianca nera.') and 10 (`Per
+  difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé
+  stesso e le parole dell'imputato.') -- fixed in code and data. The reports read 20 of 20 into Spanish and 16 of 20
+  into English on a fresh store, 17 and 14 with the new store alone, 19 and 15 with the new code on the old store, 17
+  and 14 before, and their sentences fall from 10.8 million inferences into Spanish and 10.9 into English to 8.4 and
+  8.5. English refuses 10 for the third person nobody names, on purpose, as it refuses 3, 4 and 17. Each rule has its
+  arm red (test/translate.pl's `spoleto_faults': 38 checks, 37 arms, 35 red in the section, one red in newspaper_lazio
+  and one guard of cost that stays green, below; lesson 46's section 87; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  spoleto_faults, checks_done"', two seconds a run).
+  A NUMBER, A NAME AND A NOUN ARE AN EDITION (`38 Spoleto festival.' heads the report on the festival's 38th edition,
+  `la 38-ma edizione del festival' the line after it: the paper writes the name before the noun in English's way, and a
+  count stands right before its noun, never before a name before it -- read as a count of festivals the heading had no
+  reading; tr_read0/4, the number the ordinal, its sign the noun's gender, `38º' or `38ª', the name the noun's phrase of
+  `of', and each writer says it as its own, `38º festival de Spoleto', `38th festival of Spoleto': two arms); A NAME OF
+  SEVERAL WORDS THE LESSON STATES IS A HEADING (`Bianca nera.' is the paper's column of crime news, before each report
+  of a crime, and it crosses as it stands, `"Bianca nera" is a name.': tr_stated_names/3 joins it into one word, and as
+  one word the heading had no reading, while read as its words it is a bare noun and an adjective, `Big house.', which
+  stays refused -- tr_verbless/3), a name the lesson states only (`Cuida de Tom.' joins as a name of two capitals and a
+  particle, and is a command: Tatoeba's 35 was copied as it stands in the first round) -- two arms; A PURPOSE IN FRONT
+  WITH ITS OBJECT, A NAME APPOSED TO IT AND A PARTICIPLE BETWEEN COMMAS (`Per difendere il fratello, Said, accusato di
+  aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire ...' -- to defend his brother Said, accused of
+  having run her over, he manages: the commas around the name go into the apposition before the reading, w(_, appos),
+  and refused, the shortest front was taken, `Per difendere' alone, and the brother was the one who manages; tr_read0/4,
+  tr_front_aside_comps/1), and a name after a participle or an infinitive is their object, never a name apposed to the
+  front's noun (`accusato di aver ucciso Sara, riesce a dormire' -- Sara is whom he killed: tr_front_name_apposed/2), a
+  word that is an adjective too among them (`dei cristiano democratici Casini, Mastella, D'Onofrio e del popolare
+  Sanza', it_9673_9712 16: `popolare' is also the infinitive of `popola', and with Sanza apposed `del popolare' was left
+  to read as the verb, `y Sanza ... del poblar' and `of the populating', where it is `y del popular Sanza' and `of the
+  popular Sanza' now) -- three arms; a city in a front is `in' (`a Torvajanica' is `en Torvajanica', and it_9947_9966
+  20's `a Roma' between commas `in Rome': tr_cities_in/2); THE PERSONAL MEANING REACHES THE OBJECT TWO PARTICIPLES SHARE
+  (`ha investito e ucciso Sara Folino' ran her over and killed her, where it was `ha invertido y matado':
+  tr_personal_obj/2), and an infinitive, a perfect one and a second participle with a person after it cross so too
+  (`vuole investire la ragazza', `accusato di aver investito e ucciso Sara Folino', crossed by the first meaning
+  `invertir a la niña' and `invested and killed': tr_personal_comp/3 in tr_cross_comps/2), inside a front as well, whose
+  complements travel as fr/1 -- six arms; THE WORD A PARTICIPLE TAKES BEFORE THE INFINITIVE AFTER IT (`accusato di aver
+  ucciso' is `acusado de haber matado', `"acusa" takes "de" before the infinitive.', and written bare it was `acusado
+  haber matado': the participle a list of complements has just written is noted, '$tr_last_pred', tr_note_pred/1, for a
+  predicate, a participle after its noun and one that agrees with the object, and none is noted as a clause starts,
+  tr_write/4; the clause's own verb takes its word where no participle stands before, tr_infx_lead/1, which gives
+  Italian's `permette ai cantanti di concentrarsi', `evitò di pronunciarsi' and `tentò di consolarlo', where the
+  infinitive with a pronoun joined to it had none), a denied infinitive with its word before the denial (`de no haber'),
+  and a word the source kept as a complement of its own before the infinitive written once (nprep/1,
+  tr_with_infx_kept/1) -- seven arms; English's `accused OF HAVING killed' (`accused to have killed' before:
+  en_prep_gerund/2, `accuses' and `suspects'), after the participle the participle's, and of the clause's own verb for
+  its first infinitive alone (`acusó a la mayoría de buscar por todos los medios hacer daño' is accused of seeking to do
+  harm, and the first round wrote `of searching of making', es_19981202-34 12) -- four arms; A QUOTATION THAT OPENS ON
+  THE INFINITIVE AFTER THE VERB'S OWN WORD OPENS THERE (`acusara a Millàs de "hacer trampa"' came out `di fare
+  trappola"' and `of making trap"' once the lesson said `"acusa" takes "de" before the infinitive.', found by the store
+  alone: qm/2 on inf/1 -- the infinitive stops the walk for an object of the verb, or the person was the indirect one,
+  `accusa al gatto' and `accuses to the cat', tr_verbal_comp/1 -- and the mark goes on the infinitive after the word its
+  writer put before it, asked before the infinitive is written, which sets the verb being written to its own,
+  tr_inf_lead_word/2) -- three arms; AN EMPHATIC REFLEXIVE HEADS THE WORDS BEFORE A COORDINATOR (`contraddire sé stesso
+  e le parole dell'imputato' is to contradict himself and the defendant's words, one object of two; `sé stesso' is a
+  pronoun of no role, and with nothing to head the words before `e' the split was refused and the sentence with it:
+  tr_headed/2) and is a person, which Spanish marks (`contradecir a sí mismo': tr_of_class/2) -- two arms; such a
+  pronoun is of two words, the pronoun and the word for `same' (tr_two_words/1), asked before the lexicon: a guard of
+  cost, below, whose arm stays green; TWO OBJECTS JOINED, ONE OF THEM A PERSON, TAKE THE PERSON'S WORD BEFORE THAT ONE
+  ALONE (`contradecir a sí mismo y las palabras del imputado' -- asked of the pair, neither took it: tr_comp_out/7),
+  never before a name (`tempi e Modi della terapia' was `tiempos y a Modi', it_9450_9464 10, found by the controls) nor
+  before a phrase whose noun is left out, which is of the class of the other one and alone of any (`vede due stanche e
+  tre gatti' was `ve a dos cansadas', which the Lazio section's guard found in the whole case: its arm is red there) --
+  three arms; a pronoun a coordinator joins to a phrase after it is one object of two (`vede lui e il gatto' sees him
+  and the cat, and taken alone the pronoun left `e il gatto' to read as nothing: tr_pronoun_joined/2), and a personal
+  pronoun of English's IR is a person (`ve a él y al gato') -- two arms; and English writes a participle after a name
+  apposed to its noun as the source has it (`the brother, Said, accused of having killed her', where it was `the accused
+  brother, Said, of having killed': tr_np_out/5).
+  It needed these WORDS in `extra/': Italian `"Bianca nera" is a name.' and `"accusa" takes "di" before the
+  infinitive.', Spanish `"acusa" takes "de" before the infinitive.'. No first meaning and no writer's first word moved,
+  and none was lost.
+  THE CONTROLS (cocolog 2.13.0, store KB268, 120 count files, 3 278 sentences: the earlier set with the two reports in,
+  it_9205_9224, both directions): the last version's translator against this one, on the one store, 17 sentences read
+  differently, all better -- the five of the reports, Italian's `di' before an infinitive with a pronoun joined to it
+  (5: `gli permetterebbe di dedicarsi', `permette ai cantanti di concentrarsi', `evitò di pronunciarsi', `si occupò di
+  mostrargli', Tatoeba's `Lei tentò di consolarlo'), English's `accused Aznar of launching', `accused Millàs of "making
+  trap"' and `accuses you of making' and Italian's `accusava Millàs di "fare trappola"' (4), `in Rome' (it_9947_9966 20)
+  and `del popular Sanza' and `of the popular Sanza' (it_9673_9712 16, 2) -- and the inferences fall 0.052 % (8 487 227
+  077 to 8 482 795 922) and rise 0.0040 % outside the reports (8 465 513 101 to 8 465 852 648): every sentence rises but
+  four, by 48 inferences at the median, +0.035 % of the sentences under 0.1 million and +0.0014 % of those over 10
+  million, the largest it_9999_10010 8 (+4 764 of 394.7 million in each language); it_9673_9712 16 falls 9 400 in each.
+  Bytes and characters read every sentence alike (0 differ, the bytes 0.008 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB265, against this one on the new): 15 sentences, the 17 less the three that the old
+  store already read so, and Spanish's `os acusa de hacer' (it_9714_9749 7), -0.053 % and +0.0040 % outside the reports.
+  THE CODE ALONE (this translator on KB265): 12 sentences, all better, +0.0040 % outside the reports; Spanish's `acusado
+  de haber' and `Bianca nera.' need the new lines. THE STORE ALONE (the last version's translator on KB265 and on
+  KB268): 4 sentences, one better (`"El Olivo os acusa de hacer', it_9714_9749 7) and three worse, which the code above
+  mends -- the old reader took `de' and its infinitive for a phrase of `of', and with `"acusa" takes "de" before the
+  infinitive.' it read the verb's word and wrote `accused Aznar to launch' (es_20000903-30 21) and, the quotation's
+  opening mark lost, `accused Millàs to make trap"' and `accusava Millàs di fare trappola"' (es_20020301-125 4); -0.0004
+  %. KB268 is taught from the same vocabulary as the KB267 of the first rounds, and the last version's translator reads
+  both alike, to the unit.
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the probes, and mended,
+  each with its arm red: `Cuida de Tom.' (Tatoeba's 35, a name heading), `tiempos y a Modi' (it_9450_9464 10), `of
+  searching of making' (es_19981202-34 12), `ve a dos cansadas' (the Lazio guard) and the lost mark of `de "hacer
+  trampa"' (above). The first round also narrowed the apposed name's guard to keep the old text of it_9673_9712 16,
+  which the final rounds read as better without it. A STORE DOES NOT SURVIVE A SECTION: the second round's last three
+  sentences and its count of the reports were void, because a run of the sections with `--embed KB267' wrote their hand
+  lessons into the store; the round was taken again on a fresh KB268, and a section is run with no store.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (28 control sentences of 0.1 to 2 million inferences picked at
+  random, 14 from each language, into English, over a copy of the library per rule): the first cut of the emphatic
+  reflexive took the clitic `se' for one, and four sentences rose 77 000 inferences each (`se ne trova un'altra' split
+  at its `e'), where three others fell 42 000 to 87 000, a split that failed at once, every text the same; with the
+  clitic kept out, the 28 sentences rose 3 598 inferences (+0.034 %), 2 507 of them the emphatic reflexive's two rules,
+  which asked the lexicon of every phrase of one word and of every phrase's noun. The two-word test first leaves +1 481
+  (+0.014 %), of which the emphatic person rule is 302, the personal meaning in the complements 195, English's gerund
+  after `accused' 138, the emphatic head 88 and the reset of the noted participle 63, no other rule over 50; a list of
+  the reflexive lexemes made once a generation saved 57 of the 2 507 and was taken out.
+  THE STATED COSTS: the inferences, +0.0040 % outside the reports; English's `it is' after the subject's relative clause
+  in it_9673_9712 16 (`... D'Onofrio and of the popular Sanza, it is to have made'); and a lesson's emphatic reflexive
+  of one word is none (no lesson states one).
+  The reports LEAVE, of the three: English's `38th festival of Spoleto' (`the 38th Spoleto festival'); `Bianca nera.'
+  crosses as it stands, its name untranslated, as the paper's column has one; and 10 into Spanish, `al hermano' (`a su
+  hermano') and `consigue contradecir a sí mismo y las palabras del imputado' (`logra contradecirse a sí mismo'). What
+  the Spoleto record says the reports leave stays as it is. The next sample's controls take this fix in.
 
 ## Tutorials are documentation that runs
 

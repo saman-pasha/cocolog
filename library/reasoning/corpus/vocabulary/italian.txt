@@ -3387,6 +3387,8 @@ The verb "muove i primi passi" means "takes the first steps".
 "mosso i primi passi" is the participle of "muove i primi passi".
 "dottore" is a title.
 The adverb "poco prima" means "shortly before".
+"Bianca nera" is a name.
+"accusa" takes "di" before the infinitive.
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".

@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -16921,6 +16921,138 @@ newspaper_spoleto_checks_2 :-
     nf_tr('Il cane va al concerto.', italian, english, S21),
     check('... after a verb that does not go there: one that goes keeps `to''', S21,
           'The dog goes to the concert.').
+
+spoleto_faults :-
+    section('the faults the Spoleto and Torvaianica reports left: a pronoun joined to a phrase, an emphatic reflexive with its person''s word, the word a verb takes before a perfect infinitive, accused of having, a personal meaning before an infinitive and a second participle, an edition, a column''s name, a purpose with an apposition and an aside'),
+    spoleto_faults_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    spoleto_faults_lesson(italian, IT), reason_learn(IT, italian, _),
+    spoleto_faults_checks_1, spoleto_faults_checks_2,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+spoleto_faults_lesson(L, Text) :-
+    newspaper_spoleto_lesson(L, A), spoleto_faults_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the seventeenth part of each hand lesson
+spoleto_faults_part(spanish, 'The verb "contradice" means "contradicts". "contradecir" is the infinitive of "contradice". The pronoun "sí mismo" means "himself".
+The verb "acusa" means "accuses". "acusado" is the participle of "acusa". "acusa" takes "de" before the infinitive. "haber" is the infinitive of "ha".
+The verb "mata" means "kills". "matado" is the participle of "mata". "matar" is the infinitive of "mata". "atropellar" is the infinitive of "atropella". "invertir" is the infinitive of "invierte". "comer" is the infinitive of "come".
+The verb "consigue" means "manages". "conseguir" is the infinitive of "consigue". The feminine noun "palabra" means "word". "palabras" is the plural of "palabra".
+The masculine noun "festival" means "festival". The feminine noun "orquesta" means "orchestra".
+The verb "defiende" means "defends". "defender" is the infinitive of "defiende". The masculine noun "hermano" means "brother". "hermano" is a person. The masculine noun "imputado" means "defendant". "imputado" is a person. "dormir" is the infinitive of "duerme".
+The verb "aprende" means "learns". "aprende" takes "a" before the infinitive. The verb "lava" means "washes". "lavar" is the infinitive of "lava". The verb "busca" means "searches". "buscar" is the infinitive of "busca".').
+spoleto_faults_part(italian, 'The verb "contraddice" means "contradicts". "contraddire" is the infinitive of "contraddice". The pronoun "sé stesso" means "himself".
+The verb "accusa" means "accuses". "accusato" is the participle of "accusa". "accusa" takes "di" before the infinitive. "aver" is the infinitive of "ha". "avere" is the infinitive of "ha".
+The verb "uccide" means "kills". "ucciso" is the participle of "uccide". "uccidere" is the infinitive of "uccide". "investire" is the infinitive of "investe". "mangiare" is the infinitive of "mangia".
+The verb "riesce" means "manages". "riuscire" is the infinitive of "riesce". "riesce" takes "a" before the infinitive. The feminine noun "parola" means "word". "parole" is the plural of "parola".
+"Bianca nera" is a name. The feminine adjective "nera" means "black".
+The verb "difende" means "defends". "difendere" is the infinitive of "difende". The masculine noun "fratello" means "brother". "fratello" is a person. The masculine noun "imputato" means "defendant". "imputato" is a person. "dormire" is the infinitive of "dorme". "Torvajanica" is a city.
+The verb "impara" means "learns". The verb "lava" means "washes". "lavare" is the infinitive of "lava".').
+
+spoleto_faults_checks_1 :-
+    nf_tr('Il cane vede lui e il gatto.', italian, spanish, F1),
+    check('A PRONOUN JOINED TO A PHRASE IS THE FIRST OF TWO OBJECTS: `vede lui e il gatto'' sees him and the cat -- taken alone as the object pronoun, it left `e il gatto'' to read as nothing, and the clause was refused, where `il gatto e lui'' read (tr_pronoun_joined/2); and a personal pronoun that stands as an object takes the word before a person, `a él'' (tr_of_class/2)', F1,
+          'El perro ve a él y el gato.'),
+    nf_tr('Il cane contraddice sé stesso.', italian, spanish, F2),
+    check('A PERSON''S EMPHATIC REFLEXIVE IS A PERSON: `contraddire sé stesso'' is `contradecir a sí mismo'', and with no noun of the lesson the phrase took no `a'' (tr_reflexive_person/2)', F2,
+          'El perro contradice a sí mismo.'),
+    nf_tr('Il cane contraddice sé stesso e il gatto.', italian, spanish, F3),
+    check('AN EMPHATIC REFLEXIVE HEADS THE WORDS BEFORE A COORDINATOR: `contraddire sé stesso e le parole dell''imputato'' is one object of two, and with nothing to head the first half the split was refused (tr_headed/2) -- AND ONLY THE PERSON OF TWO JOINED OBJECTS TAKES ITS WORD: asked of the pair, neither did', F3,
+          'El perro contradice a sí mismo y el gato.'),
+    nf_tr('Il cane vede il pane e Modi.', italian, spanish, F3b),
+    check('a GUARD: the word before a person goes before no name of the two -- a capitalised word the lesson does not know is a name to it, and may be no person: `tempi e Modi della terapia'' came out `tiempos y a Modi'' (tr_joined_marker/2)', F3b,
+          'El perro ve el pan y Modi.'),
+    nf_tr('Il cane contraddice sé stesso e il gatto.', italian, english, F4),
+    check('... and in English', F4, 'The dog contradicts himself and the cat.'),
+    nf_tr('Il cane è accusato di aver mangiato il pane.', italian, spanish, F5),
+    check('A PERFECT INFINITIVE TAKES THE WORD ITS VERB TAKES BEFORE AN INFINITIVE, as a plain one does: `accusato di aver ucciso'' is `acusado de haber matado'' (`"acusa" takes "de" before the infinitive.''), and written bare it was `acusado haber'' (tr_infx_lead/1)', F5,
+          'El perro es acusado de haber comido el pan.'),
+    nf_tr('Il cane è accusato di aver mangiato il pane.', italian, english, F6),
+    check('ACCUSED OF HAVING: English says the verb with a preposition and a gerund where the source has an infinitive, where it was `accused to have eaten'' (en_prep_gerund/2)', F6,
+          'The dog is accused of having eaten the bread.'),
+    nf_tr('Il cane è accusato di mangiare il pane.', italian, english, F7),
+    check('... and before a plain infinitive, the gerund', F7, 'The dog is accused of eating the bread.'),
+    nf_tr('El perro acusa al gato de buscar comer el pan.', spanish, english, F7b),
+    check('... but only the clause''s first infinitive, which the verb takes: `acusó a la mayoría de buscar por todos los medios hacer daño'' is accused OF SEEKING to do harm, and the second came out `of making'' (tr_verbal_inf/1)', F7b,
+          'The dog accuses the cat of searching to eat the bread.'),
+    nf_tr('Il cane è accusato di non aver mangiato il pane.', italian, spanish, F8),
+    check('... and before the denial of a perfect infinitive the word comes first, `de no haber'', never `no de haber''', F8,
+          'El perro es acusado de no haber comido el pan.'),
+    nf_tr('Il cane accusa il gatto di aver mangiato il pane.', italian, spanish, F9),
+    check('... and where the source kept its word as a complement of its own, after the object (nprep/1), it is written once', F9,
+          'El perro acusa al gato de haber comido el pan.'),
+    nf_tr('Il cane impara a lavarsi.', italian, spanish, F9b),
+    check('... AND WHERE THE SOURCE KEPT ITS WORD BEFORE THE INFINITIVE (nprep/1), THE TARGET VERB''S WORD IS NOT WRITTEN AGAIN: `impara a lavarsi'' is `aprende a lavarse'' (`"aprende" takes "a" before the infinitive.''), where both were written, `aprende a a lavarse'' (tr_with_infx_kept/1)', F9b,
+          'El perro aprende a lavarse.'),
+    nf_tr('La macchina ha investito e ucciso la ragazza.', italian, spanish, F10),
+    check('THE PERSONAL MEANING REACHES THE OBJECT TWO PARTICIPLES SHARE: `ha investito e ucciso Sara Folino'' ran her over and killed her, and it was `ha invertido y matado'' (tr_personal_obj/2)', F10,
+          'La máquina ha atropellado y matado a la chica.'),
+    nf_tr('La macchina ha ucciso e investito la ragazza.', italian, spanish, F11),
+    check('... and the second participle crosses by it before its person (tr_personal_comp/3)', F11,
+          'La máquina ha matado y atropellado a la chica.'),
+    nf_tr('Il cane vuole investire la ragazza.', italian, spanish, F12),
+    check('... and an infinitive', F12, 'El perro quiere atropellar a la chica.'),
+    nf_tr('Il cane è accusato di aver investito la ragazza.', italian, spanish, F13),
+    check('... and a perfect one', F13, 'El perro es acusado de haber atropellado a la chica.'),
+    nf_tr('38 Spoleto festival.', italian, spanish, F14),
+    check('A NUMBER, A NAME AND A NOUN ARE AN EDITION: `38 Spoleto festival.'' heads the report on the 38th edition -- the name before the noun in English''s way, the number its ordinal, the name its phrase of `of''; read as a count of festivals it had no reading (tr_read0/4)', F14,
+          '38º festival de Spoleto.'),
+    nf_tr('38 Spoleto festival.', italian, english, F15),
+    check('... and in English', F15, '38th festival of Spoleto.'),
+    nf_tr('3 Torvajanica orchestra.', italian, spanish, F16),
+    check('... the sign the noun''s gender', F16, '3ª orquesta de Torvajanica.'),
+    nf_tr('38 festival.', italian, spanish, F17),
+    check('a GUARD: a number and a noun alone are no edition', F17, refused).
+
+spoleto_faults_checks_2 :-
+    nf_tr('Bianca nera.', italian, spanish, G1),
+    check('A NAME OF SEVERAL WORDS THE LESSON STATES IS A HEADING ALONE: `Bianca nera.'' is the paper''s column of crime news (`"Bianca nera" is a name.''), and joined into one word it had no reading -- read as its words it is a bare noun and an adjective, which stays refused (tr_verbless/3)', G1,
+          'Bianca nera.'),
+    nf_tr('Bianca nera.', italian, english, G2),
+    check('... and in English', G2, 'Bianca nera.'),
+    nf_tr('Cuida de Pedro.', spanish, italian, G2b),
+    check('a GUARD: only a name the lesson states -- `Cuida de Tom.'' joins as a name of two capitals and a particle, and was copied as it stands', G2b, refused),
+    nf_tr('Casa nera.', italian, spanish, G3),
+    check('a GUARD: a bare noun and an adjective stay refused, `Big house.''', G3, refused),
+    nf_tr('Per difendere il fratello, Said, riesce a dormire.', italian, spanish, G4),
+    check('A PURPOSE IN FRONT WHOSE LAST WORD IS AN APPOSITION WAS SET OFF BY ITS COMMA: `Per difendere il fratello, Said, ...'' is to defend his brother Said -- the commas went into the apposition, and with nobody named after it the shortest front was taken, `Per difendere'' alone, and the brother was the one who manages (tr_read0/4)', G4,
+          'Consigue dormir para defender al hermano, Said.'),
+    nf_tr('Per difendere il fratello, Said, riesce a dormire.', italian, english, G5),
+    check('... and English refuses the third person nobody names, on purpose', G5, refused),
+    nf_tr('Per difendere il fratello, accusato di aver ucciso Sara, riesce a dormire.', italian, spanish, G6),
+    check('A PURPOSE''S OBJECT CARRIES ITS PARTICIPLE BETWEEN COMMAS: `Per difendere il fratello, accusato di aver ucciso Sara, riesce a ...'' (tr_front_aside_comps/1) -- and a name after a participle is its object, never a name apposed to a noun (tr_front_name_apposed/2); the participle''s word goes before its infinitive (tr_note_pred/1)', G6,
+          'Para defender al hermano, acusado de haber matado a Sara, consigue dormir.'),
+    nf_tr('Per difendere il fratello, accusato di aver investito la ragazza, riesce a dormire.', italian, spanish, G7),
+    check('... and the personal meaning crosses inside the front too (fr/1)', G7,
+          'Para defender al hermano, acusado de haber atropellado a la chica, consigue dormir.'),
+    nf_tr('Per difendere il fratello, accusato di aver ucciso Sara a Torvajanica, riesce a dormire.', italian, spanish, G8),
+    check('... and so does a city after a verb that does not go (tr_cities_in/2)', G8,
+          'Para defender al hermano, acusado de haber matado a Sara en Torvajanica, consigue dormir.'),
+    nf_tr('Il cane difende il fratello, accusato di aver ucciso Sara.', italian, spanish, G9),
+    check('... and after an object that agrees with its participle (opred/3)', G9,
+          'El perro defiende al hermano, acusado de haber matado a Sara.'),
+    nf_tr('Il cane difende il fratello, accusato di aver ucciso Sara.', italian, english, G10),
+    check('... and English''s gerund is the participle''s, where it was `accused to have killed''', G10,
+          'The dog defends the brother, accused of having killed Sara.'),
+    nf_tr('Il cane difende il fratello, Said, accusato di aver ucciso Sara.', italian, spanish, G11),
+    check('... and after a reduced relative (rel/3)', G11,
+          'El perro defiende al hermano, Said, acusado de haber matado a Sara.'),
+    nf_tr('Il cane difende il fratello, Said, accusato di aver ucciso Sara.', italian, english, G12),
+    check('ENGLISH WRITES A PARTICIPLE AFTER A NAME APPOSED TO ITS NOUN AS THE SOURCE HAS IT, where it was `the accused brother, Said, of having killed'' (tr_np_out/5)', G12,
+          'The dog defends the brother, Said, accused of having killed Sara.'),
+    nf_tr('Per difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé stesso e le parole dell''imputato.', italian, spanish, G13),
+    check('THE REPORT''S TENTH SENTENCE, whole', G13,
+          'Para defender al hermano, Said, acusado de haber atropellado y matado a Sara Folino en Torvajanica, consigue contradecir a sí mismo y las palabras del imputado.'),
+    nf_tr('Per difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé stesso e le parole dell''imputato.', italian, english, G14),
+    check('... and English refuses it, the third person nobody names, on purpose', G14, refused),
+    nf_tr('Il cane dorme accusato e il gatto vuole aver mangiato il pane.', italian, spanish, G15),
+    check('a GUARD: the participle a clause ends on is no verb of the next clause''s infinitive, which takes its own clause''s word (each clause written starts with none noted: tr_write/4)', G15,
+          'El perro duerme acusado y el gato quiere haber comido el pan.'),
+    nf_tr('El perro acusa al gato de "comer el pan".', spanish, italian, G16),
+    check('A QUOTATION THAT OPENS ON THE INFINITIVE AFTER THE VERB''S OWN WORD OPENS THERE: `acusara a Millàs de "hacer trampa"'' came out `di fare trappola"'' once the lesson said `"acusa" takes "de" before the infinitive.'' (qm/2 on inf/1) -- and the infinitive stops the walk for an object of the verb, or the person was the indirect one, `accusa al gatto'' (tr_verbal_comp/1)', G16,
+          'Il cane accusa il gatto di "mangiare il pane".'),
+    nf_tr('El perro acusa al gato de "comer el pan".', spanish, english, G17),
+    check('... and the mark goes on the infinitive, after the word its writer put before it (tr_inf_lead_word/2, asked before the infinitive is written)', G17,
+          'The dog accuses the cat of "eating the bread".').
 
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),

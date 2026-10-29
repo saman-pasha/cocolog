@@ -379,6 +379,7 @@ main :-
     section_84,
     section_85,
     section_86,
+    section_87,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -11220,6 +11221,154 @@ The preposition "fra" means "among". The verb "vende" means "sells". "venduta" i
 The masculine noun "festival" means "festival". The feminine noun "orchestra" means "orchestra". The feminine adjective "bianca" means "white".
 "stato" is the participle of "è". "avrebbe" is the conditional of "ha". "disse" is the past of "dice". The adverb "troppo tardi" means "too late". The verb "vista" means "approves".
 The verb "ascolta" means "listens". "ascoltato" is the participle of "ascolta". The verb "canta" means "sings". The masculine noun "concerto" means "concert". The masculine possessive "mio" means "my". "ran" is the past of "runs". "run" is the participle of "runs". "told" is the past of "tells".').
+
+section_87 :-
+    format("~n87. the faults the Spoleto and Torvaianica reports left, into Spanish and English: a pronoun joined to a phrase, an emphatic reflexive with its person's word, the word a verb takes before a perfect infinitive, accused of having, a personal meaning before an infinitive and a second participle, an edition, a column's name, a purpose with an apposition and an aside~n", []),
+    lesson_87(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the Spoleto section''s Spanish lesson and a seventeenth part, under its own name', NS),
+    lesson_87(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_87_1, section_87_2, section_87_3, section_87_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_87(L, Text) :- lesson_86(L, A), lesson_87(L, 17, B), atomic_list_concat([A, ' ', B], Text).
+
+section_87_1 :-
+    ( reason_translate('Il cane vede lui e il gatto.', italian, spanish, X87V1) -> S87V1 = X87V1 ; S87V1 = refused ),
+    must('A PRONOUN JOINED TO A PHRASE IS THE FIRST OF TWO OBJECTS: `vede lui e il gatto'' sees him and the cat -- taken alone as the object pronoun, it left `e il gatto'' to read as nothing, and the clause was refused, where `il gatto e lui'' read (tr_pronoun_joined/2); and a personal pronoun that stands as an object takes the word before a person, `a él'' (tr_of_class/2)', S87V1,
+         'El perro ve a él y el gato.'),
+    ( reason_translate('Il cane contraddice sé stesso.', italian, spanish, X87V2) -> S87V2 = X87V2 ; S87V2 = refused ),
+    must('A PERSON''S EMPHATIC REFLEXIVE IS A PERSON: `contraddire sé stesso'' is `contradecir a sí mismo'', and with no noun of the lesson the phrase took no `a'' (tr_reflexive_person/2)', S87V2,
+         'El perro contradice a sí mismo.'),
+    ( reason_translate('Il cane contraddice sé stesso e il gatto.', italian, spanish, X87V3) -> S87V3 = X87V3 ; S87V3 = refused ),
+    must('AN EMPHATIC REFLEXIVE HEADS THE WORDS BEFORE A COORDINATOR: `contraddire sé stesso e le parole dell''imputato'' is one object of two, and with nothing to head the first half the split was refused (tr_headed/2) -- AND ONLY THE PERSON OF TWO JOINED OBJECTS TAKES ITS WORD: asked of the pair, neither did', S87V3,
+         'El perro contradice a sí mismo y el gato.'),
+    ( reason_translate('Il cane vede il pane e Modi.', italian, spanish, X87V4) -> S87V4 = X87V4 ; S87V4 = refused ),
+    must('a GUARD: the word before a person goes before no name of the two -- a capitalised word the lesson does not know is a name to it, and may be no person: `tempi e Modi della terapia'' came out `tiempos y a Modi'' (tr_joined_marker/2)', S87V4,
+         'El perro ve el pan y Modi.'),
+    ( reason_translate('Il cane contraddice sé stesso e il gatto.', italian, english, X87V5) -> S87V5 = X87V5 ; S87V5 = refused ),
+    must('... and in English', S87V5,
+         'The dog contradicts himself and the cat.'),
+    ( reason_translate('Il cane è accusato di aver mangiato il pane.', italian, spanish, X87V6) -> S87V6 = X87V6 ; S87V6 = refused ),
+    must('A PERFECT INFINITIVE TAKES THE WORD ITS VERB TAKES BEFORE AN INFINITIVE, as a plain one does: `accusato di aver ucciso'' is `acusado de haber matado'' (`"acusa" takes "de" before the infinitive.''), and written bare it was `acusado haber'' (tr_infx_lead/1)', S87V6,
+         'El perro es acusado de haber comido el pan.'),
+    ( reason_translate('Il cane è accusato di aver mangiato il pane.', italian, english, X87V7) -> S87V7 = X87V7 ; S87V7 = refused ),
+    must('ACCUSED OF HAVING: English says the verb with a preposition and a gerund where the source has an infinitive, where it was `accused to have eaten'' (en_prep_gerund/2)', S87V7,
+         'The dog is accused of having eaten the bread.'),
+    ( reason_translate('Il cane è accusato di mangiare il pane.', italian, english, X87V8) -> S87V8 = X87V8 ; S87V8 = refused ),
+    must('... and before a plain infinitive, the gerund', S87V8,
+         'The dog is accused of eating the bread.'),
+    ( reason_translate('El perro acusa al gato de buscar comer el pan.', spanish, english, X87V9) -> S87V9 = X87V9 ; S87V9 = refused ),
+    must('... but only the clause''s first infinitive, which the verb takes: `acusó a la mayoría de buscar por todos los medios hacer daño'' is accused OF SEEKING to do harm, and the second came out `of making'' (tr_verbal_inf/1)', S87V9,
+         'The dog accuses the cat of searching to eat the bread.'),
+    ( reason_translate('Il cane è accusato di non aver mangiato il pane.', italian, spanish, X87V10) -> S87V10 = X87V10 ; S87V10 = refused ),
+    must('... and before the denial of a perfect infinitive the word comes first, `de no haber'', never `no de haber''', S87V10,
+         'El perro es acusado de no haber comido el pan.'),
+    ( reason_translate('Il cane accusa il gatto di aver mangiato il pane.', italian, spanish, X87V11) -> S87V11 = X87V11 ; S87V11 = refused ),
+    must('... and where the source kept its word as a complement of its own, after the object (nprep/1), it is written once', S87V11,
+         'El perro acusa al gato de haber comido el pan.'),
+    ( reason_translate('Il cane impara a lavarsi.', italian, spanish, X87V12) -> S87V12 = X87V12 ; S87V12 = refused ),
+    must('... AND WHERE THE SOURCE KEPT ITS WORD BEFORE THE INFINITIVE (nprep/1), THE TARGET VERB''S WORD IS NOT WRITTEN AGAIN: `impara a lavarsi'' is `aprende a lavarse'' (`"aprende" takes "a" before the infinitive.''), where both were written, `aprende a a lavarse'' (tr_with_infx_kept/1)', S87V12,
+         'El perro aprende a lavarse.').
+
+section_87_2 :-
+    ( reason_translate('La macchina ha investito e ucciso la ragazza.', italian, spanish, X87V13) -> S87V13 = X87V13 ; S87V13 = refused ),
+    must('THE PERSONAL MEANING REACHES THE OBJECT TWO PARTICIPLES SHARE: `ha investito e ucciso Sara Folino'' ran her over and killed her, and it was `ha invertido y matado'' (tr_personal_obj/2)', S87V13,
+         'La máquina ha atropellado y matado a la chica.'),
+    ( reason_translate('La macchina ha ucciso e investito la ragazza.', italian, spanish, X87V14) -> S87V14 = X87V14 ; S87V14 = refused ),
+    must('... and the second participle crosses by it before its person (tr_personal_comp/3)', S87V14,
+         'La máquina ha matado y atropellado a la chica.'),
+    ( reason_translate('Il cane vuole investire la ragazza.', italian, spanish, X87V15) -> S87V15 = X87V15 ; S87V15 = refused ),
+    must('... and an infinitive', S87V15,
+         'El perro quiere atropellar a la chica.'),
+    ( reason_translate('Il cane è accusato di aver investito la ragazza.', italian, spanish, X87V16) -> S87V16 = X87V16 ; S87V16 = refused ),
+    must('... and a perfect one', S87V16,
+         'El perro es acusado de haber atropellado a la chica.'),
+    ( reason_translate('38 Spoleto festival.', italian, spanish, X87V17) -> S87V17 = X87V17 ; S87V17 = refused ),
+    must('A NUMBER, A NAME AND A NOUN ARE AN EDITION: `38 Spoleto festival.'' heads the report on the 38th edition -- the name before the noun in English''s way, the number its ordinal, the name its phrase of `of''; read as a count of festivals it had no reading (tr_read0/4)', S87V17,
+         '38º festival de Spoleto.'),
+    ( reason_translate('38 Spoleto festival.', italian, english, X87V18) -> S87V18 = X87V18 ; S87V18 = refused ),
+    must('... and in English', S87V18,
+         '38th festival of Spoleto.'),
+    ( reason_translate('3 Torvajanica orchestra.', italian, spanish, X87V19) -> S87V19 = X87V19 ; S87V19 = refused ),
+    must('... the sign the noun''s gender', S87V19,
+         '3ª orquesta de Torvajanica.'),
+    ( reason_translate('38 festival.', italian, spanish, X87V20) -> S87V20 = X87V20 ; S87V20 = refused ),
+    must('a GUARD: a number and a noun alone are no edition', S87V20,
+         refused),
+    ( reason_translate('Bianca nera.', italian, spanish, X87V21) -> S87V21 = X87V21 ; S87V21 = refused ),
+    must('A NAME OF SEVERAL WORDS THE LESSON STATES IS A HEADING ALONE: `Bianca nera.'' is the paper''s column of crime news (`"Bianca nera" is a name.''), and joined into one word it had no reading -- read as its words it is a bare noun and an adjective, which stays refused (tr_verbless/3)', S87V21,
+         'Bianca nera.'),
+    ( reason_translate('Bianca nera.', italian, english, X87V22) -> S87V22 = X87V22 ; S87V22 = refused ),
+    must('... and in English', S87V22,
+         'Bianca nera.'),
+    ( reason_translate('Cuida de Pedro.', spanish, italian, X87V23) -> S87V23 = X87V23 ; S87V23 = refused ),
+    must('a GUARD: only a name the lesson states -- `Cuida de Tom.'' joins as a name of two capitals and a particle, and was copied as it stands', S87V23,
+         refused),
+    ( reason_translate('Casa nera.', italian, spanish, X87V24) -> S87V24 = X87V24 ; S87V24 = refused ),
+    must('a GUARD: a bare noun and an adjective stay refused, `Big house.''', S87V24,
+         refused).
+
+section_87_3 :-
+    ( reason_translate('Per difendere il fratello, Said, riesce a dormire.', italian, spanish, X87V25) -> S87V25 = X87V25 ; S87V25 = refused ),
+    must('A PURPOSE IN FRONT WHOSE LAST WORD IS AN APPOSITION WAS SET OFF BY ITS COMMA: `Per difendere il fratello, Said, ...'' is to defend his brother Said -- the commas went into the apposition, and with nobody named after it the shortest front was taken, `Per difendere'' alone, and the brother was the one who manages (tr_read0/4)', S87V25,
+         'Consigue dormir para defender al hermano, Said.'),
+    ( reason_translate('Per difendere il fratello, Said, riesce a dormire.', italian, english, X87V26) -> S87V26 = X87V26 ; S87V26 = refused ),
+    must('... and English refuses the third person nobody names, on purpose', S87V26,
+         refused),
+    ( reason_translate('Per difendere il fratello, accusato di aver ucciso Sara, riesce a dormire.', italian, spanish, X87V27) -> S87V27 = X87V27 ; S87V27 = refused ),
+    must('A PURPOSE''S OBJECT CARRIES ITS PARTICIPLE BETWEEN COMMAS: `Per difendere il fratello, accusato di aver ucciso Sara, riesce a ...'' (tr_front_aside_comps/1) -- and a name after a participle is its object, never a name apposed to a noun (tr_front_name_apposed/2); the participle''s word goes before its infinitive (tr_note_pred/1)', S87V27,
+         'Para defender al hermano, acusado de haber matado a Sara, consigue dormir.'),
+    ( reason_translate('Per difendere il fratello, accusato di aver investito la ragazza, riesce a dormire.', italian, spanish, X87V28) -> S87V28 = X87V28 ; S87V28 = refused ),
+    must('... and the personal meaning crosses inside the front too (fr/1)', S87V28,
+         'Para defender al hermano, acusado de haber atropellado a la chica, consigue dormir.'),
+    ( reason_translate('Per difendere il fratello, accusato di aver ucciso Sara a Torvajanica, riesce a dormire.', italian, spanish, X87V29) -> S87V29 = X87V29 ; S87V29 = refused ),
+    must('... and so does a city after a verb that does not go (tr_cities_in/2)', S87V29,
+         'Para defender al hermano, acusado de haber matado a Sara en Torvajanica, consigue dormir.'),
+    ( reason_translate('Il cane difende il fratello, accusato di aver ucciso Sara.', italian, spanish, X87V30) -> S87V30 = X87V30 ; S87V30 = refused ),
+    must('... and after an object that agrees with its participle (opred/3)', S87V30,
+         'El perro defiende al hermano, acusado de haber matado a Sara.'),
+    ( reason_translate('Il cane difende il fratello, accusato di aver ucciso Sara.', italian, english, X87V31) -> S87V31 = X87V31 ; S87V31 = refused ),
+    must('... and English''s gerund is the participle''s, where it was `accused to have killed''', S87V31,
+         'The dog defends the brother, accused of having killed Sara.'),
+    ( reason_translate('Il cane difende il fratello, Said, accusato di aver ucciso Sara.', italian, spanish, X87V32) -> S87V32 = X87V32 ; S87V32 = refused ),
+    must('... and after a reduced relative (rel/3)', S87V32,
+         'El perro defiende al hermano, Said, acusado de haber matado a Sara.'),
+    ( reason_translate('Il cane difende il fratello, Said, accusato di aver ucciso Sara.', italian, english, X87V33) -> S87V33 = X87V33 ; S87V33 = refused ),
+    must('ENGLISH WRITES A PARTICIPLE AFTER A NAME APPOSED TO ITS NOUN AS THE SOURCE HAS IT, where it was `the accused brother, Said, of having killed'' (tr_np_out/5)', S87V33,
+         'The dog defends the brother, Said, accused of having killed Sara.'),
+    ( reason_translate('Per difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé stesso e le parole dell''imputato.', italian, spanish, X87V34) -> S87V34 = X87V34 ; S87V34 = refused ),
+    must('THE REPORT''S TENTH SENTENCE, whole', S87V34,
+         'Para defender al hermano, Said, acusado de haber atropellado y matado a Sara Folino en Torvajanica, consigue contradecir a sí mismo y las palabras del imputado.'),
+    ( reason_translate('Per difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé stesso e le parole dell''imputato.', italian, english, X87V35) -> S87V35 = X87V35 ; S87V35 = refused ),
+    must('... and English refuses it, the third person nobody names, on purpose', S87V35,
+         refused),
+    ( reason_translate('Il cane dorme accusato e il gatto vuole aver mangiato il pane.', italian, spanish, X87V36) -> S87V36 = X87V36 ; S87V36 = refused ),
+    must('a GUARD: the participle a clause ends on is no verb of the next clause''s infinitive, which takes its own clause''s word (each clause written starts with none noted: tr_write/4)', S87V36,
+         'El perro duerme acusado y el gato quiere haber comido el pan.').
+
+section_87_4 :-
+    ( reason_translate('El perro acusa al gato de "comer el pan".', spanish, italian, X87V37) -> S87V37 = X87V37 ; S87V37 = refused ),
+    must('A QUOTATION THAT OPENS ON THE INFINITIVE AFTER THE VERB''S OWN WORD OPENS THERE: `acusara a Millàs de "hacer trampa"'' came out `di fare trappola"'' once the lesson said `"acusa" takes "de" before the infinitive.'' (qm/2 on inf/1) -- and the infinitive stops the walk for an object of the verb, or the person was the indirect one, `accusa al gatto'' (tr_verbal_comp/1)', S87V37,
+         'Il cane accusa il gatto di "mangiare il pane".'),
+    ( reason_translate('El perro acusa al gato de "comer el pan".', spanish, english, X87V38) -> S87V38 = X87V38 ; S87V38 = refused ),
+    must('... and the mark goes on the infinitive, after the word its writer put before it (tr_inf_lead_word/2, asked before the infinitive is written)', S87V38,
+         'The dog accuses the cat of "eating the bread".').
+
+lesson_87(spanish, 17, 'The verb "contradice" means "contradicts". "contradecir" is the infinitive of "contradice". The pronoun "sí mismo" means "himself".
+The verb "acusa" means "accuses". "acusado" is the participle of "acusa". "acusa" takes "de" before the infinitive. "haber" is the infinitive of "ha".
+The verb "mata" means "kills". "matado" is the participle of "mata". "matar" is the infinitive of "mata". "atropellar" is the infinitive of "atropella". "invertir" is the infinitive of "invierte". "comer" is the infinitive of "come".
+The verb "consigue" means "manages". "conseguir" is the infinitive of "consigue". The feminine noun "palabra" means "word". "palabras" is the plural of "palabra".
+The masculine noun "festival" means "festival". The feminine noun "orquesta" means "orchestra".
+The verb "defiende" means "defends". "defender" is the infinitive of "defiende". The masculine noun "hermano" means "brother". "hermano" is a person. The masculine noun "imputado" means "defendant". "imputado" is a person. "dormir" is the infinitive of "duerme".
+The verb "aprende" means "learns". "aprende" takes "a" before the infinitive. The verb "lava" means "washes". "lavar" is the infinitive of "lava". The verb "busca" means "searches". "buscar" is the infinitive of "busca".').
+lesson_87(italian, 17, 'The verb "contraddice" means "contradicts". "contraddire" is the infinitive of "contraddice". The pronoun "sé stesso" means "himself".
+The verb "accusa" means "accuses". "accusato" is the participle of "accusa". "accusa" takes "di" before the infinitive. "aver" is the infinitive of "ha". "avere" is the infinitive of "ha".
+The verb "uccide" means "kills". "ucciso" is the participle of "uccide". "uccidere" is the infinitive of "uccide". "investire" is the infinitive of "investe". "mangiare" is the infinitive of "mangia".
+The verb "riesce" means "manages". "riuscire" is the infinitive of "riesce". "riesce" takes "a" before the infinitive. The feminine noun "parola" means "word". "parole" is the plural of "parola".
+"Bianca nera" is a name. The feminine adjective "nera" means "black".
+The verb "difende" means "defends". "difendere" is the infinitive of "difende". The masculine noun "fratello" means "brother". "fratello" is a person. The masculine noun "imputato" means "defendant". "imputato" is a person. "dormire" is the infinitive of "dorme". "Torvajanica" is a city.
+The verb "impara" means "learns". The verb "lava" means "washes". "lavare" is the infinitive of "lava".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

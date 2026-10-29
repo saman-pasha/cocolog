@@ -5182,3 +5182,9 @@ The verb "muove i primi passi" means "takes the first steps".
 "dottore" is a title.
 # `la ragazza quindicenne molestata poco prima': shortly before (as two adverbs, `little before')
 The adverb "poco prima" means "shortly before".
+# the Spoleto faults (VIT-9211, VIT-9214): `Bianca nera.' is the paper's column of crime news, before each report of a
+# crime (VIT-6834 too), and its name crosses as it stands -- read as words it was a bare noun and an adjective
+"Bianca nera" is a name.
+# `accusato di aver investito e ucciso Sara Folino': the word before the infinitive, which `acusado de haber' says
+# back in Spanish and the Italian writer puts back from Spanish
+"accusa" takes "di" before the infinitive.

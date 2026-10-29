@@ -2399,6 +2399,7 @@ The verb "da los primeros pasos" means "takes the first steps".
 The feminine noun "desaceleración" means "deceleration".
 "desaceleraciones" is the plural of "desaceleración".
 The adverb "poco antes" means "shortly before".
+"acusa" takes "de" before the infinitive.
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
