@@ -1,5 +1,5 @@
-# CI: cocolog built from source on Ubuntu 24.04, with Cicili and ZiguratIP beside
-# it, and the whole suite run against a live ZiguratIP server.
+# CI: cocolog built from source, with Cicili and ZiguratIP beside it, and the
+# whole suite run against a live ZiguratIP server -- on Ubuntu 24.04 and on macOS.
 #
 # File:   .github/workflows/ci.yml
 # Starts: a push to master, a pull request into master, or by hand (Actions ->
@@ -7,26 +7,40 @@
 #         push or pull request that changes nothing but the documents at the top
 #         of the tree, or only the Docker files, starts nothing.
 #
-# THE INSTALL IS install/install-linux.sh, as the Dockerfile runs it, not a copy
-# of its steps: packages, Quicklisp (kept in the Actions cache between runs),
-# ZiguratIP built and its artifacts checked, make, make schema, make modules,
-# and a query the binary must answer. Then a ZiguratIP server is raised on
-# 2160, the lint case runs first (CLAUDE.md, "The suite"), and then the suite,
-# test/run.pl, every case -- the line `make test' runs, without the rebuild of
-# the binary its `all' would make.
+# TWO JOBS, ONE PER OPERATING SYSTEM, each the same steps:
+#
+#   linux   ubuntu-24.04 (x86-64, 4 CPUs, 16 GB)   install/install-linux.sh
+#   macos   macos-15 (Apple silicon, 3 CPUs, 7 GB)  install/install-macos.sh
+#
+# The Mac is arm64 and not the Intel the owner's Mac is: Homebrew has built no
+# Intel bottles since September 2026 (Tier 3 there; sbcl, openssl@3, gnupg and
+# pcre2 would all build from source, sbcl through ECL), and SBCL publishes no
+# x86-64 Darwin binary. GitHub's Intel images are `macos-15-intel' and
+# `macos-26-intel' for when that changes.
+#
+# THE INSTALL IS THE INSTALLER, as the Dockerfile runs it, not a copy of its
+# steps: packages, Quicklisp (kept in the Actions cache between runs), ZiguratIP
+# built and its artifacts checked, make, make schema, make modules, and a query
+# the binary must answer. The exports it prints for a shell profile are what the
+# steps after it get. Then a ZiguratIP server is raised on 2160, the lint case
+# runs first (CLAUDE.md, "The suite"), and then the suite, test/run.pl, every
+# case -- the line `make test' runs, without the rebuild of the binary its `all'
+# would make.
 #
 # A GREEN RUN HAS NO SKIP IT DID NOT EXPECT. The database cases SKIP with no
-# server, files and trace without the reference swipl 9.0.4 (Ubuntu 24.04's
-# swi-prolog-nox is that one), a module's case without its module -- and the
-# runner prints `red: 0' over all of it. tools/ci/verdict.sh reads every case's
-# line: a red case, a case with no line, or a SKIP not in ALLOWED_SKIPS makes
-# the run red. ALLOWED_SKIPS are the cases whose library this install does not
-# build: libtorch, TensorFlow's C API, raylib and a screen, NumPy, OpenCV.
+# server, files and trace without swipl, a module's case without its module --
+# and the runner prints `red: 0' over all of it. tools/ci/verdict.sh reads every
+# case's line: a red case, a case with no line, or a SKIP not in the job's
+# allowed_skips makes the run red. Allowed on both: the cases whose library no
+# plain install builds (libtorch, TensorFlow's C API, raylib and a screen,
+# NumPy, OpenCV). Allowed on the Mac besides: files and trace, which compare
+# with the reference swipl 9.0.4 -- Ubuntu 24.04's swi-prolog-nox is it, and no
+# Mac package is, so the Mac has no swipl at all and the comparison is Linux's.
 #
 # Each case that is red, or skipped where it should not have been, is then run
 # again alone, because the runner keeps only five FAIL lines of a case and none
 # of a SKIP's reason. The install's logs, the lint case's, the suite's, the
-# server's and the reruns' are the run's artifact `ci-logs-N' for 14 days.
+# server's and the reruns' are the run's artifact `ci-logs-OS-N' for 14 days.
 name: CI
 
 on:
@@ -47,21 +61,38 @@ on:
         type: string
         default: "master"
 
-# a new push to a pull request stops its last run; master's runs each finish
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
 
 jobs:
   suite:
-    name: Build, then the suite with a server (Ubuntu 24.04)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    # per job: a new push to a pull request stops its last run, master's runs
+    # each finish, and one operating system never waits for the other
+    concurrency:
+      group: ci-${{ matrix.os }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            name: Ubuntu 24.04, the suite with a server
+            runner: ubuntu-24.04
+            install: install/install-linux.sh
+            allowed_skips: tensors torch-graph torch-grad torch-replay tensorflow ray numpy opencv
+          - os: macos
+            name: macOS 15 (Apple silicon), the suite with a server
+            runner: macos-15
+            install: install/install-macos.sh
+            allowed_skips: tensors torch-graph torch-grad torch-replay tensorflow ray numpy opencv files trace
     env:
-      ALLOWED_SKIPS: tensors torch-graph torch-grad torch-replay tensorflow ray numpy opencv
+      # Homebrew as the image has it: no update of every tap before an install
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+      HOMEBREW_NO_ENV_HINTS: 1
     defaults:
       run:
         shell: bash
@@ -107,7 +138,7 @@ jobs:
           } >> "$GITHUB_ENV"
           version=$(grep -o 'return "[0-9.]*"' cocolog.cicili | head -1 | grep -o '[0-9.][0-9.]*')
           {
-            echo "### cocolog $version"
+            echo "### cocolog $version: ${{ matrix.name }}"
             echo
             echo "| checkout | commit |"
             echo "|---|---|"
@@ -120,12 +151,27 @@ jobs:
       # what the cases want beyond the install: Ubuntu's own clang (18, as in the
       # Dockerfile, so install-linux.sh never goes to apt.llvm.org), swipl 9.0.4
       # for files and trace, lsof for the cases that wait for a port
-      - name: The compiler, swipl and lsof
+      - name: The compiler, swipl and lsof (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get -qq update
           sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y clang swi-prolog-nox lsof > /dev/null
           clang --version | head -1
           swipl --version
+
+      # what the cases want beyond the install on a Mac: `timeout', which macOS
+      # does not have and several cases run a child under. Coreutils' gtimeout,
+      # under that one name only: BSD date, wc and sed stay what a Mac has, as
+      # CLAUDE.md's macOS notes expect
+      - name: timeout (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils > /dev/null
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$(brew --prefix)/bin/gtimeout" "$HOME/.local/bin/timeout"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/timeout" --version | head -1
+          clang --version | head -1
 
       - name: Quicklisp, from the cache
         id: quicklisp
@@ -135,10 +181,10 @@ jobs:
           key: quicklisp-${{ runner.os }}-${{ hashFiles('cocolog/install/common.sh') }}
           restore-keys: quicklisp-${{ runner.os }}-
 
-      - name: Install (install/install-linux.sh)
+      - name: Install (${{ matrix.install }})
         id: install
-        timeout-minutes: 90
-        run: sh install/install-linux.sh
+        timeout-minutes: 120
+        run: sh ${{ matrix.install }} 2>&1 | tee "$LOGS/install.out"
 
       # kept as soon as the install has it, so a red suite does not lose it
       - name: Quicklisp, into the cache
@@ -148,34 +194,58 @@ jobs:
           path: ~/quicklisp
           key: ${{ steps.quicklisp.outputs.cache-primary-key }}
 
-      # the exports install-linux.sh prints for a shell; and every build here is
-      # clang (CLAUDE.md): the interpreter's own object names clang, and no GCC
-      # line -- the one a linked binary carries is the system's crtbeginS.o
+      # the exports the installer printed for a shell profile -- the library
+      # path, and on a Mac Homebrew's CPATH and LIBRARY_PATH -- for every step after
+      - name: The installer's exports
+        run: |
+          grep -E '^   export [A-Za-z_][A-Za-z0-9_]*=' "$LOGS/install.out" | sed 's/^   export //' > "$LOGS/exports.txt"
+          while IFS= read -r kv; do
+            name=${kv%%=*}
+            eval "value=\"${kv#*=}\""
+            echo "$name=$value" >> "$GITHUB_ENV"
+            echo "$name=$value"
+          done < "$LOGS/exports.txt"
+
+      # every build here is clang (CLAUDE.md): on Linux the interpreter's own
+      # object names clang, and no GCC line -- the one a linked binary carries is
+      # the system's crtbeginS.o; a Mac has no other compiler than Apple's clang
       - name: What was built
         run: |
-          echo "LD_LIBRARY_PATH=$ZIGURATIP_HOME/lib" >> "$GITHUB_ENV"
           ./cocolog --version
-          comment=$(readelf -p .comment .libs/cocolog.o)
-          printf '%s\n' "$comment"
-          if ! printf '%s\n' "$comment" | grep -q 'clang version' || printf '%s\n' "$comment" | grep -q 'GCC:'; then
-            echo "::error title=build::the interpreter was not compiled by clang"
-            exit 1
+          if [ "$RUNNER_OS" = Linux ]; then
+            comment=$(readelf -p .comment .libs/cocolog.o)
+            printf '%s\n' "$comment"
+            if ! printf '%s\n' "$comment" | grep -q 'clang version' || printf '%s\n' "$comment" | grep -q 'GCC:'; then
+              echo "::error title=build::the interpreter was not compiled by clang"
+              exit 1
+            fi
+          else
+            otool -L ./cocolog
           fi
           modules=
           for so in library/*.so; do so=${so#library/}; modules="$modules ${so%.so}"; done
           echo "modules:$modules"
+          if command -v swipl > /dev/null 2>&1; then against=$(swipl --version | cut -d' ' -f1-3); else against="no swipl"; fi
           {
-            echo "Built by $(clang --version | head -1), SBCL $(sbcl --version | cut -d' ' -f2), against $(swipl --version | cut -d' ' -f1-3)."
+            echo "Built by $(clang --version | head -1), SBCL $(sbcl --version | cut -d' ' -f2); $against."
             echo
             echo "Modules:$modules"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # the server finds its libraries through the installer's library path on
+      # Linux and through its own rpath (@executable_path/../lib) on a Mac,
+      # where nothing protected by SIP passes DYLD_LIBRARY_PATH on
       - name: Raise the ZiguratIP server on 2160
         id: server
         run: |
-          ( cd "$ZIGURATIP" && setsid env LD_LIBRARY_PATH="$ZIGURATIP_HOME/lib" \
-              "$ZIGURATIP_HOME/bin/ziguratip" > "$LOGS/ziguratip.log" 2>&1 < /dev/null & )
+          cd "$ZIGURATIP"
+          if command -v setsid > /dev/null 2>&1; then
+            setsid "$ZIGURATIP_HOME/bin/ziguratip" > "$LOGS/ziguratip.log" 2>&1 < /dev/null &
+          else
+            "$ZIGURATIP_HOME/bin/ziguratip" > "$LOGS/ziguratip.log" 2>&1 < /dev/null &
+          fi
+          cd - > /dev/null
           for _ in $(seq 60); do
             lsof -iTCP:2160 -sTCP:LISTEN > /dev/null 2>&1 && break
             sleep 1
@@ -207,7 +277,7 @@ jobs:
       - name: The suite (test/run.pl)
         id: suite
         if: ${{ !cancelled() && steps.server.outcome == 'success' }}
-        timeout-minutes: 120
+        timeout-minutes: 150
         run: ./cocolog -s test/run.pl 2>&1 | tee "$LOGS/suite.log"
 
       - name: The verdict (tools/ci/verdict.sh)
@@ -217,7 +287,7 @@ jobs:
           ./cocolog run test/run.pl \
             "cicili_names(A), pl_names(B), append(A, B, L), forall(member(X, L), (write(X), nl))" > "$LOGS/cases.txt"
           rc=0
-          sh tools/ci/verdict.sh "$LOGS/suite.log" "$LOGS/cases.txt" "$ALLOWED_SKIPS" \
+          sh tools/ci/verdict.sh "$LOGS/suite.log" "$LOGS/cases.txt" "${{ matrix.allowed_skips }}" \
             "$GITHUB_STEP_SUMMARY" "$LOGS/rerun.txt" || rc=$?
           if pgrep -x ziguratip > /dev/null; then
             echo "The ZiguratIP server was still up after the suite."
@@ -272,7 +342,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: ci-logs-${{ github.run_attempt }}
+          name: ci-logs-${{ matrix.os }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/logs
           retention-days: 14
           if-no-files-found: warn

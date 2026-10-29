@@ -420,15 +420,20 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 * **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
   every push to master and pull request into master (not one that changes
   only the top-level `*.md` or the Docker files), and by hand with Cicili's
-  and ZiguratIP's refs. A fresh ubuntu-24.04 runner (4 vCPU, 16 GB, NOT
-  root) installs by `install/install-linux.sh`, raises a server on 2160,
-  runs the lint case and then `test/run.pl`, and `tools/ci/verdict.sh` reads
-  every case's line: a red case, a case with no line, or a SKIP outside the
-  workflow's `ALLOWED_SKIPS` (tensors, the three torch cases, tensorflow,
-  ray, numpy, opencv: no library built there) is red. **A case that may now SKIP on a plain install goes
-  into `ALLOWED_SKIPS` in the same commit.** Each red case is run again alone
-  (its whole output: the runner keeps five FAIL lines and no SKIP reason),
-  and the logs are the run's artifact for 14 days.
+  and ZiguratIP's refs. Two jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
+  16 GB) by `install/install-linux.sh`, and macos-15 (Apple silicon, 3 CPUs,
+  7 GB) by `install/install-macos.sh` -- arm64, not the owner's Intel,
+  because Homebrew builds no Intel bottles since 2026-09 (sbcl would build
+  through ECL) and SBCL ships no x86-64 Darwin binary. Each raises a server
+  on 2160, runs the lint case and then `test/run.pl`, and
+  `tools/ci/verdict.sh` reads every case's line: a red case, a case with no
+  line, or a SKIP outside the job's `allowed_skips` (tensors, the three
+  torch cases, tensorflow, ray, numpy, opencv: no library built there; on
+  the Mac files and trace too, as no Mac package is the reference swipl
+  9.0.4 and the Mac has none) is red. **A case that may now SKIP on a plain
+  install goes into `allowed_skips` in the same commit.** Each red case is
+  run again alone (its whole output: the runner keeps five FAIL lines and
+  no SKIP reason), and the logs are the run's artifact for 14 days.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -7003,6 +7008,16 @@ than its cause:
 * **Shared objects and test binaries leave interpreter symbols undefined**:
   `tools/cc` adds `-Wl,-undefined,dynamic_lookup` to every Darwin link, and
   `COCO_WEAK`/`CE_WEAK` are `weak_import`.
+* **No makefile names a Homebrew path** (here or in ZiguratIP), and Apple's
+  clang searches `/usr/local` -- Homebrew's prefix on an Intel Mac -- but not
+  `/opt/homebrew`, Apple silicon's; `openssl@3` is keg-only on both. So
+  `install/install-macos.sh` exports `CPATH` and `LIBRARY_PATH` (openssl@3's
+  include and lib, then the prefix's) for its builds and prints them with its
+  other exports: a later `make` or `make test` wants them in the shell
+  (2026-10-29; before, an Apple silicon Mac found no `openssl/ssl.h`).
+* **There is no `timeout`**, which several cases run a child under: CI gives
+  the Mac coreutils' `gtimeout` under that one name, and leaves BSD `date`,
+  `wc` and `sed` as they are.
 * **There is no `/proc/self/exe`**: `lb_exedir` asks `_NSGetExecutablePath`;
   programs read `current_prolog_flag(executable, P)`.
 * **`make schema` dies in libc++** (`binary_function` removed): copy the home

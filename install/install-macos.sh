@@ -62,7 +62,20 @@ if [ "${WITH_NUMPY:-0}" = 1 ] || [ "${WITH_TORCH:-0}" = 1 ]; then
   py_floor python3
 fi
 if [ "${WITH_NUMPY:-0}" = 1 ]; then numpy_match; fi
-[ -f "$BREW/include/openssl/ssl.h" ] || say "warning: no openssl/ssl.h under $BREW/include -- try: brew link openssl@3"
+# HOMEBREW'S HEADERS AND LIBRARIES, FOR EVERY COMPILE AND LINK BELOW. Neither
+# this checkout's makefiles nor ZiguratIP's name a Homebrew path: they leave it
+# to the compiler's own search, and Apple's clang searches /usr/local --
+# Homebrew's prefix on an Intel Mac -- but not /opt/homebrew, its prefix on
+# Apple silicon. And openssl@3 is keg-only on both (Homebrew links no versioned
+# formula into its prefix), so unless it was `brew link'ed by hand its headers
+# were found nowhere. CPATH and LIBRARY_PATH are clang's own variables for
+# this: exported for the builds this script runs, and printed with the exports
+# at the end for the ones after it (make test builds test binaries too).
+OSSL=$(brew --prefix openssl@3 2>/dev/null) || OSSL=
+[ -f "$OSSL/include/openssl/ssl.h" ] || [ -f "$BREW/include/openssl/ssl.h" ] \
+  || say "warning: no openssl/ssl.h under ${OSSL:-$BREW}/include -- brew install openssl@3"
+CPATH="${OSSL:+$OSSL/include:}$BREW/include${CPATH:+:$CPATH}"; export CPATH
+LIBRARY_PATH="${OSSL:+$OSSL/lib:}$BREW/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"; export LIBRARY_PATH
 log_ok "$LOG.ziguratip" "$LOG.raylib" "$LOG.cocolog" "$LOG.schema"
 
 checkouts
