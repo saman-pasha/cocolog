@@ -1277,3 +1277,6 @@
 <e><p><l>vicious<s n="adj"/></l><r>vizioso<s n="adj"/></r></p></e>
 # `el operativo de limpieza se reveló descompensado': unbalanced, the participle of `squilibrare'
 <e><p><l>unbalance<s n="vblex"/></l><r>squilibrare<s n="vblex"/></r></p></e>
+# The Salou report (AnCora CESS-CAST-P-19990301-37): `muchos de los cuales han renunciado a visitar las playas' is
+# `molti dei quali hanno rinunciato a visitare le spiagge', and the Italian dictionary has the verb and no meaning
+<e><p><l>renounce<s n="vblex"/></l><r>rinunciare<s n="vblex"/></r></p></e>

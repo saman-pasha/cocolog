@@ -7577,6 +7577,362 @@ read into an English-worded IR and written into any lesson's language),
   `doctor') and `will be listened' (`heard'); and `Proceso para la muerta de Folino, a la niña atropellada' and `I
   process for the dead one' (20: a heading read as the first person of `processa'). The next sample's controls take
   these reports in.
+  The Spoleto faults (reasoning 1.0.24; cocolog stays 2.13.0; no new article). The three sentences of the Spoleto and
+  Torvaianica reports that both languages refused -- 1 (`38 Spoleto festival.'), 7 (`Bianca nera.') and 10 (`Per
+  difendere il fratello, Said, accusato di aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire sé
+  stesso e le parole dell'imputato.') -- fixed in code and data. The reports read 20 of 20 into Spanish and 16 of 20
+  into English on a fresh store, 17 and 14 with the new store alone, 19 and 15 with the new code on the old store, 17
+  and 14 before, and their sentences fall from 10.8 million inferences into Spanish and 10.9 into English to 8.4 and
+  8.5. English refuses 10 for the third person nobody names, on purpose, as it refuses 3, 4 and 17. Each rule has its
+  arm red (test/translate.pl's `spoleto_faults': 38 checks, 37 arms, 35 red in the section, one red in newspaper_lazio
+  and one guard of cost that stays green, below; lesson 46's section 87; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  spoleto_faults, checks_done"', two seconds a run).
+  A NUMBER, A NAME AND A NOUN ARE AN EDITION (`38 Spoleto festival.' heads the report on the festival's 38th edition,
+  `la 38-ma edizione del festival' the line after it: the paper writes the name before the noun in English's way, and a
+  count stands right before its noun, never before a name before it -- read as a count of festivals the heading had no
+  reading; tr_read0/4, the number the ordinal, its sign the noun's gender, `38º' or `38ª', the name the noun's phrase of
+  `of', and each writer says it as its own, `38º festival de Spoleto', `38th festival of Spoleto': two arms); A NAME OF
+  SEVERAL WORDS THE LESSON STATES IS A HEADING (`Bianca nera.' is the paper's column of crime news, before each report
+  of a crime, and it crosses as it stands, `"Bianca nera" is a name.': tr_stated_names/3 joins it into one word, and as
+  one word the heading had no reading, while read as its words it is a bare noun and an adjective, `Big house.', which
+  stays refused -- tr_verbless/3), a name the lesson states only (`Cuida de Tom.' joins as a name of two capitals and a
+  particle, and is a command: Tatoeba's 35 was copied as it stands in the first round) -- two arms; A PURPOSE IN FRONT
+  WITH ITS OBJECT, A NAME APPOSED TO IT AND A PARTICIPLE BETWEEN COMMAS (`Per difendere il fratello, Said, accusato di
+  aver investito e ucciso Sara Folino a Torvajanica, riesce a contraddire ...' -- to defend his brother Said, accused of
+  having run her over, he manages: the commas around the name go into the apposition before the reading, w(_, appos),
+  and refused, the shortest front was taken, `Per difendere' alone, and the brother was the one who manages; tr_read0/4,
+  tr_front_aside_comps/1), and a name after a participle or an infinitive is their object, never a name apposed to the
+  front's noun (`accusato di aver ucciso Sara, riesce a dormire' -- Sara is whom he killed: tr_front_name_apposed/2), a
+  word that is an adjective too among them (`dei cristiano democratici Casini, Mastella, D'Onofrio e del popolare
+  Sanza', it_9673_9712 16: `popolare' is also the infinitive of `popola', and with Sanza apposed `del popolare' was left
+  to read as the verb, `y Sanza ... del poblar' and `of the populating', where it is `y del popular Sanza' and `of the
+  popular Sanza' now) -- three arms; a city in a front is `in' (`a Torvajanica' is `en Torvajanica', and it_9947_9966
+  20's `a Roma' between commas `in Rome': tr_cities_in/2); THE PERSONAL MEANING REACHES THE OBJECT TWO PARTICIPLES SHARE
+  (`ha investito e ucciso Sara Folino' ran her over and killed her, where it was `ha invertido y matado':
+  tr_personal_obj/2), and an infinitive, a perfect one and a second participle with a person after it cross so too
+  (`vuole investire la ragazza', `accusato di aver investito e ucciso Sara Folino', crossed by the first meaning
+  `invertir a la niña' and `invested and killed': tr_personal_comp/3 in tr_cross_comps/2), inside a front as well, whose
+  complements travel as fr/1 -- six arms; THE WORD A PARTICIPLE TAKES BEFORE THE INFINITIVE AFTER IT (`accusato di aver
+  ucciso' is `acusado de haber matado', `"acusa" takes "de" before the infinitive.', and written bare it was `acusado
+  haber matado': the participle a list of complements has just written is noted, '$tr_last_pred', tr_note_pred/1, for a
+  predicate, a participle after its noun and one that agrees with the object, and none is noted as a clause starts,
+  tr_write/4; the clause's own verb takes its word where no participle stands before, tr_infx_lead/1, which gives
+  Italian's `permette ai cantanti di concentrarsi', `evitò di pronunciarsi' and `tentò di consolarlo', where the
+  infinitive with a pronoun joined to it had none), a denied infinitive with its word before the denial (`de no haber'),
+  and a word the source kept as a complement of its own before the infinitive written once (nprep/1,
+  tr_with_infx_kept/1) -- seven arms; English's `accused OF HAVING killed' (`accused to have killed' before:
+  en_prep_gerund/2, `accuses' and `suspects'), after the participle the participle's, and of the clause's own verb for
+  its first infinitive alone (`acusó a la mayoría de buscar por todos los medios hacer daño' is accused of seeking to do
+  harm, and the first round wrote `of searching of making', es_19981202-34 12) -- four arms; A QUOTATION THAT OPENS ON
+  THE INFINITIVE AFTER THE VERB'S OWN WORD OPENS THERE (`acusara a Millàs de "hacer trampa"' came out `di fare
+  trappola"' and `of making trap"' once the lesson said `"acusa" takes "de" before the infinitive.', found by the store
+  alone: qm/2 on inf/1 -- the infinitive stops the walk for an object of the verb, or the person was the indirect one,
+  `accusa al gatto' and `accuses to the cat', tr_verbal_comp/1 -- and the mark goes on the infinitive after the word its
+  writer put before it, asked before the infinitive is written, which sets the verb being written to its own,
+  tr_inf_lead_word/2) -- three arms; AN EMPHATIC REFLEXIVE HEADS THE WORDS BEFORE A COORDINATOR (`contraddire sé stesso
+  e le parole dell'imputato' is to contradict himself and the defendant's words, one object of two; `sé stesso' is a
+  pronoun of no role, and with nothing to head the words before `e' the split was refused and the sentence with it:
+  tr_headed/2) and is a person, which Spanish marks (`contradecir a sí mismo': tr_of_class/2) -- two arms; such a
+  pronoun is of two words, the pronoun and the word for `same' (tr_two_words/1), asked before the lexicon: a guard of
+  cost, below, whose arm stays green; TWO OBJECTS JOINED, ONE OF THEM A PERSON, TAKE THE PERSON'S WORD BEFORE THAT ONE
+  ALONE (`contradecir a sí mismo y las palabras del imputado' -- asked of the pair, neither took it: tr_comp_out/7),
+  never before a name (`tempi e Modi della terapia' was `tiempos y a Modi', it_9450_9464 10, found by the controls) nor
+  before a phrase whose noun is left out, which is of the class of the other one and alone of any (`vede due stanche e
+  tre gatti' was `ve a dos cansadas', which the Lazio section's guard found in the whole case: its arm is red there) --
+  three arms; a pronoun a coordinator joins to a phrase after it is one object of two (`vede lui e il gatto' sees him
+  and the cat, and taken alone the pronoun left `e il gatto' to read as nothing: tr_pronoun_joined/2), and a personal
+  pronoun of English's IR is a person (`ve a él y al gato') -- two arms; and English writes a participle after a name
+  apposed to its noun as the source has it (`the brother, Said, accused of having killed her', where it was `the accused
+  brother, Said, of having killed': tr_np_out/5).
+  It needed these WORDS in `extra/': Italian `"Bianca nera" is a name.' and `"accusa" takes "di" before the
+  infinitive.', Spanish `"acusa" takes "de" before the infinitive.'. No first meaning and no writer's first word moved,
+  and none was lost.
+  THE CONTROLS (cocolog 2.13.0, store KB268, 120 count files, 3 278 sentences: the earlier set with the two reports in,
+  it_9205_9224, both directions): the last version's translator against this one, on the one store, 17 sentences read
+  differently, all better -- the five of the reports, Italian's `di' before an infinitive with a pronoun joined to it
+  (5: `gli permetterebbe di dedicarsi', `permette ai cantanti di concentrarsi', `evitò di pronunciarsi', `si occupò di
+  mostrargli', Tatoeba's `Lei tentò di consolarlo'), English's `accused Aznar of launching', `accused Millàs of "making
+  trap"' and `accuses you of making' and Italian's `accusava Millàs di "fare trappola"' (4), `in Rome' (it_9947_9966 20)
+  and `del popular Sanza' and `of the popular Sanza' (it_9673_9712 16, 2) -- and the inferences fall 0.052 % (8 487 227
+  077 to 8 482 795 922) and rise 0.0040 % outside the reports (8 465 513 101 to 8 465 852 648): every sentence rises but
+  four, by 48 inferences at the median, +0.035 % of the sentences under 0.1 million and +0.0014 % of those over 10
+  million, the largest it_9999_10010 8 (+4 764 of 394.7 million in each language); it_9673_9712 16 falls 9 400 in each.
+  Bytes and characters read every sentence alike (0 differ, the bytes 0.008 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB265, against this one on the new): 15 sentences, the 17 less the three that the old
+  store already read so, and Spanish's `os acusa de hacer' (it_9714_9749 7), -0.053 % and +0.0040 % outside the reports.
+  THE CODE ALONE (this translator on KB265): 12 sentences, all better, +0.0040 % outside the reports; Spanish's `acusado
+  de haber' and `Bianca nera.' need the new lines. THE STORE ALONE (the last version's translator on KB265 and on
+  KB268): 4 sentences, one better (`"El Olivo os acusa de hacer', it_9714_9749 7) and three worse, which the code above
+  mends -- the old reader took `de' and its infinitive for a phrase of `of', and with `"acusa" takes "de" before the
+  infinitive.' it read the verb's word and wrote `accused Aznar to launch' (es_20000903-30 21) and, the quotation's
+  opening mark lost, `accused Millàs to make trap"' and `accusava Millàs di fare trappola"' (es_20020301-125 4); -0.0004
+  %. KB268 is taught from the same vocabulary as the KB267 of the first rounds, and the last version's translator reads
+  both alike, to the unit.
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the probes, and mended,
+  each with its arm red: `Cuida de Tom.' (Tatoeba's 35, a name heading), `tiempos y a Modi' (it_9450_9464 10), `of
+  searching of making' (es_19981202-34 12), `ve a dos cansadas' (the Lazio guard) and the lost mark of `de "hacer
+  trampa"' (above). The first round also narrowed the apposed name's guard to keep the old text of it_9673_9712 16,
+  which the final rounds read as better without it. A STORE DOES NOT SURVIVE A SECTION: the second round's last three
+  sentences and its count of the reports were void, because a run of the sections with `--embed KB267' wrote their hand
+  lessons into the store; the round was taken again on a fresh KB268, and a section is run with no store.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (28 control sentences of 0.1 to 2 million inferences picked at
+  random, 14 from each language, into English, over a copy of the library per rule): the first cut of the emphatic
+  reflexive took the clitic `se' for one, and four sentences rose 77 000 inferences each (`se ne trova un'altra' split
+  at its `e'), where three others fell 42 000 to 87 000, a split that failed at once, every text the same; with the
+  clitic kept out, the 28 sentences rose 3 598 inferences (+0.034 %), 2 507 of them the emphatic reflexive's two rules,
+  which asked the lexicon of every phrase of one word and of every phrase's noun. The two-word test first leaves +1 481
+  (+0.014 %), of which the emphatic person rule is 302, the personal meaning in the complements 195, English's gerund
+  after `accused' 138, the emphatic head 88 and the reset of the noted participle 63, no other rule over 50; a list of
+  the reflexive lexemes made once a generation saved 57 of the 2 507 and was taken out.
+  THE STATED COSTS: the inferences, +0.0040 % outside the reports; English's `it is' after the subject's relative clause
+  in it_9673_9712 16 (`... D'Onofrio and of the popular Sanza, it is to have made'); and a lesson's emphatic reflexive
+  of one word is none (no lesson states one).
+  The reports LEAVE, of the three: English's `38th festival of Spoleto' (`the 38th Spoleto festival'); `Bianca nera.'
+  crosses as it stands, its name untranslated, as the paper's column has one; and 10 into Spanish, `al hermano' (`a su
+  hermano') and `consigue contradecir a sí mismo y las palabras del imputado' (`logra contradecirse a sí mismo'). What
+  the Spoleto record says the reports leave stays as it is. The next sample's controls take this fix in.
+  The Salou report (AnCora CESS-CAST-P-19990301-37, 21 sentences, the paper's report on the bombs on the beaches of the
+  Costa Daurada, Spanish into Italian and English: 21 of 21 and 19 of 21 on a fresh store, 16 and 14 with the new store
+  alone, 9 and 9 with the new code on the old store, 8 and 9 before; reasoning 1.0.25). The sample was taken on the
+  cocolog 2.14.1 binary, master's e2239ea merged as bd5188f and built with Cicili 9b825b7 from a copy, and cocolog stays
+  2.14.1: the binaries of 2.13.0 and 2.14.1 give the same texts and counts to the unit on the controls (3 278 sentences,
+  0 differ, 8 482 795 922 inferences on both); master's 9c1c838 to bb80ca6 (test cases for the Apple silicon CI and
+  documentation, no change to the binary or the library) came during the sample and are not merged, and the next sample
+  takes them. The article's sentences fall from 67.6 million inferences into Italian and 67.3 into English to 37.7 and
+  37.1, of which the fifteenth is 12.2 million in each. English refuses 5 and 17 for the third person nobody names, on
+  purpose (`La mujer asegura que ha cambiado sus hábitos' names nobody in its clause of `that', and `las negativas
+  consecuencias que pudiera tener' nobody in its relative clause).
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_salou': 54 checks, 58 arms, all red in
+  the section; an arm is a library directory of symlinks whose reasoning/translate.pl is the edited copy,
+  `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'), newspaper_salou, checks_done"', two seconds a
+  run): THE FIRST PERSON OF AN IMPERFECT OR A CONDITIONAL IS SPELLED AS ITS THIRD, and the subject pronoun says which
+  (`Yo bajaba cada día a pasear a los perros' is I went down, and read as the third person with `yo' beside it the
+  clause had no reading: tr_form0/5, under '$tr_first'; Tatoeba's `Yo os amaba', `Yo no quería el trabajo' and `que yo
+  creía' read with it, which were refused); a denied clause whose subject says `more' denies in its subject (`No
+  aparecen más artefactos' is no more devices appear, where it was `more devices do not appear': tr_write/4); `more' and
+  a noun are a determiner and its noun, never a preposition and its phrase (`que haya más bombas enterradas', where the
+  word was read as `plus': tr_determiner_before_noun/3), and `more' and a plural noun after a verb that takes an object
+  are the object, the word the lesson's determiner (`Pondrán más explosivos' was `They will put more explosive', the
+  comparative of the adjective), the word read as the adverb before a bare noun too, the adverb anywhere among the
+  complements, where the reader moves it last, and the noun right after it in the words (`reclaman más ayudas para
+  asegurar su futuro' and `darle más libertad a tu hijo' were `demand helps to ensure their future more' and `give
+  freedom to your son more', found by the controls: tr_more_noun/4) -- three arms; the beach and the sand are what one
+  is on (en_on_noun/1) -- two arms; `until' is a connector (en_connector/1), the denial right after it denies nothing
+  (`hasta que no se haya resuelto el caso' is until it has been solved, as Italian's `a meno che non' is unless:
+  tr_unless_word/1), and the impersonal `se' with a thing after its verb is the passive in the perfect too, where it was
+  `until one has resolved the case' (tr_se_passive/2) -- three arms; an infinitive after the copula takes its meaning
+  with no object, the phrase before it the copula's (`Es una locura bajar a la playa' is to GO DOWN, and with `una
+  locura' taken for the infinitive's object it was `to drop': tr_cross_inf_comps/3); `must' in the past with a perfect
+  infinitive is `should have' (`debían haber avisado a la población', where it was `had to have warned': tr_write/4);
+  THE VERB OF RESULTING, A PARTICIPLE AND A PHRASE AFTER IT ARE THE PHRASE AND ITS PREDICATE (`resultó herido el
+  artificiero de la Guardia Civil' -- read as an absolute clause after a verb with nobody named, the expert was what the
+  injury left: tr_results_subject/5), the phrases of `of' with it (tr_fo_of_run/3), and English writes it as the
+  participle's passive, never `turned out injured' (`también resultaron heridas' were also injured, `se reveló
+  descompensado' was unbalanced: tr_write/4) -- three arms; the phrase after the infinitive of `upon' that the lesson
+  calls intransitive is its subject (`al estallarle una bomba colocada en la arena' is a bomb exploding, and read as its
+  object English wrote `on bursting him a placed bomb on the sand': upons/3, tr_upon_subject/4); the impersonal `se'
+  with a person warned is English's passive (`no se les hubiera alertado', `si se hubiera advertido a la gente' --
+  written as read, `one had not alerted them': tr_write/4, en_person_passive/1); a relative clause set off after two
+  phrases joined hangs on both (`el Ayuntamiento de Salou y la policía, que conocían las amenazas' -- the plural clause
+  disagrees with the last phrase, and read as its object relative the threats knew the police: tr_coord_rc_fix/4), and
+  one after the phrases of `of' of a plural head, its verb in the plural, hangs on the head (`los artificieros de la
+  Guardia Civil y del Ejército que han peinado las playas' -- hung on the Army, the clause took the beaches for its
+  subject: tr_with_number/2) -- two arms; the doer right after the verb of a clause with a front is its subject (`en
+  Cala Crancs juegan familias enteras en la arena' is whole families playing, and read with nobody named it was `they
+  play whole families': tr_front_doer_fix/6); a phrase after the verb of a comment at the end of its clause, with nobody
+  named, is its subject (`..., como indicaban los anónimos' is as the letters indicated: tr_cmt_subject_fix/2); a day
+  the source names by `the day' and its number is the ordinal in English (`la bomba del día 21' is the bomb of the 21st,
+  where `the day 21' was written: tr_np_out/5, tr_day_number/2), as when `on' it (`murió el día 13', and the controls'
+  `la mañana del día 1' the morning of the 1st: tr_comp_out/7), and a participle and the day after it are no absolute
+  clause (`el jubilado fallecido el día 13 al manipular un artefacto', where the day lost its `on': tr_day_label/1) --
+  three arms; the main clause of a condition in the pluperfect is the conditional perfect (`si se hubiera advertido a la
+  gente ..., no hubiera muerto aquel anciano' is that old man would not have died, where it was `had not died':
+  tr_counterfactual/3); `hace' and a time after the verb is `ago', the time read as the verb's and the word for `ago'
+  after it (`echó en cara hace una semana a Esteve Ferran' was `reproached a week to Esteve Ferran ago', and the
+  controls' `vent'anni fa, nella direzione del "giornale"' was `twenty years ... ago' at the end: tr_ago_phrase/2); a
+  verb of reproaching takes the person bare before its clause of `that' (`echó en cara ... a Esteve Ferran ... que no se
+  hubiese alertado', where it was `reproached to Esteve Ferran': tr_comps_out/7, en_person_that/1), and the clause after
+  the person may open on a denial and the pronouns of its verb (`han recriminado a las autoridades que no se les hubiera
+  alertado', which read as the authorities' relative clause: tr_clause_after_person/1) -- two arms; a participle in the
+  subject's phrase of `of' takes the phrase after it (`algunos habitantes de las localidades incluidas en la campaña de
+  amenazas' -- with the campaign the inhabitants', English wrote `the included localities in the campaign':
+  tr_inner_participle_adjunct/2); `last' and `first' stand before the count in English (`en las últimas tres semanas',
+  where it was `the three last weeks', and the controls' `the last two years': tr_np_out/5, en_order_adjective/1); a
+  demonstrative after the verb and the noun after it are one subject (`no hubiera muerto aquel anciano' is that old man,
+  and read as the pronoun `aquel' for the subject the noun was left for a predicate: tr_demonstrative_subject/4); A
+  WOMAN'S POSSESSIVE IS `her' (`La mujer asegura que ha cambiado sus hábitos', where the lesson's first meaning wrote
+  `his', and the controls' `stretta alla sua tata' of a daughter: tr_female_possessor/1, '$tr_poss', tr_cross_det/2),
+  and a husband's (`Marta Toledo, ..., y su marido' is her husband: tr_cross_np/2) -- three arms; a determiner the
+  lesson says takes the indefinite takes it (`voy a otro sitio' is `vado in un altro luogo' (`"altro" takes the
+  indefinite.'), where it was `altro luogo', and the controls' `appoggiare a un'altra candidatura', `In un'altra
+  partita', `un altro albergo': tr_det_out/6); a determiner in the singular loses its ending where the lesson states its
+  apocope (`no han localizado ningún artefacto' is `nessun dispositivo', where it was `nessuno dispositivo', and
+  Spanish's `cualquier' is the short form of `cualquiera': tr_det_form/6, tr_det_apocope/3); a name the lesson gives a
+  meaning has the gender the lesson states of it (`en los Alpes' is `nelle Alpi', and with Spanish's masculine it was
+  `negli Alpi': tr_crossed_name_gender/2); a quotation that closed on a subject set last closes where the clause ends
+  (the passive writes the case first, and the mark stayed on it, `until the case" has been resolved': tr_write/4); a
+  word that is a person's noun and an adjective, after the comma that closes a subject set after the verb, is what the
+  subject is (`sostiene Rebeca López, vecina de Cala Crancs' -- read as the adjective it was `maintains, neighbouring of
+  Cala Crancs': tr_person_appos/2); a name with what it is set between commas, after a verb of saying with nobody named,
+  is the speaker -- the commas made the name an aside and the verb's object, and English refused it (tr_aside_speaker/2)
+  -- and the place apposed to the apposition's last phrase is the speaker's too (`vecina de Cala Crancs, el lugar donde
+  ...': tr_appos_tail/1) -- two arms; an item of a list with its bracket is an item (`las playas de Tarragona, Salou
+  (Tarragonès) y Cambrils (Baix Camp)' -- with the bracket the comma stayed the clause's, and the sentence was refused:
+  tr_bare_tail/4), and a bracket right after a name that ends a relative clause is the name's, never the phrase's with
+  its clause, which kept the clause from the head it hangs on (tr_np/3) -- two arms; a bare plural is a speaker (`según
+  explicaron fuentes de los turoperadores de la zona', and with a determiner asked for the comment was refused:
+  tr_report_subject/5); a thing's reflexive is the passive with its phrases of `of' too (`que las explosiones de Salou
+  no se vincularan con una actuación terrorista', where it was `did not link': tr_thing_phrase/1); a name and its
+  relative clause before a colon are a heading (`Todo lo contrario de Rebeca, que augura:' is quite the opposite of
+  Rebeca, who predicts it -- the clause was one of `that' with nobody named, which English refuses: tr_verbless0/3), and
+  so is a phrase whose phrase of `of' has the name and its clause -- two arms; a person's name after a phrase that ends
+  on capitals the lesson knows is apposed as it is after a comma (`el artificiero de la Guardia Civil Luis Marfil' --
+  with the capitals run together the phrase had no reading: tr_np/3); a word a quotation mark closes on keeps its
+  pronouns (`hacerlo"' was a word no lesson knows: tr_enclitics/3), a mark on an infinitive the clause ends on closes
+  where the clause ends, never after the verb group (tr_vq_close/4), the mark is no first complement, so the verb
+  crosses by its meaning before an infinitive, `intends' (tr_front_comp/1), and `makes' with nothing made is `does', its
+  pronoun `it' (`"No pienso hacerlo"' is I do not intend to do it: tr_write/4) -- four arms; a group after a verb of
+  warning is its object, marked as a person is (`debían haber avisado a la población' should have warned it, and read as
+  a phrase of `to' English wrote `warned to the population', and the controls' `Advirtió a sus antiguos socios', `avisó
+  a Ibarretxe', `previno a los suyos': tr_warned_group/3), and after the infinitive of one, read with the modal's group
+  (tr_warned_infinitive/2) -- two arms; and a verb before an infinitive with the word it takes crosses by its meaning
+  there (`han renunciado a visitar las playas' have GIVEN UP, where it was `renounced to visit', and the controls'
+  `cercherò di illustrare' I will try to illustrate: tr_verb_across/5), English's `gives up' taking the gerund
+  (en_gerund_verb/1), after the word too -- three arms. Three rules of the first cut changed nothing in the article, the
+  section or the controls, their arms green, and are gone: a bracket in a list of words, a bracket after the last name
+  of a bare list and an English determiner `more' for a denial.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Spanish `anónimo' (an
+  anonymous letter, the noun: the dictionary has the adjective alone), `artificiero' (a bomb disposal expert, a person:
+  the dictionary has the word and no meaning), `patronato de turismo' (a tourist board), `turoperador' (a tour
+  operator), `viuda' (a widow, where the first was the widower), `vecino' and `vecina' (persons), `anciano' (an old man,
+  the noun, a person), `artefacto' (a device, before the artefact), `arena' (the sand, before the arena), `a raíz de'
+  (as a result of), `con anterioridad' (beforehand), `piensa' (thinks said again first, and intends before an
+  infinitive), `baja' (drops said again first, and goes down with no object), `pasea' (strolls with no object, and
+  walks), the name `Costa Daurada', `echa en cara' (reproaches, with its forms, taking the clause), `hasta que' (until),
+  `todo lo contrario' (quite the opposite), `poco probable' (unlikely), `toca' (touches, before plays), `queja'
+  (complains, reflexive, taking the clause and `de' before it), `población' (a group), `desde entonces' (since then),
+  `"resuelve"', `"justifica"' and `"vincula" take the passive.', `"reina"' and `"aparece" are intransitive.', `renuncia'
+  (renounces said again first, and gives up before an infinitive), the determiner `más' (more), `"recrimina" takes the
+  clause.', `autoridad' (a person), `"marta" is a name.', `manifiesta' (states, before manifests), the name `alpes' (the
+  Alps) and `estalla' (explodes, intransitive); Italian `estorsione' (extortion, said before `concussione', a public
+  official's), `artificiere' (a bomb disposal expert, a person), `ente turistico' and `operatore turistico', `lettera
+  anonima', `anziano' (elderly said again first, and an old man), `allarme' (the writer's first was `avvisatore', an
+  alarm device), `in seguito a', `in anticipo', `scende' (descends said again first, and goes down with no object),
+  `bar' (the writer's first was `barra', a rod), `accade' (happens said again first, and occurs: the writer's first was
+  `occorrere', to be needed), `muore' (the writer's first was `decedere'), `riferimento' (the writer's first was
+  `benservito', a dismissal), `finché' (until), `tutto il contrario', `da allora', `vicino' and `vicina' (persons),
+  `rinuncia' (renounces, and gives up before an infinitive, with `a' before it), `altro' and `altra' (take the
+  indefinite), `autorità' (a person), the name `alpi' (the Alps, feminine), `esplosione' (the writer's first was
+  `deflagrazione', a word of chemistry) and `esplode' (explodes, intransitive); and in the dictionaries' extras
+  `renounce' (`rinunciare': the Italian dictionary has the verb and no meaning) and, read only, `return' (`volver': the
+  dictionary gives it only verbs of two English words, which the builder takes none of), `reproach' (`recriminar'),
+  `manage' (`regentar'), `predict' (`augurar') and `pensioner' (`jubilado'). The first meaning moved for 10 Spanish
+  words and 2 Italian ones (Spanish `anciano' an old man, `anónimo' an anonymous letter, `arena' the sand, `artefacto' a
+  device, `baja' drops, `manifiesta' states, `pasea' walks, `renuncia' renounces, `toca' touches, `viuda' a widow;
+  Italian `artificiere' a bomb disposal expert, `esplosione' an explosion), the writer's first word for 6 Spanish
+  meanings and 8 Italian ones (Spanish unlikely `poco probable', device `artefacto', drops `baja', reproaches `echa en
+  cara', states `manifiesta', walks `pasea'; Italian beforehand `in anticipo', alarm `allarme', bar `bar', explosion
+  `esplosione', extortion `estorsione', reference `riferimento', dies `muore', occurs `accade'), and none was lost.
+  THE CONTROLS (cocolog 2.14.1, store KB274, 120 count files, 3 278 sentences: the earlier set with the Spoleto faults
+  in, both directions; this report is not among them): the last version's translator against this one, on the one store,
+  29 sentences in 18 files read differently, all better but two that are no better -- `un altro' and `un'altra' (5:
+  `appoggiare a un'altra candidatura', `un'altra brillante pietra miliare', `In un'altra partita', `un altro albergo',
+  and Kallon's `un altro tempo' for `otra vez', as wrong as the `altro tempo' it was), the person warned bare (3: `They
+  warned his ancient associates', `they warned Ibarretxe', `warned the theirs ones'), `were also injured' and `was
+  unbalanced', `the last two years', `the morning of the 1st', `the steps that should have given', `twenty years ago' in
+  its place, `who says satisfied', `her babysitter', `I will try to illustrate' and `intentaré ilustrar', and Tatoeba's
+  `I loved you', `I did not want the job' and `You are simply not the person that I believed', read for the first time
+  in both languages, `on the beach', `give more freedom to your son' and `più libertà al tuo figlio', and `nessun
+  problema' -- and Tatoeba's `Tom said that I seemed wearied very', read where it was refused, the other one no better.
+  The inferences fall 1.267 % (8 490 790 587 to 8 383 235 662), 0.432 % outside the twenty sentences that fall by over a
+  million, every one of them Italian and its text the same (the Venice report's fourth 124.6 million to 114.2 in each
+  language, Tempi's twentieth 517.8 to 507.4 and the Rognoni interview's nineteenth 361.0 to 358.0, both refused,
+  Salvini's tenth 4.7 to 0.9); 2 947 sentences rise, by 279 inferences at the median, the largest the Venice report's
+  eighth (+0.11 million of 394.8) and the Lord of the Rings' third and eleventh (+0.10 of 13.7 and of 30.4). Bytes and
+  characters read every sentence alike (0 differ, the bytes 0.008 % more). The DATA COLUMN (the last version's
+  translator on its own store, KB268, against this one on the new): 57 sentences, the code's 29 and the store's 28,
+  -1.174 % (8 482 795 922 to 8 383 235 662). THE CODE ALONE (this translator on KB268): 22 sentences, every one among
+  the 29, -1.271 % (to 8 375 003 041); the seven left need the new lines (`"altro" takes the indefinite.', the
+  determiner `más'). THE STORE ALONE (the last version's translator on KB268 and on KB274): 28 sentences, +0.094 % (to 8
+  490 790 587), each a word of the report's lines, all better but the five of the stated costs below -- `stated' and
+  `dichiarò' for `manifestó' (7, where it was `manifested'), `accaduti', `accadrà', `accadendo', `esplosioni', `morire',
+  `morì', `morirono', `morto' and `morti' where Italian wrote `occorsi', `occorrerà', `occorrendo', `deflagrazioni',
+  `decedere', `decedette', `decedettero', `deceduto' and `avere deceduto' (11), `nude' (`appeared nude', where it was
+  `nudes'), Spanish `bajar' for `scendere' (2, where it was `descender'), and Tatoeba's `We should return soon' and
+  `Dovremmo ritornare presto', read for the first time.
+  THE FIRST ROUND'S REGRESSIONS, found by reading the texts of every column and mended. Of the store (the store alone,
+  KB273, 45 sentences): the Italian determiner `più', which a line made for the writer of `más bombas', read `non lo
+  vide più nessuno' as more of nobody (`más ninguno', and `Oggi non ce n'è rimasto più nessuno' was `Today no more no
+  has remained it'), and `a chi più guadagna' lost its adverb (`the one that earns ... more more'); the writer finds
+  `più' as the adverb's word with no line, and the line is out; `accade' as occurs, said first, made `come è accaduto'
+  `how has it occurred' and English refused it and the garrisons' sentence of it_9781_9791 (`come, peraltro, accadde in
+  passato'), and happens is said again first now; and the verb of walking a dog, `portare a spasso', said for `pasear a
+  los perros', was the writer's word for every walk (`Me gusta andar en tren' was `Mi piace portare a spasso in treno'),
+  and is out. Of the code (the one store): `más' read as an adverb before its noun, which the reader moves last, made
+  `reclaman más ayudas para asegurar su futuro' and `darle más libertad a tu hijo' `demand helps ... more' and `give
+  freedom to your son more' (tr_more_noun/4 now takes the adverb anywhere, the noun right after it in the words: an arm
+  red); and of the whole case, two older expectations written in the old English: `The dogs had to have eaten the
+  bread.' is `... should have eaten ...' (in both files) and `The dog warns to the coaches that ...' is `The dog warns
+  the coaches that ...'.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the five sentences of the code's second round that rose most on
+  the one store, three from Spanish and two from Italian, into English, over a copy of the library per rule on KB274):
+  they rose 4.05 million inferences of 47.60 (+8.5 %), and two rules were all of it -- the bare plural speaker, 4.48
+  million (Kallon's sentence, es_20011002-160 13, 1.54; Rimac's, es_20001201-176 12, 0.86; the Middle Ages' thirteenth,
+  it_9967_9998 13, 1.63; Venice's ninth, it_9999_10010 9, 0.45: the phrase was read at every place a speaker could
+  begin, `los argentinos Guglielminpietro (Milan) y Vivas (Arsenal), los turcos ...', `jugadores que asumieron la
+  responsabilidad ...', `teorie pagane sulla rotondità della terra e la rappresentavano ...'), and the name after an
+  institution, 0.46 million (`un violín llamado Ex Von Szerdahely VieuxTemps', es_20010202-169 4, 1.37 million where it
+  was 0.98) -- no other rule over 0.01 million. What paid was the cheap questions first: the bare plural speaker holds
+  no comma, no bracket or aside, no relative clause and no verb, has no name right after its noun, its noun is no
+  adjective, and no speaker begins right after a determiner, inside the phrase it opens; the name's capitals come right
+  after a determiner, as an institution's do. The three sentences that rose most after that (the poor's fifth,
+  it_9637_9672 5, `vivono 6 milioni e 458 mila poveri', 0.39 million of 2.36; es_20010102-25 2, `con tres explosiones',
+  0.20; es_20010103-85 14, `provistos de dos camiones', 0.20) were the same rule, the phrase read after a count, and no
+  speaker begins after a count either. Without the questions the section is green as well (it was so before they were
+  written), as it is for a guard of cost. The five then stand at 46.69 million, 1.9 % under the last version's, and the
+  three at 3.797, 0.07 % over it, every text the same.
+  THE STATED COSTS: the store's intransitive `baja', `reina' and `pasea', which the report needs (`Yo bajaba cada día a
+  pasear a los perros', `en la zona reina la tranquilidad'), cost three sentences of the controls a reading for nothing,
+  the texts the same, each found by learning its line alone into the old store: `Bajo la dirección de Bertrand de Billy,
+  ...' 1.87 million inferences in each language (0.75 to 2.62: `bajo' is the first person of the verb too, and the long
+  phrase after it is asked for its subject), `esa reina destronada y saliente' 1.0 million of 10.5 and `cuando paseaba
+  en la zona de La Recoleta' 0.37 of 0.49; the reflexive `queja' makes `"No hay derecho", se quejó' a third person
+  nobody names, which English refuses on purpose, where it was `one complained'; Tatoeba's `Volveré a llamar a las dos y
+  media', `Creo que deberíamos volver a Boston' and `Tom dijo que yo parecía muy cansado', refused before, read now and
+  wrong (`I will return to call the two and a half ones', `I believe that we should return Boston' and Italian
+  `rimettere Boston', `I seemed wearied very'): `volver' is read now, a dictionary line read only, with no word for
+  `again' before an infinitive, and `a Boston' is the `a' of a person, which a line `"vuelve" is intransitive.' did not
+  change; a first meaning that serves the news and not every text -- `toca' touches (`toca la guitarra' plays it),
+  `arena' the sand, `artefacto' a device, `manifiesta' states, `anónimo' an anonymous letter, `anciano' an old man --
+  and the writer's `artefacto' for a device (where it was `aparato'), `pasea' for walks (`anda'), `echa en cara' for
+  reproaches, `poco probable' for unlikely and `manifiesta' for states, and Italian's `esplosione', `allarme',
+  `riferimento', `muore', `accade', `in anticipo', `bar' and `estorsione'; and the inferences, -1.267 % on the one
+  store, +0.094 % for the store alone.
+  The report LEAVES, of the 21 into Italian: `non gli avvertiva del rischio dopo ricevere le lettere anonime' (1: `li
+  avvertisse', the subjunctive written as an indicative and the object as a dative, and `dopo aver ricevuto'); `nelle
+  tre ultime settimane' and `molti di cui' (2: `nelle ultime tre settimane', `molti dei quali'; English's order rule is
+  English's alone); `non pretendo farlo' (4: the writer's word for intends, `ha intenzione di'), `ritornato' (a woman
+  speaks), `esplodendo una bomba disposta nella sabbia' (`quando gli è esplosa una bomba collocata sulla sabbia') and
+  `Guardia Civile'; `a camminare ai cani' (5: `a portare a spasso i cani'); `spagnolo d'origine peruviana' (7:
+  `spagnola', an apposition keeps no gender) and `anche' last; `finché si è risolto il caso' (8: `finché non si sarà
+  risolto', the expletive `non' and the future perfect); `Anche si lamenta che' (9: `Si lamenta anche del fatto che');
+  `nella sabbia' and `potette' (10: `sulla', `poté'); `non ha variato' (11: `non è cambiato'); `dovessero avere
+  avvertito' (14: `avrebbero dovuto avvisare'); `Se si era avvertito alla gente che non toccavano oggetti sospettosi'
+  (15: `Se si fosse avvertita la gente di non toccare oggetti sospetti') and `manipolando un dispositivo' (`mentre
+  maneggiava un ordigno'); `inizialmente' last (17); `Il rotante britannico' (18: `rotativo' is a daily paper, `il
+  quotidiano'), `fecero sapere degli accadimenti' (`informarono degli avvenimenti') and `gli dedicarono' (`vi
+  dedicarono'); `non si allacciavano con' (19: `non fossero collegate a'); and `credono inverosimile che ci sono più
+  bombe' (21: `ci siano'); of the 19 into English: `many of which' (2: whom); `the danger that they ran beforehand' (3:
+  `beforehand' last); `on a bomb placed on the sand exploding' (4: when a bomb placed on the sand exploded); `spaniard'
+  and `they manage a bar and they have also taken precautions' (7: a Spaniard, the subject said again); `One also
+  complains' (9: she, the reflexive read as the impersonal `se'); `the tranquillity reigns' (11: all is calm); `The Town
+  council of Salou' (14); `affirm David' and `the pensioner died on the 13th on manipulating a device that had found'
+  (15: David affirms, who died, that he had found); `that one had not alerted of the danger' (16: that no warning had
+  been given of it); `The rotary British The Times ... reported of the events, although they did not devote him
+  excessive space' (18: the British daily, reported on, devote it); and `The managers of the research believe unlikely
+  that' (21: those in charge of the investigation believe it unlikely). The next sample's controls take this report in.
 
 ## Tutorials are documentation that runs
 

@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16618 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16619 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -435,6 +435,7 @@ The adverb "curiosamente" means "curiously".
 The conjunction "che" means "than".
 The feminine noun "tangente" means "bribe".
 The feminine noun "procura" means "prosecution".
+The feminine noun "estorsione" means "extortion".
 The feminine noun "concussione" means "extortion".
 The masculine adjective "economico" means "economic". The feminine adjective "economica" means "economic".
 The masculine noun "procuratore" means "prosecutor". "procuratori" is the plural of "procuratore".
@@ -3387,6 +3388,43 @@ The verb "muove i primi passi" means "takes the first steps".
 "mosso i primi passi" is the participle of "muove i primi passi".
 "dottore" is a title.
 The adverb "poco prima" means "shortly before".
+"Bianca nera" is a name.
+"accusa" takes "di" before the infinitive.
+The masculine noun "artificiere" means "bomb disposal expert".
+"artificiere" is a person.
+The masculine noun "ente turistico" means "tourist board".
+"enti turistici" is the plural of "ente turistico".
+The masculine noun "operatore turistico" means "tour operator".
+"operatori turistici" is the plural of "operatore turistico".
+The feminine noun "lettera anonima" means "anonymous letter".
+"lettere anonime" is the plural of "lettera anonima".
+The masculine noun "anziano" means "elderly".
+The masculine noun "anziano" means "old man".
+The masculine noun "allarme" means "alarm".
+The preposition "in seguito a" means "as a result of".
+The adverb "in anticipo" means "beforehand".
+The verb "scende" means "descends".
+The intransitive verb "scende" means "goes down".
+The masculine noun "bar" means "bar".
+The verb "accade" means "happens".
+The verb "accade" means "occurs".
+The verb "muore" means "dies".
+The masculine noun "riferimento" means "reference".
+The conjunction "finché" means "until".
+The masculine noun "tutto il contrario" means "quite the opposite".
+The adverb "da allora" means "since then".
+"vicino" is a person.
+"vicina" is a person.
+The verb "rinuncia" means "renounces".
+The infinitival verb "rinuncia" means "gives up".
+"rinuncia" takes "a" before the infinitive.
+"altro" takes the indefinite.
+"altra" takes the indefinite.
+"autorità" is a person.
+The name "alpi" means "Alps".
+The feminine noun "esplosione" means "explosion".
+"alpi" is feminine.
+The intransitive verb "esplode" means "explodes".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -27882,6 +27920,58 @@ The verb "squilibra" means "unbalances".
 "squilibrate" is the plural of "squilibrata".
 "squilibrare" is the infinitive of "squilibra".
 "squilibrando" is the gerund of "squilibra".
+The verb "rinuncia" means "renounces".
+"rinunciano" is the plural of "rinuncia".
+"rinunciamo" is the first person of "rinunciano".
+"rinuncio" is the first person of "rinuncia".
+"rinunci" is the second person of "rinuncia".
+"rinunciò" is the past of "rinuncia".
+"rinunciarono" is the past of "rinunciano".
+"rinunciammo" is the first person of "rinunciarono".
+"rinunciaste" is the second person of "rinunciarono".
+"rinunciai" is the first person of "rinunciò".
+"rinunciasti" is the second person of "rinunciò".
+"rinunciava" is the imperfect of "rinuncia".
+"rinunciavano" is the imperfect of "rinunciano".
+"rinunciavamo" is the first person of "rinunciavano".
+"rinunciavate" is the second person of "rinunciavano".
+"rinunciavo" is the first person of "rinunciava".
+"rinunciavi" is the second person of "rinunciava".
+"rinuncerà" is the future of "rinuncia".
+"rinunceranno" is the plural of "rinuncerà".
+"rinunceremo" is the first person of "rinunceranno".
+"rinuncerete" is the second person of "rinunceranno".
+"rinuncerò" is the first person of "rinuncerà".
+"rinuncerai" is the second person of "rinuncerà".
+"rinuncerebbe" is the conditional of "rinuncia".
+"rinuncerebbero" is the plural of "rinuncerebbe".
+"rinunceremmo" is the first person of "rinuncerebbero".
+"rinuncereste" is the second person of "rinuncerebbero".
+"rinuncerei" is the first person of "rinuncerebbe".
+"rinunceresti" is the second person of "rinuncerebbe".
+"rinunci" is the subjunctive of "rinuncia".
+"rinuncino" is the plural of "rinunci".
+"rinunciamo" is the first person of "rinuncino".
+"rinunciasse" is the past subjunctive of "rinuncia".
+"rinunciassero" is the plural of "rinunciasse".
+"rinunciassimo" is the first person of "rinunciassero".
+"rinunciaste" is the second person of "rinunciassero".
+"rinunciassi" is the first person of "rinunciasse".
+"rinunciassi" is the second person of "rinunciasse".
+"rinuncia" is the imperative of "rinuncia".
+"rinunciare" is the negative imperative of "rinuncia".
+"rinunciate" is the imperative of "rinunciano".
+"rinunciamo" is the hortative of "rinuncia".
+"rinunciato" is the participle of "rinuncia".
+"rinunciata" is the participle of "rinuncia".
+"rinunciata" is feminine.
+"rinunciati" is the participle of "rinuncia".
+"rinunciati" is the plural of "rinunciato".
+"rinunciate" is the participle of "rinuncia".
+"rinunciate" is feminine.
+"rinunciate" is the plural of "rinunciata".
+"rinunciare" is the infinitive of "rinuncia".
+"rinunciando" is the gerund of "rinuncia".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
