@@ -3718,3 +3718,82 @@ The reflexive verb "pone a trabajar" means "sets to work".
 # `Quindi tenete duro': aguantad, hold out (its own first meaning said again first)
 "aguanta" means "holds".
 The verb "aguanta" means "holds out".
+# The New Year's Eve report (AnCora CESS-CAST-P-20010103-85, Spanish into Italian and English): the words it needs.
+# `el accidentado fin de fiesta de Nochevieja', `el sarao transcurrió de forma "intensa y alegre"': a celebration --
+# the dictionary's party is the political one to the Italian writer (`Después de la fiesta' was `Dopo il partito')
+The feminine noun "fiesta" means "celebration".
+"fiestas" is the plural of "fiesta".
+The masculine noun "sarao" means "celebration".
+"saraos" is the plural of "sarao".
+# `la concesionaria FCC': the contractor (the dictionary has `concesionario' the adjective and the dealer)
+The feminine noun "concesionaria" means "contractor".
+"concesionarias" is the plural of "concesionaria".
+# `dos barredoras': sweepers, the machines (`dos máquinas barredoras' is the adjective, extra/eng-spa.dix)
+The feminine noun "barredora" means "sweeper".
+"barredoras" is the plural of "barredora".
+# `a la vista de los numerosos hurtos': in view of them (where it was `from the sight of')
+The preposition "a la vista de" means "in view of".
+# `Al margen de los incidentes': apart from them (`aparte de' said again first, so that it stays the one written)
+"aparte de" means "apart from".
+The preposition "al margen de" means "apart from".
+# `el operativo de limpieza': the operation, a noun (it was read as the adjective, `the operative one'; `operación' said
+# again first, so that it stays the word written for one)
+The feminine noun "operación" means "operation".
+The masculine noun "operativo" means "operation".
+"operativos" is the plural of "operativo".
+# `el operativo de limpieza se reveló descompensado': turned out unbalanced (the plain `reveals' said first, so that
+# `revelar el nombre' stays it; as `results' it was the word written for every `risulta', `se me revela')
+The verb "revela" means "reveals".
+The reflexive verb "revela" means "turns out".
+# `la llegada del grueso de las brigadas': the bulk of them (where it was the thickness)
+The masculine noun "grueso" means "bulk".
+# `La falta de agentes hasta última hora': until the last moment
+The adverb "hasta última hora" means "until the last moment".
+# `el plan funcionó según lo previsto': as planned
+The adverb "según lo previsto" means "as planned".
+# `En la práctica, los trabajadores llegaron escalonadamente': in practice
+The adverb "en la práctica" means "in practice".
+# `El accidentado fin de fiesta de Nochevieja': eventful, the adjective (the dictionary's `rugged', of ground, which
+# Italian has no word for; `movido' said again first, so that it stays the word written for eventful)
+The masculine adjective "movido" means "eventful".
+The feminine adjective "movida" means "eventful".
+The masculine adjective "accidentado" means "eventful".
+The feminine adjective "accidentada" means "eventful".
+# `cubierta de botellas rotas utilizadas como arma': broken, the adjective of the participle (read as the participle,
+# the bottles took no second one, `utilizadas', after it)
+The masculine adjective "roto" means "broken".
+The feminine adjective "rota" means "broken".
+# `La concejala de Seguridad y Movilidad': a councilwoman (the dictionary's `alderwoman', which Italian has no word for)
+The feminine noun "concejala" means "councilwoman".
+"concejalas" is the plural of "concejala".
+"concejala" is a person.
+# `se agravó por la nula presencia de agentes': worsened, its reflexive (the dictionary's `aggravates')
+The reflexive verb "agrava" means "worsens".
+# `la limpieza no se activó': activated (before the dictionary's `actuates')
+The verb "activa" means "activates".
+# `cuando ésta se desalojase': the past subjunctive in `-se', which the dictionary gives for reading only and the
+# builder leaves out
+"desalojase" is the past subjunctive of "desaloja".
+# `agentes del Cuerpo Nacional de Policía': the police force's name
+"cuerpo nacional de policía" is a name.
+# `A través de emisoras de radio': radio stations (where they were `stations of radio')
+The feminine noun "emisora de radio" means "radio station".
+"emisoras de radio" is the plural of "emisora de radio".
+# `la recogida también se vio afectada', `dos camiones de recogida': the collection, a noun (the dictionary has the
+# participle of `recoger' alone, and `la recogida' had no reading)
+The feminine noun "recogida" means "collection".
+"recogidas" is the plural of "recogida".
+# `cuando ésta se desalojase': a thing's reflexive is the passive, `when it was evacuated'
+"desaloja" takes the passive.
+# `La falta de agentes hasta última hora': a lack, before a phrase of `de' with no determiner (translate.pl); the
+# dictionary's `fault' said again first, so that it stays the noun's meaning elsewhere (`faltas graves'), and `culpa'
+# before it, so that it stays the word written for a fault (`e che colpa abbiamo' was `qué falta tenemos')
+The feminine noun "culpa" means "fault".
+The feminine noun "falta" means "fault".
+The feminine noun "falta" means "lack".
+# `la Guardia Urbana solicitó en vano la presencia de la policía': in vain, one adverb (read as `en' and the adjective
+# `vano', it was a phrase of `in' with its noun left out, which Italian could not write)
+The adverb "en vano" means "in vain".
+# `los operarios llegaron': workers (`trabajador' said again first, so that it stays the word written for one: the
+# lavoratori autonomi were `operarios autónomos')
+The masculine noun "trabajador" means "worker".

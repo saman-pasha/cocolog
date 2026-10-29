@@ -5017,3 +5017,56 @@ The verb "tiene duro" means "holds out".
 "tenete duro" is the imperative of "tengono duro".
 # `costa il 30 per cento in meno del primo': less
 The adverb "in meno" means "less".
+# The New Year's Eve report (AnCora CESS-CAST-P-20010103-85, Spanish into Italian and English): the words its Italian
+# needs written. `Después de la fiesta', `el sarao transcurrió': a celebration is `festa' (said first: the writer's
+# word for it was `celebrazione', and for the party the dictionary gives `festa', the political `partito' is first)
+The feminine noun "festa" means "celebration".
+"feste" is the plural of "festa".
+# `dos barredoras', `dos máquinas barredoras': sweepers, the machines, and sweeping (the dictionary has the person
+# alone, `spazzino')
+The feminine noun "spazzatrice" means "sweeper".
+"spazzatrici" is the plural of "spazzatrice".
+The feminine adjective "spazzatrice" means "sweeping".
+# `a la vista de', `hasta última hora', `según lo previsto', `en la práctica', `el grueso de': the words for them
+The preposition "alla luce di" means "in view of".
+The adverb "fino all'ultimo momento" means "until the last moment".
+The adverb "come previsto" means "as planned".
+The adverb "in pratica" means "in practice".
+The masculine noun "grosso" means "bulk".
+# `solicitó en vano la presencia de la policía': in vain (the dictionary gives `invano' for reading only, and writes
+# `in inutile')
+The adverb "invano" means "in vain".
+# `agentes del Cuerpo Nacional de Policía': agents (the dictionary's `officer' said again first, so that it stays
+# the reader's; the writer's agent was `concessionario', a dealer)
+The noun "agente" means "officer".
+The noun "agente" means "agent".
+# `se agravó': worsened, its reflexive (`si aggravò'; `peggiora' said again first, so that it stays the word written
+# for worsens: `potrebbe peggiorare le cose' was `aggravare')
+The verb "peggiora" means "worsens".
+The reflexive verb "aggrava" means "worsens".
+# `el sarao transcurrió de forma "intensa y alegre"', `Pásame el cuchillo': passes is `passa' (the dictionary's only
+# verb for `passes' was `transita', which wrote `la festa transitò'); its `happens' said again first, so that it stays
+# the reader's (as `trascorre', said first, it was `Trascorrimi il coltello', and the Italian `trascorre le ferie' passed
+# them in English)
+The verb "passa" means "happens".
+The verb "passa" means "passes".
+# `A través de emisoras de radio': radio stations
+The feminine noun "stazione radio" means "radio station".
+"stazioni radio" is the plural of "stazione radio".
+# `la limpieza no se activó': activates (the dictionary's `actuates' after it)
+The verb "attiva" means "activates".
+# `botellas rotas utilizadas como arma': broken, the adjective of the participle
+The masculine adjective "rotto" means "broken".
+The feminine adjective "rotta" means "broken".
+# `de forma "intensa y alegre"': cheerful (the dictionary's first is an adjective `allegre' of no gender, which wrote
+# `in modo allegre')
+The masculine adjective "allegro" means "cheerful".
+The feminine adjective "allegra" means "cheerful".
+# `la recogida también se vio afectada': the collection, of waste (the writer's was `collezione', an art collection)
+The feminine noun "raccolta" means "collection".
+"raccolte" is the plural of "raccolta".
+# `por el accidente de un camión de basuras': an accident (the writer's was `accidente', a stroke of bad luck)
+The masculine noun "incidente" means "accident".
+# `el operativo de limpieza se reveló descompensado': turned out (`si rivelò'; the plain `reveals' said first)
+The verb "rivela" means "reveals".
+The reflexive verb "rivela" means "turns out".

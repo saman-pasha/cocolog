@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/italian.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16615 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 16618 dictionary entries from
 # apertium/apertium-eng-ita and apertium/apertium-ita (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/italian.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- italian. A line beginning # is a comment.
@@ -3280,6 +3280,35 @@ The verb "tiene duro" means "holds out".
 "tenere duro" is the infinitive of "tiene duro".
 "tenete duro" is the imperative of "tengono duro".
 The adverb "in meno" means "less".
+The feminine noun "festa" means "celebration".
+"feste" is the plural of "festa".
+The feminine noun "spazzatrice" means "sweeper".
+"spazzatrici" is the plural of "spazzatrice".
+The feminine adjective "spazzatrice" means "sweeping".
+The preposition "alla luce di" means "in view of".
+The adverb "fino all'ultimo momento" means "until the last moment".
+The adverb "come previsto" means "as planned".
+The adverb "in pratica" means "in practice".
+The masculine noun "grosso" means "bulk".
+The adverb "invano" means "in vain".
+The noun "agente" means "officer".
+The noun "agente" means "agent".
+The verb "peggiora" means "worsens".
+The reflexive verb "aggrava" means "worsens".
+The verb "passa" means "happens".
+The verb "passa" means "passes".
+The feminine noun "stazione radio" means "radio station".
+"stazioni radio" is the plural of "stazione radio".
+The verb "attiva" means "activates".
+The masculine adjective "rotto" means "broken".
+The feminine adjective "rotta" means "broken".
+The masculine adjective "allegro" means "cheerful".
+The feminine adjective "allegra" means "cheerful".
+The feminine noun "raccolta" means "collection".
+"raccolte" is the plural of "raccolta".
+The masculine noun "incidente" means "accident".
+The verb "rivela" means "reveals".
+The reflexive verb "rivela" means "turns out".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
@@ -27723,6 +27752,58 @@ The verb "impenna" means "soars".
 "impennate" is the plural of "impennata".
 "impennare" is the infinitive of "impenna".
 "impennando" is the gerund of "impenna".
+The verb "squilibra" means "unbalances".
+"squilibrano" is the plural of "squilibra".
+"squilibriamo" is the first person of "squilibrano".
+"squilibro" is the first person of "squilibra".
+"squilibri" is the second person of "squilibra".
+"squilibrò" is the past of "squilibra".
+"squilibrarono" is the past of "squilibrano".
+"squilibrammo" is the first person of "squilibrarono".
+"squilibraste" is the second person of "squilibrarono".
+"squilibrai" is the first person of "squilibrò".
+"squilibrasti" is the second person of "squilibrò".
+"squilibrava" is the imperfect of "squilibra".
+"squilibravano" is the imperfect of "squilibrano".
+"squilibravamo" is the first person of "squilibravano".
+"squilibravate" is the second person of "squilibravano".
+"squilibravo" is the first person of "squilibrava".
+"squilibravi" is the second person of "squilibrava".
+"squilibrerà" is the future of "squilibra".
+"squilibreranno" is the plural of "squilibrerà".
+"squilibreremo" is the first person of "squilibreranno".
+"squilibrerete" is the second person of "squilibreranno".
+"squilibrerò" is the first person of "squilibrerà".
+"squilibrerai" is the second person of "squilibrerà".
+"squilibrerebbe" is the conditional of "squilibra".
+"squilibrerebbero" is the plural of "squilibrerebbe".
+"squilibreremmo" is the first person of "squilibrerebbero".
+"squilibrereste" is the second person of "squilibrerebbero".
+"squilibrerei" is the first person of "squilibrerebbe".
+"squilibreresti" is the second person of "squilibrerebbe".
+"squilibri" is the subjunctive of "squilibra".
+"squilibrino" is the plural of "squilibri".
+"squilibriamo" is the first person of "squilibrino".
+"squilibrasse" is the past subjunctive of "squilibra".
+"squilibrassero" is the plural of "squilibrasse".
+"squilibrassimo" is the first person of "squilibrassero".
+"squilibraste" is the second person of "squilibrassero".
+"squilibrassi" is the first person of "squilibrasse".
+"squilibrassi" is the second person of "squilibrasse".
+"squilibra" is the imperative of "squilibra".
+"squilibrare" is the negative imperative of "squilibra".
+"squilibrate" is the imperative of "squilibrano".
+"squilibriamo" is the hortative of "squilibra".
+"squilibrato" is the participle of "squilibra".
+"squilibrata" is the participle of "squilibra".
+"squilibrata" is feminine.
+"squilibrati" is the participle of "squilibra".
+"squilibrati" is the plural of "squilibrato".
+"squilibrate" is the participle of "squilibra".
+"squilibrate" is feminine.
+"squilibrate" is the plural of "squilibrata".
+"squilibrare" is the infinitive of "squilibra".
+"squilibrando" is the gerund of "squilibra".
 The verb "alberga" means "houses".
 "albergano" is the plural of "alberga".
 "alberghiamo" is the first person of "albergano".
@@ -111480,6 +111561,22 @@ The adjective "possente" means "mighty".
 "possentissime" is the superlative of "possenti".
 The adjective "milanese" means "milanese".
 "milanesi" is the plural of "milanese".
+The masculine adjective "attrezzato" means "equipped".
+"attrezzati" is the plural of "attrezzato".
+The feminine adjective "attrezzata" means "equipped".
+"attrezzate" is the plural of "attrezzata".
+"attrezzatissimo" is the superlative of "attrezzato".
+"attrezzatissimi" is the superlative of "attrezzati".
+"attrezzatissima" is the superlative of "attrezzata".
+"attrezzatissime" is the superlative of "attrezzate".
+The masculine adjective "vizioso" means "vicious".
+"viziosi" is the plural of "vizioso".
+The feminine adjective "viziosa" means "vicious".
+"viziose" is the plural of "viziosa".
+"viziosissimo" is the superlative of "vizioso".
+"viziosissimi" is the superlative of "viziosi".
+"viziosissima" is the superlative of "viziosa".
+"viziosissime" is the superlative of "viziose".
 The masculine adjective "diverso" means "diverse".
 "diversi" is the plural of "diverso".
 The feminine adjective "diversa" means "diverse".

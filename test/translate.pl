@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -16689,6 +16689,149 @@ newspaper_figli_checks_3 :-
 %% (`"amigo" is a person.') or animate (`"gato" is animate.'; the vocabularies state a hundred animals
 %% so). Two doers, or none, are read as they were. A name that goes on (`Maria Lopez', `Maria y Omar')
 %% is not read this way: the phrase reader ends a bare name at its first word.
+newspaper_noche :-
+    section('a Spanish report on New Year''s Eve in Plaza de Catalunya, into Italian and English: at five, between two hours, in the morning, one o''clock, either, in a cheerful manner, a participle between dashes, covered with, used as a weapon, a participle after a comma that is the phrase''s or the subject''s, on a circle being generated, could not be eaten, equipped with, everything after the copula, the reflexive of seeing as a passive, asks somebody for something, another 20, even before a bare subject, for lack of, of a form after a phrase, a verb alone between dashes'),
+    newspaper_noche_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_noche_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_noche_checks_1, newspaper_noche_checks_2, newspaper_noche_checks_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_noche_lesson(L, Text) :-
+    newspaper_figli_lesson(L, A), newspaper_noche_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+%% the fifteenth part of each hand lesson
+newspaper_noche_part(spanish, 'The intransitive verb "llega" means "arrives". "llegan" is the plural of "llega". "llegó" is the past of "llega". "llegaron" is the past of "llegan". The masculine noun "operario" means "worker". "operarios" is the plural of "operario". "operario" is a person. The number "dos" means "two". The feminine noun "mañana" means "morning".
+The adverb "tampoco" means "neither". The adverb "tampoco" means "either". The feminine noun "forma" means "form". The feminine noun "manera" means "manner". The adjective "alegre" means "cheerful". The verb "desborda" means "overwhelms". "desbordado" is the participle of "desborda". "desbordada" is the participle of "desborda". "desbordada" is feminine. The feminine noun "guardia" means "guard". The adjective "urbana" means "urban".
+The verb "cubre" means "covers". "cubierta" is the participle of "cubre". "cubierta" is feminine. "cubiertos" is the participle of "cubre". "cubiertos" is the plural of "cubierto". The feminine noun "cubierta" means "deck". The verb "llena" means "fills". "llenada" is the participle of "llena". "llenada" is feminine. The feminine noun "botella" means "bottle". "botellas" is the plural of "botella". The feminine noun "plaza" means "square". The feminine noun "arma" means "weapon". The verb "utiliza" means "uses". "utilizadas" is the participle of "utiliza". "utilizadas" is feminine. "utilizadas" is the plural of "utilizada". "utilizada" is feminine.
+The verb "genera" means "generates". "generar" is the infinitive of "genera". The masculine noun "círculo" means "circle". The word "al" begins the moment. "al" is the contraction of "a el".
+The modal "puede" means "can". "pudo" is the past of "puede". "comer" is the infinitive of "come". The masculine adjective "provisto" means "equipped". "provistos" is the plural of "provisto". The adjective "listo" means "ready". The pronoun "todo" means "everything". The pronoun "todo" does not precede the verb.
+The verb "afecta" means "affects". "afectada" is the participle of "afecta". "afectada" is feminine. The masculine noun "accidente" means "accident". The feminine noun "limpieza" means "cleaning". The verb "pide" means "asks". The preposition "ante" means "in front of". The masculine noun "despliegue" means "deployment". The adverb "incluso" means "even". The masculine noun "representante" means "representative". "representantes" is the plural of "representante". "representante" is a person. The adjective "municipal" means "municipal". "municipales" is the plural of "municipal". The verb "muestra" means "shows". "muestran" is the plural of "muestra". "mostraron" is the past of "muestran".
+"vio" is the past of "ve". The feminine noun "desaprobación" means "disapproval". The masculine determiner "otro" means "other". "otros" is the plural of "otro". The verb "trabaja" means "works". The masculine noun "profesor" means "teacher". "profesor" is a person. The feminine noun "falta" means "fault". The feminine noun "falta" means "lack".').
+newspaper_noche_part(italian, 'The intransitive verb "arriva" means "arrives". "arrivano" is the plural of "arriva". "arrivò" is the past of "arriva". "arrivarono" is the past of "arrivano". "è" is the auxiliary of "arriva". The masculine noun "lavoratore" means "worker". "lavoratori" is the plural of "lavoratore". "lavoratore" is a person. The number "due" means "two". The feminine noun "mattina" means "morning".
+The adverb "neanche" means "neither". The masculine noun "modo" means "manner". The masculine adjective "allegro" means "cheerful". The feminine adjective "allegra" means "cheerful". The verb "sopraffà" means "overwhelms". "sopraffatto" is the participle of "sopraffà".
+The verb "copre" means "covers". "coperta" is the participle of "copre". "coperta" is feminine. "coperto" is the participle of "copre". "coperti" is the participle of "copre". "coperti" is the plural of "coperto". "all''" is the elision of "alla". "alle" is the contraction of "a le". The feminine noun "bottiglia" means "bottle". "bottiglie" is the plural of "bottiglia". The feminine noun "piazza" means "square". The feminine noun "arma" means "weapon". The verb "usa" means "uses". "usate" is the participle of "usa". "usate" is feminine. "usate" is the plural of "usata". "usata" is feminine.
+The verb "genera" means "generates". "generare" is the infinitive of "genera". "generando" is the gerund of "genera". The masculine noun "circolo" means "circle".
+The modal "può" means "can". "potè" is the past of "può". "mangiare" is the infinitive of "mangia". The masculine adjective "attrezzato" means "equipped". "attrezzati" is the plural of "attrezzato". The adjective "pronto" means "ready". The pronoun "tutto" means "everything".
+The verb "colpisce" means "affects". "colpita" is the participle of "colpisce". "colpita" is feminine. The masculine noun "incidente" means "accident". The feminine noun "pulizia" means "cleaning". The verb "chiede" means "asks". The preposition "davanti a" means "in front of". The masculine noun "dispiegamento" means "deployment". The adverb "persino" means "even". The masculine noun "rappresentante" means "representative". "rappresentanti" is the plural of "rappresentante". "rappresentante" is a person. The adjective "municipale" means "municipal". "municipali" is the plural of "municipale". The verb "mostra" means "shows". "mostrano" is the plural of "mostra". "mostrarono" is the past of "mostrano".
+"vide" is the past of "vede". The feminine noun "disapprovazione" means "disapproval". The adjective "continua" means "continuous".').
+
+newspaper_noche_checks_1 :-
+    nf_tr('Los operarios llegaron a las cinco.', spanish, english, N1),
+    check('AN HOUR AFTER `TO'' IS `at'', WITH NO ARTICLE: `llegaron a las cinco'' arrived AT FIVE, and English wrote `to the five'' (en_clock/2)', N1,
+          'The workers arrived at five.'),
+    nf_tr('Los operarios llegaron entre las 4.30 y las cinco de la mañana.', spanish, english, N2),
+    check('... AND TWO HOURS AFTER `AMONG'' ARE `between'' THEM: `entre las 4.30 y las cinco'', where it was `between the 4.30 and the five'', the pair''s `between'' coming first -- and the part of the day after an hour is said with its own preposition, IN the morning (en_day_part/2)', N2,
+          'The workers arrived between 4.30 and five in the morning.'),
+    nf_tr('Los operarios llegaron a la una.', spanish, english, N3),
+    check('`LA UNA'' IS ONE O''CLOCK: the article `a'' after the article `the'' is the first hour, which the count did not take, so `entre la una y la 1.30 de la madrugada'' had no first half and the sentence was refused (one/1, tr_cross_num/2)', N3,
+          'The workers arrived at one.'),
+    nf_tr('Los operarios llegaron a la una.', spanish, italian, N4),
+    check('... and the lesson''s feminine article for `a'' writes it, elided as before a noun: `all''''una'', which came out `alla una'' (tr_the_before_one/2)', N4,
+          'I lavoratori arrivarono all''una.'),
+    nf_tr('I lavoratori arrivarono tra l''una e le due.', italian, spanish, N5),
+    check('... and Spanish''s `un'', the number one, is not what it writes: `la un'' (tr_np_out/5)', N5,
+          'Los operarios llegaron entre la una y las dos.'),
+    nf_tr('Los operarios llegaron entre la una y la 1.30.', spanish, italian, N6),
+    check('... and a time in digits beside it keeps the hour''s gender: the noun of `la 1.30'' is no gender to give the count, which came out `il si'' (tr_np_out/5)', N6,
+          'I lavoratori arrivarono tra l''una e l''1.30.'),
+    nf_tr('El perro tampoco duerme.', spanish, english, N7),
+    check('`TAMPOCO'' IS `NOT ... EITHER'': `Tampoco ayudó el dispositivo'' did not help either, and English wrote `Neither the dog sleeps'' (tr_write/4)', N7,
+          'The dog does not sleep either.'),
+    nf_tr('El perro duerme de forma alegre.', spanish, english, N8),
+    check('`DE FORMA'' AND AN ADJECTIVE SAY HOW: `el sarao transcurrió de forma "intensa y alegre"'' went off in an intense and cheerful manner, and English wrote `of cheerful form'' (tr_comp_out/7)', N8,
+          'The dog sleeps in a cheerful manner.'),
+    nf_tr('El perro duerme de forma alegre.', spanish, italian, N9),
+    check('... and the Italian writer `in modo'', where it wrote `di forma''', N9,
+          'Il cane dorme in modo allegro.'),
+    nf_tr('El perro - - desbordado - - duerme.', spanish, english, N10),
+    check('A PARTICIPLE ALONE BETWEEN TWO DASHES: `la Guardia Urbana - - desbordada - - solicitó en vano la presencia de la policía'' -- overwhelmed, it asked in vain; the one word between the dashes had no reading (tr_asides/3)', N10,
+          'The dog – overwhelmed – sleeps.'),
+    nf_tr('La guardia urbana - - desbordada - - duerme.', spanish, english, N11),
+    check('... after an adjective too, the last word of the phrase (tr_dash_phrase_end/1)', N11,
+          'The urban guard – overwhelmed – sleeps.').
+
+newspaper_noche_checks_2 :-
+    nf_tr('La plaza estaba cubierta de botellas.', spanish, english, N12),
+    check('A PHRASE OF `of'' AFTER A PASSIVE WHOSE VERB ENGLISH WRITES WITH ONE IS THE VERB''S: `la plaza estaba cubierta de botellas rotas'' was covered WITH them, and English wrote `covered of'' (tr_of_passive/4)', N12,
+          'The square was covered with bottles.'),
+    nf_tr('Los perros comen el pan de la plaza, cubierta de botellas.', spanish, english, N13),
+    check('... and after a predicate a comma sets off (tr_of_pred/2)', N13,
+          'The dogs eat the bread of the square, covered with bottles.'),
+    nf_tr('Los perros comen el pan de la plaza, llenada de botellas.', spanish, english, N13b),
+    check('... and after a participle between commas that is the phrase''s, a reduced relative (tr_phrase_aside/4, tr_ptc_governed/4)', N13b,
+          'The dogs eat the bread of the square, filled with bottles.'),
+    nf_tr('La plaza estaba cubierta de botellas utilizadas como arma.', spanish, english, N14),
+    check('A PHRASE OF `like'' WITH NO DETERMINER RIGHT AFTER A PARTICIPLE IS THE PARTICIPLE''S: `botellas utilizadas como arma'' are bottles used as a weapon, and the phrase stood after the noun, `used bottles like weapon'' (tr_like_participle/2)', N14,
+          'The square was covered with bottles used as a weapon.'),
+    nf_tr('El perro come pan como arma.', spanish, english, N15),
+    check('`COMO'' AND A PHRASE WITH NO DETERMINER SAY IN WHAT ROLE: `as a weapon'', where English wrote `like weapon'' (tr_comp_out/7)', N15,
+          'The dog eats bread as a weapon.'),
+    nf_tr('Pedro trabaja como profesor.', spanish, english, N16),
+    check('... and a person''s role takes no article', N16,
+          'Pedro works as teacher.'),
+    nf_tr('Los perros comen el pan de la plaza, cubierta de botellas.', spanish, italian, N17),
+    check('A PARTICIPLE AFTER A COMMA THAT AGREES WITH THE PHRASE OF A PREPOSITION, AND NOT WITH THE SUBJECT, IS SAID OF THAT PHRASE: the square is covered, and agreeing with the subject Italian wrote `coperti'' (tr_pred_after_phrase/4, phagr/0)', N17,
+          'I cani mangiano il pane della piazza, coperta di bottiglie.'),
+    nf_tr('Los perros llegaron a las cinco de la mañana, provistos de pan.', spanish, italian, N18),
+    check('... AND AN ADJECTIVE AFTER A COMMA THAT AGREES WITH THE SUBJECT, AND NOT WITH THE PHRASE, IS THE SUBJECT''S: `debían llegar entre las 4.30 y las cinco de la mañana, provistos de dos camiones'' -- the workers are equipped, and agreeing with the morning Italian wrote `attrezzata'' (tr_adj_subject_comma/3, suagr/0)', N18,
+          'I cani arrivarono alle cinque della mattina, attrezzati di pane.'),
+    nf_tr('Los perros llegaron, provistos de pan.', spanish, english, N19),
+    check('AN ADJECTIVE THAT ENGLISH SAYS WITH `with'' TAKES ITS PHRASE OF `of'' SO: `equipped with'', where it was `equipped of'' (tr_comps_out/7)', N19,
+          'The dogs arrived, equipped with bread.'),
+    nf_tr('El perro duerme al generarse un círculo.', spanish, english, N20),
+    check('`AL'' AND AN INFINITIVE WITH ITS REFLEXIVE PRONOUN JOINED AND A PHRASE AFTER IT: `La situación se complicó al generarse un círculo vicioso'' -- on a vicious circle being generated; the words had no reading (uponse/3)', N20,
+          'The dog sleeps on a circle being generated.'),
+    nf_tr('El perro duerme al generarse un círculo.', spanish, italian, N21),
+    check('... and a lesson with no word for the moment writes its gerund with the pronoun joined', N21,
+          'Il cane dorme generandosi un circolo.'),
+    nf_tr('El pan no se pudo comer.', spanish, english, N22),
+    check('THE REFLEXIVE BEFORE THE MODAL WITH A THING FOR ITS SUBJECT IS THE MODAL''S PASSIVE: `el tráfico no se pudo normalizar'' could not BE normalised, where English wrote `could not normalise'' (tr_modal_se_fix/3)', N22,
+          'The bread could not be eaten.'),
+    nf_tr('Pedro no se pudo lavar.', spanish, english, N23),
+    check('... and a person''s stays his own (tr_doer_np/1)', N23,
+          'Pedro could not wash.').
+
+newspaper_noche_checks_3 :-
+    nf_tr('Estaba todo listo.', spanish, english, N24),
+    check('THE WORD FOR `everything'' RIGHT AFTER THE COPULA IS ITS SUBJECT: `porque estaba todo sembrado de desperdicios rotos'' -- because everything was strewn with them; read with nobody named English refused it (tr_all_copula_fix/3, every/1)', N24,
+          'Everything was ready.'),
+    nf_tr('Estaba todo listo.', spanish, italian, N25),
+    check('... which Italian writes in front, `Tutto era pronto''', N25,
+          'Tutto era pronto.'),
+    nf_tr('La limpieza se vio afectada por el accidente.', spanish, english, N26),
+    check('THE REFLEXIVE OF THE VERB OF SEEING AND A PARTICIPLE IS A PASSIVE: `la recogida también se vio afectada por el accidente'' was affected by it, which Spanish says as it saw itself affected; read as it stood, the sentence had no reading or saw itself (tr_see_passive/2)', N26,
+          'The cleaning was affected by the accident.'),
+    nf_tr('La limpieza también se vio afectada por el accidente.', spanish, english, N27),
+    check('... with the adverbs before the participle the clause''s', N27,
+          'The cleaning was also affected by the accident.'),
+    nf_tr('El gato pide pan a Pedro.', spanish, english, N28),
+    check('`ASKS'' FOR SOMETHING OF SOMEBODY IS `ASKS SOMEBODY FOR IT'': `El Ayuntamiento ha pedido un informe a la concesionaria FCC'' asked the contractor for a report, where English wrote `asked for a report to the contractor'' (tr_comps_out/7)', N28,
+          'The cat asks Pedro for bread.'),
+    nf_tr('Otros 20 perros duermen.', spanish, english, N29),
+    check('`OTHER'' BEFORE A COUNT IS `ANOTHER'': `Otros 20 operarios'' are another 20 workers (tr_det_out/6)', N29,
+          'Another 20 dogs sleep.'),
+    nf_tr('Ante el despliegue, incluso representantes municipales mostraron su desaprobación.', spanish, english, N30),
+    check('THE WORD FOR `even'' THAT ENDS THE FRONT, RIGHT BEFORE A SUBJECT WITH NO DETERMINER, IS SAID OF THE SUBJECT: `Ante el pobre despliegue, incluso representantes municipales ... mostraron su desaprobación'', where English wrote `even,'' between commas of its own -- and the subject inside it owns what its possessive names, `their'' (tr_focus_subject/3, tr_plural_possessor/1)', N30,
+          'In front of the deployment, even municipal representatives showed their disapproval.'),
+    nf_tr('El perro come por falta de pan.', spanish, english, N31),
+    check('A NOUN THAT CAN SAY A LACK SAYS IT BEFORE A PHRASE OF `of'' WITH NO DETERMINER: `La falta de agentes hasta última hora'' is the lack of agents, where `falta'' is a fault first (tr_relational_np/3)', N31,
+          'The dog eats for lack of bread.'),
+    nf_tr('El perro duerme en un momento de forma alegre.', spanish, english, N32),
+    check('`DE FORMA'' AND AN ADJECTIVE AFTER A PHRASE OF A PREPOSITION ARE THAT PHRASE''S: `Navarro, en un momento de forma excepcional, se encargó'' is in a moment of exceptional form, and as the manner it was `in a moment in an exceptional manner'' (tr_form_of_phrase/2, nform/1)', N32,
+          'The dog sleeps in a moment of cheerful form.'),
+    nf_tr('El perro duerme en un momento de forma alegre.', spanish, italian, N33),
+    check('... in Italian too, where it was `in un momento in modo allegro''', N33,
+          'Il cane dorme in un momento di forma allegra.'),
+    nf_tr('El perro come el pan de forma alegre.', spanish, english, N34),
+    check('... and after the object it says how', N34,
+          'The dog eats the bread in a cheerful manner.'),
+    nf_tr('Pedro, en un momento de forma alegre, duerme.', spanish, english, N36),
+    check('... and inside an insertion, whose phrases come apart, the phrase''s too', N36,
+          'Pedro, in a moment of cheerful form, sleeps.'),
+    nf_tr('Il cane - continua - dorme.', italian, spanish, N35),
+    check('A VERB ALONE BETWEEN DASHES IS NO PARTICIPLE OR ADJECTIVE OF THE PHRASE, THOUGH IT IS ONE TOO: `Gallo - continua - mi ha lasciato'' reports the sentence, and read as the adjective `continuous'' the comment was lost (tr_asides/3, tr_form/5)', N35,
+          'El perro duerme – continúa –.').
+
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),
     question_roles_lesson(spanish, ES), reason_learn(ES, spanish, _),

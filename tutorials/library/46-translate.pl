@@ -377,6 +377,7 @@ main :-
     section_82,
     section_83,
     section_84,
+    section_85,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -10983,6 +10984,151 @@ The preposition "secondo" means "according to". The adjective "secondo" means "s
 The feminine noun "spesa" means "expense". The feminine adjective "media" means "average". The verb "media" means "mediates". The feminine noun "famiglia" means "family". The feminine noun "ragione" means "reason". "ragioni" is the plural of "ragione". The verb "ragiona" means "reasons". "ragioni" is the second person of "ragiona". The feminine adjective "buona" means "good". "buone" is the plural of "buona". The number "cinque" means "five".
 The verb "compra" means "buys". The feminine noun "differenza" means "difference". "differenze" is the plural of "differenza". The preposition "tra" means "among". The masculine noun "vino" means "wine". The verb "limita" means "limits". "limitata" is the participle of "limita". "limitate" is the participle of "limita". "limitate" is the plural of "limitata". "limitata" is feminine. "limitate" is feminine.
 The masculine noun "anno" means "year". "anni" is the plural of "anno". "belle" is the plural of "bella". The verb "cambia" means "changes". The feminine noun "composizione" means "composition". The verb "spende" means "spends". "spende" takes "in" before the phrase.').
+
+section_85 :-
+    format("~n85. a Spanish report on New Year's Eve in Plaza de Catalunya, into Italian and English: at five, between two hours, in the morning, one o'clock, either, in a cheerful manner, a participle between dashes, covered with, used as a weapon, a participle after a comma that is the phrase's or the subject's, on a circle being generated, could not be eaten, equipped with, everything after the copula, the reflexive of seeing as a passive, asks somebody for something, another 20, even before a bare subject, for lack of, of a form after a phrase, a verb alone between dashes~n", []),
+    lesson_85(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the figli section''s Spanish lesson and a fifteenth part, under its own name', NS),
+    lesson_85(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_85_1, section_85_2, section_85_3, section_85_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_85(L, Text) :- lesson_84(L, A), lesson_85(L, 15, B), atomic_list_concat([A, ' ', B], Text).
+
+section_85_1 :-
+    ( reason_translate('Los operarios llegaron a las cinco.', spanish, english, X85V1) -> S85V1 = X85V1 ; S85V1 = refused ),
+    must('AN HOUR AFTER `TO'' IS `at'', WITH NO ARTICLE: `llegaron a las cinco'' arrived AT FIVE, and English wrote `to the five'' (en_clock/2)', S85V1,
+         'The workers arrived at five.'),
+    ( reason_translate('Los operarios llegaron entre las 4.30 y las cinco de la mañana.', spanish, english, X85V2) -> S85V2 = X85V2 ; S85V2 = refused ),
+    must('... AND TWO HOURS AFTER `AMONG'' ARE `between'' THEM: `entre las 4.30 y las cinco'', where it was `between the 4.30 and the five'', the pair''s `between'' coming first -- and the part of the day after an hour is said with its own preposition, IN the morning (en_day_part/2)', S85V2,
+         'The workers arrived between 4.30 and five in the morning.'),
+    ( reason_translate('Los operarios llegaron a la una.', spanish, english, X85V3) -> S85V3 = X85V3 ; S85V3 = refused ),
+    must('`LA UNA'' IS ONE O''CLOCK: the article `a'' after the article `the'' is the first hour, which the count did not take, so `entre la una y la 1.30 de la madrugada'' had no first half and the sentence was refused (one/1, tr_cross_num/2)', S85V3,
+         'The workers arrived at one.'),
+    ( reason_translate('Los operarios llegaron a la una.', spanish, italian, X85V4) -> S85V4 = X85V4 ; S85V4 = refused ),
+    must('... and the lesson''s feminine article for `a'' writes it, elided as before a noun: `all''''una'', which came out `alla una'' (tr_the_before_one/2)', S85V4,
+         'I lavoratori arrivarono all''una.'),
+    ( reason_translate('I lavoratori arrivarono tra l''una e le due.', italian, spanish, X85V5) -> S85V5 = X85V5 ; S85V5 = refused ),
+    must('... and Spanish''s `un'', the number one, is not what it writes: `la un'' (tr_np_out/5)', S85V5,
+         'Los operarios llegaron entre la una y las dos.'),
+    ( reason_translate('Los operarios llegaron entre la una y la 1.30.', spanish, italian, X85V6) -> S85V6 = X85V6 ; S85V6 = refused ),
+    must('... and a time in digits beside it keeps the hour''s gender: the noun of `la 1.30'' is no gender to give the count, which came out `il si'' (tr_np_out/5)', S85V6,
+         'I lavoratori arrivarono tra l''una e l''1.30.'),
+    ( reason_translate('El perro tampoco duerme.', spanish, english, X85V7) -> S85V7 = X85V7 ; S85V7 = refused ),
+    must('`TAMPOCO'' IS `NOT ... EITHER'': `Tampoco ayudó el dispositivo'' did not help either, and English wrote `Neither the dog sleeps'' (tr_write/4)', S85V7,
+         'The dog does not sleep either.'),
+    ( reason_translate('El perro duerme de forma alegre.', spanish, english, X85V8) -> S85V8 = X85V8 ; S85V8 = refused ),
+    must('`DE FORMA'' AND AN ADJECTIVE SAY HOW: `el sarao transcurrió de forma "intensa y alegre"'' went off in an intense and cheerful manner, and English wrote `of cheerful form'' (tr_comp_out/7)', S85V8,
+         'The dog sleeps in a cheerful manner.'),
+    ( reason_translate('El perro duerme de forma alegre.', spanish, italian, X85V9) -> S85V9 = X85V9 ; S85V9 = refused ),
+    must('... and the Italian writer `in modo'', where it wrote `di forma''', S85V9,
+         'Il cane dorme in modo allegro.'),
+    ( reason_translate('El perro - - desbordado - - duerme.', spanish, english, X85V10) -> S85V10 = X85V10 ; S85V10 = refused ),
+    must('A PARTICIPLE ALONE BETWEEN TWO DASHES: `la Guardia Urbana - - desbordada - - solicitó en vano la presencia de la policía'' -- overwhelmed, it asked in vain; the one word between the dashes had no reading (tr_asides/3)', S85V10,
+         'The dog – overwhelmed – sleeps.'),
+    ( reason_translate('La guardia urbana - - desbordada - - duerme.', spanish, english, X85V11) -> S85V11 = X85V11 ; S85V11 = refused ),
+    must('... after an adjective too, the last word of the phrase (tr_dash_phrase_end/1)', S85V11,
+         'The urban guard – overwhelmed – sleeps.'),
+    ( reason_translate('La plaza estaba cubierta de botellas.', spanish, english, X85V12) -> S85V12 = X85V12 ; S85V12 = refused ),
+    must('A PHRASE OF `of'' AFTER A PASSIVE WHOSE VERB ENGLISH WRITES WITH ONE IS THE VERB''S: `la plaza estaba cubierta de botellas rotas'' was covered WITH them, and English wrote `covered of'' (tr_of_passive/4)', S85V12,
+         'The square was covered with bottles.').
+
+section_85_2 :-
+    ( reason_translate('Los perros comen el pan de la plaza, cubierta de botellas.', spanish, english, X85V13) -> S85V13 = X85V13 ; S85V13 = refused ),
+    must('... and after a predicate a comma sets off (tr_of_pred/2)', S85V13,
+         'The dogs eat the bread of the square, covered with bottles.'),
+    ( reason_translate('Los perros comen el pan de la plaza, llenada de botellas.', spanish, english, X85V14) -> S85V14 = X85V14 ; S85V14 = refused ),
+    must('... and after a participle between commas that is the phrase''s, a reduced relative (tr_phrase_aside/4, tr_ptc_governed/4)', S85V14,
+         'The dogs eat the bread of the square, filled with bottles.'),
+    ( reason_translate('La plaza estaba cubierta de botellas utilizadas como arma.', spanish, english, X85V15) -> S85V15 = X85V15 ; S85V15 = refused ),
+    must('A PHRASE OF `like'' WITH NO DETERMINER RIGHT AFTER A PARTICIPLE IS THE PARTICIPLE''S: `botellas utilizadas como arma'' are bottles used as a weapon, and the phrase stood after the noun, `used bottles like weapon'' (tr_like_participle/2)', S85V15,
+         'The square was covered with bottles used as a weapon.'),
+    ( reason_translate('El perro come pan como arma.', spanish, english, X85V16) -> S85V16 = X85V16 ; S85V16 = refused ),
+    must('`COMO'' AND A PHRASE WITH NO DETERMINER SAY IN WHAT ROLE: `as a weapon'', where English wrote `like weapon'' (tr_comp_out/7)', S85V16,
+         'The dog eats bread as a weapon.'),
+    ( reason_translate('Pedro trabaja como profesor.', spanish, english, X85V17) -> S85V17 = X85V17 ; S85V17 = refused ),
+    must('... and a person''s role takes no article', S85V17,
+         'Pedro works as teacher.'),
+    ( reason_translate('Los perros comen el pan de la plaza, cubierta de botellas.', spanish, italian, X85V18) -> S85V18 = X85V18 ; S85V18 = refused ),
+    must('A PARTICIPLE AFTER A COMMA THAT AGREES WITH THE PHRASE OF A PREPOSITION, AND NOT WITH THE SUBJECT, IS SAID OF THAT PHRASE: the square is covered, and agreeing with the subject Italian wrote `coperti'' (tr_pred_after_phrase/4, phagr/0)', S85V18,
+         'I cani mangiano il pane della piazza, coperta di bottiglie.'),
+    ( reason_translate('Los perros llegaron a las cinco de la mañana, provistos de pan.', spanish, italian, X85V19) -> S85V19 = X85V19 ; S85V19 = refused ),
+    must('... AND AN ADJECTIVE AFTER A COMMA THAT AGREES WITH THE SUBJECT, AND NOT WITH THE PHRASE, IS THE SUBJECT''S: `debían llegar entre las 4.30 y las cinco de la mañana, provistos de dos camiones'' -- the workers are equipped, and agreeing with the morning Italian wrote `attrezzata'' (tr_adj_subject_comma/3, suagr/0)', S85V19,
+         'I cani arrivarono alle cinque della mattina, attrezzati di pane.'),
+    ( reason_translate('Los perros llegaron, provistos de pan.', spanish, english, X85V20) -> S85V20 = X85V20 ; S85V20 = refused ),
+    must('AN ADJECTIVE THAT ENGLISH SAYS WITH `with'' TAKES ITS PHRASE OF `of'' SO: `equipped with'', where it was `equipped of'' (tr_comps_out/7)', S85V20,
+         'The dogs arrived, equipped with bread.'),
+    ( reason_translate('El perro duerme al generarse un círculo.', spanish, english, X85V21) -> S85V21 = X85V21 ; S85V21 = refused ),
+    must('`AL'' AND AN INFINITIVE WITH ITS REFLEXIVE PRONOUN JOINED AND A PHRASE AFTER IT: `La situación se complicó al generarse un círculo vicioso'' -- on a vicious circle being generated; the words had no reading (uponse/3)', S85V21,
+         'The dog sleeps on a circle being generated.'),
+    ( reason_translate('El perro duerme al generarse un círculo.', spanish, italian, X85V22) -> S85V22 = X85V22 ; S85V22 = refused ),
+    must('... and a lesson with no word for the moment writes its gerund with the pronoun joined', S85V22,
+         'Il cane dorme generandosi un circolo.'),
+    ( reason_translate('El pan no se pudo comer.', spanish, english, X85V23) -> S85V23 = X85V23 ; S85V23 = refused ),
+    must('THE REFLEXIVE BEFORE THE MODAL WITH A THING FOR ITS SUBJECT IS THE MODAL''S PASSIVE: `el tráfico no se pudo normalizar'' could not BE normalised, where English wrote `could not normalise'' (tr_modal_se_fix/3)', S85V23,
+         'The bread could not be eaten.'),
+    ( reason_translate('Pedro no se pudo lavar.', spanish, english, X85V24) -> S85V24 = X85V24 ; S85V24 = refused ),
+    must('... and a person''s stays his own (tr_doer_np/1)', S85V24,
+         'Pedro could not wash.').
+
+section_85_3 :-
+    ( reason_translate('Estaba todo listo.', spanish, english, X85V25) -> S85V25 = X85V25 ; S85V25 = refused ),
+    must('THE WORD FOR `everything'' RIGHT AFTER THE COPULA IS ITS SUBJECT: `porque estaba todo sembrado de desperdicios rotos'' -- because everything was strewn with them; read with nobody named English refused it (tr_all_copula_fix/3, every/1)', S85V25,
+         'Everything was ready.'),
+    ( reason_translate('Estaba todo listo.', spanish, italian, X85V26) -> S85V26 = X85V26 ; S85V26 = refused ),
+    must('... which Italian writes in front, `Tutto era pronto''', S85V26,
+         'Tutto era pronto.'),
+    ( reason_translate('La limpieza se vio afectada por el accidente.', spanish, english, X85V27) -> S85V27 = X85V27 ; S85V27 = refused ),
+    must('THE REFLEXIVE OF THE VERB OF SEEING AND A PARTICIPLE IS A PASSIVE: `la recogida también se vio afectada por el accidente'' was affected by it, which Spanish says as it saw itself affected; read as it stood, the sentence had no reading or saw itself (tr_see_passive/2)', S85V27,
+         'The cleaning was affected by the accident.'),
+    ( reason_translate('La limpieza también se vio afectada por el accidente.', spanish, english, X85V28) -> S85V28 = X85V28 ; S85V28 = refused ),
+    must('... with the adverbs before the participle the clause''s', S85V28,
+         'The cleaning was also affected by the accident.'),
+    ( reason_translate('El gato pide pan a Pedro.', spanish, english, X85V29) -> S85V29 = X85V29 ; S85V29 = refused ),
+    must('`ASKS'' FOR SOMETHING OF SOMEBODY IS `ASKS SOMEBODY FOR IT'': `El Ayuntamiento ha pedido un informe a la concesionaria FCC'' asked the contractor for a report, where English wrote `asked for a report to the contractor'' (tr_comps_out/7)', S85V29,
+         'The cat asks Pedro for bread.'),
+    ( reason_translate('Otros 20 perros duermen.', spanish, english, X85V30) -> S85V30 = X85V30 ; S85V30 = refused ),
+    must('`OTHER'' BEFORE A COUNT IS `ANOTHER'': `Otros 20 operarios'' are another 20 workers (tr_det_out/6)', S85V30,
+         'Another 20 dogs sleep.'),
+    ( reason_translate('Ante el despliegue, incluso representantes municipales mostraron su desaprobación.', spanish, english, X85V31) -> S85V31 = X85V31 ; S85V31 = refused ),
+    must('THE WORD FOR `even'' THAT ENDS THE FRONT, RIGHT BEFORE A SUBJECT WITH NO DETERMINER, IS SAID OF THE SUBJECT: `Ante el pobre despliegue, incluso representantes municipales ... mostraron su desaprobación'', where English wrote `even,'' between commas of its own -- and the subject inside it owns what its possessive names, `their'' (tr_focus_subject/3, tr_plural_possessor/1)', S85V31,
+         'In front of the deployment, even municipal representatives showed their disapproval.'),
+    ( reason_translate('El perro come por falta de pan.', spanish, english, X85V32) -> S85V32 = X85V32 ; S85V32 = refused ),
+    must('A NOUN THAT CAN SAY A LACK SAYS IT BEFORE A PHRASE OF `of'' WITH NO DETERMINER: `La falta de agentes hasta última hora'' is the lack of agents, where `falta'' is a fault first (tr_relational_np/3)', S85V32,
+         'The dog eats for lack of bread.'),
+    ( reason_translate('El perro duerme en un momento de forma alegre.', spanish, english, X85V33) -> S85V33 = X85V33 ; S85V33 = refused ),
+    must('`DE FORMA'' AND AN ADJECTIVE AFTER A PHRASE OF A PREPOSITION ARE THAT PHRASE''S: `Navarro, en un momento de forma excepcional, se encargó'' is in a moment of exceptional form, and as the manner it was `in a moment in an exceptional manner'' (tr_form_of_phrase/2, nform/1)', S85V33,
+         'The dog sleeps in a moment of cheerful form.'),
+    ( reason_translate('El perro duerme en un momento de forma alegre.', spanish, italian, X85V34) -> S85V34 = X85V34 ; S85V34 = refused ),
+    must('... in Italian too, where it was `in un momento in modo allegro''', S85V34,
+         'Il cane dorme in un momento di forma allegra.'),
+    ( reason_translate('El perro come el pan de forma alegre.', spanish, english, X85V35) -> S85V35 = X85V35 ; S85V35 = refused ),
+    must('... and after the object it says how', S85V35,
+         'The dog eats the bread in a cheerful manner.'),
+    ( reason_translate('Pedro, en un momento de forma alegre, duerme.', spanish, english, X85V36) -> S85V36 = X85V36 ; S85V36 = refused ),
+    must('... and inside an insertion, whose phrases come apart, the phrase''s too', S85V36,
+         'Pedro, in a moment of cheerful form, sleeps.').
+
+section_85_4 :-
+    ( reason_translate('Il cane - continua - dorme.', italian, spanish, X85V37) -> S85V37 = X85V37 ; S85V37 = refused ),
+    must('A VERB ALONE BETWEEN DASHES IS NO PARTICIPLE OR ADJECTIVE OF THE PHRASE, THOUGH IT IS ONE TOO: `Gallo - continua - mi ha lasciato'' reports the sentence, and read as the adjective `continuous'' the comment was lost (tr_asides/3, tr_form/5)', S85V37,
+         'El perro duerme – continúa –.').
+
+lesson_85(spanish, 15, 'The intransitive verb "llega" means "arrives". "llegan" is the plural of "llega". "llegó" is the past of "llega". "llegaron" is the past of "llegan". The masculine noun "operario" means "worker". "operarios" is the plural of "operario". "operario" is a person. The number "dos" means "two". The feminine noun "mañana" means "morning".
+The adverb "tampoco" means "neither". The adverb "tampoco" means "either". The feminine noun "forma" means "form". The feminine noun "manera" means "manner". The adjective "alegre" means "cheerful". The verb "desborda" means "overwhelms". "desbordado" is the participle of "desborda". "desbordada" is the participle of "desborda". "desbordada" is feminine. The feminine noun "guardia" means "guard". The adjective "urbana" means "urban".
+The verb "cubre" means "covers". "cubierta" is the participle of "cubre". "cubierta" is feminine. "cubiertos" is the participle of "cubre". "cubiertos" is the plural of "cubierto". The feminine noun "cubierta" means "deck". The verb "llena" means "fills". "llenada" is the participle of "llena". "llenada" is feminine. The feminine noun "botella" means "bottle". "botellas" is the plural of "botella". The feminine noun "plaza" means "square". The feminine noun "arma" means "weapon". The verb "utiliza" means "uses". "utilizadas" is the participle of "utiliza". "utilizadas" is feminine. "utilizadas" is the plural of "utilizada". "utilizada" is feminine.
+The verb "genera" means "generates". "generar" is the infinitive of "genera". The masculine noun "círculo" means "circle". The word "al" begins the moment. "al" is the contraction of "a el".
+The modal "puede" means "can". "pudo" is the past of "puede". "comer" is the infinitive of "come". The masculine adjective "provisto" means "equipped". "provistos" is the plural of "provisto". The adjective "listo" means "ready". The pronoun "todo" means "everything". The pronoun "todo" does not precede the verb.
+The verb "afecta" means "affects". "afectada" is the participle of "afecta". "afectada" is feminine. The masculine noun "accidente" means "accident". The feminine noun "limpieza" means "cleaning". The verb "pide" means "asks". The preposition "ante" means "in front of". The masculine noun "despliegue" means "deployment". The adverb "incluso" means "even". The masculine noun "representante" means "representative". "representantes" is the plural of "representante". "representante" is a person. The adjective "municipal" means "municipal". "municipales" is the plural of "municipal". The verb "muestra" means "shows". "muestran" is the plural of "muestra". "mostraron" is the past of "muestran".
+"vio" is the past of "ve". The feminine noun "desaprobación" means "disapproval". The masculine determiner "otro" means "other". "otros" is the plural of "otro". The verb "trabaja" means "works". The masculine noun "profesor" means "teacher". "profesor" is a person. The feminine noun "falta" means "fault". The feminine noun "falta" means "lack".').
+lesson_85(italian, 15, 'The intransitive verb "arriva" means "arrives". "arrivano" is the plural of "arriva". "arrivò" is the past of "arriva". "arrivarono" is the past of "arrivano". "è" is the auxiliary of "arriva". The masculine noun "lavoratore" means "worker". "lavoratori" is the plural of "lavoratore". "lavoratore" is a person. The number "due" means "two". The feminine noun "mattina" means "morning".
+The adverb "neanche" means "neither". The masculine noun "modo" means "manner". The masculine adjective "allegro" means "cheerful". The feminine adjective "allegra" means "cheerful". The verb "sopraffà" means "overwhelms". "sopraffatto" is the participle of "sopraffà".
+The verb "copre" means "covers". "coperta" is the participle of "copre". "coperta" is feminine. "coperto" is the participle of "copre". "coperti" is the participle of "copre". "coperti" is the plural of "coperto". "all''" is the elision of "alla". "alle" is the contraction of "a le". The feminine noun "bottiglia" means "bottle". "bottiglie" is the plural of "bottiglia". The feminine noun "piazza" means "square". The feminine noun "arma" means "weapon". The verb "usa" means "uses". "usate" is the participle of "usa". "usate" is feminine. "usate" is the plural of "usata". "usata" is feminine.
+The verb "genera" means "generates". "generare" is the infinitive of "genera". "generando" is the gerund of "genera". The masculine noun "circolo" means "circle".
+The modal "può" means "can". "potè" is the past of "può". "mangiare" is the infinitive of "mangia". The masculine adjective "attrezzato" means "equipped". "attrezzati" is the plural of "attrezzato". The adjective "pronto" means "ready". The pronoun "tutto" means "everything".
+The verb "colpisce" means "affects". "colpita" is the participle of "colpisce". "colpita" is feminine. The masculine noun "incidente" means "accident". The feminine noun "pulizia" means "cleaning". The verb "chiede" means "asks". The preposition "davanti a" means "in front of". The masculine noun "dispiegamento" means "deployment". The adverb "persino" means "even". The masculine noun "rappresentante" means "representative". "rappresentanti" is the plural of "rappresentante". "rappresentante" is a person. The adjective "municipale" means "municipal". "municipali" is the plural of "municipale". The verb "mostra" means "shows". "mostrano" is the plural of "mostra". "mostrarono" is the past of "mostrano".
+"vide" is the past of "vede". The feminine noun "disapprovazione" means "disapproval". The adjective "continua" means "continuous".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

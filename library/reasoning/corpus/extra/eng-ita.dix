@@ -1271,3 +1271,9 @@
 <e><p><l>kid<s n="n"/></l><r>ragazzino<s n="n"/><s n="m"/></r></p></e>
 # `come provano le tabelle del professor Maglietta': prove, read only (`comprova' stays the one written)
 <e r="RL"><p><l>prove<s n="vblex"/></l><r>provare<s n="vblex"/></r></p></e>
+# the New Year's Eve report (AnCora CESS-CAST-P-20010103-85): `provistos de dos camiones de recogida' is equipped
+<e><p><l>equipped<s n="adj"/></l><r>attrezzato<s n="adj"/></r></p></e>
+# `al generarse un círculo vicioso': vicious (`circolo vizioso')
+<e><p><l>vicious<s n="adj"/></l><r>vizioso<s n="adj"/></r></p></e>
+# `el operativo de limpieza se reveló descompensado': unbalanced, the participle of `squilibrare'
+<e><p><l>unbalance<s n="vblex"/></l><r>squilibrare<s n="vblex"/></r></p></e>
