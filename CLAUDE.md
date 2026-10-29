@@ -524,7 +524,9 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   fastest of three rounds (test/cowork.pl), and a load mark is the first
   of up to five probes that gives the rule's marks (`unpaused_marks/7`:
   t_r/1's calls are 0.1 ms, a time slice 4 ms, and beside eight busy loops
-  15 probes of 30 were paused into a wrong mark, none of the 5 fastest).
+  15 probes of 30 were paused into a wrong mark, none of the 5 fastest),
+  and an inference the clock did not read is one that read 0 in each of
+  five runs (test/window.pl, the Mac section).
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
   recycled PID fail a section silently. Not fixed. After a container restart
@@ -7619,7 +7621,11 @@ than its cause:
   under 1 us read 0 and a retry's few hundred nanoseconds none, so
   `test/window.pl` and `test/flowdebug.pl` were red on every fast step.
   `coco_clock_ns` uses `clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)` there
-  (2.5.1); Linux keeps the vDSO's `CLOCK_MONOTONIC`.
+  (2.5.1); Linux keeps the vDSO's `CLOCK_MONOTONIC`. **On Apple silicon
+  that clock moves in ticks of 41.67 ns** (24 MHz), so a step shorter than
+  a tick can still read 0: test/window.pl takes an inference as unread only
+  when it reads 0 in each of five runs (`w_clock_zeros/6`, run
+  40950413465).
 * A server's READY line comes ~1.4 s before its port opens, and a page that
   warms a store is ~4x slower than on the Linux box.
 

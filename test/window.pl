@@ -547,23 +547,19 @@ w_copy(Ls) :- numlist(1, 10000, L), findall(L, member(_, [a, b, c]), Ls).
 
 timed :-
     section('time(F, K): the clock a probe runs under -- which inferences it reads, where, and whose a cost is'),
-    w_clock(w_cnt(3), [time(1, 0)], E1, H1, Ds1, _),
+    w_clock_zeros(w_cnt(3), [time(1, 0)], E1, H1, _, Z1),
     H1 = time(F1, L1, N1, Ns1),
-    w_zeros(F1, Ds1, Z1),
     ( Ns1 > 0 -> C1 = costed ; C1 = Ns1 ),
     check('w_cnt(3) from inference 1: every inference timed, the clock''s cost measured over 512 readings, and the guards a clause ran as it was entered read 0',
           E1-F1-L1-N1-C1-Z1, end(answer, 9, [9])-1-9-512-costed-[2, 4, 6]),
-    w_clock(w_fa(_), [time(1, 0)], E2, time(F2, L2, _, _), Ds2, _),
-    w_zeros(F2, Ds2, Z2),
+    w_clock_zeros(w_fa(_), [time(1, 0)], E2, time(F2, L2, _, _), _, Z2),
     check('into findall/3''s engine and out: each inference read, the inner goals'' too',
           E2-F2-L2-Z2, end(answer, 10, [10])-1-10-[]),
-    w_clock(w_cnt(20), [time(1, 4)], E3, time(F3, L3, _, _), Ds3, _),
-    w_zeros(F3, Ds3, Z3),
+    w_clock_zeros(w_cnt(20), [time(1, 4)], E3, time(F3, L3, _, _), Ds3, Z3),
     length(Ds3, N3),
     check('time(1, 4): the run''s last four inferences, 40 a guard',
           E3-F3-L3-N3-Z3, end(answer, 43, [43])-40-43-4-[40]),
-    w_clock(w_cnt(20), [time(5, 0), to(9)], E4, time(F4, L4, _, _), Ds4, _),
-    w_zeros(F4, Ds4, Z4),
+    w_clock_zeros(w_cnt(20), [time(5, 0), to(9)], E4, time(F4, L4, _, _), _, Z4),
     check('time(5, 0) and to(9): from 5, stopped past 9',
           E4-F4-L4-Z4, end(limit, 9, [])-5-9-[6, 8]),
     %% garbage_collect/0 asks, and the collection comes at the next step's
@@ -824,6 +820,21 @@ w_clock(G, Opts, E, H, Ds, Gcs) :-
 %% the inferences that read 0, by their numbers from F
 w_zeros(F, Ds, Zs) :-
     findall(I, ( nth1(K, Ds, 0), I is F + K - 1 ), Zs).
+
+%% THE INFERENCES THAT READ 0 IN EACH OF FIVE RUNS of G, and the first
+%% run's end, header and times. Apple silicon's monotonic clock moves in
+%% ticks of 41.67 ns (24 MHz, mach_absolute_time's), and an inference
+%% shorter than a tick reads 0 when both its readings fall in one: in run
+%% 40950413465 an inference of w_fa/1 did, whose fastest take 41 to 73 ns
+%% on this Linux box. An inference the clock does not read -- a guard,
+%% or one a broken clock skips -- reads 0 in every run; one it reads, in
+%% five only by chance
+w_clock_zeros(G, Opts, E, H, Ds, Zs) :-
+    w_clock(G, Opts, E, H, Ds, _),
+    H = time(F, _, _, _),
+    w_zeros(F, Ds, Z0),
+    findall(Zk, ( between(2, 5, _), w_clock(G, Opts, _, _, Dk, _), w_zeros(F, Dk, Zk) ), Zks),
+    findall(I, ( member(I, Z0), forall(member(Zk, Zks), memberchk(I, Zk)) ), Zs).
 
 win_refused(Opts, R) :-
     answer('$trace_window'(w_go(_), Opts, _, _), x, G),
