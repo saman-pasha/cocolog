@@ -3875,3 +3875,106 @@ The adverb "poco antes" means "shortly before".
 # the Spoleto faults: `accusato di aver investito e ucciso Sara Folino' is `acusado de haber atropellado y matado a Sara
 # Folino', and written with no word before the infinitive it was `acusado haber matado'
 "acusa" takes "de" before the infinitive.
+# The Salou report (AnCora CESS-CAST-P-19990301-37): the bombs on the beaches of the Costa Daurada, and the words the
+# dictionary lacks or gives another first meaning. `tras recibir los anónimos': anonymous letters, the noun (the
+# dictionary has the adjective alone)
+The masculine noun "anónimo" means "anonymous letter".
+# `el artificiero de la Guardia Civil': a bomb disposal expert (the dictionary has the word and no meaning)
+The masculine noun "artificiero" means "bomb disposal expert".
+"artificieros" is the plural of "artificiero".
+"artificiero" is a person.
+# `los patronatos de turismo de las tres localidades': the tourist boards
+The masculine noun "patronato de turismo" means "tourist board".
+"patronatos de turismo" is the plural of "patronato de turismo".
+# `fuentes de los turoperadores de la zona': tour operators
+The masculine noun "turoperador" means "tour operator".
+"turoperadores" is the plural of "turoperador".
+# `Cándida Lasbats, su viuda': a widow (the dictionary's first is the widower)
+The feminine noun "viuda" means "widow".
+# `Otra vecina manifiesta': a neighbour is a person, so a woman stays one in Italian
+"vecino" is a person.
+"vecina" is a person.
+# `no hubiera muerto aquel anciano': an old man, the noun (the dictionary has the adjective alone)
+The masculine noun "anciano" means "old man".
+"ancianos" is the plural of "anciano".
+"anciano" is a person.
+# `No aparecen más artefactos': devices, the explosive ones (the artefact second)
+The masculine noun "artefacto" means "device".
+# `juegan familias enteras en la arena': the sand, before the arena
+The feminine noun "arena" means "sand".
+# `a raíz de la explosión': as a result of
+The preposition "a raíz de" means "as a result of".
+# `que no se les hubiera alertado con anterioridad del peligro': beforehand
+The adverb "con anterioridad" means "beforehand".
+# `"no pienso hacerlo"': before an infinitive the verb of thinking intends (thinks said again first)
+The verb "piensa" means "thinks".
+The infinitival verb "piensa" means "intends".
+# `Yo bajaba cada día a pasear a los perros': with no object the verb goes down (drops said again first), and
+# the verb of strolling walks what it has for its object (`a los perros')
+The verb "baja" means "drops".
+The intransitive verb "baja" means "goes down".
+The intransitive verb "pasea" means "strolls".
+The verb "pasea" means "walks".
+# `de la Costa Daurada': the coast's name (read as its words it was `the Coast Daurada')
+"Costa Daurada" is a name.
+# `echó en cara hace una semana a Esteve Ferran ... que no se hubiese alertado del peligro': reproached
+The verb "echa en cara" means "reproaches".
+"echan en cara" is the plural of "echa en cara".
+"echar en cara" is the infinitive of "echa en cara".
+"echó en cara" is the past of "echa en cara".
+"echaron en cara" is the plural of "echó en cara".
+"echaba en cara" is the imperfect of "echa en cara".
+"echado en cara" is the participle of "echa en cara".
+"echa en cara" takes the clause.
+# `hasta que no se haya resuelto el caso': until, the conjunction
+The conjunction "hasta que" means "until".
+# `Todo lo contrario de Rebeca, que augura:': quite the opposite
+The masculine noun "todo lo contrario" means "quite the opposite".
+# `creen poco probable que haya más bombas enterradas': unlikely
+The adjective "poco probable" means "unlikely".
+"poco probables" is the plural of "poco probable".
+# `si no tocaran objetos sospechosos': touches, before plays (`toca la guitarra' is a stated cost; said as the
+# intransitive meaning, `plays' made the phrase after the verb its subject, `suspicious objects did not play')
+The verb "toca" means "touches".
+# `También se queja de que existe poca vigilancia': complains, with `de' before the clause
+"queja" takes the clause.
+"queja" takes "de" before the clause.
+# `debían haber avisado a la población': the population is a group, so the phrase after the person's `a' is the
+# verb's object (`warned the population', where it was `warned to the population')
+"población" is a group.
+# `y desde entonces voy a otro sitio': since then
+The adverb "desde entonces" means "since then".
+# `También se queja de que existe poca vigilancia': the verb takes `se' as its own pronoun, she complains
+"queja" is reflexive.
+# `hasta que no se haya resuelto el caso', `se justificó la discreción': a thing after the verb with `se' is what
+# the passive says
+"resuelve" takes the passive.
+"justifica" takes the passive.
+# `en la zona reina la tranquilidad', `No aparecen más artefactos': verbs with no object, whose phrase after them
+# is their subject
+"reina" is intransitive.
+"aparece" is intransitive.
+# `muchos de los cuales han renunciado a visitar las playas': before an infinitive the verb of renouncing gives up
+# (renounces said again first), and English writes the gerund after it
+The verb "renuncia" means "renounces".
+The infinitival verb "renuncia" means "gives up".
+# `que haya más bombas enterradas', `No aparecen más artefactos': before a noun the word is a determiner (read as
+# the preposition `plus' it was `there is more buried bombs')
+The determiner "más" means "more".
+# `han recriminado a las autoridades que no se les hubiera alertado': the person and then what is reproached,
+# where the clause was read as the authorities' relative clause
+"recrimina" takes the clause.
+# `han recriminado a las autoridades que ...': the authorities are officials, persons, the ones a reproach is made
+# to (read as no person, the clause after them was their relative clause)
+"autoridad" is a person.
+# `Marta Toledo, española de origen peruano': a woman's name at the head of the sentence (the marten second)
+"marta" is a name.
+# `Otra vecina manifiesta que su comportamiento no ha variado': states (manifests said after it)
+The verb "manifiesta" means "states".
+# `el impacto de los aludes en los Alpes': the mountains, which each language names by its own word
+The name "alpes" means "Alps".
+# `que las explosiones de Salou no se vincularan con una actuación terrorista': were not linked, a thing after the
+# verb with `se'
+"vincula" takes the passive.
+# `al estallarle una bomba colocada en la arena': a bomb exploding, the phrase after the verb its subject
+The intransitive verb "estalla" means "explodes".

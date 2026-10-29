@@ -33,7 +33,7 @@ main :-
     newspaper_fregene, newspaper_lotr, newspaper_ciampi, newspaper_omnium, newspaper_astro, newspaper_senegal,
     newspaper_eco, newspaper_arzalluz, newspaper_cecchi, newspaper_carrefour, newspaper_poverty,
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
-    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, question_roles, stated_gender, newspaper_units,
+    newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
     checks_done.
 
@@ -7891,7 +7891,7 @@ newspaper_lotr_checks_2 :-
           'I forgot the bread.'),
     nf_tr('Los perros debían haber comido el pan.', spanish, english, B4),
     check('a verb the lesson also calls a modal is the modal before a perfect infinitive too, and `must'''' past is `had to'': read as `owes'' it came out `owed to have eaten''', B4,
-          'The dogs had to have eaten the bread.'),
+          'The dogs should have eaten the bread.'),
     nf_tr('Las piedras pesan poco y no son reales.', spanish, english, B5),
     check('a verb''s form after the word for `not'' is the verb, a noun too or not: `son'' read as the noun sound made the stones weigh little and no sound', B5,
           'The stones weigh little and are not real.'),
@@ -9828,7 +9828,7 @@ newspaper_arzalluz_checks_5 :-
     check('the person told before `de que'' and a clause whose subject is left out: `El líder del PNV previno a los suyos de que no deben albergar "miedo" alguno'' -- `de que'' after the person (`"previene" takes "de" before the clause.''), the clause the verb''s own: read on, the person was the object and the clause a relative clause on it, `d''i che''', E3,
           'Il cane avverte ai tecnici che non devono mangiare il pane.'),
     nf_tr('El perro advierte a los técnicos de que no deben comer el pan.', spanish, english, E4),
-    check('... and in English', E4, 'The dog warns to the coaches that they must not eat the bread.'),
+    check('... and in English', E4, 'The dog warns the coaches that they must not eat the bread.'),
     nf_tr('El perro ve a los técnicos que comen el pan.', spanish, italian, E5),
     check('GUARD: a person with a relative clause after a verb that takes no clause stays a relative clause', E5,
           'Il cane vede i tecnici che mangiano il pane.'),
@@ -17053,6 +17053,234 @@ spoleto_faults_checks_2 :-
     nf_tr('El perro acusa al gato de "comer el pan".', spanish, english, G17),
     check('... and the mark goes on the infinitive, after the word its writer put before it (tr_inf_lead_word/2, asked before the infinitive is written)', G17,
           'The dog accuses the cat of "eating the bread".').
+
+newspaper_salou :-
+    section('a Spanish report on the bombs on the beaches of Salou, into Italian and English: the first person spelled as the third, no more, until and its denial, the passive of the perfect, a copula''s infinitive, should have, resulted injured, more and a noun, upon and an intransitive, the person warned, a relative clause on two phrases joined, the doer after a front''s verb, the 21st, a counterfactual, ago, her, another, nessun, the Alps, a speaker and what the speaker is, a bracket in a list, a bare plural speaker, a heading before a colon, a name after an institution, a quoted infinitive with its pronoun, does it, a warned group, gives up'),
+    newspaper_salou_lesson(spanish, ES), reason_learn(ES, spanish, _),
+    newspaper_salou_lesson(italian, IT), reason_learn(IT, italian, _),
+    newspaper_salou_checks_1, newspaper_salou_checks_2, newspaper_salou_checks_3, newspaper_salou_checks_4,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+newspaper_salou_lesson(L, Text) :-
+    spoleto_faults_lesson(L, A), newspaper_salou_part(L, B), atomic_list_concat([A, ' ', B], Text).
+
+% the eighteenth part of each hand lesson
+newspaper_salou_part(spanish, '"comía" is the imperfect of "come". "comería" is the conditional of "come". "dormía" is the imperfect of "duerme".
+The intransitive verb "aparece" means "appears". "aparecen" is the plural of "aparece". The determiner "más" means "more".
+The conjunction "hasta que" means "until". "hasta que" takes the subjunctive. The verb "resuelve" means "resolves". "resuelve" takes the passive. "resuelto" is the participle of "resuelve". "haya" is the subjunctive of "ha". The masculine noun "caso" means "case".
+The feminine noun "locura" means "madness". The verb "baja" means "drops". The intransitive verb "baja" means "goes down". "bajar" is the infinitive of "baja". The feminine noun "playa" means "beach".
+The verb "debe" means "must". "debía" is the imperfect of "debe". "debían" is the plural of "debía".
+The verb "resulta" means "results". "resultó" is the past of "resulta". The verb "hiere" means "injures". "herido" is the participle of "hiere". "heridos" is the plural of "herido".
+The verb "pone" means "puts". "pondrán" is the future of "ponen". "ponen" is the plural of "pone".
+The intransitive verb "muere" means "dies". "murió" is the past of "muere". The intransitive verb "estalla" means "explodes". "estallar" is the infinitive of "estalla". The feminine noun "bomba" means "bomb". The verb "coloca" means "places". "colocada" is the participle of "coloca". "colocada" is feminine. The feminine noun "arena" means "sand".
+The verb "advierte" means "warns". "advirtió" is the past of "advierte". The masculine noun "riesgo" means "risk".
+The verb "conoce" means "knows". "conocían" is the imperfect of "conocen". "conocen" is the plural of "conoce".
+The intransitive verb "juega" means "plays". "juegan" is the plural of "juega".
+The verb "indica" means "indicates". "indicaban" is the imperfect of "indican". "indican" is the plural of "indica". The conjunction "como" means "as".
+The masculine noun "otro" means "other". The masculine determiner "otro" means "other". "otro" takes the indefinite. The masculine noun "sitio" means "place".
+The masculine noun "día" means "day". "falleció" is the past of "fallece". The intransitive verb "fallece" means "dies". "fallecido" is the participle of "fallece".
+"hubiera" is the past subjunctive of "ha". "muerto" is the participle of "muere". "comido" is the participle of "come".
+The adverb "hace" means "ago". The feminine noun "semana" means "week".
+The verb "recrimina" means "reproaches". "recrimina" takes the clause. "recriminó" is the past of "recrimina".
+The masculine demonstrative "aquel" means "that". The masculine noun "anciano" means "old man". "anciano" is a person.
+The feminine noun "mujer" means "woman". "mujer" is a person. "mujer" is feminine. The masculine noun "marido" means "husband". "marido" is a person. The masculine noun "hábito" means "habit". "hábitos" is the plural of "hábito". The verb "cambia" means "changes". "cambiado" is the participle of "cambia". The verb "asegura" means "assures". "asegura" takes the clause. The possessive "su" means "his".
+The adjective "último" means "last". "últimas" is the plural of "última". The feminine adjective "última" means "last". The number "tres" means "three".
+The possessive "su" means "her". "comían" is the imperfect of "comen". "perro" is animate.
+The verb "recuerda" means "remembers". "recuerda" takes the clause.
+"knew" is the past of "knows".
+The masculine noun "habitante" means "inhabitant". "habitante" is a person. "habitantes" is the plural of "habitante". The verb "incluye" means "includes". "incluidas" is the participle of "incluye". "incluidas" is feminine. "incluidas" is the plural of "incluida". "incluida" is the participle of "incluye". "incluida" is feminine. The feminine noun "campaña" means "campaign".
+The verb "sostiene" means "maintains". The feminine noun "vecina" means "neighbour". "vecina" is a person. The masculine noun "vecino" means "neighbour". "vecino" is a person. The feminine adjective "vecina" means "neighbouring". The masculine adjective "vecino" means "neighbouring". "Salou" is a name. "Rebeca" is a name. The masculine noun "lugar" means "place". The conjunction "donde" means "where".
+The masculine determiner "ningún" means "no". The verb "dice" means "says".
+"Tarragona" is a name. "Cambrils" is a name. "visto" is the participle of "ve". "han" is the plural of "ha".
+The preposition "según" means "according to". The verb "explica" means "explains". "explicaron" is the past of "explican". "explican" is the plural of "explica". The feminine noun "fuente" means "source". "fuentes" is the plural of "fuente". The masculine noun "sector" means "sector".
+The verb "vincula" means "links". "vincula" takes the passive. "vincularon" is the past of "vinculan". "vinculan" is the plural of "vincula". The preposition "con" means "with".
+The name "alpes" means "Alps".
+The verb "augura" means "predicts".
+The masculine noun "explosivo" means "explosive". "explosivos" is the plural of "explosivo". The masculine adjective "explosivo" means "explosive". "explosivos" is the plural of "explosivo".
+The feminine noun "guardia" means "guard". The adjective "civil" means "civil".
+The verb "piensa" means "thinks". The infinitival verb "piensa" means "intends". "pienso" is the first person of "piensa". The verb "hace" means "makes". "hacer" is the infinitive of "hace". The pronoun "lo" means "him". The verb "quiere" means "wants". "quiero" is the first person of "quiere".
+The feminine noun "población" means "population". "población" is a group. "advertido" is the participle of "advierte". "advertir" is the infinitive of "advierte".
+The verb "renuncia" means "renounces". The infinitival verb "renuncia" means "gives up". "renunciado" is the participle of "renuncia". The verb "visita" means "visits". "visitar" is the infinitive of "visita". The pronoun "muchos" means "many".
+"seen" is the participle of "sees".
+"día" is a time. The verb "entierra" means "buries". "enterradas" is the participle of "entierra". "enterradas" is feminine. "enterradas" is the plural of "enterrada". "enterrada" is the participle of "entierra". "enterrada" is feminine.
+The masculine noun "jubilado" means "pensioner". "jubilado" is a person. The verb "manipula" means "handles". "manipular" is the infinitive of "manipula".
+The preposition "más" means "plus".
+The determiner "cualquiera" means "any". "cualquier" is the apocope of "cualquiera". The masculine adjective "anciano" means "elderly". "saw" is the past of "sees".
+The masculine pronoun "aquel" means "that". The pronoun "aquel" does not precede the verb.').
+newspaper_salou_part(italian, '"mangiavo" is the imperfect of "mangia".
+The masculine determiner "altro" means "other". "altro" takes the indefinite.
+The masculine determiner "nessuno" means "no". "nessun" is the apocope of "nessuno". The name "alpi" means "Alps". "alpi" is feminine.
+The determiner "qualsiasi" means "any".').
+
+newspaper_salou_checks_1 :-
+    nf_tr('Yo comía el pan.', spanish, english, B1),
+    check('THE FIRST PERSON OF AN IMPERFECT IS SPELLED AS ITS THIRD, AND THE SUBJECT PRONOUN SAYS WHICH: `Yo bajaba cada día a pasear a los perros'' is I went down, and read as the third person with `yo'' beside it the clause had no reading (tr_form0/5, under `$tr_first'')', B1,
+          'I ate the bread.'),
+    nf_tr('Yo comería el pan.', spanish, english, B2),
+    check('... and the conditional''s', B2,
+          'I would eat the bread.'),
+    nf_tr('No aparecen más perros.', spanish, english, B3),
+    check('A DENIED CLAUSE WHOSE SUBJECT SAYS `more'' DENIES IN ITS SUBJECT: `No aparecen más artefactos'' is no more devices appear, where it was `more devices do not appear'' (tr_write/4)', B3,
+          'No more dogs appear.'),
+    nf_tr('Hay más bombas enterradas en la arena.', spanish, english, B4),
+    check('`more'' AND A NOUN ARE A DETERMINER AND ITS NOUN, never a preposition and its phrase: `que haya más bombas enterradas'', where the word was read as `plus'' (tr_determiner_before_noun/3) -- AND THE SAND, AS THE BEACH, IS WHAT ONE IS ON (en_on_noun/1)', B4,
+          'There are more buried bombs on the sand.'),
+    nf_tr('El perro duerme hasta que el gato come.', spanish, english, B5),
+    check('`until'' IS A CONNECTOR: `hasta que'', the conjunction, joined no two clauses (en_connector/1)', B5,
+          'The dog sleeps until the cat eats.'),
+    nf_tr('Pedro duerme hasta que no se haya resuelto el caso.', spanish, english, B6),
+    check('THE DENIAL RIGHT AFTER `until'' DENIES NOTHING: `hasta que no se haya resuelto el caso'' is until it has been solved, as Italian''s `a meno che non'' is unless (tr_unless_word/1) -- AND THE IMPERSONAL `se'' WITH A THING AFTER ITS VERB IS THE PASSIVE IN THE PERFECT TOO, where it was `until one has resolved the case'' (tr_se_passive/2)', B6,
+          'Pedro sleeps until the case has been resolved.'),
+    nf_tr('Se ha resuelto el caso.', spanish, english, B7),
+    check('... and alone', B7,
+          'The case has been resolved.'),
+    nf_tr('Es una locura bajar a la playa.', spanish, english, B8),
+    check('AN INFINITIVE AFTER THE COPULA TAKES ITS MEANING WITH NO OBJECT, the phrase before it the copula''s: `Es una locura bajar a la playa'' is to GO DOWN, and with `una locura'' taken for the infinitive''s object it was `to drop'' (tr_cross_inf_comps/3)', B8,
+          'It is a madness to go down to the beach.'),
+    nf_tr('El perro debía haber comido el pan.', spanish, english, B9),
+    check('`must'' IN THE PAST WITH A PERFECT INFINITIVE IS `should have'': `debían haber avisado a la población'', where it was `musted to have warned'' (tr_write/4)', B9,
+          'The dog should have eaten the bread.'),
+    nf_tr('Resultó herido el perro.', spanish, english, B10),
+    check('THE VERB OF RESULTING, A PARTICIPLE AND A PHRASE AFTER IT: the phrase is the subject and the participle its predicate -- read as an absolute clause after a verb with nobody named, the dog was what the injury left (tr_results_subject/5) -- AND ENGLISH WRITES IT AS THE PARTICIPLE''S PASSIVE, never `turned out injured'' (tr_write/4)', B10,
+          'The dog was injured.'),
+    nf_tr('Resultó herido el perro de la casa.', spanish, english, B11),
+    check('... with the phrases of `of'' after it: `resultó herido el artificiero de la Guardia Civil'', where the guard''s phrase stood after the verb (tr_fo_of_run/3)', B11,
+          'The dog of the house was injured.'),
+    nf_tr('Pondrán más panes.', spanish, english, B12),
+    check('`more'' AND A NOUN AFTER A VERB THAT TAKES AN OBJECT ARE THE OBJECT, the word the lesson''s determiner: read as the adverb it was `They will put breads more'' (tr_more_noun/4)', B12,
+          'They will put more breads.'),
+    nf_tr('Pondrán más explosivos.', spanish, english, B13),
+    check('... and read as an adjective''s comparative, a noun of the lesson in the plural: `Pondrán más explosivos'' was `They will put more explosive''', B13,
+          'They will put more explosives.'),
+    nf_tr('Pedro da más pan al gato.', spanish, english, B14),
+    check('... AND THE ADVERB MAY STAND ANYWHERE AMONG THE COMPLEMENTS, the noun right after it in the words: the reader moves the adverb last, and `reclaman más ayudas para asegurar su futuro'' and `darle más libertad a tu hijo'' were `demand helps to ensure their future more'' and `give freedom to your son more'', found by the controls (tr_more_noun/4)', B14,
+          'Pedro gives more bread to the cat.').
+
+newspaper_salou_checks_2 :-
+    nf_tr('Pedro da más pan al gato.', spanish, italian, B15),
+    check('... and into Italian, whose `più'' is an adverb only: a line that made it a determiner read `non lo vide più nessuno'' as more of nobody', B15,
+          'Pedro dà più pane al gatto.'),
+    nf_tr('Pedro murió al estallar una bomba colocada en la arena.', spanish, english, B16),
+    check('THE PHRASE AFTER THE INFINITIVE OF `UPON'' THAT THE LESSON CALLS INTRANSITIVE IS ITS SUBJECT: `al estallarle una bomba colocada en la arena'' is a bomb exploding -- read as its object, English wrote `on bursting him a placed bomb on the sand'' (upons/3, tr_upon_subject/4)', B16,
+          'Pedro died on a bomb placed on the sand exploding.'),
+    nf_tr('Se advirtió al gato del riesgo.', spanish, english, B17),
+    check('THE IMPERSONAL `se'' WITH A PERSON WARNED IS ENGLISH''S PASSIVE: `no se les hubiera alertado'', `si se hubiera advertido a la gente'' -- written as read, `one had not alerted them'' (tr_write/4, en_person_passive/1)', B17,
+          'The cat was warned of the risk.'),
+    nf_tr('El gato y la casa, que conocían los panes, duermen.', spanish, english, B18),
+    check('A RELATIVE CLAUSE SET OFF AFTER TWO PHRASES JOINED HANGS ON BOTH: `el Ayuntamiento de Salou y la policía, que conocían las amenazas'' -- the plural clause disagrees with the last phrase, and read as its object relative the threats knew the police (tr_coord_rc_fix/4)', B18,
+          'The cat and the house, which knew the breads, sleep.'),
+    nf_tr('La mujer recuerda que en la casa comen los perros.', spanish, english, B19),
+    check('THE DOER RIGHT AFTER THE VERB OF A CLAUSE WITH A FRONT IS ITS SUBJECT: `en Cala Crancs juegan familias enteras en la arena'' is whole families playing, and read with nobody named it was `they play whole families'' (tr_front_doer_fix/6)', B19,
+          'The woman remembers that the dogs eat in the house.'),
+    nf_tr('El perro duerme en la playa.', spanish, english, B20),
+    check('THE BEACH IS WHAT ONE IS ON (en_on_noun/1)', B20,
+          'The dog sleeps on the beach.'),
+    nf_tr('Pedro duerme, como indicaban los perros.', spanish, english, B21),
+    check('A PHRASE AFTER THE VERB OF A COMMENT AT THE END OF ITS CLAUSE, WITH NOBODY NAMED, IS ITS SUBJECT: `..., como indicaban los anónimos'' is as the letters indicated, and read with nobody named they were what somebody indicated (tr_cmt_subject_fix/2)', B21,
+          'Pedro sleeps, as the dogs indicated.'),
+    nf_tr('La bomba del día 21 duerme.', spanish, english, B22),
+    check('A DAY THE SOURCE NAMES BY `the day'' AND ITS NUMBER IS THE ORDINAL IN ENGLISH: `la bomba del día 21'' is the bomb of the 21st, where `the day 21'' was written (tr_np_out/5, tr_day_number/2)', B22,
+          'The bomb of the 21st sleeps.'),
+    nf_tr('El perro murió el día 13.', spanish, english, B23),
+    check('... and as when, `on'' it (tr_comp_out/7)', B23,
+          'The dog died on the 13th.'),
+    nf_tr('Pedro habla del jubilado fallecido el día 13 al manipular una bomba.', spanish, english, B24),
+    check('... AND A PARTICIPLE AND THE DAY AFTER IT ARE NO ABSOLUTE CLAUSE: `el jubilado fallecido el día 13 al manipular un artefacto'', where the day lost its `on'' (tr_day_label/1)', B24,
+          'Pedro speaks of the pensioner died on the 13th on handling a bomb.'),
+    nf_tr('Si el perro hubiera comido, el gato no hubiera muerto.', spanish, english, B25),
+    check('THE MAIN CLAUSE OF A CONDITION IN THE PLUPERFECT IS THE CONDITIONAL PERFECT: `si se hubiera advertido a la gente ..., no hubiera muerto aquel anciano'' is that old man would not have died, where it was `had not died'' (tr_counterfactual/3)', B25,
+          'If the dog had eaten, the cat would not have died.'),
+    nf_tr('El perro murió hace una semana.', spanish, english, B26),
+    check('`hace'' AND A TIME AFTER THE VERB IS `ago''', B26,
+          'The dog died a week ago.'),
+    nf_tr('El perro recriminó hace una semana al gato que el pan es grande.', spanish, english, B27),
+    check('... where the time is read as the verb''s and the word for `ago'' after it: `echó en cara hace una semana a Esteve Ferran'' was `reproached a week to Esteve Ferran ago'' (tr_ago_phrase/2)', B27,
+          'The dog reproached a week ago the cat that the bread is big.'),
+    nf_tr('El perro recriminó al gato que el pan es grande.', spanish, english, B28),
+    check('A VERB OF REPROACHING TAKES THE PERSON BARE BEFORE ITS CLAUSE OF `that'': `echó en cara ... a Esteve Ferran ... que no se hubiese alertado'', where it was `reproached to Esteve Ferran'' (tr_comps_out/7, en_person_that/1)', B28,
+          'The dog reproached the cat that the bread is big.').
+
+newspaper_salou_checks_3 :-
+    nf_tr('El perro recriminó al gato que no se le hubiera advertido.', spanish, english, B29),
+    check('... AND THE CLAUSE AFTER THE PERSON MAY OPEN ON A DENIAL AND THE PRONOUNS OF ITS VERB: `han recriminado a las autoridades que no se les hubiera alertado'', which read as the authorities'' relative clause (tr_clause_after_person/1)', B29,
+          'The dog reproached the cat that she had not been warned.'),
+    nf_tr('Los habitantes de las casas incluidas en la campaña duermen.', spanish, english, B30),
+    check('A PARTICIPLE IN THE SUBJECT''S PHRASE OF `of'' TAKES THE PHRASE AFTER IT: `algunos habitantes de las localidades incluidas en la campaña de amenazas'' -- with the campaign the inhabitants'', English wrote `the included localities in the campaign'' (tr_inner_participle_adjunct/2)', B30,
+          'The inhabitants of the houses included in the campaign sleep.'),
+    nf_tr('El perro duerme en las últimas tres semanas.', spanish, english, B31),
+    check('`last'' AND `first'' STAND BEFORE THE COUNT IN ENGLISH: `en las últimas tres semanas'', where it was `the three last weeks'' (tr_np_out/5, en_order_adjective/1)', B31,
+          'The dog sleeps in the last three weeks.'),
+    nf_tr('Murió aquel anciano.', spanish, english, B32),
+    check('A DEMONSTRATIVE AFTER THE VERB AND THE NOUN AFTER IT ARE ONE SUBJECT: `no hubiera muerto aquel anciano'' is that old man, and read as the pronoun `aquel'' for the subject the noun was left for a predicate (tr_demonstrative_subject/4)', B32,
+          'That old man died.'),
+    nf_tr('La mujer ha cambiado sus hábitos.', spanish, english, B33),
+    check('A WOMAN''S POSSESSIVE IS `her'': `La mujer asegura que ha cambiado sus hábitos'', where the lesson''s first meaning wrote `his'' (tr_female_possessor/1)', B33,
+          'The woman has changed her habits.'),
+    nf_tr('La mujer y su marido duermen.', spanish, english, B34),
+    check('... and a husband''s: `Marta Toledo, ..., y su marido'' is her husband (tr_cross_np/2)', B34,
+          'The woman and her husband sleep.'),
+    nf_tr('Pedro ve otro perro.', spanish, italian, B35),
+    check('A DETERMINER THE LESSON SAYS TAKES THE INDEFINITE TAKES IT: `voy a otro sitio'' is `vado in un altro luogo'' (`"altro" takes the indefinite.''), where it was `altro luogo'' (tr_det_out/6)', B35,
+          'Pedro vede un altro cane.'),
+    nf_tr('Il cane mangia qualsiasi pane.', italian, spanish, B36),
+    check('... and Spanish''s `cualquier'', the short form of `cualquiera''', B36,
+          'El perro come cualquier pan.'),
+    nf_tr('El perro no come ningún pan.', spanish, italian, B37),
+    check('A DETERMINER IN THE SINGULAR LOSES ITS ENDING WHERE THE LESSON STATES ITS APOCOPE: `no han localizado ningún artefacto'' is `nessun dispositivo'', where it was `nessuno dispositivo'' (tr_det_form/6, tr_det_apocope/3)', B37,
+          'Il cane non mangia nessun pane.'),
+    nf_tr('El perro duerme en los Alpes.', spanish, italian, B38),
+    check('A NAME THE LESSON GIVES A MEANING HAS THE GENDER THE LESSON STATES OF IT: `en los Alpes'' is `nelle Alpi'', and with Spanish''s masculine it was `negli Alpi'' (tr_crossed_name_gender/2)', B38,
+          'Il cane dorme nelle Alpi.'),
+    nf_tr('"Pedro duerme hasta que no se haya resuelto el caso", dice Marta.', spanish, english, B39),
+    check('A QUOTATION THAT CLOSED ON A SUBJECT SET LAST CLOSES WHERE THE CLAUSE ENDS: the passive writes the case first, and the mark stayed on it, `until the case" has been resolved'' (tr_write/4)', B39,
+          '"Pedro sleeps until the case has been resolved", Marta says.'),
+    nf_tr('"Duermo", sostiene Rebeca, vecina de Salou.', spanish, english, B40),
+    check('A WORD THAT IS A PERSON''S NOUN AND AN ADJECTIVE, AFTER THE COMMA THAT CLOSES A SUBJECT SET AFTER THE VERB, IS WHAT THE SUBJECT IS: `sostiene Rebeca López, vecina de Cala Crancs'' -- read as the adjective it was `maintains, neighbouring of Cala Crancs'' (tr_person_appos/2)', B40,
+          '"I sleep", Rebeca, neighbour of Salou, maintains.'),
+    nf_tr('Sostiene Rebeca, vecina de Salou, el lugar donde duerme el perro.', spanish, english, B41),
+    check('A NAME WITH WHAT IT IS SET BETWEEN COMMAS, AFTER A VERB OF SAYING WITH NOBODY NAMED, IS THE SPEAKER: the commas made the name an aside and the verb''s object, and English refused it (tr_aside_speaker/2) -- AND THE PLACE APPOSED TO THE APPOSITION''S LAST PHRASE IS THE SPEAKER''S TOO (tr_appos_tail/1)', B41,
+          'Rebeca, neighbour of Salou, the place where the dog sleeps, maintains.'),
+    nf_tr('Los perros de la casa y del gato que han comido los panes duermen.', spanish, english, B42),
+    check('A RELATIVE CLAUSE AFTER THE PHRASES OF `of'' OF A PLURAL HEAD, ITS VERB IN THE PLURAL, HANGS ON THE HEAD: `los artificieros de la Guardia Civil y del Ejército que han peinado las playas'' -- hung on the Army, the clause took the beaches for its subject, `the Army that the beaches have combed'' (tr_coord_rc_fix/4)', B42,
+          'The dogs of the house and of the cat that have eaten the breads sleep.').
+
+newspaper_salou_checks_4 :-
+    nf_tr('Los perros que han visto las casas de Tarragona, Salou (Tarragonès) y Cambrils duermen.', spanish, english, B43),
+    check('AN ITEM OF A LIST WITH ITS BRACKET IS AN ITEM: `las playas de Tarragona, Salou (Tarragonès) y Cambrils (Baix Camp)'' -- with the bracket the comma stayed the clause''s, and the sentence was refused (tr_bare_tail/4)', B43,
+          'The dogs that have seen the houses of Tarragona, Salou (Tarragonès) and Cambrils sleep.'),
+    nf_tr('Los perros de la casa y del gato que han visto las casas de Tarragona, Salou y Cambrils (Baix Camp) duermen.', spanish, english, B44),
+    check('A BRACKET RIGHT AFTER A NAME THAT ENDS A RELATIVE CLAUSE IS THE NAME''S, never the phrase''s with its clause: hung on the whole, it kept the clause from the head it hangs on, and was written after the clause''s verb (tr_np/3)', B44,
+          'The dogs of the house and of the cat that have seen the houses of Tarragona, Salou and Cambrils (Baix Camp) sleep.'),
+    nf_tr('Pedro duerme, según explicaron fuentes del sector.', spanish, english, B45),
+    check('A BARE PLURAL IS A SPEAKER: `según explicaron fuentes de los turoperadores de la zona'', and with a determiner asked for the comment was refused (tr_report_subject/5)', B45,
+          'Pedro sleeps, as sources of the sector explained.'),
+    nf_tr('Las casas de Salou no se vincularon con el perro.', spanish, english, B46),
+    check('A THING''S REFLEXIVE IS THE PASSIVE WITH ITS PHRASES OF `of'' TOO: `que las explosiones de Salou no se vincularan con una actuación terrorista'', where it was `did not link'' (tr_thing_phrase/1)', B46,
+          'The houses of Salou were not linked with the dog.'),
+    nf_tr('Rebeca, que augura: "Pondrán más explosivos".', spanish, english, B47),
+    check('A NAME AND ITS RELATIVE CLAUSE BEFORE A COLON ARE A HEADING: `Todo lo contrario de Rebeca, que augura:'' is quite the opposite of Rebeca, who predicts it -- the clause was one of `that'' with nobody named, which English refuses (tr_verbless0/3)', B47,
+          'Rebeca, who predicts: "They will put more explosives".'),
+    nf_tr('El amigo de Rebeca, que augura: "Pondrán más panes".', spanish, english, B48),
+    check('... and a phrase whose phrase of `of'' has the name and its clause: `Todo lo contrario de Rebeca, que augura:'' (tr_verbless0/3)', B48,
+          'The friend of Rebeca, who predicts: "They will put more breads".'),
+    nf_tr('El perro de la Guardia Civil Luis Marfil duerme.', spanish, english, B49),
+    check('A PERSON''S NAME AFTER A PHRASE THAT ENDS ON CAPITALS THE LESSON KNOWS IS APPOSED AS IT IS AFTER A COMMA: `el artificiero de la Guardia Civil Luis Marfil'' -- with the capitals run together the phrase had no reading (tr_np/3)', B49,
+          'The dog of the Civil Guard, Luis Marfil, sleeps.'),
+    nf_tr('"No pienso hacerlo", dice Pedro.', spanish, english, B50),
+    check('A WORD A QUOTATION MARK CLOSES ON KEEPS ITS PRONOUNS: `hacerlo"'' was a word no lesson knows (tr_enclitics/3) -- AND A MARK ON AN INFINITIVE THE CLAUSE ENDS ON CLOSES WHERE THE CLAUSE ENDS, never after the verb group (tr_vq_close/4) -- AND THE MARK IS NO FIRST COMPLEMENT, so the verb crosses by its meaning before an infinitive, `intends'' (tr_first_comp/2) -- AND `makes'' WITH NOTHING MADE IS `does'', its pronoun `it'' (tr_write/4)', B50,
+          '"I do not intend to do it", Pedro says.'),
+    nf_tr('Quiero hacerlo.', spanish, english, B51),
+    check('... `makes'' joined to its pronoun, with nothing made', B51,
+          'I want to do it.'),
+    nf_tr('El perro advirtió a la población.', spanish, english, B52),
+    check('A GROUP AFTER A VERB OF WARNING IS ITS OBJECT, marked as a person is: `debían haber avisado a la población'' should have warned it, and read as a phrase of `to'' English wrote `warned to the population'' (tr_warned_group/3)', B52,
+          'The dog warned the population.'),
+    nf_tr('El perro debía haber advertido a la población.', spanish, english, B53),
+    check('... and after the infinitive of one, read with the modal''s group (tr_warned_infinitive/2)', B53,
+          'The dog should have warned the population.'),
+    nf_tr('Pedro ha renunciado a visitar las playas.', spanish, english, B54),
+    check('A VERB BEFORE AN INFINITIVE WITH THE WORD IT TAKES CROSSES BY ITS MEANING THERE: `han renunciado a visitar las playas'' have GIVEN UP, where it was `renounced to visit'' (tr_verb_across/5) -- AND ENGLISH''S `gives up'' TAKES THE GERUND (en_gerund_verb/1)', B54,
+          'Pedro has given up visiting the beaches.').
 
 question_roles :-
     section('which with a noun: the phrase asked for is the object when the verb cannot agree with it or a doer stands after it'),

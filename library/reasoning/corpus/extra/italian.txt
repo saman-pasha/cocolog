@@ -565,6 +565,9 @@ The conjunction "che" means "than".
 # where the dictionary's first are a tangent, a proxy, an exaction and cheap
 The feminine noun "tangente" means "bribe".
 The feminine noun "procura" means "prosecution".
+# (the Salou report: `la extorsión' is `l'estorsione', said before `concussione', a public official's, which
+# the writer took first)
+The feminine noun "estorsione" means "extortion".
 The feminine noun "concussione" means "extortion".
 The masculine adjective "economico" means "economic". The feminine adjective "economica" means "economic".
 # `i pm': the prosecutors, an abbreviation that does not inflect; the
@@ -5188,3 +5191,69 @@ The adverb "poco prima" means "shortly before".
 # `accusato di aver investito e ucciso Sara Folino': the word before the infinitive, which `acusado de haber' says
 # back in Spanish and the Italian writer puts back from Spanish
 "accusa" takes "di" before the infinitive.
+# The Salou report (AnCora CESS-CAST-P-19990301-37), the Italian the Spanish is written as: `el artificiero de la
+# Guardia Civil' is `l'artificiere della Guardia Civil' (the dictionary's artificer second)
+The masculine noun "artificiere" means "bomb disposal expert".
+"artificiere" is a person.
+# `los patronatos de turismo', `los turoperadores': the tourist boards and the tour operators
+The masculine noun "ente turistico" means "tourist board".
+"enti turistici" is the plural of "ente turistico".
+The masculine noun "operatore turistico" means "tour operator".
+"operatori turistici" is the plural of "operatore turistico".
+# `tras recibir los anónimos': `dopo aver ricevuto le lettere anonime'
+The feminine noun "lettera anonima" means "anonymous letter".
+"lettere anonime" is the plural of "lettera anonima".
+# `aquel anciano': `quell'anziano' (elderly said again first)
+The masculine noun "anziano" means "elderly".
+The masculine noun "anziano" means "old man".
+# `la alarma': `l'allarme' (the writer's first was `avvisatore', an alarm device)
+The masculine noun "allarme" means "alarm".
+# `a raíz de la explosión': `in seguito all'esplosione'; `con anterioridad': `in anticipo'
+The preposition "in seguito a" means "as a result of".
+The adverb "in anticipo" means "beforehand".
+# `Yo bajaba cada día a pasear a los perros': `scendevo ogni giorno' (a verb of walking a dog, `portare a
+# spasso', said here made it the writer's word for every walk, `Me gusta andar en tren' was `Mi piace portare a spasso
+# in treno', found by the controls, and is out)
+The verb "scende" means "descends".
+The intransitive verb "scende" means "goes down".
+# `regentan un bar': `gestiscono un bar' (the writer's first was `barra', a rod)
+The masculine noun "bar" means "bar".
+# `pudo ocurrir una tragedia': `poté accadere una tragedia' (the writer's first was `occorrere', to be needed;
+# happens said again first, or `come è accaduto' was `how has it occurred' and English refused it, found by the
+# controls)
+The verb "accade" means "happens".
+The verb "accade" means "occurs".
+# `no hubiera muerto aquel anciano': `non sarebbe morto' (the writer's first was `decedere')
+The verb "muore" means "dies".
+# `en referencia a Juan Manuel Sarmiento': `in riferimento a' (the writer's first was `benservito', a dismissal)
+The masculine noun "riferimento" means "reference".
+# `hasta que no se haya resuelto el caso': `finché non si sarà risolto il caso'
+The conjunction "finché" means "until".
+# `Todo lo contrario de Rebeca': `Tutto il contrario di Rebeca'
+The masculine noun "tutto il contrario" means "quite the opposite".
+# `desde entonces': `da allora'
+The adverb "da allora" means "since then".
+# `Otra vecina manifiesta': `Un'altra vicina' -- a neighbour is a person, so the writer takes the feminine noun
+# for a woman
+"vicino" is a person.
+"vicina" is a person.
+# `muchos de los cuales han renunciado a visitar las playas': `hanno rinunciato a visitare' (the verb comes from
+# corpus/extra/eng-ita.dix; renounces said first, and before an infinitive it gives up)
+The verb "rinuncia" means "renounces".
+The infinitival verb "rinuncia" means "gives up".
+"rinuncia" takes "a" before the infinitive.
+# `Otra vecina manifiesta': `Un'altra vicina' -- the singular takes the indefinite article before it, which
+# Spanish's `otra' does not
+"altro" takes the indefinite.
+"altra" takes the indefinite.
+# `las autoridades': `le autorità', officials
+"autorità" is a person.
+# `el impacto de los aludes en los Alpes' is `nelle Alpi': the mountains' Italian name
+The name "alpi" means "Alps".
+# `la ola de explosiones que ha padecido Salou' is `l'ondata di esplosioni': the explosion (the dictionary's first
+# Italian noun for one was `deflagrazione', a word of chemistry)
+The feminine noun "esplosione" means "explosion".
+"alpi" is feminine.
+# `al estallarle una bomba' is `esplodendogli una bomba': the bomb explodes (the dictionary's first Italian verb for
+# explodes was `sfrutta', which exploits)
+The intransitive verb "esplode" means "explodes".

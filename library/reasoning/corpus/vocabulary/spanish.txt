@@ -1,5 +1,5 @@
 # library/reasoning/corpus/vocabulary/spanish.txt -- the vocabulary of the lesson, as lesson lines
-# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20461 dictionary entries from
+# WRITTEN BY library/reasoning/corpus/build.pl and never by hand: 20466 dictionary entries from
 # apertium/apertium-eng-spa and apertium/apertium-spa (GPL-2), the English pasts from clips/pattern (BSD),
 # the persons from WordNet's noun.person. Learn it after corpus/spanish.txt, which holds the
 # grammar: cocolog -s library/reasoning/teach.pl -- spanish. A line beginning # is a comment.
@@ -2400,6 +2400,63 @@ The feminine noun "desaceleración" means "deceleration".
 "desaceleraciones" is the plural of "desaceleración".
 The adverb "poco antes" means "shortly before".
 "acusa" takes "de" before the infinitive.
+The masculine noun "anónimo" means "anonymous letter".
+The masculine noun "artificiero" means "bomb disposal expert".
+"artificieros" is the plural of "artificiero".
+"artificiero" is a person.
+The masculine noun "patronato de turismo" means "tourist board".
+"patronatos de turismo" is the plural of "patronato de turismo".
+The masculine noun "turoperador" means "tour operator".
+"turoperadores" is the plural of "turoperador".
+The feminine noun "viuda" means "widow".
+"vecino" is a person.
+"vecina" is a person.
+The masculine noun "anciano" means "old man".
+"ancianos" is the plural of "anciano".
+"anciano" is a person.
+The masculine noun "artefacto" means "device".
+The feminine noun "arena" means "sand".
+The preposition "a raíz de" means "as a result of".
+The adverb "con anterioridad" means "beforehand".
+The verb "piensa" means "thinks".
+The infinitival verb "piensa" means "intends".
+The verb "baja" means "drops".
+The intransitive verb "baja" means "goes down".
+The intransitive verb "pasea" means "strolls".
+The verb "pasea" means "walks".
+"Costa Daurada" is a name.
+The verb "echa en cara" means "reproaches".
+"echan en cara" is the plural of "echa en cara".
+"echar en cara" is the infinitive of "echa en cara".
+"echó en cara" is the past of "echa en cara".
+"echaron en cara" is the plural of "echó en cara".
+"echaba en cara" is the imperfect of "echa en cara".
+"echado en cara" is the participle of "echa en cara".
+"echa en cara" takes the clause.
+The conjunction "hasta que" means "until".
+The masculine noun "todo lo contrario" means "quite the opposite".
+The adjective "poco probable" means "unlikely".
+"poco probables" is the plural of "poco probable".
+The verb "toca" means "touches".
+"queja" takes the clause.
+"queja" takes "de" before the clause.
+"población" is a group.
+The adverb "desde entonces" means "since then".
+"queja" is reflexive.
+"resuelve" takes the passive.
+"justifica" takes the passive.
+"reina" is intransitive.
+"aparece" is intransitive.
+The verb "renuncia" means "renounces".
+The infinitival verb "renuncia" means "gives up".
+The determiner "más" means "more".
+"recrimina" takes the clause.
+"autoridad" is a person.
+"marta" is a name.
+The verb "manifiesta" means "states".
+The name "alpes" means "Alps".
+"vincula" takes the passive.
+The intransitive verb "estalla" means "explodes".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.
@@ -21725,6 +21782,12 @@ The masculine noun "operario" means "worker".
 The feminine noun "operaria" means "worker".
 "operarias" is the plural of "operaria".
 "operaria" is a person.
+The masculine noun "jubilado" means "pensioner".
+"jubilados" is the plural of "jubilado".
+"jubilado" is a person.
+The feminine noun "jubilada" means "pensioner".
+"jubiladas" is the plural of "jubilada".
+"jubilada" is a person.
 The feminine noun "tanda" means "batch".
 "tandas" is the plural of "tanda".
 The noun "ikurriña" means "ikurrina".
@@ -122595,6 +122658,214 @@ The verb "ralentiza" means "slows".
 "ralentizadas" is the plural of "ralentizada".
 "ralentizar" is the infinitive of "ralentiza".
 "ralentizando" is the gerund of "ralentiza".
+The verb "vuelve" means "returns".
+"vuelven" is the plural of "vuelve".
+"volvemos" is the first person of "vuelven".
+"volvéis" is the second person of "vuelven".
+"vuelvo" is the first person of "vuelve".
+"vuelves" is the second person of "vuelve".
+"volvió" is the past of "vuelve".
+"volvieron" is the past of "vuelven".
+"volvimos" is the first person of "volvieron".
+"volvisteis" is the second person of "volvieron".
+"volví" is the first person of "volvió".
+"volviste" is the second person of "volvió".
+"volvía" is the imperfect of "vuelve".
+"volvían" is the imperfect of "vuelven".
+"volvíamos" is the first person of "volvían".
+"volvíais" is the second person of "volvían".
+"volvías" is the second person of "volvía".
+"volverá" is the future of "vuelve".
+"volverán" is the plural of "volverá".
+"volveremos" is the first person of "volverán".
+"volveréis" is the second person of "volverán".
+"volveré" is the first person of "volverá".
+"volverás" is the second person of "volverá".
+"volvería" is the conditional of "vuelve".
+"volverían" is the plural of "volvería".
+"volveríamos" is the first person of "volverían".
+"volveríais" is the second person of "volverían".
+"volverías" is the second person of "volvería".
+"vuelva" is the subjunctive of "vuelve".
+"vuelvan" is the plural of "vuelva".
+"volvamos" is the first person of "vuelvan".
+"vuelvas" is the second person of "vuelva".
+"volviera" is the past subjunctive of "vuelve".
+"volvieran" is the plural of "volviera".
+"volviéramos" is the first person of "volvieran".
+"volvierais" is the second person of "volvieran".
+"volvieras" is the second person of "volviera".
+"vuelve" is the imperative of "vuelve".
+"vuelvas" is the negative imperative of "vuelve".
+"volved" is the imperative of "vuelven".
+"volváis" is the negative imperative of "vuelven".
+"volvamos" is the hortative of "vuelve".
+"vuelto" is the participle of "vuelve".
+"vuelta" is the participle of "vuelve".
+"vuelta" is feminine.
+"vueltos" is the participle of "vuelve".
+"vueltos" is the plural of "vuelto".
+"vueltas" is the participle of "vuelve".
+"vueltas" is feminine.
+"vueltas" is the plural of "vuelta".
+"volver" is the infinitive of "vuelve".
+"volviendo" is the gerund of "vuelve".
+The verb "recrimina" means "reproaches".
+"recriminan" is the plural of "recrimina".
+"recriminamos" is the first person of "recriminan".
+"recrimináis" is the second person of "recriminan".
+"recrimino" is the first person of "recrimina".
+"recriminas" is the second person of "recrimina".
+"recriminó" is the past of "recrimina".
+"recriminaron" is the past of "recriminan".
+"recriminamos" is the first person of "recriminaron".
+"recriminasteis" is the second person of "recriminaron".
+"recriminé" is the first person of "recriminó".
+"recriminaste" is the second person of "recriminó".
+"recriminaba" is the imperfect of "recrimina".
+"recriminaban" is the imperfect of "recriminan".
+"recriminábamos" is the first person of "recriminaban".
+"recriminabais" is the second person of "recriminaban".
+"recriminabas" is the second person of "recriminaba".
+"recriminará" is the future of "recrimina".
+"recriminarán" is the plural of "recriminará".
+"recriminaremos" is the first person of "recriminarán".
+"recriminaréis" is the second person of "recriminarán".
+"recriminaré" is the first person of "recriminará".
+"recriminarás" is the second person of "recriminará".
+"recriminaría" is the conditional of "recrimina".
+"recriminarían" is the plural of "recriminaría".
+"recriminaríamos" is the first person of "recriminarían".
+"recriminaríais" is the second person of "recriminarían".
+"recriminarías" is the second person of "recriminaría".
+"recrimine" is the subjunctive of "recrimina".
+"recriminen" is the plural of "recrimine".
+"recriminemos" is the first person of "recriminen".
+"recrimines" is the second person of "recrimine".
+"recriminara" is the past subjunctive of "recrimina".
+"recriminaran" is the plural of "recriminara".
+"recrimináramos" is the first person of "recriminaran".
+"recriminarais" is the second person of "recriminaran".
+"recriminaras" is the second person of "recriminara".
+"recrimina" is the imperative of "recrimina".
+"recrimines" is the negative imperative of "recrimina".
+"recriminad" is the imperative of "recriminan".
+"recriminéis" is the negative imperative of "recriminan".
+"recriminemos" is the hortative of "recrimina".
+"recriminado" is the participle of "recrimina".
+"recriminada" is the participle of "recrimina".
+"recriminada" is feminine.
+"recriminados" is the participle of "recrimina".
+"recriminados" is the plural of "recriminado".
+"recriminadas" is the participle of "recrimina".
+"recriminadas" is feminine.
+"recriminadas" is the plural of "recriminada".
+"recriminar" is the infinitive of "recrimina".
+"recriminando" is the gerund of "recrimina".
+The verb "regenta" means "manages".
+"regentan" is the plural of "regenta".
+"regentamos" is the first person of "regentan".
+"regentáis" is the second person of "regentan".
+"regento" is the first person of "regenta".
+"regentas" is the second person of "regenta".
+"regentó" is the past of "regenta".
+"regentaron" is the past of "regentan".
+"regentamos" is the first person of "regentaron".
+"regentasteis" is the second person of "regentaron".
+"regenté" is the first person of "regentó".
+"regentaste" is the second person of "regentó".
+"regentaba" is the imperfect of "regenta".
+"regentaban" is the imperfect of "regentan".
+"regentábamos" is the first person of "regentaban".
+"regentabais" is the second person of "regentaban".
+"regentabas" is the second person of "regentaba".
+"regentará" is the future of "regenta".
+"regentarán" is the plural of "regentará".
+"regentaremos" is the first person of "regentarán".
+"regentaréis" is the second person of "regentarán".
+"regentaré" is the first person of "regentará".
+"regentarás" is the second person of "regentará".
+"regentaría" is the conditional of "regenta".
+"regentarían" is the plural of "regentaría".
+"regentaríamos" is the first person of "regentarían".
+"regentaríais" is the second person of "regentarían".
+"regentarías" is the second person of "regentaría".
+"regente" is the subjunctive of "regenta".
+"regenten" is the plural of "regente".
+"regentemos" is the first person of "regenten".
+"regentes" is the second person of "regente".
+"regentara" is the past subjunctive of "regenta".
+"regentaran" is the plural of "regentara".
+"regentáramos" is the first person of "regentaran".
+"regentarais" is the second person of "regentaran".
+"regentaras" is the second person of "regentara".
+"regenta" is the imperative of "regenta".
+"regentes" is the negative imperative of "regenta".
+"regentad" is the imperative of "regentan".
+"regentéis" is the negative imperative of "regentan".
+"regentemos" is the hortative of "regenta".
+"regentado" is the participle of "regenta".
+"regentada" is the participle of "regenta".
+"regentada" is feminine.
+"regentados" is the participle of "regenta".
+"regentados" is the plural of "regentado".
+"regentadas" is the participle of "regenta".
+"regentadas" is feminine.
+"regentadas" is the plural of "regentada".
+"regentar" is the infinitive of "regenta".
+"regentando" is the gerund of "regenta".
+The verb "augura" means "predicts".
+"auguran" is the plural of "augura".
+"auguramos" is the first person of "auguran".
+"auguráis" is the second person of "auguran".
+"auguro" is the first person of "augura".
+"auguras" is the second person of "augura".
+"auguró" is the past of "augura".
+"auguraron" is the past of "auguran".
+"auguramos" is the first person of "auguraron".
+"augurasteis" is the second person of "auguraron".
+"auguré" is the first person of "auguró".
+"auguraste" is the second person of "auguró".
+"auguraba" is the imperfect of "augura".
+"auguraban" is the imperfect of "auguran".
+"augurábamos" is the first person of "auguraban".
+"augurabais" is the second person of "auguraban".
+"augurabas" is the second person of "auguraba".
+"augurará" is the future of "augura".
+"augurarán" is the plural of "augurará".
+"auguraremos" is the first person of "augurarán".
+"auguraréis" is the second person of "augurarán".
+"auguraré" is the first person of "augurará".
+"augurarás" is the second person of "augurará".
+"auguraría" is the conditional of "augura".
+"augurarían" is the plural of "auguraría".
+"auguraríamos" is the first person of "augurarían".
+"auguraríais" is the second person of "augurarían".
+"augurarías" is the second person of "auguraría".
+"augure" is the subjunctive of "augura".
+"auguren" is the plural of "augure".
+"auguremos" is the first person of "auguren".
+"augures" is the second person of "augure".
+"augurara" is the past subjunctive of "augura".
+"auguraran" is the plural of "augurara".
+"auguráramos" is the first person of "auguraran".
+"augurarais" is the second person of "auguraran".
+"auguraras" is the second person of "augurara".
+"augura" is the imperative of "augura".
+"augures" is the negative imperative of "augura".
+"augurad" is the imperative of "auguran".
+"auguréis" is the negative imperative of "auguran".
+"auguremos" is the hortative of "augura".
+"augurado" is the participle of "augura".
+"augurada" is the participle of "augura".
+"augurada" is feminine.
+"augurados" is the participle of "augura".
+"augurados" is the plural of "augurado".
+"auguradas" is the participle of "augura".
+"auguradas" is feminine.
+"auguradas" is the plural of "augurada".
+"augurar" is the infinitive of "augura".
+"augurando" is the gerund of "augura".
 The verb "impulsa" means "promotes".
 "impulsan" is the plural of "impulsa".
 "impulsamos" is the first person of "impulsan".

@@ -721,3 +721,15 @@
 <e r="RL"><p><l>slow<s n="vblex"/></l><r>ralentizar<s n="vblex"/></r></p></e>
 # `criticó ayer duramente la organización': harshly
 <e><p><l>harshly<s n="adv"/></l><r>duramente<s n="adv"/></r></p></e>
+# The Salou report (AnCora CESS-CAST-P-19990301-37): verbs and a noun the bilingual dictionary lacks, whose forms the
+# Spanish one has. `No he vuelto a la playa': returns, read only (`regresar' stays the one written; the dictionary
+# gives `volver' only two-word English verbs, which the builder takes none of)
+<e r="RL"><p><l>return<s n="vblex"/></l><r>volver<s n="vblex"/></r></p></e>
+# `han recriminado a las autoridades': reproached, read only
+<e r="RL"><p><l>reproach<s n="vblex"/></l><r>recriminar<s n="vblex"/></r></p></e>
+# `regentan un bar': manage, read only
+<e r="RL"><p><l>manage<s n="vblex"/></l><r>regentar<s n="vblex"/></r></p></e>
+# `Rebeca, que augura': predicts, read only
+<e r="RL"><p><l>predict<s n="vblex"/></l><r>augurar<s n="vblex"/></r></p></e>
+# `el jubilado fallecido el día 13': the pensioner, read only (`pensionista' stays the one written)
+<e r="RL"><p><l>pensioner<s n="n"/></l><r>jubilado<s n="n"/><s n="GD"/></r></p></e>

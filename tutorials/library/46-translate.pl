@@ -380,6 +380,7 @@ main :-
     section_85,
     section_86,
     section_87,
+    section_88,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -3927,7 +3928,7 @@ section_49 :-
     reason_translate('El perro ve el pan que se les olvidó.', spanish, english, S49g),
     must('THE ACCIDENT: `"olvida" takes the accident.'', and the dative is the subject', S49g, 'The dog sees the bread that they forgot.'),
     reason_translate('Los perros debían haber comido el pan.', spanish, english, S49h),
-    must('a MODAL before a perfect infinitive, and must''s past', S49h, 'The dogs had to have eaten the bread.'),
+    must('a MODAL before a perfect infinitive, and must''s past', S49h, 'The dogs should have eaten the bread.'),
     reason_translate('Las piedras pesan muy poco y no son reales.', spanish, english, S49i),
     must('THE COPULA AFTER A DENIAL, a noun too or not', S49i, 'The stones weigh very little and are not real.'),
     reason_translate('Las piedras pesan poco.', spanish, italian, S49j),
@@ -11369,6 +11370,236 @@ The verb "riesce" means "manages". "riuscire" is the infinitive of "riesce". "ri
 "Bianca nera" is a name. The feminine adjective "nera" means "black".
 The verb "difende" means "defends". "difendere" is the infinitive of "difende". The masculine noun "fratello" means "brother". "fratello" is a person. The masculine noun "imputato" means "defendant". "imputato" is a person. "dormire" is the infinitive of "dorme". "Torvajanica" is a city.
 The verb "impara" means "learns". The verb "lava" means "washes". "lavare" is the infinitive of "lava".').
+
+section_88 :-
+    format("~n88. a Spanish report on the bombs on the beaches of Salou, into Italian and English: the first person spelled as the third, no more, until and its denial, the passive of the perfect, should have, resulted injured, more and a noun, upon and an intransitive, the person warned, a relative clause on two phrases joined, the 21st, a counterfactual, ago, her, another, nessun, the Alps, a speaker and what the speaker is, a heading before a colon, does it, gives up~n", []),
+    lesson_88(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the Salou section''s Spanish lesson and a eighteenth part, under its own name', NS),
+    lesson_88(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_88_1, section_88_2, section_88_3, section_88_4, section_88_5,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_88(L, Text) :- lesson_87(L, A), lesson_88(L, 18, B), atomic_list_concat([A, ' ', B], Text).
+
+section_88_1 :-
+    ( reason_translate('Yo comía el pan.', spanish, english, X88V1) -> S88V1 = X88V1 ; S88V1 = refused ),
+    must('THE FIRST PERSON OF AN IMPERFECT IS SPELLED AS ITS THIRD, AND THE SUBJECT PRONOUN SAYS WHICH: `Yo bajaba cada día a pasear a los perros'' is I went down, and read as the third person with `yo'' beside it the clause had no reading (tr_form0/5, under `$tr_first'')', S88V1,
+         'I ate the bread.'),
+    ( reason_translate('Yo comería el pan.', spanish, english, X88V2) -> S88V2 = X88V2 ; S88V2 = refused ),
+    must('... and the conditional''s', S88V2,
+         'I would eat the bread.'),
+    ( reason_translate('No aparecen más perros.', spanish, english, X88V3) -> S88V3 = X88V3 ; S88V3 = refused ),
+    must('A DENIED CLAUSE WHOSE SUBJECT SAYS `more'' DENIES IN ITS SUBJECT: `No aparecen más artefactos'' is no more devices appear, where it was `more devices do not appear'' (tr_write/4)', S88V3,
+         'No more dogs appear.'),
+    ( reason_translate('Hay más bombas enterradas en la arena.', spanish, english, X88V4) -> S88V4 = X88V4 ; S88V4 = refused ),
+    must('`more'' AND A NOUN ARE A DETERMINER AND ITS NOUN, never a preposition and its phrase: `que haya más bombas enterradas'', where the word was read as `plus'' (tr_determiner_before_noun/3) -- AND THE SAND, AS THE BEACH, IS WHAT ONE IS ON (en_on_noun/1)', S88V4,
+         'There are more buried bombs on the sand.'),
+    ( reason_translate('El perro duerme hasta que el gato come.', spanish, english, X88V5) -> S88V5 = X88V5 ; S88V5 = refused ),
+    must('`until'' IS A CONNECTOR: `hasta que'', the conjunction, joined no two clauses (en_connector/1)', S88V5,
+         'The dog sleeps until the cat eats.'),
+    ( reason_translate('Pedro duerme hasta que no se haya resuelto el caso.', spanish, english, X88V6) -> S88V6 = X88V6 ; S88V6 = refused ),
+    must('THE DENIAL RIGHT AFTER `until'' DENIES NOTHING: `hasta que no se haya resuelto el caso'' is until it has been solved, as Italian''s `a meno che non'' is unless (tr_unless_word/1) -- AND THE IMPERSONAL `se'' WITH A THING AFTER ITS VERB IS THE PASSIVE IN THE PERFECT TOO, where it was `until one has resolved the case'' (tr_se_passive/2)', S88V6,
+         'Pedro sleeps until the case has been resolved.'),
+    ( reason_translate('Se ha resuelto el caso.', spanish, english, X88V7) -> S88V7 = X88V7 ; S88V7 = refused ),
+    must('... and alone', S88V7,
+         'The case has been resolved.'),
+    ( reason_translate('Es una locura bajar a la playa.', spanish, english, X88V8) -> S88V8 = X88V8 ; S88V8 = refused ),
+    must('AN INFINITIVE AFTER THE COPULA TAKES ITS MEANING WITH NO OBJECT, the phrase before it the copula''s: `Es una locura bajar a la playa'' is to GO DOWN, and with `una locura'' taken for the infinitive''s object it was `to drop'' (tr_cross_inf_comps/3)', S88V8,
+         'It is a madness to go down to the beach.'),
+    ( reason_translate('El perro debía haber comido el pan.', spanish, english, X88V9) -> S88V9 = X88V9 ; S88V9 = refused ),
+    must('`must'' IN THE PAST WITH A PERFECT INFINITIVE IS `should have'': `debían haber avisado a la población'', where it was `musted to have warned'' (tr_write/4)', S88V9,
+         'The dog should have eaten the bread.'),
+    ( reason_translate('Resultó herido el perro.', spanish, english, X88V10) -> S88V10 = X88V10 ; S88V10 = refused ),
+    must('THE VERB OF RESULTING, A PARTICIPLE AND A PHRASE AFTER IT: the phrase is the subject and the participle its predicate -- read as an absolute clause after a verb with nobody named, the dog was what the injury left (tr_results_subject/5) -- AND ENGLISH WRITES IT AS THE PARTICIPLE''S PASSIVE, never `turned out injured'' (tr_write/4)', S88V10,
+         'The dog was injured.'),
+    ( reason_translate('Resultó herido el perro de la casa.', spanish, english, X88V11) -> S88V11 = X88V11 ; S88V11 = refused ),
+    must('... with the phrases of `of'' after it: `resultó herido el artificiero de la Guardia Civil'', where the guard''s phrase stood after the verb (tr_fo_of_run/3)', S88V11,
+         'The dog of the house was injured.'),
+    ( reason_translate('Pondrán más panes.', spanish, english, X88V12) -> S88V12 = X88V12 ; S88V12 = refused ),
+    must('`more'' AND A NOUN AFTER A VERB THAT TAKES AN OBJECT ARE THE OBJECT, the word the lesson''s determiner: read as the adverb it was `They will put breads more'' (tr_more_noun/4)', S88V12,
+         'They will put more breads.').
+
+section_88_2 :-
+    ( reason_translate('Pondrán más explosivos.', spanish, english, X88V13) -> S88V13 = X88V13 ; S88V13 = refused ),
+    must('... and read as an adjective''s comparative, a noun of the lesson in the plural: `Pondrán más explosivos'' was `They will put more explosive''', S88V13,
+         'They will put more explosives.'),
+    ( reason_translate('Pedro da más pan al gato.', spanish, english, X88V14) -> S88V14 = X88V14 ; S88V14 = refused ),
+    must('... AND THE ADVERB MAY STAND ANYWHERE AMONG THE COMPLEMENTS, the noun right after it in the words: the reader moves the adverb last, and `reclaman más ayudas para asegurar su futuro'' and `darle más libertad a tu hijo'' were `demand helps to ensure their future more'' and `give freedom to your son more'', found by the controls (tr_more_noun/4)', S88V14,
+         'Pedro gives more bread to the cat.'),
+    ( reason_translate('Pedro da más pan al gato.', spanish, italian, X88V15) -> S88V15 = X88V15 ; S88V15 = refused ),
+    must('... and into Italian, whose `più'' is an adverb only: a line that made it a determiner read `non lo vide più nessuno'' as more of nobody', S88V15,
+         'Pedro dà più pane al gatto.'),
+    ( reason_translate('Pedro murió al estallar una bomba colocada en la arena.', spanish, english, X88V16) -> S88V16 = X88V16 ; S88V16 = refused ),
+    must('THE PHRASE AFTER THE INFINITIVE OF `UPON'' THAT THE LESSON CALLS INTRANSITIVE IS ITS SUBJECT: `al estallarle una bomba colocada en la arena'' is a bomb exploding -- read as its object, English wrote `on bursting him a placed bomb on the sand'' (upons/3, tr_upon_subject/4)', S88V16,
+         'Pedro died on a bomb placed on the sand exploding.'),
+    ( reason_translate('Se advirtió al gato del riesgo.', spanish, english, X88V17) -> S88V17 = X88V17 ; S88V17 = refused ),
+    must('THE IMPERSONAL `se'' WITH A PERSON WARNED IS ENGLISH''S PASSIVE: `no se les hubiera alertado'', `si se hubiera advertido a la gente'' -- written as read, `one had not alerted them'' (tr_write/4, en_person_passive/1)', S88V17,
+         'The cat was warned of the risk.'),
+    ( reason_translate('El gato y la casa, que conocían los panes, duermen.', spanish, english, X88V18) -> S88V18 = X88V18 ; S88V18 = refused ),
+    must('A RELATIVE CLAUSE SET OFF AFTER TWO PHRASES JOINED HANGS ON BOTH: `el Ayuntamiento de Salou y la policía, que conocían las amenazas'' -- the plural clause disagrees with the last phrase, and read as its object relative the threats knew the police (tr_coord_rc_fix/4)', S88V18,
+         'The cat and the house, which knew the breads, sleep.'),
+    ( reason_translate('La mujer recuerda que en la casa comen los perros.', spanish, english, X88V19) -> S88V19 = X88V19 ; S88V19 = refused ),
+    must('THE DOER RIGHT AFTER THE VERB OF A CLAUSE WITH A FRONT IS ITS SUBJECT: `en Cala Crancs juegan familias enteras en la arena'' is whole families playing, and read with nobody named it was `they play whole families'' (tr_front_doer_fix/6)', S88V19,
+         'The woman remembers that the dogs eat in the house.'),
+    ( reason_translate('El perro duerme en la playa.', spanish, english, X88V20) -> S88V20 = X88V20 ; S88V20 = refused ),
+    must('THE BEACH IS WHAT ONE IS ON (en_on_noun/1)', S88V20,
+         'The dog sleeps on the beach.'),
+    ( reason_translate('Pedro duerme, como indicaban los perros.', spanish, english, X88V21) -> S88V21 = X88V21 ; S88V21 = refused ),
+    must('A PHRASE AFTER THE VERB OF A COMMENT AT THE END OF ITS CLAUSE, WITH NOBODY NAMED, IS ITS SUBJECT: `..., como indicaban los anónimos'' is as the letters indicated, and read with nobody named they were what somebody indicated (tr_cmt_subject_fix/2)', S88V21,
+         'Pedro sleeps, as the dogs indicated.'),
+    ( reason_translate('La bomba del día 21 duerme.', spanish, english, X88V22) -> S88V22 = X88V22 ; S88V22 = refused ),
+    must('A DAY THE SOURCE NAMES BY `the day'' AND ITS NUMBER IS THE ORDINAL IN ENGLISH: `la bomba del día 21'' is the bomb of the 21st, where `the day 21'' was written (tr_np_out/5, tr_day_number/2)', S88V22,
+         'The bomb of the 21st sleeps.'),
+    ( reason_translate('El perro murió el día 13.', spanish, english, X88V23) -> S88V23 = X88V23 ; S88V23 = refused ),
+    must('... and as when, `on'' it (tr_comp_out/7)', S88V23,
+         'The dog died on the 13th.'),
+    ( reason_translate('Pedro habla del jubilado fallecido el día 13 al manipular una bomba.', spanish, english, X88V24) -> S88V24 = X88V24 ; S88V24 = refused ),
+    must('... AND A PARTICIPLE AND THE DAY AFTER IT ARE NO ABSOLUTE CLAUSE: `el jubilado fallecido el día 13 al manipular un artefacto'', where the day lost its `on'' (tr_day_label/1)', S88V24,
+         'Pedro speaks of the pensioner died on the 13th on handling a bomb.').
+
+section_88_3 :-
+    ( reason_translate('Si el perro hubiera comido, el gato no hubiera muerto.', spanish, english, X88V25) -> S88V25 = X88V25 ; S88V25 = refused ),
+    must('THE MAIN CLAUSE OF A CONDITION IN THE PLUPERFECT IS THE CONDITIONAL PERFECT: `si se hubiera advertido a la gente ..., no hubiera muerto aquel anciano'' is that old man would not have died, where it was `had not died'' (tr_counterfactual/3)', S88V25,
+         'If the dog had eaten, the cat would not have died.'),
+    ( reason_translate('El perro murió hace una semana.', spanish, english, X88V26) -> S88V26 = X88V26 ; S88V26 = refused ),
+    must('`hace'' AND A TIME AFTER THE VERB IS `ago''', S88V26,
+         'The dog died a week ago.'),
+    ( reason_translate('El perro recriminó hace una semana al gato que el pan es grande.', spanish, english, X88V27) -> S88V27 = X88V27 ; S88V27 = refused ),
+    must('... where the time is read as the verb''s and the word for `ago'' after it: `echó en cara hace una semana a Esteve Ferran'' was `reproached a week to Esteve Ferran ago'' (tr_ago_phrase/2)', S88V27,
+         'The dog reproached a week ago the cat that the bread is big.'),
+    ( reason_translate('El perro recriminó al gato que el pan es grande.', spanish, english, X88V28) -> S88V28 = X88V28 ; S88V28 = refused ),
+    must('A VERB OF REPROACHING TAKES THE PERSON BARE BEFORE ITS CLAUSE OF `that'': `echó en cara ... a Esteve Ferran ... que no se hubiese alertado'', where it was `reproached to Esteve Ferran'' (tr_comps_out/7, en_person_that/1)', S88V28,
+         'The dog reproached the cat that the bread is big.'),
+    ( reason_translate('El perro recriminó al gato que no se le hubiera advertido.', spanish, english, X88V29) -> S88V29 = X88V29 ; S88V29 = refused ),
+    must('... AND THE CLAUSE AFTER THE PERSON MAY OPEN ON A DENIAL AND THE PRONOUNS OF ITS VERB: `han recriminado a las autoridades que no se les hubiera alertado'', which read as the authorities'' relative clause (tr_clause_after_person/1)', S88V29,
+         'The dog reproached the cat that she had not been warned.'),
+    ( reason_translate('Los habitantes de las casas incluidas en la campaña duermen.', spanish, english, X88V30) -> S88V30 = X88V30 ; S88V30 = refused ),
+    must('A PARTICIPLE IN THE SUBJECT''S PHRASE OF `of'' TAKES THE PHRASE AFTER IT: `algunos habitantes de las localidades incluidas en la campaña de amenazas'' -- with the campaign the inhabitants'', English wrote `the included localities in the campaign'' (tr_inner_participle_adjunct/2)', S88V30,
+         'The inhabitants of the houses included in the campaign sleep.'),
+    ( reason_translate('El perro duerme en las últimas tres semanas.', spanish, english, X88V31) -> S88V31 = X88V31 ; S88V31 = refused ),
+    must('`last'' AND `first'' STAND BEFORE THE COUNT IN ENGLISH: `en las últimas tres semanas'', where it was `the three last weeks'' (tr_np_out/5, en_order_adjective/1)', S88V31,
+         'The dog sleeps in the last three weeks.'),
+    ( reason_translate('Murió aquel anciano.', spanish, english, X88V32) -> S88V32 = X88V32 ; S88V32 = refused ),
+    must('A DEMONSTRATIVE AFTER THE VERB AND THE NOUN AFTER IT ARE ONE SUBJECT: `no hubiera muerto aquel anciano'' is that old man, and read as the pronoun `aquel'' for the subject the noun was left for a predicate (tr_demonstrative_subject/4)', S88V32,
+         'That old man died.'),
+    ( reason_translate('La mujer ha cambiado sus hábitos.', spanish, english, X88V33) -> S88V33 = X88V33 ; S88V33 = refused ),
+    must('A WOMAN''S POSSESSIVE IS `her'': `La mujer asegura que ha cambiado sus hábitos'', where the lesson''s first meaning wrote `his'' (tr_female_possessor/1)', S88V33,
+         'The woman has changed her habits.'),
+    ( reason_translate('La mujer y su marido duermen.', spanish, english, X88V34) -> S88V34 = X88V34 ; S88V34 = refused ),
+    must('... and a husband''s: `Marta Toledo, ..., y su marido'' is her husband (tr_cross_np/2)', S88V34,
+         'The woman and her husband sleep.'),
+    ( reason_translate('Pedro ve otro perro.', spanish, italian, X88V35) -> S88V35 = X88V35 ; S88V35 = refused ),
+    must('A DETERMINER THE LESSON SAYS TAKES THE INDEFINITE TAKES IT: `voy a otro sitio'' is `vado in un altro luogo'' (`"altro" takes the indefinite.''), where it was `altro luogo'' (tr_det_out/6)', S88V35,
+         'Pedro vede un altro cane.'),
+    ( reason_translate('Il cane mangia qualsiasi pane.', italian, spanish, X88V36) -> S88V36 = X88V36 ; S88V36 = refused ),
+    must('... and Spanish''s `cualquier'', the short form of `cualquiera''', S88V36,
+         'El perro come cualquier pan.').
+
+section_88_4 :-
+    ( reason_translate('El perro no come ningún pan.', spanish, italian, X88V37) -> S88V37 = X88V37 ; S88V37 = refused ),
+    must('A DETERMINER IN THE SINGULAR LOSES ITS ENDING WHERE THE LESSON STATES ITS APOCOPE: `no han localizado ningún artefacto'' is `nessun dispositivo'', where it was `nessuno dispositivo'' (tr_det_form/6, tr_det_apocope/3)', S88V37,
+         'Il cane non mangia nessun pane.'),
+    ( reason_translate('El perro duerme en los Alpes.', spanish, italian, X88V38) -> S88V38 = X88V38 ; S88V38 = refused ),
+    must('A NAME THE LESSON GIVES A MEANING HAS THE GENDER THE LESSON STATES OF IT: `en los Alpes'' is `nelle Alpi'', and with Spanish''s masculine it was `negli Alpi'' (tr_crossed_name_gender/2)', S88V38,
+         'Il cane dorme nelle Alpi.'),
+    ( reason_translate('"Pedro duerme hasta que no se haya resuelto el caso", dice Marta.', spanish, english, X88V39) -> S88V39 = X88V39 ; S88V39 = refused ),
+    must('A QUOTATION THAT CLOSED ON A SUBJECT SET LAST CLOSES WHERE THE CLAUSE ENDS: the passive writes the case first, and the mark stayed on it, `until the case" has been resolved'' (tr_write/4)', S88V39,
+         '"Pedro sleeps until the case has been resolved", Marta says.'),
+    ( reason_translate('"Duermo", sostiene Rebeca, vecina de Salou.', spanish, english, X88V40) -> S88V40 = X88V40 ; S88V40 = refused ),
+    must('A WORD THAT IS A PERSON''S NOUN AND AN ADJECTIVE, AFTER THE COMMA THAT CLOSES A SUBJECT SET AFTER THE VERB, IS WHAT THE SUBJECT IS: `sostiene Rebeca López, vecina de Cala Crancs'' -- read as the adjective it was `maintains, neighbouring of Cala Crancs'' (tr_person_appos/2)', S88V40,
+         '"I sleep", Rebeca, neighbour of Salou, maintains.'),
+    ( reason_translate('Sostiene Rebeca, vecina de Salou, el lugar donde duerme el perro.', spanish, english, X88V41) -> S88V41 = X88V41 ; S88V41 = refused ),
+    must('A NAME WITH WHAT IT IS SET BETWEEN COMMAS, AFTER A VERB OF SAYING WITH NOBODY NAMED, IS THE SPEAKER: the commas made the name an aside and the verb''s object, and English refused it (tr_aside_speaker/2) -- AND THE PLACE APPOSED TO THE APPOSITION''S LAST PHRASE IS THE SPEAKER''S TOO (tr_appos_tail/1)', S88V41,
+         'Rebeca, neighbour of Salou, the place where the dog sleeps, maintains.'),
+    ( reason_translate('Los perros de la casa y del gato que han comido los panes duermen.', spanish, english, X88V42) -> S88V42 = X88V42 ; S88V42 = refused ),
+    must('A RELATIVE CLAUSE AFTER THE PHRASES OF `of'' OF A PLURAL HEAD, ITS VERB IN THE PLURAL, HANGS ON THE HEAD: `los artificieros de la Guardia Civil y del Ejército que han peinado las playas'' -- hung on the Army, the clause took the beaches for its subject, `the Army that the beaches have combed'' (tr_coord_rc_fix/4)', S88V42,
+         'The dogs of the house and of the cat that have eaten the breads sleep.'),
+    ( reason_translate('Los perros que han visto las casas de Tarragona, Salou (Tarragonès) y Cambrils duermen.', spanish, english, X88V43) -> S88V43 = X88V43 ; S88V43 = refused ),
+    must('AN ITEM OF A LIST WITH ITS BRACKET IS AN ITEM: `las playas de Tarragona, Salou (Tarragonès) y Cambrils (Baix Camp)'' -- with the bracket the comma stayed the clause''s, and the sentence was refused (tr_bare_tail/4)', S88V43,
+         'The dogs that have seen the houses of Tarragona, Salou (Tarragonès) and Cambrils sleep.'),
+    ( reason_translate('Los perros de la casa y del gato que han visto las casas de Tarragona, Salou y Cambrils (Baix Camp) duermen.', spanish, english, X88V44) -> S88V44 = X88V44 ; S88V44 = refused ),
+    must('A BRACKET RIGHT AFTER A NAME THAT ENDS A RELATIVE CLAUSE IS THE NAME''S, never the phrase''s with its clause: hung on the whole, it kept the clause from the head it hangs on, and was written after the clause''s verb (tr_np/3)', S88V44,
+         'The dogs of the house and of the cat that have seen the houses of Tarragona, Salou and Cambrils (Baix Camp) sleep.'),
+    ( reason_translate('Pedro duerme, según explicaron fuentes del sector.', spanish, english, X88V45) -> S88V45 = X88V45 ; S88V45 = refused ),
+    must('A BARE PLURAL IS A SPEAKER: `según explicaron fuentes de los turoperadores de la zona'', and with a determiner asked for the comment was refused (tr_report_subject/5)', S88V45,
+         'Pedro sleeps, as sources of the sector explained.'),
+    ( reason_translate('Las casas de Salou no se vincularon con el perro.', spanish, english, X88V46) -> S88V46 = X88V46 ; S88V46 = refused ),
+    must('A THING''S REFLEXIVE IS THE PASSIVE WITH ITS PHRASES OF `of'' TOO: `que las explosiones de Salou no se vincularan con una actuación terrorista'', where it was `did not link'' (tr_thing_phrase/1)', S88V46,
+         'The houses of Salou were not linked with the dog.'),
+    ( reason_translate('Rebeca, que augura: "Pondrán más explosivos".', spanish, english, X88V47) -> S88V47 = X88V47 ; S88V47 = refused ),
+    must('A NAME AND ITS RELATIVE CLAUSE BEFORE A COLON ARE A HEADING: `Todo lo contrario de Rebeca, que augura:'' is quite the opposite of Rebeca, who predicts it -- the clause was one of `that'' with nobody named, which English refuses (tr_verbless0/3)', S88V47,
+         'Rebeca, who predicts: "They will put more explosives".'),
+    ( reason_translate('El amigo de Rebeca, que augura: "Pondrán más panes".', spanish, english, X88V48) -> S88V48 = X88V48 ; S88V48 = refused ),
+    must('... and a phrase whose phrase of `of'' has the name and its clause: `Todo lo contrario de Rebeca, que augura:'' (tr_verbless0/3)', S88V48,
+         'The friend of Rebeca, who predicts: "They will put more breads".').
+
+section_88_5 :-
+    ( reason_translate('El perro de la Guardia Civil Luis Marfil duerme.', spanish, english, X88V49) -> S88V49 = X88V49 ; S88V49 = refused ),
+    must('A PERSON''S NAME AFTER A PHRASE THAT ENDS ON CAPITALS THE LESSON KNOWS IS APPOSED AS IT IS AFTER A COMMA: `el artificiero de la Guardia Civil Luis Marfil'' -- with the capitals run together the phrase had no reading (tr_np/3)', S88V49,
+         'The dog of the Civil Guard, Luis Marfil, sleeps.'),
+    ( reason_translate('"No pienso hacerlo", dice Pedro.', spanish, english, X88V50) -> S88V50 = X88V50 ; S88V50 = refused ),
+    must('A WORD A QUOTATION MARK CLOSES ON KEEPS ITS PRONOUNS: `hacerlo"'' was a word no lesson knows (tr_enclitics/3) -- AND A MARK ON AN INFINITIVE THE CLAUSE ENDS ON CLOSES WHERE THE CLAUSE ENDS, never after the verb group (tr_vq_close/4) -- AND THE MARK IS NO FIRST COMPLEMENT, so the verb crosses by its meaning before an infinitive, `intends'' (tr_first_comp/2) -- AND `makes'' WITH NOTHING MADE IS `does'', its pronoun `it'' (tr_write/4)', S88V50,
+         '"I do not intend to do it", Pedro says.'),
+    ( reason_translate('Quiero hacerlo.', spanish, english, X88V51) -> S88V51 = X88V51 ; S88V51 = refused ),
+    must('... `makes'' joined to its pronoun, with nothing made', S88V51,
+         'I want to do it.'),
+    ( reason_translate('El perro advirtió a la población.', spanish, english, X88V52) -> S88V52 = X88V52 ; S88V52 = refused ),
+    must('A GROUP AFTER A VERB OF WARNING IS ITS OBJECT, marked as a person is: `debían haber avisado a la población'' should have warned it, and read as a phrase of `to'' English wrote `warned to the population'' (tr_warned_group/3)', S88V52,
+         'The dog warned the population.'),
+    ( reason_translate('El perro debía haber advertido a la población.', spanish, english, X88V53) -> S88V53 = X88V53 ; S88V53 = refused ),
+    must('... and after the infinitive of one, read with the modal''s group (tr_warned_infinitive/2)', S88V53,
+         'The dog should have warned the population.'),
+    ( reason_translate('Pedro ha renunciado a visitar las playas.', spanish, english, X88V54) -> S88V54 = X88V54 ; S88V54 = refused ),
+    must('A VERB BEFORE AN INFINITIVE WITH THE WORD IT TAKES CROSSES BY ITS MEANING THERE: `han renunciado a visitar las playas'' have GIVEN UP, where it was `renounced to visit'' (tr_verb_across/5) -- AND ENGLISH''S `gives up'' TAKES THE GERUND (en_gerund_verb/1)', S88V54,
+         'Pedro has given up visiting the beaches.').
+
+lesson_88(spanish, 18, '"comía" is the imperfect of "come". "comería" is the conditional of "come". "dormía" is the imperfect of "duerme".
+The intransitive verb "aparece" means "appears". "aparecen" is the plural of "aparece". The determiner "más" means "more".
+The conjunction "hasta que" means "until". "hasta que" takes the subjunctive. The verb "resuelve" means "resolves". "resuelve" takes the passive. "resuelto" is the participle of "resuelve". "haya" is the subjunctive of "ha". The masculine noun "caso" means "case".
+The feminine noun "locura" means "madness". The verb "baja" means "drops". The intransitive verb "baja" means "goes down". "bajar" is the infinitive of "baja". The feminine noun "playa" means "beach".
+The verb "debe" means "must". "debía" is the imperfect of "debe". "debían" is the plural of "debía".
+The verb "resulta" means "results". "resultó" is the past of "resulta". The verb "hiere" means "injures". "herido" is the participle of "hiere". "heridos" is the plural of "herido".
+The verb "pone" means "puts". "pondrán" is the future of "ponen". "ponen" is the plural of "pone".
+The intransitive verb "muere" means "dies". "murió" is the past of "muere". The intransitive verb "estalla" means "explodes". "estallar" is the infinitive of "estalla". The feminine noun "bomba" means "bomb". The verb "coloca" means "places". "colocada" is the participle of "coloca". "colocada" is feminine. The feminine noun "arena" means "sand".
+The verb "advierte" means "warns". "advirtió" is the past of "advierte". The masculine noun "riesgo" means "risk".
+The verb "conoce" means "knows". "conocían" is the imperfect of "conocen". "conocen" is the plural of "conoce".
+The intransitive verb "juega" means "plays". "juegan" is the plural of "juega".
+The verb "indica" means "indicates". "indicaban" is the imperfect of "indican". "indican" is the plural of "indica". The conjunction "como" means "as".
+The masculine noun "otro" means "other". The masculine determiner "otro" means "other". "otro" takes the indefinite. The masculine noun "sitio" means "place".
+The masculine noun "día" means "day". "falleció" is the past of "fallece". The intransitive verb "fallece" means "dies". "fallecido" is the participle of "fallece".
+"hubiera" is the past subjunctive of "ha". "muerto" is the participle of "muere". "comido" is the participle of "come".
+The adverb "hace" means "ago". The feminine noun "semana" means "week".
+The verb "recrimina" means "reproaches". "recrimina" takes the clause. "recriminó" is the past of "recrimina".
+The masculine demonstrative "aquel" means "that". The masculine noun "anciano" means "old man". "anciano" is a person.
+The feminine noun "mujer" means "woman". "mujer" is a person. "mujer" is feminine. The masculine noun "marido" means "husband". "marido" is a person. The masculine noun "hábito" means "habit". "hábitos" is the plural of "hábito". The verb "cambia" means "changes". "cambiado" is the participle of "cambia". The verb "asegura" means "assures". "asegura" takes the clause. The possessive "su" means "his".
+The adjective "último" means "last". "últimas" is the plural of "última". The feminine adjective "última" means "last". The number "tres" means "three".
+The possessive "su" means "her". "comían" is the imperfect of "comen". "perro" is animate.
+The verb "recuerda" means "remembers". "recuerda" takes the clause.
+"knew" is the past of "knows".
+The masculine noun "habitante" means "inhabitant". "habitante" is a person. "habitantes" is the plural of "habitante". The verb "incluye" means "includes". "incluidas" is the participle of "incluye". "incluidas" is feminine. "incluidas" is the plural of "incluida". "incluida" is the participle of "incluye". "incluida" is feminine. The feminine noun "campaña" means "campaign".
+The verb "sostiene" means "maintains". The feminine noun "vecina" means "neighbour". "vecina" is a person. The masculine noun "vecino" means "neighbour". "vecino" is a person. The feminine adjective "vecina" means "neighbouring". The masculine adjective "vecino" means "neighbouring". "Salou" is a name. "Rebeca" is a name. The masculine noun "lugar" means "place". The conjunction "donde" means "where".
+The masculine determiner "ningún" means "no". The verb "dice" means "says".
+"Tarragona" is a name. "Cambrils" is a name. "visto" is the participle of "ve". "han" is the plural of "ha".
+The preposition "según" means "according to". The verb "explica" means "explains". "explicaron" is the past of "explican". "explican" is the plural of "explica". The feminine noun "fuente" means "source". "fuentes" is the plural of "fuente". The masculine noun "sector" means "sector".
+The verb "vincula" means "links". "vincula" takes the passive. "vincularon" is the past of "vinculan". "vinculan" is the plural of "vincula". The preposition "con" means "with".
+The name "alpes" means "Alps".
+The verb "augura" means "predicts".
+The masculine noun "explosivo" means "explosive". "explosivos" is the plural of "explosivo". The masculine adjective "explosivo" means "explosive". "explosivos" is the plural of "explosivo".
+The feminine noun "guardia" means "guard". The adjective "civil" means "civil".
+The verb "piensa" means "thinks". The infinitival verb "piensa" means "intends". "pienso" is the first person of "piensa". The verb "hace" means "makes". "hacer" is the infinitive of "hace". The pronoun "lo" means "him". The verb "quiere" means "wants". "quiero" is the first person of "quiere".
+The feminine noun "población" means "population". "población" is a group. "advertido" is the participle of "advierte". "advertir" is the infinitive of "advierte".
+The verb "renuncia" means "renounces". The infinitival verb "renuncia" means "gives up". "renunciado" is the participle of "renuncia". The verb "visita" means "visits". "visitar" is the infinitive of "visita". The pronoun "muchos" means "many".
+"seen" is the participle of "sees".
+"día" is a time. The verb "entierra" means "buries". "enterradas" is the participle of "entierra". "enterradas" is feminine. "enterradas" is the plural of "enterrada". "enterrada" is the participle of "entierra". "enterrada" is feminine.
+The masculine noun "jubilado" means "pensioner". "jubilado" is a person. The verb "manipula" means "handles". "manipular" is the infinitive of "manipula".
+The preposition "más" means "plus".
+The determiner "cualquiera" means "any". "cualquier" is the apocope of "cualquiera". The masculine adjective "anciano" means "elderly". "saw" is the past of "sees".
+The masculine pronoun "aquel" means "that". The pronoun "aquel" does not precede the verb.').
+lesson_88(italian, 18, '"mangiavo" is the imperfect of "mangia".
+The masculine determiner "altro" means "other". "altro" takes the indefinite.
+The masculine determiner "nessuno" means "no". "nessun" is the apocope of "nessuno". The name "alpi" means "Alps". "alpi" is feminine.
+The determiner "qualsiasi" means "any".').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support
