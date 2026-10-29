@@ -656,7 +656,19 @@ green_pool(D, Root) :-
                   'httpd_page(''/consulted'', _, reply(200, [], consulted)).',
                   '',
                   GreenClause ]),
-        green_server(Green, 'green(18950, 3, 3)', 18950, Pid1),
+        %% THE POOL FITS THE WORLD. N tasks need N workers beside the
+        %% acceptor's (httpd_green_count/1 refuses more), and the world has
+        %% one worker a core, so green(3) wants four cores. On GitHub's
+        %% three-core Apple silicon runner the server refused it and never
+        %% listened, and the section failed at its first request, with no
+        %% FAIL line (hit/2 fails when curl does).
+        P3 is min(3, W), P2 is min(2, W),
+        (   P3 < 3
+        ->  format("     (pools of ~w: this world has ~w worker(s) beside the acceptor)~n", [P3, W])
+        ;   true
+        ),
+        sh_join(['green(18950, ', P3, ', 3)'], Goal1),
+        green_server(Green, Goal1, 18950, Pid1),
         hit('http://127.0.0.1:18950/a.txt', GC1),
         check('a static file comes back through the green pool', GC1, '200'),
         hit('http://127.0.0.1:18950/fast', GC2),
@@ -664,7 +676,7 @@ green_pool(D, Root) :-
         hit('http://127.0.0.1:18950/consulted', GC3),
         check('and a CONSULTED page, which the thread pool cannot serve: one store', GC3, '200'),
         reap(Pid1),
-        green_one_slow(Green, GOnes, GCodes),
+        green_one_slow(Green, P3, GOnes, GCodes),
         check('the slow page finishes through green: 200, not cut off', GCodes, ['200', '200', '200']),
         (   W >= 4
         ->  green_four(Green, GPooleds),
@@ -676,7 +688,8 @@ green_pool(D, Root) :-
             parallel_check('four at once through green take about one', GPC)
         ;   format("     (skipped: four at once -- this world has ~w worker(s) beside the acceptor)~n", [W])
         ),
-        green_server(Green, 'green(18951, 2, 2)', 18951, Pid2),
+        sh_join(['green(18951, ', P2, ', 2)'], Goal2),
+        green_server(Green, Goal2, 18951, Pid2),
         hit('http://127.0.0.1:18951/boom3', GC4),
         check('a page that throws is 500, from a green worker', GC4, '500'),
         hit('http://127.0.0.1:18951/fast', GC5),
@@ -688,8 +701,9 @@ green_server(Green, Goal, Port, Pid) :-
     sh_join(['run ', Green, ' "', Goal, '"'], Args),
     serving(Args, Port, Pid).
 
-green_one_slow(Green, Ones, Codes) :-
-    green_server(Green, 'green(18952, 3, 4)', 18952, Pid),
+green_one_slow(Green, P, Ones, Codes) :-
+    sh_join(['green(18952, ', P, ', 4)'], Goal),
+    green_server(Green, Goal, 18952, Pid),
     findall(Ms-Code,
             ( between(1, 3, _), timed_hit('http://127.0.0.1:18952/slow', Ms, Code) ),
             Samples),

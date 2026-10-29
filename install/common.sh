@@ -377,6 +377,10 @@ exports_hint() {
   echo "   export ZIGURATIP=$ZIGURATIP"
   echo "   export ZIGURATIP_HOME=$ZIGURATIP_HOME"
   echo "   export $LIBVAR=\$ZIGURATIP_HOME/lib"
+  if [ "$OS" = macos ] && [ -n "${CPATH:-}" ]; then   # Homebrew's, set by install-macos.sh
+    echo "   export CPATH=$CPATH"
+    echo "   export LIBRARY_PATH=${LIBRARY_PATH:-}"
+  fi
   [ -n "${QUICKLISP_HOME:-}" ] && echo "   export QUICKLISP_HOME=$QUICKLISP_HOME"
   if [ -n "${LIBTORCH:-}" ]; then
     echo "   export LIBTORCH=$LIBTORCH"

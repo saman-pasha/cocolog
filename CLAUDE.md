@@ -417,6 +417,34 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   hold would be reported as cocolog's failures. **Count the SKIPs and run
   `pgrep ziguratip`** before believing a green run; the number of SKIPs is a
   fact about the machine.
+* **CI runs the whole suite on GitHub** (`.github/workflows/ci.yml`, 2026-10-29):
+  every push to master and pull request into master (not one that changes
+  only the top-level `*.md` or the Docker files), and by hand with Cicili's
+  and ZiguratIP's refs. Three jobs, NOT root: ubuntu-24.04 (x86-64, 4 vCPU,
+  16 GB) by `install/install-linux.sh`, and two Macs by
+  `install/install-macos.sh`, macos-15 (Apple silicon, 3 CPUs, 7 GB) and
+  macos-26-intel (x86-64, 4 CPUs, 14 GB), the owner's arrangement. Homebrew
+  builds no Intel bottles since 2026-09 and SBCL ships no x86-64 Darwin
+  binary: the Intel job pours what the image's own formula data names
+  (`HOMEBREW_NO_AUTO_UPDATE`), and where no bottle pours sbcl builds
+  through ECL, in the install step's two hours. Each raises a server
+  on 2160, runs the lint case and then `test/run.pl`, and
+  `tools/ci/verdict.sh` reads every case's line: a red case, a case with no
+  line, or a SKIP outside the job's `allowed_skips` (tensors, the three
+  torch cases, tensorflow, ray, numpy, opencv: no library built there; on
+  the Macs files and trace too, as no Mac package is the reference swipl
+  9.0.4 and the Macs have none) is red. **A case that may now SKIP on a plain
+  install goes into `allowed_skips` in the same commit.** Each red case is
+  run again alone (its whole output: the runner keeps five FAIL lines and
+  no SKIP reason), and the logs are the run's artifact for 14 days.
+* **A case sizes a green pool from the world, never with a number.** The
+  world has a worker a core and the acceptor holds one, so
+  `concurrency(green(N))` wants N + 1 cores and is refused past that
+  (`httpd_green_count/1`). Ask `httpd_mode(green, green(W))` and take
+  `min(N, W)`. GitHub's Apple silicon Mac has three cores. test/httpd.pl's fixed
+  `green(3)` was refused there: the server never listened, and the section
+  failed with no FAIL line, because `hit/2` fails when curl does (878b17a).
+  `COCOLOG_GREEN_WORKERS=3` gives any box that world.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -7384,11 +7412,24 @@ than its cause:
 * **Shared objects and test binaries leave interpreter symbols undefined**:
   `tools/cc` adds `-Wl,-undefined,dynamic_lookup` to every Darwin link, and
   `COCO_WEAK`/`CE_WEAK` are `weak_import`.
+* **No makefile names a Homebrew path** (here or in ZiguratIP), and Apple's
+  clang searches `/usr/local` -- Homebrew's prefix on an Intel Mac -- but not
+  `/opt/homebrew`, Apple silicon's; `openssl@3` is keg-only on both. So
+  `install/install-macos.sh` exports `CPATH` and `LIBRARY_PATH` (openssl@3's
+  include and lib, then the prefix's) for its builds and prints them with its
+  other exports: a later `make` or `make test` wants them in the shell
+  (2026-10-29; before, an Apple silicon Mac found no `openssl/ssl.h`).
+* **There is no `timeout`**, which several cases run a child under: CI gives
+  the Mac coreutils' `gtimeout` under that one name, and leaves BSD `date`,
+  `wc` and `sed` as they are.
 * **There is no `/proc/self/exe`**: `lb_exedir` asks `_NSGetExecutablePath`;
   programs read `current_prolog_flag(executable, P)`.
-* **`make schema` dies in libc++** (`binary_function` removed): copy the home
-  config, add `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to
-  `CPP_FLAGS`, run `ZIGURATIP_CONF=that-file make schema`.
+* **`make schema` builds as it stands on Apple clang 17** (macos-15, CI,
+  2026-10-29: 38 objects, no flag): nothing in either tree names
+  `std::binary_function` now. It once died in libc++, which removes that
+  name under C++17. Were that back: copy the home config, add
+  `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to `CPP_FLAGS`, run
+  `ZIGURATIP_CONF=that-file make schema`.
 * **A raylib photograph is one frame behind**: draw a frame twice before a
   screenshot or a pixel read. **A sleeping screen opens no window**
   (`GLFW: Failed to determine Monitor`); `test/ray.pl` probes and SKIPs;
@@ -7429,6 +7470,7 @@ than its cause:
 | `tools/cocolint/` | the dialect linter (`lint.sh FILE.pl`), its card (`traps.jsonl`, citations checked with `tool.sh card --check`), the retrieval index (`tool.sh index`), the oracle |
 | `tools/cc/` | the compiler wrappers |
 | `tools/cloud/` | `docker-build.sh`: the Docker images on a Claude Code session's Linux box |
+| `tools/ci/`, `.github/workflows/` | `verdict.sh`: the suite's verdict on a CI runner (`ci.yml` runs it); `docker-image.yml`: a release's images, by hand |
 | `tools/flow/` | `chart.pl` (a flowchart from a shell: `cocolog -s tools/flow/chart.pl -- SPEC FILE BASE`, exit 0/1/2, the findings on stdout as `FILE:LINE:COL: error: ...`), `tables.pl` and `build.sh` (library(flow/chart)'s tables, by `make modules`), `zero.sh` (the untraced engine's instructions on nrev, queens and lookup, a binary beside a binary, the jump padding apart), `debug.pl` (what a query did, from a shell: `cocolog -s tools/flow/debug.pl -- GOAL FILE BASE`, exit 0/1/2, a line on stdout of how the run ended); DESIGN-flow.md is the plan |
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |

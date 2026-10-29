@@ -1012,9 +1012,11 @@ Four documented failure modes, each of which reads as something it is not:
   bootstrap has a documented failure mode that reads as a build failure and is not one. On macOS
   `contention_test`'s "rewrite vs index" fails and passes on Linux. **Check for the artefacts
   before believing the exit code.**
-- **`make schema` is separately required and separately breaks.** On a Mac it dies inside libc++
-  (`std::binary_function`, removed in C++17); the owner's road is
+- **`make schema` is separately required.** On a Mac it once died inside libc++
+  (`std::binary_function`, removed in C++17), and the owner's road was
   `ZIGURATIP_CONF=<a copy with -D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION> make schema`.
+  Nothing in either tree names it now: cocolog's CI runs `make schema` as it stands on macos-15
+  (Apple clang 17, 2026-10-29).
 - **The server needs its own libraries on the path**, and started plainly it dies at once with
   `libStreamIO.so: cannot open shared object file` — after which every database case SKIPs and
   the suite still says `red: 0`.
