@@ -128,6 +128,19 @@ fail_lines(Text) :-
     atom_codes(Text, Cs), re_lines('^FAIL', Cs, Ls), head_lines(5, Ls, Five),
     forall(member(L, Five), ( atom_codes(LA, L), format("~w~n", [LA]) )).
 
+%% A CASE THAT DID NOT END ON ITS OWN RED -- it raised, or a goal of it
+%% failed -- has no FAIL line for what went wrong: a raise's last line is
+%% the engine's, the foot of the backtrace, and the error is above it. Its
+%% last lines go after its line, indented, so a run nobody can repeat (a
+%% CI runner's) names the error: run 40942980399's flowdebug said only
+%% `ERROR: run with --backtrace to see those.' and was green when run again
+%% alone
+raised_tail('RED', _) :- !.
+raised_tail(_, '') :- !.
+raised_tail(_, Text) :-
+    atom_codes(Text, Cs), codes_lines(Cs, Ls), tail_lines(20, Ls, Tail),
+    forall(member(L, Tail), ( atom_codes(LA, L), format("   | ~w~n", [LA]) )).
+
 %% ---- the .pl cases -------------------------------------------------------------
 %%
 %% Each drives the built PROGRAM rather than a test binary. They run last
@@ -207,6 +220,7 @@ pl_each([C|Cs], Binary, Red0, Red) :-
     %% says nothing about which is a suite nobody times twice
     (   Verdict == 'GREEN' -> format("GREEN  ~ws~n", [Secs]), Red1 = Red0
     ;   sub_atom(Verdict, 0, _, _, 'SKIP') -> format("SKIP   ~ws~n", [Secs]), Red1 = Red0
-    ;   last_line(Out, Last), format("~w  ~ws~n", [Last, Secs]), fail_lines(Out), Red1 is Red0 + 1
+    ;   last_line(Out, Last), format("~w  ~ws~n", [Last, Secs]), fail_lines(Out),
+        raised_tail(Last, Out), Red1 is Red0 + 1
     ),
     pl_each(Cs, Binary, Red1, Red).

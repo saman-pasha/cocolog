@@ -191,17 +191,35 @@ parallel :-
     %% THE SAME SHAPE test/thread.pl USES, and the same loose threshold: this
     %% proves the workers are not taking turns, not that the scheduler is
     %% good. A tight ratio fails on a loaded machine and proves nothing extra.
+    %%
+    %% EACH CREW'S FASTEST OF THREE ROUNDS. A round is 10 to 130 ms, and
+    %% wall time charges it every pause of the scheduler: in run
+    %% 40942980399 on GitHub's 3-CPU Mac the four workers were not faster,
+    %% and were when the case ran again alone (59 ms and 30), and beside six
+    %% busy loops on four cores one run of the case in five timed 53 ms on
+    %% one worker and 57 on four. parallel_check/2 asks the machine whether
+    %% it overlaps two processes only after the rounds, so a pause during
+    %% them alone was red. The first round of four is also the dearest, its
+    %% workers' first calls of the jobs: beside the loops 55 to 62 ms, then
+    %% 30 to 53, where the fastest of three was a third to a half of one
+    %% worker's. A pause only adds, so a crew's fastest round is its own time
     cowork_start(1, [], C1),
-    get_time(T0), cowork_map(C1, [slow(2,_), slow(2,_), slow(2,_), slow(2,_)], _), get_time(T1),
+    fastest_round(C1, One),
     cowork_stop(C1),
-    One is round((T1 - T0) * 1000),
     cowork_start(4, [], C2),
-    get_time(T2), cowork_map(C2, [slow(2,_), slow(2,_), slow(2,_), slow(2,_)], _), get_time(T3),
+    fastest_round(C2, Four),
     cowork_stop(C2),
-    Four is round((T3 - T2) * 1000),
-    format("     one worker ~wms, four workers ~wms~n", [One, Four]),
+    format("     one worker ~wms, four workers ~wms (each the fastest of three rounds)~n", [One, Four]),
     ( One > 0, Four < One * 3 // 4 -> R = parallel ; R = serial ),
     parallel_check('the same four jobs are faster on four workers than on one', R).
+
+%% the milliseconds of the fastest of three rounds of the same four jobs
+fastest_round(C, Ms) :-
+    findall(M, ( between(1, 3, _),
+                 get_time(T0), cowork_map(C, [slow(2,_), slow(2,_), slow(2,_), slow(2,_)], _), get_time(T1),
+                 M is round((T1 - T0) * 1000) ),
+            Rounds),
+    min_list(Rounds, Ms).
 
 %% ---- posting, and collecting a frame later ------------------------------
 %%

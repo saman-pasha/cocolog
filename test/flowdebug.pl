@@ -1277,12 +1277,10 @@ timed(D) :-
                  't_n2 :- t_nat(X), X >= 30, !.',
                  't_nat(0).', 't_nat(N) :- t_nat(M), N is M + 1.']),
     atomic_list_concat([D, '/load'], B4),
-    flow_debug(t_ms, B4, [source(F4), from(1), time(T4), svg(false), xml(false)], _),
-    flow_time_text(T4, TX4),
-    atomic_list_concat(TL4, '\n', TX4),
-    findall(P4-M4, ( member(P4, ['msort/2', 't_c/1', 't_e/1', 't_r/1', 't_w/1']), load_mark(TL4, P4, M4) ), PM4s),
+    W4 = ['msort/2'-load, 't_c/1'-none, 't_e/1'-none, 't_r/1'-none, 't_w/1'-load],
+    unpaused_marks(t_ms, B4, F4, W4, 5, T4, PM4s),
     check('a load, not a call: msort/2''s 20 000 and t_w/1''s first call marked, t_e/1''s two alike, the recursive t_c/1 and t_r/1 called twice alike not',
-          PM4s, ['msort/2'-load, 't_c/1'-none, 't_e/1'-none, 't_r/1'-none, 't_w/1'-load]),
+          PM4s, W4),
     T4 = time(_, _, _, TR4),
     findall(P5-O5, ( member(P5, [t_c/1, t_nat/1, t_r/1, t_w/1]), memberchk(t(P5, _, _, _, _, _, outer(O5, _)), TR4) ), PO5s),
     check('...the outermost calls the row counts: t_c/1''s one, t_nat/1''s one of its 31, made as it was redone, t_r/1''s two of its 4002, t_w/1''s two',
@@ -1358,6 +1356,29 @@ least_own_top(Runs, Top) :-
                    min_list(Os, T) ),
             TPs),
     (   max_member(_-Top0, TPs) -> Top = Top0 ; Top = none ).
+
+%% THE MARKS OF A PROBE NO PAUSE LANDED IN: up to K probes of Goal, the
+%% first whose marks of Want's predicates are Want's, else the last's, and
+%% that probe's time. The time view reads wall time, and the calls t_r/1's
+%% and t_e/1's marks compare are 0.1 to 0.25 ms each, where a pause of the
+%% scheduler is a time slice. Beside eight busy loops on four cores the
+%% window took 3.7 to 4.0 ms in 5 probes of 30 or that and a slice or more
+%% of 4 ms in the rest (7.8 to 14.8), and each of the 5 gave the rule's
+%% marks where 15 of the 25 marked t_r/1 or t_e/1. A pause only adds, to
+%% the one call it lands in, so a probe it missed gives the rule's marks;
+%% a wrong rule -- 1.14.0's, which counted t_r/1's inner calls as its
+%% others -- marks t_r/1 in every probe, paused or not. On an idle machine
+%% the first probe is the only one
+unpaused_marks(Goal, B, F, Want, K, T, PMs) :-
+    flow_debug(Goal, B, [source(F), from(1), time(T0), svg(false), xml(false)], _),
+    flow_time_text(T0, X),
+    atomic_list_concat(Ls, '\n', X),
+    findall(P-M, ( member(P-_, Want), load_mark(Ls, P, M) ), PMs0),
+    (   ( PMs0 == Want ; K =< 1 )
+    ->  T = T0, PMs = PMs0
+    ;   K1 is K - 1,
+        unpaused_marks(Goal, B, F, Want, K1, T, PMs)
+    ).
 
 %% P's row among the time view's LINES: `load' when it ends in the mark,
 %% `none' when it ends in P -- past the ` @W:S' that says where its

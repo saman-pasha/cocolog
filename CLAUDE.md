@@ -473,8 +473,10 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   the Macs files and trace too, as no Mac package is the reference swipl
   9.0.4 and the Macs have none) is red. **A case that may now SKIP on a plain
   install goes into `allowed_skips` in the same commit.** Each red case is
-  run again alone (its whole output: the runner keeps five FAIL lines and
-  no SKIP reason), and the logs are the run's artifact for 14 days.
+  run again alone (its whole output: the runner keeps five FAIL lines, the
+  last twenty of a case that did not end on its own RED -- it raised, or a
+  goal failed: `raised_tail/2`, 2.14.1 -- and no SKIP reason), and the logs
+  are the run's artifact for 14 days.
 * **A case sizes a green pool from the world, never with a number.** The
   world has a worker a core and the acceptor holds one, so
   `concurrency(green(N))` wants N + 1 cores and is refused past that
@@ -517,7 +519,12 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   stopped is charged the pause: in one suite on GitHub's 3-CPU Mac msort/2
   was not the most (run 40882388548), and beside six busy loops on four
   cores one run in forty was so. A pause only adds, so the least is the
-  predicate's own time.
+  predicate's own time. **The same holds of every check the clock or
+  get_time/1 decides** (2.14.1, run 40942980399): a crew's speed is its
+  fastest of three rounds (test/cowork.pl), and a load mark is the first
+  of up to five probes that gives the rule's marks (`unpaused_marks/7`:
+  t_r/1's calls are 0.1 ms, a time slice 4 ms, and beside eight busy loops
+  15 probes of 30 were paused into a wrong mark, none of the 5 fastest).
 * `scratch/1` names `/tmp/coco_cocolog_test_PID_SEQ`, and `make_directory/1`
   FAILS (does not raise) on a name that is taken; leftovers in `/tmp` plus a
   recycled PID fail a section silently. Not fixed. After a container restart
