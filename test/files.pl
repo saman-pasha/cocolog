@@ -96,6 +96,20 @@ fixtures(consult, Sandbox) :- !,
     atom_concat(Sandbox, '/d.pl', D),
     fixture(D, [':- initialization(writeln(init_d)).', ':- writeln(directive_d).', 'd(1).']),
     atom_concat(Sandbox, '/e.pl', E), fixture(E, [':- [b].', 'e(1).']).
+%% each version at a time of its own, whole seconds (BSD touch reads them
+%% too): r2.pl a second after r.pl, r3.pl an hour before it, so that
+%% if(changed) has a newer file and an older one to tell apart
+fixtures(reload, Sandbox) :- !,
+    forall(member(F-Lines-When,
+                  [ 'r.pl'-[':- writeln(read_r_v1).', 'rp(1).', 'rq(1).']-'2026-10-28T12:00:00Z',
+                    'r2.pl'-[':- writeln(read_r_v2).', 'rp(2).']-'2026-10-28T12:00:01Z',
+                    'r3.pl'-[':- writeln(read_r_v3).', 'rp(3).', 'rq(3).']-'2026-10-28T11:00:00Z',
+                    'c.pl'-[':- writeln(read_c_v1).', 'cp(1).', 'cq(1).']-'2026-10-28T12:00:00Z',
+                    'c2.pl'-[':- writeln(read_c_v2).', 'cp(2).']-'2026-10-28T12:00:01Z',
+                    'g.pl'-[':- writeln(read_g_v1).', ':- dynamic gd/1.', 'gd(file).']-'2026-10-28T12:00:00Z',
+                    'g2.pl'-[':- writeln(read_g_v2).', ':- dynamic gd/1.', 'gd(file2).']-'2026-10-28T12:00:01Z' ]),
+           ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines),
+             shl(['touch -d ', When, ' ', P]) )).
 fixtures(_, _).
 
 %% The vendored SWI libraries a case needs consulted first. SWI finds them on

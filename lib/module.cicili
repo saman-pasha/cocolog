@@ -180,7 +180,15 @@
     ;; load names in its messages, a syntax error's FILE:LINE:COL among
     ;; them (1.11.9) -- `use_module(bad)' registers the name `bad' and
     ;; reads `bad.pl'
-    (member const char * file))
+    (member const char * file)
+    ;; THAT FILE'S REAL PATH, resolved once when it is named (2.14.0): the
+    ;; owner its clauses carry in a store, so that consult/1 of the file
+    ;; reads it again in their place, as SWI's reload does -- and what
+    ;; `lb_module_of' compares. Null for one compiled in.
+    (member const char * real)
+    ;; and the file's time_file/2 when the text the registry holds was read
+    ;; (2.14.0), which load_files/2's if(changed) compares
+    (member double time))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -217,8 +225,16 @@
   (decl) (func coco_module_set_own ((const char * name)))
 
   ;;; Records the file the module NAME's text was read from (`file'), which
-  ;;; `use_module' does for each file it loads; the string is kept.
+  ;;; `use_module' does for each file it loads; the string is kept, and so
+  ;;; is its real path (`real', 2.14.0).
   (decl) (func coco_module_set_file ((const char * name) (const char * file)))
+
+  ;;; THE MODULE NAME READ AGAIN (2.14.0): TEXT is its Coco half from now
+  ;;; on, read when the file's time was TIME -- what a store loads the
+  ;;; module from next, and what `lb_lend_ops' lends. The text it replaces
+  ;;; is KEPT, never freed: the registry is the process's and unguarded,
+  ;;; and another thread may be consulting it into a store of its own.
+  (decl) (func coco_module_set_text ((const char * name) (const char * text) (double time)))
 
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
@@ -682,10 +698,13 @@
                          (set (-> st ownload) (-> mod own))
                          ;; NAMED BY ITS FILE where it has one (1.11.9), so a
                          ;; syntax error in `bad.pl' says `bad.pl:2:8' and a
-                         ;; directive's report names the file SWI names
-                         (set cr (coco_consult st m (-> mod prolog)
-                                               (? (== (-> mod file) nil) (-> mod name) (-> mod file))
-                                               err (sizeof err)))
+                         ;; directive's report names the file SWI names --
+                         ;; and OWNED BY IT (2.14.0): its clauses carry the
+                         ;; file's real path, so that consult/1 of the file
+                         ;; replaces exactly these (lib/library.cicili)
+                         (set cr (coco_consult_owner st m (-> mod prolog)
+                                                     (? (== (-> mod file) nil) (-> mod name) (-> mod file))
+                                                     (-> mod real) 0 err (sizeof err)))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
                          (if (< cr 0)
@@ -771,7 +790,17 @@
         (if (or (== name nil) (== file nil)) (return))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
-              (set ($ (nth i coco_modules) file) file))))
+              (let ((char rp [4096]))
+                (set ($ (nth i coco_modules) file) file)
+                (if (!= nil (realpath file rp))
+                    (set ($ (nth i coco_modules) real) (strdup rp)))))))
+
+  (func coco_module_set_text ((const char * name) (const char * text) (double time))
+        (if (or (== name nil) (== text nil)) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (block (set ($ (nth i coco_modules) prolog) text)
+                     (set ($ (nth i coco_modules) time) time)))))
 
   ;;; ---- the author's API -----------------------------------------------
 

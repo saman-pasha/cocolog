@@ -1733,6 +1733,17 @@
                            (const char * origin)
                            (char * err) (size_t errlen)) (out int))
 
+  ;;; THE SAME, WITH THE CLAUSES' OWNER NAMED (2.14.0): OWNER is the real
+  ;;; path of the file the text is, and the clauses carry it even in a
+  ;;; muted store -- which is how a module's clauses (`coco_module_load')
+  ;;; are told from another module's, so that consulting the file again
+  ;;; replaces them. Null owns nothing. REREAD 0 is a first read, which
+  ;;; has nothing to replace and asks nothing; 1 replaces what OWNER put
+  ;;; in this store before, as `coco_consult' does for the program's file.
+  (decl) (func coco_consult_owner ((coco_store * st) (coco_machine * m) (const char * text)
+                                 (const char * origin) (const char * owner) (int reread)
+                                 (char * err) (size_t errlen)) (out int))
+
   ;;; Splits a clause ON THE HEAP into head and body. A fact has no body and
   ;;; BODY is left 0; the engine reads that as `true' rather than building one.
   ;;;
@@ -6633,9 +6644,19 @@
   ;;; cells stay in the store, orphaned, as a retract leaves them; the
   ;;; positions have shifted, so the index is dropped; and the backend hears
   ;;; once, through the retract hook, which rewrites the predicate whole.
+  ;;;
+  ;;; ONLY THE CLAUSES OF THE STORE'S OWN MUTE (2.14.0): a muted forget --
+  ;;; a module read again -- takes the module's clauses, which never reached
+  ;;; the knowledge base, and tells the backend nothing; an unmuted one
+  ;;; takes the program's, and tells it. A module's clauses carry their
+  ;;; file's path too since 2.14.0, and a forget that took the other kind
+  ;;; would leave the knowledge base and this store holding different
+  ;;; things -- or, unmuted over a predicate never read, rewrite it from
+  ;;; nothing.
   (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
         (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
+              (int mute . #'(coco_store_is_muted st))
               (size_t kept . 0) (int gone . 0) (size_t swept . 0))
           ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate, the
           ;; file's clauses die where they stand and stay for it, and what
@@ -6644,7 +6665,8 @@
             (if (!= era 0)
                 (block
                   (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p tomb)) 0))
+                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute)
+                             (== (nth i (-> p tomb)) 0))
                         (block (coco_tomb_set p i era) (set gone (+ gone 1)))))
                   (if (== gone 0) (return 0))
                   (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
@@ -6656,7 +6678,7 @@
               ((coco_pred_dead p i)
                (set swept (+ swept 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
-              ((== (nth i (-> p origins)) origin)
+              ((and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute))
                (set gone (+ gone 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
               (#t
@@ -6958,18 +6980,22 @@
   ;;; is untouched: the store used to APPEND, so the second of the three
   ;;; processes a tutorial runs against one store held two copies of every
   ;;; clause, and a generator without a cut answered once per copy. A
-  ;;; module's text (muted) and a caller naming no file own nothing, as
-  ;;; before.
+  ;;; caller naming no file owns nothing, and a module's text (muted) is
+  ;;; owned only when its loader names the file (`coco_consult_owner',
+  ;;; 2.14.0).
   (static) (decl) (func coco_consult_owned ((coco_store * st) (coco_machine * m)
                                            (const char * text) (const char * origin)
                                            (u64 oid) (coco_origin_seen * seen)
                                            (char * err) (size_t errlen)) (out int))
+  (static) (decl) (func coco_consult_oid ((coco_store * st) (coco_machine * m)
+                                         (const char * text) (const char * origin)
+                                         (u64 oid) (int reread)
+                                         (char * err) (size_t errlen)) (out int))
 
   (func coco_consult ((coco_store * st) (coco_machine * m) (const char * text)
                     (const char * origin)
                     (char * err) (size_t errlen)) (out int)
-        (let ((u64 oid . 0) (coco_origin_seen seen) (int n . 0))
-          (memset (aof seen) 0 (sizeof coco_origin_seen))
+        (let ((u64 oid . 0))
           (if (and (!= origin nil) (not (coco_store_is_muted st)))
               (let ((char full [4096]))
                 ;; `realpath' is in <stdlib.h> but not in the std POSIX
@@ -6978,17 +7004,66 @@
                 (if (!= nil (realpath origin full))
                     (set oid (+ (coco_intern m full) 1))
                   (set oid (+ (coco_intern m origin) 1)))))
+          (return (coco_consult_oid st m text origin oid 1 err errlen))))
+
+  (func coco_consult_owner ((coco_store * st) (coco_machine * m) (const char * text)
+                          (const char * origin) (const char * owner) (int reread)
+                          (char * err) (size_t errlen)) (out int)
+        (return (coco_consult_oid st m text origin
+                                  (? (== owner nil) 0 (+ (coco_intern m owner) 1))
+                                  reread err errlen)))
+
+  ;;; WHAT THE FILE NO LONGER SAYS GOES TOO (2.14.0), as SWI's reload takes
+  ;;; out a predicate the new text does not define. The first clause of
+  ;;; each predicate the consult reads replaced the file's old clauses of
+  ;;; it (`coco_assert_from'); a predicate it did not read keeps them --
+  ;;; through 2.13, every one of them, so a file edited to drop `q/1' went
+  ;;; on answering `q/1' from its last read. Every predicate SEEN did not
+  ;;; mark loses OID's clauses of the store's mute here, and one left with
+  ;;; none is unknown, as in swipl. Asked only of a consult that read its
+  ;;; text to the end: one a syntax error stopped did not read what came
+  ;;; after the error, and what it did not read is not the file's absence.
+  (static)
+  (func coco_consult_forget_rest ((coco_store * st) (coco_machine * m) (u64 oid)
+                                  (coco_origin_seen * seen))
+        (let ((int mute . #'(coco_store_is_muted st)) (size_t np . #'(-> st npreds))
+              (char * mark . nil))
+          (if (== np 0) (return))
+          (set mark (cast (char *) (calloc np 1)))
+          (if (== mark nil) (return))
+          (for ((size_t i . 0)) (< i (-> seen n)) ((++ i))
+            (if (< (nth i (-> seen pis)) np) (set (nth (nth i (-> seen pis)) mark) 1)))
+          (for ((size_t pi . 0)) (< pi np) ((++ pi))
+            (if (== (nth pi mark) 0)
+                (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))) (int has . 0))
+                  (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
+                    (if (and (== (nth j (-> p origins)) oid) (== (nth j (-> p muted)) mute)
+                             (not (coco_pred_dead p j)))
+                        (block (set has 1) break)))
+                  (if has (coco_pred_forget_from st m pi oid)))))
+          (free mark)))
+
+  (func coco_consult_oid ((coco_store * st) (coco_machine * m) (const char * text)
+                          (const char * origin) (u64 oid) (int reread)
+                          (char * err) (size_t errlen)) (out int)
+        (let ((coco_origin_seen seen) (int n . 0))
+          (memset (aof seen) 0 (sizeof coco_origin_seen))
           ;; the loop registers its `initialization/1' goals as roots and
           ;; leaves on several paths, so the registration is dropped HERE,
           ;; whichever way it came out -- and so are the heap roots it holds
           ;; around a goal that may collect, and the word that let it (`dgc',
-          ;; which the loop takes for itself and gives back to nobody)
+          ;; which the loop takes for itself and gives back to nobody).
+          ;; A FIRST READ (a module's into a new store) has nothing of its
+          ;; own to replace, and passes no SEEN: a module's clauses each
+          ;; looked their predicate up in it, a walk per clause.
           (let ((size_t depth . #'(-> st nroots)) (size_t hdepth . #'(-> m nhroots))
                 (int dgc . #'(-> m dgc)))
-            (set n (coco_consult_owned st m text origin oid (aof seen) err errlen))
+            (set n (coco_consult_owned st m text origin oid (? reread (aof seen) nil) err errlen))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)
             (set (-> m dgc) dgc))
+          (if (and reread (!= oid 0) (>= n 0))
+              (coco_consult_forget_rest st m oid (aof seen)))
           (free (cast (void *) ($ seen pis)))
           ;; a reconsult has just orphaned the file's previous clauses
           (coco_store_maybe_compact st m)

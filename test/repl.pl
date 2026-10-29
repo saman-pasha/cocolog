@@ -111,6 +111,18 @@ local(D) :-
     sh_join([C, ' < ', Goals, ' 2>/dev/null'], Cmd16),
     shell(Cmd16, G16, _),
     check('[file] and consult(file), .pl found for itself', G16, 'true.\nX = 2.\ntrue.'),
+    %% THE TOPLEVEL'S CONSULT IS THE GOAL'S (2.14.0): a file use_module/1
+    %% loaded, `[file].' reads again as the module it is -- through 2.13 the
+    %% toplevel consulted it a second time as the program's, beside the
+    %% module, and each clause answered twice -- and one missing file in
+    %% brackets is swipl's error
+    atom_concat(D, '/goals2.txt', Goals2),
+    sh_join(['use_module(''', D, '/fam'').'], Use19),
+    fixture(Goals2, [Use19, Load16, 'findall(X, p(X), L).', '[nosuch_fam].']),
+    sh_join([C, ' < ', Goals2, ' 2>&1 | head -4'], Cmd19),
+    shell(Cmd19, G19, _),
+    check('use_module/1, then [file]: held once; a missing file in brackets raises', G19,
+          'true.\ntrue.\nL = [1,2].\nERROR: ?-: source_sink `nosuch_fam'' does not exist'),
     sh_join(['printf ''halt.\\n'' | ', C, ' >/dev/null 2>&1'], Cmd17),
     shell(Cmd17, _, Rc17),
     check('halt. leaves with 0', Rc17, 0).

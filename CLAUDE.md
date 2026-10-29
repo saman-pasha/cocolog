@@ -294,12 +294,27 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `if(not_loaded)` and `must_be_module(true)` are the module loader's, as
   are `library(X)`. **The store keeps the files read into it** (`loads`,
   their real path and `time_file/2`, noted before the read by every host's
-  consult too, `coco_library_note_load`): `if(changed)` compares the time,
-  and ensure_loaded/1 of a file the store holds loads nothing -- through
-  2.12 it loaded a module beside it, every clause twice. A file loaded as
-  a module (under any spelling) is that load to consult/1 as well. **The
-  goal unmutes the store around its own read** (`lb_load_file`): inside a
-  module's load -- an `-s` file's initialization/1 -- the store is muted,
+  consult too, `coco_library_note_load`): `if(changed)` and `if(exists)`
+  read a file again only when it is NEWER than that time (swipl's; through
+  2.13 any other time, older too), and ensure_loaded/1 of a file the store
+  holds loads nothing -- through 2.12 it loaded a module beside it, every
+  clause twice. **A file loaded as a module is READ AGAIN AS THAT MODULE**
+  (2.14.0, swipl's reload; `lb_reread`) by consult/1, `[File]` and
+  `if(true)`: muted as its load was, its clauses owned by its real path
+  (`coco_consult_owner`, the registry's `real` and `time`), each held once.
+  **A forget takes only the clauses of the store's own mute**
+  (`coco_pred_forget_from`), so a muted re-read never takes a written
+  clause and a consult never a module's. **A completed read drops the
+  file's clauses from every predicate its new text no longer defines**
+  (`coco_consult_forget_rest`, a consult's and a module's alike): a dropped
+  predicate raises existence_error, as swipl's. Order differs from swipl's:
+  the new clauses go after any the program asserted. The registry keeps the
+  old texts (a stated leak). A single `[File]` is consult/1 of it, so a
+  missing file raises, and the toplevel's `[F].` and `consult(F).` are the
+  goals (through 2.13 it consulted beside the module, every clause
+  twice). **The goal unmutes the store around its own read**
+  (`lb_load_file`): inside a module's load -- an `-s` file's
+  initialization/1 -- the store is muted,
   and a muted consult kept no origins, so a second consult appended
   (`[1,1]`). **The table is the process's, not the database's**: a file
   `run F` wrote into a store, loaded by a second process as a module (`-s

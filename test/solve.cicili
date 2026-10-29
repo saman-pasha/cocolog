@@ -558,7 +558,22 @@
         (check "consulted again, only the new clause answers"
                (cast llong (count (aof e) "rc(X)" 10)) 1)
         (check "and the replaced clauses' programs went with them"
-               (cast llong (- ($ st code_len) before)) 1))
+               (cast llong (- ($ st code_len) before)) 1)
+        ;; A FILE READ AGAIN TAKES ITS CLAUSES OUT OF A PREDICATE IT NO
+        ;; LONGER DEFINES (2.14.0), as swipl's reload does; through 2.13 rq/1
+        ;; went on answering from the file's last read
+        (coco_consult (aof st) (aof m) "rd(1). rq(1)." "rd.pl" err (sizeof err))
+        (coco_consult (aof st) (aof m) "rd(2)." "rd.pl" err (sizeof err))
+        (check "a predicate the file no longer defines has none of its clauses"
+               (cast llong (count (aof e) "catch(rq(_), _, fail)" 10)) 0)
+        ;; ...AND A MUTED READ, a module's, takes only the module's: the
+        ;; program's written clauses under the same owner stay, as the
+        ;; backend, which a muted forget never tells, still holds them
+        (coco_store_mute (aof st))
+        (coco_consult_owner (aof st) (aof m) "rd(3)." "rd.pl" "rd.pl" 1 err (sizeof err))
+        (coco_store_unmute (aof st))
+        (check "a muted read again leaves the written clauses of its owner"
+               (cast llong (count (aof e) "rd(X)" 10)) 2))
 
       ;; A HEAD STRUCTURE WITH 65 536 ARGUMENTS OR MORE (1.8.45): GET_STRUCT
       ;; packed its argument index and the structure's arity into sixteen
