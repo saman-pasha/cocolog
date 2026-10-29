@@ -7640,3 +7640,15 @@ PROVED:
 - **Lint clean.** The changed files have no finding. Of the card's cites, 21
   moved and were renumbered, and four whose anchor repeats in its file
   were set by hand; all 42 are anchored.
+- **The whole suite, on CI** (run 40914346290 on baeadc3). All three jobs
+  are green: red 0, and every SKIP is one the job allows. The verdict reads
+  every case's line, and the server was still up after each suite.
+  - Ubuntu 24.04, 14 minutes: eight SKIPs (tensors, the three torch cases,
+    tensorflow, ray, numpy, opencv). files ran its 42 cases, the reload case
+    among them, against swipl 9.0.4.
+  - macOS 15 on Apple silicon, 23 minutes: ten SKIPs, files and trace as
+    well (no Mac package is the reference swipl).
+  - macOS 26 on Intel, 45 minutes (the install 24, the lint case 3, the
+    suite 17): the same ten.
+
+  The full local `make test` was not run.
