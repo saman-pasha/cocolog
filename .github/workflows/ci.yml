@@ -201,10 +201,13 @@ jobs:
       # where no bottle pours. sbcl's formula builds it from source with ECL as
       # the host compiler (SBCL publishes no x86-64 Darwin binary to start from),
       # and ECL pours. Today's formula data, not the image's, as a Mac whose
-      # Homebrew is up to date has it, and nothing else upgraded: no outdated
-      # formula named, no dependents checked (gcc would build for hours). The
-      # install step then finds sbcl installed, and the build, the lint case and
-      # the suite run on the sbcl built here
+      # Homebrew is up to date has it, and of the rest only sbcl's own outdated
+      # dependencies upgrade: no outdated formula named, no dependents checked
+      # (gcc would build for hours). `brew update' still does to the image what
+      # it does on its own: on the image of 2026-08-24 it moved azure-cli to a
+      # cask and built openssl@4 from source for it, 11 of the step's 50 minutes
+      # (run 40868931709). The install step then finds sbcl installed, and the
+      # build, the lint case and the suite run on the sbcl built here
       - name: sbcl from source, through ECL (Intel, by hand)
         if: inputs.sbcl_from_source && matrix.os == 'macos-intel'
         timeout-minutes: 150
