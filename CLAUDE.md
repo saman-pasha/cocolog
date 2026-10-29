@@ -434,6 +434,14 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
   install goes into `allowed_skips` in the same commit.** Each red case is
   run again alone (its whole output: the runner keeps five FAIL lines and
   no SKIP reason), and the logs are the run's artifact for 14 days.
+* **A case sizes a green pool from the world, never with a number.** The
+  world has a worker a core and the acceptor holds one, so
+  `concurrency(green(N))` wants N + 1 cores and is refused past that
+  (`httpd_green_count/1`). Ask `httpd_mode(green, green(W))` and take
+  `min(N, W)`. GitHub's Mac has three cores. test/httpd.pl's fixed
+  `green(3)` was refused there: the server never listened, and the section
+  failed with no FAIL line, because `hit/2` fails when curl does (878b17a).
+  `COCOLOG_GREEN_WORKERS=3` gives any box that world.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -7020,9 +7028,12 @@ than its cause:
   `wc` and `sed` as they are.
 * **There is no `/proc/self/exe`**: `lb_exedir` asks `_NSGetExecutablePath`;
   programs read `current_prolog_flag(executable, P)`.
-* **`make schema` dies in libc++** (`binary_function` removed): copy the home
-  config, add `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to
-  `CPP_FLAGS`, run `ZIGURATIP_CONF=that-file make schema`.
+* **`make schema` builds as it stands on Apple clang 17** (macos-15, CI,
+  2026-10-29: 38 objects, no flag): nothing in either tree names
+  `std::binary_function` now. It once died in libc++, which removes that
+  name under C++17. Were that back: copy the home config, add
+  `-D_LIBCPP_ENABLE_CXX17_REMOVED_BINARY_FUNCTION` to `CPP_FLAGS`, run
+  `ZIGURATIP_CONF=that-file make schema`.
 * **A raylib photograph is one frame behind**: draw a frame twice before a
   screenshot or a pixel read. **A sleeping screen opens no window**
   (`GLFW: Failed to determine Monitor`); `test/ray.pl` probes and SKIPs;

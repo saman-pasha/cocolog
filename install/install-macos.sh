@@ -66,11 +66,12 @@ if [ "${WITH_NUMPY:-0}" = 1 ]; then numpy_match; fi
 # this checkout's makefiles nor ZiguratIP's name a Homebrew path: they leave it
 # to the compiler's own search, and Apple's clang searches /usr/local --
 # Homebrew's prefix on an Intel Mac -- but not /opt/homebrew, its prefix on
-# Apple silicon. And openssl@3 is keg-only on both (Homebrew links no versioned
-# formula into its prefix), so unless it was `brew link'ed by hand its headers
-# were found nowhere. CPATH and LIBRARY_PATH are clang's own variables for
-# this: exported for the builds this script runs, and printed with the exports
-# at the end for the ones after it (make test builds test binaries too).
+# Apple silicon. And openssl@3 is keg-only on both (Homebrew's reason: a
+# versioned formula) and linked into no prefix, so unless it was `brew link'ed
+# by hand its headers were found nowhere. CPATH and LIBRARY_PATH are clang's
+# own variables for this: exported for the builds this script runs, and
+# printed with the exports at the end for the ones after it (make test builds
+# test binaries too).
 OSSL=$(brew --prefix openssl@3 2>/dev/null) || OSSL=
 [ -f "$OSSL/include/openssl/ssl.h" ] || [ -f "$BREW/include/openssl/ssl.h" ] \
   || say "warning: no openssl/ssl.h under ${OSSL:-$BREW}/include -- brew install openssl@3"
