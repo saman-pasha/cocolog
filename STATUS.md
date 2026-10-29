@@ -7859,5 +7859,33 @@ PROVED:
   owner's rule says. The changed `.pl` files have no finding, and the
   card's 42 cites are all anchored: 14 moved, five of them set by hand
   where the anchor repeats in its file.
-- **The whole suite** is CI's, on the push (below, once it has run). The
-  full local `make test` was not run.
+- **The whole suite, on CI**, in three runs: the first two red on Apple
+  silicon alone, each time in a check of the clock that went green when
+  the job ran the case again alone, and each fixed in the tests (cocolog
+  stayed 2.14.1); none of the three cases reaches the reload code.
+  - Run 40942980399 on e2239ea: Ubuntu 24.04 (23 minutes) and macOS 26
+    on Intel (36) green; macOS 15 on Apple silicon (26) red in cowork --
+    the four workers not faster than one in a single round of wall time,
+    paused -- and in flowdebug, which raised after 15 s with the runner
+    keeping only the foot of the backtrace, so what raised is not known.
+    9c1c838 takes each crew's fastest of three rounds, takes flowdebug's
+    load marks from the first of up to five probes that gives the rule's
+    (red 3 runs in 11 beside eight busy loops, a 4 ms time slice against
+    calls of 0.1 ms), and makes the runner print the last twenty lines of
+    a case that did not end on its own RED (`raised_tail/2`).
+  - Run 40950413465 on 9c1c838: Ubuntu (14) and Intel (44) green; Apple
+    silicon (22) green in cowork and flowdebug and red in window's `into
+    findall/3's engine and out: each inference read`. Apple silicon's
+    monotonic clock moves in ticks of 41.67 ns, and an inference shorter
+    than a tick reads 0; 4bcd4d8 takes an inference as unread only when
+    it reads 0 in each of five runs (`w_clock_zeros/6`, the section's
+    four such checks).
+  - Run 40954300686 on 4bcd4d8: all three jobs green, red 0, every SKIP
+    one the job allows, and the server still up after each suite --
+    Ubuntu 24.04, 15 minutes: eight SKIPs (tensors, the three torch
+    cases, tensorflow, ray, numpy, opencv), files run against swipl
+    9.0.4; macOS 15 on Apple silicon, 24 minutes: ten SKIPs, files and
+    trace as well; macOS 26 on Intel, 39 minutes (the install 20, the
+    lint case 3, the suite 15): the same ten.
+
+  The full local `make test` was not run.
