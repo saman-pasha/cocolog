@@ -370,9 +370,14 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 
 `make test` is `./cocolog -s test/run.pl`; `-- NAME` runs one case. It builds
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
-syntax, solve, module, state, zigurat, shared; about forty seconds each that
-links the engine) and runs the 68 `.pl` cases in `pl_names/1`
+syntax, solve, module, state, zigurat, shared; a build that links the
+engine takes about a hundred seconds on the Linux box, solve and its run
+105 s on 2.14.1) and runs the 68 `.pl` cases in `pl_names/1`
 -- **75 lines**, each with its seconds. There is no `.sh` under `test/`.
+**A build has ten minutes** (`build_ceiling/1`), and a failed one names its
+exit status, 124 for that ceiling: on the prelude's two minutes a slow Intel
+Mac runner stopped the four that link the engine (run 40975575257), and the
+line said only `BUILD FAILED`, over a tail ending on clang's command line.
 
 * **A case is `test/<case>.pl`**, run as `./cocolog -s test/<case>.pl` from
   the checkout root with `COCOLOG_LIBRARY` naming this checkout's `library/`
@@ -423,10 +428,11 @@ links the engine) and runs the 68 `.pl` cases in `pl_names/1`
 * **A section that ends with no red check and no verdict line is a goal that
   FAILED**: suspect a builtin answering 0 where it should raise, a
   `proc_run/4` timeout, or a fixture lesson that lacks a word.
-* **The prelude's `shell/3` gives a child two minutes and a timed-out child
-  hands back EMPTY output**, which a case reads as "nothing found". A step
-  whose work grows with the tree takes `shell/4` with a ceiling of its own
-  (`test/lint.pl`'s corpus lint has five minutes).
+* **The prelude's `shell/3` gives a child two minutes, and a timed-out child
+  is killed (exit 124) and hands back only what it printed by then**, which a
+  case can read as "nothing found". A step whose work grows with the tree, or
+  with the machine's speed, takes `shell/4` with a ceiling of its own
+  (`test/lint.pl`'s corpus lint has five minutes, a test binary's build ten).
 * **A container runs as root**, who writes through a mode of 444: a
   permission check skips by name when `os_uid/1` answers 0
   (`test/stream.pl`).

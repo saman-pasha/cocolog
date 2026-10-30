@@ -98,7 +98,8 @@ cicili_each([C|Cs], Cicili, Sbcl, Red0, Red) :-
     %% it Cicili compiles -g -O0, and a test binary would prove the engine
     %% in a build nobody ships.
     sh_join(['cd ', Cicili, ' && ', Sbcl, ' --script cicili.lisp --release ', Root, '/test/', C, '.cicili 2>&1'], Build),
-    shell(Build, BuildOut, BuildRc),
+    build_ceiling(Ms),
+    shell(Build, BuildOut, BuildRc, Ms),
     (   BuildRc =:= 0
     ->  sh_join([Root, '/test/cocolog_', C, '_test 2>&1'], Run),
         shell(Run, Out, RunRc),
@@ -113,12 +114,31 @@ cicili_each([C|Cs], Cicili, Sbcl, Red0, Red) :-
                           fail_lines(Out), Red1 is Red0 + 1
         ;   format("~w~n", [Last]), fail_lines(Out), Red1 is Red0 + 1
         )
-    ;   format("BUILD FAILED~n", []),
+    ;   build_failed(BuildRc, Ms),
         atom_codes(BuildOut, BCs), codes_lines(BCs, BL), tail_lines(5, BL, Tail),
         forall(member(L, Tail), ( atom_codes(LA, L), format("~w~n", [LA]) )),
         Red1 is Red0 + 1
     ),
     cicili_each(Cs, Cicili, Sbcl, Red1, Red).
+
+%% A BUILD HAS A CEILING OF ITS OWN, ten minutes. The prelude's shell/3
+%% gives a child two, and run 40975575257's Intel Mac, a slow runner of its
+%% kind, met them in the four builds that compile the engine -- solve,
+%% module, state, shared -- where the PR's run of the same tree 45 minutes
+%% earlier built and ran all seven in 259 s. proc_run/4 kills a child at
+%% its ceiling and hands back what it printed, which there ended on clang's
+%% command line with no error after it. Seven builds at ten minutes each
+%% still fit the CI suite step's 150.
+build_ceiling(600000).
+
+%% the build's exit status goes on its line: 124 is proc_run/4's kill at the
+%% ceiling (coreutils' number), so a build that ran out of time says so
+%% (through 2.14.1 the line read BUILD FAILED either way)
+build_failed(124, Ms) :- !,
+    S is Ms // 1000,
+    format("BUILD FAILED (exit status 124: stopped at its ~w s ceiling)~n", [S]).
+build_failed(Rc, _) :-
+    format("BUILD FAILED (exit status ~w)~n", [Rc]).
 
 last_line(Text, Last) :-
     atom_codes(Text, Cs),
