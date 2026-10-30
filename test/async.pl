@@ -31,6 +31,8 @@
 %% and this case is about the scheduler.
 
 :- use_module('test/prelude.pl').
+%% the cores the world is sized from, for the quantum's case
+:- use_module(library(os)).
 
 spin(0) :- !.
 spin(N) :- N > 0, M is N - 1, spin(M).
@@ -53,17 +55,39 @@ case_future(R) :-
     ( future_ready(F) -> R = ready ; R = waiting ).
 
 %% THE QUANTUM. Children take the workers beside the host round robin
-%% (1, 2, ... and, past the last, 0, the main's own); each spins 20,000
-%% steps, so after the main's yield the last is stopped at its
+%% (1, 2, ... and, past the last, 0, the main's own), so with one child a
+%% worker the last is worker 0's whatever the world's size; it spins
+%% 60,000 steps, so after the main's yield it is stopped at its
 %% 10,000-step quantum -- a task that never yields cannot hold its
-%% worker.
-case_quantum(R) :-
-    go(spin(20000), A), go(spin(20000), B), go(spin(20000), C),
-    go(spin(20000), D), go(spin(20000), E), go(spin(20000), F),
-    go(spin(20000), G), go(spin(20000), H),
+%% worker. EIGHT CHILDREN, the case's first shape, put the last on worker
+%% 0 only in a world whose size divides eight: on GitHub's three-core Mac
+%% it was worker 2's, and whether it had finished was a race -- squeezed
+%% onto two CPUs here, worlds of 3, 5, 6 and 7 answered done two to six
+%% times in 300, a world of 8 never, and this shape never in worlds of 1
+%% to 9.
+case_quantum(R, N) :-
+    N1 is N - 1,
+    beside(N1, Fs),
+    go(spin(20000), H),
     yield,
     ( future_ready(H) -> R = done ; R = not_done ),
-    await_all([A,B,C,D,E,F,G,H]).
+    await_all([H|Fs]).
+
+%% the N-1 children that fill the workers beside the main's
+beside(0, []) :- !.
+beside(K, [F|Fs]) :- go(true, F), K1 is K - 1, beside(K1, Fs).
+
+%% THE WORLD'S SIZE, as async_run/1 takes it (lib/green.cicili): the cores
+%% online -- os_cpus/1 asks sysconf as the world does -- unless
+%% COCOLOG_GREEN_WORKERS gives a positive count; 256 at most.
+world_workers(N) :-
+    (   catch(getenv('COCOLOG_GREEN_WORKERS', V), _, fail),
+        catch(atom_number(V, N0), _, fail),
+        integer(N0), N0 > 0
+    ->  true
+    ;   os_cpus(N0)
+    ),
+    N is max(1, min(256, N0)).
 
 %% A NESTED ENGINE CANNOT BE SUSPENDED (2.10.1): findall/3, forall/2 and
 %% the rest run a goal on a sub-engine whose search lives on a C stack a
@@ -193,7 +217,8 @@ joining :-
     check('await_all waits for each', G1, done),
     answer(result(case_future(R2), R2), R2, G2),
     check('a joined thread is ready', G2, ready),
-    answer(result(case_quantum(R3), R3), R3, G3),
+    world_workers(N3),
+    answer(result(case_quantum(R3, N3), R3), R3, G3),
     check('a task that never yields is stopped at the quantum', G3, not_done).
 
 %% ---- a blocking call inside findall/forall -------------------------------
