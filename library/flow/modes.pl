@@ -292,9 +292,11 @@ flow_sink_binds(chars(X, _), [], X).
 %% the joining line, (+, +, -), whose `+' binds nothing (cicili-lang's
 %% cpp_dbg_op_spell/2: `W is free on every path to here', reached with Name
 %% partly bound). In cocolog each of these raises or leaves no variable in
-%% any argument; atom_length/2, atom_string/2, string_length/2,
-%% split_string/4 and term_to_atom/2 write any term, and leave its
-%% variables as they were.
+%% any argument -- atom_length/2, string_length/2, atom_string/2 and
+%% split_string/4 among them since they read their text as swipl's
+%% PL_get_text does and refuse a compound (2.16.1 and 3.0.0); through
+%% 2.16.0 they wrote any term and left its variables as they were.
+%% term_to_atom/2 reads a term, and the term may hold variables.
 flow_binds_all(atomic_list_concat, 2).
 flow_binds_all(atomic_list_concat, 3).
 flow_binds_all(atom_codes, 2).
@@ -310,6 +312,10 @@ flow_binds_all(string_chars, 2).
 flow_binds_all(string_codes, 2).
 flow_binds_all(string_bytes, 3).
 flow_binds_all(number_string, 2).
+flow_binds_all(atom_length, 2).
+flow_binds_all(string_length, 2).
+flow_binds_all(atom_string, 2).
+flow_binds_all(split_string, 4).
 
 %% the line a call takes: the first whose modes it meets (a bound argument
 %% meets + or ?, a free one - or ?), else the first line, which then only
@@ -369,8 +375,8 @@ flow_raises_unbound(plus, 3, [2, 3], plus(1, _, _)).
 flow_raises_unbound(plus, 3, [1, 3], plus(_, 1, _)).
 flow_raises_unbound(atom_concat, 3, [1, 3], atom_concat(_, a, _)).
 flow_raises_unbound(atom_concat, 3, [2, 3], atom_concat(a, _, _)).
-flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, "a", _)).
-flow_raises_unbound(string_concat, 3, [2, 3], string_concat("a", _, _)).
+flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, a, _)).
+flow_raises_unbound(string_concat, 3, [2, 3], string_concat(a, _, _)).
 flow_raises_unbound(sub_atom, 5, [1], sub_atom(_, 0, 1, _, _)).
 flow_raises_unbound(sub_string, 5, [1], sub_string(_, 0, 1, _, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).

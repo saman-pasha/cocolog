@@ -20,6 +20,9 @@ an existence error, an instantiation error, a refusal by name.
 | a control character with no letter of its own (1-6, 14-31, 127) in a quoted atom or string | `writeq('\x1\')` is `'\x1\'`, print/1's `'\u0001'` | the character itself between the quotes, which reads back here; this reader has no `\x..\` escape (cocolint E1). The four with a letter are written `\a` `\b` `\v` `\f` as swipl's since 2.2.5. term_to_atom/2 writes a newline or a tab as it is in swipl, `\n` and `\t` here | — |
 | an integer before an infix operator written quoted | `1 'x\'y' 2` | `1'x\'y'2`, and after a 0 it reads back as a character code (`0'x`) | an unquoted operator name |
 | a `portray/1` hook | `print/1` and `~p` call it for each subterm | not called: `print/1` is `writeq/1` | write the term yourself |
+| `last(L, X)` with `L` unbound | enumerates: `[X]`, then `[_, X]`, ... | fails | bind the list first |
+| `write_canonical/1` of a term with variables | names them: `f(A,_,A)` for `f(X,Y,X)` | writes each one's own name, `f(_G0,_G1,_G0)`; both read back as the same term | `numbervars`-style names of your own |
+| an error's context, in two places | a loadable module's predicate and an unknown procedure a clause body calls name a predicate, `context(Name/Arity, _)`, and the message begins `Name/Arity: ` | the context is unbound and the message has no prefix. A core builtin, a compiled-in module's row and an unknown procedure under a meta-call or a search name swipl's since 3.0.0 (through 2.16 every one was unbound) | match `error(Formal, _)` |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -30,6 +33,8 @@ an existence error, an instantiation error, a refusal by name.
 | `set_prolog_flag(argv, L)` and `os_argv` | change the flag | `permission_error(modify, flag, argv)`, as for `executable`, `bounded`, the integer and the float bounds, which SWI refuses too | `library(main)`'s parse of the tail, or a list of the program's own |
 | a float flag set in a thread | that thread's alone: a thread starts with its creator's flags, so a later thread of `main` reads `main`'s | the thread's, and the process's default as well: a thread made after it starts with the value set last anywhere, as for `text_units` | set it in `main` before the threads are made |
 | `format/2` column directives | `~t`, `~\|`, `~+` | refused by name | pad with `atom_length/2` and `tab/1` |
+| a `"..."` text given to `sub_atom/5`, `sub_string/5`, `atom_concat/3` or `string_concat/3` | a string, which each of them takes | a list of codes (the default `double_quotes`, below), which each refuses as swipl's own does a list: `type_error(atom, L)`, `type_error(string, L)`, `type_error(atomic, L)` -- `sub_string(S, 0, 1, _, "#")` raises. Since 3.0.0; through 2.16 they read a list as text | `'#'`, or `:- set_prolog_flag(double_quotes, string).` |
+| `discontiguous/1` and `multifile/1` called as goals | declare, as the directives do | `existence_error(procedure, discontiguous/1)`: they are directives only | the directive |
 | integers | unbounded | **64-bit**, −2^63 … 2^63−1 (since 2.0.0; through 1.15.0 61-bit, and a result past them wrapped in silence): a result outside that raises `evaluation_error(int_overflow)` — `X is 2**63` and `9223372036854775807 + 1`, and `2**63 - 1` too, whose `2**63` comes first — and a float made an integer outside it as well (a NaN or an infinity is handed back as it came, as SWI's is, since 2.2.0). A literal outside it is refused, `syntax error ... integer out of range` (`9223372036854775808`, `0x8000000000000000`), and `atom_number/2` and `number_codes/2` fail for such a numeral | `library(bigint)` for anything that can get that large |
 | `current_prolog_flag/2` | dozens of flags | seventeen: `argv`, `os_argv`, `executable`, `double_quotes`, `text_units`, since 2.0.0 `bounded` (`true`), `max_integer`, `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since 2.2.2 the four float flags and `float_min`, `float_max` and `float_max_integer`; any other fails, `generate_debug_info` among them, which `set_prolog_flag/2` takes | — |
 | rational numbers (2.5.0) | exact, unbounded: a numerator and a denominator may be bignums | **64-bit** on both, reduced to lowest terms with a positive denominator; a result past them raises `evaluation_error(int_overflow)` where SWI bignums — `X is 1r2 ** 100`, `X is rational(1.0e308)`, `X is rdiv(9223372036854775807, 2) * 2 + 1`, `lcm(9223372036854775807, 2)`, and `rational(1.0Inf)` is `rational_overflow` while `rational(1.5NaN)` and `rationalize(1.5NaN)` are `undefined` | `library(bigint)`, or keep the values in range |
@@ -39,8 +44,12 @@ an existence error, an instantiation error, a refusal by name.
 ## Not there at all (`existence_error`)
 
 `numbervars/3`, `freeze/2` and coroutining, `table/1` and tabling,
-`print_message/2`,
-`flag/3`, `recorda/2` and the recorded database, `prolog_load_context/2`.
+`flag/3`, `recorda/2` and the recorded database, `prolog_load_context/2`,
+`setup_call_cleanup/3`, `absolute_file_name/3` (`/2` is there),
+`sub_atom_icasechk/3`, and `name/2`, which as a builtin of the engine
+would shadow a program's own `name//0` (`test/files/dcg.pl`) and so waits
+on swipl's rule for redefining a system predicate.
+(`print_message/2` is there since 2.16.0.)
 (`predicate_property/2` is there since 1.10.28, for the program's
 predicates, the constructs and the C builtins.)
 `tab/2` and the other ISO stream predicates exist once

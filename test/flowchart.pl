@@ -346,10 +346,13 @@ findings :-
     findings_catch(D),
     findings_load(D),
     findings_near(D),
-    %% the table of calls the engine refuses unbound: every example raises
-    findall(Ex, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
-                  \+ catch(( call(Ex), fail ), error(_, _), true) ), Silent),
-    check('every call the refusal table names raises an error when made unbound', Silent, []).
+    %% the table of calls the engine refuses unbound: every example raises,
+    %% and for its unbound argument -- since 3.0.0 a code list is no text
+    %% to string_concat/3, so string_concat(_, "a", _) raised type_error
+    findall(Ex-F, ( flow_raises_unbound(_, _, _, Ex0), copy_term(Ex0, Ex),
+                    ( catch(( call(Ex), fail ), error(F, _), true) -> true ; F = none ),
+                    F \== instantiation_error ), Wrong),
+    check('every call the refusal table names raises instantiation_error when made unbound', Wrong, []).
 
 %% a predicate defined twice: a later place repeats a clause of an earlier
 %% one, or holds a clause an earlier fact covers -- an error each, and no
@@ -1137,9 +1140,13 @@ gate :-
     findall(In3, ( member(_-_-In3, KSI), memberchk(In3, ['gt_nan/1', 'gt_wo/2']) ), Sink),
     check('a sink binds its variable: nothing found in gt_nan/1 or gt_wo/2', Sink, []),
     %% item 4: atomic_list_concat([op, W|_], '.', Name) binds W, and each
-    %% segment of a list a split by length/2 and append/3 cut
-    findall(In4, ( member(_-_-In4, KSI), memberchk(In4, ['gt_fn/2', 'gt_spell/2', 'gt_member/3', 'gt_split/4']) ), Text4),
-    check('text made from text binds every argument: nothing found in gt_spell/2 and its callers', Text4, []),
+    %% segment of a list a split by length/2 and append/3 cut; and since
+    %% 3.0.0 a text read from a list binds the list's elements
+    findall(In4, ( member(_-_-In4, KSI),
+                   memberchk(In4, ['gt_fn/2', 'gt_spell/2', 'gt_member/3', 'gt_split/4',
+                                   'gt_alen/1', 'gt_slen/1', 'gt_astr/1', 'gt_sspl/1']) ), Text4),
+    check('text made from text binds every argument: nothing found in gt_spell/2 and its callers, nor past a text read from a list',
+          Text4, []),
     %% item 5: under a catch that takes the existence error, a warning
     findall(Sev5-In5, ( member(unknown_procedure-Sev5-In5, KSI), memberchk(In5, ['gt_big/2', 'gt_bad/2']) ), Caught),
     check('an unknown call under a catch that takes its error is a warning; under one that does not, an error',

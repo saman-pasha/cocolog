@@ -115,7 +115,7 @@ survives :-
     section('everything reachable survives a compaction as it was'),
     answer(( forall(between(1, 500, I), assertz(gc_f(I, foo(I), [I]))),
              assertz((gc_g(X) :- gc_f(X, _, _), X > 3)),
-             string_concat("a", "b", S0), assertz(gc_s(S0)),
+             string_concat(a, b, S0), assertz(gc_s(S0)),
              assertz(gc_h(A, _, A, 1.5)),
              garbage_collect,
              gc_f(499, F, _), findall(Y, gc_g(Y), Ys), length(Ys, NG) ), F-NG, X1),
@@ -395,9 +395,10 @@ keys :-
           X0, sound),
     answer(catch(statistics(nosuch, _), error(E4, _), true), E4, X4),
     check('an unknown key is a domain_error naming it', X4, domain_error(statistics_key, nosuch)),
-    answer(( catch(statistics(_, _), error(E5, _), true),
-             ( E5 = type_error(atom, V5), var(V5) -> Shape5 = type_error_atom ; Shape5 = E5 ) ), Shape5, X5),
-    check('and an unbound key is a type_error', X5, type_error_atom).
+    %% an unbound culprit is an instantiation_error, as swipl's PL_error
+    %% makes it (3.0.0; through 2.16 type_error(atom, _))
+    answer(catch(statistics(_, _), error(E5, _), true), E5, X5),
+    check('and an unbound key is an instantiation_error', X5, instantiation_error).
 
 %% ---- the heap is collected (1.8.36) -------------------------------------
 %%

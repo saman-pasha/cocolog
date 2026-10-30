@@ -370,7 +370,11 @@
     ;; `pst' names, goes straight to `pidx'; a module registered later
     ;; raises the generation and the next call asks everything again.
     ;; 0 is never a generation, so a fresh or thawed functor is unknown.
-    (member u32      fgen))
+    (member u32      fgen)
+    ;; THE ROW OF `*error-contexts*' A RAISE BY A GOAL OF THIS FUNCTOR NAMES
+    ;; (3.0.0, `coco_err_ctx' in solve.cicili): 0 not asked, 1 none, K+2
+    ;; row K. The table never changes; a thawed functor asks again.
+    (member u32      ectx))
 
   ;;; A ROOT ARRAY A HOST OWNS, registered with the machine for as long as it
   ;;; holds heap cell indices across a run of the engine: where the array
@@ -741,7 +745,11 @@
     ;; swipl's answers, which fail in an initialization/1 goal run after
     ;; the file and in the program. Appended.
     (member const char * sloc_file)
-    (member int        sloc_line))
+    (member int        sloc_line)
+    ;; THE EMPTY LIST'S ATOM ID, PLUS ONE (3.0.0; 0 until it is first
+    ;; asked, `coco_nil_id'): `[]' is told from `'[]'' by its id, never by
+    ;; its name, which the two share. Appended.
+    (member u64        nilid1))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -875,6 +883,14 @@
   (decl) (func coco_intern ((coco_machine * m) (const char * name)) (out u64))
   (decl) (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64))
   (decl) (func coco_atom_name ((coco_machine * m) (u64 id)) (out const char *))
+  ;; THE EMPTY LIST AND THE ATOM `'[]'' (3.0.0): the list's end is the
+  ;; table's entry for the name "[]", the atom a second entry of the same two
+  ;; bytes that no lookup of the name finds (`coco_intern_tnil').
+  (decl) (func coco_nil_id ((coco_machine * m)) (out u64))
+  (decl) (func coco_intern_tnil ((coco_machine * m)) (out u64))
+  (decl) (func coco_atom_is_tnil ((coco_machine * m) (u64 id)) (out int))
+  (decl) (func coco_new_nil ((coco_machine * m)) (out size_t))
+  (decl) (func coco_is_nil ((coco_machine * m) (size_t h)) (out int))
   (decl) (func coco_functor_id ((coco_machine * m) (u64 name) (u32 arity)) (out u64))
   ;; a name and an arity as one word, for the two tables that find one: the
   ;; functors here and the predicates in kb.cicili
@@ -892,6 +908,8 @@
   ;; (the clause executor), and so saves a store per slot
   (decl) (func coco_push_struct_raw ((coco_machine * m) (u64 c) (u32 n)) (out size_t))
   (decl) (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t))
+  ;; an atom of N bytes of text: "[]" the atom `'[]'', as `coco_new_atom'
+  (decl) (func coco_new_text_atom ((coco_machine * m) (const char * s) (size_t n)) (out size_t))
   (decl) (func coco_new_int ((coco_machine * m) (i64 v)) (out size_t))
   (decl) (func coco_new_float ((coco_machine * m) (double v)) (out size_t))
   ;; an entry of the integer table holding V, and no cell (2.0.0): the
@@ -1977,7 +1995,10 @@
           (set (-> m atom_bucket_cap) ncap)
           (return 1)))
 
-  (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64)
+  ;;; THE NAME, UNDER HASH H: every intern's, and the atom `'[]'''s under
+  ;;; the name's hash with its lowest bit turned (`coco_intern_tnil').
+  (static) (inline)
+  (func coco_intern_h ((coco_machine * m) (const char * name) (size_t len) (u64 h)) (out u64)
         ;; THE HIT IS LOCK-FREE (2.9.2). Most interns are of a name already
         ;; in the table -- the goal text read for every spawned task, a
         ;; repeated functor -- and each one took the world names mutex AND
@@ -1989,7 +2010,7 @@
         ;; syncs, and looks AGAIN: another thread may have appended the name
         ;; meanwhile (the double-checked lock the predicate table needed).
         (coco_tbl_sync m)
-        (let ((u64 h . #'(coco_hash name len)))
+        (block
           (let ((size_t fj . #'(cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1))))))
             (while (!= (nth fj (-> m atom_buckets)) 0)
               (let ((size_t fid . #'(- (nth fj (-> m atom_buckets)) 1)))
@@ -2030,12 +2051,52 @@
                 (coco_tbl_end m)
                 (return (cast u64 id)))))))
 
+  (func coco_intern_len ((coco_machine * m) (const char * name) (size_t len)) (out u64)
+        (return (coco_intern_h m name len (coco_hash name len))))
+
   (func coco_intern ((coco_machine * m) (const char * name)) (out u64)
         (return (coco_intern_len m name (strlen name))))
 
   (func coco_atom_name ((coco_machine * m) (u64 id)) (out const char *)
         (if (>= (cast size_t id) (-> m atoms_len)) (return "<bad-atom>"))
         (return ($ (nth (cast size_t id) (-> m atoms)) name)))
+
+  ;;; THE EMPTY LIST IS NO ATOM, AND `'[]'' IS NOT IT (3.0.0, swipl 7's).
+  ;;; `[]' is the list's end, which atom/1 denies and the standard order
+  ;;; puts before every atom; `'[]'' is the atom whose text is those two
+  ;;; characters -- what a quoted `'[]'' reads as and what any text "[]" is
+  ;;; made into (atom_codes(A, "[]"), format(atom(A), '~w', [[]])). Through
+  ;;; 2.16 they were one atom, and `[] == '[]'' held. Both have the name
+  ;;; "[]": the list's end is the table's entry for the name, as it always
+  ;;; was, and the atom a second entry of the same two bytes, filed under
+  ;;; the name's hash with its lowest bit turned, so no lookup of the name
+  ;;; finds it; it is made the first time it is asked for, and a program
+  ;;; that never names it interns what it always did. The two are told
+  ;;; apart BY ID, never by name: a new test for the list's end asks
+  ;;; `coco_is_nil' (or `coco_nil_id'), not strcmp with "[]".
+  (func coco_nil_id ((coco_machine * m)) (out u64)
+        (if (!= (-> m nilid1) 0) (return (- (-> m nilid1) 1)))
+        (let ((u64 id . #'(coco_intern_len m "[]" 2)))
+          (set (-> m nilid1) (+ id 1))
+          (return id)))
+
+  (func coco_intern_tnil ((coco_machine * m)) (out u64)
+        (return (coco_intern_h m "[]" 2 (xor (coco_hash "[]" 2) 1))))
+
+  (func coco_atom_is_tnil ((coco_machine * m) (u64 id)) (out int)
+        (if (>= (cast size_t id) (-> m atoms_len)) (return 0))
+        (let ((const char * s . #'($ (nth (cast size_t id) (-> m atoms)) name)))
+          (return (and (== ($ (nth (cast size_t id) (-> m atoms)) len) 2)
+                       (and (== (nth 0 s) (cast char 91))
+                            (and (== (nth 1 s) (cast char 93))
+                                 (!= id (coco_nil_id m))))))))
+
+  (func coco_new_nil ((coco_machine * m)) (out size_t)
+        (return (coco_push m (coco-cell ATOM (coco_nil_id m)))))
+
+  ;;; Whether the cell at H (dereferenced) is the list's end: one word.
+  (func coco_is_nil ((coco_machine * m) (size_t h)) (out int)
+        (return (== (nth h (-> m heap)) (coco-cell ATOM (coco_nil_id m)))))
 
   ;;; A NAME AND AN ARITY AS ONE WORD. An atom id is small and sequential, so
   ;;; the multiply is what spreads it -- by the FNV prime the first-argument
@@ -2106,6 +2167,7 @@
             (set ($ (nth id (-> m functors)) pserial) 0)
             (set ($ (nth id (-> m functors)) pidx) 0)
             (set ($ (nth id (-> m functors)) fgen) 0)
+            (set ($ (nth id (-> m functors)) ectx) 0)
             (set (-> m functors_len) (+ id 1))
             (set (nth j (-> m functor_buckets)) (+ id 1))
             (coco_tbl_end m)
@@ -2152,8 +2214,18 @@
           (set (-> m heap_len) (+ h (+ (cast size_t n) 1)))
           (return h)))
 
+  ;;; AN ATOM OF THIS TEXT: "[]" is the atom `'[]'', as swipl's
+  ;;; PL_new_atom("[]") is (3.0.0) -- the list's end is `coco_new_nil'.
   (func coco_new_atom ((coco_machine * m) (const char * name)) (out size_t)
+        (if (and (== (nth 0 name) (cast char 91))
+                 (and (== (nth 1 name) (cast char 93)) (== (nth 2 name) (cast char 0))))
+            (return (coco_push m (coco-cell ATOM (coco_intern_tnil m)))))
         (return (coco_push m (coco-cell ATOM (coco_intern m name)))))
+
+  (func coco_new_text_atom ((coco_machine * m) (const char * s) (size_t n)) (out size_t)
+        (if (and (== n 2) (and (== (nth 0 s) (cast char 91)) (== (nth 1 s) (cast char 93))))
+            (return (coco_push m (coco-cell ATOM (coco_intern_tnil m)))))
+        (return (coco_push m (coco-cell ATOM (coco_intern_len m s n)))))
 
   ;;; An entry made: counted toward the next reclamation. At `treq' a
   ;;; collection is asked for, so a loop that makes floats or strings and

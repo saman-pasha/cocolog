@@ -44,7 +44,7 @@
   '(("use_module"         1 lb_use_module1)
     ("use_module"         2 lb_use_module2)
     ("ensure_loaded"      1 lb_use_module1)
-    ("current_prolog_flag" 2 lb_current_flag)
+    ("current_prolog_flag" 2 lb_current_flag :declines)
     ("set_prolog_flag"     2 lb_set_flag)
     ;; the two primitives the Coco half below is built from (2.13.0)
     ("$lf_file"            2 lb_load_file)
@@ -65,10 +65,16 @@
 ;;; this loader has nothing to do with are ignored, as SWI ignores one it
 ;;; does not know. The first if(C) is taken, as option/2 takes it, and
 ;;; must_be_module(true) is use_module/1's. A code list is one name, which
-;;; under the codes default is what "file" reads as.
+;;; under the codes default is what "file" reads as. A list's TAIL is
+;;; checked before any file is loaded (3.0.0, swipl's): a partial list is
+;;; the instantiation_error, any other tail type_error(list, Tail) --
+;;; through 2.16 each file before it was loaded and reported first.
 (DEFPARAMETER *library-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
+           ;; the flags current_prolog_flag/2 answers, for a flag it was not
+           ;; given (3.0.0): its C half declines that goal to this clause
+           "current_prolog_flag(F, V) :- var(F), member(F, [bounded, max_integer, min_integer, max_tagged_integer, min_tagged_integer, float_overflow, float_zero_div, float_undefined, float_underflow, float_min, float_max, float_max_integer, double_quotes, text_units, verbose, argv, os_argv, executable]), current_prolog_flag(F, V)."
            "consult(Files) :- '$lf_load'(Files, true)."
            ;; ONE FILE IN BRACKETS IS consult/1 OF THE FILE (2.14.0), swipl's
            ;; `[X] :- !, consult(X).': a missing one raises, as consult(F)
@@ -91,7 +97,11 @@
            "'$lf_load'(F, _) :- var(F), !, throw(error(instantiation_error, _))."
            "'$lf_load'([], _) :- !."
            "'$lf_load'([C|Cs], If) :- integer(C), !, atom_codes(F, [C|Cs]), '$lf_file'(F, If)."
-           "'$lf_load'([F|Fs], If) :- !, '$lf_each'([F|Fs], If)."
+           "'$lf_load'([F|Fs], If) :- !, '$lf_tail'(Fs), '$lf_each'([F|Fs], If)."
+           "'$lf_tail'(T) :- var(T), !, throw(error(instantiation_error, _))."
+           "'$lf_tail'([]) :- !."
+           "'$lf_tail'([_|T]) :- !, '$lf_tail'(T)."
+           "'$lf_tail'(T) :- throw(error(type_error(list, T), _))."
            "'$lf_load'(F, If) :- '$lf_file'(F, If)."
 
            "'$lf_each'(T, _) :- var(T), !, throw(error(instantiation_error, _))."
@@ -304,9 +314,16 @@
   (static) (var char lb_verbose [64])
 
   (static)
-  (func lb_current_flag ((coco_engine * e) (size_t g)) (out int)
+  (func lb_current_flag ((coco_engine * e) (size_t g) (int * found)) (out int)
         (let ((char flag [64]))
-          (if (not (coco_m_is_atom e (coco_m_arg e g 0))) (return 0))
+          ;; AN UNBOUND FLAG ENUMERATES (3.0.0), declined to the Coco half's
+          ;; clause, which asks again of each flag this answers; anything
+          ;; but an atom is type_error(atom, F), swipl's. Through 2.16 both
+          ;; failed.
+          (if (coco_m_is_var e (coco_m_arg e g 0))
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (if (not (coco_m_is_atom e (coco_m_arg e g 0)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
           (if (not (coco_m_text e (coco_m_arg e g 0) flag 64)) (return 0))
           ;; ARGV IS ALWAYS AN ANSWER, and the empty tail is the empty
           ;; tail: a program run with no `--' gets [Executable], never a
@@ -655,7 +672,7 @@
                       (let ((size_t d . #'(coco_deref m (coco_arg m c 0))))
                         (if (and (coco_is_callable m d) (== (coco_arity m d) 3)
                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "op")))
-                            (if (coco_op_apply m d err 128) (set n (+ n 1))))))))
+                            (if (== (coco_op_apply m d err 128) 1) (set n (+ n 1))))))))
             (set (-> m heap_len) mark))
           (coco_reader_free (aof r))
           (return n)))

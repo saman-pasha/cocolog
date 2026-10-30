@@ -1017,16 +1017,52 @@ cocolint index offers no import of it.
   memory refused and then given less is resource_error(memory) since
   1.10.28; a new builtin raises through `coco_raise`. `format/2`'s
   `~a`, `~s` and the format itself take text of any length
-  (`coco_text_put`). **atom_length/2 and string_length/2 read their text
-  as swipl's PL_get_text does** (2.16.1, `coco_len_text`): a compound is
-  type_error(text, T), a list is codes or characters by its first element
-  and every element is held to that kind, a length that is no integer is
-  type_error(integer, L), and `[]` is the atom `'[]'` (2) to atom_length/2
-  and the empty list (0) to string_length/2. The clauses that asked them
-  first -- sub_atom/5, atom_concat/3 and string_concat/3 in mode (-,-,+),
-  sub_string/5 -- ask `'$atom_text_length'/3` or `'$string_text_length'/3`,
-  which raise that predicate's own swipl type (`atom`, `atomic`,
-  `string`) of the whole term: one goal for one, so no count moves.
+  (`coco_text_put`). **Every text builtin reads its text as swipl's
+  PL_get_text does** (3.0.0; atom_length/2 and string_length/2 since
+  2.16.1): `coco_tx_get` with the predicate's `CVT_*` flags. A compound
+  is type_error(T, C), a list is codes or characters by its first element
+  and every element is held to that kind, a partial list is
+  instantiation_error, and a predicate whose text may be unbound fails
+  there where swipl's does (`coco_tx_varnofail`). sub_atom/5,
+  atom_concat/3, string_concat/3 and sub_string/5 read `CVT_ATOMIC`
+  alone, so a list is no text to them, and a `"..."` under codes is a
+  list: `sub_string(S, 0, 1, _, '#')`, never `"#"`. Their clauses ask
+  `'$sub_text_length'/7` (sub_atom/5, sub_string/5),
+  `'$atom_text_length'/3` or `'$string_text_length'/3`, each raising that
+  predicate's own swipl type (`atom`, `atomic`, `string`, `text`) of the
+  whole term. **A new text builtin reads through `coco_tx_get`** with
+  swipl's flags for it, never by walking a list itself.
+* **`[]` is not `'[]'`** (3.0.0, swipl 7's): `[]` is the list's end and
+  `'[]'` an atom of two characters (`coco_intern_tnil`), which the writer
+  quotes. atom/1 fails of `[]`, atomic/1 holds, callable/1 fails, and
+  `atom_length([], N)` is 0. **Ask `coco_is_nil` or compare with
+  `coco_nil_id`, never `strcmp` with `"[]"`**, and build the list's end
+  with `coco_new_nil` (a module: `coco_m_nil`).
+* **An error names the predicate that raised it** (3.0.0): its second
+  argument is `context(system:Name/Arity, _)`, made by `coco_err_ctx` from
+  the goal in flight (`kcall`) and a row of `*error-contexts*` in
+  lib/solve.cicili. A row is a builtin's name and arity, `:BARE` for one
+  swipl names with no module (length/2), `:MAP` for the frame swipl's own
+  raise names (memberchk/2's `'$memberchk'/3`, findall/3's
+  `'$bags':findall_loop/4`), and `:ATOM`, `:INT` or `:FUN` for a C half
+  shared by several predicates, chosen by one of its arguments. The row
+  is kept on the functor (`ectx`). A goal no row names raises with the
+  context unbound: a library's clause, a program's, a loadable module's.
+  **A new builtin gets its row**, or its errors name nothing. The message
+  of an uncaught error, and print_message/2's, begin `Name/Arity: `
+  (`coco_err_caller`, library(print_message)'s `'$pm_caller'`), so a case
+  that holds stderr to the letter holds the prefix too. An unbound
+  culprit of a type error is instantiation_error (`coco_type_error`,
+  `coco_m_type_error`), as swipl's PL_error() makes it.
+* **A check in a clause the recursion comes back to costs every answer**
+  (3.0.0): between/3's first cut called its checking C half in its first
+  clause, which the enumeration re-entered at each answer, and every
+  answer paid a failing C call and a backtrack where 2.16's integer(X)
+  guard had failed inside the clause's entry: 1.6 times the time,
+  found by test/window.pl's retry counts. Check once at the entry and
+  recurse through a helper that checks nothing (`'$between_up'/3`), or
+  let the C half fail where a guard would (numlist/3 is one clause over
+  `'$numlist'/3`).
 * **The backtrace is written by the throw, before anything unwinds**
   (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
   catch on the chain of engines would take as things stand

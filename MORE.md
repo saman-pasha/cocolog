@@ -1992,7 +1992,7 @@ them with library(prolog_stack):
 
 ```console
 $ cocolog --backtrace -s t.pl
-ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'
 ERROR: In:
 ERROR:   [5] _G66 is 2/(1-1)
 ERROR:   [4] oops(2,1,_G66)

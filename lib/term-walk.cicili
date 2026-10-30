@@ -898,7 +898,7 @@
                   (block (set (nth nk kept) k) (set nk (+ nk 1))))))
           ;; NAME(Template, [V1=T1, ...]); KEPT becomes the list's variables
           (if ok
-              (let ((size_t lst . #'(coco_new_atom m "[]")))
+              (let ((size_t lst . #'(coco_new_nil m)))
                 (for ((size_t k . nk)) (> k 0) ((set k (- k 1)))
                   (let ((size_t j . #'(nth (- k 1) kept)))
                     (set lst (coco_cons m (coco_make2 m "=" (nth j vs) (nth j bodies)) lst))))
@@ -935,7 +935,7 @@
               (if (not (coco-tag-is REF (nth (coco_deref m (coco_arg m p 0)) (-> m heap)))) (return t)))
             (set l (coco_deref m (coco_arg m l 1))))
           (if (not (and (coco-tag-is ATOM (nth l (-> m heap)))
-                        (== 0 (strcmp (coco_atom_name m (coco_name_of m l)) "[]"))))
+                        (coco_is_nil m l)))
               (return t)))
         (let ((size_t l . #'(coco_deref m (coco_arg m t 1))))
           (while (coco_is_cons m l)
@@ -1145,6 +1145,18 @@
               (if (== fa fb) (return 0))
               (return (? fa -1 1))))))
 
+  ;;; TWO ATOMS IN THE STANDARD ORDER: by their names, and the list's end
+  ;;; before every atom (3.0.0, swipl 7's: `[]' @< '', and `'[]'', of the
+  ;;; same name, after it). One id is one atom, asked first.
+  (static)
+  (func coco_atom_order ((coco_machine * m) (size_t a) (size_t b)) (out int)
+        (let ((u64 x . #'(coco_name_of m a)) (u64 y . #'(coco_name_of m b)))
+          (if (== x y) (return 0))
+          (let ((u64 nl . #'(coco_nil_id m)))
+            (if (== x nl) (return -1))
+            (if (== y nl) (return 1)))
+          (return (strcmp (coco_atom_name m x) (coco_atom_name m y)))))
+
   ;;; THE ORDER OF TWO TERMS WHOSE WALK MET MORE PAIRS OF COMPOUNDS THAN THE
   ;;; HEAP HOLDS (1.10.19): two cyclic terms -- `C1 = f(C1, a)' against
   ;;; `C2 = f(C2, b)' went down the left for ever and never reached `a' --
@@ -1171,9 +1183,7 @@
                     ((!= ka kb) (set r (? (< ka kb) -1 1)))
                     ((== ka 0) (set r (? (< a b) -1 (? (> a b) 1 0))))
                     ((== ka 1) (set r (coco_num_order m a b)))
-                    ((== ka 2)
-                     (set r (strcmp (coco_atom_name m (coco_name_of m a))
-                                    (coco_atom_name m (coco_name_of m b)))))
+                    ((== ka 2) (set r (coco_atom_order m a b)))
                     ((== ka 3) (set r (coco_str_cmp m a b)))
                     (#t
                      (let ((u32 na . #'(coco_arity m a))
@@ -1227,9 +1237,7 @@
                     ((== ka 0) (set r (? (< a b) -1 (? (> a b) 1 0))))
                     ;; two numbers: `coco_num_order', integers exactly
                     ((== ka 1) (set r (coco_num_order m a b)))
-                    ((== ka 2)
-                     (set r (strcmp (coco_atom_name m (coco_name_of m a))
-                                    (coco_atom_name m (coco_name_of m b)))))
+                    ((== ka 2) (set r (coco_atom_order m a b)))
                     ;; STRINGS ORDER BY BYTES, and memcmp is the comparison
                     ;; because a string may CONTAIN a NUL -- which is the
                     ;; whole reason it is not an atom. strcmp would stop

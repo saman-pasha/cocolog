@@ -320,7 +320,9 @@ aliases(D) :-
     answer(( open(F, read, S2, [alias(src)]), stream_property(S2, alias(A2)), read_line_to_codes(src, L2), close(src), atom_codes(T2, L2) ), A2-T2, G2),
     check('stream_property/2 answers the alias, and reading by it reads the stream', G2, src-one),
     answer(format(log, "x", []), ok, G3), ball(G3, B3),
-    check('a closed stream''s alias is gone: format/3 raises domain_error(output_sink, A) as for any atom', B3, domain_error(output_sink, log)),
+    %% swipl's error for an atom that names no stream (3.0.0; through 2.16
+    %% domain_error(output_sink, A))
+    check('a closed stream''s alias is gone: format/3 raises existence_error(stream, A) as for any atom', B3, existence_error(stream, log)),
     answer(( open(F, read, _, [alias(twice)]), catch(open(F, read, _, [alias(twice)]), E4, true), close(twice) ), E4, G4), ball(G4, B4),
     check('an alias in use is permission_error(open, source_sink, alias(A))', B4, permission_error(open, source_sink, alias(twice))),
     answer(open(F, read, _, [alias(user_output)]), ok, G5), ball(G5, B5),
@@ -443,7 +445,7 @@ sinks :-
     sh_join([C, ' query "catch(format(nosuch_sink, x, []), error(E, _), true), write(answer(E)), nl" 2>/dev/null'], Cmd1),
     proc_run(Cmd1, 60000, Out1, _),
     ( re_first_atom('answer\\([^\n]*\\)', Out1, A1) -> sub_atom(A1, 7, _, 1, G1) ; G1 = '' ),
-    check('an unknown atom sink raises even as a query''s first term', G1, 'domain_error(output_sink,nosuch_sink)'),
+    check('an unknown atom sink raises even as a query''s first term', G1, 'existence_error(stream,nosuch_sink)'),
     sh_join([C, ' query "format(''~w~n'', [plain]), format(atom(A), ''~w'', [a]), write(answer(A)), nl" 2>/dev/null'], Cmd2),
     proc_run(Cmd2, 60000, Out2, _),
     ( re_first_atom('plain', Out2, _), re_first_atom('answer\\([^\n]*\\)', Out2, A2) -> sub_atom(A2, 7, _, 1, G2) ; G2 = Out2 ),

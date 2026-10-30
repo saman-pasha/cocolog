@@ -1,4 +1,5 @@
-%% atom_length/2 and string_length/2, held to swipl 9.0.4 (cocolog 2.16.1).
+%% atom_length/2 and string_length/2, held to swipl 9.0.4 (cocolog 2.16.1,
+%% 3.0.0).
 %%
 %% The text is an atom, a number, a string, or a list of codes or of
 %% characters, and the length an integer or unbound. Through 2.16.0 a length
@@ -7,16 +8,17 @@
 %% was 4), and a list was counted as written (atom_length([a,b], N) was 5).
 %%
 %% Each line is a case and what it did: yes(N) with the length, no, or
-%% raised(F) with the error's formal -- never its context, which swipl fills
-%% with system:atom_length/2 and cocolog leaves unbound, as it does for every
-%% core builtin. A literal `[]' is no case: swipl's is the empty list and its
-%% atom_length is 0, cocolog's is the atom '[]', two characters, as swipl's
-%% atom_length('[]', N) is -- which is a case.
+%% raised(F, P) with the error's formal and the predicate its context names,
+%% system:atom_length/2 (through 2.16.1 cocolog left every core builtin's
+%% context unbound, and the case printed the formal alone). `[]' is the empty
+%% list, whose atom_length is 0; `'[]'', the atom, has two characters (they
+%% were one atom through 2.16.1, and `[]' was no case).
 
 len(Name, Goal, L) :-
     (   catch(Goal, E, true)
     ->  (   var(E) -> R = yes(L)
-        ;   E = error(F, _) -> R = raised(F)
+        ;   E = error(F, C)
+        ->  ( nonvar(C), C = context(P, _) -> R = raised(F, P) ; R = raised(F) )
         ;   R = threw(E)
         )
     ;   R = no
@@ -46,6 +48,7 @@ texts :-
     len(atom, atom_length(abc, L1), L1),
     len(empty_atom, atom_length('', L2), L2),
     len(nil_atom, atom_length('[]', L3), L3),
+    len(nil, atom_length([], L14), L14),
     len(integer, atom_length(123, L4), L4),
     len(negative, atom_length(-7, L5), L5),
     len(float, atom_length(1.5, L6), L6),

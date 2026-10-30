@@ -421,6 +421,7 @@ why_shape(ended(_, P, _, F), ended(P, F)).
 %% step at which its fourth is 16, found by asking runs stopped part
 %% way (flow_when/4 bisects: a handful of runs, each at full speed), and
 %% then the one call made there, seen through a window of one step
+%% (numlist/3 is two steps since cocolog 3.0.0, one clause over its C half)
 asked(Dir) :-
     format("~n-- when did it happen?~n"),
     atom_concat(Dir, '/squares.pl', Prog),
@@ -431,10 +432,10 @@ asked(Dir) :-
            format(W, "~w~n", [L])),
     close(W),
     flow_when(squares(6, Sq), (nth1(4, Sq, S4), S4 == 16), [source(Prog)], When),
-    must('the fourth square is 16 from step 12', When, at(12)),
+    must('the fourth square is 16 from step 11', When, at(11)),
     atom_concat(Dir, '/squares', Base),
-    flow_debug(squares(6, _), Base, [source(Prog), from(12), to(12)], R),
-    R = run(_, _, _, _, [call(12, P, _, _, _, _, _, _, Out, _)|_], _, _, _),
+    flow_debug(squares(6, _), Base, [source(Prog), from(11), to(11)], R),
+    R = run(_, _, _, _, [call(11, P, _, _, _, _, _, _, Out, _)|_], _, _, _),
     must('the call made there: is/2, which made 16 of 4*4', P-Out, (is)/2-['16', '4*4']),
     flow_when(squares(6, Sq2), (nth1(4, Sq2, S42), S42 == 17), [source(Prog)], Never),
     must('and a question that never holds where the run ends', Never, never).

@@ -138,7 +138,7 @@
         (let ((u32 n . #'(coco_arity m t))
               (const char * nm . #'(coco_atom_name m (coco_name_of m t))))
           (if (== n 0)
-              (return (? (or (== 0 (strcmp nm "[]"))
+              (return (? (or (coco_is_nil m t)
                              (== 0 (strcmp nm "{}"))
                              (== 0 (strcmp nm "!"))) 1 0)))
           (if (== n 1)
@@ -172,7 +172,7 @@
             (if (not (coco_is_callable m cur)) (block (free items) (return 0)))
             (if (== (coco_arity m cur) 0)
                 (block
-                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m cur)) "[]"))
+                 (if (not (coco_is_nil m cur))
                      (block (free items) (return 0)))
                  break))
             (if (or (!= (coco_arity m cur) 2)
@@ -217,7 +217,7 @@
               (const char * nm . #'(coco_atom_name m (coco_name_of m body))))
 
           ;; ---- terminals ----------------------------------------------
-          (if (and (== n 0) (== 0 (strcmp nm "[]")))
+          (if (and (== n 0) (coco_is_nil m body))
               (return (coco_make2 m "=" s0 s)))
 
           (if (and (== n 2) (== 0 (strcmp nm ".")))

@@ -240,7 +240,7 @@
      (if (coco_is_punct r (coco-ch "]"))
          (block (if ,P (coco_pos_leaf r f (-> r pos)))
                 (if (not (coco_next_token r)) (return 0))
-                (set (cof out) (coco_new_atom (-> r m) "[]"))
+                (set (cof out) (coco_new_nil (-> r m)))
                 (return 1)))
      (let ((size_t * items . nil) (size_t * ps . nil) (size_t n . 0) (size_t cap . 0)
            (size_t tail) (int prec) (int ok . 1) (int bar . 0) (int oom . 0))
@@ -277,7 +277,7 @@
                   (if (not (,TERM r 999 (aof tail) (aof prec)))
                       (block (free items) (if ,P (free ps)) (return 0)))
                   (set bar 1))
-         (set tail (coco_new_atom (-> r m) "[]")))
+         (set tail (coco_new_nil (-> r m))))
        (if (not (coco_is_punct r (coco-ch "]")))
            (block (free items) (if ,P (free ps)) (return (coco_fail r "expected ] closing a list"))))
        ;; the tail's position is the term parsed last, `none' with no bar
@@ -704,7 +704,7 @@
   ;;; and atom_number/2 (2.5.0): leading layout and a sign written against
   ;;; the digits are allowed, and anything after the number -- even a space
   ;;; -- answers 0, as SWI's illegal_number rule does.
-  (decl) (func coco_read_number_text ((coco_machine * m) (const char * src) (size_t * out)) (out int))
+  (decl) (func coco_read_number_text ((coco_machine * m) (const char * src) (int strict) (size_t * out)) (out int))
 
   ;;; The writer. QUOTED puts quotes round an atom that needs them, so the
   ;;; output reads back; IGNORE_OPS writes `+(1,2)' instead of `1+2'. Canonical
@@ -820,49 +820,68 @@
         (if (== 0 (strcmp name "fx"))  (block (set (cof type) COCO_FX) (return 1)))
         (return 0))
 
+  ;;; Whether op/3 takes H as one of its names: an atom, never `,', and `|'
+  ;;; only as an infix of priority 0 or past 1000 (swipl's, 3.0.0).
+  (static)
+  (func coco_op_name_ok ((coco_machine * m) (size_t h) (i64 prec) (int kind)) (out int)
+        (set h (coco_deref m h))
+        (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
+        (let ((const char * s . #'(coco_atom_name m (coco_name_of m h))))
+          (if (== 0 (strcmp s ",")) (return 0))
+          (if (and (== 0 (strcmp s "|"))
+                   (or (!= kind 0) (and (!= prec 0) (< prec 1001))))
+              (return 0)))
+        (return 1))
+
+  ;;; 1 with every name defined; -1 when op/3 would raise (3.0.0), err the
+  ;;; reason and NOTHING defined, so that the directive runs op/3 as a goal
+  ;;; and reports swipl's error term the way every raising directive is
+  ;;; reported -- a declaration of `,' accepted here broke the reader for
+  ;;; the rest of the run; 0 when a name will not fit.
   (func coco_op_apply ((coco_machine * m) (size_t t) (char * err) (size_t errlen)) (out int)
         (let ((size_t p . #'(coco_deref m (coco_arg m t 0)))
               (size_t ty . #'(coco_deref m (coco_arg m t 1)))
               (size_t nm . #'(coco_deref m (coco_arg m t 2)))
+              (size_t l . 0) (size_t budget . #'(-> m heap_len))
               (int type . 0) (int kind . 0) (i64 prec . 0))
 
+          (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
+              (block (snprintf err errlen "op/3 wants an atom for its type") (return -1)))
           (if (not (coco-is-int (nth p (-> m heap))))
-              (block (snprintf err errlen "op/3 wants a priority") (return 0)))
+              (block (snprintf err errlen "op/3 wants an integer priority") (return -1)))
           (set prec (coco_int_val m (nth p (-> m heap))))
           (if (or (< prec 0) (> prec 1200))
-              (block (snprintf err errlen "op/3: priority out of range") (return 0)))
-
-          (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
-              (block (snprintf err errlen "op/3 wants a specifier") (return 0)))
+              (block (snprintf err errlen "op/3: priority out of range") (return -1)))
           (if (not (coco_op_type_of (coco_atom_name m (coco_name_of m ty)) (aof type) (aof kind)))
               (block (snprintf err errlen "op/3: %s is not a specifier cocolog has"
                                (coco_atom_name m (coco_name_of m ty)))
-                     (return 0)))
+                     (return -1)))
 
-          ;; one name, or a list of them
-          (if (coco-tag-is ATOM (nth nm (-> m heap)))
-              (let ((const char * one . #'(coco_atom_name m (coco_name_of m nm))))
-                (if (!= 0 (strcmp one "[]"))
-                    (block (if (not (coco_op_define one (cast int prec) type kind))
-                               (block (snprintf err errlen "op/3: %s will not fit" one)
-                                      (return 0)))
-                           (return 1)))))
-
-          (while 1
-            (set nm (coco_deref m nm))
-            (if (coco-tag-is ATOM (nth nm (-> m heap)))
-                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m nm)) "[]")) (return 1)))
-            (if (not (coco_is_callable m nm))
-                (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
-            (if (!= (coco_arity m nm) 2)
-                (block (snprintf err errlen "op/3 wants an atom or a list") (return 0)))
+          ;; one name, or a list of them, every one checked before any is
+          ;; defined
+          (if (and (coco-tag-is ATOM (nth nm (-> m heap))) (not (coco_is_nil m nm)))
+              (block (if (not (coco_op_name_ok m nm prec kind))
+                         (block (snprintf err errlen "op/3 refuses that name") (return -1)))
+                     (if (not (coco_op_define (coco_atom_name m (coco_name_of m nm))
+                                            (cast int prec) type kind))
+                         (block (snprintf err errlen "op/3: %s will not fit"
+                                          (coco_atom_name m (coco_name_of m nm)))
+                                (return 0)))
+                     (return 1)))
+          (set l nm)
+          (while (and (coco_is_cons m l) (> budget 0))
+            (if (not (coco_op_name_ok m (coco_arg m l 0) prec kind))
+                (block (snprintf err errlen "op/3 refuses a name in its list") (return -1)))
+            (set budget (- budget 1))
+            (set l (coco_deref m (coco_arg m l 1))))
+          (if (not (coco_is_nil m l))
+              (block (snprintf err errlen "op/3 wants an atom or a list of atoms") (return -1)))
+          (while (coco_is_cons m nm)
             (let ((size_t h . #'(coco_deref m (coco_arg m nm 0))))
-              (if (not (coco-tag-is ATOM (nth h (-> m heap))))
-                  (block (snprintf err errlen "op/3 wants atoms in its list") (return 0)))
               (if (not (coco_op_define (coco_atom_name m (coco_name_of m h))
                                      (cast int prec) type kind))
                   (block (snprintf err errlen "op/3: a name will not fit") (return 0))))
-            (set nm (coco_arg m nm 1)))
+            (set nm (coco_deref m (coco_arg m nm 1))))
           (return 1)))
   (func coco_op_dyn_count () (out size_t) (return coco_ndynops))
 
@@ -1355,7 +1374,7 @@
   ;;; The N positions in PS as a list.
   (static)
   (func coco_pos_list ((coco_reader * r) (const size_t * ps) (size_t n)) (out size_t)
-        (let ((size_t acc . #'(coco_new_atom (-> r m) "[]")))
+        (let ((size_t acc . #'(coco_new_nil (-> r m))))
           (while (> n 0)
             (set n (- n 1))
             (set acc (coco_cons (-> r m) (nth n ps) acc)))
@@ -1561,9 +1580,9 @@
           ;; (1.13.0): "dár" is [100,225,114], or [d,á,r]
           (if (-> m text_chars)
               (block (set (cof out) (coco_text_list m ($ (-> r text) s) n (? (== mode 1) 1 0)
-                                                    (coco_new_atom m "[]")))
+                                                    (coco_new_nil m)))
                      (return 1)))
-          (let ((size_t tail . #'(coco_new_atom m "[]")))
+          (let ((size_t tail . #'(coco_new_nil m)))
             (while (> n 0)
               (set n (- n 1))
               (let ((size_t c . 0))
@@ -1679,20 +1698,28 @@
           (return rc)))
 
   ;;; A NUMBER AND NOTHING ELSE (2.5.0), for number_codes/2 and its kin.
-  ;;; Leading layout is allowed and a sign written against the digits; the
-  ;;; number must end the text -- a trailing space, a newline or a `.` is
-  ;;; SWI's illegal_number, which the callers raise.
-  (func coco_read_number_text ((coco_machine * m) (const char * src) (size_t * out)) (out int)
+  ;;; A sign is written against the digits, and the number must end the
+  ;;; text -- a trailing space, a newline or a `.` is SWI's illegal_number,
+  ;;; which the callers raise. Layout before it is allowed unless STRICT
+  ;;; (3.0.0, swipl 9.0.4's): number_codes(N, " 12") is 12 and
+  ;;; atom_number(' 12', N) and number_string(N, " 12") fail. Through
+  ;;; 2.16.1 the sign was asked for no layout before IT, so "- 12" read
+  ;;; as -12 and " -12" as no number.
+  (func coco_read_number_text ((coco_machine * m) (const char * src) (int strict) (size_t * out)) (out int)
         (let ((coco_reader r) (int ok . 0) (int neg . 0))
           (coco_reader_init (aof r) m src)
           (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
+          (if (and strict ($ r layout_before))
+              (block (coco_reader_free (aof r)) (return 0)))
           (if (== ($ r tok) COCO_TK_NAME)
               (let ((const char * nm . #'($ r text s)))
-                (if (and (or (== 0 (strcmp nm "+")) (== 0 (strcmp nm "-")))
-                         (== 0 ($ r layout_before)))
+                (if (or (== 0 (strcmp nm "+")) (== 0 (strcmp nm "-")))
                     (block
                       (set neg (? (== (nth 0 nm) (coco-ch "-")) 1 0))
                       (if (not (coco_next_token (aof r)))
+                          (block (coco_reader_free (aof r)) (return 0)))
+                      ;; the digits against the sign
+                      (if ($ r layout_before)
                           (block (coco_reader_free (aof r)) (return 0))))
                   (block (coco_reader_free (aof r)) (return 0)))))
           (if (and (!= ($ r tok) COCO_TK_INT)
@@ -1856,7 +1883,7 @@
                    continue))
               ;; not a list cell: either the proper end, or a partial list
               (if (and (coco-tag-is ATOM c)
-                       (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
+                       (coco_is_nil m t))
                   break)
               (coco_sb_putc b (cast char (coco-ch "|")))
               (coco_write_rec m b t kids 999 (+ depth 1))
@@ -1966,12 +1993,15 @@
                            (coco_write_atom (aof ob) name quoted))
                          (coco_write_rec m (aof rb) (coco_arg m t 1)
                                        (bitor kids 4) rmax (+ depth 1))
-                         (if (coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))
-                             (coco_sb_putc b (cast char 32)))
-                         (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
-                         (if (coco_needs_gap (coco_sb_last (aof ob))
-                                           (coco_sb_first (aof rb)))
-                             (coco_sb_putc b (cast char 32)))
+                         ;; A SPACE BEFORE THE OPERATOR IS ONE AFTER IT TOO
+                         ;; (3.0.0, swipl's): `+- = b', `+- - 1', where the
+                         ;; right side's own gap stands alone (`a- -1')
+                         (let ((int gb . #'(coco_needs_gap (coco_sb_last b) (coco_sb_first (aof ob)))))
+                           (if gb (coco_sb_putc b (cast char 32)))
+                           (if (!= ($ ob s) nil) (coco_sb_put b ($ ob s)))
+                           (if (or gb (coco_needs_gap (coco_sb_last (aof ob))
+                                                      (coco_sb_first (aof rb))))
+                               (coco_sb_putc b (cast char 32))))
                          (if (!= ($ rb s) nil) (coco_sb_put b ($ rb s)))
                          (coco_sb_free (aof ob))
                          (coco_sb_free (aof rb)))
@@ -2148,6 +2178,14 @@
                ;; 1300 instructions, and they were asked of every atom
                ;; written -- 7.8 % of the translator's lesson -- to be
                ;; thrown away for every atom that was not an operand.
+               ;;
+               ;; THE ATOM `'[]'' IS WRITTEN QUOTED wherever quotes are
+               ;; written (3.0.0): unquoted it would read back as the list's
+               ;; end, which shares its name. Its first byte is asked first.
+               (if (and (!= 0 (bitand mode 1))
+                        (and (== (nth 0 name) (cast char 91))
+                             (coco_atom_is_tnil m (coco_name_of m t))))
+                   (return (coco_write_atom b name (bitor (bitand mode 17) 32))))
                (if (and (!= 0 (bitand mode 4)) (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
                           (coco_write_atom b name (bitand mode 17))

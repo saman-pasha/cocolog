@@ -198,10 +198,16 @@ exceptions(D) :-
     check('safe(E): is/2 raised, oops/1 was ended by it, noted/1 is the catch''s recovery',
           C5, [ safe/1-'query.g1'-p1-exit, oops/1-'p1.c1.g1.try.g1'-p2-unwound,
                 (is)/2-'p2.c1.g1'-none-raised, noted/1-'p1.c1.g1.recover.g1'-p3-exit ]),
-    binds(R5, B5),
+    %% the ball names swipl's context since cocolog 3.0.0, which takes its text
+    %% past the 60 characters a value is cut at, and the length the cut keeps
+    %% counts a variable's name: the text before the cut is what is held
+    binds(R5, B5a),
+    findall(P5a-N5a-V5a-X5a,
+            ( member(P5a-N5a-W5a-X5a, B5a), ( W5a = cut(T5a, _) -> V5a = cut(T5a) ; V5a = W5a ) ),
+            B5),
     check('...and the ball, given to the recovery and answered',
-          B5, [ call-'E'-'error(type_error(evaluable,foo/0),_)'-'p1.c1.g1.recover.g1',
-                exit-'E'-'error(type_error(evaluable,foo/0),_)'-'query.g1' ]),
+          B5, [ call-'E'-cut('error(type_error(evaluable,foo/0),context(system:(is)/2,_')-'p1.c1.g1.recover.g1',
+                exit-'E'-cut('error(type_error(evaluable,foo/0),context(system:(is)/2,_')-'query.g1' ]),
     debugged(D, oops, oops(X6), ['X'=X6], [], R6),
     R6 = run(How6, _, _, _, _, _, _, _),
     calls(R6, C6),
@@ -1052,8 +1058,10 @@ viewed(D) :-
           SMPN-MW, SPN2-windows([1-20, 21-T2])),
     MC = callers(_, _, MCR),
     ( memberchk(callers(app/3, NA2, AC2), MCR) -> true ; NA2 = 0, AC2 = [] ),
-    check('and a call whose caller began in the other window is outside its own: three of app/3''s 21',
-          NA2-AC2, 21-[app/3-14, nrev/2-4, '(outside the window)'-3]),
+    %% (rec/2's numlist/3 is two steps since 3.0.0, one clause over
+    %% '$numlist'/3, and the windows' edge falls a step further into nrev/2)
+    check('and a call whose caller began in the other window is outside its own: two of app/3''s 21',
+          NA2-AC2, 21-[app/3-15, nrev/2-4, '(outside the window)'-2]),
     %% app/3's recursion is a last call, made with its caller's cell: the
     %% matcher asks which call the parent cell names before the Call names
     %% its own, or the call is its own parent
@@ -1073,8 +1081,8 @@ viewed(D) :-
     P3 = profile(_, _, _, PR3),
     debugged(D, open20, rec(6, R5), ['R'=R5], [from(1), to(20), profile(P3), svg(false), xml(false)], _),
     findall(Pr3-I3, ( member(prof(Pr3, I3, _, _), PR3), memberchk(Pr3, [rec/2, nrev/2]) ), Open3),
-    check('a call the window closed on spends up to the last step made under it: rec/2 the whole window, nrev/2 from step 5',
-          Open3, [rec/2-20, nrev/2-16]),
+    check('a call the window closed on spends up to the last step made under it: rec/2 the whole window, nrev/2 from step 4',
+          Open3, [rec/2-20, nrev/2-17]),
     statistics(inferences, I0), flow_dbg_text_spaces(1000, S1000), statistics(inferences, I1),
     atom_length(S1000, L1000), DI is I1 - I0,
     ( DI < 20 -> Cost = constant ; Cost = DI ),
@@ -1117,11 +1125,11 @@ viewed_command(D) :-
     %% (the query) too
     ( sub_atom(PA6, _, _, _, '    (the query)') -> Q6 = named ; Q6 = not_named ),
     %% and the time view of both, each window's probe under the clock
-    ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
+    ( sub_atom(PA6, _, _, _, '\n% the 80 steps of the 2 windows 211 to 250, 461 to 500, 80 of them inferences (true/0 and =/2 are none), took ') -> M6 = timed ; M6 = untimed ),
     check('windows=2: two windows of 40 steps, the second where the run ends, each BASE.K.txt, and BASE.prof of both -- no window began with the query -- their time added up too',
           E6-Y6-L6-SH6-Q6-M6,
-          0-yes-'rec(30, R): answer at step 501; 2 windows: 211 to 250, 462 to 501'-
-          '% the 80 steps of the 2 windows 211 to 250, 462 to 501, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
+          0-yes-'rec(30, R): answer at step 500; 2 windows: 211 to 250, 461 to 500'-
+          '% the 80 steps of the 2 windows 211 to 250, 461 to 500, 80 of them inferences (true/0 and =/2 are none), by what took them: 79 calls of 1 predicate, a step each, and 1 by control constructs, which make no call (an if-then-else, a cut, catch/3 and its exit, \\+, call/N)'-
           not_named-timed),
     %% ... and each window's own (1.13.7): a cold window apart from a warm one
     atomic_list_concat([B6, '.1.prof'], PF61), atomic_list_concat([B6, '.2.prof'], PF62),
@@ -1130,7 +1138,7 @@ viewed_command(D) :-
                   atomic_list_concat([H6a|_], '\n', A6c), sub_atom(H6a, 0, 40, _, H6) ),
             Hs6),
     check('...and each window''s own BASE.K.prof, named on the output, of that window alone',
-          Hs6, ['% the 40 steps of the window 211 to 250,', '% the 40 steps of the window 462 to 501,']),
+          Hs6, ['% the 40 steps of the window 211 to 250,', '% the 40 steps of the window 461 to 500,']),
     %% ... and the CPU each window's replay spent before it opened, which
     %% places it in the run's time; the run's line, its probe's
     findall(x, ( member(L, Ls6c), sub_atom(L, _, _, 0, ' s before the window opened') ), BW6),

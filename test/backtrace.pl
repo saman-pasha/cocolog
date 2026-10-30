@@ -4,7 +4,7 @@
 %% that prints nothing, or `--trace' -- every call it was made in, as SWI
 %% writes a frame:
 %%
-%%     ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'
+%%     ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'
 %%     ERROR: In:
 %%     ERROR:   [5] _G66 is 2/(1-1)
 %%     ERROR:   [4] oops(2,1,_G66)
@@ -57,7 +57,7 @@ untraced(D) :-
     bt1(D, F),
     sh_join(['-s ', F], A1), bt_err(D, A1, E1, Rc1),
     note(N1),
-    append(['ERROR: -s main: Arithmetic: evaluation error: `zero_divisor''',
+    append(['ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor''',
             'ERROR: In:',
             'ERROR:   _G is 2/(1-1)',
             'ERROR:   then write(_G)',
@@ -77,7 +77,7 @@ traced(D) :-
              'ERROR:   [2] step1(3)',
              'ERROR:   [1] main'],
     sh_join(['--backtrace -s ', F], A1), bt_err(D, A1, E1, Rc1),
-    lines(['ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'''|Stack], T1),
+    lines(['ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'''|Stack], T1),
     check('the stack SWI writes, depth by depth, and nothing traced on the way', E1, T1),
     check('...and the exit status is still 2', Rc1, 2),
     %% the trace that prints keeps the same markers
@@ -95,7 +95,7 @@ quiet(D) :-
     section('--no-backtrace: the message alone'),
     bt1(D, F),
     sh_join(['--no-backtrace -s ', F], A1), bt_err(D, A1, E1, Rc1),
-    check('only the message', E1, 'ERROR: -s main: Arithmetic: evaluation error: `zero_divisor'''),
+    check('only the message', E1, 'ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor'''),
     check('...and the exit status is still 2', Rc1, 2).
 
 caught(D) :-
@@ -130,9 +130,13 @@ caught(D) :-
     %% the dispatch's own raises, each after a builtin that left its goal
     %% as the one in flight
     forall(member(Name-Body-Msg-Culprit,
-                  [unbound-'p(_)'-'Arguments are not sufficiently instantiated'-'_G',
-                   number-'p(1)'-'Type error: `callable\' expected, found `1\''-'1',
-                   closure-'call(1, x)'-'Type error: `callable\' expected, found `1\''-'call(1,x)']),
+                  %% each named as swipl names its frame (3.0.0): a goal the
+                  %% loop meets is '<meta-call>'/1 (swipl, which compiles
+                  %% the body, names the clause's predicate, p/1), call/N
+                  %% its own
+                  [unbound-'p(_)'-'\'<meta-call>\'/1: Arguments are not sufficiently instantiated'-'_G',
+                   number-'p(1)'-'\'<meta-call>\'/1: Type error: `callable\' expected, found `1\' (an integer)'-'1',
+                   closure-'call(1, x)'-'call/2: Type error: `callable\' expected, found `1\' (an integer)'-'call(1,x)']),
            ( atom_concat(D, '/', D1), atomic_list_concat([D1, Name, '.pl'], Fx),
              atomic_list_concat(['main :- write(a), nl, atom_length(abc, _), ', Body, ', write(b).'], M),
              fixture(Fx, [M, 'p(G) :- atom_length(abc, _), G, write(c).']),
@@ -157,7 +161,7 @@ nested(D) :-
                 'check(X, X).']),
     sh_join(['-s ', F], A1), bt_err(D, A1, E1, _),
     note(N1),
-    append(['ERROR: -s main: Arithmetic: `foo/0'' is not a function',
+    append(['ERROR: -s main: is/2: Arithmetic: `foo/0'' is not a function',
             'ERROR: In:',
             'ERROR:   _G is foo+3',
             'ERROR:   findall(_G,gen(3,_G),_G)',
@@ -167,7 +171,7 @@ nested(D) :-
             'ERROR:   then nl'], N1, W1), lines(W1, T1),
     check('findall/3: the goal inside that raised, then the findall and its caller\'s goals', E1, T1),
     sh_join(['--backtrace -s ', F], A2), bt_err(D, A2, E2, _),
-    lines(['ERROR: -s main: Arithmetic: `foo/0'' is not a function',
+    lines(['ERROR: -s main: is/2: Arithmetic: `foo/0'' is not a function',
            'ERROR: In:',
            'ERROR:   [5] _G is foo+3',
            'ERROR:   [4] check(3,_G)',
@@ -181,7 +185,7 @@ nested(D) :-
                 'inner :- write(hi), mid(2), write(bye).',
                 'mid(N) :- N1 is N * 2, atom_length(_, N1), write(N1).']),
     sh_join(['--backtrace -s ', G], A3), bt_err(D, A3, E3, _),
-    lines(['ERROR: -s main: Arguments are not sufficiently instantiated',
+    lines(['ERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated',
            'ERROR: In:',
            'ERROR:   [4] atom_length(_G,4)',
            'ERROR:   [3] mid(2)',
@@ -194,7 +198,7 @@ nested(D) :-
                 'loop(0) :- atom_codes(_, _).',
                 'loop(N) :- N1 is N - 1, loop(N1), write(N).']),
     sh_join(['-s ', H], A4), bt_err(D, A4, E4, _),
-    append(['ERROR: -s main: Arguments are not sufficiently instantiated',
+    append(['ERROR: -s main: atom_codes/2: Arguments are not sufficiently instantiated',
             'ERROR: In:',
             'ERROR:   atom_codes(_G,_G)',
             'ERROR:   then write(1)',
@@ -212,7 +216,7 @@ environment(D) :-
                 'len(L, N) :- ( L = [_|T] -> len(T, N0), N is N0 + 1 ; N = 0 ).']),
     sh_join(['-s ', F], A1), bt_err(D, A1, E1, _),
     note(N1),
-    append(['ERROR: -s main: Arguments are not sufficiently instantiated',
+    append(['ERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated',
             'ERROR: In:',
             'ERROR:   atom_length(_G,_G)',
             'ERROR:   then _G is _G+1   (clause 2 of len/2)',
@@ -229,7 +233,7 @@ deep(D) :-
                 'count(N) :- N1 is N - 1, count(N1), write(N), nl.']),
     sh_join(['-s ', F], A1), bt_err(D, A1, E1, _),
     note(N1),
-    append(['ERROR: -s main: Arithmetic: evaluation error: `zero_divisor''',
+    append(['ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor''',
             'ERROR: In:',
             'ERROR:   _G is 1/0',
             'ERROR:   then write(_G)',
@@ -242,7 +246,7 @@ deep(D) :-
             'ERROR:   then write(30)', 'ERROR:   then nl'], N1, W1), lines(W1, T1),
     check('at full speed', E1, T1),
     sh_join(['--backtrace -s ', F], A2), bt_err(D, A2, E2, _),
-    lines(['ERROR: -s main: Arithmetic: evaluation error: `zero_divisor''',
+    lines(['ERROR: -s main: //2: Arithmetic: evaluation error: `zero_divisor''',
            'ERROR: In:',
            'ERROR:   [33] _G is 1/0',
            'ERROR:   [32] count(0)', 'ERROR:   [31] count(1)', 'ERROR:   [30] count(2)',
@@ -263,7 +267,7 @@ loads(D) :-
                  'main :- write(loaded), nl.']),
     sh_join(['-s ', F1], A1), bt_err(D, A1, E1, _),
     append(['ERROR: dir.pl:3:',
-            'ERROR:    Arithmetic: evaluation error: `zero_divisor''',
+            'ERROR:    //2: Arithmetic: evaluation error: `zero_divisor''',
             'ERROR: In:',
             'ERROR:   _G is 1/0',
             'ERROR:   then write(_G)'], N0, W1), lines(W1, T1),
@@ -330,10 +334,10 @@ queries(D) :-
     section('cocolog query'),
     bt_err(D, 'query ''X is 1/0''', E1, _),
     check('a query that is itself the goal that raised: the message alone', E1,
-          'ERROR: ?-: Arithmetic: evaluation error: `zero_divisor'''),
+          'ERROR: ?-: //2: Arithmetic: evaluation error: `zero_divisor'''),
     bt_err(D, 'query ''atom_length(X, Y), write(Y)''', E2, _),
     note(N2),
-    append(['ERROR: ?-: Arguments are not sufficiently instantiated',
+    append(['ERROR: ?-: atom_length/2: Arguments are not sufficiently instantiated',
             'ERROR: In:',
             'ERROR:   atom_length(_G,_G)',
             'ERROR:   then write(_G)'], N2, W2), lines(W2, T2),

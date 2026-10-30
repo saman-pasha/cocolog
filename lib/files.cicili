@@ -86,7 +86,8 @@
     ("working_directory"     2 coco_f_working_directory)
     ("is_absolute_file_name" 1 coco_f_is_absolute)
 
-    ("$path_split"           3 coco_f_path_split)
+    ("$path_base"            2 coco_f_path_base)
+    ("$path_dir"             2 coco_f_path_dir)
     ("$ext_split"            3 coco_f_ext_split)
     ("$ext_join"             3 coco_f_ext_join)))
 
@@ -109,9 +110,11 @@
 (DEFPARAMETER *files-prolog*
   (FORMAT NIL "~{~A ~}"
           (LIST
-           ;; the two halves of one split, so they cannot disagree
-           "file_base_name(Path, Base) :- '$path_split'(Path, _, Base)."
-           "file_directory_name(Path, Dir) :- '$path_split'(Path, Dir, _)."
+           ;; the two halves of one split (`coco_f_split'), so they cannot
+           ;; disagree, each its own C half so that an error names the
+           ;; predicate it was raised in (3.0.0)
+           "file_base_name(Path, Base) :- '$path_base'(Path, Base)."
+           "file_directory_name(Path, Dir) :- '$path_dir'(Path, Dir)."
 
            ;; Splitting when the whole name is known, joining when it is not.
            ;; The cut is what makes the splitting mode deterministic, which
@@ -178,16 +181,37 @@
   ;;; and let the engine run the recovery goal, and if none did it must answer
   ;;; -1. A plain 0 would be a silent failure in the first case, which is the
   ;;; opposite of what the program asked for.
+  ;;;
+  ;;; THE TEXT IS READ AS SWIPL'S PL_get_file_name() READS IT (3.0.0,
+  ;;; `coco_tx_get'): an atom, a string, a list of codes or of characters,
+  ;;; `[]' the empty name -- and a number never, type_error(text, N), as
+  ;;; any other term is; an element of a list that is no code or no
+  ;;; character is type_error(character_code, X) or type_error(character, X).
+  ;;; ALL is swipl's CVT_ALL, what the name predicates and tmp_file/2 read:
+  ;;; a number is its digits there. Through 2.16 a number was its digits
+  ;;; everywhere, a list of characters no text, and anything else
+  ;;; type_error(atom, T).
+  (static)
+  (func coco_f_path_as ((coco_engine * e) (size_t g) (u32 i) (char * out) (size_t cap)
+                      (int * rc) (int all))
+        (out int)
+        (let ((coco_strbuf b)
+              (int r . #'(coco_tx_get e (coco_m_arg e g i) (? all 31 29) (aof b))))
+          (if (!= r 1) (block (set (cof rc) r) (return 0)))
+          (if (>= ($ b len) cap)
+              (block (coco_sb_free (aof b))
+                     (set (cof rc) (coco_m_error e "the path will not fit" nil))
+                     (return 0)))
+          (memcpy out (coco_tx_s (aof b)) ($ b len))
+          (set (nth ($ b len) out) (cast char 0))
+          (coco_sb_free (aof b))
+          (return 1)))
+
   (static)
   (func coco_f_path ((coco_engine * e) (size_t g) (u32 i) (char * out) (size_t cap)
                    (int * rc))
         (out int)
-        (let ((size_t t . #'(coco_m_arg e g i)))
-          (if (coco_m_is_var e t)
-              (block (set (cof rc) (coco_m_instantiation_error e)) (return 0)))
-          (if (not (coco_m_text e t out cap))
-              (block (set (cof rc) (coco_m_type_error e "atom" t)) (return 0)))
-          (return 1)))
+        (return (coco_f_path_as e g i out cap rc 0)))
 
   ;;; ---- existence and access -------------------------------------------
 
@@ -208,28 +232,85 @@
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (return (coco_f_stat_is p 1))))
 
+  ;;; The mode's errors, swipl's: named bare (`access_file/2', where the
+  ;;; file's are `system:access_file/2').
+  (static)
+  (func coco_f_mode_error ((coco_engine * e) (size_t ball)) (out int)
+        (return (coco_m_raise_pi e ball "" "access_file" 2)))
+
+  ;;; Whether a file that is not there could be written: its directory can.
+  (static)
+  (func coco_f_creatable ((const char * p)) (out int)
+        (let ((char dir [4096]) (char * slash . nil))
+          (snprintf dir (sizeof dir) "%s" p)
+          (set slash (strrchr dir 47))
+          (if (== slash nil) (return (? (== 0 (access "." W_OK)) 1 0)))
+          (if (== slash dir) (return (? (== 0 (access "/" W_OK)) 1 0)))
+          (set (nth 0 slash) (cast char 0))
+          (return (? (== 0 (access dir W_OK)) 1 0))))
+
   ;;; SWI's modes. `none' is true of anything, including a file that is not
   ;;; there -- it asks for no access and gets it. `append' is `write', and
-  ;;; `search' is `execute' spelt for directories.
+  ;;; `search' is `execute' spelt for directories. SWI'S ORDER AND WORDS
+  ;;; (3.0.0): the mode unbound or no atom first, then the file, then the
+  ;;; mode's domain, `io_mode' (it was `access_mode', and an unbound mode
+  ;;; its domain_error); and a file that is not there can be written when
+  ;;; its directory can, as swipl's AccessFile() answers (it said no).
   (func coco_f_access_file ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char p [4096]) (const char * mode))
-          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (set mode (coco_m_atom e (coco_m_arg e g 1)))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (int rc . 0) (char p [4096]) (const char * mode . nil)
+              (size_t md . #'(coco_deref m (coco_m_arg e g 1))))
+          (if (coco_m_is_var e md)
+              (return (coco_f_mode_error e (coco_new_atom m "instantiation_error"))))
+          (set mode (coco_m_atom e md))
           (if (== mode nil)
-              (return (coco_m_domain_error e "access_mode" (coco_m_arg e g 1))))
+              (return (coco_f_mode_error e (coco_make2 m "type_error" (coco_new_atom m "atom") md))))
+          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (== 0 (strcmp mode "none"))    (return 1))
           (if (== 0 (strcmp mode "exist"))   (return (? (== 0 (access p F_OK)) 1 0)))
           (if (== 0 (strcmp mode "read"))    (return (? (== 0 (access p R_OK)) 1 0)))
           (if (or (== 0 (strcmp mode "write")) (== 0 (strcmp mode "append")))
-              (return (? (== 0 (access p W_OK)) 1 0)))
+              (block (if (== 0 (access p F_OK)) (return (? (== 0 (access p W_OK)) 1 0)))
+                     (return (coco_f_creatable p))))
           (if (or (== 0 (strcmp mode "execute")) (== 0 (strcmp mode "search")))
               (return (? (== 0 (access p X_OK)) 1 0)))
-          (return (coco_m_domain_error e "access_mode" (coco_m_arg e g 1)))))
+          (return (coco_f_mode_error e (coco_make2 m "domain_error" (coco_new_atom m "io_mode") md)))))
 
+  ;;; A CALL THE SYSTEM REFUSED RAISES (3.0.0; through 2.16 the predicate
+  ;;; failed), as swipl's ERR_FILE_OPERATION makes its error of ERR:
+  ;;; permission_error(ACTION, TYPE, F) for EACCES, ETXTBSY, EROFS and
+  ;;; ENOTEMPTY (EAGAIN's action is `lock'), resource_error(max_files) for
+  ;;; EMFILE and ENFILE, and existence_error(TYPE, F) for anything else --
+  ;;; ENOENT, ENOTDIR, EEXIST, EISDIR. The context names NAME/ARITY in MOD,
+  ;;; or bare for MOD "", and its message is strerror's text when MSG is 1,
+  ;;; as swipl's MSG_ERRNO is, else unbound.
+  (func coco_f_os_error ((coco_engine * e) (int err) (const char * action)
+                         (const char * type) (size_t file) (const char * mod)
+                         (const char * name) (u32 arity) (int msg)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t formal . 0) (size_t ctx . 0) (size_t args [3]))
+          (cond
+            ((or (or (== err EACCES) (== err ETXTBSY))
+                 (or (or (== err EROFS) (== err ENOTEMPTY)) (== err EAGAIN)))
+             (set (nth 0 args) (coco_new_atom m (? (== err EAGAIN) "lock" action)))
+             (set (nth 1 args) (coco_new_atom m type))
+             (set (nth 2 args) file)
+             (set formal (coco_make m "permission_error" 3 args)))
+            ((or (== err EMFILE) (== err ENFILE))
+             (set formal (coco_make1 m "resource_error" (coco_new_atom m "max_files"))))
+            (#t (set formal (coco_make2 m "existence_error" (coco_new_atom m type) file))))
+          (set ctx (coco_ectx_pi m mod (coco_new_atom m name) arity
+                                 (? msg (coco_new_atom m (strerror err)) (coco_new_var m))))
+          (return (? (coco_m_thrown e (coco_make2 m "error" formal ctx)) 2 -1))))
+
+  ;;; swipl names size_file/2 bare for the system's refusal
   (func coco_f_size_file ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]) (stat_t sb))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (if (!= 0 (stat p (aof sb))) (return 0))
+          (if (!= 0 (stat p (aof sb)))
+              (let ((int er . errno))
+                (return (coco_f_os_error e er "size" "file" (coco_m_arg e g 0)
+                                         "" "size_file" 2 1))))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 ($ sb st_size))))))
 
   ;;; A FLOAT, because SWI's is a float and a program comparing two of them
@@ -258,7 +339,10 @@
   (func coco_f_time_file ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]) (double t . 0.0))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (if (not (coco_file_mtime p (aof t))) (return 0))
+          ;; a file that is not there, as swipl's PL_FILE_EXIST asks it
+          (if (not (coco_file_mtime p (aof t)))
+              (return (coco_f_os_error e ENOENT "time" "file" (coco_m_arg e g 0)
+                                       "system" "time_file" 2 0)))
           (return (coco_m_unify_float e (coco_m_arg e g 1) t))))
 
   ;;; `get_time/1' -- THE WALL CLOCK, WHICH WAS SIMPLY NOT THERE. Nothing
@@ -507,16 +591,37 @@
 
   ;;; ---- changing things ------------------------------------------------
 
+  ;;; remove(3), as swipl's: an empty directory goes too, and a full one is
+  ;;; permission_error(delete, file, F)
   (func coco_f_delete_file ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (return (? (== 0 (unlink p)) 1 0))))
+          (if (== 0 (remove p)) (return 1))
+          (let ((int er . errno))
+            (return (coco_f_os_error e er "delete" "file" (coco_m_arg e g 0)
+                                     "system" "delete_file" 1 1)))))
 
+  ;;; a file onto itself is swipl's permission_error(rename, file, Old),
+  ;;; `same file', before anything moves; rename_file/2 is named bare
   (func coco_f_rename_file ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char a [4096]) (char b [4096]))
+        (let ((int rc . 0) (char a [4096]) (char b [4096]) (stat_t sa) (stat_t sb))
           (if (not (coco_f_path e g 0 a (sizeof a) (aof rc))) (return rc))
           (if (not (coco_f_path e g 1 b (sizeof b) (aof rc))) (return rc))
-          (return (? (== 0 (rename a b)) 1 0))))
+          (if (or (== 0 (strcmp a b))
+                  (and (and (== 0 (stat a (aof sa))) (== 0 (stat b (aof sb))))
+                       (and (== ($ sa st_dev) ($ sb st_dev)) (== ($ sa st_ino) ($ sb st_ino)))))
+              (let ((coco_machine * m . #'(coco_m_machine e)) (size_t args [3]))
+                (set (nth 0 args) (coco_new_atom m "rename"))
+                (set (nth 1 args) (coco_new_atom m "file"))
+                (set (nth 2 args) (coco_m_arg e g 0))
+                (return (? (coco_m_thrown e (coco_make2 m "error" (coco_make m "permission_error" 3 args)
+                                                       (coco_ectx_pi m "" (coco_new_atom m "rename_file") 2
+                                                                     (coco_new_atom m "same file"))))
+                           2 -1))))
+          (if (== 0 (rename a b)) (return 1))
+          (let ((int er . errno))
+            (return (coco_f_os_error e er "rename" "file" (coco_m_arg e g 0)
+                                     "" "rename_file" 2 1)))))
 
   (func coco_f_make_directory ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]))
@@ -525,12 +630,18 @@
           ;; which is octal 1411 -- a directory nobody could write into or
           ;; search -- found when make_directory('sub/deep') failed on macOS
           ;; and took the fs conformance case and the tensors store with it.
-          (return (? (== 0 (mkdir p 511)) 1 0))))
+          (if (== 0 (mkdir p 511)) (return 1))
+          (let ((int er . errno))
+            (return (coco_f_os_error e er "create" "directory" (coco_m_arg e g 0)
+                                     "system" "make_directory" 1 1)))))
 
   (func coco_f_delete_directory ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
-          (return (? (== 0 (rmdir p)) 1 0))))
+          (if (== 0 (rmdir p)) (return 1))
+          (let ((int er . errno))
+            (return (coco_f_os_error e er "delete" "directory" (coco_m_arg e g 0)
+                                     "system" "delete_directory" 1 1)))))
 
   ;;; ---- listing --------------------------------------------------------
 
@@ -542,8 +653,16 @@
         (let ((char p [4096]) (DIR * d) (char ** names . nil)
               (size_t n . 0) (size_t cap . 0) (int rc . 0))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+          ;; a name that is not there is existence_error(file, D), as swipl's
+          ;; PL_FILE_EXIST asks it; one that is no directory, the open's
+          (if (!= 0 (access p F_OK))
+              (return (coco_f_os_error e ENOENT "open" "file" (coco_m_arg e g 0)
+                                       "system" "directory_files" 2 0)))
           (set d (opendir p))
-          (if (== d nil) (return 0))
+          (if (== d nil)
+              (let ((int er . errno))
+                (return (coco_f_os_error e er "open" "directory" (coco_m_arg e g 0)
+                                         "system" "directory_files" 2 1))))
           (while 1
             (let ((dirent * ent . #'(readdir d)))
               (if (== ent nil) break)
@@ -573,12 +692,42 @@
   ;;; Cicili's documented way of saying "this is C, pass it through", and four
   ;;; lines of it is cheaper than a hand-written matcher that would have to get
   ;;; brace expansion and multi-component patterns right to match SWI.
+  ;;;
+  ;;; A NAME WITH NO WILDCARD IS ITSELF (3.0.0), its `~' expanded, whether
+  ;;; or not the file is there -- swipl's expand_file_name(nofile, L) is
+  ;;; [nofile], where this answered [] -- and `{a,b}' is a wildcard, as
+  ;;; swipl's is (GLOB_BRACE). The name is CVT_ALL text: a number is its
+  ;;; digits.
+  (static)
+  (func coco_f_has_wild ((const char * p)) (out int)
+        (for ((size_t i . 0)) (!= (nth i p) (cast char 0)) ((++ i))
+          ;; `*' 42, `?' 63, `[' 91, `{' 123
+          (let ((int c . #'(cast int (nth i p))))
+            (if (or (== c 42) (or (== c 63) (or (== c 91) (== c 123)))) (return 1))))
+        (return 0))
+
   (func coco_f_expand_file_name ((coco_engine * e) (size_t g)) (out int)
         (let ((char p [4096]) (int rc . 0) (int gr . 0)
               (size_t n . 0) (char ** v . nil))
-          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+          (if (not (coco_f_path_as e g 0 p (sizeof p) (aof rc) 1)) (return rc))
+          (if (not (coco_f_has_wild p))
+              (let ((char out [4096]) (char * one . out))
+                (snprintf out (sizeof out) "%s" p)
+                ;; `~' and `~user' before the first `/', through glob alone
+                (if (== (nth 0 p) (cast char 126))
+                    (let ((char head [4096]) (char * slash . nil))
+                      (snprintf head (sizeof head) "%s" p)
+                      (set slash (strchr head 47))
+                      (if (!= slash nil) (set (nth 0 slash) (cast char 0)))
+                      (code "glob_t tl; memset(&tl, 0, sizeof tl);")
+                      (if (and (== 0 (code "glob(head, GLOB_TILDE, NULL, &tl)"))
+                               (> (code "tl.gl_pathc") 0))
+                          (snprintf out (sizeof out) "%s%s" (code "tl.gl_pathv[0]")
+                                    (? (== slash nil) "" (+ p (- slash head)))))
+                      (code "globfree(&tl);")))
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_atom_list e (aof one) 1)))))
           (code "glob_t gl; memset(&gl, 0, sizeof gl);")
-          (set gr (code "glob(p, GLOB_TILDE, NULL, &gl)"))
+          (set gr (code "glob(p, GLOB_TILDE | GLOB_BRACE, NULL, &gl)"))
           (if (== gr 0)
               (block (set n (code "gl.gl_pathc"))
                      (set v (code "gl.gl_pathv"))))
@@ -655,28 +804,99 @@
             (set (nth len out) (cast char 0))
             (return 1))))
 
+  ;;; An alias's path written out on B: atomic, or `A/B' of such; 1, 0 for
+  ;;; a path that is none, -1 for one unbound
+  (static)
+  (func coco_f_alias_path ((coco_engine * e) (size_t t) (coco_strbuf * b) (int depth)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (coco_strbuf w) (int r . 0))
+          (set t (coco_deref m t))
+          (if (coco_m_is_var e t) (return -1))
+          (if (> depth 256) (return 0))
+          (if (coco_is_compound2 m t "/")
+              (block (set r (coco_f_alias_path e (coco_arg m t 0) b (+ depth 1)))
+                     (if (!= r 1) (return r))
+                     (coco_sb_putc b (cast char 47))
+                     (return (coco_f_alias_path e (coco_arg m t 1) b (+ depth 1)))))
+          (if (coco-tag-is FUN (nth t (-> m heap))) (return 0))
+          (if (!= 1 (coco_tx_get e t 7 (aof w))) (return 0))
+          (coco_sb_put b (coco_tx_s (aof w)))
+          (coco_sb_free (aof w))
+          (return 1)))
+
+  ;;; An unbound spec is swipl's instantiation_error with no context (its
+  ;;; must_be/2 raises it in Prolog, before '$absolute_file_name'/2, which
+  ;;; names the text's errors: the row, 3.0.0).
+  ;;; AN ALIAS(PATH) SPEC is swipl's file search path (3.0.0; through 2.16
+  ;;; every compound was type_error(text, Spec)): `library' is the first
+  ;;; directory of cocolog's library path, $COCOLOG_LIBRARY's first, else
+  ;;; ./library, with PATH after it, which no file need hold (swipl's /2
+  ;;; asks no access); any other alias, which no file_search_path/2 names
+  ;;; here, fails, as an alias swipl does not know does, and so do a PATH
+  ;;; that is no atomic or `A/B' and any other compound but a list of codes
+  ;;; or characters (swipl's fail too: a list is no alias to it, and is
+  ;;; text here, where "..." reads as codes). PATH unbound is the
+  ;;; instantiation_error, with no context.
   (func coco_f_absolute_file_name ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char p [4096]) (char abs [4096]))
+        (let ((int rc . 0) (char p [4096]) (char abs [4096])
+              (coco_machine * m . #'(coco_m_machine e))
+              (size_t sp . #'(coco_deref m (coco_m_arg e g 0))))
+          (if (coco_m_is_var e sp)
+              (return (? (coco_m_thrown e (coco_make2 m "error" (coco_new_atom m "instantiation_error")
+                                                      (coco_new_var m)))
+                         2 -1)))
+          (if (and (coco-tag-is FUN (nth sp (-> m heap))) (not (coco_is_cons m sp)))
+              (let ((coco_strbuf b) (int r . 0) (const char * lib . #'(getenv "COCOLOG_LIBRARY")))
+                (if (or (!= (coco_arity m sp) 1)
+                        (!= 0 (strcmp (coco_atom_name m (coco_name_of m sp)) "library")))
+                    (return 0))
+                (coco_sb_init (aof b))
+                (if (and (!= lib nil) (and (!= (nth 0 lib) (cast char 0))
+                                           (!= (nth 0 lib) (cast char 58))))
+                    (let ((size_t i . 0))
+                      (while (and (!= (nth i lib) (cast char 0)) (!= (nth i lib) (cast char 58)))
+                        (coco_sb_putc (aof b) (nth i lib))
+                        (set i (+ i 1))))
+                  (coco_sb_put (aof b) "library"))
+                (coco_sb_putc (aof b) (cast char 47))
+                (set r (coco_f_alias_path e (coco_arg m sp 0) (aof b) 0))
+                (if (== r -1)
+                    (block (coco_sb_free (aof b))
+                           (return (? (coco_m_thrown e (coco_make2 m "error"
+                                                                   (coco_new_atom m "instantiation_error")
+                                                                   (coco_new_var m)))
+                                      2 -1))))
+                (if (or (== r 0) (>= ($ b len) (sizeof p)))
+                    (block (coco_sb_free (aof b)) (return 0)))
+                (snprintf p (sizeof p) "%s" (coco_tx_s (aof b)))
+                (coco_sb_free (aof b))
+                (if (not (coco_f_normalise p abs (sizeof abs)))
+                    (return (coco_m_error e "the path will not fit" p)))
+                (return (coco_m_unify_atom e (coco_m_arg e g 1) abs))))
+          ;; a list that is no text fails, as every list does in swipl's
+          (if (coco_is_cons m sp)
+              (let ((coco_strbuf w))
+                (if (!= 1 (coco_tx_get e sp 15 (aof w))) (return 0))
+                (coco_sb_free (aof w))))
           (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
           (if (not (coco_f_normalise p abs (sizeof abs)))
               (return (coco_m_error e "the path will not fit" p)))
           (return (coco_m_unify_atom e (coco_m_arg e g 1) abs))))
 
-  ;;; The directory and the base name of a path, in one call, because the two
-  ;;; library predicates want opposite halves of the same walk and doing it
-  ;;; twice would let them disagree.
+  ;;; The directory and the base name of a path, in one walk, because the two
+  ;;; library predicates want opposite halves of it and two walks could
+  ;;; disagree. P is cut up; DIR and BASE hold 4096 bytes each.
   ;;;
   ;;;   '/a/b/c' -> '/a/b' and c        '/a/b/' -> '/a'  and b
   ;;;   'abc'    -> '.'    and abc      '/'     -> '/'   and '/'
-  (func coco_f_path_split ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char p [4096]) (char dir [4096]) (char base [4096]) (size_t len))
-          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+  (static)
+  (func coco_f_split ((char * p) (char * dir) (char * base))
+        (let ((size_t len))
           (set len (strlen p))
 
           ;; a bare root is its own directory and its own base name
           (if (and (== len 1) (== (nth 0 p) (cast char 47)))
-              (block (snprintf dir (sizeof dir) "/")
-                     (snprintf base (sizeof base) "/"))
+              (block (snprintf dir 4096 "/")
+                     (snprintf base 4096 "/"))
             (block
              ;; trailing slashes first: '/a/b/' is about b, not about ''
              (while (and (> len 1) (== (nth (- len 1) p) (cast char 47)))
@@ -685,23 +905,31 @@
              (let ((char * slash . #'(strrchr p 47)))
                (cond
                  ((== slash nil)
-                  (block (snprintf dir (sizeof dir) ".")
-                         (snprintf base (sizeof base) "%s" p)))
+                  (block (snprintf dir 4096 ".")
+                         (snprintf base 4096 "%s" p)))
                  ((== slash p)
                   ;; '/abc': the directory is the root itself
-                  (block (snprintf dir (sizeof dir) "/")
-                         (snprintf base (sizeof base) "%s" (+ slash 1))))
+                  (block (snprintf dir 4096 "/")
+                         (snprintf base 4096 "%s" (+ slash 1))))
                  (#t
                   (block (set (nth 0 slash) (cast char 0))
-                         (snprintf dir (sizeof dir) "%s" p)
-                         (snprintf base (sizeof base) "%s" (+ slash 1))))))))
+                         (snprintf dir 4096 "%s" p)
+                         (snprintf base 4096 "%s" (+ slash 1))))))))))
 
-          (let ((size_t mark . #'(coco_m_mark e)))
-            (if (not (coco_m_unify_atom e (coco_m_arg e g 1) dir))
-                (block (coco_m_undo e mark) (return 0)))
-            (if (not (coco_m_unify_atom e (coco_m_arg e g 2) base))
-                (block (coco_m_undo e mark) (return 0))))
-          (return 1)))
+  ;;; '$path_base'(Path, Base) and '$path_dir'(Path, Dir), the C halves of
+  ;;; file_base_name/2 and file_directory_name/2 (3.0.0; one '$path_split'/3
+  ;;; through 2.16, whose errors named no predicate), Path CVT_ALL text.
+  (func coco_f_path_base ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char p [4096]) (char dir [4096]) (char base [4096]))
+          (if (not (coco_f_path_as e g 0 p (sizeof p) (aof rc) 1)) (return rc))
+          (coco_f_split p dir base)
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) base))))
+
+  (func coco_f_path_dir ((coco_engine * e) (size_t g)) (out int)
+        (let ((int rc . 0) (char p [4096]) (char dir [4096]) (char base [4096]))
+          (if (not (coco_f_path_as e g 0 p (sizeof p) (aof rc) 1)) (return rc))
+          (coco_f_split p dir base)
+          (return (coco_m_unify_atom e (coco_m_arg e g 1) dir))))
 
   ;;; A dot in a DIRECTORY component is not an extension: '/a/b.d/c' has none.
   ;;;
@@ -711,16 +939,20 @@
   ;;; had the intuitive rule, and test/files/names.pl caught it against a real
   ;;; SWI in the first run. The rule is simply: the last dot that is after the
   ;;; last slash, wherever it sits.
+  ;;;
+  ;;; THE NAME IS CVT_ALL TEXT, AND ONE WITH NO EXTENSION IS ITS OWN BASE
+  ;;; NAME AS IT CAME (3.0.0, swipl's): file_name_extension(B, E, "abc") is
+  ;;; B = "abc", and of 1 B = 1, where both were atoms.
   (func coco_f_ext_split ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char p [4096]) (char * dot) (char * slash))
-          (if (not (coco_f_path e g 0 p (sizeof p) (aof rc))) (return rc))
+          (if (not (coco_f_path_as e g 0 p (sizeof p) (aof rc) 1)) (return rc))
           (set dot (strrchr p 46))
           (set slash (strrchr p 47))
           (if (or (== dot nil)
                   (and (!= slash nil) (< dot slash)))
               ;; no extension: the base name is the whole thing and Ext is ''
               (let ((size_t mark . #'(coco_m_mark e)))
-                (if (not (coco_m_unify_atom e (coco_m_arg e g 1) p))
+                (if (not (coco_m_unify e (coco_m_arg e g 1) (coco_m_arg e g 0)))
                     (block (coco_m_undo e mark) (return 0)))
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) ""))
                     (block (coco_m_undo e mark) (return 0)))
@@ -739,8 +971,8 @@
   ;;; 'x..md'. An empty Ext adds no dot.
   (func coco_f_ext_join ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char base [4096]) (char ext [4096]) (char out [4096]))
-          (if (not (coco_f_path e g 0 base (sizeof base) (aof rc))) (return rc))
-          (if (not (coco_f_path e g 1 ext (sizeof ext) (aof rc))) (return rc))
+          (if (not (coco_f_path_as e g 0 base (sizeof base) (aof rc) 1)) (return rc))
+          (if (not (coco_f_path_as e g 1 ext (sizeof ext) (aof rc) 1)) (return rc))
           (if (== (cast char 0) (nth 0 ext))
               (snprintf out (sizeof out) "%s" base)
             (if (== (nth 0 ext) (cast char 46))
@@ -792,7 +1024,7 @@
   ;;; the caller is the one that knows what to put there.
   (func coco_f_tmp_file ((coco_engine * e) (size_t g)) (out int)
         (let ((int rc . 0) (char base [4096]) (char out [4096]) (const char * dir))
-          (if (not (coco_f_path e g 0 base (sizeof base) (aof rc))) (return rc))
+          (if (not (coco_f_path_as e g 0 base (sizeof base) (aof rc) 1)) (return rc))
           (set dir (getenv "TMPDIR"))
           (if (== dir nil) (set dir "/tmp"))
           (snprintf out (sizeof out) "%s/coco_%s_%d_%ld" dir base
@@ -816,7 +1048,11 @@
           ;; The local is `dest' and not `new' because `new' is one of Cicili's
           ;; own macros and a variable of that name is read as a call to it.
           (if (not (coco_f_path e g 1 dest (sizeof dest) (aof rc))) (return rc))
-          (if (!= 0 (chdir dest)) (return 0))
+          ;; refused, swipl's '$chdir'/1 raises, with no message
+          (if (!= 0 (chdir dest))
+              (let ((int er . errno))
+                (return (coco_f_os_error e er "chdir" "directory" (coco_m_arg e g 1)
+                                         "system" "$chdir" 1 0))))
           (return 1)))
 
   ;;; ---- the module -----------------------------------------------------

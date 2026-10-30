@@ -149,10 +149,16 @@ then pointed at the recovery goal and 2 is how a builtin says *leave my
 continuation alone* — and −1 when nothing caught it. A predicate writes
 `(return (coco_m_type_error e "list" t))` and does not care which happened.
 
-The second argument of `error/2` is left **unbound**. SWI puts a
-`context(Module:Name/Arity, Message)` there and no two systems agree on its
-contents; matching on `error(Formal, _)` is what portable code does and is all
-that can be compared.
+The second argument of `error/2` is the **engine's**: SWI puts a
+`context(Module:Name/Arity, Message)` there, and since 3.0.0 so does cocolog
+for a predicate a row of `*error-contexts*` names -- the core builtins and
+the compiled-in modules (`char_type/2`, `length/2`), each as swipl 9.0.4
+names it. A loadable module's own predicate raises with the context
+**unbound**, as every one did through 2.16; matching on `error(Formal, _)` is
+what portable code does, and an uncaught error then prints no `Name/Arity: `
+before its message. And `coco_m_type_error` given an **unbound culprit**
+raises `instantiation_error` (3.0.0), as swipl's `PL_error()` does for a type
+error of a variable; `type_error(variable, T)` is raised as it is.
 
 ## Writing one
 

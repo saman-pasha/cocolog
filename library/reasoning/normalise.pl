@@ -328,7 +328,7 @@ ng_load_class(Dir, Class) :-
     read_file_to_codes(Path, Codes),
     split_string(Codes, [10], [32, 13, 9], Lines),
     findall(W, ( member(L, Lines), string_length(L, Len), Len > 0,
-                 \+ sub_string(L, 0, 1, _, "#"),
+                 \+ sub_string(L, 0, 1, _, '#'),
                  atom_string(W, L), ng_keep(Class, W) ), Words),
     ng_store_class(Class, Words).
 
@@ -406,7 +406,7 @@ ng_ensure_corpus :-
                     read_file_to_codes(Path, Codes),
                     split_string(Codes, [10], [32, 13, 9], Ls),
                     member(L, Ls), string_length(L, Len), Len > 0,
-                    \+ sub_string(L, 0, 1, _, "#"),
+                    \+ sub_string(L, 0, 1, _, '#'),
                     atom_string(Line, L) ),
             Lines),
     nb_setval('$lx_lessons', Lines),
@@ -1170,7 +1170,7 @@ normalise_load(File, Pairs) :-
     read_file_to_codes(File, Codes),
     split_string(Codes, [10], [32, 13, 9], Lines),
     findall(P, ( member(L, Lines), string_length(L, Len), Len > 0,
-                 \+ sub_string(L, 0, 1, _, "%"),
+                 \+ sub_string(L, 0, 1, _, '%'),
                  atom_string(A, L), term_to_atom(P, A), P = pair(_, _, _, _, _) ),
             Pairs).
 

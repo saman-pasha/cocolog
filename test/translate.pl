@@ -35,7 +35,7 @@ main :-
     newspaper_israel, newspaper_montanelli, newspaper_clot, newspaper_quartieri,
     newspaper_abogacia, newspaper_makula, newspaper_hotel, newspaper_tempi, newspaper_psoe, newspaper_tatarella, newspaper_basket, newspaper_rosi, newspaper_miss, newspaper_lazio, newspaper_inter, newspaper_rognoni, rognoni_faults, newspaper_bank, newspaper_venice, newspaper_yeltsin, newspaper_isole, newspaper_satan, newspaper_veloso, newspaper_corsica, newspaper_figli, newspaper_noche, newspaper_spoleto, spoleto_faults, newspaper_salou, question_roles, stated_gender, newspaper_units,
     questions, rules, refusals, outline, vocabulary, shapes, build,
-    checks_done.
+    teach_lines, checks_done.
 
 %% the lesson, one sentence a line, in three parts because a clause over a
 %% page (8 KB) cannot be stored: the language, the nouns, adjectives, verbs
@@ -17954,7 +17954,7 @@ vocabulary_inter(EsLines, ItLines) :-
 
 vocabulary_lines(File, Lines) :-
     read_file_to_codes(File, Codes), split_string(Codes, "\n", " \t\r", Ss),
-    findall(L, ( member(S, Ss), S \== "", \+ sub_string(S, 0, 1, _, "#"), atom_string(L, S) ), Lines).
+    findall(L, ( member(S, Ss), S \== "", \+ sub_string(S, 0, 1, _, '#'), atom_string(L, S) ), Lines).
 
 %% a line mentions one of the words: a mention is between quotation marks
 vocabulary_mentions(Line, Words) :-
@@ -18134,3 +18134,33 @@ build :-
         shl(['rm -rf ', S])
     ;   format("     (skipped: no corpus/raw/apertium-spa.spa.dix -- sh tools/corpus/fetch.sh)~n", [])
     ).
+
+%% ---- teach.pl's lesson lines ---------------------------------------------------
+%%
+%% A lesson file's line that opens on `#' is a comment, and teach_file/3 does
+%% not learn it. Its test was written "#" through reasoning 1.0.26 -- a code
+%% list, by this library's double_quotes -- which sub_string/5 refuses since
+%% cocolog 3.0.0, as swipl's does, so every teach raised at its first line
+%% (reasoning 1.0.27). In a child, because teach.pl has a main/0 of its own,
+%% which would join this case's.
+
+teach_lines :-
+    section('teach.pl: a lesson file''s comment line is not learned'),
+    scratch(D),
+    atom_concat(D, '/lesson.txt', L),
+    fixture(L, ['# a comment, which is not learned', '', 'The noun "zzcasa" means "zzhouse".']),
+    atom_concat(D, '/teach.pl', P),
+    %% (the child catches what the teach raises: an uncaught error's
+    %% backtrace would hold the goal's own text, answer(...) and all)
+    fixture(P, [':- use_module(library(reasoning/teach)).',
+                'go(F) :- catch(teach_file(F, none, N), E, true),',
+                '         (   var(E) -> reason_text(''The noun "zzcasa" means "zzhouse".'', T), length(T, N0),',
+                '             write(answer(N-N0))',
+                '         ;   E = error(Formal, _), write(answer(raised(Formal)))',
+                '         ), nl.']),
+    sh_join(['--local run ', P, ' "go(''', L, ''')"'], A),
+    cocolog_answer(A, R),
+    (   R = answer(N1-N2), N1 == N2, N1 > 0 -> Got = the_line_alone ; Got = R ),
+    check('a comment line, a blank one and a lesson line: the lesson line''s terms are learned, and nothing else',
+          Got, the_line_alone),
+    shl(['rm -rf ', D]).

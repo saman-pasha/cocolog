@@ -19,7 +19,10 @@ flow_term_full(T, Names, Prec, A) :-
 flow_t(V, Names, _) --> { var(V) }, !, flow_tv(V, Names).
 flow_t(N, _, _) --> { number(N) }, !, { number_codes(N, Cs) }, flow_codes(Cs).
 flow_t('…', _, _) --> !, { atom_codes('…', Cs) }, flow_codes(Cs).
-flow_t(A, _, _) --> { atom(A) }, !, flow_ta(A).
+%% anything atomic but a number is written as writeq/1 writes it: an atom,
+%% the list's end `[]' -- no atom since cocolog 3.0.0, as in swipl 7 -- and a
+%% string, which until then fell through to the compound clause and failed
+flow_t(A, _, _) --> { atomic(A) }, !, flow_ta(A).
 flow_t(T, _, _) --> { flow_is_text(T) }, !, "\"", flow_codes(T), "\"".
 flow_t([H|T], Names, _) -->
     { flow_code_prefix([H|T], Cs, Tail), var(Tail) }, !,

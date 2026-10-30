@@ -384,8 +384,9 @@ join_and_split :-
     answer(catch(atomic_list_concat([a, _, c], '-', _), error(F4, _), true), F4, G4),
     check('an unbound element raises instantiation_error', G4, instantiation_error),
     answer(catch(atomic_list_concat([a, foo(1), c], '-', _), error(F5, _), true), F5, G5),
+    %% swipl 9.0.4 reads each element as text (PL_get_text), and names it so
     check('and a compound names ITSELF, not the first element', G5,
-          type_error(atomic, foo(1))),
+          type_error(text, foo(1))),
 
     %% the small cases the fix must not have moved
     answer(atomic_list_concat([], '-', Z6), Z6, G6),
@@ -435,8 +436,11 @@ chars_to_text :-
     check('a letter of two bytes is no character: SWI\'s error, and no crash', T1,
           'type_error(character,\'á\')'-0),
     chars_child('atom_chars(_, [\'á\'])', T2),
+    %% a FIRST element that is neither a code nor a character is swipl's
+    %% character_code, as `atom_chars(_, [ab])' is (PL_get_text decides the
+    %% list's kind by its first element)
     check('and the first element is named as surely as the second', T2,
-          'type_error(character,\'á\')'-0),
+          'type_error(character_code,\'á\')'-0),
     chars_child('atom_chars(_, [d,ab,r])', T3),
     check('an atom of two characters is no character', T3, 'type_error(character,ab)'-0),
     chars_child('atom_chars(_, [d,1,r])', T4),

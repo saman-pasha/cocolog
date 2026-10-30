@@ -955,7 +955,7 @@
               ;; as not text.
               (if (coco_m_is_atom e p)
                   (block
-                   (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]")) break)
+                   (if (coco_is_nil m p) break)
                    (return 0)))
               (if (not (coco_is_cons m p)) (return 0))
               ;; A CODE OR A ONE-CHARACTER ATOM, because `double_quotes' has
@@ -1221,7 +1221,7 @@
   (func coco_m_new_atom ((coco_engine * e) (const char * s)) (out size_t)
         (return (coco_new_atom (-> e m) s)))
 
-  (func coco_m_nil ((coco_engine * e)) (out size_t) (return (coco_new_atom (-> e m) "[]")))
+  (func coco_m_nil ((coco_engine * e)) (out size_t) (return (coco_new_nil (-> e m))))
 
   (func coco_m_cons ((coco_engine * e) (size_t h) (size_t t)) (out size_t)
         (return (coco_cons (-> e m) h t)))
@@ -1250,7 +1250,7 @@
           (while 1
             (set p (coco_deref m p))
             (if (coco_m_is_atom e p)
-                (if (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "[]"))
+                (if (coco_is_nil m p)
                     (block (set (cof out) n) (return 1))
                   (return 0)))
             (if (not (coco_is_cons m p)) (return 0))
@@ -1279,20 +1279,55 @@
             (set (cof n) len)
             (return 1))))
 
-  ;;; `error(Formal, _)' and then throw it. The context variable is fresh, so
-  ;;; the caller's `catch' pattern `error(F, _)' matches whatever it holds.
+  ;;; `error(Formal, Context)' and then throw it. The context is the
+  ;;; engine's (3.0.0, `coco_err_ctx'): the goal in flight is the module's
+  ;;; call, so a row of `*error-contexts*' names it -- char_type/2,
+  ;;; length/2 -- and a loadable module's own predicate raises with the
+  ;;; context unbound, as through 2.16 every one did.
   (static)
   (func coco_m_raise ((coco_engine * e) (size_t formal)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t ball . #'(coco_make2 m "error" formal (coco_new_var m))))
+              (size_t ball . #'(coco_make2 m "error" formal (coco_err_ctx e 0 nil))))
           ;; 2 and not 1: the engine must be told that the continuation is
           ;; already set, or it puts the caller's back and the recovery goal
           ;; never runs. See the dispatch in solve.cicili.
           (return (? (coco_m_thrown e ball) 2 -1))))
 
+  ;;; the same with the context named outright (MOD "" for none): swipl's
+  ;;; char_type/2 and code_type/2 name `char_type/2' bare for an unbound
+  ;;; character, its own PL_error()
+  (func coco_m_raise_pi ((coco_engine * e) (size_t formal) (const char * mod)
+                         (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ball . #'(coco_make2 m "error" formal
+                                         (coco_ectx_pi m mod (coco_new_atom m name) arity
+                                                       (coco_new_var m)))))
+          (return (? (coco_m_thrown e ball) 2 -1))))
+
+  ;;; A GOAL ARGUMENT THAT IS NO GOAL raises before the search starts,
+  ;;; naming what swipl's own raise names (3.0.0): findall/3's
+  ;;; `'$bags':findall_loop/4', forall/2's `'$apply':forall/2'. Through
+  ;;; 2.16 the search's first step raised it, with no context. 0 when GOAL
+  ;;; is callable, else the raise's answer: instantiation_error for a
+  ;;; variable, type_error(callable, GOAL) for anything else
+  (func coco_m_goal_bad ((coco_engine * e) (size_t goal) (const char * mod)
+                         (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (set goal (coco_deref m goal))
+          (if (coco_is_callable m goal) (return 0))
+          (if (coco-tag-is REF (nth goal (-> m heap)))
+              (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
+                                       mod name arity)))
+          (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "callable") goal)
+                                   mod name arity))))
+
+  ;;; an unbound culprit is an instantiation_error (3.0.0), as swipl's
+  ;;; PL_error() makes ERR_TYPE of a variable; type_error(variable, T) stays
   (func coco_m_type_error ((coco_engine * e) (const char * type) (size_t culprit))
         (out int)
         (let ((coco_machine * m . #'(-> e m)))
+          (if (and (coco_m_is_var e culprit) (!= (strcmp type "variable") 0))
+              (return (coco_m_raise e (coco_new_atom m "instantiation_error"))))
           (return (coco_m_raise e (coco_make2 m "type_error"
                                           (coco_new_atom m type) culprit)))))
 

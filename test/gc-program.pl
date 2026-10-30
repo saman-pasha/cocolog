@@ -31,7 +31,7 @@ t4 :- once(( member(X, [1,2,3]), burn(3000), X > 1 )), write(t4(X)), nl,
 
 t5 :- numlist(1, 50000, L), burn(20000), sum_list(L, S), write(t5(S)), nl,
       X is 1.5 * 3, burn(5000), Y is X + 0.25, write(t5(Y)), nl,
-      atom_string(hello, Str), burn(5000), string_concat(Str, " world", R),
+      atom_string(hello, Str), burn(5000), string_concat(Str, ' world', R),
       string_length(R, RL), write(t5(R, RL)), nl.
 
 :- dynamic gcp_cnt/1.

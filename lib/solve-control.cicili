@@ -1907,7 +1907,120 @@
           (snprintf out len "%s" (? (== ($ b s) nil) "?" ($ b s)))
           (coco_sb_free (aof b))))
 
-  (func coco_error_text ((coco_machine * m) (size_t ball) (char * out) (size_t len))
+  ;;; A SYNTAX ERROR'S REASON, as swipl's syntax_error//1 says it (3.0.0):
+  ;;; `illegal_number' is "Illegal number", `operator_expected' "Operator
+  ;;; expected", and a reason it has no sentence for is written as it is (~w)
+  (static)
+  (func coco_syntax_say ((coco_machine * m) (size_t t) (char * out) (size_t len))
+        (let ((size_t d . #'(coco_deref m t)) (const char * w . nil) (coco_strbuf b))
+          (if (coco-tag-is ATOM (nth d (-> m heap)))
+              (let ((const char * n . #'(coco_atom_name m (coco_name_of m d))))
+                (cond ((== 0 (strcmp n "end_of_clause")) (set w "Unexpected end of clause"))
+                      ((== 0 (strcmp n "end_of_clause_expected")) (set w "End of clause expected"))
+                      ((== 0 (strcmp n "end_of_file")) (set w "Unexpected end of file"))
+                      ((== 0 (strcmp n "end_of_file_in_block_comment"))
+                       (set w "End of file in /* ... */ comment"))
+                      ((== 0 (strcmp n "illegal_number")) (set w "Illegal number"))
+                      ((== 0 (strcmp n "long_atom")) (set w "Atom too long (see style_check/1)"))
+                      ((== 0 (strcmp n "long_string")) (set w "String too long (see style_check/1)"))
+                      ((== 0 (strcmp n "operator_clash")) (set w "Operator priority clash"))
+                      ((== 0 (strcmp n "operator_expected")) (set w "Operator expected"))
+                      ((== 0 (strcmp n "operator_balance")) (set w "Unbalanced operator"))
+                      ((== 0 (strcmp n "quoted_punctuation"))
+                       (set w "Operand expected, unquoted comma or bar found"))
+                      ((== 0 (strcmp n "list_rest")) (set w "Unexpected comma or bar in rest of list"))
+                      ((== 0 (strcmp n "cannot_start_term")) (set w "Illegal start of term"))
+                      ((== 0 (strcmp n "void_not_allowed")) (set w "Empty argument list \"()\"")))))
+          (if (!= w nil)
+              (block (snprintf out len "%s" w) (return)))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) d 0 0)
+          (snprintf out len "%s" (? (== ($ b s) nil) "?" ($ b s)))
+          (coco_sb_free (aof b))))
+
+  ;;; THE KIND OF A TYPE ERROR'S CULPRIT, as swipl's type_error_comment//2
+  ;;; names it (3.0.0): ` (a compound)', ` (an atom)', ... -- `[]' an
+  ;;; empty_list, a proper list a list, a cyclic term a cyclic.
+  (static)
+  (func coco_err_kind ((coco_machine * m) (size_t t)) (out const char *)
+        (let ((size_t d . #'(coco_deref m t)) (u64 c . 0))
+          (set c (nth d (-> m heap)))
+          (if (coco-tag-is REF c) (return "a var"))
+          (if (coco_is_nil m d) (return "an empty_list"))
+          (if (coco-tag-is ATOM c) (return "an atom"))
+          (if (coco-is-int c) (return "an integer"))
+          (if (coco-tag-is STR c) (return "a string"))
+          (if (coco-rat-p c) (return "a rational"))
+          (if (coco-tag-is FLT c) (return "a float"))
+          (if (coco_is_cons m d)
+              (let ((size_t l . d) (size_t budget . #'(-> m heap_len)))
+                (while (and (coco_is_cons m l) (> budget 0))
+                  (set budget (- budget 1))
+                  (set l (coco_deref m (coco_arg m l 1))))
+                (if (coco_is_nil m l) (return "a list"))))
+          (if (not (coco_acyclic m d)) (return "a cyclic"))
+          (return "a compound")))
+
+  ;;; Whether a module is one swipl leaves out of a message: user, system,
+  ;;; or one whose name begins with `$'.
+  (static)
+  (func coco_err_hidden ((coco_machine * m) (size_t md)) (out int)
+        (let ((const char * s . nil))
+          (if (not (coco-tag-is ATOM (nth md (-> m heap)))) (return 0))
+          (set s (coco_atom_name m (coco_name_of m md)))
+          (return (? (or (== 0 (strcmp s "user"))
+                         (or (== 0 (strcmp s "system")) (== (nth 0 s) (cast char 36))))
+                     1 0))))
+
+  ;;; Whether T is a name and an arity, both bound: N/A.
+  (static)
+  (func coco_err_pi ((coco_machine * m) (size_t t)) (out int)
+        (if (not (coco_is_compound2 m t "/")) (return 0))
+        (return (? (and (coco-tag-is ATOM (nth (coco_deref m (coco_arg m t 0)) (-> m heap)))
+                        (coco-is-int (nth (coco_deref m (coco_arg m t 1)) (-> m heap))))
+                   1 0)))
+
+  ;;; WHERE A MESSAGE SAYS IT WAS RAISED, swipl's caller//1 (3.0.0): the
+  ;;; context(M:N/A, _) of an error is `N/A: ' before its text when M is
+  ;;; hidden and `M:N/A: ' else, context(N/A, _) `N/A: ', N written quoted
+  ;;; and A plain; anything else, unbound among it, puts nothing. Through
+  ;;; 2.16 no error of the engine's had a context to say.
+  (static)
+  (func coco_err_caller ((coco_machine * m) (size_t ball) (coco_strbuf * b))
+        (let ((size_t cx . #'(coco_deref m (coco_arg m ball 1))) (size_t c . 0) (size_t pi . 0))
+          (if (not (coco_is_compound2 m cx "context")) (return))
+          (set c (coco_deref m (coco_arg m cx 0)))
+          (set pi c)
+          (if (coco_is_compound2 m c ":")
+              (let ((size_t md . #'(coco_deref m (coco_arg m c 0))))
+                (if (not (coco-tag-is ATOM (nth md (-> m heap)))) (return))
+                (set pi (coco_deref m (coco_arg m c 1)))
+                (if (not (coco_err_pi m pi)) (return))
+                (if (not (coco_err_hidden m md))
+                    (block (coco_write_term m b md 1 0) (coco_sb_put b ":"))))
+              (if (not (coco_err_pi m pi)) (return)))
+          (coco_write_term m b (coco_deref m (coco_arg m pi 0)) 1 0)
+          (coco_sb_put b "/")
+          (coco_write_term m b (coco_deref m (coco_arg m pi 1)) 0 0)
+          (coco_sb_put b ": ")))
+
+  ;;; WHAT A CONTEXT SAYS BESIDES, swipl's swi_extra//1 (3.0.0): of
+  ;;; context(_, Msg) with Msg bound and not '' ` (Msg)', Msg written plain.
+  (static)
+  (func coco_err_extra ((coco_machine * m) (size_t ball) (coco_strbuf * b))
+        (let ((size_t cx . #'(coco_deref m (coco_arg m ball 1))) (size_t w . 0))
+          (if (not (coco_is_compound2 m cx "context")) (return))
+          (set w (coco_deref m (coco_arg m cx 1)))
+          (if (coco-tag-is REF (nth w (-> m heap))) (return))
+          (if (and (coco-tag-is ATOM (nth w (-> m heap)))
+                   (== (nth 0 (coco_atom_name m (coco_name_of m w))) (cast char 0)))
+              (return))
+          (coco_sb_put b " (")
+          (coco_write_term m b w 0 0)
+          (coco_sb_put b ")")))
+
+  (static)
+  (func coco_error_body ((coco_machine * m) (size_t ball) (char * out) (size_t len))
         (let ((size_t b . #'(coco_deref m ball))
               (char a1 [256]) (char a2 [256]) (char a3 [256]))
           ;; A ball that is not `error(Formal, Context)' is not an error term
@@ -1946,7 +2059,8 @@
                  (if (== 0 (strcmp a1 "evaluable"))
                      (block (snprintf out len "Arithmetic: `%s' is not a function" a2)
                             (return)))
-                 (snprintf out len "Type error: `%s' expected, found `%s'" a1 a2)
+                 (snprintf out len "Type error: `%s' expected, found `%s' (%s)" a1 a2
+                           (coco_err_kind m (coco_arg m f 1)))
                  (return)))
 
             (if (and (== fa 2) (== 0 (strcmp fn "domain_error")))
@@ -1977,32 +2091,35 @@
             ;; (Why)", Why unquoted -- which is how a read of the knowledge base
             ;; that failed says which predicate and why (`coco_fetch_error').
             ;; The other formals do not read their context yet.
+            ;; (its context, `P: ... (Why)', is the one every error's is
+            ;; now, `coco_error_text')
             (if (and (== fa 1) (== 0 (strcmp fn "resource_error")))
-                (let ((size_t cx . #'(coco_deref m (coco_arg m b 1)))
-                      (int has_p . 0) (int has_w . 0))
-                  (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
-                  (if (coco_is_compound2 m cx "context")
-                      (let ((size_t cp . #'(coco_deref m (coco_arg m cx 0)))
-                            (size_t cw . #'(coco_deref m (coco_arg m cx 1))))
-                        (if (not (coco-tag-is REF (nth cp (-> m heap))))
-                            (block (coco_err_say m cp a2 (sizeof a2)) (set has_p 1)))
-                        (if (not (coco-tag-is REF (nth cw (-> m heap))))
-                            (let ((coco_strbuf wb))
-                              (coco_sb_init (aof wb))
-                              (coco_write_term m (aof wb) cw 0 0)
-                              (snprintf a3 (sizeof a3) "%s" (? (== ($ wb s) nil) "?" ($ wb s)))
-                              (coco_sb_free (aof wb))
-                              (set has_w 1)))))
-                  (snprintf out len "%s%sNot enough resources: %s%s%s%s"
-                            (? has_p (cast (const char *) a2) "") (? has_p ": " "") a1
-                            (? has_w " (" "") (? has_w (cast (const char *) a3) "")
-                            (? has_w ")" ""))
-                  (return)))
+                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                       (snprintf out len "Not enough resources: %s" a1)
+                       (return)))
 
             (if (and (== fa 1) (== 0 (strcmp fn "syntax_error")))
-                (block (coco_err_say m (coco_arg m f 0) a1 (sizeof a1))
+                (block (coco_syntax_say m (coco_arg m f 0) a1 (sizeof a1))
                        (snprintf out len "Syntax error: %s" a1)
                        (return)))
+
+            ;; format/2,3's two (3.0.0), swipl's sentences
+            (if (and (== fa 2) (== 0 (strcmp fn "format_argument_type")))
+                (let ((coco_strbuf fb))
+                  (coco_sb_init (aof fb))
+                  (coco_write_term m (aof fb) (coco_deref m (coco_arg m f 0)) 0 0)
+                  (snprintf a1 (sizeof a1) "%s" (? (== ($ fb s) nil) "?" ($ fb s)))
+                  (coco_sb_free (aof fb))
+                  (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
+                  (snprintf out len "Illegal argument to format sequence ~%s: %s" a1 a2)
+                  (return)))
+            (if (and (== fa 1) (== 0 (strcmp fn "format")))
+                (let ((coco_strbuf fb))
+                  (coco_sb_init (aof fb))
+                  (coco_write_term m (aof fb) (coco_deref m (coco_arg m f 0)) 0 0)
+                  (snprintf out len "Format error: %s" (? (== ($ fb s) nil) "?" ($ fb s)))
+                  (coco_sb_free (aof fb))
+                  (return)))
 
             ;; A SIGNAL (2.6.0): SWI's sentence, the number then the name.
             ;; Its Context is a fresh variable here, as every cocolog
@@ -2028,6 +2145,23 @@
 
             (coco_err_say m f a1 (sizeof a1))
             (snprintf out len "Unknown error term: %s" a1))))
+
+  ;;; THE MESSAGE OF AN UNCAUGHT ERROR, as swipl prints it (3.0.0): where it
+  ;;; was raised (`coco_err_caller'), what it is (`coco_error_body'), and
+  ;;; what its context says besides (`coco_err_extra').
+  (func coco_error_text ((coco_machine * m) (size_t ball) (char * out) (size_t len))
+        (let ((size_t b . #'(coco_deref m ball)) (char body [1024]) (coco_strbuf pre) (coco_strbuf post))
+          (coco_error_body m b body (sizeof body))
+          (coco_sb_init (aof pre))
+          (coco_sb_init (aof post))
+          (if (and (coco_is_callable m b) (and (== (coco_arity m b) 2)
+                   (== 0 (strcmp (coco_atom_name m (coco_name_of m b)) "error"))))
+              (block (coco_err_caller m b (aof pre))
+                     (coco_err_extra m b (aof post))))
+          (snprintf out len "%s%s%s" (? (== ($ pre s) nil) "" ($ pre s)) body
+                    (? (== ($ post s) nil) "" ($ post s)))
+          (coco_sb_free (aof pre))
+          (coco_sb_free (aof post))))
 
   (func coco_engine_error_text ((coco_engine * e) (char * out) (size_t len)) (out int)
         (if (not (-> e has_ball)) (return 0))

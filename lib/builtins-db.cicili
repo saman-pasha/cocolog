@@ -32,58 +32,13 @@
           (coco_sb_free (aof b))
           (return 1)))
 
-  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)',
-  ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
-  ;;; writer has -- variable_names since 1.10.6: each named variable still
-  ;;; unbound is written as its name, where through 1.10.5 the option was
-  ;;; read past and every variable came out `_G' and a number; numbervars
-  ;;; since 2.2.5, `'$VAR'(N)' as the variable it names, and quoted with
-  ;;; swipl's character escapes since then too (`'don\'t''). Anything else
-  ;;; in the list is ignored rather than refused, because an option a writer
-  ;;; does not implement is not a reason to fail a program.
+  ;;; `write_term(Term, Options)', its options read by `coco_wt_put' in
+  ;;; lib/builtins-format.cicili, which format's `~W' shares (3.0.0).
   (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(coco_m_machine e))
-              (size_t * v . nil) (size_t n . 0)
-              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (coco_strbuf b)
-              (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
-              (size_t * cells . nil) (u64 * names . nil))
-          (if (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n))
-              (for ((size_t i . 0)) (< i n) ((++ i))
-                (let ((size_t o . #'(coco_deref m (nth i v))))
-                  (if (and (coco_is_callable m o) (== 1 (coco_arity m o)))
-                      (let ((const char * nm . #'(coco_atom_name m (coco_name_of m o)))
-                            (const char * val . #'(coco_m_atom e (coco_deref m (coco_arg m o 0)))))
-                        (if (and (!= val nil) (== 0 (strcmp val "true")))
-                            (block
-                             (if (== 0 (strcmp nm "quoted")) (set quoted 1))
-                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))
-                             (if (== 0 (strcmp nm "numbervars")) (set numbervars 1))))
-                        (if (and (== 0 (strcmp nm "variable_names")) (== cells nil))
-                            (if (coco_m_list_array e (coco_arg m o 0) (aof nv) (aof nn))
-                                (block
-                                 (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
-                                 (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
-                                 (if (and (!= cells nil) (!= names nil))
-                                     (for ((size_t j . 0)) (< j nn) ((++ j))
-                                       (let ((size_t p . #'(coco_deref m (nth j nv))))
-                                         (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
-                                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
-                                             (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
-                                                   (size_t vc . #'(coco_deref m (coco_arg m p 1))))
-                                               (if (and (coco_m_is_atom e nmc)
-                                                        (coco-tag-is REF (nth vc (-> m heap))))
-                                                   (block (set (nth k cells) vc)
-                                                          (set (nth k names) (coco_name_of m nmc))
-                                                          (set k (+ k 1)))))))))
-                                 (free nv)))))))))
-          (free v)
+        (let ((coco_strbuf b) (int r . #'(coco_wt_check e (coco_m_arg e g 1))))
+          (if (!= r 1) (return r))
           (coco_sb_init (aof b))
-          (if (and (!= cells nil) (!= names nil))
-              (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
-          (coco_write_mode m (aof b) (coco_m_arg e g 0)
-                           (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
-          (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
-          (free cells) (free names)
+          (coco_wt_put e (aof b) (coco_m_arg e g 0) (coco_m_arg e g 1))
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
@@ -113,33 +68,48 @@
           (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))
 
+  ;;; A NAME AND A VALUE ARE SWIPL'S CVT_ALL TEXT (3.0.0, `coco_tx_get'):
+  ;;; an atom, a number, a string, a list of codes or of characters, and
+  ;;; anything else swipl's error, type_error(text, T); through 2.16
+  ;;; type_error(atom, T), a list of characters refused and a float too.
   (func coco_b_getenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (let ((const char * v . #'(getenv name)))
+        (let ((coco_strbuf nb) (int r . #'(coco_tx_get e (coco_m_arg e g 0) 31 (aof nb))))
+          (if (!= r 1) (return r))
+          (let ((const char * v . #'(getenv (coco_tx_s (aof nb)))))
+            (coco_sb_free (aof nb))
             (if (== v nil) (return 0))
             (return (coco_m_unify_atom e (coco_m_arg e g 1) v)))))
 
   (func coco_b_setenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]) (char val [4096]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (if (not (coco_m_text e (coco_m_arg e g 1) val (sizeof val)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
-          (return (? (== 0 (setenv name val 1)) 1 0))))
+        (let ((coco_strbuf nb) (coco_strbuf vb) (int r . 0))
+          (set r (coco_tx_get e (coco_m_arg e g 0) 31 (aof nb)))
+          (if (!= r 1) (return r))
+          (set r (coco_tx_get e (coco_m_arg e g 1) 31 (aof vb)))
+          (if (!= r 1) (block (coco_sb_free (aof nb)) (return r)))
+          (set r (? (== 0 (setenv (coco_tx_s (aof nb)) (coco_tx_s (aof vb)) 1)) 1 0))
+          (coco_sb_free (aof nb))
+          (coco_sb_free (aof vb))
+          (return r)))
 
   (func coco_b_unsetenv ((coco_engine * e) (size_t g)) (out int)
-        (let ((char name [512]))
-          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
-              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
-          (unsetenv name)
+        (let ((coco_strbuf nb) (int r . #'(coco_tx_get e (coco_m_arg e g 0) 31 (aof nb))))
+          (if (!= r 1) (return r))
+          (unsetenv (coco_tx_s (aof nb)))
+          (coco_sb_free (aof nb))
           (return 1)))
 
+  ;;; TAB EVALUATES ITS ARGUMENT (3.0.0), as swipl's
+  ;;; PL_eval_expression_to_int64(): `tab(1+1)' writes two, `tab(a)' is
+  ;;; type_error(evaluable, a/0), and an answer that is no integer
+  ;;; type_error(integer_expression, E) of the expression. Through 2.16 the
+  ;;; argument had to be an integer, type_error(integer, E).
   (func coco_b_tab ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 n . 0))
-          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
-              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+        (let ((i64 n . 0) (int isf . 0) (double fv . 0.0)
+              (int rc . #'(coco_arith e (coco_m_arg e g 0) (aof isf) (aof n) (aof fv) 0)))
+          (if (== rc 3) (return (coco_type_error e "expression" (coco_m_arg e g 0))))
+          (if (!= rc 1) (return rc))
+          (if (!= isf 0)
+              (return (coco_m_type_error e "integer_expression" (coco_m_arg e g 0))))
           (for ((i64 i . 0)) (< i n) ((++ i)) (coco_out_putc stdout 32))
           (return 1)))
 
@@ -232,7 +202,7 @@
                        (set cap ncap)))
                  (set (nth n v)
                       (coco_make2 m "/"
-                                (coco_new_atom m (coco_atom_name m ($ (nth i ($ (cof st) preds)) name)))
+                                (coco_new_atom_id m ($ (nth i ($ (cof st) preds)) name))
                                 (coco_new_int m (cast i64 ($ (nth i ($ (cof st) preds)) arity)))))
                  (set n (+ n 1)))))
           (set out (coco_m_list e v n))
@@ -713,48 +683,169 @@
         (if (== type COCO_FY)  (return "fy"))
         (return "fx"))
 
-  ;;; `op(+Priority, +Type, +Name)'. Name may be a list of names, which is what
-  ;;; every real operator declaration uses. Priority 0 takes the operator away.
-  (func coco_b_op ((coco_engine * e) (size_t g)) (out int)
-        (let ((i64 prec . 0) (int type . 0) (int kind . 0)
-              (const char * ts)
-              (size_t * names . nil) (size_t n . 0))
-
-          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
-          (if (not (coco_m_int e (coco_m_arg e g 0) (aof prec)))
-              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
-          (if (or (< prec 0) (> prec 1200))
-              (return (coco_m_domain_error e "operator_priority" (coco_m_arg e g 0))))
-
-          (set ts (coco_m_atom e (coco_m_arg e g 1)))
-          (if (== ts nil)
-              (block (if (coco_m_is_var e (coco_m_arg e g 1))
-                         (return (coco_m_instantiation_error e)))
-                     (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
-          (if (not (coco_op_type_of ts (aof type) (aof kind)))
-              (return (coco_m_domain_error e "operator_specifier" (coco_m_arg e g 1))))
-
-          ;; one name, or a list of them
-          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof names) (aof n)))
-              (let ((const char * one . #'(coco_m_atom e (coco_m_arg e g 2))))
-                (if (== one nil)
-                    (block (if (coco_m_is_var e (coco_m_arg e g 2))
-                               (return (coco_m_instantiation_error e)))
-                           (return (coco_m_type_error e "atom" (coco_m_arg e g 2)))))
-                (if (not (coco_op_define one (cast int prec) type kind))
-                    (return (coco_m_error e "that operator name will not fit" one)))
-                (return 1)))
-
-          (for ((size_t i . 0)) (< i n) ((++ i))
-            (let ((const char * one . #'(coco_m_atom e (nth i names))))
-              (if (== one nil)
-                  (block (free names)
-                         (return (coco_m_type_error e "atom" (nth i names)))))
-              (if (not (coco_op_define one (cast int prec) type kind))
-                  (block (free names)
-                         (return (coco_m_error e "that operator name will not fit" one))))))
-          (free names)
+  ;;; One name of op/3, defined as it is met, swipl's checks: an atom,
+  ;;; never `,' and `|' only as an infix of priority 0 or past 1000.
+  (static)
+  (func coco_b_op_name ((coco_engine * e) (size_t n) (i64 prec) (int type) (int kind))
+        (out int)
+        (let ((const char * one . nil))
+          (if (coco_m_is_var e n) (return (coco_m_instantiation_error e)))
+          (set one (coco_m_atom e n))
+          (if (== one nil) (return (coco_m_type_error e "atom" n)))
+          (if (== 0 (strcmp one ","))
+              (return (coco_m_permission_error e "modify" "operator" n)))
+          (if (and (== 0 (strcmp one "|"))
+                   (or (!= kind 0) (and (!= prec 0) (< prec 1001))))
+              (return (coco_m_permission_error e "create" "operator" n)))
+          (if (not (coco_op_define one (cast int prec) type kind))
+              (return (coco_m_error e "that operator name will not fit" one)))
           (return 1)))
+
+  ;;; `op(+Priority, +Type, +Name)', swipl's checks in its order (3.0.0): the
+  ;;; type an atom, the priority an integer of 0 to 1200, the type a specifier,
+  ;;; then each name in turn (`coco_b_op_name'), defined as it is met, and a
+  ;;; list of them ending in [] (unbound, instantiation_error; anything else
+  ;;; type_error(list, End)). Name is a list of names in every real
+  ;;; operator declaration; [] is none. Priority 0 takes the operator away. A
+  ;;; postfix type (xf, yf) is no specifier here: the reader has none.
+  (func coco_b_op ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (i64 prec . 0) (int type . 0) (int kind . 0) (int rc . 0)
+              (const char * ts . nil)
+              (size_t p . #'(coco_m_arg e g 0)) (size_t ty . #'(coco_m_arg e g 1))
+              (size_t nm . #'(coco_deref m (coco_m_arg e g 2)))
+              (size_t budget . #'(-> m heap_len)))
+
+          (if (coco_m_is_var e ty) (return (coco_m_instantiation_error e)))
+          (set ts (coco_m_atom e ty))
+          (if (== ts nil) (return (coco_m_type_error e "atom" ty)))
+          (if (coco_m_is_var e p) (return (coco_m_instantiation_error e)))
+          (if (not (coco_m_int e p (aof prec)))
+              (return (coco_m_type_error e "integer" p)))
+          (if (or (< prec 0) (> prec 1200))
+              (return (coco_m_domain_error e "operator_priority" p)))
+          (if (not (coco_op_type_of ts (aof type) (aof kind)))
+              (return (coco_m_domain_error e "operator_specifier" ty)))
+
+          (if (coco_m_is_var e nm) (return (coco_m_instantiation_error e)))
+          (if (and (coco_m_is_atom e nm) (not (coco_is_nil m nm)))
+              (return (coco_b_op_name e nm prec type kind)))
+          (while (and (coco_is_cons m nm) (> budget 0))
+            (set rc (coco_b_op_name e (coco_deref m (coco_arg m nm 0)) prec type kind))
+            (if (!= rc 1) (return rc))
+            (set budget (- budget 1))
+            (set nm (coco_deref m (coco_arg m nm 1))))
+          (if (coco_is_nil m nm) (return 1))
+          (if (coco_m_is_var e nm) (return (coco_m_instantiation_error e)))
+          (return (coco_m_type_error e "list" nm))))
+
+  ;;; `'$cn_check'(C, N, A, Which)': compound_name_arity/3 (Which 0) and
+  ;;; compound_name_arguments/3 (1) of a C that is no compound, swipl's
+  ;;; checks in its order, each error named for the predicate (3.0.0): C
+  ;;; bound type_error(compound, C); the name unbound instantiation_error,
+  ;;; no atom type_error(atom, N); the arity an integer of 0 or more, or the
+  ;;; arguments a proper list.
+  (func coco_b_cn_check ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t c . #'(coco_m_arg e g 0)) (size_t nm . #'(coco_m_arg e g 1))
+              (size_t a . #'(coco_m_arg e g 2)) (i64 which . 0) (i64 n . 0)
+              (const char * pred . "compound_name_arity"))
+          (coco_m_int e (coco_m_arg e g 3) (aof which))
+          (if which (set pred "compound_name_arguments"))
+          (if (not (coco_m_is_var e c))
+              (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "compound") c)
+                                       "system" pred 3)))
+          (if (coco_m_is_var e nm)
+              (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error") "system" pred 3)))
+          (if (not (coco_m_is_atom e nm))
+              (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "atom") nm)
+                                       "system" pred 3)))
+          (if (== which 0)
+              (block
+               (if (coco_m_is_var e a)
+                   (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error") "system" pred 3)))
+               (if (not (coco_m_int e a (aof n)))
+                   (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "integer") a)
+                                            "system" pred 3)))
+               (if (< n 0)
+                   (return (coco_m_raise_pi e (coco_make2 m "domain_error"
+                                                          (coco_new_atom m "not_less_than_zero") a)
+                                            "system" pred 3)))
+               (return 1)))
+          ;; the arguments: a proper list, a partial one instantiation_error
+          (let ((size_t t . #'(coco_deref m a)) (size_t budget . #'(-> m heap_len)))
+            (while (and (coco_is_cons m t) (> budget 0))
+              (set budget (- budget 1))
+              (set t (coco_deref m (coco_arg m t 1))))
+            (if (coco-tag-is REF (nth t (-> m heap)))
+                (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error") "system" pred 3)))
+            (if (not (coco_is_nil m t))
+                (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "list") a)
+                                         "system" pred 3))))
+          (return 1)))
+
+  ;;; '$op_spec'(P, T, N), current_op/3's checks, swipl's in its order
+  ;;; (3.0.0): N unbound or an atom (type_error(atom, N)), P unbound or an
+  ;;; integer (type_error(integer, P)) of 0 to 1200
+  ;;; (domain_error(operator_priority, P)), T unbound or an atom
+  ;;; (type_error(atom, T)) that is a specifier, the postfix two among them
+  ;;; (domain_error(operator_specifier, T)). Through 2.16 none was asked:
+  ;;; a wrong one failed.
+  (func coco_b_op_spec ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t p . #'(coco_m_arg e g 0)) (size_t t . #'(coco_m_arg e g 1))
+              (size_t n . #'(coco_m_arg e g 2)) (i64 v . 0) (const char * ts . nil))
+          (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
+              (return (coco_m_type_error e "atom" n)))
+          (if (not (coco_m_is_var e p))
+              (block (if (not (coco_m_int e p (aof v))) (return (coco_m_type_error e "integer" p)))
+                     (if (or (< v 0) (> v 1200))
+                         (return (coco_m_domain_error e "operator_priority" p)))))
+          (if (not (coco_m_is_var e t))
+              (block (set ts (coco_m_atom e t))
+                     (if (== ts nil) (return (coco_m_type_error e "atom" t)))
+                     (if (not (or (== 0 (strcmp ts "xfx"))
+                                  (or (== 0 (strcmp ts "xfy"))
+                                      (or (== 0 (strcmp ts "yfx"))
+                                          (or (== 0 (strcmp ts "fy"))
+                                              (or (== 0 (strcmp ts "fx"))
+                                                  (or (== 0 (strcmp ts "xf"))
+                                                      (== 0 (strcmp ts "yf")))))))))
+                         (return (coco_m_domain_error e "operator_specifier" t)))))
+          (return 1)))
+
+  ;;; '$cp_spec'(Spec, PI), current_predicate/1's checks, swipl's (3.0.0):
+  ;;; Spec unbound, or Name/Arity with Name unbound or an atom and Arity
+  ;;; unbound or an integer of 0 or more, PI that; M:Spec with M unbound
+  ;;; (bound to `user', the one module there is) or an atom, PI Spec's;
+  ;;; anything else type_error(predicate_indicator, Spec), a negative arity
+  ;;; domain_error(not_less_than_zero, A), a module type_error(atom, M).
+  ;;; Through 2.16 none was asked: any other term failed.
+  (func coco_b_cp_spec ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t s . #'(coco_deref m (coco_m_arg e g 0))) (i64 a . 0))
+          (while (and (coco-tag-is FUN (nth s (-> m heap)))
+                      (and (== (coco_arity m s) 2)
+                           (== 0 (strcmp (coco_atom_name m (coco_name_of m s)) ":"))))
+            (let ((size_t md . #'(coco_deref m (coco_arg m s 0))))
+              (if (coco_m_is_var e md)
+                  (block (if (not (coco_m_unify e md (coco_new_atom m "user"))) (return 0)))
+                  (if (not (coco_m_is_atom e md)) (return (coco_m_type_error e "atom" md))))
+              (set s (coco_deref m (coco_arg m s 1)))))
+          (if (coco_m_is_var e s) (return (coco_m_unify e (coco_m_arg e g 1) s)))
+          (if (or (not (coco-tag-is FUN (nth s (-> m heap))))
+                  (or (!= (coco_arity m s) 2)
+                      (!= 0 (strcmp (coco_atom_name m (coco_name_of m s)) "/"))))
+              (return (coco_m_type_error e "predicate_indicator" s)))
+          (let ((size_t n . #'(coco_deref m (coco_arg m s 0)))
+                (size_t ar . #'(coco_deref m (coco_arg m s 1))))
+            (if (and (not (coco_m_is_var e n)) (not (coco_m_is_atom e n)))
+                (return (coco_m_type_error e "predicate_indicator" s)))
+            (if (not (coco_m_is_var e ar))
+                (block (if (not (coco_m_int e ar (aof a)))
+                           (return (coco_m_type_error e "predicate_indicator" s)))
+                       (if (< a 0)
+                           (return (coco_m_domain_error e "not_less_than_zero" ar))))))
+          (return (coco_m_unify e (coco_m_arg e g 1) s))))
 
   ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
   ;;; first and the built-in ones after, with a built-in left out when a
@@ -806,9 +897,13 @@
 
   ;;; ---- halting ----------------------------------------------------------
 
+  ;;; the code an integer, as swipl's: an unbound one instantiation_error,
+  ;;; anything else type_error(integer, C) (3.0.0; through 2.16 `halt(a)'
+  ;;; halted with status 0)
   (func coco_b_halt1 ((coco_engine * e) (size_t g)) (out int)
         (let ((i64 code . 0))
-          (coco_m_int e (coco_m_arg e g 0) (aof code))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof code)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
           (set (-> e halted) 1)
           (set (-> e halt_code) (cast int code))
           (return 1)))

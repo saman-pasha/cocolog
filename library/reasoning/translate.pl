@@ -27341,7 +27341,13 @@ tr_lexeme(Side, W, L, N) :-
     nb_getval('$tr_language', Lang),
     tr_memo_w(W, lx(Lang, Side, W), L1-N1, tr_lexeme0(Side, W, L1, N1), Sols),
     member(L-N, Sols).
-tr_lexeme(Side, W, L, N) :- tr_lexeme0(Side, W, L, N).
+%% A TOKEN HAS NO LEXEME. Some callers hand one over where a word stands
+%% (fo_phrase_starts/1 asks tr_subject_pronoun/4 of `w(W, C)'), and through
+%% cocolog 2.16 every clause below failed for it: the plural's and the
+%% tenses' endings were tried on its writing with atom_concat/3, which no
+%% ending matched. Since 3.0.0 atom_concat/3 of a compound raises, as swipl's
+%% does, so a compound is turned down here and every reading stays as it was
+tr_lexeme(Side, W, L, N) :- \+ compound(W), tr_lexeme0(Side, W, L, N).
 
 %% every solution of Goal as Template, kept under Key until the next reset.
 %% A KEY'S LAST ARGUMENT IS A WORD, AND EACH WORD HAS A GLOBAL OF ITS OWN.

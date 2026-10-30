@@ -148,7 +148,6 @@
     ("string_lower"  2 coco_bi_string_lower)
     ("string_upper"  2 coco_bi_string_upper)
     ("term_string"   2 coco_bi_term_string)
-    ("term_string"   3 coco_bi_term_string3)
     ("atom_to_term"  3 coco_bi_atom_to_term)
     ("read_term_from_atom" 3 coco_bi_read_term_from_atom)
     ("text_to_string" 2 coco_bi_text_to_string)
@@ -160,6 +159,7 @@
     ("$text_split_at" 5 coco_bi_text_split_at)
     ("$atom_text_length" 3 coco_bi_atom_text_length)
     ("$string_text_length" 3 coco_bi_string_text_length)
+    ("$sub_text_length" 7 coco_bi_sub_text_length)
     ("split_string"  4 coco_bi_split_string)
     ("$atom_concat"  3 coco_bi_atom_concat)
     ("$string_concat" 3 coco_bi_string_concat)
@@ -175,6 +175,8 @@
     ("asserta"      1 coco_bi_asserta)
     ("assertz"      1 coco_bi_assertz)
     ("retract"      1 coco_bi_retract)
+    ;; retractall/1's own retract, its errors retractall/1's (3.0.0)
+    ("$retractall"  1 coco_bi_retract)
 
     ("dynamic"      1 coco_bi_dynamic)
     ("listing"      0 coco_bi_listing_all)
@@ -404,6 +406,177 @@
                    (return 1)))
                *arith-binops*)
      (#t (return 0))))
+
+;;; WHAT AN ERROR NAMES (3.0.0). swipl raises a builtin's error as
+;;; error(Formal, context(system:Name/Arity, Message)) -- the predicate
+;;; that raised, from the frame it ran in -- and a library predicate's,
+;;; written over must_be/2, with the context left unbound. A row here is a
+;;; goal whose raise names a context: the goal in flight (`kcall') is
+;;; looked up by its name and arity, once per functor (`ectx' on the
+;;; functor), and a goal the table does not name raises with the context
+;;; unbound, as every raise did through 2.16.
+;;;
+;;;   (NAME ARITY)                   context(system:NAME/ARITY, M)
+;;;   (NAME ARITY :BARE)             context(NAME/ARITY, M)
+;;;   (NAME ARITY :MAP MOD CN CA)    context(MOD:CN/CA, M); MOD "" is bare
+;;;   (NAME ARITY :ATOM K (A MOD CN CA) ...)  as :MAP, by argument K's atom
+;;;   (NAME ARITY :INT K (I MOD CN CA) ...)   as :MAP, by argument K's integer
+;;;   (NAME ARITY :FUN K (F N MOD CN CA) ...) as :MAP, by argument K's functor F/N
+;;;
+;;; M is a fresh variable, or the atom a raise gives (`coco_raise_msg').
+;;; A raise that swipl names with no module where the row qualifies one
+;;; asks for the bare form (`coco_raise_bare'): swipl's PL_error() given the
+;;; predicate's name writes it bare, given none the frame's, qualified. The
+;;; rows were read off swipl 9.0.4: each of the 216 C rows of cocolog's
+;;; builtins asked whether swipl's own is a system predicate (autoload off),
+;;; then called with compounds and with unbound arguments in both systems
+;;; (the record is in STATUS.md, 3.0.0). The `$' rows are the C halves of
+;;; predicates written as clauses here, named as the predicate swipl has.
+(DEFPARAMETER *error-contexts*
+  '(("<" 2) (">" 2) ("=<" 2) (">=" 2) ("=:=" 2) ("=\\=" 2) ("is" 2)
+    ("=.." 2) ("functor" 3) ("arg" 3) ("setarg" 3) ("nb_setarg" 3)
+    ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
+    ("unify_with_occurs_check" 2)
+    ("abolish" 1) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
+    ("atom_chars" 2) ("atom_codes" 2) ("atom_length" 2) ("atom_number" 2)
+    ("atom_string" 2) ("atom_to_term" 3) ("atomic_concat" 3)
+    ("atomic_list_concat" 2) ("atomic_list_concat" 3)
+    ("atomics_to_string" 2) ("atomics_to_string" 3)
+    ("char_code" 2) ("char_type" 2) ("code_type" 2)
+    ("downcase_atom" 2) ("upcase_atom" 2) ("string_lower" 2) ("string_upper" 2)
+    ("number_chars" 2) ("number_codes" 2) ("number_string" 2)
+    ("split_string" 4) ("string_bytes" 3) ("string_chars" 2) ("string_codes" 2)
+    ("string_length" 2) ("get_string_code" 3) ("text_to_string" 2)
+    ("term_string" 2) ("term_to_atom" 2) ("read_term_from_atom" 3)
+    ("b_getval" 2) ("b_setval" 2) ("nb_getval" 2) ("nb_current" 2)
+    ("current_prolog_flag" 2) ("set_prolog_flag" 2) ("op" 3)
+    ("msort" 2) ("sort" 2) ("sort" 4)
+    ("plus" 3) ("succ" 2) ("tab" 1) ("halt" 1) ("statistics" 2)
+    ("set_random" 1) ("random_property" 1) ("rational" 3)
+    ("format" 2) ("format" 3) ("with_output_to" 2) ("source_location" 2)
+    ("write" 1) ("writeq" 1) ("writeln" 1) ("print" 1) ("write_canonical" 1)
+    ("write_term" 2)
+    ("access_file" 2) ("delete_directory" 1) ("delete_file" 1) ("directory_files" 2)
+    ("exists_directory" 1) ("exists_file" 1) ("expand_file_name" 2)
+    ("is_absolute_file_name" 1) ("make_directory" 1) ("rename_file" 2)
+    ("same_file" 2) ("size_file" 2) ("time_file" 2) ("tmp_file" 2)
+    ("read_link" 3)
+    ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1)
+    ;; cocolog's own, which swipl 9.0.4 has not, named as a builtin's is
+    ("text_concat" 3) ("call_limited" 3) ("call_metered" 4)
+    ("read_file_to_codes" 2) ("write_file_from_codes" 2) ("append_file_from_codes" 2)
+    ;; swipl's own, named bare whatever raises
+    ("length" 2 :BARE)
+    ;; swipl's, written over another predicate there
+    ("format" 1 :MAP "system" "format" 2)
+    ("memberchk" 2 :MAP "system" "$memberchk" 3)
+    ("nb_setval" 2 :MAP "system" "nb_linkval" 2)
+    ("findall" 3 :MAP "$bags" "findall_loop" 4)
+    ("findall" 4 :MAP "$bags" "findall_loop" 4)
+    ("forall" 2 :MAP "$apply" "forall" 2)
+    ("string_to_atom" 2 :MAP "system" "atom_string" 2)
+    ("absolute_file_name" 2 :MAP "system" "$absolute_file_name" 2)
+    ("working_directory" 2 :MAP "system" "$chdir" 1)
+    ;; the C halves of predicates written as clauses here
+    ("$sub_text_length" 7 :ATOM 6 ("atom" "system" "sub_atom" 5)
+                                  ("string" "system" "sub_string" 5))
+    ("$string_text_length" 3 :ATOM 2 ("string" "system" "sub_string" 5)
+                                     ("atomic" "system" "string_concat" 3)
+                                     ("text" "system" "string_code" 3))
+    ("$atom_text_length" 3 :MAP "system" "atom_concat" 3)
+    ("$atom_concat" 3 :MAP "system" "atom_concat" 3)
+    ("$string_concat" 3 :MAP "system" "string_concat" 3)
+    ("$string_code_at" 3 :MAP "system" "string_code" 3)
+    ("$text_split_at" 5 :INT 2 (0 "system" "atom_concat" 3)
+                               (1 "system" "string_concat" 3))
+    ("$between" 4 :MAP "system" "between" 3)
+    ("$path_base" 2 :MAP "system" "file_base_name" 2)
+    ("$path_dir" 2 :MAP "system" "file_directory_name" 2)
+    ("$ext_split" 3 :MAP "system" "file_name_extension" 3)
+    ("$ext_join" 3 :MAP "system" "file_name_extension" 3)
+    ("$clause" 3 :MAP "system" "clause" 2)
+    ("$pred_count" 3 :MAP "system" "clause" 2)
+    ("$keysort" 2 :MAP "system" "keysort" 2)
+    ("$op_spec" 3 :MAP "system" "current_op" 3)
+    ("$cp_spec" 2 :MAP "system" "current_predicate" 1)
+    ("$retractall" 1 :MAP "system" "retractall" 1)
+    ("$dcg_goal" 4 :MAP "$dcg" "call_dcg" 3)
+    ;; aggregate_all/3's arithmetic, which swipl's library clause does with
+    ;; `M is max(M0, X)' and `X > Max0': named by the template; its other
+    ;; raises (a bad template, a first witness that is no number) name none
+    ("aggregate_all" 3 :FUN 0 ("sum" 1 "system" "is" 2) ("max" 1 "system" "is" 2)
+                              ("min" 1 "system" "is" 2) ("max" 2 "system" ">" 2)
+                              ("min" 2 "system" "<" 2))
+    ("$sum" 3 :MAP "system" "is" 2)
+    ("$maxl" 3 :MAP "system" "is" 2)
+    ("$minl" 3 :MAP "system" "is" 2)))
+
+;;; `coco_ectx_row': which row a name and arity are, or -1. A name the
+;;; engine interns at start-up (the builtins' and the constructs') is
+;;; matched by its id, any other by its text; the walk runs once per
+;;; functor, the answer kept on it.
+(DEFMACRO coco-emit-ectx-row ()
+  `(func coco_ectx_row ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+     (let ((const char * s . #'(coco_atom_name m nid)))
+       ,@(LOOP FOR row IN *error-contexts* FOR i FROM 0
+               COLLECT (IF (MEMBER (FIRST row) *dispatch-names* :TEST #'EQUAL)
+                           `(if (and (== n ,(SECOND row)) (== nid (coco-id m ,(FIRST row))))
+                                (return ,i))
+                           `(if (and (== n ,(SECOND row)) (== 0 (strcmp s ,(FIRST row))))
+                                (return ,i))))
+       (return -1))))
+
+(DEFUN coco-ectx-target (alt)
+  ;; (KEY MOD CN CA) -> the context for one alternative
+  `(return (coco_ectx_pi m (? bare "" ,(SECOND alt))
+                         (coco_new_atom m ,(THIRD alt)) ,(FOURTH alt) msg)))
+
+(DEFUN coco-ectx-row-code (row)
+  (LET ((kind (THIRD row)))
+    (COND
+      ((NULL kind)
+       `(return (coco_ectx_pi m (? bare "" "system") (coco_new_atom_id m nid) n msg)))
+      ((EQ kind :BARE)
+       `(return (coco_ectx_pi m "" (coco_new_atom_id m nid) n msg)))
+      ((EQ kind :MAP)
+       (coco-ectx-target (CONS NIL (CDDDR row))))
+      ((EQ kind :ATOM)
+       `(let ((size_t a . #'(coco_deref m (coco_arg m g ,(FOURTH row)))))
+          (if (coco-tag-is ATOM (nth a (-> m heap)))
+              (let ((const char * s . #'(coco_atom_name m (coco_name_of m a))))
+                ,@(MAPCAR (LAMBDA (alt)
+                            `(if (== 0 (strcmp s ,(FIRST alt))) ,(coco-ectx-target alt)))
+                          (NTHCDR 4 row))))
+          (return (coco_new_var m))))
+      ((EQ kind :INT)
+       `(let ((size_t a . #'(coco_deref m (coco_arg m g ,(FOURTH row)))))
+          (if (coco-is-int (nth a (-> m heap)))
+              (let ((i64 v . #'(coco_int_val m (nth a (-> m heap)))))
+                ,@(MAPCAR (LAMBDA (alt)
+                            `(if (== v ,(FIRST alt)) ,(coco-ectx-target alt)))
+                          (NTHCDR 4 row))))
+          (return (coco_new_var m))))
+      ((EQ kind :FUN)
+       `(let ((size_t a . #'(coco_deref m (coco_arg m g ,(FOURTH row)))))
+          (if (coco-tag-is FUN (nth a (-> m heap)))
+              (let ((const char * s . #'(coco_atom_name m (coco_name_of m a)))
+                    (u32 k . #'(coco_arity m a)))
+                ,@(MAPCAR (LAMBDA (alt)
+                            `(if (and (== k ,(SECOND alt)) (== 0 (strcmp s ,(FIRST alt))))
+                                 ,(coco-ectx-target (CDR alt))))
+                          (NTHCDR 4 row))))
+          (return (coco_new_var m))))
+      (T (ERROR "coco: bad *error-contexts* row ~S" row)))))
+
+;;; `coco_ectx_make': row ROW's context for goal G (name NID, arity N),
+;;; MSG its second argument; BARE drops the row's module, as swipl's
+;;; PL_error() does when the raise names its predicate.
+(DEFMACRO coco-emit-ectx-make ()
+  `(func coco_ectx_make ((coco_machine * m) (int row) (size_t g) (u64 nid) (u32 n)
+                         (size_t msg) (int bare)) (out size_t)
+     ,@(LOOP FOR row IN *error-contexts* FOR i FROM 0
+             COLLECT `(if (== row ,i) (block ,(coco-ectx-row-code row))))
+     (return (coco_new_var m))))
 
 
 ;;;; ------------------------------------------------------------------
@@ -689,7 +862,13 @@
     (member coco_store  pst)
     (member int         pst_ready)
     (member coco_store  bst)
-    (member int         bst_ready))
+    (member int         bst_ready)
+    ;; WHO STARTED THIS SEARCH (3.0.0), for the context of an unknown
+    ;; procedure at its root (`coco_unknown_ctx'): 0 none (a query, a
+    ;; directive), 1 findall/3's '$bags':findall_loop/4, 2 forall/2's
+    ;; '$apply':forall/2, 3 aggregate_all/3's aggregate:aggregate_all/3,
+    ;; 4 with_output_to/2's system:'$c_call_prolog'/0
+    (member int         rootn))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -1083,7 +1262,7 @@
   ;;; collector left it -- a caller that reads its goal's arguments after
   ;;; the search reads them from there.
   (decl) (func coco_engine_findall ((coco_engine * e) (size_t template) (size_t goal)
-                                  (size_t * out) (size_t * gp)) (out int))
+                                  (size_t * out) (size_t * gp) (int rootn)) (out int))
 
   ;;; Raises every mark the heap is wound back to that is at or above FROM
   ;;; -- the choice points', the nested engines' starters', the hosts'
@@ -1945,11 +2124,115 @@
   ;;; leaves behind; -1 means nothing caught it.
   (static) (decl) (func coco_throw ((coco_engine * e) (size_t ball)) (out int))
 
+  ;;; THE CONTEXT (3.0.0): what the second argument of error/2 names, as
+  ;;; swipl's does -- `context(system:atom_length/2, _)' for a builtin's
+  ;;; error, `context(length/2, _)' for the few swipl names bare,
+  ;;; `context((//)/2, _)' for an arithmetic function's, a fresh variable for
+  ;;; a goal no row of `*error-contexts*' names (a library predicate's, a
+  ;;; program's, a loadable module's). Through 2.16 every raise left it a
+  ;;; fresh variable. Out of line and cold: a raise pays it, nothing else.
+  ;;; context(MOD:NAME/ARITY, MSG), or context(NAME/ARITY, MSG) for MOD ""
+  (weak) (cold)
+  (func coco_ectx_pi ((coco_machine * m) (const char * mod) (size_t name) (u32 arity)
+                      (size_t msg)) (out size_t)
+        (let ((size_t ind . #'(coco_make2 m "/" name (coco_new_int m (cast i64 arity)))))
+          (if (!= (nth 0 mod) 0)
+              (set ind (coco_make2 m ":" (coco_new_atom m mod) ind)))
+          (return (coco_make2 m "context" ind msg))))
+
+  (coco-emit-ectx-row)
+  (coco-emit-ectx-make)
+
+  ;;; The context of a raise by the goal in flight: BARE drops the row's
+  ;;; module, MSG (or null) is the context's second argument. A goal of a
+  ;;; compound's functor keeps its row on the functor (`ectx': 0 not asked,
+  ;;; 1 none, K+2 row K); an atom's is looked up each time. `kcall' 0 is no
+  ;;; goal in flight (the step's own raises: a signal, memory).
+  (weak) (cold)
+  (func coco_err_ctx ((coco_engine * e) (int bare) (const char * msg)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t g . #'(-> e kcall))
+              (size_t mt . 0)
+              (u64 c . 0) (u64 nid . 0) (u32 n . 0) (int row . -1))
+          (set mt (? (== msg nil) (coco_new_var m) (coco_new_atom m msg)))
+          (if (== g 0) (return (coco_new_var m)))
+          (set g (coco_deref m g))
+          (set c (nth g (-> m heap)))
+          (cond
+            ((coco-tag-is ATOM c)
+             (set nid (coco-payload c))
+             (set row (coco_ectx_row m nid 0)))
+            ((coco-tag-is FUN c)
+             (let ((size_t fid . #'(cast size_t (coco-payload c))))
+               (set nid ($ (nth fid (-> m functors)) name))
+               (set n ($ (nth fid (-> m functors)) arity))
+               (if (== ($ (nth fid (-> m functors)) ectx) 0)
+                   (set ($ (nth fid (-> m functors)) ectx)
+                        (cast u32 (+ (coco_ectx_row m nid n) 2))))
+               (set row (- (cast int ($ (nth fid (-> m functors)) ectx)) 2))))
+            (#t (return (coco_new_var m))))
+          (if (< row 0) (return (coco_new_var m)))
+          (return (coco_ectx_make m row g nid n mt bare))))
+
+  ;;; error(FORMAL, CONTEXT) thrown: 2 when a catcher took it (the
+  ;;; continuation is set), -1 when nothing did
+  (static)
+  (func coco_raise_ctx ((coco_engine * e) (size_t formal) (size_t ctx)) (out int)
+        (let ((size_t ball . #'(coco_make2 (-> e m) "error" formal ctx)))
+          (return (? (== 1 (coco_throw e ball)) 2 -1))))
+
   (static)
   (func coco_raise ((coco_engine * e) (size_t formal)) (out int)
-        (let ((size_t ball . #'(coco_make2 (-> e m) "error" formal
-                                         (coco_new_var (-> e m)))))
-          (return (? (== 1 (coco_throw e ball)) 2 -1))))
+        (return (coco_raise_ctx e formal (coco_err_ctx e 0 nil))))
+
+  ;;; the goal's context with no module, where swipl names the predicate
+  ;;; itself: atom_codes/2's type error, number_codes/2's, arg/3's
+  (static)
+  (func coco_raise_bare ((coco_engine * e) (size_t formal)) (out int)
+        (return (coco_raise_ctx e formal (coco_err_ctx e 1 nil))))
+
+  ;;; the goal's context with a message: `"x" must hold one character'
+  (static)
+  (func coco_raise_msg ((coco_engine * e) (size_t formal) (const char * msg)) (out int)
+        (return (coco_raise_ctx e formal (coco_err_ctx e 0 msg))))
+
+  ;;; AN ARITHMETIC FUNCTION'S OWN ERROR names the function, bare, as
+  ;;; swipl's ar_* functions do: `X is 1 // 0' is context((//)/2, _), `msb(0)'
+  ;;; context(msb/1, _). The float checks and the type of an operand are
+  ;;; is/2's (the default).
+  (static)
+  (func coco_raise_fn ((coco_engine * e) (size_t formal) (u64 nid) (u32 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_raise_ctx e formal
+                                  (coco_ectx_pi m "" (coco_new_atom_id m nid) n
+                                                (coco_new_var m))))))
+
+  ;;; error(FORMAL, context(MOD:NAME/ARITY, _)) named by the raise site
+  ;;; itself (3.0.0), where swipl names the frame that made the call
+  (static)
+  (func coco_raise_named ((coco_engine * e) (size_t formal) (const char * mod)
+                          (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_raise_ctx e formal
+                                  (coco_ectx_pi m mod (coco_new_atom m name) arity
+                                                (coco_new_var m))))))
+
+  ;;; A GOAL THAT IS NO GOAL (3.0.0): instantiation_error for a variable,
+  ;;; type_error(callable, G) for anything else, named as swipl names it --
+  ;;; `'<meta-call>'/1' for a goal the loop meets (call/N's, a conjunction's
+  ;;; in a meta-call), `once/1' and its kin for their own argument. The
+  ;;; raise's answer: 2 caught, -1 not. Through 2.16 the context was empty.
+  (weak) (cold)
+  (func coco_goal_bad ((coco_engine * e) (size_t g) (const char * mod)
+                       (const char * name) (u32 arity)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (set g (coco_deref m g))
+          (if (coco-tag-is REF (nth g (-> m heap)))
+              (return (coco_raise_named e (coco_new_atom m "instantiation_error")
+                                        mod name arity)))
+          (return (coco_raise_named e (coco_make2 m "type_error"
+                                                  (coco_new_atom m "callable") g)
+                                    mod name arity))))
 
   ;;; What a refused allocation raises (1.10.28): error(resource_error(memory),
   ;;; _), built on a heap that still has room -- a C buffer was refused, or
@@ -1959,8 +2242,20 @@
         (return (coco_raise e (coco_make1 (-> e m) "resource_error"
                                       (coco_new_atom (-> e m) "memory")))))
 
+  ;;; AN UNBOUND CULPRIT IS AN instantiation_error (3.0.0), as swipl's
+  ;;; PL_error() makes ERR_TYPE of a variable: nb_getval(_, V), getenv(_,
+  ;;; V), sort(_, L) and tab(_) raised type_error(atom, _) and the like
+  ;;; through 2.16. type_error(variable, T) is the one that means a variable.
+  (static)
+  (func coco_type_unbound ((coco_machine * m) (const char * type) (size_t culprit)) (out int)
+        (return (? (and (coco-tag-is REF (nth (coco_deref m culprit) (-> m heap)))
+                        (!= (strcmp type "variable") 0))
+                   1 0)))
+
   (static)
   (func coco_type_error ((coco_engine * e) (const char * type) (size_t culprit)) (out int)
+        (if (coco_type_unbound (-> e m) type culprit)
+            (return (coco_raise e (coco_new_atom (-> e m) "instantiation_error"))))
         (return (coco_raise e (coco_make2 (-> e m) "type_error"
                                       (coco_new_atom (-> e m) type) culprit))))
 
@@ -1980,18 +2275,108 @@
         (return (coco_raise e (coco_make1 (-> e m) "evaluation_error"
                                       (coco_new_atom (-> e m) what)))))
 
+  ;;; AN UNKNOWN PROCEDURE NAMES ITS CALLER (3.0.0), as swipl names the
+  ;;; frame that made the call, wherever that caller is the search's own goal
+  ;;; term: the search's root names the builtin that started it (`rootn' on
+  ;;; the engine; a query or a directive names none), the argument of
+  ;;; call/1, once/1, ignore/1, not/1 or catch/3 names that predicate, and
+  ;;; any other goal of a control structure the search runs is swipl's
+  ;;; '<meta-call>'/1, inside which call/1 is no frame of its own. A goal of
+  ;;; a clause's body names nothing (swipl names the clause's predicate, or
+  ;;; at a last call the caller's): no frame here says which clause it came
+  ;;; from. The walk answers 0 not found, 1 the root itself, 2
+  ;;; '<meta-call>'/1, 3 the predicate WHO/WHOA. A goal is the term's own
+  ;;; cell, or for an atom its word: a frame of the continuation holds the
+  ;;; atom itself, not a reference to the cell it was read from.
+  (weak) (cold)
+  (func coco_unknown_same ((coco_machine * m) (size_t t) (size_t g)) (out int)
+        (set t (coco_deref m t))
+        (return (or (== t g) (and (coco-tag-is ATOM (nth t (-> m heap)))
+                                  (== (nth t (-> m heap)) (nth g (-> m heap)))))))
+
+  (weak) (cold)
+  (func coco_unknown_walk ((coco_machine * m) (size_t t) (size_t g) (int meta)
+                           (const char ** who) (u32 * whoa) (int depth)) (out int)
+        (set t (coco_deref m t))
+        (if (coco_unknown_same m t g) (return (? meta 2 1)))
+        (if (or (> depth 256) (not (coco-tag-is FUN (nth t (-> m heap))))) (return 0))
+        (let ((const char * s . #'(coco_atom_name m (coco_name_of m t)))
+              (u32 n . #'(coco_arity m t))
+              (int r . 0))
+          (cond
+            ((and (== n 2) (or (or (== 0 (strcmp s ",")) (== 0 (strcmp s ";")))
+                               (or (== 0 (strcmp s "->")) (== 0 (strcmp s "*->")))))
+             (set r (coco_unknown_walk m (coco_arg m t 0) g 1 who whoa (+ depth 1)))
+             (if (== r 0)
+                 (set r (coco_unknown_walk m (coco_arg m t 1) g 1 who whoa (+ depth 1))))
+             (return r))
+            ((and (== n 1) (== 0 (strcmp s "\\+")))
+             (return (coco_unknown_walk m (coco_arg m t 0) g 1 who whoa (+ depth 1))))
+            ((or (and (== n 1) (or (or (== 0 (strcmp s "call")) (== 0 (strcmp s "once")))
+                                   (or (== 0 (strcmp s "ignore")) (== 0 (strcmp s "not")))))
+                 (and (== n 3) (== 0 (strcmp s "catch"))))
+             (if (coco_unknown_same m (coco_arg m t 0) g)
+                 (block (if (and meta (== 0 (strcmp s "call"))) (return 2))
+                        (set (cof who) s)
+                        (set (cof whoa) n)
+                        (return 3)))
+             ;; the argument is meta-called afresh, its own root -- but for
+             ;; call/1 inside a control structure, which swipl compiles in
+             ;; place there
+             (return (coco_unknown_walk m (coco_arg m t 0) g
+                                        (? (and meta (== 0 (strcmp s "call"))) 1 0)
+                                        who whoa (+ depth 1)))))
+          (return 0)))
+
+  ;;; the context of the unknown procedure in flight (`kcall')
+  (weak) (cold)
+  (func coco_unknown_ctx ((coco_engine * e)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t g . #'(-> e kcall)) (size_t q . #'(-> e query))
+              (const char * who . nil) (u32 whoa . 0) (int r . 0) (int k . #'(-> e rootn)))
+          ;; the goal may be heap cell 0 -- an atom read first, `catch(foo,
+          ;; E, true)' -- so 0 is no test of it here: the loop set it
+          (if (>= q (-> m heap_len)) (return (coco_new_var m)))
+          (set g (coco_deref m g))
+          (if (== k 2)
+              ;; forall/2's search is `(C, \+ A)', and each half is a root
+              (let ((size_t qd . #'(coco_deref m q)))
+                (if (coco_is_compound2 m qd ",")
+                    (block
+                     (set r (coco_unknown_walk m (coco_arg m qd 0) g 0 (aof who) (aof whoa) 0))
+                     (if (== r 0)
+                         (set r (coco_unknown_walk m (coco_arg m (coco_deref m (coco_arg m qd 1)) 0)
+                                                   g 0 (aof who) (aof whoa) 0))))))
+            (set r (coco_unknown_walk m q g 0 (aof who) (aof whoa) 0)))
+          (cond
+            ((== r 2)
+             (return (coco_ectx_pi m "system" (coco_new_atom m "<meta-call>") 1 (coco_new_var m))))
+            ((== r 3)
+             (return (coco_ectx_pi m "system" (coco_new_atom m who) whoa (coco_new_var m))))
+            ((and (== r 1) (== k 1))
+             (return (coco_ectx_pi m "$bags" (coco_new_atom m "findall_loop") 4 (coco_new_var m))))
+            ((and (== r 1) (== k 2))
+             (return (coco_ectx_pi m "$apply" (coco_new_atom m "forall") 2 (coco_new_var m))))
+            ((and (== r 1) (== k 3))
+             (return (coco_ectx_pi m "aggregate" (coco_new_atom m "aggregate_all") 3
+                                   (coco_new_var m))))
+            ((and (== r 1) (== k 4))
+             (return (coco_ectx_pi m "system" (coco_new_atom m "$c_call_prolog") 0
+                                   (coco_new_var m)))))
+          (return (coco_new_var m))))
+
   ;;; `existence_error(procedure, Name/Arity)', the one a call to a predicate
   ;;; nobody defined raises. The indicator is built before the ball because
   ;;; `coco_raise' consumes it, and `/' is an ordinary two-argument term here --
   ;;; the writer turns it back into `foo/2' from the operator table.
   (static)
   (func coco_existence_error ((coco_engine * e) (const char * kind)
-                              (const char * name) (u32 arity)) (out int)
+                              (u64 nid) (u32 arity)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t ind . #'(coco_make2 m "/" (coco_new_atom m name)
+              (size_t ind . #'(coco_make2 m "/" (coco_new_atom_id m nid)
                                           (coco_new_int m (cast i64 arity)))))
-          (return (coco_raise e (coco_make2 m "existence_error"
-                                            (coco_new_atom m kind) ind)))))
+          (set ind (coco_make2 m "existence_error" (coco_new_atom m kind) ind))
+          (return (coco_raise_ctx e ind (coco_unknown_ctx e)))))
 
   ;;; `permission_error(Operation, Type, Culprit)', ISO's shape: the operation
   ;;; was understood and is refused here. What raises it today is `vacuum_kb'
@@ -2014,12 +2399,33 @@
         (return (coco_raise e (coco_make2 (-> e m) "domain_error"
                                       (coco_new_atom (-> e m) domain) culprit))))
 
+  ;;; THE SAME, NAMED BARE (3.0.0): where swipl's builtin raises through
+  ;;; PL_error() with its own name the context has no module --
+  ;;; atom_codes(f(x), L)'s type_error(atom, f(x)) is context(atom_codes/2,
+  ;;; _), arg(1, a, X)'s type_error(compound, a) context(arg/3, _)
+  (static)
+  (func coco_type_error_bare ((coco_engine * e) (const char * type) (size_t culprit)) (out int)
+        (if (coco_type_unbound (-> e m) type culprit)
+            (return (coco_raise_bare e (coco_new_atom (-> e m) "instantiation_error"))))
+        (return (coco_raise_bare e (coco_make2 (-> e m) "type_error"
+                                           (coco_new_atom (-> e m) type) culprit))))
+
+  (static)
+  (func coco_instantiation_error_bare ((coco_engine * e)) (out int)
+        (return (coco_raise_bare e (coco_new_atom (-> e m) "instantiation_error"))))
+
+  (static)
+  (func coco_syntax_err_bare ((coco_engine * e) (const char * what)) (out int)
+        (return (coco_raise_bare e (coco_make1 (-> e m) "syntax_error"
+                                           (coco_new_atom (-> e m) what)))))
+
   ;;; Name/Arity as a term, for the errors that name a predicate or a
   ;;; function by its indicator: `permission_error(modify, static_procedure,
   ;;; atom_length/2)', `type_error(evaluable, foo/2)'.
   (static)
+  ;;; by the name's id, not its text: the list's end and `'[]'' share one
   (func coco_indicator ((coco_machine * m) (u64 nid) (u32 n)) (out size_t)
-        (let ((size_t a . #'(coco_new_atom m (coco_atom_name m nid)))
+        (let ((size_t a . #'(coco_new_atom_id m nid))
               (size_t k . #'(coco_new_int m (cast i64 n))))
           (return (coco_make2 m "/" a k))))
 

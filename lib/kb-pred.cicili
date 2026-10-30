@@ -697,18 +697,20 @@
 
         ;; the end of a list is not a spec and not an error either
         (if (coco-tag-is ATOM (nth spec (-> m heap)))
-            (if (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "[]")) (return 1)))
+            (if (coco_is_nil m spec) (return 1)))
 
-        (if (not (coco_is_compound2 m spec "/"))
+        ;; `foo//1' -- a grammar rule's indicator, foo/3 (3.0.0, swipl's)
+        (if (and (not (coco_is_compound2 m spec "/")) (not (coco_is_compound2 m spec "//")))
             (block (snprintf err errlen "dynamic: expected Name/Arity") (return 0)))
 
         (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-              (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
+              (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
+              (i64 plus . #'(? (coco_is_compound2 m spec "//") 2 0)))
           (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
               (block (snprintf err errlen "dynamic: the name must be an atom") (return 0)))
           (if (not (coco-is-int (nth ar (-> m heap))))
               (block (snprintf err errlen "dynamic: the arity must be an integer") (return 0)))
-          (let ((i64 n . #'(coco_int_val m (nth ar (-> m heap)))))
+          (let ((i64 n . #'(+ (coco_int_val m (nth ar (-> m heap))) plus)))
             (if (or (< n 0) (> n 255))
                 (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
             (if (not (coco_pred_dynamic st (coco_name_of m nm) (cast u32 n)))
@@ -764,8 +766,14 @@
           ;; below the engine and cannot run a goal, reaches into syntax.cicili
           ;; instead: the operator table is the reader's, and the reader is
           ;; what a directive like this is about.
+          ;;
+          ;; ONE THAT op/3 WOULD REFUSE IS LEFT TO THE GOAL BELOW (3.0.0):
+          ;; nothing of it was defined, and the builtin raises swipl's error
+          ;; term, reported as every raising directive's is.
           (if (and (== n 3) (== 0 (strcmp name "op")))
-              (return (coco_op_apply m g err errlen)))
+              (let ((int r . #'(coco_op_apply m g err errlen)))
+                (if (!= r -1) (return r))
+                (if (== coco_goal_hook nil) (return 0))))
 
           ;; ---- what the head of a library file says --------------------
           ;;

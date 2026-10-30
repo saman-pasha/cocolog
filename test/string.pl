@@ -69,9 +69,9 @@ conversions :-
     check('atom_string both ways', G1, hello),
     answer(number_string(N2, "3.5"), N2, G2),
     check('number_string parses', G2, 3.5),
-    answer((string_concat("a", "b", S3), atom_string(A3, S3)), A3, G3),
+    answer((string_concat(a, b, S3), atom_string(A3, S3)), A3, G3),
     check('string_concat', G3, ab),
-    answer((string_upper("aBc", S4), atom_string(A4, S4)), A4, G4),
+    answer((string_upper('aBc', S4), atom_string(A4, S4)), A4, G4),
     check('string_upper', G4, 'ABC'),
     yes_no((term_string(T5, "g(2)"), T5 = g(2)), A5),
     check('term_string reads back', A5, yes).
@@ -152,28 +152,49 @@ splitting :-
 
 %% ---- sub_string/5 backtracks, which is why it is a clause ------------------
 substrings :-
-    answer((findall(B-L, sub_string("hello", B, L, _, _), All), length(All, N1)), N1, G1),
+    answer((findall(B-L, sub_string(hello, B, L, _, _), All), length(All, N1)), N1, G1),
     check('sub_string enumerates', G1, 21),
-    answer(sub_string("hello", B2, _, _, "ell"), B2, G2),
+    answer(sub_string(hello, B2, _, _, ell), B2, G2),
     check('and finds a known substring', G2, 1).
 
-%% ---- A CODE LIST IS TEXT, which is SWI's rule and matters more here --------
+%% ---- A CODE LIST IS TEXT TO SOME, AND NOT TO OTHERS: swipl's rule ---------
 %%
 %% `double_quotes' is `codes', so "hello" IS [104,101,108,108,111]. Before
 %% these accepted a code list, string_length("hello", N) answered 21 -- the
-%% length of the list written out -- which is a silent wrong answer.
+%% length of the list written out -- which is a silent wrong answer. swipl's
+%% string_length/2 takes the list as text; its string_concat/3,
+%% string_upper/2 and sub_string/5 take only atomic text and raise for one
+%% (3.0.0; through 2.16 cocolog took the list as text there too). Each ball
+%% below is swipl 9.0.4's, its context too.
 code_lists :-
     answer(string_length("hello", N1), N1, G1),
-    check('a code list is text', G1, 5),
+    check('a code list is text to string_length/2', G1, 5),
+    answer(string_concat("a", "b", _), x, G3), raised(G3, R3),
+    check('and not to string_concat/3', R3,
+          type_error(atomic, [97])-(system:string_concat/3)),
+    answer(string_upper("aBc", _), x, G4), raised(G4, R4),
+    check('nor to string_upper/2', R4,
+          type_error(atomic, [97, 66, 99])-(system:string_upper/2)),
+    answer(sub_string("hello", _, _, _, _), x, G5), raised(G5, R5),
+    check('nor to sub_string/5', R5,
+          type_error(string, [104, 101, 108, 108, 111])-(system:sub_string/5)),
+    answer(sub_string(hello, _, _, _, "ell"), x, G6), raised(G6, R6),
+    check('in its last argument either', R6,
+          type_error(string, [101, 108, 108])-(system:sub_string/5)),
     %% and what has NOT changed
     yes_no(string("abc"), A2),
     check('a double-quoted literal is codes', A2, no).
 
+%% what an answer raised: its error and the predicate its context names,
+%% or the answer as it came when it is anything else
+raised(error(error(E, Ctx)), E-P) :- nonvar(Ctx), Ctx = context(P, _), !.
+raised(G, G).
+
 %% ---- the writer ------------------------------------------------------------
 writer :-
-    answer((sub_string("hello", 1, 3, _, S1), format(atom(A1), "~q", [S1])), A1, G1),
+    answer((sub_string(hello, 1, 3, _, S1), format(atom(A1), "~q", [S1])), A1, G1),
     check('quoted, it writes in quotes', G1, '"ell"'),
-    answer((sub_string("hello", 1, 3, _, S2), format(atom(A2), "~w", [S2])), A2, G2),
+    answer((sub_string(hello, 1, 3, _, S2), format(atom(A2), "~w", [S2])), A2, G2),
     check('unquoted, it writes its text', G2, ell).
 
 %% ---- a clause is found by a string first argument (1.8.36) ---------------

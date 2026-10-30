@@ -34,9 +34,11 @@
 %%   * a LIBRARY OR LOADER failure is `error(cocolog_error(Text), _)' --
 %%     a sentence where ISO puts a formal -- so a handler that names a
 %%     formal walks straight past it. Card row C2; cocolint has a rule.
-%%   * the CONTEXT slot is left an unbound variable, so writing
-%%     `error(T, context(_,_))' does not fail to match: it matches by
-%%     BINDING, and everything the handler reads out of it is invented.
+%%   * the CONTEXT slot of a core builtin's error is swipl's,
+%%     `context(system:atom_length/2, _)' (3.0.0), but the loader's
+%%     ball leaves it an unbound variable, so writing
+%%     `error(T, context(_,_))' does not fail to match THAT: it matches
+%%     by BINDING, and everything the handler reads out of it is invented.
 %%   * there is no `setup_call_cleanup/3'. Cleanup is
 %%     `catch(G, B, (Cleanup, throw(B)))', by hand.
 %%   * a ball carrying `"text"' reports as a LIST OF CODES, because
@@ -127,20 +129,26 @@ main :-
     format("   So `error(T, _)' is the catcher that takes both shapes, and~n"),
     format("   `cocolog_error(Text)' is how you read the message.~n"),
 
-    format("~n-- and the CONTEXT slot is a fresh variable~n"),
+    format("~n-- the CONTEXT slot: a builtin's names it, the loader's is empty~n"),
+    %% A CORE BUILTIN SAYS WHO RAISED, as swipl 9.0.4 does (3.0.0; through
+    %% 2.16 every one left the slot a fresh variable): the predicate, its
+    %% module, and a message where it has one. The toplevel prints the
+    %% indicator before the message, `atom_length/2: Arguments are not
+    %% sufficiently instantiated'.
     catch(atom_length(_, _), error(_, Ctx), true),
-    ( var(Ctx) -> C1 = a_fresh_variable ; C1 = Ctx ),
-    must('what a builtin leaves in the second argument', C1, a_fresh_variable),
-    %% WHICH MAKES `context(_,_)' WORSE THAN USELESS, and is the half of
-    %% C2 that surprises people: the pattern does not FAIL to match, it
-    %% matches by BINDING an unbound slot -- so the handler runs and
-    %% everything it reads out of the context is something it invented.
-    %% (This line is what cocolint's C2 rule looks for. A lesson that
-    %% teaches a trap trips it, which is the honest way round, and the
-    %% comment at its end acknowledges the finding and says why.)
-    catch(atom_length(_, _), error(_, context(Who, _)), true),   % cocolint: C2 -- the lesson: it matches by binding
+    ( Ctx = context(Who1, _) -> C1 = Who1 ; C1 = Ctx ),
+    must('what a builtin leaves in the second argument', C1, system:atom_length/2),
+    %% THE LOADER'S BALL STILL LEAVES IT UNBOUND, which makes
+    %% `context(_,_)' WORSE THAN USELESS there, and is the half of C2 that
+    %% surprises people: the pattern does not FAIL to match, it matches by
+    %% BINDING an unbound slot -- so the handler runs and everything it
+    %% reads out of the context is something it invented. (This line is
+    %% what cocolint's C2 rule looks for. A lesson that teaches a trap trips
+    %% it, which is the honest way round, and the comment at its end
+    %% acknowledges the finding and says why.)
+    catch(use_module('/no/such/library.pl'), error(_, context(Who, _)), true),   % cocolint: C2 -- the lesson: it matches by binding
     ( var(Who) -> C2 = matched_and_said_nothing ; C2 = Who ),
-    must('`context(_,_)` matches anyway, by binding', C2, matched_and_said_nothing),
+    must('`context(_,_)` matches the loader\'s anyway, by binding', C2, matched_and_said_nothing),
 
     format("~n-- rethrow: handle what you know, pass on what you do not~n"),
     catch(risky(9), B5, ( B5 = mine(N5) -> Got = N5 ; throw(B5) )),
