@@ -121,7 +121,22 @@ atoms :-
     answer(number_codes(N12, [0'4, 0'2]), N12, G12),
     check('number_codes is unchanged', G12, 42),
     answer(atomic_list_concat(Ps13, 'á', 'xáyáz'), Ps13, G13),
-    check('atomic_list_concat/3 splits on a character of two bytes', G13, [x,y,z]).
+    check('atomic_list_concat/3 splits on a character of two bytes', G13, [x,y,z]),
+    %% a list is as long as it has elements (2.16.1): a character of two
+    %% bytes is one, and under bytes, where a character is a byte, none --
+    %% atom_chars/2's rule there
+    answer(atom_length([d,'á',r], N14), N14, G14),
+    check('atom_length/2 of characters of two bytes counts the characters', G14, 3),
+    answer(( set_prolog_flag(text_units, bytes),
+             catch(atom_length([d,'á',r], N15), error(E15, _), true),
+             set_prolog_flag(text_units, characters),
+             ( var(E15) -> R15 = N15 ; R15 = E15 ) ), R15, G15),
+    check('...and under bytes refuses the one of two bytes', G15, type_error(character, 'á')),
+    answer(( set_prolog_flag(text_units, bytes),
+             catch(atom_length([100,225,114], N16), error(E16, _), true),
+             set_prolog_flag(text_units, characters),
+             ( var(E16) -> R16 = N16 ; R16 = E16 ) ), R16, G16),
+    check('a list of codes is as long in either unit', G16, 3).
 
 %% ---- case ------------------------------------------------------------------
 

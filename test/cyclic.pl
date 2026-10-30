@@ -176,7 +176,7 @@ entries(D) :-
       '  with_output_to(string(S), print(X)), writeq(S), nl,',
       '  write_canonical(X), nl,',
       '  write_term(g(V, X), [variable_names([''V''=V])]), nl,',
-      '  atom_length(X, L), writeq(L), nl.']),
+      '  catch(atom_length(X, _), error(type_error(T, _), _), true), writeq(T), nl.']),
     sh_join(['-s ', F], A), child(A, Out, Rc),
     atomic_list_concat(Got, '\n', Out),
     each_line([
@@ -187,7 +187,7 @@ entries(D) :-
       'with_output_to/2' - '"@(S_1,[S_1=f(S_1)])"',
       'write_canonical/1: the variable as it is' - '@(_G,[_G=f(_G)])',
       'write_term/2 naming variables of its own: no S_1 among them' - '@(g(V,_G),[_G=f(_G)])',
-      'atom_length/2: the length of that text' - '19'
+      'atom_length/2: no text, a compound, as swipl''s (2.16.1; through 2.16.0 the length of its writing, 19)' - 'text'
     ], Got),
     check('...and the program ends', Rc, 0).
 
@@ -223,7 +223,7 @@ errors(D) :-
     check('a throw/1 of one: SWI''s Unknown message', E3,
           'ERROR: -s main: Unknown message: @(S_1,[S_1=f(S_1)])'),
     check('...and the exit status is 2', Rc3, 2),
-    child_err(D, '--no-backtrace query "X = f(X), Y = g(X), atom_length(Y, _), throw(Y)"', E4, Rc4),
+    child_err(D, '--no-backtrace query "X = f(X), Y = g(X), term_to_atom(Y, _), throw(Y)"', E4, Rc4),
     check('cocolog query: the same', E4,
           'ERROR: ?-: Unknown message: @(g(S_1),[S_1=f(S_1)])'),
     check('...and query''s status for an error, 1', Rc4, 1).

@@ -143,6 +143,8 @@
     ("get_string_code" 3 coco_bi_get_string_code)
     ("$string_code_at" 3 coco_bi_string_code_at)
     ("$text_split_at" 5 coco_bi_text_split_at)
+    ("$atom_text_length" 3 coco_bi_atom_text_length)
+    ("$string_text_length" 3 coco_bi_string_text_length)
     ("split_string"  4 coco_bi_split_string)
     ("$atom_concat"  3 coco_bi_atom_concat)
     ("$string_concat" 3 coco_bi_string_concat)
@@ -9308,20 +9310,149 @@
         (coco_sb_init b)
         (return (coco_write_term (-> e m) b t 0 0)))
 
-  (func coco_bi_atom_length ((coco_engine * e) (size_t g)) (out int)
+  ;;; A CODE IN A LIST OF CODES (2.16.1): an integer from 0 to U+10FFFF,
+  ;;; swipl's range, whether or not this machine's atoms can hold it.
+  (static)
+  (func coco_len_code ((coco_machine * m) (size_t h)) (out int)
+        (let ((u64 c . #'(nth h (-> m heap))))
+          (if (not (coco-tag-is INT c)) (return 0))
+          (let ((i64 v . #'(coco_int_val m c)))
+            (return (? (and (>= v 0) (<= v 1114111)) 1 0)))))
+
+  ;;; A CHARACTER IN A LIST OF CHARACTERS (2.16.1): an atom of one
+  ;;; character, or under `text_units = bytes' of one byte.
+  (static)
+  (func coco_len_char ((coco_machine * m) (size_t h)) (out int)
+        (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
+        (let ((const char * s . #'(coco_atom_name m (coco_name_of m h))))
+          (if (-> m text_chars) (return (? (>= (coco_utf8_one s) 0) 1 0)))
+          (return (? (== (strlen s) 1) 1 0))))
+
+  ;;; A LIST AS TEXT, FOR ITS LENGTH (2.16.1): codes when its first element
+  ;;; is an integer and characters when that is a character, every element
+  ;;; after it held to that kind, and its tail to `[]'. Answers 1 with its
+  ;;; length in *N -- its elements, a code or a character each, in either
+  ;;; unit -- or what is wrong, the element in *BAD: 2 an unbound element or
+  ;;; tail, 3 an element that is no code or a first element that is neither,
+  ;;; 4 an element that is no character, 5 a tail that is not `[]' or a list
+  ;;; that is its own tail (past the heap's length, `lbudget').
+  (static)
+  (func coco_len_list ((coco_machine * m) (size_t d) (i64 * n) (size_t * bad)) (out int)
+        (let ((size_t lst . d) (i64 k . 0) (int codes . 0))
+          (set (-> m lbudget) (-> m heap_len))
+          (while (coco_is_cons m lst)
+            (if (== (-- (-> m lbudget)) 0) (return 5))
+            (let ((size_t h . #'(coco_deref m (coco_arg m lst 0))))
+              (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
+              (if (== k 0) (set codes (coco-is-int (nth h (-> m heap)))))
+              (set (cof bad) h)
+              (if codes
+                  (block (if (not (coco_len_code m h)) (return 3)))
+                  (block (if (not (coco_len_char m h)) (return (? (== k 0) 3 4))))))
+            (set k (+ k 1))
+            (set lst (coco_deref m (coco_arg m lst 1))))
+          (if (coco-tag-is REF (nth lst (-> m heap))) (return 2))
+          (if (not (and (coco-tag-is ATOM (nth lst (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))))
+              (return 5))
+          (set (cof n) k)
+          (return 1)))
+
+  ;;; THE TEXT A LENGTH IS ASKED OF (2.16.1), as swipl 9.0.4 reads it:
+  ;;; PL_get_text with CVT_ALL (pl-text.c). Through 2.16.0 anything that was
+  ;;; not text was written out and the writing counted -- atom_length(f(x),
+  ;;; N) was 4 and atom_length([a,b], N) 5. An atom, a number or a string is
+  ;;; the text the writer writes unquoted, and a list is text as
+  ;;; `coco_len_list' reads it. WHOLE nil gives atom_length/2's and
+  ;;; string_length/2's errors, swipl's for them: a compound that is no list
+  ;;; is type_error(text, T), and a list's is type_error(character_code, X),
+  ;;; type_error(character, X), instantiation_error or type_error(text, L).
+  ;;; WHOLE a type gives the error of the predicates built on a length --
+  ;;; sub_atom/5's `atom', atom_concat/3's and string_concat/3's `atomic',
+  ;;; sub_string/5's `string' -- which swipl raises of the whole term,
+  ;;; whatever is wrong with it: type_error(WHOLE, T). An unbound T is
+  ;;; instantiation_error to both. `[]' IS THE ATOM, two characters, where
+  ;;; swipl's `[]' is the empty list and only its `'[]'' the atom: cocolog
+  ;;; has one of the two, and the atom is what format(atom(A), '~w', [[]])
+  ;;; and atom_codes(A, "[]") make. NIL_EMPTY 1 (the string predicates, as
+  ;;; through 2.16.0) takes it as the empty list, as a "" read as codes is.
+  ;;; Answers 1 with the length in *N, or the raise's answer.
+  (static)
+  (func coco_len_text ((coco_engine * e) (size_t t) (int nil_empty) (const char * whole)
+                       (i64 * n)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t t . #'(coco_a e g 0))
-              (coco_strbuf b) (int r))
-          (if (coco-tag-is REF (nth t (-> m heap)))
+              (size_t d . #'(coco_deref m t)))
+          (if (coco-tag-is REF (nth d (-> m heap)))
               (return (coco_instantiation_error e)))
-          (coco_text_of e t (aof b))
-          ;; in characters under `text_units = characters' (1.13.0)
-          (set r (coco_unify m (coco_arg m g 1)
-                             (coco_new_int m (cast i64 (? (-> m text_chars)
-                                                          (coco_utf8_count ($ b s) ($ b len))
-                                                          ($ b len))))))
-          (coco_sb_free (aof b))
-          (return (? r 1 0))))
+          (if (coco_is_cons m d)
+              (let ((size_t bad . 0) (int r . #'(coco_len_list m d n (aof bad))))
+                (if (== r 1) (return 1))
+                (if (!= whole nil) (return (coco_type_error e whole d)))
+                (if (== r 2) (return (coco_instantiation_error e)))
+                (if (== r 3) (return (coco_type_error e "character_code" bad)))
+                (if (== r 4) (return (coco_type_error e "character" bad)))
+                (return (coco_type_error e "text" d))))
+          (if (and nil_empty
+                   (and (coco-tag-is ATOM (nth d (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "[]"))))
+              (block (set (cof n) 0) (return 1)))
+          (if (coco-tag-is FUN (nth d (-> m heap)))
+              (return (coco_type_error e (? (!= whole nil) whole "text") d)))
+          (let ((coco_strbuf b))
+            (coco_text_of e d (aof b))
+            ;; in characters under `text_units = characters' (1.13.0)
+            (set (cof n) (cast i64 (? (-> m text_chars)
+                                      (coco_utf8_count ($ b s) ($ b len))
+                                      ($ b len))))
+            (coco_sb_free (aof b))
+            (return 1))))
+
+  ;;; THE LENGTH'S ARGUMENT (2.16.1), swipl's: unbound, it takes N; an
+  ;;; integer of either kind is compared, so a negative or a boxed one
+  ;;; fails, as swipl's does; anything else is type_error(integer, L),
+  ;;; where through 2.16.0 the unify failed -- atom_length(abc, foo) and
+  ;;; atom_length(abc, 3.0) said no.
+  (static)
+  (func coco_len_answer ((coco_engine * e) (size_t l) (i64 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref m l)))
+          (if (coco-tag-is REF (nth d (-> m heap)))
+              (return (? (coco_unify m d (coco_new_int m n)) 1 0)))
+          (if (not (coco-is-int (nth d (-> m heap))))
+              (return (coco_type_error e "integer" d)))
+          (return (? (== (coco_int_val m (nth d (-> m heap))) n) 1 0))))
+
+  (func coco_bi_atom_length ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0)
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) 0 nil (aof n))))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
+
+  ;;; '$atom_text_length'(T, N, Type) and '$string_text_length'(T, N, Type)
+  ;;; (2.16.1): the length atom_length/2 and string_length/2 read, with
+  ;;; anything that is no text type_error(Type, T) -- for the clauses of
+  ;;; sub_atom/5, atom_concat/3, string_concat/3 and sub_string/5
+  ;;; (lib/builtins.cicili), each in swipl's word. They asked the length
+  ;;; predicates themselves, whose errors are their own, and through 2.16.0
+  ;;; took a compound's writing for its text. The type's name is copied
+  ;;; first: the atoms a raise makes can move the name table.
+  (static)
+  (func coco_len_typed ((coco_engine * e) (size_t g) (int nil_empty)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ty . #'(coco_a e g 2))
+              (char tn [64]) (i64 n . 0) (int r . 0))
+          (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
+              (return (coco_type_error e "atom" ty)))
+          (snprintf tn (sizeof tn) "%s" (coco_atom_name m (coco_name_of m ty)))
+          (set r (coco_len_text e (coco_arg m g 0) nil_empty tn (aof n)))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg m g 1) n))))
+
+  (func coco_bi_atom_text_length ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_len_typed e g 0)))
+
+  (func coco_bi_string_text_length ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_len_typed e g 1)))
 
   ;;; Text as codes: a byte a code, or under `text_units = characters' a
   ;;; character a code, its code point (1.13.0, `coco_text_list').
@@ -9673,17 +9804,15 @@
                     (if (coco_split_in (coco_split_next s n (aof k) ch) ch stab swide sep)
                         (set skip 0))))))))
 
+  ;;; atom_length/2's rules for the text and the length (2.16.1,
+  ;;; `coco_len_text'), `[]' the empty list: through 2.16.0 a compound was
+  ;;; written out and counted, a list of codes and characters mixed was
+  ;;; text, and a length that was no integer failed.
   (func coco_bi_string_length ((coco_engine * e) (size_t g)) (out int)
-        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
-          (if (not (coco_str_arg e (coco_arg m g 0) (aof b)))
-              (return (coco_instantiation_error e)))
-          ;; in characters under `text_units = characters' (1.13.0)
-          (set r (coco_unify m (coco_arg m g 1)
-                             (coco_new_int m (cast i64 (? (-> m text_chars)
-                                                          (coco_utf8_count ($ b s) ($ b len))
-                                                          ($ b len))))))
-          (coco_sb_free (aof b))
-          (return (? r 1 0))))
+        (let ((i64 n . 0)
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) 1 nil (aof n))))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
 
   ;;; atom_string(?Atom, ?String) -- either way round, as SWI has it.
   (func coco_bi_atom_string ((coco_engine * e) (size_t g)) (out int)

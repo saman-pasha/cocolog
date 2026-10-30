@@ -263,13 +263,16 @@ flag_modules(D) :-
 %% type_error(text, [a,n,s,...]) from the format call itself, and every string
 %% builtin fell through to writing the term out -- string_length("ab", N)
 %% answering 5, the same silent wrong answer as the code-list case above.
+%% A LIST IS CODES OR CHARACTERS BY ITS FIRST ELEMENT, to string_length/2 as
+%% to swipl's (2.16.1): through 2.16.0 a list mixing the two was text too.
 char_lists :-
     answer(format(atom(A1), ['~', w], [ab]), A1, G1),
     check('a char list is text to format', G1, ab),
     answer(string_length([a, b], N2), N2, G2),
     check('and to the string builtins', G2, 2),
     answer(string_length([a, 0'b], N3), N3, G3),
-    check('a mixed list still is', G3, 2).
+    ( G3 = error(error(F3, _)) -> true ; F3 = G3 ),
+    check('a mixed list is not', F3, type_error(character, 98)).
 
 %% A VALUE THAT IS NOT ONE OF THE FOUR IS REFUSED BY NAME, and the refusal is
 %% reported where the file is read -- a flag nodded at and not honoured makes

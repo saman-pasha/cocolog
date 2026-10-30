@@ -1005,7 +1005,16 @@ cocolint index offers no import of it.
   memory refused and then given less is resource_error(memory) since
   1.10.28; a new builtin raises through `coco_raise`. `format/2`'s
   `~a`, `~s` and the format itself take text of any length
-  (`coco_text_put`).
+  (`coco_text_put`). **atom_length/2 and string_length/2 read their text
+  as swipl's PL_get_text does** (2.16.1, `coco_len_text`): a compound is
+  type_error(text, T), a list is codes or characters by its first element
+  and every element is held to that kind, a length that is no integer is
+  type_error(integer, L), and `[]` is the atom `'[]'` (2) to atom_length/2
+  and the empty list (0) to string_length/2. The clauses that asked them
+  first -- sub_atom/5, atom_concat/3 and string_concat/3 in mode (-,-,+),
+  sub_string/5 -- ask `'$atom_text_length'/3` or `'$string_text_length'/3`,
+  which raise that predicate's own swipl type (`atom`, `atomic`,
+  `string`) of the whole term: one goal for one, so no count moves.
 * **The backtrace is written by the throw, before anything unwinds**
   (1.10.17, `coco_bt_capture` beside `coco_throw`), and only for a ball no
   catch on the chain of engines would take as things stand
@@ -1091,7 +1100,7 @@ cocolint index offers no import of it.
   which reads back as `@(T, [V=B, ...])`; a format's `~s` and `~a` raise
   cocolog's error for anything not text where SWI says
   `format_argument_type`; the text builtins that write any term
-  (string_length/2, split_string/4, ...) write a cyclic list as its factors
+  (split_string/4, string_chars/2, ...) write a cyclic list as its factors
   where SWI raises; term_to_atom/2 names the factors `S_1` where swipl
   writes a variable (`_3586`), and 1.10.18's case pins `S_1` as SWI's;
   numbervars/3 does not exist. subsumes_term/2, `=@=/2` and `\=@=/2`

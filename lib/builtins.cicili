@@ -367,8 +367,8 @@
            ;; and how long it is. The bound-Sub case is separated out because
            ;; enumerating every B and L to find a known substring is O(n^2)
            ;; when a search is O(n).
-           "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, atom_length(A, N), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
-           "sub_atom(A, B, L, Aft, Sub) :- atom_length(A, N), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
+           "sub_atom(A, B, L, Aft, Sub) :- atom(Sub), !, '$atom_text_length'(A, N, atom), atom_length(Sub, L), Max is N - L, Max >= 0, '$atom_byte_length'(A, NB), '$sub_atom_positions'(A, Sub, NB, Bs), '$cp_member'(B, Bs), Aft is N - B - L."
+           "sub_atom(A, B, L, Aft, Sub) :- '$atom_text_length'(A, N, atom), '$atom_byte_length'(A, NB), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_atom'(A, B, L, Aft, Sub, NB)."
 
            ;; ---- sub_string/5 ------------------------------------------------
            ;; THE SAME ENUMERATION AS sub_atom/5, ANSWERING A STRING. It is
@@ -390,8 +390,8 @@
            ;; ty/0 -- and lost sub_string/5, which the store probe caught
            ;; because the store had never heard of the three. Written once
            ;; with the escape IN the warning, which cost a second round.
-           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, string_length(S, N), string_length(Sub, L), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
-           "sub_string(S, B, L, Aft, Sub) :- string_length(S, N), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- nonvar(Sub), !, '$string_text_length'(S, N, string), '$string_text_length'(Sub, L, string), Max is N - L, between(0, Max, B), '$sub_string'(S, B, L, Aft, Sub)."
+           "sub_string(S, B, L, Aft, Sub) :- '$string_text_length'(S, N, string), between(0, N, B), Rest is N - B, between(0, Rest, L), '$sub_string'(S, B, L, Aft, Sub)."
            "'$sub_string'(S, B, L, Aft, Sub) :- string_codes(S, Cs), length(Pre, B), append(Pre, Mid, Cs), length(Mid, ML), MidL is ML, length(SubCs, L), append(SubCs, Post, Mid), length(Post, Aft), string_codes(Sub0, SubCs), sub_string_same(Sub, Sub0), MidL >= L."
            ;; Sub may arrive as a string, an atom or a number; compare the text.
            "sub_string_same(Sub, Sub0) :- var(Sub), !, Sub = Sub0."
@@ -480,11 +480,11 @@
            ;; belongs -- a C builtin cannot hold one.
            "atom_concat(A, B, C) :- nonvar(A), !, '$atom_concat'(A, B, C)."
            "atom_concat(A, B, C) :- nonvar(B), !, '$atom_concat'(A, B, C)."
-           "atom_concat(A, B, C) :- nonvar(C), !, atom_length(C, N), between(0, N, K), '$text_split_at'(C, K, 0, A, B)."
+           "atom_concat(A, B, C) :- nonvar(C), !, '$atom_text_length'(C, N, atomic), between(0, N, K), '$text_split_at'(C, K, 0, A, B)."
            "atom_concat(_, _, _) :- throw(error(instantiation_error, _))."
            "string_concat(A, B, C) :- nonvar(A), !, '$string_concat'(A, B, C)."
            "string_concat(A, B, C) :- nonvar(B), !, '$string_concat'(A, B, C)."
-           "string_concat(A, B, C) :- nonvar(C), !, string_length(C, N), between(0, N, K), '$text_split_at'(C, K, 1, A, B)."
+           "string_concat(A, B, C) :- nonvar(C), !, '$string_text_length'(C, N, atomic), between(0, N, K), '$text_split_at'(C, K, 1, A, B)."
            "string_concat(_, _, _) :- throw(error(instantiation_error, _))."
 
            ;; ---- string_code/3 and atom_prefix/2 ---------------------------
