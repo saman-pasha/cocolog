@@ -536,31 +536,66 @@
           (set (cof tail) (coco_arg m d 1))
           (return 1)))
 
+  ;;; THE STEP OF SWI'S OWN CLAUSE, for an element that is no plain integer
+  ;;; or float (2.15.1): OP(A, B) -- `+', `max' or `min' -- made and
+  ;;; evaluated as is/2 evaluates it, its value a new number cell in *OUT.
+  ;;; So an expression is evaluated (`sum_list([1+1, 2], S)' is 4), a
+  ;;; rational is exact, and an atom or an unbound element raises is/2's own
+  ;;; error (type_error(evaluable, a/0), instantiation_error). Through
+  ;;; 2.15.0 every walk here and aggregate_all/3's three took plain numbers
+  ;;; alone and raised for anything else, rationals among them. Answers 1, or
+  ;;; the raise's answer. A plain number never comes here: the walks keep
+  ;;; their own C for it, which is the clause's arithmetic without the term.
+  (func coco_l_eval2 ((coco_engine * e) (const char * op) (size_t a) (size_t b)
+                      (size_t * out)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_make2 m op a b))
+              (int isf . 0) (i64 iv . 0) (double fv . 0.0)
+              (int rc . #'(coco_arith e t (aof isf) (aof iv) (aof fv) 0)))
+          (if (!= rc 1)
+              (return (? (== rc 3) (coco_type_error e "expression" t) rc)))
+          (let ((size_t r . #'(? (== isf 2) (coco_new_rat m (-> m arith_n) (-> m arith_d))
+                                 (? (== isf 1) (coco_new_float m fv) (coco_new_int m iv)))))
+            (if (== r (cast size_t -1)) (return (coco_int_overflow e)))
+            (set (cof out) r)
+            (return 1))))
+
   ;;; `'$sum'(List, Acc, Sum)'. An integer accumulator stays an integer until
   ;;; a float arrives, which is what `B is A + H' did one clause at a time,
   ;;; and a float sum that is no finite number raises at the element that
   ;;; made it, as that `is/2' does (2.2.0; through 2.1.2 the NaN or the
-  ;;; infinity was the sum).
+  ;;; infinity was the sum). The first element that is no plain number -- an
+  ;;; expression, a rational, an atom, a variable -- and every one after it
+  ;;; is SWI's `Sum1 is Sum0 + X' itself (`coco_l_eval2', 2.15.1), the sum so
+  ;;; far made a number cell for it: `tm' says the walk has gone that way.
   (func coco_l_sum ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (i64 ai . 0) (double ad . 0.0) (int af . 0)
+              (int tm . 0) (size_t acc . 0)
               (size_t h . 0) (size_t t . 0))
           (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
           (if (not (coco_l_num e (coco_m_arg e g 1) (aof ai) (aof ad) (aof af))) (return 0))
           (while (coco_l_step m p (aof h) (aof t))
             (let ((i64 ei . 0) (double ed . 0.0) (int ef . 0))
-              (if (not (coco_l_num e h (aof ei) (aof ed) (aof ef)))
-                  (return (coco_m_type_error e "evaluable" h)))
-              (if ef
-                  (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
-                         (set ad (+ ad ed)))
-                (if af (set ad (+ ad (cast double ei)))
-                  ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
-                  (if (coco_add_ovf ai ei (aof ai))
-                      (return (coco_m_evaluation_error e "int_overflow")))))
-              (if af (let ((int rc . #'(coco_l_float_ok e (aof ad)))) (if (!= rc 1) (return rc)))))
+              (if (or tm (not (coco_l_num e h (aof ei) (aof ed) (aof ef))))
+                  (let ((int rc . 0))
+                    (if (not tm)
+                        (block (set acc (? af (coco_m_new_float e ad) (coco_m_new_int e ai)))
+                               (set tm 1)))
+                    (set rc (coco_l_eval2 e "+" acc h (aof acc)))
+                    (if (!= rc 1) (return rc)))
+                (block
+                 (if ef
+                     (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                            (set ad (+ ad ed)))
+                   (if af (set ad (+ ad (cast double ei)))
+                     ;; past 64 bits int_overflow, as `B is A + H' raises (2.0.0)
+                     (if (coco_add_ovf ai ei (aof ai))
+                         (return (coco_m_evaluation_error e "int_overflow")))))
+                 (if af (let ((int rc . #'(coco_l_float_ok e (aof ad)))) (if (!= rc 1) (return rc)))))))
             (set p t))
+          (if tm (return (coco_m_unify e (coco_m_arg e g 2) acc)))
           (if af (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_float e ad))))
           (return (coco_m_unify e (coco_m_arg e g 2) (coco_m_new_int e ai)))))
 
@@ -577,27 +612,32 @@
   ;;; checked, as that `is/2' checks it (2.2.0; under the flags 2.2.2, so
   ;;; two equal infinities raise float_overflow but under float_overflow
   ;;; `infinity'); the first element is taken as it is, as SWI's is, and
-  ;;; is no `max/2' of its own.
+  ;;; is no `max/2' of its own -- `max_list([a], M)' is a, and through
+  ;;; 2.15.0 it raised. A step where either side is no plain number is SWI's
+  ;;; `Max1 is max(H, Max0)' itself (`coco_l_eval2', 2.15.1): an expression
+  ;;; evaluated, a rational exact, an atom raising is/2's error; `bn' says
+  ;;; whether BEST is a plain number the C can pick against.
   (static)
   (func coco_l_extreme ((coco_engine * e) (size_t g) (int want)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e))
               (size_t p . #'(coco_m_arg e g 0)) (size_t n . 0)
               (size_t best . #'(coco_m_arg e g 1))
               (size_t h . 0) (size_t t . 0)
-              (i64 bi . 0) (double bd . 0.0) (int bf . 0))
+              (i64 bi . 0) (double bd . 0.0) (int bf . 0) (int bn . 0))
           (if (not (coco_m_list_length e (coco_m_arg e g 0) (aof n))) (return 0))
-          (if (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
-              (return (coco_m_type_error e "evaluable" best)))
+          (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf)))
           (while (coco_l_step m p (aof h) (aof t))
             (let ((i64 hi . 0) (double hd . 0.0) (int hf . 0))
-              (if (not (coco_l_num e h (aof hi) (aof hd) (aof hf)))
-                  (return (coco_m_type_error e "evaluable" h)))
-              (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
-                (if (== b 2)
-                    (let ((int rc . #'(coco_l_float_ok e (aof hd))))
-                      (if (!= rc 1) (return rc))
-                      (set b 0)))
-                (if (== b 0) (block (set best h) (set bi hi) (set bd hd) (set bf hf)))))
+              (if (and bn (coco_l_num e h (aof hi) (aof hd) (aof hf)))
+                  (let ((int b . #'(coco_num_pick want hf hi hd bf bi bd)))
+                    (if (== b 2)
+                        (let ((int rc . #'(coco_l_float_ok e (aof hd))))
+                          (if (!= rc 1) (return rc))
+                          (set b 0)))
+                    (if (== b 0) (block (set best h) (set bi hi) (set bd hd) (set bf hf))))
+                (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min") h best (aof best))))
+                  (if (!= rc 1) (return rc))
+                  (set bn (coco_l_num e best (aof bi) (aof bd) (aof bf))))))
             (set p t))
           (return (coco_m_unify e (coco_m_arg e g 2) best))))
 

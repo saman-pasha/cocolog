@@ -1814,6 +1814,16 @@ cocolint index offers no import of it.
   integers until a float arrives, int_overflow past 64 bits, as sum_list/2
   does (through 2.1.1 in doubles: 2^53 + 1 summed to 2^53, and two halves
   of 2^63 to the least integer), and `sign/1` of a NaN is SWI's one NaN.
+  **The folds evaluate what they fold** (2.15.1, `test/files/folds.pl`):
+  sum_list/2, max_list/2, min_list/2 and aggregate_all/3's sum, max and
+  min are SWI's `is/2` clauses -- a plain number in the C loop as before,
+  and from the first element or solution that is none (an expression, a
+  rational) each step `is/2`'s own `+`, `max` or `min` over the two
+  (`coco_l_eval2`), so an atom raises `type_error(evaluable, a/0)`; the
+  first element of a list is taken as it is (`max_list([a], M)` is `a`),
+  an aggregate's first solution is evaluated (`max(X, X)`), and the
+  witness forms ask number/1 of the first and `>`/`<` of the rest. Through
+  2.15.0 each raised for anything but a plain number.
   The guards never meet any of it: they take integers alone.
   **A float a function makes is a number, or what swipl's four float
   flags let it be** (2.2.0; the flags since 2.2.2): `float_overflow`

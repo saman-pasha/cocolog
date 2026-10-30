@@ -1287,29 +1287,44 @@
           ;; was in doubles: 2^53 + 1 summed to 2^53 and two halves of 2^63
           ;; to the least integer, the larger of two integers past 2^53 was
           ;; the first, and a NaN or two equal numbers kept the first.
+          ;; A solution that is no plain integer or float -- an expression, a
+          ;; rational, an atom, a variable -- is SWI's own step from then on
+          ;; (`coco_l_eval2' in lib/lists.cicili, 2.15.1): `S is S0 + X' and
+          ;; `M is max(M0, X)' made and evaluated, so sum(X*2) is a sum, a
+          ;; rational is exact, and an atom raises is/2's
+          ;; type_error(evaluable, a/0). Through 2.15.0 each raised
+          ;; type_error(number, X) for anything but a plain number.
           (if (== 0 (strcmp what "sum"))
-              (let ((i64 ai . 0) (double ad . 0.0) (int af . 0))
+              (let ((i64 ai . 0) (double ad . 0.0) (int af . 0)
+                    (int tm . 0) (size_t acc . 0))
                 (for ((size_t i . 0)) (< i n) ((++ i))
-                  (let ((double d . 0.0) (i64 iv . 0))
-                    (if (coco_m_int e (nth i v) (aof iv))
-                        (if af (set ad (+ ad (cast double iv)))
-                          (if (coco_add_ovf ai iv (aof ai))
-                              (block (free v)
-                                     (return (coco_m_evaluation_error e "int_overflow")))))
-                      (block
-                        (if (not (coco_m_float e (nth i v) (aof d)))
-                            ;; the term is taken BEFORE the array goes: reading
-                            ;; `(nth i v)' after the free is a use-after-free,
-                            ;; and it segfaulted on the first list of integers
-                            (let ((size_t bad . #'(nth i v)))
-                              (free v)
-                              (return (coco_m_type_error e "number" bad))))
-                        (if (not af) (block (set ad (cast double ai)) (set af 1)))
-                        (set ad (+ ad d))))
-                    ;; a float sum is checked (2.2.0, under the flags 2.2.2)
-                    (if af (let ((int rc . #'(coco_l_float_ok e (aof ad))))
-                             (if (!= rc 1) (block (free v) (return rc)))))))
+                  (let ((double d . 0.0) (i64 iv . 0) (int num . 0))
+                    (if (not tm)
+                        (set num (? (coco_m_int e (nth i v) (aof iv)) 1
+                                    (? (coco_m_float e (nth i v) (aof d)) 2 0))))
+                    (cond
+                      ((== num 1)
+                       (if af (set ad (+ ad (cast double iv)))
+                         (if (coco_add_ovf ai iv (aof ai))
+                             (block (free v)
+                                    (return (coco_m_evaluation_error e "int_overflow"))))))
+                      ((== num 2)
+                       (block (if (not af) (block (set ad (cast double ai)) (set af 1)))
+                              (set ad (+ ad d))))
+                      (#t
+                       (let ((int rc . 0))
+                         (if (not tm)
+                             (block (set acc (? af (coco_m_new_float e ad) (coco_m_new_int e ai)))
+                                    (set tm 1)))
+                         (set rc (coco_l_eval2 e "+" acc (nth i v) (aof acc)))
+                         (if (!= rc 1) (block (free v) (return rc))))))
+                    ;; a float sum is checked (2.2.0, under the flags 2.2.2);
+                    ;; SWI's own step checks its own
+                    (if (and af (not tm))
+                        (let ((int rc . #'(coco_l_float_ok e (aof ad))))
+                          (if (!= rc 1) (block (free v) (return rc)))))))
                 (free v)
+                (if tm (return (coco_m_unify e (coco_m_arg e g 2) acc)))
                 (return (? af
                            (coco_m_unify_float e (coco_m_arg e g 2) ad)
                            (coco_m_unify_int e (coco_m_arg e g 2) ai)))))
@@ -1324,52 +1339,61 @@
                 (set best (nth 0 v))
                 ;; SWI's first step is `M is max(X, X)', the template's own
                 ;; binding twice, and two equal floats are checked there as
-                ;; anywhere (2.2.0, under the flags 2.2.2)
+                ;; anywhere (2.2.0, under the flags 2.2.2); a first solution
+                ;; that is no plain number is that step itself (2.15.1)
                 (let ((i64 fi . 0) (double fd . 0.0) (int ff . 0))
-                  (if (and (coco_l_num e best (aof fi) (aof fd) (aof ff))
-                           (== 2 (coco_num_pick want ff fi fd ff fi fd)))
-                      (let ((int rc . #'(coco_l_float_ok e (aof fd))))
-                        (if (!= rc 1) (block (free v) (return rc))))))
+                  (if (coco_l_num e best (aof fi) (aof fd) (aof ff))
+                      (if (== 2 (coco_num_pick want ff fi fd ff fi fd))
+                          (let ((int rc . #'(coco_l_float_ok e (aof fd))))
+                            (if (!= rc 1) (block (free v) (return rc)))))
+                    (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min")
+                                                    best best (aof best))))
+                      (if (!= rc 1) (block (free v) (return rc))))))
                 (for ((size_t i . 1)) (< i n) ((++ i))
                   (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
                         (i64 xi . 0) (double xd . 0.0) (int xf . 0) (int b . 0))
-                    (if (or (not (coco_l_num e best (aof bi) (aof bd) (aof bf)))
-                            (not (coco_l_num e (nth i v) (aof xi) (aof xd) (aof xf))))
-                        (let ((size_t bad . #'(nth i v)))
-                          (free v)
-                          (return (coco_m_type_error e "number" bad))))
-                    (set b (coco_num_pick want bf bi bd xf xi xd))
-                    (if (== b 2)
-                        (let ((int rc . #'(coco_l_float_ok e (aof bd))))
-                          (if (!= rc 1) (block (free v) (return rc)))
-                          (set b 0)))
-                    (if (== b 1) (set best (nth i v)))))
+                    (if (and (coco_l_num e best (aof bi) (aof bd) (aof bf))
+                             (coco_l_num e (nth i v) (aof xi) (aof xd) (aof xf)))
+                        (block
+                         (set b (coco_num_pick want bf bi bd xf xi xd))
+                         (if (== b 2)
+                             (let ((int rc . #'(coco_l_float_ok e (aof bd))))
+                               (if (!= rc 1) (block (free v) (return rc)))
+                               (set b 0)))
+                         (if (== b 1) (set best (nth i v))))
+                      (let ((int rc . #'(coco_l_eval2 e (? (> want 0) "max" "min")
+                                                      best (nth i v) (aof best))))
+                        (if (!= rc 1) (block (free v) (return rc)))))))
                 (free v)
                 (return (coco_m_unify e (coco_m_arg e g 2) best))))
 
           ;; the witness forms: numeric on the expression, the whole
-          ;; max(Expr, Witness) / min(Expr, Witness) term as the answer
+          ;; max(Expr, Witness) / min(Expr, Witness) term as the answer.
+          ;; SWI's clause (2.15.1): the first solution's Expr must be a
+          ;; number -- type_error(number, Expr), Expr and not the pair --
+          ;; and each later one is kept when `X > Max0' (`X < Min0'), the
+          ;; comparison is/2's neighbours make: X evaluated, so an
+          ;; expression may win and is kept as it came, an atom raises
+          ;; type_error(evaluable, a/0), and a NaN never wins. Through 2.15.0
+          ;; a lone first solution was never asked, and every later one
+          ;; had to be a plain number, the error naming the pair.
           (if (or (== 0 (strcmp what "max2")) (== 0 (strcmp what "min2")))
               (let ((int want_max . #'(? (== 0 (strcmp what "max2")) 1 0))
                     (size_t best . 0))
                 (if (== n 0) (block (free v) (return 0)))
                 (set best (nth 0 v))
+                (let ((size_t fx . #'(coco_arg m (coco_deref m best) 0)))
+                  (let ((u64 fc . #'(nth (coco_deref m fx) (-> m heap))))
+                    (if (not (or (coco-is-int fc) (or (coco-tag-is FLT fc) (coco-rat-p fc))))
+                        (block (free v) (return (coco_m_type_error e "number" fx))))))
                 (for ((size_t i . 1)) (< i n) ((++ i))
-                  (let ((i64 bi . 0) (double bd . 0.0) (int bf . 0)
-                        (i64 xi . 0) (double xd . 0.0) (int xf . 0) (int over . 0))
-                    (if (or (not (coco_l_num e (coco_arg m (coco_deref m best) 0)
-                                           (aof bi) (aof bd) (aof bf)))
-                            (not (coco_l_num e (coco_arg m (coco_deref m (nth i v)) 0)
-                                           (aof xi) (aof xd) (aof xf))))
-                        (let ((size_t bad . #'(nth i v)))
-                          (free v)
-                          (return (coco_m_type_error e "number" bad))))
-                    (if (and (not xf) (not bf))
-                        (set over (? want_max (> xi bi) (< xi bi)))
-                      (let ((double x . #'(? xf xd (cast double xi)))
-                            (double b . #'(? bf bd (cast double bi))))
-                        (set over (? want_max (> x b) (< x b)))))
-                    (if over (set best (nth i v)))))
+                  (let ((size_t t . #'(coco_make2 m (? want_max ">" "<")
+                                                 (coco_arg m (coco_deref m (nth i v)) 0)
+                                                 (coco_arg m (coco_deref m best) 0)))
+                        (int c . 0) (int rc . 0))
+                    (set rc (coco_num_cmp e t (aof c)))
+                    (if (!= rc 1) (block (free v) (return rc)))
+                    (if (? want_max (== c 1) (== c -1)) (set best (nth i v)))))
                 (let ((size_t bp . #'(coco_deref m best))
                       (size_t out . 0))
                   (set out (coco_make2 m (? want_max "max" "min")
@@ -2819,10 +2843,17 @@
   (func coco_b_downcase ((coco_engine * e) (size_t g)) (out int) (return (coco_b_case e g 0)))
 
   ;;; Both directions: a term written out, or an atom read back in -- of any
-  ;;; length (`coco_text_put'; it was a buffer of 8192 bytes).
+  ;;; length (`coco_text_put'; it was a buffer of 8192 bytes). WHICH WAY IS
+  ;;; THE TEXT'S, as SWI decides it (2.15.1): a bound text is read and the
+  ;;; term it reads unified with the first argument, whatever that holds, so
+  ;;; `term_to_atom(answer(K, E), 'answer(cost,24.0)')' binds K and E and
+  ;;; `term_to_atom(f(a), 'f( a )')' is true; an unbound one is written from
+  ;;; the term, an unbound term too (its variable's name). Through 2.15.0 a
+  ;;; bound TERM was written and the two texts compared, so both of those
+  ;;; failed, and two unbound arguments raised type_error(text, _).
   (func coco_b_term_to_atom ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)))
-          (if (not (coco_m_is_var e (coco_m_arg e g 0)))
+          (if (coco_m_is_var e (coco_m_arg e g 1))
               (let ((coco_strbuf b) (int rc))
                 (coco_sb_init (aof b))
                 (coco_write_term m (aof b) (coco_m_arg e g 0) 1 0)

@@ -132,25 +132,34 @@ names the model that served it, and the echo leaves out the thinking and
 ## What building it found
 
 No live run has been made yet (2026-10-30: the box that built it has no
-key). Building it found three places where cocolog answers SWI-Prolog code
+key). Building it found three places where cocolog answered SWI-Prolog code
 otherwise than SWI does -- exactly what an agent writing cocolog from what
-it knows of SWI pays for in rounds:
+it knows of SWI pays for in rounds -- and a row of the card that told the
+model something false:
 
-* `aggregate_all(sum(X+1), ...)` raises `type_error(number, 1+1)`, and
+* `aggregate_all(sum(X+1), ...)` raised `type_error(number, 1+1)`, and
   `max(X*2)` and `min(X-5)` the same, where SWI evaluates the expression
-  (its clauses are `S is S0 + X` and `M is max(M0, X)`).
-* `term_to_atom(answer(K, E), 'answer(cost,24.0)')` fails: a bound term is
-  written and compared, where SWI parses the atom whenever it is bound.
-* `print_message/2` does not exist (an existence error).
+  (its clauses are `S is S0 + X` and `M is max(M0, X)`); `sum_list/2`,
+  `max_list/2` and `min_list/2` raised for an expression or a rational
+  too. **Fixed in 2.15.1** (`test/files/folds.pl`, 40 lines held to swipl
+  9.0.4).
+* `term_to_atom(answer(K, E), 'answer(cost,24.0)')` failed: a bound term
+  was written and the two texts compared, where SWI parses the atom
+  whenever it is bound. **Fixed in 2.15.1.**
+* `print_message/2` does not exist (an existence error), and neither does
+  `sumlist/2`, the old name SWI still autoloads for `sum_list/2`. Both are
+  still missing; the harness writes its messages with `format/3`.
+* The card's row A1 said that `atan/2`, `atan2/2`, `copysign/2`,
+  `random/1`, `random_float`, the hyperbolic functions, `lgamma/1`,
+  `erf/1`, `erfc/1`, `lsb/1`, `popcount/1`, `getbit/2`, `powm/3`,
+  `nexttoward/2`, `cputime` and `rational/1` are not evaluable, and every
+  one of them has been since 2.5.0 (only `log/2` is missing, and SWI 9.0.4
+  lacks it too). A model that believed the row wrote a workaround for
+  nothing. **The row is gone in 2.15.1**; the card has 30.
 
-None of the three is on the card. And the card is wrong in a way that costs
-the card arm: its row A1 tells the model that `atan/2`, `atan2/2`,
-`copysign/2`, `random/1`, `random_float`, the hyperbolic functions,
-`lgamma/1`, `erf/1`, `erfc/1`, `lsb/1`, `popcount/1`, `getbit/2`, `powm/3`,
-`nexttoward/2`, `cputime` and `rational/1` are not evaluable, and every one
-of them is, since 2.5.0 (only `log/2` is missing, and SWI 9.0.4 lacks it
-too). A model that believes the row writes a workaround for nothing, so
-the card wants reading again, row by row, before a live run measures it.
+None of the three was on the card. A1 is the one row found wrong; the
+other thirty have not been read again, and want it before a live run
+measures what the card is worth.
 
 ## Files
 

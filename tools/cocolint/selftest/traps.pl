@@ -59,7 +59,8 @@ selftest_main :-
     %% type_error(evaluable, atan/2), SWI's own error, loud and catchable,
     %% and its text could not tell `log(A, B)' the function from a predicate
     %% of that name: test/tls.pl's own log/5 drew seven findings. The row
-    %% stays a PROMPT, for the functions are still absent.
+    %% stayed a PROMPT while the functions were absent, and went at 2.15.1:
+    %% every one has been evaluable since 2.5.0.
 
     %% ---- X2: there is no stream layer ---------------------------------
     open('f.txt', read, _Stream),   % cocolint: X2 -- walked into on purpose

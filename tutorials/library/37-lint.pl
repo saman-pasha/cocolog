@@ -274,12 +274,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 31),
+    must('rows in the card', NRows, 30),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 31),
-    %% ELEVEN OF THE THIRTY-ONE CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 30),
+    %% ELEVEN OF THE THIRTY CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -292,7 +292,12 @@ t37_card :-
     %% cocolog's -- and since 2.2.0 the power is swipl's ar_pow() in every
     %% case. And twelve carried a pattern until 2.2.1, when A1's went: its
     %% text could not tell `log(A, B)' the function from a predicate of
-    %% that name, and test/tls.pl's own log/5 drew seven findings.)
+    %% that name, and test/tls.pl's own log/5 drew seven findings; and
+    %% thirty-one until 2.15.1, when A1 went too: every function it named
+    %% as missing -- atan/2, random/1, the hyperbolic functions, popcount/1
+    %% and the rest -- had been evaluable since 2.5.0, and the token
+    %% benchmark, which gives the card to a model, found it telling the
+    %% model to write a workaround for nothing.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
