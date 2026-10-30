@@ -130,9 +130,9 @@ ZiguratIP server and an HTTP arrangement; turns as transactions; vacuum and
 compaction; pages and procedures compiled into the server (`parsi/`).
 
 **The scheduler** (`lib/green.cicili`, `library/async.pl`) -- green threads in
-a world of one worker a core, one store, shared name tables, a write barrier
-that stops the world, channels, futures, deadlock detection. Tier 1: there with
-no import.
+a world of one worker a core (`async_workers/1` answers it), one store,
+shared name tables, a write barrier that stops the world, channels, futures,
+deadlock detection. Tier 1: there with no import.
 
 **The libraries** -- tier 1 always present: `apply builtins dcg files library
 lists zigurat`; **eight of SWI's own libraries, copied unmodified under their

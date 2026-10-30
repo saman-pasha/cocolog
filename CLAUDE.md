@@ -490,7 +490,11 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   `min(N, W)`. GitHub's Apple silicon Mac has three cores. test/httpd.pl's fixed
   `green(3)` was refused there: the server never listened, and the section
   failed with no FAIL line, because `hit/2` fails when curl does (878b17a).
-  `COCOLOG_GREEN_WORKERS=3` gives any box that world.
+  `COCOLOG_GREEN_WORKERS=3` gives any box that world. **The world's size is
+  `async_workers/1`'s** (2.15.0), never worked out again: lesson 54's
+  quantum check took the eighth of eight children to share worker 0, true
+  only where the size divides eight, and on that Mac it was a race (run
+  41030811820); it starts one child a worker now.
 * **A red run of `test/translate.pl` prints two reports and only the first is
   true**: `main` fails, the engine backtracks into an earlier choice point and
   re-runs later sections over changed lessons. Read up to the first `RED`.
@@ -820,7 +824,7 @@ threads, preloaded by `lb_always` from the binary's library path: ASYNC
 COROUTINES ARE ON BY DEFAULT, and `use_module(library(async))` is a no-op);
 its names are GLOBAL (`go/1,2`, `yield/0`, `await/1,2`, `await_all/1`,
 `async/2`, `future_ready/1`, `channel/1,2,3`, `channel_send/2`,
-`channel_recv/2`, `channel_close/1`), so a program's own predicate of one is
+`channel_recv/2`, `channel_close/1`, `async_workers/1`), so a program's own predicate of one is
 shadowed by the library's -- the 2.8.0 suite found test/window.pl's and
 test/flowdebug.pl's `go` fixtures that way, and they are `rec` now). Only files swipl also runs (`test/files/*.pl`,
 `emacs/test/conformance.pl`) and `test/library.pl` keep such a directive,
@@ -1705,8 +1709,9 @@ cocolint index offers no import of it.
   thread, tcp, tls, curl, ray, opencv, torch, tensorflow, numpy, aes, x509
   -- every C predicate of one), by name for the modules that are not
   (`coco_jr_named`: files' twenty, getenv/setenv/unsetenv, statistics/2,
-  current_prolog_flag/2, sha_file/3, and format/3 unless its sink is a
-  term), and by `coco_m_portal` for a module out of the tree. **A core
+  current_prolog_flag/2, sha_file/3, the green world's size
+  `'$async_workers'/1`, and format/3 unless its sink is a term), and by
+  `coco_m_portal` for a module out of the tree. **A core
   builtin is never one**, nor a load (`use_module/1` reads the program's own
   clauses again in every run). What bites:
   - **The journal is the seam's, and only while a window holds one**: the
@@ -2122,7 +2127,11 @@ cocolint index offers no import of it.
   own in a WORLD of one worker a CORE (2.9.3, Go's GOMAXPROCS rule: the
   caller's thread is worker 0 and N-1 OS threads are workers 1..N-1,
   `COCOLOG_GREEN_WORKERS` overriding N for a benchmark arm or a narrow
-  affinity; it was eight through 2.9.2). **ONE STORE (2.9.0)**: every worker, and so
+  affinity; it was eight through 2.9.2). `async_workers/1` answers N
+  (2.15.0, `coco_g_async_workers`): inside a world the world's own
+  `nworkers`, read through the thread-local `green_now` whatever the
+  variable says since; outside one `coco_g_nworkers`, what the next
+  async_run/1 takes. **ONE STORE (2.9.0)**: every worker, and so
   every task's machine, runs over the caller's own store and machine
   (`(-> wi st)` the host's, `(-> wi base)` the host machine); a spawn
   copies nothing but its goal. **THE NAME TABLES ARE SHARED (2.8.1)**:

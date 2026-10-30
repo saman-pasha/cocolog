@@ -2055,7 +2055,9 @@
   ;;; AND THE PORTALS OF THE MODULES THAT DO NOT: the files module's but the
   ;;; four that take a name apart; the environment, the clock and the
   ;;; statistics; format/3 to a stream (its three term sinks are no portal,
-  ;;; `coco_jr_term_sink'); the program's own arguments; sha's file.
+  ;;; `coco_jr_term_sink'); the program's own arguments; sha's file; and the
+  ;;; green world's size, which reads the environment and the cores as
+  ;;; getenv/2 and os_cpus/1 do (async_workers/1, 2.15.0).
   (static) (var const char * coco_jr_named []
                 . '{"files:exists_file/1" "files:exists_directory/1" "files:access_file/2"
                     "files:size_file/2" "files:time_file/2" "files:get_time/1"
@@ -2067,7 +2069,8 @@
                     "files:tmp_file/2" "files:working_directory/2"
                     "builtins:getenv/2" "builtins:setenv/2" "builtins:unsetenv/1"
                     "builtins:statistics/2" "builtins:format/3"
-                    "library:current_prolog_flag/2" "sha:sha_file/3"})
+                    "library:current_prolog_flag/2" "sha:sha_file/3"
+                    "green:$async_workers/1"})
 
   ;;; what modules out of this tree declared (`coco_m_portal')
   (static) (var const char ** coco_jr_xmod)

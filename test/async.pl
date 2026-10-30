@@ -31,8 +31,6 @@
 %% and this case is about the scheduler.
 
 :- use_module('test/prelude.pl').
-%% the cores the world is sized from, for the quantum's case
-:- use_module(library(os)).
 
 spin(0) :- !.
 spin(N) :- N > 0, M is N - 1, spin(M).
@@ -56,16 +54,17 @@ case_future(R) :-
 
 %% THE QUANTUM. Children take the workers beside the host round robin
 %% (1, 2, ... and, past the last, 0, the main's own), so with one child a
-%% worker the last is worker 0's whatever the world's size; it spins
-%% 60,000 steps, so after the main's yield it is stopped at its
-%% 10,000-step quantum -- a task that never yields cannot hold its
-%% worker. EIGHT CHILDREN, the case's first shape, put the last on worker
-%% 0 only in a world whose size divides eight: on GitHub's three-core Mac
-%% it was worker 2's, and whether it had finished was a race -- squeezed
-%% onto two CPUs here, worlds of 3, 5, 6 and 7 answered done two to six
-%% times in 300, a world of 8 never, and this shape never in worlds of 1
-%% to 9.
-case_quantum(R, N) :-
+%% worker the last is worker 0's whatever the world's size, which the
+%% world answers itself (async_workers/1); it spins 60,000 steps, so after
+%% the main's yield it is stopped at its 10,000-step quantum -- a task
+%% that never yields cannot hold its worker. EIGHT CHILDREN, the case's
+%% first shape, put the last on worker 0 only in a world whose size
+%% divides eight: on GitHub's three-core Mac it was worker 2's, and
+%% whether it had finished was a race -- squeezed onto two CPUs here,
+%% worlds of 3, 5, 6 and 7 answered done two to six times in 300, a world
+%% of 8 never, and this shape never in worlds of 1 to 9.
+case_quantum(R) :-
+    async_workers(N),
     N1 is N - 1,
     beside(N1, Fs),
     go(spin(20000), H),
@@ -76,18 +75,6 @@ case_quantum(R, N) :-
 %% the N-1 children that fill the workers beside the main's
 beside(0, []) :- !.
 beside(K, [F|Fs]) :- go(true, F), K1 is K - 1, beside(K1, Fs).
-
-%% THE WORLD'S SIZE, as async_run/1 takes it (lib/green.cicili): the cores
-%% online -- os_cpus/1 asks sysconf as the world does -- unless
-%% COCOLOG_GREEN_WORKERS gives a positive count; 256 at most.
-world_workers(N) :-
-    (   catch(getenv('COCOLOG_GREEN_WORKERS', V), _, fail),
-        catch(atom_number(V, N0), _, fail),
-        integer(N0), N0 > 0
-    ->  true
-    ;   os_cpus(N0)
-    ),
-    N is max(1, min(256, N0)).
 
 %% A NESTED ENGINE CANNOT BE SUSPENDED (2.10.1): findall/3, forall/2 and
 %% the rest run a goal on a sub-engine whose search lives on a C stack a
@@ -187,6 +174,7 @@ main :-
     catch(use_module(library(async)), _, fail),
     values,
     joining,
+    world_size,
     nested_engines,
     one_worker,
     foreign_write,
@@ -217,9 +205,48 @@ joining :-
     check('await_all waits for each', G1, done),
     answer(result(case_future(R2), R2), R2, G2),
     check('a joined thread is ready', G2, ready),
-    world_workers(N3),
-    answer(result(case_quantum(R3, N3), R3), R3, G3),
+    answer(result(case_quantum(R3), R3), R3, G3),
     check('a task that never yields is stopped at the quantum', G3, not_done).
+
+%% ---- the world's size ----------------------------------------------------
+%%
+%% async_workers/1 (2.15.0): outside a world the workers the next
+%% async_run/1 would start, COCOLOG_GREEN_WORKERS if it gives a positive
+%% count and the cores otherwise, 256 at most; inside a world the workers
+%% it has, whatever the variable says since. The variable is the process's,
+%% so each setting is a child process. The fixture prints the answer
+%% outside, inside, inside after the world set the variable to 5, and
+%% outside after the world.
+world_size :-
+    section('the world\'s size: async_workers/1'),
+    answer(( async_workers(N1), integer(N1), N1 >= 1, N1 =< 256 -> W1 = yes ; W1 = no ),
+           W1, G1),
+    check('outside a world: a count of 1 to 256', G1, yes),
+    answer(( async_workers(N2a), result(async_workers(N2b), N2b), N2b == N2a -> W2 = yes ; W2 = no ),
+           W2, G2),
+    check('inside a world: the workers it has, the count outside said', G2, yes),
+    scratch(D),
+    atom_concat(D, '/size.pl', Path),
+    fixture(Path,
+            [ 'main :- async_workers(A), async_run((async_workers(B), setenv(''COCOLOG_GREEN_WORKERS'', 5), async_workers(C)), R), R = (async_workers(B1), _, async_workers(C1)), async_workers(E), ( catch((use_module(library(os)), os_cpus(K)), _, fail) -> M is min(256, K) ; M = none ), ( A == M -> S = cores ; S = A ), write(S-B1-C1-E), nl.' ]),
+    cocolog(C),
+    size_run(['COCOLOG_GREEN_WORKERS=2 ', C], Path, G3),
+    check('COCOLOG_GREEN_WORKERS=2: 2 out and in, the world\'s 2 after it says 5, 5 after', G3, '2-2-2-5'-0),
+    size_run(['COCOLOG_GREEN_WORKERS=300 ', C], Path, G4),
+    check('COCOLOG_GREEN_WORKERS=300: 256, the ceiling', G4, '256-256-256-5'-0),
+    size_run(['env -u COCOLOG_GREEN_WORKERS ', C], Path, G5),
+    ( G5 = Out5-0, atomic_list_concat([cores, B5, C5, '5'], '-', Out5), B5 == C5 -> W5 = yes ; W5 = G5 ),
+    check('unset: the cores online, os_cpus/1\'s count, inside as outside', W5, yes),
+    size_run(['COCOLOG_GREEN_WORKERS=0 ', C], Path, G6),
+    check('COCOLOG_GREEN_WORKERS=0 is no count: the cores, as unset', G6, G5),
+    size_run(['COCOLOG_GREEN_WORKERS=abc ', C], Path, G7),
+    check('COCOLOG_GREEN_WORKERS=abc is no count: the cores, as unset', G7, G5),
+    shl(['rm -rf ', D]).
+
+size_run(Env, Path, Out-Exit) :-
+    append(Env, [' run ', Path, ' main 2>&1'], Parts),
+    sh_join(Parts, Cmd),
+    shell(Cmd, Out, Exit).
 
 %% ---- a blocking call inside findall/forall -------------------------------
 %%

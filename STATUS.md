@@ -7889,3 +7889,61 @@ PROVED:
     lint case 3, the suite 15): the same ten.
 
   The full local `make test` was not run.
+
+## The green world's size, asked: async_workers/1 (2.15.0)
+
+A program that sized its green work by the world worked the world's rule
+out again. library(httpd)'s green pool read COCOLOG_GREEN_WORKERS and
+os_cpus/1 itself, and took 4 without library(os) where the world takes the
+cores, with no ceiling where the world's is 256. Lesson 54's quantum check
+and test/async.pl's took the world to have eight workers: the eighth of
+eight children shares the main's worker only where the size divides eight,
+and on GitHub's three-core Mac it ran apart from the main and could finish
+first (run 41030811820, red at the lesson; 887a472 started one child a
+worker and worked the size out as the world does). 2.15.0 asks the world.
+
+WHAT IT DOES:
+
+- **`async_workers(-N)`**, library(async), tier 1 and so a global name.
+  Outside a world, N is the workers the next async_run/1 would start, by
+  the world's own rule (`coco_g_nworkers`): COCOLOG_GREEN_WORKERS if it
+  gives a positive count, else the cores online, 256 at most. Inside a
+  world, N is the world's own count, read through the thread-local
+  `green_now` on every worker's thread, whatever the variable says by
+  then: a world of 2 that sets the variable to 5 answers 2 inside, and 5
+  once it has ended. `async_workers(foo)` fails.
+- **It is a journal portal by name** (`green:$async_workers/1` in
+  `coco_jr_named`, beside getenv/2): it reads the environment and the
+  cores, as getenv/2 and os_cpus/1 do, so a replay answers it from its
+  entry whatever the environment says by then.
+- **library(httpd)'s green mode asks it**; `httpd_world_workers/1` is gone.
+  The thread mode still sizes its pool from the cores.
+- **Lesson 54 and test/async.pl ask it inside the world** for the quantum
+  check (one child a worker, the last on worker 0), and the lesson shows
+  the answer inside a world is the one outside said it would start.
+
+PROVED:
+
+- test/async.pl, a new section, "the world's size: async_workers/1": seven
+  checks, two in the process and five in child processes with the
+  variable at 2, 300, unset, 0 and `abc` (the last two are no count: the
+  cores, as unset).
+- test/journal.pl, a new section: a recorded window holds one entry, the
+  green module's exit, and its replay with the variable changed answers
+  the recorded count.
+- Three arms, one rule out each, each red: the outside answer by the
+  world's rule (the cores alone: `=2`, `=300` and unset red), the inside
+  answer the world's own (the rule's instead: the same three red, through
+  the answer after the world sets the variable, `2-2-5-5` for `2-2-2-5`),
+  and the journal entry (none: both of journal's new checks red, the
+  journal empty and the replay answering the box's 1 where 4 was
+  recorded). Lesson 54 stays green under the second arm, as it should: no
+  world of its own sets the variable.
+- Alone and green: test/async.pl, test/journal.pl, test/httpd.pl (its
+  green pool), test/flowchart.pl (the rebuilt tables carry
+  `flow_t_c('$async_workers',1,...)`, `flow_t_lib(async_workers,1,...)`
+  and its signature `[-]`), the lint case and lesson 54.
+- tools/flow/zero.sh against 2.14.1: nrev +665 instructions of 70.9
+  million, queens +84, lookup -485, the padding the same.
+
+The full local `make test` was not run; CI runs the suite.

@@ -13,11 +13,15 @@
 %%     async(:Goal, -Future)            future_ready(+Id)
 %%     channel(-C)        channel(+Size, -C)
 %%     channel_send(+C, +Term)          channel_recv(+C, -Term)   channel_close(+C)
+%%     async_workers(-N)
 %%
 %% A GREEN THREAD IS A MACHINE OF ITS OWN, in a world of ONE WORKER A CORE
 %% (2.9.3, as Go's GOMAXPROCS defaults to NumCPU; COCOLOG_GREEN_WORKERS
 %% overrides it, and through 2.9.2 there were eight): the caller's thread
-%% is worker 0 and the other N-1 are OS threads. A task is pinned to the
+%% is worker 0 and the other N-1 are OS threads. async_workers/1 (2.15.0)
+%% answers N -- inside a world the workers it has, outside one the workers
+%% the next async_run/1 would start -- so a program sizes its work from the
+%% world, never from a number. A task is pinned to the
 %% worker it was born on -- children take the workers beside the caller's
 %% round robin, 1, 2, ..., and the N-th wraps to 0 -- and is preempted at a
 %% 10,000-step quantum, so a task that never yields cannot hold a worker.
@@ -37,9 +41,6 @@
 
 spin(0) :- !.
 spin(N) :- N > 0, M is N - 1, spin(M).
-
-%% the cores the world is sized from, for the quantum's case
-:- use_module(library(os)).
 
 %% the work each green thread does, its answer in the second argument
 case_value(R) :-
@@ -88,6 +89,10 @@ case_retract(R) :-
     await(F, _),
     ( catch(q(2), _, fail) -> R = still ; R = gone ).
 
+%% THE WORLD'S SIZE, asked inside the world: the workers it has
+case_workers(N) :-
+    async_workers(N).
+
 %% ONE CHILD A WORKER. Children take the workers beside the main round
 %% robin, 1 to N-1, and the N-th wraps to worker 0, the main's own, so the
 %% last child shares the main's worker whatever N is: the main's yield
@@ -96,7 +101,8 @@ case_retract(R) :-
 %% last on worker 0 only in a world whose size divides eight; on a
 %% three-core machine it ran on worker 2, apart from the main, and could
 %% finish before the main looked.)
-case_preempt(R, N) :-
+case_preempt(R) :-
+    async_workers(N),
     N1 is N - 1,
     beside(N1, Fs),
     go(spin(20000), H),
@@ -107,18 +113,6 @@ case_preempt(R, N) :-
 %% the N-1 children that fill the workers beside the main's
 beside(0, []) :- !.
 beside(K, [F|Fs]) :- go(true, F), K1 is K - 1, beside(K1, Fs).
-
-%% THE WORLD'S SIZE, as async_run/1 takes it (lib/green.cicili): the cores
-%% online -- os_cpus/1 asks sysconf as the world does -- unless
-%% COCOLOG_GREEN_WORKERS gives a positive count; 256 at most.
-world_workers(N) :-
-    (   catch(getenv('COCOLOG_GREEN_WORKERS', V), _, fail),
-        catch(atom_number(V, N0), _, fail),
-        integer(N0), N0 > 0
-    ->  true
-    ;   os_cpus(N0)
-    ),
-    N is max(1, min(256, N0)).
 
 result(Goal, R) :-
     async_run(Goal, W),
@@ -147,9 +141,11 @@ lesson_values :-
 %% ---- the quantum --------------------------------------------------------
 lesson_preempt :-
     format("~n-- a task that never yields is stopped at the quantum~n"),
-    world_workers(N1),
-    result(case_preempt(R1, N1), R1),
-    must('the last child shares worker 0 and is not done yet', R1, not_done),
+    async_workers(N0),
+    result(case_workers(W1), W1),
+    must('the world has the workers async_workers/1 said it would start', W1, N0),
+    result(case_preempt(R2), R2),
+    must('the last child shares worker 0 and is not done yet', R2, not_done),
     format("     (the main's yield gave worker 0 to the last child for one~n"),
     format("     quantum; stopped at 10,000 steps, it let the main run again)~n").
 
