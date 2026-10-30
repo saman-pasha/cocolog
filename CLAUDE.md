@@ -7939,6 +7939,164 @@ read into an English-worded IR and written into any lesson's language),
   been given of it); `The rotary British The Times ... reported of the events, although they did not devote him
   excessive space' (18: the British daily, reported on, devote it); and `The managers of the research believe unlikely
   that' (21: those in charge of the investigation believe it unlikely). The next sample's controls take this report in.
+  The Grazioli trial report (VIT-9310..9323, 14 sentences, the prosecutor's requests at the trial for the kidnapping and
+  death of Duke Massimiliano Grazioli Lante, Italian into Spanish and English: 14 of 14 and 14 of 14 on a fresh store,
+  11 and 10 with the new store alone, 3 and 3 with the new code on the old store, 2 and 2 before; reasoning 1.0.26). The
+  sample was taken on the cocolog 2.14.1 binary, master's fcde058 (test and documentation, fast-forwarded onto the
+  branch), and cocolog stays 2.14.1; master's 887a472, 541fe10 (cocolog 2.15.0, async_workers/1) and 273585f (the token
+  benchmark) came during the sample, change nothing under library/reasoning/, and are not merged: the next sample takes
+  them. The article's sentences fall from 513.0 million inferences in each language to 44.2 into Spanish and 44.1 into
+  English, of which the ninth is 20.5 million in each.
+  It needed these SHAPES, each with its arm red (test/translate.pl's `newspaper_grazioli': 25 checks, 28 arms, all red
+  in the section, and a guard that is red in the controls alone, below; an arm is a library directory of symlinks whose
+  reasoning/translate.pl is the edited copy, `COCOLOG_LIBRARY=ARM cocolog query "use_module('test/translate.pl'),
+  newspaper_grazioli, checks_done"', under a second a run, and every arm is run in seven seconds, four at a time): TWO
+  VERBS IN THE SIMPLE PAST JOINED BY A COORDINATOR SHARE THE SUBJECT AND THE OBJECT (`la banda che rapì e uccise nel
+  1977 il duca' kidnapped and killed him -- `uccise' is the feminine plural participle too, and read as one it was said
+  of the gang, `secuestró y matada': cverb/1, after a verb that is no copula, in a simple tense, where an object
+  follows, and each writer writes it in the clause's tense and person, tr_cverbs/6) -- two arms; A NOUN THAT CAN SAY A
+  MEMBER SAYS IT BEFORE A PHRASE OF `of' WHOSE NOUN IS A GROUP (`i componenti della banda' are the gang's members, where
+  `componente' is a component first, and a component of a thing stays one: tr_relational_np/3, tr_group_head/1); a topic
+  is no front of a first person nobody names whose verb is a noun too (`Processo Grazioli, sconto al pentito Abbatino'
+  is the trial and a discount, two headings, and read as `sconto', I discount, English wrote `I discount to the
+  informer': tr_read0/4); only a verb that can report has a speaker after it (`La banda, dopo il rapimento, uccise il
+  nobile romano' is the gang killing him, and the Roman after the verb was the speaker of a clause that reports, `The
+  gang, after the abduction, the noble Roman one killed': tr_reporting/3, a verb of saying or one that takes the
+  clause); a heading that opens on a count, with a relative clause after its comma (`Otto anni e sei mesi per il pentito
+  Maurizio Abbatino, che con le sue confessioni ha consentito ...' -- eight years for the informer, who allowed it; read
+  as a clause of `that' with nobody named English refused it: tr_verbless0/3, the count word and the count of time read
+  as a phrase of time: an arm and its two halves, each red); A CLAUSE RIGHT AFTER AN INFINITIVE TAKES THE INFINITIVE'S
+  MOOD (`ha consentito di stabilire che la banda uccise il nobile romano' established that it killed him, and with the
+  mood of `permitir', which takes the subjunctive, Spanish wrote `que la pandilla matara': tr_write/4 -- and the
+  controls' `Non possiamo pensare che questo sia già vinto', where it was `è', and `los lombardos saben ser' and `como
+  la iglesia se había equivocado', where the matrix verb's subjunctive was written, below); an insertion between commas
+  after the participle's adjunct, before its agent (`le richieste fatte ieri, a conclusione della requisitoria, dal pm'
+  were made yesterday, at the end of the closing speech, by the prosecutor -- the participle took `ieri' alone, and `dal
+  pm' was a phrase of `from', `del fiscal': tr_reduced_agent/3); AN ARTICLE, AN ADJECTIVE OF ORDER AND A COUNT ARE A
+  PHRASE WHOSE NOUN IS LEFT OUT (`(gli ultimi tre, esponenti della banda di Montespaccato)' are the last three, and the
+  phrase had no reading: tr_np/3), and English puts the adjective before the count with no `ones' (`the last three',
+  where it was `the three last ones': tr_np_out/5; the controls' `The first two have remained', below) -- two arms; A
+  NAME MAY CARRY ITS BRACKET ON IN A LIST OF NAMES (`per Antonio Montegrande, Giorgio Paradisi, Marcello Colafigli,
+  Emidio Castelletti (tutti della banda della Magliana), Enrico Mariotti, ...' -- with the bracket after the fourth name
+  the names did not go on, the second was apposed to the first, and the commas after them stayed the clause's:
+  tr_names_go_on/2, tr_list_word/2 and tr_list_commas/5, three arms and the three together), the bracket a list item
+  before its comma only where a name follows the comma, never a phrase (a guard the controls found, its arm red there
+  alone: `17 nuevos fichajes, entre ellos el portugués Conceiçao (Parma), los argentinos Guglielminpietro (Milan) y
+  Vivas (Arsenal), los turcos ...' was 178.8 million inferences and refused in both languages, where it was 4.1 million
+  and read; the hand lesson reproduces no list of three such groups); a preposition and its infinitive between commas is
+  an insertion, and the noun the copula is too never divides the sentence after it (`Abbatino, prima di essere arrestato
+  e di decidere di collaborare con l'autorità giudiziaria, era uno dei più noti malviventi' is the man who was one, and
+  divided at `era', an era, he was a heading and the copula had nobody named: tr_insertion_comps/1, tr_read0/4) -- two
+  arms; a passive infinitive of a preposition is a front of a relative clause, with the infinitives joined to it (`per
+  Abbatino, che prima di essere arrestato e di decidere di collaborare ... era uno dei più noti malviventi della
+  capitale, il pm ha chiesto' -- with the participle and the second infinitive no adjuncts it was no front, and the
+  sentence was refused: tr_adjuncts_after/2); an infinitive joined to a preposition's infinitive is under the same
+  preposition in English, both gerunds (`before being arrested and before deciding to collaborate', where it was `and to
+  decide': tr_comps_out/7); `asks' takes `for' before its object and never before a count, which is how much is asked
+  (`il pm ha chiesto la condanna a otto anni e sei mesi di reclusione' came out `has asked eight years and six months
+  for the conviction': en_counted/1); THE CLEFT WITH ITS COPULA FIRST IN THE PERFECT, AND AN ADVERB BETWEEN COMMAS AFTER
+  WHO IT IS (`È stato lui, infatti, a rivelare tutti i retroscena della vicenda' -- it was he, in fact, who revealed
+  them; with the simple tenses alone it was a copula with nobody named, `It has been him, to reveal':
+  tr_read_statement0/4) -- two arms; A DATE IN FRONT OF A RELATIVE CLAUSE'S VERB (`i componenti della banda che il 7
+  novembre del settantasette, rapì il duca' -- the date was the clause's subject, and in a heading none had a verb:
+  tr_relative_clause/4), the comma between the date and the verb none of the clause's, the paper's slip, which in a
+  heading parted the clause from its verb and refused the sentence (tr_rel_time_comma/3), the year after the date's `of'
+  the date's own (`on November 7, seventy-seven', where it came out `of the seventy-seven, on November 7':
+  tr_date_year/2), and English's `on' before a date with its year (tr_comp_out/7) -- four arms; and adjuncts after the
+  comma that closes the subject's relative clause, right before the verb (`Abbatino, che ha dato tutta una serie di
+  indicazioni ..., per il pm è "pienamente affidabile"' -- for the prosecutor he is fully reliable; with no comma before
+  the verb the phrase was read into the subject, and the long sentence was refused: tr_insertion_off/4). The first cut's
+  comma branch of the date's front in a relative clause had a green arm once tr_rel_time_comma/3 took the comma, the
+  article the same and 75 inferences fewer, and is gone.
+  It needed these WORDS in `extra/' (the two readers: a line moves the reader of one language and the writer of the
+  other; the dictionary's own word is said again first where it must stay the one written): Italian `sequestro' (a
+  kidnapping), `pentito' (an informer, a person), `ergastolo' and `condanna a vita' (a life sentence), `requisitoria' (a
+  closing speech), `corte di assise' (a court of assizes), `malvivente' (a criminal, a person; `delinquente' said again
+  first), `retroscena' (an inside story, its own plural, not feminine), `processo' and `dibattimento' (a trial),
+  `riscatto' (a ransom), `difensore' (a defender, a person), `telefonata' (a phone call), `discordanza' (a discrepancy,
+  where the dictionary's first is a geologist's unconformity; `discrepanza' said again first), `alle porte di' (on the
+  outskirts of), `a partire da' and `a cominciare da' (starting from), `alla fine di' and `a conclusione di' (at the end
+  of), `quanto a' and `per quanto riguarda' (as for), `mette in luce' (brings to light, with its forms), `"banda" is a
+  group.', `componente' (a component said again first, and a member, with `membro' said again first), `"franco" is a
+  name.' (`Franco Catracchi', where it was `Frank'), `lungo' (along, the preposition: the adjective's `long' was its
+  first meaning too), `tutta una' and `tutto un' (a whole, one determiner of two words), `rapito' (a kidnap victim, a
+  person) and `alla fine' (in the end); Spanish `revela' (reveals, said first: the writer's word for it was `pone en
+  evidencia', which has no participle, and the Spanish perfect `ha puesto en evidencia' was refused), `arrepentido' (an
+  informer, a person), `cadena perpetua', `requisitoria', `tribunal penal', `entresijo' (an inside story), `llamada
+  telefónica', `a las puertas de', `saca a la luz' (with its forms), `banda' (a band said again first, and a gang),
+  `"banda"' and `"pandilla" is a group.', `defensor' (a campaigner said again first, and a defender), `al final de', `a
+  lo largo de' (along: the Spanish writer had no word for it, and the sentence was refused), `toda una' and `todo un',
+  `secuestrado' (a kidnap victim, a person) and `al final'. The first meaning moved for 2 Italian words and 1 Spanish
+  one (Italian `discordanza' a discrepancy, `lungo' along; Spanish `entresijo' an inside story, where it was a secret),
+  the writer's first word for 3 Spanish meanings and none Italian (a defender `defensor', where it was `zaguero', a
+  football back; a gang `banda', where it was `pandilla'; reveals `revela'), and none was lost.
+  THE CONTROLS (cocolog 2.14.1, store KB279, 122 count files, 3 320 sentences: the earlier set with the Salou report in,
+  es_19990301-37, both directions; this report is not among them): the last version's translator against this one, on
+  the one store, 7 sentences in 7 files read differently, 5 better -- the mood of a clause after an infinitive (3: `Non
+  possiamo pensare che questo sia già vinto', where it was `è'; `los lombardos saben ser poco sentimentales' and `como
+  la iglesia se había equivocado', where the matrix verb's subjunctive was written), `The first two have remained', and
+  `ha golpeado a la niña' -- and two that are no better: the Spoleto report's fifteenth into English (`poi, sbandando,
+  ha colpito la ragazza' is the car striking the girl, where the girl struck, and English refuses the third person
+  nobody names, on purpose; its Spanish is the better text above) and the Veloso interview's fourth into Spanish (`con
+  Gilda l'ex compagna di Vinicius De Moraes al fianco, incrocia affettuosamente l'amico Gilberto Gil' was read with the
+  friend as the speaker of a reporting clause, `encuentra cariciosamente el amigo Gilberto Gil', and is read now with
+  the ex-partner for the subject and `con Gilda' moved after the object, `la ex compañera ... encuentra cariciosamente
+  al amigo Gilberto Gil con Gilda': both wrong). The inferences fall 0.073 % (8 447 504 598 to 8 441 365 137), 0.171 %
+  outside those two sentences, whose new readings cost 2.4 and 1.7 million inferences more in each language; 3 098
+  sentences rise, by 653 inferences at the median, the largest the Rognoni interview's nineteenth (+0.11 million of
+  358.0, refused both ways), and the ones that fall most are the Rosi report's 21st (1.40 million to 0.50 in each
+  language) and Tempi's seventeenth, the communiqué (it_9673_9712 17, 20.1 to 19.3), where a verb that cannot report is
+  asked no speaker now. Bytes and characters read every sentence alike (0 differ, the bytes 0.009 % more). The DATA
+  COLUMN (the last version's translator on its own store, KB274, against this one on the new): 13 sentences in 12 files,
+  -0.197 % (8 458 039 233 to 8 441 365 137), the 7 of the code and the 6 of the store. THE CODE ALONE (this translator
+  on KB274): the same 7 sentences, -0.073 % (to 8 451 900 194). THE STORE ALONE (the last version's translator on KB274
+  and on KB279): 6 sentences in 5 files, all better, -0.125 % (to 8 447 504 598), each a word of the report's lines: `a
+  whole' for `tutta una', `tutto un' and `toda una' (3: `A whole exploit', `It has been a whole ambiguity', `A whole
+  series of problems', where it was `All an exploit'), `in the end' and `al final' for `al final' and `alla fine' (2,
+  where it was `to the end' and `al fin'), and `Lo revela' for `Lo rivela' (where it was `Lo pone en evidencia').
+  THE FIRST ROUNDS' REGRESSIONS, found by reading the texts of every column, the whole case and the writers' first
+  words, and mended. Of the code (round a's data column, KB277): the bracket counted as a list item before its comma
+  whatever followed it, and the Kallon sentence of the Inter feature (es_20011002-160 13, `... 17 nuevos fichajes, entre
+  ellos el portugués Conceiçao (Parma), los argentinos Guglielminpietro (Milan) y Vivas (Arsenal), los turcos Emre y
+  Okan (Galatasaray), ...') was 178.8 million inferences in each language and refused, where it was 4.1 million and
+  read; a name must follow the comma now (the guard's arm is red there, and no hand lesson reproduces the three groups
+  it needs). Of the store: the line that said the dictionary's `entresijo' as a secret again first made it the Spanish
+  writer's word for every secret (writerword2.py: `secreto' to `entresijo'), and is out -- no sentence of the controls
+  has one; and the whole case's scan of the vocabularies found `retroscena', a masculine noun in `-a', with no line
+  `"retroscena" is not feminine.' (stated_gender). Each mend took a fresh store: KB277 the first, KB278 the second,
+  KB279 the final.
+  THE COST OF THE CODE, FOUND BY TAKING EACH RULE OUT (the data column's three heaviest risers, into English, over a
+  copy of the library per rule on KB279): the Spoleto fifteenth (+2.41 million) and the Veloso fourth (+1.74 million)
+  are the reporting rule's, a verb that can report alone with a speaker after it, whose readings are the new texts
+  above; and Tempi's 27th (`Quando infatti nella "sala delle firme" è iniziato il vertice, Berlusconi era già convinto
+  che l'apertura dell'Olivo fosse solo un modo per prendere tempo', 21.2 million inferences to 23.1, its text the same)
+  was the date's front in a relative clause, 1.83 million: each reading of a relative word that an article follows asked
+  the six words after it for a month, as a lexeme each. Whether a month is among the sentence's words is a note made
+  once a sentence now (`$tr_month', in tr_into_ir/4, asked first by the clause and by tr_rel_time_comma/3), and the
+  sentence is 21.25 million (+0.14 %); the whole controls fall 0.228 % against the round before the note, every text the
+  same. No other rule moved any of the three by more than 7 600 inferences (the joined past verbs 7 570, the order
+  adjective's count 4 800).
+  THE STATED COSTS: the reporting rule's two readings, the Spoleto fifteenth refused into English (on purpose: the car
+  that struck the girl is a third person nobody names) and the Veloso fourth's `con Gilda' moved, 2.4 and 1.7 million
+  inferences more in each language; the writer's first word for a defender is `defensor' (a football back is `zaguero',
+  which a report of a match would want: no sentence of the controls has one) and for a gang `banda'; and a bracket in a
+  list is an item only before a name, which a hand lesson does not show.
+  The report LEAVES, of the 14 into Spanish (English alike unless it says): `Juicio Grazioli' and `Trial Grazioli' (3:
+  the Grazioli trial, the name after the noun of a heading); `de setenta y siete' and `seventy-seven' (4: of '77); `con
+  sus confesiones' written last (5: the phrase in front of the relative clause's verb, `che con le sue confessioni ha
+  consentito'), `tras la abducción' (`el secuestro') and `the noble Roman one' (the Roman nobleman), and English `who
+  has allowed to establish' (made it possible to establish); English `has been never found' (6: has never been found);
+  `Son éstos las peticiones' (7: `Éstas son', the pronoun's gender), `a finales de la requisitoria' (`al final'), `al
+  juicio' (`en el juicio') and `en tribunal penal' and `in court of assizes' (the article), and English `The requests
+  ... are these' (These are the requests); English `everyone of the gang of the Magliana' (8: all of the Magliana gang);
+  English `asked for the conviction to eight years' (9: a sentence of eight years, `condanna' a conviction to the
+  lesson); `Ha revelado él' (10: the cleft's statement, `Fue él quien reveló'), `pasado' for `avvenuto' (occurred) and
+  `de hecho' written last; `ancho crédito' (11: `amplio') and English `who believes fully reliable' (whom he believes)
+  and `they have also admitted his position' (he has: the clause after `visto che' has nobody named); `sobre la base de
+  las que' (12: `de las cuales'), `en el curso del juicio' and `in the course of the trial in the end' written last, and
+  English `the made phone calls' (the phone calls made), `to hold the contacts' (to keep in touch) and `to attain the
+  ransom' (to obtain it); and `el 17 de julio próximo' (13: `el próximo 17 de julio'). The next sample's controls take
+  this report in.
 
 ## Tutorials are documentation that runs
 

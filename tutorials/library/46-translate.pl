@@ -381,6 +381,7 @@ main :-
     section_86,
     section_87,
     section_88,
+    section_89,
 
     format("~nA lesson is a knowledge base; a translation is a proof over it.~ndone~n", []).
 
@@ -11600,6 +11601,101 @@ lesson_88(italian, 18, '"mangiavo" is the imperfect of "mangia".
 The masculine determiner "altro" means "other". "altro" takes the indefinite.
 The masculine determiner "nessuno" means "no". "nessun" is the apocope of "nessuno". The name "alpi" means "Alps". "alpi" is feminine.
 The determiner "qualsiasi" means "any".').
+
+section_89 :-
+    format("~n89. an Italian report on the Grazioli trial, into Spanish and English: two past verbs joined, the members of a group, a topic and a noun that is a verb too, a verb that cannot report, a heading that opens on a count, the mood after an infinitive, an insertion before the agent, the last three, a bracket in a list of names, a preposition's infinitive between commas, before being and before deciding, a front of a passive infinitive, asks for a count, the cleft in the perfect, a date in front of a relative clause, its comma and its year, adjuncts after a subject's relative clause~n", []),
+    lesson_89(spanish, LS), reason_learn(LS, spanish, TS), length(TS, NS),
+    show('the Grazioli section''s Spanish lesson and a nineteenth part, under its own name', NS),
+    lesson_89(italian, LI), reason_learn(LI, italian, TI), length(TI, NI),
+    show('and the Italian one', NI),
+    section_89_1, section_89_2, section_89_3,
+    reason_unlearn(spanish), reason_unlearn(italian).
+
+lesson_89(L, Text) :- lesson_88(L, A), lesson_89(L, 19, B), atomic_list_concat([A, ' ', B], Text).
+
+section_89_1 :-
+    ( reason_translate('Il cane che mangiò e uccise il gatto dorme.', italian, english, X89V1) -> S89V1 = X89V1 ; S89V1 = refused ),
+    must('TWO VERBS IN THE SIMPLE PAST JOINED BY A COORDINATOR SHARE THE SUBJECT AND THE OBJECT: `la banda che rapì e uccise nel 1977 il duca'' kidnapped and killed him -- `uccise'' is the feminine plural participle too, and read as one it was said of the gang, `secuestró y matada'' (cverb/1, tr_cverbs/6)', S89V1,
+         'The dog that ate and killed the cat sleeps.'),
+    ( reason_translate('Il cane che mangiò e uccise il gatto dorme.', italian, spanish, X89V2) -> S89V2 = X89V2 ; S89V2 = refused ),
+    must('... written in the clause''s tense and person', S89V2,
+         'El perro que comió y mató al gato duerme.'),
+    ( reason_translate('I componenti della banda dormono.', italian, english, X89V3) -> S89V3 = X89V3 ; S89V3 = refused ),
+    must('A NOUN THAT CAN SAY A MEMBER SAYS IT BEFORE A PHRASE OF `of'' WHOSE NOUN IS A GROUP: `i componenti della banda'' are the gang''s members, where `componente'' is a component first (tr_relational_np/3, tr_group_head/1)', S89V3,
+         'The members of the gang sleep.'),
+    ( reason_translate('I componenti della banda dormono.', italian, spanish, X89V4) -> S89V4 = X89V4 ; S89V4 = refused ),
+    must('... in each language''s word', S89V4,
+         'Los miembros de la banda duermen.'),
+    ( reason_translate('I componenti della casa dormono.', italian, english, X89V5) -> S89V5 = X89V5 ; S89V5 = refused ),
+    must('... and a component of a thing stays one', S89V5,
+         'The components of the house sleep.'),
+    ( reason_translate('Casa Pedro, sconto al cane.', italian, english, X89V6) -> S89V6 = X89V6 ; S89V6 = refused ),
+    must('A TOPIC IS NO FRONT OF A FIRST PERSON NOBODY NAMES WHOSE VERB IS A NOUN TOO: `Processo Grazioli, sconto al pentito Abbatino'' is the trial and a discount, two headings, and read as `sconto'', I discount, English wrote `I discount to the informer'' (tr_read0/4)', S89V6,
+         'House Pedro, discount to the dog.'),
+    ( reason_translate('La banda, dopo il rapimento, uccise il gatto.', italian, english, X89V7) -> S89V7 = X89V7 ; S89V7 = refused ),
+    must('ONLY A VERB THAT CAN REPORT HAS A SPEAKER AFTER IT: `La banda, dopo il rapimento, uccise il nobile romano'' is the gang killing him, and the person after the verb was the speaker of a clause that reports, `the noble Roman one killed'' (tr_reporting/3)', S89V7,
+         'The gang, after the abduction, killed the cat.'),
+    ( reason_translate('Otto anni per il cane, che dorme.', italian, english, X89V8) -> S89V8 = X89V8 ; S89V8 = refused ),
+    must('A HEADING THAT OPENS ON A COUNT, WITH A RELATIVE CLAUSE AFTER ITS COMMA: `Otto anni e sei mesi per il pentito Maurizio Abbatino, che con le sue confessioni ha consentito ...'' -- eight years for the informer, who allowed it; read as a clause of `that'' with nobody named, English refused it (tr_verbless0/3)', S89V8,
+         'Eight years for the dog, who sleeps.'),
+    ( reason_translate('Il cane ha consentito di stabilire che il gatto dorme.', italian, spanish, X89V9) -> S89V9 = X89V9 ; S89V9 = refused ),
+    must('A CLAUSE RIGHT AFTER AN INFINITIVE TAKES THE INFINITIVE''S MOOD: `ha consentito di stabilire che la banda uccise il nobile romano'' established that it killed him, and with the mood of `permitir'', which takes the subjunctive, Spanish wrote `que la pandilla matara'' (tr_write/4)', S89V9,
+         'El perro ha permitido establecer que el gato duerme.'),
+    ( reason_translate('Sono queste le case viste ieri, dopo la festa, dal cane.', italian, english, X89V10) -> S89V10 = X89V10 ; S89V10 = refused ),
+    must('AN INSERTION BETWEEN COMMAS AFTER THE PARTICIPLE''S ADJUNCT, BEFORE ITS AGENT: `le richieste fatte ieri, a conclusione della requisitoria, dal pm'' were made yesterday, at the end of the closing speech, by the prosecutor -- the participle took `ieri'' alone, and `dal pm'' was a phrase of `from'' (tr_reduced_agent/3)', S89V10,
+         'The houses seen yesterday, after the party, by the dog are these.'),
+    ( reason_translate('Gli ultimi tre dormono.', italian, english, X89V11) -> S89V11 = X89V11 ; S89V11 = refused ),
+    must('AN ARTICLE, AN ADJECTIVE OF ORDER AND A COUNT ARE A PHRASE WHOSE NOUN IS LEFT OUT: `(gli ultimi tre, esponenti della banda di Montespaccato)'' are the last three -- the phrase had no reading (tr_np/3) -- AND ENGLISH PUTS THE ADJECTIVE BEFORE THE COUNT, with no `ones'' (tr_np_out/5)', S89V11,
+         'The last three sleep.'),
+    ( reason_translate('Gli ultimi tre dormono.', italian, spanish, X89V12) -> S89V12 = X89V12 ; S89V12 = refused ),
+    must('... and Spanish after it', S89V12,
+         'Los tres últimos duermen.').
+
+section_89_2 :-
+    ( reason_translate('Il cane vede Pedro, Maria (tutti della casa), Marta e Rebeca.', italian, english, X89V13) -> S89V13 = X89V13 ; S89V13 = refused ),
+    must('A NAME MAY CARRY ITS BRACKET ON IN A LIST: `per Antonio Montegrande, ..., Emidio Castelletti (tutti della banda della Magliana), Enrico Mariotti, ...'' -- with the bracket the names did not go on, and the commas after them stayed the clause''s (tr_names_go_on/2, tr_list_word/2, tr_list_commas/5)', S89V13,
+         'The dog sees Pedro, Maria (everyone of the house), Marta and Rebeca.'),
+    ( reason_translate('Il cane vede Pedro, Maria (tutti della casa), Marta e Rebeca.', italian, spanish, X89V14) -> S89V14 = X89V14 ; S89V14 = refused ),
+    must('... where Spanish marked each name as an object of its own, `a Maria, a Marta''', S89V14,
+         'El perro ve a Pedro, Maria (todos de la casa), Marta y Rebeca.'),
+    ( reason_translate('Il cane vede Pedro, Maria, Marta (tutti della casa), Rebeca e Luis.', italian, english, X89V15) -> S89V15 = X89V15 ; S89V15 = refused ),
+    must('... AND THE NAMES GO ON PAST THE BRACKET: with the bracket after the third name the second was apposed to the first, and the list was refused (tr_names_go_on/2)', S89V15,
+         'The dog sees Pedro, Maria, Marta (everyone of the house), Rebeca and Luis.'),
+    ( reason_translate('Pedro, prima di essere arrestato e di decidere di collaborare con il cane, era un gatto.', italian, english, X89V16) -> S89V16 = X89V16 ; S89V16 = refused ),
+    must('A PREPOSITION AND ITS INFINITIVE BETWEEN COMMAS IS AN INSERTION, AND THE NOUN THE COPULA IS TOO NEVER DIVIDES THE SENTENCE AFTER IT: `Abbatino, prima di essere arrestato e di decidere di collaborare con l''autorità giudiziaria, era uno dei più noti malviventi'' is the man who was one, and divided at `era'', an era, he was a heading and the copula had nobody named (tr_insertion_comps/1, tr_read0/4) -- AND AN INFINITIVE JOINED TO A PREPOSITION''S INFINITIVE IS UNDER THE SAME PREPOSITION IN ENGLISH, where it was `and to decide'' (tr_comps_out/7)', S89V16,
+         'Pedro, before being arrested and before deciding to collaborate with the dog, was a cat.'),
+    ( reason_translate('Per Pedro, che prima di essere arrestato e di decidere di collaborare con il cane era un gatto, la casa dorme.', italian, english, X89V17) -> S89V17 = X89V17 ; S89V17 = refused ),
+    must('A PASSIVE INFINITIVE OF A PREPOSITION IS A FRONT OF A RELATIVE CLAUSE, with the infinitives joined to it: `per Abbatino, che prima di essere arrestato e di decidere di collaborare con l''autorità giudiziaria era uno dei più noti malviventi della capitale, il pm ha chiesto'' -- with the participle and the second infinitive no adjuncts it was no front, and the sentence was refused (tr_adjuncts_after/2)', S89V17,
+         'For Pedro, who was a cat before being arrested and before deciding to collaborate with the dog, the house sleeps.'),
+    ( reason_translate('Il cane ha chiesto la condanna a otto anni.', italian, english, X89V18) -> S89V18 = X89V18 ; S89V18 = refused ),
+    must('`asks'' TAKES `for'' BEFORE ITS OBJECT, NEVER BEFORE A COUNT, which is how much is asked: `il pm ha chiesto la condanna a otto anni e sei mesi di reclusione'' came out `has asked eight years and six months for the conviction'' (en_counted/1)', S89V18,
+         'The dog has asked for the conviction to eight years.'),
+    ( reason_translate('È stato lui, infatti, a mangiare il pane.', italian, english, X89V19) -> S89V19 = X89V19 ; S89V19 = refused ),
+    must('THE CLEFT WITH ITS COPULA FIRST IN THE PERFECT, AND AN ADVERB BETWEEN COMMAS AFTER WHO IT IS: `È stato lui, infatti, a rivelare tutti i retroscena della vicenda'' -- it was he, in fact, who revealed them; with the simple tenses alone it was a copula with nobody named, `It has been him, to reveal'' (tr_read_statement0/4)', S89V19,
+         'He, in fact, has eaten the bread.'),
+    ( reason_translate('Il cane che il 7 novembre mangiò il pane dorme.', italian, english, X89V20) -> S89V20 = X89V20 ; S89V20 = refused ),
+    must('A DATE IN FRONT OF A RELATIVE CLAUSE''S VERB: `i componenti della banda che il 7 novembre del settantasette, rapì il duca'' -- the date was the clause''s subject, and in a heading none had a verb (tr_relative_clause/4)', S89V20,
+         'The dog that on November 7 ate the bread sleeps.'),
+    ( reason_translate('Il cane che il 7 novembre, mangiò il pane dorme.', italian, english, X89V21) -> S89V21 = X89V21 ; S89V21 = refused ),
+    must('... and with a comma after the date (tr_rel_time_comma/3)', S89V21,
+         'The dog that on November 7 ate the bread sleeps.'),
+    ( reason_translate('Otto anni per il cane che il 7 novembre, mangiò il pane.', italian, english, X89V22) -> S89V22 = X89V22 ; S89V22 = refused ),
+    must('A COMMA BETWEEN A DATE AND THE VERB AFTER A RELATIVE WORD IS NONE OF THE CLAUSE''S, the paper''s slip: `Dieci ergastoli per i componenti della banda che il 7 novembre del settantasette, rapì il duca'' -- in a heading the comma parted the clause from its verb, and the sentence was refused (tr_rel_time_comma/3)', S89V22,
+         'Eight years for the dog that on November 7 ate the bread.'),
+    ( reason_translate('Otto anni per i componenti della banda che il 7 novembre del 1977, uccise il gatto.', italian, english, X89V23) -> S89V23 = X89V23 ; S89V23 = refused ),
+    must('... AND THE YEAR AFTER THE DATE''S `of'' IS THE DATE''S OWN, where it came out `of the seventy-seven, on November 7'' (tr_date_year/2) -- AND ENGLISH SAYS `on'' A DATE WITH ITS YEAR (tr_comp_out/7)', S89V23,
+         'Eight years for the members of the gang that on November 7, 1977 killed the cat.'),
+    ( reason_translate('Otto anni per i componenti della banda che il 7 novembre del 1977, uccise il gatto.', italian, spanish, X89V24) -> S89V24 = X89V24 ; S89V24 = refused ),
+    must('... and Spanish', S89V24,
+         'Ocho años para los miembros de la banda que el 7 de noviembre de 1977 mató al gato.').
+
+section_89_3 :-
+    ( reason_translate('Pedro, che ha dato il pane al gatto, per il cane è "grande".', italian, english, X89V25) -> S89V25 = X89V25 ; S89V25 = refused ),
+    must('ADJUNCTS AFTER THE COMMA THAT CLOSES THE SUBJECT''S RELATIVE CLAUSE, RIGHT BEFORE THE VERB: `Abbatino, che ha dato tutta una serie di indicazioni ..., per il pm è "pienamente affidabile"'' -- for the prosecutor he is fully reliable; with no comma before the verb the phrase was read into the subject (tr_insertion_off/4)', S89V25,
+         'Pedro, who has given the bread to the cat, for the dog, is "big".').
+
+lesson_89(spanish, 19, 'The verb "secuestra" means "kidnaps". "secuestró" is the past of "secuestra". "secuestrado" is the participle of "secuestra". "mató" is the past of "mata". The feminine noun "banda" means "gang". "bandas" is the plural of "banda". "banda" is a group. The masculine noun "descuento" means "discount". The masculine noun "arrepentido" means "informer". "arrepentido" is a person. "noviembre" is a month. The masculine noun "noviembre" means "november". "últimos" is the plural of "último". The number "ocho" means "eight". The masculine noun "mes" means "month". "meses" is the plural of "mes". "mes" is a time. The preposition "antes de" means "before". The verb "arresta" means "arrests". "arrestado" is the participle of "arresta". The verb "revela" means "reveals". "revelado" is the participle of "revela". The verb "permite" means "allows". "permitido" is the participle of "permite". "permite" takes the subjunctive. The verb "establece" means "establishes". The feminine noun "condena" means "conviction". "pedido" is the participle of "pide". The noun "componente" means "component". "componentes" is the plural of "componente". The adverb "de hecho" means "in fact". The verb "decide" means "decides". The verb "colabora" means "collaborates". "establecer" is the infinitive of "establece". "decidir" is the infinitive of "decide". "arrestar" is the infinitive of "arresta". "revelar" is the infinitive of "revela". "colaborar" is the infinitive of "colabora". "pidió" is the past of "pide". The adjective "grande" means "big". "era" is the imperfect of "es". The pronoun "él" means "he". The pronoun "todos" means "everyone". The pronoun "todos" does not precede the verb.').
+lesson_89(italian, 19, '"mangiò" is the past of "mangia". The verb "rapisce" means "kidnaps". "rapì" is the past of "rapisce". "rapito" is the participle of "rapisce". "rapita" is the participle of "rapisce". "rapita" is feminine. "uccise" is the past of "uccide". "uccisa" is the participle of "uccide". "uccisa" is feminine. "uccise" is the participle of "uccide". "uccise" is feminine. The feminine noun "banda" means "gang". "bande" is the plural of "banda". "banda" is a group. The noun "componente" means "component". "componenti" is the plural of "componente". The noun "componente" means "member". The masculine noun "sconto" means "discount". "sconti" is the plural of "sconto". The verb "sconta" means "discounts". "sconto" is the first person of "sconta". The masculine noun "pentito" means "informer". "pentito" is a person. "novembre" is a month. The masculine noun "novembre" means "november". The masculine adjective "ultimo" means "last". "ultimi" is the plural of "ultimo". The number "otto" means "eight". The masculine noun "mese" means "month". "mesi" is the plural of "mese". "mese" is a time. The preposition "prima di" means "before". The verb "arresta" means "arrests". "arrestato" is the participle of "arresta". The verb "rivela" means "reveals". "rivelato" is the participle of "rivela". The verb "consente" means "allows". "consentito" is the participle of "consente". The verb "stabilisce" means "establishes". The feminine noun "condanna" means "conviction". "chiesto" is the participle of "chiede". The verb "decide" means "decides". The verb "collabora" means "collaborates". "consente" takes "di" before the infinitive. "stabilire" is the infinitive of "stabilisce". "decidere" is the infinitive of "decide". "arrestare" is the infinitive of "arresta". "rivelare" is the infinitive of "rivela". "collaborare" is the infinitive of "collabora". "decide" takes "di" before the infinitive. The word "a" begins the cleft. The feminine noun "era" means "era". "ere" is the plural of "era". The masculine noun "rapimento" means "abduction". "fatto" is the participle of "fa". "fatta" is the participle of "fa". "fatta" is feminine. "fatte" is the participle of "fa". "fatte" is feminine. The feminine noun "conclusione" means "end". The feminine noun "festa" means "party". The feminine demonstrative "questa" means "this". "queste" is the plural of "questa". The feminine pronoun "questa" means "this". "viste" is the participle of "vede". "viste" is feminine.').
 
 %% Duplicated at the foot of every tutorial on purpose: one you can copy
 %% anywhere and run is worth six repeated lines, and one that needs a support

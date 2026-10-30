@@ -5257,3 +5257,99 @@ The feminine noun "esplosione" means "explosion".
 # `al estallarle una bomba' is `esplodendogli una bomba': the bomb explodes (the dictionary's first Italian verb for
 # explodes was `sfrutta', which exploits)
 The intransitive verb "esplode" means "explodes".
+# The Grazioli trial report (VIT-9310..9323, the kidnapping of the duke Massimiliano Grazioli Lante in 1977):
+# `il sequestro e la morte del duca' is the kidnapping (the Italian dictionary has the noun and no meaning)
+The masculine noun "sequestro" means "kidnapping".
+"sequestri" is the plural of "sequestro".
+# `sconto al pentito Abbatino': the informer of a mafia trial, a person
+The masculine noun "pentito" means "informer".
+"pentiti" is the plural of "pentito".
+"pentito" is a person.
+# `Dieci ergastoli': life sentences, and `la condanna a vita' one
+The masculine noun "ergastolo" means "life sentence".
+"ergastoli" is the plural of "ergastolo".
+The feminine noun "condanna a vita" means "life sentence".
+"condanne a vita" is the plural of "condanna a vita".
+# `a conclusione della requisitoria': the prosecutor's closing speech
+The feminine noun "requisitoria" means "closing speech".
+"requisitorie" is the plural of "requisitoria".
+# `in corte di assise': the court of assizes
+The feminine noun "corte di assise" means "court of assizes".
+"corti di assise" is the plural of "corte di assise".
+# `uno dei più noti malviventi della capitale': a criminal (`delinquente' said again first, so that it stays the
+# word written for one)
+The noun "delinquente" means "criminal".
+The noun "malvivente" means "criminal".
+"malviventi" is the plural of "malvivente".
+"malvivente" is a person.
+# `tutti i retroscena della vicenda': the inside story, one word in both numbers
+The masculine noun "retroscena" means "inside story".
+"retroscena" is the plural of "retroscena".
+"retroscena" is not feminine.
+# `nel corso del dibattimento': the trial (`processo' said again first)
+The masculine noun "processo" means "trial".
+The masculine noun "dibattimento" means "trial".
+"dibattimenti" is the plural of "dibattimento".
+# `ottenere il riscatto': the ransom
+The masculine noun "riscatto" means "ransom".
+"riscatti" is the plural of "riscatto".
+# `con l'intervento dei difensori': the defenders, persons
+The masculine noun "difensore" means "defender".
+"difensori" is the plural of "difensore".
+"difensore" is a person.
+# `le telefonate fatte alla famiglia del rapito': phone calls (the dictionary has the participle alone)
+The feminine noun "telefonata" means "phone call".
+"telefonate" is the plural of "telefonata".
+# `alcune discordanze': discrepancies (the dictionary's first is a geologist's unconformity; `discrepanza' said
+# again first)
+The feminine noun "discrepanza" means "discrepancy".
+The feminine noun "discordanza" means "discrepancy".
+"discordanze" is the plural of "discordanza".
+# `alle porte di Roma': on the outskirts of Rome
+The preposition "alle porte di" means "on the outskirts of".
+# `a cominciare dall'organizzazione del sequestro': starting from it (`a partire da' said again first)
+The preposition "a partire da" means "starting from".
+The preposition "a cominciare da" means "starting from".
+# `a conclusione della requisitoria': at the end of it (`alla fine di' said again first)
+The preposition "alla fine di" means "at the end of".
+The preposition "a conclusione di" means "at the end of".
+# `per quanto riguarda le telefonate': as for them (`quanto a' said again first)
+The preposition "quanto a" means "as for".
+The preposition "per quanto riguarda" means "as for".
+# `sono state messe in luce alcune discordanze': brought to light, one verb of three words
+The verb "mette in luce" means "brings to light".
+"mettono in luce" is the plural of "mette in luce".
+"mettere in luce" is the infinitive of "mette in luce".
+"messo in luce" is the participle of "mette in luce".
+"messa in luce" is the participle of "mette in luce".
+"messa in luce" is feminine.
+"messi in luce" is the participle of "mette in luce".
+"messi in luce" is the plural of "messo in luce".
+"messe in luce" is the participle of "mette in luce".
+"messe in luce" is feminine.
+"messe in luce" is the plural of "messa in luce".
+# `i componenti della banda che rapì e uccise nel 1977 il duca': the gang did it, a group, and the duke after the
+# verb is the clause's object
+"banda" is a group.
+# `i componenti della banda': its members (a component said again first, and `membro' said again first, so that it
+# stays the word written for a member)
+The noun "componente" means "component".
+The masculine noun "membro" means "member".
+The noun "componente" means "member".
+# `Francesco De Gennaro, Franco Catracchi, Renzo Danesi': the man's first name, where `franco' is frank, the
+# adjective, and the name came out `Frank Catracchi'
+"franco" is a name.
+# `avvenuto lungo la Via Salaria': along it (the adjective's `long' was the preposition's first meaning too, `long the
+# Via Salaria', `largo la carretera')
+The preposition "lungo" means "along".
+# `tutta una serie di indicazioni sulla base delle quali è stata sostenuta l'accusa': a whole series, one determiner of
+# two words (read as the pronoun `all' before an indefinite phrase, the relative clause of its `of' had no reading)
+The determiner "tutta una" means "a whole".
+The determiner "tutto un" means "a whole".
+"tutta una" is feminine.
+# `le telefonate fatte alla famiglia del rapito': the kidnap victim, a person (a participle with its noun left out)
+The masculine noun "rapito" means "kidnap victim".
+"rapiti" is the plural of "rapito".
+"rapito" is a person.
+# `per tenere i contatti e alla fine ottenere il riscatto': in the end, one adverb (`alla fine di' stays the preposition)
+The adverb "alla fine" means "in the end".

@@ -776,6 +776,9 @@ The masculine noun "precio" means "price".
 # ocasiones, mal educada': at most it shows that its owner is busy and, at
 # times, rude -- words of several words the dictionary does not carry
 The adverb "como mucho" means "at most".
+# (`revela' said first, so that it stays the word written for reveals: the lesson states no participle of `pone en
+# evidencia', and `è stato lui a rivelare tutti i retroscena' -- `ha revelado' -- was refused into Spanish)
+The verb "revela" means "reveals".
 The verb "pone en evidencia" means "reveals".
 The adverb "en ocasiones" means "sometimes".
 The masculine adjective "mal educado" means "rude".
@@ -3978,3 +3981,62 @@ The name "alpes" means "Alps".
 "vincula" takes the passive.
 # `al estallarle una bomba colocada en la arena': a bomb exploding, the phrase after the verb its subject
 The intransitive verb "estalla" means "explodes".
+# The Grazioli trial report (VIT-9310..9323), Italian into Spanish: `il pentito Maurizio Abbatino' is `el
+# arrepentido', the word the Spanish press gives an Italian trial's informer
+The masculine noun "arrepentido" means "informer".
+"arrepentidos" is the plural of "arrepentido".
+"arrepentido" is a person.
+# `dieci ergastoli': `diez cadenas perpetuas'
+The feminine noun "cadena perpetua" means "life sentence".
+"cadenas perpetuas" is the plural of "cadena perpetua".
+# `a conclusione della requisitoria': `de la requisitoria'
+The feminine noun "requisitoria" means "closing speech".
+"requisitorias" is the plural of "requisitoria".
+# `in corte di assise': `en el tribunal penal'
+The masculine noun "tribunal penal" means "court of assizes".
+"tribunales penales" is the plural of "tribunal penal".
+# `tutti i retroscena della vicenda': `todos los entresijos del asunto' (the dictionary's `secret' is not said again
+# first: as the first line of its meaning it would make `entresijo' the writer's word for every secret)
+The masculine noun "entresijo" means "inside story".
+# `le telefonate fatte alla famiglia del rapito': `las llamadas telefónicas'
+The feminine noun "llamada telefónica" means "phone call".
+"llamadas telefónicas" is the plural of "llamada telefónica".
+# `alle porte di Roma': `a las puertas de Roma'
+The preposition "a las puertas de" means "on the outskirts of".
+# `sono state messe in luce alcune discordanze': `han sido sacadas a la luz', one verb of four words
+The verb "saca a la luz" means "brings to light".
+"sacan a la luz" is the plural of "saca a la luz".
+"sacar a la luz" is the infinitive of "saca a la luz".
+"sacado a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is feminine.
+"sacados a la luz" is the participle of "saca a la luz".
+"sacados a la luz" is the plural of "sacado a la luz".
+"sacadas a la luz" is the participle of "saca a la luz".
+"sacadas a la luz" is feminine.
+"sacadas a la luz" is the plural of "sacada a la luz".
+# `i componenti della banda della Magliana': `la banda de la Magliana', the word of the Spanish press for a gang (a
+# band said again first), a group
+The feminine noun "banda" means "band".
+The feminine noun "banda" means "gang".
+"banda" is a group.
+"pandilla" is a group.
+# `con l'intervento dei difensori': `de los defensores' (the writer's word for a defender was `zaguero', a football
+# player's; a campaigner said again first)
+The masculine noun "defensor" means "campaigner".
+The masculine noun "defensor" means "defender".
+# `a conclusione della requisitoria': `al final de la requisitoria' (the writer's word for at the end of was `a
+# finales de', the end of a month or a year)
+The preposition "al final de" means "at the end of".
+# `avvenuto lungo la Via Salaria': `a lo largo de la Via Salaria' (Spanish had no preposition for along)
+The preposition "a lo largo de" means "along".
+# `tutta una serie di indicazioni': `toda una serie de indicaciones'
+The determiner "toda una" means "a whole".
+The determiner "todo un" means "a whole".
+"toda una" is feminine.
+# `alla famiglia del rapito': `a la familia del secuestrado', a person
+The masculine noun "secuestrado" means "kidnap victim".
+"secuestrados" is the plural of "secuestrado".
+"secuestrado" is a person.
+# `alla fine ottenere il riscatto': `al final conseguir el rescate' (`al final de' stays the preposition)
+The adverb "al final" means "in the end".

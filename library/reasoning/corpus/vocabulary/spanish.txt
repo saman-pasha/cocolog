@@ -482,6 +482,7 @@ The adjective "de pega" means "fake".
 The conjunction "a medida que" means "as".
 The masculine noun "precio" means "price".
 The adverb "como mucho" means "at most".
+The verb "revela" means "reveals".
 The verb "pone en evidencia" means "reveals".
 The adverb "en ocasiones" means "sometimes".
 The masculine adjective "mal educado" means "rude".
@@ -2457,6 +2458,45 @@ The verb "manifiesta" means "states".
 The name "alpes" means "Alps".
 "vincula" takes the passive.
 The intransitive verb "estalla" means "explodes".
+The masculine noun "arrepentido" means "informer".
+"arrepentidos" is the plural of "arrepentido".
+"arrepentido" is a person.
+The feminine noun "cadena perpetua" means "life sentence".
+"cadenas perpetuas" is the plural of "cadena perpetua".
+The feminine noun "requisitoria" means "closing speech".
+"requisitorias" is the plural of "requisitoria".
+The masculine noun "tribunal penal" means "court of assizes".
+"tribunales penales" is the plural of "tribunal penal".
+The masculine noun "entresijo" means "inside story".
+The feminine noun "llamada telefónica" means "phone call".
+"llamadas telefónicas" is the plural of "llamada telefónica".
+The preposition "a las puertas de" means "on the outskirts of".
+The verb "saca a la luz" means "brings to light".
+"sacan a la luz" is the plural of "saca a la luz".
+"sacar a la luz" is the infinitive of "saca a la luz".
+"sacado a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is the participle of "saca a la luz".
+"sacada a la luz" is feminine.
+"sacados a la luz" is the participle of "saca a la luz".
+"sacados a la luz" is the plural of "sacado a la luz".
+"sacadas a la luz" is the participle of "saca a la luz".
+"sacadas a la luz" is feminine.
+"sacadas a la luz" is the plural of "sacada a la luz".
+The feminine noun "banda" means "band".
+The feminine noun "banda" means "gang".
+"banda" is a group.
+"pandilla" is a group.
+The masculine noun "defensor" means "campaigner".
+The masculine noun "defensor" means "defender".
+The preposition "al final de" means "at the end of".
+The preposition "a lo largo de" means "along".
+The determiner "toda una" means "a whole".
+The determiner "todo un" means "a whole".
+"toda una" is feminine.
+The masculine noun "secuestrado" means "kidnap victim".
+"secuestrados" is the plural of "secuestrado".
+"secuestrado" is a person.
+The adverb "al final" means "in the end".
 The masculine noun "niño" means "child".
 "niños" is the plural of "niño".
 "niño" is a person.

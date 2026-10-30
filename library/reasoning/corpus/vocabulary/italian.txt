@@ -3425,6 +3425,70 @@ The name "alpi" means "Alps".
 The feminine noun "esplosione" means "explosion".
 "alpi" is feminine.
 The intransitive verb "esplode" means "explodes".
+The masculine noun "sequestro" means "kidnapping".
+"sequestri" is the plural of "sequestro".
+The masculine noun "pentito" means "informer".
+"pentiti" is the plural of "pentito".
+"pentito" is a person.
+The masculine noun "ergastolo" means "life sentence".
+"ergastoli" is the plural of "ergastolo".
+The feminine noun "condanna a vita" means "life sentence".
+"condanne a vita" is the plural of "condanna a vita".
+The feminine noun "requisitoria" means "closing speech".
+"requisitorie" is the plural of "requisitoria".
+The feminine noun "corte di assise" means "court of assizes".
+"corti di assise" is the plural of "corte di assise".
+The noun "delinquente" means "criminal".
+The noun "malvivente" means "criminal".
+"malviventi" is the plural of "malvivente".
+"malvivente" is a person.
+The masculine noun "retroscena" means "inside story".
+"retroscena" is the plural of "retroscena".
+"retroscena" is not feminine.
+The masculine noun "processo" means "trial".
+The masculine noun "dibattimento" means "trial".
+"dibattimenti" is the plural of "dibattimento".
+The masculine noun "riscatto" means "ransom".
+"riscatti" is the plural of "riscatto".
+The masculine noun "difensore" means "defender".
+"difensori" is the plural of "difensore".
+"difensore" is a person.
+The feminine noun "telefonata" means "phone call".
+"telefonate" is the plural of "telefonata".
+The feminine noun "discrepanza" means "discrepancy".
+The feminine noun "discordanza" means "discrepancy".
+"discordanze" is the plural of "discordanza".
+The preposition "alle porte di" means "on the outskirts of".
+The preposition "a partire da" means "starting from".
+The preposition "a cominciare da" means "starting from".
+The preposition "alla fine di" means "at the end of".
+The preposition "a conclusione di" means "at the end of".
+The preposition "quanto a" means "as for".
+The preposition "per quanto riguarda" means "as for".
+The verb "mette in luce" means "brings to light".
+"mettono in luce" is the plural of "mette in luce".
+"mettere in luce" is the infinitive of "mette in luce".
+"messo in luce" is the participle of "mette in luce".
+"messa in luce" is the participle of "mette in luce".
+"messa in luce" is feminine.
+"messi in luce" is the participle of "mette in luce".
+"messi in luce" is the plural of "messo in luce".
+"messe in luce" is the participle of "mette in luce".
+"messe in luce" is feminine.
+"messe in luce" is the plural of "messa in luce".
+"banda" is a group.
+The noun "componente" means "component".
+The masculine noun "membro" means "member".
+The noun "componente" means "member".
+"franco" is a name.
+The preposition "lungo" means "along".
+The determiner "tutta una" means "a whole".
+The determiner "tutto un" means "a whole".
+"tutta una" is feminine.
+The masculine noun "rapito" means "kidnap victim".
+"rapiti" is the plural of "rapito".
+"rapito" is a person.
+The adverb "alla fine" means "in the end".
 The masculine noun "orientamento" means "orientation".
 "orientamenti" is the plural of "orientamento".
 The feminine noun "ricerca" means "search".
