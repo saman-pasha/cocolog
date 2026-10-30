@@ -1980,13 +1980,21 @@
   ;;; under its own tag so a grep for `ERROR:' finds both halves. WHERE is
   ;;; nil for text with no file behind it -- a clause out of the database,
   ;;; the REPL -- and then the location line is left out rather than made up.
+  ;;;
+  ;;; ON A LINE OF ITS OWN (2.16.0): a report begins with a newline when the
+  ;;; console's line is open -- the program wrote `abc' and no newline --
+  ;;; as swipl's do, being print_message/2's (`~N', lib/term.cicili's
+  ;;; `coco_out_fresh'). Through 2.15.1 `abc' and a report's tag shared a
+  ;;; line on a terminal.
   (static)
   (func coco_load_message ((const char * tag) (const char * origin) (int line)
                            (const char * what))
         (fflush nil)
+        (coco_out_fresh stderr)
         (if (!= origin nil)
             (fprintf stderr "%s: %s:%d:\n" tag origin line))
-        (fprintf stderr "%s:    %s\n" tag what))
+        (fprintf stderr "%s:    %s\n" tag what)
+        (coco_out_note stderr "\n" 1))
 
   ;;; The one-line form, which is the one SWI uses for an initialization goal
   ;;; -- `Warning: p.pl:1: Initialization goal failed'. Measured against
@@ -1996,13 +2004,15 @@
   (func coco_load_note ((const char * tag) (const char * origin) (int line)
                         (const char * what))
         (fflush nil)
+        (coco_out_fresh stderr)
         (if (!= origin nil)
             (fprintf stderr "%s: %s:%d: %s\n" tag origin line what)
-          (fprintf stderr "%s: %s\n" tag what)))
+          (fprintf stderr "%s: %s\n" tag what))
+        (coco_out_note stderr "\n" 1))
 
   (func coco_bt_say ((coco_machine * m) (int say))
         (if (== (-> m bt) nil) (return))
-        (if say (fputs (-> m bt) stderr))
+        (if say (coco_out_puts stderr (-> m bt)))
         (free (-> m bt))
         (set (-> m bt) nil))
 
@@ -7233,6 +7243,29 @@
   (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
         (return (coco_assert_from st m clause at_end 0 nil)))
 
+  ;;; THE HOOKS print_message/2 READS (2.16.0): `prolog:message//1' and
+  ;;; `prolog:error_message//1', the two a program extends to give a term of
+  ;;; its own its text. One namespace keeps them apart from a program's own
+  ;;; message/3 by name: their clauses are '$prolog_message'/3 and
+  ;;; '$prolog_error_message'/3, which library(print_message) calls. Any
+  ;;; other qualified head loses its qualifier, as it always did.
+  (static)
+  (func coco_hook_head ((coco_machine * m) (size_t mod) (size_t h)) (out size_t)
+        (set mod (coco_deref m mod))
+        (set h (coco_deref m h))
+        (if (not (coco-tag-is ATOM (nth mod (-> m heap)))) (return h))
+        (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m mod)) "prolog")) (return h))
+        (if (or (not (coco_is_callable m h)) (!= (coco_arity m h) 3)) (return h))
+        (let ((const char * nm . #'(coco_atom_name m (coco_name_of m h))) (const char * to . nil)
+              (size_t args [3]))
+          (if (== 0 (strcmp nm "message")) (set to "$prolog_message"))
+          (if (== 0 (strcmp nm "error_message")) (set to "$prolog_error_message"))
+          (if (== to nil) (return h))
+          (set (nth 0 args) (coco_arg m h 0))
+          (set (nth 1 args) (coco_arg m h 1))
+          (set (nth 2 args) (coco_arg m h 2))
+          (return (coco_make m to 3 args))))
+
   (func coco_assert_stored ((coco_store * st) (coco_machine * m) (size_t t)) (out int)
         (set t (coco_deref m t))
         (if (and (coco_is_callable m t) (== (coco_arity m t) 2)
@@ -7300,9 +7333,8 @@
           (set qh (coco_deref m qh))
           (if (and (coco_is_callable m qh) (== (coco_arity m qh) 2)
                    (== 0 (strcmp (coco_atom_name m (coco_name_of m qh)) ":")))
-              (set clause (? (== qb 0)
-                             (coco_deref m (coco_arg m qh 1))
-                             (coco_make2 m ":-" (coco_arg m qh 1) qb)))))
+              (let ((size_t inner . #'(coco_hook_head m (coco_arg m qh 0) (coco_arg m qh 1))))
+                (set clause (? (== qb 0) inner (coco_make2 m ":-" inner qb))))))
 
         ;; the head decides which predicate this belongs to
         (let ((size_t head . clause))
@@ -7763,11 +7795,19 @@
                        ;; Unregistered, the goal runs as it did, collecting
                        ;; nothing.
                        (if (and (== handled 0) active)
-                           (let ((size_t * mp . nil) (size_t ml . 1) (int pushed . 0) (int dr . 0))
+                           (let ((size_t * mp . nil) (size_t ml . 1) (int pushed . 0) (int dr . 0)
+                                 (const char * sfile . #'(-> m sloc_file))
+                                 (int sline . #'(-> m sloc_line)))
                              (set mp (aof mark))
                              (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
                              (set (-> m dgc) (? pushed vouch 0))
+                             ;; source_location/2 answers the directive's file
+                             ;; and line while its goal runs (2.16.0)
+                             (set (-> m sloc_file) origin)
+                             (set (-> m sloc_line) at)
                              (set dr (coco_directive st m (coco_arg m t 0) (aof inits) at err errlen))
+                             (set (-> m sloc_file) sfile)
+                             (set (-> m sloc_line) sline)
                              (set (-> m dgc) 0)
                              (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))

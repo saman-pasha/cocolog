@@ -129,6 +129,14 @@
 ;;; with_output_to/2; answers 1 took it, 0 not mine, 2 raised.
 (decl) (func coco_m_sink_install
              ((func hook ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))))
+;;; THE CONSOLE'S COLUMN (2.16.0), for format's `~N' and print_message/2: a
+;;; module's own sink answers whether a line is open there (1 open, 0 at a
+;;; line's start, -1 not mine); a module that writes to the console itself
+;;; says what it wrote, FD 1 user_output and 2 user_error, and can ask the
+;;; column. A module that calls one needs 2.16.0 or later.
+(decl) (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
+(decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
+(decl) (func coco_m_out_open ((int fd)) (out int))
 ;;; A PORTAL, of a module this tree does not know (1.10.15): NAME/ARITY of
 ;;; MODULE answers from outside the run -- a file, a device, the clock -- or
 ;;; changes it, so a journal records each call and a replay answers it from

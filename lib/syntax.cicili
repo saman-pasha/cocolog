@@ -2245,7 +2245,7 @@
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_write_top m (aof b) t 8 1)
-          (if (!= ($ b s) nil) (fputs ($ b s) f))
+          (if (!= ($ b s) nil) (coco_out_puts f ($ b s)))
           (coco_sb_free (aof b))))
 
   ) ; impl-syntax

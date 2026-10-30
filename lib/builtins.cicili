@@ -102,6 +102,8 @@
     ("setenv"                  2 coco_b_setenv)
     ("unsetenv"                1 coco_b_unsetenv)
 
+    ("source_location"         2 coco_b_source_location)
+
     ("format"                  1 coco_b_format1)
     ("format"                  2 coco_b_format2)
     ("format"                  3 coco_b_format3)
@@ -2118,10 +2120,13 @@
 
   ;;; Builds the whole of one format into B. Answers 1, or 0 with ERR set to a
   ;;; message the caller raises -- so that every way of going wrong is reported
-  ;;; the same way whichever of the three arities was called.
+  ;;; the same way whichever of the three arities was called. OPEN says
+  ;;; whether a line is open on the sink before anything is built (2.16.0):
+  ;;; `~N' writes a newline only where a line is open, the text built so far
+  ;;; when there is any, the sink's own line before it.
   (static)
   (func coco_fmt_build ((coco_engine * e) (const char * f) (const size_t * items)
-                        (size_t n) (coco_strbuf * b) (char * err) (size_t errlen))
+                        (size_t n) (coco_strbuf * b) (char * err) (size_t errlen) (int open))
         (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (size_t ai . 0) (size_t i . 0))
           (while (!= (nth i f) 0)
@@ -2156,6 +2161,15 @@
               (if (== d 110)
                   (block (for ((long k . 0)) (< k (? have num 1)) ((++ k))
                            (coco_sb_putc b (cast char 10)))
+                         continue))
+              ;; 78 `~N' (2.16.0): a newline unless the line is at its start
+              ;; -- swipl's, whose `format("~Na~N~Nb~n")' is `a', a newline,
+              ;; `b' and a newline. Through 2.15.1 no such directive.
+              (if (== d 78)
+                  (block (if (> (-> b len) 0)
+                             (if (!= (nth (- (-> b len) 1) (-> b s)) (cast char 10))
+                                 (coco_sb_putc b (cast char 10)))
+                             (if open (coco_sb_putc b (cast char 10))))
                          continue))
               (if (== d 105)
                   (let ((size_t a . 0))
@@ -2285,7 +2299,7 @@
           ;; first term was its sink atom (`format(nosuch_sink, x, [])') took
           ;; this path and printed where it should have raised, and an alias
           ;; there would have gone to stdout. No cell index reaches SIZE_MAX.
-          (if (== sink (cast size_t -1)) (block (fputs out stdout) (return 1)))
+          (if (== sink (cast size_t -1)) (block (coco_out_puts stdout out) (return 1)))
           (let ((int hooked . #'(coco_m_sink_call e sink out (strlen out))))
             (if (!= hooked 0) (return hooked)))
 
@@ -2296,8 +2310,8 @@
             ;; a stream by name
             (if (== (coco_arity m d) 0)
                 (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
-                  (if (== 0 (strcmp nm "user_output")) (block (fputs out stdout) (return 1)))
-                  (if (== 0 (strcmp nm "user_error")) (block (fputs out stderr) (return 1)))
+                  (if (== 0 (strcmp nm "user_output")) (block (coco_out_puts stdout out) (return 1)))
+                  (if (== 0 (strcmp nm "user_error")) (block (coco_out_puts stderr out) (return 1)))
                   (return (coco_m_domain_error e "output_sink" sink))))
 
             (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d)))
@@ -2343,6 +2357,24 @@
                     (set acc (coco_m_cons e c acc))))
                 (return (? (coco_m_unify e (coco_arg m d 0) acc) 1 0)))))))
 
+  ;;; WHETHER A LINE IS OPEN ON SINK (2.16.0), for `~N': stdout's and
+  ;;; stderr's by the console's column (`coco_out_open'), a module's sink as
+  ;;; the module answers (`coco_m_sink_open_call': library(stream)'s files),
+  ;;; and a term sink -- atom(A), codes(C), ... -- never, as swipl begins
+  ;;; each of those at column 0. A sink that is no sink is format's to refuse.
+  (static)
+  (func coco_fmt_open ((coco_engine * e) (size_t sink)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t d . 0) (int h . 0))
+          (if (== sink (cast size_t -1)) (return (coco_out_open stdout)))
+          (set h (coco_m_sink_open_call e sink))
+          (if (>= h 0) (return h))
+          (set d (coco_deref m sink))
+          (if (and (coco_is_callable m d) (== (coco_arity m d) 0))
+              (let ((const char * nm . #'(coco_atom_name m (coco_name_of m d))))
+                (if (== 0 (strcmp nm "user_output")) (return (coco_out_open stdout)))
+                (if (== 0 (strcmp nm "user_error")) (return (coco_out_open stderr)))))
+          (return 0)))
+
   ;;; Shared by all three arities. SINK is `(cast size_t -1)' for stdout.
   (static)
   (func coco_fmt_do ((coco_engine * e) (size_t sink) (size_t fmt) (size_t argt))
@@ -2361,7 +2393,8 @@
           (set owned (coco_fmt_args e argt (aof items) (aof n) one))
           (coco_sb_init (aof b))
           (set (nth 0 err) (cast char 0))
-          (set ok (coco_fmt_build e (? (== ($ fb s) nil) "" ($ fb s)) items n (aof b) err (sizeof err)))
+          (set ok (coco_fmt_build e (? (== ($ fb s) nil) "" ($ fb s)) items n (aof b) err (sizeof err)
+                                  (coco_fmt_open e sink)))
           (coco_sb_free (aof fb))
           (if owned (free items))
 
@@ -2374,7 +2407,7 @@
           (if (not ok)
               (block
                (if (== sink (cast size_t -1))
-                   (if (!= ($ b s) nil) (fputs ($ b s) stdout)))
+                   (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s))))
                (coco_sb_free (aof b))
                ;; a refused buffer is resource_error(memory) (1.10.28)
                (if (== 0 (strcmp err "format/2: out of memory"))
@@ -2415,7 +2448,7 @@
               (size_t sink . #'(coco_m_arg e g 0))
               (size_t goal . #'(coco_m_arg e g 1))
               (coco_engine sub)
-              (FILE * tmp . nil) (int saved . -1) (int rc . 0)
+              (FILE * tmp . nil) (int saved . -1) (int rc . 0) (int colsaved . 0)
               (int threw . 0) (size_t ball_cell . 0) (size_t ball_size . 0)
               (void * bstor . nil) (size_t bmark . 0)
               (char * text . nil) (long len . 0))
@@ -2432,6 +2465,10 @@
           (if (< (dup2 (fileno tmp) 1) 0)
               (block (close saved) (fclose tmp)
                      (return (coco_m_error e "with_output_to/2" "cannot redirect stdout"))))
+          ;; the capture's column is its own, from 0, as swipl's sink's
+          ;; (2.16.0, `~N' and print_message/2), and the console's comes
+          ;; back with fd 1
+          (set colsaved (coco_out_capture_begin))
 
           (coco_engine_init (aof sub) m st)
           ;; the inner goal spends the outer one's remaining budget, so a step
@@ -2494,6 +2531,7 @@
           (fflush stdout)
           (dup2 saved 1)
           (close saved)
+          (coco_out_capture_end colsaved)
 
           (if (!= rc 1)
               (block (fclose tmp)
@@ -3188,7 +3226,7 @@
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_write_mode (coco_m_machine e) (aof b) (coco_m_arg e g 0) 25 1)
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
 
@@ -3244,7 +3282,7 @@
                            (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
           (free cells) (free names)
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
 
@@ -3260,6 +3298,19 @@
   ;;; and not only convenience: a consulted file becomes clauses, and
   ;;; clauses become rows. A secret that must not become a row -- a
   ;;; node's signing key, a token -- has nowhere else to arrive from.
+  ;;; source_location(-File, -Line) (2.16.0), swipl's: the file and the line
+  ;;; of the directive a load is running, the file by its absolute path
+  ;;; (`realpath', as swipl names it), and a failure anywhere else -- in the
+  ;;; program, and in an initialization/1 goal run after its file was read.
+  ;;; print_message/2 asks it for an error's and a warning's location line.
+  (func coco_b_source_location ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (char full [4096]))
+          (if (== (-> m sloc_file) nil) (return 0))
+          (if (== nil (realpath (-> m sloc_file) full))
+              (snprintf full (sizeof full) "%s" (-> m sloc_file)))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))
+
   (func coco_b_getenv ((coco_engine * e) (size_t g)) (out int)
         (let ((char name [512]))
           (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
@@ -3287,7 +3338,7 @@
         (let ((i64 n . 0))
           (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
               (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
-          (for ((i64 i . 0)) (< i n) ((++ i)) (fputc 32 stdout))
+          (for ((i64 i . 0)) (< i n) ((++ i)) (coco_out_putc stdout 32))
           (return 1)))
 
   ;;; ---- the clause database ----------------------------------------------

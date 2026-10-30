@@ -1851,7 +1851,8 @@
 
   (static)
   (func coco_trace_line ((const char * port) (int depth) (const char * text))
-        (fprintf stderr "   %s: (%d) %s\n" port depth (? (== text nil) "?" text)))
+        (fprintf stderr "   %s: (%d) %s\n" port depth (? (== text nil) "?" text))
+        (coco_out_note stderr "\n" 1))
 
   (static)
   (func coco_trace_port ((coco_engine * e) (const char * port) (int depth) (size_t g))
@@ -10448,13 +10449,13 @@
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_write_print (-> e m) (aof b) (coco_arg (-> e m) g 0))
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
 
   (func coco_bi_writeln ((coco_engine * e) (size_t g)) (out int)
         (coco_print_term (-> e m) stdout (coco_arg (-> e m) g 0))
-        (fputc 10 stdout)
+        (coco_out_putc stdout 10)
         (return 1))
 
   ;;; write_canonical/1: quoted, with swipl's character escapes (17, 2.2.5:
@@ -10463,12 +10464,12 @@
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
           (coco_write_mode (-> e m) (aof b) (coco_arg (-> e m) g 0) 17 0)
-          (if (!= ($ b s) nil) (fputs ($ b s) stdout))
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
 
   (func coco_bi_nl ((coco_engine * e) (size_t g)) (out int)
-        (fputc 10 stdout)
+        (coco_out_putc stdout 10)
         (return 1))
 
   ;;; ---- the database ----
@@ -10689,8 +10690,9 @@
             (if (and (not dyn) (== (coco_pred_live p) 0)) (return 0))
 
             (if dyn
-                (printf ":- dynamic %s/%u.\n\n" nm
-                        (cast unsigned ($ (nth pi (-> st preds)) arity))))
+                (block (printf ":- dynamic %s/%u.\n\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               ;; a clause retracted under a call still open is gone
@@ -10702,13 +10704,13 @@
                 ;; be pasted back into a file
                 (coco_write_term m (aof b) t 1 0)
                 (if (!= ($ b s) nil) (fputs ($ b s) stdout))
-                (fputs ".\n" stdout)
+                (coco_out_puts stdout ".\n")
                 (coco_sb_free (aof b))
                 ;; the clause was copied on to the heap only to be written
                 (set (-> m heap_len) mark)))
             ;; the blank line separates predicates. A declared predicate with no
             ;; clauses has already had one after its `:- dynamic' line.
-            (if (or (> (coco_pred_live p) 0) (not dyn)) (fputs "\n" stdout))
+            (if (or (> (coco_pred_live p) 0) (not dyn)) (coco_out_puts stdout "\n"))
             (return 1))))
 
   ;;; `listing' with no argument is the PROGRAM, not everything reachable. A

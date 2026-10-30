@@ -166,7 +166,7 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
 | X3 | `setup_call_cleanup/3` `predsort/3` `numbervars/3` `freeze/2` `dif/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
-| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | ten flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, and since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer` — and every other one FAILS |
+| P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | eighteen flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, and since 2.16.0 `verbose` — and every other one FAILS |
 | E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |
 
 The card has twenty more rows that inform the prompt rather than the

@@ -726,7 +726,15 @@
     ;; the root when this differs from `coco_tbl_gen' -- at a run's start and
     ;; before an intern. While the tables are shared the growth never frees
     ;; the old array, so a copied pointer stays valid.
-    (member size_t     tgen))
+    (member size_t     tgen)
+    ;; WHERE THE LOAD STANDS (2.16.0), for source_location/2 and so for
+    ;; print_message/2's location line: the file and the line of the
+    ;; directive whose goal is running, set by the load around the goal and
+    ;; put back after it (a nested load has its own), nil outside one --
+    ;; swipl's answers, which fail in an initialization/1 goal run after
+    ;; the file and in the program. Appended.
+    (member const char * sloc_file)
+    (member int        sloc_line))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -759,6 +767,14 @@
   ;; ---- the float flags (2.2.2) ----
   (decl) (func coco_fflags_default () (out int))
   (decl) (func coco_fflags_default_set ((int fl)))
+  ;; ---- the console's column (2.16.0): `~N' and print_message/2 ----
+  (decl) (func coco_out_note ((FILE * f) (const char * s) (size_t n)))
+  (decl) (func coco_out_puts ((FILE * f) (const char * s)))
+  (decl) (func coco_out_putc ((FILE * f) (int c)))
+  (decl) (func coco_out_open ((FILE * f)) (out int))
+  (decl) (func coco_out_fresh ((FILE * f)))
+  (decl) (func coco_out_capture_begin () (out int))
+  (decl) (func coco_out_capture_end ((int saved)))
   (decl) (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64))
   (decl) (func coco_utf8_enc ((char * u) (i64 cp)) (out int))
   (decl) (func coco_utf8_put ((coco_strbuf * b) (i64 cp)) (out int))
@@ -1450,6 +1466,68 @@
 
   (func coco_fflags_default_set ((int fl))
         (set coco_fflags_dflt fl))
+
+  ;;; THE CONSOLE'S COLUMN (2.16.0): whether a line is open on stdout and on
+  ;;; stderr -- the last character the engine wrote there was no newline --
+  ;;; for format's `~N' and for print_message/2, whose every prefix begins
+  ;;; with one. swipl keeps ONE position for user_output and user_error, so
+  ;;; a line begun on either is open on both: `format(user_output, "abc",
+  ;;; [])' and then `format(user_error, "~Nx~n", [])' puts the newline on
+  ;;; stderr. While with_output_to/2 captures fd 1 (`coco_out_cap'), stdout
+  ;;; keeps a column of its own, starting at 0, and stderr is the console's
+  ;;; alone; the capture's end gives stdout the console's column back.
+  ;;; WHAT IS COUNTED is what the engine writes -- write/1 and its kin, nl/0,
+  ;;; tab/1, format/1,2,3, listing/0,1, the load's and the goal's reports,
+  ;;; and library(stream)'s writes to its first three slots
+  ;;; (`coco_m_out_note') -- and not what a module prints with stdio of its
+  ;;; own, nor library(stream)'s set_output/1 to a file, which writes to fd 1
+  ;;; and is counted as the console. Process-wide, as the descriptors are: a
+  ;;; thread's write moves it too, a race that costs at most a newline.
+  (static) (var int coco_out_mid . 0)
+  (static) (var int coco_err_mid . 0)
+  (static) (var int coco_out_cap . 0)
+
+  (func coco_out_note ((FILE * f) (const char * s) (size_t n))
+        (if (or (== s nil) (== n 0)) (return))
+        (let ((int mid . #'(? (== (nth (- n 1) s) (cast char 10)) 0 1)))
+          (cond
+            ((== f stdout) (set coco_out_mid mid) (if (not coco_out_cap) (set coco_err_mid mid)))
+            ((== f stderr) (set coco_err_mid mid) (if (not coco_out_cap) (set coco_out_mid mid))))))
+
+  (func coco_out_puts ((FILE * f) (const char * s))
+        (if (== s nil) (return))
+        (fputs s f)
+        (coco_out_note f s (strlen s)))
+
+  (func coco_out_putc ((FILE * f) (int c))
+        (let ((char one [2]))
+          (set (nth 0 one) (cast char c))
+          (set (nth 1 one) (cast char 0))
+          (fputc c f)
+          (coco_out_note f one 1)))
+
+  ;;; 1 when a line is open on F (stdout or stderr), 0 at a line's start
+  (func coco_out_open ((FILE * f)) (out int)
+        (if (== f stdout) (return coco_out_mid))
+        (if (== f stderr) (return coco_err_mid))
+        (return 0))
+
+  ;;; `~N' on F: a newline only when a line is open there
+  (func coco_out_fresh ((FILE * f))
+        (if (coco_out_open f) (coco_out_putc f 10)))
+
+  ;;; with_output_to/2's capture of fd 1: stdout's column starts at 0 and is
+  ;;; its own until the end, which gives back what the capture's start saved
+  ;;; -- an outer capture's column, or the console's as stderr left it
+  (func coco_out_capture_begin () (out int)
+        (let ((int saved . #'(bitor coco_out_mid (<< coco_out_cap 1))))
+          (set coco_out_cap 1)
+          (set coco_out_mid 0)
+          (return saved)))
+
+  (func coco_out_capture_end ((int saved))
+        (set coco_out_cap (bitand (>> saved 1) 1))
+        (set coco_out_mid (? coco_out_cap (bitand saved 1) coco_err_mid)))
 
   ;;; ONE CHARACTER OF S (N bytes) AT *I, as its code point, *I moved past
   ;;; it. A byte that begins no well-formed UTF-8 -- a stray continuation, a

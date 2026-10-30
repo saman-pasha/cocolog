@@ -146,9 +146,13 @@ model something false:
 * `term_to_atom(answer(K, E), 'answer(cost,24.0)')` failed: a bound term
   was written and the two texts compared, where SWI parses the atom
   whenever it is bound. **Fixed in 2.15.1.**
-* `print_message/2` does not exist (an existence error), and neither does
-  `sumlist/2`, the old name SWI still autoloads for `sum_list/2`. Both are
-  still missing; the harness writes its messages with `format/3`.
+* `print_message/2` did not exist (an existence error), and neither did
+  `sumlist/2`, the old name SWI still autoloads for `sum_list/2`. **Both
+  are there since 2.16.0**, with `message_to_string/2`,
+  `print_message_lines/3`, `message_hook/3`, `prolog:message//1` and
+  `source_location/2`, held to swipl 9.0.4 (`test/files/print_message.pl`,
+  `error_messages.pl`, `folds.pl`); the harness still writes its messages
+  with `format/3`, which both systems answer alike.
 * The card's row A1 said that `atan/2`, `atan2/2`, `copysign/2`,
   `random/1`, `random_float`, the hyperbolic functions, `lgamma/1`,
   `erf/1`, `erfc/1`, `lsb/1`, `popcount/1`, `getbit/2`, `powm/3`,

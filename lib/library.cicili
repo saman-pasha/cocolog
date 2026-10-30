@@ -299,6 +299,10 @@
   ;;; `executable' FAILS rather than answering '' where the path could not
   ;;; be found, because a program about to spawn that path had better know.
   ;;; `argv' never fails: see lb_argv_list above.
+  ;;;
+  ;;; `verbose' (2.16.0) is the process's, as swipl's: empty is `normal'.
+  (static) (var char lb_verbose [64])
+
   (static)
   (func lb_current_flag ((coco_engine * e) (size_t g)) (out int)
         (let ((char flag [64]))
@@ -365,6 +369,12 @@
               (return (coco_m_unify_float e (coco_m_arg e g 1) 1.7976931348623157e308)))
           (if (== 0 (strcmp flag "float_max_integer"))
               (return (coco_m_unify_float e (coco_m_arg e g 1) 9007199254740992.0)))
+          ;; `verbose' (2.16.0): swipl's `normal', which `swipl -q' makes
+          ;; `silent' and print_message/2 reads -- under `silent' an
+          ;; informational or banner message prints nothing
+          (if (== 0 (strcmp flag "verbose"))
+              (return (coco_m_unify_atom e (coco_m_arg e g 1)
+                                         (? (== (nth 0 lb_verbose) (cast char 0)) "normal" lb_verbose))))
           (if (!= 0 (strcmp flag "executable")) (return 0))
           (lb_exe_resolve)
           (if (== (nth 0 lb_exe_path) (cast char 0)) (return 0))
@@ -457,6 +467,13 @@
                  ((== 0 (strcmp val "characters")) (set (-> mm text_chars) 1))
                  (#t (return (coco_m_domain_error e "text_units" v))))
                (coco_text_default_set (-> mm text_chars))
+               (return 1)))
+          ;; `verbose' (2.16.0) takes any atom, as swipl's does, and is the
+          ;; process's: print_message/2 reads `silent' alone
+          (if (== 0 (strcmp flag "verbose"))
+              (block
+               (if (not (lb_flag_value e v "flag_value" val 64 (aof rc))) (return rc))
+               (snprintf lb_verbose (sizeof lb_verbose) "%s" val)
                (return 1)))
           (if (== 0 (strcmp flag "generate_debug_info"))
               (block
@@ -851,6 +868,18 @@
                   (if (== kind 2)
                       (if (lb_load_pl path "async" err 512)
                           (set n (+ n 1))))))
+          ;; AND print_message/2 SINCE 2.16.0 (library/print_message.pl),
+          ;; swipl's, which a program calls without asking for a library: the
+          ;; kinds, the prefixes, the location line in a load and the error
+          ;; terms' text, with message_hook/3 and prolog:message//1. It
+          ;; costs every start-up 3.2 million instructions (`cocolog query
+          ;; true', 21.7 million to 25.0, callgrind), about half a
+          ;; millisecond of ten.
+          (if (== (coco_module_find "print_message") nil)
+              (if (lb_find "print_message" path 1024 (aof kind))
+                  (if (== kind 2)
+                      (if (lb_load_pl path "print_message" err 512)
+                          (set n (+ n 1))))))
           (return n)))
 
   ;;; ---- the module and the directive hook -------------------------------
@@ -882,11 +911,14 @@
   ;;; ---- consult/1, load_files/2 and `[File]' (2.13.0) -------------------
 
   ;;; A load's report on stderr in SWI's shape, after what the program has
-  ;;; written so far, so that the two read in order in one stream.
+  ;;; written so far, so that the two read in order in one stream, and on a
+  ;;; line of its own (2.16.0, `coco_out_fresh')
   (static)
   (func lb_say_text ((const char * msg))
         (fflush stdout)
-        (fprintf stderr "ERROR: %s\n" msg))
+        (coco_out_fresh stderr)
+        (fprintf stderr "ERROR: %s\n" msg)
+        (coco_out_note stderr "\n" 1))
 
   ;;; `$lf_say'(Ball): one file of a list that would not load, reported as
   ;;; SWI reports it, and the list goes on with the next.

@@ -391,7 +391,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "2.15.2"))
+  (func coco_version_text () (out const char *) (return "2.16.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -643,7 +643,9 @@
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
-                  (block (fprintf stderr "ERROR: %s\n" err)
+                  (block (fflush stdout)
+                         (coco_out_fresh stderr)
+                         (fprintf stderr "ERROR: %s\n" err)
                          (coco_store_free (aof st)) (coco_machine_free (aof m))
                          (return 1)))
               (set total (+ total n))))
@@ -810,10 +812,13 @@
         ;; this is going to an unbuffered stderr, and a message that jumped
         ;; the queue would look like it came from earlier in the run
         (fflush nil)
+        ;; on a line of its own, as swipl's print_message/2 puts it (2.16.0)
+        (coco_out_fresh stderr)
         (let ((char msg [512]))
           (if (coco_engine_error_text e msg (sizeof msg))
               (fprintf stderr "ERROR: %s: %s\n" where msg)
             (fprintf stderr "ERROR: %s: %s\n" where (-> e err))))
+        (coco_out_note stderr "\n" 1)
         ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
         ;; throw wrote (lib/solve.cicili's `coco_bt_capture'), SWI's shape
         (coco_bt_say (-> e m) (-> e has_ball)))
@@ -2353,7 +2358,9 @@
                                          err (sizeof err)))
               (set ($ m dgc) 0)
               (if (< n 0)
-                  (block (fprintf stderr "ERROR: %s\n" err)
+                  (block (fflush stdout)
+                         (coco_out_fresh stderr)
+                         (fprintf stderr "ERROR: %s\n" err)
                          (free text) (coco_engine_free (aof e)) (coco_store_free (aof st))
                          (coco_machine_free (aof m)) (return 1)))
               (free text)))

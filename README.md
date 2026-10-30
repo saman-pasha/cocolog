@@ -138,7 +138,10 @@ deadlock detection. Tier 1: there with no import.
 lists zigurat`; **eight of SWI's own libraries, copied unmodified under their
 BSD-2 headers into `lib/swipl/` and read at start-up**, so they need no import:
 `assoc`, `pairs`, `ordsets`, `yall`, `aggregate`, `ugraphs`, `dcg_basics` and
-`dcg_high_order`; and `async`. Tier 2 is loaded on demand from
+`dcg_high_order`; `async`; and since 2.16.0 `print_message`, swipl's
+`print_message/2` with `message_to_string/2`, `print_message_lines/3`,
+`message_hook/3` and `prolog:message//1`, the kinds, prefixes and error text
+held to swipl 9.0.4. Tier 2 is loaded on demand from
 `$COCOLOG_LIBRARY`:
 `http`, `httpd`, `websocket`, `json`, `xml`, `html`, `ca`, `kbs`, `cowork`,
 `main`, `astar`, `hex`, `template`, `clay_ray`, `tensor_expr`, `llm`, plus the
@@ -256,6 +259,7 @@ in any of the four knowledge-base arrangements.
 | write Prolog in Emacs | `cocolog-mode` in [emacs/](emacs/): colour variables, tests in comments with execution graphs, an embedded shadow engine |
 | catch the traps of this dialect before they bite | `sh tools/cocolint/lint.sh FILE.pl`; the card, the index, `make lint` |
 | Go-style concurrency inside one process | `library(async)`, tier 1: `async_run`, `go`, `yield`, `await`, channels |
+| messages, warnings and an error's text as swipl prints them | `print_message/2`, tier 1, with `message_hook/3` and `prolog:message//1`; lesson 56 |
 | an HTTP server whose pages are clauses | `library(httpd)` -- `concurrency(none/thread/green)`; lesson 16 |
 | a durable store, embedded or served | `--embed`; `--kb` to a ZiguratIP server; `library(kbs)` for named jobs |
 | frames, images, vision, ML | `library(opencv)`, `library(ray)`, `library(torch)`, `library(tensorflow)`, `library(tensor_expr)` |

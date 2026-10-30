@@ -118,6 +118,7 @@ flow_mode(nth0, 3, ['?', '+', '?'], nondet).
 flow_mode(nth1, 3, ['?', '+', '?'], nondet).
 flow_mode(last, 2, ['+', '-'], semidet).
 flow_mode(sum_list, 2, ['+', '-'], det).
+flow_mode(sumlist, 2, ['+', '-'], det).
 flow_mode(max_list, 2, ['+', '-'], semidet).
 flow_mode(min_list, 2, ['+', '-'], semidet).
 flow_mode(numlist, 3, ['+', '+', '-'], det).
@@ -234,6 +235,10 @@ flow_mode(notrace, 0, [], det).
 flow_mode(getenv, 2, ['+', '-'], semidet).
 flow_mode(setenv, 2, ['+', '+'], det).
 flow_mode(unsetenv, 1, ['+'], det).
+flow_mode(source_location, 2, ['-', '-'], semidet).
+flow_mode(print_message, 2, ['+', '+'], det).
+flow_mode(print_message_lines, 3, ['+', '+', '+'], det).
+flow_mode(message_to_string, 2, ['+', '-'], det).
 flow_mode(working_directory, 2, ['-', '?'], det).
 flow_mode(absolute_file_name, 2, ['+', '-'], det).
 flow_mode(is_absolute_file_name, 1, ['+'], semidet).

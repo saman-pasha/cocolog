@@ -338,10 +338,12 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   `text_units` (1.13.0), since 2.0.0 `bounded`, `max_integer`,
   `min_integer`, `max_tagged_integer` and `min_tagged_integer`, and since
   2.2.2 swipl's four float flags and `float_min`, `float_max` and
-  `float_max_integer` are the only flags answered; set_prolog_flag/2 sets
-  `double_quotes`, `text_units`, `generate_debug_info` (taken and unused)
-  and the float flags, as a goal since 2.2.2, and refuses every other flag
-  in swipl's words. `library(main)` parses the tail.
+  `float_max_integer`, and since 2.16.0 `verbose` (`normal`), are the only
+  flags answered; set_prolog_flag/2 sets `double_quotes`, `text_units`,
+  `generate_debug_info` (taken and unused), the float flags and `verbose`
+  (any atom, the process's: `silent`, swipl -q's, quiets print_message/2's
+  informational and banner kinds), as a goal since 2.2.2, and refuses
+  every other flag in swipl's words. `library(main)` parses the tail.
 * **Exit status is SWI's**: 0 proved, 1 failed silently, 2 threw; `halt(N)`
   is N from `-s`, `run` and `query` alike.
 * **An error nothing caught is followed on stderr by its backtrace**
@@ -827,7 +829,14 @@ its names are GLOBAL (`go/1,2`, `yield/0`, `await/1,2`, `await_all/1`,
 `async/2`, `future_ready/1`, `channel/1,2,3`, `channel_send/2`,
 `channel_recv/2`, `channel_close/1`, `async_workers/1`), so a program's own predicate of one is
 shadowed by the library's -- the 2.8.0 suite found test/window.pl's and
-test/flowdebug.pl's `go` fixtures that way, and they are `rec` now). Only files swipl also runs (`test/files/*.pl`,
+test/flowdebug.pl's `go` fixtures that way, and they are `rec` now), and
+since 2.16.0 `print_message` (`library/print_message.pl`, swipl's
+print_message/2, message_to_string/2, print_message_lines/3 and the
+message_hook/3 and prolog:message//1 a program defines, preloaded the same
+way, its helpers all `'$pm_...'`; it costs every process's start-up 3.2
+million instructions, `cocolog query true` 21.7 million to 25.0, about half
+a millisecond of ten).
+Only files swipl also runs (`test/files/*.pl`,
 `emacs/test/conformance.pl`) and `test/library.pl` keep such a directive,
 where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
 
@@ -1114,7 +1123,15 @@ cocolint index offers no import of it.
   `error`, `dcg/basics`, `dcg/high_order`, `lb_carried` in
   `lib/library.cicili`. A module is claimed BEFORE its consult,
   so a goal directive in a module (and every `-s` program is one) no longer
-  re-consults it.
+  re-consults it. **source_location/2 answers while a directive's goal
+  runs** (2.16.0, `sloc_file`/`sloc_line` on the machine, set around the
+  goal and put back after it: a nested load has its own), the file by its
+  real path, and fails anywhere else -- in the program, and in an
+  initialization/1 goal run after its file -- as swipl's; print_message/2
+  asks it for an error's and a warning's location line. **The engine's own
+  reports are its own** (`coco_load_message`, `coco_load_note`, the goal's
+  ERROR): swipl's shapes, but no print_message/2 call, so a program's
+  message_hook/3 does not see them where swipl's does.
 * **Consulting a file REPLACES the clauses it put in the store last time**
   (per-clause `origins`; `'$from'(Path, Clause)` on the wire); asserted
   clauses and other files' are untouched.
@@ -2085,7 +2102,29 @@ cocolint index offers no import of it.
 * **stdout is block-buffered into a pipe**: `flush_output/0` before
   blocking, or a marker never arrives.
 * **A grammar rule's leading terminal is stored in its head**, as SWI's
-  `optimise_unify` does.
+  `optimise_unify` does. **A qualified head keeps its qualifier** (2.16.0,
+  `coco_dcg_requalify`): `M:H --> B` is `M:H2 :- B2`, and the store peels it
+  as it peels any clause's -- through 2.15.2 the qualifier took the two
+  arguments, a `:'/4 nobody calls. Whether there is one is a FLAG, never
+  `mod != 0`: in a fresh machine (`cocolog run`, whose consult reads each
+  clause from cell 0) the module's atom IS heap cell 0, and the first cut
+  dropped every `prolog:message//1` rule under `run` alone. The two hooks
+  print_message/2 reads, `prolog:message//1` and `prolog:error_message//1`,
+  are stored as `'$prolog_message'/3` and `'$prolog_error_message'/3`
+  (`coco_hook_head`), apart from a program's own message/3.
+* **A report begins a line of its own, and `~N` asks where the line is**
+  (2.16.0, `coco_out_note`, `coco_out_fresh` in lib/term.cicili): the
+  engine keeps whether a line is open on stdout and on stderr, ONE column
+  for the two as swipl's user_output and user_error share one, from what it
+  writes itself -- write/1 and its kin, nl/0, tab/1, format/1,2,3,
+  listing/0,1, the load's and the goal's reports, library(stream)'s writes
+  to its first three slots (`coco_m_out_note`) -- and not what a module
+  prints with stdio of its own; a capture (with_output_to/2) has a column
+  of its own from 0 and gives the console's back. A new writer to the
+  console goes through `coco_out_puts`/`coco_out_putc` or notes what it
+  wrote, or the next `~N` and the next report guess. `format`'s `~N` writes
+  a newline only where a line is open; a term sink starts at 0; a file of
+  library(stream) answers for itself (`coco_m_sink_open_install`).
 * **The reader is written ONCE and emitted TWICE** (1.10.7): the bodies of
   `coco_parse_term`, `_primary`, `_named`, `_args` and `_list` are macros at
   the top of `lib/syntax.cicili`, emitted as the family every consult uses

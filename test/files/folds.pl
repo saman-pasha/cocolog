@@ -11,7 +11,8 @@
 %  instantiation_error. Through 2.15.0 cocolog took plain numbers alone and
 %  raised type_error(number, X) or type_error(evaluable, X) for the rest,
 %  and term_to_atom/2 with both arguments bound wrote the term and compared
-%  the texts. Found by the token benchmark (bench/tokens/README.md).
+%  the texts. Found by the token benchmark (bench/tokens/README.md), as was
+%  sumlist/2's absence (2.16.0 has it).
 
 :- use_module(library(aggregate)).   % cocolint: T1 -- swipl runs this file too, and the import is its portable form
 :- use_module(library(lists)).       % cocolint: T1 -- swipl runs this file too, and the import is its portable form
@@ -25,7 +26,8 @@ main :-
     fd_lists,
     fd_aggregates,
     fd_witnesses,
-    fd_term_to_atom.
+    fd_term_to_atom,
+    fd_sumlist.
 
 fd_lists :-
     fd_show(sum_expressions, sum_list([1+1, 2*3], S1), S1),
@@ -81,3 +83,12 @@ fd_term_to_atom :-
     fd_show(text_bound, term_to_atom(T4, 'g(1, 2)'), T4),
     fd_show(term_bound, term_to_atom(f(x, 'A'), A5), A5),
     fd_show(both_unbound_writes, ( term_to_atom(_, A6), atom(A6) ), true).
+
+%% sumlist/2 (2.16.0) is the old name swipl still autoloads from
+%% library(backcomp), whose clause is `sumlist(L, S) :- sum_list(L, S)'
+fd_sumlist :-
+    fd_show(sumlist_integers, sumlist([1, 2, 3], S1), S1),
+    fd_show(sumlist_expressions, sumlist([1+1, 2*3], S2), S2),
+    fd_show(sumlist_mixed, sumlist([1, 2.5, 1r2], S3), S3),
+    fd_show(sumlist_empty, sumlist([], S4), S4),
+    fd_show(sumlist_atom, sumlist([1, a], S5), S5).

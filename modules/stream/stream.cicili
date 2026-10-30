@@ -470,6 +470,20 @@
   (static) (var int st_saved_fd . -1)
   (static) (var FILE * st_term . nil)
 
+  ;;; WHETHER A LINE IS OPEN on a slot's output (2.16.0), for format's `~N':
+  ;;; the last byte written there was no newline. user_output and user_error
+  ;;; are the console's, whose column the engine keeps with its own writes
+  ;;; (`coco_m_out_note'); a file's is its own, at its start from the open. A
+  ;;; file that is the current output gets the engine's write/1 and format/2
+  ;;; through fd 1, and those are counted as the console's.
+  (static) (var int st_open [256])
+
+  (static)
+  (func st_wrote ((int s) (const char * buf) (size_t n)) (out void)
+        (if (== n 0) (return))
+        (if (or (== s 1) (== s 2)) (block (coco_m_out_note s buf n) (return)))
+        (if (>= s 3) (set (nth s st_open) (? (== (nth (- n 1) buf) (cast char 10)) 0 1))))
+
   (static)
   (func st_pos_reset ((int s)) (out void)
         (set (nth s st_nb) 0)
@@ -727,6 +741,7 @@
           (set (nth s st_mode) (cast int mode))
           (set (nth s st_path) (strdup path))
           (set (nth s st_npush) 0)
+          (set (nth s st_open) 0)
           (st_pos_reset s)
           (return (coco_m_unify_int e (coco_m_arg e g 3) (cast i64 s)))))
 
@@ -920,6 +935,7 @@
           (st_out_begin s)
           (let ((size_t w . #'(fwrite buf 1 n (st_fp s))))
             (st_out_end s)
+            (st_wrote s (cast (const char *) buf) w)
             (free buf)
             (if (!= w n) (return (coco_m_error e "stream_write" (strerror errno)))))
           (return 1)))
@@ -1010,6 +1026,7 @@
           (st_out_begin s)
           (let ((size_t w . #'(fwrite ch 1 n (st_fp s))))
             (st_out_end s)
+            (st_wrote s ch w)
             (if (!= w n) (return (coco_m_error e "stream_put_char" (strerror errno)))))
           (return 1)))
 
@@ -1057,6 +1074,7 @@
             (st_out_begin s)
             (set w (fwrite buf 1 n (st_fp s)))
             (st_out_end s)
+            (st_wrote s buf w)
             (free buf)
             (if (!= w n) (return (coco_m_error e "stream_write_text" (strerror errno)))))
           (return 1)))
@@ -1316,6 +1334,7 @@
           (st_out_begin s)
           (let ((size_t w . #'(fwrite b 1 k (st_fp s))))
             (st_out_end s)
+            (st_wrote s (cast (const char *) b) w)
             (if (!= w k) (return (coco_m_error e "put_code" (strerror errno)))))
           (return 1)))
 
@@ -1431,15 +1450,41 @@
           (st_out_begin s)
           (let ((size_t w . #'(fwrite text 1 len (st_fp s))))
             (st_out_end s)
+            (st_wrote s text w)
             (if (!= w len) (return (coco_m_error e "format" (strerror errno)))))
           (return 1)))
 
-  ;;; Loaded: the standard slots, and the hook installed. Idempotent, since a
-  ;;; module's init runs once for every store that loads it.
+  ;;; Whether a line is open on a sink of this table (2.16.0, `~N'): 1 open,
+  ;;; 0 at a line's start, -1 not one of its own -- the sinks st_sink takes,
+  ;;; user_output and user_error by the console's column, a file by its own.
+  ;;; A slot that is no stream answers 0, and format raises after.
+  (static)
+  (func st_sink_open ((coco_engine * e) (size_t sink)) (out int)
+        (let ((u32 ar . 0) (const char * nm . nil) (int s . -1))
+          (st_setup)
+          (set nm (coco_m_functor e sink (aof ar)))
+          (if (== nm nil) (return -1))
+          (if (and (== ar 1) (== 0 (strcmp nm "$stream")))
+              (let ((i64 v . 0))
+                (if (not (coco_m_int e (coco_m_arg e sink 0) (aof v))) (return -1))
+                (if (or (< v 0) (>= v 256)) (return 0))
+                (set s (cast int v))))
+          (if (and (== ar 0) (< s 0))
+              (for ((int i . 3)) (< i 256) ((++ i))
+                   (if (and (!= (nth i st_alias) nil) (== 0 (strcmp (nth i st_alias) nm)))
+                       (block (set s i) break))))
+          (if (< s 0) (return -1))
+          (if (or (== s 1) (== s 2)) (return (coco_m_out_open s)))
+          (if (== (nth s st_kind) 0) (return 0))
+          (return (nth s st_open))))
+
+  ;;; Loaded: the standard slots, and the hooks installed. Idempotent, since
+  ;;; a module's init runs once for every store that loads it.
   (static)
   (func st_init ((coco_engine * e)) (out int)
         (st_setup)
         (coco_m_sink_install st_sink)
+        (coco_m_sink_open_install st_sink_open)
         (return 1))
 
   (static) (coco-emit-module-dispatch st_dispatch *stream-predicates*)

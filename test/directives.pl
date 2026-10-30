@@ -32,7 +32,7 @@
 main :-
     scratch(D),
     a_goal(D), does_not_prove(D), loads_nothing(D), syntax_error(D), initialization(D),
-    init_main(D), halted_load(D), in_a_module(D), exit_status(D), reader_level(D), the_program(D),
+    init_main(D), halted_load(D), in_a_module(D), exit_status(D), fresh_line(D), reader_level(D), the_program(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
     checks_done.
@@ -374,6 +374,42 @@ exit_status(D) :-
     has('arithmetic on an atom reads as SWI''s', 'is not a function', Out5),
     ran(F, 'atom_length(X, _)', Out6),
     has('an unbound argument reads as SWI''s', 'not sufficiently instantiated', Out6).
+
+%% A REPORT BEGINS A LINE OF ITS OWN (2.16.0), as swipl's do, being
+%% print_message/2's: after half a line on either stream -- user_output and
+%% user_error share one column -- a newline first, and after a whole line
+%% none. Through 2.15.2 `half' and the report's tag shared a line. Measured
+%% against swipl 9.0.4; its words around them differ (the path, `user:',
+%% the backtrace), which the swipl diff below keeps apart.
+fresh_line(D) :-
+    section('a report begins a line of its own'),
+    atom_concat(D, '/fl.pl', F),
+    fixture(F, [ ':- format(user_error, ''err_half'', []), fail.',
+                 ':- write(out_half), fail.',
+                 ':- format(user_error, ''raise_half'', []), atom_length(_, _).',
+                 ':- format(user_error, ''whole~n'', []), fail.',
+                 ':- initialization((format(user_error, ''init_half'', []), fail)).',
+                 'main :- write(goal_half), atom_length(_, _).' ]),
+    ran(F, main, Out),
+    atomic_list_concat(['err_half\nWarning: ', F, ':1:'], W1),
+    has('a failed directive''s Warning, after half a line on user_error', W1, Out),
+    atomic_list_concat(['out_half\nWarning: ', F, ':2:'], W2),
+    has('...and after half a line on user_output: the column is shared', W2, Out),
+    atomic_list_concat(['raise_half\nERROR: ', F, ':3:'], W3),
+    has('a raising directive''s ERROR', W3, Out),
+    atomic_list_concat(['whole\nWarning: ', F, ':4:'], W4),
+    has('after a whole line, the report straight after it', W4, Out),
+    atomic_list_concat(['whole\n\nWarning: ', F, ':4:'], W4b),
+    (   sub_atom(Out, _, _, _, W4b) -> Blank = yes ; Blank = no ),
+    check('...and no blank line between them', Blank, no),
+    atomic_list_concat(['init_half\nWarning: ', F, ':5: Initialization goal failed'], W5),
+    has('an initialization goal''s Warning', W5, Out),
+    has('the goal''s own ERROR, after half a line on user_output', 'goal_half\nERROR: -g main:', Out),
+    atom_concat(D, '/fls.pl', S),
+    fixture(S, [':- format(user_error, ''syn_half'', []).', 'p(1 :- .']),
+    ran(S, true, OutS),
+    atomic_list_concat(['syn_half\nERROR: ', S, ':2:'], W6),
+    has('a syntax error that ends the consult', W6, OutS).
 
 reader_level(D) :-
     section('the reader-level directives still act on the reader'),

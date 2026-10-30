@@ -65,7 +65,37 @@ main :-
     data_under_a_builtin_name,
     memory_refused,
     read_that_failed,
+    recursive_message,
     checks_done.
+
+%% ---- a message printed while it is printed (2.16.0) -------------------------
+%%
+%% A message_hook/3 that prints its own term would print for ever: swipl's
+%% print_message/2 keeps the messages in print and says one that comes round
+%% again is recursive, once, and goes on -- `Recursive warning message: T',
+%% then a backtrace of twenty frames, which is swipl's own and not compared
+%% here. A child under a CPU ceiling, because without the guard the hook
+%% calls itself until the process is killed; and the silent kind says
+%% nothing, as swipl's. The hook's second term is another message, which
+%% prints.
+recursive_message :-
+    section('a message printed while it is printed is said once'),
+    scratch(D),
+    atom_concat(D, '/rec.pl', F),
+    fixture(F, [ ':- multifile user:message_hook/3.',
+                 ':- dynamic user:message_hook/3.',
+                 'user:message_hook(rec_msg(X), K, _) :- print_message(K, rec_msg(X)), print_message(K, other_msg(X)).',
+                 'main :- print_message(warning, rec_msg(1)), print_message(silent, rec_msg(2)), write(done), nl.' ]),
+    cocolog(C),
+    sh_join(['ulimit -t 5; ', C, ' --local run ', F, ' main 2>&1'], Cmd),
+    shell(Cmd, Out, Rc, 30000),
+    check('the program ends', Rc, 0),
+    has('the message that came round again is said to be recursive', 'Recursive warning message: rec_msg(1)\n', Out),
+    has('...and the hook goes on: its other message prints', 'Warning: Unknown message: other_msg(1)\n', Out),
+    (   sub_atom(Out, _, _, _, 'Recursive silent') -> S = yes ; S = no ),
+    check('a silent one says nothing', S, no),
+    has('and the program after it runs', 'other_msg(1)\ndone', Out),
+    shl(['rm -rf ', D]).
 
 %% ---- a read of the knowledge base that failed (2.11.1) ----------------------
 %%

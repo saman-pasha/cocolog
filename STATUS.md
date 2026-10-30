@@ -45,7 +45,7 @@ happily as over a real one.
 | `test/string.pl` | the string type, checked as a TYPE rather than as a set of predicates that answer: it must not BE an atom, it must carry a NUL where an atom of the same bytes stops at one, and it must sit between atom and compound in the standard order. Plus `double_quotes` in all four of SWI's values, each through a FILE because a one-goal query cannot see its own flag change, and the guard that keeps a module's choice from reaching the vendored SWI libraries. And split_string/4 to SWI's rule (1.13.1, pl-string.c of 9.0.4 to the letter): the pad comes off the end of the whole string, then is skipped before each field, separators that are also pads with it -- SWI's own `"/home//jan///nice/path"` at `"/"` with `"/"` for the pad is four fields, words at a space with a space for the pad leave no empty field at either end, a string all pad is one empty field -- and a separator that is no pad, with another straight after it, skips nothing (`",aab"` at `",a"` padded with `"a"` is `["","","b"]`). Each answer is swipl 9.0.4's, and so are 34 000 generated cases in each unit (`text_units` bytes against swipl over a string of the bytes, characters against swipl over the code points). Through 1.13.0 every separator cut and each field lost its pad after, so `"a  b"` was `["a","","b"]`. Each of four arms goes red: 1.13.0's rule, the units ignored (test/units.pl), the skip after every separator, no pad off the end first. And faster: 5 MB split ten times at a newline padded with blanks 0.216 -> 0.207 s in bytes and 0.466 -> 0.268 s under characters, at a space padded with a space 0.732 -> 0.463 s and 0.935 -> 0.530 s (three alternating pairs against 1.13.0) -- 48 checks |
 | `test/units.pl` | text counted in CHARACTERS, SWI's way, when a program asks (1.13.0, the reasoning session's point 1): `:- set_prolog_flag(text_units, characters).` or `COCOLOG_TEXT_UNITS=characters` makes a code a code point and a char one character of however many bytes, and bytes stay the default through 1.x. Held to swipl 9.0.4 (LANG=C.UTF-8): atom_length/2, atom_codes/2 and atom_chars/2 both ways, char_code/2 (225 and the euro sign), sub_atom/5 at a character and its ten pieces of `'dár'` in swipl's order, upcase_atom/2 and downcase_atom/2 past ASCII (ß, Greek, Cyrillic, the dotted capital I) and of 5 000 characters (a buffer of 4096 bytes made a longer atom a type error, in bytes too), string_length/2, string_chars/2, string_upper/2, split_string/4 on a separator and a pad of two bytes and (1.13.1) on a pad whose first byte a separator shares, sub_string/5; the reader's `"dár"` and `0'á` (which bytes read as a syntax error) and `"..."` under double_quotes chars; format's `~c`, `~s` and its codes and chars sinks, a difference list's tail kept; code_type/2 over seventeen code points and twenty-one categories exactly as swipl answers (glibc's C.UTF-8 classes: a digit of another script is alpha, U+00A0 is punct and no space) save swipl's period and quote for a code point whose low byte is a NUL or a mark, which is not copied; a byte that is no UTF-8 as U+DC00 plus the byte, through an atom and a file both ways, and a lone surrogate refused; library(json), library(xml) and library(html)'s character references one code each; library(stream)'s get_code/2, peek_code/2, put_code/2 and lines in code points and a binary stream in bytes; a thread made after the directive counting characters, under `-s` (whose module the thread reads again) and in a consulted program (which has only the process default the directive set); and a frozen machine keeping its units in whatever process steps it. In children: a program that says nothing counts bytes, the variable and a file's directive characters, a second directive bytes again, and `text_units = words` refused by name. Every existing case is unchanged in bytes. Each of three arms goes red: no `U` section (both frozen-machine checks), no process default set by the directive (the consulted program's thread counts 4), no byte back from U+DC80..U+DCFF (the atom of one byte and the file round trip). Against 1.12.2 a program that does not ask pays nothing: `tools/flow/zero.sh` counts the same work less padding on nrev, queens and lookup to 0.02 %, and `test/translate.pl` takes the same user time (five alternating pairs, means 22.98 and 22.95 s) |
 | `test/errors.pl` | what cocolog RAISES, and what it used to lose on the way. Four defects of one family — the interpreter knew and the program could not find out: a `catch/3` whose goal had EXITED went on catching, so a later `throw/1` ran its recovery and the outer catch never heard; a `throw/1` inside `findall/3`, `forall/2` or `aggregate_all/3` escaped the catch around it, because those run on a sub-engine with a choice stack of its own; `atomic_list_concat/2,3` FAILED with no error term once its 8 KB buffer overflowed, and built its error ball from an array it had already freed; and a clause too long for a ROW took every other clause of the transaction with it, at commit, silently. The last is checked ACROSS PROCESSES, which is the only place it was ever visible. A fifth section joined them in 1.2.8 for the defect that did NOT raise — a global read against the wrong store — pinning the isolated boundary in both directions, a nested pair, the refusal by name, the sub-engine that shares its parent's store, and eight threads appending at once — 42 checks. The row budget is checked at its BOUNDARY in both variables: a clause at `page - 190 - len(kb) - len(name)` stores and one character more raises. Since 1.10.28 a refused allocation raises `resource_error(memory)`: a heap, a choice stack and a findall's store that would not double, each in a child under a 600 MB address-space ceiling, caught and the run going on after, and one nothing catches written as SWI writes it, exit status 2 -- where 1.10.27 ended three with `out of memory` and retried the findall's growth for ever. Since 1.11.8 `atom_chars/2` and `number_chars/2`, joining a list, name the element that is no character before they free the array they read it from: `atom_chars(X, [d,'á',r])`, from the reasoning session, ended the process (SIGSEGV, exit status 139), as any element that is not ONE BYTE did where it stood first or second -- a letter of two bytes, an atom of two characters, a number, and an unbound element, which is now SWI's `instantiation_error` -- each goal run in a child, so a crash is a red check; and a list of 4096 characters or more, which FAILED, joins (5000 both ways, and a number of 5000 characters is read). Each of three arms goes red: the element read after the free (6 checks, each child dying with 139), the unbound element taken for no character (2), the old ceiling (3). And since 1.13.4, from cicili-lang's report, a catch/3 whose goal exited with nothing left to retry takes its frame with it, as SWI's I_EXITCATCH does: ten thousand turns of a recursion catching around `true` leave no choice point (through 1.13.3 they left ten thousand, a million of them 201 MB of heap), and a catch around `member/2` that exited with an alternative left still keeps its frames. Its arm, the frame left DEAD on the stack, goes red on the first (1). 89 checks |
-| `test/files.pl` | the Files module held to SWI: every case is ONE Prolog file run TWICE — once by `swipl`, once by cocolog, in a freshly made empty directory at the same absolute path both times — and the two outputs compared byte for byte. A library that claims to be SWI's is checked against SWI and not against its own opinion. Since 1.10.6 it also holds the core builtins' errors to SWI's (`catch.pl`: what `=..`, `functor/3`, `arg/3` and `is/2` raise, every one catchable, and what assert and retract refuse -- an unbound clause, a head that is not callable, a body with a number in it, a clause for a control construct), text of any length through `format/2`'s `~a`, `~s` and the format itself and `term_to_atom/2` (`format.pl`: 20 000 characters), and `write_term/2`'s `variable_names` (`write_term.pl`); since 1.10.7 `read_term/3`'s `subterm_positions` and `term_position` (`read_term.pl`: every shape SWI answers, over comments, a tab, a CR, a two-byte character and other reads between two read_terms; at the end of the file only the span's length, where SWI stands one character short of the end); since 1.10.28 a float as SWI writes it (`floats.pl`: 40 values four ways -- `0.30000000000000004`, `1.0e+22`, `1.0e-5`, `100000000000000.0`, the powers of two whose nearest 16 digits miss (negated too), `-0.0` from a literal and from `-/1` -- each read back the same, and `1.0Inf`, `-1.0Inf` and `1.5NaN` read) and `current_predicate/1` and `predicate_property/2` over a file the program ensure_loads (`loaded.pl`: its predicates the program's, with their clause and rule counts, `user:H` walking them, a construct by name and arity); since 2.1.0 `=@=/2`, `\=@=/2` and `subsumes_term/2` (`variant.pl`); since 2.1.1 floats as terms (`float_order.pl`: `0.0` and `-0.0`, a NaN in unify, `==`, compare and the sorts); since 2.1.2 the comparisons, `max`, `min` and `sign` over a NaN and the zeros (`float_arith.pl`); and since 2.2.0 a float that is no finite number raising as SWI's does (`float_check.pl`: every function, the operands it checks, the power's integer answers, `truncate/1`'s kin handing a NaN back, `sum_list/2`, `max_list/2` and `aggregate_all/3`); since 2.13.0 consult/1, load_files/2 and `[File]` as goals (`consult.pl`), and since 2.14.0 a file read again (`reload.pl`: a module's file re-read by consult/1, `[File]` and `if(true)`, `if(changed)` and `if(exists)` only when it is newer, and what the new text no longer defines gone), and since 2.14.1 where its clauses go (`reload_order.pl`: each where the clause it is a variant of stood, before what the program asserted after it, an asserted twin taken for the file's own, another file's clauses no candidates, a first read appending, and a call open on the predicate keeping its view), and since 2.15.1 the arithmetic folds evaluating what they fold and `term_to_atom/2` reading a bound text (`folds.pl`: `sum_list/2`, `max_list/2`, `min_list/2` and `aggregate_all/3`'s sum, max, min and witness forms over expressions, rationals, an atom and an unbound element, and `term_to_atom/2` with both arguments bound). 44 cases. SKIPs without `swipl` |
+| `test/files.pl` | the Files module held to SWI: every case is ONE Prolog file run TWICE — once by `swipl`, once by cocolog, in a freshly made empty directory at the same absolute path both times — and the two outputs compared byte for byte. A library that claims to be SWI's is checked against SWI and not against its own opinion. Since 1.10.6 it also holds the core builtins' errors to SWI's (`catch.pl`: what `=..`, `functor/3`, `arg/3` and `is/2` raise, every one catchable, and what assert and retract refuse -- an unbound clause, a head that is not callable, a body with a number in it, a clause for a control construct), text of any length through `format/2`'s `~a`, `~s` and the format itself and `term_to_atom/2` (`format.pl`: 20 000 characters), and `write_term/2`'s `variable_names` (`write_term.pl`); since 1.10.7 `read_term/3`'s `subterm_positions` and `term_position` (`read_term.pl`: every shape SWI answers, over comments, a tab, a CR, a two-byte character and other reads between two read_terms; at the end of the file only the span's length, where SWI stands one character short of the end); since 1.10.28 a float as SWI writes it (`floats.pl`: 40 values four ways -- `0.30000000000000004`, `1.0e+22`, `1.0e-5`, `100000000000000.0`, the powers of two whose nearest 16 digits miss (negated too), `-0.0` from a literal and from `-/1` -- each read back the same, and `1.0Inf`, `-1.0Inf` and `1.5NaN` read) and `current_predicate/1` and `predicate_property/2` over a file the program ensure_loads (`loaded.pl`: its predicates the program's, with their clause and rule counts, `user:H` walking them, a construct by name and arity); since 2.1.0 `=@=/2`, `\=@=/2` and `subsumes_term/2` (`variant.pl`); since 2.1.1 floats as terms (`float_order.pl`: `0.0` and `-0.0`, a NaN in unify, `==`, compare and the sorts); since 2.1.2 the comparisons, `max`, `min` and `sign` over a NaN and the zeros (`float_arith.pl`); and since 2.2.0 a float that is no finite number raising as SWI's does (`float_check.pl`: every function, the operands it checks, the power's integer answers, `truncate/1`'s kin handing a NaN back, `sum_list/2`, `max_list/2` and `aggregate_all/3`); since 2.13.0 consult/1, load_files/2 and `[File]` as goals (`consult.pl`), and since 2.14.0 a file read again (`reload.pl`: a module's file re-read by consult/1, `[File]` and `if(true)`, `if(changed)` and `if(exists)` only when it is newer, and what the new text no longer defines gone), and since 2.14.1 where its clauses go (`reload_order.pl`: each where the clause it is a variant of stood, before what the program asserted after it, an asserted twin taken for the file's own, another file's clauses no candidates, a first read appending, and a call open on the predicate keeping its view), and since 2.15.1 the arithmetic folds evaluating what they fold and `term_to_atom/2` reading a bound text (`folds.pl`: `sum_list/2`, `max_list/2`, `min_list/2` and `aggregate_all/3`'s sum, max, min and witness forms over expressions, rationals, an atom and an unbound element, and `term_to_atom/2` with both arguments bound), and since 2.16.0 print_message/2 (`print_message.pl`: the kinds and their prefixes, the elements a line is made of, `~N` over the column user_output and user_error share and a capture's own, the file and line a directive's error or warning names, prolog:message//1, prolog:error_message//1, message_hook/3 for the silent kind too, and the flag `verbose`), the text of forty error terms (`error_messages.pl`), a file's own line under library(stream) (`fresh_line_stream.pl`) and `sumlist/2` (`folds.pl`). 47 cases. SKIPs without `swipl` |
 | `test/trace.pl` | the four-port tracer held to SWI the same way: both are asked the same queries over `test/trace-program.pl` with the tracer on, and the port lines compared one for one — Call, Exit, Redo and Fail, in order, at the same relative depths, over the same goals. Since 1.10.24 among them: a call whose clause cuts and then fails (`cutfail :- !, fail.` -- through 1.10.22 no Fail was printed for it, the cut having taken the frame its Fail is printed from), on a guard, with a call or a disjunction redone after the cut, inside another call and in a disjunction; a Redo that opens only the calls it is inside (`det0` and `cut0`, siblings that exited before it, were failed through 1.10.22); and two queries whose first term, heap cell 0, the tracer took for "no call". Over 1.10.22 seven of its 33 queries differ from SWI. SKIPs without `swipl` |
 | `test/backtrace.pl` | an error nothing caught is followed on stderr by WHERE IT WAS RAISED (1.10.17; TRACING.md): at full speed the goal that raised and each engine's goals left to run, under `--backtrace` and `--trace` every call as `[Depth] Goal`, each to the letter over one program, with `--backtrace` changing nothing of a run that does not raise and `--no-backtrace` keeping the message alone; balls a catch takes write nothing -- one taken only once its bindings are undone among them -- and the one nothing caught names itself: an unknown procedure met the second time (stamped, so no module walk names it), `throw/1`, an unbound goal, a number, `call/N` over a number; inside `findall/3`, `call_metered/4` and `with_output_to/2` the goals inside, then the builtin, then the goals after it, and traced at the depths they run at (through 1.10.16 `with_output_to/2`'s engine counted from 1 and traced as `--trace` had started it); a goal left in an environment naming its clause; a recursion thirty deep cut to its first eight entries, a count and its last four; a directive's and `initialization(main, main)`'s reports, a load under a catch, and lines a caught throw wrote printed by no later directive's report, no load the program starts after, and after no error that is not a ball (in a directive or in the program); `cocolog query`'s, and nothing when the goal that raised is the whole query; a goal past 240 characters cut. Each of twenty arms that takes one rule out goes red: the goal in flight not set at a builtin, at an unknown procedure, at `throw/1`, an unbound goal, a number or `call/N`; the first lines not kept by `findall/3`, `call_metered/4` or `with_output_to/2`; the directive's stop; a load's, a report's or the CLI's drop; the quiet trace printing; the whole query written again; the culprit's own frame written; `with_output_to/2`'s depths from 1; the clause unnamed; the ring; the cut. The question before the lines (is there a catch?) is a cost and not a behaviour: without it a caught throw from twenty calls deep writes and drops its lines, 35448 instructions an iteration against 15124 (1.10.16: 15004). 32 checks |
 | `test/cyclic.pl` | a cyclic term -- `X = f(X)` -- written, raised, caught and asked about without taking the process down (1.10.18; through 1.10.17 its write, the message of an error over it, a backtrace line holding it, `atom_length/2` of it and `is/2` over it were a SIGSEGV, and a throw of it never came back): twenty-eight shapes written by `writeq/1` to swipl 9.0.4's letter, `@(S_1,[S_1=f(S_1)])` -- the compounds a left-to-right walk meets a second time, in that order, each one that holds no cycle put back, so a shared subterm that is none stays written out; a list that is its own tail past Brent's first 1024 cells, a cycle 3000 levels down written once a level, a tree 2000 deep and a list of 100000 as before; which writer says `S_1` (write/1, print/1, writeq/1, format/2, term_to_atom/2, with_output_to/2) and which the variable itself (write_canonical/1, write_term/2 naming variables of its own); an error over one -- its message, its backtrace at full speed and under `--backtrace`, exit 2 -- a `throw/1` of one and `cocolog query`'s; the catcher handed the cyclic term itself through `throw/1`, a builtin's error, `findall/3`, `with_output_to/2`, `call_metered/4` and `forall/2`, and a program's own `'$cyclic'(a,b)` left as thrown; `acyclic_term/1` and `cyclic_term/1` (a fact and a fail through 1.10.17) over trees, a DAG that doubles at each of 40 levels, variables, a list of 200000, cycles deep and long; `is/2` and the comparisons raising `type_error(expression, E)`, E the whole side, and an expression 3000 deep still evaluated. Every check that could crash is a child: over 1.10.17 the case is 75 red and 8 green. Each of fourteen arms that takes one rule out goes red (failing checks of 83): the writer's depth guard 69, every compound stopped once a cycle is found 29, Brent on a list's tail 35, a factor that holds no cycle put back 5, the factors' order 5, the writers that say `S_1` 37, a write_term/2's own names 1, the ball stored as its factors 27, read back 23, a program's own `'$cyclic'` left as thrown 1, is/2's guard 8, the side named 2, acyclic_term/1 and cyclic_term/1 3, the exact walk's done state 1 (at three levels the DAG was the quick walk's, and that arm was green). The quick walk before the exact one is a cost and not a behaviour: without it a caught throw of `error(type_error(integer, a), context(arg/3, _))` from twenty calls deep is 17644 instructions against 17395. **1.10.19 adds THE WALKS over one**, a section of six parts, each a child with its own timeout, each with a DAG that doubles at each of 40 levels (2^40 nodes as a tree, which only a walk that meets a compound once finishes): copy -- copy_term/2, findall/3's results and nb_setval/2 keep the cycle, a variable beside it copied once; assert -- `representation_error(cyclic_term)` for a cyclic head, a body that is its own tail or first goal, a grammar rule whose body is a cyclic list, conjunction or disjunction (the last two a SIGSEGV in the translator through 1.10.18), nothing stored, a DAG of 14 levels asserted whole; unify -- unify, `==`, compare/3 and sort/2 of two cyclic terms end with SWI's answers, two cyclic lists of different periods unify, and one answer that is not SWI's on purpose (SWI orders P and Q > both ways; cocolog gives the order of their trees, its walk linking only past its count); vars -- ground/1, term_variables/2 in SWI's order, over cycles, DAGs and a list of 300000; occurs -- unify_with_occurs_check/2 over cycles, a tree 6000 deep and a variable 100 compounds down, past the quick walk; lists -- length/2, msort/2, memberchk/2, atom_codes/2, atom_chars/2, number_chars/2, string_chars/2, string_codes/2, atomic_list_concat/2 raise `type_error(list, L)` over a list that is its own tail, a format's text and term_to_atom/2 `type_error(text, L)`, sort/2 and sort/4 dropping duplicates take it as the set of its elements, is_list/1, proper_length/2 and is_set/1 fail. Over 1.10.18 the case is 83 green (its own 83 checks) and 100 red -- every check of the walks. Each of forty arms that takes one rule out goes red (failing checks of the case as it then stood, 173 to 183): unify's count 35, its link 24, compare's count 39, its link 39, asked again from the first pair 2, the store's matcher handing a pair to unify (`test/solve.cicili` red), copy_term's ceiling 16, the copy that keeps each compound once 16, the store's ceiling 28, a DAG put whole 4, the count of cycles put 12, the reader 40, the ball's count 30, assert refused 2, raised 5, the body's count 12, a grammar rule asked first 12, its refusal counted 3, ground/1's count 11, its map 11, term_variables/2's count 11, its map 11, the occurs check asked 4, past its quick walk 1 (green until the variable 100 compounds down was added: the quick walk pops the last argument first and found the other check's variable at once), a module's list length 16, is_list/1 16, length/2's raise 16, memberchk/2's count 25, a code list's 25, a char list's 25, a format's text 25, atom_codes/2's raise 1, string_codes/2 and string_chars/2's 2, atom_chars/2's 1, number_chars/2's 1, term_to_atom/2's `text` 1, sort/2's set 8, sort/4's 1, proper_length/2 1, is_set/1 1. 183 checks |
@@ -8042,3 +8042,163 @@ PROVED: test/flowchart.pl alone, green on 2.15.2 with the tables rebuilt
 term_to_atom/2 (the CI run above, and the same check red here);
 library/flow/modes.pl lints clean. The case was not among the ones 2.15.1
 ran alone, which is how the row got through.
+
+## print_message/2 and sumlist/2 (2.16.0)
+
+The token benchmark found both missing (bench/tokens/README.md): a program
+written for swipl that reports with `print_message/2` raised an existence
+error here, and `sumlist/2`, the old name swipl still autoloads for
+`sum_list/2` from library(backcomp), was unknown. Both are there now, held
+to swipl 9.0.4, with what print_message/2 stands on.
+
+- **library(print_message)** (`library/print_message.pl`), TIER 1:
+  preloaded at start-up as library(async) is, since swipl has these with no
+  library to load. print_message/2, message_to_string/2,
+  print_message_lines/3, and the message_hook/3, prolog:message//1 and
+  prolog:error_message//1 a program defines. The kinds and their prefixes
+  (`ERROR: `, `Warning: `, `% ` for informational and information, none for
+  the rest; silent prints nothing; a query to user_output, the rest to
+  user_error), every prefix again after each `nl`, the elements of a line
+  (Format-Args, nl, at_same_line, flush, full_stop, ansi/3, url/1,2,
+  begin/end), the location line a directive's error or warning carries, the
+  text of every ISO and SWI error term (boot/messages.pl's words, its BSD-2
+  terms in the file's header), `Unknown message: T`, a message that comes
+  round again said once (`Recursive warning message: T`), and the lines
+  flushed when they end, as swipl's.
+- **message_hook/3 sees every kind**, silent too, as swipl's
+  print_message_guarded does; only the system's printing honours silent and
+  verbose.
+- **The flag verbose** (`normal`; set_prolog_flag/2 takes any atom, the
+  process's): under `silent`, swipl -q's, informational and banner print
+  nothing.
+- **source_location/2** answers the file (its real path) and the line of
+  the directive whose goal is running, and fails elsewhere, as swipl's
+  (`sloc_file`/`sloc_line`, appended to the machine, set around the goal by
+  the load and put back after it).
+- **`~N` in format/1,2,3**: a newline only where a line is open. The engine
+  keeps whether one is open on stdout and on stderr -- ONE column for the
+  two, as swipl's user_output and user_error share one -- from what it
+  writes itself (`coco_out_note`, `coco_out_puts`, `coco_out_putc` in
+  lib/term.cicili: write/1 and its kin, nl/0, tab/1, format, listing, the
+  reports); a capture has its own column from 0; a term sink starts at 0;
+  library(stream)'s files answer for themselves (`st_open`, through the new
+  `coco_m_sink_open_install` hook, in lib/sdk.cicili for an out-of-tree
+  module with `coco_m_out_note`/`coco_m_out_open`).
+- **The engine's reports begin a line of their own**, as swipl's do, being
+  print_message/2's: a directive's Warning and ERROR, an initialization
+  goal's, the goal's own uncaught ERROR and a syntax error that ends a
+  consult (`coco_load_message`, `coco_load_note`, `lb_say_text`,
+  cocolog.cicili). Through 2.15.2 `half` and the report's tag shared a line.
+- **A qualified grammar rule keeps its qualifier**: `M:H --> B` is
+  `M:H2 :- B2` (lib/dcg.cicili, `coco_dcg_requalify`); through 2.15.2 the
+  qualifier took the two arguments, a `:'/4 nobody calls. Whether there is
+  one is a flag: the first cut tested `mod != 0`, and under `cocolog run`
+  -- a fresh machine, whose consult reads each clause from heap cell 0 --
+  the module's atom IS cell 0, so every prolog:message//1 rule lost its
+  qualifier there alone. The two hooks are stored as `'$prolog_message'/3`
+  and `'$prolog_error_message'/3` (lib/kb.cicili, `coco_hook_head`), apart
+  from a program's own message/3.
+- **A format written `"..."` is its text**: a code list here (the flag
+  double_quotes is `codes`) where swipl's is a string. print_message/2
+  hands either to format/3 as it is; message_to_string/2, which joins the
+  formats as atoms, and message_lines/1, whose elements are written with
+  `~w`, take the list's atom (`'$pm_text'`, `'$pm_line_text'`). Before that
+  `message_to_string(format("a~w", [1]), S)` answered `"[97,126,119]"`.
+- **sumlist/2** is library(backcomp)'s one clause, `sumlist(L, S) :-
+  sum_list(L, S)` (lib/lists.cicili), so it evaluates as sum_list/2 does.
+
+The cocolint index lists library(print_message) as tier 1 (`ix_preloaded`)
+with a topic row of its own, and the card's P1 row counts eighteen flags.
+
+PROVED:
+
+- test/files/print_message.pl (112 lines), test/files/error_messages.pl (91
+  lines: forty error terms, a string, a string context, a warning, a
+  message_to_string/2), test/files/fresh_line_stream.pl (3 lines) and
+  test/files/folds.pl (45 lines, five of them sumlist/2's): swipl 9.0.4 and
+  cocolog byte for byte; test/files.pl agrees over all 47 cases.
+- test/directives.pl, `a report begins a line of its own` (8 checks: after
+  half a line on user_error and on user_output, a raising directive, a whole
+  line with no blank after it, an initialization goal, the goal's ERROR, a
+  syntax error); test/errors.pl, `a message printed while it is printed is
+  said once` (5 checks, a child under a CPU ceiling).
+- Lesson 56 (tutorials/library/56-print_message.pl), its last line `done`.
+- Alone and green: the lint case (after the index row: it was red on
+  `unrouted: library(print_message)`), files, errors, directives, engine,
+  trace, backtrace, journal, repl, script, reconsult, library, stream,
+  flowchart, argv, string, units, serialize, static, tokens, cyclic,
+  window, meter and gc. The card check: 30 rows, 41 cites all anchored (the
+  edits moved 28 cites, renumbered).
+- A second process over an `--embed` store sees only the program's own
+  predicate: the library's clauses are muted, as every module's are.
+- Thirteen library arms, each an edited copy of print_message.pl first on
+  the library path, each red: no flush at the end of the lines (print_message),
+  the hook not shown the silent kind (print_message, lesson 56), verbose
+  ignored (print_message), no location line (print_message), a syntax error
+  given one (print_message), prolog:message//1 not asked (print_message,
+  lesson 56), no prefix after `nl` (print_message, error_messages,
+  fresh_line_stream), no recursion guard (errors: 4), no fresh line in the
+  prefixes (print_message, fresh_line_stream), no predicate first in an
+  error's text (print_message, error_messages, lesson 56), no context last
+  (error_messages), a `"..."` format written as its list in
+  message_to_string/2 (print_message), and a `"..."` element of
+  message_lines/1 so written (print_message).
+- Fourteen engine arms, each one edit in a scratch copy of the tree built
+  as `make` builds it (and one of modules/stream), each red: the
+  qualified head's flag tested as `mod != 0` again, as the first cut did
+  (print_message; lesson 56, `Unknown message: lesson_greeting(ann)`), no
+  requalify at all (the same two), the hooks stored under their own names
+  (the same two), source_location/2 told no file (print_message; lesson 56
+  stops at its location section), the flag verbose not kept (print_message;
+  lesson 56, `silent = normal`), no fresh line before the load's reports
+  (directives: 4), before the goal's ERROR (directives: 1) or before the
+  syntax error that ends a consult under `run` (directives: 1), a column
+  each for user_output and user_error (print_message, directives: 2), a
+  capture that keeps the console's column (print_message), the console's
+  writes not noted (print_message, fresh_line_stream, directives: 6,
+  lesson 56), `~N` not read (print_message, error_messages,
+  fresh_line_stream, errors: 3, lesson 56), library(stream)'s files not
+  answering for their own line (fresh_line_stream), and sumlist/2 taken
+  out (folds, lesson 56).
+- `tools/flow/zero.sh` against 2.15.2 (37d0fb8's engine files, built the
+  same way), the work less the padding: nrev +0.013 %, queens -0.002 %,
+  lookup -0.020 %: the untraced engine's work is the same. The preload
+  costs every process's start-up 3.2 million instructions (`cocolog query
+  true`, 21.7 million to 25.0, callgrind), about half a millisecond of ten.
+
+NOT swipl's, each found by a probe beside swipl 9.0.4:
+
+- No `Recursive' backtrace, no 0.1 s wait after a located error, no
+  `Defined at' line for a static procedure, no list of the predicates a
+  misspelled name could have meant (swipl's `However, there are definitions
+  for: sumlist/2'), no thread_message_hook/3, message_property/2 or
+  message_context flag. (swipl 9.0.4 has no sumlist/3 and no
+  message_to_codes/3 a program can call either.)
+- `print_message(debug(Topic), M)` prints with `% `, where swipl 9.0.4
+  raises a type error from '$inc_message_count'/1 (its debug/3 prints
+  through print_message_lines/3); a stream's location is written
+  `Stream S:L:C ` with no file name.
+- No `-q` on the command line (`cocolog: unknown option -q`): a program
+  that wants swipl -q's quiet sets the flag verbose to silent.
+- The engine's own reports -- the load's, the goal's uncaught ERROR,
+  coco_error_text's sentences -- are its own C, in print_message/2's
+  shapes and not through it, so a program's message_hook/3 does not see
+  them where swipl's does.
+- An error the engine raises carries cocolog's context, not swipl's: an
+  unknown procedure's is unbound where swipl's names the caller
+  (`context(system:catch/3, _)`), so its text has no `catch/3: ` before
+  it. (`atom_length(abc, foo)` fails here where swipl raises
+  `type_error(integer, foo)`: found by the same probe, older than this
+  change, not fixed.)
+- user_output into a pipe is buffered by the block where swipl's is
+  buffered by the line (`buffer(line)`): a whole line written to
+  user_output and then a write to user_error come out in the other order
+  unless the program flushes. print_message/2 flushes user_output before
+  it prints, so its own lines keep their place.
+- A file set_output/1 sent stdout to shares the console's column: half a
+  line written there and then `~N` on user_error writes a newline, where
+  swipl's file has a column of its own.
+- A code list in message_lines/1 is its text when every code is one text
+  has (32 and over, a tab, a line end), so a list of codes meant as
+  numbers (`[65, 66]`) prints `AB` where swipl prints the list; one with a
+  control character stays a list (`[1,2,3]`, as swipl's).

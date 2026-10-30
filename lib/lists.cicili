@@ -181,6 +181,9 @@
 
            ;; ---- arithmetic over a list -----------------------------------
            "sum_list(L, S) :- '$sum'(L, 0, S)."
+           ;; sumlist/2 (2.16.0), the old name swipl still autoloads from
+           ;; library(backcomp), whose one clause this is
+           "sumlist(L, S) :- sum_list(L, S)."
            "max_list([H|T], M) :- '$maxl'(T, H, M)."
            "min_list([H|T], M) :- '$minl'(T, H, M)."
            "numlist(L, H, []) :- L > H, !, fail."

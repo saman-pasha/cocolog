@@ -409,6 +409,18 @@
   ;;; In-tree: the hook's answer, 0 when none is installed.
   (decl) (func coco_m_sink_call ((coco_engine * e) (size_t sink) (const char * text) (size_t len)) (out int))
 
+  ;;; THE CONSOLE'S COLUMN (2.16.0), for format's `~N' and print_message/2.
+  ;;; A module that owns a sink answers whether a line is open there: 1
+  ;;; open, 0 at a line's start, -1 not one of its own (the engine then asks
+  ;;; its own, user_output and user_error by the console's column and a term
+  ;;; sink at 0). One hook per process, as the sink's. A module that writes
+  ;;; to the console itself says what it wrote, FD 1 for user_output and 2
+  ;;; for user_error, and can ask the console's column the same way.
+  (decl) (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int))))
+  (decl) (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int))
+  (decl) (func coco_m_out_note ((int fd) (const char * text) (size_t len)))
+  (decl) (func coco_m_out_open ((int fd)) (out int))
+
   ;;; ---- a goal on a machine of its own ---------------------------------
   ;;;
   ;;; SRC -- a goal in canonical text -- proved on a FRESH machine, store
@@ -1108,6 +1120,27 @@
             (if (coco_m_replay_sink e sink) (return 1)))
         (if (== coco_m_sink_hook nil) (return 0))
         (return (coco_m_sink_hook e sink text len)))
+
+  (static) (var func coco_m_sink_open_hook ((coco_engine * e) (size_t sink)) (out int) . nil)
+
+  (func coco_m_sink_open_install ((func hook ((coco_engine * e) (size_t sink)) (out int)))
+        (set coco_m_sink_open_hook hook))
+
+  ;;; a replay's stream opened nothing, and its line is at its start
+  (func coco_m_sink_open_call ((coco_engine * e) (size_t sink)) (out int)
+        (if (!= ($ (cof (-> e m)) rec) nil)
+            (if (coco_m_replay_sink e sink) (return 0)))
+        (if (== coco_m_sink_open_hook nil) (return -1))
+        (return (coco_m_sink_open_hook e sink)))
+
+  (func coco_m_out_note ((int fd) (const char * text) (size_t len))
+        (if (== fd 1) (coco_out_note stdout text len))
+        (if (== fd 2) (coco_out_note stderr text len)))
+
+  (func coco_m_out_open ((int fd)) (out int)
+        (if (== fd 1) (return (coco_out_open stdout)))
+        (if (== fd 2) (return (coco_out_open stderr)))
+        (return 0))
 
   ;;; Filled in by the composition root; null until it is, which is what
   ;;; every out-of-tree embedder and every test binary leaves them.
