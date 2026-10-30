@@ -8024,3 +8024,21 @@ term_to_atom/2 still reads the first term of its text and ignores the
 rest, where swipl raises a syntax error (`'1.0 x'` is `1.0`).
 
 The full local `make test` was not run; CI runs the suite.
+
+## The flow chart's refusal table follows term_to_atom/2 (2.15.2)
+
+CI on c8e0e41 (run 41047868061) found what the local runs of 2.15.1 did
+not: test/flowchart.pl went red on Ubuntu and on the Apple silicon Mac, on
+one check alone, `every call the refusal table names raises an error when
+made unbound`. The table (library/flow/modes.pl, `flow_raises_unbound/4`)
+said that `term_to_atom(_, _)` raises, as it did through 2.15.0. Since
+2.15.1 it writes the variable, as swipl 9.0.4 does (`_424-'_424'`), so the
+row is gone, and a chart no longer reports a term_to_atom/2 whose two
+arguments are free as an instantiation finding. Nothing in the engine
+changed; the patch moved because a library changed.
+
+PROVED: test/flowchart.pl alone, green on 2.15.2 with the tables rebuilt
+(`sh tools/flow/build.sh`); with the row in, red on 2.15.1's
+term_to_atom/2 (the CI run above, and the same check red here);
+library/flow/modes.pl lints clean. The case was not among the ones 2.15.1
+ran alone, which is how the row got through.

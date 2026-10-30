@@ -357,7 +357,6 @@ flow_raises_unbound(string_codes, 2, [1, 2], string_codes(_, _)).
 flow_raises_unbound(string_chars, 2, [1, 2], string_chars(_, _)).
 flow_raises_unbound(string_bytes, 3, [1, 2], string_bytes(_, _, utf8)).
 flow_raises_unbound(string_to_atom, 2, [1, 2], string_to_atom(_, _)).
-flow_raises_unbound(term_to_atom, 2, [1, 2], term_to_atom(_, _)).
 flow_raises_unbound(upcase_atom, 2, [1], upcase_atom(_, 'X')).
 flow_raises_unbound(succ, 2, [1, 2], succ(_, _)).
 flow_raises_unbound(plus, 3, [1, 2], plus(_, _, 3)).
