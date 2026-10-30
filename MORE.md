@@ -2053,7 +2053,7 @@ heap, and a failure-driven `between/3` loop of the same length peaked near a
 gigabyte. Both now peak between 43 and 55 MB; of fifteen timed pairs of the
 old binary and the new, the new was faster in thirteen. The collector
 slides what is reachable down in order between two steps of the engine, so
-the choice points' marks stay true — `coco_heap_gc` in `lib/solve.cicili`,
+the choice points' marks stay true — `coco_heap_gc` in `lib/solve-gc.cicili`,
 and STATUS.md, "The heap is collected", for the measurements and for what
 it does not reach yet.
 

@@ -521,7 +521,7 @@
 
   ;;; A FLOAT THE WALK MADE IS A NUMBER, OR WHAT THE FLAGS LET IT BE (2.2.0,
   ;;; 2.2.2), as `is/2' makes it: 1 when *D stands (`coco_float_verdict' in
-  ;;; lib/solve.cicili, swipl's check_float(), which makes a NaN SWI's one
+  ;;; lib/solve-arith.cicili, swipl's check_float(), which makes a NaN SWI's one
   ;;; NaN), else the raise's answer through the module seam.
   (static)
   (func coco_l_float_ok ((coco_engine * e) (double * d)) (out int)

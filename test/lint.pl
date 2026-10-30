@@ -83,10 +83,12 @@ indented(Text) :-
 %% All three verdicts run against a COPY of traps.jsonl with one cite broken
 %% each way, through $COCOLOG_TRAPS; the real card is never written to. The
 %% breakages are chosen for what they prove: N1's anchor occurs ONCE in
-%% lib/kb.cicili (drift -- accepted), W1's `coco_bi_write_canonical' occurs
-%% TWICE in lib/solve.cicili as a builtin row and a definition (ambiguous --
-%% refused, because the range is the only thing choosing between them; it was
-%% W1's `coco_write_canonical' in lib/syntax.cicili, a declaration and a
+%% lib/kb-pred.cicili (drift -- accepted), X1's `coco_str' occurs thirty
+%% times in lib/term.cicili (ambiguous -- refused, because the range is the
+%% only thing choosing between them; it was W1's `coco_bi_write_canonical' in
+%% lib/solve.cicili, a builtin row and a definition, until 2.16.1 split the
+%% engine into seven files and put the definition in lib/solve-db.cicili, W1's
+%% `coco_write_canonical' in lib/syntax.cicili, a declaration and a
 %% definition, until 2.2.5 moved the cite to where write_canonical/1 picks
 %% its mode, and A2's `coco_new_int' until 2.0.0 retired that row), and an
 %% anchor nobody wrote is gone (refused; that row needs rereading, not
@@ -101,8 +103,8 @@ the_verdicts(Agent) :-
     scratch(V),
     sh_join([Agent, '/traps.jsonl'], Traps),
     read_file_to_codes(Traps, Cs), codes_lines(Cs, Lines),
-    vcase(Agent, V, drift, Lines, '"id": "N1"', '"lib/kb.cicili:[0-9-]*"', '"lib/kb.cicili:1-5"', 0, 'unique anchor, accepted'),
-    vcase(Agent, V, ambiguous, Lines, '"id": "W1"', '"lib/solve.cicili:[0-9-]*"', '"lib/solve.cicili:1-5"', 1, 'the range is what picks the site'),
+    vcase(Agent, V, drift, Lines, '"id": "N1"', '"lib/kb-pred.cicili:[0-9-]*"', '"lib/kb-pred.cicili:1-5"', 0, 'unique anchor, accepted'),
+    vcase(Agent, V, ambiguous, Lines, '"id": "X1"', '"lib/term.cicili:[0-9-]*"', '"lib/term.cicili:1-5"', 1, 'the range is what picks the site'),
     %% The anchor this one breaks used to be `unsupported directive: %s/%u',
     %% which is not in the engine any more -- a directive is a goal now. Any
     %% anchor that really exists does the job; this is S2's.

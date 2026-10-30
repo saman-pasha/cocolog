@@ -185,15 +185,27 @@
   ;; sig_atomic_t, for the engine's halted cell and the signal library
   (include <signal.h>)
   (import "./lib/term.cicili")
+  (import "./lib/term-walk.cicili")
   (import "./lib/syntax.cicili")
   (import "./lib/dcg.cicili")
   (import "./lib/kb.cicili")
+  (import "./lib/kb-compile.cicili")
+  (import "./lib/kb-pred.cicili")
+  (import "./lib/kb-consult.cicili")
   (import "./lib/solve.cicili")
+  (import "./lib/solve-control.cicili")
+  (import "./lib/solve-gc.cicili")
+  (import "./lib/solve-loop.cicili")
+  (import "./lib/solve-arith.cicili")
+  (import "./lib/solve-text.cicili")
+  (import "./lib/solve-db.cicili")
   (import "./lib/module.cicili")
   (import "./lib/files.cicili")
   (import "./lib/lists.cicili")
   (import "./lib/apply.cicili")
   (import "./lib/builtins.cicili")
+  (import "./lib/builtins-format.cicili")
+  (import "./lib/builtins-db.cicili")
   (import "./lib/library.cicili")
   (import "./lib/state.cicili")
   (import "./lib/green.cicili")
@@ -201,20 +213,21 @@
   (import "./lib/zigurat-mod.cicili")
   (import "./lib/zeytun-kb.cicili")
 
-  (decl-term)   (impl-term)
+  (decl-term)   (impl-term) (impl-term-walk)
   (decl-syntax) (impl-syntax)
   ;; the grammar-rule translator comes BEFORE the knowledge base, because
   ;; `coco_assert' calls it: every clause reaching the store passes through
   ;; there, so that is the one place a `-->' rule can be rewritten no matter
   ;; whether it was consulted from a file or asserted by a running program.
   (decl-dcg)    (impl-dcg)
-  (decl-kb)     (impl-kb)
-  (decl-solve)  (impl-solve)
+  (decl-kb)     (impl-kb) (impl-kb-compile) (impl-kb-pred) (impl-kb-consult)
+  (decl-solve)  (impl-solve) (impl-solve-control) (impl-solve-gc) (impl-solve-loop)
+                (impl-solve-arith) (impl-solve-text) (impl-solve-db)
   (decl-module) (impl-module)
   (decl-files)  (impl-files)
   (decl-lists)  (impl-lists)
   (decl-apply)  (impl-apply)
-  (decl-builtins) (impl-builtins)
+  (decl-builtins) (impl-builtins) (impl-builtins-format) (impl-builtins-db)
   ;; the library loader sits above the module layer it registers into
   (decl-library) (impl-library)
   ;; ...and the half that needs an engine comes after there is one
@@ -820,7 +833,7 @@
             (fprintf stderr "ERROR: %s: %s\n" where (-> e err))))
         (coco_out_note stderr "\n" 1)
         ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
-        ;; throw wrote (lib/solve.cicili's `coco_bt_capture'), SWI's shape
+        ;; throw wrote (lib/solve-control.cicili's `coco_bt_capture'), SWI's shape
         (coco_bt_say (-> e m) (-> e has_ball)))
 
   ;;; 0 proved, 1 failed, 2 threw -- `swipl -g' ends this way and so does a

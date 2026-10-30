@@ -2165,7 +2165,7 @@
 
   ;;; A CYCLIC TERM WRITTEN AS SWI WRITES ONE (1.10.18), `@(Template,
   ;;; Substitutions)' -- `@(S_1,[S_1=f(S_1)])' for `X = f(X)' -- from
-  ;;; `coco_factorize' (lib/term.cicili), its cells wound back after. NAMED
+  ;;; `coco_factorize' (lib/term-walk.cicili), its cells wound back after. NAMED
   ;;; writes the variables that stand for the cycles S_1, S_2, ..., as
   ;;; SWI's write/1, print/1 and writeq/1 do, unless this write names
   ;;; variables of its own (write_term/2's variable_names); otherwise each

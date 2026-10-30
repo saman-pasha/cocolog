@@ -7,7 +7,7 @@
 %% driver, which keeps its symbol tables in globals and writes them back
 %% after every step: 103 192 overwrites put 1 073 MB into a store whose
 %% live contents came to 20 MB. Since 1.2.13 the store compacts itself --
-%% `coco_store_compact' in lib/kb.cicili says when and how -- and
+%% `coco_store_compact' in lib/kb-pred.cicili says when and how -- and
 %% `garbage_collect/0' asks for one now.
 %%
 %%     cocolog -s test/gc.pl        from the checkout root
@@ -41,11 +41,11 @@
 %%   where they used to hold everything they ever built, `garbage_collect/0'
 %%   collects at the next step, and a proof goes on exactly as it was -- the
 %%   same program, collected every thousand cells and never, answers the
-%%   same (`coco_heap_gc' in lib/solve.cicili; test/gc-program.pl);
+%%   same (`coco_heap_gc' in lib/solve-gc.cicili; test/gc-program.pl);
 %% * and since 1.9.6 so is a goal a load runs -- a directive, an
 %%   initialization goal -- with the term it runs and the marks the load
 %%   winds the heap back to moved with the rest (`coco_consult_owned' in
-%%   lib/kb.cicili).
+%%   lib/kb-consult.cicili).
 
 :- use_module('test/prelude.pl').
 
@@ -406,7 +406,7 @@ keys :-
 %% end, and a failure-driven `between/3' loop peaked at a gigabyte, because
 %% each level's choice point is pushed above the leftovers of the level
 %% before it and no backtrack ever reaches below them. The collector
-%% (`coco_heap_gc' in lib/solve.cicili) slides what is reachable down IN
+%% (`coco_heap_gc' in lib/solve-gc.cicili) slides what is reachable down IN
 %% ORDER, which is what keeps every choice point's heap mark true. Its
 %% floor is four million cells, 32 MB, and each bound here is pinned at a
 %% small multiple of that.

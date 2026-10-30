@@ -19,9 +19,10 @@
   (include <pthread.h>)
   (include <signal.h>)
   (import "../lib/term.cicili")
+  (import "../lib/term-walk.cicili")
   (import "../lib/syntax.cicili")
 
-  (decl-term)   (impl-term)
+  (decl-term)   (impl-term) (impl-term-walk)
   (decl-syntax) (impl-syntax)
 
   (var int failures . 0)

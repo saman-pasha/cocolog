@@ -53,15 +53,15 @@ meaningful. Everything these files needed was built in cocolog instead:
 | `must_be/2` | `lib/builtins.cicili`, standing in for `library(error)` |
 | `ord_intersection/3`, `ord_subtract/3` | `lib/lists.cicili`, standing in for `library(ordsets)` when it is not consulted |
 | `type_error/2`, `domain_error/2`, `compound_name_arity/3` | `lib/builtins.cicili` -- ordsets.pl and assoc.pl call them by name |
-| `Head => Body` | translated on assert to `Head :- !, Body` by `coco_assert` in `lib/kb.cicili`; see the comment there for what that approximation does and does not keep |
+| `Head => Body` | translated on assert to `Head :- !, Body` by `coco_assert` in `lib/kb-consult.cicili`; see the comment there for what that approximation does and does not keep |
 | `:- if` / `:- elif` / `:- else` / `:- endif` | conditional reading in `coco_consult`, with conditions decidable below the engine: `true`, `fail`, `\\+`, and `current_predicate(Name/Arity)` against the store -- which answers assoc.pl's probe for SWI's `$btree_find_node` VM intrinsic with the truthful no |
-| `div` | the operator in `lib/syntax.cicili`, floored division in `lib/solve.cicili` |
+| `div` | the operator in `lib/syntax.cicili`, floored division in `lib/solve-arith.cicili` |
 | `copy_term_nat/2`, `instantiation_error/1`, `strip_module/3`, `compound_name_arguments/3`, `cyclic_term/1`, `acyclic_term/1` | `lib/builtins.cicili` -- yall.pl's runtime path. `copy_term_nat` IS `copy_term` here (no attributed variables), and `cyclic_term` answers no, consistently with an engine that assumes acyclic terms throughout |
 | `'>>'(?, 0)` after a prefix operator | the reader: a quoted name, or any name with `(` right against it, begins an operand -- `coco_starts_term` in `lib/syntax.cicili` said no to infix-only names and mis-read yall's `meta_predicate` block as `>>`/2 |
 | `:- dynamic system:goal_expansion/2` | the qualifier peels off in `coco_dynamic_spec`, the same rule a qualified clause head follows |
 | `max(Expr, Witness)`, `min(Expr, Witness)` | added to the NATIVE `aggregate_all/3` in `lib/builtins.cicili`, which shadows the vendored clauses (builtins dispatch ahead of the store) -- the incremental `nb_setarg' paths in aggregate.pl are therefore never reached, which is as well: cocolog has no non-backtrackable assignment |
 | `error:has_type(assoc, _)` (a module-qualified clause head) | the qualifier is stripped on assert -- one namespace |
-| `:- module`, `:- use_module`, `:- autoload`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` in `lib/kb.cicili` |
+| `:- module`, `:- use_module`, `:- autoload`, `:- meta_predicate`, `:- multifile` | accepted and ignored by `coco_directive` in `lib/kb-pred.cicili` |
 | `:- set_prolog_flag(generate_debug_info, false)` | accepted and ignored: cocolog never generates what it asks to switch off |
 
 **Known divergences, recorded rather than papered over.**

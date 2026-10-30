@@ -1296,7 +1296,7 @@ other Prolog fails.
 ### findall had to be an engine service
 
 It runs a goal to exhaustion, and a module cannot see the engine. So
-`lib/solve.cicili` grew `coco_engine_findall`, which starts a **nested engine**
+the engine grew `coco_engine_findall` (`lib/solve-loop.cicili`), which starts a **nested engine**
 on the same machine and store, and the module calls it. `forall/2` and
 `aggregate_all/3` are built on the same service.
 

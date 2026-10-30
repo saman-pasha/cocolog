@@ -12,7 +12,7 @@
 %% set on any clause asserted while the store was muted (lib/kb.cicili:1052) --
 %% which is how every module's Prolog half and all eight vendored SWI libraries
 %% load. coco_pred_make returns the EXISTING record when the name/arity is
-%% already interned (lib/kb.cicili:566-577), so a user's step/4 lands in
+%% already interned (lib/kb-pred.cicili), so a user's step/4 lands in
 %% aggregate.pl's record, inherits its flag, and is ABSENT from the answer.
 %% A name nobody else had is present.
 %%

@@ -68,7 +68,7 @@
 %% ======================================================================
 
 %% THE FOURTEEN ARE GONE, and so is rule D1 with them. A directive is a
-%% GOAL now (lib/kb.cicili: coco_directive falls through to the seam
+%% GOAL now (lib/kb-pred.cicili: coco_directive falls through to the seam
 %% coco_goal_install fills in), run in file order, and one that fails or
 %% throws is reported and the load CARRIES ON. There is nothing silent left
 %% for a rule to catch: an unknown directive says so on stderr at load time,

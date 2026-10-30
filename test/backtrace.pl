@@ -10,7 +10,7 @@
 %%     ERROR:   [4] oops(2,1,_G66)
 %%
 %% The lines are written by `coco_throw' before it unwinds, and only for a
-%% ball no catch on the chain would take (lib/solve.cicili,
+%% ball no catch on the chain would take (lib/solve-control.cicili,
 %% `coco_bt_capture'); the host that reports the error prints them after
 %% its message: the CLI's goal (`-s', `run', `query', the REPL), a
 %% directive, an initialization goal.

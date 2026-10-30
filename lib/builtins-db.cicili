@@ -1,0 +1,855 @@
+;;;; cocolog -- writing, the environment, the clause database, global
+;;;; variables, operators, halting, and the builtins module's dispatcher
+;;;
+;;; A PIECE OF THE BUILTINS MODULE, split out of lib/builtins.cicili for size
+;;; (2.16.1, where that file had reached 4 053 lines). The three pieces are ONE
+;;; translation unit, emitted in this order by cocolog.cicili: builtins,
+;;; builtins-format, builtins-db. So a function here calls only what an
+;;; earlier piece defined or `decl-builtins' declared, exactly as when they
+;;; were one file. lib/builtins.cicili keeps the module's table of rows and its
+;;; Prolog half; lib/builtins-db.cicili ends with the dispatcher the table is
+;;; emitted into, which is why it comes last.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(generic impl-builtins-db
+  ()
+
+  ;;; ---- writing ----------------------------------------------------------
+
+  ;;; writeq/1, swipl's (2.2.5): quoted, numbervars and character escapes
+  ;;; (25: `'$VAR'(1)' is `B', `'don''t'' is `'don\'t''). Through 2.2.4
+  ;;; quoted alone, and `'$VAR'(1)' and `'don''t'' came out as they read.
+  (func coco_b_writeq ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_strbuf b))
+          (coco_sb_init (aof b))
+          (coco_write_mode (coco_m_machine e) (aof b) (coco_m_arg e g 0) 25 1)
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
+          (coco_sb_free (aof b))
+          (return 1)))
+
+  ;;; `write_term(Term, Options)'. `quoted(true)', `ignore_ops(true)',
+  ;;; `numbervars(true)' and `variable_names(['X'=V, ...])' are the ones the
+  ;;; writer has -- variable_names since 1.10.6: each named variable still
+  ;;; unbound is written as its name, where through 1.10.5 the option was
+  ;;; read past and every variable came out `_G' and a number; numbervars
+  ;;; since 2.2.5, `'$VAR'(N)' as the variable it names, and quoted with
+  ;;; swipl's character escapes since then too (`'don\'t''). Anything else
+  ;;; in the list is ignored rather than refused, because an option a writer
+  ;;; does not implement is not a reason to fail a program.
+  (func coco_b_write_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t * v . nil) (size_t n . 0)
+              (int quoted . 0) (int ignore_ops . 0) (int numbervars . 0) (coco_strbuf b)
+              (size_t * nv . nil) (size_t nn . 0) (size_t k . 0)
+              (size_t * cells . nil) (u64 * names . nil))
+          (if (coco_m_list_array e (coco_m_arg e g 1) (aof v) (aof n))
+              (for ((size_t i . 0)) (< i n) ((++ i))
+                (let ((size_t o . #'(coco_deref m (nth i v))))
+                  (if (and (coco_is_callable m o) (== 1 (coco_arity m o)))
+                      (let ((const char * nm . #'(coco_atom_name m (coco_name_of m o)))
+                            (const char * val . #'(coco_m_atom e (coco_deref m (coco_arg m o 0)))))
+                        (if (and (!= val nil) (== 0 (strcmp val "true")))
+                            (block
+                             (if (== 0 (strcmp nm "quoted")) (set quoted 1))
+                             (if (== 0 (strcmp nm "ignore_ops")) (set ignore_ops 1))
+                             (if (== 0 (strcmp nm "numbervars")) (set numbervars 1))))
+                        (if (and (== 0 (strcmp nm "variable_names")) (== cells nil))
+                            (if (coco_m_list_array e (coco_arg m o 0) (aof nv) (aof nn))
+                                (block
+                                 (set cells (cast (size_t *) (malloc (* (+ nn 1) (sizeof size_t)))))
+                                 (set names (cast (u64 *) (malloc (* (+ nn 1) (sizeof u64)))))
+                                 (if (and (!= cells nil) (!= names nil))
+                                     (for ((size_t j . 0)) (< j nn) ((++ j))
+                                       (let ((size_t p . #'(coco_deref m (nth j nv))))
+                                         (if (and (and (coco_is_callable m p) (== 2 (coco_arity m p)))
+                                                  (== 0 (strcmp (coco_atom_name m (coco_name_of m p)) "=")))
+                                             (let ((size_t nmc . #'(coco_deref m (coco_arg m p 0)))
+                                                   (size_t vc . #'(coco_deref m (coco_arg m p 1))))
+                                               (if (and (coco_m_is_atom e nmc)
+                                                        (coco-tag-is REF (nth vc (-> m heap))))
+                                                   (block (set (nth k cells) vc)
+                                                          (set (nth k names) (coco_name_of m nmc))
+                                                          (set k (+ k 1)))))))))
+                                 (free nv)))))))))
+          (free v)
+          (coco_sb_init (aof b))
+          (if (and (!= cells nil) (!= names nil))
+              (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
+          (coco_write_mode m (aof b) (coco_m_arg e g 0)
+                           (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
+          (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
+          (free cells) (free names)
+          (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
+          (coco_sb_free (aof b))
+          (return 1)))
+
+  ;;; ---- the environment --------------------------------------------------
+  ;;;
+  ;;; SWI's `getenv/2', `setenv/2' and `unsetenv/1'. getenv FAILS for a
+  ;;; name that is not set rather than throwing -- "is this set" is an
+  ;;; ordinary question with an ordinary no, and a program that wants an
+  ;;; error can write `( getenv(X, V) -> true ; throw(...) )'.
+  ;;;
+  ;;; This is the one channel by which a value reaches a program WITHOUT
+  ;;; passing through the knowledge base, which is why it is worth having
+  ;;; and not only convenience: a consulted file becomes clauses, and
+  ;;; clauses become rows. A secret that must not become a row -- a
+  ;;; node's signing key, a token -- has nowhere else to arrive from.
+  ;;; source_location(-File, -Line) (2.16.0), swipl's: the file and the line
+  ;;; of the directive a load is running, the file by its absolute path
+  ;;; (`realpath', as swipl names it), and a failure anywhere else -- in the
+  ;;; program, and in an initialization/1 goal run after its file was read.
+  ;;; print_message/2 asks it for an error's and a warning's location line.
+  (func coco_b_source_location ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (char full [4096]))
+          (if (== (-> m sloc_file) nil) (return 0))
+          (if (== nil (realpath (-> m sloc_file) full))
+              (snprintf full (sizeof full) "%s" (-> m sloc_file)))
+          (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
+          (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))
+
+  (func coco_b_getenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (let ((const char * v . #'(getenv name)))
+            (if (== v nil) (return 0))
+            (return (coco_m_unify_atom e (coco_m_arg e g 1) v)))))
+
+  (func coco_b_setenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]) (char val [4096]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (if (not (coco_m_text e (coco_m_arg e g 1) val (sizeof val)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 1))))
+          (return (? (== 0 (setenv name val 1)) 1 0))))
+
+  (func coco_b_unsetenv ((coco_engine * e) (size_t g)) (out int)
+        (let ((char name [512]))
+          (if (not (coco_m_text e (coco_m_arg e g 0) name (sizeof name)))
+              (return (coco_m_type_error e "atom" (coco_m_arg e g 0))))
+          (unsetenv name)
+          (return 1)))
+
+  (func coco_b_tab ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof n)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (for ((i64 i . 0)) (< i n) ((++ i)) (coco_out_putc stdout 32))
+          (return 1)))
+
+  ;;; ---- the clause database ----------------------------------------------
+
+  ;;; How many clauses a predicate has, and its index in the store. The index
+  ;;; comes back too so that `$clause' need not find it again. The LIVE
+  ;;; clauses, counted by ordinal as `$clause' reads them: one retracted
+  ;;; while a call on it is still open (the logical update view, lib/kb.cicili)
+  ;;; is no clause of the program's, and goes first if no call wants it.
+  (func coco_b_pred_count ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t head . #'(coco_m_arg e g 0)))
+          (if (not (coco_is_callable m head))
+              (return (coco_m_type_error e "callable" head)))
+          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
+                                               (coco_arity m head))))
+            (if (>= pi ($ (cof st) npreds)) (return 0))
+            ;; a predicate the knowledge base could not hand over raises,
+            ;; as its call does (2.11.1)
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+            (coco_tomb_try_sweep st m pi)
+            (let ((size_t mark . #'(coco_m_mark e)))
+              (if (not (coco_m_unify_int e (coco_m_arg e g 1)
+                                       (cast i64 (coco_pred_live (aof (nth pi ($ (cof st) preds)))))))
+                  (block (coco_m_undo e mark) (return 0)))
+              (if (not (coco_m_unify_int e (coco_m_arg e g 2) (cast i64 pi)))
+                  (block (coco_m_undo e mark) (return 0))))
+            (return 1))))
+
+  ;;; The Ith clause of the predicate named by Head, as Head and Body. I counts
+  ;;; from one, because the Coco half enumerates it with `between/3', and
+  ;;; counts the live clauses (`coco_pred_live_at'), so the dead that a sweep
+  ;;; takes out between two of its calls move nothing it counts.
+  (func coco_b_clause_at ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t head . #'(coco_m_arg e g 0))
+              (i64 want . 0))
+          (if (not (coco_m_int e (coco_m_arg e g 2) (aof want))) (return 0))
+          (if (not (coco_is_callable m head)) (return 0))
+          (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m head)
+                                               (coco_arity m head))))
+            (if (>= pi ($ (cof st) npreds)) (return 0))
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
+                  (size_t at . 0))
+              (if (< want 1) (return 0))
+              (set at (coco_pred_live_at p (- (cast size_t want) 1)))
+              (if (== at (coco_no_clause)) (return 0))
+              (let ((size_t mark . #'(coco_m_mark e))
+                    (size_t t . #'(coco_store_get m st (nth at (-> p clauses))))
+                    (size_t h . 0) (size_t bdy . 0))
+                (coco_clause_parts m t (aof h) (aof bdy))
+                ;; a fact's body is `true', which is what SWI answers too
+                (if (== bdy 0) (set bdy (coco_new_atom m "true")))
+                (if (not (coco_m_unify e head h))
+                    (block (coco_m_undo e mark) (return 0)))
+                (if (not (coco_m_unify e (coco_m_arg e g 1) bdy))
+                    (block (coco_m_undo e mark) (return 0)))
+                (return 1))))))
+
+  ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
+  ;;; one declared dynamic (an assert declares it too), as SWI counts them.
+  ;;; The table holds more -- a call, or `clause/2', makes an entry for a
+  ;;; name it looks up, and a call to it still raises `existence_error' --
+  ;;; and those are left out, as are the library's own predicates:
+  ;;; `current_predicate/1' is about the program. The program's own files
+  ;;; are the program's (`own', 1.10.28): `-s FILE', ensure_loaded/1 and
+  ;;; use_module/1 of a path load them as modules, and through 1.10.27 their
+  ;;; predicates were left out with the library's.
+  (func coco_b_predicates ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
+          (coco_store_warm st)
+          (for ((size_t i . 0)) (< i ($ (cof st) npreds)) ((++ i))
+            (if (and (or (not ($ (nth i ($ (cof st) preds)) library))
+                         ($ (nth i ($ (cof st) preds)) own))
+                     (or (> (coco_pred_live (aof (nth i ($ (cof st) preds)))) 0)
+                         ($ (nth i ($ (cof st) preds)) dynamic)))
+                (block
+                 (if (>= n cap)
+                     (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
+                           (size_t * nb))
+                       (set nb (cast (size_t *) (realloc v (* ncap (sizeof size_t)))))
+                       (if (== nb nil) break)
+                       (set v nb)
+                       (set cap ncap)))
+                 (set (nth n v)
+                      (coco_make2 m "/"
+                                (coco_new_atom m (coco_atom_name m ($ (nth i ($ (cof st) preds)) name)))
+                                (coco_new_int m (cast i64 ($ (nth i ($ (cof st) preds)) arity)))))
+                 (set n (+ n 1)))))
+          (set out (coco_m_list e v n))
+          (free v)
+          (return (coco_m_unify e (coco_m_arg e g 0) out))))
+
+  (coco-emit-claims coco_b_tier1_claims *builtins-predicates* *lists-predicates*
+                    *files-predicates* *dcg-predicates* *library-predicates*
+                    *zigurat-predicates*)
+  (coco-emit-claims coco_b_construct_claims *callable-constructs*)
+
+  ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
+  ;;; the properties of the predicate Head names, or a failure where
+  ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head
+  ;;; names Head: there is one namespace. A control construct is visible,
+  ;;; built_in, static and defined (`coco_b_construct_claims', by name and
+  ;;; arity), and a C predicate of the engine's table or of a compiled-in
+  ;;; module (`coco_b_tier1_claims') foreign too; a
+  ;;; predicate of the store with a clause or a dynamic declaration is
+  ;;; visible, dynamic or static, defined, with number_of_clauses(N) and
+  ;;; number_of_rules(R). Where SWI says a library's predicate is built_in
+  ;;; or imported_from(Lib), this does not: a library's clauses are
+  ;;; consulted muted and carry no file (`coco_consult'). A module loaded
+  ;;; from a `.so' is not answered: its dispatcher is all that knows its
+  ;;; names, and asking it is calling it.
+  (func coco_b_pred_props ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_m_arg e g 0))
+              (size_t v [8]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0))
+          (if (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
+          (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
+          (set nid (coco_name_of m h))
+          (set ar (coco_arity m h))
+          (set c (or (>= (coco_builtin_index m nid ar) 0)
+                     (coco_b_tier1_claims (coco_atom_name m nid) ar)))
+          (if (or c (coco_b_construct_claims (coco_atom_name m nid) ar))
+              (block
+                (set (nth n v) (coco_new_atom m "visible")) (++ n)
+                (set (nth n v) (coco_new_atom m "built_in")) (++ n)
+                (if c (block (set (nth n v) (coco_new_atom m "foreign")) (++ n)))
+                (set (nth n v) (coco_new_atom m "static")) (++ n)
+                (set (nth n v) (coco_new_atom m "defined")) (++ n)
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))
+          (let ((size_t pi . #'(coco_pred_intern st nid ar)))
+            (if (>= pi ($ (cof st) npreds)) (return 0))
+            (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+            (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
+                  (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
+                  (u64 tid . #'(coco_intern m "true")))
+              (if (and (== (coco_pred_live p) 0) (not (-> p dynamic))) (return 0))
+              ;; a rule is a clause whose body is not `true'; the predicate
+              ;; read through its index each time round, as after. A clause
+              ;; retracted while a call on it is open is none of them.
+              (for ((size_t i . 0)) (< i ($ (nth pi ($ (cof st) preds)) nclauses)) ((++ i))
+                (if (coco_pred_dead (aof (nth pi ($ (cof st) preds))) i) continue)
+                (let ((size_t t . #'(coco_store_get m st (nth i ($ (nth pi ($ (cof st) preds)) clauses))))
+                      (size_t ch . 0) (size_t cb . 0))
+                  (coco_clause_parts m t (aof ch) (aof cb))
+                  (if (and (!= cb 0)
+                           (not (and (coco-tag-is ATOM (nth (coco_deref m cb) (-> m heap)))
+                                     (== (coco_name_of m (coco_deref m cb)) tid))))
+                      (set rules (+ rules 1)))
+                  (set (-> m heap_len) mark)))
+              ;; the store may have moved under the reads: read P again
+              (set p (aof (nth pi ($ (cof st) preds))))
+              (set (nth n v) (coco_new_atom m "visible")) (++ n)
+              (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
+              (set (nth n v) (coco_new_atom m "defined")) (++ n)
+              (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (coco_pred_live p))))) (++ n)
+              (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)
+              (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
+
+  ;;; `abolish(Name/Arity)' -- every clause of it goes, and the write-through
+  ;;; hook hears about it because this is a retract of the whole predicate.
+  (func coco_b_abolish ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t spec . #'(coco_m_arg e g 0)))
+          (if (not (coco_is_compound2 m spec "/"))
+              (return (coco_m_type_error e "predicate_indicator" spec)))
+          (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
+                (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
+                (i64 arity . 0))
+            (if (not (coco_m_is_atom e nm))
+                (return (coco_m_type_error e "atom" nm)))
+            (if (not (coco_m_int e ar (aof arity)))
+                (return (coco_m_type_error e "integer" ar)))
+            (with-green-write e
+             (let ((size_t pi . #'(coco_pred_intern st (coco_name_of m nm) (cast u32 arity))))
+              (if (>= pi ($ (cof st) npreds)) (return 1))
+              ;; unread, the rows it would leave in the database are not
+              ;; known, and rewriting the predicate empty would take them
+              (if (not (coco_pred_ensure st pi)) (return (coco_fetch_error e)))
+              ;; retract the first clause until there is none, so that the
+              ;; backend hears once per removal exactly as it would from a
+              ;; program doing the same thing -- the first LIVE one: one
+              ;; retracted while a call on it is open stays, dead, where it
+              ;; stood (the logical update view, lib/kb.cicili)
+              (while (> (coco_pred_live (aof (nth pi ($ (cof st) preds)))) 0)
+                (let ((size_t mark . #'($ (cof m) heap_len))
+                      (size_t at . #'(coco_pred_live_at (aof (nth pi ($ (cof st) preds))) 0))
+                      (size_t t . #'(coco_store_get m st
+                                                  (nth at ($ (nth pi ($ (cof st) preds)) clauses))))
+                      (int ok . #'(coco_retract st m t)))
+                  (set (-> m heap_len) mark)
+                  (if (< ok 0) (return (coco_fetch_error e)))
+                  (if (not ok) break)))
+              (coco_store_maybe_compact st m)
+              (return 1))))))
+
+  ;;; ---- global variables -------------------------------------------------
+  ;;;
+  ;;; `nb_' and `b_' are the same thing here. SWI's differ on backtracking --
+  ;;; a `b_setval' is undone and an `nb_setval' is not -- and undoing one would
+  ;;; need a trail entry that is not a variable binding, which the trail
+  ;;; carries only for a heap cell (setarg/3's value entry, 1.12.0): a global
+  ;;; lives in the store. They are documented as the non-backtrackable pair.
+  ;;;
+  ;;; THE VALUE GOES IN THE STORE, not the heap: a global that a query set has
+  ;;; to survive the query's heap being wound back, and the store is the only
+  ;;; thing here that does not shrink.
+
+  ;;; AND THE TABLE IS THE STORE'S, which is `coco_global' and the three
+  ;;; members beside `cells' in lib/kb.cicili -- that header carries the
+  ;;; whole argument. In one line: an entry holds an index into ONE store's
+  ;;; cells, so a table shared between stores hands one store's index to
+  ;;; another, and `run_isolated/2' -- a fresh store -- read garbage or
+  ;;; segfaulted. Globals are therefore per-store, which is the semantics a
+  ;;; fresh machine should have anyway.
+  ;;;
+  ;;; NOTHING HERE IS FILE-SCOPE ANY MORE, and that is the point: a static
+  ;;; table is appended to by every thread at once, and eight of them
+  ;;; writing 800 globals each aborted the process on its `realloc'.
+
+  ;;; ---- clauses that stay in this machine ---------------------------------
+  ;;;
+  ;;; MUTING IS WHAT A MODULE'S CLAUSES ALREADY GET, and there was no way to
+  ;;; ask for it from Prolog. `coco_store_mute' stops the write-through hooks
+  ;;; firing, so an `assertz' lands in this machine's store and nowhere else
+  ;;; -- which is exactly what a module's clauses need, "they belong to the
+  ;;; BUILD and not to the knowledge base", and exactly what a WORKER's
+  ;;; snapshot needs for the same reason.
+  ;;;
+  ;;; Reported from CivV: `library(cowork)' told a two-worker crew four
+  ;;; clauses under `--embed' and EIGHT rows landed in the knowledge base,
+  ;;; one copy per worker. Transient turn state, written to the user's
+  ;;; database, once per worker. And it deadlocked past a handful of clauses,
+  ;;; because both workers wanted the embedded store while the caller sat
+  ;;; waiting for them.
+  ;;;
+  ;;; THE RAW PAIR IS `$'-PREFIXED ON PURPOSE. A mute that somebody forgets
+  ;;; to undo silently drops every later write, so the public form is
+  ;;; `with_local_clauses/1', which unmutes on success, on failure and on the
+  ;;; way out of a throw. It is a COUNTER underneath, so it nests.
+  (func coco_b_store_mute ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_mute (-> e st))
+        (return 1))
+
+  (func coco_b_store_unmute ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_unmute (-> e st))
+        (return 1))
+
+  ;;; A GLOBAL BY NAME (1.9.4), through the store's hash of them
+  ;;; (`gbuckets'): an open table of an entry's index plus one, kept under
+  ;;; half full and probed in a line from the name's hash. Through 1.9.3
+  ;;; every read and every write scanned from the first global made, and
+  ;;; the translator keeps one per word it has looked up -- its lesson made
+  ;;; 1 710 and read them 3.7 million times. Answers the index, or -1.
+  (static)
+  (func coco_global_find ((coco_store * st) (u64 name)) (out i64)
+        (if (== (-> st gbucket_cap) 0) (return -1))
+        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
+              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash name 0) (cast u64 mask)))))
+          (while 1
+            (let ((size_t v . #'(nth j (-> st gbuckets))))
+              (if (== v 0) (return -1))
+              (if (== ($ (nth (- v 1) (-> st globals)) name) name) (return (cast i64 (- v 1))))
+              (set j (bitand (+ j 1) mask))))
+          (return -1)))
+
+  ;;; Entry I into the hash: the first empty slot on its name's line
+  (static)
+  (func coco_global_place ((coco_store * st) (size_t i))
+        (let ((size_t mask . #'(- (-> st gbucket_cap) 1))
+              (size_t j . #'(cast size_t (bitand (coco_name_arity_hash ($ (nth i (-> st globals)) name) 0)
+                                                (cast u64 mask)))))
+          (while (!= (nth j (-> st gbuckets)) 0)
+            (set j (bitand (+ j 1) mask)))
+          (set (nth j (-> st gbuckets)) (+ i 1))))
+
+  ;;; A NEW ENTRY I, the table doubled first when one more would put it
+  ;;; over half full: every entry below I is put back from the array
+  ;;; itself, which is the truth -- the table is only how to find it.
+  ;;; 0 when it would not grow.
+  (static)
+  (func coco_global_hash ((coco_store * st) (size_t i)) (out int)
+        (if (> (* (+ i 1) 2) (-> st gbucket_cap))
+            (let ((size_t ncap . #'(? (== (-> st gbucket_cap) 0) 16 (* (-> st gbucket_cap) 2)))
+                  (size_t * nb . nil))
+              (while (> (* (+ i 1) 2) ncap) (set ncap (* ncap 2)))
+              (set nb (cast (size_t *) (calloc ncap (sizeof size_t))))
+              (if (== nb nil) (return 0))
+              (free (-> st gbuckets))
+              (set (-> st gbuckets) nb)
+              (set (-> st gbucket_cap) ncap)
+              (for ((size_t k . 0)) (< k i) ((++ k))
+                (coco_global_place st k))))
+        (coco_global_place st i)
+        (return 1))
+
+  (func coco_b_setval ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_m_arg e g 0)))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (with-green-write e
+          (let ((coco_store * st . #'(-> e st))
+                (u64 name . #'(coco_name_of m k))
+                (size_t cell . #'(coco_store_put (-> e st) m (coco_m_arg e g 1)))
+                ;; whether a machine may keep the value and hand it out
+                ;; shared (1.12.1, `coco_b_global_term'): the put met no
+                ;; variable. A cyclic value goes in as its factors, which
+                ;; have, and is copied at every read.
+                (int ground . #'(== (-> st put_vars) 0))
+                (i64 at . #'(coco_global_find st name)))
+            (set (-> st gver) (+ (-> st gver) 1))
+            (if (>= at 0)
+                (let ((size_t i . #'(cast size_t at)))
+                  ;; the old value is an orphan now, and its size was kept
+                  (set (-> st dead) (+ (-> st dead) ($ (nth i (-> st globals)) size)))
+                  (set ($ (nth i (-> st globals)) cell) cell)
+                  (set ($ (nth i (-> st globals)) size) (- (-> st len) cell))
+                  (set ($ (nth i (-> st globals)) ver) (-> st gver))
+                  (set ($ (nth i (-> st globals)) ground) ground)
+                  (coco_store_maybe_compact st m)
+                  (return 1)))
+            (if (>= (-> st nglobals) (-> st gcap))
+                (let ((size_t ncap . #'(? (== (-> st gcap) 0) 8 (* (-> st gcap) 2)))
+                      (coco_global * nb))
+                  (set nb (cast (coco_global *)
+                                (realloc (-> st globals) (* ncap (sizeof coco_global)))))
+                  (if (== nb nil) (return 0))
+                  (set (-> st globals) nb)
+                  (set (-> st gcap) ncap)))
+            (set ($ (nth (-> st nglobals) (-> st globals)) name) name)
+            (set ($ (nth (-> st nglobals) (-> st globals)) cell) cell)
+            (set ($ (nth (-> st nglobals) (-> st globals)) size) (- (-> st len) cell))
+            (set ($ (nth (-> st nglobals) (-> st globals)) ver) (-> st gver))
+            (set ($ (nth (-> st nglobals) (-> st globals)) ground) ground)
+            (if (not (coco_global_hash st (-> st nglobals))) (return 0))
+            (set (-> st nglobals) (+ (-> st nglobals) 1))
+            (coco_store_maybe_compact st m)
+            (return 1)))))
+
+  ;;; A GLOBAL'S VALUE ON THE HEAP (1.12.1). Every read copies the value
+  ;;; as its block (`coco_store_read_block'): through 1.12.0 a read walked
+  ;;; it a cell at a time, 98 us for a list of 3 000 entries against 26
+  ;;; now, and the translator's reads (one per word it looks up) were 12 %
+  ;;; of its instructions. A GROUND value is then kept by the machine
+  ;;; (`gcache', a root of the collector, by the global's index and
+  ;;; version, for the store whose serial it names) and handed out shared,
+  ;;; as SWI hands out its globals: nothing can bind a ground term, and a
+  ;;; setarg/3 or nb_setarg/3 on it changes the global (setarg/3's until
+  ;;; backtracking takes it back), which nb_setval/2 replaces. It is kept
+  ;;; FOR AS LONG AS IT LIVES: its sentinel on the trail (`coco-trail-tag')
+  ;;; is undone when backtracking, or the end of a nested search, goes back
+  ;;; past the copy and takes its cells, and a read that finds the sentinel
+  ;;; gone from where it was put (`coco_gcache_ok') copies again.
+  ;;; Nothing else that winds the heap back can reach it: the positions a
+  ;;; host winds back to (a consult's after a directive) are raised over it
+  ;;; here, and every other wind-back undoes the trail with it or runs no
+  ;;; goal. Raising EVERY mark instead, as SWI freezes its global stack at
+  ;;; nb_setval/2, kept what backtracking had always given back, and the
+  ;;; translator's case ran 12 % slower for twice the collections (16 to
+  ;;; 34). nb_setarg/3 on a copy pins it (`coco_gcache_pin'), and its
+  ;;; write lasts as SWI's. A value with a variable in it is a fresh copy
+  ;;; at every read -- each read's variables its own, where SWI shares them
+  ;;; too -- and so is an atom or a number, a cell to copy.
+  (static)
+  (func coco_b_global_term ((coco_engine * e) (size_t i)) (out size_t)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t cell . #'($ (nth i (-> st globals)) cell))
+              (size_t size . #'($ (nth i (-> st globals)) size))
+              (u64 ver . #'($ (nth i (-> st globals)) ver))
+              (size_t h0 . 0) (size_t r . 0) (u64 sn . 0) (size_t tp . 0))
+          (if (not ($ (nth i (-> st globals)) ground)) (return (coco_store_read_block m st cell size)))
+          (if (!= (-> m gcache_ss) (-> st serial)) (coco_gcache_drop m (-> st serial)))
+          (if (and (< i (-> m gcache_cap)) (== ($ (nth i (-> m gcache)) ver) ver)
+                   (coco_gcache_ok m i))
+              (return ($ (nth i (-> m gcache)) root)))
+          (set h0 (-> m heap_len))
+          (set r (coco_deref m (coco_store_read_block m st cell size)))
+          (if (or (-> m oom) (not (coco-tag-is FUN (nth r (-> m heap))))) (return r))
+          ;; no room to keep it, or to say where it was made (a sentinel
+          ;; holds an index under 2^23 - 1): handed out as a copy, as it
+          ;; always was
+          (if (or (>= (+ i 1) (- (<< (cast size_t 1) 23) 1)) (not (coco_gcache_room m i))) (return r))
+          (set sn (bitand (+ (-> m gfills) 1) (- (<< (cast u64 1) 23) 1)))
+          (if (== sn 0) (set sn 1))
+          (set tp (-> m trail_len))
+          (if (not (coco_trail_sent m sn i)) (return r))
+          (set (-> m gfills) sn)
+          (coco_heap_raise_positions m 0 (-> m heap_len))
+          (set ($ (nth i (-> m gcache)) ver) ver)
+          (set ($ (nth i (-> m gcache)) root) r)
+          (set ($ (nth i (-> m gcache)) serial) sn)
+          (set ($ (nth i (-> m gcache)) tpos) tp)
+          (set ($ (nth i (-> m gcache)) lo) h0)
+          (set ($ (nth i (-> m gcache)) hi) (-> m heap_len))
+          (set ($ (nth i (-> m gcache)) pinned) 0)
+          (if (or (< h0 (-> m gspan_lo)) (>= (-> m gspan_lo) (-> m gspan_hi)))
+              (set (-> m gspan_lo) h0))
+          (if (> (-> m heap_len) (-> m gspan_hi)) (set (-> m gspan_hi) (-> m heap_len)))
+          (return r)))
+
+  (func coco_b_getval ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_m_arg e g 0)))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((coco_store * st . #'(-> e st))
+                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+            (if (>= at 0)
+                (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))
+            (return (coco_m_existence_error e "variable" (coco_m_arg e g 0))))))
+
+  ;;; `nb_current(?Key, ?Value)' (1.12.0): the global's value, read as
+  ;;; nb_getval/2 reads it, or a FAILURE where there is no global of that
+  ;;; name -- where nb_getval/2 raises, so a program asks whether there is
+  ;;; one in one step rather than three (`catch/3', the read, its exit). A
+  ;;; key bound to anything but an atom is SWI's type_error(atom, K). An
+  ;;; unbound key ENUMERATES, which no C predicate here does (every builtin
+  ;;; is deterministic): this one declines the goal (`coco_m_decline', the
+  ;;; `:declines' row) and it goes on to this module's clause, which walks
+  ;;; '$nb_keys'/1 -- the globals in the order they were made.
+  (func coco_b_nb_current ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t k . #'(coco_m_arg e g 0)))
+          (if (coco_m_is_var e k)
+              (block (coco_m_decline e) (set (cof found) 0) (return 0)))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((coco_store * st . #'(-> e st))
+                (i64 at . #'(coco_global_find st (coco_name_of m k))))
+            (if (< at 0) (return 0))
+            (return (coco_m_unify e (coco_m_arg e g 1) (coco_b_global_term e (cast size_t at)))))))
+
+  ;;; `'$nb_keys'(-Keys)': every global's name, in the order made
+  (func coco_b_nb_keys ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t l . #'(coco_m_nil e))
+              (size_t i . #'(-> st nglobals)))
+          (while (> i 0)
+            (set i (- i 1))
+            (set l (coco_m_cons e (coco_new_atom_id m ($ (nth i (-> st globals)) name)) l)))
+          (return (coco_m_unify e (coco_m_arg e g 0) l))))
+
+  ;;; `prewarm(-Count)' asks the backend, once, about every predicate a MODULE
+  ;;; owns and remembers the ones it has no rows for, so that the fresh store
+  ;;; every `run_isolated/2' proof gets need not ask again. Count is how many
+  ;;; joined the table on this call -- 0 on a second call, and 0 under
+  ;;; `--local', where there is no backend to ask.
+  ;;;
+  ;;; CALL IT BEFORE YOU SPAWN. The table is process-wide and unguarded, the
+  ;;; same contract `use_module' has and for the same reason: a lock here would
+  ;;; sit under the first call of every predicate of every proof in the
+  ;;; process. `library(httpd)' calls it in `httpd_serve/3' before the pool
+  ;;; starts.
+  ;;;
+  ;;; AND IT PAYS ONLY WHERE THE FETCHES RECUR, which is narrower than it
+  ;;; sounds and was measured the hard way. The call itself asks about every
+  ;;; library predicate the process has -- 437 of them with the tier-1
+  ;;; libraries loaded -- so it costs ~51 ms up front and earns it back at 51
+  ;;; fetches a request. An httpd pool repays that in about nine requests,
+  ;;; because a fresh store per REQUEST asks again every time.
+  ;;;
+  ;;; `library(cowork)' IS NOT THAT SHAPE AND DELIBERATELY DOES NOT CALL IT. A
+  ;;; crew worker's store lives as long as the worker and is filled lazily, so
+  ;;; it asks only about the predicates its own jobs call, once -- about
+  ;;; fifteen a worker, measured. Pre-warming a crew therefore buys 437 fetches
+  ;;; to save perhaps 180, and it measured 4-6x WORSE at every crew size
+  ;;; tried: a crew of four went 13 ms to 51, a crew of twelve 21 ms to 65,
+  ;;; with one real job each. The rule is the fetches RECURRING, not the
+  ;;; threads existing.
+  ;;;
+  ;;; WHAT IT COSTS IF YOU ARE WRONG is in `coco_store_prewarm' in lib/kb.cicili:
+  ;;; a predicate a MODULE defines, written into the knowledge base by another
+  ;;; process after this call, is not seen by this one. The program's own
+  ;;; predicates are untouched and are fetched per request as they always were.
+  (func coco_b_prewarm ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t n . #'(coco_store_prewarm (-> e st) (coco_m_machine e))))
+          (return (coco_m_unify e (coco_m_arg e g 0)
+                                  (coco_m_new_int e (cast i64 n))))))
+
+  ;;; `garbage_collect/0' compacts the store -- see `coco_store_compact' in
+  ;;; lib/kb.cicili for what that reclaims and when it happens unasked. It
+  ;;; always succeeds, and it is allowed anywhere a goal is: inside a
+  ;;; findall's goal or a directive the roots those hold move with the rest.
+  ;;;
+  ;;; AND IT ASKS FOR A HEAP COLLECTION at the next step boundary, because a
+  ;;; builtin is the one place a collection cannot run -- this call's own
+  ;;; frame holds the goal. The request is a threshold of 0 (`gc_next' on
+  ;;; the machine). Where the collector may not run (a host that did not
+  ;;; turn it on, a search whose starter told the collector nothing of its
+  ;;; own frame) the request waits for a step where it may. See
+  ;;; `coco_heap_gc' in lib/solve.cicili.
+  (func coco_b_garbage_collect ((coco_engine * e) (size_t g)) (out int)
+        (coco_store_compact (-> e st) (coco_m_machine e))
+        (set (-> (coco_m_machine e) gc_next) 0)
+        (return 1))
+
+  ;;; `statistics/2', the keys a program can act on. SWI's names where SWI
+  ;;; has the number -- `cputime' in seconds as a float, `inferences',
+  ;;; `globalused' and `trailused' in bytes, `atoms' and `functors' as
+  ;;; counts -- and `store_used' for what SWI has no word for: the bytes the
+  ;;; store's cell array holds, live and orphaned alike, which is the number
+  ;;; that `garbage_collect/0' brings down. Any other key is a
+  ;;; `domain_error(statistics_key, K)'.
+  ;;;
+  ;;; AND THE CAPS BESIDE THE LENGTHS (1.2.14): `store_cap', `globalcap' and
+  ;;; `trailcap' are what the process HOLDS where the three `used' keys are
+  ;;; what the program put there, plus `choicepoints', `strings' and
+  ;;; `compactions'. A length answers what you asked and can still leave you
+  ;;; looking at the wrong number: CivV read `store_used' at 28 MB inside a
+  ;;; window whose footprint was 13.2 GB. An array that doubles sits at up to
+  ;;; twice its contents, and only the cap says so.
+  ;;;
+  ;;; AND `heap_collections' (1.8.36): how many times `coco_heap_gc' has run
+  ;;; on this machine -- `compactions' is the store's count, this the heap's.
+  ;;; Zero is the honest answer under a host that never turned it on.
+  (func coco_b_statistics ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (coco_store * st . #'(-> e st))
+              (size_t k . #'(coco_deref (coco_m_machine e) (coco_m_arg e g 0)))
+              (size_t out . #'(coco_m_arg e g 1))
+              (i64 v . 0))
+          (if (not (coco_m_is_atom e k)) (return (coco_m_type_error e "atom" k)))
+          (let ((const char * key . #'(coco_atom_name m (coco_name_of m k))))
+            (cond
+              ((== 0 (strcmp key "cputime"))
+               ;; CLOCKS_PER_SEC is a macro Cicili cannot see; POSIX fixes it
+               ;; at one million, on this platform and the other one
+               (return (coco_m_unify e out (coco_m_new_float
+                                             e (/ (cast double (clock)) 1000000.0)))))
+              ;; the steps less those that are no inference -- `true' and
+              ;; `=/2' (1.12.2), as SWI counts
+              ((== 0 (strcmp key "inferences")) (set v (cast i64 (- (-> e steps) (-> e frees)))))
+              ((== 0 (strcmp key "globalused")) (set v (cast i64 (* (-> m heap_len) 8))))
+              ((== 0 (strcmp key "trailused"))  (set v (cast i64 (* (-> m trail_len) 8))))
+              ((== 0 (strcmp key "atoms"))      (set v (cast i64 (-> m atoms_len))))
+              ((== 0 (strcmp key "functors"))   (set v (cast i64 (-> m functors_len))))
+              ((== 0 (strcmp key "store_used")) (set v (cast i64 (* (-> st len) 8))))
+              ;; THE CAPS, NOT ONLY THE LENGTHS, because the length is what a
+              ;; program put there and the CAP is what the process is holding
+              ;; -- and an array that doubles sits at up to twice its contents
+              ;; between one compaction and the next. CivV read `store_used' at
+              ;; 28 MB inside a window whose footprint was 13.2 GB; the length
+              ;; was telling the truth and was not the question.
+              ((== 0 (strcmp key "store_cap"))  (set v (cast i64 (* (-> st cap) 8))))
+              ((== 0 (strcmp key "globalcap"))  (set v (cast i64 (* (-> m heap_cap) 8))))
+              ((== 0 (strcmp key "trailcap"))   (set v (cast i64 (* (-> m trail_cap) 8))))
+              ((== 0 (strcmp key "choicepoints")) (set v (cast i64 (-> e nchoices))))
+              ((== 0 (strcmp key "compactions")) (set v (cast i64 (-> st ncompacts))))
+              ;; the HEAP's collections, where `compactions' is the store's
+              ((== 0 (strcmp key "heap_collections")) (set v (cast i64 (-> m gc_count))))
+              ((== 0 (strcmp key "strings"))    (set v (cast i64 (-> m strings_len))))
+              (#t (return (coco_m_domain_error e "statistics_key" k))))
+            (return (coco_m_unify e out (coco_m_new_int e v))))))
+
+  ;;; ---- operators --------------------------------------------------------
+
+  (static)
+  (func coco_b_typename ((int type)) (out const char *)
+        (if (== type COCO_XFX) (return "xfx"))
+        (if (== type COCO_XFY) (return "xfy"))
+        (if (== type COCO_YFX) (return "yfx"))
+        (if (== type COCO_FY)  (return "fy"))
+        (return "fx"))
+
+  ;;; `op(+Priority, +Type, +Name)'. Name may be a list of names, which is what
+  ;;; every real operator declaration uses. Priority 0 takes the operator away.
+  (func coco_b_op ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 prec . 0) (int type . 0) (int kind . 0)
+              (const char * ts)
+              (size_t * names . nil) (size_t n . 0))
+
+          (if (coco_m_is_var e (coco_m_arg e g 0)) (return (coco_m_instantiation_error e)))
+          (if (not (coco_m_int e (coco_m_arg e g 0) (aof prec)))
+              (return (coco_m_type_error e "integer" (coco_m_arg e g 0))))
+          (if (or (< prec 0) (> prec 1200))
+              (return (coco_m_domain_error e "operator_priority" (coco_m_arg e g 0))))
+
+          (set ts (coco_m_atom e (coco_m_arg e g 1)))
+          (if (== ts nil)
+              (block (if (coco_m_is_var e (coco_m_arg e g 1))
+                         (return (coco_m_instantiation_error e)))
+                     (return (coco_m_type_error e "atom" (coco_m_arg e g 1)))))
+          (if (not (coco_op_type_of ts (aof type) (aof kind)))
+              (return (coco_m_domain_error e "operator_specifier" (coco_m_arg e g 1))))
+
+          ;; one name, or a list of them
+          (if (not (coco_m_list_array e (coco_m_arg e g 2) (aof names) (aof n)))
+              (let ((const char * one . #'(coco_m_atom e (coco_m_arg e g 2))))
+                (if (== one nil)
+                    (block (if (coco_m_is_var e (coco_m_arg e g 2))
+                               (return (coco_m_instantiation_error e)))
+                           (return (coco_m_type_error e "atom" (coco_m_arg e g 2)))))
+                (if (not (coco_op_define one (cast int prec) type kind))
+                    (return (coco_m_error e "that operator name will not fit" one)))
+                (return 1)))
+
+          (for ((size_t i . 0)) (< i n) ((++ i))
+            (let ((const char * one . #'(coco_m_atom e (nth i names))))
+              (if (== one nil)
+                  (block (free names)
+                         (return (coco_m_type_error e "atom" (nth i names)))))
+              (if (not (coco_op_define one (cast int prec) type kind))
+                  (block (free names)
+                         (return (coco_m_error e "that operator name will not fit" one))))))
+          (free names)
+          (return 1)))
+
+  ;;; Every operator there is, as `op(Priority, Type, Name)'. The DECLARED ones
+  ;;; first and the built-in ones after, with a built-in left out when a
+  ;;; declaration of the same name and kind has hidden it -- so what comes back
+  ;;; is what the reader would actually do, not two tables stuck together.
+  (func coco_b_ops ((coco_engine * e) (size_t g)) (out int)
+        (let ((size_t * v . nil) (size_t n . 0) (size_t cap . 0) (size_t out))
+
+          (coco_b_ops_push e (aof v) (aof n) (aof cap) 1)
+          (coco_b_ops_push e (aof v) (aof n) (aof cap) 0)
+
+          (set out (coco_m_list e v n))
+          (free v)
+          (return (coco_m_unify e (coco_m_arg e g 0) out))))
+
+  ;;; DECLARED when `dyn', built-in otherwise. Pulled out because the two loops
+  ;;; are the same but for which table they read and whether they skip.
+  (static)
+  (func coco_b_ops_push ((coco_engine * e) (size_t ** v) (size_t * n) (size_t * cap)
+                       (int dyn))
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t total . #'(? dyn (coco_op_dyn_count) (coco_op_static_count))))
+          (for ((size_t i . 0)) (< i total) ((++ i))
+            (let ((const char * name . nil) (int prec . 0)
+                  (int type . 0) (int kind . 0))
+              (if (not (? dyn (coco_op_dyn_at i (aof name) (aof prec) (aof type) (aof kind))
+                          (coco_op_static_at i (aof name) (aof prec) (aof type) (aof kind))))
+                  continue)
+              ;; a declaration with priority 0 is not an operator, and a
+              ;; built-in that one has hidden is not one either
+              (if (== prec 0) continue)
+              (if (not dyn)
+                  (let ((int dp . 0) (int dt . 0))
+                    (if (>= (coco_op_dyn_lookup_pub name kind (aof dp) (aof dt)) 0)
+                        continue)))
+              (if (>= (cof n) (cof cap))
+                  (let ((size_t ncap . #'(? (== (cof cap) 0) 64 (* (cof cap) 2)))
+                        (size_t * nb))
+                    (set nb (cast (size_t *) (realloc (cof v) (* ncap (sizeof size_t)))))
+                    (if (== nb nil) (return))
+                    (set (cof v) nb)
+                    (set (cof cap) ncap)))
+              (let ((size_t args [3]))
+                (set (nth 0 args) (coco_new_int m (cast i64 prec)))
+                (set (nth 1 args) (coco_new_atom m (coco_b_typename type)))
+                (set (nth 2 args) (coco_new_atom m name))
+                (set (nth (cof n) (cof v)) (coco_make m "op" 3 args)))
+              (set (cof n) (+ (cof n) 1))))))
+
+  ;;; ---- halting ----------------------------------------------------------
+
+  (func coco_b_halt1 ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 code . 0))
+          (coco_m_int e (coco_m_arg e g 0) (aof code))
+          (set (-> e halted) 1)
+          (set (-> e halt_code) (cast int code))
+          (return 1)))
+
+  ;;; ---- a sort the aggregation needs -------------------------------------
+
+  ;;; RUNG 191.14 (from CivV): THREAD-LOCAL, and it has to be. The array
+  ;;; qsort is handed holds HEAP INDICES, not pointers, and this variable is
+  ;;; the only thing that says which machine those indices belong to. As a
+  ;;; file-scope static it was one slot for the whole process, so two threads
+  ;;; sorting at once had the second overwrite the first's machine and the
+  ;;; first's comparator then indexed a foreign heap.
+  ;;;
+  ;;; Reproduced through library(cowork) itself: 2000 sorting jobs on a
+  ;;; four-worker crew while the main thread sorted 1500 times -- SIGSEGV,
+  ;;; three runs of three. With a thin overlap it comes back clean every
+  ;;; time, which is why a light test does not find it. CivV sorts three
+  ;;; times a frame in its renderer and about twenty times an AI turn, so a
+  ;;; crew doing game work overlaps the drawing thread by construction.
+  ;;;
+  ;;; `(thread-local)' emits `__thread', which takes a trivially destroyed
+  ;;; type -- a bare pointer qualifies, as x509's and tls's buffers do. It
+  ;;; replaces `(static)' rather than joining it because no attribute in this
+  ;;; tree is stacked and the emitter has never been asked to.
+  (thread-local) (var coco_machine * coco_b_sort_machine)
+
+  (static)
+  (func coco_b_sort_cmp ((const void * a) (const void * b)) (out int)
+        (return (coco_compare coco_b_sort_machine
+                            (cof (cast (const size_t *) a))
+                            (cof (cast (const size_t *) b)))))
+
+  (static)
+  (func coco_b_sort_terms ((coco_machine * m) (size_t * v) (size_t n))
+        (set coco_b_sort_machine m)
+        (qsort v n (sizeof size_t) coco_b_sort_cmp))
+
+  ;;; ---- the module -------------------------------------------------------
+
+  (static) (coco-emit-module-dispatch coco_b_dispatch *builtins-predicates*)
+
+  (coco-defmodule coco_builtins_module "builtins" coco_b_dispatch *builtins-prolog*)
+
+  ) ; impl-builtins-db

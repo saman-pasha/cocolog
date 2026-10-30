@@ -130,6 +130,18 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
 * **Where `$HOME` is not where the checkouts are** (a container), set
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
+* **A heavy lib file is pieces of one translation unit** (2.16.1):
+  lib/solve.cicili is seven files, lib/kb.cicili four, lib/builtins.cicili
+  three and lib/term.cicili two, each piece an `impl-` generic of its own,
+  emitted right after the one before it by cocolog.cicili and by every test
+  binary that emits the head (lib/builtins.cicili's pieces by cocolog.cicili
+  alone). The head keeps the tables, the macros and every declaration, and a
+  function calls only what an earlier piece defined or the head declared. A
+  new piece goes into each of those lists in its place: a test binary that
+  misses one has its functions declared and never defined, which Cicili
+  stops at. The split moved code and nothing else -- the binary built
+  before and after it is the same, byte for byte, and the C differs only in
+  Cicili's numbered block comments (`/* let1351 */`).
 * **Debian's SBCL 2.2.9 starts with a 1 GB heap, which a build of cocolog
   exhausts** (a heap-exhaustion report from Cicili, midway). Since 1.10.28
   `tools/cc/sbcl` is the `sbcl` every build step runs (the Makefile's Cicili
@@ -1302,7 +1314,7 @@ cocolint index offers no import of it.
   translator's table of a common word (`è`, `di`) holds 300 entries.
 * **The six term walks borrow the machine's stacks** (copy, store-put,
   store-get, store-unify, unify, compare: `coco_wframes_take`/`_give`,
-  `coco_wpairs_take`/`_give` in `lib/term.cicili`), and the three that
+  `coco_wpairs_take`/`_give` in `lib/term-walk.cicili`), and the three that
   rename variables borrow its variable map too (`coco_varmap_take`/`_give`:
   an open-addressed table, epoch-stamped so nothing is cleared between
   copies; its hash must spread CONSECUTIVE keys -- a multiply alone put a
@@ -1368,7 +1380,7 @@ cocolint index offers no import of it.
   entry its id plus one, kept under half full -- checked BEFORE the probe, so
   a failed rehash still leaves an empty slot). Ids stay in order of first
   use, which a frozen machine relies on; `coco_name_arity_hash` serves the
-  functors (`lib/term.cicili`) and the predicates (`lib/kb.cicili`). Each
+  functors (`lib/term.cicili`) and the predicates (`lib/kb-pred.cicili`). Each
   table has exactly one writer (`coco_functor_id`, `coco_pred_make`); keep
   it that way. The functor also remembers which module owns a goal of its
   name (`dmod`/`dgen`, since 1.8.42): the `strcmp` walk over the modules
@@ -1438,7 +1450,7 @@ cocolint index offers no import of it.
   answer, errors included; a recursion that must make garbage for the
   collector now has to build something (`test/gc.pl`).
 * **A clause is COMPILED the first time it is selected** (`coco_clause_code`
-  and `coco_clause_run` in `lib/kb.cicili`, since 1.8.44; `coco_clause_run_r`
+  and `coco_clause_run` in `lib/kb-compile.cicili`, since 1.8.44; `coco_clause_run_r`
   for a call or a goal in registers and `coco_clause_run_g` for a body with
   guards, each its own function so that a clause using none of it runs
   exactly the first, and the head and body programs written once as the
@@ -2172,7 +2184,7 @@ cocolint index offers no import of it.
 
 * **A signal is a halt code** (2.6.0): a handler in `modules/signal` writes
   `4 + SIGNO` into the engine's `halted` cell (the one object a handler may
-  assign), and `coco_halted_step` (lib/solve.cicili) flushes the
+  assign), and `coco_halted_step` (lib/solve-loop.cicili) flushes the
   continuation, builds `signal(Name, Num)` from `coco_signal_name`'s one
   name table, and raises `error(signal(Name,Num), _)`; codes are below 128.
   The module's handler is a Cicili function writing a `sig_atomic_t *`
@@ -8077,13 +8089,13 @@ than its cause:
 | path | what |
 |---|---|
 | `cocolog.cicili` | the composition root: CLI, options, the version |
-| `lib/term.cicili` | cells, unification, the trail, copying |
+| `lib/term.cicili`, `term-walk` | cells, the machine, text, names and the heap; `term-walk` binding, the trail, unification, copying, cycles and the standard order |
 | `lib/syntax.cicili` | the reader and the writer, one operator table plus `op/3`'s |
-| `lib/kb.cicili` | the clause store, its five backend hooks (`fetch`, `on_assert`, `on_retract`, `on_dynamic`, `warm`), compaction |
-| `lib/solve.cicili` | the engine, the builtin table, error text |
+| `lib/kb.cicili`, `kb-compile`, `kb-pred`, `kb-consult` | the clause store and its five backend hooks (`fetch`, `on_assert`, `on_retract`, `on_dynamic`, `warm`); `kb-compile` compiled clauses, the guards and the environments; `kb-pred` compaction, predicates, the indexes and the update view; `kb-consult` a re-read's order, assert, consult and retract |
+| `lib/solve.cicili`, `solve-control`, `solve-gc`, `solve-loop`, `solve-arith`, `solve-text`, `solve-db` | the engine: the builtin table, its vocabulary, every declaration, the recorder, the clocks and the journal; `solve-control` the continuation, choice points, clause selection, throwing and error text; `solve-gc` the heap collector; `solve-loop` the loop; `solve-arith` unification, type tests and arithmetic; `solve-text` terms built and taken apart and text; `solve-db` output, the database, listing and the dispatcher |
 | `lib/module.cicili`, `lib/sdk.cicili` | the module seam and the SDK an out-of-tree module is written against |
 | `lib/library.cicili` | `use_module`, the library path, directive goals |
-| `lib/builtins.cicili`, `lists`, `apply`, `files`, `dcg`, `state` | tier-1 modules (`files` has `get_time/1`) |
+| `lib/builtins.cicili`, `builtins-format`, `builtins-db`, `lists`, `apply`, `files`, `dcg`, `state` | tier-1 modules (`files` has `get_time/1`; builtins keeps its table and Prolog half first, format and character classes in `builtins-format`, its dispatcher last in `builtins-db`) |
 | `lib/zigurat-kb.cicili`, `lib/zeytun-kb.cicili` | the binary-protocol and HTTP backends |
 | `lib/swipl/` | SWI's vendored libraries -- do not edit |
 | `client/` | pure C wire client; `client/tls.c` the one TLS unit |

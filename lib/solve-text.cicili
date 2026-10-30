@@ -1,0 +1,1576 @@
+;;;; cocolog -- terms built and taken apart, setarg/3, and text: atoms,
+;;;; strings and SWI's text predicates
+;;;
+;;; A PIECE OF THE ENGINE, split out of lib/solve.cicili for size (2.16.1,
+;;; where that file had reached 11 076 lines). The seven pieces are ONE
+;;; translation unit, emitted in this order by cocolog.cicili and by the test
+;;; binaries that link the engine: solve, solve-control, solve-gc, solve-loop,
+;;; solve-arith, solve-text, solve-db. So a function here calls only what an
+;;; earlier piece defined or `decl-solve' declared, exactly as when they were
+;;; one file, and a new piece of the engine goes into that list in its place.
+;;; lib/solve.cicili keeps the builtin table, the engine's vocabulary and
+;;; every declaration: a new builtin's row goes there, its function in the
+;;; piece it belongs to.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(generic impl-solve-text
+  ()
+
+  ;;; ---- term construction and inspection ----
+
+  (func coco_bi_functor ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_a e g 0)))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (if (not (coco-tag-is REF c))
+                ;; taking a term apart
+                (let ((size_t nm) (size_t ar))
+                  (if (coco-tag-is FUN c)
+                      (block (set nm (coco_new_atom m (coco_atom_name m (coco_name_of m t))))
+                             (set ar (coco_new_int m (cast i64 (coco_arity m t)))))
+                    (block (set nm (coco_push m c))
+                           (set ar (coco_new_int m 0))))
+                  (if (not (coco_unify m (coco_arg m g 1) nm)) (return 0))
+                  (return (? (coco_unify m (coco_arg m g 2) ar) 1 0)))))
+          ;; BUILDING ONE, with SWI's errors in SWI's order: the name and the
+          ;; arity both bound, a compound never a name, the arity an integer
+          ;; and not below 0, and a name with arguments an atom. Through
+          ;; 1.10.5 an arity below 0 stopped the query where no catch/3 could
+          ;; see it, an unbound name was a type error, and an arity that was
+          ;; bound but not an integer an instantiation error.
+          (let ((size_t nt . #'(coco_a e g 1))
+                (size_t at . #'(coco_a e g 2)))
+            (if (or (coco-tag-is REF (nth nt (-> m heap))) (coco-tag-is REF (nth at (-> m heap))))
+                (return (coco_instantiation_error e)))
+            (if (coco-tag-is FUN (nth nt (-> m heap)))
+                (return (coco_type_error e "atomic" nt)))
+            (if (not (coco-is-int (nth at (-> m heap))))
+                (return (coco_type_error e "integer" at)))
+            (let ((i64 n . #'(coco_int_val m (nth at (-> m heap)))))
+              (if (< n 0) (return (coco_domain_error e "not_less_than_zero" at)))
+              (if (> n 4294967295) (return (coco_representation_error e "max_arity")))
+              (if (== n 0) (return (? (coco_unify m (coco_arg m g 0) nt) 1 0)))
+              (if (not (coco-tag-is ATOM (nth nt (-> m heap))))
+                  (return (coco_type_error e "atom" nt)))
+              (let ((size_t h . #'(coco_open_struct m (coco_atom_name m (coco_name_of m nt))
+                                                 (cast u32 n))))
+                (for ((i64 i . 0)) (< i n) ((++ i)) (coco_new_var m))
+                (return (? (coco_unify m (coco_arg m g 0) h) 1 0)))))))
+
+  ;;; SWI'S ERRORS, IN SWI'S ORDER: the term first -- unbound an
+  ;;; instantiation error, atomic a type error -- then the index: unbound an
+  ;;; instantiation error (SWI enumerates there; every builtin here is
+  ;;; deterministic), bound and not an integer a type error, below 0 a
+  ;;; domain error; 0 and past the arity fail. Through 1.10.5 an unbound or
+  ;;; atomic term FAILED, and an index of any kind but an integer was an
+  ;;; instantiation error.
+  (func coco_bi_arg ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t it . #'(coco_a e g 0))
+              (size_t t . #'(coco_a e g 1)))
+          (if (coco-tag-is REF (nth t (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-tag-is FUN (nth t (-> m heap))))
+              (return (coco_type_error e "compound" t)))
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-is-int (nth it (-> m heap))))
+              (return (coco_type_error e "integer" it)))
+          (let ((i64 i . #'(coco_int_val m (nth it (-> m heap))))
+                (u32 n . #'(coco_arity m t)))
+            (if (< i 0) (return (coco_domain_error e "not_less_than_zero" it)))
+            (if (or (< i 1) (> i (cast i64 n))) (return 0))
+            (return (? (coco_unify m (coco_arg m g 2) (coco_arg m t (cast u32 (- i 1)))) 1 0)))))
+
+  ;;; ---- setarg/3 and nb_setarg/3 (1.12.0) --------------------------------
+  ;;;
+  ;;; THE ARGUMENT CELL ITSELF IS WRITTEN, as SWI writes it: a variable the
+  ;;; argument only names (a reference to a cell elsewhere) stays as it was,
+  ;;; and one made in the argument IS the cell and changes with it -- which
+  ;;; is how SWI's own aggregate_all(max(X), ...) keeps its running maximum
+  ;;; in `state(X)' while X itself is bound and unbound by every solution.
+  ;;; NOT SWI'S: where a variable lives. SWI makes a body's fresh variable
+  ;;; in the first structure that holds it, so `T = f(X), setarg(1, T, z)'
+  ;;; leaves X == z there; a body here makes it in its environment or its
+  ;;; frame, and f(X)'s argument names it, so X stays unbound (functor/3's
+  ;;; and copy_term/2's variables are made in their arguments, as SWI's).
+  ;;;
+  ;;; SWI's errors in SWI's order, which is not arg/3's: the index first
+  ;;; (unbound an instantiation error, no integer a type error, below 0 a
+  ;;; domain error, 0 a failure), then the term (unbound an instantiation
+  ;;; error, an atom a failure -- it has no argument to set -- but `[]' and
+  ;;; anything else not compound type_error(compound, T)), and an index past
+  ;;; the arity a failure. Answers the cell, or 0 with RC the builtin's
+  ;;; answer (cell 0 is no argument: one follows its compound's header).
+  (static)
+  (func coco_setarg_cell ((coco_engine * e) (size_t g) (int * rc)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t it . #'(coco_a e g 0))
+              (size_t t . #'(coco_a e g 1)))
+          (set (cof rc) 0)
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (block (set (cof rc) (coco_instantiation_error e)) (return 0)))
+          (if (not (coco-is-int (nth it (-> m heap))))
+              (block (set (cof rc) (coco_type_error e "integer" it)) (return 0)))
+          (let ((i64 i . #'(coco_int_val m (nth it (-> m heap)))))
+            (if (< i 0)
+                (block (set (cof rc) (coco_domain_error e "not_less_than_zero" it)) (return 0)))
+            (if (== i 0) (return 0))
+            (if (coco-tag-is REF (nth t (-> m heap)))
+                (block (set (cof rc) (coco_instantiation_error e)) (return 0)))
+            (if (and (coco-tag-is ATOM (nth t (-> m heap)))
+                     (!= 0 (strcmp (coco_atom_name m (coco_name_of m t)) "[]")))
+                (return 0))
+            (if (not (coco-tag-is FUN (nth t (-> m heap))))
+                (block (set (cof rc) (coco_type_error e "compound" t)) (return 0)))
+            (if (> i (cast i64 (coco_arity m t))) (return 0))
+            (return (coco_arg m t (cast u32 (- i 1)))))))
+
+  ;;; What an argument cell holds for the value V, dereferenced: an atomic
+  ;;; value itself, as `coco_make' stores one, and a variable or a compound
+  ;;; a reference to it.
+  (static)
+  (func coco_setarg_word ((coco_machine * m) (size_t v)) (out u64)
+        (let ((u64 c . #'(nth v (-> m heap))))
+          (if (or (coco-tag-is REF c) (coco-tag-is FUN c)) (return (coco-cell REF v)))
+          (return c)))
+
+  ;;; `setarg(+N, +T, +V)': undone on backtracking. The old content of the
+  ;;; cell is kept in a cell of its own and the trail's value entry
+  ;;; (`coco_trail_pair') puts it back -- the first entry of the trail that
+  ;;; is not a binding. V is linked, not copied: a later binding of it is
+  ;;; seen in T.
+  (func coco_bi_setarg ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
+              (size_t a . #'(coco_setarg_cell e g (aof rc))))
+          (if (== a 0) (return rc))
+          (let ((u64 old . #'(nth a (-> m heap)))
+                (u64 nw . #'(coco_setarg_word m (coco_a e g 2)))
+                (size_t s . #'(-> m heap_len)))
+            (if (or (!= (coco_push m old) s) (not (coco_trail_pair m s a)))
+                (return (coco_mem_error e)))
+            (set (nth a (-> m heap)) nw)
+            (return 1))))
+
+  ;;; NOTHING THE HEAP IS WOUND BACK FOR MAY TAKE AWAY THE CELLS FROM FROM UP
+  ;;; (1.12.0): nb_setarg/3's copy, made on the heap's top, or a variable
+  ;;; newer than the cell it wrote; and from 0, a ground global's copy that
+  ;;; nb_setarg/3 wrote into (1.12.1, `coco_gcache_pin'). Every mark at or
+  ;;; above FROM -- a choice point's, the one a nested engine's starter
+  ;;; winds the heap back to (`pheap'), a host's registered position, such
+  ;;; as a consult's after a directive -- would cut them away from under
+  ;;; what reaches them, which is older: so each is raised to the heap's
+  ;;; length, SWI's freezeGlobal(). A mark below FROM is left. The cells
+  ;;; under a raised mark stay until the collector finds them unreachable;
+  ;;; a binding made among them was trailed, as every binding is, and is
+  ;;; undone as before.
+  ;;;
+  ;;; THE MARKS GROW UP A CHOICE STACK AND INWARD ALONG THE CHAIN of engines
+  ;;; (a nested engine's frames were all made after its starter's mark), so
+  ;;; the marks at or above FROM are the newest few, and the walk stops at
+  ;;; the first one below -- raised, they are still in order, which the
+  ;;; collector's trail pass needs. The positions are the host's, few, and
+  ;;; each is asked.
+  (func coco_heap_freeze ((coco_engine * e) (size_t from))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t h . #'(-> m heap_len))
+              (coco_engine * x . e))
+          (while (!= x nil)
+            (let ((size_t k . #'(-> x nchoices)))
+              (while (and (> k 0) (>= ($ (nth (- k 1) (-> x choices)) heap_mark) from))
+                (set k (- k 1))
+                (set ($ (nth k (-> x choices)) heap_mark) h)))
+            (if (or (== (-> x outer) nil) (< (-> x pheap) from)) break)
+            (set (-> x pheap) h)
+            (set x (cast (coco_engine *) (-> x outer))))
+          (coco_heap_raise_positions m from h)))
+
+  ;;; A GROUND GLOBAL'S COPY THAT nb_setarg/3 WRITES INTO IS PINNED (1.12.1):
+  ;;; the write lasts until nb_setval/2 replaces the value, as SWI's does,
+  ;;; so the copy must outlive any backtracking -- every mark is raised over
+  ;;; it, and over every other copy the machine holds, which are all pinned
+  ;;; with it: none can be cut away now. A cell outside every copy not yet
+  ;;; pinned (`gspan_lo' .. `gspan_hi', then the table) pins nothing.
+  (func coco_gcache_pin ((coco_engine * e) (size_t a))
+        (let ((coco_machine * m . #'(-> e m)) (int hit . 0))
+          (if (or (< a (-> m gspan_lo)) (>= a (-> m gspan_hi))) (return))
+          (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+            (if (and (!= ($ (nth i (-> m gcache)) ver) 0) (not ($ (nth i (-> m gcache)) pinned))
+                     (<= ($ (nth i (-> m gcache)) lo) a) (< a ($ (nth i (-> m gcache)) hi)))
+                (block (set hit 1) break)))
+          (if (not hit) (return))
+          (coco_heap_freeze e 0)
+          (for ((size_t i . 0)) (< i (-> m gcache_cap)) ((++ i))
+            (if (!= ($ (nth i (-> m gcache)) ver) 0) (set ($ (nth i (-> m gcache)) pinned) 1)))
+          (set (-> m gspan_lo) (cast size_t -1))
+          (set (-> m gspan_hi) 0)))
+
+  ;;; `nb_setarg(+N, +T, +V)': NOT undone on backtracking, and V is COPIED
+  ;;; when it is compound, so a later binding of a variable in it is not
+  ;;; seen in T -- SWI's duplicate_term/2. An atomic V is written as it is,
+  ;;; and an unbound one LINKED, as SWI does (a later binding of it is seen
+  ;;; in T; backtracking takes that binding back, and the link stays).
+  (func coco_bi_nb_setarg ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (int rc . 0)
+              (size_t a . #'(coco_setarg_cell e g (aof rc))))
+          (if (== a 0) (return rc))
+          (let ((size_t v . #'(coco_a e g 2)))
+            ;; a copy refused its memory writes nothing into T: the run ends
+            ;; `out of memory', as every growth refused outright ends it
+            (if (coco-tag-is FUN (nth v (-> m heap)))
+                (block (set v (coco_copy m v))
+                       (if (-> m oom) (return 0))))
+            (let ((u64 nw . #'(coco_setarg_word m v)))
+              ;; a ground global's copy written into is kept as the global
+              ;; (1.12.1): its write lasts, as SWI's
+              (coco_gcache_pin e a)
+              (if (and (coco-tag-is REF nw) (> v a)) (coco_heap_freeze e (+ a 1)))
+              (set (nth a (-> m heap)) nw)
+              (return 1)))))
+
+  ;;; `=..' both ways. Taking apart is a walk; building needs the list to be
+  ;;; proper, which is checked as it is walked rather than beforehand.
+  (func coco_bi_univ ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_a e g 0)))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (if (not (coco-tag-is REF c))
+                (let ((size_t lst . #'(coco_new_atom m "[]")))
+                  (if (coco-tag-is FUN c)
+                      (block (let ((u32 n . #'(coco_arity m t)) (u32 i))
+                               (set i n)
+                               (while (> i 0)
+                                 (set i (- i 1))
+                                 (set lst (coco_cons m (coco_arg m t i) lst))))
+                             (set lst (coco_cons m (coco_new_atom m (coco_atom_name m (coco_name_of m t))) lst)))
+                    (set lst (coco_cons m (coco_push m c) lst)))
+                  (return (? (coco_unify m (coco_arg m g 1) lst) 1 0)))))
+          ;; BUILDING FROM A LIST, with SWI's errors in SWI's order: a partial
+          ;; list or an unbound head is an instantiation error, anything else
+          ;; that is not a list a type error naming all of it, [] a domain
+          ;; error, a compound head alone a type error (atomic) and a head
+          ;; with arguments that is not an atom another (atom). Through
+          ;; 1.10.5 each of these stopped the query where no catch/3 could see
+          ;; it, and a compound alone was taken for the term.
+          (let ((size_t lst0 . #'(coco_a e g 1)) (size_t lst)
+                (size_t * items . nil) (size_t n . 0) (size_t cap . 0) (int ok . 1))
+            (set lst lst0)
+            (while 1
+              (set lst (coco_deref m lst))
+              (let ((u64 c . #'(nth lst (-> m heap))))
+                (if (coco-tag-is REF c) (block (set ok 2) break))
+                (if (coco-tag-is ATOM c)
+                    (block (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
+                               (set ok 0))
+                           break))
+                ;; a cell's functor is `'.'/2' or the list is not proper: a
+                ;; `'.'/1' passed the name test alone and had its tail read
+                ;; from past its end
+                (if (not (coco_is_cons m lst)) (block (set ok 0) break))
+                (if (>= n cap)
+                    (let ((size_t ncap . #'(? (== cap 0) 8 (* cap 2)))
+                          (size_t * grown . #'(cast (size_t *) (realloc items (* ncap (sizeof size_t))))))
+                      (if (== grown nil) (block (set ok 3) break))
+                      (set items grown)
+                      (set cap ncap)))
+                (set (nth n items) (coco_arg m lst 0))
+                (set n (+ n 1))
+                (set lst (coco_arg m lst 1))))
+            (if (!= ok 1)
+                (block (free items)
+                       (if (== ok 2) (return (coco_instantiation_error e)))
+                       (if (== ok 3) (return (coco_mem_error e)))
+                       (return (coco_type_error e "list" lst0))))
+            (if (== n 0)
+                (block (free items) (return (coco_domain_error e "non_empty_list" lst0))))
+            (let ((size_t hd . #'(coco_deref m (nth 0 items))) (size_t built))
+              (if (coco-tag-is REF (nth hd (-> m heap)))
+                  (block (free items) (return (coco_instantiation_error e))))
+              (if (== n 1)
+                  (block
+                   (if (coco-tag-is FUN (nth hd (-> m heap)))
+                       (block (free items) (return (coco_type_error e "atomic" hd))))
+                   (set built (coco_push m (nth hd (-> m heap)))))
+                (block
+                 (if (not (coco-tag-is ATOM (nth hd (-> m heap))))
+                     (block (free items) (return (coco_type_error e "atom" hd))))
+                 (set built (coco_make m (coco_atom_name m (coco_name_of m hd)) (cast u32 (- n 1))
+                                     (+ items 1)))))
+              (free items)
+              (return (? (coco_unify m (coco_arg m g 0) built) 1 0))))))
+
+  (func coco_bi_copy_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t c . #'(coco_copy (-> e m) (coco_arg (-> e m) g 0))))
+          (return (? (coco_unify m (coco_arg m g 1) c) 1 0))))
+
+  ;;; ---- atoms and text ----
+
+  ;;; The printed form of a term, into B. Used by the atom builtins, which are
+  ;;; all "write it, then do something with the characters".
+  (static)
+  (func coco_text_of ((coco_engine * e) (size_t t) (coco_strbuf * b)) (out int)
+        (coco_sb_init b)
+        (return (coco_write_term (-> e m) b t 0 0)))
+
+  ;;; A CODE IN A LIST OF CODES (2.16.1): an integer from 0 to U+10FFFF,
+  ;;; swipl's range, whether or not this machine's atoms can hold it.
+  (static)
+  (func coco_len_code ((coco_machine * m) (size_t h)) (out int)
+        (let ((u64 c . #'(nth h (-> m heap))))
+          (if (not (coco-tag-is INT c)) (return 0))
+          (let ((i64 v . #'(coco_int_val m c)))
+            (return (? (and (>= v 0) (<= v 1114111)) 1 0)))))
+
+  ;;; A CHARACTER IN A LIST OF CHARACTERS (2.16.1): an atom of one
+  ;;; character, or under `text_units = bytes' of one byte.
+  (static)
+  (func coco_len_char ((coco_machine * m) (size_t h)) (out int)
+        (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
+        (let ((const char * s . #'(coco_atom_name m (coco_name_of m h))))
+          (if (-> m text_chars) (return (? (>= (coco_utf8_one s) 0) 1 0)))
+          (return (? (== (strlen s) 1) 1 0))))
+
+  ;;; A LIST AS TEXT, FOR ITS LENGTH (2.16.1): codes when its first element
+  ;;; is an integer and characters when that is a character, every element
+  ;;; after it held to that kind, and its tail to `[]'. Answers 1 with its
+  ;;; length in *N -- its elements, a code or a character each, in either
+  ;;; unit -- or what is wrong, the element in *BAD: 2 an unbound element or
+  ;;; tail, 3 an element that is no code or a first element that is neither,
+  ;;; 4 an element that is no character, 5 a tail that is not `[]' or a list
+  ;;; that is its own tail (past the heap's length, `lbudget').
+  (static)
+  (func coco_len_list ((coco_machine * m) (size_t d) (i64 * n) (size_t * bad)) (out int)
+        (let ((size_t lst . d) (i64 k . 0) (int codes . 0))
+          (set (-> m lbudget) (-> m heap_len))
+          (while (coco_is_cons m lst)
+            (if (== (-- (-> m lbudget)) 0) (return 5))
+            (let ((size_t h . #'(coco_deref m (coco_arg m lst 0))))
+              (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
+              (if (== k 0) (set codes (coco-is-int (nth h (-> m heap)))))
+              (set (cof bad) h)
+              (if codes
+                  (block (if (not (coco_len_code m h)) (return 3)))
+                  (block (if (not (coco_len_char m h)) (return (? (== k 0) 3 4))))))
+            (set k (+ k 1))
+            (set lst (coco_deref m (coco_arg m lst 1))))
+          (if (coco-tag-is REF (nth lst (-> m heap))) (return 2))
+          (if (not (and (coco-tag-is ATOM (nth lst (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))))
+              (return 5))
+          (set (cof n) k)
+          (return 1)))
+
+  ;;; THE TEXT A LENGTH IS ASKED OF (2.16.1), as swipl 9.0.4 reads it:
+  ;;; PL_get_text with CVT_ALL (pl-text.c). Through 2.16.0 anything that was
+  ;;; not text was written out and the writing counted -- atom_length(f(x),
+  ;;; N) was 4 and atom_length([a,b], N) 5. An atom, a number or a string is
+  ;;; the text the writer writes unquoted, and a list is text as
+  ;;; `coco_len_list' reads it. WHOLE nil gives atom_length/2's and
+  ;;; string_length/2's errors, swipl's for them: a compound that is no list
+  ;;; is type_error(text, T), and a list's is type_error(character_code, X),
+  ;;; type_error(character, X), instantiation_error or type_error(text, L).
+  ;;; WHOLE a type gives the error of the predicates built on a length --
+  ;;; sub_atom/5's `atom', atom_concat/3's and string_concat/3's `atomic',
+  ;;; sub_string/5's `string' -- which swipl raises of the whole term,
+  ;;; whatever is wrong with it: type_error(WHOLE, T). An unbound T is
+  ;;; instantiation_error to both. `[]' IS THE ATOM, two characters, where
+  ;;; swipl's `[]' is the empty list and only its `'[]'' the atom: cocolog
+  ;;; has one of the two, and the atom is what format(atom(A), '~w', [[]])
+  ;;; and atom_codes(A, "[]") make. NIL_EMPTY 1 (the string predicates, as
+  ;;; through 2.16.0) takes it as the empty list, as a "" read as codes is.
+  ;;; Answers 1 with the length in *N, or the raise's answer.
+  (static)
+  (func coco_len_text ((coco_engine * e) (size_t t) (int nil_empty) (const char * whole)
+                       (i64 * n)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref m t)))
+          (if (coco-tag-is REF (nth d (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (coco_is_cons m d)
+              (let ((size_t bad . 0) (int r . #'(coco_len_list m d n (aof bad))))
+                (if (== r 1) (return 1))
+                (if (!= whole nil) (return (coco_type_error e whole d)))
+                (if (== r 2) (return (coco_instantiation_error e)))
+                (if (== r 3) (return (coco_type_error e "character_code" bad)))
+                (if (== r 4) (return (coco_type_error e "character" bad)))
+                (return (coco_type_error e "text" d))))
+          (if (and nil_empty
+                   (and (coco-tag-is ATOM (nth d (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m d)) "[]"))))
+              (block (set (cof n) 0) (return 1)))
+          (if (coco-tag-is FUN (nth d (-> m heap)))
+              (return (coco_type_error e (? (!= whole nil) whole "text") d)))
+          (let ((coco_strbuf b))
+            (coco_text_of e d (aof b))
+            ;; in characters under `text_units = characters' (1.13.0)
+            (set (cof n) (cast i64 (? (-> m text_chars)
+                                      (coco_utf8_count ($ b s) ($ b len))
+                                      ($ b len))))
+            (coco_sb_free (aof b))
+            (return 1))))
+
+  ;;; THE LENGTH'S ARGUMENT (2.16.1), swipl's: unbound, it takes N; an
+  ;;; integer of either kind is compared, so a negative or a boxed one
+  ;;; fails, as swipl's does; anything else is type_error(integer, L),
+  ;;; where through 2.16.0 the unify failed -- atom_length(abc, foo) and
+  ;;; atom_length(abc, 3.0) said no.
+  (static)
+  (func coco_len_answer ((coco_engine * e) (size_t l) (i64 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref m l)))
+          (if (coco-tag-is REF (nth d (-> m heap)))
+              (return (? (coco_unify m d (coco_new_int m n)) 1 0)))
+          (if (not (coco-is-int (nth d (-> m heap))))
+              (return (coco_type_error e "integer" d)))
+          (return (? (== (coco_int_val m (nth d (-> m heap))) n) 1 0))))
+
+  (func coco_bi_atom_length ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0)
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) 0 nil (aof n))))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
+
+  ;;; '$atom_text_length'(T, N, Type) and '$string_text_length'(T, N, Type)
+  ;;; (2.16.1): the length atom_length/2 and string_length/2 read, with
+  ;;; anything that is no text type_error(Type, T) -- for the clauses of
+  ;;; sub_atom/5, atom_concat/3, string_concat/3 and sub_string/5
+  ;;; (lib/builtins.cicili), each in swipl's word. They asked the length
+  ;;; predicates themselves, whose errors are their own, and through 2.16.0
+  ;;; took a compound's writing for its text. The type's name is copied
+  ;;; first: the atoms a raise makes can move the name table.
+  (static)
+  (func coco_len_typed ((coco_engine * e) (size_t g) (int nil_empty)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t ty . #'(coco_a e g 2))
+              (char tn [64]) (i64 n . 0) (int r . 0))
+          (if (not (coco-tag-is ATOM (nth ty (-> m heap))))
+              (return (coco_type_error e "atom" ty)))
+          (snprintf tn (sizeof tn) "%s" (coco_atom_name m (coco_name_of m ty)))
+          (set r (coco_len_text e (coco_arg m g 0) nil_empty tn (aof n)))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg m g 1) n))))
+
+  (func coco_bi_atom_text_length ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_len_typed e g 0)))
+
+  (func coco_bi_string_text_length ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_len_typed e g 1)))
+
+  ;;; Text as codes: a byte a code, or under `text_units = characters' a
+  ;;; character a code, its code point (1.13.0, `coco_text_list').
+  (static)
+  (func coco_codes_of ((coco_engine * e) (const char * s) (size_t n)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t lst . #'(coco_new_atom (-> e m) "[]")))
+          (if (-> m text_chars) (return (coco_text_list m s n 0 lst)))
+          (while (> n 0)
+            (set n (- n 1))
+            (set lst (coco_cons m (coco_new_int m (cast i64 (cast uchar (nth n s)))) lst)))
+          (return lst)))
+
+  ;;; Collects a code list into B. Answers 0 if it is not a proper list of
+  ;;; character codes.
+  (static)
+  (func coco_codes_to_text ((coco_engine * e) (size_t lst) (coco_strbuf * b)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          ;; a list that is its own tail is none: past the heap's length the
+          ;; walk has gone round (1.10.19; it wrote until memory ran out),
+          ;; counted down in the machine (`lbudget') -- two locals more and
+          ;; the loop spilled, seven instructions a code
+          (set (-> m lbudget) (-> m heap_len))
+          (coco_sb_init b)
+          (while 1
+            (set lst (coco_deref m lst))
+            (let ((u64 c . #'(nth lst (-> m heap))))
+              (if (coco-tag-is ATOM c)
+                  (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
+              (if (not (coco_is_cons m lst)) (return 0))
+              (if (== (-- (-> m lbudget)) 0) (return 0))
+              ;; A CODE OR A ONE-CHARACTER ATOM. `double_quotes' has four
+              ;; values and TWO of them make a list, so under `chars' the
+              ;; "ab" a program hands string_length/2 IS [a,b] -- and a walk
+              ;; that took only codes fell through to writing the term, which
+              ;; answers 5. That is the silent wrong answer this whole
+              ;; conversion exists to stop, in the other of its two shapes.
+              ;; UNDER `text_units = characters' (1.13.0) a code is a code
+              ;; point, written as its UTF-8, and a character an atom of ONE
+              ;; character, of however many bytes
+              (let ((size_t h . #'(coco_deref m (coco_arg m lst 0))))
+                ;; a code of either kind of integer (2.0.0): a boxed one is
+                ;; no code, and fails where it stands as a big INT does
+                (if (coco-is-int (nth h (-> m heap)))
+                    (if (-> m text_chars)
+                        (block (if (not (coco_utf8_put b (coco_int_val m (nth h (-> m heap)))))
+                                   (return 0)))
+                        (coco_sb_putc b (cast char (coco_int_val m (nth h (-> m heap))))))
+                    (block
+                     (if (not (coco-tag-is ATOM (nth h (-> m heap)))) (return 0))
+                     (let ((const char * cs . #'(coco_atom_name m (coco_name_of m h))))
+                       (if (-> m text_chars)
+                           (block (if (< (coco_utf8_one cs) 0) (return 0))
+                                  (coco_sb_put b cs))
+                           (block (if (!= (strlen cs) 1) (return 0))
+                                  (coco_sb_putc b (nth 0 cs))))))))
+              (set lst (coco_arg m lst 1))))
+          (return 0)))
+
+  ;;; ---- SWI's string type ------------------------------------------------
+  ;;;
+  ;;; TEXT IN, STRING OUT is the rule these follow, and it is SWI's. Anything
+  ;;; that has text -- an atom, a number, a string -- is accepted where text is
+  ;;; wanted; what comes back is a STRING wherever SWI answers one. A code
+  ;;; list is text to string_codes/2 and to nothing else, because a list is a
+  ;;; list and guessing is how `[104,105]' becomes the word `hi' by accident.
+
+  (func coco_bi_string ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_is_string (-> e m) (coco_a e g 0))))
+
+  ;;; The text of ARG, for the predicates below. A string gives its bytes; an
+  ;;; atom or a number gives what the writer writes unquoted. Answers 0 for an
+  ;;; unbound variable, which every caller turns into instantiation_error.
+  (static)
+  (func coco_str_arg ((coco_engine * e) (size_t t) (coco_strbuf * b)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t d . #'(coco_deref m t))
+              (const char * sp . nil) (size_t sn . 0))
+          (if (coco-tag-is REF (nth d (-> m heap))) (return 0))
+          (if (coco_string_text m d (aof sp) (aof sn))
+              (block (coco_sb_init b)
+                     (for ((size_t i . 0)) (< i sn) ((++ i)) (coco_sb_putc b (nth i sp)))
+                     (return 1)))
+          ;; A PROPER LIST OF CODES IS TEXT, which is SWI's rule and matters
+          ;; here more than it does there: `double_quotes' is `codes', so
+          ;; `"hello"' IS [104,101,108,108,111] and a porter writes it
+          ;; expecting text. Without this, string_length("hello", N) answered
+          ;; 21 -- the length of `[104,101,108,108,111]' written out -- which
+          ;; is the silent wrong answer this repository exists to refuse.
+          ;;
+          ;; NOT A GUESS, and the distinction is the one library(json) draws:
+          ;; there a bare list is genuinely ambiguous between an array and
+          ;; text, so it refuses. Here the argument position says TEXT, and a
+          ;; list that is not a proper list of codes still falls through to
+          ;; the writer below.
+          (if (coco_codes_to_text e d b) (return 1))
+          (return (coco_text_of e d b))))
+
+  (static)
+  (func coco_str_new ((coco_engine * e) (coco_strbuf * b)) (out size_t)
+        (return (coco_new_string (-> e m)
+                                 (? (== ($ (cof b) s) nil) "" ($ (cof b) s))
+                                 ($ (cof b) len))))
+
+  ;;; ONE RELATION, TWO SPELLINGS. AI is the argument that is an ATOM and SI
+  ;;; the one that is a STRING; whichever is bound decides the direction.
+  (static)
+  (func coco_str_convert ((coco_engine * e) (size_t g) (int ai) (int si)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
+          (if (coco_str_arg e (coco_arg m g (cast size_t ai)) (aof b))
+              (block (set r (coco_unify m (coco_arg m g (cast size_t si))
+                                        (coco_str_new e (aof b))))
+                     (coco_sb_free (aof b))
+                     (return (? r 1 0))))
+          (if (not (coco_str_arg e (coco_arg m g (cast size_t si)) (aof b)))
+              (return (coco_instantiation_error e)))
+          (set r (coco_unify m (coco_arg m g (cast size_t ai))
+                             (coco_new_atom m (? (== ($ b s) nil) "" ($ b s)))))
+          (coco_sb_free (aof b))
+          (return (? r 1 0))))
+
+  ;;; A CHARACTER IS A ONE-CHARACTER ATOM, not a code -- string_chars/2 and
+  ;;; string_codes/2 differ in exactly that. A byte, or under `text_units =
+  ;;; characters' a character of however many bytes (1.13.0).
+  (static)
+  (func coco_chars_of ((coco_engine * e) (const char * s) (size_t n)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t lst . #'(coco_new_atom (-> e m) "[]")))
+          (if (-> m text_chars) (return (coco_text_list m s n 1 lst)))
+          (while (> n 0)
+            (set n (- n 1))
+            (let ((char one [2]))
+              (set (nth 0 one) (nth n s))
+              (set (nth 1 one) (cast char 0))
+              (set lst (coco_cons m (coco_new_atom m one) lst))))
+          (return lst)))
+
+  (static)
+  (func coco_chars_to_text ((coco_engine * e) (size_t lst) (coco_strbuf * b)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          ;; a list that is its own tail is none, counted as for codes
+          ;; (1.10.19; string_chars/2 wrote until memory ran out)
+          (set (-> m lbudget) (-> m heap_len))
+          (coco_sb_init b)
+          (while 1
+            (set lst (coco_deref m lst))
+            (let ((u64 c . #'(nth lst (-> m heap))))
+              (if (coco-tag-is ATOM c)
+                  (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]")) 1 0)))
+              (if (not (coco_is_cons m lst)) (return 0))
+              (if (== (-- (-> m lbudget)) 0) (return 0))
+              (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
+                    (const char * one . nil))
+                (set one (coco_atom_name m (coco_name_of m h)))
+                (if (== one nil) (return 0))
+                ;; one character of however many bytes, in characters
+                (if (-> m text_chars)
+                    (block (if (< (coco_utf8_one one) 0) (return 0))
+                           (coco_sb_put b one))
+                    (block (if (!= 1 (strlen one)) (return 0))
+                           (coco_sb_putc b (nth 0 one)))))
+              (set lst (coco_arg m lst 1))))
+          (return 0)))
+
+  ;;; string_codes/2 and string_chars/2 differ only in what the list holds.
+  (static)
+  (func coco_str_list ((coco_engine * e) (size_t g) (int chars)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
+          (if (coco_str_arg e (coco_arg m g 0) (aof b))
+              (block (set r (coco_unify m (coco_arg m g 1)
+                                        (? chars
+                                           (coco_chars_of e ($ b s) ($ b len))
+                                           (coco_codes_of e ($ b s) ($ b len)))))
+                     (coco_sb_free (aof b))
+                     (return (? r 1 0))))
+          (if (not (? chars
+                      (coco_chars_to_text e (coco_arg m g 1) (aof b))
+                      (coco_codes_to_text e (coco_arg m g 1) (aof b))))
+              (block (coco_sb_free (aof b))
+                     ;; a list that is its own tail is no list (1.10.19)
+                     (if (coco_list_cyclic m (coco_arg m g 1))
+                         (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
+                     (return (coco_instantiation_error e))))
+          (set r (coco_unify m (coco_arg m g 0) (coco_str_new e (aof b))))
+          (coco_sb_free (aof b))
+          (return (? r 1 0))))
+
+  (static)
+  (func coco_str_join ((coco_engine * e) (size_t g) (int as_string)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf a) (coco_strbuf b)
+              (coco_strbuf o) (int r))
+          (if (not (coco_str_arg e (coco_arg m g 0) (aof a)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (block (coco_sb_free (aof a)) (return (coco_instantiation_error e))))
+          (coco_sb_init (aof o))
+          (for ((size_t i . 0)) (< i ($ a len)) ((++ i)) (coco_sb_putc (aof o) (nth i ($ a s))))
+          (for ((size_t i . 0)) (< i ($ b len)) ((++ i)) (coco_sb_putc (aof o) (nth i ($ b s))))
+          (set r (coco_unify m (coco_arg m g 2)
+                             (? as_string
+                                (coco_str_new e (aof o))
+                                (coco_new_atom m (? (== ($ o s) nil) "" ($ o s))))))
+          (coco_sb_free (aof a)) (coco_sb_free (aof b)) (coco_sb_free (aof o))
+          (return (? r 1 0))))
+
+  ;;; ASCII ONLY in bytes: a byte above 0x7F is left exactly as it came in,
+  ;;; which is right for every byte of a UTF-8 character. Under `text_units
+  ;;; = characters' (1.13.0) a letter of the scripts `coco_uc_case' knows
+  ;;; changes case as SWI's does, `dár' to `DÁR' (`coco_text_case').
+  (static)
+  (func coco_str_case ((coco_engine * e) (size_t g) (int up)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
+          (if (not (coco_str_arg e (coco_arg m g 0) (aof b)))
+              (return (coco_instantiation_error e)))
+          (if (-> m text_chars)
+              (let ((coco_strbuf o))
+                (coco_sb_init (aof o))
+                (coco_text_case ($ b s) ($ b len) up (aof o))
+                (coco_sb_free (aof b))
+                (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof o))))
+                (coco_sb_free (aof o))
+                (return (? r 1 0))))
+          (for ((size_t i . 0)) (< i ($ b len)) ((++ i))
+               (let ((int c . #'(bitand (cast int (nth i ($ b s))) 255)))
+                 (if up
+                     (if (and (>= c 97) (<= c 122)) (set (nth i ($ b s)) (cast char (- c 32))))
+                   (if (and (>= c 65) (<= c 90)) (set (nth i ($ b s)) (cast char (+ c 32)))))))
+          (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof b))))
+          (coco_sb_free (aof b))
+          (return (? r 1 0))))
+
+  ;;; Whether character C is one of SET's characters (1.13.0).
+  (static)
+  (func coco_str_cmember ((i64 c) (coco_strbuf * set)) (out int)
+        (let ((size_t i . 0))
+          (while (< i ($ (cof set) len))
+            (if (== (coco_utf8_get ($ (cof set) s) ($ (cof set) len) (aof i)) c) (return 1)))
+          (return 0)))
+
+  ;;; split_string/4's SEP or PAD as a table of 256 (1.13.1): in bytes every
+  ;;; byte's answer; under characters an ASCII code point's, and the answer
+  ;;; is whether the set holds a character past ASCII, which
+  ;;; `coco_split_in' then asks of the set's text.
+  (static)
+  (func coco_split_set ((coco_strbuf * set) (int ch) (u8 * tab)) (out int)
+        (let ((int wide . 0))
+          (memset tab 0 256)
+          (for ((size_t k . 0)) (< k ($ (cof set) len)) ((++ k))
+               (let ((int b . #'(bitand (cast int (nth k ($ (cof set) s))) 255)))
+                 (if (or (not ch) (< b 128)) (set (nth b tab) 1) (set wide 1))))
+          (return wide)))
+
+  ;;; Whether C, a byte in bytes or a code point under characters, is one
+  ;;; of the set TAB and WIDE describe (`coco_split_set').
+  (static) (inline)
+  (func coco_split_in ((i64 c) (int ch) (u8 * tab) (int wide) (coco_strbuf * set)) (out int)
+        (if (or (not ch) (< c 128)) (return (nth c tab)))
+        (return (? wide (coco_str_cmember c set) 0)))
+
+  ;;; The character of S (N bytes) at *I, *I moved past it: a byte in
+  ;;; bytes, a code point under characters.
+  (static) (inline)
+  (func coco_split_next ((const char * s) (size_t n) (size_t * i) (int ch)) (out i64)
+        (let ((i64 b . #'(bitand (cast i64 (nth (cof i) s)) 255)))
+          (if (and ch (>= b 128)) (return (coco_utf8_get s n i)))
+          (set (cof i) (+ (cof i) 1))
+          (return b)))
+
+  ;;; Byte I of S, as an index into a set's table.
+  (static) (inline)
+  (func coco_split_byte ((const char * s) (size_t i)) (out int)
+        (return (bitand (cast int (nth i s)) 255)))
+
+  ;;; split_string/4's FIELDS, SWI's rule (pl-string.c of 9.0.4, to the
+  ;;; letter) in the program's units (1.13.1). The pad comes off the END of
+  ;;; the whole string first. Then each field skips the pad before it --
+  ;;; past a separator that is also a pad, which is how "a  b" split at a
+  ;;; space with a space for the pad is ["a","b"], and "/home//jan" split at
+  ;;; "/" with "/" for the pad ["home","jan"] -- runs to the next separator,
+  ;;; and leaves the pad at its end out; a field that finds only pad is the
+  ;;; empty one at the end. A separator that is no pad, with another
+  ;;; separator straight after it, skips nothing, so the field between them
+  ;;; is there, empty. Through 1.13.0 every separator cut and every field
+  ;;; lost its pad after, and "a  b" was ["a","","b"]. FS gets each field's
+  ;;; first byte and the byte after it; the answer is how many (at most
+  ;;; N + 1).
+  (static)
+  (func coco_split_fields ((const char * s) (size_t n) (int ch)
+                           (u8 * stab) (int swide) (coco_strbuf * sep)
+                           (u8 * ptab) (int pwide) (coco_strbuf * pad) (size_t * fs)) (out size_t)
+        (let ((size_t end . 0) (size_t i . 0) (size_t nf . 0) (int skip . 1))
+          ;; END, the byte after the last character that is no pad: walked
+          ;; back over bytes, and forward over characters (UTF-8 is read
+          ;; forwards)
+          (if ch
+              (while (< i n)
+                (if (not (coco_split_in (coco_split_next s n (aof i) ch) ch ptab pwide pad))
+                    (set end i)))
+              (block (set end n)
+                     (while (and (> end 0) (nth (coco_split_byte s (- end 1)) ptab))
+                       (set end (- end 1)))))
+          (set i 0)
+          (while 1
+            (if skip
+                (block
+                  (if ch
+                      (while (< i end)
+                        (let ((size_t k . i))
+                          (if (not (coco_split_in (coco_split_next s n (aof k) ch) ch ptab pwide pad))
+                              break)
+                          (set i k)))
+                      (while (and (< i end) (nth (coco_split_byte s i) ptab))
+                        (set i (+ i 1))))
+                  (if (== i end)
+                      (block (set (nth (* 2 nf) fs) end)
+                             (set (nth (+ (* 2 nf) 1) fs) end)
+                             (return (+ nf 1))))))
+            (let ((size_t last . i) (size_t tend . i) (i64 c . 0) (int found . 0))
+              ;; to the separator, the pad before it left out: in bytes
+              ;; walked back from the separator, as SWI does, and under
+              ;; characters remembered on the way (the back of a character
+              ;; is found from its front)
+              (if ch
+                  (while (< i end)
+                    (let ((size_t k . i))
+                      (set c (coco_split_next s n (aof k) ch))
+                      (if (coco_split_in c ch stab swide sep)
+                          (block (set found 1) (set i k) break))
+                      (if (not (coco_split_in c ch ptab pwide pad)) (set tend k))
+                      (set i k)))
+                  (block
+                    (while (and (< i end) (not (nth (coco_split_byte s i) stab)))
+                      (set i (+ i 1)))
+                    (set tend i)
+                    (while (and (> tend last) (nth (coco_split_byte s (- tend 1)) ptab))
+                      (set tend (- tend 1)))
+                    (if (< i end)
+                        (block (set found 1)
+                               (set c (coco_split_byte s i))
+                               (set i (+ i 1))))))
+              (set (nth (* 2 nf) fs) last)
+              (set (nth (+ (* 2 nf) 1) fs) tend)
+              (set nf (+ nf 1))
+              (if (not found) (return nf))
+              ;; I is past the separator C
+              (set skip 1)
+              (if (and (not (coco_split_in c ch ptab pwide pad)) (< i end))
+                  (let ((size_t k . i))
+                    (if (coco_split_in (coco_split_next s n (aof k) ch) ch stab swide sep)
+                        (set skip 0))))))))
+
+  ;;; atom_length/2's rules for the text and the length (2.16.1,
+  ;;; `coco_len_text'), `[]' the empty list: through 2.16.0 a compound was
+  ;;; written out and counted, a list of codes and characters mixed was
+  ;;; text, and a length that was no integer failed.
+  (func coco_bi_string_length ((coco_engine * e) (size_t g)) (out int)
+        (let ((i64 n . 0)
+              (int r . #'(coco_len_text e (coco_arg (-> e m) g 0) 1 nil (aof n))))
+          (if (!= r 1) (return r))
+          (return (coco_len_answer e (coco_arg (-> e m) g 1) n))))
+
+  ;;; atom_string(?Atom, ?String) -- either way round, as SWI has it.
+  (func coco_bi_atom_string ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_convert e g 0 1)))
+
+  ;;; string_to_atom(?String, ?Atom) -- the same relation, arguments swapped.
+  (func coco_bi_string_to_atom ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_convert e g 1 0)))
+
+  ;;; number_string(?Number, ?String). The reader is what decides what a
+  ;;; number looks like, so parsing goes through it rather than through a
+  ;;; second opinion in strtod.
+  (func coco_bi_number_string ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r))
+          (if (coco_str_arg e (coco_arg m g 0) (aof b))
+              (block (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof b))))
+                     (coco_sb_free (aof b))
+                     (return (? r 1 0))))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (return (coco_instantiation_error e)))
+          ;; THE READER IS WHAT DECIDES WHAT A NUMBER LOOKS LIKE, so it is
+          ;; the reader that reads it back -- there is no second parser here.
+          (let ((size_t num . 0))
+            (if (not (coco_read_number_text m (? (== ($ b s) nil) "" ($ b s)) (aof num)))
+                (block (coco_sb_free (aof b)) (return 0)))
+            (coco_sb_free (aof b))
+            (set num (coco_deref m num))
+            (let ((u64 c . #'(nth num (-> m heap))))
+              (if (not (or (coco-is-int c) (or (coco-tag-is FLT c) (coco-rat-p c))))
+                  (return 0)))
+            (return (? (coco_unify m (coco_arg m g 0) num) 1 0)))))
+
+  (func coco_bi_string_codes ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_list e g 0)))
+
+  (func coco_bi_string_chars ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_list e g 1)))
+
+  ;;; string_bytes(?Text, ?Bytes, +Encoding), SWI's, for `utf8' (2.0.0):
+  ;;; THE BRIDGE BETWEEN THE PROGRAM'S TEXT AND BYTES THAT DOES NOT MOVE WITH
+  ;;; THE UNITS. cocolog keeps text as its UTF-8, so the bytes of a text are
+  ;;; the bytes it is kept as: an atom's, a string's, a number's as written,
+  ;;; and a code or char list's as the program counts -- under characters a
+  ;;; code is a code point and goes as its UTF-8 (one of U+DC80..DCFF as the
+  ;;; byte it stands for, `coco_utf8_put'), under bytes a code is the byte.
+  ;;; Given the bytes, Text is the STRING they make, every byte kept, which
+  ;;; atom_string/2 makes an atom. So `string_bytes(T, B, utf8)' is
+  ;;; atom_codes/2 in bytes whatever the program counts, which is what
+  ;;; library(http) and its kin ask at their edge, where the wire is bytes.
+  ;;; Where SWI differs: a number is text here (SWI's type_error(text, 42)),
+  ;;; utf8 is the one encoding, and a byte list is integers 0..255 alone
+  ;;; (SWI also takes chars); bytes that are no UTF-8 make a string that
+  ;;; reads, under characters, as U+DC00 plus each, where SWI decodes 0xE9
+  ;;; alone as U+00E9.
+  (func coco_bi_string_bytes ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r)
+              (size_t enc . #'(coco_a e g 2))
+              (size_t t . #'(coco_a e g 0)))
+          (if (coco-tag-is REF (nth enc (-> m heap))) (return (coco_instantiation_error e)))
+          (if (or (not (coco-tag-is ATOM (nth enc (-> m heap))))
+                  (!= 0 (strcmp (coco_atom_name m (coco_name_of m enc)) "utf8")))
+              (return (coco_domain_error e "encoding" enc)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (block
+                ;; TEXT IN: anything with text, and a list only when it is
+                ;; one of codes or of chars -- any other compound is no text
+                (if (coco-tag-is FUN (nth t (-> m heap)))
+                    (block
+                      (if (not (coco_is_cons m t)) (return (coco_type_error e "text" t)))
+                      (if (not (coco_codes_to_text e t (aof b)))
+                          (block (coco_sb_free (aof b))
+                                 (if (not (coco_chars_to_text e t (aof b)))
+                                     (block (coco_sb_free (aof b))
+                                            (return (coco_type_error e "text" t)))))))
+                    (if (not (coco_str_arg e t (aof b))) (return (coco_instantiation_error e))))
+                (let ((size_t lst . #'(coco_new_atom m "[]")) (size_t n . #'($ b len)))
+                  (while (> n 0)
+                    (set n (- n 1))
+                    (set lst (coco_cons m (coco_new_int m (cast i64 (cast uchar (nth n ($ b s)))))
+                                        lst)))
+                  (coco_sb_free (aof b))
+                  (return (? (coco_unify m (coco_arg m g 1) lst) 1 0)))))
+          ;; BYTES IN: a proper list of 0..255, into a string of those bytes
+          (let ((size_t lst . #'(coco_a e g 1)))
+            (set (-> m lbudget) (-> m heap_len))
+            (coco_sb_init (aof b))
+            (while 1
+              (set lst (coco_deref m lst))
+              (let ((u64 c . #'(nth lst (-> m heap))))
+                (if (coco-tag-is REF c)
+                    (block (coco_sb_free (aof b)) (return (coco_instantiation_error e))))
+                (if (coco-tag-is ATOM c)
+                    (block
+                      (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
+                          (block (coco_sb_free (aof b)) (return (coco_type_error e "list" lst))))
+                      break))
+                (if (or (not (coco_is_cons m lst)) (== (-- (-> m lbudget)) 0))
+                    (block (coco_sb_free (aof b)) (return (coco_type_error e "list" lst))))
+                (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
+                      (u64 hc . #'(nth h (-> m heap))))
+                  (if (coco-tag-is REF hc)
+                      (block (coco_sb_free (aof b)) (return (coco_instantiation_error e))))
+                  (if (not (coco-is-int hc))
+                      (block (coco_sb_free (aof b)) (return (coco_type_error e "byte" h))))
+                  (let ((i64 v . #'(coco_int_val m hc)))
+                    (if (or (< v 0) (> v 255))
+                        (block (coco_sb_free (aof b)) (return (coco_type_error e "byte" h))))
+                    (coco_sb_putc (aof b) (cast char v))))
+                (set lst (coco_arg m lst 1))))
+            (set r (coco_unify m (coco_arg m g 0) (coco_str_new e (aof b))))
+            (coco_sb_free (aof b))
+            (return (? r 1 0)))))
+
+  (static) (decl) (func coco_starts_with ((const char * s) (const char * p) (size_t pn)) (out int))
+
+  ;;; string_concat/3's C half (2.5.0): (+,+,-) concatenates, and the two
+  ;;; modes where the whole is bound and exactly one part is decided -- a
+  ;;; prefix test or a suffix test, as `coco_bi_atom_concat' does for atoms.
+  ;;; The clause around it enumerates (-,-,+) over `$text_split_at'/5: a C
+  ;;; builtin in this engine answers once, and the choice point belongs to
+  ;;; the engine.
+  (func coco_bi_string_concat ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t a . #'(coco_a e g 0))
+              (size_t b . #'(coco_a e g 1))
+              (size_t c . #'(coco_a e g 2)))
+          (let ((int aref . #'(? (coco-tag-is REF (nth a (-> m heap))) 1 0))
+                (int bref . #'(? (coco-tag-is REF (nth b (-> m heap))) 1 0))
+                (int cref . #'(? (coco-tag-is REF (nth c (-> m heap))) 1 0)))
+
+            ;; (+,+,?) -- concatenate and unify.
+            (if (and (== aref 0) (== bref 0))
+                (return (coco_str_join e g 1)))
+
+            ;; Nothing is determined without the whole.
+            (if (== cref 1) (return (coco_instantiation_error e)))
+            (if (and (== aref 1) (== bref 1)) (return (coco_instantiation_error e)))
+
+            ;; The third is bound and exactly one of the first two is.
+            (let ((coco_strbuf cb) (coco_strbuf xb) (coco_strbuf rb)
+                  (int r . 0)
+                  (const char * cs) (const char * xs)
+                  (size_t clen . 0) (size_t xlen . 0))
+              (coco_str_arg e c (aof cb))
+              (coco_str_arg e (? (== aref 1) b a) (aof xb))
+              (set cs (? (== ($ cb s) nil) "" ($ cb s)))
+              (set xs (? (== ($ xb s) nil) "" ($ xb s)))
+              (set clen ($ cb len))
+              (set xlen ($ xb len))
+              (if (> xlen clen)
+                  (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+              (if (== bref 1)
+                  ;; (+,-,+): A must be a prefix of C, and B is the rest.
+                  (block
+                   (if (== 0 (coco_starts_with cs xs xlen))
+                       (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                   (coco_sb_init (aof rb))
+                   (coco_sb_put_len (aof rb) (+ cs xlen) (- clen xlen)))
+                ;; (-,+,+): B must be a suffix of C, and A is the rest.
+                (block
+                 (if (== 0 (coco_starts_with (+ cs (- clen xlen)) xs xlen))
+                     (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                 (coco_sb_init (aof rb))
+                 (coco_sb_put_len (aof rb) cs (- clen xlen))))
+              (set r (coco_unify m (coco_arg m g (? (== bref 1) 1 0))
+                                 (coco_str_new e (aof rb))))
+              (coco_sb_free (aof rb))
+              (coco_sb_free (aof cb))
+              (coco_sb_free (aof xb))
+              (return (? r 1 0))))))
+
+  ;;; text_concat(+A, +B, -C) answers a STRING when either input is one and
+  ;;; an ATOM otherwise, which is SWI's rule.
+  (func coco_bi_text_concat ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)))
+          (return (coco_str_join e g
+                                 (? (or (coco_is_string m (coco_arg m g 0))
+                                        (coco_is_string m (coco_arg m g 1)))
+                                    1 0)))))
+
+  (func coco_bi_string_lower ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_case e g 0)))
+
+  (func coco_bi_string_upper ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_str_case e g 1)))
+
+  ;;; term_string(?Term, ?String): write the term, or read the string as one.
+  (func coco_bi_term_string ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r)
+              (size_t t . #'(coco_a e g 0)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (block (coco_sb_init (aof b))
+                     (coco_write_term m (aof b) t 1 0)
+                     (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof b))))
+                     (coco_sb_free (aof b))
+                     (return (? r 1 0))))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (return (coco_instantiation_error e)))
+          (let ((size_t term . 0))
+            (if (not (coco_read_term_from m (? (== ($ b s) nil) "" ($ b s)) (aof term)))
+                (block (coco_sb_free (aof b)) (return 0)))
+            (coco_sb_free (aof b))
+            (return (? (coco_unify m (coco_arg m g 0) term) 1 0)))))
+
+  ;;; split_string(+String, +SepChars, +PadChars, -SubStrings)
+  ;;;
+  ;;; SWI's, to its pl-string.c (`coco_split_fields'), in bytes or in
+  ;;; characters as the program counts: with NO separators the answer is a
+  ;;; one-element list holding the string less its pad, a separator that
+  ;;; is no pad cuts wherever it stands -- `split_string("a,,b", ",", "",
+  ;;; X)' gives three, the middle one empty -- and one that is also a pad
+  ;;; is skipped with the pad, so a run of them is one cut.
+  (func coco_bi_split_string ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf str) (coco_strbuf sep) (coco_strbuf pad)
+              (u8 stab [256]) (u8 ptab [256]) (int swide . 0) (int pwide . 0) (int ch . 0)
+              (size_t out . 0) (int r . 0) (size_t * fs . nil) (size_t nf . 0))
+          (if (not (coco_str_arg e (coco_arg m g 0) (aof str)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof sep)))
+              (block (coco_sb_free (aof str)) (return (coco_instantiation_error e))))
+          (if (not (coco_str_arg e (coco_arg m g 2) (aof pad)))
+              (block (coco_sb_free (aof str)) (coco_sb_free (aof sep))
+                     (return (coco_instantiation_error e))))
+          (set ch (-> m text_chars))
+          (set swide (coco_split_set (aof sep) ch stab))
+          (set pwide (coco_split_set (aof pad) ch ptab))
+          (set fs (cast (size_t *) (malloc (* (sizeof size_t) (* 2 (+ ($ str len) 1))))))
+          (if (== fs nil)
+              (block (coco_sb_free (aof str)) (coco_sb_free (aof sep)) (coco_sb_free (aof pad))
+                     (return (coco_mem_error e))))
+          (set nf (coco_split_fields ($ str s) ($ str len) ch stab swide (aof sep)
+                                     ptab pwide (aof pad) fs))
+          ;; BUILT BACK TO FRONT, because a list is built from its tail.
+          (set out (coco_new_atom m "[]"))
+          (while (> nf 0)
+            (set nf (- nf 1))
+            (set out (coco_cons m (coco_new_string m (+ ($ str s) (nth (* 2 nf) fs))
+                                                   (- (nth (+ (* 2 nf) 1) fs) (nth (* 2 nf) fs)))
+                                out)))
+          (free fs)
+          (set r (coco_unify m (coco_arg m g 3) out))
+          (coco_sb_free (aof str)) (coco_sb_free (aof sep)) (coco_sb_free (aof pad))
+          (return (? r 1 0))))
+
+  (func coco_bi_atom_codes ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_a e g 0)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (let ((coco_strbuf b) (int r))
+                (coco_text_of e t (aof b))
+                (set r (coco_unify m (coco_arg m g 1) (coco_codes_of e ($ b s) ($ b len))))
+                (coco_sb_free (aof b))
+                (return (? r 1 0))))
+          (let ((coco_strbuf b) (int r))
+            (if (not (coco_codes_to_text e (coco_arg m g 1) (aof b)))
+                (block (coco_sb_free (aof b))
+                       ;; a list that is its own tail is no list (1.10.19)
+                       (if (coco_list_cyclic m (coco_arg m g 1))
+                           (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
+                       (return (coco_instantiation_error e))))
+            (set r (coco_unify m (coco_arg m g 0)
+                             (coco_new_atom m (? (== ($ b s) nil) "" ($ b s)))))
+            (coco_sb_free (aof b))
+            (return (? r 1 0)))))
+
+  (func coco_bi_number_codes ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_a e g 0)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (let ((coco_strbuf b) (int r))
+                (coco_text_of e t (aof b))
+                (set r (coco_unify m (coco_arg m g 1) (coco_codes_of e ($ b s) ($ b len))))
+                (coco_sb_free (aof b))
+                (return (? r 1 0))))
+          (let ((coco_strbuf b) (size_t num) (int r))
+            (if (not (coco_codes_to_text e (coco_arg m g 1) (aof b)))
+                (block (coco_sb_free (aof b))
+                       ;; a list that is its own tail is no list (1.10.19)
+                       (if (coco_list_cyclic m (coco_arg m g 1))
+                           (return (coco_type_error e "list" (coco_deref m (coco_arg m g 1)))))
+                       (return (coco_instantiation_error e))))
+            ;; THE READER IS WHAT DECIDES WHAT A NUMBER LOOKS LIKE, and the
+            ;; whole text must be the number -- a trailing space or a second
+            ;; token is SWI's syntax_error(illegal_number) (2.5.0)
+            (if (not (coco_read_number_text m (? (== ($ b s) nil) "" ($ b s)) (aof num)))
+                (block (coco_sb_free (aof b))
+                       (return (coco_syntax_err e "illegal_number"))))
+            (coco_sb_free (aof b))
+            (set num (coco_deref m num))
+            (let ((u64 c . #'(nth num (-> m heap))))
+              (if (not (or (coco-is-int c) (or (coco-tag-is FLT c) (coco-rat-p c))))
+                  (return (coco_syntax_err e "illegal_number"))))
+            (set r (coco_unify m (coco_arg m g 0) num))
+            (return (? r 1 0)))))
+
+  ;;; Does S begin with the PN characters of P? An explicit loop rather
+  ;;; than strncmp, which this file does not otherwise declare.
+  (static)
+  (func coco_starts_with ((const char * s) (const char * p) (size_t pn)) (out int)
+        (for ((size_t i . 0)) (< i pn) ((++ i))
+          (if (!= (nth i s) (nth i p)) (return 0)))
+        (return 1))
+
+  ;;; ATOM_CONCAT HAS FOUR MODES AND THIS ENGINE CAN SERVE THREE.
+  ;;;
+  ;;; (+,+,?) concatenates, which is all it did before. The two modes
+  ;;; where the THIRD argument is bound and exactly one of the first two
+  ;;; is not are DECIDED rather than searched -- one is a prefix test and
+  ;;; the other a suffix test -- and ISO 8.16.6 requires both. Refusing
+  ;;; them made `atom_concat(Prefix, _, Name)' throw where every other
+  ;;; Prolog answers, which is how this was found: a namespace check in a
+  ;;; caller, written the obvious way, raised instead of failing.
+  ;;;
+  ;;; (-,-,+) is the mode that ENUMERATES every split, and it stays an
+  ;;; instantiation_error here on purpose. It needs a choice point, and
+  ;;; the note at the top of this file is the reason: a builtin holding
+  ;;; the choice stack would be the one piece of this system nobody else
+  ;;; could have written. That mode belongs in the Prolog library beside
+  ;;; `between/3', where it is a few lines over `sub_atom/5'.
+  (func coco_bi_atom_concat ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t a . #'(coco_a e g 0))
+              (size_t b . #'(coco_a e g 1))
+              (size_t c . #'(coco_a e g 2)))
+          (let ((int aref . #'(? (coco-tag-is REF (nth a (-> m heap))) 1 0))
+                (int bref . #'(? (coco-tag-is REF (nth b (-> m heap))) 1 0))
+                (int cref . #'(? (coco-tag-is REF (nth c (-> m heap))) 1 0)))
+
+            ;; (+,+,?) -- concatenate and unify.
+            (if (and (== aref 0) (== bref 0))
+                (let ((coco_strbuf ab) (coco_strbuf bb) (int r))
+                  (coco_text_of e a (aof ab))
+                  (coco_text_of e b (aof bb))
+                  (if (!= ($ bb s) nil) (coco_sb_put (aof ab) ($ bb s)))
+                  (set r (coco_unify m (coco_arg m g 2)
+                                   (coco_new_atom m (? (== ($ ab s) nil) "" ($ ab s)))))
+                  (coco_sb_free (aof ab))
+                  (coco_sb_free (aof bb))
+                  (return (? r 1 0))))
+
+            ;; Nothing is determined without the whole.
+            (if (== cref 1) (return (coco_instantiation_error e)))
+            (if (and (== aref 1) (== bref 1)) (return (coco_instantiation_error e)))
+
+            ;; The third is bound and exactly one of the first two is.
+            (let ((coco_strbuf cb) (coco_strbuf xb) (int r . 0)
+                  (const char * cs) (const char * xs)
+                  (size_t clen . 0) (size_t xlen . 0))
+              (coco_text_of e c (aof cb))
+              (coco_text_of e (? (== aref 1) b a) (aof xb))
+              (set cs (? (== ($ cb s) nil) "" ($ cb s)))
+              (set xs (? (== ($ xb s) nil) "" ($ xb s)))
+              (set clen ($ cb len))
+              (set xlen ($ xb len))
+              (if (> xlen clen)
+                  (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+              (if (== bref 1)
+                  ;; (+,-,+): A must be a prefix of C, and B is the rest.
+                  (block
+                    (if (== 0 (coco_starts_with cs xs xlen))
+                        (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                    (set r (coco_unify m (coco_arg m g 1)
+                                     (coco_new_atom m (+ cs xlen)))))
+                  ;; (-,+,+): B must be a suffix of C, and A is the rest.
+                  (block
+                    (if (== 0 (coco_starts_with (+ cs (- clen xlen)) xs xlen))
+                        (block (coco_sb_free (aof cb)) (coco_sb_free (aof xb)) (return 0)))
+                    (if (== clen xlen)
+                        (set r (coco_unify m (coco_arg m g 0) (coco_new_atom m "")))
+                        ;; clen > xlen here, so the buffer is a real one and
+                        ;; cutting it short for one call is safe.
+                        (let ((char * cut . #'(cast (char *) cs)) (char keep . 0))
+                          (set keep (nth (- clen xlen) cut))
+                          (set (nth (- clen xlen) cut) 0)
+                          (set r (coco_unify m (coco_arg m g 0) (coco_new_atom m cs)))
+                          (set (nth (- clen xlen) cut) keep)))))
+              (coco_sb_free (aof cb))
+              (coco_sb_free (aof xb))
+              (return (? r 1 0))))))
+
+  ;;; ---- SWI's text predicates (2.5.0) -----------------------------------
+
+  ;;; TEXT IN, STRING OUT, and a number is no text here: SWI's
+  ;;; type_error(text, 42). An atom, a string, a code list or a char list.
+  (func coco_bi_text_to_string ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t t . #'(coco_deref m (coco_arg m g 0)))
+              (u64 c . #'(nth t (-> m heap)))
+              (coco_strbuf b) (int r . 0))
+          (cond
+            ((coco-tag-is REF c) (return (coco_instantiation_error e)))
+            ((coco-tag-is ATOM c) (coco_str_arg e t (aof b)))
+            ((coco-tag-is STR c) (coco_str_arg e t (aof b)))
+            ((coco-tag-is FUN c)
+             (if (not (coco_is_cons m t)) (return (coco_type_error e "text" t)))
+             (if (not (coco_codes_to_text e t (aof b)))
+                 (block (coco_sb_free (aof b))
+                        (if (not (coco_chars_to_text e t (aof b)))
+                            (block (coco_sb_free (aof b))
+                                   (return (coco_type_error e "text" t)))))))
+            (#t (return (coco_type_error e "text" t))))
+          (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof b))))
+          (coco_sb_free (aof b))
+          (return (? r 1 0))))
+
+  ;;; ATOMICS_TO_STRING(+List, [+Sep], -String): atoms, strings and numbers
+  ;;; joined, the separator text. A variable is instantiation, a compound
+  ;;; no text, and a tail that is no list is a type error naming it.
+  (static)
+  (func coco_atomics_join ((coco_engine * e) (size_t g) (int with_sep)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf out) (coco_strbuf sep)
+              (size_t lst . #'(coco_deref m (coco_arg m g 0)))
+              (int first . 1) (int r . 0))
+          (coco_sb_init (aof out))
+          (if with_sep
+              (if (not (coco_str_arg e (coco_arg m g 1) (aof sep)))
+                  (block (coco_sb_free (aof out))
+                         (return (coco_instantiation_error e))))
+            (coco_sb_init (aof sep)))
+          (set (-> m lbudget) (-> m heap_len))
+          (while 1
+            (set lst (coco_deref m lst))
+            (let ((u64 c . #'(nth lst (-> m heap))))
+              (cond
+                ((coco-tag-is REF c)
+                 (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                        (return (coco_instantiation_error e))))
+                ((coco-tag-is ATOM c)
+                 (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m lst)) "[]"))
+                     (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                            (return (coco_type_error e "list" lst))))
+                 break)
+                ((coco_is_cons m lst)
+                 (if (== (-- (-> m lbudget)) 0)
+                     (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                            (return (coco_type_error e "list" lst))))
+                 (let ((size_t h . #'(coco_deref m (coco_arg m lst 0)))
+                       (u64 hc . #'(nth (coco_deref m (coco_arg m lst 0)) (-> m heap))))
+                   (cond
+                     ((coco-tag-is REF hc)
+                      (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                             (return (coco_instantiation_error e))))
+                     ((coco-tag-is FUN hc)
+                      (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                             (return (coco_type_error e "text" h))))
+                     (#t
+                      (block
+                       (if (not first)
+                           (coco_sb_put (aof out) (? (== ($ sep s) nil) "" ($ sep s))))
+                       (let ((coco_strbuf tmp))
+                         (coco_text_of e h (aof tmp))
+                         (if (!= ($ tmp s) nil) (coco_sb_put (aof out) ($ tmp s)))
+                         (coco_sb_free (aof tmp)))
+                       (set first 0)))))
+                 (set lst (coco_arg m lst 1)))
+                (#t
+                 (block (coco_sb_free (aof out)) (coco_sb_free (aof sep))
+                        (return (coco_type_error e "list" lst)))))))
+          (coco_sb_free (aof sep))
+          (set r (coco_unify m (coco_arg m g (cast size_t (? with_sep 2 1)))
+                             (coco_str_new e (aof out))))
+          (coco_sb_free (aof out))
+          (return (? r 1 0))))
+
+  (func coco_bi_atomics_to_string2 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_atomics_join e g 0)))
+  (func coco_bi_atomics_to_string3 ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_atomics_join e g 1)))
+
+  ;;; ATOMIC_CONCAT(+A, +B, -Atom): two atomics, the text of each joined.
+  (func coco_bi_atomic_concat ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t a . #'(coco_deref m (coco_arg m g 0)))
+              (size_t b . #'(coco_deref m (coco_arg m g 1)))
+              (coco_strbuf ab) (coco_strbuf bb) (int r . 0))
+          (if (coco-tag-is REF (nth a (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (coco-tag-is REF (nth b (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (coco-tag-is FUN (nth a (-> m heap)))
+              (return (coco_type_error e "atomic" a)))
+          (if (coco-tag-is FUN (nth b (-> m heap)))
+              (return (coco_type_error e "atomic" b)))
+          (coco_text_of e a (aof ab))
+          (coco_text_of e b (aof bb))
+          (if (!= ($ bb s) nil) (coco_sb_put (aof ab) ($ bb s)))
+          (set r (coco_unify m (coco_arg m g 2)
+                             (coco_new_atom m (? (== ($ ab s) nil) "" ($ ab s)))))
+          (coco_sb_free (aof ab)) (coco_sb_free (aof bb))
+          (return (? r 1 0))))
+
+  ;;; '$text_split_at'(Text, K, Kind, Left, Right): the text cut after K
+  ;;; characters (bytes under `text_units = bytes'), the two halves made
+  ;;; atoms (Kind 0) or strings (1). What atom_concat/3's enumerating mode
+  ;;; and string_concat/3's are made of.
+  (func coco_bi_text_split_at ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf b) (coco_strbuf lb) (coco_strbuf rb)
+              (size_t kt . #'(coco_deref m (coco_arg m g 1)))
+              (size_t kindt . #'(coco_deref m (coco_arg m g 2)))
+              (int kind . 0) (size_t off . 0) (int r . 0)
+              (size_t i . 0) (i64 cnt . 0) (i64 want . 0))
+          (if (not (coco_str_arg e (coco_arg m g 0) (aof b)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-is-int (nth kt (-> m heap))))
+              (block (coco_sb_free (aof b)) (return 0)))
+          (if (not (coco-is-int (nth kindt (-> m heap))))
+              (block (coco_sb_free (aof b)) (return 0)))
+          (set kind (cast int (coco_int_val m (nth kindt (-> m heap)))))
+          (set want (coco_int_val m (nth kt (-> m heap))))
+          (if (< want 0) (block (coco_sb_free (aof b)) (return 0)))
+          (if (-> m text_chars)
+              (block
+               (while (< cnt want)
+                 (if (>= i ($ b len)) break)
+                 (coco_utf8_get ($ b s) ($ b len) (aof i))
+                 (set cnt (+ cnt 1)))
+               (set off i))
+            (set off (cast size_t want)))
+          (if (> off ($ b len)) (block (coco_sb_free (aof b)) (return 0)))
+          (coco_sb_init (aof lb))
+          (coco_sb_init (aof rb))
+          (for ((size_t j . 0)) (< j off) ((++ j))
+            (coco_sb_putc (aof lb) (nth j ($ b s))))
+          (for ((size_t j . off)) (< j ($ b len)) ((++ j))
+            (coco_sb_putc (aof rb) (nth j ($ b s))))
+          (if (== kind 0)
+              (block
+               (set r (coco_unify m (coco_arg m g 3)
+                                  (coco_new_atom m (? (== ($ lb s) nil) "" ($ lb s)))))
+               (if r (set r (coco_unify m (coco_arg m g 4)
+                                        (coco_new_atom m (? (== ($ rb s) nil) "" ($ rb s)))))))
+            (block
+             (set r (coco_unify m (coco_arg m g 3)
+                                (coco_new_string m (? (== ($ lb s) nil) "" ($ lb s)) ($ lb len))))
+             (if r (set r (coco_unify m (coco_arg m g 4)
+                                      (coco_new_string m (? (== ($ rb s) nil) "" ($ rb s))
+                                                       ($ rb len)))))))
+          (coco_sb_free (aof b)) (coco_sb_free (aof lb)) (coco_sb_free (aof rb))
+          (return (? r 1 0))))
+
+  ;;; '$string_code_at'(I, Text, Code): the I'th character (1-based), or the
+  ;;; I'th byte under `text_units = bytes'. 0 or past the end FAILS; a
+  ;;; negative index raises, as SWI's string_code/3 does.
+  (func coco_bi_string_code_at ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf b)
+              (size_t it . #'(coco_deref m (coco_arg m g 0)))
+              (int r . 0) (size_t i . 0) (i64 idx . 0))
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-is-int (nth it (-> m heap))))
+              (return (coco_type_error e "integer" it)))
+          (set idx (coco_int_val m (nth it (-> m heap))))
+          (if (< idx 0)
+              (return (coco_domain_error e "not_less_than_zero" it)))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (return (coco_instantiation_error e)))
+          (if (== idx 0) (block (coco_sb_free (aof b)) (return 0)))
+          (if (-> m text_chars)
+              (let ((i64 c . 1) (i64 cp . 0) (int found . 0))
+                (while (<= c idx)
+                  (if (>= i ($ b len)) break)
+                  (set cp (coco_utf8_get ($ b s) ($ b len) (aof i)))
+                  (if (== c idx) (set found 1))
+                  (set c (+ c 1)))
+                (if found
+                    (set r (coco_unify m (coco_arg m g 2) (coco_new_int m cp)))))
+            (if (< (cast size_t idx) ($ b len))
+                (set r (coco_unify m (coco_arg m g 2)
+                                   (coco_new_int m (cast i64
+                                                         (cast uchar (nth (- (cast size_t idx) 1)
+                                                                          ($ b s)))))))))
+          (coco_sb_free (aof b))
+          (return (? r 1 0))))
+
+  ;;; GET_STRING_CODE(I, Text, Code): the strict twin -- an index outside
+  ;;; 1..N raises domain_error(range(1,N), I) where string_code/3 fails.
+  (func coco_bi_get_string_code ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_strbuf b)
+              (size_t it . #'(coco_deref m (coco_arg m g 0)))
+              (i64 idx . 0) (i64 n . 0) (int r . 0))
+          (if (coco-tag-is REF (nth it (-> m heap)))
+              (return (coco_instantiation_error e)))
+          (if (not (coco-is-int (nth it (-> m heap))))
+              (return (coco_type_error e "integer" it)))
+          (set idx (coco_int_val m (nth it (-> m heap))))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (return (coco_instantiation_error e)))
+          (set n (cast i64 (? (-> m text_chars)
+                              (coco_utf8_count ($ b s) ($ b len))
+                              ($ b len))))
+          (if (or (< idx 1) (> idx n))
+              (block
+                (coco_sb_free (aof b))
+                (return (coco_raise e (coco_make2 m "domain_error"
+                                          (coco_make2 m "range"
+                                                      (coco_new_int m 1)
+                                                      (coco_new_int m n))
+                                          it)))))
+          (let ((size_t c . #'(coco_bi_string_code_at e g)))
+            (coco_sb_free (aof b))
+            (return c))))
+
+  ;;; term_string(?Term, ?String, +Options): term_string/2 with options
+  ;;; (2.5.0); unknown ones are ignored, as SWI ignores them.
+  (func coco_bi_term_string3 ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b) (int r)
+              (size_t t . #'(coco_a e g 0)))
+          (if (not (coco-tag-is REF (nth t (-> m heap))))
+              (block (coco_sb_init (aof b))
+                     (coco_write_term m (aof b) t 1 0)
+                     (set r (coco_unify m (coco_arg m g 1) (coco_str_new e (aof b))))
+                     (coco_sb_free (aof b))
+                     (return (? r 1 0))))
+          (if (not (coco_str_arg e (coco_arg m g 1) (aof b)))
+              (return (coco_instantiation_error e)))
+          (let ((size_t term . 0))
+            (if (not (coco_read_term_from m (? (== ($ b s) nil) "" ($ b s)) (aof term)))
+                (block (coco_sb_free (aof b)) (return 0)))
+            (coco_sb_free (aof b))
+            (return (? (coco_unify m (coco_arg m g 0) term) 1 0)))))
+
+  ;;; THE BINDINGS `['X'=Var, ...]' a reader collected, built back to front.
+  (static)
+  (func coco_reader_names ((coco_machine * m) (coco_reader * r)) (out size_t)
+        (let ((size_t lst . #'(coco_new_atom m "[]"))
+              (size_t n . #'($ (cof r) nvars)))
+          (while (> n 0)
+            (set n (- n 1))
+            (let ((size_t args [2]))
+              (set (nth 0 args) (coco_new_atom m (nth n ($ (cof r) var_names))))
+              (set (nth 1 args) (nth n ($ (cof r) var_cells)))
+              (set lst (coco_cons m (coco_make m "=" 2 args) lst))))
+          (return lst)))
+
+  ;;; A READER THAT FAILED, in SWI's syntax_error atom: the reader's own
+  ;;; reason where it has one (2.5.0), operator_expected otherwise.
+  (static)
+  (func coco_reader_syntax ((coco_reader * r)) (out const char *)
+        (let ((const char * w . #'(-> r ewhat)))
+          (if (== w nil) (return "operator_expected"))
+          (if (== 0 (strcmp w "illegal number")) (return "illegal_number"))
+          (return "operator_expected")))
+
+  ;;; ATOM_TO_TERM(+Text, -Term, -Bindings): read one term, with the names
+  ;;; of its variables. Empty text is syntax_error(end_of_string), and a
+  ;;; trailing token syntax_error(operator_expected) -- SWI's.
+  (func coco_bi_atom_to_term ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b))
+          (if (not (coco_str_arg e (coco_arg m g 0) (aof b)))
+              (return (coco_instantiation_error e)))
+          (if (== ($ b len) 0)
+              (block (coco_sb_free (aof b))
+                     (return (coco_syntax_err e "end_of_string"))))
+          (let ((coco_reader rd) (size_t t . 0) (int r . 0))
+            ;; the reader keeps SRC by pointer, so the buffer outlives it
+            (coco_reader_init (aof rd) m (? (== ($ b s) nil) "" ($ b s)))
+            (if ($ rd failed)
+                (let ((const char * why . #'(coco_reader_syntax (aof rd))))
+                  (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                  (return (coco_syntax_err e why))))
+            (if (== ($ rd tok) COCO_TK_EOF)
+                (block (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                       (return (coco_syntax_err e "end_of_string"))))
+            (if (not (coco_read_goal (aof rd) (aof t)))
+                (block (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                       (return (coco_syntax_err e "operator_expected"))))
+            ;; a period may end it; anything else is junk
+            (if (== ($ rd tok) COCO_TK_END) (coco_next_token (aof rd)))
+            (if (!= ($ rd tok) COCO_TK_EOF)
+                (block (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                       (return (coco_syntax_err e "operator_expected"))))
+            (set r (coco_unify m (coco_arg m g 1) t))
+            (if r (set r (coco_unify m (coco_arg m g 2) (coco_reader_names m (aof rd)))))
+            (coco_reader_free (aof rd))
+            (coco_sb_free (aof b))
+            (return (? r 1 0)))))
+
+  ;;; READ_TERM_FROM_ATOM(+Text, -Term, +Options): text alone (no number),
+  ;;; empty input is end_of_file, and `variable_names(V)' is answered when
+  ;;; it is asked for. Unknown options are ignored, as SWI ignores them.
+  (func coco_bi_read_term_from_atom ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_strbuf b)
+              (size_t t . #'(coco_deref m (coco_arg m g 0))))
+          (let ((u64 c . #'(nth t (-> m heap))))
+            (cond
+              ((coco-tag-is REF c) (return (coco_instantiation_error e)))
+              ((coco-tag-is ATOM c) (coco_str_arg e t (aof b)))
+              ((coco-tag-is STR c) (coco_str_arg e t (aof b)))
+              ((coco-tag-is FUN c)
+               (if (not (coco_is_cons m t)) (return (coco_type_error e "text" t)))
+               (if (not (coco_codes_to_text e t (aof b)))
+                   (block (coco_sb_free (aof b))
+                          (if (not (coco_chars_to_text e t (aof b)))
+                              (block (coco_sb_free (aof b))
+                                     (return (coco_type_error e "text" t)))))))
+              (#t (return (coco_type_error e "text" t)))))
+          ;; the options: variable_names(V) is the one answered
+          (let ((size_t opt . #'(coco_deref m (coco_arg m g 2)))
+                (size_t vn . 0) (int r . 0))
+            (set (-> m lbudget) (-> m heap_len))
+            (while 1
+              (set opt (coco_deref m opt))
+              (let ((u64 oc . #'(nth opt (-> m heap))))
+                (if (coco-tag-is REF oc) break)
+                (if (coco-tag-is ATOM oc) break)
+                (if (not (coco_is_cons m opt)) break)
+                (if (== (-- (-> m lbudget)) 0) break)
+                (let ((size_t h . #'(coco_deref m (coco_arg m opt 0))))
+                  (let ((u64 hc . #'(nth h (-> m heap))))
+                    (if (and (coco-tag-is FUN hc)
+                             (== (coco_arity m h) 1)
+                             (== 0 (strcmp (coco_atom_name m (coco_name_of m h))
+                                           "variable_names")))
+                        (set vn (coco_arg m h 0)))))
+                (set opt (coco_arg m opt 1))))
+            ;; an empty text is end_of_file, before any reader
+            (if (== ($ b len) 0)
+                (block
+                 (coco_sb_free (aof b))
+                 (set r (coco_unify m (coco_arg m g 1) (coco_new_atom m "end_of_file")))
+                 (return (? r 1 0))))
+            (let ((coco_reader rd) (size_t tm . 0) (int got . 0))
+              ;; the reader keeps SRC by pointer, so the buffer outlives it
+              (coco_reader_init (aof rd) m (? (== ($ b s) nil) "" ($ b s)))
+              (if ($ rd failed)
+                  (let ((const char * why . #'(coco_reader_syntax (aof rd))))
+                    (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                    (return (coco_syntax_err e why))))
+              (if (== ($ rd tok) COCO_TK_EOF)
+                  (set r (coco_unify m (coco_arg m g 1) (coco_new_atom m "end_of_file")))
+                (block
+                 (if (not (coco_read_goal (aof rd) (aof tm)))
+                     (block (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                            (return (coco_syntax_err e "operator_expected"))))
+                 (if (== ($ rd tok) COCO_TK_END) (coco_next_token (aof rd)))
+                 (if (!= ($ rd tok) COCO_TK_EOF)
+                     (block (coco_reader_free (aof rd)) (coco_sb_free (aof b))
+                            (return (coco_syntax_err e "operator_expected"))))
+                 (set r (coco_unify m (coco_arg m g 1) tm))
+                 (if (and r (!= vn 0))
+                     (set got (coco_unify m vn (coco_reader_names m (aof rd))))
+                   (set got r))
+                 (set r got)))
+              (coco_reader_free (aof rd))
+              (coco_sb_free (aof b))
+              (return (? r 1 0))))))
+
+  ) ; impl-solve-text
