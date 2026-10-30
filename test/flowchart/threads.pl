@@ -22,6 +22,7 @@ tally(0).
 limit(3).
 
 %% go(+Jobs, -Status): a worker thread fed down a channel, then joined
+% cocolint: N1 -- charted, never run, so nothing joins library(async)'s go/2; the case names this lane
 go(Jobs, Status) :-
     channel_new(Ch),
     thread_create(worker(Ch), Id),

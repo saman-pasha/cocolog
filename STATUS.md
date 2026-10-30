@@ -8202,3 +8202,36 @@ NOT swipl's, each found by a probe beside swipl 9.0.4:
   has (32 and over, a tab, a line end), so a list of codes meant as
   numbers (`[65, 66]`) prints `AB` where swipl prints the list; one with a
   control character stays a list (`[1,2,3]`, as swipl's).
+- A program's own sumlist/2 or print_message/2 joins the library's
+  clauses, where swipl's definition in user replaces the library's: with
+  `sumlist(_, 42).` in the file, `findall(S, sumlist([1,2], S), L)` is
+  `[42,3]` under `run` and `[3,42]` under `-s`, swipl's `[42]`. It is card
+  row N1 (no module system; a program's member/2 gives `[a,b,b,a,b,b]` the
+  same way, since 1.x), and cocolint reports each such head: below.
+
+## cocolint: N1 sees the preloaded libraries (cocolog stays 2.16.0)
+
+Checking the limit above found the linter blind to two of the libraries
+whose names are live in every program: library(async), preloaded since
+2.8.0, and library(print_message), preloaded since 2.16.0. build.pl took
+every `library/*.pl` as tier 2, counted only when imported, so a program's
+`go/1`, `yield/0` or `print_message/2` was no finding, while its
+`sumlist/2` (lib/lists.cicili, tier 1) was.
+
+- tools/cocolint/build.pl reads the preload from lib/library.cicili's
+  `coco_library_preload`, each library named in a literal
+  `(lb_load_pl path "NAME" err 512)` (`bd_preloaded_names/1`), and puts
+  those libraries' clause heads in tier 1 (`cl_t1p`, 406 names to 474).
+  A preload added the same way is counted with no edit to build.pl.
+- tools/cocolint/lint.pl leaves a library's own heads alone
+  (`cl_own_definition/3`: the head is the file's own `cl_t1p` row), or
+  the two libraries were 68 findings over their own definitions.
+- The tree had one such collision: test/flowchart/threads.pl's `go/2`,
+  a fixture that is charted and never run, now acknowledged on its line.
+
+PROVED: test/lint.pl's new section 3f (a program's `print_message/2`,
+`go/1` and `sumlist/2` are N1 findings at lines 1, 2 and 3; the two
+libraries lint clean), each check red on its arm (build.pl without the
+preloaded heads: one finding, sumlist/2's; lint.pl without the
+own-definition test: 68 HARD); the whole lint case GREEN (0 findings over
+367 files, 37 acknowledged), and flowchart, tokens and library alone.

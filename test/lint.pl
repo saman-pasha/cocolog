@@ -55,6 +55,7 @@ main :-
     ( sh_exit('sh tools/cocolint/tool.sh build >/dev/null 2>&1', 0) -> true ; skip('blocklist would not build') ),
     ( sh_exit('sh tools/cocolint/tool.sh card --facts >/dev/null 2>&1', 0) -> true ; skip('traps.pl would not build') ),
     the_reader(Agent), the_escapes(Agent), the_radix(Agent), the_lifts(Agent), the_acks(Agent),
+    the_preloads(Agent),
     the_auto(Agent),
     the_findings(Agent),
     checks_done.
@@ -299,6 +300,33 @@ the_acks(Agent) :-
           ['5:8 S1R1', '5:40 U1', '6:14 U1']),
     check('ignored: every finding is back, and no U1', Ignored,
           ['1:8 S1R1', '3:8 S1R1', '4:8 S1R1', '4:46 S1F1', '5:8 S1R1']),
+    shl(['rm -rf ', T]).
+
+%% ---- 3f. N1 sees the preloaded libraries -----------------------------------
+%%
+%% library(async) (2.8.0) and library(print_message) (2.16.0) are loaded at
+%% every start-up, so a program's print_message/2 or go/1 joins their clauses
+%% with no import in sight, as its sumlist/2 joins library(lists)'s: build.pl
+%% reads the preload from lib/library.cicili and puts their heads in tier 1.
+%% Until then the blocklist held them as tier 2, counted only when imported,
+%% and the fixture's first two lines were no finding. A library's own heads
+%% are its definition and never a finding: the two files lint clean.
+the_preloads(Agent) :-
+    section('N1 sees the preloaded libraries, and leaves their own heads alone'),
+    scratch(T), shl(['mkdir -p ', T]),
+    sh_join([T, '/preloads.pl'], F),
+    fixture(F, [ 'print_message(_, _).', 'go(_).', 'sumlist(_, 0).', 'preloads_own(1).' ]),
+    sh_join(['sh ', Agent, '/lint.sh ', F, ' 2>&1'], Cmd), shell(Cmd, Out, _),
+    atom_codes(Out, OCs), codes_lines(OCs, OLines),
+    findall(LN, ( member(L, OLines), atom_codes(LA, L),
+                  re_match('^[^ :]+:[0-9]+:[0-9]+ HARD N1 ', LA),
+                  re_replace_atom('^[^ :]+:([0-9]+):[0-9]+ .*', '\\1', LA, LN) ), Got),
+    check('a program''s print_message/2, go/1 and sumlist/2 are N1 findings (lines)', Got,
+          ['1', '2', '3']),
+    sh_join(['sh ', Agent, '/lint.sh library/async.pl library/print_message.pl 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    ( sub_atom(Out2, _, _, _, 'cocolint: 0 HARD, 0 WARN') -> Clean2 = yes ; Clean2 = Out2 ),
+    check('library(async) and library(print_message) lint clean on their own heads', Clean2, yes),
     shl(['rm -rf ', T]).
 
 %% ---- auto mode: the changes, not a file list -----------------------------

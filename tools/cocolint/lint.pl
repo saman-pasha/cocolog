@@ -197,10 +197,20 @@ cl_rule_n(File, Clauses, Imports, Findings) :-
     cl_first_each(Pairs0, Pairs),
     findall(F,
             ( member(N/A-Span, Pairs),
+              \+ cl_own_definition(File, N, A),
               cl_dcg_note(Clauses, N, A, Note),
               cl_collision(N, A, Imports, Note, Rule, Msg, Fix, Cite),
               cl_finding(File, Span, Rule, none, Msg, Fix, Cite, F) ),
             Findings).
+
+%% A PRELOADED LIBRARY'S OWN HEADS ARE ITS DEFINITION. library/async.pl and
+%% library/print_message.pl are tier 1 (build.pl reads lib/library.cicili's
+%% preload), so the blocklist names their heads as clause-defined there; the
+%% file that defines a name is not a program whose clauses join it.
+cl_own_definition(File, N, A) :-
+    cl_relative(File, Rel),
+    cl_t1p(N, A, Rel),
+    !.
 
 %% A DECLARED EXTENSION POINT IS A COLLISION THAT IS MEANT. library/httpd.pl's
 %% `httpd_page(_,_,_) :- fail.' exists so a program can add its own pages;

@@ -552,7 +552,10 @@ bd_build(b(T1c, T1p, T2, Hooks)) :-
 
     bd_shape2(LibC, S2),
     bd_shape4(SwiplPl, SwiplHeads, SwiplHooks),
-    append(S2, SwiplHeads, T1p0),
+    bd_preloaded_files(LibPl, PrePl),
+    bd_shape4(PrePl, PreHeads, _),
+    append(S2, SwiplHeads, T1p00),
+    append(T1p00, PreHeads, T1p0),
     sort(T1p0, T1p1),
 
     bd_tier2(ModC, LibPl, T2, LibHooks),
@@ -683,6 +686,31 @@ bd_library_files(Files) :-
     bd_glob('library/flow/*.pl', Flow0),
     findall(F, ( member(F, Flow0), \+ bd_part_file(F) ), Flow),
     append(Flat, Flow, Files).
+
+%% THE PRELOADED .pl LIBRARIES ARE TIER 1 TOO: lib/library.cicili's
+%% coco_library_preload loads library(async) (2.8.0) and
+%% library(print_message) (2.16.0) at every start-up, each by a literal
+%% name, `(lb_load_pl path "async" err 512)', so a program that defines one
+%% of their names joins their clauses whether it imports them or not. Read
+%% from that call, a preload added the same way is counted with no edit here.
+%% Their names stay in tier 2 as well, where lint.pl never reaches them:
+%% it asks tier 1 first.
+bd_preloaded_files(LibPl, Files) :-
+    bd_preloaded_names(Names),
+    findall(F, ( member(F, LibPl),
+                 bd_library_of(F, Mod),
+                 memberchk(Mod, Names) ),
+            Files).
+
+bd_preloaded_names(Names) :-
+    bd_path('lib/library.cicili', Src),
+    read_file_to_codes(Src, Cs),
+    findall(N, ( append(_, After, Cs),
+                 append("(lb_load_pl path \"", Rest, After),
+                 once(append(NCs, [0'"|_], Rest)),
+                 atom_codes(N, NCs) ),
+            Ns),
+    sort(Ns, Names).
 
 bd_part_file(Abs) :-
     read_file_to_codes(Abs, Cs),

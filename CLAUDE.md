@@ -835,7 +835,13 @@ print_message/2, message_to_string/2, print_message_lines/3 and the
 message_hook/3 and prolog:message//1 a program defines, preloaded the same
 way, its helpers all `'$pm_...'`; it costs every process's start-up 3.2
 million instructions, `cocolog query true` 21.7 million to 25.0, about half
-a millisecond of ten).
+a millisecond of ten). Its names are global as async's are: a program's own
+print_message/2 joins the library's clauses, as its own sumlist/2 or
+member/2 joins library(lists)'s (card row N1), and cocolint finds each
+such head -- for the two preloaded libraries since its blocklist reads the
+preload from `coco_library_preload` (`bd_preloaded_names/1` in
+tools/cocolint/build.pl: a preload written as a literal
+`(lb_load_pl path "NAME" ...)` is counted with no edit there).
 Only files swipl also runs (`test/files/*.pl`,
 `emacs/test/conformance.pl`) and `test/library.pl` keep such a directive,
 where cocolint reads it acknowledged (`% cocolint: T1 -- ...`, below).
