@@ -44,8 +44,9 @@ full story goes in its commit message or STATUS.md.
 * **Never `rm -rf $ZIGURATIP_HOME/data/*` unless `pgrep ziguratip` prints
   nothing** (see Hazards).
 * **No Python is needed to build or run cocolog** (owner, 2026-10-01).
-  Python appears only as the benchmark's yardstick (`bench/langs.sh`,
-  `test/langs.pl`). `library(numpy)` still embeds CPython and is to be
+  Python appears only as the benchmarks' yardstick (`bench/langs.sh`,
+  `test/langs.pl`, and the token benchmark's other language,
+  `bench/tokens.pl`, `test/tokens.pl`). `library(numpy)` still embeds CPython and is to be
   rewritten without it, on a C++ array library, keeping its `np_*`
   predicates and `.npy` files; until then it is opt-in (`WITH_NUMPY=1` in
   the install scripts and the Dockerfile). torch's and tensorflow's pip
@@ -372,8 +373,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; a build that links the
 engine takes about a hundred seconds on the Linux box, solve and its run
-105 s on 2.14.1) and runs the 68 `.pl` cases in `pl_names/1`
--- **75 lines**, each with its seconds. There is no `.sh` under `test/`.
+105 s on 2.14.1) and runs the 69 `.pl` cases in `pl_names/1`
+-- **76 lines**, each with its seconds. There is no `.sh` under `test/`.
 **A build has ten minutes** (`build_ceiling/1`), and a failed one names its
 exit status, 124 for that ceiling: on the prelude's two minutes a slow Intel
 Mac runner stopped the four that link the engine (run 40975575257), and the
@@ -8034,7 +8035,7 @@ than its cause:
 | `tools/compile/` | `static.pl`: which predicates' clauses nothing changes while a program runs, and what each call reaches -- DESIGN-compiling.md §7's count (`test/static.pl`) |
 | `test/` | the suite: `run.pl`, `prelude.pl`, the cases and their fixtures |
 | `tutorials/` | the lessons |
-| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs. And the concurrency benchmark (`sh bench/concurrency.sh`): real threads, green threads, Go goroutines, Rust threads and Python asyncio on the spin workload, the light spawn/switch lanes, and the one-core real lane under `taskset`; answer-gated, the first run of each lane thrown away. `library/async/README.md` has the model, the numbers and the shared-heap design note |
+| `bench/` | cocolog against CPython and SWI-Prolog (`sh bench/langs.sh`; SWI with `-O` and as installed, run on the same `.pl` files), moved from The Coco; the runs kept start at 1.8.48 (A-L are in `f544cca`); `test/langs.pl` guards its pairs. And the concurrency benchmark (`sh bench/concurrency.sh`): real threads, green threads, Go goroutines, Rust threads and Python asyncio on the spin workload, the light spawn/switch lanes, and the one-core real lane under `taskset`; answer-gated, the first run of each lane thrown away. `library/async/README.md` has the model, the numbers and the shared-heap design note. And the token benchmark (`cocolog -s bench/tokens.pl -- check|size|replay DIR|run|report FILE`; bench/tokens/README.md): the tokens and dollars a model spends to get ten programs right in cocolog and in Python, write-test-fix rounds of an append-only conversation, three arms (python, cocolog, cocolog with the dialect card), no fallback model unless `fallbacks=default`; a live run wants ANTHROPIC_API_KEY and runs what the model wrote; `test/tokens.pl` holds the harness without a key (the references on every case, a replay end to end, the request) |
 
 **A feature that touches the knowledge base must consider all three
 arrangements**: local (no hooks), Zigurat (all five hooks), Zeytun (`fetch`

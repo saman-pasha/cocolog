@@ -1,0 +1,7 @@
+parent ann bob
+parent ann cat
+parent bob dan
+parent cat eve
+ancestors dan
+cousins dan
+siblings bob

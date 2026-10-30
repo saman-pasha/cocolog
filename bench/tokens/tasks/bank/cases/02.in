@@ -1,0 +1,8 @@
+balance zed
+open zed
+open zed
+balance zed
+deposit zed 5
+withdraw zed 5
+balance zed
+withdraw zed 1

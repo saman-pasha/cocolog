@@ -1,0 +1,11 @@
+open a
+open b
+deposit a 50
+transfer a b 20
+transfer a b 30
+transfer a b 1
+balance a
+balance b
+transfer c a 1
+transfer a c 1
+transfer c d 1

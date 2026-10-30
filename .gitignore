@@ -122,4 +122,7 @@ library/reasoning/corpus/raw/
 
 # saved Docker images (make docker-save)
 /dist/
+
+# the token benchmark's logs (bench/tokens.pl -- run)
+bench/tokens/runs/
 .DS_Store

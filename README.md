@@ -155,7 +155,9 @@ two families below -- `library/flow/` and `library/reasoning/`.
 `library(flow/chart)` and `library(flow/debug)` (below); `tools/compile/`
 (which clauses nothing changes while a program runs); `tools/cc/` (the clang
 wrappers every build uses); `bench/langs.sh` and `bench/concurrency.sh` (the
-benchmarks against CPython, Go, Rust, asyncio and the reference Prolog);
+benchmarks against CPython, Go, Rust, asyncio and the reference Prolog),
+and `bench/tokens.pl` (what a model spends writing the same programs in
+cocolog and in Python);
 `tutorials/` (133 lessons that run); `test/` (the suite).
 
 ## Solutions to real problems
@@ -263,6 +265,7 @@ in any of the four knowledge-base arrangements.
 | graphs, paths, hex grids | `library(astar)`, `library(hex)` |
 | a whole proof captured and resumed | `cocolog start`, `step`, `run`; `lib/state.cicili` |
 | knowing how fast it is, honestly | `sh bench/langs.sh`, `sh bench/concurrency.sh`, [bench/README.md](bench/README.md) |
+| knowing what an agent spends writing it | `cocolog -s bench/tokens.pl -- run`, [bench/tokens/README.md](bench/tokens/README.md) |
 
 ## Getting started
 
@@ -280,8 +283,8 @@ image and a macOS section are in the long tour. `make EMBED=0` builds the same
 binary without ZiguratIP.
 
 The suite is one cocolog script -- `make test` -- and it ends `red: 0` over
-**75 lines: seven Cicili test binaries (term, syntax, solve, module, state,
-zigurat, shared) and sixty-eight Prolog cases**. Cases that need a server,
+**76 lines: seven Cicili test binaries (term, syntax, solve, module, state,
+zigurat, shared) and sixty-nine Prolog cases**. Cases that need a server,
 a reference Prolog 9.0.4, raylib, libtensorflow or a CUDA toolkit say `SKIP`
 by name rather than failing, so read the lines and count the SKIPs, not only
 the verdict.
