@@ -1523,6 +1523,10 @@
                                         (set itext nil)
                                         (coco_include_refused st m (coco_arg m d 0) err errlen)
                                         (set ir 0)))
+                             ;; an include of a file that is there defines,
+                             ;; though the file holds nothing (3.6.0,
+                             ;; `ldefs'), as swipl's
+                             (if (== ir 1) (set (-> m ldefs) (+ (-> m ldefs) 1)))
                              (if (== ir 1)
                                  (let ((const char * was . #'(-> ip file)) (size_t * mp . nil)
                                        (size_t ml . 1) (int pushed . 0))
@@ -1656,7 +1660,9 @@
                                          (coco_load_message "ERROR" origin at err)
                                          (set (nth 0 err) (cast char 0)))
                                 (coco_load_message "ERROR" origin at "not a clause")))
-                             (#t (set n (+ n 1)))))))
+                             (#t (set n (+ n 1))
+                                 ;; a clause defines (3.6.0, `ldefs')
+                                 (set (-> m ldefs) (+ (-> m ldefs) 1)))))))
                     (set (-> m heap_len) mark))))))
           ;; AN `:- if' LEFT OPEN AT THE END IS REPORTED (3.1.0), as swipl
           ;; does, on the line the text ends on, naming where the outermost

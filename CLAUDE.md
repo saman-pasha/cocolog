@@ -345,10 +345,10 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   read** (`lb_load_file`): inside a module's load -- an `-s` file's
   initialization/1 -- the store is muted, and a muted consult kept no
   origins, so a second consult appended (`[1,1]`). **What a consulted
-  file's directives registered is loaded at once** (3.4.0, `lb_load_file`
-  calls `coco_module_load`): a directive has no engine and leaves a module
-  for the next ask, and through 3.3.0 a goal after consult/1 found its
-  predicates unknown -- only a nested search, which asks, loaded them. **The
+  file's directives load is in the store when the consult returns**: since
+  3.6.0 each directive's load runs at the directive (the bullet on load
+  directives, below); 3.4.0 loaded what they had registered after the read, and through
+  3.3.0 a goal after consult/1 found its predicates unknown. **The
   table is the process's, not the database's**: a file
   `run F` wrote into a store, loaded by a second process as a module (`-s
   F`, ensure_loaded/1), is there twice, the rows beside the module
@@ -405,6 +405,62 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   Not swipl's: `include([0'a])` reads the codes as a name, swipl's is
   ``source_sink `[97]'``; an include of a library cocolog compiles in
   (`library(lists)`) is existence_error, where swipl reads its source.
+* **A load directive's load runs AT THE DIRECTIVE** (3.6.0, swipl's;
+  `lb_directive_one` in lib/library.cicili gives `coco_library_load` an
+  engine of its own for a module's init): `:- use_module(F)`, `:-
+  ensure_loaded(F)` and a list of files read F into the store at once, its
+  directives and initialization/1 goals before the next clause of this
+  file. Through 3.5.0 a directive registered the module and left its read
+  for the next ask, so its directives ran after this file's next goal, a
+  ball that ended the read was thrown at that goal (its ERROR and Warning
+  naming a directive that had nothing to do with it), and a load that
+  failed was read again at every ask. **A ball that ends the nested load is
+  the directive's**: an error(_, _) its ERROR at the directive's place and
+  the Warning that it failed, and this file goes on; any other ball ends
+  this load too (the hook's -5, `coco_directive`'s 4, a list's walk stopped
+  there), and an `-s` script says `Prolog initialisation failed:` over it
+  and exits 1. A module whose read a ball ended is marked `failed`
+  (lib/module.cicili) and every store made after passes it by -- the next
+  ask's, a thread's, run_isolated/2's -- until a read reaches its end.
+  **A FILE IS LOADED ONCE A READ OF IT DEFINED SOMETHING**, as swipl's source
+  file is made: a clause or a grammar rule; a dynamic, discontiguous,
+  multifile or meta_predicate declaration; module/2; an initialization/1
+  goal put off; an include of a file that is there, though it holds
+  nothing; a load of a file that is there, whatever that file holds,
+  library(lists) too (`lb_defined`, where the load finds its file). Not a
+  goal, op/3, a flag, assertz/1, thread_local/1, public/1, an include or a
+  load of what is not there. A file whose reads defined none of those --
+  goals alone, or a ball before anything -- is read again by the next
+  ensure_loaded/1, use_module/1,2 or load_files/2 if(not_loaded) that names
+  it; a ball after a clause leaves the file loaded. The count is the
+  machine's `ldefs`, and **each read counts its own** from 0 and puts the
+  outer read's back after (`lb_consult_file`, `lb_load_again`,
+  `coco_module_load`; the hosts, the outermost reads, start each file at 0,
+  and `run a.pl b.pl` is the check): a library read into the store on the way
+  -- the preloaded modules at a `run` file's first directive -- is no
+  definition of the file. A consulted file's `loads` entry keeps `defined`
+  and `reading` (`coco_store_load_read`, asked by `coco_store_load_done`;
+  `coco_store_loaded` still says the store read it, for a re-read's
+  order), a module its `reads`, `reading` and `defined`
+  (`coco_module_read_begin`/`_end`, `lb_mod_unloaded`); a read under way
+  is loaded, so a load of itself inside it reads nothing. The next load that
+  names such a file reads it again -- `lb_load_known`, `lb_load_found` (by
+  its real path, so a link's name finds it), `lb_load_file` whatever
+  load_files/2's IF says. test/files/source_files.pl holds 105 lines of it
+  to swipl. **The directive vouches for the collector**
+  (`dgc`): `coco_directive` writes the spec's text before the hook and hands
+  the load the vouch its consult gave it, and a list's walk registers its
+  cursor around each load (`lb_directive_hook`). **A read that may register
+  a module takes the registry by index after it** (`coco_module_load`,
+  `lb_load_again`): a directive in it can move the array. Not swipl's
+  (COMPAT.md): one namespace, so what a failed module read before the
+  failure is callable unqualified, where swipl's stays in the module, and
+  use_module/1 of a file with no module/2 loads it, where swipl's refuses
+  it; a store made after passes a failed module by, where swipl's thread
+  sees what it read; a file named through a link is that file, where
+  swipl's is another; and a nested file's initialization(G, main) runs G
+  when that file's load ends and halts, the rest of the outer file unread,
+  where swipl's runs it after the whole load (STATUS.md, not done).
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
@@ -1560,8 +1616,10 @@ cocolint index offers no import of it.
   each frame on the way reads it, clears it, and sets it back only around
   a call whose cells it registered (`coco_heap_root_push`, and
   `coco_heap_pos_push` for a position such as a load's `mark`/`back`). A
-  directive's `use_module` runs no goal and is not vouched; a new caller
-  of a load vouches nothing until it registers what it reads after. A
+  directive's `use_module` runs its load at the directive (3.6.0) and
+  hands it the vouch, having written its spec's text first and registered
+  a list's cursor; a new caller of a load vouches nothing until it
+  registers what it reads after. A
   search a builtin starts, and a vouched goal of a load, collects only
   once it has grown by the floor itself (`coco_gc_nested_begin`).
   1.9.3 needed 1.25 GB for three million turns of a loop inside

@@ -764,7 +764,19 @@
     ;; one (0 for none), and its size, put there by the goal hook and taken
     ;; by the first who can throw it (`coco_load_ball_take'). Appended.
     (member size_t     lball)
-    (member size_t     lball_size))
+    (member size_t     lball_size)
+    ;; WHAT A READ HAS DEFINED (3.6.0), a count: a clause
+    ;; a consult adds, a dynamic, discontiguous, multifile or
+    ;; meta_predicate declaration, a module/2, an initialization/1 goal put
+    ;; off, an include, a load that finds its file. A READ OF A FILE COUNTS
+    ;; ITS OWN, from 0, and puts the outer read's count back after: what a
+    ;; file defined is swipl's source file, and a file whose reads defined
+    ;; nothing is no loaded file, read again by the next load that names it
+    ;; (lib/library.cicili, `coco_store_load_read', `coco_module_read_end').
+    ;; A file a load finds is credited to the file that loads it at the
+    ;; load, and a library read into the store on the way (the preloaded
+    ;; modules, at a first directive's ask) to nobody; a host starts at 0
+    (member u64        ldefs))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

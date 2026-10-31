@@ -168,6 +168,10 @@
   ;;; the read's AGAIN (`coco_consult_again'): a file read into the store
   ;;; again places its clauses as swipl's reload does.
   (decl) (func coco_library_note_load ((coco_store * st) (const char * path)) (out int))
+  ;;; AND ITS READ ENDED (3.6.0), DEFINED 1 when the read defined something
+  ;;; (the machine's `ldefs' moved): a file whose reads defined nothing is
+  ;;; no loaded file, and the next load that names it reads it again
+  (decl) (func coco_library_note_read ((coco_store * st) (const char * path) (int defined)))
 
   ) ; decl-library
 
@@ -777,6 +781,11 @@
           (coco_store_note_load st full t)
           (return was)))
 
+  (func coco_library_note_read ((coco_store * st) (const char * path) (int defined))
+        (let ((char full [4096]))
+          (if (== nil (realpath path full)) (return))
+          (coco_store_load_read st full defined)))
+
   ;;; ---- a file spec, and where its file is (3.4.0) ----------------------
 
   ;;; ONE SEGMENT OF A FILE SPEC into B, as swipl's '$segments_to_atom'/2
@@ -934,6 +943,120 @@
 
   ;;; ---- resolution ------------------------------------------------------
 
+  ;;; A MODULE'S FILE READ AGAIN AS THAT MODULE (2.14.0), the registry
+  ;;; taking its new text, so a store made after this loads it: MUTED, as
+  ;;; `coco_module_load' consults a module, because its clauses are this
+  ;;; process's and are never written through; `double_quotes' as its author
+  ;;; wrote it; its predicates the program's own where the file is (`own');
+  ;;; owned by its real path, so that the first clause of each predicate
+  ;;; takes the module's old clauses of it out, and a predicate the new text
+  ;;; no longer defines loses them (`coco_consult_owner'). Its directives
+  ;;; collect when the caller vouched (`dgc'): nothing of the heap is read
+  ;;; here after the read. Answers 1 for a read to its end; 0 for one that
+  ;;; stopped short, ERR saying why and a ball that ended it on the machine
+  ;;; (`lball') for the caller to throw or report; -1 for a file that
+  ;;; cannot be read. HOW IT ENDED IS THE MODULE'S (3.6.0): `failed' while
+  ;;; its last read stopped short, which other stores pass by, and what it
+  ;;; defined (`coco_module_read_end'), which says whether it is loaded.
+  (static)
+  (func lb_load_again ((coco_store * st) (coco_machine * m) (const coco_module * mod)
+                       (const char * path) (double now) (char * err) (size_t errlen)) (out int)
+        (let ((char * text . #'(lb_slurp path)) (int r . 0)
+              (int dq . #'(-> m double_quotes)) (int own . #'(-> st ownload))
+              ;; read before the consult, whose directives may register a
+              ;; module and move the registry MOD points into
+              (const char * name . #'(-> mod name))
+              (const char * file . #'(? (== (-> mod file) nil) (-> mod name) (-> mod file)))
+              (const char * real . #'(-> mod real))
+              (int mown . #'(-> mod own)) (u64 outer . #'(-> m ldefs)))
+          (if (== text nil) (return -1))
+          (coco_module_set_text name text now)
+          (coco_module_read_begin name)
+          (set (-> m ldefs) 0)
+          (coco_store_mute st)
+          (set (-> m double_quotes) 0)
+          (set (-> st ownload) mown)
+          (set r (coco_consult_owner st m text file real 1 err errlen))
+          (set (-> st ownload) own)
+          (set (-> m double_quotes) dq)
+          (coco_store_unmute st)
+          (coco_module_read_end name (!= (-> m ldefs) 0))
+          (set (-> m ldefs) outer)
+          (coco_module_set_failed name (? (< r 0) 1 0))
+          (return (? (< r 0) 0 1))))
+
+  ;;; A MODULE THAT IS NO LOADED FILE (3.6.0): one read from a file of
+  ;;; Prolog, each read of which defined nothing -- a clause, a
+  ;;; declaration, a put-off goal, an include, a load that finds its file --
+  ;;; and none is under way, as swipl's source file is made by one of
+  ;;; those: a file of goals alone, or one a ball ended before anything,
+  ;;; is read again by the next load that names it. Not one compiled in,
+  ;;; a `.so', or one registered and not yet read into any store.
+  (static)
+  (func lb_mod_unloaded ((const coco_module * mod)) (out int)
+        (if (or (== (-> mod file) nil) (-> mod foreign)) (return 0))
+        (return (and (> (-> mod reads) 0) (not (-> mod defined)) (not (-> mod reading)))))
+
+  ;;; A LOAD THAT FINDS ITS FILE DEFINES (3.6.0, `ldefs'), as swipl's
+  ;;; records it in the file it stands in, whatever the file it finds
+  ;;; defines and whether it was loaded before: library(lists) too, a
+  ;;; module compiled in, or one carried under another name. A load of
+  ;;; what is not there defines nothing.
+  (static)
+  (func lb_defined ((coco_machine * m)) (out int)
+        (set (-> m ldefs) (+ (-> m ldefs) 1))
+        (return 1))
+
+  ;;; A MODULE THAT IS NO LOADED FILE, NAMED BY A LOAD (3.6.0), is read
+  ;;; again, as swipl's load of such a file reads it: 1 read to its end, 0
+  ;;; not, as `lb_load_again' says
+  (static)
+  (func lb_reload_module ((coco_store * st) (coco_machine * m) (const coco_module * mod)
+                          (char * err) (size_t errlen)) (out int)
+        (let ((const char * path . #'(? (== (-> mod real) nil) (-> mod file) (-> mod real)))
+              (double now . 0.0) (int r . 0))
+          (if (== path nil) (return 1))
+          (if (not (coco_file_mtime path (aof now))) (set now 0.0))
+          (set r (lb_load_again st m mod path now err errlen))
+          (if (== r -1) (block (snprintf err errlen "%s: cannot be read" path) (return 0)))
+          (return r)))
+
+  ;;; A FILE CONSULTED, written through, its clauses from the last time it
+  ;;; was read replaced (`coco_consult_again'): PATH as found, FULL its real
+  ;;; path and NOW its time_file/2. NOTED BEFORE THE READ, as SWI marks a
+  ;;; file loading: a directive in it that ensure_loaded/1s it finds it
+  ;;; there; noted before, it is read AGAIN, and its clauses placed as
+  ;;; swipl's reload places them (2.14.1). AND IT IS THE PROGRAM'S CONSULT
+  ;;; even inside a module's load -- a directive or initialization/1 of an
+  ;;; `-s' file runs while the store is muted for that file, and the muted
+  ;;; read wrote nothing through and owned nothing, so the next consult
+  ;;; added a copy. The mute is the module's, and is put back after. Its
+  ;;; directives collect when the caller vouched (`dgc'). The consult's
+  ;;; answer: a count of clauses, or below 0 for a read that stopped short
+  ;;; -- a ball that ended it on the machine (`lball') -- and -9 for a file
+  ;;; that cannot be read. WHAT THE READ DEFINED IS THE FILE'S (3.6.0,
+  ;;; `coco_store_load_read'): one whose reads defined nothing is no loaded
+  ;;; file, as swipl's source file is none, and the next load reads it.
+  (static)
+  (func lb_consult_file ((coco_store * st) (coco_machine * m) (const char * path)
+                         (const char * full) (double now) (char * err) (size_t errlen)) (out int)
+        (let ((char * text . #'(lb_slurp path)) (int again . 0) (int r . 0)
+              (int muted . #'(-> st muted)) (int own . #'(-> st ownload))
+              (u64 outer . #'(-> m ldefs)))
+          (if (== text nil) (return -9))
+          (set (-> m ldefs) 0)
+          (set again (coco_store_loaded st full nil))
+          (coco_store_note_load st full now)
+          (set (-> st muted) 0)
+          (set (-> st ownload) 0)
+          (set r (coco_consult_again st m text path again err errlen))
+          (set (-> st muted) muted)
+          (set (-> st ownload) own)
+          (free text)
+          (coco_store_load_read st full (!= (-> m ldefs) 0))
+          (set (-> m ldefs) outer)
+          (return r)))
+
   ;;; A FILE FOUND, at PATH, loaded as the module NAME (KIND 1 a .so, 2 a
   ;;; .pl), as coco_library_load loads one
   (static)
@@ -945,15 +1068,29 @@
           ;; one a module was read from under another spelling. Through 2.12
           ;; `consult(f)' and then `ensure_loaded(f)', or `use_module(f)' and
           ;; then `use_module('./f.pl')', read the file a second time beside
-          ;; the first, and each of its clauses answered twice.
+          ;; the first, and each of its clauses answered twice. ONE WHOSE
+          ;; READS DEFINED NOTHING IS NOT LOADED (3.6.0), as swipl's source
+          ;; file is none: read again as it was read, a consulted one a
+          ;; consult and a module a module, its answer the read's.
           (if (== kind 2)
               (let ((char full [4096]))
                 (if (!= nil (realpath path full))
                     (block
-                     (if (coco_store_loaded st full nil) (return 1))
+                     (if (coco_store_loaded st full nil)
+                         (block
+                          (if (coco_store_load_done st full nil) (return 1))
+                          (let ((double now . 0.0) (int r . 0))
+                            (if (not (coco_file_mtime full (aof now))) (set now 0.0))
+                            (set r (lb_consult_file st m path full now err errlen))
+                            (if (== r -9)
+                                (block (snprintf err errlen "%s: cannot be read" path)
+                                       (return 0)))
+                            (return (? (< r 0) 0 1)))))
                      (let ((const coco_module * mod . #'(lb_module_of full)))
                        (if (!= mod nil)
                            (block (lb_lend_ops m (-> mod prolog))
+                                  (if (lb_mod_unloaded mod)
+                                      (return (lb_reload_module st m mod err errlen)))
                                   (if (!= e nil) (coco_module_load st m e))
                                   (return 1))))))))
 
@@ -973,9 +1110,9 @@
           (let ((const coco_module * mod . #'(coco_module_find name)))
             (if (!= mod nil) (lb_lend_ops m (-> mod prolog))))
 
-          ;; the freshly registered clauses, into THIS store now when an
-          ;; engine is running the goal; a directive leaves them for the
-          ;; ask-time load
+          ;; the freshly registered clauses, into THIS store now: an engine
+          ;; is running the goal, or (3.6.0) the directive made one for the
+          ;; load
           ;; WHY, AND WHERE (1.11.9): the consult's own words -- the file
           ;; that would not consult, which may be one this one loads, its
           ;; line and column, and the reason. Through 1.11.8 it was this
@@ -991,12 +1128,17 @@
   ;;; A MODULE REGISTERED UNDER NAME is loaded: its operators lent again,
   ;;; because a second file naming it is being read now, and its clauses
   ;;; into this store when an engine runs the goal. 0 when there is none.
+  ;;; ONE WHOSE READS DEFINED NOTHING IS READ AGAIN (3.6.0,
+  ;;; `lb_mod_unloaded'): 1 when the read reached the end, 2 when it did
+  ;;; not, ERR saying why.
   (static)
   (func lb_load_known ((coco_store * st) (coco_machine * m) (coco_engine * e)
-                       (const char * name)) (out int)
+                       (const char * name) (char * err) (size_t errlen)) (out int)
         (let ((const coco_module * mod . #'(coco_module_find name)))
           (if (== mod nil) (return 0))
           (lb_lend_ops m (-> mod prolog))
+          (if (lb_mod_unloaded mod)
+              (return (? (lb_reload_module st m mod err errlen) 1 2)))
           (if (!= e nil) (coco_module_load st m e))
           (return 1)))
 
@@ -1007,8 +1149,10 @@
   (static)
   (func lb_load_path ((coco_store * st) (coco_machine * m) (coco_engine * e)
                       (const char * path) (char * err) (size_t errlen)) (out int)
-        (let ((size_t len . #'(strlen path)) (int kind . 2))
-          (if (lb_load_known st m e path) (return 1))
+        (let ((size_t len . #'(strlen path)) (int kind . 2)
+              (int known . #'(lb_load_known st m e path err errlen)))
+          (if (== known 1) (return 1))
+          (if (== known 2) (return 0))
           (if (and (> len 3) (== 0 (strcmp (+ path (- len 3)) ".so"))) (set kind 1))
           (return (lb_load_found st m e path path kind 0 err errlen))))
 
@@ -1041,6 +1185,7 @@
                    (block (if (lb_resolve_dir m name err errlen) (return -4))
                           (snprintf err errlen "%s: no such file" name)
                           (return -1)))
+               (lb_defined m)
                (return (lb_load_path st m e path err errlen))))
           ;; library(Name), library(Dir/Name): registered, or on the
           ;; library path, .so before .pl
@@ -1048,10 +1193,14 @@
             (if (coco-tag-is REF (nth inner (-> m heap))) (return -2))
             (if (not (lb_spec_text m inner name (sizeof name)))
                 (block (snprintf err errlen "library: no such library") (return -1))))
-          (if (lb_load_known st m e name) (return 1))
+          (if (!= (coco_module_find name) nil) (lb_defined m))
+          (let ((int known . #'(lb_load_known st m e name err errlen)))
+            (if (== known 1) (return 1))
+            (if (== known 2) (return 0)))
           (if (not (lb_find name path (sizeof path) (aof kind)))
               (block (snprintf err errlen "library(%s): not found on the library path" name)
                      (return -1)))
+          (lb_defined m)
           (return (lb_load_found st m e name path kind 1 err errlen))))
 
   ;;; ---- always present --------------------------------------------------
@@ -1317,44 +1466,27 @@
   ;;; use_module/1 raises.
 
   ;;; A FILE LOADED AS A MODULE, READ AGAIN (2.14.0), as SWI's consult/1
-  ;;; reloads one. The registry takes the new text, so a store made after
-  ;;; this -- a thread's, run_isolated/2's -- loads it, and THIS store's
-  ;;; clauses of the module are replaced by the new text's, consulted as
-  ;;; `coco_module_load' consults a module: MUTED, because they are this
-  ;;; process's and are never written through; `double_quotes' as its
-  ;;; author wrote it; its predicates the program's own where the file is
-  ;;; (`own'); its directives run again; owned by its real path, so that
-  ;;; the first clause of each predicate takes the module's old clauses of
-  ;;; it out, and a predicate the new text no longer defines loses them
-  ;;; (`coco_consult_owner'). What the program asserted into one of its
+  ;;; reloads one (`lb_load_again'): the registry takes the new text, so a
+  ;;; store made after this -- a thread's, run_isolated/2's -- loads it, and
+  ;;; THIS store's clauses of the module are replaced by the new text's, its
+  ;;; directives run again. What the program asserted into one of its
   ;;; predicates stays, as it stays in swipl. A store another thread made
   ;;; before keeps what it loaded: threads share nothing. Answers 0 for a
   ;;; file that cannot be read.
   (static)
   (func lb_reread ((coco_engine * e) (const coco_module * mod) (const char * path)
                    (double now)) (out int)
-        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
-              (char * text . #'(lb_slurp path)) (char err [4096]) (int r . 0)
-              (int dq . #'(-> m double_quotes)) (int own . #'(-> st ownload))
+        (let ((coco_machine * m . #'(-> e m)) (char err [4096]) (int r . 0)
               (int was . #'(-> m dgc)))
-          (if (== text nil) (return 0))
-          (coco_module_set_text (-> mod name) text now)
-          (coco_store_mute st)
-          (set (-> m double_quotes) 0)
-          (set (-> st ownload) (-> mod own))
           ;; its directives may collect when this engine may: nothing of
           ;; the heap is read after the consult, and the spec was read before
           (set (-> m dgc) (? (-> e gc) 1 0))
-          (set r (coco_consult_owner st m text
-                                     (? (== (-> mod file) nil) (-> mod name) (-> mod file))
-                                     (-> mod real) 1 err (sizeof err)))
+          (set r (lb_load_again (-> e st) m mod path now err (sizeof err)))
           (set (-> m dgc) was)
-          (set (-> st ownload) own)
-          (set (-> m double_quotes) dq)
-          (coco_store_unmute st)
+          (if (== r -1) (return 0))
           ;; a ball that ended the read goes on (3.1.0): 2 or -1, the
           ;; predicate's answer
-          (if (< r 0)
+          (if (== r 0)
               (let ((int t . #'(lb_ball_again e)))
                 (if (!= t 0) (return t))
                 (lb_say_text err)))
@@ -1368,9 +1500,9 @@
                 (const char * mode . nil) (u32 ar . 0) (u32 har . 0)
                 (const char * fn . #'(coco_m_functor e spec (aof ar)))
                 (const char * hfn . #'(coco_m_functor e how (aof har)))
-                (int exists . 0) (int lf . 0) (int r . 0) (int was . 0) (int again . 0)
+                (int exists . 0) (int lf . 0) (int r . 0) (int was . 0)
                 (size_t culprit . spec) (u64 c . 0)
-                (double then . 0.0) (double now . 0.0) (char * text . nil))
+                (double then . 0.0) (double now . 0.0))
             ;; load_files/2's own IF comes as lf(If), so a number is its
             ;; error and not consult/1's (3.4.0)
             (if (and (!= hfn nil) (and (== har 1) (== 0 (strcmp hfn "lf"))))
@@ -1430,33 +1562,42 @@
                  (return (coco_m_existence_error e "source_sink" culprit))))
             (if (== nil (realpath path full)) (snprintf full (sizeof full) "%s" path))
             (if (not (coco_file_mtime full (aof now))) (set now 0.0))
+            (lb_defined m)
             ;; LOADED AS A MODULE: read again as that module (2.14.0), unless
-            ;; IF says it is loaded, or it is no newer than its text was
+            ;; IF says it is loaded, or it is no newer than its text was. ONE
+            ;; WHOSE READS DEFINED NOTHING IS NOT LOADED (3.6.0), as swipl's
+            ;; source file is none: read again, whatever IF says.
             (let ((const coco_module * mod . #'(lb_module_of full)))
               (if (!= mod nil)
                   (block
-                   (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
-                       (return 1))
-                   (if (and (or (== 0 (strcmp mode "changed")) exists) (<= now (-> mod time)))
-                       (return 1))
+                   (if (not (lb_mod_unloaded mod))
+                       (block
+                        (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
+                            (return 1))
+                        (if (and (or (== 0 (strcmp mode "changed")) exists) (<= now (-> mod time)))
+                            (return 1))))
                    (let ((int rr . #'(lb_reread e mod path now)))
                      (if (== rr 0)
                          (return (coco_m_existence_error e "source_sink" culprit)))
                      (return rr)))))
+            ;; AND A CONSULTED ONE (3.6.0): one whose reads defined nothing
+            ;; is read again as it was read, a consult, below
             (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
                 (block
-                 (if (coco_store_loaded st full nil) (return 1))
-                 (set was (-> m dgc))
-                 (set (-> m dgc) (? (-> e gc) 1 0))
-                 ;; the path found, loaded as itself: a spec looked for
-                 ;; again would be looked for where this load stands
-                 (set r (lb_load_path st m e path err (sizeof err)))
-                 (set (-> m dgc) was)
-                 (if (!= r 1)
-                     (let ((int t . #'(lb_ball_again e)))
-                       (if (!= t 0) (return t))
-                       (lb_say_text err)))
-                 (return 1)))
+                 (if (coco_store_load_done st full nil) (return 1))
+                 (if (not (coco_store_loaded st full nil))
+                     (block
+                      (set was (-> m dgc))
+                      (set (-> m dgc) (? (-> e gc) 1 0))
+                      ;; the path found, loaded as itself: a spec looked for
+                      ;; again would be looked for where this load stands
+                      (set r (lb_load_path st m e path err (sizeof err)))
+                      (set (-> m dgc) was)
+                      (if (!= r 1)
+                          (let ((int t . #'(lb_ball_again e)))
+                            (if (!= t 0) (return t))
+                            (lb_say_text err)))
+                      (return 1)))))
             ;; NEWER, NOT ONLY OTHER (2.14.0): swipl 9.0.4 reads the file
             ;; again only when its time is past the one its last read had
             ;; ('$noload'/3: Modified @=< LoadTime loads nothing), and
@@ -1464,44 +1605,19 @@
             ;; 2.13 an older time read it again too, and if(exists) read it
             ;; always.
             (if (and (or (== 0 (strcmp mode "changed")) exists)
-                     (coco_store_loaded st full (aof then)) (<= now then))
+                     (coco_store_load_done st full (aof then)) (<= now then))
                 (return 1))
-            (set text (lb_slurp path))
-            (if (== text nil) (return (coco_m_existence_error e "source_sink" culprit)))
-            ;; NOTED BEFORE THE READ, as SWI marks a file loading: a directive
-            ;; in it that ensure_loaded/1s it finds it there. Noted before,
-            ;; it is read AGAIN, and its clauses placed as swipl's reload
-            ;; places them (2.14.1)
-            (set again (coco_store_loaded st full nil))
-            (coco_store_note_load st full now)
             ;; ITS DIRECTIVES MAY COLLECT when this engine may (`dgc'): the
-            ;; spec is read before the consult and nothing of the heap after.
-            ;; AND IT IS THE PROGRAM'S CONSULT even inside a module's load --
-            ;; a directive or initialization/1 of an `-s' file runs while the
-            ;; store is muted for that file, and the muted read wrote nothing
-            ;; through and owned nothing, so the next consult added a copy.
-            ;; The mute is the module's, and is put back after.
-            (let ((int muted . #'(-> st muted)) (int own . #'(-> st ownload)))
-              (set (-> st muted) 0)
-              (set (-> st ownload) 0)
-              (set was (-> m dgc))
-              (set (-> m dgc) (? (-> e gc) 1 0))
-              (set r (coco_consult_again st m text path again err (sizeof err)))
-              (set (-> m dgc) was)
-              (set (-> st muted) muted)
-              (set (-> st ownload) own))
-            (free text)
-            ;; WHAT ITS DIRECTIVES REGISTERED IS LOADED NOW (3.4.0), into this
-            ;; store, as use_module/1 as a goal loads it: a directive has no
-            ;; engine and leaves a module for the next ask, and through 3.3.0
-            ;; a goal of this engine called after the consult found the
-            ;; module's predicates unknown -- only a nested search, which
-            ;; asks, loaded them
-            (if (>= r 0)
-                (block (set was (-> m dgc))
-                       (set (-> m dgc) (? (-> e gc) 1 0))
-                       (coco_module_load st m e)
-                       (set (-> m dgc) was)))
+            ;; spec is read before the consult and nothing of the heap after
+            (set was (-> m dgc))
+            (set (-> m dgc) (? (-> e gc) 1 0))
+            (set r (lb_consult_file st m path full now err (sizeof err)))
+            (set (-> m dgc) was)
+            (if (== r -9) (return (coco_m_existence_error e "source_sink" culprit)))
+            ;; WHAT ITS DIRECTIVES REGISTERED IS IN THIS STORE ALREADY: since
+            ;; 3.6.0 a directive's load runs at the directive. Through 3.3.0
+            ;; a goal of this engine called after the consult found such a
+            ;; module's predicates unknown, and 3.4.0 loaded them here.
             ;; A BALL A DIRECTIVE THREW THAT IS NO error(_, _) ENDED THE
             ;; LOAD (3.1.0), and goes on from here, as swipl's consult/1
             ;; lets it: what was read before it stays
@@ -1532,11 +1648,42 @@
   ;;; FOR is kept, by name, in lb_carried.
   ;;; AN UNBOUND SPEC, A NUMBER AND A DIRECTORY (3.4.0) are swipl's errors
   ;;; here too, reported as a raising directive's: the ball's text into ERR,
-  ;;; the answer 0, and kb.cicili names the directive that failed
+  ;;; the answer 0, and kb.cicili names the directive that failed.
+  ;;;
+  ;;; THE LOAD RUNS HERE (3.6.0), at the directive, as swipl's: the module
+  ;;; registered and its clauses read into the store at once, its directives
+  ;;; and initialization/1 goals before the next clause of this file. An
+  ;;; engine is made for a module's init to take (no goal runs in it).
+  ;;; Through 3.5.0 a directive registered the module and left its read for
+  ;;; the next ask -- the next directive's goal, or the program's -- so its
+  ;;; directives ran after this file's next goal, a ball that ended its read
+  ;;; was thrown at that goal (its ERROR and its Warning named a directive
+  ;;; that had nothing to do with it), and a load that failed was read again
+  ;;; at every ask. Its directives collect when the consult vouched (`dgc'):
+  ;;; nothing of the heap is read here after the load but the ball.
+  ;;;
+  ;;; A BALL THAT ENDED THE LOAD IS THIS DIRECTIVE'S (3.6.0), as swipl's
+  ;;; load directive raises it: an error(_, _) its ERROR, ERR its text, and
+  ;;; 0, after which kb.cicili says the directive failed and the file goes
+  ;;; on; any other ball ends this file's load too, -5, the ball kept on the
+  ;;; machine (`lball') for whoever asked for the outer load, ERR its text.
   (static)
   (func lb_directive_one ((coco_store * st) (coco_machine * m) (size_t spec)
                           (char * err) (size_t errlen)) (out int)
-        (let ((int r . #'(coco_library_load st m nil spec err errlen)))
+        (let ((coco_engine e) (int r . 0))
+          (coco_engine_init (aof e) m st)
+          (set r (coco_library_load st m (aof e) spec err errlen))
+          (coco_engine_free (aof e))
+          (if (and (== r 0) (!= (-> m lball) 0))
+              (let ((size_t mark . #'(-> m heap_len))
+                    (size_t ball . #'(coco_store_read m st (- (-> m lball) 1))))
+                (coco_error_text m st ball err errlen)
+                (if (coco_is_compound2 m ball "error")
+                    (block (coco_load_ball_drop st m)
+                           (set (-> m heap_len) mark)
+                           (return 0)))
+                (set (-> m heap_len) mark)
+                (return -5)))
           (if (or (== r -2) (or (== r -3) (== r -4)))
               (let ((size_t mark . #'(-> m heap_len)) (size_t ball . 0) (char dir [4096]))
                 (cond ((== r -2)
@@ -1561,35 +1708,48 @@
                 (for ((size_t i . 0)) (< i 3) ((++ i))
                      (if (== 0 (strcmp ($ b s) (nth i lb_carried))) (set carried 1))))
             (coco_sb_free (aof b))
-            (return (? carried 1 -1)))))
+            (return (? carried (lb_defined m) -1)))))
 
   ;;; A LIST OF FILES (3.4.0), swipl's `:- use_module([a, b]).': each
   ;;; loaded, each that loads nothing said at the directive's place, and the
   ;;; directive holds -- no Warning that it failed. A list whose tail is no
   ;;; list is its error, and the directive fails. Through 3.3.0 `use_module
-  ;;; wants library(Name) or a file atom'.
+  ;;; wants library(Name) or a file atom'. A ball that is no error(_, _)
+  ;;; ends the list and the load (3.6.0, -5).
   (static)
   (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)
                            (char * err) (size_t errlen)) (out int)
         (if (not (lb_files_list m spec)) (return (lb_directive_one st m spec err errlen)))
-        (let ((size_t t . #'(coco_deref m spec)))
-          (while (coco_is_cons m t)
-            (let ((size_t f . #'(coco_deref m (coco_arg m t 0))) (int r . 0))
+        (let ((size_t t . #'(coco_deref m spec)) (int vouch . #'(-> m dgc))
+              (size_t * tp . nil) (size_t tl . 1) (int held . 0) (int ended . 0))
+          ;; THE LIST IS REGISTERED around the loads (3.6.0), which run here
+          ;; and may collect: the walk reads it after each
+          (set (-> m dgc) 0)
+          (set tp (aof t))
+          (set held (coco_heap_root_push m (aof tp) (aof tl)))
+          (while (and (not ended) (coco_is_cons m t))
+            (let ((int r . 0))
               (set (nth 0 err) (cast char 0))
-              (set r (lb_directive_one st m f err errlen))
-              (if (!= r 1)
-                  (let ((coco_strbuf w))
-                    (coco_sb_init (aof w))
-                    (coco_write_term m (aof w) f 1 0)
-                    (if (== r -1)
-                        (snprintf err errlen "source_sink `%s' does not exist"
-                                  (? (== ($ w s) nil) "?" ($ w s)))
-                      (if (== (nth 0 err) (cast char 0))
-                          (snprintf err errlen "%s: could not be loaded"
-                                    (? (== ($ w s) nil) "?" ($ w s)))))
-                    (coco_sb_free (aof w))
-                    (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) err))))
-            (set t (coco_deref m (coco_arg m t 1))))
+              (set (-> m dgc) (? held vouch 0))
+              (set r (lb_directive_one st m (coco_deref m (coco_arg m t 0)) err errlen))
+              (set (-> m dgc) 0)
+              (cond
+                ((== r -5) (set ended 1))
+                ((!= r 1)
+                 (let ((coco_strbuf w) (size_t f . #'(coco_deref m (coco_arg m t 0))))
+                   (coco_sb_init (aof w))
+                   (coco_write_term m (aof w) f 1 0)
+                   (if (== r -1)
+                       (snprintf err errlen "source_sink `%s' does not exist"
+                                 (? (== ($ w s) nil) "?" ($ w s)))
+                     (if (== (nth 0 err) (cast char 0))
+                         (snprintf err errlen "%s: could not be loaded"
+                                   (? (== ($ w s) nil) "?" ($ w s)))))
+                   (coco_sb_free (aof w))
+                   (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) err)))))
+            (if (not ended) (set t (coco_deref m (coco_arg m t 1)))))
+          (if held (coco_heap_root_pop m))
+          (if ended (return -5))
           (if (coco_is_nil m t) (return 1))
           (let ((size_t mark . #'(-> m heap_len)) (size_t ball . 0))
             (if (coco-tag-is REF (nth t (-> m heap)))

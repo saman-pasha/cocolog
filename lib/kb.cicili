@@ -990,10 +990,18 @@
     (member size_t *  len))
 
   ;;; ONE FILE CONSULTED INTO A STORE (2.13.0): its real path and its
-  ;;; time_file/2 when it was read. See `loads'.
+  ;;; time_file/2 when it was read. See `loads'. DEFINED (3.6.0): some read
+  ;;; of it defined something (the machine's `ldefs' moved), which is what
+  ;;; makes swipl's source file -- a file whose reads defined nothing is not
+  ;;; loaded, whether a ball ended the read or not, and the next load that
+  ;;; names it reads it again -- though the store did read it, which a
+  ;;; re-read's clause order asks (`coco_store_loaded'). READING: a read of
+  ;;; it is under way, so a load that names it from inside finds it loaded.
   (struct coco_loaded
     (member char *   path)
-    (member double   time))
+    (member double   time)
+    (member int      defined)
+    (member int      reading))
 
   ;;; The clause store. `cells' is a second flat term array with the same
   ;;; encoding as the heap -- it shares the machine's atom and functor tables,
@@ -1287,6 +1295,11 @@
   ;;; when there was no memory for it.
   (decl) (func coco_store_loaded ((coco_store * st) (const char * path) (double * t)) (out int))
   (decl) (func coco_store_note_load ((coco_store * st) (const char * path) (double t)) (out int))
+  ;;; LOADED, which a load that skips a loaded file asks (3.6.0): some read
+  ;;; of it defined something, or a read of it is under way; and the end of
+  ;;; the read just made, DEFINED 1 when it defined something
+  (decl) (func coco_store_load_done ((coco_store * st) (const char * path) (double * t)) (out int))
+  (decl) (func coco_store_load_read ((coco_store * st) (const char * path) (int defined)))
 
   ;; Stops the write-through hooks firing, and starts them again. A module's
   ;; clauses belong to the BUILD and not to the knowledge base: written
@@ -2008,7 +2021,9 @@
   ;;; that loaded nothing, which SWI reports as the ERROR saying why and then
   ;;; the Warning that the directive failed). The caller REPORTS the last
   ;;; three and carries on, because a bad directive is one bad line and not a
-  ;;; bad file.
+  ;;; bad file. 4 (3.1.0) is a ball that is no error(_, _), which ENDS the
+  ;;; load: a goal's, and (3.6.0) one that ended the load a load directive
+  ;;; ran, the ball on the machine (`lball').
   (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                              (coco_initgoals * inits) (int line)
                              (char * err) (size_t errlen)) (out int))
@@ -2028,7 +2043,13 @@
   ;;; While it is null the directive stays what it always was -- accepted
   ;;; and ignored, so a borrowed file still reads unedited. The hook answers
   ;;; 1 (loaded, or carried here under another name), 0 (found and would not
-  ;;; load, ERR saying why) or -1 (not there at all).
+  ;;; load, ERR saying why) or -1 (not there at all) -- and -5 (3.6.0) for a
+  ;;; load THE DIRECTIVE RAN that a ball which is no error(_, _) ended: the
+  ;;; ball is on the machine (`lball'), ERR says what it is, and it ends
+  ;;; this load too, as swipl's does. The load runs at the directive, as
+  ;;; swipl's: its directives and its initialization/1 goals before the
+  ;;; next clause of this file, and an error(_, _) that ended it this
+  ;;; directive's, ERR its text.
   (decl) (func coco_use_module_install
                ((func h ((coco_store * st) (coco_machine * m) (size_t spec)
                          (char * err) (size_t errlen))
@@ -2421,7 +2442,9 @@
         (with-green-write nil
           (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
             (if (== 0 (strcmp ($ (nth i (-> st loads)) path) path))
-                (block (set ($ (nth i (-> st loads)) time) t) (return 1))))
+                (block (set ($ (nth i (-> st loads)) time) t)
+                       (set ($ (nth i (-> st loads)) reading) 1)
+                       (return 1))))
           (let ((char * copy . #'(strdup path)))
             (if (== copy nil) (return 0))
             (if (not (coco_store_grow st (cast (void **) (aof (-> st loads)))
@@ -2430,8 +2453,27 @@
                 (block (free copy) (return 0)))
             (set ($ (nth (-> st nloads) (-> st loads)) path) copy)
             (set ($ (nth (-> st nloads) (-> st loads)) time) t)
+            (set ($ (nth (-> st nloads) (-> st loads)) defined) 0)
+            (set ($ (nth (-> st nloads) (-> st loads)) reading) 1)
             (set (-> st nloads) (+ (-> st nloads) 1))
             (return 1))))
+
+  (func coco_store_load_done ((coco_store * st) (const char * path) (double * t)) (out int)
+        (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
+          (if (== 0 (strcmp ($ (nth i (-> st loads)) path) path))
+              (block (if (not (or ($ (nth i (-> st loads)) defined)
+                                 ($ (nth i (-> st loads)) reading)))
+                         (return 0))
+                     (if (!= t nil) (set (cof t) ($ (nth i (-> st loads)) time)))
+                     (return 1))))
+        (return 0))
+
+  (func coco_store_load_read ((coco_store * st) (const char * path) (int defined))
+        (with-green-write nil
+          (for ((size_t i . 0)) (< i (-> st nloads)) ((++ i))
+            (if (== 0 (strcmp ($ (nth i (-> st loads)) path) path))
+                (block (set ($ (nth i (-> st loads)) reading) 0)
+                       (if defined (set ($ (nth i (-> st loads)) defined) 1)))))))
 
   ;;; A PRIVATE ENGINE STORE'S HIGH-WATER MARK. `pst'/`bst' are reused
   ;;; between calls, so their length is enough for correctness -- but a

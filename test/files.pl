@@ -145,7 +145,78 @@ fixtures(load_paths, Sandbox) :- !,
 fixtures(include, Sandbox) :- !,
     shl(['mkdir -p ', Sandbox, '/sub/deep ', Sandbox, '/sub/dir']),
     forall(ic(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the files a load directive reads, and the ones they read (`nest/2')
+fixtures(nested_load, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub']),
+    forall(nest(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% a file for each thing a read may or may not define (`sf/2')
+fixtures(source_files, Sandbox) :- !,
+    forall(sf(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+%% what makes a file read once a source file, as swipl's, and what leaves it
+%% none, so that the next load reads it again: each file says so as it is read
+sf('g.pl', [':- writeln(g_read).']).
+sf('c.pl', [':- writeln(c_read).', 'c(1).']).
+sf('dcg.pl', [':- writeln(dcg_read).', 'a --> [x].']).
+sf('d.pl', [':- writeln(d_read).', ':- dynamic(d/1).']).
+sf('dc.pl', [':- writeln(dc_read).', ':- discontiguous(dc/1).']).
+sf('mf.pl', [':- writeln(mf_read).', ':- multifile(mf/1).']).
+sf('mp.pl', [':- writeln(mp_read).', ':- meta_predicate(mp(0)).']).
+sf('m.pl', [':- module(mm, []).', ':- writeln(m_read).']).
+sf('i.pl', [':- writeln(i_read).', ':- initialization(true).']).
+sf('nw.pl', [':- writeln(nw_read).', ':- initialization(true, now).']).
+sf('empty.pl', []).
+sf('e.pl', [':- writeln(e_read).', ':- include(empty).']).
+sf('en.pl', [':- writeln(en_read).', ':- include(no_such_file).']).
+sf('l.pl', [':- writeln(l_read).', ':- use_module(library(lists)).']).
+sf('op.pl', [':- writeln(op_read).', ':- op(700, xfx, ===>).']).
+sf('fl.pl', [':- writeln(fl_read).', ':- set_prolog_flag(double_quotes, codes).']).
+sf('as.pl', [':- writeln(as_read).', ':- assertz(as(1)).']).
+sf('tl.pl', [':- writeln(tl_read).', ':- thread_local(tl/1).']).
+sf('pb.pl', [':- writeln(pb_read).', ':- public(pb/1).']).
+sf('f.pl', [':- writeln(f_read).', 'f(1).', ':- include(no_such_file).']).
+sf('nf.pl', [':- writeln(nf_read).', ':- include(no_such_file).', 'nf(1).']).
+sf('nb.pl', [':- writeln(nb_read).', ':- throw(my_ball).', 'nb(1).']).
+sf('lg.pl', [':- writeln(lg_read).', ':- ensure_loaded(g).']).
+sf('lc.pl', [':- writeln(lc_read).', ':- ensure_loaded(c).']).
+sf('sf.pl', [':- writeln(sf_read).', ':- ensure_loaded(sf).']).
+sf('lm.pl', [':- writeln(lm_read).', ':- ensure_loaded(no_such_file).']).
+sf('g3.pl', [':- writeln(g3_read).']).
+sf('lg2.pl', [':- writeln(lg2_read).', ':- ensure_loaded(g3).']).
+sf('g5.pl', [':- writeln(g5_read).']).
+sf('lk.pl', [':- writeln(lk_read).', ':- consult(g5).']).
+sf('g6.pl', [':- writeln(g6_read).']).
+sf('ll.pl', [':- writeln(ll_read).', ':- load_files(g6, [if(not_loaded)]).']).
+sf('g7.pl', [':- writeln(g7_read).']).
+sf('c7.pl', [':- writeln(c7_read).', 'c7(1).']).
+sf('le.pl', [':- writeln(le_read).', ':- use_module(library(error)).']).
+sf('cg.pl', [':- writeln(cg_read).']).
+sf('cl.pl', [':- writeln(cl_read).']).
+sf('sc.pl', [':- writeln(sc_read).', ':- ensure_loaded(sc).']).
+sf('sr.pl', [':- writeln(sr_read).',
+             ':- ( nb_current(sr_once, _) -> true ; nb_setval(sr_once, 1), throw(stop) ).',
+             ':- ensure_loaded(sr).']).
+
+nest('oe.pl', [':- writeln(oe1).', ':- ensure_loaded(sub/ia).', ':- writeln(oe2).', 'oe(1).']).
+nest('sub/ia.pl', [':- writeln(ia1).', ':- include(nope).', ':- writeln(ia2).', 'ia(1).']).
+nest('om.pl', [':- writeln(om1).', ':- use_module(sub/ma).', ':- writeln(om2).', 'om(1).']).
+nest('sub/ma.pl', [':- module(ma, [ma/1]).', ':- writeln(ma1).', ':- include(nope).', 'ma(1).']).
+nest('oi.pl', [':- writeln(oi1).', ':- ensure_loaded(sub/ii).', ':- writeln(oi2).']).
+nest('sub/ii.pl', [':- writeln(ii1).', ':- initialization(writeln(ii_init)).', ':- writeln(ii2).',
+                 'ii(1).']).
+nest('ob.pl', [':- writeln(ob1).', ':- ensure_loaded(sub/ib).', ':- writeln(ob2).', 'ob(1).']).
+nest('sub/ib.pl', [':- writeln(ib1).', ':- throw(my_ball).', ':- writeln(ib2).', 'ib(1).']).
+nest('obl.pl', [':- writeln(obl1).', ':- ensure_loaded([sub/ib, sub/ok2]).', ':- writeln(obl2).',
+                'obl(1).']).
+nest('sub/ok2.pl', ['ok2(1).', ':- writeln(ok2_read).']).
+nest('ol.pl', [':- writeln(ol1).', ':- ensure_loaded([sub/ia, sub/ok]).', ':- writeln(ol2).']).
+nest('sub/ok.pl', ['ok(1).', ':- writeln(ok_read).']).
+nest('od.pl', [':- writeln(od1).', ':- ensure_loaded(sub/mid).', ':- writeln(od2).', 'od(1).']).
+nest('sub/mid.pl', [':- writeln(mid1).', ':- ensure_loaded(inner).', ':- writeln(mid2).', 'mid(1).']).
+nest('sub/inner.pl', [':- writeln(inner1).', ':- include(nope).', 'inner(1).']).
+nest('oa.pl', [':- ensure_loaded(sub/ok).', ':- ensure_loaded(sub/ia).', ':- writeln(oa_end).']).
+nest('f.pl', [':- writeln(f1).', ':- include(nope).', 'f(1).']).
 
 %% swipl warns of a predicate's clauses an include splits, which cocolog does
 %% not yet: the files declare them discontiguous

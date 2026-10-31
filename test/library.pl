@@ -41,7 +41,8 @@
 
 main :-
     scratch(D),
-    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D), shared_object(D), across_processes(D),
+    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D),
+    nested_loads(D), shared_object(D), across_processes(D),
     always_present, still_answers,
     shl(['rm -rf ', D]),
     checks_done.
@@ -97,11 +98,11 @@ keeps_builtins(D) :-
     sh_join(['run ', T2, ' go'], Args2), cocolog_answer(Args2, G2),
     check('loaded after the program''s clauses, the same',
           G2, answer(done, [a, b], yes, gc_no, mine)),
-    %% A DIRECTIVE use_module/1 LOADS AT THE FIRST GOAL, so the two above
-    %% both load the library after the file is read; a goal directive runs
-    %% one, and the library's clauses are in the store when the program's
-    %% are read -- each call of a taken name made the system's then
-    %% (`coco_sys_library'), not as the library is read
+    %% A DIRECTIVE use_module/1 LOADS AT THE DIRECTIVE (3.6.0; through 3.5.0
+    %% at the first goal, so both above loaded the library after the file
+    %% was read), and a goal directive after it runs one of its clauses
+    %% before the program's are read -- each call of a taken name made the
+    %% system's then (`coco_sys_library'), not as the library is read
     atom_concat(D, '/takes3.pl', T3),
     fixture(T3, [':- use_module(library(keep)).', ':- keep_sort(_).'|Own]),
     sh_join(['run ', T3, ' go'], Args3), cocolog_answer(Args3, G3),
@@ -203,6 +204,102 @@ includes(D) :-
     atom_concat(D, '/incl.pl', Incl7), fixture(Incl7, [':- include(library(incl_lib)).', 'mine7(1).']),
     written(( consult(Incl7), from_lib(V7) ), V7, G7),
     check('an include of library(Name) reads the library''s file', G7, yes).
+
+%% A LOAD DIRECTIVE'S LOAD RUNS AT THE DIRECTIVE (3.6.0), and what of it no
+%% swipl can be asked (test/files/nested_load.pl holds the rest to swipl's
+%% text): a script whose nested load a ball that is no error(_, _) ends says
+%% swipl's two lines and exits 1; a store made after passes a module whose
+%% read failed by and says nothing of it, where through 3.5.0 every next ask
+%% read it again and threw its ball at whatever goal came next; a module that
+%% had defined a clause before the ball is loaded, as swipl's, and named
+%% again by another name for its file is not read again; one whose read
+%% defined nothing before the ball is read again, whole, and a store made
+%% after loads it; a file `run' consulted that defined nothing is read again
+%% by the goal's load; and the collector runs inside the nested load, a
+%% directive's list of files held over it while the heap below slides away
+nested_loads(D) :-
+    section('a load directive''s load runs at the directive'),
+    atom_concat(D, '/nest', N), make_directory(N),
+    atom_concat(N, '/ball.pl', Ball), fixture(Ball, [':- throw(my_ball).']),
+    atom_concat(N, '/script1.pl', S1),
+    fixture(S1, ['s1(0).', ':- ensure_loaded(ball).', 'main :- writeln(main_ran).']),
+    sh_join(['-s ', S1, ' 2>&1'], A1), cocolog_run(A1, T1, X1),
+    check('-s: a script whose nested load a ball ends says swipl''s two lines', T1,
+          'ERROR: Prolog initialisation failed:\nERROR: Unknown message: my_ball'),
+    check('...and exits 1, as swipl''s', X1, 1),
+    atom_concat(N, '/fm.pl', FM),
+    fixture(FM, [':- module(fm, [fm/1]).', 'fm(1).', ':- include(fm_part).', 'fm(2).']),
+    (   catch(use_module(library(thread)), _, fail)
+    ->  atom_concat(N, '/iso.pl', Iso),
+        format(atom(I2), "main :- catch(use_module('~w'), error(E, _), true), findall(X, fm(X), L), writeln(E-L),", [FM]),
+        fixture(Iso, [ ':- use_module(library(thread)).', I2,
+                       '    run_isolated(( catch(fm(_), error(E2, _), true),',
+                       '                   ( nonvar(E2), E2 = existence_error(procedure, fm/1) -> true',
+                       '                   ; throw(seen(E2)) ) ), S),',
+                       '    writeln(S).' ]),
+        sh_join(['-s ', Iso, ' 2>&1'], A2), cocolog_run(A2, T2, _),
+        check('a store made after passes a module whose read failed by, and says nothing of it',
+              T2, 'existence_error(source_sink,fm_part)-[1]\ntrue'),
+        Thread = yes
+    ;   format("     (skipped: no library/thread.so -- sh modules/thread/build.sh)~n", []),
+        Thread = no
+    ),
+    written(catch(use_module(FM), error(E3v, _), true), E3v, G3),
+    check('...in this process too', G3, 'existence_error(source_sink,fm_part)'),
+    atom_concat(N, '/fm_part.pl', Part), fixture(Part, ['fm(15).']),
+    atom_concat(N, '/fm_link.pl', Link), shl(['ln -s ', FM, ' ', Link]),
+    written(( use_module(Link), findall(X4, fm(X4), L4) ), L4, G4),
+    check('one that defined a clause before the ball is loaded: named again, not read', G4, '[1]'),
+    atom_concat(N, '/nm.pl', NM),
+    fixture(NM, [ ':- include(nm_part).', 'nm(2).',
+                  ':- ( nb_current(nm_reads, K) -> K1 is K + 1 ; K1 = 1 ), nb_setval(nm_reads, K1).' ]),
+    written(catch(ensure_loaded(NM), error(E8v, _), true), E8v, G8),
+    check('one that defined nothing before the ball...', G8, 'existence_error(source_sink,nm_part)'),
+    atom_concat(N, '/nm_part.pl', NPart), fixture(NPart, ['nm(15).']),
+    atom_concat(N, '/nm_link.pl', NLink), shl(['ln -s ', NM, ' ', NLink]),
+    written(( ensure_loaded(NLink), findall(X9, nm(X9), L9) ), L9, G9),
+    check('...named again by another name for its file, is read again, whole', G9, '[15,2]'),
+    % by the name it was read by: swipl's reads nm.pl itself again, another
+    % file to it (COMPAT.md)
+    written(( ensure_loaded(NLink), nb_getval(nm_reads, R10) ), R10, G10),
+    check('...and that read, which defined something, leaves it loaded', G10, '1'),
+    (   Thread == yes
+    ->  written(run_isolated(( nm(15) -> true ; throw(not_loaded) ), S5), S5, G5),
+        check('...and a store made after loads it', G5, true)
+    ;   true
+    ),
+    atom_concat(N, '/rg.pl', RG), fixture(RG, [':- writeln(rg_read).']),
+    format(atom(A10), 'run ~w "ensure_loaded(\'~w\')" 2>&1', [RG, RG]),
+    cocolog_run(A10, T10, _),
+    check('a file `run\' consulted that defined nothing: the goal\'s load reads it again',
+          T10, 'rg_read\nrg_read'),
+    % the files `run' reads in turn count apart: what the first defined is
+    % none of the second's (swipl -g ... rd.pl rg.pl says the same)
+    atom_concat(N, '/rd.pl', RD), fixture(RD, ['rd(1).']),
+    format(atom(A11), 'run ~w ~w "ensure_loaded(\'~w\')" 2>&1', [RD, RG, RG]),
+    cocolog_run(A11, T11, _),
+    check('...after a file that defined something, too', T11, 'rg_read\nrg_read'),
+    atom_concat(N, '/gc1.pl', GC1),
+    fixture(GC1, [ 'gc1_churn(0) :- !.',
+                   'gc1_churn(K) :- length(_, 50), K1 is K - 1, gc1_churn(K1).',
+                   ':- statistics(heap_collections, A), gc1_churn(4000), statistics(heap_collections, B),',
+                   '   ( B > A -> writeln(collected) ; writeln(not_collected) ).' ]),
+    atom_concat(N, '/gc2.pl', GC2), fixture(GC2, ['gc2_read(yes).']),
+    atom_concat(N, '/gcs.pl', GCS), fixture(GCS, [':- ensure_loaded(gc1).', 'gcs_read(yes).']),
+    atom_concat(N, '/gcl.pl', GCL), fixture(GCL, [':- ensure_loaded([gc1, gc2]).']),
+    atom_concat(N, '/gcm.pl', GCM),
+    % nothing live made before the consult: the collection in gc1 then moves
+    % the list's cells, which the walk must read again where they went (a
+    % numlist/3 here hid it, its list kept below the directive)
+    format(atom(M7), "main :- consult('~w'), gc2_read(X), writeln(answer(X)).", [GCL]),
+    fixture(GCM, [M7]),
+    ( getenv('COCOLOG_GC_CELLS', Floor) -> true ; Floor = none ),
+    setenv('COCOLOG_GC_CELLS', 2000),
+    sh_join(['run ', GCS, ' "gcs_read(X), write(answer(X)), nl" 2>&1'], A6), cocolog_run(A6, T6, _),
+    sh_join(['-s ', GCM, ' 2>&1'], A7), cocolog_run(A7, T7, _),
+    ( Floor == none -> unsetenv('COCOLOG_GC_CELLS') ; setenv('COCOLOG_GC_CELLS', Floor) ),
+    check('a directive''s nested load collects, as a goal of its file does', T6, 'collected\nanswer(yes)'),
+    check('...and a list''s next file is read after the first collected', T7, 'collected\nanswer(yes)').
 
 vars_said(Dir, Out, R) :-
     atomic_list_concat(['ERROR: ', Dir, '/vars.pl:1:\nERROR:    Arguments are not sufficiently instantiated\n'], W1),

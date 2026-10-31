@@ -410,7 +410,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.5.0"))
+  (func coco_version_text () (out const char *) (return "3.6.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -663,9 +663,15 @@
               (let ((char shown [4096]))
                 (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
                     (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                ;; WHAT THE READ DEFINED makes the file loaded (3.6.0): its
+                ;; own count from 0, which a library read into the store on
+                ;; the way does not move, nor the file read before it. The
+                ;; host is the outermost read: nothing to put back
+                (set ($ m ldefs) 0)
                 (set n (coco_consult_again (aof st) (aof m) text shown
                                            (coco_library_note_load (aof st) (nth i argv))
-                                           err (sizeof err))))
+                                           err (sizeof err)))
+                (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
@@ -2444,9 +2450,15 @@
               (let ((char shown [4096]))
                 (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
                     (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                ;; WHAT THE READ DEFINED makes the file loaded (3.6.0): its
+                ;; own count from 0, which a library read into the store on
+                ;; the way does not move, nor the file read before it. The
+                ;; host is the outermost read: nothing to put back
+                (set ($ m ldefs) 0)
                 (set n (coco_consult_again (aof st) (aof m) text shown
                                            (coco_library_note_load (aof st) (nth i argv))
-                                           err (sizeof err))))
+                                           err (sizeof err)))
+                (coco_library_note_read (aof st) (nth i argv) (!= ($ m ldefs) 0)))
               (set ($ m dgc) 0)
               ;; a load a syntax error stopped, or one a directive's ball
               ;; ended (3.1.0, swipl's `Prolog initialisation failed', and

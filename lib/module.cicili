@@ -194,7 +194,23 @@
     ;; library is. Its own predicates' errors name it, context(Module:
     ;; Name/Arity, _) (`coco_m_raise'); a module compiled in names what its
     ;; row of `*error-contexts*' names, or nothing
-    (member int foreign))
+    (member int foreign)
+    ;; ITS LAST READ DID NOT REACH THE END (3.6.0): a ball ended it -- an
+    ;; include of what is not there, a directive's ball that is no
+    ;; error(_, _) -- or the consult stopped short. Such a file is not
+    ;; loaded, as swipl's failed load leaves a file unloaded: a store's
+    ;; load passes it by, where through 3.5.0 every next ask read it again,
+    ;; and a load that names it reads it again (lib/library.cicili).
+    (member int failed)
+    ;; WHAT ITS READS DEFINED (3.6.0), as swipl's source file is made: a
+    ;; read under way (READING), how many have been made (READS), and
+    ;; whether one of them defined something -- a clause, a declaration, a
+    ;; put-off goal, an include, a load that finds its file (DEFINED; the
+    ;; machine's `ldefs' before and after). One read whose file defined
+    ;; nothing is not loaded, and a load that names it reads it again.
+    (member int reading)
+    (member int reads)
+    (member int defined))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -248,12 +264,22 @@
   ;;; has run, FROM the registry's count before it (`lb_load_so').
   (decl) (func coco_module_set_foreign ((size_t from)))
 
+  ;;; Marks the module NAME's last read as one that did not reach its end
+  ;;; (`failed', 3.6.0), or as one that did
+  (decl) (func coco_module_set_failed ((const char * name) (int failed)))
+
+  ;;; A READ OF THE MODULE NAME BEGINS, and ends, DEFINED 1 when it defined
+  ;;; something (`reading', `reads', `defined', 3.6.0)
+  (decl) (func coco_module_read_begin ((const char * name)))
+  (decl) (func coco_module_read_end ((const char * name) (int defined)))
+
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
-  ;;; cannot wait for the next query's start to consult its clauses. E may be
-  ;;; null when no engine exists yet (a directive during a bare consult); a
-  ;;; module whose `init' needs the engine is then deferred to the ask-time
-  ;;; call, which runs this again.
+  ;;; cannot wait for the next query's start to consult its clauses, and a
+  ;;; directive's load runs at the directive (3.6.0). E may be null when no
+  ;;; engine exists yet; a module whose `init' needs the engine is then
+  ;;; deferred to the ask-time call, which runs this again. A module whose
+  ;;; read failed is passed by (`failed').
   (decl) (func coco_module_load ((coco_store * st) (coco_machine * m)
                                  (coco_engine * e)) (out int))
 
@@ -702,8 +728,19 @@
   ;;; file registers one -- and when it has, the count has moved past those
   ;;; too, so this loop must not walk them again: a walk on a local index
   ;;; would consult them twice and double every answer they give. A module
-  ;;; that fails is given back only when nothing after it was loaded in the
-  ;;; meantime, which is the old retry exactly in every case that had one.
+  ;;; whose init fails is given back only when nothing after it was loaded
+  ;;; in the meantime, which is the old retry exactly in every case that
+  ;;; had one.
+  ;;;
+  ;;; A MODULE WHOSE READ FAILED IS PASSED BY (3.6.0): marked `failed', and
+  ;;; skipped from then on, here and in every store made after, though it
+  ;;; is given back with the rest. Through 3.5.0 every next ask read it
+  ;;; again from the top -- its directives run again, its reports said
+  ;;; again, and a ball that ended it thrown at whatever goal came next:
+  ;;; `-s' with a directive's `:- ensure_loaded(f)' whose include was
+  ;;; missing said the error five times, at five directives that had
+  ;;; nothing to do with it. A read is the same each time; what reads it
+  ;;; again is a load that names it (lib/library.cicili).
   ;;;
   ;;; A MODULE'S DIRECTIVES COLLECT THE HEAP WHEN THE CALLER VOUCHED (1.9.6):
   ;;; `dgc' on the machine (lib/term.cicili), taken here and handed on only
@@ -723,16 +760,25 @@
           (while (and (== ok 1) (< (-> st libs) coco_nmodules))
             (let ((size_t i . #'(-> st libs)))
               (let ((coco_module * mod . #'(aof (nth i coco_modules))))
-                ;; an init that needs the engine waits for one: leave the
-                ;; store's count where it is so the ask-time call retries
-                (if (and (!= (-> mod init) nil) (== e nil))
-                    (set ok 2)
+                (cond
+                  ;; a read that failed: passed by (3.6.0)
+                  ((-> mod failed) (set (-> st libs) (+ i 1)))
+                  ;; an init that needs the engine waits for one: leave the
+                  ;; store's count where it is so the ask-time call retries
+                  ((and (!= (-> mod init) nil) (== e nil))
+                   (set ok 2))
+                  (#t
                   (block
                    (set (-> st libs) (+ i 1))
                    (if (!= (-> mod init) nil)
                        (if (not ((-> mod init) e)) (set ok 0)))
                    (if (and (== ok 1) (!= (-> mod prolog) nil))
-                       (let ((int cr . 0) (int ow . #'(-> st ownload)))
+                       (let ((int cr . 0) (int ow . #'(-> st ownload))
+                             (u64 outer . #'(-> m ldefs)))
+                         ;; A READ UNDER WAY (3.6.0): a load inside it that
+                         ;; names this file finds it loaded
+                         (set (-> mod reading) 1)
+                         (set (-> m ldefs) 0)
                          (set (-> m dgc) vouch)
                          ;; a file of the program's own marks its
                          ;; predicates so (`own', lib/kb.cicili); put back
@@ -749,11 +795,21 @@
                                                      (-> mod real) 0 err (sizeof err)))
                          (set (-> st ownload) ow)
                          (set (-> m dgc) 0)
+                         ;; THE REGISTRY BY INDEX, after the read: a
+                         ;; directive in it may have registered a module and
+                         ;; moved the array MOD points into. What the read
+                         ;; defined is the module's (3.6.0)
+                         (set ($ (nth i coco_modules) reading) 0)
+                         (set ($ (nth i coco_modules) reads)
+                              (+ ($ (nth i coco_modules) reads) 1))
+                         (if (!= (-> m ldefs) 0) (set ($ (nth i coco_modules) defined) 1))
+                         (set (-> m ldefs) outer)
                          (if (< cr 0)
                              (block (set ok 0)
-                                    (snprintf (-> st load_err) 512 "%s" err)))))
+                                    (snprintf (-> st load_err) 512 "%s" err)
+                                    (set ($ (nth i coco_modules) failed) 1)))))
                    (if (and (== ok 0) (== (-> st libs) (+ i 1)))
-                       (set (-> st libs) i)))))))
+                       (set (-> st libs) i))))))))
           (set (-> m double_quotes) saved_dq)
           (coco_store_unmute st)
           (return (? (== ok 0) 0 1))))
@@ -854,6 +910,26 @@
   (func coco_module_set_foreign ((size_t from))
         (for ((size_t i . from)) (< i coco_nmodules) ((++ i))
           (set ($ (nth i coco_modules) foreign) 1)))
+
+  (func coco_module_set_failed ((const char * name) (int failed))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) failed) failed))))
+
+  (func coco_module_read_begin ((const char * name))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (set ($ (nth i coco_modules) reading) 1))))
+
+  (func coco_module_read_end ((const char * name) (int defined))
+        (if (== name nil) (return))
+        (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
+          (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
+              (block (set ($ (nth i coco_modules) reading) 0)
+                     (set ($ (nth i coco_modules) reads) (+ ($ (nth i coco_modules) reads) 1))
+                     (if defined (set ($ (nth i coco_modules) defined) 1))))))
 
   ;;; ---- the author's API -----------------------------------------------
 

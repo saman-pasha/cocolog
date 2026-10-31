@@ -9100,7 +9100,7 @@ WHAT CHANGED:
   '<meta-call>'/1, after refusing the whole term if any part of it is no
   goal (`coco_goal_ok'). Through 3.0.0 an unknown procedure's context was
   unbound in a body. A compiled-in module's predicate's raise with no row
-  names the predicate (#414's rule, carried by the same frame).
+  names the predicate (the module predicates' rule, carried by the same frame).
 - THE READER TAKES DIGIT GROUPS AND RADIX NUMBERS (swipl's): `1_000_000',
   `1 000 000' (one space, a radix of ten or less), `_' followed by layout or
   a comment, in an integer, a float's integer part, a rational's two sides,
@@ -9203,7 +9203,7 @@ PROVED:
   padding's no-ops. Callgrind's self counts of the work (twenty reps less
   none) say where the rest is: nrev's all in `coco_engine_run' (+194
   thousand) and `coco_try_clause' (+113 thousand), the frame's owner ORed
-  into the barrier as a clause is entered (#415); queens' in the clause
+  into the barrier as a clause is entered (a body goal's errors naming its clause's predicate); queens' in the clause
   selection (`coco_select_clause' +123 thousand, `coco_try_clause' +21,
   `coco_engine_run' 76 thousand fewer); lookup's in `coco_engine_run'
   (+420 thousand), `coco_env_place' (+80 thousand, two instructions a
@@ -9833,17 +9833,154 @@ NOT DONE, and stated:
 - An include of a file open on the way down to it, or sixty-four deep, is
   refused, where swipl reads it again for ever.
 - A predicate's clauses an include splits draw no discontiguous warning
-  (#434, with a load's singletons): test/files/include.pl declares them.
+  (with a load's singletons, next): test/files/include.pl declares them.
 - A directory named as the `-s' script keeps the comment `(is a
   directory)', which swipl's include prints and its script load does not.
 - A ball that ends a NESTED load -- the file a directive's ensure_loaded/1
   or use_module/1 names, ended by its include or by a directive's ball -- is
   reported at the next goal, which reads the file again, where swipl's is
   the directive's own (`Goal (directive) failed: user:ensure_loaded(F)' at
-  its line): the next of these (#445), with a load a ball ended read again
+  its line): the next of these (3.6.0's), with a load a ball ended read again
   only when a load names it.
-- sleep/1 is an unknown procedure here (found on the way, #446).
+- sleep/1 is an unknown procedure here (found on the way).
 - From 3.1.0's to 3.4.0's lists, still: term_to_atom/2's `\n', a quoted
+  infix operator's spaces and a quoted prefix operator; library(stream)'s
+  errors; a load's singleton and discontiguous warnings; a syntax error's
+  class, term and message; listing/1's and portray_clause/1's layout;
+  expand_term/2 and dcg_translate_rule/2; postfix operators; swipl's dicts;
+  thread_initialization/1 in later threads; modules one namespace.
+
+## A load directive's load runs at the directive, and a file is loaded once a read of it defined something, as swipl's (3.6.0)
+
+The next of 3.5.0's list. Through 3.5.0 `:- ensure_loaded(F).' and `:-
+use_module(F).' registered F as a module and left its read for the next ask:
+F's directives ran after this file's next goal, a ball that ended F's read was
+thrown at that goal -- its ERROR and its Warning naming a directive that had
+nothing to do with it -- and a read that failed was read again at every ask.
+And every file read once was loaded: a second ensure_loaded/1 of a file of
+goals read nothing, where swipl's reads it again. A minor, cocolog 3.6.0: a
+program whose load directives' files print, raise or define sees it happen at
+the directive, and a file that defined nothing is read again by the next load
+that names it.
+
+WHAT CHANGED:
+- THE LOAD RUNS AT THE DIRECTIVE (`lb_directive_one' in lib/library.cicili):
+  the hook gives `coco_library_load' an engine of its own, for a module's
+  init to take, and the module is registered and its clauses read into the
+  store at once, its directives and initialization/1 goals before the next
+  clause of this file. A list of files is walked so, each file loaded in turn
+  (`lb_directive_hook').
+- A BALL THAT ENDS THE NESTED LOAD IS THE DIRECTIVE'S: an error(_, _) its
+  ERROR at the directive's place and the Warning that it failed, and this
+  file goes on; any other ball ends this load too (the hook's -5,
+  `coco_directive''s 4, a list's walk stopped there), raised out of consult/1
+  as a directive's ball is, and an `-s' script says `Prolog initialisation
+  failed:' over it and exits 1.
+- A MODULE WHOSE READ A BALL ENDED IS PASSED BY (`failed' on the module,
+  lib/module.cicili): every store made after it -- the next ask's, a
+  thread's, run_isolated/2's -- reads it no more, until a read reaches its
+  end. Through 3.5.0 each next ask read it again from the top.
+- A FILE IS LOADED ONCE A READ OF IT DEFINED SOMETHING (swipl's source
+  file): a clause or a grammar rule; a dynamic, discontiguous, multifile or
+  meta_predicate declaration; module/2; an initialization/1 goal put off; an
+  include of a file that is there, though it holds nothing; a load of a file
+  that is there, whatever that file holds, library(lists) too. Not a goal,
+  op/3, a flag, assertz/1, thread_local/1, public/1, `initialization(G,
+  now)', an include or a load of what is not there. A file whose reads
+  defined none of those -- goals alone, or a ball before anything -- is read
+  again by the next ensure_loaded/1, use_module/1,2 or load_files/2
+  `if(not_loaded)' that names it (`lb_load_known', `lb_load_found' by its
+  real path, `lb_load_file'); a ball after a clause leaves the file loaded.
+  consult/1 reads a file whatever it holds, as before.
+- THE COUNT is the machine's `ldefs' (appended to `coco_machine'), moved at
+  each of those sites (kb-consult's clause and include, `coco_decl_pi' for
+  kinds 0 to 2, `coco_directive''s module/2, meta_predicate/1 and put-off
+  initialization, `lb_defined' where a load finds its file). EACH READ COUNTS
+  ITS OWN, from 0, and puts the outer read's count back after
+  (`lb_consult_file', `lb_load_again', `coco_module_load'); the two hosts,
+  the outermost reads, start each file they read at 0, so `run a.pl b.pl'
+  counts what a.pl defined as none of b.pl's. A library read into the store
+  on the way -- the preloaded modules, at a `run' file's first directive -- is
+  no definition of that file. A consulted
+  file's `loads' entry keeps `defined' and `reading' (`coco_store_load_read',
+  `coco_store_load_done'); a module its `reads', `reading' and `defined'
+  (`coco_module_read_begin', `_end', `lb_mod_unloaded'). A read under way is
+  loaded, so a load of itself inside it reads nothing, on its second read
+  too. The hosts note each consult's end (`coco_library_note_read').
+- THE DIRECTIVE VOUCHES FOR THE COLLECTOR: `coco_directive' writes the
+  spec's text before the hook and hands the load the vouch its consult gave
+  it (`dgc'), and a list's walk registers its cursor around each load. A read
+  that may register a module takes the registry by index after it
+  (`coco_module_load', `lb_load_again'): a directive in it can move the
+  array.
+
+PROVED:
+- test/files/source_files.pl, new: 105 lines of swipl 9.0.4's output to the
+  byte (test/files.pl's `sf/2'): 29 files each loaded twice by
+  ensure_loaded/1 -- one for each thing a read may define and each it may
+  not, a ball after a clause and before it, a load of a file of goals, of a
+  file with a clause, of itself, of what is not there, consult/1 and
+  load_files/2 as directives, library(lists) and library(error) -- a file
+  whose first read a ball ended loading itself on its second, load_files/2's
+  if(not_loaded) twice, and consult/1 followed by ensure_loaded/1 and
+  load_files/2.
+- test/files/nested_load.pl, new: 77 lines of swipl's output: a nested
+  include of nothing, the same in a module, a nested initialization/1 goal,
+  a ball that ends both loads, a list whose first file it ends, a list of
+  failures, two deep, and each file read again by the load that names it,
+  whatever load_files/2's IF says.
+- test/library.pl's new section `a load directive's load runs at the
+  directive': the script's two lines and exit 1; a store made after passing
+  a failed module by; a module with a clause before its ball loaded, and one
+  with none read again whole through a link, that read leaving it loaded,
+  and loaded by a store made after; a file `run' consulted that defined
+  nothing read again by the goal's load, after a file that defined something
+  too; and the collector inside the nested load and a list's walk, whose
+  fixture makes nothing before its consult (a numlist/3 there kept its list
+  below the directive, and the walk's cursor never moved).
+- 38 arms, one per rule, each red on source_files, nested_load or
+  test/library.pl: the load at the directive; a ball that ends it going on,
+  or ending this load (the hook's -5, coco_directive's 4, a list's walk); the
+  list's cursor and the vouch it hands each load; the directive's vouch; the
+  pass-by and the mark it reads; a known file's answer; each thing that
+  defines (a clause, an include, a declaration, module/2, meta_predicate/1, an
+  initialization goal put off, a load's file found, a library's, a carried
+  name's, load_files/2's); each read's own count (a consult's, a module's, a
+  read again's, the hosts') and the outer count put back (three); the store's
+  and the registry's notes of a read and the tests that ask them (nine); and
+  the hosts' note. Three were green at first, and each has its check now:
+  the hosts' zero, then beside a restore that did its work (the restore is
+  gone, and `run' of two files is the check); a read again's note (the file
+  loaded a third time by that name); and the list's cursor (the fixture
+  above).
+- tools/flow/zero.sh against 3.5.0, work less padding: nrev 65 876 344 to
+  65 876 274, queens 42 902 117 to 42 900 222, lookup 47 834 410 to 47 834 362
+  -- the loop untouched.
+- lint --auto over the changed files (0 HARD, 0 WARN), and the dialect
+  card's cites checked (28 rows, 40 cites, 18 renumbered after the edits
+  above them, one re-anchored where its text changed: T1's `carried').
+- the lessons that load files end on `done', run as the runner runs them
+  (`cocolog run FILE main'): basics 03, 09 and 11, library 00, 01, 02, 09,
+  37, 38, 42, 52 and 56.
+- THE NARROW CASES, in place of the full suite here: files (source_files,
+  nested_load, include, load_paths, reload, reload_order, consult, loaded,
+  dcg, update_view, beside the reference swipl 9.0.4), library, reconsult,
+  directives, errors, engine, trace, syntax and store-lock, each GREEN.
+
+NOT DONE, and stated (COMPAT.md):
+- A nested file's `initialization(G, main)' runs G when that file's load
+  ends and halts, the rest of the outer file unread; swipl's runs it after
+  the whole load. The next of these.
+- A store made after passes a failed module by, where swipl's thread sees
+  what the module defined before the ball.
+- use_module/1 of a file with no module/2 loads it (one namespace), where
+  swipl's refuses it.
+- `lb_mod_unloaded''s guard for a module compiled in or loaded from a `.so'
+  has no case that reaches it: every `.so' here has clauses in its Prolog
+  half, so its reads define something.
+- writeln/2 is an unknown procedure in library(stream), and sleep/1 one
+  anywhere (found on the way).
+- From 3.1.0's to 3.5.0's lists, still: term_to_atom/2's `\n', a quoted
   infix operator's spaces and a quoted prefix operator; library(stream)'s
   errors; a load's singleton and discontiguous warnings; a syntax error's
   class, term and message; listing/1's and portray_clause/1's layout;
