@@ -34,7 +34,8 @@
 main :-
     scratch(D),
     a_goal(D), does_not_prove(D), a_ball(D), loads_nothing(D), syntax_error(D), initialization(D),
-    init_main(D), halted_load(D), in_a_module(D), exit_status(D), fresh_line(D), reader_level(D), the_program(D),
+    init_main(D), nested_main(D), halted_load(D), in_a_module(D), exit_status(D), fresh_line(D),
+    reader_level(D), the_program(D),
     taken_later(D),
     under_swipl(D),
     shl(['rm -rf ', D]),
@@ -340,6 +341,70 @@ init_main(D) :-
     fixture(F3, [':- initialization(true, restore_state).']),
     ran(F3, true, Out3),
     has('a when cocolog has not is refused BY NAME', restore_state, Out3).
+
+%% A MAIN GOAL IS THE WHOLE LOAD'S (3.7.0), as swipl's: one a nested file
+%% registers runs after the whole load -- the rest of the outer file and its
+%% initialization/1 goals first -- and halts; the last one registered wins;
+%% every after_load goal runs before it; and a file that defined nothing
+%% else is no source file, whose main is dropped and which the next load
+%% reads again. Each answer is swipl 9.0.4's, `swipl OUTER.pl' (through
+%% 3.6.0 a nested one ran at its own file's end, and every main in file
+%% order with the other goals)
+nested_main(D) :-
+    section('a nested initialization(G, main) runs after the whole load'),
+    atom_concat(D, '/nmi.pl', I),
+    fixture(I, [':- initialization(go, main).', 'go :- writeln(go_ran).', ':- writeln(inner_read).']),
+    atom_concat(D, '/nmo.pl', O1),
+    fixture(O1, [':- ensure_loaded(nmi).', ':- writeln(outer_after).', 'o(1).',
+                 ':- initialization(writeln(outer_init)).']),
+    ran(O1, 'writeln(cli)', Out1, Rc1),
+    check('the rest of the outer file and its goals first, then G, and a halt',
+          Out1-Rc1, 'inner_read\nouter_after\nouter_init\ngo_ran'-0),
+    atom_concat(D, '/nmmid.pl', Mid),
+    fixture(Mid, [':- ensure_loaded(nmi).', ':- writeln(mid_end).', ':- initialization(writeln(mid_init)).']),
+    atom_concat(D, '/nmo4.pl', O4),
+    fixture(O4, [':- ensure_loaded(nmmid).', ':- writeln(o4_end).']),
+    ran(O4, true, Out4),
+    check('...two deep, after the outermost',
+          Out4, 'inner_read\nmid_end\nmid_init\no4_end\ngo_ran'),
+    atom_concat(D, '/nmo2.pl', O2),
+    fixture(O2, [':- initialization(writeln(o2_init_before)).', ':- initialization(om, main).',
+                 ':- ensure_loaded(nmi).', ':- initialization(writeln(o2_init_after)).',
+                 'om :- writeln(om_ran).']),
+    ran(O2, true, Out2),
+    check('the last main registered wins, after every after_load goal',
+          Out2, 'inner_read\no2_init_before\no2_init_after\ngo_ran'),
+    atom_concat(D, '/nmw4.pl', W4),
+    fixture(W4, [':- initialization(writeln(w4_ran), main).', ':- initialization(writeln(w4_after)).']),
+    ran(W4, true, Out3),
+    check('...the file''s own main too', Out3, 'w4_after\nw4_ran'),
+    atom_concat(D, '/nmw.pl', W),
+    fixture(W, [':- initialization(writeln(w_ran), main).']),
+    atom_concat(D, '/nmow.pl', OW),
+    fixture(OW, [':- ensure_loaded(nmw).', ':- writeln(end_w).']),
+    ran(OW, 'writeln(cli)', Out5, Rc5),
+    check('a main in a file that defined nothing else is dropped', Out5-Rc5, 'end_w\ncli'-0),
+    atom_concat(D, '/nmw5.pl', W5),
+    fixture(W5, [':- initialization(writeln(w5_ran), main).', ':- writeln(read_w5).']),
+    atom_concat(D, '/nmo5.pl', O5),
+    fixture(O5, [':- ensure_loaded(nmw5).', ':- ensure_loaded(nmw5).', ':- writeln(end_w5).']),
+    ran(O5, true, Out6),
+    check('...and defines nothing: the next load reads the file again',
+          Out6, 'read_w5\nread_w5\nend_w5'),
+    atom_concat(D, '/nmq.pl', Q),
+    fixture(Q, ['x(1).', ':- initialization(qq, main).', 'qq :- fail.']),
+    atom_concat(D, '/nmoq.pl', OQ),
+    fixture(OQ, [':- ensure_loaded(nmq).', ':- writeln(end_q).']),
+    ran(OQ, true, Out7, Rc7),
+    sh_join(['end_q\nERROR: ', Q, ':2: user:qq: false'], Want7),
+    check('one that fails is said at its own file and line, and exits 1', Out7-Rc7, Want7-1),
+    atom_concat(D, '/nms8.pl', S8),
+    fixture(S8, [':- initialization(writeln(s8_main), main).', 's(1).']),
+    atom_concat(D, '/nmm8.pl', M8),
+    format(atom(M8c), "m8 :- consult('~w'), writeln(m8_done).", [S8]),
+    fixture(M8, [':- initialization(m8, main).', M8c]),
+    ran(M8, true, Out8),
+    check('a main the running main''s consult registers does not run', Out8, m8_done).
 
 %% ---- a halt during the load, under a store -------------------------------
 %%

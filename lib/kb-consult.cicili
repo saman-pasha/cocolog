@@ -1184,8 +1184,13 @@
           ;; looked their predicate up in it, a walk per clause.
           (let ((size_t depth . #'(-> st nroots)) (size_t hdepth . #'(-> m nhroots))
                 (int dgc . #'(-> m dgc)))
+            ;; THE READS UNDER WAY (3.7.0): the outermost runs the main goal
+            ;; a nested one hands it (`ltop', which every outermost read
+            ;; sets as it begins: no read but a nested one reads it)
+            (set (-> m lreads) (+ (-> m lreads) 1))
             (set n (coco_consult_owned st m text origin oid (? reread (aof seen) nil) err errlen
                                        nil nil 0))
+            (set (-> m lreads) (- (-> m lreads) 1))
             (set (-> st nroots) depth)
             (set (-> m nhroots) hdepth)
             (set (-> m dgc) dgc))
@@ -1379,6 +1384,8 @@
               (block
                (memset (aof inits) 0 (sizeof coco_initgoals))
                (set ip (aof inits))
+               ;; the outermost read's list takes a nested read's main
+               (if (== (-> m lreads) 1) (set (-> m ltop) (cast (void *) (aof inits))))
                ;; the goals put off to the end are cell indices; a compaction
                ;; before they run must move them too. `coco_consult'
                ;; unregisters.
@@ -1689,8 +1696,36 @@
           ;; initialization goal is a goal, not a clause, and nothing it
           ;; leaves on the heap is wanted once it has answered. Each is
           ;; reported at the file it stood in, an included one's its own.
-          (let ((int halt_after . 0) (int halt_code . 0))
+          ;;
+          ;; A `main' GOAL (3.7.0, swipl's) is no source file's: in a read
+          ;; that defined nothing it is dropped, as swipl drops it, and a
+          ;; nested read hands it up to the outermost read's list (`ltop'),
+          ;; which runs the last one registered after every after_load goal
+          ;; -- the whole load done -- and halts. Through 3.6.0 a nested
+          ;; one ran at its own file's end, the rest of the outer file
+          ;; unread, and every main in file order with the other goals.
+          (let ((coco_initgoals * top . #'(cast (coco_initgoals *) (-> m ltop))))
             (for ((size_t i . 0)) (< i ($ inits len)) ((++ i))
+              (if (== (nth i ($ inits modes)) 1)
+                  (if (== (-> m ldefs) 0)
+                      (set (nth i ($ inits modes)) 3)
+                    (if (and (!= top nil) (!= top (aof inits)))
+                        (block
+                         (coco_inits_hand top (nth i ($ inits cells)) (nth i ($ inits lines))
+                                          (? (== (nth i ($ inits files)) nil) origin
+                                             (nth i ($ inits files))))
+                         (set (nth i ($ inits modes)) 3)))))))
+          (let ((int halt_after . 0) (int halt_code . 0) (size_t lastmain . 0) (int hasmain . 0)
+                (int ran . 0))
+            (for ((size_t k . 0)) (<= k ($ inits len)) ((++ k))
+             (let ((size_t i . k))
+              (if (< k ($ inits len))
+                  (block (if (== (nth k ($ inits modes)) 3) continue)
+                         (if (== (nth k ($ inits modes)) 1)
+                             (block (set lastmain k) (set hasmain 1) continue)))
+                (block (if (not hasmain) break)
+                       (set i lastmain)
+                       (set ran 1)))
               (let ((size_t back . #'(-> m heap_len))
                     (int code . 0)
                     (const char * gorg . #'(? (== (nth i ($ inits files)) nil) origin
@@ -1784,7 +1819,8 @@
                     (coco_sb_free (aof gtext))))
                 (if (== (nth i ($ inits modes)) 1)
                     (block (set halt_after 1) (set halt_code code)))
-                (set (-> m heap_len) back)))
+                (set (-> m heap_len) back))
+              (if ran break)))
             (coco_inits_free (aof inits))
             ;; `initialization(G, main)' MAKES G THE PROGRAM, and SWI halts
             ;; when it is done -- 0 proved, 1 failed, 2 threw, which are the

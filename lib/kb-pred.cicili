@@ -1108,8 +1108,11 @@
                 (let ((size_t cell . #'(coco_store_put st m (coco_arg m g 0))))
                   (if (not (coco_inits_add inits cell mode line))
                       (block (snprintf err errlen "initialization: out of memory") (return 0)))
-                  ;; a goal put off defines (3.6.0, `ldefs'), as swipl's
-                  (set (-> m ldefs) (+ (-> m ldefs) 1))
+                  ;; an after_load goal put off defines (3.6.0, `ldefs'), as
+                  ;; swipl's; a `main' one does not (3.7.0): a file that
+                  ;; holds nothing else is no source file, and swipl drops
+                  ;; its main
+                  (if (== mode 0) (set (-> m ldefs) (+ (-> m ldefs) 1)))
                   (return 1))))
 
           ;; ---- AND EVERYTHING ELSE IS A GOAL ----------------------------

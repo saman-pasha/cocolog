@@ -776,7 +776,13 @@
     ;; A file a load finds is credited to the file that loads it at the
     ;; load, and a library read into the store on the way (the preloaded
     ;; modules, at a first directive's ask) to nobody; a host starts at 0
-    (member u64        ldefs))
+    (member u64        ldefs)
+    ;; THE READS UNDER WAY (3.7.0), counted by `coco_consult_oid', and the
+    ;; outermost one's goals put off (a `coco_initgoals *', lib/kb.cicili):
+    ;; a nested read hands its initialization(G, main) up to that list, and
+    ;; the outermost runs it after the whole load, as swipl's does
+    (member int        lreads)
+    (member void *     ltop))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends

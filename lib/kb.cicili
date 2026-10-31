@@ -2329,6 +2329,18 @@
         (set (-> gs len) (+ (-> gs len) 1))
         (return 1))
 
+  ;;; A NESTED READ'S `initialization(G, main)' (3.7.0) goes up to the
+  ;;; outermost read's list, reported at FILE, the file it stood in: swipl
+  ;;; runs it after the whole load
+  (static)
+  (func coco_inits_hand ((coco_initgoals * gs) (size_t cell) (int line) (const char * file))
+        (out int)
+        (let ((const char * was . #'(-> gs file)) (int ok . 0))
+          (set (-> gs file) file)
+          (set ok (coco_inits_add gs cell 1 line))
+          (set (-> gs file) was)
+          (return ok)))
+
   (static)
   (func coco_inits_free ((coco_initgoals * gs))
         (if (!= (-> gs cells) nil) (free (cast (void *) (-> gs cells))))

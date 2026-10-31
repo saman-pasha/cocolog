@@ -9986,3 +9986,62 @@ NOT DONE, and stated (COMPAT.md):
   class, term and message; listing/1's and portray_clause/1's layout;
   expand_term/2 and dcg_translate_rule/2; postfix operators; swipl's dicts;
   thread_initialization/1 in later threads; modules one namespace.
+
+## A main goal is the whole load's, as swipl's (3.7.0)
+
+`:- initialization(G, main).` makes G the program. Through 3.6.0 a nested
+file's ran G when that file's load ended and halted, the rest of the outer
+file unread (3.6.0 had made a directive's load run at the directive, so the
+outer file never resumed); and in any one file every main ran where it stood
+in the list of goals put off, the after_load goals after it never run. Now,
+swipl 9.0.4's answers, probed (`swipl OUTER.pl'):
+
+- A MAIN IS THE WHOLE LOAD'S. The reads under way are counted (`lreads',
+  appended to `coco_machine', moved by `coco_consult_oid' around its one
+  call), and the outermost read's list of goals put off is `ltop', set as
+  that read begins. A nested read's main goes up to it
+  (`coco_inits_hand', its own file and line kept for the report), so it
+  runs after the rest of the outer file, its directives and its
+  initialization/1 goals, at whatever depth it was registered.
+- EVERY AFTER_LOAD GOAL FIRST, THEN THE LAST MAIN REGISTERED: the end of
+  the outermost read runs its list's after_load goals in order, notes the
+  main ones, and runs the last of them once the others are done, then
+  halts with its answer (0, 1, 2) as before. `swipl o2.pl', whose own main
+  comes before a nested file's, runs the nested one; a file with a main
+  and then an after_load goal runs the second first. A main a running main
+  registers (its consult of a file that has one) does not run.
+- A MAIN IS NO DEFINITION, and one in a read that defined nothing is
+  dropped: swipl's source file is made by a clause, a declaration, an
+  after_load goal..., never by a main (3.6.0 counted any goal put off), and
+  a file of nothing but `:- initialization(G, main).' is no source file --
+  its main never runs, and the next load reads the file again.
+
+What a program can see: a nested main runs later, and once; a file with a
+main and other goals put off runs the others first; a main in a file that
+holds nothing else is gone. What stays (COMPAT.md): the CLI's goal is not
+run after a main (`swipl -g Goal' runs Goal first), and consult/1 from a
+running goal runs a main at that consult's end and halts, where swipl's
+waits for the goal.
+
+PROVED:
+- test/directives.pl's new section, eight checks of swipl 9.0.4's output to
+  the byte: a nested main after the outer file's rest and goals, two deep,
+  the last main winning after every after_load goal, a file's own main
+  after its after_load goal, a main in a file of nothing else dropped and
+  that file read again, a failing nested main said at its own file and
+  line with exit 1, and a main a running main registers not run. Every one
+  red on 3.5.0.
+- 9 arms, one per rule, each red in that section and green in the files
+  case's source_files and nested_load: the main handed up (taken out, a
+  nested main runs at its own read's end), its file kept (the outer file's
+  name said), `ltop' set and `lreads' counted (either gone, no list to
+  hand up to), the after_load goals first (a main run where it stands),
+  the last main (the first one run), the loop ended after the main (a main
+  the running main's consult registers runs too), a main dropped in a read
+  that defined nothing (kept, it runs), and a main no definition (counted,
+  the file is loaded and the next load reads nothing).
+- tools/flow/zero.sh against 3.5.0, work less padding: nrev 65 876 344 to
+  65 876 274, queens 42 902 117 to 42 900 222, lookup 47 834 410 to 47 834 362
+  -- 3.6.0's, the loop untouched.
+- lint --auto over the changed files (0 HARD, 0 WARN), and the dialect
+  card's cites checked (28 rows, 40 cites, 2 renumbered after the edits).

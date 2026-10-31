@@ -457,10 +457,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   failure is callable unqualified, where swipl's stays in the module, and
   use_module/1 of a file with no module/2 loads it, where swipl's refuses
   it; a store made after passes a failed module by, where swipl's thread
-  sees what it read; a file named through a link is that file, where
-  swipl's is another; and a nested file's initialization(G, main) runs G
-  when that file's load ends and halts, the rest of the outer file unread,
-  where swipl's runs it after the whole load (STATUS.md, not done).
+  sees what it read; and a file named through a link is that file, where
+  swipl's is another.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
@@ -1379,7 +1377,13 @@ cocolint index offers no import of it.
   thread_local/1 defines the predicate (dynamic), so a call of what public/1
   alone named is an unknown procedure, as swipl's. `initialization(G)` runs after the file is
   read, `initialization(G, now)` where it stands, `initialization(G, main)`
-  after the load and then halts. A directive that fails or throws is
+  after the WHOLE load and then halts (3.7.0, swipl's): a nested read hands
+  its main up to the outermost read's list (`ltop`, the reads under way
+  counted in `lreads` by `coco_consult_oid`), which runs every after_load
+  goal first and then the last main registered; a main is no definition
+  (`ldefs`), and one in a read that defined nothing is dropped, as swipl
+  drops it. The CLI's own goal is not run after a main (COMPAT.md: swipl's
+  `-g` goal is). A directive that fails or throws is
   reported in SWI's shapes and the load goes on; **so does a load past a
   syntax error since 3.1.0**, as swipl's (through 3.0.4 it was the one
   thing that ended a consult): the clause is reported and passed over, the
