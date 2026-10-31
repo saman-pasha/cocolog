@@ -1,12 +1,12 @@
 ;;;; cocolog -- output, the database, listing, and the builtin dispatcher
 ;;;
 ;;; A PIECE OF THE ENGINE, split out of lib/solve.cicili for size (2.16.1,
-;;; where that file had reached 11 076 lines). The seven pieces are ONE
+;;; where that file had reached 11 076 lines). The eight pieces are ONE
 ;;; translation unit, emitted in this order by cocolog.cicili and by the test
-;;; binaries that link the engine: solve, solve-control, solve-gc, solve-loop,
-;;; solve-arith, solve-text, solve-db. So a function here calls only what an
-;;; earlier piece defined or `decl-solve' declared, exactly as when they were
-;;; one file, and a new piece of the engine goes into that list in its place.
+;;; binaries that link the engine: solve, solve-journal, solve-control,
+;;; solve-gc, solve-loop, solve-arith, solve-text, solve-db. So a function
+;;; here calls only what an earlier piece defined or `decl-solve' declared,
+;;; as when they were one file; a new piece goes into that list in its place.
 ;;; lib/solve.cicili keeps the builtin table, the engine's vocabulary and
 ;;; every declaration: a new builtin's row goes there, its function in the
 ;;; piece it belongs to.

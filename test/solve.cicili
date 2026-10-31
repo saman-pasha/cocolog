@@ -51,6 +51,7 @@
   (import "../lib/kb-pred.cicili")
   (import "../lib/kb-consult.cicili")
   (import "../lib/solve.cicili")
+  (import "../lib/solve-journal.cicili")
   (import "../lib/solve-control.cicili")
   (import "../lib/solve-gc.cicili")
   (import "../lib/solve-loop.cicili")
@@ -62,8 +63,8 @@
   (decl-syntax) (impl-syntax)
   (decl-dcg)    (impl-dcg)
   (decl-kb)     (impl-kb) (impl-kb-compile) (impl-kb-pred) (impl-kb-consult)
-  (decl-solve)  (impl-solve) (impl-solve-control) (impl-solve-gc) (impl-solve-loop)
-                (impl-solve-arith) (impl-solve-text) (impl-solve-db)
+  (decl-solve)  (impl-solve) (impl-solve-journal) (impl-solve-control) (impl-solve-gc)
+                (impl-solve-loop) (impl-solve-arith) (impl-solve-text) (impl-solve-db)
 
   (var int failures . 0)
 

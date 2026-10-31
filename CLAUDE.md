@@ -131,8 +131,10 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   `CICILI` and `ZIGURATIP` explicitly; every `build.sh` defaults to
   `$HOME/cicili` and `$HOME/ZiguratIP`.
 * **A heavy lib file is pieces of one translation unit** (2.16.1):
-  lib/solve.cicili is seven files, lib/kb.cicili four, lib/builtins.cicili
-  three and lib/term.cicili two, each piece an `impl-` generic of its own,
+  lib/solve.cicili is eight files (the journal went into solve-journal in
+  3.0.0, when the head had grown back to 3 154 lines), lib/kb.cicili four,
+  lib/builtins.cicili three and lib/term.cicili two, each piece an `impl-`
+  generic of its own,
   emitted right after the one before it by cocolog.cicili and by every test
   binary that emits the head (lib/builtins.cicili's pieces by cocolog.cicili
   alone). The head keeps the tables, the macros and every declaration, and a
@@ -8128,7 +8130,7 @@ than its cause:
 | `lib/term.cicili`, `term-walk` | cells, the machine, text, names and the heap; `term-walk` binding, the trail, unification, copying, cycles and the standard order |
 | `lib/syntax.cicili` | the reader and the writer, one operator table plus `op/3`'s |
 | `lib/kb.cicili`, `kb-compile`, `kb-pred`, `kb-consult` | the clause store and its five backend hooks (`fetch`, `on_assert`, `on_retract`, `on_dynamic`, `warm`); `kb-compile` compiled clauses, the guards and the environments; `kb-pred` compaction, predicates, the indexes and the update view; `kb-consult` a re-read's order, assert, consult and retract |
-| `lib/solve.cicili`, `solve-control`, `solve-gc`, `solve-loop`, `solve-arith`, `solve-text`, `solve-db` | the engine: the builtin table, its vocabulary, every declaration, the recorder, the clocks and the journal; `solve-control` the continuation, choice points, clause selection, throwing and error text; `solve-gc` the heap collector; `solve-loop` the loop; `solve-arith` unification, type tests and arithmetic; `solve-text` terms built and taken apart and text; `solve-db` output, the database, listing and the dispatcher |
+| `lib/solve.cicili`, `solve-journal`, `solve-control`, `solve-gc`, `solve-loop`, `solve-arith`, `solve-text`, `solve-db` | the engine: the builtin table, its vocabulary, every declaration, the recorder and the clocks; `solve-journal` the journal; `solve-control` the continuation, choice points, clause selection, throwing and error text; `solve-gc` the heap collector; `solve-loop` the loop; `solve-arith` unification, type tests and arithmetic; `solve-text` terms built and taken apart and text; `solve-db` output, the database, listing and the dispatcher |
 | `lib/module.cicili`, `lib/sdk.cicili` | the module seam and the SDK an out-of-tree module is written against |
 | `lib/library.cicili` | `use_module`, the library path, directive goals |
 | `lib/builtins.cicili`, `builtins-format`, `builtins-db`, `lists`, `apply`, `files`, `dcg`, `state` | tier-1 modules (`files` has `get_time/1`; builtins keeps its table and Prolog half first, format and character classes in `builtins-format`, its dispatcher last in `builtins-db`) |

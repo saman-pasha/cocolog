@@ -1,0 +1,720 @@
+;;;; cocolog -- the journal of a run: the portal calls recorded and replayed
+;;;
+;;; A PIECE OF THE ENGINE, split out of lib/solve.cicili for size (3.0.0,
+;;; where that file had grown back to 3 154 lines; 2.16.1 had cut it from
+;;; 11 076 into seven). The eight pieces are ONE translation unit, emitted
+;;; in this order by cocolog.cicili and by the test binaries that link the
+;;; engine: solve, solve-journal, solve-control, solve-gc, solve-loop,
+;;; solve-arith, solve-text, solve-db. So a function here calls only what
+;;; an earlier piece defined or `decl-solve' declared, exactly as when they
+;;; were one file, and a new piece of the engine goes into that list in its
+;;; place. The journal's types (`coco_jrnl', `coco_jent') and its
+;;; declarations stay in lib/solve.cicili, with every other declaration.
+
+(DEFPACKAGE :cocolog
+  (:USE :COMMON-LISP)
+  (:IMPORT-FROM :COMMON-LISP-USER "import" "generic" "cicili"))
+
+(IN-PACKAGE :cocolog)
+
+(generic impl-solve-journal
+  ()
+
+  ;;; ---- the journal (1.10.15) ----------------------------------------------
+  ;;; `coco_jrnl' in the declarations says what it is. All of it runs only
+  ;;; while `'$trace_window'/4' holds a journal: the module seam's three
+  ;;; hooks are wrapped as the window's run starts and put back as it ends
+  ;;; (`coco_jr_wrap'), so a run with none dispatches exactly as before,
+  ;;; and a machine with none -- another thread's -- goes straight through.
+
+  (static) (var func coco_extern_name_at ((size_t at)) (out const char *))
+
+  (func coco_extern_install_names ((func name_at ((size_t at)) (out const char *)))
+        (set coco_extern_name_at name_at))
+
+  ;;; THE MODULES THAT HOLD A PIECE OF THE WORLD: each C predicate of one is
+  ;;; a portal. What such a module hands out -- a stream, a socket, a
+  ;;; thread, a channel, a window, a tensor -- is a handle into a table only
+  ;;; the run that made it has, so a replay that answers the call that made
+  ;;; one from the journal answers every call that uses it so too.
+  (static) (var const char * coco_jr_whole []
+                . '{"zigurat" "os" "process" "stream" "thread" "tcp" "tls" "curl"
+                    "ray" "opencv" "torch" "tensorflow" "numpy" "aes" "x509"})
+
+  ;;; AND THE PORTALS OF THE MODULES THAT DO NOT: the files module's but the
+  ;;; four that take a name apart; the environment, the clock and the
+  ;;; statistics; format/3 to a stream (its three term sinks are no portal,
+  ;;; `coco_jr_term_sink'); the program's own arguments; sha's file; and the
+  ;;; green world's size, which reads the environment and the cores as
+  ;;; getenv/2 and os_cpus/1 do (async_workers/1, 2.15.0).
+  (static) (var const char * coco_jr_named []
+                . '{"files:exists_file/1" "files:exists_directory/1" "files:access_file/2"
+                    "files:size_file/2" "files:time_file/2" "files:get_time/1"
+                    "files:read_file_to_codes/2" "files:write_file_from_codes/2"
+                    "files:append_file_from_codes/2" "files:delete_file/1"
+                    "files:rename_file/2" "files:make_directory/1" "files:delete_directory/1"
+                    "files:directory_files/2" "files:expand_file_name/2"
+                    "files:absolute_file_name/2" "files:same_file/2" "files:read_link/3"
+                    "files:tmp_file/2" "files:working_directory/2"
+                    "builtins:getenv/2" "builtins:setenv/2" "builtins:unsetenv/1"
+                    "builtins:statistics/2" "builtins:format/3"
+                    "library:current_prolog_flag/2" "sha:sha_file/3"
+                    "green:$async_workers/1"})
+
+  ;;; what modules out of this tree declared (`coco_m_portal')
+  (static) (var const char ** coco_jr_xmod)
+  (static) (var const char ** coco_jr_xname)
+  (static) (var int * coco_jr_xarity)
+  (static) (var size_t coco_jr_nx)
+  (static) (var size_t coco_jr_capx)
+
+  (func coco_m_portal ((const char * module) (const char * name) (int arity)) (out int)
+        (if (or (== module nil) (== name nil)) (return 0))
+        (if (>= coco_jr_nx coco_jr_capx)
+            (let ((size_t c . #'(? (== coco_jr_capx 0) 16 (* coco_jr_capx 2)))
+                  (const char ** a . nil) (const char ** b . nil) (int * d . nil))
+              (set a (cast (const char **) (realloc coco_jr_xmod (* c (sizeof (nth 0 coco_jr_xmod))))))
+              (if (== a nil) (return 0))
+              (set coco_jr_xmod a)
+              (set b (cast (const char **) (realloc coco_jr_xname (* c (sizeof (nth 0 coco_jr_xname))))))
+              (if (== b nil) (return 0))
+              (set coco_jr_xname b)
+              (set d (cast (int *) (realloc coco_jr_xarity (* c (sizeof int)))))
+              (if (== d nil) (return 0))
+              (set coco_jr_xarity d)
+              (set coco_jr_capx c)))
+        (set (nth coco_jr_nx coco_jr_xmod) module)
+        (set (nth coco_jr_nx coco_jr_xname) name)
+        (set (nth coco_jr_nx coco_jr_xarity) arity)
+        (set coco_jr_nx (+ coco_jr_nx 1))
+        (return 1))
+
+  ;;; format/3's sink is a term -- atom(A), string(S), codes(C), codes(C, T),
+  ;;; chars(C), chars(C, T) -- and the call writes nowhere
+  (static)
+  (func coco_jr_term_sink ((coco_machine * m) (size_t g)) (out int)
+        (let ((size_t s . #'(coco_deref m (coco_arg m g 0))))
+          (if (not (coco_is_callable m s)) (return 0))
+          (if (== (coco_arity m s) 0) (return 0))
+          (let ((const char * nm . #'(coco_atom_name m (coco_name_of m s)))
+                (u32 ar . #'(coco_arity m s)))
+            (if (and (== ar 1) (or (== 0 (strcmp nm "atom")) (== 0 (strcmp nm "string"))))
+                (return 1))
+            (if (and (<= ar 2) (or (== 0 (strcmp nm "codes")) (== 0 (strcmp nm "chars"))))
+                (return 1))
+            (return 0))))
+
+  ;;; the goal's sink is a term, for format/3 -- asked BEFORE the call runs:
+  ;;; a raise it catches unwinds the heap the goal's cell was on
+  (static)
+  (func coco_jr_tsink ((coco_machine * m) (const char * name) (u32 arity) (size_t g)) (out int)
+        (if (or (!= arity 3) (!= 0 (strcmp name "format"))) (return 0))
+        (return (coco_jr_term_sink m g)))
+
+  ;;; IS A CALL OF NAME/ARITY THAT MODULE MOD ANSWERED A PORTAL? TSINK says
+  ;;; format/3's sink is a term, which makes it none. VARIES is set when the
+  ;;; answer is the goal's and not the predicate's, so it is not kept.
+  (static)
+  (func coco_jr_is_portal ((const char * mod) (const char * name) (u32 arity) (int tsink)
+                           (int * varies)) (out int)
+        (let ((char key [320]))
+          (set (cof varies) 0)
+          (if (or (== mod nil) (== name nil)) (return 0))
+          (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_whole) (sizeof (nth 0 coco_jr_whole)))) ((++ i))
+            (if (== 0 (strcmp mod (nth i coco_jr_whole))) (return 1)))
+          (snprintf key (sizeof key) "%s:%s/%u" mod name arity)
+          (for ((size_t i . 0)) (< i (/ (sizeof coco_jr_named) (sizeof (nth 0 coco_jr_named)))) ((++ i))
+            (if (== 0 (strcmp key (nth i coco_jr_named)))
+                (block
+                 (if (== 0 (strcmp key "builtins:format/3"))
+                     (block (set (cof varies) 1)
+                            (return (? tsink 0 1))))
+                 (return 1))))
+          (for ((size_t i . 0)) (< i coco_jr_nx) ((++ i))
+            (if (== 0 (strcmp mod (nth i coco_jr_xmod)))
+                (if (or (== 0 (strcmp (nth i coco_jr_xname) "*"))
+                        (and (== 0 (strcmp (nth i coco_jr_xname) name))
+                             (== (nth i coco_jr_xarity) (cast int arity))))
+                    (return 1))))
+          (return 0)))
+
+  ;;; what is known of a functor: 0 not asked, 1 a portal, 2 not one --
+  ;;; FID -1 for an atom goal, which has no functor and is asked each time
+  (static)
+  (func coco_jr_fid ((coco_machine * m) (size_t g) (u32 arity)) (out i64)
+        (if (== arity 0) (return -1))
+        (return (cast i64 (coco-payload (nth g (-> m heap))))))
+
+  (static)
+  (func coco_jr_pk_get ((coco_jrnl * jr) (i64 fid)) (out int)
+        (if (< fid 0) (return 0))
+        (if (>= (cast size_t fid) (-> jr npk)) (return 0))
+        (return (cast int (nth (cast size_t fid) (-> jr pk)))))
+
+  (static)
+  (func coco_jr_pk_set ((coco_jrnl * jr) (i64 fid) (int v))
+        (if (< fid 0) (return))
+        (if (>= (cast size_t fid) (-> jr npk))
+            (let ((size_t c . #'(? (== (-> jr npk) 0) 256 (-> jr npk))) (u8 * np . nil))
+              (while (<= c (cast size_t fid)) (set c (* c 2)))
+              (set np (cast (u8 *) (realloc (-> jr pk) c)))
+              (if (== np nil) (return))
+              (memset (+ np (-> jr npk)) 0 (- c (-> jr npk)))
+              (set (-> jr pk) np)
+              (set (-> jr npk) c)))
+        (set (nth (cast size_t fid) (-> jr pk)) (cast u8 v)))
+
+  ;;; G AS `writeq' WRITES IT, each variable named by where it first appears
+  ;;; -- `_0', `_1', ... -- so a call and its replay, whose variables sit in
+  ;;; other cells, write one text. The writer names a variable `_G' and its
+  ;;; cell, outside quotes (an atom that begins `_' is always quoted); 92 is
+  ;;; a backslash, 39 34 96 the three quotes, 95 71 `_G'.
+  (static)
+  (func coco_jr_calltext ((coco_machine * m) (size_t g) (coco_strbuf * out))
+        (let ((coco_strbuf b) (int q . 0) (size_t i . 0)
+              (u64 * seen . nil) (size_t nseen . 0) (size_t capseen . 0))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) g 1 0)
+          (coco_sb_reset out)
+          (while (< i ($ b len))
+            (let ((int c . #'(cast int (nth i ($ b s)))))
+              (cond
+                ((!= q 0)
+                 (block (coco_sb_putc out (cast char c))
+                        (set i (+ i 1))
+                        (if (and (== c 92) (< i ($ b len)))
+                            (block (coco_sb_putc out (nth i ($ b s))) (set i (+ i 1)))
+                          (if (== c q) (set q 0)))))
+                ((or (== c 39) (or (== c 34) (== c 96)))
+                 (block (set q c) (coco_sb_putc out (cast char c)) (set i (+ i 1))))
+                ((and (and (== c 95) (< (+ i 2) ($ b len)))
+                      (and (== (cast int (nth (+ i 1) ($ b s))) 71)
+                           (and (>= (cast int (nth (+ i 2) ($ b s))) 48)
+                                (<= (cast int (nth (+ i 2) ($ b s))) 57))))
+                 (let ((u64 v . 0) (size_t k . 0))
+                   (set i (+ i 2))
+                   (while (and (< i ($ b len))
+                               (and (>= (cast int (nth i ($ b s))) 48)
+                                    (<= (cast int (nth i ($ b s))) 57)))
+                     (set v (+ (* v 10) (cast u64 (- (cast int (nth i ($ b s))) 48))))
+                     (set i (+ i 1)))
+                   (while (and (< k nseen) (!= (nth k seen) v)) (set k (+ k 1)))
+                   (if (== k nseen)
+                       (block
+                        (if (>= nseen capseen)
+                            (let ((size_t c2 . #'(? (== capseen 0) 16 (* capseen 2)))
+                                  (u64 * ns . nil))
+                              (set ns (cast (u64 *) (realloc seen (* c2 (sizeof u64)))))
+                              (if (!= ns nil) (block (set seen ns) (set capseen c2)))))
+                        (if (< nseen capseen)
+                            (block (set (nth nseen seen) v) (set nseen (+ nseen 1))))))
+                   (coco_sb_putc out (cast char 95))
+                   (coco_sb_put_i64 out (cast i64 k))))
+                (#t (block (coco_sb_putc out (cast char c)) (set i (+ i 1)))))))
+          (free seen)
+          (coco_sb_free (aof b))))
+
+  ;;; TEXT read back as a term on M's heap, a "..." in it a string: what
+  ;;; `writeq' wrote it as
+  (static)
+  (func coco_jr_read ((coco_machine * m) (const char * text) (size_t * out)) (out int)
+        (let ((int dq . #'(-> m double_quotes)) (int ok . 0))
+          (set (-> m double_quotes) 3)
+          (set ok (coco_read_term_from m text out))
+          (set (-> m double_quotes) dq)
+          (return ok)))
+
+  ;;; A PORTAL CALL'S BALL, kept for its entry (`coco_rec_throw'); its floats
+  ;;; read back bit for bit, as every float the writer writes does
+  (static)
+  (func coco_jr_ball ((coco_machine * m) (coco_jrnl * jr) (size_t ball))
+        (coco_sb_reset (aof (-> jr ball)))
+        (coco_write_term m (aof (-> jr ball)) ball 1 0)
+        (set (-> jr threw) 1))
+
+  ;;; THE ENTRY OF A PORTAL CALL, appended: AT its inference, MOD the module
+  ;;; that answered, CALL its text as it was called, RC how it went, G the
+  ;;; goal as it stands after. Built as a term and written by `writeq', so
+  ;;; it reads back whatever its atoms and strings hold.
+  (static)
+  (func coco_jr_write ((coco_engine * e) (coco_jrnl * jr) (u64 at) (const char * mod)
+                       (size_t g) (u64 nid) (u32 arity) (coco_strbuf * call) (int rc))
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t a [5]) (size_t pa [2]) (size_t out . 0) (size_t bt . 0))
+          (set (nth 0 a) (coco_new_int m (cast i64 at)))
+          (set (nth 1 a) (coco_new_atom m (? (== mod nil) "unknown" mod)))
+          (set (nth 0 pa) (coco_new_atom_id m nid))
+          (set (nth 1 pa) (coco_new_int m (cast i64 arity)))
+          (set (nth 2 a) (coco_make m "/" 2 pa))
+          (set (nth 3 a) (coco_new_string m (? (== ($ (cof call) s) nil) "" ($ (cof call) s))
+                                          ($ (cof call) len)))
+          (cond
+            ((== rc 1) (set out (coco_make1 m "exit" g)))
+            ((== rc 0) (set out (coco_new_atom m "fail")))
+            ((and (-> jr threw) (coco_jr_read m ($ (-> jr ball) s) (aof bt)))
+             (set out (coco_make1 m "throw" bt)))
+            (#t (set out (coco_make1 m "error" (coco_new_atom m (-> e err))))))
+          (set (nth 4 a) out)
+          (coco_write_term m (aof (-> jr out)) (coco_make m "j" 5 a) 1 0)
+          (coco_sb_put (aof (-> jr out)) ".\n")
+          (set (-> jr n) (+ (-> jr n) 1))))
+
+  ;;; the seam as the registry left it, while a journal wraps it
+  (static) (var func coco_jr_was_call ((coco_engine * e) (const char * name) (u32 arity)
+                                       (size_t g) (int * found)) (out int))
+  (static) (var func coco_jr_was_resolving ((coco_engine * e) (const char * name) (u32 arity)
+                                            (size_t g) (int * found) (size_t * out_at)) (out int))
+  (static) (var func coco_jr_was_call_at ((coco_engine * e) (size_t at) (const char * name)
+                                          (u32 arity) (size_t g) (int * found)) (out int))
+  (static) (var int coco_jr_wrapped)
+
+  ;;; the journal of the machine E runs on, or null
+  (static)
+  (func coco_jr_of ((coco_engine * e)) (out coco_jrnl *)
+        (let ((coco_rec * r . #'(cast (coco_rec *) ($ (cof (-> e m)) rec))))
+          (if (== r nil) (return nil))
+          (return (-> r jr))))
+
+  ;;; THE CALL RUN FOR REAL, as the engine asked: HOW 2 at module AT, else
+  ;;; the walk -- through `resolving' when there is one, which also says in
+  ;;; OUT_AT which module answered
+  (static)
+  (func coco_jr_run ((coco_engine * e) (int how) (size_t at) (const char * name) (u32 arity)
+                     (size_t g) (int * found) (size_t * out_at)) (out int)
+        (if (== how 2) (return (coco_jr_was_call_at e at name arity g found)))
+        (if (!= coco_jr_was_resolving nil)
+            (return (coco_jr_was_resolving e name arity g found out_at)))
+        (set (cof found) 0)
+        (return (coco_jr_was_call e name arity g found)))
+
+  ;;; the module that answered, by name; null when the seam cannot say
+  (static)
+  (func coco_jr_mod_name ((int how) (int have_at) (size_t at)) (out const char *)
+        (if (== coco_extern_name_at nil) (return nil))
+        (if (and (!= how 2) (or (== coco_jr_was_resolving nil) (not have_at))) (return nil))
+        (return (coco_extern_name_at at)))
+
+  ;;; A MODULE'S CALL WHILE RECORDING: run, and its entry written when the
+  ;;; module that answered says it is a portal. All that is read of the goal
+  ;;; is read BEFORE it runs -- its text, what it was given, and format/3's
+  ;;; sink -- since a raise it catches unwinds the heap its cell is on; a
+  ;;; call that exits is read again after, by `kcall', which a collection in
+  ;;; a nested engine inside it keeps true. A functor known to be no portal
+  ;;; is run and nothing more; one the engine asks a module for by index
+  ;;; (HOW 2) is decided before it runs.
+  (static)
+  (func coco_jr_record ((coco_engine * e) (coco_jrnl * jr) (int how) (size_t at0)
+                        (const char * name) (u32 arity) (size_t g) (int * found)
+                        (size_t * out_at)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
+              (u64 now . #'(coco_rec_abs e r))
+              (u64 nid . #'(coco_name_of m g))
+              (i64 fid . #'(coco_jr_fid m g arity))
+              (int known . 0) (int rc . 0) (size_t at . at0) (int tsink . 0)
+              (int varies . 0) (const char * mod . nil) (coco_strbuf call))
+          (set known (coco_jr_pk_get jr fid))
+          (if (== known 0)
+              (block
+               (set tsink (coco_jr_tsink m name arity g))
+               (if (== how 2)
+                   (block
+                    (set known (? (coco_jr_is_portal (coco_jr_mod_name how 1 at0) name arity tsink
+                                                     (aof varies)) 1 2))
+                    (if (not varies) (coco_jr_pk_set jr fid known))))))
+          (if (== known 2)
+              (block (set rc (coco_jr_run e how at0 name arity g found (aof at)))
+                     (if (!= out_at nil) (set (cof out_at) at))
+                     (return rc)))
+          (coco_sb_init (aof call))
+          (coco_jr_calltext m g (aof call))
+          ;; armed while it runs, and put back as it was after: no portal
+          ;; runs another on this machine today, and if one did, the outer
+          ;; call's raise would still be kept
+          (let ((int was . #'(-> jr armed)))
+            (set (-> jr armed) 1)
+            (set (-> jr threw) 0)
+            (set rc (coco_jr_run e how at0 name arity g found (aof at)))
+            (set (-> jr armed) was))
+          (if (!= out_at nil) (set (cof out_at) at))
+          (if (cof found)
+              (block
+               (set mod (coco_jr_mod_name how 1 at))
+               (if (== known 0)
+                   (block
+                    (set known (? (coco_jr_is_portal mod name arity tsink (aof varies)) 1 2))
+                    (if (not varies) (coco_jr_pk_set jr fid known))))
+               (if (== known 1)
+                   (coco_jr_write e jr now mod (-> e kcall) nid arity (aof call) rc))))
+          (coco_sb_free (aof call))
+          (return rc)))
+
+  ;;; ONE SIDE OF A DIVERGENCE, kept: the journal's entry X, or the replay's
+  ;;; call (made at AT, answered by MOD -- null when not known)
+  (static)
+  (func coco_jr_keep_want ((coco_jrnl * jr) (coco_jent * x))
+        (if (== x nil) (return))
+        (set (-> jr whas) 1)
+        (set (-> jr wat) (-> x at))
+        (set (-> jr wmod) (-> x mod))
+        (set (-> jr wname) (-> x name))
+        (set (-> jr war) (-> x arity))
+        (coco_sb_reset (aof (-> jr dwant)))
+        (coco_sb_put_len (aof (-> jr dwant)) (+ ($ (-> jr calls) s) (-> x call)) (-> x clen)))
+
+  ;;; a call stopped before it ran has no module that answered it: the one
+  ;;; the journal's entries for its predicate name, if they name one
+  (static)
+  (func coco_jr_keep_got ((coco_machine * m) (coco_jrnl * jr) (u64 at) (const char * mod)
+                          (u64 nid) (u32 arity) (coco_strbuf * call))
+        (set (-> jr ghas) 1)
+        (set (-> jr gat) at)
+        (set (-> jr gmod) (? (== mod nil) 0 (coco_intern m mod)))
+        (set (-> jr gname) nid)
+        (set (-> jr gar) arity)
+        (if (== (-> jr gmod) 0)
+            (for ((size_t i . 0)) (< i (-> jr nents)) ((++ i))
+              (if (and (== ($ (nth i (-> jr ents)) name) nid)
+                       (== ($ (nth i (-> jr ents)) arity) arity))
+                  (block (set (-> jr gmod) ($ (nth i (-> jr ents)) mod)) break))))
+        (coco_sb_reset (aof (-> jr dgot)))
+        (coco_sb_put_len (aof (-> jr dgot)) (? (== ($ (cof call) s) nil) "" ($ (cof call) s))
+                         ($ (cof call) len)))
+
+  ;;; THE REPLAY HAS LEFT THE RUN IT REPLAYS at inference AT: X the
+  ;;; journal's next entry (null, none left), and the call the replay made
+  ;;; instead -- NID/ARITY, CALL its text, made at GAT. Said once, and the
+  ;;; run stopped where no catch/3 sees it.
+  (static)
+  (func coco_jr_diverge ((coco_engine * e) (coco_jrnl * jr) (u64 at) (coco_jent * x)
+                         (u64 gat) (const char * mod) (u64 nid) (u32 arity)
+                         (coco_strbuf * call) (int * found)) (out int)
+        (set (cof found) 1)
+        (if (not (-> jr div))
+            (block (set (-> jr div) 1)
+                   (set (-> jr dat) at)
+                   (coco_jr_keep_want jr x)
+                   (coco_jr_keep_got (-> e m) jr gat mod nid arity call)))
+        (return (coco_fail_err e "the replay diverged from the run its journal recorded")))
+
+  ;;; the registry's index of the module named by atom MOD, 0 when none is
+  (static)
+  (func coco_jr_mod_index ((coco_machine * m) (u64 mod)) (out size_t)
+        (if (== coco_extern_name_at nil) (return 0))
+        (let ((const char * want . #'(coco_atom_name m mod)) (size_t i . 0))
+          (while 1
+            (let ((const char * nm . #'(coco_extern_name_at i)))
+              (if (== nm nil) (return 0))
+              (if (== 0 (strcmp nm want)) (return i)))
+            (set i (+ i 1)))
+          (return 0)))
+
+  ;;; THE CALL ANSWERED FROM ITS ENTRY X, and nothing run: the entry read
+  ;;; again from the journal's text, its line alone, for the outcome
+  (static)
+  (func coco_jr_answer ((coco_engine * e) (coco_jrnl * jr) (coco_jent * x) (u64 now)
+                        (size_t g) (coco_strbuf * call) (int * found) (size_t * out_at)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (size_t t . 0) (size_t o . 0)
+              (char keep . 0) (int ok . 0) (const char * k . nil))
+          (set (cof found) 1)
+          (set (-> jr n) (+ (-> jr n) 1))
+          (if (!= out_at nil) (set (cof out_at) (coco_jr_mod_index m (-> x mod))))
+          (set keep (nth (-> x to) (-> jr text)))
+          (set (nth (-> x to) (-> jr text)) (cast char 0))
+          (set ok (coco_jr_read m (+ (-> jr text) (-> x from)) (aof t)))
+          (set (nth (-> x to) (-> jr text)) keep)
+          (if (not ok) (return (coco_fail_err e "a journal entry would not read back")))
+          (set o (coco_deref m (coco_arg m (coco_deref m t) 4)))
+          (if (not (coco_is_callable m o))
+              (return (coco_fail_err e "a journal entry's outcome is not one")))
+          (set k (coco_atom_name m (coco_name_of m o)))
+          (if (and (== (coco_arity m o) 0) (== 0 (strcmp k "fail"))) (return 0))
+          (if (and (== (coco_arity m o) 1) (== 0 (strcmp k "exit")))
+              (block
+               (if (coco_unify m g (coco_arg m o 0)) (return 1))
+               (return (coco_jr_diverge e jr now x now nil (-> x name) (-> x arity) call found))))
+          (if (and (== (coco_arity m o) 1) (== 0 (strcmp k "throw")))
+              (return (? (== 1 (coco_throw e (coco_deref m (coco_arg m o 0)))) 2 -1)))
+          (if (and (== (coco_arity m o) 1) (== 0 (strcmp k "error")))
+              (let ((size_t w . #'(coco_deref m (coco_arg m o 0))))
+                (snprintf (-> e err) 512 "%s"
+                          (? (coco_is_callable m w) (coco_atom_name m (coco_name_of m w)) "error"))
+                (return -1)))
+          (return (coco_fail_err e "a journal entry's outcome is not one"))))
+
+  ;;; A MODULE'S CALL WHILE REPLAYING: the journal's call at this inference
+  ;;; is answered from it; an inference passed with the journal's call there
+  ;;; not made, or another call made where it holds one, is a divergence; a
+  ;;; call the journal has nothing for runs -- unless it is a portal: known
+  ;;; before it runs from the journal's own entries, or from the module the
+  ;;; engine asks by index (HOW 2), and only after it ran when the engine
+  ;;; walks the modules for its first call (the walk is the question). The
+  ;;; goal is read before anything runs, as in `coco_jr_record'.
+  (static)
+  (func coco_jr_replay ((coco_engine * e) (coco_jrnl * jr) (int how) (size_t at0)
+                        (const char * name) (u32 arity) (size_t g) (int * found)
+                        (size_t * out_at)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_rec * r . #'(cast (coco_rec *) (-> m rec)))
+              (u64 now . #'(coco_rec_abs e r))
+              (u64 nid . #'(coco_name_of m g))
+              (i64 fid . #'(coco_jr_fid m g arity))
+              (coco_jent * x . nil) (int rc . 0) (size_t at . at0) (int varies . 0)
+              (int known . 0) (int tsink . 0) (const char * mod . nil)
+              (coco_strbuf call))
+          (if (< (-> jr n) (cast u64 (-> jr nents))) (set x (aof (nth (cast size_t (-> jr n)) (-> jr ents)))))
+          (coco_sb_init (aof call))
+          ;; the journal's call here: the same call, answered, or a divergence
+          (if (and (!= x nil) (== (-> x at) now))
+              (let ((int same . 0))
+                (coco_jr_calltext m g (aof call))
+                (set same (and (and (== (-> x name) nid) (== (-> x arity) arity))
+                               (and (== ($ call len) (-> x clen))
+                                    (== 0 (memcmp (? (== ($ call s) nil) "" ($ call s))
+                                                  (+ ($ (-> jr calls) s) (-> x call)) (-> x clen))))))
+                (if (not same)
+                    (set rc (coco_jr_diverge e jr now x now nil nid arity (aof call) found))
+                  (set rc (coco_jr_answer e jr x now g (aof call) found out_at)))
+                (coco_sb_free (aof call))
+                (return rc)))
+          ;; the journal's call passed by, or a portal it holds made here
+          (set known (coco_jr_pk_get jr fid))
+          (if (or (and (!= x nil) (< (-> x at) now)) (== known 1))
+              (block
+               (coco_jr_calltext m g (aof call))
+               (set rc (coco_jr_diverge e jr (? (and (!= x nil) (< (-> x at) now)) (-> x at) now)
+                                        x now nil nid arity (aof call) found))
+               (coco_sb_free (aof call))
+               (return rc)))
+          (if (== known 0)
+              (block
+               (set tsink (coco_jr_tsink m name arity g))
+               (if (== how 2)
+                   (block
+                    (set known (? (coco_jr_is_portal (coco_jr_mod_name how 1 at0) name arity tsink
+                                                     (aof varies)) 1 2))
+                    (if (not varies) (coco_jr_pk_set jr fid known))
+                    (if (== known 1)
+                        (block
+                         (coco_jr_calltext m g (aof call))
+                         (set rc (coco_jr_diverge e jr now x now (coco_jr_mod_name how 1 at0)
+                                                  nid arity (aof call) found))
+                         (coco_sb_free (aof call))
+                         (return rc)))))))
+          ;; not known: its text before it runs, for the divergence it may be
+          (if (== known 0) (coco_jr_calltext m g (aof call)))
+          (set rc (coco_jr_run e how at0 name arity g found (aof at)))
+          (if (!= out_at nil) (set (cof out_at) at))
+          (if (and (== known 0) (cof found))
+              (block
+               (set mod (coco_jr_mod_name how 1 at))
+               (set known (? (coco_jr_is_portal mod name arity tsink (aof varies)) 1 2))
+               (if (not varies) (coco_jr_pk_set jr fid known))
+               (if (== known 1)
+                   (set rc (coco_jr_diverge e jr now x now mod nid arity (aof call) found)))))
+          (coco_sb_free (aof call))
+          (return rc)))
+
+  ;;; THE THREE WRAPPERS, one for each hook of the seam
+  (static)
+  (func coco_jr_call ((coco_engine * e) (const char * name) (u32 arity) (size_t g)
+                      (int * found)) (out int)
+        (let ((coco_jrnl * jr . #'(coco_jr_of e)) (size_t at . 0))
+          (if (== jr nil) (return (coco_jr_was_call e name arity g found)))
+          (if (== (-> jr mode) 1) (return (coco_jr_record e jr 1 0 name arity g found (aof at))))
+          (return (coco_jr_replay e jr 1 0 name arity g found (aof at)))))
+
+  (static)
+  (func coco_jr_resolving ((coco_engine * e) (const char * name) (u32 arity) (size_t g)
+                           (int * found) (size_t * out_at)) (out int)
+        (let ((coco_jrnl * jr . #'(coco_jr_of e)))
+          (if (== jr nil) (return (coco_jr_was_resolving e name arity g found out_at)))
+          (if (== (-> jr mode) 1) (return (coco_jr_record e jr 1 0 name arity g found out_at)))
+          (return (coco_jr_replay e jr 1 0 name arity g found out_at))))
+
+  (static)
+  (func coco_jr_call_at ((coco_engine * e) (size_t at) (const char * name) (u32 arity)
+                         (size_t g) (int * found)) (out int)
+        (let ((coco_jrnl * jr . #'(coco_jr_of e)) (size_t at2 . at))
+          (if (== jr nil) (return (coco_jr_was_call_at e at name arity g found)))
+          (if (== (-> jr mode) 1) (return (coco_jr_record e jr 2 at name arity g found (aof at2))))
+          (return (coco_jr_replay e jr 2 at name arity g found (aof at2)))))
+
+  ;;; THE SEAM WRAPPED AS A JOURNAL'S RUN STARTS, AND PUT BACK AS THE LAST
+  ;;; ONE ENDS. The pointers are set directly, not through the installers,
+  ;;; which would raise the registry's generation and send every functor to
+  ;;; be asked again: which module owns a name has not changed. Process-wide,
+  ;;; so another thread's calls pass through `coco_jr_of' and straight on;
+  ;;; the originals are kept after, so a call that read the wrapped pointer
+  ;;; as it was put back still reaches them. COUNTED, not atomically: two
+  ;;; threads' journalled windows starting or ending at the same moment is
+  ;;; the registry's own unguarded case (`coco_module_register').
+  (static)
+  (func coco_jr_wrap ()
+        (if (== coco_extern_call nil) (return))
+        (set coco_jr_wrapped (+ coco_jr_wrapped 1))
+        (if (> coco_jr_wrapped 1) (return))
+        (set coco_jr_was_call coco_extern_call)
+        (set coco_jr_was_resolving coco_extern_resolving)
+        (set coco_jr_was_call_at coco_extern_call_at)
+        (set coco_extern_call coco_jr_call)
+        (if (!= coco_extern_resolving nil) (set coco_extern_resolving coco_jr_resolving))
+        (if (!= coco_extern_call_at nil) (set coco_extern_call_at coco_jr_call_at)))
+
+  (static)
+  (func coco_jr_unwrap ()
+        (if (<= coco_jr_wrapped 0) (return))
+        (set coco_jr_wrapped (- coco_jr_wrapped 1))
+        (if (> coco_jr_wrapped 0) (return))
+        (set coco_extern_call coco_jr_was_call)
+        (set coco_extern_resolving coco_jr_was_resolving)
+        (set coco_extern_call_at coco_jr_was_call_at))
+
+  (func coco_jr_init ((coco_jrnl * jr) (int mode))
+        (memset jr 0 (sizeof coco_jrnl))
+        (set (-> jr mode) mode)
+        (coco_sb_init (aof (-> jr out)))
+        (coco_sb_init (aof (-> jr ball)))
+        (coco_sb_init (aof (-> jr calls)))
+        (coco_sb_init (aof (-> jr dwant)))
+        (coco_sb_init (aof (-> jr dgot))))
+
+  (func coco_jr_free ((coco_jrnl * jr))
+        (coco_sb_free (aof (-> jr out)))
+        (coco_sb_free (aof (-> jr ball)))
+        (coco_sb_free (aof (-> jr calls)))
+        (coco_sb_free (aof (-> jr dwant)))
+        (coco_sb_free (aof (-> jr dgot)))
+        (free (-> jr text))
+        (free (-> jr ents))
+        (free (-> jr pk))
+        (memset jr 0 (sizeof coco_jrnl)))
+
+  ;;; AN ENTRY'S HEAD INTO JR'S TABLE, from T as `coco_jr_write' wrote it:
+  ;;; j(I, Module, Name/Arity, CallText, Outcome), starting at FROM in the
+  ;;; text. Its functor is a portal from here on: a call of it the journal
+  ;;; has no entry for is a divergence before it runs.
+  (static)
+  (func coco_jr_head ((coco_machine * m) (coco_jrnl * jr) (size_t t) (size_t from)) (out int)
+        (let ((size_t d . #'(coco_deref m t)) (size_t a0 . 0) (size_t a1 . 0) (size_t a2 . 0)
+              (size_t a3 . 0) (size_t pn . 0) (size_t pa . 0)
+              (const char * s . nil) (size_t sn . 0))
+          (if (not (coco_is_callable m d)) (return 0))
+          (if (!= (coco_arity m d) 5) (return 0))
+          (if (!= 0 (strcmp (coco_atom_name m (coco_name_of m d)) "j")) (return 0))
+          (set a0 (coco_deref m (coco_arg m d 0)))
+          (set a1 (coco_deref m (coco_arg m d 1)))
+          (set a2 (coco_deref m (coco_arg m d 2)))
+          (set a3 (coco_deref m (coco_arg m d 3)))
+          (if (not (coco-tag-is INT (nth a0 (-> m heap)))) (return 0))
+          (if (not (coco-tag-is ATOM (nth a1 (-> m heap)))) (return 0))
+          (if (not (coco_is_callable m a2)) (return 0))
+          (if (!= (coco_arity m a2) 2) (return 0))
+          (set pn (coco_deref m (coco_arg m a2 0)))
+          (set pa (coco_deref m (coco_arg m a2 1)))
+          (if (not (coco-tag-is ATOM (nth pn (-> m heap)))) (return 0))
+          (if (not (coco-tag-is INT (nth pa (-> m heap)))) (return 0))
+          (if (not (coco_string_text m a3 (aof s) (aof sn))) (return 0))
+          (if (>= (-> jr nents) (-> jr capents))
+              (let ((size_t c . #'(? (== (-> jr capents) 0) 256 (* (-> jr capents) 2)))
+                    (coco_jent * ne . nil))
+                (set ne (cast (coco_jent *) (realloc (-> jr ents) (* c (sizeof coco_jent)))))
+                (if (== ne nil) (return 0))
+                (set (-> jr ents) ne)
+                (set (-> jr capents) c)))
+          (let ((coco_jent * x . #'(aof (nth (-> jr nents) (-> jr ents)))))
+            (set (-> x at) (cast u64 (coco-signed-payload (nth a0 (-> m heap)))))
+            (set (-> x mod) (coco_name_of m a1))
+            (set (-> x name) (coco_name_of m pn))
+            (set (-> x arity) (cast u32 (coco-signed-payload (nth pa (-> m heap)))))
+            (set (-> x call) ($ (-> jr calls) len))
+            (set (-> x clen) sn)
+            (set (-> x from) from)
+            (set (-> x to) from)
+            (if (> sn 0) (coco_sb_put_len (aof (-> jr calls)) s sn))
+            ;; a functor whose answer is its goal's -- format/3, a portal
+            ;; into a stream and none into an atom -- is asked at each call
+            (let ((int varies . 0))
+              (coco_jr_is_portal (coco_atom_name m (-> x mod)) (coco_atom_name m (-> x name))
+                                 (-> x arity) 0 (aof varies))
+              (if (and (> (-> x arity) 0) (not varies))
+                  (coco_jr_pk_set jr (cast i64 (coco_functor_id m (-> x name) (-> x arity))) 1))))
+          (set (-> jr nents) (+ (-> jr nents) 1))
+          (return 1)))
+
+  (func coco_jr_load ((coco_machine * m) (coco_jrnl * jr) (char * text)
+                      (char * err) (size_t errlen)) (out int)
+        (let ((coco_reader rd) (size_t t . 0) (int rc . 0) (size_t from . 0)
+              (size_t hmark . #'(-> m heap_len)) (size_t tmark . #'(-> m trail_len))
+              (int dq . #'(-> m double_quotes)) (size_t line . 0))
+          (set (-> jr text) text)
+          (set (-> m double_quotes) 3)
+          (coco_reader_init (aof rd) m text)
+          (while 1
+            (set from ($ rd tstart))
+            (set rc (coco_read_clause (aof rd) (aof t)))
+            (if (!= rc 1) break)
+            (set line (+ line 1))
+            ;; the entry before ends where this one starts
+            (if (> (-> jr nents) 0)
+                (set ($ (nth (- (-> jr nents) 1) (-> jr ents)) to) from))
+            (if (not (coco_jr_head m jr t from)) (block (set rc -2) break))
+            ;; the cells it was read into are nobody's
+            (set (-> m heap_len) hmark))
+          (if (> (-> jr nents) 0)
+              (set ($ (nth (- (-> jr nents) 1) (-> jr ents)) to) (strlen text)))
+          (set (-> m double_quotes) dq)
+          (set (-> m heap_len) hmark)
+          (coco_undo_to m tmark)
+          (if (== rc -1)
+              (snprintf err errlen "the journal's entry %lu would not read: %s"
+                        (cast ulong (+ line 1)) ($ rd err)))
+          (if (== rc -2)
+              (snprintf err errlen "the journal's entry %lu is not j(I, Module, Name/Arity, CallText, Outcome)"
+                        (cast ulong line)))
+          (coco_reader_free (aof rd))
+          (return (? (< rc 0) 0 1))))
+
+  ;;; one side of a divergence as a term: portal(I, Module, Name/Arity,
+  ;;; CallText), or none
+  (static)
+  (func coco_jr_side ((coco_machine * m) (int has) (u64 at) (u64 mod) (u64 name) (u32 ar)
+                      (coco_strbuf * call)) (out size_t)
+        (if (not has) (return (coco_new_atom m "none")))
+        (let ((size_t a [4]) (size_t pa [2]))
+          (set (nth 0 a) (coco_new_int m (cast i64 at)))
+          (set (nth 1 a) (? (== mod 0) (coco_new_atom m "unknown") (coco_new_atom_id m mod)))
+          (set (nth 0 pa) (coco_new_atom_id m name))
+          (set (nth 1 pa) (coco_new_int m (cast i64 ar)))
+          (set (nth 2 a) (coco_make m "/" 2 pa))
+          (set (nth 3 a) (coco_new_string m (? (== ($ (cof call) s) nil) "" ($ (cof call) s))
+                                          ($ (cof call) len)))
+          (return (coco_make m "portal" 4 a))))
+
+  (func coco_jr_diverged ((coco_machine * m) (coco_jrnl * jr)
+                          (size_t * at) (size_t * want) (size_t * got))
+        (set (cof at) (coco_new_int m (cast i64 (-> jr dat))))
+        (set (cof want) (coco_jr_side m (-> jr whas) (-> jr wat) (-> jr wmod) (-> jr wname)
+                                      (-> jr war) (aof (-> jr dwant))))
+        (set (cof got) (coco_jr_side m (-> jr ghas) (-> jr gat) (-> jr gmod) (-> jr gname)
+                                     (-> jr gar) (aof (-> jr dgot)))))
+
+  ;;; A REPLAY THAT ENDED with the journal's next call due at or before its
+  ;;; last inference went past it without making it, and made no portal
+  ;;; call after it that would have said so: diverged there, the replay
+  ;;; having made nothing (none). Its end can be the record's all the same
+  ;;; -- a call left out where another goal took its inference. A run that
+  ;;; stops at to(J), or at an answer before the record's last, leaves the
+  ;;; calls after its end, and is not one.
+  (func coco_jr_settle ((coco_jrnl * jr) (u64 used))
+        (if (or (!= (-> jr mode) 2) (-> jr div)) (return))
+        (if (>= (-> jr n) (cast u64 (-> jr nents))) (return))
+        (let ((coco_jent * x . #'(aof (nth (cast size_t (-> jr n)) (-> jr ents)))))
+          (if (> (-> x at) used) (return))
+          (set (-> jr div) 1)
+          (set (-> jr dat) (-> x at))
+          (coco_jr_keep_want jr x)
+          (set (-> jr ghas) 0)))
+
+
+  ) ; impl-solve-journal
