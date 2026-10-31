@@ -31,9 +31,13 @@
 %% AND THREE THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
 %% of this lesson is about:
 %%
-%%   * a LIBRARY OR LOADER failure is `error(cocolog_error(Text), _)' --
-%%     a sentence where ISO puts a formal -- so a handler that names a
-%%     formal walks straight past it. Card row C2; cocolint has a rule.
+%%   * a REFUSAL -- cocolog declining what no ISO formal fits: format's
+%%     column directives, a library found and refused, a module's own
+%%     failure -- is `error(cocolog_error(Text), _)', a sentence where
+%%     ISO puts a formal, so a handler that names a formal walks straight
+%%     past it. Card row C2; cocolint has a rule. (A file that is NOT
+%%     THERE is no refusal: it is swipl's `existence_error(source_sink,
+%%     Spec)' since 3.4.0, where through 3.3.0 it was the sentence too.)
 %%   * the CONTEXT slot of a core builtin's error is swipl's,
 %%     `context(system:atom_length/2, _)' (3.0.0), but the loader's
 %%     ball leaves it an unbound variable, so writing
@@ -110,16 +114,26 @@ main :-
     must('a predicate that does not exist', E3,
          existence_error(procedure, no_such_predicate_here/0)),
 
-    format("~n-- THE LOADER'S BALL IS NOT ISO, and a handler can miss it~n"),
-    %% A library or a loader failure is `error(cocolog_error(Text), _)':
-    %% the first argument is a SENTENCE and not one of ISO's formals. It
-    %% is row C2 of the dialect card, and cocolint has a rule for it,
-    %% because a handler written for SWI names a formal and walks past.
+    format("~n-- A REFUSAL'S BALL IS NOT ISO, and a handler can miss it~n"),
+    %% A FILE THAT IS NOT THERE raises swipl's ball, the formal ISO names
+    %% for a source that does not exist (3.4.0; through 3.3.0 it was the
+    %% sentence below).
     catch(use_module('/no/such/library.pl'), error(E4, _), true),
-    ( E4 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E4 ),
-    must('a loader failure is cocolog_error/1', Shape, cocolog_error),
-    catch( catch(use_module('/no/such/library.pl'),
-                 error(existence_error(_, _), _), Inner2 = caught),
+    must('a file that is not there', E4,
+         existence_error(source_sink, '/no/such/library.pl')),
+    %% A REFUSAL is `error(cocolog_error(Text), _)': cocolog declining
+    %% something no ISO formal fits -- here format's column directives,
+    %% which cocolog does not have. The first argument is a SENTENCE and
+    %% not one of ISO's formals. It is row C2 of the dialect card, and
+    %% cocolint has a rule for it, because a handler written for SWI names
+    %% a formal and walks past: `format(Message)' is the one swipl raises
+    %% for a format string it cannot use, and cocolog raises it too, for
+    %% `~a' with no argument left.
+    catch(format(atom(_), "~t~20|x", []), error(E7, _), true),   % cocolint: F1 -- the refusal is the lesson
+    ( E7 = cocolog_error(_) -> Shape = cocolog_error ; Shape = E7 ),
+    must('a refusal is cocolog_error/1', Shape, cocolog_error),
+    catch( catch(format(atom(_), "~t~20|x", []),   % cocolint: F1 -- the refusal is the lesson
+                 error(format(_), _), Inner2 = caught),
            error(cocolog_error(_), _), Outer2 = caught),
     ( var(Inner2) -> Miss = missed ; Miss = caught ),
     must('a handler naming a FORMAL misses it', Miss, missed),

@@ -125,13 +125,40 @@ lends_ops(D) :-
 
 errors(D) :-
     section('the errors'),
-    written(catch(use_module(library(nosuch)), error(cocolog_error(_), _), C1 = caught), C1, G1),
+    %% swipl's term since 3.4.0, where it was cocolog_error('use_module: ...')
+    written(catch(use_module(library(nosuch)),
+                  error(existence_error(source_sink, library(nosuch)), _), C1 = caught), C1, G1),
     check('a missing library throws, catchably', G1, caught),
     atom_concat(D, '/warns.pl', Warns),
     fixture(Warns, [':- use_module(library(nosuch)).', 'still(here).']),
     sh_join(['run ', Warns, ' "still(X), write(answer(X)), nl"'], Args2),
     cocolog_answer(Args2, G2),
-    check('as a directive it warns and the file still reads', G2, answer(here)).
+    check('as a directive it warns and the file still reads', G2, answer(here)),
+    %% A DIRECTIVE'S UNBOUND SPEC, AND A LIST WHOSE TAIL IS UNBOUND (3.4.0),
+    %% are swipl's instantiation_error said at the directive's place, the
+    %% file named by its absolute path though `run' and `consult' were given
+    %% it from its own directory, as swipl names it. swipl's lines to the
+    %% letter but for the variables' names, which no two systems share, so
+    %% the ERROR lines are what is held; the directory as getcwd sees it
+    %% (`pwd -P': on a Mac /tmp is a link to /private/tmp)
+    atom_concat(D, '/vars.pl', Vars),
+    fixture(Vars, [':- use_module(_).', ':- ensure_loaded([library(lists)|_]).', 'still(vars).']),
+    sh_join(['cd ', D, ' && pwd -P'], Pwd3), shell(Pwd3, Real3, _),
+    cocolog(C3),
+    sh_join(['cd ', D, ' && ', C3, ' --local run vars.pl "still(X), write(answer(X)), nl" 2>&1'], Run3),
+    shell(Run3, Out3, _),
+    vars_said(Real3, Out3, R3),
+    check('run: a directive''s unbound spec and tail, swipl''s errors at the file''s absolute path',
+          R3, said),
+    sh_join(['cd ', D, ' && ', C3, ' --local consult vars.pl 2>&1'], Run4),
+    shell(Run4, Out4, _),
+    vars_said(Real3, Out4, R4),
+    check('consult: the same', R4, said).
+
+vars_said(Dir, Out, R) :-
+    atomic_list_concat(['ERROR: ', Dir, '/vars.pl:1:\nERROR:    Arguments are not sufficiently instantiated\n'], W1),
+    atomic_list_concat(['ERROR: ', Dir, '/vars.pl:2:\nERROR:    Arguments are not sufficiently instantiated\n'], W2),
+    ( sub_atom(Out, _, _, _, W1), sub_atom(Out, _, _, _, W2) -> R = said ; R = Out ).
 
 shared_object(D) :-
     section('a .so library: the seam, reached later'),

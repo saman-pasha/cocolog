@@ -56,14 +56,16 @@
   ;;; clauses become rows. A secret that must not become a row -- a
   ;;; node's signing key, a token -- has nowhere else to arrive from.
   ;;; source_location(-File, -Line) (2.16.0), swipl's: the file and the line
-  ;;; of the directive a load is running, the file by its absolute path
-  ;;; (`realpath', as swipl names it), and a failure anywhere else -- in the
-  ;;; program, and in an initialization/1 goal run after its file was read.
-  ;;; print_message/2 asks it for an error's and a warning's location line.
+  ;;; of the directive a load is running, the file by its absolute path, and
+  ;;; a failure anywhere else -- in the program, and in an initialization/1
+  ;;; goal run after its file was read. print_message/2 asks it for an
+  ;;; error's and a warning's location line. The path is swipl's (3.4.0):
+  ;;; `.' and `..' folded away and no link resolved (`coco_f_normalise'),
+  ;;; the name the load's own reports give; through 3.3.0 `realpath'.
   (func coco_b_source_location ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(coco_m_machine e)) (char full [4096]))
           (if (== (-> m sloc_file) nil) (return 0))
-          (if (== nil (realpath (-> m sloc_file) full))
+          (if (not (coco_f_normalise (-> m sloc_file) full (sizeof full)))
               (snprintf full (sizeof full) "%s" (-> m sloc_file)))
           (if (not (coco_m_unify_atom e (coco_m_arg e g 0) full)) (return 0))
           (return (coco_m_unify_int e (coco_m_arg e g 1) (cast i64 (-> m sloc_line))))))

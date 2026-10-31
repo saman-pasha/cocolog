@@ -344,12 +344,44 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   module, every clause twice). **The goal unmutes the store around its own
   read** (`lb_load_file`): inside a module's load -- an `-s` file's
   initialization/1 -- the store is muted, and a muted consult kept no
-  origins, so a second consult appended (`[1,1]`). **The table is the
-  process's, not the database's**: a file
+  origins, so a second consult appended (`[1,1]`). **What a consulted
+  file's directives registered is loaded at once** (3.4.0, `lb_load_file`
+  calls `coco_module_load`): a directive has no engine and leaves a module
+  for the next ask, and through 3.3.0 a goal after consult/1 found its
+  predicates unknown -- only a nested search, which asks, loaded them. **The
+  table is the process's, not the database's**: a file
   `run F` wrote into a store, loaded by a second process as a module (`-s
   F`, ensure_loaded/1), is there twice, the rows beside the module
   (`[1,2,1,2]`, as through 2.12). Hiding those rows at the fetch would
   delete them at the next whole-predicate write.
+* **A load looks for a file where swipl's does** (3.4.0, `lb_resolve` in
+  lib/library.cicili, '$chk_file'/5's order): an absolute name as it is, a
+  relative one first in the directory of the file being loaded -- while a
+  load reads one, when source_location/2 answers (`sloc_file`) -- then in
+  the working directory; a goal after the load and an initialization/1
+  goal look in the working directory alone. In each place `.pl`,
+  `.prolog`, then the name as it is (through 3.3.0 the name, then `.pl`,
+  the working directory alone), and never a directory. A spec is an atom, a
+  string, digits, a list of codes (one name: `"file"` is codes by default,
+  so `[123]` is `{`, where swipl's is a list of one file) or swipl's
+  `Dir/File` path; any other list is a list of files -- use_module/1,2 and
+  ensure_loaded/1 decline it to their Coco half (`'$lf_mods'/1`: each
+  error printed, the next file loaded), a directive walks it
+  (`lb_directive_hook`). **A file is named by its ABSOLUTE PATH** -- `.`
+  and `..` folded, no link resolved (`coco_f_normalise`, `lb_absolute`) --
+  in every load's reports and in source_location/2, the hosts' `run FILE`
+  and `consult FILE` too; the store's keys stay realpath's
+  (`coco_consult_again`'s oid), so a store made before reads the same. **A
+  module is registered under that path**, so the same name beside two files
+  is two modules (through 3.3.0 one, and the second loaded nothing). As
+  goals, use_module/1,2 and ensure_loaded/1 raise swipl's errors --
+  existence_error(source_sink, Spec), instantiation_error, a number's
+  type_error(text, N) from is_absolute_file_name/1, a directory's
+  existence_error(file, Spec) with context(_, directory(Dir)) -- where
+  through 3.3.0 each was `cocolog_error('use_module: ...')`. Not swipl's:
+  it names a directory by the first path it met it through (pl-os.c's
+  canonicaliseDir, by device and inode), cocolog by the path given, so
+  test/files/load_paths.pl reads the link before its target.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,
@@ -1288,9 +1320,12 @@ cocolint index offers no import of it.
   re-consults it. **source_location/2 answers while a directive's goal
   runs** (2.16.0, `sloc_file`/`sloc_line` on the machine, set around the
   goal and put back after it: a nested load has its own), the file by its
-  real path, and fails anywhere else -- in the program, and in an
-  initialization/1 goal run after its file -- as swipl's; print_message/2
-  asks it for an error's and a warning's location line. **The engine's own
+  absolute path (3.4.0, swipl's: `.` and `..` folded, no link resolved;
+  through 3.3.0 realpath's), and fails anywhere else -- in the program, and
+  in an initialization/1 goal run after its file -- as swipl's;
+  print_message/2 asks it for an error's and a warning's location line. A
+  load's relative name is looked for beside that file first (the bullet on
+  where a load looks, above). **The engine's own
   reports are its own** (`coco_load_message`, `coco_load_note`, the goal's
   ERROR): swipl's shapes, but no print_message/2 call, so a program's
   message_hook/3 does not see them where swipl's does.

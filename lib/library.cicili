@@ -41,9 +41,9 @@
 (IN-PACKAGE :cocolog)
 
 (DEFPARAMETER *library-predicates*
-  '(("use_module"         1 lb_use_module1)
-    ("use_module"         2 lb_use_module2)
-    ("ensure_loaded"      1 lb_use_module1)
+  '(("use_module"         1 lb_use_module1 :declines)
+    ("use_module"         2 lb_use_module2 :declines)
+    ("ensure_loaded"      1 lb_use_module1 :declines)
     ("current_prolog_flag" 2 lb_current_flag :declines)
     ("set_prolog_flag"     2 lb_set_flag)
     ;; the two primitives the Coco half below is built from (2.13.0)
@@ -83,7 +83,10 @@
            ;; does, where a longer list reports it and goes on
            "[File] :- !, '$lf_load'(File, true)."
            "[File|Files] :- '$lf_load'([File|Files], true)."
-           "load_files(Files, Options) :- '$lf_list'(Options), '$lf_if'(Options, If), '$lf_load'(Files, If)."
+           ;; load_files/2's IF rides as lf(If), so that its C half refuses a
+           ;; number as swipl's load_files/2 does (3.4.0), where consult/1 and
+           ;; `[N]' look for the file its text names
+           "load_files(Files, Options) :- '$lf_list'(Options), '$lf_if'(Options, If), '$lf_load'(Files, lf(If))."
 
            "'$lf_list'(L) :- var(L), !, throw(error(instantiation_error, _))."
            "'$lf_list'([]) :- !."
@@ -114,7 +117,17 @@
            ;; a program's own ball are not the file's, and go on up
            "'$lf_failed'(error(signal(S, N), C)) :- !, throw(error(signal(S, N), C))."
            "'$lf_failed'(error(F, C)) :- !, '$lf_say'(error(F, C))."
-           "'$lf_failed'(E) :- throw(E).")))
+           "'$lf_failed'(E) :- throw(E)."
+           ;; A LIST OF FILES TO use_module/1,2 AND ensure_loaded/1 (3.4.0),
+           ;; swipl's: the C half declines a list to these clauses, which
+           ;; load each file and report a file's error and go on, as a list
+           ;; to load_files/2 does. A list of codes is one name, the C's.
+           "use_module(Files) :- '$lf_mods'(Files)."
+           "use_module(Files, _) :- '$lf_mods'(Files)."
+           "ensure_loaded(Files) :- '$lf_mods'(Files)."
+           "'$lf_mods'(Fs) :- '$lf_tail'(Fs), '$lf_mod_each'(Fs)."
+           "'$lf_mod_each'([])."
+           "'$lf_mod_each'([F|Fs]) :- catch(use_module(F), E, '$lf_failed'(E)), '$lf_mod_each'(Fs).")))
 
 ;;; The Coco half's text where the registration wants it: a macro that
 ;;; expands to the string, as `coco-defmodule' splices one.
@@ -733,15 +746,6 @@
 
   ;;; ---- what is loaded already (2.13.0) ---------------------------------
 
-  ;;; PATH is a regular file, which is what a load can read: fopen alone
-  ;;; opens a directory on Linux, and the read then fails as if the file
-  ;;; held nothing.
-  (static)
-  (func lb_regular ((const char * path)) (out int)
-        (let ((stat_t sb))
-          (if (!= 0 (stat path (aof sb))) (return 0))
-          (return (? (S_ISREG ($ sb st_mode)) 1 0))))
-
   (static)
   (func lb_directory ((const char * path)) (out int)
         (let ((stat_t sb))
@@ -773,74 +777,169 @@
           (coco_store_note_load st full t)
           (return was)))
 
+  ;;; ---- a file spec, and where its file is (3.4.0) ----------------------
+
+  ;;; ONE SEGMENT OF A FILE SPEC into B, as swipl's '$segments_to_atom'/2
+  ;;; takes one: an atom (never []), a string, an integer's digits, or a
+  ;;; list of codes -- what "file" reads as under the codes default -- as
+  ;;; one name. 0 for anything else, a variable among it: a list of atoms
+  ;;; is a list of files, which the loader's callers walk, as swipl's.
+  (static)
+  (func lb_seg_put ((coco_machine * m) (size_t t) (coco_strbuf * b)) (out int)
+        (set t (coco_deref m t))
+        (let ((u64 c . #'(nth t (-> m heap))) (const char * sp . nil) (size_t sn . 0))
+          (if (coco_string_text m t (aof sp) (aof sn))
+              (return (coco_sb_put_len b sp sn)))
+          (if (and (coco-tag-is ATOM c) (not (coco_is_nil m t)))
+              (return (coco_sb_put b (coco_atom_name m (coco_name_of m t)))))
+          (if (coco-is-int c) (return (coco_sb_put_i64 b (coco_int_val m c))))
+          (if (not (coco_is_cons m t)) (return 0))
+          (while (coco_is_cons m t)
+            (let ((size_t h . #'(coco_deref m (coco_arg m t 0))) (u64 hc . #'(nth h (-> m heap))))
+              (if (not (coco-is-int hc)) (return 0))
+              (let ((i64 cp . #'(coco_int_val m hc)))
+                (if (or (< cp 1) (> cp 1114111)) (return 0))
+                (if (-> m text_chars)
+                    (coco_utf8_put b cp)
+                  (block (if (> cp 255) (return 0))
+                         (coco_sb_putc b (cast char cp)))))
+              (set t (coco_deref m (coco_arg m t 1)))))
+          (return (coco_is_nil m t))))
+
+  ;;; A LIST OF FILES (3.4.0): a list whose first element is no code, or
+  ;;; `[]', which loads nothing -- each element a spec of its own, as swipl's
+  ;;; load_files/2 walks one. A list of codes is one name (`lb_seg_put').
+  (static)
+  (func lb_files_list ((coco_machine * m) (size_t t)) (out int)
+        (set t (coco_deref m t))
+        (if (coco_is_nil m t) (return 1))
+        (if (not (coco_is_cons m t)) (return 0))
+        (return (not (coco-is-int (nth (coco_deref m (coco_arg m t 0)) (-> m heap))))))
+
+  ;;; A FILE SPEC'S TEXT into BUF: one segment, or swipl's path of them,
+  ;;; `Dir/File' -- `deeper/h6' and `'../sub'/h3' name the files
+  ;;; `deeper/h6' and `../sub/h3' -- the segments joined by `/'. 0 for a
+  ;;; term that is neither, or one too long.
+  (static)
+  (func lb_segs_put ((coco_machine * m) (size_t t) (coco_strbuf * b)) (out int)
+        (set t (coco_deref m t))
+        (if (coco_is_compound2 m t "/")
+            (return (and (lb_segs_put m (coco_arg m t 0) b)
+                         (coco_sb_putc b (cast char 47))
+                         (lb_segs_put m (coco_arg m t 1) b))))
+        (return (lb_seg_put m t b)))
+
+  (static)
+  (func lb_spec_text ((coco_machine * m) (size_t t) (char * buf) (size_t cap)) (out int)
+        (let ((coco_strbuf b) (int ok . 0))
+          (coco_sb_init (aof b))
+          (set ok (lb_segs_put m t (aof b)))
+          (if (and ok (or (== ($ b s) nil) (>= ($ b len) cap) (== ($ b len) 0)
+                          (!= (strlen ($ b s)) ($ b len))))
+              (set ok 0))
+          (if ok (snprintf buf cap "%s" ($ b s)))
+          (coco_sb_free (aof b))
+          (return ok)))
+
+  ;;; A FILE A LOAD CAN READ: there, no directory, and readable -- swipl's
+  ;;; file_type(prolog) and access(read). The directory is asked by stat:
+  ;;; fopen alone opens one on Linux, and the read then fails as if the
+  ;;; file held nothing.
+  (static)
+  (func lb_loadable ((const char * path)) (out int)
+        (let ((stat_t sb))
+          (if (!= 0 (stat path (aof sb))) (return 0))
+          (if (S_ISDIR ($ sb st_mode)) (return 0))
+          (return (? (== 0 (access path R_OK)) 1 0))))
+
+  ;;; BASE WITH EACH OF SWIPL'S PROLOG EXTENSIONS AND THEN AS IT IS, the
+  ;;; first a load can read, into OUT: '$extend_file'/3's order, where
+  ;;; file_name_extension/3 adds one only where BASE has not got it, so
+  ;;; `x' is x.pl before x, and `x.pl' x.pl. Through 3.3.0 the name as
+  ;;; written came first, and x before x.pl. A `.so' is named outright, as
+  ;;; it always was; a `.qlf' is none cocolog reads.
+  (static) (var const char * lb_prolog_exts [] . '{".pl" ".prolog" ""})
+
+  (static)
+  (func lb_extend ((const char * base) (char * out) (size_t cap)) (out int)
+        (let ((size_t n . #'(strlen base)))
+          (if (and (> n 3) (== 0 (strcmp (+ base (- n 3)) ".so")))
+              (block (snprintf out cap "%s" base) (return (lb_loadable out))))
+          (for ((size_t i . 0)) (< i 3) ((++ i))
+            (let ((const char * x . #'(nth i lb_prolog_exts)) (size_t xl . #'(strlen x)))
+              (if (and (> xl 0) (>= n xl) (== 0 (strcmp (+ base (- n xl)) x)))
+                  (snprintf out cap "%s" base)
+                (snprintf out cap "%s%s" base x))
+              (if (lb_loadable out) (return 1))))
+          (return 0)))
+
+  ;;; A PATH FOUND, NAMED BY ITS ABSOLUTE PATH into OUT (3.4.0), as swipl
+  ;;; names every file it loads: against the working directory, `.' and
+  ;;; `..' folded away, no link resolved (`coco_f_normalise'). As it
+  ;;; stands where it will not fit.
+  (static)
+  (func lb_absolute ((const char * found) (char * out) (size_t cap))
+        (let ((char abs [4096]))
+          (if (coco_f_normalise found abs (sizeof abs))
+              (snprintf out cap "%s" abs)
+            (snprintf out cap "%s" found))))
+
+  ;;; WHERE A FILE SPEC'S TEXT IS (3.4.0), as swipl's '$chk_file'/5 looks
+  ;;; for it: an absolute name as it stands; a relative one in the
+  ;;; directory of the file being loaded first -- while a load reads a
+  ;;; file, which is when source_location/2 answers (`sloc_file', set
+  ;;; around each of its directives) -- and then in the working directory.
+  ;;; So `:- ensure_loaded(sib).' in sub/main.pl loads sub/sib.pl, read from
+  ;;; anywhere; a goal the program runs after its load, and an
+  ;;; initialization/1 goal, the working directory's. Through 3.3.0 every
+  ;;; name was the working directory's. Each place with swipl's extensions
+  ;;; first (`lb_extend'); 1 with the path in OUT, absolute (`lb_absolute').
+  (static)
+  (func lb_resolve ((coco_machine * m) (const char * text) (char * out) (size_t cap)) (out int)
+        (let ((char found [4096]))
+          (if (== (nth 0 text) (cast char 47))
+              (block (if (not (lb_extend text found (sizeof found))) (return 0))
+                     (lb_absolute found out cap)
+                     (return 1)))
+          (if (!= (-> m sloc_file) nil)
+              (let ((const char * src . #'(-> m sloc_file))
+                    (const char * slash . #'(strrchr src 47)))
+                ;; a source in the working directory has no place of its own
+                (if (!= slash nil)
+                    (let ((char base [4096]))
+                      (snprintf base (sizeof base) "%.*s/%s" (cast int (- slash src)) src text)
+                      (if (lb_extend base found (sizeof found))
+                          (block (lb_absolute found out cap) (return 1)))))))
+          (if (not (lb_extend text found (sizeof found))) (return 0))
+          (lb_absolute found out cap)
+          (return 1)))
+
+  ;;; Whether TEXT names a directory in either place, its absolute path in
+  ;;; OUT: what a load that found no file names, existence_error(file,
+  ;;; Spec) with context(_, directory(Dir)), as swipl's search names a
+  ;;; candidate that is there and is no file
+  (static)
+  (func lb_resolve_dir ((coco_machine * m) (const char * text) (char * out) (size_t cap)) (out int)
+        (if (and (!= (nth 0 text) (cast char 47)) (!= (-> m sloc_file) nil))
+            (let ((const char * src . #'(-> m sloc_file))
+                  (const char * slash . #'(strrchr src 47)))
+              (if (!= slash nil)
+                  (let ((char base [4096]))
+                    (snprintf base (sizeof base) "%.*s/%s" (cast int (- slash src)) src text)
+                    (if (lb_directory base)
+                        (block (lb_absolute base out cap) (return 1)))))))
+        (if (not (lb_directory text)) (return 0))
+        (lb_absolute text out cap)
+        (return 1))
+
   ;;; ---- resolution ------------------------------------------------------
 
-  (func coco_library_load ((coco_store * st) (coco_machine * m)
-                           (coco_engine * e) (size_t spec)
-                           (char * err) (size_t errlen)) (out int)
-        (set spec (coco_deref m spec))
-        (let ((char name [256]) (char path [1024]) (int kind . 0) (int is_lib . 0))
-          (set (nth 0 name) (cast char 0))
-
-          ;; library(Name), library(Dir/Name), or a plain path atom
-          (if (and (coco_is_callable m spec)
-                   (== (coco_arity m spec) 1)
-                   (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "library")))
-              (let ((size_t inner . #'(coco_deref m (coco_arg m spec 0))))
-                (set is_lib 1)
-                (if (coco-tag-is ATOM (nth inner (-> m heap)))
-                    (snprintf name 256 "%s" (coco_atom_name m (coco_name_of m inner)))
-                  (if (and (coco_is_callable m inner)
-                           (== (coco_arity m inner) 2)
-                           (== 0 (strcmp (coco_atom_name m (coco_name_of m inner)) "/")))
-                      (let ((size_t d . #'(coco_deref m (coco_arg m inner 0)))
-                            (size_t f . #'(coco_deref m (coco_arg m inner 1))))
-                        (if (not (and (coco-tag-is ATOM (nth d (-> m heap)))
-                                      (coco-tag-is ATOM (nth f (-> m heap)))))
-                            (block (snprintf err errlen "library/1 wants an atom or Dir/Name")
-                                   (return 0)))
-                        (snprintf name 256 "%s/%s"
-                                  (coco_atom_name m (coco_name_of m d))
-                                  (coco_atom_name m (coco_name_of m f))))
-                    (block (snprintf err errlen "library/1 wants an atom or Dir/Name")
-                           (return 0)))))
-            (if (coco-tag-is ATOM (nth spec (-> m heap)))
-                (snprintf name 256 "%s" (coco_atom_name m (coco_name_of m spec)))
-              (block (snprintf err errlen "use_module wants library(Name) or a file atom")
-                     (return 0))))
-
-          ;; 1. already registered, by name -- and its operators lent again,
-          ;; because a second file naming it is being read now
-          (if (!= (coco_module_find name) nil)
-              (block
-               (let ((const coco_module * mod . #'(coco_module_find name)))
-                 (lb_lend_ops m (-> mod prolog)))
-               (if (!= e nil) (coco_module_load st m e))
-               (return 1)))
-
-          ;; 2/3. the library path, .so before .pl
-          (if is_lib
-              (block
-               (if (not (lb_find name path 1024 (aof kind)))
-                   (block (snprintf err errlen "library(%s): not found on the library path"
-                                    name)
-                          (return -1))))
-            ;; a plain path: as written, then with .pl; a .so is named outright
-            (block
-             (set kind 2)
-             (let ((size_t len . #'(strlen name)))
-               (if (and (> len 3) (== 0 (strcmp (aof (nth (- len 3) name)) ".so")))
-                   (set kind 1)))
-             (snprintf path 1024 "%s" name)
-             (let ((FILE * f . #'(fopen path "rb")))
-               (if (!= f nil) (fclose f)
-                 (block
-                  (snprintf path 1024 "%s.pl" name)
-                  (let ((FILE * g . #'(fopen path "rb")))
-                    (if (== g nil)
-                        (block (snprintf err errlen "%s: no such file" name) (return -1)))
-                    (fclose g)))))))
-
+  ;;; A FILE FOUND, at PATH, loaded as the module NAME (KIND 1 a .so, 2 a
+  ;;; .pl), as coco_library_load loads one
+  (static)
+  (func lb_load_found ((coco_store * st) (coco_machine * m) (coco_engine * e)
+                       (const char * name) (const char * path) (int kind) (int is_lib)
+                       (char * err) (size_t errlen)) (out int)
           ;; A FILE ALREADY LOADED BY ANOTHER ROAD IS LOADED (2.13.0): one
           ;; this store holds consulted (`run', consult/1, the toplevel), or
           ;; one a module was read from under another spelling. Through 2.12
@@ -858,13 +957,17 @@
                                   (if (!= e nil) (coco_module_load st m e))
                                   (return 1))))))))
 
-          (if (== kind 1)
-              (block (if (not (lb_load_so path err errlen)) (return 0)))
-            (block (if (not (lb_load_pl path name err errlen)) (return 0))
-                   ;; a file named by its path is the program's own, not a
-                   ;; library: its predicates are counted as the program's
-                   ;; (1.10.28, `own' in lib/kb.cicili)
-                   (if (not is_lib) (coco_module_set_own name))))
+          ;; A LIBRARY'S FILE IS NAMED BY ITS ABSOLUTE PATH too (3.4.0), the
+          ;; path its load's reports name, as swipl's
+          (let ((char abs [4096]))
+            (lb_absolute path abs (sizeof abs))
+            (if (== kind 1)
+                (block (if (not (lb_load_so abs err errlen)) (return 0)))
+              (block (if (not (lb_load_pl abs name err errlen)) (return 0))
+                     ;; a file named by its path is the program's own, not a
+                     ;; library: its predicates are counted as the program's
+                     ;; (1.10.28, `own' in lib/kb.cicili)
+                     (if (not is_lib) (coco_module_set_own name)))))
 
           ;; its operators, for the rest of the file being read
           (let ((const coco_module * mod . #'(coco_module_find name)))
@@ -883,7 +986,73 @@
                              (snprintf err errlen "%s" (-> st load_err))
                            (snprintf err errlen "%s: its clauses would not consult" path))
                          (return 0))))
+          (return 1))
+
+  ;;; A MODULE REGISTERED UNDER NAME is loaded: its operators lent again,
+  ;;; because a second file naming it is being read now, and its clauses
+  ;;; into this store when an engine runs the goal. 0 when there is none.
+  (static)
+  (func lb_load_known ((coco_store * st) (coco_machine * m) (coco_engine * e)
+                       (const char * name)) (out int)
+        (let ((const coco_module * mod . #'(coco_module_find name)))
+          (if (== mod nil) (return 0))
+          (lb_lend_ops m (-> mod prolog))
+          (if (!= e nil) (coco_module_load st m e))
           (return 1)))
+
+  ;;; A FILE FOUND AT PATH, loaded as a module of the program's: KNOWN BY
+  ;;; WHERE IT IS (3.4.0), registered under its path, so the `h1' beside
+  ;;; one file and the `h1' beside another are two modules, where the name
+  ;;; as written made them one. A `.so' is a compiled module.
+  (static)
+  (func lb_load_path ((coco_store * st) (coco_machine * m) (coco_engine * e)
+                      (const char * path) (char * err) (size_t errlen)) (out int)
+        (let ((size_t len . #'(strlen path)) (int kind . 2))
+          (if (lb_load_known st m e path) (return 1))
+          (if (and (> len 3) (== 0 (strcmp (+ path (- len 3)) ".so"))) (set kind 1))
+          (return (lb_load_found st m e path path kind 0 err errlen))))
+
+  ;;; THE ANSWERS: 1 loaded; -1 not there -- a library not on the path, a
+  ;;; file in neither place, a term that names no file --; -2 a spec that
+  ;;; is a variable, swipl's instantiation_error; -3 a number where a file
+  ;;; name stands, swipl's type_error(text, N) from is_absolute_file_name/1;
+  ;;; -4 a name that is a directory, swipl's existence_error(file, Spec)
+  ;;; with context(_, directory(Dir)), Dir's absolute path in ERR; and 0
+  ;;; for one that was found and would not load, ERR saying why. Through
+  ;;; 3.3.0 a spec was library(Name), library(Dir/Name) or an atom, looked
+  ;;; for in the working directory alone, and anything else `use_module
+  ;;; wants library(Name) or a file atom'.
+  (func coco_library_load ((coco_store * st) (coco_machine * m)
+                           (coco_engine * e) (size_t spec)
+                           (char * err) (size_t errlen)) (out int)
+        (set spec (coco_deref m spec))
+        (let ((char name [4096]) (char path [4096]) (int kind . 0)
+              (u64 c . #'(nth spec (-> m heap))))
+          ;; a file: its text, or a path of segments, where it is
+          (if (not (and (coco_is_callable m spec)
+                        (== (coco_arity m spec) 1)
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m spec)) "library"))))
+              (block
+               (if (coco-tag-is REF c) (return -2))
+               (if (or (coco-is-int c) (or (coco-tag-is FLT c) (coco-rat-p c))) (return -3))
+               (if (not (lb_spec_text m spec name (sizeof name)))
+                   (block (snprintf err errlen "no such file") (return -1)))
+               (if (not (lb_resolve m name path (sizeof path)))
+                   (block (if (lb_resolve_dir m name err errlen) (return -4))
+                          (snprintf err errlen "%s: no such file" name)
+                          (return -1)))
+               (return (lb_load_path st m e path err errlen))))
+          ;; library(Name), library(Dir/Name): registered, or on the
+          ;; library path, .so before .pl
+          (let ((size_t inner . #'(coco_deref m (coco_arg m spec 0))))
+            (if (coco-tag-is REF (nth inner (-> m heap))) (return -2))
+            (if (not (lb_spec_text m inner name (sizeof name)))
+                (block (snprintf err errlen "library: no such library") (return -1))))
+          (if (lb_load_known st m e name) (return 1))
+          (if (not (lb_find name path (sizeof path) (aof kind)))
+              (block (snprintf err errlen "library(%s): not found on the library path" name)
+                     (return -1)))
+          (return (lb_load_found st m e name path kind 1 err errlen))))
 
   ;;; ---- always present --------------------------------------------------
   ;;;
@@ -968,28 +1137,56 @@
   ;;; the engine asking may collect: nothing of the heap is read here after
   ;;; the load, the spec only before it, and the step that called this keeps
   ;;; its goal on the engine (`kcall'). The vouch is `dgc' (lib/term.cicili).
+  ;;; THE BALL OF A NAME THAT IS A DIRECTORY (3.4.0), swipl's:
+  ;;; error(existence_error(file, Spec), context(_, directory(Dir))), Dir
+  ;;; the directory's absolute path
   (static)
-  (func lb_use ((coco_engine * e) (size_t g)) (out int)
+  (func lb_directory_ball ((coco_machine * m) (size_t spec) (const char * dir)) (out size_t)
+        (return (coco_make2 m "error"
+                            (coco_make2 m "existence_error" (coco_new_atom m "file") spec)
+                            (coco_make2 m "context" (coco_new_var m)
+                                        (coco_make1 m "directory" (coco_new_atom m dir))))))
+
+  (static)
+  (func lb_use ((coco_engine * e) (size_t g) (int * found)) (out int)
         (coco-mod-args e g ((spec 0))
-          (let ((char err [512]) (coco_machine * m . #'(-> e m)) (int was . #'(-> m dgc))
+          (let ((char err [4096]) (coco_machine * m . #'(-> e m)) (int was . #'(-> m dgc))
                 (int r . 0))
+            ;; A LIST OF FILES (3.4.0), swipl's: each loaded by the Coco
+            ;; half's `'$lf_mods'/1', a file's error printed and the next one
+            ;; loaded. Through 3.3.0 `use_module wants library(Name) or a
+            ;; file atom'.
+            (if (lb_files_list m spec)
+                (block (coco_m_decline e) (set (cof found) 0) (return 0)))
             (set (-> m dgc) (? (-> e gc) 1 0))
-            (set r (coco_library_load (-> e st) m e spec err 512))
+            (set r (coco_library_load (-> e st) m e spec err (sizeof err)))
             (set (-> m dgc) was)
             (if (== 1 r) (return 1))
+            ;; SWIPL'S ERRORS (3.4.0), where through 3.3.0 each was
+            ;; cocolog_error('use_module: nope: no such file'): a file or a
+            ;; library that is not there, an unbound spec, a number where a
+            ;; name stands, which swipl's is_absolute_file_name/1 refuses,
+            ;; and a name that is a directory
+            (if (== r -1) (return (coco_m_existence_error e "source_sink" spec)))
+            (if (== r -2) (return (coco_m_instantiation_error e)))
+            (if (== r -3)
+                (return (coco_m_raise_pi e (coco_make2 m "type_error" (coco_new_atom m "text") spec)
+                                         "system" "is_absolute_file_name" 1)))
+            (if (== r -4)
+                (return (? (coco_m_thrown e (lb_directory_ball m spec err)) 2 -1)))
             ;; a ball that ended the module's load goes on (3.1.0)
             (let ((int t . #'(lb_ball_again e)))
               (if (!= t 0) (return t)))
             (return (coco_m_error e "use_module" err)))))
 
-  (func lb_use_module1 ((coco_engine * e) (size_t g)) (out int)
-        (return (lb_use e g)))
+  (func lb_use_module1 ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (return (lb_use e g found)))
 
   ;;; the import list is accepted and ignored: cocolog has one namespace,
   ;;; so everything a library defines is visible -- MODULES.md records the
   ;;; difference rather than pretending it away
-  (func lb_use_module2 ((coco_engine * e) (size_t g)) (out int)
-        (return (lb_use e g)))
+  (func lb_use_module2 ((coco_engine * e) (size_t g) (int * found)) (out int)
+        (return (lb_use e g found)))
 
   ;;; ---- consult/1, load_files/2 and `[File]' (2.13.0) -------------------
 
@@ -1005,11 +1202,15 @@
 
   ;;; `$lf_say'(Ball): one file of a list that would not load, reported as
   ;;; SWI reports it, and the list goes on with the next.
+  ;;; Inside a directive it is said at the directive's place (3.4.0), as
+  ;;; swipl's print_message/2 says an error there: `:- [a, nope].'
   (static)
   (func lb_say ((coco_engine * e) (size_t g)) (out int)
-        (let ((char msg [1024]))
-          (coco_error_text (-> e m) (-> e st) (coco_m_arg e g 0) msg (sizeof msg))
-          (lb_say_text msg)
+        (let ((char msg [4096]) (coco_machine * m . #'(-> e m)))
+          (coco_error_text m (-> e st) (coco_m_arg e g 0) msg (sizeof msg))
+          (if (!= (-> m sloc_file) nil)
+              (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) msg)
+            (lb_say_text msg))
           (return 1)))
 
   ;;; `$lf_file'(Spec, If): ONE FILE, loaded as SWI's load_files/2 loads it
@@ -1094,11 +1295,18 @@
   (func lb_load_file ((coco_engine * e) (size_t g)) (out int)
         (coco-mod-args e g ((spec 0) (how 1))
           (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st))
-                (char name [1024]) (char path [1040]) (char full [4096]) (char err [4096])
-                (const char * mode . #'(coco_m_atom e how)) (u32 ar . 0)
+                (char name [4096]) (char path [4096]) (char full [4096]) (char err [4096])
+                (const char * mode . nil) (u32 ar . 0) (u32 har . 0)
                 (const char * fn . #'(coco_m_functor e spec (aof ar)))
-                (int exists . 0) (int r . 0) (int was . 0) (int again . 0) (size_t culprit . spec)
-                (i64 iv . 0) (double then . 0.0) (double now . 0.0) (char * text . nil))
+                (const char * hfn . #'(coco_m_functor e how (aof har)))
+                (int exists . 0) (int lf . 0) (int r . 0) (int was . 0) (int again . 0)
+                (size_t culprit . spec) (u64 c . 0)
+                (double then . 0.0) (double now . 0.0) (char * text . nil))
+            ;; load_files/2's own IF comes as lf(If), so a number is its
+            ;; error and not consult/1's (3.4.0)
+            (if (and (!= hfn nil) (and (== har 1) (== 0 (strcmp hfn "lf"))))
+                (block (set lf 1) (set how (coco_deref m (coco_arg m (coco_deref m how) 0)))))
+            (set mode (coco_m_atom e how))
             (if (== mode nil) (set mode "true"))
             (set exists (== 0 (strcmp mode "exists")))
             ;; library(Name): the library loader's
@@ -1113,22 +1321,44 @@
                    (if (!= t 0) (return t)))
                  (if (== r -1)
                      (return (? exists 1 (coco_m_existence_error e "source_sink" spec))))
+                 (if (== r -2) (return (coco_m_instantiation_error e)))
                  (return (coco_m_error e "consult" err))))
-            ;; a file by its text; any other compound names none
-            (if (or (and (!= fn nil) (> ar 0))
-                    (not (coco_m_text e spec name (sizeof name))))
-                (return (? exists 1 (coco_m_existence_error e "source_sink" spec))))
-            (if (coco_m_int e spec (aof iv)) (set culprit (coco_m_new_atom e name)))
-            (snprintf path (sizeof path) "%s" name)
-            (if (not (lb_regular path))
+            ;; A NUMBER (3.4.0), swipl's: load_files/2 refuses it as its
+            ;; is_absolute_file_name/1 does, type_error(text, N), and
+            ;; consult/1 and `[N]' look for the file its text names, an atom
+            ;; in their error (`'1.5''). Through 3.3.0 an integer was
+            ;; consult/1's for both, and a float named no file.
+            (set c (nth (coco_deref m spec) (-> m heap)))
+            (if (or (coco-is-int c) (or (coco-tag-is FLT c) (coco-rat-p c)))
                 (block
-                 (snprintf path (sizeof path) "%s.pl" name)
-                 (if (not (lb_regular path))
-                     (block
-                      (if exists (return 1))
-                      (if (lb_directory name)
-                          (return (coco_m_existence_error e "file" culprit)))
-                      (return (coco_m_existence_error e "source_sink" culprit))))))
+                 (if lf (return (coco_m_raise_pi e (coco_make2 m "type_error"
+                                                               (coco_new_atom m "text") spec)
+                                                 "system" "is_absolute_file_name" 1)))
+                 (let ((coco_strbuf nb))
+                   (coco_sb_init (aof nb))
+                   (coco_write_term m (aof nb) (coco_deref m spec) 0 0)
+                   (snprintf name (sizeof name) "%s" (? (== ($ nb s) nil) "" ($ nb s)))
+                   (coco_sb_free (aof nb)))
+                 (set culprit (coco_m_new_atom e name)))
+              ;; a file by its text, or by swipl's path of segments, Dir/File;
+              ;; any other compound names none
+              (block
+               (if (or (and (!= fn nil) (and (> ar 0) (not (coco_is_compound2 m spec "/"))))
+                       (not (lb_spec_text m spec name (sizeof name))))
+                   (return (? exists 1 (coco_m_existence_error e "source_sink" spec))))
+               ;; consult/1 takes a string's text, an atom in its error
+               (if (and (not lf) (coco-tag-is STR c)) (set culprit (coco_m_new_atom e name)))))
+            ;; WHERE IT IS (3.4.0): the directory of the file being loaded
+            ;; first, then the working directory, swipl's extensions before
+            ;; the name as it is (`lb_resolve'), the path absolute. Through
+            ;; 3.3.0 the name as written and then with `.pl', in the working
+            ;; directory alone.
+            (if (not (lb_resolve m name path (sizeof path)))
+                (block
+                 (if exists (return 1))
+                 (if (lb_resolve_dir m name full (sizeof full))
+                     (return (? (coco_m_thrown e (lb_directory_ball m culprit full)) 2 -1)))
+                 (return (coco_m_existence_error e "source_sink" culprit))))
             (if (== nil (realpath path full)) (snprintf full (sizeof full) "%s" path))
             (if (not (coco_file_mtime full (aof now))) (set now 0.0))
             ;; LOADED AS A MODULE: read again as that module (2.14.0), unless
@@ -1149,7 +1379,9 @@
                  (if (coco_store_loaded st full nil) (return 1))
                  (set was (-> m dgc))
                  (set (-> m dgc) (? (-> e gc) 1 0))
-                 (set r (coco_library_load st m e (coco_m_new_atom e path) err (sizeof err)))
+                 ;; the path found, loaded as itself: a spec looked for
+                 ;; again would be looked for where this load stands
+                 (set r (lb_load_path st m e path err (sizeof err)))
                  (set (-> m dgc) was)
                  (if (!= r 1)
                      (let ((int t . #'(lb_ball_again e)))
@@ -1190,6 +1422,17 @@
               (set (-> st muted) muted)
               (set (-> st ownload) own))
             (free text)
+            ;; WHAT ITS DIRECTIVES REGISTERED IS LOADED NOW (3.4.0), into this
+            ;; store, as use_module/1 as a goal loads it: a directive has no
+            ;; engine and leaves a module for the next ask, and through 3.3.0
+            ;; a goal of this engine called after the consult found the
+            ;; module's predicates unknown -- only a nested search, which
+            ;; asks, loaded them
+            (if (>= r 0)
+                (block (set was (-> m dgc))
+                       (set (-> m dgc) (? (-> e gc) 1 0))
+                       (coco_module_load st m e)
+                       (set (-> m dgc) was)))
             ;; A BALL A DIRECTIVE THREW THAT IS NO error(_, _) ENDED THE
             ;; LOAD (3.1.0), and goes on from here, as swipl's consult/1
             ;; lets it: what was read before it stays
@@ -1218,10 +1461,29 @@
   ;;; the tolerance for files borrowed from SWI, and that made a missing
   ;;; library(ray) look loaded until its first call. What the tolerance was
   ;;; FOR is kept, by name, in lb_carried.
+  ;;; AN UNBOUND SPEC, A NUMBER AND A DIRECTORY (3.4.0) are swipl's errors
+  ;;; here too, reported as a raising directive's: the ball's text into ERR,
+  ;;; the answer 0, and kb.cicili names the directive that failed
   (static)
-  (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)
-                           (char * err) (size_t errlen)) (out int)
+  (func lb_directive_one ((coco_store * st) (coco_machine * m) (size_t spec)
+                          (char * err) (size_t errlen)) (out int)
         (let ((int r . #'(coco_library_load st m nil spec err errlen)))
+          (if (or (== r -2) (or (== r -3) (== r -4)))
+              (let ((size_t mark . #'(-> m heap_len)) (size_t ball . 0) (char dir [4096]))
+                (cond ((== r -2)
+                       (set ball (coco_make2 m "error" (coco_new_atom m "instantiation_error")
+                                             (coco_new_var m))))
+                      ((== r -3)
+                       (set ball (coco_make2 m "error"
+                                             (coco_make2 m "type_error" (coco_new_atom m "text") spec)
+                                             (coco_ectx_pi m "system"
+                                                           (coco_new_atom m "is_absolute_file_name") 1
+                                                           (coco_new_var m)))))
+                      (#t (snprintf dir (sizeof dir) "%s" err)
+                          (set ball (lb_directory_ball m spec dir))))
+                (coco_error_text m st ball err errlen)
+                (set (-> m heap_len) mark)
+                (return 0)))
           (if (!= r -1) (return r))
           (let ((coco_strbuf b) (int carried . 0))
             (coco_sb_init (aof b))
@@ -1231,6 +1493,45 @@
                      (if (== 0 (strcmp ($ b s) (nth i lb_carried))) (set carried 1))))
             (coco_sb_free (aof b))
             (return (? carried 1 -1)))))
+
+  ;;; A LIST OF FILES (3.4.0), swipl's `:- use_module([a, b]).': each
+  ;;; loaded, each that loads nothing said at the directive's place, and the
+  ;;; directive holds -- no Warning that it failed. A list whose tail is no
+  ;;; list is its error, and the directive fails. Through 3.3.0 `use_module
+  ;;; wants library(Name) or a file atom'.
+  (static)
+  (func lb_directive_hook ((coco_store * st) (coco_machine * m) (size_t spec)
+                           (char * err) (size_t errlen)) (out int)
+        (if (not (lb_files_list m spec)) (return (lb_directive_one st m spec err errlen)))
+        (let ((size_t t . #'(coco_deref m spec)))
+          (while (coco_is_cons m t)
+            (let ((size_t f . #'(coco_deref m (coco_arg m t 0))) (int r . 0))
+              (set (nth 0 err) (cast char 0))
+              (set r (lb_directive_one st m f err errlen))
+              (if (!= r 1)
+                  (let ((coco_strbuf w))
+                    (coco_sb_init (aof w))
+                    (coco_write_term m (aof w) f 1 0)
+                    (if (== r -1)
+                        (snprintf err errlen "source_sink `%s' does not exist"
+                                  (? (== ($ w s) nil) "?" ($ w s)))
+                      (if (== (nth 0 err) (cast char 0))
+                          (snprintf err errlen "%s: could not be loaded"
+                                    (? (== ($ w s) nil) "?" ($ w s)))))
+                    (coco_sb_free (aof w))
+                    (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) err))))
+            (set t (coco_deref m (coco_arg m t 1))))
+          (if (coco_is_nil m t) (return 1))
+          (let ((size_t mark . #'(-> m heap_len)) (size_t ball . 0))
+            (if (coco-tag-is REF (nth t (-> m heap)))
+                (set ball (coco_make2 m "error" (coco_new_atom m "instantiation_error")
+                                      (coco_new_var m)))
+              (set ball (coco_make2 m "error"
+                                    (coco_make2 m "type_error" (coco_new_atom m "list") t)
+                                    (coco_new_var m))))
+            (coco_error_text m st ball err errlen)
+            (set (-> m heap_len) mark)
+            (return 0))))
 
   ;;; ---- and the seam a DIRECTIVE runs through ---------------------------
   ;;;

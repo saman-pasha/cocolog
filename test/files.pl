@@ -131,7 +131,48 @@ fixtures(absolute_file_name, Sandbox) :- !,
     atom_concat(Sandbox, '/d1/a.pl', A), fixture(A, ['a.']),
     atom_concat(Sandbox, '/d1/b.txt', B), fixture(B, ['b']),
     atom_concat(Sandbox, '/d1/sub/c.pl', C), fixture(C, ['c.']).
+%% the same names beside the sandbox, beside sub/ and beside other/, so that
+%% where a load looked is told by which file it read (`lp/2'), sub/dir a
+%% directory where a file is named, and sym a link to sub/deeper, which a
+%% file's absolute name keeps
+fixtures(load_paths, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub/deeper ', Sandbox, '/sub/dir ', Sandbox, '/other']),
+    forall(lp(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )),
+    shl(['cd ', Sandbox, ' && ln -s sub/deeper sym']).
 fixtures(_, _).
+
+lp('both.pl', ['both_cwd.']).
+lp('g1.pl', ['g1.']).
+lp('g2.pl', ['g2.']).
+lp('h7.pl', ['h7_cwd.']).
+lp('q1.pl', ['q1.']).
+lp('twin.pl', ['twin_cwd.']).
+lp(x, ['x_noext.']).
+lp('x.pl', ['x_pl.']).
+lp('y.prolog', ['y_prolog.']).
+lp('ex.pl', [':- ensure_loaded([g1|g2x]).',
+             ':- throw(error(existence_error(file, foo), context(system:foo/0, not_a_directory(\'/x\')))).',
+             ':- throw(error(permission_error(import_into(user), procedure, foo/1), context(system:foo/0, already_from(lists)))).',
+             'ex_done.']).
+lp('sub/deeper/n4.pl', [':- source_location(F, L), format("n4 at ~w:~w~n", [F, L]).', 'n4.']).
+lp('other/b.pl', [':- ensure_loaded(twin).']).
+lp('other/twin.pl', ['twin_other.']).
+lp('sub/both.pl', ['both_sub.']).
+lp('sub/h7.pl', ['h7_sub.']).
+lp('sub/n1.pl', ['n1.', ':- ensure_loaded(deeper/n2).']).
+lp('sub/n3.pl', ['n3_sub.']).
+lp('sub/twin.pl', ['twin_sub.']).
+lp('sub/deeper/n2.pl', ['n2.', ':- ensure_loaded(n3).']).
+lp('sub/deeper/n3.pl', ['n3_deeper.']).
+lp('sub/main.pl', ['sub_main.', ':- ensure_loaded(both).', ':- ensure_loaded(n1).',
+                   ':- ensure_loaded(twin).',
+                   ':- source_location(F, L), format("main at ~w:~w~n", [F, L]).',
+                   ':- initialization(ensure_loaded(h7)).']).
+lp('sub/errs.pl', [':- ensure_loaded([g1, nope1, g2]).', ':- use_module(123).',
+                   ':- ensure_loaded(dir).', ':- use_module(f(x)).', ':- [g1, nope2].',
+                   ':- load_files([g2, 77], []).', ':- use_module(1.5).',
+                   ':- source_location(F, L), format("errs at ~w:~w~n", [F, L]).',
+                   'errs_done.']).
 
 %% WHAT A CASE NEEDS THAT A BOX MAY NOT HAVE, the case skipped by name where
 %% it is missing, as test/library.pl skips hoot. module_context needs the

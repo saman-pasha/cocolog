@@ -9527,6 +9527,10 @@ PROVED:
   reconsult, trace, module, syntax, argv and flowchart, each GREEN; and
   lessons 00, 03, 09, 42 and 56, run as test/tutorials.pl runs them, each
   ending on `done'.
+- The whole suite, on CI (run 41222041305 on bba7cdf): green on all three
+  jobs, red 0 and every SKIP one the job allows. Ubuntu 24.04 in 24 minutes
+  (the suite 12), macOS 15 on Apple silicon in 24 (the suite 10), macOS 26
+  on Intel in 41 (the install 20, the suite 17).
 
 NOT DONE, and stated:
 - The REPL corrects no goal: swipl's toplevel asks `Correct to: "foo(x)"?'
@@ -9549,3 +9553,156 @@ NOT DONE, and stated:
   term and message; listing/1's and portray_clause/1's layout; expand_term/2
   and dcg_translate_rule/2; postfix operators; swipl's dicts;
   thread_initialization/1 in later threads.
+
+## A load looks for a file where swipl's does, and names it by its absolute path (3.4.0)
+
+The next of 3.3.0's list, and the differences under it: a load's relative
+name was looked for in the working directory alone, so a file's own
+`:- ensure_loaded(sib).' found the `sib.pl' beside the program's working
+directory and never the one beside itself. A minor, cocolog 3.4.0: a program
+that loads files by relative names may load other files than it did, a load's
+reports name other paths, and use_module/1,2 and ensure_loaded/1 raise other
+errors.
+
+WHAT CHANGED:
+- WHERE A FILE IS, swipl's '$chk_file'/5 (`lb_resolve' in
+  lib/library.cicili): an absolute name as it stands; a relative one first in
+  the directory of the file being loaded -- while a load reads one, which is
+  when source_location/2 answers (`sloc_file') -- and then in the working
+  directory. A goal run after the load and an initialization/1 goal look in
+  the working directory alone. In each place swipl's order of extensions:
+  `.pl', `.prolog', then the name as it stands (`lb_extend'; through 3.3.0
+  the name first and then `.pl', so `x' beside `x.pl' was `x'), and never a
+  directory (`lb_loadable'). For use_module/1,2, ensure_loaded/1, consult/1,
+  load_files/2 and `[File]', goals and directives alike.
+- WHAT NAMES A FILE (`lb_spec_text'): an atom, a string, an integer's digits,
+  a list of codes, one name (`"file"' is codes by default here), and swipl's
+  path of segments, `Dir/File' (`deeper/n2', `'../sub'/h3'). Any other list
+  is a list of files: use_module/1,2 and ensure_loaded/1 decline it (their
+  rows `:declines') to a Coco half that loads each and prints a file's error
+  and goes on (`'$lf_mods'/1', as `'$lf_load'/2' does for load_files/2), a
+  directive walks it and says each file that loads nothing at its place
+  (`lb_directive_hook'), `[]' loads nothing, and a tail that is unbound or no
+  list is swipl's instantiation_error or type_error(list, T). Through 3.3.0
+  each was `use_module wants library(Name) or a file atom'.
+- A MODULE IS KNOWN BY WHERE IT IS: a file loaded as a module is registered
+  under its absolute path (`lb_load_path'), so a `twin.pl' beside one file
+  and a `twin.pl' beside another are two modules; through 3.3.0 they were one
+  by the name as written, and the second loaded nothing.
+- SWIPL'S ERRORS from use_module/1,2 and ensure_loaded/1 as goals (`lb_use'):
+  existence_error(source_sink, Spec) for a file or a library that is not
+  there, instantiation_error for an unbound spec, type_error(text, N) from
+  is_absolute_file_name/1 for a number, and existence_error(file, Spec) with
+  context(_, directory(Dir)) for a name that is a directory; through 3.3.0
+  every one was cocolog_error('use_module: ...'). consult/1 and `[N]' look
+  for a number's text and name it as an atom (`'123''), load_files/2 refuses
+  it as use_module/1 does (load_files/2's IF comes to the C half as lf(If));
+  a string to consult/1 is named as an atom, to load_files/2 as the string;
+  `library(_)' is instantiation_error. A directive reports each of them at its
+  place, in swipl's words (`lb_directive_one'), and an error a list's file
+  met inside a directive is said there too (`lb_say').
+- THE NAMES IN THE REPORTS: a file a load reads is named by its absolute
+  path, `.' and `..' folded away and no link resolved (`coco_f_normalise',
+  `lb_absolute'), in every report of its load and in source_location/2;
+  `cocolog run FILE' and `cocolog consult FILE' name it so too. Through 3.3.0
+  as it was given (`run x.pl' said `x.pl:3:'), and source_location/2 by
+  realpath. The store's own keys stay realpath's, so a store made before
+  reads the same.
+- WHAT A CONSULTED FILE'S DIRECTIVES REGISTERED IS LOADED AT ONCE
+  (`lb_load_file' calls `coco_module_load'): a directive has no engine and
+  leaves a module for the next ask, and through 3.3.0 a goal of this engine
+  after consult/1 found its predicates unknown -- only a nested search, which
+  asks, loaded them (a findall/3 or a forall/2 around the goal hid it).
+- swipl's comments on a ball's context, in the engine's text as
+  print_message/2 had them (`coco_err_extra'): `(is a directory)', `(is not
+  a directory)', `(already imported from M)'; and `No permission to import
+  PI into M' for permission_error(import_into(M), procedure, PI), where it
+  was the action's term.
+
+PROVED:
+- test/files/load_paths.pl, new: 114 lines of swipl 9.0.4's output to the
+  byte, every rule above -- a file's own directives beside it, then the
+  working directory, an initialization/1 goal's in the working directory, a
+  path of segments from a file's directory, two `twin.pl's beside two files,
+  the extensions' order with `.prolog' among them, a list of codes as one
+  name, a file through a link, thirty goals' errors (the numbers, the
+  strings, the directory, the lists, `library(_)'), and the directives' own:
+  a list with a missing file, a number, a directory, a compound, `[F, G]', a
+  list's number, a tail that is no list, and the two comments a thrown ball
+  carries.
+- test/library.pl: a directive's unbound spec and unbound list tail,
+  swipl's errors at the file's absolute path though `run' and `consult' were
+  given it from its own directory (swipl's lines to the letter but for the
+  variables' names); and the missing library's term, swipl's.
+- THE ARMS, each a copy of the tree with ONE edit, built as the release is
+  and run through the two checks above, every one RED, 30 in all: where a
+  file is, six (the loading file's directory first, the working directory
+  after it, the extensions' order, `.prolog' among them, never a directory,
+  the absolute name the load is handed); what names a file, three (a
+  `Dir/File' path, a list of codes one name, `[]' none); the loader's
+  answers, four (a module registered by its path, a number's type_error, a
+  library that is a directory, a consult of a directory); lists, five
+  (use_module/1's decline of a list, '$lf_mods'/1's tail checked, a
+  directive's walk of a list, a directive's tail checked, a directive's
+  unbound spec reported); consult/1 and load_files/2, five (load_files/2's
+  refusal of a number, consult/1's culprit an atom for a number and for a
+  string, a directive's error said at its place, what a consulted file's
+  directives registered loaded at once); the messages, four (`(is a
+  directory)', `(is not a directory)', `(already imported from M)', the
+  import's refusal in swipl's words); and the names the reports give, three
+  (source_location/2 folded and not realpath's, `cocolog consult FILE''s,
+  `cocolog run FILE''s). 26 went red on load_paths and 3 (the unbound spec
+  and the two hosts') on test/library.pl. The working directory's arm gave
+  no verdict -- with the fallback gone the runner's own `test/prelude', a
+  name relative to the working directory, is not found beside test/run.pl --
+  and was red from a copy of the tree with `test/test' linked to `.': g1 and
+  g2, the working directory's files, not found from sub/errs.pl. One rule
+  has no arm: a file that is there and cannot be read is passed over
+  (`access(R_OK)' in `lb_loadable', as swipl's access check), and this box
+  runs as root, who reads through any mode.
+- `tools/flow/zero.sh' against 3.3.0 (bba7cdf's sources in a copy of the
+  tree, built as the arms are): the untraced engine's work less padding is
+  nrev 65 876 180 to 65 876 128, queens 42 900 232 to 42 901 955 and lookup
+  47 830 609 to 47 834 556 (0.000 %, +0.004 %, +0.008 %): nothing the step
+  loop reaches changed.
+- lint --auto over the changed files (0 HARD, 0 WARN); the dialect card's
+  cites moved and checked (28 rows, 40 cites), and its rows C2, C3 and T1
+  rewritten: a missing file or library is swipl's existence_error, not the
+  non-ISO sentence, which is a refusal's now (a library found and refused, a
+  module's own failure, a format directive cocolog does not have), and the
+  directive's warning names `user:use_module(...)', swipl's four lines to
+  the letter. tools/cocolint/GUIDE.md and library/llm/DESIGN.md say so too.
+- THE LESSONS the change made untrue, rewritten: 00's missing library is
+  existence_error(source_sink, library(no_such_library_here)), as it was
+  asked for, where it checked the sentence's words; and 09's section on the
+  ball that is not ISO shows a refusal -- format's column directives, which
+  a handler naming swipl's formal for a bad format string, format(_), walks
+  past -- where it showed the missing file, now swipl's term. Lessons 00 and
+  09 and library 01, 02, 09, 37, 42 and 56 and basics 03 and 11, run as
+  test/tutorials.pl runs them, each end on `done'.
+- THE NARROW CASES, in place of the full suite here (the owner's choice;
+  CI runs the whole suite on its three jobs): lint, files (beside the
+  reference swipl 9.0.4), library, directives, errors, module, reconsult,
+  backtrace, repl, trace, engine, syntax, argv and flowchart, each GREEN.
+  engine went red once on a scratch directory in /tmp that an earlier run
+  had left under a PID the container's restart handed out again (CLAUDE.md's
+  `scratch/1' hazard), and was green alone after it was cleared.
+
+NOT DONE, and stated:
+- A directory reached through a link is named by the path given, where
+  swipl names it by the first path it met it through (pl-os.c's
+  canonicaliseDir, by device and inode); test/files/load_paths.pl reads the
+  link before its target, where the two agree.
+- `[123]' is the file `{', a list of codes, where swipl's is a list of one
+  file, `'123'' (COMPAT.md).
+- Modules are one namespace still: a module's import list is not read, and
+  two modules may define one name. A variable a report writes is `_G' and a
+  heap position, where swipl writes `_' and a number.
+- include/1 is the next of these (swipl's: a file read where the directive
+  stands, its clauses the including file's).
+- From 3.1.0's, 3.2.0's and 3.3.0's lists, still: term_to_atom/2's `\n', a
+  quoted infix operator's spaces and a quoted prefix operator;
+  library(stream)'s errors; a load's singleton and discontiguous warnings; a
+  syntax error's class, term and message; listing/1's and portray_clause/1's
+  layout; expand_term/2 and dcg_translate_rule/2; postfix operators; swipl's
+  dicts; thread_initialization/1 in later threads.

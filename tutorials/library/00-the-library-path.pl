@@ -70,14 +70,14 @@ main :-
 
     format("~n-- a library that does not exist says so, and names itself~n"),
     catch(use_module(library(no_such_library_here)), error(E, _), true),
-    ( E = cocolog_error(Msg) -> true ; Msg = E ),
-    ( sub_atom(Msg, _, _, _, 'no_such_library_here') -> K = named_it ; K = Msg ),
-    must('the error names the library', K, named_it),
-    ( sub_atom(Msg, _, _, _, 'library path') -> W = and_where ; W = Msg ),
-    must('...and where it looked', W, and_where),
-    format("   The ball is `cocolog_error(Text)', not one of ISO's --~n"),
-    format("   this is the loader's own failure and there is no ISO~n"),
-    format("   formal that fits it. Match on error(cocolog_error(_), _).~n"),
+    must('the error names the library as it was asked for', E,
+         existence_error(source_sink, library(no_such_library_here))),
+    format("   The ball is swipl's, ISO's formal for a source that does~n"),
+    format("   not exist (3.4.0; through 3.3.0 it was cocolog's own~n"),
+    format("   sentence, cocolog_error(Text)). Match on~n"),
+    format("   error(existence_error(source_sink, _), _). A library that~n"),
+    format("   IS found and refused -- a module that will not load -- is~n"),
+    format("   still the sentence: no ISO formal fits a refusal.~n"),
 
     own_files,
 

@@ -2202,6 +2202,19 @@
           (if (and (coco-tag-is ATOM (nth w (-> m heap)))
                    (== (nth 0 (coco_atom_name m (coco_name_of m w))) (cast char 0)))
               (return))
+          ;; swipl's own comments (3.4.0, messages.pl's swi_comment//1): a
+          ;; load or a search that met a directory, or one that wanted one
+          (if (and (coco_is_callable m w) (== (coco_arity m w) 1))
+              (let ((const char * wn . #'(coco_atom_name m (coco_name_of m w))))
+                (if (== 0 (strcmp wn "directory"))
+                    (block (coco_sb_put b " (is a directory)") (return)))
+                (if (== 0 (strcmp wn "not_a_directory"))
+                    (block (coco_sb_put b " (is not a directory)") (return)))
+                (if (== 0 (strcmp wn "already_from"))
+                    (block (coco_sb_put b " (already imported from ")
+                           (coco_write_term m b (coco_arg m w 0) 1 0)
+                           (coco_sb_put b ")")
+                           (return)))))
           (coco_sb_put b " (")
           (coco_write_term m b w 0 0)
           (coco_sb_put b ")")))
@@ -2278,6 +2291,22 @@
                        (if (== 0 (strcmp a2 "static_procedure"))
                            (block (snprintf out len "No permission to %s static procedure `%s'" a1 a3)
                                   (return)))
+                       ;; and an import (3.4.0): `No permission to import
+                       ;; foo/1 into user', where it was the action's term
+                       (let ((size_t act . #'(coco_deref m (coco_arg m f 0))))
+                         (if (and (== 0 (strcmp a2 "procedure"))
+                                  (and (coco_is_callable m act)
+                                       (and (== (coco_arity m act) 1)
+                                            (== 0 (strcmp (coco_atom_name m (coco_name_of m act))
+                                                          "import_into")))))
+                             ;; the module as ~w writes it, unquoted
+                             (let ((coco_strbuf db))
+                               (coco_sb_init (aof db))
+                               (coco_write_term m (aof db) (coco_arg m act 0) 0 0)
+                               (snprintf out len "No permission to import %s into %s" a3
+                                         (? (== ($ db s) nil) "?" ($ db s)))
+                               (coco_sb_free (aof db))
+                               (return))))
                        (if (and (== 0 (strcmp a1 "input")) (== 0 (strcmp a2 "stream")))
                            (block (snprintf out len "No permission to read from output stream `%s'" a3)
                                   (return)))

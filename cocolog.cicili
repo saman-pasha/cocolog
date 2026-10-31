@@ -410,7 +410,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.3.0"))
+  (func coco_version_text () (out const char *) (return "3.4.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -658,10 +658,14 @@
               ;; cell (`dgc', lib/term.cicili)
               (set ($ m dgc) 1)
               ;; noted before, the file is read AGAIN (2.14.1): its clauses
-              ;; placed as swipl's reload places them
-              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
-                                         (coco_library_note_load (aof st) (nth i argv))
-                                         err (sizeof err)))
+              ;; placed as swipl's reload places them; NAMED BY ITS ABSOLUTE
+              ;; PATH in the load's reports (3.4.0), as swipl names it
+              (let ((char shown [4096]))
+                (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
+                    (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                (set n (coco_consult_again (aof st) (aof m) text shown
+                                           (coco_library_note_load (aof st) (nth i argv))
+                                           err (sizeof err))))
               (set ($ m dgc) 0)
               (free text)
               (if (< n 0)
@@ -2435,10 +2439,14 @@
               ;; the store knows it holds the file (2.13.0): the program's
               ;; ensure_loaded/1 of it is then a no-op, not a second copy.
               ;; Noted before, it is read AGAIN (2.14.1): its clauses placed
-              ;; as swipl's reload places them
-              (set n (coco_consult_again (aof st) (aof m) text (nth i argv)
-                                         (coco_library_note_load (aof st) (nth i argv))
-                                         err (sizeof err)))
+              ;; as swipl's reload places them. NAMED BY ITS ABSOLUTE PATH in
+              ;; the load's reports (3.4.0), as swipl names it
+              (let ((char shown [4096]))
+                (if (not (coco_f_normalise (nth i argv) shown (sizeof shown)))
+                    (snprintf shown (sizeof shown) "%s" (nth i argv)))
+                (set n (coco_consult_again (aof st) (aof m) text shown
+                                           (coco_library_note_load (aof st) (nth i argv))
+                                           err (sizeof err))))
               (set ($ m dgc) 0)
               ;; a load a syntax error stopped, or one a directive's ball
               ;; ended (3.1.0, swipl's `Prolog initialisation failed', and

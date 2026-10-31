@@ -3,8 +3,8 @@
 One table for everything a program written for SWI-Prolog can trip over. Each
 row was checked by running the same goal on both systems (SWI-Prolog 9.0.4, and
 the installed 10.0.2 where the two agree; cocolog 3.1.0, every row checked
-again on it, and the rows 3.2.0 changed on 3.2.0) — not recalled from the
-code — and the column on the right says what to write instead.
+again on it, and the rows 3.2.0 and 3.4.0 changed on those) — not recalled
+from the code — and the column on the right says what to write instead.
 
 The rows that can give a **silently wrong answer** come first, because they are
 the ones a ported program will not report. Everything below them fails loudly:
@@ -27,6 +27,8 @@ an existence error, an instantiation error, a refusal by name.
 | `redefine_system_predicate/1` of a type test (`integer/1`, `atom/1`, `var/1`, ...) | a test of a VARIABLE in a clause body is compiled in place, and the builtin answers there; the program's answers anywhere else (`integer(a)`, call/1, the top level) | the program's everywhere | a name of your own |
 | a module on a library directory the program added (`file_search_path(library, Dir)`, `COCOLOG_LIBRARY`) | a module from outside swipl's own library is the user's class: its calls see the system predicates the program defines (`msort/2`) | a library is a library wherever it lies: its calls keep the builtin, as swipl's own library modules do (3.1.0). A module loaded by its path (`use_module('dir/m.pl')`) sees the program's in both | load it by its path |
 | `thread_initialization/1` | runs the goal now, and again at the start of every thread created after it | runs it now, and only now (3.2.0, where it became a declaration operator and a goal; through 3.1.0 an unknown procedure): a thread of `library(thread)` is a machine of its own that runs nothing before its goal | call the goal first in each thread's goal |
+| a file in a directory reached through a link, by two paths | names the directory by the first path it met it through (pl-os.c's canonicaliseDir, keyed by device and inode): after a load from `sub/deeper`, `consult('sym/n4')` reports `.../sub/deeper/n4.pl` | names a file by the path given, `.` and `..` folded and no link resolved (3.4.0; through 3.3.0 a load's reports named it as given, and source_location/2 by realpath), so `.../sym/n4.pl` whatever came first | name a file by one path |
+| a list of integers where a file is named (`consult([123])`) | a list of files, here the one file 123: `consult/1` looks for `'123'`, use_module/1 and ensure_loaded/1 raise `type_error(text, 123)` | a list of codes, one name: `[123]` is the file `{` (3.4.0), because `"file"` is codes by default here and must name a file; any other list is a list of files, as swipl's | an atom |
 
 ## Loud: an error where SWI enumerates or accepts
 

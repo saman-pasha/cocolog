@@ -193,7 +193,7 @@ a gate for free.
 | **D3** | `:- use_module(library(lists)).` | write nothing | Tier 1 is compiled in / preloaded: `apply builtins dcg files library lists zigurat` + `assoc pairs ordsets yall aggregate ugraphs dcg_basics dcg_high_order`. 26 such lines were deliberately removed from this tree. Harmless, but off-idiom. |
 | **D4** | `:- use_module(library(dcg/basics)).` | nothing (it is tier 1 as `dcg_basics`) | `library(Dir/Name)` becomes the path `"Dir/Name"`, and the vendored file is `lib/swipl/dcg_basics.pl`. As a directive: silently ignored. As a **goal**: raises. |
 | ~~**C1**~~ | ~~`catch(findall(X,G,L), E, …)`~~ | **retired** | A nested engine dropped the ball and the outer catch never fired; `findall/3,4`, `forall/2`, `aggregate_all/3`, `bagof/3` and `setof/3` catch since 1.1.0 and `with_output_to/2` since 1.2.12, so the row went with the divergence. |
-| **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. Library and loader failures are the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. |
+| **C2** | `catch(G, error(T, context(_,_)), …)` | `catch(G, error(T, _), …)` | The context here is a bare `name/arity`. A refusal — a library found and refused, a module's own failure — is the **non-ISO** `error(cocolog_error(Text), _)` — match it explicitly. A library that is not there is swipl's `error(existence_error(source_sink, Spec), _)` since 3.4.0. |
 | **A1** | `X is atan(Dy,Dx)` `atan2(Dy,Dx)` `random(10)` `sinh(X)` `inf` | compute it: `atan(Dy/Dx)` + quadrant; the one-argument forms; there is no random | Not evaluable here, and each raises `type_error(evaluable, Name/Arity)`, SWI's own error and catchable (since 1.10.6; through 1.10.5 a functor with arguments went through `coco_fail_err` — −1, **no ball**). A **prompt** row since 2.2.1: its linter pattern could not tell `log(A, B)` the function from a predicate of that name. `log(2, N)` is in neither: swipl 9 lacks `log/2` too. |
 | ~~**A2**~~ | ~~`X is 1 << 62`, 64-bit ids~~ | **retired** | Integers are 64 bits since 2.0.0 (a value past a cell's 61 is boxed in a table, as a float is) and a result past them raises `evaluation_error(int_overflow)`: loud, not silent. The row and its linter rule A1 went with the wrap. |
 | ~~**A3**~~ | ~~`X is 2 ** 10` → `1024.0`~~ | **retired** | That float is ISO's answer, not swipl's: swipl 9's `2 ** 10` is the integer `1024`, as cocolog's is, and since 2.2.0 the power is swipl's `ar_pow()` in every case (`X ** 0` the integer 1, `1 ** Y` 1, a NaN or an infinity raised). The row went in 2.2.0. |
@@ -576,7 +576,8 @@ command -v swipl
 ```
 A tier-2 library is probed **as a goal**, not as a directive: the directive maps not-found to
 success and says nothing (card row T1). As a goal it raises
-`error(cocolog_error('use_module: library(tcp): not found on the library path'), _)`.
+`error(existence_error(source_sink, library(tcp)), _)`, swipl's ball since cocolog 3.4.0
+(through 3.3.0 `error(cocolog_error('use_module: library(tcp): not found on the library path'), _)`).
 This is `test/tutorials.sh:42-46`'s own probe.
 
 ### Never used, and why
@@ -785,7 +786,8 @@ produce a fourth like them.
   when the request touched the knowledge base and a server answered.
 - **AMBER** — it runs, and some check could not run: a tier-2 `.so` absent, no server, no swipl.
   **A skipped check is never dressed as a pass.** A check whose goal raised
-  `error(cocolog_error('use_module: … not found on the library path'), _)` is reclassified from
+  `error(existence_error(source_sink, library(…)), _)` (through cocolog 3.3.0
+  `error(cocolog_error('use_module: … not found on the library path'), _)`) is reclassified from
   failure to skip *before* the verdict is computed, and the message names the exact
   `sh modules/X/build.sh`.
 - **RED** — it does not run. Class, locus, every repair attempted and why each failed.
