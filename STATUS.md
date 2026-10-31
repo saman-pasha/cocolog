@@ -9687,6 +9687,10 @@ PROVED:
   engine went red once on a scratch directory in /tmp that an earlier run
   had left under a PID the container's restart handed out again (CLAUDE.md's
   `scratch/1' hazard), and was green alone after it was cleared.
+- The whole suite, on CI (run 41230624340 on d72c9b0): green on all three
+  jobs, red 0 and every SKIP one the job allows. Ubuntu 24.04 in 24 minutes
+  (the suite 12), macOS 15 on Apple silicon in 23 (the suite 11), macOS 26
+  on Intel in 38 (the install 19, the suite 15).
 
 NOT DONE, and stated:
 - A directory reached through a link is named by the path given, where
@@ -9706,3 +9710,142 @@ NOT DONE, and stated:
   syntax error's class, term and message; listing/1's and portray_clause/1's
   layout; expand_term/2 and dcg_translate_rule/2; postfix operators; swipl's
   dicts; thread_initialization/1 in later threads.
+
+## include/1 reads a file where the directive stands, as swipl's (3.5.0)
+
+The next of 3.4.0's list: `:- include(File).' was a goal like any other
+directive -- an unknown procedure, reported, and the load went on without
+the file. A minor, cocolog 3.5.0: a program that includes files reads them
+now, a load whose include names nothing it can read ends there, a script
+whose load a ball ended says swipl's two lines and exits 1 where an
+error(_, _) exited 2, and an error's culprits are written whole.
+
+WHAT CHANGED:
+- THE DIRECTIVE READS THE FILE WHERE IT STANDS (the include branch of
+  `coco_consult_owned' in lib/kb-consult.cicili): the file is read by the
+  same function, inside the load that names it, and what it holds is read as
+  if it stood in the including file's place. An include in a branch a
+  `:- if' does not take is not read.
+- WHERE THE FILE IS (`lb_include' in lib/library.cicili, through the new
+  seam `coco_include_hook'): as a load looks for one since 3.4.0
+  (`lb_resolve'), beside the file that names it first -- `sloc_file' is the
+  including file while the hook looks -- then in the working directory,
+  `.pl', `.prolog', then the name as it stands, never a directory; any spec
+  a load takes (an atom, a string, digits, a list of codes, `Dir/File'); and
+  `library(Name)' on the library path.
+- WHOSE ITS CLAUSES ARE: the including file's, owned by its oid and its
+  `seen' set, so a reconsult of the including file replaces them, the
+  included file read again with it, and a predicate only included files
+  define stays defined.
+- ITS GOALS: an included file's initialization/1 goals go to the whole
+  load's end (`up', the including load's list), in the order written, each
+  reported at the file and line it stood in (`coco_initgoals'' new `files',
+  `file'); its directives' reports and source_location/2 name the included
+  file and its own lines.
+- WHAT ENDS THE LOAD, as swipl's: a spec that names nothing it can read --
+  existence_error(source_sink, Spec) for a file that is not there, a list of
+  files and any other list that is no name; instantiation_error for an
+  unbound spec; type_error(text, N) from is_absolute_file_name/1 for a
+  number; type_error(text, []) from atomic_list_concat/2 for `[]';
+  existence_error(file, Spec) with context(_, directory(Dir)) for a
+  directory. The ball is put on the machine (`lball') and raised out of
+  consult/1 as a directive's ball is (`lb_ball_again'), what the files read
+  before it standing; an included file whose own load ended ends the one
+  that included it.
+- A CYCLE IS REFUSED, which swipl's is not: an include of a file already
+  open on the way down to it, or one sixty-four files deep, raises
+  error(permission_error(include, source_sink, Spec), _), `No permission to
+  include source_sink `Spec'' (`coco_include_open', `coco_include_refused'),
+  where swipl reads the file again, and again, until it is killed.
+- A DIRECTIVE, NEVER A GOAL: `include/1' as a goal is an unknown procedure,
+  as swipl's (and a store with no hook installed -- a test binary, which
+  loads no library module -- reads the directive as a goal, as before).
+- A SCRIPT'S LOAD THAT A BALL ENDED says swipl's `Prolog initialisation
+  failed:' over the message, and exits 1, whatever the ball
+  (`script_load_ended' in cocolog.cicili): through 3.4.0 an error(_, _) --
+  use_module/1's own refusal of the script's file, and now an include's
+  ball -- was said as `main''s error, `-s main:', and exited 2.
+- AN ERROR'S CULPRITS ARE WRITTEN WHOLE (`coco_error_body' in
+  lib/solve-control.cicili): through 3.4.0 each argument of an error term
+  went through 256 bytes, and a path or a name longer than that was cut in
+  every message the engine wrote; every report's buffer has been 4096 since
+  3.3.0, and the culprits' are 4096 too.
+
+PROVED:
+- test/files/include.pl, new: 53 lines of swipl 9.0.4's output to the byte
+  (test/files.pl's `fixtures(include, _)'): sub/m.pl includes `a', found as
+  sub/a.pl beside it and not as the a.pl beside the sandbox, which includes
+  `deep/b', found below it; an include in a `:- if(fail).' branch not read;
+  source_location/2 in each of the three files; the initialization goals run
+  at the whole load's end, a failed one reported at its own file and line,
+  and `:- fail.' at its own; a reconsult of sub/m.pl replacing the included
+  clauses and keeping q/1, which only the included files define; seven specs
+  that end the load -- no such file, a variable, a list of files, a
+  directory, a number, `[]', `[a]' -- each with swipl's message and what its
+  file read before it standing; and include/1 as a goal, an unknown
+  procedure.
+- test/library.pl, the new section `include/1: the refusals, and a script
+  it ends': an include of the file it stands in refused, what that file read
+  before it standing; a chain of seventy files refused at the sixty-fifth,
+  the sixty-four above it read; `-s' of a script whose include names nothing
+  says swipl's two lines and exits 1; a name of six hundred characters said
+  whole; and an include of library(Name) reading the library path's file.
+- THE ARMS, each a copy of the tree with ONE edit, built as the release is
+  and run through the two checks above, every one RED, 20 in all: the
+  include in the reader, eleven (the including file's place while the file
+  is looked for; the owner of its clauses; the reconsult's `seen' set; the
+  goals put off to the whole load; the included file's own name for its
+  clauses and reports; an initialization goal reported at its own file; a
+  spec that names nothing ending the load; an include in a branch not taken
+  left unread; the cycle refused; the sixty-four; the refusal's term); the
+  hook that finds the file, six (an unbound spec, a number, `[]', a
+  library's file, a directory, the hook installed at all); the script's
+  report, two (`Prolog initialisation failed' for any ball, its buffer); and
+  the culprits' buffers, one. 13 went red on test/files/include.pl and 7 on
+  test/library.pl's new section. One arm's first build linked without
+  OpenSSL -- the Makefile's TLS probe writes one fixed file in /tmp, and the
+  four trees' builds raced on it -- and was built again alone (the probe's
+  own fix is a commit of its own).
+- `tools/flow/zero.sh' against 3.4.0 (d72c9b0's sources in a copy of the
+  tree, built as the arms are): the untraced engine's work less padding is
+  nrev 65 876 310 to 65 876 139, queens 42 902 117 to 42 901 955 and lookup
+  47 834 404 to 47 834 572 (0.000 % in each): nothing the step loop reaches
+  changed.
+- lint --auto over the changed files (0 HARD, 0 WARN), and the dialect
+  card's cites checked (28 rows, 40 cites, four renumbered after the edits
+  above them).
+- THE LESSONS that load files or print a load's report -- basics 03, 09 and
+  11, library 00, 01, 02, 09, 37, 38, 42, 52 and 56 -- run as
+  test/tutorials.pl runs them, each ending on `done'.
+- THE NARROW CASES, in place of the full suite here (the owner's choice;
+  CI runs the whole suite on its three jobs): lint first, then files (beside
+  the reference swipl 9.0.4), library, directives, errors, module,
+  reconsult, backtrace, repl, trace, engine, syntax, argv and flowchart,
+  each GREEN.
+
+NOT DONE, and stated:
+- `:- include([0'a]).' reads the codes as a name, a.pl, where swipl's is
+  `source_sink `[97]' does not exist'; `"a"' is the same list here, and
+  swipl's string (COMPAT.md, the `[123]' row).
+- An include of a library cocolog compiles in (library(lists)) is
+  existence_error(source_sink, library(lists)); swipl reads its source,
+  whose `:- module/2' makes the rest of the including file that module's.
+- An include of a file open on the way down to it, or sixty-four deep, is
+  refused, where swipl reads it again for ever.
+- A predicate's clauses an include splits draw no discontiguous warning
+  (#434, with a load's singletons): test/files/include.pl declares them.
+- A directory named as the `-s' script keeps the comment `(is a
+  directory)', which swipl's include prints and its script load does not.
+- A ball that ends a NESTED load -- the file a directive's ensure_loaded/1
+  or use_module/1 names, ended by its include or by a directive's ball -- is
+  reported at the next goal, which reads the file again, where swipl's is
+  the directive's own (`Goal (directive) failed: user:ensure_loaded(F)' at
+  its line): the next of these (#445), with a load a ball ended read again
+  only when a load names it.
+- sleep/1 is an unknown procedure here (found on the way, #446).
+- From 3.1.0's to 3.4.0's lists, still: term_to_atom/2's `\n', a quoted
+  infix operator's spaces and a quoted prefix operator; library(stream)'s
+  errors; a load's singleton and discontiguous warnings; a syntax error's
+  class, term and message; listing/1's and portray_clause/1's layout;
+  expand_term/2 and dcg_translate_rule/2; postfix operators; swipl's dicts;
+  thread_initialization/1 in later threads; modules one namespace.

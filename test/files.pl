@@ -139,7 +139,36 @@ fixtures(load_paths, Sandbox) :- !,
     shl(['mkdir -p ', Sandbox, '/sub/deeper ', Sandbox, '/sub/dir ', Sandbox, '/other']),
     forall(lp(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )),
     shl(['cd ', Sandbox, ' && ln -s sub/deeper sym']).
+%% the files an include reads, beside the file that names them and below it
+%% (`ic/2'), an a.pl beside the sandbox that a load beside sub/m.pl must not
+%% take, and sub/dir a directory where a file is named
+fixtures(include, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/sub/deep ', Sandbox, '/sub/dir']),
+    forall(ic(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
 fixtures(_, _).
+
+%% swipl warns of a predicate's clauses an include splits, which cocolog does
+%% not yet: the files declare them discontiguous
+ic('a.pl', ['wrong_a.']).
+ic('sub/m.pl', [':- discontiguous p/1.', ':- discontiguous q/1.', 'p(0).',
+                ':- include(a).', 'p(9).',
+                ':- if(fail).', ':- include(nope_skipped).', 'skipped.', ':- endif.',
+                ':- source_location(F, L), format("m at ~w:~w~n", [F, L]).',
+                ':- initialization(writeln(init_m)).']).
+ic('sub/a.pl', ['p(1).', ':- source_location(F, L), format("a at ~w:~w~n", [F, L]).',
+                ':- include(deep/b).', 'p(2).', ':- initialization(writeln(init_a)).',
+                ':- initialization(fail).', ':- fail.', 'q(a).']).
+ic('sub/deep/b.pl', ['p(3).', ':- source_location(F, L), format("b at ~w:~w~n", [F, L]).',
+                     'q(b).']).
+ic('e1.pl', ['r1(0).', ':- include(nope).', 'r1(1).']).
+ic('e2.pl', ['r2(0).', ':- include(_).', 'r2(1).']).
+ic('e3.pl', ['r3(0).', ':- include([sub/x1, sub/x2]).', 'r3(1).']).
+ic('e5.pl', ['r5(0).', ':- include(sub/dir).', 'r5(1).']).
+ic('e6.pl', ['r6(0).', ':- include(123).', 'r6(1).']).
+ic('e7.pl', ['r7(0).', ':- include([]).', 'r7(1).']).
+ic('e8.pl', ['r8(0).', ':- include([a]).', 'r8(1).']).
+ic('sub/x1.pl', ['x1.']).
+ic('sub/x2.pl', ['x2.']).
 
 lp('both.pl', ['both_cwd.']).
 lp('g1.pl', ['g1.']).

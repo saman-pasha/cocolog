@@ -410,7 +410,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.4.0"))
+  (func coco_version_text () (out const char *) (return "3.5.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -861,18 +861,18 @@
         (if (== rc 0) (return 1))
         (return 2))
 
-  ;;; A SCRIPT'S LOAD THAT A DIRECTIVE'S BALL ENDED (3.1.0): the load's goal
-  ;;; threw a term that is no error(_, _) -- use_module/1's own raises all
-  ;;; are -- which is the ball, thrown again by the load (lib/library.cicili's
-  ;;; `lb_ball_again'), and swipl's words for it, `Prolog initialisation
-  ;;; failed:' over the message. 1 said, 0 for any other raise.
+  ;;; A SCRIPT'S LOAD THAT A BALL ENDED (3.1.0): the load's goal threw --
+  ;;; a directive's ball that is no error(_, _), thrown again by the load
+  ;;; (lib/library.cicili's `lb_ball_again'), an include/1 of what is not
+  ;;; there (3.5.0), or use_module/1's own refusal of the file -- and
+  ;;; swipl's words for it, whatever the ball, `Prolog initialisation
+  ;;; failed:' over the message. Through 3.4.0 an error(_, _) was said as
+  ;;; `main''s was, `-s main:', and exited 2. 1 said, 0 for a raise that is
+  ;;; no ball.
   (func script_load_ended ((coco_engine * e)) (out int)
         (if (not (-> e has_ball)) (return 0))
         (let ((coco_machine * m . #'(-> e m))
-              (coco_store * bs . #'(? (== (-> e ball_st) nil) (-> e st)
-                                      (cast (coco_store *) (-> e ball_st))))
-              (char msg [512]))
-          (if (coco_is_compound2 m (coco_store_read m bs (-> e ball_cell)) "error") (return 0))
+              (char msg [4096]))
           (fflush nil)
           (coco_out_fresh stderr)
           (if (not (coco_engine_error_text e msg (sizeof msg)))

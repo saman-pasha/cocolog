@@ -41,7 +41,7 @@
 
 main :-
     scratch(D),
-    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), shared_object(D), across_processes(D),
+    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), includes(D), shared_object(D), across_processes(D),
     always_present, still_answers,
     shl(['rm -rf ', D]),
     checks_done.
@@ -154,6 +154,55 @@ errors(D) :-
     shell(Run4, Out4, _),
     vars_said(Real3, Out4, R4),
     check('consult: the same', R4, said).
+
+%% WHAT include/1 DOES THAT NO swipl CAN BE ASKED (3.5.0): an include of a
+%% file already open on the way down to it, or one sixty-four files deep,
+%% is refused -- swipl reads it again for ever -- with
+%% error(permission_error(include, source_sink, Spec), _), and the load
+%% ends there, what it read before standing; and a script whose include
+%% names nothing ends its load as swipl's script does, `Prolog
+%% initialisation failed' and exit 1 (test/files/include.pl holds the rest
+%% to swipl's text)
+includes(D) :-
+    section('include/1: the refusals, and a script it ends'),
+    atom_concat(D, '/self.pl', Self),
+    fixture(Self, ['s(1).', ':- include(self).', 's(2).']),
+    written(catch(consult(Self), error(E1v, _), true), E1v, G1),
+    check('an include of the file it stands in is refused', G1,
+          'permission_error(include,source_sink,self)'),
+    written(findall(X2, s(X2), L2), L2, G2),
+    check('...and what the file read before it stands', G2, '[1]'),
+    forall(between(0, 70, I3),
+           ( atom_concat(D, '/c', P3), atom_concat(P3, I3, B3), atom_concat(B3, '.pl', F3),
+             format(atom(C3), "d(~d).", [I3]), J3 is I3 + 1,
+             format(atom(N3), ":- include(c~d).", [J3]),
+             ( I3 < 70 -> fixture(F3, [C3, N3]) ; fixture(F3, [C3]) ) )),
+    atom_concat(D, '/c0.pl', C0),
+    written(catch(consult(C0), error(E3v, _), true), E3v, G3),
+    check('a sixty-fifth file deep is refused', G3, 'permission_error(include,source_sink,c64)'),
+    written(aggregate_all(count, d(_), N4), N4, G4),
+    check('...the sixty-four above it read', G4, '64'),
+    atom_concat(D, '/script.pl', Script),
+    fixture(Script, ['s5(0).', ':- include(nope).', 'main :- writeln(main_ran).']),
+    sh_join(['-s ', Script, ' 2>&1'], A5), cocolog_run(A5, T5, X5),
+    check('-s: a script its include ends says swipl''s two lines', T5,
+          'ERROR: Prolog initialisation failed:\nERROR: source_sink `nope\' does not exist'),
+    check('...and exits 1, as swipl''s', X5, 1),
+    %% the report's whole text, a name of six hundred characters in it
+    %% (through 3.4.0 the message was cut at 512 bytes)
+    length(Cs6, 600), maplist(=(0'n), Cs6), atom_codes(Long6, Cs6),
+    atom_concat(D, '/script6.pl', Script6),
+    format(atom(Inc6), ":- include(~w).", [Long6]),
+    fixture(Script6, [Inc6, 'main :- true.']),
+    sh_join(['-s ', Script6, ' 2>&1'], A6), cocolog_run(A6, T6, _),
+    ( sub_atom(T6, _, _, _, Long6), sub_atom(T6, _, _, _, 'does not exist') -> R6 = whole ; R6 = T6 ),
+    check('...and says it whole', R6, whole),
+    %% library(Name) names a file on the library path, read where the
+    %% directive stands as any other
+    atom_concat(D, '/plib/incl_lib.pl', Lib7), fixture(Lib7, ['from_lib(yes).']),
+    atom_concat(D, '/incl.pl', Incl7), fixture(Incl7, [':- include(library(incl_lib)).', 'mine7(1).']),
+    written(( consult(Incl7), from_lib(V7) ), V7, G7),
+    check('an include of library(Name) reads the library''s file', G7, yes).
 
 vars_said(Dir, Out, R) :-
     atomic_list_concat(['ERROR: ', Dir, '/vars.pl:1:\nERROR:    Arguments are not sufficiently instantiated\n'], W1),

@@ -1976,13 +1976,19 @@
   ;;;
   ;;; MODE is `when' from SWI's `initialization/2': 0 after_load, 1 main.
   ;;; (`now' is not here, having already run.) LINE is where the directive
-  ;;; was written, so the message a failing one produces can say.
+  ;;; was written, so the message a failing one produces can say. FILES
+  ;;; (3.5.0) is the file it stood in when that is not the load's own --
+  ;;; one an include read, which swipl's report names, `sub/a.pl:2:
+  ;;; Initialization goal failed' -- and nil when it is; FILE is the one
+  ;;; being read now, nil for the load's own.
   (struct coco_initgoals
     (member size_t * cells)
     (member int    * modes)
     (member int    * lines)
     (member size_t   len)
-    (member size_t   cap))
+    (member size_t   cap)
+    (member char  ** files)
+    (member const char * file))
 
   ;;; Applies one directive -- the G of a `:- G' read by `coco_consult'.
   ;;;
@@ -2046,6 +2052,20 @@
   ;;; compiler does exactly that -- must not crash on a file that has one.
   (decl) (func coco_goal_install
                ((func h ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
+                         (char * err) (size_t errlen))
+                     (out int))))
+
+  ;;; THE SEAM `:- include(File).' FINDS ITS FILE THROUGH (3.5.0), installed
+  ;;; by the library loader, which knows where a load looks: beside the file
+  ;;; being read first (`sloc_file'), then in the working directory, with
+  ;;; swipl's extensions. The hook answers 1 with the file's absolute path in
+  ;;; PATH and its text, malloc'd, in TEXT; 0 for a spec that names nothing
+  ;;; it can read, the ball that ends the load put on the machine (`lball')
+  ;;; and its text, in swipl's words, in ERR. While it is null an include is
+  ;;; a directive like any other, a goal.
+  (decl) (func coco_include_install
+               ((func h ((coco_store * st) (coco_machine * m) (size_t spec)
+                         (char * path) (size_t pathlen) (char ** text)
                          (char * err) (size_t errlen))
                      (out int))))
 
@@ -2113,6 +2133,18 @@
         ((func h ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
                   (char * err) (size_t errlen)) (out int)))
         (set coco_goal_hook h))
+
+  ;; and the seam an include finds its file through, by the same layer
+  (static) (var func coco_include_hook ((coco_store * st) (coco_machine * m) (size_t spec)
+                                        (char * path) (size_t pathlen) (char ** text)
+                                        (char * err) (size_t errlen))
+                 (out int))
+
+  (func coco_include_install
+        ((func h ((coco_store * st) (coco_machine * m) (size_t spec)
+                  (char * path) (size_t pathlen) (char ** text)
+                  (char * err) (size_t errlen)) (out int)))
+        (set coco_include_hook h))
 
   ;; and the compiled-in modules' claims, filled in by the builtins module
   (static) (var func coco_claims_hook ((const char * name) (u32 arity)) (out int))
@@ -2264,7 +2296,12 @@
               (set nl (realloc (cast (void *) (-> gs lines)) (* ncap (sizeof int))))
               (if (== nl nil) (return 0))
               (set (-> gs lines) (cast (int *) nl))
+              (let ((void * nf . #'(realloc (cast (void *) (-> gs files)) (* ncap (sizeof (char *))))))
+                (if (== nf nil) (return 0))
+                (set (-> gs files) (cast (char **) nf)))
               (set (-> gs cap) ncap)))
+        (set (nth (-> gs len) (-> gs files))
+             (? (== (-> gs file) nil) nil (strdup (-> gs file))))
         (set (nth (-> gs len) (-> gs cells)) cell)
         (set (nth (-> gs len) (-> gs modes)) mode)
         (set (nth (-> gs len) (-> gs lines)) line)
@@ -2276,6 +2313,11 @@
         (if (!= (-> gs cells) nil) (free (cast (void *) (-> gs cells))))
         (if (!= (-> gs modes) nil) (free (cast (void *) (-> gs modes))))
         (if (!= (-> gs lines) nil) (free (cast (void *) (-> gs lines))))
+        (if (!= (-> gs files) nil)
+            (block
+             (for ((size_t i . 0)) (< i (-> gs len)) ((++ i))
+               (if (!= (nth i (-> gs files)) nil) (free (cast (void *) (nth i (-> gs files))))))
+             (free (cast (void *) (-> gs files)))))
         (memset gs 0 (sizeof coco_initgoals)))
 
   ;;; A doubling refused is tried again with what is needed and a

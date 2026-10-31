@@ -1147,6 +1147,75 @@
                             (coco_make2 m "context" (coco_new_var m)
                                         (coco_make1 m "directory" (coco_new_atom m dir))))))
 
+  ;;; ---- include/1 (3.5.0) -----------------------------------------------
+
+  ;;; THE FILE `:- include(Spec).' READS (`coco_include_hook'), found where
+  ;;; a load looks for one (`lb_resolve': beside the file being read first,
+  ;;; then in the working directory, swipl's extensions before the name as
+  ;;; it is), or on the library path for library(Name): 1, its absolute path
+  ;;; in PATH and its text in TEXT. A spec that names nothing it can read is
+  ;;; swipl's ball, which ends the load -- existence_error(source_sink,
+  ;;; Spec), a list's too; instantiation_error; a number's type_error(text,
+  ;;; N) from is_absolute_file_name/1; a directory's existence_error(file,
+  ;;; Spec) -- put on the machine (`lball') and its text in ERR: 0.
+  (static)
+  (func lb_include ((coco_store * st) (coco_machine * m) (size_t spec)
+                    (char * path) (size_t pathlen) (char ** text)
+                    (char * err) (size_t errlen)) (out int)
+        (set spec (coco_deref m spec))
+        (let ((u64 c . #'(nth spec (-> m heap))) (char name [4096]) (char dir [4096])
+              (size_t mark . #'(-> m heap_len)) (size_t ball . 0) (int kind . 0)
+              ;; 0 found, 1 no such file -- swipl's source_sink --, 2 BALL
+              (int why . 1))
+          (set (cof text) nil)
+          (cond
+            ((coco-tag-is REF c)
+             (block (set ball (coco_make2 m "error" (coco_new_atom m "instantiation_error")
+                                          (coco_new_var m)))
+                    (set why 2)))
+            ((or (coco-is-int c) (or (coco-tag-is FLT c) (coco-rat-p c)))
+             (block (set ball (coco_make2 m "error"
+                                          (coco_make2 m "type_error" (coco_new_atom m "text") spec)
+                                          (coco_ectx_pi m "system"
+                                                        (coco_new_atom m "is_absolute_file_name")
+                                                        1 (coco_new_var m))))
+                    (set why 2)))
+            ;; `[]', whose segments swipl joins with atomic_list_concat/2,
+            ;; and its type_error says so
+            ((coco_is_nil m spec)
+             (block (set ball (coco_make2 m "error"
+                                          (coco_make2 m "type_error" (coco_new_atom m "text") spec)
+                                          (coco_ectx_pi m "system"
+                                                        (coco_new_atom m "atomic_list_concat")
+                                                        2 (coco_new_var m))))
+                    (set why 2)))
+            ((coco_is_compound1 m spec "library")
+             (if (and (lb_spec_text m (coco_arg m spec 0) name (sizeof name))
+                      (and (lb_find name dir (sizeof dir) (aof kind)) (== kind 2)))
+                 (block (lb_absolute dir path pathlen) (set why 0))))
+            ;; any other list is no name -- a list of files, which a load
+            ;; takes and an include does not, swipl's source_sink -- as a
+            ;; term that is no text is none (`lb_seg_put' takes codes alone)
+            ((not (lb_spec_text m spec name (sizeof name)))
+             (set why 1))
+            ((lb_resolve m name path pathlen) (set why 0))
+            ((lb_resolve_dir m name dir (sizeof dir))
+             (block (set ball (lb_directory_ball m spec dir)) (set why 2))))
+          (if (== why 0)
+              (block (set (cof text) (lb_slurp path))
+                     (if (!= (cof text) nil) (return 1))
+                     (set why 1)))
+          (if (== why 1)
+              (set ball (coco_make2 m "error"
+                                    (coco_make2 m "existence_error" (coco_new_atom m "source_sink") spec)
+                                    (coco_new_var m))))
+          (coco_error_text m st ball err errlen)
+          (let ((size_t cb . #'(coco_store_put st m ball)))
+            (set (-> m lball) (+ cb 1))
+            (set (-> m lball_size) (- (-> st len) cb)))
+          (set (-> m heap_len) mark)
+          (return 0)))
+
   (static)
   (func lb_use ((coco_engine * e) (size_t g) (int * found)) (out int)
         (coco-mod-args e g ((spec 0))
@@ -1643,6 +1712,7 @@
   (func coco_library_module () (out int)
         (coco_use_module_install lb_directive_hook)
         (coco_goal_install lb_goal_hook)
+        (coco_include_install lb_include)
         (return (coco_module_register "library" lb_dispatch (lb-prolog-text) nil)))
 
   ) ; impl-library

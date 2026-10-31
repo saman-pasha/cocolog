@@ -2227,10 +2227,13 @@
         (if (coco_is_compound2 m p ":") (set p (coco_deref m (coco_arg m p 1))))
         (return (coco_is_compound2 m p "/")))
 
+  ;;; Each culprit is written whole, as swipl writes it: through 3.4.0 each
+  ;;; went through 256 bytes, and a path or a name longer than that was cut
+  ;;; (3.5.0; every report's buffer has been 4096 since 3.3.0).
   (static)
   (func coco_error_body ((coco_machine * m) (size_t ball) (char * out) (size_t len))
         (let ((size_t b . #'(coco_deref m ball))
-              (char a1 [256]) (char a2 [256]) (char a3 [256]))
+              (char a1 [4096]) (char a2 [4096]) (char a3 [4096]))
           ;; A ball that is not `error(Formal, Context)' is not an error term
           ;; at all -- `throw(my_ball)' is a perfectly good throw -- and SWI
           ;; says so in those words rather than pretending to explain it.

@@ -382,6 +382,29 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
   it names a directory by the first path it met it through (pl-os.c's
   canonicaliseDir, by device and inode), cocolog by the path given, so
   test/files/load_paths.pl reads the link before its target.
+* **`:- include(File).` reads the file where the directive stands** (3.5.0,
+  swipl's; the include branch of `coco_consult_owned` in
+  lib/kb-consult.cicili, the file found by lib/library.cicili's `lb_include`
+  through `coco_include_hook`, and a goal of the load's like any other
+  directive while no hook is installed, as in a test binary): looked for as
+  a load looks, beside the file being read first. Its clauses are the
+  including file's, owned by its oid and `seen`, so a reconsult replaces
+  them and drops a predicate only they defined; its initialization goals go
+  to the whole load's end (`up`), each reported at the file it stood in
+  (`coco_initgoals`' `files`); its reports and source_location/2 name the
+  included file and its lines. **A spec that names nothing it can read ENDS
+  THE LOAD**, as swipl's: its ball -- existence_error(source_sink, Spec), a
+  list's too, instantiation_error, a number's type_error(text, N), a
+  directory's existence_error(file, Spec) -- on `lball`, raised out of
+  consult/1, and an `-s` script's load says `Prolog initialisation failed:`
+  and exits 1 (`script_load_ended` says any ball so since 3.5.0; through
+  3.4.0 an error(_, _) was `-s main:`, exit 2). An include of a file open on
+  the way down to it, or sixty-four deep, is refused with
+  error(permission_error(include, source_sink, Spec), _) (swipl reads it
+  again for ever). As a goal include/1 is an unknown procedure, as swipl's.
+  Not swipl's: `include([0'a])` reads the codes as a name, swipl's is
+  ``source_sink `[97]'``; an include of a library cocolog compiles in
+  (`library(lists)`) is existence_error, where swipl reads its source.
 * **A program's own arguments come after `--`**:
   `current_prolog_flag(argv, [Exe|Tail])`; `os_argv` is the literal command
   line; `executable` is the binary's path. Those three, `double_quotes`,

@@ -3,7 +3,7 @@
 One table for everything a program written for SWI-Prolog can trip over. Each
 row was checked by running the same goal on both systems (SWI-Prolog 9.0.4, and
 the installed 10.0.2 where the two agree; cocolog 3.1.0, every row checked
-again on it, and the rows 3.2.0 and 3.4.0 changed on those) — not recalled
+again on it, and the rows 3.2.0, 3.4.0 and 3.5.0 changed on those) — not recalled
 from the code — and the column on the right says what to write instead.
 
 The rows that can give a **silently wrong answer** come first, because they are
@@ -28,7 +28,7 @@ an existence error, an instantiation error, a refusal by name.
 | a module on a library directory the program added (`file_search_path(library, Dir)`, `COCOLOG_LIBRARY`) | a module from outside swipl's own library is the user's class: its calls see the system predicates the program defines (`msort/2`) | a library is a library wherever it lies: its calls keep the builtin, as swipl's own library modules do (3.1.0). A module loaded by its path (`use_module('dir/m.pl')`) sees the program's in both | load it by its path |
 | `thread_initialization/1` | runs the goal now, and again at the start of every thread created after it | runs it now, and only now (3.2.0, where it became a declaration operator and a goal; through 3.1.0 an unknown procedure): a thread of `library(thread)` is a machine of its own that runs nothing before its goal | call the goal first in each thread's goal |
 | a file in a directory reached through a link, by two paths | names the directory by the first path it met it through (pl-os.c's canonicaliseDir, keyed by device and inode): after a load from `sub/deeper`, `consult('sym/n4')` reports `.../sub/deeper/n4.pl` | names a file by the path given, `.` and `..` folded and no link resolved (3.4.0; through 3.3.0 a load's reports named it as given, and source_location/2 by realpath), so `.../sym/n4.pl` whatever came first | name a file by one path |
-| a list of integers where a file is named (`consult([123])`) | a list of files, here the one file 123: `consult/1` looks for `'123'`, use_module/1 and ensure_loaded/1 raise `type_error(text, 123)` | a list of codes, one name: `[123]` is the file `{` (3.4.0), because `"file"` is codes by default here and must name a file; any other list is a list of files, as swipl's | an atom |
+| a list of integers where a file is named (`consult([123])`) | a list of files, here the one file 123: `consult/1` looks for `'123'`, use_module/1 and ensure_loaded/1 raise `type_error(text, 123)`; `:- include([97]).` ends the load with ``source_sink `[97]' does not exist`` | a list of codes, one name: `[123]` is the file `{` (3.4.0), because `"file"` is codes by default here and must name a file, and `:- include([97]).` reads `a.pl` (3.5.0); any other list is a list of files, as swipl's, and to include/1 no name at all, swipl's `source_sink` | an atom |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -47,6 +47,8 @@ an existence error, an instantiation error, a refusal by name.
 | `roundtoward/2` (2.5.0) | the C rounding mode set around libm, and swipl's own caveat that some functions ignore it | the same: the mode is set around the evaluation of its first argument and put back | — |
 | a syntax error in a loaded file | `ERROR: F:L:C: Syntax error: REASON`, the clause passed over up to its full stop, and the load goes on | the same since 3.1.0 (through 3.0.4 the first one ended the consult, and nothing under it loaded), at swipl's line and column where the two readers stop at one token; the REASON is cocolog's own words (`expected a term` where swipl says `Unexpected end of clause`), and `q(x :- .` is placed at the `:-` (2:4), where swipl reads on to the `.` (2:7) | read the place, not the words |
 | a variable where a clause stands (`X.`, `Y :- true.`) | `Arguments are not sufficiently instantiated`, and the load is ABORTED: nothing after it is read, and `swipl -g` exits 1 with `Prolog initialisation failed` | the same words, and the load goes on, as past every other clause it refuses (3.1.0) | — |
+| `:- include(F).` of a file already open on the way down to it, or sixty-four files deep | reads it again, and again, until the process is killed | `No permission to include source_sink `F'`, error(permission_error(include, source_sink, F), _), and the load ends there, what it read before standing (3.5.0; through 3.4.0 include/1 was no directive, and a goal of it an unknown procedure) | an include that ends |
+| `:- include(library(N)).` of a library cocolog compiles in (`lists`, `apply`, `dcg_basics`, ...) | reads the library's source where the directive stands, and its `:- module/2` makes the rest of the including file that module's (`mine(1)` after it is `lists:mine(1)`) | ``source_sink `library(lists)' does not exist``, and the load ends: the library is in the binary, and there is no source to read (a library on the library path is read, 3.5.0) | `:- use_module(library(N)).`, a no-op here |
 
 ## Not there at all (`existence_error`)
 
