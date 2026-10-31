@@ -1438,12 +1438,26 @@
       (set (nth n buf) (cast char 0))
       (return (strtol buf nil 10))))
 
+  ;;; milliseconds on the monotonic clock, which no change to the time of
+  ;;; day moves and no oversleeping stretches (3.0.4). Through 3.0.3 the
+  ;;; wait below was the COUNT of its 10 ms sleeps, and GitHub's Macs sleep
+  ;;; each of them longer: a waiter's two seconds were many more, its
+  ;;; holder let go before it said whom it waited for, and
+  ;;; COCOLOG_STORE_WAIT=S waited more than S (CI run 41174870038;
+  ;;; test/store-lock.pl's `holder' section, red the same way on Linux with
+  ;;; each 10 ms sleep made 40). One leaf of C++ text, as the engine's own
+  ;;; clocks are (mvccs_wall_micros): no binding here declares the struct.
+  (code "long long ce_now_ms() { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000; }")
+  (decl) (func ce_now_ms () (out llong))
+
   ;;; takes DIR's lock (`ce_lock_fd'), waiting as COCOLOG_STORE_WAIT says --
   ;;; unset or empty, for as long as it takes; S, S seconds at most; 0, not
-  ;;; at all. 1 held, 0 refused with ERR saying why
+  ;;; at all, the seconds the clock's (`ce_now_ms'). 1 held, 0 refused with
+  ;;; ERR saying why
   (func ce_store_lock ((const char * dir) (char * err) (size_t errcap)) (out int)
     (let ((char path [512]) (int fd . -1) (int rc . 0)
-          (long waited . 0) (long limit . -1) (int said . 0)
+          (llong start . #'(ce_now_ms)) (llong waited . 0) (llong limit . -1)
+          (int said . 0)
           (const char * w . #'(getenv "COCOLOG_STORE_WAIT")))
       (if (and (!= w nil) (!= (nth 0 w) (cast char 0)))
           (set limit (* (strtol w nil 10) 1000)))
@@ -1463,6 +1477,7 @@
                   (snprintf err errcap "cannot lock the store's lock '%s': %s" path (strerror rc)))
               (close fd)
               (return 0)))
+        (set waited (- (ce_now_ms) start))
         (if (and (>= limit 0) (>= waited limit))
             (let ((long holder . #'(ce_lock_holder fd)))
               (if (and (!= err nil) (> errcap 0))
@@ -1477,8 +1492,7 @@
               (if (> holder 0)
                   (fprintf stderr "cocolog: the store in %s is in use by process %ld; waiting for it\n" dir holder)
                   (fprintf stderr "cocolog: the store in %s is in use by another process; waiting for it\n" dir))))
-        (usleep 10000)
-        (set waited (+ waited 10)))
+        (usleep 10000))
       ;; the holder's name, for whoever waits next
       (let ((char pid [32]) (int n . 0))
         (set n (snprintf pid 32 "%ld\n" (cast long (getpid))))

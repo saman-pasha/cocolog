@@ -611,7 +611,10 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
   the open takes `DIR/lock` with flock(2), its holder's pid in the file,
   held to the process's last close and dropped by the kernel at any exit
   (kill -9 too; a child holds none), and a second process WAITS its turn,
-  saying once past two seconds whom it waits for. Not fcntl's record lock:
+  saying once past two seconds whom it waits for -- seconds of the
+  monotonic clock (3.0.4, `ce_now_ms`): counted in 10 ms sleeps, the wait
+  ran long on GitHub's Macs, which oversleep, and said nothing before its
+  holder let go (CI run 41174870038). Not fcntl's record lock:
   that is the PROCESS's, and any close of the file in the holder gave it
   back, a program reading its own store's files among them (the first cut's
   hole, test/store-lock.pl's `reader`).

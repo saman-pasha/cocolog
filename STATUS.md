@@ -8971,3 +8971,30 @@ NOT DONE, and stated:
   `windows=N`, J copies on disk at once, each the store's size.
 - The server arrangement is unchanged: its clients were always serialized by
   the server.
+
+## The store's wait is timed by the clock (3.0.4)
+
+3.0.3's CI run (41174870038) was red on both Macs and green on Ubuntu, in
+the suite and alone: test/store-lock.pl's waiter ran when its holder was
+done, but never said whom it waited for. `ce_store_lock' (embed/embed.cicili)
+counted its wait in 10 ms sleeps -- `waited' went up by 10 after each
+usleep(10000) -- and GitHub's Macs sleep each of those longer: the two
+seconds before the note were many more, and the holder (eight seconds
+after its ready file, the case's other checks taking a share) let go first.
+COCOLOG_STORE_WAIT=S waited more than S seconds the same way. It is
+CLAUDE.md's rule for a fixture -- timed by the clock, never by a count --
+broken in the engine's own C, as `proc_until/3' broke it before 2.5.0.
+
+WHAT CHANGED:
+- The wait is the monotonic clock's (`ce_now_ms', CLOCK_MONOTONIC in
+  milliseconds, one leaf of C++ text as the engine's own clocks are): the
+  note past two seconds, and COCOLOG_STORE_WAIT=S's limit, are wall time
+  however long a sleep takes. The poll is still every 10 ms.
+
+PROVED:
+- Reproduced on Linux first: with every usleep(10000) made 40 ms (an
+  LD_PRELOAD shim), 3.0.3 fails the same two checks with the same text as
+  the Macs (`got 'ran ...'', `...once' got 1); 3.0.4 passes them with the
+  shim and without it.
+- test/store-lock.pl GREEN, with the shim and without; the dialect card's
+  cites check (30 rows, 42 cites, none moved). The full suite was not run.
