@@ -62,6 +62,7 @@
     ("size_file"             2 coco_f_size_file)
     ("time_file"             2 coco_f_time_file)
     ("get_time"              1 coco_f_get_time)
+    ("sleep"                 1 coco_f_sleep)
     ("read_file_to_codes"    2 coco_f_read_file_to_codes)
     ("write_file_from_codes" 2 coco_f_write_file_from_codes)
     ("append_file_from_codes" 2 coco_f_append_file_from_codes)
@@ -567,6 +568,49 @@
           (return (coco_m_unify_float e (coco_m_arg e g 0)
                                       (+ (cast double ($ tv tv_sec))
                                          (/ (cast double ($ tv tv_usec)) 1000000.0))))))
+
+  ;;; `sleep/1' -- SWI's, which was an unknown procedure here until 3.8.0,
+  ;;; beside the clock it is measured by. swipl's Pause() (pl-os.c), to its
+  ;;; answers on Linux x86-64:
+  ;;;
+  ;;; TIME IS ANY NUMBER, read as a float the way PL_get_float_ex() reads it:
+  ;;; an integer, a rational (`sleep(1r2)' is half a second) or a float;
+  ;;; anything else is type_error(float, T), unbound instantiation_error.
+  ;;;
+  ;;; A TIME BELOW ZERO IS NO SLEEP. Zero is a nanosleep of nothing, a yield
+  ;;; to the scheduler. A NaN, or a time past 2^63 seconds -- an infinity, a
+  ;;; 1e300 -- returns at once too: swipl casts it to time_t, which makes it
+  ;;; a time the kernel refuses (EINVAL), and Pause() takes any answer but
+  ;;; EINTR as done. Here it is asked before the cast, which C leaves
+  ;;; undefined out of range. Below that, the time is slept, however long.
+  ;;;
+  ;;; A SIGNAL ENDS IT WHEN IT IS THE PROGRAM'S. nanosleep answers EINTR to
+  ;;; any handled signal; library(signal)'s handler has written the
+  ;;; engine's `halted' by then, so the sleep returns and the next step
+  ;;; raises error(signal(Name, Num), _), as swipl's PL_handle_signals()
+  ;;; raises from inside the sleep. A handler that wrote nothing leaves the
+  ;;; rest of the time to sleep.
+  ;;;
+  ;;; Not swipl's: in a green task (library(async)) the sleep holds its
+  ;;; worker and every task pinned there, where a swipl thread sleeps alone.
+  (func coco_f_sleep ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e))
+              (size_t t . #'(coco_deref m (coco_m_arg e g 0)))
+              (u64 c . 0) (double s . 0.0) (timespec req) (timespec rem))
+          (set c (nth t (-> m heap)))
+          (if (coco-rat-p c)
+              (let ((coco_rat * r . #'(aof (nth (cast size_t (coco-rat-index c)) (-> m rats)))))
+                (set s (/ (cast double (-> r n)) (cast double (-> r d)))))
+            (if (not (coco_m_float e t (aof s)))
+                (return (coco_m_type_error e "float" t))))
+          (if (or (< s 0.0) (!= s s) (>= s 9223372036854775808.0)) (return 1))
+          (set ($ req tv_sec) (cast time_t s))
+          (set ($ req tv_nsec) (cast long (* (- s (cast double ($ req tv_sec))) 1000000000.0)))
+          (while (!= 0 (nanosleep (aof req) (aof rem)))
+            (if (!= errno EINTR) (return 1))
+            (if (!= (-> e halted) 0) (return 1))
+            (set req rem))
+          (return 1)))
 
   ;;; THE ONLY WAY TO READ A FILE'S BYTES, and until this existed there was
   ;;; none: `consult' reads Prolog source in C and hands a program nothing,

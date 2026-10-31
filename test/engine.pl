@@ -36,7 +36,7 @@ main :-
     linear_backtracking(D), deep_recursion(D), sorting(D), any_argument(D), still_the_answers,
     in_registers, guards, environments(D), in_place(D), fused(D), mutable(D), shared_globals(D),
     small_steps, shifts, integers_only, integers_64(D), float_flags(D), variables(D),
-    update_view(D),
+    update_view(D), sleeps(D),
     shl(['rm -rf ', D]),
     checks_done.
 
@@ -1729,6 +1729,31 @@ sg_spin(N) :- M is N - 1, sg_spin(M).
 %% it (README.md, `What is stored, and how'), so the whole run meets it and
 %% the stepped one does not. And a clause retracted under a call the run
 %% then cuts away is gone for the next process: the dead are not written.
+%% sleep/1 (3.8.0) on every platform, where test/files/sleep.pl runs only
+%% beside the reference swipl: a time that is no number of seconds the
+%% clock can hold -- an infinity, a NaN, 1e300, a time past 2^63 -- returns
+%% at once, asked before a conversion to time_t that C leaves undefined out
+%% of range; in a child under a timeout, so a sleep that never ends is a
+%% red line, not a hang
+sleeps(D) :-
+    section('sleep/1 returns at once from a time no clock holds'),
+    atom_concat(D, '/sleeps.pl', F1),
+    fixture(F1, [
+        'main :- get_time(T0),',
+        '        sleep(1.0Inf), sleep(-1.0Inf), sleep(1.5NaN), sleep(1.0e300), sleep(1.0e19),',
+        '        sleep(-1), sleep(0), get_time(T1), S is T1 - T0,',
+        '        ( S < 5 -> writeln(at_once) ; writeln(late(S)) ).'
+    ]),
+    last_line_of(F1, main, 30000, L1),
+    check('an infinity, a NaN, 1e300, 2^63 seconds and less than none: no sleep', L1, at_once),
+    atom_concat(D, '/sleept.pl', F2),
+    fixture(F2, [
+        'main :- get_time(T0), sleep(1r5), sleep(0.2), get_time(T1), S is T1 - T0,',
+        '        ( S >= 0.39, S < 3 -> writeln(slept) ; writeln(off(S)) ).'
+    ]),
+    last_line_of(F2, main, 30000, L2),
+    check('a rational and a float are seconds slept', L2, slept).
+
 update_view(D) :-
     section('the logical update view across a freeze and across processes'),
     atom_concat(D, '/view.pl', F1),

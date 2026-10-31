@@ -139,6 +139,7 @@ flow_mode(flatten, 2, ['+', '-'], det).
 flow_mode(halt, 0, [], det).
 flow_mode(halt, 1, ['+'], det).
 flow_mode(get_time, 1, ['-'], det).
+flow_mode(sleep, 1, ['+'], det).
 flow_mode(statistics, 2, ['+', '-'], det).
 flow_mode(garbage_collect, 0, [], det).
 flow_mode(list_to_assoc, 2, ['+', '-'], det).

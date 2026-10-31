@@ -10045,3 +10045,68 @@ PROVED:
   -- 3.6.0's, the loop untouched.
 - lint --auto over the changed files (0 HARD, 0 WARN), and the dialect
   card's cites checked (28 rows, 40 cites, 2 renumbered after the edits).
+
+## sleep/1, as swipl's (3.8.0)
+
+`sleep(T)' was an unknown procedure. It is library(files)'s now, beside
+get_time/1 (`coco_f_sleep' in lib/files.cicili), to swipl 9.0.4's answers
+(its Pause(), pl-os.c, on Linux x86-64):
+
+- ANY NUMBER IS SECONDS: an integer, a rational (`sleep(1r4)' is a quarter
+  of a second) or a float, read as PL_get_float_ex() reads it; anything else
+  is type_error(float, T), an unbound T instantiation_error, both with
+  context(system:sleep/1, _) (its row in `*error-contexts*') and printed
+  `sleep/1: Type error: ...'.
+- A TIME BELOW ZERO IS NO SLEEP, zero a nanosleep of nothing; a NaN or a
+  time past 2^63 seconds (an infinity, 1e300) returns at once, as swipl's
+  does when its cast to time_t makes a time the kernel refuses. Here the
+  time is asked before the cast, which C leaves undefined out of range.
+- A SIGNAL THE PROGRAM HANDLES ENDS IT: nanosleep answers EINTR, the
+  handler has written the engine's `halted', the sleep succeeds and the
+  next step raises error(signal(Name, Num), _), which a catch/3 around the
+  sleep takes, as swipl's raises from inside the sleep. A handler that
+  wrote nothing leaves the rest of the time to sleep.
+- Not swipl's: in a green task (library(async)) the sleep holds its worker
+  and every task pinned there, where a swipl thread sleeps alone.
+
+On the way, CI found 3.6.0 red in one check (runs 41248051861 and
+41250035838, Ubuntu and Apple silicon): test/translate.pl's teach check ran
+its child as `run FILE "go(F)"', and go/1 is library(async)'s and global.
+Since 3.6.0 a load directive's load runs at the directive, so the preloaded
+library is read at the child's first directive, before the file's clauses,
+and the goal reached async's go/1 (`library(async): this needs
+async_run/1'); through 3.5.0 the library was read after the file, and the
+fixture's own clause came first by chance. CLAUDE.md has said since 2.8.0
+that a program's predicate of an async name is the library's, and the
+window and flowdebug fixtures were renamed for it then; this one is
+`tl_go/1' now. A program's own clause for a preloaded library's name comes
+after the library's once a load directive comes before it.
+
+PROVED:
+- test/files/sleep.pl, 24 lines of swipl 9.0.4's output to the byte: the
+  times taken (zero, below zero, an infinity either way, a NaN, 1e300,
+  1e19, a millisecond as a float and as a rational), the refusals (unbound,
+  an atom, a compound, a string, a list, []), three times slept read by
+  the clock, and the two messages. Every line an existence error on 3.7.0.
+- test/engine.pl's `sleeps' section, on every platform (the files case
+  runs only beside the reference swipl): the times no clock holds return at
+  once, in a child under a timeout, and a rational and a float are slept.
+- test/signal.pl: a usr1 delivered a second into `sleep(30)' is caught
+  around the sleep within the second, and the child ends 0.
+- 7 arms. Red: the row taken out (every check), the rational read (the
+  files case and the engine's), the type's name (`number' for `float'),
+  the error row (the context unbound), and the check of `halted' on EINTR
+  (the sleep runs its thirty seconds, signal case red). Green, as
+  expected, and kept: the guard before the cast (out of range, both
+  x86-64's conversion and aarch64's saturation make a time the kernel
+  refuses, so a sleep returns at once with or without it; the guard keeps
+  the C defined) and the remaining time slept after a handler that wrote
+  nothing (every handler cocolog installs writes the cell, so no case
+  reaches it).
+- tools/flow/zero.sh against 3.7.0, work less padding: nrev 65 876 284 to
+  65 876 343, queens 42 900 204 to 42 900 267, lookup 47 834 425 to
+  47 834 370 -- the loop untouched.
+- test/flowchart.pl with the tables rebuilt (`flow_mode(sleep, 1, ['+'],
+  det)'), test/translate.pl green with the fixture renamed, lint --auto
+  (0 HARD, 0 WARN), and the dialect card's cites checked (28 rows, 40
+  cites, none moved).

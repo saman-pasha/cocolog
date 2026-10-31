@@ -505,7 +505,7 @@
     ("is_absolute_file_name" 1) ("make_directory" 1) ("rename_file" 2)
     ("same_file" 2) ("size_file" 2) ("time_file" 2) ("tmp_file" 2)
     ("read_link" 3)
-    ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1)
+    ("getenv" 2) ("setenv" 2) ("unsetenv" 1) ("get_time" 1) ("sleep" 1)
     ;; cocolog's own, which swipl 9.0.4 has not, named as a builtin's is
     ("text_concat" 3) ("call_limited" 3) ("call_metered" 4)
     ("read_file_to_codes" 2) ("write_file_from_codes" 2) ("append_file_from_codes" 2)

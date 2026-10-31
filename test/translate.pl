@@ -18142,7 +18142,10 @@ build :-
 %% list, by this library's double_quotes -- which sub_string/5 refuses since
 %% cocolog 3.0.0, as swipl's does, so every teach raised at its first line
 %% (reasoning 1.0.27). In a child, because teach.pl has a main/0 of its own,
-%% which would join this case's.
+%% which would join this case's. The child's goal is not go/1, which is
+%% library(async)'s and global: since cocolog 3.6.0 the preloaded library is
+%% read at the child's first directive, before its clauses, so a go/1 of the
+%% fixture's own came after async's and the goal reached async's.
 
 teach_lines :-
     section('teach.pl: a lesson file''s comment line is not learned'),
@@ -18153,12 +18156,12 @@ teach_lines :-
     %% (the child catches what the teach raises: an uncaught error's
     %% backtrace would hold the goal's own text, answer(...) and all)
     fixture(P, [':- use_module(library(reasoning/teach)).',
-                'go(F) :- catch(teach_file(F, none, N), E, true),',
+                'tl_go(F) :- catch(teach_file(F, none, N), E, true),',
                 '         (   var(E) -> reason_text(''The noun "zzcasa" means "zzhouse".'', T), length(T, N0),',
                 '             write(answer(N-N0))',
                 '         ;   E = error(Formal, _), write(answer(raised(Formal)))',
                 '         ), nl.']),
-    sh_join(['--local run ', P, ' "go(''', L, ''')"'], A),
+    sh_join(['--local run ', P, ' "tl_go(''', L, ''')"'], A),
     cocolog_answer(A, R),
     (   R = answer(N1-N2), N1 == N2, N1 > 0 -> Got = the_line_alone ; Got = R ),
     check('a comment line, a blank one and a lesson line: the lesson line''s terms are learned, and nothing else',

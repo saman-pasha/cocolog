@@ -128,6 +128,28 @@ delivered(D) :-
     ;   check('the child caught the delivered usr1, and ended 0', T1, caught)
     ),
 
+    %% sleep/1 (3.8.0) is a nanosleep the signal interrupts: the handler has
+    %% written the engine's cell, the sleep returns, and the next step
+    %% raises -- a second after the start, never the thirty asked for
+    atom_concat(D, '/sigsleep.pl', F4),
+    fixture(F4, ['main :- use_module(library(signal)),',
+                 '        on_signal(usr1, _, throw),',
+                 '        get_time(T0),',
+                 '        catch(sleep(30), error(signal(Nm, _), _), true),',
+                 '        get_time(T1), S is T1 - T0,',
+                 '        ( S < 10 -> W = soon ; W = late(S) ),',
+                 '        write(woke(Nm, W)), nl.']),
+    atom_concat(D, '/sigsleep.out', O4),
+    format(atom(Cmd4),
+           "~w --local -s ~w > ~w 2>&1 & P=$!; sleep 1; kill -USR1 $P; wait $P; echo rc=$?; cat ~w",
+           [C, F4, O4, O4]),
+    shell(Cmd4, T4, _, 120000),
+    (   sub_atom(T4, _, _, _, 'woke(usr1,soon)'),
+        sub_atom(T4, _, _, _, 'rc=0')
+    ->  check('a delivered signal ends sleep/1 at once, and is raised', yes, yes)
+    ;   check('a delivered signal ends sleep/1 at once, and is raised', T4, woke)
+    ),
+
     atom_concat(D, '/sigplain.pl', F2),
     fixture(F2, ['main :- use_module(library(signal)),',
                  '        on_signal(usr1, _, throw),',
