@@ -10110,3 +10110,25 @@ PROVED:
   det)'), test/translate.pl green with the fixture renamed, lint --auto
   (0 HARD, 0 WARN), and the dialect card's cites checked (28 rows, 40
   cites, none moved).
+
+## writeln/2, as swipl's (3.9.0)
+
+`writeln(Stream, Term)' was an unknown procedure: library(stream) gave
+write/2 and nl/1 and not the two together. It is one clause of the module's
+Prolog half now (modules/stream/stream.cicili), write/2 and then nl/1 to the
+same stream, so its spelling is write/1's (numbervars, operators, a string's
+text) and its refusals are write/2's: an unbound stream instantiation_error,
+an unknown alias existence_error(stream, S), a number
+domain_error(stream_or_alias, N) -- each with the context library(stream)
+gives every error (`stream_slot/2', not swipl's
+context(system:writeln/2, _): the stream errors are still to be done, the
+list below).
+
+PROVED:
+- test/files/writeln_stream.pl, 14 lines of swipl 9.0.4's output to the
+  byte: atoms, a string, numbervars, a list, operators, an infinity, a
+  float, a file written and read back by lines, and the three refusals'
+  formal terms.
+- test/stream.pl's ISO section: writeln/2 into a file, read back.
+- 2 arms, each red in both cases: the clause taken out (an unknown
+  procedure) and the newline taken out (the lines run together).

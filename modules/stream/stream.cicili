@@ -176,6 +176,7 @@
 ;;;   write_canonical(+Stream, +Term)
 ;;;   write_term(+Stream, +Term, +Options)
 ;;;   nl(+Stream)
+;;;   writeln(+Stream, +Term)                          write/2, then nl/1
 ;;;   tab(+Stream, +N)
 ;;;   read_line_to_codes(+Stream, -Codes)              SWI's; end_of_file at the end
 ;;;   read_line_to_string(+Stream, -String)
@@ -404,6 +405,9 @@
            "write_canonical(S, T) :- stream_write_canonical(S, T)."
            "write_term(S, T, O) :- stream_write_term(S, T, O)."
            "nl(S) :- stream_nl(S)."
+           ;; swipl's writeln/2 (3.9.0): write/2 and then a newline, the
+           ;; stream checked once, by write/2
+           "writeln(S, T) :- stream_write(S, T), stream_nl(S)."
            "tab(S, N) :- stream_slot(S, _), with_output_to(S, tab(N))."
 
            ;; ---- SWI's library(readutil), which ported programs call constantly ----

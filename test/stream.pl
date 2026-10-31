@@ -281,6 +281,10 @@ iso_names(D) :-
     %% through 2.2.3 it was write/2: [A b,$VAR(1)])
     check('write/2, writeq/2, print/2, write_canonical/2, write_term/3, nl/1, tab/2, put_char/2, and format/3 into a stream', G1,
           'f(A b,[120])\n\'A b\'\n[\'A b\',B]\n+(\'A\',b)\ng(\'Y\')\nn=42\n  x\n'),
+    %% writeln/2 (3.9.0): write/2 and a newline, swipl's
+    answer(( open(F, write, SWl), writeln(SWl, 'A b'), writeln(SWl, '$VAR'(1)), writeln(SWl, 1 + 2),
+             close(SWl), read_file_to_codes(F, CWl), atom_codes(AWl, CWl) ), AWl, GWl),
+    check('writeln/2: write/2 and a newline, numbervars as write/1 has them', GWl, 'A b\nB\n1+2\n'),
     answer(( open(F, write, S2), with_output_to(S2, ( write(captured), nl )), close(S2),
              read_file_to_codes(F, C2), atom_codes(A2, C2) ), A2, G2),
     check('with_output_to/2 takes a stream as its sink', G2, 'captured\n'),
