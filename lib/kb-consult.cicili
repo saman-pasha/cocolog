@@ -476,12 +476,24 @@
   ;;; file's path too since 2.14.0, and a forget that took the other kind
   ;;; would leave the knowledge base and this store holding different
   ;;; things -- or, unmuted over a predicate never read, rewrite it from
-  ;;; nothing.
-  (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
-        (if (or (>= pi (-> st npreds)) (== origin 0)) (return 0))
+  ;;; nothing. `coco_pred_forget_from', after the walk.
+  ;;;
+  ;;; Whether clause I of P is one a forget takes: ORIGIN's under MUTE (0
+  ;;; or 1), or, MUTE 2, any muted one.
+  (static) (inline)
+  (func coco_forget_match ((coco_pred * p) (size_t i) (u64 origin) (int mute)) (out int)
+        (if (== mute 2) (return (!= (nth i (-> p muted)) 0)))
+        (return (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute))))
+
+  ;;; The two forgets' one walk: the live clauses of PI that
+  ;;; `coco_forget_match' takes.
+  (func coco_pred_forget_where ((coco_store * st) (coco_machine * m) (size_t pi)
+                                (u64 origin) (int mute)) (out int)
+        (if (>= pi (-> st npreds)) (return 0))
         (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
-              (int mute . #'(coco_store_is_muted st))
-              (size_t kept . 0) (int gone . 0) (size_t swept . 0))
+              (size_t kept . 0) (int gone . 0) (size_t swept . 0)
+              ;; the backend hears of the program's clauses alone
+              (int tell . #'(and (== mute 0) (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))))
           ;; THE LOGICAL UPDATE VIEW: with a call open on the predicate, the
           ;; file's clauses die where they stand and stay for it, and what
           ;; the file says now comes after every one of them
@@ -489,12 +501,10 @@
             (if (!= era 0)
                 (block
                   (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
-                    (if (and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute)
-                             (== (nth i (-> p tomb)) 0))
+                    (if (and (coco_forget_match p i origin mute) (== (nth i (-> p tomb)) 0))
                         (block (coco_tomb_set p i era) (set gone (+ gone 1)))))
                   (if (== gone 0) (return 0))
-                  (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
-                      ((-> st on_retract) st (-> st ctx) pi))
+                  (if tell ((-> st on_retract) st (-> st ctx) pi))
                   (return gone))))
           ;; no call open: taken out, and the dead of an earlier change with them
           (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
@@ -502,7 +512,7 @@
               ((coco_pred_dead p i)
                (set swept (+ swept 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
-              ((and (== (nth i (-> p origins)) origin) (== (nth i (-> p muted)) mute))
+              ((coco_forget_match p i origin mute)
                (set gone (+ gone 1))
                (coco_store_orphan st m (nth i (-> p clauses))))
               (#t
@@ -523,9 +533,141 @@
           (coco_pred_nprobe p)
           (coco_pred_unindex p)
           (if (== gone 0) (return 0))
-          (if (and (not (coco_store_is_muted st)) (!= (-> st on_retract) nil))
-              ((-> st on_retract) st (-> st ctx) pi))
+          (if tell ((-> st on_retract) st (-> st ctx) pi))
           (return gone)))
+
+  (func coco_pred_forget_from ((coco_store * st) (coco_machine * m) (size_t pi) (u64 origin)) (out int)
+        (if (== origin 0) (return 0))
+        (return (coco_pred_forget_where st m pi origin (coco_store_is_muted st))))
+
+  ;;; A LIBRARY'S OWN CLAUSES OF A PREDICATE A PROGRAM FILE TOOK OVER
+  ;;; (3.1.0, `coco_pred_take_over'): every muted clause of PI, whatever
+  ;;; its file -- a compiled-in module's Prolog half beside its C row
+  ;;; (last/2's, for the partial list it declines) -- which swipl keeps in a
+  ;;; module of their own, where the program's definition does not see
+  ;;; them. One namespace has them in the predicate the program now
+  ;;; defines. They never reached the knowledge base, so it hears nothing.
+  (func coco_pred_forget_muted ((coco_store * st) (coco_machine * m) (size_t pi)) (out int)
+        (return (coco_pred_forget_where st m pi 0 2)))
+
+  ;;; A LIBRARY'S CALL OF A NAME A PROGRAM FILE TOOK OVER IS THE SYSTEM'S
+  ;;; (3.1.0): G with each goal in it that calls a taken name made
+  ;;; `system:G' (`coco_colon'), as swipl's library modules call system's
+  ;;; predicate where a user file defined one of its name -- the vendored
+  ;;; aggregate.pl's succ/2 among them. A goal is looked for in a control
+  ;;; structure (`,', `;', `->', `*->', `\+', not/1, once/1, ignore/1,
+  ;;; call/1) and in the goal arguments of the builtins that run one
+  ;;; (catch/3, findall/3,4, forall/2, aggregate_all/3, bagof/3 and setof/3
+  ;;; past their `^', with_output_to/2 and the three cleanups). G itself
+  ;;; where nothing in it is taken; a goal already qualified is left as it
+  ;;; was written, and so are a variable and a closure (call/N's,
+  ;;; maplist/N's), which the program gives. A goal that runs goals and is
+  ;;; taken itself (forall/2, findall/4, not/1, ignore/1) is made the
+  ;;; system's whole, its goals as well; and an atom goal as any other.
+  ;;; Built on the machine's heap, 256 deep at most.
+  (func coco_sys_goal ((coco_machine * m) (coco_store * st) (size_t g) (int depth)) (out size_t)
+        (set g (coco_deref m g))
+        (if (> depth 256) (return g))
+        (if (coco-tag-is ATOM (nth g (-> m heap)))
+            (return (? (coco_pred_taken st (coco_name_of m g) 0)
+                       (coco_make2 m ":" (coco_new_atom m "system") g)
+                       g)))
+        (if (not (coco-tag-is FUN (nth g (-> m heap)))) (return g))
+        (let ((u64 nid . #'(coco_name_of m g))
+              (u32 n . #'(coco_arity m g))
+              (const char * nm . #'(coco_atom_name m (coco_name_of m g)))
+              ;; bit I for each argument I that is a goal; CARET when
+              ;; bagof/3's and setof/3's goal is reached past its `^'
+              (u32 mask . 0) (int caret . 0))
+          (cond
+            ((== n 1)
+             (if (or (== 0 (strcmp nm "\\+")) (== 0 (strcmp nm "not"))
+                     (== 0 (strcmp nm "once")) (== 0 (strcmp nm "ignore"))
+                     (== 0 (strcmp nm "call")))
+                 (set mask 1)))
+            ((== n 2)
+             (cond
+               ((== 0 (strcmp nm ":")) (return g))
+               ((or (== 0 (strcmp nm ",")) (== 0 (strcmp nm ";"))
+                    (== 0 (strcmp nm "->")) (== 0 (strcmp nm "*->"))
+                    (== 0 (strcmp nm "forall")) (== 0 (strcmp nm "call_cleanup")))
+                (set mask 3))
+               ((== 0 (strcmp nm "with_output_to")) (set mask 2))))
+            ((== n 3)
+             (cond
+               ((== 0 (strcmp nm "catch")) (set mask 5))
+               ((or (== 0 (strcmp nm "findall")) (== 0 (strcmp nm "aggregate_all"))) (set mask 2))
+               ((or (== 0 (strcmp nm "bagof")) (== 0 (strcmp nm "setof")))
+                (block (set mask 2) (set caret 1)))
+               ((== 0 (strcmp nm "setup_call_cleanup")) (set mask 7))))
+            ((== n 4)
+             (cond
+               ((== 0 (strcmp nm "findall")) (set mask 2))
+               ((== 0 (strcmp nm "setup_call_catcher_cleanup")) (set mask 11)))))
+          (if (== mask 0)
+              (if (coco_pred_taken st nid n)
+                  (return (coco_make2 m ":" (coco_new_atom m "system") g))
+                  (return g)))
+          ;; the goal arguments; the term is made again only where one changed
+          (let ((size_t args [4]) (int changed . 0))
+            (for ((u32 i . 0)) (< i n) ((++ i))
+              (set (nth i args) (coco_deref m (coco_arg m g i)))
+              (if (!= 0 (bitand mask (<< (cast u32 1) i)))
+                  (let ((size_t a . #'(nth i args)) (size_t r . 0))
+                    (if caret
+                        ;; V^G: the goal past every `^'
+                        (let ((size_t vs [64]) (u32 nv . 0))
+                          (while (and (< nv 64) (coco_is_compound2 m a "^"))
+                            (set (nth nv vs) (coco_deref m (coco_arg m a 0)))
+                            (set nv (+ nv 1))
+                            (set a (coco_deref m (coco_arg m a 1))))
+                          (set r (coco_sys_goal m st a (+ depth 1)))
+                          (if (!= r a)
+                              (block
+                                (while (> nv 0)
+                                  (set nv (- nv 1))
+                                  (set r (coco_make2 m "^" (nth nv vs) r)))
+                                (set (nth i args) r)
+                                (set changed 1))))
+                        (block
+                          (set r (coco_sys_goal m st a (+ depth 1)))
+                          (if (!= r a) (block (set (nth i args) r) (set changed 1))))))))
+            (let ((size_t r . #'(? changed (coco_make m nm n args) g)))
+              (if (coco_pred_taken st nid n)
+                  (return (coco_make2 m ":" (coco_new_atom m "system") r)))
+              (return r)))))
+
+  ;;; EVERY LIBRARY CLAUSE'S CALLS OF A TAKEN NAME MADE THE SYSTEM'S (3.1.0,
+  ;;; `coco_pred_take_over'): each clause a library's load made -- muted,
+  ;;; of a predicate no program file defines -- whose body `coco_sys_goal'
+  ;;; changes is put again with that body in its place, its key, origin and
+  ;;; mute as they were and its program dropped (a body part way through
+  ;;; it goes on, as a retracted clause's does). A clause read later is made
+  ;;; so as it is added (`coco_assert_from'). The clauses are read onto the
+  ;;; heap one at a time, and the heap wound back after each.
+  (func coco_sys_library ((coco_store * st) (coco_machine * m))
+        (for ((size_t pi . 0)) (< pi (-> st npreds)) ((++ pi))
+          (if (and ($ (nth pi (-> st preds)) library) (not ($ (nth pi (-> st preds)) own))
+                   (not ($ (nth pi (-> st preds)) taken)))
+              (let ((int touched . 0))
+                (for ((size_t i . 0)) (< i ($ (nth pi (-> st preds)) nclauses)) ((++ i))
+                  (let ((coco_pred * p . #'(aof (nth pi (-> st preds)))))
+                    (if (and (!= (nth i (-> p muted)) 0) (not (coco_pred_dead p i)))
+                        (let ((size_t mark . #'(-> m heap_len))
+                              (size_t c . #'(coco_store_get m st (nth i (-> p clauses))))
+                              (size_t h . 0) (size_t bd . 0))
+                          (coco_clause_parts m c (aof h) (aof bd))
+                          (if (!= bd 0)
+                              (let ((size_t nb . #'(coco_sys_goal m st bd 0)))
+                                (if (!= nb (coco_deref m bd))
+                                    (let ((size_t stored . #'(coco_store_put st m (coco_make2 m ":-" h nb))))
+                                      (set p (aof (nth pi (-> st preds))))
+                                      (coco_store_orphan st m (nth i (-> p clauses)))
+                                      (set (nth i (-> p clauses)) stored)
+                                      (set (nth i (-> p codes)) nil)
+                                      (set touched 1)))))
+                          (set (-> m heap_len) mark)))))
+                (if touched (coco_pred_unindex (aof (nth pi (-> st preds)))))))))
 
   (func coco_assert ((coco_store * st) (coco_machine * m) (size_t clause) (int at_end)) (out int)
         (return (coco_assert_from st m clause at_end 0 nil)))
@@ -624,11 +766,57 @@
                 (set clause (? (== qb 0) inner (coco_make2 m ":-" inner qb))))))
 
         ;; the head decides which predicate this belongs to
-        (let ((size_t head . clause))
+        (let ((size_t head . clause) (int claim . 0))
           (if (and (coco_is_callable m clause) (== (coco_arity m clause) 2))
               (if (== 0 (strcmp (coco_atom_name m (coco_name_of m clause)) ":-"))
                   (set head (coco_deref m (coco_arg m clause 0)))))
           (if (not (coco_is_callable m head)) (return 0))
+
+          ;; A PROGRAM FILE'S CLAUSE FOR A BUILTIN'S NAME (3.1.0), swipl's
+          ;; rule: a clause a file of the program's own gives a predicate
+          ;; the engine or a compiled-in module implements is refused for an
+          ;; ISO one -- before the predicate is touched, and reported in
+          ;; swipl's words as a clause too long for a row is -- and takes
+          ;; any other over (`coco_pred_take_over', below). A library's
+          ;; clause is muted and asks nothing -- but one for a predicate
+          ;; taken over already is kept out, as the take-over put the
+          ;; library's out (a module's half is read at a query's start, which
+          ;; can come after `run' consulted the program); neither does an
+          ;; assert, as the store keeps facts under a builtin's name
+          ;; (`number(dos)').
+          (if (and (coco_store_is_muted st) (not (-> st ownload)) (!= (-> st ntaken) 0)
+                   (coco_pred_taken st (coco_name_of m head) (coco_arity m head)))
+              (return 1))
+          ;; and a library's call of a taken name is the system's
+          ;; (`coco_sys_goal'): a module's half read at a query's start, a
+          ;; library loaded after the program took the name over
+          (if (and (coco_store_is_muted st) (not (-> st ownload)) (!= (-> st ntaken) 0)
+                   (!= head clause))
+              (let ((size_t bd . #'(coco_deref m (coco_arg m clause 1)))
+                    (size_t nb . #'(coco_sys_goal m st (coco_arg m clause 1) 0)))
+                (if (!= nb bd)
+                    (set clause (coco_make2 m ":-" (coco_arg m clause 0) nb)))))
+          (if (and (!= origin 0) (or (not (coco_store_is_muted st)) (-> st ownload)))
+              (block
+                (set claim (coco_claim_kind m (coco_name_of m head) (coco_arity m head)))
+                ;; one redefine_system_predicate/1 named (`redef'): taken over
+                ;; as any other, but a construct, which a clause never reaches
+                (if (== claim 2)
+                    (let ((size_t rp . #'(coco_pred_find st (coco_name_of m head) (coco_arity m head))))
+                      (if (and (< rp (-> st npreds)) ($ (nth rp (-> st preds)) redef))
+                          (set claim (? (coco_is_construct m (coco_name_of m head)) 0 1)))))
+                (if (== claim 2)
+                    (let ((coco_strbuf b) (size_t mark . #'(-> m heap_len)))
+                      (coco_sb_init (aof b))
+                      (coco_write_mode m (aof b)
+                                       (coco_make2 m "/" (coco_new_atom_id m (coco_name_of m head))
+                                                   (coco_new_int m (cast i64 (coco_arity m head))))
+                                       25 0)
+                      (snprintf (-> st assert_err) 256 "No permission to modify static procedure `%s'"
+                                (? (== ($ b s) nil) "?" ($ b s)))
+                      (coco_sb_free (aof b))
+                      (set (-> m heap_len) mark)
+                      (return 0)))))
 
           ;; WILL IT FIT? Asked HERE -- before the predicate is touched at
           ;; all, and above the reconsult forget in particular, because the
@@ -719,6 +907,9 @@
                                 (coco_atom_name m (coco_name_of m head)) (coco_arity m head)
                                 (-> st fetch_err))
                       (return 0))))
+            ;; the program's from here on, ahead of the builtin (3.1.0)
+            (if (and (== claim 1) (not ($ (nth pi (-> st preds)) taken)))
+                (coco_pred_take_over st m pi head))
             ;; THE RECONSULT: the first clause this consult adds to the
             ;; predicate first takes out what the same file put there last
             ;; time -- after the fetch, so the rows are here to be taken out,
@@ -863,6 +1054,24 @@
                     (char * err) (size_t errlen)) (out int)
         (return (coco_consult_again st m text origin 0 err errlen)))
 
+  ;;; THE BALL THAT ENDED A LOAD (3.1.0, the machine's `lball'), taken by
+  ;;; the one who can throw it: read on to the heap into OUT, its cells
+  ;;; counted dead, and the machine's word cleared. 0 when none is kept.
+  (func coco_load_ball_take ((coco_store * st) (coco_machine * m) (size_t * out)) (out int)
+        (if (== (-> m lball) 0) (return 0))
+        (set (cof out) (coco_store_read m st (- (-> m lball) 1)))
+        (set (-> st dead) (+ (-> st dead) (-> m lball_size)))
+        (set (-> m lball) 0)
+        (set (-> m lball_size) 0)
+        (return 1))
+
+  ;;; and dropped by a host that only says why the load stopped
+  (func coco_load_ball_drop ((coco_store * st) (coco_machine * m))
+        (if (== (-> m lball) 0) (return))
+        (set (-> st dead) (+ (-> st dead) (-> m lball_size)))
+        (set (-> m lball) 0)
+        (set (-> m lball_size) 0))
+
   ;;; a module's text read again is a file read again (`lb_reread'), and
   ;;; its first read places nothing
   (func coco_consult_owner ((coco_store * st) (coco_machine * m) (const char * text)
@@ -880,8 +1089,12 @@
   ;;; on answering `q/1' from its last read. Every predicate SEEN did not
   ;;; mark loses OID's clauses of the store's mute here, and one left with
   ;;; none is unknown, as in swipl. Asked only of a consult that read its
-  ;;; text to the end: one a syntax error stopped did not read what came
-  ;;; after the error, and what it did not read is not the file's absence.
+  ;;; text to the end: one that stopped (an `:- if' nested too deep, a
+  ;;; condition that would not run) did not read what came after, and what
+  ;;; it did not read is not the file's absence. A syntax error no longer
+  ;;; stops one (3.1.0): its clause is passed over, and a predicate whose
+  ;;; every clause would not read is no longer the file's -- as swipl's,
+  ;;; which reloads `q(1 :- .' over `q(1).' into an unknown q/1.
   (static)
   (func coco_consult_forget_rest ((coco_store * st) (coco_machine * m) (u64 oid)
                                   (coco_origin_seen * seen))
@@ -924,8 +1137,10 @@
                 (coco_reload_free (nth i ($ seen rls)))))
           (free (cast (void *) ($ seen rls)))
           (free (cast (void *) ($ seen pis)))
-          ;; a reconsult has just orphaned the file's previous clauses
-          (coco_store_maybe_compact st m)
+          ;; a reconsult has just orphaned the file's previous clauses --
+          ;; but not under a ball that ended the load, whose cell its taker
+          ;; reads next (3.1.0)
+          (if (== (-> m lball) 0) (coco_store_maybe_compact st m))
           (return n)))
 
   ;;; A CONSULT THAT STOPS SAYS WHERE (1.11.9), as SWI places a load's
@@ -939,6 +1154,85 @@
               (snprintf err errlen "%s:%d: %s" origin at what)
             (snprintf err errlen "line %d: %s" at what))))
 
+  ;;; A SYNTAX ERROR IS REPORTED WHERE IT STANDS AND THE LOAD GOES ON (3.1.0),
+  ;;; on one line as swipl places it (1.11.9): the file, the line from 1 and
+  ;;; the column from 0 -- in bytes, as swipl's -- of the token the reader
+  ;;; failed at, and the reason. Through 3.0.4 it ended the consult.
+  (static)
+  (func coco_consult_syntax_say ((coco_reader * r) (const char * origin))
+        (let ((int eline . 1) (int ecol . 0) (char what [1100])
+              (const char * why . #'(? (== (-> r ewhat) nil) "unreadable" (-> r ewhat))))
+          (coco_reader_place r (aof eline) (aof ecol))
+          (if (!= origin nil)
+              (snprintf what (sizeof what) "%s:%d:%d: Syntax error: %s" origin eline ecol why)
+            (snprintf what (sizeof what) "line %d, column %d: Syntax error: %s" eline ecol why))
+          (coco_load_note "ERROR" nil 0 what)))
+
+  ;;; A BODY HOLDS ONLY GOALS (3.1.0, a load's, as assert's
+  ;;; `coco_body_callable'): 1 when every goal of B's control spine -- under
+  ;;; `,', `;', `->', `*->' and `\+' -- is a callable term or a variable
+  ;;; (call/1 of it, as ISO has it), 0 when one is not. IDS are those
+  ;;; names' ids in that order, interned once a consult; a body read from
+  ;;; text is no cycle, and its depth is the reader's.
+  (static)
+  (func coco_consult_goals ((coco_machine * m) (size_t b) (const u64 * ids)) (out int)
+        (while 1
+          (set b (coco_deref m b))
+          (if (coco-tag-is REF (nth b (-> m heap))) (return 1))
+          (if (not (coco_is_callable m b)) (return 0))
+          (let ((u64 nid . #'(coco_name_of m b)) (u32 n . #'(coco_arity m b)))
+            (if (and (== n 1) (== nid (nth 4 ids)))
+                (block (set b (coco_arg m b 0)) continue))
+            (if (not (and (== n 2) (or (or (== nid (nth 0 ids)) (== nid (nth 1 ids)))
+                                         (or (== nid (nth 2 ids)) (== nid (nth 3 ids))))))
+                (return 1))
+            (if (not (coco_consult_goals m (coco_arg m b 0) ids)) (return 0))
+            (set b (coco_arg m b 1))))
+        (return 1))
+
+  ;;; WHAT A LOAD REFUSES OF A CLAUSE, as swipl's does (3.1.0): 1 with the
+  ;;; term the report names in OUT -- the clause when it is no callable term
+  ;;; (`3.', `1.5.'), its head when that is none, the whole body when a goal
+  ;;; in it is no goal (`foo :- 3.', `bar :- (a, 1).'); 2 for a variable
+  ;;; where the clause or its head stands; 3 for `[].', which swipl passes
+  ;;; over in silence; 0 for a clause that may go on. Through 3.0.4 the
+  ;;; first ended the consult (`not a clause') and the body went in.
+  (static)
+  (func coco_consult_refused ((coco_machine * m) (size_t t) (const u64 * ids) (size_t * out))
+        (out int)
+        (set t (coco_deref m t))
+        (if (coco-tag-is REF (nth t (-> m heap))) (return 2))
+        (if (coco_is_nil m t) (return 3))
+        (if (not (coco_is_callable m t)) (block (set (cof out) t) (return 1)))
+        (if (and (== (coco_arity m t) 2) (== (coco_name_of m t) (nth 5 ids)))
+            (let ((size_t h . #'(coco_deref m (coco_arg m t 0))))
+              (if (coco-tag-is REF (nth h (-> m heap))) (return 2))
+              (if (not (coco_is_callable m h)) (block (set (cof out) h) (return 1)))
+              (if (not (coco_consult_goals m (coco_arg m t 1) ids))
+                  (block (set (cof out) (coco_deref m (coco_arg m t 1))) (return 1)))))
+        (return 0))
+
+  ;;; swipl's sentence for a refused clause: `Type error: `callable'
+  ;;; expected, found `3' (an integer)', the culprit written as print/1
+  ;;; writes it and its kind named as the error text names one
+  (static)
+  (func coco_consult_refusal ((coco_machine * m) (size_t c) (char * out) (size_t len))
+        (let ((coco_strbuf b) (u64 w . 0) (const char * kind . "a compound"))
+          (set c (coco_deref m c))
+          (set w (nth c (-> m heap)))
+          (cond
+            ((coco_is_nil m c) (set kind "an empty_list"))
+            ((coco-tag-is ATOM w) (set kind "an atom"))
+            ((coco-is-int w) (set kind "an integer"))
+            ((coco-tag-is STR w) (set kind "a string"))
+            ((coco-rat-p w) (set kind "a rational"))
+            ((coco-tag-is FLT w) (set kind "a float")))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) c 1 0)
+          (snprintf out len "Type error: `callable' expected, found `%s' (%s)"
+                    (? (== ($ b s) nil) "?" ($ b s)) kind)
+          (coco_sb_free (aof b))))
+
   (static)
   (func coco_consult_owned ((coco_store * st) (coco_machine * m) (const char * text)
                             (const char * origin) (u64 oid) (coco_origin_seen * seen)
@@ -951,6 +1245,12 @@
               ;; while any frame is not taking is dropped, directives too --
               ;; except these four, which keep the nesting straight.
               (int csp . 0) (int ctaking [16]) (int ctaken [16]) (int active . 1)
+              ;; and the line each frame's `:- if' stands on, which an if
+              ;; left open at the end names (3.1.0)
+              (int cline [16])
+              ;; the control names a body is walked by and `:-', interned
+              ;; once (`coco_consult_refused')
+              (u64 cids [6])
               ;; WHERE THE CLAUSE IN HAND BEGINS, counted forward and never
               ;; back: `scanned' is how far the newline count has read and
               ;; `line' the answer at that point, so the whole file is walked
@@ -974,6 +1274,12 @@
           ;; the goals put off to the end are cell indices; a compaction
           ;; before they run must move them too. `coco_consult' unregisters.
           (coco_store_root_push st (aof ($ inits cells)) (aof ($ inits len)))
+          (set (nth 0 cids) (coco_intern m ","))
+          (set (nth 1 cids) (coco_intern m ";"))
+          (set (nth 2 cids) (coco_intern m "->"))
+          (set (nth 3 cids) (coco_intern m "*->"))
+          (set (nth 4 cids) (coco_intern m "\\+"))
+          (set (nth 5 cids) (coco_intern m ":-"))
           (coco_reader_init (aof r) m text)
           (while (== rc 1)
             ;; each clause is read on to the heap, copied into the store, and
@@ -985,6 +1291,19 @@
               (set scanned (+ scanned 1)))
             (set at line)
             (set rc (coco_read_clause (aof r) (aof t)))
+            ;; A SYNTAX ERROR SKIPS ITS CLAUSE AND THE LOAD GOES ON (3.1.0),
+            ;; as swipl's: reported where it stands, and the reader taken up
+            ;; after the full stop that ends the clause it was in, as swipl's
+            ;; raw read of a clause's text finds it (`coco_reader_resync').
+            ;; Through 3.0.4 the consult ended there and the rest of the file
+            ;; was not read: one typo near the top and nothing under it loaded.
+            (if (== rc -1)
+                (block
+                  (coco_consult_syntax_say (aof r) origin)
+                  (set (-> m heap_len) mark)
+                  (coco_reader_resync (aof r))
+                  (set rc 1)
+                  continue))
             (if (== rc 1)
                 (block
                  (set active 1)
@@ -1020,14 +1339,16 @@
                                              (coco_reader_free (aof r)) (return -1))))
                               (set (nth csp ctaking) (? (and active truth) 1 0))
                               (set (nth csp ctaken) (? (and active truth) 1 0))
+                              (set (nth csp cline) at)
                               (set csp (+ csp 1)))))
+                       ;; AN elif, else OR endif WITH NO if OPEN IS REPORTED,
+                       ;; AND THE LOAD GOES ON (3.1.0), swipl's two lines;
+                       ;; through 3.0.4 the consult ended there
                        (if (and (== da 1) (== 0 (strcmp dn "elif")))
                            (block
                             (set handled 1)
                             (if (== csp 0)
-                                (block (snprintf err errlen "elif: no `:- if' is open")
-                                       (coco_consult_where err errlen origin at)
-                                       (coco_reader_free (aof r)) (return -1)))
+                                (coco_load_message "ERROR" origin at ":- elif without :- if")
                             (let ((int truth . 0) (int outer . 1) (int ci . 0))
                               (while (< ci (- csp 1))
                                 (if (== (nth ci ctaking) 0) (set outer 0))
@@ -1040,14 +1361,12 @@
                                               (coco_reader_free (aof r)) (return -1)))
                                    (set (nth (- csp 1) ctaking) truth)
                                    (if truth (set (nth (- csp 1) ctaken) 1)))
-                                (set (nth (- csp 1) ctaking) 0)))))
+                                (set (nth (- csp 1) ctaking) 0))))))
                        (if (and (== da 0) (== 0 (strcmp dn "else")))
                            (block
                             (set handled 1)
                             (if (== csp 0)
-                                (block (snprintf err errlen "else: no `:- if' is open")
-                                       (coco_consult_where err errlen origin at)
-                                       (coco_reader_free (aof r)) (return -1)))
+                                (coco_load_message "ERROR" origin at ":- else without :- if")
                             (let ((int outer . 1) (int ci . 0))
                               (while (< ci (- csp 1))
                                 (if (== (nth ci ctaking) 0) (set outer 0))
@@ -1055,15 +1374,13 @@
                               (if (and outer (== (nth (- csp 1) ctaken) 0))
                                   (block (set (nth (- csp 1) ctaking) 1)
                                          (set (nth (- csp 1) ctaken) 1))
-                                (set (nth (- csp 1) ctaking) 0)))))
+                                (set (nth (- csp 1) ctaking) 0))))))
                        (if (and (== da 0) (== 0 (strcmp dn "endif")))
                            (block
                             (set handled 1)
                             (if (== csp 0)
-                                (block (snprintf err errlen "endif: no `:- if' is open")
-                                       (coco_consult_where err errlen origin at)
-                                       (coco_reader_free (aof r)) (return -1)))
-                            (set csp (- csp 1))))
+                                (coco_load_message "ERROR" origin at ":- endif without :- if")
+                              (set csp (- csp 1)))))
                        ;; REPORTED, AND THE LOAD GOES ON. A directive is a
                        ;; goal now, and a goal that fails or throws is news
                        ;; about that goal -- not a reason to throw away the
@@ -1083,11 +1400,16 @@
                        ;; nothing.
                        (if (and (== handled 0) active)
                            (let ((size_t * mp . nil) (size_t ml . 1) (int pushed . 0) (int dr . 0)
+                                 (size_t * tp . nil) (size_t tl . 1) (int theld . 0)
                                  (const char * sfile . #'(-> m sloc_file))
                                  (int sline . #'(-> m sloc_line)))
                              (set mp (aof mark))
                              (set pushed (coco_heap_pos_push m (aof mp) (aof ml)))
-                             (set (-> m dgc) (? pushed vouch 0))
+                             ;; and the clause, which the Warning after a goal
+                             ;; that raised names (3.1.0): the goal may collect
+                             (set tp (aof t))
+                             (set theld (and pushed (coco_heap_root_push m (aof tp) (aof tl))))
+                             (set (-> m dgc) (? (and pushed theld) vouch 0))
                              ;; source_location/2 answers the directive's file
                              ;; and line while its goal runs (2.16.0)
                              (set (-> m sloc_file) origin)
@@ -1096,63 +1418,82 @@
                              (set (-> m sloc_file) sfile)
                              (set (-> m sloc_line) sline)
                              (set (-> m dgc) 0)
+                             (if theld (coco_heap_root_pop m))
                              (if pushed (coco_heap_root_pop m))
                              (if (== dr 2) (coco_load_message "Warning" origin at err))
-                             (if (== dr 0) (coco_load_message "ERROR" origin at err))
+                             (if (or (== dr 0) (== dr 3)) (coco_load_message "ERROR" origin at err))
                              ;; and where it was raised, when its goal raised
                              ;; it (1.10.17): `lb_goal_hook' keeps the lines
                              ;; then and only then
-                             (coco_bt_say m (== dr 0))
+                             (coco_bt_say m (or (== dr 0) (== dr 3)))
                              ;; BOTH, IN SWI'S ORDER: why nothing was loaded,
-                             ;; then that the directive failed, named
+                             ;; or the error(_, _) a goal raised (3.1.0), then
+                             ;; that the directive failed, named
                              (if (== dr 3)
-                                 (let ((coco_strbuf b))
-                                   (coco_load_message "ERROR" origin at err)
-                                   (coco_sb_init (aof b))
-                                   (coco_write_term m (aof b) (coco_deref m (coco_arg m t 0)) 1 0)
-                                   (snprintf err errlen "Goal (directive) failed: %s"
-                                             (? (== ($ b s) nil) "?" ($ b s)))
-                                   (coco_sb_free (aof b))
-                                   (coco_load_message "Warning" origin at err)))))
+                                 (block (coco_directive_failed m (coco_arg m t 0) err errlen)
+                                        (coco_load_message "Warning" origin at err)))
+                             ;; A BALL THAT IS NO error(_, _) ENDS THE LOAD
+                             ;; (3.1.0), as swipl's: what was read stands, the
+                             ;; rest of the file is not read, and the ball, kept
+                             ;; on the machine (`lball'), is whoever asked for
+                             ;; the load's to throw -- a script's load says
+                             ;; ERR, swipl's `Prolog initialisation failed'
+                             (if (== dr 4)
+                                 (let ((char * msg . #'(strdup err)))
+                                   (if (!= msg nil)
+                                       (block (snprintf err errlen
+                                                        "Prolog initialisation failed:\nERROR: %s" msg)
+                                              (free msg)))
+                                   (set (-> m heap_len) mark)
+                                   (coco_inits_free (aof inits))
+                                   (coco_reader_free (aof r))
+                                   (return -1)))))
                       (set (-> m heap_len) mark))
                    (block
                     (if active
                         (block
                          ;; A CLAUSE THE STORE CAN EXPLAIN REFUSING IS
                          ;; REPORTED AND THE LOAD GOES ON, the way a directive
-                         ;; that failed does -- a syntax error is still the
-                         ;; only thing that ends a consult, because after one
-                         ;; the reader does not know where the next clause
-                         ;; begins, and this reader does. The rest of the file
-                         ;; is not the refused clause's fault, and losing it
-                         ;; is how ONE clause over the row limit came to empty
-                         ;; a whole predicate.
-                         (if (not (coco_assert_from st m t 1 oid seen))
-                             (if (!= (nth 0 (-> st assert_err)) (cast char 0))
-                                 (block (snprintf err errlen "%s" (-> st assert_err))
-                                        (coco_load_message "ERROR" origin at err)
-                                        (set (nth 0 err) (cast char 0)))
-                               (block (snprintf err errlen "not a clause")
-                                      (coco_consult_where err errlen origin at)
-                                      (coco_reader_free (aof r))
-                                      (return -1)))
-                           (set n (+ n 1)))))
+                         ;; that failed does. The rest of the file is not the
+                         ;; refused clause's fault, and losing it is how ONE
+                         ;; clause over the row limit came to empty a whole
+                         ;; predicate. So is a clause that is no clause
+                         ;; (3.1.0, swipl's `Type error: `callable' expected'
+                         ;; naming it, its head or its body), which through
+                         ;; 3.0.4 ended the consult or, a body with a number
+                         ;; for a goal, went in.
+                         (let ((size_t culprit . 0)
+                               (int refused . #'(coco_consult_refused m t cids (aof culprit))))
+                           (cond
+                             ((== refused 1)
+                              (coco_consult_refusal m culprit err errlen)
+                              (coco_load_message "ERROR" origin at err)
+                              (set (nth 0 err) (cast char 0)))
+                             ((== refused 2)
+                              (coco_load_message "ERROR" origin at
+                                                 "Arguments are not sufficiently instantiated"))
+                             ((== refused 3) (set culprit 0))
+                             ((not (coco_assert_from st m t 1 oid seen))
+                              (if (!= (nth 0 (-> st assert_err)) (cast char 0))
+                                  (block (snprintf err errlen "%s" (-> st assert_err))
+                                         (coco_load_message "ERROR" origin at err)
+                                         (set (nth 0 err) (cast char 0)))
+                                (coco_load_message "ERROR" origin at "not a clause")))
+                             (#t (set n (+ n 1)))))))
                     (set (-> m heap_len) mark))))))
-          ;; A SYNTAX ERROR IS PLACED AS SWI PLACES IT (1.11.9): the file,
-          ;; the line from 1 and the column from 0 (in bytes, as swipl's) of
-          ;; the token the reader failed at, and the reason. Through 1.11.8 this said
-          ;; `syntax error at offset N', N a byte offset into the file, and a
-          ;; module's load said nothing at all of where or why.
-          (if (== rc -1)
-              (let ((int eline . 1) (int ecol . 0)
-                    (const char * why . #'(? (== ($ r ewhat) nil) "unreadable" ($ r ewhat))))
-                (coco_reader_place (aof r) (aof eline) (aof ecol))
+          ;; AN `:- if' LEFT OPEN AT THE END IS REPORTED (3.1.0), as swipl
+          ;; does, on the line the text ends on, naming where the outermost
+          ;; open one stands; what it held was read or skipped as it said
+          (if (> csp 0)
+              (let ((int eline . 1) (char what [1100]))
+                (for ((size_t i . 0)) (< i ($ r len)) ((++ i))
+                  (if (== (nth i text) (cast char 10)) (set eline (+ eline 1))))
                 (if (!= origin nil)
-                    (snprintf err errlen "%s:%d:%d: Syntax error: %s" origin eline ecol why)
-                  (snprintf err errlen "line %d, column %d: Syntax error: %s" eline ecol why))
-                (coco_inits_free (aof inits))
-                (coco_reader_free (aof r))
-                (return -1)))
+                    (snprintf what (sizeof what) "Unterminated conditional compilation from %s:%d"
+                              origin (nth 0 cline))
+                  (snprintf what (sizeof what) "Unterminated conditional compilation from line %d"
+                            (nth 0 cline)))
+                (coco_load_message "ERROR" origin eline what)))
           (coco_reader_free (aof r))
 
           ;; ---- and now the goals the file put off ------------------------
@@ -1165,15 +1506,29 @@
             (for ((size_t i . 0)) (< i ($ inits len)) ((++ i))
               (let ((size_t back . #'(-> m heap_len))
                     (int code . 0))
+                ;; NOT AT HEAP CELL 0 (3.1.0): a goal there is the goal in
+                ;; flight `kcall' 0, which reads as none, and the error of a
+                ;; builtin it is would name no predicate (`coco_err_ctx') --
+                ;; and a load that winds its heap back clause by clause
+                ;; leaves it empty. A cell first, gone with the wind-back.
+                (if (== (-> m heap_len) 0) (coco_new_var m))
                 (if (== coco_goal_hook nil)
                     (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
                                            "initialization: there is no engine over this store")
                            (set code 2))
                   (let ((size_t span . 0)
                         (size_t goal . #'(coco_store_get_span m st (nth i ($ inits cells)) (aof span)))
-                        (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0)))
+                        (int gr . 0) (int main . #'(? (== (nth i ($ inits modes)) 1) 1 0))
+                        (coco_strbuf gtext))
                     ;; fetched, the goal's cells are orphans
                     (set (-> st dead) (+ (-> st dead) span))
+                    ;; A `main' GOAL IS NAMED IN ITS REPORT, `user:main', as
+                    ;; swipl names it (3.1.0): written now, before it runs
+                    ;; and collects, and as it was asked
+                    (coco_sb_init (aof gtext))
+                    (if main
+                        (coco_write_term m (aof gtext)
+                                         (coco_make2 m ":" (coco_new_atom m "user") goal) 1 0))
                     ;; THE `main' GOAL IS THE PROGRAM, NOT PART OF THE LOAD,
                     ;; so it writes through even when the file is a module
                     ;; -- and `-s FILE' makes it one, whose load is muted. It
@@ -1188,22 +1543,40 @@
                       (set pushed (coco_heap_pos_push m (aof bp) (aof bl)))
                       (if main (set (-> st muted) 0))
                       (set (-> m dgc) (? pushed vouch 0))
-                      (set gr (coco_goal_hook st m goal err errlen))
+                      (set gr (coco_goal_hook st m goal (? main 2 1) err errlen))
                       (set (-> m dgc) 0)
                       (if pushed (coco_heap_root_pop m))
                       (set (-> st muted) was))
                     ;; SWI'S TWO VOICES, measured: an `after_load' goal that
                     ;; fails is a Warning and the program carries on, while a
                     ;; `main' one that fails is an ERROR and the exit status
-                    ;; -- because there it IS the program.
+                    ;; -- because there it IS the program. The `main' one's
+                    ;; are `F:L: user:main: false' and `F:L: user:main
+                    ;; MESSAGE', on one line (3.1.0, swipl's '$run_init_goal'/2;
+                    ;; through 3.0 `main: false' and `main: raised exception:'
+                    ;; over the message), and under `verbose' silent -- swipl
+                    ;; -q's -- a main that failed says nothing (3.1.0), as
+                    ;; swipl's does: it exits 1, and every other report here
+                    ;; prints as it does
                     (cond
                       ((== gr 1) (set code 0))
+                      ((and (== gr 0) main)
+                       (let ((char what [1100]))
+                         (snprintf what (sizeof what) "%s: false"
+                                   (? (== ($ gtext s) nil) "user:main" ($ gtext s)))
+                         (if (not (coco_verbose_silent))
+                             (coco_load_note "ERROR" origin (nth i ($ inits lines)) what))
+                         (set code 1)))
                       ((== gr 0)
-                       (block (coco_load_note (? main "ERROR" "Warning")
-                                              origin (nth i ($ inits lines))
-                                              (? main "main: false"
-                                                 "Initialization goal failed"))
+                       (block (coco_load_note "Warning" origin (nth i ($ inits lines))
+                                              "Initialization goal failed")
                               (set code 1)))
+                      ((!= main 0)
+                       (let ((char what [1600]))
+                         (snprintf what (sizeof what) "%s %s"
+                                   (? (== ($ gtext s) nil) "user:main" ($ gtext s)) err)
+                         (coco_load_note "ERROR" origin (nth i ($ inits lines)) what)
+                         (set code 2)))
                       ;; FLUSH, NOT INDENTED, on the second line. SWI's
                       ;; four-space indent belongs to the DIRECTIVE message
                       ;; -- `coco_load_message' keeps it because that is
@@ -1214,12 +1587,12 @@
                       ;; an empty slot was the last thing between the two
                       ;; messages: they are word for word now.
                       (#t (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
-                                                 (? main "main: raised exception:"
-                                                    "Initialization goal raised exception:"))
+                                                 "Initialization goal raised exception:")
                                  (fprintf stderr "ERROR: %s\n" err)
                                  (set code 2))))
                     ;; where it was raised, as a directive's (1.10.17)
-                    (coco_bt_say m (and (!= gr 1) (!= gr 0)))))
+                    (coco_bt_say m (and (!= gr 1) (!= gr 0)))
+                    (coco_sb_free (aof gtext))))
                 (if (== (nth i ($ inits modes)) 1)
                     (block (set halt_after 1) (set halt_code code)))
                 (set (-> m heap_len) back)))

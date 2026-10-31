@@ -229,17 +229,46 @@ bd_take(N, [C|T], [C|R]) :- N1 is N - 1, bd_take(N1, T, R).
 %% nothing else, and its text starts `:- dynamic ...', which no per-clause
 %% guard would let through. The clause splitter downstream is the same one
 %% either way, and it drops the directives itself.
+%%
+%% A CLAUSE OF A TABLE MAY SPAN STRINGS: the engine joins the half with
+%% spaces, so a string that starts a clause and does not end it (no `.')
+%% runs on through the strings after it, up to the one that ends with one
+%% (bd_join_clauses/2). Read a string at a time, each continuation was a
+%% clause of its own -- `    member(Expanded, Exps), ...' a member/2 of
+%% library(files), which the chart's tables then named member/2's library
+%% (3.1.0). Every string of a table that starts a clause and has no `.' is
+%% such a first piece; none is a clause relying on the `.' added below.
 bd_fragments(Codes, Texts) :-
     bd_table_regions(Codes, Regions),
     findall(T,
             ( member(Kind-Region, Regions),
               bd_strings(Region, Raw),
-              member(R, Raw),
-              bd_unescape(R, U),
-              bd_strip(U, Text),
+              findall(Text, ( member(R, Raw), bd_unescape(R, U), bd_strip(U, Text) ), Texts0),
+              (   Kind == table -> bd_join_clauses(Texts0, Texts1) ; Texts1 = Texts0 ),
+              member(Text, Texts1),
               bd_region_text(Kind, Text, T)
             ),
             Texts).
+
+bd_join_clauses([], []).
+bd_join_clauses([T|Ts], [C|Cs]) :-
+    T \== [],
+    bd_starts_clause(T),
+    bd_has_structure(T),
+    \+ append(_, ".", T),
+    !,
+    bd_join_on(Ts, T, C, Rest),
+    bd_join_clauses(Rest, Cs).
+bd_join_clauses([T|Ts], [T|Cs]) :-
+    bd_join_clauses(Ts, Cs).
+
+bd_join_on([], Acc, Acc, []).
+bd_join_on([T|Ts], Acc, C, Rest) :-
+    append(Acc, [0' |T], Acc1),
+    (   append(_, ".", T)
+    ->  C = Acc1, Rest = Ts
+    ;   bd_join_on(Ts, Acc1, C, Rest)
+    ).
 
 bd_region_text(table, Text, T) :- bd_fragment_ok(Text, T).
 bd_region_text(blob, Text, Text) :- Text \== [].
@@ -342,11 +371,15 @@ bd_ci_word([W|Ws], [C|Cs], R) :- bd_ci_same(W, C), bd_ci_word(Ws, Cs, R).
 bd_ci_same(W, C) :- W == C, !.
 bd_ci_same(W, C) :- W >= 0'a, W =< 0'z, C =:= W - 32.
 
-%% The s-expression opening at the head of the list, quotes respected.
+%% The s-expression opening at the head of the list, quotes and comments
+%% respected: a `;' outside a string is a Lisp comment to the end of its
+%% line, whose parentheses and quotes are prose (3.1.0; through 3.0.0 the
+%% quoted words of a comment were strings of the half, below).
 bd_sexp(Cs, Region) :- bd_sexp_(Cs, 0, [], Region).
 
 bd_sexp_([], _, Acc, Region) :- !, reverse(Acc, Region).
 bd_sexp_([0'"|T], D, Acc, R) :- !, bd_sexp_q(T, D, [0'"|Acc], R).
+bd_sexp_([0';|T], D, Acc, R) :- !, bd_sexp_c(T, D, [0';|Acc], R).
 bd_sexp_([0'(|T], D, Acc, R) :- !, D1 is D + 1, bd_sexp_(T, D1, [0'(|Acc], R).
 bd_sexp_([0')|T], D, Acc, R) :-
     !,
@@ -362,13 +395,23 @@ bd_sexp_q([0'\\, C|T], D, Acc, R) :- !, bd_sexp_q(T, D, [C, 0'\\|Acc], R).
 bd_sexp_q([0'"|T], D, Acc, R) :- !, bd_sexp_(T, D, [0'"|Acc], R).
 bd_sexp_q([C|T], D, Acc, R) :- bd_sexp_q(T, D, [C|Acc], R).
 
-%% Every "..." in the region, with backslash escapes respected.
+bd_sexp_c([], D, Acc, R) :- !, bd_sexp_([], D, Acc, R).
+bd_sexp_c([0'\n|T], D, Acc, R) :- !, bd_sexp_(T, D, [0'\n|Acc], R).
+bd_sexp_c([C|T], D, Acc, R) :- bd_sexp_c(T, D, [C|Acc], R).
+
+%% Every "..." in the region, with backslash escapes respected, and none of
+%% a comment's.
 bd_strings([], []) :- !.
 bd_strings([0'"|T], [S|Rest]) :-
     !,
     bd_string_body(T, S, T1),
     bd_strings(T1, Rest).
+bd_strings([0';|T], Out) :- !, bd_skip_line(T, T1), bd_strings(T1, Out).
 bd_strings([_|T], Out) :- bd_strings(T, Out).
+
+bd_skip_line([], []).
+bd_skip_line([0'\n|T], T) :- !.
+bd_skip_line([_|T], R) :- bd_skip_line(T, R).
 
 bd_string_body([], [], []) :- !.
 bd_string_body([0'\\, C|T], [0'\\, C|S], R) :- !, bd_string_body(T, S, R).
@@ -537,6 +580,100 @@ bd_plain_strings([0'"|T], [S|Rest]) :-
     bd_plain_strings(T1, Rest).
 bd_plain_strings([_|T], Out) :- bd_plain_strings(T, Out).
 
+%% ---- shape 6: the ISO predicates (3.1.0) -------------------------------
+%%
+%% lib/solve.cicili's `*iso-predicates*', ("NAME" ARITY) pairs: what a
+%% program file may not define. The load refuses each such clause and says
+%% so, as swipl's does; any other name of the engine's or a compiled-in
+%% module's a file takes over, as swipl lets a user file. Either way it is
+%% no SILENT failure, which is what a HARD finding is for (lint.pl, N2 and
+%% N3).
+
+bd_iso(Pairs) :-
+    bd_path('lib/solve.cicili', F),
+    read_file_to_codes(F, Cs),
+    (   bd_iso_region(Cs, Region)
+    ->  findall(N-A, bd_iso_pair(Region, N, A), Pairs0)
+    ;   Pairs0 = []
+    ),
+    sort(Pairs0, Pairs).
+
+bd_iso_region([0'(|T], Region) :-
+    append("DEFPARAMETER *iso-predicates*", After, T),
+    !,
+    bd_ws(After, [0''|Q]),
+    bd_sexp(Q, Region).
+bd_iso_region([_|T], Region) :- bd_iso_region(T, Region).
+
+bd_iso_pair(Region, N, A) :-
+    append(_, [0'(, 0'"|Rest], Region),
+    bd_upto_quote(Rest, NCs, After),
+    bd_ws(After, D0),
+    bd_digits(D0, DCs),
+    DCs \== [],
+    atom_codes(N, NCs),
+    number_codes(A, DCs).
+
+bd_digits([C|T], [C|R]) :- C >= 0'0, C =< 0'9, !, bd_digits(T, R).
+bd_digits(_, []).
+
+%% ---- the arities a construct runs at (3.1.0) ---------------------------
+%%
+%% tools/flow/tables.pl's ft_construct_arities/2, the one table of them
+%% (its build stops at a construct it has no arity for): the step runs a
+%% construct at those arities and hands any other goal of its name on as a
+%% predicate's, so `once/2' is a program's to define and `*->/2' is not.
+
+bd_construct_arities(Pairs) :-
+    bd_path('tools/flow/tables.pl', F),
+    read_file_to_codes(F, Cs),
+    bd_lines(Cs, Lines),
+    findall(N-A,
+            ( member(L, Lines),
+              append("ft_construct_arities(", _, L),
+              atom_codes(LA, L),
+              catch(term_to_atom(ft_construct_arities(N, As), LA), _, fail),
+              member(A, As) ),
+            Pairs0),
+    sort(Pairs0, Pairs).
+
+bd_lines([], []) :- !.
+bd_lines(Cs, [L|Ls]) :-
+    (   append(L, [0'\n|Rest], Cs)
+    ->  true
+    ;   L = Cs, Rest = []
+    ),
+    bd_lines(Rest, Ls).
+
+%% ---- the hooks a compiled-in module's half declares (3.1.0) ------------
+%%
+%% `:- multifile(N/A)' in a module's Prolog half is an extension point as
+%% `H :- fail.' is in a library file (shape 4): lib/files.cicili's
+%% file_search_path/2 and prolog_file_type/2, which swipl's programs add
+%% clauses to, the program's beside the library's in both systems.
+
+bd_shape2_hooks(Files, Pairs) :-
+    findall(Key-Rel,
+            ( member(F, Files),
+              bd_rel(F, Rel),
+              read_file_to_codes(F, Cs),
+              bd_table_regions(Cs, Regions),
+              member(_-Region, Regions),
+              bd_strings(Region, Raw),
+              member(R, Raw),
+              bd_unescape(R, U),
+              bd_strip(U, Text),
+              append(":- multifile(", _, Text),
+              atom_codes(SA, Text),
+              catch(term_to_atom((:- multifile(Spec)), SA), _, fail),
+              bd_spec_key(Spec, Key) ),
+            Pairs0),
+    sort(Pairs0, Pairs).
+
+bd_spec_key((A, B), K) :- !, ( bd_spec_key(A, K) ; bd_spec_key(B, K) ).
+bd_spec_key([H|T], K) :- !, ( bd_spec_key(H, K) ; bd_spec_key(T, K) ).
+bd_spec_key(N/A, K) :- atom(N), integer(A), bd_key(N, A, K).
+
 %% ---- the build ---------------------------------------------------------
 
 bd_build(b(T1c, T1p, T2, Hooks)) :-
@@ -559,17 +696,18 @@ bd_build(b(T1c, T1p, T2, Hooks)) :-
     sort(T1p0, T1p1),
 
     bd_tier2(ModC, LibPl, T2, LibHooks),
-    append(SwiplHooks, LibHooks, Hooks0),
+    bd_shape2_hooks(LibC, HalfHooks),
+    append(SwiplHooks, LibHooks, Hooks00),
+    append(Hooks00, HalfHooks, Hooks0),
     sort(Hooks0, Hooks1),
 
-    %% A name registered in C is dispatched before the store, so the C set
-    %% wins. AND A CONSTRUCT NAME WINS AT EVERY ARITY, which is a separate
-    %% line because a construct is recorded with NO arity (`throw/*'):
-    %% matching only on the exact key left throw/1 in the clause set, where
-    %% the prompt's symbol block would have called it nondet. Asked
-    %% directly, the store says throw/1 is visible -- the oracle's
-    %% documented blind spot -- so rule N3, which matches on the name
-    %% alone, is the only thing that catches it.
+    %% A name registered in C answers a library's call before the store, so
+    %% the C set wins. AND A CONSTRUCT NAME WINS AT EVERY ARITY, which is a
+    %% separate line because a construct is recorded with NO arity
+    %% (`throw/*'): matching only on the exact key left throw/1 in the
+    %% clause set, where the prompt's symbol block would have called it
+    %% nondet. (What a PROGRAM's clause for one does is lint.pl's: N3 at
+    %% the arities the step runs the construct at, cl_construct_arity/2.)
     bd_group(T1c1, T1c),
     findall(N, ( member(K-_, T1c), bd_star_name(K, N) ), StarNames0),
     sort(StarNames0, StarNames),
@@ -783,8 +921,12 @@ bd_facts(b(T1c, T1p, T2, Hooks), Text) :-
             ),
             L3),
     findall(L, ( member(K-[Fl|_], Hooks), bd_fact3(cl_hook, K, Fl, L) ), L5),
+    bd_iso(Iso),
+    findall(L, ( member(N-A, Iso), bd_q(N, QN), format(atom(L), "cl_iso(~w, ~w).", [QN, A]) ), L6),
+    bd_construct_arities(CA),
+    findall(L, ( member(N-A, CA), bd_raw(N, RN), bd_q(RN, QN), format(atom(L), "cl_construct_arity(~w, ~w).", [QN, A]) ), L7),
     append(H, L1, A1), append(A1, L2, A2), append(A2, L3, A3),
-    append(A3, L5, Lines),
+    append(A3, L5, A5), append(A5, L6, A6), append(A6, L7, Lines),
     bd_join(Lines, Text).
 
 %% A tier-2 entry is Key-[File, ...] like tier 1's; only the key is written.
@@ -808,9 +950,21 @@ bd_split_key(Key, Name, Arity) :-
     atom_codes(Name, NameCs),
     atom_codes(Arity, ACs).
 
-%% -1 is how a CONTROL CONSTRUCT travels: matched by name at every arity.
+%% -1 is how a CONTROL CONSTRUCT travels: its arities are cl_construct_arity/2's.
 bd_arity_num('*', -1) :- !.
 bd_arity_num(A, N) :- atom_number(A, N).
+
+%% A name read as a term (tables.pl's) in the raw form the cicili sources
+%% give every other name: a backslash written twice, so that bd_q/2 quotes
+%% `\+' as the C table's `\\+' is quoted, and both read back as `\+'.
+bd_raw(A, R) :-
+    atom_codes(A, Cs),
+    bd_double_backslashes(Cs, Ds),
+    atom_codes(R, Ds).
+
+bd_double_backslashes([], []).
+bd_double_backslashes([0'\\|T], [0'\\, 0'\\|R]) :- !, bd_double_backslashes(T, R).
+bd_double_backslashes([C|T], [C|R]) :- bd_double_backslashes(T, R).
 
 %% An atom, quoted for cocolog's reader. Doubling is how a quote escapes.
 bd_q(A, Q) :-
@@ -833,16 +987,21 @@ bd_concat([P|Ps], Out) :- bd_concat(Ps, Rest), append(P, Rest, Out).
 
 bd_header([ '%% blocklist.pl -- GENERATED by tools/cocolint/build.pl. Do not edit.',
             '%%',
-            '%% cl_t1c(Name, Arity, File)    C-dispatched in tier 1; redefining it is',
-            '%%                              DEAD CODE, because dispatch reaches the',
-            '%%                              builtin table before the store.',
-            '%%                              Arity -1 means a CONTROL CONSTRUCT, which',
-            '%%                              is matched by name at every arity.',
+            '%% cl_t1c(Name, Arity, File)    C-dispatched in tier 1. Since 3.1.0 a',
+            '%%                              program file''s clauses TAKE A NON-ISO ONE',
+            '%%                              OVER and an ISO one''s are refused at load.',
+            '%%                              Arity -1 means a CONTROL CONSTRUCT, run in',
+            '%%                              place at its cl_construct_arity/2: a',
+            '%%                              clause for it there is DEAD CODE.',
             '%% cl_t1p(Name, Arity, File)    clause-defined in tier 1; redefining it',
             '%%                              APPENDS to the library''s clauses.',
             '%% cl_t2c/cl_t2p(Mod, N, A)     tier 2, counted only when imported.',
-            '%% cl_hook(Name, Arity, File)   a declared extension point (H :- fail.),',
+            '%% cl_hook(Name, Arity, File)   a declared extension point (H :- fail.,',
+            '%%                              or a module half''s :- multifile),',
             '%%                              which is a collision that is MEANT.',
+            '%% cl_iso(Name, Arity)          swipl''s ISO predicates: a program file''s',
+            '%%                              clause for one is REFUSED at load, loudly.',
+            '%% cl_construct_arity(N, A)     the arities the engine runs a construct at.',
             '' ]).
 
 %% ---- staleness ---------------------------------------------------------
@@ -858,8 +1017,9 @@ bd_inputs(Files) :-
     bd_library_files(D),
     bd_path('tools/cocolint/build.pl', E),
     bd_path('tools/cocolint/clauses.pl', F),
+    bd_path('tools/flow/tables.pl', G),
     append(A, B, AB), append(AB, C, ABC), append(ABC, D, ABCD),
-    append(ABCD, [E, F], Files).
+    append(ABCD, [E, F, G], Files).
 
 bd_outputs([J, P]) :-
     bd_path('tools/cocolint/blocklist.json', J),
@@ -919,7 +1079,7 @@ bd_run :-
     bd_facts(B, FC),
     bd_write_atomic(PPath, FC),
     length(T1c, NC), length(T1p, NP), length(T2, NM), length(Hooks, NH),
-    format("tier 1: ~w C-dispatched (redefinition is dead code)~n", [NC]),
+    format("tier 1: ~w C-dispatched (a program file takes a non-ISO one over)~n", [NC]),
     format("        ~w clause-defined (redefinition appends)~n", [NP]),
     format("tier 2: ~w libraries/modules, blocked only when imported~n", [NM]),
     format("hooks : ~w declared extension points, excused in both halves~n", [NH]),

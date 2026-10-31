@@ -148,7 +148,7 @@ formatted(D) :-
              stream_write_term(S1, f('X'), [quoted(true)]), stream_nl(S1), stream_close(S1),
              read_file_to_codes(F, C1), atom_codes(A1, C1) ), A1, G1),
     check('format, write, writeq, print, write_canonical and write_term, each as on the terminal', G1,
-          'f(X,[97,98]) \'A b\' bar 42\nA b\n\'A b\'\n[1,2]\n\'A\'+b\nf(\'X\')\n'),
+          'f(X,[97,98]) \'A b\' bar 42\nA b\n\'A b\'\n[1,2]\n+(\'A\',b)\nf(\'X\')\n'),
     answer(( stream_open(F, write, S2), stream_with_output(S2, ( write(captured), nl, format("~a~n", [and_formatted]) )),
              stream_close(S2), read_file_to_codes(F, C2), atom_codes(A2, C2) ), A2, G2),
     check('stream_with_output sends what a goal prints to the file', G2, 'captured\nand_formatted\n'),
@@ -273,14 +273,14 @@ iso_names(D) :-
     section('ISO''s names over the same table'),
     path(D, 'iso.txt', F),
     answer(( open(F, write, S1), write(S1, f('A b', "x")), nl(S1), writeq(S1, 'A b'), nl(S1),
-             print(S1, ['A b', '$VAR'(1)]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),   % cocolint: W1 -- pins what it writes: the operator kept
+             print(S1, ['A b', '$VAR'(1)]), nl(S1), write_canonical(S1, 'A' + b), nl(S1),
              write_term(S1, g('Y'), [quoted(true)]), nl(S1), format(S1, "~a=~d~n", [n, 42]),
              tab(S1, 2), put_char(S1, x), nl(S1), close(S1),
              read_file_to_codes(F, C1), atom_codes(A1, C1) ), A1, G1),
     %% print/2 quotes and writes '$VAR'(1) as B, swipl's print/1 (2.2.4;
     %% through 2.2.3 it was write/2: [A b,$VAR(1)])
     check('write/2, writeq/2, print/2, write_canonical/2, write_term/3, nl/1, tab/2, put_char/2, and format/3 into a stream', G1,
-          'f(A b,[120])\n\'A b\'\n[\'A b\',B]\n\'A\'+b\ng(\'Y\')\nn=42\n  x\n'),
+          'f(A b,[120])\n\'A b\'\n[\'A b\',B]\n+(\'A\',b)\ng(\'Y\')\nn=42\n  x\n'),
     answer(( open(F, write, S2), with_output_to(S2, ( write(captured), nl )), close(S2),
              read_file_to_codes(F, C2), atom_codes(A2, C2) ), A2, G2),
     check('with_output_to/2 takes a stream as its sink', G2, 'captured\n'),

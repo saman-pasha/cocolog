@@ -214,7 +214,9 @@
           (free v)
           (if (and (!= cells nil) (!= names nil))
               (block (set (-> m wcells) cells) (set (-> m wnames) names) (set (-> m nwnames) k)))
-          (coco_write_mode m b t (bitor (? quoted 17 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
+          ;; quoted(true) writes a character to escape as swipl's
+          ;; write_term/2 does, `\u0001' (64, character_escapes_unicode)
+          (coco_write_mode m b t (bitor (? quoted 81 0) (bitor (? ignore_ops 2 0) (? numbervars 8 0))) 1)
           (set (-> m wcells) nil) (set (-> m wnames) nil) (set (-> m nwnames) 0)
           (free cells) (free names)
           (return 1)))
@@ -487,13 +489,13 @@
                 ;; numbervars, as swipl's `~p' calls print/1 (2.2.4; through
                 ;; 2.2.3 it was `~w'); `~w' and `~q' are write/1's and
                 ;; writeq/1's, numbervars and all (2.2.5); 107 `~k'
-                ;; write_canonical/1's (3.0.0)
+                ;; write_canonical/1's (3.0.0), its names and all (3.1.0)
                 (if (== d 112)
                     (block (coco_write_print m b a) continue))
                 (if (or (== d 119) (== d 113))
                     (block (coco_write_mode m b a (? (== d 113) 25 8) 1) continue))
                 (if (== d 107)
-                    (block (coco_write_mode m b a 17 0) continue))
+                    (block (coco_write_canon m b a) continue))
 
                 ;; 97 `~a', 115 `~s' -- text of any length, read as swipl's
                 ;; pl-fmt.c reads it (3.0.0, `coco_tx_get'): `~a' with
@@ -921,6 +923,10 @@
                                 (set ball_size ($ sub ball_size))
                                 (set bstor ($ sub ball_st))
                                 (set bmark ($ sub ball_mark))))))
+          ;; one solution, and what the goal left is cut while the output is
+          ;; still captured: a cleanup's output goes in the text (3.1.0), as
+          ;; swipl's
+          (if (== rc 1) (coco_engine_cut (aof sub)))
           (coco_engine_free (aof sub))
 
           ;; PUT STDOUT BACK BEFORE ANYTHING ELSE, whatever happened. An early

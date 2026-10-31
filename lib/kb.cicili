@@ -156,6 +156,31 @@
 
 (DEFMACRO cc-eg (name) (cc-eg-number name))
 
+;;; THE FRAME A GOAL RUNS IN, IN ITS BARRIER (3.1.0). The barrier a goal
+;;; carries -- each `'$k'' frame's INT slot, the handed-over goal's `nbar',
+;;; a choice frame's -- is a choice height in its low 32 bits and, above
+;;; them, its OWNER: the functor id plus one of the predicate whose clause
+;;; the goal is in (`ptag' of the clause's code, `tag' of an environment's
+;;; unit; 25 bits from bit 32), as swipl's goal runs in that clause's frame.
+;;; Bit 58 (SYS) says the owner is a frame of swipl's own -- `once/1',
+;;; `ignore/1', `not/1', `call/N', `catch/3' and `'<meta-call>'/1', the
+;;; clause swipl compiles a control structure it calls into -- and bit 57
+;;; (META) that the goal was meta-called from its owner's clause (call/N
+;;; there, or a goal that was a variable of the clause), which swipl runs
+;;; in that frame, no last call. The step takes the low bits as the
+;;; barrier (`coco-bar-low'); what an error names reads the rest
+;;; (`coco_owner_ctx'). The word is under 2^59, so a frame's INT cell
+;;; holds it whole, and a frozen machine keeps it.
+(DEFMACRO coco-bar-low (x) `(bitand ,x 4294967295))
+(DEFMACRO coco-bar-pred (x) `(bitand (>> ,x 32) 33554431))
+(DEFMACRO coco-bar-meta (x) `(bitand (>> ,x 57) 1))
+(DEFMACRO coco-bar-sys (x) `(bitand (>> ,x 58) 1))
+(DEFMACRO coco-bar-tag (x) `(bitand ,x 576460748008456192))
+;;; the two bits, and the owner FID's tag
+(DEFMACRO coco-bar-metabit () `144115188075855872)
+(DEFMACRO coco-bar-sysbit () `288230376151711744)
+(DEFMACRO coco-bar-of (fid) `(<< (+ ,fid 1) 32))
+
 
 ;;; THE HEAD PROGRAM, WRITTEN ONCE AND RUN TWO WAYS: over a call that is a
 ;;; term, whose argument I is the cell after its header (`cc-arg-term'),
@@ -911,7 +936,26 @@
     (member u32      tver)
     (member u32      lver)
     (member size_t   lord)
-    (member size_t   lpos))
+    (member size_t   lpos)
+    ;; A PROGRAM FILE DEFINES IT, AND IT IS A BUILTIN'S NAME (3.1.0): a
+    ;; file of the program's own (`coco_assert_from'; a library's muted
+    ;; clause never) gave a clause to a name and arity the engine or a
+    ;; compiled-in module implements, and which is not ISO. The step then
+    ;; calls the predicate, as swipl calls a user file's definition of a
+    ;; system predicate (`coco_bix_fill', `coco_m_taken').
+    (member int      taken)
+    ;; DECLARED BY discontiguous/1 (1) OR multifile/1 (2), the two bits
+    ;; (3.1.0), a directive or a goal: the predicate is defined then, as
+    ;; swipl's, so a call of it with no clauses FAILS where an unknown one
+    ;; raises existence_error -- the step asks it on the path that has no
+    ;; clause to try -- current_predicate/1 names it, predicate_property/2
+    ;; says which, and listing/1 writes `:- multifile' as swipl's does.
+    ;; Kept by the process only: no row says it.
+    (member int      declared)
+    ;; NAMED BY redefine_system_predicate/1 (3.1.0, `coco_bi_redefine_system'):
+    ;; a program file's clause for it takes it over though it is ISO, as
+    ;; swipl lets one then. Kept by the process only. Appended.
+    (member int      redef))
 
   ;;; Forward-declared, because the two hooks below are members of the store
   ;;; and take a pointer to it -- the typedef has to exist before the struct
@@ -1220,7 +1264,11 @@
     ;; `coco_pred_dynamic' answers -1 for the caller that says it. Through
     ;; 3.0.2 the callers said `out of memory', which every later process
     ;; over a damaged store printed (cicilang 0.240).
-    (member char      write_err [256]))
+    (member char      write_err [256])
+    ;; HOW MANY OF ITS PREDICATES A PROGRAM FILE HAS TAKEN OVER (3.1.0,
+    ;; `taken' on the predicate): 0 in nearly every store, which is all the
+    ;; questions about a name ask first.
+    (member size_t    ntaken))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -1418,7 +1466,14 @@
     (member u32 soff)
     (member u32 aoff)
     (member u32 coff)
-    (member u32 rvars))
+    (member u32 rvars)
+    ;; ITS OWNER (3.1.0, `coco-bar-pred'): the clause's predicate, or
+    ;; swipl's `once/1' (`ignore/1', `not/1') for that construct's goal
+    ;; and the cut after it, and `'<meta-call>'/1' for a unit inside a
+    ;; structure one of those is called with -- ORed into the barrier its
+    ;; goal is handed over with, and read by what an error names; META
+    ;; for a goal that is a variable of the clause
+    (member u64 tag))
 
   ;;; WHAT A CLAUSE ENTRY THAT MAKES AN ENVIRONMENT NEEDS TO KNOW (Stage 5):
   ;;; the continuation the body returns to and its goals' cut barrier, in;
@@ -1511,7 +1566,13 @@
     (member u64    gcmark)
     (member void * rnext)
     ;; set while a compaction keys the table again: a live clause owns it
-    (member u32    kept))
+    (member u32    kept)
+    ;; THE PREDICATE IT IS A CLAUSE OF (3.1.0), its functor id plus one at
+    ;; bit 32 (`coco-bar-pred'), 0 for none: entering the clause ORs it into
+    ;; the barrier its body leaves on the continuation, which is how an
+    ;; error a body goal raises names the clause's predicate, as swipl's
+    ;; frames do
+    (member u64    ptag))
 
   ;;; The clause's code, compiled on the first ask; null when it could not
   ;;; be compiled (out of memory, a head that is not callable), and the
@@ -1563,6 +1624,17 @@
   ;;; environment's compiler asks it of a later goal, which a builtin's
   ;;; name keeps a term.
   (decl) (func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int))
+  ;;; THE NAME TAKEN OVER (3.1.0, lib/solve-db.cicili): whether NAME/ARITY
+  ;;; is one of swipl's ISO predicates; the row a functor keeps for NID/N
+  ;;; (`bix': K + 2, or 1 for none or one a program file took over); and
+  ;;; what a program file's clause for one does to the predicate PI and to
+  ;;; the functor of HEAD.
+  (decl) (func coco_iso_predicate ((const char * name) (u32 arity)) (out int))
+  (decl) (func coco_bix_fill ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out u32))
+  (decl) (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head)))
+  ;;; The engine's names interned (lib/solve.cicili), which the question
+  ;;; above wants before a fresh machine's first step.
+  (decl) (func coco_ids_fill ((coco_machine * m)))
   ;;; The atoms it tells a construct by, from the machine's own vocabulary
   ;;; (lib/solve.cicili), and `'$cut'/1': 1, or 0 before there is one.
   (decl) (func coco_unit_names ((coco_machine * m) (u64 * names) (u64 * fcut)) (out int))
@@ -1598,6 +1670,8 @@
   (decl) (func coco_code_table_clear ((coco_store * st)))
   ;;; Frees one clause's code, if it has any: called where a clause dies.
   (decl) (func coco_code_drop ((coco_store * st) (size_t clause)))
+  ;; every clause's program, to be compiled again (3.1.0, `coco_pred_take_over')
+  (decl) (func coco_code_forget_all ((coco_store * st)))
   ;;; Copies every live term into a fresh cell array and drops the old one;
   ;;; the second asks only when the store has grown enough to be worth it.
   (decl) (func coco_store_compact ((coco_store * st) (coco_machine * m)) (out int))
@@ -1859,17 +1933,28 @@
   ;;; read from the backend (the reason in `fetch_err', 2.11.1).
   (decl) (func coco_retract ((coco_store * st) (coco_machine * m) (size_t clause)) (out int))
 
-  ;;; Declares every predicate a `dynamic' spec names. SPEC is a predicate
-  ;;; indicator `Name/Arity', a comma conjunction of them, or a list of them --
-  ;;; all three of which real Prolog files use, often in the same file:
+  ;;; Declares every predicate a declaration's spec names, as KIND says: 0
+  ;;; dynamic/1, 1 discontiguous/1, 2 multifile/1 (3.1.0). SPEC is a
+  ;;; predicate indicator `Name/Arity', a comma conjunction of them, or a
+  ;;; list of them -- all three of which real Prolog files use, often in the
+  ;;; same file:
   ;;;
   ;;;   :- dynamic counter/1.
   ;;;   :- dynamic seen/2, queued/1.
   ;;;   :- dynamic [a/0, b/1].
   ;;;
-  ;;; Answers 1, or 0 with ERR saying which part of the spec was not one.
+  ;;; Answers 1, or 0 with ERR saying which part of the spec was not one. A
+  ;;; directive asks it only of a spec `coco_decl_plain' passed, so a 0 is
+  ;;; memory or a refusing backend; the rest go the goal's way.
   (decl) (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec)
-                                (char * err) (size_t errlen)) (out int))
+                                (int kind) (char * err) (size_t errlen)) (out int))
+  ;;; A DECLARATION'S NAME, by KIND; ONE INDICATOR NID/N DECLARED (1, 0
+  ;;; out of memory, -1 refused by the backend, `write_err'); and whether
+  ;;; a spec is plain enough to declare at once (lib/kb-pred.cicili)
+  (decl) (func coco_decl_kind ((int kind)) (out const char *))
+  (decl) (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind))
+               (out int))
+  (decl) (func coco_decl_plain ((coco_machine * m) (size_t spec)) (out int))
 
   ;;; True when T is the compound NAME of arity two -- `a/1', `a, b', `[a|b]'.
   ;;; Out here rather than kept to itself because `listing/1' asks the same
@@ -1914,6 +1999,14 @@
   (decl) (func coco_directive ((coco_store * st) (coco_machine * m) (size_t g)
                              (coco_initgoals * inits) (int line)
                              (char * err) (size_t errlen)) (out int))
+  ;;; ERR is `Goal (directive) failed: user:G', swipl's Warning (3.1.0)
+  (decl) (func coco_directive_failed ((coco_machine * m) (size_t g)
+                                      (char * err) (size_t errlen)))
+  ;;; The ball a directive threw that ended a load (3.1.0, `lball'): taken
+  ;;; on to the heap into OUT by whoever throws it (1, or 0 for none), or
+  ;;; dropped by a host that reports the load's end itself.
+  (decl) (func coco_load_ball_take ((coco_store * st) (coco_machine * m) (size_t * out)) (out int))
+  (decl) (func coco_load_ball_drop ((coco_store * st) (coco_machine * m)))
 
   ;;; The seam `:- use_module(...)' loads through. This file is compiled
   ;;; below the module layer and cannot call it, so the library loader
@@ -1932,16 +2025,35 @@
   ;;; the same reason: an engine lives above this file, and a goal needs one.
   ;;; The hook answers 1 (proved), 0 (failed) or -1 (threw, with the message
   ;;; already in SWI's words in ERR) -- the three outcomes a load-time
-  ;;; message has to tell apart.
+  ;;; message has to tell apart -- and -2 for a DIRECTIVE's ball that is no
+  ;;; error(_, _), which ends the load (3.1.0, the machine's `lball').
+  ;;; KIND is what the goal is, as swipl runs each (3.1.0): 0 a directive's
+  ;;; (under catch/3, which takes only an error(_, _)), 1 an
+  ;;; initialization/1's or initialization(G, now)'s (under
+  ;;; '$run_init_goal'/1, which takes every ball), 2 initialization(G,
+  ;;; main)'s (under catch/3, and every ball).
   ;;;
   ;;; WHILE IT IS NULL a directive that is a goal is what it was before there
   ;;; was a seam: refused by name. That is not a fallback anybody should
   ;;; meet, but a store opened without an engine over it -- the schema
   ;;; compiler does exactly that -- must not crash on a file that has one.
   (decl) (func coco_goal_install
-               ((func h ((coco_store * st) (coco_machine * m) (size_t goal)
+               ((func h ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
                          (char * err) (size_t errlen))
                      (out int))))
+
+  ;;; WHETHER A COMPILED-IN MODULE OR A CONSTRUCT CLAIMS NAME/ARITY (3.1.0),
+  ;;; installed by the builtins module (its `coco_b_claims'): a load asks it
+  ;;; of a program file's clause, as it asks the engine's own table
+  ;;; (`coco_builtin_index'). While it is null only the engine's table is
+  ;;; asked -- a store with no builtins module over it, as the test
+  ;;; binaries make.
+  (decl) (func coco_claims_install
+               ((func h ((const char * name) (u32 arity)) (out int))))
+
+  ;;; Whether the store's NAME/ARITY is one a program file took over
+  ;;; (`taken', 3.1.0): 0 at once while none is.
+  (decl) (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int))
 
   ;;; Ends the process from inside a load with CODE -- SWI's halt, which
   ;;; stops the load where it stands -- after the store's `on_halt', when it
@@ -1976,13 +2088,53 @@
 
   ;; and the seam a directive runs through, filled in by the same layer
   (static) (var func coco_goal_hook ((coco_store * st) (coco_machine * m)
-                                     (size_t goal) (char * err) (size_t errlen))
+                                     (size_t goal) (int kind) (char * err) (size_t errlen))
                  (out int))
 
   (func coco_goal_install
-        ((func h ((coco_store * st) (coco_machine * m) (size_t goal)
+        ((func h ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
                   (char * err) (size_t errlen)) (out int)))
         (set coco_goal_hook h))
+
+  ;; and the compiled-in modules' claims, filled in by the builtins module
+  (static) (var func coco_claims_hook ((const char * name) (u32 arity)) (out int))
+
+  (func coco_claims_install ((func h ((const char * name) (u32 arity)) (out int)))
+        (set coco_claims_hook h))
+
+  (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int)
+        (if (== (-> st ntaken) 0) (return 0))
+        (let ((size_t pi . #'(coco_pred_find st name arity)))
+          (if (>= pi (-> st npreds)) (return 0))
+          (return ($ (nth pi (-> st preds)) taken))))
+
+  ;;; WHAT A PROGRAM FILE'S CLAUSE FOR A BUILTIN'S NAME DOES (3.1.0), asked
+  ;;; by `coco_assert_from' of a clause a file of the program's own gives
+  ;;; NID/N: 0 for a name nothing claims, 1 for one the engine or a
+  ;;; compiled-in module implements and swipl lets a user file define (the
+  ;;; clause takes it over), 2 for an ISO one, which swipl refuses ("No
+  ;;; permission to modify static procedure"). A construct's name is 2 where
+  ;;; it is ISO and 0 where it is not and swipl compiles it in place (`*->',
+  ;;; call/9): the step runs a construct before it asks anything of a
+  ;;; predicate -- but not/1 and ignore/1, which swipl calls as the
+  ;;; predicates they are there, are 1 (`coco_construct' passes a taken one
+  ;;; by).
+  (func coco_claim_kind ((coco_machine * m) (u64 nid) (u32 n)) (out int)
+        ;; a fresh machine's first consult comes before its first step,
+        ;; which is where the engine's names are interned otherwise
+        (if (not (-> m ids_ready)) (coco_ids_fill m))
+        (let ((const char * name . #'(coco_atom_name m nid))
+              (int row . #'(coco_builtin_index m nid n))
+              (int other . 0))
+          (if (and (== n 1) (or (== 0 (strcmp name "not")) (== 0 (strcmp name "ignore"))))
+              (return 1))
+          (if (and (< row 0) (!= coco_claims_hook nil))
+              (set other (coco_claims_hook name n)))
+          (if (and (< row 0) (not other)) (return 0))
+          (if (coco_iso_predicate name n) (return 2))
+          ;; a construct a program cannot take over: 0, as before
+          (if (and (< row 0) (coco_is_construct m nid)) (return 0))
+          (return 1)))
 
   (func coco_halt_load ((coco_store * st) (int code) (int keep))
         ;; the program's output first: a failed commit says so on stderr
@@ -2010,6 +2162,10 @@
   ;;; as swipl's do, being print_message/2's (`~N', lib/term.cicili's
   ;;; `coco_out_fresh'). Through 2.15.1 `abc' and a report's tag shared a
   ;;; line on a terminal.
+  ;;;
+  ;;; EVERY LINE OF WHAT IS INDENTED UNDER THE TAG (3.1.0), as swipl's are:
+  ;;; an initialization(G, now) goal that raised says where again and then
+  ;;; why, two lines.
   (static)
   (func coco_load_message ((const char * tag) (const char * origin) (int line)
                            (const char * what))
@@ -2017,7 +2173,13 @@
         (coco_out_fresh stderr)
         (if (!= origin nil)
             (fprintf stderr "%s: %s:%d:\n" tag origin line))
-        (fprintf stderr "%s:    %s\n" tag what)
+        (let ((const char * p . what))
+          (while 1
+            (let ((const char * nl . #'(strchr p 10)))
+              (if (== nl nil)
+                  (block (fprintf stderr "%s:    %s\n" tag p) break))
+              (fprintf stderr "%s:    %.*s\n" tag (cast int (- nl p)) p)
+              (set p (+ nl 1)))))
         (coco_out_note stderr "\n" 1))
 
   ;;; The one-line form, which is the one SWI uses for an initialization goal

@@ -176,6 +176,55 @@
            ;; `with_mutex/2's, for the same reason.
            "with_local_clauses(G) :- '$store_mute', ( catch(G, E, true) -> '$store_unmute', ( nonvar(E) -> throw(E) ; true ) ; '$store_unmute', fail )."
 
+           ;; ---- setup_call_cleanup/3 and its kin (3.1.0) ------------------
+           ;;
+           ;; swipl's, to its answers (test/files/cleanup.pl): the setup
+           ;; once, the goal as often as it is retried, and the cleanup once,
+           ;; on the first of these -- the goal exits with nothing left to
+           ;; retry (`exit'), fails (`fail'), raises (exception(E)), is cut
+           ;; (`!'), or a ball raised after it exited passes it
+           ;; (external_exception(E)) -- when the catcher unifies with which.
+           ;; Its bindings stand after an exit, its failure is no failure,
+           ;; its choice points are cut, and its ball is raised but after the
+           ;; goal's own. The frame and its roads are the engine's
+           ;; (lib/solve-control.cicili, `coco_cleanup_cut').
+           "setup_call_cleanup(S, G, C) :- setup_call_catcher_cleanup(S, G, _, C)."
+           "call_cleanup(G, C) :- setup_call_catcher_cleanup(true, G, _, C)."
+           "setup_call_catcher_cleanup(S, G, Ca, C) :- '$scc_setup'(S), '$scc_goal'(G), '$scc_goal'(C), '$scc_push'(Ca, C, F), catch(G, E, '$scc_raised'(F, E, Ca, C)), '$scc_exit'(F, D), ( D == true -> '$cleanup_call'(exit, Ca, C) ; true )."
+           ;; the setup's errors are sig_atomic/1's and the goals' this
+           ;; predicate's, as swipl names them
+           "'$scc_setup'(S) :- ( var(S) -> throw(error(instantiation_error, context(system:sig_atomic/1, _))) ; callable(S) -> once(S) ; throw(error(type_error(callable, S), context(system:sig_atomic/1, _))) )."
+           "'$scc_goal'(G) :- ( var(G) -> throw(error(instantiation_error, context(system:setup_call_catcher_cleanup/4, _))) ; callable(G) -> true ; throw(error(type_error(callable, G), context(system:setup_call_catcher_cleanup/4, _))) )."
+           "'$cleanup_call'(W, Ca, C) :- ( Ca = W -> ( call(C) -> true ; true ) ; true )."
+           ;; the frame failed into: the goal has failed
+           "'$scc_fail'(Ca, C) :- '$scc_gone', '$cleanup_call'(fail, Ca, C), fail."
+           ;; the goal's own ball: its cleanup's ball goes, the goal's wins
+           "'$scc_raised'(F, E, Ca, C) :- '$scc_pop'(F), catch('$cleanup_call'(exception(E), Ca, C), _, true), '$scc_rethrow'(E)."
+           ;; a ball raised after the goal exited, passing the frame
+           "'$scc_unwind'(B, Ca, C) :- catch('$cleanup_call'(external_exception(B), Ca, C), _, true), '$scc_rethrow'(B)."
+
+           ;; ---- a directive's declaration that is not plain (3.1.0) -------
+           ;;
+           ;; each part of the spec its own goal, as swipl's
+           ;; '$pattr_directive' walks one (lib/kb-pred.cicili's
+           ;; `coco_directive' sends only such specs here): what a part
+           ;; raises is reported where the directive stands, `Kind/1: '
+           ;; before it (`coco_bi_decl_report'), and the next part is
+           ;; declared, so `:- dynamic([a/1, b]).' declares a/1 and says b is
+           ;; no predicate indicator
+           "'$decl_directive'(K, S) :- '$decl_parts'(S, Ps), '$decl_each'(Ps, K)."
+           "'$decl_each'([], _)."
+           "'$decl_each'([P|Ps], K) :- catch('$decl_one'(K, P), E, '$decl_report'(K, E)), '$decl_each'(Ps, K)."
+           "'$decl_one'((dynamic), P) :- dynamic(P)."
+           "'$decl_one'((discontiguous), P) :- discontiguous(P)."
+           "'$decl_one'((multifile), P) :- multifile(P)."
+           "'$decl_parts'(S, [S]) :- var(S), !."
+           "'$decl_parts'((A, B), Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."
+           "'$decl_parts'([A|B], Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."
+           "'$decl_parts'([], []) :- !."
+           "'$decl_parts'(_:S, Ps) :- !, '$decl_parts'(S, Ps)."
+           "'$decl_parts'(S, [S])."
+
            ;; ---- string/1 IS NOT HERE ------------------------------------
            ;;
            ;; It was `string(_) :- fail.', with a comment saying cocolog has
@@ -556,6 +605,9 @@
   (decl) (func coco_g_write_end_cleanup ((int * began)) (out void))
 
   (decl) (func coco_builtins_module () (out int))
+
+  ;; whether a compiled-in module or a construct claims NAME/ARITY (3.1.0)
+  (decl) (func coco_b_claims ((const char * name) (u32 arity)) (out int))
 
   ) ; decl-builtins
 
@@ -1867,8 +1919,8 @@
   ;;; code point under `text_units = characters' (1.13.0): char_code('á',
   ;;; 225), char_code(C, 8364) the euro sign. Code 0 is the empty atom, an
   ;;; atom being a C string (swipl's '\u0000'), and a code past 255 in
-  ;;; bytes fails. A code UTF-8 cannot write -- a lone surrogate, which
-  ;;; swipl's char_code/2 refuses too -- is type_error(character_code, N).
+  ;;; bytes fails. A lone surrogate, which swipl's char_code/2 refuses though
+  ;;; text made from codes holds one (3.1.0), is type_error(character_code, N).
   ;;; Through 2.16.1 a C that was no character was passed over for N, and
   ;;; an unbound N was then instantiation_error; the surrogate failed.
   (func coco_b_char_code ((coco_engine * e) (size_t g)) (out int)
@@ -1891,7 +1943,10 @@
                 (if (not (coco-is-int (nth c (-> m heap))))
                     (return (coco_m_type_error e "integer" c)))
                 (set cchr (coco_int_val m (nth c (-> m heap))))
-                (if (or (< cchr 0) (> cchr 1114111))
+                ;; a surrogate is no character's code, as swipl has it, though
+                ;; text made from codes holds one (3.1.0)
+                (if (or (< cchr 0) (> cchr 1114111)
+                        (and (-> m text_chars) (>= cchr 55296) (<= cchr 57343)))
                     (return (coco_m_type_error e "character_code" c)))))
           (if (and (not va) (not vc)) (return (? (== achr cchr) 1 0)))
           (if (not va) (return (coco_m_unify_int e c achr)))

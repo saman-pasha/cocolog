@@ -28,7 +28,7 @@
 %% `catch/3' AND `throw/1' unwind to the nearest matching catcher and
 %% undo every binding made in between.
 %%
-%% AND FOUR THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
+%% AND THREE THINGS THAT ARE COCOLOG'S, not ISO's, which the second half
 %% of this lesson is about:
 %%
 %%   * a LIBRARY OR LOADER failure is `error(cocolog_error(Text), _)' --
@@ -39,8 +39,6 @@
 %%     ball leaves it an unbound variable, so writing
 %%     `error(T, context(_,_))' does not fail to match THAT: it matches
 %%     by BINDING, and everything the handler reads out of it is invented.
-%%   * there is no `setup_call_cleanup/3'. Cleanup is
-%%     `catch(G, B, (Cleanup, throw(B)))', by hand.
 %%   * a ball carrying `"text"' reports as a LIST OF CODES, because
 %%     `double_quotes' is ISO's `codes' here and SWI's is `string'.
 %%     Quote the text as an atom, or set the flag for the file.
@@ -159,15 +157,27 @@ main :-
     must('the ball you did not', P, passed_on),
     must('...caught by the outer handler instead', Passed, 1),
 
-    format("~n-- cleanup by hand: there is no setup_call_cleanup/3~n"),
-    %% The pattern is `catch(Goal, B, (Cleanup, throw(B)))' -- do the
-    %% cleanup, then let the ball go on to whoever wanted it. Nothing here
-    %% runs the cleanup on SUCCESS as well, so a goal that can both
-    %% succeed and throw needs the call after the catch too.
-    catch( catch(work, B7, (cleanup, throw(B7))), oh_no, Done = ok),
+    format("~n-- cleanup: setup_call_cleanup/3~n"),
+    %% `setup_call_cleanup(Setup, Goal, Cleanup)' (3.1.0, swipl's) runs
+    %% Setup once, then Goal, and Cleanup once Goal is DONE WITH: it
+    %% exited and left no choice, it failed, it threw, or its choices were
+    %% cut. A ball goes on to whoever wanted it after the cleanup has run.
+    %% The by-hand pattern, `catch(Goal, B, (Cleanup, throw(B)))', cleans
+    %% up after a throw alone -- which is what you want when success is
+    %% the one outcome that must KEEP what Setup made.
+    catch(setup_call_cleanup(true, work, cleanup), oh_no, Done = ok),
     must('the ball still arrives', Done, ok),
     ( touched(cleaned) -> Cl = ran ; Cl = missed ),
     must('and the cleanup ran on the way', Cl, ran),
+    retract(touched(cleaned)),
+    ( setup_call_cleanup(true, fail, cleanup) -> F8 = held ; F8 = failed ),
+    ( touched(cleaned) -> Cl8 = ran ; Cl8 = missed ),
+    must('a goal that fails: no, and the cleanup', F8-Cl8, failed-ran),
+    retract(touched(cleaned)),
+    once(setup_call_cleanup(true, member(X9, [1, 2, 3]), cleanup)),
+    ( touched(cleaned) -> Cl9 = ran ; Cl9 = missed ),
+    must('a goal with choices left: the first answer, cleaned at the cut',
+         X9-Cl9, 1-ran),
     retract(touched(cleaned)),
 
     format("~n-- A BALL THAT CARRIES TEXT, and what the message shows~n"),
@@ -195,9 +205,14 @@ main :-
     format("   exits 2 -- not 1, which is what a goal that merely FAILED~n"),
     format("   exits with, silently:~n"),
     format("~n     ERROR: -g main: Unknown message: my_ball~n"),
-    format("     ERROR: -g main: Unknown procedure: nosuch/0~n~n"),
+    format("     ERROR: -g main: catch/3: Unknown procedure: nosuch/0~n~n"),
     format("   0 proved, 1 failed, 2 threw. A script that reads exit codes~n"),
     format("   can tell the goal that said no from the goal that broke.~n"),
+    format("   The second line names the FRAME the call was made in, as~n"),
+    format("   swipl's does (3.1.0): `main :- nosuch.' calls nosuch last,~n"),
+    format("   so main's clause is gone, and the goal runs under catch/3.~n"),
+    format("   A call that is not the last names its clause's predicate:~n"),
+    format("   `main/0: Unknown procedure: nosuch/0'.~n"),
     format("   After the message comes WHERE it was raised (1.10.17): the~n"),
     format("   goal that raised it and the goals left to run, or -- with~n"),
     format("   --backtrace -- every call it was made in, as SWI writes them.~n"),
@@ -208,27 +223,43 @@ main :-
     format("     ERROR:   [2] risky(6)~n"),
     format("     ERROR:   [1] main~n~n"),
     format("   (TRACING.md; --no-backtrace keeps the message alone.)~n"),
-    %% AND ONE THING THE MESSAGE DOES NOT SAY. Thrown at LOAD time -- out
-    %% of a directive or an `initialization' goal -- the report is SWI's,
-    %% line for line, and test/directives.pl diffs the two to keep it so:
+    %% AND AT LOAD TIME. Thrown out of a directive, the report is
+    %% swipl's, line for line, and test/directives.pl diffs the two to
+    %% keep it so:
     %%
-    %%     ERROR: p.pl:76: Initialization goal raised exception:
-    %%     ERROR: Unknown message: my_error(...)
+    %%     ERROR: p.pl:7:
+    %%     ERROR:    atom_length/2: Arguments are not sufficiently instantiated
+    %%     Warning: p.pl:7:
+    %%     Warning:    Goal (directive) failed: user:atom_length(_G8,3)
     %%
-    %% What swipl has there and cocolog does not is a CONTEXT before the
-    %% message -- `catch/3: Unknown procedure: p/0' -- because its
-    %% builtins fill error/2's second argument in and cocolog leaves it
-    %% unbound. Which is the same fact as the section above, seen from
-    %% the other side: nothing is in the context, so nothing is printed
-    %% from it.
-    format("   Thrown at LOAD time the report names the file and the line,~n"),
-    format("   and the load carries on -- see tutorials/basics/11.~n"),
+    %% An ERROR TERM is reported and the load goes on, the directive
+    %% counted as failed and written as it was asked (3.1.0). ANY OTHER
+    %% BALL ENDS THE LOAD, as it does in swipl: consult/1 raises it to
+    %% its caller, and `-s' says `Prolog initialisation failed:' and
+    %% exits 1. An `initialization(G)' goal, run after the file is read,
+    %% is reported and the next one runs, whatever its ball.
+    format("   Thrown at LOAD time an error(_, _) is reported with its file~n"),
+    format("   and line, and the load carries on; any other ball ends it:~n"),
+    t09_fixture(':- throw(oh_no).', F10),
+    catch(consult(F10), B10, true),
+    delete_file(F10),
+    must('consult/1 raises a directive\'s ball that is no error', B10, oh_no),
+    ( catch(t09_after, _, fail) -> A10 = loaded ; A10 = not_loaded ),
+    must('...and the clause after it was never read', A10, not_loaded),
 
     format("~n-- and the shape a library should throw~n"),
     format("   error(type_error(Type, Culprit), Context) -- so a caller can~n"),
     format("   match the FORMAL and ignore the context. Never throw a bare~n"),
     format("   atom from a library: it collides with everybody else's.~n~n"),
     format("done~n").
+
+%% a file whose first line is LINE and whose second defines t09_after/0,
+%% in the system's temporary directory
+t09_fixture(Line, F) :-
+    tmp_file(t09, F0), atom_concat(F0, '.pl', F),
+    format(atom(Text), "~w~nt09_after.~n", [Line]),
+    atom_codes(Text, Codes),
+    write_file_from_codes(F, Codes).
 
 %% ---- what the sections above throw ------------------------------------
 risky(N) :- N > 5, throw(mine(N)).

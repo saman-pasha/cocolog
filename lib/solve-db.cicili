@@ -45,12 +45,14 @@
         (coco_out_putc stdout 10)
         (return 1))
 
-  ;;; write_canonical/1: quoted, with swipl's character escapes (17, 2.2.5:
-  ;;; `'don\'t''), and no numbervars -- swipl's writes `'$VAR'(1)' as it is
+  ;;; write_canonical/1: quoted, with swipl's character escapes (2.2.5:
+  ;;; `'don\'t''), no numbervars -- swipl's writes `'$VAR'(1)' as it is --
+  ;;; and since 3.1.0 no operators and its variables `_' and `A', `B', ...
+  ;;; (`coco_write_canon')
   (func coco_bi_write_canonical ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_strbuf b))
           (coco_sb_init (aof b))
-          (coco_write_mode (-> e m) (aof b) (coco_arg (-> e m) g 0) 17 0)
+          (coco_write_canon (-> e m) (aof b) (coco_arg (-> e m) g 0))
           (if (!= ($ b s) nil) (coco_out_puts stdout ($ b s)))
           (coco_sb_free (aof b))
           (return 1)))
@@ -227,99 +229,173 @@
             (coco_store_maybe_compact (-> e st) (-> e m))
             (return (? ok 1 0)))))
 
-  ;;; A SPEC THAT IS NONE RAISES swipl 9.0.4's error before anything is
-  ;;; declared (3.0.0; through 2.16 the goal ended the query, uncatchably,
-  ;;; with "dynamic: expected Name/Arity"): a variable is
-  ;;; uninstantiation_error(Spec) as swipl's, anything that is no
-  ;;; Name/Arity, Name//Arity, M:Spec, conjunction or list (its tail
-  ;;; included) type_error(predicate_indicator, Spec) with no context, and
-  ;;; a Name/Arity's own parts compound_name_arity/3's errors. 1 when every
-  ;;; spec is one, else the raise's answer.
+  ;;; A PART OF A DECLARATION'S SPEC THAT IS NONE (3.1.0): FORMAL raised as
+  ;;; swipl 9.0.4 raises it, NAME/ARITY the frame its raise names
+  ;;; (compound_name_arity/3 for an indicator's parts,
+  ;;; '$set_predicate_attribute'/3 for an ISO predicate), NAME nil for no
+  ;;; context at all. The raise's answer.
   (static)
-  (func coco_dynamic_check ((coco_engine * e) (size_t spec)) (out int)
+  (func coco_decl_bad ((coco_engine * e) (size_t formal) (const char * name) (u32 arity)) (out int)
+        (if (== name nil) (return (coco_raise e formal)))
+        (return (coco_raise_named e formal "system" name arity)))
+
+  ;;; ONE INDICATOR THE WALK DECLARES, through the green world's write
+  ;;; barrier: 1, or memory's error, or a backend that refused it
+  ;;; resource_error(knowledge_base) in the context KIND/1 with the
+  ;;; backend's sentence (3.0.3's).
+  (static)
+  (func coco_decl_put ((coco_engine * e) (int kind) (u64 nid) (u32 n)) (out int)
+        (let ((coco_machine * m . #'(-> e m)) (coco_store * st . #'(-> e st)) (int ok . 1))
+          (with-green-write e
+            (set (nth 0 (-> st write_err)) (cast char 0))
+            (set ok (coco_decl_pi st m nid n kind)))
+          (if (== ok 1) (return 1))
+          (if (== ok 0) (return (coco_mem_error e)))
+          (return (coco_raise_ctx e (coco_make1 m "resource_error" (coco_new_atom m "knowledge_base"))
+                                  (coco_ectx_pi m "system" (coco_new_atom m (coco_decl_kind kind)) 1
+                                                (coco_new_atom m (-> st write_err)))))))
+
+  ;;; A GRAMMAR RULE'S ARITY, `A + 2' evaluated as swipl's '$pi_head'/2
+  ;;; evaluates it: is/2's own errors, named by that frame (the goal in
+  ;;; flight is made '$pi_head'(Spec, _) for the evaluation), and a value
+  ;;; that is no integer type_error(integer, V) from compound_name_arity/3.
+  ;;; 1 with the arity in OUT, or the raise's answer.
+  (static)
+  (func coco_decl_dcg_arity ((coco_engine * e) (size_t spec) (size_t ar) (i64 * out)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t was . #'(-> e kcall))
+              (int isf . 0) (i64 iv . 0) (double fv . 0.0) (int rc . 0) (size_t v . 0))
+          (set (-> e kcall) (coco_make2 m "$pi_head" spec (coco_new_var m)))
+          (set rc (coco_arith e (coco_make2 m "+" ar (coco_new_int m 2)) (aof isf) (aof iv) (aof fv) 0))
+          (if (== rc 3) (set rc (coco_type_error e "expression" ar)))
+          (set (-> e kcall) was)
+          (if (!= rc 1) (return rc))
+          (if (== isf 0) (block (set (cof out) iv) (return 1)))
+          (set v (? (== isf 2) (coco_new_rat m (-> m arith_n) (-> m arith_d)) (coco_new_float m fv)))
+          (return (coco_decl_bad e (coco_make2 m "type_error" (coco_new_atom m "integer") v)
+                                 "compound_name_arity" 3))))
+
+  ;;; A DECLARATION'S SPEC WALKED (3.1.0): dynamic/1's, discontiguous/1's
+  ;;; and multifile/1's -- KIND 0, 1, 2 -- as swipl 9.0.4 walks it, a list
+  ;;; or a conjunction part by part and `M:S' as S, each Name/Arity or
+  ;;; Name//Arity checked and then declared IN TURN, so the parts before a
+  ;;; bad one stay declared: `dynamic([a/1, b])' declares a/1 and raises
+  ;;; for b, where through 3.0.4 the whole spec was checked first and
+  ;;; nothing declared. A part that is none raises, in swipl's words and
+  ;;; frames: a variable uninstantiation_error(Part), anything else that is
+  ;;; no indicator type_error(predicate_indicator, Part), both with no
+  ;;; context; a grammar rule's arity is evaluated first
+  ;;; (`coco_decl_dcg_arity'); the name and the arity compound_name_arity/3's
+  ;;; errors, or, for an arity of 0, the same errors with no context
+  ;;; (swipl's '$head_name_arity'/3 raises those itself); an arity past
+  ;;; 255, cocolog's ceiling, representation_error(max_arity); and one of
+  ;;; swipl's ISO predicates (`*iso-predicates*', a control construct among
+  ;;; them) permission_error(modify, static_procedure, Name/Arity) from
+  ;;; '$set_predicate_attribute'/3, as swipl refuses to declare one. 1, or
+  ;;; the raise's answer. A directive walks a spec that is not plain part by
+  ;;; part through this, reporting each raise ('$decl_directive'/2).
+  (func coco_decl_walk ((coco_engine * e) (size_t spec) (int kind)) (out int)
         (let ((coco_machine * m . #'(-> e m)) (int r . 1))
           (set spec (coco_deref m spec))
           (if (coco-tag-is REF (nth spec (-> m heap)))
-              (return (coco_raise e (coco_make1 m "uninstantiation_error" spec))))
+              (return (coco_decl_bad e (coco_make1 m "uninstantiation_error" spec) nil 0)))
           (if (or (coco_is_compound2 m spec ",") (coco_is_cons m spec))
-              (block (set r (coco_dynamic_check e (coco_arg m spec 0)))
+              (block (set r (coco_decl_walk e (coco_arg m spec 0) kind))
                      (if (!= r 1) (return r))
-                     (return (coco_dynamic_check e (coco_arg m spec 1)))))
+                     (return (coco_decl_walk e (coco_arg m spec 1) kind))))
           (if (coco_is_nil m spec) (return 1))
           (if (coco_is_compound2 m spec ":")
-              (return (coco_dynamic_check e (coco_arg m spec 1))))
-          (if (coco_is_compound2 m spec "//")
-              (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-                    (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
-                (if (coco-tag-is REF (nth ar (-> m heap)))
-                    (return (coco_raise_named e (coco_new_atom m "instantiation_error")
-                                              "system" "$pi_head" 2)))
-                ;; the arity is evaluated there, `A + 2': an atom is no
-                ;; function, type_error(evaluable, a/0)
-                (if (coco-tag-is ATOM (nth ar (-> m heap)))
-                    (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "evaluable")
-                                                            (coco_make2 m "/" ar (coco_new_int m 0)))
-                                              "system" "$pi_head" 2)))
-                (if (not (coco-is-int (nth ar (-> m heap))))
-                    (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "integer") ar)
-                                              "system" "$pi_head" 2)))
-                (if (coco-tag-is REF (nth nm (-> m heap)))
-                    (return (coco_raise_named e (coco_new_atom m "instantiation_error")
-                                              "system" "compound_name_arity" 3)))
-                (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
-                    (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "atom") nm)
-                                              "system" "compound_name_arity" 3)))
-                (if (< (+ (coco_int_val m (nth ar (-> m heap))) 2) 0)
-                    (return (coco_raise_named e (coco_make2 m "domain_error"
-                                                            (coco_new_atom m "not_less_than_zero")
-                                                            (coco_new_int m (+ (coco_int_val m (nth ar (-> m heap))) 2)))
-                                              "system" "compound_name_arity" 3)))
-                (return 1)))
-          (if (not (coco_is_compound2 m spec "/"))
-              (return (coco_raise e (coco_make2 m "type_error"
-                                                (coco_new_atom m "predicate_indicator") spec))))
+              (return (coco_decl_walk e (coco_arg m spec 1) kind)))
+          (if (and (not (coco_is_compound2 m spec "/")) (not (coco_is_compound2 m spec "//")))
+              (return (coco_decl_bad e (coco_make2 m "type_error"
+                                                   (coco_new_atom m "predicate_indicator") spec)
+                                     nil 0)))
           (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
-                (size_t ar . #'(coco_deref m (coco_arg m spec 1))))
+                (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
+                (int dcg . #'(coco_is_compound2 m spec "//"))
+                (int known . 0)
+                (i64 n . 0)
+                (const char * where . "compound_name_arity"))
+            ;; a grammar rule's arity, when it is given: evaluated first
+            (if (and dcg (not (coco-tag-is REF (nth ar (-> m heap)))))
+                (block
+                  (set r (coco_decl_dcg_arity e spec ar (aof n)))
+                  (if (!= r 1) (return r))
+                  (set known 1)))
+            (if (and (not known) (coco-is-int (nth ar (-> m heap))))
+                (block (set n (coco_int_val m (nth ar (-> m heap)))) (set known 1)))
+            ;; an arity of 0 names nothing but the name: no context
+            (if (and known (== n 0)) (set where nil))
             (if (or (coco-tag-is REF (nth nm (-> m heap))) (coco-tag-is REF (nth ar (-> m heap))))
-                (return (coco_raise_named e (coco_new_atom m "instantiation_error")
-                                          "system" "compound_name_arity" 3)))
+                (return (coco_decl_bad e (coco_new_atom m "instantiation_error") where 3)))
             (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
-                (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "atom") nm)
-                                          "system" "compound_name_arity" 3)))
-            (if (not (coco-is-int (nth ar (-> m heap))))
-                (return (coco_raise_named e (coco_make2 m "type_error" (coco_new_atom m "integer") ar)
-                                          "system" "compound_name_arity" 3)))
-            (if (< (coco_int_val m (nth ar (-> m heap))) 0)
-                (return (coco_raise_named e (coco_make2 m "domain_error"
-                                                        (coco_new_atom m "not_less_than_zero") ar)
-                                          "system" "compound_name_arity" 3)))
+                (return (coco_decl_bad e (coco_make2 m "type_error" (coco_new_atom m "atom") nm) where 3)))
+            (if (not known)
+                (return (coco_decl_bad e (coco_make2 m "type_error" (coco_new_atom m "integer") ar)
+                                       "compound_name_arity" 3)))
+            (if (< n 0)
+                (return (coco_decl_bad e (coco_make2 m "domain_error" (coco_new_atom m "not_less_than_zero")
+                                                     (coco_new_int m n))
+                                       "compound_name_arity" 3)))
+            (if (> n 255)
+                (return (coco_decl_bad e (coco_make1 m "representation_error"
+                                                     (coco_new_atom m "max_arity"))
+                                       nil 0)))
+            (if (coco_iso_predicate (coco_atom_name m (coco_name_of m nm)) (cast u32 n))
+                (let ((size_t args [3]))
+                  (set (nth 0 args) (coco_new_atom m "modify"))
+                  (set (nth 1 args) (coco_new_atom m "static_procedure"))
+                  (set (nth 2 args) (coco_make2 m "/" nm (coco_new_int m n)))
+                  (return (coco_decl_bad e (coco_make m "permission_error" 3 args)
+                                         "$set_predicate_attribute" 3))))
+            (return (coco_decl_put e kind (coco_name_of m nm) (cast u32 n))))))
+
+  ;;; dynamic/1, discontiguous/1 and multifile/1 as goals -- what the
+  ;;; directives are (`coco_directive', lib/kb-pred.cicili): one walk,
+  ;;; reached two ways. Through 3.0.4 discontiguous/1 and multifile/1 kept
+  ;;; nothing, and a refusal was the whole spec's.
+  (func coco_bi_dynamic ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_decl_walk e (coco_arg (-> e m) g 0) 0)))
+
+  (func coco_bi_discontiguous ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_decl_walk e (coco_arg (-> e m) g 0) 1)))
+
+  (func coco_bi_multifile ((coco_engine * e) (size_t g)) (out int)
+        (return (coco_decl_walk e (coco_arg (-> e m) g 0) 2)))
+
+  ;;; redefine_system_predicate(+Head) (3.1.0, swipl's): a clause a program
+  ;;; file gives Head's predicate takes it over from the system's, an ISO
+  ;;; one's too (`redef', `coco_assert_from'), where without this it is
+  ;;; refused; the system's runs until that clause comes. M:Head is Head; a
+  ;;; name nothing implements, or a construct but not/1 and ignore/1, is
+  ;;; left as it is; a Head that is unbound, or no goal, swipl's error.
+  (func coco_bi_redefine_system ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (coco_store * st . #'(-> e st))
+              (size_t h . #'(coco_deref (-> e m) (coco_arg (-> e m) g 0))))
+          (while (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
+          (if (not (coco_is_callable m h)) (return (coco_type_error e "callable" h)))
+          (let ((u64 nid . #'(coco_name_of m h)) (u32 n . #'(coco_arity m h)))
+            (if (and (== (coco_claim_kind m nid n) 2) (not (coco_is_construct m nid)))
+                (let ((size_t pi . #'(coco_pred_make st nid n)))
+                  (if (< pi (-> st npreds)) (set ($ (nth pi (-> st preds)) redef) 1))))
             (return 1))))
 
-  ;;; `dynamic(Spec)' as a goal, which is the same thing `:- dynamic Spec.'
-  ;;; does when a file is consulted -- one implementation, reached two ways,
-  ;;; and the goal checked first, so a refusal is swipl's error, catchable.
-  ;;; What the check passes and the declaration still refuses is cocolog's
-  ;;; own ceiling (an arity past 255, memory): representation_error. A
-  ;;; declaration the backend refused (3.0.3) is
-  ;;; error(resource_error(knowledge_base), context(system:dynamic/1, Why)),
-  ;;; Why its sentence (`write_err'), as a read that failed raises its own
-  ;;; (`coco_fetch_error'); through 3.0.2 it was the arity's error too.
-  (func coco_bi_dynamic ((coco_engine * e) (size_t g)) (out int)
-        (let ((int ok . #'(coco_dynamic_check e (coco_arg (-> e m) g 0))))
-          (if (!= ok 1) (return ok)))
-        (with-green-write e
-          (let ((char err [192]) (coco_machine * m . #'(-> e m)))
-            (set (nth 0 ($ (cof (-> e st)) write_err)) (cast char 0))
-            (if (not (coco_dynamic_spec (-> e st) m (coco_arg m g 0) err (sizeof err)))
-                (block
-                  (if (!= (nth 0 ($ (cof (-> e st)) write_err)) (cast char 0))
-                      (return (coco_raise_ctx e (coco_make1 m "resource_error"
-                                                            (coco_new_atom m "knowledge_base"))
-                                              (coco_ectx_pi m "system" (coco_new_atom m "dynamic") 1
-                                                            (coco_new_atom m ($ (cof (-> e st)) write_err))))))
-                  (return (coco_raise e (coco_make1 m "representation_error"
-                                                    (coco_new_atom m "max_arity"))))))
-            (return 1))))
+  ;;; `'$decl_report'(Kind, Ball)' (3.1.0): what a directive's part raised,
+  ;;; reported where the directive stands in swipl's two lines, `Kind/1: '
+  ;;; before the message whatever frame the raise named, as swipl's
+  ;;; '$pattr_directive' prints it. Always true: the directive goes on.
+  (func coco_bi_decl_report ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t k . #'(coco_deref m (coco_arg m g 0)))
+              (size_t b . #'(coco_deref m (coco_arg m g 1)))
+              (char text [1024]))
+          (if (and (coco_is_compound2 m b "error") (coco-tag-is ATOM (nth k (-> m heap))))
+              (set b (coco_make2 m "error" (coco_arg m b 0)
+                                 (coco_ectx_pi m "system" k 1 (coco_new_var m)))))
+          (coco_error_text m b text (sizeof text))
+          (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) text)
+          (return 1)))
 
   ;;; A NO-OP FOR A BINARY THAT LINKS THE ENGINE WITHOUT THE GREEN MODULE
   ;;; (2.8.0): test/solve.cicili and test/shared.cicili have no
@@ -356,14 +432,23 @@
           (if (not (coco_pred_ensure st pi)) (return -1))
           (let ((coco_pred * p . #'(aof (nth pi (-> st preds))))
                 (const char * nm . #'(coco_atom_name m ($ (nth pi (-> st preds)) name)))
-                (int dyn . #'($ (nth pi (-> st preds)) dynamic)))
+                (int dyn . #'($ (nth pi (-> st preds)) dynamic))
+                (int dcl . #'($ (nth pi (-> st preds)) declared)))
 
-            (if (and (not dyn) (== (coco_pred_live p) 0)) (return 0))
+            (if (and (not dyn) (not dcl) (== (coco_pred_live p) 0)) (return 0))
 
+            ;; THE DECLARATIONS FIRST, one line each and a blank line after
+            ;; them, as swipl's listing writes them: dynamic, then multifile
+            ;; (3.1.0); a discontiguous declaration it never writes
             (if dyn
-                (block (printf ":- dynamic %s/%u.\n\n" nm
+                (block (printf ":- dynamic %s/%u.\n" nm
                                (cast unsigned ($ (nth pi (-> st preds)) arity)))
                        (coco_out_note stdout "\n" 1)))
+            (if (bitand dcl 2)
+                (block (printf ":- multifile %s/%u.\n" nm
+                               (cast unsigned ($ (nth pi (-> st preds)) arity)))
+                       (coco_out_note stdout "\n" 1)))
+            (if (or dyn (bitand dcl 2)) (coco_out_puts stdout "\n"))
 
             (for ((size_t i . 0)) (< i (-> p nclauses)) ((++ i))
               ;; a clause retracted under a call still open is gone
@@ -379,9 +464,10 @@
                 (coco_sb_free (aof b))
                 ;; the clause was copied on to the heap only to be written
                 (set (-> m heap_len) mark)))
-            ;; the blank line separates predicates. A declared predicate with no
-            ;; clauses has already had one after its `:- dynamic' line.
-            (if (or (> (coco_pred_live p) 0) (not dyn)) (coco_out_puts stdout "\n"))
+            ;; the blank line separates predicates: after the clauses, and
+            ;; after a declared predicate's blank line when it has none, as
+            ;; swipl writes it (through 3.0.4 one blank line in all there)
+            (coco_out_puts stdout "\n")
             (return 1))))
 
   ;;; `listing' with no argument is the PROGRAM, not everything reachable. A
@@ -517,6 +603,11 @@
                 (set (-> e cunbound) 1)
                 (set ($ (nth pi ($ (cof (-> e st)) preds)) framed) 1)))
           (set (-> e nchoices) (+ (-> e nchoices) 1))
+          ;; a setup_call_cleanup/3 frame is counted again (3.1.0): the heap
+          ;; it names is the thawed one, read before the frames
+          (if (and (== kind COCO_CH_GOAL) (< call ($ (cof (-> e m)) heap_len))
+                   (coco_scc_at e (- (-> e nchoices) 1) (coco_intern (-> e m) "$scc_fail")))
+              (set (-> e ncleanup) (+ (-> e ncleanup) 1)))
           (return 1)))
 
   ;;; THE FRAMES OPEN ON PREDICATE PI of ST -- see the declaration in
@@ -587,6 +678,60 @@
 
   (coco-emit-builtin-dispatch)
   (coco-emit-builtin-index)
+  (coco-emit-iso-predicate)
+
+  ;;; THE ROW A FUNCTOR KEEPS (`bix', 3.1.0): K + 2 for the builtin of row
+  ;;; K, and 1 for none -- or for one a program file took over
+  ;;; (`coco_pred_taken'; ISO only after redefine_system_predicate/1): swipl
+  ;;; calls a user file's definition of a system predicate in its place.
+  ;;; Asked once per functor, by the step and by the compiler of a body's
+  ;;; later goals (`cc_uplace'), and moved after only by
+  ;;; `coco_pred_take_over'.
+  (func coco_bix_fill ((coco_machine * m) (coco_store * st) (u64 nid) (u32 n)) (out u32)
+        (let ((int row . #'(coco_builtin_index m nid n)))
+          (if (< row 0) (return 1))
+          (if (coco_pred_taken st nid n) (return 1))
+          (return (cast u32 (+ row 2)))))
+
+  ;;; A PROGRAM FILE TAKES PI OVER (3.1.0, `coco_assert_from', for a name
+  ;;; `coco_claim_kind' answered 1): the predicate is called from now on,
+  ;;; ahead of the builtin it is named after. A functor that already kept
+  ;;; the builtin's row keeps none (a body compiled against the row hands
+  ;;; its goal over when it finds the row gone, `coco_env_place'), and one
+  ;;; a module claimed for this generation of the registry is asked again:
+  ;;; the generation moves on, and the module walk passes a taken name by
+  ;;; (`coco_m_taken'). An atom has no functor: the step asks the store of
+  ;;; an atom goal. A construct's name -- not/1, ignore/1 -- and an ISO
+  ;;; one (redefine_system_predicate/1) have every clause compiled again
+  ;;; (`coco_code_forget_all'), as a body compiled before runs the construct
+  ;;; or the guard in place.
+  (func coco_pred_take_over ((coco_store * st) (coco_machine * m) (size_t pi) (size_t head))
+        (set ($ (nth pi (-> st preds)) taken) 1)
+        (set (-> st ntaken) (+ (-> st ntaken) 1))
+        ;; the library's own clauses of it are the library's module's in
+        ;; swipl, which the program's definition does not see
+        (coco_pred_forget_muted st m pi)
+        (set head (coco_deref m head))
+        (if (coco-tag-is FUN (nth head (-> m heap)))
+            (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload (nth head (-> m heap))))
+                                                  (-> m functors)))))
+              (if (>= (-> f bix) 2) (set (-> f bix) 1))
+              (if (and (== (-> f dgen) coco_extern_generation) (>= (-> f dmod) 0))
+                  (set coco_extern_generation (+ coco_extern_generation 1)))
+              (if (or (coco_is_construct m (-> f name))
+                      (coco_iso_predicate (coco_atom_name m (-> f name)) (-> f arity)))
+                  (coco_code_forget_all st))))
+        ;; and the libraries' calls of it stay the builtin's, as a swipl
+        ;; library module's do (`coco_sys_library', `coco_colon')
+        (coco_sys_library st m))
+
+  ;;; Whether the module walk passes NAME/ARITY by (3.1.0): a program file
+  ;;; took it over -- unless `system:G' asked for the module's own
+  ;;; (`systake', `coco_colon').
+  (func coco_m_taken ((coco_engine * e) (const char * name) (u32 arity)) (out int)
+        (if (== (-> (-> e st) ntaken) 0) (return 0))
+        (if (-> e systake) (return 0))
+        (return (coco_pred_taken (-> e st) (coco_intern (-> e m) name) arity)))
 
   ;;; THE NAMES THE ENVIRONMENT'S COMPILER TELLS A CONSTRUCT BY (Stage 6),
   ;;; from the vocabulary interned once per machine (lib/kb.cicili asks):

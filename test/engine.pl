@@ -518,11 +518,13 @@ environments(D) :-
     ev_both6(Lines18), fixture(F18, Lines18),
     ev_run_both(F18, A18, B18),
     check('so does one whose bodies start with guards', A18, B18),
-    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1107\n"),
+    atom_codes(W18, "[3-yes,4-yes,5-yes]\n[4,alt(4)]\n[a]\n[1-1,2-2,4-4]\n[0-other,1-small(3),1-other,5-big]\n108\n[1-2,2-3,3-4,4-5,5-6,6-7,7-8,8-9,9-10,10-11,11-12,12-13,13-14,14-15,15-16,16-17,17-18,18-19,19-20,20-21,21-22,22-22,23-22,24-22,25-22,26-22,27-22,28-22,29-22,30-22]\n1105\n"),
     %% (probe/4's `A1 = A0' and the program's `Y = yes' and the like are no
     %% inference since 1.12.2: the probe costs 22, and the count was 1134;
     %% between/3's answers cost one inference fewer since 3.0.0, and the
-    %% count is 1107)
+    %% count was 1107; since 3.1.0 -s loads its file and then asks main/0
+    %% apart, as swipl's -g main does, so the conjunction and use_module/1
+    %% are no longer counted with main's: 1105)
     check('...and its answers, stops and count are 1.9.2\'s', A18, W18).
 
 %% THE BUILTINS IN PLACE (Stage 7). A later goal of a body that makes an
@@ -676,8 +678,9 @@ in_place(D) :-
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
     %% (1164: between/3's answers one inference fewer since 3.0.0, and the
-    %% message names atom_length/2)
-    W9e = '1164\nERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% message names atom_length/2; 1162 since 3.1.0, -s asking main/0 apart
+    %% from its file's load)
+    W9e = '1162\nERROR: -s main: atom_length/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A9, _, _, _, W9e), atom_concat(_, 'exit 2\n', A9) -> T9e = yes ; T9e = A9 ),
     check('...as are its count and the error nothing caught', T9e, yes).
 
@@ -825,8 +828,9 @@ fused(D) :-
     check('...and its answers are 1.9.5\'s', T7, yes),
     %% the error, then its backtrace (1.10.17), which the two runs above
     %% wrote alike
-    %% (836: between/3's answers one inference fewer since 3.0.0)
-    W7e = '836\nERROR: -s main: is/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
+    %% (836: between/3's answers one inference fewer since 3.0.0; 834 since
+    %% 3.1.0, -s asking main/0 apart from its file's load)
+    W7e = '834\nERROR: -s main: is/2: Arguments are not sufficiently instantiated\nERROR: In:\n',
     ( sub_atom(A7, _, _, _, W7e), atom_concat(_, 'exit 2\n', A7) -> T7e = yes ; T7e = A7 ),
     check('...as are its count and the error nothing caught', T7e, yes).
 

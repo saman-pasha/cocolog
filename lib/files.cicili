@@ -29,21 +29,15 @@
 ;;; test/files/*.pl are run against BOTH systems and their output compared, so
 ;;; these are checked rather than asserted.
 ;;;
-;;; WHERE IT PARTS FROM SWI, and it is one place: SWI THROWS where this FAILS.
-;;; `delete_file/1' on a file that is not there is an existence_error in SWI
-;;; and simply false here, because cocolog has no error terms at all and
-;;; `catch/3' with it -- see STATUS.md. Every predicate that can fail for a
-;;; reason the caller could not have tested for first says so through the
-;;; engine's `err', which stops the query rather than being catchable. The
-;;; shared tests therefore stay on the paths where the two agree, and the ones
-;;; that cannot agree are listed in MODULES.md rather than quietly skipped.
+;;; ITS ERRORS ARE SWI'S: `delete_file/1' on a file that is not there is
+;;; existence_error(file, F), with swipl's context, and so on through the
+;;; table (through 2.x a failure here was false where SWI raised).
 ;;;
 ;;; NOT IMPLEMENTED, and why: `tmp_file_stream/3' and everything else that
-;;; hands back a stream, because cocolog has no streams -- there is no
-;;; `open/3', so there is nothing for such a predicate to answer with.
-;;; `absolute_file_name/3' takes an option list whose useful members
-;;; (file_type, access, solutions, expand) each imply machinery this library
-;;; does not have; the /2 form is complete.
+;;; hands back a stream, because the streams are library(stream)'s, which
+;;; this module does not load. absolute_file_name/3 is here since 3.1.0:
+;;; swipl's own clauses, ported into the Coco half below, over the /2 form's
+;;; C ('$absolute_file_name'/2) and the file tests.
 
 (DEFPACKAGE :cocolog
   (:USE :COMMON-LISP)
@@ -79,7 +73,7 @@
 
     ("directory_files"       2 coco_f_directory_files)
     ("expand_file_name"      2 coco_f_expand_file_name)
-    ("absolute_file_name"    2 coco_f_absolute_file_name)
+    ("$absolute_file_name"   2 coco_f_absolute_file_name)
     ("same_file"             2 coco_f_same_file)
     ("read_link"             3 coco_f_read_link)
     ("tmp_file"              2 coco_f_tmp_file)
@@ -130,7 +124,205 @@
            ;; over the C half, and it reads as one. `Parent \== Dir' is what
            ;; stops it at the root, where the directory of `/' is `/'.
            "make_directory_path(Dir) :- exists_directory(Dir), !."
-           "make_directory_path(Dir) :- file_directory_name(Dir, Parent), Parent \\== Dir, make_directory_path(Parent), make_directory(Dir).")))
+           "make_directory_path(Dir) :- file_directory_name(Dir, Parent), Parent \\== Dir, make_directory_path(Parent), make_directory(Dir)."
+
+           ;; ---- absolute_file_name/2,3 and the search paths (3.1.0) -----
+           ;;
+           ;; SWIPL'S OWN CLAUSES, PORTED: boot/init.pl's absolute_file_name/3
+           ;; and its helpers, and boot/syspred.pl's /2, each under a
+           ;; `'$afn_' name, with what the name's C (`'$absolute_file_name'/2',
+           ;; below) and the file tests answer. Through 3.0.0 /3 did not
+           ;; exist, and /2 was the C alone, which knew `library(X)' as the
+           ;; library path's first directory and no other alias.
+           ;;
+           ;; THE OPTIONS ARE SWIPL'S, AND SO ARE ITS QUIRKS, read off 9.0.4:
+           ;; extensions, file_type, access (one mode or a list), solutions,
+           ;; file_errors, expand and relative_to; an option it does not know
+           ;; is ignored. Its options become a DICT at the first
+           ;; '$select_option'/3 -- here `'$afn_d'(Pairs)' -- and that is
+           ;; observable: a key given twice is duplicate_key(K), an element
+           ;; that is no key-value is type_error('key-value', E), and once the
+           ;; options are a dict a failed search names no condition, only
+           ;; existence_error(source_sink, Spec) -- with `access(read)' and
+           ;; no file_type, the regular-file condition is merged in, and so
+           ;; it is a dict. A relative name is tried against the directory of
+           ;; the file being loaded first (source_location/2), then the
+           ;; working directory. A list of codes or characters is text, as
+           ;; the C reads it, where swipl's "..." is a string.
+           "absolute_file_name(Name, Abs) :- '$afn_atomic'(Name), !, '$absolute_file_name'(Name, Abs)."
+           "absolute_file_name(Term, Abs) :- '$afn_chk'(Term, [''], [access(read)], true, File), !, '$absolute_file_name'(File, Abs)."
+           "absolute_file_name(Term, Abs) :- '$afn_chk'(Term, [''], [], true, File), !, '$absolute_file_name'(File, Abs)."
+           "absolute_file_name(Spec, Options, Path) :- '$afn_is_options'(Options), \\+ '$afn_is_options'(Path), !,"
+           "    absolute_file_name(Spec, Path, Options)."
+           "absolute_file_name(Spec, Path, Options) :- '$afn_must_be'(options, Options),"
+           "    ( '$afn_select'(extensions(Exts), Options, Options1) -> '$afn_must_be'(list, Exts)"
+           "    ; '$afn_option'(file_type(Type), Options) -> '$afn_must_be'(atom, Type), '$afn_type_exts'(Type, Exts), Options1 = Options"
+           "    ; Options1 = Options, Exts = [''] ),"
+           "    '$afn_canon_exts'(Exts, Extensions),"
+           "    ( ( nonvar(Type) ; '$afn_option'(access(none), Options, none) ) -> Options2 = Options1"
+           "    ; '$afn_merge'([file_type-regular], Options1, Options2) ),"
+           "    ( '$afn_select'(solutions(Sols), Options2, Options3) -> '$afn_must_be'(oneof(atom, solutions, [first, all]), Sols)"
+           "    ; Sols = first, Options3 = Options2 ),"
+           "    ( '$afn_select'(file_errors(Errs), Options3, Options4) -> '$afn_must_be'(oneof(atom, file_errors, [error, fail]), Errs)"
+           "    ; Errs = error, Options4 = Options3 ),"
+           ;; expand(false) expands too: the option's presence is swipl's test
+           "    ( '$afn_atomic'(Spec), '$afn_select'(expand(Expand), Options4, Options5), '$afn_must_be'(boolean, Expand)"
+           "      -> expand_file_name(Spec, List), member(Spec1, List)"
+           "    ; Spec1 = Spec, Options5 = Options4 ),"
+           "    ( Sols == first"
+           "      -> ( '$afn_chk'(Spec1, Extensions, Options5, true, Path) -> !"
+           "         ; Errs == fail -> fail"
+           "         ; findall(P, '$afn_chk'(Spec1, Extensions, [access(exist)], false, P), Cands),"
+           "           '$afn_error'(Spec, Cands, Options5) )"
+           "    ; '$afn_chk'(Spec1, Extensions, Options5, false, Path) )."
+           "'$afn_atomic'(N) :- atomic(N), !."
+           "'$afn_atomic'(N) :- is_list(N), N = [C|_], ( integer(C) -> true ; atom(C) ), catch(atom_codes(_, N), _, fail)."
+           "'$afn_is_options'(L) :- is_list(L), ( L == [] -> true ; L = [H|_], '$afn_is_option'(H) )."
+           "'$afn_is_option'(V) :- var(V), !, fail."
+           "'$afn_is_option'(F) :- functor(F, _, 1), !."
+           "'$afn_is_option'(_ = _)."
+           ;; '$option'/2,3, '$select_option'/3 and '$merge_options'/3 over a
+           ;; list or the dict
+           "'$afn_option'(O, D) :- nonvar(D), D = '$afn_d'(Ps), !, functor(O, K, 1), arg(1, O, V), memberchk(K-V0, Ps), V = V0."
+           "'$afn_option'(O, L) :- memberchk(O, L)."
+           "'$afn_option'(T, Os, Def) :- arg(1, T, V), functor(T, K, 1),"
+           "    ( nonvar(Os), Os = '$afn_d'(Ps) -> ( memberchk(K-V0, Ps) -> V = V0 ; V = Def )"
+           "    ; functor(G, K, 1), arg(1, G, V0), ( memberchk(G, Os) -> V = V0 ; V = Def ) )."
+           "'$afn_select'(O, Os, '$afn_d'(Rest)) :- '$afn_dict'(Os, Ps), functor(O, K, 1), arg(1, O, V), selectchk(K-V0, Ps, Rest), V = V0."
+           "'$afn_merge'(New, Old, '$afn_d'(Ps)) :- '$afn_dict'(Old, Ps0), '$afn_put'(New, Ps0, Ps)."
+           "'$afn_put'([], Ps, Ps)."
+           "'$afn_put'([K-V|T], Ps0, Ps) :- ( selectchk(K-_, Ps0, Ps1) -> true ; Ps1 = Ps0 ), append(Ps1, [K-V], Ps2), '$afn_put'(T, Ps2, Ps)."
+           ;; a list made a dict as swipl's select_dict/3 makes one: each
+           ;; element K(V), K=V, K-V or K:V, K an atom or an integer
+           "'$afn_dict'(D, Ps) :- nonvar(D), D = '$afn_d'(Ps), !."
+           "'$afn_dict'(L, Ps) :- '$afn_pairs'(L, [], Ps)."
+           "'$afn_pairs'([], Acc, Ps) :- reverse(Acc, Ps)."
+           "'$afn_pairs'([O|Os], Acc, Ps) :-"
+           "    ( '$afn_kv'(O, K, V)"
+           "      -> ( var(K) -> throw(error(instantiation_error, context(system:select_dict/3, _)))"
+           "         ; \\+ atom(K), \\+ integer(K) -> throw(error(type_error('dict-key', K), context(system:select_dict/3, _)))"
+           "         ; memberchk(K-_, Acc) -> throw(error(duplicate_key(K), context(system:select_dict/3, _)))"
+           "         ; '$afn_pairs'(Os, [K-V|Acc], Ps) )"
+           "    ; var(O) -> throw(error(instantiation_error, context(system:select_dict/3, _)))"
+           "    ; throw(error(type_error('key-value', O), context(system:select_dict/3, _))) )."
+           "'$afn_kv'(O, _, _) :- var(O), !, fail."
+           "'$afn_kv'(K = V, K, V) :- !."
+           "'$afn_kv'(K - V, K, V) :- !."
+           "'$afn_kv'(K : V, K, V) :- !."
+           "'$afn_kv'(O, K, V) :- compound(O), functor(O, K, 1), arg(1, O, V)."
+           ;; swipl's '$must_be'/2: a list that is none names its tail
+           "'$afn_must_be'(list, X) :- !, '$afn_tail'(X, 0, T), ( T == [] -> true ; '$afn_type_error'(list, T) )."
+           "'$afn_must_be'(options, X) :- !, ( '$afn_is_options'(X) -> true ; '$afn_type_error'(options, X) )."
+           "'$afn_must_be'(atom, X) :- !, ( atom(X) -> true ; '$afn_type_error'(atom, X) )."
+           "'$afn_must_be'(oneof(T, D, L), X) :- !, '$afn_must_be'(T, X), ( memberchk(X, L) -> true ; throw(error(domain_error(D, X), _)) )."
+           "'$afn_must_be'(boolean, X) :- ( ( X == true ; X == false ) -> true ; '$afn_type_error'(boolean, X) )."
+           "'$afn_type_error'(_, V) :- var(V), !, throw(error(instantiation_error, _))."
+           "'$afn_type_error'(T, V) :- throw(error(type_error(T, V), _))."
+           "'$afn_tail'(L, N, T) :- ( N < 1000000, nonvar(L), L = [_|R] -> N1 is N + 1, '$afn_tail'(R, N1, T) ; T = L )."
+           ;; a file type's extensions are prolog_file_type/2's, a program's
+           ;; own clauses of it among them, and then none
+           "'$afn_type_exts'(source, Exts) :- !, '$afn_type_exts'(prolog, Exts)."
+           "'$afn_type_exts'(Type, Exts) :- findall(Ext, prolog_file_type(Ext, Type), Exts0),"
+           "    ( Exts0 == [], \\+ '$afn_no_ext'(Type) -> throw(error(domain_error(file_type, Type), _)) ; true ),"
+           "    append(Exts0, [''], Exts)."
+           "'$afn_no_ext'(txt)."
+           "'$afn_no_ext'(executable)."
+           "'$afn_no_ext'(directory)."
+           "'$afn_no_ext'(regular)."
+           "'$afn_canon_exts'([], []) :- !."
+           "'$afn_canon_exts'([H|T], [CH|CT]) :- !, '$afn_must_be'(atom, H), '$afn_canon_ext'(H, CH), '$afn_canon_exts'(T, CT)."
+           "'$afn_canon_exts'(E, [CE]) :- '$afn_canon_ext'(E, CE)."
+           "'$afn_canon_ext'('', '') :- !."
+           "'$afn_canon_ext'(D, D) :- sub_atom(D, 0, 1, _, '.'), !."
+           "'$afn_canon_ext'(A, D) :- atom_concat('.', A, D)."
+           ;; '$chk_file'/5: an alias, a path of segments, an absolute name,
+           ;; a name relative to the file being loaded, then to the working
+           ;; directory; CACHE is swipl's, here whether the alias's
+           ;; expansions are all made first
+           "'$afn_chk'(Spec, _, _, _, _) :- \\+ ground(Spec), !, throw(error(instantiation_error, _))."
+           "'$afn_chk'(Spec, Exts, Cond, Cache, Full) :- compound(Spec), functor(Spec, _, 1), !, '$afn_alias'(Spec, Exts, Cond, Cache, Full)."
+           "'$afn_chk'(Segs, Exts, Cond, Cache, Full) :- \\+ atomic(Segs), !, '$afn_seg_atom'(Segs, Atom), '$afn_chk'(Atom, Exts, Cond, Cache, Full)."
+           "'$afn_chk'(File, Exts, Cond, _, Full) :- is_absolute_file_name(File), !,"
+           "    '$afn_extend'(File, Exts, Ext), '$afn_conds'(Cond, Ext), '$absolute_file_name'(Ext, Full)."
+           "'$afn_chk'(File, Exts, Cond, _, Full) :- '$afn_relative_to'(Cond, source, Dir), atomic_list_concat([Dir, /, File], Abs),"
+           "    '$afn_extend'(Abs, Exts, Ext), '$afn_conds'(Cond, Ext), !, '$absolute_file_name'(Ext, Full)."
+           "'$afn_chk'(File, Exts, Cond, _, Full) :- '$afn_extend'(File, Exts, Ext), '$afn_conds'(Cond, Ext), '$absolute_file_name'(Ext, Full)."
+           "'$afn_seg_atom'(A, A) :- atomic(A), !."
+           "'$afn_seg_atom'(L, A) :- '$afn_atomic'(L), !, atom_codes(A, L)."
+           "'$afn_seg_atom'(S, A) :- '$afn_segs'(S, L, []), !, atomic_list_concat(L, /, A)."
+           "'$afn_segs'(A/B, H, T) :- '$afn_segs'(A, H, T0), '$afn_segs'(B, T0, T)."
+           "'$afn_segs'(A, [A|T], T) :- atomic(A)."
+           "'$afn_relative_to'(Conds, Default, Dir) :-"
+           "    ( '$afn_option'(relative_to(FileOrDir), Conds)"
+           "      *-> ( exists_directory(FileOrDir) -> Dir = FileOrDir"
+           "          ; atom_concat(Dir, /, FileOrDir) -> true"
+           "          ; file_directory_name(FileOrDir, Dir) )"
+           "    ; Default == cwd -> working_directory(Dir, Dir)"
+           "    ; Default == source -> source_location(ContextFile, _), file_directory_name(ContextFile, Dir) )."
+           "'$afn_alias'(Spec, Exts, Cond, true, Full) :- !, findall(Exp, expand_file_search_path(Spec, Exp), Exps),"
+           "    member(Expanded, Exps), '$afn_extend'(Expanded, Exts, File), '$afn_conds'(Cond, File), '$absolute_file_name'(File, Full)."
+           "'$afn_alias'(Spec, Exts, Cond, false, Full) :- expand_file_search_path(Spec, Expanded),"
+           "    '$afn_extend'(Expanded, Exts, File), '$afn_conds'(Cond, File), '$absolute_file_name'(File, Full)."
+           ;; swipl's expand_file_search_path/2: an alias sixteen deep is a
+           ;; loop_error naming the aliases it went through
+           "expand_file_search_path(Spec, Expanded) :-"
+           "    catch('$afn_expand'(Spec, Expanded, 0, []), loop(Used), throw(error(loop_error(Spec), file_search(Used))))."
+           "'$afn_expand'(Spec, Expanded, N, Used) :- functor(Spec, Alias, 1), !, file_search_path(Alias, Exp0),"
+           "    NN is N + 1, ( NN > 16 -> throw(loop(Used)) ; true ),"
+           "    '$afn_expand'(Exp0, Exp1, NN, [Alias=Exp0|Used]),"
+           "    arg(1, Spec, Segments), '$afn_seg_atom'(Segments, File), '$afn_make_path'(Exp1, File, Expanded)."
+           "'$afn_expand'(Spec, Path, _, _) :- '$afn_seg_atom'(Spec, Path)."
+           "'$afn_make_path'(Dir, '.', Dir) :- !."
+           "'$afn_make_path'(Dir, File, Path) :- atom_concat(_, /, Dir), !, atom_concat(Dir, File, Path)."
+           "'$afn_make_path'(Dir, File, Path) :- atomic_list_concat([Dir, /, File], Path)."
+           "'$afn_extend'(File, Exts, FileEx) :- '$afn_with_exts'(Exts, File, Fs), list_to_set(Fs, Set), member(FileEx, Set)."
+           "'$afn_with_exts'([], _, [])."
+           "'$afn_with_exts'([E|Es], F, [FE|FEs]) :- file_name_extension(F, E, FE), '$afn_with_exts'(Es, F, FEs)."
+           ;; the conditions a name must meet, of a list or of the dict
+           "'$afn_conds'(L, File) :- is_list(L), !, \\+ ( member(C, L), '$afn_is_cond'(C), \\+ '$afn_cond'(C, File) )."
+           "'$afn_conds'('$afn_d'(Ps), File) :- \\+ ( member(K-V, Ps), C =.. [K, V], '$afn_is_cond'(C), \\+ '$afn_cond'(C, File) )."
+           "'$afn_is_cond'(exists)."
+           "'$afn_is_cond'(file_type(_))."
+           "'$afn_is_cond'(access(_))."
+           "'$afn_cond'(file_type(directory), File) :- !, exists_directory(File)."
+           "'$afn_cond'(file_type(_), File) :- !, \\+ exists_directory(File)."
+           "'$afn_cond'(access(As), File) :- !, \\+ ( '$afn_one_or_member'(A, As), \\+ access_file(File, A) )."
+           "'$afn_one_or_member'(E, L) :- is_list(L), !, member(E, L)."
+           "'$afn_one_or_member'(E, E)."
+           ;; a failed search's error: the first candidate that exists and a
+           ;; condition it fails, of a LIST of conditions -- a dict has no
+           ;; member/2, as swipl's '$member'/2 meets none -- else no file
+           "'$afn_error'(Spec, Cands, Conds) :- member(F, Cands), member(C, Conds), '$afn_is_cond'(C),"
+           "    '$afn_file_error'(C, Spec, F, E, Comment), !, throw(error(E, context(_, Comment)))."
+           "'$afn_error'(Spec, _, _) :- throw(error(existence_error(source_sink, Spec), _))."
+           "'$afn_file_error'(file_type(directory), Spec, File, existence_error(directory, Spec), not_a_directory(File)) :- \\+ exists_directory(File), !."
+           "'$afn_file_error'(file_type(_), Spec, File, existence_error(file, Spec), directory(File)) :- exists_directory(File), !."
+           "'$afn_file_error'(access(OneOrList), Spec, File, permission_error(A, source_sink, Spec), _) :-"
+           "    '$afn_one_or_member'(A, OneOrList), \\+ access_file(File, A)."
+
+           ;; THE SEARCH PATHS, swipl's file_search_path/2 and
+           ;; prolog_file_type/2, which a program extends with clauses of its
+           ;; own: `library' is library_directory/1's (none, until a program
+           ;; adds them) and then cocolog's library path in use_module/1's
+           ;; order ('$library_dirs'/1, lib/library.cicili), `foreign' the
+           ;; same, where the .so modules are, `swi' the binary's directory
+           ;; and `path' $PATH. The Prolog files are pl, prolog and qlf and an
+           ;; executable a .so, cocolog's modules on Linux and macOS alike
+           ;; (swipl's is .dylib on a Mac). The two are multifile, as
+           ;; swipl's are: a program's clauses join these.
+           ":- dynamic(library_directory/1)."
+           ":- multifile(file_search_path/2)."
+           ":- multifile(prolog_file_type/2)."
+           "file_search_path(library, Dir) :- library_directory(Dir)."
+           "file_search_path(swi, Home) :- current_prolog_flag(executable, E), file_directory_name(E, Home)."
+           "file_search_path(library, Dir) :- '$library_dirs'(Ds), member(Dir, Ds)."
+           "file_search_path(foreign, Dir) :- '$library_dirs'(Ds), member(Dir, Ds)."
+           "file_search_path(path, Dir) :- getenv('PATH', Path), atomic_list_concat(Dirs, :, Path), member(Dir, Dirs)."
+           "prolog_file_type(pl, prolog)."
+           "prolog_file_type(prolog, prolog)."
+           "prolog_file_type(qlf, prolog)."
+           "prolog_file_type(qlf, qlf)."
+           "prolog_file_type(so, executable).")))
 
 (generic decl-files
   ()
@@ -698,6 +890,14 @@
   ;;; [nofile], where this answered [] -- and `{a,b}' is a wildcard, as
   ;;; swipl's is (GLOB_BRACE). The name is CVT_ALL text: a number is its
   ;;; digits.
+  ;;; A character of a variable's name in `$NAME': a letter, a digit or `_'
+  (static)
+  (func coco_f_name_char ((char c)) (out int)
+        (let ((int k . #'(bitand (cast int c) 255)))
+          (return (or (and (>= k 48) (<= k 57))
+                      (or (and (>= k 65) (<= k 90))
+                          (or (and (>= k 97) (<= k 122)) (== k 95)))))))
+
   (static)
   (func coco_f_has_wild ((const char * p)) (out int)
         (for ((size_t i . 0)) (!= (nth i p) (cast char 0)) ((++ i))
@@ -706,28 +906,75 @@
             (if (or (== c 42) (or (== c 63) (or (== c 91) (== c 123)))) (return 1))))
         (return 0))
 
+  ;;; THE NAME'S `~' AND `$VAR' ARE EXPANDED FIRST (3.1.0, swipl's
+  ;;; expandVars()): `~' or `~user' before the first `/' is that home, and
+  ;;; `$NAME' -- letters, digits and `_' -- the variable's value, a `$'
+  ;;; before anything else itself; an unknown user is existence_error(user,
+  ;;; U) and an unset variable existence_error(variable, NAME), as swipl
+  ;;; raises them. Through 3.0.0 a `$' was text and `~nouser' itself.
+  ;;; Answers 1 with OUT written, else the raise's answer.
+  (static)
+  (func coco_f_expand_vars ((coco_engine * e) (const char * p) (char * out) (size_t cap))
+        (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (size_t i . 0) (size_t o . 0))
+          (set (nth 0 out) (cast char 0))
+          (if (== (nth 0 p) (cast char 126))
+              (let ((char head [4096]) (size_t h . 0))
+                (while (and (!= (nth h p) (cast char 0)) (!= (nth h p) (cast char 47)))
+                  (if (< h 4095) (set (nth h head) (nth h p)))
+                  (set h (+ h 1)))
+                (set (nth (? (< h 4095) h 4095) head) (cast char 0))
+                ;; `~' alone is $HOME, else the password file's; `~user' that
+                ;; user's home whether or not it is there, as swipl's
+                ;; getpwnam(): `<pwd.h>' is no Cicili std header, so through
+                ;; the raw-C escape, as glob is
+                (let ((const char * home . nil))
+                  (if (== (nth 1 head) (cast char 0))
+                      (block (set home (getenv "HOME"))
+                             (if (== home nil)
+                                 (set home (code "(getpwuid(getuid()) ? getpwuid(getuid())->pw_dir : NULL)"))))
+                    (set home (code "(getpwnam(head + 1) ? getpwnam(head + 1)->pw_dir : NULL)")))
+                  (if (== home nil)
+                      (return (coco_m_existence_error e "user" (coco_new_atom m (+ head 1)))))
+                  (snprintf out cap "%s" home)
+                  (set o (strlen out)))
+                (set i h)))
+          (while (!= (nth i p) (cast char 0))
+            (let ((char c . #'(nth i p)))
+              (if (and (== c (cast char 36)) (coco_f_name_char (nth (+ i 1) p)))
+                  (let ((char name [256]) (size_t k . 0) (const char * val . nil))
+                    (set i (+ i 1))
+                    (while (coco_f_name_char (nth i p))
+                      (if (< k 255) (block (set (nth k name) (nth i p)) (set k (+ k 1))))
+                      (set i (+ i 1)))
+                    (set (nth k name) (cast char 0))
+                    (set val (getenv name))
+                    (if (== val nil)
+                        (return (coco_m_existence_error e "variable" (coco_new_atom m name))))
+                    (while (!= (nth 0 val) (cast char 0))
+                      (if (>= (+ o 1) cap) (return (coco_m_error e "the path will not fit" p)))
+                      (set (nth o out) (nth 0 val))
+                      (set o (+ o 1))
+                      (set val (+ val 1))))
+                (block
+                 (if (>= (+ o 1) cap) (return (coco_m_error e "the path will not fit" p)))
+                 (set (nth o out) c)
+                 (set o (+ o 1))
+                 (set i (+ i 1))))))
+          (set (nth o out) (cast char 0))
+          (return 1)))
+
   (func coco_f_expand_file_name ((coco_engine * e) (size_t g)) (out int)
-        (let ((char p [4096]) (int rc . 0) (int gr . 0)
+        (let ((char p [4096]) (char raw [4096]) (int rc . 0) (int gr . 0)
               (size_t n . 0) (char ** v . nil))
-          (if (not (coco_f_path_as e g 0 p (sizeof p) (aof rc) 1)) (return rc))
+          (if (not (coco_f_path_as e g 0 raw (sizeof raw) (aof rc) 1)) (return rc))
+          (set rc (coco_f_expand_vars e raw p (sizeof p)))
+          (if (!= rc 1) (return rc))
           (if (not (coco_f_has_wild p))
-              (let ((char out [4096]) (char * one . out))
-                (snprintf out (sizeof out) "%s" p)
-                ;; `~' and `~user' before the first `/', through glob alone
-                (if (== (nth 0 p) (cast char 126))
-                    (let ((char head [4096]) (char * slash . nil))
-                      (snprintf head (sizeof head) "%s" p)
-                      (set slash (strchr head 47))
-                      (if (!= slash nil) (set (nth 0 slash) (cast char 0)))
-                      (code "glob_t tl; memset(&tl, 0, sizeof tl);")
-                      (if (and (== 0 (code "glob(head, GLOB_TILDE, NULL, &tl)"))
-                               (> (code "tl.gl_pathc") 0))
-                          (snprintf out (sizeof out) "%s%s" (code "tl.gl_pathv[0]")
-                                    (? (== slash nil) "" (+ p (- slash head)))))
-                      (code "globfree(&tl);")))
+              (let ((char * one . p))
                 (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_atom_list e (aof one) 1)))))
           (code "glob_t gl; memset(&gl, 0, sizeof gl);")
-          (set gr (code "glob(p, GLOB_TILDE | GLOB_BRACE, NULL, &gl)"))
+          (set gr (code "glob(p, GLOB_BRACE, NULL, &gl)"))
           (if (== gr 0)
               (block (set n (code "gl.gl_pathc"))
                      (set v (code "gl.gl_pathv"))))
@@ -801,6 +1048,16 @@
                     (set len (+ len seg)))))
                 (if (== q nil) break)
                 (set p (+ q 1))))
+            ;; A NAME THAT ENDS IN `/' KEEPS IT (3.1.0, swipl's): `a/' is
+            ;; `/cwd/a/', `a/../' the working directory and its slash, and
+            ;; `a/b/.' `/cwd/a/b' -- a name that ends in a component ends
+            ;; there. The root is `/' either way. Through 3.0.0 every
+            ;; trailing slash was folded away.
+            (let ((size_t wl . #'(strlen work)))
+              (if (and (> len 1) (and (> wl 0) (== (nth (- wl 1) work) (cast char 47))))
+                  (block (if (>= (+ len 2) cap) (return 0))
+                         (set (nth len out) (cast char 47))
+                         (set len (+ len 1)))))
             (set (nth len out) (cast char 0))
             (return 1))))
 
@@ -957,9 +1214,18 @@
                 (if (not (coco_m_unify_atom e (coco_m_arg e g 2) ""))
                     (block (coco_m_undo e mark) (return 0)))
                 (return 1)))
-          (let ((size_t mark . #'(coco_m_mark e)) (char ext [4096]))
+          (let ((size_t mark . #'(coco_m_mark e)) (char ext [4096]) (char want [4096]))
             (snprintf ext (sizeof ext) "%s" (+ dot 1))
             (set (nth 0 dot) (cast char 0))
+            ;; A BOUND EXT IS COMPARED WITHOUT ITS DOT (3.1.0, swipl's):
+            ;; file_name_extension(B, '.pl', 'a.pl') is B = a, where the
+            ;; unification of `pl' with `.pl' failed
+            (if (not (coco_m_is_var e (coco_m_arg e g 2)))
+                (block
+                 (if (not (coco_f_path_as e g 2 want (sizeof want) (aof rc) 1)) (return rc))
+                 (if (!= 0 (strcmp ext (+ want (? (== (nth 0 want) (cast char 46)) 1 0))))
+                     (return 0))
+                 (return (coco_m_unify_atom e (coco_m_arg e g 1) p))))
             (if (not (coco_m_unify_atom e (coco_m_arg e g 1) p))
                 (block (coco_m_undo e mark) (return 0)))
             (if (not (coco_m_unify_atom e (coco_m_arg e g 2) ext))
@@ -968,16 +1234,30 @@
 
   ;;; Joining. An Ext written with its dot already on is taken as it is, which
   ;;; is what SWI does: file_name_extension(x, '.md', F) gives 'x.md' and not
-  ;;; 'x..md'. An empty Ext adds no dot.
+  ;;; 'x..md'. An empty Ext adds no dot, and nor does `.'. A BASE THAT HAS THE
+  ;;; EXTENSION ALREADY IS THE NAME (3.1.0, swipl's): file_name_extension(
+  ;;; 'a.pl', pl, F) is F = 'a.pl', where this answered 'a.pl.pl' -- the
+  ;;; extension the last dot after the last `/' begins, a dot that does not
+  ;;; begin the base's last component (`.pl' and `x/.pl' have none, so
+  ;;; their `pl' is added), and compared as it is written.
   (func coco_f_ext_join ((coco_engine * e) (size_t g)) (out int)
-        (let ((int rc . 0) (char base [4096]) (char ext [4096]) (char out [4096]))
+        (let ((int rc . 0) (char base [4096]) (char ext [4096]) (char out [4096])
+              (const char * x . nil) (size_t i . 0))
           (if (not (coco_f_path_as e g 0 base (sizeof base) (aof rc) 1)) (return rc))
           (if (not (coco_f_path_as e g 1 ext (sizeof ext) (aof rc) 1)) (return rc))
-          (if (== (cast char 0) (nth 0 ext))
-              (snprintf out (sizeof out) "%s" base)
-            (if (== (nth 0 ext) (cast char 46))
-                (snprintf out (sizeof out) "%s%s" base ext)
-              (snprintf out (sizeof out) "%s.%s" base ext)))
+          (set x (+ ext (? (== (nth 0 ext) (cast char 46)) 1 0)))
+          (if (== (cast char 0) (nth 0 x))
+              (return (coco_m_unify_atom e (coco_m_arg e g 2) base)))
+          (set i (strlen base))
+          (while (and (> i 0) (and (!= (nth (- i 1) base) (cast char 46))
+                                   (!= (nth (- i 1) base) (cast char 47))))
+            (set i (- i 1)))
+          ;; I is one past the dot or the slash it stopped at, or 0
+          (if (and (> i 1) (and (== (nth (- i 1) base) (cast char 46))
+                                (and (!= (nth (- i 2) base) (cast char 47))
+                                     (== 0 (strcmp (+ base i) x)))))
+              (return (coco_m_unify_atom e (coco_m_arg e g 2) base)))
+          (snprintf out (sizeof out) "%s.%s" base x)
           (return (coco_m_unify_atom e (coco_m_arg e g 2) out))))
 
   ;;; ---- identity, links, temporaries, the working directory -------------

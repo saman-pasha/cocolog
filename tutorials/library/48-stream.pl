@@ -117,12 +117,13 @@ main :-
     stream_open(Notes, write, W3),
     stream_format(W3, "~w owes ~a ~d euros~n", ['Omar', 'Priya', 40]),
     stream_writeq(W3, 'a quoted atom'), stream_nl(W3),
+    %  write_canonical writes no operator, as swipl's: +(point(1,2),3)
     stream_write_canonical(W3, point(1, 2) + 3), stream_nl(W3),
     stream_with_output(W3, ( write(anything), write(' a goal prints'), nl )),
     stream_close(W3),
     read_file_to_codes(Notes, Cs), atom_codes(Text, Cs),
     must('format, writeq, write_canonical and a captured goal', Text,
-         'Omar owes Priya 40 euros\n\'a quoted atom\'\npoint(1,2)+3\nanything a goal prints\n'),
+         'Omar owes Priya 40 euros\n\'a quoted atom\'\n+(point(1,2),3)\nanything a goal prints\n'),
 
     format("~n-- terms: a clause at a time, the reader consult uses~n"),
     stream_open(Facts, write, W4),

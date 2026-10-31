@@ -225,6 +225,7 @@
   ;;; a library that is already in the registry -- linked into the build or
   ;;; loaded earlier -- needs no file found for it.
   (decl) (func coco_module_find ((const char * name)) (out const coco_module *))
+  (decl) (func coco_module_is_library ((const char * name)) (out int))
 
   ;;; Marks the module NAME as a file of the program's own (`own'), which
   ;;; `use_module' does for a path it loads (lib/library.cicili).
@@ -598,10 +599,16 @@
   ;;; (solve-loop.cicili), and not these: put back here, `coco_module_call_at'
   ;;; kept a frame round its dispatcher instead of jumping to it, and a call
   ;;; of the lists module's nth0/3 cost 365 instructions where 3.0.0's cost 354.
+  ;;;
+  ;;; A NAME A PROGRAM FILE TOOK OVER IS NO MODULE'S (3.1.0,
+  ;;; `coco_m_taken'): the walk passes it by, found 0, and the step goes to
+  ;;; the predicate -- swipl calls a user file's definition of a system
+  ;;; predicate that is not ISO.
   (static)
   (func coco_module_call ((coco_engine * e) (const char * name) (u32 arity)
                         (size_t g) (int * found)) (out int)
         (set (cof found) 0)
+        (if (coco_m_taken e name arity) (return 0))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
@@ -622,6 +629,7 @@
                                   (size_t g) (int * found) (size_t * out_at)) (out int)
         (set (cof found) 0)
         (set (cof out_at) 0)
+        (if (coco_m_taken e name arity) (return 0))
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
@@ -763,6 +771,7 @@
         (set coco_nmodules 0)
         (coco_extern_install coco_module_call coco_module_load)
         (coco_extern_install_resolve coco_module_call_resolving coco_module_call_at)
+        (coco_extern_install_library coco_module_is_library)
         (coco_extern_install_names coco_module_name_at))
 
   (func coco_module_free ()
@@ -813,6 +822,12 @@
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (return (aof (nth i coco_modules)))))
         (return nil))
+
+  ;;; A module of that name registered and no program file's (3.1.0, the
+  ;;; seam's `coco_extern_library')
+  (func coco_module_is_library ((const char * name)) (out int)
+        (let ((const coco_module * mod . #'(coco_module_find name)))
+          (return (and (!= mod nil) (not (-> mod own))))))
 
   (func coco_module_set_own ((const char * name))
         (if (== name nil) (return))
@@ -1208,6 +1223,8 @@
              ;; has succeeded is not a thing anyone can ask for from outside.
              (set rc (coco_engine_next (aof e)))
              (if (== rc 1) (set out 1))
+             ;; and what it left is cut, a cleanup run with `!' (3.1.0)
+             (if (== rc 1) (coco_engine_cut (aof e)))
              (if (== rc 0) (set out 0))
              (if (== rc -1)
                  (block (if (!= err nil) (snprintf err errlen "%s" ($ e err)))
@@ -1370,12 +1387,14 @@
   ;;; `'$bags':findall_loop/4', forall/2's `'$apply':forall/2'. Through
   ;;; 2.16 the search's first step raised it, with no context. 0 when GOAL
   ;;; is callable, else the raise's answer: instantiation_error for a
-  ;;; variable, type_error(callable, GOAL) for anything else
+  ;;; variable, type_error(callable, GOAL) for anything else -- and for a
+  ;;; control structure with a goal that is no goal anywhere in it (3.1.0,
+  ;;; `coco_goal_ok'), the whole of it, as swipl compiles it before it runs
   (func coco_m_goal_bad ((coco_engine * e) (size_t goal) (const char * mod)
                          (const char * name) (u32 arity)) (out int)
         (let ((coco_machine * m . #'(-> e m)))
           (set goal (coco_deref m goal))
-          (if (coco_is_callable m goal) (return 0))
+          (if (coco_goal_ok m goal) (return 0))
           (if (coco-tag-is REF (nth goal (-> m heap)))
               (return (coco_m_raise_pi e (coco_new_atom m "instantiation_error")
                                        mod name arity)))

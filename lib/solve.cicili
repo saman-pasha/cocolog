@@ -162,10 +162,13 @@
     ("$atom_text_length" 3 coco_bi_atom_text_length)
     ("$string_text_length" 3 coco_bi_string_text_length)
     ("$sub_text_length" 7 coco_bi_sub_text_length)
+    ("sub_atom_icasechk" 3 coco_bi_icasechk)
     ("split_string"  4 coco_bi_split_string)
     ("$atom_concat"  3 coco_bi_atom_concat)
     ("$string_concat" 3 coco_bi_string_concat)
     ("number_codes" 2 coco_bi_number_codes)
+    ;; swipl's, which a program file's own name/2 takes over (3.1.0)
+    ("name"         2 coco_bi_name)
 
     ("write"        1 coco_bi_write)
     ("print"        1 coco_bi_print)
@@ -181,11 +184,28 @@
     ("$retractall"  1 coco_bi_retract)
 
     ("dynamic"      1 coco_bi_dynamic)
+    ;; goals as well as directives (3.1.0), each part declared in turn
+    ("discontiguous" 1 coco_bi_discontiguous)
+    ("multifile"    1 coco_bi_multifile)
+    ;; a program file's clause then takes the name over, an ISO one's too
+    ;; (3.1.0, swipl's)
+    ("redefine_system_predicate" 1 coco_bi_redefine_system)
+    ;; what a part of a directive's declaration raised, reported where the
+    ;; directive stands (3.1.0, library(builtins)' '$decl_directive'/2)
+    ("$decl_report" 2 coco_bi_decl_report)
     ("listing"      0 coco_bi_listing_all)
     ("listing"      1 coco_bi_listing)
 
     ("vacuum_kb"    0 coco_bi_vacuum_kb)
     ("vacuum_kb"    1 coco_bi_vacuum_kb)
+
+    ;; setup_call_cleanup/3's frame (3.1.0): pushed, asked whether its goal
+    ;; left anything to retry, taken away, counted out, and a ball thrown on
+    ("$scc_push"    3 coco_bi_scc_push)
+    ("$scc_exit"    2 coco_bi_scc_exit)
+    ("$scc_pop"     1 coco_bi_scc_pop)
+    ("$scc_gone"    0 coco_bi_scc_gone)
+    ("$scc_rethrow" 1 coco_bi_scc_rethrow)
 
     ("halt"         0 coco_bi_halt)))
 
@@ -210,6 +230,8 @@
   '("true" "fail" "false" "$true" "$fail" "$trace_exit" "," "!" "$cut"
     "$softcut" ";" "->" "*->" "\\+" "not" "once" "ignore" "call" "catch"
     "$catch_exit" "throw" "trace" "notrace"
+    ;; M:G, a goal (3.1.0, `coco_colon')
+    ":"
     ;; not dispatched on, but BUILT on every inference: the continuation's
     ;; functor, its end, and the catch marker. Interned here so the engine
     ;; pushes them by id -- see `*functor-names*' and `coco-fid' below.
@@ -225,10 +247,13 @@
 ;;; proven, for `'$k'/3', and on every if-then-else, catch and traced call
 ;;; for the rest. Measured on a clause of 32 trivial body goals: building
 ;;; the continuation by name was 31 % of the interpreter's instructions.
-;;; The index of each is settled here, at expansion time, as `ids' are.
+;;; The index of each is settled here, at expansion time, as `ids' are. A
+;;; name no construct or builtin has is interned for its functor alone:
+;;; `'<meta-call>'/1', swipl's frame for a control structure it calls,
+;;; which a goal's barrier names as its owner (3.1.0, `coco-bar-pred').
 (DEFPARAMETER *functor-names*
   '(("$k" 3) ("$cut" 1) ("$softcut" 1) ("$catch" 2) ("$catch_exit" 1)
-    ("$trace_exit" 3)))
+    ("$trace_exit" 3) ("<meta-call>" 1)))
 
 (DEFUN coco-fid-index (name arity)
   (OR (POSITION (LIST name arity) *functor-names* :TEST #'EQUAL)
@@ -303,7 +328,10 @@
              COLLECT `(set (nth ,i (-> m ids)) (coco_intern m ,name)))
      ,@(LOOP FOR row IN *functor-names* FOR i FROM 0
              COLLECT `(set (nth ,i (-> m fids))
-                           (coco_functor_id m (coco-id m ,(FIRST row)) ,(SECOND row))))
+                           (coco_functor_id m ,(IF (MEMBER (FIRST row) *dispatch-names* :TEST #'STRING=)
+                                                   `(coco-id m ,(FIRST row))
+                                                   `(coco_intern m ,(FIRST row)))
+                                            ,(SECOND row))))
      ;; THE CONSTRUCT MASK: one byte per atom interned so far, set for the
      ;; construct names, so the loop tells a construct from a predicate
      ;; with one load (`coco_is_construct'). An atom interned later is not
@@ -444,6 +472,7 @@
     ("copy_term" 2) ("compare" 3) ("term_variables" 2) ("subsumes_term" 2)
     ("unify_with_occurs_check" 2)
     ("abolish" 1) ("assert" 1) ("asserta" 1) ("assertz" 1) ("retract" 1)
+    ("redefine_system_predicate" 1)
     ("atom_chars" 2) ("atom_codes" 2) ("atom_length" 2) ("atom_number" 2)
     ("atom_string" 2) ("atom_to_term" 3) ("atomic_concat" 3)
     ("atomic_list_concat" 2) ("atomic_list_concat" 3)
@@ -453,6 +482,7 @@
     ("number_chars" 2) ("number_codes" 2) ("number_string" 2)
     ("split_string" 4) ("string_bytes" 3) ("string_chars" 2) ("string_codes" 2)
     ("string_length" 2) ("get_string_code" 3) ("text_to_string" 2)
+    ("sub_atom_icasechk" 3) ("name" 2)
     ("term_string" 2) ("term_to_atom" 2) ("read_term_from_atom" 3)
     ("b_getval" 2) ("b_setval" 2) ("nb_getval" 2) ("nb_current" 2)
     ("current_prolog_flag" 2) ("set_prolog_flag" 2) ("op" 3)
@@ -486,7 +516,7 @@
     ("findall" 4 :MAP "$bags" "findall_loop" 4)
     ("forall" 2 :MAP "$apply" "forall" 2)
     ("string_to_atom" 2 :MAP "system" "atom_string" 2)
-    ("absolute_file_name" 2 :MAP "system" "$absolute_file_name" 2)
+    ("$absolute_file_name" 2)
     ("working_directory" 2 :MAP "system" "$chdir" 1)
     ;; the C halves of predicates written as clauses here
     ("$sub_text_length" 7 :ATOM 6 ("atom" "system" "sub_atom" 5)
@@ -511,6 +541,9 @@
     ("$op_spec" 3 :MAP "system" "current_op" 3)
     ("$cp_spec" 2 :MAP "system" "current_predicate" 1)
     ("$retractall" 1 :MAP "system" "retractall" 1)
+    ;; a grammar rule's arity evaluated for a declaration (3.1.0): the goal
+    ;; in flight is made this frame, as swipl's raise names it
+    ("$pi_head" 2)
     ("$dcg_goal" 4 :MAP "$dcg" "call_dcg" 3)
     ;; aggregate_all/3's arithmetic, which swipl's library clause does with
     ;; `M is max(M0, X)' and `X > Max0': named by the template; its other
@@ -588,6 +621,73 @@
      ,@(LOOP FOR row IN *error-contexts* FOR i FROM 0
              COLLECT `(if (== row ,i) (block ,(coco-ectx-row-code row))))
      (return (coco_new_var m))))
+
+;;; SWIPL'S ISO PREDICATES (3.1.0), what `predicate_property(system:H,
+;;; iso)' answers in swipl 9.0.4, by name and arity: the ones a program's
+;;; file may not define. A clause a program file gives a predicate that
+;;; cocolog's engine, a compiled-in module or a construct implements is
+;;; REFUSED for one of these at load, as swipl refuses it ("No permission to
+;;; modify static procedure"), and TAKES THE NAME OVER for any other (the
+;;; store's `taken'): swipl lets a file of the user's define a system
+;;; predicate that is not ISO, and its definition is the one called.
+;;; `coco_iso_predicate' answers whether NAME/ARITY is one; it is asked
+;;; where a name is resolved or a file's clause added, never on the step's
+;;; way to a predicate already known.
+(DEFPARAMETER *iso-predicates*
+  '(("!" 0) ("," 2) ("->" 2) (";" 2) ("<" 2) ("=" 2) ("=.." 2) ("=:=" 2)
+    ("=<" 2) ("==" 2) ("=\\=" 2) (">" 2) (">=" 2) ("@<" 2) ("@=<" 2)
+    ("@>" 2) ("@>=" 2) ("\\+" 1) ("\\=" 2) ("\\==" 2)
+    ("call" 1) ("call" 2) ("call" 3) ("call" 4) ("call" 5) ("call" 6)
+    ("call" 7) ("call" 8) ("catch" 3) ("fail" 0) ("false" 0) ("true" 0)
+    ("throw" 1) ("once" 1) ("repeat" 0) ("is" 2)
+    ("abolish" 1) ("asserta" 1) ("assertz" 1) ("clause" 2) ("retract" 1)
+    ("retractall" 1) ("current_predicate" 1) ("predicate_property" 2)
+    ("discontiguous" 1) ("dynamic" 1) ("multifile" 1) ("initialization" 1)
+    ("acyclic_term" 1) ("atom" 1) ("atomic" 1) ("callable" 1) ("compound" 1)
+    ("float" 1) ("ground" 1) ("integer" 1) ("nonvar" 1) ("number" 1) ("var" 1)
+    ("arg" 3) ("functor" 3) ("copy_term" 2) ("compare" 3)
+    ("unify_with_occurs_check" 2) ("subsumes_term" 2) ("term_variables" 2)
+    ("numbervars" 3) ("atom_chars" 2) ("atom_codes" 2) ("atom_concat" 3)
+    ("atom_length" 2) ("char_code" 2) ("sub_atom" 5) ("number_chars" 2)
+    ("number_codes" 2)
+    ("bagof" 3) ("findall" 3) ("setof" 3) ("sort" 2) ("keysort" 2) ("length" 2)
+    ("char_conversion" 2) ("current_char_conversion" 2) ("current_op" 3) ("op" 3)
+    ("current_prolog_flag" 2) ("set_prolog_flag" 2) ("halt" 0) ("halt" 1)
+    ("at_end_of_stream" 0) ("at_end_of_stream" 1) ("close" 1) ("close" 2)
+    ("current_input" 1) ("current_output" 1) ("flush_output" 0) ("flush_output" 1)
+    ("get_byte" 1) ("get_byte" 2) ("get_char" 1) ("get_char" 2)
+    ("get_code" 1) ("get_code" 2) ("peek_byte" 1) ("peek_byte" 2)
+    ("peek_char" 1) ("peek_char" 2) ("peek_code" 1) ("peek_code" 2)
+    ("put_byte" 1) ("put_byte" 2) ("put_char" 1) ("put_char" 2)
+    ("put_code" 1) ("put_code" 2) ("nl" 0) ("nl" 1) ("open" 3) ("open" 4)
+    ("read" 1) ("read" 2) ("read_term" 2) ("read_term" 3)
+    ("set_input" 1) ("set_output" 1) ("set_stream_position" 2)
+    ("stream_property" 2)
+    ("write" 1) ("write" 2) ("writeq" 1) ("writeq" 2)
+    ("write_canonical" 1) ("write_canonical" 2) ("write_term" 2) ("write_term" 3)
+    ("phrase" 2) ("phrase" 3)
+    ("message_queue_create" 2) ("message_queue_destroy" 1)
+    ("message_queue_property" 2) ("mutex_create" 2) ("mutex_destroy" 1)
+    ("mutex_lock" 1) ("mutex_property" 2) ("mutex_trylock" 1) ("mutex_unlock" 1)
+    ("thread_create" 3) ("thread_detach" 1) ("thread_get_message" 1)
+    ("thread_get_message" 2) ("thread_get_message" 3) ("thread_peek_message" 1)
+    ("thread_peek_message" 2) ("thread_property" 2) ("thread_self" 1)
+    ("thread_send_message" 2) ("thread_signal" 2) ("with_mutex" 2)))
+
+(DEFMACRO coco-emit-iso-predicate ()
+  (LET ((arities (SORT (REMOVE-DUPLICATES (MAPCAR #'SECOND *iso-predicates*)) #'<)))
+    `(func coco_iso_predicate ((const char * name) (u32 arity)) (out int)
+       (cond
+         ,@(MAPCAR
+            (LAMBDA (n)
+              `((== arity ,n)
+                (cond
+                  ,@(LOOP FOR row IN *iso-predicates*
+                          WHEN (= (SECOND row) n)
+                          COLLECT `((== 0 (strcmp name ,(FIRST row))) (return 1)))
+                  (#t (return 0)))))
+            arities)
+         (#t (return 0))))))
 
 
 ;;;; ------------------------------------------------------------------
@@ -875,10 +975,13 @@
     (member coco_store  bst)
     (member int         bst_ready)
     ;; WHO STARTED THIS SEARCH (3.0.0), for the context of an unknown
-    ;; procedure at its root (`coco_unknown_ctx'): 0 none (a query, a
-    ;; directive), 1 findall/3's '$bags':findall_loop/4, 2 forall/2's
+    ;; procedure at its root (`coco_unknown_ctx'): 0 none (a query, the
+    ;; REPL's), 1 findall/3's '$bags':findall_loop/4, 2 forall/2's
     ;; '$apply':forall/2, 3 aggregate_all/3's aggregate:aggregate_all/3,
-    ;; 4 with_output_to/2's system:'$c_call_prolog'/0
+    ;; 4 with_output_to/2's system:'$c_call_prolog'/0, and since 3.1.0 5
+    ;; system:catch/3 -- a directive's goal, `run FILE GOAL''s and an `-s'
+    ;; file's main, which swipl runs under catch/3 -- and 6
+    ;; system:'$run_init_goal'/1, an initialization/1 goal's
     (member int         rootn)
     ;; THE MODULE ANSWERING THE GOAL IN FLIGHT (3.0.2): its index in the
     ;; registry plus one, set by the seam before each dispatcher it calls
@@ -886,7 +989,18 @@
     ;; returns, so 0 outside one, so that a raise from a loadable module's
     ;; own predicate names it, context(Module:Name/Arity, _), as swipl names
     ;; a foreign predicate (`coco_m_raise'). Appended
-    (member size_t      kmod))
+    (member size_t      kmod)
+    ;; HOW MANY setup_call_cleanup/3 FRAMES MAY BE ON THIS ENGINE'S CHOICE
+    ;; STACK (3.1.0): a GOAL frame whose call is `'$scc_fail'(Catcher,
+    ;; Cleanup)' (`coco_scc_at'), counted up by `'$scc_push'/3' and down
+    ;; where one goes. A cut that removes frames asks it before it looks
+    ;; for one among them (`coco_cleanup_cut'), so a program that never
+    ;; calls setup_call_cleanup/3 pays one test a cut that cuts. Appended.
+    (member size_t      ncleanup)
+    ;; WHILE `system:G' CALLS A MODULE'S G PAST A PROGRAM FILE'S TAKE-OVER
+    ;; (3.1.0, `coco_colon'): set around the seam's walk, which then passes
+    ;; no taken name by (`coco_m_taken'). Appended.
+    (member int         systake))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -1201,6 +1315,10 @@
   ;;; 0 = there are no more, -1 = something went wrong and `e->err' says what.
   (decl) (func coco_engine_next ((coco_engine * e)) (out int))
 
+  ;;; Done with an engine whose goal succeeded: every frame it left is cut,
+  ;;; a setup_call_cleanup/3 frame's cleanup run with `!' (3.1.0)
+  (decl) (func coco_engine_cut ((coco_engine * e)))
+
   ;;; Reads GOAL as text and asks it. Answers 1, or 0 with `e->err' set.
   (decl) (func coco_engine_ask_text ((coco_engine * e) (const char * text)) (out int))
 
@@ -1230,6 +1348,8 @@
   (decl) (func coco_ids_fill ((coco_machine * m)))
   (decl) (func coco_builtin_index ((coco_machine * m) (u64 nid) (u32 arity)) (out int))
   (decl) (func coco_builtin_call ((coco_engine * e) (int ix) (size_t g)) (out int))
+  ;; whether the module walk passes a name a program file took over (3.1.0)
+  (decl) (func coco_m_taken ((coco_engine * e) (const char * name) (u32 arity)) (out int))
 
   ;;; ---- the module seam ---------------------------------------------------
   ;;;
@@ -2125,6 +2245,16 @@
         (set coco_extern_call_at call_at)
         (set coco_extern_generation (+ coco_extern_generation 1)))
 
+  ;;; WHETHER A NAME IS A LIBRARY'S MODULE (3.1.0, `coco_colon'): one the
+  ;;; registry holds that no program file loaded. `lists:succ(1, X)' calls
+  ;;; the system's succ/2 past a program's own, as swipl's call into a
+  ;;; loaded library module does; null with no module layer, where only
+  ;;; `system' is.
+  (static) (var func coco_extern_library ((const char * name)) (out int))
+
+  (func coco_extern_install_library ((func lib ((const char * name)) (out int)))
+        (set coco_extern_library lib))
+
   (static)
   (func coco_fail_err ((coco_engine * e) (const char * what)) (out int)
         (snprintf (-> e err) 512 "%s" what)
@@ -2381,6 +2511,11 @@
                                    (coco_new_var m))))
             ((and (== r 1) (== k 4))
              (return (coco_ectx_pi m "system" (coco_new_atom m "$c_call_prolog") 0
+                                   (coco_new_var m))))
+            ((and (== r 1) (== k 5))
+             (return (coco_ectx_pi m "system" (coco_new_atom m "catch") 3 (coco_new_var m))))
+            ((and (== r 1) (== k 6))
+             (return (coco_ectx_pi m "system" (coco_new_atom m "$run_init_goal") 1
                                    (coco_new_var m)))))
           (return (coco_new_var m))))
 

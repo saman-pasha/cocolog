@@ -283,14 +283,14 @@ undecodable(D) :-
     answer(( write_file_from_codes(F3, "dár €"), size_file(F3, Z3), read_file_to_codes(F3, C3),
              atom_codes(A3, C3) ), Z3-A3, G3),
     check('a text file: eight bytes, five characters back', G3, 8-'dár €'),
-    %% swipl takes one into an atom; UTF-8 has no bytes for it, and the error
-    %% is the one swipl's own char_code/2 raises for the code (3.0.0; through
+    %% swipl takes one into an atom of one character, its code the
+    %% surrogate's, held as the three bytes UTF-8 would give it (WTF-8,
+    %% 3.1.0; 3.0.0 raised type_error(character_code, 55296), and through
     %% 2.16 the codes read as no text at all, instantiation_error)
-    answer(catch(( atom_codes(_, [0xD800]), E4 = none ), error(E4, _), true), E4, G4),
-    check('a lone surrogate is no character: the codes are no text', G4,
-          type_error(character_code, 0xD800)),
+    answer(( atom_codes(A4, [0xD800]), atom_length(A4, N4), atom_codes(A4, C4) ), N4-C4, G4),
+    check('a lone surrogate is a character of its own, its code back', G4, 1-[0xD800]),
     answer(catch(( char_code(_, 0xD800), E5 = none ), error(E5, _), true), E5, G5),
-    check('nor to char_code/2, which raises as swipl''s does', G5,
+    check('but no code of a character to char_code/2, which raises as swipl''s does', G5,
           type_error(character_code, 0xD800)).
 
 %% ---- the document libraries ------------------------------------------------

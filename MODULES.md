@@ -105,8 +105,9 @@ as swipl's reload does. The record is the process's: a second process
 that loads, as a module, a file the first consulted into the store holds
 it twice, the rows beside the module, as through 2.12. Where SWI and
 cocolog differ (`test/files/consult.pl` and `test/files/reload.pl` hold
-the rest to swipl 9.0.4): a syntax error ends the consult, where swipl
-reads on; `must_be_module(true)` asks no module header, cocolog having
+the rest to swipl 9.0.4): a syntax error's reason is cocolog's own words
+(the load reads on past it as swipl's since 3.1.0; through 3.0.4 it ended
+the consult); `must_be_module(true)` asks no module header, cocolog having
 none; a code list is one file's name, which is what `"file"` reads as
 under the `codes` default; a file of no clauses counts as loaded, where
 swipl reads it again each time; and a module's file read again (muted)

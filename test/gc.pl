@@ -650,13 +650,17 @@ directives_collect(C, D) :-
                    'go :- col(main).' ]),
     atomic_list_concat([ 'd1-collected\ni2-collected\nf([4,3,2,1])\ncaught([3,2,1])\n',
                          'Warning: ', F17b, ':1:\n',
-                         'Warning:    Goal (directive) failed: churn(2000),mk(3,[3,2,1]),[3,2,1]==[3,2,9]\n',
+                         'Warning:    Goal (directive) failed: user:(churn(2000),mk(3,_G),_G==[3,2,9])\n',
                          'b-collected\nbi-collected\nd2-collected\ni1-collected\nmain-collected' ], Want17),
     sh_join(['COCOLOG_GC_CELLS=2000 ', C, ' run ', F17, ' go 2>&1'], Cmd17),
-    proc_run(Cmd17, 120000, O17, _), chomp(O17, B17), atom_codes(T17, B17),
+    %% the failed directive's goal is written as it was asked, its bindings
+    %% undone (3.1.0, swipl's), so its variable is named by a heap position
+    proc_run(Cmd17, 120000, O17, _), chomp(O17, B17), atom_codes(T17r, B17),
+    re_replace_atom('_G[0-9]+', '_G', T17r, T17),
     check('directives and initialization goals collect, and every one answers right', T17, Want17),
     sh_join(['COCOLOG_GC_CELLS=2000 COCOLOG_KMAT=2 ', C, ' run ', F17, ' go 2>&1'], Cmd18),
-    proc_run(Cmd18, 120000, O18, _), chomp(O18, B18), atom_codes(T18, B18),
+    proc_run(Cmd18, 120000, O18, _), chomp(O18, B18), atom_codes(T18r, B18),
+    re_replace_atom('_G[0-9]+', '_G', T18r, T18),
     check('and with the freeze tortured at every collection', T18, T17),
     %% THE MARKS MOVE WITH THE HEAP. A collection inside the goal slides the
     %% live cells below the load's mark down under it, and a mark left where

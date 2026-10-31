@@ -679,6 +679,76 @@
   (func coco_bi_string_text_length ((coco_engine * e) (size_t g)) (out int)
         (return (coco_len_typed e g)))
 
+  ;;; THE TEXT ON B AS ITS UNITS (3.1.0): code points under characters,
+  ;;; bytes under bytes, in a block the caller frees; 0 when memory is
+  ;;; refused. N the count.
+  (static)
+  (func coco_tx_units ((coco_machine * m) (coco_strbuf * b) (size_t * n)) (out i64 *)
+        (let ((size_t len . #'($ (cof b) len)) (size_t i . 0) (size_t k . 0)
+              (i64 * v . #'(cast (i64 *) (malloc (* (+ len 1) (sizeof i64))))))
+          (if (== v nil) (return nil))
+          (while (< i len)
+            (if (-> m text_chars)
+                (set (nth k v) (coco_utf8_get ($ (cof b) s) len (aof i)))
+                (block (set (nth k v) (cast i64 (bitand (cast int (nth i ($ (cof b) s))) 255)))
+                       (set i (+ i 1))))
+            (set k (+ k 1)))
+          (set (cof n) k)
+          (return v)))
+
+  ;;; `sub_atom_icasechk(+Haystack, ?Start, +Needle)' (3.1.0, swipl's): the
+  ;;; needle at START, or at the first place it is when START is unbound,
+  ;;; and START bound to it. A character of the needle matches one of the
+  ;;; haystack that is it or whose lowercase it is -- swipl 9.0.4's one-way
+  ;;; fold: sub_atom_icasechk('HELLO', S, ell) and ('HELLO', S, 'ELL') are
+  ;;; true, (hello, S, 'ELL') false. Under characters the lowercase is
+  ;;; `coco_uc_case''s, glibc's C.UTF-8 as swipl's towlower() in that
+  ;;; locale; under bytes ASCII's. In swipl's order: START unbound or an
+  ;;; integer of 0 or more (type_error(integer, S),
+  ;;; domain_error(not_less_than_zero, S)), then the needle, then the
+  ;;; haystack, each text as CVT_ALL reads it.
+  (func coco_bi_icasechk ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t st . #'(coco_deref m (coco_arg m g 1)))
+              (i64 want . -1) (int r . 0)
+              (coco_strbuf nb) (coco_strbuf hb)
+              (i64 * nv . nil) (i64 * hv . nil) (size_t nn . 0) (size_t hn . 0)
+              (i64 at . -1))
+          (if (not (coco-tag-is REF (nth st (-> m heap))))
+              (block
+               (if (not (coco-is-int (nth st (-> m heap))))
+                   (return (coco_type_error e "integer" st)))
+               (set want (coco_int_val m (nth st (-> m heap))))
+               (if (< want 0) (return (coco_domain_error e "not_less_than_zero" st)))))
+          (set r (coco_tx_get e (coco_arg m g 2) 31 (aof nb)))
+          (if (!= r 1) (return r))
+          (set r (coco_tx_get e (coco_arg m g 0) 31 (aof hb)))
+          (if (!= r 1) (block (coco_sb_free (aof nb)) (return r)))
+          (set nv (coco_tx_units m (aof nb) (aof nn)))
+          (set hv (coco_tx_units m (aof hb) (aof hn)))
+          (coco_sb_free (aof nb))
+          (coco_sb_free (aof hb))
+          (if (or (== nv nil) (== hv nil))
+              (block (free nv) (free hv) (return (coco_mem_error e))))
+          (let ((size_t s . #'(? (>= want 0) (cast size_t want) 0)))
+            (while (and (<= (+ s nn) hn) (< at 0))
+              (let ((size_t j . 0))
+                (while (< j nn)
+                  (let ((i64 h . #'(nth (+ s j) hv)) (i64 c . #'(nth j nv)))
+                    (if (and (!= c h)
+                             (!= c (? (-> m text_chars) (coco_uc_case h 0)
+                                      (? (and (>= h 65) (<= h 90)) (+ h 32) h))))
+                        break))
+                  (set j (+ j 1)))
+                (if (== j nn) (set at (cast i64 s))))
+              (if (>= want 0) break)
+              (set s (+ s 1))))
+          (free nv)
+          (free hv)
+          (if (< at 0) (return 0))
+          (if (>= want 0) (return 1))
+          (return (? (coco_unify m st (coco_new_int m at)) 1 0))))
+
   ;;; '$sub_text_length'(T, B, L, A, Sub, N, Type) (3.0.0): sub_atom/5's
   ;;; and sub_string/5's arguments read as swipl's sub_text reads them, in
   ;;; its order, and N the length of T -- T with CVT_ATOMIC, else
@@ -1020,8 +1090,9 @@
   ;;; fails where N was given, `coco_tx_varnofail'), must be a number from its first
   ;;; character to its last, and FAILS where it is not one: number_string(N,
   ;;; " 42") is false where number_codes/2 takes the layout. THE READER IS
-  ;;; WHAT DECIDES WHAT A NUMBER LOOKS LIKE (`coco_read_number_text', strict).
-  ;;; Not swipl's: its digit groups, number_string(N, "4 2") 42.
+  ;;; WHAT DECIDES WHAT A NUMBER LOOKS LIKE (`coco_read_number_text', strict):
+  ;;; its digit groups and radix numbers since 3.1.0, number_string(N, "4 2")
+  ;;; 42 and number_string(N, "16'ff") 255, as swipl's.
   (func coco_bi_number_string ((coco_engine * e) (size_t g)) (out int)
         (let ((coco_machine * m . #'(-> e m))
               (size_t n . #'(coco_a e g 0))
@@ -1385,6 +1456,47 @@
 
   (func coco_bi_number_codes ((coco_engine * e) (size_t g)) (out int)
         (return (coco_tx_number_text e g 0)))
+
+  ;;; NAME(?AtomOrNumber, ?Codes), swipl 9.0.4's (3.1.0): a bound first
+  ;;; argument is read with CVT_ATOMIC -- an atom, a number as write/1
+  ;;; writes it or a string; anything else, `[]' and a list among them, is
+  ;;; type_error(atomic, X), which swipl names with no module (context(
+  ;;; name/2, _)) -- and its codes are unified with the second, as
+  ;;; atom_codes/2's are: one that does not unify fails where an unbound
+  ;;; element or tail comes first (`coco_tx_varnofail'), and is otherwise
+  ;;; read as below and compared, so name(abc, [a,b,c]) and name(42, "+42")
+  ;;; are true and name(abc, foo) is type_error(list, foo). The second read
+  ;;; is text, CVT_STRING|CVT_LIST and swipl's errors, and stands for the
+  ;;; number the reader makes of the whole of it -- no layout before or
+  ;;; after, a sign against the digits, as atom_number/2 reads it -- or else
+  ;;; for its atom: name(X, " 4") is ' 4', name(X, "1e2") 100.0, name(X,
+  ;;; "0'a") 97, and the reader's digit groups and radix numbers (3.1.0):
+  ;;; name(X, "1_000") 1000, name(X, "16'ff") 255; a character code with an
+  ;;; escape is no number, name(X, "0'\\n") the atom. Not swipl's: an
+  ;;; integer past 64 bits is int_overflow, where swipl makes it. A program file's
+  ;;; own name/2 takes the name over (`coco_claim_kind'), as swipl lets it.
+  (func coco_bi_name ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t a . #'(coco_a e g 0))
+              (size_t l . #'(coco_a e g 1))
+              (coco_strbuf b) (int r . 0) (size_t num . 0))
+          (if (not (coco-tag-is REF (nth a (-> m heap))))
+              (block
+                (if (!= 1 (coco_tx_get e a 7 (aof b)))
+                    (return (coco_type_error_bare e "atomic" a)))
+                (let ((size_t mark . #'(-> m trail_len)))
+                  (set r (coco_unify m l (coco_codes_of e ($ b s) ($ b len))))
+                  (coco_sb_free (aof b))
+                  (if r (return 1))
+                  (coco_undo_to m mark)
+                  (if (coco_tx_varnofail m l) (return 0)))))
+          (set r (coco_tx_get e l 28 (aof b)))
+          (if (!= r 1) (return r))
+          (set r (coco_read_number_text m (coco_tx_s (aof b)) 3 (aof num)))
+          (if (== r 2) (block (coco_sb_free (aof b)) (return (coco_int_overflow e))))
+          (if (== r 0) (set num (coco_tx_make m (aof b) 0)))
+          (coco_sb_free (aof b))
+          (return (? (coco_unify m a num) 1 0))))
 
   ;;; Does S begin with the PN characters of P? An explicit loop rather
   ;;; than strncmp, which this file does not otherwise declare.

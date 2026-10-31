@@ -148,7 +148,7 @@ t37_rules :-
     length(Sevs, NRules),
     must('every rule, with the severity of each', NRules, 9),
     ( memberchk(n2-hard, Sevs) -> N2 = hard ; N2 = other ),
-    must('N2 -- dead clauses under a C name -- is HARD', N2, hard),
+    must('N2 -- dead clauses under a loaded module\'s name -- is HARD', N2, hard),
     ( memberchk(t1-warn, Sevs) -> T1 = warn ; T1 = other ),
     must('T1 -- an import that does nothing -- is a WARN', T1, warn),
 
@@ -274,12 +274,12 @@ t37_card :-
     read_file_to_codes('tools/cocolint/traps.jsonl', TrapCodes),
     t37_rows(TrapCodes, Rows),
     length(Rows, NRows),
-    must('rows in the card', NRows, 30),
+    must('rows in the card', NRows, 28),
     findall(Id, ( member(R, Rows), t37_field(R, id, Id) ), Ids),
     sort(Ids, SortedIds),
     length(SortedIds, NIds),
-    must('every id distinct', NIds, 30),
-    %% ELEVEN OF THE THIRTY CARRY A PATTERN, and the gap is the point
+    must('every id distinct', NIds, 28),
+    %% NINE OF THE TWENTY-EIGHT CARRY A PATTERN, and the gap is the point
     %% of the card: a row documents a divergence, and only some divergences
     %% are things a linter can SEE in a source file. `X3' can be matched --
     %% a predicate cocolog leaves out on purpose is right there in the text
@@ -297,7 +297,10 @@ t37_card :-
     %% as missing -- atan/2, random/1, the hyperbolic functions, popcount/1
     %% and the rest -- had been evaluable since 2.5.0, and the token
     %% benchmark, which gives the card to a model, found it telling the
-    %% model to write a workaround for nothing.)
+    %% model to write a workaround for nothing. And thirty until 3.1.0, when W1
+    %% and E1 went, two patterns with them: write_canonical/1 is swipl's,
+    %% operators ignored and variables named A and _, and the reader takes
+    %% every escape, backquote, digit group and radix numeral E1 named.)
     %%
     %% IT WAS SEVENTEEN, AND THE STRING TYPE TOOK TWO OF THEM. Row X1 said
     %% the string predicates did not exist and flagged every call to one;
@@ -321,7 +324,7 @@ t37_card :-
     %% `:- initialization(main).' with a halt in main, writes nothing.
     findall(P, ( member(R, Rows), t37_field(R, pattern, P) ), Pats),
     length(Pats, NPats),
-    must('rows carrying an S1 pattern term', NPats, 11),
+    must('rows carrying an S1 pattern term', NPats, 9),
     findall(x, ( member(R, Rows), t37_field(R, cite, Cites), Cites == [] ), NoCite),
     must('rows with no citation at all', NoCite, []),
 
@@ -352,9 +355,12 @@ t37_running :-
     format("   about a name it has no evidence for. The other half is the~n"),
     format("   collision ORACLE in oracle.pl, which asks the running store~n"),
     format("   instead -- and catches what a blocklist cannot. Neither~n"),
-    format("   mechanism is sound alone: measured, the oracle misses 110 of~n"),
-    format("   112 C-dispatched names, because redefining one is dead code~n"),
-    format("   the store still calls yours.~n").
+    format("   mechanism is sound alone: the oracle calls a loaded module's~n"),
+    format("   name, or a construct's, your own while its clauses are dead.~n"),
+    format("   (Through 3.0.4 it missed 110 of 112 of the engine's own C names~n"),
+    format("   that way; since 3.1.0 a program file takes a non-ISO one over~n"),
+    format("   -- the oracle's answer is the truth -- and the load refuses an~n"),
+    format("   ISO one's, loudly.)~n").
 
 %% ---- reading the card ------------------------------------------------
 %%

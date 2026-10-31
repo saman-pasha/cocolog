@@ -990,8 +990,18 @@ cocolint index offers no import of it.
 ## The engine: what is not obvious
 
 * **Dispatch is construct, C builtin, module, store, by name AND arity.** A
-  C-registered name shadows any clause of that name (`listing/1` shows
-  nothing). Grep a predicate name before writing it: **cocolog consults the
+  loadable module's C name shadows any clause of that name (`listing/1`
+  shows nothing). **A program file's clause for an engine's or a
+  compiled-in module's name TAKES IT OVER** (3.1.0, swipl's:
+  `coco_claim_kind` 1, `coco_pred_take_over`): the predicate is called from
+  then on, not/1, ignore/1 and the names of no arguments too; an ISO one's
+  clause is refused at load (`*iso-predicates*`) unless
+  redefine_system_predicate/1 named it; a library's calls of a taken name
+  are made `system:` and keep the builtin. The functor keeps the row it
+  calls (`bix`: K + 2, 1 none or taken), so **a new way to call a builtin
+  by its row asks `bix`, never the table alone**, and a body compiled
+  against a row hands its goal over when the row is gone
+  (`coco_env_place`). Grep a predicate name before writing it: **cocolog consults the
   clauses of one name that are not together in the file without a word**
   (SWI warns; cocolint does not), so a helper given an existing name joins
   that predicate. library(flow/chart) names each such predicate it charts
@@ -1101,6 +1111,27 @@ cocolint index offers no import of it.
   that holds stderr to the letter holds the prefix too. An unbound
   culprit of a type error is instantiation_error (`coco_type_error`,
   `coco_m_type_error`), as swipl's PL_error() makes it.
+* **The barrier a body's goals carry names the frame they run in** (3.1.0,
+  `coco-bar-of`, `coco-bar-pred`, `coco-bar-low` in lib/kb.cicili): the
+  clause's predicate (`ptag`, its functor id plus one, ORed in as the clause
+  is entered), a system frame's bit and the meta-call's, above the choice
+  height the low bits keep. So an unknown procedure names the clause's
+  predicate, or past a last call its caller (`coco_unknown_error_q`), a goal
+  that is no goal the clause it stands in, as swipl's frames do. **Every
+  reader of a barrier as a height takes `coco-bar-low`**, and **a new push
+  of a body's goals ORs the clause's `ptag` in** (the plain path, the
+  guards' and the environment's in `coco_try_clause`, the units' link,
+  `cc_ulink`), or its goals' errors name the caller. One OR an entry: nrev
+  +0.44 % of zero.sh's work, +0.15 % less its padding.
+* **A cut runs the cleanups of the frames it takes** (3.1.0,
+  setup_call_cleanup/3): a setup_call_cleanup/3 frame is a goal frame,
+  `'$scc_fail'/2`, and each of the four cuts -- the goal `!`, `$cut`, an
+  environment's CUT and CUTC units -- calls `coco_cleanup_cut` when the
+  engine's `ncleanup` says one may be there. **A new cut site does the
+  same**, and **a host or a builtin done with an engine that succeeded
+  calls `coco_engine_cut`** (findall/3's, with_output_to/2's, the seam's,
+  a directive's, each query of cocolog.cicili), or a pending cleanup never
+  runs.
 * **A check in a clause the recursion comes back to costs every answer**
   (3.0.0): between/3's first cut called its checking C half in its first
   clause, which the enumeration re-entered at each answer, and every
@@ -1225,8 +1256,16 @@ cocolint index offers no import of it.
   everything else in file order. `initialization(G)` runs after the file is
   read, `initialization(G, now)` where it stands, `initialization(G, main)`
   after the load and then halts. A directive that fails or throws is
-  reported in SWI's shapes and the load goes on; **a syntax error is the
-  only thing that ends a consult.** A `use_module`/`ensure_loaded` that
+  reported in SWI's shapes and the load goes on; **so does a load past a
+  syntax error since 3.1.0**, as swipl's (through 3.0.4 it was the one
+  thing that ended a consult): the clause is reported and passed over, the
+  reader taken up after the full stop that ends it, walked from the
+  clause's first byte as swipl's raw read walks it (`coco_reader_resync`,
+  the reader's `cstart`). So are an endif, else or elif with no if open,
+  an if the file never closes (named at its end), and a term that is no
+  clause -- `3.`, `foo :- 3.`, `bar :- (a, 1).` in swipl's words;
+  `[].` passes in silence, and a variable is reported where swipl's load
+  aborts (COMPAT.md). A `use_module`/`ensure_loaded` that
   loads nothing is reported the same way (since 1.8.39: SWI's ERROR
   `source_sink ... does not exist`, then the failed directive; it used to
   be SILENT), except SWI's names for what cocolog carries elsewhere --
@@ -1305,9 +1344,11 @@ cocolint index offers no import of it.
   placed** (1.11.9): `ERROR: FILE:LINE:COL: Syntax error: REASON`, the column
   from 0 in bytes as swipl's, from `run` and `-s` alike -- a module's names
   ITS file, through `use_module` and through the load a goal's ask makes
-  (`load_err` on the store) -- and the consult still ends there. Through
-  1.11.8 `run` said a byte offset and `-s` only `its clauses would not
-  consult`.
+  (`load_err` on the store) -- and since 3.1.0 the load goes on past it.
+  Through 1.11.8 `run` said a byte offset and `-s` only `its clauses would
+  not consult`. The REASON is cocolog's own words, and the place swipl's
+  where the two readers stop at one token; a bad escape is placed at its
+  letter (`c('a\qb')` at 5), as swipl's.
 * **`atomic_list_concat/3` with a bound third argument and a non-ground list
   SPLITS**; `/2` cannot split; `atom_concat/3` has `(+,-,+)` and `(-,+,+)` but
   no `(-,-,+)`; `string_concat/3` only `(+,+,-)`. **`sub_atom/5` and

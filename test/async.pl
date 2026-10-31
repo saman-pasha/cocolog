@@ -185,6 +185,7 @@ main :-
     failures,
     shared_store,
     shared_store_concurrent,
+    cleanups,
     checks_done.
 
 %% ---- values ------------------------------------------------------------
@@ -449,3 +450,27 @@ shared_store_concurrent :-
     check('... in a second world', G2, [writer]),
     answer(gsc_go(gsc_f3, L3), L3, G3),
     check('... and a third', G3, [writer]).
+
+%% A TASK THAT LEAVES A CLEANUP PENDING (3.1.0): setup_call_cleanup/3's
+%% frame is on the task's choice stack when its goal answers, and the
+%% worker cuts it as the task ends -- the catcher `!', the cleanup run on
+%% the task's own machine before the world goes on. Its write is a store
+%% write like any other, so the barrier takes it.
+
+:- dynamic acl_done/2.
+
+acl_task(N) :-
+    setup_call_catcher_cleanup(true, member(_, [1, 2]), C, assertz(acl_done(N, C))).
+
+acl_world :- go(acl_task(a), A), go(acl_task(b), B), await_all([A, B]).
+
+acl_go(S) :-
+    retractall(acl_done(_, _)),
+    async_run(acl_world),
+    findall(N-C, acl_done(N, C), L),
+    msort(L, S).
+
+cleanups :-
+    section('a task that leaves a cleanup pending'),
+    answer(acl_go(S1), S1, G1),
+    check('each task''s cleanup ran as it ended, its catcher the cut', G1, [a-!, b-!]).

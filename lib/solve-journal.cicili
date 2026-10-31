@@ -54,7 +54,7 @@
                     "files:append_file_from_codes/2" "files:delete_file/1"
                     "files:rename_file/2" "files:make_directory/1" "files:delete_directory/1"
                     "files:directory_files/2" "files:expand_file_name/2"
-                    "files:absolute_file_name/2" "files:same_file/2" "files:read_link/3"
+                    "files:$absolute_file_name/2" "files:same_file/2" "files:read_link/3"
                     "files:tmp_file/2" "files:working_directory/2"
                     "builtins:getenv/2" "builtins:setenv/2" "builtins:unsetenv/1"
                     "builtins:statistics/2" "builtins:format/3"

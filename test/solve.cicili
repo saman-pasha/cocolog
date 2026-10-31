@@ -145,7 +145,8 @@
 
   ;; what a directive's goal runs through in a program: here every goal is
   ;; proved, so a consult can run an initialization goal without an engine
-  (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (char * err) (size_t errlen))
+  (func proved ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
+                (char * err) (size_t errlen))
         (out int)
         (return 1))
 

@@ -144,15 +144,15 @@ and so is one with no reason.
 |---|---|---|---|
 | **P1** | HARD | the file does not read at all | the syntax error the reader names |
 | **N1** | HARD | a head that collides with a clause-defined tier-1 name; the two sets of clauses MERGE, and which is tried first depends on how the file is run | prefix the head with the program's own name — a DCG head too (row N4): `digit//1` is `digit/3` in the store |
-| **N2** | HARD | a head that collides with a C-registered name; dispatched before the store, so the clauses are DEAD CODE and `listing/1` will still show them | prefix the head |
-| **N3** | HARD | a head whose NAME is a control construct (`once`, `call`, `catch`, `throw`, …); no arity escapes it | prefix the head |
-| **S1** | HARD | one of the eleven banned forms below, matched as a term with comments and quotes masked | the row's own fix |
+| **N2** | HARD | a head that collides with a C name of a module the file loads (`tcp_connect/2` after `use_module(library(tcp))`); its dispatcher answers before the store, so the clauses are DEAD CODE and `listing/1` will still show them. Not a name of the engine's or a compiled-in module's since 3.1.0: a program file's clauses take a non-ISO one over, as swipl's do, and the load refuses an ISO one's, loudly | prefix the head |
+| **N3** | HARD | a head that is a control construct the step runs in place, at an arity it runs it at (`*->/2`, the engine's `$` markers at any): its clauses load and nothing calls them. Not an ISO one (`once/1`, `call/N`, `catch/3`: refused at load since 3.1.0), not `not/1`, `ignore/1`, `trace/0` or `notrace/0` (a program file takes them over), not another arity (`once/2` is anybody's) | prefix the head |
+| **S1** | HARD | one of the nine banned forms below, matched as a term with comments and quotes masked | the row's own fix |
 | **T1** | WARN | `use_module` of a tier-1 library, compiled in or preloaded; the directive succeeds and does nothing | delete it |
 | **Z1** | WARN | a clause over 7,800 bytes stored (a row must fit a page; the store's own budget is `page - 190 - len(kb) - len(name)` and it refuses there with `resource_error(clause_length)`; this warns a little below the budget of an 8192-byte page, the default before 1.10.0 and the page every store made before it keeps, on purpose), or a term over 65,535 bytes (the wire refuses it) | chunk it |
 | **C2** | HARD | one name defined in two of the files named, when they are declared one program; off by default, see below | one definition |
 | **U1** | WARN | an acknowledgement that excuses nothing: its finding has gone from the line it covers, or it gives no reason | delete it, or say why after `--` |
 
-S1's eleven forms are rows of the dialect card, `traps.jsonl`, each with
+S1's nine forms are rows of the dialect card, `traps.jsonl`, each with
 a `pattern`. `tool.sh card --patterns` prints the terms.
 
 | row | the SWI reflex | cocolog | why |
@@ -162,14 +162,12 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a library failure is `error(cocolog_error(Text), _)` and the house style puts a bare `Name/Arity` second |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
 | F1 | `~t ~| ~+` | pad by hand | refused by name at the three codes |
-| W1 | `write_canonical/1` | `write_term(T, [quoted(true), ignore_ops(true)])` | `write_canonical` here keeps operators |
 | L1 | `'[|]'` | `'.'/2` or `[_|_]` | a list cell is `'.'/2` |
 | X2 | `open/3` `close/1` `read/1` `nl/1` `write/2` … | `read_file_to_codes/2` and a DCG; `format/3` with a sink | there is no stream layer in the engine; a file that loads `library(stream)`, or `library(websocket)`, which loads it — by a directive or as a goal — is not flagged |
-| X3 | `setup_call_cleanup/3` `predsort/3` `numbervars/3` `freeze/2` `dif/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
+| X3 | `predsort/3` `numbervars/3` `freeze/2` `dif/2` `when/2` … | write it out; `call_limited/3` | deliberately absent so ported code errors instead of differing |
 | P1 | `current_prolog_flag(occurs_check, B)` | do not branch on a flag | eighteen flags answer — `executable`, `argv`, `os_argv`, `double_quotes`, `text_units`, since 2.0.0 `bounded`, `max_integer`, `min_integer`, `max_tagged_integer`, `min_tagged_integer`, since 2.2.2 the four float flags and `float_min`, `float_max`, `float_max_integer`, and since 2.16.0 `verbose` — and every other one FAILS |
-| E1 | `\xHH\` `\uXXXX` `\e` `16'FF` `1_000_000` | write the codes; write `1000000` | not in the reader's escape set; each is a syntax error refusing the WHOLE file |
 
-The card has twenty more rows that inform the prompt rather than the
+The card has nineteen more rows that inform the prompt rather than the
 linter — row T1 on probing a library as a goal, Z1 on the page budget, the
 PROMPT rows on determinism, `**` staying an integer, a halt inside a
 `findall` or a `forall` (H1), what a load-time goal writes under `-s` (H2),
@@ -221,10 +219,16 @@ is the highest-value repair signal there is).
 
 What it sees and what it cannot: a name a vendored library already defined
 is ABSENT from the store's answer and comes back COLLIDED, which is exactly
-rule N1's finding asked of the binary instead of a table. A name a C builtin
-owns is VISIBLE, because its record has no library flag, while the clauses
-are dead — that is the blind spot rule N2 covers. Neither mechanism is
-sound alone, which is why `verify.sh` runs both.
+rule N1's finding asked of the binary instead of a table. A name a loaded
+module's C half owns is VISIBLE, because its record has no library flag,
+while the clauses are dead — that is the blind spot rule N2 covers, and a
+construct's (N3) is the same. Neither mechanism is sound alone, which is
+why `verify.sh` runs both. A name of the engine's own is no blind spot
+since 3.1.0: a program file's clauses take a non-ISO one over, so `own` is
+the truth, and the load refuses an ISO one's, which then comes back
+COLLIDED (absent) with the load's error printed above it. The oracle's
+own calls are `system:` qualified, so a candidate that takes `format/2`
+over cannot answer for it.
 
 It is `--local` only, on purpose: under `--kb` or `--embed` the store is
 warmed before enumerating, so every predicate any other process wrote to
@@ -325,7 +329,7 @@ and silently never fires.
 consults (`--if-stale` skips it when current). `--card` prints the
 divergence table as Markdown — the design document's card §B, one row per
 `traps.jsonl` row, regenerated so the two cannot drift. `--patterns` prints
-the eleven S1 terms. `COCOLOG_TRAPS` points the checker at another
+the nine S1 terms. `COCOLOG_TRAPS` points the checker at another
 `traps.jsonl`, which is how the suite breaks a copy on purpose.
 
 ### `index` — the retrieval index
@@ -396,8 +400,9 @@ cocolog -s test/lint.pl
 Five things, in cost order: the card's citations anchor and the checker's
 three verdicts behave on a copy broken each way; the index's paths and
 anchors resolve; `clauses.pl` reads `selftest/reader.pl` into exactly
-`selftest/reader.expected`, and the scans' edge cases (E1's backslashes and
-radix, X2's lifts, the acknowledgements) answer as written; every rule fires
+`selftest/reader.expected`, and the scans' edge cases (what card row E1 used
+to flag reads and lints clean, X2's lifts, the acknowledgements) answer as
+written; every rule fires
 on `selftest/traps.pl` with its acknowledgements ignored, and the file is
 clean with them read; and the whole tree — every `.pl` the repository holds,
 less the three the build writes — lints clean, and the blocklist agrees with

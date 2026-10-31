@@ -749,7 +749,22 @@
     ;; THE EMPTY LIST'S ATOM ID, PLUS ONE (3.0.0; 0 until it is first
     ;; asked, `coco_nil_id'): `[]' is told from `'[]'' by its id, never by
     ;; its name, which the two share. Appended.
-    (member u64        nilid1))
+    (member u64        nilid1)
+    ;; WRITE_CANONICAL/1'S NAMES (3.1.0), for the one write that sets it:
+    ;; a `coco_varmap *' from each variable of the term to 1 for `_' (met
+    ;; once) or 2 + J for the J-th one met more than once (`A', `B', ...),
+    ;; and `nwnames' 1 so the writer asks (`coco_write_canon'). Nil
+    ;; otherwise. Appended.
+    (member void *     wcanon)
+    ;; A BALL THAT ENDS A LOAD (3.1.0): a directive's goal threw a term that
+    ;; is no error(_, _), which swipl's '$execute_directive_3' does not
+    ;; catch, so the load stops where it stands and the ball goes on to
+    ;; whoever asked for it -- consult/1 raises it, a script's load is
+    ;; `Prolog initialisation failed'. Its cell in the load's store plus
+    ;; one (0 for none), and its size, put there by the goal hook and taken
+    ;; by the first who can throw it (`coco_load_ball_take'). Appended.
+    (member size_t     lball)
+    (member size_t     lball_size))
 
   ;;; A growable character buffer. The writer builds text in one, the state
   ;;; serialiser builds an encoded machine in one, and the Zigurat backends
@@ -779,6 +794,8 @@
   ;; ---- text in characters (1.13.0, the `text_units' flag) ----
   (decl) (func coco_text_default () (out int))
   (decl) (func coco_text_default_set ((int chars)))
+  (decl) (func coco_verbose_silent () (out int))
+  (decl) (func coco_verbose_silent_set ((int on)))
   ;; ---- the float flags (2.2.2) ----
   (decl) (func coco_fflags_default () (out int))
   (decl) (func coco_fflags_default_set ((int fl)))
@@ -1480,6 +1497,17 @@
   (func coco_text_default_set ((int chars))
         (set coco_text_dflt chars))
 
+  ;;; `verbose' SILENT (3.1.0), the process's as the flag is (lib/library.
+  ;;; cicili keeps its value): swipl -q's, under which a load's failed
+  ;;; `initialization(main, main)' says nothing and exits 1, as swipl's does
+  (static) (var int coco_verbose_quiet . 0)
+
+  (func coco_verbose_silent () (out int)
+        (return coco_verbose_quiet))
+
+  (func coco_verbose_silent_set ((int on))
+        (set coco_verbose_quiet on))
+
   ;;; THE FLOAT FLAGS' DEFAULT (2.2.2): swipl's (0) until a set_prolog_flag/2
   ;;; of one of them, and then what it left, so a machine made after it -- a
   ;;; thread's, run_isolated/2's -- reckons as the program does, as
@@ -1556,10 +1584,14 @@
 
   ;;; ONE CHARACTER OF S (N bytes) AT *I, as its code point, *I moved past
   ;;; it. A byte that begins no well-formed UTF-8 -- a stray continuation, a
-  ;;; sequence cut short, an overlong form, a surrogate, a value past
-  ;;; U+10FFFF -- is ONE character of its own, U+DC00 plus the byte (what
-  ;;; Python calls surrogateescape), and `coco_utf8_put' writes that back as
-  ;;; the byte: text that is not UTF-8 goes to codes and back unchanged.
+  ;;; sequence cut short, an overlong form, a value past U+10FFFF -- is ONE
+  ;;; character of its own, U+DC00 plus the byte (what Python calls
+  ;;; surrogateescape), and `coco_utf8_put' writes that back as the byte:
+  ;;; text that is not UTF-8 goes to codes and back unchanged. A LONE
+  ;;; SURROGATE IS A CHARACTER (3.1.0, swipl's: atom_codes(A, [0xD800])),
+  ;;; kept as its three bytes as UTF-8 would have them (what WTF-8 does), but
+  ;;; for U+DC80..U+DCFF, which are the bytes above: those three bytes are
+  ;;; three characters, so they too go back as they came.
   (func coco_utf8_get ((const char * s) (size_t n) (size_t * i)) (out i64)
         (let ((size_t k . #'(cof i))
               (i64 b0 . #'(cast i64 (cast uchar (nth (cof i) s))))
@@ -1576,21 +1608,20 @@
               (if (!= (bitand bj 192) 128)
                   (block (set (cof i) (+ k 1)) (return (+ 56320 b0))))
               (set cp (bitor (<< cp 6) (bitand bj 63)))))
-          (if (or (or (< cp low) (> cp 1114111)) (and (>= cp 55296) (<= cp 57343)))
+          (if (or (or (< cp low) (> cp 1114111)) (and (>= cp 56448) (<= cp 56575)))
               (block (set (cof i) (+ k 1)) (return (+ 56320 b0))))
           (set (cof i) (+ k (+ need 1)))
           (return cp)))
 
   ;;; Code point CP as UTF-8 into U (room for 4), answering how many bytes:
   ;;; U+DC80..U+DCFF, what `coco_utf8_get' makes of a byte that was no
-  ;;; character, as that byte; 0 for what is no character -- below 0, past
-  ;;; U+10FFFF, any other surrogate.
+  ;;; character, as that byte, and any other surrogate as its three bytes;
+  ;;; 0 for what is no character -- below 0, past U+10FFFF.
   (func coco_utf8_enc ((char * u) (i64 cp)) (out int)
         (if (or (< cp 0) (> cp 1114111)) (return 0))
         (if (< cp 128) (block (set (nth 0 u) (cast char cp)) (return 1)))
         (if (and (>= cp 56448) (<= cp 56575))
             (block (set (nth 0 u) (cast char (- cp 56320))) (return 1)))
-        (if (and (>= cp 55296) (<= cp 57343)) (return 0))
         (if (< cp 2048)
             (block (set (nth 0 u) (cast char (bitor 192 (>> cp 6))))
                    (set (nth 1 u) (cast char (bitor 128 (bitand cp 63))))

@@ -564,6 +564,10 @@
                  (free (-> t resume_text))
                  (set (-> t resume_text) nil)))
             (let ((int rc . #'(coco_engine_next en)))
+              ;; a task's goal answers once: what it left is cut, a cleanup
+              ;; run with `!' (3.1.0) -- before the world's lock, which a
+              ;; cleanup's own goals may want
+              (if (== rc 1) (coco_engine_cut en))
               (pthread_mutex_lock (aof (-> wd lock)))
               ;; THE QUANTUM'S STOP IS NOT AN ERROR: the limit path saw
               ;; GREENQ and set GSTOP, and the engine reports it as its

@@ -665,6 +665,77 @@
               (snprintf (-> st write_err) 256 "the knowledge base refused the declaration"))
           (return -1)))
 
+  ;;; A DECLARATION'S NAME (3.1.0): KIND 0 dynamic, 1 discontiguous, 2
+  ;;; multifile, as the directive and the goal both say it
+  (func coco_decl_kind ((int kind)) (out const char *)
+        (if (== kind 1) (return "discontiguous"))
+        (if (== kind 2) (return "multifile"))
+        (return "dynamic"))
+
+  ;;; ONE INDICATOR DECLARED (3.1.0), what each part of a spec that passed
+  ;;; its checks makes: KIND 0 dynamic/1 (`coco_pred_dynamic', remembered
+  ;;; for the fresh stores of `run_isolated/2'), 1 discontiguous/1 and 2
+  ;;; multifile/1 the predicate defined (`declared'). A name the engine or a
+  ;;; compiled-in module implements, and which is not ISO, is the PROGRAM's
+  ;;; from here on (`coco_pred_take_over'), as swipl makes a user's
+  ;;; declaration of a system predicate a local one, which a call then
+  ;;; finds with no clauses -- unless a library's load muted the store. 1
+  ;;; declared, 0 out of memory, -1 the backend refused it (`write_err').
+  (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind)) (out int)
+        (let ((size_t pi . 0) (int ok . 1) (size_t head . 0))
+          (if (== kind 0)
+              (block
+                (set ok (coco_pred_dynamic st nid n))
+                (if (!= ok 1) (return ok))
+                (coco_dynamic_remember (coco_atom_name m nid) n))
+              (block
+                (set pi (coco_pred_intern st nid n))
+                (if (>= pi (-> st npreds)) (return 0))
+                (set ($ (nth pi (-> st preds)) declared)
+                     (bitor ($ (nth pi (-> st preds)) declared) (? (== kind 2) 2 1)))))
+          (if (and (or (not (coco_store_is_muted st)) (-> st ownload))
+                   (== (coco_claim_kind m nid n) 1))
+              (block
+                (set pi (coco_pred_intern st nid n))
+                (if (>= pi (-> st npreds)) (return 0))
+                (if (not ($ (nth pi (-> st preds)) taken))
+                    (block
+                      (if (== n 0)
+                          (set head (coco_new_atom_id m nid))
+                          (set head (coco_push_struct m (coco-cell FUN (coco_functor_id m nid n)) n)))
+                      (if (and (> n 0) (== head 0)) (return 0))
+                      (coco_pred_take_over st m pi head)))))
+          (return 1)))
+
+  ;;; A SPEC A DIRECTIVE DECLARES AT ONCE (3.1.0): every part of it
+  ;;; Name/Arity or Name//Arity, an atom and an arity from 0 that comes to
+  ;;; 255 at most, none of swipl's ISO predicates, its lists proper ones.
+  ;;; Anything else goes the goal's way (`'$decl_directive'/2'), which says
+  ;;; what is wrong with each part in swipl's words and declares the rest.
+  (func coco_decl_plain ((coco_machine * m) (size_t spec)) (out int)
+        (set spec (coco_deref m spec))
+        (if (coco-tag-is REF (nth spec (-> m heap))) (return 0))
+        (if (or (coco_is_compound2 m spec ",") (coco_is_cons m spec))
+            (block
+              (if (not (coco_decl_plain m (coco_arg m spec 0))) (return 0))
+              (return (coco_decl_plain m (coco_arg m spec 1)))))
+        (if (coco_is_nil m spec) (return 1))
+        (if (coco_is_compound2 m spec ":")
+            (return (coco_decl_plain m (coco_arg m spec 1))))
+        (if (and (not (coco_is_compound2 m spec "/")) (not (coco_is_compound2 m spec "//")))
+            (return 0))
+        (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
+              (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
+              (i64 n . 0))
+          (if (not (coco-tag-is ATOM (nth nm (-> m heap)))) (return 0))
+          (if (not (coco-is-int (nth ar (-> m heap)))) (return 0))
+          (set n (coco_int_val m (nth ar (-> m heap))))
+          (if (< n 0) (return 0))
+          (if (coco_is_compound2 m spec "//") (set n (+ n 2)))
+          (if (> n 255) (return 0))
+          (if (coco_iso_predicate (coco_atom_name m (coco_name_of m nm)) (cast u32 n)) (return 0))
+          (return 1)))
+
   ;;; True when T is the compound NAME of arity one -- `:- G' and nothing else,
   ;;; so far, but it reads better than the test written out.
   (static)
@@ -680,55 +751,56 @@
         (if (!= (coco_arity m t) 2) (return 0))
         (return (? (== 0 (strcmp (coco_atom_name m (coco_name_of m t)) name)) 1 0)))
 
-  (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec)
+  (func coco_dynamic_spec ((coco_store * st) (coco_machine * m) (size_t spec) (int kind)
                          (char * err) (size_t errlen)) (out int)
         (set spec (coco_deref m spec))
 
         ;; `a/1, b/2' -- what the reader makes of a comma separated list of
-        ;; them, and the form nearly every Prolog file uses.
-        (if (coco_is_compound2 m spec ",")
+        ;; them, and the form nearly every Prolog file uses -- and `[a/1,
+        ;; b/2]', a list of them, which some do.
+        (if (or (coco_is_compound2 m spec ",") (coco_is_cons m spec))
             (block
-             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) err errlen)) (return 0))
-             (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen))))
-
-        ;; `[a/1, b/2]' -- a list of them, which some do.
-        (if (coco_is_compound2 m spec ".")
-            (block
-             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) err errlen)) (return 0))
-             (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen))))
+             (if (not (coco_dynamic_spec st m (coco_arg m spec 0) kind err errlen)) (return 0))
+             (return (coco_dynamic_spec st m (coco_arg m spec 1) kind err errlen))))
 
         ;; `system:goal_expansion/2' -- a module-qualified spec, from a file
         ;; written for a Prolog with modules. One namespace: the qualifier
         ;; peels off, the same rule a qualified clause head follows.
         (if (coco_is_compound2 m spec ":")
-            (return (coco_dynamic_spec st m (coco_arg m spec 1) err errlen)))
+            (return (coco_dynamic_spec st m (coco_arg m spec 1) kind err errlen)))
 
         ;; the end of a list is not a spec and not an error either
-        (if (coco-tag-is ATOM (nth spec (-> m heap)))
-            (if (coco_is_nil m spec) (return 1)))
+        (if (coco_is_nil m spec) (return 1))
 
         ;; `foo//1' -- a grammar rule's indicator, foo/3 (3.0.0, swipl's)
         (if (and (not (coco_is_compound2 m spec "/")) (not (coco_is_compound2 m spec "//")))
-            (block (snprintf err errlen "dynamic: expected Name/Arity") (return 0)))
+            (block (snprintf err errlen "%s: expected Name/Arity" (coco_decl_kind kind)) (return 0)))
 
         (let ((size_t nm . #'(coco_deref m (coco_arg m spec 0)))
               (size_t ar . #'(coco_deref m (coco_arg m spec 1)))
               (i64 plus . #'(? (coco_is_compound2 m spec "//") 2 0)))
           (if (not (coco-tag-is ATOM (nth nm (-> m heap))))
-              (block (snprintf err errlen "dynamic: the name must be an atom") (return 0)))
+              (block (snprintf err errlen "%s: the name must be an atom" (coco_decl_kind kind))
+                     (return 0)))
           (if (not (coco-is-int (nth ar (-> m heap))))
-              (block (snprintf err errlen "dynamic: the arity must be an integer") (return 0)))
+              (block (snprintf err errlen "%s: the arity must be an integer" (coco_decl_kind kind))
+                     (return 0)))
           (let ((i64 n . #'(+ (coco_int_val m (nth ar (-> m heap))) plus)))
             (if (or (< n 0) (> n 255))
-                (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
-            (let ((int ok . #'(coco_pred_dynamic st (coco_name_of m nm) (cast u32 n))))
+                (block (snprintf err errlen "%s: arity out of range" (coco_decl_kind kind))
+                       (return 0)))
+            ;; one swipl refuses, reached only where no engine runs the goal
+            (if (coco_iso_predicate (coco_atom_name m (coco_name_of m nm)) (cast u32 n))
+                (block (snprintf err errlen "%s: No permission to modify static procedure `%s/%u'"
+                                 (coco_decl_kind kind) (coco_atom_name m (coco_name_of m nm))
+                                 (cast unsigned n))
+                       (return 0)))
+            (let ((int ok . #'(coco_decl_pi st m (coco_name_of m nm) (cast u32 n) kind)))
               (if (== ok 0)
-                  (block (snprintf err errlen "dynamic: out of memory") (return 0)))
+                  (block (snprintf err errlen "%s: out of memory" (coco_decl_kind kind)) (return 0)))
               (if (< ok 0)
-                  (block (snprintf err errlen "dynamic: %s" (-> st write_err)) (return 0))))
-            ;; the declaration is program text, not a row: keep it for the
-            ;; fresh stores `run_isolated/2' will make
-            (coco_dynamic_remember (coco_atom_name m (coco_name_of m nm)) (cast u32 n))
+                  (block (snprintf err errlen "%s: %s" (coco_decl_kind kind) (-> st write_err))
+                         (return 0))))
             (return 1))))
 
   ;;; Is F one of the three flags a directive answers itself, the ones that
@@ -759,15 +831,41 @@
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
 
-          (if (and (== n 1) (== 0 (strcmp name "dynamic")))
-              (return (coco_dynamic_spec st m (coco_arg m g 0) err errlen)))
-
-          ;; Accepted and ignored on purpose. cocolog keeps a predicate's
-          ;; clauses in one list however scattered they were in the file, so
-          ;; there is nothing for it to do -- but a file that says it is
-          ;; deliberate should not be refused for saying so.
-          (if (and (== n 1) (== 0 (strcmp name "discontiguous"))) (return 1))
-          (if (and (== n 1) (== 0 (strcmp name "multifile"))) (return 1))
+          ;; ---- `:- dynamic S.', `:- discontiguous S.', `:- multifile S.' --
+          ;;
+          ;; DECLARED HERE, at once, when every part of S is a plain
+          ;; indicator (`coco_decl_plain') -- what nearly every file says.
+          ;; Any other S goes the goal's way, `'$decl_directive'(Kind, S)'
+          ;; (3.1.0, library(builtins)' Prolog half), which runs each part
+          ;; of S as its own goal and reports what one raises in swipl's
+          ;; two lines, at this directive's place, as swipl's directive
+          ;; does: `:- dynamic([a/1, b]).' declares a/1 and says b is no
+          ;; predicate indicator. Through
+          ;; 3.0.4 discontiguous and multifile were accepted and ignored, and
+          ;; dynamic gave up at a spec's first fault in words of its own.
+          (if (== n 1)
+              (let ((int kind . -1))
+                (if (== 0 (strcmp name "dynamic")) (set kind 0))
+                (if (== 0 (strcmp name "discontiguous")) (set kind 1))
+                (if (== 0 (strcmp name "multifile")) (set kind 2))
+                (if (>= kind 0)
+                    (block
+                      (if (or (coco_decl_plain m (coco_arg m g 0)) (== coco_goal_hook nil))
+                          (return (coco_dynamic_spec st m (coco_arg m g 0) kind err errlen)))
+                      ;; nothing of the term is read after it, so it may
+                      ;; collect as it stands
+                      (let ((int r . 0))
+                        (set (-> m dgc) vouch)
+                        (set r (coco_goal_hook st m (coco_make2 m "$decl_directive"
+                                                                (coco_new_atom m name)
+                                                                (coco_arg m g 0))
+                                               0 err errlen))
+                        (set (-> m dgc) 0)
+                        (if (== r 1) (return 1))
+                        (if (== r 0)
+                            (block (coco_directive_failed m g err errlen)
+                                   (return 2)))
+                        (return 0))))))
 
           ;; `:- op(P, T, N)'. THIS ONE HAS TO BE HERE and not left to the
           ;; engine, because a declaration has to take effect for the REST OF
@@ -930,15 +1028,26 @@
                                 (return 0)))
                      ;; nothing of the term is read after it -- the message
                      ;; for a failure is fixed text -- so it may collect as
-                     ;; it stands
-                     (let ((int r . 0))
+                     ;; it stands. AN INITIALIZATION GOAL'S, in swipl's
+                     ;; words (3.1.0): its report names the place again
+                     ;; under the directive's, and a ball is what
+                     ;; '$run_init_goal'/1 takes, every one
+                     (let ((int r . 0) (char place [600]))
+                       (set (nth 0 place) (cast char 0))
+                       (if (!= (-> m sloc_file) nil)
+                           (snprintf place (sizeof place) "%s:%d: " (-> m sloc_file) line))
                        (set (-> m dgc) vouch)
-                       (set r (coco_goal_hook st m (coco_arg m g 0) err errlen))
+                       (set r (coco_goal_hook st m (coco_arg m g 0) 1 err errlen))
                        (set (-> m dgc) 0)
                        (if (== r 1) (return 1))
                        (if (== r 0)
-                           (block (snprintf err errlen "Goal (initialization) failed")
+                           (block (snprintf err errlen "%sInitialization goal failed" place)
                                   (return 2)))
+                       (let ((char * msg . #'(strdup err)))
+                         (if (!= msg nil)
+                             (block (snprintf err errlen "%sInitialization goal raised exception:\n%s"
+                                              place msg)
+                                    (free msg))))
                        (return 0))))
                 (if (== inits nil)
                     (block (snprintf err errlen
@@ -971,27 +1080,42 @@
           ;; THE GOAL IS REGISTERED AROUND IT (1.9.6), because a goal that
           ;; collects moves the cells under it and the message for a failure
           ;; writes it afterwards. Unregistered, it runs collecting nothing.
+          ;;
+          ;; A BALL THAT IS AN error(_, _) IS BOTH (3.1.0), as swipl's
+          ;; '$execute_directive_3' catches only those: the ERROR saying why
+          ;; and the Warning that the directive failed (3, the caller's).
+          ;; ANY OTHER ENDS THE LOAD (4): the hook kept it on the machine
+          ;; (`lball') for whoever asked for the load to throw.
           (let ((int r . 0) (size_t * gp . nil) (size_t gl . 1) (int held . 0))
             (set gp (aof g))
             (set held (coco_heap_root_push m (aof gp) (aof gl)))
             (set (-> m dgc) (? held vouch 0))
-            (set r (coco_goal_hook st m g err errlen))
+            (set r (coco_goal_hook st m g 0 err errlen))
             (set (-> m dgc) 0)
             (if held (coco_heap_root_pop m))
             (if (== r 1) (return 1))
+            (if (== r -2) (return 4))
+            (if (== r -1) (return 3))
             (if (== r 0)
-                (let ((coco_strbuf b))
-                  ;; NAMING THE GOAL, as SWI does -- `Goal (directive)
-                  ;; failed: seen(0)'. A file with three directives in it and
-                  ;; a message that named none of them would send the reader
-                  ;; to count lines.
-                  (coco_sb_init (aof b))
-                  (coco_write_term m (aof b) g 1 0)
-                  (snprintf err errlen "Goal (directive) failed: %s"
-                            (? (== ($ b s) nil) "?" ($ b s)))
-                  (coco_sb_free (aof b))
-                  (return 2)))
+                ;; NAMING THE GOAL, as SWI does -- `Goal (directive) failed:
+                ;; user:seen(0)'. A file with three directives in it and a
+                ;; message that named none of them would send the reader to
+                ;; count lines.
+                (block (coco_directive_failed m g err errlen)
+                       (return 2)))
             (return 0))))
+
+  ;;; `Goal (directive) failed: user:G', swipl's words: the goal qualified as
+  ;;; swipl qualifies it, by the one namespace there is (3.1.0; through 3.0
+  ;;; it had no qualifier)
+  (func coco_directive_failed ((coco_machine * m) (size_t g) (char * err) (size_t errlen))
+        (let ((coco_strbuf b)
+              (size_t q . #'(coco_make2 m ":" (coco_new_atom m "user") (coco_deref m g))))
+          (coco_sb_init (aof b))
+          (coco_write_term m (aof b) q 1 0)
+          (snprintf err errlen "Goal (directive) failed: %s"
+                    (? (== ($ b s) nil) "?" ($ b s)))
+          (coco_sb_free (aof b))))
 
   ;;; ---- asserting --------------------------------------------------------
 

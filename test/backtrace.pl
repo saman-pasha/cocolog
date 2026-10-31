@@ -114,7 +114,8 @@ caught(D) :-
                 '        nosuch(N), write(never).']),
     sh_join(['-s ', F], A1), bt_err(D, A1, E1, _),
     note(N1),
-    append(['ERROR: -s main: Unknown procedure: nosuch/1',
+    %% named by the clause it is called from, as swipl's frame (3.1.0)
+    append(['ERROR: -s main: a/1: Unknown procedure: nosuch/1',
             'ERROR: In:',
             'ERROR:   nosuch(1)',
             'ERROR:   then write(never)'], N1, W1), lines(W1, T1),
@@ -130,13 +131,14 @@ caught(D) :-
     %% the dispatch's own raises, each after a builtin that left its goal
     %% as the one in flight
     forall(member(Name-Body-Msg-Culprit,
-                  %% each named as swipl names its frame (3.0.0): a goal the
-                  %% loop meets is '<meta-call>'/1 (swipl, which compiles
-                  %% the body, names the clause's predicate, p/1), call/N
-                  %% its own
-                  [unbound-'p(_)'-'\'<meta-call>\'/1: Arguments are not sufficiently instantiated'-'_G',
-                   number-'p(1)'-'\'<meta-call>\'/1: Type error: `callable\' expected, found `1\' (an integer)'-'1',
-                   closure-'call(1, x)'-'call/2: Type error: `callable\' expected, found `1\' (an integer)'-'call(1,x)']),
+                  %% each named as swipl names its frame (3.1.0): swipl
+                  %% compiles a body, so a goal that is no goal names the
+                  %% clause it stands in, p/1, and so does call/N's goal
+                  %% where call/N stands in a body, main/0 (through 3.0.4
+                  %% '<meta-call>'/1 and call/2)
+                  [unbound-'p(_)'-'p/1: Arguments are not sufficiently instantiated'-'_G',
+                   number-'p(1)'-'p/1: Type error: `callable\' expected, found `1\' (an integer)'-'1',
+                   closure-'call(1, x)'-'main/0: Type error: `callable\' expected, found `1\' (an integer)'-'call(1,x)']),
            ( atom_concat(D, '/', D1), atomic_list_concat([D1, Name, '.pl'], Fx),
              atomic_list_concat(['main :- write(a), nl, atom_length(abc, _), ', Body, ', write(b).'], M),
              fixture(Fx, [M, 'p(G) :- atom_length(abc, _), G, write(c).']),
@@ -270,12 +272,17 @@ loads(D) :-
             'ERROR:    //2: Arithmetic: evaluation error: `zero_divisor''',
             'ERROR: In:',
             'ERROR:   _G is 1/0',
-            'ERROR:   then write(_G)'], N0, W1), lines(W1, T1),
+            'ERROR:   then write(_G)'], N0, W1a),
+    %% and then that the directive failed, swipl's Warning after an
+    %% error(_, _) its goal raised (3.1.0)
+    append(W1a, ['Warning: dir.pl:3:',
+                 'Warning:    Goal (directive) failed: user:go'], W1), lines(W1, T1),
     check('a directive that raised: its message, then where', E1, T1),
     atom_concat(D, '/undef.pl', F2),
     fixture(F2, [':- nosuch_directive.', 'main.']),
     sh_join(['-s ', F2], A2), bt_err(D, A2, E2, _),
-    lines(['ERROR: undef.pl:1:', 'ERROR:    Unknown procedure: nosuch_directive/0'], T2),
+    lines(['ERROR: undef.pl:1:', 'ERROR:    catch/3: Unknown procedure: nosuch_directive/0',
+           'Warning: undef.pl:1:', 'Warning:    Goal (directive) failed: user:nosuch_directive'], T2),
     check('a directive that is the goal that raised says nothing the message does not', E2, T2),
     atom_concat(D, '/init.pl', F3),
     fixture(F3, [':- initialization(main, main).',
@@ -283,13 +290,12 @@ loads(D) :-
                  'deep(0) :- throw(bottom).',
                  'deep(N) :- N1 is N - 1, deep(N1), write(N), nl.']),
     sh_join(['-s ', F3], A3), bt_err(D, A3, E3, Rc3),
-    append(['ERROR: init.pl:1: main: raised exception:',
-            'ERROR: Unknown message: bottom',
+    append(['ERROR: init.pl:1: user:main Unknown message: bottom',
             'ERROR: In:',
             'ERROR:   throw(bottom)',
             'ERROR:   then write(1)', 'ERROR:   then nl',
             'ERROR:   then write(2)', 'ERROR:   then nl'], N0, W3), lines(W3, T3),
-    check('initialization(main, main): the same after its two lines', E3, T3),
+    check('initialization(main, main): the same after its line', E3, T3),
     check('...and the exit status is 2', Rc3, 2),
     %% a load under a catch reports its directive's error itself: no catch
     %% outside it can take the ball, so its throw writes the lines
@@ -322,7 +328,10 @@ loads(D) :-
     sh_join([':- catch(( X = 1, throw(f(2)) ), f(X), true), ', Stop, '.'], M7),
     fixture(F7, [M7, 'main.']),
     sh_join(['-s ', F7], A7), bt_err(D, A7, E7, _),
-    lines(['ERROR: stale3.pl:1:', 'ERROR:    call/N: too many arguments'], T7),
+    lines(['ERROR: stale3.pl:1:', 'ERROR:    call/N: too many arguments',
+           'Warning: stale3.pl:1:',
+           'Warning:    Goal (directive) failed: user:(catch((_G=1,throw(f(2))),f(_G),true),length(_G,300),_G=..[foo|_G],call(_G,a))'],
+          T7),
     check('...nor after a directive\'s error that is no ball', E7, T7),
     atom_concat(D, '/stale4.pl', F8),
     sh_join(['main :- catch(( X = 1, throw(f(2)) ), f(X), true), ', Stop, '.'], M8),

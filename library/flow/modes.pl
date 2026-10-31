@@ -68,6 +68,8 @@ flow_mode(atom_number, 2, ['+', '-'], semidet).
 flow_mode(atom_number, 2, ['-', '+'], det).
 flow_mode(number_codes, 2, ['+', '-'], det).
 flow_mode(number_codes, 2, ['-', '+'], det).
+flow_mode(name, 2, ['+', '?'], semidet).
+flow_mode(name, 2, ['-', '+'], det).
 flow_mode(atom_concat, 3, ['+', '+', '-'], det).
 flow_mode(atom_concat, 3, ['-', '-', '+'], nondet).
 flow_mode(atom_concat, 3, ['?', '?', '?'], semidet).
@@ -166,6 +168,11 @@ flow_mode(unify_with_occurs_check, 2, ['?', '?'], semidet).
 flow_mode(call_limited, 3, [':', '+', '-'], semidet).
 flow_mode(call_metered, 4, [':', '+', '-', '-'], det).
 flow_mode(with_output_to, 2, ['+', ':'], semidet).
+%% library(builtins)' clauses over the engine's cleanup frame (3.1.0): the
+%% goal's own answers, as many as it has
+flow_mode(setup_call_cleanup, 3, [':', ':', ':'], nondet).
+flow_mode(setup_call_catcher_cleanup, 4, [':', ':', '?', ':'], nondet).
+flow_mode(call_cleanup, 2, [':', ':'], nondet).
 flow_mode(char_type, 2, ['+', '+'], semidet).
 flow_mode(char_type, 2, ['?', '?'], nondet).
 flow_mode(code_type, 2, ['+', '+'], semidet).
@@ -207,6 +214,7 @@ flow_mode(atomic_concat, 3, ['+', '+', '-'], det).
 flow_mode(atomic_concat, 3, ['+', '+', '+'], semidet).
 flow_mode(get_string_code, 3, ['+', '+', '-'], det).
 flow_mode(get_string_code, 3, ['+', '+', '+'], semidet).
+flow_mode(sub_atom_icasechk, 3, ['+', '?', '+'], semidet).
 flow_mode(rational, 3, ['?', '-', '-'], det).
 flow_mode(set_random, 1, ['+'], det).
 flow_mode(random_property, 1, ['?'], semidet).
@@ -223,6 +231,13 @@ flow_mode(current_prolog_flag, 2, ['?', '?'], nondet).
 flow_mode(set_prolog_flag, 2, ['+', '+'], det).
 flow_mode(abolish, 1, ['+'], det).
 flow_mode((dynamic), 1, ['+'], det).
+flow_mode((discontiguous), 1, ['+'], det).
+flow_mode((multifile), 1, ['+'], det).
+%% a program file's clause then takes the name over, an ISO one's too (3.1.0)
+flow_mode(redefine_system_predicate, 1, ['+'], det).
+%% what a part of a directive's declaration raised, reported where the
+%% directive stands (3.1.0): always true
+flow_mode('$decl_report', 2, ['+', '+'], det).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).
@@ -380,6 +395,9 @@ flow_raises_unbound(string_concat, 3, [1, 3], string_concat(_, a, _)).
 flow_raises_unbound(string_concat, 3, [2, 3], string_concat(a, _, _)).
 flow_raises_unbound(sub_atom, 5, [1], sub_atom(_, 0, 1, _, _)).
 flow_raises_unbound(sub_string, 5, [1], sub_string(_, 0, 1, _, _)).
+flow_raises_unbound(sub_atom_icasechk, 3, [1], sub_atom_icasechk(_, _, a)).
+flow_raises_unbound(sub_atom_icasechk, 3, [3], sub_atom_icasechk(abc, _, _)).
+flow_raises_unbound(name, 2, [1, 2], name(_, _)).
 flow_raises_unbound(split_string, 4, [1], split_string(_, "", "", _)).
 flow_raises_unbound(functor, 3, [1, 3], functor(_, f, _)).
 flow_raises_unbound(functor, 3, [1, 2], functor(_, _, 2)).

@@ -37,7 +37,7 @@ cocolog -s test/lint.pl                            # the suite case
 | `tool.sh` | one driver for `build`, `card`, `index` and `assemble` |
 | `selftest/reader.pl` `.expected` | every shape that has ever fooled a clause reader |
 | `build.pl` | the reserved-name blocklist, from five registration shapes |
-| `traps.jsonl` | the dialect card as data: 33 rows, 43 checked citations |
+| `traps.jsonl` | the dialect card as data: 28 rows, 40 checked citations |
 | `card.pl` | the anchor checker, and the generator of `traps.pl` |
 | `lint.sh` | the human wrapper; rebuilds the index first, always |
 | `oracle.pl` / `.sh` | G2+G3: which predicates the store calls the program's own |
@@ -210,15 +210,26 @@ The strongest check here, and it costs two processes. One file defines **every**
 clause-defined tier-1 name at its recorded arity and puts it to the oracle:
 
 ```
-probe: 342 of 342 clause-defined names confirmed taken by the store;
-       110 C-dispatched names come back visible, which is the blind spot N2 covers
+probe: 375 of 375 clause-defined names confirmed taken by the store; of the
+       C-dispatched, 111 taken over and 46 refused at load, exactly the ISO ones
 ```
 
-The second half is the point as much as the first. A C-dispatched name's record
-has `library = 0`, so the oracle calls it **own** while the clauses are dead —
-the design said "neither mechanism is sound alone" and this is that claim
-measured: the oracle misses 110 of 112 probeable C names, and rule N2 is the
-only thing that sees them.
+The second half is the point as much as the first. Through 3.0.4 a
+C-dispatched name's record had `library = 0`, so the oracle called it **own**
+while the clauses were dead — the design said "neither mechanism is sound
+alone" and this was that claim measured: the oracle missed 110 of 112
+probeable C names, and rule N2 was the only thing that saw them. Since 3.1.0
+a program file's clauses take a non-ISO name over, as swipl's do, and the
+load refuses an ISO one's with swipl's permission error: `own` is the truth
+for the first, the second is absent, and the probe ASSERTS the split — the
+blocklist's ISO set (`cl_iso/2`, read from `*iso-predicates*`) against the
+store's own refusals, name by name. What is still dead code, and what N2
+still covers, is a loaded module's name (`tcp_connect/2` after
+`use_module(library(tcp))`); a construct the step runs in place (`*->/2`) is
+N3's. The probe found one more defect on the way, in the oracle itself: the
+second file takes `format/2` and `msort/2` over, and the oracle's own
+unqualified calls ran them and printed nothing — its calls are `system:`
+qualified now.
 
 **It found three defects in the extractor, and each was silent.**
 
@@ -239,7 +250,9 @@ only thing that sees them.
   arity (`throw/*`), so the rule that removes C-registered names from the clause
   set — an exact key match — left the arity-1 entry behind, where the prompt's
   symbol block would have called it `nondet`. It is a construct: rule N3, which
-  matches on the name alone, is the only thing that catches it.
+  matched on the name alone then, is the only thing that catches it. (Since
+  3.1.0 throw/1 is ISO and the load refuses a program's clauses for it, and N3
+  asks the arities the step runs a construct at, `cl_construct_arity/2`.)
 
 ## Two axes, because the halves fail differently
 
@@ -247,10 +260,12 @@ only thing that sees them.
 imports it. Blocking `ray_open/3` in a program that never touches raylib is
 noise, and noise is how a linter gets turned off.
 
-**How** — a C-registered name is dispatched *before* the store
-(`lib/solve.cicili:1352-1386`), so redefining one is **dead code**. A
-clause-defined one is consulted into the same store and consult **appends**, so
-redefining one merges the two sets of clauses. The rules say different things.
+**How** — a loaded module's C name is dispatched *before* the store
+(`lib/module.cicili`, `coco_module_call`), so redefining one is **dead code**;
+since 3.1.0 an engine's or a compiled-in module's is not (a program file takes
+a non-ISO one over and the load refuses an ISO one). A clause-defined one is
+consulted into the same store and consult **appends**, so redefining one
+merges the two sets of clauses. The rules say different things.
 
 ## Hooks are not collisions
 
@@ -271,10 +286,10 @@ the same list.
 
 ## The dialect card is data, and its citations are checked
 
-`traps.jsonl` is section 4 of the design doc as 33 rows of
+`traps.jsonl` is section 4 of the design doc as 28 rows of
 `{id, swi, cocolog, why, cite, anchor, rule, severity}`. Each cite is a
 `path:A-B` line range and each anchor a literal substring that must appear
-inside it. `card --check` verifies all 42, and when one has moved it says
+inside it. `card --check` verifies all 40, and when one has moved it says
 where it is now, so the repair is a single number:
 
 ```
@@ -344,8 +359,9 @@ Writing the trap file caught two bugs in the linter itself:
   after it found its match inside a quote and skipped it. H1 and L1 both went
   missing that way — the trap file trapping its own author.
 * **`'[|]'` is a quoted atom by construction**, so L1 needed the same
-  `scan: text` that F1's format directives and E1's escapes have. The three of
-  them read a quote as code; nothing reads a comment as code, because a comment
+  `scan: text` that F1's format directives have (and E1's escapes had, until
+  the reader took them and the row was retired at 3.1.0). The two of them read
+  a quote as code; nothing reads a comment as code, because a comment
   naming `~t` documents the rule rather than breaking it.
 
 ## The whole tree lints clean, and how it got there

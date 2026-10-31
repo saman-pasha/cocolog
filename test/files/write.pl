@@ -17,10 +17,9 @@
 %  the same atom, and wrote the four as they are. term_to_atom/2 doubles
 %  the quote in both systems, and is held to it here. Left out: a newline
 %  or a tab through term_to_atom/2, which swipl writes as it is and cocolog
-%  as \n and \t; write_canonical/1 of an operator, which cocolog writes
-%  with the operator (cocolint W1); and a control character with no letter,
-%  which swipl writes \x1\ and cocolog as it is (its reader has no \x..\
-%  escape to read one back).
+%  as \n and \t. write_canonical/1 writes an operator as its compound,
+%  as swipl's does, since cocolog 3.1.0, and a control character with no
+%  letter as \x1\.
 %
 %  AN OPERATOR WHOSE NAME HOLDS A QUOTE is escaped where it is the operator
 %  and where it is an operand in brackets. The prefix one is built with
@@ -44,6 +43,8 @@ a(f('\a', 'b''c', d)). a('A''s' = '\f').
 
 c('$VAR'(0)). c('$VAR'('Foo')). c(f('$VAR'(0), '$VAR'(1))). c(['$VAR'(0)|x]).
 c('don''t'). c(f('it''s', '\b')). c(['q''', 'a\\b', '\v']). c('x''y'(z)).
+c(1 + 2 * 3). c(f(- 1, -(1), - a, \+ b, a = b)). c({a, b}). c([x|y]).
+c(f(X, _Y, X, [_Z])). c('a\x1\b'). c((a :- b, c ; d -> e)).
 
 q('don''t'). q(''''). q(f('it''s', '$VAR'(1))). q(['q''', 'a\\b']).
 
@@ -75,7 +76,7 @@ wa(T) :-
     write(' | '), with_output_to(string(S), writeq(T)), string_length(S, N),
     write(N), nl.
 
-wc(T) :- write_canonical(T), nl.   % cocolint: W1 -- c/1 holds no operator, which both write alike
+wc(T) :- write_canonical(T), nl.
 
 wq(T) :- term_to_atom(T, A), write(A), nl.
 

@@ -185,7 +185,7 @@ entries(D) :-
       'format/2: ~w, ~q, ~p' - '@(S_1,[S_1=f(S_1)])|@(S_1,[S_1=f(S_1)])|@(S_1,[S_1=f(S_1)])',
       'term_to_atom/2' - '''@(S_1,[S_1=f(S_1)])''',
       'with_output_to/2' - '"@(S_1,[S_1=f(S_1)])"',
-      'write_canonical/1: the variable as it is' - '@(_G,[_G=f(_G)])',
+      'write_canonical/1: the variable as it is, `='' as the compound (3.1.0, swipl''s; through 3.0.0 `_G=f(_G)'')' - '@(_G,[=(_G,f(_G))])',
       'write_term/2 naming variables of its own: no S_1 among them' - '@(g(V,_G),[_G=f(_G)])',
       'atom_length/2: no text, a compound, as swipl''s (2.16.1; through 2.16.0 the length of its writing, 19)' - 'text'
     ], Got),

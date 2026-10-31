@@ -551,6 +551,10 @@
           (if (not (coco-tag-is FUN c)) (return 0))
           (let ((coco_functor * f . #'(aof (nth (cast size_t (coco-payload c)) (-> m functors))))
                 (const char * s . nil) (u64 cmp . 0) (u64 typ . 0))
+            ;; a name a program file took over (redefine_system_predicate/1,
+            ;; 3.1.0) is the program's predicate, called
+            (if (and (!= (-> st ntaken) 0) (coco_pred_taken st (-> f name) (-> f arity)))
+                (return 0))
             (set s (coco_atom_name m (-> f name)))
             (set cmp (cc_guard_code s (-> f arity) 1))
             (set typ (cc_guard_code s (-> f arity) 2))
@@ -837,7 +841,10 @@
     (member u64 n_cut)
     (member u64 n_dtrue)
     (member u64 n_dfail)
-    (member u64 f_cut))
+    (member u64 f_cut)
+    ;; the owner of a unit inside a structure `once/1' and its kin are
+    ;; called with: `'<meta-call>'/1', SYS (3.1.0, `cc_ulink')
+    (member u64 t_meta))
 
   ;;; A new unit of KIND, all else 0; 0 when the table would not grow.
   (static)
@@ -940,7 +947,11 @@
                (if (== 0 (strcmp s "=")) (block (set (cof form) 0) (return (cc-eg "SIDES"))))
                (if (== 0 (strcmp s "==")) (block (set (cof form) 1) (return (cc-eg "SIDES"))))
                (if (== 0 (strcmp s CC_GN_NEQEQ)) (block (set (cof form) 2) (return (cc-eg "SIDES"))))))
-          (set row (coco_builtin_index m name arity))
+          ;; the row the functor keeps, as the step reads it: none for a
+          ;; name a program file took over (3.1.0, `coco_bix_fill')
+          (let ((coco_functor * f . #'(aof (nth (cast size_t fid) (-> m functors)))))
+            (if (== (-> f bix) 0) (set (-> f bix) (coco_bix_fill m (-> uc st) name arity)))
+            (set row (- (cast int (-> f bix)) 2)))
           (if (< row 0) (return (cc-eg "TERM")))
           (set (cof form) (cast u32 row))
           (return (cc-eg "BUILTIN"))))
@@ -1102,6 +1113,10 @@
           ;; is one, called by its row
           (set u (cc_unew uc kind))
           (if (== u 0) (return 0))
+          ;; a goal that is a variable of the clause is meta-called in it,
+          ;; as swipl's call/1 (3.1.0, META; `cc_ulink' adds the owner)
+          (if (coco-tag-is REF (nth (coco_store_deref st t) (-> st cells)))
+              (set ($ (nth u (-> uc us)) tag) (coco-bar-metabit)))
           (set ($ (nth u (-> uc us)) form) form)
           (set ($ (nth u (-> uc us)) tslot) (-> uc nterm))
           (set (-> uc nterm) (+ (-> uc nterm) 1))
@@ -1111,10 +1126,39 @@
 
   (static) (decl) (func cc_ubranch ((coco_ucomp * uc) (size_t t)) (out u32))
 
+  ;;; WHETHER A STRUCTURE once/1, ignore/1 OR not/1 IS CALLED WITH HAS A
+  ;;; GOAL THAT IS NO GOAL among its leaves (3.1.0): such a call stays a
+  ;;; term, for the construct to raise type_error(callable, G) of the whole
+  ;;; (`coco_goal_ok') where swipl's compile of G does, before any of it
+  ;;; runs -- compiled in place, `once((fail, 1))' failed and raised
+  ;;; nothing. A variable, an atom and a compound are goals.
+  (static)
+  (func cc_bad_leaf ((coco_ucomp * uc) (size_t t) (u32 depth)) (out int)
+        (let ((coco_store * st . #'(-> uc st)) (coco_machine * m . #'(-> uc m)) (u64 c . 0))
+          (while 1
+            (set t (coco_store_deref st t))
+            (set c (nth t (-> st cells)))
+            (if (or (coco-tag-is REF c) (coco-tag-is ATOM c)) (return 0))
+            (if (not (coco-tag-is FUN c)) (return 1))
+            (if (> depth 64) (return 0))
+            (let ((u64 nm . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) name))
+                  (u32 ar . #'($ (nth (cast size_t (coco-payload c)) (-> m functors)) arity)))
+              (cond
+                ((and (== ar 2) (or (== nm (-> uc n_comma)) (== nm (-> uc n_semi))
+                                    (== nm (-> uc n_arrow)) (== nm (-> uc n_soft))))
+                 (if (cc_bad_leaf uc (+ t 1) (+ depth 1)) (return 1))
+                 (set t (+ t 2)))
+                ((and (== ar 1) (== nm (-> uc n_neg)))
+                 (set t (+ t 1)))
+                (#t (return 0)))))
+          (return 0)))
+
   ;;; WHICH CONSTRUCT A GOAL IS, as a unit compiles it (Stage 6): 0 to 4
   ;;; the five forms of an if-then-else (`coco_egoal'), 9 a disjunction, -1
-  ;;; none -- an `( C *-> T ; E )' among them, which stays a term. CT, TT and
-  ;;; ET are where its condition, then and else are, F2 the `->'.
+  ;;; none -- an `( C *-> T ; E )' among them, which stays a term, and a
+  ;;; once/1, ignore/1 or not/1 of a structure with a goal that is no goal
+  ;;; in it (`cc_bad_leaf'). CT, TT and ET are where its condition, then and
+  ;;; else are, F2 the `->'.
   (static)
   (func cc_uform ((coco_ucomp * uc) (size_t t) (size_t * ct) (size_t * tt) (size_t * et)
                   (u64 * f2)) (out int)
@@ -1138,6 +1182,14 @@
                 (return 9)))
           (if (and (== ar 2) (== nm (-> uc n_arrow)))
               (block (set (cof ct) (+ t 1)) (set (cof tt) (+ t 2)) (return 1)))
+          ;; not/1 or ignore/1 that a program file took over is a call of
+          ;; the program's predicate (3.1.0, `coco_claim_kind')
+          (if (and (== ar 1) (or (== nm (-> uc n_not)) (== nm (-> uc n_ignore)))
+                   (!= (-> st ntaken) 0) (coco_pred_taken st nm 1))
+              (return -1))
+          (if (and (== ar 1) (or (== nm (-> uc n_not)) (== nm (-> uc n_once)) (== nm (-> uc n_ignore)))
+                   (cc_bad_leaf uc (+ t 1) 0))
+              (return -1))
           (if (and (== ar 1) (or (== nm (-> uc n_neg)) (== nm (-> uc n_not))))
               (block (set (cof ct) (+ t 1)) (return 2)))
           (if (and (== ar 1) (== nm (-> uc n_once)))
@@ -1255,29 +1307,50 @@
   ;;; slot's height, plus one) and the cut after it next; the then and the
   ;;; else, a disjunction's arms and a conjunction's items the barrier of
   ;;; the construct; each item the next item.
+  ;;; AND WHOSE IT IS (3.1.0): OTAG, the owner its goal is handed over with
+  ;;; (`tag', `coco-bar-pred'), kept with the META a variable goal has --
+  ;;; the clause's predicate at the body's level and inside `\+', an
+  ;;; if-then-else and a disjunction, which swipl compiles in the clause;
+  ;;; `once/1', `ignore/1' or `not/1' for the goal one of those is called
+  ;;; with and the cut after it, swipl's frames of their own; and
+  ;;; `'<meta-call>'/1' for a structure one of those is called with, which
+  ;;; swipl compiles into a clause of that name.
   (static)
-  (func cc_ulink ((coco_ucomp * uc) (u32 u) (u32 after) (u32 bctx))
+  (func cc_ulink ((coco_ucomp * uc) (u32 u) (u32 after) (u32 bctx) (u64 otag))
         (let ((u32 kind . #'($ (nth u (-> uc us)) kind)))
           (set ($ (nth u (-> uc us)) next) after)
           (set ($ (nth u (-> uc us)) bslot) bctx)
+          (set ($ (nth u (-> uc us)) tag)
+               (bitor otag (bitand ($ (nth u (-> uc us)) tag) (coco-bar-metabit))))
           (cond
             ((== kind (cc-eg "CONJ"))
              (let ((u32 v . #'($ (nth u (-> uc us)) a)))
                (while (!= v 0)
                  (let ((u32 nx . #'($ (nth v (-> uc us)) sib)))
-                   (cc_ulink uc v (? (!= nx 0) nx after) bctx)
+                   (cc_ulink uc v (? (!= nx 0) nx after) bctx otag)
                    (set v nx)))))
             ((== kind (cc-eg "ITE"))
              (let ((u32 cu . #'($ (nth u (-> uc us)) a)) (u32 tu . #'($ (nth u (-> uc us)) b))
                    (u32 eu . #'($ (nth u (-> uc us)) c)) (u32 du . #'($ (nth u (-> uc us)) d))
-                   (u32 sl . #'($ (nth u (-> uc us)) tslot)))
-               (cc_ulink uc cu du (+ sl 1))
-               (cc_ulink uc du tu bctx)
-               (cc_ulink uc tu after bctx)
-               (cc_ulink uc eu after bctx)))
+                   (u32 sl . #'($ (nth u (-> uc us)) tslot))
+                   (u32 fm . #'($ (nth u (-> uc us)) form))
+                   (u64 fid . #'($ (nth u (-> uc us)) fid))
+                   (u64 stag . otag) (u64 ctag . otag))
+               ;; once/1, ignore/1 and not/1 are swipl's frames
+               (if (or (== fm 3) (== fm 4)
+                       (and (== fm 2) (== ($ (nth (cast size_t fid) (-> (-> uc m) functors)) name)
+                                          (-> uc n_not))))
+                   (let ((u32 ck . #'($ (nth cu (-> uc us)) kind)))
+                     (set stag (bitor (coco-bar-sysbit) (coco-bar-of fid)))
+                     (set ctag (? (or (== ck (cc-eg "CONJ")) (== ck (cc-eg "ITE")) (== ck (cc-eg "DISJ")))
+                                  (-> uc t_meta) stag))))
+               (cc_ulink uc cu du (+ sl 1) ctag)
+               (cc_ulink uc du tu bctx stag)
+               (cc_ulink uc tu after bctx stag)
+               (cc_ulink uc eu after bctx stag)))
             ((== kind (cc-eg "DISJ"))
-             (cc_ulink uc ($ (nth u (-> uc us)) a) after bctx)
-             (cc_ulink uc ($ (nth u (-> uc us)) b) after bctx)))))
+             (cc_ulink uc ($ (nth u (-> uc us)) a) after bctx otag)
+             (cc_ulink uc ($ (nth u (-> uc us)) b) after bctx otag)))))
 
   ;;; Whether a body's FIRST goal is a unit: a construct a unit compiles, or
   ;;; a `,'. Any other first goal is handed over as it always was.
@@ -1422,10 +1495,15 @@
               (set count (+ count 1))))
           (coco_varmap_give m (aof vm))
           ;; where each body-level unit goes next: the one after it, and
-          ;; the body's end; each cuts to the environment's barrier
+          ;; the body's end; each cuts to the environment's barrier, and is
+          ;; the clause's (3.1.0)
           (if ($ uc ok)
-              (for ((u32 i . 0)) (< i nb) ((++ i))
-                (cc_ulink (aof uc) (nth i bus) (? (< (+ i 1) nb) (nth (+ i 1) bus) 0) 0)))
+              (block
+               (set ($ uc t_meta) (bitor (coco-bar-sysbit)
+                                         (coco-bar-of (coco_functor_id m (coco_intern m "<meta-call>") 1))))
+               (for ((u32 i . 0)) (< i nb) ((++ i))
+                 (cc_ulink (aof uc) (nth i bus) (? (< (+ i 1) nb) (nth (+ i 1) bus) 0) 0
+                           (-> cd ptag)))))
           (free ($ ($ uc gb) w)) (free ($ ($ uc tb) w)) (free ($ ($ uc rb) w)) (free ($ ($ uc qb) w))
           (free ($ uc emap))
           (if (or (not ($ uc ok)) (== ($ uc ncons) 0) (== nb 0) (> ($ uc nterm) 64)
@@ -1630,6 +1708,43 @@
           (set (nth i (-> st code_keys)) 0)
           (set (nth i (-> st code_vals)) nil)))
 
+  ;;; EVERY CLAUSE'S PROGRAM DROPPED, each compiled again at its next
+  ;;; selection (3.1.0): a program file took not/1 or ignore/1 over
+  ;;; (`coco_pred_take_over'), which a body compiled before runs as the
+  ;;; construct, in place. A code the table no longer keys -- held by its
+  ;;; predicate's slot alone, after a table that would not grow -- is
+  ;;; retired from the slot; each of the rest from the table, as a dead
+  ;;; clause's is (`coco_code_retire': an environment may be part way
+  ;;; through it).
+  (func coco_code_forget_all ((coco_store * st))
+        (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+          (let ((coco_pred * p . #'(aof (nth i (-> st preds)))))
+            (if (!= (-> p codes) nil)
+                (for ((size_t j . 0)) (< j (-> p nclauses)) ((++ j))
+                  (let ((coco_code * cd . #'(cast (coco_code *) (nth j (-> p codes)))))
+                    (if (!= cd nil)
+                        (block
+                          (if (!= (coco_code_find st (nth j (-> p clauses))) cd)
+                              (coco_code_retire st cd))
+                          (set (nth j (-> p codes)) nil))))))))
+        (for ((size_t i . 0)) (< i (-> st code_cap)) ((++ i))
+          (if (!= (nth i (-> st code_keys)) 0)
+              (block (coco_code_retire st (cast (coco_code *) (nth i (-> st code_vals))))
+                     (set (nth i (-> st code_keys)) 0)
+                     (set (nth i (-> st code_vals)) nil))))
+        (set (-> st code_len) 0))
+
+  ;;; THE OWNER A CLAUSE'S BODY GOALS CARRY (3.1.0, `coco-bar-of'): the
+  ;;; functor of HEAD, a store cell, or of an atom's name and no arguments;
+  ;;; 0 for anything else, and past what the tag's 25 bits hold
+  (func coco_head_tag ((coco_store * st) (coco_machine * m) (size_t head)) (out u64)
+        (let ((u64 hc . #'(nth (coco_store_deref st head) (-> st cells))) (u64 pf . 0))
+          (cond ((coco-tag-is FUN hc) (set pf (cast u64 (coco-payload hc))))
+                ((coco-tag-is ATOM hc) (set pf (coco_functor_id m (cast u64 (coco-payload hc)) 0)))
+                (#t (return 0)))
+          (if (>= (+ pf 1) 33554431) (return 0))
+          (return (coco-bar-of pf))))
+
   (func coco_clause_code ((coco_store * st) (coco_machine * m) (size_t clause)) (out coco_code *)
         (let ((coco_code * cd . #'(coco_code_find st clause)))
           (if (!= cd nil) (return cd))
@@ -1706,6 +1821,11 @@
             ;; guards' executor for an environment too cost the counting
             ;; loop 8 instructions a turn. A body an environment could not
             ;; be had for -- memory -- keeps the form it had, which is no loss
+            ;; the predicate it is a clause of, for what its body's errors
+            ;; name (3.1.0, `coco-bar-pred'): the head's functor, or the
+            ;; functor of an atom's name and no arguments -- before the
+            ;; environment, whose units are its too
+            (set (-> cd ptag) (coco_head_tag st m head))
             (if (and (cc_env_enabled) (!= body 0))
                 (cc_compile_env st m cd head body))
             ;; and whether entering it takes more than the plain executor

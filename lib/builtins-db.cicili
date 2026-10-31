@@ -174,7 +174,8 @@
                 (return 1))))))
 
   ;;; Every predicate the store DEFINES, as Name/Arity: one with a clause, or
-  ;;; one declared dynamic (an assert declares it too), as SWI counts them.
+  ;;; one declared dynamic (an assert declares it too), discontiguous or
+  ;;; multifile (3.1.0), as SWI counts them.
   ;;; The table holds more -- a call, or `clause/2', makes an entry for a
   ;;; name it looks up, and a call to it still raises `existence_error' --
   ;;; and those are left out, as are the library's own predicates:
@@ -191,7 +192,8 @@
             (if (and (or (not ($ (nth i ($ (cof st) preds)) library))
                          ($ (nth i ($ (cof st) preds)) own))
                      (or (> (coco_pred_live (aof (nth i ($ (cof st) preds)))) 0)
-                         ($ (nth i ($ (cof st) preds)) dynamic)))
+                         ($ (nth i ($ (cof st) preds)) dynamic)
+                         ($ (nth i ($ (cof st) preds)) declared)))
                 (block
                  (if (>= n cap)
                      (let ((size_t ncap . #'(? (== cap 0) 16 (* cap 2)))
@@ -214,6 +216,14 @@
                     *zigurat-predicates*)
   (coco-emit-claims coco_b_construct_claims *callable-constructs*)
 
+  ;;; WHAT A LOAD ASKS OF A PROGRAM FILE'S CLAUSE (3.1.0, installed as
+  ;;; `coco_claims_hook'): whether a compiled-in module or a construct
+  ;;; implements its name and arity, for `coco_claim_kind' to refuse an ISO
+  ;;; one and take any other over.
+  (func coco_b_claims ((const char * name) (u32 arity)) (out int)
+        (return (or (coco_b_tier1_claims name arity)
+                    (coco_b_construct_claims name arity))))
+
   ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
   ;;; the properties of the predicate Head names, or a failure where
   ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head
@@ -232,7 +242,7 @@
         (let ((coco_machine * m . #'(coco_m_machine e))
               (coco_store * st . #'(-> e st))
               (size_t h . #'(coco_m_arg e g 0))
-              (size_t v [8]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0))
+              (size_t v [8]) (size_t n . 0) (u64 nid . 0) (u32 ar . 0) (int c . 0) (int con . 0))
           (if (coco_is_compound2 m h ":") (set h (coco_deref m (coco_arg m h 1))))
           (if (coco_m_is_var e h) (return (coco_m_instantiation_error e)))
           (if (not (coco_is_callable m h)) (return (coco_m_type_error e "callable" h)))
@@ -240,7 +250,10 @@
           (set ar (coco_arity m h))
           (set c (or (>= (coco_builtin_index m nid ar) 0)
                      (coco_b_tier1_claims (coco_atom_name m nid) ar)))
-          (if (or c (coco_b_construct_claims (coco_atom_name m nid) ar))
+          (set con (coco_b_construct_claims (coco_atom_name m nid) ar))
+          ;; one a program file took over is the program's (3.1.0)
+          (if (coco_pred_taken st nid ar) (block (set c 0) (set con 0)))
+          (if (or c con)
               (block
                 (set (nth n v) (coco_new_atom m "visible")) (++ n)
                 (set (nth n v) (coco_new_atom m "built_in")) (++ n)
@@ -254,7 +267,8 @@
             (let ((coco_pred * p . #'(aof (nth pi ($ (cof st) preds))))
                   (size_t rules . 0) (size_t mark . #'($ (cof m) heap_len))
                   (u64 tid . #'(coco_intern m "true")))
-              (if (and (== (coco_pred_live p) 0) (not (-> p dynamic))) (return 0))
+              (if (and (== (coco_pred_live p) 0) (not (-> p dynamic)) (not (-> p declared)))
+                  (return 0))
               ;; a rule is a clause whose body is not `true'; the predicate
               ;; read through its index each time round, as after. A clause
               ;; retracted while a call on it is open is none of them.
@@ -272,9 +286,16 @@
               (set p (aof (nth pi ($ (cof st) preds))))
               (set (nth n v) (coco_new_atom m "visible")) (++ n)
               (set (nth n v) (coco_new_atom m (? (-> p dynamic) "dynamic" "static"))) (++ n)
+              ;; what a declaration said (3.1.0), in swipl's order
+              (if (bitand (-> p declared) 2) (block (set (nth n v) (coco_new_atom m "multifile")) (++ n)))
+              (if (bitand (-> p declared) 1) (block (set (nth n v) (coco_new_atom m "discontiguous")) (++ n)))
+              ;; swipl counts the clauses of a predicate that has some, and
+              ;; of one declared dynamic
+              (if (or (> (coco_pred_live p) 0) (-> p dynamic))
+                  (block
+                    (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (coco_pred_live p))))) (++ n)
+                    (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)))
               (set (nth n v) (coco_new_atom m "defined")) (++ n)
-              (set (nth n v) (coco_make1 m "number_of_clauses" (coco_new_int m (cast i64 (coco_pred_live p))))) (++ n)
-              (set (nth n v) (coco_make1 m "number_of_rules" (coco_new_int m (cast i64 rules)))) (++ n)
               (return (coco_m_unify e (coco_m_arg e g 1) (coco_m_list e v n)))))))
 
   ;;; `abolish(Name/Arity)' -- every clause of it goes, and the write-through
@@ -312,6 +333,10 @@
                   (set (-> m heap_len) mark)
                   (if (< ok 0) (return (coco_fetch_error e)))
                   (if (not ok) break)))
+              ;; and a discontiguous or multifile declaration with them, as
+              ;; swipl resets a predicate's attributes (3.1.0); a dynamic
+              ;; one stays, a database store keeping it as a row
+              (set ($ (nth pi ($ (cof st) preds)) declared) 0)
               (coco_store_maybe_compact st m)
               (return 1))))))
 

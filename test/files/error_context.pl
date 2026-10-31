@@ -289,7 +289,7 @@ p(var(_)).
 p(with_output_to(f(x),f(x))).
 p(with_output_to(_,_)).
 p(write(f(x))).
-p(write_canonical(f(x))).   % cocolint: W1 -- f(x) holds no operator, which both write alike
+p(write_canonical(f(x))).
 p(write_term(f(x),f(x))).
 p(write_term(_,_)).
 p(writeln(f(x))).

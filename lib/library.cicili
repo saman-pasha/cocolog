@@ -48,7 +48,9 @@
     ("set_prolog_flag"     2 lb_set_flag)
     ;; the two primitives the Coco half below is built from (2.13.0)
     ("$lf_file"            2 lb_load_file)
-    ("$lf_say"             1 lb_say)))
+    ("$lf_say"             1 lb_say)
+    ;; absolute_file_name/3's library path, lb_find's (3.1.0)
+    ("$library_dirs"       1 lb_library_dirs)))
 
 ;;; CONSULT/1, LOAD_FILES/2 AND `[File]' AS GOALS (2.13.0), SWI's, which
 ;;; through 2.12 were not there: a program that loaded a file at run time
@@ -491,6 +493,7 @@
               (block
                (if (not (lb_flag_value e v "flag_value" val 64 (aof rc))) (return rc))
                (snprintf lb_verbose (sizeof lb_verbose) "%s" val)
+               (coco_verbose_silent_set (== 0 (strcmp val "silent")))
                (return 1)))
           (if (== 0 (strcmp flag "generate_debug_info"))
               (block
@@ -567,6 +570,48 @@
           (if (lb_probe "lib/swipl" name ".pl" buf cap)
               (block (set (cof kind) 2) (return 1)))
           (return 0)))
+
+  ;;; `'$library_dirs'(-Dirs)' (3.1.0): the directories lb_find above
+  ;;; searches, in its order, as atoms whether or not each is there -- each
+  ;;; entry of $COCOLOG_LIBRARY, `library', the binary's own library and
+  ;;; lib/swipl, then `lib/swipl'. The `library' and `foreign' aliases of
+  ;;; absolute_file_name/3 (lib/files.cicili) are these, so the library(X)
+  ;;; a program finds there is the one use_module/1 would load.
+  (func lb_library_dirs ((coco_engine * e) (size_t g)) (out int)
+        (let ((const char * env . #'(getenv "COCOLOG_LIBRARY"))
+              (const char * base . #'(lb_exedir))
+              (size_t el . 0) (size_t slots . 5) (size_t n . 0) (size_t out . 0)
+              (char * text . nil) (char ** v . nil)
+              (char lib [1100]) (char swi [1100]))
+          (if (!= env nil) (set el (strlen env)))
+          (for ((size_t i . 0)) (< i el) ((++ i))
+            (if (== (nth i env) (cast char 58)) (set slots (+ slots 1))))
+          (set slots (+ slots 1))
+          (set text (cast (char *) (malloc (+ el 1))))
+          (set v (cast (char **) (malloc (* slots (sizeof (char *))))))
+          (if (or (== text nil) (== v nil))
+              (block (free text) (free v) (return (coco_m_resource_error e "memory"))))
+          (if (!= env nil) (memcpy text env el))
+          (set (nth el text) (cast char 0))
+          ;; each non-empty entry, cut at its colon
+          (let ((size_t start . 0))
+            (for ((size_t i . 0)) (<= i el) ((++ i))
+              (if (or (== i el) (== (nth i text) (cast char 58)))
+                  (block (set (nth i text) (cast char 0))
+                         (if (> i start)
+                             (block (set (nth n v) (+ text start)) (set n (+ n 1))))
+                         (set start (+ i 1))))))
+          (set (nth n v) "library") (set n (+ n 1))
+          (if (!= (nth 0 base) (cast char 0))
+              (block (snprintf lib (sizeof lib) "%s/library" base)
+                     (snprintf swi (sizeof swi) "%s/lib/swipl" base)
+                     (set (nth n v) lib) (set n (+ n 1))
+                     (set (nth n v) swi) (set n (+ n 1))))
+          (set (nth n v) "lib/swipl") (set n (+ n 1))
+          (set out (coco_m_atom_list e v n))
+          (free v)
+          (free text)
+          (return (coco_m_unify e (coco_m_arg e g 0) out))))
 
   ;;; ---- the two loaders -------------------------------------------------
 
@@ -656,9 +701,10 @@
   ;;;
   ;;; Every other directive is skipped: a `use_module' inside the library
   ;;; is not followed, so a library lends what it declares, not what it
-  ;;; borrowed. A clause the reader cannot take ends the walk -- what was
-  ;;; lent before it stands, and the consult that follows names the line.
-  ;;; The heap is wound back a clause at a time, as coco_consult winds it.
+  ;;; borrowed. A clause the reader cannot take is passed over, as the
+  ;;; consult that follows passes it over and names its line (3.1.0;
+  ;;; through 3.0.4 it ended the walk). The heap is wound back a clause at
+  ;;; a time, as coco_consult winds it.
   (static)
   (func lb_lend_ops ((coco_machine * m) (const char * text)) (out int)
         (if (== text nil) (return 0))
@@ -668,6 +714,11 @@
           (while (== rc 1)
             (set mark (-> m heap_len))
             (set rc (coco_read_clause (aof r) (aof t)))
+            (if (== rc -1)
+                (block (set (-> m heap_len) mark)
+                       (coco_reader_resync (aof r))
+                       (set rc 1)
+                       continue))
             (if (== rc 1)
                 (let ((size_t c . #'(coco_deref m t)))
                   (if (and (coco_is_callable m c) (== (coco_arity m c) 1)
@@ -904,6 +955,15 @@
 
   ;;; ---- the module and the directive hook -------------------------------
 
+  ;;; A BALL THAT ENDED THE LOAD JUST MADE (3.1.0) is thrown again here, in
+  ;;; the engine that asked for the load, as swipl's consult/1 lets it go
+  ;;; on: 2 caught, -1 not, and 0 when the load kept none
+  (static)
+  (func lb_ball_again ((coco_engine * e)) (out int)
+        (let ((size_t b . 0))
+          (if (not (coco_load_ball_take (-> e st) (-> e m) (aof b))) (return 0))
+          (return (? (coco_m_thrown e b) 2 -1))))
+
   ;;; A LIBRARY LOADED BY A GOAL MAY COLLECT IN ITS DIRECTIVES (1.9.6) when
   ;;; the engine asking may collect: nothing of the heap is read here after
   ;;; the load, the spec only before it, and the step that called this keeps
@@ -917,6 +977,9 @@
             (set r (coco_library_load (-> e st) m e spec err 512))
             (set (-> m dgc) was)
             (if (== 1 r) (return 1))
+            ;; a ball that ended the module's load goes on (3.1.0)
+            (let ((int t . #'(lb_ball_again e)))
+              (if (!= t 0) (return t)))
             (return (coco_m_error e "use_module" err)))))
 
   (func lb_use_module1 ((coco_engine * e) (size_t g)) (out int)
@@ -1019,7 +1082,12 @@
           (set (-> st ownload) own)
           (set (-> m double_quotes) dq)
           (coco_store_unmute st)
-          (if (< r 0) (lb_say_text err))
+          ;; a ball that ended the read goes on (3.1.0): 2 or -1, the
+          ;; predicate's answer
+          (if (< r 0)
+              (let ((int t . #'(lb_ball_again e)))
+                (if (!= t 0) (return t))
+                (lb_say_text err)))
           (return 1)))
 
   (static)
@@ -1041,6 +1109,8 @@
                  (set r (coco_library_load st m e spec err (sizeof err)))
                  (set (-> m dgc) was)
                  (if (== r 1) (return 1))
+                 (let ((int t . #'(lb_ball_again e)))
+                   (if (!= t 0) (return t)))
                  (if (== r -1)
                      (return (? exists 1 (coco_m_existence_error e "source_sink" spec))))
                  (return (coco_m_error e "consult" err))))
@@ -1070,9 +1140,10 @@
                        (return 1))
                    (if (and (or (== 0 (strcmp mode "changed")) exists) (<= now (-> mod time)))
                        (return 1))
-                   (if (not (lb_reread e mod path now))
-                       (return (coco_m_existence_error e "source_sink" culprit)))
-                   (return 1))))
+                   (let ((int rr . #'(lb_reread e mod path now)))
+                     (if (== rr 0)
+                         (return (coco_m_existence_error e "source_sink" culprit)))
+                     (return rr)))))
             (if (or (== 0 (strcmp mode "not_loaded")) (== 0 (strcmp mode "module")))
                 (block
                  (if (coco_store_loaded st full nil) (return 1))
@@ -1080,7 +1151,10 @@
                  (set (-> m dgc) (? (-> e gc) 1 0))
                  (set r (coco_library_load st m e (coco_m_new_atom e path) err (sizeof err)))
                  (set (-> m dgc) was)
-                 (if (!= r 1) (lb_say_text err))
+                 (if (!= r 1)
+                     (let ((int t . #'(lb_ball_again e)))
+                       (if (!= t 0) (return t))
+                       (lb_say_text err)))
                  (return 1)))
             ;; NEWER, NOT ONLY OTHER (2.14.0): swipl 9.0.4 reads the file
             ;; again only when its time is past the one its last read had
@@ -1116,7 +1190,13 @@
               (set (-> st muted) muted)
               (set (-> st ownload) own))
             (free text)
-            (if (< r 0) (lb_say_text err))
+            ;; A BALL A DIRECTIVE THREW THAT IS NO error(_, _) ENDED THE
+            ;; LOAD (3.1.0), and goes on from here, as swipl's consult/1
+            ;; lets it: what was read before it stays
+            (if (< r 0)
+                (let ((int t . #'(lb_ball_again e)))
+                  (if (!= t 0) (return t))
+                  (lb_say_text err)))
             (return 1))))
 
   ;;; SWI'S NAMES FOR WHAT THIS BUILD CARRIES UNDER ANOTHER ARRANGEMENT,
@@ -1183,14 +1263,24 @@
   ;;; cells, traced or not (`coco_engine_findall'). Through 1.9.5 a
   ;;; directive's goal collected nothing, and a long phase in one kept its
   ;;; whole heap.
+  ;;;
+  ;;; THE FRAME IT RUNS IN IS swipl's (3.1.0): a directive's and an
+  ;;; initialization(G, main)'s goal under catch/3, an initialization/1's
+  ;;; under '$run_init_goal'/1 (KIND 0, 2 and 1), which an unknown procedure
+  ;;; at the goal's root names (`rootn' 5 and 6). And a DIRECTIVE's ball
+  ;;; that is no error(_, _) -- the only ones swipl's catch/3 there takes --
+  ;;; ends the load: it is kept in the load's store for whoever asked for
+  ;;; the load to throw (the machine's `lball'), ERR says what it was, and
+  ;;; the answer is -2.
   (static)
-  (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal)
+  (func lb_goal_hook ((coco_store * st) (coco_machine * m) (size_t goal) (int kind)
                       (char * err) (size_t errlen)) (out int)
         (let ((coco_engine e) (int rc . 0) (int halted . 0) (int code . 0)
-              (int dgc . #'(-> m dgc)) (int gc . 0) (size_t gsaved . 0))
+              (int dgc . #'(-> m dgc)) (int gc . 0) (size_t gsaved . 0) (int ends . 0))
           (set (-> m dgc) 0)
           (coco_engine_init (aof e) m st)
           (set ($ e max_steps) 0)
+          (set ($ e rootn) (? (== kind 1) 6 5))
           ;; A BALL THIS GOAL DOES NOT CATCH IS REPORTED HERE, with where it
           ;; was raised (1.10.17): no catch outside the load can take it, so
           ;; its throw asks no further out than this engine, and its lines
@@ -1205,6 +1295,9 @@
           (set ($ e gc) gc)
           (if gc (set gsaved (coco_gc_nested_begin m ($ e pheap))))
           (set rc (coco_engine_next (aof e)))
+          ;; a directive runs once: what it left is cut, a cleanup run with
+          ;; `!' (3.1.0), as swipl's
+          (if (== rc 1) (coco_engine_cut (aof e)))
           (if gc (coco_gc_nested_end m gsaved))
           (set (-> m dgc) dgc)
           (set halted ($ e halted))
@@ -1212,11 +1305,36 @@
           (if (== rc -1)
               (if (not (coco_engine_error_text (aof e) err errlen))
                   (snprintf err errlen "%s" ($ e err))))
-          (if (not (and (== rc -1) ($ e has_ball))) (coco_bt_say m 0))
+          ;; A RAISE OR A FAILURE UNDOES THE GOAL'S BINDINGS (3.1.0), as the
+          ;; catch/3 swipl runs it under does and as backtracking out of it
+          ;; would: the Warning after it names the goal as it was asked,
+          ;; `user:(mk(3,_A),_A==[3,2,9])', where a failure that left no
+          ;; choice to go back to kept them, `mk(3,[3,2,1])'
+          (if (or (== rc -1) (== rc 0)) (coco_undo_to m ($ e ptrail)))
+          (if (and (== rc -1) ($ e has_ball) (== kind 0))
+              (let ((coco_store * bs . #'(? (== ($ e ball_st) nil) st
+                                            (cast (coco_store *) ($ e ball_st))))
+                    (size_t ball . 0))
+                (set ball (coco_store_read m bs ($ e ball_cell)))
+                (if (not (coco_is_compound2 m ball "error"))
+                    (block
+                     ;; a ball still in the load's store is kept where it is;
+                     ;; one in an engine's own is put into it
+                     (if (== bs st)
+                         (block (set (-> m lball) (+ ($ e ball_cell) 1))
+                                (set (-> m lball_size) ($ e ball_size)))
+                       (let ((size_t c . #'(coco_store_put st m ball)))
+                         (set (-> m lball) (+ c 1))
+                         (set (-> m lball_size) (- (-> st len) c))))
+                     (set ends 1)))))
+          ;; its lines are a report's, and a ball that ends the load is
+          ;; reported by no one here
+          (if (or ends (not (and (== rc -1) ($ e has_ball)))) (coco_bt_say m 0))
           (coco_engine_free (aof e))
           (if halted (coco_halt_load st code 1))
           (if (== rc 1) (return 1))
           (if (== rc 0) (return 0))
+          (if ends (return -2))
           (return -1)))
 
   (static) (coco-emit-module-dispatch lb_dispatch *library-predicates*)

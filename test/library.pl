@@ -41,7 +41,7 @@
 
 main :-
     scratch(D),
-    registered, from_the_path(D), errors(D), shared_object(D), across_processes(D),
+    registered, from_the_path(D), keeps_builtins(D), lends_ops(D), errors(D), shared_object(D), across_processes(D),
     always_present, still_answers,
     shl(['rm -rf ', D]),
     checks_done.
@@ -70,6 +70,58 @@ from_the_path(D) :-
     sh_join(['run ', Uses, ' "both(G), write(answer(G)), nl"'], Args3),
     cocolog_answer(Args3, G3),
     check('the :- use_module directive loads it too', G3, answer(hello_from_pl)).
+
+%% A LIBRARY KEEPS THE BUILTIN A PROGRAM FILE TAKES OVER (3.1.0): the
+%% program's garbage_collect/0, msort/2 and not/1 answer the program's own
+%% goals, and a library's clause calling the name still has the engine's --
+%% as a swipl library module calls system's -- whether the library was
+%% loaded before the program's clauses (its bodies are rewritten then) or
+%% after them (as it loads). A library on the path is a library here; swipl
+%% takes a directory a user added as the user's (COMPAT.md).
+keeps_builtins(D) :-
+    section('a library keeps the builtin a program file takes over'),
+    atom_concat(D, '/plib/keep.pl', Keep),
+    fixture(Keep, [ 'keep_gc(done) :- garbage_collect.',
+                    'keep_sort(S) :- msort([b, a], S).',
+                    'keep_not(yes) :- not(fail).' ]),
+    Own = [ 'garbage_collect :- fail.', 'msort(_, mine).', 'not(_) :- fail.',
+            'go :- keep_gc(A), keep_sort(B), keep_not(C),',
+            '      ( garbage_collect -> E = gc_yes ; E = gc_no ), msort([b, a], F),',
+            '      write(answer(A, B, C, E, F)), nl.' ],
+    atom_concat(D, '/takes1.pl', T1), fixture(T1, [':- use_module(library(keep)).'|Own]),
+    sh_join(['run ', T1, ' go'], Args1), cocolog_answer(Args1, G1),
+    check('loaded first, its calls keep the builtins; the program''s are the program''s',
+          G1, answer(done, [a, b], yes, gc_no, mine)),
+    append(Own, [':- use_module(library(keep)).'], Own2),
+    atom_concat(D, '/takes2.pl', T2), fixture(T2, Own2),
+    sh_join(['run ', T2, ' go'], Args2), cocolog_answer(Args2, G2),
+    check('loaded after the program''s clauses, the same',
+          G2, answer(done, [a, b], yes, gc_no, mine)),
+    %% A DIRECTIVE use_module/1 LOADS AT THE FIRST GOAL, so the two above
+    %% both load the library after the file is read; a goal directive runs
+    %% one, and the library's clauses are in the store when the program's
+    %% are read -- each call of a taken name made the system's then
+    %% (`coco_sys_library'), not as the library is read
+    atom_concat(D, '/takes3.pl', T3),
+    fixture(T3, [':- use_module(library(keep)).', ':- keep_sort(_).'|Own]),
+    sh_join(['run ', T3, ' go'], Args3), cocolog_answer(Args3, G3),
+    check('loaded and run before the program''s clauses are read, the same',
+          G3, answer(done, [a, b], yes, gc_no, mine)).
+
+%% A LIBRARY LENDS ITS OPERATORS to the file that names it (`lb_lend_ops'):
+%% its text is walked for `:- op' before the file reads on, so the file's
+%% own clauses parse with them. A clause of the library that will not read
+%% is passed over there as its consult passes it over (3.1.0); through
+%% 3.0.4 the walk ended at it, and an op declared after it was not lent.
+lends_ops(D) :-
+    section('a library lends its operators, past a clause that will not read'),
+    atom_concat(D, '/plib/opsyn.pl', Lib),
+    fixture(Lib, ['bad(x y).', ':- op(700, xfx, ===>).', 'rule(a ===> b).']),
+    atom_concat(D, '/lends.pl', F),
+    fixture(F, [':- use_module(library(opsyn)).', 'mine(c ===> d).']),
+    sh_join(['run ', F, ' "(mine(X), rule(Y), write_canonical(answer(X, Y)), nl)"'], Args), cocolog_answer(Args, G),
+    check('the file reads with the operator declared after the bad clause', G,
+          answer('===>'(c, d), '===>'(a, b))).
 
 errors(D) :-
     section('the errors'),

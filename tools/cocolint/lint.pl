@@ -59,7 +59,8 @@
 %% Four files, consulted alongside this one by lint.sh, and NOT use_module'd:
 %% they are generated data and a sibling tool, not libraries on the path.
 %%
-%%     blocklist.pl   cl_t1c/3 cl_t1p/3 cl_t2c/3 cl_t2p/3 cl_hook/3
+%%     blocklist.pl   cl_t1c/3 cl_t1p/3 cl_t2c/3 cl_t2p/3 cl_hook/3 cl_iso/2
+%%                    cl_construct_arity/2
 %%     traps.pl       cl_trap/7
 %%     clauses.pl     cc_clauses_of/2 cc_regions/2 cc_in_region/3 cc_line_walk/6
 %%
@@ -219,30 +220,45 @@ cl_own_definition(File, N, A) :-
 %% the oracle excuse exactly the same names.
 cl_collision(N, A, _, _, _, _, _, _) :- cl_hook(N, A, _), !, fail.
 
-%% N3 -- a control construct, AT ANY ARITY. Matched by interned id before the
-%% builtin table and before the store, so the clauses are unreachable and NO
-%% RUNTIME CHECK CAN SEE THEM. In blocklist.pl a construct is arity -1.
-cl_collision(N, _, _, _, n3, Msg, 'rename it',
-             'lib/solve.cicili:151-154, dispatched :1149-1351') :-
+%% N3 -- a control construct, at an arity the step runs it at
+%% (cl_construct_arity/2, tools/flow/tables.pl's; at every arity for the
+%% engine's own `$' markers, which that table leaves out): taken by interned
+%% id before the builtin table and before the store, so the clauses load and
+%% NOTHING CALLS THEM, and no runtime check sees them. Not an ISO one (since
+%% 3.1.0 the load refuses its clauses and says so, as swipl's does: loud),
+%% nor not/1, ignore/1, trace/0 and notrace/0, which a program file takes
+%% over as swipl lets one (lib/kb.cicili's coco_claim_kind), nor one at
+%% another arity, which is a predicate like any other (`once/2'). In
+%% blocklist.pl a construct is arity -1.
+cl_collision(N, A, _, _, n3, Msg, 'rename it',
+             'lib/solve.cicili:229-242, run in lib/solve-loop.cicili') :-
     cl_t1c(N, -1, _),
+    cl_construct_runs(N, A),
+    \+ cl_iso(N, A),
+    \+ cl_taken_construct(N, A),
     !,
     format(atom(Msg),
-           "`~w' is a CONTROL CONSTRUCT, matched by interned id before the builtin table and before the store. No arity escapes it: your clauses are unreachable and no runtime check can see them.", [N]).
+           "`~w/~w' is a CONTROL CONSTRUCT the engine runs in place, before the builtin table and the store: your clauses load, listing/1 shows them, and nothing calls them.", [N, A]).
 
-%% N2 -- C-dispatched, in tier 1 or in an imported module. Dispatch reaches
-%% the builtin table before the knowledge base, so the clauses load, listing/1
-%% shows them, and nothing calls them.
+%% N2 -- a C name of a loaded module the file imports: its dispatcher answers
+%% before the knowledge base, so the clauses load, listing/1 shows them, and
+%% nothing calls them.
 %%
-%% THE ORACLE CANNOT SEE THIS ONE. A C name's record has library = 0, so
-%% current_predicate/1 reports it as the program's own while the clauses are
-%% dead -- measured: 110 of 112 probeable C names come back visible. N2 is the
-%% only cover, which is why it stays even when the oracle is available.
+%% NOT A NAME OF THE ENGINE'S OR A COMPILED-IN MODULE'S ANY MORE (3.1.0): a
+%% program file's clauses take such a name over, as swipl lets a user file
+%% define a system predicate, and an ISO one's are refused at load, loudly.
+%% A loadable module's names are not taken over (its seam is the module's,
+%% and swipl's foreign predicates live in their modules), so this is the
+%% part of the old rule that is still silent.
+%%
+%% THE ORACLE CANNOT SEE THIS ONE: the module answers a call, and the store's
+%% record says the clauses are the program's own.
 cl_collision(N, A, Imports, _, n2, Msg, 'rename it', Cite) :-
     cl_c_dispatched(N, A, Imports, Where),
     !,
     format(atom(Msg),
-           "`~w/~w' is dispatched BEFORE the knowledge base. Your clauses are dead code -- they load, listing/1 shows them, and nothing calls them.", [N, A]),
-    format(atom(Cite), "lib/solve.cicili:1352-1386; defined in ~w", [Where]).
+           "`~w/~w' is a loaded module's, dispatched BEFORE the knowledge base. Your clauses are dead code -- they load, listing/1 shows them, and nothing calls them.", [N, A]),
+    format(atom(Cite), "lib/module.cicili, coco_module_call; defined in ~w", [Where]).
 
 %% N1 -- clause-defined in a library. Consult APPENDS, so the two sets merge.
 cl_collision(N, A, Imports, Note, n1, Msg, Fix, Cite) :-
@@ -254,12 +270,20 @@ cl_collision(N, A, Imports, Note, n1, Msg, Fix, Cite) :-
            [N, A]),
     Cite = 'library/llm/DESIGN.md sections 6.3 and 16.1'.
 
-cl_c_dispatched(N, A, _, Where) :-
-    findall(F, cl_t1c(N, A, F), Fs), Fs = [_|_], !,
-    cl_join(Fs, ', ', Where).
 cl_c_dispatched(N, A, Imports, Where) :-
     member(M, Imports), cl_t2c(M, N, A), !,
     format(atom(Where), "library(~w)", [M]).
+
+%% The arities the step runs construct N at; every arity where the table
+%% names none of N's (the engine's own markers).
+cl_construct_runs(N, A) :- cl_construct_arity(N, _), !, cl_construct_arity(N, A).
+cl_construct_runs(_, _).
+
+%% What a program file's clause takes over though it is a construct's name.
+cl_taken_construct(not, 1).
+cl_taken_construct(ignore, 1).
+cl_taken_construct(trace, 0).
+cl_taken_construct(notrace, 0).
 
 cl_clause_defined(N, A, _, Where) :-
     findall(F, cl_t1p(N, A, F), Fs), Fs = [_|_], !,
@@ -288,14 +312,15 @@ cl_dcg_note(_, _, _, '').
 %% MASKED BY REGION, and the mask is per trap. `code' means a match inside a
 %% quote or a comment is not a finding -- without it a tutorial explaining
 %% `retract(X), fail' is reported as committing it. `text' means a quote
-%% counts as code, which F1, L1 and E1 need because the form they look for
+%% counts as code, which F1 and L1 need because the form they look for
 %% lives inside a quote by construction. NOTHING scans comments: a comment
 %% naming ~t documents the rule rather than breaking it.
 %%
 %% AND A MATCH THAT OPENS ON AN ESCAPED BACKSLASH IS NO MATCH (cl_escaped_backslash/2).
 %% Inside a quote `\\u0041' is a backslash and the letters u0041 -- what every
-%% JSON test writes, and what the reader takes without a word -- yet E1's `\u'
-%% and four hex digits matched at its SECOND backslash, six HARD findings in
+%% JSON test writes, and what the reader takes without a word -- yet card row
+%% E1's `\u' and four hex digits (retired at 3.1.0, when the reader took the
+%% escape) matched at its SECOND backslash, six HARD findings in
 %% test/serialize.pl over code that was right. A text scan sees the bytes, the
 %% reader sees pairs, so the scan is asked what the reader would have made of
 %% the backslash it opens on.
@@ -344,8 +369,8 @@ cl_backslash_run([_|T], N, _, Run, Rest) :-
 %% pattern could start there at all. Only then are the individual patterns
 %% tried, and only those whose own set admits the code.
 %%
-%% The union is not tiny -- E1 can start at any digit, and the names the
-%% patterns look for at half the lowercase letters -- but it excludes
+%% The union is not tiny -- the names the patterns look for start at half
+%% the lowercase letters -- but it excludes
 %% whitespace, capitals and most punctuation, which is most of a source file.
 %% INDEXED BY FIRST CODE. Trying all seventeen at every position the union
 %% admits was three seconds on library/html.pl; a code that only one pattern

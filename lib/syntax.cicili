@@ -386,9 +386,14 @@
         (let ((size_t f . #'(-> r tstart)))
           (if (not (coco_next_token r)) (return 0))
           (if (coco_is_punct r (coco-ch "}"))
-              (block (set (cof out) (coco_new_atom (-> r m) "{}"))
-                     (if ,P (coco_pos_leaf r f (-> r pos)))
-                     (return (coco_next_token r))))
+              (block
+               ;; `{}(a,b)', the two against a `(' (3.1.0, swipl's): a
+               ;; compound named `{}', as `f(' makes one -- `{}(x)' is `{x}'
+               (if (== (coco_peek r) (coco-ch "("))
+                   (return (,NAMED r maxprec "{}" 0 f (-> r pos) out outprec)))
+               (set (cof out) (coco_new_atom (-> r m) "{}"))
+               (if ,P (coco_pos_leaf r f (-> r pos)))
+               (return (coco_next_token r))))
           (let ((size_t inner) (int p))
             (if (not (,TERM r 1200 (aof inner) (aof p))) (return 0))
             (if (not (coco_is_punct r (coco-ch "}"))) (return (coco_fail r "expected }")))
@@ -672,7 +677,12 @@
     ;; byte offset, for every reader of a term; a load says them as SWI
     ;; does, by the line and column (`coco_reader_place')
     (member size_t       epos)
-    (member const char * ewhat))
+    (member const char * ewhat)
+    ;; WHERE THE CLAUSE BEING READ BEGAN (3.1.0): the first byte of its first
+    ;; token, kept by `coco_read_clause' as it starts -- where
+    ;; `coco_reader_resync' walks from after a syntax error, as swipl's raw
+    ;; read of a clause's text walks from there
+    (member size_t       cstart))
 
   (decl) (func coco_reader_init ((coco_reader * r) (coco_machine * m) (const char * src)))
 
@@ -687,6 +697,12 @@
   ;;; sets OUT, 0 at clean end of input, -1 on a syntax error -- in which case
   ;;; `r->err' says what and where.
   (decl) (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int))
+
+  ;;; After a syntax error, the next clause, where swipl's reader finds it
+  ;;; (3.1.0): the reader put after the full stop that ends the clause it
+  ;;; failed in, the next token in hand. 1, or 0 when that token would not
+  ;;; read either -- the reader has failed again, further on.
+  (decl) (func coco_reader_resync ((coco_reader * r)) (out int))
 
   ;;; Reads one term from a reader that is already going, and does NOT insist
   ;;; on a terminating `.'. The point of taking the reader rather than the text
@@ -713,18 +729,25 @@
   (decl) (func coco_write_term ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int quoted) (int ignore_ops)) (out int))
   (decl) (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
+  ;;; write_canonical/1's and `~k''s text, swipl's (3.1.0): no operators,
+  ;;; and the variables `_' and `A', `B', ... by when the write meets them
+  (decl) (func coco_write_canon ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
 
   ;;; PRINT/1'S FORM (2.2.4), swipl's print/1 and format's `~p': quoted, and
   ;;; with numbervars, so `'$VAR'(1)' is written `B' (mode 8,
   ;;; `coco_write_numbervar'), and since 2.2.5 swipl's character escapes
-  ;;; (mode 16, `'don\'t''). Through 2.2.3 print/1 was write/1.
+  ;;; (mode 16, `'don\'t''), a code in them since 3.1.0 as `\u0001' (mode 64,
+  ;;; swipl's character_escapes_unicode, where writeq/1's is `\x1\'). Through
+  ;;; 2.2.3 print/1 was write/1.
   (decl) (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int))
 
   ;;; A WRITE IN THE MODE A PROGRAM'S WRITER ASKS FOR (2.2.5), the mode word
-  ;;; whole: quoted 1, ignore_ops 2, numbervars 8, character escapes 16.
-  ;;; NAMED writes a cyclic term's variables S_1, S_2, ... (`coco_write_cyclic').
-  ;;; write/1 is 8, writeq/1 25, write_canonical/1 17 with NAMED 0, write_term/2
-  ;;; what its options say.
+  ;;; whole: quoted 1, ignore_ops 2, numbervars 8, character escapes 16, a
+  ;;; code escaped as `\u0001' 64 (3.1.0) and a curly term written `{}(x)' 128
+  ;;; (3.1.0). NAMED writes a cyclic term's variables S_1, S_2, ...
+  ;;; (`coco_write_cyclic'). write/1 is 8, writeq/1 25, print/1 89,
+  ;;; write_term/2 what its options say; write_canonical/1 is
+  ;;; `coco_write_canon''s 147.
   (decl) (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
                               (int mode) (int named)) (out int))
 
@@ -1074,8 +1097,86 @@
               ((== c 34) (return 34))          ; a double quote; see below
               (#t (return -1))))
 
+  ;;; A hexadecimal digit's value, or -1.
+  (static) (inline)
+  (func coco_hex_digit ((int c)) (out int)
+        (cond ((coco_is_digit c) (return (- c (coco-ch "0"))))
+              ((coco-ch-between c "a" "f") (return (+ 10 (- c (coco-ch "a")))))
+              ((coco-ch-between c "A" "F") (return (+ 10 (- c (coco-ch "A")))))
+              (#t (return -1))))
+
+  ;;; The digits of an escape in BASE (8 or 16), as many as come -- or, MAX
+  ;;; not 0, exactly MAX of them -- into *V: how many were read. A value past
+  ;;; U+10FFFF stays past it, however many digits follow.
+  (static)
+  (func coco_lex_escape_digits ((coco_reader * r) (int base) (int max) (i64 * v)) (out int)
+        (let ((int n . 0))
+          (set (cof v) 0)
+          (while (or (== max 0) (< n max))
+            (let ((int d . #'(coco_hex_digit (coco_peek r))))
+              (if (or (< d 0) (>= d base)) break)
+              (if (<= (cof v) 1114111) (set (cof v) (+ (* (cof v) base) d)))
+              (set n (+ n 1))
+              (coco_bump r)))
+          (return n)))
+
+  ;;; ONE ESCAPE, the reader just past its backslash (3.1.0, swipl's): the
+  ;;; code into *OUT and 1; 2 for a continuation, which is no character --
+  ;;; a newline and the white space after it, or `\c' and all the layout
+  ;;; after it; 0 when it is no escape, the reader failed. The letters of
+  ;;; `coco_escape_char', and `\e' (escape), `\s' (space) and a backquote;
+  ;;; `\xHEX\' and `\OCTAL\', any number of digits, the closing backslash
+  ;;; optional; `\uXXXX' and `\UXXXXXXXX', exactly four and eight. A code
+  ;;; past U+10FFFF or a surrogate is refused, as swipl refuses it: text
+  ;;; made from codes may hold a surrogate, a read escape may not.
+  (static)
+  (func coco_lex_escape ((coco_reader * r) (i64 * out)) (out int)
+        (let ((int c . #'(coco_peek r)) (i64 v . 0) (int n . 0))
+          (cond
+            ((== c (coco-ch "x"))
+             (coco_bump r)
+             (set n (coco_lex_escape_digits r 16 0 (aof v)))
+             (if (== n 0) (return (coco_fail r "undefined escape \\x")))
+             (if (== (coco_peek r) 92) (coco_bump r)))
+            ((coco-ch-between c "0" "7")
+             (coco_lex_escape_digits r 8 0 (aof v))
+             (if (== (coco_peek r) 92) (coco_bump r)))
+            ((or (== c (coco-ch "u")) (== c (coco-ch "U")))
+             (coco_bump r)
+             (let ((int want . #'(? (== c (coco-ch "u")) 4 8)))
+               (if (!= want (coco_lex_escape_digits r 16 want (aof v)))
+                   (return (coco_fail r "illegal \\u or \\U sequence")))))
+            ((== c 10)
+             (coco_bump r)
+             (while (or (== (coco_peek r) 32) (== (coco_peek r) 9)) (coco_bump r))
+             (return 2))
+            ((== c (coco-ch "c"))
+             (coco_bump r)
+             (while (coco_is_space (coco_peek r)) (coco_bump r))
+             (return 2))
+            ((== c (coco-ch "e")) (coco_bump r) (set v 27))
+            ((== c (coco-ch "s")) (coco_bump r) (set v 32))
+            ((== c 96) (coco_bump r) (set v 96))
+            (#t
+             (let ((int e . #'(coco_escape_char c)))
+               ;; placed at the escape's letter, as swipl places it --
+               ;; `c('a\qb').' at column 5 -- not at the quote that opens
+               ;; the token (3.1.0)
+               (if (== e -1)
+                   (block (coco_fail r "unknown escape")
+                          (set (-> r epos) (-> r pos))
+                          (return 0)))
+               (coco_bump r)
+               (set v e))))
+          (if (or (> v 1114111) (and (>= v 55296) (<= v 57343)))
+              (return (coco_fail r "illegal character code")))
+          (set (cof out) v)
+          (return 1)))
+
   ;;; A quoted item, ending at QUOTE. Doubling the quote is how a quote is
-  ;;; written inside one -- 'it''s' -- and backslash escapes are accepted too.
+  ;;; written inside one -- 'it''s' -- and backslash escapes are accepted
+  ;;; too (`coco_lex_escape'): a code past 127 is put as its character's
+  ;;; UTF-8, or under `text_units = bytes' as the byte below 256.
   (static)
   (func coco_lex_quoted ((coco_reader * r) (int quote)) (out int)
         (coco_bump r)
@@ -1090,10 +1191,12 @@
                  (return 1)))
               ((== c 92)
                (coco_bump r)
-               (let ((int e . #'(coco_escape_char (coco_peek r))))
-                 (if (== e -1) (return (coco_fail r "unknown escape")))
-                 (coco_bump r)
-                 (coco_sb_putc (aof (-> r text)) (cast char e))))
+               (let ((i64 e . 0) (int k . #'(coco_lex_escape r (aof e))))
+                 (if (== k 0) (return 0))
+                 (if (== k 1)
+                     (if (or (< e 128) (and (not (-> (-> r m) text_chars)) (< e 256)))
+                         (coco_sb_putc (aof (-> r text)) (cast char e))
+                         (coco_utf8_put (aof (-> r text)) e)))))
               (#t (coco_sb_putc (aof (-> r text)) (cast char c)) (coco_bump r)))))
         (return 1))
 
@@ -1119,9 +1222,59 @@
           ((> v (cast u64 9223372036854775807)) (set (-> r iwide) 1))
           (#t (set (-> r iwide) 0) (set (-> r ival) (cast i64 v)))))
 
-  ;;; A number. `0'c' is a character code, 0x/0o/0b are radix prefixes, and a
+  ;;; A digit's value in RADIX (2 to 36: 0-9, then a-z or A-Z), or -1.
+  (static) (inline)
+  (func coco_radix_digit ((int c) (int radix)) (out int)
+        (let ((int d . -1))
+          (cond ((coco_is_digit c) (set d (- c (coco-ch "0"))))
+                ((coco-ch-between c "a" "z") (set d (+ 10 (- c (coco-ch "a")))))
+                ((coco-ch-between c "A" "Z") (set d (+ 10 (- c (coco-ch "A"))))))
+          (return (? (< d radix) d -1))))
+
+  ;;; A DIGIT GROUP'S SEPARATOR (3.1.0, swipl's), the reader just past a
+  ;;; digit of RADIX: `_' and any layout -- comments too -- or, for a radix
+  ;;; of ten or less, exactly one space, each only before a digit of RADIX:
+  ;;; 1, and the reader past it; else 0, and the reader where it was.
+  ;;; `1_000_000', `1 000 000' and `16'f_f' are numbers; `1__0', `1_' and
+  ;;; `1  000' are not.
+  (static)
+  (func coco_lex_group ((coco_reader * r) (int radix)) (out int)
+        (let ((size_t at . #'(-> r pos)))
+          (cond
+            ((== (coco_peek r) (coco-ch "_"))
+             (coco_bump r)
+             (coco_skip_layout r))
+            ((and (== (coco_peek r) 32) (<= radix 10)) (coco_bump r))
+            (#t (return 0)))
+          (if (>= (coco_radix_digit (coco_peek r) radix) 0) (return 1))
+          (set (-> r pos) at)
+          (return 0)))
+
+  ;;; The digits of a number in RADIX, groups and all, into *V: how many,
+  ;;; negated when the magnitude went past 2^63 (`coco_mag_digit'), and 0
+  ;;; for none.
+  (static)
+  (func coco_lex_radix_digits ((coco_reader * r) (int radix) (u64 * v)) (out int)
+        (let ((int n . 0) (int wide . 0))
+          (set (cof v) 0)
+          (while 1
+            (let ((int d . #'(coco_radix_digit (coco_peek r) radix)))
+              (if (< d 0)
+                  (if (or (== n 0) (not (coco_lex_group r radix))) break)
+                  (block
+                    (if (not wide) (set wide (coco_mag_digit v (cast u64 radix) (cast u64 d))))
+                    (set n (+ n 1))
+                    (coco_bump r)))))
+          (return (? wide (- 0 n) n))))
+
+  ;;; A number. `0'c' is a character code, 0x/0o/0b are radix prefixes,
+  ;;; `R'DIGITS' a number in radix R from 2 to 36 (3.1.0, swipl's), and a
   ;;; `.' only starts a fraction when a digit follows it -- otherwise it is the
-  ;;; end of the clause, which is why `f(1).' does not read as a float.
+  ;;; end of the clause, which is why `f(1).' does not read as a float. The
+  ;;; digits of an integer, of the integer part of a float, of a radix's and
+  ;;; of a rational's two sides come in groups (`coco_lex_group'); a grouped
+  ;;; integer takes no exponent without a fraction, as swipl's.
+  (static) (decl) (func coco_lex_decimal_rest ((coco_reader * r) (int grouped)) (out int))
   (static)
   (func coco_lex_number ((coco_reader * r)) (out int)
         (if (and (== (coco_peek r) (coco-ch "0")) (== (coco_peek_at r 1) (coco-ch "'")))
@@ -1139,12 +1292,20 @@
                            (set (-> r tok) COCO_TK_INT)
                            (return 1)))
                      (coco_bump r)
-                     (if (== c 92)
-                         (let ((int e . #'(coco_escape_char (coco_peek r))))
-                           (if (== e -1) (return (coco_fail r "unknown escape")))
-                           (coco_bump r)
-                           (set c e)))
-                     (set (-> r ival) (cast i64 c))
+                     ;; ISO writes the quote doubled after the 0 and its
+                     ;; quote, and swipl takes it single too (3.1.0): 39
+                     ;; either way
+                     (if (and (== c 39) (== (coco_peek r) 39)) (coco_bump r))
+                     (let ((i64 code . #'(cast i64 c)))
+                       (cond
+                         ;; the newline after the backslash is the code, swipl's
+                         ((and (== c 92) (== (coco_peek r) 10)) (coco_bump r) (set code 10))
+                         ((== c 92)
+                          (let ((int k . #'(coco_lex_escape r (aof code))))
+                            (if (== k 0) (return 0))
+                            ;; a continuation is no character to take the code of
+                            (if (== k 2) (return (coco_fail r "unterminated character code"))))))
+                       (set (-> r ival) code))
                      (set (-> r iwide) 0)
                      (set (-> r tok) COCO_TK_INT)
                      (return 1))))
@@ -1155,33 +1316,42 @@
                     ((or (== p (coco-ch "b")) (== p (coco-ch "B"))) (set base 2)))
               (if (!= base 0)
                   (block (coco_bump r) (coco_bump r)
-                         (let ((u64 v . 0) (int n . 0) (int wide . 0))
-                           (while 1
-                             (let ((int c . #'(coco_peek r)) (int d . -1))
-                               (cond ((coco_is_digit c) (set d (- c (coco-ch "0"))))
-                                     ((coco-ch-between c "a" "f") (set d (+ 10 (- c (coco-ch "a")))))
-                                     ((coco-ch-between c "A" "F") (set d (+ 10 (- c (coco-ch "A"))))))
-                               (if (or (== d -1) (>= d base)) break)
-                               (if (not wide) (set wide (coco_mag_digit (aof v) (cast u64 base) (cast u64 d))))
-                               (set n (+ n 1))
-                               (coco_bump r)))
+                         (let ((u64 v . 0) (int n . #'(coco_lex_radix_digits r base (aof v))))
                            (if (== n 0) (return (coco_fail r "digits expected after radix prefix")))
-                           (coco_mag_token r v wide)
+                           (coco_mag_token r v (< n 0))
                            (return 1))))))
         ;; plain decimal, possibly a float, or a rational `N r D' (2.5.0):
         ;; SWI's one-token form, no spaces and no sign after the r
         (coco_sb_reset (aof (-> r text)))
-        (while (coco_is_digit (coco_peek r))
-          (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+        (let ((int grouped . 0))
+          (while 1
+            (while (coco_is_digit (coco_peek r))
+              (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
+            (if (not (coco_lex_group r 10)) break)
+            (set grouped 1))
+          ;; R'DIGITS (3.1.0): a radix written plain, 2 to 36, its quote and a
+          ;; digit of it -- `16'ff', `2'1010', `36'zz'
+          (if (and (not grouped) (== (coco_peek r) 39) (<= ($ (-> r text) len) 2))
+              (let ((int radix . #'(atoi ($ (-> r text) s))))
+                (if (and (>= radix 2) (<= radix 36)
+                         (>= (coco_radix_digit (coco_peek_at r 1) radix) 0))
+                    (let ((u64 v . 0) (int n . 0))
+                      (coco_bump r)
+                      (set n (coco_lex_radix_digits r radix (aof v)))
+                      (coco_mag_token r v (< n 0))
+                      (return 1)))))
+          (return (coco_lex_decimal_rest r grouped))))
+
+  ;;; The rest of a decimal number, its integer part's digits in the
+  ;;; reader's text (GROUPED when they came in groups): a rational's
+  ;;; denominator, a fraction, an exponent, or nothing more.
+  (static)
+  (func coco_lex_decimal_rest ((coco_reader * r) (int grouped)) (out int)
         (if (and (== (coco_peek r) (coco-ch "r")) (coco_is_digit (coco_peek_at r 1)))
             (block
               (coco_bump r)
-              (let ((u64 dv . 0) (int dwide . 0) (int nd . 0))
-                (while (coco_is_digit (coco_peek r))
-                  (set dwide (coco_mag_digit (aof dv) 10
-                                             (cast u64 (- (coco_peek r) (coco-ch "0")))))
-                  (set nd (+ nd 1))
-                  (coco_bump r))
+              (let ((u64 dv . 0) (int nd . #'(coco_lex_radix_digits r 10 (aof dv)))
+                    (int dwide . #'(< nd 0)))
                 (let ((u64 nv . 0) (int nwide . 0)
                       (const char * ds . #'($ (-> r text) s)))
                   (for ((size_t i . 0)) (and (not nwide) (!= (nth i ds) 0)) ((++ i))
@@ -1206,7 +1376,8 @@
                      (while (coco_is_digit (coco_peek r))
                        (coco_sb_putc (aof (-> r text)) (cast char (coco_peek r))) (coco_bump r))
                      (set tag (coco_float_tag r))))
-          (if (and (== tag 0) (or (== (coco_peek r) (coco-ch "e")) (== (coco_peek r) (coco-ch "E"))))
+          (if (and (== tag 0) (or isfloat (not grouped))
+                   (or (== (coco_peek r) (coco-ch "e")) (== (coco_peek r) (coco-ch "E"))))
               (let ((int off . 1))
                 (if (or (== (coco_peek_at r 1) (coco-ch "+")) (== (coco_peek_at r 1) (coco-ch "-")))
                     (set off 2))
@@ -1280,6 +1451,15 @@
             ((== c 34)
              (if (not (coco_lex_quoted r 34)) (return 0))
              (set (-> r tok) COCO_TK_STRING)
+             (return 1))
+
+            ;; 96, a backquote: `abc` is the codes of its text whatever
+            ;; `double_quotes' says, swipl's default `back_quotes' (3.1.0),
+            ;; and `quoted' 2 tells `coco_string_to_list' so
+            ((== c 96)
+             (if (not (coco_lex_quoted r 96)) (return 0))
+             (set (-> r tok) COCO_TK_STRING)
+             (set (-> r quoted) 2)
              (return 1))
 
             ;; the bracket family, plus the two solo characters that are
@@ -1568,7 +1748,8 @@
         (let ((coco_machine * m . #'(-> r m))
               (size_t n . #'($ (-> r text) len))
               (int mode . 0))
-          (set mode (-> m double_quotes))
+          ;; a backquoted text is codes (3.1.0)
+          (set mode (? (== (-> r quoted) 2) 0 (-> m double_quotes)))
           (if (== mode 3)
               (block (set (cof out) (coco_new_string m ($ (-> r text) s) n))
                      (return 1)))
@@ -1663,6 +1844,9 @@
 
   (func coco_read_clause ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
+        ;; the token in hand is this clause's first, or the one that would
+        ;; not read where this clause begins
+        (set (-> r cstart) (-> r tstart))
         (if (-> r failed) (return -1))
         (if (== (-> r tok) COCO_TK_EOF) (return 0))
         (let ((size_t t) (int p) (int ok . 0))
@@ -1673,9 +1857,88 @@
           (if (not ok) (return -1))
           (if (!= (-> r tok) COCO_TK_END)
               (block (coco_fail r "expected . ending a clause") (return -1)))
-          (if (not (coco_next_token r)) (return -1))
+          ;; THE CLAUSE IS READ WHOLE ONCE ITS FULL STOP IS (3.1.0): a token
+          ;; after it that will not read is the NEXT clause's error, which
+          ;; the next call answers -- through 3.0.4 it took this clause
+          ;; with it (`p(1). "a\q".' lost `p(1)'), as swipl's does not
+          (coco_next_token r)
           (set (cof out) t)
           (return 1)))
+
+  ;;; A SYNTAX ERROR SKIPS ITS CLAUSE (3.1.0), as swipl's does: swipl reads
+  ;;; a clause's text whole, up to its full stop, before it parses it, so a
+  ;;; clause that will not parse is passed over and the load goes on. Here
+  ;;; the walk starts where the clause began (`cstart', its first token's
+  ;;; first byte), not where the reader failed -- inside a quoted atom with
+  ;;; a bad escape the failing byte is in the quotes, and a walk from there
+  ;;; would take the closing quote for an opening one -- and stops past its
+  ;;; end: a `.' that is a token of its own -- no symbol character either
+  ;;; side of it -- and is followed by layout, a `%' or the end of the
+  ;;; text. Quoted text (`'', `"', a back quote, each with its escapes and
+  ;;; doubled quotes), `0'c' and both kinds of comment are walked over
+  ;;; whole, as swipl's raw reader walks them; a quote that never closes
+  ;;; runs to the end of the text.
+  (func coco_reader_resync ((coco_reader * r)) (out int)
+        (let ((const char * s . #'(-> r src)) (size_t n . #'(-> r len))
+              (size_t p . #'(-> r cstart)) (int done . 0))
+          (if (> p n) (set p n))
+          (while (and (not done) (< p n))
+            (let ((int c . #'(bitand (cast int (nth p s)) 255)))
+              (cond
+                ((== c (coco-ch "%"))
+                 (while (and (< p n) (!= (nth p s) (cast char 10))) (set p (+ p 1))))
+                ((and (== c (coco-ch "/")) (< (+ p 1) n) (== (nth (+ p 1) s) (cast char 42)))
+                 (set p (+ p 2))
+                 (while (and (< p n)
+                             (not (and (== (nth p s) (cast char 42)) (< (+ p 1) n)
+                                       (== (nth (+ p 1) s) (cast char 47)))))
+                   (set p (+ p 1)))
+                 (set p (? (< p n) (+ p 2) n)))
+                ;; ' " and the back quote
+                ((or (== c 39) (or (== c 34) (== c 96)))
+                 (let ((int closed . 0))
+                   (set p (+ p 1))
+                   (while (and (not closed) (< p n))
+                     (let ((int d . #'(bitand (cast int (nth p s)) 255)))
+                       (cond
+                         ((== d 92) (set p (+ p 2)))
+                         ((and (== d c) (< (+ p 1) n) (== (bitand (cast int (nth (+ p 1) s)) 255) c))
+                          (set p (+ p 2)))
+                         ((== d c) (set p (+ p 1)) (set closed 1))
+                         (#t (set p (+ p 1))))))
+                   (if (> p n) (set p n))))
+                ;; 0'c, where the 0 begins a number: the quote and the
+                ;; character after it, an escape's two or a doubled quote
+                ((and (== c (coco-ch "0")) (< (+ p 1) n) (== (nth (+ p 1) s) (cast char 39))
+                      (or (== p 0) (not (coco_is_alnum (bitand (cast int (nth (- p 1) s)) 255)))))
+                 (set p (+ p 2))
+                 (if (< p n)
+                     (cond
+                       ((== (nth p s) (cast char 92)) (set p (+ p 2)))
+                       ((and (== (nth p s) (cast char 39)) (< (+ p 1) n)
+                             (== (nth (+ p 1) s) (cast char 39)))
+                        (set p (+ p 2)))
+                       (#t (set p (+ p 1)))))
+                 (if (> p n) (set p n)))
+                ((coco_is_symbol c)
+                 (let ((size_t q . #'(+ p 1)))
+                   (while (and (< q n) (coco_is_symbol (bitand (cast int (nth q s)) 255)))
+                     (set q (+ q 1)))
+                   ;; the full stop: a `.' standing alone before layout,
+                   ;; a comment or the end
+                   (if (and (== q (+ p 1)) (== c (coco-ch "."))
+                            (or (== q n)
+                                (or (coco_is_space (bitand (cast int (nth q s)) 255))
+                                    (== (nth q s) (cast char 37)))))
+                       (set done 1))
+                   (set p q)))
+                (#t (set p (+ p 1))))))
+          (coco_reader_clear_vars r)
+          (set (-> r pos) p)
+          (set (-> r failed) 0)
+          (set (nth 0 (-> r err)) (cast char 0))
+          (set (-> r ewhat) nil)
+          (return (coco_next_token r))))
 
   (func coco_read_goal ((coco_reader * r) (size_t * out)) (out int)
         (coco_reader_clear_vars r)
@@ -1704,12 +1967,22 @@
   ;;; (3.0.0, swipl 9.0.4's): number_codes(N, " 12") is 12 and
   ;;; atom_number(' 12', N) and number_string(N, " 12") fail. Through
   ;;; 2.16.1 the sign was asked for no layout before IT, so "- 12" read
-  ;;; as -12 and " -12" as no number.
+  ;;; as -12 and " -12" as no number. STRICT is a sum: 1 the layout's
+  ;;; refusal, 2 (3.1.0, name/2's) an answer of 2 for an integer past 64
+  ;;; bits, which is a number swipl makes and this cannot -- 0 to any
+  ;;; caller that does not ask, as through 3.0.0. A character code with an
+  ;;; escape, `0'\n', is no number to any of them (3.1.0, swipl's: its
+  ;;; number readers take `0'a' and refuse the escape the reader reads).
   (func coco_read_number_text ((coco_machine * m) (const char * src) (int strict) (size_t * out)) (out int)
+        (let ((const char * p . src))
+          (while (and (!= (nth 0 p) 0) (coco_is_space (cast int (cast uchar (nth 0 p))))) (set p (+ p 1)))
+          (if (or (== (nth 0 p) (cast char 43)) (== (nth 0 p) (cast char 45))) (set p (+ p 1)))
+          (if (and (== (nth 0 p) (cast char 48)) (== (nth 1 p) (cast char 39)) (== (nth 2 p) (cast char 92)))
+              (return 0)))
         (let ((coco_reader r) (int ok . 0) (int neg . 0))
           (coco_reader_init (aof r) m src)
           (if ($ r failed) (block (coco_reader_free (aof r)) (return 0)))
-          (if (and strict ($ r layout_before))
+          (if (and (bitand strict 1) ($ r layout_before))
               (block (coco_reader_free (aof r)) (return 0)))
           (if (== ($ r tok) COCO_TK_NAME)
               (let ((const char * nm . #'($ r text s)))
@@ -1732,7 +2005,7 @@
             ((== ($ r tok) COCO_TK_INT)
              ;; iwide 1 is 2^63, which only the negative literal reaches
              (if (> ($ r iwide) (? neg 1 0))
-                 (block (coco_reader_free (aof r)) (return 0)))
+                 (block (coco_reader_free (aof r)) (return (? (bitand strict 2) 2 0))))
              (if (and neg (== ($ r iwide) 1))
                  (set (cof out) (coco_new_int m (- -9223372036854775807 1)))
                (set (cof out) (coco_new_int m (? neg (- 0 ($ r ival)) ($ r ival)))))
@@ -1784,9 +2057,8 @@
 
   ;;; A CONTROL CHARACTER THE READER HAS A LETTER FOR, under swipl's
   ;;; character escapes (2.2.5): 7 `\a', 8 `\b', 11 `\v', 12 `\f' and, for a
-  ;;; string, 13 `\r' -- the letter, or 0. The others, which swipl writes
-  ;;; `\x1\', are written as they are: this reader has no `\x..\' escape to
-  ;;; read one back.
+  ;;; string, 13 `\r' -- the letter, or 0. The others are written by their
+  ;;; code, `\x1\' or `\u0001' (`coco_write_escape', 3.1.0).
   (static) (inline)
   (func coco_escape_letter ((int c)) (out int)
         (cond ((== c 7) (return (coco-ch "a")))
@@ -1796,12 +2068,41 @@
               ((== c 13) (return (coco-ch "r")))
               (#t (return 0))))
 
+  ;;; WHETHER A QUOTED WRITE ESCAPES CODE CP (3.1.0, swipl's): a control
+  ;;; character with no letter (`coco_escape_letter' and the three the
+  ;;; writers spell themselves are the ones with), DEL, a C1 control and a
+  ;;; surrogate -- U+DC80..U+DCFF among them, a byte that was no UTF-8.
+  ;;; swipl escapes these in every locale; past them its quoted write is the
+  ;;; locale's (a UTF-8 one escapes what is no graph, U+00A0 and U+200B
+  ;;; among them), and this one writes the character.
+  (static) (inline)
+  (func coco_write_escaped ((i64 cp)) (out int)
+        (return (or (and (< cp 32) (!= cp 9) (!= cp 10) (!= cp 13) (== 0 (coco_escape_letter (cast int cp))))
+                    (and (>= cp 127) (<= cp 159))
+                    (and (>= cp 55296) (<= cp 57343)))))
+
+  ;;; CP as swipl's quoted write escapes it: writeq/1's `\x1\' and `\xD800\',
+  ;;; or, UNI (print/1's and write_term/2's, swipl's
+  ;;; character_escapes_unicode), `\u0001' and `\U0001F600'. The closing
+  ;;; backslash of the first is a character of its own (92): a Cicili string
+  ;;; may not end in one. A code is at most U+10FFFF, an int.
+  (static)
+  (func coco_write_escape ((coco_strbuf * b) (i64 cp) (int uni)) (out int)
+        (let ((char t [16]))
+          (cond ((not uni) (snprintf t 16 "\\x%X" (cast int cp)))
+                ((<= cp 65535) (snprintf t 16 "\\u%04X" (cast int cp)))
+                (#t (snprintf t 16 "\\U%08X" (cast int cp))))
+          (if (not (coco_sb_put b t)) (return 0))
+          (if (not uni) (return (coco_sb_putc b (cast char 92))))
+          (return 1)))
+
   ;;; QUOTED is the write's mode word, of which this reads quoted (1) and
   ;;; swipl's character escapes (16, 2.2.5): with them a quote inside is
   ;;; `\'' and a control character with a letter is the letter
-  ;;; (`coco_escape_letter') -- writeq/1's `'don\'t'' -- and without, the
-  ;;; quote is doubled, `'don''t'', as term_to_atom/2 writes it in swipl
-  ;;; too and as the store, a channel and a message always have.
+  ;;; (`coco_escape_letter') -- writeq/1's `'don\'t'' -- one with none its
+  ;;; code (`coco_write_escaped', in the form 64 asks for: 3.1.0); and
+  ;;; without, the quote is doubled, `'don''t'', as term_to_atom/2 writes it
+  ;;; in swipl too and as the store, a channel and a message always have.
   (static)
   (func coco_write_atom ((coco_strbuf * b) (const char * name) (int quoted)) (out int)
         ;; 32 is the functor's force: `{}` and `[]` stand alone unquoted,
@@ -1812,7 +2113,7 @@
                 (and (== 0 (bitand quoted 32)) (not (coco_atom_needs_quotes name))))
             (return (coco_sb_put b name)))
         (if (not (coco_sb_putc b (cast char (coco-ch "'")))) (return 0))
-        (let ((int esc . #'(bitand quoted 16)))
+        (let ((int esc . #'(bitand quoted 16)) (int uni . #'(bitand quoted 64)) (size_t n . 0))
           (for ((size_t i . 0)) (!= (nth i name) (cast char 0)) ((++ i))
             (let ((int c . #'(cast int (cast uchar (nth i name)))))
               (cond
@@ -1829,6 +2130,17 @@
                 ((and esc (!= 0 (coco_escape_letter c)))
                  (coco_sb_putc b (cast char 92))
                  (coco_sb_putc b (cast char (coco_escape_letter c))))
+                ((and esc (< c 128) (coco_write_escaped c)) (coco_write_escape b c uni))
+                ;; past ASCII a character, of however many bytes, is asked
+                ;; whether it is one to escape, and copied whole when not
+                ((and esc (>= c 128))
+                 (block
+                   (if (== n 0) (set n (strlen name)))
+                   (let ((size_t j . i) (i64 cp . #'(coco_utf8_get name n (aof j))))
+                     (if (coco_write_escaped cp)
+                         (coco_write_escape b cp uni)
+                         (for ((size_t k . i)) (< k j) ((++ k)) (coco_sb_putc b (nth k name))))
+                     (set i (- j 1)))))
                 (#t (coco_sb_putc b (cast char c)))))))
         (return (coco_sb_putc b (cast char (coco-ch "'")))))
 
@@ -1864,7 +2176,7 @@
   (func coco_write_list ((coco_machine * m) (coco_strbuf * b) (size_t t)
                        (int mode) (u32 depth)) (out int)
         (coco_sb_putc b (cast char (coco-ch "[")))
-        (let ((int first . 1) (int kids . #'(bitand mode 27))
+        (let ((int first . 1) (int kids . #'(bitand mode 219))
               (size_t kept . #'(cast size_t -1)) (size_t lam . 0) (size_t power . 1024))
           (while 1
             (set t (coco_deref m t))
@@ -1941,28 +2253,33 @@
                         (int mode) (int maxprec) (u32 depth)) (out int)
         (let ((const char * name . #'(coco_atom_name m (coco_name_of m t)))
               (u32 n . #'(coco_arity m t))
-              ;; what an atom of it reads: quoted 1 and escapes 16
-              (int quoted . #'(bitand mode 17))
+              ;; what an atom of it reads: quoted 1, escapes 16 and their
+              ;; form 64 (3.1.0)
+              (int quoted . #'(bitand mode 81))
               ;; what this write's operands and arguments carry down:
-              ;; quoted 1, ignore_ops 2, numbervars 8 and escapes 16 (the
-              ;; operand's 4 is each operand's own)
-              (int kids . #'(bitand mode 27)))
+              ;; quoted 1, ignore_ops 2, numbervars 8, escapes 16 and 64,
+              ;; write_canonical/1's braces 128 (the operand's 4 is each
+              ;; operand's own)
+              (int kids . #'(bitand mode 219)))
 
           ;; numbervars (2.2.4): `'$VAR'(N)' as the variable it names
           (if (and (!= 0 (bitand mode 8)) (== n 1) (== 0 (strcmp name "$VAR"))
                    (coco_write_numbervar m b (coco_arg m t 0)))
               (return 1))
 
+          ;; LISTS AND CURLY TERMS HAVE THEIR OWN SURFACE SYNTAX, with the
+          ;; operators ignored too (3.1.0, swipl's: `[a,b|c]', `{x}';
+          ;; through 3.0.0 `'.'(a,'.'(b,c))' and `'{}'(x)') -- save a curly
+          ;; term under write_canonical/1 (128), `{}(x)' as swipl writes it
+          (if (coco_is_cons m t)
+              (return (coco_write_list m b t mode depth)))
+          (if (and (== n 1) (== 0 (bitand mode 128)) (== 0 (strcmp name "{}")))
+              (block (coco_sb_putc b (cast char (coco-ch "{")))
+                     (coco_write_rec m b (coco_arg m t 0) kids 1200 (+ depth 1))
+                     (return (coco_sb_putc b (cast char (coco-ch "}"))))))
+
           (if (== 0 (bitand mode 2))
               (block
-               ;; lists and curly terms have their own surface syntax
-               (if (coco_is_cons m t)
-                   (return (coco_write_list m b t mode depth)))
-               (if (and (== n 1) (== 0 (strcmp name "{}")))
-                   (block (coco_sb_putc b (cast char (coco-ch "{")))
-                          (coco_write_rec m b (coco_arg m t 0) kids 1200 (+ depth 1))
-                          (return (coco_sb_putc b (cast char (coco-ch "}"))))))
-
                (let ((int prec) (int type))
                  ;; infix
                  (if (and (== n 2) (coco_op_infix name (aof prec) (aof type)))
@@ -2052,8 +2369,12 @@
                        (if paren (coco_sb_putc b (cast char (coco-ch ")"))))
                        (return 1))))))
 
-          ;; canonical application
-          (if (or (== 0 (strcmp name "{}")) (== 0 (strcmp name "[]")))
+          ;; canonical application: `'[]'(X)' quoted, as swipl's, and `{}'
+          ;; as swipl writes it, `{}(a,b)', in a write a program asks for
+          ;; (16, 3.1.0: the reader takes it back since); the engine's own
+          ;; quoted text keeps `'{}'(a,b)', which an older reader takes
+          (if (or (== 0 (strcmp name "[]"))
+                  (and (== (bitand mode 17) 1) (== 0 (strcmp name "{}"))))
               (coco_write_atom b name (bitor quoted 32))
             (coco_write_atom b name quoted))
           (coco_sb_putc b (cast char (coco-ch "(")))
@@ -2077,18 +2398,40 @@
             (block (coco_write_stop m) (return 1)))
         (return (coco_write_fun m b t mode maxprec depth)))
 
+  ;;; A VARIABLE OF A WRITE THAT NAMES THEM, out of line (an unnamed one is
+  ;;; the writer's common case): write_canonical/1's `_' and `A' ... `Z',
+  ;;; `A1' ... from the map `coco_write_canon' filled (`wcanon', 3.1.0),
+  ;;; else write_term/2's variable_names or a cyclic write's S_N, else, as
+  ;;; any other write, `_G' and the cell.
+  (weak)
+  (func coco_write_named_var ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (if (!= (-> m wcanon) nil)
+            (let ((size_t v . 0))
+              (if (and (coco_varmap_get (cast (coco_varmap *) (-> m wcanon)) t (aof v)) (>= v 1))
+                  (block
+                    (if (== v 1) (return (coco_sb_putc b (cast char 95))))
+                    (let ((size_t j . #'(- v 2)))
+                      (if (not (coco_sb_putc b (cast char (+ 65 (% j 26))))) (return 0))
+                      (if (>= j 26) (return (coco_sb_put_i64 b (cast i64 (/ j 26)))))
+                      (return 1))))
+              (coco_sb_put b "_G")
+              (return (coco_sb_put_i64 b (cast i64 t)))))
+        (for ((size_t i . 0)) (< i (-> m nwnames)) ((++ i))
+          (if (== (nth i (-> m wcells)) t)
+              (return (coco_sb_put b (coco_atom_name m (nth i (-> m wnames)))))))
+        (coco_sb_put b "_G")
+        (return (coco_sb_put_i64 b (cast i64 t))))
+
   (func coco_write_rec ((coco_machine * m) (coco_strbuf * b) (size_t t)
                       (int mode) (int maxprec) (u32 depth)) (out int)
         (set t (coco_deref m t))
         (let ((u64 c . #'(nth t (-> m heap))))
           (cond
             ;; an unbound variable prints by its cell, which is stable for as
-            ;; long as the machine lives and unique across it -- unless
-            ;; write_term/2's variable_names gave it a name for this write
+            ;; long as the machine lives and unique across it -- unless this
+            ;; write names its variables (`coco_write_named_var')
             ((coco-tag-is REF c)
-             (for ((size_t i . 0)) (< i (-> m nwnames)) ((++ i))
-               (if (== (nth i (-> m wcells)) t)
-                   (return (coco_sb_put b (coco_atom_name m (nth i (-> m wnames)))))))
+             (if (!= (-> m nwnames) 0) (return (coco_write_named_var m b t)))
              (coco_sb_put b "_G")
              (return (coco_sb_put_i64 b (cast i64 t))))
 
@@ -2157,6 +2500,15 @@
                                   (!= 0 (coco_escape_letter (cast int ch))))
                              (coco_sb_putc b (cast char 92))
                              (coco_sb_putc b (cast char (coco_escape_letter (cast int ch)))))
+                            ;; and a character to escape by its code, of
+                            ;; however many bytes (3.1.0, `coco_write_atom')
+                            ((and (!= 0 (bitand mode 16))
+                                  (or (< (cast uchar ch) 32) (>= (cast uchar ch) 127)))
+                             (let ((size_t j . i) (i64 cp . #'(coco_utf8_get sp sn (aof j))))
+                               (if (coco_write_escaped cp)
+                                   (coco_write_escape b cp (bitand mode 64))
+                                   (for ((size_t k . i)) (< k j) ((++ k)) (coco_sb_putc b (nth k sp))))
+                               (set i (- j 1))))
                             (#t (coco_sb_putc b ch)))))
                (coco_sb_putc b (cast char 34))
                (return 1)))
@@ -2185,12 +2537,12 @@
                (if (and (!= 0 (bitand mode 1))
                         (and (== (nth 0 name) (cast char 91))
                              (coco_atom_is_tnil m (coco_name_of m t))))
-                   (return (coco_write_atom b name (bitor (bitand mode 17) 32))))
+                   (return (coco_write_atom b name (bitor (bitand mode 81) 32))))
                (if (and (!= 0 (bitand mode 4)) (coco_op_is_any name))
                    (block (coco_sb_putc b (cast char (coco-ch "(")))
-                          (coco_write_atom b name (bitand mode 17))
+                          (coco_write_atom b name (bitand mode 81))
                           (return (coco_sb_putc b (cast char (coco-ch ")"))))))
-               (return (coco_write_atom b name (bitand mode 17)))))
+               (return (coco_write_atom b name (bitand mode 81)))))
 
             ;; a compound, unless it is deep enough to be asked whether it is
             ;; a cycle -- or a cycle was found
@@ -2239,7 +2591,8 @@
   ;;; factors. The guard's state is the machine's between writes (WDEEP
   ;;; 1024, WCYC 0) and is put back here, so a write that meets no cycle
   ;;; pays a load and a branch for it. MODE is the writer's word without the
-  ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8, character escapes 16.
+  ;;; operand's 4: quoted 1, ignore_ops 2, numbervars 8, character escapes 16,
+  ;;; their unicode form 64, write_canonical/1's curly terms 128.
   (static) (inline)
   (func coco_write_top ((coco_machine * m) (coco_strbuf * b) (size_t t)
                         (int mode) (int named)) (out int)
@@ -2268,10 +2621,68 @@
   (func coco_write_canonical ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
         (return (coco_write_top m b t 1 0)))
 
+  ;;; The term's variables in the order a write meets them, a compound's
+  ;;; arguments left to right, each mapped in VM to 1 when met once and to
+  ;;; 2 when met again, and then the ones met again to 2 + J, J counting
+  ;;; them in that order. 0 when a table could not grow.
+  (static)
+  (func coco_canon_vars ((coco_machine * m) (size_t t) (coco_varmap * vm)) (out int)
+        (let ((size_t * wl . nil) (size_t wlen . 0) (size_t wcap . 0)
+              (size_t * vars . nil) (size_t nv . 0) (size_t vcap . 0)
+              (int ok . 1) (size_t j . 0))
+          (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) t)) (set ok 0))
+          (while (and ok (> wlen 0))
+            (set wlen (- wlen 1))
+            (let ((size_t a . #'(coco_deref m (nth wlen wl))) (size_t seen . 0))
+              (cond
+                ((coco-tag-is REF (nth a (-> m heap)))
+                 (cond
+                   ((coco_varmap_get vm a (aof seen))
+                    (if (and (== seen 1) (not (coco_varmap_put vm a 2))) (set ok 0)))
+                   ((not (coco_varmap_put vm a 1)) (set ok 0))
+                   ((not (coco_cells_push (aof vars) (aof nv) (aof vcap) a)) (set ok 0))
+                   (#t (block))))
+                ((coco-tag-is FUN (nth a (-> m heap)))
+                 (for ((u32 i . #'(coco_arity m a))) (> i 0) ((set i (- i 1)))
+                   (if (not (coco_cells_push (aof wl) (aof wlen) (aof wcap) (coco_arg m a (- i 1))))
+                       (set ok 0))))
+                (#t (block)))))
+          (for ((size_t i . 0)) (and ok (< i nv)) ((++ i))
+            (let ((size_t seen . 0))
+              (if (and (coco_varmap_get vm (nth i vars) (aof seen)) (== seen 2))
+                  (block (if (not (coco_varmap_put vm (nth i vars) (+ 2 j))) (set ok 0))
+                         (set j (+ j 1))))))
+          (free wl) (free vars)
+          (return ok)))
+
+  ;;; write_canonical/1 AND `~k' AS swipl's (3.1.0): quoted with swipl's
+  ;;; character escapes, operators ignored and a curly term functional
+  ;;; (147: `-(1,2)', `-(1)', `{}(x)'; a list is `[a|b]'),
+  ;;; no numbervars (`'$VAR'(1)' as it is), and each variable named by
+  ;;; when the write meets it: one met once `_', the others `A' ... `Z',
+  ;;; `A1' ... (`f(A,_,A)'). A cyclic term is written in its factors with
+  ;;; their variables as they are, as swipl's is. Through 3.0.0 operators
+  ;;; were kept and a variable was `_G' and its cell. The engine's own
+  ;;; canonical text is `coco_write_canonical''s.
+  (func coco_write_canon ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
+        (if (or (!= (-> m nwnames) 0) (== 0 (coco_acyclic m t)))
+            (return (coco_write_top m b t 147 0)))
+        (let ((coco_varmap vm . '{ nil nil 0 0 0 }) (int rc . 0))
+          (coco_varmap_take m (aof vm))
+          (if (not (coco_canon_vars m t (aof vm)))
+              (block (coco_varmap_give m (aof vm)) (set (-> m oom) 1) (return 0)))
+          (set (-> m wcanon) (cast (void *) (aof vm)))
+          (set (-> m nwnames) 1)
+          (set rc (coco_write_top m b t 147 0))
+          (set (-> m wcanon) nil)
+          (set (-> m nwnames) 0)
+          (coco_varmap_give m (aof vm))
+          (return rc)))
+
   ;;; print/1 and `~p': quoted, numbervars and swipl's character escapes
   ;;; (25; 9 in 2.2.4, `'don''t'')
   (func coco_write_print ((coco_machine * m) (coco_strbuf * b) (size_t t)) (out int)
-        (return (coco_write_top m b t 25 1)))
+        (return (coco_write_top m b t 89 1)))
 
   (func coco_write_mode ((coco_machine * m) (coco_strbuf * b) (size_t t)
                          (int mode) (int named)) (out int)

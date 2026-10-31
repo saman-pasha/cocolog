@@ -98,7 +98,15 @@ laws :-
     check('a ceiling of zero is refused, not read as unlimited', G3, refused),
     written(catch(call_metered(true, plenty, _, _), error(E4, _),
                   ( E4 = type_error(integer, _) -> W4 = type_error ; W4 = other )), W4, G4),
-    check('a non-integer ceiling is a type error', G4, type_error).
+    check('a non-integer ceiling is a type error', G4, type_error),
+    %% ONE SOLUTION KEPT, THE REST CUT (3.1.0): what the goal left is cut as
+    %% the meter returns, so a cleanup it left pending runs then, by a cut
+    written(( call_metered(setup_call_catcher_cleanup(true, member(_, [a, b]), C5,
+                                                      nb_setval(meter_cleanup, C5)),
+                           10000, _, _),
+              ( nb_current(meter_cleanup, W5) -> true ; W5 = not_run ) ), W5, G5),
+    check('a cleanup the goal left pending runs as the meter returns, by a cut',
+          G5, '!').
 
 throwing :-
     section('a goal that throws, and how a caller charges for one anyway'),

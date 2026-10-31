@@ -17,11 +17,16 @@
 %% ---- D3/T1: a use_module for a tier-1 library, which is a no-op -------
 :- use_module(library(lists)).   % cocolint: T1 -- walked into on purpose
 
-%% ---- N3: a control construct, at any arity ----------------------------
-once(_, _) :- true.   % cocolint: N3 -- walked into on purpose
+%% ---- N3: a construct the step runs in place, so this is dead code -----
+%% (not an ISO one: since 3.1.0 the load refuses its clauses and says so;
+%% nor once/2, a predicate like any other, which this line used to be)
+'*->'(_, _) :- true.   % cocolint: N3 -- walked into on purpose
 
-%% ---- N2: dispatched before the store, so these clauses are dead code --
-memberchk(X, [X|_]).   % cocolint: N2 -- walked into on purpose
+%% ---- N2: a loaded module answers first, so these clauses are dead code --
+%% (not a name of the engine's any more: since 3.1.0 a program file's
+%% memberchk/2, which this line used to be, takes the builtin over)
+:- use_module(library(tcp)).
+tcp_connect(_, _).   % cocolint: N2 -- walked into on purpose
 
 %% ---- N1: a clause-defined tier-1 name; consult APPENDS ----------------
 subtract([], _, []).   % cocolint: N1 -- walked into on purpose
@@ -34,8 +39,10 @@ selftest_main :-
     %% ---- F1: the column directives, refused by name -------------------
     format(atom(_), "~t~20|x", []),   % cocolint: F1 -- walked into on purpose
 
-    %% ---- W1: write_canonical KEEPS operators here ---------------------
-    write_canonical(a+b),   % cocolint: W1 -- walked into on purpose
+    %% ---- W1 IS GONE, and this is where it was -------------------------
+    %% write_canonical/1 kept operators and named variables `_G12'. Since
+    %% 3.1.0 it is swipl's -- operators ignored, variables `A' and `_' --
+    %% and the row is retired.
 
     %% ---- G1: b_setval IS nb_setval ------------------------------------
     b_setval(k, 1),   % cocolint: G1 -- walked into on purpose
@@ -66,7 +73,8 @@ selftest_main :-
     open('f.txt', read, _Stream),   % cocolint: X2 -- walked into on purpose
 
     %% ---- X3: absent, deliberately, so ported code errors --------------
-    setup_call_cleanup(true, true, true),   % cocolint: X3 -- walked into on purpose
+    %% (setup_call_cleanup/3 left the row at 3.1.0: it is swipl's now)
+    predsort(compare, [b, a], _),   % cocolint: X3 -- walked into on purpose
 
     %% ---- P1: ten flags answer, and this is none of them ---------------
     current_prolog_flag(occurs_check, _B),   % cocolint: P1 -- walked into on purpose
@@ -74,9 +82,10 @@ selftest_main :-
     %% ---- L1: a list cell is '.'/2 here --------------------------------
     functor(_T2, '[|]', 2),   % cocolint: L1 -- walked into on purpose
 
-    %% ---- E1: not in the reader's escape set ---------------------------
-    atom_codes(_A, 'a\x41\b'),   % cocolint: E1 -- walked into on purpose
-    N = 1_000_000, write(N),   % cocolint: E1 -- walked into on purpose
+    %% ---- E1 IS GONE, and this is where it was -------------------------
+    %% \xHH\, \NNN\, \uXXXX, \e, \s, backquotes, 16'FF and 1_000_000 were
+    %% syntax errors that refused the whole file. The reader takes every
+    %% one of them since 3.1.0, as swipl's does, and the row is retired.
 
     %% ---- H1 IS NOT A PATTERN ANY MORE, and this is where it was --------
     %% It fired on every halt, saying a proof that halts reports no solution

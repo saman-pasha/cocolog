@@ -125,6 +125,12 @@ fixtures(module_context, Sandbox) :- !,
     md5_fixture(built(So)),
     atom_concat(Sandbox, '/library', Lib),
     shl(['mkdir -p ', Lib, ' && cp ', So, ' ', Lib, '/md5.so']).
+%% three files in a directory, a fourth in one below it
+fixtures(absolute_file_name, Sandbox) :- !,
+    shl(['mkdir -p ', Sandbox, '/d1/sub']),
+    atom_concat(Sandbox, '/d1/a.pl', A), fixture(A, ['a.']),
+    atom_concat(Sandbox, '/d1/b.txt', B), fixture(B, ['b']),
+    atom_concat(Sandbox, '/d1/sub/c.pl', C), fixture(C, ['c.']).
 fixtures(_, _).
 
 %% WHAT A CASE NEEDS THAT A BOX MAY NOT HAVE, the case skipped by name where
@@ -263,6 +269,13 @@ libs_for(Root, C, Text) :-
     findall(P, ( member(L, Ls), sh_join([Root, '/lib/swipl/', L, '.pl '], P) ), Ps),
     atomic_list_concat(Ps, Text).
 
+%% The checkout, with no slash at its end: working_directory/2 answers one,
+%% and a path joined to it with another reads `//', which a load's report
+%% names as given where swipl names the file's own path.
+checkout(Root) :-
+    working_directory(W, W),
+    ( atom_concat(Root, '/', W) -> true ; Root = W ).
+
 %% One run of one system in a clean sandbox.
 run_one(Sandbox, C, Cmd, Text) :-
     shl(['rm -rf ', Sandbox, ' && mkdir -p ', Sandbox]),
@@ -271,7 +284,7 @@ run_one(Sandbox, C, Cmd, Text) :-
     shell(InSandbox, Text, _).
 
 one_case(Swipl, Sandbox, C) :-
-    working_directory(Root, Root),
+    checkout(Root),
     sh_join([Root, '/test/files/', C, '.pl'], Pl),
     (   exists_file(Pl), unready(C, Why)
     ->  format("     ~w: skipped (~w)~n", [C, Why])

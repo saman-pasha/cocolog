@@ -14,7 +14,8 @@
 #
 # NO BASELINE SUBTRACTION. The design provided for one; measured, the tier-1
 # baseline is EMPTY -- an otherwise-bare candidate yields its own predicates
-# and coco_oracle/0, nothing else -- so there is nothing to subtract.
+# and coco_oracle/0 and coco_oracle_names/1, nothing else -- so there is
+# nothing to subtract.
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
@@ -44,7 +45,7 @@ case "$OUT" in
 esac
 
 VISIBLE=$(printf '%s\n' "$OUT" | sed -n 's/^coco_oracle_name \(.*\) \([0-9][0-9]*\)$/\1\/\2/p' \
-          | grep -v '^coco_oracle/0$' | sort -u)
+          | grep -v -e '^coco_oracle/0$' -e '^coco_oracle_names/1$' | sort -u)
 
 # DECLARED comes from the same clause reader the linter uses, so the two halves
 # cannot disagree about what a DCG head's arity is.
