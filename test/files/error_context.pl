@@ -13,9 +13,9 @@
 %% Left out, and why: cocolog's own text_concat/3, append_file_from_codes/2
 %% and write_file_from_codes/2, which swipl 9.0.4 has not;
 %% current_prolog_flag(_, _) and get_time(_), whose first answers are each
-%% system's own; the writers, term_to_atom/2 and term_string/2 of an
-%% unbound term, which write the variable's name; and last(_, _), which
-%% fails here where swipl answers [_] (stated in STATUS.md, 3.0.0).
+%% system's own; and the writers, term_to_atom/2 and term_string/2 of an
+%% unbound term, which write the variable's name. last(_, _), which failed
+%% here where swipl answers [_], is in since 3.0.1.
 
 :- set_prolog_flag(double_quotes, codes).
 
@@ -174,6 +174,7 @@ p(is_absolute_file_name(_)).
 p(is_list(f(x))).
 p(is_list(_)).
 p(last(f(x),f(x))).
+p(last(_,_)).
 p(length(f(x),f(x))).
 p(length(_,_)).
 p(make_directory(f(x))).
