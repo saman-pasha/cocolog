@@ -670,29 +670,62 @@
   (func coco_decl_kind ((int kind)) (out const char *)
         (if (== kind 1) (return "discontiguous"))
         (if (== kind 2) (return "multifile"))
+        (if (== kind 3) (return "public"))
+        (if (== kind 4) (return "volatile"))
+        (if (== kind 5) (return "module_transparent"))
+        (if (== kind 6) (return "thread_local"))
         (return "dynamic"))
+
+  ;;; The kind a declaration's name is (3.2.0: the four after multifile/1,
+  ;;; swipl's), or -1.
+  (func coco_decl_kind_of ((const char * name)) (out int)
+        (if (== 0 (strcmp name "dynamic")) (return 0))
+        (if (== 0 (strcmp name "discontiguous")) (return 1))
+        (if (== 0 (strcmp name "multifile")) (return 2))
+        (if (== 0 (strcmp name "public")) (return 3))
+        (if (== 0 (strcmp name "volatile")) (return 4))
+        (if (== 0 (strcmp name "module_transparent")) (return 5))
+        (if (== 0 (strcmp name "thread_local")) (return 6))
+        (return -1))
 
   ;;; ONE INDICATOR DECLARED (3.1.0), what each part of a spec that passed
   ;;; its checks makes: KIND 0 dynamic/1 (`coco_pred_dynamic', remembered
   ;;; for the fresh stores of `run_isolated/2'), 1 discontiguous/1 and 2
-  ;;; multifile/1 the predicate defined (`declared'). A name the engine or a
-  ;;; compiled-in module implements, and which is not ISO, is the PROGRAM's
-  ;;; from here on (`coco_pred_take_over'), as swipl makes a user's
-  ;;; declaration of a system predicate a local one, which a call then
-  ;;; finds with no clauses -- unless a library's load muted the store. 1
-  ;;; declared, 0 out of memory, -1 the backend refused it (`write_err').
+  ;;; multifile/1 the predicate defined (`declared'); 3 public/1, 4
+  ;;; volatile/1 and 5 module_transparent/1 an attribute and no more
+  ;;; (`pattrs', 3.2.0), and 6 thread_local/1 dynamic/1's with two -- every
+  ;;; dynamic predicate is the thread's own here, a thread having a store of
+  ;;; its own. A name the engine or a compiled-in module implements, and
+  ;;; which is not ISO, is the PROGRAM's from here on (`coco_pred_take_over'),
+  ;;; as swipl makes a user's declaration of a system predicate a local
+  ;;; one, which a call then finds with no clauses -- unless a library's
+  ;;; load muted the store -- save by an attribute alone, which leaves it
+  ;;; the system's, as swipl's public/1 does. 1 declared, 0 out of memory,
+  ;;; -1 the backend refused it (`write_err').
   (func coco_decl_pi ((coco_store * st) (coco_machine * m) (u64 nid) (u32 n) (int kind)) (out int)
         (let ((size_t pi . 0) (int ok . 1) (size_t head . 0))
-          (if (== kind 0)
-              (block
-                (set ok (coco_pred_dynamic st nid n))
-                (if (!= ok 1) (return ok))
-                (coco_dynamic_remember (coco_atom_name m nid) n))
-              (block
-                (set pi (coco_pred_intern st nid n))
-                (if (>= pi (-> st npreds)) (return 0))
-                (set ($ (nth pi (-> st preds)) declared)
-                     (bitor ($ (nth pi (-> st preds)) declared) (? (== kind 2) 2 1)))))
+          (cond
+            ((or (== kind 0) (== kind 6))
+             (set ok (coco_pred_dynamic st nid n))
+             (if (!= ok 1) (return ok))
+             (coco_dynamic_remember (coco_atom_name m nid) n)
+             (if (== kind 6)
+                 (block
+                   (set pi (coco_pred_intern st nid n))
+                   (if (>= pi (-> st npreds)) (return 0))
+                   (set ($ (nth pi (-> st preds)) pattrs)
+                        (bitor ($ (nth pi (-> st preds)) pattrs) 10)))))
+            ((or (== kind 1) (== kind 2))
+             (set pi (coco_pred_intern st nid n))
+             (if (>= pi (-> st npreds)) (return 0))
+             (set ($ (nth pi (-> st preds)) declared)
+                  (bitor ($ (nth pi (-> st preds)) declared) (? (== kind 2) 2 1))))
+            (#t
+             (set pi (coco_pred_intern st nid n))
+             (if (>= pi (-> st npreds)) (return 0))
+             (set ($ (nth pi (-> st preds)) pattrs)
+                  (bitor ($ (nth pi (-> st preds)) pattrs) (? (== kind 3) 1 (? (== kind 4) 2 4))))
+             (return 1)))
           (if (and (or (not (coco_store_is_muted st)) (-> st ownload))
                    (== (coco_claim_kind m nid n) 1))
               (block
@@ -843,14 +876,15 @@
           ;; predicate indicator. Through
           ;; 3.0.4 discontiguous and multifile were accepted and ignored, and
           ;; dynamic gave up at a spec's first fault in words of its own.
+          ;; and swipl's other four (3.2.0): public, volatile,
+          ;; module_transparent and thread_local, the last always the goal's
+          ;; way, which refuses a predicate that has clauses already
           (if (== n 1)
-              (let ((int kind . -1))
-                (if (== 0 (strcmp name "dynamic")) (set kind 0))
-                (if (== 0 (strcmp name "discontiguous")) (set kind 1))
-                (if (== 0 (strcmp name "multifile")) (set kind 2))
+              (let ((int kind . #'(coco_decl_kind_of name)))
                 (if (>= kind 0)
                     (block
-                      (if (or (coco_decl_plain m (coco_arg m g 0)) (== coco_goal_hook nil))
+                      (if (or (and (!= kind 6) (coco_decl_plain m (coco_arg m g 0)))
+                              (== coco_goal_hook nil))
                           (return (coco_dynamic_spec st m (coco_arg m g 0) kind err errlen)))
                       ;; nothing of the term is read after it, so it may
                       ;; collect as it stands

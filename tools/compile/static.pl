@@ -222,6 +222,8 @@ sf_control(true, []).
 sf_control(!, []).
 sf_control((A, B), [A, B]).
 sf_control((A ; B), [A, B]).
+%% the bar, '|'/2 as the reader reads it (cocolog 3.2.0), is `;'
+sf_control('|'(A, B), [A, B]).
 sf_control((A -> B), [A, B]).
 sf_control((A *-> B), [A, B]).
 sf_control(\+ A, [A]).

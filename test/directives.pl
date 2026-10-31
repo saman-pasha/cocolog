@@ -161,10 +161,12 @@ syntax_error(D) :-
     %% WHERE AND WHY, IN SWI'S SHAPE (1.11.9): the file, the line, the
     %% column from 0 of the token it failed at, and the reason -- where
     %% 1.11.8 said `syntax error at offset 14', a byte offset. Here the
-    %% reader stops at the `:-', which no argument can hold (swipl reads on
-    %% to the `.'); under_swipl/1 holds the place to swipl's in files where
+    %% reader stops at the `.', where swipl's does: an argument is read to
+    %% 1200 (3.2.0), so `x :-' is the start of one, and its right side is
+    %% missing (through 3.1.0 it stopped at the `:-', no argument then
+    %% holding it); under_swipl/1 holds the place to swipl's in files where
     %% the two stop at one token.
-    atomic_list_concat(['ERROR: ', F, ':2:4: Syntax error: expected ) closing an argument list'], W1),
+    atomic_list_concat(['ERROR: ', F, ':2:7: Syntax error: expected a term'], W1),
     has('run names the file, the line, the column and the reason', W1, Out),
     atomic_list_concat(['ERROR: ', F, ':6:7: Syntax error: '], W1b),
     has('and so each later one, where swipl places it', W1b, Out),

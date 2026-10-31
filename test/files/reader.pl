@@ -34,10 +34,10 @@ main :-
     ( [-|_] = [HL|_], atom(HL) -> s(operator_in_a_list_head, HL) ; s(operator_in_a_list_head, no) ),
     shape(negation_of_prefix, \+ - a),
     shape(minus_of_number, - (1)),
-    %  NOT `dynamic foo' as an argument: `dynamic' is fx 1150 and an argument
-    %  is read at 999, so it needs brackets. SWI is lenient about that and this
-    %  reader is not, which is a priority rule and not the lookahead this file
-    %  is about.
+    %  `dynamic foo' in brackets: `dynamic' is fx 1150, and through 3.1.0 an
+    %  argument was read at 999, where SWI reads it to 1200. Both read it bare
+    %  since 3.2.0 (test/files/read_priority.pl); that is a priority rule and
+    %  not the lookahead this file is about.
     shape(alpha_prefix, (dynamic foo)),
     ( X = -, atom(X) -> s(bare_at_end, yes) ; s(bare_at_end, no) ),
     ( T = [-], T = [E], atom(E) -> s(sole_list_element, yes) ; s(sole_list_element, no) ),

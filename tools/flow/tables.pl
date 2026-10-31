@@ -95,6 +95,7 @@ ft_construct_arities(!, [0]).
 ft_construct_arities(;, [2]).
 ft_construct_arities(->, [2]).
 ft_construct_arities(*->, [2]).
+ft_construct_arities('|', [2]).
 ft_construct_arities(\+, [1]).
 ft_construct_arities(not, [1]).
 ft_construct_arities(once, [1]).

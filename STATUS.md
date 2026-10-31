@@ -9237,3 +9237,171 @@ NOT DONE, and stated (the probe's remaining differences, next):
 - library(stream)'s errors are not yet swipl's terms.
 - A load gives no warning for a singleton variable, nor for clauses not
   together (cocolint does).
+
+## The reader reads as swipl's: arguments to 1200, the bar an operator, and swipl's declarations (3.2.0)
+
+The owner's ask goes on ("fix the remaining swipl differences too"), and
+3.1.0's list of what was left named the reader's: swipl's declaration
+operators were no operators, so `:- public p/1.' was a syntax error and the
+clause was skipped. The probe of the reader beside it found two more, both
+older than the probe: an argument and a list element were read at ISO's 999,
+where swipl's reader takes 1200, and the bar was `;' wherever it stood. Each
+is swipl 9.0.4's now, held by five new cases that run under both systems and
+compare the output byte for byte. A minor, cocolog 3.2.0: a program that
+writes `f(a :- b)', `:- table p/2.' or `a | b' reads now, and reads as
+swipl's.
+
+WHAT CHANGED:
+- AN ARGUMENT, A LIST ELEMENT AND A CURLY TERM ARE READ TO 1200 (swipl's
+  non-ISO reader): `f(a :- b)', `[a :- b]', `f(:- a)', `[a, b :- c | d]',
+  each stopping where its own comma stands and a list element at its bar
+  too (the reader's `stop', appended to `coco_reader': 1 in an argument, 2
+  in a list, put back to 0 inside a `(' or a `{'); the comma is an operator
+  only where `stop' is 0 and the bar where it is not 2. A prefix operator
+  applies inside an argument as anywhere: `f(dynamic - 1)' is
+  f(dynamic(-1)), as swipl reads it. Through 3.1.0 each was read at 999 and
+  `f(a :- b)' was a syntax error.
+- A PREFIX OPERATOR'S ATOM IS A LEFT OPERAND AT ITS PRIORITY. Read as a
+  plain atom because what follows it begins no term, an unquoted prefix
+  operator keeps its prefix priority as the left operand of an infix one
+  (the term loop's own test of the left side): `- = a' reads (200 under
+  699), `\+ = a' and `dynamic ; a' do not (900, 1150), `\+ -> a' does (under
+  1049); quoted or bracketed it is 0, as `(\+) = a' and `'\\+' = a' are; a
+  right operand, an argument and an element take any atom. Before an infix
+  bar it is refused at any priority (`- | a', `f(dynamic | a)'), as swipl's
+  is, and in a list the bar is the list's (`[- | a]' reads). Through 3.1.0
+  every such atom was priority 0, so `\+ = a' and `dynamic ; a' read. With
+  the declaration operators below, a goal of no arguments named like one
+  and written bare before a comma is swipl's syntax error too:
+  test/signal.pl's table/0 is handler_table/0 now.
+- THE BAR IS AN OPERATOR OF ITS OWN, '|'/2 at 1105 xfy (swipl's): `a | b'
+  is '|'(a, b), written `a|b' by every writer (the writer's one unquoted
+  case of `|'), and `X = (a | b), X = (_ ; _)' fails, as in swipl. Where it
+  is a goal it is the disjunction: a clause's body is stored with `;' where
+  the body runs it -- under `,', `;', `->', `*->', `\+' and another bar, the
+  constructs swipl's compiler compiles in place (`coco_bar_body', at the
+  assert, so clause/2 and listing/1 show `;') -- a call of '|'/2 runs as
+  `;', cut and all (the construct's test in `coco_construct', the
+  meta-call's leaves `coco_goal_leaves'), and a grammar rule's bar is its
+  translation's, as before. A program's own clause for '|'/2 is kept, as
+  swipl keeps it, and never called. Every walk of the control constructs
+  takes the bar beside `;': the callable check (`coco_body_callable'), the
+  consult's refusal of a body that holds a number (`p :- (a | 1).' is
+  refused where it stands, swipl's `Type error: `callable' expected, found
+  `a|1' (a compound)', `coco_consult_goals'), an unknown procedure's
+  context (`findall(x, (nope | true), _)' names '<meta-call>'/1,
+  `coco_unknown_walk') and a library's calls of a taken name
+  (`system:(fail | succ(4, X))' calls the builtin, `coco_sys_goal'). The
+  last three were found after the first cut, each answering otherwise than
+  `;' did. The meta-call's frame word (`coco_meta_bar') takes no bar of its
+  own: its arm changed no answer, the parts of a structure taking the
+  meta-call's word from `coco_part_bar' already, and it went back out.
+  Through 3.1.0 the reader made every bar outside a list `;'.
+- swipl's OPERATOR TABLE, all of it but the dicts' `.' (test/files/op_table.pl,
+  65 rows): the declarations at 1150 fx -- `dynamic', `discontiguous',
+  `initialization', `meta_predicate', `module_transparent', `multifile',
+  `public', `thread_local', `thread_initialization', `volatile', `table',
+  seven of them new --, `|' at 1105 xfy, `:=' at 800 xfx, `as', `:<' and
+  `>:<' at 700 xfx, `xor' at 400 yfx (500 through 3.1.0: `a + b xor c' is
+  a + (b xor c) now) and `$' at 1 fx.
+- public/1, volatile/1, module_transparent/1 AND thread_local/1, swipl's, as
+  directives and goals, by dynamic/1's walk (`coco_decl_walk', kinds 3 to 6
+  of `coco_decl_kind'): each part of the spec declared in turn, a bad one
+  raising swipl's error in swipl's frame and a directive reporting it where
+  it stands, module_transparent/1's under swipl's name for the attribute,
+  transparent/1 (`coco_bi_decl_report'). The first three record an
+  attribute and define nothing (`pattrs' on the predicate: 1 public, 2
+  volatile, 4 transparent, 8 thread_local), so a call of a predicate only
+  public/1 named is an unknown procedure, as in swipl; thread_local/1 makes
+  the predicate dynamic too -- every thread of library(thread) has a store
+  of its own already -- and refuses one with clauses that is not
+  thread_local, permission_error(modify, static_procedure, PI) from
+  '$set_predicate_attribute'/3 as swipl's. The four are ONE builtin row,
+  '$declare'/2, under clauses of the Prolog half: four rows took the
+  dispatch names to 193, past the machine's 192 (`coco_machine.ids').
+  predicate_property/2 tells `public', `volatile', `thread_local' and
+  `transparent' in swipl's order, and `interpreted' first, as swipl answers
+  for every predicate a program consults.
+- thread_initialization/1 runs its goal (new): now, and not again in the
+  threads made after it, where swipl's would (COMPAT.md); table/1 is still
+  no tabling, and `:- table p/2.' reads now and is reported an unknown
+  procedure as the load goes on (the dialect card's D2).
+- library(flow) and tools/compile/static.pl read the bar as the store does:
+  the chart writes a body's bar and a charted builtin's goal's as `;'
+  (`flow_bar_clause/2', `flow_bar_meta/2'), and a box's text the bar at 1105
+  and xor at 400 (`flow_op/3'); the static count takes '|'/2 as the
+  construct it is (`sf_control/2'); `'$declare'/2' has its mode, and the
+  chart's generated tables name '|'/2 among the constructs
+  (tools/flow/tables.pl's `ft_construct_arities/2': with the bar in
+  `*construct-names*' and no arity there, `make modules' stopped by name).
+
+PROVED:
+- Five swipl-compared cases in test/files/, new, each red on the 3.1.0
+  binary and green on this one: read_priority (94 lines of swipl's output:
+  every text read and written canonically, or `refused'), bar (45),
+  bar_load (14, the load's four refusals and what was defined),
+  declare_more (73, stdout and stderr) and op_table (65); and
+  system_call's new line, `system:(fail | succ(4, _))'.
+- test/flowchart.pl (a bar in a body and in a findall/3 goal charted, two
+  operator rows written), test/static.pl (an unreached predicate's body a
+  bar), test/directives.pl, test/signal.pl and lesson 50, whose expectations
+  moved with the reader (`(dynamic)-1-nondet', a handler table's column).
+- THE ARMS, each a copy of the tree with ONE edit, built as the release is
+  and run through the cases above, every one RED: 32 in the engine -- the
+  reader's ten (an argument and a list element at 999, the stop of an
+  argument, a list, a bracket and a curly term, the comma and the bar
+  taken as operators wherever they stand, the prefix atom's priority and
+  its refusal before a bar), the bar's nine (its row, the writer, the
+  construct, the store, the meta-call's leaves, the callable check, the
+  consult's walk, the unknown procedure's walk, the library's walk), the
+  declarations' nine (the operators, the attribute, thread_local's
+  dynamic, its attribute and its refusal, module_transparent's kind and
+  its report, `interpreted', thread_initialization/1) and the four
+  operator rows (`:=', `as' and its two, `xor', `$') -- 20 of them built
+  before the last three walks took the bar, which none of their cases
+  reaches, and 12 on the final tree; and 6 in the libraries (the chart's
+  clause, body, meta-call, operator row and xor, the static count's
+  construct). The one arm that stayed green, the meta-call's frame word
+  (above), is the hunk taken back out.
+- A SWEEP of the tree: every tracked .pl file (395) read by the 3.1.0
+  binary and this one, term by term, written canonically and compared --
+  no file newly unreadable, and the terms that differ are the ones this
+  change means to differ (library/flow/read.pl's bar clause, written for
+  swipl).
+- `tools/flow/zero.sh' against 3.1.0 built as the arms are (78a3ec0's
+  sources in a copy of the tree): the untraced engine's work less padding
+  is nrev 66 106 677 to 66 105 295 (-0.002 %), queens 42 900 337 to
+  42 900 327 (0.000 %) and lookup 47 832 419 to 47 834 671 (+0.005 %).
+- THE READER'S OWN COST, the translator consulted under callgrind
+  (`cocolog --local run library/reasoning/translate.pl true', 28 368 lines),
+  3.1.0 built as the arms are against this: 235 182 099 instructions and
+  234 039 095, -0.49 %. An argument's comma no longer asks the operator
+  table, whose answer for it, 1000, an argument's 999 always refused
+  (`coco_op_infix_static' 4.60 million to 2.14, `strcmp' 1.5 million
+  fewer), and the store's walk for a body's bar costs 4.46 million
+  (`coco_bar_body', every `:-' clause). The walk's first cut compared each
+  name with strcmp, two at each `,', and the whole consult was then +0.09 %
+  (235 389 891); it reads the names' characters now.
+- lint --auto over the changed files (0 HARD, 0 WARN), the dialect card's
+  cites moved and checked (28 rows, 40 cites).
+- THE FULL SUITE (`make test`, the server up): red: 0, 77 lines in 21
+  minutes 52 seconds (the seven test binaries' builds about 11 of them),
+  five SKIPs, each for want of CUDA (tensors, torch-graph, torch-grad,
+  torch-replay, tensorflow); files and trace ran against the reference swipl
+  9.0.4, ray against raylib and a screen.
+
+NOT DONE, and stated:
+- swipl's dicts, and the `.' operator at 100 yfx they name.
+- A syntax error's class is cocolog's: swipl names some of the refusals
+  above operator_clash or quoted_punctuation where cocolog says
+  operator_expected, and the error term and the message of a syntax error
+  term_to_atom/2 or read_term/2 raises are cocolog's too.
+- thread_initialization/1 runs its goal once, not in each later thread.
+- From 3.1.0's list, still: an unknown procedure's `However, there are
+  definitions for:' lines; a load directive's relative path looked for in
+  the loading file's directory first; term_to_atom/2's `\n', a quoted
+  infix operator's spaces and a quoted prefix operator; library(stream)'s
+  errors; a load's singleton and discontiguous warnings. And new to the
+  list: listing/1's and portray_clause/1's layout, expand_term/2 and
+  dcg_translate_rule/2, and postfix operators (op/3 refuses xf and yf,
+  domain_error(operator_specifier, xf), where swipl takes them).

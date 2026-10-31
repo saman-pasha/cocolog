@@ -95,7 +95,7 @@ flow_printable([C|Cs]) :-
 flow_op(':-', xfx, 1200).
 flow_op('-->', xfx, 1200).
 flow_op(';', xfy, 1100).
-flow_op('|', xfy, 1100).
+flow_op('|', xfy, 1105).
 flow_op('->', xfy, 1050).
 flow_op('*->', xfy, 1050).
 flow_op(',', xfy, 1000).
@@ -119,7 +119,7 @@ flow_op('+', yfx, 500).
 flow_op('-', yfx, 500).
 flow_op('/\\', yfx, 500).
 flow_op('\\/', yfx, 500).
-flow_op(xor, yfx, 500).
+flow_op(xor, yfx, 400).
 flow_op('*', yfx, 400).
 flow_op('/', yfx, 400).
 flow_op('//', yfx, 400).

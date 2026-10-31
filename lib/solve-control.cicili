@@ -2596,7 +2596,8 @@
             (set n (coco_arity m g))
             (cond
               ((and (== n 2) (or (== nm (coco-id m ",")) (== nm (coco-id m ";"))
-                                 (== nm (coco-id m "->")) (== nm (coco-id m "*->"))))
+                                 (== nm (coco-id m "->")) (== nm (coco-id m "*->"))
+                                 (== nm (coco-id m "|"))))
                (if (> depth 256) (return 1))
                (if (not (coco_goal_leaves m (coco_arg m g 0) (+ depth 1) budget)) (return 0))
                (set g (coco_arg m g 1)))

@@ -158,7 +158,7 @@ a `pattern`. `tool.sh card --patterns` prints the terms.
 | row | the SWI reflex | cocolog | why |
 |---|---|---|---|
 | R1 | `clear :- retract(x(_)), fail.` | `( retract(x(_)) -> clear ; true )` | `retract/1` is a C builtin, deterministic: the failure-driven loop removes ONE clause |
-| D2 | `:- table p/2.` `:- thread_local p/1.` | delete | not prefix operators here: the file does not parse |
+| D2 | `:- table p/2.` | delete it, and write `p/2` to end untabled | there is no tabling: the directive parses, as swipl's, and `table/1` is an unknown procedure, reported as the load goes on |
 | C2 | `error(T, context(_,_))` | `error(T, _)` | a library failure is `error(cocolog_error(Text), _)` and the house style puts a bare `Name/Arity` second |
 | G1 | `b_setval/2` | thread an accumulator | `b_setval` IS `nb_setval`; nothing about it backtracks |
 | F1 | `~t ~| ~+` | pad by hand | refused by name at the three codes |

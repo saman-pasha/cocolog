@@ -187,6 +187,11 @@
     ;; goals as well as directives (3.1.0), each part declared in turn
     ("discontiguous" 1 coco_bi_discontiguous)
     ("multifile"    1 coco_bi_multifile)
+    ;; swipl's four more (3.2.0), public/1, volatile/1,
+    ;; module_transparent/1 and thread_local/1: clauses of the Prolog half
+    ;; over this one C half, its first argument the kind (3 to 6), which
+    ;; costs the dispatch table one name and not four
+    ("$declare"     2 coco_bi_declare)
     ;; a program file's clause then takes the name over, an ISO one's too
     ;; (3.1.0, swipl's)
     ("redefine_system_predicate" 1 coco_bi_redefine_system)
@@ -232,6 +237,9 @@
     "$catch_exit" "throw" "trace" "notrace"
     ;; M:G, a goal (3.1.0, `coco_colon')
     ":"
+    ;; '|'/2, a disjunction as a goal (3.2.0, swipl's): `coco_construct'
+    ;; runs it as `;', and a program's clause of it is kept and never called
+    "|"
     ;; not dispatched on, but BUILT on every inference: the continuation's
     ;; functor, its end, and the catch marker. Interned here so the engine
     ;; pushes them by id -- see `*functor-names*' and `coco-fid' below.
@@ -2454,7 +2462,8 @@
               (int r . 0))
           (cond
             ((and (== n 2) (or (or (== 0 (strcmp s ",")) (== 0 (strcmp s ";")))
-                               (or (== 0 (strcmp s "->")) (== 0 (strcmp s "*->")))))
+                               (or (== 0 (strcmp s "->")) (== 0 (strcmp s "*->")))
+                               (== 0 (strcmp s "|"))))
              (set r (coco_unknown_walk m (coco_arg m t 0) g 1 who whoa (+ depth 1)))
              (if (== r 0)
                  (set r (coco_unknown_walk m (coco_arg m t 1) g 1 who whoa (+ depth 1))))

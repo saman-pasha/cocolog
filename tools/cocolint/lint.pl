@@ -75,11 +75,13 @@
 %% for a rule to catch: an unknown directive says so on stderr at load time,
 %% which is exactly the loud failure this linter exists not to duplicate.
 %%
-%% WHAT SURVIVED IS D2, and it survived because it is not about directives
-%% at all: `:- table p/1.' and `:- thread_local p/1.' name predicates that
-%% are not prefix OPERATORS, so the file does not parse -- and a syntax
-%% error is now the one thing that still ends a consult. It is an S1
-%% pattern row in traps.jsonl and needs no code here.
+%% WHAT SURVIVED IS D2, and it survived because the report is not the whole
+%% of it: `:- table p/1.' parses (table is a prefix operator, as swipl's,
+%% since 3.2.0, as are thread_local, volatile, module_transparent and
+%% public, which are declarations here), table/1 is an unknown procedure,
+%% and the load says so and goes on -- with p/1 untabled, so a left-recursive
+%% definition that tabling would have ended loops at run time, far from the
+%% report. It is an S1 pattern row in traps.jsonl and needs no code here.
 
 %% TIER 1 IS ALWAYS PRESENT. The first row is compiled in, the second is read
 %% from lib/swipl at start-up. A use_module for any of them is a directive

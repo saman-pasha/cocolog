@@ -916,7 +916,10 @@
                              (set ($ (nth h (-> e choices)) kind) COCO_CH_DEAD))))
                    (set (-> e goals) k))
 
-                  ((and (== n 2) (== nid (coco-id m ";")))
+                  ;; '|'/2 is the same construct (3.2.0, swipl's): `(a | b)'
+                  ;; called, or met in once/1's goal, which a body keeps as
+                  ;; it was written (`coco_bar_body' makes the body's `;')
+                  ((and (== n 2) (or (== nid (coco-id m ";")) (== nid (coco-id m "|"))))
                    (coco-with-parts (sb)
                    (let ((size_t l . #'(coco_deref m (coco_arg m g 0))))
                      ;; (C -> T ; E) is one construct, not a disjunction whose

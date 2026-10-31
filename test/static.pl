@@ -6,7 +6,8 @@
 %% name that no file defines, a closure, a meta-predicate only the
 %% fixpoint finds (r/1 calls its argument; s/0 hands it q), a goal built
 %% at run time, two grammar rules and a call through phrase/2, facts whose
-%% `true' is no call, and a predicate nothing reaches. The second asserts
+%% `true' is no call, and a predicate nothing reaches, its body a bar: the
+%% disjunction it is, no call of '|'/2 (cocolog 3.2.0). The second asserts
 %% a clause it is handed, so every predicate of its file is one a compiler
 %% could not call fixed, and it has no root, so each is its own.
 %%
@@ -31,7 +32,7 @@ main :-
                  'u --> [a], v.',
                  'v --> [].',
                  'w :- assertz(seen(1)), retract(kept(_)).',
-                 'lone :- q(_).',
+                 'lone :- ( q(_) | true ).',
                  'main :- p(_), s, t(q), phrase(u, [a]), w.' ]),
     atom_concat(D, '/b.pl', B),
     fixture(B, [ 'x(C) :- assertz(C).',

@@ -218,6 +218,18 @@
            "'$decl_one'((dynamic), P) :- dynamic(P)."
            "'$decl_one'((discontiguous), P) :- discontiguous(P)."
            "'$decl_one'((multifile), P) :- multifile(P)."
+           ;; thread_initialization/1 (3.2.0, swipl's) runs its goal now; a
+           ;; thread made after it does not run it, as swipl's would (stated)
+           "thread_initialization(G) :- call(G)."
+           ;; and swipl's four more (3.2.0), each a kind of the one C half
+           "public(S) :- '$declare'(3, S)."
+           "volatile(S) :- '$declare'(4, S)."
+           "module_transparent(S) :- '$declare'(5, S)."
+           "thread_local(S) :- '$declare'(6, S)."
+           "'$decl_one'((public), P) :- public(P)."
+           "'$decl_one'((volatile), P) :- volatile(P)."
+           "'$decl_one'((module_transparent), P) :- module_transparent(P)."
+           "'$decl_one'((thread_local), P) :- thread_local(P)."
            "'$decl_parts'(S, [S]) :- var(S), !."
            "'$decl_parts'((A, B), Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."
            "'$decl_parts'([A|B], Ps) :- !, '$decl_parts'(A, Pa), '$decl_parts'(B, Pb), append(Pa, Pb, Ps)."

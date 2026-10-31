@@ -11,7 +11,7 @@
 %% lints clean, and test/lint.pl reads it with COCO_LINT_NO_ACK=1, which
 %% ignores them, to see every rule still fire.
 
-%% ---- D2: not a prefix operator, so the file does not even parse -------
+%% ---- D2: there is no tabling, so the load reports table/1 and goes on --
 :- table selftest_memo/2.   % cocolint: D2 -- walked into on purpose
 
 %% ---- D3/T1: a use_module for a tier-1 library, which is a no-op -------

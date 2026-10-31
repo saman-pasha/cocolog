@@ -207,7 +207,7 @@ runtime :-
           PKs, ['note/1'-dynamic, 'seen/1'-dynamic, 'tally/1'-dynamic,
                 'call/3'-closure, 'call/1'-closure, 'nosuch/1'-unknown]),
     attr_of(X, p7, kind, K3), attr_of(X, p7, clauses, C3), attr_of(X, p7, det, D3),
-    check('tally/1''s panel holds the clause the file starts it with', K3-C3-D3, dynamic-1-nondet),
+    check('tally/1''s panel holds the clause the file starts it with', K3-C3-D3, (dynamic)-1-nondet),
     attr_of(X, 'p2.c1.g1.a1.if.g1', calls, C4),
     check('seen/1 has no clause in the file, so no panel to call', C4, failed),
     attr_of(X, 'p4.c1.g1', text, T5), attr_of(X, 'p4.c1.g1', calls, C5),
@@ -346,6 +346,7 @@ findings :-
     findings_catch(D),
     findings_load(D),
     findings_near(D),
+    findings_bar(D),
     %% the table of calls the engine refuses unbound: every example raises,
     %% and for its unbound argument -- since 3.0.0 a code list is no text
     %% to string_concat/3, so string_concat(_, "a", _) raised type_error
@@ -442,6 +443,29 @@ findings_near(D) :-
     yes_no(sub_atom(T21, _, _, _, 'did you mean fooo_baz/1?'), Y21),
     yes_no(sub_atom(T22, _, _, _, 'did you mean'), Y22),
     check('a near name is the chart''s own: fooo_baz/1 for the first program, nothing for the second', Y21-Y22, yes-no).
+
+%% a body's bar is its disjunction (cocolog 3.2.0): the reader reads
+%% '|'(A, B), and the chart reads a body's and a findall/3 goal's as `;',
+%% where through 3.1.0's chart it would have been a call of '|'/2 that
+%% nothing defines
+findings_bar(D) :-
+    atomic_list_concat([D, '/bar23.pl'], BF23),
+    fixture(BF23, ['gob23(X) :- ( X = 1 | X = 2 ), nope23(X).',
+                   'gob24(L) :- findall(Y, ( Y = a | Y = b ), L).']),
+    flow_graph(gob23('-'), G23, [source(BF23)]),
+    flow_findings(G23, Fs23),
+    findall(T23, member(finding(_, unknown_procedure, _, _, _, _, T23, _), Fs23), Ts23),
+    flow_graph(gob24('-'), G24, [source(BF23)]),
+    flow_findings(G24, Fs24),
+    check('a bar in a body and in a findall/3 goal is a disjunction: the one unknown is nope23/1',
+          Ts23-Fs24,
+          ['nope23/1 is defined nowhere: no clause, builtin, module or dynamic declaration answers it, so this call raises existence_error']-[]),
+    %% and a box's text writes the operators as the reader takes them: the
+    %% bar at 1105, bracketed in an argument, and xor at 400 (swipl's; 500
+    %% through 3.1.0), which the left side of `*' takes bare
+    flow_term_full(m((a | b)), [], 1200, T25),
+    flow_term_full((a xor b) * 2, [], 1200, T26),
+    check('a box writes the bar at 1105 and xor at 400', T25-T26, 'm((a | b))'-'a xor b * 2').
 
 %% every id attribute of an XML term
 xml_any_id(element(_, As, Cs), Id) :-

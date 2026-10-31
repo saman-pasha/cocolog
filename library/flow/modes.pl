@@ -235,6 +235,9 @@ flow_mode((discontiguous), 1, ['+'], det).
 flow_mode((multifile), 1, ['+'], det).
 %% a program file's clause then takes the name over, an ISO one's too (3.1.0)
 flow_mode(redefine_system_predicate, 1, ['+'], det).
+%% public/1, volatile/1, module_transparent/1 and thread_local/1's C half,
+%% the kind first (3.2.0)
+flow_mode('$declare', 2, ['+', '+'], det).
 %% what a part of a directive's declaration raised, reported where the
 %% directive stands (3.1.0): always true
 flow_mode('$decl_report', 2, ['+', '+'], det).

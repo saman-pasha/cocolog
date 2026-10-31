@@ -35,7 +35,7 @@ main :-
     ),
     scratch(D),
     names,
-    table,
+    handler_table,
     raised,
     refused,
     delivered(D),
@@ -60,7 +60,7 @@ names :-
     check('current_signal enumerates the named signals', G6, many).
 
 %% ---- the handler table --------------------------------------------------
-table :-
+handler_table :-
     section('the handler table'),
     answer(( signal_number(usr1, _), current_signal(usr1, _, H0) ), H0, G0),
     check('a signal starts at default', G0, default),

@@ -66,7 +66,8 @@ flow_mark_dynamic([K|Ks], Prog0, Prog) :-
 
 %% Rest is the file from byte Off on, which is line L, column K
 flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
-    read_term(S, T, [variable_names(Vs)]),
+    read_term(S, T0, [variable_names(Vs)]),
+    flow_bar_clause(T0, T),
     stream_position(S, Off1),
     N is Off1 - Off,
     flow_split_at(Rest, N, Text0, Rest1),
@@ -84,6 +85,51 @@ flow_read_terms(S, File, Rest, Off, L, K, Pairs, Dyn) :-
         ),
         flow_read_terms(S, File, Rest1, Off1, L1, K1, Pairs1, Dyn1)
     ).
+
+%% A BODY'S BAR IS ITS DISJUNCTION (cocolog 3.2.0, swipl's): the reader
+%% reads `a | b' as '|'(a, b), which the store and swipl's compiler hold as
+%% (a ; b) where the body runs it -- under `,', `;', `->', `*->', `\+' and
+%% another bar -- and the chart reads it so, in the goals the builtins it
+%% charts run as well (flow_bar_meta/2), where the store keeps the bar and
+%% a call runs it as `;'. A grammar rule's bar is its translation's
+%% (flow_dcg_ann/5).
+flow_bar_clause(T, T) :- var(T), !.
+flow_bar_clause((H :- B), (H :- B1)) :- !, flow_bar_body(B, B1).
+flow_bar_clause(T, T).
+
+flow_bar_body(B, B) :- var(B), !.
+flow_bar_body('|'(A, B), (A1 ; B1)) :- !, flow_bar_body(A, A1), flow_bar_body(B, B1).
+flow_bar_body((A, B), (A1, B1)) :- !, flow_bar_body(A, A1), flow_bar_body(B, B1).
+flow_bar_body((A ; B), (A1 ; B1)) :- !, flow_bar_body(A, A1), flow_bar_body(B, B1).
+flow_bar_body((A -> B), (A1 -> B1)) :- !, flow_bar_body(A, A1), flow_bar_body(B, B1).
+flow_bar_body((A *-> B), (A1 *-> B1)) :- !, flow_bar_body(A, A1), flow_bar_body(B, B1).
+flow_bar_body(\+ A, \+ A1) :- !, flow_bar_body(A, A1).
+flow_bar_body(G, G1) :-
+    flow_bar_meta(G, Is), !,
+    G =.. [F|As],
+    flow_bar_args(As, 1, Is, Bs),
+    G1 =.. [F|Bs].
+flow_bar_body(G, G).
+
+flow_bar_args([], _, _, []).
+flow_bar_args([A|As], I, Is, [B|Bs]) :-
+    (   memberchk(I, Is) -> flow_bar_body(A, B) ; B = A ),
+    I1 is I + 1,
+    flow_bar_args(As, I1, Is, Bs).
+
+%% the goal arguments of the builtins whose goals the chart walks
+flow_bar_meta(findall(_, _, _), [2]).
+flow_bar_meta(findall(_, _, _, _), [2]).
+flow_bar_meta(forall(_, _), [1, 2]).
+flow_bar_meta(aggregate_all(_, _, _), [2]).
+flow_bar_meta(once(_), [1]).
+flow_bar_meta(ignore(_), [1]).
+flow_bar_meta(not(_), [1]).
+flow_bar_meta(call(_), [1]).
+flow_bar_meta(catch(_, _, _), [1, 3]).
+flow_bar_meta(with_output_to(_, _), [2]).
+flow_bar_meta(setup_call_cleanup(_, _, _), [1, 2, 3]).
+flow_bar_meta(call_cleanup(_, _), [1, 2]).
 
 %% dynamic p/1, (p/1, q/2), [p/1, q/2], m:p/1 -- `:- dynamic p/1, q/2.'
 %% reads as dynamic((p/1, q/2))

@@ -274,7 +274,7 @@ apart(Dir) :-
     flow_findings(G, Fs),
     findall(K-At-Wh, member(finding(_, K, _, At, _, Wh, _, _), Fs), KAs),
     must('one finding: sum/3''s third clause stands apart, after show/1''s', KAs,
-         [discontiguous-'p2.c3'-where(Prog, 6, 1)]).
+         [(discontiguous)-'p2.c3'-where(Prog, 6, 1)]).
 
 %% WHERE THE CODE RUNS. A spawn is a fork: its goal goes, a copy, to a LANE
 %% of its own -- a band of the picture, a <lane> of the XML -- and nothing

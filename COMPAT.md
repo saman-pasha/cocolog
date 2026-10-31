@@ -3,8 +3,8 @@
 One table for everything a program written for SWI-Prolog can trip over. Each
 row was checked by running the same goal on both systems (SWI-Prolog 9.0.4, and
 the installed 10.0.2 where the two agree; cocolog 3.1.0, every row checked
-again on it) — not recalled from the code — and the column on the right says
-what to write instead.
+again on it, and the rows 3.2.0 changed on 3.2.0) — not recalled from the
+code — and the column on the right says what to write instead.
 
 The rows that can give a **silently wrong answer** come first, because they are
 the ones a ported program will not report. Everything below them fails loudly:
@@ -26,6 +26,7 @@ an existence error, an instantiation error, a refusal by name.
 | `redefine_system_predicate/1` of a control construct | `once/1`, `false/0`, `catch/3` and `throw/1` are then the program's everywhere, `true/0`, `fail/0` and `call/N` through a meta-call alone, and `,/2`, `;/2`, `->/2`, `*->/2` and `\+/1` never | a no-op for a construct: an ISO one's clauses are still refused (`No permission to modify static procedure 'once/1'`), and the engine's runs. `not/1` and `ignore/1` are a program file's without it, as swipl's | a name of your own |
 | `redefine_system_predicate/1` of a type test (`integer/1`, `atom/1`, `var/1`, ...) | a test of a VARIABLE in a clause body is compiled in place, and the builtin answers there; the program's answers anywhere else (`integer(a)`, call/1, the top level) | the program's everywhere | a name of your own |
 | a module on a library directory the program added (`file_search_path(library, Dir)`, `COCOLOG_LIBRARY`) | a module from outside swipl's own library is the user's class: its calls see the system predicates the program defines (`msort/2`) | a library is a library wherever it lies: its calls keep the builtin, as swipl's own library modules do (3.1.0). A module loaded by its path (`use_module('dir/m.pl')`) sees the program's in both | load it by its path |
+| `thread_initialization/1` | runs the goal now, and again at the start of every thread created after it | runs it now, and only now (3.2.0, where it became a declaration operator and a goal; through 3.1.0 an unknown procedure): a thread of `library(thread)` is a machine of its own that runs nothing before its goal | call the goal first in each thread's goal |
 
 ## Loud: an error where SWI enumerates or accepts
 
@@ -47,7 +48,11 @@ an existence error, an instantiation error, a refusal by name.
 
 ## Not there at all (`existence_error`)
 
-`numbervars/3`, `freeze/2` and coroutining, `table/1` and tabling,
+`numbervars/3`, `freeze/2` and coroutining, `table/1` and tabling (since 3.2.0
+`:- table p/2.` reads, `table` being swipl's 1150 fx operator, and the load
+reports `table/1` as an unknown procedure and goes on), swipl's dicts and the
+`.` at 100 yfx that names them (the one row of swipl's operator table cocolog
+has not got),
 `flag/3`, `recorda/2` and the recorded database, `prolog_load_context/2`.
 (`print_message/2` is there since 2.16.0; `setup_call_cleanup/3` and its
 kin, `absolute_file_name/3`, `sub_atom_icasechk/3` and `name/2` since

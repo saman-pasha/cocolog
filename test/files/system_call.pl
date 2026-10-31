@@ -41,7 +41,7 @@ main :-
     t(system:succ(1, _)), t(system:msort([b, a], _)), t(system:memberchk(a, [a])),
     t(call(system:succ, 1, _)), t(call(system:msort, [c, a], _)),
     t((G = system:succ(2, _), call(G))),
-    t(system:(succ(3, _), true)),
+    t(system:(succ(3, _), true)), t(system:(fail | succ(4, _))),
     %% another module's is the program's
     t(user:succ(1, _)), t(lists:succ(1, _)), t(a:b:succ(1, _)),
     t(call(m:f, _)), t(m:f(_)),

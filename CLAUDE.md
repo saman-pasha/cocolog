@@ -855,7 +855,13 @@ much later.
   (`*cell-tags*`, `*operators*`, `*builtins*`, `*turn-outcomes*`,
   `*construct-names*`): **add to the table, never to the generated code.** A
   construct name missing from `*construct-names*` stops the build at
-  `no dispatch id`.
+  `no dispatch id`, and one added there wants its arities in
+  tools/flow/tables.pl (`ft_construct_arities/2`), or `make modules` stops
+  naming it (3.2.0's bar did). **The dispatch names -- the constructs, the builtin rows
+  and the arithmetic names -- are held to `coco_machine.ids [192]`**, and a
+  build past it stops naming both numbers: a new builtin that would pass it
+  shares a C half with others by an argument (3.2.0's four declarations are
+  one row, `'$declare'/2`, under clauses of the Prolog half).
 
 ## Parsi
 
@@ -1251,9 +1257,16 @@ cocolint index offers no import of it.
   reader (`op/3`, `set_prolog_flag/2` of `double_quotes`, `text_units` or
   `generate_debug_info` -- any other flag is the goal's since 2.2.2,
   `coco_reader_flag` --, `dynamic/1`, `discontiguous/1`,
-  `multifile/1`, `module/2`, `use_module/1,2`, `autoload/1,2`,
-  `ensure_loaded/1`, `meta_predicate/1`, `if/elif/else/endif`) and calls
-  everything else in file order. `initialization(G)` runs after the file is
+  `multifile/1`, and since 3.2.0 `public/1`, `volatile/1` and
+  `module_transparent/1` when their spec is plain (kinds 3 to 5 of
+  `coco_decl_kind`; `thread_local/1`, kind 6, is always the goal's, which
+  refuses a predicate with clauses), `module/2`, `use_module/1,2`,
+  `autoload/1,2`, `ensure_loaded/1`, `meta_predicate/1`,
+  `if/elif/else/endif`) and calls everything else in file order. The four
+  record an attribute, `pattrs` on the predicate (1 public, 2 volatile, 4
+  transparent, 8 thread_local), that predicate_property/2 tells; only
+  thread_local/1 defines the predicate (dynamic), so a call of what public/1
+  alone named is an unknown procedure, as swipl's. `initialization(G)` runs after the file is
   read, `initialization(G, now)` where it stands, `initialization(G, main)`
   after the load and then halts. A directive that fails or throws is
   reported in SWI's shapes and the load goes on; **so does a load past a
@@ -2284,7 +2297,26 @@ cocolint index offers no import of it.
   **A change to the parser is a change to the macro**, and a helper both
   families call is `(inline)`. One parser with a flag at each site cost
   consulting the translator 1.3 %; the two cost `coco_next_token` nothing
-  and the parser within 0.13 %.
+  and the parser within 0.13 %. **An argument, a list element and a curly
+  term are read to 1200** (3.2.0, swipl's non-ISO reader; 999 through
+  3.1.0), and what ends them is the reader's `stop`: 1 in an argument (a
+  comma ends the term), 2 in a list (a comma or a bar), 0 inside `(` and
+  `{`, each put back after; the comma and the bar are operators only where
+  `stop` lets them be. **An unquoted prefix operator's atom, read as a plain
+  atom, is a left operand at its prefix priority** (`outprec`: `- = a`
+  reads, `\+ = a` and `dynamic ; a` do not), quoted or bracketed at 0, and
+  never before an infix bar. **The bar is '|'/2 at 1105 xfy**, written
+  `a|b`, and `;` where it is a goal: a clause's body is stored with `;`
+  (`coco_bar_body` at the assert, so clause/2 hands back `;`), a call of
+  '|'/2 runs as `;` (the construct, `coco_goal_leaves`), a program's own
+  clause for it is kept and never called. **A walk of the control
+  constructs takes the bar beside `;`**: the callable check
+  (`coco_body_callable`), the consult's refusal of a body holding a number
+  (`coco_consult_goals`), an unknown procedure's context
+  (`coco_unknown_walk`) and a library's calls of a taken name
+  (`coco_sys_goal`) each answered differently without it, the last three
+  found after the first cut; `coco_meta_bar` needs none (`coco_part_bar`
+  gives a structure's parts the meta-call's word).
 * **Concurrency shares nothing**: a `library(thread)` thread gets its own
   machine, store, engine and database connection; a channel copies terms in
   canonical text. Mutexes and conditions serialise the WORLD (a file, a tcp
