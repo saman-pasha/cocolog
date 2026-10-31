@@ -299,16 +299,26 @@
   ;;; does when a file is consulted -- one implementation, reached two ways,
   ;;; and the goal checked first, so a refusal is swipl's error, catchable.
   ;;; What the check passes and the declaration still refuses is cocolog's
-  ;;; own ceiling (an arity past 255, memory): representation_error.
+  ;;; own ceiling (an arity past 255, memory): representation_error. A
+  ;;; declaration the backend refused (3.0.3) is
+  ;;; error(resource_error(knowledge_base), context(system:dynamic/1, Why)),
+  ;;; Why its sentence (`write_err'), as a read that failed raises its own
+  ;;; (`coco_fetch_error'); through 3.0.2 it was the arity's error too.
   (func coco_bi_dynamic ((coco_engine * e) (size_t g)) (out int)
         (let ((int ok . #'(coco_dynamic_check e (coco_arg (-> e m) g 0))))
           (if (!= ok 1) (return ok)))
         (with-green-write e
-          (let ((char err [192]))
-            (if (not (coco_dynamic_spec (-> e st) (-> e m) (coco_arg (-> e m) g 0)
-                                      err (sizeof err)))
-                (return (coco_raise e (coco_make1 (-> e m) "representation_error"
-                                                  (coco_new_atom (-> e m) "max_arity")))))
+          (let ((char err [192]) (coco_machine * m . #'(-> e m)))
+            (set (nth 0 ($ (cof (-> e st)) write_err)) (cast char 0))
+            (if (not (coco_dynamic_spec (-> e st) m (coco_arg m g 0) err (sizeof err)))
+                (block
+                  (if (!= (nth 0 ($ (cof (-> e st)) write_err)) (cast char 0))
+                      (return (coco_raise_ctx e (coco_make1 m "resource_error"
+                                                            (coco_new_atom m "knowledge_base"))
+                                              (coco_ectx_pi m "system" (coco_new_atom m "dynamic") 1
+                                                            (coco_new_atom m ($ (cof (-> e st)) write_err))))))
+                  (return (coco_raise e (coco_make1 m "representation_error"
+                                                    (coco_new_atom m "max_arity"))))))
             (return 1))))
 
   ;;; A NO-OP FOR A BINARY THAT LINKS THE ENGINE WITHOUT THE GREEN MODULE

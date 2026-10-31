@@ -59,6 +59,10 @@
   (include <ctype.h>)
   (include <sys/stat.h>)
   (include <sys/types.h>)
+  ;; the store's lock (`ce_store_lock'): open(2), and flock(2) on it
+  (include <fcntl.h>)
+  (include <sys/file.h>)
+  (include <cerrno>)
   (include "Core/zexception.hpp")
   (include "Core/utility.hpp")
   (include "StreamIO/binarystream.hpp")
@@ -1134,6 +1138,34 @@
         (#t (return (ce_fail s "no such procedure"))))
       (return 1)))
 
+  ;; ---- a damaged store ---------------------------------------------
+  ;;;
+  ;;; A DAMAGED STORE SAYS SO (3.0.3, cicilang 0.240's third request). The
+  ;;; engine refuses a store whose structure no longer holds in words of
+  ;;; its own -- a hexmap that ends inside a record, a chain link that
+  ;;; points at free space, a row in no state, a sequence with no row --
+  ;;; and through 3.0.2 they reached a program as `the store refused it:
+  ;;; hexmap ends inside the chunk', a refusal like any other. They are said
+  ;;; as what they are now, `the store in DIR is damaged: ...', the engine's
+  ;;; words after the colon, and the open refuses a store whose two files do
+  ;;; not agree (`ce_store_shape'). Nothing here mends a store: what a
+  ;;; damaged one has lost is not in it to be found.
+  (var char ce_dir [512])
+
+  ;;; whether the engine's WHAT says the store's structure does not hold
+  (func ce_damage_said ((const char * what)) (out int)
+    (return (or (== 0 (strncmp what "hexmap ends inside" 18))
+                (or (== 0 (strncmp what "the chunk is not an allocated record" 36))
+                    (or (== 0 (strncmp what "invalid row state" 17))
+                        (== 0 (strncmp what "sequence has no row" 19)))))))
+
+  ;;; the engine's WHAT into BUF after HEAD and a colon, said as a damaged
+  ;;; store's when it says one is
+  (func ce_say ((char * buf) (size_t cap) (const char * head) (const char * what)) (out void)
+    (if (ce_damage_said what)
+        (snprintf buf cap "%s: the store in %s is damaged: %s" head ce_dir what)
+        (snprintf buf cap "%s: %s" head what)))
+
   ;; runs the buffered call. An exception rolls the transaction back and
   ;; fails the call, which is what the server's request loop does -- the
   ;; client treats it as a lost connection and reopens, and reopening a
@@ -1146,7 +1178,9 @@
           (set ok (ce_dispatch s)))
         (catch ((const ZiguratException & e))
           (ce_toks_clear s)
-          (snprintf (-> s err) 512 "the store refused it: %s" (($ e what)))
+          (if (ce_damage_said (($ e what)))
+              (snprintf (-> s err) 512 "the store in %s is damaged: %s" ce_dir (($ e what)))
+              (snprintf (-> s err) 512 "the store refused it: %s" (($ e what))))
           (try (rollback_transaction (aof ce_mem))
                (catch ((const ZiguratException & e2)) (cast void e2)))
           (begin_transaction (aof ce_mem))
@@ -1273,6 +1307,196 @@
                 (return 0)))
           (return n)))))
 
+  ;; ---- a damaged store's two files ----------------------------------
+
+  ;;; the length of the file at PATH, -1 when it cannot be opened
+  (func ce_file_length ((const char * path)) (out int64_t)
+    (let ((int fd . #'(open path O_RDONLY)) (int64_t n . -1))
+      (if (< fd 0) (return -1))
+      (set n (cast int64_t (lseek fd 0 SEEK_END)))
+      (close fd)
+      (return n)))
+
+  ;;; how much of the hexmap file at PATH, LEN bytes long, was written: its
+  ;;; length with the trailing zeros trimmed, as the engine reads it
+  ;;; (`hexmap_written_length'), or -1 when it cannot be read
+  (func ce_hexmap_written ((const char * path) (int64_t len)) (out int64_t)
+    (let ((int fd . #'(open path O_RDONLY)) (int64_t content . len)
+          (char buf [4096]) (int done . 0))
+      (if (< fd 0) (return -1))
+      (while (and (== done 0) (> content 0))
+        (let ((int64_t take . #'(? (> content 4096) 4096 content))
+              (int64_t from . 0) (ssize_t got . 0))
+          (set from (- content take))
+          (if (< (lseek fd from SEEK_SET) 0) (block (close fd) (return -1)))
+          (set got (read fd buf (cast size_t take)))
+          (if (!= (cast int64_t got) take) (block (close fd) (return -1)))
+          (let ((int64_t i . take))
+            (while (and (== done 0) (> i 0))
+              (if (!= (nth (- i 1) buf) 0)
+                  (block (set content (+ from i)) (set done 1))
+                  (set i (- i 1))))
+            (if (== done 0) (set content from)))))
+      (close fd)
+      (return content)))
+
+  ;;; THE TWO FILES AGREE, or the store in DIR is refused before a byte of
+  ;;; it is parsed: 1 they do, 0 not, ERR saying how. The hexmap describes
+  ;;; the data file a byte to each 16-byte chunk, so its written length over
+  ;;; a page's share is the pages it covers, and the data file must hold
+  ;;; every one of them. A commit syncs the data file first, so a kill
+  ;;; leaves the data AHEAD of the hexmap, never behind, and the engine's
+  ;;; open frees again the pages the hexmap does not cover (`memory_open').
+  ;;; Behind it -- cut short, or written over by a second process -- the
+  ;;; store is damaged, and the open did not say so: a data file cut to
+  ;;; half its length opened, and its first read hung until the process was
+  ;;; killed; one emptied opened with every predicate gone and no word. A
+  ;;; data file whose hexmap is gone is damaged too, and opened the same
+  ;;; way: a fresh store makes its hexmap before its data file.
+  (func ce_store_shape ((const char * dir) (int64_t page) (char * err) (size_t errcap)) (out int)
+    (let ((char hexpath [600]) (char datapath [600])
+          (int64_t datalen . 0) (int64_t hexlen . 0) (int64_t written . 0)
+          (int64_t pages . 0) (int64_t covered . 0))
+      (snprintf datapath 600 "%s/data.bin" dir)
+      (snprintf hexpath 600 "%s/hexmap.bin" dir)
+      (set datalen (ce_file_length datapath))
+      ;; a data file that cannot be read is the engine's to report
+      (if (< datalen 0) (return 1))
+      (if (!= 0 (access hexpath F_OK))
+          (block
+            (if (== datalen 0) (return 1))
+            (if (and (!= err nil) (> errcap 0))
+                (snprintf err errcap "the store in %s is damaged: its data file holds %lld bytes and its hexmap is gone"
+                          dir (cast llong datalen)))
+            (return 0)))
+      (set hexlen (ce_file_length hexpath))
+      (if (< hexlen 0) (return 1))
+      (set written (ce_hexmap_written hexpath hexlen))
+      (if (< written 0) (return 1))
+      (set pages (/ (+ datalen (- page 1)) page))
+      (set covered (/ written (/ page 16)))
+      (if (> covered pages)
+          (block
+            (if (and (!= err nil) (> errcap 0))
+                (snprintf err errcap "the store in %s is damaged: its hexmap describes %lld pages of %lld bytes and its data file holds %lld bytes, %lld pages"
+                          dir (cast llong covered) (cast llong page) (cast llong datalen) (cast llong pages)))
+            (return 0)))
+      (return 1)))
+
+  ;; ---- one process at a time ----------------------------------------
+  ;;;
+  ;;; A STORE IS ONE PROCESS'S AT A TIME (3.0.3). Each process maps the
+  ;;; store's two files and keeps a picture of them of its own -- the
+  ;;; hexmap, the free space, the sequences -- read at the open and written
+  ;;; at every commit, and every transaction it begins allocates a record
+  ;;; in them, a read-only one's too (`begin_transaction'). A second
+  ;;; process over the same store allocates the same free space from its
+  ;;; own picture and writes over the first's commits. cicilang's builds
+  ;;; found it (cicilang 0.240, cocolog 2.14.1): three writers at once lost
+  ;;; a commit (`sequence has no row'), one hung, and the store's next
+  ;;; reader died on `hexmap ends inside the chunk'; six lost five writers'
+  ;;; rows with no error; four builds left a store whose every later open
+  ;;; died of a bus error or `dynamic: out of memory'. Nothing stopped a
+  ;;; second process: test/groups-embed.pl's head said the rule, and
+  ;;; nothing kept it.
+  ;;;
+  ;;; SO THE OPEN TAKES DIR/lock FIRST, flock(2) on the file, and holds it
+  ;;; to the process's last close; the kernel lets it go when the process
+  ;;; ends, however it ends, so no lock outlives its holder. The holder
+  ;;; writes its process id in it. A second process WAITS ITS TURN, so
+  ;;; `make -j' over one store runs its processes one after another, each
+  ;;; seeing what the ones before it committed; past two seconds it says
+  ;;; once on stderr whom it waits for. COCOLOG_STORE_WAIT=S waits S
+  ;;; seconds at most and then refuses by name, 0 at once.
+  ;;;
+  ;;; NOT A RECORD LOCK (fcntl F_SETLK), which the first cut took. A record
+  ;;; lock is the PROCESS's, and any close of any descriptor of the file in
+  ;;; that process gives it back: a program over `--embed KB' that read
+  ;;; KB/lock -- a backup, a copy of the store's directory made in-process
+  ;;; -- dropped it with no word, and a second process opened the store
+  ;;; while the first still wrote (test/store-lock.pl's `reader' section).
+  ;;; flock's lock is the open file description's, which this descriptor
+  ;;; alone holds; the descriptor is close-on-exec, so a child the process
+  ;;; spawns holds none of it either.
+  (var int ce_lock_fd . -1)
+
+  ;;; flock(2) on FD, never waiting: KIND 6 takes it (LOCK_EX | LOCK_NB), 8
+  ;;; gives it back (LOCK_UN) -- the numbers written out, a #define being
+  ;;; invisible to Cicili, and Linux's and Darwin's alike. 0 done, else the
+  ;;; errno that refused it: EWOULDBLOCK, which is EAGAIN, while another
+  ;;; process holds it
+  (func ce_lock_try ((int fd) (int kind)) (out int)
+    (if (== (flock fd kind) 0) (return 0))
+    (return errno))
+
+  ;;; the process DIR/lock names as its holder, 0 when it names none
+  (func ce_lock_holder ((int fd)) (out long)
+    (let ((char buf [32]) (ssize_t n . 0))
+      (if (< (lseek fd 0 SEEK_SET) 0) (return 0))
+      (set n (read fd buf 31))
+      (if (<= n 0) (return 0))
+      (set (nth n buf) (cast char 0))
+      (return (strtol buf nil 10))))
+
+  ;;; takes DIR's lock (`ce_lock_fd'), waiting as COCOLOG_STORE_WAIT says --
+  ;;; unset or empty, for as long as it takes; S, S seconds at most; 0, not
+  ;;; at all. 1 held, 0 refused with ERR saying why
+  (func ce_store_lock ((const char * dir) (char * err) (size_t errcap)) (out int)
+    (let ((char path [512]) (int fd . -1) (int rc . 0)
+          (long waited . 0) (long limit . -1) (int said . 0)
+          (const char * w . #'(getenv "COCOLOG_STORE_WAIT")))
+      (if (and (!= w nil) (!= (nth 0 w) (cast char 0)))
+          (set limit (* (strtol w nil 10) 1000)))
+      (snprintf path 512 "%s/lock" dir)
+      (set fd (open path (bitor O_RDWR (bitor O_CREAT O_CLOEXEC)) 420)) ;; 420 is octal 0644
+      (if (< fd 0)
+          (block
+            (if (and (!= err nil) (> errcap 0))
+                (snprintf err errcap "cannot open the store's lock '%s': %s" path (strerror errno)))
+            (return 0)))
+      (while 1
+        (set rc (ce_lock_try fd 6))
+        (if (== rc 0) break)
+        (if (and (!= rc EAGAIN) (and (!= rc EACCES) (!= rc EINTR)))
+            (block
+              (if (and (!= err nil) (> errcap 0))
+                  (snprintf err errcap "cannot lock the store's lock '%s': %s" path (strerror rc)))
+              (close fd)
+              (return 0)))
+        (if (and (>= limit 0) (>= waited limit))
+            (let ((long holder . #'(ce_lock_holder fd)))
+              (if (and (!= err nil) (> errcap 0))
+                  (if (> holder 0)
+                      (snprintf err errcap "the store is in use by process %ld" holder)
+                      (snprintf err errcap "the store is in use by another process")))
+              (close fd)
+              (return 0)))
+        (if (and (not said) (>= waited 2000))
+            (let ((long holder . #'(ce_lock_holder fd)))
+              (set said 1)
+              (if (> holder 0)
+                  (fprintf stderr "cocolog: the store in %s is in use by process %ld; waiting for it\n" dir holder)
+                  (fprintf stderr "cocolog: the store in %s is in use by another process; waiting for it\n" dir))))
+        (usleep 10000)
+        (set waited (+ waited 10)))
+      ;; the holder's name, for whoever waits next
+      (let ((char pid [32]) (int n . 0))
+        (set n (snprintf pid 32 "%ld\n" (cast long (getpid))))
+        (if (== (ftruncate fd 0) 0)
+            (block
+              (cast void (lseek fd 0 SEEK_SET))
+              (cast void (write fd pid (cast size_t n))))))
+      (set ce_lock_fd fd)
+      (return 1)))
+
+  ;;; gives DIR's lock back, its holder's name taken out first
+  (func ce_store_unlock () (out void)
+    (if (< ce_lock_fd 0) (return))
+    (cast void (ftruncate ce_lock_fd 0))
+    (cast void (ce_lock_try ce_lock_fd 8))
+    (close ce_lock_fd)
+    (set ce_lock_fd -1))
+
   ;; ---- the extern-C surface: what client/zigurat.c dispatches to -----
 
   (extern-c
@@ -1296,6 +1520,13 @@
         (mkdir dir 493) ;; 493 IS OCTAL 0755 -- the Lisp reader takes `0755' as DECIMAL,
         ;; which is octal 1363: a store directory its own owner could not
         ;; list, so every case's cleanup trap printed `Permission denied'
+        ;; AND THE STORE IS THIS PROCESS'S ALONE to its last close, a second
+        ;; process waiting its turn (`ce_store_lock', 3.0.3) -- before a
+        ;; byte of it is read, whether it is fresh among them: two first
+        ;; opens that both found it fresh would both truncate it
+        (if (not (ce_store_lock dir err errcap))
+            (block (pthread_mutex_unlock (aof ce_open_access)) (return 0)))
+        (snprintf ce_dir 512 "%s" dir)
         (snprintf hexpath 512 "%s/hexmap.bin" dir)
         (snprintf datapath 512 "%s/data.bin" dir)
         (if (!= 0 (access datapath F_OK)) (set fresh 1))
@@ -1312,15 +1543,24 @@
               (block
                 (if (and (!= err nil) (> errcap 0))
                     (snprintf err errcap "%s" order_err))
+                (ce_store_unlock)
                 (pthread_mutex_unlock (aof ce_open_access))
                 (return 0))))
         ;; AND ITS PAGE IS THE ONE IT WAS WRITTEN ON (`ce_page_settle')
         (let ((int64_t page . #'(ce_page_settle dir err errcap)))
           (if (== page 0)
               (block
+                (ce_store_unlock)
                 (pthread_mutex_unlock (aof ce_open_access))
                 (return 0)))
           (set ce_page_bytes page))
+        ;; AND ITS TWO FILES AGREE (`ce_store_shape'), or it is damaged and
+        ;; said to be, before the engine reads them
+        (if (and (== fresh 0) (not (ce_store_shape dir ce_page_bytes err errcap)))
+            (block
+              (ce_store_unlock)
+              (pthread_mutex_unlock (aof ce_open_access))
+              (return 0)))
         (let ((int ok . 1))
           (try
             (block
@@ -1405,9 +1645,12 @@
               (commit_transaction (aof ce_mem)))
             (catch ((const ZiguratException & e))
               (if (and (!= err nil) (> errcap 0))
-                  (snprintf err errcap "cannot open the store in %s: %s" dir (($ e what))))
+                  (if (ce_damage_said (($ e what)))
+                      (snprintf err errcap "the store in %s is damaged: %s" dir (($ e what)))
+                      (snprintf err errcap "cannot open the store in %s: %s" dir (($ e what)))))
               (set ok 0)))
-          (if (== ok 0) (block (pthread_mutex_unlock (aof ce_open_access)) (return 0))))
+          (if (== ok 0)
+              (block (ce_store_unlock) (pthread_mutex_unlock (aof ce_open_access)) (return 0))))
         (set ce_open_count 1)
         (pthread_mutex_unlock (aof ce_open_access))
         (return 1)))
@@ -1416,8 +1659,11 @@
       (pthread_mutex_lock (aof ce_open_access))
       (if (> ce_open_count 0) (set ce_open_count (- ce_open_count 1)))
       (if (== ce_open_count 0)
-          (try (sync_disk (aof ce_mem))
-               (catch ((const ZiguratException & e)) (cast void e))))
+          (block
+            (try (sync_disk (aof ce_mem))
+                 (catch ((const ZiguratException & e)) (cast void e)))
+            ;; synced, the store is the next process's (`ce_store_unlock')
+            (ce_store_unlock)))
       (pthread_mutex_unlock (aof ce_open_access)))
 
     (func ce_session_new () (out void *)
@@ -1602,7 +1848,7 @@
             (commit_transaction (aof ce_mem))
             (begin_transaction (aof ce_mem)))
           (catch ((const ZiguratException & e))
-            (snprintf (-> s err) 512 "commit: %s" (($ e what)))
+            (ce_say (-> s err) 512 "commit" (($ e what)))
             (return 0)))
         (return 1)))
 
@@ -1613,7 +1859,7 @@
             (rollback_transaction (aof ce_mem))
             (begin_transaction (aof ce_mem)))
           (catch ((const ZiguratException & e))
-            (snprintf (-> s err) 512 "rollback: %s" (($ e what)))
+            (ce_say (-> s err) 512 "rollback" (($ e what)))
             (return 0)))
         (return 1)))
 
@@ -1622,7 +1868,7 @@
         (try
           (set_isolation_level (txn) (cast IsolationLevel level))
           (catch ((const ZiguratException & e))
-            (snprintf (-> s err) 512 "isolate: %s" (($ e what)))
+            (ce_say (-> s err) 512 "isolate" (($ e what)))
             (return 0)))
         (return 1)))
 
@@ -1639,7 +1885,7 @@
             (rollback_transaction (aof ce_mem))
             (begin_transaction (aof ce_mem)))
           (catch ((const ZiguratException & e))
-            (snprintf (-> s err) 512 "reopen: %s" (($ e what)))
+            (ce_say (-> s err) 512 "reopen" (($ e what)))
             (return 0)))
         (return 1))))
 

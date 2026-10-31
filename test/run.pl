@@ -203,13 +203,16 @@ raised_tail(_, Text) :-
 %%   lint    cocolint over the calibration corpus
 %%   groups  twelve interpreters sharing four machine STATES
 %%   ruler   one interpreter writing the KNOWLEDGE BASE while eight read it
+%%   store-lock  an embedded store one process's at a time: four writers
+%%           at once, the holder named, a waiter in its turn, and a
+%%           damaged store said to be
 pl_names([files, trace, backtrace, cyclic, window, journal, vacuum, repl, script, tunnel, reconsult, tensors,
           'torch-graph', 'torch-grad', 'torch-replay', tensorflow, library, bigint,
           'zigurat-lib', tcp, engine, errors, gc, meter, thread, process, text, regex, os, signal, async, kbs, http,
           curl, ray, clay, stream, numpy, opencv, hex, astar, serialize, flowchart, flowdebug, httpd, 'httpd-tls', websocket, crypto,
           cowork, reason, normalise, tagger, translate,
           tls, 'zigurat-tls', tutorials, colab, lint, static, argv, string, units, langs, tokens,
-          directives, groups, ruler, template, rationals]).
+          directives, groups, ruler, template, rationals, 'store-lock']).
 
 pl_cases(Only, Red0, Red) :-
     pl_names(All),

@@ -1214,7 +1214,13 @@
     ;; reset takes them with the clauses (`coco_store_free').
     (member coco_loaded * loads)
     (member size_t    nloads)
-    (member size_t    load_cap))
+    (member size_t    load_cap)
+    ;; WHY THE BACKEND LAST REFUSED A DECLARATION (3.0.3), as its own
+    ;; sentence, or empty: `on_dynamic' leaves it before it answers 0, and
+    ;; `coco_pred_dynamic' answers -1 for the caller that says it. Through
+    ;; 3.0.2 the callers said `out of memory', which every later process
+    ;; over a damaged store printed (cicilang 0.240).
+    (member char      write_err [256]))
 
   (decl) (func coco_store_init ((coco_store * st)))
   (decl) (func coco_store_free ((coco_store * st)))
@@ -1843,6 +1849,9 @@
   ;;; It does NOT mark the predicate loaded. A dynamic predicate may perfectly
   ;;; well have clauses waiting in a shared knowledge base, put there by another
   ;;; interpreter, and declaring it here must not stop the backend being asked.
+  ;;;
+  ;;; Answers 1 declared, 0 out of memory, and -1 when the backend refused the
+  ;;; declaration (3.0.3): then it was not made, and `write_err' says why.
   (decl) (func coco_pred_dynamic ((coco_store * st) (u64 name) (u32 arity)) (out int))
 
   ;;; Removes the first clause whose head and body unify with the given term:

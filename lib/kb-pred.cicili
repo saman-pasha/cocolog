@@ -655,7 +655,15 @@
           (set ($ (nth pi (-> st preds)) dynamic) 1)
           (if (coco_store_is_muted st) (return 1))
           (if (== (-> st on_dynamic) nil) (return 1))
-          (return ((-> st on_dynamic) st (-> st ctx) pi))))
+          (set (nth 0 (-> st write_err)) (cast char 0))
+          (let ((int ok . #'((-> st on_dynamic) st (-> st ctx) pi)))
+            (if ok (return 1)))
+          ;; REFUSED BY THE BACKEND (3.0.3): not declared, and said so in the
+          ;; backend's words, never memory's
+          (set ($ (nth pi (-> st preds)) dynamic) 0)
+          (if (== (nth 0 (-> st write_err)) (cast char 0))
+              (snprintf (-> st write_err) 256 "the knowledge base refused the declaration"))
+          (return -1)))
 
   ;;; True when T is the compound NAME of arity one -- `:- G' and nothing else,
   ;;; so far, but it reads better than the test written out.
@@ -713,8 +721,11 @@
           (let ((i64 n . #'(+ (coco_int_val m (nth ar (-> m heap))) plus)))
             (if (or (< n 0) (> n 255))
                 (block (snprintf err errlen "dynamic: arity out of range") (return 0)))
-            (if (not (coco_pred_dynamic st (coco_name_of m nm) (cast u32 n)))
-                (block (snprintf err errlen "dynamic: out of memory") (return 0)))
+            (let ((int ok . #'(coco_pred_dynamic st (coco_name_of m nm) (cast u32 n))))
+              (if (== ok 0)
+                  (block (snprintf err errlen "dynamic: out of memory") (return 0)))
+              (if (< ok 0)
+                  (block (snprintf err errlen "dynamic: %s" (-> st write_err)) (return 0))))
             ;; the declaration is program text, not a row: keep it for the
             ;; fresh stores `run_isolated/2' will make
             (coco_dynamic_remember (coco_atom_name m (coco_name_of m nm)) (cast u32 n))

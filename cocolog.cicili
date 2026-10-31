@@ -405,7 +405,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.0.2"))
+  (func coco_version_text () (out const char *) (return "3.0.3"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -544,7 +544,10 @@
               (block
                 (set db (zg_open_embed ($ opts store) err (sizeof err)))
                 (if (== db nil)
-                    (block (fprintf stderr "cocolog: no embedded store at %s -- %s\n"
+                    ;; `cannot open', not `no store' (3.0.3): the store
+                    ;; may be there and in use, or damaged, and the reason
+                    ;; after the dash says which
+                    (block (fprintf stderr "cocolog: cannot open the embedded store at %s -- %s\n"
                                     ($ opts store) err)
                            (return 0)))
                 (return 1)))

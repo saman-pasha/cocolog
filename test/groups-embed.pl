@@ -3,7 +3,10 @@
 %% knowledge base inside the process instead of behind a server.
 %%
 %% WHAT CHANGES AND WHY. An embedded store belongs to one process at a
-%% time, so the arrangement differs from groups.pl in exactly two ways:
+%% time -- since 3.0.3 its open takes DIR/lock and a second process waits
+%% its turn (test/store-lock.pl), where through 3.0.2 it wrote over the
+%% first's records -- so the arrangement differs from groups.pl in
+%% exactly two ways:
 %%
 %%   THE MACHINES START FIRST. groups.pl starts its workers first because
 %%   twelve processes take long enough to launch that early ones finished

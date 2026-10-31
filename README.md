@@ -54,7 +54,9 @@ it. See [The flow libraries](#the-flow-libraries) below.
 One binary. The knowledge base is chosen at run time: in memory (`--local`,
 the default), in a ZiguratIP server over its binary protocol (`--kb`), over
 TLS (`--tls`), over Zeytun/HTTP (`--http`, `--https`), or in the embedded store
-linked into the binary itself (`--embed`).
+linked into the binary itself (`--embed`). An embedded store is one process's at
+a time: a second process over it waits its turn (`COCOLOG_STORE_WAIT=S` bounds
+the wait), and a store damaged some other way says so when it is opened or read.
 
 ## The one decision everything follows from
 

@@ -153,7 +153,11 @@ sh tools/tagger/train.sh        # regenerate generated/ and model.rows (committe
   off PATH** for the sbcl it runs, as the wrappers do before they exec the
   compiler: the Cicili inside compiles by naming `gcc`, and its first
   version built cocolog with Ubuntu's gcc (the tell, `readelf -p .comment
-  .libs/cocolog.o`).
+  .libs/cocolog.o`). **It passes by another checkout's shim** (3.0.3): with
+  two checkouts' `tools/cc` on PATH -- a worktree's `make` from a shell that
+  sourced the other's `env.sh` -- each took the other for the real sbcl, and
+  the two called each other hundreds of shells deep before the build began;
+  a `sbcl` that carries the shim's first comment line is skipped.
 * **Everything is built by clang** -- the client, the interpreter, the
   embedded store, every module, ZiguratIP's libraries and server, and the
   Parsi objects the server loads -- because cocolog links ZiguratIP's C++
@@ -389,8 +393,8 @@ together are refused. TLS takes `--cacert`, `--capath`, `--cert`, `--key`,
 the seven `test/*.cicili` binaries through Cicili with `--release` (term,
 syntax, solve, module, state, zigurat, shared; a build that links the
 engine takes about a hundred seconds on the Linux box, solve and its run
-105 s on 2.14.1) and runs the 69 `.pl` cases in `pl_names/1`
--- **76 lines**, each with its seconds. There is no `.sh` under `test/`.
+105 s on 2.14.1) and runs the 70 `.pl` cases in `pl_names/1`
+-- **77 lines**, each with its seconds. There is no `.sh` under `test/`.
 **A build has ten minutes** (`build_ceiling/1`), and a failed one names its
 exit status, 124 for that ceiling: on the prelude's two minutes a slow Intel
 Mac runner stopped the four that link the engine (run 40975575257), and the
@@ -603,6 +607,29 @@ line said only `BUILD FAILED`, over a tail ending on clang's command line.
 * **A store is in the writing machine's byte order** and does not travel;
   `byteorder.bin` beside it is checked before open, and a refusal exits 1
   with an empty stdout and the reason on stderr.
+* **An embedded store is one process's at a time** (3.0.3, cicilang 0.240):
+  the open takes `DIR/lock` with flock(2), its holder's pid in the file,
+  held to the process's last close and dropped by the kernel at any exit
+  (kill -9 too; a child holds none), and a second process WAITS its turn,
+  saying once past two seconds whom it waits for. Not fcntl's record lock:
+  that is the PROCESS's, and any close of the file in the holder gave it
+  back, a program reading its own store's files among them (the first cut's
+  hole, test/store-lock.pl's `reader`).
+  `COCOLOG_STORE_WAIT=S` waits S seconds at most, 0 refuses at once: `the
+  store is in use by process N`, exit 1. Through 3.0.2 two processes wrote
+  over each other's records -- commits lost (`sequence has no row`), rows
+  lost with no error, bus errors, and stores no later process could open.
+  **A damaged store says so**: a data file shorter than its hexmap
+  describes, or one with no hexmap, is refused at the open, and a torn
+  record at its read, `the store in DIR is damaged: ...` (`ce_store_shape`,
+  `ce_damage_said` in embed/embed.cicili); a declaration the backend
+  refuses raises `resource_error(knowledge_base)` with its reason (it said
+  `dynamic: out of memory`). An emptied hexmap still opens empty and says
+  nothing -- the engine frees uncovered pages by its rule, which cannot tell
+  it from a first commit killed. So several cocologs over one store run IN
+  TURN, not at once: library(flow/debug) gives each window's child a copy of
+  `embed(Dir)` (J copies at once with `windows=N`), and a `make -j` over one
+  store is safe and serial.
 * **A clause must fit one page** (65536 on a store made since 1.10.0 and
   ZiguratIP 1.0.0, 8192 on an older one, ~8014 characters there): the store
   sets `clause_max = page - 190 - len(kb)` and `assertz/1` raises

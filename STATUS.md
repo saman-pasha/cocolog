@@ -5,8 +5,8 @@ again rather than to look finished.
 
 ## Done and tested
 
-`make test` ends `red: 0` over **76 case lines** — seven `.cicili` binaries
-and sixty-nine Prolog scripts, each line with its seconds. The database
+`make test` ends `red: 0` over **77 case lines** — seven `.cicili` binaries
+and seventy Prolog scripts, each line with its seconds. The database
 suites **skip** rather than fail when there is no server, because "no server
 here" and "the backend is wrong" are different findings, so **count the
 SKIPs**: `red: 0` is printed over a run where nothing happened just as
@@ -79,6 +79,7 @@ happily as over a real one.
 | `test/lint.pl` | cocolint over the WHOLE TREE (2.2.1): the dialect card's citations still pointing at the code they claim, the index reporting no library thin or unrouted, every rule still firing on `selftest/traps.pl` with its acknowledgements ignored and the file clean with them read, the acknowledgements and the X2 lifts answering as written, the blocklist probed against the RUNNING store, and no finding, HARD or WARN, over every `.pl` the repository holds (`lib/swipl`'s eight left unread); and AUTO MODE over a fixture repository of its own: `--auto` lints an untracked `.pl`, `--staged` reads the index after the working file is clean while `--auto` reads the working tree, `--quiet` says nothing with nothing staged, and a changed `.cicili` and a vendored `lib/swipl` file are named and do not fail the run |
 | `test/argv.pl` | `current_prolog_flag(argv, V)` out of `main()`'s own argv with `--` ending cocolog's arguments, `library(main)` over it, the `-s`-versus-`run` difference in what reaches the store, and `--version`'s SHAPE — deliberately not its number |
 | `test/directives.pl` | `:- G` is a GOAL, `initialization/1,2` puts one off, and a directive that fails or throws is REPORTED in SWI's shapes rather than ending the load — a syntax error being the only thing that still does. Its last section runs the same files under `swipl` and diffs what the programs printed. Since 1.11.9 a syntax error SAYS WHERE AND WHY in swipl's shape, `ERROR: FILE:LINE:COL: Syntax error: REASON` (the column from 0, in bytes as swipl counts it: two letters of two bytes move it four), from `run`, from `-s` naming the module's own file a directive loaded (a spec written without `.pl`) and from the load a goal's ask makes; a stray `endif` names its line; and the place is held to swipl's in two files -- where 1.11.8 said `syntax error at offset N`, and `-s` only that the top file's `clauses would not consult`. Each of five arms goes red: the error unplaced (7 checks), the module's reason not handed back (2), the module named by its spec (2), the column in characters (2), the other stops unplaced (1) |
+| `test/store-lock.pl` | an `--embed` store ONE PROCESS'S AT A TIME, and a damaged one SAYING SO (3.0.3, cicilang 0.240's three requests): cicilang's four writers at once over one fresh store, each reading its 40 rows of 3 500 characters back and exiting 0, and a fifth process finding all 160; the holder's process id in `DIR/lock`, `COCOLOG_STORE_WAIT=0` refused at once naming it and `=1` after its second; a waiter with no limit running when the holder is done, having said once whom it waited for; a holder that reads its own `DIR/lock` keeping it (a record lock went at that close); no lock left by a holder killed with SIGKILL, nor by a child it left running; a store whose data file was cut to half, emptied, or left without its hexmap refused at its open, `the store in DIR is damaged: ...`; and a store whose hexmap was cut to half said to be damaged at its first torn read, in a consulted `dynamic` directive (`dynamic: out of memory` through 3.0.2, cicilang's every later process) and in dynamic/1 as a goal (`representation_error(max_arity)` through 3.0.2). 37 checks; 31 red on a build without the change, and each of seven arms red (below) |
 
 ### The suite is Prolog files now, one process a case, and no shell at all
 
@@ -8809,3 +8810,164 @@ NOT swipl's:
   is `tcp:`, where swipl's sockets are `socket:`.
 - An unknown procedure a clause body calls still raises with the context
   unbound, and the other differences 3.0.0 stated stand.
+
+## An embedded store is one process's at a time, and a damaged one says so (3.0.3)
+
+cicilang 0.240 found it on cocolog 2.14.1, and its RULES.md keeps the
+finding ("THE STORE TAKES ONE WRITER AT A TIME"): J processes at once over
+one fresh `--embed` store, each writing 40 rows of 3 500 characters into a
+predicate of its own and reading them back. Three at once lost a commit
+(`sequence has no row`) and hung a writer until it was killed; six lost
+five writers' rows with no error; four cicilang builds over one store died
+of bus errors, and every later process over that store said `dynamic: out
+of memory` until it was deleted. Its three requests, in order: serialize
+writers in cocolog; failing that, refuse a second at once, `the store is in
+use by process N`; and let a damaged store say so in later runs.
+
+REPRODUCED with cicilang's own writer (test/store-lock.pl's `w/2`), on a
+build whose store is 3.0.2's: three writers at once -- one commit refused,
+`sequence has no row`; four -- three bus errors (exit 135), the fourth
+writer's commit refused, and the reader refused the store, `hexmap ends
+inside the chunk`; six -- three bus errors, two commits refused (`commit:
+hexmap ends inside the chunk`), the reader refused; four again -- one
+writer's read refused, another's commit refused, and the reader found 22 of
+the second writer's 40 rows and no predicate of the other three; six again
+-- four bus errors. One writer alone was right every time.
+
+WHY. A process maps the store's data.bin and hexmap.bin and keeps a picture
+of them of its own -- which pages are free, its record cache -- read at the
+open and written back at each commit, and every transaction it begins, a
+read-only one's too, allocates a record in them. Two processes allocate the
+same pages from their own pictures and each writes over the other's: a page
+one freed is the other's row, a record one hexmap calls free is half
+written, and a data file one process remaps shorter is SIGBUS under the
+other's mapping. The engine has no protocol between processes and was never
+meant to: a server serializes its clients, and a store embedded in a
+process is that process's. test/groups-embed.pl's header said so, and
+nothing kept it.
+
+WHAT CHANGED:
+- THE OPEN TAKES `DIR/lock` (cicilang's first request; `ce_store_lock` in
+  embed/embed.cicili): flock(2) on a file beside the store, taken before a
+  byte of the store is read and held to the process's last close
+  (`ce_open_count`: run_isolated/2, a thread's session and a green world
+  open and close inside a process that holds it throughout). The kernel
+  drops it at any exit, kill -9 included, and the descriptor is
+  close-on-exec, so a child the process spawns holds none of it. The holder
+  writes its process id into the file.
+- A SECOND PROCESS WAITS ITS TURN, trying every 10 ms and saying once, past
+  two seconds, `cocolog: the store in DIR is in use by process N; waiting
+  for it`. `COCOLOG_STORE_WAIT=S` waits S seconds at most and 0 refuses at
+  once (the second request, for a caller that wants it): `cocolog: cannot
+  open the embedded store at DIR -- the store is in use by process N`, exit
+  1. So a `make -j` over one store is safe, its cocologs taking turns, and
+  cicilang's lock directory around each run is no longer needed.
+- NOT A RECORD LOCK. The first cut took fcntl's (F_SETLK, F_WRLCK), and a
+  record lock is the PROCESS's: any close of any descriptor of the file in
+  that process gives it back. A holder that read its own `KB/lock` -- a
+  program copying or backing up its store's directory -- dropped it with no
+  word, and a second process opened the store while the first still held it
+  open (shown on that build: the holder read the file at 0.5 s and a second
+  process opened the store at 1.8 s, the holder's open running to 4.5 s).
+  flock's lock is the open file description's, which only this descriptor
+  holds; Linux's OFD locks would have served as well and do not build on a
+  Mac.
+- A DAMAGED STORE SAYS SO (the third request). The open checks the store's
+  shape after the hexmap's settle (`ce_store_shape`): a data file shorter
+  than the pages its hexmap says are used -- cut short, or emptied -- and a
+  data file with bytes and no hexmap are refused, `the store in DIR is
+  damaged: its hexmap describes 27 pages of 65536 bytes and its data file
+  holds 884736 bytes, 13 pages`. A commit syncs the data file before the
+  hexmap, so a kill leaves the data file ahead of its hexmap, never behind:
+  a short data file is damage, never a write cut off. And the engine's
+  refusals that mean damage -- `hexmap ends inside the chunk`, `the chunk is
+  not an allocated record`, `invalid row state`, `sequence has no row`
+  (`ce_damage_said`) -- are said as damage wherever the store gives them, an
+  open, a read, a commit, a rollback, an isolate or a reopen (`ce_say`):
+  `the store in DIR is damaged: the chunk is not an allocated record -- a
+  torn link`, where it said `the store refused it: ...`.
+- A BACKEND'S REFUSED DECLARATION IS NOT MEMORY. `coco_pred_dynamic` answers
+  -1 when the backend refused it, its reason on the store's new `write_err`
+  (appended to `coco_store`), which the Zigurat backend fills with its own
+  words (`coco_zg_dynamic_fail`). A directive reports `dynamic: <the
+  backend's words>`, and dynamic/1 as a goal raises
+  `error(resource_error(knowledge_base), context(system:dynamic/1, Why))`.
+  Through 3.0.2 a consulted directive said `dynamic: out of memory` --
+  cicilang's every later process -- and the goal raised
+  `representation_error(max_arity)`.
+- The host says `cannot open the embedded store at DIR -- REASON` where it
+  said `no embedded store at DIR`, which a store in use or damaged is not.
+- library(flow/debug) runs each window's child over a COPY of `embed(Dir)`
+  (`flow_dbg_window_cmd`: `cp -R` before the child, `rm -rf` after it):
+  its windows run J at a time, and over the one store they would now run
+  one at a time. The probe and the replay, one at a time, run over the
+  store itself, as before.
+- tools/cc/sbcl passes by another checkout's shim. Building this in a second
+  worktree, with both checkouts' tools/cc on PATH, each shim took the other
+  for the real sbcl and asked it its dynamic space; the two called each
+  other hundreds of shells deep, and the build never began.
+
+PROVED:
+- test/store-lock.pl (new, the 70th `.pl` case), 37 checks, GREEN:
+  cicilang's four writers at once, each reading its 40 rows back and
+  exiting 0, and a fifth process finding all 160; the holder's process id in
+  `DIR/lock`, `COCOLOG_STORE_WAIT=0` refused at once and `=1` after its
+  second, each naming the holder; a waiter with no limit running when the
+  holder is done, having said once whom it waited for; a holder that reads
+  its own `DIR/lock` keeping it; no lock left by a holder killed with
+  SIGKILL, nor by a child it left running; a store whose data file was cut
+  to half, emptied, or left without its hexmap refused at its open and said
+  to be damaged; and a store whose hexmap was cut to half -- it opens, as
+  it must (below) -- said to be damaged at its first torn read, in a
+  consulted `:- dynamic(zz/3)`, and in dynamic/1 as a goal, as
+  `resource_error(knowledge_base)` naming `system:dynamic/1`.
+- On a build without the change the case fails 31 of 37. Those three
+  damages each opened without a word there: the read after the cut data
+  file hung until it was killed, and after the other two found every
+  predicate gone, print_message/2 among them (`Unknown procedure:
+  print_message/2`).
+- The reproduction on 3.0.3: three, four and six writers at once, every
+  writer 40 of 40 rows back and exit 0, the reader finding every row.
+- THE ARMS, each a copy of the tree with one edit, built as the release is
+  and run through the case: the lock taken out (`ce_store_lock` answering 1
+  at once) -- 18 FAIL, the writers and the holder, the writers now saying
+  their store is damaged (`the chunk is not an allocated record`); the
+  shape check taken out -- 7 FAIL, the three refusals; the damage words
+  taken out -- 3 FAIL, the torn read, the directive and the goal;
+  `coco_pred_dynamic` answering 0 again -- 1 FAIL, the directive's `out of
+  memory`; dynamic/1 not reading `write_err` -- 1 FAIL,
+  `representation_error(max_arity)`; the Zigurat backend leaving
+  `write_err` empty -- 2 FAIL, `the knowledge base refused the declaration`;
+  and the record lock in flock's place -- 2 FAIL, the holder that reads its
+  lock. The first six ran on the record-lock build, against the case before
+  its reader section; none of their edits is near the lock.
+- Run on the record-lock build, each alone: the lint case (GREEN, 91 s),
+  store-lock, flowdebug, directives, vacuum, reconsult, repl, gc, window,
+  cowork, httpd, units, engine, kbs, library, zigurat-lib, errors, argv,
+  meter, groups, ruler, tunnel, zigurat, shared (GREEN), tensors (SKIP: no
+  torch module built here), and lessons basics/11 and library/38 (`done`);
+  and again on the flock build every case of those that opens an `--embed`
+  store -- store-lock, flowdebug, directives, vacuum, reconsult, repl, gc,
+  window, cowork, httpd, units, engine, kbs, library, zigurat-lib, errors,
+  argv and meter (GREEN), tensors (SKIP), and the two lessons (`done`).
+  The ZiguratIP server was up (pid 1064). The dialect
+  card's cites were renumbered -- four moved, two of them by hand, whose
+  anchors repeat in their file -- and checked: 30 rows, 42 cites. The full
+  suite was not run here.
+
+NOT DONE, and stated:
+- A hexmap emptied or cut short opens, and a store with no hexmap but an
+  empty data file opens as a fresh one: the engine frees the pages its
+  hexmap does not cover, by its rule, and that cannot be told from a first
+  commit killed before its hexmap was written. A hexmap cut short says so
+  at the first read past the cut (above); an emptied one opens an empty
+  store and says nothing.
+- `sequence has no memory to read` is not counted as damage.
+- A process that holds a store and runs a cocolog over the same store, then
+  waits for it, waits for ever -- the child waits for the parent's lock.
+  Nothing in the tree does it; library(flow/debug)'s windows each have
+  their copy.
+- Each flow/debug window over `embed(Dir)` copies the store: with
+  `windows=N`, J copies on disk at once, each the store's size.
+- The server arrangement is unchanged: its clients were always serialized by
+  the server.
