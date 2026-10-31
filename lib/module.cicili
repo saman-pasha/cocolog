@@ -188,7 +188,13 @@
     (member const char * real)
     ;; and the file's time_file/2 when the text the registry holds was read
     ;; (2.14.0), which load_files/2's if(changed) compares
-    (member double time))
+    (member double time)
+    ;; REGISTERED BY A LOADED OBJECT (3.0.2): a `.so' whose entry the loader
+    ;; called (`lb_load_so', `coco_module_set_foreign'), as swipl's foreign
+    ;; library is. Its own predicates' errors name it, context(Module:
+    ;; Name/Arity, _) (`coco_m_raise'); a module compiled in names what its
+    ;; row of `*error-contexts*' names, or nothing
+    (member int foreign))
 
   ;;; Empties the registry and fills in solve.cicili's two hooks. A target that
   ;;; wants modules calls this once and then registers each one.
@@ -235,6 +241,11 @@
   ;;; is KEPT, never freed: the registry is the process's and unguarded,
   ;;; and another thread may be consulting it into a store of its own.
   (decl) (func coco_module_set_text ((const char * name) (const char * text) (double time)))
+
+  ;;; Marks every module registered at index FROM and after as a loaded
+  ;;; object's (`foreign', 3.0.2): what the loader does once a `.so''s entry
+  ;;; has run, FROM the registry's count before it (`lb_load_so').
+  (decl) (func coco_module_set_foreign ((size_t from)))
 
   ;;; The Coco half of every module not yet in this store, consulted in --
   ;;; public because `use_module' as a GOAL registers a module mid-query and
@@ -579,6 +590,14 @@
   ;;; registered wins a collision, which makes the order in the target the
   ;;; order of precedence and is the only sensible rule when two modules
   ;;; disagree.
+  ;;;
+  ;;; EACH DISPATCHER IS CALLED WITH ITS MODULE ON THE ENGINE (3.0.2): `kmod',
+  ;;; the module's index plus one, so that a raise inside it can name the
+  ;;; module that answered (`coco_m_raise') -- the three calls below, and
+  ;;; nowhere else. THE STEP CLEARS IT when the module's call returns
+  ;;; (solve-loop.cicili), and not these: put back here, `coco_module_call_at'
+  ;;; kept a frame round its dispatcher instead of jumping to it, and a call
+  ;;; of the lists module's nth0/3 cost 365 instructions where 3.0.0's cost 354.
   (static)
   (func coco_module_call ((coco_engine * e) (const char * name) (u32 arity)
                         (size_t g) (int * found)) (out int)
@@ -586,8 +605,9 @@
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
-                (let ((int mine . 0)
-                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                (let ((int mine . 0) (int rc . 0))
+                  (set (-> e kmod) (+ i 1))
+                  (set rc ((-> mod dispatch) e name arity g (aof mine)))
                   (if mine (block (set (cof found) 1) (return rc)))))))
         (return 0))
 
@@ -605,8 +625,9 @@
         (for ((size_t i . 0)) (< i coco_nmodules) ((++ i))
           (let ((coco_module * mod . #'(aof (nth i coco_modules))))
             (if (!= (-> mod dispatch) nil)
-                (let ((int mine . 0)
-                      (int rc . #'((-> mod dispatch) e name arity g (aof mine))))
+                (let ((int mine . 0) (int rc . 0))
+                  (set (-> e kmod) (+ i 1))
+                  (set rc ((-> mod dispatch) e name arity g (aof mine)))
                   (if mine (block (set (cof found) 1) (set (cof out_at) i) (return rc)))))))
         (return 0))
 
@@ -617,6 +638,7 @@
         (if (>= at coco_nmodules) (return 0))
         (let ((coco_module * mod . #'(aof (nth at coco_modules))))
           (if (== (-> mod dispatch) nil) (return 0))
+          (set (-> e kmod) (+ at 1))
           (return ((-> mod dispatch) e name arity g found))))
 
   ;;; The Coco half of every module NOT YET IN THIS STORE, consulted in.
@@ -813,6 +835,10 @@
           (if (== 0 (strcmp name ($ (nth i coco_modules) name)))
               (block (set ($ (nth i coco_modules) prolog) text)
                      (set ($ (nth i coco_modules) time) time)))))
+
+  (func coco_module_set_foreign ((size_t from))
+        (for ((size_t i . from)) (< i coco_nmodules) ((++ i))
+          (set ($ (nth i coco_modules) foreign) 1)))
 
   ;;; ---- the author's API -----------------------------------------------
 
@@ -1279,15 +1305,50 @@
             (set (cof n) len)
             (return 1))))
 
+  ;;; A LOADABLE MODULE'S OWN PREDICATE NAMES ITSELF (3.0.2), as swipl names
+  ;;; a foreign predicate's errors by the module that defines it --
+  ;;; context(socket:tcp_socket/1, _), context(md5:md5_hash/3, _) -- and
+  ;;; a message then begins `md5:md5_hash/3: ' (`coco_err_caller', and
+  ;;; library(print_message)'s '$pm_caller'). The module is the one the seam
+  ;;; is calling (`kmod'), when a `.so' registered it (`foreign'), and the
+  ;;; predicate is the goal in flight (`kcall'), the C predicate itself --
+  ;;; a `$' helper too, as swipl names its own ('$on_signal'/4). Else CTX,
+  ;;; the context no row named, as it was: a module compiled in names what
+  ;;; its rows of `*error-contexts*' name, and nothing else. Out of line and
+  ;;; cold: a raise pays it.
+  (static) (cold)
+  (func coco_m_module_ctx ((coco_engine * e) (size_t ctx)) (out size_t)
+        (let ((coco_machine * m . #'(-> e m))
+              (size_t k . #'(-> e kmod)) (size_t g . #'(-> e kcall))
+              (u64 c . 0) (u64 nid . 0) (u32 n . 0))
+          (if (or (== k 0) (> k coco_nmodules) (== g 0)) (return ctx))
+          (if (not ($ (nth (- k 1) coco_modules) foreign)) (return ctx))
+          (set g (coco_deref m g))
+          (set c (nth g (-> m heap)))
+          (cond
+            ((coco-tag-is ATOM c) (set nid (coco-payload c)))
+            ((coco-tag-is FUN c)
+             (let ((size_t fid . #'(cast size_t (coco-payload c))))
+               (set nid ($ (nth fid (-> m functors)) name))
+               (set n ($ (nth fid (-> m functors)) arity))))
+            (#t (return ctx)))
+          (return (coco_ectx_pi m ($ (nth (- k 1) coco_modules) name)
+                                (coco_new_atom_id m nid) n (coco_new_var m)))))
+
   ;;; `error(Formal, Context)' and then throw it. The context is the
   ;;; engine's (3.0.0, `coco_err_ctx'): the goal in flight is the module's
   ;;; call, so a row of `*error-contexts*' names it -- char_type/2,
-  ;;; length/2 -- and a loadable module's own predicate raises with the
-  ;;; context unbound, as through 2.16 every one did.
+  ;;; length/2 -- and one no row names is a loadable module's own predicate,
+  ;;; named with its module (3.0.2, `coco_m_module_ctx'), or else left
+  ;;; unbound, as through 2.16 every raise left it.
   (static)
   (func coco_m_raise ((coco_engine * e) (size_t formal)) (out int)
         (let ((coco_machine * m . #'(-> e m))
-              (size_t ball . #'(coco_make2 m "error" formal (coco_err_ctx e 0 nil))))
+              (size_t ctx . #'(coco_err_ctx e 0 nil))
+              (size_t ball . 0))
+          (if (coco-tag-is REF (nth (coco_deref m ctx) (-> m heap)))
+              (set ctx (coco_m_module_ctx e ctx)))
+          (set ball (coco_make2 m "error" formal ctx))
           ;; 2 and not 1: the engine must be told that the continuation is
           ;; already set, or it puts the caller's back and the recovery goal
           ;; never runs. See the dispatch in solve.cicili.

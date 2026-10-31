@@ -54,6 +54,10 @@ main :-
     ),
     forall(member(C, Cases), one_case(Swipl, Sandbox, C)),
     shl(['rm -rf ', Sandbox]),
+    (   nb_current(files_md5, built(So))
+    ->  file_directory_name(So, Built), shl(['rm -rf ', Built])
+    ;   true
+    ),
     checks_done.
 
 %% THE SWIPL IS 9.0.4, or the case stops by name: a 10.x answers some of
@@ -114,7 +118,60 @@ fixtures(reload, Sandbox) :- !,
 %% list of lines (`ro/2')
 fixtures(reload_order, Sandbox) :- !,
     forall(ro(F, Lines), ( atomic_list_concat([Sandbox, '/', F], P), fixture(P, Lines) )).
+%% the md5 fixture (below) in the sandbox's library/, which cocolog searches
+%% after $COCOLOG_LIBRARY and swipl does not search at all: swipl's
+%% use_module(library(md5)) takes its own
+fixtures(module_context, Sandbox) :- !,
+    md5_fixture(built(So)),
+    atom_concat(Sandbox, '/library', Lib),
+    shl(['mkdir -p ', Lib, ' && cp ', So, ' ', Lib, '/md5.so']).
 fixtures(_, _).
+
+%% WHAT A CASE NEEDS THAT A BOX MAY NOT HAVE, the case skipped by name where
+%% it is missing, as test/library.pl skips hoot. module_context needs the
+%% md5 fixture; a fixture that would not build, on a box that has what it
+%% takes, is red with its compiler's words.
+unready(module_context, Why) :- !,
+    md5_fixture(R),
+    (   R = missing(Why)
+    ->  true
+    ;   R = failed(Log)
+    ->  check('module_context: the md5 fixture builds', Log, built),
+        Why = 'its fixture would not build'
+    ).
+
+%% THE md5 FIXTURE (3.0.2): a loadable module named md5, built from
+%% test/md5.cicili as test/library.pl builds hoot -- Cicili with --release,
+%% then the one compiler with -O3 -- once a run, kept in a scratch directory
+%% of its own until the run ends. built(So), missing(Why) or failed(Log).
+md5_fixture(R) :- nb_current(files_md5, R), !.
+md5_fixture(R) :- md5_build(R), nb_setval(files_md5, R).
+
+md5_build(R) :-
+    ( getenv('CICILI', Cicili) -> true ; getenv('HOME', Home), atom_concat(Home, '/cicili', Cicili) ),
+    atom_concat(Cicili, '/cicili.lisp', Lisp),
+    ( exists_file('tools/cc/cc') -> Cc = 'tools/cc/cc' ; Cc = clang ),
+    sh_join(['command -v ', Cc, ' >/dev/null 2>&1 || test -x ', Cc], HaveCc),
+    (   \+ ( sh_exit('command -v sbcl >/dev/null 2>&1', 0), exists_file(Lisp) )
+    ->  R = missing('no sbcl or no CICILI checkout for the md5 fixture')
+    ;   \+ sh_exit(HaveCc, 0)
+    ->  R = missing('no C compiler for the md5 fixture')
+    ;   scratch(D),
+        working_directory(Root, Root),
+        %% Cicili takes the directory it starts in as where its own library
+        %% lives, so it runs from its checkout with the target named
+        %% absolutely, and writes test/md5.c beside the target
+        shl(['rm -f test/md5.c && cd ', Cicili, ' && sbcl --script cicili.lisp --release ', Root,
+             '/test/md5.cicili > ', D, '/transpile.log 2>&1 || true']),
+        atom_concat(D, '/md5.so', So),
+        sh_join([Cc, ' -shared -fPIC -O3 -o ', So, ' test/md5.c > ', D, '/cc.log 2>&1'], Build),
+        (   sh_exit(Build, 0)
+        ->  R = built(So)
+        ;   atom_concat(D, '/cc.log', Log), read_file_to_codes(Log, Cs), atom_codes(Why, Cs),
+            atomic_list_concat([Why, ' (the transpile: ', D, '/transpile.log)'], Said),
+            R = failed(Said)
+        )
+    ).
 
 ro('s1.pl', [':- dynamic s1/1.', 's1(1).', 's1(2).']).
 ro('s1.v2.pl', [':- dynamic s1/1.', 's1(3).', 's1(4).']).
@@ -216,7 +273,9 @@ run_one(Sandbox, C, Cmd, Text) :-
 one_case(Swipl, Sandbox, C) :-
     working_directory(Root, Root),
     sh_join([Root, '/test/files/', C, '.pl'], Pl),
-    (   exists_file(Pl)
+    (   exists_file(Pl), unready(C, Why)
+    ->  format("     ~w: skipped (~w)~n", [C, Why])
+    ;   exists_file(Pl)
     ->  sh_join([Swipl, ' -q -g main -t halt ', Pl], SwiCmd),
         run_one(Sandbox, C, SwiCmd, Swi),
         %% `run' takes the LAST argument as the goal when it is given more than

@@ -1538,7 +1538,11 @@
                                                                      (aof found))))))))
                             (set rc (coco_extern_call e (coco_atom_name m nid) n (-> e kcall) (aof found))))
                           (set k (-> e kgoal))
-                          (set g (-> e kcall))))
+                          (set g (-> e kcall))
+                          ;; the module the seam called is no longer
+                          ;; answering (3.0.2): a raise from here on names no
+                          ;; module of its own (`kmod', `coco_m_raise')
+                          (set (-> e kmod) 0)))
                      (if found
                          (block
                           (if (== rc -1) (return -1))

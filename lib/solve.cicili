@@ -416,7 +416,11 @@
 ;;; goal whose raise names a context: the goal in flight (`kcall') is
 ;;; looked up by its name and arity, once per functor (`ectx' on the
 ;;; functor), and a goal the table does not name raises with the context
-;;; unbound, as every raise did through 2.16.
+;;; unbound, as every raise did through 2.16 -- unless a loadable module
+;;; answered it, which names itself as swipl's foreign predicates do,
+;;; context(Module:Name/Arity, _) (3.0.2, `coco_m_module_ctx' in
+;;; lib/module.cicili). A row wins over the module: a predicate swipl has
+;;; as its own builtin is named as swipl names it, whoever carries it here.
 ;;;
 ;;;   (NAME ARITY)                   context(system:NAME/ARITY, M)
 ;;;   (NAME ARITY :BARE)             context(NAME/ARITY, M)
@@ -467,6 +471,11 @@
     ;; cocolog's own, which swipl 9.0.4 has not, named as a builtin's is
     ("text_concat" 3) ("call_limited" 3) ("call_metered" 4)
     ("read_file_to_codes" 2) ("write_file_from_codes" 2) ("append_file_from_codes" 2)
+    ;; swipl's builtins that library(thread), a loadable module, carries
+    ;; here (3.0.2): named as swipl names its own, where the module's
+    ;; would name the module (`coco_m_module_ctx', lib/module.cicili)
+    ("mutex_lock" 1) ("mutex_unlock" 1) ("mutex_trylock" 1) ("mutex_destroy" 1)
+    ("thread_detach" 1) ("mutex_create" 1 :BARE)
     ;; swipl's own, named bare whatever raises
     ("length" 2 :BARE)
     ;; swipl's, written over another predicate there
@@ -870,7 +879,14 @@
     ;; directive), 1 findall/3's '$bags':findall_loop/4, 2 forall/2's
     ;; '$apply':forall/2, 3 aggregate_all/3's aggregate:aggregate_all/3,
     ;; 4 with_output_to/2's system:'$c_call_prolog'/0
-    (member int         rootn))
+    (member int         rootn)
+    ;; THE MODULE ANSWERING THE GOAL IN FLIGHT (3.0.2): its index in the
+    ;; registry plus one, set by the seam before each dispatcher it calls
+    ;; (lib/module.cicili) and cleared by the step when the module's call
+    ;; returns, so 0 outside one, so that a raise from a loadable module's
+    ;; own predicate names it, context(Module:Name/Arity, _), as swipl names
+    ;; a foreign predicate (`coco_m_raise'). Appended
+    (member size_t      kmod))
 
   ;;; What `--trace' asks for: engines made after this is set trace from
   ;;; their first goal. A per-engine affair after that -- `trace/0' and
@@ -2131,8 +2147,9 @@
   ;;; error, `context(length/2, _)' for the few swipl names bare,
   ;;; `context((//)/2, _)' for an arithmetic function's, a fresh variable for
   ;;; a goal no row of `*error-contexts*' names (a library predicate's, a
-  ;;; program's, a loadable module's). Through 2.16 every raise left it a
-  ;;; fresh variable. Out of line and cold: a raise pays it, nothing else.
+  ;;; program's; a loadable module's names the module, 3.0.2,
+  ;;; `coco_m_module_ctx'). Through 2.16 every raise left it a fresh
+  ;;; variable. Out of line and cold: a raise pays it, nothing else.
   ;;; context(MOD:NAME/ARITY, MSG), or context(NAME/ARITY, MSG) for MOD ""
   (weak) (cold)
   (func coco_ectx_pi ((coco_machine * m) (const char * mod) (size_t name) (u32 arity)
