@@ -1507,7 +1507,7 @@
   ;;;
   ;;; THE TERM IS STILL THERE for anything that wants it -- this is a way to
   ;;; SAY a ball, not a replacement for having one.
-  (decl) (func coco_error_text ((coco_machine * m) (size_t ball)
+  (decl) (func coco_error_text ((coco_machine * m) (coco_store * st) (size_t ball)
                               (char * out) (size_t len)))
 
   ;;; The same for the exception an engine ended on, which is the shape every

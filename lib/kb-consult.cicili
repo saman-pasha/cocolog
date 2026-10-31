@@ -1631,7 +1631,7 @@
                                               "Initialization goal failed")
                               (set code 1)))
                       ((!= main 0)
-                       (let ((char what [1600]))
+                       (let ((char what [6000]))
                          (snprintf what (sizeof what) "%s %s"
                                    (? (== ($ gtext s) nil) "user:main" ($ gtext s)) err)
                          (coco_load_note "ERROR" origin (nth i ($ inits lines)) what)
@@ -1647,7 +1647,7 @@
                       ;; messages: they are word for word now.
                       (#t (block (coco_load_note "ERROR" origin (nth i ($ inits lines))
                                                  "Initialization goal raised exception:")
-                                 (fprintf stderr "ERROR: %s\n" err)
+                                 (coco_say_lines "ERROR" "" err)
                                  (set code 2))))
                     ;; where it was raised, as a directive's (1.10.17)
                     (coco_bt_say m (and (!= gr 1) (!= gr 0)))

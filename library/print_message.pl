@@ -510,8 +510,41 @@ message_to_string(Term, Str) :-
     !,
     [ nl, '  ?- is the Prolog prompt' ],
     '$pm_faq'('ToplevelMode').
-'$pm_unknown_proc'(_) -->
-    [].
+'$pm_unknown_proc'(Proc) -->
+    { '$pm_dwim_predicates'(Proc, Dwims) },
+    (   { Dwims \== [] }
+    ->  [ nl, '  However, there are definitions for:', nl ],
+        '$pm_dwim_message'(Dwims)
+    ;   []
+    ).
+
+%% the predicates Proc's name is near, as Name/Arity in swipl's order
+%% (3.3.0, the engine's `$dwim_predicates'/2): the name is a goal's head,
+%% as swipl's dwim_predicate/2 reads it, and its own predicate alone where
+%% that is defined -- Name/0 for an atom, foo/1 for `foo(x)' --, else each
+%% defined predicate whose name dwim-matches, the system's first. There is
+%% one namespace, so a module says nothing. A Proc of neither shape fails,
+%% as swipl's does: the message is then the one for anything that does not
+%% exist.
+'$pm_dwim_predicates'(_:Name/_, Dwims) :-
+    !,
+    '$pm_dwim_name'(Name, Dwims).
+'$pm_dwim_predicates'(Name/_, Dwims) :-
+    '$pm_dwim_name'(Name, Dwims).
+
+'$pm_dwim_name'(_:Name, Dwims) :-
+    !,
+    '$pm_dwim_name'(Name, Dwims).
+'$pm_dwim_name'(Name, Dwims) :-
+    callable(Name),
+    '$dwim_predicates'(Name, Dwims),
+    !.
+'$pm_dwim_name'(_, []).
+
+'$pm_dwim_message'([]) --> [].
+'$pm_dwim_message'([PI|T]) -->
+    [ '        ~q'-[PI], nl ],
+    '$pm_dwim_message'(T).
 
 '$pm_faq'(Page) -->
     [ nl, '  See FAQ at https://www.swi-prolog.org/FAQ/', Page, '.txt' ].

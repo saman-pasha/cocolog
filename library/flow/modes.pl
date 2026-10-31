@@ -241,6 +241,10 @@ flow_mode('$declare', 2, ['+', '+'], det).
 %% what a part of a directive's declaration raised, reported where the
 %% directive stands (3.1.0): always true
 flow_mode('$decl_report', 2, ['+', '+'], det).
+%% the predicates an unknown procedure's name is near, for print_message/2's
+%% message of it (3.3.0): fails for a name that is neither an atom nor
+%% a compound
+flow_mode('$dwim_predicates', 2, ['+', '-'], semidet).
 flow_mode(ensure_loaded, 1, ['+'], det).
 flow_mode(use_module, 1, ['+'], det).
 flow_mode(use_module, 2, ['+', '+'], det).

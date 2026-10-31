@@ -224,6 +224,305 @@
         (return (or (coco_b_tier1_claims name arity)
                     (coco_b_construct_claims name arity))))
 
+  ;;; ---- what an unknown procedure is near: swipl's dwim (3.3.0) ----------
+  ;;;
+  ;;; AN UNKNOWN PROCEDURE'S MESSAGE NAMES THE PREDICATES OF A LIKE NAME, as
+  ;;; swipl's does: `However, there are definitions for:' and a line each
+  ;;; (boot/messages.pl's unknown_proc_msg//1). Which ones is swipl's rule,
+  ;;; read off its source (boot/dwim.pl and pl-dwim.c, 9.0.4):
+  ;;;
+  ;;;   - the goal's own predicate, where there is one, and nothing else:
+  ;;;     an atom's is Name/0, so `nl/3' is answered `nl/0', never `nl/1',
+  ;;;     and a compound's its own, so `foo(x)/1' is answered `foo/1'
+  ;;;     (dwim_predicate_list/2's first clause);
+  ;;;   - else every defined predicate whose name dwim-matches the goal's,
+  ;;;     whatever its arity: the system's first, then the program's, each by arity and
+  ;;;     then by name, and never a `$' name.
+  ;;;
+  ;;; The system's are swipl's (lib/swipl-system.cicili, 662 names) that
+  ;;; cocolog defines too: a construct, a row of the engine or of a
+  ;;; compiled-in module, or a library's clauses. So append/3 and maplist/3,
+  ;;; which swipl keeps in its libraries and lists only once their autoload
+  ;;; has run, are not among them. The program's are what
+  ;;; current_predicate/1 answers, from the predicates the store holds.
+
+  ;;; THE MATCH, pl-dwim.c's dwimMatch. Past the names' common start, with
+  ;;; the rests at most five apart in length and each name at least three
+  ;;; long: one character differs, or two next to each other are swapped,
+  ;;; or one is inserted. Or, over the whole names, the sub-words are
+  ;;; separated differently (`aB', `a_b', `ab'), or two sub-words next to
+  ;;; each other are swapped (`exists_file', `file_exists'). A byte past
+  ;;; 127 is neither small nor capital; swipl's table knows Latin-1's, which
+  ;;; it keeps such a name in.
+  (static) (inline)
+  (func coco_dwim_small ((int c)) (out int) (return (and (>= c 97) (<= c 122))))
+
+  (static) (inline)
+  (func coco_dwim_capital ((int c)) (out int) (return (and (>= c 65) (<= c 90))))
+
+  (static) (inline)
+  (func coco_dwim_lower ((int c)) (out int) (return (? (coco_dwim_capital c) (+ c 32) c)))
+
+  (static) (inline)
+  (func coco_dwim_at ((const char * s) (size_t i)) (out int)
+        (return (cast int (cast uchar (nth i s)))))
+
+  ;; oneTypo: the rests, of one length, differ in their first character
+  (static)
+  (func coco_dwim_typo ((const char * s1) (const char * s2)) (out int)
+        (return (or (== (nth 1 s1) (cast char 0)) (== 0 (strcmp (+ s1 1) (+ s2 1))))))
+
+  ;; twoTransposed: the rests begin with the same two characters, swapped
+  (static)
+  (func coco_dwim_swapped ((const char * s1) (const char * s2)) (out int)
+        (return (and (!= (nth 1 s1) (cast char 0))
+                     (and (== (nth 0 s1) (nth 1 s2)) (== (nth 1 s1) (nth 0 s2)))
+                     (or (== (nth 2 s1) (cast char 0)) (== 0 (strcmp (+ s1 2) (+ s2 2)))))))
+
+  ;; differentSeparated: the same first character, then the same characters
+  ;; with a `_' passed over and a capital after a small letter read small
+  (static)
+  (func coco_dwim_separated ((const char * s1) (const char * s2)) (out int)
+        (let ((size_t i . 0) (size_t j . 0) (int c1 . 0) (int c2 . 0))
+          (if (or (!= (nth 0 s1) (nth 0 s2)) (== (nth 0 s1) (cast char 0))) (return 0))
+          (set i 1)
+          (set j 1)
+          (set c1 (coco_dwim_at s1 i))
+          (set c2 (coco_dwim_at s2 j))
+          (while (and (!= c1 0) (== c1 c2))
+            (set i (+ i 1))
+            (set c1 (coco_dwim_at s1 i))
+            (if (== c1 (coco-ch "_"))
+                (block (set i (+ i 1)) (set c1 (coco_dwim_at s1 i)))
+              (if (and (coco_dwim_small (coco_dwim_at s1 (- i 1))) (coco_dwim_capital c1))
+                  (set c1 (coco_dwim_lower c1))))
+            (set j (+ j 1))
+            (set c2 (coco_dwim_at s2 j))
+            (if (== c2 (coco-ch "_"))
+                (block (set j (+ j 1)) (set c2 (coco_dwim_at s2 j)))
+              (if (and (coco_dwim_small (coco_dwim_at s2 (- j 1))) (coco_dwim_capital c2))
+                  (set c2 (coco_dwim_lower c2)))))
+          (return (and (== c1 0) (== c2 0)))))
+
+  ;; subWord: the sub-word S begins, read small at its start, into STORE
+  ;; (cut at CAP); where the next begins, past a `_' that ends this one
+  (static)
+  (func coco_dwim_subword ((const char * s) (char * store) (size_t cap)) (out const char *)
+        (let ((size_t k . 0) (size_t i . 1))
+          (set (nth 0 store) (cast char (coco_dwim_lower (coco_dwim_at s 0))))
+          (set k 1)
+          (while 1
+            (if (== (nth i s) (cast char 0))
+                (block (set (nth k store) (cast char 0)) (return (+ s i))))
+            (if (== (coco_dwim_at s i) (coco-ch "_"))
+                (block (set (nth k store) (cast char 0)) (return (+ s (+ i 1)))))
+            (if (and (coco_dwim_small (coco_dwim_at s (- i 1))) (coco_dwim_capital (coco_dwim_at s i)))
+                (block (set (nth k store) (cast char 0)) (return (+ s i))))
+            (if (< (+ k 1) cap)
+                (block (set (nth k store) (nth i s)) (set k (+ k 1))))
+            (set i (+ i 1)))))
+
+  ;; subwordsTransposed: sub-word by sub-word the same, but for one pair
+  ;; next to each other that is swapped
+  (static)
+  (func coco_dwim_words_swapped ((const char * s1) (const char * s2)) (out int)
+        (let ((char a1 [256]) (char b1 [256]) (char a2 [256]) (char b2 [256]))
+          (while (and (!= (nth 0 s1) (cast char 0)) (!= (nth 0 s2) (cast char 0)))
+            (set s1 (coco_dwim_subword s1 a1 (sizeof a1)))
+            (set s2 (coco_dwim_subword s2 a2 (sizeof a2)))
+            (if (!= 0 (strcmp a1 a2))
+                (block
+                  (if (or (== (nth 0 s1) (cast char 0)) (== (nth 0 s2) (cast char 0))) (return 0))
+                  (set s1 (coco_dwim_subword s1 b1 (sizeof b1)))
+                  (set s2 (coco_dwim_subword s2 b2 (sizeof b2)))
+                  (if (or (!= 0 (strcmp a1 b2)) (!= 0 (strcmp b1 a2))) (return 0)))))
+          (return (and (== (nth 0 s1) (cast char 0)) (== (nth 0 s2) (cast char 0))))))
+
+  (static)
+  (func coco_dwim_match ((const char * str1) (const char * str2)) (out int)
+        (let ((const char * s1 . nil) (const char * s2 . nil) (size_t cl . 0)
+              (size_t l1 . 0) (size_t l2 . 0))
+          (set s1 str1)
+          (set s2 str2)
+          (while (and (!= (nth 0 s1) (cast char 0)) (== (nth 0 s1) (nth 0 s2)))
+            (set s1 (+ s1 1))
+            (set s2 (+ s2 1))
+            (set cl (+ cl 1)))
+          (set l1 (strlen s1))
+          (set l2 (strlen s2))
+          (if (or (> l1 (+ l2 5)) (> l2 (+ l1 5))) (return 0))
+          (if (and (== l1 0) (== l2 0)) (return 1))
+          (if (or (< (+ cl l1) 3) (< (+ cl l2) 3)) (return 0))
+          (if (and (== l1 l2) (coco_dwim_typo s1 s2)) (return 1))
+          (if (and (== l1 l2) (coco_dwim_swapped s1 s2)) (return 1))
+          (if (or (and (== l2 (+ l1 1)) (== 0 (strcmp s1 (+ s2 1))))
+                  (and (== l1 (+ l2 1)) (== 0 (strcmp s2 (+ s1 1)))))
+              (return 1))
+          (if (coco_dwim_separated str1 str2) (return 1))
+          (return (coco_dwim_words_swapped str1 str2))))
+
+  ;;; ONE PREDICATE NEAR THE NAME, and the list being made of them
+  (struct coco_dwim_hit
+    (member const char * name)
+    (member u32 arity)
+    (member int sys))
+
+  (struct coco_dwim_acc
+    (member coco_machine * m)
+    (member coco_store * st)
+    (member const char * q)
+    (member coco_dwim_hit * v)
+    (member size_t n)
+    (member size_t cap)
+    ;; the arity of the goal Q names: its own predicate is asked first
+    (member u32 zar))
+
+  ;; a growth refused leaves the list as it is: a shorter list, never a
+  ;; wrong one
+  (static)
+  (func coco_dwim_add ((coco_dwim_acc * a) (const char * name) (u32 arity) (int sys))
+        (if (>= (-> a n) (-> a cap))
+            (let ((size_t ncap . #'(? (== (-> a cap) 0) 16 (* (-> a cap) 2)))
+                  (coco_dwim_hit * grown . nil))
+              (set grown (cast (coco_dwim_hit *) (realloc (-> a v) (* ncap (sizeof coco_dwim_hit)))))
+              (if (== grown nil) (return))
+              (set (-> a v) grown)
+              (set (-> a cap) ncap)))
+        (set ($ (nth (-> a n) (-> a v)) name) name)
+        (set ($ (nth (-> a n) (-> a v)) arity) arity)
+        (set ($ (nth (-> a n) (-> a v)) sys) sys)
+        (set (-> a n) (+ (-> a n) 1)))
+
+  ;; the atom NAME is, plus one, or 0 where no atom has the name -- and
+  ;; then no predicate does. A probe of the table as `coco_intern_h' makes
+  ;; one, appending nothing.
+  (static)
+  (func coco_dwim_atom ((coco_machine * m) (const char * name)) (out u64)
+        (let ((size_t len . #'(strlen name)) (u64 h . #'(coco_hash name len)) (size_t j . 0))
+          (coco_tbl_sync m)
+          (set j (cast size_t (bitand h (cast u64 (- (-> m atom_bucket_cap) 1)))))
+          (while (!= (nth j (-> m atom_buckets)) 0)
+            (let ((size_t id . #'(- (nth j (-> m atom_buckets)) 1)))
+              (if (and (== ($ (nth id (-> m atoms)) hash) h)
+                       (and (== ($ (nth id (-> m atoms)) len) len)
+                            (== (memcmp ($ (nth id (-> m atoms)) name) name len) 0)))
+                  (return (+ (cast u64 id) 1))))
+            (set j (bitand (+ j 1) (- (-> m atom_bucket_cap) 1))))
+          (return 0)))
+
+  ;; a predicate of the store that is defined, as current_predicate/1 counts
+  ;; one -- a clause, or a declaration -- and the program's own unless LIB
+  (static)
+  (func coco_dwim_defined ((coco_pred * p) (int lib)) (out int)
+        (return (and (or lib (or (not (-> p library)) (-> p own)))
+                     (or (> (coco_pred_live p) 0) (or (-> p dynamic) (-> p declared))))))
+
+  ;; whether cocolog defines NAME/ARITY: a construct, a row of a compiled-in
+  ;; module or of the engine, or a predicate of the store, a library's too
+  (static)
+  (func coco_dwim_has ((coco_dwim_acc * a) (const char * name) (u32 arity)) (out int)
+        (if (or (coco_b_construct_claims name arity) (coco_b_tier1_claims name arity)) (return 1))
+        (let ((u64 id1 . #'(coco_dwim_atom (-> a m) name)) (size_t pi . 0))
+          (if (== id1 0) (return 0))
+          (if (>= (coco_builtin_index (-> a m) (- id1 1) arity) 0) (return 1))
+          (if (== (-> a st) nil) (return 0))
+          (set pi (coco_pred_find (-> a st) (- id1 1) arity))
+          (if (>= pi (-> (-> a st) npreds)) (return 0))
+          (return (coco_dwim_defined (aof (nth pi (-> (-> a st) preds))) 1))))
+
+  ;; one of swipl's system predicates, kept when its name is near and
+  ;; cocolog defines it
+  (static)
+  (func coco_dwim_offer ((coco_dwim_acc * a) (const char * name) (u32 arity))
+        (if (and (coco_dwim_match (-> a q) name) (coco_dwim_has a name arity))
+            (coco_dwim_add a name arity 1)))
+
+  (static) (coco-emit-dwim-system coco_dwim_system)
+
+  ;; the program's predicates whose names are near
+  (static)
+  (func coco_dwim_program ((coco_dwim_acc * a))
+        (let ((coco_store * st . #'(-> a st)))
+          (if (== st nil) (return))
+          (for ((size_t i . 0)) (< i (-> st npreds)) ((++ i))
+            (let ((coco_pred * p . #'(aof (nth i (-> st preds))))
+                  (const char * name . nil))
+              (if (coco_dwim_defined p 0)
+                  (block
+                    (set name (coco_atom_name (-> a m) (-> p name)))
+                    (if (and (!= (nth 0 name) (coco-ch "$")) (coco_dwim_match (-> a q) name))
+                        (coco_dwim_add a name (-> p arity) 0))))))))
+
+  ;; the system's before the program's, each by arity, then by name: the
+  ;; standard order of the `M:Head' terms swipl's setof/3 collects
+  (static)
+  (func coco_dwim_cmp ((const void * x) (const void * y)) (out int)
+        (let ((const coco_dwim_hit * a . #'(cast (const coco_dwim_hit *) x))
+              (const coco_dwim_hit * b . #'(cast (const coco_dwim_hit *) y)))
+          (if (!= (-> a sys) (-> b sys)) (return (? (-> a sys) -1 1)))
+          (if (!= (-> a arity) (-> b arity)) (return (? (< (-> a arity) (-> b arity)) -1 1)))
+          (return (strcmp (-> a name) (-> b name)))))
+
+  ;; THE LIST, in swipl's order, into A, whose V the caller frees
+  (static)
+  (func coco_dwim_collect ((coco_dwim_acc * a))
+        (if (coco_dwim_has a (-> a q) (-> a zar))
+            (block (coco_dwim_add a (-> a q) (-> a zar) 0) (return)))
+        (coco_dwim_system a)
+        (coco_dwim_program a)
+        (if (> (-> a n) 1)
+            (qsort (-> a v) (-> a n) (sizeof coco_dwim_hit) coco_dwim_cmp)))
+
+  ;; Name/Arity, as a term
+  (static)
+  (func coco_dwim_pi ((coco_machine * m) (coco_dwim_hit * h)) (out size_t)
+        (return (coco_make2 m "/" (coco_new_atom m (-> h name))
+                            (coco_new_int m (cast i64 (-> h arity))))))
+
+  ;;; THE LINES AN UNKNOWN PROCEDURE'S MESSAGE ENDS ON, as the engine writes
+  ;;; it (installed as `coco_dwim_hook', for lib/solve-control.cicili's
+  ;;; `coco_error_text'): none where nothing is near the name NID, of the
+  ;;; goal of ZAR arguments.
+  (func coco_b_dwim_text ((coco_machine * m) (coco_store * st) (u64 nid) (u32 zar)
+                          (coco_strbuf * b))
+        (let ((coco_dwim_acc a . '{ nil nil nil nil 0 0 0 }))
+          (set ($ a m) m)
+          (set ($ a zar) zar)
+          (set ($ a st) st)
+          (set ($ a q) (coco_atom_name m nid))
+          (coco_dwim_collect (aof a))
+          (if (> ($ a n) 0)
+              (block
+                (coco_sb_put b "\n  However, there are definitions for:")
+                (for ((size_t i . 0)) (< i ($ a n)) ((++ i))
+                  (coco_sb_put b "\n        ")
+                  (coco_write_term m b (coco_dwim_pi m (aof (nth i ($ a v)))) 1 0))))
+          (free ($ a v))))
+
+  ;;; '$dwim_predicates'(Head, PIs): the same list for print_message/2's
+  ;;; `'$pm_unknown_proc'//1', Name/Arity terms in swipl's order, of the goal
+  ;;; HEAD names -- an atom or a compound; anything else fails.
+  (func coco_b_dwim_predicates ((coco_engine * e) (size_t g)) (out int)
+        (let ((coco_machine * m . #'(coco_m_machine e)) (u32 zar . 0)
+              (const char * q . #'(coco_m_functor e (coco_m_arg e g 0) (aof zar)))
+              (coco_dwim_acc a . '{ nil nil nil nil 0 0 0 })
+              (size_t * v . nil) (size_t out . 0))
+          (if (== q nil) (return 0))
+          (set ($ a m) m)
+          (set ($ a zar) zar)
+          (set ($ a st) (-> e st))
+          (set ($ a q) q)
+          (coco_dwim_collect (aof a))
+          (set v (cast (size_t *) (malloc (* (+ ($ a n) 1) (sizeof size_t)))))
+          (if (== v nil)
+              (block (free ($ a v)) (return (coco_m_resource_error e "memory"))))
+          (for ((size_t i . 0)) (< i ($ a n)) ((++ i))
+            (set (nth i v) (coco_dwim_pi m (aof (nth i ($ a v))))))
+          (set out (coco_m_list e v ($ a n)))
+          (free v)
+          (free ($ a v))
+          (return (coco_m_unify e (coco_m_arg e g 1) out))))
+
   ;;; PREDICATE_PROPERTY/2'S C HALF (1.10.28): '$pred_props'(Head, Props),
   ;;; the properties of the predicate Head names, or a failure where
   ;;; nothing defines it -- SWI's answer for an unknown one. Module:Head

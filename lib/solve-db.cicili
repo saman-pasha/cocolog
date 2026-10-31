@@ -430,7 +430,7 @@
                     (set k (coco_new_atom m "transparent")))
                 (set b (coco_make2 m "error" (coco_arg m b 0)
                                    (coco_ectx_pi m "system" k 1 (coco_new_var m))))))
-          (coco_error_text m b text (sizeof text))
+          (coco_error_text m (-> e st) b text (sizeof text))
           (coco_load_message "ERROR" (-> m sloc_file) (-> m sloc_line) text)
           (return 1)))
 

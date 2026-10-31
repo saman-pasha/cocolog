@@ -93,6 +93,7 @@
     ("$predicates"             1 coco_b_predicates)
     ("$cp_spec"                2 coco_b_cp_spec)
     ("$pred_props"             2 coco_b_pred_props)
+    ("$dwim_predicates"        2 coco_b_dwim_predicates)
     ("abolish"                 1 coco_b_abolish)
 
     ("nb_setval"               2 coco_b_setval)
@@ -145,6 +146,14 @@
                      `((and (== arity ,(SECOND row)) (== 0 (strcmp name ,(FIRST row)))) (return 1)))
                    rows)
          (#t (return 0))))))
+
+;;; SWIPL'S SYSTEM PREDICATES, OFFERED ONE BY ONE (3.3.0): a function of one
+;;; call a row of lib/swipl-system.cicili's table, for the dwim lines of an
+;;; unknown procedure (lib/builtins-db.cicili, `coco_dwim_offer').
+(DEFMACRO coco-emit-dwim-system (fname)
+  `(func ,fname ((coco_dwim_acc * a))
+     ,@(MAPCAR (LAMBDA (row) `(coco_dwim_offer a ,(FIRST row) ,(SECOND row)))
+               *swipl-system-predicates*)))
 
 ;;; THE CONTROL CONSTRUCTS A PROGRAM CALLS, by name AND arity, as SWI
 ;;; lists them: `*construct-names*' holds the engine's own markers too

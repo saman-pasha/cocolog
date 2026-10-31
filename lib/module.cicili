@@ -712,7 +712,7 @@
   (func coco_module_load ((coco_store * st) (coco_machine * m) (coco_engine * e)) (out int)
         (if (== coco_nmodules 0) (return 1))
         (if (>= (-> st libs) coco_nmodules) (return 1))
-        (let ((char err [512]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
+        (let ((char err [4096]) (int ok . 1) (int saved_dq . #'(-> m double_quotes))
               (int vouch . #'(-> m dgc)))
           (set (-> m dgc) 0)
           ;; why a consult below stopped, kept for whoever asked for the

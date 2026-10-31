@@ -66,7 +66,98 @@ main :-
     memory_refused,
     read_that_failed,
     recursive_message,
+    near_names,
     checks_done.
+
+%% ---- what an unknown procedure's name is near (3.3.0) -----------------------
+%%
+%% `However, there are definitions for:' and a line each, swipl's: what
+%% test/files/dwim.pl holds to swipl's text cannot be held there. The report
+%% of a goal at the top and of an initialization(G, main) goal put the
+%% prefix before each line (`coco_say_lines'; swipl's -g main is the
+%% comparison, and the files case runs main under catch/3); a list of fifty
+%% names is printed whole, where the reports' buffers held 512 bytes; and a
+%% name of swipl's system is offered only where cocolog defines it --
+%% write/2 and its kin are library(stream)'s, never the engine's -- and
+%% the program's after it: this one's own are the prelude's (written/3).
+near_names :-
+    section('an unknown procedure names what is near its name'),
+    scratch(D),
+    cocolog(C),
+    atom_concat(D, '/near.pl', F1),
+    fixture(F1, [ 'foo(1).', 'foo(1, 2).', 'main :- fooo(x).' ]),
+    sh_join([C, ' --local --no-backtrace run ', F1, ' main 2>&1'], Cmd1),
+    shell(Cmd1, Out1, Rc1),
+    check('a goal at the top that raised ends 2', Rc1, 2),
+    check('its report puts the prefix before each line, as swipl''s -g main', Out1,
+          'ERROR: -g main: catch/3: Unknown procedure: fooo/1\nERROR:   However, there are definitions for:\nERROR:         foo/1\nERROR:         foo/2'),
+    atom_concat(D, '/near_main.pl', F2),
+    fixture(F2, [ 'foo(1).', ':- initialization(fooo(z), main).' ]),
+    sh_join([C, ' --local --no-backtrace run ', F2, ' true 2>&1'], Cmd2),
+    shell(Cmd2, Out2, _),
+    atomic_list_concat(['ERROR: ', F2, ':2: user:fooo(z) catch/3: Unknown procedure: fooo/1\nERROR:   However, there are definitions for:\nERROR:         foo/1'], Want2),
+    check('so does an initialization(G, main) goal''s', Out2, Want2),
+    findall(L, ( member(Ch, [a,b,c,d,e,f,g,h,i,j,k,l,m,n,p,q,r,s,t,u,v,w,x,y,z]),
+                 atom_concat(foo, Ch, N),
+                 member(L, [N-'(1).', N-'(1, 2).']) ), Ps),
+    findall(Line, ( member(N-T, Ps), atom_concat(N, T, Line) ), Lines),
+    atom_concat(D, '/near_many.pl', F3),
+    append(Lines, [ ':- fooo(x).', 'main :- fooo(x).' ], Lines3),
+    fixture(F3, Lines3),
+    sh_join([C, ' --local --no-backtrace run ', F3, ' main 2>&1'], Cmd3),
+    shell(Cmd3, Out3, _),
+    has('fifty names in a directive''s report, the last one too', 'ERROR:            fooz/2\nWarning:', Out3),
+    has('...and at the top', 'ERROR:         fooa/2\nERROR:         foob/2\n', Out3),
+    (   sub_atom(Out3, B3, _, 0, 'ERROR:         fooz/2'), B3 > 0 -> T3 = whole ; T3 = cut ),
+    check('...the last one too', T3, whole),
+    atom_concat(D, '/near_script.pl', F4),
+    append(Lines, [ ':- fooo(x).', 'main.' ], Lines4),
+    fixture(F4, Lines4),
+    sh_join([C, ' --no-backtrace -s ', F4, ' 2>&1'], Cmd4),
+    shell(Cmd4, Out4, _),
+    has('...and a module''s load, -s FILE''s, reports them whole', 'ERROR:            fooz/2\nWarning:', Out4),
+    atom_concat(D, '/near_load.pl', F5),
+    append(Lines, [ ':- fooo(x).' ], Lines5),
+    fixture(F5, Lines5),
+    sh_join([C, ' --local --no-backtrace consult ', F5, ' 2>&1'], Cmd5),
+    shell(Cmd5, Out5, _),
+    has('...and cocolog consult''s', 'ERROR:            fooz/2\nWarning:', Out5),
+    atom_concat(D, '/near_goal.pl', F6),
+    atomic_list_concat(['main :- consult(''', F5, ''').'], Main6),
+    fixture(F6, [ Main6 ]),
+    sh_join([C, ' --local --no-backtrace run ', F6, ' main 2>&1'], Cmd6),
+    shell(Cmd6, Out6, _),
+    has('...and consult/1''s, as a goal', 'ERROR:            fooz/2\nWarning:', Out6),
+    atom_concat(D, '/near_again.pl', F7),
+    atomic_list_concat([':- use_module(''', F5, ''').'], Use7),
+    fixture(F7, [ Use7, Main6 ]),
+    sh_join([C, ' --no-backtrace -s ', F7, ' 2>&1'], Cmd7),
+    shell(Cmd7, Out7, _),
+    atomic_list_concat(Parts7, 'ERROR:            fooz/2\nWarning:', Out7),
+    length(Parts7, N7),
+    check('...and the read again of a file loaded as a module, both whole', N7, 3),
+    %% a hundred and fifty names, past the 1600 bytes this report went
+    %% through
+    findall(L8, ( member(Ch8, [a,b,c,d,e,f,g,h,i,j,k,l,m,n,p,q,r,s,t,u,v,w,x,y,z]),
+                  atom_concat(foo, Ch8, N8),
+                  member(A8, ['(1).', '(1, 2).', '(1, 2, 3).', '(1, 2, 3, 4).',
+                              '(1, 2, 3, 4, 5).', '(1, 2, 3, 4, 5, 6).']),
+                  atom_concat(N8, A8, L8) ), Many8),
+    atom_concat(D, '/near_init.pl', F8),
+    append(Many8, [ ':- initialization(fooo(z), main).' ], Lines8),
+    fixture(F8, Lines8),
+    sh_join([C, ' --local --no-backtrace run ', F8, ' true 2>&1'], Cmd8),
+    shell(Cmd8, Out8, _),
+    (   sub_atom(Out8, B8, _, 0, '\nERROR:         fooz/6'), B8 > 0 -> T8 = whole ; T8 = cut ),
+    check('...and a hundred and fifty in an initialization(G, main) goal''s', T8, whole),
+    answer('$dwim_predicates'(writen, P4), P4, G4),
+    check('a name of swipl''s system is offered where cocolog defines it, and only there',
+          G4, [write/1, writeln/1, writeq/1, written/3]),
+    answer('$dwim_predicates'(written(a, b, c), P9), P9, G9),
+    check('a compound is a goal, and its own predicate is asked first', G9, [written/3]),
+    yes_no('$dwim_predicates'(3, _), Y5),
+    check('a name that is neither has none', Y5, no),
+    shl(['rm -rf ', D]).
 
 %% ---- a message printed while it is printed (2.16.0) -------------------------
 %%

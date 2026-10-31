@@ -207,6 +207,8 @@
   (import "./lib/files.cicili")
   (import "./lib/lists.cicili")
   (import "./lib/apply.cicili")
+  ;; swipl's system predicates, a table builtins.cicili's dwim reads
+  (import "./lib/swipl-system.cicili")
   (import "./lib/builtins.cicili")
   (import "./lib/builtins-format.cicili")
   (import "./lib/builtins-db.cicili")
@@ -408,7 +410,7 @@
   ;;;
   ;;; NOTHING PARSES IT. `--version' prints it and the suite checks the
   ;;; SHAPE, never the number, so a bump is one line and not two.
-  (func coco_version_text () (out const char *) (return "3.2.0"))
+  (func coco_version_text () (out const char *) (return "3.3.0"))
 
   (func usage ()
         (fprintf stderr "cocolog %s -- a Prolog interpreter with its knowledge base in Zigurat\n\n"
@@ -638,7 +640,7 @@
         (if (!= db nil) (set (-> st on_halt) halt_finish)))
 
   (func cmd_consult ((int argc) (char ** argv) (int from)) (out int)
-        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [512]) (int total . 0))
+        (let ((coco_machine m) (coco_store st) (coco_zg z) (char err [4096]) (int total . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (if (not ($ opts local)) (coco_zg_attach (aof z) db (aof m) (aof st) ($ opts kb)))
@@ -835,9 +837,12 @@
         (fflush nil)
         ;; on a line of its own, as swipl's print_message/2 puts it (2.16.0)
         (coco_out_fresh stderr)
-        (let ((char msg [512]))
+        ;; a line each, when the text runs to several (3.3.0: an unknown
+        ;; procedure's ends on what its name is near), each with its tag
+        (let ((char msg [4096]) (char lead [320]))
+          (snprintf lead (sizeof lead) "%s: " where)
           (if (coco_engine_error_text e msg (sizeof msg))
-              (fprintf stderr "ERROR: %s: %s\n" where msg)
+              (coco_say_lines "ERROR" lead msg)
             (fprintf stderr "ERROR: %s: %s\n" where (-> e err))))
         (coco_out_note stderr "\n" 1)
         ;; AND WHERE IT WAS RAISED (1.10.17), for a ball: the lines its
@@ -2375,6 +2380,9 @@
         ;; what the compiled-in modules claim, for a program file's clause
         ;; of one's name (3.1.0): refused if ISO, else taking it over
         (coco_claims_install coco_b_claims)
+        ;; and what an unknown procedure's name is near, for its message
+        ;; (3.3.0): swipl's `However, there are definitions for:'
+        (coco_dwim_install coco_b_dwim_text)
         (if (not (coco_dcg_module))
             (block (fprintf stderr "cocolog: the dcg module would not register\n")
                    (return 0)))
@@ -2396,7 +2404,7 @@
   ;;; the program itself writes, success is 0 and failure is 1.
   (func cmd_run ((int argc) (char ** argv) (int from) (const char * goal)) (out int)
         (let ((coco_machine m) (coco_store st) (coco_engine e) (coco_zg z) (coco_zt zt)
-              (char err [512]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
+              (char err [4096]) (int rc . 0) (int halted . 0) (int halt_code . 0) (int batched . 0))
           (coco_machine_init (aof m))
           (coco_store_init (aof st))
           (coco_engine_init (aof e) (aof m) (aof st))

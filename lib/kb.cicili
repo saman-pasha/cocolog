@@ -2058,6 +2058,17 @@
   (decl) (func coco_claims_install
                ((func h ((const char * name) (u32 arity)) (out int))))
 
+  ;;; WHAT AN UNKNOWN PROCEDURE'S NAME IS NEAR (3.3.0), installed by the
+  ;;; builtins module (its `coco_b_dwim_text'): the lines swipl's message
+  ;;; ends on, `However, there are definitions for:' and a line each, which
+  ;;; the engine's text of the error appends (`coco_error_text'). NID and
+  ;;; ZAR are the goal the name stands for: its name, and the arity asked
+  ;;; first -- 0 for an atom, a compound's own. While it is null the text
+  ;;; has none, as in the test binaries.
+  (decl) (func coco_dwim_install
+               ((func h ((coco_machine * m) (coco_store * st) (u64 nid) (u32 zar)
+                         (coco_strbuf * b)))))
+
   ;;; Whether the store's NAME/ARITY is one a program file took over
   ;;; (`taken', 3.1.0): 0 at once while none is.
   (decl) (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int))
@@ -2108,6 +2119,14 @@
 
   (func coco_claims_install ((func h ((const char * name) (u32 arity)) (out int)))
         (set coco_claims_hook h))
+
+  ;; and what an unknown procedure is near, by the same module
+  (static) (var func coco_dwim_hook ((coco_machine * m) (coco_store * st) (u64 nid)
+                                     (u32 zar) (coco_strbuf * b)))
+
+  (func coco_dwim_install
+        ((func h ((coco_machine * m) (coco_store * st) (u64 nid) (u32 zar) (coco_strbuf * b))))
+        (set coco_dwim_hook h))
 
   (func coco_pred_taken ((coco_store * st) (u64 name) (u32 arity)) (out int)
         (if (== (-> st ntaken) 0) (return 0))
@@ -2189,18 +2208,37 @@
               (set p (+ nl 1)))))
         (coco_out_note stderr "\n" 1))
 
+  ;;; A REPORT OF SEVERAL LINES ON STDERR, as swipl's print_message/2 puts
+  ;;; one (3.3.0: an unknown procedure's text ends on what its name is
+  ;;; near): `TAG: LEAD' before the first line, `TAG: ' before each after.
+  (func coco_say_lines ((const char * tag) (const char * lead) (const char * what))
+        (let ((const char * p . what) (int first . 1))
+          (while 1
+            (let ((const char * nl . #'(strchr p 10)))
+              (if first
+                  (fprintf stderr "%s: %s" tag lead)
+                (fprintf stderr "%s: " tag))
+              (set first 0)
+              (if (== nl nil)
+                  (block (fprintf stderr "%s\n" p) break))
+              (fprintf stderr "%.*s\n" (cast int (- nl p)) p)
+              (set p (+ nl 1))))))
+
   ;;; The one-line form, which is the one SWI uses for an initialization goal
   ;;; -- `Warning: p.pl:1: Initialization goal failed'. Measured against
   ;;; swipl rather than remembered: the two shapes are not interchangeable
-  ;;; there and a reader who greps for one should find it.
+  ;;; there and a reader who greps for one should find it. A text of
+  ;;; several lines puts the tag alone before each after the first (3.3.0).
   (static)
   (func coco_load_note ((const char * tag) (const char * origin) (int line)
                         (const char * what))
         (fflush nil)
         (coco_out_fresh stderr)
         (if (!= origin nil)
-            (fprintf stderr "%s: %s:%d: %s\n" tag origin line what)
-          (fprintf stderr "%s: %s\n" tag what))
+            (let ((char lead [4200]))
+              (snprintf lead (sizeof lead) "%s:%d: " origin line)
+              (coco_say_lines tag lead what))
+          (coco_say_lines tag "" what))
         (coco_out_note stderr "\n" 1))
 
   (func coco_bt_say ((coco_machine * m) (int say))

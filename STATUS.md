@@ -9405,3 +9405,147 @@ NOT DONE, and stated:
   list: listing/1's and portray_clause/1's layout, expand_term/2 and
   dcg_translate_rule/2, and postfix operators (op/3 refuses xf and yf,
   domain_error(operator_specifier, xf), where swipl takes them).
+
+## An unknown procedure names what is near its name (3.3.0)
+
+The owner's ask goes on ("fix the remaining swipl differences too"), and
+the first of 3.2.0's list was swipl's message for an unknown procedure: it
+ends on the predicates whose names are near its own, `However, there are
+definitions for:' and a line each, where cocolog's said only `Unknown
+procedure: fooo/1'. It is swipl 9.0.4's now, held by a new case that runs
+under both systems and compares the output byte for byte. A minor, cocolog
+3.3.0: what an uncaught error, a directive's report or print_message/2
+prints of an unknown procedure has more lines than it had.
+
+WHAT CHANGED:
+- SWIPL'S RULE, read off its source (boot/dwim.pl, pl-dwim.c's dwimMatch,
+  boot/messages.pl's unknown_proc_msg//1). The name is a goal's head, and
+  its own predicate is asked first and answered alone where it is defined:
+  an atom's is Name/0 (`nl(a, b, c)' is answered nl/0, and `done(1, 2)' a
+  program's done/0, never its done/1), a compound's its own (`foo(x)/1' is
+  answered foo/1, `zap(x)/1', with no zap/1, what zap is near). Else every
+  defined predicate of any arity whose name dwim-matches: past the names'
+  common start, the rests at most five apart in length and each name three
+  long, one character off (`zar', zaq/1), two next to each other swapped
+  (`atom_lenght'), one in or out (`fooo', foo/1); over the whole names, the
+  sub-words separated differently (`barBaz', bar_baz/1; `quxquuxcorge',
+  qux_quux_corge/1; `waldoFredPlugh', waldofred_plugh/1, a capital after a
+  small letter read small) or two of them swapped (`baz_bar'). The
+  system's come first, then the program's, each by arity and then by name,
+  and never a `$' name (`coco_dwim_match', `coco_dwim_collect',
+  lib/builtins-db.cicili).
+- THE SYSTEM'S are swipl's module `system' with what it imports from swipl's
+  boot modules (format/1 is `$syspreds''s), 662 names in
+  lib/swipl-system.cicili, a table tools/dwim/system.pl generates under the
+  reference swipl 9.0.4; one is offered only where cocolog defines it too --
+  a construct, a row of the engine or of a compiled-in module, or a
+  library's clauses -- so `writen' is answered write/1, writeln/1 and
+  writeq/1 (their /2 are library(stream)'s, a loadable module's) and
+  `appen' nothing (swipl's append/1 opens a file). THE PROGRAM'S are what
+  current_predicate/1 answers: a predicate of the store with a clause, or
+  declared dynamic, discontiguous or multifile, and never a library's
+  (library(async)'s await/1,2 are not offered for `awaitt').
+- FIVE NAMES SAY THEIR OWN instead, swipl's: (^)/2, `^/2 can only appear as
+  the 2nd argument of setof/3 and bagof/3', under a module too; and only
+  unqualified, (:-)/2 and (=>)/2, `Rules must be loaded from a file',
+  (:-)/1, `Directives must be loaded from a file', and (?-)/1, `?- is the
+  Prolog prompt', each with swipl's line for its FAQ. A name with modules
+  inside it, `(user:fooo)/1' or `(a:(b:fooo))/1', is near what fooo is
+  near and says none of the five, nor does a compound name (`(:- a)/1',
+  `(a^b)/2'); an arity that is no integer has the lines (`fooo/a'), a name
+  that is neither an atom nor a compound none (`3/1'), and a procedure that
+  is no Name/Arity is `procedure `fooo' does not exist', swipl's words when
+  its dwim cannot read it (`coco_err_is_pi').
+- WHERE THE LINES GO: the engine's text of the error, `coco_error_text',
+  which takes the store whose program is offered now, its new
+  `coco_err_unknown_more' calling the hook the builtins module installs
+  (`coco_dwim_install', `coco_b_dwim_text'; a test binary installs none and
+  prints no lines); so an uncaught error, a directive's report and an
+  initialization goal's have them. And print_message/2's, through
+  '$dwim_predicates'/2 (library/print_message.pl's `'$pm_unknown_proc'//1':
+  a Proc of neither shape fails it, as swipl's dwim_predicates/2 fails, and
+  the message is the one of anything that does not exist). The text runs to
+  several lines, and every printer puts its prefix before each, as swipl's
+  print_message/2 does: `ERROR: ' after the first (`coco_say_lines': the
+  top's `-g main' report, an initialization goal's, an initialization(G,
+  main) goal's), indented under a directive's location
+  (`coco_load_message', as since 3.1.0). The buffers the text is written
+  into are 4096 bytes where a report went through 512 -- the top's,
+  `run''s, `cocolog consult''s, a module's load (`-s FILE', use_module/1),
+  consult/1's and a re-read's -- and an initialization(G, main) goal's
+  6000: fifty names fit, a hundred and fifty in the last, where 3.2.0 would
+  have cut any text past 512.
+
+PROVED:
+- test/files/dwim.pl, new: 182 lines of swipl's output to the byte, every
+  rule and shape above, through print_message/2, a directive's report, an
+  initialization goal's and message_to_string/2's text.
+- test/errors.pl's new section, 14 checks: the top's report with its prefix
+  before each line, as swipl's `-g main'; an initialization(G, main) goal's;
+  fifty names whole in a directive's report under `run', at the top, in a
+  module's load (`-s FILE'), in `cocolog consult''s, consult/1's as a goal
+  and a re-read of a file loaded as a module, and a hundred and fifty in an
+  initialization(G, main) goal's; '$dwim_predicates'/2 offering a system
+  name where cocolog defines it and only there, a compound's own predicate
+  first, and nothing for a name that is neither an atom nor a compound.
+- THE ARMS, each a copy of the tree with ONE edit, built as the release is
+  and run through the two checks above, every one RED: 52 in the engine --
+  the match's nine (a character off, two swapped, one in or out, the
+  sub-words separated, a capital read small, two sub-words swapped, the
+  floor of three, the five apart, no `$' name), what is offered, six (the
+  goal's own predicate first, a system name only where cocolog defines it,
+  a dynamic and a declared predicate, no library's, the system's imports),
+  the order's two (the system's first, then by arity), the five names'
+  eight ((^)/2, under a module too, (:-)/2 and (=>)/2 together and apart,
+  (:-)/1, (?-)/1, the FAQ line, a qualified name saying none), the name's
+  eight (a module stripped, at any depth, saying none, a name that is
+  neither, an arity that is no integer, a compound's head, its own arity,
+  saying none), the two of a procedure that is no Name/Arity, the six that
+  carry the lines (the call, the hook installed, the row of
+  '$dwim_predicates'/2, its compound and its arity, the text's arity), the
+  printers' four (the top's, `coco_say_lines', a directive's location, an
+  initialization goal's) and the seven buffers. 34 were built on the first
+  tree, at sites the later edits did not touch; 18 on the final one: seven
+  rebuilt where the compound rule moved their site, seven new for it, and
+  four that stayed green on the first round's checks (the sub-words
+  separated, the capital read small, the name that is neither, the
+  initialization(G, main) goal's buffer, which fifty names had not filled)
+  and are red since the checks hold an input only their rule decides. And
+  7 in library/print_message.pl ('$dwim_predicates'/2 asked, no lines for
+  none, a Proc that is no Name/Arity, a qualified name, M:Name/Arity, a line
+  each, callable/1).
+- `tools/flow/zero.sh' against 3.2.0 built as the arms are (418bfe1's
+  sources in a copy of the tree): the untraced engine's work less padding
+  is nrev 65 876 205 to 65 876 131, queens 42 900 232 to 42 900 230 and
+  lookup 47 830 664 to 47 830 587, 0.000 % in each.
+- lint --auto over the changed files (0 HARD, 0 WARN), the dialect card's
+  cites moved and checked (28 rows, 40 cites), library(flow/chart)'s tables
+  rebuilt for the new row and test/flowchart.pl green.
+- THE NARROW CASES, in place of the full suite here (the owner's choice;
+  CI runs the whole suite on its three jobs): lint, backtrace, directives,
+  repl, errors, engine, files (beside the reference swipl 9.0.4), library,
+  reconsult, trace, module, syntax, argv and flowchart, each GREEN; and
+  lessons 00, 03, 09, 42 and 56, run as test/tutorials.pl runs them, each
+  ending on `done'.
+
+NOT DONE, and stated:
+- The REPL corrects no goal: swipl's toplevel asks `Correct to: "foo(x)"?'
+  where the near names are one; cocolog's prints the message, its lines and
+  all.
+- swipl lists a library's predicate once its autoload has run (append/3
+  after a call of it); cocolog lists a library's only where swipl's system
+  module has it.
+- A loadable module's predicates (a `.so''s) are not offered, nor what a
+  remote store holds that this process has not read.
+- A name past ASCII is compared byte by byte, where swipl compares its
+  characters by Latin-1's classes or as wide text.
+- From 3.1.0's and 3.2.0's lists, still: a load directive's relative path
+  looked for in the loading file's directory first, and with it swipl's
+  Dir/File path terms, a missing file's existence_error(source_sink, Spec)
+  from ensure_loaded/1 and use_module/1 as goals, and a file named in a
+  message by its absolute path; term_to_atom/2's `\n', a quoted infix
+  operator's spaces and a quoted prefix operator; library(stream)'s errors;
+  a load's singleton and discontiguous warnings; a syntax error's class,
+  term and message; listing/1's and portray_clause/1's layout; expand_term/2
+  and dcg_translate_rule/2; postfix operators; swipl's dicts;
+  thread_initialization/1 in later threads.

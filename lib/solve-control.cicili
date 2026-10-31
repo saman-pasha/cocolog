@@ -2206,6 +2206,14 @@
           (coco_write_term m b w 0 0)
           (coco_sb_put b ")")))
 
+  ;; whether P is `_/_' or `_:(_/_)', the shapes swipl's message reads an
+  ;; unknown procedure in (3.3.0)
+  (static)
+  (func coco_err_is_pi ((coco_machine * m) (size_t p)) (out int)
+        (set p (coco_deref m p))
+        (if (coco_is_compound2 m p ":") (set p (coco_deref m (coco_arg m p 1))))
+        (return (coco_is_compound2 m p "/")))
+
   (static)
   (func coco_error_body ((coco_machine * m) (size_t ball) (char * out) (size_t len))
         (let ((size_t b . #'(coco_deref m ball))
@@ -2232,7 +2240,10 @@
                 (let ((size_t k . #'(coco_deref m (coco_arg m f 0))))
                   (coco_err_say m k a1 (sizeof a1))
                   (coco_err_say m (coco_arg m f 1) a2 (sizeof a2))
-                  (if (== 0 (strcmp a1 "procedure"))
+                  ;; a procedure is named Name/Arity, or Module:Name/Arity,
+                  ;; to be unknown: anything else is a procedure that does
+                  ;; not exist, swipl's words when its dwim cannot read it
+                  (if (and (== 0 (strcmp a1 "procedure")) (coco_err_is_pi m (coco_arg m f 1)))
                       (block (snprintf out len "Unknown procedure: %s" a2) (return)))
                   (snprintf out len "%s `%s' does not exist" a1 a2)
                   (return)))
@@ -2358,10 +2369,75 @@
             (coco_err_say m f a1 (sizeof a1))
             (snprintf out len "Unknown error term: %s" a1))))
 
+  ;;; WHAT SWIPL SAYS AFTER `Unknown procedure: PI' (3.3.0, boot/messages.pl's
+  ;;; unknown_proc_msg//1), into POST: a line for each of five a program
+  ;;; cannot mean to call -- (^)/2, which only setof/3 and bagof/3 read,
+  ;;; a rule (:-)/2 or (=>)/2, a directive (:-)/1 and the prompt (?-)/1 --
+  ;;; and for any other the predicates its name is near (`coco_dwim_hook',
+  ;;; the builtins module's). Only (^)/2 is known under a module.
+  (static)
+  (func coco_err_unknown_more ((coco_machine * m) (coco_store * st) (size_t b)
+                               (coco_strbuf * post))
+        (let ((size_t f . #'(coco_deref m (coco_arg m b 0)))
+              (size_t k . 0) (size_t p . 0) (size_t nm . 0) (size_t ar . 0)
+              (const char * n . nil) (i64 a . 0) (int qual . 0) (int special . 1) (u32 zar . 0)
+              (const char * faq . "\n  See FAQ at https://www.swi-prolog.org/FAQ/ToplevelMode.txt"))
+          (if (not (coco_is_compound2 m f "existence_error")) (return))
+          (set k (coco_deref m (coco_arg m f 0)))
+          (if (not (and (coco-tag-is ATOM (nth k (-> m heap)))
+                        (== 0 (strcmp (coco_atom_name m (coco_name_of m k)) "procedure"))))
+              (return))
+          (set p (coco_deref m (coco_arg m f 1)))
+          (if (coco_is_compound2 m p ":")
+              (block (set qual 1) (set p (coco_deref m (coco_arg m p 1)))))
+          (if (not (coco_is_compound2 m p "/")) (return))
+          (set nm (coco_deref m (coco_arg m p 0)))
+          (set ar (coco_deref m (coco_arg m p 1)))
+          ;; a qualified name, `(M:foo)/1', is near what foo is, however deep
+          ;; its modules, and says none of the five (`special' 0)
+          (while (coco_is_compound2 m nm ":")
+            (set special 0)
+            (set nm (coco_deref m (coco_arg m nm 1))))
+          ;; THE NAME IS A GOAL'S HEAD, as swipl reads it (boot/dwim.pl's
+          ;; dwim_predicate_list/2 asks current_predicate(_, Head) first): an
+          ;; atom names its /0 and a compound its own predicate, so
+          ;; `foo(x)/1' is answered foo/1 where that is defined, and the near
+          ;; names are its name's; a name of any other kind has none. Any
+          ;; arity will do for the near names: `foo/a' has them.
+          (cond ((coco-tag-is ATOM (nth nm (-> m heap))) (set zar 0))
+                ((coco-tag-is FUN (nth nm (-> m heap)))
+                 (block (set zar (coco_arity m nm)) (set special 0)))
+                (#t (return)))
+          (set n (coco_atom_name m (coco_name_of m nm)))
+          (set a (? (coco-is-int (nth ar (-> m heap))) (coco_int_val m (nth ar (-> m heap))) -1))
+          (if (and special (and (== a 2) (== 0 (strcmp n "^"))))
+              (block
+                (coco_sb_put post "\n  ^/2 can only appear as the 2nd argument of setof/3 and bagof/3")
+                (return)))
+          (if (and special (not qual))
+              (block
+                (if (and (== a 2) (or (== 0 (strcmp n ":-")) (== 0 (strcmp n "=>"))))
+                    (block (coco_sb_put post "\n  Rules must be loaded from a file")
+                           (coco_sb_put post faq)
+                           (return)))
+                (if (and (== a 1) (== 0 (strcmp n ":-")))
+                    (block (coco_sb_put post "\n  Directives must be loaded from a file")
+                           (coco_sb_put post faq)
+                           (return)))
+                (if (and (== a 1) (== 0 (strcmp n "?-")))
+                    (block (coco_sb_put post "\n  ?- is the Prolog prompt")
+                           (coco_sb_put post faq)
+                           (return)))))
+          (if (!= coco_dwim_hook nil)
+              (coco_dwim_hook m st (coco_name_of m nm) zar post))))
+
   ;;; THE MESSAGE OF AN UNCAUGHT ERROR, as swipl prints it (3.0.0): where it
-  ;;; was raised (`coco_err_caller'), what it is (`coco_error_body'), and
-  ;;; what its context says besides (`coco_err_extra').
-  (func coco_error_text ((coco_machine * m) (size_t ball) (char * out) (size_t len))
+  ;;; was raised (`coco_err_caller'), what it is (`coco_error_body'), what
+  ;;; follows an unknown procedure (`coco_err_unknown_more', 3.3.0, over the
+  ;;; program of ST), and what its context says besides (`coco_err_extra').
+  ;;; The text may run to several lines: a printer puts its prefix before
+  ;;; each (`coco_load_message', `coco_say_lines').
+  (func coco_error_text ((coco_machine * m) (coco_store * st) (size_t ball) (char * out) (size_t len))
         (let ((size_t b . #'(coco_deref m ball)) (char body [1024]) (coco_strbuf pre) (coco_strbuf post))
           (coco_error_body m b body (sizeof body))
           (coco_sb_init (aof pre))
@@ -2369,6 +2445,7 @@
           (if (and (coco_is_callable m b) (and (== (coco_arity m b) 2)
                    (== 0 (strcmp (coco_atom_name m (coco_name_of m b)) "error"))))
               (block (coco_err_caller m b (aof pre))
+                     (coco_err_unknown_more m st b (aof post))
                      (coco_err_extra m b (aof post))))
           (snprintf out len "%s%s%s" (? (== ($ pre s) nil) "" ($ pre s)) body
                     (? (== ($ post s) nil) "" ($ post s)))
@@ -2380,7 +2457,7 @@
         (let ((coco_store * bs . #'(? (== (-> e ball_st) nil)
                                       (-> e st)
                                       (cast (coco_store *) (-> e ball_st)))))
-          (coco_error_text (-> e m)
+          (coco_error_text (-> e m) (-> e st)
                            (coco_store_read (-> e m) bs (-> e ball_cell))
                            out len))
         (return 1))
